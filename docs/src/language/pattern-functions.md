@@ -409,7 +409,7 @@ pattern.n(index)           // number, pattern string or pattern
 
 On an `s()` pattern, picks the variation of each sound, like `bd:3`. It replaces an index written in the word.
 
-```js
+```js packs
 blank("house");
 track("kick", s("bd*4").bank("tr909").n("0 0 3 0"));
 ```

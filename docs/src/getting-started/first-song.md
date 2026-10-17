@@ -73,7 +73,7 @@ instruments whose licences ask for them (`credits.txt`).
 
 A script can edit a saved song. Make a file called `edit.rhai`:
 
-```js
+```js packs
 tempo(122);
 part("chords", #{ preset: "piano" });
 mix("lead", #{ level: -2, reverb: 0.35 });

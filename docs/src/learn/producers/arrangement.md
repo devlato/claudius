@@ -90,7 +90,7 @@ section("intro", #{ variant: "main" });           // the full drum patterns in t
 A pattern track plays its pattern from the first bar of each section it is in. It is not rewritten by builds or
 fills, so a song made of patterns arranges its own builds:
 
-```js
+```js packs
 blank("house");
 tempo(124); key("A minor"); prog("A", "Am7 Fmaj7 Dm7 Em7"); bars_per_chord(1);
 track("kick",  s("bd*4").bank("tr909"));

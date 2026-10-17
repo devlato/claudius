@@ -91,7 +91,7 @@ The score is high because the skeleton is simple and the sections are clearly la
 The remake is an ordinary song. A script can fix what the analysis got wrong and replace any part with your own.
 This one corrects the first chord and puts a written motif in place of the generated Rhodes lead:
 
-```js
+```js packs
 prog("A", "i7 VImaj7 iv7 v7");
 track("lead", n("<[4 ~ 4 2 4 ~ 6 4] [5 ~ 5 4 2 ~ 0 ~] [3 ~ 3 2 0 ~ 2 3] [4 ~ ~ 6 4 ~ ~ ~]>")
                 .octave(4).s("rhodes").room(0.3).delay(0.2));
