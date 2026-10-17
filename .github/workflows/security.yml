@@ -36,7 +36,8 @@ jobs:
 
   dependency-review:
     name: dependency review
-    if: github.event_name == 'pull_request'
+    # GitHub offers dependency review on public repositories (private ones need Advanced Security)
+    if: github.event_name == 'pull_request' && !github.event.repository.private
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

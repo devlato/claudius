@@ -1,7 +1,8 @@
-//! Every `js` block in the book (docs/src) and the README runs, so the docs cannot drift from the language. The fence's info string
-//! decides how: `js` must succeed, `js packs` runs when sample packs are installed, `js error` must fail, `js no-run`
-//! is not run. Blocks run against house seed 9 unless they start their own song. Lines starting with `~` are hidden
-//! on the page (mdBook) but run here.
+//! Every `js` block in the book (docs/src) and the README runs, so the docs cannot drift from the language. The fence's
+//! info string decides how: `js` must succeed without sample packs, `js packs` runs when they are installed, `js error`
+//! must fail, `js no-run` is not run. Plain `js` blocks run with the packs switched off even where they are installed,
+//! so that a block that needs them fails here as it would on CI. Blocks run against house seed 9 unless they start
+//! their own song. Lines starting with `~` are hidden on the page (mdBook) but run here.
 
 use std::path::{Path, PathBuf};
 
@@ -63,8 +64,12 @@ fn every_example_in_the_docs_runs() {
     markdown_files(&root, &mut files);
     files.sort();
     files.push(root.join("../../README.md"));
-    let base = compose::generate(&genres::get("house").unwrap(), 9, &Options::default(), None);
+    let house = genres::get("house").unwrap();
+    claudius_packs::set_disabled(true);
+    let base = compose::generate(&house, 9, &Options::default(), None);
+    claudius_packs::set_disabled(false);
     let packs = !claudius_packs::installed().is_empty();
+    let base_with_packs = compose::generate(&house, 9, &Options::default(), None);
     let (mut ran, mut failures) = (0, Vec::new());
     for file in &files {
         let text = std::fs::read_to_string(file).unwrap();
@@ -75,7 +80,9 @@ fn every_example_in_the_docs_runs() {
                 continue;
             }
             ran += 1;
-            let result = script::run(&b.code, Some(base.clone()), None).and_then(|out| {
+            claudius_packs::set_disabled(!has("packs"));
+            let start = if has("packs") { &base_with_packs } else { &base };
+            let result = script::run(&b.code, Some(start.clone()), None).and_then(|out| {
                 if let Some(bp) = &out.bp {
                     let p = compose::arrange(bp);
                     if p.tracks.is_empty() {
@@ -93,6 +100,7 @@ fn every_example_in_the_docs_runs() {
             }
         }
     }
+    claudius_packs::set_disabled(false);
     assert!(failures.is_empty(), "{} of {ran} examples failed:\n\n{}", failures.len(), failures.join("\n\n"));
 }
 

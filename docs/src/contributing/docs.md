@@ -49,8 +49,8 @@ working fails the build. The fence's info string says how:
 
 | fence | what the test does |
 |---|---|
-| ` ```js ` | runs it; it must succeed |
-| ` ```js packs ` | runs it when the sample packs are installed (it uses sampled instruments) |
+| ` ```js ` | runs it with the sample packs switched off, as on CI; it must succeed |
+| ` ```js packs ` | runs it when the sample packs are installed (it uses sampled instruments or kits) |
 | ` ```js error ` | runs it; it must fail (for showing error messages) |
 | ` ```js no-run ` | shows it without running it (fragments, signatures) |
 
