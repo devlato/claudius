@@ -1,0 +1,44 @@
+name: Bug report
+description: Something claudius does wrong, or does not do although the docs say it does.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead. Paste errors as text.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      description: The command, the script, or the clicks in the studio. A seed (`--seed 7`) makes songs repeatable.
+      placeholder: |
+        claudius make --genre trap --seed 7
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `claudius doctor`
+      description: It shows the version, the OS, and what is installed (packs, models, the web studio).
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you installed claudius
+      options:
+        - install.sh or install.ps1
+        - Homebrew
+        - a release archive
+        - built from source
+    validations:
+      required: true
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: Files that help (a song folder's blueprint.json, a screenshot), or what you already tried.

@@ -1,0 +1,35 @@
+<meta name="theme-color" content="#101217" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f8f7f4" media="(prefers-color-scheme: light)">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<script>
+// the book's title in the menu bar links to the landing page
+document.addEventListener("DOMContentLoaded", function () {
+    var title = document.querySelector(".menu-title");
+    if (!title || title.querySelector("a")) return;
+    var link = document.createElement("a");
+    link.href = "/";
+    link.className = "claudius-home";
+    link.textContent = title.textContent;
+    var note = document.createElement("span");
+    note.className = "claudius-home-note";
+    note.textContent = "docs";
+    link.appendChild(note);
+    link.title = "The " + title.textContent + " home page";
+    title.textContent = "";
+    title.appendChild(link);
+    var bar = document.getElementById("mdbook-menu-bar");
+    if (bar && !bar.hasAttribute("role")) bar.setAttribute("role", "banner");
+    // mdBook's sidebar toggle is a <label> for a hidden checkbox: give it a button's role and keys
+    var toggle = document.getElementById("mdbook-sidebar-toggle");
+    if (toggle && toggle.tagName === "LABEL" && !toggle.hasAttribute("role")) {
+        toggle.setAttribute("role", "button");
+        if (!toggle.hasAttribute("tabindex")) toggle.tabIndex = 0;
+        toggle.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                toggle.click();
+            }
+        });
+    }
+});
+</script>

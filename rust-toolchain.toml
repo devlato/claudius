@@ -1,0 +1,6 @@
+[toolchain]
+# the version CI and releases build with; raise it in its own pull request, with the lints it brings
+channel = "1.96.0"
+profile = "minimal"
+components = ["rustfmt", "clippy"]
+targets = ["wasm32-unknown-unknown"]

@@ -1,0 +1,24 @@
+# crate-ci/typos: catches misspellings in code, comments and docs. The words below are not typos here.
+
+[default]
+extend-ignore-re = [
+    # note values and ordinals: 8ths, 16ths, 2nd
+    "\\b[0-9]+(st|nd|rd|th|ths|nds)\\b",
+]
+
+[default.extend-words]
+arange = "arange"     # numpy.arange, in the earshot port
+caf = "caf"           # Core Audio Format, the Apple Loops container
+existant = "existant" # mdBook's own CSS variable, --sidebar-non-existant
+fo = "fo"             # fade-out length
+nd = "nd"             # a new scale degree; the ordinal suffix
+seeked = "seeked"     # the media element event
+stlye = "stlye"       # a misspelled option in a test of the error it gives
+thr = "thr"           # threshold
+trak = "trak"         # a misspelled function in an example of an error
+
+[files]
+extend-exclude = [
+    "crates/earshot/data/",
+    "crates/earshot/parity/fixtures/",
+]

@@ -1,0 +1,27 @@
+# build output
+target/
+crates/claudius-ui/dist/
+fuzz/target/
+fuzz/artifacts/
+fuzz/corpus/
+fuzz/coverage/
+
+# songs rendered while working on claudius
+out/
+
+# the website's test tooling
+site/node_modules/
+site/test-results/
+site/playwright-report/
+
+# snapshot candidates waiting for `cargo insta review`
+*.snap.new
+*.pending-snap
+
+# the Python reference used to check the earshot port (crates/earshot/parity)
+.venv/
+__pycache__/
+*.pyc
+.cache/
+
+.DS_Store

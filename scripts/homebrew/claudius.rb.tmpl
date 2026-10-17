@@ -1,0 +1,59 @@
+# The Homebrew formula for claudius. release.yml fills in the version and the checksum of each archive (from the
+# release's SHA256SUMS) and pushes the result to devlato/homebrew-tap as Formula/claudius.rb.
+#
+#   brew install devlato/tap/claudius
+#
+# The Intel Mac build has no ears (ONNX Runtime has no Intel Mac build for ort to link).
+class Claudius < Formula
+  desc "Beatmaker that composes, arranges, mixes and judges songs like a producer"
+  homepage "https://claudius.pages.dev"
+  license "MIT"
+
+  on_macos do
+    on_arm do
+      url "https://github.com/devlato/claudius/releases/download/v{{version}}/claudius-{{version}}-aarch64-apple-darwin.tar.gz"
+      sha256 "{{sha256_aarch64_apple_darwin}}"
+    end
+    on_intel do
+      url "https://github.com/devlato/claudius/releases/download/v{{version}}/claudius-{{version}}-x86_64-apple-darwin.tar.gz"
+      sha256 "{{sha256_x86_64_apple_darwin}}"
+    end
+  end
+
+  on_linux do
+    on_intel do
+      url "https://github.com/devlato/claudius/releases/download/v{{version}}/claudius-{{version}}-x86_64-unknown-linux-gnu.tar.gz"
+      sha256 "{{sha256_x86_64_unknown_linux_gnu}}"
+    end
+    on_arm do
+      url "https://github.com/devlato/claudius/releases/download/v{{version}}/claudius-{{version}}-aarch64-unknown-linux-gnu.tar.gz"
+      sha256 "{{sha256_aarch64_unknown_linux_gnu}}"
+    end
+  end
+
+  def install
+    bin.install "bin/claudius", "bin/claudius-packs"
+    # claudius looks for the web studio at <its directory>/../share/claudius/web
+    (share/"claudius").install "share/claudius/web"
+    doc.install "README.md", "CHANGELOG.md"
+  end
+
+  def caveats
+    if OS.mac? && Hardware::CPU.intel?
+      <<~EOS
+        This build has no ears: ONNX Runtime has no Intel Mac build, so verdicts use meters and music theory.
+        `claudius setup` downloads the sample packs (about 1.1 GB).
+        `claudius doctor` checks the installation. ffmpeg is optional (for writing MP3s).
+      EOS
+    else
+      <<~EOS
+        `claudius setup` downloads the sample packs and the listening models (about 2 GB).
+        `claudius doctor` checks the installation. ffmpeg is optional (for writing MP3s).
+      EOS
+    end
+  end
+
+  test do
+    assert_match version.to_s, shell_output("#{bin}/claudius --version")
+  end
+end

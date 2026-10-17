@@ -1,0 +1,52 @@
+claudius
+Copyright (c) 2026 The claudius authors. MIT License (see LICENSE).
+
+This software includes or uses the work of others, listed here with their licences.
+
+
+Included in the source
+----------------------
+
+crates/earshot is a Rust port of earshot (https://github.com/Leonxlnx/earshot),
+Copyright (c) 2026 Leon Lin, MIT License. Its licence is in
+crates/earshot/LICENSE-earshot. The vocabulary statistics in crates/earshot/data
+are derived from earshot.
+
+Rust crates the binaries link are listed with their licences in Cargo.lock and
+checked by cargo-deny (deny.toml). Every one of them is under a permissive or
+weak-copyleft licence (MIT, Apache-2.0, BSD, ISC, Zlib, Unicode, MPL-2.0 for
+symphonia). ONNX Runtime (MIT, Microsoft) is linked statically.
+
+
+Downloaded on first use, not distributed with claudius
+------------------------------------------------------
+
+The listening models, fetched from the Hugging Face Hub by `claudius setup` or
+the first verdict, checked against pinned SHA-256 hashes:
+
+  - CLAP "larger_clap_general" by LAION, Apache-2.0
+    (https://huggingface.co/laion/larger_clap_general), in the ONNX export by
+    Xenova (https://huggingface.co/Xenova/larger_clap_general).
+  - The Audio Spectrogram Transformer fine-tuned on AudioSet by MIT CSAIL,
+    BSD-3-Clause (https://huggingface.co/MIT/ast-finetuned-audioset-10-10-0.4593),
+    in the ONNX export by Xenova. Only used with `--tags`.
+
+The sample packs, fetched by `claudius setup` or `claudius-packs install`. Each
+pack's licence and attribution are recorded in crates/claudius-packs/src/registry.json
+and in the pack's index.json once installed; `claudius-packs list` prints them.
+Songs that use packs whose licence asks for credit (CC BY) get a credits.txt
+next to them. The default packs are by Alexander Holm (Salamander grand piano,
+CC BY 3.0), Greg Sullivan (electric pianos, CC BY 3.0), Jeff Learman (jRhodes),
+Versilian Studios (VSCO 2 and VCSL, CC0), Michael Fischer (TR-808, CC0),
+Audio Realism (TR-909), Lars Muldjord (drum kit, CC BY 4.0), FreePats (CC0),
+D. Smolken (double bass, CC0), Karoryfer (bass and voice, CC0), and the TR-707
+and uzu kits (public domain, Unlicense). The piano SFZ mappings are by kinwie /
+sfzinstruments.
+
+
+Used where it is installed, never copied
+----------------------------------------
+
+Apple Loops, when GarageBand or Logic content is installed. Apple licenses them
+for use in your own music. claudius reads them where they are installed and
+keeps only one-shot cuts in its cache; it does not redistribute them.

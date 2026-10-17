@@ -1,0 +1,64 @@
+name: Set up Rust
+description: >-
+  Installs the Rust toolchain that rust-toolchain.toml pins (or the one a job names in RUSTUP_TOOLCHAIN), restores
+  the cargo cache (with the ONNX Runtime download that ort-sys makes), and on Linux installs the system packages the
+  workspace builds against.
+
+inputs:
+  targets:
+    description: Extra targets, comma-separated.
+    default: ""
+  components:
+    description: Extra components, comma-separated.
+    default: ""
+  cache-key:
+    description: Jobs with the same key share one cache.
+    default: ""
+  cache-workspaces:
+    description: The cargo workspaces whose target directories are cached, as rust-cache's `workspaces` input.
+    default: ". -> target"
+  linux-packages:
+    description: Install the Linux build dependencies ("false" for jobs that build no native code).
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    # with no toolchain named, rustup installs the active one, components and targets included: the one in
+    # rust-toolchain.toml, unless the job sets RUSTUP_TOOLCHAIN (the MSRV and fuzz jobs do)
+    - name: Rust toolchain
+      shell: bash
+      env:
+        TARGETS: ${{ inputs.targets }}
+        COMPONENTS: ${{ inputs.components }}
+      run: |
+        rustup toolchain install --profile minimal
+        IFS=, read -ra targets <<< "$TARGETS"
+        if [ "${#targets[@]}" -gt 0 ]; then rustup target add "${targets[@]}"; fi
+        IFS=, read -ra components <<< "$COMPONENTS"
+        if [ "${#components[@]}" -gt 0 ]; then rustup component add "${components[@]}"; fi
+        rustc --version
+
+    # ort-sys unpacks ONNX Runtime outside target/, and the cached build-script output points there, so the two are
+    # cached together; without this, a warm target/ fails to link
+    - name: Keep ONNX Runtime with the cache
+      shell: bash
+      run: echo "ORT_CACHE_DIR=$RUNNER_TEMP/ort" >> "$GITHUB_ENV" # zizmor: ignore[github-env] a fixed value
+
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      with:
+        shared-key: ${{ inputs.cache-key }}
+        workspaces: ${{ inputs.cache-workspaces }}
+        cache-directories: ${{ runner.temp }}/ort
+        # pull requests read the caches main writes, and do not write their own
+        save-if: ${{ github.ref == 'refs/heads/main' }}
+
+    # pkg-config and libssl-dev: ort-sys downloads ONNX Runtime over native TLS at build time. libasound2-dev: rodio,
+    # the studio's audio output, links ALSA. libclang-dev: signalsmith-stretch runs bindgen. X11, Wayland and GL are
+    # loaded at run time, so they need no -dev packages.
+    - name: Linux packages
+      if: runner.os == 'Linux' && inputs.linux-packages == 'true'
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq --no-install-recommends pkg-config libssl-dev libasound2-dev libclang-dev

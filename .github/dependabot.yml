@@ -1,0 +1,49 @@
+# Weekly dependency updates, one grouped PR per ecosystem. The commit-message prefixes keep the PR titles
+# Conventional ("build(deps): ...", "ci(deps): ..."), which the PR title check requires. A release has to be a week
+# old before it is proposed, so that a compromised one has time to be noticed and yanked; security updates do not
+# wait.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    # fuzz/ is a workspace of its own
+    directories: ["/", "/fuzz"]
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      cargo:
+        patterns: ["*"]
+    commit-message:
+      prefix: build
+      include: scope
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directories: ["/", "/.github/actions/rust"]
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+      include: scope
+
+  - package-ecosystem: npm
+    directory: /site
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    groups:
+      site:
+        patterns: ["*"]
+    commit-message:
+      prefix: build
+      include: scope

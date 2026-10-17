@@ -1,0 +1,40 @@
+[package]
+name = "claudius-cli"
+description = "The claudius command line: make, evolve, remake and judge songs; run the studio, the server and the MCP"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[[bin]]
+name = "claudius"
+path = "src/main.rs"
+
+[dependencies]
+claudius = { path = "../claudius", default-features = false }
+claudius-server = { path = "../claudius-server", default-features = false }
+claudius-packs = { path = "../claudius-packs" }
+earshot = { path = "../earshot", optional = true }
+claudius-ui = { path = "../claudius-ui", optional = true }
+anyhow = "1"
+clap = { version = "4", features = ["derive", "env"] }
+getrandom = "0.3"
+serde_json = { version = "1", features = ["preserve_order"] }
+tokio = { version = "1", features = ["rt-multi-thread"] }
+claudius-decode = { version = "0.1.0", path = "../claudius-decode" }
+
+[features]
+default = ["studio", "ears"]
+# earshot's listening models (ONNX Runtime); off for platforms without an ORT build, such as Intel Macs
+ears = ["claudius/ears", "claudius-server/ears", "dep:earshot"]
+# the native studio window (eframe); without it `claudius studio` points you at `claudius serve`
+studio = ["dep:claudius-ui"]
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+serde_json = "1"

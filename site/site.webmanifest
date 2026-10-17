@@ -1,0 +1,15 @@
+{
+  "name": "claudius",
+  "short_name": "claudius",
+  "description": "A beatmaker that listens to its own songs.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "browser",
+  "background_color": "#101217",
+  "theme_color": "#101217",
+  "icons": [
+    { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any" },
+    { "src": "/apple-touch-icon.png", "type": "image/png", "sizes": "180x180" },
+    { "src": "/icon-512.png", "type": "image/png", "sizes": "512x512" }
+  ]
+}

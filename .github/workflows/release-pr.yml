@@ -1,0 +1,114 @@
+# Starts a release: bumps the version, writes the changelog section and opens the PR "release: vX.Y.Z" from the
+# branch release/vX.Y.Z. Merging that PR is what releases (release.yml).
+#
+#   gh workflow run release-pr.yml -f bump=minor
+#
+# The PR is opened with the workflow's GITHUB_TOKEN, and GitHub starts no workflows for events caused by that token,
+# so this workflow starts CI on the release branch itself (`gh workflow run ci.yml`, which that token may do). Set a
+# RELEASE_TOKEN secret (a fine-grained token with Contents and Pull requests write access to this repository) and
+# the PR is opened with it instead, so that it starts CI and the PR title check like any other PR.
+name: release pr
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "patch, minor, major, or an exact version such as 0.4.0"
+        required: true
+        default: patch
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: release-pr
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release-pr:
+    name: open the release PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write # push the release branch
+      pull-requests: write # open the PR
+      actions: write # start CI on the release branch
+    env:
+      GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+      HAS_RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # git-cliff reads the commits since the last tag
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/rust
+        with:
+          cache-key: xtask
+          linux-packages: "false"
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: git-cliff@2.14.2
+      # release prepare updates Cargo.lock offline, so the dependencies have to be here already
+      - run: cargo fetch --locked
+
+      - name: Bump the version and write the changelog
+        id: prepare
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          version=$(cargo xtask release prepare "$BUMP")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          git diff --stat
+
+      - name: Push release/v${{ steps.prepare.outputs.version }} and open the PR
+        env:
+          VERSION: ${{ steps.prepare.outputs.version }}
+          BASE: ${{ github.ref_name }}
+        run: |
+          branch="release/v$VERSION"
+          open=$(gh pr list --head "$branch" --state open --json url --jq '.[0].url // empty')
+          if [ -n "$open" ]; then
+            echo "::error title=release pr::$open is already open for v$VERSION. Merge or close it first."
+            exit 1
+          fi
+
+          # git pushes with GH_TOKEN through gh, so the checkout keeps no credentials
+          gh auth setup-git
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          # the manifests, Cargo.lock, and CHANGELOG.md, which is new on the first release
+          git add --update
+          git add CHANGELOG.md
+          git commit -m "release: v$VERSION"
+          # a branch without an open PR is left over from an earlier run that failed
+          git push --force origin "$branch"
+
+          {
+            echo "Merging this releases claudius $VERSION: release.yml tags v$VERSION on the merge commit, builds the"
+            echo "archives, publishes the GitHub release and deploys the site."
+            echo
+            echo "To change the notes, edit CHANGELOG.md on this branch before merging."
+            echo
+            echo "## Changelog"
+            echo
+            cargo xtask release notes "$VERSION"
+          } > "$RUNNER_TEMP/body.md"
+          gh pr create --base "$BASE" --head "$branch" --title "release: v$VERSION" --body-file "$RUNNER_TEMP/body.md"
+
+      - name: Start CI on the release branch
+        if: env.HAS_RELEASE_TOKEN != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.prepare.outputs.version }}
+        run: |
+          gh workflow run ci.yml --ref "release/v$VERSION"
+          echo "::notice title=release pr::CI was started on release/v$VERSION; its checks show on the PR."

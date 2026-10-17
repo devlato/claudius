@@ -1,0 +1,199 @@
+{
+  "name": "synthwave",
+  "description": "Synthwave: 80s-style straight drums with a big reverberant snare on 2 and 4, a driving eighth-note saw bass, arpeggios, lush pads and a chorused square or supersaw lead over minor progressions",
+  "query": "synthwave music",
+  "alts": ["upbeat corporate pop music", "chiptune video game music", "house music", "ambient synth pad music"],
+  "bpm": [85, 118],
+  "swing": [0.5, 0.5],
+  "humanize": 0.1,
+  "modes": [["minor", 0.8], ["dorian", 0.2]],
+  "harmony": [["minor_80s", 0.7], ["minor_epic", 0.3]],
+  "markov": 0.1,
+  "ext": 0,
+  "bars_per_chord": [[1, 0.5], [2, 0.5]],
+  "forms": [
+    [
+      {"name": "intro", "kind": "intro", "bars": 8, "energy": 0.35, "layers": ["pad", "arp"], "filter_in": true},
+      {
+        "name": "verse",
+        "kind": "verse",
+        "bars": 16,
+        "energy": 0.6,
+        "layers": ["kick", "snare", "hat", "bass", "arp", "pad"],
+        "fills": true
+      },
+      {
+        "name": "chorus",
+        "kind": "hook",
+        "bars": 16,
+        "energy": 0.85,
+        "layers": ["kick", "snare", "hat", "bass", "arp", "pad", "lead", "chords"],
+        "impact": true,
+        "fills": true
+      },
+      {
+        "name": "verse2",
+        "kind": "verse",
+        "bars": 16,
+        "energy": 0.6,
+        "layers": ["kick", "snare", "hat", "bass", "arp", "pad"],
+        "fills": true
+      },
+      {
+        "name": "chorus2",
+        "kind": "hook",
+        "bars": 16,
+        "energy": 0.9,
+        "layers": ["kick", "snare", "hat", "bass", "arp", "pad", "lead", "chords"],
+        "impact": true,
+        "fills": true
+      },
+      {
+        "name": "bridge",
+        "kind": "break",
+        "bars": 8,
+        "energy": 0.45,
+        "prog": "B",
+        "layers": ["pad", "lead"],
+        "build": true
+      },
+      {
+        "name": "chorus3",
+        "kind": "hook",
+        "bars": 16,
+        "energy": 1.0,
+        "layers": ["kick", "snare", "hat", "bass", "arp", "pad", "lead", "chords"],
+        "impact": true,
+        "fills": true
+      },
+      {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.35, "layers": ["pad", "arp"]}
+    ]
+  ],
+  "drums": [
+    {
+      "name": "kick",
+      "voice": "kick",
+      "template": {"steps": [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0], "vel": [0.92, 1.0]},
+      "variants": {"alt": {"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], "vel": [0.92, 1.0]}},
+      "params": {"decay": [0.3, 0.5], "tune": [48, 58], "tone": [0.4, 0.7], "drive": [2, 6]},
+      "samples": ["Kick"],
+      "mix": {"bus": "drums"}
+    },
+    {
+      "name": "snare",
+      "voice": "snare",
+      "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.92, 1.0]},
+      "params": {"decay": [0.2, 0.35], "room": [0.4, 0.7], "tone": [0.5, 0.8]},
+      "samples": ["Snare"],
+      "mix": {"bus": "drums", "reverb": 0.45}
+    },
+    {
+      "name": "hat",
+      "voice": "closed_hat",
+      "template": {"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.4, 0.7]},
+      "variants": {
+        "alt": {"steps": [1, 0.6, 1, 0.6, 1, 0.6, 1, 0.6, 1, 0.6, 1, 0.6, 1, 0.6, 1, 0.6], "vel": [0.35, 0.7]}
+      },
+      "samples": ["Hi-hat"],
+      "mix": {"bus": "drums", "pan": 0.2}
+    }
+  ],
+  "kits": [["tr707", 0.4], ["tr808", 0.2]],
+  "parts": [
+    {
+      "name": "bass",
+      "role": "bass",
+      "presets": ["saw_bass", "pluck_bass"],
+      "styles": ["root8", "octave"],
+      "register": [33, 48],
+      "mix": {"bus": "bass", "duck": 0.3}
+    },
+    {
+      "name": "arp",
+      "role": "arp",
+      "presets": ["pluck", "chip"],
+      "styles": ["up", "updown"],
+      "rates": [0.25],
+      "register": [60, 84],
+      "mix": {"delay": 0.3, "reverb": 0.25, "duck": 0.2, "pan": 0.15}
+    },
+    {
+      "name": "pad",
+      "role": "pad",
+      "presets": ["pad", "strings", "warm_pad"],
+      "styles": ["sustain"],
+      "register": [50, 76],
+      "voices": 4,
+      "voicing": "open",
+      "mix": {
+        "reverb": 0.4,
+        "duck": 0.25,
+        "fx": [{"fx": "chorus", "rate_hz": 0.6, "depth_ms": 3, "delay_ms": 14, "mix": 0.5}]
+      }
+    },
+    {
+      "name": "lead",
+      "role": "lead",
+      "presets": ["square_lead", "supersaw"],
+      "styles": ["motif"],
+      "register": [64, 86],
+      "density": [0.35, 0.55],
+      "mix": {
+        "reverb": 0.3,
+        "delay": 0.25,
+        "fx": [{"fx": "chorus", "rate_hz": 0.8, "depth_ms": 2.5, "delay_ms": 12, "mix": 0.4}]
+      }
+    },
+    {
+      "name": "chords",
+      "role": "chords",
+      "presets": ["supersaw", "strings"],
+      "styles": ["half", "sustain"],
+      "register": [55, 76],
+      "voices": 4,
+      "voicing": "close",
+      "mix": {"reverb": 0.3, "duck": 0.3}
+    }
+  ],
+  "transitions": {
+    "riser": true,
+    "impact": false,
+    "downlifter": false,
+    "reverse_crash": true,
+    "riser_bars": 4,
+    "mix": {"bus": "fx", "reverb": 0.35, "level_db": -3}
+  },
+  "mix": {
+    "lufs": -10.5,
+    "reverb": {
+      "fx": "reverb",
+      "decay": 3.2,
+      "damping": 0.35,
+      "predelay_ms": 30,
+      "width": 1.3,
+      "mix": 1.0,
+      "lowcut": 250
+    },
+    "delay": {"fx": "delay", "beats": 0.75, "feedback": 0.4, "damping": 0.45, "pingpong": true, "mix": 1.0},
+    "buses": {
+      "drums": [
+        {
+          "fx": "compressor",
+          "threshold_db": -12,
+          "ratio": 2.0,
+          "attack_ms": 12,
+          "release_ms": 120,
+          "knee_db": 6,
+          "makeup_db": 1
+        }
+      ],
+      "music": [{"fx": "eq", "bands": [{"kind": "highpass", "freq": 110, "q": 0.7}]}]
+    },
+    "master": [
+      {"fx": "eq", "bands": [{"kind": "highpass", "freq": 25, "q": 0.7}]},
+      {"fx": "compressor", "threshold_db": -11, "ratio": 1.6, "attack_ms": 30, "release_ms": 200, "knee_db": 6},
+      {"fx": "saturate", "kind": "tape", "drive_db": 2.5, "mix": 0.4}
+    ],
+    "duck_release": 0.3
+  }
+}

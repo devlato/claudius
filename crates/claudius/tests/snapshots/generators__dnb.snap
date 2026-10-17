@@ -1,0 +1,31 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+dnb at 175.0 BPM in G minor, swing 0.50
+prog A: i7 iv7 IIImaj7 VImaj7
+prog B: i7 IVsus4 IIImaj7 VImaj7
+bars per chord: 2
+section intro (intro) 16 bars, energy 0.35, prog A, main [filter_in]: pad hat ride
+section build (build) 16 bars, energy 0.55, prog A, main [build gap]: pad hat ride snare lead
+section drop (drop) 32 bars, energy 0.95, prog A, main [impact fills]: kick snare hat ride shaker bass pad lead
+section break (break) 16 bars, energy 0.40, prog B, main [build gap]: pad lead arp hat
+section drop2 (drop) 32 bars, energy 1.00, prog A, main [impact fills]: kick snare hat ride shaker bass pad lead arp
+section outro (outro) 16 bars, energy 0.35, prog A, main []: pad hat ride
+drum kick alt (drum kick): X.........X.....|X.........X.....|X.........X.....|X.........X.....
+drum kick main (drum kick): X.........X.....|X.........X.....|X.........X.....|X.........X.....
+drum snare main (drum snare): ....X.....o.X...|....X.....o.X...|....X.....o.X...|....X.....o.X...
+drum hat main (drum closed_hat): x.x.x.xxxxxxxxxx|x.x.x.xxxxxxxxxx|x.x.x.xxxxxxxxxx|x.x.x.xxxxxxxxxx
+drum ride main (drum ride): o.o.o.o.o.o.o...|o.o.o.o.o.o.o...|o.o.o.o.o.o.o...|o.o.o.o.o.o.o...
+drum shaker main (drum shaker): .oo.oo.ooooo.ooo|.oo.oo.ooooo.ooo|.oo.oo.ooooo.ooo|.oo.oo.ooooo.ooo
+part bass (bass): rolling synth reese, register 26..41, density 0.51
+part pad (pad): sustain synth strings, register 48..74, density 0.57
+part lead (lead): motif synth pluck, register 64..86, density 0.45
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix snare: +0.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix ride: +0.0 dB, pan -0.25, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix shaker: +0.0 dB, pan +0.35, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.50, bus bass
+mix pad: +0.0 dB, pan +0.00, reverb 0.40, delay 0.00, duck 0.40, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.30, delay 0.25, duck 0.25, bus music

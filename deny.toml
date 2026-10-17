@@ -1,0 +1,59 @@
+# cargo-deny (`cargo deny check`): security advisories, licences, banned crates and where crates come from, for
+# everything Cargo.lock resolves on the platforms claudius ships for.
+
+[graph]
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-pc-windows-msvc",
+    "wasm32-unknown-unknown",
+]
+all-features = true
+
+[advisories]
+# unmaintained crates are reported only when the workspace depends on them directly
+unmaintained = "workspace"
+ignore = []
+
+[licenses]
+# permissive licences, plus MPL-2.0 (file-level copyleft: changes to those files stay open, nothing else does)
+allow = [
+    "0BSD",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "ISC",
+    "MIT",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+confidence-threshold = 0.9
+exceptions = [
+    # the fonts egui draws with, built into the binaries
+    { crate = "epaint_default_fonts", allow = ["OFL-1.1", "Ubuntu-font-1.0"] },
+    # Mozilla's list of root certificates, as data
+    { crate = "webpki-roots", allow = ["CDLA-Permissive-2.0"] },
+    { crate = "webpki-root-certs", allow = ["CDLA-Permissive-2.0"] },
+]
+
+[licenses.private]
+# the workspace's own crates are not published, so their licence is not checked here
+ignore = true
+
+[bans]
+multiple-versions = "allow"
+wildcards = "deny"
+# the workspace crates depend on each other by path; that is allowed because every one of them says publish = false
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

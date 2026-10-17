@@ -1,0 +1,24 @@
+[workspace]
+resolver = "3"
+members = ["crates/claudius", "crates/earshot", "crates/claudius-api", "crates/claudius-decode", "crates/claudius-ui", "crates/claudius-packs", "crates/claudius-server", "crates/claudius-cli", "xtask"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+authors = ["The claudius authors"]
+repository = "https://github.com/devlato/claudius"
+homepage = "https://claudius.pages.dev"
+readme = "README.md"
+rust-version = "1.96"
+
+[profile.dev]
+opt-level = 2
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+lto = "thin"
+codegen-units = 4
+strip = true

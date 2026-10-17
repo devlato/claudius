@@ -1,0 +1,31 @@
+[package]
+name = "earshot"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Rust port of earshot (https://github.com/Leonxlnx/earshot): CLAP / AudioSet ears, calibrated text matching, realness, measurements and beat grid, no Python at runtime"
+readme = "README.md"
+publish = false
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[lib]
+name = "earshot"
+path = "src/lib.rs"
+
+[[bin]]
+name = "earshot"
+path = "src/bin/earshot.rs"
+
+[dependencies]
+anyhow = "1"
+claudius-decode = { version = "0.1.0", path = "../claudius-decode" }
+ort = { version = "=2.0.0-rc.14", default-features = false, features = ["std", "download-binaries", "tls-native", "copy-dylibs", "api-31"] }
+realfft = "3.5"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+sha2 = "0.10"
+tokenizers = { version = "0.23", default-features = false, features = ["fancy-regex"] }
+ureq = { version = "3", default-features = false, features = ["rustls"] }

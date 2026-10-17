@@ -1,0 +1,38 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+trap at 146.0 BPM in G minor, swing 0.51
+prog A: i iv III VI
+prog B: i IVsus4 III VI
+bars per chord: 2
+section intro (intro) 8 bars, energy 0.35, prog A, main [filter_in]: keys pad hat
+section hook (hook) 16 bars, energy 0.90, prog A, main [impact]: kick snare clap hat ohat perc bass keys lead pad
+section verse (verse) 16 bars, energy 0.65, prog A, alt []: kick snare hat perc bass keys
+section hook2 (hook) 16 bars, energy 0.95, prog A, main [impact]: kick snare clap hat ohat perc bass keys lead pad
+section verse2 (verse) 8 bars, energy 0.60, prog A, alt [gap]: kick snare hat bass keys pad
+section hook3 (hook) 16 bars, energy 1.00, prog A, main [impact]: kick snare clap hat ohat perc bass keys lead pad
+section outro (outro) 8 bars, energy 0.35, prog A, main []: keys pad lead
+drum kick alt (drum kick): X...............|X......X........|X...............|X......X........
+drum kick main (drum kick): X.........X.....|X.....X......X..|X...............|X..X............
+drum snare main (drum snare): ........X.......|........X.......|........X.......|........X.......
+drum clap main (drum clap): ........X.......|........X.......|........X.......|........X.......
+drum hat alt (drum closed_hat): x...x...x...x...x...x...x...x...|x...x...x...x...x...x.......Xxxx|x...x...x...x...x...x...x...x...|x...x...x...x...x...x...x...x...
+drum hat main (drum closed_hat): x.....x.....x..x..x.....x.....x...........X.xx.x|x.....x.....x..x..x.....x.....x...........o.xx.x|x.....x.....x..x..x.....x.....x.....X.Xx.xx.xx.x|x.....x.....x..x..x.....ooxxxxxxxxXXx.....x..x..
+drum ohat main (drum open_hat): ................|................|................|................
+drum perc main (drum snap): x.....x.....x...|x.....x.....x...|x.....x.....x...|x.....x.....x...
+drum perc sparse (drum snap): x...............|x...............|x...............|x...............
+part bass (bass): kick_follow synth 808, register 28..43, density 0.47
+part keys (keys): sustain synth pad, register 55..76, density 0.57
+part pad (pad): sustain synth strings, register 48..72, density 0.52
+part lead (lead): motif synth pluck, register 67..88, density 0.46
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix snare: +0.0 dB, pan +0.00, reverb 0.12, delay 0.00, duck 0.00, bus drums
+mix clap: -4.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.12, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix ohat: +0.0 dB, pan -0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix perc: +0.0 dB, pan -0.40, reverb 0.25, delay 0.00, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
+mix keys: +0.0 dB, pan +0.00, reverb 0.30, delay 0.10, duck 0.00, bus music
+mix pad: +0.0 dB, pan +0.00, reverb 0.40, delay 0.00, duck 0.00, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.30, delay 0.25, duck 0.00, bus music

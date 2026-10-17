@@ -1,0 +1,500 @@
+/* The claudius docs: the landing page's palette and type on mdBook's themes (docs/book.toml: additional-css).
+   The dark themes (navy, coal, ayu) take the studio's colours; the light ones (light, rust) a paper version of them.
+   Code is dark in every theme and coloured like the studio's script editor. */
+
+@font-face {
+  font-family: "Hack";
+  src: url("/assets/fonts/hack-regular-subset.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --c-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif;
+  --mono-font: "Hack", ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  --code-font-size: 0.84em;
+  --content-max-width: 780px;
+  --menu-bar-height: 54px;
+
+  --c-code-bg: #0b0d11;
+  --c-code-fg: #d6dae2;
+  --c-code-line: #1f232b;
+  --c-accent: #ffa348;
+  --c-lcd: #090f11;
+  --c-lcd-text: #84e8ff;
+
+  --t-comment: #7d8a80;
+  --t-string: #a6d680;
+  --t-number: #c896ff;
+  --t-func: #ffc470;
+  --t-method: #6ecdf0;
+  --t-keyword: #ff78aa;
+  --t-punct: #8c94a0;
+}
+
+.navy,
+.coal,
+.ayu {
+  --bg: #101217;
+  --fg: #d5dae2;
+  --c-fg-dim: #8f97a4;
+  --c-line: #2e333e;
+  --c-line-soft: #1f232b;
+  --c-raised: #20242c;
+
+  --sidebar-bg: #171a20;
+  --sidebar-fg: #aeb5c1;
+  --sidebar-non-existant: #6b7280;
+  --sidebar-active: #ffa348;
+  --sidebar-spacer: #20242c;
+
+  --scrollbar: #3a404c;
+  --icons: #8f97a4;
+  --icons-hover: #eef0f4;
+  --links: #ffa348;
+  --inline-code-color: #e6e9ee;
+  --c-inline-code-bg: #0b0d11;
+
+  --theme-popup-bg: #20242c;
+  --theme-popup-border: #2e333e;
+  --theme-hover: #2a2f39;
+
+  --quote-bg: #171a20;
+  --quote-border: #2e333e;
+  --warning-border: #f6c04a;
+
+  --table-border-color: #2e333e;
+  --table-header-bg: #20242c;
+  --table-alternate-bg: #14161c;
+
+  --searchbar-border-color: #2e333e;
+  --searchbar-bg: #0b0d11;
+  --searchbar-fg: #dde1e8;
+  --searchbar-shadow-color: rgba(255, 163, 72, 0.35);
+  --searchresults-header-fg: #8f97a4;
+  --searchresults-border-color: #2e333e;
+  --searchresults-li-bg: #171a20;
+  --search-mark-bg: rgba(255, 163, 72, 0.38);
+
+  --color-scheme: dark;
+  --copy-button-filter: invert(64%) sepia(8%) saturate(388%) hue-rotate(179deg) brightness(91%) contrast(86%);
+  --copy-button-filter-hover: invert(72%) sepia(52%) saturate(1017%) hue-rotate(327deg) brightness(102%) contrast(101%);
+  --footnote-highlight: #ffa348;
+  --overlay-bg: rgba(11, 13, 17, 0.6);
+
+  --blockquote-note-color: #589eff;
+  --blockquote-tip-color: #54d486;
+  --blockquote-important-color: #a474ff;
+  --blockquote-warning-color: #f6c04a;
+  --blockquote-caution-color: #f05e56;
+
+  --sidebar-header-border-color: #ffa348;
+}
+
+.light,
+.rust,
+html:not(.js) {
+  --bg: #f8f7f4;
+  --fg: #1d2129;
+  --c-fg-dim: #545b67;
+  --c-line: #d9d7d0;
+  --c-line-soft: #e6e4de;
+  --c-raised: #efeee9;
+
+  --sidebar-bg: #efeee9;
+  --sidebar-fg: #343a45;
+  --sidebar-non-existant: #858b96;
+  --sidebar-active: #a64b0a;
+  --sidebar-spacer: #e2e0da;
+
+  --scrollbar: #b9b6ad;
+  --icons: #5f6672;
+  --icons-hover: #1d2129;
+  --links: #a64b0a;
+  --inline-code-color: #262b33;
+  --c-inline-code-bg: #e9e7e1;
+
+  --theme-popup-bg: #f8f7f4;
+  --theme-popup-border: #d9d7d0;
+  --theme-hover: #e9e7e1;
+
+  --quote-bg: #efeee9;
+  --quote-border: #dcdad3;
+  --warning-border: #c98a0b;
+
+  --table-border-color: #e0ded7;
+  --table-header-bg: #e9e7e1;
+  --table-alternate-bg: #f2f1ec;
+
+  --searchbar-border-color: #cfccc4;
+  --searchbar-bg: #ffffff;
+  --searchbar-fg: #1d2129;
+  --searchbar-shadow-color: rgba(166, 75, 10, 0.3);
+  --searchresults-header-fg: #545b67;
+  --searchresults-border-color: #d9d7d0;
+  --searchresults-li-bg: #efeee9;
+  --search-mark-bg: rgba(255, 163, 72, 0.45);
+
+  --color-scheme: light;
+  /* the copy button sits on the dark code blocks */
+  --copy-button-filter: invert(64%) sepia(8%) saturate(388%) hue-rotate(179deg) brightness(91%) contrast(86%);
+  --copy-button-filter-hover: invert(72%) sepia(52%) saturate(1017%) hue-rotate(327deg) brightness(102%) contrast(101%);
+  --footnote-highlight: #a64b0a;
+  --overlay-bg: rgba(200, 198, 190, 0.45);
+
+  --blockquote-note-color: #1f5fbf;
+  --blockquote-tip-color: #1d7a45;
+  --blockquote-important-color: #6b45c4;
+  --blockquote-warning-color: #8a5a00;
+  --blockquote-caution-color: #b3261e;
+
+  --sidebar-header-border-color: #a64b0a;
+
+  --c-code-bg: #16191f;
+  --c-code-line: #16191f;
+}
+
+/* type */
+
+html {
+  font-family: var(--c-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.content main {
+  font-size: 1.0625rem;
+}
+
+.content h1,
+.content h2,
+.content h3,
+.content h4 {
+  font-weight: 650;
+  letter-spacing: -0.012em;
+  line-height: 1.2;
+}
+
+.content h1 {
+  margin-top: 1.2em;
+  font-size: 2.3em;
+  letter-spacing: -0.022em;
+}
+
+.content h2 {
+  margin-top: 2em;
+  padding-top: 0.6em;
+  border-top: 1px solid var(--c-line-soft);
+  font-size: 1.6em;
+}
+
+.content h3 {
+  margin-top: 1.8em;
+  font-size: 1.25em;
+}
+
+.content p,
+.content li {
+  text-wrap: pretty;
+}
+
+.content a:link,
+.content a:visited {
+  color: var(--links);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.content .header:link,
+.content .header:visited {
+  color: var(--fg);
+  text-decoration: none;
+}
+
+::selection {
+  background: rgba(255, 163, 72, 0.32);
+}
+
+:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+/* the menu bar: the claudius wordmark, linked back to the landing page by head.hbs */
+
+.menu-bar,
+.menu-bar:hover,
+.menu-bar.bordered {
+  border-block-end-color: var(--c-line-soft);
+}
+
+.menu-bar {
+  background: var(--bg);
+}
+
+.menu-title {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font-family: var(--c-sans);
+  font-size: 1.15rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.menu-title::before {
+  content: "";
+  flex: none;
+  width: 22px;
+  height: 20px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 20'%3E%3Crect x='0' y='6.5' width='3' height='7' rx='1.5' fill='%23ffa348'/%3E%3Crect x='4.75' y='3' width='3' height='14' rx='1.5' fill='%23fd9a4a'/%3E%3Crect x='9.5' y='0' width='3' height='20' rx='1.5' fill='%23fb924c'/%3E%3Crect x='14.25' y='4.5' width='3' height='11' rx='1.5' fill='%23f9894d'/%3E%3Crect x='19' y='2' width='3' height='16' rx='1.5' fill='%23f8814f'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.menu-title a.claudius-home {
+  color: var(--fg);
+  text-decoration: none;
+  border-radius: 4px;
+}
+
+.menu-title a.claudius-home:hover {
+  color: var(--links);
+}
+
+.menu-title a.claudius-home .claudius-home-note {
+  margin-left: 8px;
+  color: var(--icons);
+  font: 400 0.68rem/1 var(--mono-font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 560px) {
+  .menu-title a.claudius-home .claudius-home-note {
+    display: none;
+  }
+}
+
+/* sidebar */
+
+.sidebar {
+  border-inline-end: 1px solid var(--c-line-soft);
+  font-size: 0.92rem;
+}
+
+.sidebar .sidebar-scrollbox {
+  padding-top: 14px;
+}
+
+.chapter li.part-title {
+  margin: 1.6em 0 0.4em;
+  color: var(--c-fg-dim);
+  font: 400 0.7rem/1.3 var(--mono-font);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.chapter li.chapter-item {
+  line-height: 1.45;
+}
+
+/* links at least 24 px tall (WCAG 2.2 target size) */
+.chapter li a,
+.chapter li.header-item a {
+  display: inline-block;
+  min-height: 24px;
+  padding-block: 3px;
+  border-radius: 5px;
+}
+
+.menu-bar .right-buttons a,
+.menu-bar .icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+}
+
+.chapter li a.active {
+  color: var(--sidebar-active);
+  font-weight: 600;
+}
+
+.chapter li a:hover {
+  color: var(--fg);
+}
+
+.sidebar .chapter li.chapter-item > a.active {
+  box-shadow: -10px 0 0 -7px var(--sidebar-active);
+}
+
+/* code: the studio's script editor */
+
+code {
+  font-family: var(--mono-font);
+}
+
+/* mdBook gives inline code the hljs class too */
+:not(pre) > code,
+:not(pre) > code.hljs {
+  padding: 0.1em 0.38em;
+  border: 1px solid var(--c-line-soft);
+  border-radius: 4px;
+  background: var(--c-inline-code-bg);
+  color: var(--inline-code-color);
+  font-size: var(--code-font-size);
+}
+
+.content a code {
+  color: inherit;
+}
+
+pre {
+  border: 1px solid var(--c-code-line);
+  border-radius: 8px;
+  background: var(--c-code-bg);
+}
+
+pre > code,
+pre > code.hljs,
+pre .hljs {
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: var(--c-code-bg);
+  color: var(--c-code-fg);
+  font-size: 0.84rem;
+  line-height: 1.65;
+}
+
+pre > .buttons {
+  top: 6px;
+  right: 6px;
+}
+
+pre > .buttons button {
+  border-color: #2e333e;
+  background: #20242c;
+  color: #c9ced7;
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--t-comment);
+  font-style: italic;
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-template,
+.hljs-symbol,
+.hljs-bullet {
+  color: var(--t-string);
+}
+
+.hljs-number,
+.hljs-literal {
+  color: var(--t-number);
+}
+
+.hljs-keyword,
+.hljs-selector,
+.hljs-tag,
+.hljs-meta {
+  color: var(--t-keyword);
+}
+
+.hljs-title,
+.hljs-section,
+.hljs-name,
+.hljs-built_in,
+.hljs-builtin,
+.hljs-type {
+  color: var(--t-func);
+}
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-params,
+.hljs-link {
+  color: var(--t-method);
+}
+
+.hljs-deletion {
+  color: #f05e56;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: 700;
+}
+
+/* tables, quotes, notes */
+
+.content table {
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.content table thead th {
+  font-weight: 600;
+}
+
+.content table td,
+.content table th {
+  padding: 7px 12px;
+  border-color: var(--table-border-color);
+}
+
+.content blockquote {
+  margin-inline: 0;
+  padding: 0.7em 1.1em;
+  border: 1px solid var(--quote-border);
+  border-inline-start: 3px solid var(--c-accent);
+  border-radius: 0 8px 8px 0;
+  background: var(--quote-bg);
+}
+
+.content .warning {
+  border-radius: 8px;
+}
+
+kbd {
+  border-color: var(--c-line);
+  background: var(--c-raised);
+  font-family: var(--mono-font);
+}
+
+/* search */
+
+#mdbook-searchbar {
+  border-radius: 8px;
+  font-family: var(--c-sans);
+}
+
+.searchresults-header {
+  font-family: var(--mono-font);
+  font-size: 0.8rem;
+}
+
+/* previous / next */
+
+.nav-chapters,
+.mobile-nav-chapters {
+  color: var(--icons);
+}
+
+.nav-chapters:hover {
+  color: var(--c-accent);
+}

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://claudius.pages.dev/docs/
+    about: How to make songs, the script language, the CLI, the MCP tools, and troubleshooting.
+  - name: Report a security problem
+    url: https://github.com/devlato/claudius/security/advisories/new
+    about: Please report vulnerabilities privately here, not in a public issue.

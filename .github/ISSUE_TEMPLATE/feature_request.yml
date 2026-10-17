@@ -1,0 +1,21 @@
+name: Feature request
+description: Something you want claudius to do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you are trying to do
+      description: The song, the sound or the workflow you are after, and where claudius gets in the way.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help
+      description: How you imagine it working. A script you would like to be able to write is a good way to say it.
+  - type: textarea
+    id: elsewhere
+    attributes:
+      label: How other tools do it
+      description: How your DAW, Strudel or another program handles this, if you know.

@@ -1,0 +1,29 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+lofi at 86.0 BPM in G major, swing 0.58
+prog A: Imaj9 IVmaj9 Imaj9 V9
+prog B: Imaj9 IVsus4 Imaj9 V9
+bars per chord: 1
+section intro (intro) 4 bars, energy 0.30, prog A, main [filter_in]: keys
+section a (verse) 16 bars, energy 0.60, prog A, main [fills]: kick snare hat bass keys
+section b (hook) 16 bars, energy 0.75, prog A, main [fills]: kick snare hat shaker bass keys lead
+section a2 (verse) 16 bars, energy 0.65, prog A, main [fills]: kick snare hat bass keys pad
+section outro (outro) 8 bars, energy 0.30, prog A, main []: keys pad lead
+drum kick main (drum kick): X.........X.....|X.........X.....|X.........X.....|X.........X.....
+drum snare main (drum snare): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
+drum hat main (drum closed_hat): x...x.x.x.x.x.xx|x...x.x.x.x.x.xx|x...x.x.x.x.x.xx|x...x.x.x.x.x.xx
+drum shaker main (drum shaker): o.o.oo..o.o.o.o.|o.o.oo..o.o.o.o.|o.o.oo..o.o.o.o.|o.o.oo..o.o.o.o.
+part bass (bass): syncopated synth sub_bass, register 33..50, density 0.59
+part keys (keys): charleston synth keys, register 52..74, density 0.59
+part lead (lead): motif synth epiano, register 64..84, density 0.36
+part pad (pad): sustain synth strings, register 50..74, density 0.45
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix snare: +0.0 dB, pan +0.00, reverb 0.10, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.20, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix shaker: +0.0 dB, pan -0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
+mix keys: +0.0 dB, pan +0.00, reverb 0.25, delay 0.00, duck 0.00, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.35, delay 0.20, duck 0.00, bus music
+mix pad: +0.0 dB, pan +0.00, reverb 0.40, delay 0.00, duck 0.00, bus music

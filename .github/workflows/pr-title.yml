@@ -1,0 +1,41 @@
+# Pull requests are squash-merged with their title as the commit message, and git-cliff builds the changelog from
+# those commits, so every title has to be a Conventional Commit.
+name: pr title
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions: {}
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  title:
+    name: conventional title
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check the title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          types='feat|fix|docs|refactor|perf|test|build|ci|chore|release'
+          pattern="^($types)(\([a-z0-9._/-]+\))?!?: [^ ]"
+          if [[ "$TITLE" =~ $pattern ]]; then
+            echo "ok: $TITLE"
+            exit 0
+          fi
+          echo "::error title=PR title::\"$TITLE\" is not a Conventional Commit."
+          cat <<'EOF'
+          The title becomes the commit message on main and the changelog entry, so it reads
+            <type>(<optional scope>)<optional !>: <what changed>
+          with a type of feat, fix, docs, refactor, perf, test, build, ci or chore, and ! for a breaking change:
+            feat(script): add euclid() to patterns
+            fix(server): keep the session when a render fails
+            feat(api)!: rename /api/state to /api/session
+          Edit the title; this check runs again by itself.
+          EOF
+          exit 1

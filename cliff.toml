@@ -1,0 +1,47 @@
+# git-cliff turns the Conventional Commits on main (the squash-merged PR titles) into changelog sections in the
+# Keep a Changelog style. `cargo xtask release prepare` runs it for the commits since the last tag and writes the
+# result into CHANGELOG.md; nothing else is meant to call it, because regenerating the whole file would drop what
+# was written by hand.
+
+[changelog]
+body = """
+{% if version -%}
+## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else -%}
+## [Unreleased]
+{% endif -%}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim }}
+{% for commit in commits %}
+- {% if commit.breaking %}**Breaking:** {% endif %}\
+{% if commit.scope and commit.scope != "security" %}{{ commit.scope }}: {% endif %}\
+{{ commit.message | upper_first }}\
+{% endfor %}
+{% endfor %}
+"""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+protect_breaking_commits = true
+filter_commits = true
+tag_pattern = "v[0-9]+\\.[0-9]+\\.[0-9]+.*"
+sort_commits = "oldest"
+commit_preprocessors = [
+    # GitHub appends " (#123)" to squash-merged titles
+    { pattern = '\(#([0-9]+)\)', replace = "([#${1}](https://github.com/devlato/claudius/pull/${1}))" },
+]
+# The numbers in the comments order the sections; the first parser that matches wins. Types that change nothing
+# for people using claudius are left out unless they are breaking.
+commit_parsers = [
+    { message = "^release", skip = true },
+    { message = "^feat", group = "<!-- 0 -->Added" },
+    { message = "^(refactor|build|ci|chore|test|style)(\\(.*\\))?!:", group = "<!-- 1 -->Changed" },
+    { message = "^perf", group = "<!-- 1 -->Changed" },
+    { message = "^fix\\(security\\)", group = "<!-- 4 -->Security" },
+    { message = "^fix", group = "<!-- 3 -->Fixed" },
+    { message = "^docs", group = "<!-- 5 -->Documentation" },
+    { message = "^(refactor|build|ci|chore|test|style|revert)", skip = true },
+]

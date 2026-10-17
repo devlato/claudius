@@ -1,0 +1,18 @@
+[package]
+name = "claudius-decode"
+description = "Audio file decoding for claudius: pure Rust (symphonia), with ffmpeg as a fallback when it is installed"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[dependencies]
+anyhow = "1"
+symphonia = { version = "0.6", features = ["all"] }
+
+[dev-dependencies]
+hound = "3"

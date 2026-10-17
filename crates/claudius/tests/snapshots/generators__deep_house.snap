@@ -1,0 +1,36 @@
+---
+source: crates/claudius/tests/generators.rs
+assertion_line: 98
+expression: summary(&bp)
+---
+deep_house at 123.0 BPM in G minor, swing 0.55
+prog A: i9 iv9 IIImaj9 VImaj9
+prog B: i9 IVsus4 IIImaj9 VImaj9
+bars per chord: 1
+section intro (intro) 16 bars, energy 0.40, prog A, sparse [filter_in]: kick hat shaker perc top
+section groove (groove) 16 bars, energy 0.65, prog A, main [fills]: kick clap hat shaker perc bass chords top
+section break (break) 16 bars, energy 0.35, prog B, main []: pad chords lead shaker
+section build (build) 8 bars, energy 0.55, prog B, main [build]: clap hat shaker chords lead pad
+section drop (drop) 32 bars, energy 0.90, prog A, main [fills]: kick clap hat shaker perc bass chords lead pad top
+section outro (outro) 16 bars, energy 0.40, prog A, sparse []: kick hat shaker perc bass
+drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
+drum kick sparse (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
+drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
+drum hat main (drum closed_hat): xxxx.xx.xxxx..x.|xxxx.xx.xxxx..x.|xxxx.xx.xxxx..x.|xxxx.xx.xxxx..x.
+drum hat sparse (drum closed_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
+drum shaker main (drum shaker): ooooo.o.ooo.ooo.|ooooo.o.ooo.ooo.|ooooo.o.ooo.ooo.|ooooo.o.ooo.ooo.
+drum perc main (drum rim): x..x.x.x..x.x.x.|x..x.x.x..x.x.x.|x..x.x.x..x.x.x.|x..x.x.x..x.x.x.
+drum perc sparse (drum rim): x....x....x.....|x....x....x.....|x....x....x.....|x....x....x.....
+part bass (bass): offbeat synth organ_bass, register 33..50, density 0.45
+part chords (chords): syncopated synth epiano, register 53..74, density 0.48
+part pad (pad): sustain synth strings, register 50..76, density 0.59
+part lead (lead): motif synth pluck, register 62..84, density 0.41
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix clap: +0.0 dB, pan +0.00, reverb 0.30, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.18, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix shaker: +0.0 dB, pan -0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix perc: +0.0 dB, pan +0.40, reverb 0.10, delay 0.20, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.45, bus bass
+mix chords: +0.0 dB, pan +0.00, reverb 0.30, delay 0.10, duck 0.35, bus music
+mix pad: +0.0 dB, pan +0.00, reverb 0.40, delay 0.00, duck 0.40, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.35, delay 0.25, duck 0.15, bus music

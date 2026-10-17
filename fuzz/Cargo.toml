@@ -1,0 +1,30 @@
+[package]
+name = "claudius-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+claudius = { path = "../crates/claudius" }
+
+[[bin]]
+name = "mini_notation"
+path = "fuzz_targets/mini_notation.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "script"
+path = "fuzz_targets/script.rs"
+test = false
+doc = false
+bench = false
+
+# its own workspace: cargo-fuzz needs nightly and libFuzzer, the main workspace builds on stable
+[workspace]
+members = ["."]

@@ -1,0 +1,31 @@
+[book]
+title = "claudius"
+description = "A beatmaker that composes, arranges, mixes and judges music the way a producer does."
+authors = ["The claudius authors"]
+language = "en"
+src = "src"
+
+[build]
+build-dir = "../target/book"
+create-missing = false
+
+[output.html]
+site-url = "/docs/"
+git-repository-url = "https://github.com/devlato/claudius"
+edit-url-template = "https://github.com/devlato/claudius/edit/main/docs/{path}"
+default-theme = "light"
+preferred-dark-theme = "navy"
+additional-css = ["theme/claudius.css"]
+no-section-label = true
+smart-punctuation = true
+
+[output.html.search]
+enable = true
+limit-results = 20
+
+[output.html.fold]
+enable = true
+level = 1
+
+[output.html.code.hidelines]
+js = "~"

@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>claudius: a beatmaker that listens to its own songs</title>
+<meta name="description" content="claudius picks real sounds, writes parts with music theory, arranges, mixes and masters a song, then listens to it with a critic and revises it. A studio, a script language, MCP tools and a CLI. Open source, written in Rust.">
+<link rel="canonical" href="{{site_url}}/">
+<meta name="theme-color" content="#101217">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="preload" href="/assets/fonts/hack-regular-subset.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/site.css?v={{version}}">
+<noscript><link rel="stylesheet" href="/assets/noscript.css?v={{version}}"></noscript>
+<script src="/assets/site.js?v={{version}}" defer></script>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="claudius">
+<meta property="og:title" content="claudius: a beatmaker that listens to its own songs">
+<meta property="og:description" content="Real sounds, music theory, a mix and master, and a critic with ears that names what to fix. A studio, a script language, MCP tools and a CLI.">
+<meta property="og:url" content="{{site_url}}/">
+<meta property="og:image" content="{{site_url}}/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The claudius logo, the line “A beatmaker that listens to its own songs”, a drum pattern in sixteen steps and a waveform coloured by song section.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="claudius: a beatmaker that listens to its own songs">
+<meta name="twitter:description" content="Real sounds, music theory, a mix and master, and a critic with ears that names what to fix.">
+<meta name="twitter:image" content="{{site_url}}/og.png">
+<meta name="twitter:image:alt" content="The claudius logo, the line “A beatmaker that listens to its own songs”, a drum pattern in sixteen steps and a waveform coloured by song section.">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="top">
+  <div class="wrap top-in">
+    <a class="brand" href="/"><img src="/assets/logo.svg" alt="claudius" width="153" height="39"></a>
+    <nav class="nav" aria-label="Sections">
+      <ul>
+        <li><a href="#listen">Listen</a></li>
+        <li><a href="#how">How it works</a></li>
+        <li><a href="#script">Script</a></li>
+        <li><a href="#studio">Studio</a></li>
+        <li><a href="#assistants">Assistants</a></li>
+        <li><a href="#sounds">Sounds</a></li>
+        <li><a href="#install">Install</a></li>
+      </ul>
+    </nav>
+    <ul class="top-links">
+      <li><a href="/docs/">Docs</a></li>
+      <li><a href="{{repo_url}}">GitHub</a></li>
+    </ul>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="hero" aria-labelledby="hero-title">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="tagline"><span class="chip">v{{version}}</span> Open source, MIT licence. macOS and Linux, with Windows in preview.</p>
+      <h1 id="hero-title">A beatmaker that listens to its own&nbsp;songs.</h1>
+      <p class="lede">claudius picks sounds, writes the parts with music theory, arranges them into a song, mixes and masters it, then listens to the result with a critic and revises it. Every sound is real audio, synthesized in code or recorded from sampled instruments. There is no neural audio generation and no General MIDI.</p>
+
+      <div class="install" data-tabs>
+        <div class="tabs" role="tablist" aria-label="Install command">
+          <button type="button" role="tab" id="tab-unix" aria-controls="cmd-unix" aria-selected="true">macOS and Linux</button>
+          <button type="button" role="tab" id="tab-win" aria-controls="cmd-win" aria-selected="false" tabindex="-1">Windows</button>
+        </div>
+        <div class="cmd" role="tabpanel" id="cmd-unix" aria-labelledby="tab-unix">
+          <pre><code><span class="prompt" aria-hidden="true">$ </span>curl -fsSL {{site_url}}/install.sh | sh</code></pre>
+          <button type="button" class="copy" data-copy="curl -fsSL {{site_url}}/install.sh | sh">Copy</button>
+        </div>
+        <div class="cmd" role="tabpanel" id="cmd-win" aria-labelledby="tab-win" hidden>
+          <pre><code><span class="prompt" aria-hidden="true">PS&gt; </span>irm {{site_url}}/install.ps1 | iex</code></pre>
+          <button type="button" class="copy" data-copy="irm {{site_url}}/install.ps1 | iex">Copy</button>
+        </div>
+      </div>
+
+      <p class="hero-actions">
+        <a class="btn btn-primary" href="#listen">Listen to four songs</a>
+        <a class="btn" href="/studio/?mock">Try the studio in your browser</a>
+      </p>
+    </div>
+
+    <figure class="unit" data-unit="golden-pulse">
+      <div class="unit-top">
+        <button class="play play-lg" type="button" data-play="golden-pulse" aria-pressed="false" aria-label="Play Golden Pulse">
+          <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6L19 12z"/></svg>
+          <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.6v14H7zM13.4 5H17v14h-3.6z"/></svg>
+        </button>
+        <div class="lcd" data-lcd="golden-pulse" aria-hidden="true">
+          <span class="lcd-time">0:00.0</span><span class="lcd-dur">/ 0:42.0</span><span class="lcd-status">STOP</span>
+          <span class="lcd-pos">BAR 063.1&nbsp;&nbsp;&nbsp;BUILD</span>
+        </div>
+        <p class="score" title="The critic's score out of 100"><span class="visually-hidden">Score </span>90</p>
+      </div>
+      <p class="unit-title">Golden Pulse <span>deep house · 120 BPM · A dorian</span></p>
+      <div class="steps" data-steps-for="golden-pulse" role="img" aria-label="Five drum lanes of Golden Pulse over sixteen steps: kick on every beat, clap on beats 2 and 4, and hats, shaker and rim filling the steps between.">
+        <div class="steps-ruler" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span></div>
+        <div class="lane" data-role="kick" data-in="drop" data-pattern="X...X...X...X..."><span class="lane-name">kick</span><span class="cells"><span class="beat"><span class="cell v3"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></span><span class="beat"><span class="cell v3"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></span><span class="beat"><span class="cell v3"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></span><span class="beat"><span class="cell v3"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></span></span></div>
+        <div class="lane" data-role="clap" data-in="build drop" data-pattern="....X.......X..."><span class="lane-name">clap</span><span class="cells"><span class="beat"><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></span><span class="beat"><span class="cell v3"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></span><span class="beat"><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></span><span class="beat"><span class="cell v3"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></span></span></div>
+        <div class="lane" data-role="hat" data-in="build drop" data-pattern="x.xxx.x..xxxx.x.|x.xxx.x..xxxx.x.|x.xxx.x..xxxx.x.|..xx.xx...xxxxxx"><span class="lane-name">hat</span><span class="cells"><span class="beat"><span class="cell v2"></span><span class="cell"></span><span class="cell v2"></span><span class="cell v2"></span></span><span class="beat"><span class="cell v2"></span><span class="cell"></span><span class="cell v2"></span><span class="cell"></span></span><span class="beat"><span class="cell"></span><span class="cell v2"></span><span class="cell v2"></span><span class="cell v2"></span></span><span class="beat"><span class="cell v2"></span><span class="cell"></span><span class="cell v2"></span><span class="cell"></span></span></span></div>
+        <div class="lane" data-role="shaker" data-in="build drop" data-pattern="o.o.o.ooo.ooo.o."><span class="lane-name">shaker</span><span class="cells"><span class="beat"><span class="cell v1"></span><span class="cell"></span><span class="cell v1"></span><span class="cell"></span></span><span class="beat"><span class="cell v1"></span><span class="cell"></span><span class="cell v1"></span><span class="cell v1"></span></span><span class="beat"><span class="cell v1"></span><span class="cell"></span><span class="cell v1"></span><span class="cell v1"></span></span><span class="beat"><span class="cell v1"></span><span class="cell"></span><span class="cell v1"></span><span class="cell"></span></span></span></div>
+        <div class="lane" data-role="perc" data-in="drop" data-pattern="x.x..x.x.x..x.x."><span class="lane-name">perc</span><span class="cells"><span class="beat"><span class="cell v2"></span><span class="cell"></span><span class="cell v2"></span><span class="cell"></span></span><span class="beat"><span class="cell"></span><span class="cell v2"></span><span class="cell"></span><span class="cell v2"></span></span><span class="beat"><span class="cell"></span><span class="cell v2"></span><span class="cell"></span><span class="cell"></span></span><span class="beat"><span class="cell v2"></span><span class="cell"></span><span class="cell v2"></span><span class="cell"></span></span></span></div>
+      </div>
+      <div class="form-strip" data-form-for="golden-pulse" aria-hidden="true">
+        <span class="sec k-intro">intro</span><span class="sec k-groove">groove</span><span class="sec k-break">break</span><span class="sec k-build">build</span><span class="sec k-drop">drop</span><span class="sec k-outro">outro</span>
+        <span class="form-window"></span><span class="form-head"></span>
+      </div>
+      <p class="form-note" aria-hidden="true"><span>the whole song, 112 bars</span><span>the excerpt: bars 63 to 83</span></p>
+      <figcaption>The drum lanes of the deep house song below, as the studio’s step sequencer shows them. Press play and they follow the music; lanes that sit out the build go dark.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="section" id="listen" aria-labelledby="listen-title">
+  <div class="wrap">
+    <header class="section-head">
+      <p class="channel"><span>01</span>Listen</p>
+      <h2 id="listen-title">Four songs, made by claudius on a laptop</h2>
+      <p>Each one is cut to about 40 seconds around its drop or groove. One came out of evolution and three from scripts. Next to each is what made it and what claudius printed, including the critic’s verdict.</p>
+    </header>
+
+    <div class="tracks" data-tracks>
+
+      <div class="track-block">
+        <article class="track" id="golden-pulse" data-track="golden-pulse" data-title="Golden Pulse">
+          <div class="track-row">
+            <button class="play" type="button" data-play="golden-pulse" aria-pressed="false" aria-label="Play Golden Pulse">
+              <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6L19 12z"/></svg>
+              <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.6v14H7zM13.4 5H17v14h-3.6z"/></svg>
+            </button>
+            <div class="track-name">
+              <h3>Golden Pulse</h3>
+              <p>deep house · 120 BPM · A dorian</p>
+            </div>
+            <div class="lcd lcd-sm" data-lcd="golden-pulse" aria-hidden="true">
+              <span class="lcd-time">0:00.0</span><span class="lcd-dur">/ 0:42.0</span><span class="lcd-status">STOP</span>
+              <span class="lcd-pos">BAR 063.1&nbsp;&nbsp;&nbsp;BUILD</span>
+            </div>
+            <p class="score" title="The critic's score out of 100"><span class="visually-hidden">Score </span>90</p>
+          </div>
+          <div class="wave" data-wave="golden-pulse" data-peaks="/audio/golden-pulse.json" role="slider" tabindex="0" aria-label="Position in Golden Pulse" aria-valuemin="0" aria-valuemax="42" aria-valuenow="0" aria-valuetext="0:00 of 0:42"><canvas aria-hidden="true"></canvas></div>
+          <audio data-audio="golden-pulse" src="/audio/golden-pulse.mp3" preload="none" controls></audio>
+          <p class="track-foot">
+            <button type="button" class="made-toggle" data-made="golden-pulse" aria-controls="made-golden-pulse" aria-expanded="true">How it was made</button>
+            <a href="/audio/golden-pulse.mp3" download>MP3</a>
+            <a href="/audio/golden-pulse.rhai" download>golden-pulse.rhai</a>
+          </p>
+        </article>
+        <section class="made is-active" id="made-golden-pulse" aria-labelledby="made-golden-pulse-h">
+          <h4 id="made-golden-pulse-h">How Golden Pulse was made</h4>
+          <p>One command. It generated four deep house songs, then bred them for four generations of eight children each. Every child was auditioned on its build-up and first drop, and the four the critic liked best became the next parents. <code>--no-library</code> keeps Apple Loops and your own samples out; the sample packs still play.</p>
+          <p class="code-label">Command</p>
+          <pre class="code"><code class="language-sh">claudius evolve --genre deep_house --seed 5 --generations 4 --no-library</code></pre>
+          <p class="code-label">What it printed <span>(… marks lines left out)</span></p>
+          <pre class="code code-out"><code>evolving deep_house (4 start, 4 generations x 8 children, 32-bar previews, with ears)
+  g0-0  86.1  Hollow Harbor
+  g0-1  80.0  Paper Haze
+  g0-2  85.0  Glass Garden
+  g0-3  85.9  Golden Pulse
++ g1-0  87.0  from g0-3: shaker: synth voice parameter 8 -&gt; 0.079; mix: perc +2.4 dB (now +2.4)
++ g1-1  86.7  from g0-2: form: intro gets fills; drums: played on the tr808 kit
++ g1-2  86.3  from g0-3: harmony A: chord 2: IV7 -&gt; IV (plain triad)
+  g1-3  84.9  from g0-2: harmony A: swapped chords 3 and 4; mix: pad sidechain depth 0.49
+  g1-4  85.3  from g0-0: drums: new clap pattern; mix: hat +1.9 dB (now +1.9)
+  g1-5  79.2  from g0-0: crossover: drums and form of one parent, harmony and parts of the other; mix: pad +1.6 dB (now +1.6)
++ g1-6  86.7  from g0-3: swing 0.55 -&gt; 0.53; chords (keys): drive 0.4 dB
++ g1-7  86.1  from g0-0: crossover: drums of one parent, everything else of the other; pad (warm_pad): release 2.59 s; form: drop now 24 bars
+generation 1: best 87.0
+…
+generation 4: best 90.1
+searched 36 candidates in 76 s; rendering the best 3 in full
+#1 g4-1 (Golden Pulse): preview 90.1, full song 89.7
+    swing 0.55 -&gt; 0.53
+    chords (keys): drive 0.4 dB
+    pad: rewrote the part
+    drums: played on the muldjord kit
+    crossover: drums of one parent, everything else of the other
+    kick: synth voice parameter 3 -&gt; 0.447
+    form: break now 24 bars
+    crossover: drums and form of one parent, harmony and parts of the other
+    mix: hat -3.0 dB (now -3.0)
+Golden Pulse — deep_house at 120 BPM in A dorian, 112 bars (3:44)
+  progression A: i9 IV7
+  progression B: i IV7
+  form: intro 16 | groove 16 | break 24 | build 8 | drop 32 | outro 16
+  tracks: kick (synth kick), clap (sampled cp (tr808:cp)), hat (sampled hh (tr808:hh)), shaker (synth shaker), perc (sampled rim (tr808:rim)), bass (synth patch 'sub_bass'), chords (synth patch 'keys'), pad (sampled string_ensemble (vsco2:strings)), lead (sampled rhodes (jrhodes:rhodes)), crash (synth crash), riser (synth riser)
+  master: -11.0 LUFS, true peak -1.0 dBTP (pre-master -10.3 LUFS)
+  ears: 'house music' z +3.8 (closest confusion 'techno music' +3.1); production z +1.5 vs 'a low quality recording with hiss' +1.1; p_real 0.71
+        sounds like: house music, tech house music, drum and bass music, techno music
+  verdict: 90/100 (arc 0.92, genre 0.93, mix 0.95, production 0.59, theory 1.00). Fix first: dull 4-8 kHz: hats, claps and snare lack bite (presence -28.6 dB, healthy from -26); production reads close to 'a low quality recording with hiss' (z +1.1) vs professionally mixed (z +1.5)
+  wrote out/evolve-deep_house-5/1-g4-1-golden-pulse/song.mp3</code></pre>
+          <p class="code-label">The winner, printed as a script</p>
+          <pre class="code"><code class="language-rhai">// Golden Pulse — deep_house (seed 8)
+// song("deep_house", 8);   // uncomment to start over from the generator
+title("Golden Pulse"); tempo(120); key("A dorian"); swing(0.53493524);
+humanize(0.35);
+prog("A", "i9 IV7");
+prog("B", "i IV7");
+
+// drums: X accent, x hit, o ghost, . rest, | bar line; 16 steps per bar unless a number follows
+drum("kick", "main", "X...X...X...X...");
+drum("kick", "sparse", "X...X...X...X...");
+drum("clap", "main", "....X.......X...");
+drum("hat", "main", "x.xxx.x..xxxx.x.|x.xxx.x..xxxx.x.|x.xxx.x..xxxx.x.|..xx.xx...xxxxxx");
+drum("hat", "sparse", "..x...x...x...xx");
+drum("shaker", "main", "o.o.o.ooo.ooo.o.");
+drum("perc", "main", "x.x..x.x.x..x.x.");
+drum("perc", "sparse", "..x.....x....x..");
+
+// parts written by the theory engine: change the style, preset, register, density or seed
+part("bass", #{ style: "syncopated", preset: "sub_bass", register: [33, 50], density: 0.4658955, seed: 7593466037959292827 });
+part("chords", #{ style: "stabs", preset: "keys", register: [53, 74], density: 0.43242535, seed: -1845194844081732826 });
+part("pad", #{ style: "sustain", preset: "vsco2:strings", register: [50, 76], density: 0.403872, seed: 5506831138054929778 });
+part("lead", #{ style: "motif", preset: "jrhodes:rhodes", register: [62, 84], density: 0.34817874, seed: -2367553514172308588 });
+
+form([
+  sec("intro", 16, "kick hat shaker perc top").filter_in(),
+  sec("groove", 16, "kick clap hat shaker perc bass chords top"),
+  sec("break", 24, "pad chords lead shaker"),
+  sec("build", 8, "clap hat shaker chords lead pad").energy(0.55).prog("B"),
+  sec("drop", 32, "kick clap hat shaker perc bass chords lead pad top").energy(0.9),
+  sec("outro", 16, "kick hat shaker perc bass"),
+]);
+
+mix("clap", #{ reverb: 0.3 });
+mix("hat", #{ level: -2.9886246, pan: 0.18 });
+mix("shaker", #{ pan: -0.3 });
+mix("perc", #{ level: 2.3582892, pan: 0.4, reverb: 0.1, delay: 0.2 });
+mix("bass", #{ duck: 0.45 });
+mix("chords", #{ reverb: 0.3, delay: 0.1, duck: 0.35 });
+mix("pad", #{ reverb: 0.4, duck: 0.4 });
+mix("lead", #{ reverb: 0.35, delay: 0.25, duck: 0.15 });
+mix("fx", #{ level: -3, reverb: 0.3 });</code></pre>
+        </section>
+      </div>
+
+      <div class="track-block">
+        <article class="track" id="paper-lanterns" data-track="paper-lanterns" data-title="Paper Lanterns">
+          <div class="track-row">
+            <button class="play" type="button" data-play="paper-lanterns" aria-pressed="false" aria-label="Play Paper Lanterns">
+              <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6L19 12z"/></svg>
+              <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.6v14H7zM13.4 5H17v14h-3.6z"/></svg>
+            </button>
+            <div class="track-name">
+              <h3>Paper Lanterns</h3>
+              <p>lofi · 82 BPM · D minor</p>
+            </div>
+            <div class="lcd lcd-sm" data-lcd="paper-lanterns" aria-hidden="true">
+              <span class="lcd-time">0:00.0</span><span class="lcd-dur">/ 0:43.9</span><span class="lcd-status">STOP</span>
+              <span class="lcd-pos">BAR 011.1&nbsp;&nbsp;&nbsp;GROOVE</span>
+            </div>
+            <p class="score" title="The critic's score out of 100"><span class="visually-hidden">Score </span>94</p>
+          </div>
+          <div class="wave" data-wave="paper-lanterns" data-peaks="/audio/paper-lanterns.json" role="slider" tabindex="0" aria-label="Position in Paper Lanterns" aria-valuemin="0" aria-valuemax="44" aria-valuenow="0" aria-valuetext="0:00 of 0:44"><canvas aria-hidden="true"></canvas></div>
+          <audio data-audio="paper-lanterns" src="/audio/paper-lanterns.mp3" preload="none" controls></audio>
+          <p class="track-foot">
+            <button type="button" class="made-toggle" data-made="paper-lanterns" aria-controls="made-paper-lanterns" aria-expanded="false">How it was made</button>
+            <a href="/audio/paper-lanterns.mp3" download>MP3</a>
+            <a href="/audio/paper-lanterns.rhai" download>paper-lanterns.rhai</a>
+          </p>
+        </article>
+        <section class="made" id="made-paper-lanterns" aria-labelledby="made-paper-lanterns-h">
+          <h4 id="made-paper-lanterns-h">How Paper Lanterns was made</h4>
+          <p>A script with real instruments: a Rhodes, an upright bass, a vibraphone and a string section over a recorded kit. This is its third version; <a href="#revise">the revision log</a> shows what the critic asked for each time.</p>
+          <p class="code-label">Command</p>
+          <pre class="code"><code class="language-sh">claudius script paper-lanterns.rhai</code></pre>
+          <p class="code-label">The script</p>
+          <pre class="code"><code class="language-rhai">// lofi in D minor at 82 BPM: a Rhodes, an upright bass, a vibraphone and strings over a recorded kit
+blank("lofi"); title("Paper Lanterns"); tempo(82); key("D minor"); swing(0.6); humanize(0.35);
+prog("A", "i9 iv9 VImaj7 V7"); bars_per_chord(1);
+
+track("kick",  s("bd ~ ~ ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ ~ ~").bank("uzu"));
+track("snare", s("~ sd ~ sd").bank("acoustic").gain(0.8));
+track("hats",  s("hh*8").bank("acoustic").gain("0.9 0.55").degradeBy(0.1));
+track("tamb",  s("~ tambourine ~ tambourine").gain(0.5).pan(0.3));
+track("keys",  chord("prog").struct("x ~ ~ ~ ~ ~ x ~").voicing(53, 74).s("rhodes").room(0.3));
+track("pad",   chord("prog").voicing(57, 72).s("string_ensemble").level(-8));
+track("bass",  note("&lt;[d2 ~ ~ a1 ~ ~ d2 ~] [g1 ~ ~ d2 ~ ~ g1 ~] [bb1 ~ ~ f2 ~ ~ bb1 ~] [a1 ~ ~ e2 ~ ~ a1 ~]&gt;")
+                 .s("upright_bass"));
+
+let tune = "&lt;[3 ~ 4 3 1 ~ 0 ~] [~ ~ 4 5 2 ~ 1 ~] [5 ~ 6 5 3 ~ 2 ~] [3 ~ ~ ~ 2 ~ ~ ~] "
+         + "[3 ~ 4 3 1 ~ 0 ~] [~ ~ 4 5 2 ~ 1 ~] [6 ~ 7 6 5 ~ 3 ~] [2 ~ 3 ~ ~ ~ ~ ~]&gt;";
+track("vibes", n(tune).scale("D:minor:pentatonic").octave(4).s("vibes").delay(0.25));
+
+form([sec("intro", 4, "keys pad"), sec("groove", 8, "kick snare hats keys bass"), sec("groove", 16, "*"),
+      sec("break", 8, "keys vibes pad").prog("A"), sec("groove", 16, "*"), sec("outro", 4, "keys pad")]);</code></pre>
+          <p class="code-label">What it printed</p>
+          <pre class="code code-out"><code>track kick: bd
+track snare: sd
+track hats: hh
+track tamb: tambourine
+track keys: rhodes
+track pad: string_ensemble
+track bass: upright_bass
+track vibes: vibes
+ears loaded in 12.9 s
+Paper Lanterns — lofi at 82 BPM in D minor, 56 bars (2:44)
+  progression A: i9 iv9 VImaj7 V7
+  progression B: i9 IIsus4 VImaj9 v9
+  form: intro 4 | groove 8 | groove2 16 | break 8 | groove3 16 | outro 4
+  tracks: kick (sampled bd (uzu:bd)), snare (sampled sd (muldjord:sd)), hats (sampled hh (muldjord:hh)), tamb (sampled tambourine (vcsl:tambourine)), keys (sampled rhodes (jrhodes:rhodes)), pad (sampled string_ensemble (vsco2:strings)), bass (sampled upright_bass (doublebass:upright_bass)), vibes (sampled vibes (vcsl:vibraphone))
+  master: -12.5 LUFS, true peak -1.6 dBTP (pre-master -9.8 LUFS); done in 32.1 s
+  ears: 'lo-fi hip hop beat' z +3.8 (closest confusion 'hip hop beat with heavy bass' +3.0); production z +1.9 vs 'a low quality recording with hiss' +0.9; p_real 0.74
+        sounds like: lo-fi hip hop beat, hip hop beat with heavy bass, inspirational corporate background music, warm and cozy music
+  verdict: 94/100 (arc 0.91, genre 0.95, mix 1.00, production 0.76, theory 1.00)
+  wrote out/lofi-paper-lanterns-1/song.mp3</code></pre>
+        </section>
+      </div>
+
+      <div class="track-block">
+        <article class="track" id="night-shift" data-track="night-shift" data-title="Night Shift">
+          <div class="track-row">
+            <button class="play" type="button" data-play="night-shift" aria-pressed="false" aria-label="Play Night Shift">
+              <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6L19 12z"/></svg>
+              <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.6v14H7zM13.4 5H17v14h-3.6z"/></svg>
+            </button>
+            <div class="track-name">
+              <h3>Night Shift</h3>
+              <p>techno · 130 BPM · F minor</p>
+            </div>
+            <div class="lcd lcd-sm" data-lcd="night-shift" aria-hidden="true">
+              <span class="lcd-time">0:00.0</span><span class="lcd-dur">/ 0:40.6</span><span class="lcd-status">STOP</span>
+              <span class="lcd-pos">BAR 053.1&nbsp;&nbsp;&nbsp;BREAK</span>
+            </div>
+            <p class="score" title="The critic's score out of 100"><span class="visually-hidden">Score </span>88</p>
+          </div>
+          <div class="wave" data-wave="night-shift" data-peaks="/audio/night-shift.json" role="slider" tabindex="0" aria-label="Position in Night Shift" aria-valuemin="0" aria-valuemax="41" aria-valuenow="0" aria-valuetext="0:00 of 0:41"><canvas aria-hidden="true"></canvas></div>
+          <audio data-audio="night-shift" src="/audio/night-shift.mp3" preload="none" controls></audio>
+          <p class="track-foot">
+            <button type="button" class="made-toggle" data-made="night-shift" aria-controls="made-night-shift" aria-expanded="false">How it was made</button>
+            <a href="/audio/night-shift.mp3" download>MP3</a>
+            <a href="/audio/night-shift.rhai" download>night-shift.rhai</a>
+          </p>
+        </article>
+        <section class="made" id="made-night-shift" aria-labelledby="made-night-shift-h">
+          <h4 id="made-night-shift-h">How Night Shift was made</h4>
+          <p>A script: a real TR-909, a bass rolling between the kicks, an acid line, a chord stab and recorded congas. The excerpt starts four bars before the second drop, so you hear the beat of silence that <code>.gap()</code> leaves in front of it. The critic still hears a mix close to mono; that note stayed in.</p>
+          <p class="code-label">Command</p>
+          <pre class="code"><code class="language-sh">claudius script night-shift.rhai</code></pre>
+          <p class="code-label">The script</p>
+          <pre class="code"><code class="language-rhai">// techno in F minor at 130 BPM: a TR-909, a rolling bass between the kicks, an acid line and a chord stab
+blank("techno"); title("Night Shift"); tempo(130); key("F minor");
+prog("A", "i7"); bars_per_chord(1);
+
+track("kick",  s("bd*4").bank("tr909"));
+track("clap",  s("~ cp ~ cp").bank("tr909").room(0.25));
+track("ohat",  s("[~ oh]*4").bank("tr909").gain(0.7).pan(0.3));
+track("hats",  s("hh*16").bank("tr909").gain("0.6 0.3 0.45 0.3").pan(-0.3));
+track("rim",   s("~ ~ rim ~ ~ ~ rim ~ ~ rim ~ ~ ~ ~ rim ~").bank("tr909").gain(0.5).pan(0.5).delay(0.3));
+track("congas", s("~ ~ conga ~ ~ conga ~ ~ ~ ~ conga ~ conga ~ ~ ~").gain(0.6).pan(-0.5).room(0.3));
+track("bass",  note("f1").struct("~ x x x ~ x x x ~ x x x ~ x x x").s("saw_bass").lpf(500).legato(0.6));
+track("acid",  note("&lt;[f2 f2 f3 f2 ab2 f2 c3 f2 f2 eb3 f2 f2 c3 f2 bb2 eb3] [f2 f2 f3 f2 ab2 f2 c3 f2 f2 eb3 f2 ab2 c3 eb3 f3 c3]&gt;")
+                 .s("acid").role("lead").delay(0.15));
+track("stab",  chord("prog").struct("~ ~ ~ x ~ ~ x ~").voicing(55, 70).s("stab").room(0.4).delay(0.3));
+track("strings", chord("prog").voicing(53, 72).s("string_ensemble").level(-9).room(0.5));
+
+form([sec("intro", 8, "kick hats"), sec("groove", 16, "kick hats ohat congas bass clap"),
+      sec("build", 8, "kick hats ohat bass stab").build(), sec("drop", 16, "kick clap hats ohat rim congas bass stab"),
+      sec("break", 8, "stab acid strings").prog("A").gap(), sec("drop", 16, "*").impact(), sec("outro", 8, "kick hats congas")]);</code></pre>
+          <p class="code-label">What it printed</p>
+          <pre class="code code-out"><code>track kick: bd
+track clap: cp
+track ohat: oh
+track hats: hh
+track rim: rim
+track congas: conga
+track bass: saw_bass
+track acid: acid
+track stab: stab
+track strings: string_ensemble
+ears loaded in 7.6 s
+Night Shift — techno at 130 BPM in F minor, 80 bars (2:28)
+  progression A: i7
+  progression B: i
+  form: intro 8 | groove 16 | build 8 | drop 16 | break 8 | drop2 16 | outro 8
+  tracks: kick (sampled bd (tr909:bd)), clap (sampled cp (tr909:cp)), ohat (sampled oh (tr909:oh)), hats (sampled hh (tr909:hh)), rim (sampled rim (tr909:rim)), congas (sampled conga (vcsl:congas)), bass (synth patch 'saw_bass'), acid (synth patch 'acid'), stab (synth patch 'stab'), strings (sampled string_ensemble (vsco2:strings)), crash (synth crash), riser (synth riser), impact (synth impact), downlifter (synth downlifter)
+  master: -8.9 LUFS, true peak -1.0 dBTP (pre-master -9.8 LUFS); done in 22.0 s
+  ears: 'techno music' z +4.4 (closest confusion 'drum and bass music' +3.1); production z +1.1 vs 'a low quality recording with hiss' +1.4; p_real 0.68
+        sounds like: techno music, a punchy kick drum pattern, drum and bass music, an uplifter sweep
+  verdict: 88/100 (arc 0.92, genre 1.00, mix 0.92, production 0.45, theory 1.00). Fix first: production reads close to 'a low quality recording with hiss' (z +1.4) vs professionally mixed (z +1.1); nearly mono (correlation 0.97): widen pads, chords and effects; dull 4-8 kHz: hats, claps and snare lack bite (presence -26.1 dB, healthy from -26)
+  wrote out/techno-night-shift-1/song.mp3</code></pre>
+        </section>
+      </div>
+
+      <div class="track-block">
+        <article class="track" id="low-light" data-track="low-light" data-title="Low Light">
+          <div class="track-row">
+            <button class="play" type="button" data-play="low-light" aria-pressed="false" aria-label="Play Low Light">
+              <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6L19 12z"/></svg>
+              <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.6v14H7zM13.4 5H17v14h-3.6z"/></svg>
+            </button>
+            <div class="track-name">
+              <h3>Low Light</h3>
+              <p>drum and bass · 174 BPM · C minor</p>
+            </div>
+            <div class="lcd lcd-sm" data-lcd="low-light" aria-hidden="true">
+              <span class="lcd-time">0:00.0</span><span class="lcd-dur">/ 0:41.4</span><span class="lcd-status">STOP</span>
+              <span class="lcd-pos">BAR 021.1&nbsp;&nbsp;&nbsp;BUILD</span>
+            </div>
+            <p class="score" title="The critic's score out of 100"><span class="visually-hidden">Score </span>93</p>
+          </div>
+          <div class="wave" data-wave="low-light" data-peaks="/audio/low-light.json" role="slider" tabindex="0" aria-label="Position in Low Light" aria-valuemin="0" aria-valuemax="41" aria-valuenow="0" aria-valuetext="0:00 of 0:41"><canvas aria-hidden="true"></canvas></div>
+          <audio data-audio="low-light" src="/audio/low-light.mp3" preload="none" controls></audio>
+          <p class="track-foot">
+            <button type="button" class="made-toggle" data-made="low-light" aria-controls="made-low-light" aria-expanded="false">How it was made</button>
+            <a href="/audio/low-light.mp3" download>MP3</a>
+            <a href="/audio/low-light.rhai" download>low-light.rhai</a>
+          </p>
+        </article>
+        <section class="made" id="made-low-light" aria-labelledby="made-low-light-h">
+          <h4 id="made-low-light-h">How Low Light was made</h4>
+          <p>A script for liquid drum and bass: the Yamaha grand and a string section on a slow progression, a flute on top, and a two-step beat with a recorded snare, hats and ride, and ghost snares between the backbeats. The excerpt runs from the last four bars of the build into the drop.</p>
+          <p class="code-label">Command</p>
+          <pre class="code"><code class="language-sh">claudius script low-light.rhai</code></pre>
+          <p class="code-label">The script</p>
+          <pre class="code"><code class="language-rhai">// liquid drum and bass in C minor at 174 BPM: a grand piano, strings and a flute over a recorded kit
+blank("dnb"); title("Low Light"); tempo(174); key("C minor");
+prog("A", "i9 VImaj7 IIImaj7 VII"); bars_per_chord(2);
+
+track("kick",   s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~").bank("uzu"));
+track("snare",  s("~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").bank("acoustic"));
+track("ghosts", s("~ ~ ~ ~ ~ ~ ~ sd ~ sd ~ ~ ~ ~ ~ sd").bank("acoustic").gain(0.35));
+track("hats",   s("hh*8").bank("acoustic").gain("0.8 0.5"));
+track("ride",   s("~ rd ~ rd").bank("acoustic").gain(0.4).pan(0.25));
+track("bass",   note("&lt;c2 c2 ab1 ab1 eb2 eb2 bb1 bb1&gt;").struct("x ~ ~ ~ ~ ~ x ~ ~ ~ x ~ ~ ~ ~ ~").s("sub_bass").legato(0.9));
+track("piano",  chord("prog").struct("x ~ ~ ~ ~ ~ ~ ~ ~ ~ x ~ ~ ~ ~ ~").voicing(55, 76).s("piano").room(0.35));
+track("strings", chord("prog").voicing(53, 72).s("string_ensemble").level(-7).room(0.5));
+
+let tune = "&lt;[4 ~ ~ 2 4 ~ 6 ~] [7 ~ ~ ~ ~ ~ ~ ~] [2 ~ ~ 0 2 ~ 4 ~] [4 ~ ~ ~ ~ ~ 3 2] "
+         + "[4 ~ ~ 2 4 ~ 8 ~] [6 ~ ~ ~ ~ ~ ~ ~] [3 ~ ~ 1 3 ~ 5 ~] [6 ~ ~ ~ ~ ~ ~ ~]&gt;";
+track("flute",  n(tune).scale("C:minor").octave(5).s("flute").level(-4).room(0.4).delay(0.2));
+
+form([sec("intro", 16, "piano strings").filter_in(), sec("build", 8, "piano strings hats ride kick").build(),
+      sec("drop", 32, "*").impact(), sec("break", 16, "piano strings flute").prog("A").gap(),
+      sec("drop", 32, "*").impact(), sec("outro", 8, "piano strings")]);</code></pre>
+          <p class="code-label">What it printed</p>
+          <pre class="code code-out"><code>track kick: bd
+track snare: sd
+track ghosts: sd
+track hats: hh
+track ride: rd
+track bass: sub_bass
+track piano: piano
+track strings: string_ensemble
+track flute: flute
+ears loaded in 4.2 s
+Low Light — dnb at 174 BPM in C minor, 112 bars (2:34)
+  progression A: i9 VImaj7 IIImaj7 VII
+  progression B: i7 IIIsus4 VII7 VImaj7
+  form: intro 16 | build 8 | drop 32 | break 16 | drop2 32 | outro 8
+  tracks: kick (sampled bd (uzu:bd)), snare (sampled sd (muldjord:sd)), ghosts (sampled sd (muldjord:sd)), hats (sampled hh (muldjord:hh)), ride (sampled rd (muldjord:rd)), bass (synth patch 'sub_bass'), piano (sampled piano (salamander:piano)), strings (sampled string_ensemble (vsco2:strings)), flute (sampled flute (vsco2:flute)), crash (synth crash), riser (synth riser), impact (synth impact), downlifter (synth downlifter), reverse_crash (synth reverse_crash)
+  master: -8.5 LUFS, true peak -1.0 dBTP (pre-master -8.5 LUFS); done in 23.9 s
+  ears: 'drum and bass music' z +3.1 (closest confusion 'house music' +2.3); production z +1.7 vs 'a low quality recording with hiss' +0.9; p_real 0.76
+        sounds like: jazz music, funk music, drum and bass music, a snare roll
+  verdict: 93/100 (arc 0.98, genre 0.85, mix 1.00, production 0.72, theory 1.00)
+  wrote out/dnb-low-light-1/song.mp3</code></pre>
+        </section>
+      </div>
+
+    </div>
+
+    <div class="credits">
+      <h3>Credits for the sampled instruments in these songs</h3>
+      <ul>
+        <li><a href="https://github.com/sfzinstruments/SalamanderGrandPiano">Salamander Grand Piano V3</a> by Alexander Holm, SFZ mapping by kinwie / sfzinstruments, <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>. The piano in Low Light.</li>
+        <li><a href="https://github.com/freepats/muldjordkit">MuldjordKit</a> by Lars Muldjord, FreePats stereo edition by Roberto (freepats.zenvoid.org), <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. The snare, hats and ride in Paper Lanterns and Low Light.</li>
+        <li><a href="https://github.com/sfzinstruments/jlearman.jRhodes3d">jRhodes3d</a> by Jeff Learman, free for making music. The Rhodes in Golden Pulse and Paper Lanterns.</li>
+        <li><a href="https://audiorealism.se/TR-909-SamplePack">TR-909 Ultimate Sample Pack</a> by Audio Realism. The drum machine in Night Shift.</li>
+        <li>Public domain, CC0 or the Unlicense, credited with thanks: VS Chamber Orchestra 2 and the Versilian Community Sample Library by Versilian Studios, the double bass by D. Smolken, TR-808 samples by Michael Fischer, and the uzu drumkit by Mot4i, Switch Angel and Ludens.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section section-alt" id="how" aria-labelledby="how-title">
+  <div class="wrap">
+    <header class="section-head">
+      <p class="channel"><span>02</span>How it works</p>
+      <h2 id="how-title">Compose, render, listen, revise</h2>
+      <p>A song goes round this loop until the critic runs out of complaints or you stop it. Under each stage is what claudius printed while it made Paper Lanterns.</p>
+    </header>
+
+    <ol class="chain">
+      <li class="module">
+        <h3><span class="module-num">1</span>Compose</h3>
+        <p>Music theory writes a blueprint, the song’s genome: tempo, key, chord progressions as Roman numerals, the form, drum patterns, melodic parts with a writing style, every sound and the mix. Scripts, mutations and the studio all edit the same blueprint.</p>
+        <pre class="readout"><code>Paper Lanterns — lofi at 82 BPM in D minor, 56 bars (2:44)
+  progression A: i9 iv9 VImaj7 V7
+  form: intro 4 | groove 8 | groove2 16 | break 8 | groove3 16 | outro 4</code></pre>
+      </li>
+      <li class="module">
+        <h3><span class="module-num">2</span>Render</h3>
+        <p>The blueprint is arranged like a DAW session, with fills at phrase ends, builds with a riser and a highpass sweep, and a beat of silence before the drop. Each track is balanced to its role’s loudness, ducked under the kick and sent to reverb and delay; the master lands on the genre’s loudness target.</p>
+        <pre class="readout"><code>master: -12.5 LUFS, true peak -1.6 dBTP (pre-master -9.8 LUFS); done in 32.1 s</code></pre>
+      </li>
+      <li class="module">
+        <h3><span class="module-num">3</span>Listen</h3>
+        <p>The critic meters the master (loudness, tonal balance per band, stereo width, mono low end), checks the energy arc and the score (melody in key, chord tones on strong beats, bass on the roots), and listens with <a href="https://github.com/Leonxlnx/earshot">earshot</a>, a CLAP audio model ported to Rust.</p>
+        <pre class="readout"><code>ears: 'lo-fi hip hop beat' z +3.8 (closest confusion 'hip hop beat with heavy bass' +3.0)
+verdict: 94/100 (arc 0.91, genre 0.95, mix 1.00, production 0.76, theory 1.00)</code></pre>
+      </li>
+      <li class="module">
+        <h3><span class="module-num">4</span>Revise</h3>
+        <p>Every issue names what to change. You change it in the studio or the script, an assistant changes it over MCP, or <code>claudius evolve</code> mutates the song and keeps the children the critic prefers.</p>
+        <pre class="readout"><code>Fix first: no air above 8 kHz: hats and cymbals too quiet or too dark (air -35.4 dB, healthy from -30)</code></pre>
+      </li>
+    </ol>
+
+    <div class="revise" id="revise">
+      <h3>Three versions of Paper Lanterns</h3>
+      <p>Judged with meters and theory only (<code>--no-ears</code>), which takes seconds. Each line is the verdict as printed.</p>
+      <ol class="renders">
+        <li>
+          <p class="render-head"><span class="render-n">Version 1</span><span class="render-score score-mid">86</span></p>
+          <pre class="readout"><code>verdict: 86/100 (arc 0.88, mix 0.81, theory 0.92). Fix first: no air above 8 kHz: hats and cymbals too quiet or too dark (air -35.4 dB, healthy from -30); low end not mono (correlation 0.85 below 150 Hz); only 25% of the lead's strong-beat notes are chord tones</code></pre>
+          <p class="render-fix">Rewrote the vibraphone line so beats 1 and 3 land on chord tones, made it eight bars long, raised the hats, and moved the keys and strings up out of the low end.</p>
+        </li>
+        <li>
+          <p class="render-head"><span class="render-n">Version 2</span><span class="render-score score-mid">89</span></p>
+          <pre class="readout"><code>verdict: 89/100 (arc 0.89, mix 0.83, theory 1.00). Fix first: no air above 8 kHz: hats and cymbals too quiet or too dark (air -34.6 dB, healthy from -30); low end not mono (correlation 0.85 below 150 Hz); muddy 250 Hz-1 kHz: too much pad / chord body (lowmid -3.9 dB, healthy up to -4)</code></pre>
+          <p class="render-fix">Three quick renders, each with one track muted, showed that the stereo low end came from the recorded kit’s kick, so the kick moved to the uzu kit. A tambourine on beats 2 and 4 added the missing air, and the chords now follow the song’s progression with <code>chord("prog")</code>.</p>
+        </li>
+        <li>
+          <p class="render-head"><span class="render-n">Version 3</span><span class="render-score score-good">97</span></p>
+          <pre class="readout"><code>verdict: 97/100 (arc 0.91, mix 1.00, theory 1.00)</code></pre>
+          <p class="render-fix">No issues left. With the ears on, the same song scores 94: genre 0.95 for “lo-fi hip hop beat”, production 0.76.</p>
+        </li>
+      </ol>
+      <p class="aside">The critic measures; it does not have taste. A high score means no measurable problems and a confident genre read, not a hit, so listen to finished songs yourself.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="script" aria-labelledby="script-title">
+  <div class="wrap">
+    <header class="section-head">
+      <p class="channel"><span>03</span>Script</p>
+      <h2 id="script-title">The song is a script</h2>
+      <p>A claudius script is <a href="https://rhai.rs">Rhai</a> with mini-notation patterns borrowed from <a href="https://strudel.cc">Strudel</a>. One cycle of a pattern is one bar. This is all of Paper Lanterns:</p>
+    </header>
+
+    <div class="script-grid">
+      <pre class="code code-main"><code class="language-rhai">// lofi in D minor at 82 BPM: a Rhodes, an upright bass, a vibraphone and strings over a recorded kit
+blank("lofi"); title("Paper Lanterns"); tempo(82); key("D minor"); swing(0.6); humanize(0.35);
+prog("A", "i9 iv9 VImaj7 V7"); bars_per_chord(1);
+
+track("kick",  s("bd ~ ~ ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ ~ ~").bank("uzu"));
+track("snare", s("~ sd ~ sd").bank("acoustic").gain(0.8));
+track("hats",  s("hh*8").bank("acoustic").gain("0.9 0.55").degradeBy(0.1));
+track("tamb",  s("~ tambourine ~ tambourine").gain(0.5).pan(0.3));
+track("keys",  chord("prog").struct("x ~ ~ ~ ~ ~ x ~").voicing(53, 74).s("rhodes").room(0.3));
+track("pad",   chord("prog").voicing(57, 72).s("string_ensemble").level(-8));
+track("bass",  note("&lt;[d2 ~ ~ a1 ~ ~ d2 ~] [g1 ~ ~ d2 ~ ~ g1 ~] [bb1 ~ ~ f2 ~ ~ bb1 ~] [a1 ~ ~ e2 ~ ~ a1 ~]&gt;")
+                 .s("upright_bass"));
+
+let tune = "&lt;[3 ~ 4 3 1 ~ 0 ~] [~ ~ 4 5 2 ~ 1 ~] [5 ~ 6 5 3 ~ 2 ~] [3 ~ ~ ~ 2 ~ ~ ~] "
+         + "[3 ~ 4 3 1 ~ 0 ~] [~ ~ 4 5 2 ~ 1 ~] [6 ~ 7 6 5 ~ 3 ~] [2 ~ 3 ~ ~ ~ ~ ~]&gt;";
+track("vibes", n(tune).scale("D:minor:pentatonic").octave(4).s("vibes").delay(0.25));
+
+form([sec("intro", 4, "keys pad"), sec("groove", 8, "kick snare hats keys bass"), sec("groove", 16, "*"),
+      sec("break", 8, "keys vibes pad").prog("A"), sec("groove", 16, "*"), sec("outro", 4, "keys pad")]);</code></pre>
+
+      <dl class="notes">
+        <div>
+          <dt><code>s("bd ~ ~ ~ ~ ~ bd ~ ~ ~ bd ~ ~ ~ ~ ~")</code></dt>
+          <dd>One bar cut into sixteen steps, with kicks on steps 1, 7 and 11. <code>~</code> is a rest, <code>hh*8</code> is eight hats in a bar.</dd>
+        </div>
+        <div>
+          <dt><code>.bank("acoustic")</code></dt>
+          <dd>Plays the snare and hats from a recorded kit; <code>.bank("uzu")</code> takes the kick from another one.</dd>
+        </div>
+        <div>
+          <dt><code>prog("A", "i9 iv9 VImaj7 V7")</code></dt>
+          <dd>The progression as Roman numerals, so <code>key()</code> can move it. <code>chord("prog")</code> plays whichever chord the song is on, voice-led between MIDI notes 53 and 74.</dd>
+        </div>
+        <div>
+          <dt><code>n(tune).scale("D:minor:pentatonic")</code></dt>
+          <dd>The vibraphone line as scale degrees. <code>&lt; &gt;</code> plays one group per bar, so the tune is eight bars long.</dd>
+        </div>
+        <div>
+          <dt><code>form([sec("intro", 4, "keys pad"), …])</code></dt>
+          <dd>The sections, their lengths in bars, and which tracks play in each. <code>"*"</code> is every track.</dd>
+        </div>
+      </dl>
+    </div>
+
+    <div class="script-more">
+      <figure class="steps-card">
+        <div class="steps steps-static" role="img" aria-label="The first four tracks of the script as sixteen steps: kick on steps 1, 7 and 11; snare and tambourine on steps 5 and 13; hats on every odd step.">
+          <div class="steps-ruler" aria-hidden="true"><span>1</span><span>2</span><span>3</span><span>4</span></div>
+          <div class="lane" data-role="kick" data-pattern="x.....x...x....."><span class="lane-name">kick</span><span class="cells"><span class="beat"><span class="cell v2"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></span><span class="beat"><span class="cell"></span><span class="cell"></span><span class="cell v2"></span><span class="cell"></span></span><span class="beat"><span class="cell"></span><span class="cell"></span><span class="cell v2"></span><span class="cell"></span></span><span class="beat"><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></span></span></div>
+          <div class="lane" data-role="snare" data-pattern="....x.......x..."><span class="lane-name">snare</span><span class="cells"><span class="beat"><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></span><span class="beat"><span class="cell v2"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></span><span class="beat"><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></span><span class="beat"><span class="cell v2"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></span></span></div>
+          <div class="lane" data-role="hat" data-pattern="x.o.x.o.x.o.x.o."><span class="lane-name">hats</span><span class="cells"><span class="beat"><span class="cell v2"></span><span class="cell"></span><span class="cell v1"></span><span class="cell"></span></span><span class="beat"><span class="cell v2"></span><span class="cell"></span><span class="cell v1"></span><span class="cell"></span></span><span class="beat"><span class="cell v2"></span><span class="cell"></span><span class="cell v1"></span><span class="cell"></span></span><span class="beat"><span class="cell v2"></span><span class="cell"></span><span class="cell v1"></span><span class="cell"></span></span></span></div>
+          <div class="lane" data-role="perc" data-pattern="....o.......o..."><span class="lane-name">tamb</span><span class="cells"><span class="beat"><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></span><span class="beat"><span class="cell v1"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></span><span class="beat"><span class="cell"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></span><span class="beat"><span class="cell v1"></span><span class="cell"></span><span class="cell"></span><span class="cell"></span></span></span></div>
+        </div>
+        <figcaption>The first four tracks as a step sequencer: the same bar, drawn the way the studio draws it.</figcaption>
+      </figure>
+
+      <div class="script-run">
+        <h3>Run it, or read any song</h3>
+        <pre class="code"><code class="language-sh"># render it, judge it and write the song folder
+claudius script paper-lanterns.rhai
+# run a script on a saved song: it changes only what the script names
+claudius script tweak.rhai --on out/lofi-paper-lanterns-1
+# the whole language
+claudius reference</code></pre>
+        <p>Every song prints as a script: the studio’s script tab shows it, <code>GET /api/script</code> returns it, <code>claudius script</code> writes it to <code>song.rhai</code> beside the render, and <code>--print</code> prints it for a saved song. Running that script on the song changes nothing, so a script is also how you read a song. Golden Pulse came out of evolution, and <a href="#made-golden-pulse" data-open-made="golden-pulse">its script</a> was printed this way.</p>
+        <p class="links"><a href="/docs/language/overview.html">Language reference</a> <a href="/docs/language/mini-notation.html">Mini-notation</a> <a href="/docs/learn/producers/strudel.html">Coming from Strudel</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-alt" id="studio" aria-labelledby="studio-title">
+  <div class="wrap">
+    <header class="section-head">
+      <p class="channel"><span>04</span>Studio</p>
+      <h2 id="studio-title">A studio, native and in the browser</h2>
+      <p><code>claudius studio</code> opens the native window. <code>claudius serve</code> serves the same app, compiled to WebAssembly, at <code>http://127.0.0.1:7878</code>. Both are clients of one session, so the window, a browser tab and an assistant can work on the same song at once. Every change renders and is judged in the background, a few seconds for a full song.</p>
+    </header>
+
+    <figure class="shot shot-main">
+      <img src="/assets/img/studio-1200.webp" srcset="/assets/img/studio-800.webp 800w, /assets/img/studio-1200.webp 1200w, /assets/img/studio-1600.webp 1600w" sizes="(min-width: 1248px) 1200px, calc(100vw - 32px)" width="1600" height="985" loading="lazy" decoding="async" alt="The claudius studio with Golden Bloom, a deep house song in G# minor at 123 BPM, rendered and open. At the top, the transport and its cyan readout; below, the arrangement with six coloured sections (intro, groove, break, build, drop, outro) and one row per track, the master waveform coloured by section, and the step sequencer for kick, clap, hat, shaker and perc. On the right, the selected section’s settings and the verdict: 98 out of 100, one issue, and the measures.">
+      <figcaption>The arrangement, the step sequencer and the verdict. Sections are blocks you drag to reorder and right-click to duplicate, insert or remove; each track has a cell per section that switches it on or off there.</figcaption>
+    </figure>
+
+    <div class="shots">
+      <figure class="shot shot-mixer">
+        <img src="/assets/img/studio-mixer.webp" width="712" height="282" loading="lazy" decoding="async" alt="The mixer with the lead soloed: channel strips with pan, reverb, delay and duck knobs and a fader, every other track marked silent while the lead plays, and the master strip with its meters at −11.0 LUFS and −1.0 dBTP.">
+        <figcaption><strong>Mixer.</strong> Level, pan, sends and sidechain per track, mute and solo, loudness meters and the master.</figcaption>
+      </figure>
+      <figure class="shot shot-verdict">
+        <img src="/assets/img/studio-verdict.webp" width="356" height="500" loading="lazy" decoding="async" alt="The verdict panel: a ring showing 98 out of 100, bars for arc, mix and theory, the issue to fix first (a fizzy top end), and the measures: tonal balance per band, loudness, true peak, loudness range and stereo correlation.">
+        <figcaption><strong>Verdict.</strong> The score, the issue to fix first, and the measures behind it.</figcaption>
+      </figure>
+      <figure class="shot shot-harmony">
+        <img src="/assets/img/studio-harmony.webp" width="814" height="276" loading="lazy" decoding="async" alt="The harmony tab of a song in G# minor: which progression each section plays (A in the intro, groove and drop, B in the break and build), and progression A as four chords, i7 iv7 v7 i7, with the chord names under the Roman numerals.">
+        <figcaption><strong>Harmony.</strong> Progressions as chords and Roman numerals, and which sections play which.</figcaption>
+      </figure>
+    </div>
+
+    <div class="studio-cta">
+      <p><a class="btn btn-primary" href="/studio/?mock">Open the studio demo</a></p>
+      <p>The demo runs the studio in your browser with a built-in mock in place of the engine. Every panel works; the audio is a rough preview synthesized in the page. For real renders, run <code>claudius studio</code> or <code>claudius serve</code>.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="assistants" aria-labelledby="assistants-title">
+  <div class="wrap">
+    <header class="section-head">
+      <p class="channel"><span>05</span>Assistants</p>
+      <h2 id="assistants-title">Make songs with Claude, Cursor or ChatGPT</h2>
+      <p>claudius is an MCP server. An assistant connected to it sees the song you have open, edits it with scripts, mutations, evolution or raw edits, renders and judges it, and you hear every change in the studio as it happens.</p>
+    </header>
+
+    <div class="clients">
+      <article class="client">
+        <h3>Claude Code</h3>
+        <pre class="code"><code class="language-sh">claude mcp add claudius -- claudius mcp</code></pre>
+        <h3>Claude Desktop</h3>
+        <p>Add this to <code class="long">~/Library/Application Support/Claude/claude_desktop_config.json</code> and restart Claude. Use the full path that <code>which claudius</code> prints.</p>
+        <pre class="code"><code class="language-json">{
+  "mcpServers": {
+    "claudius": {
+      "command": "/Users/you/.cargo/bin/claudius",
+      "args": ["mcp"]
+    }
+  }
+}</code></pre>
+      </article>
+      <article class="client">
+        <h3>Cursor</h3>
+        <p>The same command and arguments in <code>.cursor/mcp.json</code>:</p>
+        <pre class="code"><code class="language-json">{
+  "mcpServers": {
+    "claudius": { "command": "claudius", "args": ["mcp"] }
+  }
+}</code></pre>
+        <p><code>claudius mcp</code> drives the studio when one is running on the port, so you and the assistant share the song. When none is running, it starts a session of its own and serves the web studio on the port, so you can still open it.</p>
+        <p>Clients that speak Streamable HTTP can use <code>http://127.0.0.1:7878/mcp</code> while the studio or <code>claudius serve</code> runs.</p>
+      </article>
+      <article class="client client-wide">
+        <h3>ChatGPT</h3>
+        <p>Assistants in the cloud need a public HTTPS address. Run claudius with a token behind a tunnel:</p>
+        <pre class="code"><code class="language-sh">TOKEN=$(openssl rand -hex 16)
+echo "$TOKEN"
+claudius serve --public --token "$TOKEN"
+cloudflared tunnel --url http://127.0.0.1:7878</code></pre>
+        <p>Then add a custom connector in ChatGPT’s developer mode with the URL <code>https://&lt;tunnel&gt;/mcp?token=&lt;token&gt;</code>. The studio is at <code>https://&lt;tunnel&gt;/?token=&lt;token&gt;</code>.</p>
+      </article>
+    </div>
+
+    <div class="tools">
+      <p class="tools-label">The tools an assistant gets</p>
+      <ul class="tool-list">
+        <li><code>new_song</code></li><li><code>get_song</code></li><li><code>run_script</code></li><li><code>script_reference</code></li><li><code>listen</code></li><li><code>mutate</code></li><li><code>evolve</code></li><li><code>status</code></li><li><code>undo</code></li><li><code>redo</code></li><li><code>stop</code></li><li><code>catalog</code></li><li><code>save</code></li><li><code>open</code></li><li><code>analyze</code></li><li><code>remake</code></li><li><code>command</code></li>
+      </ul>
+      <blockquote class="prompt-example">
+        <p>Make a deep house track at 122 BPM, listen to it, and fix the critic’s top two issues.</p>
+        <footer>A good first message</footer>
+      </blockquote>
+      <p class="links"><a href="/docs/getting-started/assistants.html">Working with an assistant</a> <a href="/docs/guide/mcp.html">MCP tools reference</a></p>
+    </div>
+  </div>
+</section>
+
+<section class="section section-alt" id="sounds" aria-labelledby="sounds-title">
+  <div class="wrap">
+    <header class="section-head">
+      <p class="channel"><span>06</span>Sounds</p>
+      <h2 id="sounds-title">Real sounds, with their licences</h2>
+      <p>Notes exist only as the score that plays the sounds, like a piano roll. The sounds themselves are synthesized in code or recorded.</p>
+    </header>
+
+    <div class="sound-kinds">
+      <div class="kind">
+        <h3>Synthesized</h3>
+        <p>13 drum voices; a polyphonic and monophonic synth engine with polyBLEP oscillators, unison with analog drift, SVF and ladder filters, FM and glide, and 20 presets; risers, downlifters, impacts and reverse cymbals. <code>claudius sounds</code> renders every one of them to WAV.</p>
+      </div>
+      <div class="kind">
+        <h3>Recorded</h3>
+        <p>14 sample packs with 162 instruments, multi-sampled with velocity layers and round robins, all under licences that allow making and publishing music with them. <code>claudius-packs install --defaults</code> downloads them, about 1.1 GB. Songs that use CC BY packs get a <code>credits.txt</code>.</p>
+      </div>
+    </div>
+
+    <div class="table-wrap" tabindex="0" role="region" aria-labelledby="packs-caption">
+      <table class="packs">
+        <caption id="packs-caption">The default packs</caption>
+        <thead><tr><th scope="col">Pack</th><th scope="col">What it is</th><th scope="col">Licence</th></tr></thead>
+        <tbody>
+          <tr><th scope="row"><code>salamander</code></th><td>Yamaha C5 grand piano, five velocity layers</td><td><a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a></td></tr>
+          <tr><th scope="row"><code>epianos</code></th><td>Wurlitzer EP200, Yamaha CP80, Hohner Pianet T</td><td><a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a></td></tr>
+          <tr><th scope="row"><code>jrhodes</code></th><td>1977 Rhodes Mark I Stage 73</td><td><a href="https://github.com/sfzinstruments/jlearman.jRhodes3d/blob/master/LICENSE">free for making music</a></td></tr>
+          <tr><th scope="row"><code>vsco2</code></th><td>Chamber orchestra: strings, brass, woodwinds, harp, timpani</td><td><a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a></td></tr>
+          <tr><th scope="row"><code>vcsl</code></th><td>Mallets, pipe organ, tenor sax, harmonica, world and orchestral percussion</td><td><a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a></td></tr>
+          <tr><th scope="row"><code>tr808</code></th><td>Roland TR-808, sampled by Michael Fischer in 1994</td><td><a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a></td></tr>
+          <tr><th scope="row"><code>tr909</code></th><td>Roland TR-909, with every accent level</td><td><a href="https://audiorealism.se/TR-909-SamplePack">free use, no redistribution</a></td></tr>
+          <tr><th scope="row"><code>tr707</code></th><td>Roland TR-707</td><td>public domain</td></tr>
+          <tr><th scope="row"><code>uzu</code></th><td>A small processed electronic kit made for Strudel</td><td><a href="https://unlicense.org/">Unlicense</a></td></tr>
+          <tr><th scope="row"><code>muldjord</code></th><td>Acoustic rock kit with velocity layers</td><td><a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a></td></tr>
+          <tr><th scope="row"><code>freepats</code></th><td>Upright piano, FM piano, organ, bass guitars, classical and electric guitars, synths and pads</td><td><a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a></td></tr>
+          <tr><th scope="row"><code>doublebass</code></th><td>1958 double bass, pizzicato</td><td><a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a></td></tr>
+          <tr><th scope="row"><code>growlybass</code></th><td>Fingered electric bass recorded direct</td><td><a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a></td></tr>
+          <tr><th scope="row"><code>voice</code></th><td>A sung “a” vowel, and a five-voice choir built from it</td><td><a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="sound-kinds">
+      <div class="kind">
+        <h3>Apple Loops</h3>
+        <p>When GarageBand or Logic content is installed, claudius uses it too, about 14,000 loops on a full install. Apple licenses these loops for your own music; claudius reads them where GarageBand put them and copies nothing except one-shot cuts in its cache. The songs on this page use none.</p>
+      </div>
+      <div class="kind">
+        <h3>Your own sounds</h3>
+        <p><code>claudius chop</code> cuts any recording into bar loops and drum one-shots for your library, <code>make --sample</code> flips a chop into a song, and scripts play any file with <code>.s("/path/to/sound.wav")</code>.</p>
+      </div>
+    </div>
+    <p class="links"><a href="/docs/guide/packs.html">Sample packs</a> <a href="/docs/design/0007-sample-licensing.html">Which samples we ship, and why</a></p>
+  </div>
+</section>
+
+<section class="section" id="install" aria-labelledby="install-title">
+  <div class="wrap">
+    <header class="section-head">
+      <p class="channel"><span>07</span>Install</p>
+      <h2 id="install-title">Install</h2>
+      <p>The install scripts download the latest release, check it against the release’s <code>SHA256SUMS</code>, and put <code>claudius</code>, <code>claudius-packs</code> and the web studio in your user folder. Then they offer to fetch the sample library and the listening models.</p>
+    </header>
+
+    <div class="platforms">
+      <article class="platform">
+        <h3>macOS and Linux</h3>
+        <div class="cmd"><pre><code><span class="prompt" aria-hidden="true">$ </span>curl -fsSL {{site_url}}/install.sh | sh</code></pre><button type="button" class="copy" data-copy="curl -fsSL {{site_url}}/install.sh | sh">Copy</button></div>
+        <p class="platform-note">Apple silicon and Intel Macs (Intel builds have no ears: their verdicts come from the meters and the theory checks); x86_64 and ARM64 Linux with glibc 2.38 or newer (Ubuntu 24.04, Debian 13, Fedora 39 and later). Without ALSA you get the headless build, which serves the studio to your browser. The commands go to <code>~/.local/bin</code>.</p>
+      </article>
+      <article class="platform">
+        <h3>Windows <span class="chip">preview</span></h3>
+        <div class="cmd"><pre><code><span class="prompt" aria-hidden="true">PS&gt; </span>irm {{site_url}}/install.ps1 | iex</code></pre><button type="button" class="copy" data-copy="irm {{site_url}}/install.ps1 | iex">Copy</button></div>
+        <p class="platform-note">In PowerShell. An x64 build, which also runs on ARM64 Windows; it is newer and less tested than the others, so please <a href="{{repo_url}}/issues">report</a> what breaks. The commands go to <code class="long">%LOCALAPPDATA%\Programs\claudius\bin</code>, which the script adds to your PATH.</p>
+      </article>
+      <article class="platform platform-wide">
+        <h3>From source</h3>
+        <p class="platform-note">With a Rust toolchain, in a clone of <a href="{{repo_url}}">the repository</a>:</p>
+        <pre class="code"><code class="language-sh">cargo install --path crates/claudius-cli       # the claudius command
+cargo install --path crates/claudius-packs     # the claudius-packs command
+(cd crates/claudius-ui &amp;&amp; NO_COLOR=true trunk build --release)   # the web studio (optional; needs trunk)</code></pre>
+      </article>
+    </div>
+
+    <div class="first-steps">
+      <h3>Then</h3>
+      <pre class="code"><code class="language-sh">claudius setup                  # the sample packs (about 1.1 GB) and the listening models (about 0.8 GB)
+claudius doctor                 # checks the installation: studio, packs, models, ffmpeg, the port
+claudius make --genre house     # a full song in out/house-&lt;title&gt;-&lt;seed&gt;/
+claudius studio                 # the studio window, with the engine inside</code></pre>
+      <p>Without the models, <code>--no-ears</code> judges with meters and theory only. Once they are downloaded, they load in about 4 seconds.</p>
+      <p class="links"><a href="/docs/getting-started/install.html">Install guide</a> <a href="/docs/getting-started/first-song.html">Your first song</a> <a href="/docs/guide/cli.html">Command line</a></p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-in">
+    <div class="foot-brand">
+      <img src="/assets/mark.svg" alt="" width="26" height="26">
+      <p>claudius {{version}}. MIT licence.</p>
+    </div>
+    <ul class="foot-links">
+      <li><a href="/docs/">Documentation</a></li>
+      <li><a href="{{repo_url}}">Source on GitHub</a></li>
+      <li><a href="/docs/changelog.html">Changelog</a></li>
+      <li><a href="{{repo_url}}/blob/main/LICENSE">Licence</a></li>
+    </ul>
+    <p class="foot-note">This site makes no requests to anyone else: no analytics, no cookies, no fonts or scripts from other servers. Code and readouts are set in <a href="/assets/fonts/hack-license.txt">Hack</a>.</p>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,325 @@
+# The checks every pull request and every push to main goes through. Branch protection requires only "ci ok", the
+# last job, which fails when any other job failed. `cargo xtask ci` runs the core of it locally.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # the release PR workflow starts CI this way, because pull requests opened with GITHUB_TOKEN start no workflows
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  # line tables keep backtraces readable at a fraction of the size of full debug info
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
+  RUST_BACKTRACE: 1
+
+jobs:
+  fmt:
+    name: formatting
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # the toolchain rust-toolchain.toml pins, with rustfmt
+      - run: rustup toolchain install --profile minimal
+      - run: cargo fmt --all --check
+
+  clippy:
+    name: clippy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/rust
+        with:
+          cache-key: clippy
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  test:
+    name: tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    # Windows has not been verified to build yet, so it reports without blocking
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, experimental: false, features: "" }
+          - { os: macos-latest, experimental: false, features: "" }
+          # the features the Windows release has: no ears (xtask/src/dist.rs says why)
+          - os: windows-latest
+            experimental: true
+            features: --exclude earshot --no-default-features --features claudius-cli/studio
+    env:
+      FEATURES: ${{ matrix.features }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/rust
+        with:
+          cache-key: test
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: cargo-nextest@0.9.148
+      # the docs examples run in the docs job
+      - name: Tests
+        run: |
+          read -ra features <<< "$FEATURES"
+          cargo nextest run --workspace --locked --no-fail-fast "${features[@]}" -E 'not binary(docs_examples)'
+      - name: Doctests
+        run: |
+          read -ra features <<< "$FEATURES"
+          cargo test --workspace --locked --doc "${features[@]}"
+
+  features:
+    name: feature combinations
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/rust
+        with:
+          cache-key: features
+      # the builds that leave features out, so that code behind cfg(feature = ...) keeps compiling
+      - name: Studio without the ears (the Intel Mac and Windows builds)
+        run: cargo clippy --locked -p claudius-cli --no-default-features --features studio -- -D warnings
+      - name: Engine without the ears
+        run: cargo clippy --locked -p claudius -p claudius-server --no-default-features -- -D warnings
+      - name: Headless (the -headless Linux archives)
+        run: cargo check --locked -p claudius-cli --no-default-features --features ears
+
+  intel-mac:
+    name: intel mac build
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/rust
+        with:
+          targets: x86_64-apple-darwin
+          cache-key: intel-mac
+      # what the x86_64-apple-darwin release builds, cross-compiled on Apple silicon
+      - run: cargo check --locked --target x86_64-apple-darwin -p claudius-cli -p claudius-packs --no-default-features --features claudius-cli/studio
+
+  wasm:
+    name: web studio
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # rust-toolchain.toml brings the wasm32-unknown-unknown target
+      - uses: ./.github/actions/rust
+        with:
+          cache-key: wasm
+          linux-packages: "false"
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: trunk@0.21.14
+      # the native clippy job never sees the code behind cfg(target_arch = "wasm32")
+      - run: cargo clippy -p claudius-ui --target wasm32-unknown-unknown --locked -- -D warnings
+      - run: cargo xtask web
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: web-studio
+          path: crates/claudius-ui/dist
+          retention-days: 7
+
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/rust
+        with:
+          cache-key: docs
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: mdbook@0.5.4
+      - run: cargo xtask docs
+      - name: Examples in the docs
+        run: cargo test -p claudius --locked --test docs_examples
+      # the links in the book are checked in the site job, where the book sits at /docs/ next to the files its
+      # pages link to
+
+  site:
+    name: site
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/rust
+        with:
+          cache-key: site
+          linux-packages: "false"
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: trunk@0.21.14,mdbook@0.5.4
+      - run: cargo xtask site --out target/site
+      # every link and #anchor between pages of the site and the book; links to other sites are not followed
+      - name: Internal links
+        run: |
+          curl -fsSLo "$RUNNER_TEMP/lychee.tar.gz" https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-unknown-linux-gnu.tar.gz
+          echo "1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a  $RUNNER_TEMP/lychee.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/lychee.tar.gz" -C "$RUNNER_TEMP" lychee
+          "$RUNNER_TEMP/lychee" --offline --include-fragments --no-progress --root-dir "$PWD/target/site" 'target/site/**/*.html'
+      - name: No smoke test
+        if: hashFiles('site/tests/smoke.spec.mjs', 'site/package-lock.json') == ''
+        run: echo "::notice title=site::site/tests/smoke.spec.mjs or site/package-lock.json is missing, so the smoke test did not run"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: hashFiles('site/tests/smoke.spec.mjs') != '' && hashFiles('site/package-lock.json') != ''
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - name: Smoke test
+        if: hashFiles('site/tests/smoke.spec.mjs') != '' && hashFiles('site/package-lock.json') != ''
+        working-directory: site
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure() && hashFiles('site/playwright-report/**') != ''
+        with:
+          name: playwright-report
+          path: site/playwright-report
+          retention-days: 7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: site
+          path: target/site
+          retention-days: 7
+
+  deny:
+    name: cargo-deny
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/rust
+        with:
+          cache-key: deny
+          linux-packages: "false"
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: cargo-deny@0.20.2
+      - run: cargo deny --locked check
+
+  typos:
+    name: typos
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: crate-ci/typos@7f9d0819ca1c008ade73f4b41fa9d258d48f605b # v1.51.1
+
+  msrv:
+    name: msrv
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # RUSTUP_TOOLCHAIN overrides rust-toolchain.toml for every later step
+      - name: Read rust-version
+        run: |
+          msrv=$(sed -n 's/^rust-version = "\(.*\)"/\1/p' Cargo.toml)
+          [[ "$msrv" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo "::error::rust-version is \"$msrv\""; exit 1; }
+          echo "RUSTUP_TOOLCHAIN=$msrv" >> "$GITHUB_ENV"
+      - uses: ./.github/actions/rust
+        with:
+          cache-key: msrv
+      - run: cargo check --workspace --locked
+
+  benches:
+    name: benches build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # this only checks that the benches build, which does not need the release profile's LTO
+      CARGO_PROFILE_BENCH_LTO: "false"
+      CARGO_PROFILE_BENCH_CODEGEN_UNITS: "16"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/rust
+        with:
+          cache-key: benches
+      - run: cargo bench --workspace --locked --no-run
+
+  workflows:
+    name: workflows and scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # actionlint runs shellcheck (preinstalled on the runner) on every run: block too
+      - name: actionlint
+        run: |
+          curl -fsSLo actionlint.tar.gz https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  actionlint.tar.gz" | sha256sum -c -
+          tar -xzf actionlint.tar.gz actionlint
+          ./actionlint -color
+      - name: shellcheck
+        run: shellcheck scripts/*.sh
+      - name: PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          $found = Invoke-ScriptAnalyzer -Path scripts/install.ps1 -Severity Warning, Error
+          $found | Format-Table -AutoSize
+          if ($found) { exit 1 }
+
+  ci-ok:
+    name: ci ok
+    if: always()
+    needs: [fmt, clippy, test, features, intel-mac, wasm, docs, site, deny, typos, msrv, benches, workflows]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every job passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          case " $RESULTS " in
+            *" failure "* | *" cancelled "*) exit 1 ;;
+          esac

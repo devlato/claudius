@@ -1,0 +1,60 @@
+/* without JavaScript: native audio controls, every "how it was made" panel open, both install commands shown */
+
+.track audio {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.track .play,
+.unit .play,
+.wave,
+.made-toggle,
+.tabs,
+.form-window,
+.form-head,
+.copy {
+  display: none !important;
+}
+
+.track-row {
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  grid-template-areas: "name score" !important;
+}
+
+.track-row .lcd,
+.unit-top .lcd {
+  display: none;
+}
+
+.made,
+.made.is-open,
+.made.is-active {
+  display: block !important;
+  grid-column: auto !important;
+  grid-row: auto !important;
+  margin-top: 8px;
+  contain: none !important;
+}
+
+.tracks {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.track-block {
+  display: block !important;
+}
+
+.track {
+  grid-column: auto !important;
+  grid-row: auto !important;
+}
+
+.cmd[hidden] {
+  display: flex !important;
+  margin-top: 8px;
+}
+
+.cmd {
+  border-radius: 10px;
+}

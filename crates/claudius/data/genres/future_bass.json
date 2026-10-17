@@ -1,0 +1,200 @@
+{
+  "name": "future_bass",
+  "description": "Future bass: half-time drums, lush 7th / 9th supersaw chords chopped in syncopated rhythms and pumped hard by the sidechain, a bright plucky hook, builds into drops",
+  "query": "future bass music",
+  "alts": ["dubstep music", "upbeat corporate pop music", "trap beat", "house music"],
+  "bpm": [140, 160],
+  "swing": [0.5, 0.53],
+  "humanize": 0.1,
+  "modes": [["major", 0.6], ["minor", 0.4]],
+  "harmony": [["major_pop", 0.4], ["major7_jazz", 0.35], ["minor_epic", 0.25]],
+  "markov": 0.15,
+  "ext": 2,
+  "bars_per_chord": [[1, 0.8], [2, 0.2]],
+  "forms": [
+    [
+      {"name": "intro", "kind": "intro", "bars": 8, "energy": 0.35, "layers": ["pad", "lead"], "filter_in": true},
+      {
+        "name": "verse",
+        "kind": "verse",
+        "bars": 16,
+        "energy": 0.55,
+        "layers": ["kick", "snare", "hat", "bass", "pad", "lead"]
+      },
+      {
+        "name": "build",
+        "kind": "build",
+        "bars": 8,
+        "energy": 0.65,
+        "layers": ["snare", "hat", "chords", "lead"],
+        "build": true,
+        "gap": true
+      },
+      {
+        "name": "drop",
+        "kind": "drop",
+        "bars": 16,
+        "energy": 1.0,
+        "layers": ["kick", "snare", "hat", "ohat", "perc", "bass", "chords", "lead"],
+        "impact": true,
+        "fills": true
+      },
+      {"name": "break", "kind": "break", "bars": 8, "energy": 0.4, "prog": "B", "layers": ["pad", "lead", "arp"]},
+      {
+        "name": "build2",
+        "kind": "build",
+        "bars": 8,
+        "energy": 0.65,
+        "prog": "B",
+        "layers": ["snare", "chords", "arp"],
+        "build": true,
+        "gap": true
+      },
+      {
+        "name": "drop2",
+        "kind": "drop",
+        "bars": 16,
+        "energy": 1.0,
+        "layers": ["kick", "snare", "hat", "ohat", "perc", "bass", "chords", "lead", "arp"],
+        "impact": true,
+        "fills": true
+      },
+      {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.35, "layers": ["pad", "chords"]}
+    ]
+  ],
+  "drums": [
+    {
+      "name": "kick",
+      "voice": "kick",
+      "template": {"steps": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0, 0, 0, 0, 0.2], "vel": [0.9, 1.0], "vary": 0.3},
+      "params": {"decay": [0.22, 0.4], "tune": [48, 60], "tone": [0.4, 0.7], "drive": [3, 8]},
+      "samples": ["Kick"],
+      "mix": {"bus": "drums"}
+    },
+    {
+      "name": "snare",
+      "voice": "snare",
+      "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0], "vel": [0.92, 1.0], "vary": 0.25},
+      "params": {"decay": [0.2, 0.35], "room": [0.3, 0.6], "snap": [0.5, 0.8], "tone": [0.5, 0.9]},
+      "samples": ["Snare"],
+      "mix": {"bus": "drums", "reverb": 0.25}
+    },
+    {
+      "name": "hat",
+      "voice": "closed_hat",
+      "template": {
+        "steps": [1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4],
+        "vel": [0.3, 0.7],
+        "rolls": 0.25
+      },
+      "samples": ["Hi-hat"],
+      "choke": "hats",
+      "mix": {"bus": "drums", "pan": 0.15}
+    },
+    {
+      "name": "ohat",
+      "voice": "open_hat",
+      "template": {"steps": [0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0], "vel": [0.5, 0.75]},
+      "choke": "hats",
+      "mix": {"bus": "drums", "pan": -0.15}
+    },
+    {"name": "perc", "voice": "snap", "euclid": [3, 8], "mix": {"bus": "drums", "pan": 0.4, "reverb": 0.3}}
+  ],
+  "kits": [["tr808", 0.3]],
+  "parts": [
+    {
+      "name": "chords",
+      "role": "chords",
+      "presets": ["supersaw"],
+      "styles": ["syncopated", "pump", "sustain"],
+      "register": [52, 79],
+      "voices": 5,
+      "voicing": "open",
+      "mix": {"duck": 0.85, "reverb": 0.25, "delay": 0.05}
+    },
+    {
+      "name": "bass",
+      "role": "bass",
+      "presets": ["sub_bass", "808", "saw_bass"],
+      "styles": ["sustain", "kick_follow"],
+      "register": [33, 48],
+      "mix": {"bus": "bass", "duck": 0.6}
+    },
+    {
+      "name": "lead",
+      "role": "lead",
+      "presets": ["pluck", "bell", "supersaw"],
+      "styles": ["motif"],
+      "register": [67, 91],
+      "density": [0.45, 0.7],
+      "mix": {"reverb": 0.3, "delay": 0.2, "duck": 0.3}
+    },
+    {
+      "name": "pad",
+      "role": "pad",
+      "presets": ["pad", "warm_pad", "choir|pad"],
+      "styles": ["sustain"],
+      "register": [50, 76],
+      "voices": 4,
+      "voicing": "open",
+      "mix": {"reverb": 0.4, "duck": 0.5}
+    },
+    {
+      "name": "arp",
+      "role": "arp",
+      "presets": ["pluck", "chip"],
+      "styles": ["up", "updown", "random"],
+      "rates": [0.25],
+      "register": [64, 88],
+      "optional": 0.5,
+      "mix": {"delay": 0.25, "reverb": 0.2, "duck": 0.4}
+    }
+  ],
+  "transitions": {
+    "riser": true,
+    "impact": true,
+    "downlifter": true,
+    "reverse_crash": true,
+    "riser_bars": 8,
+    "mix": {"bus": "fx", "reverb": 0.3}
+  },
+  "mix": {
+    "lufs": -9.0,
+    "reverb": {
+      "fx": "reverb",
+      "decay": 2.4,
+      "damping": 0.4,
+      "predelay_ms": 20,
+      "width": 1.25,
+      "mix": 1.0,
+      "lowcut": 300
+    },
+    "delay": {"fx": "delay", "beats": 0.75, "feedback": 0.35, "damping": 0.45, "pingpong": true, "mix": 1.0},
+    "buses": {
+      "drums": [
+        {
+          "fx": "compressor",
+          "threshold_db": -11,
+          "ratio": 2.2,
+          "attack_ms": 10,
+          "release_ms": 100,
+          "knee_db": 6,
+          "makeup_db": 1
+        }
+      ],
+      "music": [{"fx": "eq", "bands": [{"kind": "highpass", "freq": 130, "q": 0.7}]}]
+    },
+    "master": [
+      {
+        "fx": "eq",
+        "bands": [
+          {"kind": "highpass", "freq": 26, "q": 0.7},
+          {"kind": "highshelf", "freq": 10000, "gain_db": 1.5, "q": 0.7}
+        ]
+      },
+      {"fx": "compressor", "threshold_db": -9, "ratio": 1.8, "attack_ms": 25, "release_ms": 150, "knee_db": 6},
+      {"fx": "saturate", "kind": "tanh", "drive_db": 2, "mix": 0.3}
+    ],
+    "duck_release": 0.45
+  }
+}

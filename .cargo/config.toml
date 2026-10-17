@@ -1,0 +1,9 @@
+[alias]
+# `cargo xtask <command>`: the repository's build, packaging and release chores (see xtask/src/main.rs)
+xtask = "run --package xtask --"
+
+[target.wasm32-unknown-unknown]
+# strip = true in [profile.release] would also remove the target_features section, which tells wasm-opt (trunk
+# runs it on the web studio) which WebAssembly features the code uses, and wasm-opt then rejects the module.
+# wasm-opt leaves the symbol names out of its output anyway.
+rustflags = ["-C", "strip=none"]

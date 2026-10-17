@@ -1,0 +1,37 @@
+[package]
+name = "claudius-server"
+description = "The claudius engine as a service: a session with undo, renders and verdicts, the HTTP API the UI talks to, and the MCP tools"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[dependencies]
+anyhow = "1.0.104"
+axum = "0.8.9"
+claudius = { path = "../claudius", default-features = false }
+claudius-api = { path = "../claudius-api" }
+claudius-packs = { version = "0.1.0", path = "../claudius-packs" }
+dirs = "7"
+rayon = "1"
+rmcp = { version = "3.5.1", features = ["server", "macros", "transport-io", "transport-streamable-http-server", "schemars"] }
+schemars = "1"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "sync", "time", "signal", "net", "io-std"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.7.1", features = ["fs", "cors"] }
+tracing = "0.1.44"
+ureq = { version = "3", features = ["json"] }
+
+[dev-dependencies]
+tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros"] }
+tower = { version = "0.5", features = ["util"] }
+
+[features]
+default = ["ears"]
+ears = ["claudius/ears"]
