@@ -268,8 +268,9 @@ fn shared_ears_across_threads() {
 fn clap_front_end_matches_feature_extractor() {
     let mut r = Report::new("clap_mel");
     let fe = earshot::clap::FrontEnd::default();
-    // without ffmpeg the downmix rounds differently in the quietest bins
-    let (tol, sum_tol) = if exact_decoding() { (2e-3, 1e-5) } else { (2e-2, 1e-4) };
+    // the reference was decoded with a recent ffmpeg; other versions, and earshot's own decoder, round the quietest
+    // bins of the sweep's fades up to 0.01 dB differently
+    let (tol, sum_tol) = if exact_decoding() { (2e-2, 1e-5) } else { (2e-2, 1e-4) };
     for (j, path) in fixtures() {
         let name = j["name"].as_str().unwrap();
         let m = audio::load_mono(&path).unwrap();
