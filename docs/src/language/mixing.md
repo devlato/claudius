@@ -43,7 +43,7 @@ The last rule is the one to watch. A pad written with `note()` or `chord()`, an 
 all become `lead` or `chords` unless you say otherwise, and a `lead` is mixed 3.5 dB louder than a `pad` and checked
 by the critic as the melody. Set the role:
 
-```js
+```js packs
 blank("house");
 track("pad",   chord("<Am F>").s("pad").role("pad"));
 track("arp",   n("0 2 4 7").scale("A:minor").octave(4).fast(2).s("pluck").role("arp"));

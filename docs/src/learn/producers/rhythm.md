@@ -37,7 +37,7 @@ shapes the groove, not the track's loudness.
 
 A sixteenth hat with accents on the off-beat eighths and soft ghosts between:
 
-```js
+```js packs
 blank("house");
 tempo(124);
 track("hats", s("hh*16").bank("tr909").gain("[0.35 0.2 0.8 0.2]*4"));
@@ -77,7 +77,7 @@ the genre's value.
 **Ghost notes** are low-velocity hits between the main ones. In a step string, `o`; in a pattern, a quiet layer in a
 `stack()`, since a gain pattern applies by time and would turn down the backbeat too:
 
-```js
+```js packs
 blank("lofi");
 tempo(86); swing(0.6);
 track("snare", stack([s("~ sd ~ sd").gain(0.9), s("~ ~ ~ [~ sd] ~ ~ [~ sd] ~").gain(0.3)]).bank("acoustic"));
@@ -85,7 +85,7 @@ track("snare", stack([s("~ sd ~ sd").gain(0.9), s("~ ~ ~ [~ sd] ~ ~ [~ sd] ~").g
 
 **Rolls** are fast repeats inside one beat. Write the bar beat by beat, with the roll in the beat that has it:
 
-```js
+```js packs
 blank("trap");
 tempo(140);
 track("hats", s("<[hh*2 hh*2 hh*2 hh*2] [hh*2 hh*2 hh*2 hh*6] [hh*2 hh*2 hh*2 hh*2] [hh*2 hh*4 hh*2 hh*8]>")
@@ -101,7 +101,7 @@ patterns: `(3,8)` is the tresillo (`x..x..x.`), `(5,8)` the cinquillo (`x.xx.xx.
 percussion lines over a four-on-the-floor kick. A third number rotates the rhythm left by that many steps (see
 [Euclidean rhythms](../../language/mini-notation.md#euclidean-rhythms)).
 
-```js
+```js packs
 blank("techno");
 tempo(130);
 track("kick", s("bd*4").bank("tr909"));
@@ -122,7 +122,7 @@ It restarts with every section, like every pattern.
 **Kick and bass together.** A bass that plays exactly with the kick uses the kick's rhythm as its structure. Keep the
 rhythm in a variable so the two cannot drift apart:
 
-```js
+```js packs
 blank("trap");
 tempo(140); key("C minor");
 let kick = "x ~ ~ ~ ~ ~ ~ x ~ ~ x ~ ~ ~ ~ ~";
@@ -146,7 +146,7 @@ Drum lanes change with the sections they play in:
 [Form and sections](../../language/form.md#what-the-flags-do) has the exact rules. Pattern tracks are never rewritten;
 make fills with `lastOf()` and builds with a track that only plays in the build:
 
-```js
+```js packs
 blank("house");
 tempo(124);
 track("drums", s("bd*4, [~ cp]*2, [~ hh]*4").bank("tr909").lastOf(8, |x| x.ply(2)));
