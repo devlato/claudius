@@ -116,9 +116,17 @@ pub fn build(sh: &Shell, target: &str, web: Option<PathBuf>, headless: bool, no_
 }
 
 fn sha256(path: &Path) -> Result<String> {
+    use std::io::Read;
+    let mut file = std::fs::File::open(path)?;
     let mut hasher = Sha256::new();
-    std::io::copy(&mut std::fs::File::open(path)?, &mut hasher)?;
-    Ok(format!("{:x}", hasher.finalize()))
+    let mut buf = vec![0u8; 1 << 16];
+    loop {
+        match file.read(&mut buf)? {
+            0 => break,
+            n => hasher.update(&buf[..n]),
+        }
+    }
+    Ok(hasher.finalize().iter().map(|b| format!("{b:02x}")).collect())
 }
 
 /// SHA256SUMS for every archive in target/dist, so that the directory can stand in for a release
@@ -133,4 +141,16 @@ fn write_sums(sh: &Shell, dist: &Path) -> Result<()> {
     }
     sh.write_file(dist.join("SHA256SUMS"), sums)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn sha256_of_a_file_is_the_usual_hex() {
+        let p = std::env::temp_dir().join(format!("xtask-sha256-{}", std::process::id()));
+        std::fs::write(&p, b"abc").unwrap();
+        let sum = super::sha256(&p).unwrap();
+        std::fs::remove_file(&p).unwrap();
+        assert_eq!(sum, "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+    }
 }
