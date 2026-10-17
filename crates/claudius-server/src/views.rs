@@ -379,6 +379,12 @@ pub fn verdict_text(v: &VerdictView) -> String {
             e.sounds_like.join(", ")
         ));
     }
+    let measures: std::collections::BTreeMap<String, f64> = v.measures.iter().cloned().collect();
+    let sections = claudius::judge::section_loudness(&measures);
+    if !sections.is_empty() {
+        let line: Vec<String> = sections.iter().map(|(name, lufs)| format!("{name} {lufs:.1}")).collect();
+        out.push_str(&format!("  loudness by section (LUFS): {}\n", line.join(", ")));
+    }
     for (sev, what, target) in v.issues.iter().take(8) {
         out.push_str(&format!("  issue ({sev:.2}): {what} — fix: {target}\n"));
     }

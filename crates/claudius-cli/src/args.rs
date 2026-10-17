@@ -218,18 +218,29 @@ pub(crate) enum Cmd {
         #[arg(long, default_value_t = claudius_server::DEFAULT_PORT, env = "CLAUDIUS_PORT")]
         port: u16,
     },
-    /// Add claudius to an assistant's MCP configuration (Claude Desktop, Claude Code, Cursor), or print it
+    /// Add claudius to an assistant (Claude Desktop, Claude Code, Cursor, Codex): its MCP configuration and the
+    /// skills that teach it claudius; or print them for another
     Connect {
         #[arg(value_enum)]
         client: connect::Client,
         /// connect over HTTP to a running studio instead of letting the client start claudius
         #[arg(long)]
         http: bool,
-        /// remove claudius from that client instead
+        /// remove claudius (and its skills) from that client instead
         #[arg(long)]
         remove: bool,
+        /// connect the MCP server only, without the skills
+        #[arg(long)]
+        no_skills: bool,
         #[arg(long, default_value_t = claudius_server::DEFAULT_PORT, env = "CLAUDIUS_PORT")]
         port: u16,
+    },
+    /// Write the skills that teach AI assistants claudius (a folder with a SKILL.md each, and zips of them for the
+    /// Claude apps); `claudius connect` installs them for Claude Code, Cursor and Codex
+    Skills {
+        /// the folder to write them into
+        #[arg(short, long, default_value = "claudius-skills")]
+        out: PathBuf,
     },
     /// Open the studio: the native app with the engine inside (also serves the web UI and MCP on --port)
     Studio {

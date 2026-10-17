@@ -13,15 +13,37 @@ claudius connect claude-desktop
 Quit and reopen Claude Desktop. claudius now appears in the tools menu of a new chat. The command adds one entry to
 Claude's configuration file and keeps a backup of the old one next to it; `--remove` takes it out again.
 
-## Claude Code and Cursor
+It also writes claudius' [skills](#skills) as zips into `~/Music/claudius/skills/`. Upload them in Claude's
+settings, under Capabilities, and Claude uses them in Claude Desktop and on claude.ai.
+
+## Claude Code, Cursor and Codex
 
 ```sh
 claudius connect claude-code
 claudius connect cursor
+claudius connect codex
 ```
+
+Each adds the MCP server and installs the skills where that assistant reads them (`~/.claude/skills/`,
+`~/.cursor/skills/`, `~/.codex/skills/`). `--no-skills` leaves the skills out, and `--remove` takes both out again.
 
 For any other client, `claudius connect print` shows the configuration to paste. Clients that can reach a URL can
 also connect over HTTP to a running studio: `http://127.0.0.1:7878/mcp`.
+
+## Skills
+
+The MCP tools give an assistant the controls; claudius' skills give it the craft. They are short guides, in the
+[Agent Skills](https://agentskills.io) format, that an assistant reads when the conversation turns to music:
+
+- **claudius-songs**: how to make and edit a song: listen, read the verdict, change one thing, and say what changed
+  in musical terms; the script language with recipes; a starting point for each genre.
+- **claudius-remix**: analysing a recording, remaking its skeleton in another genre, chopping and flipping it.
+- **claudius-setup**: installing claudius, connecting assistants, and fixing what goes wrong.
+
+`claudius connect` installs them for Claude Code, Cursor and Codex, and writes zips for the Claude apps.
+`claudius skills --out <folder>` writes them anywhere else, for a project's own `.claude/skills/` folder, say.
+They are built into claudius, so they always match the version you have. For an assistant without skills, such as a
+ChatGPT project, `claudius-songs/SKILL.md` works as its instructions.
 
 ## You and the assistant on the same song
 

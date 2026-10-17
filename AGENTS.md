@@ -18,6 +18,9 @@ what you need to act.
   without the ears or the studio window), the tests and the examples in the docs, which is what CI checks first.
   Fix what it finds. If you touched the docs, the site, dependencies or workflows, run the matching checks from
   `docs/src/contributing/setup.md` too.
+- **Keep the skills in step.** `skills/` teaches assistants the MCP tools, the commands and the script language. A
+  change to a tool, a command, a message or a function they quote changes the skill in the same pull request; their
+  examples run with the docs examples.
 - **Keep the two features apart.** Code that needs earshot goes behind `#[cfg(feature = "ears")]`, code that needs
   the native window behind `studio`. The Intel Mac and Windows builds have no ears, and the headless Linux build
   has no window, so both have to keep compiling.

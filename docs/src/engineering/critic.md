@@ -94,7 +94,10 @@ last 1 s so transitions do not count, and compares that with the energy the blue
   costs up to 0.3 and raises `the drop is only 2.1 LU louder than the breakdown (aim for 3-7): thin the break or push
   the drop`.
 
-A song with fewer than two measurable sections scores 1.
+A song with fewer than two measurable sections scores 1. Each section's loudness is kept in the measures as
+`section_<n>_<name>_lufs`, numbered in the arrangement's order (`section_05_drop_lufs`), and the MCP tools print them
+as one `loudness by section` line: the critic compares only the drop with the break, and these let a person or an
+assistant compare any two.
 
 ## Theory
 

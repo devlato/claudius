@@ -20,8 +20,9 @@ The first public release.
   into the same song.
 - The studio, a native and web app (egui) with arrangement, step sequencer, mixer, harmony, script and verdict
   panels.
-- MCP tools, over stdio and HTTP, so Claude, ChatGPT, Cursor and other assistants can make and edit songs while you
-  listen.
+- MCP tools, over stdio and HTTP, so Claude, ChatGPT, Cursor, Codex and other assistants can make and edit songs
+  while you listen, and skills that teach them the craft: making and editing songs, remixing recordings, and setting
+  claudius up. `claudius connect` installs both.
 - Analysis and remakes of any song: tempo, key, chords, sections and groove, rebuilt in any genre.
 - `claudius setup`, `doctor` and `connect` for installing the sounds and models, checking an installation, and
   configuring assistants.

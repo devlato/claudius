@@ -56,6 +56,17 @@ pub struct Verdict {
     pub summary: String,
 }
 
+/// each section's loudness (its median short-term LUFS), in the arrangement's order, from a verdict's measures
+pub fn section_loudness(measures: &BTreeMap<String, f64>) -> Vec<(String, f64)> {
+    measures
+        .iter()
+        .filter_map(|(k, v)| {
+            let name = k.strip_prefix("section_")?.strip_suffix("_lufs")?;
+            Some((name.split_once('_').map_or(name, |(_, n)| n).to_string(), *v))
+        })
+        .collect()
+}
+
 pub const BANDS: [(&str, f64, f64); 6] = [
     ("sub", 20.0, 60.0),
     ("low", 60.0, 250.0),
@@ -209,14 +220,17 @@ fn arc_checks(r: &Rendered, p: &Project, m: &mut BTreeMap<String, f64>, issues: 
     let spb = SRF * 60.0 / p.bpm;
     let st = loudness::blocks(&r.master, 3.0, 0.5);
     let mut lv: Vec<(SectionKind, f64, f64)> = Vec::new();
-    for s in &p.sections {
+    for (i, s) in p.sections.iter().enumerate() {
         let (a, b) = (s.start_bar as f64 * 4.0 * spb / SRF, (s.start_bar + s.bars) as f64 * 4.0 * spb / SRF);
         let mut vals: Vec<f64> = st.iter().filter(|(t, _)| *t >= a + 1.5 && *t < b - 1.0).map(|(_, l)| *l).collect();
         if vals.is_empty() {
             continue;
         }
         vals.sort_by(|x, y| x.partial_cmp(y).unwrap());
-        lv.push((s.kind, s.energy as f64, vals[vals.len() / 2]));
+        let median = vals[vals.len() / 2];
+        // numbered so that they sort in the arrangement's order
+        m.insert(format!("section_{:02}_{}_lufs", i + 1, s.name), (median * 10.0).round() / 10.0);
+        lv.push((s.kind, s.energy as f64, median));
     }
     if lv.len() < 2 {
         return 1.0;
