@@ -53,8 +53,9 @@ change the rest of the song.
    tonic is drawn the same way, always, and a key of your own replaces the tonic and the mode. Progression `B` is
    another progression of the same style half the time, else a substitution of `A` worked out in the style's mode.
    When a key of your own has another mode, both progressions then move to it the way `key()` moves them: diatonic
-   chords keep their degree and take the new mode's quality, borrowed and applied chords stay as written. Chord length comes from `bars_per_chord`, and a one-chord
-   progression lasts 4 bars;
+   chords keep their degree and take the new mode's quality, borrowed chords keep their sound spelled in the new mode,
+   and applied chords stay as written. Chord length comes from `bars_per_chord`, and a one-chord progression lasts 4
+   bars;
 3. **form**: one of the genre's forms, every section halved (to at least 4 bars) with `--short`;
 4. **drums**: per lane, a one-shot from the library (with chance `samples`, 0.75 unless `--samples` or a script says
    otherwise, the same for `make`, scripts and the studio's new songs, when there is a library) or a

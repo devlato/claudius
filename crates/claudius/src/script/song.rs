@@ -21,12 +21,18 @@ use super::sounds::{drum_name, resolve_sound, role_of};
 use super::steps::{hits_to_steps, steps_to_hits, tile_hits};
 use super::{Ctx, MAX_NOTES_PER_BAR, R, constant, fail, num, text};
 
-/// a diatonic chord moved to another mode on the same degree (I maj7 in major becomes i7 in minor); borrowed and
-/// applied chords stay as written
+/// a diatonic chord moved to another mode on the same degree (I maj7 in major becomes i7 in minor); a borrowed chord
+/// keeps its sound, spelled in the new mode (bIII in F major, A flat, is III in F minor); an applied chord (V7/V) is
+/// relative already and stays as written
 pub fn remode(rn: &str, from: &Key, to: &Key) -> String {
     use crate::theory::{chord, progression};
-    if rn.starts_with(['b', '#', '♭', '♯']) || rn.contains('/') {
+    if rn.contains('/') {
         return rn.to_string();
+    }
+    if rn.starts_with(['b', '#', '♭', '♯']) {
+        // the same chord against the new tonic: numerals are relative, so the tonic moves with the key
+        let here = Key::new(to.tonic, from.mode);
+        return chord::roman(rn, &here).map_or_else(|| rn.to_string(), |c| chord::roman_of(&c, to));
     }
     let Some(c) = chord::roman(rn, from) else { return rn.to_string() };
     let Some(d) = from.pcs().iter().position(|&p| p == c.root) else { return rn.to_string() };
@@ -46,6 +52,21 @@ fn rekey(rn: &str, from: &Key, to: &Key, shift: i32) -> String {
             format!("{}/{bass}", remoded(head))
         }
         None => remoded(rn),
+    }
+}
+
+/// a new track, part or drum lane joins the form where the form already names it (a generated form lists the genre's
+/// optional parts in the sections they belong to), or, when no section does, in every section with energy 0.6 or
+/// more (every section when none lists any track yet)
+pub(super) fn place_new(bp: &mut Blueprint, name: &str) {
+    if bp.form.iter().any(|s| s.layers.iter().any(|l| l == name)) {
+        return;
+    }
+    let any = bp.form.iter().any(|s| !s.layers.is_empty());
+    for s in bp.form.iter_mut() {
+        if !any || s.energy >= 0.6 {
+            s.layers.push(name.to_string());
+        }
     }
 }
 
@@ -327,9 +348,7 @@ fn register_drums(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                     choke: None,
                     mix: TrackMix { bus: "drums".into(), ..Default::default() },
                 });
-                for s in bp.form.iter_mut().filter(|s| s.energy >= 0.6) {
-                    s.layers.push(lane.to_string());
-                }
+                place_new(bp, lane);
                 Ok(())
             })
         }
@@ -395,12 +414,7 @@ fn register_tracks(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
             bp.patterns.retain(|x| x.name != name);
             bp.patterns.push(PatternTrack { name: name.to_string(), code: p.repr.clone(), sounds, role, mix });
             if !existed {
-                let any = bp.form.iter().any(|s| !s.layers.is_empty());
-                for s in bp.form.iter_mut() {
-                    if !any || s.energy >= 0.6 {
-                        s.layers.push(name.to_string());
-                    }
-                }
+                place_new(bp, name);
             }
             log.push(format!("track {name}: {}", labels.join(", ")));
             Ok(())

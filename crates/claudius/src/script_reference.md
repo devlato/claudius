@@ -26,7 +26,7 @@ an option a function does not know is an error, not ignored.
 |---|---|
 | `title("Night Drive")` | |
 | `tempo(124)` | BPM 40..240 |
-| `key("A minor")` | also `"F#m"`, `"Eb"`, `"D dorian"`, `"C# phrygian"`. Progressions are Roman numerals, so they follow (a slash bass moves with them); tonal loops are re-pitched |
+| `key("A minor")` | also `"F#m"`, `"Eb"`, `"D dorian"`, `"C# phrygian"`. Progressions are Roman numerals, so they follow (a slash bass moves with them). A change of mode moves diatonic chords to the new mode on their degree and keeps borrowed chords' sound (`bIII` in F major is `III` in F minor); tonal loops are re-pitched |
 | `swing(0.56)` | 0.5 straight, 0.66 triplet feel |
 | `humanize(0.3)` | timing and velocity looseness 0..1 |
 | `prog("A", "i7 VImaj7 iv7 v7")` | a progression, one chord per `bars_per_chord` bars. Roman numerals (`i ii° III bVII V/V iiø7`), slash chords (`VI/A`, `F/A`) or chord names (`Am7 Fmaj7 Dm7 Em7`, converted to numerals in the current key). Sections play progression `A` unless they say otherwise; breaks play `B`, or `A` when there is no `B` |

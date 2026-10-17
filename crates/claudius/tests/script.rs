@@ -107,9 +107,11 @@ fn a_mode_change_moves_the_chords_with_it() {
     .unwrap()
     .bp
     .unwrap();
-    assert_eq!(out.harmony.progressions["A"], ["i7", "VImaj7", "iiø7", "v7", "bVII"]);
+    // the borrowed bVII keeps its sound, a whole step below the tonic, which in minor is the diatonic VII
+    assert_eq!(out.harmony.progressions["A"], ["i7", "VImaj7", "iiø7", "v7", "VII"]);
+    // back in major every chord is diatonic in minor, so each takes major's chord on its degree: VII becomes vii°
     let back = script::run(r#"key("F major")"#, Some(out), None).unwrap().bp.unwrap();
-    assert_eq!(back.harmony.progressions["A"], ["Imaj7", "vi7", "ii7", "V7", "bVII"]);
+    assert_eq!(back.harmony.progressions["A"], ["Imaj7", "vi7", "ii7", "V7", "vii°"]);
 }
 
 #[test]
@@ -396,4 +398,27 @@ fn a_key_in_another_mode_gets_the_progressions_in_that_mode() {
         plain.harmony.progressions["A"].iter().map(|rn| script::remode(rn, &plain.key, &major.key)).collect();
     assert_eq!(major.harmony.progressions["A"], remoded);
     assert!(plain.key.mode != major.key.mode || major.harmony.progressions["A"] == plain.harmony.progressions["A"]);
+}
+
+#[test]
+fn a_new_part_plays_where_the_form_already_lists_it() {
+    // the form names the pad before there is one, as generated forms name the genre's optional parts
+    let code = r#"
+        blank("house");
+        track("kick", s("bd*4"));
+        form([sec("intro", 8, "kick pad"), sec("drop", 16, "kick")]);
+        part("pad", #{ style: "sustain" });
+        track("lead", n("0 2 4 7").s("pluck"));
+    "#;
+    let bp = script::run(code, None, None).unwrap().bp.unwrap();
+    let layers = |i: usize| bp.form[i].layers.clone();
+    assert_eq!(layers(0), ["kick", "pad"], "the pad stays where the form put it, once");
+    assert_eq!(layers(1), ["kick", "lead"], "a track the form doesn't name goes to the high-energy sections");
+}
+
+#[test]
+fn a_change_of_mode_keeps_borrowed_chords_as_they_sound() {
+    let out = script::run(r#"blank("house"); key("F major"); prog("A", "I bIII IV V"); key("F minor")"#, None, None);
+    // diatonic chords take the new mode on their degree; the borrowed A flat stays A flat, now spelled III
+    assert_eq!(out.unwrap().bp.unwrap().harmony.progressions["A"], ["i", "III", "iv", "v"]);
 }

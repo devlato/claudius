@@ -202,12 +202,7 @@ fn add_genre_part(bp: &mut Blueprint, name: &str) -> R<()> {
     };
     let mut rng = crate::rng::Rng::new(bp.seed ^ crate::rng::hash_str(name));
     bp.parts.push(compose::new_part(spec, &mut rng));
-    let any = bp.form.iter().any(|s| !s.layers.is_empty());
-    for s in bp.form.iter_mut() {
-        if !any || s.energy >= 0.6 {
-            s.layers.push(name.to_string());
-        }
-    }
+    super::song::place_new(bp, name);
     Ok(())
 }
 
