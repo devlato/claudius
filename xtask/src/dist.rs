@@ -21,6 +21,8 @@ use xshell::{Shell, cmd};
 use crate::{WEB_DIST, copy_tree, fresh_dir, root};
 
 const BINARIES: &[&str] = &["claudius", "claudius-packs"];
+/// on Windows also the studio's Start menu program, which opens no console window
+const WINDOWS_BINARIES: &[&str] = &["claudius-studio"];
 const DOCS: &[&str] = &["README.md", "LICENSE", "NOTICE", "CHANGELOG.md"];
 
 /// Targets built without the ears. ort has no ONNX Runtime for Intel Macs. On Windows its ONNX Runtime always
@@ -67,7 +69,7 @@ pub fn build(sh: &Shell, target: &str, web: Option<PathBuf>, headless: bool, no_
     let bin = stage.join("bin");
     std::fs::create_dir_all(&bin)?;
     let exe = if windows { ".exe" } else { "" };
-    for binary in BINARIES {
+    for binary in BINARIES.iter().chain(if windows { WINDOWS_BINARIES } else { &[] }) {
         let file = format!("{binary}{exe}");
         std::fs::copy(built.join(&file), bin.join(&file)).with_context(|| format!("copying {file}"))?;
     }

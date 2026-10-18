@@ -45,7 +45,15 @@ so run `claudius setup` as the user who makes the music.
 
 ## Windows
 
-In PowerShell:
+Windows is a preview: its build has no ears yet, so verdicts use meters and music theory.
+
+Download `claudius-<version>-x86_64-pc-windows-msvc.msi` from the [latest
+release](https://github.com/devlato/claudius/releases/latest) and run it. It needs no administrator: it installs
+claudius for you in `%LOCALAPPDATA%\Programs\claudius`, adds its programs to your `PATH`, and puts **claudius** in the
+Start menu, which opens the studio. The installer is not signed yet, so SmartScreen may say *Windows protected your
+PC*: click **More info**, then **Run anyway**. Settings, Apps, removes it again.
+
+Or install the programs only, in PowerShell:
 
 ```sh
 irm https://github.com/devlato/claudius/releases/latest/download/install.ps1 | iex

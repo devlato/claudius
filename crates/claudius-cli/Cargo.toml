@@ -14,6 +14,10 @@ publish = false
 name = "claudius"
 path = "src/main.rs"
 
+[[bin]]
+name = "claudius-studio"
+path = "src/bin/claudius-studio.rs"
+
 [dependencies]
 claudius = { path = "../claudius", default-features = false }
 claudius-server = { path = "../claudius-server", default-features = false }
