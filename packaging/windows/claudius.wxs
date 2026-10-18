@@ -1,0 +1,66 @@
+<!--
+  The Windows installer, made by scripts/package/windows.ps1 with WiX 5. It installs claudius for the user who runs
+  it, without an administrator, in %LOCALAPPDATA%\Programs\claudius: the programs in bin (added to that user's PATH),
+  the web studio in share\claudius\web, and a Start menu entry that opens the studio. The UpgradeCode never changes,
+  so a newer installer replaces an older install.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="claudius" Manufacturer="claudius" Version="$(Version)" Scope="perUser"
+           UpgradeCode="2FBE7A5D-672A-4B0C-84AC-C9C3ED41691D">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of claudius is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="claudius.ico" SourceFile="$(Icons)\claudius.ico" />
+    <Property Id="ARPPRODUCTICON" Value="claudius.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/devlato/claudius" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/devlato/claudius/blob/main/docs/src/getting-started/install.md" />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="ProgramsFolder" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="claudius">
+          <Directory Id="BinFolder" Name="bin" />
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <ComponentGroup Id="Programs" Directory="BinFolder">
+      <Component>
+        <File Source="$(Stage)\bin\claudius.exe" />
+        <Environment Id="UserPath" Name="PATH" Value="[BinFolder]" Action="set" Part="last" System="no" />
+      </Component>
+      <Component>
+        <File Source="$(Stage)\bin\claudius-packs.exe" />
+      </Component>
+      <Component>
+        <File Id="StudioProgram" Source="$(Stage)\bin\claudius-studio.exe" />
+      </Component>
+      <!-- an entry in the user's Start menu needs a key in the user's registry to stand for it -->
+      <Component Id="StartMenuEntry">
+        <Shortcut Id="StudioShortcut" Name="claudius" Description="The claudius studio" Directory="ProgramMenuFolder"
+                  Target="[#StudioProgram]" WorkingDirectory="INSTALLFOLDER" Icon="claudius.ico" />
+        <RegistryValue Root="HKCU" Key="Software\claudius" Name="StartMenuEntry" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <ComponentGroup Id="WebStudio" Directory="INSTALLFOLDER" Subdirectory="share\claudius\web">
+      <Files Include="$(Stage)\share\claudius\web\**" />
+    </ComponentGroup>
+
+    <ComponentGroup Id="Documents" Directory="INSTALLFOLDER">
+      <Files Include="$(Stage)\*.md" />
+      <Component>
+        <File Source="$(Stage)\LICENSE" />
+      </Component>
+      <Component>
+        <File Source="$(Stage)\NOTICE" />
+      </Component>
+    </ComponentGroup>
+
+    <Feature Id="Main">
+      <ComponentGroupRef Id="Programs" />
+      <ComponentGroupRef Id="WebStudio" />
+      <ComponentGroupRef Id="Documents" />
+    </Feature>
+  </Package>
+</Wix>

@@ -328,7 +328,8 @@ jobs:
       - name: PSScriptAnalyzer
         shell: pwsh
         run: |
-          $found = Invoke-ScriptAnalyzer -Path scripts/install.ps1 -Severity Warning, Error
+          $found = @('scripts/install.ps1', 'scripts/package/windows.ps1') |
+            ForEach-Object { Invoke-ScriptAnalyzer -Path $_ -Severity Warning, Error }
           $found | Format-Table -AutoSize
           if ($found) { exit 1 }
 

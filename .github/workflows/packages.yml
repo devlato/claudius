@@ -1,6 +1,6 @@
 # Builds the installable packages, unsigned, on a pull request that changes how they are made, and checks that each
-# one installs and runs: here the macOS app in its disk image (scripts/package/macos.sh). release.yml makes the same
-# packages for a release, and signs them when it has the keys.
+# one installs and runs: the macOS app in its disk image and the Windows installer (scripts/package/). release.yml
+# makes the same packages for a release, and signs the Mac app when it has the keys.
 name: packages
 
 on:
@@ -11,6 +11,7 @@ on:
       - .github/workflows/packages.yml
       - .github/workflows/release.yml
       - xtask/src/dist.rs
+      - crates/claudius-cli/src/bin/**
   workflow_dispatch:
 
 permissions:
@@ -75,4 +76,54 @@ jobs:
         with:
           name: macos-app
           path: target/packages/*.dmg
+          retention-days: 3
+
+  windows:
+    name: Windows installer
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/rust
+        with:
+          cache-key: packages-windows
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: trunk@0.21.14
+      - run: cargo xtask web
+      - run: cargo xtask dist --target x86_64-pc-windows-msvc --web crates/claudius-ui/dist
+      - name: The installer
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          export PATH="$HOME/.dotnet/tools:$PATH"
+          version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
+          pwsh scripts/package/windows.ps1 "target/dist/claudius-$version-x86_64-pc-windows-msvc.zip" target/packages
+      - name: Installed, the programs are on PATH and the Start menu entry runs the studio's program
+        shell: pwsh
+        run: |
+          $msi = (Get-ChildItem target/packages/*.msi).FullName
+          $log = Join-Path $env:RUNNER_TEMP 'install.log'
+          $p = Start-Process msiexec -Wait -PassThru -ArgumentList '/i', "`"$msi`"", '/qn', '/l*v', "`"$log`""
+          if ($p.ExitCode -ne 0) { Get-Content $log -Tail 60; throw "msiexec /i exited with $($p.ExitCode)" }
+          $bin = Join-Path $env:LOCALAPPDATA 'Programs\claudius\bin'
+          & (Join-Path $bin 'claudius.exe') --version
+          if ($LASTEXITCODE -ne 0) { throw 'the installed claudius.exe does not run' }
+          $path = [Environment]::GetEnvironmentVariable('Path', 'User')
+          if ($path -notlike "*$bin*") { throw "the user's PATH has no $bin`: $path" }
+          $lnk = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\claudius.lnk'
+          $target = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk).TargetPath
+          if ($target -ne (Join-Path $bin 'claudius-studio.exe')) { throw "the Start menu entry points at '$target'" }
+          # the runners have no OpenGL 3, so the window itself cannot open here: --help shows that the program the
+          # Start menu runs finds claudius.exe and starts `claudius studio`
+          $p = Start-Process $target -ArgumentList '--help' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "claudius-studio.exe --help exited with $($p.ExitCode)" }
+          $p = Start-Process msiexec -Wait -PassThru -ArgumentList '/x', "`"$msi`"", '/qn'
+          if ($p.ExitCode -ne 0) { throw "msiexec /x exited with $($p.ExitCode)" }
+          if (Test-Path (Join-Path $bin 'claudius.exe')) { throw 'uninstalling left claudius.exe behind' }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-installer
+          path: target/packages/*.msi
           retention-days: 3
