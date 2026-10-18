@@ -183,6 +183,11 @@ pub struct GenreProfile {
     pub mix: MixSpec,
 }
 
+/// the genres claudius comes with (`all` adds the user's own)
+pub fn builtin_names() -> impl Iterator<Item = &'static str> {
+    BUILTIN.iter().map(|(name, _)| *name)
+}
+
 fn user_dir() -> Option<std::path::PathBuf> {
     dirs::config_dir().map(|d| d.join("claudius").join("genres"))
 }

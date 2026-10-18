@@ -7,7 +7,7 @@
 #   & ([scriptblock]::Create((irm https://github.com/devlato/claudius/releases/latest/download/install.ps1))) -Yes
 #
 # Options:
-#   -Yes       run `claudius setup` afterwards without asking (the sample packs, about 1.1 GB)
+#   -Yes       run `claudius setup` afterwards without asking (the sample packs, about 2.2 GB)
 #   -NoSetup   do not offer to run it
 #
 # Environment:
@@ -147,14 +147,14 @@ function Install-Claudius([bool]$Yes, [bool]$NoSetup) {
 
     $run = $Yes
     if (-not $Yes -and -not $NoSetup -and [Environment]::UserInteractive -and -not [Console]::IsInputRedirected) {
-        $answer = Read-Host 'claudius: download the sample packs now (about 1.1 GB)? [Y/n]'
+        $answer = Read-Host 'claudius: download the sample packs now (about 2.2 GB)? [Y/n]'
         $run = $answer -notmatch '^[nN]'
     }
     if ($run -and -not $NoSetup) {
         & $exe setup --yes
     } else {
         Write-Host ''
-        Write-Host 'Next: `claudius setup` downloads the sample packs (about 1.1 GB),'
+        Write-Host 'Next: `claudius setup` downloads the sample packs (about 2.2 GB),'
         Write-Host '`claudius doctor` checks the installation, and `claudius studio` opens the studio.'
     }
 

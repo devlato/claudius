@@ -254,7 +254,7 @@ fn main() -> Result<()> {
                 print_analysis(&a);
             }
         }
-        Cmd::Remake { file, genre, seed, ears, out } => {
+        Cmd::Remake { file, genre, seed, bpm, ears, out } => {
             let g = genres::get(&genre)?;
             let seed = seed.unwrap_or_else(seed_now);
             let listening = listen(&ears);
@@ -267,10 +267,16 @@ fn main() -> Result<()> {
                 &a,
                 &g,
                 seed,
-                &Options::default(),
+                &Options { bpm, ..Options::default() },
                 lib_ref,
                 &file.to_string_lossy(),
             );
+            if bpm.is_none() && bp.bpm != a.bpm.round() {
+                eprintln!(
+                    "remaking at {:.0} BPM: the recording's {:.0} is outside {}'s {:.0}-{:.0} (--bpm sets another)",
+                    bp.bpm, a.bpm, g.name, g.bpm.0, g.bpm.1
+                );
+            }
             let dir = out.join(format!("remake-{}-{}-{seed}", g.name, song::slug(&bp.title)));
             let t = std::time::Instant::now();
             let f = |_: &Project, r: &Rendered| listening.report(r, Some(&g), true);

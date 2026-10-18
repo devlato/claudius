@@ -130,6 +130,9 @@ pub(crate) enum Cmd {
         genre: String,
         #[arg(short, long)]
         seed: Option<u64>,
+        /// the tempo (default: the recording's, halved or doubled into the genre's range when it is outside it)
+        #[arg(long)]
+        bpm: Option<f64>,
         #[command(flatten)]
         ears: EarsArgs,
         #[arg(short, long, default_value = "out")]
@@ -294,7 +297,7 @@ pub(crate) struct AppArgs {
     /// render only when asked (by default every change is rendered and judged)
     #[arg(long)]
     pub(crate) no_auto_render: bool,
-    /// the built web UI (default: crates/claudius-ui/dist of this checkout, or $CLAUDIUS_WEB)
+    /// the built web studio (default: the one installed with claudius, or crates/claudius-ui/dist in a source checkout)
     #[arg(long, env = "CLAUDIUS_WEB")]
     pub(crate) web: Option<PathBuf>,
 }

@@ -184,8 +184,9 @@ and bass style, with the genre's sounds and mix. It prints the analysis (as `ana
 | flag | default | what it does |
 |---|---|---|
 | `<file>` | | any audio file claudius can decode |
-| `-g`, `--genre` | `house` | the genre of the new song; its tempo range guides the beat tracker |
+| `-g`, `--genre` | `house` | the genre of the new song. When the recording's tempo is outside the genre's range, the song plays at half or double it if that falls in the range (a 160 BPM recording as lofi at 80), else at the nearest end, and says so |
 | `-s`, `--seed` | the clock | the new song's own choices |
+| `--bpm` | as above | the new song's tempo |
 | `--no-ears`, `--refs`, `--tags` | | as for `make` |
 | `-o`, `--out` | `out` | the folder is `remake-<genre>-<title>-<seed>` |
 
@@ -430,11 +431,11 @@ terminal it asks before each download; elsewhere (and with `--yes`) it does not 
 | `--no-models` | skips the models |
 | `--tags` | also downloads the AudioSet tagger, 347 MB more, used by `--tags` |
 
-The prompt shows what is missing and the registry's size for it: about 1.1 GB for the default packs, close to what
-they take on disk (1.2 GB once converted to FLAC). The download itself is about 2.2 GB, because several packs are
-fetched as WAV. The models are 785 MB (the prompt says about 0.8 GB, or 1.1 GB with `--tags`). An interrupted pack
-download resumes where it stopped; a model file that was cut off downloads again from its start, and the files that
-finished are kept. After the models arrive, the first load spends about 30 s embedding earshot's vocabulary once.
+The prompt shows what is missing and how much it downloads: about 2.2 GB for the default packs, which take 1.2 GB on
+disk because several arrive as WAV and are converted to FLAC, and 785 MB for the models (the prompt says about
+0.8 GB, or 1.1 GB with `--tags`). An interrupted pack download resumes where it stopped; a model file that was cut off
+downloads again from its start, and the files that finished are kept. After the models arrive, the first load spends
+about 30 s embedding earshot's vocabulary once.
 
 ### `claudius doctor`
 
@@ -443,9 +444,9 @@ Checks the installation and says what is missing.
 ```text
 $ claudius doctor
 claudius 0.1.0 (macos aarch64)
-  ok  web studio      ~/hobby/claudius/crates/claudius-ui/dist
+  ok  web studio      ~/.local/share/claudius/web
   ok  sample packs    14 default packs (1.2 GB) in ~/Library/Application Support/claudius/packs
-  ok  ears            models in ~/.cache/earshot-rs, AudioSet tagger too
+  ok  ears            models in ~/.cache/earshot-rs
   ok  Apple Loops     14096 loops and samples
   ok  ffmpeg          9.0.2 (writes song.mp3)
   ok  port 7878       free
@@ -477,7 +478,9 @@ that teach it claudius. [MCP tools](mcp.md#setting-up-a-client) covers each clie
 | `--port` | the port the `--http` URL uses (`CLAUDIUS_PORT`) |
 
 Every configuration file it edits keeps a `.bak` copy of the old one. Installing the skills replaces only claudius'
-own skill folders (`claudius-songs`, `claudius-remix`, `claudius-setup`).
+own skill folders (`claudius-songs`, `claudius-remix`, `claudius-setup`). An assistant reads its configuration when
+it starts, so `connect` ends by saying how to restart it: quit and reopen Claude Desktop, restart Cursor or reload its
+window, start a new Codex or Claude Code session.
 
 ### `claudius skills`
 

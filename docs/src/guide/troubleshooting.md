@@ -230,8 +230,8 @@ busy (rendering); try again when it is done, or cancel it
 One job runs at a time: a render, a mutation, an evolution or a save. Edits still work while a job runs, and a render
 asked for during a job runs after it. A save asked for during a job waits for it too, and says so:
 `saving to <folder>: blueprint.json and song.rhai now, the audio once the current job (rendering) is done`.
-`cancel` (`stop` for assistants) ends a mutation or an evolution after the candidate or generation in progress; a
-render always finishes.
+`cancel` (`stop` for assistants) ends a mutation or an evolution after the candidate or generation in progress, and a
+download of packs from the studio after the pack in progress; a render always finishes.
 
 ## The analysis of a song is wrong
 

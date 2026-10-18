@@ -64,7 +64,7 @@ The MCP tools wait the same way after every edit.
 
 ```json
 {
-  "version": 7, "song_version": 2, "busy": null, "progress": null,
+  "version": 7, "song_version": 2, "busy": null, "progress": null, "ears_loading": false,
   "can_undo": true, "can_redo": false,
   "undo_label": "new song: Crimson Tide — house at 126 BPM in G dorian (seed 9)", "redo_label": null,
   "log": ["sample library: Apple Loops and your folders",
@@ -118,6 +118,7 @@ The MCP tools wait the same way after every edit.
 | `verdict` | `VerdictView` or null | the verdict of that render |
 | `busy` | string or null | the running job: `"rendering"`, `"listening"`, `"mutating: judging 4 variations"`, `"evolving: generation 2 of 3 done"`, `"saving"` |
 | `progress` | number or null | 0 to 1, when the job knows it |
+| `ears_loading` | boolean | earshot's models are still loading; until they are, verdicts come from the meters and music theory only |
 | `can_undo`, `can_redo` | boolean | |
 | `undo_label`, `redo_label` | string or null | what undo would take back, what redo would bring back |
 | `log` | strings | the last 200 lines of the session log, oldest first |
@@ -190,7 +191,7 @@ fields marked optional may be left out.
 | `set_mix` | `track`; optional `level_db`, `pan`, `reverb`, `delay`, `duck`, `muted`, `solo` | as `mix()` |
 | `run_script` | `code` | runs a script on the song |
 | `analyze` | `path` | the analysis of an audio file, as text in the reply's `message` |
-| `remake` | `path`; optional `genre`, `seed` | a new song on the file's skeleton; the genre defaults to the open song's |
+| `remake` | `path`; optional `genre`, `seed`, `bpm` | a new song on the file's skeleton; the genre defaults to the open song's, and the tempo to the recording's, halved or doubled into the genre's range when it is outside |
 | `mutate` | optional `count` (4, 1 to 32), `keep_best` (true) | a job: tries variations and keeps the best if it beats the song |
 | `evolve` | optional `generations` (3, 1 to 20), `children` (6, 2 to 32) | a job: an evolutionary search from the song |
 | `install_packs` | optional `names` (the missing default packs when left out) | a job: downloads sample packs, as `claudius setup` does; not the opt-in packs, whose licence is unclear, and not on a shared claudius |

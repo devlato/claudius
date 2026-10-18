@@ -66,6 +66,9 @@ pub struct State {
     pub busy: Option<String>,
     /// 0..1 progress of the busy job when known
     pub progress: Option<f32>,
+    /// earshot's models are still loading: until then verdicts come from the meters and music theory only
+    #[serde(default)]
+    pub ears_loading: bool,
     pub can_undo: bool,
     pub can_redo: bool,
     /// what undo / redo would take back or bring back ("tempo 124", "mutated: lead: rewrote the part")
@@ -388,6 +391,9 @@ pub enum Command {
         genre: Option<String>,
         #[serde(default)]
         seed: Option<u64>,
+        /// the tempo (default: the recording's, halved or doubled into the genre's range when it is outside)
+        #[serde(default)]
+        bpm: Option<f64>,
     },
     /// try `count` random mutations, keep the best-judged one when `keep_best` (else only report them)
     Mutate {

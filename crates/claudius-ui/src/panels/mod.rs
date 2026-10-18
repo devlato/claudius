@@ -69,8 +69,10 @@ pub struct Link {
     pub ever: bool,
     pub error: Option<String>,
     pub retry_in: Option<f64>,
-    /// "claudius 0.1.0, ears on" from `/api/hello`
+    /// "claudius 0.1.0" from `/api/hello`
     pub server: Option<String>,
+    /// whether that server has ears, from `/api/hello` (the state says when they are still loading)
+    pub ears: Option<bool>,
 }
 
 pub struct NewSongForm {

@@ -1,7 +1,7 @@
 //! The top of the studio: transport and the LCD, the song's tempo / key / swing, the score, and the engine's
 //! actions (new song, render, mutate, evolve, undo / redo, save, cancel) with the busy indicator.
 
-use claudius_api::Command;
+use claudius_api::{Command, GenreInfo};
 use eframe::egui::{self, Align, Align2, Layout, Rect, RichText, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
 
 use super::{Cx, small};
@@ -321,7 +321,7 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
         if widgets::icon_button(ui, Icon::Redo, 28.0, false, cx.state.can_redo, &redo_tip).clicked() {
             cx.out.push(Command::Redo);
         }
-        if widgets::icon_button(ui, Icon::Save, 28.0, false, has_song, "save blueprint, audio and script into a new folder under out/").clicked() {
+        if widgets::icon_button(ui, Icon::Save, 28.0, false, has_song, "save the song in a folder of its own under ~/Music/claudius: blueprint, script, audio, stems and verdict").clicked() {
             cx.out.push(Command::Save { path: None });
         }
 
@@ -335,12 +335,18 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
                 }
                 ui.label(RichText::new(job).color(theme::mix(ACCENT, TEXT, 0.4)));
                 ui.add(egui::Spinner::new().size(16.0).color(ACCENT));
-            } else if let Some(t) = &cx.view.toast
+                ui.add_space(12.0);
+            }
+            if let Some(t) = &cx.view.toast
                 && cx.now - t.at < 6.0
             {
                 let color = if t.ok { TEXT_DIM } else { theme::BAD };
                 let text: String = t.text.chars().take(120).collect();
-                ui.label(RichText::new(text).color(color)).on_hover_text(&t.text);
+                // what the label leaves for the dot and the gap to the buttons on the left
+                let room = ui.available_width() - 10.0 - 2.0 * ui.spacing().item_spacing.x;
+                ui.allocate_ui(vec2(room.max(0.0), ui.available_height()), |ui| {
+                    ui.add(egui::Label::new(RichText::new(text).color(color)).truncate()).on_hover_text(&t.text);
+                });
                 widgets::dot(ui, if t.ok { theme::GOOD } else { theme::BAD });
             }
         });
@@ -376,13 +382,21 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                 ui.text_edit_singleline(&mut f.genre);
             });
         } else {
+            let desc =
+                |g: &GenreInfo| g.description.split_once(": ").map_or(g.description.clone(), |(_, d)| d.to_string());
+            // every card as tall as the longest description, up to five lines (the tooltip has all of it)
+            let text_height = genres
+                .iter()
+                .map(|g| ui.painter().layout(desc(g), theme::prop(10.5), TEXT_DIM, 300.0 - 22.0).size().y)
+                .fold(0.0, f32::max)
+                .min(70.0);
             egui::Grid::new("genres").num_columns(2).spacing(vec2(8.0, 8.0)).show(ui, |ui| {
                 for (i, g) in genres.iter().enumerate() {
                     let selected = f.genre == g.name;
                     let color = theme::section_color(
                         ["drop", "groove", "break", "build", "intro", "hook", "verse", "outro"][i % 8],
                     );
-                    let (rect, r) = ui.allocate_exact_size(vec2(300.0, 64.0), Sense::click());
+                    let (rect, r) = ui.allocate_exact_size(vec2(300.0, 32.0 + text_height), Sense::click());
                     let fill = if selected {
                         theme::alpha(color, 0.22)
                     } else if r.hovered() {
@@ -411,9 +425,7 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                         theme::prop(11.0),
                         TEXT_DIM,
                     );
-                    let desc = g.description.split_once(": ").map_or(g.description.as_str(), |(_, d)| d);
-                    let galley =
-                        ui.painter().layout(desc.to_string(), theme::prop(10.5), TEXT_DIM, rect.width() - 22.0);
+                    let galley = ui.painter().layout(desc(g), theme::prop(10.5), TEXT_DIM, rect.width() - 22.0);
                     let clip = Rect::from_min_max(rect.min + vec2(12.0, 26.0), rect.max - vec2(8.0, 4.0));
                     ui.painter().with_clip_rect(clip).galley(clip.min, galley, TEXT_DIM);
                     if r.on_hover_text(&g.description).clicked() {
@@ -520,7 +532,12 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                 .clicked()
             {
                 cx.view.analysis = None;
-                cx.out.push(Command::Remake { path, genre: Some(f.genre.clone()), seed: f.seed.trim().parse().ok() });
+                cx.out.push(Command::Remake {
+                    path,
+                    genre: Some(f.genre.clone()),
+                    seed: f.seed.trim().parse().ok(),
+                    bpm: None,
+                });
             }
             if cx.view.analyzing {
                 ui.add(egui::Spinner::new().color(ACCENT));
