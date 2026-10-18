@@ -15,8 +15,8 @@ description: >-
 
 | system | command |
 |---|---|
-| macOS (Apple silicon, Intel), Linux (x86_64, ARM64, glibc 2.38+) | `curl -fsSL https://claudius.pages.dev/install.sh \| sh` |
-| Windows (preview) | `irm https://claudius.pages.dev/install.ps1 \| iex` in PowerShell |
+| macOS (Apple silicon, Intel), Linux (x86_64, ARM64, glibc 2.38+) | `curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh \| sh` |
+| Windows (preview) | `irm https://github.com/devlato/claudius/releases/latest/download/install.ps1 \| iex` in PowerShell |
 | from source, with a Rust toolchain | `cargo install --locked --path crates/claudius-cli` and `--path crates/claudius-packs` in a clone |
 
 The installer puts `claudius` and `claudius-packs` in `~/.local/bin` (on Windows, a folder it adds to `PATH`). On

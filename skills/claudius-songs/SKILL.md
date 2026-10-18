@@ -24,8 +24,8 @@ judges it. You do the work; the person you make music with decides what sounds g
 - **The `claudius` command**, when you have a terminal but no tools. A song is a folder (`song.wav`, `song.rhai`,
   `blueprint.json`, `verdict.json`); [references/tools.md](references/tools.md) maps every tool to its command.
 - **Neither**: claudius is not installed or not connected. Installing takes `curl -fsSL
-  https://claudius.pages.dev/install.sh | sh` (macOS, Linux) and `claudius setup`; `claudius connect` adds it to an
-  assistant. If the claudius-setup skill is available, it covers this in detail.
+  https://github.com/devlato/claudius/releases/latest/download/install.sh | sh` (macOS, Linux) and `claudius setup`;
+  `claudius connect` adds it to an assistant. If the claudius-setup skill is available, it covers this in detail.
 
 ## The loop
 
