@@ -413,6 +413,7 @@ fn main() -> Result<()> {
         Cmd::Studio { app } => {
             use claudius_server::mcp::Probe;
             let addr = std::net::SocketAddr::from(([127, 0, 0, 1], app.port));
+            let mut own = None;
             let url = match claudius_server::mcp::probe(&format!("http://{addr}"), &None) {
                 Probe::Claudius => {
                     eprintln!("a claudius is already running on port {}: opening the studio on it", app.port);
@@ -425,6 +426,7 @@ fn main() -> Result<()> {
                 ),
                 Probe::Nothing => {
                     let session = app.app();
+                    own = Some(session.clone());
                     let local = claudius_server::spawn(
                         session,
                         addr,
@@ -435,12 +437,19 @@ fn main() -> Result<()> {
                 }
             };
             #[cfg(feature = "studio")]
-            claudius_ui::run_native(Some(url)).map_err(|e| anyhow::anyhow!("the studio window failed: {e}"))?;
+            {
+                let shown = claudius_ui::run_native(Some(url));
+                if let Some(session) = &own {
+                    session.wait_for_ears(std::time::Duration::from_secs(60));
+                }
+                shown.map_err(|e| anyhow::anyhow!("the studio window failed: {e}"))?;
+            }
             #[cfg(not(feature = "studio"))]
             {
                 eprintln!(
                     "this claudius was built without the studio window; open {url} in a browser (ctrl-c to stop)"
                 );
+                let _session = own;
                 loop {
                     std::thread::park();
                 }
@@ -524,7 +533,16 @@ fn main() -> Result<()> {
                 };
                 claudius_server::mcp::Backend::Local { app: session, base }
             };
-            rt.block_on(claudius_server::mcp::serve_stdio(backend))?;
+            let own = match &backend {
+                claudius_server::mcp::Backend::Local { app, .. } => Some(app.clone()),
+                _ => None,
+            };
+            let served = rt.block_on(claudius_server::mcp::serve_stdio(backend));
+            // an assistant that only probes disconnects within a second, while the models are still loading
+            if let Some(session) = own {
+                session.wait_for_ears(std::time::Duration::from_secs(60));
+            }
+            served?;
         }
     }
     Ok(())

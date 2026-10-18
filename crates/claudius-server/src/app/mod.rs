@@ -288,6 +288,15 @@ impl App {
         self.ears.get().is_some_and(|e| e.is_some())
     }
 
+    /// waits, up to `timeout`, until the models have loaded or failed to: ONNX Runtime tears down its globals when the
+    /// process exits, and a thread still loading them then crashes it
+    pub fn wait_for_ears(&self, timeout: Duration) {
+        let deadline = Instant::now() + timeout;
+        while self.ears.get().is_none() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+    }
+
     /// the master of the render of song version `version` (`ext` wav or mp3; the mp3 is encoded on first use)
     pub fn audio_path(&self, version: u64, ext: &str) -> Option<PathBuf> {
         let wav = self.cache.join(format!("{version}.wav"));
