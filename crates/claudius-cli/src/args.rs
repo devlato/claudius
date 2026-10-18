@@ -321,7 +321,8 @@ impl AppArgs {
     }
 }
 
-/// the built web UI: --web, an install's share/claudius/web, or this checkout's crates/claudius-ui/dist
+/// the built web UI: --web, an install's share/claudius/web, the Mac app's Resources/web, or this checkout's
+/// crates/claudius-ui/dist
 pub(crate) fn web_dir(explicit: Option<PathBuf>) -> Option<PathBuf> {
     explicit.or_else(|| {
         let exe_dir = std::env::current_exe()
@@ -329,9 +330,10 @@ pub(crate) fn web_dir(explicit: Option<PathBuf>) -> Option<PathBuf> {
             .and_then(|e| e.canonicalize().ok())
             .and_then(|e| e.parent().map(PathBuf::from));
         let installed = exe_dir.as_ref().map(|d| d.join("../share/claudius/web"));
+        let app = exe_dir.as_ref().map(|d| d.join("../Resources/web"));
         let beside = exe_dir.as_ref().map(|d| d.join("web"));
         let checkout = Some(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../claudius-ui/dist"));
-        [installed, beside, checkout]
+        [installed, app, beside, checkout]
             .into_iter()
             .flatten()
             .find(|d| d.join("index.html").exists())
