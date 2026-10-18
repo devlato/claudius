@@ -10,13 +10,13 @@ Until the releases are signed with an Apple Developer ID, macOS says it could no
 open it. Click **Done**, open **System Settings**, **Privacy & Security**, and click **Open Anyway** next to the line
 about claudius. macOS asks once more, and then remembers.
 
-The app holds the command-line programs too. To use them in a terminal, and to download the sounds and the ears
-(below), link them into a folder on your `PATH`:
+The first time the studio starts, it downloads its listening models by itself and offers to download the sample
+packs ([below](#the-sounds-and-the-ears)). The app holds the command-line programs too; to use them in a terminal,
+link them into a folder on your `PATH`:
 
 ```sh
 mkdir -p ~/.local/bin
 ln -s /Applications/claudius.app/Contents/MacOS/claudius /Applications/claudius.app/Contents/MacOS/claudius-packs ~/.local/bin/
-claudius setup
 ```
 
 ## The command line: macOS and Linux
@@ -65,8 +65,8 @@ claudius setup
 | earshot's listening models (CLAP) | about 0.8 GB | `~/.cache/earshot-rs` |
 
 The studio offers the same download of the packs when they are missing, and downloads the models by itself the
-first time it starts. Each model file is checked against a pinned SHA-256 hash. Without the packs, claudius synthesizes every sound; without
-the models, the verdict uses meters and music theory only. `claudius setup --help` lists the options, and
+first time it starts. Each model file is checked against a pinned SHA-256 hash. Without the packs, claudius
+synthesizes every sound; without the models, the verdict uses meters and music theory only. `claudius setup --help` lists the options, and
 `claudius-packs list` shows every pack with its licence.
 
 claudius uses Apple Loops automatically when GarageBand or Logic content is installed. ffmpeg is optional: with it,
