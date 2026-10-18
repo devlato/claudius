@@ -18,7 +18,7 @@ to. On the command line, each command reads and writes song folders instead.
 | `save` | `path` (default `~/Music/claudius/<genre>-<title>-<seed>`) | every command writes a song folder |
 | `open` | `path`: a song folder, a `blueprint.json` or a `.rhai` script | `--on SONG` |
 | `analyze` | `path` of any audio file | `claudius analyze song.mp3` |
-| `remake` | `path`, `genre`, `seed` | `claudius remake song.mp3 --genre lofi` |
+| `remake` | `path`, `genre`, `seed`, `bpm` | `claudius remake song.mp3 --genre lofi [--bpm 82]` |
 | `command` | one raw API command, for edits scripts do not cover | |
 
 Notes:

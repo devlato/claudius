@@ -532,7 +532,12 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                 .clicked()
             {
                 cx.view.analysis = None;
-                cx.out.push(Command::Remake { path, genre: Some(f.genre.clone()), seed: f.seed.trim().parse().ok() });
+                cx.out.push(Command::Remake {
+                    path,
+                    genre: Some(f.genre.clone()),
+                    seed: f.seed.trim().parse().ok(),
+                    bpm: None,
+                });
             }
             if cx.view.analyzing {
                 ui.add(egui::Spinner::new().color(ACCENT));
