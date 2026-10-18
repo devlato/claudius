@@ -64,7 +64,7 @@ The MCP tools wait the same way after every edit.
 
 ```json
 {
-  "version": 7, "song_version": 2, "busy": null, "progress": null,
+  "version": 7, "song_version": 2, "busy": null, "progress": null, "ears_loading": false,
   "can_undo": true, "can_redo": false,
   "undo_label": "new song: Crimson Tide — house at 126 BPM in G dorian (seed 9)", "redo_label": null,
   "log": ["sample library: Apple Loops and your folders",
@@ -118,6 +118,7 @@ The MCP tools wait the same way after every edit.
 | `verdict` | `VerdictView` or null | the verdict of that render |
 | `busy` | string or null | the running job: `"rendering"`, `"listening"`, `"mutating: judging 4 variations"`, `"evolving: generation 2 of 3 done"`, `"saving"` |
 | `progress` | number or null | 0 to 1, when the job knows it |
+| `ears_loading` | boolean | earshot's models are still loading; until they are, verdicts come from the meters and music theory only |
 | `can_undo`, `can_redo` | boolean | |
 | `undo_label`, `redo_label` | string or null | what undo would take back, what redo would bring back |
 | `log` | strings | the last 200 lines of the session log, oldest first |

@@ -294,7 +294,7 @@ pub(crate) struct AppArgs {
     /// render only when asked (by default every change is rendered and judged)
     #[arg(long)]
     pub(crate) no_auto_render: bool,
-    /// the built web UI (default: crates/claudius-ui/dist of this checkout, or $CLAUDIUS_WEB)
+    /// the built web studio (default: the one installed with claudius, or crates/claudius-ui/dist in a source checkout)
     #[arg(long, env = "CLAUDIUS_WEB")]
     pub(crate) web: Option<PathBuf>,
 }

@@ -200,6 +200,9 @@ pub fn run(client: Client, http: bool, remove: bool, port: u16, with_skills: boo
                 if remove { "from" } else { "to" },
                 path.display()
             );
+            if !remove {
+                println!("Start a new Codex session to load it.");
+            }
         }
         Client::Cursor => {
             let path = cursor_config();
@@ -211,6 +214,9 @@ pub fn run(client: Client, http: bool, remove: bool, port: u16, with_skills: boo
                 if remove { "from" } else { "to" },
                 path.display()
             );
+            if !remove {
+                println!("Restart Cursor, or reload its window, to load it.");
+            }
         }
         Client::ClaudeCode => {
             let mut args: Vec<String> = if remove {
@@ -239,7 +245,12 @@ pub fn run(client: Client, http: bool, remove: bool, port: u16, with_skills: boo
                 ]
             };
             match std::process::Command::new("claude").args(&args).status() {
-                Ok(s) if s.success() => println!("done: claude {}", args.join(" ")),
+                Ok(s) if s.success() => {
+                    println!("done: claude {}", args.join(" "));
+                    if !remove {
+                        println!("Claude Code sessions started from now on have it; restart one that is running.");
+                    }
+                }
                 Ok(s) => bail!("`claude {}` failed ({s})", args.join(" ")),
                 Err(_) => {
                     args.insert(0, "claude".into());

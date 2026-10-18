@@ -25,7 +25,7 @@ Linux without ALSA it installs the headless build, which serves the studio to a 
 Then:
 
 ```sh
-claudius setup      # the default sample packs (about 1.1 GB) and the listening models (about 0.8 GB); asks first
+claudius setup      # the default sample packs (a 2.2 GB download) and the listening models (0.8 GB); asks first
 claudius doctor     # what is installed and what is missing, with the fix for each
 ```
 
@@ -91,7 +91,7 @@ Run `claudius doctor` first; it names most problems. The common ones:
 | the assistant shows no claudius tools | the client was not restarted, or its configuration points at an old path: run `claudius connect <client>` again |
 | `asks for a token` | the running claudius was started with a token: pass `--token` (or set `CLAUDIUS_TOKEN`) to `claudius mcp` |
 | the assistant and the studio show different songs | `claudius mcp` started before the studio, so it has a session of its own: restart the assistant once the studio runs |
-| `busy (rendering)` | a job is running: wait, call `status`, or `stop` it |
+| `busy (rendering)` | a job is running: wait and call `status`; `stop` ends a mutation or an evolution early, but a render always finishes |
 | no `song.mp3` | ffmpeg is not installed: `song.wav` is the same song; install ffmpeg for MP3s |
 
 The full guide, with every message, is in the claudius docs under Troubleshooting.

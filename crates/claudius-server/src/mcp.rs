@@ -178,7 +178,8 @@ fn six() -> usize {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct NewSongArgs {
-    /// genre profile, e.g. house, techno, trap, lofi, dnb (see catalog)
+    /// the genre: house, deep_house, techno, trap, lofi, dnb, future_bass or synthwave (catalog lists them with their
+    /// tempo ranges, and any genres of the person's own)
     pub genre: String,
     /// random seed: the same seed and genre give the same song
     #[serde(default)]
@@ -212,8 +213,9 @@ pub struct ListenArgs {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct MutateArgs {
-    /// how many variations to try (1..32)
+    /// how many variations to try (1 to 32)
     #[serde(default = "four")]
+    #[schemars(range(min = 1, max = 32))]
     pub count: usize,
     /// keep the best variation when it beats the current song (false: only report the scores)
     #[serde(default = "yes")]
@@ -222,11 +224,13 @@ pub struct MutateArgs {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct EvolveArgs {
-    /// generations (1..20)
+    /// generations (1 to 20)
     #[serde(default = "three")]
+    #[schemars(range(min = 1, max = 20))]
     pub generations: usize,
-    /// children per generation (2..32)
+    /// children per generation (2 to 32)
     #[serde(default = "six")]
+    #[schemars(range(min = 2, max = 32))]
     pub children: usize,
 }
 
@@ -247,7 +251,7 @@ pub struct SaveArgs {
 pub struct RemakeArgs {
     /// the audio file to learn from
     pub path: String,
-    /// genre for the sounds and production (default: the current song's)
+    /// the genre for the sounds and production, one of those new_song takes (default: the open song's)
     #[serde(default)]
     pub genre: Option<String>,
     #[serde(default)]
@@ -350,7 +354,8 @@ impl Studio {
     }
 
     #[tool(
-        description = "The song that is open: tempo, key, progressions, the sections with the tracks playing in each, every track's sound and mix, the latest verdict, and the whole song as a claudius script (running that script on the song changes nothing; edit a copy of it to change the song)."
+        description = "The song that is open: tempo, key, progressions, the sections with the tracks playing in each, every track's sound and mix, the latest verdict, and the whole song as a claudius script (running that script on the song changes nothing; edit a copy of it to change the song).",
+        annotations(read_only_hint = true)
     )]
     async fn get_song(&self) -> Result<String, String> {
         let st = self.b.state().await?;
@@ -366,7 +371,8 @@ impl Studio {
     }
 
     #[tool(
-        description = "The claudius script language reference: song edits, the pattern functions and mini-notation, sound names, examples."
+        description = "The claudius script language reference: song edits, the pattern functions and mini-notation, sound names, examples.",
+        annotations(read_only_hint = true)
     )]
     async fn script_reference(&self) -> String {
         claudius::script::REFERENCE.to_string()
@@ -395,7 +401,8 @@ impl Studio {
     }
 
     #[tool(
-        description = "What claudius is doing (the running job and its progress), the recent log and the latest verdict."
+        description = "What claudius is doing (the running job and its progress), the recent log and the latest verdict.",
+        annotations(read_only_hint = true)
     )]
     async fn status(&self) -> Result<String, String> {
         let st = self.b.state().await?;
@@ -423,13 +430,16 @@ impl Studio {
         self.edit(Command::Redo, true).await
     }
 
-    #[tool(description = "Stop the running render, mutate or evolve job.")]
+    #[tool(
+        description = "Stop the running job after its current step: a mutation after the candidate in progress, an evolution after its generation, a pack download after the pack in progress. A render always finishes."
+    )]
     async fn stop(&self) -> Result<String, String> {
         Ok(self.b.command(Command::Cancel).await?.message)
     }
 
     #[tool(
-        description = "What there is to work with: the genres (with tempo ranges and descriptions), drum names, synth presets and installed instruments."
+        description = "What there is to work with: the genres (with tempo ranges and descriptions), drum names, synth presets and installed instruments.",
+        annotations(read_only_hint = true)
     )]
     async fn catalog(&self) -> Result<String, String> {
         let st = self.b.state().await?;
@@ -468,7 +478,8 @@ impl Studio {
     }
 
     #[tool(
-        description = "Analyze an audio file (any song or loop, any format ffmpeg reads): tempo, key, chord progression, sections with energy, the drum pattern, the bass style."
+        description = "Analyze an audio file (any song or loop, any format ffmpeg reads): tempo, key, chord progression, sections with energy, the drum pattern, the bass style.",
+        annotations(read_only_hint = true)
     )]
     async fn analyze(&self, Parameters(a): Parameters<PathArgs>) -> Result<String, String> {
         let r = self.b.command(Command::Analyze { path: a.path }).await?;
@@ -517,4 +528,37 @@ pub async fn serve_stdio(b: Backend) -> anyhow::Result<()> {
     let service = Studio::new(b).serve(rmcp::transport::stdio()).await?;
     service.waiting().await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_tools_that_only_look_say_so() {
+        let mut read_only: Vec<String> = Studio::tool_router()
+            .list_all()
+            .into_iter()
+            .filter(|t| t.annotations.as_ref().and_then(|a| a.read_only_hint) == Some(true))
+            .map(|t| t.name.to_string())
+            .collect();
+        read_only.sort();
+        assert_eq!(read_only, ["analyze", "catalog", "get_song", "script_reference", "status"]);
+    }
+
+    #[test]
+    fn new_song_names_every_genre() {
+        let schema = serde_json::to_value(schemars::schema_for!(NewSongArgs)).unwrap();
+        let text = schema["properties"]["genre"]["description"].as_str().unwrap();
+        for genre in claudius::genres::builtin_names() {
+            assert!(text.contains(genre), "{genre} is missing from: {text}");
+        }
+    }
+
+    #[test]
+    fn the_counts_say_their_range() {
+        let schema = serde_json::to_value(schemars::schema_for!(EvolveArgs)).unwrap();
+        let children = &schema["properties"]["children"];
+        assert_eq!((children["minimum"].as_u64(), children["maximum"].as_u64()), (Some(2), Some(32)));
+    }
 }
