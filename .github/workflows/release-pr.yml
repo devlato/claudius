@@ -8,6 +8,9 @@
 # RELEASE_TOKEN secret in the environment "release-pr" (a fine-grained token with Contents and Pull requests write
 # access to this repository) and the PR is opened with it instead, so that it starts CI and the PR title check like
 # any other PR. Only the step that pushes and opens the PR sees the token; cargo runs before it, without a cache.
+#
+# The release commit is made through GitHub's API (scripts/ci/commit-via-api.sh), which signs it: main accepts only
+# signed commits, and GitHub would not merge a pull request with the unsigned commit a runner makes with git.
 name: release pr
 
 on:
@@ -92,17 +95,9 @@ jobs:
             exit 1
           fi
 
-          # git pushes with GH_TOKEN through gh, so the checkout keeps no credentials
-          gh auth setup-git
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -c "$branch"
-          # the manifests, Cargo.lock, and CHANGELOG.md, which is new on the first release
-          git add --update
-          git add CHANGELOG.md
-          git commit -m "release: v$VERSION"
-          # a branch without an open PR is left over from an earlier run that failed
-          git push --force origin "$branch"
+          # the manifests, Cargo.lock and CHANGELOG.md, committed through GitHub's API so that the commit is signed
+          # (a branch without an open PR is left over from an earlier run that failed, and starts again from here)
+          sh scripts/ci/commit-via-api.sh "$branch" "release: v$VERSION"
           gh pr create --base "$BASE" --head "$branch" --title "release: v$VERSION" --body-file "$RUNNER_TEMP/body.md"
 
       - name: Start CI on the release branch
