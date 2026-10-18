@@ -96,8 +96,11 @@ key(name)      // "A minor", "Am", "F#m", "Eb", "D dorian", "C# phrygian" ...
 Sets the key. Roman-numeral progressions and `n()` patterns follow it; note names in `note()` patterns do not, since
 they name absolute pitches. When the mode changes (minor to dorian, major to minor), every diatonic chord in every
 progression moves to the same degree in the new mode: `Imaj7` in a major key becomes `i7` in minor, `IV7` in dorian
-becomes `iv7` in minor. Borrowed chords (`bVII`) and applied chords (`V/V`) stay as written. Tonal Apple Loops in the
-song are repitched the shortest way (at most six semitones).
+becomes `iv7` in minor. A borrowed chord keeps its sound and is spelled in the new mode: `bIII` in F major (A flat)
+becomes `III` in F minor, where it is diatonic. Applied chords (`V/V`) stay as written. Because a borrowed chord can
+become diatonic, going to minor and back does not always restore the original: `bVII` becomes `VII` in minor, and
+`VII` becomes `vii°` back in major. Tonal Apple Loops in the song are repitched the shortest way (at most six
+semitones).
 
 Errors: `cannot read key 'H minor' (try "A minor", "F#m", "Eb", "D dorian")`.
 
