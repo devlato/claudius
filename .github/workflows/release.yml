@@ -1,9 +1,14 @@
 # Publishes a release when main has a version that is not released yet: that is, when a release PR from
 # release-pr.yml was merged. A version counts as releasable when CHANGELOG.md has a section for it and there is no
-# GitHub release for it. Running it by hand (workflow_dispatch) retries a release that failed halfway.
+# GitHub release for it. Running it by hand (workflow_dispatch) retries a release that failed halfway. It releases
+# from main, or from a hotfix/v* branch, which only admins can push (docs/src/contributing/releasing.md).
 #
 # The tag vX.Y.Z is created when the release is published, after every required build has passed, so a failed run
 # leaves nothing behind but a draft, which the next run replaces.
+#
+# No job here restores a cache, so a release links only what this run built and downloaded, and code that ran in
+# another workflow cannot reach the archives. The jobs that hold tokens, publish and homebrew, run no cargo, and
+# they run in the environment "release", which only main and the hotfix branches may use.
 name: release
 
 on:
@@ -45,7 +50,15 @@ jobs:
         id: plan
         env:
           GH_TOKEN: ${{ github.token }}
+          HEAD_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
+          case $GITHUB_REF in
+            refs/heads/main | refs/heads/hotfix/v*) ;;
+            *)
+              echo "::error title=release::releases are made from main or a hotfix/v* branch, not $GITHUB_REF."
+              exit 1
+              ;;
+          esac
           version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
           echo "version=$version" >> "$GITHUB_OUTPUT"
           release=true
@@ -55,6 +68,10 @@ jobs:
           elif ! grep -qF "## [$version]" CHANGELOG.md; then
             echo "::notice title=release::CHANGELOG.md has no section for $version, so this commit is not a release."
             release=false
+          elif [ "$GITHUB_EVENT_NAME" = push ] && [[ "$HEAD_MESSAGE" != "release: v$version"* ]]; then
+            echo "::error title=release::claudius $version is not released, and this commit is not the merge of its" \
+              "release PR. Versions change only through release-pr.yml; if its release failed, run release.yml by hand."
+            exit 1
           else
             # an empty list when there is no such tag; release tags are lightweight, so the ref names the commit
             tagged=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/v$version" \
@@ -80,7 +97,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/rust
         with:
-          cache-key: wasm
+          cache: "false"
           linux-packages: "false"
       - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
         with:
@@ -120,7 +137,7 @@ jobs:
       - uses: ./.github/actions/rust
         with:
           targets: ${{ matrix.target }}
-          cache-key: release-${{ matrix.target }}
+          cache: "false"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: web
@@ -137,46 +154,30 @@ jobs:
             target/dist/*.tar.gz
             target/dist/*.zip
             target/dist/*.sha256
+            target/dist/*.sha256
           if-no-files-found: error
 
-  publish:
-    name: publish v${{ needs.plan.outputs.version }}
-    needs: [plan, build]
+  notes:
+    name: release notes
+    needs: plan
+    if: needs.plan.outputs.release == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     permissions:
-      contents: write # the release and its tag
-      id-token: write # signing the provenance attestation
-      attestations: write
+      contents: read
     env:
       VERSION: ${{ needs.plan.outputs.version }}
-      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: dist-*
-          path: dist
-          merge-multiple: true
-      - name: Checksums
-        working-directory: dist
-        run: |
-          shopt -s nullglob
-          sha256sum --check --strict -- *.sha256
-          cp ../scripts/install.sh ../scripts/install.ps1 .
-          sha256sum -- *.tar.gz *.zip install.sh install.ps1 > SHA256SUMS
-          cat SHA256SUMS
-      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
-        with:
-          subject-checksums: dist/SHA256SUMS
       - uses: ./.github/actions/rust
         with:
-          cache-key: xtask
+          cache: "false"
           linux-packages: "false"
       - name: Release notes
         run: |
+          mkdir -p target/notes
           {
             cargo xtask release notes "$VERSION"
             echo
@@ -192,10 +193,81 @@ jobs:
             echo "\`install.sh\` picks them when ALSA is missing, or with \`--headless\`. The Intel Mac and Windows"
             echo "builds have no ears: their verdicts use meters and music theory."
             echo
-            echo "\`SHA256SUMS\` lists the checksums, and \`gh attestation verify <archive> --repo $GITHUB_REPOSITORY\`"
-            echo "checks that an archive was built by this repository's release workflow."
-          } > "$RUNNER_TEMP/notes.md"
-          cat "$RUNNER_TEMP/notes.md"
+            echo "\`SHA256SUMS\` lists the checksums of the archives and the install scripts. This checks that an archive"
+            echo "was built by this repository's release workflow, from ${GITHUB_REF#refs/heads/}:"
+            echo
+            echo '```sh'
+            echo "gh attestation verify <archive> --repo $GITHUB_REPOSITORY \\"
+            echo "  --signer-workflow $GITHUB_REPOSITORY/.github/workflows/release.yml --source-ref $GITHUB_REF"
+            echo '```'
+          } > target/notes/notes.md
+          cat target/notes/notes.md
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: notes
+          path: target/notes/notes.md
+          if-no-files-found: error
+
+  publish:
+    name: publish v${{ needs.plan.outputs.version }}
+    needs: [plan, build, notes]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      contents: write # the release and its tag
+      id-token: write # signing the provenance attestation
+      attestations: write
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # each build into a folder of its own, so that one build cannot replace another's archive
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: dist-*
+          path: ${{ runner.temp }}/builds
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: notes
+          path: ${{ runner.temp }}/notes
+      - name: Checksums
+        run: |
+          shopt -s nullglob
+          mkdir dist
+          for build in "$RUNNER_TEMP"/builds/dist-*; do
+            target=${build##*/dist-}
+            archive=claudius-$VERSION-$target
+            for file in "$build"/*; do
+              name=${file##*/}
+              case $name in
+                "$archive".tar.gz | "$archive"-headless.tar.gz | "$archive".zip) ;;
+                "$archive".tar.gz.sha256 | "$archive"-headless.tar.gz.sha256 | "$archive".zip.sha256) ;;
+                *)
+                  echo "::error title=release::the $target build uploaded $name, which is not one of its archives."
+                  exit 1
+                  ;;
+              esac
+              mv -n "$file" dist/
+            done
+          done
+          cd dist
+          sums=(*.sha256)
+          if [ "${#sums[@]}" -eq 0 ]; then
+            echo "::error title=release::no build uploaded an archive."
+            exit 1
+          fi
+          sha256sum --check --strict -- "${sums[@]}"
+          rm -- "${sums[@]}"
+          cp ../scripts/install.sh ../scripts/install.ps1 .
+          sha256sum -- *.tar.gz *.zip install.sh install.ps1 > SHA256SUMS
+          cat SHA256SUMS
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: dist/SHA256SUMS
       - name: Publish the release
         run: |
           if gh release view "v$VERSION" --json isDraft --jq .isDraft 2>/dev/null | grep -q true; then
@@ -204,7 +276,7 @@ jobs:
           prerelease=()
           if [[ "$VERSION" == *-* ]]; then prerelease=(--prerelease); fi
           gh release create "v$VERSION" --draft --target "$GITHUB_SHA" "${prerelease[@]}" \
-            --title "claudius $VERSION" --notes-file "$RUNNER_TEMP/notes.md" dist/*
+            --title "claudius $VERSION" --notes-file "$RUNNER_TEMP/notes/notes.md" dist/*
           gh release edit "v$VERSION" --draft=false
           echo "### [claudius $VERSION]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/v$VERSION)" >> "$GITHUB_STEP_SUMMARY"
 
@@ -215,6 +287,7 @@ jobs:
     if: ${{ !contains(needs.plan.outputs.version, '-') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    environment: release
     permissions:
       contents: read
     env:
@@ -262,7 +335,5 @@ jobs:
     if: ${{ github.ref == 'refs/heads/main' && !contains(needs.plan.outputs.version, '-') }}
     permissions:
       contents: read
+    # the deploy job takes the Cloudflare secrets from the environment "site"
     uses: ./.github/workflows/site.yml
-    secrets:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

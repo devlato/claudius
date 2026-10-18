@@ -201,11 +201,19 @@ decoder above. The packs on an unclear licence are opt-in and refuse to install 
 ## Releases and the build
 
 - Release archives are built by the release workflow from `main` after a reviewed release pull request, with a
-  `SHA256SUMS` file and a build provenance attestation (`gh attestation verify <archive> --repo devlato/claudius`). The
-  install scripts check the sums. [0009 Releases through pull requests](../design/0009-releases.md) explains the
+  `SHA256SUMS` file and a build provenance attestation. The install scripts come with each release and are in its
+  sums, and they check the archive they download against them. `gh attestation verify <archive> --repo
+  devlato/claudius --signer-workflow devlato/claudius/.github/workflows/release.yml --source-ref refs/heads/main`
+  checks where an archive was built. [0009 Releases through pull requests](../design/0009-releases.md) explains the
   process.
+- The release workflow runs only on `main` (and on the hotfix branches, which only admins can push), and on a push
+  only for the merge of a release PR. None of its jobs restores a cache: a cache is written by whatever ran in an
+  earlier job on `main`, so restoring one would let that code into the archives. The jobs that hold tokens run no
+  cargo, and the tokens are secrets of environments that only `main` may use. The site is built without secrets and
+  deployed by a job that only uploads it.
 - Third-party GitHub Actions are pinned by commit SHA, checkouts do not keep credentials, and workflow permissions are
-  the minimum each job needs. Tools downloaded in CI (lychee, actionlint) are checked against SHA-256 sums.
+  the minimum each job needs. Tools downloaded in CI (lychee, actionlint, gitleaks, OSV-Scanner) are checked against
+  SHA-256 sums.
 - `cargo deny` checks every dependency's licence, advisories and source on every pull request; dependabot proposes
   updates.
 - Building `earshot` downloads a prebuilt ONNX Runtime through the `ort` crate (its `download-binaries` feature), which

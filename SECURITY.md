@@ -42,8 +42,14 @@ websites are hostile, and that whoever holds your claudius token is you.
   over HTTPS: from GitHub repositories at pinned commits, and two archives from their authors' sites, pinned by size
   and SHA-256. An unpacked archive keeps no symbolic links, so nothing is read through one from elsewhere on your
   computer. The samples are audio, decoded by symphonia, a memory-safe Rust decoder, or by ffmpeg (below).
-- **Releases are verifiable.** Every release lists SHA-256 sums, and each archive has a build provenance attestation
-  you can check with `gh attestation verify <file> --repo devlato/claudius`. The install script checks the sums.
+- **Releases are verifiable.** Every release lists the SHA-256 sums of its archives and install scripts, and has a
+  build provenance attestation for them. The install script checks the sums, and this checks that a file was built
+  by the release workflow from `main`:
+
+  ```sh
+  gh attestation verify <file> --repo devlato/claudius \
+    --signer-workflow devlato/claudius/.github/workflows/release.yml --source-ref refs/heads/main
+  ```
 
 ## How the code gets here
 
@@ -58,6 +64,10 @@ websites are hostile, and that whoever holds your claudius token is you.
 - **Workflows run what was reviewed.** Every action is pinned to a commit, and the repository allows only GitHub's
   own actions and a short list of others. Tools CI downloads are pinned and checked against their SHA-256. The
   default token is read-only, and a pull request from a fork runs nothing until a maintainer approves it.
+- **Releases are built from nothing, on `main`.** The release workflow refuses any other branch (but the hotfix
+  branches, which only admins can push), restores no cache, and builds and downloads everything it links in that
+  run. The jobs that hold the release tokens run no build at all. Those tokens are secrets of environments that only
+  `main` may use, so a workflow pushed to another branch cannot read them; the website is deployed the same way.
 - **Releases cannot change once published**, and their archives carry the SHA-256 sums and attestations above.
 
 `scripts/github-setup.sh` makes these settings, so they are written down and can be checked.

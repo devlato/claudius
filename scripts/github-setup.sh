@@ -1,16 +1,19 @@
 #!/bin/sh
-# Repository settings as code: merging, Actions, security features, rulesets for main and the release tags, and the
-# topics. Every call sets a value rather than adding one, so running it again is safe. It needs `gh` logged in as an
+# Repository settings as code: merging, Actions, security features, rulesets for main and the release tags, the
+# environments that hold the release and deploy secrets, and the topics. Every call sets a value rather than adding one, so running it again is safe. It needs `gh` logged in as an
 # admin of the repository. Features GitHub Free offers only to public repositories are skipped, with a message, while
 # the repository is private; run it again once it is public.
 #
 #   scripts/github-setup.sh
 #   REVIEWS=1 scripts/github-setup.sh       # once there is a second maintainer to approve pull requests
+#   RELEASE_REVIEWERS=devlato scripts/github-setup.sh    # a person approves every release before it is published
 #
 # Environment:
 #   REPO            owner/name (default: devlato/claudius)
 #   REVIEWS         approving reviews a pull request needs (default: 0, for a single maintainer; a pull request is
 #                   still required, and nobody can approve their own)
+#   RELEASE_REVIEWERS  GitHub logins, separated by spaces, one of whom approves each release in the environment
+#                   "release" before it is published (default: none, so that merging a release PR releases)
 #   HOMEPAGE        the website, set as the repository's homepage when given
 #   DESCRIPTION     the repository's description, set when given (otherwise the one on GitHub stays)
 
@@ -18,6 +21,7 @@ set -eu
 
 REPO=${REPO:-devlato/claudius}
 REVIEWS=${REVIEWS:-0}
+RELEASE_REVIEWERS=${RELEASE_REVIEWERS:-}
 HOMEPAGE=${HOMEPAGE:-}
 DESCRIPTION=${DESCRIPTION:-}
 TOPICS="music music-production beatmaker audio rust egui wasm mcp strudel rhai"
@@ -81,10 +85,13 @@ gh api --method PUT "repos/$REPO/actions/permissions/selected-actions" --silent 
   ]
 }
 EOF
-# workflows may open pull requests (release-pr.yml does); their token cannot approve one that counts
+# The one setting lets workflows both open pull requests (release-pr.yml does, with its own token, when there is no
+# RELEASE_TOKEN) and approve them. Once approvals count, a workflow must not give one, so it is off, and release
+# PRs need RELEASE_TOKEN.
+if [ "$REVIEWS" -gt 0 ]; then workflows_open_prs=false; else workflows_open_prs=true; fi
 gh api --method PUT "repos/$REPO/actions/permissions/workflow" --silent \
     -f default_workflow_permissions=read \
-    -F can_approve_pull_request_reviews=true
+    -F can_approve_pull_request_reviews=$workflows_open_prs
 # logs and artifacts go after a week, so anything a run printed by mistake does not linger
 gh api --method PUT "repos/$REPO/actions/permissions/artifact-and-log-retention" --silent -F days=7
 # codeql.yml and scorecard.yml run only on a public repository
@@ -93,8 +100,8 @@ gh variable set REPO_IS_PUBLIC --repo "$REPO" --body "$([ "$VISIBILITY" = public
 if [ "$VISIBILITY" != public ]; then
     # while private: no other repository may use this one's workflows, and pull requests from forks run nothing
     gh api --method PUT "repos/$REPO/actions/permissions/access" --silent -f access_level=none
-    printf '\n%s\n%s\n' "Private on GitHub Free: rulesets (so the protection of main and the tags), secret scanning and private" \
-        "vulnerability reporting need a public repository or a paid plan. Run this again once it is public."
+    printf '\n%s\n%s\n' "Private on GitHub Free: rulesets (so the protection of main and the tags), environments, secret scanning" \
+        "and private vulnerability reporting need a public repository or a paid plan. Run this again once it is public."
     exit 0
 fi
 
@@ -173,13 +180,68 @@ upsert_ruleset "release tags" <<EOF
 }
 EOF
 
+# An environment's secrets reach only the jobs that name it, and only on the branches it lists: a workflow on another
+# branch cannot read them, nor a pull request. release: publish and homebrew in release.yml, from main or a hotfix
+# branch. release-pr: release-pr.yml. site: the deploy job in site.yml.
+upsert_environment() {
+    name=$1
+    reviewers=$2
+    shift 2
+    gh api --method PUT "repos/$REPO/environments/$name" --silent --input - <<EOF
+{
+  "wait_timer": 0,
+  "prevent_self_review": false,
+  "reviewers": [$reviewers],
+  "deployment_branch_policy": { "protected_branches": false, "custom_branch_policies": true }
+}
+EOF
+    policies=$(gh api "repos/$REPO/environments/$name/deployment-branch-policies" --jq '.branch_policies[].name')
+    for branch in "$@"; do
+        if ! printf '%s\n' "$policies" | grep -qxF "$branch"; then
+            gh api --method POST "repos/$REPO/environments/$name/deployment-branch-policies" --silent \
+                -f name="$branch" -f type=branch
+        fi
+    done
+}
+
+reviewers=
+for login in $RELEASE_REVIEWERS; do
+    id=$(gh api "users/$login" --jq .id)
+    reviewers="${reviewers:+$reviewers, }{ \"type\": \"User\", \"id\": $id }"
+done
+step "environments: release (approved by: ${RELEASE_REVIEWERS:-nobody, merging a release PR releases}), release-pr, site"
+upsert_environment release "$reviewers" main "hotfix/v*"
+upsert_environment release-pr "" main
+upsert_environment site "" main
+
+step "hotfix branches: only admins create and push hotfix/* (release.yml releases from them)"
+upsert_ruleset "hotfix branches" <<EOF
+{
+  "name": "hotfix branches",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": { "ref_name": { "include": ["refs/heads/hotfix/*"], "exclude": [] } },
+  "bypass_actors": [{ "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }],
+  "rules": [{ "type": "creation" }, { "type": "update" }, { "type": "deletion" }, { "type": "non_fast_forward" }]
+}
+EOF
+
 step "done"
 echo "Secrets to add by hand (docs/src/contributing/releasing.md says how to make each one):"
-secrets=$(gh secret list --repo "$REPO" --json name --jq '.[].name' 2>/dev/null || true)
-for secret in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID HOMEBREW_TAP_TOKEN RELEASE_TOKEN; do
-    if printf '%s\n' "$secrets" | grep -qx "$secret"; then
-        echo "  $secret: set"
+for entry in site/CLOUDFLARE_API_TOKEN site/CLOUDFLARE_ACCOUNT_ID release/HOMEBREW_TAP_TOKEN release-pr/RELEASE_TOKEN; do
+    environment=${entry%%/*}
+    secret=${entry#*/}
+    if gh secret list --repo "$REPO" --env "$environment" --json name --jq '.[].name' | grep -qx "$secret"; then
+        echo "  $secret ($environment): set"
     else
-        echo "  $secret: not set (gh secret set $secret --repo $REPO)"
+        echo "  $secret ($environment): not set (gh secret set $secret --repo $REPO --env $environment)"
+    fi
+done
+echo "Variables for the site, which deploys once both are set:"
+for variable in SITE_URL SITE_PROJECT; do
+    if gh variable list --repo "$REPO" --json name --jq '.[].name' | grep -qx "$variable"; then
+        echo "  $variable: set"
+    else
+        echo "  $variable: not set (gh variable set $variable --repo $REPO --body ...)"
     fi
 done

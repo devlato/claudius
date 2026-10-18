@@ -1,8 +1,8 @@
 name: Set up Rust
 description: >-
   Installs the Rust toolchain that rust-toolchain.toml pins (or the one a job names in RUSTUP_TOOLCHAIN), restores
-  the cargo cache (with the ONNX Runtime download that ort-sys makes), and on Linux installs the system packages the
-  workspace builds against.
+  the cargo cache (with the ONNX Runtime download that ort-sys makes) unless told not to, and on Linux installs the
+  system packages the workspace builds against.
 
 inputs:
   targets:
@@ -11,6 +11,11 @@ inputs:
   components:
     description: Extra components, comma-separated.
     default: ""
+  cache:
+    description: >-
+      "false" builds from nothing: for the jobs that make releases and deploys, which should not run or link anything
+      another workflow could have put into a cache.
+    default: "true"
   cache-key:
     description: Jobs with the same key share one cache.
     default: ""
@@ -42,10 +47,12 @@ runs:
     # ort-sys unpacks ONNX Runtime outside target/, and the cached build-script output points there, so the two are
     # cached together; without this, a warm target/ fails to link
     - name: Keep ONNX Runtime with the cache
+      if: inputs.cache == 'true'
       shell: bash
       run: echo "ORT_CACHE_DIR=$RUNNER_TEMP/ort" >> "$GITHUB_ENV" # zizmor: ignore[github-env] a fixed value
 
     - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      if: inputs.cache == 'true'
       with:
         shared-key: ${{ inputs.cache-key }}
         workspaces: ${{ inputs.cache-workspaces }}
