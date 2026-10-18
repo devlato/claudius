@@ -35,7 +35,7 @@ env:
 jobs:
   plan:
     name: plan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -87,7 +87,7 @@ jobs:
     name: web studio
     needs: plan
     if: needs.plan.outputs.release == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: read
@@ -161,7 +161,7 @@ jobs:
     name: release notes
     needs: plan
     if: needs.plan.outputs.release == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read
@@ -211,7 +211,7 @@ jobs:
   publish:
     name: publish v${{ needs.plan.outputs.version }}
     needs: [plan, build, notes]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     environment: release
     permissions:
@@ -285,7 +285,7 @@ jobs:
     needs: [plan, publish]
     # pre-releases (0.5.0-rc.1) stay out of Homebrew and off the site
     if: ${{ !contains(needs.plan.outputs.version, '-') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment: release
     permissions:
