@@ -317,6 +317,8 @@ pub fn render(p: &Project, opts: &Options) -> Result<Rendered> {
     if p.bars > crate::model::MAX_BARS || p.secs() > crate::model::MAX_SECONDS {
         anyhow::bail!("the song is too long to render ({} bars, {:.0} s)", p.bars, p.secs());
     }
+    // a pattern with several sounds plays as a track for each, so the arranged song can have more than its blueprint
+    crate::model::check_tracks(p.tracks.len(), p.secs()).map_err(anyhow::Error::msg)?;
     let t0 = std::time::Instant::now();
     let tm = Timing { spb: SRF * 60.0 / p.bpm, swing: p.swing, humanize: p.humanize };
     let tail = opts.tail_secs.max(0.0)

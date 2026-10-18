@@ -77,7 +77,8 @@ The script language:
   read) runs;
 - sampled instruments and drum machines resolve and render, when packs are installed (skipped otherwise);
 - **the sandbox**: dense patterns, deep nesting, long strings, huge repeats and euclids, infinite loops, `import`,
-  `eval`, and songs over 512 bars or 20 minutes all fail with the right message;
+  `eval`, songs over 512 bars or 20 minutes, and songs with more tracks than a render can hold all fail with the
+  right message;
 - errors say what to do (`unknown sound 'foo'` lists the synths, `cannot read key`, `no part 'nope'`).
 
 ### `tests/docs_examples.rs`
