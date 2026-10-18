@@ -19,7 +19,7 @@ jobs:
   analyze:
     name: codeql (${{ matrix.language }})
     if: vars.REPO_IS_PUBLIC == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
       contents: read

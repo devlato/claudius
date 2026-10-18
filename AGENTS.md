@@ -24,8 +24,9 @@ what you need to act.
 - **Keep the two features apart.** Code that needs earshot goes behind `#[cfg(feature = "ears")]`, code that needs
   the native window behind `studio`. The Intel Mac and Windows builds have no ears, and the headless Linux build
   has no window, so both have to keep compiling.
-- **Leave `rust-toolchain.toml` alone in a change of your own.** Moving to a newer Rust is a pull request of its
-  own, with the lints the new clippy brings.
+- **Leave `rust-toolchain.toml` and the workflows' `ubuntu-24.04` alone in a change of your own.** Moving to a newer
+  Rust or a newer Ubuntu is a pull request of its own, with the lints the new clippy brings or the fixes the new
+  image needs.
 - **Keep a pull request to one change**, and describe in it how you checked it.
 - **Notes for the changelog** that need more than the PR title (an upgrade step, a highlight) go under
   `## [Unreleased]` in `CHANGELOG.md`, in the same pull request.

@@ -8,7 +8,9 @@ ears, wasm-bindgen for the web studio) is downloaded by the build itself.
 Install [rustup](https://rustup.rs). `rust-toolchain.toml` at the root pins the Rust that CI and the releases
 build with (1.96.0), with rustfmt, clippy and the `wasm32-unknown-unknown` target, and rustup installs all of it
 the first time you run `cargo` in the repository. Your machine and CI run the same clippy, so its lints do not
-change under you. Moving to a newer Rust is a pull request of its own, with whatever its new lints ask for.
+change under you. Moving to a newer Rust is a pull request of its own, with whatever its new lints ask for. The
+same goes for Ubuntu: the workflows run on `ubuntu-24.04`, the image the Linux releases are built on, and not on
+`ubuntu-latest`, which GitHub moves to each new release.
 
 `rust-version` in `Cargo.toml` is the oldest Rust the workspace builds with: 1.96 too, because 1.95 cannot infer
 some of the types in `claudius`. The `msrv` job in CI checks it.
