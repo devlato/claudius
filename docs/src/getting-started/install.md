@@ -19,6 +19,22 @@ mkdir -p ~/.local/bin
 ln -s /Applications/claudius.app/Contents/MacOS/claudius /Applications/claudius.app/Contents/MacOS/claudius-packs ~/.local/bin/
 ```
 
+## Linux packages
+
+Every release has packages for x86_64 and ARM64 Linux with glibc 2.38 or newer (Ubuntu 24.04, Debian 13, Fedora 39
+and later). Each puts the programs in `/usr/bin`, the web studio in `/usr/share/claudius/web`, and **claudius** in
+your desktop's app menu, which opens the studio. Download the one for your system from the [latest
+release](https://github.com/devlato/claudius/releases/latest):
+
+```sh
+sudo apt install ./claudius-<version>-x86_64-unknown-linux-gnu.deb    # Debian, Ubuntu
+sudo dnf install ./claudius-<version>-x86_64-unknown-linux-gnu.rpm    # Fedora and its relatives
+```
+
+or the AppImage, which needs no installing: make it executable (`chmod +x claudius-*.AppImage`), then open it to
+start the studio, or run it with a command, `./claudius-<version>-x86_64-unknown-linux-gnu.AppImage make --genre
+lofi`. It needs FUSE to run, as every AppImage does, and ALSA for the studio's sound.
+
 ## The command line: macOS and Linux
 
 ```sh

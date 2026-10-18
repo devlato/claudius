@@ -148,6 +148,11 @@ jobs:
       - name: Headless archive
         if: runner.os == 'Linux'
         run: cargo xtask dist --target "$TARGET" --web target/web --headless
+      - name: Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y -qq --no-install-recommends rpm desktop-file-utils
+          sh scripts/package/linux.sh "target/dist/claudius-$VERSION-$TARGET.tar.gz" target/dist
       - name: Windows installer
         if: runner.os == 'Windows'
         run: |
@@ -161,7 +166,9 @@ jobs:
             target/dist/*.tar.gz
             target/dist/*.zip
             target/dist/*.msi
-            target/dist/*.sha256
+            target/dist/*.deb
+            target/dist/*.rpm
+            target/dist/*.AppImage
             target/dist/*.sha256
           if-no-files-found: error
 
@@ -260,7 +267,7 @@ jobs:
             echo "On Windows: \`irm https://github.com/$GITHUB_REPOSITORY/releases/latest/download/install.ps1 | iex\`, or the"
             echo "installer, \`claudius-$VERSION-x86_64-pc-windows-msvc.msi\`."
             echo "Or download an archive below. On a Mac, the app is in \`claudius-$VERSION-universal-apple-darwin.dmg\`:"
-            echo "open it and drag claudius to Applications."
+            echo "open it and drag claudius to Applications. On Linux there are a \`.deb\`, an \`.rpm\` and an AppImage."
             echo "The \`-headless\` Linux archives have no studio window and need neither ALSA nor a display;"
             echo "\`install.sh\` picks them when ALSA is missing, or with \`--headless\`. The Intel Mac and Windows"
             echo "builds have no ears: their verdicts use meters and music theory."
@@ -317,6 +324,8 @@ jobs:
               name=${file##*/}
               case $name in
                 "$archive".tar.gz | "$archive"-headless.tar.gz | "$archive".zip | "$archive".dmg | "$archive".msi) ;;
+                "$archive".deb | "$archive".rpm | "$archive".AppImage) ;;
+                "$archive".deb.sha256 | "$archive".rpm.sha256 | "$archive".AppImage.sha256) ;;
                 "$archive".tar.gz.sha256 | "$archive"-headless.tar.gz.sha256 | "$archive".zip.sha256) ;;
                 "$archive".dmg.sha256 | "$archive".msi.sha256) ;;
                 *)
@@ -336,7 +345,7 @@ jobs:
           sha256sum --check --strict -- "${sums[@]}"
           rm -- "${sums[@]}"
           cp ../scripts/install.sh ../scripts/install.ps1 .
-          sha256sum -- *.tar.gz *.zip *.dmg *.msi install.sh install.ps1 > SHA256SUMS
+          sha256sum -- *.tar.gz *.zip *.dmg *.msi *.deb *.rpm *.AppImage install.sh install.ps1 > SHA256SUMS
           cat SHA256SUMS
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
