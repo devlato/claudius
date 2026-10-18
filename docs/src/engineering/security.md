@@ -163,8 +163,15 @@ functions.
 ## Files and blueprints you open
 
 - **Audio** is decoded by symphonia, a Rust decoder, in `claudius-decode`, which forbids `unsafe` code itself. When
-  symphonia cannot read a file and ffmpeg is installed, ffmpeg decodes it: C code, run as a separate process with the
-  file name as an argument (never through a shell) and `-nostdin`. `CLAUDIUS_FFMPEG=none` turns that off.
+  symphonia cannot read a file and ffmpeg is installed, ffmpeg decodes it, and earshot decodes with ffmpeg whenever
+  it is installed, to match the Python reference: C code, run as a separate process with the file name as an
+  argument (never through a shell) and `-nostdin`. `CLAUDIUS_FFMPEG=none` turns that off. Every ffmpeg and ffprobe
+  input goes through `claudius_decode::ffmpeg_input`, which allows only the `file` protocol and the demuxers of
+  files that hold their own audio. A playlist (`.m3u8`) or a list of files is refused, because it would make ffmpeg
+  open files the path check never saw, outside the folders of a shared claudius.
+- **Decoding is bounded**: a file gives at most 30 minutes of stereo at 48 kHz (`MAX_SAMPLES`, as many samples in
+  other layouts), and a longer one is refused (`TooLong`) before it fills the memory. ffmpeg is asked for no more
+  than that (`-t`), and its output is read as it comes.
 - **Blueprints** are data, with three things in them that act: pattern code (sandboxed, above), file paths (checked by
   the policy on a shared claudius), and numbers. Lengths are bounded, but not every effect parameter is, so a
   hand-crafted blueprint can make a render slow or large within the song-length limit. Open blueprints from people you
