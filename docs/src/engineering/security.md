@@ -186,12 +186,16 @@ functions.
 |---|---|---|
 | CLAP and AudioSet models | huggingface.co, at pinned revisions | SHA-256 of every file, pinned in `earshot/src/models.rs`; a mismatch is deleted and never used |
 | curated packs from GitHub | raw.githubusercontent.com at pinned commits | the commit pins the content; sizes against GitHub's listing when there is one |
-| `tr909`, the FreePats organ | audiorealism.se, freepats.zenvoid.org (archives) | HTTPS and the server's length only |
-| Strudel maps you add | any URL you give, HTTPS or HTTP | nothing beyond the length |
+| curated Strudel maps | the map and every file it names on raw.githubusercontent.com at pinned commits | the commit; a map whose `_base` names a branch is pinned to the map's commit, or by the registry's `map_base`, and an install refuses a file that is not at a commit |
+| `tr909`, the FreePats organ | audiorealism.se, freepats.zenvoid.org (archives) | the size and SHA-256 in the registry; a mismatch, in a download or in the cache, is deleted |
+| Strudel maps you add | any URL you give, HTTPS or HTTP | nothing beyond the length, and at most 1 GiB a file |
 
 Archives are unpacked into a scratch folder with the system's `tar` (or `unzip`, `7z`); bsdtar and GNU tar strip
-absolute paths and refuse `..` members by default. The members are then copied into the pack under sanitised relative
-paths (`..` cannot survive `sanitize`), so what lands in the pack's folder stays inside it. A `GITHUB_TOKEN` in the environment is sent only to `api.github.com`. Every sample is audio and goes through the
+absolute paths and refuse `..` members by default. Every symbolic link in the unpacked tree is then deleted, and the
+walk over it follows none, because a member named like a sample but linking to `~/.ssh/id_rsa` would otherwise be
+copied into the pack. The members are copied into the pack under sanitised relative paths (`..` cannot survive
+`sanitize`), so what lands in the pack's folder stays inside it. A download whose size is not known in advance stops
+at 1 GiB, and one that sends more than its known size is cut off. A `GITHUB_TOKEN` in the environment is sent only to `api.github.com`. Every sample is audio and goes through the
 decoder above. The packs on an unclear licence are opt-in and refuse to install without `--accept-licence`.
 
 ## Releases and the build

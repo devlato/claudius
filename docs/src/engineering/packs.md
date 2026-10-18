@@ -29,7 +29,8 @@ instruments the engine can play by name. It is a library (used by the engine, th
   licence requires it (`attribution_required`), and `licence_note`: what the licence text says and where it was read,
   quoted, so a reviewer can check it without re-reading the source;
 - whether it is in the default set, `opt_in` with a `warning`, or `lazy`;
-- where it comes from (`fetch`): a GitHub repository at a pinned commit, or an archive URL with a prefix to strip;
+- where it comes from (`fetch`): a GitHub repository at a pinned commit, or an archive URL with a prefix to strip and
+  the archive's `size` and `sha256`;
 - `flac`, to convert WAV downloads losslessly, and bank `aliases` (`909`, `rolandtr909`);
 - its instruments, each built from one of four kinds of source.
 
@@ -37,7 +38,7 @@ instruments the engine can play by name. It is a library (used by the engine, th
 |---|---|---|
 | an SFZ file | pianos, orchestra, basses, the acoustic kit | the `.sfz` path; optionally `keep_layers` (velocity layers to keep, widened to cover every velocity), `keys`, `exclude`, an `octave` correction for mappings at written pitch, `kit` (drum name to keys) or `kit_auto` (one variant per key range) |
 | file names | the drum machines | a glob (`bd8/*.WAV`), `each` file its own variant, `first` the file for variant 0, or `vel`, a regex whose group is the velocity layer (the 909's `accent(\d+)`) |
-| a Strudel map | uzu, the lazy opt-in packs | the map's URL at a pinned commit, keys to leave out |
+| a Strudel map | uzu, the lazy opt-in packs | the map's URL at a pinned commit, keys to leave out, and `map_base` when the map's `_base` names a branch of another repository |
 | other instruments | ensembles | `compose`: key ranges taken from other instruments (strings: contrabass below MIDI 36, cellos to 57, violas to 64, violins above) |
 
 Instruments also carry playing settings: `release`, `attack`, `veltrack` (how much velocity changes the level),
@@ -51,8 +52,10 @@ five-voice ensemble), and `aliases`.
 
 1. **Sources.** A GitHub source is read from `raw.githubusercontent.com` at the pinned commit; when an instrument is
    given as a file glob, the repository is also listed through GitHub's tree API, which gives each file's size. For
-   an archive it downloads the file into the cache, unpacks it with the system's `tar` (bsdtar reads zip, 7z and tar;
-   GNU systems fall back to `unzip` and `7z`), and strips the prefix.
+   an archive it downloads the file into the cache, checks its size and SHA-256 against the registry, unpacks it
+   with the system's `tar` (bsdtar reads zip, 7z and tar; GNU systems fall back to `unzip` and `7z`), deletes any
+   symbolic links in it, and strips the prefix. A Strudel map's `_base` on a branch of the map's own repository is
+   moved to the map's commit (`strudel::pin_base`), and every file of a curated map must be at a commit.
 2. **Instruments.** SFZ files are read with `sfz.rs`: `#define` and `#include` (including mid-line includes, which the
    sfzinstruments mappings use), the `<control> <global> <master> <group> <region>` inheritance chain, and default
    controller values; `install/from_sfz.rs` turns each region into a `Zone`. File-name sources
@@ -164,7 +167,9 @@ are skipped, since a chime has no partial at its nominal pitch.
 1. Read the licence where the samples are published, and quote it in `licence_note`. A pack enters the default set
    only if its licence allows making and publishing music with it without conditions beyond attribution;
    [0007 Which samples we ship](../design/0007-sample-licensing.md) has the rules and the cases that were refused.
-2. Pin the source: a commit for GitHub (`rev`), and for an archive a URL that does not change.
+2. Pin the source: a commit for GitHub (`rev`); for an archive its `size` and `sha256`
+   (`shasum -a 256 <file>`); for a Strudel map, its URL at a commit, and `map_base` at a commit when its `_base` names
+   a branch of another repository. `every_download_is_pinned` checks the registry.
 3. Write the instruments, start with `claudius-packs install <name>`, and listen with
    `claudius-packs audition /tmp/audition --pack <name>`, fixing the mapping until the audition reports no problems.
 4. Check the names: `claudius-packs resolve` and `aliases`, and whether the new pack should be a candidate in

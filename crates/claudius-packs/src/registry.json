@@ -216,7 +216,7 @@
       "size_mb": 40,
       "version": "2025-09-08",
       "aliases": ["909", "rolandtr909", "tr-909"],
-      "fetch": {"archive": "https://audiorealism.se/downloads/TR-909-44.1kHz-16bit.zip", "strip": "TR-909-44.1kHz-16bit/"},
+      "fetch": {"archive": "https://audiorealism.se/downloads/TR-909-44.1kHz-16bit.zip", "strip": "TR-909-44.1kHz-16bit/", "size": 39922910, "sha256": "92cd2cafbcf88d1847552a0c4d6ee348e17286ebf9dbbc16fb6a4be875c8d8fa"},
       "flac": true,
       "instruments": [
         {"name": "bd", "kind": "drum", "category": "drums", "description": "bass drum: accent layers, then tune x attack x decay", "variants": [{"name": "accent", "files": "BassDrum/BassDrum909-accent*-tune100-attack100-decay100.wav", "vel": "accent(\\d+)"}, {"name": "knobs", "files": "BassDrum/BassDrum909-tune*-attack*-decay*.wav", "each": true}], "veltrack": 0.4, "mono": true},
@@ -320,7 +320,7 @@
       "instruments": [
         {"name": "upright_piano", "category": "piano", "description": "Kawai upright piano, 2 velocity layers", "fetch": {"github": "freepats/upright-piano-KW", "rev": "570f6c60ed2eff67accad3b85d5b452e57a3ad28"}, "sfz": "UprightPianoKW-20220221.sfz", "release": 0.35, "veltrack": 0.8, "retrigger": true, "aliases": ["upright", "honky_piano"]},
         {"name": "fm_piano", "category": "electric piano", "description": "FM electric piano", "fetch": {"github": "freepats/fm-piano1", "rev": "89a92d10b47aea841597408f5cf2e9c8164ecb00"}, "sfz": "FM-Piano1 20190916.sfz", "release": 0.3, "veltrack": 0.8, "aliases": ["dx_piano", "fm_epiano"]},
-        {"name": "drawbar_organ", "category": "organ", "description": "drawbar organ (setBfree tonewheel emulation); its registration is 16′-heavy, so it is mapped an octave up to put the strongest partial on the played note", "fetch": {"archive": "https://freepats.zenvoid.org/Organ/DrawbarOrganEmulation/DrawbarOrganEmulation-SFZ-20190712.tar.xz", "strip": "DrawbarOrganEmulation-SFZ-20190712/"}, "sfz": "DrawbarOrganEmulation-20190712.sfz", "octave": 1, "release": 0.08, "veltrack": 0.2, "aliases": ["organ", "hammond", "b3", "tonewheel_organ", "jazz_organ"]},
+        {"name": "drawbar_organ", "category": "organ", "description": "drawbar organ (setBfree tonewheel emulation); its registration is 16′-heavy, so it is mapped an octave up to put the strongest partial on the played note", "fetch": {"archive": "https://freepats.zenvoid.org/Organ/DrawbarOrganEmulation/DrawbarOrganEmulation-SFZ-20190712.tar.xz", "strip": "DrawbarOrganEmulation-SFZ-20190712/", "size": 6042972, "sha256": "e2da18b0a4d13be7020037e18e4a719387433357e7603d0773990e794dcf5d0f"}, "sfz": "DrawbarOrganEmulation-20190712.sfz", "octave": 1, "release": 0.08, "veltrack": 0.2, "aliases": ["organ", "hammond", "b3", "tonewheel_organ", "jazz_organ"]},
         {"name": "finger_bass", "category": "bass", "description": "electric bass guitar, fingered (sampled E1 to D#2 only)", "fetch": {"github": "freepats/electric-bass-YR", "rev": "8dcb7ea9116f417273ef8c030d15e7b3aa654301"}, "sfz": "FingerBassYR 20190930.sfz", "release": 0.12, "veltrack": 0.7},
         {"name": "pick_bass", "category": "bass", "description": "electric bass guitar, picked", "fetch": {"github": "freepats/electric-bass-YR", "rev": "8dcb7ea9116f417273ef8c030d15e7b3aa654301"}, "sfz": "PickedBassYR 20190930.sfz", "release": 0.12, "veltrack": 0.7, "aliases": ["picked_bass"]},
         {"name": "classical_guitar", "category": "guitar", "description": "Spanish classical (nylon) guitar", "fetch": {"github": "freepats/spanish-classical-guitar", "rev": "6f4eb1b092acc88f5448cea1a0001bd07b971af8"}, "sfz": "SpanishClassicalGuitar-20190618.sfz", "one_shot": true, "release": 0.3, "veltrack": 0.7, "aliases": ["guitar", "acoustic_guitar", "nylon_guitar", "spanish_guitar"]},
@@ -455,7 +455,7 @@
       "version": "9eacfc8",
       "aliases": ["tdm", "drum-machines"],
       "instruments": [
-        {"name": "machines", "kind": "drum", "category": "drums", "map": "https://raw.githubusercontent.com/felixroos/dough-samples/9eacfc86ec4393e68a463ff52b01c19cfaa77f38/tidal-drum-machines.json"}
+        {"name": "machines", "kind": "drum", "category": "drums", "map": "https://raw.githubusercontent.com/felixroos/dough-samples/9eacfc86ec4393e68a463ff52b01c19cfaa77f38/tidal-drum-machines.json", "map_base": "https://raw.githubusercontent.com/ritchse/tidal-drum-machines/6577395a4d05031728ced2ec3e5637fa89d8be48/machines/"}
       ]
     },
     {
@@ -496,7 +496,7 @@
       "size_mb": 6,
       "version": "9eacfc8",
       "instruments": [
-        {"name": "mrid", "kind": "drum", "category": "world percussion", "map": "https://raw.githubusercontent.com/felixroos/dough-samples/9eacfc86ec4393e68a463ff52b01c19cfaa77f38/mridangam.json"}
+        {"name": "mrid", "kind": "drum", "category": "world percussion", "map": "https://raw.githubusercontent.com/felixroos/dough-samples/9eacfc86ec4393e68a463ff52b01c19cfaa77f38/mridangam.json", "map_base": "https://raw.githubusercontent.com/yaxu/mrid/5ba409cabb2893e6e8a52a15a2812c35585cdadb/"}
       ]
     }
   ]

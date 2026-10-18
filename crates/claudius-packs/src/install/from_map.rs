@@ -80,9 +80,20 @@ pub(crate) fn instruments_from_map(
 pub(super) fn build_map(ctx: &mut Ctx, spec: &InstSpec) -> Result<Vec<InstrumentDef>> {
     let url = strudel::map_url(spec.map.as_deref().expect("map"))?;
     let json = fetch::get_text(&url)?;
-    let map = strudel::parse_map(&json, &url)?;
-    let mut add = |u: &str| ctx.add_url_file(u);
+    let mut map = strudel::parse_map(&json, &url)?;
+    map.base = spec.map_base.clone().unwrap_or_else(|| strudel::pin_base(&map.base, &url));
+    // a curated pack's files are pinned to commits, as its maps are
+    let mut unpinned = None;
+    let mut add = |u: &str| {
+        if unpinned.is_none() && !strudel::pinned(u) {
+            unpinned = Some(u.to_string());
+        }
+        ctx.add_url_file(u)
+    };
     let defs = instruments_from_map(&map, spec, &mut add);
+    if let Some(u) = unpinned {
+        bail!("{}: {u} is not pinned to a commit, so what it serves could change", spec.name);
+    }
     if defs.is_empty() {
         bail!("{url}: no sounds in the sample map");
     }
