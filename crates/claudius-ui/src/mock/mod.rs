@@ -229,7 +229,7 @@ impl Mock {
                 }
                 Err(e) => Err(e),
             },
-            Command::Remake { path, genre, seed } => match audio_file(path) {
+            Command::Remake { path, genre, seed, .. } => match audio_file(path) {
                 Ok(()) => {
                     let genre = genre
                         .clone()
