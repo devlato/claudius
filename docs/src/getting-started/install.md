@@ -45,7 +45,8 @@ claudius setup
 | 14 sample packs: pianos, electric pianos, strings, brass, woodwinds, mallets, basses, guitars, voice, real drum machines | about 1.1 GB | `~/Library/Application Support/claudius/packs` on macOS, `~/.local/share/claudius/packs` on Linux |
 | earshot's listening models (CLAP) | about 0.8 GB | `~/.cache/earshot-rs` |
 
-Each model file is checked against a pinned SHA-256 hash. Without the packs, claudius synthesizes every sound; without
+The studio offers the same download of the packs when they are missing, and downloads the models by itself the
+first time it starts. Each model file is checked against a pinned SHA-256 hash. Without the packs, claudius synthesizes every sound; without
 the models, the verdict uses meters and music theory only. `claudius setup --help` lists the options, and
 `claudius-packs list` shows every pack with its licence.
 

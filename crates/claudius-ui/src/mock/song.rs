@@ -277,6 +277,7 @@ pub fn sounds() -> SoundList {
         license: license.into(),
         installed,
         size_mb,
+        ..Default::default()
     };
     SoundList {
         drums: list(&[

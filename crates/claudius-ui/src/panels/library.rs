@@ -2,7 +2,7 @@
 //! part or a script may use: sampled instruments by pack, their short names, synth presets and drum voices. Click
 //! an instrument or a preset to put it on one of the song's parts.
 
-use claudius_api::{PackInfo, SongView, SoundList};
+use claudius_api::{Command, PackInfo, SongView, SoundList};
 use eframe::egui::{self, Color32, RichText, Ui};
 
 use super::{Cx, empty, layer_color, page_frame, small};
@@ -22,7 +22,9 @@ fn licence_color(licence: &str) -> Color32 {
     }
 }
 
-fn pack_card(ui: &mut Ui, p: &PackInfo, instruments: usize) {
+/// a pack's card; true when its install button was clicked (only packs that are not installed, nor opt-in, have one)
+fn pack_card(ui: &mut Ui, p: &PackInfo, instruments: usize, can_install: bool) -> bool {
+    let mut install = false;
     let frame = egui::Frame::new()
         .fill(if p.installed { RAISED } else { theme::mix(RAISED, theme::BG, 0.5) })
         .corner_radius(6)
@@ -38,6 +40,9 @@ fn pack_card(ui: &mut Ui, p: &PackInfo, instruments: usize) {
                 widgets::pill(ui, "not installed", TEXT_FAINT);
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if !p.installed && !p.opt_in {
+                    install = ui.add_enabled(can_install, egui::Button::new("install").small()).clicked();
+                }
                 ui.label(small(format!("{:.0} MB", p.size_mb)));
                 if instruments > 0 {
                     ui.label(small(format!("{instruments} sounds ·")));
@@ -53,6 +58,7 @@ fn pack_card(ui: &mut Ui, p: &PackInfo, instruments: usize) {
         });
     });
     ui.add_space(4.0);
+    install
 }
 
 /// a sound chip; clicking it offers the song's parts to put it on
@@ -109,6 +115,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         empty(ui, "The server's sound library appears here.");
         return;
     };
+    super::missing_packs(ui, cx);
+    let downloading = cx.state.busy.as_deref().is_some_and(|b| b.starts_with("downloading"));
     let song = cx.state.song.as_ref();
     let by_pack = instruments_by_pack(list);
     let mut out = Vec::new();
@@ -141,7 +149,9 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     packs.sort_by_key(|p| !p.installed);
                     for p in packs {
                         let n = by_pack.iter().find(|(name, _)| *name == p.name).map_or(0, |(_, v)| v.len());
-                        pack_card(ui, p, n);
+                        if pack_card(ui, p, n, !downloading) {
+                            out.push(Command::InstallPacks { names: vec![p.name.clone()] });
+                        }
                     }
                     if list.packs.is_empty() {
                         ui.label(small("no packs: the server lists none"));

@@ -120,6 +120,9 @@ pub struct Remote {
     retry_at: Option<f64>,
     failures: u32,
     sounds_requested: bool,
+    /// after `install_packs`: Some(false) until its job is seen running, Some(true) until it ends, when the sound list
+    /// is fetched again
+    sounds_after_install: Option<bool>,
 }
 
 impl Remote {
@@ -135,6 +138,7 @@ impl Remote {
             retry_at: None,
             failures: 0,
             sounds_requested: false,
+            sounds_after_install: None,
         }
     }
 
@@ -220,6 +224,9 @@ impl Remote {
     }
 
     fn send(&mut self, cmd: &Command) {
+        if matches!(cmd, Command::InstallPacks { .. }) {
+            self.sounds_after_install = Some(false);
+        }
         let what = command_name(cmd);
         let body = serde_json::to_vec(cmd).unwrap_or_default();
         let mut request = ehttp::Request::post(self.url("/api/command"), body);
@@ -259,6 +266,14 @@ impl Remote {
                     if !self.sounds_requested {
                         self.fetch_sounds();
                         self.fetch_hello();
+                    }
+                    match (self.sounds_after_install, s.busy.is_some()) {
+                        (Some(false), true) => self.sounds_after_install = Some(true),
+                        (Some(true), false) => {
+                            self.sounds_after_install = None;
+                            self.fetch_sounds();
+                        }
+                        _ => {}
                     }
                 }
                 Event::PollFailed(_) => {

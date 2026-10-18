@@ -279,6 +279,8 @@ pub fn sounds() -> SoundList {
             license: p.licence,
             installed: p.installed,
             size_mb: p.size_mb as f64,
+            default: p.default,
+            opt_in: p.opt_in,
         })
         .collect();
     SoundList {

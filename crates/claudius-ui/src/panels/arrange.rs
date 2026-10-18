@@ -51,6 +51,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let solo = cx.any_solo();
     let Some(song) = cx.state.song.as_ref() else {
         empty(ui, "No song yet: make one with New song.");
+        super::missing_packs(ui, cx);
         return;
     };
     let render = cx.state.render.as_ref();

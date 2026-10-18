@@ -264,6 +264,32 @@ pub fn is_sampled(name: &str, sounds: Option<&SoundList>) -> bool {
     }
 }
 
+/// when default packs are missing: a line that says so, and a button that downloads them
+pub fn missing_packs(ui: &mut Ui, cx: &mut Cx) {
+    let Some(list) = cx.sounds else { return };
+    let missing: Vec<&claudius_api::PackInfo> = list.packs.iter().filter(|p| p.default && !p.installed).collect();
+    if missing.is_empty() {
+        return;
+    }
+    let downloading = cx.state.busy.as_deref().is_some_and(|b| b.starts_with("downloading"));
+    let gb = missing.iter().map(|p| p.size_mb).sum::<f64>() / 1000.0;
+    ui.add_space(8.0);
+    ui.vertical_centered(|ui| {
+        ui.label(
+            RichText::new(format!(
+                "{} of the default sample packs are not installed, so their instruments are synthesized.",
+                missing.len()
+            ))
+            .color(theme::TEXT_DIM),
+        );
+        let button = egui::Button::new(format!("Download the packs ({gb:.1} GB)"));
+        if ui.add_enabled(!downloading, button).on_disabled_hover_text("downloading…").clicked() {
+            cx.out.push(Command::InstallPacks { names: Vec::new() });
+        }
+    });
+    ui.add_space(8.0);
+}
+
 /// a centred hint for empty panels
 pub fn empty(ui: &mut Ui, text: &str) {
     ui.add_space(24.0);

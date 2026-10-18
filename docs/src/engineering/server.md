@@ -9,7 +9,7 @@ records why there is exactly one.
 | `lib.rs` | `serve` (on the caller's runtime) and `spawn` (on a thread with its own runtime, for the native window), and what a taken port says |
 | `app/mod.rs` | `App` and its `Session`: state, versions, waiting for changes |
 | `app/commands.rs` | every `Command`: edits, undo and redo, load and save, analysis |
-| `app/jobs.rs` | the long jobs: render and judge, mutate, evolve, save |
+| `app/jobs.rs` | the long jobs: render and judge, mutate, evolve, save, install packs |
 | `http.rs` | the routes, the guard (host names, token), CORS, security headers |
 | `mcp.rs` | the MCP tools, the backends they run on, the stdio and HTTP transports |
 | `views.rs` | blueprints and verdicts as `claudius-api` types, and the text summaries the MCP tools return |
@@ -75,7 +75,8 @@ audio, until the session prunes it.
 
 ### Jobs
 
-Renders, mutations, evolutions and saves are jobs. `start_job` takes the job slot through `try_update`, so a refusal
+Renders, mutations, evolutions, saves and pack downloads are jobs. `start_job` (and, for `install_packs`, which needs
+no song, `take_slot` alone) takes the job slot through `try_update`, so a refusal
 (`busy (rendering); try again when it is done, or cancel it`) changes nothing, not even the version; it marks the
 session busy and `spawn_job` runs the job on a `std::thread`, catching panics (`the job failed (internal error)`).
 When the job ends, `finish_job` decides who has the slot next, in this order:

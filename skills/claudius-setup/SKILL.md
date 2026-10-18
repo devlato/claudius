@@ -29,6 +29,9 @@ claudius setup      # the default sample packs (about 1.1 GB) and the listening 
 claudius doctor     # what is installed and what is missing, with the fix for each
 ```
 
+Someone who uses only the studio can download the packs there instead: it offers **Download the packs** when they
+are missing, and fetches the models by itself the first time it starts.
+
 `setup --yes` does not ask, `--no-packs` and `--no-models` leave either out, and `--tags` adds the AudioSet tagger
 (about 0.35 GB more). Without the packs, claudius plays synthesized sounds only; without the models, the verdict
 judges with meters and music theory but has no genre or production reading. Intel Macs have no models at all: ONNX

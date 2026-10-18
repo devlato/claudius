@@ -239,6 +239,12 @@ pub struct PackInfo {
     pub license: String,
     pub installed: bool,
     pub size_mb: f64,
+    /// one of the packs `claudius setup` installs
+    #[serde(default)]
+    pub default: bool,
+    /// on an unclear licence: installed only when asked for by name, with `claudius-packs install --accept-licence`
+    #[serde(default)]
+    pub opt_in: bool,
 }
 
 /// an edit or action; JSON `{"cmd": "set_tempo", "bpm": 124}`
@@ -395,6 +401,12 @@ pub enum Command {
         generations: usize,
         #[serde(default = "six")]
         children: usize,
+    },
+    /// download and install sample packs: the default packs that are missing, or the named ones (not the opt-in
+    /// packs, whose licence has to be accepted with `claudius-packs install --accept-licence`)
+    InstallPacks {
+        #[serde(default)]
+        names: Vec<String>,
     },
     /// render the song (stems too when asked) and judge it
     Render {
