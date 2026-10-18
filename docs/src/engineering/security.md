@@ -92,7 +92,7 @@ and prints it once the port is bound:
 
 ```text
 claudius at http://127.0.0.1:7920: web UI at /, API at /api, MCP at /mcp (token required)
-shared with a new token: open http://127.0.0.1:7920/?token=265f6449352030ce55bd79c3f4179c65 (through your tunnel, its address with ?token=265f6449352030ce55bd79c3f4179c65), or send Authorization: Bearer 265f6449352030ce55bd79c3f4179c65. --token sets your own.
+shared with a new token: open http://127.0.0.1:7920/?token=<token> (through your tunnel, its address with ?token=<token>), or send Authorization: Bearer <token>. --token sets your own.
 ```
 
 Each start makes a new one, so a restart revokes the last. `--host` with any address but loopback makes one the same
@@ -104,7 +104,8 @@ way, with or without `--public`: the Host check refuses browsers, but a program 
 ### The policy
 
 A claudius only you can reach reads and writes wherever your user can, because that is what a local app does. A
-shared claudius (`serve --public`, or `serve --files <dir>`) checks every path it is given against a list of roots,
+shared claudius (`serve --public`, `serve --host` with an address other than loopback, or `serve --files <dir>`)
+checks every path it is given against a list of roots,
 `config::shared_roots()` plus the `--files` folders:
 
 - **Reading** (`config::path_allowed`): the path must exist and, canonicalised (symbolic links and `..` resolved),
@@ -147,7 +148,9 @@ Scripts come from you, from assistants, from files you open and from printed son
 - a pattern query may do 4 million steps of work and make 262,144 events; `*`, `/`, `fast`, `slow` and `ply` take
   factors above 0 and up to 256; a track may play 1,024 notes per bar; mini-notation is limited in length (4,096
   characters), nesting (64), repeats and euclidean steps (256);
-- a song is at most 512 bars and 20 minutes, checked after every script and edit and again before rendering.
+- a song is at most 512 bars and 20 minutes, with at most 64 tracks and 12,000 track-seconds (20 tracks of 10
+  minutes), because a render holds every track in memory; this is checked after every script and edit and again
+  before rendering, where a pattern with several sounds counts as a track for each.
 
 The fuzz targets run arbitrary text through the parser and the script engine every week. The event budget is what
 bounds a query's memory. `track("x", s("bd*100000000"))` is refused while parsing, and the whole `claudius script`
@@ -160,8 +163,15 @@ functions.
 ## Files and blueprints you open
 
 - **Audio** is decoded by symphonia, a Rust decoder, in `claudius-decode`, which forbids `unsafe` code itself. When
-  symphonia cannot read a file and ffmpeg is installed, ffmpeg decodes it: C code, run as a separate process with the
-  file name as an argument (never through a shell) and `-nostdin`. `CLAUDIUS_FFMPEG=none` turns that off.
+  symphonia cannot read a file and ffmpeg is installed, ffmpeg decodes it, and earshot decodes with ffmpeg whenever
+  it is installed, to match the Python reference: C code, run as a separate process with the file name as an
+  argument (never through a shell) and `-nostdin`. `CLAUDIUS_FFMPEG=none` turns that off. Every ffmpeg and ffprobe
+  input goes through `claudius_decode::ffmpeg_input`, which allows only the `file` protocol and the demuxers of
+  files that hold their own audio. A playlist (`.m3u8`) or a list of files is refused, because it would make ffmpeg
+  open files the path check never saw, outside the folders of a shared claudius.
+- **Decoding is bounded**: a file gives at most 30 minutes of stereo at 48 kHz (`MAX_SAMPLES`, as many samples in
+  other layouts), and a longer one is refused (`TooLong`) before it fills the memory. ffmpeg is asked for no more
+  than that (`-t`), and its output is read as it comes.
 - **Blueprints** are data, with three things in them that act: pattern code (sandboxed, above), file paths (checked by
   the policy on a shared claudius), and numbers. Lengths are bounded, but not every effect parameter is, so a
   hand-crafted blueprint can make a render slow or large within the song-length limit. Open blueprints from people you
@@ -176,22 +186,34 @@ functions.
 |---|---|---|
 | CLAP and AudioSet models | huggingface.co, at pinned revisions | SHA-256 of every file, pinned in `earshot/src/models.rs`; a mismatch is deleted and never used |
 | curated packs from GitHub | raw.githubusercontent.com at pinned commits | the commit pins the content; sizes against GitHub's listing when there is one |
-| `tr909`, the FreePats organ | audiorealism.se, freepats.zenvoid.org (archives) | HTTPS and the server's length only |
-| Strudel maps you add | any URL you give, HTTPS or HTTP | nothing beyond the length |
+| curated Strudel maps | the map and every file it names on raw.githubusercontent.com at pinned commits | the commit; a map whose `_base` names a branch is pinned to the map's commit, or by the registry's `map_base`, and an install refuses a file that is not at a commit |
+| `tr909`, the FreePats organ | audiorealism.se, freepats.zenvoid.org (archives) | the size and SHA-256 in the registry; a mismatch, in a download or in the cache, is deleted |
+| Strudel maps you add | any URL you give, HTTPS or HTTP | nothing beyond the length, and at most 1 GiB a file |
 
 Archives are unpacked into a scratch folder with the system's `tar` (or `unzip`, `7z`); bsdtar and GNU tar strip
-absolute paths and refuse `..` members by default. The members are then copied into the pack under sanitised relative
-paths (`..` cannot survive `sanitize`), so what lands in the pack's folder stays inside it. A `GITHUB_TOKEN` in the environment is sent only to `api.github.com`. Every sample is audio and goes through the
+absolute paths and refuse `..` members by default. Every symbolic link in the unpacked tree is then deleted, and the
+walk over it follows none, because a member named like a sample but linking to `~/.ssh/id_rsa` would otherwise be
+copied into the pack. The members are copied into the pack under sanitised relative paths (`..` cannot survive
+`sanitize`), so what lands in the pack's folder stays inside it. A download whose size is not known in advance stops
+at 1 GiB, and one that sends more than its known size is cut off. A `GITHUB_TOKEN` in the environment is sent only to `api.github.com`. Every sample is audio and goes through the
 decoder above. The packs on an unclear licence are opt-in and refuse to install without `--accept-licence`.
 
 ## Releases and the build
 
 - Release archives are built by the release workflow from `main` after a reviewed release pull request, with a
-  `SHA256SUMS` file and a build provenance attestation (`gh attestation verify <archive> --repo devlato/claudius`). The
-  install scripts check the sums. [0009 Releases through pull requests](../design/0009-releases.md) explains the
+  `SHA256SUMS` file and a build provenance attestation. The install scripts come with each release and are in its
+  sums, and they check the archive they download against them. `gh attestation verify <archive> --repo
+  devlato/claudius --signer-workflow devlato/claudius/.github/workflows/release.yml --source-ref refs/heads/main`
+  checks where an archive was built. [0009 Releases through pull requests](../design/0009-releases.md) explains the
   process.
+- The release workflow runs only on `main` (and on the hotfix branches, which only admins can push), and on a push
+  only for the merge of a release PR. None of its jobs restores a cache: a cache is written by whatever ran in an
+  earlier job on `main`, so restoring one would let that code into the archives. The jobs that hold tokens run no
+  cargo, and the tokens are secrets of environments that only `main` may use. The site is built without secrets and
+  deployed by a job that only uploads it.
 - Third-party GitHub Actions are pinned by commit SHA, checkouts do not keep credentials, and workflow permissions are
-  the minimum each job needs. Tools downloaded in CI (lychee, actionlint) are checked against SHA-256 sums.
+  the minimum each job needs. Tools downloaded in CI (lychee, actionlint, gitleaks, OSV-Scanner) are checked against
+  SHA-256 sums.
 - `cargo deny` checks every dependency's licence, advisories and source on every pull request; dependabot proposes
   updates.
 - Building `earshot` downloads a prebuilt ONNX Runtime through the `ort` crate (its `download-binaries` feature), which

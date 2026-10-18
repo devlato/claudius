@@ -1,0 +1,9 @@
+#!/bin/sh
+# main changes only through pull requests (AGENTS.md), and GitHub refuses a push to it: say so before it does.
+set -eu
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+    if [ "$remote_ref" = "refs/heads/main" ]; then
+        echo "main changes only through pull requests: push a branch and open one (AGENTS.md)." >&2
+        exit 1
+    fi
+done

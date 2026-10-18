@@ -27,8 +27,8 @@ Everything inside claudius runs at 48 kHz (earshot's rate) on planar stereo `f32
 
 A render buffer is the song's length plus 3 s of tail, plus the longest tail of any track's insert chain (a reverb's
 decay, a delay's echoes until they fall 60 dB), capped at 6 s. At the end, the master is cut where it falls below
-−80 dBFS for good (never shorter than the song) and faded out over 0.5 s. A project over 512 bars or 20 minutes is
-refused before anything is allocated.
+−80 dBFS for good (never shorter than the song) and faded out over 0.5 s. A project over 512 bars or 20 minutes, or
+with more tracks than `model::check_tracks` allows, is refused before anything is allocated.
 
 ## Sources
 

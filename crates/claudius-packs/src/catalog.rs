@@ -67,6 +67,12 @@ pub struct FetchSpec {
     /// path prefix inside the archive to strip
     #[serde(default)]
     pub strip: Option<String>,
+    /// the archive's size in bytes and SHA-256, which the download must match: unlike a GitHub source at a commit,
+    /// an archive on a web host can change under the same URL
+    #[serde(default)]
+    pub size: Option<u64>,
+    #[serde(default)]
+    pub sha256: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -124,6 +130,10 @@ pub struct InstSpec {
     // --- Strudel sample map source
     #[serde(default)]
     pub map: Option<String>,
+    /// where the map's files are, at a commit, in place of its `_base` when that names a branch of another
+    /// repository (a branch of the map's own repository is pinned to the map's commit by itself)
+    #[serde(default)]
+    pub map_base: Option<String>,
     #[serde(default)]
     pub map_keys: Option<Vec<String>>,
     #[serde(default)]
@@ -218,5 +228,33 @@ mod tests {
             }
         }
         assert!(default_mb < 3000.0, "default packs are {default_mb} MB");
+    }
+
+    #[test]
+    fn every_download_is_pinned() {
+        let commit = |rev: &str| rev.len() == 40 && rev.bytes().all(|b| b.is_ascii_hexdigit());
+        for p in &REGISTRY.packs {
+            let fetches = p.fetch.iter().chain(p.instruments.iter().filter_map(|i| i.fetch.as_ref()));
+            for f in fetches {
+                if f.github.is_some() {
+                    assert!(f.rev.as_deref().is_some_and(commit), "{}: a GitHub source needs a commit", p.name);
+                }
+                if let Some(url) = &f.archive {
+                    assert!(f.size.is_some_and(|s| s > 0), "{}: {url} needs its size", p.name);
+                    assert!(f.sha256.as_deref().is_some_and(|h| h.len() == 64), "{}: {url} needs its SHA-256", p.name);
+                }
+            }
+            for i in p.instruments.iter().filter(|i| i.map.is_some()) {
+                assert!(
+                    crate::strudel::pinned(i.map.as_deref().unwrap()),
+                    "{}:{}: the map needs a commit",
+                    p.name,
+                    i.name
+                );
+                if let Some(base) = &i.map_base {
+                    assert!(crate::strudel::pinned(base), "{}:{}: map_base needs a commit", p.name, i.name);
+                }
+            }
+        }
     }
 }

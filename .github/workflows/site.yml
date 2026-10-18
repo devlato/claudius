@@ -1,9 +1,10 @@
 # Builds the website with `cargo xtask site` (the landing page, the book at /docs/, the studio at /studio/ and the
-# install scripts) and deploys it to the Cloudflare Pages project "claudius": production from main, a preview at
-# https://pr-<number>.claudius.pages.dev for pull requests from this repository.
+# install scripts) and deploys main's to Cloudflare Pages.
 #
-# Deploying needs the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets; without them (and in forks) the site is
-# built but not deployed.
+# The build runs without a cache and without secrets, and hands the site to the deploy job as an artifact. Deploying
+# needs an address for the site, the repository variables SITE_URL (https://...) and SITE_PROJECT (the Pages
+# project), and the secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the environment "site", which only main
+# may use. Pull requests and forks build the site and deploy nothing.
 name: site
 
 on:
@@ -18,11 +19,6 @@ on:
       after-release:
         type: boolean
         default: true
-    secrets:
-      CLOUDFLARE_API_TOKEN:
-        required: false
-      CLOUDFLARE_ACCOUNT_ID:
-        required: false
   workflow_dispatch:
 
 permissions:
@@ -41,8 +37,8 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
-  site:
-    name: build and deploy
+  build:
+    name: build
     # a merged release PR is deployed by release.yml after the release is out, so that the site never offers a
     # version that cannot be downloaded yet
     if: >-
@@ -51,29 +47,57 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      HAS_CLOUDFLARE: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
-      BRANCH: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
-      SITE_URL: >-
-        ${{ github.event_name == 'pull_request' && format('https://pr-{0}.claudius.pages.dev', github.event.pull_request.number)
-        || vars.SITE_URL || 'https://claudius.pages.dev' }}
+      SITE_URL: ${{ vars.SITE_URL }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ./.github/actions/rust
         with:
-          cache-key: site
+          cache: "false"
           linux-packages: "false"
       - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
         with:
           tool: trunk@0.21.14,mdbook@0.5.4
-      - run: cargo xtask site --out target/site --site-url "$SITE_URL"
+      - run: |
+          if [ -n "$SITE_URL" ]; then set -- --site-url "$SITE_URL"; fi
+          cargo xtask site --out target/site "$@"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: site
+          path: target/site
+          if-no-files-found: error
+      - name: Not deployed
+        if: github.event_name == 'pull_request' || github.ref != 'refs/heads/main' || vars.SITE_URL == '' || vars.SITE_PROJECT == ''
+        run: >-
+          echo "::notice title=site::The site was built but not deployed: main's is deployed, once the variables
+          SITE_URL and SITE_PROJECT say where."
 
+  deploy:
+    name: deploy
+    needs: build
+    if: >-
+      github.event_name != 'pull_request' && github.ref == 'refs/heads/main' &&
+      vars.SITE_URL != '' && vars.SITE_PROJECT != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: {}
+    environment:
+      name: site
+      url: ${{ vars.SITE_URL }}
+    env:
+      HAS_CLOUDFLARE: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+    steps:
       - name: No Cloudflare credentials
         if: env.HAS_CLOUDFLARE != 'true'
         run: >-
-          echo "::notice title=site::The site was built but not deployed: CLOUDFLARE_API_TOKEN and
-          CLOUDFLARE_ACCOUNT_ID are not both set (forks and Dependabot get no secrets)."
+          echo "::notice title=site::The site was not deployed: the environment site has no CLOUDFLARE_API_TOKEN and
+          CLOUDFLARE_ACCOUNT_ID."
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: env.HAS_CLOUDFLARE == 'true'
+        with:
+          name: site
+          path: site
       - name: Deploy to Cloudflare Pages
         id: deploy
         if: env.HAS_CLOUDFLARE == 'true'
@@ -81,10 +105,11 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy target/site --project-name=claudius --branch=${{ env.BRANCH }}
+          wranglerVersion: "4.149.0"
+          command: pages deploy site --project-name=${{ vars.SITE_PROJECT }} --branch=main
       - name: Summary
         if: steps.deploy.outcome == 'success'
         env:
           DEPLOYMENT: ${{ steps.deploy.outputs.deployment-url }}
           ALIAS: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
-        run: echo "Deployed $BRANCH to ${ALIAS:-$DEPLOYMENT} ($DEPLOYMENT)" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "Deployed main to ${ALIAS:-$DEPLOYMENT} ($DEPLOYMENT)" >> "$GITHUB_STEP_SUMMARY"

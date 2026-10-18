@@ -289,6 +289,26 @@ jobs:
           cache-key: benches
       - run: cargo bench --workspace --locked --no-run
 
+  secrets:
+    name: secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - run: sh scripts/ci/install-scanners.sh gitleaks
+      # the commits a pull request (or a push) adds, then every file as it is now
+      - name: gitleaks
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          range=HEAD
+          if [ -n "$BASE" ] && [ "$BASE" != 0000000000000000000000000000000000000000 ]; then range="$BASE..HEAD"; fi
+          gitleaks git --redact --no-banner --config .gitleaks.toml --log-opts="$range" .
+          gitleaks dir --redact --no-banner --config .gitleaks.toml .
+
   workflows:
     name: workflows and scripts
     runs-on: ubuntu-latest
@@ -297,15 +317,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - run: sh scripts/ci/install-scanners.sh actionlint
       # actionlint runs shellcheck (preinstalled on the runner) on every run: block too
       - name: actionlint
-        run: |
-          curl -fsSLo actionlint.tar.gz https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
-          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  actionlint.tar.gz" | sha256sum -c -
-          tar -xzf actionlint.tar.gz actionlint
-          ./actionlint -color
+        run: actionlint -color
       - name: shellcheck
-        run: shellcheck scripts/*.sh
+        run: shellcheck scripts/*.sh scripts/ci/*.sh .githooks/*
       - name: PSScriptAnalyzer
         shell: pwsh
         run: |
@@ -316,7 +333,7 @@ jobs:
   ci-ok:
     name: ci ok
     if: always()
-    needs: [fmt, clippy, test, features, intel-mac, wasm, docs, site, deny, typos, msrv, benches, workflows]
+    needs: [fmt, clippy, test, features, intel-mac, wasm, docs, site, deny, typos, msrv, benches, secrets, workflows]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

@@ -133,6 +133,14 @@ claudius does not need ffmpeg to work. Without it:
 `PATH` and then in `/opt/homebrew/bin`, `/usr/local/bin` and `/usr/bin`, since apps started from the Dock do not
 get your shell's `PATH`. `CLAUDIUS_FFMPEG=/path/to/ffmpeg` names one, `CLAUDIUS_FFMPEG=none` turns it off.
 
+Two files do not decode even with ffmpeg:
+
+- **A file longer than 30 minutes** (of stereo at 48 kHz): `<file> is too long: claudius decodes up to 30 minutes of
+  stereo at 48 kHz`. Cut the part you want with any audio editor, or with ffmpeg:
+  `ffmpeg -i mix.flac -t 600 first-ten-minutes.flac`.
+- **A playlist or a list of files** (`.m3u8`, an ffconcat list): ffmpeg is allowed to open only the file it is given,
+  so it says `Format not on whitelist`. Point claudius at the audio file itself.
+
 ## The studio window has no sound
 
 The status bar at the bottom of the window shows audio problems after `audio:`:
@@ -183,7 +191,8 @@ folders.
 /Users/<you>/Samples/mix is outside the folders this claudius may write
 ```
 
-A claudius started with `--public` or `--files` saves only inside its folders: `~/Music/claudius` (the default), its
+A claudius started with `--public`, `--files`, or `--host` with an address other than loopback saves only inside its
+folders: `~/Music/claudius` (the default), its
 caches and the sound libraries, plus each `--files` folder. Save there, or start it with `--files` for the folder you
 want.
 
@@ -202,6 +211,8 @@ them all. The ones people meet:
 | `track 'x' plays 2048 notes per bar; the limit is 1024` | fewer events per bar |
 | `the song is 640 bars long; the limit is 512` | shorter sections, or fewer of them |
 | `the song is 25 minutes long; the limit is 20` | the same at a slow tempo |
+| `the song has 70 tracks; the limit is 64` | fewer tracks; a pattern with several sounds plays as a track for each |
+| `24 tracks of 10.0 minutes are more than claudius renders at once (200 track-minutes, ...)` | fewer tracks, or a shorter form |
 | `mini-notation is limited to 4096 characters (this one has 6000)` | split the pattern into tracks |
 
 The HTTP API refuses commands over 1 MiB with `413 Payload Too Large`. `mutate` tries at most 32 variations and

@@ -1,8 +1,8 @@
 #!/bin/sh
 # Installs claudius from a GitHub release on macOS or Linux.
 #
-#   curl -fsSL https://claudius.pages.dev/install.sh | sh
-#   curl -fsSL https://claudius.pages.dev/install.sh | sh -s -- --yes    # also download the packs and models
+#   curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh | sh
+#   curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh | sh -s -- --yes    # also download the packs and models
 #
 # Options:
 #   -y, --yes     run `claudius setup` afterwards without asking (the sample packs and the listening models, ~2 GB)
@@ -14,7 +14,7 @@
 #   CLAUDIUS_VERSION       the version to install, e.g. 0.2.0 (default: the latest release)
 #   CLAUDIUS_INSTALL_DIR   where the binaries go (default: ~/.local/bin); the web studio goes to
 #                          <that>/../share/claudius/web, which is where claudius looks for it
-#   CLAUDIUS_DOWNLOAD_URL  where the archives and SHA256SUMS are (default: the GitHub release)
+#   CLAUDIUS_DOWNLOAD_URL  where the archives and SHA256SUMS are, an https:// address (default: the GitHub release)
 
 # Everything happens in main, so a download cut short runs nothing.
 
@@ -39,9 +39,9 @@ has() {
 
 download() {
     if has curl; then
-        curl -fsSL --retry 3 -o "$2" "$1"
+        curl -fsSL --proto '=https' --tlsv1.2 --retry 3 -o "$2" "$1"
     elif has wget; then
-        wget -q -O "$2" "$1"
+        wget --https-only -q -O "$2" "$1"
     else
         fail "needs curl or wget to download"
     fi
@@ -78,7 +78,7 @@ target() {
             check_glibc
             echo "$arch-unknown-linux-gnu"
             ;;
-        MINGW* | MSYS* | CYGWIN*) fail "on Windows, run this in PowerShell: irm https://claudius.pages.dev/install.ps1 | iex" ;;
+        MINGW* | MSYS* | CYGWIN*) fail "on Windows, run this in PowerShell: irm https://github.com/$REPO/releases/latest/download/install.ps1 | iex" ;;
         *) fail "there is no build for $(uname -s); build from source: https://github.com/$REPO" ;;
     esac
 }
@@ -179,6 +179,10 @@ main() {
     version=${version#v}
     if [ -n "${CLAUDIUS_DOWNLOAD_URL:-}" ]; then
         base=${CLAUDIUS_DOWNLOAD_URL%/}
+        case $base in
+            https://*) ;;
+            *) fail "CLAUDIUS_DOWNLOAD_URL has to be an https:// address" ;;
+        esac
     elif [ -n "$version" ]; then
         base=https://github.com/$REPO/releases/download/v$version
     else
@@ -262,6 +266,11 @@ main() {
         say "note: $found comes first on your PATH, so \`claudius\` runs that one"
     fi
 
+    # the packs are third-party archives, which tar unpacks with their owners and modes when it runs as root
+    if [ "$setup" = ask ] && [ "$(id -u)" -eq 0 ]; then
+        say "running as root, so the packs are not downloaded now: run \`claudius setup\` as the user who makes the music"
+        setup=no
+    fi
     if [ "$setup" = ask ] && [ "$yes" = no ]; then
         if [ -t 0 ]; then
             printf 'claudius: download %s now? [Y/n] ' "$downloads"

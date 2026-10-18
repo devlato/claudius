@@ -2,6 +2,8 @@
 # Keep a Changelog style. `cargo xtask release prepare` runs it for the commits since the last tag and writes the
 # result into CHANGELOG.md; nothing else is meant to call it, because regenerating the whole file would drop what
 # was written by hand.
+#
+# The changelog is also a page of the docs, where markdown may hold HTML, so a title's < and > are escaped.
 
 [changelog]
 body = """
@@ -14,8 +16,8 @@ body = """
 ### {{ group | striptags | trim }}
 {% for commit in commits %}
 - {% if commit.breaking %}**Breaking:** {% endif %}\
-{% if commit.scope and commit.scope != "security" %}{{ commit.scope }}: {% endif %}\
-{{ commit.message | upper_first }}\
+{% if commit.scope and commit.scope != "security" %}{{ commit.scope | replace(from="<", to="&lt;") | replace(from=">", to="&gt;") }}: {% endif %}\
+{{ commit.message | upper_first | replace(from="<", to="&lt;") | replace(from=">", to="&gt;") }}\
 {% endfor %}
 {% endfor %}
 """

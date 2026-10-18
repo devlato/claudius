@@ -3,15 +3,23 @@
 ## macOS and Linux
 
 ```sh
-curl -fsSL https://claudius.pages.dev/install.sh | sh
+curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh | sh
 ```
 
-The script downloads the latest release for your computer from GitHub, checks it against the published SHA-256
-sums, and installs it under `~/.local`: the programs `claudius` and `claudius-packs` in `~/.local/bin`, and the web
-studio in `~/.local/share/claudius/web`. It tells you if `~/.local/bin` is not on your `PATH` yet.
+The script comes with every release, next to the archives, and is in the release's checksums. It downloads the
+latest release for your computer from GitHub, checks it against the published SHA-256 sums, and installs it under
+`~/.local`: the programs `claudius` and `claudius-packs` in `~/.local/bin`, and the web studio in
+`~/.local/share/claudius/web`. It tells you if `~/.local/bin` is not on your `PATH` yet.
 
 When you run it in a terminal, it offers to download the sounds and the ears straight away (below). To do that
-without being asked, pass `--yes`: `curl -fsSL https://claudius.pages.dev/install.sh | sh -s -- --yes`.
+without being asked, pass `--yes`:
+
+```sh
+curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh | sh -s -- --yes
+```
+
+Run as root, it installs the programs and leaves the downloads for later: the packs are archives from other sites,
+so run `claudius setup` as the user who makes the music.
 
 `CLAUDIUS_INSTALL_DIR` puts the programs in another folder (the web studio goes next to it, in
 `../share/claudius/web`), and `CLAUDIUS_VERSION=0.1.0` installs a specific release.
@@ -21,7 +29,7 @@ without being asked, pass `--yes`: `curl -fsSL https://claudius.pages.dev/instal
 In PowerShell:
 
 ```sh
-irm https://claudius.pages.dev/install.ps1 | iex
+irm https://github.com/devlato/claudius/releases/latest/download/install.ps1 | iex
 ```
 
 ## The sounds and the ears

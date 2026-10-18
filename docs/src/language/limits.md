@@ -69,7 +69,7 @@ The messages, as printed after `Runtime error:`.
 | `.scale()` | `unknown scale 'Q:minor' (try "A:minor", "C:major", "D:dorian", "E:minor:pentatonic")` |
 | `.arp()` | `unknown arp 'sideways' ("up", "down" or "updown")` |
 | mini-notation | see [Mini-notation errors](mini-notation.md#errors) |
-| the whole song | `the song is 768 bars long; the limit is 512`; `the song is 36 minutes long; the limit is 20` (checked when the script ends, and printed as `Error: the song is ...`, without `Runtime error:` or a line number) |
+| the whole song | `the song is 768 bars long; the limit is 512`; `the song is 36 minutes long; the limit is 20`; `the song has 70 tracks; the limit is 64` (checked when the script ends, and printed as `Error: the song is ...`, without `Runtime error:` or a line number) |
 
 Errors about the words of a pattern (`cannot read ... as a note`) are raised by `track()`, when the pattern is first
 played, so they point at the `track(` line.
@@ -106,6 +106,7 @@ A script runs under these limits, so a mistake cannot hang claudius or fill its 
 | work per pattern query | 4,000,000 steps | `this pattern is too dense to play: it needs more than 4000000 steps of work` |
 | notes per bar, per track | 1,024 (averaged over 64 bars) | `track 'x' plays N notes per bar; the limit is 1024` |
 | song length | 512 bars and 20 minutes | `the song is N bars long; the limit is 512` |
+| tracks | 64, and 12,000 track-seconds (20 tracks of 10 minutes, 40 of 5) | `the song has N tracks; the limit is 64` |
 | a pattern string | 4096 characters, brackets 64 deep, 1024 steps per sequence, `!` 256 times, 256 euclid slots | see [Mini-notation errors](mini-notation.md#errors) |
 | modules and `eval` | not available | `Module not found`, `reserved keyword 'eval' is disabled` |
 

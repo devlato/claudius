@@ -92,6 +92,9 @@ fn is_lfs_pointer(p: &Path) -> bool {
     std::fs::read(p).map(|b| b.starts_with(b"version https://git-lfs")).unwrap_or(false)
 }
 
+/// the most a download of unknown size may be; a server that sends more is cut off
+const MAX_UNKNOWN_SIZE: u64 = 1 << 30;
+
 /// one attempt: resume a previous `.part` when the server supports ranges
 fn download_once(url: &str, part: &Path, expected: u64, bytes: &dyn Fn(u64)) -> Result<()> {
     let have = std::fs::metadata(part).map(|m| m.len()).unwrap_or(0);
@@ -122,10 +125,16 @@ fn download_once(url: &str, part: &Path, expected: u64, bytes: &dyn Fn(u64)) -> 
     let mut rd = resp.into_body().into_reader();
     let mut buf = vec![0u8; 1 << 16];
     let mut done = start;
+    let limit = if expected > 0 { expected } else { MAX_UNKNOWN_SIZE };
     loop {
         let k = rd.read(&mut buf).with_context(|| format!("download interrupted: {url}"))?;
         if k == 0 {
             break;
+        }
+        if done + k as u64 > limit {
+            drop(out);
+            let _ = std::fs::remove_file(part);
+            bail!("{url} sends more than {limit} bytes");
         }
         out.write_all(&buf[..k])?;
         done += k as u64;
@@ -205,6 +214,21 @@ fn download_file_with(url: &str, dest: &Path, expected: u64, flac: bool, bytes: 
         }
     }
     Err(last_err.unwrap_or_else(|| anyhow!("download failed: {url}")))
+}
+
+/// the SHA-256 of a file, in lowercase hex
+pub fn sha256_file(path: &Path) -> Result<String> {
+    use sha2::{Digest, Sha256};
+    let mut file = std::fs::File::open(path).with_context(|| format!("cannot read {}", path.display()))?;
+    let mut hasher = Sha256::new();
+    let mut buf = vec![0u8; 1 << 16];
+    loop {
+        match file.read(&mut buf)? {
+            0 => break,
+            n => hasher.update(&buf[..n]),
+        }
+    }
+    Ok(hasher.finalize().iter().map(|b| format!("{b:02x}")).collect())
 }
 
 /// lossless WAV -> FLAC (keeps rate, channels and bit depth; float WAV becomes 24-bit)
@@ -342,25 +366,26 @@ pub fn download_all(tasks: &[Task], threads: usize, label: &str, progress: &dyn 
 }
 
 /// Extract an archive (zip, 7z, tar.*) with the system tools: bsdtar reads all of them; GNU systems fall back to
-/// unzip / 7z.
+/// unzip / 7z. The symbolic links an archive holds are deleted afterwards: one could point anywhere on the computer,
+/// and the files of a pack are copied out of `dir`.
 pub fn extract_archive(archive: &Path, dir: &Path) -> Result<()> {
     std::fs::create_dir_all(dir)?;
     let name = archive.to_string_lossy().to_ascii_lowercase();
     let tar = Command::new("tar").arg("-xf").arg(archive).arg("-C").arg(dir).output();
     if matches!(&tar, Ok(o) if o.status.success()) {
-        return Ok(());
+        return remove_links(dir);
     }
     if name.ends_with(".zip") {
         let o = Command::new("unzip").args(["-q", "-o"]).arg(archive).arg("-d").arg(dir).output();
         if matches!(&o, Ok(o) if o.status.success()) {
-            return Ok(());
+            return remove_links(dir);
         }
     }
     if name.ends_with(".7z") {
         for tool in ["7z", "7za", "7zz"] {
             let o = Command::new(tool).arg("x").arg("-y").arg(format!("-o{}", dir.display())).arg(archive).output();
             if matches!(&o, Ok(o) if o.status.success()) {
-                return Ok(());
+                return remove_links(dir);
             }
         }
     }
@@ -371,17 +396,40 @@ pub fn extract_archive(archive: &Path, dir: &Path) -> Result<()> {
     bail!("cannot extract {}: {msg}", archive.display())
 }
 
-/// all files under `dir`, as paths relative to it with `/` separators
+/// delete every symbolic link under `dir`, without following any
+fn remove_links(dir: &Path) -> Result<()> {
+    let mut stack = vec![dir.to_path_buf()];
+    while let Some(d) = stack.pop() {
+        for e in std::fs::read_dir(&d)? {
+            let e = e?;
+            let kind = e.file_type()?;
+            if kind.is_symlink() {
+                // Windows removes a link to a folder as a folder
+                std::fs::remove_file(e.path())
+                    .or_else(|_| std::fs::remove_dir(e.path()))
+                    .with_context(|| format!("cannot remove the link {}", e.path().display()))?;
+            } else if kind.is_dir() {
+                stack.push(e.path());
+            }
+        }
+    }
+    Ok(())
+}
+
+/// all files under `dir`, as paths relative to it with `/` separators; symbolic links are left out, not followed
 pub fn walk(dir: &Path) -> Vec<(String, u64)> {
     let mut out = Vec::new();
     let mut stack = vec![dir.to_path_buf()];
     while let Some(d) = stack.pop() {
         let Ok(rd) = std::fs::read_dir(&d) else { continue };
         for e in rd.flatten() {
+            let Ok(kind) = e.file_type() else { continue };
             let p = e.path();
-            if p.is_dir() {
+            if kind.is_dir() {
                 stack.push(p);
-            } else if let Ok(rel) = p.strip_prefix(dir) {
+            } else if kind.is_file()
+                && let Ok(rel) = p.strip_prefix(dir)
+            {
                 let rel = rel.to_string_lossy().replace('\\', "/");
                 out.push((rel, e.metadata().map(|m| m.len()).unwrap_or(0)));
             }
@@ -393,6 +441,26 @@ pub fn walk(dir: &Path) -> Vec<(String, u64)> {
 
 #[cfg(test)]
 mod flac_tests {
+    #[cfg(unix)]
+    #[test]
+    fn links_in_an_archive_lead_nowhere() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = root.path().join("outside");
+        std::fs::create_dir_all(outside.join("docs")).unwrap();
+        std::fs::write(outside.join("secret.txt"), b"key").unwrap();
+        let dir = root.path().join("unpacked");
+        std::fs::create_dir_all(dir.join("BassDrum")).unwrap();
+        std::fs::write(dir.join("BassDrum/kick.wav"), b"RIFF").unwrap();
+        std::os::unix::fs::symlink(outside.join("secret.txt"), dir.join("BassDrum/snare.wav")).unwrap();
+        std::os::unix::fs::symlink(&outside, dir.join("loot")).unwrap();
+        assert_eq!(super::walk(&dir), vec![("BassDrum/kick.wav".to_string(), 4)], "the walk follows no link");
+        super::remove_links(&dir).unwrap();
+        assert!(!dir.join("BassDrum/snare.wav").exists() && !dir.join("loot").exists());
+        assert!(dir.join("BassDrum/kick.wav").is_file());
+        assert_eq!(std::fs::read(outside.join("secret.txt")).unwrap(), b"key", "what a link pointed at stays");
+        assert!(outside.join("docs").is_dir());
+    }
+
     #[test]
     fn wav_to_flac_is_lossless() {
         let dir = std::env::temp_dir().join(format!("claudius-flac-{}", std::process::id()));

@@ -197,6 +197,21 @@ fn scripts_cannot_run_away() {
         err(r#"blank("house"); form([sec("drop", 256), sec("drop", 256), sec("drop", 256)])"#).contains("limit is 512")
     );
     assert!(err(r#"blank("house"); tempo(40); form([sec("drop", 256), sec("drop", 200)])"#).contains("minutes"));
+    // a render holds every track, so the number of tracks is limited, and more so in a long song
+    assert!(err(r#"blank("house"); for i in 0..65 { track("t" + i, s("bd*4")); }"#).contains("limit is 64"));
+    assert!(
+        err(r#"blank("house"); tempo(60); form([sec("drop", 300)]); for i in 0..20 { track("t" + i, s("bd")); }"#)
+            .contains("track-minutes")
+    );
+}
+
+#[test]
+fn a_form_too_long_to_count_is_still_too_long() {
+    let mut bp =
+        script::run(r#"blank("house"); form([sec("drop", 8), sec("drop", 8)])"#, None, None).unwrap().bp.unwrap();
+    bp.form[0].bars = u32::MAX;
+    bp.form[1].bars = 2;
+    assert!(bp.check_size().unwrap_err().contains("limit is 512"));
 }
 
 #[test]

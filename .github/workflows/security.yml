@@ -1,5 +1,6 @@
 # Advisories against the locked dependencies every week (CI checks them on each PR too, but new advisories appear
-# without any change here), and GitHub's dependency review of what a pull request adds.
+# without any change here): cargo-deny's from RustSec, and OSV-Scanner's, which also reads the site's npm lockfile.
+# And GitHub's dependency review of what a pull request adds.
 name: security
 
 on:
@@ -33,6 +34,17 @@ jobs:
         with:
           tool: cargo-deny@0.20.2
       - run: cargo deny --locked check advisories
+
+  osv:
+    name: osv-scanner
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: sh scripts/ci/install-scanners.sh osv-scanner
+      - run: osv-scanner scan source --config osv-scanner.toml --lockfile Cargo.lock --lockfile site/package-lock.json
 
   dependency-review:
     name: dependency review
