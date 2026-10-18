@@ -30,20 +30,7 @@ The first public release.
   configuring assistants.
 - Builds for macOS on Apple silicon and Intel (Intel Macs have no ears: their verdicts come from the meters and the
   theory checks), Linux on x86_64 and ARM64 with a headless build for machines without sound or a display, and
-  Windows as a preview. One-line installers for each, which come with every release and are in its checksums, and a
-  Homebrew formula.
-- Skills for AI assistants, installed by claudius connect ([#5](https://github.com/devlato/claudius/pull/5))
-
-### Fixed
-
-- install: Run the installers from the GitHub release, not from a domain claudius does not control ([#6](https://github.com/devlato/claudius/pull/6))
-- script: New tracks join the form once, and a change of mode keeps borrowed chords ([#4](https://github.com/devlato/claudius/pull/4))
-
-### Security
-
-- A blank token no longer opens a shared claudius, and --host shares only its folders ([#8](https://github.com/devlato/claudius/pull/8))
-- Ffmpeg opens only the file it is given, and decoding stops at 30 minutes ([#9](https://github.com/devlato/claudius/pull/9))
-- Pin every download of a curated pack, and follow no link out of an archive ([#10](https://github.com/devlato/claudius/pull/10))
+  Windows as a preview. One-line installers for each, which come with every release and are in its checksums.
 
 [unreleased]: https://github.com/devlato/claudius/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/devlato/claudius/releases/tag/v0.1.0
