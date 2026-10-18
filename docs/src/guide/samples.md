@@ -140,7 +140,7 @@ given against a list of folders:
 
 | how it runs | the folders |
 |---|---|
-| `claudius serve --public`, or `claudius serve --files <dir>` | `~/Music/claudius`, claudius' cache folder, the sample packs folder, `/Library/Audio/Apple Loops`, `~/Library/Audio/Apple Loops`, plus every `--files` folder |
+| `claudius serve --public`, `claudius serve --host` with an address other than loopback, or `claudius serve --files <dir>` | `~/Music/claudius`, claudius' cache folder, the sample packs folder, `/Library/Audio/Apple Loops`, `~/Library/Audio/Apple Loops`, plus every `--files` folder |
 | anything else (`studio`, `serve`, `mcp`) | no limit |
 
 The checks:

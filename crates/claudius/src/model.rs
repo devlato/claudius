@@ -413,12 +413,33 @@ pub struct Blueprint {
     pub lineage: Vec<String>,
 }
 
-/// the longest song claudius makes, in bars and in time (a render holds every track in memory)
+/// the longest song claudius makes, in bars and in time, and the most tracks it plays
 pub const MAX_BARS: u32 = 512;
 pub const MAX_SECONDS: f64 = 20.0 * 60.0;
+pub const MAX_TRACKS: usize = 64;
+/// tracks times seconds: a render holds every track in memory, 384 KB a second at 48 kHz, so this keeps a render
+/// under about 4.6 GB (20 tracks of 10 minutes, or 40 of 5)
+pub const MAX_TRACK_SECONDS: f64 = 12_000.0;
+
+/// an error when a song with this many tracks, this long, would take more memory to render than claudius allows
+pub fn check_tracks(tracks: usize, secs: f64) -> Result<(), String> {
+    if tracks > MAX_TRACKS {
+        return Err(format!("the song has {tracks} tracks; the limit is {MAX_TRACKS}"));
+    }
+    if tracks as f64 * secs > MAX_TRACK_SECONDS {
+        return Err(format!(
+            "{tracks} tracks of {:.1} minutes are more than claudius renders at once ({:.0} track-minutes, such as 20 \
+             tracks of 10 minutes): use fewer tracks or a shorter form",
+            secs / 60.0,
+            MAX_TRACK_SECONDS / 60.0
+        ));
+    }
+    Ok(())
+}
 
 impl Blueprint {
-    /// an error when the song is longer than claudius renders (`MAX_BARS`, `MAX_SECONDS`)
+    /// an error when the song is longer or has more tracks than claudius renders (`MAX_BARS`, `MAX_SECONDS`,
+    /// `check_tracks`)
     pub fn check_size(&self) -> Result<(), String> {
         let (bars, secs) = (self.bars(), self.secs());
         if bars > MAX_BARS {
@@ -427,11 +448,11 @@ impl Blueprint {
         if secs > MAX_SECONDS {
             return Err(format!("the song is {:.0} minutes long; the limit is {:.0}", secs / 60.0, MAX_SECONDS / 60.0));
         }
-        Ok(())
+        check_tracks(self.drums.len() + self.parts.len() + self.loops.len() + self.patterns.len(), secs)
     }
 
     pub fn bars(&self) -> u32 {
-        self.form.iter().map(|s| s.bars).sum()
+        self.form.iter().fold(0, |n, s| n.saturating_add(s.bars))
     }
 
     pub fn secs(&self) -> f64 {

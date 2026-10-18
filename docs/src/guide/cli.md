@@ -369,9 +369,9 @@ or another program (--port picks another)`.
 
 | flag | default | what it does |
 |---|---|---|
-| `--host` | `127.0.0.1` | the address to listen on; `0.0.0.0` listens on every interface |
+| `--host` | `127.0.0.1` | the address to listen on; `0.0.0.0` listens on every interface. Any address but loopback requires a token and limits file access, as `--public` does |
 | `--public` | off | answers requests addressed to any host name (a tunnel, your LAN), requires a token (one is made when `--token` is not given), and limits file access to claudius' own folders |
-| `--token <secret>` | none (`CLAUDIUS_TOKEN`) | requires this token on every request |
+| `--token <secret>` | none (`CLAUDIUS_TOKEN`) | requires this token on every request; a blank one counts as none |
 | `--files <dir>` | none | a folder commands and scripts may read and write, besides `~/Music/claudius`, claudius' caches and the sound libraries; repeatable |
 
 `--public` without `--token` makes a random token and prints how to use it:
@@ -388,8 +388,9 @@ model](../engineering/security.md) what each flag protects. `--host` with any ad
 the same way, with or without `--public`: browsers on the network are refused by the host-name check, and the token
 keeps out programs that send `Host: localhost`.
 
-`--public` or `--files` limits file access to `~/Music/claudius`, claudius' caches and the sound libraries, plus the
-`--files` folders; without either, commands read and write wherever you can. [What a shared claudius may read and
+`--public`, `--host` with an address other than loopback, or `--files` limits file access to `~/Music/claudius`,
+claudius' caches and the sound libraries, plus the `--files` folders; without any of them, commands read and write
+wherever you can. [What a shared claudius may read and
 write](samples.md#what-a-shared-claudius-may-read-and-write) has the details.
 
 ### `claudius mcp`

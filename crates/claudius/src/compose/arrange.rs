@@ -108,7 +108,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
             }
             off += period;
         }
-        bar += s.bars;
+        bar = bar.saturating_add(s.bars);
     }
     let total_bars = bar;
     let roles: Vec<String> = bp.drums.iter().map(|d| d.role()).collect();

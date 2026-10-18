@@ -31,6 +31,17 @@ pub struct Options {
     pub token: Option<String>,
 }
 
+impl Options {
+    /// an error for options that would leave a shared server open: --public without a token, or an empty one
+    pub fn check(&self) -> anyhow::Result<()> {
+        match &self.token {
+            Some(t) if t.trim().is_empty() => anyhow::bail!("the token is empty; give one, or none to have one made"),
+            None if self.public => anyhow::bail!("a public claudius needs a token"),
+            _ => Ok(()),
+        }
+    }
+}
+
 #[derive(Clone)]
 struct Ctx {
     app: Arc<App>,
@@ -136,7 +147,8 @@ impl Guard {
             .filter_map(|c| c.to_str().ok())
             .flat_map(|c| c.split(';'))
             .find_map(|kv| kv.trim().strip_prefix("claudius_token="));
-        let matches = |x: Option<&str>| x.is_some_and(|x| same_secret(x, token));
+        // an empty token matches nothing, so that a server started with one stays shut rather than open
+        let matches = |x: Option<&str>| x.is_some_and(|x| !token.is_empty() && same_secret(x, token));
         if matches(bearer) || matches(cookie) {
             return next.run(req).await;
         }

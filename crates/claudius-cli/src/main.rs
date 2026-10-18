@@ -85,6 +85,11 @@ fn new_token() -> Result<String> {
     Ok(b.iter().map(|x| format!("{x:02x}")).collect())
 }
 
+/// --token or CLAUDIUS_TOKEN, where a blank one (a variable left empty) counts as none
+fn given_token(token: Option<String>) -> Option<String> {
+    token.map(|t| t.trim().to_owned()).filter(|t| !t.is_empty())
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.cmd {
@@ -417,11 +422,14 @@ fn main() -> Result<()> {
         Cmd::Serve { app, host, public, token, files } => {
             let ip: std::net::IpAddr = host.parse().with_context(|| format!("not an IP address: {host}"))?;
             // a claudius others can reach always asks for a token (one is made when none is given): the Host check
-            // stops web pages, not a program on the network that sends `Host: localhost`
-            let made = ((public || !ip.is_loopback()) && token.is_none()).then(new_token).transpose()?;
+            // stops web pages, not a program on the network that sends `Host: localhost`. It also keeps to the
+            // shared folders, so that a token on the network is not a key to every file.
+            let shared = public || !ip.is_loopback();
+            let token = given_token(token);
+            let made = (shared && token.is_none()).then(new_token).transpose()?;
             let token = token.or_else(|| made.clone());
             let web = app.web();
-            let roots = (public || !files.is_empty())
+            let roots = (shared || !files.is_empty())
                 .then(|| claudius::config::shared_roots().into_iter().chain(files).collect());
             let session = app.app_with(roots);
             let addr = std::net::SocketAddr::new(ip, app.port);
@@ -455,6 +463,7 @@ fn main() -> Result<()> {
             ))?;
         }
         Cmd::Mcp { app, url, token } => {
+            let token = given_token(token);
             // stdout carries the protocol from here on: everything else goes to stderr
             let rt = tokio::runtime::Runtime::new()?;
             let base = url.clone().unwrap_or_else(|| format!("http://127.0.0.1:{}", app.port));
@@ -492,4 +501,15 @@ fn main() -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn a_blank_token_is_no_token() {
+        assert_eq!(super::given_token(Some(String::new())), None);
+        assert_eq!(super::given_token(Some(" \t".into())), None);
+        assert_eq!(super::given_token(Some(" s3cret\n".into())).as_deref(), Some("s3cret"));
+        assert_eq!(super::given_token(None), None);
+    }
 }

@@ -25,16 +25,17 @@ websites are hostile, and that whoever holds your claudius token is you.
   goes on every request, as `Authorization: Bearer` or once as `?token=` in the browser, which sets an HttpOnly,
   SameSite=Strict cookie (also `Secure` when the request came through https, as tunnels report with
   `X-Forwarded-Proto`). Tokens are compared in constant time.
-- **Files stay in their folders.** A claudius started with `--public` or `--files` reads and writes files only inside
-  `~/Music/claudius`, its caches and the sound libraries, plus the `--files` folders you name, after resolving links
-  and `..`. It does not tell which files exist outside them: a path outside is refused with the same message whether
+- **Files stay in their folders.** A claudius others can reach (`--public`, or `--host` with an address other than
+  loopback) or started with `--files` reads and writes files only inside `~/Music/claudius`, its caches and the sound
+  libraries, plus the `--files` folders you name, after resolving links and `..`. It does not tell which files exist outside them: a path outside is refused with the same message whether
   or not it exists.
 - **Scripts are sandboxed.** Scripts (from you, an assistant, or a file) cannot write files, import modules or call
   `eval`, and the only files they can read are the audio files they play, under the folder rules above. They stop
   after 5 million operations or 10 seconds, and strings, arrays and maps have size limits. A pattern stops when it
   needs more than 4 million steps of work or makes more than 262,144 events, which also bounds its memory; `*`, `/`,
   `fast`, `slow` and `ply` take factors up to 256, mini-notation is limited in length and nesting, and a song is at
-  most 512 bars and 20 minutes long.
+  most 512 bars and 20 minutes long, with at most 64 tracks and fewer in a long song, because a render holds every
+  track in memory.
 - **Downloads are checked.** The listening models come from pinned revisions on the Hugging Face Hub and are checked
   against pinned SHA-256 hashes before use. Sample packs come over HTTPS from their authors' hosts and are checked
   for size; they are audio and are decoded by symphonia, a memory-safe Rust decoder.
