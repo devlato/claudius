@@ -68,7 +68,7 @@ gh release view v0.4.0
 gh release download v0.4.0 --pattern 'claudius-0.4.0-aarch64-apple-darwin.tar.gz' --pattern SHA256SUMS
 shasum -a 256 --check --ignore-missing SHA256SUMS
 gh attestation verify claudius-0.4.0-aarch64-apple-darwin.tar.gz --repo devlato/claudius
-curl -fsS https://claudius.pages.dev/ | grep -o 'claudius 0.4.0'
+gh release download v0.4.0 --pattern install.sh --pattern SHA256SUMS --clobber && shasum -a 256 --check --ignore-missing SHA256SUMS
 ```
 
 ## Never
