@@ -200,7 +200,10 @@ impl Studio {
                 }
             }
             Event::Sounds(list) => self.sounds = Some(list),
-            Event::Hello(text) => self.link.server = Some(text),
+            Event::Hello { name, ears } => {
+                self.link.server = Some(name);
+                self.link.ears = ears;
+            }
             Event::Reference(result) => {
                 self.view.reference_loading = false;
                 self.view.reference =
@@ -480,7 +483,13 @@ impl Studio {
             widgets::dot(ui, dot);
             ui.label(RichText::new(text).size(11.0).color(TEXT_DIM));
             if let Some(server) = self.link.server.as_ref().filter(|_| self.link.online) {
-                ui.label(RichText::new(format!("· {server}")).size(11.0).color(TEXT_FAINT));
+                let ears = match self.link.ears {
+                    _ if self.server.ears_loading => ", ears loading",
+                    Some(true) => ", ears on",
+                    Some(false) => ", ears off",
+                    None => "",
+                };
+                ui.label(RichText::new(format!("· {server}{ears}")).size(11.0).color(TEXT_FAINT));
             }
             if let Connection::Server(url) = &self.home
                 && self.link.mock

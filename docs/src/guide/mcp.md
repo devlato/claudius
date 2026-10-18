@@ -141,7 +141,7 @@ says the job is still running; `status` follows it from there.
 | `evolve` | `generations` (3, 1 to 20), `children` (6, 2 to 32) | runs an evolutionary search from the song and keeps the best candidate if it beats the song |
 | `status` | | idle or busy (with progress), the last 25 log lines, the latest verdict |
 | `undo`, `redo` | | takes back or brings back the last change, then renders |
-| `stop` | | stops a mutation after the candidate in progress, or an evolution after its generation; a render always finishes |
+| `stop` | | stops a mutation after the candidate in progress, an evolution after its generation, or a pack download after the pack in progress; a render always finishes |
 | `catalog` | | the genres with tempo ranges, drum names, synth presets, installed instruments and every pack with its licence |
 | `save` | `path` (optional) | writes the song folder: `blueprint.json` and `song.rhai` at once, then, from a render of the song as it is then, the whole folder `claudius make` writes, stems included; a save asked for during a job waits for it |
 | `open` | `path` (required) | opens a song folder, a `blueprint.json`, or a `.rhai` script (which runs on the open song) |

@@ -5,7 +5,7 @@
 #   curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh | sh -s -- --yes    # also download the packs and models
 #
 # Options:
-#   -y, --yes     run `claudius setup` afterwards without asking (the sample packs and the listening models, ~2 GB)
+#   -y, --yes     run `claudius setup` afterwards without asking (the sample packs and the listening models, ~3 GB)
 #   --no-setup    do not offer to run it
 #   --headless    on Linux, install the build without the studio window, which needs neither ALSA nor a display
 #                 (`claudius serve` still serves the web studio); it is picked anyway when ALSA is not installed
@@ -170,9 +170,9 @@ main() {
     ears=yes
     [ "$target" = x86_64-apple-darwin ] && ears=no
     if [ "$ears" = yes ]; then
-        downloads="the sample packs and the listening models (about 2 GB)"
+        downloads="the sample packs and the listening models (about 3 GB)"
     else
-        downloads="the sample packs (about 1.1 GB)"
+        downloads="the sample packs (about 2.2 GB)"
     fi
 
     version=${CLAUDIUS_VERSION:-}
@@ -272,9 +272,16 @@ main() {
         setup=no
     fi
     if [ "$setup" = ask ] && [ "$yes" = no ]; then
+        # under `curl ... | sh` the input is this script, so the answer comes from the terminal
+        ask=
         if [ -t 0 ]; then
+            ask=/dev/stdin
+        elif [ -t 1 ] && (: </dev/tty) 2>/dev/null; then
+            ask=/dev/tty
+        fi
+        if [ -n "$ask" ]; then
             printf 'claudius: download %s now? [Y/n] ' "$downloads"
-            read -r answer || answer=n
+            read -r answer <"$ask" || answer=n
             case $answer in
                 [nN]*) ;;
                 *) yes=yes ;;

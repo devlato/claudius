@@ -21,7 +21,7 @@ or from the command line.
 ```sh
 curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh | sh    # macOS, Linux
 irm https://github.com/devlato/claudius/releases/latest/download/install.ps1 | iex          # Windows (PowerShell)
-claudius setup    # sample packs and listening models, about 2 GB
+claudius setup    # sample packs and listening models, about 3 GB to download
 ```
 
 Or download an installer from the [releases page](https://github.com/devlato/claudius/releases): the `.dmg` holds

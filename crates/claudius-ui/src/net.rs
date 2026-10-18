@@ -96,8 +96,11 @@ pub enum Event {
         result: Result<Reply, String>,
     },
     Sounds(SoundList),
-    /// what `/api/hello` says about the server ("claudius 0.1.0, ears off")
-    Hello(String),
+    /// what `/api/hello` says about the server: its name and version ("claudius 0.1.0") and whether it has ears
+    Hello {
+        name: String,
+        ears: Option<bool>,
+    },
     /// the script reference (markdown)
     Reference(Result<String, String>),
 }
@@ -123,6 +126,8 @@ pub struct Remote {
     /// after `install_packs`: Some(false) until its job is seen running, Some(true) until it ends, when the sound list
     /// is fetched again
     sounds_after_install: Option<bool>,
+    /// the last state said the ears were loading: `/api/hello` is asked again when they are done
+    ears_loading: bool,
 }
 
 impl Remote {
@@ -139,6 +144,7 @@ impl Remote {
             failures: 0,
             sounds_requested: false,
             sounds_after_install: None,
+            ears_loading: false,
         }
     }
 
@@ -188,12 +194,8 @@ impl Remote {
             {
                 let name = v.get("name").and_then(|x| x.as_str()).unwrap_or("claudius");
                 let version = v.get("version").and_then(|x| x.as_str()).unwrap_or("");
-                let ears = match v.get("ears").and_then(|x| x.as_bool()) {
-                    Some(true) => ", ears on",
-                    Some(false) => ", ears off",
-                    None => "",
-                };
-                Self::deliver(&tx, &ctx, Event::Hello(format!("{name} {version}{ears}")));
+                let ears = v.get("ears").and_then(|x| x.as_bool());
+                Self::deliver(&tx, &ctx, Event::Hello { name: format!("{name} {version}"), ears });
             }
         });
     }
@@ -266,7 +268,10 @@ impl Remote {
                     if !self.sounds_requested {
                         self.fetch_sounds();
                         self.fetch_hello();
+                    } else if self.ears_loading && !s.ears_loading {
+                        self.fetch_hello();
                     }
+                    self.ears_loading = s.ears_loading;
                     match (self.sounds_after_install, s.busy.is_some()) {
                         (Some(false), true) => self.sounds_after_install = Some(true),
                         (Some(true), false) => {

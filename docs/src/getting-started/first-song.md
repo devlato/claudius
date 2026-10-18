@@ -11,9 +11,9 @@ claudius doctor
 
 ```text
 claudius 0.1.0 (macos aarch64)
-  ok  web studio      ~/hobby/claudius/crates/claudius-ui/dist
+  ok  web studio      ~/.local/share/claudius/web
   ok  sample packs    14 default packs (1.2 GB) in ~/Library/Application Support/claudius/packs
-  ok  ears            models in ~/.cache/earshot-rs, AudioSet tagger too
+  ok  ears            models in ~/.cache/earshot-rs
   ok  Apple Loops     14096 loops and samples
   ok  ffmpeg          9.0.2 (writes song.mp3)
   ok  port 7878       free
@@ -24,9 +24,9 @@ Everything claudius needs is here.
 ```
 
 Two things matter for this page: the **sample packs** (recorded instruments and drum machines) and the **ears** (the
-listening models the critic uses). If either is missing, `claudius setup` downloads them: about 1.1 GB of packs and
-0.8 GB of models, once. Apple Loops are optional (claudius uses them when GarageBand or Logic content is installed),
-and without ffmpeg you get `song.wav` but no `song.mp3`.
+listening models the critic uses). If either is missing, `claudius setup` downloads them: about 2.2 GB of packs (1.2 GB
+once unpacked) and 0.8 GB of models, once. Apple Loops are optional (claudius uses them when GarageBand or Logic
+content is installed), and without ffmpeg you get `song.wav` but no `song.mp3`.
 
 ## Make a song
 
@@ -65,9 +65,10 @@ Open `out/house-crimson-tide-9/song.mp3` and listen. Reading the summary while i
 - **verdict**: the critic's score out of 100 and what it would fix first. [Listening, judging,
   finishing](../learn/basics/finishing.md) explains every part of it.
 
-The folder holds the song (`song.mp3`, and `song.wav` in 24-bit), the song's full description (`blueprint.json`),
-the arranged timeline (`project.json`), the critic's report (`verdict.json`) and credits for the recorded
-instruments whose licences ask for them (`credits.txt`).
+The folder holds the song (`song.mp3`, and `song.wav` in 24-bit), the song's full description (`blueprint.json`) and
+the same song as a script (`song.rhai`), the arranged timeline (`project.json`), the critic's report (`verdict.json`),
+a summary of the render with every track's loudness (`report.json`) and credits for the recorded instruments whose
+licences ask for them (`credits.txt`).
 
 ## Change it
 
@@ -110,14 +111,14 @@ original files are replaced. To keep both, add `title("Crimson Tide (piano)")` t
 
 ## Read the song as a script
 
-Every song can be printed as a script that describes it completely enough to edit. An empty script changes nothing,
-so this prints the song as it is:
+Every song can be written as a script that describes it completely enough to edit, and the folder already has one:
+`song.rhai`. An empty script changes nothing, so this prints the same script for any song:
 
 ```sh
 echo "" | claudius script - --on out/house-crimson-tide-9 --print
 ```
 
-The output starts like this:
+`out/house-crimson-tide-9/song.rhai` starts like this:
 
 ```text
 // Crimson Tide — house (seed 9)

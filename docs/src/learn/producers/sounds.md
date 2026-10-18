@@ -29,7 +29,7 @@ arrangement asks for, with the riser pitched to the key. The crash is a drum voi
 ## Recorded
 
 **Sample packs.** Multi-sampled instruments and drum machines under licences that allow making and publishing music
-with them. `claudius-packs install --defaults` installs fourteen packs (about 1.1 GB):
+with them. `claudius-packs install --defaults` installs fourteen packs (a 2.2 GB download, 1.2 GB on disk):
 
 | pack | what | licence |
 |---|---|---|

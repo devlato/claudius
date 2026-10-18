@@ -85,7 +85,7 @@ claudius setup
 
 | what | size | where |
 |---|---|---|
-| 14 sample packs: pianos, electric pianos, strings, brass, woodwinds, mallets, basses, guitars, voice, real drum machines | about 1.1 GB | `~/Library/Application Support/claudius/packs` on macOS, `~/.local/share/claudius/packs` on Linux |
+| 14 sample packs: pianos, electric pianos, strings, brass, woodwinds, mallets, basses, guitars, voice, real drum machines | 2.2 GB to download, 1.2 GB on disk | `~/Library/Application Support/claudius/packs` on macOS, `~/.local/share/claudius/packs` on Linux |
 | earshot's listening models (CLAP) | about 0.8 GB | `~/.cache/earshot-rs` |
 
 The studio offers the same download of the packs when they are missing, and downloads the models by itself the

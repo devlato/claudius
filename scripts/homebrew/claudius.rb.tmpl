@@ -42,12 +42,12 @@ class Claudius < Formula
     if OS.mac? && Hardware::CPU.intel?
       <<~EOS
         This build has no ears: ONNX Runtime has no Intel Mac build, so verdicts use meters and music theory.
-        `claudius setup` downloads the sample packs (about 1.1 GB).
+        `claudius setup` downloads the sample packs (about 2.2 GB).
         `claudius doctor` checks the installation. ffmpeg is optional (for writing MP3s).
       EOS
     else
       <<~EOS
-        `claudius setup` downloads the sample packs and the listening models (about 2 GB).
+        `claudius setup` downloads the sample packs and the listening models (about 3 GB).
         `claudius doctor` checks the installation. ffmpeg is optional (for writing MP3s).
       EOS
     end

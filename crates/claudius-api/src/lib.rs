@@ -66,6 +66,9 @@ pub struct State {
     pub busy: Option<String>,
     /// 0..1 progress of the busy job when known
     pub progress: Option<f32>,
+    /// earshot's models are still loading: until then verdicts come from the meters and music theory only
+    #[serde(default)]
+    pub ears_loading: bool,
     pub can_undo: bool,
     pub can_redo: bool,
     /// what undo / redo would take back or bring back ("tempo 124", "mutated: lead: rewrote the part")

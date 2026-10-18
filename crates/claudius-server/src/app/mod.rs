@@ -130,9 +130,12 @@ impl App {
         });
         {
             let mut s = app.lock();
-            s.say(match &app.lib {
-                Some(_) => "sample library: Apple Loops and your folders".to_string(),
-                None => "no sample library found: every sound is synthesized".to_string(),
+            s.say(match (&app.lib, claudius_packs::installed().len()) {
+                (Some(_), _) => "sample library: Apple Loops and your folders".to_string(),
+                (None, 0) => "no sample packs, Apple Loops or sample folders found: every sound is synthesized".to_string(),
+                (None, n) => format!(
+                    "no Apple Loops or sample folders found: the sounds come from the {n} installed sample packs and the synths"
+                ),
             });
             s.bump();
         }
@@ -258,6 +261,7 @@ impl App {
             verdict: s.verdict.clone(),
             busy: s.busy.clone(),
             progress: s.progress,
+            ears_loading: self.ears.get().is_none(),
             song_version: s.song_version,
             can_undo: !s.undo.is_empty(),
             can_redo: !s.redo.is_empty(),
