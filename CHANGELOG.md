@@ -6,6 +6,8 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-18
+
 The first public release.
 
 ### Added
@@ -28,5 +30,7 @@ The first public release.
   configuring assistants.
 - Builds for macOS on Apple silicon and Intel (Intel Macs have no ears: their verdicts come from the meters and the
   theory checks), Linux on x86_64 and ARM64 with a headless build for machines without sound or a display, and
-  Windows as a preview. One-line installers for each, which come with every release and are in its checksums, and a
-  Homebrew formula.
+  Windows as a preview. One-line installers for each, which come with every release and are in its checksums.
+
+[unreleased]: https://github.com/devlato/claudius/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/devlato/claudius/releases/tag/v0.1.0
