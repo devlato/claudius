@@ -7,7 +7,9 @@ use xshell::Shell;
 
 use crate::{copy_tree, fresh_dir, root};
 
-pub const DEFAULT_URL: &str = "https://claudius.pages.dev";
+/// where a local build says it is served; a deployed site gets its address from `--site-url` (the repository variable
+/// `SITE_URL`)
+pub const DEFAULT_URL: &str = "http://localhost:8000";
 const REPO_URL: &str = "https://github.com/devlato/claudius";
 
 /// the entries of site/ that are tooling (the smoke test, its packages, the scripts that make the demos), not pages;

@@ -26,8 +26,6 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
   HOMEBREW_TAP: devlato/homebrew-tap
-  # a repository variable, for when the site moves to its own domain
-  SITE_URL: ${{ vars.SITE_URL || 'https://claudius.pages.dev' }}
 
 jobs:
   plan:
@@ -167,7 +165,8 @@ jobs:
         run: |
           shopt -s nullglob
           sha256sum --check --strict -- *.sha256
-          sha256sum -- *.tar.gz *.zip > SHA256SUMS
+          cp ../scripts/install.sh ../scripts/install.ps1 .
+          sha256sum -- *.tar.gz *.zip install.sh install.ps1 > SHA256SUMS
           cat SHA256SUMS
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
@@ -184,10 +183,11 @@ jobs:
             echo "## Install"
             echo
             echo '```sh'
-            echo "curl -fsSL $SITE_URL/install.sh | sh"
+            echo "curl -fsSL https://github.com/$GITHUB_REPOSITORY/releases/latest/download/install.sh | sh"
             echo '```'
             echo
-            echo "On Windows: \`irm $SITE_URL/install.ps1 | iex\`. Or download an archive below."
+            echo "On Windows: \`irm https://github.com/$GITHUB_REPOSITORY/releases/latest/download/install.ps1 | iex\`."
+            echo "Or download an archive below."
             echo "The \`-headless\` Linux archives have no studio window and need neither ALSA nor a display;"
             echo "\`install.sh\` picks them when ALSA is missing, or with \`--headless\`. The Intel Mac and Windows"
             echo "builds have no ears: their verdicts use meters and music theory."

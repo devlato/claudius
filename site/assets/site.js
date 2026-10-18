@@ -1,4 +1,4 @@
-// claudius.pages.dev: demo players, the hero's step grid, install tabs, copy buttons and code colours.
+// The claudius website: demo players, the hero's step grid, install tabs, copy buttons and code colours.
 // No dependencies; everything works without this file except the custom players (the page falls back to <audio>).
 (function () {
   "use strict";
