@@ -146,7 +146,7 @@ says the job is still running; `status` follows it from there.
 | `save` | `path` (optional) | writes the song folder: `blueprint.json` and `song.rhai` at once, then, from a render of the song as it is then, the whole folder `claudius make` writes, stems included; a save asked for during a job waits for it |
 | `open` | `path` (required) | opens a song folder, a `blueprint.json`, or a `.rhai` script (which runs on the open song) |
 | `analyze` | `path` (required) | tempo, key, progressions, sections, drum grid and bass style of an audio file |
-| `remake` | `path` (required), `genre`, `seed` | a new song on the skeleton of an audio file, in a genre's sounds |
+| `remake` | `path` (required), `genre`, `seed`, `bpm` | a new song on the skeleton of an audio file, in a genre's sounds, at a tempo the genre plays |
 | `command` | `command` (required, an object), `listen` (true) | sends one raw [API command](http-api.md#commands) |
 
 Details that matter when you read an assistant's transcript:

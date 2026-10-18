@@ -373,8 +373,19 @@ pub fn analyze(x: &Stereo, bpm_range: Option<(f64, f64)>) -> Analysis {
     }
 }
 
+/// the tempo for a remake of a song at `bpm` in genre `g`: the same tempo when the genre plays it, else halved or
+/// doubled when that brings it into the genre's range (a 124 BPM house song is a 62 BPM half-time beat), else the
+/// nearest end of the range
+pub fn remake_tempo(bpm: f64, g: &GenreProfile) -> f64 {
+    let (lo, hi) = g.bpm;
+    let outside = |b: f64| (lo - b).max(b - hi).max(0.0);
+    let nearest = [bpm, bpm / 2.0, bpm * 2.0].into_iter().min_by(|a, b| outside(*a).total_cmp(&outside(*b)));
+    nearest.unwrap_or(bpm).clamp(lo, hi).round()
+}
+
 /// a blueprint for genre `g` on the analysed song's skeleton (its tempo, key, swing, form, progressions, drum
-/// habits and bass style); sounds and mix come from the genre
+/// habits and bass style); sounds and mix come from the genre. The tempo is `opts.bpm` when given, else
+/// [`remake_tempo`].
 pub fn to_blueprint(
     a: &Analysis,
     g: &GenreProfile,
@@ -383,7 +394,7 @@ pub fn to_blueprint(
     lib: Option<&dyn Library>,
     source: &str,
 ) -> Blueprint {
-    let o = Options { bpm: Some(a.bpm.round()), key: Some(a.key), ..opts.clone() };
+    let o = Options { bpm: Some(opts.bpm.unwrap_or_else(|| remake_tempo(a.bpm, g))), key: Some(a.key), ..opts.clone() };
     let mut bp = compose::generate(g, seed, &o, lib);
     if !a.progression_a.is_empty() {
         bp.harmony.progressions.insert("A".into(), a.progression_a.clone());
@@ -483,4 +494,22 @@ pub fn to_blueprint(
         a.progression_a.join(" ")
     )];
     bp
+}
+
+#[cfg(test)]
+mod tests {
+    use super::remake_tempo;
+    use crate::genres;
+
+    #[test]
+    fn a_remake_plays_at_a_tempo_its_genre_plays() {
+        let (lofi, house, trap) =
+            (genres::get("lofi").unwrap(), genres::get("house").unwrap(), genres::get("trap").unwrap());
+        assert_eq!(remake_tempo(80.0, &lofi), 80.0, "a tempo the genre plays stays");
+        assert_eq!(remake_tempo(160.0, &lofi), 80.0, "half time");
+        assert_eq!(remake_tempo(70.0, &trap), 140.0, "double time");
+        // 124 BPM house as lofi: its half, 62, is the nearest, and the slowest lofi is 70
+        assert_eq!(remake_tempo(124.0, &lofi), 70.0);
+        assert_eq!(remake_tempo(140.0, &house), 126.0);
+    }
 }

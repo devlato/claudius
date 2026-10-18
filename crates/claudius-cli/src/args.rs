@@ -130,6 +130,9 @@ pub(crate) enum Cmd {
         genre: String,
         #[arg(short, long)]
         seed: Option<u64>,
+        /// the tempo (default: the recording's, halved or doubled into the genre's range when it is outside it)
+        #[arg(long)]
+        bpm: Option<f64>,
         #[command(flatten)]
         ears: EarsArgs,
         #[arg(short, long, default_value = "out")]

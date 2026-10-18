@@ -353,7 +353,7 @@ impl App {
                 }
                 Err(e) => no(format!("cannot read {path}: {e}"), v),
             },
-            Command::Remake { path, genre, seed } => {
+            Command::Remake { path, genre, seed, bpm } => {
                 if let Err(e) = self.readable(Path::new(&path)) {
                     return no(e, v);
                 }
@@ -372,11 +372,19 @@ impl App {
                     &a,
                     &g,
                     seed.unwrap_or_else(now_seed),
-                    &Options::default(),
+                    &Options { bpm, ..Options::default() },
                     self.lib.as_deref().map(|l| l as &dyn compose::Library),
                     &path,
                 );
-                self.commit(Some(bp), format!("remade {path} as {genre}:\n{}", analysis_text(&a)))
+                let moved = if bpm.is_none() && bp.bpm != a.bpm.round() {
+                    format!(
+                        "\nat {:.0} BPM: the recording's {:.0} is outside {genre}'s {:.0}-{:.0}",
+                        bp.bpm, a.bpm, g.bpm.0, g.bpm.1
+                    )
+                } else {
+                    String::new()
+                };
+                self.commit(Some(bp), format!("remade {path} as {genre}{moved}:\n{}", analysis_text(&a)))
             }
             Command::Mutate { count, keep_best } => {
                 self.start_job("mutating", move |app| app.mutate_job(count.clamp(1, 32), keep_best))

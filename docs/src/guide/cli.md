@@ -184,8 +184,9 @@ and bass style, with the genre's sounds and mix. It prints the analysis (as `ana
 | flag | default | what it does |
 |---|---|---|
 | `<file>` | | any audio file claudius can decode |
-| `-g`, `--genre` | `house` | the genre of the new song; its tempo range guides the beat tracker |
+| `-g`, `--genre` | `house` | the genre of the new song. When the recording's tempo is outside the genre's range, the song plays at half or double it if that falls in the range (a 160 BPM recording as lofi at 80), else at the nearest end, and says so |
 | `-s`, `--seed` | the clock | the new song's own choices |
+| `--bpm` | as above | the new song's tempo |
 | `--no-ears`, `--refs`, `--tags` | | as for `make` |
 | `-o`, `--out` | `out` | the folder is `remake-<genre>-<title>-<seed>` |
 

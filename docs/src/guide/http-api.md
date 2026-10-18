@@ -190,7 +190,7 @@ fields marked optional may be left out.
 | `set_mix` | `track`; optional `level_db`, `pan`, `reverb`, `delay`, `duck`, `muted`, `solo` | as `mix()` |
 | `run_script` | `code` | runs a script on the song |
 | `analyze` | `path` | the analysis of an audio file, as text in the reply's `message` |
-| `remake` | `path`; optional `genre`, `seed` | a new song on the file's skeleton; the genre defaults to the open song's |
+| `remake` | `path`; optional `genre`, `seed`, `bpm` | a new song on the file's skeleton; the genre defaults to the open song's, and the tempo to the recording's, halved or doubled into the genre's range when it is outside |
 | `mutate` | optional `count` (4, 1 to 32), `keep_best` (true) | a job: tries variations and keeps the best if it beats the song |
 | `evolve` | optional `generations` (3, 1 to 20), `children` (6, 2 to 32) | a job: an evolutionary search from the song |
 | `install_packs` | optional `names` (the missing default packs when left out) | a job: downloads sample packs, as `claudius setup` does; not the opt-in packs, whose licence is unclear, and not on a shared claudius |

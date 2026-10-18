@@ -56,7 +56,8 @@ generated parts in the new key.
 
 `remake` with `path`, `genre` and `seed` (MCP), or `claudius remake song.mp3 --genre lofi [--seed 3]`, composes a
 new song at the analysed tempo and key, with its progressions, swing, form, section energies and drum habits, in the
-genre's sounds and production. The song's history starts with `remade from <file>: ...`.
+genre's sounds and production. A tempo outside the genre's range becomes half or double when that fits it (a 124 BPM
+house song as lofi plays in half time, at the slowest lofi tempo, 70) and the reply says so; `bpm` sets it instead. The song's history starts with `remade from <file>: ...`.
 
 The remake copies what the analysis read, mistakes included, so check it before polishing anything: print it (`echo
 | claudius script - --on SONG --print`, or `get_song`) and compare it with the genre. A short clip, or sections the
