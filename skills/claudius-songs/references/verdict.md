@@ -82,11 +82,14 @@ moves them a little; leave them when that dusty sound is what the person asked f
 
 ### What the models hear (`genre`, `production`)
 
-- `reads as 'techno music' more than 'house music'`: move toward the genre's own sounds and habits
-  ([genres.md](genres.md)): for house, softer drums, swing, 7th chords on electric piano. Treat it as a hint;
-  neighbouring genres often sit close, and the person's taste decides.
-- `production reads close to 'a low quality recording with hiss'`: fix the band and width issues first; most
-  production readings follow from an unbalanced spectrum or too much reverb.
+- `sounds more like 'techno music' than 'house music'`, or `sounds only faintly like 'house music'`: move toward the
+  genre's own sounds and habits ([genres.md](genres.md)): for house, softer drums, swing, 7th chords on electric
+  piano. Treat it as a hint; neighbouring genres often sit close, and the person's taste decides.
+- `sounds about as much like a hissy recording as a professional mix: ...` (or `more like`): the issue ends with the
+  flaw's usual cause. Fix the band and width issues first, since most production readings follow from an unbalanced
+  spectrum or too much reverb, and try sampled instruments in place of synth patches, which read as more
+  professional. "About as much" is a near tie and a faint reading; don't chase it. Lofi is not marked down for hiss
+  or a phone-like sound, which are its style.
 
 ## When to stop
 

@@ -28,17 +28,17 @@ This is the `verdict.json` of `claudius make --genre deep_house --seed 7 --short
               "drop_minus_break_lu": 3.5, ...},
  "issues": [{"severity": 0.4366487862341189, "target": "band:presence-",
              "what": "dull 4-8 kHz: hats, claps and snare lack bite (presence -28.6 dB, healthy from -26)"},
-            {"severity": 0.40750000000000003, "target": "production",
-             "what": "production reads close to 'a low quality recording with hiss' (z +1.3) vs professionally mixed (z +1.7)"},
             {"severity": 0.13392813023001673, "target": "band:air+",
              "what": "fizzy top end (air -16.2 dB, healthy up to -17)"},
             {"severity": 0.05999999999999996, "target": "genre",
-             "what": "reads as 'techno music' (z +3.9) more than 'house music' (z +3.7)"}],
+             "what": "sounds more like 'techno music' than 'house music'"},
+            {"severity": 0.052000000000000046, "target": "production",
+             "what": "sounds about as much like a hissy recording as a professional mix: noise-built sounds (hats, shakers, risers) and long reverbs are the usual cause"}],
  "ears": {"genre_query": "house music", "genre_z": 3.71, "best_alt": "techno music", "best_alt_z": 3.86,
           "production_z": 1.7, "worst_flaw": "a low quality recording with hiss", "worst_flaw_z": 1.33,
           "sounds_like": ["techno music", "tech house music", "house music", "drum and bass music"],
-          "p_real": 0.634, "audioset": [], "ref_typicality_z": null},
- "summary": "86/100 (arc 0.94, genre 0.71, mix 0.93, production 0.59, theory 1.00). Fix first: dull 4-8 kHz: hats, claps and snare lack bite (presence -28.6 dB, healthy from -26); production reads close to 'a low quality recording with hiss' (z +1.3) vs professionally mixed (z +1.7); fizzy top end (air -16.2 dB, healthy up to -17)"}
+          "p_real": 0.537, "audioset": [], "ref_typicality_z": null},
+ "summary": "86/100 (arc 0.94, genre 0.71, mix 0.93, production 0.59, theory 1.00). Fix first: dull 4-8 kHz: hats, claps and snare lack bite (presence -28.6 dB, healthy from -26); fizzy top end (air -16.2 dB, healthy up to -17); sounds more like 'techno music' than 'house music'"}
 ```
 
 An **issue** is a problem in words, a severity from 0 to 1, and a **target**: where in the blueprint a fix lives.
@@ -146,8 +146,10 @@ score rewards a high `genre_z` and a margin over the best alternative:
 genre = 0.5 × clamp((genre_z − 1) / 2.5) + 0.5 × clamp((genre_z − best_alt_z + 1) / 2)
 ```
 
-An issue is raised when `genre_z` is under 2.5 or an alternative beats it: `reads as 'techno music' (z +3.6) more than
-'house music' (z +3.4)`.
+An issue is raised when an alternative beats the genre, `sounds more like 'techno music' than 'house music'`, or when
+`genre_z` is under 2.5, `sounds only faintly like 'house music' (the nearest other reading: 'techno music')`. Its
+severity is the larger of `(2.5 − genre_z) / 2.5` and `(best_alt_z − genre_z) / 2.5`. The issues leave the `z` values
+out; the `ears` line of the command line and the MCP tools prints them.
 
 **Production.** The best of two descriptions of a professional track (`a professionally mixed and mastered music
 track`, `a high quality studio recording`) against the best of six flaws (a cheap synthesized beep, hiss, clipping,
@@ -157,7 +159,14 @@ a computer-generated tone, low-bitrate artefacts, a phone recording):
 production = clamp(0.5 + (production_z − worst_flaw_z) / 4)
 ```
 
-with an issue when the difference is under 0.5.
+with an issue when the difference is under 0.5. The issue names the flaw in a few words and where it usually comes from
+in a song of claudius': `sounds about as much like a hissy recording as a professional mix: noise-built sounds (hats,
+shakers, risers) and long reverbs are the usual cause`. It says "more like" only when the flaw leads by more than 0.5.
+Its severity is `(0.5 − difference) / 2.5`: a near tie is a faint reading, about 0.2, so the issues that name a change
+come before it, and a flaw that leads by 1.5 reaches 0.8.
+
+A genre can list flaws that are its sound in `accepted_flaws`, and its production reading leaves them out: lofi
+accepts the hiss and the phone recording, since vinyl crackle, tape hiss and a lowpassed drum bus are the style.
 
 **References.** With `--refs` and at least two reference tracks, the song's typicality among them (the mean cosine to
 its five nearest references, as a `z` against the references' own spread) scores `clamp((z + 3) / 4)`, and an issue

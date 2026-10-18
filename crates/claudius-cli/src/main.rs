@@ -69,8 +69,7 @@ fn listen(a: &EarsArgs) -> Listening {
 impl Listening {
     fn report(&self, r: &Rendered, genre: Option<&GenreProfile>, realness: bool) -> Option<EarsReport> {
         let e = self.ears.as_ref()?;
-        let g = genre.map(|g| (g.query.as_str(), g.alts.as_slice()));
-        match e.report(&r.master, g, self.refs.as_deref(), realness) {
+        match e.report(&r.master, genre, self.refs.as_deref(), realness) {
             Ok(rep) => Some(rep),
             Err(err) => {
                 eprintln!("the ears failed on this render: {err}");

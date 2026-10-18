@@ -3,6 +3,7 @@
   "description": "Lo-fi hip hop: a lazy swung boom-bap beat, jazzy 7th and 9th chords on electric piano, a walking or sustained bass, tape wobble, vinyl crackle and a dusty lowpassed drum bus",
   "query": "lo-fi hip hop beat",
   "alts": ["jazz music", "hip hop beat with heavy bass", "solo piano music", "trap beat"],
+  "accepted_flaws": ["a low quality recording with hiss", "a recording made on a phone"],
   "bpm": [70, 90],
   "swing": [0.56, 0.63],
   "humanize": 0.6,

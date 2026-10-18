@@ -35,6 +35,7 @@ Everything a genre knows is in one JSON file. The fields `generate` reads:
 | `transitions` | riser, impact, downlifter and reverse crash switches, the riser length |
 | `mix` | the LUFS target, the reverb and delay, bus and master chains, sidechain release, per-role level offsets |
 | `query`, `alts` | what the ears should hear (`"house music"`) and the genres it is most often confused with |
+| `accepted_flaws` | production flaws of the ears' that are the genre's sound, left out of its production reading (lofi's hiss) |
 
 A list like `"styles": ["offbeat", "syncopated", "offbeat"]` weights by repetition: `offbeat` is picked two times in
 three. A preset entry can name alternatives separated by `|`: `"piano|epiano"` plays the sampled piano when its pack

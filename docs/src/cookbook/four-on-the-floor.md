@@ -66,14 +66,14 @@ Why it is built this way:
 The critic's verdict:
 
 ```text
-  ears: 'house music' z +3.6 (closest confusion 'techno music' +3.4); production z +1.6 vs 'a low quality recording with hiss' +1.0; p_real 0.69
+  ears: 'house music' z +3.6 (closest confusion 'techno music' +3.4); production z +1.6 vs 'a low quality recording with hiss' +1.0; p_real 0.65
         sounds like: house music, techno music, tech house music, drum and bass music
   verdict: 87/100 (arc 0.85, genre 0.79, mix 0.93, production 0.66, theory 1.00). Fix first: dull 4-8 kHz: hats, claps and snare lack bite (presence -28.7 dB, healthy from -26); fizzy top end (air -16.1 dB, healthy up to -17)
 ```
 
 House and techno sit close together for the ears, and a 909 groove pulls towards techno. An earlier version of this
-recipe had only drums in the intro and read as techno (`reads as 'techno music' (z +3.5) more than 'house music'
-(z +3.4)`); putting the filtered piano in the intro tipped it to house. The mix notes point at the hats: there is too
+recipe had only drums in the intro and read as techno (`sounds more like 'techno music' than 'house music'`, by z +3.5
+to +3.4); putting the filtered piano in the intro tipped it to house. The mix notes point at the hats: there is too
 much above 8 kHz and not enough at 4 to 8 kHz, which a brighter clap and a darker hat would balance.
 
 Try:
@@ -128,7 +128,7 @@ Why:
   impact out, and the drop has no `impact()`.
 
 ```text
-  ears: 'house music' z +3.8 (closest confusion 'minimal electronic music' +3.1); production z +1.9 vs 'a low quality recording with hiss' +1.3; p_real 0.53
+  ears: 'house music' z +3.8 (closest confusion 'minimal electronic music' +3.1); production z +1.9 vs 'a low quality recording with hiss' +1.3; p_real 0.52
         sounds like: house music, tech house music, minimal electronic music, drum and bass music
   verdict: 86/100 (arc 0.81, genre 0.91, mix 0.90, production 0.63, theory 1.00). Fix first: dull 4-8 kHz: hats, claps and snare lack bite (presence -31.2 dB, healthy from -26)
 ```
@@ -193,9 +193,9 @@ Why:
 - **A clap roll** instead of a snare: techno builds on the clap.
 
 ```text
-  ears: 'techno music' z +4.5 (closest confusion 'drum and bass music' +3.5); production z +1.3 vs 'a distorted clipped recording' +1.5; p_real 0.70
+  ears: 'techno music' z +4.5 (closest confusion 'drum and bass music' +3.5); production z +1.3 vs 'a distorted clipped recording' +1.5; p_real 0.63
         sounds like: techno music, drum and bass music, tech house music, house music
-  verdict: 86/100 (arc 0.82, genre 1.00, mix 0.92, production 0.45, theory 1.00). Fix first: production reads close to 'a distorted clipped recording' (z +1.5) vs professionally mixed (z +1.3); nearly mono (correlation 0.97): widen pads, chords and effects
+  verdict: 86/100 (arc 0.82, genre 1.00, mix 0.92, production 0.45, theory 1.00). Fix first: nearly mono (correlation 0.97): widen pads, chords and effects; sounds about as much like a clipped recording as a professional mix: less drive and saturation, or a quieter master
 ```
 
 A perfect genre score: nothing about this reads as anything but techno. The production score is the weak point; the

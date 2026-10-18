@@ -403,27 +403,51 @@ fn theory_checks(p: &Project, m: &mut BTreeMap<String, f64>, issues: &mut Vec<Is
     if parts.is_empty() { 1.0 } else { parts.iter().sum::<f64>() / parts.len() as f64 }
 }
 
+/// one of the ears' flaws (`ears::FLAWS`) in a few words, and where it usually comes from in a song of claudius'
+fn flaw_advice(flaw: &str) -> (&str, &'static str) {
+    match flaw {
+        "a cheap synthesized beep" => {
+            ("a cheap synth", "sampled instruments in place of synth patches usually read better")
+        }
+        "a low quality recording with hiss" => {
+            ("a hissy recording", "noise-built sounds (hats, shakers, risers) and long reverbs are the usual cause")
+        }
+        "a distorted clipped recording" => ("a clipped recording", "less drive and saturation, or a quieter master"),
+        "a computer-generated electronic tone" => {
+            ("a bare electronic tone", "sampled instruments in place of synth patches usually read better")
+        }
+        "a low bitrate mp3 with artifacts" => ("a low-bitrate MP3", "harsh or fizzy highs are the usual cause"),
+        "a recording made on a phone" => ("a phone recording", "a thin or narrow mix is the usual cause"),
+        other => (other, "fix the mix issues first"),
+    }
+}
+
 fn ears_score(e: &EarsReport, issues: &mut Vec<Issue>) -> (f64, f64) {
     let margin = e.genre_z - e.best_alt_z;
     let genre = clamp01(0.5 * clamp01((e.genre_z - 1.0) / 2.5) + 0.5 * clamp01((margin + 1.0) / 2.0));
     if e.genre_z < 2.5 || margin < 0.0 {
         issues.push(Issue {
             severity: clamp01((2.5 - e.genre_z).max(-margin) / 2.5),
-            what: format!(
-                "reads as '{}' (z {:+.1}) more than '{}' (z {:+.1})",
-                e.best_alt, e.best_alt_z, e.genre_query, e.genre_z
-            ),
+            what: if margin < 0.0 {
+                format!("sounds more like '{}' than '{}'", e.best_alt, e.genre_query)
+            } else {
+                format!("sounds only faintly like '{}' (the nearest other reading: '{}')", e.genre_query, e.best_alt)
+            },
             target: "genre".into(),
         });
     }
-    let pq = clamp01(0.5 + (e.production_z - e.worst_flaw_z) / 4.0);
-    if e.production_z - e.worst_flaw_z < 0.5 {
+    let lead = e.production_z - e.worst_flaw_z;
+    let pq = clamp01(0.5 + lead / 4.0);
+    if lead < 0.5 {
+        let (flaw, cause) = flaw_advice(&e.worst_flaw);
         issues.push(Issue {
-            severity: clamp01(0.5 - (e.production_z - e.worst_flaw_z) / 4.0),
-            what: format!(
-                "production reads close to '{}' (z {:+.1}) vs professionally mixed (z {:+.1})",
-                e.worst_flaw, e.worst_flaw_z, e.production_z
-            ),
+            // a near tie is a faint reading, so the issues that name a change come first
+            severity: clamp01((0.5 - lead) / 2.5),
+            what: if lead < -0.5 {
+                format!("sounds more like {flaw} than a professional mix: {cause}")
+            } else {
+                format!("sounds about as much like {flaw} as a professional mix: {cause}")
+            },
             target: "production".into(),
         });
     }
@@ -470,4 +494,66 @@ pub fn judge(p: &Project, r: &Rendered, ears: Option<EarsReport>) -> Verdict {
         }
     );
     Verdict { total, scores, measures, issues, ears, summary }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn heard(genre_z: f64, alt_z: f64, production_z: f64, flaw_z: f64) -> EarsReport {
+        EarsReport {
+            genre_query: "house music".into(),
+            genre_z,
+            best_alt: "techno music".into(),
+            best_alt_z: alt_z,
+            production_z,
+            worst_flaw: "a low quality recording with hiss".into(),
+            worst_flaw_z: flaw_z,
+            ..Default::default()
+        }
+    }
+
+    fn issues(e: &EarsReport) -> Vec<Issue> {
+        let mut out = Vec::new();
+        ears_score(e, &mut out);
+        out
+    }
+
+    #[test]
+    fn the_ears_issues_say_what_to_change_in_words() {
+        let got = issues(&heard(3.2, 3.7, 0.9, 1.7));
+        let what: Vec<&str> = got.iter().map(|i| i.what.as_str()).collect();
+        assert_eq!(
+            what,
+            [
+                "sounds more like 'techno music' than 'house music'",
+                "sounds more like a hissy recording than a professional mix: noise-built sounds (hats, shakers, \
+                 risers) and long reverbs are the usual cause",
+            ]
+        );
+        let faint = issues(&heard(2.0, 1.5, 1.6, 1.7));
+        assert_eq!(faint[0].what, "sounds only faintly like 'house music' (the nearest other reading: 'techno music')");
+        assert_eq!(
+            faint[1].what.split(':').next(),
+            Some("sounds about as much like a hissy recording as a professional mix")
+        );
+        assert!(issues(&heard(3.5, 2.0, 2.0, 1.0)).is_empty());
+    }
+
+    #[test]
+    fn a_near_tie_comes_after_the_issues_that_name_a_change() {
+        let tie = issues(&heard(3.5, 2.0, 1.6, 1.7));
+        // a band out of its range by 2.5 dB has severity 0.42
+        assert!(tie[0].severity < 0.3, "{}", tie[0].severity);
+        let clear = issues(&heard(3.5, 2.0, 0.2, 1.7));
+        assert!(clear[0].severity > 0.6, "{}", clear[0].severity);
+    }
+
+    #[test]
+    fn every_flaw_has_words_and_a_cause() {
+        for flaw in crate::ears::FLAWS {
+            let (short, cause) = flaw_advice(flaw);
+            assert!(short != *flaw && !cause.is_empty(), "{flaw}");
+        }
+    }
 }

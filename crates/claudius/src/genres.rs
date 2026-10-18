@@ -152,6 +152,10 @@ pub struct GenreProfile {
     pub query: String,
     #[serde(default)]
     pub alts: Vec<String>,
+    /// production flaws of the ears' (`ears::FLAWS`) that are this genre's sound, such as lofi's hiss: the
+    /// production reading leaves them out
+    #[serde(default)]
+    pub accepted_flaws: Vec<String>,
     pub bpm: (f64, f64),
     #[serde(default = "straight")]
     pub swing: (f32, f32),
@@ -218,4 +222,19 @@ pub fn get(name: &str) -> Result<GenreProfile> {
             all().map(|v| v.iter().map(|g| g.name.clone()).collect::<Vec<_>>().join(", ")).unwrap_or_default()
         )
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_accepted_flaws_are_flaws_the_ears_know() {
+        for (name, src) in BUILTIN {
+            let g: GenreProfile = serde_json::from_str(src).unwrap();
+            for flaw in &g.accepted_flaws {
+                assert!(crate::ears::FLAWS.contains(&flaw.as_str()), "{name}: {flaw}");
+            }
+        }
+    }
 }

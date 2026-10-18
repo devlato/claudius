@@ -38,6 +38,7 @@ Each profile (`crates/claudius/data/genres/*.json`) has:
 | `transitions` | risers, impacts, downlifters, reverse crashes, riser length |
 | `mix` | the loudness target, reverb and delay, bus and master chains, sidechain release, role level offsets |
 | `query`, `alts` | what the ears should hear, and its confusions |
+| `accepted_flaws` | flaws the ears may hear that are the genre's sound, such as lofi's hiss, so they do not count against it |
 
 To add a genre or change one, drop a JSON file with the same fields into the `claudius/genres` folder of your
 configuration directory (`~/Library/Application Support/claudius/genres/` on macOS, `~/.config/claudius/genres/` on
