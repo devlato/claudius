@@ -231,11 +231,49 @@ pub fn sha256_file(path: &Path) -> Result<String> {
     Ok(hasher.finalize().iter().map(|b| format!("{b:02x}")).collect())
 }
 
+/// The WAV with its fmt chunk cut to the 16 bytes PCM needs, when it is longer (some packs' files carry extra bytes
+/// there, and hound refuses any size it does not expect); None when it is not such a file. The audio is untouched.
+fn pcm_fmt_trimmed(bytes: &[u8]) -> Option<Vec<u8>> {
+    if bytes.len() < 12 || &bytes[..4] != b"RIFF" || &bytes[8..12] != b"WAVE" {
+        return None;
+    }
+    let mut out = Vec::with_capacity(bytes.len());
+    out.extend_from_slice(&bytes[..12]);
+    let (mut at, mut trimmed) = (12, false);
+    while at + 8 <= bytes.len() {
+        let size = u32::from_le_bytes(bytes[at + 4..at + 8].try_into().ok()?) as usize;
+        let end = (at + 8 + size).min(bytes.len());
+        let body = &bytes[at + 8..end];
+        let pcm = body.len() >= 16 && matches!(u16::from_le_bytes([body[0], body[1]]), 1 | 3);
+        if &bytes[at..at + 4] == b"fmt " && size > 16 && pcm {
+            out.extend_from_slice(b"fmt ");
+            out.extend_from_slice(&16u32.to_le_bytes());
+            out.extend_from_slice(&body[..16]);
+            trimmed = true;
+        } else {
+            out.extend_from_slice(&bytes[at..end]);
+            if size % 2 == 1 && end < bytes.len() {
+                out.push(bytes[end]);
+            }
+        }
+        at = end + (size % 2);
+    }
+    let riff = u32::try_from(out.len() - 8).ok()?;
+    out[4..8].copy_from_slice(&riff.to_le_bytes());
+    trimmed.then_some(out)
+}
+
 /// lossless WAV -> FLAC (keeps rate, channels and bit depth; float WAV becomes 24-bit)
 pub fn transcode_flac(src: &Path, dst: &Path) -> Result<()> {
     use flacenc::component::BitRepr;
     use flacenc::error::Verify;
-    let mut rd = hound::WavReader::open(src).with_context(|| format!("cannot read {}", src.display()))?;
+    let raw = std::fs::read(src).with_context(|| format!("cannot read {}", src.display()))?;
+    let bytes = match hound::WavReader::new(std::io::Cursor::new(&raw[..])) {
+        Ok(_) => raw,
+        Err(e) => pcm_fmt_trimmed(&raw).ok_or_else(|| anyhow!(e).context(format!("cannot read {}", src.display())))?,
+    };
+    let mut rd = hound::WavReader::new(std::io::Cursor::new(&bytes[..]))
+        .with_context(|| format!("cannot read {}", src.display()))?;
     let spec = rd.spec();
     let (samples, bits): (Vec<i32>, usize) = match spec.sample_format {
         hound::SampleFormat::Int if spec.bits_per_sample <= 24 => {
@@ -441,6 +479,41 @@ pub fn walk(dir: &Path) -> Vec<(String, u64)> {
 
 #[cfg(test)]
 mod flac_tests {
+    #[test]
+    fn a_wav_with_a_long_fmt_chunk_still_becomes_flac() {
+        let dir = tempfile::tempdir().unwrap();
+        let (wav, flac) = (dir.path().join("in.wav"), dir.path().join("out.flac"));
+        let spec = hound::WavSpec {
+            channels: 2,
+            sample_rate: 44_100,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        let mut w = hound::WavWriter::create(&wav, spec).unwrap();
+        let samples: Vec<i16> = (0..2000).map(|i| ((i as f64 * 0.07).sin() * 12_000.0) as i16).collect();
+        for s in &samples {
+            w.write_sample(*s).unwrap();
+        }
+        w.finalize().unwrap();
+        // the fmt chunk as some recorders write it: 20 bytes, the last 4 of them extra
+        let b = std::fs::read(&wav).unwrap();
+        let fmt = b.windows(4).position(|w| w == b"fmt ").unwrap();
+        let mut odd = b[..fmt + 4].to_vec();
+        odd.extend_from_slice(&20u32.to_le_bytes());
+        odd.extend_from_slice(&b[fmt + 8..fmt + 24]);
+        odd.extend_from_slice(&[0, 0, 0, 0]);
+        odd.extend_from_slice(&b[fmt + 24..]);
+        let riff = (odd.len() - 8) as u32;
+        odd[4..8].copy_from_slice(&riff.to_le_bytes());
+        std::fs::write(&wav, &odd).unwrap();
+        assert!(hound::WavReader::open(&wav).is_err(), "hound refuses the file as it is");
+        super::transcode_flac(&wav, &flac).unwrap();
+        let d = claudius_decode::decode_native(&flac).unwrap();
+        assert_eq!((d.rate, d.channels, d.samples.len()), (44_100, 2, samples.len()));
+        let back: Vec<i16> = d.samples.iter().map(|x| (x * 32768.0).round() as i16).collect();
+        assert_eq!(back, samples, "lossless");
+    }
+
     #[cfg(unix)]
     #[test]
     fn links_in_an_archive_lead_nowhere() {

@@ -28,6 +28,7 @@ fn progress(label: &str, fraction: f32, last: &mut i32) {
 
 pub fn run(yes: bool, packs: bool, models: bool, tags: bool) -> Result<()> {
     let ask = !yes && std::io::stdin().is_terminal();
+    let mut packs_failed = None;
     if packs {
         let missing: Vec<_> = claudius_packs::packs().into_iter().filter(|p| p.default && !p.installed).collect();
         if missing.is_empty() {
@@ -37,13 +38,25 @@ pub fn run(yes: bool, packs: bool, models: bool, tags: bool) -> Result<()> {
             let names = missing.iter().map(|p| p.name.as_str()).collect::<Vec<_>>().join(", ");
             if !ask || confirm(&format!("Download {} sample packs ({names}), about {gb:.1} GB?", missing.len()))? {
                 let last = std::sync::Mutex::new(-1);
-                claudius_packs::install_defaults(&|f, what| progress(what, f, &mut last.lock().unwrap()))?;
-                eprintln!("sample packs: installed in {}", claudius_packs::packs_dir().display());
+                match claudius_packs::install_defaults(&|f, what| progress(what, f, &mut last.lock().unwrap())) {
+                    Ok(()) => eprintln!("sample packs: installed in {}", claudius_packs::packs_dir().display()),
+                    Err(e) => {
+                        eprintln!("sample packs: {e:#}");
+                        packs_failed = Some(e);
+                    }
+                }
             }
         }
     }
+    // a pack that will not install leaves claudius its ears: the models come anyway
     if models {
         download_models(ask, tags)?;
+    }
+    if let Some(e) = packs_failed {
+        return Err(e.context(
+            "a sample pack did not install: `claudius setup` again resumes it, `claudius-packs install <pack>` retries one, \
+             and the rest of claudius works without it",
+        ));
     }
     eprintln!("\nNext: `claudius studio` opens the studio, `claudius connect claude-desktop` adds it to Claude.");
     Ok(())

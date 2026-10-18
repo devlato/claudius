@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=claudius
+GenericName=Beatmaker
+Comment=Make songs the way a producer does, with a critic that listens to them
+Exec=claudius studio
+Icon=claudius
+Terminal=false
+Categories=AudioVideo;Audio;Music;
+Keywords=music;beat;beatmaker;producer;daw;
+StartupWMClass=claudius-studio
