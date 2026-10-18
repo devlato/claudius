@@ -31,7 +31,7 @@ Or build it from source; see [install](docs/src/getting-started/install.md).
 ```sh
 claudius make --genre lofi          # a finished song in ./out/lofi-<title>-<seed>/song.wav
 claudius studio                     # the studio, with the engine inside
-claudius connect claude-desktop     # then ask Claude for a song while you listen
+claudius connect claude-desktop     # MCP and skills; then ask Claude for a song while you listen
 ```
 
 A song in the script language:
@@ -54,7 +54,8 @@ this, so a script is also the way to read a song.
   [learn to make music](docs/src/learn/basics/how-a-track-is-built.md) if you have never made any.
 - [claudius for DAW users](docs/src/learn/producers/daw-users.md) and the
   [language reference](docs/src/language/overview.md) if you have.
-- [Working with an assistant](docs/src/getting-started/assistants.md) (MCP: Claude, ChatGPT, Cursor).
+- [Working with an assistant](docs/src/getting-started/assistants.md) (MCP and [skills](skills/README.md): Claude,
+  ChatGPT, Cursor, Codex).
 - [Architecture](docs/src/engineering/architecture.md), [design decisions](docs/src/design/README.md) and
   [a tour of the repository](docs/src/contributing/onboarding.md) for working on claudius.
 

@@ -461,15 +461,29 @@ program.
 
 ### `claudius connect`
 
-Adds claudius to an assistant's MCP configuration, or removes it. [MCP tools](mcp.md#setting-up-a-client) covers each
-client.
+Adds claudius to an assistant, or removes it: its MCP configuration, and the [skills](../getting-started/assistants.md#skills)
+that teach it claudius. [MCP tools](mcp.md#setting-up-a-client) covers each client.
 
 | argument or flag | what it does |
 |---|---|
-| `claude-desktop` | edits `claude_desktop_config.json` |
-| `claude-code` | runs `claude mcp add --scope user ...` |
-| `cursor` | edits `~/.cursor/mcp.json` |
+| `claude-desktop` | edits `claude_desktop_config.json`, and writes the skills as zips into `~/Music/claudius/skills/` to upload in Claude's settings |
+| `claude-code` | runs `claude mcp add --scope user ...`, and installs the skills in `~/.claude/skills/` |
+| `cursor` | edits `~/.cursor/mcp.json`, and installs the skills in `~/.cursor/skills/` |
+| `codex` | edits `[mcp_servers.claudius]` in `~/.codex/config.toml`, and installs the skills in `~/.codex/skills/` |
 | `print` | prints the configuration for any other client |
-| `--http` | connects over HTTP to a running studio instead of starting `claudius mcp` (not for Claude Desktop) |
-| `--remove` | takes claudius out again |
+| `--http` | connects over HTTP to a running studio instead of starting `claudius mcp` (not for Claude Desktop or Codex) |
+| `--no-skills` | connects the MCP server only |
+| `--remove` | takes claudius, and its skills, out again |
 | `--port` | the port the `--http` URL uses (`CLAUDIUS_PORT`) |
+
+Every configuration file it edits keeps a `.bak` copy of the old one. Installing the skills replaces only claudius'
+own skill folders (`claudius-songs`, `claudius-remix`, `claudius-setup`).
+
+### `claudius skills`
+
+```sh
+claudius skills --out ~/my-project/.claude/skills
+```
+
+Writes the skills that teach an assistant claudius into a folder (`claudius-skills` by default): a folder with a
+`SKILL.md` for each, and a zip of each for the Claude apps. They are built into the binary, so they match it.

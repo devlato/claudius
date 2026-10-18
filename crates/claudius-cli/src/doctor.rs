@@ -103,6 +103,12 @@ pub fn run(port: u16, web: Option<std::path::PathBuf>) {
             println!("  ..  {name:<15} not connected: `claudius connect {hint}`");
         }
     }
+    let codex = connect::codex_config();
+    if connect::codex_configured(&codex) {
+        r.line(true, "Codex", "connected");
+    } else if codex.parent().is_some_and(|d| d.exists()) {
+        println!("  ..  {:<15} not connected: `claudius connect codex`", "Codex");
+    }
 
     println!();
     if r.problems == 0 {

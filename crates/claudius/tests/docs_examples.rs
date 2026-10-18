@@ -1,4 +1,5 @@
-//! Every `js` block in the book (docs/src) and the README runs, so the docs cannot drift from the language. The fence's
+//! Every `js` block in the book (docs/src), the README and the assistants' skills (skills/) runs, so none of them can
+//! drift from the language. The fence's
 //! info string decides how: `js` must succeed without sample packs, `js packs` runs when they are installed, `js error`
 //! must fail, `js no-run` is not run. Plain `js` blocks run with the packs switched off even where they are installed,
 //! so that a block that needs them fails here as it would on CI. Blocks run against house seed 9 unless they start
@@ -59,11 +60,12 @@ fn js_blocks(text: &str) -> Vec<Block> {
 
 #[test]
 fn every_example_in_the_docs_runs() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/src");
+    let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let mut files = Vec::new();
-    markdown_files(&root, &mut files);
+    markdown_files(&repo.join("docs/src"), &mut files);
+    markdown_files(&repo.join("skills"), &mut files);
     files.sort();
-    files.push(root.join("../../README.md"));
+    files.push(repo.join("README.md"));
     let house = genres::get("house").unwrap();
     claudius_packs::set_disabled(true);
     let base = compose::generate(&house, 9, &Options::default(), None);
@@ -73,7 +75,7 @@ fn every_example_in_the_docs_runs() {
     let (mut ran, mut failures) = (0, Vec::new());
     for file in &files {
         let text = std::fs::read_to_string(file).unwrap();
-        let shown = file.strip_prefix(&root).unwrap_or(file).display().to_string();
+        let shown = file.strip_prefix(&repo).unwrap_or(file).display().to_string();
         for b in js_blocks(&text) {
             let has = |f: &str| b.flags.iter().any(|x| x == f);
             if has("no-run") || (has("packs") && !packs) {
@@ -93,10 +95,8 @@ fn every_example_in_the_docs_runs() {
             });
             match (result, has("error")) {
                 (Ok(_), false) | (Err(_), true) => {}
-                (Ok(_), true) => {
-                    failures.push(format!("docs/src/{shown}:{}: expected an error, the example ran", b.line))
-                }
-                (Err(e), false) => failures.push(format!("docs/src/{shown}:{}: {e}\n{}", b.line, b.code.trim_end())),
+                (Ok(_), true) => failures.push(format!("{shown}:{}: expected an error, the example ran", b.line)),
+                (Err(e), false) => failures.push(format!("{shown}:{}: {e}\n{}", b.line, b.code.trim_end())),
             }
         }
     }

@@ -18,6 +18,7 @@ mod connect;
 mod doctor;
 mod report;
 mod setup;
+mod skills;
 
 use args::*;
 use report::*;
@@ -382,7 +383,17 @@ fn main() -> Result<()> {
         Cmd::Reference => print!("{}", claudius::script::REFERENCE),
         Cmd::Setup { yes, no_packs, no_models, tags } => setup::run(yes, !no_packs, !no_models, tags)?,
         Cmd::Doctor { port } => doctor::run(port, web_dir(std::env::var_os("CLAUDIUS_WEB").map(PathBuf::from))),
-        Cmd::Connect { client, http, remove, port } => connect::run(client, http, remove, port)?,
+        Cmd::Connect { client, http, remove, no_skills, port } => connect::run(client, http, remove, port, !no_skills)?,
+        Cmd::Skills { out } => {
+            skills::install(&out)?;
+            skills::zips(&out)?;
+            println!(
+                "wrote the claudius skills ({}) to {}: a folder each, for assistants that read SKILL.md folders, and a \
+                 zip each, to upload in Claude's settings under Capabilities",
+                skills::names().join(", "),
+                out.display()
+            );
+        }
         Cmd::Studio { app } => {
             use claudius_server::mcp::Probe;
             let addr = std::net::SocketAddr::from(([127, 0, 0, 1], app.port));

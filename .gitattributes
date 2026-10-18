@@ -1,0 +1,3 @@
+# The skills are built into claudius (crates/claudius-cli/src/skills.rs) and installed for assistants, so they keep LF
+# line endings on every system, the Windows build included.
+skills/** text eol=lf

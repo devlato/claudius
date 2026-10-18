@@ -55,6 +55,22 @@ claudius connect cursor --http        # "claudius": { "url": "http://127.0.0.1:7
 Both edit `mcpServers` in `~/.cursor/mcp.json` and keep a `.bak` copy. A project's `.cursor/mcp.json` takes the same
 entry.
 
+### Codex
+
+```sh
+claudius connect codex
+```
+
+This adds `[mcp_servers.claudius]` to `~/.codex/config.toml`, with the absolute path of `claudius` and `args =
+["mcp"]`, and leaves the rest of the file as it was (comments included), with a `config.toml.bak` copy. Codex starts
+local servers itself, so `--http` is refused for it.
+
+### Skills
+
+`claudius connect` also installs claudius' [skills](../getting-started/assistants.md#skills) for the clients that
+read them from a folder (Claude Code, Cursor, Codex), and writes them as zips for the Claude apps. `--no-skills`
+leaves them out.
+
 ### Any other client
 
 `claudius connect print` prints the stdio configuration as JSON, the HTTP address, and the Claude Code command.
@@ -181,9 +197,10 @@ verdict 97.2/100: 97/100 (arc 0.90, mix 1.00, theory 1.00)
 audio: http://127.0.0.1:7931/api/audio/8.wav (the studio at http://127.0.0.1:7931 plays it)
 ```
 
-`get_song` adds the song as a script in a `js` block. With earshot's models loaded, the verdict has a line that
-starts with `ears:`, and up to eight issues follow, each with where its fix lives
-(`issue (0.24): dull 4-8 kHz: ... — fix: band:presence-`). [The critic and the ears](../engineering/critic.md)
+`get_song` adds the song as a script in a `js` block. A verdict of a song with several sections also has a
+`loudness by section (LUFS):` line, each section's median loudness in the order they play, which shows whether the
+drop is really the loudest part. With earshot's models loaded, the verdict has a line that starts with `ears:`, and
+up to eight issues follow, each with where its fix lives (`issue (0.24): dull 4-8 kHz: ... — fix: band:presence-`). [The critic and the ears](../engineering/critic.md)
 explains them.
 
 ## Prompts that work
