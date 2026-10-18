@@ -22,6 +22,15 @@ impl App {
         if self.blueprint().is_none() {
             return no("no song yet", self.version());
         }
+        if let Err(busy) = self.take_slot(what) {
+            return busy;
+        }
+        self.spawn_job(job);
+        ok(format!("{what}…"), self.version())
+    }
+
+    /// the job slot for `what`, or the reply that says what holds it
+    fn take_slot(&self, what: &str) -> Result<(), Reply> {
         let started = self.try_update(|s| {
             if s.job {
                 return Err(());
@@ -31,17 +40,83 @@ impl App {
             s.progress = Some(0.0);
             Ok(())
         });
-        if started.is_err() {
-            return no(
+        started.map_err(|()| {
+            no(
                 format!(
                     "busy ({}); try again when it is done, or cancel it",
                     self.lock().busy.clone().unwrap_or_default()
                 ),
                 self.version(),
-            );
+            )
+        })
+    }
+
+    /// downloads sample packs in the job slot: the default packs that are missing, or `names`
+    pub(super) fn install_packs(self: &Arc<Self>, names: Vec<String>) -> Reply {
+        let v = self.version();
+        // the downloads land on the computer claudius runs on, for its owner to decide
+        if self.roots.is_some() {
+            return no("a shared claudius does not download packs: run `claudius setup` on the computer it runs on", v);
         }
-        self.spawn_job(job);
-        ok(format!("{what}…"), self.version())
+        let all = claudius_packs::packs();
+        let mut wanted = Vec::new();
+        if names.is_empty() {
+            wanted.extend(all.into_iter().filter(|p| p.default && !p.installed));
+        } else {
+            for name in &names {
+                match all.iter().find(|p| &p.name == name) {
+                    None => return no(format!("there is no pack {name} (`claudius-packs list` shows them)"), v),
+                    Some(p) if p.opt_in => {
+                        return no(
+                            format!(
+                                "{name}'s licence is unclear, so it installs only with \
+                                 `claudius-packs install {name} --accept-licence`"
+                            ),
+                            v,
+                        );
+                    }
+                    Some(p) if !p.installed => wanted.push(p.clone()),
+                    Some(_) => {}
+                }
+            }
+        }
+        if wanted.is_empty() {
+            return ok("those packs are installed", v);
+        }
+        if let Err(busy) = self.take_slot("downloading packs") {
+            return busy;
+        }
+        let what = format!("downloading {} packs, about {:.1} GB…", wanted.len(), size_gb(&wanted));
+        self.spawn_job(move |app| app.install_packs_job(wanted));
+        ok(what, self.version())
+    }
+
+    fn install_packs_job(self: &Arc<Self>, packs: Vec<claudius_packs::PackInfo>) {
+        let total = packs.iter().map(|p| p.size_mb.max(1.0) as f64).sum::<f64>();
+        let (mut done, mut installed, mut failed) = (0.0, Vec::new(), Vec::new());
+        for p in &packs {
+            if self.cancel.load(Ordering::Relaxed) {
+                break;
+            }
+            let size = p.size_mb.max(1.0) as f64;
+            let label = format!("downloading {}", p.name);
+            let res = claudius_packs::install(&p.name, &|f, _| {
+                self.progress(&label, ((done + f as f64 * size) / total) as f32)
+            });
+            match res {
+                Ok(()) => installed.push(p.name.clone()),
+                Err(e) => failed.push(format!("{} ({e:#})", p.name)),
+            }
+            done += size;
+        }
+        self.update(|s| {
+            if !installed.is_empty() {
+                s.say(format!("installed {}: new songs, and the sounds you pick, play them", installed.join(", ")));
+            }
+            if !failed.is_empty() {
+                s.say(format!("these packs did not install (try again to resume): {}", failed.join("; ")));
+            }
+        });
     }
 
     /// run a job that holds the job slot, and hand the slot on when it ends
@@ -356,4 +431,8 @@ impl App {
             });
         }
     }
+}
+
+fn size_gb(packs: &[claudius_packs::PackInfo]) -> f64 {
+    packs.iter().map(|p| p.size_mb as f64).sum::<f64>() / 1000.0
 }

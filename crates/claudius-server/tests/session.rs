@@ -100,6 +100,25 @@ async fn a_shared_session_keeps_to_its_folders() {
     std::fs::remove_dir_all(&outside).ok();
 }
 
+#[test]
+fn packs_install_only_on_the_computer_claudius_runs_on() {
+    let shared = App::new(Settings {
+        library: false,
+        ears: false,
+        auto_render: false,
+        file_roots: Some(vec![std::env::temp_dir()]),
+    });
+    let r = shared.command(Command::InstallPacks { names: Vec::new() });
+    assert!(!r.ok && r.message.contains("shared claudius"), "{}", r.message);
+    let local = app();
+    let r = local.command(Command::InstallPacks { names: vec!["nope".into()] });
+    assert!(!r.ok && r.message.contains("no pack nope"), "{}", r.message);
+    // an opt-in pack, on an unclear licence, is never installed from here
+    let r = local.command(Command::InstallPacks { names: vec!["tidal-drum-machines".into()] });
+    assert!(!r.ok && r.message.contains("--accept-licence"), "{}", r.message);
+    assert!(local.state().busy.is_none());
+}
+
 async fn call(router: &axum::Router, req: Request<Body>) -> (StatusCode, axum::http::HeaderMap, String) {
     let res = router.clone().oneshot(req).await.unwrap();
     let status = res.status();

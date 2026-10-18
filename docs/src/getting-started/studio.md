@@ -11,6 +11,14 @@ working on the same song at once, and each sees the others' changes as they happ
 Every change is rendered and judged in the background. The arrangement shows when the render you hear is older than
 the song, and the score badge in the toolbar updates when the new verdict arrives, a few seconds later.
 
+## The first time
+
+The first time it starts, claudius downloads its listening models (about 0.8 GB) in the background; the verdict
+judges with meters and music theory until they are ready, and the log says when they are. If the default sample
+packs are not installed, the studio says so and offers **Download the packs** (about 1.1 GB): until then, the
+sampled instruments are synthesized. The **Sounds** tab lists every pack, with a button for each one that is not
+installed.
+
 ## Starting a song
 
 **New song** asks for a genre and, if you like, a seed, tempo and key. The same genre and seed always give the same

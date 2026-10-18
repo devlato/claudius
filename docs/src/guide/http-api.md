@@ -193,6 +193,7 @@ fields marked optional may be left out.
 | `remake` | `path`; optional `genre`, `seed` | a new song on the file's skeleton; the genre defaults to the open song's |
 | `mutate` | optional `count` (4, 1 to 32), `keep_best` (true) | a job: tries variations and keeps the best if it beats the song |
 | `evolve` | optional `generations` (3, 1 to 20), `children` (6, 2 to 32) | a job: an evolutionary search from the song |
+| `install_packs` | optional `names` (the missing default packs when left out) | a job: downloads sample packs, as `claudius setup` does; not the opt-in packs, whose licence is unclear, and not on a shared claudius |
 | `render` | optional `stems` (false) | a job: renders and judges the song |
 | `undo`, `redo` | | |
 | `cancel` | | stops a mutation or evolution after its current candidate or generation |

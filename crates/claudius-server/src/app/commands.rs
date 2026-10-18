@@ -384,6 +384,7 @@ impl App {
             Command::Evolve { generations, children } => {
                 self.start_job("evolving", move |app| app.evolve_job(generations.clamp(1, 20), children.clamp(2, 32)))
             }
+            Command::InstallPacks { names } => self.install_packs(names),
             Command::Render { stems } => {
                 if self.blueprint().is_none() {
                     return no("no song yet", v);

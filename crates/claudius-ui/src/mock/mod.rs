@@ -313,6 +313,7 @@ impl Mock {
                     Ok("evolving…".into())
                 }
             }
+            Command::InstallPacks { .. } => Err("the demo downloads nothing: install claudius to get the packs".into()),
             Command::Cancel => {
                 if self.job.take().is_some() {
                     self.state.busy = None;
