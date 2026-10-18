@@ -75,6 +75,8 @@ websites are hostile, and that whoever holds your claudius token is you.
 ## Known limits
 
 - Packs you add yourself (`claudius-packs add-map`) are not pinned: their files are whatever the map's host serves.
+- The release binaries are not code-signed or notarized. What shows where a binary was built is its attestation,
+  checked with `gh attestation verify` as above.
 - A token never expires, and one sent as `?token=` can stay in the browser's history and in the logs of a proxy or
   tunnel in front of claudius. Start the server again with a new token to revoke one.
 - `ffmpeg`, when installed, decodes what the ears listen to (as the Python earshot does) and the formats symphonia
