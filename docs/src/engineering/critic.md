@@ -169,8 +169,9 @@ quality and production categories, for people to read.
 ### Held-out evidence
 
 Two readings are reported and never scored: `p_real`, earshot's estimate that the audio is a real, produced recording
-rather than something synthesized in code (in the command line's verdicts), and the AudioSet tagger's top six labels
-over three 10-second excerpts (with `--tags`). Optimising against a model can please the model without making the
+rather than something synthesized in code (in the command line's verdicts, the mean over eight 4-second windows spread
+across the song, where earshot would read all of them), and the AudioSet tagger's top six labels over three
+10-second excerpts (with `--tags`). Optimising against a model can please the model without making the
 music better, which is earshot's own warning. Keeping some evidence out of the score leaves a way to notice when
 evolution is gaming the scored parts: the scores rise and the held-out readings do not.
 

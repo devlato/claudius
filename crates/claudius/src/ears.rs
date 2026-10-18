@@ -111,15 +111,7 @@ mod listening {
             let (worst_flaw, worst_flaw_z) = best(&self.inner.scores(&emb, FLAWS)?);
             let sounds_like =
                 self.inner.top_terms(&emb, 4, &["quality", "production"]).into_iter().map(|t| t.term).collect();
-            let p_real = if realness {
-                self.inner
-                    .realness(&mono, Some(&emb))
-                    .ok()
-                    .and_then(|r| r.p_real)
-                    .map(|p| (p * 1000.0).round() / 1000.0)
-            } else {
-                None
-            };
+            let p_real = if realness { self.p_real(&mono, &emb).map(|p| (p * 1000.0).round() / 1000.0) } else { None };
             let audioset = if self.with_ast { self.held_out_tags(&mono).unwrap_or_default() } else { Vec::new() };
             Ok(EarsReport {
                 genre_query,
@@ -134,6 +126,26 @@ mod listening {
                 audioset,
                 ref_typicality_z: refs.filter(|r| r.len() >= 2).map(|r| earshot::typicality(&emb, r, 5).z),
             })
+        }
+
+        /// earshot's p_real: the mean over 4 s windows, each one CLAP pass and a set of signal measurements. A song
+        /// has sixty of them, which took most of the critic's time for a reading the score does not use, so the mean
+        /// is taken over eight windows spread across the song.
+        fn p_real(&self, mono: &[f32], emb: &[f32]) -> Option<f64> {
+            const WINDOWS: usize = 8;
+            let sr = earshot::SR as usize;
+            let win = 4 * sr;
+            if mono.len() <= 6 * sr {
+                return self.inner.realness(mono, Some(emb)).ok()?.p_real;
+            }
+            let spread = mono.len() - win;
+            let ps: Vec<f64> = (0..WINDOWS)
+                .filter_map(|i| {
+                    let start = spread * i / (WINDOWS - 1);
+                    self.inner.realness(&mono[start..start + win], None).ok()?.p_real
+                })
+                .collect();
+            (!ps.is_empty()).then(|| ps.iter().sum::<f64>() / ps.len() as f64)
         }
 
         /// AudioSet top labels over three 10 s excerpts (start, middle, three quarters): held-out evidence only

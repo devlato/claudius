@@ -97,22 +97,41 @@ pub fn render_and_write(
 ) -> Result<(Project, Rendered, Written, Verdict)> {
     let project = compose::arrange(bp);
     let r = render::render(&project, &render::Options { stems, ..Default::default() })?;
-    let e = ears.and_then(|f| f(&project, &r));
+    // the MP3 is encoded while the critic listens: both take seconds, and neither needs the other
+    let (audio, e) = std::thread::scope(|s| {
+        let audio = s.spawn(|| write_audio(dir, &r));
+        let e = ears.and_then(|f| f(&project, &r));
+        (audio.join(), e)
+    });
+    let (wav, mp3) = audio.unwrap_or_else(|panic| std::panic::resume_unwind(panic))?;
     let verdict = judge::judge(&project, &r, e);
-    let written = write_folder(dir, bp, &project, &r, &verdict)?;
-    Ok((project, r, written, verdict))
+    write_documents(dir, bp, &project, &r, &verdict)?;
+    Ok((project, r, Written { dir: dir.to_path_buf(), wav, mp3 }, verdict))
 }
 
 /// write a rendered song's folder: song.wav (+ .mp3 when ffmpeg is there), blueprint.json, song.rhai, project.json,
 /// report.json, verdict.json, credits.txt when sampled instruments ask for credit, and stems/ when they were rendered
 /// (32-bit float, since a track can peak above full scale before the master's limiter)
 pub fn write_folder(dir: &Path, bp: &Blueprint, project: &Project, r: &Rendered, verdict: &Verdict) -> Result<Written> {
+    let (wav, mp3) = write_audio(dir, r)?;
+    write_documents(dir, bp, project, r, verdict)?;
+    Ok(Written { dir: dir.to_path_buf(), wav, mp3 })
+}
+
+/// song.wav, and song.mp3 when ffmpeg is there
+fn write_audio(dir: &Path, r: &Rendered) -> Result<(PathBuf, Option<PathBuf>)> {
     std::fs::create_dir_all(dir)?;
-    std::fs::write(dir.join("verdict.json"), serde_json::to_string_pretty(verdict)?)?;
     let wav = dir.join("song.wav");
     audio::save_wav(&wav, &r.master, false)?;
     let mp3 = dir.join("song.mp3");
     let mp3 = audio::wav_to_mp3(&wav, &mp3).ok().map(|_| mp3);
+    Ok((wav, mp3))
+}
+
+/// everything in the folder but the audio
+fn write_documents(dir: &Path, bp: &Blueprint, project: &Project, r: &Rendered, verdict: &Verdict) -> Result<()> {
+    std::fs::create_dir_all(dir)?;
+    std::fs::write(dir.join("verdict.json"), serde_json::to_string_pretty(verdict)?)?;
     std::fs::write(dir.join("blueprint.json"), bp.to_json())?;
     std::fs::write(dir.join("song.rhai"), crate::script::to_script(bp))?;
     std::fs::write(dir.join("project.json"), serde_json::to_string_pretty(project)?)?;
@@ -124,7 +143,7 @@ pub fn write_folder(dir: &Path, bp: &Blueprint, project: &Project, r: &Rendered,
     for (name, s) in &r.stems {
         audio::save_wav(&dir.join("stems").join(format!("{}.wav", slug(name))), s, true)?;
     }
-    Ok(Written { dir: dir.to_path_buf(), wav, mp3 })
+    Ok(())
 }
 
 /// judge an audio file; with the project.json written next to it, the arrangement and theory checks run too

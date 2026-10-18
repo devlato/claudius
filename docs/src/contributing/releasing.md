@@ -58,8 +58,8 @@ its section and adds the generated entries under the headings of the same name.
    `cargo xtask release prepare minor`, which changes three things: the version in `Cargo.toml` (and the
    `version = "..."` of path dependencies between workspace crates, which `cargo add --path` writes), the workspace
    entries in `Cargo.lock`, and `CHANGELOG.md`, where Unreleased becomes `## [0.5.0] - <today>` with the notes from
-   git-cliff. It commits that to the branch `release/v0.5.0` and opens the PR **release: v0.5.0**, with the notes in
-   its description.
+   git-cliff. It commits that to the branch `release/v0.5.0` through GitHub's API, so that GitHub signs the commit
+   (`main` accepts only signed commits), and opens the PR **release: v0.5.0**, with the notes in its description.
 
 2. **Let CI run.** GitHub starts no workflows for a pull request opened with a workflow's own `GITHUB_TOKEN`, so the
    workflow starts CI on the release branch itself (`gh workflow run ci.yml --ref release/v0.5.0`); the checks show
