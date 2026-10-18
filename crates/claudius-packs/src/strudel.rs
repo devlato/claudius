@@ -129,6 +129,31 @@ fn strings(v: &Value) -> Vec<String> {
     }
 }
 
+/// `base` at the commit of `map_url`, when both are in the same GitHub repository and `base` names a branch: a map
+/// pinned to a commit whose `_base` still says `main` would otherwise fetch whatever `main` holds today
+pub fn pin_base(base: &str, map_url: &str) -> String {
+    const RAW: &str = "https://raw.githubusercontent.com/";
+    let (Some(b), Some(m)) = (base.strip_prefix(RAW), map_url.strip_prefix(RAW)) else { return base.to_string() };
+    let b: Vec<&str> = b.splitn(4, '/').collect();
+    let m: Vec<&str> = m.splitn(4, '/').collect();
+    let same_repo = b.len() >= 3 && m.len() >= 3 && b[0].eq_ignore_ascii_case(m[0]) && b[1].eq_ignore_ascii_case(m[1]);
+    if same_repo && is_commit(m[2]) && !is_commit(b[2]) {
+        return format!("{RAW}{}/{}/{}/{}", b[0], b[1], m[2], b.get(3).copied().unwrap_or(""));
+    }
+    base.to_string()
+}
+
+/// whether `url` is a file of a GitHub repository at a commit, so that what it serves cannot change
+pub fn pinned(url: &str) -> bool {
+    url.strip_prefix("https://raw.githubusercontent.com/")
+        .and_then(|rest| rest.split('/').nth(2))
+        .is_some_and(is_commit)
+}
+
+fn is_commit(rev: &str) -> bool {
+    rev.len() == 40 && rev.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
 /// Parse a sample map. `url` is where it came from: without `_base`, values are relative to its directory.
 pub fn parse_map(json: &str, url: &str) -> Result<SampleMap> {
     let v: Value = serde_json::from_str(json).context("sample map is not valid JSON")?;
@@ -188,6 +213,26 @@ pub fn parse_map(json: &str, url: &str) -> Result<SampleMap> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_base_on_a_branch_of_the_maps_repository_follows_the_maps_commit() {
+        let c = "2f3e05c70ab4d73ad053a1467adec89bd27377a0";
+        let map = format!("https://raw.githubusercontent.com/tidalcycles/uzu-drumkit/{c}/strudel.json");
+        let pinned_base = format!("https://raw.githubusercontent.com/tidalcycles/uzu-drumkit/{c}/");
+        assert_eq!(pin_base("https://raw.githubusercontent.com/tidalcycles/uzu-drumkit/main/", &map), pinned_base);
+        assert_eq!(
+            pin_base(
+                "https://raw.githubusercontent.com/felixroos/dough-samples/main/piano/",
+                &map.replace("tidalcycles/uzu-drumkit", "felixroos/dough-samples")
+            ),
+            format!("https://raw.githubusercontent.com/felixroos/dough-samples/{c}/piano/")
+        );
+        // another repository's branch stays as it is, and so is not pinned
+        let other = "https://raw.githubusercontent.com/yaxu/mrid/main/";
+        assert_eq!(pin_base(other, &map), other);
+        assert!(pinned(&pinned_base) && !pinned(other) && !pinned("https://example.com/a/b/c.wav"));
+        assert!(!pinned("https://raw.githubusercontent.com/o/r/0123456789abcdef/x.wav"));
+    }
 
     #[test]
     fn github_shorthand() {

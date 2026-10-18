@@ -36,15 +36,16 @@ websites are hostile, and that whoever holds your claudius token is you.
   `fast`, `slow` and `ply` take factors up to 256, mini-notation is limited in length and nesting, and a song is at
   most 512 bars and 20 minutes long.
 - **Downloads are checked.** The listening models come from pinned revisions on the Hugging Face Hub and are checked
-  against pinned SHA-256 hashes before use. Sample packs come over HTTPS from their authors' hosts and are checked
-  for size; they are audio and are decoded by symphonia, a memory-safe Rust decoder.
+  against pinned SHA-256 hashes before use. Sample packs come over HTTPS: from GitHub repositories at pinned commits,
+  and two archives from their authors' sites, pinned by size and SHA-256. An unpacked archive keeps no symbolic
+  links, so nothing is read through one from elsewhere on your computer. The samples are audio, decoded by symphonia,
+  a memory-safe Rust decoder, or by ffmpeg (below).
 - **Releases are verifiable.** Every release lists SHA-256 sums, and each archive has a build provenance attestation
   you can check with `gh attestation verify <file> --repo devlato/claudius`. The install script checks the sums.
 
 ## Known limits
 
-- Sample pack files are not yet pinned by hash, only by size and source. A compromised pack host could serve
-  different audio.
+- Packs you add yourself (`claudius-packs add-map`) are not pinned: their files are whatever the map's host serves.
 - A token never expires, and one sent as `?token=` can stay in the browser's history and in the logs of a proxy or
   tunnel in front of claudius. Start the server again with a new token to revoke one.
 - `ffmpeg`, when installed, is used to decode formats symphonia cannot read and to write MP3. claudius passes it file

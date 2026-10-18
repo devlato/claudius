@@ -110,7 +110,11 @@ impl Ctx<'_> {
             let cache = crate::cache_dir();
             let name = url.rsplit('/').next().unwrap_or("archive").to_string();
             let archive = cache.join("archives").join(sanitize(&name));
-            fetch::download_file(url, &archive, 0, false).with_context(|| format!("downloading {url}"))?;
+            fetch::download_file(url, &archive, f.size.unwrap_or(0), false)
+                .with_context(|| format!("downloading {url}"))?;
+            if let Some(want) = &f.sha256 {
+                check_archive(&archive, want).with_context(|| format!("{url} is not the archive claudius knows"))?;
+            }
             let dir = cache.join("extract").join(format!("{}-{}", self.pack.name, std::process::id()));
             let _ = std::fs::remove_dir_all(&dir);
             fetch::extract_archive(&archive, &dir)?;
@@ -499,6 +503,17 @@ fn pack_dir(name: &str) -> Result<PathBuf> {
     }
 }
 
+/// an error, and the file deleted, when it is not the one whose SHA-256 the registry pins (its host may have changed it,
+/// or it was altered on the way); a copy in the cache is checked the same way
+fn check_archive(path: &Path, sha256: &str) -> Result<()> {
+    let got = fetch::sha256_file(path)?;
+    if !got.eq_ignore_ascii_case(sha256) {
+        let _ = std::fs::remove_file(path);
+        bail!("its SHA-256 is {got}, and the registry pins {sha256}");
+    }
+    Ok(())
+}
+
 /// Remove an installed pack's folder entirely.
 pub fn remove_dir(name: &str) -> Result<()> {
     let dir = pack_dir(name)?;
@@ -591,6 +606,19 @@ pub fn add_map(spec_str: &str) -> Result<PackIndex> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn an_archive_must_be_the_one_the_registry_pins() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("pack.zip");
+        std::fs::write(&p, b"abc").unwrap();
+        let abc = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+        super::check_archive(&p, abc).unwrap();
+        super::check_archive(&p, &abc.to_uppercase()).unwrap();
+        let e = super::check_archive(&p, &"0".repeat(64)).unwrap_err().to_string();
+        assert!(e.contains(abc), "{e}");
+        assert!(!p.exists(), "a file that does not match is deleted");
+    }
+
     #[test]
     fn pack_names_stay_inside_the_packs_folder() {
         for bad in ["..", ".", "", "a/b", "../x", "/tmp/victim", "a\\b"] {
