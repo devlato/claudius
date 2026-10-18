@@ -55,8 +55,8 @@ websites are hostile, and that whoever holds your claudius token is you.
 
 - **`main` changes only through pull requests.** A ruleset requires every change to arrive as a pull request whose
   checks pass (*ci ok*) on a branch that is up to date, keeps the history linear and signed, and forbids force pushes
-  and deletion, for admins too. Release tags (`v*`) are created only by the release workflow and can never be moved
-  or deleted.
+  and deletion, for admins too. Release tags (`v*`) can never be moved or deleted, and the release workflow refuses
+  a tag that does not point at the commit it builds.
 - **Every pull request is checked** for secrets (gitleaks, over its commits and the whole tree), for known
   vulnerabilities and unwanted licences in the dependencies (cargo-deny; OSV-Scanner every week too), and for unsafe
   workflow patterns (zizmor, actionlint). CodeQL scans the Rust code and the workflows, and OpenSSF Scorecard scores

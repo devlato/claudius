@@ -25,7 +25,7 @@ RELEASE_REVIEWERS=${RELEASE_REVIEWERS:-}
 HOMEPAGE=${HOMEPAGE:-}
 DESCRIPTION=${DESCRIPTION:-}
 TOPICS="music music-production beatmaker audio rust egui wasm mcp strudel rhai"
-# the GitHub Actions app, which runs the workflows: it alone reports "ci ok", and it creates the release tags
+# the GitHub Actions app, which runs the workflows: it alone reports "ci ok"
 ACTIONS_APP=15368
 
 step() {
@@ -165,18 +165,18 @@ upsert_ruleset main <<EOF
 }
 EOF
 
-step "release tags: v* tags are made by the release workflow (or an admin), and never moved or deleted"
+# Creating a tag stays open: the release workflow makes the tag when it publishes, and a repository that belongs to a
+# person, not an organisation, cannot let the GitHub Actions app bypass a ruleset. A published release and its tag
+# cannot change anyway (immutable releases).
+step "release tags: v* tags are never moved or deleted (an admin can, to repair a failed release)"
 upsert_ruleset "release tags" <<EOF
 {
   "name": "release tags",
   "target": "tag",
   "enforcement": "active",
   "conditions": { "ref_name": { "include": ["refs/tags/v*"], "exclude": [] } },
-  "bypass_actors": [
-    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" },
-    { "actor_id": $ACTIONS_APP, "actor_type": "Integration", "bypass_mode": "always" }
-  ],
-  "rules": [{ "type": "creation" }, { "type": "update" }, { "type": "deletion" }]
+  "bypass_actors": [{ "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }],
+  "rules": [{ "type": "update" }, { "type": "deletion" }]
 }
 EOF
 

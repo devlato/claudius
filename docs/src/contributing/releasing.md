@@ -216,7 +216,7 @@ Fine-grained tokens expire, after a year at most. When one has, the job that use
 token and set the secret again.
 
 The repository settings that the release depends on (squash merges with the PR title, the ruleset that requires *ci
-ok* on `main`, the ones that let only the release workflow create `v*` tags and only admins push `hotfix/*`
+ok* on `main`, the ones that keep `v*` tags from being moved or deleted and let only admins push `hotfix/*`
 branches, immutable releases, the three environments, and permission for workflows to open pull requests, which
 `release-pr.yml` needs without `RELEASE_TOKEN`) are made by `scripts/github-setup.sh`, once the repository exists,
 and again once it is public. Running it again is harmless. Two of its variables change how releases work:
