@@ -75,8 +75,8 @@ its section and adds the generated entries under the headings of the same name.
      `CHANGELOG.md` has a section for the version in `Cargo.toml`, and there is no published release for it yet;
    - *web studio* builds the WebAssembly studio once, for every archive;
    - *build* runs `cargo xtask dist --target <target>` on one runner per target (below), on Linux
-     `cargo xtask dist --target <target> --headless` too, and on Windows `scripts/package/windows.ps1`, which makes
-     the installer with WiX;
+     `cargo xtask dist --target <target> --headless` and `scripts/package/linux.sh` too, which makes the `.deb`,
+     `.rpm` and AppImage, and on Windows `scripts/package/windows.ps1`, which makes the installer with WiX;
    - *macOS app* puts the two Mac builds together into claudius.app, a universal app, and its disk image, with
      `scripts/package/macos.sh`, signing and notarizing them when the Apple secrets below are set;
    - *release notes* writes the notes: `cargo xtask release notes 0.5.0` and install instructions;
@@ -105,6 +105,7 @@ away: `cargo xtask release prepare minor && git diff`, then `git checkout -- .`.
 | `claudius-0.5.0-<target>-headless.tar.gz` (Linux) | the same without the studio window, for servers |
 | `claudius-0.5.0-universal-apple-darwin.dmg` | claudius.app, one app for Apple silicon and Intel Macs, to drag to Applications |
 | `claudius-0.5.0-x86_64-pc-windows-msvc.msi` | the Windows installer: the programs on the user's `PATH` and the studio in the Start menu |
+| `claudius-0.5.0-<target>.deb`, `.rpm`, `.AppImage` (Linux) | packages for Debian and Ubuntu, Fedora and its relatives, and any distribution, with the studio in the app menu |
 | `install.sh`, `install.ps1` | the install scripts, which `releases/latest/download/install.sh` points at |
 | `SHA256SUMS` | the SHA-256 of every archive and both install scripts; the install scripts check downloads against it |
 

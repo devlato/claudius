@@ -1,6 +1,7 @@
 # Builds the installable packages, unsigned, on a pull request that changes how they are made, and checks that each
-# one installs and runs: the macOS app in its disk image and the Windows installer (scripts/package/). release.yml
-# makes the same packages for a release, and signs the Mac app when it has the keys.
+# one installs and runs: the macOS app in its disk image, the Windows installer, and the Linux .deb, .rpm and
+# AppImage (scripts/package/). release.yml makes the same packages for a release, and signs the Mac app when it has
+# the keys.
 name: packages
 
 on:
@@ -126,4 +127,52 @@ jobs:
         with:
           name: windows-installer
           path: target/packages/*.msi
+          retention-days: 3
+
+  linux:
+    name: Linux packages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/rust
+        with:
+          cache-key: packages-linux
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: trunk@0.21.14
+      - run: cargo xtask web
+      - run: cargo xtask dist --target x86_64-unknown-linux-gnu --web crates/claudius-ui/dist
+      - name: The packages
+        run: |
+          sudo apt-get install -y -qq --no-install-recommends rpm desktop-file-utils
+          version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
+          sh scripts/package/linux.sh "target/dist/claudius-$version-x86_64-unknown-linux-gnu.tar.gz" target/packages
+      - name: Each one installs and runs
+        working-directory: target/packages
+        run: |
+          # the .deb on Debian 13, with the libraries apt brings for it
+          docker run --rm -v "$PWD:/packages:ro" debian:trixie sh -ec '
+            apt-get update -qq && apt-get install -y -qq /packages/claudius-*.deb > /dev/null
+            claudius --version
+            test -f /usr/share/claudius/web/index.html && test -f /usr/share/applications/claudius-studio.desktop'
+          # the .rpm on Fedora
+          docker run --rm -v "$PWD:/packages:ro" fedora:42 sh -ec '
+            dnf install -y -q /packages/claudius-*.rpm > /dev/null
+            claudius --version
+            test -f /usr/share/claudius/web/index.html'
+          # the AppImage here, extracted instead of mounted
+          for appimage in claudius-*.AppImage; do
+            chmod +x "$appimage"
+            "./$appimage" --appimage-extract-and-run --version
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: linux-packages
+          path: |
+            target/packages/*.deb
+            target/packages/*.rpm
+            target/packages/*.AppImage
           retention-days: 3
