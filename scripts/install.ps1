@@ -1,10 +1,10 @@
 # Installs claudius from a GitHub release on Windows.
 #
-#   irm https://claudius.pages.dev/install.ps1 | iex
+#   irm https://github.com/devlato/claudius/releases/latest/download/install.ps1 | iex
 #
 # With options, run it as a script block:
 #
-#   & ([scriptblock]::Create((irm https://claudius.pages.dev/install.ps1))) -Yes
+#   & ([scriptblock]::Create((irm https://github.com/devlato/claudius/releases/latest/download/install.ps1))) -Yes
 #
 # Options:
 #   -Yes       run `claudius setup` afterwards without asking (the sample packs, about 1.1 GB)
@@ -14,7 +14,7 @@
 #   CLAUDIUS_VERSION       the version to install, e.g. 0.2.0 (default: the latest release)
 #   CLAUDIUS_INSTALL_DIR   where the binaries go (default: %LOCALAPPDATA%\Programs\claudius\bin); the web studio
 #                          goes to <that>\..\share\claudius\web, which is where claudius looks for it
-#   CLAUDIUS_DOWNLOAD_URL  where the archives and SHA256SUMS are (default: the GitHub release)
+#   CLAUDIUS_DOWNLOAD_URL  where the archives and SHA256SUMS are, an https:// address (default: the GitHub release)
 
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'an installer talks to the person running it')]
 param(
@@ -35,7 +35,7 @@ function Add-UserPath([string]$Dir) {
         if ($entries -contains $Dir) {
             return $false
         }
-        $key.SetValue('Path', (@($Dir) + $entries) -join ';', [Microsoft.Win32.RegistryValueKind]::ExpandString)
+        $key.SetValue('Path', ($entries + @($Dir)) -join ';', [Microsoft.Win32.RegistryValueKind]::ExpandString)
     } finally {
         $key.Close()
     }
@@ -63,6 +63,9 @@ function Install-Claudius([bool]$Yes, [bool]$NoSetup) {
     $version = "$env:CLAUDIUS_VERSION" -replace '^v', ''
     if ($env:CLAUDIUS_DOWNLOAD_URL) {
         $base = $env:CLAUDIUS_DOWNLOAD_URL.TrimEnd('/')
+        if (-not $base.StartsWith('https://')) {
+            throw 'CLAUDIUS_DOWNLOAD_URL has to be an https:// address'
+        }
     } elseif ($version) {
         $base = "https://github.com/$repo/releases/download/v$version"
     } else {

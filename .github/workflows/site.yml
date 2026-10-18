@@ -1,9 +1,10 @@
 # Builds the website with `cargo xtask site` (the landing page, the book at /docs/, the studio at /studio/ and the
-# install scripts) and deploys it to the Cloudflare Pages project "claudius": production from main, a preview at
-# https://pr-<number>.claudius.pages.dev for pull requests from this repository.
+# install scripts) and deploys it to Cloudflare Pages: production from main, a preview on the branch pr-<number> for
+# pull requests from this repository.
 #
-# Deploying needs the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets; without them (and in forks) the site is
-# built but not deployed.
+# Deploying needs an address for the site, the repository variables SITE_URL (https://...) and SITE_PROJECT (the
+# Pages project), and the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets; without them (and in forks) the
+# site is built but not deployed.
 name: site
 
 on:
@@ -51,11 +52,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      HAS_CLOUDFLARE: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+      DEPLOY: >-
+        ${{ vars.SITE_URL != '' && vars.SITE_PROJECT != '' &&
+        secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
       BRANCH: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
-      SITE_URL: >-
-        ${{ github.event_name == 'pull_request' && format('https://pr-{0}.claudius.pages.dev', github.event.pull_request.number)
-        || vars.SITE_URL || 'https://claudius.pages.dev' }}
+      SITE_URL: ${{ vars.SITE_URL }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -67,21 +68,24 @@ jobs:
       - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
         with:
           tool: trunk@0.21.14,mdbook@0.5.4
-      - run: cargo xtask site --out target/site --site-url "$SITE_URL"
+      - run: |
+          if [ -n "$SITE_URL" ]; then set -- --site-url "$SITE_URL"; fi
+          cargo xtask site --out target/site "$@"
 
-      - name: No Cloudflare credentials
-        if: env.HAS_CLOUDFLARE != 'true'
+      - name: Not deployed
+        if: env.DEPLOY != 'true'
         run: >-
-          echo "::notice title=site::The site was built but not deployed: CLOUDFLARE_API_TOKEN and
-          CLOUDFLARE_ACCOUNT_ID are not both set (forks and Dependabot get no secrets)."
+          echo "::notice title=site::The site was built but not deployed: it needs the variables SITE_URL and
+          SITE_PROJECT and the secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID (forks and Dependabot get no
+          secrets)."
       - name: Deploy to Cloudflare Pages
         id: deploy
-        if: env.HAS_CLOUDFLARE == 'true'
+        if: env.DEPLOY == 'true'
         uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy target/site --project-name=claudius --branch=${{ env.BRANCH }}
+          command: pages deploy target/site --project-name=${{ vars.SITE_PROJECT }} --branch=${{ env.BRANCH }}
       - name: Summary
         if: steps.deploy.outcome == 'success'
         env:

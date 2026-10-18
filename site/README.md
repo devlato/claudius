@@ -1,6 +1,6 @@
 # site
 
-The landing page at [claudius.pages.dev](https://claudius.pages.dev): plain HTML, CSS and a little JavaScript, with no
+The landing page, for wherever the site is served: plain HTML, CSS and a little JavaScript, with no
 framework and no build step beyond filling in three placeholders. `cargo xtask site` assembles the whole website in
 `target/site`: this folder with its placeholders filled in, the book at `/docs/`, the web studio at `/studio/`, and
 `/install.sh` and `/install.ps1`.
@@ -26,7 +26,7 @@ The players fetch `audio/*.json`, so open the page through a server, not as a fi
 | placeholder | becomes |
 |---|---|
 | `{{version}}` | the workspace version in `Cargo.toml`, e.g. `0.1.0` |
-| `{{site_url}}` | where the site is served, without a trailing slash: `https://claudius.pages.dev` |
+| `{{site_url}}` | where the site is served, without a trailing slash (the repository variable `SITE_URL`) |
 | `{{repo_url}}` | `https://github.com/devlato/claudius` |
 
 `cargo xtask site` replaces them in every text file it copies, `_headers` and `_redirects` included. They appear in
