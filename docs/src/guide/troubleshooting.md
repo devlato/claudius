@@ -114,6 +114,9 @@ claudius-packs: vsco2: ...
 Error: could not install: vsco2 (run again to resume)
 ```
 
+`claudius setup` downloads the listening models even when a pack fails, so the critic has its ears either way; it
+ends with the error, and with how to retry.
+
 Two causes need more than a retry. `set GITHUB_TOKEN if the API rate limit was hit` means GitHub's 60 requests an
 hour without an account ran out: set `GITHUB_TOKEN` to any token. `cannot extract <archive>: ...` means the
 system's `tar` could not unpack the `tr909` zip or the organ's `.tar.xz`; install bsdtar or GNU tar with xz support

@@ -25,7 +25,8 @@ claudius setup    # sample packs and listening models, about 2 GB
 ```
 
 Or download an installer from the [releases page](https://github.com/devlato/claudius/releases): the `.dmg` holds
-claudius.app for macOS, to drag to Applications, and the `.msi` installs claudius on Windows with a Start menu entry.
+claudius.app for macOS, to drag to Applications, the `.msi` installs claudius on Windows with a Start menu entry, and
+the `.deb`, `.rpm` and AppImage are for Linux.
 You can also build it from source; see [install](docs/src/getting-started/install.md).
 
 ## A first look
