@@ -104,7 +104,8 @@ way, with or without `--public`: the Host check refuses browsers, but a program 
 ### The policy
 
 A claudius only you can reach reads and writes wherever your user can, because that is what a local app does. A
-shared claudius (`serve --public`, or `serve --files <dir>`) checks every path it is given against a list of roots,
+shared claudius (`serve --public`, `serve --host` with an address other than loopback, or `serve --files <dir>`)
+checks every path it is given against a list of roots,
 `config::shared_roots()` plus the `--files` folders:
 
 - **Reading** (`config::path_allowed`): the path must exist and, canonicalised (symbolic links and `..` resolved),
@@ -147,7 +148,9 @@ Scripts come from you, from assistants, from files you open and from printed son
 - a pattern query may do 4 million steps of work and make 262,144 events; `*`, `/`, `fast`, `slow` and `ply` take
   factors above 0 and up to 256; a track may play 1,024 notes per bar; mini-notation is limited in length (4,096
   characters), nesting (64), repeats and euclidean steps (256);
-- a song is at most 512 bars and 20 minutes, checked after every script and edit and again before rendering.
+- a song is at most 512 bars and 20 minutes, with at most 64 tracks and 12,000 track-seconds (20 tracks of 10
+  minutes), because a render holds every track in memory; this is checked after every script and edit and again
+  before rendering, where a pattern with several sounds counts as a track for each.
 
 The fuzz targets run arbitrary text through the parser and the script engine every week. The event budget is what
 bounds a query's memory. `track("x", s("bd*100000000"))` is refused while parsing, and the whole `claudius script`

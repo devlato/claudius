@@ -152,9 +152,11 @@ mastering](rendering.md#effects) lists them.
 
 ### Size limits
 
-A song is at most `MAX_BARS` (512) bars and `MAX_SECONDS` (20 minutes) long, because a render holds every track in
-memory at 48 kHz. `Blueprint::check_size` enforces it after every script and edit, and `render::render` refuses a
-longer project.
+A song is at most `MAX_BARS` (512) bars and `MAX_SECONDS` (20 minutes) long, and has at most `MAX_TRACKS` (64)
+tracks and `MAX_TRACK_SECONDS` (12,000, such as 20 tracks of 10 minutes), because a render holds every track in
+memory at 48 kHz, 384 KB a second. `Blueprint::check_size` enforces it after every script and edit, and
+`render::render` refuses a bigger project; it counts the arranged tracks, where a pattern with several sounds is a
+track for each.
 
 ## The project
 

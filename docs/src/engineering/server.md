@@ -122,7 +122,7 @@ undoable change. `cancel` sets a flag those two check between candidates and gen
 
 `Settings::file_roots` is the [file policy](../guide/samples.md#what-a-shared-claudius-may-read-and-write): `None`
 for a claudius only you can reach, `config::shared_roots()` plus the `--files` folders for one started with
-`--public` or `--files`. `readable(path)` guards `load`, `analyze` and `remake` with `config::read_error`, which
+`--public`, `--host` beyond loopback, or `--files`. `readable(path)` guards `load`, `analyze` and `remake` with `config::read_error`, which
 scripts use for `.s(path)` too, so both refuse a path outside the roots with the same words whether or not it
 exists. `config::write_allowed` guards `save`, and opening a blueprint checks every file it plays. [The security
 model](security.md#files) discusses its limits.

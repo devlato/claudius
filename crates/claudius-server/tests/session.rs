@@ -154,6 +154,16 @@ async fn the_http_api_guards_itself() {
     )
     .await;
     assert_eq!(s, StatusCode::OK);
+    let (s, _, _) = call(&locked, get("/api/hello?token=", "localhost")).await;
+    assert_eq!(s, StatusCode::UNAUTHORIZED);
+
+    // a blank token leaves the server shut, not open, and serve refuses to start with one
+    let blank = http::router(app(), &Options { public: true, token: Some(String::new()), ..Default::default() });
+    let (s, _, _) = call(&blank, get("/api/hello?token=", "evil.example")).await;
+    assert_eq!(s, StatusCode::UNAUTHORIZED);
+    assert!(Options { token: Some(" ".into()), ..Default::default() }.check().is_err());
+    assert!(Options { public: true, ..Default::default() }.check().is_err());
+    assert!(Options { public: true, token: Some("s3cret".into()), ..Default::default() }.check().is_ok());
 }
 
 fn sse_json(body: &str) -> serde_json::Value {

@@ -240,19 +240,21 @@ pub(crate) enum Cmd {
     Serve {
         #[command(flatten)]
         app: AppArgs,
-        /// address to listen on (0.0.0.0 for the LAN, with --public). Any address but loopback requires a token:
-        /// without --token, claudius makes one and prints it
+        /// address to listen on (0.0.0.0 for the LAN, with --public). Any address but loopback requires a token
+        /// (without --token, claudius makes one and prints it) and limits file access, as --public does
         #[arg(long, default_value = "127.0.0.1")]
         host: String,
         /// answer requests for any host name (behind a tunnel or on a LAN). Without --token, claudius makes a random
         /// token and prints it
         #[arg(long)]
         public: bool,
-        /// require this token on every request (Authorization: Bearer, or ?token= once in the browser)
+        /// require this token on every request (Authorization: Bearer, or ?token= once in the browser); a blank one
+        /// counts as none
         #[arg(long, env = "CLAUDIUS_TOKEN")]
         token: Option<String>,
         /// a folder commands and scripts may read and write, besides ~/Music/claudius, claudius' caches and the sound
-        /// libraries (repeatable). With --public, or once one is given, file access is limited to these folders
+        /// libraries (repeatable). With --public or --host beyond loopback, or once one is given, file access is
+        /// limited to these folders
         #[arg(long = "files", value_name = "DIR")]
         files: Vec<PathBuf>,
     },
