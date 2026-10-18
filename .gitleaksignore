@@ -1,0 +1,6 @@
+# Findings gitleaks reports in old commits that are not secrets: a full-history scan (gitleaks git) skips them. Each
+# line is a fingerprint, commit:file:rule:line.
+# An example token in a pasted `serve --public` transcript, from a throwaway local server long gone: a token is valid
+# only for the run that made it. The pages now show <token> instead.
+8933c096e8077fc5143e9fda84c4e0140fc0bfc3:docs/src/guide/cli.md:generic-api-key:382
+8933c096e8077fc5143e9fda84c4e0140fc0bfc3:docs/src/engineering/security.md:generic-api-key:95

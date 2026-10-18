@@ -71,17 +71,23 @@ its section and adds the generated entries under the headings of the same name.
 
 4. **The release builds itself.** The merge changes `Cargo.toml` on `main`, which starts `release.yml`:
 
-   - *plan* decides whether this commit is a release: `CHANGELOG.md` has a section for the version in `Cargo.toml`,
-     and there is no published release for it yet;
+   - *plan* decides whether this commit is a release: it is on `main` and is the merge of the release PR,
+     `CHANGELOG.md` has a section for the version in `Cargo.toml`, and there is no published release for it yet;
    - *web studio* builds the WebAssembly studio once, for every archive;
    - *build* runs `cargo xtask dist --target <target>` on one runner per target (below), and on Linux
      `cargo xtask dist --target <target> --headless` too;
-   - *publish* checks every archive against its `.sha256`, writes `SHA256SUMS`, signs a build provenance attestation
-     for the archives, creates the release as a draft with `cargo xtask release notes 0.5.0` and install
-     instructions as its notes, uploads the files, and publishes it, which creates the tag `v0.5.0` on the merge
-     commit;
+   - *release notes* writes the notes: `cargo xtask release notes 0.5.0` and install instructions;
+   - *publish* checks that each build uploaded only its own archives and that they match their `.sha256`, writes
+     `SHA256SUMS` for the archives and the install scripts, signs a build provenance attestation for them, creates
+     the release as a draft, uploads the files, and publishes it, which creates the tag `v0.5.0` on the merge commit;
    - *homebrew tap* updates `Formula/claudius.rb` in `devlato/homebrew-tap`;
    - *site* deploys the website with the new version, changelog and docs.
+
+   No job in `release.yml` restores a cache: everything a release links is built or downloaded (and checked) in
+   that run, so nothing another workflow wrote into the Actions cache can end up in an archive. *publish* and
+   *homebrew tap*, which hold the tokens, run no cargo at all, and run in the environment `release`, which only
+   `main` and the hotfix branches may use. When `RELEASE_REVIEWERS` was given to `scripts/github-setup.sh`, the run
+   waits at *publish* until one of them approves it (*Review deployments* on the run's page).
 
 5. **Check it.** [Verifying a release](#verifying-a-release) below.
 
@@ -94,8 +100,8 @@ away: `cargo xtask release prepare minor && git diff`, then `git checkout -- .`.
 |---|---|
 | `claudius-0.5.0-<target>.tar.gz` (`.zip` on Windows) | the programs, the web studio and the docs that go with them |
 | `claudius-0.5.0-<target>-headless.tar.gz` (Linux) | the same without the studio window, for servers |
-| `claudius-0.5.0-<target>.tar.gz.sha256` | the SHA-256 of that archive, in `sha256sum` format |
-| `SHA256SUMS` | the SHA-256 of every archive; the install scripts check downloads against it |
+| `install.sh`, `install.ps1` | the install scripts, which `releases/latest/download/install.sh` points at |
+| `SHA256SUMS` | the SHA-256 of every archive and both install scripts; the install scripts check downloads against it |
 
 Each archive unpacks into a directory of the same name, laid out the way `claudius` looks for its files:
 
@@ -135,12 +141,15 @@ and models; ffmpeg is optional.
 gh release view v0.5.0
 gh release download v0.5.0 --pattern 'claudius-0.5.0-aarch64-apple-darwin.tar.gz' --pattern SHA256SUMS
 shasum -a 256 --check --ignore-missing SHA256SUMS
-gh attestation verify claudius-0.5.0-aarch64-apple-darwin.tar.gz --repo devlato/claudius
+gh attestation verify claudius-0.5.0-aarch64-apple-darwin.tar.gz --repo devlato/claudius \
+  --signer-workflow devlato/claudius/.github/workflows/release.yml --source-ref refs/heads/main
 ```
 
 The checksum says the file is the one that was uploaded. The attestation says more: that the archive was built by
-`release.yml` in `devlato/claudius`, from a specific commit, on GitHub's runners. `gh attestation verify` checks its
-Sigstore signature and prints the workflow and the commit.
+`release.yml` in `devlato/claudius`, from a specific commit on `main`, on GitHub's runners. `gh attestation verify`
+checks its Sigstore signature and prints the workflow and the commit. Without `--signer-workflow` and
+`--source-ref` it would accept a build by any workflow on any branch of the repository. A hotfix release is built
+from its branch, `--source-ref refs/heads/hotfix/v0.5.1`; the release notes give the command with the right one.
 
 The installers come with the release and are in its checksums, so `curl ... releases/latest/download/install.sh`
 now installs the new version:
@@ -152,17 +161,20 @@ shasum -a 256 --check --ignore-missing SHA256SUMS
 
 ## The website
 
-`site.yml` builds the site with `cargo xtask site` and deploys `target/site` to a Cloudflare Pages project, once the
-site has an address: the repository variable `SITE_URL` (`gh variable set SITE_URL --body https://claudius.example`)
-and the project's name in `SITE_PROJECT`, with the Cloudflare secrets below. Until then it builds and checks the site
-and deploys nothing. It deploys:
+`site.yml` builds the site with `cargo xtask site`, without a cache or secrets, and hands it to a deploy job that
+does nothing but upload it to a Cloudflare Pages project, in the environment `site`. It deploys once the site has an
+address: the repository variable `SITE_URL` (`gh variable set SITE_URL --body https://claudius.example`) and the
+project's name in `SITE_PROJECT`, with the Cloudflare secrets below. Until then it builds and checks the site and
+deploys nothing. It deploys `main`:
 
 - after a release, called by `release.yml`;
 - on pushes to `main` that change `docs/`, `site/`, `CHANGELOG.md` or the install scripts, so the docs follow
   `main` (except the merge of a release PR, which waits for the release, so that the site never shows a version
   that cannot be downloaded yet);
-- for pull requests from this repository, as a preview on the project's `pr-<number>` branch;
 - by hand: `gh workflow run site.yml`.
+
+Pull requests build the site and deploy nothing: a preview would run the Cloudflare token next to a branch nobody
+has reviewed yet.
 
 `cargo xtask site` fills in `{{version}}` (from `Cargo.toml`), `{{site_url}}` and `{{repo_url}}` in the files of
 `site/`. The install commands on the site point at the release's own `install.sh` and `install.ps1`, so they work
@@ -170,17 +182,20 @@ wherever the site is served.
 
 ## Secrets and settings
 
-| secret | used by | without it |
-|---|---|---|
-| `CLOUDFLARE_API_TOKEN` | `site.yml` | the site is built but not deployed (a notice says so) |
-| `CLOUDFLARE_ACCOUNT_ID` | `site.yml` | the same |
-| `HOMEBREW_TAP_TOKEN` | `release.yml` | the Homebrew formula is not updated |
-| `RELEASE_TOKEN` (optional) | `release-pr.yml` | the workflow opens the release PR with its own token and starts CI itself |
+| secret | environment | used by | without it |
+|---|---|---|---|
+| `CLOUDFLARE_API_TOKEN` | `site` | `site.yml` | the site is built but not deployed (a notice says so) |
+| `CLOUDFLARE_ACCOUNT_ID` | `site` | `site.yml` | the same |
+| `HOMEBREW_TAP_TOKEN` | `release` | `release.yml` | the Homebrew formula is not updated |
+| `RELEASE_TOKEN` (optional) | `release-pr` | `release-pr.yml` | the workflow opens the release PR with its own token and starts CI itself |
 
-Set each one with `gh secret set <NAME> --repo devlato/claudius`, which reads the value from standard input.
+Each secret lives in an environment, not in the repository, so it reaches only the job that needs it, and only when
+that job runs on `main` (or, for `release`, a hotfix branch): a workflow pushed to some other branch cannot read it.
+Set each one with `gh secret set <NAME> --repo devlato/claudius --env <environment>`, which reads the value from
+standard input.
 
 **Cloudflare.** In the Cloudflare dashboard, *My Profile*, *API Tokens*, *Create Token*: a custom token with the
-permission *Account*, *Cloudflare Pages*, *Edit*, for your account. The account ID is on the *Workers & Pages*
+permission *Account*, *Cloudflare Pages*, *Edit*, for your account only, with an expiry date. The account ID is on the *Workers & Pages*
 overview. The Pages project has to exist before the first deploy. Its name is also its address,
 `<name>.pages.dev`, and has to be free, so pick it first, then tell the workflows about it:
 
@@ -200,9 +215,19 @@ Read and write*. A GitHub App token works as well.
 Fine-grained tokens expire, after a year at most. When one has, the job that uses it fails with a 401; make a new
 token and set the secret again.
 
-The repository settings that the release depends on (squash merges with the PR title, branch protection that
-requires *ci ok*, and permission for workflows to open pull requests, which `release-pr.yml` needs) are made by
-`scripts/github-setup.sh`, once, when the repository is created. Running it again is harmless.
+The repository settings that the release depends on (squash merges with the PR title, the ruleset that requires *ci
+ok* on `main`, the ones that keep `v*` tags from being moved or deleted and let only admins push `hotfix/*`
+branches, immutable releases, the three environments, and permission for workflows to open pull requests, which
+`release-pr.yml` needs without `RELEASE_TOKEN`) are made by `scripts/github-setup.sh`, once the repository exists,
+and again once it is public. Running it again is harmless. Two of its variables change how releases work:
+
+- `RELEASE_REVIEWERS=devlato` makes every release wait for that person's approval before *publish* runs. Without it,
+  merging a release PR releases.
+- `REVIEWS=1` requires an approving review on every pull request. It also stops workflows from opening (and so from
+  approving) pull requests, so `release-pr.yml` then needs `RELEASE_TOKEN`.
+
+An approval only means a person looked if the person is the only one holding their token. An agent that works with
+the maintainer's own `gh` login can approve as the maintainer; give agents a token or an account of their own.
 
 ## Homebrew
 
@@ -240,7 +265,7 @@ gh release edit v0.4.3 --latest         # releases/latest points at the previous
 ```
 
 then revert the formula commit in `devlato/homebrew-tap`, and roll the site back in the Cloudflare dashboard
-(*Workers & Pages*, *claudius*, *Deployments*, *Rollback* on the deployment before). The fix itself goes out as the
+(*Workers & Pages*, the project, *Deployments*, *Rollback* on the deployment before). The fix itself goes out as the
 next patch release.
 
 ## Hotfix releases
@@ -259,6 +284,7 @@ gh workflow run ci.yml --ref hotfix/v0.5.1          # wait for "ci ok"
 gh workflow run release.yml --ref hotfix/v0.5.1
 ```
 
-The release is built and tagged on the hotfix branch; the site is only deployed from `main`. Then bring the
+Only admins can create and push `hotfix/*` branches (a ruleset), and `release.yml` releases from no other branch
+but `main`. The release is built and tagged on the hotfix branch; the site is only deployed from `main`. Then bring the
 version and the changelog back to `main`: open a pull request that cherry-picks the release commit, keeping
 0.5.1's section under Unreleased.

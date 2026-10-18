@@ -1,0 +1,10 @@
+#!/bin/sh
+# Quick checks on what is about to be committed: the formatting, and a secret scan of the staged changes.
+# Turn the hooks on once per clone: git config core.hooksPath .githooks
+set -eu
+cargo fmt --all --check
+if command -v gitleaks >/dev/null 2>&1; then
+    gitleaks git --pre-commit --staged --redact --no-banner --config .gitleaks.toml
+else
+    echo "warning: gitleaks is not installed, so the staged changes were not checked for secrets (brew install gitleaks)" >&2
+fi

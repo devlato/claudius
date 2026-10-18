@@ -63,6 +63,8 @@ checks the builds without each of them, so a gated path cannot stop compiling un
 | [git-cliff](https://git-cliff.org) | turns commit messages into release notes (`cliff.toml`) |
 | [lychee](https://lychee.cli.rs) | checks the links between the pages of the built site |
 | [actionlint](https://github.com/rhysd/actionlint), [shellcheck](https://www.shellcheck.net) | check the workflows and the scripts in `scripts/` |
+| [gitleaks](https://github.com/gitleaks/gitleaks) | finds secrets in commits before they leave your computer (`.gitleaks.toml`) |
+| [osv-scanner](https://google.github.io/osv-scanner/) | checks the lockfiles against known vulnerabilities (`osv-scanner.toml`) |
 | Node.js 24 | runs the website's smoke test (Playwright) |
 
 All of them have prebuilt binaries. With [cargo-binstall](https://github.com/cargo-bins/cargo-binstall), which
@@ -75,8 +77,17 @@ cargo binstall trunk cargo-nextest mdbook cargo-deny typos-cli git-cliff lychee
 On macOS, Homebrew has all of them too:
 
 ```sh
-brew install trunk cargo-nextest mdbook cargo-deny typos-cli git-cliff lychee actionlint shellcheck node
+brew install trunk cargo-nextest mdbook cargo-deny typos-cli git-cliff lychee actionlint shellcheck node gitleaks osv-scanner
 ```
+
+Then turn on the repository's git hooks, once per clone:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+`pre-commit` checks the formatting and scans the staged changes for secrets with gitleaks; `pre-push` refuses a
+push to `main`, which changes only through pull requests.
 
 ## Building each part
 
@@ -126,6 +137,7 @@ and the examples in the docs. CI runs more; when you changed the matching part, 
 | the docs or the site | `cargo xtask site`, then `lychee --offline --include-fragments --root-dir "$PWD/target/site" 'target/site/**/*.html'` for the links, and `npm ci && npx playwright test` in `site/` |
 | dependencies | `cargo deny check` |
 | anything with words in it | `typos` |
-| workflows or scripts | `actionlint` and `shellcheck scripts/*.sh` |
+| workflows or scripts | `actionlint` and `shellcheck scripts/*.sh scripts/ci/*.sh .githooks/*` |
+| a lockfile | `osv-scanner scan source --config osv-scanner.toml --lockfile Cargo.lock --lockfile site/package-lock.json` |
 | benchmarks | `cargo bench --no-run` |
 | code that the Intel Mac build compiles | `rustup target add x86_64-apple-darwin`, then `cargo check --target x86_64-apple-darwin -p claudius-cli --no-default-features --features studio` (CI's `intel mac build` job) |
