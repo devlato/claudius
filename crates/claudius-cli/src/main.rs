@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
-use std::path::PathBuf;
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -91,8 +92,23 @@ fn given_token(token: Option<String>) -> Option<String> {
     token.map(|t| t.trim().to_owned()).filter(|t| !t.is_empty())
 }
 
+/// the arguments, with `studio` when claudius was opened as a Mac app: Finder starts the program inside claudius.app
+/// with no arguments (old macOS adds `-psn_...`), where in a terminal the same command prints the help
+fn app_args(mut args: Vec<OsString>, exe: Option<&Path>) -> Vec<OsString> {
+    let from_finder = args.iter().skip(1).all(|a| a.to_string_lossy().starts_with("-psn_"));
+    let in_app = exe.is_some_and(|e| {
+        e.parent().is_some_and(|d| d.ends_with("Contents/MacOS"))
+            && e.ancestors().any(|a| a.extension().is_some_and(|x| x == "app"))
+    });
+    if cfg!(target_os = "macos") && from_finder && in_app {
+        args.truncate(1);
+        args.push("studio".into());
+    }
+    args
+}
+
 fn main() -> Result<()> {
-    let cli = Cli::parse();
+    let cli = Cli::parse_from(app_args(std::env::args_os().collect(), std::env::current_exe().ok().as_deref()));
     match cli.cmd {
         Cmd::Make { genre, seed, bpm, key, short, stems, samples, sound, sample, loops, ears, out } => {
             let g = genres::get(&genre)?;
@@ -516,6 +532,19 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn opened_as_a_mac_app_it_starts_the_studio() {
+        let app = std::path::Path::new("/Applications/claudius.app/Contents/MacOS/claudius");
+        let args = |a: &[&str]| a.iter().map(std::ffi::OsString::from).collect::<Vec<_>>();
+        let studio = if cfg!(target_os = "macos") { args(&["claudius", "studio"]) } else { args(&["claudius"]) };
+        assert_eq!(super::app_args(args(&["claudius"]), Some(app)), studio);
+        assert_eq!(super::app_args(args(&["claudius", "-psn_0_12345"]), Some(app)), studio);
+        // in a terminal, or with arguments, nothing changes
+        assert_eq!(super::app_args(args(&["claudius", "make"]), Some(app)), args(&["claudius", "make"]));
+        let installed = std::path::Path::new("/Users/me/.local/bin/claudius");
+        assert_eq!(super::app_args(args(&["claudius"]), Some(installed)), args(&["claudius"]));
+    }
+
     #[test]
     fn a_blank_token_is_no_token() {
         assert_eq!(super::given_token(Some(String::new())), None);

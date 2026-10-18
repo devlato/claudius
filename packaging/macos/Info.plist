@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- claudius.app's Info.plist; scripts/package/macos.sh fills in {{version}} -->
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleDisplayName</key>
+  <string>claudius</string>
+  <key>CFBundleExecutable</key>
+  <string>claudius</string>
+  <key>CFBundleIconFile</key>
+  <string>claudius</string>
+  <key>CFBundleIdentifier</key>
+  <string>io.github.devlato.claudius</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>claudius</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>{{version}}</string>
+  <key>CFBundleVersion</key>
+  <string>{{version}}</string>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.music</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>11.0</string>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <key>NSHumanReadableCopyright</key>
+  <string>MIT licence. The sample packs and listening models it downloads have their own.</string>
+</dict>
+</plist>

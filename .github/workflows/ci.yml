@@ -324,7 +324,7 @@ jobs:
       - name: actionlint
         run: actionlint -color
       - name: shellcheck
-        run: shellcheck scripts/*.sh scripts/ci/*.sh .githooks/*
+        run: shellcheck scripts/*.sh scripts/ci/*.sh scripts/package/*.sh .githooks/*
       - name: PSScriptAnalyzer
         shell: pwsh
         run: |

@@ -24,7 +24,9 @@ irm https://github.com/devlato/claudius/releases/latest/download/install.ps1 | i
 claudius setup    # sample packs and listening models, about 2 GB
 ```
 
-Or build it from source; see [install](docs/src/getting-started/install.md).
+On a Mac you can install the app instead: the `.dmg` on the [releases page](https://github.com/devlato/claudius/releases)
+holds claudius.app, to drag to Applications. Or build it from source; see
+[install](docs/src/getting-started/install.md).
 
 ## A first look
 

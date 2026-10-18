@@ -76,6 +76,8 @@ its section and adds the generated entries under the headings of the same name.
    - *web studio* builds the WebAssembly studio once, for every archive;
    - *build* runs `cargo xtask dist --target <target>` on one runner per target (below), and on Linux
      `cargo xtask dist --target <target> --headless` too;
+   - *macOS app* puts the two Mac builds together into claudius.app, a universal app, and its disk image, with
+     `scripts/package/macos.sh`, signing and notarizing them when the Apple secrets below are set;
    - *release notes* writes the notes: `cargo xtask release notes 0.5.0` and install instructions;
    - *publish* checks that each build uploaded only its own archives and that they match their `.sha256`, writes
      `SHA256SUMS` for the archives and the install scripts, signs a build provenance attestation for them, creates
@@ -100,6 +102,7 @@ away: `cargo xtask release prepare minor && git diff`, then `git checkout -- .`.
 |---|---|
 | `claudius-0.5.0-<target>.tar.gz` (`.zip` on Windows) | the programs, the web studio and the docs that go with them |
 | `claudius-0.5.0-<target>-headless.tar.gz` (Linux) | the same without the studio window, for servers |
+| `claudius-0.5.0-universal-apple-darwin.dmg` | claudius.app, one app for Apple silicon and Intel Macs, to drag to Applications |
 | `install.sh`, `install.ps1` | the install scripts, which `releases/latest/download/install.sh` points at |
 | `SHA256SUMS` | the SHA-256 of every archive and both install scripts; the install scripts check downloads against it |
 
@@ -188,6 +191,8 @@ wherever the site is served.
 | `CLOUDFLARE_ACCOUNT_ID` | `site` | `site.yml` | the same |
 | `HOMEBREW_TAP_TOKEN` | `release` | `release.yml` | the Homebrew formula is not updated |
 | `RELEASE_TOKEN` (optional) | `release-pr` | `release-pr.yml` | the workflow opens the release PR with its own token and starts CI itself |
+| `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD` | `release` | `release.yml` | the Mac app is signed ad hoc, and macOS asks before opening it |
+| `MACOS_NOTARY_KEY`, `MACOS_NOTARY_KEY_ID`, `MACOS_NOTARY_ISSUER` | `release` | `release.yml` | the Mac app is signed but not notarized, so macOS still asks |
 
 Each secret lives in an environment, not in the repository, so it reaches only the job that needs it, and only when
 that job runs on `main` (or, for `release`, a hotfix branch): a workflow pushed to some other branch cannot read it.
@@ -204,6 +209,16 @@ CLOUDFLARE_API_TOKEN=... npx wrangler pages project create <name> --production-b
 gh variable set SITE_PROJECT --body <name>
 gh variable set SITE_URL --body https://<name>.pages.dev # or the custom domain you add to the project
 ```
+
+**Apple.** Both need a membership of the [Apple Developer Program](https://developer.apple.com/programs/). In
+Xcode, *Settings*, *Accounts*, *Manage Certificates*, add a **Developer ID Application** certificate, then export it
+from Keychain Access as a `.p12` file with a password: `MACOS_CERTIFICATE` is the file in base64
+(`base64 -i developer-id.p12 | gh secret set MACOS_CERTIFICATE --repo devlato/claudius --env release`), and
+`MACOS_CERTIFICATE_PASSWORD` its password. For notarization, in [App Store Connect](https://appstoreconnect.apple.com),
+*Users and Access*, *Integrations*, *Team Keys*, make a key with the *Developer* role: `MACOS_NOTARY_KEY` is the text
+of the `.p8` file it downloads, `MACOS_NOTARY_KEY_ID` its key ID, and `MACOS_NOTARY_ISSUER` the issuer ID above the
+list. With all five, the *macOS app* job signs the app and its disk image with the hardened runtime, has Apple
+notarize both, and staples the tickets to them, so the app opens without a warning.
 
 **Homebrew.** Create the repository `devlato/homebrew-tap` (a README is enough). Then a fine-grained personal
 access token (GitHub, *Settings*, *Developer settings*, *Fine-grained tokens*) for that repository only, with

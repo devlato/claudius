@@ -1,6 +1,25 @@
 # Install
 
-## macOS and Linux
+## The Mac app
+
+Download `claudius-<version>-universal-apple-darwin.dmg` from the [latest
+release](https://github.com/devlato/claudius/releases/latest), open it, and drag **claudius** onto **Applications**.
+It runs on Macs with Apple silicon or Intel and macOS 11 or later, and opening it opens [the studio](studio.md).
+
+Until the releases are signed with an Apple Developer ID, macOS says it could not verify claudius the first time you
+open it. Click **Done**, open **System Settings**, **Privacy & Security**, and click **Open Anyway** next to the line
+about claudius. macOS asks once more, and then remembers.
+
+The app holds the command-line programs too. To use them in a terminal, and to download the sounds and the ears
+(below), link them into a folder on your `PATH`:
+
+```sh
+mkdir -p ~/.local/bin
+ln -s /Applications/claudius.app/Contents/MacOS/claudius /Applications/claudius.app/Contents/MacOS/claudius-packs ~/.local/bin/
+claudius setup
+```
+
+## The command line: macOS and Linux
 
 ```sh
 curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh | sh
@@ -90,6 +109,9 @@ A `claudius` built from a checkout finds the web studio in that checkout. The [d
 setup](../contributing/setup.md) covers everything else.
 
 ## Uninstall
+
+The Mac app: drag claudius from Applications to the Bin, and delete the links in `~/.local/bin` if you made them.
+The command-line install:
 
 ```sh
 rm ~/.local/bin/claudius ~/.local/bin/claudius-packs
