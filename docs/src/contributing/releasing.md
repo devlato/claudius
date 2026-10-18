@@ -200,9 +200,10 @@ Read and write*. A GitHub App token works as well.
 Fine-grained tokens expire, after a year at most. When one has, the job that uses it fails with a 401; make a new
 token and set the secret again.
 
-The repository settings that the release depends on (squash merges with the PR title, branch protection that
-requires *ci ok*, and permission for workflows to open pull requests, which `release-pr.yml` needs) are made by
-`scripts/github-setup.sh`, once, when the repository is created. Running it again is harmless.
+The repository settings that the release depends on (squash merges with the PR title, the ruleset that requires *ci
+ok* on `main`, the one that lets only the release workflow create `v*` tags, immutable releases, and permission for
+workflows to open pull requests, which `release-pr.yml` needs) are made by `scripts/github-setup.sh`, once the
+repository exists, and again once it is public. Running it again is harmless.
 
 ## Homebrew
 

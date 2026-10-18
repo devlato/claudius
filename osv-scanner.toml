@@ -1,0 +1,10 @@
+# Advisories OSV-Scanner reports that are notices, not vulnerabilities. cargo-deny tracks the same ones (deny.toml);
+# each stays until the crate that pulls it in moves on.
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2024-0436"
+reason = "paste is unmaintained (no known vulnerability): a compile-time macro that tokenizers, earshot's tokenizer, uses"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0249"
+reason = "smartstring is unmaintained (no known vulnerability): Rhai's string type, which claudius' scripts run on"

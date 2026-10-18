@@ -21,7 +21,8 @@ websites are hostile, and that whoever holds your claudius token is you.
   name, which stops DNS-rebinding attacks from web pages. Commands must be JSON, so a web page cannot send them with
   a plain form post, and cross-origin requests are allowed only from `localhost` pages.
 - **Sharing it.** `claudius serve --public` accepts other host names (a tunnel, your LAN) and always requires a
-  token: the one you give with `--token`, or a random 128-bit one it makes and prints when you give none. The token
+  token: the one you give with `--token`, or a random 128-bit one it makes and prints when you give none. Listening
+  on any address but loopback (`--host`) requires one the same way. The token
   goes on every request, as `Authorization: Bearer` or once as `?token=` in the browser, which sets an HttpOnly,
   SameSite=Strict cookie (also `Secure` when the request came through https, as tunnels report with
   `X-Forwarded-Proto`). Tokens are compared in constant time.
@@ -43,6 +44,23 @@ websites are hostile, and that whoever holds your claudius token is you.
   computer. The samples are audio, decoded by symphonia, a memory-safe Rust decoder, or by ffmpeg (below).
 - **Releases are verifiable.** Every release lists SHA-256 sums, and each archive has a build provenance attestation
   you can check with `gh attestation verify <file> --repo devlato/claudius`. The install script checks the sums.
+
+## How the code gets here
+
+- **`main` changes only through pull requests.** A ruleset requires every change to arrive as a pull request whose
+  checks pass (*ci ok*) on a branch that is up to date, keeps the history linear and signed, and forbids force pushes
+  and deletion, for admins too. Release tags (`v*`) are created only by the release workflow and can never be moved
+  or deleted.
+- **Every pull request is checked** for secrets (gitleaks, over its commits and the whole tree), for known
+  vulnerabilities and unwanted licences in the dependencies (cargo-deny; OSV-Scanner every week too), and for unsafe
+  workflow patterns (zizmor, actionlint). CodeQL scans the Rust code and the workflows, and OpenSSF Scorecard scores
+  the repository's practices. The crates forbid `unsafe` code.
+- **Workflows run what was reviewed.** Every action is pinned to a commit, and the repository allows only GitHub's
+  own actions and a short list of others. Tools CI downloads are pinned and checked against their SHA-256. The
+  default token is read-only, and a pull request from a fork runs nothing until a maintainer approves it.
+- **Releases cannot change once published**, and their archives carry the SHA-256 sums and attestations above.
+
+`scripts/github-setup.sh` makes these settings, so they are written down and can be checked.
 
 ## Known limits
 

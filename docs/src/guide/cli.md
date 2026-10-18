@@ -379,7 +379,7 @@ or another program (--port picks another)`.
 ```text
 $ claudius serve --public --port 7920
 claudius at http://127.0.0.1:7920: web UI at /, API at /api, MCP at /mcp (token required)
-shared with a new token: open http://127.0.0.1:7920/?token=265f6449352030ce55bd79c3f4179c65 (through your tunnel, its address with ?token=265f6449352030ce55bd79c3f4179c65), or send Authorization: Bearer 265f6449352030ce55bd79c3f4179c65. --token sets your own.
+shared with a new token: open http://127.0.0.1:7920/?token=<token> (through your tunnel, its address with ?token=<token>), or send Authorization: Bearer <token>. --token sets your own.
 ```
 
 The token is new at every start; pass `--token` to keep one across restarts, as an assistant's configuration needs.

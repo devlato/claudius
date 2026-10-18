@@ -1,0 +1,11 @@
+# gitleaks' own rules, plus what this repository knows is not a secret. CI scans every pull request's commits and the
+# whole tree (ci.yml, the secrets job); `.githooks/pre-commit` scans staged changes.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "the SHA-256 pins of the models earshot downloads: public hashes of public files, not keys"
+paths = ['''crates/earshot/src/models\.rs''']
+regexTarget = "match"
+regexes = ['''"[0-9a-f]{64}"''']
+condition = "AND"
