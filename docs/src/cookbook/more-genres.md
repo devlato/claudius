@@ -50,7 +50,7 @@ Why:
   174 BPM. Anything under 90 seconds would cost form points.
 
 ```text
-  ears: 'drum and bass music' z +3.4 (closest confusion 'techno music' +2.7); production z +1.1 vs 'a low quality recording with hiss' +0.3; p_real 0.81
+  ears: 'drum and bass music' z +3.4 (closest confusion 'techno music' +2.7); production z +1.1 vs 'a low quality recording with hiss' +0.3; p_real 0.76
         sounds like: drum and bass music, energetic and driving music, synthwave music, inspirational corporate background music
   verdict: 93/100 (arc 0.96, genre 0.88, mix 0.99, production 0.72, theory 1.00). Fix first: dull 4-8 kHz: hats, claps and snare lack bite (presence -26.5 dB, healthy from -26)
 ```
@@ -110,9 +110,9 @@ Why:
   rather than DJ-shaped.
 
 ```text
-  ears: 'synthwave music' z +3.5 (closest confusion 'upbeat corporate pop music' +3.0); production z +0.5 vs 'a cheap synthesized beep' +0.3; p_real 0.66
+  ears: 'synthwave music' z +3.5 (closest confusion 'upbeat corporate pop music' +3.0); production z +0.5 vs 'a cheap synthesized beep' +0.3; p_real 0.61
         sounds like: synthwave music, inspirational corporate background music, uplifting and hopeful music, upbeat corporate pop music
-  verdict: 90/100 (arc 0.95, genre 0.87, mix 1.00, production 0.55, theory 1.00). Fix first: production reads close to 'a cheap synthesized beep' (z +0.3) vs professionally mixed (z +0.5)
+  verdict: 90/100 (arc 0.95, genre 0.87, mix 1.00, production 0.55, theory 1.00). Fix first: sounds about as much like a cheap synth as a professional mix: sampled instruments in place of synth patches usually read better
 ```
 
 The ears' worst flaw is "a cheap synthesized beep", which for synthwave is half the point. A sampled `string_ensemble`
@@ -171,9 +171,9 @@ Why:
   thin low end at once.
 
 ```text
-  ears: 'future bass music' z +2.4 (closest confusion 'dubstep music' +2.8); production z +1.1 vs 'a low quality recording with hiss' +0.3; p_real 0.55
+  ears: 'future bass music' z +2.4 (closest confusion 'dubstep music' +2.8); production z +1.1 vs 'a low quality recording with hiss' +0.3; p_real 0.53
         sounds like: synthwave music, hip hop beat with heavy bass, drum and bass music, techno music
-  verdict: 85/100 (arc 0.96, genre 0.41, mix 0.96, production 0.70, theory 1.00). Fix first: fizzy top end (air -14.8 dB, healthy up to -17); reads as 'dubstep music' (z +2.8) more than 'future bass music' (z +2.4)
+  verdict: 85/100 (arc 0.96, genre 0.41, mix 0.96, production 0.70, theory 1.00). Fix first: fizzy top end (air -14.8 dB, healthy up to -17); sounds more like 'dubstep music' than 'future bass music'
 ```
 
 Future bass is the style the ears are least sure of: it reads close to dubstep and synthwave, which share its

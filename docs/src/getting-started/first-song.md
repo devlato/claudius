@@ -45,9 +45,9 @@ Crimson Tide — house at 124 BPM in G dorian, 64 bars (2:04)
   form: intro 8 | groove 16 | break 8 | drop 24 | outro 8
   tracks: kick (sampled bd (tr909:bd)), clap (sampled cp (tr909:cp)), hat (sampled hh (tr909:hh)), ohat (sampled oh (tr909:oh)), shaker (shaker cut from 'Cosmic Harmony Shaker' (Apple Loops)), perc (sampled rim (tr909:rim)), bass (synth patch 'saw_bass'), chords (synth patch 'stab'), pad (synth patch 'warm_pad'), lead (synth patch 'pluck'), arp (synth patch 'bell'), crash (synth crash), riser (synth riser), impact (synth impact), downlifter (synth downlifter), reverse_crash (synth reverse_crash)
   master: -10.0 LUFS, true peak -1.0 dBTP (pre-master -9.3 LUFS); done in 24.2 s
-  ears: 'house music' z +3.2 (closest confusion 'techno music' +3.7); production z +1.6 vs 'a low quality recording with hiss' +1.7; p_real 0.77
+  ears: 'house music' z +3.2 (closest confusion 'techno music' +3.7); production z +1.6 vs 'a low quality recording with hiss' +1.7; p_real 0.74
         sounds like: techno music, drum and bass music, tech house music, house music
-  verdict: 84/100 (arc 0.92, genre 0.58, mix 1.00, production 0.47, theory 1.00). Fix first: production reads close to 'a low quality recording with hiss' (z +1.7) vs professionally mixed (z +1.6); reads as 'techno music' (z +3.7) more than 'house music' (z +3.2)
+  verdict: 84/100 (arc 0.92, genre 0.58, mix 1.00, production 0.47, theory 1.00). Fix first: sounds about as much like a hissy recording as a professional mix: noise-built sounds (hats, shakers, risers) and long reverbs are the usual cause; sounds more like 'techno music' than 'house music'
   wrote out/house-crimson-tide-9/song.mp3
 ```
 
@@ -62,8 +62,15 @@ Open `out/house-crimson-tide-9/song.mp3` and listen. Reading the summary while i
 - **form**: the sections and their lengths in bars. The drop is the loud part in the middle.
 - **tracks**: every part and the sound playing it: a real Roland TR-909 for most of the drums, synthesizers for bass,
   chords, pad, lead and arpeggio, and the transition effects at the end.
-- **verdict**: the critic's score out of 100 and what it would fix first. [Listening, judging,
-  finishing](../learn/basics/finishing.md) explains every part of it.
+- **master**: how loud the finished song is, in LUFS (the loudness measure streaming services use), and its highest
+  peak. claudius masters a song to the loudness its style usually has.
+- **ears** and **sounds like**: what the listening models hear. The first reading is how clearly the song sounds like
+  house next to the style it is most often taken for, here techno (2.5 is a plausible reading, 3 a strong one); the
+  second compares "professionally mixed" with the closest of six typical flaws. `p_real` is the models' guess that
+  this is a real recording, reported and not scored. These are a machine's impressions: hints, not rules.
+- **verdict**: the critic's score out of 100, and the issues that cost the most, each with where it usually comes
+  from. This song sounds about as much like a hissy recording as a professional mix, and a little more like techno
+  than house. [Listening, judging, finishing](../learn/basics/finishing.md) explains every part of it.
 
 The folder holds the song (`song.mp3`, and `song.wav` in 24-bit), the song's full description (`blueprint.json`),
 the arranged timeline (`project.json`), the critic's report (`verdict.json`) and credits for the recorded
@@ -95,9 +102,9 @@ Crimson Tide — house at 122 BPM in G dorian, 72 bars (2:22)
   form: intro 8 | groove 16 | break 8 | drop 32 | outro 8
   tracks: kick (sampled bd (tr909:bd)), clap (sampled cp (tr909:cp)), hat (sampled hh (tr909:hh)), ohat (sampled oh (tr909:oh)), shaker (shaker cut from 'Cosmic Harmony Shaker' (Apple Loops)), perc (sampled rim (tr909:rim)), bass (synth patch 'saw_bass'), chords (sampled piano (salamander:piano)), pad (synth patch 'warm_pad'), lead (synth patch 'pluck'), arp (synth patch 'bell'), crash (synth crash), riser (synth riser), impact (synth impact), downlifter (synth downlifter), reverse_crash (synth reverse_crash)
   master: -10.1 LUFS, true peak -1.0 dBTP (pre-master -9.3 LUFS); done in 22.4 s
-  ears: 'house music' z +3.4 (closest confusion 'techno music' +3.7); production z +1.6 vs 'a low quality recording with hiss' +1.6; p_real 0.80
+  ears: 'house music' z +3.4 (closest confusion 'techno music' +3.7); production z +1.6 vs 'a low quality recording with hiss' +1.6; p_real 0.75
         sounds like: techno music, tech house music, house music, drum and bass music
-  verdict: 85/100 (arc 0.92, genre 0.63, mix 1.00, production 0.49, theory 1.00). Fix first: production reads close to 'a low quality recording with hiss' (z +1.6) vs professionally mixed (z +1.6); reads as 'techno music' (z +3.7) more than 'house music' (z +3.4)
+  verdict: 85/100 (arc 0.92, genre 0.63, mix 1.00, production 0.49, theory 1.00). Fix first: sounds about as much like a hissy recording as a professional mix: noise-built sounds (hats, shakers, risers) and long reverbs are the usual cause; sounds more like 'techno music' than 'house music'
   wrote out/house-crimson-tide-9/song.mp3
 ```
 

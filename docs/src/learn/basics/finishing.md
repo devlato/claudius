@@ -30,7 +30,7 @@ First Light — house at 120 BPM in A minor, 60 bars (2:00)
   form: intro 8 | groove 16 | break 8 | build 4 | drop 16 | outro 8
   tracks: kick (synth kick), clap (synth clap), hats (synth closed_hat), shaker (synth shaker), roll (synth snare), bass (synth patch 'sub_bass'), chords (synth patch 'epiano'), pad (synth patch 'pad'), melody (synth patch 'pluck'), crash (synth crash), riser (synth riser), impact (synth impact), downlifter (synth downlifter), reverse_crash (synth reverse_crash)
   master: -10.0 LUFS, true peak -1.0 dBTP (pre-master -10.2 LUFS); done in 12.8 s
-  ears: 'house music' z +3.4 (closest confusion 'techno music' +3.1); production z +1.2 vs 'a low quality recording with hiss' +0.7; p_real 0.49
+  ears: 'house music' z +3.4 (closest confusion 'techno music' +3.1); production z +1.2 vs 'a low quality recording with hiss' +0.7; p_real 0.47
         sounds like: house music, tech house music, techno music, drum and bass music
   verdict: 87/100 (arc 0.80, genre 0.80, mix 0.99, production 0.63, theory 1.00). Fix first: dull 4-8 kHz: hats, claps and snare lack bite (presence -26.4 dB, healthy from -26)
   wrote out/house-first-light-1/song.mp3
@@ -131,7 +131,7 @@ mix("melody", #{ reverb: 0.3 });
 The new verdict:
 
 ```text
-  ears: 'house music' z +3.4 (closest confusion 'techno music' +3.1); production z +1.2 vs 'a low quality recording with hiss' +0.7; p_real 0.49
+  ears: 'house music' z +3.4 (closest confusion 'techno music' +3.1); production z +1.2 vs 'a low quality recording with hiss' +0.7; p_real 0.47
         sounds like: house music, tech house music, techno music, drum and bass music
   verdict: 87/100 (arc 0.80, genre 0.79, mix 1.00, production 0.64, theory 1.00)
 ```

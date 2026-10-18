@@ -30,6 +30,7 @@ mod listening {
 
     use super::{FLAWS, PRO};
     use crate::audio::{self, Stereo};
+    use crate::genres::GenreProfile;
     use crate::judge::EarsReport;
 
     pub struct Ears {
@@ -61,24 +62,24 @@ mod listening {
             files.iter().map(|f| self.inner.embed_file(Path::new(f))).collect()
         }
 
-        /// what the ears hear in `x`. `genre` = (query, confusions); without one, the best-fitting music genre of
-        /// earshot's vocabulary is reported against the runner-up
+        /// what the ears hear in `x`, against the genre's query and confusions; without a genre, the best-fitting
+        /// music genre of earshot's vocabulary is reported against the runner-up
         pub fn report(
             &self,
             x: &Stereo,
-            genre: Option<(&str, &[String])>,
+            genre: Option<&GenreProfile>,
             refs: Option<&[Vec<f32>]>,
             realness: bool,
         ) -> Result<EarsReport> {
             let mono = Self::mono(x);
             let emb = self.inner.embed(&mono)?;
             let (genre_query, genre_z, best_alt, best_alt_z) = match genre {
-                Some((q, alts)) => {
-                    let mut qs: Vec<&str> = vec![q];
-                    qs.extend(alts.iter().map(|s| s.as_str()));
+                Some(g) => {
+                    let mut qs: Vec<&str> = vec![g.query.as_str()];
+                    qs.extend(g.alts.iter().map(|s| s.as_str()));
                     let gs = self.inner.scores(&emb, &qs)?;
                     let (a, az) = best(&gs[1..]);
-                    (q.to_string(), gs[0].z, a, az)
+                    (g.query.clone(), gs[0].z, a, az)
                 }
                 None => {
                     let terms = self.inner.top_terms(
@@ -108,7 +109,12 @@ mod listening {
                 }
             };
             let (_, production_z) = best(&self.inner.scores(&emb, PRO)?);
-            let (worst_flaw, worst_flaw_z) = best(&self.inner.scores(&emb, FLAWS)?);
+            let flaws: Vec<&str> = FLAWS
+                .iter()
+                .copied()
+                .filter(|f| !genre.is_some_and(|g| g.accepted_flaws.iter().any(|a| a == f)))
+                .collect();
+            let (worst_flaw, worst_flaw_z) = best(&self.inner.scores(&emb, &flaws)?);
             let sounds_like =
                 self.inner.top_terms(&emb, 4, &["quality", "production"]).into_iter().map(|t| t.term).collect();
             let p_real = if realness { self.p_real(&mono, &emb).map(|p| (p * 1000.0).round() / 1000.0) } else { None };
@@ -175,6 +181,7 @@ mod unavailable {
     use anyhow::{Result, bail};
 
     use crate::audio::Stereo;
+    use crate::genres::GenreProfile;
     use crate::judge::EarsReport;
 
     enum Never {}
@@ -202,7 +209,7 @@ mod unavailable {
         pub fn report(
             &self,
             _x: &Stereo,
-            _genre: Option<(&str, &[String])>,
+            _genre: Option<&GenreProfile>,
             _refs: Option<&[Vec<f32>]>,
             _realness: bool,
         ) -> Result<EarsReport> {

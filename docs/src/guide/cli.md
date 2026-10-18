@@ -24,9 +24,9 @@ Glass Garden — deep_house at 118 BPM in D minor, 52 bars (1:46)
   form: intro 8 | groove 8 | break 8 | build 4 | drop 16 | outro 8
   tracks: kick (synth kick), clap (synth clap), hat (hat cut from 'Silver Hi-Hat 04' (Apple Loops)), shaker (shaker cut from 'Ride With Me Shaker' (Apple Loops)), perc (perc cut from 'Latin Day Bongo 05' (Apple Loops)), bass (synth patch 'pluck_bass'), chords (synth patch 'keys'), pad (sampled string_ensemble (vsco2:strings)), lead (synth patch 'pluck'), crash (crash cut from 'Beautiful Memories Percussion 02' (Apple Loops)), riser (synth riser)
   master: -11.0 LUFS, true peak -1.0 dBTP (pre-master -10.3 LUFS); done in 11.4 s
-  ears: 'house music' z +3.7 (closest confusion 'techno music' +3.9); production z +1.7 vs 'a low quality recording with hiss' +1.3; p_real 0.63
+  ears: 'house music' z +3.7 (closest confusion 'techno music' +3.9); production z +1.7 vs 'a low quality recording with hiss' +1.3; p_real 0.54
         sounds like: techno music, tech house music, house music, drum and bass music
-  verdict: 86/100 (arc 0.94, genre 0.71, mix 0.93, production 0.59, theory 1.00). Fix first: dull 4-8 kHz: hats, claps and snare lack bite (presence -28.6 dB, healthy from -26); production reads close to 'a low quality recording with hiss' (z +1.3) vs professionally mixed (z +1.7); fizzy top end (air -16.2 dB, healthy up to -17)
+  verdict: 86/100 (arc 0.94, genre 0.71, mix 0.93, production 0.59, theory 1.00). Fix first: dull 4-8 kHz: hats, claps and snare lack bite (presence -28.6 dB, healthy from -26); fizzy top end (air -16.2 dB, healthy up to -17); sounds more like 'techno music' than 'house music'
   wrote out/deep_house-glass-garden-7/song.mp3
 ```
 

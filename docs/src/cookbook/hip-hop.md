@@ -54,9 +54,9 @@ Why:
   the choir, the open hat and the lead so the hook has somewhere to return to.
 
 ```text
-  ears: 'trap beat' z +3.4 (closest confusion 'hip hop beat with heavy bass' +3.2); production z +1.0 vs 'a recording made on a phone' +0.8; p_real 0.39
+  ears: 'trap beat' z +3.4 (closest confusion 'hip hop beat with heavy bass' +3.2); production z +1.0 vs 'a recording made on a phone' +0.8; p_real 0.30
         sounds like: trap beat, hip hop beat with heavy bass, lo-fi hip hop beat, a success chime
-  verdict: 88/100 (arc 0.97, genre 0.79, mix 0.94, production 0.56, theory 1.00). Fix first: production reads close to 'a recording made on a phone' (z +0.8) vs professionally mixed (z +1.0); too much sub (boomy): lower the bass / kick, or highpass the music bus (sub -1.8 dB, healthy up to -4); a thin low end: bass or kick too quiet (low -7.7 dB, healthy from -7)
+  verdict: 88/100 (arc 0.97, genre 0.79, mix 0.94, production 0.56, theory 1.00). Fix first: too much sub (boomy): lower the bass / kick, or highpass the music bus (sub -1.8 dB, healthy up to -4); a thin low end: bass or kick too quiet (low -7.7 dB, healthy from -7); sounds about as much like a phone recording as a professional mix: a thin or narrow mix is the usual cause
 ```
 
 The low end is the 808's: a lot of sub, not much above it. That is trap's sound and the critic's taste disagreeing.
@@ -114,15 +114,16 @@ Why:
   are 4 dB up: without it the critic finds no air above 8 kHz.
 
 ```text
-  ears: 'lo-fi hip hop beat' z +4.0 (closest confusion 'hip hop beat with heavy bass' +3.3); production z +2.0 vs 'a low quality recording with hiss' +1.8; p_real 0.40
+  ears: 'lo-fi hip hop beat' z +4.0 (closest confusion 'hip hop beat with heavy bass' +3.3); production z +2.0 vs 'a distorted clipped recording' +1.5; p_real 0.32
         sounds like: lo-fi hip hop beat, hip hop beat with heavy bass, jazz music, minimal electronic music
-  verdict: 89/100 (arc 0.90, genre 0.92, mix 0.97, production 0.55, theory 1.00). Fix first: production reads close to 'a low quality recording with hiss' (z +1.8) vs professionally mixed (z +2.0); recessed mids: the lead and chords are buried (mid -19.0 dB, healthy from -18); too much sub (boomy): lower the bass / kick, or highpass the music bus (sub -3.2 dB, healthy up to -4)
+  verdict: 90/100 (arc 0.90, genre 0.92, mix 0.97, production 0.64, theory 1.00). Fix first: recessed mids: the lead and chords are buried (mid -19.0 dB, healthy from -18); too much sub (boomy): lower the bass / kick, or highpass the music bus (sub -3.2 dB, healthy up to -4)
 ```
 
-The ears hear "a low quality recording with hiss" because there is hiss: the vinyl on the master is the style. The
-first version of this recipe used the acoustic kit's kick and a vibraphone lead, and the critic read it as jazz
-(`reads as 'jazz music' (z +3.5) more than 'lo-fi hip hop beat' (z +3.1)`) and found the low end not mono (the
-acoustic kick is a stereo room recording). The 808 kick and the kalimba fixed both.
+The ears hear hiss, because there is hiss: the vinyl on the master is the style. So lofi's production reading leaves
+hiss out, and the thin sound of a phone recording that a lowpassed drum bus has, and compares the master with the next
+flaw instead, here clipping. The first version of this recipe used the acoustic kit's kick and a vibraphone lead, and
+the critic read it as jazz (`sounds more like 'jazz music' than 'lo-fi hip hop beat'`) and found the low end not mono
+(the acoustic kick is a stereo room recording). The 808 kick and the kalimba fixed both.
 
 Try:
 

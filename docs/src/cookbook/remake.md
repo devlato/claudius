@@ -64,9 +64,9 @@ Faded Engine — deep_house at 122 BPM in A minor, 64 bars (2:06)
   form: drop1 24 | break2 8 | drop3 32
   tracks: kick (sampled bd (tr909:bd)), clap (sampled cp (tr909:cp)), hat (sampled hh (tr909:hh)), shaker (shaker cut from 'Loose Leaf Beat Shaker' (Apple Loops)), perc (sampled rim (tr909:rim)), bass (synth patch 'sub_bass'), chords (synth patch 'keys'), pad (synth patch 'warm_pad'), lead (sampled rhodes (jrhodes:rhodes)), top (loop 'Deep Blue Void Hi-Hat' (House, Apple Loops) (126 BPM)), crash (synth crash), riser (synth riser), downlifter (synth downlifter), reverse_crash (synth reverse_crash)
   master: -11.0 LUFS, true peak -1.0 dBTP (pre-master -8.8 LUFS); done in 13.3 s
-  ears: 'house music' z +3.3 (closest confusion 'techno music' +3.1); production z +1.3 vs 'a low quality recording with hiss' +1.2; p_real 0.79
+  ears: 'house music' z +3.3 (closest confusion 'techno music' +3.1); production z +1.3 vs 'a low quality recording with hiss' +1.2; p_real 0.80
         sounds like: house music, drum and bass music, techno music, tech house music
-  verdict: 89/100 (arc 1.00, genre 0.79, mix 0.98, production 0.53, theory 1.00). Fix first: production reads close to 'a low quality recording with hiss' (z +1.2) vs professionally mixed (z +1.3); dull 4-8 kHz: hats, claps and snare lack bite (presence -26.9 dB, healthy from -26)
+  verdict: 89/100 (arc 1.00, genre 0.79, mix 0.98, production 0.53, theory 1.00). Fix first: sounds about as much like a hissy recording as a professional mix: noise-built sounds (hats, shakers, risers) and long reverbs are the usual cause; dull 4-8 kHz: hats, claps and snare lack bite (presence -26.9 dB, healthy from -26)
   wrote out/remake-deep_house-faded-engine-3/song.mp3
 ```
 
@@ -102,7 +102,7 @@ claudius script fix.rhai --on out/remake-deep_house-faded-engine-3
 ```
 
 ```text
-  verdict: 87/100 (arc 1.00, genre 0.68, mix 0.98, production 0.46, theory 1.00). Fix first: production reads close to 'a low quality recording with hiss' (z +1.3) vs professionally mixed (z +1.1); dull 4-8 kHz: hats, claps and snare lack bite (presence -26.8 dB, healthy from -26)
+  verdict: 87/100 (arc 1.00, genre 0.68, mix 0.98, production 0.46, theory 1.00). Fix first: sounds about as much like a hissy recording as a professional mix: noise-built sounds (hats, shakers, risers) and long reverbs are the usual cause; dull 4-8 kHz: hats, claps and snare lack bite (presence -26.8 dB, healthy from -26)
   wrote out/deep_house-faded-engine-3/song.mp3
 ```
 

@@ -188,9 +188,7 @@ impl App {
         genre: &'a Option<genres::GenreProfile>,
     ) -> Option<impl Fn(&Project, &Rendered) -> Option<judge::EarsReport> + Sync + 'a> {
         let ears = self.ears.get()?.as_ref()?;
-        Some(move |_: &Project, r: &Rendered| {
-            ears.report(&r.master, genre.as_ref().map(|g| (g.query.as_str(), g.alts.as_slice())), None, false).ok()
-        })
+        Some(move |_: &Project, r: &Rendered| ears.report(&r.master, genre.as_ref(), None, false).ok())
     }
 
     /// render and judge the song as it is now, and write a song folder into each of `saves`
