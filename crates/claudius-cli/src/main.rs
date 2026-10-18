@@ -536,9 +536,13 @@ mod tests {
     fn opened_as_a_mac_app_it_starts_the_studio() {
         let app = std::path::Path::new("/Applications/claudius.app/Contents/MacOS/claudius");
         let args = |a: &[&str]| a.iter().map(std::ffi::OsString::from).collect::<Vec<_>>();
-        let studio = if cfg!(target_os = "macos") { args(&["claudius", "studio"]) } else { args(&["claudius"]) };
-        assert_eq!(super::app_args(args(&["claudius"]), Some(app)), studio);
-        assert_eq!(super::app_args(args(&["claudius", "-psn_0_12345"]), Some(app)), studio);
+        // elsewhere there is no Finder, and the arguments stay as they are
+        let opened = |a: &[&str]| if cfg!(target_os = "macos") { args(&["claudius", "studio"]) } else { args(a) };
+        assert_eq!(super::app_args(args(&["claudius"]), Some(app)), opened(&["claudius"]));
+        assert_eq!(
+            super::app_args(args(&["claudius", "-psn_0_12345"]), Some(app)),
+            opened(&["claudius", "-psn_0_12345"])
+        );
         // in a terminal, or with arguments, nothing changes
         assert_eq!(super::app_args(args(&["claudius", "make"]), Some(app)), args(&["claudius", "make"]));
         let installed = std::path::Path::new("/Users/me/.local/bin/claudius");
