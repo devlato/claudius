@@ -36,10 +36,10 @@ websites are hostile, and that whoever holds your claudius token is you.
   `fast`, `slow` and `ply` take factors up to 256, mini-notation is limited in length and nesting, and a song is at
   most 512 bars and 20 minutes long.
 - **Downloads are checked.** The listening models come from pinned revisions on the Hugging Face Hub and are checked
-  against pinned SHA-256 hashes before use. Sample packs come over HTTPS: from GitHub repositories at pinned commits,
-  and two archives from their authors' sites, pinned by size and SHA-256. An unpacked archive keeps no symbolic
-  links, so nothing is read through one from elsewhere on your computer. The samples are audio, decoded by symphonia,
-  a memory-safe Rust decoder, or by ffmpeg (below).
+  against pinned SHA-256 hashes as they are downloaded; a file that does not match is never used. Sample packs come
+  over HTTPS: from GitHub repositories at pinned commits, and two archives from their authors' sites, pinned by size
+  and SHA-256. An unpacked archive keeps no symbolic links, so nothing is read through one from elsewhere on your
+  computer. The samples are audio, decoded by symphonia, a memory-safe Rust decoder, or by ffmpeg (below).
 - **Releases are verifiable.** Every release lists SHA-256 sums, and each archive has a build provenance attestation
   you can check with `gh attestation verify <file> --repo devlato/claudius`. The install script checks the sums.
 
