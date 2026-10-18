@@ -274,8 +274,8 @@ pub fn save_wav(path: &Path, x: &Stereo, float: bool) -> Result<()> {
 pub fn wav_to_mp3(wav: &Path, mp3: &Path) -> Result<()> {
     let ffmpeg = claudius_decode::ffmpeg().ok_or_else(|| anyhow::anyhow!("ffmpeg is not installed: no MP3 copy"))?;
     let st = Command::new(ffmpeg)
-        .args(["-v", "error", "-y", "-i"])
-        .arg(wav)
+        .args(["-v", "error", "-nostdin", "-y"])
+        .args(claudius_decode::ffmpeg_input(wav))
         .args(["-codec:a", "libmp3lame", "-b:a", "256k"])
         .arg(mp3)
         .status()?;

@@ -70,12 +70,12 @@
           <button type="button" role="tab" id="tab-win" aria-controls="cmd-win" aria-selected="false" tabindex="-1">Windows</button>
         </div>
         <div class="cmd" role="tabpanel" id="cmd-unix" aria-labelledby="tab-unix">
-          <pre><code><span class="prompt" aria-hidden="true">$ </span>curl -fsSL {{site_url}}/install.sh | sh</code></pre>
-          <button type="button" class="copy" data-copy="curl -fsSL {{site_url}}/install.sh | sh">Copy</button>
+          <pre><code><span class="prompt" aria-hidden="true">$ </span>curl -fsSL {{repo_url}}/releases/latest/download/install.sh | sh</code></pre>
+          <button type="button" class="copy" data-copy="curl -fsSL {{repo_url}}/releases/latest/download/install.sh | sh">Copy</button>
         </div>
         <div class="cmd" role="tabpanel" id="cmd-win" aria-labelledby="tab-win" hidden>
-          <pre><code><span class="prompt" aria-hidden="true">PS&gt; </span>irm {{site_url}}/install.ps1 | iex</code></pre>
-          <button type="button" class="copy" data-copy="irm {{site_url}}/install.ps1 | iex">Copy</button>
+          <pre><code><span class="prompt" aria-hidden="true">PS&gt; </span>irm {{repo_url}}/releases/latest/download/install.ps1 | iex</code></pre>
+          <button type="button" class="copy" data-copy="irm {{repo_url}}/releases/latest/download/install.ps1 | iex">Copy</button>
         </div>
       </div>
 
@@ -777,12 +777,12 @@ cloudflared tunnel --url http://127.0.0.1:7878</code></pre>
     <div class="platforms">
       <article class="platform">
         <h3>macOS and Linux</h3>
-        <div class="cmd"><pre><code><span class="prompt" aria-hidden="true">$ </span>curl -fsSL {{site_url}}/install.sh | sh</code></pre><button type="button" class="copy" data-copy="curl -fsSL {{site_url}}/install.sh | sh">Copy</button></div>
+        <div class="cmd"><pre><code><span class="prompt" aria-hidden="true">$ </span>curl -fsSL {{repo_url}}/releases/latest/download/install.sh | sh</code></pre><button type="button" class="copy" data-copy="curl -fsSL {{repo_url}}/releases/latest/download/install.sh | sh">Copy</button></div>
         <p class="platform-note">Apple silicon and Intel Macs (Intel builds have no ears: their verdicts come from the meters and the theory checks); x86_64 and ARM64 Linux with glibc 2.38 or newer (Ubuntu 24.04, Debian 13, Fedora 39 and later). Without ALSA you get the headless build, which serves the studio to your browser. The commands go to <code>~/.local/bin</code>.</p>
       </article>
       <article class="platform">
         <h3>Windows <span class="chip">preview</span></h3>
-        <div class="cmd"><pre><code><span class="prompt" aria-hidden="true">PS&gt; </span>irm {{site_url}}/install.ps1 | iex</code></pre><button type="button" class="copy" data-copy="irm {{site_url}}/install.ps1 | iex">Copy</button></div>
+        <div class="cmd"><pre><code><span class="prompt" aria-hidden="true">PS&gt; </span>irm {{repo_url}}/releases/latest/download/install.ps1 | iex</code></pre><button type="button" class="copy" data-copy="irm {{repo_url}}/releases/latest/download/install.ps1 | iex">Copy</button></div>
         <p class="platform-note">In PowerShell. An x64 build, which also runs on ARM64 Windows; it is newer and less tested than the others, so please <a href="{{repo_url}}/issues">report</a> what breaks. The commands go to <code class="long">%LOCALAPPDATA%\Programs\claudius\bin</code>, which the script adds to your PATH.</p>
       </article>
       <article class="platform platform-wide">

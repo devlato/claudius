@@ -104,7 +104,8 @@ way, with or without `--public`: the Host check refuses browsers, but a program 
 ### The policy
 
 A claudius only you can reach reads and writes wherever your user can, because that is what a local app does. A
-shared claudius (`serve --public`, or `serve --files <dir>`) checks every path it is given against a list of roots,
+shared claudius (`serve --public`, `serve --host` with an address other than loopback, or `serve --files <dir>`)
+checks every path it is given against a list of roots,
 `config::shared_roots()` plus the `--files` folders:
 
 - **Reading** (`config::path_allowed`): the path must exist and, canonicalised (symbolic links and `..` resolved),
@@ -147,7 +148,9 @@ Scripts come from you, from assistants, from files you open and from printed son
 - a pattern query may do 4 million steps of work and make 262,144 events; `*`, `/`, `fast`, `slow` and `ply` take
   factors above 0 and up to 256; a track may play 1,024 notes per bar; mini-notation is limited in length (4,096
   characters), nesting (64), repeats and euclidean steps (256);
-- a song is at most 512 bars and 20 minutes, checked after every script and edit and again before rendering.
+- a song is at most 512 bars and 20 minutes, with at most 64 tracks and 12,000 track-seconds (20 tracks of 10
+  minutes), because a render holds every track in memory; this is checked after every script and edit and again
+  before rendering, where a pattern with several sounds counts as a track for each.
 
 The fuzz targets run arbitrary text through the parser and the script engine every week. The event budget is what
 bounds a query's memory. `track("x", s("bd*100000000"))` is refused while parsing, and the whole `claudius script`
@@ -160,8 +163,15 @@ functions.
 ## Files and blueprints you open
 
 - **Audio** is decoded by symphonia, a Rust decoder, in `claudius-decode`, which forbids `unsafe` code itself. When
-  symphonia cannot read a file and ffmpeg is installed, ffmpeg decodes it: C code, run as a separate process with the
-  file name as an argument (never through a shell) and `-nostdin`. `CLAUDIUS_FFMPEG=none` turns that off.
+  symphonia cannot read a file and ffmpeg is installed, ffmpeg decodes it, and earshot decodes with ffmpeg whenever
+  it is installed, to match the Python reference: C code, run as a separate process with the file name as an
+  argument (never through a shell) and `-nostdin`. `CLAUDIUS_FFMPEG=none` turns that off. Every ffmpeg and ffprobe
+  input goes through `claudius_decode::ffmpeg_input`, which allows only the `file` protocol and the demuxers of
+  files that hold their own audio. A playlist (`.m3u8`) or a list of files is refused, because it would make ffmpeg
+  open files the path check never saw, outside the folders of a shared claudius.
+- **Decoding is bounded**: a file gives at most 30 minutes of stereo at 48 kHz (`MAX_SAMPLES`, as many samples in
+  other layouts), and a longer one is refused (`TooLong`) before it fills the memory. ffmpeg is asked for no more
+  than that (`-t`), and its output is read as it comes.
 - **Blueprints** are data, with three things in them that act: pattern code (sandboxed, above), file paths (checked by
   the policy on a shared claudius), and numbers. Lengths are bounded, but not every effect parameter is, so a
   hand-crafted blueprint can make a render slow or large within the song-length limit. Open blueprints from people you

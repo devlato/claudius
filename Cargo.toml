@@ -8,7 +8,7 @@ edition = "2024"
 license = "MIT"
 authors = ["The claudius authors"]
 repository = "https://github.com/devlato/claudius"
-homepage = "https://claudius.pages.dev"
+homepage = "https://github.com/devlato/claudius"
 readme = "README.md"
 rust-version = "1.96"
 

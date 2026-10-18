@@ -25,16 +25,17 @@ websites are hostile, and that whoever holds your claudius token is you.
   goes on every request, as `Authorization: Bearer` or once as `?token=` in the browser, which sets an HttpOnly,
   SameSite=Strict cookie (also `Secure` when the request came through https, as tunnels report with
   `X-Forwarded-Proto`). Tokens are compared in constant time.
-- **Files stay in their folders.** A claudius started with `--public` or `--files` reads and writes files only inside
-  `~/Music/claudius`, its caches and the sound libraries, plus the `--files` folders you name, after resolving links
-  and `..`. It does not tell which files exist outside them: a path outside is refused with the same message whether
+- **Files stay in their folders.** A claudius others can reach (`--public`, or `--host` with an address other than
+  loopback) or started with `--files` reads and writes files only inside `~/Music/claudius`, its caches and the sound
+  libraries, plus the `--files` folders you name, after resolving links and `..`. It does not tell which files exist outside them: a path outside is refused with the same message whether
   or not it exists.
 - **Scripts are sandboxed.** Scripts (from you, an assistant, or a file) cannot write files, import modules or call
   `eval`, and the only files they can read are the audio files they play, under the folder rules above. They stop
   after 5 million operations or 10 seconds, and strings, arrays and maps have size limits. A pattern stops when it
   needs more than 4 million steps of work or makes more than 262,144 events, which also bounds its memory; `*`, `/`,
   `fast`, `slow` and `ply` take factors up to 256, mini-notation is limited in length and nesting, and a song is at
-  most 512 bars and 20 minutes long.
+  most 512 bars and 20 minutes long, with at most 64 tracks and fewer in a long song, because a render holds every
+  track in memory.
 - **Downloads are checked.** The listening models come from pinned revisions on the Hugging Face Hub and are checked
   against pinned SHA-256 hashes as they are downloaded; a file that does not match is never used. Sample packs come
   over HTTPS: from GitHub repositories at pinned commits, and two archives from their authors' sites, pinned by size
@@ -48,5 +49,7 @@ websites are hostile, and that whoever holds your claudius token is you.
 - Packs you add yourself (`claudius-packs add-map`) are not pinned: their files are whatever the map's host serves.
 - A token never expires, and one sent as `?token=` can stay in the browser's history and in the logs of a proxy or
   tunnel in front of claudius. Start the server again with a new token to revoke one.
-- `ffmpeg`, when installed, is used to decode formats symphonia cannot read and to write MP3. claudius passes it file
-  names as arguments (never through a shell), but its decoders are C code.
+- `ffmpeg`, when installed, decodes what the ears listen to (as the Python earshot does) and the formats symphonia
+  cannot read, and writes MP3. claudius passes it file names as arguments (never through a shell) and lets it open
+  only that file, with the demuxers of ordinary audio and video files: no playlists, lists of files or network
+  addresses. Its decoders are still C code.

@@ -14,15 +14,14 @@ or from the command line.
 
 ![The studio: a deep house song's arrangement, its step sequencer, and the critic's verdict](site/assets/img/studio-1200.webp)
 
-**[Website](https://claudius.pages.dev)** · **[Documentation](https://claudius.pages.dev/docs/)** ·
-**[Try the studio in your browser](https://claudius.pages.dev/studio/?mock)**
+**[Documentation](docs/src/SUMMARY.md)** · **[Releases](https://github.com/devlato/claudius/releases)**
 
 ## Install
 
 ```sh
-curl -fsSL https://claudius.pages.dev/install.sh | sh          # macOS, Linux
-irm https://claudius.pages.dev/install.ps1 | iex               # Windows (PowerShell)
-claudius setup                                                  # sample packs and listening models, about 2 GB
+curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh | sh    # macOS, Linux
+irm https://github.com/devlato/claudius/releases/latest/download/install.ps1 | iex          # Windows (PowerShell)
+claudius setup    # sample packs and listening models, about 2 GB
 ```
 
 Or build it from source; see [install](docs/src/getting-started/install.md).
@@ -59,7 +58,8 @@ this, so a script is also the way to read a song.
 - [Architecture](docs/src/engineering/architecture.md), [design decisions](docs/src/design/README.md) and
   [a tour of the repository](docs/src/contributing/onboarding.md) for working on claudius.
 
-The book is published at [claudius.pages.dev/docs](https://claudius.pages.dev/docs/).
+The book's pages are in [`docs/src`](docs/src/SUMMARY.md); `cargo xtask site` builds them into a website with
+[mdBook](https://rust-lang.github.io/mdBook/).
 
 ## Contributing
 

@@ -35,6 +35,7 @@ pub async fn serve(
     o: Options,
     listening: impl FnOnce(SocketAddr),
 ) -> anyhow::Result<()> {
+    o.check()?;
     let listener = tokio::net::TcpListener::bind(addr).await.map_err(|e| cannot_listen(addr, e))?;
     let local = listener.local_addr()?;
     app.set_base_url(url_of(local));
@@ -45,6 +46,7 @@ pub async fn serve(
 
 /// serve from a thread with its own runtime (for a native UI on the main thread); returns the address once listening
 pub fn spawn(app: Arc<App>, addr: SocketAddr, o: Options) -> anyhow::Result<SocketAddr> {
+    o.check()?;
     let listener = std::net::TcpListener::bind(addr).map_err(|e| cannot_listen(addr, e))?;
     listener.set_nonblocking(true)?;
     let local = listener.local_addr()?;

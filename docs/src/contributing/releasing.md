@@ -142,27 +142,31 @@ The checksum says the file is the one that was uploaded. The attestation says mo
 `release.yml` in `devlato/claudius`, from a specific commit, on GitHub's runners. `gh attestation verify` checks its
 Sigstore signature and prints the workflow and the commit.
 
-The site should show the new version:
+The installers come with the release and are in its checksums, so `curl ... releases/latest/download/install.sh`
+now installs the new version:
 
 ```sh
-curl -fsS https://claudius.pages.dev/ | grep -o 'claudius 0.5.0'
+gh release download v0.5.0 --pattern install.sh --pattern SHA256SUMS --clobber
+shasum -a 256 --check --ignore-missing SHA256SUMS
 ```
 
 ## The website
 
-`site.yml` builds the site with `cargo xtask site` and deploys `target/site` to the Cloudflare Pages project
-`claudius`:
+`site.yml` builds the site with `cargo xtask site` and deploys `target/site` to a Cloudflare Pages project, once the
+site has an address: the repository variable `SITE_URL` (`gh variable set SITE_URL --body https://claudius.example`)
+and the project's name in `SITE_PROJECT`, with the Cloudflare secrets below. Until then it builds and checks the site
+and deploys nothing. It deploys:
 
 - after a release, called by `release.yml`;
 - on pushes to `main` that change `docs/`, `site/`, `CHANGELOG.md` or the install scripts, so the docs follow
   `main` (except the merge of a release PR, which waits for the release, so that the site never shows a version
   that cannot be downloaded yet);
-- for pull requests from this repository, as a preview at `https://pr-<number>.claudius.pages.dev`;
+- for pull requests from this repository, as a preview on the project's `pr-<number>` branch;
 - by hand: `gh workflow run site.yml`.
 
 `cargo xtask site` fills in `{{version}}` (from `Cargo.toml`), `{{site_url}}` and `{{repo_url}}` in the files of
-`site/`. For a custom domain, set the repository variable `SITE_URL`
-(`gh variable set SITE_URL --body https://claudius.example`) and add the domain to the Pages project.
+`site/`. The install commands on the site point at the release's own `install.sh` and `install.ps1`, so they work
+wherever the site is served.
 
 ## Secrets and settings
 
@@ -177,10 +181,13 @@ Set each one with `gh secret set <NAME> --repo devlato/claudius`, which reads th
 
 **Cloudflare.** In the Cloudflare dashboard, *My Profile*, *API Tokens*, *Create Token*: a custom token with the
 permission *Account*, *Cloudflare Pages*, *Edit*, for your account. The account ID is on the *Workers & Pages*
-overview. The Pages project has to exist before the first deploy:
+overview. The Pages project has to exist before the first deploy. Its name is also its address,
+`<name>.pages.dev`, and has to be free, so pick it first, then tell the workflows about it:
 
 ```sh
-CLOUDFLARE_API_TOKEN=... npx wrangler pages project create claudius --production-branch main
+CLOUDFLARE_API_TOKEN=... npx wrangler pages project create <name> --production-branch main
+gh variable set SITE_PROJECT --body <name>
+gh variable set SITE_URL --body https://<name>.pages.dev # or the custom domain you add to the project
 ```
 
 **Homebrew.** Create the repository `devlato/homebrew-tap` (a README is enough). Then a fine-grained personal

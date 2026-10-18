@@ -14,6 +14,7 @@ fo = "fo"             # fade-out length
 nd = "nd"             # a new scale degree; the ordinal suffix
 seeked = "seeked"     # the media element event
 stlye = "stlye"       # a misspelled option in a test of the error it gives
+tak = "tak"           # TAK, a lossless audio format, as ffmpeg names its demuxer
 thr = "thr"           # threshold
 trak = "trak"         # a misspelled function in an example of an error
 

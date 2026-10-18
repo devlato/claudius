@@ -24,7 +24,7 @@ others decode audio, manage sample packs, listen, serve, draw and parse command 
 | crate | what it is | depends on |
 |---|---|---|
 | `claudius` | the engine: theory, composition, patterns and scripts, synthesis, effects, rendering, the critic, evolution, analysis, the Apple Loops library | `claudius-packs`, `earshot`, `claudius-decode` |
-| `claudius-decode` | audio files to samples: symphonia in pure Rust, ffmpeg as a fallback; trims the encoder priming of AAC in CAF | symphonia |
+| `claudius-decode` | audio files to samples: symphonia in pure Rust, ffmpeg as a fallback, limited to the one file and to 30 minutes; trims the encoder priming of AAC in CAF | symphonia |
 | `claudius-packs` | the sample packs: registry, installer, SFZ and Strudel-map readers, name resolution, the multi-sample player, credits; also the `claudius-packs` binary | `claudius-decode` |
 | `earshot` | a Rust port of the Python earshot: CLAP and the AudioSet tagger through ONNX Runtime, the calibrated vocabulary, realness, measurements | `claudius-decode`, `ort` |
 | `claudius-api` | the wire types of the HTTP API: plain serde structs, so they build for WebAssembly | serde |
