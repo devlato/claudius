@@ -76,7 +76,7 @@ fn ffmpeg_reason(err: &str) -> String {
 pub fn src_channels(path: &Path) -> usize {
     Command::new(ffprobe())
         .args(["-v", "error", "-select_streams", "a:0", "-show_entries", "stream=channels", "-of", "csv=p=0"])
-        .arg(path)
+        .args(claudius_decode::ffmpeg_input(path))
         .output()
         .ok()
         .and_then(|o| String::from_utf8_lossy(&o.stdout).lines().next().and_then(|l| l.trim().parse().ok()))
@@ -93,9 +93,11 @@ fn decode(path: &Path, ch: usize) -> Result<Vec<f32>> {
         return decode_without_ffmpeg(path, ch);
     }
     let out = Command::new(ffmpeg())
-        .args(["-v", "error", "-nostdin", "-i"])
-        .arg(path)
-        .args(["-vn", "-f", "f32le", "-acodec", "pcm_f32le", "-ac", &ch.to_string(), "-ar", &SR.to_string(), "-"])
+        .args(["-v", "error", "-nostdin"])
+        .args(claudius_decode::ffmpeg_input(path))
+        // a second past claudius-decode's limit, so that a longer file is told from one exactly as long
+        .args(["-vn", "-t", &(claudius_decode::MAX_SECONDS + 1).to_string()])
+        .args(["-f", "f32le", "-acodec", "pcm_f32le", "-ac", &ch.to_string(), "-ar", &SR.to_string(), "-"])
         .output()
         .with_context(|| format!("cannot run ffmpeg ({}): install ffmpeg or set EARSHOT_FFMPEG", ffmpeg().display()))?;
     let err = String::from_utf8_lossy(&out.stderr);
@@ -104,6 +106,9 @@ fn decode(path: &Path, ch: usize) -> Result<Vec<f32>> {
             bail!("{}: no audio stream", path.display());
         }
         bail!("cannot decode {}: {}", path.display(), ffmpeg_reason(&err));
+    }
+    if out.stdout.len() / 4 > claudius_decode::MAX_SECONDS as usize * SR as usize * ch {
+        return Err(claudius_decode::TooLong(path.to_path_buf()).into());
     }
     Ok(out.stdout.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect())
 }

@@ -133,6 +133,14 @@ claudius does not need ffmpeg to work. Without it:
 `PATH` and then in `/opt/homebrew/bin`, `/usr/local/bin` and `/usr/bin`, since apps started from the Dock do not
 get your shell's `PATH`. `CLAUDIUS_FFMPEG=/path/to/ffmpeg` names one, `CLAUDIUS_FFMPEG=none` turns it off.
 
+Two files do not decode even with ffmpeg:
+
+- **A file longer than 30 minutes** (of stereo at 48 kHz): `<file> is too long: claudius decodes up to 30 minutes of
+  stereo at 48 kHz`. Cut the part you want with any audio editor, or with ffmpeg:
+  `ffmpeg -i mix.flac -t 600 first-ten-minutes.flac`.
+- **A playlist or a list of files** (`.m3u8`, an ffconcat list): ffmpeg is allowed to open only the file it is given,
+  so it says `Format not on whitelist`. Point claudius at the audio file itself.
+
 ## The studio window has no sound
 
 The status bar at the bottom of the window shows audio problems after `audio:`:

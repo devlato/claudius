@@ -1,12 +1,15 @@
 //! Audio files to samples. symphonia reads WAV, AIFF, FLAC, MP3, AAC / M4A, ALAC, CAF (Apple Loops) and Ogg Vorbis
 //! in pure Rust, so claudius needs no other program to read sound. When a file uses something symphonia cannot
-//! read and ffmpeg is installed, ffmpeg decodes it instead.
+//! read and ffmpeg is installed, ffmpeg decodes it instead, reading that one file and nothing it refers to
+//! (`ffmpeg_input`).
 
 #![forbid(unsafe_code)]
 
+use std::ffi::OsString;
 use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use anyhow::{Context, Result, anyhow, bail};
 use symphonia::core::codecs::CodecParameters;
@@ -16,6 +19,41 @@ use symphonia::core::formats::probe::Hint;
 use symphonia::core::formats::{FormatOptions, TrackType};
 use symphonia::core::io::{MediaSourceStream, MediaSourceStreamOptions};
 use symphonia::core::meta::MetadataOptions;
+
+/// the most samples a decode keeps: 30 minutes of stereo at 48 kHz (690 MB as f32). A longer file is refused rather
+/// than allowed to fill the memory.
+pub const MAX_SAMPLES: usize = MAX_SECONDS as usize * 48_000 * 2;
+pub const MAX_SECONDS: u32 = 30 * 60;
+
+/// the error for a file with more audio than `MAX_SAMPLES`
+#[derive(Debug)]
+pub struct TooLong(pub PathBuf);
+
+impl std::fmt::Display for TooLong {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} is too long: claudius decodes up to 30 minutes of stereo at 48 kHz", self.0.display())
+    }
+}
+
+impl std::error::Error for TooLong {}
+
+/// The demuxers ffmpeg may read input with: files that hold their own audio. Playlists (hls), lists of files
+/// (concat) and image sequences are left out, because they open other files, which may lie outside the folders a
+/// shared claudius keeps to.
+const DEMUXERS: &str = "aac,ac3,aiff,amr,ape,asf,au,avi,caf,dsf,dts,eac3,flac,flv,matroska,mov,mp3,mpc,mpc8,mpeg,mpegts,ogg,shorten,tak,\
+     tta,w64,wav,wv";
+
+/// the arguments that make `path` the input of ffmpeg or ffprobe: a local file, read by one of `DEMUXERS`, and no
+/// other file or URL it names
+pub fn ffmpeg_input(path: &Path) -> Vec<OsString> {
+    let mut file = OsString::from("file:");
+    file.push(path);
+    ["-protocol_whitelist", "file", "-format_whitelist", DEMUXERS, "-i"]
+        .map(OsString::from)
+        .into_iter()
+        .chain([file])
+        .collect()
+}
 
 /// decoded audio at the file's own sample rate, frames interleaved
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -50,10 +88,10 @@ pub fn decode(path: &Path) -> Result<Decoded> {
         bail!("no such file: {}", path.display());
     }
     let native = decode_native(path);
-    if let Ok(d) = &native
-        && d.frames() > 0
-    {
-        return native;
+    match &native {
+        Ok(d) if d.frames() > 0 => return native,
+        Err(e) if e.is::<TooLong>() => return native,
+        _ => {}
     }
     let reason = match &native {
         Ok(_) => "it holds no audio".to_string(),
@@ -68,6 +106,10 @@ pub fn decode(path: &Path) -> Result<Decoded> {
 
 /// decode with symphonia only
 pub fn decode_native(path: &Path) -> Result<Decoded> {
+    decode_native_upto(path, MAX_SAMPLES)
+}
+
+fn decode_native_upto(path: &Path, max_samples: usize) -> Result<Decoded> {
     let file = File::open(path).with_context(|| format!("cannot open {}", path.display()))?;
     let mss = MediaSourceStream::new(Box::new(file), MediaSourceStreamOptions::default());
     let mut hint = Hint::new();
@@ -107,6 +149,9 @@ pub fn decode_native(path: &Path) -> Result<Decoded> {
                     out.channels = audio.spec().channels().count();
                 }
                 audio.copy_to_vec_interleaved(&mut packet_samples);
+                if out.samples.len() + packet_samples.len() > max_samples {
+                    return Err(TooLong(path.to_path_buf()).into());
+                }
                 out.samples.extend_from_slice(&packet_samples);
             }
             // a damaged packet: skip it, as players do
@@ -121,34 +166,38 @@ pub fn decode_native(path: &Path) -> Result<Decoded> {
         && let Some((priming, valid)) = caf_valid_frames(path)
     {
         // AAC in CAF starts with encoder priming and ends with padding; a loop must be exactly its bars
-        let (a, b) = (priming * out.channels, (priming + valid) * out.channels);
-        if b <= out.samples.len() {
-            out.samples = out.samples[a..b].to_vec();
+        if let Some(b) = priming.checked_add(valid).and_then(|frames| frames.checked_mul(out.channels))
+            && b <= out.samples.len()
+        {
+            out.samples = out.samples[priming * out.channels..b].to_vec();
         }
     }
     Ok(out)
 }
 
-/// (priming frames, valid frames) from a CAF file's packet table ('pakt' chunk), when it has one
+/// (priming frames, valid frames) from a CAF file's packet table ('pakt' chunk), when it has one; it reads the chunk
+/// headers and skips their bodies
 pub fn caf_valid_frames(path: &Path) -> Option<(usize, usize)> {
-    let bytes = std::fs::read(path).ok()?;
-    if bytes.get(..4)? != b"caff" {
+    let mut file = File::open(path).ok()?;
+    let mut header = [0u8; 8];
+    file.read_exact(&mut header).ok()?;
+    if &header[..4] != b"caff" {
         return None;
     }
-    let mut at = 8;
-    while at + 12 <= bytes.len() {
-        let kind = &bytes[at..at + 4];
-        let size = i64::from_be_bytes(bytes[at + 4..at + 12].try_into().ok()?);
-        let body = at + 12;
-        if kind == b"pakt" {
-            let valid = i64::from_be_bytes(bytes.get(body + 8..body + 16)?.try_into().ok()?);
-            let priming = i32::from_be_bytes(bytes.get(body + 16..body + 20)?.try_into().ok()?);
-            return (valid > 0 && priming >= 0).then_some((priming as usize, valid as usize));
+    let mut chunk = [0u8; 12];
+    while file.read_exact(&mut chunk).is_ok() {
+        let size = i64::from_be_bytes(chunk[4..].try_into().ok()?);
+        if &chunk[..4] == b"pakt" {
+            let mut table = [0u8; 20];
+            file.read_exact(&mut table).ok()?;
+            let valid = i64::from_be_bytes(table[8..16].try_into().ok()?);
+            let priming = i32::from_be_bytes(table[16..].try_into().ok()?);
+            return (valid > 0 && priming >= 0).then_some((priming as usize, usize::try_from(valid).ok()?));
         }
         if size < 0 {
             return None;
         }
-        at = body.checked_add(size as usize)?;
+        file.seek(SeekFrom::Current(size)).ok()?;
     }
     None
 }
@@ -167,17 +216,38 @@ pub fn ffmpeg() -> Option<PathBuf> {
 
 fn decode_ffmpeg(ffmpeg: &Path, path: &Path) -> Result<Decoded> {
     const RATE: u32 = 48_000;
-    let out = Command::new(ffmpeg)
-        .args(["-v", "error", "-nostdin", "-i"])
-        .arg(path)
-        .args(["-vn", "-f", "f32le", "-acodec", "pcm_f32le", "-ac", "2", "-ar", &RATE.to_string(), "-"])
-        .output()
+    let mut child = Command::new(ffmpeg)
+        .args(["-v", "error", "-nostdin"])
+        .args(ffmpeg_input(path))
+        // a second past the limit, so that a longer file is told from one exactly as long
+        .args(["-vn", "-t", &(MAX_SECONDS + 1).to_string(), "-f", "f32le", "-acodec", "pcm_f32le", "-ac", "2"])
+        .args(["-ar", &RATE.to_string(), "-"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
         .with_context(|| format!("cannot run {}", ffmpeg.display()))?;
-    if !out.status.success() || out.stdout.is_empty() {
-        let err = String::from_utf8_lossy(&out.stderr);
-        bail!("{}", err.lines().last().unwrap_or("no audio stream").trim());
+    let mut stderr = child.stderr.take().expect("stderr is piped");
+    // read beside stdout, so that ffmpeg never waits on a full pipe; the last line says what went wrong
+    let errors = std::thread::spawn(move || {
+        let mut text = Vec::new();
+        let _ = stderr.by_ref().take(1 << 16).read_to_end(&mut text);
+        let _ = std::io::copy(&mut stderr, &mut std::io::sink());
+        String::from_utf8_lossy(&text).into_owned()
+    });
+    let mut out = std::io::BufReader::with_capacity(1 << 16, child.stdout.take().expect("stdout is piped"));
+    let mut samples = Vec::new();
+    let mut bytes = [0u8; 4];
+    while out.read_exact(&mut bytes).is_ok() {
+        samples.push(f32::from_le_bytes(bytes));
     }
-    let samples = out.stdout.chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])).collect();
+    let status = child.wait()?;
+    let errors = errors.join().unwrap_or_default();
+    if !status.success() || samples.is_empty() {
+        bail!("{}", errors.lines().last().unwrap_or("no audio stream").trim());
+    }
+    if samples.len() > MAX_SAMPLES {
+        return Err(TooLong(path.to_path_buf()).into());
+    }
     Ok(Decoded { rate: RATE, channels: 2, samples })
 }
 
@@ -229,6 +299,68 @@ mod tests {
         let e = decode(&p).unwrap_err().to_string();
         assert!(e.contains("cannot decode"), "{e}");
         assert!(decode(&dir.join("missing.wav")).unwrap_err().to_string().contains("no such file"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn refuses_more_audio_than_it_keeps() {
+        let dir = std::env::temp_dir().join(format!("claudius-decode-long-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("t.wav");
+        write_wav(&p, 44_100, 2, 4410);
+        let e = decode_native_upto(&p, 1000).unwrap_err();
+        assert!(e.is::<TooLong>() && e.to_string().contains("too long"), "{e}");
+        assert_eq!(decode_native_upto(&p, 8820).unwrap().frames(), 4410);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn reads_the_packet_table_of_a_caf() {
+        let dir = std::env::temp_dir().join(format!("claudius-decode-caf-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let p = dir.join("t.caf");
+        let mut b = b"caff\x00\x01\x00\x00".to_vec();
+        b.extend_from_slice(b"desc");
+        b.extend_from_slice(&32i64.to_be_bytes());
+        b.extend_from_slice(&[0; 32]);
+        // packets, valid frames, priming frames, remainder frames
+        b.extend_from_slice(b"pakt");
+        b.extend_from_slice(&24i64.to_be_bytes());
+        b.extend_from_slice(&10i64.to_be_bytes());
+        b.extend_from_slice(&44_100i64.to_be_bytes());
+        b.extend_from_slice(&2112i32.to_be_bytes());
+        b.extend_from_slice(&0i32.to_be_bytes());
+        std::fs::write(&p, &b).unwrap();
+        assert_eq!(caf_valid_frames(&p), Some((2112, 44_100)));
+        // a data chunk of unknown size (-1) ends the search
+        std::fs::write(&p, b"caff\x00\x01\x00\x00data\xff\xff\xff\xff\xff\xff\xff\xff").unwrap();
+        assert_eq!(caf_valid_frames(&p), None);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn ffmpeg_opens_no_file_a_playlist_names() {
+        let Some(ff) = ffmpeg() else { return };
+        let dir = std::env::temp_dir().join(format!("claudius-decode-playlist-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let wav = dir.join("elsewhere.wav");
+        write_wav(&wav, 48_000, 2, 48_000);
+        let ts = dir.join("elsewhere.ts");
+        let made = Command::new(&ff)
+            .args(["-v", "error", "-nostdin", "-y", "-i"])
+            .arg(&wav)
+            .args(["-c:a", "aac", "-f", "mpegts"])
+            .arg(&ts)
+            .status();
+        if !made.is_ok_and(|s| s.success()) {
+            return;
+        }
+        assert!(decode_ffmpeg(&ff, &ts).is_ok_and(|d| d.frames() > 40_000), "the segment itself decodes");
+        let playlist = dir.join("list.m3u8");
+        let list = format!("#EXTM3U\n#EXT-X-TARGETDURATION:2\n#EXTINF:1.0,\n{}\n#EXT-X-ENDLIST\n", ts.display());
+        std::fs::write(&playlist, list).unwrap();
+        let e = decode(&playlist).unwrap_err().to_string();
+        assert!(e.contains("cannot decode"), "{e}");
         std::fs::remove_dir_all(&dir).ok();
     }
 }

@@ -47,5 +47,7 @@ websites are hostile, and that whoever holds your claudius token is you.
   different audio.
 - A token never expires, and one sent as `?token=` can stay in the browser's history and in the logs of a proxy or
   tunnel in front of claudius. Start the server again with a new token to revoke one.
-- `ffmpeg`, when installed, is used to decode formats symphonia cannot read and to write MP3. claudius passes it file
-  names as arguments (never through a shell), but its decoders are C code.
+- `ffmpeg`, when installed, decodes what the ears listen to (as the Python earshot does) and the formats symphonia
+  cannot read, and writes MP3. claudius passes it file names as arguments (never through a shell) and lets it open
+  only that file, with the demuxers of ordinary audio and video files: no playlists, lists of files or network
+  addresses. Its decoders are still C code.
