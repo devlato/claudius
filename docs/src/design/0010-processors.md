@@ -46,6 +46,9 @@ The function runs once, when the script runs, on stand-ins for the tracks. What 
 the way a pattern function is printed by running it on a placeholder. The graph is saved; the function is not, so the
 song prints back as `process(...)` lines that rebuild it.
 
+An effect saved in a library ([0011](0011-libraries.md)) takes the function's place:
+`process("pump", ["chords", "kick"], "mine:pump")`.
+
 **Values** wherever an operation takes a number:
 
 - a number;
@@ -65,6 +68,9 @@ song prints back as `process(...)` lines that rebuild it.
 - `convolve(other, seconds)`, capped in length.
 
 `catalog` lists them, each with its arguments and their ranges.
+
+**Graphs stream**, block by block, in the runtime that [0011](0011-libraries.md) describes. Songs render offline
+first; the studio plays processors live later.
 
 **Rendering** splits the per-track pass in three:
 
@@ -91,8 +97,6 @@ Rejected:
   about.
 - **A graph of tracks edited in the studio**: the script is where songs are built, and a graph editor would be a second
   language.
-- **Processing in real time while the song plays**: claudius renders offline. The studio plays the render, as it does
-  for everything else.
 
 ## Consequences
 
