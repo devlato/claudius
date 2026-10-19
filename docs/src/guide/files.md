@@ -46,7 +46,8 @@ folder gets the full verdict.
 
 `blueprint.json` is the song: `claudius render`, `claudius script --on`, `claudius evolve --from`, `claudius
 mutate`, and `open` in the studio and the MCP tools all start from it. [The song model](../engineering/song-model.md)
-describes its fields. A blueprint that plays audio files (Apple Loops, chops, files from scripts) stores their paths,
+describes its fields. Every later claudius opens it; a newer claudius's song, in a format this one does not read
+yet, says so and asks for an update. A blueprint that plays audio files (Apple Loops, chops, files from scripts) stores their paths,
 so it plays on another computer only where those files exist.
 
 ## Caches

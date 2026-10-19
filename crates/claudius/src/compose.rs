@@ -452,7 +452,7 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
         master: Master { fx: g.mix.master.clone(), lufs: g.mix.lufs, ceiling_db: -1.0 },
     };
     Blueprint {
-        version: 1,
+        version: crate::model::BLUEPRINT_FORMAT,
         title: title(&mut rng.fork("title")),
         genre: g.name.clone(),
         seed,

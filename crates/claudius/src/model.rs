@@ -388,8 +388,14 @@ pub struct Harmony {
     pub bars_per_chord: u32,
 }
 
+/// the blueprint format this claudius writes. It reads that and every earlier one, which tests/compat.rs holds it to
+/// with the songs each release saved. A new field with a serde default needs no new format; a field that changes
+/// meaning or goes away does, with the step that upgrades the formats before it in `Blueprint::from_json`.
+pub const BLUEPRINT_FORMAT: u32 = 1;
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Blueprint {
+    /// the format it was written in (`BLUEPRINT_FORMAT`)
     pub version: u32,
     pub title: String,
     pub genre: String,
@@ -493,6 +499,19 @@ impl Blueprint {
 
     pub fn to_json(&self) -> String {
         serde_json::to_string_pretty(self).unwrap_or_default()
+    }
+
+    /// a blueprint from the text of a `blueprint.json`, which this claudius or an earlier one wrote
+    pub fn from_json(text: &str) -> Result<Blueprint, String> {
+        let json: serde_json::Value = serde_json::from_str(text).map_err(|e| e.to_string())?;
+        let format = json.get("version").and_then(serde_json::Value::as_u64).unwrap_or(0);
+        if format > u64::from(BLUEPRINT_FORMAT) {
+            return Err(format!(
+                "a newer claudius wrote it, in blueprint format {format}, and this one reads up to format \
+                 {BLUEPRINT_FORMAT}: update claudius to open it"
+            ));
+        }
+        serde_json::from_value(json).map_err(|e| e.to_string())
     }
 }
 

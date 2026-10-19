@@ -388,12 +388,7 @@ fn run(cli: Cli) -> Result<()> {
                 std::fs::read_to_string(&file).with_context(|| format!("cannot read {}", file.display()))?
             };
             let base: Option<Blueprint> = match &on {
-                Some(p) => {
-                    let p = if p.is_dir() { p.join("blueprint.json") } else { p.clone() };
-                    Some(serde_json::from_str(
-                        &std::fs::read_to_string(&p).with_context(|| format!("cannot read {}", p.display()))?,
-                    )?)
-                }
+                Some(p) => Some(song::read_blueprint(&if p.is_dir() { p.join("blueprint.json") } else { p.clone() })?),
                 None => None,
             };
             let lib = open_library()?.map(std::sync::Arc::new);

@@ -3,7 +3,8 @@
 //! CHANGELOG.md follows Keep a Changelog: `## [Unreleased]` on top, then `## [X.Y.Z] - YYYY-MM-DD` sections, then
 //! the link definitions. Preparing a release turns the commits since the last tag into notes with git-cliff
 //! (cliff.toml), puts them under a new version heading together with anything written under Unreleased by hand, and
-//! leaves Unreleased empty.
+//! leaves Unreleased empty. It also writes the songs the version saves into crates/claudius/tests/compat, which every
+//! later version has to open.
 
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -70,12 +71,17 @@ pub fn prepare(sh: &Shell, bump: &str) -> Result<()> {
         return Err(e).context("Cargo.lock would not update, so the manifests are back as they were");
     }
     sh.write_file(CHANGELOG, with_release(&changelog, &next, &today(), &notes))?;
+    // the songs this version saves, which every later claudius has to open (crates/claudius/tests/compat.rs)
+    let songs = format!("crates/claudius/tests/compat/v{next}");
+    cmd!(sh, "cargo run --quiet --offline -p claudius --no-default-features --example compat_fixtures -- {songs}")
+        .run()
+        .context("could not write the songs of this version for tests/compat")?;
     let root = crate::root();
     let manifests: Vec<String> = changed
         .iter()
         .map(|(path, _)| Path::new(path).strip_prefix(&root).unwrap_or(Path::new(path)).display().to_string())
         .collect();
-    eprintln!("{current} -> {next}: updated {}, Cargo.lock and CHANGELOG.md", manifests.join(", "));
+    eprintln!("{current} -> {next}: updated {}, Cargo.lock and CHANGELOG.md, and wrote {songs}", manifests.join(", "));
     println!("{next}");
     Ok(())
 }

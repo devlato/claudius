@@ -32,7 +32,7 @@ This is the head of a real one, house with seed 9 (`claudius make --genre house 
 
 | field | meaning |
 |---|---|
-| `version` | the format, 1 |
+| `version` | the format, `BLUEPRINT_FORMAT` (1): claudius opens this and every earlier format, and asks for an update to open a newer one ([below](#saved-songs-keep-opening)) |
 | `title`, `genre`, `seed` | the genre names a profile in `data/genres/`; the seed is the one it was generated with |
 | `bpm`, `key`, `swing`, `humanize` | `key` is a tonic pitch class (C = 0) and a mode; `swing` 0.5 is straight, about 0.66 a triplet feel; `humanize` 0 to 1 loosens timing and velocity |
 | `harmony` | named progressions of Roman numerals and how many bars each chord lasts |
@@ -222,3 +222,21 @@ arranged, without an error. Scripts check a pattern when they add it, so that ta
 saved by a version of claudius that accepted more (a pattern with a speed-up above 256 from before that limit).
 `song::write_folder` writes a project to `project.json` in every song folder only so that `claudius judge` can check
 the arrangement and theory of a rendered file; nothing reads it back as a song.
+
+### Saved songs keep opening
+
+Every claudius opens the songs earlier ones saved. `Blueprint::from_json` is the one way a `blueprint.json` is read
+(`open` in the studio and the MCP tools, `claudius render`, `--on`, `--from`). It refuses a format newer than
+`BLUEPRINT_FORMAT` with `a newer claudius wrote it, in blueprint format 2, and this one reads up to format 1: update
+claudius to open it`, and reads the rest.
+
+`crates/claudius/tests/compat/v<version>/` holds what each release saved: a song in each genre and one edited by a
+script (`<name>.json`), with the `song.rhai` printed for each (`<name>.rhai`). `tests/compat.rs` opens every one,
+checks it the way loading does, arranges it, and runs each script on its song; a field added without a default
+fails it, naming the file and the field. The folders of 0.1.0 and 0.2.0 came from those releases' own programs. The
+release PR adds its version's (`cargo xtask release prepare` runs `examples/compat_fixtures.rs`), so each release is
+held to every one before it.
+
+A change the songs cannot take as they are (a field that changes meaning or goes away) raises `BLUEPRINT_FORMAT`, and
+`from_json` gets the step that upgrades the JSON of the format before it; the fixtures of the earlier formats then
+test that step.

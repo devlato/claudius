@@ -457,9 +457,9 @@ impl App {
         };
         if path.extension().is_some_and(|e| e == "json") {
             let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
-            let bp = match serde_json::from_str::<Blueprint>(&text) {
+            let bp = match Blueprint::from_json(&text) {
                 Ok(bp) => bp,
-                Err(e) => return no(format!("{} is not a claudius blueprint: {e}", path.display()), v),
+                Err(e) => return no(format!("cannot open {}: {e}", path.display()), v),
             };
             let outside = bp.files().into_iter().find(|f| !config::path_allowed(Path::new(f), self.roots.as_deref()));
             let checked = bp.check_size().and_then(|_| script::check_patterns(&bp)).and_then(|_| match outside {

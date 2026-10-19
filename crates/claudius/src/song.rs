@@ -80,8 +80,7 @@ pub struct Written {
 /// a song from its blueprint.json, checked: its size, and that its pattern tracks still read
 pub fn read_blueprint(path: &Path) -> Result<Blueprint> {
     let text = std::fs::read_to_string(path).with_context(|| format!("cannot read {}", path.display()))?;
-    let bp: Blueprint =
-        serde_json::from_str(&text).with_context(|| format!("{} is not a claudius blueprint", path.display()))?;
+    let bp = Blueprint::from_json(&text).map_err(|e| anyhow::anyhow!("cannot open {}: {e}", path.display()))?;
     bp.check_size().map_err(anyhow::Error::msg)?;
     crate::script::check_patterns(&bp).map_err(anyhow::Error::msg)?;
     Ok(bp)
