@@ -1,0 +1,23 @@
+{
+  "name": "claudius",
+  "displayName": "Claudius",
+  "version": "0.2.0",
+  "description": "Make songs with Claude: Claudius' tools, which write, arrange, mix and judge a song in the studio you have open, and the skills that teach the craft.",
+  "author": { "name": "The claudius authors", "url": "https://github.com/devlato/claudius" },
+  "homepage": "https://claudius.devlato.com",
+  "repository": "https://github.com/devlato/claudius",
+  "license": "MIT",
+  "keywords": ["music", "beatmaker", "songs", "audio"],
+  "skills": ["./"],
+  "mcpServers": {
+    "claudius": { "command": "${user_config.claudius}", "args": ["mcp"] }
+  },
+  "userConfig": {
+    "claudius": {
+      "type": "string",
+      "title": "Claudius program",
+      "description": "The claudius command, or its full path. For the Mac app dragged from its disk image: /Applications/Claudius.app/Contents/MacOS/Claudius",
+      "default": "claudius"
+    }
+  }
+}

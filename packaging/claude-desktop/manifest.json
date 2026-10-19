@@ -1,0 +1,35 @@
+{
+  "manifest_version": "0.3",
+  "name": "claudius",
+  "display_name": "Claudius",
+  "version": "{{version}}",
+  "description": "Make songs with Claude: Claudius writes, arranges, mixes and judges them, in the studio you have open.",
+  "long_description": "Claudius is a beatmaker that listens to its own songs. With this extension, Claude makes and edits songs in Claudius: it starts from a genre or writes a script, renders the song, listens through Claudius' critic and revises it, while you hear every change in the studio.\n\nThe extension starts the Claudius app, so install the app first: download it from [claudius.devlato.com](https://claudius.devlato.com) and drag it into Applications. Claudius' skills, which teach Claude the craft, are zips to upload in Claude's settings, under Capabilities: the studio's Connect an assistant writes them.",
+  "author": { "name": "The claudius authors", "url": "https://github.com/devlato/claudius" },
+  "homepage": "https://claudius.devlato.com",
+  "documentation": "https://claudius.devlato.com/docs/getting-started/assistants.html",
+  "support": "https://github.com/devlato/claudius/issues",
+  "repository": { "type": "git", "url": "https://github.com/devlato/claudius" },
+  "icon": "icon.png",
+  "license": "MIT",
+  "keywords": ["music", "beatmaker", "songs", "audio"],
+  "server": {
+    "type": "binary",
+    "entry_point": "Claudius",
+    "mcp_config": {
+      "command": "${user_config.claudius}",
+      "args": ["mcp"]
+    }
+  },
+  "user_config": {
+    "claudius": {
+      "type": "file",
+      "title": "Claudius program",
+      "description": "The program inside Claudius.app that the extension starts. Change it if the app is not in Applications.",
+      "required": true,
+      "default": "/Applications/Claudius.app/Contents/MacOS/Claudius"
+    }
+  },
+  "tools_generated": true,
+  "compatibility": { "platforms": ["darwin"] }
+}

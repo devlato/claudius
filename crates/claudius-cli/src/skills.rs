@@ -90,7 +90,10 @@ mod tests {
             for e in std::fs::read_dir(&d).unwrap().flatten() {
                 let p = e.path();
                 if p.is_dir() {
-                    stack.push(p);
+                    // the Claude Code plugin's manifest, which makes the folder a plugin, is not a skill
+                    if p.file_name() != Some(std::ffi::OsStr::new(".claude-plugin")) {
+                        stack.push(p);
+                    }
                 } else if p.parent() != Some(root.as_path()) {
                     // files at the top (the README) explain the skills; each skill is a folder
                     found.push(p.strip_prefix(&root).unwrap().to_string_lossy().replace('\\', "/"));
@@ -101,6 +104,14 @@ mod tests {
         let mut built: Vec<String> = FILES.iter().map(|(p, _)| p.to_string()).collect();
         built.sort();
         assert_eq!(found, built, "skills/ and skills::FILES differ");
+    }
+
+    #[test]
+    fn the_claude_code_plugin_is_this_version() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../skills/.claude-plugin/plugin.json");
+        let plugin: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        assert_eq!(plugin["version"], env!("CARGO_PKG_VERSION"), "cargo xtask release prepare raises both");
+        assert_eq!(plugin["mcpServers"]["claudius"]["args"][0], "mcp");
     }
 
     #[test]

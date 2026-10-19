@@ -42,6 +42,9 @@ claudius connect claude-desktop     # MCP and skills; then ask Claude for a song
 
 Your assistant's own command works too: `claude mcp add --scope user claudius -- claudius mcp`, `codex mcp add
 claudius -- claudius mcp`, or Cursor's install link ([the assistant's own command](docs/src/getting-started/assistants.md#with-the-assistants-own-command)).
+Claude Code's plugin brings the skills along (`claude plugin marketplace add devlato/claudius`, then
+`claude plugin install claudius@claudius`), and on a Mac the release's `claudius-<version>.mcpb` adds Claudius to
+Claude Desktop.
 
 A song in the script language:
 
