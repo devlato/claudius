@@ -1,9 +1,10 @@
 #!/bin/sh
-# Makes claudius.app, one universal app for Apple silicon and Intel Macs, from the two macOS release archives, and the
-# disk image people install it from: claudius-<version>-universal-apple-darwin.dmg, which holds the app and a link to
-# Applications to drag it onto. It uses only the tools macOS comes with, so the release job that signs runs no build.
+# Makes Claudius.app from a macOS release archive, and the disk image people install it from:
+# claudius-<version>-<target>.dmg, which holds the app and a link to Applications to drag it onto. One for each chip:
+# aarch64-apple-darwin for Apple silicon, x86_64-apple-darwin for Intel. It uses only the tools macOS comes with, so
+# the release job that signs runs no build.
 #
-#   scripts/package/macos.sh <aarch64-apple-darwin archive> <x86_64-apple-darwin archive> <out dir>
+#   scripts/package/macos.sh <aarch64-apple-darwin or x86_64-apple-darwin archive> <out dir>
 #
 # Signing, when the environment has it:
 #   MACOS_SIGN_IDENTITY   a Developer ID Application identity in the keychain. The app and the disk image are signed
@@ -16,22 +17,25 @@
 
 set -eu
 
-if [ $# -ne 3 ]; then
-    echo "usage: $0 <aarch64-apple-darwin archive> <x86_64-apple-darwin archive> <out dir>" >&2
+if [ $# -ne 2 ]; then
+    echo "usage: $0 <aarch64-apple-darwin or x86_64-apple-darwin archive> <out dir>" >&2
     exit 2
 fi
-arm=$1
-intel=$2
-out=$3
+archive=$1
+out=$2
 root=$(cd "$(dirname "$0")/../.." && pwd)
 
-name=$(basename "$arm" .tar.gz)
+name=$(basename "$archive" .tar.gz)
+case $name in
+    claudius-*-aarch64-apple-darwin) target=aarch64-apple-darwin ;;
+    claudius-*-x86_64-apple-darwin) target=x86_64-apple-darwin ;;
+    *)
+        echo "macos.sh: $archive is not a macOS archive of claudius" >&2
+        exit 2
+        ;;
+esac
 version=${name#claudius-}
-version=${version%-aarch64-apple-darwin}
-if [ "$(basename "$intel")" != "claudius-$version-x86_64-apple-darwin.tar.gz" ]; then
-    echo "macos.sh: $intel is not the x86_64 archive of claudius $version" >&2
-    exit 2
-fi
+version=${version%"-$target"}
 # CFBundleVersion takes numbers only, so a pre-release (0.5.0-rc.1) is 0.5.0 to macOS
 bundle_version=${version%%-*}
 if [ -n "${MACOS_NOTARY_KEY:-}" ] && [ -z "${MACOS_SIGN_IDENTITY:-}" ]; then
@@ -41,19 +45,18 @@ fi
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-mkdir "$tmp/arm" "$tmp/intel"
-tar -xzf "$arm" -C "$tmp/arm" --strip-components 1
-tar -xzf "$intel" -C "$tmp/intel" --strip-components 1
+mkdir "$tmp/unpacked"
+tar -xzf "$archive" -C "$tmp/unpacked" --strip-components 1
 
-app=$tmp/dmg/claudius.app
+app=$tmp/dmg/Claudius.app
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
-for binary in claudius claudius-packs; do
-    lipo -create "$tmp/arm/bin/$binary" "$tmp/intel/bin/$binary" -output "$app/Contents/MacOS/$binary"
-done
-cp -R "$tmp/arm/share/claudius/web" "$app/Contents/Resources/web"
+# the main program carries the app's name, which macOS shows in the menu bar; the command line links to it as claudius
+cp "$tmp/unpacked/bin/claudius" "$app/Contents/MacOS/Claudius"
+cp "$tmp/unpacked/bin/claudius-packs" "$app/Contents/MacOS/claudius-packs"
+cp -R "$tmp/unpacked/share/claudius/web" "$app/Contents/Resources/web"
 cp "$root/packaging/icons/claudius.icns" "$app/Contents/Resources/"
 for doc in LICENSE NOTICE; do
-    if [ -f "$tmp/arm/$doc" ]; then cp "$tmp/arm/$doc" "$app/Contents/Resources/"; fi
+    if [ -f "$tmp/unpacked/$doc" ]; then cp "$tmp/unpacked/$doc" "$app/Contents/Resources/"; fi
 done
 sed "s/{{version}}/$bundle_version/g" "$root/packaging/macos/Info.plist" > "$app/Contents/Info.plist"
 plutil -lint -s "$app/Contents/Info.plist"
@@ -87,16 +90,16 @@ sign "$app/Contents/MacOS/claudius-packs"
 sign "$app"
 codesign --verify --strict --deep "$app"
 if [ -n "${MACOS_NOTARY_KEY:-}" ]; then
-    ditto -c -k --keepParent "$app" "$tmp/claudius.zip"
-    notarize "$tmp/claudius.zip"
+    ditto -c -k --keepParent "$app" "$tmp/Claudius.zip"
+    notarize "$tmp/Claudius.zip"
     xcrun stapler staple -q "$app"
 fi
 
 ln -s /Applications "$tmp/dmg/Applications"
 mkdir -p "$out"
-dmg=$out/claudius-$version-universal-apple-darwin.dmg
+dmg=$out/claudius-$version-$target.dmg
 rm -f "$dmg"
-hdiutil create -quiet -volname "claudius $version" -srcfolder "$tmp/dmg" -fs HFS+ -format UDZO "$dmg"
+hdiutil create -quiet -volname "Claudius $version" -srcfolder "$tmp/dmg" -fs HFS+ -format UDZO "$dmg"
 if [ -n "${MACOS_SIGN_IDENTITY:-}" ]; then
     codesign --force --timestamp --sign "$MACOS_SIGN_IDENTITY" "$dmg"
 fi

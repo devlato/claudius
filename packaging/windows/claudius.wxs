@@ -5,7 +5,7 @@
   so a newer installer replaces an older install.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package Name="claudius" Manufacturer="claudius" Version="$(Version)" Scope="perUser"
+  <Package Name="Claudius" Manufacturer="The claudius authors" Version="$(Version)" Scope="perUser"
            UpgradeCode="2FBE7A5D-672A-4B0C-84AC-C9C3ED41691D">
     <MajorUpgrade DowngradeErrorMessage="A newer version of claudius is already installed." />
     <MediaTemplate EmbedCab="yes" />
@@ -37,7 +37,7 @@
       </Component>
       <!-- an entry in the user's Start menu needs a key in the user's registry to stand for it -->
       <Component Id="StartMenuEntry">
-        <Shortcut Id="StudioShortcut" Name="claudius" Description="The claudius studio" Directory="ProgramMenuFolder"
+        <Shortcut Id="StudioShortcut" Name="Claudius" Description="The Claudius studio" Directory="ProgramMenuFolder"
                   Target="[#StudioProgram]" WorkingDirectory="INSTALLFOLDER" Icon="claudius.ico" />
         <RegistryValue Root="HKCU" Key="Software\claudius" Name="StartMenuEntry" Type="integer" Value="1" KeyPath="yes" />
       </Component>

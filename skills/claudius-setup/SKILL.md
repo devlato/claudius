@@ -19,7 +19,7 @@ description: >-
 | Windows (preview) | `irm https://github.com/devlato/claudius/releases/latest/download/install.ps1 \| iex` in PowerShell |
 | from source, with a Rust toolchain | `cargo install --locked --path crates/claudius-cli` and `--path crates/claudius-packs` in a clone |
 
-The installer puts `claudius` and `claudius-packs` in `~/.local/bin` (on a Mac, as links into claudius.app, which it
+The installer puts `claudius` and `claudius-packs` in `~/.local/bin` (on a Mac, as links into Claudius.app, which it
 installs in Applications; on Windows, in a folder it adds to `PATH`). On Linux without ALSA it installs the headless
 build, which serves the studio to a browser instead of opening a window.
 
@@ -93,7 +93,7 @@ Run `claudius doctor` first; it names most problems. The common ones:
 | the assistant shows no claudius tools | the client was not restarted, or its configuration points at an old path: run `claudius connect <client>` again |
 | `asks for a token` | the running claudius was started with a token: pass `--token` (or set `CLAUDIUS_TOKEN`) to `claudius mcp` |
 | the assistant and the studio show different songs | `claudius mcp` started before the studio, so it has a session of its own: restart the assistant once the studio runs |
-| `“claudius” Not Opened` (macOS) | the app came from a disk image downloaded in a browser, and the releases are not notarized yet: install with the `curl` command above instead, or System Settings, Privacy & Security, Open Anyway |
+| `“Claudius” Not Opened` (macOS) | the app came from a disk image downloaded in a browser, and the releases are not notarized yet: install with the `curl` command above instead, or System Settings, Privacy & Security, Open Anyway |
 | `busy (rendering)` | a job is running: wait and call `status`; `stop` ends a mutation or an evolution early, but a render always finishes |
 | no `song.mp3` | ffmpeg is not installed: `song.wav` is the same song; install ffmpeg for MP3s |
 

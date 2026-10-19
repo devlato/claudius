@@ -8,16 +8,17 @@ Paste this into Terminal:
 curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh | sh
 ```
 
-It installs **claudius** into Applications, and its command-line programs into `~/.local/bin`. It runs on Macs with
+It installs **Claudius** into Applications, and its command-line programs into `~/.local/bin`. It runs on Macs with
 Apple silicon or Intel and macOS 11 or later, and opening it opens [the studio](studio.md).
 
-You can also download `claudius-<version>-universal-apple-darwin.dmg` from the [latest
-release](https://github.com/devlato/claudius/releases/latest), open it, and drag **claudius** onto **Applications**.
-Until the releases are signed with an Apple Developer ID, though, macOS refuses an app downloaded in a browser the
-first time: "“claudius” Not Opened. Apple could not verify “claudius” is free of malware". Click **Done**, open
-**System Settings**, **Privacy & Security**, scroll down to the line about claudius, and click **Open Anyway**. macOS
-asks once more, and then remembers. The command above avoids all this, because macOS checks only what a browser
-downloads, and `curl` is not one.
+You can also download the disk image for your Mac from the [latest
+release](https://github.com/devlato/claudius/releases/latest): `claudius-<version>-aarch64-apple-darwin.dmg` for Apple
+silicon, `claudius-<version>-x86_64-apple-darwin.dmg` for Intel (the Apple menu, **About This Mac**, says which you
+have). Open it, and drag **Claudius** onto **Applications**. Until the releases are signed with an Apple Developer ID,
+though, macOS refuses an app downloaded in a browser the first time: "“Claudius” Not Opened. Apple could not verify
+“Claudius” is free of malware". Click **Done**, open **System Settings**, **Privacy & Security**, scroll down to the
+line about Claudius, and click **Open Anyway**. macOS asks once more, and then remembers. The command above avoids all
+this, because macOS checks only what a browser downloads, and `curl` is not one.
 
 The first time the studio starts, it downloads its listening models by itself and offers to download the sample
 packs ([below](#the-sounds-and-the-ears)). To connect Claude, Cursor or Codex, use **?**, **Connect an assistant** in
@@ -28,13 +29,14 @@ this to use them in a terminal:
 
 ```sh
 mkdir -p ~/.local/bin
-ln -s /Applications/claudius.app/Contents/MacOS/claudius /Applications/claudius.app/Contents/MacOS/claudius-packs ~/.local/bin/
+ln -s /Applications/Claudius.app/Contents/MacOS/Claudius ~/.local/bin/claudius
+ln -s /Applications/Claudius.app/Contents/MacOS/claudius-packs ~/.local/bin/claudius-packs
 ```
 
 ## Linux packages
 
 Every release has packages for x86_64 and ARM64 Linux with glibc 2.38 or newer (Ubuntu 24.04, Debian 13, Fedora 39
-and later). Each puts the programs in `/usr/bin`, the web studio in `/usr/share/claudius/web`, and **claudius** in
+and later). Each puts the programs in `/usr/bin`, the web studio in `/usr/share/claudius/web`, and **Claudius** in
 your desktop's app menu, which opens the studio. Download the one for your system from the [latest
 release](https://github.com/devlato/claudius/releases/latest):
 
@@ -81,7 +83,7 @@ Windows is a preview: its build has no ears yet, so verdicts use meters and musi
 
 Download `claudius-<version>-x86_64-pc-windows-msvc.msi` from the [latest
 release](https://github.com/devlato/claudius/releases/latest) and run it. It needs no administrator: it installs
-claudius for you in `%LOCALAPPDATA%\Programs\claudius`, adds its programs to your `PATH`, and puts **claudius** in the
+claudius for you in `%LOCALAPPDATA%\Programs\claudius`, adds its programs to your `PATH`, and puts **Claudius** in the
 Start menu, which opens the studio. The installer is not signed yet, so SmartScreen may say *Windows protected your
 PC*: click **More info**, then **Run anyway**. Settings, Apps, removes it again.
 
@@ -151,7 +153,7 @@ setup](../contributing/setup.md) covers everything else.
 
 ## Uninstall
 
-The Mac app: drag claudius from Applications to the Bin, and delete the links in `~/.local/bin`
+The Mac app: drag Claudius from Applications to the Bin, and delete the links in `~/.local/bin`
 (`rm ~/.local/bin/claudius ~/.local/bin/claudius-packs`). The command-line install:
 
 ```sh
