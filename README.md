@@ -14,7 +14,8 @@ or from the command line.
 
 ![The studio: a deep house song's arrangement, its step sequencer, and the critic's verdict](site/assets/img/studio-ripples-1200.webp)
 
-**[Documentation](docs/src/SUMMARY.md)** · **[Releases](https://github.com/devlato/claudius/releases)**
+**[Website](https://claudius.devlato.com)** · **[Documentation](https://claudius.devlato.com/docs/)** ·
+**[Releases](https://github.com/devlato/claudius/releases)**
 
 ## Install
 

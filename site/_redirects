@@ -1,4 +1,4 @@
-# Cloudflare Pages redirects. `cargo xtask site` substitutes {{repo_url}} here too.
+# Redirects, which Cloudflare applies before serving the site's files. `cargo xtask site` substitutes {{repo_url}} here too.
 # Sources match the path only (no query string), so /studio cannot loop with /studio/?mock.
 
 /github     {{repo_url}}                         302

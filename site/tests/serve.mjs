@@ -1,4 +1,4 @@
-// A static server that behaves like Cloudflare Pages for the smoke test: it applies _headers (including detached
+// A static server that behaves like Cloudflare's static assets for the smoke test: it applies _headers (including detached
 // headers), follows _redirects, serves /dir/ from /dir/index.html, answers missing paths with 404.html and status
 // 404, and supports byte ranges for audio. It serves the assembled site (target/site, from `cargo xtask site`) when
 // it exists; otherwise site/ itself, with the placeholders filled in the way the build fills them.
@@ -54,7 +54,7 @@ const TEXT = new Set([".html", ".css", ".js", ".mjs", ".json", ".webmanifest", "
 // Pages reads these and never serves them
 const CONFIG = /^\/(_headers|_redirects)$/;
 // files in site/ that are not part of the website (the build leaves them out)
-export const PRIVATE = /^\/(node_modules|tests|tools|test-results|playwright-report|blob-report)(\/|$)|^\/(package(-lock)?\.json|playwright\.config\.mjs|README\.md|\.gitignore)$/;
+export const PRIVATE = /^\/(node_modules|tests|tools|test-results|playwright-report|blob-report)(\/|$)|^\/(package(-lock)?\.json|playwright\.config\.mjs|README\.md|\.gitignore|wrangler\.toml)$/;
 
 function workspaceVersion() {
   try {

@@ -47,7 +47,8 @@ a comment in `_headers`.
 - `favicon.svg`, `favicon-32.png`, `apple-touch-icon.png`, `icon-512.png`, `site.webmanifest`, and `og.png`
   (1200×630, the preview image for links). `scripts/icons.py` draws the logo, the mark and the icons; `og.png` has
   the logo at (72, 64), at its own size.
-- `_headers` and `_redirects`: Cloudflare Pages configuration, described below.
+- `_headers` and `_redirects`: what Cloudflare adds to responses and where it redirects, described below.
+- `wrangler.toml`: the Worker that serves the built site on claudius.devlato.com (not published itself).
 - `tests/`, `package.json`, `playwright.config.mjs`: the smoke test. `tools/excerpt.py`: cuts the demos. None of
   these belong on the website, and the smoke test checks that the build leaves them out.
 
