@@ -29,7 +29,7 @@ signalsmith-stretch = "0.1"
 earshot = { path = "../earshot", optional = true }
 claudius-packs = { path = "../claudius-packs" }
 rhai = "1.26"
-claudius-decode = { version = "0.1.0", path = "../claudius-decode" }
+claudius-decode = { version = "0.2.0", path = "../claudius-decode" }
 
 [dev-dependencies]
 criterion = "0.8"

@@ -21,7 +21,7 @@ path = "src/bin/earshot.rs"
 
 [dependencies]
 anyhow = "1"
-claudius-decode = { version = "0.1.0", path = "../claudius-decode" }
+claudius-decode = { version = "0.2.0", path = "../claudius-decode" }
 ort = { version = "=2.0.0-rc.14", default-features = false, features = ["std", "download-binaries", "tls-native", "copy-dylibs", "api-31"] }
 realfft = "3.5"
 serde = { version = "1", features = ["derive"] }
