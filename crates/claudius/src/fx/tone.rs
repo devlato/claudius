@@ -61,19 +61,15 @@ pub fn saturate(x: &mut Stereo, kind: SatKind, drive_db: f32, mix: f32, sr: f64)
     let g = db_to_gain(drive_db) as f64;
     let norm = shape(kind, g).abs().max(1e-6);
     let dry = if mix < 0.999 { Some(x.clone()) } else { None };
+    let wave = |v: f32| (shape(kind, v as f64 * g) / norm) as f32;
     for ch in x.channels_mut() {
-        let n = ch.len();
-        let mut up = vec![0.0f32; 2 * n];
-        for i in 0..n {
-            up[2 * i] = ch[i] * 2.0;
-        }
-        filter::butter(&mut up, false, 0.45 * sr, 2.0 * sr, 8);
-        for v in up.iter_mut() {
-            *v = (shape(kind, *v as f64 * g) / norm) as f32;
-        }
-        filter::butter(&mut up, false, 0.45 * sr, 2.0 * sr, 8);
-        for i in 0..n {
-            ch[i] = up[2 * i];
+        // a zero after each sample, lowpassed, shaped, lowpassed and every other sample kept, a sample at a time
+        let mut up = filter::Butter::<4>::new(false, 0.45 * sr, 2.0 * sr);
+        let mut down = up;
+        for v in ch.iter_mut() {
+            let kept = down.tick(wave(up.tick(*v * 2.0)));
+            down.tick(wave(up.tick(0.0)));
+            *v = kept;
         }
         if kind == SatKind::Tube {
             filter::dc_block(ch, sr);
