@@ -13,6 +13,7 @@ use anyhow::{Context, Result, anyhow, ensure};
 use xshell::{Shell, cmd};
 
 const CHANGELOG: &str = "CHANGELOG.md";
+const PLUGIN: &str = "skills/.claude-plugin/plugin.json";
 const UNRELEASED: &str = "## [Unreleased]";
 const REPO_URL: &str = "https://github.com/devlato/claudius";
 const NEW_CHANGELOG: &str = "\
@@ -43,6 +44,10 @@ pub fn prepare(sh: &Shell, bump: &str) -> Result<()> {
     if notes.is_empty() {
         eprintln!("warning: the notes for {next} are empty; write them in CHANGELOG.md on the release branch");
     }
+    // the Claude Code plugin (skills/), which Claude Code offers as an update when its version changes
+    let plugin = sh.read_file(PLUGIN)?;
+    let old_plugin = format!("\"version\": \"{current}\"");
+    ensure!(plugin.contains(&old_plugin), "{PLUGIN} does not say {old_plugin}");
 
     let metadata = cmd!(sh, "cargo metadata --no-deps --format-version 1 --offline").read()?;
     let members: Vec<(String, String)> =
@@ -71,6 +76,7 @@ pub fn prepare(sh: &Shell, bump: &str) -> Result<()> {
         return Err(e).context("Cargo.lock would not update, so the manifests are back as they were");
     }
     sh.write_file(CHANGELOG, with_release(&changelog, &next, &today(), &notes))?;
+    sh.write_file(PLUGIN, plugin.replacen(&old_plugin, &format!("\"version\": \"{next}\""), 1))?;
     // the songs this version saves, which every later claudius has to open (crates/claudius/tests/compat.rs)
     let songs = format!("crates/claudius/tests/compat/v{next}");
     cmd!(sh, "cargo run --quiet --offline -p claudius --no-default-features --example compat_fixtures -- {songs}")
@@ -81,7 +87,10 @@ pub fn prepare(sh: &Shell, bump: &str) -> Result<()> {
         .iter()
         .map(|(path, _)| Path::new(path).strip_prefix(&root).unwrap_or(Path::new(path)).display().to_string())
         .collect();
-    eprintln!("{current} -> {next}: updated {}, Cargo.lock and CHANGELOG.md, and wrote {songs}", manifests.join(", "));
+    eprintln!(
+        "{current} -> {next}: updated {}, Cargo.lock, CHANGELOG.md and {PLUGIN}, and wrote {songs}",
+        manifests.join(", ")
+    );
     println!("{next}");
     Ok(())
 }

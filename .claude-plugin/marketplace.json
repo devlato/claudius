@@ -1,0 +1,12 @@
+{
+  "name": "claudius",
+  "description": "Claudius, a beatmaker that listens to its own songs: its tools and skills for Claude Code",
+  "owner": { "name": "The claudius authors", "url": "https://github.com/devlato/claudius" },
+  "plugins": [
+    {
+      "name": "claudius",
+      "source": "./skills",
+      "description": "Claudius' MCP tools and the skills that teach the craft: make, edit, remix and judge songs"
+    }
+  ]
+}

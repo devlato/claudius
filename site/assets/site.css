@@ -463,6 +463,28 @@ button {
   margin-top: 26px;
 }
 
+/* the hero's download button */
+
+.get {
+  margin-top: 26px;
+}
+
+.btn-get {
+  min-height: 54px;
+  padding: 0 26px;
+  font-size: 1.06rem;
+}
+
+.get [hidden] {
+  display: none;
+}
+
+.get-more {
+  margin: 10px 0 0;
+  color: var(--text-dim);
+  font-size: 0.92rem;
+}
+
 /* install box and commands */
 
 .install {
@@ -1798,6 +1820,13 @@ button {
 
 .platform .cmd pre {
   font-size: 0.8rem;
+}
+
+.get-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 12px;
 }
 
 .platform-note {
