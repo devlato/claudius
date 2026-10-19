@@ -63,7 +63,11 @@ claudius mcp: a session of its own (no web UI: port 7933 is taken, by another cl
 
 ## An MCP client shows no claudius tools
 
-- **The client was not restarted** after `claudius connect`. Claude Desktop reads its configuration at start.
+- **The client was not restarted** after `claudius connect` (or the studio's Connect an assistant). Claude Desktop
+  reads its configuration at start.
+- **The Mac app was not in Applications.** Opened from its disk image or from Downloads, it runs from a copy macOS
+  takes away again, and connecting says so: `claudius is running from <path>, <why>, which goes away: move
+  claudius.app into Applications, open it from there, and connect again`.
 - **The configured program is not there.** `connect` writes the absolute path of the `claudius` that ran it. If you
   moved or reinstalled it elsewhere (say from `~/.cargo/bin` to `~/.local/bin`), run `claudius connect` again. A
   hand-written entry with plain `"command": "claudius"` fails in apps that do not see your shell's `PATH`.

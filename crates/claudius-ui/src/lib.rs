@@ -15,12 +15,14 @@ mod devplan;
 mod edits;
 mod mock;
 mod music;
+mod native;
 mod net;
 mod panels;
 mod theme;
 mod widgets;
 
 pub use app::Studio;
+pub use native::{Assistant, Connected, Native};
 pub use net::Connection;
 
 /// The window title and the id eframe stores the studio's preferences under.
@@ -34,15 +36,16 @@ pub const WEB_DIST: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/dist");
 ///
 /// `server` is the base URL of the claudius server (`http://127.0.0.1:7878`, or `host:port`); when `None`, env
 /// `CLAUDIUS_SERVER` is used, else `http://127.0.0.1:7878`. `"mock"` (or env `CLAUDIUS_MOCK=1`) runs against the
-/// built-in demo instead of a server.
+/// built-in demo instead of a server. `native` is what the window may do on this computer (connect assistants):
+/// `claudius studio` provides it.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn run_native(server: Option<String>) -> eframe::Result<()> {
-    run_native_with(Connection::native(server))
+pub fn run_native(server: Option<String>, native: Option<std::sync::Arc<dyn Native>>) -> eframe::Result<()> {
+    run_native_with(Connection::native(server), native)
 }
 
 /// Like [`run_native`], with the connection spelled out.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn run_native_with(connection: Connection) -> eframe::Result<()> {
+pub fn run_native_with(connection: Connection, native: Option<std::sync::Arc<dyn Native>>) -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default()
             .with_title(APP_NAME)
@@ -51,7 +54,15 @@ pub fn run_native_with(connection: Connection) -> eframe::Result<()> {
             .with_min_inner_size([1100.0, 680.0]),
         ..Default::default()
     };
-    eframe::run_native(APP_NAME, options, Box::new(move |cc| Ok(Box::new(Studio::new(cc, connection)))))
+    eframe::run_native(
+        APP_NAME,
+        options,
+        Box::new(move |cc| {
+            let mut studio = Studio::new(cc, connection);
+            studio.native = native;
+            Ok(Box::new(studio))
+        }),
+    )
 }
 
 /// Starts the studio in the page's `<canvas id="{canvas_id}">`, talking to the page's own origin (or `?server=URL`,

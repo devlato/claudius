@@ -21,6 +21,7 @@ The studio is still being finished; this page describes its structure, which is 
 | `music.rs` | the theory needed to label things: keys, numerals as chord names, note names |
 | `theme.rs`, `widgets.rs` | the palette (one colour per role and section kind), knobs, faders, meters, chips |
 | `devplan.rs` | scripted runs of the native window, for checking the UI without a person |
+| `native.rs` | `Native`, what the native window may do on its computer beyond the server (connect assistants) |
 
 ## Layout
 
@@ -92,6 +93,12 @@ asking egui to repaint. Natively the server's address comes from the argument, `
 
 The native window has no way to send a token. `claudius studio` runs its own server without one; to use a
 token-protected claudius, open it in a browser with `?token=`, which sets the cookie every later request carries.
+
+What the window does on its own computer goes through `Native`, which `claudius studio` passes to `run_native`
+(`connect::FromTheStudio` in `claudius-cli`): reading the assistants' configurations and connecting one, on a thread of
+its own so that a slow `claude mcp add` does not stop the window. None of it goes over HTTP, so neither a page in a
+browser nor anything else that reaches the server can change those configurations; the web studio, which has no
+`Native`, lists the `claudius connect` commands instead.
 
 ## Playback
 

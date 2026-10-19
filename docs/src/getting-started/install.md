@@ -11,8 +11,10 @@ open it. Click **Done**, open **System Settings**, **Privacy & Security**, and c
 about claudius. macOS asks once more, and then remembers.
 
 The first time the studio starts, it downloads its listening models by itself and offers to download the sample
-packs ([below](#the-sounds-and-the-ears)). The app holds the command-line programs too; to use them in a terminal,
-link them into a folder on your `PATH`:
+packs ([below](#the-sounds-and-the-ears)). To connect Claude, Cursor or Codex, use **?**, **Connect an assistant** in
+the studio. Move the app into Applications first: an app opened from its disk image, or from Downloads, runs from a
+copy macOS takes away again, and claudius will not connect an assistant to it. The app holds the command-line
+programs too; to use them in a terminal, link them into a folder on your `PATH`:
 
 ```sh
 mkdir -p ~/.local/bin

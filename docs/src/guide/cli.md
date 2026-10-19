@@ -482,6 +482,11 @@ own skill folders (`claudius-songs`, `claudius-remix`, `claudius-setup`). An ass
 it starts, so `connect` ends by saying how to restart it: quit and reopen Claude Desktop, restart Cursor or reload its
 window, start a new Codex or Claude Code session.
 
+`claude-code` runs the `claude` command, found on `PATH` or where its installers put it (`~/.local/bin`,
+`~/.claude/local`, `~/.npm-global/bin`, `/opt/homebrew/bin`, `/usr/local/bin`), and replaces a claudius Claude Code
+already has. The studio's **Connect an assistant** does what `connect` does, and `claudius doctor` lists the
+assistants that are connected.
+
 ### `claudius skills`
 
 ```sh

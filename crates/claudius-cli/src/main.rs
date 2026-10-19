@@ -443,7 +443,7 @@ fn main() -> Result<()> {
             };
             #[cfg(feature = "studio")]
             {
-                let shown = claudius_ui::run_native(Some(url));
+                let shown = claudius_ui::run_native(Some(url), Some(std::sync::Arc::new(connect::FromTheStudio)));
                 if let Some(session) = &own {
                     session.wait_for_ears(std::time::Duration::from_secs(60));
                 }

@@ -2,6 +2,7 @@
 //! optimistically and sends everything to the server once per frame.
 
 pub mod arrange;
+pub mod assistants;
 pub mod harmony;
 pub mod inspector;
 pub mod library;
@@ -161,6 +162,7 @@ pub struct View {
     pub name_edit: Option<(usize, String)>,
     pub volume: f32,
     pub sevenths: bool,
+    pub assistants: assistants::Assistants,
 }
 
 impl Default for View {
@@ -206,6 +208,7 @@ impl Default for View {
             name_edit: None,
             volume: 0.9,
             sevenths: true,
+            assistants: assistants::Assistants::default(),
         }
     }
 }

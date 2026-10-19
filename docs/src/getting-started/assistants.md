@@ -4,6 +4,17 @@ claudius speaks MCP, the protocol assistants use for tools. Once it is connected
 Cursor for a song in plain words. The assistant writes a script or starts from a genre, listens through claudius'
 critic, reads the issues, and revises, while you listen in the studio and steer.
 
+## From the studio
+
+The studio connects them with a click: **?** in the bottom right corner, then **Connect an assistant** (it is also
+under New song while no song is open). It lists Claude Desktop, Claude Code, Cursor and Codex, says which are
+connected, and **Connect** does what `claudius connect` below does, skills included. An assistant set up for another
+claudius (an older install, say) offers **Use this app**. Then restart the assistant, as it says. This is the way for
+the Mac app, the Windows installer and the Linux packages, whose `claudius` may not be on your `PATH`.
+
+The web studio, a page in a browser, cannot change the settings of the apps on a computer, so it lists the commands to
+run instead.
+
 ## Claude Desktop
 
 ```sh
