@@ -96,9 +96,16 @@ pub fn top_row(ui: &mut Ui, cx: &mut Cx) {
         }
         let playing = cx.player.is_playing();
         let play_tip = if has_audio { "play / pause (Space)" } else { "render the song first" };
-        if widgets::icon_button(ui, if playing { Icon::Pause } else { Icon::Play }, 34.0, playing, has_audio, play_tip)
-            .clicked()
-        {
+        let play = widgets::icon_button(
+            ui,
+            if playing { Icon::Pause } else { Icon::Play },
+            34.0,
+            playing,
+            has_audio,
+            play_tip,
+        );
+        cx.view.anchors.play = Some(play.rect);
+        if play.clicked() {
             if playing { cx.player.pause() } else { cx.player.play() }
         }
         if widgets::icon_button(ui, Icon::Stop, 30.0, false, has_audio, "stop and rewind").clicked() {
@@ -247,7 +254,9 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
     let has_song = cx.state.song.is_some();
     ui.horizontal_centered(|ui| {
         ui.spacing_mut().item_spacing.x = 6.0;
-        if widgets::tool_button(ui, Icon::New, "New song", true, false).on_hover_text("generate a new song from a genre").clicked() {
+        let new_song = widgets::tool_button(ui, Icon::New, "New song", true, false).on_hover_text("generate a new song from a genre");
+        cx.view.anchors.new_song = Some(new_song.rect);
+        if new_song.clicked() {
             cx.view.new_song.open = true;
             if let Some(song) = &cx.state.song {
                 cx.view.new_song.genre = song.genre.clone();

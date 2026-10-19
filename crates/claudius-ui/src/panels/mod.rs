@@ -163,6 +163,10 @@ pub struct View {
     pub volume: f32,
     pub sevenths: bool,
     pub assistants: assistants::Assistants,
+    /// the tour's step on screen, and whether it was taken or skipped (kept between runs)
+    pub tour: Option<usize>,
+    pub tour_done: bool,
+    pub anchors: crate::tour::Anchors,
 }
 
 impl Default for View {
@@ -209,6 +213,9 @@ impl Default for View {
             volume: 0.9,
             sevenths: true,
             assistants: assistants::Assistants::default(),
+            tour: None,
+            tour_done: false,
+            anchors: crate::tour::Anchors::default(),
         }
     }
 }
