@@ -112,12 +112,19 @@ jobs:
       - run: cargo xtask web
       - run: cargo xtask dist --target x86_64-pc-windows-msvc --web crates/claudius-ui/dist
       - name: An installer of this build that says it is 0.1.99, so that a release's installer upgrades it
+        shell: pwsh
         run: |
           dotnet tool install --global wix --version 5.0.2
-          export PATH="$HOME/.dotnet/tools:$PATH"
-          version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
-          cp "target/dist/claudius-$version-x86_64-pc-windows-msvc.zip" target/dist/claudius-0.1.99-x86_64-pc-windows-msvc.zip
-          pwsh scripts/package/windows.ps1 target/dist/claudius-0.1.99-x86_64-pc-windows-msvc.zip target/older
+          $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
+          # the archive's folder carries its name too, which windows.ps1 reads the files from
+          $older = 'claudius-0.1.99-x86_64-pc-windows-msvc'
+          $built = Get-ChildItem target/dist/claudius-*-x86_64-pc-windows-msvc.zip | Select-Object -First 1
+          $unpacked = Join-Path $env:RUNNER_TEMP 'built'
+          Expand-Archive $built.FullName -DestinationPath $unpacked
+          Rename-Item (Get-ChildItem $unpacked -Directory | Select-Object -First 1).FullName $older
+          Compress-Archive -Path (Join-Path $unpacked $older) -DestinationPath "target/dist/$older.zip"
+          pwsh scripts/package/windows.ps1 "target/dist/$older.zip" target/older
+          if ($LASTEXITCODE -ne 0) { throw 'windows.ps1 failed' }
       - name: Installed, it updates itself to the latest release
         shell: pwsh
         run: |
