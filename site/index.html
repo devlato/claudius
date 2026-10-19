@@ -656,11 +656,15 @@ claudius reference</code></pre>
     <div class="clients">
       <article class="client">
         <h3>Claude Code</h3>
+        <p>The plugin brings the MCP server and the skills that teach Claude the craft:</p>
+        <pre class="code"><code class="language-sh">claude plugin marketplace add devlato/claudius
+claude plugin install claudius@claudius</code></pre>
+        <p>Or the server alone:</p>
         <pre class="code"><code class="language-sh">claude mcp add --scope user claudius -- claudius mcp</code></pre>
         <h3>Codex</h3>
         <pre class="code"><code class="language-sh">codex mcp add claudius -- claudius mcp</code></pre>
         <h3>Claude Desktop</h3>
-        <p>In Claude's settings, Developer, Edit Config opens <code class="long">claude_desktop_config.json</code>. Add this and restart Claude, with the full path that <code>which claudius</code> prints.</p>
+        <p>On a Mac, open <code>claudius-{{version}}.mcpb</code> from the <a href="{{repo_url}}/releases/latest">latest release</a>, after installing the app: Claude Desktop installs it as an extension. Or, in Claude's settings, Developer, Edit Config opens <code class="long">claude_desktop_config.json</code>: add this and restart Claude, with the full path that <code>which claudius</code> prints.</p>
         <pre class="code"><code class="language-json">{
   "mcpServers": {
     "claudius": {

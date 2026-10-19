@@ -1,4 +1,4 @@
-//! `cargo xtask site`: the website in one directory, as Cloudflare Pages serves it.
+//! `cargo xtask site`: the website in one directory, as Cloudflare serves it (site/wrangler.toml).
 
 use std::path::Path;
 
@@ -27,9 +27,10 @@ const TOOLING: &[&str] = &[
     "test-results",
     "tests",
     "tools",
+    "wrangler.toml",
 ];
 
-/// Cloudflare Pages serves unknown extensions as application/octet-stream, which PowerShell's `irm | iex` cannot run
+/// Cloudflare serves unknown extensions as application/octet-stream, which PowerShell's `irm | iex` cannot run
 const HEADERS: &str = "\
 /install.sh
   Content-Type: text/plain; charset=utf-8

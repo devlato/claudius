@@ -55,12 +55,14 @@ its section and adds the generated entries under the headings of the same name.
    ```
 
    or in the web interface: Actions, *release pr*, *Run workflow*. The workflow runs
-   `cargo xtask release prepare minor`, which changes three things and adds a fourth: the version in `Cargo.toml` (and
+   `cargo xtask release prepare minor`, which changes four things and adds a fifth: the version in `Cargo.toml` (and
    the `version = "..."` of path dependencies between workspace crates, which `cargo add --path` writes), the
    workspace entries in `Cargo.lock`, `CHANGELOG.md`, where Unreleased becomes `## [0.5.0] - <today>` with the notes
-   from git-cliff, and the songs 0.5.0 saves, in `crates/claudius/tests/compat/v0.5.0/`, which every later release has
-   to open ([saved songs keep opening](../engineering/song-model.md#saved-songs-keep-opening)). It commits that to the branch `release/v0.5.0` through GitHub's API, so that GitHub signs the commit
-   (`main` accepts only signed commits), and opens the PR **release: v0.5.0**, with the notes in its description.
+   from git-cliff, the version of the Claude Code plugin in `skills/.claude-plugin/plugin.json`, and the songs 0.5.0
+   saves, in `crates/claudius/tests/compat/v0.5.0/`, which every later release has to open
+   ([saved songs keep opening](../engineering/song-model.md#saved-songs-keep-opening)). It commits that to the branch
+   `release/v0.5.0` through GitHub's API, so that GitHub signs the commit (`main` accepts only signed commits), and
+   opens the PR **release: v0.5.0**, with the notes in its description.
 
 2. **Let CI run.** GitHub starts no workflows for a pull request opened with a workflow's own `GITHUB_TOKEN`, so the
    workflow starts CI on the release branch itself (`gh workflow run ci.yml --ref release/v0.5.0`); the checks show
@@ -168,11 +170,12 @@ shasum -a 256 --check --ignore-missing SHA256SUMS
 
 ## The website
 
-`site.yml` builds the site with `cargo xtask site`, without a cache or secrets, and hands it to a deploy job that
-does nothing but upload it to a Cloudflare Pages project, in the environment `site`. It deploys once the site has an
-address: the repository variable `SITE_URL` (`gh variable set SITE_URL --body https://claudius.example`) and the
-project's name in `SITE_PROJECT`, with the Cloudflare secrets below. Until then it builds and checks the site and
-deploys nothing. It deploys `main`:
+The site is on [claudius.devlato.com](https://claudius.devlato.com). `site.yml` builds it with `cargo xtask site`,
+without a cache or secrets, and hands it to a deploy job that does nothing but upload it to Cloudflare, in the
+environment `site`, as the static assets of the Worker that `site/wrangler.toml` describes, with its custom domain.
+It deploys once the repository variable `SITE_URL` gives the address
+(`gh variable set SITE_URL --body https://claudius.devlato.com`) and the Cloudflare secrets below are set. Until then
+it builds and checks the site and deploys nothing. It deploys `main`:
 
 - after a release, called by `release.yml`;
 - on pushes to `main` that change `docs/`, `site/`, `CHANGELOG.md` or the install scripts, so the docs follow
@@ -203,15 +206,14 @@ that job runs on `main` (or, for `release`, a hotfix branch): a workflow pushed 
 Set each one with `gh secret set <NAME> --repo devlato/claudius --env <environment>`, which reads the value from
 standard input.
 
-**Cloudflare.** In the Cloudflare dashboard, *My Profile*, *API Tokens*, *Create Token*: a custom token with the
-permission *Account*, *Cloudflare Pages*, *Edit*, for your account only, with an expiry date. The account ID is on the *Workers & Pages*
-overview. The Pages project has to exist before the first deploy. Its name is also its address,
-`<name>.pages.dev`, and has to be free, so pick it first, then tell the workflows about it:
+**Cloudflare.** In the Cloudflare dashboard, *My Profile*, *API Tokens*, *Create Token*: the template *Edit
+Cloudflare Workers*, for your account and the zone of the site's domain, with an expiry date. The account ID is on
+the *Workers & Pages* overview. The domain in `site/wrangler.toml` has to be a zone on the same account: the first
+deploy creates its DNS record and certificate. That first deploy can be made by hand, after `npx wrangler login`:
 
 ```sh
-CLOUDFLARE_API_TOKEN=... npx wrangler pages project create <name> --production-branch main
-gh variable set SITE_PROJECT --body <name>
-gh variable set SITE_URL --body https://<name>.pages.dev # or the custom domain you add to the project
+cargo xtask site --site-url https://claudius.devlato.com
+npx wrangler deploy --config site/wrangler.toml
 ```
 
 **Apple.** Both need a membership of the [Apple Developer Program](https://developer.apple.com/programs/). In

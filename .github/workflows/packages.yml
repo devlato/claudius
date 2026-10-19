@@ -9,6 +9,8 @@ on:
     paths:
       - packaging/**
       - scripts/package/**
+      - .claude-plugin/**
+      - skills/.claude-plugin/**
       - .github/workflows/packages.yml
       - .github/workflows/release.yml
       - xtask/src/dist.rs
@@ -102,6 +104,25 @@ jobs:
           name: macos-app
           path: target/packages/*.dmg
           retention-days: 3
+
+  assistants:
+    name: Claude Desktop extension and Claude Code plugin
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The extension, as Claude Desktop's own tool checks it
+        run: |
+          sh scripts/package/claude-desktop.sh 0.0.0 "$RUNNER_TEMP/mcpb"
+          unzip -q "$RUNNER_TEMP/mcpb/claudius-0.0.0.mcpb" -d "$RUNNER_TEMP/unpacked"
+          test -f "$RUNNER_TEMP/unpacked/icon.png"
+          npx --yes @anthropic-ai/mcpb@2.1.2 validate "$RUNNER_TEMP/unpacked/manifest.json"
+      - name: The plugin and its marketplace, as Claude Code checks them
+        run: |
+          npx --yes @anthropic-ai/claude-code@2.1.283 plugin validate --strict skills
+          npx --yes @anthropic-ai/claude-code@2.1.283 plugin validate --strict .
 
   windows:
     name: Windows installer

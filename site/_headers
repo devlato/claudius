@@ -1,4 +1,4 @@
-# Cloudflare Pages response headers.
+# Response headers, which Cloudflare adds to the site's files (site/wrangler.toml).
 # Rules apply in file order and a request gets the headers of every rule it matches; a header set twice is joined
 # with a comma, which for Content-Security-Policy would enforce both policies. The /docs/* and /studio/* rules
 # therefore detach the site-wide policy ("! Content-Security-Policy") before setting their own.

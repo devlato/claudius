@@ -14,7 +14,8 @@ or from the command line.
 
 ![The studio: a deep house song's arrangement, its step sequencer, and the critic's verdict](site/assets/img/studio-ripples-1200.webp)
 
-**[Documentation](docs/src/SUMMARY.md)** · **[Releases](https://github.com/devlato/claudius/releases)**
+**[Website](https://claudius.devlato.com)** · **[Documentation](https://claudius.devlato.com/docs/)** ·
+**[Releases](https://github.com/devlato/claudius/releases)**
 
 ## Install
 
@@ -47,6 +48,9 @@ claudius connect claude-desktop     # MCP and skills; then ask Claude for a song
 
 Your assistant's own command works too: `claude mcp add --scope user claudius -- claudius mcp`, `codex mcp add
 claudius -- claudius mcp`, or Cursor's install link ([the assistant's own command](docs/src/getting-started/assistants.md#with-the-assistants-own-command)).
+Claude Code's plugin brings the skills along (`claude plugin marketplace add devlato/claudius`, then
+`claude plugin install claudius@claudius`), and on a Mac the release's `claudius-<version>.mcpb` adds Claudius to
+Claude Desktop.
 
 A song in the script language:
 

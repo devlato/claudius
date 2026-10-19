@@ -271,17 +271,21 @@ jobs:
             echo
             echo "## Install"
             echo
+            echo "- **Mac**: \`claudius-$VERSION-aarch64-apple-darwin.dmg\` for Apple silicon, \`claudius-$VERSION-x86_64-apple-darwin.dmg\`"
+            echo "  for Intel. Open it and drag Claudius into Applications. Until the releases are notarized, macOS asks you to"
+            echo "  allow it in System Settings, Privacy & Security (Open Anyway) the first time."
+            echo "- **Windows**: the installer, \`claudius-$VERSION-x86_64-pc-windows-msvc.msi\`."
+            echo "- **Linux**: the \`.deb\`, the \`.rpm\` or the AppImage."
+            echo "- **Claude Desktop** on a Mac: open \`claudius-$VERSION.mcpb\`, after installing the app."
+            echo "- **Claude Code**: \`claude plugin marketplace add $GITHUB_REPOSITORY\`, then \`claude plugin install claudius@claudius\`."
+            echo
+            echo "From a terminal, which installs the Mac app too:"
+            echo
             echo '```sh'
             echo "curl -fsSL https://github.com/$GITHUB_REPOSITORY/releases/latest/download/install.sh | sh"
             echo '```'
             echo
-            echo "On Windows: \`irm https://github.com/$GITHUB_REPOSITORY/releases/latest/download/install.ps1 | iex\`, or the"
-            echo "installer, \`claudius-$VERSION-x86_64-pc-windows-msvc.msi\`."
-            echo "On a Mac, that command installs Claudius into Applications too. Or drag it there from its disk image:"
-            echo "\`claudius-$VERSION-aarch64-apple-darwin.dmg\` for Apple silicon, \`claudius-$VERSION-x86_64-apple-darwin.dmg\`"
-            echo "for Intel. Until the releases are notarized, macOS asks you to allow a downloaded one in System Settings,"
-            echo "Privacy & Security (Open Anyway) the first time."
-            echo "Or download an archive below. On Linux there are a \`.deb\`, an \`.rpm\` and an AppImage."
+            echo "On Windows: \`irm https://github.com/$GITHUB_REPOSITORY/releases/latest/download/install.ps1 | iex\`."
             echo "The \`-headless\` Linux archives have no studio window and need neither ALSA nor a display;"
             echo "\`install.sh\` picks them when ALSA is missing, or with \`--headless\`. The Intel Mac and Windows"
             echo "builds have no ears: their verdicts use meters and music theory."
@@ -364,7 +368,8 @@ jobs:
           sha256sum --check --strict -- "${sums[@]}"
           rm -- "${sums[@]}"
           cp ../scripts/install.sh ../scripts/install.ps1 .
-          sha256sum -- *.tar.gz *.zip *.dmg *.msi *.deb *.rpm *.AppImage install.sh install.ps1 > SHA256SUMS
+          sh ../scripts/package/claude-desktop.sh "$VERSION" .
+          sha256sum -- *.tar.gz *.zip *.dmg *.msi *.deb *.rpm *.AppImage *.mcpb install.sh install.ps1 > SHA256SUMS
           cat SHA256SUMS
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
