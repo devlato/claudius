@@ -1,0 +1,16 @@
+# The website on claudius.devlato.com: the files `cargo xtask site` writes to target/site, served by Cloudflare as a
+# Worker's static assets, with _headers and _redirects. `npx wrangler deploy --config site/wrangler.toml` publishes a
+# build; .github/workflows/site.yml does it for main. The custom domain comes with its DNS record.
+name = "claudius-site"
+compatibility_date = "2026-10-01"
+workers_dev = false
+preview_urls = false
+routes = [{ pattern = "claudius.devlato.com", custom_domain = true }]
+
+[assets]
+directory = "../target/site"
+html_handling = "auto-trailing-slash"
+not_found_handling = "404-page"
+
+[observability]
+enabled = false

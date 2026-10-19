@@ -237,11 +237,9 @@ for entry in site/CLOUDFLARE_API_TOKEN site/CLOUDFLARE_ACCOUNT_ID release/HOMEBR
         echo "  $secret ($environment): not set (gh secret set $secret --repo $REPO --env $environment)"
     fi
 done
-echo "Variables for the site, which deploys once both are set:"
-for variable in SITE_URL SITE_PROJECT; do
-    if gh variable list --repo "$REPO" --json name --jq '.[].name' | grep -qx "$variable"; then
-        echo "  $variable: set"
-    else
-        echo "  $variable: not set (gh variable set $variable --repo $REPO --body ...)"
-    fi
-done
+echo "The variable for the site, which deploys once it is set:"
+if gh variable list --repo "$REPO" --json name --jq '.[].name' | grep -qx SITE_URL; then
+    echo "  SITE_URL: set"
+else
+    echo "  SITE_URL: not set (gh variable set SITE_URL --repo $REPO --body https://claudius.devlato.com)"
+fi
