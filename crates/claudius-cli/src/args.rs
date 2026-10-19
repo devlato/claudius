@@ -238,6 +238,11 @@ pub(crate) enum Cmd {
         #[arg(long, default_value_t = claudius_server::DEFAULT_PORT, env = "CLAUDIUS_PORT")]
         port: u16,
     },
+    /// Anonymous usage statistics: off until you turn them on; with no answer, shows them and exactly what is sent
+    Telemetry {
+        #[arg(value_enum)]
+        answer: Option<OnOff>,
+    },
     /// Write the skills that teach AI assistants claudius (a folder with a SKILL.md each, and zips of them for the
     /// Claude apps); `claudius connect` installs them for Claude Code, Cursor and Codex
     Skills {
@@ -375,4 +380,10 @@ impl SoundArgs {
 /// the Apple Loops and user library, when there is one
 pub(crate) fn open_library() -> Result<Option<Library>> {
     Ok(Some(Library::open()?).filter(|l| !l.is_empty()))
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+pub(crate) enum OnOff {
+    On,
+    Off,
 }

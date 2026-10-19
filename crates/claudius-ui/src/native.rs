@@ -31,6 +31,12 @@ pub trait Native: Send + Sync {
 
     /// connects an assistant (by its `id`) to this app: what was done and what to do next, or why it failed
     fn connect(&self, id: &str) -> Result<Vec<String>, String>;
+
+    /// whether anonymous usage statistics are on: `None` until the person has been asked (they are off until then);
+    /// `Some(false)` as well when the environment keeps them off (`DO_NOT_TRACK`)
+    fn statistics(&self) -> Option<bool>;
+
+    fn set_statistics(&self, on: bool) -> Result<(), String>;
 }
 
 /// the assistants `claudius connect` knows (id, name), for the web studio, which can only show the commands

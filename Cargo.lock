@@ -779,12 +779,14 @@ dependencies = [
  "claudius-packs",
  "claudius-server",
  "claudius-ui",
+ "dirs",
  "earshot",
  "getrandom 0.4.3",
  "predicates",
  "serde_json",
  "tokio",
  "toml_edit",
+ "ureq",
  "zip",
 ]
 

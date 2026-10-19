@@ -166,6 +166,8 @@ pub struct View {
     /// the tour's step on screen, and whether it was taken or skipped (kept between runs)
     pub tour: Option<usize>,
     pub tour_done: bool,
+    /// the tour ends with the question about usage statistics (the app, when it has not been answered)
+    pub tour_asks: bool,
     pub anchors: crate::tour::Anchors,
 }
 
@@ -215,6 +217,7 @@ impl Default for View {
             assistants: assistants::Assistants::default(),
             tour: None,
             tour_done: false,
+            tour_asks: false,
             anchors: crate::tour::Anchors::default(),
         }
     }

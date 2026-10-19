@@ -105,15 +105,24 @@ impl App {
             });
             match res {
                 Ok(()) => installed.push(p.name.clone()),
-                Err(e) => failed.push(format!("{} ({e:#})", p.name)),
+                Err(e) => failed.push((p.name.clone(), format!("{e:#}"))),
             }
             done += size;
+        }
+        let outcome = match failed.first() {
+            Some((name, _)) => format!("packs:{name}"),
+            None if !installed.is_empty() => "ok".to_string(),
+            None => String::new(),
+        };
+        if !outcome.is_empty() {
+            crate::report("setup", &outcome);
         }
         self.update(|s| {
             if !installed.is_empty() {
                 s.say(format!("installed {}: new songs, and the sounds you pick, play them", installed.join(", ")));
             }
             if !failed.is_empty() {
+                let failed: Vec<String> = failed.iter().map(|(name, why)| format!("{name} ({why})")).collect();
                 s.say(format!("these packs did not install (try again to resume): {}", failed.join("; ")));
             }
         });

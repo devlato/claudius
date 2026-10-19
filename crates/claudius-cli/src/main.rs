@@ -3,7 +3,6 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use clap::Parser;
 
 use claudius::compose::{self, Options};
 use claudius::ears::Ears;
@@ -20,6 +19,7 @@ mod doctor;
 mod report;
 mod setup;
 mod skills;
+mod telemetry;
 
 use args::*;
 use report::*;
@@ -107,7 +107,22 @@ fn app_args(mut args: Vec<OsString>, exe: Option<&Path>) -> Vec<OsString> {
 }
 
 fn main() -> Result<()> {
-    let cli = Cli::parse_from(app_args(std::env::args_os().collect(), std::env::current_exe().ok().as_deref()));
+    let args = app_args(std::env::args_os().collect(), std::env::current_exe().ok().as_deref());
+    let matches = <Cli as clap::CommandFactory>::command().get_matches_from(args);
+    let cli = <Cli as clap::FromArgMatches>::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+    let command = matches.subcommand_name().unwrap_or_default().to_string();
+    if command != "telemetry" {
+        telemetry::watch_panics(command.clone());
+        telemetry::record("started", &command, "");
+        let from = command.clone();
+        let _ = claudius_server::REPORT.set(Box::new(move |event, detail| telemetry::record(event, &from, detail)));
+    }
+    let done = run(cli);
+    telemetry::flush();
+    done
+}
+
+fn run(cli: Cli) -> Result<()> {
     match cli.cmd {
         Cmd::Make { genre, seed, bpm, key, short, stems, samples, sound, sample, loops, ears, out } => {
             let g = genres::get(&genre)?;
@@ -405,6 +420,12 @@ fn main() -> Result<()> {
         Cmd::Setup { yes, no_packs, no_models, tags } => setup::run(yes, !no_packs, !no_models, tags)?,
         Cmd::Doctor { port } => doctor::run(port, web_dir(std::env::var_os("CLAUDIUS_WEB").map(PathBuf::from))),
         Cmd::Connect { client, http, remove, no_skills, port } => connect::run(client, http, remove, port, !no_skills)?,
+        Cmd::Telemetry { answer } => {
+            if let Some(a) = answer {
+                telemetry::set(a == OnOff::On)?;
+            }
+            println!("{}", telemetry::describe());
+        }
         Cmd::Skills { out } => {
             skills::install(&out)?;
             skills::zips(&out)?;

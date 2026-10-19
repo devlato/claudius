@@ -75,7 +75,9 @@ audio, until the session prunes it.
 
 ### Jobs
 
-Renders, mutations, evolutions, saves and pack downloads are jobs. `start_job` (and, for `install_packs`, which needs
+Renders, mutations, evolutions, saves and pack downloads are jobs. A pack download that ends passes its outcome to
+`claudius_server::REPORT`, the hook through which `claudius-cli` counts it in its usage statistics, which send nothing
+unless the person turned them on ([privacy](../guide/privacy.md)). `start_job` (and, for `install_packs`, which needs
 no song, `take_slot` alone) takes the job slot through `try_update`, so a refusal
 (`busy (rendering); try again when it is done, or cancel it`) changes nothing, not even the version; it marks the
 session busy and `spawn_job` runs the job on a `std::thread`, catching panics (`the job failed (internal error)`).

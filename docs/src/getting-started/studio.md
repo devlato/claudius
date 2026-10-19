@@ -14,9 +14,10 @@ the song, and the score badge in the toolbar updates when the new verdict arrive
 ## The first time
 
 The first time it opens, a short tour points at the parts of the studio in five cards: making a song, listening, the
-verdict, the editors, and connecting an assistant, with the Connect buttons right in the last card. It never blocks
-the studio. **Skip the tour** or Esc ends it for good, and **?** in the bottom right corner, **Take the tour**, starts
-it again.
+verdict, the editors, and connecting an assistant, with the Connect buttons right in the last card. The app then asks
+once whether to send anonymous usage statistics, which stay off unless you say yes ([what they are](../guide/privacy.md)).
+The tour never blocks the studio. **Skip the tour** or Esc ends it for good, and **?** in the bottom right corner,
+**Take the tour**, starts it again.
 
 The first time it starts, claudius downloads its listening models (about 0.8 GB) in the background; the verdict
 judges with meters and music theory until they are ready, and the log says when they are. If the default sample
@@ -55,8 +56,8 @@ generations of that. Both run in the background and can be stopped. **Save** wri
 
 ## Help and assistants
 
-**?** in the bottom right corner opens the help menu: **Take the tour**, **Connect an assistant**, the
-documentation, and a form to report a problem. Connect an assistant lists Claude Desktop, Claude Code, Cursor and Codex, says which are connected,
+**?** in the bottom right corner opens the help menu: **Take the tour**, **Connect an assistant**, the switch for
+anonymous usage statistics (in the app), the documentation, and a form to report a problem. Connect an assistant lists Claude Desktop, Claude Code, Cursor and Codex, says which are connected,
 and connects one with a click, the way `claudius connect` does ([Working with an assistant](assistants.md)). The
 assistant then makes and edits the song open here, and you hear every change.
 

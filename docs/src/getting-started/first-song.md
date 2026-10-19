@@ -19,6 +19,7 @@ claudius 0.1.0 (macos aarch64)
   ok  port 7878       free
   ..  Claude Desktop  not connected: `claudius connect claude-desktop`
   ..  Cursor          not connected: `claudius connect cursor`
+  ..  statistics      off (`claudius telemetry` explains them)
 
 Everything claudius needs is here.
 ```

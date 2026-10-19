@@ -49,8 +49,16 @@ pub fn run(yes: bool, packs: bool, models: bool, tags: bool) -> Result<()> {
         }
     }
     // a pack that will not install leaves claudius its ears: the models come anyway
-    if models {
-        download_models(ask, tags)?;
+    let models_failed = if models { download_models(ask, tags).err() } else { None };
+    let missing = || claudius_packs::packs().into_iter().find(|p| p.default && !p.installed).map(|p| p.name);
+    let outcome = match (&packs_failed, &models_failed) {
+        (Some(_), _) => format!("packs:{}", missing().unwrap_or_else(|| "unknown".into())),
+        (None, Some(_)) => "models".to_string(),
+        (None, None) => "ok".to_string(),
+    };
+    crate::telemetry::record("setup", "setup", &outcome);
+    if let Some(e) = models_failed {
+        return Err(e);
     }
     if let Some(e) = packs_failed {
         return Err(e.context(

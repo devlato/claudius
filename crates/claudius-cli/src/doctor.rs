@@ -101,6 +101,11 @@ pub fn run(port: u16, web: Option<std::path::PathBuf>) {
             println!("  ..  {name:<15} not connected: `claudius connect {}`", a.client.id());
         }
     }
+    match crate::telemetry::status() {
+        (_, Some(why)) => println!("  ..  {:<15} off ({why})", "statistics"),
+        (Some(true), None) => r.line(true, "statistics", "on: anonymous counts (`claudius telemetry` shows them)"),
+        _ => println!("  ..  {:<15} off (`claudius telemetry` explains them)", "statistics"),
+    }
 
     println!();
     if r.problems == 0 {
