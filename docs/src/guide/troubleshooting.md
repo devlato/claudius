@@ -3,6 +3,28 @@
 Start with `claudius doctor`: it checks the web studio, the packs, the models, Apple Loops, ffmpeg and the port, and
 says what to do about each. The sections below are the problems it cannot see, by the message you get.
 
+## macOS will not open claudius
+
+```text
+“claudius” Not Opened
+Apple could not verify “claudius” is free of malware that may harm your Mac or compromise your privacy.
+```
+
+macOS says this about an app downloaded in a browser that Apple has not notarized, which claudius' releases are not
+yet. The app itself is fine; it is the check. Either:
+
+- install it from Terminal instead, which gives an app macOS opens straight away, because it checks only what a
+  browser downloads:
+
+  ```sh
+  curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh | sh
+  ```
+
+- or click **Done**, open **System Settings**, **Privacy & Security**, scroll down to the line about claudius, click
+  **Open Anyway**, and confirm. macOS remembers it after that.
+
+The same message about a `claudius` program from a downloaded `.tar.gz` has the same two answers.
+
 ## The verdict has no ears
 
 ```text

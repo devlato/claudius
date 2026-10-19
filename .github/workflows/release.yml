@@ -266,8 +266,10 @@ jobs:
             echo
             echo "On Windows: \`irm https://github.com/$GITHUB_REPOSITORY/releases/latest/download/install.ps1 | iex\`, or the"
             echo "installer, \`claudius-$VERSION-x86_64-pc-windows-msvc.msi\`."
-            echo "Or download an archive below. On a Mac, the app is in \`claudius-$VERSION-universal-apple-darwin.dmg\`:"
-            echo "open it and drag claudius to Applications. On Linux there are a \`.deb\`, an \`.rpm\` and an AppImage."
+            echo "On a Mac, that command installs claudius.app into Applications too. The app is also in"
+            echo "\`claudius-$VERSION-universal-apple-darwin.dmg\`, to drag to Applications; until the releases are notarized,"
+            echo "macOS asks you to allow it in System Settings, Privacy & Security (Open Anyway) the first time."
+            echo "Or download an archive below. On Linux there are a \`.deb\`, an \`.rpm\` and an AppImage."
             echo "The \`-headless\` Linux archives have no studio window and need neither ALSA nor a display;"
             echo "\`install.sh\` picks them when ALSA is missing, or with \`--headless\`. The Intel Mac and Windows"
             echo "builds have no ears: their verdicts use meters and music theory."
