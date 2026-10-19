@@ -2,30 +2,24 @@
 
 ## The Mac app
 
-Paste this into Terminal:
+Download Claudius for your Mac from the [website](https://claudius.devlato.com/#install), or the disk image from the
+[latest release](https://github.com/devlato/claudius/releases/latest): `claudius-<version>-aarch64-apple-darwin.dmg`
+for Apple silicon, `claudius-<version>-x86_64-apple-darwin.dmg` for Intel (the Apple menu, **About This Mac**, says
+which you have). Open it, and drag **Claudius** onto **Applications**, as the window shows. It runs on macOS 11 or
+later, and opening it opens [the studio](studio.md).
 
-```sh
-curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh | sh
-```
-
-It installs **Claudius** into Applications, and its command-line programs into `~/.local/bin`. It runs on Macs with
-Apple silicon or Intel and macOS 11 or later, and opening it opens [the studio](studio.md).
-
-You can also download the disk image for your Mac from the [latest
-release](https://github.com/devlato/claudius/releases/latest): `claudius-<version>-aarch64-apple-darwin.dmg` for Apple
-silicon, `claudius-<version>-x86_64-apple-darwin.dmg` for Intel (the Apple menu, **About This Mac**, says which you
-have). Open it, and drag **Claudius** onto **Applications**. Until the releases are signed with an Apple Developer ID,
-though, macOS refuses an app downloaded in a browser the first time: "“Claudius” Not Opened. Apple could not verify
-“Claudius” is free of malware". Click **Done**, open **System Settings**, **Privacy & Security**, scroll down to the
-line about Claudius, and click **Open Anyway**. macOS asks once more, and then remembers. The command above avoids all
-this, because macOS checks only what a browser downloads, and `curl` is not one.
+Until Apple notarizes the releases, macOS refuses an app downloaded in a browser the first time: "“Claudius” Not
+Opened. Apple could not verify “Claudius” is free of malware". Click **Done**, open **System Settings**, **Privacy &
+Security**, scroll down to the line about Claudius, and click **Open Anyway**. macOS asks once more, and then
+remembers. In Terminal, `curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh | sh`
+installs the same app without that step, since macOS checks only what a browser downloads
+([the command line](#the-command-line-macos-and-linux)).
 
 The first time the studio starts, it downloads its listening models by itself and offers to download the sample
 packs ([below](#the-sounds-and-the-ears)). To connect Claude, Cursor or Codex, use **?**, **Connect an assistant** in
 the studio. Move the app into Applications first: an app opened from its disk image, or from Downloads, runs from a
 copy macOS takes away again, and claudius will not connect an assistant to it. The app holds the command-line
-programs too. The command above links them into `~/.local/bin`; after dragging the app in yourself, link them like
-this to use them in a terminal:
+programs too. To use them in a terminal, link them into `~/.local/bin` (the Terminal command does this for you):
 
 ```sh
 mkdir -p ~/.local/bin

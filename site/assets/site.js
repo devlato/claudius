@@ -776,11 +776,25 @@
     });
   }
 
+  // the hero's download button: the one for the computer the page is open on, as the browser names its platform
+  function setupDownloads() {
+    const box = doc.querySelector("[data-get]");
+    if (!box) return;
+    const platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "";
+    let os = "mac";
+    if (/win/i.test(platform)) os = "windows";
+    else if (/linux/i.test(platform) && !/android/i.test(navigator.userAgent)) os = "linux";
+    box.querySelectorAll("[data-get-for]").forEach((el) => {
+      el.hidden = el.dataset.getFor !== os;
+    });
+  }
+
   function init() {
     highlight();
     setupUnits();
     setupPlayers();
     setupMade();
+    setupDownloads();
     setupTabs();
     setupCopy();
     setupNav();

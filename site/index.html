@@ -64,19 +64,13 @@
       <h1 id="hero-title">A beatmaker that listens to its own&nbsp;songs.</h1>
       <p class="lede">claudius picks sounds, writes the parts with music theory, arranges them into a song, mixes and masters it, then listens to the result with a critic and revises it. Every sound is real audio, synthesized in code or recorded from sampled instruments. There is no neural audio generation and no General MIDI.</p>
 
-      <div class="install" data-tabs>
-        <div class="tabs" role="tablist" aria-label="Install command">
-          <button type="button" role="tab" id="tab-unix" aria-controls="cmd-unix" aria-selected="true">macOS and Linux</button>
-          <button type="button" role="tab" id="tab-win" aria-controls="cmd-win" aria-selected="false" tabindex="-1">Windows</button>
-        </div>
-        <div class="cmd" role="tabpanel" id="cmd-unix" aria-labelledby="tab-unix">
-          <pre><code><span class="prompt" aria-hidden="true">$ </span>curl -fsSL {{repo_url}}/releases/latest/download/install.sh | sh</code></pre>
-          <button type="button" class="copy" data-copy="curl -fsSL {{repo_url}}/releases/latest/download/install.sh | sh">Copy</button>
-        </div>
-        <div class="cmd" role="tabpanel" id="cmd-win" aria-labelledby="tab-win" hidden>
-          <pre><code><span class="prompt" aria-hidden="true">PS&gt; </span>irm {{repo_url}}/releases/latest/download/install.ps1 | iex</code></pre>
-          <button type="button" class="copy" data-copy="irm {{repo_url}}/releases/latest/download/install.ps1 | iex">Copy</button>
-        </div>
+      <div class="get" data-get>
+        <a class="btn btn-primary btn-get" data-get-for="mac" href="{{repo_url}}/releases/download/v{{version}}/claudius-{{version}}-aarch64-apple-darwin.dmg">Download for Mac</a>
+        <a class="btn btn-primary btn-get" data-get-for="windows" href="{{repo_url}}/releases/download/v{{version}}/claudius-{{version}}-x86_64-pc-windows-msvc.msi" hidden>Download for Windows</a>
+        <a class="btn btn-primary btn-get" data-get-for="linux" href="#install" hidden>Download for Linux</a>
+        <p class="get-more" data-get-for="mac">For Apple silicon. Also for <a href="{{repo_url}}/releases/download/v{{version}}/claudius-{{version}}-x86_64-apple-darwin.dmg">Intel Macs</a>, <a href="#install">Windows and Linux</a>.</p>
+        <p class="get-more" data-get-for="windows" hidden>The installer, for x64 and ARM64. Also for <a href="#install">Mac and Linux</a>.</p>
+        <p class="get-more" data-get-for="linux" hidden>The .deb, .rpm and AppImage. Also for <a href="#install">Mac and Windows</a>.</p>
       </div>
 
       <p class="hero-actions">
@@ -779,19 +773,51 @@ cloudflared tunnel --url http://127.0.0.1:7878</code></pre>
     <header class="section-head">
       <p class="channel"><span>07</span>Install</p>
       <h2 id="install-title">Install</h2>
-      <p>The install scripts download the latest release, check it against the release’s <code>SHA256SUMS</code>, and put <code>claudius</code>, <code>claudius-packs</code> and the web studio in your user folder. Then they offer to fetch the sample library and the listening models.</p>
+      <p>Download the app for your computer and open it: the studio fetches its listening models the first time, and offers the sample library. The terminal works too.</p>
     </header>
 
     <div class="platforms">
       <article class="platform">
-        <h3>macOS and Linux</h3>
-        <div class="cmd"><pre><code><span class="prompt" aria-hidden="true">$ </span>curl -fsSL {{repo_url}}/releases/latest/download/install.sh | sh</code></pre><button type="button" class="copy" data-copy="curl -fsSL {{repo_url}}/releases/latest/download/install.sh | sh">Copy</button></div>
-        <p class="platform-note">Apple silicon and Intel Macs (Intel builds have no ears: their verdicts come from the meters and the theory checks); x86_64 and ARM64 Linux with glibc 2.38 or newer (Ubuntu 24.04, Debian 13, Fedora 39 and later). Without ALSA you get the headless build, which serves the studio to your browser. The commands go to <code>~/.local/bin</code>.</p>
+        <h3>Mac</h3>
+        <p class="get-buttons">
+          <a class="btn btn-primary" href="{{repo_url}}/releases/download/v{{version}}/claudius-{{version}}-aarch64-apple-darwin.dmg">Apple silicon</a>
+          <a class="btn" href="{{repo_url}}/releases/download/v{{version}}/claudius-{{version}}-x86_64-apple-darwin.dmg">Intel</a>
+        </p>
+        <p class="platform-note">Open the disk image and drag Claudius into Applications. Until Apple notarizes the releases, macOS asks the first time you open it: in System Settings, Privacy &amp; Security, click Open Anyway (<a href="/docs/getting-started/install.html#the-mac-app">how</a>). macOS 11 or later. The Intel build has no ears: its verdicts come from the meters and the theory checks.</p>
       </article>
       <article class="platform">
         <h3>Windows <span class="chip">preview</span></h3>
-        <div class="cmd"><pre><code><span class="prompt" aria-hidden="true">PS&gt; </span>irm {{repo_url}}/releases/latest/download/install.ps1 | iex</code></pre><button type="button" class="copy" data-copy="irm {{repo_url}}/releases/latest/download/install.ps1 | iex">Copy</button></div>
-        <p class="platform-note">In PowerShell. An x64 build, which also runs on ARM64 Windows; it is newer and less tested than the others, so please <a href="{{repo_url}}/issues">report</a> what breaks. The commands go to <code class="long">%LOCALAPPDATA%\Programs\claudius\bin</code>, which the script adds to your PATH.</p>
+        <p class="get-buttons">
+          <a class="btn btn-primary" href="{{repo_url}}/releases/download/v{{version}}/claudius-{{version}}-x86_64-pc-windows-msvc.msi">Installer</a>
+        </p>
+        <p class="platform-note">Run it: it needs no administrator, and puts Claudius in the Start menu. It is not signed yet, so SmartScreen may say Windows protected your PC: click More info, then Run anyway. An x64 build, which also runs on ARM64 Windows; it is newer and less tested than the others, so please <a href="{{repo_url}}/issues">report</a> what breaks.</p>
+      </article>
+      <article class="platform">
+        <h3>Linux</h3>
+        <p class="get-buttons">
+          <a class="btn btn-primary" href="{{repo_url}}/releases/download/v{{version}}/claudius-{{version}}-x86_64-unknown-linux-gnu.deb">.deb</a>
+          <a class="btn" href="{{repo_url}}/releases/download/v{{version}}/claudius-{{version}}-x86_64-unknown-linux-gnu.rpm">.rpm</a>
+          <a class="btn" href="{{repo_url}}/releases/download/v{{version}}/claudius-{{version}}-x86_64-unknown-linux-gnu.AppImage">AppImage</a>
+        </p>
+        <p class="platform-note">For x86_64, with glibc 2.38 or newer (Ubuntu 24.04, Debian 13, Fedora 39 and later); the ARM64 ones are on the <a href="{{repo_url}}/releases/latest">releases page</a>. Each puts Claudius in your app menu.</p>
+      </article>
+      <article class="platform">
+        <h3>From a terminal</h3>
+        <div class="install" data-tabs>
+          <div class="tabs" role="tablist" aria-label="Install command">
+            <button type="button" role="tab" id="tab-unix" aria-controls="cmd-unix" aria-selected="true">macOS and Linux</button>
+            <button type="button" role="tab" id="tab-win" aria-controls="cmd-win" aria-selected="false" tabindex="-1">Windows</button>
+          </div>
+          <div class="cmd" role="tabpanel" id="cmd-unix" aria-labelledby="tab-unix">
+            <pre><code><span class="prompt" aria-hidden="true">$ </span>curl -fsSL {{repo_url}}/releases/latest/download/install.sh | sh</code></pre>
+            <button type="button" class="copy" data-copy="curl -fsSL {{repo_url}}/releases/latest/download/install.sh | sh">Copy</button>
+          </div>
+          <div class="cmd" role="tabpanel" id="cmd-win" aria-labelledby="tab-win" hidden>
+            <pre><code><span class="prompt" aria-hidden="true">PS&gt; </span>irm {{repo_url}}/releases/latest/download/install.ps1 | iex</code></pre>
+            <button type="button" class="copy" data-copy="irm {{repo_url}}/releases/latest/download/install.ps1 | iex">Copy</button>
+          </div>
+        </div>
+        <p class="platform-note">The scripts download the latest release, check it against the release’s <code>SHA256SUMS</code>, and install it, with its commands: on a Mac the app, linked into <code>~/.local/bin</code>; on Linux under <code>~/.local</code>; on Windows in <code class="long">%LOCALAPPDATA%\Programs\claudius</code>, on your PATH. Without ALSA, Linux gets the headless build, which serves the studio to your browser.</p>
       </article>
       <article class="platform platform-wide">
         <h3>From source</h3>

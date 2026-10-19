@@ -19,17 +19,23 @@ or from the command line.
 
 ## Install
 
+Download Claudius from the [website](https://claudius.devlato.com/#install) or the
+[releases page](https://github.com/devlato/claudius/releases/latest):
+
+- **Mac**: the disk image for Apple silicon or Intel. Open it and drag Claudius into Applications
+  ([the first time you open it](docs/src/getting-started/install.md#the-mac-app)).
+- **Windows**: the `.msi`, which puts Claudius in the Start menu.
+- **Linux**: the `.deb`, the `.rpm` or the AppImage.
+
+The studio downloads its listening models by itself the first time it opens, and offers the sample packs. From a
+terminal instead:
+
 ```sh
 curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh | sh    # macOS (the app too), Linux
 irm https://github.com/devlato/claudius/releases/latest/download/install.ps1 | iex          # Windows (PowerShell)
 claudius setup    # sample packs and listening models, about 3 GB to download
 ```
 
-On a Mac, the first line installs the Claudius app into Applications as well, and it opens without the warning macOS
-shows for a disk image downloaded in a browser while the releases are not notarized. Or download an installer from the
-[releases page](https://github.com/devlato/claudius/releases): a `.dmg` holds Claudius for Apple silicon or Intel Macs, to drag to
-Applications ([how to open it the first time](docs/src/getting-started/install.md#the-mac-app)), the `.msi` installs
-Claudius on Windows with a Start menu entry, and the `.deb`, `.rpm` and AppImage are for Linux.
 You can also build it from source; see [install](docs/src/getting-started/install.md).
 
 ## A first look
