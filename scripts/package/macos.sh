@@ -1,8 +1,8 @@
 #!/bin/sh
 # Makes Claudius.app from a macOS release archive, and the disk image people install it from:
 # claudius-<version>-<target>.dmg, which holds the app and a link to Applications to drag it onto. One for each chip:
-# aarch64-apple-darwin for Apple silicon, x86_64-apple-darwin for Intel. It uses only the tools macOS comes with, so
-# the release job that signs runs no build.
+# aarch64-apple-darwin for Apple silicon, x86_64-apple-darwin for Intel. It uses the tools macOS comes with, and
+# dmgbuild (packaging/macos/requirements.txt) for the disk image's window, so the release job that signs runs no build.
 #
 #   scripts/package/macos.sh <aarch64-apple-darwin or x86_64-apple-darwin archive> <out dir>
 #
@@ -95,11 +95,21 @@ if [ -n "${MACOS_NOTARY_KEY:-}" ]; then
     xcrun stapler staple -q "$app"
 fi
 
-ln -s /Applications "$tmp/dmg/Applications"
 mkdir -p "$out"
 dmg=$out/claudius-$version-$target.dmg
 rm -f "$dmg"
-hdiutil create -quiet -volname "Claudius $version" -srcfolder "$tmp/dmg" -fs HFS+ -format UDZO "$dmg"
+if command -v dmgbuild > /dev/null 2>&1; then
+    # the window people drag the app out of: the app, a link to Applications and an arrow between them
+    dmgbuild -s "$root/packaging/macos/dmg-settings.py" -D app="$app" -D icon="$root/packaging/icons/claudius.icns" \
+        -D background="$root/packaging/macos/dmg-background.png" "Claudius $version" "$dmg" > /dev/null
+elif [ -n "${CI:-}" ]; then
+    echo "macos.sh: dmgbuild is missing (pip install -r packaging/macos/requirements.txt)" >&2
+    exit 1
+else
+    echo "macos.sh: no dmgbuild (pip install dmgbuild), so the disk image opens without its layout" >&2
+    ln -s /Applications "$tmp/dmg/Applications"
+    hdiutil create -quiet -volname "Claudius $version" -srcfolder "$tmp/dmg" -fs HFS+ -format UDZO "$dmg"
+fi
 if [ -n "${MACOS_SIGN_IDENTITY:-}" ]; then
     codesign --force --timestamp --sign "$MACOS_SIGN_IDENTITY" "$dmg"
 fi

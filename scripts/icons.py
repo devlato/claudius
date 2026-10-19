@@ -8,6 +8,7 @@ needs rsvg-convert (librsvg) and fontTools (pip install fonttools), and writes:
 - packaging/icons: claudius.svg (Linux), claudius-512.png (Linux, the AppImage), claudius.ico (Windows) and
   claudius.icns (macOS, on Apple's icon grid: a smaller body with a shadow)
 - crates/claudius-ui/assets: the studio window's icon, icon.png and icon-macos.png
+- packaging/macos: dmg-background.png and @2x, the disk image's window (dmg-settings.py lays it out)
 - site and docs/theme: the favicons and the touch icon; site/assets: mark-ripples.svg, and logo-ripples.svg with the
   name outlined from Ubuntu Light, the studio's font, so the SVG needs no font
 
@@ -142,6 +143,36 @@ def logo_svg():
             f'scale({s:.5f})">{mark()}</g><path fill="{fill}" d="{d}"/></svg>\n')
 
 
+def dmg_background():
+    """the disk image's window, 640 by 400: Claudius.app at (170, 190) and Applications at (470, 190), as
+    packaging/macos/dmg-settings.py places them, with an arrow from one to the other. Light, since Finder draws the
+    icons' names in black over any background picture, whatever the system's appearance."""
+    _, _, first, step, gap = RIPPLES
+    rings = "".join(
+        f'<circle cx="-20" cy="430" r="{num(first + step * (k - 0.5))}" stroke="{colour(1 - k / BANDS)}"/>'
+        for k in range(1, 6))
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400">
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#faf8f4"/><stop offset="1" stop-color="#ece8e0"/>
+    </linearGradient>
+    <linearGradient id="arrow" gradientUnits="userSpaceOnUse" x1="262" y1="0" x2="378" y2="0">
+      <stop offset="0" stop-color="{colour(0.6)}"/><stop offset="0.5" stop-color="{colour(0.4)}"/>
+      <stop offset="1" stop-color="{colour(0.2)}"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="400" fill="url(#paper)"/>
+  <g fill="none" stroke-width="{step - gap}" opacity="0.12">{rings}</g>
+  <text x="320" y="66" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="21"
+    font-weight="600" fill="#1d1f2b">Drag Claudius into Applications</text>
+  <path d="M262 190 H372 M352 172 L374 190 L352 208" fill="none" stroke="url(#arrow)" stroke-width="9"
+    stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="320" y="352" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13"
+    fill="#6b6f7a">Then open Claudius from your Applications folder.</text>
+</svg>
+"""
+
+
 def render(svg, size, out):
     subprocess.run(["rsvg-convert", "-w", str(size), "-h", str(size), str(svg), "-o", str(out)], check=True)
     return out.read_bytes()
@@ -187,6 +218,12 @@ def main():
         assets.mkdir(exist_ok=True)
         (assets / "icon.png").write_bytes(png("full", 256))
         (assets / "icon-macos.png").write_bytes(png("macos", 512))
+
+        background = tmp / "dmg-background.svg"
+        background.write_text(dmg_background())
+        macos = ROOT / "packaging" / "macos"
+        for name, width in (("dmg-background.png", 640), ("dmg-background@2x.png", 1280)):
+            subprocess.run(["rsvg-convert", "-w", str(width), str(background), "-o", str(macos / name)], check=True)
 
         for folder in (ROOT / "site", ROOT / "docs" / "theme"):
             (folder / "favicon.svg").write_text(icon("full"))
