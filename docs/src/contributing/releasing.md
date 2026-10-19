@@ -55,10 +55,11 @@ its section and adds the generated entries under the headings of the same name.
    ```
 
    or in the web interface: Actions, *release pr*, *Run workflow*. The workflow runs
-   `cargo xtask release prepare minor`, which changes three things: the version in `Cargo.toml` (and the
-   `version = "..."` of path dependencies between workspace crates, which `cargo add --path` writes), the workspace
-   entries in `Cargo.lock`, and `CHANGELOG.md`, where Unreleased becomes `## [0.5.0] - <today>` with the notes from
-   git-cliff. It commits that to the branch `release/v0.5.0` through GitHub's API, so that GitHub signs the commit
+   `cargo xtask release prepare minor`, which changes three things and adds a fourth: the version in `Cargo.toml` (and
+   the `version = "..."` of path dependencies between workspace crates, which `cargo add --path` writes), the
+   workspace entries in `Cargo.lock`, `CHANGELOG.md`, where Unreleased becomes `## [0.5.0] - <today>` with the notes
+   from git-cliff, and the songs 0.5.0 saves, in `crates/claudius/tests/compat/v0.5.0/`, which every later release has
+   to open ([saved songs keep opening](../engineering/song-model.md#saved-songs-keep-opening)). It commits that to the branch `release/v0.5.0` through GitHub's API, so that GitHub signs the commit
    (`main` accepts only signed commits), and opens the PR **release: v0.5.0**, with the notes in its description.
 
 2. **Let CI run.** GitHub starts no workflows for a pull request opened with a workflow's own `GITHUB_TOKEN`, so the

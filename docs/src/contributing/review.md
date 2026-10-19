@@ -62,8 +62,10 @@ Every pull request is read for these. Pre-empting them in the description saves 
 7. **Error messages.** Read the failure path: is the message one a person can act on?
 8. **Performance.** Rendering and pattern queries are hot paths: no allocation per sample, no lock held across a render.
    For changes there, `cargo bench -p claudius` before and after.
-9. **Compatibility.** The HTTP API's types and the blueprint format stay readable by older clients and files; a
-   breaking change is marked `!` in the title and explained.
+9. **Compatibility.** The HTTP API's types and the blueprint format stay readable by older clients and files: every
+   song a release saved still opens (`tests/compat.rs` holds a change to it), and a new field has a serde default. A
+   change songs cannot take as they are raises `BLUEPRINT_FORMAT` with an upgrade step; a breaking change is marked
+   `!` in the title and explained.
 10. **Dependencies.** A new crate needs a reason, a licence on `deny.toml`'s list (permissive, plus MPL-2.0), and
     preferably no C. Sample data needs a licence that fits [0007](../design/0007-sample-licensing.md).
 11. **The title.** A Conventional Commit that makes sense as a changelog line to someone who uses claudius.
