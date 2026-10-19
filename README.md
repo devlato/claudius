@@ -12,7 +12,7 @@ and what an audio model hears) and says what to fix.
 You can work with it in a studio app, in a small script language, through an assistant such as Claude or ChatGPT,
 or from the command line.
 
-![The studio: a deep house song's arrangement, its step sequencer, and the critic's verdict](site/assets/img/studio-1200.webp)
+![The studio: a deep house song's arrangement, its step sequencer, and the critic's verdict](site/assets/img/studio-ripples-1200.webp)
 
 **[Documentation](docs/src/SUMMARY.md)** · **[Releases](https://github.com/devlato/claudius/releases)**
 

@@ -10,15 +10,11 @@ use crate::theme::{self, ACCENT, LCD, LCD_TEXT, LINE, TEXT, TEXT_DIM, TEXT_FAINT
 use crate::widgets::{self, Icon, commit};
 
 fn logo(ui: &mut Ui) {
-    let (rect, _) = ui.allocate_exact_size(vec2(118.0, 36.0), Sense::hover());
-    let p = ui.painter();
-    let heights = [0.35, 0.7, 1.0, 0.55, 0.8];
-    for (i, h) in heights.iter().enumerate() {
-        let x = rect.left() + 4.0 + i as f32 * 5.0;
-        let bar = Rect::from_center_size(pos2(x, rect.center().y), vec2(3.0, 22.0 * h));
-        p.rect_filled(bar, 1.5, theme::mix(ACCENT, theme::BAD, i as f32 / 8.0));
-    }
-    p.text(pos2(rect.left() + 32.0, rect.center().y - 1.0), Align2::LEFT_CENTER, "claudius", theme::prop(19.0), TEXT);
+    let (rect, _) = ui.allocate_exact_size(vec2(122.0, 36.0), Sense::hover());
+    let mark = Rect::from_min_size(pos2(rect.left() + 2.0, rect.center().y - 12.0), crate::mark::size(24.0));
+    crate::mark::paint(ui, mark);
+    let name = pos2(mark.right() + 9.0, rect.center().y - 1.0);
+    ui.painter().text(name, Align2::LEFT_CENTER, "Claudius", theme::prop(19.0), TEXT);
 }
 
 fn lcd(ui: &mut Ui, cx: &mut Cx) {

@@ -38,14 +38,15 @@ a comment in `_headers`.
 - `index.html` and `404.html`. No inline scripts or styles, so the page runs under `script-src 'self'` and
   `style-src 'self'`.
 - `assets/`: `site.css`, `site.js` (players, the hero's step grid, install tabs, copy buttons, code colours),
-  `noscript.css` (native audio controls and every panel open when JavaScript is off), the logo, and the studio
-  screenshots in `img/`.
+  `noscript.css` (native audio controls and every panel open when JavaScript is off), the logo and the mark, and the
+  studio screenshots in `img/`.
 - `assets/fonts/`: a subset of Hack, the studio's monospace face (MIT and Bitstream Vera licences, in
   `hack-license.txt`), for code and the LCD readouts. Everything else uses the system's fonts.
 - `audio/`: the four demos. Each has the excerpt (`.mp3`), its waveform (`.json`) and the script or the printed song
   that made it (`.rhai`).
 - `favicon.svg`, `favicon-32.png`, `apple-touch-icon.png`, `icon-512.png`, `site.webmanifest`, and `og.png`
-  (1200×630, the preview image for links).
+  (1200×630, the preview image for links). `scripts/icons.py` draws the logo, the mark and the icons; `og.png` has
+  the logo at (72, 64), at its own size.
 - `_headers` and `_redirects`: Cloudflare Pages configuration, described below.
 - `tests/`, `package.json`, `playwright.config.mjs`: the smoke test. `tools/excerpt.py`: cuts the demos. None of
   these belong on the website, and the smoke test checks that the build leaves them out.

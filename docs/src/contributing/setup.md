@@ -68,6 +68,7 @@ checks the builds without each of them, so a gated path cannot stop compiling un
 | [gitleaks](https://github.com/gitleaks/gitleaks) | finds secrets in commits before they leave your computer (`.gitleaks.toml`) |
 | [osv-scanner](https://google.github.io/osv-scanner/) | checks the lockfiles against known vulnerabilities (`osv-scanner.toml`) |
 | Node.js 24 | runs the website's smoke test (Playwright) |
+| `rsvg-convert` ([librsvg](https://gitlab.gnome.org/GNOME/librsvg)), [fontTools](https://fonttools.readthedocs.io) | only to redraw the logo and the app's icons: `python3 scripts/icons.py` |
 
 All of them have prebuilt binaries. With [cargo-binstall](https://github.com/cargo-bins/cargo-binstall), which
 downloads those instead of compiling:
