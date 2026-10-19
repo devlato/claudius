@@ -64,6 +64,7 @@
 - [Apple Loops and your own samples](guide/samples.md)
 - [Files and settings](guide/files.md)
 - [Privacy and usage statistics](guide/privacy.md)
+- [Updates](guide/updates.md)
 - [Troubleshooting](guide/troubleshooting.md)
 
 # Engineering

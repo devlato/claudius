@@ -19,7 +19,8 @@ description: >-
 | Windows (preview) | `irm https://github.com/devlato/claudius/releases/latest/download/install.ps1 \| iex` in PowerShell |
 | from source, with a Rust toolchain | `cargo install --locked --path crates/claudius-cli` and `--path crates/claudius-packs` in a clone |
 
-The installer puts `claudius` and `claudius-packs` in `~/.local/bin` (on a Mac, as links into Claudius.app, which it
+`claudius update` installs the latest release the way claudius was installed (the studio offers it too). The
+installer puts `claudius` and `claudius-packs` in `~/.local/bin` (on a Mac, as links into Claudius.app, which it
 installs in Applications; on Windows, in a folder it adds to `PATH`). On Linux without ALSA it installs the headless
 build, which serves the studio to a browser instead of opening a window.
 

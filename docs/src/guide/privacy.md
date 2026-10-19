@@ -1,9 +1,9 @@
 # Privacy and usage statistics
 
-claudius runs on your computer and sends nothing about you or your music anywhere. It goes on the network for three
+claudius runs on your computer and sends nothing about you or your music anywhere. It goes on the network for four
 things only: the downloads you ask for (the sample packs, from GitHub and their authors' sites, and the listening
-models, from Hugging Face), an assistant you connect from outside your computer if you set that up, and anonymous
-usage statistics, which are off until you turn them on.
+models, from Hugging Face), the [update](updates.md) check, once a day, to GitHub, an assistant you connect from
+outside your computer if you set that up, and anonymous usage statistics, which are off until you turn them on.
 
 ## Usage statistics
 

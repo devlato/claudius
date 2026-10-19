@@ -488,6 +488,19 @@ window, start a new Codex or Claude Code session.
 already has. The studio's **Connect an assistant** does what `connect` does, and `claudius doctor` lists the
 assistants that are connected.
 
+### `claudius update`
+
+```sh
+claudius update             # downloads the latest release, and installs it after asking
+claudius update --check     # only says whether there is a newer release
+claudius update --auto off  # the studio stops looking for updates (on turns it back on)
+```
+
+It installs the latest release the way this claudius was installed: the Mac app, an AppImage, the install script's
+programs, or the Windows installer, from the release's file for this computer, checked against its `SHA256SUMS`.
+Installed with Homebrew, cargo, a `.deb` or `.rpm`, or built from source, it says how to update instead. `--yes`
+does not ask. [Updates](updates.md) has the details.
+
 ### `claudius telemetry`
 
 ```sh

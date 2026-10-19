@@ -169,6 +169,10 @@ pub struct View {
     /// the tour ends with the question about usage statistics (the app, when it has not been answered)
     pub tour_asks: bool,
     pub anchors: crate::tour::Anchors,
+    /// the update whose banner was put off with Later (until the next start)
+    pub update_dismissed: Option<String>,
+    /// "Check for updates" was asked for: say what it found
+    pub update_asked: bool,
 }
 
 impl Default for View {
@@ -219,6 +223,8 @@ impl Default for View {
             tour_done: false,
             tour_asks: false,
             anchors: crate::tour::Anchors::default(),
+            update_dismissed: None,
+            update_asked: false,
         }
     }
 }

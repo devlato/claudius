@@ -4,7 +4,7 @@ use std::io::{IsTerminal, Write};
 
 use anyhow::Result;
 
-fn confirm(question: &str) -> Result<bool> {
+pub(crate) fn confirm(question: &str) -> Result<bool> {
     eprint!("{question} [Y/n] ");
     std::io::stderr().flush()?;
     let mut answer = String::new();

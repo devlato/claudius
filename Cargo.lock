@@ -784,6 +784,7 @@ dependencies = [
  "getrandom 0.4.3",
  "predicates",
  "serde_json",
+ "sha2",
  "tokio",
  "toml_edit",
  "ureq",

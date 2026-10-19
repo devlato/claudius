@@ -25,6 +25,29 @@ pub struct Assistant {
     pub command: String,
 }
 
+/// a newer claudius, as the app sees it
+#[derive(Clone, Debug, PartialEq)]
+pub enum Update {
+    /// nothing newer known: not looked for yet, or looking
+    None,
+    /// this is the latest release (after "Check for updates")
+    Current,
+    Downloading {
+        version: String,
+        progress: f32,
+    },
+    /// downloaded and checked: installing it restarts the app
+    Ready {
+        version: String,
+    },
+    /// a newer release, which this install gets another way: how
+    Elsewhere {
+        version: String,
+        how: String,
+    },
+    Failed(String),
+}
+
 pub trait Native: Send + Sync {
     /// the assistants claudius can connect to, and how each has it
     fn assistants(&self) -> Vec<Assistant>;
@@ -37,6 +60,20 @@ pub trait Native: Send + Sync {
     fn statistics(&self) -> Option<bool>;
 
     fn set_statistics(&self, on: bool) -> Result<(), String>;
+
+    /// what the updater found, or is doing
+    fn update(&self) -> Update;
+
+    /// looks for a newer release now, in the background
+    fn check_for_updates(&self);
+
+    /// installs the downloaded update; the window then closes, and the new version opens
+    fn install_update(&self) -> Result<String, String>;
+
+    /// whether the app looks for updates once a day and downloads them in the background
+    fn automatic_updates(&self) -> bool;
+
+    fn set_automatic_updates(&self, on: bool) -> Result<(), String>;
 }
 
 /// the assistants `claudius connect` knows (id, name), for the web studio, which can only show the commands
