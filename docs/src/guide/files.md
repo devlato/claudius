@@ -63,10 +63,12 @@ Everything in the cache folder can be deleted while claudius is not running; it 
 | `user/library.json` | the user library: chops and found sounds from `claudius chop` | |
 | `renders/<process id>/` | a running session's renders: `<version>.wav`, `.mp3`, and `<version>/` with stems | about 70 MB per four-minute render, and a WAV per track more for a render with stems, which every save makes: a new two-minute lofi song and one save left 433 MB |
 
-A session keeps its last ten renders and deletes older ones as it goes. When a session starts, it deletes the
-render folders of sessions that last wrote more than 12 hours ago, so a session that crashed leaves its renders
-behind for at most that long. `decoded/` and `stretched/` are never trimmed: on a machine that renders and analyses a
-lot, they reach gigabytes, and deleting them costs only the time to decode again.
+A session keeps its last ten renders and deletes older ones as it goes. It holds a lock on `.in-use` in its folder
+while it runs, which the system lets go of when the process ends, however it ends. When a session starts, it deletes
+the folders of sessions that have ended: a free lock, and nothing written for a minute. Folders without a lock file,
+from claudius before 0.3, go once nothing has been written to them for 12 hours. `decoded/` and `stretched/` are never
+trimmed: on a machine that renders and analyses a lot, they reach gigabytes, and deleting them costs only the time to
+decode again.
 
 The pack installer's scratch space holds downloaded archives and their unpacked files only while a pack installs,
 and is removed afterwards.

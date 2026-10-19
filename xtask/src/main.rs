@@ -109,14 +109,24 @@ fn ci(sh: &Shell) -> Result<()> {
         ),
         ("check, headless", cmd!(sh, "cargo check --locked -p claudius-cli --no-default-features --features ears")),
     ];
+    // the tests' renders and caches go in target/, which `cargo clean` empties, not in the cache of the person running
+    // them, where each run would leave its sessions' renders
+    let home = root().join("target/claudius-home");
     if cmd!(sh, "cargo nextest --version").quiet().ignore_stdout().ignore_stderr().run().is_ok() {
         let not_docs_examples = "not binary(docs_examples)";
-        steps.push(("tests", cmd!(sh, "cargo nextest run --workspace --locked --no-fail-fast -E {not_docs_examples}")));
-        steps.push(("doctests", cmd!(sh, "cargo test --workspace --locked --doc")));
-        steps.push(("docs examples", cmd!(sh, "cargo test -p claudius --locked --test docs_examples")));
+        steps.push((
+            "tests",
+            cmd!(sh, "cargo nextest run --workspace --locked --no-fail-fast -E {not_docs_examples}")
+                .env("CLAUDIUS_HOME", &home),
+        ));
+        steps.push(("doctests", cmd!(sh, "cargo test --workspace --locked --doc").env("CLAUDIUS_HOME", &home)));
+        steps.push((
+            "docs examples",
+            cmd!(sh, "cargo test -p claudius --locked --test docs_examples").env("CLAUDIUS_HOME", &home),
+        ));
     } else {
         eprintln!("cargo-nextest is not installed, so the tests (the docs examples too) run with cargo test");
-        steps.push(("tests", cmd!(sh, "cargo test --workspace --locked --no-fail-fast")));
+        steps.push(("tests", cmd!(sh, "cargo test --workspace --locked --no-fail-fast").env("CLAUDIUS_HOME", &home)));
     }
 
     let mut failed = Vec::new();

@@ -91,6 +91,8 @@ pub struct App {
     cancel: Arc<AtomicBool>,
     auto_render: AtomicBool,
     cache: PathBuf,
+    /// the lock on `cache` that tells other sessions this one is running; the OS lets go of it when the process ends
+    _in_use: Option<std::fs::File>,
     genres: Vec<GenreInfo>,
     base: Mutex<String>,
     roots: Option<Vec<PathBuf>>,
@@ -111,8 +113,11 @@ fn no(message: impl Into<String>, version: u64) -> Reply {
 impl App {
     pub fn new(settings: Settings) -> Arc<App> {
         let cache = config::cache_dir("renders").join(format!("{}", std::process::id()));
-        clean_old_sessions(cache.parent().unwrap_or(&cache));
+        // a folder left by an ended process with the same id holds none of this session's renders
+        let _ = std::fs::remove_dir_all(&cache);
         let _ = std::fs::create_dir_all(&cache);
+        let in_use = hold(&cache);
+        clean_old_sessions(cache.parent().unwrap_or(&cache), &cache, ENDED_GRACE, UNLOCKED_AGE);
         let lib = if settings.library { Library::open().ok().filter(|l| !l.is_empty()).map(Arc::new) } else { None };
         let (tx, _) = tokio::sync::watch::channel(0);
         let app = Arc::new(App {
@@ -124,6 +129,7 @@ impl App {
             cancel: Arc::new(AtomicBool::new(false)),
             auto_render: AtomicBool::new(settings.auto_render),
             cache,
+            _in_use: in_use,
             genres: views::genre_infos(),
             base: Mutex::new(format!("http://127.0.0.1:{DEFAULT_PORT}")),
             roots: settings.file_roots,
@@ -344,17 +350,67 @@ impl App {
     }
 }
 
-fn clean_old_sessions(root: &Path) {
+/// in each session's render folder, the file whose lock says the session is still running
+const IN_USE: &str = ".in-use";
+/// a folder whose lock is free waits this long since it last changed, in case its session has only just started
+const ENDED_GRACE: Duration = Duration::from_secs(60);
+/// folders without a lock file, from claudius before 0.3, go once they have not changed for this long
+const UNLOCKED_AGE: Duration = Duration::from_secs(12 * 3600);
+
+/// a lock on the session's render folder for as long as the session runs, however the process ends
+fn hold(dir: &Path) -> Option<std::fs::File> {
+    let file = std::fs::OpenOptions::new().create(true).truncate(false).write(true).open(dir.join(IN_USE)).ok()?;
+    file.try_lock().ok()?;
+    Some(file)
+}
+
+/// removes the render folders of sessions that have ended, other than `mine`: each session's renders are only for it,
+/// and a day of edits leaves gigabytes of them
+fn clean_old_sessions(root: &Path, mine: &Path, grace: Duration, unlocked: Duration) {
     let Ok(rd) = std::fs::read_dir(root) else { return };
     for e in rd.flatten() {
-        let old = e
-            .metadata()
-            .and_then(|m| m.modified())
-            .ok()
-            .and_then(|t| t.elapsed().ok())
-            .is_some_and(|d| d > Duration::from_secs(12 * 3600));
-        if old {
-            let _ = std::fs::remove_dir_all(e.path());
+        let dir = e.path();
+        if dir == mine {
+            continue;
         }
+        let unchanged_for = |d: Duration| {
+            e.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.elapsed().ok()).is_some_and(|age| age >= d)
+        };
+        let ended = match std::fs::File::open(dir.join(IN_USE)) {
+            Ok(lock) => lock.try_lock().is_ok() && unchanged_for(grace),
+            Err(_) => unchanged_for(unlocked),
+        };
+        if ended {
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ended_sessions_lose_their_renders_and_running_ones_keep_them() {
+        let root = std::env::temp_dir().join(format!("claudius-renders-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let folder = |name: &str| {
+            let d = root.join(name);
+            std::fs::create_dir_all(&d).unwrap();
+            std::fs::write(d.join("1.wav"), b"RIFF").unwrap();
+            d
+        };
+        let (mine, running, ended, unlocked) = (folder("1"), folder("2"), folder("3"), folder("4"));
+        let _mine = hold(&mine).unwrap();
+        let _running = hold(&running).unwrap();
+        drop(hold(&ended).unwrap());
+        clean_old_sessions(&root, &mine, Duration::from_secs(3600), UNLOCKED_AGE);
+        assert!(ended.join("1.wav").exists(), "a session that has only just let go may be starting");
+        clean_old_sessions(&root, &mine, Duration::ZERO, UNLOCKED_AGE);
+        assert!(mine.join("1.wav").exists(), "this session's own");
+        assert!(running.join("1.wav").exists(), "a session that still holds its lock");
+        assert!(!ended.exists(), "a session whose lock is free");
+        assert!(unlocked.join("1.wav").exists(), "an older claudius's, changed within twelve hours");
+        std::fs::remove_dir_all(&root).ok();
     }
 }
