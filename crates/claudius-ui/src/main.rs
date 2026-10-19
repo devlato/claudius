@@ -25,7 +25,7 @@ fn main() -> eframe::Result<()> {
             }
         }
     }
-    claudius_ui::run_native(server)
+    claudius_ui::run_native(server, None)
 }
 
 #[cfg(target_arch = "wasm32")]

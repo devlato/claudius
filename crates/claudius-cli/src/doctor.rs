@@ -93,21 +93,13 @@ pub fn run(port: u16, web: Option<std::path::PathBuf>) {
         r.line(false, &format!("port {port}"), "used by another program: pass --port to studio, serve and mcp");
     }
 
-    for (name, path, hint) in [
-        ("Claude Desktop", connect::claude_desktop_config(), "claude-desktop"),
-        ("Cursor", connect::cursor_config(), "cursor"),
-    ] {
-        if connect::configured(&path) {
+    for a in connect::assistants() {
+        let name = a.client.name();
+        if a.setup != connect::Setup::Missing {
             r.line(true, name, "connected");
-        } else if path.exists() {
-            println!("  ..  {name:<15} not connected: `claudius connect {hint}`");
+        } else if a.installed {
+            println!("  ..  {name:<15} not connected: `claudius connect {}`", a.client.id());
         }
-    }
-    let codex = connect::codex_config();
-    if connect::codex_configured(&codex) {
-        r.line(true, "Codex", "connected");
-    } else if codex.parent().is_some_and(|d| d.exists()) {
-        println!("  ..  {:<15} not connected: `claudius connect codex`", "Codex");
     }
 
     println!();

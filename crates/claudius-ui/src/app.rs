@@ -2,6 +2,7 @@
 //! and lays the panels out like a DAW: transport on top, the arrangement in the middle, the editors docked below,
 //! the section inspector and the verdict on the right.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use claudius_api::{Command, SoundList, State};
@@ -10,6 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::audio::Player;
 use crate::edits;
+use crate::native::Native;
 use crate::net::{Backend, Connection, Event};
 use crate::panels::{self, Action, Cx, Link, Tab, Toast, View};
 use crate::theme::{self, ACCENT, BG, LINE, LINE_SOFT, PANEL, TEXT, TEXT_DIM, TEXT_FAINT};
@@ -71,9 +73,15 @@ pub struct Studio {
     server_url: Option<String>,
     /// play the demo if the server cannot be reached at all (a web page served without claudius behind it)
     pub fallback_to_demo: bool,
+    /// what the native app can do on this computer (connect assistants); none on the web
+    pub native: Option<Arc<dyn Native>>,
     #[cfg(not(target_arch = "wasm32"))]
     plan: Option<crate::devplan::Plan>,
 }
+
+/// the docs and the bug report form, for the help menu
+const DOCS: &str = "https://github.com/devlato/claudius/blob/main/docs/src/SUMMARY.md";
+const REPORT: &str = "https://github.com/devlato/claudius/issues/new?template=bug_report.yml";
 
 impl Studio {
     pub fn new(cc: &eframe::CreationContext<'_>, connection: Connection) -> Studio {
@@ -118,6 +126,7 @@ impl Studio {
             title: String::new(),
             loop_region: None,
             fallback_to_demo: false,
+            native: None,
             #[cfg(not(target_arch = "wasm32"))]
             plan: crate::devplan::Plan::from_env(),
         }
@@ -504,6 +513,17 @@ impl Studio {
                 ui.label(RichText::new(format!("· audio: {e}")).size(11.0).color(theme::WARN));
             }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                ui.menu_button(RichText::new(" ? ").size(12.0).color(TEXT_DIM), |ui| {
+                    if ui.button("Connect an assistant…").clicked() {
+                        self.view.assistants.show();
+                        ui.close();
+                    }
+                    ui.hyperlink_to("Documentation", DOCS);
+                    ui.hyperlink_to("Report a problem", REPORT);
+                })
+                .response
+                .on_hover_text("help: connect an assistant, the documentation, report a problem");
+                ui.add_space(6.0);
                 let r =
                     ui.add(egui::Slider::new(&mut self.view.volume, 0.0..=1.0).show_value(false).trailing_fill(true));
                 if r.changed() {
@@ -759,6 +779,10 @@ impl eframe::App for Studio {
                     if widgets::tool_button(ui, Icon::New, "New song", true, true).clicked() {
                         self.view.new_song.open = true;
                     }
+                    ui.add_space(6.0);
+                    if widgets::tool_button(ui, Icon::Plus, "Connect an assistant", true, false).clicked() {
+                        self.view.assistants.show();
+                    }
                 });
             } else {
                 self.welcome(ui);
@@ -776,6 +800,7 @@ impl eframe::App for Studio {
             };
             panels::transport::new_song_dialog(&ctx, &mut cx);
         }
+        panels::assistants::dialog(&ctx, &mut self.view.assistants, self.native.as_ref());
 
         if self.view.reference_open {
             self.reference_window(&ctx);

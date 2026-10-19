@@ -48,6 +48,13 @@ song, so a seed is a way to come back to one you liked. **Open** loads a song fo
 **Mutate** tries a few variations and keeps the best one if it beats the current song; **Evolve** runs several
 generations of that. Both run in the background and can be stopped. **Save** writes the song folder.
 
+## Help and assistants
+
+**?** in the bottom right corner opens the help menu: **Connect an assistant**, the documentation, and a form to
+report a problem. Connect an assistant lists Claude Desktop, Claude Code, Cursor and Codex, says which are connected,
+and connects one with a click, the way `claudius connect` does ([Working with an assistant](assistants.md)). The
+assistant then makes and edits the song open here, and you hear every change.
+
 ## Keys
 
 | key | |

@@ -40,7 +40,8 @@ Runtime has no build for them.
 ## Connect an assistant
 
 `claudius connect <client>` adds claudius to an assistant and installs these skills where that assistant reads
-them. `--remove` takes both out again.
+them. `--remove` takes both out again. Someone without a terminal (the Mac app, the Windows installer) can do the
+same in the studio: **?** in the bottom right corner, then **Connect an assistant**.
 
 | client | command | MCP | skills |
 |---|---|---|---|
