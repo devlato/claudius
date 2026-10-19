@@ -58,6 +58,12 @@ same in the studio: **?** in the bottom right corner, then **Connect an assistan
   instead of starting their own.
 - When a studio is running, `claudius mcp` drives it, so the assistant edits the song the person has open and they
   hear each change. With no studio, it starts a session of its own and prints the address of its web studio.
+- Each assistant's own command adds the MCP server as well, without the skills:
+  `claude mcp add --scope user claudius -- claudius mcp` (Claude Code; without `--scope user` it is for the current
+  folder only), `codex mcp add claudius -- claudius mcp` (Codex), or the `mcpServers` entry
+  `"claudius": { "command": "claudius", "args": ["mcp"] }` in `~/.cursor/mcp.json`. Claude Desktop needs the full
+  path, and so does the Mac app dragged from its disk image (`/Applications/Claudius.app/Contents/MacOS/Claudius`);
+  `claudius connect print` prints all of them with the full path.
 
 ### Assistants in the cloud (ChatGPT, claude.ai)
 

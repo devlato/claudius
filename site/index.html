@@ -662,13 +662,15 @@ claudius reference</code></pre>
     <div class="clients">
       <article class="client">
         <h3>Claude Code</h3>
-        <pre class="code"><code class="language-sh">claude mcp add claudius -- claudius mcp</code></pre>
+        <pre class="code"><code class="language-sh">claude mcp add --scope user claudius -- claudius mcp</code></pre>
+        <h3>Codex</h3>
+        <pre class="code"><code class="language-sh">codex mcp add claudius -- claudius mcp</code></pre>
         <h3>Claude Desktop</h3>
-        <p>Add this to <code class="long">~/Library/Application Support/Claude/claude_desktop_config.json</code> and restart Claude. Use the full path that <code>which claudius</code> prints.</p>
+        <p>In Claude's settings, Developer, Edit Config opens <code class="long">claude_desktop_config.json</code>. Add this and restart Claude, with the full path that <code>which claudius</code> prints.</p>
         <pre class="code"><code class="language-json">{
   "mcpServers": {
     "claudius": {
-      "command": "/Users/you/.cargo/bin/claudius",
+      "command": "/Users/you/.local/bin/claudius",
       "args": ["mcp"]
     }
   }
@@ -676,12 +678,14 @@ claudius reference</code></pre>
       </article>
       <article class="client">
         <h3>Cursor</h3>
-        <p>The same command and arguments in <code>.cursor/mcp.json</code>:</p>
+        <p><a class="btn" href="cursor://anysphere.cursor-deeplink/mcp/install?name=claudius&amp;config=eyJjb21tYW5kIjoiY2xhdWRpdXMiLCJhcmdzIjpbIm1jcCJdfQ==">Add to Cursor</a></p>
+        <p>Cursor asks before it adds it. Or put the same command and arguments in <code>~/.cursor/mcp.json</code>:</p>
         <pre class="code"><code class="language-json">{
   "mcpServers": {
     "claudius": { "command": "claudius", "args": ["mcp"] }
   }
 }</code></pre>
+        <p><code>claudius connect claude-code</code> (or <code>claude-desktop</code>, <code>cursor</code>, <code>codex</code>) does the same with the full path, and adds the skills that teach the assistant claudius; so does Connect an assistant, in the studio.</p>
         <p><code>claudius mcp</code> drives the studio when one is running on the port, so you and the assistant share the song. When none is running, it starts a session of its own and serves the web studio on the port, so you can still open it.</p>
         <p>Clients that speak Streamable HTTP can use <code>http://127.0.0.1:7878/mcp</code> while the studio or <code>claudius serve</code> runs.</p>
       </article>

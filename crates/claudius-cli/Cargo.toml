@@ -25,6 +25,7 @@ claudius-packs = { path = "../claudius-packs" }
 earshot = { path = "../earshot", optional = true }
 claudius-ui = { path = "../claudius-ui", optional = true }
 anyhow = "1"
+base64 = "0.23"
 clap = { version = "4", features = ["derive", "env"] }
 getrandom = "0.4"
 toml_edit = "0.25"

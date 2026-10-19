@@ -41,6 +41,33 @@ Each adds the MCP server and installs the skills where that assistant reads them
 For any other client, `claudius connect print` shows the configuration to paste. Clients that can reach a URL can
 also connect over HTTP to a running studio: `http://127.0.0.1:7878/mcp`.
 
+## With the assistant's own command
+
+claudius is an ordinary MCP server: the assistant starts `claudius mcp`. So each assistant's own way of adding a
+server works as well:
+
+```sh
+claude mcp add --scope user claudius -- claudius mcp    # Claude Code, in every project
+codex mcp add claudius -- claudius mcp                  # Codex
+```
+
+Cursor adds it from a link: [Add claudius to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=claudius&config=eyJjb21tYW5kIjoiY2xhdWRpdXMiLCJhcmdzIjpbIm1jcCJdfQ==)
+opens Cursor, which asks before it adds the server. Or put it in `~/.cursor/mcp.json` yourself:
+
+```json
+{ "mcpServers": { "claudius": { "command": "claudius", "args": ["mcp"] } } }
+```
+
+Claude Desktop has no command for it: in its Settings, choose Developer, then Edit Config, and add the same entry with
+the full path of `claudius` (`which claudius` prints it), since Claude Desktop does not see your shell's `PATH`.
+
+These find `claudius` on your `PATH`, where the installers put it. The Mac app dragged from its disk image leaves none
+there: use `/Applications/Claudius.app/Contents/MacOS/Claudius` in its place. `claudius connect print` prints every
+one of these with the full path of the claudius you run it with.
+
+They add the MCP server only. The [skills](#skills) come with `claudius connect`; `claudius skills --out <folder>`
+writes them anywhere else, a folder each, to copy into `~/.claude/skills`, `~/.codex/skills` or `~/.cursor/skills`.
+
 ## Skills
 
 The MCP tools give an assistant the controls; claudius' skills give it the craft. They are short guides, in the
