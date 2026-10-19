@@ -502,14 +502,16 @@ fn swap_folder(_: &Path, _: &Path, _: bool) -> Result<()> {
     bail!("the install script's folder updates only on macOS and Linux")
 }
 
-/// the downloaded installer, run once this process ends (it updates the programs this one is), and the studio again
+/// the downloaded installer, run once this process ends (it updates the programs this one is), and the studio again;
+/// the installer's log goes next to it, `<msi>.log`, for when an update does not take
 #[cfg(windows)]
 fn run_installer(msi: &Path, bin: &Path, reopen: bool) -> Result<()> {
     let quote = |p: &Path| p.display().to_string().replace('\'', "''");
     let mut script = format!(
-        "Wait-Process -Id {} -ErrorAction SilentlyContinue; Start-Process msiexec.exe -Wait -ArgumentList '/i', '\"{}\"', '/passive', '/norestart'",
+        "Wait-Process -Id {} -ErrorAction SilentlyContinue; Start-Process msiexec.exe -Wait -ArgumentList '/i', '\"{}\"', '/passive', '/norestart', '/l*v', '\"{}\"'",
         std::process::id(),
-        quote(msi)
+        quote(msi),
+        quote(&msi.with_extension("msi.log"))
     );
     if reopen {
         script.push_str(&format!("; Start-Process '{}'", quote(&bin.join("claudius-studio.exe"))));

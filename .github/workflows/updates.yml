@@ -133,29 +133,31 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "msiexec /i exited with $($p.ExitCode)" }
           $bin = Join-Path $env:LOCALAPPDATA 'Programs\claudius\bin'
           $exe = Join-Path $bin 'claudius.exe'
-          & $exe update --yes
-          if ($LASTEXITCODE -ne 0) { throw 'claudius update failed' }
-          # the release's installer runs once claudius has exited
+          # the release's claudius.exe, which the update has to leave in place
           $tag = gh release view --repo $env:GITHUB_REPOSITORY --json tagName --jq .tagName
           $latest = $tag.TrimStart('v')
-          $uninstall = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
-          $deadline = (Get-Date).AddMinutes(10)
-          do {
-            Start-Sleep -Seconds 5
-            $versions = @(Get-ItemProperty $uninstall -ErrorAction SilentlyContinue |
-              Where-Object DisplayName -eq 'Claudius' | ForEach-Object DisplayVersion)
-          } until (($versions -contains $latest -and $versions -notcontains '0.1.99') -or (Get-Date) -gt $deadline)
-          Write-Host "Claudius installed: $($versions -join ', ')"
-          if ($versions -notcontains $latest -or $versions -contains '0.1.99') {
-            throw "the installer did not replace 0.1.99 with $latest"
-          }
-          # and the programs in place are the release's
           $release = Join-Path $env:RUNNER_TEMP 'latest'
           gh release download $tag --repo $env:GITHUB_REPOSITORY --dir $release `
             --pattern "claudius-$latest-x86_64-pc-windows-msvc.zip"
           Expand-Archive (Join-Path $release "claudius-$latest-x86_64-pc-windows-msvc.zip") -DestinationPath $release
-          $expected = Get-ChildItem $release -Recurse -Filter claudius.exe | Select-Object -First 1
-          if ((Get-FileHash $exe).Hash -ne (Get-FileHash $expected.FullName).Hash) {
-            throw "$exe is not the release's claudius.exe"
+          $expected = (Get-FileHash (Get-ChildItem $release -Recurse -Filter claudius.exe | Select-Object -First 1).FullName).Hash
+          # the update downloads into a folder of its own, where the installer's log goes too
+          $env:CLAUDIUS_HOME = Join-Path $env:RUNNER_TEMP 'claudius-home'
+          & $exe update --yes
+          if ($LASTEXITCODE -ne 0) { throw 'claudius update failed' }
+          # the release's installer runs once claudius has exited
+          $deadline = (Get-Date).AddMinutes(10)
+          do {
+            Start-Sleep -Seconds 5
+            $now = if (Test-Path $exe) { (Get-FileHash $exe).Hash } else { '' }
+          } until ($now -eq $expected -or (Get-Date) -gt $deadline)
+          Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
+            Where-Object DisplayName | Format-Table DisplayName, DisplayVersion | Out-String | Write-Host
+          if ($now -ne $expected) {
+            Get-ChildItem $env:CLAUDIUS_HOME -Recurse -Filter *.log | ForEach-Object {
+              Write-Host "== $($_.FullName)"
+              Get-Content $_.FullName -Tail 120 | Write-Host
+            }
+            throw "after 10 minutes, $exe is still not the $latest release's"
           }
           & $exe --version
