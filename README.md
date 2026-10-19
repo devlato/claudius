@@ -39,6 +39,9 @@ claudius studio                     # the studio, with the engine inside
 claudius connect claude-desktop     # MCP and skills; then ask Claude for a song while you listen
 ```
 
+Your assistant's own command works too: `claude mcp add --scope user claudius -- claudius mcp`, `codex mcp add
+claudius -- claudius mcp`, or Cursor's install link ([the assistant's own command](docs/src/getting-started/assistants.md#with-the-assistants-own-command)).
+
 A song in the script language:
 
 ```js packs

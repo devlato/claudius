@@ -21,8 +21,8 @@ claudius connect claude-desktop
 This adds an entry to Claude Desktop's configuration, keeps the old file as `claude_desktop_config.json.bak`, and
 asks you to quit and reopen Claude Desktop. `claudius connect claude-desktop --remove` takes it out again.
 
-By hand, add this to the configuration file, with the absolute path of your `claudius` (`which claudius` prints
-it; Claude Desktop does not see your shell's `PATH`):
+By hand, add this to the configuration file (in Claude Desktop's Settings, Developer, Edit Config opens it), with the
+absolute path of your `claudius` (`which claudius` prints it; Claude Desktop does not see your shell's `PATH`):
 
 ```json
 { "mcpServers": { "claudius": { "command": "/Users/you/.local/bin/claudius", "args": ["mcp"] } } }
@@ -43,7 +43,10 @@ claudius connect claude-code          # runs: claude mcp add --scope user claudi
 claudius connect claude-code --http   # runs: claude mcp add --scope user --transport http claudius http://127.0.0.1:7878/mcp
 ```
 
-When the `claude` command is not on your `PATH`, `connect` prints the command for you to run where it is.
+When the `claude` command is not on your `PATH`, `connect` prints the command for you to run where it is. Claude
+Code's own command does the same, with the `claudius` on your `PATH`:
+`claude mcp add --scope user claudius -- claudius mcp`. Without `--scope user`, Claude Code adds it to the folder you
+run that in only.
 
 ### Cursor
 
@@ -53,7 +56,9 @@ claudius connect cursor --http        # "claudius": { "url": "http://127.0.0.1:7
 ```
 
 Both edit `mcpServers` in `~/.cursor/mcp.json` and keep a `.bak` copy. A project's `.cursor/mcp.json` takes the same
-entry.
+entry. Cursor's install link adds it as well, after asking:
+[Add claudius to Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=claudius&config=eyJjb21tYW5kIjoiY2xhdWRpdXMiLCJhcmdzIjpbIm1jcCJdfQ==)
+starts the `claudius` on your `PATH`; `claudius connect print` prints a link with its full path.
 
 ### Codex
 
@@ -63,7 +68,8 @@ claudius connect codex
 
 This adds `[mcp_servers.claudius]` to `~/.codex/config.toml`, with the absolute path of `claudius` and `args =
 ["mcp"]`, and leaves the rest of the file as it was (comments included), with a `config.toml.bak` copy. Codex starts
-local servers itself, so `--http` is refused for it.
+local servers itself, so `--http` is refused for it. Codex's own `codex mcp add claudius -- claudius mcp` writes the
+same table, with the `claudius` on your `PATH`.
 
 ### Skills
 
@@ -73,8 +79,9 @@ leaves them out.
 
 ### Any other client
 
-`claudius connect print` prints the stdio configuration as JSON, the HTTP address, and the Claude Code command.
-`--port` (or `CLAUDIUS_PORT`) changes the port in the HTTP address.
+`claudius connect print` prints each assistant's own command (`claude mcp add`, `codex mcp add`, Cursor's install
+link) with the full path of this claudius, the stdio configuration as JSON for Claude Desktop and any other client, and
+the HTTP address. `--port` (or `CLAUDIUS_PORT`) changes the port in the HTTP address.
 
 ### ChatGPT and other assistants in the cloud
 

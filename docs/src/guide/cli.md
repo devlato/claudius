@@ -472,7 +472,7 @@ that teach it claudius. [MCP tools](mcp.md#setting-up-a-client) covers each clie
 | `claude-code` | runs `claude mcp add --scope user ...`, and installs the skills in `~/.claude/skills/` |
 | `cursor` | edits `~/.cursor/mcp.json`, and installs the skills in `~/.cursor/skills/` |
 | `codex` | edits `[mcp_servers.claudius]` in `~/.codex/config.toml`, and installs the skills in `~/.codex/skills/` |
-| `print` | prints the configuration for any other client |
+| `print` | prints each assistant's own command for setting it up by hand (`claude mcp add`, `codex mcp add`, Cursor's install link), and the configuration for any other client, with the full path of this claudius |
 | `--http` | connects over HTTP to a running studio instead of starting `claudius mcp` (not for Claude Desktop or Codex) |
 | `--no-skills` | connects the MCP server only |
 | `--remove` | takes claudius, and its skills, out again |

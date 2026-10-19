@@ -63,9 +63,17 @@ fn a_broken_script_fails_with_its_reason() {
 fn connect_print_shows_a_working_config() {
     let out = claudius().args(["connect", "print"]).assert().success();
     let text = String::from_utf8_lossy(&out.get_output().stdout).to_string();
-    let json: String = text.lines().skip(1).take_while(|l| !l.is_empty()).collect::<Vec<_>>().join("\n");
-    let v: serde_json::Value = serde_json::from_str(&json).unwrap_or_else(|e| panic!("{e}\n{json}"));
+    let json: String =
+        text.lines().skip_while(|l| *l != "{").take_while(|l| !l.is_empty()).collect::<Vec<_>>().join("\n");
+    let v: serde_json::Value = serde_json::from_str(&json).unwrap_or_else(|e| panic!("{e}\n{text}"));
     assert_eq!(v["mcpServers"]["claudius"]["args"][0], "mcp");
+    for own in [
+        "claude mcp add --scope user claudius -- ",
+        "codex mcp add claudius -- ",
+        "cursor://anysphere.cursor-deeplink/mcp/install?name=claudius&config=",
+    ] {
+        assert!(text.contains(own), "{own} in:\n{text}");
+    }
 }
 
 #[test]

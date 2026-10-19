@@ -251,6 +251,48 @@ fn find_in<'a>(dirs: impl IntoIterator<Item = &'a PathBuf>, names: &[&str]) -> O
     dirs.into_iter().flat_map(|d| names.iter().map(move |n| d.join(n))).find(|p| p.is_file())
 }
 
+/// where an assistant finds a bare `claudius`: PATH, and where the installers put it, for the assistants opened from
+/// the Finder or the Start menu, which get a short PATH
+fn program_dirs() -> Vec<PathBuf> {
+    let mut dirs: Vec<PathBuf> =
+        std::env::var_os("PATH").map(|p| std::env::split_paths(&p).collect()).unwrap_or_default();
+    dirs.extend([
+        home().join(".local/bin"),
+        home().join(".cargo/bin"),
+        PathBuf::from("/opt/homebrew/bin"),
+        PathBuf::from("/usr/local/bin"),
+    ]);
+    dirs
+}
+
+/// whether an assistant's `command` starts the claudius at `exe`: its path, a link to it, or a bare name that finds
+/// it in `dirs`, as one set up with the assistant's own command (`claude mcp add ... -- claudius mcp`) has
+fn starts(command: &str, exe: &Path, dirs: &[PathBuf]) -> bool {
+    let path = Path::new(command);
+    let file = if path.parent().is_some_and(|p| !p.as_os_str().is_empty()) {
+        Some(path.to_path_buf())
+    } else {
+        let exe_name = format!("{command}.exe");
+        let names = if cfg!(windows) { vec![exe_name.as_str(), command] } else { vec![command] };
+        find_in(dirs, &names)
+    };
+    file.and_then(|f| f.canonicalize().ok()).is_some_and(|f| f == exe)
+}
+
+/// a path as a terminal takes it
+fn shown(path: &Path) -> String {
+    let s = path.to_string_lossy();
+    if s.contains(' ') { format!("\"{s}\"") } else { s.into_owned() }
+}
+
+/// Cursor's install link for an `mcpServers` entry: Cursor asks before it adds it. The entry goes in base64, with `+`
+/// escaped, since a query string reads `+` as a space.
+fn cursor_link(entry: &Value) -> String {
+    use base64::Engine as _;
+    let config = base64::engine::general_purpose::STANDARD.encode(entry.to_string()).replace('+', "%2B");
+    format!("cursor://anysphere.cursor-deeplink/mcp/install?name=claudius&config={config}")
+}
+
 /// runs `claude` with its own folder first on PATH: an npm install of it is a node script, and node is usually
 /// installed in the same folder
 fn claude(claude: &Path, args: &[impl AsRef<OsStr>]) -> Result<Output> {
@@ -408,18 +450,29 @@ pub fn connect(client: Client, http: bool, remove: bool, port: u16, with_skills:
             }
         }
         Client::Print => {
+            let me = shown(&exe);
+            out.push(format!("Claude Code, in every project:\n  claude mcp add --scope user claudius -- {me} mcp"));
+            out.push(format!("\nCodex:\n  codex mcp add claudius -- {me} mcp"));
             out.push(format!(
-                "Local (the client starts claudius):\n{}",
+                "\nCursor: open this link, and Cursor asks before it adds claudius\n  {}",
+                cursor_link(&stdio)
+            ));
+            out.push(format!(
+                "\nClaude Desktop (in its Settings: Developer, Edit Config), ~/.cursor/mcp.json, and any other client \
+                 that starts a local server:\n{}",
                 serde_json::to_string_pretty(&json!({ "mcpServers": { "claudius": stdio } }))?
             ));
             out.push(format!("\nOver HTTP, while `claudius studio` or `claudius serve` runs:\n  {url}"));
-            out.push(format!("\nClaude Code:\n  claude mcp add --scope user claudius -- {} mcp", exe.display()));
             out.push(
                 "\nAssistants in the cloud (ChatGPT) need a public HTTPS address: see `claudius serve --help` (--public, \
                  --token)."
                     .into(),
             );
-            out.push("\nSkills for assistants that read SKILL.md folders: `claudius skills --out <folder>`.".into());
+            out.push(
+                "\nThese add the MCP server. `claudius connect <assistant>` adds the skills too, and `claudius skills \
+                 --out <folder>` writes them anywhere."
+                    .into(),
+            );
         }
     }
     if with_skills {
@@ -436,8 +489,8 @@ pub struct FromTheStudio;
 impl claudius_ui::Native for FromTheStudio {
     fn assistants(&self) -> Vec<claudius_ui::Assistant> {
         use claudius_ui::Connected;
-        let me = exe().map(|e| e.to_string_lossy().into_owned()).unwrap_or_default();
-        let shown = if me.contains(' ') { format!("\"{me}\"") } else { me.clone() };
+        let me = exe().unwrap_or_default();
+        let dirs = program_dirs();
         assistants()
             .into_iter()
             .map(|f| claudius_ui::Assistant {
@@ -445,12 +498,12 @@ impl claudius_ui::Native for FromTheStudio {
                 name: f.client.name().into(),
                 connected: match f.setup {
                     Setup::Missing => Connected::No,
-                    Setup::Command(c) if c == me => Connected::ThisApp,
+                    Setup::Command(c) if starts(&c, &me, &dirs) => Connected::ThisApp,
                     Setup::Command(c) => Connected::Other(c),
                     Setup::Url(u) => Connected::Http(u),
                 },
                 found: f.installed,
-                command: format!("{shown} connect {}", f.client.id()),
+                command: format!("{} connect {}", shown(&me), f.client.id()),
             })
             .collect()
     }
@@ -588,6 +641,56 @@ mod tests {
         std::fs::write(bin.join("claude"), "").unwrap();
         assert_eq!(find_in([&empty, &bin], &["claude"]), Some(bin.join("claude")));
         assert_eq!(find_in([&empty], &["claude"]), None);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn print_shows_each_assistants_own_command() {
+        let text = connect(Client::Print, false, false, 7878, false).unwrap().join("\n");
+        let me = shown(&exe().unwrap());
+        for line in [
+            format!("claude mcp add --scope user claudius -- {me} mcp"),
+            format!("codex mcp add claudius -- {me} mcp"),
+            "cursor://anysphere.cursor-deeplink/mcp/install?name=claudius&config=".into(),
+            "\"mcpServers\"".into(),
+            "http://127.0.0.1:7878/mcp".into(),
+        ] {
+            assert!(text.contains(&line), "{line} in:\n{text}");
+        }
+    }
+
+    #[test]
+    fn the_cursor_link_carries_the_entry() {
+        use base64::Engine as _;
+        let base64 = base64::engine::general_purpose::STANDARD;
+        let entry = json!({ "command": "~/bin/claudius>", "args": ["mcp"] });
+        assert!(base64.encode(entry.to_string()).contains('+'), "an entry whose base64 has a +");
+        let link = cursor_link(&entry);
+        assert!(!link.contains('+'), "{link}");
+        let config = link.split_once("&config=").unwrap().1.replace("%2B", "+");
+        let decoded = base64.decode(config).unwrap();
+        assert_eq!(serde_json::from_slice::<Value>(&decoded).unwrap(), entry);
+    }
+
+    #[test]
+    fn a_setup_that_finds_this_claudius_is_this_app() {
+        let dir = std::env::temp_dir().join(format!("claudius-starts-{}", std::process::id()));
+        let bin = dir.join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        let exe = bin.join(if cfg!(windows) { "claudius.exe" } else { "claudius" });
+        std::fs::write(&exe, "").unwrap();
+        let exe = exe.canonicalize().unwrap();
+        let dirs = vec![bin.clone()];
+        assert!(starts(&exe.to_string_lossy(), &exe, &dirs), "its path");
+        assert!(starts("claudius", &exe, &dirs), "its name, on PATH");
+        assert!(!starts("claudius", &exe, std::slice::from_ref(&dir)), "its name, elsewhere on PATH");
+        assert!(!starts(&dir.join("other/claudius").to_string_lossy(), &exe, &dirs), "another claudius");
+        assert!(!starts("", &exe, &dirs));
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(&exe, dir.join("link")).unwrap();
+            assert!(starts(&dir.join("link").to_string_lossy(), &exe, &dirs), "a link to it");
+        }
         std::fs::remove_dir_all(&dir).ok();
     }
 
