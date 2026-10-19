@@ -20,6 +20,7 @@ The studio is still being finished; this page describes its structure, which is 
 | `mock/` | a built-in stand-in for the server, with a generated song and a rough preview synth |
 | `music.rs` | the theory needed to label things: keys, numerals as chord names, note names |
 | `theme.rs`, `widgets.rs` | the palette (one colour per role and section kind), knobs, faders, meters, chips |
+| `mark.rs` | the logo's C, drawn at the size the header shows it, from the numbers `scripts/icons.py` draws the icons with |
 | `devplan.rs` | scripted runs of the native window, for checking the UI without a person |
 | `native.rs` | `Native`, what the native window may do on its computer beyond the server (connect assistants) |
 | `tour.rs` | the first-run tour: its cards, the parts of the studio they point at, and when it is done |

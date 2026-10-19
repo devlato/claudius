@@ -13,6 +13,7 @@ mod cmds;
 #[cfg(not(target_arch = "wasm32"))]
 mod devplan;
 mod edits;
+mod mark;
 mod mock;
 mod music;
 mod native;
@@ -51,6 +52,7 @@ pub fn run_native_with(connection: Connection, native: Option<std::sync::Arc<dyn
         viewport: eframe::egui::ViewportBuilder::default()
             .with_title("Claudius")
             .with_app_id("claudius-studio")
+            .with_icon(eframe::icon_data::from_png_bytes(icon_png()).unwrap_or_default())
             .with_inner_size([1600.0, 1000.0])
             .with_min_inner_size([1100.0, 680.0]),
         ..Default::default()
@@ -64,6 +66,17 @@ pub fn run_native_with(connection: Connection, native: Option<std::sync::Arc<dyn
             Ok(Box::new(studio))
         }),
     )
+}
+
+/// The window's icon, from `scripts/icons.py`. eframe puts egui's logo there otherwise, in the Dock too: on a Mac it
+/// replaces the app's icon while the studio runs, so the Mac gets the icon on Apple's grid, with its margin.
+#[cfg(not(target_arch = "wasm32"))]
+fn icon_png() -> &'static [u8] {
+    if cfg!(target_os = "macos") {
+        include_bytes!("../assets/icon-macos.png")
+    } else {
+        include_bytes!("../assets/icon.png")
+    }
 }
 
 /// Starts the studio in the page's `<canvas id="{canvas_id}">`, talking to the page's own origin (or `?server=URL`,
@@ -96,4 +109,13 @@ pub async fn start_web(canvas_id: &str) -> Result<(), wasm_bindgen::JsValue> {
         }
     }
     result
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    #[test]
+    fn the_window_icon_is_a_square_png() {
+        let icon = eframe::icon_data::from_png_bytes(super::icon_png()).unwrap();
+        assert!(icon.width >= 256 && icon.width == icon.height, "{}x{}", icon.width, icon.height);
+    }
 }
