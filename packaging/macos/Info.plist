@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- claudius.app's Info.plist; scripts/package/macos.sh fills in {{version}} -->
+<!-- Claudius.app's Info.plist; scripts/package/macos.sh fills in {{version}} -->
 <plist version="1.0">
 <dict>
   <key>CFBundleDevelopmentRegion</key>
   <string>en</string>
   <key>CFBundleDisplayName</key>
-  <string>claudius</string>
+  <string>Claudius</string>
   <key>CFBundleExecutable</key>
-  <string>claudius</string>
+  <string>Claudius</string>
   <key>CFBundleIconFile</key>
   <string>claudius</string>
   <key>CFBundleIdentifier</key>
@@ -16,7 +16,7 @@
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>claudius</string>
+  <string>Claudius</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

@@ -49,21 +49,23 @@ jobs:
       - run: cargo xtask web
       - run: cargo xtask dist --target aarch64-apple-darwin --web crates/claudius-ui/dist
       - run: cargo xtask dist --target x86_64-apple-darwin --web crates/claudius-ui/dist
-      - name: claudius.app and its disk image
+      - name: Claudius.app and its disk images
         run: |
           version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
-          sh scripts/package/macos.sh "target/dist/claudius-$version-aarch64-apple-darwin.tar.gz" \
-            "target/dist/claudius-$version-x86_64-apple-darwin.tar.gz" target/packages
-      - name: Installed from the disk image, the app opens the studio
+          for target in aarch64-apple-darwin x86_64-apple-darwin; do
+            sh scripts/package/macos.sh "target/dist/claudius-$version-$target.tar.gz" target/packages
+          done
+      - name: Installed from its disk image, the Apple silicon app opens the studio
         run: |
-          hdiutil attach -nobrowse -readonly -mountpoint "$RUNNER_TEMP/volume" target/packages/*.dmg
+          hdiutil attach -nobrowse -readonly -mountpoint "$RUNNER_TEMP/volume" target/packages/*-aarch64-apple-darwin.dmg
           mkdir "$RUNNER_TEMP/Applications"
-          cp -R "$RUNNER_TEMP/volume/claudius.app" "$RUNNER_TEMP/Applications/"
+          cp -R "$RUNNER_TEMP/volume/Claudius.app" "$RUNNER_TEMP/Applications/"
           hdiutil detach "$RUNNER_TEMP/volume"
-          app=$RUNNER_TEMP/Applications/claudius.app
+          app=$RUNNER_TEMP/Applications/Claudius.app
           codesign --verify --strict --deep "$app"
-          lipo -archs "$app/Contents/MacOS/claudius" | tee /dev/stderr | grep -q "x86_64 arm64"
-          "$app/Contents/MacOS/claudius" --version
+          lipo -archs "$app/Contents/MacOS/Claudius" | tee /dev/stderr | grep -qx arm64
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleName' "$app/Contents/Info.plist")" = Claudius
+          "$app/Contents/MacOS/Claudius" --version
           # as Finder opens it: no arguments, so the program starts the studio, and with it the engine
           open -g "$app"
           for _ in $(seq 60); do
@@ -71,8 +73,20 @@ jobs:
             sleep 2
           done
           curl -fsS -H "Host: localhost" http://127.0.0.1:7878/api/hello > /dev/null
-          pgrep -f "claudius.app/Contents/MacOS/claudius"
-          pkill -f "claudius.app/Contents/MacOS/claudius"
+          pgrep -f "Claudius.app/Contents/MacOS/Claudius"
+          pkill -f "Claudius.app/Contents/MacOS/Claudius"
+      - name: The Intel disk image holds the Intel app
+        run: |
+          hdiutil attach -nobrowse -readonly -mountpoint "$RUNNER_TEMP/intel" target/packages/*-x86_64-apple-darwin.dmg
+          app=$RUNNER_TEMP/intel/Claudius.app
+          codesign --verify --strict --deep "$app"
+          lipo -archs "$app/Contents/MacOS/Claudius" | tee /dev/stderr | grep -qx x86_64
+          if arch -x86_64 /usr/bin/true 2>/dev/null; then
+            arch -x86_64 "$app/Contents/MacOS/Claudius" --version
+          else
+            echo "::notice title=Intel app::this runner has no Rosetta, so the Intel program was checked but not run"
+          fi
+          hdiutil detach "$RUNNER_TEMP/intel"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: macos-app
@@ -113,7 +127,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'the installed claudius.exe does not run' }
           $path = [Environment]::GetEnvironmentVariable('Path', 'User')
           if ($path -notlike "*$bin*") { throw "the user's PATH has no $bin`: $path" }
-          $lnk = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\claudius.lnk'
+          $lnk = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Claudius.lnk'
           $target = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk).TargetPath
           if ($target -ne (Join-Path $bin 'claudius-studio.exe')) { throw "the Start menu entry points at '$target'" }
           # the runners have no OpenGL 3, so the window itself cannot open here: --help shows that the program the

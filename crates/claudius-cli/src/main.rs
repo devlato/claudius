@@ -91,7 +91,7 @@ fn given_token(token: Option<String>) -> Option<String> {
     token.map(|t| t.trim().to_owned()).filter(|t| !t.is_empty())
 }
 
-/// the arguments, with `studio` when claudius was opened as a Mac app: Finder starts the program inside claudius.app
+/// the arguments, with `studio` when claudius was opened as a Mac app: Finder starts the program inside Claudius.app
 /// with no arguments (old macOS adds `-psn_...`), where in a terminal the same command prints the help
 fn app_args(mut args: Vec<OsString>, exe: Option<&Path>) -> Vec<OsString> {
     let from_finder = args.iter().skip(1).all(|a| a.to_string_lossy().starts_with("-psn_"));
@@ -573,7 +573,7 @@ fn run(cli: Cli) -> Result<()> {
 mod tests {
     #[test]
     fn opened_as_a_mac_app_it_starts_the_studio() {
-        let app = std::path::Path::new("/Applications/claudius.app/Contents/MacOS/claudius");
+        let app = std::path::Path::new("/Applications/Claudius.app/Contents/MacOS/Claudius");
         let args = |a: &[&str]| a.iter().map(std::ffi::OsString::from).collect::<Vec<_>>();
         // elsewhere there is no Finder, and the arguments stay as they are
         let opened = |a: &[&str]| if cfg!(target_os = "macos") { args(&["claudius", "studio"]) } else { args(a) };

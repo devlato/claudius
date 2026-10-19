@@ -24,11 +24,11 @@ irm https://github.com/devlato/claudius/releases/latest/download/install.ps1 | i
 claudius setup    # sample packs and listening models, about 3 GB to download
 ```
 
-On a Mac, the first line installs claudius.app into Applications as well, and it opens without the warning macOS
+On a Mac, the first line installs the Claudius app into Applications as well, and it opens without the warning macOS
 shows for a disk image downloaded in a browser while the releases are not notarized. Or download an installer from the
-[releases page](https://github.com/devlato/claudius/releases): the `.dmg` holds claudius.app for macOS, to drag to
+[releases page](https://github.com/devlato/claudius/releases): a `.dmg` holds Claudius for Apple silicon or Intel Macs, to drag to
 Applications ([how to open it the first time](docs/src/getting-started/install.md#the-mac-app)), the `.msi` installs
-claudius on Windows with a Start menu entry, and the `.deb`, `.rpm` and AppImage are for Linux.
+Claudius on Windows with a Start menu entry, and the `.deb`, `.rpm` and AppImage are for Linux.
 You can also build it from source; see [install](docs/src/getting-started/install.md).
 
 ## A first look

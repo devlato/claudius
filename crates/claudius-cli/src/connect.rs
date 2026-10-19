@@ -53,7 +53,7 @@ fn temporary(exe: &Path) -> Option<&'static str> {
     let s = exe.to_string_lossy();
     if s.contains("/AppTranslocation/") {
         Some("the copy macOS runs of an app opened where it was downloaded")
-    } else if s.starts_with("/Volumes/claudius ") {
+    } else if s.to_ascii_lowercase().starts_with("/volumes/claudius ") {
         Some("its disk image")
     } else {
         None
@@ -305,7 +305,7 @@ pub fn connect(client: Client, http: bool, remove: bool, port: u16, with_skills:
     let exe = exe()?;
     if !remove && let Some(why) = temporary(&exe) {
         bail!(
-            "claudius is running from {}, {why}, which goes away: move claudius.app into Applications, open it \
+            "claudius is running from {}, {why}, which goes away: move Claudius into Applications, open it \
              from there, and connect again",
             exe.display()
         );
@@ -545,8 +545,9 @@ mod tests {
             Path::new("/private/var/folders/x/AppTranslocation/1234/d/claudius.app/Contents/MacOS/claudius");
         assert!(temporary(translocated).is_some());
         assert!(temporary(Path::new("/Volumes/claudius 0.2.0/claudius.app/Contents/MacOS/claudius")).is_some());
-        assert!(temporary(Path::new("/Applications/claudius.app/Contents/MacOS/claudius")).is_none());
-        assert!(temporary(Path::new("/Volumes/Music drive/claudius.app/Contents/MacOS/claudius")).is_none());
+        assert!(temporary(Path::new("/Volumes/Claudius 0.3.0/Claudius.app/Contents/MacOS/Claudius")).is_some());
+        assert!(temporary(Path::new("/Applications/Claudius.app/Contents/MacOS/Claudius")).is_none());
+        assert!(temporary(Path::new("/Volumes/Music drive/Claudius.app/Contents/MacOS/Claudius")).is_none());
     }
 
     #[test]
