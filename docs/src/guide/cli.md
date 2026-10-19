@@ -452,6 +452,7 @@ claudius 0.1.0 (macos aarch64)
   ok  port 7878       free
   ..  Claude Desktop  not connected: `claudius connect claude-desktop`
   ..  Cursor          not connected: `claudius connect cursor`
+  ..  statistics      off (`claudius telemetry` explains them)
 
 Everything claudius needs is here.
 ```
@@ -486,6 +487,19 @@ window, start a new Codex or Claude Code session.
 `~/.claude/local`, `~/.npm-global/bin`, `/opt/homebrew/bin`, `/usr/local/bin`), and replaces a claudius Claude Code
 already has. The studio's **Connect an assistant** does what `connect` does, and `claudius doctor` lists the
 assistants that are connected.
+
+### `claudius telemetry`
+
+```sh
+claudius telemetry        # whether anonymous usage statistics are on, and an event exactly as it is sent
+claudius telemetry on
+claudius telemetry off
+```
+
+Anonymous usage statistics are off until you turn them on, here or when the studio's tour asks. When they are on,
+claudius sends each kind of event at most once a day: which command started it, the version and the system, and
+where a setup or a panic failed. `DO_NOT_TRACK=1`, `CLAUDIUS_TELEMETRY=0` and `CI` keep them off whatever the answer.
+[Privacy and usage statistics](privacy.md) lists every field and where they go.
 
 ### `claudius skills`
 

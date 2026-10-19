@@ -63,6 +63,7 @@
 - [Sample packs](guide/packs.md)
 - [Apple Loops and your own samples](guide/samples.md)
 - [Files and settings](guide/files.md)
+- [Privacy and usage statistics](guide/privacy.md)
 - [Troubleshooting](guide/troubleshooting.md)
 
 # Engineering

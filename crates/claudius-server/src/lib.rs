@@ -10,11 +10,23 @@ pub mod mcp;
 pub mod views;
 
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 pub use app::{App, Settings};
 pub use claudius_api::DEFAULT_PORT;
 pub use http::Options;
+
+/// how the program around the server hears what it may count: `(event, detail)`, such as `("setup", "packs:vcsl")`.
+/// `claudius-cli` hands these to its usage statistics, which send nothing unless the person turned them on.
+pub static REPORT: OnceLock<Reporter> = OnceLock::new();
+
+pub type Reporter = Box<dyn Fn(&'static str, &str) + Send + Sync>;
+
+fn report(event: &'static str, detail: &str) {
+    if let Some(f) = REPORT.get() {
+        f(event, detail);
+    }
+}
 
 fn url_of(addr: SocketAddr) -> String {
     if addr.ip().is_unspecified() { format!("http://127.0.0.1:{}", addr.port()) } else { format!("http://{addr}") }

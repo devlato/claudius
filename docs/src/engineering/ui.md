@@ -97,7 +97,8 @@ token-protected claudius, open it in a browser with `?token=`, which sets the co
 
 What the window does on its own computer goes through `Native`, which `claudius studio` passes to `run_native`
 (`connect::FromTheStudio` in `claudius-cli`): reading the assistants' configurations and connecting one, on a thread of
-its own so that a slow `claude mcp add` does not stop the window. None of it goes over HTTP, so neither a page in a
+its own so that a slow `claude mcp add` does not stop the window, and keeping the answer about usage statistics that
+the tour's last card asks for ([privacy](../guide/privacy.md)). None of it goes over HTTP, so neither a page in a
 browser nor anything else that reaches the server can change those configurations; the web studio, which has no
 `Native`, lists the `claudius connect` commands instead.
 

@@ -1,0 +1,13 @@
+# The endpoint of claudius' usage statistics (src/index.js); `npx wrangler deploy` in this folder publishes it.
+name = "claudius-telemetry"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+preview_urls = false
+
+[[analytics_engine_datasets]]
+binding = "EVENTS"
+dataset = "claudius_events"
+
+[observability]
+enabled = false

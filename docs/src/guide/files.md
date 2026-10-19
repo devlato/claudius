@@ -14,6 +14,7 @@ on its own. The paths below are for macOS and Linux; where an environment variab
 | scratch space while a pack installs | `~/Library/Caches/claudius/packs` | `~/.cache/claudius/packs` | |
 | listening models | `~/.cache/earshot-rs` | `~/.cache/earshot-rs` | `EARSHOT_HOME` |
 | your genres | `~/Library/Application Support/claudius/genres` | `~/.config/claudius/genres` | |
+| the answer about [usage statistics](privacy.md) | `~/Library/Application Support/claudius/telemetry.json` | `~/.config/claudius/telemetry.json` | |
 | studio window preferences | `~/Library/Application Support/claudius-studio/app.ron` | `~/.local/share/claudius-studio/app.ron` | |
 | Apple Loops (read only) | `/Library/Audio/Apple Loops`, `~/Library/Audio/Apple Loops` | | |
 | programs and web studio (install script) | `~/.local/bin`, `~/.local/share/claudius/web` | the same | `CLAUDIUS_INSTALL_DIR` |
@@ -120,6 +121,8 @@ Without one, `/` shows a page that says how to build it, and the API and MCP wor
 | `CLAUDIUS_WEB` | found as above | the web studio folder |
 | `CLAUDIUS_FFMPEG` | `ffmpeg` on `PATH`, then `/opt/homebrew/bin`, `/usr/local/bin`, `/usr/bin` | the ffmpeg claudius uses for formats it cannot decode and for MP3; `none` turns it off |
 | `CLAUDIUS_DEBUG` | unset | when set, renders print their timings and the beat tracker its cues to stderr |
+| `DO_NOT_TRACK`, `CLAUDIUS_TELEMETRY` | unset | `DO_NOT_TRACK=1` or `CLAUDIUS_TELEMETRY=0` keeps [usage statistics](privacy.md) off whatever the answer |
+| `CLAUDIUS_TELEMETRY_URL` | the Worker in `telemetry/` | where usage statistics go, to test an endpoint (the only place a debug build sends them) |
 | `EARSHOT_HOME` | `~/.cache/earshot-rs` | where the listening models and text embeddings go |
 | `EARSHOT_OFFLINE` | unset | `1` never downloads models; a verdict without them uses meters and theory |
 | `EARSHOT_THREADS` | half the cores, at most 4 | threads per model |

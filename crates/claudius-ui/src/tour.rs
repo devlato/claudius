@@ -1,5 +1,6 @@
 //! The tour: a few cards the first time the studio opens, each pointing at a part of it, ending with connecting an
-//! assistant. It never blocks the studio. Skip (or Esc) ends it for good; the help menu (?) starts it again.
+//! assistant and, in the app, the one question about anonymous usage statistics (off unless the answer is yes). It
+//! never blocks the studio. Skip (or Esc) ends it for good; the help menu (?) starts it again.
 
 use std::sync::Arc;
 
@@ -54,6 +55,14 @@ const STEPS: [Step; 5] = [
     },
 ];
 
+const STATISTICS: Step = Step {
+    title: "Help improve claudius?",
+    body: "claudius can send a few anonymous counts, each at most once a day: its version, your system (macOS, Linux or \
+           Windows, and the chip), which part you use (the studio, an assistant, a command), and where a setup or a \
+           crash failed. Never your songs, files, paths or name, and nothing that tells you apart from anyone else. It \
+           stays off unless you say yes, and ? in the bottom right corner changes it later.",
+};
+
 /// the card for the tour's step, while there is one and no dialog is in front
 pub fn show(ctx: &egui::Context, view: &mut View, native: Option<&Arc<dyn Native>>) {
     let Some(i) = view.tour else { return };
@@ -64,8 +73,10 @@ pub fn show(ctx: &egui::Context, view: &mut View, native: Option<&Arc<dyn Native
         finish(view);
         return;
     }
-    let i = i.min(STEPS.len() - 1);
-    let last = i + 1 == STEPS.len();
+    let count = STEPS.len() + usize::from(view.tour_asks && native.is_some());
+    let i = i.min(count - 1);
+    let last = i + 1 == count;
+    let step = STEPS.get(i).unwrap_or(&STATISTICS);
     let anchor = match i {
         0 => view.anchors.new_song,
         1 => view.anchors.play,
@@ -90,22 +101,22 @@ pub fn show(ctx: &egui::Context, view: &mut View, native: Option<&Arc<dyn Native
         );
     }
     let cmd = widgets::cmd_key(ctx);
-    let body = STEPS[i].body.replace("{cmd}", cmd);
+    let body = step.body.replace("{cmd}", cmd);
     let mut go = None;
     egui::Area::new(Id::unique("tour")).order(Order::Foreground).pivot(pivot).fixed_pos(pos).constrain(true).show(
         ctx,
         |ui| {
             egui::Frame::popup(ui.style()).inner_margin(Margin::same(14)).show(ui, |ui| {
-                ui.set_width(if last { 640.0 } else { 360.0 });
+                ui.set_width(if i + 1 >= STEPS.len() { 640.0 } else { 360.0 });
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new(STEPS[i].title).size(16.0).color(TEXT).strong());
+                    ui.label(RichText::new(step.title).size(16.0).color(TEXT).strong());
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        ui.label(small(format!("{} of {}", i + 1, STEPS.len())));
+                        ui.label(small(format!("{} of {count}", i + 1)));
                     });
                 });
                 ui.add_space(4.0);
                 ui.label(RichText::new(body).color(TEXT_DIM));
-                if last {
+                if i + 1 == STEPS.len() {
                     ui.add_space(8.0);
                     assistants::list(ui, &mut view.assistants, native);
                     ui.add_space(6.0);
@@ -117,7 +128,17 @@ pub fn show(ctx: &egui::Context, view: &mut View, native: Option<&Arc<dyn Native
                         go = Some(None);
                     }
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if widgets::tool_button(ui, Icon::Right, if last { "Done" } else { "Next" }, true, true)
+                        if i >= STEPS.len() {
+                            // two answers, and neither is picked for the person
+                            for (label, on) in [("No, thanks", false), ("Send anonymous statistics", true)] {
+                                if widgets::tool_button(ui, Icon::Right, label, true, false).clicked() {
+                                    if let Some(n) = native {
+                                        let _ = n.set_statistics(on);
+                                    }
+                                    go = Some(None);
+                                }
+                            }
+                        } else if widgets::tool_button(ui, Icon::Right, if last { "Done" } else { "Next" }, true, true)
                             .clicked()
                         {
                             go = Some((!last).then_some(i + 1));

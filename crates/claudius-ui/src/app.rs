@@ -84,6 +84,9 @@ pub struct Studio {
 /// the docs and the bug report form, for the help menu
 const DOCS: &str = "https://github.com/devlato/claudius/blob/main/docs/src/SUMMARY.md";
 const REPORT: &str = "https://github.com/devlato/claudius/issues/new?template=bug_report.yml";
+const STATISTICS_TIP: &str = "a few anonymous counts, each at most once a day: the version, the system, which part you \
+                              use, and where a setup or a crash failed; never your songs, files or name (`claudius \
+                              telemetry` shows exactly what)";
 
 impl Studio {
     pub fn new(cc: &eframe::CreationContext<'_>, connection: Connection) -> Studio {
@@ -152,6 +155,12 @@ impl Studio {
         self.player.clear();
         self.view.reference = None;
         self.view.reference_loading = false;
+    }
+
+    /// the tour from step `i`; it asks about usage statistics at the end when the app has no answer yet
+    fn start_tour(&mut self, i: usize) {
+        self.view.tour = Some(i);
+        self.view.tour_asks = self.native.as_ref().is_some_and(|n| n.statistics().is_none());
     }
 
     fn toast(&mut self, text: String, ok: bool, now: f64) {
@@ -393,7 +402,10 @@ impl Studio {
                     self.out.push(Command::RunScript { code: self.view.script.text.clone() });
                 }
                 Step::Reference => self.view.reference_open = true,
-                Step::Tour(i) => self.view.tour = Some(i),
+                Step::Tour(i) => {
+                    self.view.tour = Some(i);
+                    self.view.tour_asks = self.native.as_ref().is_some_and(|n| n.statistics().is_none());
+                }
                 Step::Assistants => self.view.assistants.show(),
                 Step::AudioPath(p) => self.view.audio_path = p,
                 Step::Exit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
@@ -520,12 +532,19 @@ impl Studio {
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 ui.menu_button(RichText::new(" ? ").size(12.0).color(TEXT_DIM), |ui| {
                     if ui.button("Take the tour").clicked() {
-                        self.view.tour = Some(0);
+                        self.start_tour(0);
                         ui.close();
                     }
                     if ui.button("Connect an assistant…").clicked() {
                         self.view.assistants.show();
                         ui.close();
+                    }
+                    if let Some(native) = &self.native {
+                        let mut on = native.statistics() == Some(true);
+                        let r = ui.checkbox(&mut on, "Send anonymous usage statistics").on_hover_text(STATISTICS_TIP);
+                        if r.changed() {
+                            let _ = native.set_statistics(on);
+                        }
                     }
                     ui.hyperlink_to("Documentation", DOCS);
                     ui.hyperlink_to("Report a problem", REPORT);
@@ -821,7 +840,7 @@ impl eframe::App for Studio {
         #[cfg(target_arch = "wasm32")]
         let scripted = false;
         if self.has_state && !self.view.tour_done && self.view.tour.is_none() && !scripted {
-            self.view.tour = Some(0);
+            self.start_tour(0);
         }
         let done = self.view.tour_done;
         crate::tour::show(&ctx, &mut self.view, self.native.as_ref());

@@ -1,5 +1,6 @@
 //! `claudius connect`: add claudius to an assistant: its MCP configuration, and the skills that teach it claudius.
-//! The studio's "Connect an assistant" does the same through [`FromTheStudio`].
+//! The studio's "Connect an assistant" does the same through [`FromTheStudio`], which also keeps the studio's answer
+//! about usage statistics.
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -457,6 +458,17 @@ impl claudius_ui::Native for FromTheStudio {
     fn connect(&self, id: &str) -> Result<Vec<String>, String> {
         let client = <Client as clap::ValueEnum>::from_str(id, true)?;
         connect(client, false, false, claudius_server::DEFAULT_PORT, true).map_err(|e| format!("{e:#}"))
+    }
+
+    fn statistics(&self) -> Option<bool> {
+        match crate::telemetry::status() {
+            (_, Some(_)) => Some(false),
+            (answer, None) => answer,
+        }
+    }
+
+    fn set_statistics(&self, on: bool) -> Result<(), String> {
+        crate::telemetry::set(on).map_err(|e| format!("{e:#}"))
     }
 }
 

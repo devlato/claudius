@@ -65,6 +65,12 @@ this, so a script is also the way to read a song.
 The book's pages are in [`docs/src`](docs/src/SUMMARY.md); `cargo xtask site` builds them into a website with
 [mdBook](https://rust-lang.github.io/mdBook/).
 
+## Privacy
+
+claudius sends nothing about you or your music anywhere. Anonymous usage statistics (the command, the version, the
+system, where a setup or a crash failed) stay off unless you say yes when the studio asks, or run
+`claudius telemetry on`; [privacy](docs/src/guide/privacy.md) lists every field.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports go through GitHub's private reporting, described in
