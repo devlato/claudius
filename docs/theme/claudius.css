@@ -155,7 +155,7 @@ html:not(.js) {
   --c-code-line: #16191f;
 }
 
-/* type */
+/* type: mdBook sets the root's font size to 62.5%, so 1rem is 10px in the book */
 
 html {
   font-family: var(--c-sans);
@@ -163,12 +163,12 @@ html {
 }
 
 body {
-  font-size: 1rem;
+  font-size: 1.6rem;
   line-height: 1.65;
 }
 
 .content main {
-  font-size: 1.0625rem;
+  font-size: 1.7rem;
 }
 
 .content h1,
@@ -244,7 +244,7 @@ body {
   justify-content: center;
   gap: 9px;
   font-family: var(--c-sans);
-  font-size: 1.15rem;
+  font-size: 1.8rem;
   font-weight: 500;
   letter-spacing: 0;
 }
@@ -252,9 +252,9 @@ body {
 .menu-title::before {
   content: "";
   flex: none;
-  width: 22px;
-  height: 20px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 20'%3E%3Crect x='0' y='6.5' width='3' height='7' rx='1.5' fill='%23ffa348'/%3E%3Crect x='4.75' y='3' width='3' height='14' rx='1.5' fill='%23fd9a4a'/%3E%3Crect x='9.5' y='0' width='3' height='20' rx='1.5' fill='%23fb924c'/%3E%3Crect x='14.25' y='4.5' width='3' height='11' rx='1.5' fill='%23f9894d'/%3E%3Crect x='19' y='2' width='3' height='16' rx='1.5' fill='%23f8814f'/%3E%3C/svg%3E") center / contain no-repeat;
+  width: 18px;
+  height: 21px;
+  background: url("/assets/mark-ripples.svg") center / contain no-repeat;
 }
 
 .menu-title a.claudius-home {
@@ -270,7 +270,7 @@ body {
 .menu-title a.claudius-home .claudius-home-note {
   margin-left: 8px;
   color: var(--icons);
-  font: 400 0.68rem/1 var(--mono-font);
+  font: 400 1.1rem/1 var(--mono-font);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -285,7 +285,7 @@ body {
 
 .sidebar {
   border-inline-end: 1px solid var(--c-line-soft);
-  font-size: 0.92rem;
+  font-size: 1.5rem;
 }
 
 .sidebar .sidebar-scrollbox {
@@ -295,7 +295,7 @@ body {
 .chapter li.part-title {
   margin: 1.6em 0 0.4em;
   color: var(--c-fg-dim);
-  font: 400 0.7rem/1.3 var(--mono-font);
+  font: 400 1.1rem/1.3 var(--mono-font);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -369,7 +369,7 @@ pre .hljs {
   border-radius: 8px;
   background: var(--c-code-bg);
   color: var(--c-code-fg);
-  font-size: 0.84rem;
+  font-size: 1.4rem;
   line-height: 1.65;
 }
 
@@ -485,7 +485,7 @@ kbd {
 
 .searchresults-header {
   font-family: var(--mono-font);
-  font-size: 0.8rem;
+  font-size: 1.3rem;
 }
 
 /* previous / next */
