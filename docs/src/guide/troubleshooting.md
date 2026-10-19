@@ -6,8 +6,8 @@ says what to do about each. The sections below are the problems it cannot see, b
 ## macOS will not open claudius
 
 ```text
-“claudius” Not Opened
-Apple could not verify “claudius” is free of malware that may harm your Mac or compromise your privacy.
+“Claudius” Not Opened
+Apple could not verify “Claudius” is free of malware that may harm your Mac or compromise your privacy.
 ```
 
 macOS says this about an app downloaded in a browser that Apple has not notarized, which claudius' releases are not
@@ -20,7 +20,7 @@ yet. The app itself is fine; it is the check. Either:
   curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh | sh
   ```
 
-- or click **Done**, open **System Settings**, **Privacy & Security**, scroll down to the line about claudius, click
+- or click **Done**, open **System Settings**, **Privacy & Security**, scroll down to the line about Claudius, click
   **Open Anyway**, and confirm. macOS remembers it after that.
 
 The same message about a `claudius` program from a downloaded `.tar.gz` has the same two answers.
@@ -89,7 +89,7 @@ claudius mcp: a session of its own (no web UI: port 7933 is taken, by another cl
   reads its configuration at start.
 - **The Mac app was not in Applications.** Opened from its disk image or from Downloads, it runs from a copy macOS
   takes away again, and connecting says so: `claudius is running from <path>, <why>, which goes away: move
-  claudius.app into Applications, open it from there, and connect again`.
+  Claudius into Applications, open it from there, and connect again`.
 - **The configured program is not there.** `connect` writes the absolute path of the `claudius` that ran it. If you
   moved or reinstalled it elsewhere (say from `~/.cargo/bin` to `~/.local/bin`), run `claudius connect` again. A
   hand-written entry with plain `"command": "claudius"` fails in apps that do not see your shell's `PATH`.

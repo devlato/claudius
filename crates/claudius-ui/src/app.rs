@@ -263,7 +263,7 @@ impl Studio {
             self.view.script.sync(&song.script);
             if song.title != self.title {
                 self.title = song.title.clone();
-                set_title(ctx, &format!("{} · claudius studio", song.title));
+                set_title(ctx, &format!("{} · Claudius", song.title));
             }
         }
         if render_gone {
@@ -469,7 +469,7 @@ impl Studio {
     fn welcome(&mut self, ui: &mut Ui) {
         ui.vertical_centered(|ui| {
             ui.add_space((ui.available_height() * 0.22).max(20.0));
-            ui.label(RichText::new("claudius studio").size(30.0).color(TEXT));
+            ui.label(RichText::new("Claudius").size(30.0).color(TEXT));
             ui.add_space(4.0);
             if self.link.mock {
                 ui.label(RichText::new("starting the demo...").color(TEXT_DIM));

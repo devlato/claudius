@@ -26,7 +26,7 @@ pub use app::Studio;
 pub use native::{Assistant, Connected, Native};
 pub use net::Connection;
 
-/// The window title and the id eframe stores the studio's preferences under.
+/// The id eframe stores the studio's preferences under (the window's title is the app's name, Claudius).
 pub const APP_NAME: &str = "claudius studio";
 
 /// Where `trunk build --release` (run in this crate) puts the web app: serve this folder at `/` and the API under
@@ -49,7 +49,7 @@ pub fn run_native(server: Option<String>, native: Option<std::sync::Arc<dyn Nati
 pub fn run_native_with(connection: Connection, native: Option<std::sync::Arc<dyn Native>>) -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder::default()
-            .with_title(APP_NAME)
+            .with_title("Claudius")
             .with_app_id("claudius-studio")
             .with_inner_size([1600.0, 1000.0])
             .with_min_inner_size([1100.0, 680.0]),
