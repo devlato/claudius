@@ -11,7 +11,7 @@ language or the API, and the changelog says how.
 ### Added
 
 - studio: Download the sample packs from the studio ([#17](https://github.com/devlato/claudius/pull/17))
-- macos: Claudius.app in a disk image, one app for Apple silicon and Intel Macs ([#13](https://github.com/devlato/claudius/pull/13))
+- macos: claudius.app in a disk image, one app for Apple silicon and Intel Macs ([#13](https://github.com/devlato/claudius/pull/13))
 - windows: An installer, with the studio in the Start menu ([#14](https://github.com/devlato/claudius/pull/14))
 - linux: .deb, .rpm and AppImage packages, with the studio in the app menu ([#15](https://github.com/devlato/claudius/pull/15))
 
