@@ -19,7 +19,9 @@ claudius connect claude-desktop
 ```
 
 This adds an entry to Claude Desktop's configuration, keeps the old file as `claude_desktop_config.json.bak`, and
-asks you to quit and reopen Claude Desktop. `claudius connect claude-desktop --remove` takes it out again.
+asks you to quit and reopen Claude Desktop. `claudius connect claude-desktop --remove` takes it out again. On a Mac,
+the release's `claudius-<version>.mcpb` does it as an extension instead: open it, and Claude Desktop installs it,
+starting the app's program (its **Claudius program** setting).
 
 By hand, add this to the configuration file (in Claude Desktop's Settings, Developer, Edit Config opens it), with the
 absolute path of your `claudius` (`which claudius` prints it; Claude Desktop does not see your shell's `PATH`):
@@ -43,8 +45,9 @@ claudius connect claude-code          # runs: claude mcp add --scope user claudi
 claudius connect claude-code --http   # runs: claude mcp add --scope user --transport http claudius http://127.0.0.1:7878/mcp
 ```
 
-When the `claude` command is not on your `PATH`, `connect` prints the command for you to run where it is. Claude
-Code's own command does the same, with the `claudius` on your `PATH`:
+The plugin brings the skills along: `claude plugin marketplace add devlato/claudius`, then
+`claude plugin install claudius@claudius`. When the `claude` command is not on your `PATH`, `connect` prints the
+command for you to run where it is. Claude Code's own command does the same, with the `claudius` on your `PATH`:
 `claude mcp add --scope user claudius -- claudius mcp`. Without `--scope user`, Claude Code adds it to the folder you
 run that in only.
 

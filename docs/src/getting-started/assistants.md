@@ -15,6 +15,26 @@ the Mac app, the Windows installer and the Linux packages, whose `claudius` may 
 The web studio, a page in a browser, cannot change the settings of the apps on a computer, so it lists the commands to
 run instead.
 
+## The Claude Code plugin and the Claude Desktop extension
+
+Claude Code installs claudius' MCP server and its [skills](#skills) in one go, as a plugin from this repository:
+
+```sh
+claude plugin marketplace add devlato/claudius
+claude plugin install claudius@claudius
+```
+
+In a session, `/plugin marketplace add devlato/claudius` and then `/plugin install claudius@claudius` do the same.
+The plugin starts the `claudius` on your `PATH`. For the Mac app dragged from its disk image, set its **Claudius
+program** to `/Applications/Claudius.app/Contents/MacOS/Claudius` (`/plugin configure claudius@claudius`). Claude
+Code offers the plugin's new version after each release.
+
+On a Mac, Claude Desktop installs claudius as an extension: download `claudius-<version>.mcpb` from the
+[latest release](https://github.com/devlato/claudius/releases/latest), open it, and click **Install**. It starts the
+Claudius app, so install the app first; its **Claudius program** setting says where the app is, Applications unless
+you change it. An extension carries no skills: upload the zips that **Connect an assistant** in the studio writes
+(or `claudius skills --out <folder>`) in Claude's settings, under Capabilities.
+
 ## Claude Desktop
 
 ```sh
