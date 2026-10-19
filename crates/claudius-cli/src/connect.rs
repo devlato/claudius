@@ -1,6 +1,6 @@
 //! `claudius connect`: add claudius to an assistant: its MCP configuration, and the skills that teach it claudius.
 //! The studio's "Connect an assistant" does the same through [`FromTheStudio`], which also keeps the studio's answer
-//! about usage statistics.
+//! about usage statistics and hands it the updater (`update.rs`).
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
@@ -49,7 +49,7 @@ fn exe() -> Result<PathBuf> {
 }
 
 /// why an assistant should not start claudius from `exe`: a place macOS takes away again
-fn temporary(exe: &Path) -> Option<&'static str> {
+pub fn temporary(exe: &Path) -> Option<&'static str> {
     let s = exe.to_string_lossy();
     if s.contains("/AppTranslocation/") {
         Some("the copy macOS runs of an app opened where it was downloaded")
@@ -469,6 +469,35 @@ impl claudius_ui::Native for FromTheStudio {
 
     fn set_statistics(&self, on: bool) -> Result<(), String> {
         crate::telemetry::set(on).map_err(|e| format!("{e:#}"))
+    }
+
+    fn update(&self) -> claudius_ui::Update {
+        use crate::update::Status;
+        use claudius_ui::Update;
+        match crate::update::status() {
+            Status::Idle | Status::Checking => Update::None,
+            Status::Current => Update::Current,
+            Status::Downloading { version, progress } => Update::Downloading { version, progress },
+            Status::Ready { version, .. } => Update::Ready { version },
+            Status::Elsewhere { version, how } => Update::Elsewhere { version, how },
+            Status::Failed(e) => Update::Failed(e),
+        }
+    }
+
+    fn check_for_updates(&self) {
+        crate::update::check_now();
+    }
+
+    fn install_update(&self) -> Result<String, String> {
+        crate::update::apply(true).map_err(|e| format!("{e:#}"))
+    }
+
+    fn automatic_updates(&self) -> bool {
+        crate::update::automatic()
+    }
+
+    fn set_automatic_updates(&self, on: bool) -> Result<(), String> {
+        crate::update::set_automatic(on).map_err(|e| format!("{e:#}"))
     }
 }
 

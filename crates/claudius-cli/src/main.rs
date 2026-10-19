@@ -20,6 +20,7 @@ mod report;
 mod setup;
 mod skills;
 mod telemetry;
+mod update;
 
 use args::*;
 use report::*;
@@ -415,6 +416,7 @@ fn run(cli: Cli) -> Result<()> {
         Cmd::Setup { yes, no_packs, no_models, tags } => setup::run(yes, !no_packs, !no_models, tags)?,
         Cmd::Doctor { port } => doctor::run(port, web_dir(std::env::var_os("CLAUDIUS_WEB").map(PathBuf::from))),
         Cmd::Connect { client, http, remove, no_skills, port } => connect::run(client, http, remove, port, !no_skills)?,
+        Cmd::Update { check, yes, auto } => update::command(check, yes, auto.map(|a| a == OnOff::On))?,
         Cmd::Telemetry { answer } => {
             if let Some(a) = answer {
                 telemetry::set(a == OnOff::On)?;
@@ -459,6 +461,7 @@ fn run(cli: Cli) -> Result<()> {
             };
             #[cfg(feature = "studio")]
             {
+                update::start();
                 let shown = claudius_ui::run_native(Some(url), Some(std::sync::Arc::new(connect::FromTheStudio)));
                 if let Some(session) = &own {
                     session.wait_for_ears(std::time::Duration::from_secs(60));

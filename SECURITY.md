@@ -42,6 +42,9 @@ websites are hostile, and that whoever holds your claudius token is you.
   day (the command, the version, the system, where a setup or a panic failed), to a Worker whose source is in
   `telemetry/`, which refuses anything else and keeps no IP address. `DO_NOT_TRACK=1` keeps them off;
   [Privacy and usage statistics](docs/src/guide/privacy.md) has the details.
+- **Updates are checked.** The studio's [updates](docs/src/guide/updates.md) and `claudius update` install only the
+  latest release's file for the computer, downloaded over HTTPS and checked against the release's `SHA256SUMS`;
+  nothing is installed until the person says so.
 - **Downloads are checked.** The listening models come from pinned revisions on the Hugging Face Hub and are checked
   against pinned SHA-256 hashes as they are downloaded; a file that does not match is never used. Sample packs come
   over HTTPS: from GitHub repositories at pinned commits, and two archives from their authors' sites, pinned by size

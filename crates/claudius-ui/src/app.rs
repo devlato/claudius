@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::audio::Player;
 use crate::edits;
-use crate::native::Native;
+use crate::native::{Native, Update};
 use crate::net::{Backend, Connection, Event};
 use crate::panels::{self, Action, Cx, Link, Tab, Toast, View};
 use crate::theme::{self, ACCENT, BG, LINE, LINE_SOFT, PANEL, TEXT, TEXT_DIM, TEXT_FAINT};
@@ -84,6 +84,9 @@ pub struct Studio {
 /// the docs and the bug report form, for the help menu
 const DOCS: &str = "https://github.com/devlato/claudius/blob/main/docs/src/SUMMARY.md";
 const REPORT: &str = "https://github.com/devlato/claudius/issues/new?template=bug_report.yml";
+const RELEASES: &str = "https://github.com/devlato/claudius/releases";
+const UPDATES_TIP: &str = "look for a new release on GitHub once a day and download it in the background; it installs \
+                           when you click Restart to update";
 const STATISTICS_TIP: &str = "a few anonymous counts, each at most once a day: the version, the system, which part you \
                               use, and where a setup or a crash failed; never your songs, files or name (`claudius \
                               telemetry` shows exactly what)";
@@ -497,6 +500,58 @@ impl Studio {
         });
     }
 
+    /// the banner for a newer release: ready to install, or out and updated another way
+    fn update_bar(&mut self, ui: &mut Ui, ctx: &egui::Context, native: &Arc<dyn Native>, now: f64) {
+        let update = native.update();
+        if self.view.update_asked {
+            match &update {
+                Update::Current => {
+                    self.view.update_asked = false;
+                    self.toast(format!("Claudius {} is the latest", env!("CARGO_PKG_VERSION")), true, now);
+                }
+                Update::Failed(e) => {
+                    self.view.update_asked = false;
+                    self.toast(format!("could not look for updates: {e}"), false, now);
+                }
+                Update::Ready { .. } | Update::Elsewhere { .. } => {
+                    self.view.update_asked = false;
+                    self.view.update_dismissed = None;
+                }
+                Update::None | Update::Downloading { .. } => {}
+            }
+        }
+        let (version, text) = match &update {
+            Update::Ready { version } => (version.clone(), format!("Claudius {version} is ready to install.")),
+            Update::Elsewhere { version, how } => (version.clone(), format!("Claudius {version} is out: {how}.")),
+            _ => return,
+        };
+        if self.view.update_dismissed.as_deref() == Some(version.as_str()) {
+            return;
+        }
+        let bar = egui::Frame::new().fill(theme::mix(PANEL, ACCENT, 0.14)).inner_margin(Margin::symmetric(12, 5));
+        egui::Panel::top("update").frame(bar).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                widgets::dot(ui, ACCENT);
+                ui.label(RichText::new(text).color(TEXT));
+                if matches!(update, Update::Ready { .. })
+                    && widgets::tool_button(ui, Icon::Loop, "Restart to update", true, true).clicked()
+                {
+                    match native.install_update() {
+                        Ok(v) => {
+                            self.toast(format!("updating to Claudius {v}"), true, now);
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                        }
+                        Err(e) => self.toast(format!("could not update: {e}"), false, now),
+                    }
+                }
+                ui.hyperlink_to("What's new", format!("{RELEASES}/tag/v{version}"));
+                if ui.small_button("Later").clicked() {
+                    self.view.update_dismissed = Some(version.clone());
+                }
+            });
+        });
+    }
+
     fn status_bar(&mut self, ui: &mut Ui) {
         ui.horizontal_centered(|ui| {
             let (dot, text) = if self.link.mock {
@@ -526,6 +581,10 @@ impl Studio {
             if self.has_state {
                 ui.label(RichText::new(format!("· state v{}", self.state.version)).size(11.0).color(TEXT_FAINT));
             }
+            if let Some(Update::Downloading { version, progress }) = self.native.as_ref().map(|n| n.update()) {
+                let text = format!("· downloading Claudius {version}, {:.0}%", progress * 100.0);
+                ui.label(RichText::new(text).size(11.0).color(TEXT_FAINT));
+            }
             if let Some(e) = self.player.error() {
                 ui.label(RichText::new(format!("· audio: {e}")).size(11.0).color(theme::WARN));
             }
@@ -538,6 +597,18 @@ impl Studio {
                     if ui.button("Connect an assistant…").clicked() {
                         self.view.assistants.show();
                         ui.close();
+                    }
+                    if let Some(native) = &self.native {
+                        if ui.button("Check for updates").clicked() {
+                            native.check_for_updates();
+                            self.view.update_asked = true;
+                            ui.close();
+                        }
+                        let mut auto = native.automatic_updates();
+                        let r = ui.checkbox(&mut auto, "Update automatically").on_hover_text(UPDATES_TIP);
+                        if r.changed() {
+                            let _ = native.set_automatic_updates(auto);
+                        }
                     }
                     if let Some(native) = &self.native {
                         let mut on = native.statistics() == Some(true);
@@ -738,6 +809,9 @@ impl eframe::App for Studio {
                 .exact_size(40.0)
                 .show(ui, |ui| panels::transport::toolbar(ui, &mut cx));
         }
+        if let Some(native) = self.native.clone() {
+            self.update_bar(ui, &ctx, &native, now);
+        }
         if self.fallback_to_demo && !self.link.ever && !self.link.mock && self.link.error.is_some() {
             self.fallback_to_demo = false;
             self.actions.push(Action::UseDemo);
@@ -885,6 +959,12 @@ impl eframe::App for Studio {
             && now - t.at < 6.0
         {
             soon((6.0 - (now - t.at)).max(0.05));
+        }
+        // the updater works on its own thread: look again while it is busy, or just after the start
+        match self.native.as_ref().map(|n| n.update()) {
+            Some(Update::Downloading { .. }) => soon(0.5),
+            Some(Update::None) if self.view.update_asked || now < 120.0 => soon(2.0),
+            _ => {}
         }
         if let Some(w) = wake {
             ctx.request_repaint_after(Duration::from_secs_f64(w));

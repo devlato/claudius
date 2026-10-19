@@ -6,6 +6,11 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+Claudius updates itself from this release on: the studio downloads a new release in the background and offers to
+restart into it, and `claudius update` does the same in a terminal
+([Updates](https://github.com/devlato/claudius/blob/main/docs/src/guide/updates.md)). The releases before this one
+can't, so install this one the way you installed the last.
+
 ## [0.2.0] - 2026-10-19
 
 ### Added

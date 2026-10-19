@@ -238,6 +238,19 @@ pub(crate) enum Cmd {
         #[arg(long, default_value_t = claudius_server::DEFAULT_PORT, env = "CLAUDIUS_PORT")]
         port: u16,
     },
+    /// Update claudius to the latest release, the way it was installed (the Mac app, an AppImage, the install script,
+    /// the Windows installer); packages and builds say how they update instead
+    Update {
+        /// only say whether there is a newer release
+        #[arg(long)]
+        check: bool,
+        /// do not ask before installing it
+        #[arg(short, long)]
+        yes: bool,
+        /// whether the studio looks for updates once a day and downloads them in the background (on by default)
+        #[arg(long, value_enum)]
+        auto: Option<OnOff>,
+    },
     /// Anonymous usage statistics: off until you turn them on; with no answer, shows them and exactly what is sent
     Telemetry {
         #[arg(value_enum)]

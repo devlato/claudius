@@ -56,8 +56,10 @@ generations of that. Both run in the background and can be stopped. **Save** wri
 
 ## Help and assistants
 
-**?** in the bottom right corner opens the help menu: **Take the tour**, **Connect an assistant**, the switch for
-anonymous usage statistics (in the app), the documentation, and a form to report a problem. Connect an assistant lists Claude Desktop, Claude Code, Cursor and Codex, says which are connected,
+**?** in the bottom right corner opens the help menu: **Take the tour**, **Connect an assistant**, **Check for
+updates** and **Update automatically** and the switch for anonymous usage statistics (in the app), the documentation,
+and a form to report a problem. When a new release has been downloaded, a bar under the toolbar offers **Restart to
+update** ([Updates](../guide/updates.md)). Connect an assistant lists Claude Desktop, Claude Code, Cursor and Codex, says which are connected,
 and connects one with a click, the way `claudius connect` does ([Working with an assistant](assistants.md)). The
 assistant then makes and edits the song open here, and you hear every change.
 
