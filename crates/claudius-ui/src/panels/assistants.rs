@@ -71,6 +71,10 @@ pub fn dialog(ctx: &egui::Context, a: &mut Assistants, native: Option<&Arc<dyn N
         ui.set_width(600.0);
         ui.heading("Connect an assistant");
         ui.add_space(6.0);
+        ui.label(small(
+            "Claude, Cursor or Codex can then make and edit songs with you, while you hear every change here.",
+        ));
+        ui.add_space(8.0);
         list(ui, a, native);
         ui.add_space(12.0);
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -87,8 +91,6 @@ pub fn dialog(ctx: &egui::Context, a: &mut Assistants, native: Option<&Arc<dyn N
 /// the assistants and their buttons: the dialog's body, which the tour shows as well
 pub fn list(ui: &mut Ui, a: &mut Assistants, native: Option<&Arc<dyn Native>>) {
     a.poll();
-    ui.label(small("Claude, Cursor or Codex can then make and edit songs with you, while you hear every change here."));
-    ui.add_space(8.0);
     let Some(native) = native else {
         commands(ui);
         return;

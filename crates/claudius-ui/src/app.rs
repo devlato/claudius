@@ -28,6 +28,7 @@ struct Prefs {
     generations: usize,
     children: usize,
     sevenths: bool,
+    tour_done: bool,
 }
 
 impl Default for Prefs {
@@ -42,6 +43,7 @@ impl Default for Prefs {
             generations: v.generations,
             children: v.children,
             sevenths: v.sevenths,
+            tour_done: v.tour_done,
         }
     }
 }
@@ -96,6 +98,7 @@ impl Studio {
             generations: prefs.generations,
             children: prefs.children,
             sevenths: prefs.sevenths,
+            tour_done: prefs.tour_done,
             ..View::default()
         };
         view.volume = view.volume.clamp(0.0, 1.0);
@@ -390,6 +393,8 @@ impl Studio {
                     self.out.push(Command::RunScript { code: self.view.script.text.clone() });
                 }
                 Step::Reference => self.view.reference_open = true,
+                Step::Tour(i) => self.view.tour = Some(i),
+                Step::Assistants => self.view.assistants.show(),
                 Step::AudioPath(p) => self.view.audio_path = p,
                 Step::Exit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             }
@@ -514,6 +519,10 @@ impl Studio {
             }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 ui.menu_button(RichText::new(" ? ").size(12.0).color(TEXT_DIM), |ui| {
+                    if ui.button("Take the tour").clicked() {
+                        self.view.tour = Some(0);
+                        ui.close();
+                    }
                     if ui.button("Connect an assistant…").clicked() {
                         self.view.assistants.show();
                         ui.close();
@@ -522,7 +531,7 @@ impl Studio {
                     ui.hyperlink_to("Report a problem", REPORT);
                 })
                 .response
-                .on_hover_text("help: connect an assistant, the documentation, report a problem");
+                .on_hover_text("help: the tour, connecting an assistant, the documentation, reporting a problem");
                 ui.add_space(6.0);
                 let r =
                     ui.add(egui::Slider::new(&mut self.view.volume, 0.0..=1.0).show_value(false).trailing_fill(true));
@@ -677,9 +686,10 @@ impl eframe::App for Studio {
         }
     }
 
-    fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut Ui, frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
         let now = ctx.input(|i| i.time);
+        self.view.anchors = Default::default();
         self.shortcuts(&ctx);
         #[cfg(not(target_arch = "wasm32"))]
         self.run_plan(&ctx, now);
@@ -724,9 +734,12 @@ impl eframe::App for Studio {
         if self.state.song.is_some() {
             let side =
                 egui::Frame::new().fill(PANEL).inner_margin(Margin::same(10)).stroke(Stroke::new(1.0, LINE_SOFT));
-            egui::Panel::right("side").frame(side).resizable(true).default_size(350.0).size_range(290.0..=600.0).show(
-                ui,
-                |ui| {
+            let shown = egui::Panel::right("side")
+                .frame(side)
+                .resizable(true)
+                .default_size(350.0)
+                .size_range(290.0..=600.0)
+                .show(ui, |ui| {
                     egui::ScrollArea::vertical().id_salt("side_scroll").auto_shrink([false, false]).show(ui, |ui| {
                         let mut cx = Cx {
                             state: &mut self.state,
@@ -743,16 +756,17 @@ impl eframe::App for Studio {
                         ui.add_space(4.0);
                         panels::verdict::show(ui, &mut cx);
                     });
-                },
-            );
+                });
+            self.view.anchors.side = Some(shown.response.rect);
             let dock = egui::Frame::new().fill(PANEL).stroke(Stroke::new(1.0, LINE));
             let dock_size = (ui.available_height() * 0.38).clamp(200.0, 360.0);
-            egui::Panel::bottom("dock")
+            let shown = egui::Panel::bottom("dock")
                 .frame(dock)
                 .resizable(true)
                 .default_size(dock_size)
                 .size_range(180.0..=800.0)
                 .show(ui, |ui| self.dock(ui, now));
+            self.view.anchors.editors = Some(shown.response.rect);
         }
 
         egui::CentralPanel::default().frame(egui::Frame::new().fill(BG)).show(ui, |ui| {
@@ -801,6 +815,24 @@ impl eframe::App for Studio {
             panels::transport::new_song_dialog(&ctx, &mut cx);
         }
         panels::assistants::dialog(&ctx, &mut self.view.assistants, self.native.as_ref());
+        // the first time, once the studio is up; a scripted run starts it only when asked
+        #[cfg(not(target_arch = "wasm32"))]
+        let scripted = self.plan.is_some();
+        #[cfg(target_arch = "wasm32")]
+        let scripted = false;
+        if self.has_state && !self.view.tour_done && self.view.tour.is_none() && !scripted {
+            self.view.tour = Some(0);
+        }
+        let done = self.view.tour_done;
+        crate::tour::show(&ctx, &mut self.view, self.native.as_ref());
+        // remembered at once: eframe saves only every 30 s on the web, and a skipped tour should stay skipped
+        if self.view.tour_done
+            && !done
+            && let Some(storage) = frame.storage_mut()
+        {
+            self.save(storage);
+            storage.flush();
+        }
 
         if self.view.reference_open {
             self.reference_window(&ctx);
@@ -851,6 +883,7 @@ impl eframe::App for Studio {
             generations: v.generations,
             children: v.children,
             sevenths: v.sevenths,
+            tour_done: v.tour_done,
         };
         eframe::set_value(storage, eframe::APP_KEY, &prefs);
     }

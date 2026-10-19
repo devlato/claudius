@@ -19,6 +19,7 @@ mod native;
 mod net;
 mod panels;
 mod theme;
+mod tour;
 mod widgets;
 
 pub use app::Studio;
