@@ -6,6 +6,27 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-19
+
+### Added
+
+- studio: Download the sample packs from the studio ([#17](https://github.com/devlato/claudius/pull/17))
+- macos: Claudius.app in a disk image, one app for Apple silicon and Intel Macs ([#13](https://github.com/devlato/claudius/pull/13))
+- windows: An installer, with the studio in the Start menu ([#14](https://github.com/devlato/claudius/pull/14))
+- linux: .deb, .rpm and AppImage packages, with the studio in the app menu ([#15](https://github.com/devlato/claudius/pull/15))
+
+### Changed
+
+- critic: Read realness over eight windows, and encode the MP3 while the critic listens ([#18](https://github.com/devlato/claudius/pull/18))
+
+### Fixed
+
+- packs: Setup installs a pack whose WAV files have a long fmt chunk, and gets the ears when a pack fails ([#19](https://github.com/devlato/claudius/pull/19))
+- mcp: Wait for the ears to load before exiting, instead of crashing ([#20](https://github.com/devlato/claudius/pull/20))
+- remake: Play a remake at a tempo its genre plays ([#21](https://github.com/devlato/claudius/pull/21))
+- What a newcomer misread: download sizes, save messages, ears loading, MCP schemas ([#22](https://github.com/devlato/claudius/pull/22))
+- critic: Advice a person can act on, instead of z-scores and near ties ([#23](https://github.com/devlato/claudius/pull/23))
+
 ## [0.1.0] - 2026-10-18
 
 The first public release.
@@ -32,5 +53,6 @@ The first public release.
   theory checks), Linux on x86_64 and ARM64 with a headless build for machines without sound or a display, and
   Windows as a preview. One-line installers for each, which come with every release and are in its checksums.
 
-[unreleased]: https://github.com/devlato/claudius/compare/v0.1.0...HEAD
+[unreleased]: https://github.com/devlato/claudius/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/devlato/claudius/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/devlato/claudius/releases/tag/v0.1.0

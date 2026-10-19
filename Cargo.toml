@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/claudius", "crates/earshot", "crates/claudius-api", "crates/claudius-decode", "crates/claudius-ui", "crates/claudius-packs", "crates/claudius-server", "crates/claudius-cli", "xtask"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 license = "MIT"
 authors = ["The claudius authors"]

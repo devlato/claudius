@@ -20,7 +20,7 @@ path = "src/bin/claudius-packs.rs"
 
 [dependencies]
 anyhow = "1"
-claudius-decode = { version = "0.1.0", path = "../claudius-decode" }
+claudius-decode = { version = "0.2.0", path = "../claudius-decode" }
 dirs = "7"
 flacenc = "0.5"
 hound = "3"
