@@ -195,6 +195,11 @@ jobs:
         with:
           name: dist-x86_64-apple-darwin
           path: ${{ runner.temp }}/x86_64-apple-darwin
+      - name: dmgbuild, for the disk image's window
+        run: |
+          python3 -m venv "$RUNNER_TEMP/dmgbuild"
+          "$RUNNER_TEMP/dmgbuild/bin/pip" install --quiet --require-hashes -r packaging/macos/requirements.txt
+          echo "$RUNNER_TEMP/dmgbuild/bin" >> "$GITHUB_PATH"
       - name: Claudius.app and its disk images, one for each chip
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}

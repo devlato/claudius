@@ -51,6 +51,11 @@ jobs:
       - run: cargo xtask web
       - run: cargo xtask dist --target aarch64-apple-darwin --web crates/claudius-ui/dist
       - run: cargo xtask dist --target x86_64-apple-darwin --web crates/claudius-ui/dist
+      - name: dmgbuild, for the disk image's window
+        run: |
+          python3 -m venv "$RUNNER_TEMP/dmgbuild"
+          "$RUNNER_TEMP/dmgbuild/bin/pip" install --quiet --require-hashes -r packaging/macos/requirements.txt
+          echo "$RUNNER_TEMP/dmgbuild/bin" >> "$GITHUB_PATH"
       - name: Claudius.app and its disk images
         run: |
           version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
@@ -60,6 +65,11 @@ jobs:
       - name: Installed from its disk image, the Apple silicon app opens the studio
         run: |
           hdiutil attach -nobrowse -readonly -mountpoint "$RUNNER_TEMP/volume" target/packages/*-aarch64-apple-darwin.dmg
+          # the window it opens with: the app, Applications to drag it onto, the background and the volume's icon
+          test -L "$RUNNER_TEMP/volume/Applications"
+          test -f "$RUNNER_TEMP/volume/.DS_Store"
+          test -f "$RUNNER_TEMP/volume/.background.tiff"
+          test -f "$RUNNER_TEMP/volume/.VolumeIcon.icns"
           mkdir "$RUNNER_TEMP/Applications"
           cp -R "$RUNNER_TEMP/volume/Claudius.app" "$RUNNER_TEMP/Applications/"
           hdiutil detach "$RUNNER_TEMP/volume"
