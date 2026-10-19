@@ -17,6 +17,8 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
 use tower::ServiceExt;
+use tower_http::compression::CompressionLayer;
+use tower_http::compression::predicate::{DefaultPredicate, NotForContentType, Predicate as _};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 
@@ -86,7 +88,35 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
         async move { g.check(req, next).await }
     }))
     .layer(middleware::from_fn(security_headers))
+    .layer(middleware::from_fn(cache_headers))
     .layer(cors)
+    // brotli or gzip for whoever asks: the web studio's WebAssembly is a quarter of its size compressed, which
+    // counts over a tunnel. Audio is left as it is: MP3 is compressed already, and WAV is read in ranges
+    .layer(CompressionLayer::new().compress_when(DefaultPredicate::new().and(NotForContentType::const_new("audio/"))))
+}
+
+/// how long a browser keeps the web studio's files: trunk names the script and the WebAssembly after a hash of their
+/// contents, so those never change, and the page that names them is checked again each time
+async fn cache_headers(req: Request, next: Next) -> Response {
+    let path = req.uri().path().to_owned();
+    let mut res = next.run(req).await;
+    let web = !path.starts_with("/api/") && path != "/mcp" && !path.starts_with("/mcp/");
+    if web && res.status().is_success() {
+        let policy = if content_hashed(&path) { "public, max-age=31536000, immutable" } else { "no-cache" };
+        res.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static(policy));
+    }
+    res
+}
+
+/// whether a file's name carries trunk's hash of its contents: `claudius-ui-<hex>.js`, `claudius-ui-<hex>_bg.wasm`
+fn content_hashed(path: &str) -> bool {
+    let name = path.rsplit('/').next().unwrap_or_default();
+    let Some((stem, extension)) = name.rsplit_once('.') else { return false };
+    let stem = stem.strip_suffix("_bg").unwrap_or(stem);
+    matches!(extension, "js" | "wasm" | "css")
+        && stem
+            .rsplit_once('-')
+            .is_some_and(|(_, hash)| hash.len() >= 12 && hash.bytes().all(|b| b.is_ascii_hexdigit()))
 }
 
 /// headers every answer carries: no MIME sniffing, no referrer leaks, no framing (clickjacking)

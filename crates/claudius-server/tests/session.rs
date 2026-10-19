@@ -128,6 +128,35 @@ async fn call(router: &axum::Router, req: Request<Body>) -> (StatusCode, axum::h
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn the_web_studio_comes_compressed_and_its_hashed_files_cached() {
+    let web = std::env::temp_dir().join(format!("claudius-web-{}", std::process::id()));
+    std::fs::create_dir_all(&web).unwrap();
+    std::fs::write(web.join("index.html"), "<!doctype html><title>studio</title>".repeat(20)).unwrap();
+    let wasm = "claudius-ui-ee34c356f0e05a_bg.wasm";
+    std::fs::write(web.join(wasm), vec![0u8; 4096]).unwrap();
+    std::fs::write(web.join("take.wav"), vec![0u8; 4096]).unwrap();
+    let router = http::router(app(), &Options { web: Some(web.clone()), ..Default::default() });
+    let get = |path: &str| {
+        Request::get(path)
+            .header(header::HOST, "localhost")
+            .header(header::ACCEPT_ENCODING, "br, gzip")
+            .body(Body::empty())
+            .unwrap()
+    };
+    let res = router.clone().oneshot(get(&format!("/{wasm}"))).await.unwrap();
+    assert_eq!(res.headers()[header::CONTENT_ENCODING], "br");
+    assert_eq!(res.headers()[header::CACHE_CONTROL], "public, max-age=31536000, immutable");
+    let res = router.clone().oneshot(get("/")).await.unwrap();
+    assert_eq!(res.headers()[header::CONTENT_ENCODING], "br");
+    assert_eq!(res.headers()[header::CACHE_CONTROL], "no-cache");
+    let res = router.clone().oneshot(get("/take.wav")).await.unwrap();
+    assert!(res.headers().get(header::CONTENT_ENCODING).is_none(), "audio is sent as it is");
+    let res = router.clone().oneshot(get("/api/hello")).await.unwrap();
+    assert!(res.headers().get(header::CACHE_CONTROL).is_none(), "the API says nothing about caching");
+    std::fs::remove_dir_all(&web).ok();
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn the_http_api_guards_itself() {
     let router = http::router(app(), &Options::default());
     let get = |path: &str, host: &str| Request::get(path).header(header::HOST, host).body(Body::empty()).unwrap();
