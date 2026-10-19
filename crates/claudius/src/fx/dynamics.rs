@@ -128,19 +128,15 @@ pub fn soft_clip(x: &mut Stereo, ceiling_db: f32, knee: f32, sr: f64) {
         let a = v.abs();
         if a <= t { v } else { v.signum() * (t + (c - t) * ((a - t) / (c - t)).tanh()) }
     };
+    // twice oversampled: a zero after each sample, lowpassed, shaped, lowpassed and every other sample kept, all a
+    // sample at a time instead of through a buffer twice the song's length
     let run = |ch: &mut Vec<f32>| {
-        let n = ch.len();
-        let mut up = vec![0.0f32; 2 * n];
-        for i in 0..n {
-            up[2 * i] = ch[i] * 2.0;
-        }
-        filter::butter(&mut up, false, 0.45 * sr, 2.0 * sr, 8);
-        for v in up.iter_mut() {
-            *v = shape(*v as f64) as f32;
-        }
-        filter::butter(&mut up, false, 0.45 * sr, 2.0 * sr, 8);
-        for i in 0..n {
-            ch[i] = up[2 * i];
+        let mut up = filter::Butter::<4>::new(false, 0.45 * sr, 2.0 * sr);
+        let mut down = up;
+        for v in ch.iter_mut() {
+            let kept = down.tick(shape(up.tick(*v * 2.0) as f64) as f32);
+            down.tick(shape(up.tick(0.0) as f64) as f32);
+            *v = kept;
         }
     };
     let [l, r] = x.channels_mut();

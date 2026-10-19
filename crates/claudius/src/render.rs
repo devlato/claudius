@@ -482,6 +482,8 @@ pub fn finalize(x: &mut Stereo, target: f32, ceiling: f32) -> (f64, f32) {
     let mut g0 = t - loudness::integrated(&src);
     let (mut out, mut tp) = master_stage(&src, g0, ceiling);
     let mut l0 = loudness::integrated(&out);
+    // the loudness of `out`, measured once
+    let mut lufs = l0;
     if debug() {
         eprintln!("finalize: input {:.2} LUFS, gain {g0:+.2} -> {l0:.2} LUFS (tp {tp:.2})", loudness::integrated(&src));
     }
@@ -497,6 +499,7 @@ pub fn finalize(x: &mut Stereo, target: f32, ceiling: f32) -> (f64, f32) {
         }
         out = o;
         tp = p;
+        lufs = l1;
         let slope = if (g1 - g0).abs() > 1e-3 { ((l1 - l0) / (g1 - g0)).clamp(0.15, 1.5) } else { 1.0 };
         let next = g1 + (t - l1) / slope;
         g0 = g1;
@@ -504,5 +507,5 @@ pub fn finalize(x: &mut Stereo, target: f32, ceiling: f32) -> (f64, f32) {
         g1 = next.clamp(g0 - 6.0, g0 + 6.0);
     }
     *x = out;
-    (loudness::integrated(x), tp)
+    (lufs, tp)
 }
