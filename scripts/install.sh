@@ -9,11 +9,14 @@
 #   --no-setup    do not offer to run it
 #   --headless    on Linux, install the build without the studio window, which needs neither ALSA nor a display
 #                 (`claudius serve` still serves the web studio); it is picked anyway when ALSA is not installed
+#   --no-app      on macOS, install the command-line programs only, without claudius.app
 #
 # Environment:
 #   CLAUDIUS_VERSION       the version to install, e.g. 0.2.0 (default: the latest release)
 #   CLAUDIUS_INSTALL_DIR   where the binaries go (default: ~/.local/bin); the web studio goes to
 #                          <that>/../share/claudius/web, which is where claudius looks for it
+#   CLAUDIUS_APP_DIR       on macOS, where claudius.app goes (default: /Applications, or ~/Applications when
+#                          /Applications is not writable); the programs in the bin folder are links into it
 #   CLAUDIUS_DOWNLOAD_URL  where the archives and SHA256SUMS are, an https:// address (default: the GitHub release)
 
 # Everything happens in main, so a download cut short runs nothing.
@@ -133,15 +136,93 @@ path_advice() {
     esac
 }
 
+# claudius.app from the release's disk image into Applications, with the command-line programs as links into it. curl,
+# unlike a browser, does not mark what it downloads for Gatekeeper, so the app opens without the warning that a browser
+# download of the disk image gets until the releases are notarized.
+install_app() {
+    image=$1
+    expected=$(awk -v file="$image" '$2 == file { print $1; exit }' "$tmp/SHA256SUMS")
+    version=${image#claudius-}
+    version=${version%-universal-apple-darwin.dmg}
+    say "downloading claudius $version, the Mac app"
+    download "$base/$image" "$tmp/$image" || fail "could not download $base/$image"
+    actual=$(sha256 "$tmp/$image")
+    [ "$actual" = "$expected" ] || fail "$image does not match SHA256SUMS (expected $expected, got $actual); nothing was installed"
+    say "checksum ok"
+    hdiutil attach -quiet -nobrowse -readonly -noautoopen -mountpoint "$tmp/image" "$tmp/$image" || fail "could not open $image"
+    [ -d "$tmp/image/claudius.app" ] || fail "$image has no claudius.app"
+    mkdir -p "$apps" "$bin_dir"
+    rm -rf "$apps/.claudius.app.new"
+    ditto "$tmp/image/claudius.app" "$apps/.claudius.app.new"
+    hdiutil detach -quiet "$tmp/image" || true
+    rm -rf "$apps/claudius.app"
+    mv "$apps/.claudius.app.new" "$apps/claudius.app"
+    for name in claudius claudius-packs; do
+        ln -sf "$apps/claudius.app/Contents/MacOS/$name" "$bin_dir/$name"
+    done
+    # the app has the web studio inside, which the programs find through the links
+    rm -rf "$web_dir"
+}
+
+# the command-line programs and the web studio from the release's archive for this system
+install_archive() {
+    variant=
+    [ "$headless" = no ] || variant=-headless
+    archive=$(archive_in "$tmp/SHA256SUMS" "-$target$variant.tar.gz")
+    if [ -z "$archive" ] && [ "$headless" = auto ]; then
+        say "ALSA's libasound.so.2 is not installed, and this release has no headless build to use instead"
+        headless=no
+        variant=
+        archive=$(archive_in "$tmp/SHA256SUMS" "-$target.tar.gz")
+    fi
+    [ -n "$archive" ] || fail "the release at $base has no ${variant:+headless }build for $target; build from source: https://github.com/$REPO"
+    expected=$(awk -v file="$archive" '$2 == file { print $1; exit }' "$tmp/SHA256SUMS")
+    version=${archive#claudius-}
+    version=${version%"-$target$variant.tar.gz"}
+
+    case $headless in
+        asked) say "downloading claudius $version for $target, the headless build (no studio window)" ;;
+        auto) say "downloading claudius $version for $target, the headless build (no studio window), because ALSA's libasound.so.2 is not installed" ;;
+        *) say "downloading claudius $version for $target" ;;
+    esac
+    download "$base/$archive" "$tmp/$archive" || fail "could not download $base/$archive"
+    actual=$(sha256 "$tmp/$archive")
+    [ "$actual" = "$expected" ] || fail "$archive does not match SHA256SUMS (expected $expected, got $actual); nothing was installed"
+    say "checksum ok"
+
+    tar -xzf "$tmp/$archive" -C "$tmp"
+    unpacked=$tmp/${archive%.tar.gz}
+    [ -x "$unpacked/bin/claudius" ] || fail "$archive has no bin/claudius"
+
+    mkdir -p "$bin_dir" "$prefix/share/claudius"
+    for file in "$unpacked"/bin/*; do
+        # a new file moved into place, so a running claudius keeps its old one
+        cp "$file" "$bin_dir/.$(basename "$file").new"
+        chmod 755 "$bin_dir/.$(basename "$file").new"
+        mv -f "$bin_dir/.$(basename "$file").new" "$bin_dir/$(basename "$file")"
+    done
+    rm -rf "$web_dir"
+    cp -R "$unpacked/share/claudius/web" "$web_dir"
+}
+
+cleanup() {
+    if [ -d "$tmp/image" ]; then
+        hdiutil detach -quiet "$tmp/image" 2>/dev/null || true
+    fi
+    rm -rf "$tmp"
+}
+
 main() {
     yes=no
     setup=ask
     headless=no
+    app=yes
     for arg in "$@"; do
         case $arg in
             -y | --yes) yes=yes ;;
             --no-setup) setup=no ;;
             --headless) headless=asked ;;
+            --no-app) app=no ;;
             -h | --help)
                 # the comment at the top of this file, when it runs from a file
                 sed -n '2,/^$/s/^# \{0,1\}//p' "$0" 2>/dev/null || echo "https://github.com/$REPO/blob/main/scripts/install.sh"
@@ -197,49 +278,32 @@ main() {
     esac
     prefix=$(dirname "$bin_dir")
     web_dir=$prefix/share/claudius/web
+    apps=${CLAUDIUS_APP_DIR:-}
+    if [ -z "$apps" ]; then
+        apps=$HOME/Applications
+        [ -w /Applications ] && apps=/Applications
+    fi
+    apps=${apps%/}
 
     tmp=$(mktemp -d)
-    trap 'rm -rf "$tmp"' EXIT
+    trap cleanup EXIT
     trap 'exit 130' INT TERM
 
     download "$base/SHA256SUMS" "$tmp/SHA256SUMS" || fail "could not download $base/SHA256SUMS"
-    variant=
-    [ "$headless" = no ] || variant=-headless
-    archive=$(archive_in "$tmp/SHA256SUMS" "-$target$variant.tar.gz")
-    if [ -z "$archive" ] && [ "$headless" = auto ]; then
-        say "ALSA's libasound.so.2 is not installed, and this release has no headless build to use instead"
-        headless=no
-        variant=
-        archive=$(archive_in "$tmp/SHA256SUMS" "-$target.tar.gz")
-    fi
-    [ -n "$archive" ] || fail "the release at $base has no ${variant:+headless }build for $target; build from source: https://github.com/$REPO"
-    expected=$(awk -v file="$archive" '$2 == file { print $1; exit }' "$tmp/SHA256SUMS")
-    version=${archive#claudius-}
-    version=${version%"-$target$variant.tar.gz"}
-
-    case $headless in
-        asked) say "downloading claudius $version for $target, the headless build (no studio window)" ;;
-        auto) say "downloading claudius $version for $target, the headless build (no studio window), because ALSA's libasound.so.2 is not installed" ;;
-        *) say "downloading claudius $version for $target" ;;
+    image=
+    case $target in
+        *-apple-darwin)
+            if [ "$app" = yes ] && has hdiutil; then
+                image=$(archive_in "$tmp/SHA256SUMS" "-universal-apple-darwin.dmg")
+                [ -n "$image" ] || say "this release has no Mac app, so only the command-line programs are installed"
+            fi
+            ;;
     esac
-    download "$base/$archive" "$tmp/$archive" || fail "could not download $base/$archive"
-    actual=$(sha256 "$tmp/$archive")
-    [ "$actual" = "$expected" ] || fail "$archive does not match SHA256SUMS (expected $expected, got $actual); nothing was installed"
-    say "checksum ok"
-
-    tar -xzf "$tmp/$archive" -C "$tmp"
-    unpacked=$tmp/${archive%.tar.gz}
-    [ -x "$unpacked/bin/claudius" ] || fail "$archive has no bin/claudius"
-
-    mkdir -p "$bin_dir" "$prefix/share/claudius"
-    for file in "$unpacked"/bin/*; do
-        # a new file moved into place, so a running claudius keeps its old one
-        cp "$file" "$bin_dir/.$(basename "$file").new"
-        chmod 755 "$bin_dir/.$(basename "$file").new"
-        mv -f "$bin_dir/.$(basename "$file").new" "$bin_dir/$(basename "$file")"
-    done
-    rm -rf "$web_dir"
-    cp -R "$unpacked/share/claudius/web" "$web_dir"
+    if [ -n "$image" ]; then
+        install_app "$image"
+    else
+        install_archive
+    fi
 
     if ! "$bin_dir/claudius" --version >/dev/null 2>"$tmp/run.log"; then
         cat "$tmp/run.log" >&2
@@ -254,9 +318,14 @@ main() {
     else
         say "installed claudius $version, the headless build: no studio window; \`claudius serve\` runs the studio in your browser"
     fi
-    echo "  $bin_dir/claudius"
-    echo "  $bin_dir/claudius-packs"
-    echo "  $web_dir (the web studio)"
+    if [ -n "$image" ]; then
+        echo "  $apps/claudius.app (opens the studio)"
+        echo "  $bin_dir/claudius and $bin_dir/claudius-packs, which run the app's programs"
+    else
+        echo "  $bin_dir/claudius"
+        echo "  $bin_dir/claudius-packs"
+        echo "  $web_dir (the web studio)"
+    fi
     if [ "$ears" = no ]; then
         say "this build has no ears, because ONNX Runtime has no Intel Mac build: verdicts use meters and music theory"
     fi
@@ -293,7 +362,9 @@ main() {
     else
         echo
         echo "Next: \`claudius setup\` downloads $downloads,"
-        if [ "$headless" = no ]; then
+        if [ -n "$image" ]; then
+            echo "\`claudius doctor\` checks the installation, and claudius in Applications opens the studio."
+        elif [ "$headless" = no ]; then
             echo "\`claudius doctor\` checks the installation, and \`claudius studio\` opens the studio."
         else
             echo "\`claudius doctor\` checks the installation, and \`claudius serve\` runs the studio in your browser."
@@ -301,7 +372,11 @@ main() {
     fi
 
     echo
-    echo "To uninstall: rm $bin_dir/claudius $bin_dir/claudius-packs && rm -r $web_dir"
+    if [ -n "$image" ]; then
+        echo "To uninstall: rm -r $apps/claudius.app && rm $bin_dir/claudius $bin_dir/claudius-packs"
+    else
+        echo "To uninstall: rm $bin_dir/claudius $bin_dir/claudius-packs && rm -r $web_dir"
+    fi
     if [ "$ears" = yes ]; then
         echo "What \`claudius setup\` downloaded is in ~/.cache/earshot-rs and the packs folder \`claudius doctor\` shows."
     else

@@ -2,19 +2,29 @@
 
 ## The Mac app
 
-Download `claudius-<version>-universal-apple-darwin.dmg` from the [latest
-release](https://github.com/devlato/claudius/releases/latest), open it, and drag **claudius** onto **Applications**.
-It runs on Macs with Apple silicon or Intel and macOS 11 or later, and opening it opens [the studio](studio.md).
+Paste this into Terminal:
 
-Until the releases are signed with an Apple Developer ID, macOS says it could not verify claudius the first time you
-open it. Click **Done**, open **System Settings**, **Privacy & Security**, and click **Open Anyway** next to the line
-about claudius. macOS asks once more, and then remembers.
+```sh
+curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh | sh
+```
+
+It installs **claudius** into Applications, and its command-line programs into `~/.local/bin`. It runs on Macs with
+Apple silicon or Intel and macOS 11 or later, and opening it opens [the studio](studio.md).
+
+You can also download `claudius-<version>-universal-apple-darwin.dmg` from the [latest
+release](https://github.com/devlato/claudius/releases/latest), open it, and drag **claudius** onto **Applications**.
+Until the releases are signed with an Apple Developer ID, though, macOS refuses an app downloaded in a browser the
+first time: "“claudius” Not Opened. Apple could not verify “claudius” is free of malware". Click **Done**, open
+**System Settings**, **Privacy & Security**, scroll down to the line about claudius, and click **Open Anyway**. macOS
+asks once more, and then remembers. The command above avoids all this, because macOS checks only what a browser
+downloads, and `curl` is not one.
 
 The first time the studio starts, it downloads its listening models by itself and offers to download the sample
 packs ([below](#the-sounds-and-the-ears)). To connect Claude, Cursor or Codex, use **?**, **Connect an assistant** in
 the studio. Move the app into Applications first: an app opened from its disk image, or from Downloads, runs from a
 copy macOS takes away again, and claudius will not connect an assistant to it. The app holds the command-line
-programs too; to use them in a terminal, link them into a folder on your `PATH`:
+programs too. The command above links them into `~/.local/bin`; after dragging the app in yourself, link them like
+this to use them in a terminal:
 
 ```sh
 mkdir -p ~/.local/bin
@@ -44,9 +54,12 @@ curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.
 ```
 
 The script comes with every release, next to the archives, and is in the release's checksums. It downloads the
-latest release for your computer from GitHub, checks it against the published SHA-256 sums, and installs it under
-`~/.local`: the programs `claudius` and `claudius-packs` in `~/.local/bin`, and the web studio in
-`~/.local/share/claudius/web`. It tells you if `~/.local/bin` is not on your `PATH` yet.
+latest release for your computer from GitHub, checks it against the published SHA-256 sums, and installs it. On
+Linux that is under `~/.local`: the programs `claudius` and `claudius-packs` in `~/.local/bin`, and the web studio in
+`~/.local/share/claudius/web`. On a Mac it is the app, in `/Applications` (or `~/Applications` when you cannot write
+to `/Applications`), with `~/.local/bin/claudius` and `claudius-packs` as links into it; `--no-app` installs the
+programs and the web studio under `~/.local` instead, as on Linux. It tells you if `~/.local/bin` is not on your
+`PATH` yet.
 
 When you run it in a terminal, it offers to download the sounds and the ears straight away (below). To do that
 without being asked, pass `--yes`:
@@ -59,7 +72,8 @@ Run as root, it installs the programs and leaves the downloads for later: the pa
 so run `claudius setup` as the user who makes the music.
 
 `CLAUDIUS_INSTALL_DIR` puts the programs in another folder (the web studio goes next to it, in
-`../share/claudius/web`), and `CLAUDIUS_VERSION=0.1.0` installs a specific release.
+`../share/claudius/web`), `CLAUDIUS_APP_DIR` puts the Mac app in another folder, and `CLAUDIUS_VERSION=0.1.0`
+installs a specific release.
 
 ## Windows
 
@@ -137,8 +151,8 @@ setup](../contributing/setup.md) covers everything else.
 
 ## Uninstall
 
-The Mac app: drag claudius from Applications to the Bin, and delete the links in `~/.local/bin` if you made them.
-The command-line install:
+The Mac app: drag claudius from Applications to the Bin, and delete the links in `~/.local/bin`
+(`rm ~/.local/bin/claudius ~/.local/bin/claudius-packs`). The command-line install:
 
 ```sh
 rm ~/.local/bin/claudius ~/.local/bin/claudius-packs
