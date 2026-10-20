@@ -77,7 +77,11 @@ claudius' own; the docs mark them as extensions to Strudel.
 **The marketplace** is a small service, free for now:
 
 - a Cloudflare Worker for the API, R2 for the files and D1 for the index;
-- sign-in with GitHub, for publishing only: searching and installing public libraries need no account;
+- files reached only through the API, so that they can move without a change to claudius. R2 charges $15 per TB a
+  month with free downloads; past about a terabyte, Backblaze B2 behind Cloudflare costs less than half that, its
+  downloads also free;
+- sign-in with an emailed link, with no password, for publishing and for private libraries. Searching and installing
+  public libraries need no account. The command line signs in with a short code confirmed in the browser;
 - each published version is immutable and named by its content hash.
 
 Each library has a visibility:
@@ -96,7 +100,9 @@ MCP has the same, through `run_script` and `catalog`, plus commands for searchin
 - The index shows the licence, and claudius' `credits.txt` covers library sounds as it covers packs.
 - Uploads are checked: audio formats claudius decodes, sizes and lengths within limits, and safe names (no path
   traversal, no zip bombs).
-- A reported library can be hidden while it is looked at.
+- Samples whose terms forbid passing them on are never uploaded or hosted: the curated packs with such terms (the
+  TR-909 pack, SampleRadar's) stay fetched from their publishers on each computer, as 0007 decided.
+- A reported library is hidden while it is looked at, and a takedown request is answered by removing it.
 
 **Tests come first.** Before the engine changes, regression nets go in at every level of the pyramid. Each change in
 the work that follows then shows what it did to the sound:
@@ -143,6 +149,7 @@ Rejected:
 - **Script functions called per sample.** Too slow, as in 0010.
 - **A marketplace made only of a GitHub index.** Publishing waits for a pull request, and there is no private
   visibility.
+- **Sign-in with GitHub.** Musicians and DJs rarely have a GitHub account; everyone has an email address.
 - **Libraries in the claudius repository.** The redistribution and size problems of 0007.
 
 Kept for later: WebAssembly modules for DSP the graph's blocks cannot express. Sandboxed, portable and fast, they would
@@ -150,8 +157,8 @@ be the one kind of code a library could carry.
 
 ## Consequences
 
-- **A service to run.** The marketplace has an operator: storage costs past R2's free tier, moderation, takedowns, and
-  backups of D1.
+- **A service to run.** The marketplace has an operator: storage costs past R2's free tier, a service that sends the
+  sign-in emails, moderation, takedowns, and backups of D1.
 - **Licences are the authors'.** The marketplace states each one, claudius credits it, and nobody reviews the audio
   before it is published.
 - **Songs carry graphs.** A song that uses a library carries the graphs it needs, so the blueprint gets a format 2 when
