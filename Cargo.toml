@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/claudius", "crates/earshot", "crates/claudius-api", "crates/claudius-decode", "crates/claudius-ui", "crates/claudius-packs", "crates/claudius-server", "crates/claudius-cli", "xtask"]
+members = ["crates/claudius", "crates/earshot", "crates/claudius-api", "crates/claudius-decode", "crates/claudius-encode", "crates/claudius-ui", "crates/claudius-packs", "crates/claudius-server", "crates/claudius-cli", "xtask"]
 
 [workspace.package]
 version = "0.2.0"

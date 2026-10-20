@@ -1,0 +1,23 @@
+[package]
+name = "claudius-encode"
+description = "Audio file encoding for claudius: WAV, AIFF, FLAC, MP3, Opus and Ogg Vorbis written in process, AAC and Apple Lossless by the system's encoder"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[dependencies]
+anyhow = "1"
+claudius-decode = { version = "0.2.0", path = "../claudius-decode" }
+flacenc = "0.5"
+hound = "3"
+opus-pure = "0.2"
+rusty_mp3 = "1"
+vorbis_rs = "0.5"
+
+[dev-dependencies]
+tempfile = "3"

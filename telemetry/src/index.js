@@ -4,7 +4,7 @@
 // data for three months. docs/src/guide/privacy.md describes it for the people who send them.
 
 const COMMANDS = new Set([
-  "make", "evolve", "mutate", "analyze", "remake", "chop", "render", "judge", "genres", "sounds", "script",
+  "make", "evolve", "mutate", "analyze", "remake", "chop", "render", "export", "judge", "genres", "sounds", "script",
   "reference", "setup", "doctor", "connect", "skills", "studio", "serve", "mcp", "update",
 ]);
 const VERSION = /^\d{1,3}\.\d{1,3}\.\d{1,3}(-[0-9A-Za-z.]{1,20})?$/;

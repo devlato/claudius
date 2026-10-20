@@ -59,7 +59,7 @@ The song folder is `<out>/<genre>-<title>-<seed>`, for example `out/deep_house-g
 | file | what it is |
 |---|---|
 | `song.wav` | the master, 48 kHz, 24-bit |
-| `song.mp3` | a 256 kbps copy, when ffmpeg is installed |
+| `song.mp3` | a 256 kbps copy; `claudius export` writes other formats |
 | `blueprint.json` | the song's genome: open it, edit it, render it again |
 | `song.rhai` | the song as a script, for `claudius script` or the studio's script editor |
 | `project.json` | the arranged session the blueprint expanded into |
@@ -191,6 +191,24 @@ and bass style, with the genre's sounds and mix. It prints the analysis (as `ana
 | `-o`, `--out` | `out` | the folder is `remake-<genre>-<title>-<seed>` |
 
 ## Listen and judge
+
+### `claudius export`
+
+Writes a song's master in other formats: WAV, AIFF, FLAC, Apple Lossless, MP3, AAC, Opus and Ogg Vorbis.
+[Exporting](export.md) has every format and what each is for.
+
+```sh
+claudius export out/deep_house-liquid-avenue-21 -f mp3,flac,wav:16
+claudius export ~/Music/mix.wav -f opus:96 -o ~/Desktop/mix.opus
+```
+
+| flag | default | what it does |
+|---|---|---|
+| `<song>` | | a song folder (its `song.wav`) or any audio file |
+| `-f`, `--format` | | `format[:quality][@rate]`, repeated or comma-separated: `mp3`, `mp3:v0`, `wav:16`, `flac`, `aac`, `opus:96` |
+| `-o`, `--out` | the song's folder | the file to write for one format, or the folder for several |
+| `--title`, `--artist`, `--album` | the song's title | the tags the files carry; the files are named after the title |
+| `--list` | | lists the formats, and any this machine cannot write |
 
 ### `claudius judge`
 
@@ -448,7 +466,7 @@ claudius 0.1.0 (macos aarch64)
   ok  sample packs    22 default packs (1.5 GB) in ~/Library/Application Support/claudius/packs
   ok  ears            models in ~/.cache/earshot-rs
   ok  Apple Loops     14096 loops and samples
-  ok  ffmpeg          9.0.2 (writes song.mp3)
+  ok  ffmpeg          9.0.2 (reads the formats claudius cannot)
   ok  port 7878       free
   ..  Claude Desktop  not connected: `claudius connect claude-desktop`
   ..  Cursor          not connected: `claudius connect cursor`

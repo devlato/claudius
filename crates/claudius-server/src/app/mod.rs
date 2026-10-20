@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 use claudius::ears::Ears;
 use claudius::library::Library;
 use claudius::model::*;
-use claudius::{audio, config, song};
+use claudius::{audio, config, export, song};
 use claudius_api::*;
 
 use crate::views;
@@ -318,10 +318,10 @@ impl App {
             "mp3" => {
                 let mp3 = self.cache.join(format!("{version}.mp3"));
                 if !mp3.exists() {
-                    let tmp = self.cache.join(format!("{version}.part.mp3"));
-                    // without ffmpeg there is no MP3: browsers play the WAV just as well
-                    if audio::wav_to_mp3(&wav, &tmp).is_err() || std::fs::rename(&tmp, &mp3).is_err() {
-                        let _ = std::fs::remove_file(&tmp);
+                    let spec: export::Spec = export::FOLDER_MP3.parse().ok()?;
+                    let made = audio::load_once(&wav).and_then(|m| export::write(&m, &spec, &export::tags(""), &mp3));
+                    // a browser plays the WAV just as well
+                    if made.is_err() {
                         return Some(wav);
                     }
                 }

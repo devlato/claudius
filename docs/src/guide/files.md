@@ -32,7 +32,7 @@ MCP made it, so they hold the same files:
 | file | what it is |
 |---|---|
 | `song.wav` | the master, 48 kHz, 24-bit |
-| `song.mp3` | a 256 kbps copy, when ffmpeg is installed |
+| `song.mp3` | a 256 kbps copy ([Exporting](export.md) writes other formats) |
 | `blueprint.json` | the song's genome |
 | `song.rhai` | the song as a script |
 | `project.json` | the arranged session |
@@ -123,7 +123,7 @@ Without one, `/` shows a page that says how to build it, and the API and MCP wor
 | `CLAUDIUS_PORT` | `7878` | `--port` of `studio`, `serve`, `mcp`, `doctor` and `connect` |
 | `CLAUDIUS_TOKEN` | none | `--token` of `serve` and `mcp` |
 | `CLAUDIUS_WEB` | found as above | the web studio folder |
-| `CLAUDIUS_FFMPEG` | `ffmpeg` on `PATH`, then `/opt/homebrew/bin`, `/usr/local/bin`, `/usr/bin` | the ffmpeg claudius uses for formats it cannot decode and for MP3; `none` turns it off |
+| `CLAUDIUS_FFMPEG` | `ffmpeg` on `PATH`, then `/opt/homebrew/bin`, `/usr/local/bin`, `/usr/bin` | the ffmpeg claudius uses for formats it cannot decode, and to export AAC and Apple Lossless off macOS; `none` turns it off |
 | `CLAUDIUS_DEBUG` | unset | when set, renders print their timings and the beat tracker its cues to stderr |
 | `DO_NOT_TRACK`, `CLAUDIUS_TELEMETRY` | unset | `DO_NOT_TRACK=1` or `CLAUDIUS_TELEMETRY=0` keeps [usage statistics](privacy.md) off whatever the answer |
 | `CLAUDIUS_TELEMETRY_URL` | the Worker in `telemetry/` | where usage statistics go, to test an endpoint (the only place a debug build sends them) |

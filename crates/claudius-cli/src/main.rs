@@ -16,6 +16,7 @@ use claudius::{genres, song};
 mod args;
 mod connect;
 mod doctor;
+mod export;
 mod report;
 mod setup;
 mod skills;
@@ -343,6 +344,9 @@ fn run(cli: Cli) -> Result<()> {
             let f = |_: &Project, r: &Rendered| listening.report(r, g.as_ref(), true);
             let (_, r, w, v) = song::render_and_write(&bp, &dir, stems, Some(&f))?;
             print_summary(&bp, &r, &w, &v, t.elapsed().as_secs_f64());
+        }
+        Cmd::Export { song, formats, out, title, artist, album, list } => {
+            export::run(export::Request { song, formats, out, title, artist, album, list })?;
         }
         Cmd::Judge { file, genre, ears, json } => {
             let listening = listen(&ears);

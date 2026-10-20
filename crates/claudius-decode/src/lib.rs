@@ -109,11 +109,33 @@ pub fn decode_native(path: &Path) -> Result<Decoded> {
     decode_native_upto(path, MAX_SAMPLES)
 }
 
+/// decode audio held in memory with symphonia; `ext` names its format as a file extension would (`flac`, `mp3`)
+pub fn decode_bytes(bytes: Vec<u8>, ext: &str) -> Result<Decoded> {
+    let mss = MediaSourceStream::new(Box::new(std::io::Cursor::new(bytes)), MediaSourceStreamOptions::default());
+    decode_stream(mss, Some(ext), MAX_SAMPLES, Path::new(&format!("audio.{ext}")))
+}
+
 fn decode_native_upto(path: &Path, max_samples: usize) -> Result<Decoded> {
     let file = File::open(path).with_context(|| format!("cannot open {}", path.display()))?;
     let mss = MediaSourceStream::new(Box::new(file), MediaSourceStreamOptions::default());
+    let mut out = decode_stream(mss, path.extension().and_then(|e| e.to_str()), max_samples, path)?;
+    if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("caf"))
+        && let Some((priming, valid)) = caf_valid_frames(path)
+    {
+        // AAC in CAF starts with encoder priming and ends with padding; a loop must be exactly its bars
+        if let Some(b) = priming.checked_add(valid).and_then(|frames| frames.checked_mul(out.channels))
+            && b <= out.samples.len()
+        {
+            out.samples = out.samples[priming * out.channels..b].to_vec();
+        }
+    }
+    Ok(out)
+}
+
+/// `name` is what a too-long error names
+fn decode_stream(mss: MediaSourceStream, ext: Option<&str>, max_samples: usize, name: &Path) -> Result<Decoded> {
     let mut hint = Hint::new();
-    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+    if let Some(ext) = ext {
         hint.with_extension(ext);
     }
     let mut format =
@@ -150,7 +172,7 @@ fn decode_native_upto(path: &Path, max_samples: usize) -> Result<Decoded> {
                 }
                 audio.copy_to_vec_interleaved(&mut packet_samples);
                 if out.samples.len() + packet_samples.len() > max_samples {
-                    return Err(TooLong(path.to_path_buf()).into());
+                    return Err(TooLong(name.to_path_buf()).into());
                 }
                 out.samples.extend_from_slice(&packet_samples);
             }
@@ -161,16 +183,6 @@ fn decode_native_upto(path: &Path, max_samples: usize) -> Result<Decoded> {
     }
     if out.rate == 0 || out.channels == 0 {
         bail!("cannot tell the sample rate or channel count");
-    }
-    if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("caf"))
-        && let Some((priming, valid)) = caf_valid_frames(path)
-    {
-        // AAC in CAF starts with encoder priming and ends with padding; a loop must be exactly its bars
-        if let Some(b) = priming.checked_add(valid).and_then(|frames| frames.checked_mul(out.channels))
-            && b <= out.samples.len()
-        {
-            out.samples = out.samples[priming * out.channels..b].to_vec();
-        }
     }
     Ok(out)
 }

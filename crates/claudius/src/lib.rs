@@ -22,6 +22,7 @@ pub mod config;
 pub mod dsp;
 pub mod ears;
 pub mod evolve;
+pub mod export;
 pub mod fx;
 pub mod genres;
 pub mod judge;

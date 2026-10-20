@@ -1,10 +1,9 @@
-//! Planar stereo buffers, decoding (wav, aiff, flac, mp3, aac / m4a, alac, caf / Apple Loops, ogg), WAV export
-//! and the sample-level helpers every module shares.
+//! Planar stereo buffers, decoding (wav, aiff, flac, mp3, aac / m4a, alac, caf / Apple Loops, ogg), the song WAV
+//! and the sample-level helpers every module shares; [`crate::export`] writes the other formats.
 
 use std::path::Path;
-use std::process::Command;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 
 use crate::config::{self, SR};
 
@@ -228,6 +227,11 @@ fn decode_file(path: &Path) -> Result<Vec<f32>> {
     Ok(l.iter().zip(&r).flat_map(|(a, b)| [*a, *b]).collect())
 }
 
+/// decode any audio file to 48 kHz stereo without keeping a decoded copy: for files read once, like a render's WAV
+pub fn load_once(path: &Path) -> Result<Stereo> {
+    Ok(Stereo::from_interleaved(&decode_file(path)?))
+}
+
 /// decode any audio file to 48 kHz stereo (cached as raw f32 under ~/.cache/claudius/decoded)
 pub fn load(path: &Path) -> Result<Stereo> {
     let key = cache_key(path)?;
@@ -267,21 +271,6 @@ pub fn save_wav(path: &Path, x: &Stereo, float: bool) -> Result<()> {
         }
     }
     w.finalize()?;
-    Ok(())
-}
-
-/// MP3 copy of a WAV for quick listening; needs ffmpeg (with libmp3lame), and is skipped without it
-pub fn wav_to_mp3(wav: &Path, mp3: &Path) -> Result<()> {
-    let ffmpeg = claudius_decode::ffmpeg().ok_or_else(|| anyhow::anyhow!("ffmpeg is not installed: no MP3 copy"))?;
-    let st = Command::new(ffmpeg)
-        .args(["-v", "error", "-nostdin", "-y"])
-        .args(claudius_decode::ffmpeg_input(wav))
-        .args(["-codec:a", "libmp3lame", "-b:a", "256k"])
-        .arg(mp3)
-        .status()?;
-    if !st.success() {
-        bail!("ffmpeg could not write {}", mp3.display());
-    }
     Ok(())
 }
 

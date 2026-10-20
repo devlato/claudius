@@ -86,13 +86,60 @@ fn make_writes_a_song_folder() {
         .success()
         .stdout(predicate::str::contains("verdict"));
     let dir = std::fs::read_dir(&out).unwrap().flatten().next().expect("a song folder").path();
-    for f in ["song.wav", "blueprint.json", "verdict.json", "report.json"] {
+    for f in ["song.wav", "song.mp3", "blueprint.json", "verdict.json", "report.json"] {
         assert!(dir.join(f).is_file(), "{f} missing in {}", dir.display());
     }
     let verdict: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(dir.join("verdict.json")).unwrap()).unwrap();
     assert!(verdict["total"].as_f64().unwrap() > 50.0);
+
+    // the song in three more formats, named after its title, next to it
+    let exported = temp_dir("export");
+    claudius()
+        .arg("export")
+        .arg(&dir)
+        .args(["-f", "flac:16,mp3:192", "--format", "ogg", "--out"])
+        .arg(&exported)
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("FLAC, 16-bit, 44.1 kHz").and(predicate::str::contains("MP3, 192 kbps")));
+    let files: Vec<_> = std::fs::read_dir(&exported).unwrap().flatten().map(|e| e.path()).collect();
+    assert_eq!(files.len(), 3, "{files:?}");
+    let master = claudius_decode::decode_native(&dir.join("song.wav")).unwrap();
+    for f in &files {
+        let d = claudius_decode::decode_native(f).unwrap();
+        let rate = if f.extension().is_some_and(|e| e == "flac") { 44_100 } else { 48_000 };
+        assert_eq!((d.rate, d.channels), (rate, 2), "{}", f.display());
+        let secs = |d: &claudius_decode::Decoded| d.frames() as f64 / d.rate as f64;
+        assert!((secs(&d) - secs(&master)).abs() < 0.1, "{}: {} s for {} s", f.display(), secs(&d), secs(&master));
+    }
+    std::fs::remove_dir_all(&exported).ok();
     std::fs::remove_dir_all(&out).ok();
+}
+
+#[test]
+fn export_lists_its_formats_and_explains_bad_ones() {
+    claudius()
+        .args(["export", "--list"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("flac:16    FLAC, 16-bit, 44.1 kHz").and(predicate::str::contains("opus")));
+    let dir = temp_dir("export-bad");
+    claudius()
+        .arg("export")
+        .arg(&dir)
+        .args(["-f", "mp3:300"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("MP3 takes 32, 40"));
+    claudius()
+        .arg("export")
+        .arg(&dir)
+        .args(["-f", "mp3"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("has no song.wav: render the song first"));
+    std::fs::remove_dir_all(&dir).ok();
 }
 
 fn free_port() -> u16 {

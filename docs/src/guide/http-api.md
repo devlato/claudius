@@ -282,8 +282,8 @@ content-range: bytes 0-99/72955106
 content-length: 100
 ```
 
-The MP3 is encoded by ffmpeg on the first request (a few seconds for a song) and kept. Without ffmpeg, the `.mp3`
-address serves the WAV, which browsers play too. A session keeps its last ten renders on disk, so older versions
+The MP3 is encoded on the first request (a second or two for a song) and kept. A session keeps its last ten renders
+on disk, so older versions
 return 404. Stems exist only for a render made with `{"cmd": "render", "stems": true}` or by `save`, and only the
 latest render's stems are served, as 24-bit WAV; the copies a `save` writes into the song folder are 32-bit float.
 

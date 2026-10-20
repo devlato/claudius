@@ -30,6 +30,7 @@ earshot = { path = "../earshot", optional = true }
 claudius-packs = { path = "../claudius-packs" }
 rhai = "1.26"
 claudius-decode = { version = "0.2.0", path = "../claudius-decode" }
+claudius-encode = { version = "0.2.0", path = "../claudius-encode" }
 
 [dev-dependencies]
 criterion = "0.8"

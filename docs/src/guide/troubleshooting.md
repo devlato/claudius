@@ -152,13 +152,13 @@ system's `tar` could not unpack the `tr909` zip or the organ's `.tar.xz`; instal
 
 claudius does not need ffmpeg to work. Without it:
 
-- songs have `song.wav` and no `song.mp3`, without an error;
-- the web studio is sent the WAV where it asks for MP3, which browsers play as well;
+- on Windows and Linux, exporting AAC or Apple Lossless fails with `AAC needs Core Audio (macOS) or ffmpeg, and this
+  machine has neither: install ffmpeg, or export MP3 or Opus`;
 - files in formats claudius cannot decode itself fail with
   `cannot decode <file>: <reason> (installing ffmpeg adds more formats)`. It reads WAV, AIFF, FLAC, MP3, AAC and ALAC,
   CAF and Ogg Vorbis on its own.
 
-`claudius doctor` shows `..  ffmpeg  not installed (optional: songs are saved as WAV only)`. claudius looks for it on
+`claudius doctor` shows `..  ffmpeg  not installed (optional: reads the formats claudius cannot)`. claudius looks for it on
 `PATH` and then in `/opt/homebrew/bin`, `/usr/local/bin` and `/usr/bin`, since apps started from the Dock do not
 get your shell's `PATH`. `CLAUDIUS_FFMPEG=/path/to/ffmpeg` names one, `CLAUDIUS_FFMPEG=none` turns it off.
 
@@ -184,7 +184,7 @@ toolbar shows the job in progress), and with `--no-auto-render` nothing renders 
 volume slider at the bottom right too.
 
 In the browser, the first playback has to start from a click (browsers block sound a page starts on its own), and
-the page plays the MP3, or the WAV without ffmpeg.
+the page plays the MP3.
 
 If the window shows `Cannot reach the claudius server at http://127.0.0.1:7878`, the server it was opened for is
 gone; start `claudius studio` again. `Use the demo` switches to a built-in song that needs no server.
