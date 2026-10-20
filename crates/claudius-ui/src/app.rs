@@ -212,7 +212,10 @@ impl Studio {
                             }
                         }
                         let text = if reply.message.is_empty() { what.replace('_', " ") } else { reply.message };
-                        self.toast(text, reply.ok, now);
+                        // the Publish dialog shows what the checks say, field after field
+                        if !(reply.ok && what == "set_release") {
+                            self.toast(text, reply.ok, now);
+                        }
                     }
                     Err(e) => {
                         if script {
@@ -233,6 +236,7 @@ impl Studio {
                 self.view.reference =
                     Some(result.unwrap_or_else(|e| format!("# The reference is not available\n\n{e}")));
             }
+            Event::Preview { version, image } => self.view.publish.arrived = Some((version, image)),
         }
     }
 
@@ -410,6 +414,7 @@ impl Studio {
                     self.view.tour_asks = self.native.as_ref().is_some_and(|n| n.statistics().is_none());
                 }
                 Step::Assistants => self.view.assistants.show(),
+                Step::Publish => self.view.publish.show(),
                 Step::AudioPath(p) => self.view.audio_path = p,
                 Step::Exit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             }
@@ -906,6 +911,17 @@ impl eframe::App for Studio {
                 now,
             };
             panels::transport::new_song_dialog(&ctx, &mut cx);
+            panels::publish::dialog(&ctx, &mut cx);
+        }
+        if let Some(bytes) = self.view.publish.upload.take() {
+            self.inflight += 1;
+            self.inflight_since = now;
+            self.backend.upload_artwork(bytes);
+        }
+        if let Some(release) = &self.state.release
+            && let Some(v) = self.view.publish.wants_preview(release)
+        {
+            self.backend.fetch_preview(v);
         }
         panels::assistants::dialog(&ctx, &mut self.view.assistants, self.native.as_ref());
         // the first time, once the studio is up; a scripted run starts it only when asked

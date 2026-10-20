@@ -30,6 +30,7 @@ ureq = { version = "3", features = ["json"] }
 
 [dev-dependencies]
 claudius-decode = { version = "0.2.0", path = "../claudius-decode" }
+image = { version = "0.25", default-features = false, features = ["png"] }
 tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros"] }
 tower = { version = "0.5", features = ["util"] }
 

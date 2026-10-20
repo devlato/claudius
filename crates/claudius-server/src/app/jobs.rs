@@ -288,6 +288,7 @@ impl App {
                 }
             }
         });
+        self.check_render(&bp, version, &project, &r.master);
         self.prune(version);
     }
 

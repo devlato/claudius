@@ -12,6 +12,9 @@
 //! | `GET  /api/audio/{version}.wav` / `.mp3` | the render of that state version (`RenderView.url` points here) |
 //! | `GET  /api/stems/{version}/{track}.wav` | one track of that render, when it was rendered with stems |
 //! | `GET  /api/export/{version}/{name}.{ext}?format=SPEC` | that render in another format (`ExportFormat.spec`), as a download named `{name}.{ext}` |
+//! | `POST /api/release/artwork` | body: a JPEG or PNG (`Content-Type: image/jpeg`, `image/png` or `application/octet-stream`), the release's artwork; answer: `Reply` |
+//! | `GET  /api/release/artwork` | the release's artwork, as it was given |
+//! | `GET  /api/release/preview.png` | the artwork at most 512 pixels on a side, as PNG |
 //! | `POST /mcp` | the MCP endpoint (Streamable HTTP) |
 //! | `GET  /` | the web UI |
 
@@ -83,6 +86,70 @@ pub struct State {
     /// the formats a render can be exported to (`/api/export`, `Command::Export`)
     #[serde(default)]
     pub exports: Vec<ExportFormat>,
+    /// the release the session is preparing for the open song (`Command::SetRelease`, `Command::WriteKit`)
+    #[serde(default)]
+    pub release: Option<ReleaseView>,
+}
+
+/// What stores and distributors ask about a release, as a song's release.json keeps it.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct ReleaseDetails {
+    /// the song's title when empty
+    pub title: String,
+    /// a version of the song, such as "Extended Mix"
+    pub version: String,
+    pub artist: String,
+    pub featuring: Vec<String>,
+    /// the album or EP the song is on; a single when empty
+    pub album: String,
+    pub genre: String,
+    pub subgenre: String,
+    /// YYYY-MM-DD
+    pub date: String,
+    /// the record label: the artist when empty
+    pub label: String,
+    /// the songwriters' full legal names
+    pub writers: Vec<String>,
+    pub producers: Vec<String>,
+    /// who owns the recording and the composition, for the ℗ and © lines: the artist when empty
+    pub owner: String,
+    pub isrc: String,
+    pub upc: String,
+    pub explicit: bool,
+    /// how the song was made, which distributors ask: `written`, `assisted` or `generated`; None until it is said
+    pub made: Option<String>,
+}
+
+/// one check of a release, as a store or a distributor would make it
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct ReleaseCheck {
+    /// `problem` (a store would turn the release down), `warning` or `note`
+    pub level: String,
+    /// `artwork`, `audio`, `sounds` or `details`
+    pub about: String,
+    pub message: String,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct ReleaseView {
+    pub details: ReleaseDetails,
+    /// the song's own title, which a title in the details replaces
+    pub song_title: String,
+    /// what the artwork is ("3000 × 3000 JPEG"), or why it cannot be read; None without artwork
+    pub artwork: Option<String>,
+    /// changes with every new artwork, for `/api/release/preview.png?v=`
+    pub artwork_version: u64,
+    /// what stores would say of the release with the render `checked` (problems first)
+    pub checks: Vec<ReleaseCheck>,
+    /// the render the checks are of; 0 until one is checked
+    pub checked: u64,
+    /// nothing a store would turn it down for
+    pub ready: bool,
+    /// the folder the last release kit went to
+    pub kit: Option<String>,
+    /// what `made` may be, with what each means
+    pub made_options: Vec<(String, String)>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -297,6 +364,19 @@ pub enum Command {
     /// the song's folder, as `Save` makes it)
     Export {
         formats: Vec<String>,
+        #[serde(default)]
+        path: Option<String>,
+    },
+    /// what stores ask about the release, all of it (`ReleaseDetails`), and optionally a JPEG or PNG file for the
+    /// artwork; the release is checked again
+    SetRelease {
+        details: Box<ReleaseDetails>,
+        #[serde(default)]
+        artwork: Option<String>,
+    },
+    /// write the release kit from the latest render, when it is of the song as it is now and nothing stops the
+    /// release: into `path` (default: release/ in the song's folder)
+    WriteKit {
         #[serde(default)]
         path: Option<String>,
     },

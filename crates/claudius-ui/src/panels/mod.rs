@@ -10,6 +10,7 @@ pub mod log;
 pub mod markdown;
 pub mod mixer;
 pub mod parts;
+pub mod publish;
 pub mod script;
 pub mod sequencer;
 pub mod transport;
@@ -163,6 +164,7 @@ pub struct View {
     pub volume: f32,
     pub sevenths: bool,
     pub assistants: assistants::Assistants,
+    pub publish: publish::Publish,
     /// the tour's step on screen, and whether it was taken or skipped (kept between runs)
     pub tour: Option<usize>,
     pub tour_done: bool,
@@ -219,6 +221,7 @@ impl Default for View {
             volume: 0.9,
             sevenths: true,
             assistants: assistants::Assistants::default(),
+            publish: publish::Publish::default(),
             tour: None,
             tour_done: false,
             tour_asks: false,

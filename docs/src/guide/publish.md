@@ -33,6 +33,29 @@ Checks marked `--` are problems: a store would turn the release down, so no kit 
 the command fails. `!` marks a warning, worth fixing, and `..` a note, worth knowing. `--json` prints the checks as
 JSON.
 
+## In the studio
+
+**publish** in the toolbar opens the Publish dialog. Drop the cover onto the studio (the native studio also takes its
+path), fill in what stores ask, and say how the song was made; each field is sent as you leave it, and the checks
+below, of the latest render, come back with the answer. **Write the release kit** writes it into `release/` in the
+song's folder once nothing stops the release. The details and the artwork stay with the song: saving it, or writing
+the kit, puts `release.json` and `artwork.jpg` (or `artwork.png`) in its folder, and opening that folder again brings
+them back. In the web studio, the browser reads the dropped cover and sends it to claudius.
+
+## Over MCP and HTTP
+
+An assistant has the `publish` tool. It passes on what the person said (the artist, the songwriters, the artwork's
+file, how the song was made) and gets the checks back, and with `write`, it writes the kit too:
+
+```json
+{"artist": "Ana Lima", "writers": ["Ana Lima"], "artwork": "/Users/ana/Pictures/hollow-harbor.jpg", "made": "assisted", "write": true}
+```
+
+What the tool leaves out stays as it was. Its description, and the claudius-songs skill, tell the assistant to ask
+the person for these, and never to answer how the song was made for them. Over the [HTTP API](http-api.md),
+`set_release` sets the details and an artwork file, `POST /api/release/artwork` takes the artwork as the file itself,
+`write_kit` writes the kit, and `State.release` holds the checks.
+
 ## The release kit
 
 The kit goes into `release/` in the song's folder, or the folder `--out` names. Writing it again replaces it, and

@@ -18,8 +18,10 @@ use crate::views;
 
 mod commands;
 mod jobs;
+mod release;
 
 pub use commands::analysis_text;
+pub use release::{MAX_ARTWORK, report_lines};
 
 pub struct Settings {
     /// read the Apple Loops / user library for recorded sounds
@@ -64,6 +66,10 @@ struct Session {
     rerender: Option<bool>,
     /// saves asked for while a job ran: one render into all these folders when the job is done
     pending_saves: Vec<PathBuf>,
+    /// the folder the song was opened from or last saved to
+    folder: Option<PathBuf>,
+    /// the release in the making for the song
+    release: Option<release::Prepared>,
 }
 
 impl Session {
@@ -266,7 +272,8 @@ impl App {
     }
 
     pub fn state(&self) -> State {
-        let s = self.lock();
+        let mut s = self.lock();
+        let release = self.release_view(&mut s);
         State {
             version: s.version,
             song: s.view.clone(),
@@ -283,6 +290,7 @@ impl App {
             log: s.log.iter().cloned().collect(),
             genres: self.genres.clone(),
             exports: self.exports.clone(),
+            release,
         }
     }
 

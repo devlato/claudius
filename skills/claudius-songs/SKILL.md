@@ -140,10 +140,10 @@ writes the song in other formats, named after it: `wav:16` for a CD or a distrib
 Paths always mean the computer running claudius, and a claudius shared over a network only reads and writes its own
 folders.
 
-To release a song on Spotify, Apple Music and the other stores, which take music only from distributors,
-`claudius publish SONG` checks a saved song as they do and writes a release kit: the WAV and the cover a distributor
-takes, and `release.txt` with the answers its form asks for, the credits CC BY packs need among them. Before you run
-it:
+To release a song on Spotify, Apple Music and the other stores, which take music only from distributors, `publish`
+(or `claudius publish SONG`) checks the song as they do, and with `write`, writes a release kit: the WAV and the cover
+a distributor takes, and `release.txt` with the answers its form asks for, the credits CC BY packs need among them.
+The person can do the same in the studio's Publish dialog. Before you call it:
 
 - Ask the person for the artist name, the songwriters' full legal names and the artwork (a square JPEG or PNG,
   3000 × 3000). Never make any of them up.

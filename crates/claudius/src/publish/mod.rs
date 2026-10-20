@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
-pub use artwork::{Artwork, Colour};
+pub use artwork::{Artwork, Colour, inspect};
 
 use crate::audio::Stereo;
 use crate::export::{self, Spec};
@@ -173,6 +173,28 @@ pub fn load(dir: &Path, bp: &Blueprint) -> Release {
 pub fn save(dir: &Path, r: &Release) -> Result<()> {
     let file = dir.join(FILE);
     std::fs::write(&file, serde_json::to_string_pretty(r)?).with_context(|| format!("cannot write {}", file.display()))
+}
+
+/// The artwork's file: a path in release.json is the song's folder's when it is relative.
+pub fn artwork_file(dir: &Path, r: &Release) -> Option<PathBuf> {
+    r.artwork.as_ref().map(|a| if a.is_absolute() { a.clone() } else { dir.join(a) })
+}
+
+/// Keep artwork that came as bytes (from the studio) in the song's folder, as `artwork.jpg` or `artwork.png`;
+/// returns its name there, for `Release::artwork`.
+pub fn save_artwork(dir: &Path, bytes: &[u8]) -> Result<PathBuf> {
+    let name = if bytes.starts_with(b"\x89PNG") { "artwork.png" } else { "artwork.jpg" };
+    let file = dir.join(name);
+    std::fs::write(&file, bytes).with_context(|| format!("cannot write {}", file.display()))?;
+    Ok(PathBuf::from(name))
+}
+
+/// The artwork at most `side` pixels on a side, as PNG, for showing it; None when it is not a picture that reads.
+pub fn preview(bytes: &[u8], side: u32) -> Option<Vec<u8>> {
+    let img = image::load_from_memory(bytes).ok()?.thumbnail(side, side).into_rgba8();
+    let mut out = Vec::new();
+    img.write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png).ok()?;
+    Some(out)
 }
 
 /// The genre and subgenre stores list a claudius genre under.

@@ -256,6 +256,63 @@ pub struct ExportArgs {
     pub path: Option<String>,
 }
 
+/// What stores ask about a release. Give only what the person told you; what is left out stays as it was.
+#[derive(Debug, Default, Deserialize, schemars::JsonSchema)]
+pub struct PublishArgs {
+    /// the name the song comes out under
+    #[serde(default)]
+    pub artist: Option<String>,
+    /// the title, when it is not the song's
+    #[serde(default)]
+    pub title: Option<String>,
+    /// a version of the song, such as "Extended Mix" or "Radio Edit"
+    #[serde(default)]
+    pub version: Option<String>,
+    #[serde(default)]
+    pub featuring: Option<Vec<String>>,
+    /// the album or EP the song is on; without one it is a single
+    #[serde(default)]
+    pub album: Option<String>,
+    /// the store genre ("Dance", "Electronic", "Hip-Hop/Rap") and subgenre
+    #[serde(default)]
+    pub genre: Option<String>,
+    #[serde(default)]
+    pub subgenre: Option<String>,
+    /// the release date, YYYY-MM-DD
+    #[serde(default)]
+    pub date: Option<String>,
+    /// the record label (the artist when there is none)
+    #[serde(default)]
+    pub label: Option<String>,
+    /// the songwriters' full legal names
+    #[serde(default)]
+    pub writers: Option<Vec<String>>,
+    #[serde(default)]
+    pub producers: Option<Vec<String>>,
+    /// who owns the recording and the composition, for the ℗ and © lines (the artist when empty)
+    #[serde(default)]
+    pub owner: Option<String>,
+    #[serde(default)]
+    pub isrc: Option<String>,
+    #[serde(default)]
+    pub upc: Option<String>,
+    #[serde(default)]
+    pub explicit: Option<bool>,
+    /// how the song was made, in the person's own answer: written (they wrote it), assisted (you or claudius'
+    /// generator wrote some of it and they shaped it) or generated (you or the generator wrote it). Never choose it
+    #[serde(default)]
+    pub made: Option<String>,
+    /// the artwork file the person gave: a square JPEG or PNG, 3000 × 3000
+    #[serde(default)]
+    pub artwork: Option<String>,
+    /// write the release kit (without it, only check)
+    #[serde(default)]
+    pub write: bool,
+    /// the kit's folder (default: release/ in the song's folder)
+    #[serde(default)]
+    pub path: Option<String>,
+}
+
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct RemakeArgs {
     /// the audio file to learn from
@@ -494,6 +551,69 @@ impl Studio {
         }
         let r = self.b.command(Command::Export { formats: a.formats, path: a.path }).await?;
         if r.ok { Ok(r.message) } else { Err(r.message) }
+    }
+
+    #[tool(
+        description = "Check the song for release as stores and distributors do (its artwork, its audio, the licences of its sounds, its details), and with write, write a release kit: the WAVs and the cover a distributor takes, and release.txt with the answers its form asks for. Give only what the person told you: the artist, the songwriters' full legal names, the artwork file, and how the song was made, which you must never choose for them. Renders first when the song changed. Problems (--) stop the kit."
+    )]
+    async fn publish(&self, Parameters(a): Parameters<PublishArgs>) -> Result<String, String> {
+        let st = self.b.state().await?;
+        let mut d = st.release.map(|r| r.details).ok_or("no song to release: make one first")?;
+        let set = |field: &mut String, v: Option<String>| {
+            if let Some(v) = v {
+                *field = v;
+            }
+        };
+        set(&mut d.artist, a.artist);
+        set(&mut d.title, a.title);
+        set(&mut d.version, a.version);
+        set(&mut d.album, a.album);
+        set(&mut d.genre, a.genre);
+        set(&mut d.subgenre, a.subgenre);
+        set(&mut d.date, a.date);
+        set(&mut d.label, a.label);
+        set(&mut d.owner, a.owner);
+        set(&mut d.isrc, a.isrc);
+        set(&mut d.upc, a.upc);
+        for (list, given) in
+            [(&mut d.featuring, a.featuring), (&mut d.writers, a.writers), (&mut d.producers, a.producers)]
+        {
+            if let Some(g) = given {
+                *list = g;
+            }
+        }
+        if let Some(e) = a.explicit {
+            d.explicit = e;
+        }
+        if a.made.is_some() {
+            d.made = a.made;
+        }
+        let r = self.b.command(Command::SetRelease { details: Box::new(d), artwork: a.artwork }).await?;
+        if !r.ok {
+            return Err(r.message);
+        }
+        let st = match st.render.as_ref().is_some_and(|r| r.version >= st.song_version) {
+            true => self.b.state().await?,
+            false => self.heard(false).await?,
+        };
+        let release = st.release.ok_or("no song to release")?;
+        let problems = release.checks.iter().filter(|c| c.level == "problem").count();
+        let mut text = match (release.checked, problems) {
+            (0, _) => "not checked yet: the song has no render".to_string(),
+            (_, 0) => "ready for a distributor".to_string(),
+            (_, n) => format!("{n} problem(s), marked --, to fix before a distributor takes it"),
+        };
+        if !release.checks.is_empty() {
+            text = format!("{text}\n{}", crate::app::report_lines(&release.checks));
+        }
+        if a.write {
+            let r = self.b.command(Command::WriteKit { path: a.path }).await?;
+            text = format!("{text}\n\n{}", r.message);
+            if !r.ok {
+                return Err(text);
+            }
+        }
+        Ok(text)
     }
 
     #[tool(description = "Open a saved song: a folder or blueprint.json written by save, or a .rhai script.")]

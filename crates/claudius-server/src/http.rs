@@ -61,6 +61,11 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
         .route("/api/audio/{file}", get(audio))
         .route("/api/stems/{version}/{file}", get(stem))
         .route("/api/export/{version}/{file}", get(export_file))
+        .route(
+            "/api/release/artwork",
+            get(artwork).post(set_artwork).layer(DefaultBodyLimit::max(crate::app::MAX_ARTWORK)),
+        )
+        .route("/api/release/preview.png", get(artwork_preview))
         .with_state(ctx);
     let mut r = api.nest_service("/mcp", crate::mcp::http_service(app, o.public));
     r = match &o.web {
@@ -328,6 +333,48 @@ async fn export_file(
         Ok(Err(e)) if e.starts_with("no render") => (StatusCode::NOT_FOUND, e).into_response(),
         Ok(Err(e)) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+/// the release's artwork, as the file itself: a picture's type, so that a cross-site form cannot send one
+async fn set_artwork(State(c): State<Ctx>, headers: HeaderMap, body: Bytes) -> Response {
+    let picture = headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.starts_with("image/") || v.starts_with("application/octet-stream"));
+    if !picture {
+        return (
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            "send the artwork as the file itself, with Content-Type image/jpeg, image/png or application/octet-stream",
+        )
+            .into_response();
+    }
+    let app = c.app.clone();
+    let reply = tokio::task::spawn_blocking(move || app.set_artwork_bytes(body.to_vec()))
+        .await
+        .unwrap_or_else(|e| claudius_api::Reply { ok: false, message: format!("internal error: {e}"), version: 0 });
+    Json(reply).into_response()
+}
+
+async fn artwork(State(c): State<Ctx>) -> Response {
+    let Some(bytes) = c.app.artwork() else {
+        return (StatusCode::NOT_FOUND, "the release has no artwork yet").into_response();
+    };
+    let mime = if bytes.starts_with(b"\x89PNG") {
+        "image/png"
+    } else if bytes.starts_with(&[0xFF, 0xD8]) {
+        "image/jpeg"
+    } else {
+        "application/octet-stream"
+    };
+    ([(header::CONTENT_TYPE, mime)], bytes.as_ref().clone()).into_response()
+}
+
+async fn artwork_preview(State(c): State<Ctx>) -> Response {
+    let app = c.app.clone();
+    match tokio::task::spawn_blocking(move || app.artwork_preview()).await.ok().flatten() {
+        Some(png) => ([(header::CONTENT_TYPE, "image/png")], png.as_ref().clone()).into_response(),
+        None => (StatusCode::NOT_FOUND, "no artwork that reads as a picture").into_response(),
     }
 }
 
