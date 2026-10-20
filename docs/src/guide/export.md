@@ -20,6 +20,18 @@ wrote out/deep_house-liquid-avenue-21/liquid-avenue.opus (Opus, 160 kbps, 4.3 MB
 The files are named after the song's title; when two share an extension, the later ones also carry their format
 (`liquid-avenue-mp3-192.mp3`). `--out` names the file for one format, or the folder for several.
 
+In the studio, the **export** menu in the toolbar downloads the latest render in any of the formats below, as a file
+named after the song; formats this machine cannot write are greyed out, and say why. An assistant has the `export`
+tool, which writes into the song's folder (or a `path`), rendering first when the song changed since its last render:
+
+```json
+{"formats": ["mp3", "wav:16", "opus"]}
+```
+
+Over the [HTTP API](http-api.md), `GET /api/export/{version}/{name}.{ext}?format=flac:16` answers with that render
+as a download named `{name}.{ext}`, encoded when it is asked for (the latest one is kept for a second request).
+`Command::Export` (`{"cmd": "export", "formats": ["mp3"], "path": "..."}`) writes the files as the tool does.
+
 ## Formats
 
 | format | what it writes | for |

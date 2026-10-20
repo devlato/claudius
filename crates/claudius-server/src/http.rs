@@ -60,6 +60,7 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
         .route("/api/sounds", get(sounds))
         .route("/api/audio/{file}", get(audio))
         .route("/api/stems/{version}/{file}", get(stem))
+        .route("/api/export/{version}/{file}", get(export_file))
         .with_state(ctx);
     let mut r = api.nest_service("/mcp", crate::mcp::http_service(app, o.public));
     r = match &o.web {
@@ -286,6 +287,47 @@ async fn stem(State(c): State<Ctx>, Path((version, file)): Path<(u64, String)>, 
         Some(p) => serve_file(p, req).await,
         None => (StatusCode::NOT_FOUND, format!("no stem '{track}' in render {version} (render with stems)"))
             .into_response(),
+    }
+}
+
+#[derive(Deserialize)]
+struct ExportQuery {
+    format: Option<String>,
+}
+
+/// a render in another format, as a download named after the URL's file: `/api/export/12/glass-garden.mp3?format=mp3:192`
+async fn export_file(
+    State(c): State<Ctx>,
+    Path((version, file)): Path<(String, String)>,
+    Query(q): Query<ExportQuery>,
+) -> Response {
+    let (Ok(version), Some((name, ext))) = (version.parse::<u64>(), file.rsplit_once('.')) else {
+        return (StatusCode::NOT_FOUND, "export is /api/export/{version}/{name}.{ext}?format=SPEC").into_response();
+    };
+    let spec: claudius::export::Spec = match q.format.as_deref().unwrap_or(ext).parse() {
+        Ok(s) => s,
+        Err(e) => return (StatusCode::BAD_REQUEST, e.to_string()).into_response(),
+    };
+    if !spec.extension().eq_ignore_ascii_case(ext) {
+        return (StatusCode::BAD_REQUEST, format!("{spec} makes .{} files, not .{ext}", spec.extension()))
+            .into_response();
+    }
+    let download: String =
+        name.chars().map(|ch| if ch.is_ascii_alphanumeric() || "-_. ".contains(ch) { ch } else { '-' }).collect();
+    let app = c.app.clone();
+    match tokio::task::spawn_blocking(move || app.export_bytes(version, &spec)).await {
+        Ok(Ok(bytes)) => {
+            let mut r = Body::from(bytes.as_ref().clone()).into_response();
+            let h = r.headers_mut();
+            h.insert(header::CONTENT_TYPE, HeaderValue::from_static(spec.mime()));
+            if let Ok(v) = HeaderValue::from_str(&format!("attachment; filename=\"{download}.{}\"", spec.extension())) {
+                h.insert(header::CONTENT_DISPOSITION, v);
+            }
+            r
+        }
+        Ok(Err(e)) if e.starts_with("no render") => (StatusCode::NOT_FOUND, e).into_response(),
+        Ok(Err(e)) => (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }
 

@@ -16,6 +16,7 @@ to. On the command line, each command reads and writes song folders instead.
 | `undo`, `redo`, `stop` | | |
 | `catalog` | | `claudius genres`; `claudius-packs instruments` (installed next to `claudius`) |
 | `save` | `path` (default `~/Music/claudius/<genre>-<title>-<seed>`) | every command writes a song folder |
+| `export` | `formats` (`["mp3", "flac:16", "opus"]`), `path` | `claudius export SONG -f mp3,flac:16,opus` |
 | `open` | `path`: a song folder, a `blueprint.json` or a `.rhai` script | `--on SONG` |
 | `analyze` | `path` of any audio file | `claudius analyze song.mp3` |
 | `remake` | `path`, `genre`, `seed`, `bpm` | `claudius remake song.mp3 --genre lofi [--bpm 82]` |

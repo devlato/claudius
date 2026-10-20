@@ -52,7 +52,9 @@ song, so a seed is a way to come back to one you liked. **Open** loads a song fo
 - **Log.** What happened, and the song's history.
 
 **Mutate** tries a few variations and keeps the best one if it beats the current song; **Evolve** runs several
-generations of that. Both run in the background and can be stopped. **Save** writes the song folder.
+generations of that. Both run in the background and can be stopped. **Save** writes the song folder, and the
+**export** menu downloads the song as WAV, AIFF, FLAC, Apple Lossless, MP3, AAC, Opus or Ogg Vorbis
+([Exporting](../guide/export.md)).
 
 ## Help and assistants
 

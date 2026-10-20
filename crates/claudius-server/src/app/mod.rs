@@ -81,6 +81,9 @@ impl Session {
     }
 }
 
+/// an encoded export: the render's version, the format, the file
+type Export = (u64, export::Spec, Arc<Vec<u8>>);
+
 pub struct App {
     s: Mutex<Session>,
     /// edits run one at a time (scripts may take a moment: sounds get cut from the library)
@@ -94,6 +97,8 @@ pub struct App {
     /// the lock on `cache` that tells other sessions this one is running; the OS lets go of it when the process ends
     _in_use: Option<std::fs::File>,
     genres: Vec<GenreInfo>,
+    exports: Vec<ExportFormat>,
+    last_export: Mutex<Option<Export>>,
     base: Mutex<String>,
     roots: Option<Vec<PathBuf>>,
 }
@@ -131,6 +136,8 @@ impl App {
             cache,
             _in_use: in_use,
             genres: views::genre_infos(),
+            exports: export_formats(),
+            last_export: Mutex::new(None),
             base: Mutex::new(format!("http://127.0.0.1:{DEFAULT_PORT}")),
             roots: settings.file_roots,
         });
@@ -275,6 +282,7 @@ impl App {
             redo_label: s.redo.last().map(|r| r.1.clone()),
             log: s.log.iter().cloned().collect(),
             genres: self.genres.clone(),
+            exports: self.exports.clone(),
         }
     }
 
@@ -331,6 +339,29 @@ impl App {
         }
     }
 
+    /// The render of song version `version` as `spec` (`/api/export`), encoded on request. Only the latest export is
+    /// kept, in memory, so a second click on the same download does not encode it again.
+    pub fn export_bytes(&self, version: u64, spec: &export::Spec) -> Result<Arc<Vec<u8>>, String> {
+        let mut last = self.last_export.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((v, s, bytes)) = last.as_ref()
+            && *v == version
+            && s == spec
+        {
+            return Ok(bytes.clone());
+        }
+        let wav = self.cache.join(format!("{version}.wav"));
+        if !wav.exists() {
+            return Err(format!("no render of version {version}"));
+        }
+        let title = self.blueprint().map(|b| b.title).unwrap_or_default();
+        let bytes = audio::load_once(&wav)
+            .and_then(|m| export::encode(&m, spec, &export::tags(&title)))
+            .map(Arc::new)
+            .map_err(|e| format!("{e:#}"))?;
+        *last = Some((version, *spec, bytes.clone()));
+        Ok(bytes)
+    }
+
     pub fn stem_path(&self, version: u64, track: &str) -> Option<PathBuf> {
         let s = self.lock();
         let r = s.render.as_ref().filter(|r| r.view.version == version)?;
@@ -384,6 +415,20 @@ fn clean_old_sessions(root: &Path, mine: &Path, grace: Duration, unlocked: Durat
             let _ = std::fs::remove_dir_all(&dir);
         }
     }
+}
+
+/// what `State.exports` lists: every preset, with why this machine cannot write it when it cannot
+fn export_formats() -> Vec<ExportFormat> {
+    export::presets()
+        .iter()
+        .map(|p| ExportFormat {
+            spec: p.to_string(),
+            label: p.label(config::SR),
+            extension: p.extension().to_string(),
+            lossless: p.lossless(),
+            unavailable: p.unavailable(),
+        })
+        .collect()
 }
 
 #[cfg(test)]

@@ -134,7 +134,9 @@ Afterwards, tell the person what changed (the log says) and offer to undo it.
 
 `save` (or `claudius script ... --out DIR`) writes `song.wav`, `song.mp3`, `song.rhai`,
 `blueprint.json`, `verdict.json`, and `credits.txt` when the song uses sample packs that ask for credit; `save` also
-writes `stems/`, one file per track, as does `claudius render --stems`.
+writes `stems/`, one file per track, as does `claudius render --stems`. `export` (or `claudius export SONG -f ...`)
+writes the song in other formats, named after it: `wav:16` for a CD or a distributor, `flac` to archive, `mp3` to share,
+`aac` for Apple Music, `opus` for the web.
 Tell the person about `credits.txt` before they publish: CC BY packs must be credited. Paths always mean the
 computer running claudius, and a claudius shared over a network only reads and writes its own folders.
 

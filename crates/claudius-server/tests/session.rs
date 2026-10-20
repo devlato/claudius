@@ -249,7 +249,18 @@ async fn assistants_work_over_mcp() {
         .iter()
         .map(|t| t["name"].as_str().unwrap().to_string())
         .collect();
-    for t in ["new_song", "get_song", "run_script", "listen", "mutate", "evolve", "undo", "script_reference"] {
+    for t in [
+        "new_song",
+        "get_song",
+        "run_script",
+        "listen",
+        "mutate",
+        "evolve",
+        "undo",
+        "script_reference",
+        "save",
+        "export",
+    ] {
         assert!(tools.iter().any(|x| x == t), "{t} missing from {tools:?}");
     }
 
@@ -303,6 +314,47 @@ async fn saves_during_a_render_wait_for_it_and_write_everything() {
         assert!(std::fs::read_dir(dir.join("stems")).is_ok_and(|d| d.count() > 3));
     }
     std::fs::remove_dir_all(&base).unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_render_exports_by_command_and_as_a_download() {
+    let app = app();
+    let new = Command::NewSong { genre: "techno".into(), seed: Some(5), bpm: None, key: None, loops: false };
+    assert!(app.command(new).ok);
+    let st = app.settled(Duration::from_secs(240)).await;
+    let v = st.render.as_ref().expect("a render").version;
+    assert!(st.exports.iter().any(|f| f.spec == "flac:16" && f.label == "FLAC, 16-bit, 44.1 kHz" && f.lossless));
+
+    // by command, into a folder
+    let dir = std::env::temp_dir().join(format!("claudius-export-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let r = app.command(Command::Export {
+        formats: vec!["mp3:192".into(), "opus".into()],
+        path: Some(dir.display().to_string()),
+    });
+    assert!(r.ok, "{}", r.message);
+    let mut files: Vec<String> =
+        std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+    files.sort();
+    assert!(files.len() == 2 && files[0].ends_with(".mp3") && files[1].ends_with(".opus"), "{files:?}");
+    let r = app.command(Command::Export { formats: vec!["mp3:300".into()], path: Some(dir.display().to_string()) });
+    assert!(!r.ok && r.message.contains("MP3 takes"), "{}", r.message);
+
+    // as a download, named after the address
+    let router = http::router(app.clone(), &Options::default());
+    let get = |path: String| Request::get(path).header(header::HOST, "localhost").body(Body::empty()).unwrap();
+    let res = router.clone().oneshot(get(format!("/api/export/{v}/night-bus.flac?format=flac:16"))).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    assert_eq!(res.headers()[header::CONTENT_TYPE], "audio/flac");
+    assert_eq!(res.headers()[header::CONTENT_DISPOSITION], "attachment; filename=\"night-bus.flac\"");
+    let body = axum::body::to_bytes(res.into_body(), 1 << 28).await.unwrap();
+    let d = claudius_decode::decode_bytes(body.to_vec(), "flac").unwrap();
+    assert_eq!((d.rate, d.channels), (44_100, 2));
+    let (s, _, b) = call(&router, get(format!("/api/export/{v}/x.mp3?format=flac"))).await;
+    assert!(s == StatusCode::BAD_REQUEST && b.contains("makes .flac files, not .mp3"), "{s} {b}");
+    let (s, _, _) = call(&router, get(format!("/api/export/{}/x.mp3", v + 1000))).await;
+    assert_eq!(s, StatusCode::NOT_FOUND);
+    std::fs::remove_dir_all(&dir).ok();
 }
 
 #[test]

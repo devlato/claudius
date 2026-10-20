@@ -11,6 +11,7 @@
 //! | `GET  /api/sounds` | `SoundList`: every sound name a script or the UI may use |
 //! | `GET  /api/audio/{version}.wav` / `.mp3` | the render of that state version (`RenderView.url` points here) |
 //! | `GET  /api/stems/{version}/{track}.wav` | one track of that render, when it was rendered with stems |
+//! | `GET  /api/export/{version}/{name}.{ext}?format=SPEC` | that render in another format (`ExportFormat.spec`), as a download named `{name}.{ext}` |
 //! | `POST /mcp` | the MCP endpoint (Streamable HTTP) |
 //! | `GET  /` | the web UI |
 
@@ -79,6 +80,22 @@ pub struct State {
     /// recent messages, oldest first (at most ~200)
     pub log: Vec<String>,
     pub genres: Vec<GenreInfo>,
+    /// the formats a render can be exported to (`/api/export`, `Command::Export`)
+    #[serde(default)]
+    pub exports: Vec<ExportFormat>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct ExportFormat {
+    /// what to ask for: `mp3`, `flac:16`, `opus:96`
+    pub spec: String,
+    /// what to call it: `MP3, 320 kbps`
+    pub label: String,
+    pub extension: String,
+    pub lossless: bool,
+    /// why this machine cannot write it (AAC and Apple Lossless need Core Audio or ffmpeg); None when it can
+    #[serde(default)]
+    pub unavailable: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -273,6 +290,13 @@ pub enum Command {
     },
     /// write blueprint.json + song.wav/mp3 + script into a folder (default: a fresh folder under out/)
     Save {
+        #[serde(default)]
+        path: Option<String>,
+    },
+    /// write the latest render of the song as it is now in other formats (`ExportFormat.spec`), into `path` (default:
+    /// the song's folder, as `Save` makes it)
+    Export {
+        formats: Vec<String>,
         #[serde(default)]
         path: Option<String>,
     },

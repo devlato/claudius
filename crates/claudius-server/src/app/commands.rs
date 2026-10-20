@@ -11,7 +11,7 @@ use claudius::pattern::quote;
 use claudius::rng::Rng;
 use claudius::theory::rhythm::Hit;
 use claudius::theory::scale::Key;
-use claudius::{analysis, audio, config, genres, script, song};
+use claudius::{analysis, audio, config, export, genres, script, song};
 use claudius_api::*;
 
 use super::{App, no, now_seed, ok};
@@ -141,6 +141,7 @@ impl App {
             }
             Command::Load { path } => self.load(Path::new(&path)),
             Command::Save { path } => self.save(path.map(PathBuf::from)),
+            Command::Export { formats, path } => self.export(&formats, path.map(PathBuf::from)),
             Command::SetTempo { bpm } => self.run_script(&format!("tempo({bpm})"), Some(format!("tempo {bpm:.0}"))),
             Command::SetKey { key } => self.run_script(&format!("key({})", quote(&key)), Some(format!("key {key}"))),
             Command::SetSwing { swing } => {
@@ -473,6 +474,64 @@ impl App {
         } else {
             self.run_script(&text, Some(format!("loaded {}", path.display())))
         }
+    }
+
+    /// the latest render, when it is of the song as it is now, as files in `formats`, in `path` or the song's folder
+    fn export(self: &Arc<Self>, formats: &[String], path: Option<PathBuf>) -> Reply {
+        let v = self.version();
+        if formats.is_empty() {
+            return no("export as what? give formats such as mp3, flac:16 or opus (State.exports lists them)", v);
+        }
+        let specs: Vec<export::Spec> = match formats.iter().map(|f| f.parse()).collect() {
+            Ok(s) => s,
+            Err(e) => return no(format!("{e}"), v),
+        };
+        if let Some(why) = specs.iter().find_map(export::Spec::unavailable) {
+            return no(why, v);
+        }
+        let Some(bp) = self.blueprint() else { return no("no song to export", v) };
+        let rendered = {
+            let s = self.lock();
+            s.render.as_ref().map(|r| r.view.version).filter(|rv| *rv >= s.song_version)
+        };
+        let Some(version) = rendered else {
+            return no("the song has changed since its last render: render it, then export", v);
+        };
+        let dir = path
+            .unwrap_or_else(|| config::songs_dir().join(format!("{}-{}-{}", bp.genre, song::slug(&bp.title), bp.seed)));
+        if !config::write_allowed(&dir, self.roots.as_deref()) {
+            return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
+        }
+        let master = match audio::load_once(&self.cache.join(format!("{version}.wav"))) {
+            Ok(m) => m,
+            Err(e) => return no(format!("cannot read the render: {e:#}"), v),
+        };
+        let stem = match song::slug(&bp.title) {
+            s if s.is_empty() => "song".to_string(),
+            s => s,
+        };
+        let files = export::file_names(&dir, &stem, &specs);
+        let tags = export::tags(&bp.title);
+        let written: Vec<anyhow::Result<()>> = std::thread::scope(|scope| {
+            let jobs: Vec<_> = specs
+                .iter()
+                .zip(&files)
+                .map(|(spec, file)| {
+                    let (master, tags) = (&master, &tags);
+                    scope.spawn(move || export::write(master, spec, tags, file))
+                })
+                .collect();
+            jobs.into_iter().map(|j| j.join().unwrap_or_else(|_| Err(anyhow::anyhow!("the encoder stopped")))).collect()
+        });
+        for (file, w) in files.iter().zip(&written) {
+            if let Err(e) = w {
+                return no(format!("cannot export {}: {e:#}", file.display()), v);
+            }
+        }
+        let list: Vec<String> =
+            files.iter().zip(&specs).map(|(f, s)| format!("{} ({})", f.display(), s.label(config::SR))).collect();
+        self.update(|s| s.say(format!("exported {}", list.join(", "))));
+        ok(format!("exported {}", list.join(", ")), self.version())
     }
 
     fn save(self: &Arc<Self>, path: Option<PathBuf>) -> Reply {

@@ -20,6 +20,7 @@ this API, so anything it does you can do with `curl`. The types are plain serde 
 | `GET /api/audio/{version}.wav` | the master of that render, 48 kHz 24-bit |
 | `GET /api/audio/{version}.mp3` | the same as MP3, encoded on the first request |
 | `GET /api/stems/{version}/{track}.wav` | one track of a render made with stems |
+| `GET /api/export/{version}/{name}.{ext}?format=SPEC` | that render in another [format](export.md#formats), as a download named `{name}.{ext}` |
 | `/mcp` | the [MCP endpoint](mcp.md#mcp-over-http) |
 | `GET /` and anything else | the web studio; when it is not built, a page that says how to build it |
 
@@ -176,6 +177,7 @@ fields marked optional may be left out.
 | `new_song` | `genre`; optional `seed`, `bpm`, `key`, `loops` (false) | composes a new song |
 | `load` | `path` | opens a song folder, a `blueprint.json`, or a script file (run on the open song) |
 | `save` | optional `path` | writes `blueprint.json` and `song.rhai` now, then the whole folder from a render (see [Jobs](#jobs)); default folder `~/Music/claudius/<genre>-<title>-<seed>` |
+| `export` | `formats` (such as `["mp3", "flac:16"]`), optional `path` | writes the latest render in those [formats](export.md#formats), when it is of the song as it is now (otherwise: `the song has changed since its last render: render it, then export`); default folder as for `save` |
 | `set_tempo` | `bpm` | as `tempo()` |
 | `set_key` | `key` | as `key()`: the progressions follow a change of mode |
 | `set_swing` | `swing` | as `swing()` |
