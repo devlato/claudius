@@ -60,16 +60,17 @@ mod tests {
     #[test]
     fn names_stay_apart() {
         let specs: Vec<Spec> = ["mp3", "flac", "mp3:192", "wav:16", "wav"].iter().map(|s| s.parse().unwrap()).collect();
-        let names: Vec<String> =
-            file_names(Path::new("x"), "glass-garden", &specs).iter().map(|p| p.display().to_string()).collect();
+        let files = file_names(Path::new("x"), "glass-garden", &specs);
+        assert!(files.iter().all(|f| f.parent() == Some(Path::new("x"))));
+        let names: Vec<String> = files.iter().map(|f| f.file_name().unwrap().to_string_lossy().into_owned()).collect();
         assert_eq!(
             names,
             [
-                "x/glass-garden.mp3",
-                "x/glass-garden.flac",
-                "x/glass-garden-mp3-192.mp3",
-                "x/glass-garden.wav",
-                "x/glass-garden-wav.wav"
+                "glass-garden.mp3",
+                "glass-garden.flac",
+                "glass-garden-mp3-192.mp3",
+                "glass-garden.wav",
+                "glass-garden-wav.wav"
             ]
         );
     }
