@@ -27,7 +27,7 @@ build, which serves the studio to a browser instead of opening a window.
 Then:
 
 ```sh
-claudius setup      # the default sample packs (a 2.2 GB download) and the listening models (0.8 GB); asks first
+claudius setup      # the default sample packs (a 3.1 GB download) and the listening models (0.8 GB); asks first
 claudius doctor     # what is installed and what is missing, with the fix for each
 ```
 

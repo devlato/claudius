@@ -21,7 +21,7 @@ The tour never blocks the studio. **Skip the tour** or Esc ends it for good, and
 
 The first time it starts, claudius downloads its listening models (about 0.8 GB) in the background; the verdict
 judges with meters and music theory until they are ready, and the log says when they are. If the default sample
-packs are not installed, the studio says so and offers **Download the packs** (a 2.2 GB download): until then, the
+packs are not installed, the studio says so and offers **Download the packs** (a 3.1 GB download): until then, the
 sampled instruments are synthesized. The **Sounds** tab lists every pack, with a button for each one that is not
 installed.
 

@@ -107,10 +107,43 @@ fn butter_qs(order: usize) -> Vec<f64> {
     (0..n / 2).map(|k| 1.0 / (2.0 * ((2 * k + 1) as f64 * PI / (2 * n) as f64).sin())).collect()
 }
 
+/// a Butterworth lowpass or highpass of order 2 × `N`: biquads one after another, a sample at a time
+#[derive(Clone, Copy, Debug)]
+pub struct Butter<const N: usize>([Biquad; N]);
+
+impl<const N: usize> Butter<N> {
+    pub fn new(highpass: bool, f: f64, sr: f64) -> Self {
+        let kind = if highpass { BiquadKind::Highpass } else { BiquadKind::Lowpass };
+        let qs = butter_qs(2 * N);
+        Butter(std::array::from_fn(|k| Biquad::new(kind, f, sr, qs[k], 0.0)))
+    }
+
+    /// through every section in turn, each rounding to f32 as it would over a whole buffer: the same samples as one
+    /// pass per section, without reading and writing the buffer once per section
+    #[inline]
+    pub fn tick(&mut self, x: f32) -> f32 {
+        self.0.iter_mut().fold(x, |v, section| section.tick(v))
+    }
+
+    fn run(mut self, x: &mut [f32]) {
+        for v in x.iter_mut() {
+            *v = self.tick(*v);
+        }
+    }
+}
+
 pub fn butter(x: &mut [f32], highpass: bool, f: f64, sr: f64, order: usize) {
-    let kind = if highpass { BiquadKind::Highpass } else { BiquadKind::Lowpass };
-    for q in butter_qs(order) {
-        Biquad::new(kind, f, sr, q, 0.0).process(x);
+    match order.max(2) / 2 {
+        1 => Butter::<1>::new(highpass, f, sr).run(x),
+        2 => Butter::<2>::new(highpass, f, sr).run(x),
+        3 => Butter::<3>::new(highpass, f, sr).run(x),
+        4 => Butter::<4>::new(highpass, f, sr).run(x),
+        _ => {
+            let kind = if highpass { BiquadKind::Highpass } else { BiquadKind::Lowpass };
+            for q in butter_qs(order) {
+                Biquad::new(kind, f, sr, q, 0.0).process(x);
+            }
+        }
     }
 }
 
@@ -195,18 +228,27 @@ impl Ladder {
 
 /// filter a buffer with a constant or per-sample cutoff
 pub fn run_filter(x: &mut [f32], cutoff: &dyn Fn(usize) -> f64, sr: f64, res: f64, mode: FilterMode, drive: f64) {
+    // the tangent only when the cutoff moves: most cutoffs hold still, or change once a block
+    let (mut last, mut g) = (f64::NAN, 0.0);
+    let mut g_at = |i: usize| {
+        let c = cutoff(i);
+        if c != last {
+            (last, g) = (c, cutoff_g(c, sr));
+        }
+        g
+    };
     match mode {
         FilterMode::Ladder => {
             let mut f = Ladder::default();
             for (i, v) in x.iter_mut().enumerate() {
-                *v = f.tick(*v, cutoff_g(cutoff(i), sr), res, drive);
+                *v = f.tick(*v, g_at(i), res, drive);
             }
         }
         _ => {
             let mut f = Svf::default();
             let k = Svf::k(res);
             for (i, v) in x.iter_mut().enumerate() {
-                *v = f.tick(*v, cutoff_g(cutoff(i), sr), k, mode);
+                *v = f.tick(*v, g_at(i), k, mode);
             }
         }
     }

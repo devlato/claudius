@@ -11,6 +11,13 @@ restart into it, and `claudius update` does the same in a terminal
 ([Updates](https://github.com/devlato/claudius/blob/main/docs/src/guide/updates.md)). The releases before this one
 can't, so install this one the way you installed the last.
 
+Sample packs installed by 0.2 can hold damaged FLAC files: two notes of VCSL's harmonica take hundreds of MB and
+play as noise. `claudius-packs install --defaults` converts such files again and downloads nothing else.
+
+Eight more default packs, and 21 more instruments in VCSL and FreePats: Sonic Pi's samples, a solo cello, an erhu, a
+steel pan, synth drums, body percussion, glitch kits and sound effects, among them a hang, wine glasses and a TX81Z.
+`claudius setup` downloads them, about 0.9 GB more ([Sample packs](https://github.com/devlato/claudius/blob/main/docs/src/guide/packs.md)).
+
 ## [0.2.0] - 2026-10-19
 
 ### Added

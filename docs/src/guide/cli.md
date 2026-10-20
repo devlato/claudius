@@ -431,7 +431,7 @@ terminal it asks before each download; elsewhere (and with `--yes`) it does not 
 | `--no-models` | skips the models |
 | `--tags` | also downloads the AudioSet tagger, 347 MB more, used by `--tags` |
 
-The prompt shows what is missing and how much it downloads: about 2.2 GB for the default packs, which take 1.2 GB on
+The prompt shows what is missing and how much it downloads: about 3.1 GB for the default packs, which take 1.5 GB on
 disk because several arrive as WAV and are converted to FLAC, and 785 MB for the models (the prompt says about
 0.8 GB, or 1.1 GB with `--tags`). An interrupted pack download resumes where it stopped; a model file that was cut off
 downloads again from its start, and the files that finished are kept. After the models arrive, the first load spends
@@ -445,7 +445,7 @@ Checks the installation and says what is missing.
 $ claudius doctor
 claudius 0.1.0 (macos aarch64)
   ok  web studio      ~/.local/share/claudius/web
-  ok  sample packs    14 default packs (1.2 GB) in ~/Library/Application Support/claudius/packs
+  ok  sample packs    22 default packs (1.5 GB) in ~/Library/Application Support/claudius/packs
   ok  ears            models in ~/.cache/earshot-rs
   ok  Apple Loops     14096 loops and samples
   ok  ffmpeg          9.0.2 (writes song.mp3)

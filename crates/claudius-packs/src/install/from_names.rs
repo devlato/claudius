@@ -120,6 +120,20 @@ pub(super) fn zones_from_names(paths: &[(u32, String)], vel_re: Option<&Regex>, 
     zones
 }
 
+/// the audio files of a listing that the glob matches and `exclude` (a regex) does not, sorted
+pub(super) fn matching(listing: &[(String, u64)], glob: &str, exclude: Option<&str>) -> Result<Vec<String>> {
+    let re = glob_regex(glob)?;
+    let exclude = exclude.map(Regex::new).transpose()?;
+    let mut matched: Vec<String> = listing
+        .iter()
+        .map(|(p, _)| p.clone())
+        .filter(|p| re.is_match(p) && !junk(p) && is_audio(p))
+        .filter(|p| !exclude.as_ref().is_some_and(|x| x.is_match(p)))
+        .collect();
+    matched.sort();
+    Ok(matched)
+}
+
 pub(super) fn build_files(ctx: &mut Ctx, src_key: &str, spec: &InstSpec) -> Result<InstrumentDef> {
     let kind = spec_kind(spec);
     let listing = ctx.sources.get_mut(src_key).expect("source").list()?;
@@ -130,10 +144,7 @@ pub(super) fn build_files(ctx: &mut Ctx, src_key: &str, spec: &InstSpec) -> Resu
     let mut variants: Vec<Variant> = Vec::new();
     for part in parts {
         let glob = part.files.as_deref().ok_or_else(|| anyhow!("{}: variant without files", spec.name))?;
-        let re = glob_regex(glob)?;
-        let mut matched: Vec<String> =
-            listing.iter().map(|(p, _)| p.clone()).filter(|p| re.is_match(p) && !junk(p) && is_audio(p)).collect();
-        matched.sort();
+        let mut matched = matching(&listing, glob, part.exclude.as_deref().or(spec.exclude.as_deref()))?;
         if matched.is_empty() {
             bail!("{}: no files match {glob}", spec.name);
         }

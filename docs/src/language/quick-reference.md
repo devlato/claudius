@@ -91,7 +91,7 @@ Everything on one page. Each name links to its full entry.
 | | |
 |---|---|
 | `.s(name)`, `.sound(name)` | instrument for note / degree / chord patterns |
-| `.bank("tr909")` | `tr909 tr808 tr707 acoustic uzu apple` |
+| `.bank("tr909")` | `tr909 tr808 tr707 acoustic uzu synthdrums sonicpi body apple` |
 | `.scale("A:minor")` | also `dorian phrygian lydian mixolydian harmonic_minor minor_pentatonic pentatonic blues chromatic` |
 | `.octave(4)` | octave of degree 0 and of note names without one |
 | `.voicing()`, `.voicing(48, 72)` | chord range, default 52..74 |

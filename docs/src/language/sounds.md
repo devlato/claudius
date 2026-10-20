@@ -112,16 +112,24 @@ with velocity layers and round robins. Most have several aliases; `claudius-pack
 |---|---|
 | pianos and keys | `piano` (Salamander grand), `upright`, `rhodes`, `wurlitzer`, `cp80`, `pianet`, `fm_piano` |
 | organs | `hammond`, `church_organ` |
-| strings | `string_ensemble`, `violins`, `violas`, `cellos`, `contrabass`, `pizzicato`, `spiccato` |
-| brass and winds | `brass`, `brass_stabs`, `trumpet`, `horn`, `trombone`, `tuba`, `woodwinds`, `flute`, `oboe`, `clarinet`, `bassoon`, `piccolo`, `sax`, `harmonica` |
-| mallets and bells | `harp`, `marimba`, `vibes`, `xylophone`, `glock`, `bells`, `kalimba`, `timpani` |
-| bass and guitar | `upright_bass`, `bass` (electric), `pick_bass`, `synth_bass`, `guitar` (nylon), `electric_guitar`, `jazz_guitar` |
+| strings | `string_ensemble`, `violins`, `violas`, `cellos`, `contrabass`, `pizzicato`, `spiccato`, `solo_cello`, `solo_cello_pizz`, `erhu`, `erhu_short`, `erhu_sul_tasto`, `bowed_psaltery` |
+| brass and winds | `brass`, `brass_stabs`, `trumpet`, `horn`, `trombone`, `tuba`, `woodwinds`, `flute`, `oboe`, `clarinet`, `bassoon`, `piccolo`, `sax`, `harmonica`, `ocarina` |
+| mallets and bells | `harp`, `marimba`, `vibes`, `bowed_vibraphone`, `xylophone`, `glock`, `bells`, `hand_chimes`, `kalimba`, `balafon`, `steel_pan`, `hang`, `water_glasses`, `wine_glasses`, `timpani` |
+| bass and guitar | `upright_bass`, `bass` (electric), `pick_bass`, `synth_bass`, `guitar` (nylon), `electric_guitar`, `jazz_guitar`, `dan_tranh`, `dan_tranh_tremolo` |
 | voices | `choir`, `voice` |
-| synths, recorded | `synth_pad`, `new_age_pad`, `bowed_pad`, `choir_pad`, `synth_strings`, `synth_brass`, `lead` |
-| percussion | `bongo`, `conga`, `cajon`, `darbuka`, `frame_drum`, `tambourine`, `cabasa`, `claves`, `woodblock`, `agogo`, `guiro`, `triangle`, `sleigh_bells`, `vibraslap`, `mark_tree`, `claps`, `gong`, `suspended_cymbal` |
+| synths, recorded | `synth_pad`, `new_age_pad`, `bowed_pad`, `choir_pad`, `synth_strings`, `synth_brass`, `lead`, `clavisynth` (Yamaha TX81Z) |
+| percussion | `bongo`, `conga`, `cajon`, `darbuka`, `frame_drum`, `slit_drum`, `tambourine`, `cabasa`, `claves`, `woodblock`, `agogo`, `guiro`, `triangle`, `sleigh_bells`, `vibraslap`, `mark_tree`, `claps`, `gong`, `suspended_cymbal`, `anvil`, `brake_drum`, `finger_cymbals`, `bell_tree`, `didgeridoo`, `tabla`, `stomp`, `chest`, `belly`, `heel` |
+| electronic one-shots | `elec`, `glitch`, `mehackit`, `glitch_kit`, `glitch_kit_2`, Sonic Pi's names (`elec_blip`, `bd_haus`, `hat_snap`) |
+| effects and textures | `ambi` (drones), `vinyl`, `loop`, `tbd` (pads), `ocean_drum`, `flexatone`, `ratchet`, `siren`, `aliens`, `zaps`, `sirens`, `metal_hits`, `glass_breaks`, `cymbal_gongs`, `chains`, `bubbles`, `vibra_rings`, `nepalese_bells`, `glock_gliss` |
 
 `pack:instrument` names one exactly, in `.s()` or in an `s()` pattern: `note("c4 e4").s("vsco2:violins")`,
-`s("vcsl:shaker*8")`.
+`s("vcsl:shaker*8")`. A name that is also a drum name plays the synthesized drum; name the pack for the recording:
+`s("snap clap").bank("body")`, or `s("body:snap")`.
+
+The groups of one-shots (`elec`, `zaps`, `glitch_kit` ...) hold their sounds as [variations](#variations):
+`s("zaps:3")`, `s("glitch_kit").n("<0 5 12>")`. Sonic Pi's sounds also answer to their own names, `s("vinyl_scratch")`
+being `s("vinyl:3")`. The hang plays only its own notes (A3 C4 D4 E4 F4 G4 A4 Bb4 C5 D5): the others ring along with
+each one, so pitching it would put them in another scale.
 
 Every recorded instrument has a playable range; notes outside it are pitched from the nearest sample, which sounds
 stretched far from home. Songs that play instruments from packs whose licences ask for credit get a `credits.txt` in
@@ -154,6 +162,9 @@ Sampled percussion from the packs gets the `perc` [role](mixing.md#roles) by its
 | `tr707` | `707` | Roland TR-707 |
 | `muldjord` | `acoustic`, `acoustic_kit`, `rock_kit` | a recorded acoustic kit |
 | `uzu` | | the uzu drum kit |
+| `synthdrums` | `synth_drums` | drums made on synthesizers after vintage analog kits |
+| `sonicpi` | `sonic_pi` | Sonic Pi's kicks (`bd`), snares (`sn`), hats (`hat`) and rides, and its other groups |
+| `body` | `body_percussion` | body percussion: `stomp`, `clap`, `snap`, `chest`, `belly`, `heel`, `cheek` ... |
 
 Each kit has a subset of `bd sd cp hh oh rd cr lt mt ht rim cb sh` (the 909 has no shaker, the acoustic kit no
 clap); names like `kick` and `snare` map to them. A name the bank does not have is an error:
@@ -164,7 +175,7 @@ track("drums", s("bd*4, bongo*2").bank("tr909"));
 ```
 
 ```text
-Error: Runtime error: track 'drums': no 'bongo' in bank 'tr909' (installed packs: salamander epianos jrhodes vsco2 vcsl tr808 tr909 tr707 uzu muldjord freepats doublebass growlybass voice; kits: tr909 tr808 tr707 acoustic uzu) (line 2, position 1)
+Error: Runtime error: track 'drums': no 'bongo' in bank 'tr909' (installed packs: salamander epianos jrhodes vsco2 vcsl tr808 tr909 tr707 uzu muldjord freepats doublebass growlybass voice sonicpi solocello erhu steelpan synthdrums body zamenhof miscellania; kits: tr909 tr808 tr707 acoustic uzu synthdrums sonicpi body) (line 2, position 1)
 ```
 
 The bank applies to every word of the pattern. To mix kits, or a kit and a sampled instrument, in one pattern, name
