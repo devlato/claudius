@@ -11,6 +11,9 @@ restart into it, and `claudius update` does the same in a terminal
 ([Updates](https://github.com/devlato/claudius/blob/main/docs/src/guide/updates.md)). The releases before this one
 can't, so install this one the way you installed the last.
 
+Sample packs installed by 0.2 can hold damaged FLAC files: two notes of VCSL's harmonica take hundreds of MB and
+play as noise. `claudius-packs install --defaults` converts such files again and downloads nothing else.
+
 ## [0.2.0] - 2026-10-19
 
 ### Added

@@ -419,6 +419,16 @@ pub fn install_spec(pack: &PackSpec, opts: &InstallOptions, progress: &dyn Fn(f3
         if n > 0 {
             progress(0.0, &format!("{}: removed {n} stale files ({:.1} MB)", pack.name, bytes as f64 / 1e6));
         }
+        let damaged = index
+            .files
+            .iter()
+            .filter(|f| {
+                f.flac && fetch::bloated_flac(&dir.join(&f.path)) && std::fs::remove_file(dir.join(&f.path)).is_ok()
+            })
+            .count();
+        if damaged > 0 {
+            progress(0.0, &format!("{}: converting {damaged} damaged FLAC files again", pack.name));
+        }
         // archive members: copy (or convert) out of the extraction directory, in parallel
         if !copies.is_empty() {
             use rayon::prelude::*;
