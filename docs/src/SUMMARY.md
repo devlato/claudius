@@ -94,6 +94,8 @@
 - [0007 Which samples we ship](design/0007-sample-licensing.md)
 - [0008 egui for native and web](design/0008-egui.md)
 - [0009 Releases through pull requests](design/0009-releases.md)
+- [0010 Processors: effects with several tracks in](design/0010-processors.md)
+- [0011 Libraries of sounds and effects](design/0011-libraries.md)
 
 # Contributing
 
