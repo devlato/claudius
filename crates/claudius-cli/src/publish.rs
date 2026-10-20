@@ -103,8 +103,8 @@ pub fn run(r: Request) -> Result<()> {
     let mut release = publish::load(dir, &bp);
     apply(&mut release, r.details, r.artwork)?;
     publish::save(dir, &release)?;
-    let cover = match &release.artwork {
-        Some(p) => Some(std::fs::read(p).with_context(|| format!("cannot read the artwork {}", p.display()))?),
+    let cover = match publish::artwork_file(dir, &release) {
+        Some(p) => Some(std::fs::read(&p).with_context(|| format!("cannot read the artwork {}", p.display()))?),
         None => None,
     };
     let master = audio::load_once(&wav).with_context(|| format!("cannot read {}", wav.display()))?;

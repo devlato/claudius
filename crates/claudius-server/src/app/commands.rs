@@ -137,11 +137,14 @@ impl App {
                     bp.bpm,
                     bp.key.name()
                 );
+                self.lock().folder = None;
                 self.commit(Some(bp), msg)
             }
             Command::Load { path } => self.load(Path::new(&path)),
             Command::Save { path } => self.save(path.map(PathBuf::from)),
             Command::Export { formats, path } => self.export(&formats, path.map(PathBuf::from)),
+            Command::SetRelease { details, artwork } => self.set_release(*details, artwork.map(PathBuf::from)),
+            Command::WriteKit { path } => self.write_kit(path.map(PathBuf::from)),
             Command::SetTempo { bpm } => self.run_script(&format!("tempo({bpm})"), Some(format!("tempo {bpm:.0}"))),
             Command::SetKey { key } => self.run_script(&format!("key({})", quote(&key)), Some(format!("key {key}"))),
             Command::SetSwing { swing } => {
@@ -385,6 +388,7 @@ impl App {
                 } else {
                     String::new()
                 };
+                self.lock().folder = None;
                 self.commit(Some(bp), format!("remade {path} as {genre}{moved}:\n{}", analysis_text(&a)))
             }
             Command::Mutate { count, keep_best } => {
@@ -468,11 +472,20 @@ impl App {
                 None => Ok(()),
             });
             match checked {
-                Ok(()) => self.commit(Some(bp), format!("loaded {}", path.display())),
+                Ok(()) => {
+                    self.lock().folder = path.parent().map(Path::to_path_buf);
+                    self.commit(Some(bp), format!("loaded {}", path.display()))
+                }
                 Err(e) => no(format!("cannot open {}: {e}", path.display()), v),
             }
         } else {
-            self.run_script(&text, Some(format!("loaded {}", path.display())))
+            let r = self.run_script(&text, Some(format!("loaded {}", path.display())));
+            if r.ok {
+                // a song folder's song.rhai opens that song; a script elsewhere makes a new one
+                let folder = path.parent().filter(|d| d.join("blueprint.json").is_file()).map(Path::to_path_buf);
+                self.update(|s| s.folder = folder);
+            }
+            r
         }
     }
 
@@ -551,6 +564,9 @@ impl App {
                 return no(format!("cannot write {}: {e}", dir.join(file).display()), v);
             }
         }
+        // the release in the making, too, and the song lives in this folder from now on
+        self.keep_release(&dir);
+        self.update(|s| super::release::moved(s, dir.clone()));
         loop {
             let dir2 = dir.clone();
             if self.start_job("saving", move |app| app.render_job(true, vec![dir2])).ok {

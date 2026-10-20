@@ -8,7 +8,7 @@ mod synth;
 
 use std::sync::Arc;
 
-use claudius_api::{Command, RenderView, Reply, SongView, State};
+use claudius_api::{Command, ReleaseCheck, ReleaseDetails, ReleaseView, RenderView, Reply, SongView, State};
 
 use crate::audio::Pcm;
 use crate::edits;
@@ -89,6 +89,25 @@ const REFERENCE: &str = "# claudius script (demo)\n\nThe demo has no script engi
 | `mix(\"lead\", #{ level: -3, solo: true })` | mix a track |\n| `track(\"hats\", s(\"[~ hh]*4\").gain(0.6))` | a pattern track |\n\n\
 ```js\ntrack(\"keys\", chord(\"prog\").voicing().s(\"rhodes\"))\ns(\"bd*4\").bank(\"tr909\")\n```\n";
 
+/// the demo's release: what `claudius publish` asks, and a note that nothing is checked here
+fn demo_release() -> ReleaseView {
+    let made = [
+        ("written", "you wrote it: the notes, the parts and the arrangement, with claudius as the instrument"),
+        ("assisted", "written with help: an assistant or claudius' generator wrote some of it, and you shaped it"),
+        ("generated", "an assistant or claudius' generator wrote it"),
+    ];
+    ReleaseView {
+        details: ReleaseDetails { genre: "Dance".into(), subgenre: "House".into(), ..Default::default() },
+        checks: vec![ReleaseCheck {
+            level: "note".into(),
+            about: "details".into(),
+            message: "the demo checks nothing and writes no files: start `claudius serve` to publish".into(),
+        }],
+        made_options: made.iter().map(|(m, d)| (m.to_string(), d.to_string())).collect(),
+        ..Default::default()
+    }
+}
+
 impl Mock {
     pub fn new() -> Mock {
         let song = song::generate("house", 7, None, Some("D minor"), false);
@@ -101,6 +120,7 @@ impl Mock {
                 "claudius demo: no server, a built-in mock plays its part".into(),
                 "generated: house seed 7".into(),
             ],
+            release: Some(demo_release()),
             ..Default::default()
         };
         Mock {
@@ -140,7 +160,16 @@ impl Mock {
         }
     }
 
+    /// a reply that turns down what the demo cannot do
+    pub fn refuse(&mut self, what: &str, why: &str) {
+        let reply = Reply { ok: false, message: why.into(), version: self.state.version };
+        self.events.push(Event::Reply { what: what.into(), result: Ok(reply) });
+    }
+
     fn publish(&mut self) {
+        if let (Some(r), Some(s)) = (self.state.release.as_mut(), self.state.song.as_ref()) {
+            r.song_title = s.title.clone();
+        }
         self.state.version += 1;
         if std::mem::take(&mut self.song_changed) {
             self.state.song_version = self.state.version;
@@ -222,6 +251,15 @@ impl Mock {
                 Ok(msg)
             }
             Command::Export { .. } => Err("the demo cannot export: start `claudius serve` for that".into()),
+            Command::SetRelease { details, .. } => {
+                if let Some(r) = self.state.release.as_mut() {
+                    r.details = details.as_ref().clone();
+                }
+                Ok("kept: the demo checks nothing".into())
+            }
+            Command::WriteKit { .. } => {
+                Err("the demo cannot write a release kit: start `claudius serve` for that".into())
+            }
             Command::Analyze { path } => match audio_file(path) {
                 Ok(()) => {
                     let msg = self.fake_analysis(path);

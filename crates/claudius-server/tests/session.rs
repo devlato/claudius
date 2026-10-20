@@ -96,6 +96,11 @@ async fn a_shared_session_keeps_to_its_folders() {
     let r = app
         .command(Command::RunScript { code: format!("track(\"v\", note(\"c4\").s({:?}))", wav.display().to_string()) });
     assert!(!r.ok && r.message.contains("outside the folders"), "{}", r.message);
+    let r = app.command(Command::SetRelease {
+        details: Default::default(),
+        artwork: Some(outside.join("x.wav").display().to_string()),
+    });
+    assert!(!r.ok && r.message.contains("outside the folders"), "artwork is read as any file is: {}", r.message);
     std::fs::remove_dir_all(&inside).ok();
     std::fs::remove_dir_all(&outside).ok();
 }
@@ -260,6 +265,7 @@ async fn assistants_work_over_mcp() {
         "script_reference",
         "save",
         "export",
+        "publish",
     ] {
         assert!(tools.iter().any(|x| x == t), "{t} missing from {tools:?}");
     }
@@ -275,6 +281,14 @@ async fn assistants_work_over_mcp() {
     let text = r["result"]["content"][0]["text"].as_str().unwrap_or_default().to_string();
     assert_ne!(r["result"]["isError"], true, "{b}");
     assert!(text.contains("techno") && text.contains("verdict"), "{text}");
+
+    // checked for release, it has no artwork, and nobody has said how it was made
+    let (_, _, b) = call(&router, call_tool(99, "publish", serde_json::json!({"artist": "Ana Lima"}))).await;
+    let text = sse_json(&b)["result"]["content"][0]["text"].as_str().unwrap_or_default().to_string();
+    assert!(
+        text.contains("problem(s)") && text.contains("-- artwork") && text.contains("how the song was made"),
+        "{text}"
+    );
 
     let (_, _, b) = call(
         &router,
@@ -354,6 +368,91 @@ async fn a_render_exports_by_command_and_as_a_download() {
     assert!(s == StatusCode::BAD_REQUEST && b.contains("makes .flac files, not .mp3"), "{s} {b}");
     let (s, _, _) = call(&router, get(format!("/api/export/{}/x.mp3", v + 1000))).await;
     assert_eq!(s, StatusCode::NOT_FOUND);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// a square cover with hard edges, as a PNG
+fn cover(side: u32) -> Vec<u8> {
+    let img = image::RgbImage::from_fn(side, side, |x, y| {
+        let v = if (x / 120 + y / 120).is_multiple_of(2) { 40 } else { 210 };
+        image::Rgb([v, 90, 255 - v])
+    });
+    let mut out = Vec::new();
+    img.write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png).unwrap();
+    out
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_release_is_checked_and_its_kit_written_and_kept_with_the_song() {
+    let app = app();
+    let new = Command::NewSong { genre: "lofi".into(), seed: Some(6), bpm: None, key: None, loops: false };
+    assert!(app.command(new).ok);
+    // a folder of the test's own: a song without one would release into ~/Music/claudius
+    let dir = std::env::temp_dir().join(format!("claudius-release-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(app.command(Command::Save { path: Some(dir.display().to_string()) }).ok);
+    let st = app.settled(Duration::from_secs(240)).await;
+    let release = st.release.expect("a release for the song");
+    assert_eq!(release.song_title, st.song.as_ref().unwrap().title);
+    assert!(release.made_options.iter().any(|(m, _)| m == "assisted"));
+    assert_eq!(release.checked, 0, "renders check a release only once something is given for it");
+    assert!(!dir.join("release.json").exists(), "nor does saving the song keep one");
+
+    let details = claudius_api::ReleaseDetails {
+        artist: "Ana Lima".into(),
+        writers: vec!["Ana Lima".into()],
+        made: Some("assisted".into()),
+        ..release.details
+    };
+    let r = app.command(Command::SetRelease { details: Box::new(details), artwork: None });
+    assert!(r.ok, "{}", r.message);
+    let release = app.state().release.unwrap();
+    assert!(!release.ready && release.checked > 0);
+    let problems: Vec<&str> =
+        release.checks.iter().filter(|c| c.level == "problem").map(|c| c.about.as_str()).collect();
+    assert_eq!(problems, ["artwork"], "{:?}", release.checks);
+    let r = app.command(Command::WriteKit { path: None });
+    assert!(!r.ok && r.message.contains("add the artwork"), "{}", r.message);
+
+    // the artwork comes as the file itself
+    let router = http::router(app.clone(), &Options::default());
+    let post = |content_type: &str| {
+        Request::post("/api/release/artwork")
+            .header(header::HOST, "localhost")
+            .header(header::CONTENT_TYPE, content_type)
+            .body(Body::from(cover(3000)))
+            .unwrap()
+    };
+    let (s, _, _) = call(&router, post("text/plain")).await;
+    assert_eq!(s, StatusCode::UNSUPPORTED_MEDIA_TYPE, "a cross-site form cannot send artwork");
+    let (s, _, b) = call(&router, post("image/png")).await;
+    assert!(s == StatusCode::OK && b.contains("3000 × 3000 PNG"), "{s} {b}");
+    let release = app.state().release.unwrap();
+    assert!(release.ready, "{:?}", release.checks);
+    let get = |path: &str| Request::get(path).header(header::HOST, "localhost").body(Body::empty()).unwrap();
+    let res = router.clone().oneshot(get("/api/release/preview.png")).await.unwrap();
+    assert_eq!(res.headers()[header::CONTENT_TYPE], "image/png");
+    let png = axum::body::to_bytes(res.into_body(), 1 << 24).await.unwrap();
+    assert_eq!(image::load_from_memory(&png).unwrap().width(), 512);
+
+    // the kit goes into the song's folder, and the details and the artwork stay with the song
+    let r = app.command(Command::WriteKit { path: None });
+    assert!(r.ok, "{}", r.message);
+    assert!(dir.join("release/release.txt").is_file() && dir.join("artwork.png").is_file());
+    let kept: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(dir.join("release.json")).unwrap()).unwrap();
+    assert_eq!((kept["made"].as_str(), kept["artwork"].as_str()), (Some("assisted"), Some("artwork.png")));
+    assert!(app.state().release.unwrap().kit.is_some_and(|k| k.ends_with("release")));
+
+    // another song starts afresh, and opening this one again brings its release back
+    let new = Command::NewSong { genre: "house".into(), seed: Some(3), bpm: None, key: None, loops: false };
+    assert!(app.command(new).ok);
+    assert_eq!(app.state().release.unwrap().artwork, None);
+    assert!(app.command(Command::Load { path: dir.display().to_string() }).ok);
+    let release = app.state().release.unwrap();
+    assert_eq!(release.details.artist, "Ana Lima");
+    assert_eq!(release.artwork.as_deref(), Some("3000 × 3000 PNG"));
+    app.settled(Duration::from_secs(240)).await;
     std::fs::remove_dir_all(&dir).ok();
 }
 

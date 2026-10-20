@@ -21,6 +21,9 @@ this API, so anything it does you can do with `curl`. The types are plain serde 
 | `GET /api/audio/{version}.mp3` | the same as MP3, encoded on the first request |
 | `GET /api/stems/{version}/{track}.wav` | one track of a render made with stems |
 | `GET /api/export/{version}/{name}.{ext}?format=SPEC` | that render in another [format](export.md#formats), as a download named `{name}.{ext}` |
+| `POST /api/release/artwork` | the release's [artwork](publish.md), as the file itself with `Content-Type: image/jpeg`, `image/png` or `application/octet-stream` (40 MB at most); answers with a [reply](#replies-and-errors) |
+| `GET /api/release/artwork` | the artwork as it was given |
+| `GET /api/release/preview.png` | the artwork at most 512 pixels on a side, as PNG |
 | `/mcp` | the [MCP endpoint](mcp.md#mcp-over-http) |
 | `GET /` and anything else | the web studio; when it is not built, a page that says how to build it |
 
@@ -124,6 +127,7 @@ The MCP tools wait the same way after every edit.
 | `undo_label`, `redo_label` | string or null | what undo would take back, what redo would bring back |
 | `log` | strings | the last 200 lines of the session log, oldest first |
 | `genres` | `GenreInfo` list | every genre: `name`, `description`, `bpm` range |
+| `release` | `ReleaseView` or null | the release in the making for the song: its `details` (as `set_release` takes them), `song_title`, what the `artwork` is and its `artwork_version`, the `checks` (each a `level`, `problem`, `warning` or `note`, what it is `about` and its `message`) of the render `checked`, whether it is `ready`, where the last `kit` went, and the `made_options` |
 
 ### `SongView`
 
@@ -178,6 +182,8 @@ fields marked optional may be left out.
 | `load` | `path` | opens a song folder, a `blueprint.json`, or a script file (run on the open song) |
 | `save` | optional `path` | writes `blueprint.json` and `song.rhai` now, then the whole folder from a render (see [Jobs](#jobs)); default folder `~/Music/claudius/<genre>-<title>-<seed>` |
 | `export` | `formats` (such as `["mp3", "flac:16"]`), optional `path` | writes the latest render in those [formats](export.md#formats), when it is of the song as it is now (otherwise: `the song has changed since its last render: render it, then export`); default folder as for `save` |
+| `set_release` | `details` (every field of `ReleaseDetails`: `artist`, `title`, `writers`, `made` ...), optional `artwork` (a JPEG or PNG file) | replaces what stores are told about the [release](publish.md), and checks it again |
+| `write_kit` | optional `path` | writes the release kit from the latest render, when it is of the song as it is now and nothing stops the release; default `release/` in the song's folder |
 | `set_tempo` | `bpm` | as `tempo()` |
 | `set_key` | `key` | as `key()`: the progressions follow a change of mode |
 | `set_swing` | `swing` | as `swing()` |

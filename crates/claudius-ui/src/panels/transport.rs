@@ -316,6 +316,14 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
             .response
             .on_hover_text("download the song as WAV, AIFF, FLAC, Apple Lossless, MP3, AAC, Opus or Ogg Vorbis");
         }
+        if has_song
+            && ui
+                .button(small("publish"))
+                .on_hover_text("check the song as stores do, and write the files and answers a distributor takes")
+                .clicked()
+        {
+            cx.view.publish.show();
+        }
         ui.separator();
         if widgets::tool_button(ui, Icon::Mutate, "Mutate", has_song && !busy, false)
             .on_hover_text("try random mutations, listen to each, keep the best")

@@ -103,6 +103,11 @@ pub enum Event {
     },
     /// the script reference (markdown)
     Reference(Result<String, String>),
+    /// the release's artwork as a picture to show, for `ReleaseView.artwork_version`
+    Preview {
+        version: u64,
+        image: Result<egui::ColorImage, String>,
+    },
 }
 
 /// the `"cmd"` tag of a command ("set_tempo")
@@ -225,6 +230,43 @@ impl Remote {
         });
     }
 
+    fn upload_artwork(&mut self, bytes: Vec<u8>) {
+        let mut request = ehttp::Request::post(self.url("/api/release/artwork"), bytes);
+        request.headers =
+            ehttp::Headers::new(&[("Accept", "application/json"), ("Content-Type", "application/octet-stream")]);
+        let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
+        ehttp::fetch(request, move |res| {
+            let result = match res {
+                Ok(r) => {
+                    serde_json::from_slice::<Reply>(&r.bytes).map_err(|_| format!("{} {}", r.status, r.status_text))
+                }
+                Err(e) => Err(e),
+            };
+            Self::deliver(&tx, &ctx, Event::Reply { what: "artwork".into(), result });
+        });
+    }
+
+    fn fetch_preview(&self, version: u64) {
+        let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
+        let url = self.url(&format!("/api/release/preview.png?v={version}"));
+        ehttp::fetch(ehttp::Request::get(url), move |res| {
+            let image = match res {
+                Ok(r) if r.ok => image::load_from_memory_with_format(&r.bytes, image::ImageFormat::Png)
+                    .map(|img| {
+                        let rgba = img.into_rgba8();
+                        egui::ColorImage::from_rgba_unmultiplied(
+                            [rgba.width() as usize, rgba.height() as usize],
+                            rgba.as_raw(),
+                        )
+                    })
+                    .map_err(|e| e.to_string()),
+                Ok(r) => Err(format!("{} {}", r.status, r.status_text)),
+                Err(e) => Err(e),
+            };
+            Self::deliver(&tx, &ctx, Event::Preview { version, image });
+        });
+    }
+
     fn send(&mut self, cmd: &Command) {
         if matches!(cmd, Command::InstallPacks { .. }) {
             self.sounds_after_install = Some(false);
@@ -337,6 +379,21 @@ impl Backend {
         match self {
             Backend::Remote(r) => r.update(now),
             Backend::Mock(m) => m.update(now),
+        }
+    }
+
+    /// send the release's artwork, the file itself (the answer arrives as a reply to "artwork")
+    pub fn upload_artwork(&mut self, bytes: Vec<u8>) {
+        match self {
+            Backend::Remote(r) => r.upload_artwork(bytes),
+            Backend::Mock(m) => m.refuse("artwork", "the demo keeps no artwork: start `claudius serve` to publish"),
+        }
+    }
+
+    /// ask for the artwork as a picture to show (arrives as `Event::Preview`)
+    pub fn fetch_preview(&mut self, version: u64) {
+        if let Backend::Remote(r) = self {
+            r.fetch_preview(version);
         }
     }
 

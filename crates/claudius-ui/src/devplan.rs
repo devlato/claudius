@@ -1,7 +1,7 @@
 //! A scripted run for checking the studio without a person at the screen (native only): env `CLAUDIUS_UI_PLAN` is a
 //! `;`-separated list of steps, e.g. `wait:4;shot:/tmp/a.png;tab:mixer;play;wait:2;shot:/tmp/b.png;exit`.
 //! Steps: `wait:<s>`, `tab:<sequencer|mixer|parts|harmony|script|log>`, `section:<i>`, `play`, `pause`, `seek:<s>`,
-//! `newsong`, `close`, `tour[:<step>]`, `assistants`, `cmd:<command json>`, `size:<w>,<h>`, `script:<code; \n for a newline, %3B for ;>` (into the editor), `run`, `audiopath:<file>`
+//! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `cmd:<command json>`, `size:<w>,<h>`, `script:<code; \n for a newline, %3B for ;>` (into the editor), `run`, `audiopath:<file>`
 //! (the editor's script), `reference`, `shot:<file.png>` (the window as rendered), `exit`, and synthetic pointer input in
 //! points: `move:x,y`, `click:x,y`, `rclick:x,y`, `drag:x1,y1,x2,y2`, `sdrag:x1,y1,x2,y2` (with shift).
 
@@ -30,6 +30,8 @@ pub enum Step {
     Tour(usize),
     /// the Connect an assistant dialog
     Assistants,
+    /// the Publish dialog
+    Publish,
     Exit,
 }
 
@@ -124,6 +126,7 @@ impl Plan {
             "newsong" => Some(Step::NewSong),
             "tour" => Some(Step::Tour(arg.parse().unwrap_or(0))),
             "assistants" => Some(Step::Assistants),
+            "publish" => Some(Step::Publish),
             "close" => Some(Step::Close),
             "cmd" => match serde_json::from_str(arg) {
                 Ok(c) => Some(Step::Send(c)),

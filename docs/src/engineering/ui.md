@@ -143,7 +143,8 @@ CLAUDIUS_UI_PLAN='wait:4;shot:/tmp/a.png;tab:mixer;play;wait:2;shot:/tmp/b.png;e
 ```
 
 The steps: `wait:<s>`, `tab:<name>`, `section:<i>`, `play`, `pause`, `seek:<s>`, `newsong`, `close`,
-`tour[:<step>]`, `assistants` (the Connect an assistant dialog), `cmd:<command JSON>`, `size:<w>,<h>`, `script:<code>`
+`tour[:<step>]`, `assistants` (the Connect an assistant dialog), `publish` (the Publish dialog), `cmd:<command JSON>`,
+`size:<w>,<h>`, `script:<code>`
 (into the editor, `\n` for a newline and `%3B` for `;`), `run`, `reference`, `audiopath:<file>`, `shot:<file.png>`
 (the window as rendered), `exit`, and synthetic pointer input in points: `move:x,y`, `click:x,y`, `rclick:x,y`,
 `drag:x1,y1,x2,y2`, `sdrag:x1,y1,x2,y2` (with shift). A scripted run starts the first-run tour only when a `tour` step
