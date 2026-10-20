@@ -59,7 +59,7 @@ pub(crate) fn print_summary(bp: &Blueprint, r: &Rendered, w: &song::Written, v: 
         print_ears(e);
     }
     println!("  verdict: {}", v.summary);
-    println!("  wrote {}", w.mp3.as_ref().unwrap_or(&w.wav).display());
+    println!("  wrote {}", w.mp3.display());
 }
 
 pub(crate) fn print_analysis(a: &claudius::analysis::song::Analysis) {

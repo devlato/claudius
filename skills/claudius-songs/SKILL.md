@@ -132,7 +132,7 @@ Afterwards, tell the person what changed (the log says) and offer to undo it.
 
 ## Saving and sharing
 
-`save` (or `claudius script ... --out DIR`) writes `song.wav`, `song.mp3` when ffmpeg is installed, `song.rhai`,
+`save` (or `claudius script ... --out DIR`) writes `song.wav`, `song.mp3`, `song.rhai`,
 `blueprint.json`, `verdict.json`, and `credits.txt` when the song uses sample packs that ask for credit; `save` also
 writes `stems/`, one file per track, as does `claudius render --stems`.
 Tell the person about `credits.txt` before they publish: CC BY packs must be credited. Paths always mean the

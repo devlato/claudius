@@ -74,7 +74,7 @@ pub fn slug(s: &str) -> String {
 pub struct Written {
     pub dir: PathBuf,
     pub wav: PathBuf,
-    pub mp3: Option<PathBuf>,
+    pub mp3: PathBuf,
 }
 
 /// a song from its blueprint.json, checked: its size, and that its pattern tracks still read
@@ -86,7 +86,7 @@ pub fn read_blueprint(path: &Path) -> Result<Blueprint> {
     Ok(bp)
 }
 
-/// render a blueprint and write song.wav (+ .mp3), blueprint.json, song.rhai, project.json, report.json,
+/// render a blueprint and write song.wav, song.mp3, blueprint.json, song.rhai, project.json, report.json,
 /// verdict.json, credits.txt when sampled instruments ask for credit (and stems/)
 pub fn render_and_write(
     bp: &Blueprint,
@@ -98,7 +98,7 @@ pub fn render_and_write(
     let r = render::render(&project, &render::Options { stems, ..Default::default() })?;
     // the MP3 is encoded while the critic listens: both take seconds, and neither needs the other
     let (audio, e) = std::thread::scope(|s| {
-        let audio = s.spawn(|| write_audio(dir, &r));
+        let audio = s.spawn(|| write_audio(dir, bp, &r));
         let e = ears.and_then(|f| f(&project, &r));
         (audio.join(), e)
     });
@@ -108,22 +108,23 @@ pub fn render_and_write(
     Ok((project, r, Written { dir: dir.to_path_buf(), wav, mp3 }, verdict))
 }
 
-/// write a rendered song's folder: song.wav (+ .mp3 when ffmpeg is there), blueprint.json, song.rhai, project.json,
+/// write a rendered song's folder: song.wav, song.mp3, blueprint.json, song.rhai, project.json,
 /// report.json, verdict.json, credits.txt when sampled instruments ask for credit, and stems/ when they were rendered
 /// (32-bit float, since a track can peak above full scale before the master's limiter)
 pub fn write_folder(dir: &Path, bp: &Blueprint, project: &Project, r: &Rendered, verdict: &Verdict) -> Result<Written> {
-    let (wav, mp3) = write_audio(dir, r)?;
+    let (wav, mp3) = write_audio(dir, bp, r)?;
     write_documents(dir, bp, project, r, verdict)?;
     Ok(Written { dir: dir.to_path_buf(), wav, mp3 })
 }
 
-/// song.wav, and song.mp3 when ffmpeg is there
-fn write_audio(dir: &Path, r: &Rendered) -> Result<(PathBuf, Option<PathBuf>)> {
+/// song.wav (24-bit) and song.mp3
+fn write_audio(dir: &Path, bp: &Blueprint, r: &Rendered) -> Result<(PathBuf, PathBuf)> {
     std::fs::create_dir_all(dir)?;
     let wav = dir.join("song.wav");
     audio::save_wav(&wav, &r.master, false)?;
     let mp3 = dir.join("song.mp3");
-    let mp3 = audio::wav_to_mp3(&wav, &mp3).ok().map(|_| mp3);
+    let spec: crate::export::Spec = crate::export::FOLDER_MP3.parse()?;
+    crate::export::write(&r.master, &spec, &crate::export::tags(&bp.title), &mp3)?;
     Ok((wav, mp3))
 }
 

@@ -165,6 +165,27 @@ pub(crate) enum Cmd {
         #[arg(short, long)]
         out: Option<PathBuf>,
     },
+    /// Export a song as WAV, AIFF, FLAC, Apple Lossless, MP3, AAC, Opus or Ogg Vorbis (`--list` shows them all)
+    Export {
+        /// a song folder (its song.wav is the master) or any audio file
+        song: Option<PathBuf>,
+        /// format[:quality][@rate], repeated or comma-separated: mp3, mp3:192, mp3:v0, wav:16, flac, aac, opus:96
+        #[arg(short, long = "format", value_delimiter = ',')]
+        formats: Vec<String>,
+        /// the file to write with one format, or the folder for several (default: the song's own folder)
+        #[arg(short, long)]
+        out: Option<PathBuf>,
+        /// the title the files carry and are named after (default: the song's)
+        #[arg(long)]
+        title: Option<String>,
+        #[arg(long)]
+        artist: Option<String>,
+        #[arg(long)]
+        album: Option<String>,
+        /// list the formats, and say which this machine cannot write
+        #[arg(long)]
+        list: bool,
+    },
     /// Judge an audio file (with the arrangement and theory checks when its project.json sits next to it)
     Judge {
         file: PathBuf,

@@ -156,8 +156,8 @@ request ─▶ CORS ─▶ security headers ─▶ guard ─▶ routes: /api/...
   `Secure` when `X-Forwarded-Proto` says https), comparing in constant time.
 - **Commands** must be `application/json` and at most 1 MiB, and run on `spawn_blocking`, since an edit can take
   seconds.
-- **Audio and stems** are served with `tower-http`'s `ServeFile`, which handles `Range`; an MP3 is encoded with ffmpeg
-  on first request, and the WAV is served in its place without ffmpeg.
+- **Audio and stems** are served with `tower-http`'s `ServeFile`, which handles `Range`; an MP3 is encoded
+  (`claudius-encode`) on the first request and kept.
 - **The web studio** is served from its `dist` folder with `index.html` as the fallback for any other path; without
   one, a short page says how to build it.
 

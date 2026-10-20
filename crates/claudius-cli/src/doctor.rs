@@ -79,9 +79,14 @@ pub fn run(port: u16, web: Option<std::path::PathBuf>) {
         Some(o) => {
             let text = String::from_utf8_lossy(&o.stdout);
             let v = text.split_whitespace().nth(2).unwrap_or("installed").to_string();
-            r.line(true, "ffmpeg", format!("{v} (writes song.mp3)"));
+            let writes = if cfg!(target_os = "macos") { "" } else { "; writes AAC and Apple Lossless" };
+            r.line(true, "ffmpeg", format!("{v} (reads the formats claudius cannot{writes})"));
         }
-        None => println!("  ..  {:<15} not installed (optional: songs are saved as WAV only)", "ffmpeg"),
+        None => println!(
+            "  ..  {:<15} not installed (optional: reads the formats claudius cannot{})",
+            "ffmpeg",
+            if cfg!(target_os = "macos") { "" } else { ", and writes AAC and Apple Lossless" }
+        ),
     }
 
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));

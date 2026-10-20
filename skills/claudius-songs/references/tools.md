@@ -37,7 +37,7 @@ Notes:
 - There is no undo on the command line, and none is needed: every step writes a new folder, and the one before is
   the undo. Give each step its own `--out`. Writing an edit into the folder it reads from replaces the song you are
   editing, because the folder name stays the same.
-- A command-line song folder holds `song.wav` (and `song.mp3` with ffmpeg), `blueprint.json` (the whole song),
+- A command-line song folder holds `song.wav`, `song.mp3`, `blueprint.json` (the whole song),
   `song.rhai` (the song as a script), `project.json`, `verdict.json`, `report.json`, `stems/` when asked for, and
   `credits.txt` when sampled instruments need credit. `claudius judge SONG/song.wav` judges it again, with the
   arrangement checks because `project.json` sits next to it.

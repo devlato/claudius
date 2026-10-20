@@ -263,10 +263,8 @@ fn pcm_fmt_trimmed(bytes: &[u8]) -> Option<Vec<u8>> {
     trimmed.then_some(out)
 }
 
-/// lossless WAV -> FLAC (keeps rate, channels and bit depth; float WAV becomes 24-bit). Each file is read back and
-/// compared with the samples it holds: on some 24-bit audio flacenc 0.5 misjudges what a subframe will cost and
-/// writes frames of megabytes that no decoder reads back (a harmonica note of 600 KB became 438 MB). Such a file is
-/// written again verbatim, which FLAC can always hold.
+/// lossless WAV -> FLAC (keeps rate, channels and bit depth; float WAV becomes 24-bit), read back before it is kept
+/// ([`claudius_encode::flac::encode`])
 pub fn transcode_flac(src: &Path, dst: &Path) -> Result<()> {
     let raw = std::fs::read(src).with_context(|| format!("cannot read {}", src.display()))?;
     let bytes = match hound::WavReader::new(std::io::Cursor::new(&raw[..])) {
@@ -288,79 +286,15 @@ pub fn transcode_flac(src: &Path, dst: &Path) -> Result<()> {
             24,
         ),
     };
-    let (channels, rate) = (spec.channels as usize, spec.sample_rate as usize);
-    let flac = flac_bytes(&samples, channels, bits, rate, false)
-        .with_context(|| format!("cannot encode {} as FLAC", src.display()))?;
-    let write = |bytes: &[u8]| std::fs::write(dst, bytes).with_context(|| format!("cannot write {}", dst.display()));
-    if flac.len() <= flac_bound(samples.len(), bits) {
-        write(&flac)?;
-        if reads_back(dst, &samples, bits) {
-            return Ok(());
-        }
-    }
-    write(&flac_bytes(&samples, channels, bits, rate, true)?)?;
-    if !reads_back(dst, &samples, bits) {
-        bail!("{} does not read back from FLAC, even stored verbatim", src.display());
-    }
-    Ok(())
-}
-
-/// The most a FLAC of these samples should take: the samples themselves, plus frame headers and metadata. Only a
-/// broken encoding goes past it.
-fn flac_bound(samples: usize, bits: usize) -> usize {
-    samples * bits / 8 + samples / 64 + 8192
-}
-
-fn flac_bytes(samples: &[i32], channels: usize, bits: usize, rate: usize, verbatim: bool) -> Result<Vec<u8>> {
-    use flacenc::component::BitRepr;
-    use flacenc::error::Verify;
-    let mut config = flacenc::config::Encoder::default();
-    if verbatim {
-        config.subframe_coding.use_fixed = false;
-        config.subframe_coding.use_lpc = false;
-        config.stereo_coding.use_leftside = false;
-        config.stereo_coding.use_rightside = false;
-        config.stereo_coding.use_midside = false;
-    }
-    let config = config.into_verified().map_err(|e| anyhow!("FLAC encoder settings: {e:?}"))?;
-    let source = flacenc::source::MemSource::from_samples(samples, channels, bits, rate);
-    let stream = flacenc::encode_with_fixed_block_size(&config, source, config.block_size)
-        .map_err(|e| anyhow!("cannot encode FLAC: {e:?}"))?;
-    let mut sink = flacenc::bitsink::ByteSink::new();
-    stream.write(&mut sink).map_err(|e| anyhow!("cannot write FLAC: {e:?}"))?;
-    let mut bytes = sink.as_slice().to_vec();
-    // STREAMINFO's minimum block size excludes the last block (FLAC format, section 8.2); flacenc counts it, which
-    // makes a fixed-block-size stream look variable and some decoders (symphonia) refuse to open it
-    if bytes.len() > 12 && &bytes[..4] == b"fLaC" && bytes[4] & 0x7f == 0 {
-        let max = [bytes[10], bytes[11]];
-        bytes[8..10].copy_from_slice(&max);
-    }
-    Ok(bytes)
-}
-
-/// whether the FLAC at `path` decodes to exactly `samples` (interleaved, `bits` deep)
-fn reads_back(path: &Path, samples: &[i32], bits: usize) -> bool {
-    let Ok(d) = claudius_decode::decode_native(path) else { return false };
-    let scale = (1i64 << (bits - 1)) as f32;
-    d.samples.len() == samples.len() && d.samples.iter().zip(samples).all(|(v, s)| (v * scale).round() as i32 == *s)
-}
-
-/// A FLAC that claudius converted and that is larger than the audio it holds: written by an earlier version, before
-/// conversions were read back. Installing the pack again converts it anew.
-pub fn bloated_flac(path: &Path) -> bool {
-    let Ok(len) = std::fs::metadata(path).map(|m| m.len()) else { return false };
-    let mut head = [0u8; 42];
-    let read = std::fs::File::open(path).and_then(|mut f| f.read_exact(&mut head));
-    if read.is_err() || &head[..4] != b"fLaC" || head[4] & 0x7f != 0 {
-        return false;
-    }
-    // STREAMINFO: 20 bits of rate, 3 of channels - 1, 5 of bits - 1, 36 of samples per channel
-    let info = &head[8..];
-    let channels = ((info[12] >> 1) & 7) as usize + 1;
-    let bits = ((((info[12] & 1) << 4) | (info[13] >> 4)) + 1) as usize;
-    let frames =
-        (((info[13] & 0x0f) as u64) << 32) | u32::from_be_bytes([info[14], info[15], info[16], info[17]]) as u64;
-    len as usize > flac_bound(frames as usize * channels, bits)
+    let flac = claudius_encode::flac::encode(
+        &samples,
+        spec.channels as usize,
+        bits,
+        spec.sample_rate,
+        &claudius_encode::Tags::default(),
+    )
+    .with_context(|| format!("cannot encode {} as FLAC", src.display()))?;
+    std::fs::write(dst, flac).with_context(|| format!("cannot write {}", dst.display()))
 }
 
 #[derive(Clone, Debug)]
@@ -536,66 +470,6 @@ pub fn walk(dir: &Path) -> Vec<(String, u64)> {
 
 #[cfg(test)]
 mod flac_tests {
-    fn write_wav(path: &std::path::Path, bits: u16, samples: &[i32]) {
-        let spec = hound::WavSpec {
-            channels: 1,
-            sample_rate: 44_100,
-            bits_per_sample: bits,
-            sample_format: hound::SampleFormat::Int,
-        };
-        let mut w = hound::WavWriter::create(path, spec).unwrap();
-        for s in samples {
-            w.write_sample(*s).unwrap();
-        }
-        w.finalize().unwrap();
-    }
-
-    fn decoded(path: &std::path::Path, bits: u32) -> Vec<i32> {
-        let d = claudius_decode::decode_native(path).unwrap();
-        d.samples.iter().map(|v| (v * (1u32 << (bits - 1)) as f32).round() as i32).collect()
-    }
-
-    /// loud 24-bit audio rich in harmonics, which flacenc's default settings encode into more bytes than its samples
-    fn harmonics() -> Vec<i32> {
-        (0..44_100)
-            .map(|i| {
-                let t = i as f64 / 44_100.0;
-                let sum: f64 = (1..=40).map(|h| (2.0 * std::f64::consts::PI * 784.0 * h as f64 * t).sin()).sum();
-                (sum * 7_000_000.0 / 40.0) as i32
-            })
-            .collect()
-    }
-
-    #[test]
-    fn no_flac_is_larger_than_its_samples() {
-        let dir = tempfile::tempdir().unwrap();
-        let (wav, flac) = (dir.path().join("in.wav"), dir.path().join("out.flac"));
-        let samples = harmonics();
-        write_wav(&wav, 24, &samples);
-        super::transcode_flac(&wav, &flac).unwrap();
-        let len = std::fs::metadata(&flac).unwrap().len() as usize;
-        assert!(len <= super::flac_bound(samples.len(), 24), "{len} bytes for {} bytes of samples", samples.len() * 3);
-        assert_eq!(decoded(&flac, 24), samples, "lossless");
-        assert!(!super::bloated_flac(&flac));
-    }
-
-    #[test]
-    fn a_damaged_conversion_is_recognised() {
-        let dir = tempfile::tempdir().unwrap();
-        let (wav, flac) = (dir.path().join("in.wav"), dir.path().join("out.flac"));
-        let samples: Vec<i32> = (0..20_000).map(|i| ((i as f64 * 0.01).sin() * 3_000_000.0) as i32).collect();
-        write_wav(&wav, 24, &samples);
-        super::transcode_flac(&wav, &flac).unwrap();
-        assert!(!super::bloated_flac(&flac));
-        // what flacenc wrote for some 24-bit notes: frames far larger than the samples they hold
-        let mut bytes = std::fs::read(&flac).unwrap();
-        bytes.extend(std::iter::repeat_n(0xffu8, 200_000));
-        std::fs::write(&flac, &bytes).unwrap();
-        assert!(super::bloated_flac(&flac));
-        assert!(!super::bloated_flac(&wav), "only FLAC files are judged");
-        assert!(!super::bloated_flac(&dir.path().join("missing.flac")));
-    }
-
     #[test]
     fn a_wav_with_a_long_fmt_chunk_still_becomes_flac() {
         let dir = tempfile::tempdir().unwrap();

@@ -105,8 +105,9 @@ first time it starts. Each model file is checked against a pinned SHA-256 hash. 
 synthesizes every sound; without the models, the verdict uses meters and music theory only. `claudius setup --help` lists the options, and
 `claudius-packs list` shows every pack with its licence.
 
-claudius uses Apple Loops automatically when GarageBand or Logic content is installed. ffmpeg is optional: with it,
-songs are also saved as MP3.
+claudius uses Apple Loops automatically when GarageBand or Logic content is installed. ffmpeg is optional: it reads
+the few audio formats claudius cannot read itself, and on Windows and Linux it writes AAC and Apple Lossless when you
+[export](../guide/export.md) them.
 
 ## Check the installation
 
@@ -120,7 +121,7 @@ claudius 0.1.0 (macos aarch64)
   ok  sample packs    22 default packs (1.5 GB) in ~/Library/Application Support/claudius/packs
   ok  ears            models in ~/.cache/earshot-rs
   ok  Apple Loops     14096 loops and samples
-  ok  ffmpeg          9.0.2 (writes song.mp3)
+  ok  ffmpeg          9.0.2 (reads the formats claudius cannot)
   ok  port 7878       free
   ..  Claude Desktop  not connected: `claudius connect claude-desktop`
   ..  statistics      off (`claudius telemetry` explains them)

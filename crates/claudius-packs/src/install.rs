@@ -423,7 +423,9 @@ pub fn install_spec(pack: &PackSpec, opts: &InstallOptions, progress: &dyn Fn(f3
             .files
             .iter()
             .filter(|f| {
-                f.flac && fetch::bloated_flac(&dir.join(&f.path)) && std::fs::remove_file(dir.join(&f.path)).is_ok()
+                f.flac
+                    && claudius_encode::flac::bloated(&dir.join(&f.path))
+                    && std::fs::remove_file(dir.join(&f.path)).is_ok()
             })
             .count();
         if damaged > 0 {

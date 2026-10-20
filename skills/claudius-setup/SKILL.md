@@ -108,6 +108,6 @@ Run `claudius doctor` first; it names most problems. The common ones:
 | the assistant and the studio show different songs | `claudius mcp` started before the studio, so it has a session of its own: restart the assistant once the studio runs |
 | `“Claudius” Not Opened` (macOS) | the app came from a disk image downloaded in a browser, and the releases are not notarized yet: install with the `curl` command above instead, or System Settings, Privacy & Security, Open Anyway |
 | `busy (rendering)` | a job is running: wait and call `status`; `stop` ends a mutation or an evolution early, but a render always finishes |
-| no `song.mp3` | ffmpeg is not installed: `song.wav` is the same song; install ffmpeg for MP3s |
+| `AAC needs Core Audio (macOS) or ffmpeg` | Windows or Linux without ffmpeg: install it, or export MP3 or Opus |
 
 The full guide, with every message, is in the claudius docs under Troubleshooting.
