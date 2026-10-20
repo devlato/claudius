@@ -29,8 +29,8 @@ tool, which writes into the song's folder (or a `path`), rendering first when th
 ```
 
 Over the [HTTP API](http-api.md), `GET /api/export/{version}/{name}.{ext}?format=flac:16` answers with that render
-as a download named `{name}.{ext}`, encoded on the first request and kept with the render; `Command::Export`
-(`{"cmd": "export", "formats": ["mp3"], "path": "..."}`) writes the files as the tool does.
+as a download named `{name}.{ext}`, encoded when it is asked for (the latest one is kept for a second request).
+`Command::Export` (`{"cmd": "export", "formats": ["mp3"], "path": "..."}`) writes the files as the tool does.
 
 ## Formats
 

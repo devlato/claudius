@@ -81,6 +81,9 @@ impl Session {
     }
 }
 
+/// an encoded export: the render's version, the format, the file
+type Export = (u64, export::Spec, Arc<Vec<u8>>);
+
 pub struct App {
     s: Mutex<Session>,
     /// edits run one at a time (scripts may take a moment: sounds get cut from the library)
@@ -95,6 +98,7 @@ pub struct App {
     _in_use: Option<std::fs::File>,
     genres: Vec<GenreInfo>,
     exports: Vec<ExportFormat>,
+    last_export: Mutex<Option<Export>>,
     base: Mutex<String>,
     roots: Option<Vec<PathBuf>>,
 }
@@ -133,6 +137,7 @@ impl App {
             _in_use: in_use,
             genres: views::genre_infos(),
             exports: export_formats(),
+            last_export: Mutex::new(None),
             base: Mutex::new(format!("http://127.0.0.1:{DEFAULT_PORT}")),
             roots: settings.file_roots,
         });
@@ -334,22 +339,27 @@ impl App {
         }
     }
 
-    /// the render of song version `version` as `spec` (`/api/export`), encoded on first request and kept with the
-    /// render, so it goes when the render does
-    pub fn export_path(&self, version: u64, spec: &export::Spec) -> Result<PathBuf, String> {
+    /// The render of song version `version` as `spec` (`/api/export`), encoded on request. Only the latest export is
+    /// kept, in memory, so a second click on the same download does not encode it again.
+    pub fn export_bytes(&self, version: u64, spec: &export::Spec) -> Result<Arc<Vec<u8>>, String> {
+        let mut last = self.last_export.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((v, s, bytes)) = last.as_ref()
+            && *v == version
+            && s == spec
+        {
+            return Ok(bytes.clone());
+        }
         let wav = self.cache.join(format!("{version}.wav"));
         if !wav.exists() {
             return Err(format!("no render of version {version}"));
         }
-        let name = format!("{}.{}", spec.to_string().replace([':', '@'], "-"), spec.extension());
-        let path = self.cache.join(format!("{version}")).join("export").join(name);
-        if !path.exists() {
-            let title = self.blueprint().map(|b| b.title).unwrap_or_default();
-            audio::load_once(&wav)
-                .and_then(|m| export::write(&m, spec, &export::tags(&title), &path))
-                .map_err(|e| format!("{e:#}"))?;
-        }
-        Ok(path)
+        let title = self.blueprint().map(|b| b.title).unwrap_or_default();
+        let bytes = audio::load_once(&wav)
+            .and_then(|m| export::encode(&m, spec, &export::tags(&title)))
+            .map(Arc::new)
+            .map_err(|e| format!("{e:#}"))?;
+        *last = Some((version, *spec, bytes.clone()));
+        Ok(bytes)
     }
 
     pub fn stem_path(&self, version: u64, track: &str) -> Option<PathBuf> {

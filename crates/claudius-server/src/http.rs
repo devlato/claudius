@@ -298,11 +298,10 @@ struct ExportQuery {
 /// a render in another format, as a download named after the URL's file: `/api/export/12/glass-garden.mp3?format=mp3:192`
 async fn export_file(
     State(c): State<Ctx>,
-    Path((version, file)): Path<(u64, String)>,
+    Path((version, file)): Path<(String, String)>,
     Query(q): Query<ExportQuery>,
-    req: Request,
 ) -> Response {
-    let Some((name, ext)) = file.rsplit_once('.') else {
+    let (Ok(version), Some((name, ext))) = (version.parse::<u64>(), file.rsplit_once('.')) else {
         return (StatusCode::NOT_FOUND, "export is /api/export/{version}/{name}.{ext}?format=SPEC").into_response();
     };
     let spec: claudius::export::Spec = match q.format.as_deref().unwrap_or(ext).parse() {
@@ -316,14 +315,12 @@ async fn export_file(
     let download: String =
         name.chars().map(|ch| if ch.is_ascii_alphanumeric() || "-_. ".contains(ch) { ch } else { '-' }).collect();
     let app = c.app.clone();
-    match tokio::task::spawn_blocking(move || app.export_path(version, &spec).map(|p| (p, spec.mime()))).await {
-        Ok(Ok((path, mime))) => {
-            let mut r = serve_file(path, req).await;
+    match tokio::task::spawn_blocking(move || app.export_bytes(version, &spec)).await {
+        Ok(Ok(bytes)) => {
+            let mut r = Body::from(bytes.as_ref().clone()).into_response();
             let h = r.headers_mut();
-            h.insert(header::CONTENT_TYPE, HeaderValue::from_static(mime));
-            if let Ok(v) =
-                HeaderValue::from_str(&format!("attachment; filename=\"{download}.{}\"", ext.to_ascii_lowercase()))
-            {
+            h.insert(header::CONTENT_TYPE, HeaderValue::from_static(spec.mime()));
+            if let Ok(v) = HeaderValue::from_str(&format!("attachment; filename=\"{download}.{}\"", spec.extension())) {
                 h.insert(header::CONTENT_DISPOSITION, v);
             }
             r
