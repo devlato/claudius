@@ -29,7 +29,7 @@ arrangement asks for, with the riser pitched to the key. The crash is a drum voi
 ## Recorded
 
 **Sample packs.** Multi-sampled instruments and drum machines under licences that allow making and publishing music
-with them. `claudius-packs install --defaults` installs fourteen packs (a 2.2 GB download, 1.2 GB on disk):
+with them. `claudius-packs install --defaults` installs 22 packs (a 3.1 GB download, 1.5 GB on disk):
 
 | pack | what | licence |
 |---|---|---|
@@ -37,13 +37,17 @@ with them. `claudius-packs install --defaults` installs fourteen packs (a 2.2 GB
 | `epianos` | Wurlitzer, CP80, Pianet | CC BY 3.0 |
 | `jrhodes` | Rhodes Mark I | free for music |
 | `vsco2` | chamber orchestra: strings, brass, woodwinds, harp, timpani | CC0 |
-| `vcsl` | mallets, pipe organ, sax, harmonica, world percussion | CC0 |
+| `vcsl` | mallets, bowed vibraphone, wine glasses, pipe organ, sax, harmonica, a TX81Z FM synth, zithers, world percussion, effects | CC0 |
 | `tr808`, `tr909`, `tr707` | Roland drum machines | CC0; free use; public domain |
-| `uzu` | a drum kit | Unlicense |
+| `uzu`, `synthdrums` | electronic drum kits | Unlicense; CC0 |
 | `muldjord` | an acoustic drum kit | CC BY 4.0 |
-| `freepats` | upright piano, organ, guitars, basses, synth pads and leads | CC0 |
+| `freepats` | upright piano, organ, guitars, basses, synth pads and leads, glasses of water, a hang | CC0 |
 | `doublebass`, `growlybass` | upright and electric bass | CC0 |
 | `voice` | a sung vowel and a choir | CC0 |
+| `solocello`, `erhu`, `steelpan` | a solo cello, an erhu, a steel pan | CC0; Unlicense |
+| `sonicpi` | Sonic Pi's one-shots, drones, vinyl, tabla and loops | CC0 |
+| `body`, `zamenhof` | body percussion; electronic glitch kits | CC0 |
+| `miscellania` | sound effects: sci-fi, metal, glass, chains, bells, glissandi | CC0 |
 
 The instruments have velocity layers and round robins (the Salamander piano has five layers; the 909 kick eleven
 layers and 126 variations). A song that plays a pack whose licence asks for attribution gets a `credits.txt` in its

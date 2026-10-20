@@ -165,6 +165,18 @@ fn find_inst(p: &PackIndex, name: &str, bank: Option<&str>) -> Option<usize> {
     p.instruments.iter().position(|d| drum_canonical(&d.name) == Some(c))
 }
 
+/// a variant called by its own name, which starts with its instrument's: `vinyl_scratch` is a variant of `vinyl`
+/// (Sonic Pi's names). Other variant names (`BD5075`, `C4`) are not names of their own.
+fn find_named_variant(p: &PackIndex, name: &str) -> Option<InstrumentRef> {
+    let n = norm(name);
+    p.instruments.iter().enumerate().find_map(|(i, d)| {
+        if !n.starts_with(&format!("{}_", norm(&d.name))) {
+            return None;
+        }
+        d.variants.iter().position(|v| norm(&v.name) == n).and_then(|k| make(p, i, k))
+    })
+}
+
 fn make(p: &PackIndex, i: usize, variant: usize) -> Option<InstrumentRef> {
     let d = &p.instruments[i];
     (variant < d.variants.len()).then(|| InstrumentRef { pack: p.name.clone(), instrument: d.name.clone(), variant })
@@ -194,10 +206,15 @@ pub fn resolve_in(indexes: &[Arc<PackIndex>], name: &str, bank: Option<&str>) ->
     // explicit bank: `s("bd").bank("tr909")`
     if let Some(b) = bank {
         let sound = parts.last().copied().unwrap_or_default();
-        if let Some(p) = find_pack(indexes, b)
-            && let Some(i) = find_inst(p, sound, None)
-        {
-            return make(p, i, variant);
+        if let Some(p) = find_pack(indexes, b) {
+            if let Some(i) = find_inst(p, sound, None) {
+                return make(p, i, variant);
+            }
+            if variant == 0
+                && let Some(r) = find_named_variant(p, sound)
+            {
+                return Some(r);
+            }
         }
         // Strudel bank naming inside map packs: RolandTR909_bd
         for p in indexes {
@@ -216,7 +233,11 @@ pub fn resolve_in(indexes: &[Arc<PackIndex>], name: &str, bank: Option<&str>) ->
     if parts.len() >= 2 {
         let (pk, sound) = (parts[0], parts[1..].join(":"));
         if let Some(p) = find_pack(indexes, pk) {
-            return find_inst(p, &sound, None).and_then(|i| make(p, i, variant));
+            return match find_inst(p, &sound, None) {
+                Some(i) => make(p, i, variant),
+                None if variant == 0 => find_named_variant(p, &sound),
+                None => None,
+            };
         }
         // `bank:sound` where the bank is a Strudel bank name
         return resolve_in(indexes, &format!("{sound}:{variant}"), Some(pk));
@@ -256,6 +277,11 @@ pub fn resolve_in(indexes: &[Arc<PackIndex>], name: &str, bank: Option<&str>) ->
         if let Some(i) = p.instruments.iter().position(|d| d.aliases.iter().any(|a| norm(a) == n)) {
             return make(p, i, variant);
         }
+    }
+    if variant == 0
+        && let Some(r) = order.iter().find_map(|p| find_named_variant(p, &n))
+    {
+        return Some(r);
     }
     // a drum synonym in any other kit (user-added maps): `kick` -> some pack's `bd`
     if let Some(c) = drum_canonical(&n) {
@@ -373,5 +399,34 @@ mod tests {
         assert_eq!(resolve_in(&idx, "theremin", None), None);
         assert_eq!(resolve_in(&idx, "bd", Some("nonexistent")), None);
         assert_eq!(resolve_in(&idx, "grand_piano", None), r("salamander", "piano", 0));
+    }
+
+    fn named(name: &str, variants: &[&str]) -> InstrumentDef {
+        let mut d = def(name, 0, &[]);
+        d.variants = variants.iter().map(|n| Variant { name: n.to_string(), zones: vec![Zone::default()] }).collect();
+        d
+    }
+
+    #[test]
+    fn variants_answer_to_their_own_names() {
+        let idx = vec![
+            pack("tr808", &["808"], vec![named("bd", &["BD0010", "BD5075"])], true),
+            pack(
+                "sonicpi",
+                &[],
+                vec![named("vinyl", &["vinyl_backspin", "vinyl_hiss", "vinyl_scratch"]), def("bd", 2, &[])],
+                true,
+            ),
+        ];
+        assert_eq!(resolve_in(&idx, "vinyl_scratch", None), r("sonicpi", "vinyl", 2));
+        assert_eq!(resolve_in(&idx, "sonicpi:vinyl_hiss", None), r("sonicpi", "vinyl", 1));
+        assert_eq!(resolve_in(&idx, "vinyl_backspin", Some("sonicpi")), r("sonicpi", "vinyl", 0));
+        // the group and its numbered variants, Strudel's way
+        assert_eq!(resolve_in(&idx, "vinyl:1", None), r("sonicpi", "vinyl", 1));
+        // a variant name that does not start with its instrument's is not a name of its own
+        assert_eq!(resolve_in(&idx, "BD5075", None), None);
+        assert_eq!(resolve_in(&idx, "vinyl_nothing", None), None);
+        // bare drum names still go to the preferred kits
+        assert_eq!(resolve_in(&idx, "bd", None), r("tr808", "bd", 0));
     }
 }

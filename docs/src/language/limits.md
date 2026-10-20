@@ -52,7 +52,7 @@ The messages, as printed after `Runtime error:`.
 | `master()` | `master() has no option 'loudness' (options: lufs ceiling)` |
 | `track()` | `track 'x': unknown sound 'bdd' (drums: ...; synths: ...; sampled: ...)` |
 | `track()`, unreadable words | `track 'x': cannot read 'h3' as a note (...)`; `track 'x': cannot read 'Xyz' as a chord (...)`; `track 'x': n() takes scale degrees (0 1 2 -1 ...), not 'e'` |
-| `track()` with `.bank()` | `track 'x': no 'bongo' in bank 'tr909' (installed packs: ...; kits: tr909 tr808 tr707 acoustic uzu)` |
+| `track()` with `.bank()` | `track 'x': no 'bongo' in bank 'tr909' (installed packs: ...; kits: tr909 tr808 tr707 acoustic uzu synthdrums sonicpi body)` |
 | `track()` without packs | `track 'x': no sample packs are installed for bank 'tr909' (install them with: claudius-packs install --defaults)`; a sampled name: `unknown sound 'rhodes' (...; sampled instruments need packs: claudius-packs install --defaults)` |
 | `track()` under `--synth-only` | `track 'x': bank 'tr909' plays sample packs, which are off in this session (--synth-only)`; a sampled name: `unknown sound 'rhodes' (...; sampled instruments are off in this session (--synth-only))` |
 | `track()` with a file | `track 'x': /path/vox.wav does not exist`; `track 'x': /path/vox.wav is outside the folders this claudius may read` |

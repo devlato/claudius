@@ -653,6 +653,47 @@ mod tests {
     }
 
     #[test]
+    fn file_globs_leave_out_what_is_excluded() {
+        let listing: Vec<(String, u64)> = [
+            "etc/samples/loop_amen.flac",
+            "etc/samples/loop_amen_full.flac",
+            "etc/samples/loop_breakbeat.flac",
+            "etc/samples/loop_garzul.flac",
+            "etc/samples/loop_tabla.flac",
+            "etc/samples/README.md",
+            "etc/samples/ambi_drone.flac",
+        ]
+        .iter()
+        .map(|p| (p.to_string(), 1))
+        .collect();
+        let got = matching(&listing, "etc/samples/loop_*.flac", Some("loop_(amen|breakbeat)")).unwrap();
+        assert_eq!(got, ["etc/samples/loop_garzul.flac", "etc/samples/loop_tabla.flac"]);
+        assert_eq!(matching(&listing, "etc/samples/loop_*.flac", None).unwrap().len(), 5);
+    }
+
+    #[test]
+    fn sfz_envelope_and_pan_follow_the_controller_defaults() {
+        // Karoryfer's style: knobs with defaults open the sustain and centre the pan
+        let src = r#"
+<control> set_cc10=64 set_cc103=127
+<global> pan=-100 pan_oncc10=200 ampeg_sustain=0 ampeg_sustain_oncc103=100 ampeg_hold=0.5
+ampeg_decay=0.001 ampeg_decay_oncc102=6
+<region> sample=a.wav key=60
+"#;
+        let file = sfz::parse(src, &mut |_| Ok(String::new())).unwrap();
+        let z = sfz_zone(&file.regions[0], &file, 0, false);
+        assert!(z.pan.abs() < 1.0, "pan {}", z.pan);
+        assert_eq!(z.sustain, 1.0);
+        assert!((z.hold - 0.5).abs() < 1e-6);
+        assert!((z.decay - 0.001).abs() < 1e-6, "cc102 has no default, so it adds nothing: {}", z.decay);
+        // sfzinstruments' style: a bipolar curve centres the same knob
+        let file =
+            sfz::parse("<global> pan_oncc10=100 pan_curvecc10=1 <region> sample=a.wav", &mut |_| Ok(String::new()))
+                .unwrap();
+        assert_eq!(sfz_zone(&file.regions[0], &file, 0, false).pan, 0.0);
+    }
+
+    #[test]
     fn velocity_layer_reduction() {
         // 16 Salamander-style layers on one key
         let bounds = [1, 27, 35, 37, 44, 47, 51, 57, 65, 73, 81, 89, 97, 105, 113, 121, 128];

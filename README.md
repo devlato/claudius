@@ -33,7 +33,7 @@ terminal instead:
 ```sh
 curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh | sh    # macOS (the app too), Linux
 irm https://github.com/devlato/claudius/releases/latest/download/install.ps1 | iex          # Windows (PowerShell)
-claudius setup    # sample packs and listening models, about 3 GB to download
+claudius setup    # sample packs and listening models, about 4 GB to download
 ```
 
 You can also build it from source; see [install](docs/src/getting-started/install.md).

@@ -12,7 +12,7 @@ claudius doctor
 ```text
 claudius 0.1.0 (macos aarch64)
   ok  web studio      ~/.local/share/claudius/web
-  ok  sample packs    14 default packs (1.2 GB) in ~/Library/Application Support/claudius/packs
+  ok  sample packs    22 default packs (1.5 GB) in ~/Library/Application Support/claudius/packs
   ok  ears            models in ~/.cache/earshot-rs
   ok  Apple Loops     14096 loops and samples
   ok  ffmpeg          9.0.2 (writes song.mp3)
@@ -25,7 +25,7 @@ Everything claudius needs is here.
 ```
 
 Two things matter for this page: the **sample packs** (recorded instruments and drum machines) and the **ears** (the
-listening models the critic uses). If either is missing, `claudius setup` downloads them: about 2.2 GB of packs (1.2 GB
+listening models the critic uses). If either is missing, `claudius setup` downloads them: about 3.1 GB of packs (1.5 GB
 once unpacked) and 0.8 GB of models, once. Apple Loops are optional (claudius uses them when GarageBand or Logic
 content is installed), and without ffmpeg you get `song.wav` but no `song.mp3`.
 

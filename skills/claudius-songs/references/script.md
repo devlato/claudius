@@ -81,12 +81,17 @@ Methods on patterns:
 
 - Drum words, synthesized: `bd kick sd snare cp clap hh ch hat oh ohat rd ride cr crash lt mt ht tom rim rs sh
   shaker cb cowbell snap perc`.
-- Real drum machines from the sample packs: `.bank("tr909")`, `"tr808"`, `"tr707"`, `"acoustic"`, `"uzu"`.
+- Real drum machines and kits from the sample packs: `.bank("tr909")`, `"tr808"`, `"tr707"`, `"acoustic"`, `"uzu"`,
+  `"synthdrums"`, `"sonicpi"` (Sonic Pi's `bd`, `sn`, `hat`), `"body"` (`stomp clap snap chest`).
 - Synth presets: `sub_bass 808 reese acid saw_bass pluck_bass organ_bass wobble pluck supersaw pad warm_pad stab
   epiano keys bell organ strings square_lead chip`.
 - Sampled instruments when their packs are installed: `piano upright rhodes wurlitzer hammond string_ensemble
   violins cellos pizzicato brass trumpet flute harp marimba vibes kalimba upright_bass electric_bass guitar choir
-  voice sax` and more; `catalog` (or `claudius-packs instruments`) lists what is installed.
+  voice sax solo_cello erhu steel_pan hang water_glasses wine_glasses bowed_vibraphone dan_tranh clavisynth` and more;
+  `catalog` (or `claudius-packs instruments`) lists what is installed.
+- One-shots and effects in groups, picked with a variation (`s("zaps:3")`, `.n()`): `elec glitch glitch_kit ambi
+  vinyl loop tabla aliens zaps sirens metal_hits glass_breaks chains glock_gliss ocean_drum`; Sonic Pi's sounds also
+  by their own names (`s("vinyl_scratch")`, `s("bd_haus")`).
 - A file plays as a sampler: `note("c4 ~ c4 [c4 c4]").s("/path/to/vox.wav")`; `c4` is the pitch it was recorded at.
 
 ## Recipes

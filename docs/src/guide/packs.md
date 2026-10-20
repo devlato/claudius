@@ -11,7 +11,7 @@ instrument maps onto them) and a `files/` folder.
 
 ## The packs
 
-`claudius-packs list` shows every pack with its state and licence. The 14 default packs hold 162 instruments:
+`claudius-packs list` shows every pack with its state and licence. The 22 default packs hold 253 instruments:
 
 | pack | what | instruments | licence | credit required | on disk |
 |---|---|---|---|---|---|
@@ -19,21 +19,30 @@ instrument maps onto them) and a `files/` folder.
 | `epianos` | Wurlitzer EP200, Yamaha CP80, Hohner Pianet T | 3 | CC BY 3.0 | yes | 21 MB |
 | `jrhodes` | 1977 Rhodes Mark I, 5 crossfaded layers | 1 | free for making music; no redistribution of the samples | no | 38 MB |
 | `vsco2` | VS Chamber Orchestra 2: strings, brass, woodwinds, harp, timpani, key-split sections | 36 | CC0 | no | 284 MB |
-| `vcsl` | mallets, pipe organ, tenor sax, harmonica, world and orchestral percussion | 32 | CC0 | no | 150 MB |
+| `vcsl` | mallets, bowed vibraphone, wine glasses, pipe organ, ocarina, tenor sax, harmonica, didgeridoo, a TX81Z FM synth, zithers, world and orchestral percussion, effects | 51 | CC0 | no | 238 MB |
 | `tr808` | Roland TR-808 by Michael Fischer, every knob at five positions | 16 | CC0 | no | 13 MB |
 | `tr909` | Roland TR-909 by Audio Realism, accent layers and knob sweeps | 11 | free for personal and commercial use, no redistribution | no | 26 MB |
 | `tr707` | Roland TR-707, all 15 sounds | 13 | public domain | no | 0.5 MB |
 | `uzu` | the uzu drum kit made for Strudel | 15 | Unlicense | no | 2.4 MB |
 | `muldjord` | MuldjordKit, an acoustic rock kit (bank `acoustic`) | 11 | CC BY 4.0 | yes | 135 MB |
-| `freepats` | upright piano, FM piano, drawbar organ, basses, guitars, synth pads, strings and leads | 19 | CC0 | no | 137 MB |
+| `freepats` | upright piano, FM piano, drawbar organ, basses, guitars, synth pads, strings and leads, glasses of water, a hang | 21 | CC0 | no | 157 MB |
 | `doublebass` | double bass pizzicato with round robins | 1 | CC0 | no | 30 MB |
 | `growlybass` | Squier Jazz Bass, fingered | 1 | CC0 | no | 67 MB |
 | `voice` | a low male "ah", and a 5-voice choir made from it | 2 | CC0 | no | 27 MB |
+| `sonicpi` | Sonic Pi's samples: kicks, snares, hats, electronic one-shots, glitches, bass hits, drones, vinyl, tabla, loops | 18 | CC0 | no | 33 MB |
+| `solocello` | a solo cello, bowed and plucked | 2 | CC0 | no | 60 MB |
+| `erhu` | an erhu: long and short bows, sul tasto | 3 | CC0 | no | 43 MB |
+| `steelpan` | a tenor steel pan, 5 velocity layers | 1 | Unlicense | no | 38 MB |
+| `synthdrums` | drums made on synthesizers after vintage analog kits | 11 | CC0 | no | 2 MB |
+| `body` | body percussion: claps, snaps, stomps, chest and belly hits | 14 | CC0 | no | 20 MB |
+| `zamenhof` | two kits of electronic glitches | 2 | CC0 | no | 56 MB |
+| `miscellania` | sound effects: aliens, zaps, sirens, metal, breaking glass, chains, bells, glockenspiel glissandi | 19 | CC0 | no | 41 MB |
 
-The download is about 2.2 GB, larger than the 1.2 GB on disk, because `vsco2`, `vcsl`, `tr909`, `doublebass`,
-`growlybass` and `voice` arrive as WAV and are converted to lossless FLAC as they install. Where a pack was cut for
-size (the piano keeps 5 of its 16 velocity layers, VSCO leaves out the tremolo and muted brass), the pack's
-description in `claudius-packs list` says what was left out.
+The download is about 3.1 GB, larger than the 1.5 GB on disk, because `vsco2`, `vcsl`, `tr909`, `doublebass`,
+`growlybass`, `voice`, `solocello`, `erhu`, `body`, `zamenhof` and `miscellania` arrive as WAV and are converted to
+lossless FLAC as they install; each conversion is read back and compared with the WAV. Where a pack was cut for size
+(the piano keeps 5 of its 16 velocity layers, VSCO leaves out the tremolo and muted brass), the pack's description in
+`claudius-packs list` says what was left out.
 
 Two more packs install only when you name them:
 
@@ -107,12 +116,13 @@ A script or a genre asks for an instrument by name, and the installed packs deci
 | `piano` | a friendly alias: the first installed of `salamander:piano`, `splendid:piano`, `freepats:upright_piano`, `piano-lite:piano` |
 | `vsco2:violins` | that pack's instrument, by name or by one of its aliases (`vsco2:violin_ensemble`) |
 | `tr808:sd:3` | variation 3 of that instrument |
+| `vinyl_scratch` | a variation by its own name, when it starts with its instrument's (Sonic Pi's names): `sonicpi:vinyl:3` |
 | `kick`, `bd`, `hh` | a bare drum name: the first installed kit of `tr909`, `tr808`, `muldjord`, `tr707`, `uzu` that has it |
 | `RolandTR909_bd` | a Strudel bank name: bank `RolandTR909`, sound `bd` |
 | `bd` with bank `tr909` | that kit's kick |
 
 `claudius-packs resolve` answers what a name plays on your machine, and `claudius-packs aliases` lists every friendly
-name with what it resolves to now (262 of them with the default packs):
+name with what it resolves to now (264 of them with the default packs):
 
 ```text
 $ claudius-packs resolve piano
@@ -141,16 +151,21 @@ answer to the pack's name and its aliases:
 | `tr707` | `707`, `rolandtr707`, `tr-707` | Roland TR-707 |
 | `muldjord` | `acoustic`, `acoustic_kit`, `rock_kit` | MuldjordKit |
 | `uzu` | `uzu-drumkit` | uzu drum kit |
+| `synthdrums` | `synth_drums`, `synth_percussion` | FreePats synthesizer percussion |
+| `sonicpi` | `sonic_pi`, `sonic-pi` | Sonic Pi's kicks, snares, hats and rides, and its other groups |
+| `body` | `body_percussion` | body percussion: `stomp`, `clap`, `snap`, `chest`, `belly`, `heel` ... |
 
 Drum names have synonyms (`kick`, `kd`, `bassdrum` for `bd`; `snare` for `sd`; `rimshot`, `sidestick` for `rim`; and
-so on), so `s("kick").bank("808")` works. A variation picks another recording of the same drum: `bd:2` in the pattern,
+so on), so `s("kick").bank("808")` works, and `s("bd sd hh").bank("sonicpi")` plays Sonic Pi's `bd`, `sn` and `hat`. A variation picks another recording of the same drum: `bd:2` in the pattern,
 or `.n("0 1 2")`. The drum machines have many:
 
 - `tr808`: every knob at five positions, 25 variations of `bd`, `sd` and the cymbal (tone by decay, or tone by
   snappy), 5 of the toms, congas and open hat;
 - `tr909`: variation 0 of every drum plays its 11 accent levels as velocity layers; the others are the knob sweeps
   (125 for `bd` and `sd`, 121 for the toms, the decay of the hats, the tuning of the cymbals);
-- `tr707`: one recording per sound.
+- `tr707`: one recording per sound;
+- `sonicpi`: each group's sounds, in the order of their names, which they also answer to: `vinyl:3` is
+  `vinyl_scratch`, `bd:6` is `bd_haus`.
 
 `claudius-packs instruments` shows how many variations each instrument has.
 
