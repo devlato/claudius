@@ -94,6 +94,7 @@ pub struct App {
     /// the lock on `cache` that tells other sessions this one is running; the OS lets go of it when the process ends
     _in_use: Option<std::fs::File>,
     genres: Vec<GenreInfo>,
+    exports: Vec<ExportFormat>,
     base: Mutex<String>,
     roots: Option<Vec<PathBuf>>,
 }
@@ -131,6 +132,7 @@ impl App {
             cache,
             _in_use: in_use,
             genres: views::genre_infos(),
+            exports: export_formats(),
             base: Mutex::new(format!("http://127.0.0.1:{DEFAULT_PORT}")),
             roots: settings.file_roots,
         });
@@ -275,6 +277,7 @@ impl App {
             redo_label: s.redo.last().map(|r| r.1.clone()),
             log: s.log.iter().cloned().collect(),
             genres: self.genres.clone(),
+            exports: self.exports.clone(),
         }
     }
 
@@ -331,6 +334,24 @@ impl App {
         }
     }
 
+    /// the render of song version `version` as `spec` (`/api/export`), encoded on first request and kept with the
+    /// render, so it goes when the render does
+    pub fn export_path(&self, version: u64, spec: &export::Spec) -> Result<PathBuf, String> {
+        let wav = self.cache.join(format!("{version}.wav"));
+        if !wav.exists() {
+            return Err(format!("no render of version {version}"));
+        }
+        let name = format!("{}.{}", spec.to_string().replace([':', '@'], "-"), spec.extension());
+        let path = self.cache.join(format!("{version}")).join("export").join(name);
+        if !path.exists() {
+            let title = self.blueprint().map(|b| b.title).unwrap_or_default();
+            audio::load_once(&wav)
+                .and_then(|m| export::write(&m, spec, &export::tags(&title), &path))
+                .map_err(|e| format!("{e:#}"))?;
+        }
+        Ok(path)
+    }
+
     pub fn stem_path(&self, version: u64, track: &str) -> Option<PathBuf> {
         let s = self.lock();
         let r = s.render.as_ref().filter(|r| r.view.version == version)?;
@@ -384,6 +405,20 @@ fn clean_old_sessions(root: &Path, mine: &Path, grace: Duration, unlocked: Durat
             let _ = std::fs::remove_dir_all(&dir);
         }
     }
+}
+
+/// what `State.exports` lists: every preset, with why this machine cannot write it when it cannot
+fn export_formats() -> Vec<ExportFormat> {
+    export::presets()
+        .iter()
+        .map(|p| ExportFormat {
+            spec: p.to_string(),
+            label: p.label(config::SR),
+            extension: p.extension().to_string(),
+            lossless: p.lossless(),
+            unavailable: p.unavailable(),
+        })
+        .collect()
 }
 
 #[cfg(test)]

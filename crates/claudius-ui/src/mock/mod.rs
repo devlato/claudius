@@ -221,6 +221,7 @@ impl Mock {
                 self.log(msg.clone());
                 Ok(msg)
             }
+            Command::Export { .. } => Err("the demo cannot export: start `claudius serve` for that".into()),
             Command::Analyze { path } => match audio_file(path) {
                 Ok(()) => {
                     let msg = self.fake_analysis(path);

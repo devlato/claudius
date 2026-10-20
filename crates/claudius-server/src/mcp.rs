@@ -248,6 +248,15 @@ pub struct SaveArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct ExportArgs {
+    /// the formats to write, each format[:quality][@rate]: "mp3", "mp3:v0", "wav:16", "flac", "aac", "opus:96"
+    pub formats: Vec<String>,
+    /// folder to write into (default: the song's folder, Music/claudius/<genre>-<title>-<seed>)
+    #[serde(default)]
+    pub path: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct RemakeArgs {
     /// the audio file to learn from
     pub path: String,
@@ -473,6 +482,18 @@ impl Studio {
     )]
     async fn save(&self, Parameters(a): Parameters<SaveArgs>) -> Result<String, String> {
         self.job(Command::Save { path: a.path }, 240).await
+    }
+
+    #[tool(
+        description = "Export the song as audio files: wav (24-bit, 48 kHz), wav:16 (CD: 16-bit, 44.1 kHz), wav:32 (float), aiff, flac, flac:16, alac (Apple Lossless), mp3 (320 kbps), mp3:v0, mp3:192, mp3:128, aac (256 kbps .m4a), opus (160 kbps, the smallest for the web), opus:96, ogg (Vorbis). Each is format[:quality][@rate]. Writes them into the song's folder (or path), named after the song, rendering first when the song changed since its last render."
+    )]
+    async fn export(&self, Parameters(a): Parameters<ExportArgs>) -> Result<String, String> {
+        let st = self.b.state().await?;
+        if st.render.as_ref().is_none_or(|r| r.version < st.song_version) {
+            self.heard(false).await?;
+        }
+        let r = self.b.command(Command::Export { formats: a.formats, path: a.path }).await?;
+        if r.ok { Ok(r.message) } else { Err(r.message) }
     }
 
     #[tool(description = "Open a saved song: a folder or blueprint.json written by save, or a .rhai script.")]

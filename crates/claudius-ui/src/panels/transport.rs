@@ -290,6 +290,32 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
             .response
             .on_hover_text("download one file per track");
         }
+        if let Some(r) = cx.state.render.as_ref().filter(|_| !cx.state.exports.is_empty()) {
+            let version = r.version;
+            let name = cx.state.song.as_ref().map_or_else(|| "song".to_string(), |s| file_name(&s.title));
+            ui.menu_button(small("export"), |ui| {
+                if version < cx.state.song_version {
+                    ui.label(small(format!("render {version}, from before the latest change")));
+                }
+                for (lossless, heading) in [(true, "lossless"), (false, "compressed")] {
+                    ui.label(small(heading).weak());
+                    for f in cx.state.exports.iter().filter(|f| f.lossless == lossless) {
+                        let path = format!("/api/export/{version}/{name}.{}?format={}", f.extension, f.spec);
+                        let url = cx.server.map_or_else(|| path.clone(), |base| format!("{base}{path}"));
+                        match &f.unavailable {
+                            None => {
+                                ui.hyperlink_to(&f.label, url);
+                            }
+                            Some(why) => {
+                                ui.add_enabled(false, egui::Label::new(&f.label)).on_disabled_hover_text(why);
+                            }
+                        }
+                    }
+                }
+            })
+            .response
+            .on_hover_text("download the song as WAV, AIFF, FLAC, Apple Lossless, MP3, AAC, Opus or Ogg Vorbis");
+        }
         ui.separator();
         if widgets::tool_button(ui, Icon::Mutate, "Mutate", has_song && !busy, false)
             .on_hover_text("try random mutations, listen to each, keep the best")
@@ -599,5 +625,14 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
     });
     if modal.should_close() {
         cx.view.new_song.open = false;
+    }
+}
+
+/// a song title as a file name: `Glass Garden` -> `glass-garden`
+fn file_name(title: &str) -> String {
+    let name: String = title.to_lowercase().chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '-' }).collect();
+    match name.trim_matches('-') {
+        "" => "song".to_string(),
+        n => n.to_string(),
     }
 }
