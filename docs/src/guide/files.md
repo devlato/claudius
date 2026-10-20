@@ -40,6 +40,8 @@ MCP made it, so they hold the same files:
 | `verdict.json` | the critic's verdict |
 | `credits.txt` | attributions, when sample packs play |
 | `stems/<track>.wav` | every track, 32-bit float: always from a `save`, from `make` and `render` with `--stems` |
+| `release.json` | what you gave `claudius publish`: the artist, the songwriters, the artwork, how the song was made |
+| `release/` | the release kit `claudius publish` writes ([Publishing](publish.md)) |
 
 Stems are floating point because a track can peak above full scale before the master's limiter brings the mix down.
 `claudius judge` runs its arrangement and theory checks when `project.json` sits next to the audio, so any song

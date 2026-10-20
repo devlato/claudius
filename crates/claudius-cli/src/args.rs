@@ -186,6 +186,26 @@ pub(crate) enum Cmd {
         #[arg(long)]
         list: bool,
     },
+    /// Check a song for release, and write a release kit: the WAVs and the cover a distributor takes, and the answers
+    /// its form asks for. What you give is kept in the song's release.json for next time
+    Publish {
+        /// a rendered song's folder
+        song: PathBuf,
+        /// the cover: a square JPEG or PNG, 3000 × 3000
+        #[arg(long)]
+        artwork: Option<PathBuf>,
+        #[command(flatten)]
+        details: Box<ReleaseArgs>,
+        /// check it, and write no kit
+        #[arg(long)]
+        check: bool,
+        /// the kit's folder (default: release/ in the song's folder)
+        #[arg(short, long)]
+        out: Option<PathBuf>,
+        /// print the checks as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Judge an audio file (with the arrangement and theory checks when its project.json sits next to it)
     Judge {
         file: PathBuf,
@@ -409,6 +429,59 @@ impl SoundArgs {
         }
         open_library()
     }
+}
+
+/// what stores ask about a release; each replaces what the song's release.json says
+#[derive(clap::Args, Clone, Default)]
+pub(crate) struct ReleaseArgs {
+    /// the artist the song comes out under
+    #[arg(long)]
+    pub(crate) artist: Option<String>,
+    /// the title (default: the song's)
+    #[arg(long)]
+    pub(crate) title: Option<String>,
+    /// a version of the song, such as "Extended Mix" or "Radio Edit"
+    #[arg(long)]
+    pub(crate) version: Option<String>,
+    /// a featured artist (repeatable)
+    #[arg(long)]
+    pub(crate) featuring: Vec<String>,
+    /// the album or EP it is on (without one, it is a single)
+    #[arg(long)]
+    pub(crate) album: Option<String>,
+    /// the store genre (default: the song's, as stores list it)
+    #[arg(long)]
+    pub(crate) genre: Option<String>,
+    #[arg(long)]
+    pub(crate) subgenre: Option<String>,
+    /// the release date, YYYY-MM-DD
+    #[arg(long)]
+    pub(crate) date: Option<String>,
+    /// the record label (default: the artist)
+    #[arg(long)]
+    pub(crate) label: Option<String>,
+    /// a songwriter's full legal name (repeatable)
+    #[arg(long = "writer")]
+    pub(crate) writers: Vec<String>,
+    /// a producer (repeatable)
+    #[arg(long = "producer")]
+    pub(crate) producers: Vec<String>,
+    /// who owns the recording and the composition, for the ℗ and © lines (default: the artist)
+    #[arg(long)]
+    pub(crate) owner: Option<String>,
+    /// the ISRC, if you have one (the distributor assigns one otherwise)
+    #[arg(long)]
+    pub(crate) isrc: Option<String>,
+    /// the UPC, if you have one (the distributor assigns one otherwise)
+    #[arg(long)]
+    pub(crate) upc: Option<String>,
+    /// the lyrics are explicit (--explicit false takes it back)
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    pub(crate) explicit: Option<bool>,
+    /// how the song was made, which distributors ask: written (by you), assisted (an assistant or claudius'
+    /// generator wrote some of it) or generated (they wrote it)
+    #[arg(long)]
+    pub(crate) made: Option<String>,
 }
 
 /// the Apple Loops and user library, when there is one
