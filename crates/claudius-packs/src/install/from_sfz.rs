@@ -124,7 +124,7 @@ pub(super) fn sfz_zone(r: &SfzRegion, file: &SfzFile, file_id: u32, keep_release
         lorand: r.f32("lorand").unwrap_or(0.0),
         hirand: r.f32("hirand").unwrap_or(1.0),
         gain_db,
-        pan: r.f32("pan").unwrap_or(0.0).clamp(-100.0, 100.0),
+        pan: modded(r, file, "pan", 0.0).clamp(-100.0, 100.0),
         offset: modded(r, file, "offset", 0.0).max(0.0) as u32,
         end: r.f32("end").unwrap_or(0.0).max(0.0) as u32,
         loop_mode,
@@ -133,9 +133,9 @@ pub(super) fn sfz_zone(r: &SfzRegion, file: &SfzFile, file_id: u32, keep_release
         keytrack: r.f32("pitch_keytrack").unwrap_or(100.0) / 100.0,
         release,
         attack,
-        hold: r.f32("ampeg_hold").unwrap_or(0.0).max(0.0),
-        decay: r.f32("ampeg_decay").unwrap_or(0.0).max(0.0),
-        sustain: (r.f32("ampeg_sustain").unwrap_or(100.0) / 100.0).clamp(0.0, 1.0),
+        hold: modded(r, file, "ampeg_hold", 0.0).max(0.0),
+        decay: modded(r, file, "ampeg_decay", 0.0).max(0.0),
+        sustain: (modded(r, file, "ampeg_sustain", 100.0) / 100.0).clamp(0.0, 1.0),
     }
 }
 
@@ -177,9 +177,10 @@ pub(super) fn drumify(z: &mut Zone, center: f32) {
 
 pub(super) fn build_sfz(ctx: &mut Ctx, src_key: &str, spec: &InstSpec) -> Result<Vec<InstrumentDef>> {
     let sfz_path = spec.sfz.as_deref().expect("sfz");
-    let base_dir = match sfz_path.rfind('/') {
-        Some(i) => sfz_path[..i].to_string(),
-        None => String::new(),
+    let base_dir = match (&spec.base, sfz_path.rfind('/')) {
+        (Some(b), _) => b.trim_end_matches('/').to_string(),
+        (None, Some(i)) => sfz_path[..i].to_string(),
+        (None, None) => String::new(),
     };
     let text = ctx.sources[src_key].read_text(sfz_path).with_context(|| format!("reading {sfz_path}"))?;
     let file = {

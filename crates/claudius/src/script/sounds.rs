@@ -153,7 +153,7 @@ pub fn resolve_sound(
                 } else if packs.is_empty() {
                     format!("no sample packs are installed for bank '{b}' (install them with: claudius-packs install --defaults)")
                 } else {
-                    format!("no '{label}' in bank '{b}' (installed packs: {}; kits: tr909 tr808 tr707 acoustic uzu)", packs.join(" "))
+                    format!("no '{label}' in bank '{b}' (installed packs: {}; kits: tr909 tr808 tr707 acoustic uzu synthdrums sonicpi body)", packs.join(" "))
                 }
             });
         }

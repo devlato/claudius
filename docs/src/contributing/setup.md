@@ -118,7 +118,7 @@ redirects, the 404 page) at `http://127.0.0.1:4321`.
 
 ```sh
 cargo xtask web                                  # the web studio, once and after changes to the UI
-cargo run --release -p claudius-cli -- setup     # the sample packs and the listening models, once (about 3 GB)
+cargo run --release -p claudius-cli -- setup     # the sample packs and the listening models, once (about 4 GB)
 cargo run --release -p claudius-cli -- studio    # the native window, with the engine inside
 cargo run --release -p claudius-cli -- serve     # or the studio in the browser at http://127.0.0.1:7878
 ```

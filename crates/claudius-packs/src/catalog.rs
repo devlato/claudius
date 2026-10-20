@@ -91,6 +91,10 @@ pub struct InstSpec {
     // --- SFZ source
     #[serde(default)]
     pub sfz: Option<String>,
+    /// the folder the SFZ's sample and include paths start from, when it is not the SFZ's own: a mapping file that
+    /// a program in another folder includes (the erhu's maps, used without the program's unison voices)
+    #[serde(default)]
+    pub base: Option<String>,
     /// keep this many velocity layers (evenly spread) and widen them to cover the full range
     #[serde(default)]
     pub keep_layers: Option<usize>,
@@ -103,7 +107,7 @@ pub struct InstSpec {
     /// one variant per distinct key range of the SFZ (unpitched percussion with several hits)
     #[serde(default)]
     pub kit_auto: bool,
-    /// regex on sample paths to leave out
+    /// regex on sample paths to leave out (SFZ regions and file-name sources)
     #[serde(default)]
     pub exclude: Option<String>,
     /// shift roots and key ranges by octaves (mappings at written pitch, e.g. bass guitars one octave up)
@@ -227,7 +231,7 @@ mod tests {
                 }
             }
         }
-        assert!(default_mb < 3000.0, "default packs are {default_mb} MB");
+        assert!(default_mb < 3300.0, "default packs are {default_mb} MB");
     }
 
     #[test]
