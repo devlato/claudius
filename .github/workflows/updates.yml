@@ -1,0 +1,163 @@
+# Installs this branch's claudius the ways people do, then lets its updater (crates/claudius-cli/src/update.rs)
+# replace the install with the latest release, as `claudius update` does for them: the folder install.sh makes and
+# the AppImage on Linux, and the installer on Windows. CLAUDIUS_UPDATE_SINCE makes this build act as 0.1.0, older
+# than every release, and each job then checks that the files in place are the release's own. The Mac app's update
+# is the same swap as install.sh's, of the app from the release's disk image.
+name: updates
+
+on:
+  pull_request:
+    paths:
+      - crates/claudius-cli/src/update.rs
+      - scripts/package/**
+      - packaging/windows/**
+      - .github/workflows/updates.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: updates-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  CLAUDIUS_UPDATE_SINCE: "0.1.0"
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  linux:
+    name: install.sh's folder and the AppImage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/rust
+        with:
+          cache-key: updates-linux
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: trunk@0.21.14
+      - run: cargo xtask web
+      - run: cargo xtask dist --target x86_64-unknown-linux-gnu --web crates/claudius-ui/dist
+      - name: The AppImage
+        run: |
+          sudo apt-get install -y -qq --no-install-recommends rpm desktop-file-utils
+          version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          sh scripts/package/linux.sh "target/dist/claudius-$version-x86_64-unknown-linux-gnu.tar.gz" target/packages
+      - name: The latest release
+        run: |
+          tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+          echo "LATEST=${tag#v}" >> "$GITHUB_ENV"
+          mkdir "$RUNNER_TEMP/latest"
+          gh release download "$tag" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/latest" \
+            --pattern SHA256SUMS --pattern "claudius-${tag#v}-x86_64-unknown-linux-gnu.tar.gz"
+          (cd "$RUNNER_TEMP/latest" && sha256sum --check --ignore-missing --strict SHA256SUMS)
+          tar -xzf "$RUNNER_TEMP/latest/claudius-${tag#v}-x86_64-unknown-linux-gnu.tar.gz" -C "$RUNNER_TEMP/latest"
+      - name: install.sh's folder updates to the latest release
+        run: |
+          # laid out as install.sh lays it out: the programs in ~/.local/bin, the web studio beside them
+          prefix=$HOME/.local
+          mkdir -p "$prefix/bin" "$prefix/share/claudius" "$RUNNER_TEMP/built"
+          tar -xzf "target/dist/claudius-$VERSION-x86_64-unknown-linux-gnu.tar.gz" -C "$RUNNER_TEMP/built" --strip-components 1
+          cp "$RUNNER_TEMP/built/bin/"* "$prefix/bin/"
+          cp -R "$RUNNER_TEMP/built/share/claudius/web" "$prefix/share/claudius/web"
+          "$prefix/bin/claudius" update --yes
+          release=$RUNNER_TEMP/latest/claudius-$LATEST-x86_64-unknown-linux-gnu
+          for program in claudius claudius-packs; do
+            cmp "$prefix/bin/$program" "$release/bin/$program"
+          done
+          diff -r "$prefix/share/claudius/web" "$release/share/claudius/web"
+          "$prefix/bin/claudius" --version
+      - name: The AppImage replaces itself with the latest release's
+        env:
+          # the runner has no FUSE: the AppImage runs extracted, and still names itself in $APPIMAGE
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: |
+          mkdir -p "$HOME/Applications"
+          app=$HOME/Applications/claudius.AppImage
+          cp "target/packages/claudius-$VERSION-x86_64-unknown-linux-gnu.AppImage" "$app"
+          chmod +x "$app"
+          "$app" update --yes
+          expected=$(awk -v file="claudius-$LATEST-x86_64-unknown-linux-gnu.AppImage" '$2 == file { print $1 }' \
+            "$RUNNER_TEMP/latest/SHA256SUMS")
+          test -n "$expected"
+          test "$(sha256sum "$app" | cut -d ' ' -f 1)" = "$expected"
+          test -x "$app"
+          "$app" --version
+
+  windows:
+    name: the Windows installer
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/rust
+        with:
+          cache-key: updates-windows
+      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+        with:
+          tool: trunk@0.21.14
+      - run: cargo xtask web
+      - run: cargo xtask dist --target x86_64-pc-windows-msvc --web crates/claudius-ui/dist
+      - name: An installer of this build that says it is 0.1.99, so that a release's installer upgrades it
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
+          # the archive's folder carries its name too, which windows.ps1 reads the files from
+          $older = 'claudius-0.1.99-x86_64-pc-windows-msvc'
+          $built = Get-ChildItem target/dist/claudius-*-x86_64-pc-windows-msvc.zip | Select-Object -First 1
+          $unpacked = Join-Path $env:RUNNER_TEMP 'built'
+          Expand-Archive $built.FullName -DestinationPath $unpacked
+          Rename-Item (Get-ChildItem $unpacked -Directory | Select-Object -First 1).FullName $older
+          Compress-Archive -Path (Join-Path $unpacked $older) -DestinationPath "target/dist/$older.zip"
+          pwsh scripts/package/windows.ps1 "target/dist/$older.zip" target/older
+          if ($LASTEXITCODE -ne 0) { throw 'windows.ps1 failed' }
+      - name: Installed, it updates itself to the latest release
+        shell: pwsh
+        run: |
+          $msi = (Get-ChildItem target/older/*.msi).FullName
+          $p = Start-Process msiexec -Wait -PassThru -ArgumentList '/i', "`"$msi`"", '/qn'
+          if ($p.ExitCode -ne 0) { throw "msiexec /i exited with $($p.ExitCode)" }
+          $bin = Join-Path $env:LOCALAPPDATA 'Programs\claudius\bin'
+          $exe = Join-Path $bin 'claudius.exe'
+          # the release's claudius.exe, which the update has to leave in place
+          $tag = gh release view --repo $env:GITHUB_REPOSITORY --json tagName --jq .tagName
+          $latest = $tag.TrimStart('v')
+          $release = Join-Path $env:RUNNER_TEMP 'latest'
+          gh release download $tag --repo $env:GITHUB_REPOSITORY --dir $release `
+            --pattern "claudius-$latest-x86_64-pc-windows-msvc.zip"
+          Expand-Archive (Join-Path $release "claudius-$latest-x86_64-pc-windows-msvc.zip") -DestinationPath $release
+          $expected = (Get-FileHash (Get-ChildItem $release -Recurse -Filter claudius.exe | Select-Object -First 1).FullName).Hash
+          # the update downloads into a folder of its own, where the installer's log goes too
+          $env:CLAUDIUS_HOME = Join-Path $env:RUNNER_TEMP 'claudius-home'
+          & $exe update --yes
+          if ($LASTEXITCODE -ne 0) { throw 'claudius update failed' }
+          # the release's installer runs once claudius has exited
+          $deadline = (Get-Date).AddMinutes(10)
+          do {
+            Start-Sleep -Seconds 5
+            $now = if (Test-Path $exe) { (Get-FileHash $exe).Hash } else { '' }
+          } until ($now -eq $expected -or (Get-Date) -gt $deadline)
+          Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
+            Where-Object DisplayName | Format-Table DisplayName, DisplayVersion | Out-String | Write-Host
+          if ($now -ne $expected) {
+            Get-ChildItem $env:CLAUDIUS_HOME -Recurse -Filter *.log | ForEach-Object {
+              Write-Host "== $($_.FullName)"
+              Get-Content $_.FullName -Tail 120 | Write-Host
+            }
+            throw "after 10 minutes, $exe is still not the $latest release's"
+          }
+          & $exe --version
