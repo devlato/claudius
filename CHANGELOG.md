@@ -18,6 +18,11 @@ Eight more default packs, and 21 more instruments in VCSL and FreePats: Sonic Pi
 steel pan, synth drums, body percussion, glitch kits and sound effects, among them a hang, wine glasses and a TX81Z.
 `claudius setup` downloads them, about 0.9 GB more ([Sample packs](https://github.com/devlato/claudius/blob/main/docs/src/guide/packs.md)).
 
+`claudius publish` checks a song the way stores and distributors check a release (its artwork's size, colours and
+sharpness, its audio, the licences of its sounds, and its details, including how it was made) and writes a release
+kit: the WAV and the cover a distributor takes, and the answers its form asks for
+([Publishing](https://github.com/devlato/claudius/blob/main/docs/src/guide/publish.md)).
+
 ## [0.2.0] - 2026-10-19
 
 ### Added

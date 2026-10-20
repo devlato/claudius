@@ -808,7 +808,9 @@ dependencies = [
  "dirs",
  "earshot",
  "hound",
+ "image",
  "insta",
+ "png",
  "proptest",
  "rayon",
  "realfft",
@@ -842,6 +844,7 @@ dependencies = [
  "dirs",
  "earshot",
  "getrandom 0.4.3",
+ "image",
  "predicates",
  "serde_json",
  "sha2",
@@ -2792,6 +2795,8 @@ dependencies = [
  "num-traits",
  "png",
  "tiff",
+ "zune-core",
+ "zune-jpeg",
 ]
 
 [[package]]

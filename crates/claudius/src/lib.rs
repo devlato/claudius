@@ -30,6 +30,7 @@ pub mod library;
 pub mod loudness;
 pub mod model;
 pub mod pattern;
+pub mod publish;
 pub mod render;
 pub mod rng;
 pub mod script;

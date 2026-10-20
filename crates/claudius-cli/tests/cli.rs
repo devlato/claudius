@@ -142,6 +142,73 @@ fn export_lists_its_formats_and_explains_bad_ones() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
+/// a square cover with hard edges, as a PNG
+fn cover(side: u32) -> Vec<u8> {
+    let img = image::RgbImage::from_fn(side, side, |x, y| {
+        let v = if (x / 120 + y / 120) % 2 == 0 { 40 } else { 210 };
+        image::Rgb([v, 90, 255 - v])
+    });
+    let mut out = Vec::new();
+    img.write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png).unwrap();
+    out
+}
+
+#[test]
+fn publish_checks_a_song_and_writes_a_release_kit() {
+    let out = temp_dir("publish");
+    claudius()
+        .args(["make", "--genre", "house", "--seed", "4", "--short", "--synth-only", "--no-ears", "--out"])
+        .arg(&out)
+        .assert()
+        .success();
+    let song = std::fs::read_dir(&out).unwrap().flatten().next().expect("a song folder").path();
+
+    // no artwork, no artist, and nothing said of how it was made: three problems, and no kit
+    claudius()
+        .arg("publish")
+        .arg(&song)
+        .assert()
+        .failure()
+        .stdout(predicate::str::contains("add the artwork").and(predicate::str::contains("who is the artist")))
+        .stderr(predicate::str::contains("3 problem(s)"));
+    assert!(!song.join("release").exists());
+
+    let art = out.join("cover.png");
+    std::fs::write(&art, cover(3000)).unwrap();
+    claudius()
+        .arg("publish")
+        .arg(&song)
+        .arg("--artwork")
+        .arg(&art)
+        .args(["--artist", "Ana Lima", "--writer", "Ana Lima", "--made", "assisted"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("wrote the release kit"));
+    let bp: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(song.join("blueprint.json")).unwrap()).unwrap();
+    let kit = song.join("release");
+    let name = format!("Ana Lima - {}", bp["title"].as_str().unwrap());
+    let d = claudius_decode::decode_native(&kit.join(format!("{name}.wav"))).unwrap();
+    assert_eq!((d.rate, d.channels), (44_100, 2));
+    assert!(kit.join(format!("{name} (24-bit).wav")).is_file());
+    assert_eq!(std::fs::read(kit.join("cover.png")).unwrap(), std::fs::read(&art).unwrap());
+    let text = std::fs::read_to_string(kit.join("release.txt")).unwrap();
+    assert!(text.contains("Primary artist    Ana Lima") && text.contains("AI-assisted composition"), "{text}");
+
+    // what was given is kept in the song's folder: checking again needs none of it
+    let kept: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(song.join("release.json")).unwrap()).unwrap();
+    assert_eq!(kept["made"], "assisted");
+    claudius()
+        .arg("publish")
+        .arg(&song)
+        .args(["--check", "--json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"checks\""));
+    std::fs::remove_dir_all(&out).ok();
+}
+
 fn free_port() -> u16 {
     std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port()
 }

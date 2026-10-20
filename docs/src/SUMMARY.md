@@ -61,6 +61,7 @@
 - [MCP tools](guide/mcp.md)
 - [HTTP API](guide/http-api.md)
 - [Exporting](guide/export.md)
+- [Publishing](guide/publish.md)
 - [Sample packs](guide/packs.md)
 - [Apple Loops and your own samples](guide/samples.md)
 - [Files and settings](guide/files.md)

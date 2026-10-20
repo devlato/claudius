@@ -17,6 +17,7 @@ mod args;
 mod connect;
 mod doctor;
 mod export;
+mod publish;
 mod report;
 mod setup;
 mod skills;
@@ -347,6 +348,9 @@ fn run(cli: Cli) -> Result<()> {
         }
         Cmd::Export { song, formats, out, title, artist, album, list } => {
             export::run(export::Request { song, formats, out, title, artist, album, list })?;
+        }
+        Cmd::Publish { song, artwork, details, check, out, json } => {
+            publish::run(publish::Request { song, artwork, details: *details, check, out, json })?;
         }
         Cmd::Judge { file, genre, ears, json } => {
             let listening = listen(&ears);

@@ -210,6 +210,35 @@ claudius export ~/Music/mix.wav -f opus:96 -o ~/Desktop/mix.opus
 | `--title`, `--artist`, `--album` | the song's title | the tags the files carry; the files are named after the title |
 | `--list` | | lists the formats, and any this machine cannot write |
 
+### `claudius publish`
+
+Checks a rendered song as stores and distributors check a release (its artwork, its audio, the licences of its sounds
+and its details), and writes a release kit: the WAVs and the cover a distributor takes, and `release.txt` with every
+answer its form asks for. What you give is kept in the song's `release.json`. [Publishing](publish.md) has the checks
+and the kit.
+
+```sh
+claudius publish out/lofi-hollow-harbor-5 --artwork cover.jpg --artist "Ana Lima" --writer "Ana Lima" --made written
+claudius publish out/lofi-hollow-harbor-5 --check --json
+```
+
+| flag | default | what it does |
+|---|---|---|
+| `<song>` | | a rendered song's folder |
+| `--artwork` | | the cover: a square JPEG or PNG, 3000 × 3000 |
+| `--artist`, `--title`, `--version`, `--featuring`, `--album` | the song's title | the release's names; `--featuring` repeats |
+| `--genre`, `--subgenre` | the song's genre as stores list it | |
+| `--date`, `--label`, `--owner` | the label and owner are the artist | the release date (`YYYY-MM-DD`), the record label, and who the ℗ and © lines name |
+| `--writer`, `--producer` | | songwriters by full legal name, and producers; each repeats |
+| `--isrc`, `--upc` | assigned by the distributor | the codes, if you have them |
+| `--explicit` | no | the lyrics are explicit |
+| `--made` | | `written`, `assisted` or `generated`: how the song was made, which distributors ask |
+| `--check` | | check, and write no kit |
+| `-o`, `--out` | `release/` in the song's folder | the kit's folder |
+| `--json` | | prints the checks as JSON |
+
+It fails while a check finds a problem, so a script can tell.
+
 ### `claudius judge`
 
 Gives the critic's verdict on any audio file. When the file has a `project.json` next to it (as `make` writes), the
