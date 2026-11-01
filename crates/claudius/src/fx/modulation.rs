@@ -100,10 +100,12 @@ pub fn phaser(x: &mut Stereo, rate: f32, stages: u32, depth: f32, feedback: f32,
 pub fn width(x: &mut Stereo, width: &Param, mono_below_hz: f32, ctx: &Ctx) {
     let n = x.len();
     let w = width.values(n, ctx.spb(), false);
-    let mut side: Vec<f32> = (0..n).map(|i| 0.5 * (x.l[i] - x.r[i]) * w.at(i)).collect();
+    let mut side: Vec<f32> = (0..n).map(|i| 0.5 * (x.l[i] - x.r[i])).collect();
+    // the side's lows go before it is scaled, so that a width that moves is the width at each moment
     if mono_below_hz > 20.0 {
         filter::butter(&mut side, true, mono_below_hz as f64, ctx.sr, 4);
     }
+    side.iter_mut().enumerate().for_each(|(i, s)| *s *= w.at(i));
     for i in 0..n {
         let m = 0.5 * (x.l[i] + x.r[i]);
         x.l[i] = m + side[i];
