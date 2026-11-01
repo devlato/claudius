@@ -1,4 +1,4 @@
-# Starting points for the thirteen genres
+# Starting points for the eighteen genres
 
 `new_song` (or `song("<genre>", seed)`) writes a complete song in any of these, and is the quickest start. The
 sketches below are for when you build from patterns: each is a skeleton to grow, not a finished song. They write the
@@ -213,4 +213,90 @@ fx("loop", [
   #{ fx: "phaser", rate_hz: 0.2, stages: 6, depth: 0.7, feedback: 0.4, mix: 0.45 },
 ]);
 track("bass", note("<[d2 d3]*4 [g1 g2]*4>").s("organ_bass").duck(0.6));
+```
+
+## dance_pop (116-128 BPM)
+
+A song first: verse, pre-chorus and a big chorus, a pop beat in the verses and four on the floor in the choruses,
+bright claps, a pumping synth bass, plucked chords and a hook a voice could sing.
+
+```js
+blank("dance_pop");
+tempo(122);
+key("C major");
+prog("A", "I V vi IV");
+track("drums", s("bd ~ bd [~ bd], [~ cp]*2, hh*8"));
+track("bass", chord("prog").root().struct("~ x ~ x ~ x ~ x").s("pluck_bass").duck(0.6));
+track("chords", chord("prog").struct("~ x ~ x").voicing(55, 76).s("pluck").duck(0.5).room(0.2));
+track("hook", n("<[4 ~ 4 2 4 ~ 5 4] [2 ~ 2 0 2 ~ 4 ~]>").scale("C:major").octave(5).s("pluck").delay(0.2));
+```
+
+## neo_psychedelia (96-122 BPM)
+
+A loose live kit, a fuzzy electric bass, guitars swirling through phasers and choruses, organ, dreamy pads, sunny
+mixolydian chords, long reverbs and tape wobble.
+
+```js
+blank("neo_psychedelia");
+tempo(108);
+key("G mixolydian");
+prog("A", "I VII IV I");
+track("drums", s("bd ~ sd ~, hh*8").gain("1 0.75").room(0.2));
+track("bass", chord("prog").root().struct("x x x x").s("saw_bass").distort(4));
+track("guitar", chord("prog").struct("x ~ ~ x ~ ~ x ~").voicing(52, 76).s("pluck").room(0.4));
+fx("guitar", [
+  #{ fx: "phaser", rate_hz: 0.3, stages: 6, depth: 0.8, feedback: 0.45, mix: 0.5 },
+  #{ fx: "chorus", rate_hz: 0.5, depth_ms: 4, delay_ms: 14, mix: 0.8 },
+]);
+track("organ", chord("prog").voicing(50, 72).s("organ").role("keys").room(0.3));
+```
+
+## art_rock (76-112 BPM)
+
+Grows from a quiet piano and a glitchy arpeggio into a loud climax: live drums, a dark bass, strings, guitars that
+turn from clean to distorted, minor and modal chords, a long arc rather than a loop.
+
+```js
+blank("art_rock");
+tempo(92);
+key("E minor");
+prog("A", "i VI III VII");
+track("piano", chord("prog").struct("x ~ x ~").voicing(48, 74).s("keys").role("keys").room(0.35));
+track("arp", chord("prog").struct("x*8").arp("up").voicing(60, 84).s("pluck").role("arp").crush(10).delay(0.3));
+track("drums", s("bd ~ ~ bd sd ~ ~ ~, hh*8").gain("1 0.7"));
+form([sec("intro", 8, "piano arp"), sec("verse", 16, "piano arp drums"), sec("hook", 16, "*").impact()]);
+```
+
+## idm (96-140 BPM)
+
+Intricate broken beats with ratchets and ghost notes, glitches and gated bursts, crystalline bells, detuned pads, odd
+modal harmony, every part processed further as the track goes on.
+
+```js
+blank("idm");
+tempo(118);
+key("D lydian");
+prog("A", "Imaj7 IImaj7");
+track("drums", s("bd ~ [~ bd] ~ ~ bd ~ ~, ~ ~ sd ~ ~ [sd sd] ~ ~, hh*16?0.3").gain("1 0.8"));
+track("bells", n("<[0 4 7 11] [2 ~ 9 7]>").scale("D:lydian").octave(5).s("bell").delay(0.35).room(0.35));
+track("pad", chord("prog").voicing(48, 76).s("warm_pad").role("pad").room(0.5));
+fx("drums", [#{ fx: "parallel", dry: 1, chains: [
+  #{ amount: 0.35, fx: [#{ fx: "bitcrush", bits: 7, downsample: 5 }, #{ fx: "filter", mode: "hp", cutoff: 600 }] },
+] }]);
+```
+
+## dub_techno (116-126 BPM)
+
+A soft steady kick, rimshots, one or two minor chords stabbed and drowned in long echoes that feed back and swell, a
+filter on them that breathes with the arrangement, a deep sub, a fog of reverb.
+
+```js
+blank("dub_techno");
+tempo(120);
+key("C minor");
+prog("A", "i7");
+track("drums", s("bd*4, [~ hh]*4, [~ ~ ~ rim]*2").gain("1 0.6"));
+track("chords", chord("prog").struct("~ x ~ ~").voicing(50, 70).s("stab").room(0.4).delay(0.6));
+track("bass", chord("prog").root().struct("x ~ ~ ~").s("sub_bass").legato(0.9));
+send_fx(#{ delay: #{ fx: "delay", beats: 0.75, feedback: 0.6, damping: 0.7, pingpong: true, mix: 1 } });
 ```

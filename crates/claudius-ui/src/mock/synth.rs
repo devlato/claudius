@@ -103,9 +103,9 @@ fn master_level(genre: &str) -> f32 {
     match genre {
         "lofi" => -12.5,
         "deep_house" | "trip_hop" => -11.0,
-        "synthwave" => -10.5,
+        "synthwave" | "art_rock" | "dub_techno" => -10.5,
         "trap" | "techno" | "future_bass" | "filter_house" => -9.0,
-        "dnb" | "big_beat" => -8.5,
+        "dnb" | "big_beat" | "dance_pop" => -8.5,
         "electro_house" => -8.0,
         _ => -10.0,
     }

@@ -23,11 +23,17 @@ the critic judges against it, and evolution mutates songs within it. This page c
 | `electro_house` | 126–130 | 0.50–0.52 | minor, dorian | −8 | 909 (50 %) | dirty electro house dance music with big synth leads (house, dubstep, techno, corporate pop) |
 | `nu_disco` | 112–124 | 0.50–0.56 | minor, dorian, major | −10 | acoustic (30 %), 707 (20 %), 909 (15 %) | disco music (house, corporate pop, synthwave, jazz) |
 | `filter_house` | 118–126 | 0.50–0.55 | dorian, minor, mixolydian | −9 | 909 (50 %) | french house music with a filtered disco loop (house, funk, techno, corporate pop) |
+| `dance_pop` | 116–128 | 0.50–0.52 | major, minor, dorian | −8.5 | 909 (30 %), 808 (20 %) | upbeat dance pop music (corporate pop, house, synthwave, future bass) |
+| `neo_psychedelia` | 96–122 | 0.50–0.55 | mixolydian, dorian, major, lydian | −10 | acoustic (70 %) | dreamy psychedelic pop music with phased guitars and organ (rock with electric guitars, indie pop, synthwave, funk) |
+| `art_rock` | 76–112 | 0.50–0.53 | minor, dorian, phrygian, lydian, major | −10.5 | acoustic (70 %) | progressive rock music with piano, strings and synthesizers (rock with electric guitars, cinematic orchestral, indie pop, ambient pad) |
+| `idm` | 96–140 | 0.50–0.56 | lydian, dorian, minor, phrygian, major | −10 | none: synthesized | glitchy intelligent dance music with complex broken beats and bells (glitch hop, drum and bass, ambient pad, chiptune) |
+| `dub_techno` | 116–126 | 0.50–0.54 | minor, dorian, phrygian | −10.5 | 909 (30 %), 808 (20 %) | dub techno music with echoing chords (techno, minimal, ambient pad, house) |
 
-The five after synthwave lean on [effect chains](../../language/mixing.md#effect-chains) in their profiles:
+The ten after synthwave lean on [effect chains](../../language/mixing.md#effect-chains) in their profiles:
 trip-hop's drums go through parallel compression and a crushed copy, and its delay feeds back harder in the breaks;
 big beat's acid line opens its filter across the builds; filter house's loop sweeps a resonant lowpass with the
-arrangement, all of it values by section that follow the form.
+arrangement; art rock's guitars turn distorted in its climaxes; IDM's pads are gated harder as each groove goes on;
+dub techno's chord echoes feed back and swell in the break, all of it values by section that follow the form.
 
 The "against" list matters: the genre score is high only when a song reads as its genre *more than* as the styles it
 is usually confused with.
