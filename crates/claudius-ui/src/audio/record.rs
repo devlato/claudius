@@ -47,6 +47,8 @@ pub fn inputs() -> Vec<Input> {
 pub struct Plan {
     /// the input, by name (the default input when there is none of that name)
     pub input: Option<String>,
+    /// a MIDI input to record what is played on, instead of an audio input
+    pub midi: Option<String>,
     /// the first of the input's channels to record, and whether the one after it too (a stereo take)
     pub channel: usize,
     pub stereo: bool,
@@ -65,14 +67,123 @@ pub struct Plan {
 }
 
 /// a recorded take
-pub struct Take {
-    /// a 32-bit float WAV file at the input's rate
-    pub wav: Vec<u8>,
-    pub secs: f64,
-    /// the loudest sample, 0..1
-    pub peak: f32,
-    /// how often a stream dropped audio while the take recorded (each a click or a gap in it)
-    pub dropouts: usize,
+pub enum Take {
+    /// from an audio input
+    Audio {
+        /// a 32-bit float WAV file at the input's rate
+        wav: Vec<u8>,
+        secs: f64,
+        /// the loudest sample, 0..1
+        peak: f32,
+        /// how often a stream dropped audio while the take recorded (each a click or a gap in it)
+        dropouts: usize,
+    },
+    /// from a MIDI input: the notes played
+    Notes(Vec<Played>),
+}
+
+/// a note played on a MIDI input: when it started and ended, in seconds from the take's start, its pitch, how hard
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Played {
+    pub start: f64,
+    pub end: f64,
+    pub pitch: u8,
+    pub velocity: f32,
+}
+
+/// what a MIDI input played: seconds since the recorder began, pitch, velocity (0: the note ended)
+type Heard = Arc<Mutex<Vec<(f64, u8, f32)>>>;
+
+/// the MIDI inputs there are (keyboards and controllers), by name
+pub fn midi_inputs() -> Vec<String> {
+    let Ok(input) = midir::MidiInput::new("claudius") else { return Vec::new() };
+    input.ports().iter().filter_map(|p| input.port_name(p).ok()).collect()
+}
+
+/// a MIDI message as a take hears it: a note on (its pitch and velocity) or off (velocity 0), else nothing
+fn note_of(msg: &[u8]) -> Option<(u8, f32)> {
+    match msg {
+        [s, p, v, ..] if s & 0xF0 == 0x90 => Some((p & 0x7F, f32::from(v & 0x7F) / 127.0)),
+        [s, p, ..] if s & 0xF0 == 0x80 => Some((p & 0x7F, 0.0)),
+        _ => None,
+    }
+}
+
+/// The notes in what a MIDI input played (seconds since the recorder began, pitch, velocity), measured from `start`:
+/// a note on a pitch already sounding ends the one before, and a note still held at `stop` ends there.
+fn pair(events: &[(f64, u8, f32)], start: f64, stop: f64) -> Vec<Played> {
+    let mut open: [Option<(f64, f32)>; 128] = [None; 128];
+    let mut out = Vec::new();
+    let end = |pitch: u8, (at, velocity): (f64, f32), until: f64, out: &mut Vec<Played>| {
+        if until > start {
+            out.push(Played { start: (at - start).max(0.0), end: until - start, pitch, velocity });
+        }
+    };
+    for &(t, p, v) in events {
+        if let Some(on) = open[p as usize].take() {
+            end(p, on, t, &mut out);
+        }
+        if v > 0.0 {
+            open[p as usize] = Some((t, v));
+        }
+    }
+    for (p, on) in open.iter().enumerate() {
+        if let Some(on) = on {
+            end(p as u8, *on, stop, &mut out);
+        }
+    }
+    out.sort_by(|a, b| a.start.total_cmp(&b.start).then(a.pitch.cmp(&b.pitch)));
+    out
+}
+
+/// the soft tone that plays what a MIDI input plays while a take records, for a keyboard with no sound of its own
+#[derive(Default)]
+struct Guide {
+    voices: Vec<Voice>,
+}
+
+struct Voice {
+    pitch: u8,
+    hz: f64,
+    phase: f64,
+    level: f32,
+    env: f32,
+    held: bool,
+}
+
+impl Guide {
+    /// a note on (velocity above 0) or off
+    fn note(&mut self, pitch: u8, velocity: f32) {
+        if velocity > 0.0 {
+            self.voices.retain(|v| v.pitch != pitch);
+            if self.voices.len() >= 16 {
+                self.voices.remove(0);
+            }
+            let hz = 440.0 * 2f64.powf((f64::from(pitch) - 69.0) / 12.0);
+            self.voices.push(Voice { pitch, hz, phase: 0.0, level: velocity, env: 0.0, held: true });
+        } else {
+            for v in self.voices.iter_mut().filter(|v| v.pitch == pitch) {
+                v.held = false;
+            }
+        }
+    }
+
+    /// adds the sounding notes into interleaved `out`: a sine and a little of its octave, 3 ms on and 150 ms off
+    fn add(&mut self, out: &mut [f32], channels: usize, rate: f64) {
+        let (on, off) = ((-1.0 / (0.003 * rate)).exp() as f32, (-1.0 / (0.15 * rate)).exp() as f32);
+        for v in self.voices.iter_mut() {
+            let step = std::f64::consts::TAU * v.hz / rate;
+            for frame in out.chunks_exact_mut(channels.max(1)) {
+                v.env = if v.held { 1.0 - (1.0 - v.env) * on } else { v.env * off };
+                let s = (v.phase.sin() + 0.25 * (2.0 * v.phase).sin()) as f32 * v.env * v.level * 0.18;
+                v.phase += step;
+                for c in frame.iter_mut().take(2) {
+                    *c += s;
+                }
+            }
+        }
+        self.voices.retain(|v| v.held || v.env > 1e-4);
+    }
 }
 
 /// what the output plays: the song from `from` seconds on, and a click until `click_until`
@@ -146,6 +257,9 @@ struct Chunk {
 pub struct Recorder {
     input: Option<cpal::Stream>,
     output: Option<cpal::Stream>,
+    /// a MIDI take: the input, and what it played
+    midi: Option<midir::MidiInputConnection<()>>,
+    played: Option<Heard>,
     shared: Arc<Shared>,
     rx: Receiver<Chunk>,
     taken: Vec<f32>,
@@ -210,7 +324,8 @@ fn open_input(
 
 /// the input alone, for the meter while the Record window is open and no take records
 pub struct Listener {
-    _stream: cpal::Stream,
+    _stream: Option<cpal::Stream>,
+    _midi: Option<midir::MidiInputConnection<()>>,
     shared: Arc<Shared>,
 }
 
@@ -222,7 +337,19 @@ impl Listener {
         let (tx, _) = channel();
         let (stream, _, _) = open_input(&device, first, stereo, tx, shared.clone(), Instant::now())?;
         stream.play().map_err(|e| format!("cannot listen to {device}: {e}"))?;
-        Ok(Listener { _stream: stream, shared })
+        Ok(Listener { _stream: Some(stream), _midi: None, shared })
+    }
+
+    /// a MIDI input, the meter showing how hard each note is played
+    pub fn midi(name: &str) -> Result<Listener, String> {
+        let shared = Shared::new();
+        let sh = shared.clone();
+        let midi = connect_midi(name, move |msg| {
+            if let Some((_, v)) = note_of(msg) {
+                sh.level.fetch_max(v.to_bits(), Relaxed);
+            }
+        })?;
+        Ok(Listener { _stream: None, _midi: Some(midi), shared })
     }
 
     /// the loudest input since the last call, 0..1
@@ -235,16 +362,53 @@ impl Listener {
     }
 }
 
+/// a MIDI input, by name, handing every message it receives to `f`
+fn connect_midi(
+    name: &str,
+    mut f: impl FnMut(&[u8]) + Send + 'static,
+) -> Result<midir::MidiInputConnection<()>, String> {
+    let input = midir::MidiInput::new("claudius").map_err(|e| format!("no MIDI on this computer: {e}"))?;
+    let ports = input.ports();
+    let port = ports
+        .iter()
+        .find(|p| input.port_name(p).is_ok_and(|n| n == name))
+        .ok_or_else(|| format!("no MIDI input called {name} any more"))?;
+    input.connect(port, "claudius", move |_, msg, _| f(msg), ()).map_err(|e| format!("cannot listen to {name}: {e}"))
+}
+
 impl Recorder {
     pub fn start(plan: Plan) -> Result<Recorder, String> {
-        let input = input_device(plan.input.as_deref())?;
         let output = cpal::default_host().default_output_device().ok_or("no audio output to play the song through")?;
         let out_config = output.default_output_config().map_err(|e| format!("{output}: {e}"))?;
         let epoch = Instant::now();
         let shared = Shared::new();
         let (tx, rx) = channel();
-        let (input_stream, in_rate, channels) =
-            open_input(&input, plan.channel, plan.stereo, tx, shared.clone(), epoch)?;
+        let (guide_tx, guide_rx) = channel();
+        // the input starts first, so that it hears from before the song starts
+        let (input_stream, midi, played, in_rate, channels) = match &plan.midi {
+            Some(name) => {
+                let played: Heard = Arc::default();
+                let (heard, sh) = (played.clone(), shared.clone());
+                let midi = connect_midi(name, move |msg| {
+                    if let Some((p, v)) = note_of(msg) {
+                        if let Ok(mut h) = heard.lock() {
+                            h.push((epoch.elapsed().as_secs_f64(), p, v));
+                        }
+                        sh.level.fetch_max(v.to_bits(), Relaxed);
+                        let _ = guide_tx.send((p, v));
+                    }
+                })?;
+                (None, Some(midi), Some(played), 1.0, 1)
+            }
+            None => {
+                let input = input_device(plan.input.as_deref())?;
+                let (stream, rate, channels) =
+                    open_input(&input, plan.channel, plan.stereo, tx, shared.clone(), epoch)?;
+                stream.play().map_err(|e| format!("cannot record from {input}: {e}"))?;
+                (Some(stream), None, None, rate, channels)
+            }
+        };
+        let guide = midi.as_ref().map(|_| guide_rx);
         let mix = Mix {
             song: plan.song.clone(),
             from: plan.start - plan.count_in,
@@ -253,19 +417,19 @@ impl Recorder {
             beat: plan.beat,
             bar: plan.bar.max(1),
         };
-        let sh = shared.clone();
+        let (sh, c) = (shared.clone(), out_config.config());
         let output_stream = match out_config.sample_format() {
-            SampleFormat::F32 => output_stream::<f32>(&output, out_config.config(), mix, sh, epoch),
-            SampleFormat::I16 => output_stream::<i16>(&output, out_config.config(), mix, sh, epoch),
-            SampleFormat::I32 => output_stream::<i32>(&output, out_config.config(), mix, sh, epoch),
+            SampleFormat::F32 => output_stream::<f32>(&output, c, mix, guide, sh, epoch),
+            SampleFormat::I16 => output_stream::<i16>(&output, c, mix, guide, sh, epoch),
+            SampleFormat::I32 => output_stream::<i32>(&output, c, mix, guide, sh, epoch),
             other => return Err(format!("{output} takes {other} samples, which claudius does not write")),
         }?;
-        // the input first, so that it has been capturing before the song starts
-        input_stream.play().map_err(|e| format!("cannot record from {input}: {e}"))?;
         output_stream.play().map_err(|e| format!("cannot play through {output}: {e}"))?;
         Ok(Recorder {
-            input: Some(input_stream),
+            input: input_stream,
             output: Some(output_stream),
+            midi,
+            played,
             shared,
             rx,
             taken: Vec::new(),
@@ -307,10 +471,20 @@ impl Recorder {
 
     /// stops, and cuts the take from where the song reached the take's start, as heard, to now
     pub fn finish(mut self) -> Result<Take, String> {
+        let stop = self.epoch.elapsed().as_secs_f64();
         self.input.take();
+        self.midi.take();
         self.output.take();
         self.tick();
         let heard = self.shared.heard.lock().ok().and_then(|h| h.best).ok_or("the song never played")?;
+        if let Some(played) = &self.played {
+            let events = played.lock().map(|e| e.clone()).unwrap_or_default();
+            let notes = pair(&events, heard + self.count_in + self.offset, stop);
+            if notes.is_empty() {
+                return Err("nothing was played after the count-in".into());
+            }
+            return Ok(Take::Notes(notes));
+        }
         let began = self.began.best.ok_or("nothing was recorded")?;
         let at = heard + self.count_in + self.offset - began;
         let samples = cut(&self.taken, self.channels, self.in_rate, at);
@@ -322,7 +496,7 @@ impl Recorder {
         // the streams often drop a buffer as they start: only what the take heard counts
         let take_began = heard + self.count_in;
         let dropouts = self.shared.dropped.lock().map_or(0, |d| d.iter().filter(|t| **t >= take_began).count());
-        Ok(Take { wav: wav(&samples, self.channels as u16, self.in_rate as u32), secs, peak, dropouts })
+        Ok(Take::Audio { wav: wav(&samples, self.channels as u16, self.in_rate as u32), secs, peak, dropouts })
     }
 }
 
@@ -376,6 +550,7 @@ fn output_stream<T>(
     device: &cpal::Device,
     config: cpal::StreamConfig,
     mix: Mix,
+    guide: Option<Receiver<(u8, f32)>>,
     shared: Arc<Shared>,
     epoch: Instant,
 ) -> Result<cpal::Stream, String>
@@ -385,6 +560,7 @@ where
     let (channels, rate) = (config.channels as usize, config.sample_rate as f64);
     let errors = shared.clone();
     let mut buf = Vec::new();
+    let mut tone = Guide::default();
     device
         .build_output_stream::<T, _, _>(
             config,
@@ -398,6 +574,12 @@ where
                 }
                 buf.resize(data.len(), 0.0);
                 fill(&mut buf, channels, rate, first, &mix);
+                if let Some(notes) = &guide {
+                    while let Ok((p, v)) = notes.try_recv() {
+                        tone.note(p, v);
+                    }
+                    tone.add(&mut buf, channels, rate);
+                }
                 for (d, s) in data.iter_mut().zip(&buf) {
                     *d = T::from_sample(*s);
                 }
@@ -528,6 +710,43 @@ mod tests {
         let mut once = Earliest::default();
         once.add(0.7);
         assert_eq!(once.best, Some(0.7), "one is better than none");
+    }
+
+    #[test]
+    fn a_keyboard_says_which_notes_start_and_end() {
+        assert_eq!(note_of(&[0x90, 60, 127]), Some((60, 1.0)));
+        assert_eq!(note_of(&[0x93, 64, 0]), Some((64, 0.0)), "a note on at velocity 0 is a note off, on any channel");
+        assert_eq!(note_of(&[0x80, 60, 40]), Some((60, 0.0)));
+        assert_eq!(note_of(&[0xB0, 64, 127]), None, "the sustain pedal plays no note");
+        assert_eq!(note_of(&[0xF8]), None, "nor does the clock");
+    }
+
+    #[test]
+    fn what_was_played_is_notes_from_the_take_start() {
+        // the take starts 2 s in: a note held across it starts with it; one held at the stop ends there
+        let events = [(1.0, 60, 0.5), (1.5, 62, 0.5), (1.8, 62, 0.0), (2.5, 60, 0.0), (3.0, 64, 0.9), (3.5, 67, 1.0)];
+        let notes = pair(&events, 2.0, 4.0);
+        let got: Vec<(f64, f64, u8)> = notes.iter().map(|n| (n.start, n.end, n.pitch)).collect();
+        assert_eq!(got, [(0.0, 0.5, 60), (1.0, 2.0, 64), (1.5, 2.0, 67)], "the note over before the take is gone");
+        let again = pair(&[(0.0, 60, 0.7), (1.0, 60, 0.8), (2.0, 60, 0.0)], 0.0, 3.0);
+        assert_eq!(again.iter().map(|n| (n.start, n.end)).collect::<Vec<_>>(), [(0.0, 1.0), (1.0, 2.0)]);
+    }
+
+    #[test]
+    fn the_guide_tone_plays_while_a_key_is_down_and_fades_after() {
+        let rate = 48_000.0;
+        let mut g = Guide::default();
+        g.note(69, 1.0);
+        let mut on = vec![0.0; 4_800 * 2];
+        g.add(&mut on, 2, rate);
+        assert!(on.iter().skip(2_000).any(|s| s.abs() > 0.1) && on[1] == on[0], "both sides, while held");
+        g.note(69, 0.0);
+        let mut off = vec![0.0; 72_000 * 2];
+        g.add(&mut off, 2, rate);
+        assert!(
+            off[off.len() - 2].abs() < 1e-4 && g.voices.is_empty(),
+            "gone a second and a half after the key came up"
+        );
     }
 
     #[test]

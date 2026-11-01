@@ -30,6 +30,13 @@ pub struct Settings {
     pub role: String,
     /// milliseconds the setup adds that the devices do not report
     pub offset_ms: f32,
+    /// a MIDI input to record what is played on, instead of an audio input
+    pub midi: Option<String>,
+    /// what plays the notes of a MIDI take, and the part they make
+    pub sound: String,
+    pub part_role: String,
+    /// the grid a MIDI take's notes go to, in beats (0: as played)
+    pub grid: f64,
 }
 
 impl Default for Settings {
@@ -42,8 +49,53 @@ impl Default for Settings {
             click: false,
             role: "vocal".into(),
             offset_ms: 0.0,
+            midi: None,
+            sound: "epiano".into(),
+            part_role: "keys".into(),
+            grid: 0.25,
         }
     }
+}
+
+/// what a MIDI take's part can be
+const PART_ROLES: &[&str] = &["keys", "lead", "chords", "pad", "arp", "bass"];
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    use super::*;
+    use crate::audio::record::Played;
+
+    #[test]
+    fn played_notes_go_to_the_grid_in_beats() {
+        // half a second a beat (120 BPM): a note a little late and a little short, and a staccato one
+        let played = [
+            Played { start: 0.03, end: 0.49, pitch: 60, velocity: 0.7 },
+            Played { start: 1.01, end: 1.06, pitch: 64, velocity: 0.9 },
+        ];
+        let on = to_beats(&played, 0.5, 0.25);
+        assert_eq!(on.iter().map(|n| (n.t, n.d, n.p)).collect::<Vec<_>>(), [(0.0, 1.0, 60), (2.0, 0.25, 64)]);
+        let loose = to_beats(&played, 0.5, 0.0);
+        assert!((loose[0].t - 0.06).abs() < 1e-9 && (loose[1].d - 0.1).abs() < 1e-9, "as played");
+    }
+}
+
+/// played notes as notes in beats from the take's start, `beat` seconds each, on a grid of `grid` beats (0: as played)
+#[cfg(not(target_arch = "wasm32"))]
+fn to_beats(played: &[crate::audio::record::Played], beat: f64, grid: f64) -> Vec<claudius_api::NoteView> {
+    let snap = |b: f64| if grid > 0.0 { (b / grid).round() * grid } else { b };
+    let shortest = if grid > 0.0 { grid } else { 1.0 / 64.0 };
+    played
+        .iter()
+        .map(|n| {
+            let t = snap(n.start / beat);
+            claudius_api::NoteView {
+                t,
+                d: (snap(n.end / beat) - t).max(shortest),
+                p: i32::from(n.pitch),
+                v: n.velocity,
+            }
+        })
+        .collect()
 }
 
 /// a take on its way to claudius
@@ -73,6 +125,8 @@ pub struct Record {
     #[cfg(not(target_arch = "wasm32"))]
     inputs: Vec<crate::audio::record::Input>,
     #[cfg(not(target_arch = "wasm32"))]
+    midi_inputs: Vec<String>,
+    #[cfg(not(target_arch = "wasm32"))]
     live: Option<Live>,
     /// the input the meter shows while no take records, and what it is listening to; or what it could not listen to
     #[cfg(not(target_arch = "wasm32"))]
@@ -81,17 +135,20 @@ pub struct Record {
     deaf: Option<Listening>,
 }
 
-/// an input and the channels of it
+/// an audio input and the channels of it, or a MIDI input
 #[cfg(not(target_arch = "wasm32"))]
-type Listening = (Option<String>, usize, bool);
+type Listening = (Option<String>, usize, bool, Option<String>);
 
 /// a take being recorded
 #[cfg(not(target_arch = "wasm32"))]
 struct Live {
     recorder: crate::audio::record::Recorder,
-    /// where in the song the take starts and the song ends, in seconds
+    /// where in the song the take starts and the song ends, in seconds, and how long a beat is
     take_start: f64,
     song_end: f64,
+    beat: f64,
+    /// it records what a MIDI input plays
+    midi: bool,
     /// since when the input has heard nothing at all, and whether for long enough to say so
     silent_since: Option<f64>,
     silent: bool,
@@ -113,6 +170,7 @@ impl Record {
     pub fn show(&mut self) {
         self.open = true;
         self.inputs = crate::audio::record::inputs();
+        self.midi_inputs = crate::audio::record::midi_inputs();
     }
 
     pub fn recording(&self) -> bool {
@@ -156,6 +214,7 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
     };
     let selected = song.sections.get(cx.view.section).map(|s| s.name.clone());
     let has_audio = cx.player.has_audio();
+    let (instruments, synths) = super::melodic_sounds(cx.sounds);
     let r = &mut cx.view.record;
     if r.from.as_ref().is_none_or(|f| !song.sections.iter().any(|s| s.name == *f)) {
         r.from = selected.or_else(|| song.sections.first().map(|s| s.name.clone()));
@@ -197,22 +256,62 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
         });
         ui.end_row();
         ui.label(small("What it is"));
+        let midi = r.settings.midi.is_some();
         ui.add_enabled_ui(!busy, |ui| {
             ui.horizontal(|ui| {
-                egui::ComboBox::from_id_salt("record-role")
-                    .selected_text(&r.settings.role)
-                    .width(80.0)
-                    .show_ui(ui, |ui| {
-                        for role in ROLES {
-                            ui.selectable_value(&mut r.settings.role, role.to_string(), *role);
-                        }
-                    })
-                    .response
-                    .on_hover_text("what the take is, for the mix: it sets how loud claudius makes it");
-                ui.add(
-                    egui::TextEdit::singleline(&mut r.name).hint_text("named take1, take2 ...").desired_width(150.0),
-                )
-                .on_hover_text("the track's name: letters, digits, - and _");
+                if midi {
+                    egui::ComboBox::from_id_salt("record-part-role")
+                        .selected_text(&r.settings.part_role)
+                        .width(70.0)
+                        .show_ui(ui, |ui| {
+                            for role in PART_ROLES {
+                                ui.selectable_value(&mut r.settings.part_role, role.to_string(), *role);
+                            }
+                        })
+                        .response
+                        .on_hover_text("the part the notes make: keys, a lead, chords, a pad, an arp or a bass");
+                    egui::ComboBox::from_id_salt("record-sound").selected_text(&r.settings.sound).width(100.0).show_ui(
+                        ui,
+                        |ui| {
+                            for (heading, names) in [("instruments", &instruments), ("synths", &synths)] {
+                                if !names.is_empty() {
+                                    ui.label(small(heading).weak());
+                                }
+                                for s in names {
+                                    ui.selectable_value(&mut r.settings.sound, s.clone(), s);
+                                }
+                            }
+                        },
+                    );
+                    let grid = |g: f64| match g {
+                        0.0 => "as played".to_string(),
+                        0.25 => "on sixteenths".to_string(),
+                        0.5 => "on eighths".to_string(),
+                        _ => "on beats".to_string(),
+                    };
+                    egui::ComboBox::from_id_salt("record-grid").selected_text(grid(r.settings.grid)).show_ui(
+                        ui,
+                        |ui| {
+                            for g in [0.25, 0.5, 1.0, 0.0] {
+                                ui.selectable_value(&mut r.settings.grid, g, grid(g));
+                            }
+                        },
+                    );
+                } else {
+                    egui::ComboBox::from_id_salt("record-role")
+                        .selected_text(&r.settings.role)
+                        .width(80.0)
+                        .show_ui(ui, |ui| {
+                            for role in ROLES {
+                                ui.selectable_value(&mut r.settings.role, role.to_string(), *role);
+                            }
+                        })
+                        .response
+                        .on_hover_text("what the take is, for the mix: it sets how loud claudius makes it");
+                }
+                let hint = if midi { "named played ..." } else { "named take1, take2 ..." };
+                ui.add(egui::TextEdit::singleline(&mut r.name).hint_text(hint).desired_width(130.0))
+                    .on_hover_text("the track's name: letters, digits, - and _");
             });
         });
         ui.end_row();
@@ -268,17 +367,37 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
 #[cfg(not(target_arch = "wasm32"))]
 fn input(ui: &mut Ui, r: &mut Record) {
     ui.horizontal(|ui| {
-        if r.inputs.is_empty() {
-            ui.label(small("no microphone or audio input found").color(theme::BAD));
+        if r.inputs.is_empty() && r.midi_inputs.is_empty() {
+            ui.label(small("no microphone, audio input or MIDI keyboard found").color(theme::BAD));
             return;
         }
+        if r.settings.midi.as_ref().is_some_and(|m| !r.midi_inputs.contains(m)) {
+            r.settings.midi = None;
+        }
         let name = r.settings.input.clone().filter(|n| r.inputs.iter().any(|i| i.name == *n));
-        let shown = name.clone().unwrap_or_else(|| r.inputs[0].name.clone());
+        let shown = match &r.settings.midi {
+            Some(m) => format!("MIDI: {m}"),
+            None => name.clone().or_else(|| r.inputs.first().map(|i| i.name.clone())).unwrap_or_default(),
+        };
         egui::ComboBox::from_id_salt("record-input").selected_text(&shown).width(190.0).show_ui(ui, |ui| {
             for i in &r.inputs {
-                ui.selectable_value(&mut r.settings.input, Some(i.name.clone()), &i.name);
+                let on = r.settings.midi.is_none() && shown == i.name;
+                if ui.selectable_label(on, &i.name).clicked() {
+                    (r.settings.input, r.settings.midi) = (Some(i.name.clone()), None);
+                }
+            }
+            if !r.midi_inputs.is_empty() {
+                ui.label(small("MIDI").weak());
+            }
+            for m in &r.midi_inputs {
+                if ui.selectable_label(r.settings.midi.as_ref() == Some(m), m).clicked() {
+                    r.settings.midi = Some(m.clone());
+                }
             }
         });
+        if r.settings.midi.is_some() {
+            return;
+        }
         let channels = r.inputs.iter().find(|i| i.name == shown).map_or(1, |i| i.channels as usize);
         let label = |first: usize, stereo: bool| {
             if stereo { format!("inputs {}+{}", first + 1, first + 2) } else { format!("input {}", first + 1) }
@@ -370,6 +489,7 @@ fn begin(cx: &mut Cx, song: &SongView) {
     let (start, end) = (section.start_bar as f64 * 4.0 * beat, pcm.seconds());
     let plan = Plan {
         input: r.settings.input.clone(),
+        midi: r.settings.midi.clone(),
         channel: r.settings.channel,
         stereo: r.settings.stereo,
         song: pcm,
@@ -385,38 +505,56 @@ fn begin(cx: &mut Cx, song: &SongView) {
     r.listener = None;
     match Recorder::start(plan) {
         Ok(recorder) => {
-            r.live = Some(Live { recorder, take_start: start, song_end: end, silent_since: None, silent: false });
+            let midi = r.settings.midi.is_some();
+            r.live = Some(Live {
+                recorder,
+                take_start: start,
+                song_end: end,
+                beat,
+                midi,
+                silent_since: None,
+                silent: false,
+            });
             (r.status, r.level) = (None, 0.0);
         }
         Err(e) => r.status = Some((false, e)),
     }
 }
 
-/// stops the take and sends it
+/// stops the take and sends it: a recording to keep with the song, or the notes played as a part
 #[cfg(not(target_arch = "wasm32"))]
 pub fn finish(cx: &mut Cx) {
+    use crate::audio::record::Take;
     let r = &mut cx.view.record;
     let Some(live) = r.live.take() else { return };
+    let name = Some(r.name.trim().to_string()).filter(|n| !n.is_empty());
+    let from = r.from.clone().unwrap_or_default();
     match live.recorder.finish() {
-        Ok(take) if take.peak == 0.0 => {
+        Ok(Take::Audio { peak: 0.0, .. }) => {
             r.status = Some((false, "the take is silent: nothing came in from the input".into()));
         }
-        Ok(take) => {
-            let name = Some(r.name.trim().to_string()).filter(|n| !n.is_empty());
-            let dropped = match take.dropouts {
+        Ok(Take::Audio { wav, secs, dropouts, .. }) => {
+            let dropped = match dropouts {
                 0 => String::new(),
                 n => format!(
                     " (it dropped audio {n} time{}: other apps may be busy with the audio)",
                     if n == 1 { "" } else { "s" }
                 ),
             };
-            r.status = Some((true, format!("sending {:.1} s to claudius ...{dropped}", take.secs)));
+            r.status = Some((true, format!("sending {secs:.1} s to claudius ...{dropped}")));
             r.sending = true;
-            r.upload = Some(Upload {
-                wav: take.wav,
-                from: r.from.clone().unwrap_or_default(),
+            r.upload = Some(Upload { wav, from, name, role: r.settings.role.clone() });
+        }
+        Ok(Take::Notes(played)) => {
+            let notes = to_beats(&played, live.beat, r.settings.grid);
+            r.status = Some((true, format!("sending {} notes to claudius ...", notes.len())));
+            r.sending = true;
+            cx.out.push(claudius_api::Command::AddNotes {
+                from,
+                notes,
+                sounds: vec![r.settings.sound.clone()],
                 name,
-                role: r.settings.role.clone(),
+                role: Some(r.settings.part_role.clone()),
             });
         }
         Err(e) => r.status = Some((false, e)),
@@ -446,7 +584,8 @@ fn keep_up(ctx: &egui::Context, cx: &mut Cx) {
         return;
     }
     let t = live.recorder.time();
-    if t >= live.take_start && heard == 0.0 {
+    // a keyboard is quiet between notes: only an audio input that hears nothing at all is a problem
+    if !live.midi && t >= live.take_start && heard == 0.0 {
         let since = *live.silent_since.get_or_insert(now);
         live.silent = now - since > 2.5;
     } else {
@@ -473,10 +612,14 @@ fn listen(ctx: &egui::Context, r: &mut Record) {
     {
         (r.settings.channel, r.settings.stereo) = (0, false);
     }
-    let want: Listening = (r.settings.input.clone(), r.settings.channel, r.settings.stereo);
+    let want: Listening = (r.settings.input.clone(), r.settings.channel, r.settings.stereo, r.settings.midi.clone());
     if r.listener.as_ref().is_none_or(|(_, on)| *on != want) && r.deaf.as_ref() != Some(&want) {
         r.listener = None;
-        match crate::audio::record::Listener::start(want.0.as_deref(), want.1, want.2) {
+        let started = match &want.3 {
+            Some(m) => crate::audio::record::Listener::midi(m),
+            None => crate::audio::record::Listener::start(want.0.as_deref(), want.1, want.2),
+        };
+        match started {
             Ok(l) => (r.listener, r.deaf, r.deaf_why) = (Some((l, want)), None, None),
             Err(e) => (r.deaf, r.deaf_why) = (Some(want), Some(e)),
         }

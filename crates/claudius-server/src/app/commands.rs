@@ -345,6 +345,11 @@ impl App {
             Command::AddTake { path, from, name, role } => {
                 self.add_take_file(Path::new(&path), &from, name.as_deref(), role.as_deref())
             }
+            Command::AddNotes { from, notes, sounds, name, role } => self.edit_with(|bp| {
+                let notes: Vec<claudius::theory::Note> =
+                    notes.iter().map(|n| claudius::theory::Note { t: n.t, d: n.d, p: n.p, v: n.v }).collect();
+                claudius::take::played(bp, &from, &notes, &claudius::take::Played { sounds, name, role })
+            }),
             Command::TranscribeTake { take, sounds, name, role, chromatic, keep_take } => self.edit_with(|bp| {
                 let m = claudius::take::Melody { sounds, name, role, chromatic, keep_take };
                 claudius::take::melody(bp, &take, &m)

@@ -142,6 +142,17 @@ float WAV at the input's rate.
 A stream's dropped buffer (`Xrun`), or a route that changed under it, does not end a take: the window says how often
 the take dropped audio. Any other stream error ends it.
 
+A MIDI input (midir) records in place of an audio input:
+
+- **Timing.** Each note on and off is stamped with the system clock as it arrives, so it lines up with the song by the
+  same estimate of when the output's first frame was heard.
+- **The guide tone.** The messages also go to the output stream, where a small guide (`Guide`, a sine and a little of
+  its octave, up to sixteen voices) plays them for a keyboard that has no sound of its own.
+- **The notes.** At the end, `pair` matches each note on to its off. A note on a pitch already sounding ends the one
+  before, and a note still held at the stop ends there.
+- **Sending them.** The window puts the notes on the chosen grid in beats and sends them as `add_notes`, which makes
+  a part of them.
+
 ## The mock
 
 `mock/` plays the server's part without one: a generated song per genre with a plausible form, patterns, parts and

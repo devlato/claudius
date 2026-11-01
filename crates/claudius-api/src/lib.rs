@@ -334,6 +334,20 @@ pub struct PackInfo {
     pub opt_in: bool,
 }
 
+/// a note: start and length in beats, MIDI pitch (60 is middle C), velocity 0..1 (0.8 when left out)
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub struct NoteView {
+    pub t: f64,
+    pub d: f64,
+    pub p: i32,
+    #[serde(default = "played_velocity")]
+    pub v: f32,
+}
+
+fn played_velocity() -> f32 {
+    0.8
+}
+
 /// an edit or action; JSON `{"cmd": "set_tempo", "bpm": 124}`
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "cmd", rename_all = "snake_case")]
@@ -508,6 +522,20 @@ pub enum Command {
         #[serde(default)]
         name: Option<String>,
         /// vocal, lead, chords, keys, bass, drums or texture: how loud the mix makes it (default lead)
+        #[serde(default)]
+        role: Option<String>,
+    },
+    /// notes played (a MIDI keyboard's take) or written note by note, in beats from the start of section `from`, chords
+    /// and all, as new parts, one per sound, on in the sections the notes reach
+    AddNotes {
+        from: String,
+        notes: Vec<NoteView>,
+        /// synth presets or installed instruments ("epiano", "piano"): one part each
+        sounds: Vec<String>,
+        /// the first part's name (default played)
+        #[serde(default)]
+        name: Option<String>,
+        /// lead (default), keys, chords, pad, arp or bass
         #[serde(default)]
         role: Option<String>,
     },

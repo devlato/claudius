@@ -15,10 +15,6 @@ use crate::widgets::{self, Icon};
 
 const GUTTER: f32 = 138.0;
 
-/// the synth presets offered to play a sung melody
-const MELODIC: &[&str] =
-    &["pluck", "bell", "epiano", "keys", "square_lead", "supersaw", "strings", "organ", "chip", "stab", "pad"];
-
 struct Timeline {
     x0: f32,
     x1: f32,
@@ -53,12 +49,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let position = cx.player.position();
     let loop_region = cx.view.looping;
     let solo = cx.any_solo();
-    // what may play a take's melody: the installed instruments (not drum hits), and the synths made for a line
-    let melodic = |list: &[String], keep: &dyn Fn(&str) -> bool| -> Vec<String> {
-        list.iter().filter(|s| keep(s)).cloned().collect()
-    };
-    let instruments = cx.sounds.map(|s| melodic(&s.instruments, &|i| !i.contains(':'))).unwrap_or_default();
-    let synths = cx.sounds.map(|s| melodic(&s.synths, &|p| MELODIC.contains(&p))).unwrap_or_default();
+    let (instruments, synths) = super::melodic_sounds(cx.sounds);
     let Some(song) = cx.state.song.as_ref() else {
         empty(ui, "No song yet: make one with New song.");
         super::missing_packs(ui, cx);
