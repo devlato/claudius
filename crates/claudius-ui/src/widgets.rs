@@ -39,6 +39,7 @@ pub enum Icon {
     New,
     Save,
     Open,
+    Record,
 }
 
 fn arc(center: Pos2, r: f32, from: f32, to: f32) -> Vec<Pos2> {
@@ -232,6 +233,10 @@ pub fn paint_icon(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color3
                 ],
                 stroke,
             ));
+        }
+        // red, as a recorder's button is, unless it cannot be pressed
+        Icon::Record => {
+            painter.circle_filled(c, 0.58 * s, if color == TEXT_FAINT { color } else { theme::BAD });
         }
     }
 }

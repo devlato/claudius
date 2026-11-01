@@ -117,9 +117,9 @@ To write a whole new song on another song's skeleton instead, use `claudius rema
 
 A take is a recording made for the song: a vocal, a guitar, a melody sung into a microphone. A loop starts over in
 every section it is in; a take plays once, from the start of the section it was recorded over, and on through the
-sections after it for as long as it lasts. It arrives as an audio file, recorded at the song's tempo and starting on
-that section's first downbeat. Send it to the [HTTP API](http-api.md#routes), or give the file to an assistant, which
-adds it with `add_take`:
+sections after it for as long as it lasts. Record one with the studio's [Record](../getting-started/studio.md#the-panels)
+button. Or bring an audio file, recorded at the song's tempo and starting on that section's first downbeat: send it to
+the [HTTP API](http-api.md#routes), or give it to an assistant, which adds it with `add_take`:
 
 ```sh
 curl -X POST 'http://127.0.0.1:7878/api/takes?from=drop&name=vox&role=vocal' \

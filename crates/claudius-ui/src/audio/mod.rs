@@ -8,6 +8,8 @@ use std::sync::Arc;
 mod native;
 #[cfg(not(target_arch = "wasm32"))]
 pub use native::Player;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod record;
 
 #[cfg(target_arch = "wasm32")]
 mod web;

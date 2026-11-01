@@ -189,6 +189,25 @@ the page plays the MP3.
 If the window shows `Cannot reach the claudius server at http://127.0.0.1:7878`, the server it was opened for is
 gone; start `claudius studio` again. `Use the demo` switches to a built-in song that needs no server.
 
+## A take records nothing
+
+When the Record window says `nothing is coming in`, or a take arrives silent:
+
+- **macOS has not allowed the microphone.** Open System Settings → Privacy & Security → Microphone and turn on
+  Claudius, or the terminal you started `claudius studio` from. macOS asks the first time; a take recorded after a
+  "Don't Allow" is silent.
+- **The wrong input or channel.** An interface's guitar socket is often input 2. The meter in the Record window
+  moves with whatever the chosen input hears, before and during a take.
+- **The input is turned down.** Check the gain knob on the interface, or the input level in the system's sound
+  settings.
+
+## A take lands early or late
+
+claudius lines a take up with what you heard from the times the audio devices report. Some delays are not reported,
+such as Bluetooth headphones, a video call app routing the audio, or a USB microphone and an output on different
+clocks, and those make a take land late. Set the Record window's **Latency** to how far off it is: positive when the
+take lands late. Recording and listening through one audio interface keeps the timing tightest.
+
 ## The studio window cannot open a claudius with a token
 
 ```text
