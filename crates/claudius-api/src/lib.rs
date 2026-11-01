@@ -511,6 +511,25 @@ pub enum Command {
         #[serde(default)]
         role: Option<String>,
     },
+    /// the melody of a take (sung, hummed, whistled or played one note at a time) as the notes of new parts, one per
+    /// sound, in the song's key and on its grid, in the sections the take plays in; the take goes quiet unless
+    /// `keep_take`
+    TranscribeTake {
+        take: String,
+        /// synth presets or installed instruments ("pluck", "piano"): one part each
+        sounds: Vec<String>,
+        /// the first part's name (default melody)
+        #[serde(default)]
+        name: Option<String>,
+        /// lead (default), keys, chords, pad, arp or bass
+        #[serde(default)]
+        role: Option<String>,
+        /// keep notes outside the key where they were sung
+        #[serde(default)]
+        chromatic: bool,
+        #[serde(default)]
+        keep_take: bool,
+    },
     /// try `count` random mutations, keep the best-judged one when `keep_best` (else only report them)
     Mutate {
         #[serde(default = "four")]

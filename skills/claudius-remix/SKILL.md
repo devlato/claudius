@@ -122,3 +122,17 @@ not looped or chopped. Ask what they did not say:
 claudius keeps a copy with the song, in `takes/` in its folder once it is saved. Then listen and read the verdict: a
 take mostly needs its level and a little reverb (`set_mix`). It is the person's own recording, so it may be released
 when they made it.
+
+## Turn a take into notes
+
+When the person sang, hummed or whistled a melody and wants an instrument to play it, call `transcribe_take` with the
+take's name and `sounds`, the synth presets or installed instruments to play it (`catalog` lists them).
+
+- **Several sounds** make one part each on the same line, such as `["piano", "strings"]` for a doubled melody.
+- **The notes.** claudius puts them in the song's key and on its sixteenth-note grid. `chromatic: true` keeps notes
+  outside the key, for a melody that leaves it on purpose.
+- **The take goes quiet** unless `keep_take`, since the parts now play it.
+
+It hears one note at a time: chords, a strummed guitar or a mix give no melody. Afterwards the parts are ordinary
+parts: change their sound with `set_part`, their level with `set_mix`. Say what came out ("12 notes from G3 to D5,
+played by the piano in the chorus"), and offer to undo it if the person did not like it.

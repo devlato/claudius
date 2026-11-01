@@ -506,6 +506,22 @@ async fn a_take_sent_over_http_plays_and_goes_with_the_song() {
     let vox = st.song.unwrap().tracks.into_iter().find(|t| t.name == "vox").unwrap();
     assert!(vox.loudness.is_some_and(|l| l > -40.0), "it plays: {:?}", vox.loudness);
 
+    // the take is one held note (229 Hz): as notes, a part plays it, and the take goes quiet
+    let r = app.command(Command::TranscribeTake {
+        take: "vox".into(),
+        sounds: vec!["pluck".into()],
+        name: None,
+        role: None,
+        chromatic: false,
+        keep_take: false,
+    });
+    assert!(r.ok && r.message.starts_with("1 note from vox"), "{}", r.message);
+    let song = app.state().song.unwrap();
+    let melody = song.tracks.iter().find(|t| t.name == "melody").expect("a part for the melody");
+    assert_eq!(melody.kind, "part");
+    assert!(song.tracks.iter().any(|t| t.name == "vox" && t.muted));
+    app.settled(Duration::from_secs(240)).await;
+
     // saved elsewhere, the song takes its take along; that folder moved, opening it finds the take there
     assert!(app.command(Command::Save { path: Some(other.display().to_string()) }).ok);
     app.settled(Duration::from_secs(240)).await;

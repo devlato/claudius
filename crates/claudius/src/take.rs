@@ -3,13 +3,19 @@
 //! it, at the tempo it was recorded at (warped, as a loop is, when the song's tempo changes). Its file is FLAC in the
 //! song folder's `takes/`, or, until the song is saved, in `takes/` in the songs folder (~/Music/claudius).
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
+use crate::analysis::melody;
 use crate::audio::Stereo;
-use crate::config;
-use crate::model::{Blueprint, LoopPart, Project, Sound, TrackMix};
+use crate::model::{Blueprint, LoopPart, Part, Project, Role, Sound, TrackMix};
+use crate::rng::{Rng, hash_str};
+use crate::synth::presets;
+use crate::theory::Note;
+use crate::theory::chord::Voicing;
+use crate::{compose, config};
 
 /// what a take can be in the mix: its role sets how loud the mixer makes it
 pub const ROLES: &[&str] = &["vocal", "lead", "chords", "keys", "bass", "drums", "texture"];
@@ -103,6 +109,156 @@ pub fn add(
     let bars = beats / 4.0;
     bp.lineage.push(format!("recorded {name}: {bars:.1} bars from {from}"));
     Ok(format!("{name}: a take of {bars:.1} bars from the start of {from}, on in {}", reached.join(", ")))
+}
+
+/// what a take's melody becomes
+#[derive(Clone, Debug, Default)]
+pub struct Melody {
+    /// the sounds to play it with, one part each: synth presets or installed instruments ("pluck", "piano")
+    pub sounds: Vec<String>,
+    /// the first part's name (melody when not given; the others are it with 2, 3 ... after it)
+    pub name: Option<String>,
+    /// lead (the default), keys, chords, pad, arp or bass
+    pub role: Option<String>,
+    /// keep notes outside the song's key where they were sung, instead of on its nearest tone
+    pub chromatic: bool,
+    /// the take goes on playing beside its parts, instead of going quiet
+    pub keep_take: bool,
+}
+
+/// Turns the melody of take `take` (sung, hummed, whistled or played one note at a time) into the notes of new
+/// parts, one for each sound, in the sections the take plays in. The take goes quiet unless `keep_take`. Returns what
+/// was made, in words.
+pub fn melody(bp: &mut Blueprint, take: &str, m: &Melody) -> Result<String, String> {
+    let names: Vec<String> = bp.loops.iter().filter(|l| l.from.is_some()).map(|l| l.name.clone()).collect();
+    let Some(t) = bp.loops.iter().position(|l| l.name == take && l.from.is_some()) else {
+        return Err(if names.is_empty() {
+            "the song has no takes: record one first".to_string()
+        } else {
+            format!("no take called '{take}' (takes: {})", names.join(" "))
+        });
+    };
+    let role = match m.role.as_deref().unwrap_or("lead") {
+        "lead" => Role::Lead,
+        "keys" => Role::Keys,
+        "chords" => Role::Chords,
+        "pad" => Role::Pad,
+        "arp" => Role::Arp,
+        "bass" => Role::Bass,
+        other => return Err(format!("a part is lead, keys, chords, pad, arp or bass, not '{other}'")),
+    };
+    if m.sounds.is_empty() {
+        return Err("play it with what? give a synth preset or an instrument, such as pluck or piano".into());
+    }
+    if let Some(s) = m.sounds.iter().find(|s| presets::get(s).is_none() && claudius_packs::resolve(s, None).is_none()) {
+        return Err(format!("no synth preset or installed instrument is called '{s}'"));
+    }
+    let (path, bpm) = match &bp.loops[t].sound {
+        Sound::Loop { path, bpm, .. } => (path.clone(), *bpm),
+        _ => return Err(format!("{take} is not a recording")),
+    };
+    let audio = crate::audio::load_once(Path::new(&path)).map_err(|e| format!("cannot read {take}: {e:#}"))?;
+    let o = melody::Options { bpm, grid: 0.25, chromatic: m.chromatic };
+    let notes = melody::transcribe(&audio, &bp.key, &o);
+    if notes.is_empty() {
+        return Err(format!(
+            "{take} has no melody claudius can hear: it wants one note at a time, sung or played clearly"
+        ));
+    }
+    // where the take starts, and the sections it plays in from there, each with the stretch of the melody over it
+    let starts: Vec<f64> =
+        bp.form.iter().scan(0.0, |at, s| Some(std::mem::replace(at, *at + s.bars as f64 * 4.0))).collect();
+    let from = bp.loops[t].from.clone().unwrap_or_default();
+    let first = bp
+        .form
+        .iter()
+        .position(|s| s.name == from)
+        .or_else(|| bp.form.iter().position(|s| s.layers.contains(&bp.loops[t].name)));
+    let Some(first) = first else { return Err(format!("{take} plays in no section")) };
+    let end = notes.iter().map(|n| n.t + n.d).fold(0.0, f64::max) + starts[first];
+    let mut by_prog: BTreeMap<String, Vec<Note>> = BTreeMap::new();
+    let mut sections = Vec::new();
+    for (i, s) in bp.form.iter().enumerate().skip(first) {
+        let (a, b) = (starts[i], starts[i] + s.bars as f64 * 4.0);
+        if a >= end {
+            break;
+        }
+        if !s.layers.contains(&bp.loops[t].name) {
+            continue;
+        }
+        let over: Vec<Note> = notes
+            .iter()
+            .map(|n| Note { t: n.t + starts[first] - a, ..*n })
+            .filter(|n| n.t >= 0.0 && n.t < b - a)
+            .map(|n| Note { d: n.d.min(b - a - n.t), ..n })
+            .collect();
+        if !over.is_empty() {
+            // a section with a progression already sung over plays what was sung over it first
+            by_prog.entry(s.prog.clone()).or_insert(over);
+            sections.push(i);
+        }
+    }
+    let low = notes.iter().map(|n| n.p).min().unwrap_or(60);
+    let high = notes.iter().map(|n| n.p).max().unwrap_or(72);
+    let base = m.name.clone().unwrap_or_else(|| "melody".into());
+    let mut taken = bp.layer_names();
+    let mut made = Vec::new();
+    for (k, sound) in m.sounds.iter().enumerate() {
+        let wanted = if k == 0 { base.clone() } else { format!("{base}{}", k + 1) };
+        if !wanted.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+            return Err(format!("'{wanted}' cannot name a track: use letters, digits, - and _"));
+        }
+        let name = if taken.contains(&wanted) {
+            (2..).map(|n| format!("{wanted}{n}")).find(|n| !taken.contains(n)).unwrap_or_default()
+        } else {
+            wanted
+        };
+        let seed = hash_str(&name) ^ bp.seed;
+        bp.parts.push(Part {
+            name: name.clone(),
+            role,
+            sound: compose::part_sound(sound, &mut Rng::new(seed)),
+            style: style_for(role).into(),
+            register: (low, high),
+            density: 0.5,
+            voices: 1,
+            voicing: Voicing::Close,
+            rate: 0.0,
+            seed,
+            notes: by_prog.clone(),
+            mix: TrackMix { reverb: 0.15, bus: "music".into(), ..Default::default() },
+        });
+        for &i in &sections {
+            bp.form[i].layers.push(name.clone());
+        }
+        taken.push(name.clone());
+        made.push(format!("{name} ({sound})"));
+    }
+    if !m.keep_take {
+        bp.loops[t].mix.mute = true;
+    }
+    let names: Vec<String> = sections.iter().map(|&i| bp.form[i].name.clone()).collect();
+    bp.lineage.push(format!("{take} into notes: {} notes for {}", notes.len(), made.join(", ")));
+    Ok(format!(
+        "{} note{} from {take}, {} to {}, played by {} in {}{}",
+        notes.len(),
+        if notes.len() == 1 { "" } else { "s" },
+        crate::theory::scale::note_name(low),
+        crate::theory::scale::note_name(high),
+        made.join(", "),
+        names.join(", "),
+        if m.keep_take { "" } else { "; the take is muted" },
+    ))
+}
+
+/// the style a part of `role` is written in when it plays a section its notes do not cover
+fn style_for(role: Role) -> &'static str {
+    match role {
+        Role::Bass => "offbeat",
+        Role::Chords | Role::Keys | Role::Pad => "sustain",
+        Role::Arp => "up",
+        Role::Lead => "motif",
+    }
 }
 
 /// Copies the takes the song plays from outside `folder` into its `takes/` and points the song at the copies, so
@@ -280,6 +436,74 @@ mod tests {
         for d in [home, out] {
             let _ = std::fs::remove_dir_all(d);
         }
+    }
+
+    /// a song at 120 BPM (as `melody::sing` sings) with a take of `notes` from its second section
+    fn sung(what: &str, notes: &[(f32, f64, bool)]) -> (Blueprint, PathBuf) {
+        let dir = scratch(what);
+        let voice = melody::sing(notes);
+        let path = store(&voice, &dir).unwrap();
+        let mut bp = song();
+        bp.bpm = 120.0;
+        bp.key = crate::theory::scale::Key::new(0, crate::theory::scale::Mode::Major);
+        let from = bp.form[1].name.clone();
+        add(&mut bp, &path, voice.len() as f64 / config::SRF, &from, None, None).unwrap();
+        (bp, dir)
+    }
+
+    #[test]
+    fn a_sung_take_becomes_parts_that_play_its_notes_where_it_was_sung() {
+        let (mut bp, dir) = sung("melody", &[(60.0, 1.0, false), (64.0, 1.0, true), (67.0, 2.0, false)]);
+        let m = Melody { sounds: vec!["pluck".into(), "bell".into()], ..Default::default() };
+        let msg = melody(&mut bp, "take1", &m).unwrap();
+        assert!(msg.starts_with("3 notes from take1, C4 to G4, played by melody (pluck), melody2 (bell)"), "{msg}");
+        let take = bp.loops.iter().find(|l| l.name == "take1").unwrap();
+        assert!(take.mix.mute, "the take goes quiet: its parts play it now");
+        let prog = bp.form[1].prog.clone();
+        for name in ["melody", "melody2"] {
+            let p = bp.parts.iter().find(|p| p.name == name).unwrap();
+            assert_eq!((p.role, p.register), (Role::Lead, (60, 67)));
+            let pitches: Vec<i32> = p.notes[&prog].iter().map(|n| n.p).collect();
+            assert_eq!(pitches, [60, 64, 67]);
+            assert!(bp.form[1].layers.contains(&p.name) && !bp.form[0].layers.contains(&p.name));
+        }
+        let project = compose::arrange(&bp);
+        let track = project.tracks.iter().find(|t| t.name == "melody").unwrap();
+        let start = project.sections[1].start_bar as f64 * 4.0;
+        let at: Vec<f64> = track.notes.iter().take(3).map(|n| n.t - start).collect();
+        assert_eq!(at, [0.0, 1.0, 2.0], "where they were sung");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_melody_longer_than_a_cycle_plays_once_in_its_section() {
+        // six bars of whole notes, over a section of at least eight bars
+        let notes: Vec<(f32, f64, bool)> =
+            [60.0, 62.0, 64.0, 65.0, 67.0, 69.0].iter().map(|&p| (p, 4.0, true)).collect();
+        let (mut bp, dir) = sung("long", &notes);
+        bp.form[1].bars = 8;
+        melody(&mut bp, "take1", &Melody { sounds: vec!["pluck".into()], ..Default::default() }).unwrap();
+        let project = compose::arrange(&bp);
+        let s = &project.sections[1];
+        let (a, b) = (s.start_bar as f64 * 4.0, (s.start_bar + s.bars) as f64 * 4.0);
+        let track = project.tracks.iter().find(|t| t.name == "melody").unwrap();
+        let inside: Vec<i32> = track.notes.iter().filter(|n| n.t >= a && n.t < b).map(|n| n.p).collect();
+        assert_eq!(inside, [60, 62, 64, 65, 67, 69], "the six notes once, not over one another");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_take_without_a_melody_or_a_sound_to_play_it_is_refused() {
+        let (mut bp, dir) = sung("refused", &[(60.0, 2.0, false)]);
+        let pluck = Melody { sounds: vec!["pluck".into()], ..Default::default() };
+        assert!(melody(&mut bp, "nope", &pluck).unwrap_err().contains("no take called 'nope'"));
+        let kazoo = Melody { sounds: vec!["kazoo9000".into()], ..Default::default() };
+        assert!(melody(&mut bp, "take1", &kazoo).unwrap_err().contains("'kazoo9000'"));
+        let quiet = store(&Stereo { l: vec![0.0; 48_000], r: vec![0.0; 48_000] }, &dir).unwrap();
+        let from = bp.form[1].name.clone();
+        add(&mut bp, &quiet, 1.0, &from, Some("hush"), None).unwrap();
+        assert!(melody(&mut bp, "hush", &pluck).unwrap_err().contains("no melody"));
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]

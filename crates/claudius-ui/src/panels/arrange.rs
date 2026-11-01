@@ -15,6 +15,10 @@ use crate::widgets::{self, Icon};
 
 const GUTTER: f32 = 138.0;
 
+/// the synth presets offered to play a sung melody
+const MELODIC: &[&str] =
+    &["pluck", "bell", "epiano", "keys", "square_lead", "supersaw", "strings", "organ", "chip", "stab", "pad"];
+
 struct Timeline {
     x0: f32,
     x1: f32,
@@ -49,6 +53,12 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let position = cx.player.position();
     let loop_region = cx.view.looping;
     let solo = cx.any_solo();
+    // what may play a take's melody: the installed instruments (not drum hits), and the synths made for a line
+    let melodic = |list: &[String], keep: &dyn Fn(&str) -> bool| -> Vec<String> {
+        list.iter().filter(|s| keep(s)).cloned().collect()
+    };
+    let instruments = cx.sounds.map(|s| melodic(&s.instruments, &|i| !i.contains(':'))).unwrap_or_default();
+    let synths = cx.sounds.map(|s| melodic(&s.synths, &|p| MELODIC.contains(&p))).unwrap_or_default();
     let Some(song) = cx.state.song.as_ref() else {
         empty(ui, "No song yet: make one with New song.");
         super::missing_packs(ui, cx);
@@ -502,6 +512,33 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 {
                     out.push(MixEdit { solo: Some(!t.solo), ..Default::default() }.on(layer));
                     ui.close();
+                }
+                if t.kind == "take" {
+                    ui.separator();
+                    ui.menu_button("Turn the melody into notes", |ui| {
+                        ui.label(small(
+                            "a new part plays what was sung, in the key and on the grid, and the take goes quiet",
+                        ));
+                        for (heading, names) in [("instruments", &instruments), ("synths", &synths)] {
+                            if names.is_empty() {
+                                continue;
+                            }
+                            ui.label(small(heading).weak());
+                            for s in names {
+                                if ui.button(s).clicked() {
+                                    out.push(Command::TranscribeTake {
+                                        take: layer.clone(),
+                                        sounds: vec![s.clone()],
+                                        name: None,
+                                        role: None,
+                                        chromatic: false,
+                                        keep_take: false,
+                                    });
+                                    ui.close();
+                                }
+                            }
+                        }
+                    });
                 }
             }
             if ui.button("On in every section").clicked() {

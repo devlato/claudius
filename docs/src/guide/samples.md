@@ -139,6 +139,21 @@ curl -X POST 'http://127.0.0.1:7878/api/takes?from=drop&name=vox&role=vocal' \
 - **Releasing it.** [Publishing](publish.md) lists takes with your own recordings: release them only if you made them or
   have cleared their rights.
 
+### Turning a take into notes
+
+A melody sung, hummed, whistled or played one note at a time can become notes, which any instrument then plays: in the
+studio, right-click the take's row in the arrangement and choose **Turn the melody into notes**; over MCP,
+`transcribe_take`. claudius hears the take's pitch every 10 ms, makes a note of each stretch where it holds, and puts
+the notes in the song's key (unless `chromatic`) and on its sixteenth-note grid. They become a new part named `melody`,
+a lead unless told otherwise, on in the sections the take plays in, and the take goes quiet. Several sounds make one
+part each, so a set of instruments plays the same line: `"sounds": ["piano", "strings"]`. The parts are ordinary parts
+afterwards, whose sound, level and sections you change as you would any other's.
+
+- **One note at a time.** Chords, a strummed guitar or a full mix are heard as no melody, or a confused one.
+- **The notes follow the sections.** Each section the take covers keeps the stretch of melody sung over it, by its
+  progression. Another section with that progression plays the same notes, and a section the part is turned on in
+  later, which the take never covered, has the part write its own.
+
 ## Files in scripts
 
 A script plays any audio file through [`.s()`](../language/sounds.md#your-own-files) on a `note()`, `n()` or

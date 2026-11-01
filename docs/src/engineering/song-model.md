@@ -95,7 +95,7 @@ A `Part` stores how to write notes, not the notes:
 | `voices`, `voicing` | how many notes a chord has and how it spreads (`close`, `open`, `spread`) |
 | `rate` | an arpeggio's step in beats |
 | `seed` | the part's own random seed |
-| `notes` | notes written by hand or by analysis, per progression, which replace the writer |
+| `notes` | notes written by hand, by analysis or from a [take](../guide/samples.md#turning-a-take-into-notes), per progression, which replace the writer; they may run over several cycles, and come round again after the last they reach |
 | `sound`, `mix` | its sound and mix |
 
 Storing the recipe makes the part small, readable as a script line

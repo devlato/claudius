@@ -87,6 +87,7 @@ sixteenth, swing and a bass style. It uses no models: everything is signal proce
 | `onsets.rs` | onset strength as log-compressed spectral flux, optionally in a frequency band; peaks above a moving median; onsets refined to where the energy starts rising |
 | `beats.rs` | tempo by autocorrelation of the onset envelope, beats by dynamic programming (Ellis 2007), then a constant-tempo grid and the downbeat |
 | `chroma.rs` | pitch-class energy, keys by Krumhansl-Kessler profiles, chords by template matching |
+| `melody.rs` | a [take](../guide/samples.md#takes)'s melody as notes ([below](#hearing-a-melody)) |
 | `song.rs` | the rest: sections, progressions, drum steps, swing, and `to_blueprint` |
 
 **Tempo.** The onset envelope adds the full-band flux to twice the kick-band flux (30 to 160 Hz), because in dance
@@ -154,3 +155,26 @@ last one missed. Progression `B`, read from a 12-bar break, came out as two bars
 four chords. The usual failures are these: half or double tempo (a genre's tempo range fixes most), a relative or
 neighbouring key, a progression rotated when the first downbeat lands a beat or a bar off, and sections merged when
 their energy is close. `CLAUDIUS_DEBUG=1` prints the downbeat cues per phase.
+
+## Hearing a melody
+
+`analysis::melody::transcribe(audio, key, options)` turns a take's melody, one note at a time, into notes, for
+`take::melody` (the `transcribe_take` command):
+
+- **Pitch.** The take is mixed to mono, low-passed twice at 3 kHz and decimated to 8 kHz, which leaves a voice's
+  fundamental and its first harmonics. YIN (de Cheveigné and Kawahara 2002) reads a pitch from 50 Hz to 1 kHz every
+  10 ms, over a 50 ms window: the first dip of the cumulative mean normalised difference under 0.15, refined between
+  samples by a parabola. A frame more than 35 dB under the take's loudest is unvoiced, whatever its pitch, and a
+  median over five frames takes out a lone octave jump.
+- **Notes.** A note is a run of voiced frames. It ends after three unvoiced frames, when the pitch has stayed more
+  than 0.7 semitone from the note's median for three frames, or when the voice grows 6 dB louder again within 30 ms,
+  which is the same pitch sung anew. Notes under 70 ms are dropped, and a note's pitch is the median of its frames.
+- **The grid.** Each note's start and end go to the nearest sixteenth, measured from the middle of the frames' windows.
+  Its pitch goes to the nearest tone of the song's key (unless `chromatic`), and its velocity follows its loudness. Two
+  notes on one sixteenth keep the longer, and a note ends where the next begins.
+
+The notes go into the new parts' `notes`, by the progression of each section the take covers. Written notes may run
+over several cycles of their progression, and `arrange` repeats them only after the last cycle they reach.
+
+The tests sing to it: three harmonics with a 5.5 Hz vibrato, breath noise, a 30 ms glide into each note and breaths
+where asked. Their melodies come back with every pitch and onset where it was sung.
