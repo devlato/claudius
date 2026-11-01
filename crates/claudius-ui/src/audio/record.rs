@@ -2,7 +2,8 @@
 //! the count-in (with a click) on, and an input stream captures the microphone or the interface. Each stream's
 //! timestamps give its latency (when what it plays is heard, when what it hears was captured), and the system clock
 //! relates the two streams, whose own clocks need not share an origin, so the take is cut where the section began as
-//! the person heard it. `offset` adds what the devices do not report (Bluetooth headphones, say).
+//! the person heard it. `offset` adds what the devices do not report (a laptop's speakers and microphone, Bluetooth
+//! headphones), which a measurement finds (`Plan::measure`, `Recorder::lateness`).
 
 use std::io::Cursor;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering::Relaxed};
@@ -64,6 +65,26 @@ pub struct Plan {
     pub click: bool,
     /// seconds the setup adds that the devices do not report
     pub offset: f64,
+}
+
+impl Plan {
+    /// a measurement of the latency (`Recorder::lateness`): the clicks of `latency::clicks` and nothing else, with no
+    /// count-in and no offset, so that they come back as late as a take would land; heard on `channel` of `input`
+    pub fn measure(input: Option<String>, channel: usize) -> Plan {
+        Plan {
+            input,
+            midi: None,
+            channel,
+            stereo: false,
+            song: Arc::new(super::latency::clicks(48_000)),
+            start: 0.0,
+            count_in: 0.0,
+            beat: 0.5,
+            bar: 4,
+            click: false,
+            offset: 0.0,
+        }
+    }
 }
 
 /// a recorded take
@@ -294,6 +315,8 @@ pub struct Recorder {
     count_in: f64,
     offset: f64,
     epoch: Instant,
+    /// what it plays through and records from, by name
+    route: String,
 }
 
 /// the input of that name, else the default one
@@ -407,6 +430,7 @@ impl Recorder {
         let (tx, rx) = channel();
         let (guide_tx, guide_rx) = channel();
         // the input starts first, so that it hears from before the song starts
+        let mut route = output.to_string();
         let (input_stream, midi, played, in_rate, channels) = match &plan.midi {
             Some(name) => {
                 let played: Heard = Arc::default();
@@ -421,6 +445,7 @@ impl Recorder {
                         let _ = guide_tx.send((p, v));
                     }
                 })?;
+                route = format!("{route} and {name}");
                 (None, Some(midi), Some(played), 1.0, 1)
             }
             None => {
@@ -428,6 +453,7 @@ impl Recorder {
                 let (stream, rate, channels) =
                     open_input(&input, plan.channel, plan.stereo, tx, shared.clone(), epoch)?;
                 stream.play().map_err(|e| format!("cannot record from {input}: {e}"))?;
+                route = format!("{route} and {input}");
                 (Some(stream), None, None, rate, channels)
             }
         };
@@ -464,7 +490,13 @@ impl Recorder {
             count_in: plan.count_in,
             offset: plan.offset,
             epoch,
+            route,
         })
+    }
+
+    /// what it plays through and records from: "MacBook Pro Speakers and MacBook Pro Microphone"
+    pub fn route(&self) -> &str {
+        &self.route
     }
 
     /// call every frame: takes in what the input captured since
@@ -492,14 +524,38 @@ impl Recorder {
         self.shared.failed.lock().ok().and_then(|f| f.clone())
     }
 
-    /// stops, and cuts the take from where the song reached the take's start, as heard, to now
-    pub fn finish(mut self) -> Result<Take, String> {
+    /// stops the streams and takes in the last of what the input captured; returns when, in seconds since it began
+    fn stop(&mut self) -> f64 {
         let stop = self.epoch.elapsed().as_secs_f64();
         self.input.take();
         self.midi.take();
         self.output.take();
         self.tick();
-        let heard = self.shared.heard.lock().ok().and_then(|h| h.best).ok_or("the song never played")?;
+        stop
+    }
+
+    /// when the output's first frame was heard, in seconds since the recorder began
+    fn heard(&self) -> Result<f64, String> {
+        self.shared.heard.lock().ok().and_then(|h| h.best).ok_or_else(|| "the song never played".into())
+    }
+
+    /// stops a measurement (`Plan::measure`), and says how late its clicks came back, in seconds: what a take cut the
+    /// same way would land late by
+    pub fn lateness(mut self) -> Result<f64, String> {
+        self.stop();
+        let heard = self.heard()?;
+        let began = self.began.best.ok_or("nothing was recorded")?;
+        let first: Vec<f32> = cut(&self.taken, self.channels, self.in_rate, heard - began)
+            .into_iter()
+            .step_by(self.channels.max(1))
+            .collect();
+        super::latency::lateness(&first, self.in_rate)
+    }
+
+    /// stops, and cuts the take from where the song reached the take's start, as heard, to now
+    pub fn finish(mut self) -> Result<Take, String> {
+        let stop = self.stop();
+        let heard = self.heard()?;
         if let Some(played) = &self.played {
             let events = played.lock().map(|e| e.clone()).unwrap_or_default();
             let notes = pair(&events, heard + self.count_in + self.offset, stop);

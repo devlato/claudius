@@ -28,8 +28,10 @@ pub struct Settings {
     /// the click goes on while the take records
     pub click: bool,
     pub role: String,
-    /// milliseconds the setup adds that the devices do not report
+    /// milliseconds the setup adds that the devices do not report, to an audio take (Measure sets it)
     pub offset_ms: f32,
+    /// and to a MIDI take, where only the song's way out counts: a key is timed as it is pressed
+    pub midi_offset_ms: f32,
     /// a MIDI input to record what is played on, instead of an audio input
     pub midi: Option<String>,
     /// what plays the notes of a MIDI take, and the part they make
@@ -51,6 +53,7 @@ impl Default for Settings {
             click: false,
             role: "vocal".into(),
             offset_ms: 0.0,
+            midi_offset_ms: 0.0,
             midi: None,
             sound: "epiano".into(),
             part_role: "keys".into(),
@@ -79,6 +82,19 @@ mod tests {
         assert_eq!(on.iter().map(|n| (n.t, n.d, n.p)).collect::<Vec<_>>(), [(0.0, 1.0, 60), (2.0, 0.25, 64)]);
         let loose = to_beats(&played, 0.5, 0.0);
         assert!((loose[0].t - 0.06).abs() < 1e-9 && (loose[1].d - 0.1).abs() < 1e-9, "as played");
+    }
+
+    #[test]
+    fn a_measurement_says_how_late_through_what_and_what_it_set() {
+        let route = "MacBook Pro Speakers and MacBook Pro Microphone";
+        let late = measured(44.0, route);
+        assert!(
+            late.starts_with(&format!("the clicks came back 44 ms late through {route}, so the latency is now +44 ms"))
+        );
+        assert!(
+            measured(-20.0, route).contains("20 ms early through") && measured(-20.0, route).contains("now -20 ms")
+        );
+        assert!(measured(-0.0, route).contains("back in time") && measured(-0.0, route).contains("now +0 ms"));
     }
 }
 
@@ -117,8 +133,12 @@ pub struct Record {
     from: Option<String>,
     name: String,
     pub upload: Option<Upload>,
+    /// a take is to start now, as the Record button starts one (a scripted run's `rec:start`)
+    pub start: bool,
     /// the take is to end now (Space, while it records)
     pub stop: bool,
+    /// the latency is to be measured now, as the Measure button measures it (a scripted run's `rec:measure`)
+    pub measure: bool,
     /// what to say, and whether it is good news
     status: Option<(bool, String)>,
     /// why the meter cannot hear the input, while that is so
@@ -142,7 +162,7 @@ pub struct Record {
 #[cfg(not(target_arch = "wasm32"))]
 type Listening = (Option<String>, usize, bool, Option<String>);
 
-/// a take being recorded
+/// a take being recorded, or the latency being measured
 #[cfg(not(target_arch = "wasm32"))]
 struct Live {
     recorder: crate::audio::record::Recorder,
@@ -152,6 +172,8 @@ struct Live {
     beat: f64,
     /// it records what a MIDI input plays
     midi: bool,
+    /// it is a measurement of the latency, not a take
+    measuring: bool,
     /// since when the input has heard nothing at all, and whether for long enough to say so
     silent_since: Option<f64>,
     silent: bool,
@@ -228,6 +250,7 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
          headphones; to hear yourself without delay, monitor through your audio interface.",
     ));
     ui.add_space(8.0);
+    let mut measure = false;
     egui::Grid::new("record-settings").num_columns(2).spacing([12.0, 8.0]).show(ui, |ui| {
         ui.label(small("Input"));
         ui.add_enabled_ui(!busy, |ui| input(ui, r));
@@ -333,16 +356,37 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
         ui.end_row();
         ui.label(small("Latency"));
         ui.add_enabled_ui(!busy, |ui| {
-            ui.add(
-                egui::DragValue::new(&mut r.settings.offset_ms)
-                    .range(-200.0..=500.0)
-                    .speed(1.0)
-                    .custom_formatter(|v, _| format!("{v:+.0} ms")),
-            )
-            .on_hover_text(
-                "what your setup adds that the devices do not report, such as Bluetooth headphones: a take that \
-                 lands late wants more",
-            );
+            ui.horizontal(|ui| {
+                let (offset, what) = if midi {
+                    (
+                        &mut r.settings.midi_offset_ms,
+                        "what your headphones or speakers add that they do not report, such as Bluetooth ones: notes \
+                         that land late want more",
+                    )
+                } else {
+                    (
+                        &mut r.settings.offset_ms,
+                        "what your setup adds that the devices do not report, such as a laptop's speakers and \
+                         microphone or Bluetooth headphones: a take that lands late wants more",
+                    )
+                };
+                ui.add(
+                    egui::DragValue::new(offset)
+                        .range(-200.0..=600.0)
+                        .speed(1.0)
+                        .custom_formatter(|v, _| format!("{v:+.0} ms")),
+                )
+                .on_hover_text(what);
+                if !midi {
+                    measure = ui
+                        .button(small("Measure"))
+                        .on_hover_text(
+                            "claudius plays eight clicks, listens for them, and sets the latency from how late they \
+                             come back: turn the speakers up a little, or hold the headphones to the microphone",
+                        )
+                        .clicked();
+                }
+            });
         });
         ui.end_row();
     });
@@ -371,12 +415,15 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
         if start {
             begin(cx, &song);
         }
+        if measure {
+            measure_latency(cx);
+        }
         if stop {
             finish(cx);
         }
     }
     #[cfg(target_arch = "wasm32")]
-    let _ = (start, stop);
+    let _ = (start, stop, measure);
 }
 
 /// the input and which of its channels
@@ -481,6 +528,9 @@ fn what_now(r: &Record) -> (bool, String) {
                     .into(),
             );
         }
+        if live.measuring {
+            return (true, format!("listening for the clicks: {:.0} s", (live.song_end + 0.5 - t).max(0.0).ceil()));
+        }
         return (true, format!("recording from {from}: {}", crate::mock::fmt_time(t - live.take_start)));
     }
     match &r.deaf_why {
@@ -514,7 +564,8 @@ fn begin(cx: &mut Cx, song: &SongView) {
         beat,
         bar: 4,
         click: r.settings.click,
-        offset: r.settings.offset_ms as f64 / 1000.0,
+        offset: if r.settings.midi.is_some() { r.settings.midi_offset_ms } else { r.settings.offset_ms } as f64
+            / 1000.0,
     };
     cx.player.pause();
     // the recorder opens the input itself: some systems give a device to one stream at a time
@@ -528,6 +579,7 @@ fn begin(cx: &mut Cx, song: &SongView) {
                 song_end: end,
                 beat,
                 midi,
+                measuring: false,
                 silent_since: None,
                 silent: false,
             });
@@ -537,12 +589,66 @@ fn begin(cx: &mut Cx, song: &SongView) {
     }
 }
 
+/// starts measuring the latency: claudius plays its clicks and listens for them on the chosen input
+#[cfg(not(target_arch = "wasm32"))]
+fn measure_latency(cx: &mut Cx) {
+    use crate::audio::record::{Plan, Recorder};
+    cx.player.pause();
+    let r = &mut cx.view.record;
+    r.listener = None;
+    let plan = Plan::measure(r.settings.input.clone(), r.settings.channel);
+    let end = plan.song.seconds();
+    match Recorder::start(plan) {
+        Ok(recorder) => {
+            r.live = Some(Live {
+                recorder,
+                take_start: 0.0,
+                song_end: end,
+                beat: 0.5,
+                midi: false,
+                measuring: true,
+                silent_since: None,
+                silent: false,
+            });
+            (r.status, r.level) = (None, 0.0);
+        }
+        Err(e) => r.status = Some((false, e)),
+    }
+}
+
+/// what a measurement found, as the window says it: `ms` the clicks came back late by, through `route`
+#[cfg(not(target_arch = "wasm32"))]
+fn measured(ms: f32, route: &str) -> String {
+    let when = match ms {
+        m if m.abs() < 1.0 => "in time".to_string(),
+        m if m > 0.0 => format!("{m:.0} ms late"),
+        m => format!("{:.0} ms early", -m),
+    };
+    format!(
+        "the clicks came back {when} through {route}, so the latency is now {:+.0} ms: measure again for other \
+         speakers, headphones or inputs",
+        if ms.abs() < 1.0 { 0.0 } else { ms }
+    )
+}
+
 /// stops the take and sends it: a recording to keep with the song, or the notes played as a part
 #[cfg(not(target_arch = "wasm32"))]
 pub fn finish(cx: &mut Cx) {
     use crate::audio::record::Take;
     let r = &mut cx.view.record;
     let Some(live) = r.live.take() else { return };
+    if live.measuring {
+        let route = live.recorder.route().to_string();
+        r.status = Some(match live.recorder.lateness() {
+            Ok(late) => {
+                let ms = ((late * 1000.0).round() as f32).clamp(-200.0, 600.0);
+                r.settings.offset_ms = ms;
+                (true, measured(ms, &route))
+            }
+            Err(e) => (false, e),
+        });
+        return;
+    }
     let name = Some(r.name.trim().to_string()).filter(|n| !n.is_empty());
     let from = r.from.clone().unwrap_or_default();
     match live.recorder.finish() {
@@ -587,6 +693,19 @@ fn keep_up(ctx: &egui::Context, cx: &mut Cx) {
         finish(cx);
         return;
     }
+    if std::mem::take(&mut r.start)
+        && r.live.is_none()
+        && let Some(song) = cx.state.song.clone()
+    {
+        begin(cx, &song);
+        return;
+    }
+    let r = &mut cx.view.record;
+    if std::mem::take(&mut r.measure) && r.live.is_none() {
+        measure_latency(cx);
+        return;
+    }
+    let r = &mut cx.view.record;
     let Some(live) = r.live.as_mut() else {
         listen(ctx, r);
         return;

@@ -67,8 +67,10 @@ an audio interface, in the studio app.
   press Stop or the song ends. claudius then plays it once from that section, mixed like any other track.
 - **Monitoring.** Wear headphones, or the microphone records the song too. The studio does not play the input back,
   so to hear yourself without delay, use your interface's direct monitoring.
-- **Timing.** If takes land late or early, use the Latency setting. Bluetooth headphones, for one, add a delay the
-  system may not report.
+- **Timing.** Press **Measure** next to Latency once for each setup: claudius plays eight clicks, listens for them
+  and sets the latency from how late they come back, so that takes land in time. Turn the speakers up a little, or
+  hold the headphones to the microphone, while it listens. A laptop's own speakers and microphone, for one, are
+  late by more than they report: on a MacBook Pro, 45 ms. A MIDI keyboard has a Latency of its own, set by hand.
 - **A MIDI keyboard.** Choose it as the input, then what plays your notes (an instrument or a synth), the part they make
   (keys, a lead, chords, a pad, an arp or a bass), the grid they go to (or "as played") and a style, as for a take's
   melody. While you record, a soft
