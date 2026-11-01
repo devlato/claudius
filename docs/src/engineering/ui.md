@@ -37,7 +37,7 @@ The studio is still being finished; this page describes its structure, which is 
 │ a cell per section, the waveform and playhead          │ selected section      │
 ├───────────────────────────────────────────────────────┤                       │
 │ dock: step sequencer │ mixer │ parts │ harmony │ script │ verdict: scores,     │
-│       │ sounds │ log                                   │ issues, ears, bands   │
+│       │ sounds │ graph │ log                           │ issues, ears, bands   │
 ├───────────────────────────────────────────────────────┴───────────────────────┤
 │ status: connection, server, state version, audio errors, volume, shortcuts     │
 └───────────────────────────────────────────────────────────────────────────────┘
@@ -53,6 +53,7 @@ The studio is still being finished; this page describes its structure, which is 
 | harmony | which progression each section plays; progressions as chord chips, from the key's diatonic chords or as text | `set_section`, `set_progression` |
 | script | the song as a script, highlighted, Run with Cmd or Ctrl+Enter, errors marking their line, sounds to insert, the reference | `run_script` |
 | sounds | the packs and every sound name; click one to put it on a part | `set_part` |
+| graph | the song's signal as nodes and edges (`SongView::graph`, laid out in columns from the tracks to the finished song) in an `egui::Scene` to pan and zoom; the inspector beside it edits the node chosen: a track's mix, bus, sections and sound, an effect's settings (each JSON field by its type, the rest as JSON text), a chain's effects added from `EFFECT_TEMPLATES`, moved or taken out, the master's loudness | `set_mix`, `toggle_layer`, `set_part`, `set_fx`, `run_script` (the master's loudness) |
 | verdict | read only: the total, a bar per score, issues with their targets, the ears, the tonal balance | |
 | log | read only: `State.log`, filterable | |
 

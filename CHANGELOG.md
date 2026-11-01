@@ -56,6 +56,11 @@ grid, cleans them of its drums, fits them to the song's tempo and key, and place
 the song's chords, mixed as a vocal (`claudius sample`, `sample_song`, and the studio's New song dialog;
 [Sampling a song's vocals](https://github.com/devlato/claudius/blob/main/docs/src/guide/samples.md#sampling-a-songs-vocals)).
 
+The studio has a Graph tab: the song as its signal flows, each track through its effects into its bus, the buses
+and returns into the master, out, on a canvas to drag and zoom. Every node is editable beside it: a track's mix,
+bus, sections and sound, an effect's settings or its place, a chain's new effects, the master's loudness. Assistants
+read the same graph with the `graph` tool and change chains with `set_fx`.
+
 `claudius publish` checks a song the way stores and distributors check a release (its artwork's size, colours and
 sharpness, its audio, the licences of its sounds, and its details, including how it was made) and writes a release
 kit: the WAV and the cover a distributor takes, and the answers its form asks for

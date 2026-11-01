@@ -4,7 +4,7 @@
 //! synthesized a slice per frame) and keeps `song_version`, so stale renders, solo and history behave the same.
 
 mod kit;
-mod song;
+pub(crate) mod song;
 mod synth;
 
 use std::sync::Arc;
@@ -947,6 +947,7 @@ mod tests {
             duck: None,
             muted: None,
             solo: Some(true),
+            bus: None,
         });
         assert!(crate::panels::any_solo(mock.state.song.as_ref().unwrap()));
         mock.send(Command::Undo);

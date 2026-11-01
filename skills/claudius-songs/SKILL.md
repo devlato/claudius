@@ -71,7 +71,9 @@ form([sec("intro", 8, "drums keys"), sec("drop", 16, "*").impact(), sec("break",
   delay the sends feed. A `parallel` effect runs chains side by side, each at its own `amount`; `mix(track, #{ bus })`
   groups tracks on a bus of your own. That is how a song gets layers of production: parallel compression and
   saturation, a glue bus, a filtered copy of a sound, a reverb only one section has. The settings and examples are in
-  [references/script.md](references/script.md).
+  [references/script.md](references/script.md). `graph` describes the whole signal flow in words, which is the
+  quickest way to see what a track goes through before changing it, and what the person sees in the studio's Graph
+  tab.
 - An error names the line and what it accepts (`unknown sound 'bdd' (drums: bd kick ...)`). Fix that and run again;
   don't guess around it.
 - **Exact notes.** For a melody, a bass line or chords you write out, or that the person dictates, use `add_notes`. It

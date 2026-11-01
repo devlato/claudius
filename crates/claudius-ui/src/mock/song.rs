@@ -813,6 +813,36 @@ fn section_layers(kind: &str, song: &SongView, genre: &Genre) -> Vec<String> {
 }
 
 /// a whole new song: title, tempo, key, form, drums, parts, tracks
+/// the demo's mix around the tracks, as claudius' genres build theirs: a glue compressor on the drums, the music
+/// high-passed, the master's EQ, compressor and saturation, and its reverb and delay
+fn demo_mix(genre: &str) -> claudius_api::MixView {
+    use serde_json::json;
+    claudius_api::MixView {
+        buses: vec![
+            (
+                "drums".into(),
+                vec![
+                    json!({"fx": "compressor", "threshold_db": -12, "ratio": 2.5, "attack_ms": 10, "release_ms": 100, "knee_db": 6, "makeup_db": 1, "mix": 1}),
+                ],
+            ),
+            ("bass".into(), Vec::new()),
+            (
+                "music".into(),
+                vec![json!({"fx": "eq", "bands": [{"kind": "highpass", "freq": 110, "gain_db": 0, "q": 0.7}]})],
+            ),
+        ],
+        master: vec![
+            json!({"fx": "eq", "bands": [{"kind": "highpass", "freq": 28, "gain_db": 0, "q": 0.7}]}),
+            json!({"fx": "compressor", "threshold_db": -10, "ratio": 2, "attack_ms": 20, "release_ms": 140, "knee_db": 6, "makeup_db": 0, "mix": 1}),
+            json!({"fx": "saturate", "kind": "tanh", "drive_db": 2, "mix": 0.3}),
+        ],
+        lufs: super::synth::master_level(genre),
+        ceiling_db: -1.0,
+        reverb: json!({"fx": "reverb", "decay": 2.2, "damping": 0.5, "predelay_ms": 20, "width": 1.1, "mix": 1, "lowcut": 300}),
+        delay: json!({"fx": "delay", "beats": 0.75, "feedback": 0.35, "damping": 0.5, "pingpong": true, "mix": 1}),
+    }
+}
+
 pub fn generate(genre_name: &str, seed: u64, bpm: Option<f64>, key: Option<&str>, loops: bool) -> SongView {
     let genre = genre(genre_name);
     let mut rng = Rng::new(seed ^ 0x9e37_79b9_7f4a_7c15);
@@ -874,6 +904,8 @@ pub fn generate(genre_name: &str, seed: u64, bpm: Option<f64>, key: Option<&str>
                 muted: false,
                 solo: false,
                 loudness: None,
+                fx: Vec::new(),
+                bus: "drums".into(),
             }
         })
         .collect();
@@ -898,6 +930,8 @@ pub fn generate(genre_name: &str, seed: u64, bpm: Option<f64>, key: Option<&str>
             muted: false,
             solo: false,
             loudness: None,
+            fx: Vec::new(),
+            bus: if p.role == "bass" { "bass".into() } else { "music".into() },
         });
     }
     if loops || genre.name == "house" {
@@ -914,6 +948,8 @@ pub fn generate(genre_name: &str, seed: u64, bpm: Option<f64>, key: Option<&str>
             muted: false,
             solo: false,
             loudness: None,
+            fx: Vec::new(),
+            bus: "drums".into(),
         });
     }
     tracks.push(TrackView {
@@ -929,6 +965,8 @@ pub fn generate(genre_name: &str, seed: u64, bpm: Option<f64>, key: Option<&str>
         muted: false,
         solo: false,
         loudness: None,
+        fx: Vec::new(),
+        bus: "fx".into(),
     });
 
     let mut song = SongView {
@@ -942,6 +980,7 @@ pub fn generate(genre_name: &str, seed: u64, bpm: Option<f64>, key: Option<&str>
         drums,
         parts,
         tracks,
+        mix: demo_mix(genre.name),
         lineage: vec![format!(
             "generated: {} seed {seed}{}",
             genre.name,

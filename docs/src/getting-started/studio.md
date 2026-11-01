@@ -55,6 +55,15 @@ the song it opens.
 - **Harmony.** The chord progressions, as chords in the song's key and as numerals, and which sections play which.
 - **Script.** The whole song as a script. Edit it and press Cmd+Enter (Ctrl+Enter on Windows and Linux) to run it.
   The sound browser lists every drum, synth and instrument name.
+- **Graph.** The song as its signal flows, on a canvas to drag around and zoom: each track (its sound, its level,
+  the sections it plays in) runs through a node for each of its effects into its bus; each bus runs through its
+  effects into the master, and the master through its chain out at its loudness. Curves show the sends into the
+  reverb and delay returns, and the kick ducking the tracks it ducks. Click a node to change it beside the canvas:
+  a track's level, pan, sends, duck, bus, mute and solo, the sections it plays in and its sound; an effect's
+  settings (numbers to drag, switches, modes, and everything else as the JSON the song keeps it as), its place in its
+  chain; a bus's or the master's chain; the master's loudness. Right-click a node to add an effect after it, move
+  it or take it out. Every change undoes. The arranger's own filter moves, width and saturation are added at render
+  and are not on the graph.
 - **Verdict.** The score and its parts, the issues with what to change, and what earshot hears.
 - **Log.** What happened, and the song's history.
 

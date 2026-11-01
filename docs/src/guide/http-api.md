@@ -143,7 +143,8 @@ The MCP tools wait the same way after every edit.
 | `progressions` | `[name, [numerals]]` pairs, `"A"` and `"B"` in generated songs |
 | `sections` | `SectionView` per section: `name`, `kind`, `start_bar`, `bars`, `energy`, `layers`, `prog`, `variant` and the flags `filter_in`, `build`, `gap`, `impact`, `fills` |
 | `layers` | every name a section can switch on: drum lanes, parts, loops, pattern tracks |
-| `tracks` | `TrackView` per track: `name`, `kind` (`drum`, `part`, `loop`, `pattern`, `fx`), `role`, `sound` in words, the mix (`level_db`, `pan`, `reverb`, `delay`, `duck`, `muted`, `solo`) and `loudness` in the master (LUFS while playing) once rendered |
+| `tracks` | `TrackView` per track: `name`, `kind` (`drum`, `part`, `loop`, `pattern`, `fx`), `role`, `sound` in words, the mix (`level_db`, `pan`, `reverb`, `delay`, `duck`, `muted`, `solo`), its `bus`, its chain of effects `fx` (each as the song keeps it, a map named by `fx`, as [`fx()`](../language/mixing.md#effect-chains) writes it) and `loudness` in the master (LUFS while playing) once rendered |
+| `mix` | `MixView`: the `buses` as `[name, effects]`, the `master` chain, its `lufs` and `ceiling_db`, and the `reverb` and `delay` the sends feed |
 | `drums` | `DrumView` per lane: `lane`, `pattern_bars`, and `variants` as `[name, velocities]` with one velocity per sixteenth (0 for none) |
 | `parts` | `PartView` per generated part: `name`, `role`, `style`, the `styles` its genre offers, `preset`, the `presets` it may switch to, `register` (MIDI low, high), `density` |
 | `script` | the song as a script; running it on the song changes nothing |
@@ -202,7 +203,8 @@ fields marked optional may be left out.
 | `set_drum_step` | `lane`, `variant`, `step`, `velocity` | sets one sixteenth (0 removes the hit); a new variant starts as a copy of `main` |
 | `set_drum_pattern` | `lane`, `variant`, `steps` | a whole variant in step notation, as `drum()` |
 | `set_part` | `name`; optional `style`, `preset`, `register` (`[low, high]`), `density`, `reseed` (false) | as `part()`; `reseed` writes the part again with a new seed |
-| `set_mix` | `track`; optional `level_db`, `pan`, `reverb`, `delay`, `duck`, `muted`, `solo` | as `mix()` |
+| `set_mix` | `track`; optional `level_db`, `pan`, `reverb`, `delay`, `duck`, `muted`, `solo`, `bus` | as `mix()` |
+| `set_fx` | `target` (`track:<name>`, `bus:<name>`, `master`, `send:reverb`, `send:delay`), `fx` (effects as `TrackView.fx` has them; a send takes exactly one) | replaces that chain, as [`fx()`, `bus()`, `master(#{ fx })` and `send_fx()`](../language/mixing.md#effect-chains) do; an effect it cannot read is refused with its place and why |
 | `run_script` | `code` | runs a script on the song |
 | `analyze` | `path` | the analysis of an audio file, as text in the reply's `message` |
 | `remake` | `path`; optional `genre`, `seed`, `bpm` | a new song on the file's skeleton; the genre defaults to the open song's, and the tempo to the recording's, halved or doubled into the genre's range when it is outside |
