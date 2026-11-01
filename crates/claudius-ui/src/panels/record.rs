@@ -226,6 +226,7 @@ impl Record {
 
 pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
     keep_up(ctx, cx);
+    wake_while_stopping(ctx, cx);
     if !cx.view.record.open {
         return;
     }
@@ -242,6 +243,15 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
     // a take that is recording finishes first
     if !open && !cx.view.record.recording() {
         cx.view.record.open = false;
+    }
+    wake_while_stopping(ctx, cx);
+}
+
+/// Whatever asked a take to stop (the Stop buttons, Space, the song's end, a plan), nothing else wakes the window when
+/// the browser's recorder has handed over the last of it.
+fn wake_while_stopping(ctx: &egui::Context, cx: &Cx) {
+    if cx.view.record.live.as_ref().is_some_and(|l| l.stopping.is_some()) {
+        ctx.request_repaint();
     }
 }
 
