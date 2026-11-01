@@ -535,6 +535,18 @@ mod tests {
     }
 
     #[test]
+    fn a_width_that_moves_is_the_width_at_each_moment() {
+        // left and right apart; mono from beat 1 on, through the filter that keeps the lows in the middle
+        let l: Vec<f32> = (0..3_000).map(|i| (i as f32 * 0.3).sin() * 0.5).collect();
+        let x = Stereo { r: l.iter().map(|v| -v).collect(), l };
+        let mut y = x.clone();
+        let w = Effect::Width { width: Param::Curve(vec![(0.99, 1.0), (1.0, 0.0)]), mono_below_hz: 40.0 };
+        apply(&w, &mut y, &CTX);
+        assert!((1_000..3_000).all(|i| (y.l[i] - y.r[i]).abs() < 1e-6), "mono as soon as the width is 0");
+        assert!((200..900).any(|i| (y.l[i] - y.r[i]).abs() > 0.1), "and wide before");
+    }
+
+    #[test]
     fn a_projects_slice_moves_the_curves_in_a_parallel_effects_chains_too() {
         let mut p = Effect::Parallel {
             chains: vec![Branch {
