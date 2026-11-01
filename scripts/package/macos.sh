@@ -85,9 +85,10 @@ notarize() {
     fi
 }
 
-# the helper program first, then the bundle, which seals the main program, the Info.plist and the resources
+# the helper program first, then the bundle, which seals the main program, the Info.plist and the resources; the main
+# program may use the microphone, which the hardened runtime allows only with the entitlement
 sign "$app/Contents/MacOS/claudius-packs"
-sign "$app"
+sign --entitlements "$root/packaging/macos/claudius.entitlements" "$app"
 codesign --verify --strict --deep "$app"
 if [ -n "${MACOS_NOTARY_KEY:-}" ]; then
     ditto -c -k --keepParent "$app" "$tmp/Claudius.zip"

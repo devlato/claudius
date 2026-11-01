@@ -118,6 +118,16 @@ pub fn command_name(cmd: &Command) -> String {
         .unwrap_or_else(|| "command".into())
 }
 
+/// text as a value in a URL's query: letters, digits and `-_.~` as they are, every other byte as %XX
+fn query_value(s: &str) -> String {
+    s.bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => (b as char).to_string(),
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
+}
+
 pub struct Remote {
     base: String,
     ctx: egui::Context,
@@ -243,6 +253,22 @@ impl Remote {
                 Err(e) => Err(e),
             };
             Self::deliver(&tx, &ctx, Event::Reply { what: "artwork".into(), result });
+        });
+    }
+
+    fn upload_take(&mut self, wav: Vec<u8>, query: &str) {
+        let mut request = ehttp::Request::post(self.url(&format!("/api/takes?{query}")), wav);
+        request.headers = ehttp::Headers::new(&[("Accept", "application/json"), ("Content-Type", "audio/wav")]);
+        request.timeout = Some(Duration::from_secs(300));
+        let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
+        ehttp::fetch(request, move |res| {
+            let result = match res {
+                Ok(r) => {
+                    serde_json::from_slice::<Reply>(&r.bytes).map_err(|_| format!("{} {}", r.status, r.status_text))
+                }
+                Err(e) => Err(e),
+            };
+            Self::deliver(&tx, &ctx, Event::Reply { what: "take".into(), result });
         });
     }
 
@@ -387,6 +413,19 @@ impl Backend {
         match self {
             Backend::Remote(r) => r.upload_artwork(bytes),
             Backend::Mock(m) => m.refuse("artwork", "the demo keeps no artwork: start `claudius serve` to publish"),
+        }
+    }
+
+    /// send a take, the WAV file itself, to play from the start of section `from` (the answer arrives as a reply to
+    /// "take")
+    pub fn upload_take(&mut self, wav: Vec<u8>, from: &str, name: Option<&str>, role: &str) {
+        let mut query = format!("from={}&role={}", query_value(from), query_value(role));
+        if let Some(name) = name {
+            query.push_str(&format!("&name={}", query_value(name)));
+        }
+        match self {
+            Backend::Remote(r) => r.upload_take(wav, &query),
+            Backend::Mock(m) => m.refuse("take", "the demo keeps no takes: start `claudius serve` to record"),
         }
     }
 

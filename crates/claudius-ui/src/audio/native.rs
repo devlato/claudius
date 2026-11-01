@@ -248,6 +248,11 @@ impl Player {
         self.duration > 0.0
     }
 
+    /// the audio loaded, decoded: what a take is recorded over
+    pub fn pcm(&self) -> Option<Arc<Pcm>> {
+        self.shared.pcm.lock().ok().and_then(|p| p.clone())
+    }
+
     pub fn play(&mut self) {
         if self.has_audio() {
             self.shared.playing.store(true, Relaxed);

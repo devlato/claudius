@@ -57,6 +57,18 @@ generations of that. Both run in the background and can be stopped. **Save** wri
 ([Exporting](../guide/export.md)). **publish** checks the song as stores do and writes what a distributor takes
 ([Publishing](../guide/publish.md)).
 
+**Record**, the red button after the loop button, records a [take](../guide/samples.md#takes) from a microphone or
+an audio interface, in the studio app.
+
+- **Setting it up.** Choose the input and its channel, the section the take starts with, a bar or two of count-in, and
+  what it is (a vocal, a guitar playing chords ...).
+- **Recording.** The song plays from the count-in, and the take records from the section's first downbeat until you
+  press Stop or the song ends. claudius then plays it once from that section, mixed like any other track.
+- **Monitoring.** Wear headphones, or the microphone records the song too. The studio does not play the input back,
+  so to hear yourself without delay, use your interface's direct monitoring.
+- **Timing.** If takes land late or early, use the Latency setting. Bluetooth headphones, for one, add a delay the
+  system may not report.
+
 ## Help and assistants
 
 **?** in the bottom right corner opens the help menu: **Take the tour**, **Connect an assistant**, **Check for
