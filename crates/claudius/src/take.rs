@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 
 use crate::audio::Stereo;
 use crate::config;
-use crate::model::{Blueprint, LoopPart, Sound, TrackMix};
+use crate::model::{Blueprint, LoopPart, Project, Sound, TrackMix};
 
 /// what a take can be in the mix: its role sets how loud the mixer makes it
 pub const ROLES: &[&str] = &["vocal", "lead", "chords", "keys", "bass", "drums", "texture"];
@@ -132,11 +132,22 @@ pub fn gather(bp: &mut Blueprint, folder: &Path) -> Result<Vec<(String, String)>
 /// points the takes that play a file in `moves` (old path, new path) at its new place
 pub fn repoint(bp: &mut Blueprint, moves: &[(String, String)]) {
     for l in bp.loops.iter_mut().filter(|l| l.from.is_some()) {
-        if let Sound::Loop { path, .. } = &mut l.sound
-            && let Some((_, new)) = moves.iter().find(|(old, _)| old == path)
-        {
-            *path = new.clone();
-        }
+        moved(&mut l.sound, moves);
+    }
+}
+
+/// the same in an arranged song
+pub fn repoint_tracks(project: &mut Project, moves: &[(String, String)]) {
+    for t in project.tracks.iter_mut() {
+        moved(&mut t.sound, moves);
+    }
+}
+
+fn moved(sound: &mut Sound, moves: &[(String, String)]) {
+    if let Sound::Loop { path, .. } = sound
+        && let Some((_, new)) = moves.iter().find(|(old, _)| old == path)
+    {
+        *path = new.clone();
     }
 }
 
@@ -248,6 +259,27 @@ mod tests {
         assert!(peak(during) > 0.05, "{}", peak(during));
         assert!(peak(after) < 0.02 * peak(during), "after its end: {} against {}", peak(after), peak(during));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_song_folder_the_command_line_writes_holds_its_takes() {
+        let (home, out) = (scratch("cli-home"), scratch("cli-out"));
+        let path = store(&tone(0.5), &home).unwrap();
+        let mut bp = song();
+        bp.form.truncate(1);
+        bp.form[0].bars = 2;
+        let from = bp.form[0].name.clone();
+        add(&mut bp, &path, 0.5, &from, None, None).unwrap();
+        crate::song::render_and_write(&bp, &out, false, None).unwrap();
+        let copy = out.join("takes").join(path.file_name().unwrap());
+        assert!(copy.is_file(), "the take is copied into the folder");
+        let written = crate::song::read_blueprint(&out.join("blueprint.json")).unwrap();
+        assert_eq!(written.files(), [copy.display().to_string()], "and the folder's song plays the copy");
+        let project = std::fs::read_to_string(out.join("project.json")).unwrap();
+        assert!(!project.contains(&path.display().to_string()), "the arranged song too");
+        for d in [home, out] {
+            let _ = std::fs::remove_dir_all(d);
+        }
     }
 
     #[test]

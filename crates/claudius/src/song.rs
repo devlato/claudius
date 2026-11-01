@@ -132,9 +132,15 @@ fn write_audio(dir: &Path, bp: &Blueprint, r: &Rendered) -> Result<(PathBuf, Pat
     Ok((wav, mp3))
 }
 
-/// everything in the folder but the audio
+/// everything in the folder but the audio; the song's takes are copied into its `takes/`, and what the folder says
+/// plays the copies
 fn write_documents(dir: &Path, bp: &Blueprint, project: &Project, r: &Rendered, verdict: &Verdict) -> Result<()> {
     std::fs::create_dir_all(dir)?;
+    let mut bp = bp.clone();
+    let moves = crate::take::gather(&mut bp, dir)?;
+    let mut project = project.clone();
+    crate::take::repoint_tracks(&mut project, &moves);
+    let (bp, project) = (&bp, &project);
     std::fs::write(dir.join("verdict.json"), serde_json::to_string_pretty(verdict)?)?;
     std::fs::write(dir.join("blueprint.json"), bp.to_json())?;
     std::fs::write(dir.join("song.rhai"), crate::script::to_script(bp))?;
