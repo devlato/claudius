@@ -118,7 +118,8 @@ pub fn sample(
                 }
             }
         }
-        let Some((_, g, slot, fits)) = best else { break };
+        // a phrase with no room left may be longer than the next one
+        let Some((_, g, slot, fits)) = best else { continue };
         taken[g][slot] = true;
         let offset = slot as u32 * p.bars;
         let file = crate::take::store(&layout(&cut, offset as f64 * bar, period as f64 * bar), dir)
@@ -174,7 +175,7 @@ pub fn sample(
         out.tracks.push(track);
     }
     if out.tracks.is_empty() {
-        let bars = phrases[0].bars;
+        let bars = phrases.iter().map(|p| p.bars).min().unwrap_or_default();
         return Err(format!("no section asked for has room for a phrase of {bars} bars: try shorter phrases"));
     }
     // a lead that plays with the voice steps back a little, once: beside a phrase sampled before, it has already
