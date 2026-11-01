@@ -55,6 +55,11 @@ pub fn midi_offer() -> Option<(String, bool)> {
 /// a browser asks the person whether the page may use MIDI keyboards; the app need not
 pub fn ask_for_midi() {}
 
+/// the MIDI inputs listed are all there are: in the app, at once
+pub fn midi_settled() -> bool {
+    true
+}
+
 /// the MIDI inputs there are (keyboards and controllers), by name
 pub fn midi_inputs() -> Vec<String> {
     let Ok(input) = midir::MidiInput::new("claudius") else { return Vec::new() };

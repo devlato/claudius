@@ -159,6 +159,12 @@ pub fn midi_offer() -> Option<(String, bool)> {
     }
 }
 
+/// The MIDI inputs listed are all there are: the page may use them, or it never will. While the browser is looked
+/// into, or has yet to say yes, a keyboard chosen before may still be there.
+pub fn midi_settled() -> bool {
+    matches!(midi(), Midi::Granted(_) | Midi::Not(_))
+}
+
 /// asks the browser to let the page use MIDI keyboards: it asks the person
 pub fn ask_for_midi() {
     if matches!(midi(), Midi::Unasked | Midi::Refused(_)) {

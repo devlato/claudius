@@ -168,7 +168,8 @@ pub struct Record {
 }
 
 /// an audio input and the channels of it, or a MIDI input
-type Listening = (Option<String>, usize, bool, Option<String>);
+/// (and whether that MIDI input is listed yet: a browser lists them late, and the meter tries again once it does)
+type Listening = (Option<String>, usize, bool, Option<String>, bool);
 
 /// a take being recorded, or the latency being measured
 struct Live {
@@ -449,7 +450,10 @@ fn input(ui: &mut Ui, r: &mut Record) {
             ui.label(small("no microphone, audio input or MIDI keyboard found").color(theme::BAD));
             return;
         }
-        if r.settings.midi.as_ref().is_some_and(|m| !r.midi_inputs.contains(m)) {
+        // a keyboard chosen before goes only once the list is all there is: a browser lists its keyboards late, and
+        // only once the page may use them
+        if crate::audio::record::midi_settled() && r.settings.midi.as_ref().is_some_and(|m| !r.midi_inputs.contains(m))
+        {
             r.settings.midi = None;
         }
         let name = r.settings.input.clone().filter(|n| r.inputs.iter().any(|i| i.name == *n));
@@ -842,7 +846,9 @@ fn listen(ctx: &egui::Context, r: &mut Record) {
     {
         (r.settings.channel, r.settings.stereo) = (0, false);
     }
-    let want: Listening = (r.settings.input.clone(), r.settings.channel, r.settings.stereo, r.settings.midi.clone());
+    let listed = r.settings.midi.as_ref().is_some_and(|m| r.midi_inputs.contains(m));
+    let want: Listening =
+        (r.settings.input.clone(), r.settings.channel, r.settings.stereo, r.settings.midi.clone(), listed);
     if r.listener.as_ref().is_none_or(|(_, on)| *on != want) && r.deaf.as_ref() != Some(&want) {
         r.listener = None;
         let started = match &want.3 {

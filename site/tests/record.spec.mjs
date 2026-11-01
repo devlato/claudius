@@ -106,15 +106,17 @@ function offered(page) {
  * keyboard plays middle C every half second, held a fifth of a second, to whatever listens, its messages stamped where
  * they arrived, or 0 when `stamped` is false, as Chromium stamps a real keyboard's.
  */
-function fakeMidi({ state, stamped = true }) {
+function fakeMidi({ state, stamped = true, slow = 0 }) {
   if (state === "absent") {
     delete Navigator.prototype.requestMIDIAccess;
     return;
   }
   const input = { id: "fake", name: "Fake Keyboard", type: "input", state: "connected", connection: "open", onmidimessage: null };
   const access = { inputs: new Map([["fake", input]]), outputs: new Map(), sysexEnabled: false, onstatechange: null };
+  // a browser that takes `slow` ms to give access, as one that looks into its devices first
+  const later = (f) => new Promise((ok, no) => setTimeout(() => f(ok, no), slow));
   Navigator.prototype.requestMIDIAccess = () =>
-    state === "denied" ? Promise.reject(new DOMException("blocked", "NotAllowedError")) : Promise.resolve(access);
+    later((ok, no) => (state === "denied" ? no(new DOMException("blocked", "NotAllowedError")) : ok(access)));
   const query = navigator.permissions.query.bind(navigator.permissions);
   navigator.permissions.query = (d) => (d && d.name === "midi" ? Promise.resolve({ state }) : query(d));
   const send = (bytes, at) =>
@@ -227,9 +229,10 @@ test.describe("recording in the browser", () => {
     const c = await claudius();
     const { page, close } = await browser(c.base);
     try {
-      await page.addInitScript(fakeMidi, { state: "granted" });
+      // the keyboard is chosen as the window opens, 1.5 s before the browser has listed it: it must stay chosen
+      await page.addInitScript(fakeMidi, { state: "granted", slow: 4_500 });
       const lines = said(page);
-      const plan = "wait:3;record;wait:1;rec:midi:Fake Keyboard;rec:grid:0;wait:1;rec:start;wait:7;rec:stop;wait:4";
+      const plan = "wait:3;record;rec:midi:Fake Keyboard;rec:grid:0;wait:3;rec:start;wait:7;rec:stop;wait:4";
       await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
       await expect.poll(() => lines.join("\n"), { timeout: 60_000 }).toMatch(/\d+ notes from the start of intro, C4 to C4, played by played/);
       // about four and a half seconds after the count-in, two notes a second
