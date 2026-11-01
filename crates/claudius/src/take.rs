@@ -95,6 +95,7 @@ pub fn add(
         slice_beats: 0.0,
         mix: TrackMix { reverb: 0.12, bus: "music".into(), ..Default::default() },
         from: Some(from.to_string()),
+        sampled: false,
     });
     let mut reached = Vec::new();
     let mut at = 0.0;
@@ -418,12 +419,12 @@ fn style_for(role: Role) -> &'static str {
     }
 }
 
-/// Copies the takes the song plays from outside `folder` into its `takes/` and points the song at the copies, so
-/// that a saved song folder holds its recordings. Returns each take's old path and new one.
+/// Copies the takes and sampled phrases the song plays from outside `folder` into its `takes/` and points the song at
+/// the copies, so that a saved song folder holds its recordings. Returns each take's old path and new one.
 pub fn gather(bp: &mut Blueprint, folder: &Path) -> Result<Vec<(String, String)>> {
     let dir = folder.join("takes");
     let mut moves = Vec::new();
-    for l in bp.loops.iter_mut().filter(|l| l.from.is_some()) {
+    for l in bp.loops.iter_mut().filter(|l| l.kept()) {
         let Sound::Loop { path, .. } = &mut l.sound else { continue };
         let src = PathBuf::from(&*path);
         let Some(file) = src.file_name() else { continue };
@@ -442,9 +443,9 @@ pub fn gather(bp: &mut Blueprint, folder: &Path) -> Result<Vec<(String, String)>
     Ok(moves)
 }
 
-/// points the takes that play a file in `moves` (old path, new path) at its new place
+/// points the takes and sampled phrases that play a file in `moves` (old path, new path) at its new place
 pub fn repoint(bp: &mut Blueprint, moves: &[(String, String)]) {
-    for l in bp.loops.iter_mut().filter(|l| l.from.is_some()) {
+    for l in bp.loops.iter_mut().filter(|l| l.kept()) {
         moved(&mut l.sound, moves);
     }
 }
@@ -464,11 +465,11 @@ fn moved(sound: &mut Sound, moves: &[(String, String)]) {
     }
 }
 
-/// points the takes whose file is gone (the song folder moved, or came from another computer) at the file of that
-/// name in `folder`'s `takes/`; returns how many it found
+/// points the takes and sampled phrases whose file is gone (the song folder moved, or came from another computer) at
+/// the file of that name in `folder`'s `takes/`; returns how many it found
 pub fn find_moved(bp: &mut Blueprint, folder: &Path) -> usize {
     let mut found = 0;
-    for l in bp.loops.iter_mut().filter(|l| l.from.is_some()) {
+    for l in bp.loops.iter_mut().filter(|l| l.kept()) {
         let Sound::Loop { path, .. } = &mut l.sound else { continue };
         if Path::new(&*path).is_file() {
             continue;
@@ -787,15 +788,24 @@ mod tests {
         let mut bp = song();
         let from = bp.form[0].name.clone();
         add(&mut bp, &path, 0.5, &from, None, None).unwrap();
+        // a phrase sampled into the song is kept with it the same way
+        let phrase = store(&tone(0.25), &home).unwrap();
+        let mut vox = LoopPart { name: "vox1".into(), from: None, sampled: true, ..bp.loops[0].clone() };
+        if let Sound::Loop { path, .. } = &mut vox.sound {
+            *path = phrase.display().to_string();
+        }
+        bp.loops.push(vox);
         let mut copy = bp.clone();
         let moves = gather(&mut copy, &saved).unwrap();
-        assert_eq!(moves.len(), 1);
-        assert!(saved.join("takes").join(path.file_name().unwrap()).is_file());
+        assert_eq!(moves.len(), 2);
+        for file in [&path, &phrase] {
+            assert!(saved.join("takes").join(file.file_name().unwrap()).is_file());
+        }
         repoint(&mut bp, &moves);
         assert_eq!(bp, copy, "the song points at the copy too");
         assert!(gather(&mut copy, &saved).unwrap().is_empty(), "saved again: nothing to copy");
         std::fs::rename(&saved, &moved).unwrap();
-        assert_eq!(find_moved(&mut copy, &moved), 1);
+        assert_eq!(find_moved(&mut copy, &moved), 2);
         let Sound::Loop { path: now, .. } = &copy.loops.iter().find(|l| l.from.is_some()).unwrap().sound else {
             unreachable!()
         };

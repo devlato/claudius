@@ -94,6 +94,9 @@ pub fn sample(
     let mut taken: Vec<[bool; 2]> = vec![[false; 2]; groups.len()];
     let mut out = Sampled::default();
     let mut voiced: Vec<usize> = Vec::new();
+    let voiced_before: Vec<usize> = (0..bp.form.len())
+        .filter(|&si| bp.loops.iter().any(|l| l.sampled && bp.form[si].layers.contains(&l.name)))
+        .collect();
     for p in &phrases {
         let (a0, a1) = ((p.start * SRF) as usize, (((p.start + p.bars as f64 * bar) * SRF) as usize).min(src.len()));
         let cut = clean(&src.slice(a0, a1));
@@ -106,7 +109,8 @@ pub fn sample(
                     continue;
                 }
                 let offset = slot as u32 * p.bars;
-                let fits = fit(&project, secs, offset, p.bars, period, &profile);
+                // a slot no section of the group has room for would never sound
+                let Some(fits) = fit(&project, secs, offset, p.bars, period, &profile) else { continue };
                 // the earlier groups suit a vocal best: the drops and hooks, then the breaks, the verses, the builds
                 let suits = fits + 0.12 * (groups.len() - g) as f64 / groups.len() as f64 - 0.05 * slot as f64;
                 if best.is_none_or(|b| suits > b.0) {
@@ -138,9 +142,11 @@ pub fn sample(
             slice_beats: 0.0,
             mix: vocal_mix(),
             from: None,
+            sampled: true,
         });
         let (label, secs) = &groups[g];
-        for &si in secs {
+        let secs: Vec<usize> = secs.iter().copied().filter(|&si| offset + p.bars <= bp.form[si].bars).collect();
+        for &si in &secs {
             bp.form[si].layers.push(track.clone());
             voiced.push(si);
         }
@@ -167,11 +173,16 @@ pub fn sample(
         ));
         out.tracks.push(track);
     }
-    // a lead that plays with the voice steps back a little
+    if out.tracks.is_empty() {
+        let bars = phrases[0].bars;
+        return Err(format!("no section asked for has room for a phrase of {bars} bars: try shorter phrases"));
+    }
+    // a lead that plays with the voice steps back a little, once: beside a phrase sampled before, it has already
+    let plays = |p: &Part, at: &[usize]| at.iter().any(|&si| bp.form[si].layers.contains(&p.name));
     let leads: Vec<String> = bp
         .parts
         .iter()
-        .filter(|p| p.role == Role::Lead && voiced.iter().any(|&si| bp.form[si].layers.contains(&p.name)))
+        .filter(|p| p.role == Role::Lead && plays(p, &voiced) && !plays(p, &voiced_before))
         .map(|p| p.name.clone())
         .collect();
     for p in bp.parts.iter_mut().filter(|p| leads.contains(&p.name)) {
@@ -357,8 +368,9 @@ fn shift(p: &[f32; 12], semis: i32) -> [f32; 12] {
 
 /// How well a phrase of `bars` bars with pitch profile `profile` agrees with the chords under it, playing from
 /// `offset` bars into each of the sections `secs` and every `period` bars after: the profile's cosine with the chord
-/// tones under each playing, weighted by how long each chord lasts, averaged over every playing.
-fn fit(p: &Project, secs: &[usize], offset: u32, bars: u32, period: u32, profile: &[f32; 12]) -> f64 {
+/// tones under each playing, weighted by how long each chord lasts, averaged over every playing; none when no section
+/// has room for it.
+fn fit(p: &Project, secs: &[usize], offset: u32, bars: u32, period: u32, profile: &[f32; 12]) -> Option<f64> {
     let (mut sum, mut n) = (0f64, 0usize);
     for &si in secs {
         let Some(s) = p.sections.get(si) else { continue };
@@ -377,7 +389,7 @@ fn fit(p: &Project, secs: &[usize], offset: u32, bars: u32, period: u32, profile
             b += period.max(1);
         }
     }
-    if n == 0 { 0.0 } else { sum / n as f64 }
+    (n > 0).then(|| sum / n as f64)
 }
 
 fn cosine(a: &[f32; 12], b: &[f32; 12]) -> f64 {
@@ -443,10 +455,11 @@ mod tests {
         for pc in [9, 0, 4] {
             amin[pc] = 1.0;
         }
-        assert!(fit(&p, &[0], 0, 4, 8, &amin) > 0.99, "on A minor every time");
-        let across = fit(&p, &[0, 1], 0, 2, 2, &amin);
+        assert!(fit(&p, &[0], 0, 4, 8, &amin).unwrap() > 0.99, "on A minor every time");
+        let across = fit(&p, &[0, 1], 0, 2, 2, &amin).unwrap();
         assert!(across > 0.5 && across < 0.9, "{across}");
         assert!(fit(&p, &[0], 4, 4, 8, &amin) < fit(&p, &[0], 0, 4, 8, &amin), "on F major it fits less");
+        assert_eq!(fit(&p, &[0], 8, 4, 16, &amin), None, "no room 8 bars into 8 bars");
         assert_eq!(shift(&amin, 3)[0], 1.0, "A minor three up is C minor: C is there");
     }
 
@@ -459,9 +472,8 @@ mod tests {
         assert!(lay.l[12_000..16_800].iter().all(|&v| v == 0.5) && lay.l[16_800..].iter().all(|&v| v == 0.0));
     }
 
-    #[test]
-    fn a_sung_line_in_the_middle_is_found_and_the_drums_to_the_sides_are_not() {
-        // 120 BPM, eight bars: a hum in the middle in bars 3-4, a noisy hat to the left all through
+    /// 120 BPM, eight bars: a noisy hat to the left all through, and in the middle a hum from second `from` to `to`
+    fn hummed(from: usize, to: usize) -> Stereo {
         let sr = SRF as usize;
         let n = 16 * sr;
         let mut x = Stereo::zeros(n);
@@ -471,7 +483,7 @@ mod tests {
             if i % (sr / 4) < sr / 50 {
                 x.l[i] += (rng.f32() - 0.5) * 0.6;
             }
-            if (4 * sr..8 * sr).contains(&i) {
+            if (from * sr..to * sr).contains(&i) {
                 // a sung A3 with a little vibrato, its second harmonic too
                 let t = i as f64 / SRF;
                 phase += std::f64::consts::TAU * 220.0 * (1.0 + 0.01 * (t * 5.0 * std::f64::consts::TAU).sin()) / SRF;
@@ -480,6 +492,13 @@ mod tests {
                 x.r[i] += v;
             }
         }
+        x
+    }
+
+    #[test]
+    fn a_sung_line_in_the_middle_is_found_and_the_drums_to_the_sides_are_not() {
+        // a hum in bars 3-4
+        let (sr, x) = (SRF as usize, hummed(4, 8));
         let a = Analysis { bpm: 120.0, first_downbeat: 0.0, ..analysis::analyze(&x, Some((110.0, 130.0))) };
         let found = find(&x, &a, None, &Options { bars: Some(2), ..Options::default() }, 1);
         assert_eq!(found.len(), 1);
@@ -487,5 +506,44 @@ mod tests {
         assert!(found[0].sung > 0.8 && found[0].centred > 0.6, "{:?}", found);
         let clean = clean(&x.slice(4 * sr, 8 * sr));
         assert!((clean.peak() - 0.891).abs() < 0.01 && clean.l == clean.r);
+    }
+
+    #[test]
+    fn a_phrase_plays_only_where_it_has_room_and_a_lead_steps_back_once() {
+        let g = crate::genres::get("trip_hop").unwrap();
+        let o = crate::compose::Options { short: true, samples: 0.0, loops: false, ..Default::default() };
+        let mut bp = crate::compose::generate(&g, 1, &o, None);
+        let lead = bp.parts.iter().find(|p| p.role == Role::Lead).expect("trip-hop has a lead").name.clone();
+        // a hook of 4 bars and one of 2: a phrase of 2 bars answering from bar 3 has room only in the first
+        let mut hook = bp.form[0].clone();
+        (hook.name, hook.kind, hook.bars, hook.layers) = ("hook".into(), SectionKind::Drop, 4, bp.layer_names());
+        let short = SectionSpec { name: "hook2".into(), bars: 2, ..hook.clone() };
+        bp.form = vec![hook, short];
+        let level = |bp: &Blueprint| bp.parts.iter().find(|p| p.name == lead).unwrap().mix.level_db;
+        let on = |bp: &Blueprint, track: &str| -> Vec<String> {
+            bp.form.iter().filter(|s| s.layers.iter().any(|l| l == track)).map(|s| s.name.clone()).collect()
+        };
+        let (was, src) = (level(&bp), hummed(4, 12));
+        let dir = std::env::temp_dir().join(format!("claudius-sampler-{}", std::process::id()));
+        let ask =
+            |sections: &str| Options { count: 2, bars: Some(2), sections: vec![sections.into()], ..Options::default() };
+        let out = sample(&mut bp, &src, "song", None, &ask("drop"), &dir).unwrap();
+        assert_eq!(out.tracks, ["vox1", "vox2"], "{:?}", out.lines);
+        assert!(out.lines.iter().any(|l| l.contains("answering")), "{:?}", out.lines);
+        for (track, line) in out.tracks.iter().zip(&out.lines) {
+            let room: &[&str] = if line.contains("answering") { &["hook"] } else { &["hook", "hook2"] };
+            assert_eq!(on(&bp, track), room, "{line}");
+        }
+        assert_eq!(level(&bp), was - 1.5);
+        // the short hook alone has room for one phrase, from its first bar; the lead stepped back for the first ones
+        let out = sample(&mut bp, &src, "song", None, &ask("hook2"), &dir).unwrap();
+        assert_eq!(out.tracks, ["vox3"], "{:?}", out.lines);
+        assert_eq!(level(&bp), was - 1.5, "the lead steps back once");
+        assert!(bp.loops.iter().all(|l| l.sampled && l.kept() && l.from.is_none()));
+        // phrases of 4 bars have no room in it at all
+        let four = Options { bars: Some(4), ..ask("hook2") };
+        let err = sample(&mut bp, &src, "song", None, &four, &dir).unwrap_err();
+        assert!(err.contains("no section asked for has room for a phrase of 4 bars"), "{err}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

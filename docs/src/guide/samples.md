@@ -132,13 +132,15 @@ or **Sample its vocals into the song** in the studio's New song dialog, after ch
 - **Placing them.** The phrases go where a vocal suits the song: the drops and hooks first, then the breaks, the
   verses and grooves, the builds (`--in` names the sections or kinds). In each place, a phrase plays from the
   section's first bar or answers from the bar after, whichever its notes agree with better: its pitch profile against
-  the chord tones under each time it plays.
+  the chord tones under each time it plays. It plays only in the sections with room for it (an answer needs twice
+  its length); when no section asked for has room for a phrase that long, nothing is sampled and the reply says so.
 - **Mixing them.** A phrase is mixed as a vocal (−15 LUFS while it plays, a little under): high-passed at 200 Hz,
   a little presence at 3 kHz, compressed 3:1, with some reverb and delay and a light duck under the kick. A lead
-  that plays with it steps back 1.5 dB.
+  that plays with it steps back 1.5 dB, once: a lead that already plays beside a phrase sampled before stays where
+  it is.
 
-The phrases are kept with the song, in `takes/` in its folder, as takes are, and the reply says where each came from
-and went:
+The phrases are kept with the song, in `takes/` in its folder, and go with it when it is saved elsewhere or its folder
+moves, as takes do. The reply says where each came from and went:
 
 ```text
 vox1: bar 6 of Many Miracles Vocal Melody.caf (the ears +2.0 for 'a person singing', 60% sung), in its own key at 122 BPM, every 2 bars from the first bar in the drops and hooks (drop), on chords it agrees with 74%

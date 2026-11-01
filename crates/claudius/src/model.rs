@@ -312,6 +312,16 @@ pub struct LoopPart {
     /// later sections that play it for as long as it lasts, instead of looping in each section
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
+    /// a phrase the sampler cut from a recording: its file is kept with the song's takes and goes where they go
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub sampled: bool,
+}
+
+impl LoopPart {
+    /// a recording the song keeps in its `takes/`: a take, or a phrase sampled into it
+    pub fn kept(&self) -> bool {
+        self.from.is_some() || self.sampled
+    }
 }
 
 /// a track written as a pattern expression (see `script`): the code is the source of truth, `sounds` the sound each
