@@ -130,7 +130,7 @@ pub struct Melody {
 
 /// what notes sung or played can become, all in the song's key: the line as it is, the line with a third above it, the
 /// line doubled an octave down, a triad under each note, the line down in a bass's register, each note broken into a
-/// rising arpeggio, or a chord held a bar on the first note of each bar
+/// rising arpeggio, or a chord held through each bar the line sounds in
 pub const STYLES: &[&str] = &["line", "harmony", "octaves", "chords", "bass", "arp", "pad"];
 
 /// the notes restyled, and the part's role the style asks for (none: the caller's, or a lead)
@@ -168,17 +168,27 @@ fn styled(notes: Vec<Note>, style: &str, key: &crate::theory::scale::Key) -> Res
             (out, Some(Role::Arp))
         }
         "pad" => {
+            // a chord through every bar the line sounds in, on the note heard most of the bar's first beat, else on
+            // the first to start in the bar: a note held over several bars keeps its chord in each
+            let heard = |n: &Note, bar: f64| (n.t + n.d).min(bar + 1.0) - n.t.max(bar);
+            let end = notes.iter().map(|n| n.t + n.d).fold(f64::NEG_INFINITY, f64::max);
+            let mut bar = (notes.iter().map(|n| n.t).fold(f64::INFINITY, f64::min) / 4.0).floor() * 4.0;
             let mut out = Vec::new();
-            let mut bar = f64::NEG_INFINITY;
-            for n in &notes {
-                let b = (n.t / 4.0).floor() * 4.0;
-                if b > bar {
-                    bar = b;
+            while bar < end - 1e-9 {
+                let on = notes
+                    .iter()
+                    .filter(|n| heard(n, bar) > 1e-9)
+                    .max_by(|a, b| heard(a, bar).total_cmp(&heard(b, bar)).then(a.t.total_cmp(&b.t)))
+                    .or_else(|| {
+                        notes.iter().filter(|n| n.t >= bar && n.t < bar + 4.0).min_by(|a, b| a.t.total_cmp(&b.t))
+                    });
+                if let Some(n) = on {
                     let root = n.p - 12;
                     for p in [root, key.step(root, 2), key.step(root, 4)] {
-                        out.push(Note { t: b, d: 4.0, p, v: 0.6 });
+                        out.push(Note { t: bar, d: 4.0, p, v: 0.6 });
                     }
                 }
+                bar += 4.0;
             }
             (out, Some(Role::Pad))
         }
@@ -717,6 +727,23 @@ mod tests {
             (vec![(0.0, 48), (0.0, 52), (0.0, 55)], Some(Role::Pad)),
             "C major held over the bar"
         );
+        // C held over three bars keeps its chord in each, a bar of rest has none, and G heard for a sliver of the
+        // sixth bar gives way to the E that sings most of its first beat
+        let held = vec![
+            Note { t: 0.0, d: 12.0, p: 60, v: 1.0 },
+            Note { t: 16.0, d: 4.1, p: 67, v: 1.0 },
+            Note { t: 20.25, d: 2.0, p: 64, v: 1.0 },
+        ];
+        let pad: Vec<(f64, i32)> = styled(held, "pad", &key).unwrap().0.iter().map(|n| (n.t, n.p)).collect();
+        let triad = |t: f64, ps: [i32; 3]| ps.map(|p| (t, p));
+        let bars = [
+            triad(0.0, [48, 52, 55]),
+            triad(4.0, [48, 52, 55]),
+            triad(8.0, [48, 52, 55]),
+            triad(16.0, [55, 59, 62]),
+            triad(20.0, [52, 55, 59]),
+        ];
+        assert_eq!(pad, bars.concat());
         assert!(styled(line, "polka", &key).unwrap_err().contains("not 'polka'"));
     }
 

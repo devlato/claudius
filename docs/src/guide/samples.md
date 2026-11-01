@@ -164,7 +164,7 @@ afterwards, whose sound, level and sections you change as you would any other's.
   | `chords` | a triad under each note, the note on top | chords |
   | `bass` | the line, moved by octaves into a bass's register | a bass |
   | `arp` | each note broken into a rising arpeggio of sixteenths | an arp |
-  | `pad` | a chord held over each bar, on the bar's first note | a pad |
+  | `pad` | a chord held through each bar the line sounds in, on the note heard as the bar begins | a pad |
 
   In the studio, the take's menu lets you pick one before the sound.
 

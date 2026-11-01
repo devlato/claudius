@@ -136,7 +136,7 @@ take's name and `sounds`, the synth presets or installed instruments to play it 
   - `harmony` adds a third above it, and `octaves` doubles it an octave down;
   - `chords` puts a triad under each note;
   - `bass` moves it down into a bass's register;
-  - `arp` breaks each note into a rising arpeggio, and `pad` holds a chord a bar.
+  - `arp` breaks each note into a rising arpeggio, and `pad` holds a chord through each bar the line sounds in.
 
   When the person says "make my melody the bass line" or "put chords under it", that's the style. The part gets the
   role that goes with it.

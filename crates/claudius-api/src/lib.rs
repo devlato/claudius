@@ -336,7 +336,7 @@ pub struct PackInfo {
 
 /// what notes sung or played can become (`add_notes` and `transcribe_take` take one as `style`): the line as it is, with
 /// a third above, doubled an octave down, as a triad under each note, down in a bass's register, as a rising arpeggio on
-/// each note, or as a chord held a bar
+/// each note, or as a chord held through each bar the line sounds in
 pub const NOTE_STYLES: &[&str] = &["line", "harmony", "octaves", "chords", "bass", "arp", "pad"];
 
 /// a note: start and length in beats, MIDI pitch (60 is middle C), velocity 0..1 (0.8 when left out)

@@ -370,7 +370,7 @@ pub struct NotesArgs {
     pub role: Option<String>,
     /// what the notes become: line (as they are, the default), harmony (a third above), octaves (doubled below),
     /// chords (a triad under each note), bass (down in a bass's register), arp (each note broken into a rising
-    /// arpeggio) or pad (a chord held a bar)
+    /// arpeggio) or pad (a chord held through each bar the line sounds in)
     #[serde(default)]
     pub style: Option<String>,
 }
