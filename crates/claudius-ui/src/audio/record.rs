@@ -100,13 +100,35 @@ pub fn midi_inputs() -> Vec<String> {
     input.ports().iter().filter_map(|p| input.port_name(p).ok()).collect()
 }
 
-/// a MIDI message as a take hears it: a note on (its pitch and velocity) or off (velocity 0), else nothing
-fn note_of(msg: &[u8]) -> Option<(u8, f32)> {
-    match msg {
-        [s, p, v, ..] if s & 0xF0 == 0x90 => Some((p & 0x7F, f32::from(v & 0x7F) / 127.0)),
-        [s, p, ..] if s & 0xF0 == 0x80 => Some((p & 0x7F, 0.0)),
-        _ => None,
+/// The notes in MIDI bytes, as a take hears them: each note on (its pitch and velocity) or off (velocity 0). The bytes
+/// may hold several messages, the later ones in running status, with clock and other real-time bytes among them.
+fn notes_of(bytes: &[u8]) -> Vec<(u8, f32)> {
+    let mut out = Vec::new();
+    let (mut status, mut data) = (0u8, Vec::with_capacity(2));
+    for &b in bytes {
+        match b {
+            // real time (clock, start, stop, active sensing) may come between any two bytes
+            0xF8..=0xFF => {}
+            0x80..=0xF7 => (status, data) = (b, Vec::with_capacity(2)),
+            _ => {
+                data.push(b);
+                let wanted = match status & 0xF0 {
+                    0xC0 | 0xD0 => 1,
+                    0xF0 => usize::MAX,
+                    _ => 2,
+                };
+                if data.len() == wanted {
+                    match status & 0xF0 {
+                        0x90 => out.push((data[0], f32::from(data[1]) / 127.0)),
+                        0x80 => out.push((data[0], 0.0)),
+                        _ => {}
+                    }
+                    data.clear();
+                }
+            }
+        }
     }
+    out
 }
 
 /// The notes in what a MIDI input played (seconds since the recorder began, pitch, velocity), measured from `start`:
@@ -345,7 +367,7 @@ impl Listener {
         let shared = Shared::new();
         let sh = shared.clone();
         let midi = connect_midi(name, move |msg| {
-            if let Some((_, v)) = note_of(msg) {
+            for (_, v) in notes_of(msg) {
                 sh.level.fetch_max(v.to_bits(), Relaxed);
             }
         })?;
@@ -390,9 +412,10 @@ impl Recorder {
                 let played: Heard = Arc::default();
                 let (heard, sh) = (played.clone(), shared.clone());
                 let midi = connect_midi(name, move |msg| {
-                    if let Some((p, v)) = note_of(msg) {
+                    let now = epoch.elapsed().as_secs_f64();
+                    for (p, v) in notes_of(msg) {
                         if let Ok(mut h) = heard.lock() {
-                            h.push((epoch.elapsed().as_secs_f64(), p, v));
+                            h.push((now, p, v));
                         }
                         sh.level.fetch_max(v.to_bits(), Relaxed);
                         let _ = guide_tx.send((p, v));
@@ -714,11 +737,16 @@ mod tests {
 
     #[test]
     fn a_keyboard_says_which_notes_start_and_end() {
-        assert_eq!(note_of(&[0x90, 60, 127]), Some((60, 1.0)));
-        assert_eq!(note_of(&[0x93, 64, 0]), Some((64, 0.0)), "a note on at velocity 0 is a note off, on any channel");
-        assert_eq!(note_of(&[0x80, 60, 40]), Some((60, 0.0)));
-        assert_eq!(note_of(&[0xB0, 64, 127]), None, "the sustain pedal plays no note");
-        assert_eq!(note_of(&[0xF8]), None, "nor does the clock");
+        assert_eq!(notes_of(&[0x90, 60, 127]), [(60, 1.0)]);
+        assert_eq!(notes_of(&[0x93, 64, 0]), [(64, 0.0)], "a note on at velocity 0 is a note off, on any channel");
+        assert_eq!(notes_of(&[0x80, 60, 40]), [(60, 0.0)]);
+        assert!(notes_of(&[0xB0, 64, 127]).is_empty(), "the sustain pedal plays no note");
+        assert!(notes_of(&[0xF8]).is_empty(), "nor does the clock");
+        // a chord in one packet, the later notes in running status, and the clock in the middle of one
+        let chord = notes_of(&[0x90, 60, 127, 64, 127, 0xF8, 67, 127, 0x80, 60, 0]);
+        assert_eq!(chord.iter().map(|n| n.0).collect::<Vec<_>>(), [60, 64, 67, 60]);
+        assert!(notes_of(&[0xC0, 5, 0x90, 62, 64]).len() == 1, "a program change takes one byte");
+        assert!(notes_of(&[0xF0, 1, 2, 3, 0xF7, 0x90, 62, 64]).len() == 1, "and a sysex its whole length");
     }
 
     #[test]

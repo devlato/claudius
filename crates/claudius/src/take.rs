@@ -250,13 +250,15 @@ fn parts_from_notes(
         if !covers(s) {
             continue;
         }
-        // every note sounding in the section: one held over from the section before goes on from its start
+        // every note sounding in the section: one held over from the section before goes on from its start, unless
+        // what is left of it is a sliver; a note that starts here is kept however short
         let over: Vec<Note> = notes
             .iter()
             .filter_map(|n| {
                 let (t, end) = (n.t + starts[first] - a, n.t + starts[first] - a + n.d);
                 let (from, to) = (t.max(0.0), end.min(b - a));
-                (to - from >= 1.0 / 16.0).then_some(Note { t: from, d: to - from, ..*n })
+                let keep = if t >= 0.0 { t < b - a } else { to - from >= 1.0 / 16.0 };
+                keep.then_some(Note { t: from, d: to - from, ..*n })
             })
             .collect();
         if !over.is_empty() {
@@ -629,6 +631,11 @@ mod tests {
         assert!(played(&mut bp, &from, &[], &p).unwrap_err().contains("no notes"));
         let wild = [Note { t: 0.0, d: 1.0, p: 200, v: 1.0 }];
         assert!(played(&mut bp, &from, &wild, &p).is_err());
+        // staccato hits, a sixty-fourth of a beat each, are notes like any other
+        let hits: Vec<Note> = (0..4).map(|k| Note { t: k as f64, d: 1.0 / 64.0, p: 72, v: 0.9 }).collect();
+        played(&mut bp, &from, &hits, &Played { name: Some("hits".into()), ..p.clone() }).unwrap();
+        let hits = bp.parts.iter().find(|p| p.name == "hits").unwrap();
+        assert_eq!(hits.notes[&bp.form[1].prog].len(), 4);
     }
 
     #[test]
