@@ -345,6 +345,10 @@ impl App {
             Command::AddTake { path, from, name, role } => {
                 self.add_take_file(Path::new(&path), &from, name.as_deref(), role.as_deref())
             }
+            Command::TranscribeTake { take, sounds, name, role, chromatic, keep_take } => self.edit_with(|bp| {
+                let m = claudius::take::Melody { sounds, name, role, chromatic, keep_take };
+                claudius::take::melody(bp, &take, &m)
+            }),
             Command::Analyze { path } => match self
                 .readable(Path::new(&path))
                 .and_then(|_| audio::load(Path::new(&path)).map_err(|e| e.to_string()))

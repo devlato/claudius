@@ -285,7 +285,8 @@ pub struct Part {
     pub rate: f64,
     /// the part's own seed: changing it rewrites only this part
     pub seed: u64,
-    /// notes written by hand or by analysis, per progression name (cycle-relative beats); overrides generation
+    /// notes written by hand or by analysis, per progression name (cycle-relative beats); overrides generation. They may
+    /// run over several cycles, and come round again after the last they reach.
     #[serde(default)]
     pub notes: BTreeMap<String, Vec<Note>>,
     #[serde(default)]

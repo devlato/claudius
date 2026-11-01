@@ -202,6 +202,7 @@ fields marked optional may be left out.
 | `analyze` | `path` | the analysis of an audio file, as text in the reply's `message` |
 | `remake` | `path`; optional `genre`, `seed`, `bpm` | a new song on the file's skeleton; the genre defaults to the open song's, and the tempo to the recording's, halved or doubled into the genre's range when it is outside |
 | `add_take` | `path`, `from` (a section's name); optional `name` (take1, take2, ...), `role` (`vocal`, `lead`, `chords`, `keys`, `bass`, `drums`, `texture`; lead) | the recording as a [take](samples.md#takes): it plays once from the start of section `from` and on through the sections after it as long as it lasts; the song keeps a copy |
+| `transcribe_take` | `take`, `sounds` (presets or instruments); optional `name` (melody), `role` (lead), `chromatic` (false), `keep_take` (false) | [the take's melody as notes](samples.md#turning-a-take-into-notes), played by a new part for each sound; the take goes quiet unless `keep_take` |
 | `mutate` | optional `count` (4, 1 to 32), `keep_best` (true) | a job: tries variations and keeps the best if it beats the song |
 | `evolve` | optional `generations` (3, 1 to 20), `children` (6, 2 to 32) | a job: an evolutionary search from the song |
 | `install_packs` | optional `names` (the missing default packs when left out) | a job: downloads sample packs, as `claudius setup` does; not the opt-in packs, whose licence is unclear, and not on a shared claudius |

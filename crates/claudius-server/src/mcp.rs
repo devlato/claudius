@@ -342,6 +342,26 @@ pub struct TakeArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct TranscribeArgs {
+    /// the take's name (get_song lists its tracks; a take's kind is "take")
+    pub take: String,
+    /// what plays the melody, one new part each: synth presets or installed instruments (catalog lists them)
+    pub sounds: Vec<String>,
+    /// the first part's name: letters, digits, - and _ (default melody; the next ones melody2, melody3 ...)
+    #[serde(default)]
+    pub name: Option<String>,
+    /// lead (default), keys, chords, pad, arp or bass
+    #[serde(default)]
+    pub role: Option<String>,
+    /// keep notes outside the song's key where they were sung (default: each goes to the key's nearest tone)
+    #[serde(default)]
+    pub chromatic: bool,
+    /// let the take go on playing beside the new parts (default: it is muted)
+    #[serde(default)]
+    pub keep_take: bool,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct CommandArgs {
     /// one command object, e.g. {"cmd": "add_section", "after": 2, "kind": "break", "bars": 8}
     pub command: serde_json::Value,
@@ -659,7 +679,22 @@ impl Studio {
     }
 
     #[tool(
-        description = "Send one raw claudius API command (JSON tagged by \"cmd\"), for edits scripts do not cover: add_section {after, kind, bars}, remove_section {index}, move_section {from, to}, toggle_layer {section, layer}, set_drum_step {lane, variant, step, velocity}, set_section {index, name?, bars?, energy?, layers?, prog?, variant?, build?, gap?, impact?, fills?, filter_in?}, set_part {name, style?, preset?, register?, density?, reseed?}, set_mix {track, level_db?, pan?, reverb?, delay?, duck?, muted?, solo?}, add_take {path, from, name?, role?}."
+        description = "Turn a take's melody into notes: a take sung, hummed, whistled or played one note at a time becomes the notes of new parts, one playing each of `sounds` (synth presets or installed instruments, so several make a set of instruments on one melody), in the song's key and on its sixteenth-note grid, in the sections the take plays in. The take is muted unless keep_take. The parts are ordinary parts afterwards: set_part changes their sound."
+    )]
+    async fn transcribe_take(&self, Parameters(a): Parameters<TranscribeArgs>) -> Result<String, String> {
+        let c = Command::TranscribeTake {
+            take: a.take,
+            sounds: a.sounds,
+            name: a.name,
+            role: a.role,
+            chromatic: a.chromatic,
+            keep_take: a.keep_take,
+        };
+        self.edit(c, true).await
+    }
+
+    #[tool(
+        description = "Send one raw claudius API command (JSON tagged by \"cmd\"), for edits scripts do not cover: add_section {after, kind, bars}, remove_section {index}, move_section {from, to}, toggle_layer {section, layer}, set_drum_step {lane, variant, step, velocity}, set_section {index, name?, bars?, energy?, layers?, prog?, variant?, build?, gap?, impact?, fills?, filter_in?}, set_part {name, style?, preset?, register?, density?, reseed?}, set_mix {track, level_db?, pan?, reverb?, delay?, duck?, muted?, solo?}, add_take {path, from, name?, role?}, transcribe_take {take, sounds, name?, role?, chromatic?, keep_take?}."
     )]
     async fn command(&self, Parameters(a): Parameters<CommandArgs>) -> Result<String, String> {
         let c: Command = serde_json::from_value(a.command).map_err(|e| format!("not a claudius command: {e}"))?;

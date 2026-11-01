@@ -205,6 +205,13 @@ pub fn arrange(bp: &Blueprint) -> Project {
                             p *= 2.0;
                         }
                     }
+                    // written notes may run over several cycles: they come round again after the last they reach
+                    if part.notes.contains_key(&s.prog) {
+                        let (cycle, end) = (p, n.iter().map(|x| x.t + x.d).fold(0.0, f64::max));
+                        while p + 1e-9 < end {
+                            p += cycle;
+                        }
+                    }
                     (n, p)
                 })
                 .clone();
