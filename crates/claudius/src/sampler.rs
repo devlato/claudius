@@ -131,7 +131,7 @@ pub fn sample(
                 beats: period as f64 * 4.0,
                 key: Some(a.key.tonic),
                 tonal: true,
-                label: format!("{name}, bars {from_bar}-{}", from_bar + p.bars as i64 - 1),
+                label: format!("{name}, {}", bars_text(from_bar, p.bars)),
             },
             transpose,
             chop: Vec::new(),
@@ -157,9 +157,9 @@ pub fn sample(
         let at = if slot == 0 { "from the first bar" } else { "answering, from the bar after" };
         let names: Vec<&str> = secs.iter().map(|&si| bp.form[si].name.as_str()).collect();
         out.lines.push(format!(
-            "{track}: bars {from_bar}-{} of {name} ({heard}{:.0}% sung), {moved} at {:.0} BPM, every {period} bars {at} in \
-             the {label} ({}), on chords it agrees with {:.0}%",
-            from_bar + p.bars as i64 - 1,
+            "{track}: {} of {name} ({heard}{:.0}% sung), {moved} at {:.0} BPM, every {period} bars {at} in the {label} \
+             ({}), on chords it agrees with {:.0}%",
+            bars_text(from_bar, p.bars),
             p.sung * 100.0,
             bp.bpm,
             names.join(", "),
@@ -180,6 +180,11 @@ pub fn sample(
     }
     bp.lineage.push(format!("sampled {}: {} from {name}", out.tracks.join(" and "), plural(out.tracks.len())));
     Ok(out)
+}
+
+/// where a phrase was in the recording, in its bars counted from 1
+fn bars_text(from: i64, bars: u32) -> String {
+    if bars == 1 { format!("bar {from}") } else { format!("bars {from}-{}", from + bars as i64 - 1) }
 }
 
 fn plural(n: usize) -> String {

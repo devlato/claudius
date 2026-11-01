@@ -113,6 +113,42 @@ The song's history records it as `flipped '<file>' (<tempo> BPM, <beats> beats, 
 To write a whole new song on another song's skeleton instead, use `claudius remake`; see
 [Remaking a song from audio](../cookbook/remake.md).
 
+## Sampling a song's vocals
+
+The auto-sampler takes the best sung phrases of a recording (a song, an a cappella, a vocal loop) and puts them into
+the open song, as a producer samples a vocal: `claudius sample song.mp3 --on SONG`, `sample_song` for an assistant,
+or **Sample its vocals into the song** in the studio's New song dialog, after choosing the file.
+
+- **Finding the phrases.** claudius finds the recording's tempo, key and beat grid, and scores every one- and two-bar
+  span on that grid (`--bars` asks for 1, 2 or 4): how much of it holds a pitch in a voice's range, A2 to C6, and how
+  much of its sound sits in the middle of the stereo picture, where a voice is mixed. With earshot's models, the ears
+  also listen to the best of them for "a person singing" (or what `--find` says, such as "a rap verse"), and their
+  reading leads. It keeps the best two (`--count`, up to four), no two overlapping.
+- **Cleaning them.** Each phrase keeps the middle of the stereo picture and its sustained part, without what strikes
+  (the drums, by harmonic-percussive separation), above 160 Hz and below 11 kHz, at −1 dBFS, faded in and out.
+- **Fitting them.** Each becomes a loop of its own, `vox1`, `vox2` ...: the phrase, then as many bars of silence,
+  warped to the song's tempo and moved to its key by the shortest way, as a flipped sample is. A change of the
+  song's tempo or key moves it too.
+- **Placing them.** The phrases go where a vocal suits the song: the drops and hooks first, then the breaks, the
+  verses and grooves, the builds (`--in` names the sections or kinds). In each place, a phrase plays from the
+  section's first bar or answers from the bar after, whichever its notes agree with better: its pitch profile against
+  the chord tones under each time it plays.
+- **Mixing them.** A phrase is mixed as a vocal (−15 LUFS while it plays, a little under): high-passed at 200 Hz,
+  a little presence at 3 kHz, compressed 3:1, with some reverb and delay and a light duck under the kick. A lead
+  that plays with it steps back 1.5 dB.
+
+The phrases are kept with the song, in `takes/` in its folder, as takes are, and the reply says where each came from
+and went:
+
+```text
+vox1: bar 6 of Many Miracles Vocal Melody.caf (the ears +2.0 for 'a person singing', 60% sung), in its own key at 122 BPM, every 2 bars from the first bar in the drops and hooks (drop), on chords it agrees with 74%
+vox2: bars 11-12 of Many Miracles Vocal Melody.caf (the ears +1.9 for 'a person singing', 54% sung), in its own key at 122 BPM, every 4 bars from the first bar in the breaks (break), on chords it agrees with 83%
+```
+
+Without earshot's models, it goes by the pitch and the stereo picture alone: in a full mix, a lead synth held in the
+middle can then pass for a voice. Sample only what you may use: a recording of someone else's song needs their
+permission before you release what you made with it.
+
 ## Takes
 
 A take is a recording made for the song: a vocal, a guitar, a melody sung into a microphone. A loop starts over in
@@ -223,7 +259,7 @@ given against a list of folders:
 
 The checks:
 
-- **Reading.** A file named in `.s()`, opened with `load` / `open`, or given to `analyze`, `remake` or `add_take` must exist and,
+- **Reading.** A file named in `.s()`, opened with `load` / `open`, or given to `analyze`, `remake`, `add_take` or `sample_song` must exist and,
   after links and `..` are resolved, lie inside one of the folders. Opening a `blueprint.json` also checks every
   audio file the song plays.
 - **Writing.** `save` may create a folder when its nearest existing parent lies inside one of the folders and the

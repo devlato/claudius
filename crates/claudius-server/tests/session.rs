@@ -738,6 +738,74 @@ async fn a_take_an_assistant_asks_for_is_answered_by_the_take_sent_for_it() {
     assert!(text(&b).contains("gave way to request 3"), "{b}");
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
+    let app = app();
+    let new = Command::NewSong { genre: "house".into(), seed: Some(5), bpm: None, key: None, loops: false };
+    assert!(app.command(new).ok);
+    let short = r#"form([sec("intro", 4, "*"), sec("drop", 8, "*"), sec("break", 4, "pad"), sec("drop", 8, "*")]);"#;
+    assert!(app.command(Command::RunScript { code: short.into() }).ok);
+    // a folder of the test's own: a song without one keeps what it samples in ~/Music/claudius
+    let folder = std::env::temp_dir().join(format!("claudius-sampled-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&folder);
+    assert!(app.command(Command::Save { path: Some(folder.display().to_string()) }).ok);
+    app.settled(Duration::from_secs(240)).await;
+    // sixteen seconds at 120 BPM: a sung A3 in the middle from bar 3 to 6, a hat to the left all through
+    let (sr, n) = (claudius::config::SR as usize, 16 * claudius::config::SR as usize);
+    let (mut l, mut r) = (vec![0f32; n], vec![0f32; n]);
+    let mut phase = 0f64;
+    for i in 0..n {
+        if i % (sr / 4) < sr / 50 {
+            l[i] += if i % 2 == 0 { 0.2 } else { -0.2 };
+        }
+        if (4 * sr..12 * sr).contains(&i) {
+            let t = i as f64 / sr as f64;
+            phase += std::f64::consts::TAU * 220.0 * (1.0 + 0.01 * (t * 5.0 * std::f64::consts::TAU).sin()) / sr as f64;
+            let v = (phase.sin() * 0.4 + (2.0 * phase).sin() * 0.15) as f32;
+            l[i] += v;
+            r[i] += v;
+        }
+    }
+    let file = folder.join("recording.wav");
+    claudius::audio::save_wav(&file, &claudius::audio::Stereo { l, r }, true).unwrap();
+    let ask = |sections: Vec<String>| Command::SampleSong {
+        path: file.display().to_string(),
+        count: Some(2),
+        bars: Some(2),
+        find: None,
+        sections,
+    };
+    let r = app.command(ask(vec!["nowhere".into()]));
+    assert!(!r.ok && r.message.contains("no section or kind 'nowhere'"), "{}", r.message);
+    let r = app.command(ask(Vec::new()));
+    assert!(r.ok, "{}", r.message);
+    assert!(r.message.starts_with("vox1: bars ") && r.message.contains("% sung"), "{}", r.message);
+    assert!(r.message.contains("in the drops and hooks (drop, drop2)"), "{}", r.message);
+    let st = app.state();
+    let song = st.song.unwrap();
+    assert!(song.tracks.iter().any(|t| t.name == "vox1" && t.role == "vocal"), "{:?}", song.tracks);
+    let drop = song.sections.iter().find(|s| s.name == "drop").unwrap();
+    assert!(drop.layers.iter().any(|l| l == "vox1"));
+    // the phrases are kept with the song, and the same recording sent as a file samples it again into the break
+    let kept = std::fs::read_dir(folder.join("takes")).unwrap().count();
+    assert!(kept >= 1, "{kept}");
+    let router = http::router(app.clone(), &Options::default());
+    let wav = std::fs::read(&file).unwrap();
+    let req = Request::post("/api/sample?name=recording.wav&count=1&bars=2&sections=break")
+        .header(header::HOST, "localhost")
+        .header(header::CONTENT_TYPE, "audio/wav")
+        .body(Body::from(wav))
+        .unwrap();
+    let (s, _, b) = call(&router, req).await;
+    assert!(s == StatusCode::OK && b.contains("in the sections asked for (break)"), "{s} {b}");
+    let song = app.state().song.unwrap();
+    assert!(song.sections.iter().find(|s| s.name == "break").unwrap().layers.iter().any(|l| l.starts_with("vox")));
+    // undone, the phrases go
+    assert!(app.command(Command::Undo).ok && app.command(Command::Undo).ok);
+    assert!(!app.state().song.unwrap().tracks.iter().any(|t| t.name.starts_with("vox")));
+    std::fs::remove_dir_all(&folder).unwrap();
+}
+
 #[test]
 fn the_studio_offers_the_styles_the_engine_plays() {
     assert_eq!(claudius::take::STYLES, claudius_api::NOTE_STYLES);

@@ -31,7 +31,8 @@ installed.
 song, so a seed is a way to come back to one you liked. **Fused with** fuses a second genre into it: the first leads
 the song, and the second plays the drums and lends its sounds ([Fusions](../cookbook/fusions.md)). It can also start from a recording: **Choose a file** under
 "Or start from an audio file", then **Analyze** shows what claudius hears in it, and **Remake** writes a new song on
-its tempo, key, chords, form and groove. **Open** opens a song you saved: choose the `blueprint.json` in its folder,
+its tempo, key, chords, form and groove. **Sample its vocals into the song** puts its best sung phrases into the song
+that is open ([Sampling a song's vocals](../guide/samples.md#sampling-a-songs-vocals)). **Open** opens a song you saved: choose the `blueprint.json` in its folder,
 or a `.rhai` script. The studio reads the file on its own computer, in a browser too, and nothing of it is kept but
 the song it opens.
 

@@ -51,6 +51,11 @@ assistants and in the studio's New song dialog (**Fused with**). The first genre
 and mix, and the last plays the drums and lends its sounds
 ([Fusions](https://github.com/devlato/claudius/blob/main/docs/src/cookbook/fusions.md)).
 
+The auto-sampler samples a recording's vocals into a song: it finds the best sung phrases on the recording's own beat
+grid, cleans them of its drums, fits them to the song's tempo and key, and places each where its notes agree with
+the song's chords, mixed as a vocal (`claudius sample`, `sample_song`, and the studio's New song dialog;
+[Sampling a song's vocals](https://github.com/devlato/claudius/blob/main/docs/src/guide/samples.md#sampling-a-songs-vocals)).
+
 `claudius publish` checks a song the way stores and distributors check a release (its artwork's size, colours and
 sharpness, its audio, the licences of its sounds, and its details, including how it was made) and writes a release
 kit: the WAV and the cover a distributor takes, and the answers its form asks for
