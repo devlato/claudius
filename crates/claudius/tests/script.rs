@@ -216,8 +216,9 @@ fn a_form_too_long_to_count_is_still_too_long() {
 
 #[test]
 fn errors_say_what_to_do() {
-    let e = script::run(r#"track("x", s("foo*4"))"#, None, None).err().unwrap();
-    assert!(e.contains("unknown sound 'foo'") && e.contains("synths:"), "{e}");
+    // a name no pack plays: `foo` is a bank of TidalCycles' Dirt-Samples, which a machine may have installed
+    let e = script::run(r#"track("x", s("nosuchsound*4"))"#, None, None).err().unwrap();
+    assert!(e.contains("unknown sound 'nosuchsound'") && e.contains("synths:"), "{e}");
     let e = script::run(r#"track("x", s("bd [sd"))"#, None, None).err().unwrap();
     assert!(e.contains(']'), "{e}");
     let e = script::run(r#"key("H major")"#, None, None).err().unwrap();
