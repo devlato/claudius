@@ -118,6 +118,16 @@ mod tests {
         assert!(!r.set_up_for(Some(&ask(1, TakeStatus::Waiting, "pad"))), "once");
         assert!(!r.set_up_for(Some(&ask(2, TakeStatus::Cancelled, "bass"))), "not once it waits no more");
         assert!(!r.set_up_for(None));
+        // a take that waits to be kept keeps the window as it was recorded, until it is kept or thrown away
+        let song = Arc::new(crate::audio::Pcm { rate: 48_000, channels: 2, samples: Vec::new() });
+        let from = Some("intro".to_string());
+        (r.from, r.held) = (
+            from.clone(),
+            Some(Held { wav: Vec::new(), secs: 1.0, from: "intro".into(), song, start: 0.0, bar: 2.0, request: None }),
+        );
+        assert!(!r.set_up_for(Some(&ask(3, TakeStatus::Waiting, "bass"))));
+        assert_eq!((&r.from, r.settings.role.as_str()), (&from, "vocal"), "not set up for the request yet");
+        r.held = None;
         assert!(r.set_up_for(Some(&ask(3, TakeStatus::Waiting, "bass"))));
         assert_eq!((r.settings.role.as_str(), r.settings.part_role.as_str()), ("bass", "bass"));
         r.answers = Some(3);
@@ -179,6 +189,8 @@ struct Held {
     song: Arc<crate::audio::Pcm>,
     start: f64,
     bar: f64,
+    /// the take request it was recorded for
+    request: Option<u64>,
 }
 
 #[derive(Default)]
@@ -234,8 +246,9 @@ struct Live {
     take_start: f64,
     song_end: f64,
     beat: f64,
-    /// the song it records over
+    /// the song it records over, and the take request it was started for
     song: Arc<crate::audio::Pcm>,
+    request: Option<u64>,
     /// it records what a MIDI input plays
     midi: bool,
     /// it is a measurement of the latency, not a take
@@ -281,8 +294,12 @@ impl Record {
     }
 
     /// Sets the window up for a take an assistant asks for, once: the section it starts with, what it is in the mix
-    /// (or the part a keyboard's notes make), and its name. Whether it was a request it had not set up for yet.
+    /// (or the part a keyboard's notes make), and its name. Whether it was a request it had not set up for yet. A take
+    /// that records, waits to be kept or is on its way keeps the window as it is until it is done with.
     fn set_up_for(&mut self, request: Option<&TakeRequest>) -> bool {
+        if self.live.is_some() || self.held.is_some() || self.sending {
+            return false;
+        }
         let Some(t) = request.filter(|t| t.status == TakeStatus::Waiting && t.id != self.asked) else { return false };
         self.asked = t.id;
         self.from = Some(t.from.clone());
@@ -558,9 +575,12 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
             r.play |= widgets::tool_button(ui, icon, label, true, false)
                 .on_hover_text("the song from a bar before the take, with the take in it")
                 .clicked();
-            let (label, what) = match &asked {
-                Some(_) => ("Send it", "the take goes into the song, and to the assistant that asked for it"),
-                None => ("Keep it", "the take goes into the song"),
+            let answers =
+                r.held.as_ref().and_then(|h| h.request).is_some_and(|id| asked.as_ref().is_some_and(|t| t.id == id));
+            let (label, what) = if answers {
+                ("Send it", "the take goes into the song, and to the assistant that asked for it")
+            } else {
+                ("Keep it", "the take goes into the song")
             };
             r.keep |= widgets::tool_button(ui, Icon::Save, label, true, true).on_hover_text(what).clicked();
             throw = ui.button(small("Throw it away")).clicked();
@@ -739,6 +759,7 @@ fn not_ready(cx: &Cx, song: &Result<Option<std::sync::Arc<crate::audio::Pcm>>, S
 fn begin(cx: &mut Cx, song: &SongView) {
     use crate::audio::record::{Plan, Recorder};
     let beat = 60.0 / cx.audio_bpm().max(1.0);
+    let request = waiting(cx.state).map(|t| t.id);
     let audio = song_audio(cx);
     if let Some(why) = not_ready(cx, &audio) {
         cx.view.record.status = Some((false, why));
@@ -778,6 +799,7 @@ fn begin(cx: &mut Cx, song: &SongView) {
                 song_end: end,
                 beat,
                 song: pcm,
+                request,
                 midi,
                 measuring: false,
                 stopping: None,
@@ -806,6 +828,7 @@ fn measure_latency(cx: &mut Cx) {
                 song_end: end,
                 beat: 0.5,
                 song,
+                request: None,
                 midi: false,
                 measuring: true,
                 stopping: None,
@@ -870,9 +893,11 @@ pub fn finish(cx: &mut Cx) {
 /// the take is all in: a recording that waits to be kept, or the notes played as a part, on their way to claudius
 fn done(cx: &mut Cx) {
     use crate::audio::record::Take;
-    let asked = waiting(cx.state).map(|t| t.id);
+    let still = waiting(cx.state).map(|t| t.id);
     let r = &mut cx.view.record;
     let Some(live) = r.live.take() else { return };
+    // the request it was started for, while that is still the one waiting
+    let asked = live.request.filter(|id| Some(*id) == still);
     if live.measuring {
         let route = live.recorder.route().to_string();
         r.status = Some(match live.recorder.lateness() {
@@ -896,7 +921,8 @@ fn done(cx: &mut Cx) {
             let keep = if asked.is_some() { "send it" } else { "keep it" };
             r.status =
                 Some((true, format!("{secs:.1} s recorded: play it back, record it again, or {keep}{}", r.note)));
-            r.held = Some(Held { wav, secs, from, song: live.song, start: live.take_start, bar: 4.0 * live.beat });
+            let (song, start, bar) = (live.song, live.take_start, 4.0 * live.beat);
+            r.held = Some(Held { wav, secs, from, song, start, bar, request: asked });
         }
         Ok(Take::Notes(played)) => {
             let notes = to_beats(&played, live.beat, r.settings.grid);
@@ -951,9 +977,10 @@ fn play_back(ctx: &egui::Context, cx: &mut Cx) {
 
 /// sends the take that waits to be kept to claudius, for the assistant waiting for one if there is one
 fn keep(cx: &mut Cx) {
-    let asked = waiting(cx.state).map(|t| t.id);
+    let still = waiting(cx.state).map(|t| t.id);
     let r = &mut cx.view.record;
     let Some(held) = r.held.take() else { return };
+    let asked = held.request.filter(|id| Some(*id) == still);
     let name = Some(r.name.trim().to_string()).filter(|n| !n.is_empty());
     r.preview = None;
     r.status = Some((true, format!("sending {:.1} s to claudius ...{}", held.secs, r.note)));
@@ -971,6 +998,7 @@ fn not_now(cx: &mut Cx) {
 /// every frame, natively: takes in what the input heard, keeps the meter moving, and stops at the song's end
 fn keep_up(ctx: &egui::Context, cx: &mut Cx) {
     let now = cx.now;
+    cx.view.record.asked(cx.state.take_request.as_ref());
     let r = &mut cx.view.record;
     if std::mem::take(&mut r.not_now) {
         not_now(cx);

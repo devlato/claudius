@@ -278,7 +278,6 @@ impl Studio {
         let render_gone = self.state.render.is_some() && new.render.is_none();
         self.state = new;
         self.has_state = true;
-        self.view.record.asked(self.state.take_request.as_ref());
         if let Some(song) = &self.state.song {
             self.view.section = self.view.section.min(song.sections.len().saturating_sub(1));
             self.view.script.sync(&song.script);
