@@ -85,7 +85,8 @@ pub struct Mock {
     rendered_with: usize,
     /// the last render played the synth for something the kit plays: render again once more of it arrives
     stand_in: bool,
-    /// a render waits for the sounds it plays, since then
+    /// renders wait for the sounds they play, since then; kept while the synth stands in, so that what comes later
+    /// is mixed in as it comes instead of waited for again
     waiting_since: Option<f64>,
 }
 
@@ -563,9 +564,11 @@ impl Mock {
                 }
                 self.render_at = Some(now + 0.15);
             } else {
-                self.waiting_since = None;
                 let stems = std::mem::take(&mut self.stems_wanted);
                 self.start_render(stems, None);
+                if !self.stand_in {
+                    self.waiting_since = None;
+                }
                 self.publish();
             }
         }
@@ -817,6 +820,32 @@ mod tests {
         assert!(mock.audio(r.version).is_some_and(|p| p.frames() > 0));
         assert!(mock.state.verdict.as_ref().is_some_and(|v| v.total > 0.0 && !v.scores.is_empty()));
         assert!(mock.state.song.as_ref().unwrap().tracks.iter().any(|t| t.loudness.is_some()));
+    }
+
+    #[test]
+    fn sounds_that_come_late_are_mixed_in_as_they_come() {
+        let hit = || kit::Clip { l: vec![0.5; 4_800], r: Vec::new(), secs: 0.1, energy: vec![0.01; kit::TIMES.len()] };
+        let drums = ["kick", "snare", "clap", "hat"].iter().flat_map(|d| ["707", "808"].map(|m| format!("{m}:{d}")));
+        let names: Vec<String> = drums.collect();
+        let mut mock = Mock::new(None);
+        mock.kit = kit::Kit::pending(names.iter().map(|n| (n.as_str(), false, 0.0, vec![(60, hit())])).collect());
+        mock.update(0.0);
+        assert_eq!(mock.state.busy.as_deref(), Some("loading the demo's sounds"));
+        let now = render(&mut mock, 0.0);
+        assert!(mock.stand_in && now >= KIT_WAIT, "the wait ran out, and the synth stood in");
+        let needs = synth::needs(mock.state.song.as_ref().unwrap(), &mock.kit);
+        assert!(needs.len() >= 2, "{needs:?}");
+        mock.kit.arrive(&format!("{}-0.ogg", needs[0].sound), Ok(hit()));
+        mock.update(now + 0.05);
+        assert_eq!(
+            mock.state.busy.as_deref(),
+            Some("rendering"),
+            "what came is mixed in at once, the rest not waited for"
+        );
+        let now = render(&mut mock, now + 0.05);
+        mock.kit.arrive(&format!("{}-0.ogg", needs[1].sound), Err("gone".into()));
+        mock.update(now + 0.05);
+        assert!(mock.state.busy.is_none() && !mock.busy(), "a file that failed renders nothing again");
     }
 
     #[test]

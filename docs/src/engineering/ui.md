@@ -144,12 +144,13 @@ the two packs into `target/demo-sounds/`.
 `mock/kit.rs` fetches the manifest, then only the files a song plays: its genre's machine for each drum lane (the 808
 for trap, lo-fi and future bass, the 707 for the rest), each part's preset within half an octave of its register,
 and the effects. They are decoded in Rust (symphonia), as browsers before Safari 18.4 cannot decode Vorbis. A render
-waits up to ten seconds for them, and renders again when sounds it had to play on the synth arrive.
+waits up to ten seconds for them; after that the synth plays what has not come, and the song renders again, without
+waiting, as more of it arrives.
 
 `mock/synth.rs` sets each track to the loudness claudius' mix gives its role (`render::target_level`), from each
 sound's energy and how much the track plays it, then renders in stereo at 48 kHz: the tracks' levels and pans, ducking
 under the kick by their `duck`, sends into a dotted-eighth ping-pong delay and a reverb (Freeverb), and a soft clip
-that brings the master to the genre's loudness, -10 LUFS for house, under -1 dBFS. Without the sounds (a local site
+that brings the master to the genre's loudness (its `mix.lufs`, -10 LUFS for house), under -1 dBFS. Without the sounds (a local site
 built without `--sounds`, a studio served by `claudius serve`), a rough synth stands in. Natively,
 `CLAUDIUS_DEMO_SOUNDS` names their folder or address:
 

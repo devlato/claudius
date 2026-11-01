@@ -102,7 +102,10 @@ fn target_level(role: &str) -> f32 {
 fn master_level(genre: &str) -> f32 {
     match genre {
         "lofi" => -12.5,
-        "trap" | "dnb" | "future_bass" => -9.0,
+        "deep_house" => -11.0,
+        "synthwave" => -10.5,
+        "trap" | "techno" | "future_bass" => -9.0,
+        "dnb" => -8.5,
         _ => -10.0,
     }
 }
@@ -287,14 +290,18 @@ impl Render {
 
         // the kit's sounds, as far as they have arrived
         let mut sounds = Vec::new();
-        let mut sound_index: HashMap<String, usize> = HashMap::new();
+        let mut sound_index: HashMap<Need, usize> = HashMap::new();
         for need in needs(song, kit) {
             if let Some(s) = kit.sound(&need) {
-                sound_index.insert(need.sound.clone(), sounds.len());
+                sound_index.insert(need, sounds.len());
                 sounds.push(s);
             }
         }
-        let sound_of = |name: Option<String>| name.and_then(|n| sound_index.get(&n).copied());
+        // by the notes too: two parts on one preset play it from the files for their own registers
+        let sound_at = |name: Option<String>, (low, high): (i32, i32)| {
+            name.and_then(|sound| sound_index.get(&Need { sound, low, high }).copied())
+        };
+        let sound_of = |name: Option<String>| sound_at(name, (60, 60));
 
         let mut events = Vec::new();
         let mut gaps = Vec::new();
@@ -383,7 +390,7 @@ impl Render {
             for p in &song.parts {
                 let Some(track) = playing(&p.name).filter(|_| on(&p.name)) else { continue };
                 playing_here[track] = true;
-                let sound = sound_of(Some(p.preset.clone()));
+                let sound = sound_at(Some(p.preset.clone()), reach(p));
                 let unit = |synth: f32| if sound.is_some() { sec_gain } else { synth * sec_gain };
                 let (lo, hi) = p.register;
                 let center = (lo + hi) / 2;
@@ -1086,6 +1093,37 @@ mod tests {
         for (t, under) in [("clap", 2.0), ("hat", 5.0), ("bass", 2.0), ("pad", 9.0)] {
             let d = kick - level(t);
             assert!((d - under).abs() < 3.0, "{t} is {d:.1} dB under the kick, and claudius' mix puts it {under}");
+        }
+    }
+
+    #[test]
+    fn parts_on_one_preset_play_it_from_the_files_for_their_own_notes() {
+        let mut song = song::generate("house", 7, None, None, false);
+        let bass = song.parts.iter().position(|p| p.role == "bass").unwrap();
+        let above = (0..song.parts.len()).max_by_key(|&i| song.parts[i].register.0).unwrap();
+        assert!(song.parts[above].register.0 > song.parts[bass].register.1);
+        song.parts[above].preset = song.parts[bass].preset.clone();
+        let r = Render::new(&song, &full_kit());
+        for p in [&song.parts[bass], &song.parts[above]] {
+            let (low, high) = reach(p);
+            let track = song.tracks.iter().position(|t| t.name == p.name).unwrap();
+            let sound = r.events.iter().find(|e| e.track == track).and_then(|e| e.sound).expect(&p.name);
+            let notes: Vec<i32> = r.sounds[sound].clips.iter().map(|(n, _)| *n).collect();
+            assert!(
+                notes.iter().all(|n| (low - 6..=high + 6).contains(n)),
+                "{} reaches {low}..{high}: {notes:?}",
+                p.name
+            );
+        }
+    }
+
+    #[test]
+    fn each_genre_is_mastered_as_loud_as_claudius_masters_it() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../claudius/data/genres");
+        for g in song::GENRES {
+            let file = std::fs::read(dir.join(format!("{}.json", g.name))).unwrap();
+            let genre: serde_json::Value = serde_json::from_slice(&file).unwrap();
+            assert_eq!(Some(master_level(g.name) as f64), genre["mix"]["lufs"].as_f64(), "{}", g.name);
         }
     }
 }

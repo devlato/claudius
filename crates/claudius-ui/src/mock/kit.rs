@@ -101,7 +101,7 @@ impl Sound {
 }
 
 /// what a song plays of a sound: its name, and for a pitched one the notes it reaches
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Need {
     pub sound: String,
     pub low: i32,
@@ -191,6 +191,20 @@ impl Kit {
         kit
     }
 
+    /// a kit of these sounds whose files are all still on their way; `arrive` delivers one
+    #[cfg(test)]
+    pub fn pending(sounds: Vec<TestSound>) -> Kit {
+        let mut kit = Kit::with(sounds);
+        kit.clips.clear();
+        kit
+    }
+
+    /// a file of `Kit::with` or `Kit::pending` (`{sound}-{n}.ogg`, its n-th note) arriving, or failing to
+    #[cfg(test)]
+    pub fn arrive(&self, file: &str, clip: Result<Clip, String>) {
+        let _ = self.tx.send(Arrival::File(file.to_string(), clip));
+    }
+
     fn fetch(&self, name: String, done: impl FnOnce(Result<Vec<u8>, String>) -> Arrival + Send + 'static) {
         let Some(base) = &self.base else { return };
         let path = format!("{}/{name}", base.trim_end_matches('/'));
@@ -241,7 +255,6 @@ impl Kit {
                 Arrival::File(name, Err(e)) => {
                     log::warn!("demo sound {name}: {e}");
                     self.failed.insert(name);
-                    new = true;
                 }
             }
         }
@@ -402,6 +415,10 @@ mod tests {
         assert!((ratio - 2f32.powf(3.0 / 12.0)).abs() < 1e-4, "{ratio}");
         assert!((clip.energy_until(0.09375) - 0.0015).abs() < 1e-6, "between the times its energy is known at");
         assert_eq!(clip.energy_until(99.0), 0.005);
+        let high = Need { sound: "pluck".into(), low: 88, high: 90 };
+        kit.want(std::slice::from_ref(&high));
+        assert!(!kit.poll(), "a file that cannot be read brings nothing to play");
+        assert!(!kit.waiting(std::slice::from_ref(&high)), "and is not waited for");
         std::fs::remove_dir_all(&dir).ok();
     }
 
