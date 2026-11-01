@@ -88,6 +88,7 @@ Things to notice:
   one where the genre or the generator would have given one), a `bus()` line for each bus with a chain, the master's
   chain as `master(#{ fx: [...] })`, and `send_fx()` when the sends' reverb or delay is not the genre's. A chain of
   several effects prints an effect a line, and values by section as the `sections()` that makes them.
+- A track on another bus than its genre gives it prints `bus` in its `mix()` line.
 
 ## How values print
 

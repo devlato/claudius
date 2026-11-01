@@ -473,6 +473,11 @@ fn effect_chains_with_parallel_branches_and_values_by_section_print_arrange_and_
     }
     let again = script::run(&printed, Some(bp.clone()), None).unwrap().bp.unwrap();
     assert!(again == bp, "the printed script changed the song\n{printed}");
+    // and, its first line uncommented, makes the song again from its seed with its chains and its routing
+    let made = script::run(&printed.replacen("// song(", "song(", 1), None, None).unwrap().bp.unwrap();
+    let chords = |b: &claudius::model::Blueprint| b.parts.iter().find(|p| p.name == "chords").unwrap().mix.clone();
+    assert_eq!((chords(&made).bus, made.mix.buses.get("glue")), ("glue".to_string(), bp.mix.buses.get("glue")));
+    assert_eq!(made.parts.iter().find(|p| p.name == "lead").unwrap().mix.fx, lead.mix.fx);
     // arranged, values by section are curves through the form as it is laid out
     let p = compose::arrange(&bp);
     let drop = p.sections.iter().find(|s| s.kind == SectionKind::Drop).unwrap();

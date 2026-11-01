@@ -40,6 +40,9 @@ fn mix_line(name: &str, m: &TrackMix, base: &TrackMix, out: &mut String) {
     if m.solo != base.solo {
         parts.push(format!("solo: {}", m.solo));
     }
+    if m.bus != base.bus {
+        parts.push(format!("bus: {}", quote(&m.bus)));
+    }
     if !parts.is_empty() {
         out.push_str(&format!("mix({}, #{{ {} }});\n", quote(name), parts.join(", ")));
     }
@@ -369,22 +372,30 @@ pub fn to_script(bp: &Blueprint) -> String {
         s.push_str(",\n");
     }
     s.push_str("]);\n\n");
-    let plain = TrackMix::default();
+    // a track starts on the bus its genre gives it, or the one a new track of its kind gets
+    let g = crate::genres::get(&bp.genre).ok();
+    let on = |bus: Option<&TrackMix>, or: &str| TrackMix {
+        bus: bus.map_or_else(|| or.to_string(), |m| m.bus.clone()),
+        ..TrackMix::default()
+    };
     for d in &bp.drums {
-        mix_line(&d.name, &d.mix, &plain, &mut s);
+        let spec = g.as_ref().and_then(|g| g.drums.iter().find(|l| l.name == d.name)).map(|l| &l.mix);
+        mix_line(&d.name, &d.mix, &on(spec, "drums"), &mut s);
     }
     for p in &bp.parts {
-        mix_line(&p.name, &p.mix, &plain, &mut s);
+        let spec = g.as_ref().and_then(|g| g.parts.iter().find(|s| s.name == p.name)).map(|s| &s.mix);
+        mix_line(&p.name, &p.mix, &on(spec, "music"), &mut s);
     }
     for l in &bp.loops {
-        mix_line(&l.name, &l.mix, &plain, &mut s);
+        let spec = g.as_ref().and_then(|g| g.loops.iter().find(|s| s.name == l.name)).map(|s| &s.mix);
+        mix_line(&l.name, &l.mix, &on(spec, "music"), &mut s);
     }
     for p in &bp.patterns {
         let labels: Vec<String> = p.sounds.keys().cloned().collect();
         let base = eval_pattern(&p.code).map(|pat| pattern_mix(&pat.opts, &labels, &p.role)).unwrap_or_default();
         mix_line(&p.name, &p.mix, &base, &mut s);
     }
-    mix_line("fx", &bp.transitions.mix, &plain, &mut s);
+    mix_line("fx", &bp.transitions.mix, &on(g.as_ref().map(|g| &g.transitions.mix), "fx"), &mut s);
     effects(bp, &mut s);
     s
 }
