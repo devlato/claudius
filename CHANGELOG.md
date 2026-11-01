@@ -28,6 +28,11 @@ once from the section it starts with and goes with the song, and what a MIDI key
 octaves, chords, a bass line, an arpeggio or a pad. **Measure** plays clicks and listens for them, so that takes land
 in time ([Takes](https://github.com/devlato/claudius/blob/main/docs/src/guide/samples.md#takes)).
 
+A take waits when it stops: play it back in the song, record it again, or keep it. An assistant can ask you for one
+(`request_take`): the studio's Record window opens for it, and once you send the take, the assistant, which has been
+waiting for it (`wait_for_take`), carries on with it
+([A take an assistant asks for](https://github.com/devlato/claudius/blob/main/docs/src/guide/samples.md#a-take-an-assistant-asks-for)).
+
 `claudius publish` checks a song the way stores and distributors check a release (its artwork's size, colours and
 sharpness, its audio, the licences of its sounds, and its details, including how it was made) and writes a release
 kit: the WAV and the cover a distributor takes, and the answers its form asks for

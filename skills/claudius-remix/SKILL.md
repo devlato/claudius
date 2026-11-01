@@ -124,6 +124,24 @@ claudius keeps a copy with the song, in `takes/` in its folder once it is saved.
 take mostly needs its level and a little reverb (`set_mix`). It is the person's own recording, so it may be released
 when they made it.
 
+## Ask the person to record a take
+
+When the song needs something only the person can give it, such as their voice on the hook, a guitar or a melody they
+play on a keyboard, ask for it with `request_take`:
+
+- **`from`**, the section it starts with, and `role`: what it is in the mix (`vocal`, `lead`, `chords`, `keys`,
+  `bass`, `drums`, `texture`), or the part notes from a keyboard make (`keys`, `lead`, `chords`, `pad`, `arp`,
+  `bass`).
+- **`note`**, a few words the Record window shows them ("the chorus melody, sung softly"), and a `name` if the take
+  should have one.
+
+The studio's Record window opens for it. Give the person the link `request_take` returns, in case no studio is open,
+and say what to do: record it, play it back, record it again until they like it, then press Send it. Then call
+`wait_for_take` with the request's id, and call it again for as long as it says they are still at it. They may take
+minutes. When the take arrives, `wait_for_take` says what claudius made of it: listen, and set its level and reverb
+as for any take (`set_mix`), or turn it into notes. When they press Not now, carry on without it and do not ask again
+unless they want to.
+
 ## Turn a take into notes
 
 When the person sang, hummed or whistled a melody and wants an instrument to play it, call `transcribe_take` with the

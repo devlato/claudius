@@ -121,8 +121,16 @@ separately), so you can listen to a section while you edit it and hear each chan
 
 ## Recording
 
-The Record window (`panels/record.rs`) records a [take](../guide/samples.md#takes) and sends it to `POST /api/takes`,
-in the app and in a browser alike. The demo has none: a take goes to a claudius, which keeps it with the song.
+The Record window (`panels/record.rs`) records a [take](../guide/samples.md#takes), holds it while the person plays it
+back (`take::preview`, the song with the take in it, through a player of the window's own) or records it again, and
+sends the one they keep to `POST /api/takes`, in the app and in a browser alike. The demo has none: a take goes to a
+claudius, which keeps it with the song.
+
+A take an assistant asks for (`request_take`) is the state's `take_request`. A new one that waits opens the window
+set up for it (`Record::asked`), and the take kept for it, or the notes played, carry its id (`request` in the take's
+query, in `add_notes`), so that claudius marks it taken with its answer, which `wait_for_take` returns to the
+assistant. Not now sends `cancel_take_request`. A web studio opened at `?record=<id>`, the link the assistant gives,
+opens on the Record window.
 
 What a take is lives in `audio/take.rs`, for both:
 
@@ -228,9 +236,10 @@ The unit tests run the browser's path natively, in 128-frame quanta: a song sche
 recorded with a quantum lost, and cut on its downbeat to the frame; a measurement through it that finds an
 unreported 0.18 s; and keys pressed in time with what is heard, which come out on the beat. `site/tests/record.spec.mjs` records in Chromium with a file for a microphone, against a claudius
 of its own. It drives a studio built with the `plan` feature (`cargo xtask web --plan`), which runs the scripted plan
-in its page's `?plan=` and prints what the Record window says to the console. The tests check three things:
+in its page's `?plan=` and prints what the Record window says to the console. The tests check that:
 
-- a take arrives, plays in the song and holds the microphone's tone;
+- a take kept arrives, plays in the song and holds the microphone's tone;
+- a take an assistant asks for opens the window, plays back, and goes to the assistant; or is turned down;
 - Measure with an input that cannot hear the clicks says so;
 - a keyboard the test plays itself (a Web MIDI of its own, before the page's scripts) makes a part, a note a beat;
 - a browser without Web MIDI, a page blocked from it, and one blocked from the microphone say what to do.
