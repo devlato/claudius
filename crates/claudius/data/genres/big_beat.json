@@ -1,0 +1,211 @@
+{
+  "name": "big_beat",
+  "description": "Big beat: loud, crunched breakbeats at a fast clip, a squelching acid or fuzzed bass riff, a dirty synth hook, stabs and sirens, filter sweeps that open into huge drops, punk energy in an electronic production",
+  "query": "big beat breakbeat music with distorted drums",
+  "alts": ["drum and bass music", "techno music", "rock music with electric guitars", "hip hop beat with heavy bass"],
+  "accepted_flaws": ["a distorted clipped recording"],
+  "bpm": [124, 138],
+  "swing": [0.5, 0.54],
+  "humanize": 0.2,
+  "modes": [["minor", 0.4], ["mixolydian", 0.25], ["phrygian", 0.2], ["dorian", 0.15]],
+  "harmony": [["minimal", 0.35], ["mixolydian", 0.25], ["phrygian", 0.2], ["minor_dark", 0.2]],
+  "markov": 0.1,
+  "ext": 0,
+  "bars_per_chord": [[2, 0.5], [4, 0.5]],
+  "forms": [
+    [
+      {"name": "intro", "kind": "intro", "bars": 8, "energy": 0.45, "layers": ["kick", "snare", "hat", "acid"], "filter_in": true, "variant": "sparse"},
+      {"name": "groove", "kind": "groove", "bars": 16, "energy": 0.7, "layers": ["kick", "snare", "hat", "ride", "perc", "bass", "acid", "stabs"], "fills": true},
+      {"name": "build", "kind": "build", "bars": 8, "energy": 0.65, "layers": ["snare", "hat", "acid", "stabs", "riff"], "build": true, "gap": true},
+      {"name": "drop", "kind": "drop", "bars": 16, "energy": 1.0, "layers": ["kick", "snare", "hat", "ride", "perc", "bass", "acid", "stabs", "riff"], "impact": true, "fills": true},
+      {"name": "break", "kind": "break", "bars": 8, "energy": 0.4, "prog": "B", "layers": ["acid", "stabs", "perc"]},
+      {"name": "build2", "kind": "build", "bars": 8, "energy": 0.7, "layers": ["snare", "hat", "acid", "riff"], "build": true, "gap": true},
+      {"name": "drop2", "kind": "drop", "bars": 16, "energy": 1.0, "layers": ["kick", "snare", "hat", "ride", "perc", "bass", "acid", "stabs", "riff"], "impact": true, "fills": true},
+      {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.45, "layers": ["kick", "snare", "hat", "acid"], "variant": "sparse"}
+    ],
+    [
+      {"name": "intro", "kind": "intro", "bars": 8, "energy": 0.4, "layers": ["hat", "perc", "riff"], "filter_in": true, "variant": "sparse"},
+      {"name": "groove", "kind": "groove", "bars": 16, "energy": 0.7, "layers": ["kick", "snare", "hat", "perc", "bass", "stabs"], "fills": true},
+      {"name": "drop", "kind": "drop", "bars": 16, "energy": 0.95, "layers": ["kick", "snare", "hat", "ride", "perc", "bass", "acid", "stabs", "riff"], "impact": true, "fills": true},
+      {"name": "break", "kind": "break", "bars": 8, "energy": 0.4, "prog": "B", "layers": ["riff", "perc"], "gap": true},
+      {"name": "build", "kind": "build", "bars": 8, "energy": 0.7, "layers": ["snare", "hat", "acid", "riff"], "build": true, "gap": true},
+      {"name": "drop2", "kind": "drop", "bars": 16, "energy": 1.0, "layers": ["kick", "snare", "hat", "ride", "perc", "bass", "acid", "stabs", "riff"], "impact": true, "fills": true},
+      {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.45, "layers": ["kick", "snare", "hat", "riff"], "variant": "sparse"}
+    ]
+  ],
+  "drums": [
+    {
+      "name": "kick",
+      "voice": "kick",
+      "template": {
+        "steps": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0.4],
+        "vel": [0.95, 1.0],
+        "vary": 0.35
+      },
+      "variants": {"sparse": {"steps": [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0], "vel": [0.9, 1.0]}},
+      "params": {"decay": [0.3, 0.5], "tune": [46, 58], "tone": [0.4, 0.7], "punch": [0.5, 0.8], "drive": [8, 14]},
+      "samples": ["Kick"],
+      "mix": {"bus": "drums"}
+    },
+    {
+      "name": "snare",
+      "voice": "snare",
+      "template": {
+        "steps": [0, 0, 0, 0, 1, 0, 0, 0.3, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0.4, 0, 0, 1, 0, 0, 0],
+        "vel": [0.9, 1.0],
+        "ghost": 0.15,
+        "vary": 0.4
+      },
+      "params": {"decay": [0.16, 0.26], "tune": [190, 240], "snap": [0.65, 0.95], "tone": [0.6, 0.9]},
+      "samples": ["Snare"],
+      "mix": {"bus": "drums", "reverb": 0.12}
+    },
+    {
+      "name": "hat",
+      "voice": "closed_hat",
+      "template": {"steps": [1, 0.4, 0.8, 0.4, 1, 0.4, 0.8, 0.5, 1, 0.4, 0.8, 0.4, 1, 0.4, 0.8, 0.6], "vel": [0.4, 0.8], "ghost": 0.05},
+      "variants": {"sparse": {"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.45, 0.7]}},
+      "params": {"tone": [0.6, 0.9]},
+      "samples": ["Hi-hat"],
+      "choke": "hats",
+      "mix": {"bus": "drums", "pan": 0.3}
+    },
+    {
+      "name": "ride",
+      "voice": "ride",
+      "template": {"steps": [0.9, 0, 0.6, 0, 0.9, 0, 0.6, 0, 0.9, 0, 0.6, 0, 0.9, 0, 0.6, 0], "vel": [0.3, 0.5]},
+      "params": {"decay": [1.0, 1.8]},
+      "mix": {"bus": "drums", "pan": -0.35}
+    },
+    {
+      "name": "perc",
+      "voice": "tom",
+      "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0.7, 1], "vel": [0.55, 0.85]},
+      "params": {"tune": [80, 160], "decay": [0.15, 0.3]},
+      "mix": {"bus": "drums", "pan": -0.4, "reverb": 0.15}
+    }
+  ],
+  "kits": [["muldjord", 0.45], ["tr909", 0.2], ["tr808", 0.1]],
+  "parts": [
+    {
+      "name": "bass",
+      "role": "bass",
+      "presets": ["saw_bass", "reese", "growlybass:bass|saw_bass"],
+      "styles": ["root8", "syncopated", "octave"],
+      "register": [31, 48],
+      "mix": {
+        "bus": "bass",
+        "duck": 0.35,
+        "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 6, "mix": 0.45}]
+      }
+    },
+    {
+      "name": "acid",
+      "role": "bass",
+      "presets": ["acid"],
+      "styles": ["acid"],
+      "register": [36, 55],
+      "mix": {
+        "bus": "music",
+        "duck": 0.3,
+        "delay": 0.12,
+        "fx": [
+          {"fx": "filter", "mode": "ladder", "cutoff": {"rest": 900, "sections": {"intro": [400, 900], "build": [900, 5500], "drop": [4500, 2500], "outro": [900, 400]}}, "res": {"rest": 0.55, "sections": {"build": [0.55, 0.8]}}, "drive": 1.6},
+          {"fx": "saturate", "kind": "fold", "drive_db": 8, "mix": 0.35}
+        ]
+      }
+    },
+    {
+      "name": "stabs",
+      "role": "chords",
+      "presets": ["stab", "organ", "brass_stac|stab"],
+      "styles": ["stabs", "offbeat"],
+      "register": [52, 72],
+      "voices": 3,
+      "voicing": "close",
+      "mix": {
+        "reverb": 0.3,
+        "delay": 0.2,
+        "duck": 0.45,
+        "pan": 0.2,
+        "fx": [
+          {"fx": "bitcrush", "bits": 10, "downsample": 2, "mix": 0.3},
+          {"fx": "chorus", "rate_hz": 0.5, "depth_ms": 3.5, "delay_ms": 12, "mix": 0.9}
+        ]
+      }
+    },
+    {
+      "name": "riff",
+      "role": "lead",
+      "presets": ["square_lead", "supersaw", "reese"],
+      "styles": ["motif"],
+      "register": [55, 76],
+      "density": [0.5, 0.75],
+      "mix": {
+        "duck": 0.25,
+        "reverb": 0.15,
+        "delay": 0.15,
+        "fx": [
+          {
+            "fx": "parallel",
+            "dry": 0.8,
+            "chains": [
+              {"amount": 0.5, "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 16}, {"fx": "filter", "mode": "hp", "cutoff": 500}]},
+              {"amount": 0.3, "fx": [{"fx": "bitcrush", "bits": 6, "downsample": 4}, {"fx": "filter", "mode": "bp", "cutoff": 1800, "res": 0.3}]}
+            ]
+          },
+          {"fx": "chorus", "rate_hz": 0.4, "depth_ms": 4, "delay_ms": 14, "mix": 0.8}
+        ]
+      }
+    }
+  ],
+  "loops": [],
+  "transitions": {
+    "riser": true,
+    "impact": true,
+    "downlifter": true,
+    "reverse_crash": true,
+    "riser_bars": 8,
+    "mix": {"bus": "fx", "reverb": 0.3}
+  },
+  "mix": {
+    "lufs": -8.5,
+    "reverb": {"fx": "reverb", "decay": 1.8, "damping": 0.45, "predelay_ms": 15, "width": 1.1, "mix": 1.0, "lowcut": 350},
+    "delay": {"fx": "delay", "beats": 0.75, "feedback": 0.35, "damping": 0.4, "pingpong": true, "mix": 1.0},
+    "buses": {
+      "drums": [
+        {
+          "fx": "parallel",
+          "dry": 1.0,
+          "chains": [
+            {
+              "amount": 0.55,
+              "fx": [
+                {"fx": "compressor", "threshold_db": -32, "ratio": 12, "attack_ms": 0.5, "release_ms": 50, "knee_db": 2},
+                {"fx": "saturate", "kind": "hard", "drive_db": 10}
+              ]
+            },
+            {
+              "amount": 0.25,
+              "fx": [
+                {"fx": "bitcrush", "bits": 8, "downsample": 3},
+                {"fx": "filter", "mode": "hp", "cutoff": 450}
+              ]
+            }
+          ]
+        },
+        {"fx": "compressor", "threshold_db": -12, "ratio": 3, "attack_ms": 5, "release_ms": 80, "knee_db": 4, "makeup_db": 1},
+        {"fx": "width", "width": 1.0, "mono_below_hz": 120}
+      ],
+      "bass": [{"fx": "saturate", "kind": "tube", "drive_db": 4, "mix": 0.5}],
+      "music": [{"fx": "eq", "bands": [{"kind": "highpass", "freq": 120, "q": 0.7}]}]
+    },
+    "master": [
+      {"fx": "eq", "bands": [{"kind": "highpass", "freq": 30, "q": 0.7}]},
+      {"fx": "compressor", "threshold_db": -10, "ratio": 2.2, "attack_ms": 15, "release_ms": 120, "knee_db": 6},
+      {"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.4}
+    ],
+    "duck_release": 0.3,
+    "levels": {"snare": 1.0, "kick": 0.5}
+  }
+}

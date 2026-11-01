@@ -39,7 +39,7 @@ The messages, as printed after `Runtime error:`.
 
 | function | message |
 |---|---|
-| `song()`, `blank()` | `unknown genre 'polka' (try: deep_house, dnb, future_bass, house, lofi, synthwave, techno, trap)` |
+| `song()`, `blank()` | `unknown genre 'polka' (try: big_beat, deep_house, dnb, electro_house, filter_house, future_bass, house, lofi, nu_disco, synthwave, techno, trap, trip_hop)` |
 | `song()` options | `tempo between 40 and 240 BPM`; `cannot read key 'H' (try "A minor", "F#m", "Eb", "D dorian")`; `song() has no option 'tempo' (options: seed bpm key loops short samples)` |
 | `tempo()`, `bpm()` | `tempo between 40 and 240 BPM`; `tempo needs a number` |
 | `key()` | `cannot read key 'H minor' (try "A minor", "F#m", "Eb", "D dorian")` |

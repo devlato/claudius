@@ -1,0 +1,35 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+big_beat at 135.0 BPM in G minor, swing 0.51
+prog A: i iv III VI
+prog B: i IVsus4 III VI
+bars per chord: 2
+section intro (intro) 8 bars, energy 0.40, prog A, sparse [filter_in]: hat perc riff
+section groove (groove) 16 bars, energy 0.70, prog A, main [fills]: kick snare hat perc bass stabs
+section drop (drop) 16 bars, energy 0.95, prog A, main [impact fills]: kick snare hat ride perc bass acid stabs riff
+section break (break) 8 bars, energy 0.40, prog B, main [gap]: riff perc
+section build (build) 8 bars, energy 0.70, prog A, main [build gap]: snare hat acid riff
+section drop2 (drop) 16 bars, energy 1.00, prog A, main [impact fills]: kick snare hat ride perc bass acid stabs riff
+section outro (outro) 8 bars, energy 0.45, prog A, sparse []: kick snare hat riff
+drum kick main (drum kick): X.........X.....|X.....X...X....X|X.........X.....|X.....X...X....X
+drum kick sparse (drum kick): X.......X.......|X.......X.......|X.......X.......|X.......X.......
+drum snare main (drum snare): .o..X.o.....X...|....X....X..X...|.o..X.o.....X...|....X....X..X...
+drum hat main (drum closed_hat): x...x.xxxxx.x.xo|x...x.xxxxx.x.xo|x...x.xxxxx.x.xo|x...x.xxxxx.x.xo
+drum hat sparse (drum closed_hat): x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.
+drum ride main (drum ride): o...o.......o...|o...o.......o...|o...o.......o...|o...o.......o...
+drum perc main (drum tom): ..............xx|..............xx|..............xx|..............xx
+part bass (bass): octave synth saw_bass, register 31..48, density 0.51
+part acid (bass): acid synth acid, register 36..55, density 0.57
+part stabs (chords): stabs synth organ, register 52..72, density 0.43
+part riff (lead): motif synth reese, register 55..76, density 0.70
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix snare: +0.0 dB, pan +0.00, reverb 0.12, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix ride: +0.0 dB, pan -0.35, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix perc: +0.0 dB, pan -0.40, reverb 0.15, delay 0.00, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.35, bus bass
+mix acid: +0.0 dB, pan +0.00, reverb 0.00, delay 0.12, duck 0.30, bus music
+mix stabs: +0.0 dB, pan +0.20, reverb 0.30, delay 0.20, duck 0.45, bus music
+mix riff: +0.0 dB, pan +0.00, reverb 0.15, delay 0.15, duck 0.25, bus music

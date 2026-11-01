@@ -1,4 +1,4 @@
-# Starting points for the eight genres
+# Starting points for the thirteen genres
 
 `new_song` (or `song("<genre>", seed)`) writes a complete song in any of these, and is the quickest start. The
 sketches below are for when you build from patterns: each is a skeleton to grow, not a finished song. They write the
@@ -127,4 +127,90 @@ prog("A", "IVmaj7 V7 iii7 vi7");
 track("drums", s("bd ~ ~ ~ ~ ~ ~ ~, ~ ~ ~ ~ sd ~ ~ ~, hh*8").gain("1 0.7"));
 track("chords", chord("prog").struct("x ~ x x ~ x ~ x").voicing().s("supersaw").duck(0.8));
 track("hook", n("<[0 2 4 2] [4 5 4 ~]>").octave(5).s("pluck").delay(0.25));
+```
+
+## trip_hop (80-96 BPM)
+
+Slow, heavy, swung breakbeats under dark minor chords, a deep sub bass, dusty electric piano and strings, dub delays
+and long reverbs. The generated songs put the drums through parallel compression and a crushed copy, and let the
+delay feed back harder in the breaks.
+
+```js
+blank("trip_hop");
+tempo(88);
+swing(0.54);
+key("D minor");
+prog("A", "i VI III VII");
+track("drums", s("bd ~ ~ ~ ~ ~ bd bd, ~ ~ sd ~ ~ ~ sd ~, [hh hh]*4").gain("1 0.8"));
+track("bass", chord("prog").root().struct("x ~ ~ ~ ~ ~ x ~").s("sub_bass").legato(0.9));
+track("keys", chord("prog").struct("x ~ ~ ~").voicing().s("epiano").room(0.4).delay(0.3));
+track("strings", chord("prog").voicing(52, 76).s("strings").role("pad").room(0.5).lpf(2500));
+```
+
+## big_beat (124-138 BPM)
+
+Loud, crunched breakbeats, a squelching acid riff, stabs, filter sweeps into big drops. Distortion is the style:
+crush the drums in parallel rather than all the way.
+
+```js
+blank("big_beat");
+tempo(132);
+key("E minor");
+prog("A", "i i VII VII");
+track("drums", s("bd ~ ~ bd ~ ~ bd ~, ~ sd ~ sd, hh*16").gain("1 0.8"));
+track("acid", chord("prog").root().octave(2).struct("x*16").s("acid").lpf(1400).distort(4));
+track("stabs", chord("prog").struct("~ ~ x ~").voicing().s("stab").crush(10).room(0.3));
+fx("drums", [#{ fx: "parallel", dry: 1, chains: [
+  #{ amount: 0.5, fx: [#{ fx: "compressor", threshold_db: -30, ratio: 12, attack_ms: 0.5, release_ms: 50 },
+                       #{ fx: "saturate", kind: "hard", drive_db: 10 }] },
+] }]);
+```
+
+## electro_house (126-130 BPM)
+
+Four on the floor, big claps, a dirty bass riff in the mids pumped hard by the sidechain, a supersaw hook.
+
+```js
+blank("electro_house");
+tempo(128);
+key("F minor");
+prog("A", "i VI III VII");
+track("drums", s("bd*4, [~ cp]*2, [~ hh]*4"));
+track("bass", chord("prog").root().octave(2).struct("~ x ~ x ~ x x ~").s("saw_bass").distort(8).duck(0.8));
+track("lead", chord("prog").struct("x ~ x ~ ~ x ~ x").voicing(64, 84).s("supersaw").duck(0.4).room(0.25));
+```
+
+## nu_disco (112-124 BPM)
+
+Four on the floor with open hats on the offbeats, an octave-jumping bass, muted guitar or electric piano chords,
+strings.
+
+```js
+blank("nu_disco");
+tempo(118);
+key("A minor");
+prog("A", "i7 iv7");
+track("drums", s("bd*4, [~ cp]*2, [~ oh]*4, hh*16").gain("1 0.7"));
+track("bass", note("<[a1 a2]*4 [d2 d3]*4>").s("pluck_bass"));
+track("guitar", chord("prog").struct("~ x ~ x ~ x ~ x").voicing(55, 74).s("pluck").pan(0.3));
+track("strings", chord("prog").voicing(60, 80).s("strings").role("pad").room(0.4));
+```
+
+## filter_house (118-126 BPM)
+
+A looped disco phrase pumping under the kick, through a resonant lowpass that opens and closes with the arrangement,
+and a phaser.
+
+```js
+blank("filter_house");
+tempo(122);
+key("D dorian");
+prog("A", "i7 IV7");
+track("drums", s("bd*4, [~ cp]*2, [~ hh]*4"));
+track("loop", chord("prog").struct("x ~ x ~ ~ x ~ x").voicing(52, 72).s("stab").duck(0.8));
+fx("loop", [
+  #{ fx: "filter", mode: "lp", cutoff: [[0, 400], [32, 6000]], res: 0.5 },
+  #{ fx: "phaser", rate_hz: 0.2, stages: 6, depth: 0.7, feedback: 0.4, mix: 0.45 },
+]);
+track("bass", note("<[d2 d3]*4 [g1 g2]*4>").s("organ_bass").duck(0.6));
 ```

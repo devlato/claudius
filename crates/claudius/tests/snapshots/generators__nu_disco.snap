@@ -1,0 +1,39 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+nu_disco at 122.0 BPM in G minor, swing 0.52
+prog A: i7 iv7 IIImaj7 VImaj7
+prog B: i7 IVsus4 IIImaj7 VImaj7
+bars per chord: 1
+section intro (intro) 8 bars, energy 0.45, prog A, sparse [filter_in]: kick hat shaker bass
+section verse (verse) 16 bars, energy 0.65, prog A, main [fills]: kick clap hat ohat shaker bass guitar keys
+section hook (hook) 16 bars, energy 0.90, prog A, main [impact fills]: kick clap hat ohat shaker perc bass guitar keys strings lead
+section break (break) 8 bars, energy 0.40, prog B, main []: strings keys perc
+section verse2 (verse) 16 bars, energy 0.70, prog A, main [fills]: kick clap hat ohat shaker bass guitar keys strings
+section hook2 (hook) 16 bars, energy 0.95, prog A, main [impact fills]: kick clap hat ohat shaker perc bass guitar keys strings lead
+section outro (outro) 8 bars, energy 0.45, prog A, sparse []: kick hat shaker bass guitar
+drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
+drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
+drum hat main (drum closed_hat): x...x..xx..xx..o|x...x..xx..xx..o|x...x..xx..xx..o|x...x..xx..xx..o
+drum hat sparse (drum closed_hat): x...x...x...x...|x...x...x...x...|x...x...x...x...|x...x...x...x...
+drum ohat main (drum open_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
+drum shaker main (drum shaker): o.o.ooo...oo..o.|o.o.ooo...oo..o.|o.o.ooo...oo..o.|o.o.ooo...oo..o.
+drum perc main (drum cowbell): ....x...x.....x.|....x...x.....x.|....x...x.....x.|....x...x.....x.
+drum perc sparse (drum cowbell): ........x.......|........x.......|........x.......|........x.......
+part bass (bass): syncopated synth pluck_bass, register 33..52, density 0.51
+part guitar (chords): syncopated synth pluck, register 52..76, density 0.60
+part keys (keys): syncopated synth epiano, register 52..74, density 0.59
+part strings (pad): half synth strings, register 55..82, density 0.56
+part lead (lead): motif synth square_lead, register 62..82, density 0.48
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix clap: +0.0 dB, pan +0.00, reverb 0.20, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.20, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix ohat: +0.0 dB, pan -0.10, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix shaker: +0.0 dB, pan -0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix perc: +0.0 dB, pan +0.35, reverb 0.10, delay 0.10, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.35, bus bass
+mix guitar: +0.0 dB, pan +0.30, reverb 0.15, delay 0.00, duck 0.30, bus music
+mix keys: +0.0 dB, pan -0.25, reverb 0.20, delay 0.00, duck 0.35, bus music
+mix strings: +0.0 dB, pan +0.00, reverb 0.40, delay 0.00, duck 0.40, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.25, delay 0.20, duck 0.25, bus music

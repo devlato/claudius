@@ -7,7 +7,7 @@ it opens when it needs them.
 
 | skill | for |
 |---|---|
-| [claudius-songs](claudius-songs/SKILL.md) | making and editing songs: the loop of listening, reading the verdict and changing one thing; the script language; the eight genres |
+| [claudius-songs](claudius-songs/SKILL.md) | making and editing songs: the loop of listening, reading the verdict and changing one thing; the script language; the thirteen genres |
 | [claudius-remix](claudius-remix/SKILL.md) | working from a recording: analysing it, remaking its skeleton in another genre, chopping it and flipping it into a song |
 | [claudius-setup](claudius-setup/SKILL.md) | installing claudius, connecting an assistant, and fixing what goes wrong |
 

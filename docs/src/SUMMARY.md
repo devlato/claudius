@@ -37,6 +37,7 @@
 - [House, deep house and techno](cookbook/four-on-the-floor.md)
 - [Trap and lofi](cookbook/hip-hop.md)
 - [Drum and bass, synthwave, future bass](cookbook/more-genres.md)
+- [Trip-hop, big beat, electro house, nu-disco, filter house](cookbook/breaks-and-disco.md)
 - [Remaking a song from audio](cookbook/remake.md)
 
 # Language reference

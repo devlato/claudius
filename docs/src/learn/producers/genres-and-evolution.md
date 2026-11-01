@@ -18,6 +18,16 @@ the critic judges against it, and evolution mutates songs within it. This page c
 | `dnb` | 170–176 | 0.50–0.51 | minor, dorian, phrygian | −8.5 | acoustic (30 %) | drum and bass music (dubstep, techno, house, trap) |
 | `future_bass` | 140–160 | 0.50–0.53 | major, minor | −9 | 808 (30 %) | future bass music (dubstep, corporate pop, trap, house) |
 | `synthwave` | 85–118 | straight | minor, dorian | −10.5 | 707 (40 %), 808 (20 %) | synthwave music (corporate pop, chiptune, house, ambient pad) |
+| `trip_hop` | 80–96 | 0.51–0.56 | minor, phrygian, dorian | −11 | acoustic (50 %), 808 (10 %) | trip hop music (lo-fi hip hop, heavy-bass hip hop, ambient pad, cinematic orchestral) |
+| `big_beat` | 124–138 | 0.50–0.54 | minor, mixolydian, phrygian, dorian | −8.5 | acoustic (45 %), 909 (20 %), 808 (10 %) | big beat breakbeat music with distorted drums (drum and bass, techno, rock with electric guitars, heavy-bass hip hop) |
+| `electro_house` | 126–130 | 0.50–0.52 | minor, dorian | −8 | 909 (50 %) | dirty electro house dance music with big synth leads (house, dubstep, techno, corporate pop) |
+| `nu_disco` | 112–124 | 0.50–0.56 | minor, dorian, major | −10 | acoustic (30 %), 707 (20 %), 909 (15 %) | disco music (house, corporate pop, synthwave, jazz) |
+| `filter_house` | 118–126 | 0.50–0.55 | dorian, minor, mixolydian | −9 | 909 (50 %) | french house music with a filtered disco loop (house, funk, techno, corporate pop) |
+
+The five after synthwave lean on [effect chains](../../language/mixing.md#effect-chains) in their profiles:
+trip-hop's drums go through parallel compression and a crushed copy, and its delay feeds back harder in the breaks;
+big beat's acid line opens its filter across the builds; filter house's loop sweeps a resonant lowpass with the
+arrangement, all of it values by section that follow the form.
 
 The "against" list matters: the genre score is high only when a song reads as its genre *more than* as the styles it
 is usually confused with.

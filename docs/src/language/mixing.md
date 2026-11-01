@@ -79,6 +79,11 @@ settings come from the genre:
 | dnb | 2.8 s, 20 ms, 350 Hz | 0.75 beats, 0.35 |
 | future_bass | 2.4 s, 20 ms, 300 Hz, bright | 0.75 beats, 0.35 |
 | synthwave | 3.2 s, 30 ms, 250 Hz, wide | 0.75 beats, 0.4 |
+| trip_hop | 3.2 s, 30 ms, 250 Hz, dark | 0.75 beats, 0.32, rising to 0.58 across each break, ping-pong |
+| big_beat | 1.8 s, 15 ms, 350 Hz | 0.75 beats, 0.35, ping-pong |
+| electro_house | 2.0 s, 20 ms, 350 Hz | 0.75 beats, 0.35, ping-pong |
+| nu_disco | 2.0 s, 20 ms, 300 Hz | 0.75 beats, 0.3, ping-pong |
+| filter_house | 1.6 s, 15 ms, 300 Hz | 0.75 beats, 0.3, ping-pong |
 
 The sends are taken after the track's level, sidechain and pan. The returns are ducked by the kick too, by 30 % of
 the full depth, so tails breathe with the groove.
@@ -279,7 +284,8 @@ master(options)   // options: map
 The master stage runs the genre's master chain (EQ, a glue compressor, saturation; tape and vinyl in lofi), then
 searches for the input gain that lands the song within 0.15 LU of `lufs`, through a soft clipper 0.1 dB under the
 ceiling and a limiter 0.5 dB below it, and trims the result if the true peak still pokes over. The genre targets are house −10,
-deep_house −11, techno −9, trap −9, lofi −12.5, dnb −8.5, future_bass −9, synthwave −10.5 LUFS.
+deep_house −11, techno −9, trap −9, lofi −12.5, dnb −8.5, future_bass −9, synthwave −10.5, trip_hop −11, big_beat
+−8.5, electro_house −8, nu_disco −10 and filter_house −9 LUFS.
 
 Every printed song has a `master()` line with these two values (see [Printing a song](printing.md)).
 

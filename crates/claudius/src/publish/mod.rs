@@ -208,6 +208,11 @@ pub fn store_genre(genre: &str) -> (&'static str, &'static str) {
         "dnb" => ("Electronic", "Drum & Bass"),
         "future_bass" => ("Electronic", "Future Bass"),
         "synthwave" => ("Electronic", "Synthwave"),
+        "trip_hop" => ("Electronic", "Trip-Hop"),
+        "big_beat" => ("Electronic", "Big Beat"),
+        "electro_house" => ("Dance", "Electro House"),
+        "nu_disco" => ("Dance", "Nu-Disco"),
+        "filter_house" => ("Dance", "French House"),
         _ => ("Electronic", ""),
     }
 }

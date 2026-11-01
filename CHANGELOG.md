@@ -38,6 +38,12 @@ amounts, buses of your own, and settings that move through the song or by sectio
 every build or a reverb that only the break drowns in. The printed song lists every chain
 ([Effect chains](https://github.com/devlato/claudius/blob/main/docs/src/language/mixing.md#effect-chains)).
 
+Five new genres: `trip_hop`, `big_beat`, `electro_house`, `nu_disco` and `filter_house`. Their profiles use the
+new effect chains themselves: parallel compression and crushed copies on the drums, a dub delay that feeds back
+harder in the breaks, an acid filter that opens across the builds, a disco loop that sweeps through a lowpass with
+the arrangement. The cookbook has a recipe for each
+([Trip-hop, big beat, electro house, nu-disco, filter house](https://github.com/devlato/claudius/blob/main/docs/src/cookbook/breaks-and-disco.md)).
+
 `claudius publish` checks a song the way stores and distributors check a release (its artwork's size, colours and
 sharpness, its audio, the licences of its sounds, and its details, including how it was made) and writes a release
 kit: the WAV and the cover a distributor takes, and the answers its form asks for
