@@ -394,7 +394,7 @@ impl Studio {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn run_plan(&mut self, ctx: &egui::Context, now: f64) {
-        use crate::devplan::Step;
+        use crate::devplan::{Rec, Step};
         let Some(plan) = self.plan.as_mut() else { return };
         while let Some(step) = plan.next(ctx, now) {
             match step {
@@ -428,6 +428,9 @@ impl Studio {
                 Step::Assistants => self.view.assistants.show(),
                 Step::Publish => self.view.publish.show(),
                 Step::Record => self.view.record.show(),
+                Step::Rec(Rec::Start) => self.view.record.start = true,
+                Step::Rec(Rec::Stop) => self.view.record.stop = true,
+                Step::Rec(Rec::Measure) => self.view.record.measure = true,
                 Step::AudioPath(p) => self.view.audio_path = p,
                 Step::Exit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             }

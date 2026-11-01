@@ -1,9 +1,11 @@
 //! A scripted run for checking the studio without a person at the screen (native only): env `CLAUDIUS_UI_PLAN` is a
 //! `;`-separated list of steps, e.g. `wait:4;shot:/tmp/a.png;tab:mixer;play;wait:2;shot:/tmp/b.png;exit`.
 //! Steps: `wait:<s>`, `tab:<sequencer|mixer|parts|harmony|script|log>`, `section:<i>`, `play`, `pause`, `seek:<s>`,
-//! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `record`, `cmd:<command json>`, `size:<w>,<h>`, `script:<code; \n for a newline, %3B for ;>` (into the editor), `run`, `audiopath:<file>`
-//! (the editor's script), `reference`, `shot:<file.png>` (the window as rendered), `exit`, and synthetic pointer input in
-//! points: `move:x,y`, `click:x,y`, `rclick:x,y`, `drag:x1,y1,x2,y2`, `sdrag:x1,y1,x2,y2` (with shift).
+//! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `record` (the Record window), `rec:<start|stop|measure>`
+//! (a take, or the latency), `cmd:<command json>`, `size:<w>,<h>`, `script:<code; \n for a newline, %3B for ;>` (into
+//! the editor), `run`, `audiopath:<file>` (the editor's script), `reference`, `shot:<file.png>` (the window as rendered),
+//! `exit`, and synthetic pointer input in points: `move:x,y`, `click:x,y`, `rclick:x,y`, `drag:x1,y1,x2,y2`,
+//! `sdrag:x1,y1,x2,y2` (with shift).
 
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -34,7 +36,19 @@ pub enum Step {
     Publish,
     /// the Record window
     Record,
+    /// what the Record window's buttons do
+    Rec(Rec),
     Exit,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Rec {
+    /// a take starts, as the Record button starts one
+    Start,
+    /// it ends, as Space ends one
+    Stop,
+    /// the latency is measured, as the Measure button measures it
+    Measure,
 }
 
 pub struct Plan {
@@ -130,6 +144,15 @@ impl Plan {
             "assistants" => Some(Step::Assistants),
             "publish" => Some(Step::Publish),
             "record" => Some(Step::Record),
+            "rec" => match arg {
+                "start" => Some(Step::Rec(Rec::Start)),
+                "stop" => Some(Step::Rec(Rec::Stop)),
+                "measure" => Some(Step::Rec(Rec::Measure)),
+                _ => {
+                    eprintln!("a plan's rec is rec:start, rec:stop or rec:measure, not '{step}'");
+                    None
+                }
+            },
             "close" => Some(Step::Close),
             "cmd" => match serde_json::from_str(arg) {
                 Ok(c) => Some(Step::Send(c)),

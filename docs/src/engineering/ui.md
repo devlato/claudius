@@ -139,6 +139,26 @@ runs late, never early), after the first four, while the streams settle. The tak
 downbeat was heard, plus the window's **Latency** for what the devices do not report (`cut`). It goes as a 32-bit
 float WAV at the input's rate.
 
+What the devices do not report can be large. On macOS cpal counts a device's buffer, latency and safety offset, but not
+its streams' latency (`kAudioStreamPropertyLatency`), where the built-in speakers and microphone report their
+processing: on a MacBook Pro, 14.5 ms and 50 ms. A take recorded through them landed 44 ms late; the reported figures
+would have made it 20 ms early. Since only a measurement gets it right, **Measure** measures:
+
+- **The clicks.** `Plan::measure` plays eight clicks (`audio/latency.rs`, a few cycles at 3 kHz) unevenly apart, with
+  no count-in and no offset, and `Recorder::lateness` cuts what the input heard exactly as a take is cut.
+- **Finding them.** `lateness` high-passes the recording at 1 kHz. The lag from -100 to +600 ms where at least five
+  clicks line up with something loud, scored by the quietest of the five, gives where to look; the first arrival
+  near each click (the sound straight from the speaker, not a louder echo) gives its lateness.
+- **Being sure.** At least five clicks must stand four times above the room's noise and land within 1.5 ms of their
+  middle, and the answer is the middle one's. Otherwise the window says why.
+- **The result.** The window sets **Latency** to what it found, and says through which output and input. A MIDI take
+  has a Latency of its own: a loop through the microphone also counts the input's latency, which a key pressed does
+  not have.
+
+The tests play the clicks through a simulated speaker and room: band limiting, echoes louder than the direct sound, a
+reverberant tail, noise, hum, clipping, lost clicks and a bang. Through a MacBook Pro's speakers and microphone it
+found 45 ms twice, and a take recorded then landed within half a millisecond of the song.
+
 A stream's dropped buffer (`Xrun`), or a route that changed under it, does not end a take: the window says how often
 the take dropped audio. Any other stream error ends it.
 

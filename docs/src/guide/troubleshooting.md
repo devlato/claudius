@@ -206,14 +206,25 @@ When the Record window says `nothing is coming in`, or a take arrives silent:
 The Record window lists the MIDI inputs there are when it opens: plug the keyboard in first, then open the window
 again. A keyboard that needs a driver, or one that only connects over Bluetooth MIDI, has to show up in the system
 first: on a Mac, in Audio MIDI Setup's MIDI Studio window. When the notes arrive but sound late, set the window's
-**Latency**, as for an audio take.
+**Latency** for MIDI, which it shows while the keyboard is the input: positive when the notes land late. Only the way
+out counts there (a key is timed as it is pressed), so it is not what **Measure** finds for an audio input.
 
 ## A take lands early or late
 
 claudius lines a take up with what you heard from the times the audio devices report. Some delays are not reported,
-such as Bluetooth headphones, a video call app routing the audio, or a USB microphone and an output on different
-clocks, and those make a take land late. Set the Record window's **Latency** to how far off it is: positive when the
-take lands late. Recording and listening through one audio interface keeps the timing tightest.
+such as the processing in a laptop's speakers and microphone, Bluetooth headphones, a video call app routing the
+audio, or a USB microphone and an output on different clocks, and those make a take land late. Press **Measure** next
+to the Record window's **Latency**: claudius plays eight clicks and sets the latency from how late they come back.
+
+- **`claudius did not hear its clicks`.** The input has to hear the output while it measures: turn the speakers up a
+  little, or hold the headphones to the microphone, and measure again.
+- **`the clicks came back at different times`.** Echoes or noise got in the way: measure again somewhere quieter,
+  with the microphone nearer the speakers.
+- **Measure again for each setup.** The latency is the output's and the input's together: other headphones, speakers
+  or another input have their own.
+
+You can also set **Latency** by hand: positive when the take lands late. Recording and listening through one audio
+interface keeps the timing tightest.
 
 ## The studio window cannot open a claudius with a token
 
