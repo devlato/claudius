@@ -640,6 +640,13 @@ async fn a_take_an_assistant_asks_for_is_answered_by_the_take_sent_for_it() {
     assert!(!r.ok && r.message.contains("no song yet"), "{}", r.message);
     let new = Command::NewSong { genre: "house".into(), seed: Some(5), bpm: None, key: None, loops: false };
     assert!(app.command(new).ok);
+    // a folder of the test's own, for the take it sends: a song without one keeps its takes in ~/Music/claudius
+    let short = r#"form([sec("intro", 4, "*"), sec("drop", 4, "*"), sec("outro", 4, "*")]);"#;
+    assert!(app.command(Command::RunScript { code: short.into() }).ok);
+    let folder = std::env::temp_dir().join(format!("claudius-asked-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&folder);
+    assert!(app.command(Command::Save { path: Some(folder.display().to_string()) }).ok);
+    app.settled(Duration::from_secs(240)).await;
     let from = app.state().song.unwrap().sections[1].name.clone();
     assert!(app.command(ask("nowhere", None, "")).message.contains("no section 'nowhere'"));
     assert!(app.command(ask(&from, Some("kazoo"), "")).message.contains("not 'kazoo'"));
@@ -736,6 +743,8 @@ async fn a_take_an_assistant_asks_for_is_answered_by_the_take_sent_for_it() {
     assert_eq!(app.state().take_request.unwrap().status, TakeStatus::Taken);
     let (_, _, b) = call(&router, tool(5, "wait_for_take", serde_json::json!({"id": 2}))).await;
     assert!(text(&b).contains("gave way to request 3"), "{b}");
+    assert_eq!(std::fs::read_dir(folder.join("takes")).unwrap().count(), 1, "the take is kept with the song");
+    std::fs::remove_dir_all(&folder).unwrap();
 }
 
 #[test]
