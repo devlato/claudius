@@ -16,7 +16,10 @@ usage: cargo xtask <command>
   ci                      the checks CI runs: formatting, clippy (also of the builds without the ears or the
                           studio window), the tests (with cargo-nextest when it is installed) and the examples
                           in the docs
-  web [--public-url URL]  build the web studio with trunk into crates/claudius-ui/dist
+  web [--public-url URL] [--plan]
+                          build the web studio with trunk into crates/claudius-ui/dist; --plan builds one
+                          that runs the scripted plan in its page's ?plan= (for tests only) into
+                          target/studio-plan, which site/tests/record.spec.mjs drives
   docs                    build the book with mdbook into target/book
   site [--out DIR] [--site-url URL] [--sounds]
                           assemble the website in DIR (target/site): site/ with its placeholders filled in,
@@ -39,6 +42,9 @@ Paths are relative to the root of the repository.
 /// where `cargo xtask web` puts the studio, which is also where `claudius serve` in a checkout looks for it
 const WEB_DIST: &str = "crates/claudius-ui/dist";
 
+/// and where `cargo xtask web --plan` puts the studio a test drives (`site/tests/record.spec.mjs`)
+const PLAN_DIST: &str = "target/studio-plan";
+
 fn main() -> Result<()> {
     let sh = Shell::new()?;
     sh.change_dir(root());
@@ -50,8 +56,12 @@ fn main() -> Result<()> {
         }
         Some("web") => {
             let public_url = args.value("--public-url")?.unwrap_or_else(|| "./".into());
+            let plan = args.flag("--plan");
             args.finish()?;
-            web(&sh, &public_url, &root().join(WEB_DIST))
+            match plan {
+                true => web_with(&sh, &public_url, &root().join(PLAN_DIST), &["--features", "plan"]),
+                false => web(&sh, &public_url, &root().join(WEB_DIST)),
+            }
         }
         Some("docs") => {
             args.finish()?;
@@ -147,11 +157,16 @@ fn ci(sh: &Shell) -> Result<()> {
 
 /// builds the web studio into `out`; `public_url` is where it will be served from ("./" works anywhere)
 fn web(sh: &Shell, public_url: &str, out: &Path) -> Result<()> {
+    web_with(sh, public_url, out, &[])
+}
+
+/// `web`, with more of trunk's arguments (`--features plan`)
+fn web_with(sh: &Shell, public_url: &str, out: &Path, more: &[&str]) -> Result<()> {
     need(sh, "trunk")?;
     let _dir = sh.push_dir("crates/claudius-ui");
     // trunk reads NO_COLOR as a boolean, so the usual NO_COLOR=1 is an error
     let _no_color = std::env::var_os("NO_COLOR").map(|_| sh.push_env("NO_COLOR", "true"));
-    cmd!(sh, "trunk build --release --locked --public-url {public_url} --dist {out}").run()?;
+    cmd!(sh, "trunk build --release --locked --public-url {public_url} --dist {out} {more...}").run()?;
     Ok(())
 }
 

@@ -57,8 +57,20 @@ fn highpass(x: &[f32], rate: f64, hz: f64) -> Vec<f32> {
 
 /// How late the clicks came back in `heard`, in seconds: what the input captured, mono at `rate`, from the moment the
 /// measurement began as the devices' timestamps tell it. Each click is found where it first arrives (the sound straight
-/// from the speaker, not its echoes), and the answer is the middle of their lateness; or why there is none.
+/// from the speaker, not its echoes), and the answer is the middle of their lateness; or why there is none (an input
+/// that fell silent in places is processed, which no measurement gets through).
+#[cfg(any(not(target_arch = "wasm32"), test))]
 pub fn lateness(heard: &[f32], rate: f64) -> Result<f64, String> {
+    lateness_where(heard, rate, super::take::hushed(heard, 1, rate))
+}
+
+/// `lateness`, told how often the input fell silent (`take::hushed`): when what is heard holds silence that is not the
+/// input's (a browser's lost frames, filled in), the recorder knows better than the samples do
+pub fn lateness_where(heard: &[f32], rate: f64, hushed: usize) -> Result<f64, String> {
+    find(heard, rate).map_err(|e| if hushed > 0 { format!("{}: then measure again", super::take::HUSHED) } else { e })
+}
+
+fn find(heard: &[f32], rate: f64) -> Result<f64, String> {
     let deaf = "claudius did not hear its clicks: turn the speakers up, or hold the headphones to the microphone, and \
                 measure again";
     let x = highpass(heard, rate, 1000.0);
@@ -314,8 +326,9 @@ mod tests {
     fn it_says_so_when_the_clicks_come_back_at_different_times() {
         let rate = 48_000.0;
         let played = clicks(48_000).samples;
-        // each click comes back up to 30 ms later than the one before it
-        let mut heard = vec![0f32; played.len() + 48_000];
+        // each click comes back up to 30 ms later than the one before it, in a room's faint hiss
+        let mut rnd = noise(5);
+        let mut heard: Vec<f32> = (0..played.len() + 48_000).map(|_| rnd() * 1e-4).collect();
         for (i, t) in CLICKS.iter().enumerate() {
             let src = (t * rate).round() as usize;
             let dst = src + (i as f64 * 0.007 * rate) as usize + 2000;
@@ -325,6 +338,19 @@ mod tests {
         }
         let e = lateness(&heard, rate).unwrap_err();
         assert!(e.contains("different times") || e.contains("did not hear"), "{e}");
+    }
+
+    #[test]
+    fn an_input_gated_to_silence_is_named_as_such() {
+        // what a browser on a Mac gave: the clicks heard now and then, and silence to the bit in between
+        let rate = 48_000.0;
+        let (mut heard, _) = Room::default().hear(&clicks(48_000).samples, rate);
+        for t in &CLICKS[2..] {
+            let at = ((t + 0.044) * rate) as usize;
+            heard[at - 4_800..at + 9_600].fill(0.0);
+        }
+        let e = lateness(&heard, rate).unwrap_err();
+        assert!(e.contains("went silent in places") && e.contains("Mic Mode") && e.ends_with("measure again"), "{e}");
     }
 
     #[test]

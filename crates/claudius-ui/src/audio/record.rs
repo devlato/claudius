@@ -5,7 +5,6 @@
 //! the person heard it. `offset` adds what the devices do not report (a laptop's speakers and microphone, Bluetooth
 //! headphones), which a measurement finds (`Plan::measure`, `Recorder::lateness`).
 
-use std::io::Cursor;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering::Relaxed};
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
@@ -14,7 +13,8 @@ use std::time::Instant;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, Sample, SampleFormat, SizedSample};
 
-use super::Pcm;
+use super::take::{Mix, cut, fill, hushed, notes_of, pair, wav};
+pub use super::take::{Plan, Played, Take};
 
 /// an input the person can record from
 #[derive(Clone, Debug, PartialEq)]
@@ -44,74 +44,6 @@ pub fn inputs() -> Vec<Input> {
     out
 }
 
-/// what to record, and what plays meanwhile
-pub struct Plan {
-    /// the input, by name (the default input when there is none of that name)
-    pub input: Option<String>,
-    /// a MIDI input to record what is played on, instead of an audio input
-    pub midi: Option<String>,
-    /// the first of the input's channels to record, and whether the one after it too (a stereo take)
-    pub channel: usize,
-    pub stereo: bool,
-    /// the song as rendered
-    pub song: Arc<Pcm>,
-    /// where the take starts in the song, and the count-in before it, in seconds
-    pub start: f64,
-    pub count_in: f64,
-    /// seconds per beat and beats per bar, for the click
-    pub beat: f64,
-    pub bar: u32,
-    /// the click goes on while the take records, not only through the count-in
-    pub click: bool,
-    /// seconds the setup adds that the devices do not report
-    pub offset: f64,
-}
-
-impl Plan {
-    /// a measurement of the latency (`Recorder::lateness`): the clicks of `latency::clicks` and nothing else, with no
-    /// count-in and no offset, so that they come back as late as a take would land; heard on `channel` of `input`
-    pub fn measure(input: Option<String>, channel: usize) -> Plan {
-        Plan {
-            input,
-            midi: None,
-            channel,
-            stereo: false,
-            song: Arc::new(super::latency::clicks(48_000)),
-            start: 0.0,
-            count_in: 0.0,
-            beat: 0.5,
-            bar: 4,
-            click: false,
-            offset: 0.0,
-        }
-    }
-}
-
-/// a recorded take
-pub enum Take {
-    /// from an audio input
-    Audio {
-        /// a 32-bit float WAV file at the input's rate
-        wav: Vec<u8>,
-        secs: f64,
-        /// the loudest sample, 0..1
-        peak: f32,
-        /// how often a stream dropped audio while the take recorded (each a click or a gap in it)
-        dropouts: usize,
-    },
-    /// from a MIDI input: the notes played
-    Notes(Vec<Played>),
-}
-
-/// a note played on a MIDI input: when it started and ended, in seconds from the take's start, its pitch, how hard
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Played {
-    pub start: f64,
-    pub end: f64,
-    pub pitch: u8,
-    pub velocity: f32,
-}
-
 /// what a MIDI input played: seconds since the recorder began, pitch, velocity (0: the note ended)
 type Heard = Arc<Mutex<Vec<(f64, u8, f32)>>>;
 
@@ -119,64 +51,6 @@ type Heard = Arc<Mutex<Vec<(f64, u8, f32)>>>;
 pub fn midi_inputs() -> Vec<String> {
     let Ok(input) = midir::MidiInput::new("claudius") else { return Vec::new() };
     input.ports().iter().filter_map(|p| input.port_name(p).ok()).collect()
-}
-
-/// The notes in MIDI bytes, as a take hears them: each note on (its pitch and velocity) or off (velocity 0). The bytes
-/// may hold several messages, the later ones in running status, with clock and other real-time bytes among them.
-fn notes_of(bytes: &[u8]) -> Vec<(u8, f32)> {
-    let mut out = Vec::new();
-    let (mut status, mut data) = (0u8, Vec::with_capacity(2));
-    for &b in bytes {
-        match b {
-            // real time (clock, start, stop, active sensing) may come between any two bytes
-            0xF8..=0xFF => {}
-            0x80..=0xF7 => (status, data) = (b, Vec::with_capacity(2)),
-            _ => {
-                data.push(b);
-                let wanted = match status & 0xF0 {
-                    0xC0 | 0xD0 => 1,
-                    0xF0 => usize::MAX,
-                    _ => 2,
-                };
-                if data.len() == wanted {
-                    match status & 0xF0 {
-                        0x90 => out.push((data[0], f32::from(data[1]) / 127.0)),
-                        0x80 => out.push((data[0], 0.0)),
-                        _ => {}
-                    }
-                    data.clear();
-                }
-            }
-        }
-    }
-    out
-}
-
-/// The notes in what a MIDI input played (seconds since the recorder began, pitch, velocity), measured from `start`:
-/// a note on a pitch already sounding ends the one before, and a note still held at `stop` ends there.
-fn pair(events: &[(f64, u8, f32)], start: f64, stop: f64) -> Vec<Played> {
-    let mut open: [Option<(f64, f32)>; 128] = [None; 128];
-    let mut out = Vec::new();
-    let end = |pitch: u8, (at, velocity): (f64, f32), until: f64, out: &mut Vec<Played>| {
-        if until > start {
-            out.push(Played { start: (at - start).max(0.0), end: until - start, pitch, velocity });
-        }
-    };
-    for &(t, p, v) in events {
-        if let Some(on) = open[p as usize].take() {
-            end(p, on, t, &mut out);
-        }
-        if v > 0.0 {
-            open[p as usize] = Some((t, v));
-        }
-    }
-    for (p, on) in open.iter().enumerate() {
-        if let Some(on) = on {
-            end(p as u8, *on, stop, &mut out);
-        }
-    }
-    out.sort_by(|a, b| a.start.total_cmp(&b.start).then(a.pitch.cmp(&b.pitch)));
-    out
 }
 
 /// the soft tone that plays what a MIDI input plays while a take records, for a keyboard with no sound of its own
@@ -227,17 +101,6 @@ impl Guide {
         }
         self.voices.retain(|v| v.held || v.env > 1e-4);
     }
-}
-
-/// what the output plays: the song from `from` seconds on, and a click until `click_until`
-#[derive(Clone)]
-struct Mix {
-    song: Arc<Pcm>,
-    from: f64,
-    start: f64,
-    click_until: f64,
-    beat: f64,
-    bar: u32,
 }
 
 /// the earliest of a run of estimates of one instant, after the first few: a callback runs late, never early, so the
@@ -458,14 +321,7 @@ impl Recorder {
             }
         };
         let guide = midi.as_ref().map(|_| guide_rx);
-        let mix = Mix {
-            song: plan.song.clone(),
-            from: plan.start - plan.count_in,
-            start: plan.start,
-            click_until: if plan.click { f64::INFINITY } else { plan.start },
-            beat: plan.beat,
-            bar: plan.bar.max(1),
-        };
+        let mix = Mix::of(&plan);
         let (sh, c) = (shared.clone(), out_config.config());
         let output_stream = match out_config.sample_format() {
             SampleFormat::F32 => output_stream::<f32>(&output, c, mix, guide, sh, epoch),
@@ -506,6 +362,18 @@ impl Recorder {
             self.frames += (c.samples.len() / self.channels) as u64;
             self.taken.extend_from_slice(&c.samples);
         }
+    }
+
+    /// what the input captured arrives as it goes: there is nothing to wait for before `finish`
+    pub fn stop_soon(&self) {}
+
+    pub fn drained(&self) -> bool {
+        true
+    }
+
+    /// the song is playing: the output has played its first frames
+    pub fn playing(&self) -> bool {
+        self.shared.heard.lock().is_ok_and(|h| h.best.is_some())
     }
 
     /// where in the song the person hears it now, in seconds
@@ -575,7 +443,8 @@ impl Recorder {
         // the streams often drop a buffer as they start: only what the take heard counts
         let take_began = heard + self.count_in;
         let dropouts = self.shared.dropped.lock().map_or(0, |d| d.iter().filter(|t| **t >= take_began).count());
-        Ok(Take::Audio { wav: wav(&samples, self.channels as u16, self.in_rate as u32), secs, peak, dropouts })
+        let hushed = hushed(&samples, self.channels, self.in_rate);
+        Ok(Take::Audio { wav: wav(&samples, self.channels as u16, self.in_rate as u32), secs, peak, dropouts, hushed })
     }
 }
 
@@ -670,114 +539,9 @@ where
         .map_err(|e| format!("cannot play through {device}: {e}"))
 }
 
-/// The output's frames from `first` on: the song from `mix.from` seconds (silence before its start and after its end),
-/// and a click on every beat (counted from the take's start, the bar's first louder) until `mix.click_until`.
-fn fill(out: &mut [f32], channels: usize, rate: f64, first: u64, mix: &Mix) {
-    let ch = channels.max(1);
-    let song_ch = mix.song.channels.max(1) as usize;
-    let song_frames = mix.song.frames();
-    for (i, frame) in out.chunks_exact_mut(ch).enumerate() {
-        let t = mix.from + (first + i as u64) as f64 / rate;
-        let (mut l, mut r) = (0f32, 0f32);
-        let pos = t * mix.song.rate as f64;
-        if pos >= 0.0 && (pos as usize) + 1 < song_frames {
-            let (k, x) = (pos as usize, (pos - pos.floor()) as f32);
-            let at = |frame: usize, c: usize| mix.song.samples[frame * song_ch + c.min(song_ch - 1)];
-            l = at(k, 0) + (at(k + 1, 0) - at(k, 0)) * x;
-            r = at(k, 1) + (at(k + 1, 1) - at(k, 1)) * x;
-        }
-        if t < mix.click_until && mix.beat > 0.0 {
-            let beat = ((t - mix.start) / mix.beat).floor();
-            let since = t - (mix.start + beat * mix.beat);
-            if since < 0.03 {
-                let accent = (beat as i64).rem_euclid(mix.bar as i64) == 0;
-                let hz = if accent { 1760.0 } else { 1320.0 };
-                let c = ((std::f64::consts::TAU * hz * since).sin() * (-since * 150.0).exp() * 0.45) as f32;
-                l += c;
-                r += c;
-            }
-        }
-        frame[0] = l;
-        if ch > 1 {
-            frame[1] = r;
-        }
-        for s in frame.iter_mut().skip(2) {
-            *s = 0.0;
-        }
-    }
-}
-
-/// the take: the captured samples from `at` seconds after the first was captured (silence first, when that was before
-/// it), to the end
-fn cut(taken: &[f32], channels: usize, rate: f64, at: f64) -> Vec<f32> {
-    let skip = (at * rate).round() as i64 * channels as i64;
-    if skip >= 0 {
-        taken.get(skip as usize..).map(<[f32]>::to_vec).unwrap_or_default()
-    } else {
-        let mut out = vec![0.0; (-skip) as usize];
-        out.extend_from_slice(taken);
-        out
-    }
-}
-
-/// interleaved samples as a 32-bit float WAV file
-fn wav(samples: &[f32], channels: u16, rate: u32) -> Vec<u8> {
-    let spec =
-        hound::WavSpec { channels, sample_rate: rate, bits_per_sample: 32, sample_format: hound::SampleFormat::Float };
-    let mut out = Cursor::new(Vec::new());
-    if let Ok(mut w) = hound::WavWriter::new(&mut out, spec) {
-        for &s in samples {
-            let _ = w.write_sample(s);
-        }
-        let _ = w.finalize();
-    }
-    out.into_inner()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn song(secs: f64) -> Arc<Pcm> {
-        let n = (secs * 48_000.0) as usize;
-        Arc::new(Pcm { rate: 48_000, channels: 2, samples: (0..n).flat_map(|i| [i as f32 / n as f32, -0.5]).collect() })
-    }
-
-    #[test]
-    fn the_output_plays_the_song_from_the_count_in_and_clicks_on_its_beats() {
-        let mix = Mix { song: song(10.0), from: 2.0, start: 4.0, click_until: 4.0, beat: 0.5, bar: 4 };
-        let rate = 48_000.0;
-        let mut out = vec![0.0; 3 * 48_000 * 3];
-        fill(&mut out, 3, rate, 0, &mix);
-        let at = |t: f64, c: usize| out[(t * rate) as usize * 3 + c];
-        // between clicks: the song as it is at that point, on the first two channels only
-        assert!((at(0.25, 0) - 2.25 / 10.0).abs() < 1e-3 && (at(0.25, 1) + 0.5).abs() < 1e-6);
-        assert_eq!(at(0.25, 2), 0.0);
-        // a click on each beat of the count-in, from the take's start back (2.0 s in is the count-in's first beat)
-        let loud = |t: f64| {
-            (0..240).map(|k| (at(t + k as f64 / rate, 0) - (t + 2.0) as f32 / 10.0).abs()).fold(0f32, f32::max)
-        };
-        for beat in [0.0, 0.5, 1.0, 1.5] {
-            assert!(loud(beat) > 0.2, "a click at {beat} s");
-        }
-        assert!(loud(0.2) < 1e-3, "nothing between them");
-        assert!(loud(2.0) < 1e-3 && loud(2.5) < 1e-3, "and none once the take starts");
-        let mut before = vec![1.0; 4];
-        fill(&mut before, 2, rate, 0, &Mix { from: -1.0, click_until: f64::NEG_INFINITY, ..mix });
-        assert_eq!(before, [0.0; 4], "silence before the song");
-    }
-
-    #[test]
-    fn a_take_is_cut_where_the_section_began_as_heard() {
-        let taken: Vec<f32> = (0..100).map(|i| i as f32).collect();
-        let rate = 10.0;
-        // heard 0.3 s after the input began, a count-in of 2 s and 0.1 s more for the headphones: 2.4 s in
-        let at = 0.3 + 2.0 + 0.1;
-        assert_eq!(cut(&taken, 1, rate, at)[..3], [24.0, 25.0, 26.0]);
-        assert_eq!(cut(&taken, 2, rate, at)[..2], [48.0, 49.0], "frames, not samples");
-        assert_eq!(cut(&taken, 1, rate, -0.2)[..3], [0.0, 0.0, 0.0], "silence first when it began too late");
-        assert!(cut(&taken, 1, rate, 20.0).is_empty());
-    }
 
     #[test]
     fn the_earliest_estimate_after_the_first_few_wins() {
@@ -789,31 +553,6 @@ mod tests {
         let mut once = Earliest::default();
         once.add(0.7);
         assert_eq!(once.best, Some(0.7), "one is better than none");
-    }
-
-    #[test]
-    fn a_keyboard_says_which_notes_start_and_end() {
-        assert_eq!(notes_of(&[0x90, 60, 127]), [(60, 1.0)]);
-        assert_eq!(notes_of(&[0x93, 64, 0]), [(64, 0.0)], "a note on at velocity 0 is a note off, on any channel");
-        assert_eq!(notes_of(&[0x80, 60, 40]), [(60, 0.0)]);
-        assert!(notes_of(&[0xB0, 64, 127]).is_empty(), "the sustain pedal plays no note");
-        assert!(notes_of(&[0xF8]).is_empty(), "nor does the clock");
-        // a chord in one packet, the later notes in running status, and the clock in the middle of one
-        let chord = notes_of(&[0x90, 60, 127, 64, 127, 0xF8, 67, 127, 0x80, 60, 0]);
-        assert_eq!(chord.iter().map(|n| n.0).collect::<Vec<_>>(), [60, 64, 67, 60]);
-        assert!(notes_of(&[0xC0, 5, 0x90, 62, 64]).len() == 1, "a program change takes one byte");
-        assert!(notes_of(&[0xF0, 1, 2, 3, 0xF7, 0x90, 62, 64]).len() == 1, "and a sysex its whole length");
-    }
-
-    #[test]
-    fn what_was_played_is_notes_from_the_take_start() {
-        // the take starts 2 s in: a note held across it starts with it; one held at the stop ends there
-        let events = [(1.0, 60, 0.5), (1.5, 62, 0.5), (1.8, 62, 0.0), (2.5, 60, 0.0), (3.0, 64, 0.9), (3.5, 67, 1.0)];
-        let notes = pair(&events, 2.0, 4.0);
-        let got: Vec<(f64, f64, u8)> = notes.iter().map(|n| (n.start, n.end, n.pitch)).collect();
-        assert_eq!(got, [(0.0, 0.5, 60), (1.0, 2.0, 64), (1.5, 2.0, 67)], "the note over before the take is gone");
-        let again = pair(&[(0.0, 60, 0.7), (1.0, 60, 0.8), (2.0, 60, 0.0)], 0.0, 3.0);
-        assert_eq!(again.iter().map(|n| (n.start, n.end)).collect::<Vec<_>>(), [(0.0, 1.0), (1.0, 2.0)]);
     }
 
     #[test]
@@ -831,12 +570,5 @@ mod tests {
             off[off.len() - 2].abs() < 1e-4 && g.voices.is_empty(),
             "gone a second and a half after the key came up"
         );
-    }
-
-    #[test]
-    fn a_take_is_a_float_wav() {
-        let wav = wav(&[0.25, -0.5, 1.5, 0.0], 2, 44_100);
-        let pcm = Pcm::decode_wav(&wav).unwrap();
-        assert_eq!((pcm.rate, pcm.channels, pcm.samples), (44_100, 2, vec![0.25, -0.5, 1.5, 0.0]));
     }
 }

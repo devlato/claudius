@@ -2,7 +2,6 @@
 //! take starts with, and what the input hears from that section's first downbeat on goes to claudius, which plays it
 //! once from there (`POST /api/takes`).
 
-#[cfg(not(target_arch = "wasm32"))]
 use claudius_api::SongView;
 use eframe::egui::{self, RichText, Sense, Ui, vec2};
 use serde::{Deserialize, Serialize};
@@ -66,7 +65,7 @@ impl Default for Settings {
 /// what a MIDI take's part can be
 const PART_ROLES: &[&str] = &["keys", "lead", "chords", "pad", "arp", "bass"];
 
-#[cfg(all(test, not(target_arch = "wasm32")))]
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::audio::record::Played;
@@ -82,6 +81,20 @@ mod tests {
         assert_eq!(on.iter().map(|n| (n.t, n.d, n.p)).collect::<Vec<_>>(), [(0.0, 1.0, 60), (2.0, 0.25, 64)]);
         let loose = to_beats(&played, 0.5, 0.0);
         assert!((loose[0].t - 0.06).abs() < 1e-9 && (loose[1].d - 0.1).abs() < 1e-9, "as played");
+    }
+
+    #[test]
+    fn a_take_that_dropped_audio_or_fell_silent_says_so_with_claudius_answer() {
+        assert_eq!(take_note(0, 0), "");
+        assert_eq!(take_note(1, 0), " (it dropped audio once: other apps may be busy with the audio)");
+        assert!(take_note(3, 0).contains("dropped audio 3 times"));
+        let both = take_note(2, 1);
+        assert!(both.contains("2 times") && both.contains("went silent in places") && both.contains("Mic Mode"));
+        let mut r = Record { note: take_note(0, 4), ..Default::default() };
+        r.answered(true, "take1: a take of 4 bars".into());
+        assert!(r.said().starts_with("take1: a take of 4 bars (the input went silent"), "{}", r.said());
+        r.answered(true, "take2: a take of 2 bars".into());
+        assert_eq!(r.said(), "take2: a take of 2 bars", "said once, of the take it was about");
     }
 
     #[test]
@@ -134,65 +147,71 @@ pub struct Record {
     name: String,
     pub upload: Option<Upload>,
     /// a take is to start now, as the Record button starts one (a scripted run's `rec:start`)
-    #[cfg(not(target_arch = "wasm32"))]
     pub start: bool,
     /// the take is to end now (Space, while it records)
     pub stop: bool,
     /// the latency is to be measured now, as the Measure button measures it (a scripted run's `rec:measure`)
-    #[cfg(not(target_arch = "wasm32"))]
     pub measure: bool,
     /// what to say, and whether it is good news
     status: Option<(bool, String)>,
+    /// what was wrong with the take on its way, said again with claudius' answer
+    note: String,
     /// why the meter cannot hear the input, while that is so
     deaf_why: Option<String>,
     sending: bool,
     level: f32,
-    #[cfg(not(target_arch = "wasm32"))]
     inputs: Vec<crate::audio::record::Input>,
-    #[cfg(not(target_arch = "wasm32"))]
     midi_inputs: Vec<String>,
-    #[cfg(not(target_arch = "wasm32"))]
     live: Option<Live>,
     /// the input the meter shows while no take records, and what it is listening to; or what it could not listen to
-    #[cfg(not(target_arch = "wasm32"))]
     listener: Option<(crate::audio::record::Listener, Listening)>,
-    #[cfg(not(target_arch = "wasm32"))]
     deaf: Option<Listening>,
 }
 
 /// an audio input and the channels of it, or a MIDI input
-#[cfg(not(target_arch = "wasm32"))]
 type Listening = (Option<String>, usize, bool, Option<String>);
 
 /// a take being recorded, or the latency being measured
-#[cfg(not(target_arch = "wasm32"))]
 struct Live {
     recorder: crate::audio::record::Recorder,
-    /// where in the song the take starts and the song ends, in seconds, and how long a beat is
+    /// where in the song the take starts and the song ends, in seconds, and how long a beat is (for a MIDI take's
+    /// notes)
     take_start: f64,
     song_end: f64,
+    #[cfg(not(target_arch = "wasm32"))]
     beat: f64,
     /// it records what a MIDI input plays
     midi: bool,
     /// it is a measurement of the latency, not a take
     measuring: bool,
+    /// when it was asked to stop, while the recorder hands over the last of what it heard (in a browser)
+    stopping: Option<f64>,
     /// since when the input has heard nothing at all, and whether for long enough to say so
     silent_since: Option<f64>,
     silent: bool,
 }
 
 impl Record {
-    /// what claudius answered to the take
+    /// what the window last said of a take or a measurement, or why it cannot hear the input; or that it is waiting for
+    /// the last of a take
+    #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
+    pub fn said(&self) -> String {
+        if self.live.as_ref().is_some_and(|l| l.stopping.is_some()) {
+            return "finishing ...".into();
+        }
+        self.deaf_why.clone().or_else(|| self.status.as_ref().map(|(_, s)| s.clone())).unwrap_or_default()
+    }
+
+    /// what claudius answered to the take, with what the take's recording was told of
     pub fn answered(&mut self, ok: bool, message: String) {
         self.sending = false;
         if ok {
             self.name.clear();
         }
-        self.status = Some((ok, message));
+        self.status = Some((ok, format!("{message}{}", std::mem::take(&mut self.note))));
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl Record {
     pub fn show(&mut self) {
         self.open = true;
@@ -205,16 +224,9 @@ impl Record {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
-impl Record {
-    pub fn recording(&self) -> bool {
-        false
-    }
-}
-
 pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
-    #[cfg(not(target_arch = "wasm32"))]
     keep_up(ctx, cx);
+    wake_while_stopping(ctx, cx);
     if !cx.view.record.open {
         return;
     }
@@ -232,6 +244,15 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
     if !open && !cx.view.record.recording() {
         cx.view.record.open = false;
     }
+    wake_while_stopping(ctx, cx);
+}
+
+/// Whatever asked a take to stop (the Stop buttons, Space, the song's end, a plan), nothing else wakes the window when
+/// the browser's recorder has handed over the last of it.
+fn wake_while_stopping(ctx: &egui::Context, cx: &Cx) {
+    if cx.view.record.live.as_ref().is_some_and(|l| l.stopping.is_some()) {
+        ctx.request_repaint();
+    }
 }
 
 fn body(ui: &mut Ui, cx: &mut Cx) {
@@ -240,7 +261,7 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
         return;
     };
     let selected = song.sections.get(cx.view.section).map(|s| s.name.clone());
-    let has_audio = cx.player.has_audio();
+    let unready = not_ready(cx, &song_audio(cx));
     let (instruments, synths) = super::melodic_sounds(cx.sounds);
     let r = &mut cx.view.record;
     if r.from.as_ref().is_none_or(|f| !song.sections.iter().any(|s| s.name == *f)) {
@@ -401,9 +422,9 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
         if r.recording() {
             stop = widgets::tool_button(ui, Icon::Stop, "Stop", true, true).clicked();
         } else {
-            let why = if r.sending { "the last take is still on its way" } else { "render the song first" };
-            start = widgets::tool_button(ui, Icon::Record, "Record", has_audio && !r.sending, true)
-                .on_disabled_hover_text(why)
+            let why = if r.sending { Some("the last take is still on its way".to_string()) } else { unready.clone() };
+            start = widgets::tool_button(ui, Icon::Record, "Record", why.is_none(), true)
+                .on_disabled_hover_text(why.unwrap_or_default())
                 .clicked();
         }
         let (good, text) = what_now(r);
@@ -412,24 +433,18 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
             ui.add(egui::Label::new(small(text).color(color)).wrap());
         }
     });
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        if start {
-            begin(cx, &song);
-        }
-        if measure {
-            measure_latency(cx);
-        }
-        if stop {
-            finish(cx);
-        }
+    if start {
+        begin(cx, &song);
     }
-    #[cfg(target_arch = "wasm32")]
-    let _ = (start, stop, measure);
+    if measure {
+        measure_latency(cx);
+    }
+    if stop {
+        finish(cx);
+    }
 }
 
 /// the input and which of its channels
-#[cfg(not(target_arch = "wasm32"))]
 fn input(ui: &mut Ui, r: &mut Record) {
     ui.horizontal(|ui| {
         if r.inputs.is_empty() && r.midi_inputs.is_empty() {
@@ -489,11 +504,6 @@ fn input(ui: &mut Ui, r: &mut Record) {
     });
 }
 
-#[cfg(target_arch = "wasm32")]
-fn input(ui: &mut Ui, _r: &mut Record) {
-    ui.label(small("recording needs the studio app"));
-}
-
 /// how loud the input is: green, yellow from -12 dBFS, red from -1 (where it clips)
 fn meter(ui: &mut Ui, level: f32) {
     let (rect, _) = ui.allocate_exact_size(vec2(ui.available_width(), 8.0), Sense::hover());
@@ -515,20 +525,20 @@ fn meter(ui: &mut Ui, level: f32) {
 
 /// what the window says: where the take is, or what happened last
 fn what_now(r: &Record) -> (bool, String) {
-    #[cfg(not(target_arch = "wasm32"))]
     if let Some(live) = &r.live {
         let t = live.recorder.time();
         let from = r.from.as_deref().unwrap_or("");
+        if !live.recorder.playing() {
+            return (true, "starting: allow the microphone if the browser asks".into());
+        }
         if t < live.take_start {
             return (true, format!("count-in: {:.1} s to {from}", live.take_start - t));
         }
+        if live.stopping.is_some() {
+            return (true, "finishing ...".into());
+        }
         if live.silent {
-            return (
-                false,
-                "nothing is coming in: check the input and its channel; on a Mac, allow the microphone for \
-                 Claudius (or your terminal) in System Settings, Privacy & Security, Microphone"
-                    .into(),
-            );
+            return (false, NOTHING_IN.into());
         }
         if live.measuring {
             return (true, format!("listening for the clicks: {:.0} s", (live.song_end + 0.5 - t).max(0.0).ceil()));
@@ -541,14 +551,39 @@ fn what_now(r: &Record) -> (bool, String) {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+/// the render a take is recorded over: the player's, in the app; in the browser, fetched for the take (none while it
+/// loads)
+fn song_audio(cx: &Cx) -> Result<Option<std::sync::Arc<crate::audio::Pcm>>, String> {
+    #[cfg(not(target_arch = "wasm32"))]
+    return Ok(cx.player.pcm());
+    #[cfg(target_arch = "wasm32")]
+    {
+        let Some(render) = &cx.state.render else { return Ok(None) };
+        let path = render.url.strip_suffix(".mp3").map_or_else(|| render.url.clone(), |stem| format!("{stem}.wav"));
+        let url = if path.contains("://") { path } else { format!("{}{path}", cx.server.unwrap_or_default()) };
+        crate::audio::record::song(&url)
+    }
+}
+
+/// why there is no take to record yet, when the render is not there to record over
+fn not_ready(cx: &Cx, song: &Result<Option<std::sync::Arc<crate::audio::Pcm>>, String>) -> Option<String> {
+    match song {
+        Ok(Some(_)) => None,
+        Ok(None) if cx.player.has_audio() => Some("the song is still loading for the take".into()),
+        Ok(None) => Some("render the song first".into()),
+        Err(e) => Some(e.clone()),
+    }
+}
+
 fn begin(cx: &mut Cx, song: &SongView) {
     use crate::audio::record::{Plan, Recorder};
     let beat = 60.0 / cx.audio_bpm().max(1.0);
-    let Some(pcm) = cx.player.pcm() else {
-        cx.view.record.status = Some((false, "render the song first".into()));
+    let audio = song_audio(cx);
+    if let Some(why) = not_ready(cx, &audio) {
+        cx.view.record.status = Some((false, why));
         return;
-    };
+    }
+    let Ok(Some(pcm)) = audio else { return };
     let r = &mut cx.view.record;
     let Some(section) = r.from.as_ref().and_then(|f| song.sections.iter().find(|s| s.name == *f)) else {
         r.status = Some((false, "choose the section the take starts with".into()));
@@ -579,9 +614,11 @@ fn begin(cx: &mut Cx, song: &SongView) {
                 recorder,
                 take_start: start,
                 song_end: end,
+                #[cfg(not(target_arch = "wasm32"))]
                 beat,
                 midi,
                 measuring: false,
+                stopping: None,
                 silent_since: None,
                 silent: false,
             });
@@ -592,7 +629,6 @@ fn begin(cx: &mut Cx, song: &SongView) {
 }
 
 /// starts measuring the latency: claudius plays its clicks and listens for them on the chosen input
-#[cfg(not(target_arch = "wasm32"))]
 fn measure_latency(cx: &mut Cx) {
     use crate::audio::record::{Plan, Recorder};
     cx.player.pause();
@@ -606,9 +642,11 @@ fn measure_latency(cx: &mut Cx) {
                 recorder,
                 take_start: 0.0,
                 song_end: end,
+                #[cfg(not(target_arch = "wasm32"))]
                 beat: 0.5,
                 midi: false,
                 measuring: true,
+                stopping: None,
                 silent_since: None,
                 silent: false,
             });
@@ -618,8 +656,20 @@ fn measure_latency(cx: &mut Cx) {
     }
 }
 
+/// what to add to what is said of a take that dropped audio, or fell silent in places (`take::hushed`)
+fn take_note(dropouts: usize, hushed: usize) -> String {
+    let mut note = String::new();
+    if dropouts > 0 {
+        let times = if dropouts == 1 { "once".to_string() } else { format!("{dropouts} times") };
+        note += &format!(" (it dropped audio {times}: other apps may be busy with the audio)");
+    }
+    if hushed > 0 {
+        note += &format!(" ({})", crate::audio::take::HUSHED);
+    }
+    note
+}
+
 /// what a measurement found, as the window says it: `ms` the clicks came back late by, through `route`
-#[cfg(not(target_arch = "wasm32"))]
 fn measured(ms: f32, route: &str) -> String {
     let when = match ms {
         m if m.abs() < 1.0 => "in time".to_string(),
@@ -633,9 +683,30 @@ fn measured(ms: f32, route: &str) -> String {
     )
 }
 
-/// stops the take and sends it: a recording to keep with the song, or the notes played as a part
+/// what to say when the input hears nothing at all while a take records
 #[cfg(not(target_arch = "wasm32"))]
+const NOTHING_IN: &str = "nothing is coming in: check the input and its channel; on a Mac, allow the microphone for \
+                          Claudius (or your terminal) in System Settings, Privacy & Security, Microphone";
+#[cfg(target_arch = "wasm32")]
+const NOTHING_IN: &str = "nothing is coming in: check the input and its channel, and that the browser may use the \
+                          microphone (the site settings in the address bar); on a Mac, the system has to allow the \
+                          browser too, and Control Center's Mic Mode should be Standard";
+
+/// Stops the take (or the measurement) and sends it: at once in the app; in a browser once the recorder has handed
+/// over the last of what it heard, which `keep_up` waits for.
 pub fn finish(cx: &mut Cx) {
+    let now = cx.now;
+    let Some(live) = cx.view.record.live.as_mut() else { return };
+    live.recorder.stop_soon();
+    if live.recorder.drained() {
+        done(cx);
+    } else {
+        live.stopping.get_or_insert(now);
+    }
+}
+
+/// the take is all in: a recording to keep with the song, or the notes played as a part, on its way to claudius
+fn done(cx: &mut Cx) {
     use crate::audio::record::Take;
     let r = &mut cx.view.record;
     let Some(live) = r.live.take() else { return };
@@ -657,18 +728,13 @@ pub fn finish(cx: &mut Cx) {
         Ok(Take::Audio { peak: 0.0, .. }) => {
             r.status = Some((false, "the take is silent: nothing came in from the input".into()));
         }
-        Ok(Take::Audio { wav, secs, dropouts, .. }) => {
-            let dropped = match dropouts {
-                0 => String::new(),
-                n => format!(
-                    " (it dropped audio {n} time{}: other apps may be busy with the audio)",
-                    if n == 1 { "" } else { "s" }
-                ),
-            };
-            r.status = Some((true, format!("sending {secs:.1} s to claudius ...{dropped}")));
+        Ok(Take::Audio { wav, secs, dropouts, hushed, .. }) => {
+            r.note = take_note(dropouts, hushed);
+            r.status = Some((true, format!("sending {secs:.1} s to claudius ...{}", r.note)));
             r.sending = true;
             r.upload = Some(Upload { wav, from, name, role: r.settings.role.clone() });
         }
+        #[cfg(not(target_arch = "wasm32"))]
         Ok(Take::Notes(played)) => {
             let notes = to_beats(&played, live.beat, r.settings.grid);
             r.status = Some((true, format!("sending {} notes to claudius ...", notes.len())));
@@ -687,7 +753,6 @@ pub fn finish(cx: &mut Cx) {
 }
 
 /// every frame, natively: takes in what the input heard, keeps the meter moving, and stops at the song's end
-#[cfg(not(target_arch = "wasm32"))]
 fn keep_up(ctx: &egui::Context, cx: &mut Cx) {
     let now = cx.now;
     let r = &mut cx.view.record;
@@ -708,6 +773,15 @@ fn keep_up(ctx: &egui::Context, cx: &mut Cx) {
         return;
     }
     let r = &mut cx.view.record;
+    if let Some(asked) = r.live.as_ref().and_then(|l| l.stopping) {
+        // a second is far longer than the recorder takes to hand over what it held
+        if r.live.as_ref().is_some_and(|l| l.recorder.drained()) || now - asked > 1.0 {
+            done(cx);
+        } else {
+            ctx.request_repaint();
+        }
+        return;
+    }
     let Some(live) = r.live.as_mut() else {
         listen(ctx, r);
         return;
@@ -736,11 +810,15 @@ fn keep_up(ctx: &egui::Context, cx: &mut Cx) {
 }
 
 /// while the window is open and no take records, the meter shows what the chosen input hears
-#[cfg(not(target_arch = "wasm32"))]
 fn listen(ctx: &egui::Context, r: &mut Record) {
     if !r.open {
         (r.listener, r.deaf, r.deaf_why, r.level) = (None, None, None, 0.0);
         return;
+    }
+    // a browser lists its inputs when it gets round to it, and names them once the page may use the microphone
+    #[cfg(target_arch = "wasm32")]
+    {
+        r.inputs = crate::audio::record::inputs();
     }
     // a channel remembered from another input may be one this input does not have
     let shown = r.settings.input.clone().filter(|n| r.inputs.iter().any(|i| i.name == *n));

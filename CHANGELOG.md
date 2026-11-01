@@ -23,6 +23,12 @@ sounds instead of a rough synth: every synth preset as claudius renders it, the 
 stereo, with reverb, delay and the kick's ducking, each track as loud as claudius' mix makes its role, and the
 master at the genre's loudness.
 
+The studio records, in the app and in the browser: a take from a microphone or an audio interface, which plays
+once from the section it starts with and goes with the song, and, in the app, what a MIDI keyboard plays, as a
+part's notes. A sung, hummed or played line becomes notes for an instrument or several, as it is or as harmony,
+octaves, chords, a bass line, an arpeggio or a pad. **Measure** plays clicks and listens for them, so that takes land
+in time ([Takes](https://github.com/devlato/claudius/blob/main/docs/src/guide/samples.md#takes)).
+
 `claudius publish` checks a song the way stores and distributors check a release (its artwork's size, colours and
 sharpness, its audio, the licences of its sounds, and its details, including how it was made) and writes a release
 kit: the WAV and the cover a distributor takes, and the answers its form asks for

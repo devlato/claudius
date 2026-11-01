@@ -59,7 +59,8 @@ generations of that. Both run in the background and can be stopped. **Save** wri
 ([Publishing](../guide/publish.md)).
 
 **Record**, the red button after the loop button, records a [take](../guide/samples.md#takes) from a microphone or
-an audio interface, in the studio app.
+an audio interface, in the studio app and in the browser studio that `claudius serve` serves. The demo has none,
+since a take goes to a claudius, which keeps it with the song.
 
 - **Setting it up.** Choose the input and its channel, the section the take starts with, a bar or two of count-in, and
   what it is (a vocal, a guitar playing chords ...).
@@ -71,6 +72,9 @@ an audio interface, in the studio app.
   and sets the latency from how late they come back, so that takes land in time. Turn the speakers up a little, or
   hold the headphones to the microphone, while it listens. A laptop's own speakers and microphone, for one, are
   late by more than they report: on a MacBook Pro, 45 ms. A MIDI keyboard has a Latency of its own, set by hand.
+- **In a browser.** The browser asks whether the page may use the microphone the first time the Record window opens.
+  It records on `localhost` or over https only, and reports less of its latency than the app does: measure there too.
+  MIDI keyboards record in the app.
 - **A MIDI keyboard.** Choose it as the input, then what plays your notes (an instrument or a synth), the part they make
   (keys, a lead, chords, a pad, an arp or a bass), the grid they go to (or "as played") and a style, as for a take's
   melody. While you record, a soft

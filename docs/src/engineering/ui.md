@@ -16,7 +16,7 @@ The studio is still being finished; this page describes its structure, which is 
 | `edits.rs` | edits applied to a `SongView`, for optimistic updates and for the mock |
 | `cmds.rs` | builders for commands that change a few fields |
 | `panels/` | one module per panel |
-| `audio/` | the player: rodio natively, an `HtmlAudioElement` on the web; natively, the take [recorder](#recording) |
+| `audio/` | the player: rodio natively, an `HtmlAudioElement` on the web; the take [recorder](#recording): cpal and midir natively, Web Audio in the browser |
 | `mock/` | a built-in stand-in for the server, with a generated song played on claudius' own sounds ([below](#the-demos-sounds)) |
 | `music.rs` | the theory needed to label things: keys, numerals as chord names, note names |
 | `theme.rs`, `widgets.rs` | the palette (one colour per role and section kind), knobs, faders, meters, chips |
@@ -121,7 +121,16 @@ separately), so you can listen to a section while you edit it and hear each chan
 ## Recording
 
 The Record window (`panels/record.rs`) records a [take](../guide/samples.md#takes) and sends it to `POST /api/takes`,
-natively. The demo has none: a take goes to a claudius, which keeps it with the song.
+in the app and in a browser alike. The demo has none: a take goes to a claudius, which keeps it with the song.
+
+What a take is lives in `audio/take.rs`, for both:
+
+- **What it is.** What to record and what plays meanwhile (`Plan`), and the take (`Take`).
+- **What plays and what is kept.** What the output plays (`fill`), and the take cut where it starts (`cut`), as a
+  float WAV (`wav`).
+- **What went wrong.** How often the input fell silent in it (`hushed`).
+
+`audio/record.rs` records in the app; `web_record.rs` takes its name in the browser, with the same API.
 
 `audio/record.rs` opens two cpal streams of its own. The player is paused meanwhile.
 
@@ -172,6 +181,50 @@ A MIDI input (midir) records in place of an audio input:
   before, and a note still held at the stop ends there.
 - **Sending them.** The window puts the notes on the chosen grid in beats and sends them as `add_notes`, which makes
   a part of them.
+
+A take that fell silent to the bit for 50 ms or more between sounds (`hushed`) says so with claudius' answer. A
+microphone or a line in always hears some noise, so that is the input muted or gated, as the processing a system does
+to a microphone for calls does. Frames a browser lost, which `Captured` fills with silence, are dropouts, not that. A
+measurement that fails on such an input says the same.
+
+### In the browser
+
+`audio/web_record.rs` records with Web Audio, on one clock:
+
+- **The song.** It is the render's WAV, which the window fetches for the take (`record::song`). `render_mix` fills it
+  in a buffer at the audio context's rate, with the count-in and its click, as `fill` does natively. An
+  `AudioBufferSourceNode` starts it at a set time on the context's clock, a quarter of a second after the input
+  listens.
+- **The input.** `getUserMedia` asks for the chosen input with the browser's echo cancelling, noise suppression and
+  gain control off. It goes to an AudioWorklet (`record-worklet.js`, which trunk copies beside the page). The worklet
+  hands the page about 43 ms at a time, each chunk stamped with the context frame its first sample reached the
+  worklet in. `Captured` puts the chunks together, with silence for frames that went missing, each a dropout.
+  Told to stop, the worklet hands over what it still holds and says it is done; the window waits for that, a second
+  at most, before it cuts the take.
+- **Where the take starts.** It is arithmetic (`take_starts`): when its downbeat was to play, plus what the browser
+  reports of the output's latency (`baseLatency`, `outputLatency`) and the input's (the track's `latency`), plus the
+  window's Latency.
+- **What is not there.** MIDI keyboards record in the app only, for now.
+
+Browsers report little of their latency. Chromium on a MacBook Pro reported 8.5 ms (5.8 ms of `baseLatency`, an
+`outputLatency` of 0, and 2.7 ms on the input), and takes landed 60 ms late. **Measure** works as natively, through
+`Recorder::lateness`.
+
+On that Mac, Chromium's capture of the built-in microphone was processed even with all of its own processing off. A
+tone from the speakers, whether the page played it or another app did, came in 30 dB down, with runs of silence up to
+two thirds of a second. The app's capture of the same microphone had none. A take there has holes, and Measure cannot
+hear its clicks. What did it was not pinned down; macOS's per-app Mic Mode on Voice Isolation does the same, so the
+window says the input went silent and points there (`hushed`).
+
+The unit tests run the browser's path natively, in 128-frame quanta: a song scheduled on the context's clock, heard,
+recorded with a quantum lost, and cut on its downbeat to the frame; and a measurement through it that finds an
+unreported 0.18 s. `site/tests/record.spec.mjs` records in Chromium with a file for a microphone, against a claudius
+of its own. It drives a studio built with the `plan` feature (`cargo xtask web --plan`), which runs the scripted plan
+in its page's `?plan=` and prints what the Record window says to the console. The tests check three things:
+
+- a take arrives, plays in the song and holds the microphone's tone;
+- Measure with an input that cannot hear the clicks says so;
+- a page blocked from the microphone says what to do.
 
 ## The mock
 

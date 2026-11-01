@@ -14,10 +14,17 @@ publish = false
 name = "claudius-ui"
 path = "src/main.rs"
 
+[features]
+# scripted runs in the browser, from the page's `?plan=` (as CLAUDIUS_UI_PLAN does natively): for tests only, since a
+# link could otherwise drive the studio, the microphone included
+plan = []
+
 [dependencies]
 claudius-api = { path = "../claudius-api" }
 eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "clipboard", "links", "persistence", "wayland", "x11"] }
 ehttp = "0.7"
+# WAV in and out: the song a take is recorded over, and the take itself
+hound = "3"
 image = { version = "0.25", default-features = false, features = ["png"] }
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
@@ -30,11 +37,18 @@ symphonia = { version = "0.6", default-features = false, features = ["ogg", "vor
 cpal = "0.18"
 midir = "0.11"
 env_logger = { version = "0.11", default-features = false, features = ["auto-color", "humantime"] }
-hound = "3"
 rodio = { version = "0.23", default-features = false, features = ["playback"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 js-sys = "0.3"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
-web-sys = { version = "0.3", features = ["Blob", "BlobPropertyBag", "Document", "Element", "HtmlAudioElement", "HtmlCanvasElement", "HtmlMediaElement", "Location", "MediaError", "Url", "Window"] }
+web-sys = { version = "0.3", features = [
+  "AudioBuffer", "AudioBufferSourceNode", "AudioContext", "AudioContextLatencyCategory", "AudioContextOptions",
+  "AudioContextState", "AudioDestinationNode", "AudioNode", "AudioScheduledSourceNode", "AudioWorklet",
+  "AudioWorkletNode", "AudioWorkletNodeOptions", "BaseAudioContext", "Blob", "BlobPropertyBag", "ChannelCountMode",
+  "console", "Document", "DomException", "Element", "HtmlAudioElement", "HtmlCanvasElement", "HtmlMediaElement",
+  "Location", "MediaDeviceInfo", "MediaDeviceKind", "MediaDevices", "MediaError", "MediaStream",
+  "MediaStreamAudioSourceNode", "MediaStreamConstraints", "MediaStreamTrack", "MediaTrackSettings", "MessageEvent",
+  "MessagePort", "Navigator", "Url", "UrlSearchParams", "Window", "Worklet",
+] }

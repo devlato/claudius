@@ -200,6 +200,20 @@ When the Record window says `nothing is coming in`, or a take arrives silent:
   moves with whatever the chosen input hears, before and during a take.
 - **The input is turned down.** Check the gain knob on the interface, or the input level in the system's sound
   settings.
+- **The browser has not allowed the microphone.** The window says `the browser was not allowed to use the
+  microphone`: allow it in the site settings behind the icon at the left of the address bar, then open the Record
+  window again. The system has to allow the browser too, as above for Claudius.
+- **The page is not secure.** A browser records on `localhost` or over https only, so a claudius opened by its LAN
+  address over http cannot record: the window says `this browser cannot record here` or that it needs a secure page.
+
+## A take goes silent in places
+
+When the window says `the input went silent in places`, something muted the input or gated it to silence in places,
+as the processing a system or a browser does to a microphone for calls does. A microphone always hears some noise,
+so silence to the bit means the input was gated. On a Mac, open Control Center while the Record window is open, choose
+**Mic Mode** and pick **Standard**: Voice Isolation keeps a voice and takes out music, a guitar and claudius' clicks,
+and leaves silence between words. Measure cannot get through it either. In a browser, an audio interface usually goes
+around it.
 
 ## A MIDI keyboard is not in the Record window
 
@@ -222,6 +236,8 @@ to the Record window's **Latency**: claudius plays eight clicks and sets the lat
   with the microphone nearer the speakers.
 - **Measure again for each setup.** The latency is the output's and the input's together: other headphones, speakers
   or another input have their own.
+- **In a browser.** Browsers report less of their latency than the app does: Chromium on a MacBook Pro reports
+  about 8 ms of its 68, so takes there land about 60 ms late until you measure.
 
 You can also set **Latency** by hand: positive when the take lands late. Recording and listening through one audio
 interface keeps the timing tightest.
