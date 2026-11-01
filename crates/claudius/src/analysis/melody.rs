@@ -170,6 +170,7 @@ fn segment(frames: &[Frame]) -> Vec<Heard> {
             if gap >= 3 && !cur.is_empty() {
                 let n = cur.len();
                 close(&mut cur, &mut out, n);
+                away = 0;
             }
             continue;
         };
@@ -181,12 +182,13 @@ fn segment(frames: &[Frame]) -> Vec<Heard> {
             let again = f.db - dip > 6.0 && cur.len() >= 8;
             if away >= 3 {
                 // the frames that left belong to the next note
-                let keep = cur.len() - (away - 1);
+                let keep = cur.len().saturating_sub(away - 1);
                 close(&mut cur, &mut out, keep);
                 away = 0;
             } else if again {
                 let n = cur.len();
                 close(&mut cur, &mut out, n);
+                away = 0;
             }
         }
         cur.push((i, p, f.db));
@@ -317,6 +319,19 @@ mod tests {
         );
         let pitches: Vec<i32> = notes.iter().map(|n| n.p).collect();
         assert_eq!(pitches, [57, 57, 52], "{notes:?}");
+    }
+
+    #[test]
+    fn falling_off_a_note_into_a_breath_and_scooping_into_the_next_is_two_notes() {
+        // C4 falling off for its last two frames, a breath, then E4 scooped into from below
+        let voiced = |p: f32| Frame { pitch: Some(p), db: -20.0 };
+        let mut frames: Vec<Frame> = vec![voiced(60.0); 10];
+        frames.extend([voiced(58.0), voiced(58.0)]);
+        frames.extend([Frame { pitch: None, db: -70.0 }; 3]);
+        frames.push(voiced(61.0));
+        frames.extend(vec![voiced(64.0); 10]);
+        let pitches: Vec<i32> = segment(&frames).iter().map(|h| h.pitch.round() as i32).collect();
+        assert_eq!(pitches, [60, 64]);
     }
 
     #[test]
