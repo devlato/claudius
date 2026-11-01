@@ -133,7 +133,7 @@ impl Mock {
             song: Some(song),
             genres: song::genre_infos(),
             log: vec![
-                "claudius demo: no server, a built-in mock plays its part".into(),
+                "claudius demo: it all runs in the studio, and nothing is kept".into(),
                 "generated: house seed 7".into(),
             ],
             release: Some(demo_release()),

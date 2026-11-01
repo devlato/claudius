@@ -477,15 +477,13 @@ impl Studio {
             ui.horizontal(|ui| {
                 widgets::dot(ui, theme::BAD);
                 let what = if self.link.ever { "Lost the connection to" } else { "Cannot reach" };
-                ui.label(
-                    RichText::new(format!("{what} the claudius server at {}", self.link.label)).strong().color(TEXT),
-                );
+                ui.label(RichText::new(format!("{what} claudius at {}", self.link.label)).strong().color(TEXT));
                 ui.label(RichText::new(short_error(&error)).color(TEXT_DIM)).on_hover_text(&error);
                 if let Some(t) = retry {
                     ui.label(RichText::new(format!("retrying in {:.0} s", t.ceil())).color(TEXT_FAINT));
                 }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if ui.button("Use the demo").on_hover_text("play with a built-in mock song instead").clicked() {
+                    if ui.button("Use the demo").on_hover_text("play with the built-in demo instead").clicked() {
                         self.actions.push(Action::UseDemo);
                     }
                     if ui.button("Retry now").clicked() {
@@ -510,9 +508,9 @@ impl Studio {
                 ui.add(egui::Spinner::new().size(22.0).color(ACCENT));
                 return;
             }
-            ui.label(RichText::new(format!("Cannot reach the claudius server at {}", self.link.label)).size(16.0).color(theme::mix(theme::BAD, TEXT, 0.4)));
+            ui.label(RichText::new(format!("Cannot reach claudius at {}", self.link.label)).size(16.0).color(theme::mix(theme::BAD, TEXT, 0.4)));
             ui.add_space(6.0);
-            ui.label(RichText::new("Start it with   claudius serve   (in a checkout: cargo run --release -p claudius-cli -- serve), or set CLAUDIUS_SERVER to its address.").color(TEXT_DIM));
+            ui.label(RichText::new("Start it with   claudius serve   (in a checkout: cargo run --release -p claudius-cli -- serve), then retry.").color(TEXT_DIM));
             ui.add_space(14.0);
             ui.horizontal(|ui| {
                 let w = 290.0;
@@ -582,7 +580,7 @@ impl Studio {
     fn status_bar(&mut self, ui: &mut Ui) {
         ui.horizontal_centered(|ui| {
             let (dot, text) = if self.link.mock {
-                (theme::WARN, "demo mode: a built-in mock plays the server".to_string())
+                (theme::WARN, "demo mode: the built-in demo, which keeps nothing".to_string())
             } else if self.link.online {
                 (theme::GOOD, format!("connected to {}", self.link.label))
             } else {

@@ -186,8 +186,8 @@ volume slider at the bottom right too.
 In the browser, the first playback has to start from a click (browsers block sound a page starts on its own), and
 the page plays the MP3.
 
-If the window shows `Cannot reach the claudius server at http://127.0.0.1:7878`, the server it was opened for is
-gone; start `claudius studio` again. `Use the demo` switches to a built-in song that needs no server.
+If the window shows `Cannot reach claudius at http://127.0.0.1:7878`, the claudius it was opened for is gone; start
+`claudius studio` again. `Use the demo` switches to the built-in demo, which needs nothing else.
 
 ## A take records nothing
 

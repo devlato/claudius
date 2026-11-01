@@ -281,7 +281,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 ui.ctx().copy_text(ed.text.clone());
             }
             if widgets::tool_button(ui, Icon::Open, "Reference", true, *reference_open)
-                .on_hover_text("the script language reference (from the server)")
+                .on_hover_text("the script language reference")
                 .clicked()
             {
                 *reference_open = !*reference_open;
@@ -348,7 +348,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     |ui| match list {
                         Some(list) => sounds(ui, ed, list),
                         None => {
-                            ui.label(small("the server's sound list appears here"));
+                            ui.label(small("the sounds appear here once claudius has listed them"));
                         }
                     },
                 );

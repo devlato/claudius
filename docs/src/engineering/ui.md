@@ -83,8 +83,8 @@ the song's script again once a run succeeds.
 
 `net::Remote` runs one long poll at a time: `GET /api/state` first, then `?since=<last version>`, with a 45 s client
 timeout against the server's 20 s. Each answer schedules the next. On failure it backs off 1, 2, 3, then 5 s, shows
-`Cannot reach the claudius server at ...` with how to start one (`claudius serve`, or `cargo run --release -p
-claudius-cli -- serve` in a checkout), Retry and Use the demo, and forgets its version and sound list, since a
+`Cannot reach claudius at ...` with how to start one (`claudius serve`, or `cargo run --release -p claudius-cli --
+serve` in a checkout), Retry and Use the demo, and forgets its version and sound list, since a
 restarted server starts counting again. After the first state it asks once for `/api/sounds` and `/api/hello` (and for
 `/api/hello` again when a state says the ears have finished loading), and for `/api/reference` when the reference
 window opens.
