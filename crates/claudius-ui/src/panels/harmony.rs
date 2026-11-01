@@ -271,7 +271,9 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 ui.horizontal(|ui| {
                     if ui
                         .button(format!("+ progression {next}"))
-                        .on_hover_text("a new progression (sections choose theirs on the server)")
+                        .on_hover_text(
+                            "a new progression: a section plays it once you choose it as the section's harmony",
+                        )
                         .clicked()
                     {
                         out.push(Command::SetProgression {

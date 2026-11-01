@@ -270,7 +270,8 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
     let has_song = cx.state.song.is_some();
     ui.horizontal_centered(|ui| {
         ui.spacing_mut().item_spacing.x = 6.0;
-        let new_song = widgets::tool_button(ui, Icon::New, "New song", true, false).on_hover_text("generate a new song from a genre");
+        let new_song = widgets::tool_button(ui, Icon::New, "New song", true, false)
+            .on_hover_text("generate a new song from a genre");
         cx.view.anchors.new_song = Some(new_song.rect);
         if new_song.clicked() {
             cx.view.new_song.open = true;
@@ -278,22 +279,33 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
                 cx.view.new_song.genre = song.genre.clone();
             }
         }
-        let open = widgets::icon_button(ui, Icon::Open, 28.0, false, true, "open a blueprint.json or a script file (a path on the server's machine)");
-        egui::Popup::from_toggle_button_response(&open).close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside).show(|ui| {
-            ui.set_min_width(380.0);
-            ui.label(RichText::new("Open a song").strong());
-            ui.label(small("a blueprint.json, a song folder's script, or any claudius script, as a path on the server's machine"));
-            let r = ui.add(egui::TextEdit::singleline(&mut cx.view.open_path).hint_text("out/house-glass-garden-7/blueprint.json").desired_width(f32::INFINITY));
-            let go = ui.add_enabled(!cx.view.open_path.trim().is_empty(), egui::Button::new("Open")).clicked() || (r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)));
-            if go && !cx.view.open_path.trim().is_empty() {
-                cx.out.push(Command::Load { path: cx.view.open_path.trim().to_string() });
-                ui.close();
-            }
-        });
+        let open =
+            widgets::icon_button(ui, Icon::Open, 28.0, false, true, "open a song: a blueprint.json or a script file");
+        egui::Popup::from_toggle_button_response(&open)
+            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+            .show(|ui| {
+                ui.set_min_width(380.0);
+                ui.label(RichText::new("Open a song").strong());
+                ui.label(small("a blueprint.json, a song folder's script, or any claudius script, by its path"));
+                let r = ui.add(
+                    egui::TextEdit::singleline(&mut cx.view.open_path)
+                        .hint_text("out/house-glass-garden-7/blueprint.json")
+                        .desired_width(f32::INFINITY),
+                );
+                let go = ui.add_enabled(!cx.view.open_path.trim().is_empty(), egui::Button::new("Open")).clicked()
+                    || (r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)));
+                if go && !cx.view.open_path.trim().is_empty() {
+                    cx.out.push(Command::Load { path: cx.view.open_path.trim().to_string() });
+                    ui.close();
+                }
+            });
         ui.separator();
         let busy_tip = format!("busy: {}", cx.state.busy.clone().unwrap_or_default());
-        let r = widgets::tool_button(ui, Icon::Render, "Render", has_song, !busy)
-            .on_hover_text(if busy { "render (again) when the current job is done; with stems: one file per track too" } else { "render, mix and master the song, then judge it (the server also renders after every change)" });
+        let r = widgets::tool_button(ui, Icon::Render, "Render", has_song, !busy).on_hover_text(if busy {
+            "render (again) when the current job is done; with stems: one file per track too"
+        } else {
+            "render, mix and master the song, then judge it (claudius also renders after every change)"
+        });
         if r.clicked() {
             cx.out.push(Command::Render { stems: cx.view.stems });
         }
@@ -303,7 +315,10 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
             ui.menu_button(small(format!("{} stems", r.stems.len())), |ui| {
                 ui.label(small(format!("the tracks of render {version}, as 24-bit WAV")));
                 for stem in &r.stems {
-                    let url = cx.server.map_or_else(|| format!("/api/stems/{version}/{stem}.wav"), |base| format!("{base}/api/stems/{version}/{stem}.wav"));
+                    let url = cx.server.map_or_else(
+                        || format!("/api/stems/{version}/{stem}.wav"),
+                        |base| format!("{base}/api/stems/{version}/{stem}.wav"),
+                    );
                     ui.hyperlink_to(stem, url);
                 }
             })
@@ -362,8 +377,10 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
         {
             cx.out.push(Command::Evolve { generations: cx.view.generations, children: cx.view.children });
         }
-        ui.add(egui::DragValue::new(&mut cx.view.generations).range(1..=50).suffix(" gen")).on_hover_text("generations");
-        ui.add(egui::DragValue::new(&mut cx.view.children).range(1..=32).suffix(" kids")).on_hover_text("children per generation");
+        ui.add(egui::DragValue::new(&mut cx.view.generations).range(1..=50).suffix(" gen"))
+            .on_hover_text("generations");
+        ui.add(egui::DragValue::new(&mut cx.view.children).range(1..=32).suffix(" kids"))
+            .on_hover_text("children per generation");
         ui.separator();
         let cmd = widgets::cmd_key(ui.ctx());
         let undo_tip = match &cx.state.undo_label {
@@ -380,7 +397,16 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
         if widgets::icon_button(ui, Icon::Redo, 28.0, false, cx.state.can_redo, &redo_tip).clicked() {
             cx.out.push(Command::Redo);
         }
-        if widgets::icon_button(ui, Icon::Save, 28.0, false, has_song, "save the song in a folder of its own under ~/Music/claudius: blueprint, script, audio, stems and verdict").clicked() {
+        if widgets::icon_button(
+            ui,
+            Icon::Save,
+            28.0,
+            false,
+            has_song,
+            "save the song in a folder of its own under ~/Music/claudius: blueprint, script, audio, stems and verdict",
+        )
+        .clicked()
+        {
             cx.out.push(Command::Save { path: None });
         }
 
@@ -390,7 +416,13 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
                     cx.out.push(Command::Cancel);
                 }
                 if let Some(p) = cx.state.progress {
-                    ui.add(egui::ProgressBar::new(p.clamp(0.0, 1.0)).desired_width(150.0).desired_height(10.0).fill(ACCENT).text(RichText::new(format!("{:.0}%", p * 100.0)).size(10.0)));
+                    ui.add(
+                        egui::ProgressBar::new(p.clamp(0.0, 1.0))
+                            .desired_width(150.0)
+                            .desired_height(10.0)
+                            .fill(ACCENT)
+                            .text(RichText::new(format!("{:.0}%", p * 100.0)).size(10.0)),
+                    );
                 }
                 ui.label(RichText::new(job).color(theme::mix(ACCENT, TEXT, 0.4)));
                 ui.add(egui::Spinner::new().size(16.0).color(ACCENT));
@@ -572,7 +604,7 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
         ui.horizontal(|ui| {
             ui.add(
                 egui::TextEdit::singleline(&mut cx.view.audio_path)
-                    .hint_text("a path on the server's machine: ~/Music/some song.mp3")
+                    .hint_text("the file's path: ~/Music/some song.mp3")
                     .desired_width(360.0),
             );
             let path = cx.view.audio_path.trim().to_string();

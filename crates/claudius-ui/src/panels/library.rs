@@ -112,7 +112,7 @@ fn instruments_by_pack(list: &SoundList) -> Vec<(String, Vec<String>)> {
 
 pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let Some(list) = cx.sounds else {
-        empty(ui, "The server's sound library appears here.");
+        empty(ui, "The sound library appears here once claudius has listed it.");
         return;
     };
     super::missing_packs(ui, cx);
@@ -154,7 +154,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         }
                     }
                     if list.packs.is_empty() {
-                        ui.label(small("no packs: the server lists none"));
+                        ui.label(small("no sample packs installed"));
                     }
                 });
             });
