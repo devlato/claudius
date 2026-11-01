@@ -196,7 +196,8 @@ fn six() -> usize {
 pub struct NewSongArgs {
     /// the genre: house, deep_house, techno, trap, lofi, dnb, future_bass, synthwave, trip_hop, big_beat,
     /// electro_house, nu_disco, filter_house, dance_pop, neo_psychedelia, art_rock, idm or dub_techno (catalog lists
-    /// them with their tempo ranges, and any genres of the person's own)
+    /// them with their tempo ranges, and any genres of the person's own); or two or three fused, such as trip_hop+idm:
+    /// the first leads (tempo, harmony, form, parts, mix), the last plays the drums and lends its sounds
     pub genre: String,
     /// random seed: the same seed and genre give the same song
     #[serde(default)]

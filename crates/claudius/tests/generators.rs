@@ -100,6 +100,17 @@ fn every_genre_writes_what_it_wrote_before() {
 }
 
 #[test]
+fn fusions_write_what_they_wrote_before() {
+    without_installed_packs();
+    for name in ["trip_hop+idm", "nu_disco+filter_house"] {
+        let g = genres::get(name).unwrap();
+        let bp = compose::generate(&g, 7, &Options::default(), None);
+        assert_eq!(bp.genre, name);
+        insta::assert_snapshot!(name.replace('+', "_with_"), summary(&bp));
+    }
+}
+
+#[test]
 fn the_same_seed_gives_the_same_song() {
     without_installed_packs();
     for g in genres::all().unwrap() {

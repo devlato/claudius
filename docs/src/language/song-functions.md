@@ -28,7 +28,9 @@ any machine. The recordings installed (sample packs, Apple Loops) change only wh
 | `samples` | number | 0.75 | chance that each drum lane uses a recorded one-shot from your library instead of synthesis |
 
 The genre is one of `house deep_house techno trap lofi dnb future_bass synthwave trip_hop big_beat electro_house
-nu_disco filter_house dance_pop neo_psychedelia art_rock idm dub_techno`, or one of your own (see
+nu_disco filter_house dance_pop neo_psychedelia art_rock idm dub_techno`, two or three of them fused (`trip_hop+idm`:
+the first leads, the last plays the drums; see [Fusing genres](../learn/producers/genres-and-evolution.md#fusing-genres)),
+or one of your own (see
 [Genres](../learn/producers/genres-and-evolution.md)); case, spaces and hyphens do not matter (`"deep house"`). A
 negative seed acts as 0. `bpm` and `key` change only the tempo and the key: the title, the form, progression `A` and
 the drum patterns are the ones the seed gives without them. A key in another mode than the seed's moves the chords

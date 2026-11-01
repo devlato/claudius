@@ -477,7 +477,7 @@ impl Studio {
                 Step::Pick(want) => crate::pick::choose(ctx, want),
                 Step::Listen(remake) => {
                     let f = &self.view.new_song;
-                    let remake = remake.then(|| (f.genre.clone(), f.seed.trim().parse().ok()));
+                    let remake = remake.then(|| (f.genre_name(), f.seed.trim().parse().ok()));
                     self.view.listen = self.view.audio_file.clone().map(|file| panels::Listen { file, remake });
                 }
                 Step::Exit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),

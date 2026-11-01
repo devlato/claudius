@@ -532,7 +532,9 @@ pub const GENRES: &[Genre] = &[
     },
 ];
 
+/// a genre of the demo's; a fusion plays the genre that leads it
 pub fn genre(name: &str) -> &'static Genre {
+    let name = name.split('+').next().unwrap_or(name).trim();
     GENRES.iter().find(|g| g.name == name).unwrap_or(&GENRES[0])
 }
 
