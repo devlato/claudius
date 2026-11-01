@@ -134,10 +134,12 @@ pub struct Record {
     name: String,
     pub upload: Option<Upload>,
     /// a take is to start now, as the Record button starts one (a scripted run's `rec:start`)
+    #[cfg(not(target_arch = "wasm32"))]
     pub start: bool,
     /// the take is to end now (Space, while it records)
     pub stop: bool,
     /// the latency is to be measured now, as the Measure button measures it (a scripted run's `rec:measure`)
+    #[cfg(not(target_arch = "wasm32"))]
     pub measure: bool,
     /// what to say, and whether it is good news
     status: Option<(bool, String)>,
