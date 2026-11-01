@@ -578,6 +578,24 @@ pub enum Command {
         #[serde(default)]
         bpm: Option<f64>,
     },
+    /// samples a recording's vocals into the song (the auto-sampler): its best sung phrases, cut on its beat grid and
+    /// cleaned of its drums, fitted to the song's tempo and key, placed where they agree with its chords, mixed as
+    /// vocals; claudius keeps the phrases with the song
+    SampleSong {
+        path: String,
+        /// how many phrases, 1 to 4 (2)
+        #[serde(default)]
+        count: Option<u32>,
+        /// how long each is, in bars: 1, 2 or 4 (whichever of 1 and 2 sounds best)
+        #[serde(default)]
+        bars: Option<u32>,
+        /// what to listen for ("a person singing")
+        #[serde(default)]
+        find: Option<String>,
+        /// the sections to put them in, by name or kind (those that suit each phrase)
+        #[serde(default)]
+        sections: Vec<String>,
+    },
     /// a recording (an audio file) as a take: it plays once from the start of section `from`, on through the sections
     /// after it as long as it lasts, at the song's tempo; claudius keeps a copy with the song
     AddTake {

@@ -241,6 +241,7 @@ pub fn generate(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn Li
             slice_beats: 0.5,
             mix,
             from: None,
+            sampled: false,
         });
     };
     let chord_mix =
@@ -423,6 +424,7 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
                     slice_beats: 0.5,
                     mix: spec.mix.clone(),
                     from: None,
+                    sampled: false,
                 });
             }
         }
@@ -514,19 +516,23 @@ pub fn styles_for(role: Role) -> &'static [&'static str] {
     }
 }
 
+/// The semitones that move a recording in `from` (its tonic, and whether it is minor) into `key` by the shortest way:
+/// onto its tonic when both are minor or both major, else onto its relative minor or major.
+pub fn transpose_into(key: &Key, (tonic, minor): (u8, bool)) -> i32 {
+    let target = if minor == key.mode.is_minor() {
+        key.tonic
+    } else if minor {
+        (key.tonic + 9) % 12
+    } else {
+        (key.tonic + 3) % 12
+    };
+    Key::new(target, key.mode).transpose_from(tonic)
+}
+
 /// flip a recording into the song: warped to the tempo, transposed to the key, re-sliced in half-beat pieces (or
 /// played straight), placed in the high-energy sections
 pub fn add_sample(bp: &mut Blueprint, path: &str, bpm: f64, beats: f64, key: Option<(u8, bool)>, rng: &mut Rng) {
-    let transpose = key.map_or(0, |(k, minor)| {
-        let target = if minor == bp.key.mode.is_minor() {
-            bp.key.tonic
-        } else if minor {
-            (bp.key.tonic + 9) % 12
-        } else {
-            (bp.key.tonic + 3) % 12
-        };
-        Key::new(target, bp.key.mode).transpose_from(k)
-    });
+    let transpose = key.map_or(0, |from| transpose_into(&bp.key, from));
     let slices = (beats / 0.5).round().max(1.0) as i32;
     let chop: Vec<i32> = if rng.chance(0.6) && slices >= 4 {
         let motif: Vec<i32> =
@@ -554,6 +560,7 @@ pub fn add_sample(bp: &mut Blueprint, path: &str, bpm: f64, beats: f64, key: Opt
         slice_beats: 0.5,
         mix: TrackMix { duck: 0.4, reverb: 0.15, bus: "music".into(), ..Default::default() },
         from: None,
+        sampled: false,
     });
     for s in bp.form.iter_mut() {
         if matches!(s.kind, SectionKind::Drop | SectionKind::Hook | SectionKind::Groove)

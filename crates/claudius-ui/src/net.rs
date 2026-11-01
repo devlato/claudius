@@ -129,6 +129,9 @@ pub fn command_name(cmd: &Command) -> String {
 /// the genre and seed of a remake)
 fn listen_request(l: &crate::panels::Listen) -> (&'static str, &'static str, String) {
     let name = format!("name={}", query_value(&l.file.name));
+    if l.sample {
+        return ("sample_song", "/api/sample", name);
+    }
     match &l.remake {
         None => ("analyze", "/api/analyze", name),
         Some((genre, seed)) => {
@@ -470,12 +473,19 @@ impl Backend {
         }
     }
 
-    /// Sends a recording chosen on this computer, the file itself, to be listened to or remade (the answer arrives as a
-    /// reply to "analyze" or "remake").
+    /// Sends a recording chosen on this computer, the file itself, to be listened to, remade or sampled (the answer
+    /// arrives as a reply to "analyze", "remake" or "sample_song").
     pub fn listen(&mut self, l: &crate::panels::Listen) {
         let (what, path, query) = listen_request(l);
         match self {
             Backend::Remote(r) => r.listen(l.file.bytes.clone(), path, &query, what),
+            Backend::Mock(m) if l.sample => m.send(Command::SampleSong {
+                path: l.file.name.clone(),
+                count: None,
+                bars: None,
+                find: None,
+                sections: Vec::new(),
+            }),
             // the demo listens to nothing: it makes up an analysis from the file's name, as for a path
             Backend::Mock(m) => match &l.remake {
                 Some((genre, seed)) => m.send(Command::Remake {
@@ -556,13 +566,20 @@ mod tests {
     #[test]
     fn a_recording_to_listen_to_is_named_in_the_query() {
         let file = std::sync::Arc::new(Picked { name: "My Song (live) #2.m4a".into(), bytes: vec![1, 2] });
-        let analyze = listen_request(&Listen { file: file.clone(), remake: None });
+        let analyze = listen_request(&Listen { file: file.clone(), remake: None, sample: false });
         assert_eq!(analyze, ("analyze", "/api/analyze", "name=My%20Song%20%28live%29%20%232.m4a".into()));
-        let remake = listen_request(&Listen { file: file.clone(), remake: Some(("drum_and_bass".into(), Some(42))) });
+        let remake = listen_request(&Listen {
+            file: file.clone(),
+            remake: Some(("drum_and_bass".into(), Some(42))),
+            sample: false,
+        });
         assert_eq!(remake.0, "remake");
         assert_eq!(remake.1, "/api/remake");
         assert!(remake.2.ends_with("&genre=drum_and_bass&seed=42"), "{}", remake.2);
-        let unseeded = listen_request(&Listen { file, remake: Some(("house".into(), None)) });
+        let unseeded =
+            listen_request(&Listen { file: file.clone(), remake: Some(("house".into(), None)), sample: false });
         assert!(unseeded.2.ends_with("&genre=house"), "a random seed is claudius' to pick");
+        let sample = listen_request(&Listen { file, remake: None, sample: true });
+        assert_eq!(sample, ("sample_song", "/api/sample", "name=My%20Song%20%28live%29%20%232.m4a".into()));
     }
 }

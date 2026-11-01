@@ -350,6 +350,28 @@ The analysis is printed first, as `analyze` prints it.
 
 [Apple Loops and your own samples](samples.md#chopping-a-song) shows how to use the chops.
 
+### `claudius sample`
+
+Samples a recording's vocals into a song: its best sung phrases, cut on its beat grid and cleaned of its drums,
+fitted to the song's tempo and key, placed where they agree with its chords and mixed as vocals
+([Sampling a song's vocals](samples.md#sampling-a-songs-vocals)). The song is written to a new folder, with the
+phrases in its `takes/`, and rendered and judged.
+
+```sh
+claudius sample ~/Music/a-cappella.wav --on out/deep_house-velvet-orbit-4 --count 2
+```
+
+| flag | default | what it does |
+|---|---|---|
+| `<file>` | | the recording |
+| `--on` | | the song: a `blueprint.json` or a song folder |
+| `--count` | `2` | how many phrases, 1 to 4 |
+| `--bars` | 1 or 2 | how long each phrase is, in bars: 1, 2 or 4 |
+| `--find <description>` | "a person singing" | what earshot's models listen for |
+| `--in <section>` | the sections that suit each phrase | a section to put them in, by name or kind; repeatable |
+| `--no-ears` | | find the phrases by pitch and stereo picture alone |
+| `-o`, `--out` | `out` | the song goes into `<out>/<genre>-<title>-<seed>/` |
+
 ### `claudius sounds`
 
 Renders every built-in synthesized sound to WAV files, so you can hear them: the 13 drum voices in `drums/`, the 20

@@ -263,6 +263,9 @@ impl Mock {
             Command::Load { path: name } | Command::OpenText { name, .. } => {
                 Err(format!("the demo cannot open files ({name}); start `claudius serve` for that"))
             }
+            Command::SampleSong { .. } => {
+                Err("the demo samples nothing: start `claudius serve` to sample a recording".into())
+            }
             Command::Save { path } => {
                 let title =
                     self.state.song.as_ref().map_or("song".into(), |s| s.title.to_lowercase().replace(' ', "-"));

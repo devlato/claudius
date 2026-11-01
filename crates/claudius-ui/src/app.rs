@@ -193,7 +193,7 @@ impl Studio {
             Event::Reply { what, result } => {
                 self.inflight = self.inflight.saturating_sub(1);
                 let script = what == "run_script";
-                if matches!(what.as_str(), "analyze" | "remake") {
+                if matches!(what.as_str(), "analyze" | "remake" | "sample_song") {
                     self.view.analyzing = false;
                     let (ok, message) = match &result {
                         Ok(r) => (r.ok, r.message.clone()),
@@ -478,7 +478,8 @@ impl Studio {
                 Step::Listen(remake) => {
                     let f = &self.view.new_song;
                     let remake = remake.then(|| (f.genre_name(), f.seed.trim().parse().ok()));
-                    self.view.listen = self.view.audio_file.clone().map(|file| panels::Listen { file, remake });
+                    self.view.listen =
+                        self.view.audio_file.clone().map(|file| panels::Listen { file, remake, sample: false });
                 }
                 Step::Exit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             }

@@ -125,7 +125,7 @@ undoable change. `cancel` sets a flag those two check between candidates and gen
 
 `Settings::file_roots` is the [file policy](../guide/samples.md#what-a-shared-claudius-may-read-and-write): `None`
 for a claudius only you can reach, `config::shared_roots()` plus the `--files` folders for one started with
-`--public`, `--host` beyond loopback, or `--files`. `readable(path)` guards `load`, `analyze`, `remake` and `add_take` with `config::read_error`, which
+`--public`, `--host` beyond loopback, or `--files`. `readable(path)` guards `load`, `analyze`, `remake`, `add_take` and `sample_song` with `config::read_error`, which
 scripts use for `.s(path)` too, so both refuse a path outside the roots with the same words whether or not it
 exists. `config::write_allowed` guards `save` and the folder a take is kept in (`app/takes.rs`), and opening a
 blueprint checks every file it plays. [The security

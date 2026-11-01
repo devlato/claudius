@@ -420,6 +420,26 @@ fn run(cli: Cli) -> Result<()> {
                 print_summary(&bp, &r, &w, &v, t.elapsed().as_secs_f64());
             }
         }
+        Cmd::Sample { file, on, count, bars, find, sections, ears, out } => {
+            let mut bp = song::read_blueprint(&if on.is_dir() { on.join("blueprint.json") } else { on.clone() })?;
+            let x = claudius::audio::load(&file)?;
+            let listening = listen(&ears);
+            let dir = out.join(format!("{}-{}-{}", bp.genre, song::slug(&bp.title), bp.seed));
+            let name =
+                file.file_name().map_or_else(|| file.display().to_string(), |n| n.to_string_lossy().into_owned());
+            let opt = claudius::sampler::Options { count, bars, find, sections };
+            let takes = claudius::take::dir(Some(&dir));
+            let done = claudius::sampler::sample(&mut bp, &x, &name, listening.ears.as_ref(), &opt, &takes)
+                .map_err(anyhow::Error::msg)?;
+            for line in &done.lines {
+                eprintln!("{line}");
+            }
+            let g = genres::get(&bp.genre)?;
+            let t = std::time::Instant::now();
+            let f = |_: &Project, r: &Rendered| listening.report(r, Some(&g), true);
+            let (_, r, w, v) = song::render_and_write(&bp, &dir, false, Some(&f))?;
+            print_summary(&bp, &r, &w, &v, t.elapsed().as_secs_f64());
+        }
         Cmd::Reference => print!("{}", claudius::script::REFERENCE),
         Cmd::Setup { yes, no_packs, no_models, tags } => setup::run(yes, !no_packs, !no_models, tags)?,
         Cmd::Doctor { port } => doctor::run(port, web_dir(std::env::var_os("CLAUDIUS_WEB").map(PathBuf::from))),

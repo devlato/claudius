@@ -634,7 +634,7 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                 .clicked()
             {
                 cx.view.analysis = None;
-                cx.view.listen = file.clone().map(|file| super::Listen { file, remake: None });
+                cx.view.listen = file.clone().map(|file| super::Listen { file, remake: None, sample: false });
             }
             if ui
                 .add_enabled(file.is_some(), egui::Button::new(format!("Remake as {shown}")))
@@ -643,7 +643,20 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
             {
                 cx.view.analysis = None;
                 let remake = Some((f.genre_name(), f.seed.trim().parse().ok()));
-                cx.view.listen = file.map(|file| super::Listen { file, remake });
+                cx.view.listen = file.clone().map(|file| super::Listen { file, remake, sample: false });
+            }
+            let song = cx.state.song.is_some();
+            if ui
+                .add_enabled(file.is_some() && song, egui::Button::new("Sample its vocals into the song"))
+                .on_hover_text(
+                    "the auto-sampler: claudius finds the recording's best sung phrases, cleans them of its drums, \
+                     fits them to the open song's tempo and key, and places them where they agree with its chords",
+                )
+                .on_disabled_hover_text(if song { "choose a recording first" } else { "make or open a song first" })
+                .clicked()
+            {
+                cx.view.analysis = None;
+                cx.view.listen = file.map(|file| super::Listen { file, remake: None, sample: true });
             }
             if cx.view.analyzing {
                 ui.add(egui::Spinner::new().color(ACCENT));

@@ -69,6 +69,7 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
         .route("/api/takes", post(add_take).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/analyze", post(analyze).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/remake", post(remake).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
+        .route("/api/sample", post(sample).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .with_state(ctx);
     let mut r = api.nest_service("/mcp", crate::mcp::http_service(app, o.public));
     r = match &o.web {
@@ -409,6 +410,41 @@ struct ListenQuery {
     seed: Option<u64>,
     #[serde(default)]
     bpm: Option<f64>,
+}
+
+#[derive(Deserialize)]
+struct SampleQuery {
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    count: Option<u32>,
+    #[serde(default)]
+    bars: Option<u32>,
+    #[serde(default)]
+    find: Option<String>,
+    /// sections or kinds, comma-separated
+    #[serde(default)]
+    sections: Option<String>,
+}
+
+/// a recording whose vocals to sample into the song, as the file itself, as `sample_song` samples a path's
+async fn sample(State(c): State<Ctx>, Query(q): Query<SampleQuery>, headers: HeaderMap, body: Bytes) -> Response {
+    if !sent_as_file(&headers) {
+        return (
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            "send the recording as the file itself, with Content-Type audio/mpeg, audio/wav or application/octet-stream",
+        )
+            .into_response();
+    }
+    let app = c.app.clone();
+    let name = q.name.filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "the recording".into());
+    let sections = q.sections.unwrap_or_default().split(',').map(|s| s.trim().to_string()).collect();
+    let opt = crate::app::sampling(q.count, q.bars, q.find, sections);
+    let reply = tokio::task::spawn_blocking(move || app.sample_bytes(body.to_vec(), &name, &opt)).await;
+    match reply {
+        Ok(r) => Json(r).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
 }
 
 /// a recording to listen to, as the file itself: what claudius hears in it, as `analyze` says it of a path

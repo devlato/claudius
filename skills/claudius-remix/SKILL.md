@@ -124,6 +124,20 @@ claudius keeps a copy with the song, in `takes/` in its folder once it is saved.
 take mostly needs its level and a little reverb (`set_mix`). It is the person's own recording, so it may be released
 when they made it.
 
+## Sample a song's vocals
+
+When the person wants a vocal from a recording in their song ("sample the vocals from this", "put that hook in my
+drop"), call `sample_song` with the recording's `path`. claudius finds its best sung phrases, cleans them of its drums,
+fits them to the song's tempo and key, places each where its notes agree with the song's chords (the drops and hooks
+first, then the breaks ...) and mixes them as vocals, `vox1`, `vox2` ...
+
+- **What to ask for.** `count` phrases (2), `bars` long (1, 2 or 4), `sections` to put them in by name or kind
+  ("the break only"), and `find` when the voice is something else ("a rap verse", "a choir").
+- **Afterwards.** Read the reply aloud in musical terms: where each phrase came from in the recording and where it
+  went. Listen, and set its level, reverb and delay with `set_mix` like any track; undo takes the phrases out.
+- **Whose voice it is.** A sample of someone else's recording needs their permission before the song is released:
+  say so when the person samples a song they did not make.
+
 ## Ask the person to record a take
 
 When the song needs something only the person can give it, such as their voice on the hook, a guitar or a melody they

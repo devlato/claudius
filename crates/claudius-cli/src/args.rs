@@ -155,6 +155,31 @@ pub(crate) enum Cmd {
         #[arg(short, long, default_value = "out/chops")]
         out: PathBuf,
     },
+    /// Sample a recording's vocals into a song: its best sung phrases, cut on its beat grid and cleaned of its drums,
+    /// fitted to the song's tempo and key, placed where they agree with its chords, and mixed as vocals
+    Sample {
+        /// the recording to take the phrases from
+        file: PathBuf,
+        /// the song to sample them into (a blueprint.json or a folder written by make / save)
+        #[arg(long)]
+        on: PathBuf,
+        /// how many phrases (1 to 4)
+        #[arg(long, default_value_t = 2)]
+        count: usize,
+        /// how long each phrase is, in bars: 1, 2 or 4 (default: whichever of 1 and 2 sounds best)
+        #[arg(long)]
+        bars: Option<u32>,
+        /// what the ears listen for (default: "a person singing")
+        #[arg(long)]
+        find: Option<String>,
+        /// a section to put the phrases in, by name or kind (repeatable; default: the sections that suit them)
+        #[arg(long = "in")]
+        sections: Vec<String>,
+        #[command(flatten)]
+        ears: EarsArgs,
+        #[arg(short, long, default_value = "out")]
+        out: PathBuf,
+    },
     /// Re-render a blueprint (e.g. one you edited by hand)
     Render {
         blueprint: PathBuf,

@@ -22,6 +22,7 @@ mod release;
 mod takes;
 
 pub use commands::analysis_text;
+pub(crate) use commands::sampling;
 pub use release::{MAX_ARTWORK, report_lines};
 pub use takes::MAX_TAKE;
 
