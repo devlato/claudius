@@ -184,15 +184,21 @@ struct Live {
     midi: bool,
     /// it is a measurement of the latency, not a take
     measuring: bool,
+    /// when it was asked to stop, while the recorder hands over the last of what it heard (in a browser)
+    stopping: Option<f64>,
     /// since when the input has heard nothing at all, and whether for long enough to say so
     silent_since: Option<f64>,
     silent: bool,
 }
 
 impl Record {
-    /// what the window last said of a take or a measurement, or why it cannot hear the input
+    /// what the window last said of a take or a measurement, or why it cannot hear the input; or that it is waiting for
+    /// the last of a take
     #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
     pub fn said(&self) -> String {
+        if self.live.as_ref().is_some_and(|l| l.stopping.is_some()) {
+            return "finishing ...".into();
+        }
         self.deaf_why.clone().or_else(|| self.status.as_ref().map(|(_, s)| s.clone())).unwrap_or_default()
     }
 
@@ -518,13 +524,11 @@ fn what_now(r: &Record) -> (bool, String) {
         if t < live.take_start {
             return (true, format!("count-in: {:.1} s to {from}", live.take_start - t));
         }
+        if live.stopping.is_some() {
+            return (true, "finishing ...".into());
+        }
         if live.silent {
-            return (
-                false,
-                "nothing is coming in: check the input and its channel; on a Mac, allow the microphone for \
-                 Claudius (or your terminal) in System Settings, Privacy & Security, Microphone"
-                    .into(),
-            );
+            return (false, NOTHING_IN.into());
         }
         if live.measuring {
             return (true, format!("listening for the clicks: {:.0} s", (live.song_end + 0.5 - t).max(0.0).ceil()));
@@ -604,6 +608,7 @@ fn begin(cx: &mut Cx, song: &SongView) {
                 beat,
                 midi,
                 measuring: false,
+                stopping: None,
                 silent_since: None,
                 silent: false,
             });
@@ -631,6 +636,7 @@ fn measure_latency(cx: &mut Cx) {
                 beat: 0.5,
                 midi: false,
                 measuring: true,
+                stopping: None,
                 silent_since: None,
                 silent: false,
             });
@@ -667,8 +673,30 @@ fn measured(ms: f32, route: &str) -> String {
     )
 }
 
-/// stops the take and sends it: a recording to keep with the song, or the notes played as a part
+/// what to say when the input hears nothing at all while a take records
+#[cfg(not(target_arch = "wasm32"))]
+const NOTHING_IN: &str = "nothing is coming in: check the input and its channel; on a Mac, allow the microphone for \
+                          Claudius (or your terminal) in System Settings, Privacy & Security, Microphone";
+#[cfg(target_arch = "wasm32")]
+const NOTHING_IN: &str = "nothing is coming in: check the input and its channel, and that the browser may use the \
+                          microphone (the site settings in the address bar); on a Mac, the system has to allow the \
+                          browser too, and Control Center's Mic Mode should be Standard";
+
+/// Stops the take (or the measurement) and sends it: at once in the app; in a browser once the recorder has handed
+/// over the last of what it heard, which `keep_up` waits for.
 pub fn finish(cx: &mut Cx) {
+    let now = cx.now;
+    let Some(live) = cx.view.record.live.as_mut() else { return };
+    live.recorder.stop_soon();
+    if live.recorder.drained() {
+        done(cx);
+    } else {
+        live.stopping.get_or_insert(now);
+    }
+}
+
+/// the take is all in: a recording to keep with the song, or the notes played as a part, on its way to claudius
+fn done(cx: &mut Cx) {
     use crate::audio::record::Take;
     let r = &mut cx.view.record;
     let Some(live) = r.live.take() else { return };
@@ -735,6 +763,15 @@ fn keep_up(ctx: &egui::Context, cx: &mut Cx) {
         return;
     }
     let r = &mut cx.view.record;
+    if let Some(asked) = r.live.as_ref().and_then(|l| l.stopping) {
+        // a second is far longer than the recorder takes to hand over what it held
+        if r.live.as_ref().is_some_and(|l| l.recorder.drained()) || now - asked > 1.0 {
+            done(cx);
+        } else {
+            ctx.request_repaint();
+        }
+        return;
+    }
     let Some(live) = r.live.as_mut() else {
         listen(ctx, r);
         return;

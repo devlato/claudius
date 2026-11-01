@@ -76,12 +76,16 @@ async function claudius() {
   return { base, home, api, stop };
 }
 
-/** what the Record window says, as the plan reports it */
+/** what the Record window says, as the plan reports it, and when (ms since 1970) it said each */
 function said(page) {
   const lines = [];
+  lines.when = {};
   page.on("console", (m) => {
     const t = m.text();
-    if (t.startsWith("record: ")) lines.push(t.slice(8));
+    if (t.startsWith("record: ")) {
+      lines.push(t.slice(8));
+      lines.when[t.slice(8)] ??= Date.now();
+    }
   });
   return lines;
 }
@@ -134,6 +138,12 @@ test.describe("recording in the browser", () => {
       await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
       await expect.poll(() => lines.join("\n"), { timeout: 60_000 }).toMatch(/take1: a take of [\d.]+ bars from the start of intro/);
       expect(lines.join("\n")).not.toMatch(/dropped audio|went silent/);
+      // the recorder hands over the last of what it heard when it is told to stop, long before the window gives up
+      // waiting for it
+      const asked = lines.when["finishing ..."];
+      const sent = lines.find((l) => l.startsWith("sending "));
+      expect(asked, "the take waited for the last of what was heard").toBeTruthy();
+      expect(lines.when[sent] - asked).toBeLessThan(800);
       const state = await (await c.api("/api/state")).json();
       const take = state.song.tracks.find((t) => t.name === "take1");
       expect(take, "the take is a track of the song").toBeTruthy();

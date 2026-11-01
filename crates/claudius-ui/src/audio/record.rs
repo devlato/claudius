@@ -364,6 +364,13 @@ impl Recorder {
         }
     }
 
+    /// what the input captured arrives as it goes: there is nothing to wait for before `finish`
+    pub fn stop_soon(&self) {}
+
+    pub fn drained(&self) -> bool {
+        true
+    }
+
     /// the song is playing: the output has played its first frames
     pub fn playing(&self) -> bool {
         self.shared.heard.lock().is_ok_and(|h| h.best.is_some())

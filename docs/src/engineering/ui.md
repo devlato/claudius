@@ -184,7 +184,8 @@ A MIDI input (midir) records in place of an audio input:
 
 A take that fell silent to the bit for 50 ms or more between sounds (`hushed`) says so with claudius' answer. A
 microphone or a line in always hears some noise, so that is the input muted or gated, as the processing a system does
-to a microphone for calls does. A measurement that fails on such an input says the same.
+to a microphone for calls does. Frames a browser lost, which `Captured` fills with silence, are dropouts, not that. A
+measurement that fails on such an input says the same.
 
 ### In the browser
 
@@ -198,6 +199,8 @@ to a microphone for calls does. A measurement that fails on such an input says t
   gain control off. It goes to an AudioWorklet (`record-worklet.js`, which trunk copies beside the page). The worklet
   hands the page about 43 ms at a time, each chunk stamped with the context frame its first sample reached the
   worklet in. `Captured` puts the chunks together, with silence for frames that went missing, each a dropout.
+  Told to stop, the worklet hands over what it still holds and says it is done; the window waits for that, a second
+  at most, before it cuts the take.
 - **Where the take starts.** It is arithmetic (`take_starts`): when its downbeat was to play, plus what the browser
   reports of the output's latency (`baseLatency`, `outputLatency`) and the input's (the track's `latency`), plus the
   window's Latency.

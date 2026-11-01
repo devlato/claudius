@@ -219,12 +219,21 @@ pub(crate) fn cut(taken: &[f32], channels: usize, rate: f64, at: f64) -> Vec<f32
 /// How often a recording falls silent, to the bit, for 50 ms or more between sounds (interleaved, every channel at 0).
 /// A microphone or a line in always hears some noise, so that is the input muted or gated: by the processing a system
 /// or a browser does to a microphone for calls, say.
+#[cfg(any(not(target_arch = "wasm32"), test))]
 pub(crate) fn hushed(samples: &[f32], channels: usize, rate: f64) -> usize {
+    hushed_but(samples, channels, rate, |_| false)
+}
+
+/// `hushed`, but frame `k` (from the first) is not heard at all when `missing(k)`, as frames a browser lost are not:
+/// silence that runs into them is not counted
+pub(crate) fn hushed_but(samples: &[f32], channels: usize, rate: f64, missing: impl Fn(usize) -> bool) -> usize {
     let ch = channels.max(1);
     let long = (0.05 * rate).ceil() as usize;
     let (mut runs, mut silent, mut heard) = (0, 0usize, false);
-    for frame in samples.chunks_exact(ch) {
-        if frame.iter().all(|s| *s == 0.0) {
+    for (k, frame) in samples.chunks_exact(ch).enumerate() {
+        if missing(k) {
+            (heard, silent) = (false, 0);
+        } else if frame.iter().all(|s| *s == 0.0) {
             silent += 1;
         } else {
             if heard && silent >= long {
@@ -264,8 +273,8 @@ pub(crate) struct Captured {
     first: Option<u64>,
     /// interleaved, from `first` on
     samples: Vec<f32>,
-    /// how many times frames went missing (each filled with silence), and the frames since `first` they went at
-    gaps: Vec<u64>,
+    /// where frames went missing, each filled with silence: frames since `first`, and how many
+    gaps: Vec<(u64, u64)>,
 }
 
 #[cfg(any(target_arch = "wasm32", test))]
@@ -282,7 +291,7 @@ impl Captured {
         let held = self.frames() as u64;
         let Some(at) = frame.checked_sub(first) else { return };
         if at > held {
-            self.gaps.push(held);
+            self.gaps.push((held, at - held));
             self.samples.resize(at as usize * ch, 0.0);
         }
         let whole = samples.len() - samples.len() % ch;
@@ -302,7 +311,24 @@ impl Captured {
 
     /// how many times frames went missing at or after `from` frames in
     pub(crate) fn gaps_from(&self, from: u64) -> usize {
-        self.gaps.iter().filter(|g| **g >= from).count()
+        self.gaps.iter().filter(|(at, _)| *at >= from).count()
+    }
+
+    /// how often what was heard from `from` frames in fell silent (`hushed`), not counting the frames that went missing
+    pub(crate) fn hushed_from(&self, from: u64, rate: f64) -> usize {
+        let start = (from as usize * self.channels).min(self.samples.len());
+        // the frames are asked after in order, and the gaps went in in order: one pass over both
+        let next = std::cell::Cell::new(0);
+        let missing = |k: usize| {
+            let f = from + k as u64;
+            let mut i = next.get();
+            while self.gaps.get(i).is_some_and(|(at, n)| at + n <= f) {
+                i += 1;
+            }
+            next.set(i);
+            self.gaps.get(i).is_some_and(|(at, _)| f >= *at)
+        };
+        hushed_but(&self.samples[start..], self.channels, rate, missing)
     }
 
     pub(crate) fn samples(&self) -> &[f32] {
@@ -477,6 +503,18 @@ mod tests {
         c.add(990, &[9.0, 9.0]);
         assert_eq!(&c.samples()[10..], [6.0, -6.0, 7.0, -7.0]);
         assert_eq!((c.frames(), c.gaps_from(0)), (7, 1));
+        // frames that went missing are not an input gone silent; silence the input gave is
+        let rate = 100.0;
+        let mut q = Captured::new(1);
+        q.add(0, &[0.5; 10]);
+        q.add(30, &[0.5; 10]);
+        assert_eq!((q.gaps_from(0), q.hushed_from(0, rate)), (1, 0), "a gap of 20 frames, 0.2 s, filled");
+        q.add(40, &[[0.0; 10], [0.5; 10]].concat());
+        assert_eq!(q.hushed_from(0, rate), 1, "0.1 s of silence heard");
+        q.add(60, &[0.0; 3]);
+        q.add(70, &[vec![0.0; 4], vec![0.5; 2]].concat());
+        assert_eq!(q.hushed_from(0, rate), 1, "silence that runs into a gap is not counted");
+        assert_eq!(q.hushed_from(45, rate), 0, "nor what was before `from`");
         // an empty chunk changes nothing, and neither does half a frame
         c.add(1007, &[]);
         c.add(1007, &[8.0]);

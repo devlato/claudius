@@ -22,7 +22,7 @@ use web_sys::{
 };
 
 use super::Pcm;
-use super::take::{Captured, cut, heard_at, hushed, interleave, no_input, render_mix, take_starts, wav};
+use super::take::{Captured, cut, heard_at, interleave, no_input, render_mix, take_starts, wav};
 pub use super::take::{Plan, Take};
 
 /// the worklet's script, beside the page (trunk copies it there)
@@ -135,6 +135,9 @@ struct Session {
     node: Option<AudioWorkletNode>,
     player: Option<AudioBufferSourceNode>,
     on_message: Option<Closure<dyn FnMut(MessageEvent)>>,
+    /// the worklet was told to stop, and has handed over all it held since
+    stopping: bool,
+    drained: bool,
     closed: bool,
 }
 
@@ -158,6 +161,8 @@ impl Session {
             node: None,
             player: None,
             on_message: None,
+            stopping: false,
+            drained: false,
             closed: false,
         })))
     }
@@ -170,8 +175,12 @@ impl Session {
         get("baseLatency") + get("outputLatency")
     }
 
-    /// a chunk from the worklet: `{ frame, channels: [Float32Array, ...] }`
+    /// a chunk from the worklet, `{ frame, channels: [Float32Array, ...] }`, or its `{ done: true }` once stopped
     fn take_in(&mut self, data: &JsValue) {
+        if Reflect::get(data, &"done".into()).ok().and_then(|v| v.as_bool()) == Some(true) {
+            self.drained = true;
+            return;
+        }
         let frame = Reflect::get(data, &"frame".into()).ok().and_then(|v| v.as_f64());
         let planes = Reflect::get(data, &"channels".into()).ok().filter(Array::is_array).map(|v| Array::from(&v));
         let (Some(frame), Some(planes)) = (frame, planes) else { return };
@@ -188,6 +197,17 @@ impl Session {
                 let what = format!("{} has {n} input channel{}", self.input, if n == 1 { "" } else { "s" });
                 self.error.get_or_insert(what);
             }
+        }
+    }
+
+    /// asks the worklet for what it still holds; without one, there is nothing to wait for
+    fn stop_soon(&mut self) {
+        if std::mem::replace(&mut self.stopping, true) {
+            return;
+        }
+        match self.node.as_ref().and_then(|n| n.port().ok()) {
+            Some(port) if port.post_message(&"stop".into()).is_ok() => {}
+            _ => self.drained = true,
         }
     }
 
@@ -420,6 +440,16 @@ impl Recorder {
     /// what the input captured arrives by itself, from the worklet
     pub fn tick(&mut self) {}
 
+    /// asks the worklet for the last of what it heard: `finish` and `lateness` wait until it is `drained`
+    pub fn stop_soon(&self) {
+        self.s.borrow_mut().stop_soon();
+    }
+
+    /// the worklet has handed over all it heard (or there was none to ask)
+    pub fn drained(&self) -> bool {
+        self.s.borrow().drained
+    }
+
     /// the song is playing: the browser let the page use the microphone, and the count-in has begun
     pub fn playing(&self) -> bool {
         self.s.borrow().scheduled.is_some()
@@ -443,27 +473,25 @@ impl Recorder {
 
     /// stops, and cuts the take from where the song reached the take's start, as heard, to now
     pub fn finish(self) -> Result<Take, String> {
-        let (samples, channels, rate, dropouts) = self.stop(self.count_in, self.offset)?;
+        let Cut { samples, channels, rate, dropouts, hushed } = self.stop(self.count_in, self.offset)?;
         if samples.is_empty() {
             return Err("the take is empty: it stopped before the count-in was over".into());
         }
         let peak = samples.iter().fold(0f32, |m, s| m.max(s.abs()));
         let secs = samples.len() as f64 / channels as f64 / rate;
-        let hushed = hushed(&samples, channels, rate);
         Ok(Take::Audio { wav: wav(&samples, channels as u16, rate as u32), secs, peak, dropouts, hushed })
     }
 
     /// stops a measurement (`Plan::measure`), and says how late its clicks came back, in seconds: what a take cut the
     /// same way would land late by
     pub fn lateness(self) -> Result<f64, String> {
-        let (samples, channels, rate, _) = self.stop(0.0, 0.0)?;
+        let Cut { samples, channels, rate, hushed, .. } = self.stop(0.0, 0.0)?;
         let first: Vec<f32> = samples.iter().step_by(channels.max(1)).copied().collect();
-        super::latency::lateness(&first, rate)
+        super::latency::lateness_where(&first, rate, hushed)
     }
 
-    /// stops, and gives what the input captured from `lead` into the song as heard (and `offset` more) on: its
-    /// samples, its channels, its rate, and how often frames went missing in it
-    fn stop(&self, lead: f64, offset: f64) -> Result<(Vec<f32>, usize, f64, usize), String> {
+    /// stops, and gives what the input captured from `lead` into the song as heard (and `offset` more) on
+    fn stop(&self, lead: f64, offset: f64) -> Result<Cut, String> {
         let mut s = self.s.borrow_mut();
         let out = s.out_latency();
         s.close();
@@ -477,9 +505,20 @@ impl Recorder {
         let rate = s.ctx.sample_rate() as f64;
         let at = take_starts(scheduled, lead, out, s.input_latency, offset, first as f64 / rate);
         let samples = cut(captured.samples(), s.count, rate, at);
-        let dropouts = captured.gaps_from((at * rate).max(0.0).round() as u64);
-        Ok((samples, s.count, rate, dropouts))
+        let from = (at * rate).max(0.0).round() as u64;
+        let (dropouts, hushed) = (captured.gaps_from(from), captured.hushed_from(from, rate));
+        Ok(Cut { samples, channels: s.count, rate, dropouts, hushed })
     }
+}
+
+/// what the input captured, cut where it starts: its samples (interleaved), its channels and rate, how often frames
+/// went missing in it, and how often it fell silent apart from those (`take::hushed`)
+struct Cut {
+    samples: Vec<f32>,
+    channels: usize,
+    rate: f64,
+    dropouts: usize,
+    hushed: usize,
 }
 
 impl Drop for Recorder {

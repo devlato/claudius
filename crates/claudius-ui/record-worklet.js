@@ -1,6 +1,7 @@
 // claudius' recorder, in the browser's audio thread (`audio/web_record.rs` loads it). It hands the page what its input
 // hears, about 43 ms at a time, with the context frame its first sample reached the worklet in, so that the page can
-// line a take up with what played on the same clock. It plays nothing.
+// line a take up with what played on the same clock. Told "stop", it hands over what it still holds, then says
+// `{ done: true }`. It plays nothing.
 class ClaudiusRecorder extends AudioWorkletProcessor {
   constructor() {
     super();
@@ -10,9 +11,10 @@ class ClaudiusRecorder extends AudioWorkletProcessor {
     this.first = 0;
     this.done = false;
     this.port.onmessage = (e) => {
-      if (e.data === "stop") {
+      if (e.data === "stop" && !this.done) {
         this.flush();
         this.done = true;
+        this.port.postMessage({ done: true });
       }
     };
   }

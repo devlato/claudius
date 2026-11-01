@@ -59,10 +59,15 @@ fn highpass(x: &[f32], rate: f64, hz: f64) -> Vec<f32> {
 /// measurement began as the devices' timestamps tell it. Each click is found where it first arrives (the sound straight
 /// from the speaker, not its echoes), and the answer is the middle of their lateness; or why there is none (an input
 /// that fell silent in places is processed, which no measurement gets through).
+#[cfg(any(not(target_arch = "wasm32"), test))]
 pub fn lateness(heard: &[f32], rate: f64) -> Result<f64, String> {
-    find(heard, rate).map_err(|e| {
-        if super::take::hushed(heard, 1, rate) > 0 { format!("{}: then measure again", super::take::HUSHED) } else { e }
-    })
+    lateness_where(heard, rate, super::take::hushed(heard, 1, rate))
+}
+
+/// `lateness`, told how often the input fell silent (`take::hushed`): when what is heard holds silence that is not the
+/// input's (a browser's lost frames, filled in), the recorder knows better than the samples do
+pub fn lateness_where(heard: &[f32], rate: f64, hushed: usize) -> Result<f64, String> {
+    find(heard, rate).map_err(|e| if hushed > 0 { format!("{}: then measure again", super::take::HUSHED) } else { e })
 }
 
 fn find(heard: &[f32], rate: f64) -> Result<f64, String> {
