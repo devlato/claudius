@@ -132,6 +132,14 @@ take's name and `sounds`, the synth presets or installed instruments to play it 
 - **The notes.** claudius puts them in the song's key and on its sixteenth-note grid. `chromatic: true` keeps notes
   outside the key, for a melody that leaves it on purpose.
 - **The take goes quiet** unless `keep_take`, since the parts now play it.
+- **A style** makes the line something else, in the song's key:
+  - `harmony` adds a third above it, and `octaves` doubles it an octave down;
+  - `chords` puts a triad under each note;
+  - `bass` moves it down into a bass's register;
+  - `arp` breaks each note into a rising arpeggio, and `pad` holds a chord through each bar the line sounds in.
+
+  When the person says "make my melody the bass line" or "put chords under it", that's the style. The part gets the
+  role that goes with it.
 
 It hears one note at a time: chords, a strummed guitar or a mix give no melody. Afterwards the parts are ordinary
 parts: change their sound with `set_part`, their level with `set_mix`. Say what came out ("12 notes from G3 to D5,

@@ -37,6 +37,8 @@ pub struct Settings {
     pub part_role: String,
     /// the grid a MIDI take's notes go to, in beats (0: as played)
     pub grid: f64,
+    /// what a MIDI take's notes become (`claudius_api::NOTE_STYLES`)
+    pub style: String,
 }
 
 impl Default for Settings {
@@ -53,6 +55,7 @@ impl Default for Settings {
             sound: "epiano".into(),
             part_role: "keys".into(),
             grid: 0.25,
+            style: "line".into(),
         }
     }
 }
@@ -297,6 +300,19 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
                             }
                         },
                     );
+                    egui::ComboBox::from_id_salt("record-style")
+                        .selected_text(format!("as {}", r.settings.style))
+                        .show_ui(ui, |ui| {
+                            for s in claudius_api::NOTE_STYLES {
+                                ui.selectable_value(&mut r.settings.style, s.to_string(), *s);
+                            }
+                        })
+                        .response
+                        .on_hover_text(
+                            "line plays the notes as played; harmony adds a third above, octaves doubles them \
+                             below; chords puts a triad under each note, bass moves them down, arp breaks each into \
+                             a rising arpeggio, pad holds a chord a bar",
+                        );
                 } else {
                     egui::ComboBox::from_id_salt("record-role")
                         .selected_text(&r.settings.role)
@@ -555,6 +571,7 @@ pub fn finish(cx: &mut Cx) {
                 sounds: vec![r.settings.sound.clone()],
                 name,
                 role: Some(r.settings.part_role.clone()),
+                style: Some(r.settings.style.clone()),
             });
         }
         Err(e) => r.status = Some((false, e)),

@@ -35,8 +35,8 @@ song, so a seed is a way to come back to one you liked. **Open** loads a song fo
 - **Arrangement.** The sections of the song from left to right (intro, build, drop and so on), and below them one row
   per track. Click a cell, or drag across cells, to switch a track on or off in those sections. Drag a section to
   move it; right-click it to duplicate, insert or remove one. Right-click a [take](../guide/samples.md#takes)'s row
-  to turn the melody you sang into notes an instrument plays. The waveform of the latest render is underneath; click
-  it to jump.
+  to turn the melody you sang into notes an instrument plays, as you sang it or as harmony, octaves, chords, a bass
+  line, an arpeggio or a pad. The waveform of the latest render is underneath; click it to jump.
 - **Section.** The selected section's length, energy, drum variant, which chord progression it plays, and the
   switches for a build, a gap before the next section, an impact, drum fills, and a filter that opens over the
   section.
@@ -70,7 +70,8 @@ an audio interface, in the studio app.
 - **Timing.** If takes land late or early, use the Latency setting. Bluetooth headphones, for one, add a delay the
   system may not report.
 - **A MIDI keyboard.** Choose it as the input, then what plays your notes (an instrument or a synth), the part they make
-  (keys, a lead, chords, a pad, an arp or a bass) and the grid they go to, or "as played". While you record, a soft
+  (keys, a lead, chords, a pad, an arp or a bass), the grid they go to (or "as played") and a style, as for a take's
+  melody. While you record, a soft
   guide tone plays what you play, for a keyboard with no sound of its own. When you stop, the notes become a new part
   ([Notes played on a keyboard](../guide/samples.md#notes-played-on-a-keyboard)).
 

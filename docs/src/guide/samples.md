@@ -153,6 +153,20 @@ afterwards, whose sound, level and sections you change as you would any other's.
 - **The notes follow the sections.** Each section the take covers keeps the stretch of melody sung over it, by its
   progression. Another section with that progression plays the same notes, and a section the part is turned on in
   later, which the take never covered, has the part write its own.
+- **A style.** `style` turns the line into something else, in the song's key, and gives the part the role that goes
+  with it unless you give one:
+
+  | style | what plays | the part |
+  |---|---|---|
+  | `line` (the default) | the line as sung | a lead |
+  | `harmony` | the line, and a third above each note | a lead |
+  | `octaves` | the line, doubled an octave down | a lead |
+  | `chords` | a triad under each note, the note on top | chords |
+  | `bass` | the line, moved by octaves into a bass's register | a bass |
+  | `arp` | each note broken into a rising arpeggio of sixteenths | an arp |
+  | `pad` | a chord held through each bar the line sounds in, on the note heard as the bar begins | a pad |
+
+  In the studio, the take's menu lets you pick one before the sound.
 
 ### Notes played on a keyboard
 
@@ -161,7 +175,7 @@ all, becomes a new part named `played`, which the instrument or synth you choose
 you choose, or stay as played. Over the [HTTP API](http-api.md#commands) and MCP, `add_notes` does the same with
 notes given one by one: `t` and `d` in beats from the start of section `from`, `p` a MIDI pitch (60 is middle C) and
 `v` a velocity from 0 to 1. Like a take's melody, the notes go into the sections they reach, by each section's
-progression.
+progression, and a `style` makes them harmony, octaves, chords, a bass line, an arpeggio or a pad, as above.
 
 ## Files in scripts
 

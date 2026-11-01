@@ -368,6 +368,11 @@ pub struct NotesArgs {
     /// lead (default), keys, chords, pad, arp or bass
     #[serde(default)]
     pub role: Option<String>,
+    /// what the notes become: line (as they are, the default), harmony (a third above), octaves (doubled below),
+    /// chords (a triad under each note), bass (down in a bass's register), arp (each note broken into a rising
+    /// arpeggio) or pad (a chord held through each bar the line sounds in)
+    #[serde(default)]
+    pub style: Option<String>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -388,6 +393,9 @@ pub struct TranscribeArgs {
     /// let the take go on playing beside the new parts (default: it is muted)
     #[serde(default)]
     pub keep_take: bool,
+    /// what the melody becomes: line (as sung, the default), harmony, octaves, chords, bass, arp or pad (as add_notes)
+    #[serde(default)]
+    pub style: Option<String>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -713,7 +721,8 @@ impl Studio {
     async fn add_notes(&self, Parameters(a): Parameters<NotesArgs>) -> Result<String, String> {
         let notes =
             a.notes.iter().map(|n| claudius_api::NoteView { t: n.t, d: n.d, p: n.p, v: n.v.unwrap_or(0.8) }).collect();
-        self.edit(Command::AddNotes { from: a.from, notes, sounds: a.sounds, name: a.name, role: a.role }, true).await
+        let c = Command::AddNotes { from: a.from, notes, sounds: a.sounds, name: a.name, role: a.role, style: a.style };
+        self.edit(c, true).await
     }
 
     #[tool(
@@ -727,12 +736,13 @@ impl Studio {
             role: a.role,
             chromatic: a.chromatic,
             keep_take: a.keep_take,
+            style: a.style,
         };
         self.edit(c, true).await
     }
 
     #[tool(
-        description = "Send one raw claudius API command (JSON tagged by \"cmd\"), for edits scripts do not cover: add_section {after, kind, bars}, remove_section {index}, move_section {from, to}, toggle_layer {section, layer}, set_drum_step {lane, variant, step, velocity}, set_section {index, name?, bars?, energy?, layers?, prog?, variant?, build?, gap?, impact?, fills?, filter_in?}, set_part {name, style?, preset?, register?, density?, reseed?}, set_mix {track, level_db?, pan?, reverb?, delay?, duck?, muted?, solo?}, add_take {path, from, name?, role?}, transcribe_take {take, sounds, name?, role?, chromatic?, keep_take?}, add_notes {from, notes: [{t, d, p, v}], sounds, name?, role?}."
+        description = "Send one raw claudius API command (JSON tagged by \"cmd\"), for edits scripts do not cover: add_section {after, kind, bars}, remove_section {index}, move_section {from, to}, toggle_layer {section, layer}, set_drum_step {lane, variant, step, velocity}, set_section {index, name?, bars?, energy?, layers?, prog?, variant?, build?, gap?, impact?, fills?, filter_in?}, set_part {name, style?, preset?, register?, density?, reseed?}, set_mix {track, level_db?, pan?, reverb?, delay?, duck?, muted?, solo?}, add_take {path, from, name?, role?}, transcribe_take {take, sounds, name?, role?, chromatic?, keep_take?, style?}, add_notes {from, notes: [{t, d, p, v}], sounds, name?, role?, style?}."
     )]
     async fn command(&self, Parameters(a): Parameters<CommandArgs>) -> Result<String, String> {
         let c: Command = serde_json::from_value(a.command).map_err(|e| format!("not a claudius command: {e}"))?;

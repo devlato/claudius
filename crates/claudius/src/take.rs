@@ -124,6 +124,76 @@ pub struct Melody {
     pub chromatic: bool,
     /// the take goes on playing beside its parts, instead of going quiet
     pub keep_take: bool,
+    /// what the line becomes: one of `STYLES` (line, the default, plays it as it is)
+    pub style: Option<String>,
+}
+
+/// what notes sung or played can become, all in the song's key: the line as it is, the line with a third above it, the
+/// line doubled an octave down, a triad under each note, the line down in a bass's register, each note broken into a
+/// rising arpeggio, or a chord held through each bar the line sounds in
+pub const STYLES: &[&str] = &["line", "harmony", "octaves", "chords", "bass", "arp", "pad"];
+
+/// the notes restyled, and the part's role the style asks for (none: the caller's, or a lead)
+fn styled(notes: Vec<Note>, style: &str, key: &crate::theory::scale::Key) -> Result<(Vec<Note>, Option<Role>), String> {
+    let with = |extra: &dyn Fn(&Note) -> Vec<Note>| -> Vec<Note> {
+        let mut out: Vec<Note> = notes.iter().flat_map(|n| std::iter::once(*n).chain(extra(n))).collect();
+        out.sort_by(|a, b| a.t.total_cmp(&b.t).then(a.p.cmp(&b.p)));
+        out
+    };
+    Ok(match style {
+        "line" => (notes, None),
+        "harmony" => (with(&|n| vec![Note { p: key.step(n.p, 2), v: n.v * 0.85, ..*n }]), None),
+        "octaves" => (with(&|n| vec![Note { p: n.p - 12, ..*n }]), None),
+        "chords" => {
+            let under = |n: &Note| vec![Note { p: key.step(n.p, -2), ..*n }, Note { p: key.step(n.p, -4), ..*n }];
+            (with(&under), Some(Role::Chords))
+        }
+        "bass" => {
+            let mut pitches: Vec<i32> = notes.iter().map(|n| n.p).collect();
+            pitches.sort_unstable();
+            let middle = pitches.get(pitches.len() / 2).copied().unwrap_or(48);
+            let shift = 12 * ((42 - middle) as f64 / 12.0).round() as i32;
+            (notes.iter().map(|n| Note { p: n.p + shift, ..*n }).collect(), Some(Role::Bass))
+        }
+        "arp" => {
+            let mut out = Vec::new();
+            for n in &notes {
+                let tones = [n.p, key.step(n.p, 2), key.step(n.p, 4), key.step(n.p, 7)];
+                let steps = (n.d / 0.25).ceil().max(1.0) as usize;
+                for k in 0..steps {
+                    let t = n.t + k as f64 * 0.25;
+                    out.push(Note { t, d: 0.25f64.min(n.t + n.d - t), p: tones[k % 4], v: n.v });
+                }
+            }
+            (out, Some(Role::Arp))
+        }
+        "pad" => {
+            // a chord through every bar the line sounds in, on the note heard most of the bar's first beat, else on
+            // the first to start in the bar: a note held over several bars keeps its chord in each
+            let heard = |n: &Note, bar: f64| (n.t + n.d).min(bar + 1.0) - n.t.max(bar);
+            let end = notes.iter().map(|n| n.t + n.d).fold(f64::NEG_INFINITY, f64::max);
+            let mut bar = (notes.iter().map(|n| n.t).fold(f64::INFINITY, f64::min) / 4.0).floor() * 4.0;
+            let mut out = Vec::new();
+            while bar < end - 1e-9 {
+                let on = notes
+                    .iter()
+                    .filter(|n| heard(n, bar) > 1e-9)
+                    .max_by(|a, b| heard(a, bar).total_cmp(&heard(b, bar)).then(a.t.total_cmp(&b.t)))
+                    .or_else(|| {
+                        notes.iter().filter(|n| n.t >= bar && n.t < bar + 4.0).min_by(|a, b| a.t.total_cmp(&b.t))
+                    });
+                if let Some(n) = on {
+                    let root = n.p - 12;
+                    for p in [root, key.step(root, 2), key.step(root, 4)] {
+                        out.push(Note { t: bar, d: 4.0, p, v: 0.6 });
+                    }
+                }
+                bar += 4.0;
+            }
+            (out, Some(Role::Pad))
+        }
+        other => return Err(format!("a style is one of {}, not '{other}'", STYLES.join(" "))),
+    })
 }
 
 /// Turns the melody of take `take` (sung, hummed, whistled or played one note at a time) into the notes of new
@@ -138,7 +208,11 @@ pub fn melody(bp: &mut Blueprint, take: &str, m: &Melody) -> Result<String, Stri
             format!("no take called '{take}' (takes: {})", names.join(" "))
         });
     };
-    let role = role_of(m.role.as_deref())?;
+    let asked = m.role.as_deref().map(|r| role_of(Some(r))).transpose()?;
+    let style = m.style.as_deref().unwrap_or("line");
+    if !STYLES.contains(&style) {
+        return Err(format!("a style is one of {}, not '{style}'", STYLES.join(" ")));
+    }
     check_sounds(&m.sounds)?;
     let (path, bpm) = match &bp.loops[t].sound {
         Sound::Loop { path, bpm, .. } => (path.clone(), *bpm),
@@ -159,13 +233,16 @@ pub fn melody(bp: &mut Blueprint, take: &str, m: &Melody) -> Result<String, Stri
     let first =
         bp.form.iter().position(|s| s.name == from).or_else(|| bp.form.iter().position(|s| s.layers.contains(&name)));
     let Some(first) = first else { return Err(format!("{take} plays in no section")) };
+    let (notes, implied) = styled(notes, style, &bp.key)?;
+    let role = asked.or(implied).unwrap_or(Role::Lead);
     let base = m.name.clone().unwrap_or_else(|| "melody".into());
     let made = parts_from_notes(bp, &notes, first, &|s| s.layers.contains(&name), &m.sounds, &base, role)?;
     if !m.keep_take {
         bp.loops[t].mix.mute = true;
     }
-    bp.lineage.push(format!("{take} into notes: {} notes for {}", notes.len(), made.parts.join(", ")));
-    Ok(format!("{}{}", made.describe(take), if m.keep_take { "" } else { "; the take is muted" }))
+    let source = if style == "line" { take.to_string() } else { format!("{take} as {style}") };
+    bp.lineage.push(format!("{source} into notes: {} notes for {}", notes.len(), made.parts.join(", ")));
+    Ok(format!("{}{}", made.describe(&source), if m.keep_take { "" } else { "; the take is muted" }))
 }
 
 /// what notes played on an instrument become
@@ -177,12 +254,15 @@ pub struct Played {
     pub name: Option<String>,
     /// lead (the default), keys, chords, pad, arp or bass
     pub role: Option<String>,
+    /// what the notes become: one of `STYLES` (line, the default, plays them as they are)
+    pub style: Option<String>,
 }
 
 /// Notes someone played (on a MIDI keyboard, say), in beats from the start of section `from`, chords and all, as new
 /// parts, one for each sound, in the sections they reach. Returns what was made, in words.
 pub fn played(bp: &mut Blueprint, from: &str, notes: &[Note], p: &Played) -> Result<String, String> {
-    let role = role_of(p.role.as_deref())?;
+    let asked = p.role.as_deref().map(|r| role_of(Some(r))).transpose()?;
+    let style = p.style.as_deref().unwrap_or("line");
     check_sounds(&p.sounds)?;
     let Some(first) = bp.form.iter().position(|s| s.name == from) else {
         let names: Vec<&str> = bp.form.iter().map(|s| s.name.as_str()).collect();
@@ -196,10 +276,14 @@ pub fn played(bp: &mut Blueprint, from: &str, notes: &[Note], p: &Played) -> Res
             "a note has to be a MIDI pitch from 0 to 127 played from the section's start on, not {n:?}"
         ));
     }
+    let (notes, implied) = styled(notes.to_vec(), style, &bp.key)?;
+    let role = asked.or(implied).unwrap_or(Role::Lead);
     let base = p.name.clone().unwrap_or_else(|| "played".into());
-    let made = parts_from_notes(bp, notes, first, &|_| true, &p.sounds, &base, role)?;
+    let made = parts_from_notes(bp, &notes, first, &|_| true, &p.sounds, &base, role)?;
     bp.lineage.push(format!("played {} notes from {from} for {}", notes.len(), made.parts.join(", ")));
-    Ok(made.describe(&format!("the start of {from}")))
+    let source =
+        if style == "line" { format!("the start of {from}") } else { format!("the start of {from} as {style}") };
+    Ok(made.describe(&source))
 }
 
 /// parts made from notes, and what to say of them
@@ -604,6 +688,63 @@ mod tests {
         add(&mut bp, &quiet, 1.0, &from, Some("hush"), None).unwrap();
         assert!(melody(&mut bp, "hush", &pluck).unwrap_err().contains("no melody"));
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_line_becomes_a_style_in_the_key() {
+        use crate::theory::scale::{Key, Mode};
+        let key = Key::new(0, Mode::Major);
+        // C4, E4 and G4, a beat, a beat and two
+        let line = vec![
+            Note { t: 0.0, d: 1.0, p: 60, v: 1.0 },
+            Note { t: 1.0, d: 1.0, p: 64, v: 1.0 },
+            Note { t: 2.0, d: 2.0, p: 67, v: 1.0 },
+        ];
+        let pitches = |style: &str| -> (Vec<(f64, i32)>, Option<Role>) {
+            let (notes, role) = styled(line.clone(), style, &key).unwrap();
+            (notes.iter().map(|n| (n.t, n.p)).collect(), role)
+        };
+        assert_eq!(pitches("line"), (vec![(0.0, 60), (1.0, 64), (2.0, 67)], None));
+        assert_eq!(
+            pitches("harmony").0,
+            [(0.0, 60), (0.0, 64), (1.0, 64), (1.0, 67), (2.0, 67), (2.0, 71)],
+            "a third above"
+        );
+        assert_eq!(pitches("octaves").0, [(0.0, 48), (0.0, 60), (1.0, 52), (1.0, 64), (2.0, 55), (2.0, 67)]);
+        // F major under C, A minor under E, C major under G
+        let (chords, role) = pitches("chords");
+        assert_eq!(
+            chords,
+            [(0.0, 53), (0.0, 57), (0.0, 60), (1.0, 57), (1.0, 60), (1.0, 64), (2.0, 60), (2.0, 64), (2.0, 67)]
+        );
+        assert_eq!(role, Some(Role::Chords));
+        assert_eq!(pitches("bass"), (vec![(0.0, 36), (1.0, 40), (2.0, 43)], Some(Role::Bass)), "two octaves down");
+        let (arp, role) = pitches("arp");
+        assert_eq!(&arp[..4], [(0.0, 60), (0.25, 64), (0.5, 67), (0.75, 72)], "C broken upwards in sixteenths");
+        assert_eq!((arp.len(), role), (16, Some(Role::Arp)));
+        assert_eq!(
+            pitches("pad"),
+            (vec![(0.0, 48), (0.0, 52), (0.0, 55)], Some(Role::Pad)),
+            "C major held over the bar"
+        );
+        // C held over three bars keeps its chord in each, a bar of rest has none, and G heard for a sliver of the
+        // sixth bar gives way to the E that sings most of its first beat
+        let held = vec![
+            Note { t: 0.0, d: 12.0, p: 60, v: 1.0 },
+            Note { t: 16.0, d: 4.1, p: 67, v: 1.0 },
+            Note { t: 20.25, d: 2.0, p: 64, v: 1.0 },
+        ];
+        let pad: Vec<(f64, i32)> = styled(held, "pad", &key).unwrap().0.iter().map(|n| (n.t, n.p)).collect();
+        let triad = |t: f64, ps: [i32; 3]| ps.map(|p| (t, p));
+        let bars = [
+            triad(0.0, [48, 52, 55]),
+            triad(4.0, [48, 52, 55]),
+            triad(8.0, [48, 52, 55]),
+            triad(16.0, [55, 59, 62]),
+            triad(20.0, [52, 55, 59]),
+        ];
+        assert_eq!(pad, bars.concat());
+        assert!(styled(line, "polka", &key).unwrap_err().contains("not 'polka'"));
     }
 
     #[test]

@@ -160,8 +160,8 @@ says the job is still running; `status` follows it from there.
 | `analyze` | `path` (required) | tempo, key, progressions, sections, drum grid and bass style of an audio file |
 | `remake` | `path` (required), `genre`, `seed`, `bpm` | a new song on the skeleton of an audio file, in a genre's sounds, at a tempo the genre plays |
 | `add_take` | `path`, `from` (required), `name`, `role` | adds a recording as a [take](samples.md#takes) that plays once from the start of section `from`, and listens |
-| `transcribe_take` | `take`, `sounds` (required), `name`, `role`, `chromatic`, `keep_take` | turns a take's melody into the notes of a new part for each sound ([how](samples.md#turning-a-take-into-notes)), and listens |
-| `add_notes` | `from`, `notes` (`[{t, d, p, v}]`), `sounds` (required), `name`, `role` | writes [notes](samples.md#notes-played-on-a-keyboard), a melody, a bass line or chords, into a new part for each sound, and listens |
+| `transcribe_take` | `take`, `sounds` (required), `name`, `role`, `chromatic`, `keep_take`, `style` | turns a take's melody into the notes of a new part for each sound, as it was sung or in a [style](samples.md#turning-a-take-into-notes), and listens |
+| `add_notes` | `from`, `notes` (`[{t, d, p, v}]`), `sounds` (required), `name`, `role`, `style` | writes [notes](samples.md#notes-played-on-a-keyboard), a melody, a bass line or chords, into a new part for each sound, and listens |
 | `command` | `command` (required, an object), `listen` (true) | sends one raw [API command](http-api.md#commands) |
 
 Details that matter when you read an assistant's transcript:
