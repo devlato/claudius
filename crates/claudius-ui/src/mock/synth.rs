@@ -102,10 +102,11 @@ fn target_level(role: &str) -> f32 {
 fn master_level(genre: &str) -> f32 {
     match genre {
         "lofi" => -12.5,
-        "deep_house" => -11.0,
+        "deep_house" | "trip_hop" => -11.0,
         "synthwave" => -10.5,
-        "trap" | "techno" | "future_bass" => -9.0,
-        "dnb" => -8.5,
+        "trap" | "techno" | "future_bass" | "filter_house" => -9.0,
+        "dnb" | "big_beat" => -8.5,
+        "electro_house" => -8.0,
         _ => -10.0,
     }
 }
@@ -138,7 +139,7 @@ impl KWeight {
 /// the drum machine a genre plays: the 707's house and techno, the 808's trap, lo-fi and future bass
 fn machine(genre: &str) -> &'static str {
     match genre {
-        "trap" | "lofi" | "future_bass" => "808",
+        "trap" | "lofi" | "future_bass" | "trip_hop" => "808",
         _ => "707",
     }
 }

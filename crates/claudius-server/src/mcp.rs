@@ -178,8 +178,9 @@ fn six() -> usize {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct NewSongArgs {
-    /// the genre: house, deep_house, techno, trap, lofi, dnb, future_bass or synthwave (catalog lists them with their
-    /// tempo ranges, and any genres of the person's own)
+    /// the genre: house, deep_house, techno, trap, lofi, dnb, future_bass, synthwave, trip_hop, big_beat,
+    /// electro_house, nu_disco or filter_house (catalog lists them with their tempo ranges, and any genres of the
+    /// person's own)
     pub genre: String,
     /// random seed: the same seed and genre give the same song
     #[serde(default)]
