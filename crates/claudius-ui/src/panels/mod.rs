@@ -65,6 +65,8 @@ pub enum Action {
 pub struct Listen {
     pub file: std::sync::Arc<crate::pick::Picked>,
     pub remake: Option<(String, Option<u64>)>,
+    /// its vocals are to be sampled into the open song instead (the auto-sampler)
+    pub sample: bool,
 }
 
 /// what the studio knows about its connection

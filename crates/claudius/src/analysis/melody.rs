@@ -44,6 +44,12 @@ pub fn transcribe(x: &Stereo, key: &Key, o: &Options) -> Vec<Note> {
     to_grid(&raw, key, o)
 }
 
+/// the pitch of every 10 ms of `x`, as a fractional MIDI note, or none where nothing holds one (for the sampler, which
+/// looks for what is sung)
+pub fn pitches(x: &Stereo) -> Vec<Option<f32>> {
+    frames(&decimate(x)).iter().map(|f| f.pitch).collect()
+}
+
 /// mono, low-passed twice at 3 kHz and decimated from 48 kHz to 8 kHz
 fn decimate(x: &Stereo) -> Vec<f32> {
     let step = (SRF / RATE).round() as usize;

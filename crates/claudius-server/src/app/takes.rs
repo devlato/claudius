@@ -59,6 +59,28 @@ impl App {
         }
     }
 
+    /// a recording sent as a file's bytes, its vocals sampled into the song, as `sample_song` samples a path's
+    pub fn sample_bytes(self: &Arc<Self>, bytes: Vec<u8>, name: &str, opt: &claudius::sampler::Options) -> Reply {
+        match self.decode(bytes, name) {
+            Ok(x) => self.sample_audio(&x, name, opt),
+            Err(e) => no(e, self.version()),
+        }
+    }
+
+    /// the vocals of recording `x`, called `name`, sampled into the song: the phrases kept with its takes
+    pub(super) fn sample_audio(self: &Arc<Self>, x: &Stereo, name: &str, opt: &claudius::sampler::Options) -> Reply {
+        let v = self.version();
+        if self.blueprint().is_none() {
+            return no("no song yet: start one with new_song, then sample a recording into it", v);
+        }
+        let dir = take::dir(self.lock().folder.as_deref());
+        if !config::write_allowed(&dir, self.roots.as_deref()) {
+            return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
+        }
+        let ears = self.ears.get().and_then(|e| e.as_ref());
+        self.edit_with(|bp| claudius::sampler::sample(bp, x, name, ears, opt, &dir).map(|s| s.lines.join("\n")))
+    }
+
     /// a recording's bytes decoded: the format its name's extension says, else the one its first bytes show
     fn decode(&self, bytes: Vec<u8>, name: &str) -> Result<Stereo, String> {
         let named = Path::new(name).extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase);

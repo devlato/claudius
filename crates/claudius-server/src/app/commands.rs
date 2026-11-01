@@ -17,6 +17,21 @@ use claudius_api::*;
 use super::{App, no, now_seed, ok};
 use crate::views;
 
+/// what to sample, from what a command or a query says
+pub(crate) fn sampling(
+    count: Option<u32>,
+    bars: Option<u32>,
+    find: Option<String>,
+    sections: Vec<String>,
+) -> claudius::sampler::Options {
+    claudius::sampler::Options {
+        count: count.map_or(2, |c| c as usize),
+        bars,
+        find: find.filter(|f| !f.trim().is_empty()),
+        sections: sections.into_iter().filter(|s| !s.trim().is_empty()).collect(),
+    }
+}
+
 /// the parts notes played on a keyboard can make, as a take asked for may be
 const PART_ROLES: &[&str] = &["keys", "lead", "chords", "pad", "arp", "bass"];
 
@@ -388,6 +403,20 @@ impl App {
                 }
                 match audio::load(Path::new(&path)) {
                     Ok(x) => self.remake_audio(&x, &path, genre, seed, bpm),
+                    Err(e) => no(format!("cannot read {path}: {e}"), v),
+                }
+            }
+            Command::SampleSong { path, count, bars, find, sections } => {
+                let opt = sampling(count, bars, find, sections);
+                if let Err(e) = self.readable(Path::new(&path)) {
+                    return no(e, v);
+                }
+                match audio::load(Path::new(&path)) {
+                    Ok(x) => {
+                        let name =
+                            Path::new(&path).file_name().map_or(path.clone(), |n| n.to_string_lossy().into_owned());
+                        self.sample_audio(&x, &name, &opt)
+                    }
                     Err(e) => no(format!("cannot read {path}: {e}"), v),
                 }
             }

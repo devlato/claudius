@@ -360,6 +360,24 @@ pub struct TakeArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct SampleArgs {
+    /// the recording to sample: an audio file (WAV, FLAC, MP3, AAC, Ogg, AIFF)
+    pub path: String,
+    /// how many phrases, 1 to 4 (default 2)
+    #[serde(default)]
+    pub count: Option<u32>,
+    /// how long each phrase is, in bars: 1, 2 or 4 (default: whichever of 1 and 2 sounds best)
+    #[serde(default)]
+    pub bars: Option<u32>,
+    /// what to listen for (default "a person singing"; "a rap verse", "a choir" ...)
+    #[serde(default)]
+    pub find: Option<String>,
+    /// the sections to put the phrases in, by name or kind (default: those that suit each phrase)
+    #[serde(default)]
+    pub sections: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct RequestTakeArgs {
     /// the section the take starts with, by name (get_song lists them)
     pub from: String,
@@ -756,6 +774,14 @@ impl Studio {
     )]
     async fn add_take(&self, Parameters(a): Parameters<TakeArgs>) -> Result<String, String> {
         self.edit(Command::AddTake { path: a.path, from: a.from, name: a.name, role: a.role }, true).await
+    }
+
+    #[tool(
+        description = "Sample a recording's vocals into the song: claudius finds the phrases of the recording that most sound like a voice singing (or `find`), cuts them on the recording's beat grid, cleans them of its drums and of what plays to the sides, fits them to the song's tempo and key, places each in the sections that suit it (the drops and hooks, then the breaks ...) from the bar where its notes agree best with the song's chords, every so many bars, and mixes them as vocals (vox1, vox2 ...; a lead playing with them steps back 1.5 dB). Says where each phrase came from and went, then listens. The phrases are kept with the song; undo takes them out."
+    )]
+    async fn sample_song(&self, Parameters(a): Parameters<SampleArgs>) -> Result<String, String> {
+        let c = Command::SampleSong { path: a.path, count: a.count, bars: a.bars, find: a.find, sections: a.sections };
+        self.edit(c, true).await
     }
 
     #[tool(
