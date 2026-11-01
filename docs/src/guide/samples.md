@@ -118,8 +118,10 @@ To write a whole new song on another song's skeleton instead, use `claudius rema
 A take is a recording made for the song: a vocal, a guitar, a melody sung into a microphone. A loop starts over in
 every section it is in; a take plays once, from the start of the section it was recorded over, and on through the
 sections after it for as long as it lasts. Record one with the studio's [Record](../getting-started/studio.md#the-panels)
-button. Or bring an audio file, recorded at the song's tempo and starting on that section's first downbeat: send it to
-the [HTTP API](http-api.md#routes), or give it to an assistant, which adds it with `add_take`:
+button. When you stop, the take waits for you: **Play it back** plays the song from a bar before it with the take in it,
+**Record again** records it over, **Keep it** adds it to the song, and **Throw it away** forgets it. Or bring an audio
+file, recorded at the song's tempo and starting on that section's first downbeat: send it to the
+[HTTP API](http-api.md#routes), or give it to an assistant, which adds it with `add_take`:
 
 ```sh
 curl -X POST 'http://127.0.0.1:7878/api/takes?from=drop&name=vox&role=vocal' \
@@ -138,6 +140,18 @@ curl -X POST 'http://127.0.0.1:7878/api/takes?from=drop&name=vox&role=vocal' \
   in a section, which silences that stretch of it. In a section before the one it starts with, it plays nothing.
 - **Releasing it.** [Publishing](publish.md) lists takes with your own recordings: release them only if you made them or
   have cleared their rights.
+
+### A take an assistant asks for
+
+An assistant can ask you to record something for the song ("sing the hook over the chorus"), with `request_take`. The
+studio's Record window opens, set up for it: the section the take starts with, what it is, its name, and a line
+saying what the assistant asked for. When no studio is open, the assistant gives you a link that opens one, such as
+`http://127.0.0.1:7878/?record=1`.
+
+Record the take, play it back, and record it again as often as you like. **Send it** adds it to the song, and the
+assistant, which has been waiting for it with `wait_for_take`, hears what claudius made of it and goes on from there:
+it sets the take's level, or turns it into notes. **Not now** tells the assistant you will not record it. Notes played
+on a MIDI keyboard answer the request as soon as you stop.
 
 ### Turning a take into notes
 

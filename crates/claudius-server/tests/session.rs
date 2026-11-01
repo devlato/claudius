@@ -534,6 +534,7 @@ async fn a_take_sent_over_http_plays_and_goes_with_the_song() {
         name: None,
         role: Some("keys".into()),
         style: None,
+        request: None,
     };
     let r = app.command(add);
     assert!(r.ok && r.message.starts_with("3 notes from the start of intro"), "{}", r.message);
@@ -623,6 +624,118 @@ async fn files_a_studio_read_open_and_are_listened_to_by_their_contents() {
     assert!(s == StatusCode::OK && reply.ok && reply.message.starts_with("remade beat.wav as techno"), "{b}");
     let song = app.state().song.unwrap();
     assert_eq!((song.genre.as_str(), song.seed), ("techno", 3));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_take_an_assistant_asks_for_is_answered_by_the_take_sent_for_it() {
+    use claudius_api::TakeStatus;
+    let app = app();
+    let ask = |from: &str, role: Option<&str>, note: &str| Command::RequestTake {
+        from: from.into(),
+        role: role.map(String::from),
+        name: None,
+        note: note.into(),
+    };
+    let r = app.command(ask("drop", None, ""));
+    assert!(!r.ok && r.message.contains("no song yet"), "{}", r.message);
+    let new = Command::NewSong { genre: "house".into(), seed: Some(5), bpm: None, key: None, loops: false };
+    assert!(app.command(new).ok);
+    let from = app.state().song.unwrap().sections[1].name.clone();
+    assert!(app.command(ask("nowhere", None, "")).message.contains("no section 'nowhere'"));
+    assert!(app.command(ask(&from, Some("kazoo"), "")).message.contains("not 'kazoo'"));
+
+    // asked, and the person says not now: once
+    let r = app.command(ask(&from, Some("vocal"), "the hook, softly"));
+    assert!(r.ok && r.message.contains("(request 1)"), "{}", r.message);
+    let t = app.state().take_request.unwrap();
+    assert_eq!(
+        (t.id, t.status, t.note.as_str(), t.role.as_deref()),
+        (1, TakeStatus::Waiting, "the hook, softly", Some("vocal"))
+    );
+    assert!(app.command(Command::CancelTakeRequest { id: 1 }).ok);
+    assert_eq!(app.state().take_request.unwrap().status, TakeStatus::Cancelled);
+    assert!(app.command(Command::CancelTakeRequest { id: 1 }).message.contains("answered already"));
+    assert!(app.command(Command::CancelTakeRequest { id: 7 }).message.contains("no take request 7"));
+
+    // asked again, and answered by the notes played for it, once claudius keeps them
+    assert!(app.command(ask(&from, Some("keys"), "")).ok);
+    let notes = |from: &str| Command::AddNotes {
+        from: from.into(),
+        notes: vec![claudius_api::NoteView { t: 0.0, d: 1.0, p: 60, v: 0.8 }],
+        sounds: vec!["epiano".into()],
+        name: None,
+        role: Some("keys".into()),
+        style: None,
+        request: Some(2),
+    };
+    assert!(!app.command(notes("nowhere")).ok);
+    assert_eq!(app.state().take_request.unwrap().status, TakeStatus::Waiting, "not by notes claudius refused");
+    let r = app.command(notes(&from));
+    assert!(r.ok, "{}", r.message);
+    let t = app.state().take_request.unwrap();
+    assert_eq!((t.id, t.status, t.answer.as_deref()), (2, TakeStatus::Taken, Some(r.message.as_str())));
+
+    // an assistant asks over MCP, waits, and has the take the studio sent for it
+    let router = http::router(app.clone(), &Options::default());
+    let mcp = |body: serde_json::Value, session: Option<&str>| {
+        let mut r = Request::post("/mcp")
+            .header(header::HOST, "127.0.0.1:7878")
+            .header(header::CONTENT_TYPE, "application/json")
+            .header(header::ACCEPT, "application/json, text/event-stream");
+        if let Some(s) = session {
+            r = r.header("mcp-session-id", s);
+        }
+        r.body(Body::from(body.to_string())).unwrap()
+    };
+    let init = serde_json::json!({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "test", "version": "1"}}});
+    let (_, h, _) = call(&router, mcp(init, None)).await;
+    let session = h.get("mcp-session-id").and_then(|v| v.to_str().ok()).map(String::from);
+    let sid = session.as_deref();
+    call(&router, mcp(serde_json::json!({"jsonrpc": "2.0", "method": "notifications/initialized"}), sid)).await;
+    let tool = |id: u32, name: &str, args: serde_json::Value| {
+        mcp(
+            serde_json::json!({"jsonrpc": "2.0", "id": id, "method": "tools/call", "params": {"name": name, "arguments": args}}),
+            sid,
+        )
+    };
+    let text = |b: &str| sse_json(b)["result"]["content"][0]["text"].as_str().unwrap_or_default().to_string();
+    let (_, _, b) =
+        call(&router, tool(2, "request_take", serde_json::json!({"from": from, "role": "vocal", "note": "the hook"})))
+            .await;
+    let asked = text(&b);
+    assert!(
+        asked.contains("(request 3)") && asked.contains("/?record=3") && asked.contains("wait_for_take"),
+        "{asked}"
+    );
+    let (_, _, b) = call(&router, tool(3, "wait_for_take", serde_json::json!({"id": 3, "seconds": 1}))).await;
+    assert!(text(&b).contains("has not sent the take yet (request 3)"), "{b}");
+
+    // two seconds of a tone, sent as the studio sends a take recorded for the request, while the assistant waits
+    let n = 2 * claudius::config::SR as usize;
+    let l: Vec<f32> = (0..n).map(|i| (i as f32 * 0.03).sin() * 0.4).collect();
+    let file = std::env::temp_dir().join(format!("claudius-asked-{}.wav", std::process::id()));
+    claudius::audio::save_wav(&file, &claudius::audio::Stereo { l: l.clone(), r: l }, true).unwrap();
+    let wav = std::fs::read(&file).unwrap();
+    std::fs::remove_file(&file).unwrap();
+    let studio = router.clone();
+    let query = format!("/api/takes?from={from}&role=vocal&request=3");
+    let sent = tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(800)).await;
+        let req = Request::post(query)
+            .header(header::HOST, "localhost")
+            .header(header::CONTENT_TYPE, "audio/wav")
+            .body(Body::from(wav))
+            .unwrap();
+        call(&studio, req).await
+    });
+    let (_, _, b) = call(&router, tool(4, "wait_for_take", serde_json::json!({"id": 3, "seconds": 60}))).await;
+    let waited = text(&b);
+    assert!(waited.starts_with("the take arrived: take1: a take of"), "{waited}");
+    let (s, _, b) = sent.await.unwrap();
+    assert!(s == StatusCode::OK && b.contains("take1: a take of"), "{s} {b}");
+    assert_eq!(app.state().take_request.unwrap().status, TakeStatus::Taken);
+    let (_, _, b) = call(&router, tool(5, "wait_for_take", serde_json::json!({"id": 2}))).await;
+    assert!(text(&b).contains("gave way to request 3"), "{b}");
 }
 
 #[test]

@@ -160,6 +160,8 @@ says the job is still running; `status` follows it from there.
 | `analyze` | `path` (required) | tempo, key, progressions, sections, drum grid and bass style of an audio file |
 | `remake` | `path` (required), `genre`, `seed`, `bpm` | a new song on the skeleton of an audio file, in a genre's sounds, at a tempo the genre plays |
 | `add_take` | `path`, `from` (required), `name`, `role` | adds a recording as a [take](samples.md#takes) that plays once from the start of section `from`, and listens |
+| `request_take` | `from` (required), `role`, `name`, `note` | asks the person to [record a take](samples.md#a-take-an-assistant-asks-for): the studio's Record window opens for it, showing `note`; answers at once with the request's id and a link that opens the studio |
+| `wait_for_take` | `id` (required), `seconds` (50, 1 to 300) | waits for the take asked for: what claudius made of it once the person sends it, or that they will not record it; after `seconds`, says they are still at it |
 | `transcribe_take` | `take`, `sounds` (required), `name`, `role`, `chromatic`, `keep_take`, `style` | turns a take's melody into the notes of a new part for each sound, as it was sung or in a [style](samples.md#turning-a-take-into-notes), and listens |
 | `add_notes` | `from`, `notes` (`[{t, d, p, v}]`), `sounds` (required), `name`, `role`, `style` | writes [notes](samples.md#notes-played-on-a-keyboard), a melody, a bass line or chords, into a new part for each sound, and listens |
 | `command` | `command` (required, an object), `listen` (true) | sends one raw [API command](http-api.md#commands) |
@@ -168,6 +170,9 @@ Details that matter when you read an assistant's transcript:
 
 - `listen: false` on `run_script` and `command` skips the wait, so an assistant can batch several edits and listen
   once. The studio still renders each change unless it runs with `--no-auto-render`.
+- `request_take` does not wait for the person. The assistant calls `wait_for_take` until the take arrives: it
+  returns as soon as the person sends it or says Not now, and an assistant whose calls time out can ask for fewer
+  `seconds` and call it more often.
 - `listen` waits up to 240 s, `save` 240 s, `evolve` 280 s and `mutate` 300 s. `mutate` and `evolve` answer with the
   log lines the job wrote (one per candidate and its score) and then the song.
 - A `seed` is optional everywhere. Without one, the session picks one from the clock; `new_song` names it in its

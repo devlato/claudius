@@ -5,7 +5,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use claudius_api::{Command, Reply, SoundList, State};
+use claudius_api::{Command, Reply, SoundList, State, TakeStatus};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
 use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, StreamableHttpService};
@@ -118,6 +118,22 @@ impl Backend {
                 tokio::task::spawn_blocking(move || remote_json(&base, &token, "/api/state", Duration::from_secs(30)))
                     .await
                     .map_err(|e| e.to_string())?
+            }
+        }
+    }
+
+    /// the state once its version is past `since`, or after `timeout` with whatever it is then
+    pub async fn state_after(&self, since: u64, timeout: Duration) -> Result<State, String> {
+        match self {
+            Backend::Local { app, .. } => Ok(app.state_after(Some(since), timeout).await),
+            Backend::Remote { base, token } => {
+                let (base, token) = (base.clone(), token.clone());
+                let path = format!("/api/state?since={since}&timeout={}", timeout.as_secs().max(1));
+                tokio::task::spawn_blocking(move || {
+                    remote_json(&base, &token, &path, timeout + Duration::from_secs(30))
+                })
+                .await
+                .map_err(|e| e.to_string())?
             }
         }
     }
@@ -340,6 +356,31 @@ pub struct TakeArgs {
     /// vocal, lead, chords, keys, bass, drums or texture: how loud the mix makes it (default lead)
     #[serde(default)]
     pub role: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct RequestTakeArgs {
+    /// the section the take starts with, by name (get_song lists them)
+    pub from: String,
+    /// vocal, lead, chords, keys, bass, drums or texture for a recording (how loud the mix makes it); keys, lead,
+    /// chords, pad, arp or bass for a part played on a MIDI keyboard
+    #[serde(default)]
+    pub role: Option<String>,
+    /// the track's name: letters, digits, - and _ (default take1, take2 ... or played)
+    #[serde(default)]
+    pub name: Option<String>,
+    /// what to record, in a few words the Record window shows the person ("the chorus melody, sung softly")
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct WaitTakeArgs {
+    /// the request's id, as request_take gave it
+    pub id: u64,
+    /// how long to wait at most, in seconds (default 50, at most 300)
+    #[serde(default)]
+    pub seconds: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -717,12 +758,70 @@ impl Studio {
     }
 
     #[tool(
+        description = "Ask the person to record a take for the song (a vocal, a guitar, a part on a MIDI keyboard ...) that starts with section `from`. The studio's Record window opens for it, showing `note`; the person records it over the song, listens back, records it again as often as they like, and sends it, or says not now. Returns at once with the request's id and the link that opens the studio, for when none is open; then call wait_for_take with the id until the take arrives. The take is added as add_take adds one (or, from a keyboard, as add_notes adds notes)."
+    )]
+    async fn request_take(&self, Parameters(a): Parameters<RequestTakeArgs>) -> Result<String, String> {
+        let c = Command::RequestTake { from: a.from, role: a.role, name: a.name, note: a.note.unwrap_or_default() };
+        let r = self.b.command(c).await?;
+        if !r.ok {
+            return Err(r.message);
+        }
+        let id = self.b.state().await?.take_request.map(|t| t.id).unwrap_or_default();
+        Ok(format!(
+            "{}. A studio that is open shows its Record window now; otherwise the person opens {}/?record={id} in a \
+             browser, or runs claudius studio. Call wait_for_take with id {id}: it returns when the take arrives, or \
+             after a while to say the person is still at it.",
+            r.message,
+            self.b.base_url()
+        ))
+    }
+
+    #[tool(
+        description = "Wait for the take asked for with request_take: returns what claudius made of it once the person sends it (then listen and set_mix as after add_take), says so if they will not record it, or, after `seconds` (default 50), that they are still at it: call it again then.",
+        annotations(read_only_hint = true)
+    )]
+    async fn wait_for_take(&self, Parameters(a): Parameters<WaitTakeArgs>) -> Result<String, String> {
+        let deadline = std::time::Instant::now() + Duration::from_secs(a.seconds.unwrap_or(50).clamp(1, 300));
+        let mut st = self.b.state().await?;
+        loop {
+            let asked = st.take_request.clone();
+            let Some(t) = asked.filter(|t| t.id == a.id) else {
+                return Err(match st.take_request {
+                    Some(newer) if newer.id > a.id => format!("request {} gave way to request {}", a.id, newer.id),
+                    _ => format!("no take request {}: ask with request_take", a.id),
+                });
+            };
+            match t.status {
+                TakeStatus::Taken => return Ok(format!("the take arrived: {}", t.answer.unwrap_or_default())),
+                TakeStatus::Cancelled => return Ok(format!("the person will not record it (request {})", a.id)),
+                TakeStatus::Waiting => {}
+            }
+            let left = deadline.saturating_duration_since(std::time::Instant::now());
+            if left.is_zero() {
+                return Ok(format!(
+                    "the person has not sent the take yet (request {}): call wait_for_take again",
+                    a.id
+                ));
+            }
+            st = self.b.state_after(st.version, left.min(Duration::from_secs(20))).await?;
+        }
+    }
+
+    #[tool(
         description = "Write notes into the song: a melody, a bass line or chords, note by note, in beats from the start of section `from` (t start, d length, p MIDI pitch with 60 middle C, v velocity 0..1; notes at the same t make a chord). They become the notes of new parts, one playing each of `sounds` (synth presets or installed instruments), on in the sections the notes reach; a section keeps the notes over it by its progression, and other sections with that progression play the same. The parts are ordinary parts afterwards: set_part changes their sound."
     )]
     async fn add_notes(&self, Parameters(a): Parameters<NotesArgs>) -> Result<String, String> {
         let notes =
             a.notes.iter().map(|n| claudius_api::NoteView { t: n.t, d: n.d, p: n.p, v: n.v.unwrap_or(0.8) }).collect();
-        let c = Command::AddNotes { from: a.from, notes, sounds: a.sounds, name: a.name, role: a.role, style: a.style };
+        let c = Command::AddNotes {
+            from: a.from,
+            notes,
+            sounds: a.sounds,
+            name: a.name,
+            role: a.role,
+            style: a.style,
+            request: None,
+        };
         self.edit(c, true).await
     }
 
@@ -753,7 +852,7 @@ impl Studio {
 
 #[tool_handler(
     name = "claudius",
-    instructions = "claudius is a beatmaker that composes like a producer in a DAW: synthesized and recorded sounds (never General MIDI), music theory, effects, mixing and mastering, and a critic with ears (earshot, a CLAP model). Typical session: get_song (see what is open) or new_song; read the verdict; edit with run_script (read script_reference once) or try mutate/evolve; listen again; undo a change that made it worse; save. The person you work with hears every change live in the claudius studio, so describe what you changed in musical terms. The scores guide; the person's taste decides."
+    instructions = "claudius is a beatmaker that composes like a producer in a DAW: synthesized and recorded sounds (never General MIDI), music theory, effects, mixing and mastering, and a critic with ears (earshot, a CLAP model). Typical session: get_song (see what is open) or new_song; read the verdict; edit with run_script (read script_reference once) or try mutate/evolve; listen again; undo a change that made it worse; save. The person you work with hears every change live in the claudius studio, so describe what you changed in musical terms. When the song wants their own voice or playing, ask them to record it with request_take, then wait_for_take. The scores guide; the person's taste decides."
 )]
 impl ServerHandler for Studio {}
 
@@ -792,7 +891,7 @@ mod tests {
             .map(|t| t.name.to_string())
             .collect();
         read_only.sort();
-        assert_eq!(read_only, ["analyze", "catalog", "get_song", "script_reference", "status"]);
+        assert_eq!(read_only, ["analyze", "catalog", "get_song", "script_reference", "status", "wait_for_take"]);
     }
 
     #[test]

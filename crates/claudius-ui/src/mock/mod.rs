@@ -376,6 +376,9 @@ impl Mock {
                 }
             }
             Command::InstallPacks { .. } => Err("the demo downloads nothing: install claudius to get the packs".into()),
+            Command::RequestTake { .. } | Command::CancelTakeRequest { .. } => {
+                Err("the demo records nothing: start `claudius serve` to ask for takes".into())
+            }
             Command::Cancel => {
                 if self.job.take().is_some() {
                     self.state.busy = None;
