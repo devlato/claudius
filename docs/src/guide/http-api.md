@@ -24,6 +24,7 @@ this API, so anything it does you can do with `curl`. The types are plain serde 
 | `POST /api/release/artwork` | the release's [artwork](publish.md), as the file itself with `Content-Type: image/jpeg`, `image/png` or `application/octet-stream` (40 MB at most); answers with a [reply](#replies-and-errors) |
 | `GET /api/release/artwork` | the artwork as it was given |
 | `GET /api/release/preview.png` | the artwork at most 512 pixels on a side, as PNG |
+| `POST /api/takes?from=SECTION` | a recording as a [take](samples.md#takes), as the file itself (WAV, FLAC, Ogg, MP3 or AIFF) with `Content-Type: audio/...` or `application/octet-stream` (300 MB at most); optional `name` and `role` in the query, as for `add_take`; answers with a [reply](#replies-and-errors) |
 | `/mcp` | the [MCP endpoint](mcp.md#mcp-over-http) |
 | `GET /` and anything else | the web studio; when it is not built, a page that says how to build it |
 
@@ -200,6 +201,7 @@ fields marked optional may be left out.
 | `run_script` | `code` | runs a script on the song |
 | `analyze` | `path` | the analysis of an audio file, as text in the reply's `message` |
 | `remake` | `path`; optional `genre`, `seed`, `bpm` | a new song on the file's skeleton; the genre defaults to the open song's, and the tempo to the recording's, halved or doubled into the genre's range when it is outside |
+| `add_take` | `path`, `from` (a section's name); optional `name` (take1, take2, ...), `role` (`vocal`, `lead`, `chords`, `keys`, `bass`, `drums`, `texture`; lead) | the recording as a [take](samples.md#takes): it plays once from the start of section `from` and on through the sections after it as long as it lasts; the song keeps a copy |
 | `mutate` | optional `count` (4, 1 to 32), `keep_best` (true) | a job: tries variations and keeps the best if it beats the song |
 | `evolve` | optional `generations` (3, 1 to 20), `children` (6, 2 to 32) | a job: an evolutionary search from the song |
 | `install_packs` | optional `names` (the missing default packs when left out) | a job: downloads sample packs, as `claudius setup` does; not the opt-in packs, whose licence is unclear, and not on a shared claudius |

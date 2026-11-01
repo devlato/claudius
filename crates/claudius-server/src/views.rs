@@ -75,7 +75,17 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
         tracks.push(track(&p.name, "part", p.role.name(), p.sound.describe(), &p.mix, loudness));
     }
     for l in &bp.loops {
-        tracks.push(track(&l.name, "loop", &l.role, l.sound.describe(), &l.mix, loudness));
+        let take = match (&l.from, &l.sound) {
+            (Some(from), Sound::Loop { beats, .. }) => {
+                Some(format!("a take of {:.1} bars from the start of {from}", beats / 4.0))
+            }
+            _ => None,
+        };
+        let (kind, sound) = match take {
+            Some(words) => ("take", words),
+            None => ("loop", l.sound.describe()),
+        };
+        tracks.push(track(&l.name, kind, &l.role, sound, &l.mix, loudness));
     }
     for p in &bp.patterns {
         let sounds = p.sounds.iter().map(|(k, s)| format!("{k}: {}", s.describe())).collect::<Vec<_>>().join(", ");

@@ -2,24 +2,26 @@
 name: claudius-remix
 description: >-
   Works from existing audio with claudius: analyzes a song's tempo, key, chords, sections and groove, remakes a
-  track's skeleton as a new song in another genre, chops recordings into bar loops and drum one-shots, and plays
-  recordings as samples in a song. Use it when someone shares an audio file or a reference track, asks for a song
-  like one they love or a version of a song in another style, wants a song's BPM, key or chords, or wants to sample,
-  chop or flip a recording with claudius.
+  track's skeleton as a new song in another genre, chops recordings into bar loops and drum one-shots, plays
+  recordings as samples in a song, and adds recordings made for a song (a vocal, a guitar) as takes. Use it when
+  someone shares an audio file or a reference track, asks for a song like one they love or a version of a song in
+  another style, wants a song's BPM, key or chords, wants to sample, chop or flip a recording with claudius, or has
+  recorded something for their song.
 ---
 
 # Remixing, remaking and sampling with claudius
 
-claudius can learn from a recording in three ways, which differ in how much of the original ends up in the result:
+claudius can work from a recording in four ways, which differ in how much of the original ends up in the result:
 
 | | what it takes from the recording | the original's audio in the result |
 |---|---|---|
 | **analyze** | tempo, key, chords, sections, drum habits, bass style, as a report | none |
 | **remake** | that skeleton, rebuilt as a new song with a genre's sounds and production | none |
 | **chop and flip** | loops and one-shots cut from it, played in a song | yes |
+| **take** | all of it, played once from a section, as recorded for the song | yes |
 
 Choose by what the person wants. "Something like this song" is a remake. "Use this vocal" or "sample this break" is a
-flip.
+flip. "I sang the chorus" or "here's my guitar for the drop" is a take.
 
 ## Before you start
 
@@ -103,3 +105,20 @@ track("vox", note("c4 ~ ~ ~ c4 ~ c4 ~").s("/Users/me/Music/claudius/chops/refere
 
 After a flip, listen and read the verdict like after any change: a sample often needs its level, a little reverb, or
 `.hpf()` to leave room for the bass.
+
+## Add a take
+
+When the person recorded something for the song, such as a vocal, a guitar or a melody sung into the microphone, add it
+with `add_take`: the file's `path`, and `from`, the section it starts with (`get_song` lists the sections). A take
+plays once, from that section's first downbeat and on through the sections after it for as long as it lasts. It is
+not looped or chopped. Ask what they did not say:
+
+- **Which section it was recorded over.** The recording has to start on that section's first downbeat, at the song's
+  tempo.
+- **What it is, for the mix.** `role` is `vocal`, `lead` (the default), `chords`, `keys`, `bass`, `drums` or
+  `texture`.
+- **A name**, if they want one ("vox", "guitar"). Otherwise it is take1, take2, ...
+
+claudius keeps a copy with the song, in `takes/` in its folder once it is saved. Then listen and read the verdict: a
+take mostly needs its level and a little reverb (`set_mix`). It is the person's own recording, so it may be released
+when they made it.

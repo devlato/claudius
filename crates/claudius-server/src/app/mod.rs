@@ -19,9 +19,11 @@ use crate::views;
 mod commands;
 mod jobs;
 mod release;
+mod takes;
 
 pub use commands::analysis_text;
 pub use release::{MAX_ARTWORK, report_lines};
+pub use takes::MAX_TAKE;
 
 pub struct Settings {
     /// read the Apple Loops / user library for recorded sounds

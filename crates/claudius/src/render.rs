@@ -259,14 +259,18 @@ fn render_source(
             }
         }
         Sound::Loop { path, bpm, beats, .. } => {
-            let w = crate::warp::warp(path, *bpm, *beats, p.bpm, t.transpose)?;
+            let once = t.clips.iter().any(|c| c.once);
+            let w = crate::warp::warp(path, *bpm, *beats, p.bpm, t.transpose, !once)?;
             let wl = w.len().max(1);
             let slice = (t.slice_beats.max(0.0625) * tm.spb).round() as usize;
             let n_slices = (wl / slice.max(1)).max(1);
             for c in &t.clips {
                 let a = (c.t * tm.spb).round() as usize;
-                let b = (((c.t + c.d) * tm.spb).round() as usize).min(len);
                 let off = (c.offset * tm.spb).round() as usize;
+                let mut b = (((c.t + c.d) * tm.spb).round() as usize).min(len);
+                if c.once {
+                    b = b.min(a + wl.saturating_sub(off));
+                }
                 let g = db_to_gain(c.gain_db);
                 for i in a..b {
                     let rel = i - a + off;

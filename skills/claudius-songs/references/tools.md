@@ -21,6 +21,7 @@ to. On the command line, each command reads and writes song folders instead.
 | `open` | `path`: a song folder, a `blueprint.json` or a `.rhai` script | `--on SONG` |
 | `analyze` | `path` of any audio file | `claudius analyze song.mp3` |
 | `remake` | `path`, `genre`, `seed`, `bpm` | `claudius remake song.mp3 --genre lofi [--bpm 82]` |
+| `add_take` | `path` of a recording, `from` (a section's name), `name`, `role` (`vocal`, `lead`, `chords`, `keys`, `bass`, `drums`, `texture`) | |
 | `command` | one raw API command, for edits scripts do not cover | |
 
 Notes:

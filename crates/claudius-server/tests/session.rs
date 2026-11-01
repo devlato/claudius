@@ -456,6 +456,72 @@ async fn a_release_is_checked_and_its_kit_written_and_kept_with_the_song() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn a_take_sent_over_http_plays_and_goes_with_the_song() {
+    let app = app();
+    let new = Command::NewSong { genre: "house".into(), seed: Some(5), bpm: None, key: None, loops: false };
+    assert!(app.command(new).ok);
+    // a short song: each save renders the stems of every track
+    let short = r#"form([sec("intro", 4, "*"), sec("drop", 4, "*"), sec("outro", 4, "*")]);"#;
+    let r = app.command(Command::RunScript { code: short.into() });
+    assert!(r.ok, "{}", r.message);
+    // folders of the test's own: a song without one keeps its takes in ~/Music/claudius
+    let scratch = |what: &str| std::env::temp_dir().join(format!("claudius-takes-{what}-{}", std::process::id()));
+    let (dir, other, moved) = (scratch("song"), scratch("saved"), scratch("moved"));
+    for d in [&dir, &other, &moved] {
+        let _ = std::fs::remove_dir_all(d);
+    }
+    assert!(app.command(Command::Save { path: Some(dir.display().to_string()) }).ok);
+    let st = app.settled(Duration::from_secs(240)).await;
+    let from = st.song.unwrap().sections[1].name.clone();
+
+    // two seconds of a tone, sent as the studio sends a take: the WAV file itself
+    let n = 2 * claudius::config::SR as usize;
+    let l: Vec<f32> = (0..n).map(|i| (i as f32 * 0.03).sin() * 0.4).collect();
+    let wav = dir.join("take.wav");
+    claudius::audio::save_wav(&wav, &claudius::audio::Stereo { l: l.clone(), r: l }, true).unwrap();
+    let bytes = std::fs::read(&wav).unwrap();
+    std::fs::remove_file(&wav).unwrap();
+    let router = http::router(app.clone(), &Options::default());
+    let post = |content_type: &str, query: &str| {
+        Request::post(format!("/api/takes?{query}"))
+            .header(header::HOST, "localhost")
+            .header(header::CONTENT_TYPE, content_type)
+            .body(Body::from(bytes.clone()))
+            .unwrap()
+    };
+    let (s, _, _) = call(&router, post("text/plain", &format!("from={from}"))).await;
+    assert_eq!(s, StatusCode::UNSUPPORTED_MEDIA_TYPE, "a cross-site form cannot send a take");
+    let (s, _, b) = call(&router, post("audio/wav", "from=nowhere")).await;
+    assert!(s == StatusCode::OK && b.contains("no section 'nowhere'"), "{s} {b}");
+    let (s, _, b) = call(&router, post("audio/wav", &format!("from={from}&name=vox&role=vocal"))).await;
+    assert!(s == StatusCode::OK && b.contains("vox: a take of"), "{s} {b}");
+    let song = app.state().song.unwrap();
+    let vox = song.tracks.iter().find(|t| t.name == "vox").expect("the take is a track");
+    assert_eq!((vox.kind.as_str(), vox.role.as_str()), ("take", "vocal"));
+    assert!(song.sections[1].layers.iter().any(|l| l == "vox"));
+    let kept: Vec<_> = std::fs::read_dir(dir.join("takes")).unwrap().flatten().collect();
+    assert_eq!(kept.len(), 1, "kept in the song's folder");
+    let st = app.settled(Duration::from_secs(240)).await;
+    let vox = st.song.unwrap().tracks.into_iter().find(|t| t.name == "vox").unwrap();
+    assert!(vox.loudness.is_some_and(|l| l > -40.0), "it plays: {:?}", vox.loudness);
+
+    // saved elsewhere, the song takes its take along; that folder moved, opening it finds the take there
+    assert!(app.command(Command::Save { path: Some(other.display().to_string()) }).ok);
+    app.settled(Duration::from_secs(240)).await;
+    assert_eq!(std::fs::read_dir(other.join("takes")).unwrap().count(), 1);
+    std::fs::rename(&other, &moved).unwrap();
+    let r = app.command(Command::Load { path: moved.display().to_string() });
+    assert!(r.ok, "{}", r.message);
+    let bp = app.blueprint().unwrap();
+    let files = bp.files();
+    assert!(files.iter().any(|f| std::path::Path::new(f).starts_with(&moved)), "{files:?}");
+    app.settled(Duration::from_secs(240)).await;
+    for d in [&dir, &moved] {
+        std::fs::remove_dir_all(d).ok();
+    }
+}
+
 #[test]
 fn the_studio_reads_and_writes_steps_as_scripts_do() {
     use claudius::theory::rhythm::Hit;

@@ -52,7 +52,7 @@ impl App {
     }
 
     /// edit the current song with a function; no change, no new version
-    fn edit_with(self: &Arc<Self>, f: impl FnOnce(&mut Blueprint) -> Result<String, String>) -> Reply {
+    pub(super) fn edit_with(self: &Arc<Self>, f: impl FnOnce(&mut Blueprint) -> Result<String, String>) -> Reply {
         let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
         let Some(mut bp) = self.blueprint() else { return no("no song yet: start one with new_song", self.version()) };
         let before = bp.clone();
@@ -342,6 +342,9 @@ impl App {
                 ))
             }),
             Command::RunScript { code } => self.run_script(&code, None),
+            Command::AddTake { path, from, name, role } => {
+                self.add_take_file(Path::new(&path), &from, name.as_deref(), role.as_deref())
+            }
             Command::Analyze { path } => match self
                 .readable(Path::new(&path))
                 .and_then(|_| audio::load(Path::new(&path)).map_err(|e| e.to_string()))
@@ -462,10 +465,13 @@ impl App {
         };
         if path.extension().is_some_and(|e| e == "json") {
             let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
-            let bp = match Blueprint::from_json(&text) {
+            let mut bp = match Blueprint::from_json(&text) {
                 Ok(bp) => bp,
                 Err(e) => return no(format!("cannot open {}: {e}", path.display()), v),
             };
+            if let Some(folder) = path.parent() {
+                claudius::take::find_moved(&mut bp, folder);
+            }
             let outside = bp.files().into_iter().find(|f| !config::path_allowed(Path::new(f), self.roots.as_deref()));
             let checked = bp.check_size().and_then(|_| script::check_patterns(&bp)).and_then(|_| match outside {
                 Some(f) => Err(format!("the song plays {f}, which is outside the folders this claudius may read")),
@@ -549,7 +555,7 @@ impl App {
 
     fn save(self: &Arc<Self>, path: Option<PathBuf>) -> Reply {
         let v = self.version();
-        let Some(bp) = self.blueprint() else { return no("no song to save", v) };
+        let Some(mut bp) = self.blueprint() else { return no("no song to save", v) };
         let dir = path
             .unwrap_or_else(|| config::songs_dir().join(format!("{}-{}-{}", bp.genre, song::slug(&bp.title), bp.seed)));
         if !config::write_allowed(&dir, self.roots.as_deref()) {
@@ -557,6 +563,16 @@ impl App {
         }
         if let Err(e) = std::fs::create_dir_all(&dir) {
             return no(format!("cannot write {}: {e}", dir.display()), v);
+        }
+        // the recordings go with the song: its takes are copied into the folder, and from now on it plays the copies
+        match claudius::take::gather(&mut bp, &dir) {
+            Ok(moves) if !moves.is_empty() => self.update(|s| {
+                if let Some(b) = s.bp.as_mut() {
+                    claudius::take::repoint(b, &moves);
+                }
+            }),
+            Ok(_) => {}
+            Err(e) => return no(format!("{e:#}"), v),
         }
         // the score now; the audio, stems and verdict once it is rendered
         for (file, text) in [("blueprint.json", bp.to_json()), ("song.rhai", script::to_script(&bp))] {

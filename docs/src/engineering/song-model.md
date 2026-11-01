@@ -39,7 +39,7 @@ This is the head of a real one, house with seed 9 (`claudius make --genre house 
 | `form` | the sections, in order |
 | `drums` | drum lanes with step patterns |
 | `parts` | melodic parts written by the theory engine |
-| `loops` | recorded loops (Apple Loops, flipped samples) |
+| `loops` | recorded loops (Apple Loops, flipped samples) and takes |
 | `patterns` | tracks written as pattern code by scripts |
 | `transitions` | the crash, riser, impact and their switches |
 | `mix` | the reverb and delay returns, bus chains, sidechain release, per-role level offsets, the master |
@@ -106,7 +106,10 @@ same line. The writer is deterministic, so the recipe is enough to get the same 
 ### Loops and pattern tracks
 
 A `LoopPart` plays a recorded loop (`Sound::Loop` with its tempo, length in beats and key): `transpose` in
-semitones, and optionally `chop`, a slice order over `slice_beats`-long slices, for flipped samples.
+semitones, and optionally `chop`, a slice order over `slice_beats`-long slices, for flipped samples. A loop part
+with `from`, the name of a section, is a [take](../guide/samples.md#takes) (`claudius::take`): instead of starting over
+in each section, it plays once from the start of that section (or of the first section that plays it, when that one
+is gone), on through the later sections that play it.
 
 A `PatternTrack` is a track a script wrote: `code` is the pattern expression exactly as written
 (`s("bd*4, [~ cp]*2")`), `sounds` maps each sound label in it to the `Sound` it resolved to when the track was
@@ -172,7 +175,8 @@ track for each.
 | `mix` | the blueprint's mix plan, with the arrangement's automation and fixed inserts added to the buses |
 
 A `Note` is `{t, d, p, v}`: start and duration in beats, pitch, velocity. A `Clip` places a loop: start and duration
-in song beats, an offset into the warped loop, a gain and fades. These are the first three notes of the kick track
+in song beats, an offset into the warped loop, a gain and fades, and `once` for a take's, which plays to the
+recording's end and not again. These are the first three notes of the kick track
 in the song above:
 
 ```json
