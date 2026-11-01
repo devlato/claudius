@@ -227,8 +227,16 @@ impl Ladder {
 }
 
 /// filter a buffer with a constant or per-sample cutoff
-pub fn run_filter(x: &mut [f32], cutoff: &dyn Fn(usize) -> f64, sr: f64, res: f64, mode: FilterMode, drive: f64) {
-    // the tangent only when the cutoff moves: most cutoffs hold still, or change once a block
+pub fn run_filter(
+    x: &mut [f32],
+    cutoff: &dyn Fn(usize) -> f64,
+    sr: f64,
+    res: &dyn Fn(usize) -> f64,
+    mode: FilterMode,
+    drive: f64,
+) {
+    // the tangent only when the cutoff moves, the damping only when the resonance does: most hold still, or change
+    // once a block
     let (mut last, mut g) = (f64::NAN, 0.0);
     let mut g_at = |i: usize| {
         let c = cutoff(i);
@@ -241,13 +249,17 @@ pub fn run_filter(x: &mut [f32], cutoff: &dyn Fn(usize) -> f64, sr: f64, res: f6
         FilterMode::Ladder => {
             let mut f = Ladder::default();
             for (i, v) in x.iter_mut().enumerate() {
-                *v = f.tick(*v, g_at(i), res, drive);
+                *v = f.tick(*v, g_at(i), res(i), drive);
             }
         }
         _ => {
             let mut f = Svf::default();
-            let k = Svf::k(res);
+            let (mut last_res, mut k) = (f64::NAN, 0.0);
             for (i, v) in x.iter_mut().enumerate() {
+                let r = res(i);
+                if r != last_res {
+                    (last_res, k) = (r, Svf::k(r));
+                }
                 *v = f.tick(*v, g_at(i), k, mode);
             }
         }

@@ -66,9 +66,12 @@ form([sec("intro", 8, "drums keys"), sec("drop", 16, "*").impact(), sec("break",
 ```
 
 - Several edits in a row: `run_script` with `listen: false`, then one `listen`.
-- The script is the song's arrangement, parts and mix, not all of it: the master and bus effects (a lofi song's tape
-  and vinyl crackle, say) come from the genre, and a script cannot change them yet. On the command line they are in
-  `blueprint.json` (`mix.master` and `mix.buses`), which `claudius render` plays after a careful edit.
+- **Effects.** Every track, every bus and the master has a chain of effects, which `get_song` prints and a script
+  sets whole: `fx(track, [...])`, `bus(name, [...])`, `master(#{ fx: [...] })`, and `send_fx()` for the reverb and
+  delay the sends feed. A `parallel` effect runs chains side by side, each at its own `amount`; `mix(track, #{ bus })`
+  groups tracks on a bus of your own. That is how a song gets layers of production: parallel compression and
+  saturation, a glue bus, a filtered copy of a sound, a reverb only one section has. The settings and examples are in
+  [references/script.md](references/script.md).
 - An error names the line and what it accepts (`unknown sound 'bdd' (drums: bd kick ...)`). Fix that and run again;
   don't guess around it.
 - **Exact notes.** For a melody, a bass line or chords you write out, or that the person dictates, use `add_notes`. It
@@ -105,6 +108,10 @@ The critic itself only checks the drop against the break, so compare the drop wi
 drop that should hit harder is usually 1 to 3 LU above the groove and 3 to 7 above the break.
 
 `mix()` sets a track for the whole song, so sections differ by what plays in them and how:
+
+- settings that move with the form: `sections(rest, #{ section: value })` in an effect holds or moves a value through
+  each section, such as a lowpass opening across the build (`cutoff: sections(1200, #{ build: [1200, 9000], drop:
+  9000 })`), a reverb that only the break drowns in, or saturation that bites harder in the drop;
 
 - which tracks play: thin the sections before the drop (`section("build", #{ layers: "..." })`), and keep a layer
   or two for the drop only (`layer("drop", "lead", true)`);

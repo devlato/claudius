@@ -485,7 +485,7 @@ pub fn new_part(spec: &PartSpec, rng: &mut Rng) -> Part {
         && matches!(spec.role, Role::Chords | Role::Keys | Role::Pad)
         && !mix.fx.iter().any(|e| e.name() == "chorus")
     {
-        mix.fx.push(Effect::Chorus { rate_hz: 0.45, depth_ms: 2.5, delay_ms: 11.0, mix: 0.4 });
+        mix.fx.push(Effect::Chorus { rate_hz: 0.45, depth_ms: 2.5, delay_ms: 11.0, mix: 0.4.into() });
     }
     Part {
         name: spec.name.clone(),

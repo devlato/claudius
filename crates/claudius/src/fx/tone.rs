@@ -10,7 +10,7 @@ use crate::rng::Rng;
 pub fn gain(x: &mut Stereo, db: &Param, ctx: &Ctx) {
     match db {
         Param::Const(d) => x.scale(db_to_gain(*d)),
-        Param::Curve(_) => {
+        _ => {
             let spb = ctx.spb();
             for i in 0..x.len() {
                 let g = db_to_gain(db.at(i as f64 / spb, false));
@@ -29,16 +29,13 @@ pub fn eq(x: &mut Stereo, bands: &[EqBand], ctx: &Ctx) {
     }
 }
 
-pub fn filter(x: &mut Stereo, mode: FilterMode, cutoff: &Param, res: f32, drive: f32, mix: f32, ctx: &Ctx) {
+pub fn filter(x: &mut Stereo, mode: FilterMode, cutoff: &Param, res: &Param, drive: f32, mix: f32, ctx: &Ctx) {
     let dry = if mix < 0.999 { Some(x.clone()) } else { None };
     let spb = ctx.spb();
-    let cut: Vec<f32> = match cutoff {
-        Param::Const(c) => vec![*c; 1],
-        Param::Curve(_) => cutoff.render(x.len(), spb, true),
-    };
-    let f = |i: usize| if cut.len() == 1 { cut[0] as f64 } else { cut[i] as f64 };
+    let (cut, res) = (cutoff.values(x.len(), spb, true), res.values(x.len(), spb, false));
+    let (f, r) = (|i: usize| cut.at(i) as f64, |i: usize| res.at(i) as f64);
     for ch in x.channels_mut() {
-        filter::run_filter(ch, &f, ctx.sr, res as f64, mode, drive as f64);
+        filter::run_filter(ch, &f, ctx.sr, &r, mode, drive as f64);
     }
     if let Some(d) = dry {
         blend(&d, x, mix);
@@ -57,18 +54,30 @@ fn shape(kind: SatKind, v: f64) -> f64 {
 }
 
 /// waveshaper at 2x oversampling; drive maps full scale to full scale, so quieter material gets denser
-pub fn saturate(x: &mut Stereo, kind: SatKind, drive_db: f32, mix: f32, sr: f64) {
-    let g = db_to_gain(drive_db) as f64;
-    let norm = shape(kind, g).abs().max(1e-6);
+pub fn saturate(x: &mut Stereo, kind: SatKind, drive_db: &Param, mix: f32, ctx: &Ctx) {
+    let sr = ctx.sr;
+    let drive = drive_db.values(x.len(), ctx.spb(), false);
+    // the gain and what full scale shapes to, again only when the drive moves
+    let (mut last, mut g, mut norm) = (f32::NAN, 1.0, 1.0);
+    let mut at = |i: usize| {
+        let d = drive.at(i);
+        if d != last {
+            last = d;
+            g = db_to_gain(d) as f64;
+            norm = shape(kind, g).abs().max(1e-6);
+        }
+        (g, norm)
+    };
     let dry = if mix < 0.999 { Some(x.clone()) } else { None };
-    let wave = |v: f32| (shape(kind, v as f64 * g) / norm) as f32;
+    let wave = |v: f32, (g, norm): (f64, f64)| (shape(kind, v as f64 * g) / norm) as f32;
     for ch in x.channels_mut() {
         // a zero after each sample, lowpassed, shaped, lowpassed and every other sample kept, a sample at a time
         let mut up = filter::Butter::<4>::new(false, 0.45 * sr, 2.0 * sr);
         let mut down = up;
-        for v in ch.iter_mut() {
-            let kept = down.tick(wave(up.tick(*v * 2.0)));
-            down.tick(wave(up.tick(0.0)));
+        for (i, v) in ch.iter_mut().enumerate() {
+            let shaping = at(i);
+            let kept = down.tick(wave(up.tick(*v * 2.0), shaping));
+            down.tick(wave(up.tick(0.0), shaping));
             *v = kept;
         }
         if kind == SatKind::Tube {
@@ -80,17 +89,26 @@ pub fn saturate(x: &mut Stereo, kind: SatKind, drive_db: f32, mix: f32, sr: f64)
     }
 }
 
-pub fn bitcrush(x: &mut Stereo, bits: f32, downsample: f32, mix: f32) {
+pub fn bitcrush(x: &mut Stereo, bits: &Param, downsample: f32, mix: f32, ctx: &Ctx) {
     let dry = if mix < 0.999 { Some(x.clone()) } else { None };
-    let levels = 2f32.powf(bits.clamp(1.0, 24.0) - 1.0);
+    let bits = bits.values(x.len(), ctx.spb(), false);
+    let (mut last, mut levels) = (f32::NAN, 1.0);
+    let mut levels_at = |i: usize| {
+        let b = bits.at(i);
+        if b != last {
+            (last, levels) = (b, 2f32.powf(b.clamp(1.0, 24.0) - 1.0));
+        }
+        levels
+    };
     let step = downsample.max(1.0) as f64;
     for ch in x.channels_mut() {
         let mut acc = 0.0f64;
         let mut held = 0.0f32;
-        for v in ch.iter_mut() {
+        for (i, v) in ch.iter_mut().enumerate() {
             acc += 1.0;
             if acc >= step {
                 acc -= step;
+                let levels = levels_at(i);
                 held = (*v * levels).round() / levels;
             }
             *v = held;
@@ -142,7 +160,7 @@ pub fn tape(x: &mut Stereo, wow: f32, flutter: f32, drive_db: f32, lowpass_hz: f
         }
     }
     if drive_db > 0.0 {
-        saturate(x, SatKind::Tape, drive_db, 1.0, sr);
+        saturate(x, SatKind::Tape, &drive_db.into(), 1.0, ctx);
     }
     if lowpass_hz > 0.0 {
         for ch in x.channels_mut() {

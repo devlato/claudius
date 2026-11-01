@@ -33,6 +33,11 @@ A take waits when it stops: play it back in the song, record it again, or keep i
 waiting for it (`wait_for_take`), carries on with it
 ([A take an assistant asks for](https://github.com/devlato/claudius/blob/main/docs/src/guide/samples.md#a-take-an-assistant-asks-for)).
 
+Scripts reach every effect: a chain on any track, bus or the master, `parallel` chains side by side at their own
+amounts, buses of your own, and settings that move through the song or by section, such as a filter that opens across
+every build or a reverb that only the break drowns in. The printed song lists every chain
+([Effect chains](https://github.com/devlato/claudius/blob/main/docs/src/language/mixing.md#effect-chains)).
+
 `claudius publish` checks a song the way stores and distributors check a release (its artwork's size, colours and
 sharpness, its audio, the licences of its sounds, and its details, including how it was made) and writes a release
 kit: the WAV and the cover a distributor takes, and the answers its form asks for

@@ -36,9 +36,9 @@ an option a function does not know is an error, not ignored.
 | `drum("hat", "main", "x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.x.", 32)` | 32 (or 48 for triplets) steps per bar. A new lane needs a drum word as its name (`kick`, `bd`, `snare`, `hat`, `ohat`, `clap`, `perc` ...): the name gives its sound and its role |
 | `drum_sound("kick", "tr909:bd")`, `drum_sound("snare", "cp")`, `drum_sound("kick", "bd", "tr808")`, `drum_sound("perc", "/Users/me/Samples/rim.wav")` | what a lane plays: a synthesized drum word, a kit sound from the packs (optionally with a bank), or a sample file |
 | `part("bass", #{ style: "syncopated", preset: "reese", register: [28, 48], density: 0.6, seed: 5 })` | a part written by the theory engine: any subset of `style preset register density seed rate`. `seed` rewrites it. On a song without that part (a blank one), any part the genre has is added first |
-| `mix("lead", #{ level: -3, pan: 0.2, reverb: 0.3, delay: 0.15, duck: 0.4, mute: false, solo: false })` | level in dB from the role's target; sends 0..1; `duck` = sidechain from the kick |
+| `mix("lead", #{ level: -3, pan: 0.2, reverb: 0.3, delay: 0.15, duck: 0.4, mute: false, solo: false, bus: "music" })` | level in dB from the role's target; sends 0..1; `duck` = sidechain from the kick; `bus` the bus it plays into (`drums bass music fx`, or one of your own) |
 | `mute("hat")`, `unmute("hat")`, `solo("lead")`, `unsolo("lead")`, `remove("perc")` | while any track is soloed, only soloed tracks play (and get judged) |
-| `master(#{ lufs: -9, ceiling: -1 })` | loudness target of the master |
+| `master(#{ lufs: -9, ceiling: -1, fx: [...] })` | loudness target of the master, and its chain of effects (below) |
 | `track("hats", s("[~ hh]*4"))` | a pattern track (below); replaces any track of that name. A new track plays in every section with energy 0.6 or more, or in every section when no section lists any tracks yet |
 
 Part styles, by the part's role: bass `sustain pulse root8 offbeat octave rolling syncopated kick_follow acid walking
@@ -63,6 +63,41 @@ layer("break", "lead", true);                                               // s
 
 Section kinds: `intro verse build drop break hook groove outro`. Section methods: `.name(s) .energy(0..1) .prog(name)
 .variant(name) .build() .gap() .impact() .fills() .filter_in()` (each flag also takes `true`/`false`).
+
+### Effects
+
+Every track, bus and the master has a chain of effects, which a script sets whole; each effect is a map named by `fx`,
+as `blueprint.json` keeps it:
+
+```js
+fx("lead", [#{ fx: "saturate", kind: "tape", drive_db: 6 }, #{ fx: "delay", beats: 0.75, feedback: 0.4, mix: 0.25 }]);
+bus("keys", [#{ fx: "compressor", threshold_db: -20, ratio: 3, attack_ms: 10, release_ms: 120 }]);  // a bus of your own
+mix("pad", #{ bus: "keys" });
+master(#{ fx: [#{ fx: "eq", bands: [#{ kind: "highpass", freq: 30 }] }, #{ fx: "limiter", ceiling_db: -1, release_ms: 50 }] });
+send_fx(#{ reverb: #{ fx: "reverb", decay: 5, predelay_ms: 30, mix: 1 } });          // what the reverb send feeds
+fx("bass", [#{ fx: "parallel", dry: 1, chains: [                                    // side by side, each as loud as its amount
+  #{ amount: 0.5, fx: [#{ fx: "compressor", threshold_db: -30, ratio: 10, attack_ms: 1, release_ms: 60 }] },
+  #{ amount: 0.3, fx: [#{ fx: "saturate", kind: "fold", drive_db: 18 }, #{ fx: "filter", mode: "hp", cutoff: 700 }] },
+] }]);
+fx("pad", [#{ fx: "reverb", decay: 4, mix: sections(0.15, #{ build: [0.15, 0.6], "break": 0.5 }) }]);
+```
+
+Effects and their settings (default): `gain db` · `eq bands: [#{ kind, freq, gain_db, q }]` · `filter mode (lp hp bp
+notch ladder) cutoff res (0) drive (1) mix (1)` · `compressor threshold_db ratio attack_ms release_ms knee_db makeup_db
+mix` · `limiter ceiling_db release_ms` · `saturate kind (tanh tube tape hard fold) drive_db mix` · `bitcrush bits
+downsample (1) mix` · `reverb decay damping predelay_ms width (1) mix lowcut (250)` · `delay beats feedback damping
+pingpong mix` (the repeats' level on top) · `chorus rate_hz depth_ms delay_ms mix` · `flanger` and `phaser` (with
+`feedback`, a phaser's `stages depth`) · `width width mono_below_hz` · `tremolo` and `auto_pan beats depth` · `gate steps
+step_beats depth smooth_ms` · `transient attack_db sustain_db` · `tape wow flutter drive_db lowpass_hz` · `vinyl crackle
+hiss_db` · `tape_stop`, `reverse start len` and `stutter start len slice` (beats) · `parallel chains: [#{ fx: [...],
+amount }] dry`.
+
+These settings can move: `gain db`, `filter cutoff res`, `saturate drive_db`, `bitcrush bits`, `delay feedback`,
+`width width`, a `parallel`'s `amount` and `dry`, and every `mix`. A setting that moves is a curve of `[beat, value]`
+points from the song's start (`[[0, 400], [32, 8000]]`), or `sections(rest, #{ section: value })`: a value held
+through each section named (by name, or every section of a kind), several moved through across it (`[0, 1]`,
+`[0, 1, 0]`), `rest` elsewhere; it follows the form when sections move. Quote `"break"` as a key (or write
+`breakdown`). The printed song lists every chain.
 
 ## Patterns
 

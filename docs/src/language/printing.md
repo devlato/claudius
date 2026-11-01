@@ -84,6 +84,11 @@ Things to notice:
   path would mean nothing on another computer.
 - A generated part prints its style, preset, register, density and seed, and an arp part its `rate`.
 - `mix("fx", ...)` is the transition effects' mix (crashes and risers), which comes from the genre.
+- The [effect chains](mixing.md#effect-chains) print last: an `fx()` line for each track with a chain (and an empty
+  one where the genre or the generator would have given one), a `bus()` line for each bus with a chain, the master's
+  chain as `master(#{ fx: [...] })`, and `send_fx()` when the sends' reverb or delay is not the genre's. A chain of
+  several effects prints an effect a line, and values by section as the `sections()` that makes them.
+- A track on another bus than its genre gives it prints `bus` in its `mix()` line.
 
 ## How values print
 
@@ -109,7 +114,6 @@ anywhere else does not recreate them.
 - the patch of a generated part beyond its preset name (the generator's variation and evolution's tweaks), its voice
   count and voicing style;
 - Apple Loops layered into the song as loops, and flipped samples;
-- the effects on tracks and buses, the reverb and delay settings, and the master chain (all from the genre);
 - the transition sounds and settings;
 - the song's history (the lineage shown in the studio's log).
 

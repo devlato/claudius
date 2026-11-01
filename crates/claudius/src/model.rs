@@ -601,21 +601,10 @@ impl Project {
     /// the bars [from, to) as a project of their own (for quick previews)
     pub fn slice(&self, from_bar: u32, to_bar: u32) -> Project {
         let (a, b) = (from_bar as f64 * 4.0, to_bar.min(self.bars) as f64 * 4.0);
-        let shift_param = |p: &crate::dsp::env::Param| match p {
-            crate::dsp::env::Param::Curve(pts) => {
-                crate::dsp::env::Param::Curve(pts.iter().map(|(t, v)| (t - a, *v)).collect())
-            }
-            c => c.clone(),
-        };
-        let shift_fx = |fx: &Effect| match fx {
-            Effect::Filter { mode, cutoff, res, drive, mix } => {
-                Effect::Filter { mode: *mode, cutoff: shift_param(cutoff), res: *res, drive: *drive, mix: *mix }
-            }
-            Effect::Gain { db } => Effect::Gain { db: shift_param(db) },
-            Effect::TapeStop { start, len } => Effect::TapeStop { start: start - a, len: *len },
-            Effect::Stutter { start, len, slice } => Effect::Stutter { start: start - a, len: *len, slice: *slice },
-            Effect::Reverse { start, len } => Effect::Reverse { start: start - a, len: *len },
-            other => other.clone(),
+        let shift_fx = |fx: &Effect| {
+            let mut fx = fx.clone();
+            fx.shift(a);
+            fx
         };
         let tracks = self
             .tracks
@@ -641,9 +630,10 @@ impl Project {
             })
             .collect();
         let mut mix = self.mix.clone();
-        for chain in mix.buses.values_mut() {
+        for chain in mix.buses.values_mut().chain([&mut mix.master.fx]) {
             *chain = chain.iter().map(shift_fx).collect();
         }
+        (mix.reverb, mix.delay) = (shift_fx(&mix.reverb), shift_fx(&mix.delay));
         Project {
             bars: to_bar.min(self.bars) - from_bar,
             sections: self

@@ -109,7 +109,7 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     }
     let c = ctx.clone();
     engine.register_fn("mix", move |name: &str, m: Map| -> R<()> {
-        check_keys(&m, "mix()", &["level", "pan", "reverb", "room", "delay", "duck", "mute", "solo"])?;
+        check_keys(&m, "mix()", &["level", "pan", "reverb", "room", "delay", "duck", "mute", "solo", "bus"])?;
         with_bp(&c, |bp, _| {
             let mix = mix_of(bp, name).ok_or_else(|| format!("no track '{name}'"))?;
             if let Some(v) = map_f32(&m, "level") {
@@ -132,6 +132,12 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
             }
             if let Some(v) = m.get("solo").and_then(|d| d.as_bool().ok()) {
                 mix.solo = v;
+            }
+            if let Some(b) = map_str(&m, "bus") {
+                if b.is_empty() || !b.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_') {
+                    return fail(format!("a bus is named with letters, digits, - and _, not '{b}'"));
+                }
+                mix.bus = b;
             }
             Ok(())
         })
@@ -173,8 +179,18 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     });
     let c = ctx.clone();
     engine.register_fn("master", move |m: Map| -> R<()> {
-        check_keys(&m, "master()", &["lufs", "ceiling"])?;
+        check_keys(&m, "master()", &["lufs", "ceiling", "fx"])?;
+        let fx = match m.get("fx") {
+            Some(d) => Some(super::effects::chain_of(
+                &d.clone().try_cast::<Array>().ok_or("master()'s fx is a list of effects")?,
+                "master()'s fx",
+            )?),
+            None => None,
+        };
         with_bp(&c, |bp, _| {
+            if let Some(fx) = fx {
+                bp.mix.master.fx = fx;
+            }
             if let Some(v) = map_f32(&m, "lufs") {
                 bp.mix.master.lufs = v.clamp(-24.0, -5.0);
             }

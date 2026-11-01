@@ -1,5 +1,6 @@
 //! Printing a song as a script that runs back into the same song.
 
+use crate::fx::Effect;
 use crate::model::*;
 use crate::pattern::quote;
 
@@ -39,8 +40,197 @@ fn mix_line(name: &str, m: &TrackMix, base: &TrackMix, out: &mut String) {
     if m.solo != base.solo {
         parts.push(format!("solo: {}", m.solo));
     }
+    if m.bus != base.bus {
+        parts.push(format!("bus: {}", quote(&m.bus)));
+    }
     if !parts.is_empty() {
         out.push_str(&format!("mix({}, #{{ {} }});\n", quote(name), parts.join(", ")));
+    }
+}
+
+/// a map key as a script writes it: bare when it is a name, quoted when it is not or when Rhai keeps the word
+fn key_text(k: &str) -> String {
+    const KEYWORDS: &[&str] = &[
+        "as",
+        "break",
+        "call",
+        "case",
+        "catch",
+        "const",
+        "continue",
+        "curry",
+        "debug",
+        "default",
+        "do",
+        "else",
+        "eval",
+        "exit",
+        "export",
+        "false",
+        "fn",
+        "for",
+        "global",
+        "go",
+        "goto",
+        "if",
+        "import",
+        "in",
+        "is_def_fn",
+        "is_def_var",
+        "is_shared",
+        "let",
+        "loop",
+        "match",
+        "module",
+        "new",
+        "nil",
+        "null",
+        "package",
+        "print",
+        "private",
+        "protected",
+        "public",
+        "return",
+        "shared",
+        "spawn",
+        "static",
+        "super",
+        "switch",
+        "sync",
+        "this",
+        "thread",
+        "throw",
+        "true",
+        "try",
+        "type_of",
+        "until",
+        "use",
+        "var",
+        "void",
+        "while",
+        "with",
+    ];
+    let bare = k.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+        && k.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        && !KEYWORDS.contains(&k);
+    if bare { k.to_string() } else { quote(k) }
+}
+
+/// A value as a script writes it: a number as the shortest text that reads back the same, an effect's `fx` first,
+/// and values by section as the `sections()` that makes them.
+fn value_text(v: &serde_json::Value) -> String {
+    use serde_json::Value;
+    match v {
+        Value::Null => "()".into(),
+        Value::Bool(b) => b.to_string(),
+        Value::Number(n) => match (n.as_i64(), n.as_f64()) {
+            (Some(i), _) => i.to_string(),
+            (_, Some(x)) if (x as f32) as f64 == x => f32s(x as f32),
+            (_, Some(x)) => f64s(x),
+            _ => n.to_string(),
+        },
+        Value::String(s) => quote(s),
+        Value::Array(a) => format!("[{}]", a.iter().map(value_text).collect::<Vec<_>>().join(", ")),
+        Value::Object(m) => {
+            if let (Some(rest), Some(Value::Object(by)), 2) = (m.get("rest"), m.get("sections"), m.len()) {
+                let one = |v: &Value| match v {
+                    Value::Array(a) if a.len() == 1 => value_text(&a[0]),
+                    v => value_text(v),
+                };
+                let by: Vec<String> = by.iter().map(|(k, v)| format!("{}: {}", key_text(k), one(v))).collect();
+                return format!("sections({}, #{{ {} }})", value_text(rest), by.join(", "));
+            }
+            let mut keys: Vec<&String> = m.keys().collect();
+            keys.sort_by_key(|k| (!(k.as_str() == "fx" && m[k.as_str()].is_string()), k.as_str()));
+            let fields: Vec<String> =
+                keys.iter().map(|k| format!("{}: {}", key_text(k), value_text(&m[k.as_str()]))).collect();
+            format!("#{{ {} }}", fields.join(", "))
+        }
+    }
+}
+
+/// a chain of effects as a script writes it, an effect a line when there are several
+fn chain_text(chain: &[Effect]) -> String {
+    let fx: Vec<String> = chain.iter().map(|e| value_text(&serde_json::to_value(e).unwrap_or_default())).collect();
+    match fx.as_slice() {
+        [] => "[]".into(),
+        [one] => format!("[{one}]"),
+        many => format!("[\n{}]", many.iter().map(|f| format!("  {f},\n")).collect::<String>()),
+    }
+}
+
+/// The effect chains: each track's own, the buses', the master's and the sends'. A chain left empty prints too where
+/// the genre (or the generator, for a chorus on a part that plays chords) would give one, so that the script rebuilds
+/// the song as it is.
+fn effects(bp: &Blueprint, out: &mut String) {
+    let g = crate::genres::get(&bp.genre).ok();
+    let mut lines = Vec::new();
+    let mut track = |name: &str, chain: &[Effect], base: &[Effect], given: bool| {
+        if chain != base || (chain.is_empty() && given) {
+            lines.push(format!("fx({}, {});", quote(name), chain_text(chain)));
+        }
+    };
+    let gets = |fx: Option<&TrackMix>| fx.is_some_and(|m| !m.fx.is_empty());
+    for d in &bp.drums {
+        track(
+            &d.name,
+            &d.mix.fx,
+            &[],
+            gets(g.as_ref().and_then(|g| g.drums.iter().find(|l| l.name == d.name)).map(|l| &l.mix)),
+        );
+    }
+    for p in &bp.parts {
+        let spec = g.as_ref().and_then(|g| g.parts.iter().find(|s| s.name == p.name));
+        let chorus = matches!(p.role, Role::Chords | Role::Keys | Role::Pad);
+        track(&p.name, &p.mix.fx, &[], chorus || gets(spec.map(|s| &s.mix)));
+    }
+    for l in &bp.loops {
+        track(
+            &l.name,
+            &l.mix.fx,
+            &[],
+            gets(g.as_ref().and_then(|g| g.loops.iter().find(|s| s.name == l.name)).map(|s| &s.mix)),
+        );
+    }
+    for p in &bp.patterns {
+        let labels: Vec<String> = p.sounds.keys().cloned().collect();
+        let base = eval_pattern(&p.code).map(|pat| pattern_mix(&pat.opts, &labels, &p.role).fx).unwrap_or_default();
+        track(&p.name, &p.mix.fx, &base, false);
+    }
+    track("transitions", &bp.transitions.mix.fx, &[], gets(g.as_ref().map(|g| &g.transitions.mix)));
+    for (name, chain) in &bp.mix.buses {
+        let given = g.as_ref().and_then(|g| g.mix.buses.get(name)).is_some_and(|c| !c.is_empty());
+        if !chain.is_empty() || given {
+            lines.push(format!("bus({}, {});", quote(name), chain_text(chain)));
+        }
+    }
+    let master = g.as_ref().is_some_and(|g| !g.mix.master.is_empty());
+    if !bp.mix.master.fx.is_empty() || master {
+        lines.push(format!("master(#{{ fx: {} }});", chain_text(&bp.mix.master.fx)));
+    }
+    let mut sends = Vec::new();
+    for (k, e, given) in [
+        ("reverb", &bp.mix.reverb, g.as_ref().map(|g| &g.mix.reverb)),
+        ("delay", &bp.mix.delay, g.as_ref().map(|g| &g.mix.delay)),
+    ] {
+        if given != Some(e) {
+            sends.push(format!("{k}: {}", value_text(&serde_json::to_value(e).unwrap_or_default())));
+        }
+    }
+    if !sends.is_empty() {
+        lines.push(format!("send_fx(#{{ {} }});", sends.join(", ")));
+    }
+    if !lines.is_empty() {
+        out.push_str(
+            "\n// effects: each track's own chain, then the buses', the master's and the sends'; a setting that\n",
+        );
+        out.push_str(
+            "// can move is a number, a curve ([[beat, value], ...]) or sections(rest, #{ section: value })\n",
+        );
+        for l in lines {
+            out.push_str(&l);
+            out.push('\n');
+        }
     }
 }
 
@@ -182,21 +372,30 @@ pub fn to_script(bp: &Blueprint) -> String {
         s.push_str(",\n");
     }
     s.push_str("]);\n\n");
-    let plain = TrackMix::default();
+    // a track starts on the bus its genre gives it, or the one a new track of its kind gets
+    let g = crate::genres::get(&bp.genre).ok();
+    let on = |bus: Option<&TrackMix>, or: &str| TrackMix {
+        bus: bus.map_or_else(|| or.to_string(), |m| m.bus.clone()),
+        ..TrackMix::default()
+    };
     for d in &bp.drums {
-        mix_line(&d.name, &d.mix, &plain, &mut s);
+        let spec = g.as_ref().and_then(|g| g.drums.iter().find(|l| l.name == d.name)).map(|l| &l.mix);
+        mix_line(&d.name, &d.mix, &on(spec, "drums"), &mut s);
     }
     for p in &bp.parts {
-        mix_line(&p.name, &p.mix, &plain, &mut s);
+        let spec = g.as_ref().and_then(|g| g.parts.iter().find(|s| s.name == p.name)).map(|s| &s.mix);
+        mix_line(&p.name, &p.mix, &on(spec, "music"), &mut s);
     }
     for l in &bp.loops {
-        mix_line(&l.name, &l.mix, &plain, &mut s);
+        let spec = g.as_ref().and_then(|g| g.loops.iter().find(|s| s.name == l.name)).map(|s| &s.mix);
+        mix_line(&l.name, &l.mix, &on(spec, "music"), &mut s);
     }
     for p in &bp.patterns {
         let labels: Vec<String> = p.sounds.keys().cloned().collect();
         let base = eval_pattern(&p.code).map(|pat| pattern_mix(&pat.opts, &labels, &p.role)).unwrap_or_default();
         mix_line(&p.name, &p.mix, &base, &mut s);
     }
-    mix_line("fx", &bp.transitions.mix, &plain, &mut s);
+    mix_line("fx", &bp.transitions.mix, &on(g.as_ref().map(|g| &g.transitions.mix), "fx"), &mut s);
+    effects(bp, &mut s);
     s
 }

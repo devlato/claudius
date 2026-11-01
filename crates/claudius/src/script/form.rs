@@ -28,7 +28,7 @@ fn layers_from(d: &Dynamic, all: &[String]) -> R<Vec<String>> {
     Ok(names)
 }
 
-fn section_kind(k: &str) -> R<SectionKind> {
+pub(super) fn section_kind(k: &str) -> R<SectionKind> {
     Ok(match k {
         "intro" => SectionKind::Intro,
         "verse" => SectionKind::Verse,
