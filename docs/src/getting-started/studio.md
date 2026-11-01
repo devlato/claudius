@@ -74,7 +74,8 @@ since a take goes to a claudius, which keeps it with the song.
   late by more than they report: on a MacBook Pro, 45 ms. A MIDI keyboard has a Latency of its own, set by hand.
 - **In a browser.** The browser asks whether the page may use the microphone the first time the Record window opens.
   It records on `localhost` or over https only, and reports less of its latency than the app does: measure there too.
-  MIDI keyboards record in the app.
+  A MIDI keyboard records in Chrome, Edge and Firefox (Safari has no Web MIDI): choose **MIDI keyboards: let the page
+  use them** in the input list once, and the browser asks.
 - **A MIDI keyboard.** Choose it as the input, then what plays your notes (an instrument or a synth), the part they make
   (keys, a lead, chords, a pad, an arp or a bass), the grid they go to (or "as played") and a style, as for a take's
   melody. While you record, a soft

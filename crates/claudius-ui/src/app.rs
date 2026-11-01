@@ -431,12 +431,16 @@ impl Studio {
                 Step::Rec(Rec::Start) => self.view.record.start = true,
                 Step::Rec(Rec::Stop) => self.view.record.stop = true,
                 Step::Rec(Rec::Measure) => self.view.record.measure = true,
+                Step::Rec(Rec::Midi(name)) => self.view.record.settings.midi = Some(name),
+                Step::Rec(Rec::Grid(beats)) => self.view.record.settings.grid = beats,
+                Step::Rec(Rec::AllowMidi) => crate::audio::record::ask_for_midi(),
                 Step::AudioPath(p) => self.view.audio_path = p,
                 Step::Exit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             }
         }
-        // what the Record window says, for whoever runs the plan to read
+        // what the Record window says, and offers for MIDI keyboards, for whoever runs the plan to read
         plan.tell("record", &self.view.record.said());
+        plan.tell("midi", &crate::audio::record::midi_offer().map(|(what, _)| what).unwrap_or_default());
     }
 
     fn reference_window(&mut self, ctx: &egui::Context) {

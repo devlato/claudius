@@ -65,13 +65,11 @@ pub enum Take {
         /// how often the input fell silent in it (`hushed`)
         hushed: usize,
     },
-    /// from a MIDI input: the notes played (in the app: the browser records no MIDI yet)
-    #[cfg(not(target_arch = "wasm32"))]
+    /// from a MIDI input: the notes played
     Notes(Vec<Played>),
 }
 
 /// a note played on a MIDI input: when it started and ended, in seconds from the take's start, its pitch, how hard
-#[cfg(any(not(target_arch = "wasm32"), test))]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Played {
     pub start: f64,
@@ -82,7 +80,6 @@ pub struct Played {
 
 /// The notes in MIDI bytes, as a take hears them: each note on (its pitch and velocity) or off (velocity 0). The bytes
 /// may hold several messages, the later ones in running status, with clock and other real-time bytes among them.
-#[cfg(any(not(target_arch = "wasm32"), test))]
 pub(crate) fn notes_of(bytes: &[u8]) -> Vec<(u8, f32)> {
     let mut out = Vec::new();
     let (mut status, mut data) = (0u8, Vec::with_capacity(2));
@@ -114,7 +111,6 @@ pub(crate) fn notes_of(bytes: &[u8]) -> Vec<(u8, f32)> {
 
 /// The notes in what a MIDI input played (seconds since the recorder began, pitch, velocity), measured from `start`:
 /// a note on a pitch already sounding ends the one before, and a note still held at `stop` ends there.
-#[cfg(any(not(target_arch = "wasm32"), test))]
 pub(crate) fn pair(events: &[(f64, u8, f32)], start: f64, stop: f64) -> Vec<Played> {
     let mut open: [Option<(f64, f32)>; 128] = [None; 128];
     let mut out = Vec::new();
@@ -374,6 +370,66 @@ pub(crate) fn heard_at(now: f64, scheduled: Option<f64>, out: f64, from: f64) ->
     scheduled.map_or(from, |at| from + (now - at - out).max(0.0))
 }
 
+/// Where in the song (seconds from its first frame) a key was heard pressed, in a browser: it stamped the key at
+/// `stamp` (ms on the page's clock), the output was playing context time `playing` at `then` (ms on the page's clock,
+/// from `getOutputTimestamp`), and the song's first frame was to play at `scheduled` (context time).
+#[cfg(any(target_arch = "wasm32", test))]
+pub(crate) fn heard_at_stamp(stamp: f64, playing: f64, then: f64, scheduled: f64) -> f64 {
+    playing + (stamp - then) / 1000.0 - scheduled
+}
+
+/// When a key went down (ms on the page's clock): the browser's stamp, or, when there is none to believe (Chromium
+/// stamps what a keyboard plays 0), when the page heard it, `now`.
+#[cfg(any(target_arch = "wasm32", test))]
+pub(crate) fn key_time(stamp: f64, now: f64) -> f64 {
+    if stamp > 0.0 && stamp <= now && now - stamp < 1000.0 { stamp } else { now }
+}
+
+/// The guide tone's voices, one for each key down (`T` is what sounds it): a key pressed again starts over, and of
+/// sixteen the oldest goes.
+#[cfg(any(target_arch = "wasm32", test))]
+#[derive(Debug)]
+pub(crate) struct Voices<T> {
+    on: Vec<(u8, T)>,
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+impl<T> Default for Voices<T> {
+    fn default() -> Self {
+        Voices { on: Vec::new() }
+    }
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+impl<T> Voices<T> {
+    pub(crate) const MOST: usize = 16;
+
+    /// key `pitch` went down, sounded by `voice`: the voices to let go of (its own, still sounding, and the oldest
+    /// when there would be more than sixteen)
+    pub(crate) fn press(&mut self, pitch: u8, voice: T) -> Vec<T> {
+        let mut gone: Vec<T> = Vec::new();
+        if let Some(i) = self.on.iter().position(|(p, _)| *p == pitch) {
+            gone.push(self.on.remove(i).1);
+        }
+        if self.on.len() >= Self::MOST {
+            gone.push(self.on.remove(0).1);
+        }
+        self.on.push((pitch, voice));
+        gone
+    }
+
+    /// key `pitch` came up: its voice, to let go of
+    pub(crate) fn lift(&mut self, pitch: u8) -> Option<T> {
+        let i = self.on.iter().position(|(p, _)| *p == pitch)?;
+        Some(self.on.remove(i).1)
+    }
+
+    /// every voice, to let go of when the take ends
+    pub(crate) fn all(&mut self) -> Vec<T> {
+        self.on.drain(..).map(|(_, v)| v).collect()
+    }
+}
+
 /// what to say when a browser gives no input: its error's name and message, and the input's name if it was chosen
 #[cfg(any(target_arch = "wasm32", test))]
 pub(crate) fn no_input(name: &str, message: &str, input: Option<&str>) -> String {
@@ -418,6 +474,64 @@ mod tests {
         let both: Vec<f32> = [hiss(20), silence(200), hiss(20)].concat().iter().flat_map(|s| [*s, *s]).collect();
         assert_eq!(hushed(&both, 2, rate), 1);
         assert_eq!(hushed(&[], 2, rate), 0);
+    }
+
+    #[test]
+    fn a_key_is_where_the_song_was_heard_when_it_went_down() {
+        // the output was playing context time 10.0 at 5000 ms; the song's first frame was to play at 8.0
+        assert!((heard_at_stamp(5_000.0, 10.0, 5_000.0, 8.0) - 2.0).abs() < 1e-12);
+        assert!((heard_at_stamp(5_250.0, 10.0, 5_000.0, 8.0) - 2.25).abs() < 1e-12, "a key pressed later");
+        assert!((heard_at_stamp(4_900.0, 10.0, 5_000.0, 8.0) - 1.9).abs() < 1e-12, "or stamped before the reading");
+        assert!(heard_at_stamp(0.0, 10.0, 5_000.0, 8.0) < 0.0, "before the song: a note the take leaves out");
+    }
+
+    #[test]
+    fn a_key_is_timed_by_its_stamp_unless_the_browser_gave_none() {
+        assert_eq!(key_time(1_000.0, 1_030.0), 1_000.0, "stamped where it arrived, heard a little later");
+        assert_eq!(key_time(0.0, 1_030.0), 1_030.0, "Chromium's 0: when the page heard it");
+        assert_eq!(key_time(2_000.0, 1_030.0), 1_030.0, "a stamp from after now is not one");
+        assert_eq!(key_time(10.0, 5_000.0), 5_000.0, "nor one from seconds ago");
+        assert_eq!(key_time(f64::NAN, 1_030.0), 1_030.0);
+    }
+
+    /// keys pressed in time with what is heard, through a browser: a player who hears the song `out` after it plays
+    /// presses on each beat as heard; the page reads the output now and then, and pairs the keys into notes
+    #[test]
+    fn keys_pressed_in_time_in_a_browser_come_out_on_the_beat() {
+        let (scheduled, beat, count_in) = (3.0, 0.5, 2.0);
+        // the output's readings: context time playing at page time, the page's clock 1000 s ahead of the context's
+        let reading = |page_ms: f64| (page_ms / 1000.0 - 1000.0, page_ms);
+        let mut events = Vec::new();
+        for k in 0..8 {
+            // the k-th beat after the count-in, as heard: it plays at scheduled + count_in + k beats (context time)
+            let heard = scheduled + count_in + k as f64 * beat;
+            let pressed_ms = (heard + 1000.0) * 1000.0;
+            // a reading taken some time before the key, which does not matter
+            let (playing, then) = reading(pressed_ms - 137.0);
+            events.push((heard_at_stamp(pressed_ms, playing, then, scheduled), 60 + k as u8, 0.8));
+            events.push((heard_at_stamp(pressed_ms + 200.0, playing, then, scheduled), 60 + k as u8, 0.0));
+        }
+        let notes = pair(&events, count_in, count_in + 8.0 * beat);
+        assert_eq!(notes.len(), 8);
+        for (k, n) in notes.iter().enumerate() {
+            assert!((n.start - k as f64 * beat).abs() < 1e-9 && (n.end - n.start - 0.2).abs() < 1e-9, "{n:?}");
+        }
+    }
+
+    #[test]
+    fn the_guide_keeps_a_voice_a_key_and_sixteen_at_most() {
+        let mut v: Voices<u32> = Voices::default();
+        assert!(v.press(60, 1).is_empty());
+        assert!(v.press(64, 2).is_empty());
+        assert_eq!(v.press(60, 3), [1], "pressed again: the old voice goes");
+        assert_eq!(v.lift(64), Some(2));
+        assert_eq!(v.lift(64), None, "up once");
+        for p in 0..15 {
+            assert!(v.press(70 + p, 100 + p as u32).is_empty());
+        }
+        assert_eq!(v.press(100, 200), [3], "the seventeenth lets the oldest go");
+        assert_eq!(v.all().len(), 16);
+        assert!(v.all().is_empty());
     }
 
     #[test]

@@ -140,7 +140,7 @@ and the examples in the docs. CI runs more; when you changed the matching part, 
 | you changed | run |
 |---|---|
 | the docs or the site | `cargo xtask site`, then `lychee --offline --include-fragments --root-dir "$PWD/target/site" 'target/site/**/*.html'` for the links, and `npm ci && npx playwright test` in `site/` |
-| recording in the browser (`audio/web_record.rs`, `audio/take.rs`, `record-worklet.js`, the Record window) | `cargo clippy -p claudius-ui --target wasm32-unknown-unknown --features plan -- -D warnings`, then `cargo build --bin claudius && cargo xtask web --plan` and `npx playwright test tests/record.spec.mjs` in `site/`, which records in Chromium with a file for a microphone (it skips without those builds) |
+| recording in the browser (`audio/web_record.rs`, `audio/take.rs`, `record-worklet.js`, the Record window) | `cargo clippy -p claudius-ui --target wasm32-unknown-unknown --features plan -- -D warnings`, then `cargo build --bin claudius && cargo xtask web --plan` and `npx playwright test tests/record.spec.mjs` in `site/`, which records in Chromium with a file for a microphone and a MIDI keyboard it plays itself (it skips without those builds) |
 | the demo's sounds or its render (`crates/claudius-ui/src/mock/`, `demo_sounds.rs`, the synth presets) | `cargo xtask site --sounds`, then `node site/tests/serve.mjs` and listen to `http://127.0.0.1:4321/studio/?mock` |
 | dependencies | `cargo deny check` |
 | anything with words in it | `typos` |

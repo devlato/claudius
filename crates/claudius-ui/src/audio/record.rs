@@ -47,6 +47,19 @@ pub fn inputs() -> Vec<Input> {
 /// what a MIDI input played: seconds since the recorder began, pitch, velocity (0: the note ended)
 type Heard = Arc<Mutex<Vec<(f64, u8, f32)>>>;
 
+/// what the Record window offers for MIDI keyboards while it may not use them: nothing, in the app (a browser asks)
+pub fn midi_offer() -> Option<(String, bool)> {
+    None
+}
+
+/// a browser asks the person whether the page may use MIDI keyboards; the app need not
+pub fn ask_for_midi() {}
+
+/// the MIDI inputs listed are all there are: in the app, at once
+pub fn midi_settled() -> bool {
+    true
+}
+
 /// the MIDI inputs there are (keyboards and controllers), by name
 pub fn midi_inputs() -> Vec<String> {
     let Ok(input) = midir::MidiInput::new("claudius") else { return Vec::new() };

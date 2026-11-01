@@ -17,19 +17,25 @@ use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::{JsFuture, spawn_local};
 use web_sys::{
     AudioBufferSourceNode, AudioContext, AudioContextLatencyCategory, AudioContextOptions, AudioWorkletNode,
-    AudioWorkletNodeOptions, ChannelCountMode, MediaDeviceInfo, MediaDeviceKind, MediaDevices, MediaStream,
-    MediaStreamConstraints, MediaStreamTrack, MessageEvent,
+    AudioWorkletNodeOptions, ChannelCountMode, GainNode, MediaDeviceInfo, MediaDeviceKind, MediaDevices, MediaStream,
+    MediaStreamConstraints, MediaStreamTrack, MessageEvent, MidiAccess, MidiInput, MidiMessageEvent, OscillatorNode,
+    OscillatorType,
 };
 
 use super::Pcm;
-use super::take::{Captured, cut, heard_at, interleave, no_input, render_mix, take_starts, wav};
-pub use super::take::{Plan, Take};
+use super::take::{
+    Captured, Voices, cut, heard_at, heard_at_stamp, interleave, key_time, no_input, notes_of, pair, render_mix,
+    take_starts, wav,
+};
+pub use super::take::{Plan, Played, Take};
 
 /// the worklet's script, beside the page (trunk copies it there)
 const WORKLET: &str = "record-worklet.js";
 
-/// a MIDI keyboard records in the app: Web MIDI is not in every browser, and the studio does not use it yet
-const NO_MIDI: &str = "a MIDI keyboard records in the studio app";
+/// what to say of MIDI keyboards in a browser without Web MIDI, or on a page that may not use them
+const NO_WEB_MIDI: &str = "MIDI keyboards: this browser has none (Chrome, Edge and Firefox have)";
+const MIDI_BLOCKED: &str =
+    "MIDI keyboards are blocked for this page: allow them in the site settings in the address bar";
 
 /// an input the person can record from
 #[derive(Clone, Debug, PartialEq)]
@@ -46,6 +52,157 @@ thread_local! {
     static LISTED: Cell<f64> = const { Cell::new(f64::NEG_INFINITY) };
     /// the render a take is recorded over, by URL: decoded, or why it could not be (nothing yet while it loads)
     static SONG: RefCell<Option<Song>> = const { RefCell::new(None) };
+    /// what the page may do with MIDI keyboards
+    static MIDI: RefCell<Midi> = const { RefCell::new(Midi::Unknown) };
+}
+
+/// what the page may do with MIDI keyboards
+#[derive(Clone)]
+enum Midi {
+    /// not looked into yet
+    Unknown,
+    /// being looked into, or asked for
+    Pending,
+    /// the browser would ask the person: the window offers to
+    Unasked,
+    Granted(MidiAccess),
+    /// blocked, or the browser has no Web MIDI: what to say
+    Not(String),
+    /// the browser said no when asked, and why: the window offers to ask again
+    Refused(String),
+}
+
+fn midi() -> Midi {
+    MIDI.with(|m| m.borrow().clone())
+}
+
+fn set_midi(to: Midi) {
+    MIDI.with(|m| *m.borrow_mut() = to);
+}
+
+/// Looks into what the page may do with MIDI keyboards, once. Where the browser said yes before, they are there
+/// without its asking again.
+fn look_into_midi() {
+    if !matches!(midi(), Midi::Unknown) {
+        return;
+    }
+    let navigator = web_sys::window().map(|w| w.navigator());
+    let has = navigator.is_some_and(|n| Reflect::get(&n, &"requestMIDIAccess".into()).is_ok_and(|f| f.is_function()));
+    if !has {
+        return set_midi(Midi::Not(NO_WEB_MIDI.into()));
+    }
+    set_midi(Midi::Pending);
+    spawn_local(async {
+        match midi_permission().await.as_deref() {
+            Some("granted") => request_midi().await,
+            Some("denied") => set_midi(Midi::Not(MIDI_BLOCKED.into())),
+            _ => set_midi(Midi::Unasked),
+        }
+    });
+}
+
+/// what the browser says of the page and MIDI: granted, prompt, denied (none where it cannot say)
+async fn midi_permission() -> Option<String> {
+    let navigator = web_sys::window()?.navigator();
+    let permissions = Reflect::get(&navigator, &"permissions".into()).ok().filter(|p| !p.is_undefined())?;
+    let query: js_sys::Function = Reflect::get(&permissions, &"query".into()).ok()?.dyn_into().ok()?;
+    let descriptor = Object::new();
+    Reflect::set(&descriptor, &"name".into(), &"midi".into()).ok()?;
+    let asked: js_sys::Promise = query.call1(&permissions, &descriptor).ok()?.dyn_into().ok()?;
+    Reflect::get(&JsFuture::from(asked).await.ok()?, &"state".into()).ok()?.as_string()
+}
+
+async fn request_midi() {
+    set_midi(Midi::Pending);
+    let got = match web_sys::window().map(|w| w.navigator().request_midi_access()) {
+        Some(Ok(promise)) => JsFuture::from(promise).await,
+        Some(Err(e)) => Err(e),
+        None => Err("no browser window".into()),
+    };
+    match got {
+        // `unchecked`: a test's keyboard is not a `MIDIAccess`, though it answers as one
+        Ok(access) => set_midi(Midi::Granted(access.unchecked_into())),
+        Err(e) => match midi_permission().await.as_deref() {
+            Some("denied") => set_midi(Midi::Not(MIDI_BLOCKED.into())),
+            _ => set_midi(Midi::Refused(format!(
+                "MIDI keyboards: the browser did not let the page use them ({}); choose this to ask again",
+                described(&e)
+            ))),
+        },
+    }
+}
+
+/// the MIDI inputs the page may use, by name, and each
+fn midi_ports(access: &MidiAccess) -> Vec<(String, MidiInput)> {
+    let mut out = Vec::new();
+    let values = access.inputs().values();
+    while let Ok(next) = values.next() {
+        if next.done() {
+            break;
+        }
+        let input: MidiInput = next.value().unchecked_into();
+        let name = input.name().filter(|n| !n.is_empty()).unwrap_or_else(|| format!("MIDI input {}", out.len() + 1));
+        out.push((name, input));
+    }
+    out
+}
+
+/// What the Record window offers for MIDI keyboards while the page may not use them, and whether choosing it asks the
+/// browser: nothing once it may, or while that is being looked into.
+pub fn midi_offer() -> Option<(String, bool)> {
+    look_into_midi();
+    match midi() {
+        Midi::Unasked => Some(("MIDI keyboards: let the page use them".into(), true)),
+        Midi::Refused(why) => Some((why, true)),
+        Midi::Not(why) => Some((why, false)),
+        _ => None,
+    }
+}
+
+/// The MIDI inputs listed are all there are: the page may use them, or it never will. While the browser is looked
+/// into, or has yet to say yes, a keyboard chosen before may still be there.
+pub fn midi_settled() -> bool {
+    matches!(midi(), Midi::Granted(_) | Midi::Not(_))
+}
+
+/// asks the browser to let the page use MIDI keyboards: it asks the person
+pub fn ask_for_midi() {
+    if matches!(midi(), Midi::Unasked | Midi::Refused(_)) {
+        spawn_local(request_midi());
+    }
+}
+
+/// a MIDI input the page listens to: each message goes to its handler with when the browser stamped it (ms, on the
+/// page's clock)
+struct Keys {
+    input: MidiInput,
+    _on_message: Closure<dyn FnMut(MidiMessageEvent)>,
+}
+
+impl Keys {
+    fn open(name: &str, mut heard: impl FnMut(&[u8], f64) + 'static) -> Result<Keys, String> {
+        let Midi::Granted(access) = midi() else {
+            return Err("the page may not use MIDI keyboards yet: choose them in the input list first".into());
+        };
+        let input = midi_ports(&access)
+            .into_iter()
+            .find(|(n, _)| n == name)
+            .map(|(_, i)| i)
+            .ok_or_else(|| format!("no MIDI input called {name} any more"))?;
+        let on_message = Closure::<dyn FnMut(MidiMessageEvent)>::new(move |e: MidiMessageEvent| {
+            if let Ok(bytes) = e.data() {
+                heard(&bytes, e.time_stamp());
+            }
+        });
+        input.set_onmidimessage(Some(on_message.as_ref().unchecked_ref()));
+        Ok(Keys { input, _on_message: on_message })
+    }
+}
+
+impl Drop for Keys {
+    fn drop(&mut self) {
+        self.input.set_onmidimessage(None);
+    }
 }
 
 type Song = (String, Option<Result<Arc<Pcm>, String>>);
@@ -83,9 +240,13 @@ async fn list_inputs() -> Result<Vec<(Input, String)>, String> {
     Ok(out)
 }
 
-/// the MIDI inputs: none in the browser
+/// the MIDI inputs, once the page may use them (`midi_offer` says how it may), by name
 pub fn midi_inputs() -> Vec<String> {
-    Vec::new()
+    look_into_midi();
+    match midi() {
+        Midi::Granted(access) => midi_ports(&access).into_iter().map(|(n, _)| n).collect(),
+        _ => Vec::new(),
+    }
 }
 
 /// The render at `url` (a WAV) decoded, for a take to be recorded over: `None` while it loads. Asking for another URL
@@ -135,6 +296,10 @@ struct Session {
     node: Option<AudioWorkletNode>,
     player: Option<AudioBufferSourceNode>,
     on_message: Option<Closure<dyn FnMut(MessageEvent)>>,
+    /// what a MIDI input played: where in the song it was heard (seconds from its first frame), pitch, velocity (0:
+    /// the note ended); and the guide tone that plays it
+    played: Vec<(f64, u8, f32)>,
+    guide: Voices<(OscillatorNode, GainNode)>,
     /// the worklet was told to stop, and has handed over all it held since
     stopping: bool,
     drained: bool,
@@ -161,6 +326,8 @@ impl Session {
             node: None,
             player: None,
             on_message: None,
+            played: Vec::new(),
+            guide: Voices::default(),
             stopping: false,
             drained: false,
             closed: false,
@@ -200,6 +367,45 @@ impl Session {
         }
     }
 
+    /// what a MIDI input played, stamped `stamp` (ms, the page's clock): timed where the song was heard, and played
+    /// by the guide tone
+    fn keys(&mut self, bytes: &[u8], stamp: f64) {
+        let Some(scheduled) = self.scheduled.filter(|_| !self.closed) else { return };
+        let stamp = key_time(stamp, page_now());
+        let at = match output_timestamp(&self.ctx) {
+            Some((playing, then)) => heard_at_stamp(stamp, playing, then, scheduled),
+            // without the output's reading, the context's clock less what the output reports
+            None => heard_at_stamp(stamp, self.ctx.current_time() - self.out_latency(), page_now(), scheduled),
+        };
+        for (pitch, velocity) in notes_of(bytes) {
+            self.level = self.level.max(velocity);
+            self.played.push((at, pitch, velocity));
+            let now = self.ctx.current_time();
+            if velocity > 0.0 {
+                let Ok(voice) = self.voice(pitch, velocity, now) else { continue };
+                for old in self.guide.press(pitch, voice) {
+                    release(&old, now);
+                }
+            } else if let Some(old) = self.guide.lift(pitch) {
+                release(&old, now);
+            }
+        }
+    }
+
+    /// a voice of the guide tone: a sine at the key's pitch, as loud as it was played, 3 ms on
+    fn voice(&self, pitch: u8, velocity: f32, now: f64) -> Result<(OscillatorNode, GainNode), JsValue> {
+        let osc = self.ctx.create_oscillator()?;
+        osc.set_type(OscillatorType::Sine);
+        osc.frequency().set_value((440.0 * 2f64.powf((f64::from(pitch) - 69.0) / 12.0)) as f32);
+        let gain = self.ctx.create_gain()?;
+        gain.gain().set_value(0.0);
+        gain.gain().set_target_at_time(0.18 * velocity, now, 0.003)?;
+        osc.connect_with_audio_node(&gain)?;
+        gain.connect_with_audio_node(&self.ctx.destination())?;
+        web_sys::AudioScheduledSourceNode::start(&osc)?;
+        Ok((osc, gain))
+    }
+
     /// asks the worklet for what it still holds; without one, there is nothing to wait for
     fn stop_soon(&mut self) {
         if std::mem::replace(&mut self.stopping, true) {
@@ -228,9 +434,34 @@ impl Session {
         if let Some(stream) = self.stream.take() {
             stop_tracks(&stream);
         }
+        let now = self.ctx.current_time();
+        for voice in self.guide.all() {
+            release(&voice, now);
+        }
         self.on_message = None;
         let _ = self.ctx.close();
     }
+}
+
+/// lets a voice of the guide tone go: 150 ms off
+fn release((osc, gain): &(OscillatorNode, GainNode), now: f64) {
+    let _ = gain.gain().cancel_scheduled_values(now);
+    let _ = gain.gain().set_target_at_time(0.0, now, 0.05);
+    let _ = web_sys::AudioScheduledSourceNode::stop_with_when(osc, now + 0.4);
+}
+
+/// the output's reading: the context time it was playing, and when (ms, the page's clock); none before it plays
+fn output_timestamp(ctx: &AudioContext) -> Option<(f64, f64)> {
+    let read: js_sys::Function = Reflect::get(ctx, &"getOutputTimestamp".into()).ok()?.dyn_into().ok()?;
+    let at = read.call0(ctx).ok()?;
+    let get = |key: &str| Reflect::get(&at, &key.into()).ok().and_then(|v| v.as_f64());
+    let (playing, then) = (get("contextTime")?, get("performanceTime")?);
+    (then > 0.0).then_some((playing, then))
+}
+
+/// the page's clock, in ms
+fn page_now() -> f64 {
+    web_sys::window().and_then(|w| w.performance()).map_or(0.0, |p| p.now())
 }
 
 impl Drop for Session {
@@ -242,9 +473,22 @@ impl Drop for Session {
 /// opens `input` (by name; the default one when there is none of that name) for `s`, and plays `song` (left, right)
 /// once it listens; what goes wrong ends up in the session's error
 fn open(s: &Rc<RefCell<Session>>, input: Option<String>, song: Option<[Vec<f32>; 2]>) {
+    play(s, Some(input), song);
+}
+
+/// plays `song` (left, right) for `s`, with the input of that name (`Some`) listening first, or none (a MIDI take)
+fn play(s: &Rc<RefCell<Session>>, input: Option<Option<String>>, song: Option<[Vec<f32>; 2]>) {
     let weak = Rc::downgrade(s);
     spawn_local(async move {
-        if let Err(e) = listen(&weak, input.as_deref(), song).await
+        let listening = match &input {
+            Some(name) => listen(&weak, name.as_deref()).await,
+            None => Ok(()),
+        };
+        let started = match listening {
+            Ok(()) => start_song(&weak, song).await,
+            Err(e) => Err(e),
+        };
+        if let Err(e) = started
             && let Some(s) = weak.upgrade()
         {
             s.borrow_mut().error.get_or_insert(e);
@@ -257,7 +501,8 @@ fn alive(s: &Weak<RefCell<Session>>) -> Option<Rc<RefCell<Session>>> {
     s.upgrade().filter(|s| !s.borrow().closed)
 }
 
-async fn listen(s: &Weak<RefCell<Session>>, input: Option<&str>, song: Option<[Vec<f32>; 2]>) -> Result<(), String> {
+/// opens `input` (by name; the default one when there is none of that name) into the session's worklet
+async fn listen(s: &Weak<RefCell<Session>>, input: Option<&str>) -> Result<(), String> {
     let Some(ctx) = alive(s).map(|s| s.borrow().ctx.clone()) else { return Ok(()) };
     let worklet = ctx.audio_worklet().map_err(|e| format!("this browser cannot record: {}", described(&e)))?;
     let loading = worklet.add_module(WORKLET).map_err(|e| format!("the recorder did not load: {}", described(&e)))?;
@@ -304,7 +549,13 @@ async fn listen(s: &Weak<RefCell<Session>>, input: Option<&str>, song: Option<[V
         st.input_latency = latency.filter(|l| l.is_finite() && *l >= 0.0).unwrap_or(0.0);
         (st.stream, st.node, st.on_message) = (Some(stream), Some(node), Some(on_message));
     }
-    drop(session);
+    Ok(())
+}
+
+/// lets the context play, and starts `song` (left, right) a moment from now, if there is one
+async fn start_song(s: &Weak<RefCell<Session>>, song: Option<[Vec<f32>; 2]>) -> Result<(), String> {
+    let Some(ctx) = alive(s).map(|s| s.borrow().ctx.clone()) else { return Ok(()) };
+    let graph = |e: JsValue| format!("the browser could not play the song: {}", described(&e));
     JsFuture::from(ctx.resume().map_err(graph)?).await.map_err(graph)?;
     let Some(song) = song else { return Ok(()) };
     let Some(session) = alive(s) else { return Ok(()) };
@@ -381,35 +632,51 @@ fn described(e: &JsValue) -> String {
         .unwrap_or_else(|| format!("{e:?}"))
 }
 
-/// the input alone, for the meter while the Record window is open and no take records
+/// the input alone, for the meter while the Record window is open and no take records: an audio input, or a MIDI one
+/// and how hard its keys were last played
 pub struct Listener {
-    s: Rc<RefCell<Session>>,
+    s: Option<Rc<RefCell<Session>>>,
+    keys: Option<(Keys, Rc<Cell<f32>>)>,
 }
 
 impl Listener {
     pub fn start(input: Option<&str>, first: usize, stereo: bool) -> Result<Listener, String> {
         let s = Session::new(false, first, if stereo { 2 } else { 1 })?;
         open(&s, input.map(str::to_string), None);
-        Ok(Listener { s })
+        Ok(Listener { s: Some(s), keys: None })
     }
 
-    pub fn midi(_name: &str) -> Result<Listener, String> {
-        Err(NO_MIDI.into())
+    /// a MIDI input, the meter showing how hard each note is played
+    pub fn midi(name: &str) -> Result<Listener, String> {
+        let level = Rc::new(Cell::new(0f32));
+        let hard = level.clone();
+        let keys = Keys::open(name, move |bytes, _| {
+            for (_, v) in notes_of(bytes) {
+                hard.set(hard.get().max(v));
+            }
+        })?;
+        Ok(Listener { s: None, keys: Some((keys, level)) })
     }
 
     /// the loudest input since the last call, 0..1
     pub fn level(&self) -> f32 {
-        std::mem::take(&mut self.s.borrow_mut().level)
+        match (&self.keys, &self.s) {
+            (Some((_, level)), _) => level.replace(0.0),
+            (None, Some(s)) => std::mem::take(&mut s.borrow_mut().level),
+            (None, None) => 0.0,
+        }
     }
 
     pub fn error(&self) -> Option<String> {
-        self.s.borrow().error.clone()
+        self.s.as_ref().and_then(|s| s.borrow().error.clone())
     }
 }
 
 impl Drop for Listener {
     fn drop(&mut self) {
-        self.s.borrow_mut().close();
+        if let Some(s) = &self.s {
+            s.borrow_mut().close();
+        }
     }
 }
 
@@ -419,17 +686,33 @@ pub struct Recorder {
     from: f64,
     count_in: f64,
     offset: f64,
+    /// a MIDI take: the input it records what is played on
+    keys: Option<Keys>,
 }
 
 impl Recorder {
     pub fn start(plan: Plan) -> Result<Recorder, String> {
-        if plan.midi.is_some() {
-            return Err(NO_MIDI.into());
-        }
-        let s = Session::new(true, plan.channel, if plan.stereo { 2 } else { 1 })?;
+        let s = Session::new(plan.midi.is_none(), plan.channel, if plan.stereo { 2 } else { 1 })?;
         let rate = s.borrow().ctx.sample_rate() as f64;
-        open(&s, plan.input.clone(), Some(render_mix(&plan, rate)));
-        Ok(Recorder { s, from: plan.start - plan.count_in, count_in: plan.count_in, offset: plan.offset })
+        let song = Some(render_mix(&plan, rate));
+        let keys = match &plan.midi {
+            Some(name) => {
+                let weak = Rc::downgrade(&s);
+                let keys = Keys::open(name, move |bytes, stamp| {
+                    if let Some(s) = weak.upgrade() {
+                        s.borrow_mut().keys(bytes, stamp);
+                    }
+                })?;
+                s.borrow_mut().input = name.clone();
+                play(&s, None, song);
+                Some(keys)
+            }
+            None => {
+                open(&s, plan.input.clone(), song);
+                None
+            }
+        };
+        Ok(Recorder { s, from: plan.start - plan.count_in, count_in: plan.count_in, offset: plan.offset, keys })
     }
 
     /// what it plays through and records from
@@ -471,8 +754,20 @@ impl Recorder {
         self.s.borrow().error.clone()
     }
 
-    /// stops, and cuts the take from where the song reached the take's start, as heard, to now
+    /// stops, and cuts the take from where the song reached the take's start, as heard, to now: what an audio input
+    /// heard, or the notes a MIDI input played
     pub fn finish(self) -> Result<Take, String> {
+        if self.keys.is_some() {
+            let mut s = self.s.borrow_mut();
+            let scheduled = s.scheduled.ok_or("the song never played")?;
+            let stop = heard_at(s.ctx.current_time(), Some(scheduled), s.out_latency(), 0.0);
+            s.close();
+            let notes = pair(&s.played, self.count_in + self.offset, stop);
+            if notes.is_empty() {
+                return Err("nothing was played after the count-in".into());
+            }
+            return Ok(Take::Notes(notes));
+        }
         let Cut { samples, channels, rate, dropouts, hushed } = self.stop(self.count_in, self.offset)?;
         if samples.is_empty() {
             return Err("the take is empty: it stopped before the count-in was over".into());

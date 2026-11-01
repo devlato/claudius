@@ -90,6 +90,53 @@ function said(page) {
   return lines;
 }
 
+/** what the Record window offers for MIDI keyboards, as the plan reports it */
+function offered(page) {
+  const lines = [];
+  page.on("console", (m) => {
+    const t = m.text();
+    if (t.startsWith("midi: ")) lines.push(t.slice(6));
+  });
+  return lines;
+}
+
+/**
+ * Web MIDI as a browser gives it, before the page's own scripts: `state` is what the browser says of the page
+ * ("granted", "prompt" (it asks, and the person says yes) or "denied"), or "absent" for a browser without it. Its one
+ * keyboard plays middle C every half second, held a fifth of a second, to whatever listens, its messages stamped where
+ * they arrived, or 0 when `stamped` is false, as Chromium stamps a real keyboard's.
+ */
+function fakeMidi({ state, stamped = true, slow = 0 }) {
+  if (state === "absent") {
+    delete Navigator.prototype.requestMIDIAccess;
+    return;
+  }
+  const input = { id: "fake", name: "Fake Keyboard", type: "input", state: "connected", connection: "open", onmidimessage: null };
+  const access = { inputs: new Map([["fake", input]]), outputs: new Map(), sysexEnabled: false, onstatechange: null };
+  // a browser that takes `slow` ms to give access, as one that looks into its devices first
+  const later = (f) => new Promise((ok, no) => setTimeout(() => f(ok, no), slow));
+  Navigator.prototype.requestMIDIAccess = () =>
+    later((ok, no) => (state === "denied" ? no(new DOMException("blocked", "NotAllowedError")) : ok(access)));
+  const query = navigator.permissions.query.bind(navigator.permissions);
+  navigator.permissions.query = (d) => (d && d.name === "midi" ? Promise.resolve({ state }) : query(d));
+  const send = (bytes, at) =>
+    input.onmidimessage && input.onmidimessage({ data: new Uint8Array(bytes), timeStamp: stamped ? at : 0 });
+  // a keyboard's messages are stamped when they arrive, however late the page gets round to them: a timer that fires
+  // late, as on a page busy drawing, does not move the notes (and no message comes before its time)
+  const t0 = performance.now();
+  let next = 0;
+  const due = [];
+  setInterval(() => {
+    const now = performance.now();
+    for (; t0 + next * 500 <= now; next++) due.push([t0 + next * 500, [0x90, 60, 100]], [t0 + next * 500 + 200, [0x80, 60, 0]]);
+    due.sort((a, b) => a[0] - b[0]);
+    while (due.length && due[0][0] <= now) {
+      const [at, bytes] = due.shift();
+      send(bytes, at);
+    }
+  }, 20);
+}
+
 /** the take files in a claudius' home: where a song that is not saved yet keeps its takes */
 const takes = (home) => {
   const dir = join(home, "Music", "claudius", "takes");
@@ -174,6 +221,86 @@ test.describe("recording in the browser", () => {
     } finally {
       await close();
       c.stop();
+    }
+  });
+
+  test("notes played on a MIDI keyboard become a part, a note on every beat", async () => {
+    test.setTimeout(180_000);
+    const c = await claudius();
+    const { page, close } = await browser(c.base);
+    try {
+      // the keyboard is chosen as the window opens, 1.5 s before the browser has listed it: it must stay chosen
+      await page.addInitScript(fakeMidi, { state: "granted", slow: 4_500 });
+      const lines = said(page);
+      const plan = "wait:3;record;rec:midi:Fake Keyboard;rec:grid:0;wait:3;rec:start;wait:7;rec:stop;wait:4";
+      await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
+      await expect.poll(() => lines.join("\n"), { timeout: 60_000 }).toMatch(/\d+ notes from the start of intro, C4 to C4, played by played/);
+      // about four and a half seconds after the count-in, two notes a second
+      const n = Number(lines.join("\n").match(/(\d+) notes from the start of intro/)[1]);
+      expect(n).toBeGreaterThanOrEqual(6);
+      expect(n).toBeLessThanOrEqual(12);
+      const state = await (await c.api("/api/state")).json();
+      expect(state.song.tracks.find((t) => t.name === "played"), "the notes are a part of the song").toBeTruthy();
+      // as played: a key every half second, held a fifth of one, is a note a beat at 120 BPM, held 0.4 of a beat
+      const folder = join(c.home, "Music", "claudius", "played");
+      expect((await (await c.api("/api/command", { cmd: "save", path: folder })).json()).ok).toBe(true);
+      const bp = JSON.parse(readFileSync(join(folder, "blueprint.json"), "utf8"));
+      const part = bp.parts.find((p) => p.name === "played");
+      const intro = bp.form.find((f) => f.name === "intro");
+      const all = part.notes[intro.prog];
+      expect(all.length).toBe(n);
+      // a key held over the downbeat starts with the take, and is shorter
+      const notes = all[0].t === 0 && all[0].d < 0.34 ? all.slice(1) : all;
+      expect(notes.length).toBeGreaterThanOrEqual(5);
+      for (const [a, b] of notes.slice(1).map((x, i) => [notes[i], x])) {
+        expect(Math.abs(b.t - a.t - 1), `a beat apart: ${a.t} then ${b.t}`).toBeLessThan(0.06);
+      }
+      for (const note of notes) expect(Math.abs(note.d - 0.4), `held 0.4 of a beat: ${note.d}`).toBeLessThan(0.06);
+    } finally {
+      await close();
+      c.stop();
+    }
+  });
+
+  test("a keyboard the page has to ask for, stamped as Chromium stamps a real one, still makes a part", async () => {
+    test.setTimeout(180_000);
+    const c = await claudius();
+    const { page, close } = await browser(c.base);
+    try {
+      await page.addInitScript(fakeMidi, { state: "prompt", stamped: false });
+      const lines = said(page);
+      const offers = offered(page);
+      const plan =
+        "wait:3;record;wait:1;rec:allow-midi;wait:1;rec:midi:Fake Keyboard;wait:1;rec:start;wait:7;rec:stop;wait:4";
+      await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
+      await expect.poll(() => lines.join("\n"), { timeout: 60_000 }).toMatch(/\d+ notes from the start of intro/);
+      expect(offers.join("\n"), "the window offered to ask first").toMatch(/let the page use them/);
+      const n = Number(lines.join("\n").match(/(\d+) notes from the start of intro/)[1]);
+      expect(n).toBeGreaterThanOrEqual(6);
+      expect(n).toBeLessThanOrEqual(12);
+    } finally {
+      await close();
+      c.stop();
+    }
+  });
+
+  test("a browser without Web MIDI, or a page blocked from it, says so", async () => {
+    test.setTimeout(120_000);
+    for (const [state, words] of [
+      ["absent", /this browser has none \(Chrome, Edge and Firefox have\)/],
+      ["denied", /blocked for this page: allow them in the site settings/],
+    ]) {
+      const c = await claudius();
+      const { page, close } = await browser(c.base);
+      try {
+        await page.addInitScript(fakeMidi, { state });
+        const lines = offered(page);
+        await page.goto(`${c.base}/?plan=${encodeURIComponent("wait:3;record;wait:3")}`);
+        await expect.poll(() => lines.join("\n"), { timeout: 30_000 }).toMatch(words);
+      } finally {
+        await close();
+        c.stop();
+      }
     }
   });
 

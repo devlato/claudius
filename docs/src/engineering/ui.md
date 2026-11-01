@@ -204,7 +204,14 @@ measurement that fails on such an input says the same.
 - **Where the take starts.** It is arithmetic (`take_starts`): when its downbeat was to play, plus what the browser
   reports of the output's latency (`baseLatency`, `outputLatency`) and the input's (the track's `latency`), plus the
   window's Latency.
-- **What is not there.** MIDI keyboards record in the app only, for now.
+- **A MIDI keyboard.** Web MIDI (`requestMIDIAccess`) gives the keyboards once the page may use them. Where the
+  browser says it was allowed before (`permissions.query`), the window lists them without asking; otherwise it offers
+  to ask. A message is stamped where it arrived (`timeStamp`, on the page's clock), however late the page handles
+  it; Chromium stamps a real keyboard's 0, so then `key_time` takes when the page heard it. `heard_at_stamp` puts it
+  where the song was heard then, from the output's reading (`getOutputTimestamp`: the context time the output was
+  playing, and when). `pair` makes the notes, as natively. The guide tone is an oscillator a key (`Voices`: a key
+  pressed again starts over, sixteen at most). A CoreMIDI keyboard playing every half second, recorded in Chromium
+  on a MacBook Pro, came out a beat apart to within 12 ms.
 
 Browsers report little of their latency. Chromium on a MacBook Pro reported 8.5 ms (5.8 ms of `baseLatency`, an
 `outputLatency` of 0, and 2.7 ms on the input), and takes landed 60 ms late. **Measure** works as natively, through
@@ -217,14 +224,15 @@ hear its clicks. What did it was not pinned down; macOS's per-app Mic Mode on Vo
 window says the input went silent and points there (`hushed`).
 
 The unit tests run the browser's path natively, in 128-frame quanta: a song scheduled on the context's clock, heard,
-recorded with a quantum lost, and cut on its downbeat to the frame; and a measurement through it that finds an
-unreported 0.18 s. `site/tests/record.spec.mjs` records in Chromium with a file for a microphone, against a claudius
+recorded with a quantum lost, and cut on its downbeat to the frame; a measurement through it that finds an
+unreported 0.18 s; and keys pressed in time with what is heard, which come out on the beat. `site/tests/record.spec.mjs` records in Chromium with a file for a microphone, against a claudius
 of its own. It drives a studio built with the `plan` feature (`cargo xtask web --plan`), which runs the scripted plan
 in its page's `?plan=` and prints what the Record window says to the console. The tests check three things:
 
 - a take arrives, plays in the song and holds the microphone's tone;
 - Measure with an input that cannot hear the clicks says so;
-- a page blocked from the microphone says what to do.
+- a keyboard the test plays itself (a Web MIDI of its own, before the page's scripts) makes a part, a note a beat;
+- a browser without Web MIDI, a page blocked from it, and one blocked from the microphone say what to do.
 
 ## The mock
 
