@@ -947,6 +947,7 @@ mod tests {
             duck: None,
             muted: None,
             solo: Some(true),
+            bus: None,
         });
         assert!(crate::panels::any_solo(mock.state.song.as_ref().unwrap()));
         mock.send(Command::Undo);

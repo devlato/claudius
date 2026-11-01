@@ -229,6 +229,9 @@ pub struct SongView {
     pub tracks: Vec<TrackView>,
     pub drums: Vec<DrumView>,
     pub parts: Vec<PartView>,
+    /// the mix around the tracks: the buses' chains, the master's, and what the sends feed
+    #[serde(default)]
+    pub mix: MixView,
     /// the song as a claudius script (runs back into this exact song)
     pub script: String,
     /// what was done to the song so far, oldest first
@@ -276,7 +279,407 @@ pub struct TrackView {
     pub solo: bool,
     /// loudness of the track in the latest render (LUFS while playing), if rendered
     pub loudness: Option<f64>,
+    /// its chain of effects, in order, each as the song keeps it: a map named by `fx` ({"fx": "reverb", "decay": 2.4,
+    /// ...}), the same a script writes
+    #[serde(default)]
+    pub fx: Vec<serde_json::Value>,
+    /// the bus it plays into (drums, bass, music, fx, or one of the song's own)
+    #[serde(default)]
+    pub bus: String,
 }
+
+/// the mix around the tracks: each bus's chain of effects, the master's, and the effects the sends feed (effects as
+/// `TrackView::fx` has them)
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct MixView {
+    pub buses: Vec<(String, Vec<serde_json::Value>)>,
+    pub master: Vec<serde_json::Value>,
+    /// the master's loudness target (LUFS) and true-peak ceiling (dBTP)
+    pub lufs: f32,
+    pub ceiling_db: f32,
+    pub reverb: serde_json::Value,
+    pub delay: serde_json::Value,
+}
+
+/// What a chain of effects belongs to, as `Command::SetFx` names it.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Chain {
+    Track(String),
+    Bus(String),
+    Master,
+    /// the effect a send feeds: "reverb" or "delay"
+    Send(String),
+}
+
+impl Chain {
+    /// as `Command::SetFx`'s `target` writes it
+    pub fn target(&self) -> String {
+        match self {
+            Chain::Track(n) => format!("track:{n}"),
+            Chain::Bus(n) => format!("bus:{n}"),
+            Chain::Master => "master".into(),
+            Chain::Send(n) => format!("send:{n}"),
+        }
+    }
+}
+
+/// what a node of the song's graph is
+#[derive(Clone, Debug, PartialEq)]
+pub enum NodeKind {
+    /// a track: a drum lane, a part, a loop, a take, a pattern track, the transitions
+    Track(String),
+    /// the effect at `index` of a chain
+    Effect(Chain, usize),
+    Bus(String),
+    /// the reverb or delay the sends feed
+    Return(String),
+    /// the master's loudness stage, and the finished song
+    Master,
+    Out,
+}
+
+/// a node of the song's graph: what it is, its title and what it says of itself, and where it sits (a column of the
+/// signal's way left to right, and a row)
+#[derive(Clone, Debug, PartialEq)]
+pub struct Node {
+    pub id: String,
+    pub kind: NodeKind,
+    pub title: String,
+    pub detail: Vec<String>,
+    pub column: usize,
+    pub row: f32,
+}
+
+/// how one node feeds another
+#[derive(Clone, Debug, PartialEq)]
+pub enum EdgeKind {
+    /// the signal itself
+    Signal,
+    /// a send, this much of it
+    Send(f32),
+    /// the kick ducking a track, this deep
+    Sidechain(f32),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Edge {
+    pub from: String,
+    pub to: String,
+    pub kind: EdgeKind,
+}
+
+/// The song as a graph of its signal: each track, through its chain of effects, into its bus, through the bus's chain
+/// into the master, through the master's chain and loudness stage out; the sends into the reverb and delay returns;
+/// the kick ducking the tracks it ducks.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Graph {
+    pub nodes: Vec<Node>,
+    pub edges: Vec<Edge>,
+}
+
+/// an effect in a few words: its name and its main settings ("saturate tape 6 dB, 50%", "filter lp 2400 Hz moving")
+pub fn effect_summary(v: &serde_json::Value) -> String {
+    let name = v.get("fx").and_then(|f| f.as_str()).unwrap_or("effect").replace('_', " ");
+    let num = |k: &str| -> Option<String> {
+        let x = v.get(k)?;
+        Some(match x {
+            serde_json::Value::Number(n) => {
+                let f = n.as_f64().unwrap_or_default();
+                if f.fract() == 0.0 { format!("{f:.0}") } else { format!("{f:.2}").trim_end_matches('0').to_string() }
+            }
+            serde_json::Value::Array(_) => "moving".into(),
+            serde_json::Value::Object(_) => "by section".into(),
+            serde_json::Value::Bool(b) => b.to_string(),
+            serde_json::Value::String(s) => s.clone(),
+            serde_json::Value::Null => return None,
+        })
+    };
+    let with = |unit: &str, k: &str| {
+        num(k).map(|x| if x == "moving" || x == "by section" { format!("{k} {x}") } else { format!("{x}{unit}") })
+    };
+    let mix = num("mix").and_then(|m| match m.parse::<f64>() {
+        Ok(f) if (f - 1.0).abs() < 1e-9 => None,
+        Ok(f) => Some(format!("{:.0}%", f * 100.0)),
+        Err(_) => Some(format!("mix {m}")),
+    });
+    let mut parts: Vec<String> = match name.as_str() {
+        "gain" => vec![with(" dB", "db")],
+        "eq" => vec![v.get("bands").and_then(|b| b.as_array()).map(|b| format!("{} bands", b.len()))],
+        "filter" => vec![num("mode"), with(" Hz", "cutoff")],
+        "compressor" => vec![with(" dB", "threshold_db"), num("ratio").map(|r| format!("{r}:1"))],
+        "limiter" => vec![with(" dB", "ceiling_db")],
+        "saturate" => vec![num("kind"), with(" dB", "drive_db")],
+        "bitcrush" => vec![with(" bits", "bits")],
+        "reverb" => vec![with(" s", "decay")],
+        "delay" => vec![with(" beats", "beats"), with(" feedback", "feedback")],
+        "width" => vec![with("x", "width")],
+        "parallel" => vec![v.get("chains").and_then(|c| c.as_array()).map(|c| format!("{} chains", c.len()))],
+        _ => Vec::new(),
+    }
+    .into_iter()
+    .flatten()
+    .collect();
+    parts.extend(mix);
+    if parts.is_empty() { name } else { format!("{name} {}", parts.join(", ")) }
+}
+
+impl SongView {
+    /// the song as a graph of its signal (`Graph`), laid out in columns from the tracks to the finished song
+    pub fn graph(&self) -> Graph {
+        let mut g = Graph::default();
+        let id_track = |n: &str| format!("track:{n}");
+        let id_fx = |c: &Chain, i: usize| format!("{}#{i}", c.target());
+        let deepest = self.tracks.iter().map(|t| t.fx.len()).max().unwrap_or(0);
+        let bus_col = deepest + 1;
+        // the buses the tracks play into, and the song's others, in the order a mix desk has them
+        let mut buses: Vec<String> = Vec::new();
+        for b in ["drums", "bass", "music", "fx"] {
+            if self.tracks.iter().any(|t| t.bus == b) || self.mix.buses.iter().any(|(n, _)| n == b) {
+                buses.push(b.to_string());
+            }
+        }
+        for b in self.tracks.iter().map(|t| &t.bus).chain(self.mix.buses.iter().map(|(n, _)| n)) {
+            if !b.is_empty() && !buses.contains(b) {
+                buses.push(b.clone());
+            }
+        }
+        let bus_chain = |b: &str| self.mix.buses.iter().find(|(n, _)| n == b).map(|(_, c)| c.as_slice()).unwrap_or(&[]);
+        let bus_deepest = buses.iter().map(|b| bus_chain(b).len()).max().unwrap_or(0);
+        let master_col = bus_col + bus_deepest + 1;
+        let sections = |name: &str| -> Vec<String> {
+            self.sections.iter().filter(|s| s.layers.iter().any(|l| l == name)).map(|s| s.name.clone()).collect()
+        };
+        for (row, t) in self.tracks.iter().enumerate() {
+            let row = row as f32;
+            let mut detail = vec![
+                format!("{} {}: {}", t.kind, t.role, t.sound),
+                format!("{:+.1} dB, pan {:+.2}{}", t.level_db, t.pan, if t.muted { ", muted" } else { "" }),
+            ];
+            let plays = sections(&t.name);
+            if !plays.is_empty() {
+                detail.push(format!("in {}", plays.join(" ")));
+            }
+            g.nodes.push(Node {
+                id: id_track(&t.name),
+                kind: NodeKind::Track(t.name.clone()),
+                title: t.name.clone(),
+                detail,
+                column: 0,
+                row,
+            });
+            let chain = Chain::Track(t.name.clone());
+            let mut last = id_track(&t.name);
+            for (i, e) in t.fx.iter().enumerate() {
+                let id = id_fx(&chain, i);
+                g.nodes.push(Node {
+                    id: id.clone(),
+                    kind: NodeKind::Effect(chain.clone(), i),
+                    title: effect_summary(e),
+                    detail: Vec::new(),
+                    column: i + 1,
+                    row,
+                });
+                g.edges.push(Edge { from: last, to: id.clone(), kind: EdgeKind::Signal });
+                last = id;
+            }
+            let bus = if t.bus.is_empty() { "music" } else { t.bus.as_str() };
+            g.edges.push(Edge { from: last.clone(), to: format!("bus:{bus}"), kind: EdgeKind::Signal });
+            for (which, amount) in [("reverb", t.reverb), ("delay", t.delay)] {
+                if amount > 0.0 {
+                    g.edges.push(Edge {
+                        from: last.clone(),
+                        to: format!("return:{which}"),
+                        kind: EdgeKind::Send(amount),
+                    });
+                }
+            }
+        }
+        let kick = self.tracks.iter().find(|t| t.role == "kick").map(|t| id_track(&t.name));
+        if let Some(k) = &kick {
+            for t in self.tracks.iter().filter(|t| t.duck > 0.0 && Some(id_track(&t.name)) != kick) {
+                g.edges.push(Edge { from: k.clone(), to: id_track(&t.name), kind: EdgeKind::Sidechain(t.duck) });
+            }
+        }
+        let spread = self.tracks.len().max(1) as f32 / (buses.len() + 2) as f32;
+        for (k, b) in buses.iter().enumerate() {
+            let row = (k as f32 + 0.5) * spread;
+            let fed = self.tracks.iter().filter(|t| t.bus == *b).count();
+            g.nodes.push(Node {
+                id: format!("bus:{b}"),
+                kind: NodeKind::Bus(b.clone()),
+                title: format!("{b} bus"),
+                detail: vec![format!("{fed} track{}", if fed == 1 { "" } else { "s" })],
+                column: bus_col,
+                row,
+            });
+            let chain = Chain::Bus(b.clone());
+            let mut last = format!("bus:{b}");
+            for (i, e) in bus_chain(b).iter().enumerate() {
+                let id = id_fx(&chain, i);
+                g.nodes.push(Node {
+                    id: id.clone(),
+                    kind: NodeKind::Effect(chain.clone(), i),
+                    title: effect_summary(e),
+                    detail: Vec::new(),
+                    column: bus_col + 1 + i,
+                    row,
+                });
+                g.edges.push(Edge { from: last, to: id.clone(), kind: EdgeKind::Signal });
+                last = id;
+            }
+            g.edges.push(Edge { from: last, to: "master".into(), kind: EdgeKind::Signal });
+        }
+        for (k, (which, e)) in [("reverb", &self.mix.reverb), ("delay", &self.mix.delay)].into_iter().enumerate() {
+            let id = format!("return:{which}");
+            if !g.edges.iter().any(|x| x.to == id) {
+                continue;
+            }
+            let row = (buses.len() as f32 + 0.5 + k as f32 * 0.6) * spread;
+            g.nodes.push(Node {
+                id: id.clone(),
+                kind: NodeKind::Return(which.into()),
+                title: format!("{which} return"),
+                detail: vec![effect_summary(e)],
+                column: bus_col,
+                row,
+            });
+            g.edges.push(Edge { from: id, to: "master".into(), kind: EdgeKind::Signal });
+        }
+        let mid = self.tracks.len().max(1) as f32 / 2.0 - 0.5;
+        g.nodes.push(Node {
+            id: "master".into(),
+            kind: NodeKind::Master,
+            title: "master".into(),
+            detail: vec!["the buses and returns summed".into()],
+            column: master_col,
+            row: mid,
+        });
+        let mut last = "master".to_string();
+        for (i, e) in self.mix.master.iter().enumerate() {
+            let id = id_fx(&Chain::Master, i);
+            g.nodes.push(Node {
+                id: id.clone(),
+                kind: NodeKind::Effect(Chain::Master, i),
+                title: effect_summary(e),
+                detail: Vec::new(),
+                column: master_col + 1 + i,
+                row: mid,
+            });
+            g.edges.push(Edge { from: last, to: id.clone(), kind: EdgeKind::Signal });
+            last = id;
+        }
+        g.nodes.push(Node {
+            id: "out".into(),
+            kind: NodeKind::Out,
+            title: "out".into(),
+            detail: vec![format!("{:.1} LUFS, ceiling {:.1} dBTP", self.mix.lufs, self.mix.ceiling_db)],
+            column: master_col + 1 + self.mix.master.len(),
+            row: mid,
+        });
+        g.edges.push(Edge { from: last, to: "out".into(), kind: EdgeKind::Signal });
+        g
+    }
+
+    /// the graph in words: every track's way through its effects into its bus, the buses', the returns' and the
+    /// master's, and the sends and the ducking
+    pub fn graph_text(&self) -> String {
+        let g = self.graph();
+        let title = |id: &str| g.nodes.iter().find(|n| n.id == id).map_or(id.to_string(), |n| n.title.clone());
+        let way = |start: &str| -> String {
+            let mut at = start.to_string();
+            let mut steps = vec![title(&at)];
+            while let Some(e) = g.edges.iter().find(|e| e.from == at && e.kind == EdgeKind::Signal) {
+                at = e.to.clone();
+                steps.push(title(&at));
+                if at.starts_with("bus:") || at == "master" {
+                    break;
+                }
+            }
+            steps.join(" -> ")
+        };
+        let mut out = vec![format!(
+            "{} ({}, {:.0} BPM, {}): each track through its effects into its bus, the buses and returns into the master, out",
+            self.title, self.genre, self.bpm, self.key
+        )];
+        out.push("tracks:".into());
+        for t in &self.tracks {
+            let mut line = format!("  {}", way(&format!("track:{}", t.name)));
+            let sends: Vec<String> = g
+                .edges
+                .iter()
+                .filter_map(|e| match e.kind {
+                    EdgeKind::Send(a) if e.from.starts_with(&format!("track:{}", t.name)) => {
+                        Some(format!("{} {a:.2}", e.to.trim_start_matches("return:")))
+                    }
+                    _ => None,
+                })
+                .collect();
+            if !sends.is_empty() {
+                line += &format!("; sends {}", sends.join(", "));
+            }
+            if t.duck > 0.0 && t.role != "kick" {
+                line += &format!("; ducked {:.2} by the kick", t.duck);
+            }
+            let plays: Vec<&str> =
+                self.sections.iter().filter(|s| s.layers.contains(&t.name)).map(|s| s.name.as_str()).collect();
+            if !plays.is_empty() {
+                line += &format!("; plays in {}", plays.join(" "));
+            }
+            out.push(line);
+        }
+        out.push("buses and returns:".into());
+        for n in g.nodes.iter().filter(|n| matches!(n.kind, NodeKind::Bus(_) | NodeKind::Return(_))) {
+            let detail = if matches!(n.kind, NodeKind::Return(_)) {
+                format!(" ({})", n.detail.join(", "))
+            } else {
+                String::new()
+            };
+            out.push(format!("  {}{detail} -> master", way(&n.id).trim_end_matches(" -> master")));
+        }
+        out.push(format!(
+            "master: {} -> out at {:.1} LUFS, ceiling {:.1} dBTP",
+            way("master").trim_end_matches(" -> out"),
+            self.mix.lufs,
+            self.mix.ceiling_db
+        ));
+        out.push("(the arranger adds its own at render: filter moves on the music and bass buses, width on the music bus, mono lows on the bass bus, a saturator on the drums bus where the chain has none)".into());
+        out.join("\n")
+    }
+}
+
+/// An effect of each kind with settings that sound like something, to add to a chain (`Command::SetFx`): its name
+/// (`fx`) and the effect as JSON.
+pub const EFFECT_TEMPLATES: &[(&str, &str)] = &[
+    ("gain", r#"{"fx": "gain", "db": -3}"#),
+    (
+        "eq",
+        r#"{"fx": "eq", "bands": [{"kind": "highpass", "freq": 120}, {"kind": "peak", "freq": 3000, "gain_db": 2, "q": 1}]}"#,
+    ),
+    ("filter", r#"{"fx": "filter", "mode": "lp", "cutoff": 2400, "res": 0.2}"#),
+    (
+        "compressor",
+        r#"{"fx": "compressor", "threshold_db": -18, "ratio": 3, "attack_ms": 10, "release_ms": 100, "knee_db": 4, "makeup_db": 2}"#,
+    ),
+    ("limiter", r#"{"fx": "limiter", "ceiling_db": -1, "release_ms": 60}"#),
+    ("saturate", r#"{"fx": "saturate", "kind": "tape", "drive_db": 6, "mix": 0.5}"#),
+    ("bitcrush", r#"{"fx": "bitcrush", "bits": 10, "downsample": 2, "mix": 0.5}"#),
+    ("reverb", r#"{"fx": "reverb", "decay": 2.4, "damping": 0.5, "predelay_ms": 20, "mix": 0.3}"#),
+    ("delay", r#"{"fx": "delay", "beats": 0.75, "feedback": 0.35, "damping": 0.4, "pingpong": true, "mix": 0.25}"#),
+    ("chorus", r#"{"fx": "chorus", "rate_hz": 0.5, "depth_ms": 3, "delay_ms": 12, "mix": 0.6}"#),
+    ("flanger", r#"{"fx": "flanger", "rate_hz": 0.15, "depth_ms": 3, "delay_ms": 4, "feedback": 0.5, "mix": 0.5}"#),
+    ("phaser", r#"{"fx": "phaser", "rate_hz": 0.3, "stages": 6, "depth": 0.7, "feedback": 0.4, "mix": 0.5}"#),
+    ("width", r#"{"fx": "width", "width": 1.4, "mono_below_hz": 150}"#),
+    ("tremolo", r#"{"fx": "tremolo", "beats": 0.5, "depth": 0.4}"#),
+    ("auto_pan", r#"{"fx": "auto_pan", "beats": 2, "depth": 0.6}"#),
+    ("gate", r#"{"fx": "gate", "steps": [1, 0, 1, 0, 1, 1, 0, 1], "step_beats": 0.25, "depth": 0.8, "smooth_ms": 3}"#),
+    ("transient", r#"{"fx": "transient", "attack_db": 4, "sustain_db": -2}"#),
+    ("tape", r#"{"fx": "tape", "wow": 0.4, "flutter": 0.25, "drive_db": 3, "lowpass_hz": 12000}"#),
+    ("vinyl", r#"{"fx": "vinyl", "crackle": 0.25, "hiss_db": -46}"#),
+    (
+        "parallel",
+        r#"{"fx": "parallel", "dry": 1, "chains": [{"amount": 0.4, "fx": [{"fx": "compressor", "threshold_db": -30, "ratio": 10, "attack_ms": 1, "release_ms": 60}]}]}"#,
+    ),
+];
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct DrumView {
@@ -558,6 +961,16 @@ pub enum Command {
         muted: Option<bool>,
         #[serde(default)]
         solo: Option<bool>,
+        /// the bus it plays into (drums, bass, music, fx, or one of the song's own)
+        #[serde(default)]
+        bus: Option<String>,
+    },
+    /// Replaces a chain of effects, as `fx()`, `bus()`, `master(#{ fx })` and `send_fx()` do in a script. `target` is
+    /// `track:<name>`, `bus:<name>`, `master`, `send:reverb` or `send:delay` (a send takes exactly one effect); each
+    /// effect as `TrackView::fx` has them.
+    SetFx {
+        target: String,
+        fx: Vec<serde_json::Value>,
     },
     /// run a claudius script against the current song (see the script reference)
     RunScript {
@@ -699,4 +1112,90 @@ pub struct Reply {
     pub message: String,
     /// the state version after the command (or when a long job was started)
     pub version: u64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn song() -> SongView {
+        let track = |name: &str, role: &str, bus: &str, fx: Vec<serde_json::Value>, reverb: f32, duck: f32| TrackView {
+            name: name.into(),
+            kind: "part".into(),
+            role: role.into(),
+            bus: bus.into(),
+            fx,
+            reverb,
+            duck,
+            ..TrackView::default()
+        };
+        SongView {
+            title: "Glass".into(),
+            genre: "house".into(),
+            tracks: vec![
+                track("kick", "kick", "drums", vec![], 0.0, 0.0),
+                track(
+                    "lead",
+                    "lead",
+                    "music",
+                    vec![
+                        json!({"fx": "saturate", "kind": "tape", "drive_db": 6, "mix": 0.5}),
+                        json!({"fx": "delay", "beats": 0.75, "feedback": {"rest": 0.3, "sections": {}}, "mix": 0.25}),
+                    ],
+                    0.3,
+                    0.2,
+                ),
+            ],
+            sections: vec![SectionView {
+                name: "drop".into(),
+                layers: vec!["kick".into(), "lead".into()],
+                ..SectionView::default()
+            }],
+            mix: MixView {
+                buses: vec![("drums".into(), vec![json!({"fx": "compressor", "threshold_db": -12, "ratio": 2.5})])],
+                master: vec![json!({"fx": "limiter", "ceiling_db": -1})],
+                lufs: -10.0,
+                ceiling_db: -1.0,
+                reverb: json!({"fx": "reverb", "decay": 2.2, "mix": 1}),
+                delay: json!({"fx": "delay", "beats": 0.75, "feedback": 0.35, "mix": 1}),
+            },
+            ..SongView::default()
+        }
+    }
+
+    #[test]
+    fn a_song_is_a_graph_from_its_tracks_to_the_finished_song() {
+        let g = song().graph();
+        let node = |id: &str| g.nodes.iter().find(|n| n.id == id).unwrap_or_else(|| panic!("no {id}"));
+        let edge = |a: &str, b: &str| g.edges.iter().find(|e| e.from == a && e.to == b).map(|e| e.kind.clone());
+        assert_eq!(edge("track:lead", "track:lead#0"), Some(EdgeKind::Signal));
+        assert_eq!(edge("track:lead#1", "bus:music"), Some(EdgeKind::Signal));
+        assert_eq!(edge("track:lead#1", "return:reverb"), Some(EdgeKind::Send(0.3)));
+        assert_eq!(edge("track:kick", "track:lead"), Some(EdgeKind::Sidechain(0.2)));
+        assert_eq!(edge("bus:drums#0", "master"), Some(EdgeKind::Signal));
+        assert_eq!(edge("master#0", "out"), Some(EdgeKind::Signal));
+        assert!(g.nodes.iter().all(|n| n.id != "return:delay"), "no track sends to the delay");
+        // the columns follow the signal: tracks, their effects, the buses, theirs, the master, its, out
+        assert_eq!((node("track:lead").column, node("track:lead#1").column, node("bus:drums").column), (0, 2, 3));
+        assert_eq!((node("bus:drums#0").column, node("master").column, node("out").column), (4, 5, 7));
+        assert_eq!(node("track:lead#0").kind, NodeKind::Effect(Chain::Track("lead".into()), 0));
+        assert_eq!(node("track:lead#1").title, "delay 0.75 beats, feedback by section, 25%");
+        assert_eq!(node("track:lead#0").title, "saturate tape, 6 dB, 50%");
+        assert!(node("track:lead").detail.iter().any(|d| d == "in drop"));
+    }
+
+    #[test]
+    fn the_graph_reads_as_words() {
+        let text = song().graph_text();
+        for line in [
+            "  lead -> saturate tape, 6 dB, 50% -> delay 0.75 beats, feedback by section, 25% -> music bus; sends reverb 0.30; ducked 0.20 by the kick; plays in drop",
+            "  drums bus -> compressor -12 dB, 2.5:1 -> master",
+            "  reverb return (reverb 2.2 s) -> master",
+            "master: master -> limiter -1 dB -> out at -10.0 LUFS, ceiling -1.0 dBTP",
+        ] {
+            assert!(text.contains(line), "{line}\n---\n{text}");
+        }
+        assert_eq!(Chain::Send("reverb".into()).target(), "send:reverb");
+    }
 }

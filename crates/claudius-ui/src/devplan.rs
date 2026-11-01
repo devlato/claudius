@@ -2,8 +2,9 @@
 //! list of steps, e.g. `wait:4;shot:/tmp/a.png;tab:mixer;play;wait:2;shot:/tmp/b.png;exit`. A web build with the
 //! `plan` feature (for tests only) takes the page's `?plan=` instead, and leaves out screenshots and pointer input.
 //! What the Record window says goes to stderr (the browser's console), as `record: ...`, what it offers for MIDI
-//! keyboards as `midi: ...`, the last analysis as `analysis: ...`, and each toast as `toast: ...`.
-//! Steps: `wait:<s>`, `tab:<sequencer|mixer|parts|harmony|script|log>`, `section:<i>`, `play`, `pause`, `seek:<s>`,
+//! keyboards as `midi: ...`, the last analysis as `analysis: ...`, each toast as `toast: ...`, and the graph's node
+//! chosen as `graph: ...`.
+//! Steps: `wait:<s>`, `tab:<sequencer|mixer|parts|harmony|script|sounds|graph|log>`, `section:<i>`, `play`, `pause`, `seek:<s>`,
 //! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `record` (the Record window),
 //! `rec:<start|stop|measure>` (a take, or the latency), `rec:<play|keep|not-now>` (the take back, kept or sent; the
 //! take an assistant asked for turned down), `rec:allow-midi`, `rec:midi:<input>` (a MIDI input chosen),

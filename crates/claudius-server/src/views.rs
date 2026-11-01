@@ -17,6 +17,11 @@ pub fn genre_infos() -> Vec<GenreInfo> {
         .collect()
 }
 
+/// a chain of effects as the API has it: each as the song keeps it
+fn chain(fx: &[claudius::fx::Effect]) -> Vec<serde_json::Value> {
+    fx.iter().map(|e| serde_json::to_value(e).unwrap_or_default()).collect()
+}
+
 fn track(
     name: &str,
     kind: &str,
@@ -38,6 +43,8 @@ fn track(
         muted: m.mute,
         solo: m.solo,
         loudness: loudness.get(name).copied(),
+        fx: chain(&m.fx),
+        bus: m.bus.clone(),
     }
 }
 
@@ -192,6 +199,14 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
         tracks,
         drums,
         parts,
+        mix: claudius_api::MixView {
+            buses: bp.mix.buses.iter().map(|(name, fx)| (name.clone(), chain(fx))).collect(),
+            master: chain(&bp.mix.master.fx),
+            lufs: bp.mix.master.lufs,
+            ceiling_db: bp.mix.master.ceiling_db,
+            reverb: serde_json::to_value(&bp.mix.reverb).unwrap_or_default(),
+            delay: serde_json::to_value(&bp.mix.delay).unwrap_or_default(),
+        },
         script: script::to_script(bp),
         lineage: bp.lineage.clone(),
     }

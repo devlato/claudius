@@ -33,12 +33,13 @@ pub struct MixEdit {
     pub duck: Option<f32>,
     pub muted: Option<bool>,
     pub solo: Option<bool>,
+    pub bus: Option<String>,
 }
 
 impl MixEdit {
     pub fn on(self, track: &str) -> Command {
-        let MixEdit { level_db, pan, reverb, delay, duck, muted, solo } = self;
-        Command::SetMix { track: track.to_string(), level_db, pan, reverb, delay, duck, muted, solo }
+        let MixEdit { level_db, pan, reverb, delay, duck, muted, solo, bus } = self;
+        Command::SetMix { track: track.to_string(), level_db, pan, reverb, delay, duck, muted, solo, bus }
     }
 }
 

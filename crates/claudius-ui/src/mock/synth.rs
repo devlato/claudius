@@ -99,7 +99,7 @@ fn target_level(role: &str) -> f32 {
 }
 
 /// how loud claudius masters a genre (its `mix.lufs`)
-fn master_level(genre: &str) -> f32 {
+pub(crate) fn master_level(genre: &str) -> f32 {
     match genre {
         "lofi" => -12.5,
         "deep_house" | "trip_hop" => -11.0,

@@ -3,6 +3,7 @@
 
 pub mod arrange;
 pub mod assistants;
+pub mod graph;
 pub mod harmony;
 pub mod inspector;
 pub mod library;
@@ -33,12 +34,13 @@ pub enum Tab {
     Harmony,
     Script,
     Sounds,
+    Graph,
     Log,
 }
 
 impl Tab {
-    pub const ALL: [Tab; 7] =
-        [Tab::Sequencer, Tab::Mixer, Tab::Parts, Tab::Harmony, Tab::Script, Tab::Sounds, Tab::Log];
+    pub const ALL: [Tab; 8] =
+        [Tab::Sequencer, Tab::Mixer, Tab::Parts, Tab::Harmony, Tab::Script, Tab::Sounds, Tab::Graph, Tab::Log];
 
     pub fn label(self) -> &'static str {
         match self {
@@ -48,6 +50,7 @@ impl Tab {
             Tab::Harmony => "Harmony",
             Tab::Script => "Script",
             Tab::Sounds => "Sounds",
+            Tab::Graph => "Graph",
             Tab::Log => "Log",
         }
     }
@@ -194,6 +197,8 @@ pub struct View {
     pub assistants: assistants::Assistants,
     pub publish: publish::Publish,
     pub record: record::Record,
+    /// the graph tab: the node chosen, and where its canvas looks
+    pub graph: graph::GraphView,
     /// what a take's melody becomes when it turns into notes (`claudius_api::NOTE_STYLES`)
     pub melody_style: String,
     /// the tour's step on screen, and whether it was taken or skipped (kept between runs)
@@ -255,6 +260,7 @@ impl Default for View {
             assistants: assistants::Assistants::default(),
             publish: publish::Publish::default(),
             record: record::Record::default(),
+            graph: graph::GraphView::default(),
             melody_style: "line".into(),
             tour: None,
             tour_done: false,

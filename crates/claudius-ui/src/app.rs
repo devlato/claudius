@@ -489,6 +489,7 @@ impl Studio {
         plan.tell("midi", &crate::audio::record::midi_offer().map(|(what, _)| what).unwrap_or_default());
         plan.tell("analysis", &self.view.analysis.as_ref().map(|(_, text)| text.clone()).unwrap_or_default());
         plan.tell("toast", &self.view.toast.as_ref().map(|t| t.text.clone()).unwrap_or_default());
+        plan.tell("graph", &self.view.graph.selected.clone().unwrap_or_default());
     }
 
     fn reference_window(&mut self, ctx: &egui::Context) {
@@ -774,6 +775,7 @@ impl Studio {
             Tab::Harmony => panels::harmony::show(ui, &mut cx),
             Tab::Script => panels::script::show(ui, &mut cx),
             Tab::Sounds => panels::library::show(ui, &mut cx),
+            Tab::Graph => panels::graph::show(ui, &mut cx),
             Tab::Log => panels::log::show(ui, &mut cx),
         }
     }

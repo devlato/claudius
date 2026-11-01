@@ -22,6 +22,7 @@ to. On the command line, each command reads and writes song folders instead.
 | `analyze` | `path` of any audio file | `claudius analyze song.mp3` |
 | `remake` | `path`, `genre`, `seed`, `bpm` | `claudius remake song.mp3 --genre lofi [--bpm 82]` |
 | `add_take` | `path` of a recording, `from` (a section's name), `name`, `role` (`vocal`, `lead`, `chords`, `keys`, `bass`, `drums`, `texture`) | |
+| `graph` | (the song's signal flow in words: tracks through their effects into buses, the master, out) | |
 | `sample_song` | `path` of a recording, `count` (1-4, default 2), `bars` (1, 2 or 4), `find` ("a person singing"), `sections` | `claudius sample FILE --on SONG --count 2 --in drop` |
 | `request_take` | `from` (a section's name), `role`, `name`, `note` (what to record, for the person) | |
 | `wait_for_take` | `id` (from `request_take`), `seconds` (50, 1 to 300) | |

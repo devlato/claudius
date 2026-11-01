@@ -276,7 +276,7 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             }
             Ok(format!("{name}: {}", what.join(", ")))
         }
-        Command::SetMix { track, level_db, pan, reverb, delay, duck, muted, solo } => {
+        Command::SetMix { track, level_db, pan, reverb, delay, duck, muted, solo, bus } => {
             let Some(t) = song.tracks.iter_mut().find(|t| &t.name == track) else {
                 return Some(Err(format!("no track '{track}'")));
             };
@@ -301,7 +301,29 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             if let Some(v) = solo {
                 t.solo = *v;
             }
+            if let Some(b) = bus {
+                t.bus = b.clone();
+            }
             Ok(format!("mix {track}: {:+.1} dB, pan {:+.2}{}", t.level_db, t.pan, if t.muted { ", muted" } else { "" }))
+        }
+        // the demo keeps the chain as it is given: its own synth does not play the effects
+        Command::SetFx { target, fx } => {
+            let chain = fx.clone();
+            match target.split_once(':') {
+                Some(("track", name)) => match song.tracks.iter_mut().find(|t| t.name == name) {
+                    Some(t) => t.fx = chain,
+                    None => return Some(Err(format!("no track '{name}'"))),
+                },
+                Some(("bus", name)) => match song.mix.buses.iter_mut().find(|(b, _)| b == name) {
+                    Some((_, c)) => *c = chain,
+                    None => song.mix.buses.push((name.to_string(), chain)),
+                },
+                Some(("send", "reverb")) if chain.len() == 1 => song.mix.reverb = chain[0].clone(),
+                Some(("send", "delay")) if chain.len() == 1 => song.mix.delay = chain[0].clone(),
+                None if target == "master" => song.mix.master = chain,
+                _ => return Some(Err(format!("'{target}' is no chain of effects"))),
+            }
+            Ok(format!("{target}: {} effects", fx.len()))
         }
         _ => return None,
     })

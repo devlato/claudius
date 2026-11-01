@@ -777,6 +777,15 @@ impl Studio {
     }
 
     #[tool(
+        description = "The song as a graph of its signal, in words: each track through its chain of effects into its bus (with its sends, its ducking under the kick, and the sections it plays in), each bus through its effects into the master, the reverb and delay returns, and the master's chain out at its loudness target. Each effect in a few words; get_song's script has every setting. To change the graph: run_script with fx(), bus(), master(#{ fx }) and send_fx(), or command with set_fx (a chain as JSON: target track:<name>, bus:<name>, master, send:reverb or send:delay) and set_mix (bus, sends, duck).",
+        annotations(read_only_hint = true)
+    )]
+    async fn graph(&self) -> Result<String, String> {
+        let st = self.b.state().await?;
+        Ok(st.song.ok_or("no song yet: start one with new_song")?.graph_text())
+    }
+
+    #[tool(
         description = "Sample a recording's vocals into the song: claudius finds the phrases of the recording that most sound like a voice singing (or `find`), cuts them on the recording's beat grid, cleans them of its drums and of what plays to the sides, fits them to the song's tempo and key, places each in the sections that suit it (the drops and hooks, then the breaks ...) from the bar where its notes agree best with the song's chords, every so many bars, and mixes them as vocals (vox1, vox2 ...; a lead playing with them steps back 1.5 dB). Says where each phrase came from and went, then listens. The phrases are kept with the song; undo takes them out."
     )]
     async fn sample_song(&self, Parameters(a): Parameters<SampleArgs>) -> Result<String, String> {
@@ -918,7 +927,10 @@ mod tests {
             .map(|t| t.name.to_string())
             .collect();
         read_only.sort();
-        assert_eq!(read_only, ["analyze", "catalog", "get_song", "script_reference", "status", "wait_for_take"]);
+        assert_eq!(
+            read_only,
+            ["analyze", "catalog", "get_song", "graph", "script_reference", "status", "wait_for_take"]
+        );
     }
 
     #[test]

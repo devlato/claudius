@@ -815,6 +815,66 @@ async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
     std::fs::remove_dir_all(&folder).unwrap();
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn chains_of_effects_are_seen_and_set_as_the_graph_sets_them() {
+    use serde_json::json;
+    let app = app();
+    let new = Command::NewSong { genre: "house".into(), seed: Some(5), bpm: None, key: None, loops: false };
+    assert!(app.command(new).ok);
+    // the song as the studio sees it carries every chain, as the song keeps it, and every track's bus
+    let song = app.state().song.unwrap();
+    assert!(song.mix.buses.iter().any(|(b, fx)| b == "drums" && !fx.is_empty()), "{:?}", song.mix.buses);
+    assert!(!song.mix.master.is_empty() && song.mix.reverb["fx"] == "reverb" && song.mix.delay["fx"] == "delay");
+    assert!(song.tracks.iter().all(|t| !t.bus.is_empty()));
+    let template = |name: &str| {
+        let (_, t) = claudius_api::EFFECT_TEMPLATES.iter().find(|(n, _)| *n == name).unwrap();
+        serde_json::from_str::<serde_json::Value>(t).unwrap()
+    };
+    let set = |target: &str, fx: Vec<serde_json::Value>| app.command(Command::SetFx { target: target.into(), fx });
+    // a track's chain, a bus of the song's own, a send's effect
+    let r = set("track:lead", vec![json!({"fx": "saturate", "kind": "tape", "drive_db": 6}), template("parallel")]);
+    assert!(r.ok && r.message == "track:lead: 2 effects", "{}", r.message);
+    let lead = app.state().song.unwrap().tracks.into_iter().find(|t| t.name == "lead").unwrap();
+    assert_eq!((lead.fx.len(), &lead.fx[1]["fx"]), (2, &json!("parallel")));
+    let to_glue = Command::SetMix {
+        track: "chords".into(),
+        level_db: None,
+        pan: None,
+        reverb: None,
+        delay: None,
+        duck: None,
+        muted: None,
+        solo: None,
+        bus: Some("glue".into()),
+    };
+    assert!(app.command(to_glue).ok);
+    assert!(set("bus:glue", vec![template("compressor")]).ok);
+    assert!(set("send:delay", vec![template("delay")]).ok);
+    let song = app.state().song.unwrap();
+    assert_eq!(song.tracks.iter().find(|t| t.name == "chords").unwrap().bus, "glue");
+    assert!(song.graph_text().contains("  glue bus -> compressor -18 dB, 3:1 -> master"), "{}", song.graph_text());
+    // what is not a chain or an effect is refused, and says why
+    let says = |target: &str, fx: Vec<serde_json::Value>, words: &str| {
+        let r = set(target, fx);
+        assert!(!r.ok && r.message.contains(words), "{target}: {}", r.message);
+    };
+    says("track:nobody", vec![], "no track 'nobody'");
+    says("lead", vec![], "'lead' is no chain of effects");
+    says("send:delay", vec![template("delay"), template("delay")], "the delay send feeds one effect, not 2");
+    says("track:lead", vec![json!({"fx": "revrb"})], "track:lead's effect 1: unknown variant `revrb`");
+    // every effect the studio offers to add is one claudius plays, by the name it shows
+    for (name, t) in claudius_api::EFFECT_TEMPLATES {
+        let e: claudius::fx::Effect = serde_json::from_str(t).unwrap_or_else(|e| panic!("{name}: {e}"));
+        assert_eq!(e.name(), *name);
+    }
+    for name in claudius::fx::EFFECT_NAMES.iter().filter(|n| !["tape_stop", "stutter", "reverse"].contains(n)) {
+        assert!(claudius_api::EFFECT_TEMPLATES.iter().any(|(n, _)| n == name), "no template for {name}");
+    }
+    // a chain set is one undo step
+    assert!(app.command(Command::Undo).ok);
+    assert!(app.state().song.unwrap().mix.delay != song.mix.delay);
+}
+
 #[test]
 fn the_studio_offers_the_styles_the_engine_plays() {
     assert_eq!(claudius::take::STYLES, claudius_api::NOTE_STYLES);

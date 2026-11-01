@@ -81,6 +81,49 @@ impl App {
         }
     }
 
+    /// replaces a chain of effects: a track's, a bus's, the master's, or the one effect a send feeds
+    fn set_fx(self: &Arc<Self>, target: &str, fx: Vec<serde_json::Value>) -> Reply {
+        let chain: Result<Vec<claudius::fx::Effect>, String> = fx
+            .into_iter()
+            .enumerate()
+            .map(|(i, v)| serde_json::from_value(v).map_err(|e| format!("{target}'s effect {}: {e}", i + 1)))
+            .collect();
+        let chain = match chain {
+            Ok(c) => c,
+            Err(e) => return no(e, self.version()),
+        };
+        self.edit_with(|bp| {
+            let n = chain.len();
+            match target.split_once(':') {
+                Some(("track", name)) => {
+                    script::mix_of(bp, name).ok_or_else(|| format!("no track '{name}'"))?.fx = chain;
+                }
+                Some(("bus", name)) => {
+                    if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+                        return Err(format!("a bus is named with letters, digits, - and _, not '{name}'"));
+                    }
+                    bp.mix.buses.insert(name.to_string(), chain);
+                }
+                Some(("send", which @ ("reverb" | "delay"))) => {
+                    let [one]: [claudius::fx::Effect; 1] =
+                        chain.try_into().map_err(|_| format!("the {which} send feeds one effect, not {n}"))?;
+                    if which == "reverb" {
+                        bp.mix.reverb = one;
+                    } else {
+                        bp.mix.delay = one;
+                    }
+                }
+                None if target == "master" => bp.mix.master.fx = chain,
+                _ => {
+                    return Err(format!(
+                        "'{target}' is no chain of effects: track:<name>, bus:<name>, master, send:reverb or send:delay"
+                    ));
+                }
+            }
+            Ok(format!("{target}: {n} effect{}", if n == 1 { "" } else { "s" }))
+        })
+    }
+
     /// run a script on the current song (or on none: the script starts one)
     pub fn run_script(self: &Arc<Self>, code: &str, what: Option<String>) -> Reply {
         let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
@@ -213,7 +256,7 @@ impl App {
                     Some(format!("{name}: {}", fields.join(", "))),
                 )
             }
-            Command::SetMix { track, level_db, pan, reverb, delay, duck, muted, solo } => {
+            Command::SetMix { track, level_db, pan, reverb, delay, duck, muted, solo, bus } => {
                 let mut fields = Vec::new();
                 for (k, x) in [("level", level_db), ("pan", pan), ("reverb", reverb), ("delay", delay), ("duck", duck)]
                 {
@@ -226,6 +269,9 @@ impl App {
                 }
                 if let Some(m) = solo {
                     fields.push(format!("solo: {m}"));
+                }
+                if let Some(b) = bus {
+                    fields.push(format!("bus: {}", quote(&b)));
                 }
                 self.run_script(
                     &format!("mix({}, #{{ {} }})", quote(&track), fields.join(", ")),
@@ -406,6 +452,7 @@ impl App {
                     Err(e) => no(format!("cannot read {path}: {e}"), v),
                 }
             }
+            Command::SetFx { target, fx } => self.set_fx(&target, fx),
             Command::SampleSong { path, count, bars, find, sections } => {
                 let opt = sampling(count, bars, find, sections);
                 if let Err(e) = self.readable(Path::new(&path)) {
