@@ -25,6 +25,8 @@ this API, so anything it does you can do with `curl`. The types are plain serde 
 | `GET /api/release/artwork` | the artwork as it was given |
 | `GET /api/release/preview.png` | the artwork at most 512 pixels on a side, as PNG |
 | `POST /api/takes?from=SECTION` | a recording as a [take](samples.md#takes), as the file itself (WAV, FLAC, Ogg, MP3 or AIFF) with `Content-Type: audio/...` or `application/octet-stream` (300 MB at most); optional `name` and `role` in the query, as for `add_take`; answers with a [reply](#replies-and-errors) |
+| `POST /api/analyze?name=FILE` | a recording to listen to, as the file itself with `Content-Type: audio/...` or `application/octet-stream` (300 MB at most), named in the query so that its extension says its format (WAV, FLAC, MP3, AAC, ALAC, Ogg, AIFF ...); answers as `analyze` does, and keeps nothing of it |
+| `POST /api/remake?name=FILE` | a recording to remake, sent as for `/api/analyze`; optional `genre`, `seed` and `bpm` in the query, as for `remake`; answers with a [reply](#replies-and-errors) |
 | `/mcp` | the [MCP endpoint](mcp.md#mcp-over-http) |
 | `GET /` and anything else | the web studio; when it is not built, a page that says how to build it |
 
@@ -181,6 +183,7 @@ fields marked optional may be left out.
 |---|---|---|
 | `new_song` | `genre`; optional `seed`, `bpm`, `key`, `loops` (false) | composes a new song |
 | `load` | `path` | opens a song folder, a `blueprint.json`, or a script file (run on the open song) |
+| `open_text` | `name`, `text` | opens a song from a file's text, as the studio sends a file chosen on its computer: a `blueprint.json`'s when `name` ends in `.json`, otherwise a script's; saving makes a song folder of its own |
 | `save` | optional `path` | writes `blueprint.json` and `song.rhai` now, then the whole folder from a render (see [Jobs](#jobs)); default folder `~/Music/claudius/<genre>-<title>-<seed>` |
 | `export` | `formats` (such as `["mp3", "flac:16"]`), optional `path` | writes the latest render in those [formats](export.md#formats), when it is of the song as it is now (otherwise: `the song has changed since its last render: render it, then export`); default folder as for `save` |
 | `set_release` | `details` (every field of `ReleaseDetails`: `artist`, `title`, `writers`, `made` ...), optional `artwork` (a JPEG or PNG file) | replaces what stores are told about the [release](publish.md), and checks it again |

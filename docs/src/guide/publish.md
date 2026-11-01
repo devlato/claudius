@@ -35,8 +35,8 @@ JSON.
 
 ## In the studio
 
-**publish** in the toolbar opens the Publish dialog. Drop the cover onto the studio (the native studio also takes its
-path), fill in what stores ask, and say how the song was made; each field is sent as you leave it, and the checks
+**publish** in the toolbar opens the Publish dialog. Drop the cover onto the studio, or **Choose a file**, fill in what
+stores ask, and say how the song was made; each field is sent as you leave it, and the checks
 below, of the latest render, come back with the answer. **Write the release kit** writes it into `release/` in the
 song's folder once nothing stops the release. The details and the artwork stay with the song: saving it, or writing
 the kit, puts `release.json` and `artwork.jpg` (or `artwork.png`) in its folder, and opening that folder again brings

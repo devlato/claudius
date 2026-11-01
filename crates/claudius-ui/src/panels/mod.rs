@@ -61,6 +61,12 @@ pub enum Action {
     Connect,
 }
 
+/// a recording to send to claudius: to listen to, or to make a new song of in a genre (with a seed)
+pub struct Listen {
+    pub file: std::sync::Arc<crate::pick::Picked>,
+    pub remake: Option<(String, Option<u64>)>,
+}
+
 /// what the studio knows about its connection
 #[derive(Default)]
 pub struct Link {
@@ -153,13 +159,13 @@ pub struct View {
     pub reference: Option<String>,
     pub reference_open: bool,
     pub reference_loading: bool,
-    /// the audio file for Analyze / Remake, and the last analysis (ok, text)
-    pub audio_path: String,
+    /// the recording chosen for Analyze / Remake, what is to be done with it (sent by the app), and the last analysis
+    /// (ok, text)
+    pub audio_file: Option<std::sync::Arc<crate::pick::Picked>>,
+    pub listen: Option<Listen>,
     pub analysis: Option<(bool, String)>,
     pub analyzing: bool,
     pub library_filter: String,
-    /// the path typed into "Open"
-    pub open_path: String,
     /// the section name being typed (section index, text), so incoming states do not overwrite it
     pub name_edit: Option<(usize, String)>,
     pub volume: f32,
@@ -216,11 +222,11 @@ impl Default for View {
             reference: None,
             reference_open: false,
             reference_loading: false,
-            audio_path: String::new(),
+            audio_file: None,
+            listen: None,
             analysis: None,
             analyzing: false,
             library_filter: String::new(),
-            open_path: String::new(),
             name_edit: None,
             volume: 0.9,
             sevenths: true,

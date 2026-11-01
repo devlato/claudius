@@ -19,6 +19,7 @@ mod music;
 mod native;
 mod net;
 mod panels;
+mod pick;
 mod theme;
 mod tour;
 mod widgets;

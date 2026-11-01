@@ -293,13 +293,41 @@ impl Studio {
         }
     }
 
+    /// Files chosen on this computer, read: a song opens, a recording waits for Analyze or Remake, and a picture goes to
+    /// the release as its cover.
+    fn take_picks(&mut self, now: f64) {
+        use crate::pick::{Want, chosen};
+        if let Some(got) = chosen(Want::Song) {
+            match got.and_then(crate::pick::Picked::text) {
+                Ok((name, text)) => self.out.push(Command::OpenText { name, text }),
+                Err(e) => self.toast(e, false, now),
+            }
+        }
+        if let Some(got) = chosen(Want::Audio) {
+            self.view.analysis = None;
+            match got {
+                Ok(file) => self.view.audio_file = Some(Arc::new(file)),
+                Err(e) => self.view.analysis = Some((false, e)),
+            }
+        }
+        if let Some(got) = chosen(Want::Cover) {
+            match got {
+                Ok(file) => self.view.publish.upload = Some(file.bytes),
+                Err(e) => self.view.publish.error = Some(e),
+            }
+        }
+    }
+
     /// sends this frame's commands, showing simple edits at once
     fn flush(&mut self, now: f64) {
         for cmd in std::mem::take(&mut self.out) {
             if let Some(song) = self.state.song.as_mut() {
                 let _ = edits::apply(song, &cmd);
             }
-            if matches!(cmd, Command::NewSong { .. } | Command::Remake { .. } | Command::Load { .. }) {
+            if matches!(
+                cmd,
+                Command::NewSong { .. } | Command::Remake { .. } | Command::Load { .. } | Command::OpenText { .. }
+            ) {
                 self.view.section = 0;
                 self.view.script.dirty = false;
             }
@@ -434,13 +462,24 @@ impl Studio {
                 Step::Rec(Rec::Midi(name)) => self.view.record.settings.midi = Some(name),
                 Step::Rec(Rec::Grid(beats)) => self.view.record.settings.grid = beats,
                 Step::Rec(Rec::AllowMidi) => crate::audio::record::ask_for_midi(),
-                Step::AudioPath(p) => self.view.audio_path = p,
+                #[cfg(not(target_arch = "wasm32"))]
+                Step::AudioPath(p) => crate::pick::take_path(crate::pick::Want::Audio, std::path::Path::new(&p)),
+                #[cfg(target_arch = "wasm32")]
+                Step::AudioPath(p) => crate::devplan::say(&format!("audiopath:{p} reads a file in the app only")),
+                Step::Pick(want) => crate::pick::choose(want),
+                Step::Listen(remake) => {
+                    let f = &self.view.new_song;
+                    let remake = remake.then(|| (f.genre.clone(), f.seed.trim().parse().ok()));
+                    self.view.listen = self.view.audio_file.clone().map(|file| panels::Listen { file, remake });
+                }
                 Step::Exit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             }
         }
         // what the Record window says, and offers for MIDI keyboards, for whoever runs the plan to read
         plan.tell("record", &self.view.record.said());
         plan.tell("midi", &crate::audio::record::midi_offer().map(|(what, _)| what).unwrap_or_default());
+        plan.tell("analysis", &self.view.analysis.as_ref().map(|(_, text)| text.clone()).unwrap_or_default());
+        plan.tell("toast", &self.view.toast.as_ref().map(|t| t.text.clone()).unwrap_or_default());
     }
 
     fn reference_window(&mut self, ctx: &egui::Context) {
@@ -938,6 +977,17 @@ impl eframe::App for Studio {
             self.inflight += 1;
             self.inflight_since = now;
             self.backend.upload_artwork(bytes);
+        }
+        self.take_picks(now);
+        if let Some(l) = self.view.listen.take() {
+            self.inflight += 1;
+            self.inflight_since = now;
+            self.view.analyzing = true;
+            if l.remake.is_some() {
+                self.view.section = 0;
+                self.view.script.dirty = false;
+            }
+            self.backend.listen(&l);
         }
         if let Some(t) = self.view.record.upload.take() {
             self.inflight += 1;

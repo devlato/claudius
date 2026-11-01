@@ -141,6 +141,7 @@ impl App {
                 self.commit(Some(bp), msg)
             }
             Command::Load { path } => self.load(Path::new(&path)),
+            Command::OpenText { name, text } => self.open_text(&name, &text, None),
             Command::Save { path } => self.save(path.map(PathBuf::from)),
             Command::Export { formats, path } => self.export(&formats, path.map(PathBuf::from)),
             Command::SetRelease { details, artwork } => self.set_release(*details, artwork.map(PathBuf::from)),
@@ -358,50 +359,17 @@ impl App {
                 .readable(Path::new(&path))
                 .and_then(|_| audio::load(Path::new(&path)).map_err(|e| e.to_string()))
             {
-                Ok(x) => {
-                    let a = analysis::song::analyze(&x, None);
-                    let text = analysis_text(&a);
-                    let v = self.update(|s| {
-                        s.say(format!("analyzed {path}"));
-                        s.version + 1
-                    });
-                    ok(text, v)
-                }
+                Ok(x) => self.analyze_audio(&x, &path),
                 Err(e) => no(format!("cannot read {path}: {e}"), v),
             },
             Command::Remake { path, genre, seed, bpm } => {
                 if let Err(e) = self.readable(Path::new(&path)) {
                     return no(e, v);
                 }
-                let x = match audio::load(Path::new(&path)) {
-                    Ok(x) => x,
-                    Err(e) => return no(format!("cannot read {path}: {e}"), v),
-                };
-                let genre = genre.or_else(|| self.blueprint().map(|b| b.genre)).unwrap_or_else(|| "house".into());
-                let g = match genres::get(&genre) {
-                    Ok(g) => g,
-                    Err(e) => return no(e.to_string(), v),
-                };
-                let a = analysis::song::analyze(&x, None);
-                let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
-                let bp = analysis::song::to_blueprint(
-                    &a,
-                    &g,
-                    seed.unwrap_or_else(now_seed),
-                    &Options { bpm, ..Options::default() },
-                    self.lib.as_deref().map(|l| l as &dyn compose::Library),
-                    &path,
-                );
-                let moved = if bpm.is_none() && bp.bpm != a.bpm.round() {
-                    format!(
-                        "\nat {:.0} BPM: the recording's {:.0} is outside {genre}'s {:.0}-{:.0}",
-                        bp.bpm, a.bpm, g.bpm.0, g.bpm.1
-                    )
-                } else {
-                    String::new()
-                };
-                self.lock().folder = None;
-                self.commit(Some(bp), format!("remade {path} as {genre}{moved}:\n{}", analysis_text(&a)))
+                match audio::load(Path::new(&path)) {
+                    Ok(x) => self.remake_audio(&x, &path, genre, seed, bpm),
+                    Err(e) => no(format!("cannot read {path}: {e}"), v),
+                }
             }
             Command::Mutate { count, keep_best } => {
                 self.start_job("mutating", move |app| app.mutate_job(count.clamp(1, 32), keep_best))
@@ -462,6 +430,53 @@ impl App {
         }
     }
 
+    /// what claudius hears in a recording (`name`: its path, or the name of the file it came in)
+    pub(super) fn analyze_audio(self: &Arc<Self>, x: &audio::Stereo, name: &str) -> Reply {
+        let text = analysis_text(&analysis::song::analyze(x, None));
+        let v = self.update(|s| {
+            s.say(format!("analyzed {name}"));
+            s.version + 1
+        });
+        ok(text, v)
+    }
+
+    /// a new song on a recording's skeleton (`name`: its path, or the name of the file it came in)
+    pub(super) fn remake_audio(
+        self: &Arc<Self>,
+        x: &audio::Stereo,
+        path: &str,
+        genre: Option<String>,
+        seed: Option<u64>,
+        bpm: Option<f64>,
+    ) -> Reply {
+        let v = self.version();
+        let genre = genre.or_else(|| self.blueprint().map(|b| b.genre)).unwrap_or_else(|| "house".into());
+        let g = match genres::get(&genre) {
+            Ok(g) => g,
+            Err(e) => return no(e.to_string(), v),
+        };
+        let a = analysis::song::analyze(x, None);
+        let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
+        let bp = analysis::song::to_blueprint(
+            &a,
+            &g,
+            seed.unwrap_or_else(now_seed),
+            &Options { bpm, ..Options::default() },
+            self.lib.as_deref().map(|l| l as &dyn compose::Library),
+            path,
+        );
+        let moved = if bpm.is_none() && bp.bpm != a.bpm.round() {
+            format!(
+                "\nat {:.0} BPM: the recording's {:.0} is outside {genre}'s {:.0}-{:.0}",
+                bp.bpm, a.bpm, g.bpm.0, g.bpm.1
+            )
+        } else {
+            String::new()
+        };
+        self.lock().folder = None;
+        self.commit(Some(bp), format!("remade {path} as {genre}{moved}:\n{}", analysis_text(&a)))
+    }
+
     fn load(self: &Arc<Self>, path: &Path) -> Reply {
         let v = self.version();
         let path = if path.is_dir() { path.join("blueprint.json") } else { path.to_path_buf() };
@@ -472,13 +487,23 @@ impl App {
             Ok(t) => t,
             Err(e) => return no(format!("cannot read {}: {e}", path.display()), v),
         };
-        if path.extension().is_some_and(|e| e == "json") {
+        self.open_text(&path.display().to_string(), &text, Some(&path))
+    }
+
+    /// A song from a file's text: a blueprint (when `name` ends in `.json`) or a script. `file` is where claudius read
+    /// it, when it did: a song folder's file opens that song, and saving writes there. A file that came by its text
+    /// (`open_text`, from a studio that read it) makes a song of its own.
+    pub(super) fn open_text(self: &Arc<Self>, name: &str, text: &str, file: Option<&Path>) -> Reply {
+        let v = self.version();
+        let folder = file.and_then(Path::parent);
+        let said = if file.is_some() { "loaded" } else { "opened" };
+        if Path::new(name).extension().is_some_and(|e| e.eq_ignore_ascii_case("json")) {
             let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
-            let mut bp = match Blueprint::from_json(&text) {
+            let mut bp = match Blueprint::from_json(text) {
                 Ok(bp) => bp,
-                Err(e) => return no(format!("cannot open {}: {e}", path.display()), v),
+                Err(e) => return no(format!("cannot open {name}: {e}"), v),
             };
-            if let Some(folder) = path.parent() {
+            if let Some(folder) = folder {
                 claudius::take::find_moved(&mut bp, folder);
             }
             let outside = bp.files().into_iter().find(|f| !config::path_allowed(Path::new(f), self.roots.as_deref()));
@@ -488,16 +513,16 @@ impl App {
             });
             match checked {
                 Ok(()) => {
-                    self.lock().folder = path.parent().map(Path::to_path_buf);
-                    self.commit(Some(bp), format!("loaded {}", path.display()))
+                    self.lock().folder = folder.map(Path::to_path_buf);
+                    self.commit(Some(bp), format!("{said} {name}"))
                 }
-                Err(e) => no(format!("cannot open {}: {e}", path.display()), v),
+                Err(e) => no(format!("cannot open {name}: {e}"), v),
             }
         } else {
-            let r = self.run_script(&text, Some(format!("loaded {}", path.display())));
+            let r = self.run_script(text, Some(format!("{said} {name}")));
             if r.ok {
                 // a song folder's song.rhai opens that song; a script elsewhere makes a new one
-                let folder = path.parent().filter(|d| d.join("blueprint.json").is_file()).map(Path::to_path_buf);
+                let folder = folder.filter(|d| d.join("blueprint.json").is_file()).map(Path::to_path_buf);
                 self.update(|s| s.folder = folder);
             }
             r

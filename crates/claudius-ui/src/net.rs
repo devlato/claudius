@@ -118,6 +118,19 @@ pub fn command_name(cmd: &Command) -> String {
         .unwrap_or_else(|| "command".into())
 }
 
+/// what sending a recording to listen to is: the reply it answers, the endpoint, and the query naming the file (and
+/// the genre and seed of a remake)
+fn listen_request(l: &crate::panels::Listen) -> (&'static str, &'static str, String) {
+    let name = format!("name={}", query_value(&l.file.name));
+    match &l.remake {
+        None => ("analyze", "/api/analyze", name),
+        Some((genre, seed)) => {
+            let seed = seed.map_or_else(String::new, |s| format!("&seed={s}"));
+            ("remake", "/api/remake", format!("{name}&genre={}{seed}", query_value(genre)))
+        }
+    }
+}
+
 /// text as a value in a URL's query: letters, digits and `-_.~` as they are, every other byte as %XX
 fn query_value(s: &str) -> String {
     s.bytes()
@@ -269,6 +282,24 @@ impl Remote {
                 Err(e) => Err(e),
             };
             Self::deliver(&tx, &ctx, Event::Reply { what: "take".into(), result });
+        });
+    }
+
+    /// a recording to listen to or remake, the file itself, to `/api/analyze` or `/api/remake` with `query`
+    fn listen(&mut self, bytes: Vec<u8>, path: &str, query: &str, what: &'static str) {
+        let mut request = ehttp::Request::post(self.url(&format!("{path}?{query}")), bytes);
+        request.headers =
+            ehttp::Headers::new(&[("Accept", "application/json"), ("Content-Type", "application/octet-stream")]);
+        request.timeout = Some(Duration::from_secs(300));
+        let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
+        ehttp::fetch(request, move |res| {
+            let result = match res {
+                Ok(r) => {
+                    serde_json::from_slice::<Reply>(&r.bytes).map_err(|_| format!("{} {}", r.status, r.status_text))
+                }
+                Err(e) => Err(e),
+            };
+            Self::deliver(&tx, &ctx, Event::Reply { what: what.into(), result });
         });
     }
 
@@ -429,6 +460,25 @@ impl Backend {
         }
     }
 
+    /// Sends a recording chosen on this computer, the file itself, to be listened to or remade (the answer arrives as a
+    /// reply to "analyze" or "remake").
+    pub fn listen(&mut self, l: &crate::panels::Listen) {
+        let (what, path, query) = listen_request(l);
+        match self {
+            Backend::Remote(r) => r.listen(l.file.bytes.clone(), path, &query, what),
+            // the demo listens to nothing: it makes up an analysis from the file's name, as for a path
+            Backend::Mock(m) => match &l.remake {
+                Some((genre, seed)) => m.send(Command::Remake {
+                    path: l.file.name.clone(),
+                    genre: Some(genre.clone()),
+                    seed: *seed,
+                    bpm: None,
+                }),
+                None => m.send(Command::Analyze { path: l.file.name.clone() }),
+            },
+        }
+    }
+
     /// ask for the artwork as a picture to show (arrives as `Event::Preview`)
     pub fn fetch_preview(&mut self, version: u64) {
         if let Backend::Remote(r) = self {
@@ -484,5 +534,25 @@ impl Backend {
             }
             Backend::Mock(m) => m.audio(render.version).map(Source::Pcm),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::panels::Listen;
+    use crate::pick::Picked;
+
+    #[test]
+    fn a_recording_to_listen_to_is_named_in_the_query() {
+        let file = std::sync::Arc::new(Picked { name: "My Song (live) #2.m4a".into(), bytes: vec![1, 2] });
+        let analyze = listen_request(&Listen { file: file.clone(), remake: None });
+        assert_eq!(analyze, ("analyze", "/api/analyze", "name=My%20Song%20%28live%29%20%232.m4a".into()));
+        let remake = listen_request(&Listen { file: file.clone(), remake: Some(("drum_and_bass".into(), Some(42))) });
+        assert_eq!(remake.0, "remake");
+        assert_eq!(remake.1, "/api/remake");
+        assert!(remake.2.ends_with("&genre=drum_and_bass&seed=42"), "{}", remake.2);
+        let unseeded = listen_request(&Listen { file, remake: Some(("house".into(), None)) });
+        assert!(unseeded.2.ends_with("&genre=house"), "a random seed is claudius' to pick");
     }
 }

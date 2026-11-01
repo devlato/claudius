@@ -284,18 +284,12 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
         egui::Popup::from_toggle_button_response(&open)
             .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
             .show(|ui| {
-                ui.set_min_width(380.0);
+                ui.set_min_width(320.0);
                 ui.label(RichText::new("Open a song").strong());
-                ui.label(small("a blueprint.json, a song folder's script, or any claudius script, by its path"));
-                let r = ui.add(
-                    egui::TextEdit::singleline(&mut cx.view.open_path)
-                        .hint_text("out/house-glass-garden-7/blueprint.json")
-                        .desired_width(f32::INFINITY),
-                );
-                let go = ui.add_enabled(!cx.view.open_path.trim().is_empty(), egui::Button::new("Open")).clicked()
-                    || (r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)));
-                if go && !cx.view.open_path.trim().is_empty() {
-                    cx.out.push(Command::Load { path: cx.view.open_path.trim().to_string() });
+                ui.label(small("a blueprint.json from a song's folder, or a claudius script"));
+                ui.add_space(4.0);
+                if widgets::tool_button(ui, Icon::Open, "Choose a file...", true, false).clicked() {
+                    crate::pick::choose(crate::pick::Want::Song);
                     ui.close();
                 }
             });
@@ -602,33 +596,33 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
             f.genre.replace('_', " ")
         )));
         ui.horizontal(|ui| {
-            ui.add(
-                egui::TextEdit::singleline(&mut cx.view.audio_path)
-                    .hint_text("the file's path: ~/Music/some song.mp3")
-                    .desired_width(360.0),
-            );
-            let path = cx.view.audio_path.trim().to_string();
-            let ready = !path.is_empty() && !cx.view.analyzing;
+            let busy = cx.view.analyzing;
+            if widgets::tool_button(ui, Icon::Open, "Choose a file...", !busy, false).clicked() {
+                crate::pick::choose(crate::pick::Want::Audio);
+            }
+            match &cx.view.audio_file {
+                Some(file) => ui.label(small(format!("{} ({:.1} MB)", file.name, file.bytes.len() as f64 / 1e6))),
+                None => ui.label(small("no file chosen").color(TEXT_FAINT)),
+            };
+        });
+        ui.horizontal(|ui| {
+            let file = cx.view.audio_file.clone().filter(|_| !cx.view.analyzing);
             if ui
-                .add_enabled(ready, egui::Button::new("Analyze"))
-                .on_hover_text("read the file and show what claudius hears")
+                .add_enabled(file.is_some(), egui::Button::new("Analyze"))
+                .on_hover_text("listen to the file and show what claudius hears")
                 .clicked()
             {
                 cx.view.analysis = None;
-                cx.out.push(Command::Analyze { path: path.clone() });
+                cx.view.listen = file.clone().map(|file| super::Listen { file, remake: None });
             }
             if ui
-                .add_enabled(ready, egui::Button::new(format!("Remake as {}", f.genre.replace('_', " "))))
+                .add_enabled(file.is_some(), egui::Button::new(format!("Remake as {}", f.genre.replace('_', " "))))
                 .on_hover_text("a new song on the file's skeleton (the seed above, if any)")
                 .clicked()
             {
                 cx.view.analysis = None;
-                cx.out.push(Command::Remake {
-                    path,
-                    genre: Some(f.genre.clone()),
-                    seed: f.seed.trim().parse().ok(),
-                    bpm: None,
-                });
+                let remake = Some((f.genre.clone(), f.seed.trim().parse().ok()));
+                cx.view.listen = file.map(|file| super::Listen { file, remake });
             }
             if cx.view.analyzing {
                 ui.add(egui::Spinner::new().color(ACCENT));

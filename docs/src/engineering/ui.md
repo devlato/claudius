@@ -21,7 +21,8 @@ The studio is still being finished; this page describes its structure, which is 
 | `music.rs` | the theory needed to label things: keys, numerals as chord names, note names |
 | `theme.rs`, `widgets.rs` | the palette (one colour per role and section kind), knobs, faders, meters, chips |
 | `mark.rs` | the logo's C, drawn at the size the header shows it, from the numbers `scripts/icons.py` draws the icons with |
-| `devplan.rs` | scripted runs of the native window, for checking the UI without a person |
+| `pick.rs` | [choosing a file](#choosing-files) on the studio's computer and reading it into memory |
+| `devplan.rs` | scripted runs of the studio, for checking the UI without a person: natively, and in a browser in a build with the `plan` feature |
 | `native.rs` | `Native`, what the native window may do on its computer beyond the server (connect assistants) |
 | `tour.rs` | the first-run tour: its cards, the parts of the studio they point at, and when it is done |
 
@@ -233,6 +234,25 @@ in its page's `?plan=` and prints what the Record window says to the console. Th
 - Measure with an input that cannot hear the clicks says so;
 - a keyboard the test plays itself (a Web MIDI of its own, before the page's scripts) makes a part, a note a beat;
 - a browser without Web MIDI, a page blocked from it, and one blocked from the microphone say what to do.
+
+## Choosing files
+
+Where the studio wants a file (a song to open, a recording to listen to or remake, a release's cover), the person
+chooses one on the studio's own computer, and the studio reads it into memory (`pick.rs`). Natively that is the
+system's dialog (rfd); in a browser, a file input of the page's own (hidden, `data-claudius-pick` naming what it is
+for), which waits in the page until a file is chosen. What was chosen arrives through `pick::chosen`, which the app
+reads each frame:
+
+- **A song** goes as its text in `open_text`, which opens a blueprint.json (by the file's name) or runs a script; a
+  file that is not text is no song, and a toast says so.
+- **A recording** waits in the New song dialog for **Analyze** or **Remake**, which send it, the file itself, to
+  `POST /api/analyze` or `POST /api/remake`, named so that its extension says its format. claudius decodes it in
+  memory and keeps nothing of it.
+- **A cover** goes to `POST /api/release/artwork`, as a dropped one does.
+
+So nothing the studio asks for is a path on the computer claudius runs on, and a studio on another computer works
+the same. Scripted runs open the dialogs (`pick:<song|audio|cover>`) and press the buttons (`listen:<analyze|remake>`);
+`site/tests/files.spec.mjs` fills the page's file input as a person choosing a file would.
 
 ## The mock
 

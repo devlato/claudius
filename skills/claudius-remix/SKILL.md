@@ -27,7 +27,8 @@ flip. "I sang the chorus" or "here's my guitar for the drop" is a take.
 
 - **The file has to be on the computer that runs claudius.** Ask for its path. A claudius shared over a network
   only reads its own folders (`~/Music/claudius`, its caches, the sound libraries, and folders given with `--files`),
-  so a file elsewhere needs moving there first.
+  so a file elsewhere needs moving there first. The person can also choose a file on their own computer in the
+  studio (New song, "Or start from an audio file"), which reads it and sends claudius what it holds.
 - **Rights.** A remake uses none of the original's audio, but a chop or a flip does: publishing a song with a flipped
   sample needs the right to use that recording. Say so when the person flips something they did not make. Apple Loops
   may be used in music the person makes, under Apple's licence.

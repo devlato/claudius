@@ -67,6 +67,8 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
         )
         .route("/api/release/preview.png", get(artwork_preview))
         .route("/api/takes", post(add_take).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
+        .route("/api/analyze", post(analyze).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
+        .route("/api/remake", post(remake).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .with_state(ctx);
     let mut r = api.nest_service("/mcp", crate::mcp::http_service(app, o.public));
     r = match &o.web {
@@ -366,14 +368,18 @@ struct TakeQuery {
     role: Option<String>,
 }
 
+/// a body sent as a file itself: an audio type, or bytes, which a cross-site form cannot send
+fn sent_as_file(headers: &HeaderMap) -> bool {
+    headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.starts_with("audio/") || v.starts_with("application/octet-stream"))
+}
+
 /// a take: the recording as the file itself, an audio type so that a cross-site form cannot send one, and where it
 /// starts in the query
 async fn add_take(State(c): State<Ctx>, Query(q): Query<TakeQuery>, headers: HeaderMap, body: Bytes) -> Response {
-    let audio = headers
-        .get(header::CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok())
-        .is_some_and(|v| v.starts_with("audio/") || v.starts_with("application/octet-stream"));
-    if !audio {
+    if !sent_as_file(&headers) {
         return (
             StatusCode::UNSUPPORTED_MEDIA_TYPE,
             "send the take as the file itself, with Content-Type audio/wav, audio/flac or application/octet-stream",
@@ -383,6 +389,48 @@ async fn add_take(State(c): State<Ctx>, Query(q): Query<TakeQuery>, headers: Hea
     let app = c.app.clone();
     let reply = tokio::task::spawn_blocking(move || {
         app.add_take_bytes(body.to_vec(), &q.from, q.name.as_deref(), q.role.as_deref())
+    })
+    .await
+    .unwrap_or_else(|e| claudius_api::Reply { ok: false, message: format!("internal error: {e}"), version: 0 });
+    Json(reply).into_response()
+}
+
+#[derive(Deserialize)]
+struct ListenQuery {
+    /// the file's name, whose extension says its format
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    genre: Option<String>,
+    #[serde(default)]
+    seed: Option<u64>,
+    #[serde(default)]
+    bpm: Option<f64>,
+}
+
+/// a recording to listen to, as the file itself: what claudius hears in it, as `analyze` says it of a path
+async fn analyze(State(c): State<Ctx>, Query(q): Query<ListenQuery>, headers: HeaderMap, body: Bytes) -> Response {
+    listen(c, q, &headers, body, false).await
+}
+
+/// a recording to remake, as the file itself: a new song on its skeleton, as `remake` makes one from a path
+async fn remake(State(c): State<Ctx>, Query(q): Query<ListenQuery>, headers: HeaderMap, body: Bytes) -> Response {
+    listen(c, q, &headers, body, true).await
+}
+
+async fn listen(c: Ctx, q: ListenQuery, headers: &HeaderMap, body: Bytes, remake: bool) -> Response {
+    if !sent_as_file(headers) {
+        return (
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            "send the recording as the file itself, with Content-Type audio/mpeg, audio/wav or application/octet-stream",
+        )
+            .into_response();
+    }
+    let app = c.app.clone();
+    let name = q.name.filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "the recording".into());
+    let reply = tokio::task::spawn_blocking(move || match remake {
+        true => app.remake_bytes(body.to_vec(), &name, q.genre, q.seed, q.bpm),
+        false => app.analyze_bytes(body.to_vec(), &name),
     })
     .await
     .unwrap_or_else(|e| claudius_api::Reply { ok: false, message: format!("internal error: {e}"), version: 0 });
