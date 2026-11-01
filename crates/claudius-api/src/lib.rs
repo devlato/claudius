@@ -374,6 +374,13 @@ pub enum Command {
     Load {
         path: String,
     },
+    /// open a song from a file's text, as the studio reads a file chosen on its own computer: a blueprint.json's (when
+    /// `name` ends in `.json`) or a script's. Nothing is kept of the file: saving makes a song folder of its own
+    OpenText {
+        /// the file's name, which says what it holds
+        name: String,
+        text: String,
+    },
     /// write blueprint.json + song.wav/mp3 + script into a folder (default: a fresh folder under out/)
     Save {
         #[serde(default)]

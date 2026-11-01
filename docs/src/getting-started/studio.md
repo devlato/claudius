@@ -28,7 +28,11 @@ installed.
 ## Starting a song
 
 **New song** asks for a genre and, if you like, a seed, tempo and key. The same genre and seed always give the same
-song, so a seed is a way to come back to one you liked. **Open** loads a song folder you saved or a `.rhai` script.
+song, so a seed is a way to come back to one you liked. It can also start from a recording: **Choose a file** under
+"Or start from an audio file", then **Analyze** shows what claudius hears in it, and **Remake** writes a new song on
+its tempo, key, chords, form and groove. **Open** opens a song you saved: choose the `blueprint.json` in its folder,
+or a `.rhai` script. The studio reads the file on its own computer, in a browser too, and nothing of it is kept but
+the song it opens.
 
 ## The panels
 

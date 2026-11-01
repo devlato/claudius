@@ -7,98 +7,16 @@
 //
 // CLAUDIUS_BIN and CLAUDIUS_PLAN_STUDIO name others. Each test's claudius has a home of its own, which goes after.
 import { test, expect, chromium } from "@playwright/test";
-import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { createServer } from "node:net";
+import { existsSync, mkdtempSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { claudius, heard, ready, tone, why } from "./claudius.mjs";
 
-const repo = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const bin = process.env.CLAUDIUS_BIN || join(repo, "target", "debug", "claudius");
-const studio = process.env.CLAUDIUS_PLAN_STUDIO || join(repo, "target", "studio-plan");
-const ready = existsSync(bin) && existsSync(join(studio, "index.html")) && existsSync(join(studio, "record-worklet.js"));
-const why = `needs ${bin} and the studio built with its plan feature in ${studio} (see the top of this file)`;
-
-/** a mono 16-bit WAV of a 440 Hz tone, at a quarter of full scale: what the fake microphone hears */
-function tone(path, secs = 10, rate = 48_000) {
-  const n = secs * rate;
-  const b = Buffer.alloc(44 + n * 2);
-  b.write("RIFF", 0);
-  b.writeUInt32LE(36 + n * 2, 4);
-  b.write("WAVEfmt ", 8);
-  b.writeUInt32LE(16, 16);
-  b.writeUInt16LE(1, 20);
-  b.writeUInt16LE(1, 22);
-  b.writeUInt32LE(rate, 24);
-  b.writeUInt32LE(rate * 2, 28);
-  b.writeUInt16LE(2, 32);
-  b.writeUInt16LE(16, 34);
-  b.write("data", 36);
-  b.writeUInt32LE(n * 2, 40);
-  for (let i = 0; i < n; i++) b.writeInt16LE(Math.round(0.25 * 32767 * Math.sin((2 * Math.PI * 440 * i) / rate)), 44 + i * 2);
-  writeFileSync(path, b);
-}
-
-/** a port nothing listens on */
-const freePort = () =>
-  new Promise((ok) => {
-    const s = createServer();
-    s.listen(0, "127.0.0.1", () => {
-      const { port } = s.address();
-      s.close(() => ok(port));
-    });
-  });
-
-/** a claudius of its own, serving the studio, with a song rendered */
-async function claudius() {
-  const home = mkdtempSync(join(tmpdir(), "claudius-record-"));
-  const port = await freePort();
-  const env = { ...process.env, HOME: home, CLAUDIUS_HOME: join(home, "cache") };
-  const args = ["serve", "--port", String(port), "--web", studio, "--no-ears", "--no-library"];
-  const child = spawn(bin, args, { env, stdio: ["ignore", "ignore", "pipe"] });
-  let log = "";
-  child.stderr.on("data", (d) => (log += d));
-  const base = `http://127.0.0.1:${port}`;
-  const api = (path, body) =>
-    fetch(base + path, body && { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-  for (let i = 0; ; i++) {
-    if (await api("/api/hello").then((r) => r.ok, () => false)) break;
-    if (i > 100) throw new Error(`claudius did not start:\n${log}`);
-    await new Promise((r) => setTimeout(r, 200));
-  }
-  await api("/api/command", { cmd: "new_song", genre: "house", seed: 3 });
-  await expect.poll(async () => (await (await api("/api/state")).json()).render?.url ?? "", { timeout: 120_000 }).toMatch(/\.mp3$/);
-  const stop = () => {
-    child.kill();
-    rmSync(home, { recursive: true, force: true });
-  };
-  return { base, home, api, stop };
-}
-
-/** what the Record window says, as the plan reports it, and when (ms since 1970) it said each */
-function said(page) {
-  const lines = [];
-  lines.when = {};
-  page.on("console", (m) => {
-    const t = m.text();
-    if (t.startsWith("record: ")) {
-      lines.push(t.slice(8));
-      lines.when[t.slice(8)] ??= Date.now();
-    }
-  });
-  return lines;
-}
+/** what the Record window says, as the plan reports it, and when */
+const said = (page) => heard(page, "record");
 
 /** what the Record window offers for MIDI keyboards, as the plan reports it */
-function offered(page) {
-  const lines = [];
-  page.on("console", (m) => {
-    const t = m.text();
-    if (t.startsWith("midi: ")) lines.push(t.slice(6));
-  });
-  return lines;
-}
+const offered = (page) => heard(page, "midi");
 
 /**
  * Web MIDI as a browser gives it, before the page's own scripts: `state` is what the browser says of the page

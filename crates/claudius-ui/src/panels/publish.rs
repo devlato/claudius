@@ -18,7 +18,7 @@ pub struct Publish {
     shown: Option<ReleaseDetails>,
     /// the details last sent, which come back as the session's
     sent: Option<ReleaseDetails>,
-    /// a picture to send as the artwork, dropped or read from `path`
+    /// a picture to send as the artwork, dropped or chosen
     pub upload: Option<Vec<u8>>,
     /// the preview on screen, and the artwork version it shows
     preview: Option<(u64, egui::TextureHandle)>,
@@ -26,11 +26,8 @@ pub struct Publish {
     pub arrived: Option<(u64, Result<egui::ColorImage, String>)>,
     /// the artwork version whose preview was asked for
     asked: Option<u64>,
-    /// a path to read the artwork from: a browser has no files to name
-    #[cfg(not(target_arch = "wasm32"))]
-    path: String,
     /// why a picture could not be read or shown
-    error: Option<String>,
+    pub error: Option<String>,
     /// dropped pictures a browser is reading
     reading: Option<ReadChannel>,
     /// the dialog has just opened: the session is told, and checks the release
@@ -293,22 +290,13 @@ fn artwork(ui: &mut Ui, p: &mut Publish, release: &ReleaseView, hovering: bool) 
         ui.add_space(4.0);
         let what = release.artwork.clone().unwrap_or_else(|| "no artwork yet".into());
         ui.add(egui::Label::new(small(what)).wrap());
-        #[cfg(not(target_arch = "wasm32"))]
-        ui.horizontal(|ui| {
-            let typed = ui.add(egui::TextEdit::singleline(&mut p.path).hint_text("or its path").desired_width(180.0));
-            let entered = typed.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-            let named = !p.path.trim().is_empty();
-            if widgets::icon_button(ui, Icon::Open, 24.0, false, named, "use this file").clicked() || (entered && named)
-            {
-                match std::fs::read(p.path.trim()) {
-                    Ok(bytes) => {
-                        p.upload = Some(bytes);
-                        p.error = None;
-                    }
-                    Err(e) => p.error = Some(format!("cannot read {}: {e}", p.path.trim())),
-                }
-            }
-        });
+        if widgets::tool_button(ui, Icon::Open, "Choose a file...", true, false)
+            .on_hover_text("or drop it above")
+            .clicked()
+        {
+            p.error = None;
+            crate::pick::choose(ui.ctx(), crate::pick::Want::Cover);
+        }
         if let Some(e) = &p.error {
             ui.add(egui::Label::new(RichText::new(e).size(11.0).color(theme::BAD)).wrap());
         }

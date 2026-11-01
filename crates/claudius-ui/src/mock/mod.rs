@@ -260,8 +260,8 @@ impl Mock {
                 self.new_song(song, before, &msg);
                 Ok(msg)
             }
-            Command::Load { path } => {
-                Err(format!("the demo cannot open files ({path}); start `claudius serve` for that"))
+            Command::Load { path: name } | Command::OpenText { name, .. } => {
+                Err(format!("the demo cannot open files ({name}); start `claudius serve` for that"))
             }
             Command::Save { path } => {
                 let title =

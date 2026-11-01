@@ -109,10 +109,17 @@ pub fn decode_native(path: &Path) -> Result<Decoded> {
     decode_native_upto(path, MAX_SAMPLES)
 }
 
-/// decode audio held in memory with symphonia; `ext` names its format as a file extension would (`flac`, `mp3`)
+/// decode audio held in memory with symphonia; `ext` names its format as a file extension would (`flac`, `mp3`). A CAF
+/// loses its encoder priming and padding, as one read from a file does.
 pub fn decode_bytes(bytes: Vec<u8>, ext: &str) -> Result<Decoded> {
+    let frames =
+        if ext.eq_ignore_ascii_case("caf") { caf_valid_frames_in(std::io::Cursor::new(&bytes[..])) } else { None };
     let mss = MediaSourceStream::new(Box::new(std::io::Cursor::new(bytes)), MediaSourceStreamOptions::default());
-    decode_stream(mss, Some(ext), MAX_SAMPLES, Path::new(&format!("audio.{ext}")))
+    let mut out = decode_stream(mss, Some(ext), MAX_SAMPLES, Path::new(&format!("audio.{ext}")))?;
+    if let Some(frames) = frames {
+        trim(&mut out, frames);
+    }
+    Ok(out)
 }
 
 fn decode_native_upto(path: &Path, max_samples: usize) -> Result<Decoded> {
@@ -120,16 +127,21 @@ fn decode_native_upto(path: &Path, max_samples: usize) -> Result<Decoded> {
     let mss = MediaSourceStream::new(Box::new(file), MediaSourceStreamOptions::default());
     let mut out = decode_stream(mss, path.extension().and_then(|e| e.to_str()), max_samples, path)?;
     if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("caf"))
-        && let Some((priming, valid)) = caf_valid_frames(path)
+        && let Some(frames) = caf_valid_frames(path)
     {
-        // AAC in CAF starts with encoder priming and ends with padding; a loop must be exactly its bars
-        if let Some(b) = priming.checked_add(valid).and_then(|frames| frames.checked_mul(out.channels))
-            && b <= out.samples.len()
-        {
-            out.samples = out.samples[priming * out.channels..b].to_vec();
-        }
+        trim(&mut out, frames);
     }
     Ok(out)
+}
+
+/// AAC in CAF starts with encoder priming and ends with padding: a loop must be exactly its bars, the valid frames
+/// after the priming ones
+fn trim(out: &mut Decoded, (priming, valid): (usize, usize)) {
+    if let Some(b) = priming.checked_add(valid).and_then(|frames| frames.checked_mul(out.channels))
+        && b <= out.samples.len()
+    {
+        out.samples = out.samples[priming * out.channels..b].to_vec();
+    }
 }
 
 /// `name` is what a too-long error names
@@ -190,7 +202,11 @@ fn decode_stream(mss: MediaSourceStream, ext: Option<&str>, max_samples: usize, 
 /// (priming frames, valid frames) from a CAF file's packet table ('pakt' chunk), when it has one; it reads the chunk
 /// headers and skips their bodies
 pub fn caf_valid_frames(path: &Path) -> Option<(usize, usize)> {
-    let mut file = File::open(path).ok()?;
+    caf_valid_frames_in(File::open(path).ok()?)
+}
+
+/// `caf_valid_frames`, of a CAF read from `file`
+fn caf_valid_frames_in(mut file: impl Read + Seek) -> Option<(usize, usize)> {
     let mut header = [0u8; 8];
     file.read_exact(&mut header).ok()?;
     if &header[..4] != b"caff" {
@@ -327,6 +343,21 @@ mod tests {
     }
 
     #[test]
+    fn a_caf_in_memory_loses_its_priming_and_padding_as_a_file_does() {
+        // a quarter of a second of AAC at 48 kHz (afconvert -f caff -d aac): 12,000 valid frames, after its priming
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/quarter-second.caf");
+        let bytes = std::fs::read(&path).unwrap();
+        let (_, valid) = caf_valid_frames(&path).expect("a packet table");
+        assert_eq!(valid, 12_000);
+        let from_file = decode_native(&path).unwrap();
+        let in_memory = decode_bytes(bytes.clone(), "CAF").unwrap();
+        assert_eq!((from_file.frames(), in_memory.frames()), (valid, valid), "the valid frames, either way");
+        assert_eq!(from_file.samples, in_memory.samples);
+        let untrimmed = decode_bytes(bytes, "m4a").map(|d| d.frames()).unwrap_or(0);
+        assert!(untrimmed == 0 || untrimmed > valid, "read as another kind, it keeps its priming and padding");
+    }
+
+    #[test]
     fn reads_the_packet_table_of_a_caf() {
         let dir = std::env::temp_dir().join(format!("claudius-decode-caf-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
@@ -344,6 +375,7 @@ mod tests {
         b.extend_from_slice(&0i32.to_be_bytes());
         std::fs::write(&p, &b).unwrap();
         assert_eq!(caf_valid_frames(&p), Some((2112, 44_100)));
+        assert_eq!(caf_valid_frames_in(std::io::Cursor::new(&b[..])), Some((2112, 44_100)), "and in memory");
         // a data chunk of unknown size (-1) ends the search
         std::fs::write(&p, b"caff\x00\x01\x00\x00data\xff\xff\xff\xff\xff\xff\xff\xff").unwrap();
         assert_eq!(caf_valid_frames(&p), None);

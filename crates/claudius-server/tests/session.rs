@@ -556,6 +556,75 @@ async fn a_take_sent_over_http_plays_and_goes_with_the_song() {
     }
 }
 
+#[tokio::test]
+async fn files_a_studio_read_open_and_are_listened_to_by_their_contents() {
+    let app = app();
+    let new = |genre: &str, seed| Command::NewSong {
+        genre: genre.into(),
+        seed: Some(seed),
+        bpm: None,
+        key: None,
+        loops: false,
+    };
+    assert!(app.command(new("house", 5)).ok);
+    let title = app.state().song.unwrap().title;
+    // a song's own files, as a studio reads them on its computer: its blueprint and its script
+    let dir = std::env::temp_dir().join(format!("claudius-open-text-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(app.command(Command::Save { path: Some(dir.display().to_string()) }).ok);
+    let blueprint = std::fs::read_to_string(dir.join("blueprint.json")).unwrap();
+    let script = std::fs::read_to_string(dir.join("song.rhai")).unwrap();
+    assert!(app.command(new("techno", 9)).ok);
+    let r = app.command(Command::OpenText { name: "blueprint.json".into(), text: blueprint });
+    assert!(r.ok && r.message.contains("opened blueprint.json"), "{}", r.message);
+    assert_eq!(app.state().song.unwrap().title, title, "the blueprint opens the song it holds");
+    // a script runs on the open song, as a script file that `load` opens does
+    assert!(app.command(new("house", 6)).ok);
+    let r = app.command(Command::OpenText { name: "Song.RHAI".into(), text: script });
+    assert!(r.ok && r.message.contains("opened Song.RHAI"), "{}", r.message);
+    let r = app.command(Command::OpenText { name: "notes.JSON".into(), text: "{ not a song".into() });
+    assert!(!r.ok && r.message.starts_with("cannot open notes.JSON"), "{}", r.message);
+    let _ = std::fs::remove_dir_all(&dir);
+
+    // eight seconds of a beat at 120 BPM, sent as the file itself: listened to and remade, nothing of it kept
+    let sr = claudius::config::SR as usize;
+    let l: Vec<f32> = (0..8 * sr)
+        .map(|i| {
+            let t = (i % (sr / 2)) as f32 / sr as f32;
+            (std::f32::consts::TAU * 60.0 * t).sin() * (-t * 18.0).exp() * 0.8
+        })
+        .collect();
+    let file = std::env::temp_dir().join(format!("claudius-beat-{}.wav", std::process::id()));
+    claudius::audio::save_wav(&file, &claudius::audio::Stereo { l: l.clone(), r: l }, true).unwrap();
+    let wav = std::fs::read(&file).unwrap();
+    std::fs::remove_file(&file).unwrap();
+    let router = http::router(app.clone(), &Options::default());
+    let post = |path: &str, content_type: &str, bytes: &[u8]| {
+        Request::post(path)
+            .header(header::HOST, "localhost")
+            .header(header::CONTENT_TYPE, content_type)
+            .body(Body::from(bytes.to_vec()))
+            .unwrap()
+    };
+    let (s, _, _) = call(&router, post("/api/analyze?name=beat.wav", "text/plain", &wav)).await;
+    assert_eq!(s, StatusCode::UNSUPPORTED_MEDIA_TYPE, "a cross-site form cannot send a recording");
+    let (s, _, b) = call(&router, post("/api/analyze?name=beat.wav", "audio/wav", &wav)).await;
+    let reply: claudius_api::Reply = serde_json::from_str(&b).unwrap();
+    assert!(s == StatusCode::OK && reply.ok && reply.message.contains(" BPM (pulse clarity"), "{s} {b}");
+    // a file without a name says its format by its first bytes; one that is not audio says what is wanted
+    let (_, _, b) = call(&router, post("/api/analyze", "application/octet-stream", &wav)).await;
+    assert!(serde_json::from_str::<claudius_api::Reply>(&b).unwrap().ok, "{b}");
+    let (_, _, b) = call(&router, post("/api/analyze", "application/octet-stream", b"hello")).await;
+    assert!(b.contains("send the recording as the file itself"), "{b}");
+    let (_, _, b) = call(&router, post("/api/analyze?name=notes.txt", "application/octet-stream", b"hello")).await;
+    assert!(b.contains("cannot read notes.txt"), "{b}");
+    let (s, _, b) = call(&router, post("/api/remake?name=beat.wav&genre=techno&seed=3", "audio/wav", &wav)).await;
+    let reply: claudius_api::Reply = serde_json::from_str(&b).unwrap();
+    assert!(s == StatusCode::OK && reply.ok && reply.message.starts_with("remade beat.wav as techno"), "{b}");
+    let song = app.state().song.unwrap();
+    assert_eq!((song.genre.as_str(), song.seed), ("techno", 3));
+}
+
 #[test]
 fn the_studio_offers_the_styles_the_engine_plays() {
     assert_eq!(claudius::take::STYLES, claudius_api::NOTE_STYLES);

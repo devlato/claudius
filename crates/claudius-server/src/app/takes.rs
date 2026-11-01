@@ -1,5 +1,6 @@
 //! Takes: recordings for the song, sent by the studio as a file's bytes or named by path, kept with the song
-//! (`claudius::take`).
+//! (`claudius::take`). And recordings the studio sends to be listened to (`analyze_bytes`, `remake_bytes`), which
+//! claudius keeps nothing of.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -29,6 +30,40 @@ impl App {
             Ok(x) => self.add_take(x, from, name, role),
             Err(e) => no(format!("cannot read the take: {e:#}"), self.version()),
         }
+    }
+
+    /// what claudius hears in a recording sent as a file's bytes, named `name` (whose extension says its format, if it
+    /// has one); nothing of it is kept
+    pub fn analyze_bytes(self: &Arc<Self>, bytes: Vec<u8>, name: &str) -> Reply {
+        match self.decode(bytes, name) {
+            Ok(x) => self.analyze_audio(&x, name),
+            Err(e) => no(e, self.version()),
+        }
+    }
+
+    /// a new song on the skeleton of a recording sent as a file's bytes, as `remake` makes one from a path; nothing of
+    /// the recording is kept
+    pub fn remake_bytes(
+        self: &Arc<Self>,
+        bytes: Vec<u8>,
+        name: &str,
+        genre: Option<String>,
+        seed: Option<u64>,
+        bpm: Option<f64>,
+    ) -> Reply {
+        match self.decode(bytes, name) {
+            Ok(x) => self.remake_audio(&x, name, genre, seed, bpm),
+            Err(e) => no(e, self.version()),
+        }
+    }
+
+    /// a recording's bytes decoded: the format its name's extension says, else the one its first bytes show
+    fn decode(&self, bytes: Vec<u8>, name: &str) -> Result<Stereo, String> {
+        let named = Path::new(name).extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase);
+        let Some(ext) = named.or_else(|| kind(&bytes).map(String::from)) else {
+            return Err("send the recording as the file itself: WAV, FLAC, MP3, AAC (m4a), Ogg or AIFF".into());
+        };
+        audio::load_bytes(bytes, &ext).map_err(|e| format!("cannot read {name}: {e:#}"))
     }
 
     /// the recording at `path` added as a take; the song keeps a copy of it

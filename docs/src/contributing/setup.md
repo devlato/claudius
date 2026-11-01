@@ -103,7 +103,7 @@ push to `main`, which changes only through pull requests.
 | `cargo build -p claudius-cli --no-default-features --features studio` | `claudius` without the ears, as on Intel Macs and Windows | `target/debug` |
 | `cargo build -p claudius-cli --no-default-features --features ears` | `claudius` without the studio window: the headless build | `target/debug` |
 | `cargo xtask web` | the web studio, with trunk | `crates/claudius-ui/dist` |
-| `cargo xtask web --plan` | a web studio that runs the scripted plan in its page's `?plan=`, for `site/tests/record.spec.mjs` only (a link could otherwise drive it, the microphone included) | `target/studio-plan` |
+| `cargo xtask web --plan` | a web studio that runs the scripted plan in its page's `?plan=`, for the site's end-to-end tests only (`record.spec.mjs`, `files.spec.mjs`; a link could otherwise drive it, the microphone included) | `target/studio-plan` |
 | `cargo xtask docs` | this book | `target/book` |
 | `cargo xtask site` | the website: the landing page, the book at `/docs/`, the studio at `/studio/` and the install scripts; `--sounds` also renders the sounds the studio's demo plays into `/studio/sounds/`, as the deploy does, downloading the TR-707 and TR-808 packs (14 MB) into `target/demo-sounds` | `target/site` |
 | `cargo xtask dist` | a release archive for this machine, as the release workflow builds it (`--headless` for the Linux server build, `--no-ears` without the ears) | `target/dist` |
@@ -140,7 +140,7 @@ and the examples in the docs. CI runs more; when you changed the matching part, 
 | you changed | run |
 |---|---|
 | the docs or the site | `cargo xtask site`, then `lychee --offline --include-fragments --root-dir "$PWD/target/site" 'target/site/**/*.html'` for the links, and `npm ci && npx playwright test` in `site/` |
-| recording in the browser (`audio/web_record.rs`, `audio/take.rs`, `record-worklet.js`, the Record window) | `cargo clippy -p claudius-ui --target wasm32-unknown-unknown --features plan -- -D warnings`, then `cargo build --bin claudius && cargo xtask web --plan` and `npx playwright test tests/record.spec.mjs` in `site/`, which records in Chromium with a file for a microphone and a MIDI keyboard it plays itself (it skips without those builds) |
+| recording or choosing files in the browser (`audio/web_record.rs`, `audio/take.rs`, `record-worklet.js`, `pick.rs`, the Record window) | `cargo clippy -p claudius-ui --target wasm32-unknown-unknown --features plan -- -D warnings`, then `cargo build --bin claudius && cargo xtask web --plan` and `npx playwright test tests/record.spec.mjs tests/files.spec.mjs` in `site/`, which record in Chromium with a file for a microphone and a MIDI keyboard they play themselves, and choose files as a person would (they skip without those builds) |
 | the demo's sounds or its render (`crates/claudius-ui/src/mock/`, `demo_sounds.rs`, the synth presets) | `cargo xtask site --sounds`, then `node site/tests/serve.mjs` and listen to `http://127.0.0.1:4321/studio/?mock` |
 | dependencies | `cargo deny check` |
 | anything with words in it | `typos` |
