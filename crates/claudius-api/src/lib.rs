@@ -585,13 +585,15 @@ impl SongView {
     pub fn graph_text(&self) -> String {
         let g = self.graph();
         let title = |id: &str| g.nodes.iter().find(|n| n.id == id).map_or(id.to_string(), |n| n.title.clone());
+        let ends =
+            |id: &str| g.nodes.iter().any(|n| n.id == id && matches!(n.kind, NodeKind::Bus(_) | NodeKind::Master));
         let way = |start: &str| -> String {
             let mut at = start.to_string();
             let mut steps = vec![title(&at)];
             while let Some(e) = g.edges.iter().find(|e| e.from == at && e.kind == EdgeKind::Signal) {
                 at = e.to.clone();
                 steps.push(title(&at));
-                if at.starts_with("bus:") || at == "master" {
+                if ends(&at) {
                     break;
                 }
             }
@@ -603,12 +605,15 @@ impl SongView {
         )];
         out.push("tracks:".into());
         for t in &self.tracks {
-            let mut line = format!("  {}", way(&format!("track:{}", t.name)));
+            let id = format!("track:{}", t.name);
+            let mut line = format!("  {}", way(&id));
             let sends: Vec<String> = g
                 .edges
                 .iter()
                 .filter_map(|e| match e.kind {
-                    EdgeKind::Send(a) if e.from.starts_with(&format!("track:{}", t.name)) => {
+                    EdgeKind::Send(a)
+                        if e.from == id || e.from.strip_prefix(&id).is_some_and(|r| r.starts_with('#')) =>
+                    {
                         Some(format!("{} {a:.2}", e.to.trim_start_matches("return:")))
                     }
                     _ => None,
@@ -1197,5 +1202,24 @@ mod tests {
             assert!(text.contains(line), "{line}\n---\n{text}");
         }
         assert_eq!(Chain::Send("reverb".into()).target(), "send:reverb");
+        // a bus reads to the end of its chain, and a track whose name begins another's keeps to its own sends
+        let mut s = song();
+        s.mix.buses[0].1.push(json!({"fx": "saturate", "kind": "tape", "drive_db": 3, "mix": 0.3}));
+        let lead2 = TrackView {
+            name: "lead2".into(),
+            role: "lead".into(),
+            bus: "music".into(),
+            delay: 0.4,
+            ..TrackView::default()
+        };
+        s.tracks.push(lead2);
+        let text = s.graph_text();
+        for line in [
+            "  drums bus -> compressor -12 dB, 2.5:1 -> saturate tape, 3 dB, 30% -> master\n",
+            "  lead -> saturate tape, 6 dB, 50% -> delay 0.75 beats, feedback by section, 25% -> music bus; sends reverb 0.30;",
+            "  lead2 -> music bus; sends delay 0.40",
+        ] {
+            assert!(text.contains(line), "{line}\n---\n{text}");
+        }
     }
 }

@@ -4,7 +4,7 @@
 //! synthesized a slice per frame) and keeps `song_version`, so stale renders, solo and history behave the same.
 
 mod kit;
-mod song;
+pub(crate) mod song;
 mod synth;
 
 use std::sync::Arc;

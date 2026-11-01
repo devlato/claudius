@@ -781,7 +781,8 @@ impl Studio {
     }
 }
 
-/// commands the studio shows before the server confirms them
+/// commands the studio shows before the server confirms them: `edits::apply`'s, and the scripts the graph sends for
+/// the master's loudness
 fn is_edit(what: &str) -> bool {
     matches!(
         what,
@@ -798,6 +799,8 @@ fn is_edit(what: &str) -> bool {
             | "set_drum_pattern"
             | "set_part"
             | "set_mix"
+            | "set_fx"
+            | "run_script"
     )
 }
 
@@ -1105,5 +1108,44 @@ impl eframe::App for Studio {
     #[cfg(target_arch = "wasm32")]
     fn as_any_mut(&mut self) -> Option<&mut dyn std::any::Any> {
         Some(&mut *self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn every_edit_shown_at_once_is_put_back_when_refused() {
+        let song = crate::mock::song::generate("house", 1, None, None, false);
+        let commands = [
+            json!({"cmd": "set_tempo", "bpm": 120}),
+            json!({"cmd": "set_key", "key": "A minor"}),
+            json!({"cmd": "set_swing", "swing": 0.1}),
+            json!({"cmd": "set_progression", "name": "A", "chords": ["i", "VI"]}),
+            json!({"cmd": "set_section", "index": 0, "energy": 0.5}),
+            json!({"cmd": "add_section", "after": 0, "kind": "break", "bars": 8}),
+            json!({"cmd": "remove_section", "index": 1}),
+            json!({"cmd": "move_section", "from": 0, "to": 1}),
+            json!({"cmd": "toggle_layer", "section": 0, "layer": "kick"}),
+            json!({"cmd": "set_drum_step", "lane": "kick", "variant": "main", "step": 0, "velocity": 0.8}),
+            json!({"cmd": "set_drum_pattern", "lane": "kick", "variant": "main", "steps": "x..."}),
+            json!({"cmd": "set_part", "name": "bass", "density": 0.5, "reseed": false}),
+            json!({"cmd": "set_mix", "track": "kick", "level_db": -3.0}),
+            json!({"cmd": "set_fx", "target": "master", "fx": []}),
+            json!({"cmd": "render"}),
+            json!({"cmd": "undo"}),
+        ];
+        let mut shown = 0;
+        for c in commands {
+            let cmd: Command = serde_json::from_value(c.clone()).unwrap_or_else(|e| panic!("{c}: {e}"));
+            if edits::apply(&mut song.clone(), &cmd).is_some() {
+                shown += 1;
+                assert!(is_edit(&crate::net::command_name(&cmd)), "{c} is shown at once but not put back");
+            }
+        }
+        assert_eq!(shown, 14, "every edit above but render and undo is shown at once");
+        assert!(is_edit("run_script"), "the graph shows the master's loudness at once");
     }
 }
