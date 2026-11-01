@@ -366,7 +366,10 @@ impl Studio {
                 i.consume_key(Modifiers::NONE, Key::ArrowRight),
             )
         });
-        if space && self.player.has_audio() {
+        // while a take records, the recorder plays the song: Space ends the take, as a DAW's does
+        if space && self.view.record.recording() {
+            self.view.record.stop = true;
+        } else if space && self.player.has_audio() {
             if self.player.is_playing() { self.player.pause() } else { self.player.play() }
         }
         if redo && self.state.can_redo {

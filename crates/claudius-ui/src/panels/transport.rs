@@ -86,12 +86,19 @@ pub fn top_row(ui: &mut Ui, cx: &mut Cx) {
         ui.spacing_mut().item_spacing.x = 6.0;
         logo(ui);
         ui.add_space(6.0);
-        let has_audio = cx.player.has_audio();
+        // while a take records, the recorder plays the song: the player waits
+        let has_audio = cx.player.has_audio() && !cx.view.record.recording();
         if widgets::icon_button(ui, Icon::ToStart, 30.0, false, has_audio, "to the start (Home)").clicked() {
             cx.player.seek(0.0);
         }
         let playing = cx.player.is_playing();
-        let play_tip = if has_audio { "play / pause (Space)" } else { "render the song first" };
+        let play_tip = if cx.view.record.recording() {
+            "a take is recording: Space or the record button ends it"
+        } else if has_audio {
+            "play / pause (Space)"
+        } else {
+            "render the song first"
+        };
         let play = widgets::icon_button(
             ui,
             if playing { Icon::Pause } else { Icon::Play },

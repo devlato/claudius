@@ -62,8 +62,12 @@ pub struct Record {
     from: Option<String>,
     name: String,
     pub upload: Option<Upload>,
+    /// the take is to end now (Space, while it records)
+    pub stop: bool,
     /// what to say, and whether it is good news
     status: Option<(bool, String)>,
+    /// why the meter cannot hear the input, while that is so
+    deaf_why: Option<String>,
     sending: bool,
     level: f32,
     #[cfg(not(target_arch = "wasm32"))]
@@ -344,7 +348,10 @@ fn what_now(r: &Record) -> (bool, String) {
         }
         return (true, format!("recording from {from}: {}", crate::mock::fmt_time(t - live.take_start)));
     }
-    r.status.clone().unwrap_or_default()
+    match &r.deaf_why {
+        Some(why) => (false, why.clone()),
+        None => r.status.clone().unwrap_or_default(),
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -421,6 +428,10 @@ pub fn finish(cx: &mut Cx) {
 fn keep_up(ctx: &egui::Context, cx: &mut Cx) {
     let now = cx.now;
     let r = &mut cx.view.record;
+    if std::mem::take(&mut r.stop) && r.live.is_some() {
+        finish(cx);
+        return;
+    }
     let Some(live) = r.live.as_mut() else {
         listen(ctx, r);
         return;
@@ -451,15 +462,23 @@ fn keep_up(ctx: &egui::Context, cx: &mut Cx) {
 #[cfg(not(target_arch = "wasm32"))]
 fn listen(ctx: &egui::Context, r: &mut Record) {
     if !r.open {
-        (r.listener, r.deaf, r.level) = (None, None, 0.0);
+        (r.listener, r.deaf, r.deaf_why, r.level) = (None, None, None, 0.0);
         return;
+    }
+    // a channel remembered from another input may be one this input does not have
+    let shown = r.settings.input.clone().filter(|n| r.inputs.iter().any(|i| i.name == *n));
+    let channels = shown.as_ref().map_or_else(|| r.inputs.first(), |n| r.inputs.iter().find(|i| i.name == *n));
+    if let Some(i) = channels
+        && r.settings.channel + usize::from(r.settings.stereo) >= i.channels as usize
+    {
+        (r.settings.channel, r.settings.stereo) = (0, false);
     }
     let want: Listening = (r.settings.input.clone(), r.settings.channel, r.settings.stereo);
     if r.listener.as_ref().is_none_or(|(_, on)| *on != want) && r.deaf.as_ref() != Some(&want) {
         r.listener = None;
         match crate::audio::record::Listener::start(want.0.as_deref(), want.1, want.2) {
-            Ok(l) => (r.listener, r.deaf) = (Some((l, want)), None),
-            Err(e) => (r.deaf, r.status) = (Some(want), Some((false, e))),
+            Ok(l) => (r.listener, r.deaf, r.deaf_why) = (Some((l, want)), None, None),
+            Err(e) => (r.deaf, r.deaf_why) = (Some(want), Some(e)),
         }
     }
     let Some((l, _)) = &r.listener else {
@@ -468,7 +487,7 @@ fn listen(ctx: &egui::Context, r: &mut Record) {
     };
     if let Some(e) = l.error() {
         r.deaf = r.listener.take().map(|(_, on)| on);
-        r.status = Some((false, e));
+        r.deaf_why = Some(e);
         return;
     }
     r.level = (r.level * 0.85).max(l.level());
