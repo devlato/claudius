@@ -186,11 +186,14 @@ pub fn melody(bp: &mut Blueprint, take: &str, m: &Melody) -> Result<String, Stri
         if !s.layers.contains(&bp.loops[t].name) {
             continue;
         }
+        // every note sounding in the section: one held over from the section before goes on from its start
         let over: Vec<Note> = notes
             .iter()
-            .map(|n| Note { t: n.t + starts[first] - a, ..*n })
-            .filter(|n| n.t >= 0.0 && n.t < b - a)
-            .map(|n| Note { d: n.d.min(b - a - n.t), ..n })
+            .filter_map(|n| {
+                let (t, end) = (n.t + starts[first] - a, n.t + starts[first] - a + n.d);
+                let (from, to) = (t.max(0.0), end.min(b - a));
+                (to - from >= 1.0 / 16.0).then_some(Note { t: from, d: to - from, ..*n })
+            })
             .collect();
         if !over.is_empty() {
             // a section with a progression already sung over plays what was sung over it first
@@ -201,18 +204,15 @@ pub fn melody(bp: &mut Blueprint, take: &str, m: &Melody) -> Result<String, Stri
     let low = notes.iter().map(|n| n.p).min().unwrap_or(60);
     let high = notes.iter().map(|n| n.p).max().unwrap_or(72);
     let base = m.name.clone().unwrap_or_else(|| "melody".into());
+    if !base.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+        return Err(format!("'{base}' cannot name a track: use letters, digits, - and _"));
+    }
     let mut taken = bp.layer_names();
     let mut made = Vec::new();
-    for (k, sound) in m.sounds.iter().enumerate() {
-        let wanted = if k == 0 { base.clone() } else { format!("{base}{}", k + 1) };
-        if !wanted.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
-            return Err(format!("'{wanted}' cannot name a track: use letters, digits, - and _"));
-        }
-        let name = if taken.contains(&wanted) {
-            (2..).map(|n| format!("{wanted}{n}")).find(|n| !taken.contains(n)).unwrap_or_default()
-        } else {
-            wanted
-        };
+    // the parts take the free names of base, base2, base3 ... in turn
+    let mut names = (1..).map(|k| if k == 1 { base.clone() } else { format!("{base}{k}") });
+    for sound in &m.sounds {
+        let name = names.by_ref().find(|n| !taken.contains(n)).unwrap_or_default();
         let seed = hash_str(&name) ^ bp.seed;
         bp.parts.push(Part {
             name: name.clone(),
@@ -472,6 +472,33 @@ mod tests {
         let start = project.sections[1].start_bar as f64 * 4.0;
         let at: Vec<f64> = track.notes.iter().take(3).map(|n| n.t - start).collect();
         assert_eq!(at, [0.0, 1.0, 2.0], "where they were sung");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_note_held_into_the_next_section_goes_on_there_and_names_follow_in_turn() {
+        // a short first section and a long note sung through its end
+        let (mut bp, dir) = sung("held", &[(60.0, 6.0, false), (64.0, 2.0, false)]);
+        // a one-bar section, then one with a progression of its own
+        bp.form[1].bars = 1;
+        let other = bp.harmony.progressions.values().next().cloned().unwrap();
+        bp.harmony.progressions.insert("Z".into(), other);
+        bp.form[2].prog = "Z".into();
+        bp.form[2].layers.push("take1".into());
+        let pluck = Melody { sounds: vec!["pluck".into()], keep_take: true, ..Default::default() };
+        melody(&mut bp, "take1", &pluck).unwrap();
+        let part = bp.parts.iter().find(|p| p.name == "melody").unwrap();
+        let first = &part.notes[&bp.form[1].prog];
+        assert_eq!((first[0].p, first[0].t, first[0].d), (60, 0.0, 4.0), "the note to the section's end");
+        assert!(bp.form[2].layers.contains(&part.name), "and the part plays on into the next");
+        let next: Vec<(i32, f64, f64)> = part.notes["Z"].iter().map(|n| (n.p, n.t, n.d)).collect();
+        assert_eq!(next, [(60, 0.0, 2.0), (64, 2.0, 2.0)], "where the held note goes on from the section's start");
+        // asked again for two sounds, the parts take the next free names in turn
+        let two = Melody { sounds: vec!["pluck".into(), "bell".into()], keep_take: true, ..Default::default() };
+        melody(&mut bp, "take1", &two).unwrap();
+        let names: Vec<&str> =
+            bp.parts.iter().filter(|p| p.name.starts_with("melody")).map(|p| p.name.as_str()).collect();
+        assert_eq!(names, ["melody", "melody2", "melody3"]);
         let _ = std::fs::remove_dir_all(dir);
     }
 
