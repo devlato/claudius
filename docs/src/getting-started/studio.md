@@ -69,7 +69,12 @@ since a take goes to a claudius, which keeps it with the song.
 - **Setting it up.** Choose the input and its channel, the section the take starts with, a bar or two of count-in, and
   what it is (a vocal, a guitar playing chords ...).
 - **Recording.** The song plays from the count-in, and the take records from the section's first downbeat until you
-  press Stop or the song ends. claudius then plays it once from that section, mixed like any other track.
+  press Stop or the song ends. Then the take waits: **Play it back** plays it in the song, from a bar before it,
+  **Record again** records it over, and **Keep it** sends it to claudius, which plays it once from that section, mixed
+  like any other track.
+- **For an assistant.** When an assistant asks you for a take, the Record window opens set up for it, with a line
+  saying what to record. **Send it** sends the take to claudius and to the assistant, and **Not now** tells the
+  assistant you will not record it ([A take an assistant asks for](../guide/samples.md#a-take-an-assistant-asks-for)).
 - **Monitoring.** Wear headphones, or the microphone records the song too. The studio does not play the input back,
   so to hear yourself without delay, use your interface's direct monitoring.
 - **Timing.** Press **Measure** next to Latency once for each setup: claudius plays eight clicks, listens for them

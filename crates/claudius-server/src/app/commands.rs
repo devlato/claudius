@@ -17,6 +17,9 @@ use claudius_api::*;
 use super::{App, no, now_seed, ok};
 use crate::views;
 
+/// the parts notes played on a keyboard can make, as a take asked for may be
+const PART_ROLES: &[&str] = &["keys", "lead", "chords", "pad", "arp", "bass"];
+
 impl App {
     pub(super) fn commit(self: &Arc<Self>, bp: Option<Blueprint>, msg: String) -> Reply {
         let label = msg.lines().next().unwrap_or("").to_string();
@@ -140,6 +143,20 @@ impl App {
                 self.lock().folder = None;
                 self.commit(Some(bp), msg)
             }
+            Command::RequestTake { from, role, name, note } => self.request_take(from, role, name, note),
+            Command::CancelTakeRequest { id } => match self.try_update(|s| match &mut s.take_request {
+                Some(r) if r.id == id && r.status == TakeStatus::Waiting => {
+                    r.status = TakeStatus::Cancelled;
+                    let said = format!("the take asked for from {} will not be recorded (request {id})", r.from);
+                    s.say(said);
+                    Ok(())
+                }
+                Some(r) if r.id == id => Err(format!("request {id} is answered already")),
+                _ => Err(format!("no take request {id}")),
+            }) {
+                Ok(()) => ok(format!("request {id}: no take, then"), self.version()),
+                Err(e) => no(e, v),
+            },
             Command::Load { path } => self.load(Path::new(&path)),
             Command::OpenText { name, text } => self.open_text(&name, &text, None),
             Command::Save { path } => self.save(path.map(PathBuf::from)),
@@ -346,11 +363,14 @@ impl App {
             Command::AddTake { path, from, name, role } => {
                 self.add_take_file(Path::new(&path), &from, name.as_deref(), role.as_deref())
             }
-            Command::AddNotes { from, notes, sounds, name, role, style } => self.edit_with(|bp| {
-                let notes: Vec<claudius::theory::Note> =
-                    notes.iter().map(|n| claudius::theory::Note { t: n.t, d: n.d, p: n.p, v: n.v }).collect();
-                claudius::take::played(bp, &from, &notes, &claudius::take::Played { sounds, name, role, style })
-            }),
+            Command::AddNotes { from, notes, sounds, name, role, style, request } => self.answer(
+                request,
+                self.edit_with(|bp| {
+                    let notes: Vec<claudius::theory::Note> =
+                        notes.iter().map(|n| claudius::theory::Note { t: n.t, d: n.d, p: n.p, v: n.v }).collect();
+                    claudius::take::played(bp, &from, &notes, &claudius::take::Played { sounds, name, role, style })
+                }),
+            ),
             Command::TranscribeTake { take, sounds, name, role, chromatic, keep_take, style } => self.edit_with(|bp| {
                 let m = claudius::take::Melody { sounds, name, role, chromatic, keep_take, style };
                 claudius::take::melody(bp, &take, &m)
@@ -428,6 +448,41 @@ impl App {
             }
             Err(e) => no(e, self.version()),
         }
+    }
+
+    /// asks the person for a take of section `from`: the studio opens its Record window for it
+    fn request_take(self: &Arc<Self>, from: String, role: Option<String>, name: Option<String>, note: String) -> Reply {
+        let v = self.version();
+        let Some(song) = self.lock().view.clone() else { return no("no song yet: make one first", v) };
+        if !song.sections.iter().any(|s| s.name == from) {
+            let names: Vec<&str> = song.sections.iter().map(|s| s.name.as_str()).collect();
+            return no(format!("no section '{from}' (the song has {})", names.join(", ")), v);
+        }
+        if let Some(r) = role.as_deref().filter(|r| !claudius::take::ROLES.contains(r) && !PART_ROLES.contains(r)) {
+            let all: Vec<&str> = claudius::take::ROLES.iter().chain(PART_ROLES).copied().collect();
+            return no(format!("a take is {}, not '{r}'", all.join(", ")), v);
+        }
+        let id = self.update(|s| {
+            s.asked += 1;
+            let id = s.asked;
+            s.say(format!("asked the person for a take from {from} (request {id})"));
+            s.take_request = Some(TakeRequest { id, from: from.clone(), role, name, note, ..Default::default() });
+            id
+        });
+        ok(format!("asked the person for a take from {from} (request {id})"), self.version())
+    }
+
+    /// `r`, which answers take request `request` (the take sent for it) when claudius kept the take
+    pub(super) fn answer(&self, request: Option<u64>, r: Reply) -> Reply {
+        let Some(id) = request.filter(|_| r.ok) else { return r };
+        let answered = self.try_update(|s| match &mut s.take_request {
+            Some(t) if t.id == id && t.status == TakeStatus::Waiting => {
+                (t.status, t.answer) = (TakeStatus::Taken, Some(r.message.clone()));
+                Ok(())
+            }
+            _ => Err(()),
+        });
+        Reply { version: if answered.is_ok() { self.version() } else { r.version }, ..r }
     }
 
     /// what claudius hears in a recording (`name`: its path, or the name of the file it came in)

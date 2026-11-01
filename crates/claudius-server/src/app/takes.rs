@@ -15,19 +15,21 @@ use super::{App, no};
 pub const MAX_TAKE: usize = 300 << 20;
 
 impl App {
-    /// a recording sent as a file's bytes (WAV, FLAC, Ogg, MP3 or AIFF), added as a take
+    /// a recording sent as a file's bytes (WAV, FLAC, Ogg, MP3 or AIFF), added as a take; it answers take request
+    /// `request` when it was recorded for one
     pub fn add_take_bytes(
         self: &Arc<Self>,
         bytes: Vec<u8>,
         from: &str,
         name: Option<&str>,
         role: Option<&str>,
+        request: Option<u64>,
     ) -> Reply {
         let Some(ext) = kind(&bytes) else {
             return no("send the take as a WAV, FLAC, Ogg, MP3 or AIFF file", self.version());
         };
         match audio::load_bytes(bytes, ext) {
-            Ok(x) => self.add_take(x, from, name, role),
+            Ok(x) => self.answer(request, self.add_take(x, from, name, role)),
             Err(e) => no(format!("cannot read the take: {e:#}"), self.version()),
         }
     }

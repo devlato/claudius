@@ -93,22 +93,24 @@ async function browser(origin, allowed = true) {
 test.describe("recording in the browser", () => {
   test.skip(!ready, why);
 
-  test("a take goes to claudius, plays in the song, and holds what the microphone heard", async () => {
+  test("a take kept goes to claudius, plays in the song, and holds what the microphone heard", async () => {
     test.setTimeout(180_000);
     const c = await claudius();
     const { page, close } = await browser(c.base);
     try {
       const lines = said(page);
-      const plan = "wait:3;record;wait:2;rec:start;wait:7;rec:stop;wait:5";
+      const plan = "wait:3;record;wait:2;rec:start;wait:7;rec:stop;wait:2;rec:keep;wait:5";
       await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
       await expect.poll(() => lines.join("\n"), { timeout: 60_000 }).toMatch(/take1: a take of [\d.]+ bars from the start of intro/);
-      expect(lines.join("\n")).not.toMatch(/dropped audio|went silent/);
+      expect(lines.join("\n")).not.toMatch(/dropped audio|went silent|assistant/);
       // the recorder hands over the last of what it heard when it is told to stop, long before the window gives up
-      // waiting for it
+      // waiting for it; the take waits to be kept, and goes once it is
       const asked = lines.when["finishing ..."];
-      const sent = lines.find((l) => l.startsWith("sending "));
+      const held = lines.find((l) => / s recorded: play it back, record it again, or keep it$/.test(l));
       expect(asked, "the take waited for the last of what was heard").toBeTruthy();
-      expect(lines.when[sent] - asked).toBeLessThan(800);
+      expect(held, "the take waited to be kept").toBeTruthy();
+      expect(lines.when[held] - asked).toBeLessThan(800);
+      expect(lines.indexOf(lines.find((l) => l.startsWith("sending ")))).toBeGreaterThan(lines.indexOf(held));
       const state = await (await c.api("/api/state")).json();
       const take = state.song.tracks.find((t) => t.name === "take1");
       expect(take, "the take is a track of the song").toBeTruthy();
@@ -122,6 +124,49 @@ test.describe("recording in the browser", () => {
       expect(info.secs).toBeGreaterThan(2.5);
       expect(info.secs).toBeLessThan(7.5);
       expect(info.bytes / info.secs, "a tone, not silence").toBeGreaterThan(20_000);
+    } finally {
+      await close();
+      c.stop();
+    }
+  });
+
+  test("a take an assistant asks for opens the window for it, plays back in the song, and goes to the assistant", async () => {
+    test.setTimeout(180_000);
+    const c = await claudius();
+    const { page, close } = await browser(c.base);
+    try {
+      const ask = { cmd: "request_take", from: "intro", role: "vocal", name: "hook", note: "the hook, softly" };
+      const asked = await (await c.api("/api/command", ask)).json();
+      expect(asked.ok, asked.message).toBe(true);
+      const lines = said(page);
+      // no `record` step: the link the assistant gives opens the window, set up for the take it asks for
+      const plan = "wait:4;rec:start;wait:7;rec:stop;wait:2;rec:play;wait:2;rec:keep;wait:5";
+      await page.goto(`${c.base}/?record=1&plan=${encodeURIComponent(plan)}`);
+      await expect.poll(() => lines.join("\n"), { timeout: 60_000 }).toMatch(/^hook: a take of [\d.]+ bars from the start of intro.* \(the assistant has it now\)$/m);
+      const all = lines.join("\n");
+      expect(all).toMatch(/ s recorded: play it back, record it again, or send it$/m);
+      expect(all, "the take played back in the song").toMatch(/^playing it back: 0:0[1-9] of 0:\d\d$/m);
+      const state = await (await c.api("/api/state")).json();
+      expect(state.take_request).toMatchObject({ id: 1, status: "taken", from: "intro", note: "the hook, softly" });
+      expect(state.take_request.answer).toMatch(/^hook: a take of/);
+      expect(state.song.tracks.find((t) => t.name === "hook")?.kind).toBe("take");
+    } finally {
+      await close();
+      c.stop();
+    }
+  });
+
+  test("a take an assistant asks for, turned down, says so to the assistant", async () => {
+    test.setTimeout(120_000);
+    const c = await claudius();
+    const { page, close } = await browser(c.base);
+    try {
+      expect((await (await c.api("/api/command", { cmd: "request_take", from: "intro" })).json()).ok).toBe(true);
+      const lines = said(page);
+      await page.goto(`${c.base}/?record=1&plan=${encodeURIComponent("wait:4;rec:not-now;wait:3")}`);
+      const status = async () => (await (await c.api("/api/state")).json()).take_request?.status;
+      await expect.poll(status, { timeout: 30_000 }).toBe("cancelled");
+      expect(lines.join("\n")).toMatch(/the assistant hears that you will not record it now/);
     } finally {
       await close();
       c.stop();

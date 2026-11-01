@@ -89,6 +89,44 @@ pub struct State {
     /// the release the session is preparing for the open song (`Command::SetRelease`, `Command::WriteKit`)
     #[serde(default)]
     pub release: Option<ReleaseView>,
+    /// the last take someone asked the person to record (`Command::RequestTake`), and how it went
+    #[serde(default)]
+    pub take_request: Option<TakeRequest>,
+}
+
+/// A take someone (an assistant, say) asked the person to record. The studio's Record window opens for it, and the take
+/// sent for it (`POST /api/takes?request=`, or `add_notes` with `request`) answers it.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct TakeRequest {
+    pub id: u64,
+    /// the section the take starts with
+    pub from: String,
+    /// what it is, for the mix (`vocal`, `lead` ...), as for `add_take`
+    #[serde(default)]
+    pub role: Option<String>,
+    /// the track's name, when one was asked for
+    #[serde(default)]
+    pub name: Option<String>,
+    /// what to record, in the asker's words ("the chorus, sung softly")
+    #[serde(default)]
+    pub note: String,
+    pub status: TakeStatus,
+    /// what claudius said of the take sent for it
+    #[serde(default)]
+    pub answer: Option<String>,
+}
+
+/// how a take asked for went
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TakeStatus {
+    /// the person has yet to send one
+    #[default]
+    Waiting,
+    /// a take was sent for it, and claudius kept it
+    Taken,
+    /// the person will not record it
+    Cancelled,
 }
 
 /// What stores and distributors ask about a release, as a song's release.json keeps it.
@@ -370,6 +408,21 @@ pub enum Command {
         #[serde(default)]
         loops: bool,
     },
+    /// ask the person for a take that starts with section `from`: the studio's Record window opens for it, saying
+    /// `note`, and the take sent for it answers the request (`State.take_request`)
+    RequestTake {
+        from: String,
+        #[serde(default)]
+        role: Option<String>,
+        #[serde(default)]
+        name: Option<String>,
+        #[serde(default)]
+        note: String,
+    },
+    /// the take asked for as `id` will not be recorded
+    CancelTakeRequest {
+        id: u64,
+    },
     /// open a blueprint.json or a script file
     Load {
         path: String,
@@ -553,6 +606,9 @@ pub enum Command {
         /// what the notes become: line (as they are, the default), harmony, octaves, chords, bass, arp or pad
         #[serde(default)]
         style: Option<String>,
+        /// the take request (`request_take`) the notes answer, when they were played for one
+        #[serde(default)]
+        request: Option<u64>,
     },
     /// the melody of a take (sung, hummed, whistled or played one note at a time) as the notes of new parts, one per
     /// sound, in the song's key and on its grid, in the sections the take plays in; the take goes quiet unless

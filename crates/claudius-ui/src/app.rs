@@ -110,6 +110,10 @@ impl Studio {
             ..View::default()
         };
         view.record.settings = prefs.record;
+        #[cfg(target_arch = "wasm32")]
+        if crate::net::Connection::web_records() {
+            view.record.show();
+        }
         view.volume = view.volume.clamp(0.0, 1.0);
         let backend = Backend::new(&connection, &cc.egui_ctx);
         let mut player = Player::new(&cc.egui_ctx);
@@ -463,6 +467,9 @@ impl Studio {
                 Step::Rec(Rec::Midi(name)) => self.view.record.settings.midi = Some(name),
                 Step::Rec(Rec::Grid(beats)) => self.view.record.settings.grid = beats,
                 Step::Rec(Rec::AllowMidi) => crate::audio::record::ask_for_midi(),
+                Step::Rec(Rec::Play) => self.view.record.play = true,
+                Step::Rec(Rec::Keep) => self.view.record.keep = true,
+                Step::Rec(Rec::NotNow) => self.view.record.not_now = true,
                 #[cfg(not(target_arch = "wasm32"))]
                 Step::AudioPath(p) => crate::pick::take_path(crate::pick::Want::Audio, std::path::Path::new(&p)),
                 #[cfg(target_arch = "wasm32")]
@@ -993,7 +1000,7 @@ impl eframe::App for Studio {
         if let Some(t) = self.view.record.upload.take() {
             self.inflight += 1;
             self.inflight_since = now;
-            self.backend.upload_take(t.wav, &t.from, t.name.as_deref(), &t.role);
+            self.backend.upload_take(t.wav, &t.from, t.name.as_deref(), &t.role, t.request);
         }
         if let Some(release) = &self.state.release
             && let Some(v) = self.view.publish.wants_preview(release)

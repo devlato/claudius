@@ -55,6 +55,13 @@ impl Connection {
             .any(|p| matches!(p.split('=').next(), Some("mock" | "demo" | "server")))
     }
 
+    /// does the page open on the Record window (`?record=<id>`: the link an assistant gives for a take it asks for)?
+    #[cfg(target_arch = "wasm32")]
+    pub fn web_records() -> bool {
+        let search = web_sys::window().and_then(|w| w.location().search().ok()).unwrap_or_default();
+        search.trim_start_matches('?').split('&').any(|p| p.split('=').next() == Some("record"))
+    }
+
     /// the page's own origin; `?mock` selects the demo, `?server=http://host:port` another server
     #[cfg(target_arch = "wasm32")]
     pub fn web() -> Connection {
@@ -447,12 +454,15 @@ impl Backend {
         }
     }
 
-    /// send a take, the WAV file itself, to play from the start of section `from` (the answer arrives as a reply to
-    /// "take")
-    pub fn upload_take(&mut self, wav: Vec<u8>, from: &str, name: Option<&str>, role: &str) {
+    /// send a take, the WAV file itself, to play from the start of section `from`, for take request `request` if
+    /// one asked for it (the answer arrives as a reply to "take")
+    pub fn upload_take(&mut self, wav: Vec<u8>, from: &str, name: Option<&str>, role: &str, request: Option<u64>) {
         let mut query = format!("from={}&role={}", query_value(from), query_value(role));
         if let Some(name) = name {
             query.push_str(&format!("&name={}", query_value(name)));
+        }
+        if let Some(id) = request {
+            query.push_str(&format!("&request={id}"));
         }
         match self {
             Backend::Remote(r) => r.upload_take(wav, &query),
