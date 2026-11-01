@@ -8,7 +8,6 @@ use std::rc::Rc;
 use rhai::{Dynamic, Engine, INT, Map};
 
 use crate::compose::{self, Options};
-use crate::dsp::env::Param;
 use crate::dsp::filter::FilterMode;
 use crate::fx::{Effect, SatKind};
 use crate::genres::{self, GenreProfile};
@@ -126,6 +125,7 @@ pub(super) fn register_song(engine: &mut Engine, ctx: Rc<RefCell<Ctx>>) {
     register_settings(engine, &ctx);
     register_drums(engine, &ctx);
     super::mix::register_mix(engine, &ctx);
+    super::effects::register_effects(engine, &ctx);
     register_tracks(engine, &ctx);
     super::form::register_form(engine, &ctx);
 }
@@ -427,16 +427,28 @@ pub(super) fn pattern_mix(o: &crate::pattern::TrackOpts, labels: &[String], role
     let drum_like = !labels.is_empty() && labels.iter().all(|l| super::sounds::drum_role(l).is_some());
     let mut fx = Vec::new();
     if let Some(f) = o.hpf {
-        fx.push(Effect::Filter { mode: FilterMode::Hp, cutoff: Param::Const(f), res: 0.1, drive: 1.0, mix: 1.0 });
+        fx.push(Effect::Filter {
+            mode: FilterMode::Hp,
+            cutoff: f.into(),
+            res: 0.1.into(),
+            drive: 1.0,
+            mix: 1.0.into(),
+        });
     }
     if let Some(f) = o.lpf {
-        fx.push(Effect::Filter { mode: FilterMode::Lp, cutoff: Param::Const(f), res: 0.15, drive: 1.0, mix: 1.0 });
+        fx.push(Effect::Filter {
+            mode: FilterMode::Lp,
+            cutoff: f.into(),
+            res: 0.15.into(),
+            drive: 1.0,
+            mix: 1.0.into(),
+        });
     }
     if let Some(b) = o.crush {
-        fx.push(Effect::Bitcrush { bits: b, downsample: 1.0, mix: 1.0 });
+        fx.push(Effect::Bitcrush { bits: b.into(), downsample: 1.0, mix: 1.0.into() });
     }
     if let Some(d) = o.drive {
-        fx.push(Effect::Saturate { kind: SatKind::Tanh, drive_db: d, mix: 1.0 });
+        fx.push(Effect::Saturate { kind: SatKind::Tanh, drive_db: d.into(), mix: 1.0.into() });
     }
     TrackMix {
         level_db: o.level_db.unwrap_or(0.0),

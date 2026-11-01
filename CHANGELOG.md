@@ -28,6 +28,11 @@ once from the section it starts with and goes with the song, and what a MIDI key
 octaves, chords, a bass line, an arpeggio or a pad. **Measure** plays clicks and listens for them, so that takes land
 in time ([Takes](https://github.com/devlato/claudius/blob/main/docs/src/guide/samples.md#takes)).
 
+Scripts reach every effect: a chain on any track, bus or the master, `parallel` chains side by side at their own
+amounts, buses of your own, and settings that move through the song or by section, such as a filter that opens across
+every build or a reverb that only the break drowns in. The printed song lists every chain
+([Effect chains](https://github.com/devlato/claudius/blob/main/docs/src/language/mixing.md#effect-chains)).
+
 `claudius publish` checks a song the way stores and distributors check a release (its artwork's size, colours and
 sharpness, its audio, the licences of its sounds, and its details, including how it was made) and writes a release
 kit: the WAV and the cover a distributor takes, and the answers its form asks for

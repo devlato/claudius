@@ -2,6 +2,7 @@
 
 use super::{Ctx, blend};
 use crate::audio::Stereo;
+use crate::dsp::env::Param;
 use crate::dsp::filter::{self, coef};
 
 const TAU: f64 = std::f64::consts::TAU;
@@ -96,11 +97,12 @@ pub fn phaser(x: &mut Stereo, rate: f32, stages: u32, depth: f32, feedback: f32,
 }
 
 /// M/S width (0 = mono, 1 = as is, 2 = twice the side); side below `mono_below_hz` removed (mono bass)
-pub fn width(x: &mut Stereo, width: f32, mono_below_hz: f32, sr: f64) {
+pub fn width(x: &mut Stereo, width: &Param, mono_below_hz: f32, ctx: &Ctx) {
     let n = x.len();
-    let mut side: Vec<f32> = (0..n).map(|i| 0.5 * (x.l[i] - x.r[i]) * width).collect();
+    let w = width.values(n, ctx.spb(), false);
+    let mut side: Vec<f32> = (0..n).map(|i| 0.5 * (x.l[i] - x.r[i]) * w.at(i)).collect();
     if mono_below_hz > 20.0 {
-        filter::butter(&mut side, true, mono_below_hz as f64, sr, 4);
+        filter::butter(&mut side, true, mono_below_hz as f64, ctx.sr, 4);
     }
     for i in 0..n {
         let m = 0.5 * (x.l[i] + x.r[i]);

@@ -83,6 +83,27 @@ fn hits_to_notes(hits: &[Hit], pitch: i32) -> Vec<Note> {
 }
 
 /// expand a blueprint into the arranged project
+/// values by section as curves through the form as it is laid out (`Param::resolve`), in every chain the song plays
+/// through
+fn resolve_sections(tracks: &mut [Track], mix: &mut MixPlan, sections: &[SectionInfo]) {
+    let spans: Vec<crate::dsp::env::Span> = sections
+        .iter()
+        .map(|s| crate::dsp::env::Span {
+            name: &s.name,
+            kind: s.kind.name(),
+            start: s.start_bar as f64 * 4.0,
+            end: (s.start_bar + s.bars) as f64 * 4.0,
+        })
+        .collect();
+    let mut resolve = |e: &mut Effect| e.params_mut(&mut |p| *p = p.resolve(&spans));
+    let chains = tracks.iter_mut().map(|t| &mut t.mix.fx).chain(mix.buses.values_mut()).chain([&mut mix.master.fx]);
+    for chain in chains {
+        chain.iter_mut().for_each(&mut resolve);
+    }
+    resolve(&mut mix.reverb);
+    resolve(&mut mix.delay);
+}
+
 pub fn arrange(bp: &Blueprint) -> Project {
     let mut sections = Vec::new();
     let mut chords = Vec::new();
@@ -419,9 +440,9 @@ pub fn arrange(bp: &Blueprint) -> Project {
                 Effect::Filter {
                     mode: FilterMode::Lp,
                     cutoff: Param::Curve(lp.to_vec()),
-                    res: 0.15,
+                    res: 0.15.into(),
                     drive: 1.0,
-                    mix: 1.0,
+                    mix: 1.0.into(),
                 },
             );
         }
@@ -431,9 +452,9 @@ pub fn arrange(bp: &Blueprint) -> Project {
                 Effect::Filter {
                     mode: FilterMode::Hp,
                     cutoff: Param::Curve(hp.to_vec()),
-                    res: 0.1,
+                    res: 0.1.into(),
                     drive: 1.0,
-                    mix: 1.0,
+                    mix: 1.0.into(),
                 },
             );
         }
@@ -444,16 +465,17 @@ pub fn arrange(bp: &Blueprint) -> Project {
     let has = |chain: &[Effect], name: &str| chain.iter().any(|e| e.name() == name);
     let music = mix.buses.entry("music".into()).or_default();
     if !has(music, "width") {
-        music.push(Effect::Width { width: 1.25, mono_below_hz: 160.0 });
+        music.push(Effect::Width { width: 1.25.into(), mono_below_hz: 160.0 });
     }
     let bassbus = mix.buses.entry("bass".into()).or_default();
     if !has(bassbus, "width") {
-        bassbus.push(Effect::Width { width: 1.0, mono_below_hz: 140.0 });
+        bassbus.push(Effect::Width { width: 1.0.into(), mono_below_hz: 140.0 });
     }
     let drumbus = mix.buses.entry("drums".into()).or_default();
     if !has(drumbus, "saturate") {
-        drumbus.push(Effect::Saturate { kind: crate::fx::SatKind::Tanh, drive_db: 2.5, mix: 0.5 });
+        drumbus.push(Effect::Saturate { kind: crate::fx::SatKind::Tanh, drive_db: 2.5.into(), mix: 0.5.into() });
     }
+    resolve_sections(&mut tracks, &mut mix, &sections);
 
     Project {
         title: bp.title.clone(),

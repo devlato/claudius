@@ -30,6 +30,9 @@ Integers and decimals are different types: counts (`ply(2)`, `octave(4)`, the ba
 | `track("hats", s("[~ hh]*4"))` | a track that plays a pattern (replaces a track of that name) |
 | `mix("pad", #{ level: -4, pan: -0.3, reverb: 0.4, delay: 0.2, duck: 0.5 })` | level in dB from the role's target; sends 0 to 1; `duck` is the sidechain from the kick |
 | `mute("hat")`, `solo("lead")`, `remove("perc")`, `master(#{ lufs: -9, ceiling: -1 })` | the rest of the mix |
+| `fx("lead", [#{ fx: "saturate", kind: "tape", drive_db: 6 }, #{ fx: "delay", beats: 0.75, feedback: 0.4, mix: 0.25 }])` | a track's whole chain of effects, in order (`[]` empties it); `bus(name, [...])` a bus's, `master(#{ fx: [...] })` the master's, `send_fx(#{ reverb: #{...}, delay: #{...} })` what the sends feed |
+| `mix("pad", #{ bus: "keys" })` | the bus a track plays into: `drums bass music fx`, or one of your own with `bus("keys", [...])` |
+| `sections(0.15, #{ build: [0.15, 0.6], drop: 0.2 })` | a setting that moves by section, for `gain db`, `filter cutoff res`, `saturate drive_db`, `bitcrush bits`, `delay feedback`, `width width`, every `mix` and a `parallel`'s `amount` and `dry`; a curve `[[beat, value], ...]` works too |
 | `form([sec("intro", 8, "kick hat pad"), sec("drop", 16, "*").impact()])` | the arrangement: kind, bars, tracks |
 | `section("drop", #{ energy: 1.0, layers: "kick bass lead", prog: "B" })`, `layer("break", "lead", true)` | edit one section |
 
@@ -148,6 +151,25 @@ mix("pad", #{ level: -4, reverb: 0.45 });
 section("drop", #{ energy: 1.0 });
 ```
 
+Layers of processing on a generated song: the bass compressed in parallel with a folded copy above it, the chords
+and pad glued on a bus of their own, the pad's filter opening across the build and its reverb deeper in the breaks,
+and a delay whose feedback climbs through the outro:
+
+```js
+fx("bass", [#{ fx: "parallel", dry: 1, chains: [
+  #{ amount: 0.5, fx: [#{ fx: "compressor", threshold_db: -30, ratio: 10, attack_ms: 1, release_ms: 60 }] },
+  #{ amount: 0.3, fx: [#{ fx: "saturate", kind: "fold", drive_db: 18 }, #{ fx: "filter", mode: "hp", cutoff: 700 }] },
+] }]);
+mix("chords", #{ bus: "keys" });
+mix("pad", #{ bus: "keys" });
+bus("keys", [#{ fx: "compressor", threshold_db: -20, ratio: 3, attack_ms: 10, release_ms: 120, makeup_db: 2 }]);
+fx("pad", [
+  #{ fx: "filter", mode: "lp", cutoff: sections(1200, #{ build: [1200, 9000], drop: 9000 }), res: 0.3 },
+  #{ fx: "reverb", decay: 4.5, mix: sections(0.15, #{ "break": 0.5 }) },
+]);
+send_fx(#{ delay: #{ fx: "delay", beats: 0.75, feedback: sections(0.3, #{ outro: [0.3, 0.8] }), pingpong: true, mix: 1 } });
+```
+
 Real instruments, when the sample packs are installed:
 
 ```js packs
@@ -178,5 +200,7 @@ track("bass", note("<d2 g1 bb1 a1>").struct("x ~ ~ x ~ x ~ ~").s("upright_bass")
 - **Paths inside mini-notation.** A file path goes in `.s(path)`, never inside the pattern string.
 - **Reading a printed song.** It leaves out what a section kind does by default: a `build` section builds, and drops,
   grooves and hooks have fills, without saying so.
+- **Losing a chain.** `fx()` replaces the whole chain: print the song first (`get_song`) and keep the effects it
+  should still have. `"break"` is a keyword, so quote it as a key in `sections()` (or write `breakdown`).
 - **Limits.** `*`, `/`, `fast`, `slow` and `ply` go up to 256; a track plays at most 1024 notes a bar; a song is at
   most 512 bars and 20 minutes.

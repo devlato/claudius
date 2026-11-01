@@ -1,5 +1,6 @@
 //! The effects rack. Every effect is plain data (serde), so blueprints can store, mutate and diff effect chains;
-//! automatable parameters are `Param`s (a constant or a curve through (beat, value) points).
+//! automatable parameters are `Param`s (a constant, a curve through (beat, value) points, or a value for each
+//! section). A `Parallel` effect runs chains of its own side by side, each as loud as its own amount.
 
 mod dynamics;
 mod modulation;
@@ -31,6 +32,9 @@ impl Ctx {
 
 fn one() -> f32 {
     1.0
+}
+fn full() -> Param {
+    Param::Const(1.0)
 }
 fn sixteenth() -> f32 {
     0.25
@@ -75,11 +79,11 @@ pub enum Effect {
         mode: FilterMode,
         cutoff: Param,
         #[serde(default)]
-        res: f32,
+        res: Param,
         #[serde(default = "one")]
         drive: f32,
-        #[serde(default = "one")]
-        mix: f32,
+        #[serde(default = "full")]
+        mix: Param,
     },
     Compressor {
         threshold_db: f32,
@@ -90,8 +94,8 @@ pub enum Effect {
         knee_db: f32,
         #[serde(default)]
         makeup_db: f32,
-        #[serde(default = "one")]
-        mix: f32,
+        #[serde(default = "full")]
+        mix: Param,
     },
     Limiter {
         ceiling_db: f32,
@@ -99,15 +103,15 @@ pub enum Effect {
     },
     Saturate {
         kind: SatKind,
-        drive_db: f32,
-        #[serde(default = "one")]
-        mix: f32,
+        drive_db: Param,
+        #[serde(default = "full")]
+        mix: Param,
     },
     Bitcrush {
-        bits: f32,
+        bits: Param,
         downsample: f32,
-        #[serde(default = "one")]
-        mix: f32,
+        #[serde(default = "full")]
+        mix: Param,
     },
     Reverb {
         decay: f32,
@@ -117,41 +121,41 @@ pub enum Effect {
         predelay_ms: f32,
         #[serde(default = "one")]
         width: f32,
-        mix: f32,
+        mix: Param,
         #[serde(default = "default_lowcut")]
         lowcut: f32,
     },
     Delay {
         beats: f32,
-        feedback: f32,
+        feedback: Param,
         #[serde(default)]
         damping: f32,
         #[serde(default)]
         pingpong: bool,
-        mix: f32,
+        mix: Param,
     },
     Chorus {
         rate_hz: f32,
         depth_ms: f32,
         delay_ms: f32,
-        mix: f32,
+        mix: Param,
     },
     Flanger {
         rate_hz: f32,
         depth_ms: f32,
         delay_ms: f32,
         feedback: f32,
-        mix: f32,
+        mix: Param,
     },
     Phaser {
         rate_hz: f32,
         stages: u32,
         depth: f32,
         feedback: f32,
-        mix: f32,
+        mix: Param,
     },
     Width {
-        width: f32,
+        width: Param,
         #[serde(default)]
         mono_below_hz: f32,
     },
@@ -198,6 +202,48 @@ pub enum Effect {
         start: f64,
         len: f64,
     },
+    /// the signal through each of `chains` at once, each as loud as its `amount`, over the signal itself as loud as
+    /// `dry`: parallel compression, a distorted copy under the clean sound, a reverb that only the drop has
+    Parallel {
+        chains: Vec<Branch>,
+        #[serde(default = "full")]
+        dry: Param,
+    },
+}
+
+/// every effect's name, as `fx` names it in a blueprint or a script
+pub const EFFECT_NAMES: &[&str] = &[
+    "gain",
+    "eq",
+    "filter",
+    "compressor",
+    "limiter",
+    "saturate",
+    "bitcrush",
+    "reverb",
+    "delay",
+    "chorus",
+    "flanger",
+    "phaser",
+    "width",
+    "tremolo",
+    "auto_pan",
+    "gate",
+    "transient",
+    "tape",
+    "vinyl",
+    "tape_stop",
+    "stutter",
+    "reverse",
+    "parallel",
+];
+
+/// one of a `Parallel` effect's chains, and how loud it comes out
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Branch {
+    pub fx: Vec<Effect>,
+    #[serde(default = "full")]
+    pub amount: Param,
 }
 
 impl Effect {
@@ -217,7 +263,7 @@ impl Effect {
             Effect::Phaser { .. } => "phaser",
             Effect::Width { .. } => "width",
             Effect::Tremolo { .. } => "tremolo",
-            Effect::AutoPan { .. } => "autopan",
+            Effect::AutoPan { .. } => "auto_pan",
             Effect::Gate { .. } => "gate",
             Effect::Transient { .. } => "transient",
             Effect::Tape { .. } => "tape",
@@ -225,6 +271,73 @@ impl Effect {
             Effect::TapeStop { .. } => "tape_stop",
             Effect::Stutter { .. } => "stutter",
             Effect::Reverse { .. } => "reverse",
+            Effect::Parallel { .. } => "parallel",
+        }
+    }
+
+    /// every parameter that can follow a curve, those in a parallel effect's chains included
+    pub fn params_mut(&mut self, f: &mut dyn FnMut(&mut Param)) {
+        match self {
+            Effect::Gain { db } => f(db),
+            Effect::Filter { cutoff, res, mix, .. } => {
+                f(cutoff);
+                f(res);
+                f(mix);
+            }
+            Effect::Saturate { drive_db: p, mix, .. }
+            | Effect::Bitcrush { bits: p, mix, .. }
+            | Effect::Delay { feedback: p, mix, .. } => {
+                f(p);
+                f(mix);
+            }
+            Effect::Compressor { mix, .. }
+            | Effect::Reverb { mix, .. }
+            | Effect::Chorus { mix, .. }
+            | Effect::Flanger { mix, .. }
+            | Effect::Phaser { mix, .. } => f(mix),
+            Effect::Width { width, .. } => f(width),
+            Effect::Parallel { chains, dry } => {
+                f(dry);
+                for b in chains {
+                    f(&mut b.amount);
+                    b.fx.iter_mut().for_each(|e| e.params_mut(f));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// the same effect `beats` earlier, as for a project that starts that far into the song: its curves and the
+    /// beats a transition starts on move
+    pub fn shift(&mut self, beats: f64) {
+        self.params_mut(&mut |p| *p = p.shifted(beats));
+        self.starts_mut(&mut |start| *start -= beats);
+    }
+
+    /// the beat each transition starts on, those in a parallel effect's chains included
+    fn starts_mut(&mut self, f: &mut dyn FnMut(&mut f64)) {
+        match self {
+            Effect::TapeStop { start, .. } | Effect::Stutter { start, .. } | Effect::Reverse { start, .. } => f(start),
+            Effect::Parallel { chains, .. } => {
+                chains.iter_mut().flat_map(|b| b.fx.iter_mut()).for_each(|e| e.starts_mut(f))
+            }
+            _ => {}
+        }
+    }
+
+    /// how much of its output is heard, for an effect with a dry/wet `mix`
+    fn mix_mut(&mut self) -> Option<&mut Param> {
+        match self {
+            Effect::Filter { mix, .. }
+            | Effect::Compressor { mix, .. }
+            | Effect::Saturate { mix, .. }
+            | Effect::Bitcrush { mix, .. }
+            | Effect::Reverb { mix, .. }
+            | Effect::Delay { mix, .. }
+            | Effect::Chorus { mix, .. }
+            | Effect::Flanger { mix, .. }
+            | Effect::Phaser { mix, .. } => Some(mix),
+            _ => None,
         }
     }
 
@@ -233,19 +346,42 @@ impl Effect {
         match self {
             Effect::Reverb { decay, predelay_ms, .. } => *decay as f64 * 1.2 + *predelay_ms as f64 / 1000.0,
             Effect::Delay { beats, feedback, .. } => {
-                let reps = if *feedback > 0.01 { (-60.0 / (20.0 * (*feedback as f64).log10())).min(40.0) } else { 1.0 };
+                let fb = feedback.peak().min(0.95);
+                let reps = if fb > 0.01 { (-60.0 / (20.0 * (fb as f64).log10())).min(40.0) } else { 1.0 };
                 *beats as f64 * 60.0 / bpm * (reps + 1.0)
             }
+            Effect::Parallel { chains, .. } => chains.iter().map(|b| chain_tail_secs(&b.fx, bpm)).fold(0.0, f64::max),
             _ => 0.0,
         }
     }
 }
 
 pub fn apply(fx: &Effect, x: &mut Stereo, ctx: &Ctx) {
+    // A mix that moves: the effect all wet, then from the signal towards that by the mix, a sample at a time. Each
+    // effect's output moves in a straight line from the signal as its mix goes from 0 to 1, so this is the effect at
+    // each moment's mix.
+    let mut wet = fx.clone();
+    if let Some(mix) = wet.mix_mut().filter(|m| !m.is_const()) {
+        let m = std::mem::replace(mix, Param::Const(1.0)).values(x.len(), ctx.spb(), false);
+        let dry = x.clone();
+        run(&wet, x, ctx);
+        for i in 0..x.len().min(dry.len()) {
+            let k = m.at(i);
+            x.l[i] = dry.l[i] + (x.l[i] - dry.l[i]) * k;
+            x.r[i] = dry.r[i] + (x.r[i] - dry.r[i]) * k;
+        }
+        return;
+    }
+    run(fx, x, ctx);
+}
+
+/// an effect whose mix, if it has one, holds still
+fn run(fx: &Effect, x: &mut Stereo, ctx: &Ctx) {
+    let k = Param::first;
     match fx {
         Effect::Gain { db } => tone::gain(x, db, ctx),
         Effect::Eq { bands } => tone::eq(x, bands, ctx),
-        Effect::Filter { mode, cutoff, res, drive, mix } => tone::filter(x, *mode, cutoff, *res, *drive, *mix, ctx),
+        Effect::Filter { mode, cutoff, res, drive, mix } => tone::filter(x, *mode, cutoff, res, *drive, k(mix), ctx),
         Effect::Compressor { threshold_db, ratio, attack_ms, release_ms, knee_db, makeup_db, mix } => {
             dynamics::compress(
                 x,
@@ -255,30 +391,30 @@ pub fn apply(fx: &Effect, x: &mut Stereo, ctx: &Ctx) {
                 *release_ms,
                 *knee_db,
                 *makeup_db,
-                *mix,
+                k(mix),
                 None,
                 ctx.sr,
             )
         }
         Effect::Limiter { ceiling_db, release_ms } => dynamics::limit(x, *ceiling_db, *release_ms, ctx.sr),
-        Effect::Saturate { kind, drive_db, mix } => tone::saturate(x, *kind, *drive_db, *mix, ctx.sr),
-        Effect::Bitcrush { bits, downsample, mix } => tone::bitcrush(x, *bits, *downsample, *mix),
+        Effect::Saturate { kind, drive_db, mix } => tone::saturate(x, *kind, drive_db, k(mix), ctx),
+        Effect::Bitcrush { bits, downsample, mix } => tone::bitcrush(x, bits, *downsample, k(mix), ctx),
         Effect::Reverb { decay, damping, predelay_ms, width, mix, lowcut } => {
-            space::reverb(x, *decay, *damping, *predelay_ms, *width, *mix, *lowcut, ctx)
+            space::reverb(x, *decay, *damping, *predelay_ms, *width, k(mix), *lowcut, ctx)
         }
         Effect::Delay { beats, feedback, damping, pingpong, mix } => {
-            space::delay(x, *beats, *feedback, *damping, *pingpong, *mix, ctx)
+            space::delay(x, *beats, feedback, *damping, *pingpong, k(mix), ctx)
         }
         Effect::Chorus { rate_hz, depth_ms, delay_ms, mix } => {
-            modulation::chorus(x, *rate_hz, *depth_ms, *delay_ms, *mix, ctx.sr)
+            modulation::chorus(x, *rate_hz, *depth_ms, *delay_ms, k(mix), ctx.sr)
         }
         Effect::Flanger { rate_hz, depth_ms, delay_ms, feedback, mix } => {
-            modulation::flanger(x, *rate_hz, *depth_ms, *delay_ms, *feedback, *mix, ctx.sr)
+            modulation::flanger(x, *rate_hz, *depth_ms, *delay_ms, *feedback, k(mix), ctx.sr)
         }
         Effect::Phaser { rate_hz, stages, depth, feedback, mix } => {
-            modulation::phaser(x, *rate_hz, *stages, *depth, *feedback, *mix, ctx.sr)
+            modulation::phaser(x, *rate_hz, *stages, *depth, *feedback, k(mix), ctx.sr)
         }
-        Effect::Width { width, mono_below_hz } => modulation::width(x, *width, *mono_below_hz, ctx.sr),
+        Effect::Width { width, mono_below_hz } => modulation::width(x, width, *mono_below_hz, ctx),
         Effect::Tremolo { beats, depth } => modulation::tremolo(x, *beats, *depth, ctx),
         Effect::AutoPan { beats, depth } => modulation::autopan(x, *beats, *depth, ctx),
         Effect::Gate { steps, step_beats, depth, smooth_ms } => {
@@ -292,6 +428,29 @@ pub fn apply(fx: &Effect, x: &mut Stereo, ctx: &Ctx) {
         Effect::TapeStop { start, len } => transition::tape_stop(x, *start, *len, ctx),
         Effect::Stutter { start, len, slice } => transition::stutter(x, *start, *len, *slice, ctx),
         Effect::Reverse { start, len } => transition::reverse(x, *start, *len, ctx),
+        Effect::Parallel { chains, dry } => parallel(x, chains, dry, ctx),
+    }
+}
+
+/// the signal as loud as `dry`, and through each chain as loud as its amount, all at once
+fn parallel(x: &mut Stereo, chains: &[Branch], dry: &Param, ctx: &Ctx) {
+    let (n, spb) = (x.len(), ctx.spb());
+    let input = x.clone();
+    let d = dry.values(n, spb, false);
+    for i in 0..n {
+        let g = d.at(i);
+        x.l[i] *= g;
+        x.r[i] *= g;
+    }
+    for b in chains {
+        let mut y = input.clone();
+        apply_chain(&b.fx, &mut y, ctx);
+        let a = b.amount.values(n, spb, false);
+        for i in 0..n.min(y.len()) {
+            let g = a.at(i);
+            x.l[i] += y.l[i] * g;
+            x.r[i] += y.r[i] * g;
+        }
     }
 }
 
@@ -314,5 +473,79 @@ pub(crate) fn blend(dry: &Stereo, wet: &mut Stereo, mix: f32) {
     for i in 0..n {
         wet.l[i] = dry.l[i] * (1.0 - mix) + wet.l[i] * mix;
         wet.r[i] = dry.r[i] * (1.0 - mix) + wet.r[i] * mix;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tone(n: usize) -> Stereo {
+        let l: Vec<f32> = (0..n).map(|i| (i as f32 * 0.05).sin() * 0.5).collect();
+        Stereo { l: l.clone(), r: l }
+    }
+
+    const CTX: Ctx = Ctx { sr: 1_000.0, bpm: 60.0, seed: 1 };
+
+    #[test]
+    fn every_effect_is_named_as_a_blueprint_names_it() {
+        for name in EFFECT_NAMES {
+            let e = serde_json::from_value::<Effect>(serde_json::json!({ "fx": name })).map(|e| e.name().to_string());
+            match e {
+                Ok(n) => assert_eq!(n, *name),
+                Err(e) => assert!(e.to_string().contains("missing field"), "{name}: {e}"),
+            }
+        }
+    }
+
+    #[test]
+    fn a_parallel_effect_is_the_signal_and_each_chain_as_loud_as_their_amounts() {
+        let x = tone(2_000);
+        let gain = |db: f32| Effect::Gain { db: db.into() };
+        let branch = |fx, amount: Param| Branch { fx: vec![fx], amount };
+        // half the signal, and the signal 6 dB down at a quarter: 0.5 + 0.25 * 0.501
+        let mut y = x.clone();
+        let p = Effect::Parallel { chains: vec![branch(gain(-6.0), 0.25.into())], dry: 0.5.into() };
+        apply(&p, &mut y, &CTX);
+        let k = 0.5 + 0.25 * crate::audio::db_to_gain(-6.0);
+        assert!(y.l.iter().zip(&x.l).all(|(a, b)| (a - b * k).abs() < 1e-6));
+        // an amount that moves: nothing of the chain at beat 0, all of it from beat 1 (a thousand samples a beat)
+        let mut y = x.clone();
+        let moving = Param::Curve(vec![(0.0, 0.0), (1.0, 1.0)]);
+        apply(&Effect::Parallel { chains: vec![branch(gain(0.0), moving)], dry: 0.0.into() }, &mut y, &CTX);
+        assert_eq!(y.l[0], 0.0);
+        assert!((y.l[500] - x.l[500] * 0.5).abs() < 1e-6 && (y.l[1_500] - x.l[1_500]).abs() < 1e-6);
+    }
+
+    #[test]
+    fn a_mix_that_moves_is_the_effect_at_each_moments_mix() {
+        let x = tone(3_000);
+        let crush = |mix: Param| Effect::Bitcrush { bits: 3.0.into(), downsample: 1.0, mix };
+        let held = |m: f32| {
+            let mut y = x.clone();
+            apply(&crush(m.into()), &mut y, &CTX);
+            y
+        };
+        let mut moving = x.clone();
+        apply(&crush(Param::Curve(vec![(0.0, 0.0), (2.0, 1.0)])), &mut moving, &CTX);
+        // at beat 1 the mix is a half, at beat 2 and after it is all wet
+        let (half, full) = (held(0.5), held(1.0));
+        assert!((moving.l[1_000] - half.l[1_000]).abs() < 1e-6);
+        assert!((moving.l[2_500] - full.l[2_500]).abs() < 1e-6 && (moving.l[0] - x.l[0]).abs() < 1e-6);
+    }
+
+    #[test]
+    fn a_projects_slice_moves_the_curves_in_a_parallel_effects_chains_too() {
+        let mut p = Effect::Parallel {
+            chains: vec![Branch {
+                fx: vec![Effect::Stutter { start: 8.0, len: 1.0, slice: 0.25 }],
+                amount: Param::Curve(vec![(4.0, 0.0), (8.0, 1.0)]),
+            }],
+            dry: 1.0.into(),
+        };
+        p.shift(4.0);
+        let Effect::Parallel { chains, .. } = &p else { unreachable!() };
+        assert_eq!(chains[0].amount, Param::Curve(vec![(0.0, 0.0), (4.0, 1.0)]));
+        assert_eq!(chains[0].fx[0], Effect::Stutter { start: 4.0, len: 1.0, slice: 0.25 });
     }
 }

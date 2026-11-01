@@ -166,7 +166,7 @@ Parameters that can move are `Param`s: a number, or a curve of `[beat, value]` p
 | `reverb`, `delay` | as on the returns, for inserts |
 | `chorus`, `flanger`, `phaser` | modulated delays and allpass stages |
 | `width` | mid/side width, with the side removed below `mono_below_hz` |
-| `tremolo`, `autopan` | tempo-synced |
+| `tremolo`, `auto_pan` | tempo-synced |
 | `gate` | a rhythmic volume gate (trance gate) from a list of step gains |
 | `transient` | a transient shaper (a fast and a slow envelope split attack from sustain) |
 | `tape`, `vinyl` | wow and flutter with saturation and a lowpass; crackle and hiss |

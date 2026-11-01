@@ -438,3 +438,75 @@ fn a_change_of_mode_keeps_borrowed_chords_as_they_sound() {
     // diatonic chords take the new mode on their degree; the borrowed A flat stays A flat, now spelled III
     assert_eq!(out.unwrap().bp.unwrap().harmony.progressions["A"], ["i", "III", "iv", "v"]);
 }
+
+#[test]
+fn effect_chains_with_parallel_branches_and_values_by_section_print_arrange_and_play() {
+    use claudius::dsp::env::Param;
+    use claudius::fx::Effect;
+    use claudius::model::SectionKind;
+    let code = r#"
+        song("house", 3);
+        fx("lead", [
+          #{ fx: "saturate", kind: "tape", drive_db: sections(2, #{ drop: [2, 12] }) },
+          #{ fx: "parallel", dry: 1, chains: [
+            #{ amount: sections(0, #{ build: [0, 0.6], drop: 0.2 }), fx: [#{ fx: "reverb", decay: 4, mix: 1 }] },
+            #{ amount: 0.3, fx: [
+              #{ fx: "bitcrush", bits: [[0, 12], [64, 4]], downsample: 2 },
+              #{ fx: "filter", mode: "hp", cutoff: 900 },
+            ] },
+          ] },
+        ]);
+        mix("chords", #{ bus: "glue" });
+        bus("glue", [#{ fx: "compressor", threshold_db: -18, ratio: 4, attack_ms: 5, release_ms: 80, mix: 0.5 }]);
+        send_fx(#{ delay: #{ fx: "delay", beats: 0.75, feedback: sections(0.3, #{ "break": 0.7 }), mix: 1 } });
+        master(#{ fx: [#{ fx: "limiter", ceiling_db: -1, release_ms: 50 }] });
+    "#;
+    let bp = script::run(code, None, None).unwrap().bp.unwrap();
+    let lead = bp.parts.iter().find(|p| p.name == "lead").unwrap();
+    assert!(matches!(&lead.mix.fx[1], Effect::Parallel { chains, .. } if chains.len() == 2), "{:?}", lead.mix.fx);
+    assert_eq!(bp.parts.iter().find(|p| p.name == "chords").unwrap().mix.bus, "glue");
+    // the song prints with them, and reads back as the same song
+    let printed = script::to_script(&bp);
+    for line in ["sections(0, #{ build: [0, 0.6], drop: 0.2 })", r#"sections(0.3, #{ "break": 0.7 })"#, r#"bus("glue""#]
+    {
+        assert!(printed.contains(line), "{line} is missing from\n{printed}");
+    }
+    let again = script::run(&printed, Some(bp.clone()), None).unwrap().bp.unwrap();
+    assert!(again == bp, "the printed script changed the song\n{printed}");
+    // arranged, values by section are curves through the form as it is laid out
+    let p = compose::arrange(&bp);
+    let drop = p.sections.iter().find(|s| s.kind == SectionKind::Drop).unwrap();
+    let (a, b) = (drop.start_bar as f64 * 4.0, (drop.start_bar + drop.bars) as f64 * 4.0);
+    let lead = p.tracks.iter().find(|t| t.name == "lead").unwrap();
+    let Effect::Saturate { drive_db, .. } = &lead.mix.fx[0] else { panic!("{:?}", lead.mix.fx) };
+    assert!(matches!(drive_db, Param::Curve(_)));
+    assert_eq!((drive_db.at(a - 1.0, false), drive_db.at(b, false)), (2.0, 12.0), "{drive_db:?}");
+    assert!((drive_db.at((a + b) / 2.0, false) - 7.0).abs() < 0.01, "half way across the drop");
+    let Effect::Delay { feedback, .. } = &p.mix.delay else { panic!() };
+    let brk = p.sections.iter().find(|s| s.kind == SectionKind::Break).unwrap();
+    assert_eq!(feedback.at((brk.start_bar + 1) as f64 * 4.0, false), 0.7);
+    // and it plays: two bars of the drop, through the parallel chains, the glue bus and the master's limiter
+    let r = render::render(&p.slice(drop.start_bar, drop.start_bar + 2), &render::Options::default()).unwrap();
+    assert!(r.lufs > -20.0 && r.lufs < -5.0, "{}", r.lufs);
+}
+
+#[test]
+fn effects_a_script_gets_wrong_say_what_they_are() {
+    let fails =
+        |code: &str| script::run(&format!("song(\"house\", 3); {code}"), None, None).err().map(|e| e.to_string());
+    let says = |code: &str, words: &str| {
+        let e = fails(code).unwrap_or_else(|| panic!("{code} ran"));
+        assert!(e.contains(words), "{code}: {e}");
+    };
+    says(r#"fx("lead", [#{ fx: "revrb", decay: 2 }]);"#, "unknown variant `revrb`");
+    says(r#"fx("lead", [#{ decay: 2 }]);"#, "is a map such as #{ fx: \"reverb\", ... } (effects: gain eq filter");
+    says(r#"fx("lead", [#{ fx: "gain", db: "loud" }]);"#, "a setting that can move is a number, a curve");
+    says(r#"fx("nobody", []);"#, "no track 'nobody'");
+    says(r#"fx("lead", [#{ fx: "gain", db: sections(0, #{ chorus2: 1 }) }]);"#, "no section or kind 'chorus2'");
+    says(r#"fx("lead", [#{ fx: "gain", db: sections(0, #{ drop: [] }) }]);"#, "'drop' is a number, or the numbers");
+    says(r#"bus("my bus", []);"#, "a bus is named with letters, digits, - and _");
+    says(r#"mix("lead", #{ bus: "" });"#, "a bus is named with letters");
+    says(r#"send_fx(#{ room: #{ fx: "reverb" } });"#, "send_fx()");
+    // a kind's other names count as the kind
+    assert!(fails(r#"fx("lead", [#{ fx: "gain", db: sections(0, #{ chorus: -3, breakdown: -6 }) }]);"#).is_none());
+}

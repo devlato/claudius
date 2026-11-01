@@ -17,6 +17,7 @@
 //! Patterns are written in mini-notation inside strings (see `pattern::mini`); a song prints back as a script with
 //! `to_script`, and running that script on the song changes nothing.
 
+mod effects;
 mod form;
 mod mix;
 mod patterns;

@@ -3,6 +3,7 @@
 
 use super::{Ctx, blend};
 use crate::audio::Stereo;
+use crate::dsp::env::Param;
 use crate::dsp::fft::convolve;
 use crate::dsp::filter::{self, coef};
 use crate::dsp::osc;
@@ -91,10 +92,10 @@ pub fn reverb(
 }
 
 /// tempo-synced feedback delay (beats), repeats darkened by `damping`; output = dry + mix * repeats
-pub fn delay(x: &mut Stereo, beats: f32, feedback: f32, damping: f32, pingpong: bool, mix: f32, ctx: &Ctx) {
+pub fn delay(x: &mut Stereo, beats: f32, feedback: &Param, damping: f32, pingpong: bool, mix: f32, ctx: &Ctx) {
     let d = ((beats as f64 * ctx.spb()).round() as usize).max(1);
     let n = x.len();
-    let fb = feedback.clamp(0.0, 0.95);
+    let feedback = feedback.values(n, ctx.spb(), false);
     let damp = coef(0.00002 + damping.clamp(0.0, 1.0) as f64 * 0.0004, ctx.sr) as f32;
     let mut bl = vec![0.0f32; d];
     let mut br = vec![0.0f32; d];
@@ -110,6 +111,7 @@ pub fn delay(x: &mut Stereo, beats: f32, feedback: f32, damping: f32, pingpong: 
         hpl = hp * hpl + (1.0 - hp) * lpl;
         hpr = hp * hpr + (1.0 - hp) * lpr;
         let (fl, fr) = (lpl - hpl, lpr - hpr);
+        let fb = feedback.at(i).clamp(0.0, 0.95);
         if pingpong {
             bl[w] = inl + fb * fr;
             br[w] = inr + fb * fl;
