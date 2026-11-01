@@ -3,6 +3,7 @@
 //! the jobs simulated with progress and log lines. Like the server it renders after every change (a rough preview,
 //! synthesized a slice per frame) and keeps `song_version`, so stale renders, solo and history behave the same.
 
+mod kit;
 mod song;
 mod synth;
 
@@ -77,11 +78,24 @@ pub struct Mock {
     stems_wanted: bool,
     /// the song changed since the last published state
     song_changed: bool,
+    /// the demo's sounds, arriving while it runs
+    kit: kit::Kit,
+    /// how many times sounds have arrived, and how many had when the last render started
+    kit_arrivals: usize,
+    rendered_with: usize,
+    /// the last render played the synth for something the kit plays: render again once more of it arrives
+    stand_in: bool,
+    /// a render waits for the sounds it plays, since then
+    waiting_since: Option<f64>,
 }
 
 const MUTATE_SECS: f64 = 2.2;
 const CHILD_SECS: f64 = 0.45;
 const AUTO_RENDER_DELAY: f64 = 0.35;
+/// how long a render waits for the demo's sounds before the synth stands in for what has not arrived
+const KIT_WAIT: f64 = 10.0;
+/// voice-samples a frame renders: a few milliseconds' work in a browser
+const RENDER_BUDGET: usize = 400_000;
 const AUDIO: [&str; 7] = [".wav", ".mp3", ".flac", ".aif", ".aiff", ".m4a", ".ogg"];
 const REFERENCE: &str = "# claudius script (demo)\n\nThe demo has no script engine: run `claudius serve` and the studio shows the real reference here \
 (`GET /api/reference`).\n\nA claudius script is [Rhai](https://rhai.rs) with Strudel-style patterns:\n\n| | |\n|---|---|\n| `tempo(124)` | BPM 40..240 |\n\
@@ -109,7 +123,8 @@ fn demo_release() -> ReleaseView {
 }
 
 impl Mock {
-    pub fn new() -> Mock {
+    /// `ctx` is woken when sounds arrive
+    pub fn new(ctx: Option<eframe::egui::Context>) -> Mock {
         let song = song::generate("house", 7, None, Some("D minor"), false);
         let state = State {
             version: 1,
@@ -137,6 +152,11 @@ impl Mock {
             render_at: Some(0.0),
             stems_wanted: false,
             song_changed: false,
+            kit: kit::Kit::new(ctx),
+            kit_arrivals: 0,
+            rendered_with: 0,
+            stand_in: false,
+            waiting_since: None,
         }
     }
 
@@ -212,7 +232,9 @@ impl Mock {
 
     fn start_render(&mut self, stems: bool, after: Option<String>) {
         let Some(song) = self.state.song.as_ref() else { return };
-        let synth = Box::new(synth::Render::new(song));
+        let synth = Box::new(synth::Render::new(song, &self.kit));
+        self.stand_in = synth.from_synth > 0 && !self.kit.gone();
+        self.rendered_with = self.kit_arrivals;
         self.job = Some(Job::Render { synth, stems, version: self.state.song_version, after });
         self.state.busy = Some("rendering".into());
         self.state.progress = Some(0.0);
@@ -520,14 +542,36 @@ impl Mock {
             self.publish();
             self.events.push(Event::Sounds(song::sounds()));
         }
+        if self.kit.poll() {
+            self.kit_arrivals += 1;
+            if let Some(credits) = self.kit.credits.take() {
+                self.log(format!("demo sounds: claudius' own synth presets, and drums: {}", credits.join("; ")));
+            }
+        }
+        // sounds the last render had to play on the synth have arrived since
+        if self.stand_in && self.kit_arrivals > self.rendered_with && self.job.is_none() && self.render_at.is_none() {
+            self.render_at = Some(now);
+        }
         if self.job.is_none() && self.render_at.is_some_and(|t| now >= t) {
-            let stems = std::mem::take(&mut self.stems_wanted);
-            self.start_render(stems, None);
-            self.publish();
+            let needs = self.state.song.as_ref().map(|s| synth::needs(s, &self.kit)).unwrap_or_default();
+            self.kit.want(&needs);
+            let since = *self.waiting_since.get_or_insert(now);
+            if self.kit.waiting(&needs) && now - since < KIT_WAIT {
+                if self.state.busy.is_none() {
+                    self.state.busy = Some("loading the demo's sounds".into());
+                    self.publish();
+                }
+                self.render_at = Some(now + 0.15);
+            } else {
+                self.waiting_since = None;
+                let stems = std::mem::take(&mut self.stems_wanted);
+                self.start_render(stems, None);
+                self.publish();
+            }
         }
         match self.job.take() {
             Some(Job::Render { mut synth, stems, version, after }) => {
-                let progress = synth.step(1_500_000);
+                let progress = synth.step(RENDER_BUDGET);
                 if synth.done() {
                     self.finish_render(*synth, stems, version, after);
                 } else {
@@ -762,7 +806,7 @@ mod tests {
 
     #[test]
     fn renders_judges_and_plays_back() {
-        let mut mock = Mock::new();
+        let mut mock = Mock::new(None);
         let first = mock.update(0.0);
         assert!(states(&first).last().unwrap().busy.is_some(), "the demo renders at start");
         assert!(first.iter().any(|e| matches!(e, Event::Sounds(_))));
@@ -777,7 +821,7 @@ mod tests {
 
     #[test]
     fn edits_undo_and_redo() {
-        let mut mock = Mock::new();
+        let mut mock = Mock::new(None);
         mock.update(0.0);
         let before = mock.state.song.clone().unwrap();
         mock.send(Command::ToggleLayer { section: 0, layer: "bass".into() });
@@ -807,7 +851,7 @@ mod tests {
 
     #[test]
     fn drums_copy_on_write_and_step_notation() {
-        let mut mock = Mock::new();
+        let mut mock = Mock::new(None);
         mock.update(0.0);
         mock.send(Command::SetDrumStep { lane: "kick".into(), variant: "fresh".into(), step: 3, velocity: 1.0 });
         mock.send(Command::SetDrumPattern {
@@ -837,7 +881,7 @@ mod tests {
 
     #[test]
     fn scripts_report_errors_with_lines() {
-        let mut mock = Mock::new();
+        let mut mock = Mock::new(None);
         mock.update(0.0);
         mock.send(Command::RunScript { code: "song(\"x\").bpm(126)\ntrack(\"kick\", s(\"bd*4\")".into() });
         let events = mock.update(1.0);
@@ -849,7 +893,7 @@ mod tests {
 
     #[test]
     fn versions_history_and_solo_follow_the_server() {
-        let mut mock = Mock::new();
+        let mut mock = Mock::new(None);
         mock.update(0.0);
         let now = render(&mut mock, 0.0);
         assert!(!crate::panels::render_stale(&mock.state));
@@ -897,7 +941,7 @@ mod tests {
 
     #[test]
     fn new_songs_follow_their_genre() {
-        let mut mock = Mock::new();
+        let mut mock = Mock::new(None);
         mock.update(0.0);
         for g in song::GENRES {
             mock.send(Command::NewSong { genre: g.name.into(), seed: Some(3), bpm: None, key: None, loops: false });

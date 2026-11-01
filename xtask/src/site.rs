@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use anyhow::Result;
-use xshell::Shell;
+use xshell::{Shell, cmd};
 
 use crate::{copy_tree, fresh_dir, root};
 
@@ -38,7 +38,7 @@ const HEADERS: &str = "\
   Content-Type: text/plain; charset=utf-8
 ";
 
-pub fn build(sh: &Shell, out: &Path, site_url: &str) -> Result<()> {
+pub fn build(sh: &Shell, out: &Path, site_url: &str, sounds: bool) -> Result<()> {
     let version = crate::workspace_version(sh)?;
     let site_url = site_url.trim_end_matches('/');
     fresh_dir(out)?;
@@ -67,6 +67,11 @@ pub fn build(sh: &Shell, out: &Path, site_url: &str) -> Result<()> {
     copy_tree(&root().join("target/book"), &out.join("docs"), &|_| false, &|bytes| bytes)?;
 
     crate::web(sh, "/studio/", &out.join("studio"))?;
+    if sounds {
+        demo_sounds(sh, &out.join("studio").join("sounds"))?;
+    } else {
+        eprintln!("note: no demo sounds (--sounds renders them): the studio's demo plays its own rough synth");
+    }
 
     for script in ["install.sh", "install.ps1"] {
         sh.copy_file(root().join("scripts").join(script), out)?;
@@ -82,6 +87,16 @@ pub fn build(sh: &Shell, out: &Path, site_url: &str) -> Result<()> {
     }
 
     eprintln!("site: {} (claudius {version} at {site_url})", out.display());
+    Ok(())
+}
+
+/// the demo's sounds, as claudius renders them (`crates/claudius/examples/demo_sounds.rs`), with the drum machines'
+/// packs installed into a folder of its own
+fn demo_sounds(sh: &Shell, out: &Path) -> Result<()> {
+    let work = root().join("target/demo-sounds");
+    let _packs = sh.push_env("CLAUDIUS_PACKS", work.join("packs"));
+    let _home = sh.push_env("CLAUDIUS_HOME", work.join("home"));
+    cmd!(sh, "cargo run --locked -p claudius --no-default-features --example demo_sounds -- {out}").run()?;
     Ok(())
 }
 

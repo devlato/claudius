@@ -352,7 +352,7 @@ impl Backend {
     pub fn new(connection: &Connection, ctx: &egui::Context) -> Backend {
         match connection {
             Connection::Server(url) => Backend::Remote(Remote::new(url.clone(), ctx)),
-            Connection::Mock => Backend::Mock(Box::new(Mock::new())),
+            Connection::Mock => Backend::Mock(Box::new(Mock::new(Some(ctx.clone())))),
         }
     }
 

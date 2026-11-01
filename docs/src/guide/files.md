@@ -138,6 +138,7 @@ Without one, `/` shows a page that says how to build it, and the API and MCP wor
 | `GITHUB_TOKEN`, `GH_TOKEN` | unset | sent to GitHub's API while installing packs, for its higher rate limit |
 | `CLAUDIUS_SERVER` | `http://127.0.0.1:7878` | the server the standalone `claudius-ui` program connects to |
 | `CLAUDIUS_MOCK` | unset | `1` makes `claudius-ui` run against its built-in demo song |
+| `CLAUDIUS_DEMO_SOUNDS` | unset | the folder or address of the demo's sounds for `claudius-ui`'s demo, such as `target/site/studio/sounds` ([The studio UI](../engineering/ui.md#the-demos-sounds)); without it, the demo plays a rough synth |
 | `CLAUDIUS_UI_PLAN` | unset | a scripted run of the studio window, for testing ([The studio UI](../engineering/ui.md#scripted-runs)) |
 
 The install script reads `CLAUDIUS_VERSION`, `CLAUDIUS_INSTALL_DIR` and `CLAUDIUS_DOWNLOAD_URL`; see
