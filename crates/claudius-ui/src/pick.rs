@@ -3,6 +3,8 @@
 
 use std::cell::RefCell;
 
+use eframe::egui;
+
 /// what a file is chosen for, which says what the dialog offers
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Want {
@@ -54,6 +56,13 @@ pub const MOST: usize = 300 << 20;
 thread_local! {
     /// what was chosen, read, for each `Want`, until it is taken
     static CHOSEN: RefCell<Vec<(Want, Result<Picked, String>)>> = const { RefCell::new(Vec::new()) };
+    /// the window to wake when a file has been read: a browser reads one after the frame that asked for it
+    static WAKE: RefCell<Option<egui::Context>> = const { RefCell::new(None) };
+}
+
+/// wakes `ctx` when what is chosen next has been read
+fn wake(ctx: &egui::Context) {
+    WAKE.with(|w| *w.borrow_mut() = Some(ctx.clone()));
 }
 
 /// takes what was chosen for `want`, once it has been read
@@ -72,12 +81,18 @@ fn arrived(want: Want, name: String, bytes: Result<Vec<u8>, String>) {
         _ => Ok(Picked { name, bytes: b }),
     });
     CHOSEN.with(|c| c.borrow_mut().push((want, got)));
+    WAKE.with(|w| {
+        if let Some(ctx) = &*w.borrow() {
+            ctx.request_repaint();
+        }
+    });
 }
 
 /// opens the system's dialog for a file for `want`; what is chosen is read and arrives through `chosen` (nothing, when
 /// the person closes the dialog)
 #[cfg(not(target_arch = "wasm32"))]
-pub fn choose(want: Want) {
+pub fn choose(ctx: &egui::Context, want: Want) {
+    wake(ctx);
     let (what, extensions) = want.kinds();
     let Some(path) = rfd::FileDialog::new().add_filter(what, extensions).pick_file() else { return };
     let name = path.file_name().map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().into_owned());
@@ -96,9 +111,10 @@ pub fn take_path(want: Want, path: &std::path::Path) {
 /// `data-claudius-pick` naming what it is for) until a file is chosen, and goes when one is, or when another is asked
 /// for. What is chosen is read and arrives through `chosen`.
 #[cfg(target_arch = "wasm32")]
-pub fn choose(want: Want) {
+pub fn choose(ctx: &egui::Context, want: Want) {
     use wasm_bindgen::JsCast;
     use wasm_bindgen::closure::Closure;
+    wake(ctx);
     let Some(document) = web_sys::window().and_then(|w| w.document()) else { return };
     let Some(body) = document.body() else { return };
     // a dialog closed without a file leaves its input behind: one at a time
@@ -149,6 +165,23 @@ mod tests {
         assert_eq!(chosen(Want::Song), None, "taken once");
         assert!(chosen(Want::Audio).unwrap().unwrap_err().contains("no such file"));
         assert_eq!(chosen(Want::Cover).unwrap().unwrap().bytes, [1, 2, 3]);
+    }
+
+    #[test]
+    fn a_file_read_wakes_the_window_that_asked_for_it() {
+        let ctx = egui::Context::default();
+        wake(&ctx);
+        // frames, whose textures nothing draws, until egui asks for no more
+        for _ in 0..10 {
+            if !ctx.has_requested_repaint() {
+                break;
+            }
+            ctx.run_ui(Default::default(), |_| {}).textures_delta.clear();
+        }
+        assert!(!ctx.has_requested_repaint(), "asleep");
+        arrived(Want::Song, "song.rhai".into(), Ok(b"tempo(120)".to_vec()));
+        assert!(ctx.has_requested_repaint(), "woken by what arrived");
+        assert!(chosen(Want::Song).is_some());
     }
 
     #[test]

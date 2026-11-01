@@ -289,7 +289,7 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
                 ui.label(small("a blueprint.json from a song's folder, or a claudius script"));
                 ui.add_space(4.0);
                 if widgets::tool_button(ui, Icon::Open, "Choose a file...", true, false).clicked() {
-                    crate::pick::choose(crate::pick::Want::Song);
+                    crate::pick::choose(ui.ctx(), crate::pick::Want::Song);
                     ui.close();
                 }
             });
@@ -598,7 +598,7 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
         ui.horizontal(|ui| {
             let busy = cx.view.analyzing;
             if widgets::tool_button(ui, Icon::Open, "Choose a file...", !busy, false).clicked() {
-                crate::pick::choose(crate::pick::Want::Audio);
+                crate::pick::choose(ui.ctx(), crate::pick::Want::Audio);
             }
             match &cx.view.audio_file {
                 Some(file) => ui.label(small(format!("{} ({:.1} MB)", file.name, file.bytes.len() as f64 / 1e6))),

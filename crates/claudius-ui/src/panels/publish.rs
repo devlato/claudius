@@ -295,7 +295,7 @@ fn artwork(ui: &mut Ui, p: &mut Publish, release: &ReleaseView, hovering: bool) 
             .clicked()
         {
             p.error = None;
-            crate::pick::choose(crate::pick::Want::Cover);
+            crate::pick::choose(ui.ctx(), crate::pick::Want::Cover);
         }
         if let Some(e) = &p.error {
             ui.add(egui::Label::new(RichText::new(e).size(11.0).color(theme::BAD)).wrap());

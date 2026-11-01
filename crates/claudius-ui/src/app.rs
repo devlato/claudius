@@ -305,9 +305,10 @@ impl Studio {
         }
         if let Some(got) = chosen(Want::Audio) {
             self.view.analysis = None;
+            // a file that could not be read leaves none chosen: Analyze must not send the one before it
             match got {
                 Ok(file) => self.view.audio_file = Some(Arc::new(file)),
-                Err(e) => self.view.analysis = Some((false, e)),
+                Err(e) => (self.view.audio_file, self.view.analysis) = (None, Some((false, e))),
             }
         }
         if let Some(got) = chosen(Want::Cover) {
@@ -466,7 +467,7 @@ impl Studio {
                 Step::AudioPath(p) => crate::pick::take_path(crate::pick::Want::Audio, std::path::Path::new(&p)),
                 #[cfg(target_arch = "wasm32")]
                 Step::AudioPath(p) => crate::devplan::say(&format!("audiopath:{p} reads a file in the app only")),
-                Step::Pick(want) => crate::pick::choose(want),
+                Step::Pick(want) => crate::pick::choose(ctx, want),
                 Step::Listen(remake) => {
                     let f = &self.view.new_song;
                     let remake = remake.then(|| (f.genre.clone(), f.seed.trim().parse().ok()));
