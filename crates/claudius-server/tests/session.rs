@@ -514,6 +514,7 @@ async fn a_take_sent_over_http_plays_and_goes_with_the_song() {
         role: None,
         chromatic: false,
         keep_take: false,
+        style: None,
     });
     assert!(r.ok && r.message.starts_with("1 note from vox"), "{}", r.message);
     let song = app.state().song.unwrap();
@@ -532,6 +533,7 @@ async fn a_take_sent_over_http_plays_and_goes_with_the_song() {
         sounds: vec!["epiano".into()],
         name: None,
         role: Some("keys".into()),
+        style: None,
     };
     let r = app.command(add);
     assert!(r.ok && r.message.starts_with("3 notes from the start of intro"), "{}", r.message);
@@ -552,6 +554,11 @@ async fn a_take_sent_over_http_plays_and_goes_with_the_song() {
     for d in [&dir, &moved] {
         std::fs::remove_dir_all(d).ok();
     }
+}
+
+#[test]
+fn the_studio_offers_the_styles_the_engine_plays() {
+    assert_eq!(claudius::take::STYLES, claudius_api::NOTE_STYLES);
 }
 
 #[test]

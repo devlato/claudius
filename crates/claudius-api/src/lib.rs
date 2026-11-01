@@ -334,6 +334,11 @@ pub struct PackInfo {
     pub opt_in: bool,
 }
 
+/// what notes sung or played can become (`add_notes` and `transcribe_take` take one as `style`): the line as it is, with
+/// a third above, doubled an octave down, as a triad under each note, down in a bass's register, as a rising arpeggio on
+/// each note, or as a chord held a bar
+pub const NOTE_STYLES: &[&str] = &["line", "harmony", "octaves", "chords", "bass", "arp", "pad"];
+
 /// a note: start and length in beats, MIDI pitch (60 is middle C), velocity 0..1 (0.8 when left out)
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct NoteView {
@@ -538,6 +543,9 @@ pub enum Command {
         /// lead (default), keys, chords, pad, arp or bass
         #[serde(default)]
         role: Option<String>,
+        /// what the notes become: line (as they are, the default), harmony, octaves, chords, bass, arp or pad
+        #[serde(default)]
+        style: Option<String>,
     },
     /// the melody of a take (sung, hummed, whistled or played one note at a time) as the notes of new parts, one per
     /// sound, in the song's key and on its grid, in the sections the take plays in; the take goes quiet unless
@@ -557,6 +565,9 @@ pub enum Command {
         chromatic: bool,
         #[serde(default)]
         keep_take: bool,
+        /// what the line becomes: line (as sung, the default), harmony, octaves, chords, bass, arp or pad
+        #[serde(default)]
+        style: Option<String>,
     },
     /// try `count` random mutations, keep the best-judged one when `keep_best` (else only report them)
     Mutate {

@@ -50,6 +50,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let loop_region = cx.view.looping;
     let solo = cx.any_solo();
     let (instruments, synths) = super::melodic_sounds(cx.sounds);
+    let mut style = cx.view.melody_style.clone();
     let Some(song) = cx.state.song.as_ref() else {
         empty(ui, "No song yet: make one with New song.");
         super::missing_packs(ui, cx);
@@ -510,6 +511,12 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         ui.label(small(
                             "a new part plays what was sung, in the key and on the grid, and the take goes quiet",
                         ));
+                        ui.label(small("as").weak());
+                        ui.horizontal_wrapped(|ui| {
+                            for s in claudius_api::NOTE_STYLES {
+                                ui.selectable_value(&mut style, s.to_string(), *s);
+                            }
+                        });
                         for (heading, names) in [("instruments", &instruments), ("synths", &synths)] {
                             if names.is_empty() {
                                 continue;
@@ -524,6 +531,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                                         role: None,
                                         chromatic: false,
                                         keep_take: false,
+                                        style: Some(style.clone()),
                                     });
                                     ui.close();
                                 }
@@ -680,5 +688,6 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     }
     painter.line_segment([pos2(tl.x0, ruler.bottom()), pos2(tl.x1, ruler.bottom())], Stroke::new(1.0, LINE));
     ui.advance_cursor_after_rect(full);
+    cx.view.melody_style = style;
     cx.out.extend(out);
 }

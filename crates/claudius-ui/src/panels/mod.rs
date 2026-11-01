@@ -167,6 +167,8 @@ pub struct View {
     pub assistants: assistants::Assistants,
     pub publish: publish::Publish,
     pub record: record::Record,
+    /// what a take's melody becomes when it turns into notes (`claudius_api::NOTE_STYLES`)
+    pub melody_style: String,
     /// the tour's step on screen, and whether it was taken or skipped (kept between runs)
     pub tour: Option<usize>,
     pub tour_done: bool,
@@ -225,6 +227,7 @@ impl Default for View {
             assistants: assistants::Assistants::default(),
             publish: publish::Publish::default(),
             record: record::Record::default(),
+            melody_style: "line".into(),
             tour: None,
             tour_done: false,
             tour_asks: false,

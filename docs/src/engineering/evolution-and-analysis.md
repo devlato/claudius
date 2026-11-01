@@ -174,7 +174,9 @@ their energy is close. `CLAUDIUS_DEBUG=1` prints the downbeat cues per phase.
   notes on one sixteenth keep the longer, and a note ends where the next begins.
 
 The notes go into the new parts' `notes`, by the progression of each section the take covers. Written notes may run
-over several cycles of their progression, and `arrange` repeats them only after the last cycle they reach.
+over several cycles of their progression, and `arrange` repeats them only after the last cycle they reach. On the
+way, `take::styled` can make them harmony, octaves, chords, a bass line, an arpeggio or a pad. It counts by the
+key's scale steps (`Key::step`), so a third above or a triad under a note stays in the key.
 
 The tests sing to it: three harmonics with a 5.5 Hz vibrato, breath noise, a 30 ms glide into each note and breaths
 where asked. Their melodies come back with every pitch and onset where it was sung.

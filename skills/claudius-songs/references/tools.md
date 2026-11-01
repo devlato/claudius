@@ -22,8 +22,8 @@ to. On the command line, each command reads and writes song folders instead.
 | `analyze` | `path` of any audio file | `claudius analyze song.mp3` |
 | `remake` | `path`, `genre`, `seed`, `bpm` | `claudius remake song.mp3 --genre lofi [--bpm 82]` |
 | `add_take` | `path` of a recording, `from` (a section's name), `name`, `role` (`vocal`, `lead`, `chords`, `keys`, `bass`, `drums`, `texture`) | |
-| `transcribe_take` | `take`, `sounds` (presets or instruments, one part each), `name`, `role`, `chromatic`, `keep_take` | |
-| `add_notes` | `from` (a section), `notes` (`[{t, d, p, v}]`: beats from its start, length, MIDI pitch, velocity), `sounds`, `name`, `role` | |
+| `transcribe_take` | `take`, `sounds` (presets or instruments, one part each), `name`, `role`, `chromatic`, `keep_take`, `style` (line, harmony, octaves, chords, bass, arp, pad) | |
+| `add_notes` | `from` (a section), `notes` (`[{t, d, p, v}]`: beats from its start, length, MIDI pitch, velocity), `sounds`, `name`, `role`, `style` | |
 | `command` | one raw API command, for edits scripts do not cover | |
 
 Notes:
