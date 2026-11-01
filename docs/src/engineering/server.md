@@ -182,7 +182,8 @@ The tools run on a `Backend`:
 
 - **`Local`**: the `App` in this process. Commands run on `spawn_blocking`; state and waiting call the `App` directly.
 - **`Remote`**: a claudius in another process, reached through its HTTP API with `ureq`: `POST /api/command` (600 s
-  timeout, for jobs that start slowly), `GET /api/state`, `GET /api/state?settled=1&timeout=N`, `/api/script` and
+  timeout, for jobs that start slowly), `GET /api/state`, `GET /api/state?settled=1&timeout=N`,
+  `GET /api/state?since=V&timeout=N` (for `wait_for_take`, which sleeps until the state changes), `/api/script` and
   `/api/sounds`, with the token as a bearer header.
 
 `mcp::probe(base, token)` asks `/api/hello` with an 800 ms timeout and returns a `Probe`: `Claudius` for a success
@@ -201,6 +202,11 @@ Two helpers shape every tool:
 - `job(command, timeout)` remembers the log, sends the command, waits for the session to settle (240 to 300 s), and
   returns the log lines written since, the candidate scores of a mutation or evolution, followed by the description,
   or a note that the job is still running.
+
+`request_take` and `wait_for_take` are the exception: the person records the take, which can take minutes. The first
+sets the session's `take_request` and answers at once; the second waits on the state's version, a change at a time,
+until the request is taken or cancelled, or for `seconds`, then says the person is still at it. A take sent with
+`request=<id>` (or notes with `request`) marks the request taken only when claudius keeps it (`App::answer`).
 
 The transports: `serve_stdio(backend)` for `claudius mcp`, where stdout carries the protocol and everything else goes
 to stderr; and `http_service(app, public)`, rmcp's Streamable HTTP service with a local session manager, nested at

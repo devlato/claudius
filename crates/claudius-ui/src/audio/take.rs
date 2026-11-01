@@ -452,9 +452,66 @@ pub(crate) fn no_input(name: &str, message: &str, input: Option<&str>) -> String
     }
 }
 
+/// how loud the song plays under a take played back, and the take's loudest moment
+const UNDER: f32 = 0.5;
+const TAKE_PEAK: f32 = 0.7;
+
+/// The song from `from` seconds on with the take in it from `at` (seconds in the song), to listen back to before the
+/// take is kept: the take at the song's rate and as loud whatever level it came in at, over the song a little down,
+/// to a second past the take's end.
+pub fn preview(song: &Pcm, from: f64, take: &Pcm, at: f64) -> Pcm {
+    let rate = song.rate.max(1);
+    let (sc, tc) = (song.channels.max(1) as usize, take.channels.max(1) as usize);
+    let from = from.clamp(0.0, at.max(0.0));
+    let first = (from * rate as f64).round() as usize;
+    let frames = ((at - from + take.seconds() + 1.0) * rate as f64).ceil() as usize;
+    let peak = take.samples.iter().fold(0f32, |m, s| m.max(s.abs()));
+    let gain = if peak > 0.0 { TAKE_PEAK / peak } else { 0.0 };
+    let (lead, step) = ((at - from) * rate as f64, take.rate as f64 / rate as f64);
+    let mut samples = Vec::with_capacity(frames * 2);
+    for i in 0..frames {
+        let x = (i as f64 - lead) * step;
+        for c in 0..2 {
+            let song_at = song.samples.get((first + i) * sc + c.min(sc - 1)).copied().unwrap_or(0.0);
+            let take_at = if x < 0.0 {
+                0.0
+            } else {
+                let (k, c) = (x.floor() as usize, c.min(tc - 1));
+                take.samples.get(k * tc + c).map_or(0.0, |&a| {
+                    let b = take.samples.get((k + 1) * tc + c).copied().unwrap_or(a);
+                    a + (b - a) * (x - k as f64) as f32
+                })
+            };
+            samples.push((song_at * UNDER + take_at * gain).clamp(-1.0, 1.0));
+        }
+    }
+    Pcm { rate, channels: 2, samples }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_take_played_back_is_in_the_song_where_it_was_recorded_at_the_songs_rate() {
+        // four seconds of a song at 48 kHz, 0.2 on the left and -0.2 on the right; a second of a take at 24 kHz, mono
+        let song = Pcm { rate: 48_000, channels: 2, samples: (0..4 * 48_000).flat_map(|_| [0.2, -0.2]).collect() };
+        let take = Pcm { rate: 24_000, channels: 1, samples: vec![0.35; 24_000] };
+        let p = preview(&song, 1.0, &take, 2.0);
+        assert_eq!((p.rate, p.channels), (48_000, 2));
+        assert_eq!(p.frames(), 3 * 48_000, "a second of the song before the take, the take, and a second after it");
+        let at = |p: &Pcm, s: f64| (p.samples[(s * 48_000.0) as usize * 2], p.samples[(s * 48_000.0) as usize * 2 + 1]);
+        let under = 0.2 * UNDER;
+        assert_eq!(at(&p, 0.5), (under, -under), "the song alone, a little down");
+        let (l, r) = at(&p, 1.5);
+        assert!((l - (under + TAKE_PEAK)).abs() < 1e-6 && (r - (TAKE_PEAK - under)).abs() < 1e-6, "{l} {r}");
+        assert_eq!(at(&p, 2.5), (under, -under), "and alone again after it");
+        // past the song's end the take plays alone; a silent one leaves the song alone
+        let late = preview(&song, 3.0, &take, 3.5);
+        assert!((at(&late, 1.2).0 - TAKE_PEAK).abs() < 1e-6, "{:?}", at(&late, 1.2));
+        let silent = preview(&song, 0.0, &Pcm { rate: 48_000, channels: 1, samples: vec![0.0; 4_800] }, 1.0);
+        assert!(silent.samples.iter().all(|s| s.abs() == under), "the song alone");
+    }
 
     #[test]
     fn an_input_that_falls_silent_to_the_bit_is_told_from_a_quiet_one() {

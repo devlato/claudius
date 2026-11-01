@@ -24,7 +24,7 @@ this API, so anything it does you can do with `curl`. The types are plain serde 
 | `POST /api/release/artwork` | the release's [artwork](publish.md), as the file itself with `Content-Type: image/jpeg`, `image/png` or `application/octet-stream` (40 MB at most); answers with a [reply](#replies-and-errors) |
 | `GET /api/release/artwork` | the artwork as it was given |
 | `GET /api/release/preview.png` | the artwork at most 512 pixels on a side, as PNG |
-| `POST /api/takes?from=SECTION` | a recording as a [take](samples.md#takes), as the file itself (WAV, FLAC, Ogg, MP3 or AIFF) with `Content-Type: audio/...` or `application/octet-stream` (300 MB at most); optional `name` and `role` in the query, as for `add_take`; answers with a [reply](#replies-and-errors) |
+| `POST /api/takes?from=SECTION` | a recording as a [take](samples.md#takes), as the file itself (WAV, FLAC, Ogg, MP3 or AIFF) with `Content-Type: audio/...` or `application/octet-stream` (300 MB at most); optional `name` and `role` in the query, as for `add_take`, and `request`, the id of the [take request](samples.md#a-take-an-assistant-asks-for) it answers; answers with a [reply](#replies-and-errors) |
 | `POST /api/analyze?name=FILE` | a recording to listen to, as the file itself with `Content-Type: audio/...` or `application/octet-stream` (300 MB at most), named in the query so that its extension says its format (WAV, FLAC, MP3, AAC, ALAC, Ogg, AIFF ...); answers as `analyze` does, and keeps nothing of it |
 | `POST /api/remake?name=FILE` | a recording to remake, sent as for `/api/analyze`; optional `genre`, `seed` and `bpm` in the query, as for `remake`; answers with a [reply](#replies-and-errors) |
 | `/mcp` | the [MCP endpoint](mcp.md#mcp-over-http) |
@@ -131,6 +131,7 @@ The MCP tools wait the same way after every edit.
 | `log` | strings | the last 200 lines of the session log, oldest first |
 | `genres` | `GenreInfo` list | every genre: `name`, `description`, `bpm` range |
 | `release` | `ReleaseView` or null | the release in the making for the song: its `details` (as `set_release` takes them), `song_title`, what the `artwork` is and its `artwork_version`, the `checks` (each a `level`, `problem`, `warning` or `note`, what it is `about` and its `message`) of the render `checked`, whether it is `ready`, where the last `kit` went, and the `made_options` |
+| `take_request` | `TakeRequest` or null | the last [take someone asked the person to record](samples.md#a-take-an-assistant-asks-for): its `id`, `from`, `role`, `name` and `note` as `request_take` gave them, its `status` (`waiting`, `taken` or `cancelled`), and, once taken, claudius' `answer` to the take |
 
 ### `SongView`
 
@@ -206,7 +207,9 @@ fields marked optional may be left out.
 | `remake` | `path`; optional `genre`, `seed`, `bpm` | a new song on the file's skeleton; the genre defaults to the open song's, and the tempo to the recording's, halved or doubled into the genre's range when it is outside |
 | `add_take` | `path`, `from` (a section's name); optional `name` (take1, take2, ...), `role` (`vocal`, `lead`, `chords`, `keys`, `bass`, `drums`, `texture`; lead) | the recording as a [take](samples.md#takes): it plays once from the start of section `from` and on through the sections after it as long as it lasts; the song keeps a copy |
 | `transcribe_take` | `take`, `sounds` (presets or instruments); optional `name` (melody), `role` (lead), `chromatic` (false), `keep_take` (false), `style` (line) | [the take's melody as notes](samples.md#turning-a-take-into-notes), played by a new part for each sound; the take goes quiet unless `keep_take` |
-| `add_notes` | `from` (a section's name), `notes` (`[{t, d, p, v}]`: beats from the section's start, length in beats, MIDI pitch, velocity, 0.8 when left out), `sounds`; optional `name` (played), `role` (lead), `style` (line) | [notes played or written](samples.md#notes-played-on-a-keyboard), chords and all, as a new part for each sound |
+| `add_notes` | `from` (a section's name), `notes` (`[{t, d, p, v}]`: beats from the section's start, length in beats, MIDI pitch, velocity, 0.8 when left out), `sounds`; optional `name` (played), `role` (lead), `style` (line), `request` (the take request the notes answer) | [notes played or written](samples.md#notes-played-on-a-keyboard), chords and all, as a new part for each sound |
+| `request_take` | `from` (a section's name); optional `role` (as `add_take`'s, or a part's: `pad`, `arp` ...), `name`, `note` (what to record, for the person) | [asks the person to record a take](samples.md#a-take-an-assistant-asks-for): the studio's Record window opens for it; the request goes in `take_request`, waiting, and replaces one asked before |
+| `cancel_take_request` | `id` | the person will not record the take asked for, as the Record window's Not now says |
 | `mutate` | optional `count` (4, 1 to 32), `keep_best` (true) | a job: tries variations and keeps the best if it beats the song |
 | `evolve` | optional `generations` (3, 1 to 20), `children` (6, 2 to 32) | a job: an evolutionary search from the song |
 | `install_packs` | optional `names` (the missing default packs when left out) | a job: downloads sample packs, as `claudius setup` does; not the opt-in packs, whose licence is unclear, and not on a shared claudius |

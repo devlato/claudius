@@ -5,7 +5,8 @@
 //! keyboards as `midi: ...`, the last analysis as `analysis: ...`, and each toast as `toast: ...`.
 //! Steps: `wait:<s>`, `tab:<sequencer|mixer|parts|harmony|script|log>`, `section:<i>`, `play`, `pause`, `seek:<s>`,
 //! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `record` (the Record window),
-//! `rec:<start|stop|measure>` (a take, or the latency), `rec:allow-midi`, `rec:midi:<input>` (a MIDI input chosen),
+//! `rec:<start|stop|measure>` (a take, or the latency), `rec:<play|keep|not-now>` (the take back, kept or sent; the
+//! take an assistant asked for turned down), `rec:allow-midi`, `rec:midi:<input>` (a MIDI input chosen),
 //! `rec:grid:<beats>` (its notes' grid, 0 as played), `pick:<song|audio|cover>` (a file dialog, as its button opens
 //! one), `listen:<analyze|remake>` (as the New song dialog's buttons), `audiopath:<file>` (a recording read as if
 //! chosen for Analyze, in the app), `cmd:<command json>`, `size:<w>,<h>`, `script:<code; \n for a newline, %3B for ;>`
@@ -64,6 +65,12 @@ pub enum Rec {
     Grid(f64),
     /// the page asks the browser for MIDI keyboards, as choosing "let the page use them" does
     AllowMidi,
+    /// the take that waits to be kept plays back, as Play it back plays it
+    Play,
+    /// it is kept (or sent to the assistant that asked for it), as Keep it keeps it
+    Keep,
+    /// the take an assistant asked for is turned down, as Not now turns it down
+    NotNow,
 }
 
 pub struct Plan {
@@ -196,13 +203,16 @@ impl Plan {
                 "stop" => Some(Step::Rec(Rec::Stop)),
                 "measure" => Some(Step::Rec(Rec::Measure)),
                 "allow-midi" => Some(Step::Rec(Rec::AllowMidi)),
+                "play" => Some(Step::Rec(Rec::Play)),
+                "keep" => Some(Step::Rec(Rec::Keep)),
+                "not-now" => Some(Step::Rec(Rec::NotNow)),
                 other => match (other.strip_prefix("midi:"), other.strip_prefix("grid:").map(str::parse)) {
                     (Some(name), _) => Some(Step::Rec(Rec::Midi(name.to_string()))),
                     (_, Some(Ok(beats))) => Some(Step::Rec(Rec::Grid(beats))),
                     _ => {
                         say(&format!(
-                            "a plan's rec is rec:start, rec:stop, rec:measure, rec:allow-midi, rec:midi:<input> or \
-                             rec:grid:<beats>, not '{step}'"
+                            "a plan's rec is rec:start, rec:stop, rec:measure, rec:play, rec:keep, rec:not-now, \
+                             rec:allow-midi, rec:midi:<input> or rec:grid:<beats>, not '{step}'"
                         ));
                         None
                     }

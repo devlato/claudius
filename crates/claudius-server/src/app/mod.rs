@@ -72,6 +72,9 @@ struct Session {
     folder: Option<PathBuf>,
     /// the release in the making for the song
     release: Option<release::Prepared>,
+    /// the last take asked of the person, and how many have been asked for
+    take_request: Option<claudius_api::TakeRequest>,
+    asked: u64,
 }
 
 impl Session {
@@ -293,6 +296,7 @@ impl App {
             genres: self.genres.clone(),
             exports: self.exports.clone(),
             release,
+            take_request: s.take_request.clone(),
         }
     }
 
