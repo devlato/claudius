@@ -351,13 +351,6 @@ fn track(ui: &mut Ui, cx: &mut Cx, song: &SongView, name: &str) {
         for (k, s) in song.sections.iter().enumerate() {
             let mut on = s.layers.iter().any(|l| l == name);
             if ui.checkbox(&mut on, small(&s.name)).changed() {
-                if let Some(sec) = cx.state.song.as_mut().and_then(|x| x.sections.get_mut(k)) {
-                    if on {
-                        sec.layers.push(name.to_string());
-                    } else {
-                        sec.layers.retain(|l| l != name);
-                    }
-                }
                 cx.out.push(Command::ToggleLayer { section: k, layer: name.to_string() });
             }
         }
