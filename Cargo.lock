@@ -934,6 +934,7 @@ dependencies = [
  "rodio",
  "serde",
  "serde_json",
+ "symphonia",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",

@@ -18,9 +18,11 @@ usage: cargo xtask <command>
                           in the docs
   web [--public-url URL]  build the web studio with trunk into crates/claudius-ui/dist
   docs                    build the book with mdbook into target/book
-  site [--out DIR] [--site-url URL]
+  site [--out DIR] [--site-url URL] [--sounds]
                           assemble the website in DIR (target/site): site/ with its placeholders filled in,
-                          the book at /docs/, the studio at /studio/, and /install.sh and /install.ps1
+                          the book at /docs/, the studio at /studio/, and /install.sh and /install.ps1;
+                          --sounds renders the demo's sounds into /studio/sounds (claudius' synth presets and
+                          the TR-707 and TR-808, whose packs it downloads into target/demo-sounds)
   dist [--target TRIPLE] [--headless] [--no-ears] [--web DIR]
                           build the release binaries for TRIPLE (default: this machine) and package them with
                           the web studio into target/dist. --headless leaves out the studio window (no ALSA,
@@ -58,8 +60,9 @@ fn main() -> Result<()> {
         Some("site") => {
             let out = args.value("--out")?.unwrap_or_else(|| "target/site".into());
             let site_url = args.value("--site-url")?.unwrap_or_else(|| site::DEFAULT_URL.into());
+            let sounds = args.flag("--sounds");
             args.finish()?;
-            site::build(&sh, &root().join(out), &site_url)
+            site::build(&sh, &root().join(out), &site_url, sounds)
         }
         Some("dist") => {
             let target = args.value("--target")?;

@@ -17,7 +17,7 @@ The studio is still being finished; this page describes its structure, which is 
 | `cmds.rs` | builders for commands that change a few fields |
 | `panels/` | one module per panel |
 | `audio/` | the player: rodio natively, an `HtmlAudioElement` on the web |
-| `mock/` | a built-in stand-in for the server, with a generated song and a rough preview synth |
+| `mock/` | a built-in stand-in for the server, with a generated song played on claudius' own sounds ([below](#the-demos-sounds)) |
 | `music.rs` | the theory needed to label things: keys, numerals as chord names, note names |
 | `theme.rs`, `widgets.rs` | the palette (one colour per role and section kind), knobs, faders, meters, chips |
 | `mark.rs` | the logo's C, drawn at the size the header shows it, from the numbers `scripts/icons.py` draws the icons with |
@@ -122,9 +122,8 @@ separately), so you can listen to a section while you edit it and hear each chan
 
 `mock/` plays the server's part without one: a generated song per genre with a plausible form, patterns, parts and
 mix; edits through `edits.rs`; undo and redo with labels; jobs simulated with progress and log lines; a critic that
-reacts to edits the way the real verdict reads; and a rough preview render, synthesized a slice per frame (no threads,
-so it runs in the browser). It is how the studio is developed and tested without an engine, and what Use the demo
-switches to. It is not claudius' sound.
+reacts to edits the way the real verdict reads; and a render, a slice per frame (no threads, so it runs in the
+browser). It is how the studio is developed and tested without an engine, and what Use the demo switches to.
 
 ```sh
 cargo run -p claudius-ui -- --mock          # the native studio on the demo song
@@ -132,6 +131,33 @@ CLAUDIUS_MOCK=1 cargo run -p claudius-ui
 ```
 
 On the web, `?mock` in the URL does the same.
+
+### The demo's sounds
+
+The render plays claudius' own sounds: each of the synth presets, rendered by the engine at a note every half octave
+across its register, and the TR-707 and TR-808 drum machines (public domain and CC0, so the site may pass them on),
+with the 707's kick replaced by claudius' synthesized one, which has the body a house kick needs.
+`crates/claudius/examples/demo_sounds.rs` makes them, as Ogg Vorbis files and a `kit.json` that gives each file's
+note, length and K-weighted energy over time; `cargo xtask site --sounds` puts them at `/studio/sounds/`, installing
+the two packs into `target/demo-sounds/`.
+
+`mock/kit.rs` fetches the manifest, then only the files a song plays: its genre's machine for each drum lane (the 808
+for trap, lo-fi and future bass, the 707 for the rest), each part's preset within half an octave of its register,
+and the effects. They are decoded in Rust (symphonia), as browsers before Safari 18.4 cannot decode Vorbis. A render
+waits up to ten seconds for them; after that the synth plays what has not come, and the song renders again, without
+waiting, as more of it arrives.
+
+`mock/synth.rs` sets each track to the loudness claudius' mix gives its role (`render::target_level`), from each
+sound's energy and how much the track plays it, then renders in stereo at 48 kHz: the tracks' levels and pans, ducking
+under the kick by their `duck`, sends into a dotted-eighth ping-pong delay and a reverb (Freeverb), and a soft clip
+that brings the master to the genre's loudness (its `mix.lufs`, -10 LUFS for house), under -1 dBFS. Without the sounds (a local site
+built without `--sounds`, a studio served by `claudius serve`), a rough synth stands in. Natively,
+`CLAUDIUS_DEMO_SOUNDS` names their folder or address:
+
+```sh
+cargo xtask site --sounds
+CLAUDIUS_DEMO_SOUNDS=target/site/studio/sounds cargo run -p claudius-ui -- --mock
+```
 
 ## Scripted runs
 

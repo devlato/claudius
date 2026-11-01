@@ -104,7 +104,7 @@ push to `main`, which changes only through pull requests.
 | `cargo build -p claudius-cli --no-default-features --features ears` | `claudius` without the studio window: the headless build | `target/debug` |
 | `cargo xtask web` | the web studio, with trunk | `crates/claudius-ui/dist` |
 | `cargo xtask docs` | this book | `target/book` |
-| `cargo xtask site` | the website: the landing page, the book at `/docs/`, the studio at `/studio/` and the install scripts | `target/site` |
+| `cargo xtask site` | the website: the landing page, the book at `/docs/`, the studio at `/studio/` and the install scripts; `--sounds` also renders the sounds the studio's demo plays into `/studio/sounds/`, as the deploy does, downloading the TR-707 and TR-808 packs (14 MB) into `target/demo-sounds` | `target/site` |
 | `cargo xtask dist` | a release archive for this machine, as the release workflow builds it (`--headless` for the Linux server build, `--no-ears` without the ears) | `target/dist` |
 
 The first build downloads ONNX Runtime (about 120 MB) for earshot, into `~/Library/Caches/ort.pyke.io` on macOS and
@@ -139,6 +139,7 @@ and the examples in the docs. CI runs more; when you changed the matching part, 
 | you changed | run |
 |---|---|
 | the docs or the site | `cargo xtask site`, then `lychee --offline --include-fragments --root-dir "$PWD/target/site" 'target/site/**/*.html'` for the links, and `npm ci && npx playwright test` in `site/` |
+| the demo's sounds or its render (`crates/claudius-ui/src/mock/`, `demo_sounds.rs`, the synth presets) | `cargo xtask site --sounds`, then `node site/tests/serve.mjs` and listen to `http://127.0.0.1:4321/studio/?mock` |
 | dependencies | `cargo deny check` |
 | anything with words in it | `typos` |
 | workflows or scripts | `actionlint` and `shellcheck scripts/*.sh scripts/ci/*.sh .githooks/*` |
