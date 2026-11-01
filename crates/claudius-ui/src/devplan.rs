@@ -1,5 +1,7 @@
-//! A scripted run for checking the studio without a person at the screen (native only): env `CLAUDIUS_UI_PLAN` is a
-//! `;`-separated list of steps, e.g. `wait:4;shot:/tmp/a.png;tab:mixer;play;wait:2;shot:/tmp/b.png;exit`.
+//! A scripted run for checking the studio without a person at the screen: env `CLAUDIUS_UI_PLAN` is a `;`-separated
+//! list of steps, e.g. `wait:4;shot:/tmp/a.png;tab:mixer;play;wait:2;shot:/tmp/b.png;exit`. A web build with the
+//! `plan` feature (for tests only) takes the page's `?plan=` instead, and leaves out screenshots and pointer input.
+//! What the Record window says goes to stderr (the browser's console), as `record: ...`.
 //! Steps: `wait:<s>`, `tab:<sequencer|mixer|parts|harmony|script|log>`, `section:<i>`, `play`, `pause`, `seek:<s>`,
 //! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `record` (the Record window), `rec:<start|stop|measure>`
 //! (a take, or the latency), `cmd:<command json>`, `size:<w>,<h>`, `script:<code; \n for a newline, %3B for ;>` (into
@@ -54,24 +56,50 @@ pub enum Rec {
 pub struct Plan {
     steps: VecDeque<String>,
     until: f64,
+    /// what was last told of each thing it tells
+    told: std::collections::HashMap<&'static str, String>,
     /// the screenshot being taken: done flag, file, when it was asked for
     shot: Option<(Arc<AtomicBool>, String, f64)>,
     /// pointer events to feed in, one batch per frame
     input: VecDeque<(Vec<egui::Event>, egui::Modifiers)>,
 }
 
+/// a line for whoever runs the plan: stderr, or the browser's console
+pub fn say(line: &str) {
+    #[cfg(not(target_arch = "wasm32"))]
+    eprintln!("{line}");
+    #[cfg(target_arch = "wasm32")]
+    web_sys::console::log_1(&line.into());
+}
+
 impl Plan {
     pub fn from_env() -> Option<Plan> {
+        #[cfg(not(target_arch = "wasm32"))]
         let plan = std::env::var("CLAUDIUS_UI_PLAN").ok()?;
+        #[cfg(target_arch = "wasm32")]
+        let plan =
+            web_sys::UrlSearchParams::new_with_str(&web_sys::window()?.location().search().ok()?).ok()?.get("plan")?;
         Some(Plan {
             steps: plan.split(';').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect(),
             until: 0.0,
+            told: Default::default(),
             shot: None,
             input: VecDeque::new(),
         })
     }
 
+    /// says `what` of `thing` when it is not what was said of it last
+    pub fn tell(&mut self, thing: &'static str, what: &str) {
+        if self.told.get(thing).is_none_or(|t| t != what) {
+            if !what.is_empty() {
+                say(&format!("{thing}: {what}"));
+            }
+            self.told.insert(thing, what.to_string());
+        }
+    }
+
     /// feeds the next batch of synthetic input (call from `App::raw_input_hook`)
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn feed(&mut self, raw: &mut egui::RawInput) {
         if let Some((events, modifiers)) = self.input.pop_front() {
             raw.events.push(egui::Event::ModifiersChanged(modifiers));
@@ -91,6 +119,12 @@ impl Plan {
         self.input.push_back((Vec::new(), egui::Modifiers::NONE));
     }
 
+    #[cfg(target_arch = "wasm32")]
+    fn shoot(&mut self, _ctx: &egui::Context, path: String, _now: f64) {
+        say(&format!("no screenshot {path}: screenshots are the app's"));
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     fn shoot(&mut self, ctx: &egui::Context, path: String, now: f64) {
         let done = Arc::new(AtomicBool::new(false));
         self.shot = Some((done.clone(), path.clone(), now));
@@ -149,7 +183,7 @@ impl Plan {
                 "stop" => Some(Step::Rec(Rec::Stop)),
                 "measure" => Some(Step::Rec(Rec::Measure)),
                 _ => {
-                    eprintln!("a plan's rec is rec:start, rec:stop or rec:measure, not '{step}'");
+                    say(&format!("a plan's rec is rec:start, rec:stop or rec:measure, not '{step}'"));
                     None
                 }
             },
@@ -157,17 +191,21 @@ impl Plan {
             "cmd" => match serde_json::from_str(arg) {
                 Ok(c) => Some(Step::Send(c)),
                 Err(e) => {
-                    eprintln!("bad command in plan: {e}");
+                    say(&format!("bad command in plan: {e}"));
                     None
                 }
             },
+            "click" | "rclick" | "drag" | "sdrag" | "move" if cfg!(target_arch = "wasm32") => {
+                say(&format!("'{step}' skipped: pointer input is the app's"));
+                None
+            }
             "click" | "rclick" | "drag" | "sdrag" => {
                 let n: Vec<f32> = arg.split(',').filter_map(|v| v.trim().parse().ok()).collect();
                 let (from, to) = match n.as_slice() {
                     [x, y] => (egui::pos2(*x, *y), egui::pos2(*x, *y)),
                     [x1, y1, x2, y2] => (egui::pos2(*x1, *y1), egui::pos2(*x2, *y2)),
                     _ => {
-                        eprintln!("bad coordinates in '{step}'");
+                        say(&format!("bad coordinates in '{step}'"));
                         return None;
                     }
                 };
@@ -194,7 +232,7 @@ impl Plan {
             }
             "exit" => Some(Step::Exit),
             other => {
-                eprintln!("unknown plan step '{other}'");
+                say(&format!("unknown plan step '{other}'"));
                 None
             }
         }
@@ -202,6 +240,7 @@ impl Plan {
 }
 
 /// an uncompressed RGBA PNG
+#[cfg(not(target_arch = "wasm32"))]
 fn png(image: &egui::ColorImage) -> Vec<u8> {
     fn crc32(data: &[u8]) -> u32 {
         let mut crc = !0u32;

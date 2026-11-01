@@ -8,10 +8,13 @@ use std::sync::Arc;
 mod native;
 #[cfg(not(target_arch = "wasm32"))]
 pub use native::Player;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod latency;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod record;
+#[cfg(target_arch = "wasm32")]
+#[path = "web_record.rs"]
+pub mod record;
+pub mod take;
 
 #[cfg(target_arch = "wasm32")]
 mod web;
@@ -34,7 +37,6 @@ impl Pcm {
         self.frames() as f64 / self.rate.max(1) as f64
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn decode_wav(bytes: &[u8]) -> Result<Pcm, String> {
         let mut reader =
             hound::WavReader::new(std::io::Cursor::new(bytes)).map_err(|e| format!("not a WAV file: {e}"))?;

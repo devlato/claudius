@@ -136,7 +136,6 @@ pub fn top_row(ui: &mut Ui, cx: &mut Cx) {
             }
         });
         // a take goes to claudius, which keeps it with the song: there is no recording in the demo
-        #[cfg(not(target_arch = "wasm32"))]
         if cx.server.is_some() {
             let recording = cx.view.record.recording();
             let tip = if recording { "stop recording" } else { "record a take: a voice or an instrument" };

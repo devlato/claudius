@@ -79,7 +79,7 @@ pub struct Studio {
     pub fallback_to_demo: bool,
     /// what the native app can do on this computer (connect assistants); none on the web
     pub native: Option<Arc<dyn Native>>,
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
     plan: Option<crate::devplan::Plan>,
 }
 
@@ -139,7 +139,7 @@ impl Studio {
             loop_region: None,
             fallback_to_demo: false,
             native: None,
-            #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
             plan: crate::devplan::Plan::from_env(),
         }
     }
@@ -392,7 +392,7 @@ impl Studio {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
     fn run_plan(&mut self, ctx: &egui::Context, now: f64) {
         use crate::devplan::{Rec, Step};
         let Some(plan) = self.plan.as_mut() else { return };
@@ -435,6 +435,8 @@ impl Studio {
                 Step::Exit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             }
         }
+        // what the Record window says, for whoever runs the plan to read
+        plan.tell("record", &self.view.record.said());
     }
 
     fn reference_window(&mut self, ctx: &egui::Context) {
@@ -802,7 +804,7 @@ impl eframe::App for Studio {
         let now = ctx.input(|i| i.time);
         self.view.anchors = Default::default();
         self.shortcuts(&ctx);
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
         self.run_plan(&ctx, now);
 
         let bar = egui::Frame::new().fill(PANEL).inner_margin(Margin::symmetric(12, 0));
@@ -947,9 +949,9 @@ impl eframe::App for Studio {
         }
         panels::assistants::dialog(&ctx, &mut self.view.assistants, self.native.as_ref());
         // the first time, once the studio is up; a scripted run starts it only when asked
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
         let scripted = self.plan.is_some();
-        #[cfg(target_arch = "wasm32")]
+        #[cfg(all(target_arch = "wasm32", not(feature = "plan")))]
         let scripted = false;
         if self.has_state && !self.view.tour_done && self.view.tour.is_none() && !scripted {
             self.start_tour(0);
