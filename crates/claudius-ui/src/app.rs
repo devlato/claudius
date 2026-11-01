@@ -200,7 +200,7 @@ impl Studio {
                     }
                     self.view.analysis = Some((ok, message));
                 }
-                if what == "take" {
+                if what == "take" || what == "add_notes" {
                     match &result {
                         Ok(r) => self.view.record.answered(r.ok, r.message.clone()),
                         Err(e) => self.view.record.answered(false, format!("the take did not arrive: {e}")),

@@ -522,6 +522,22 @@ async fn a_take_sent_over_http_plays_and_goes_with_the_song() {
     assert!(song.tracks.iter().any(|t| t.name == "vox" && t.muted));
     app.settled(Duration::from_secs(240)).await;
 
+    // a chord played on a keyboard, from the first section: a part of its own
+    let first = song.sections[0].name.clone();
+    let chord: Vec<claudius_api::NoteView> =
+        [60, 64, 67].iter().map(|&p| claudius_api::NoteView { t: 0.0, d: 4.0, p, v: 0.8 }).collect();
+    let add = Command::AddNotes {
+        from: first,
+        notes: chord,
+        sounds: vec!["epiano".into()],
+        name: None,
+        role: Some("keys".into()),
+    };
+    let r = app.command(add);
+    assert!(r.ok && r.message.starts_with("3 notes from the start of intro"), "{}", r.message);
+    assert!(app.state().song.unwrap().tracks.iter().any(|t| t.name == "played" && t.role == "keys"));
+    app.settled(Duration::from_secs(240)).await;
+
     // saved elsewhere, the song takes its take along; that folder moved, opening it finds the take there
     assert!(app.command(Command::Save { path: Some(other.display().to_string()) }).ok);
     app.settled(Duration::from_secs(240)).await;

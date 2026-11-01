@@ -138,21 +138,8 @@ pub fn melody(bp: &mut Blueprint, take: &str, m: &Melody) -> Result<String, Stri
             format!("no take called '{take}' (takes: {})", names.join(" "))
         });
     };
-    let role = match m.role.as_deref().unwrap_or("lead") {
-        "lead" => Role::Lead,
-        "keys" => Role::Keys,
-        "chords" => Role::Chords,
-        "pad" => Role::Pad,
-        "arp" => Role::Arp,
-        "bass" => Role::Bass,
-        other => return Err(format!("a part is lead, keys, chords, pad, arp or bass, not '{other}'")),
-    };
-    if m.sounds.is_empty() {
-        return Err("play it with what? give a synth preset or an instrument, such as pluck or piano".into());
-    }
-    if let Some(s) = m.sounds.iter().find(|s| presets::get(s).is_none() && claudius_packs::resolve(s, None).is_none()) {
-        return Err(format!("no synth preset or installed instrument is called '{s}'"));
-    }
+    let role = role_of(m.role.as_deref())?;
+    check_sounds(&m.sounds)?;
     let (path, bpm) = match &bp.loops[t].sound {
         Sound::Loop { path, bpm, .. } => (path.clone(), *bpm),
         _ => return Err(format!("{take} is not a recording")),
@@ -165,16 +152,93 @@ pub fn melody(bp: &mut Blueprint, take: &str, m: &Melody) -> Result<String, Stri
             "{take} has no melody claudius can hear: it wants one note at a time, sung or played clearly"
         ));
     }
-    // where the take starts, and the sections it plays in from there, each with the stretch of the melody over it
+    // the take starts with its section, or the first that plays it when that one is gone; it lays notes over the
+    // sections that play it
+    let from = bp.loops[t].from.clone().unwrap_or_default();
+    let name = bp.loops[t].name.clone();
+    let first =
+        bp.form.iter().position(|s| s.name == from).or_else(|| bp.form.iter().position(|s| s.layers.contains(&name)));
+    let Some(first) = first else { return Err(format!("{take} plays in no section")) };
+    let base = m.name.clone().unwrap_or_else(|| "melody".into());
+    let made = parts_from_notes(bp, &notes, first, &|s| s.layers.contains(&name), &m.sounds, &base, role)?;
+    if !m.keep_take {
+        bp.loops[t].mix.mute = true;
+    }
+    bp.lineage.push(format!("{take} into notes: {} notes for {}", notes.len(), made.parts.join(", ")));
+    Ok(format!("{}{}", made.describe(take), if m.keep_take { "" } else { "; the take is muted" }))
+}
+
+/// what notes played on an instrument become
+#[derive(Clone, Debug, Default)]
+pub struct Played {
+    /// the sounds to play them with, one part each: synth presets or installed instruments ("pluck", "piano")
+    pub sounds: Vec<String>,
+    /// the first part's name (played when not given; the others are it with 2, 3 ... after it)
+    pub name: Option<String>,
+    /// lead (the default), keys, chords, pad, arp or bass
+    pub role: Option<String>,
+}
+
+/// Notes someone played (on a MIDI keyboard, say), in beats from the start of section `from`, chords and all, as new
+/// parts, one for each sound, in the sections they reach. Returns what was made, in words.
+pub fn played(bp: &mut Blueprint, from: &str, notes: &[Note], p: &Played) -> Result<String, String> {
+    let role = role_of(p.role.as_deref())?;
+    check_sounds(&p.sounds)?;
+    let Some(first) = bp.form.iter().position(|s| s.name == from) else {
+        let names: Vec<&str> = bp.form.iter().map(|s| s.name.as_str()).collect();
+        return Err(format!("no section '{from}' (sections: {})", names.join(" ")));
+    };
+    if notes.is_empty() {
+        return Err("no notes were played".into());
+    }
+    if let Some(n) = notes.iter().find(|n| !(0..=127).contains(&n.p) || n.t < 0.0 || n.d <= 0.0) {
+        return Err(format!(
+            "a note has to be a MIDI pitch from 0 to 127 played from the section's start on, not {n:?}"
+        ));
+    }
+    let base = p.name.clone().unwrap_or_else(|| "played".into());
+    let made = parts_from_notes(bp, notes, first, &|_| true, &p.sounds, &base, role)?;
+    bp.lineage.push(format!("played {} notes from {from} for {}", notes.len(), made.parts.join(", ")));
+    Ok(made.describe(&format!("the start of {from}")))
+}
+
+/// parts made from notes, and what to say of them
+struct Made {
+    notes: usize,
+    low: i32,
+    high: i32,
+    parts: Vec<String>,
+    sections: Vec<String>,
+}
+
+impl Made {
+    /// "12 notes from take1, G3 to D5, played by melody (piano) in chorus"
+    fn describe(&self, from: &str) -> String {
+        let (low, high) = (crate::theory::scale::note_name(self.low), crate::theory::scale::note_name(self.high));
+        format!(
+            "{} note{} from {from}, {low} to {high}, played by {} in {}",
+            self.notes,
+            if self.notes == 1 { "" } else { "s" },
+            self.parts.join(", "),
+            self.sections.join(", ")
+        )
+    }
+}
+
+/// Notes, in beats from the start of section `first`, as the notes of new parts (one for each sound, the first named
+/// `base`), on in each section from `first` on that `covers` and the notes reach. Each such section keeps the stretch
+/// of the notes over it, by its progression: a later section with a progression already played over plays the first's.
+fn parts_from_notes(
+    bp: &mut Blueprint,
+    notes: &[Note],
+    first: usize,
+    covers: &dyn Fn(&crate::model::SectionSpec) -> bool,
+    sounds: &[String],
+    base: &str,
+    role: Role,
+) -> Result<Made, String> {
     let starts: Vec<f64> =
         bp.form.iter().scan(0.0, |at, s| Some(std::mem::replace(at, *at + s.bars as f64 * 4.0))).collect();
-    let from = bp.loops[t].from.clone().unwrap_or_default();
-    let first = bp
-        .form
-        .iter()
-        .position(|s| s.name == from)
-        .or_else(|| bp.form.iter().position(|s| s.layers.contains(&bp.loops[t].name)));
-    let Some(first) = first else { return Err(format!("{take} plays in no section")) };
     let end = notes.iter().map(|n| n.t + n.d).fold(0.0, f64::max) + starts[first];
     let mut by_prog: BTreeMap<String, Vec<Note>> = BTreeMap::new();
     let mut sections = Vec::new();
@@ -183,35 +247,35 @@ pub fn melody(bp: &mut Blueprint, take: &str, m: &Melody) -> Result<String, Stri
         if a >= end {
             break;
         }
-        if !s.layers.contains(&bp.loops[t].name) {
+        if !covers(s) {
             continue;
         }
-        // every note sounding in the section: one held over from the section before goes on from its start
+        // every note sounding in the section: one held over from the section before goes on from its start, unless
+        // what is left of it is a sliver; a note that starts here is kept however short
         let over: Vec<Note> = notes
             .iter()
             .filter_map(|n| {
                 let (t, end) = (n.t + starts[first] - a, n.t + starts[first] - a + n.d);
                 let (from, to) = (t.max(0.0), end.min(b - a));
-                (to - from >= 1.0 / 16.0).then_some(Note { t: from, d: to - from, ..*n })
+                let keep = if t >= 0.0 { t < b - a } else { to - from >= 1.0 / 16.0 };
+                keep.then_some(Note { t: from, d: to - from, ..*n })
             })
             .collect();
         if !over.is_empty() {
-            // a section with a progression already sung over plays what was sung over it first
             by_prog.entry(s.prog.clone()).or_insert(over);
             sections.push(i);
         }
     }
     let low = notes.iter().map(|n| n.p).min().unwrap_or(60);
     let high = notes.iter().map(|n| n.p).max().unwrap_or(72);
-    let base = m.name.clone().unwrap_or_else(|| "melody".into());
     if !base.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
         return Err(format!("'{base}' cannot name a track: use letters, digits, - and _"));
     }
     let mut taken = bp.layer_names();
-    let mut made = Vec::new();
+    let mut parts = Vec::new();
     // the parts take the free names of base, base2, base3 ... in turn
-    let mut names = (1..).map(|k| if k == 1 { base.clone() } else { format!("{base}{k}") });
-    for sound in &m.sounds {
+    let mut names = (1..).map(|k| if k == 1 { base.to_string() } else { format!("{base}{k}") });
+    for sound in sounds {
         let name = names.by_ref().find(|n| !taken.contains(n)).unwrap_or_default();
         let seed = hash_str(&name) ^ bp.seed;
         bp.parts.push(Part {
@@ -232,23 +296,32 @@ pub fn melody(bp: &mut Blueprint, take: &str, m: &Melody) -> Result<String, Stri
             bp.form[i].layers.push(name.clone());
         }
         taken.push(name.clone());
-        made.push(format!("{name} ({sound})"));
+        parts.push(format!("{name} ({sound})"));
     }
-    if !m.keep_take {
-        bp.loops[t].mix.mute = true;
+    let sections = sections.iter().map(|&i| bp.form[i].name.clone()).collect();
+    Ok(Made { notes: notes.len(), low, high, parts, sections })
+}
+
+fn role_of(role: Option<&str>) -> Result<Role, String> {
+    Ok(match role.unwrap_or("lead") {
+        "lead" => Role::Lead,
+        "keys" => Role::Keys,
+        "chords" => Role::Chords,
+        "pad" => Role::Pad,
+        "arp" => Role::Arp,
+        "bass" => Role::Bass,
+        other => return Err(format!("a part is lead, keys, chords, pad, arp or bass, not '{other}'")),
+    })
+}
+
+fn check_sounds(sounds: &[String]) -> Result<(), String> {
+    if sounds.is_empty() {
+        return Err("play it with what? give a synth preset or an instrument, such as pluck or piano".into());
     }
-    let names: Vec<String> = sections.iter().map(|&i| bp.form[i].name.clone()).collect();
-    bp.lineage.push(format!("{take} into notes: {} notes for {}", notes.len(), made.join(", ")));
-    Ok(format!(
-        "{} note{} from {take}, {} to {}, played by {} in {}{}",
-        notes.len(),
-        if notes.len() == 1 { "" } else { "s" },
-        crate::theory::scale::note_name(low),
-        crate::theory::scale::note_name(high),
-        made.join(", "),
-        names.join(", "),
-        if m.keep_take { "" } else { "; the take is muted" },
-    ))
+    match sounds.iter().find(|s| presets::get(s).is_none() && claudius_packs::resolve(s, None).is_none()) {
+        Some(s) => Err(format!("no synth preset or installed instrument is called '{s}'")),
+        None => Ok(()),
+    }
 }
 
 /// the style a part of `role` is written in when it plays a section its notes do not cover
@@ -531,6 +604,38 @@ mod tests {
         add(&mut bp, &quiet, 1.0, &from, Some("hush"), None).unwrap();
         assert!(melody(&mut bp, "hush", &pluck).unwrap_err().contains("no melody"));
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn notes_played_on_a_keyboard_become_parts_chords_and_all() {
+        let mut bp = song();
+        bp.form[1].bars = 4;
+        let from = bp.form[1].name.clone();
+        let chord = |t: f64| [60, 64, 67].map(|p| Note { t, d: 2.0, p, v: 0.8 });
+        // two chords in the section, and one held into the next
+        let notes: Vec<Note> = [0.0, 8.0, 14.0].iter().flat_map(|&t| chord(t)).collect();
+        let p = Played { sounds: vec!["epiano".into()], role: Some("keys".into()), ..Default::default() };
+        let msg = played(&mut bp, &from, &notes, &p).unwrap();
+        assert!(
+            msg.starts_with(&format!("9 notes from the start of {from}, C4 to G4, played by played (epiano)")),
+            "{msg}"
+        );
+        let part = bp.parts.iter().find(|p| p.name == "played").unwrap();
+        assert_eq!(part.role, Role::Keys);
+        assert_eq!(part.notes[&bp.form[1].prog].len(), 9, "chords stay chords");
+        let next = bp.form[2].name.clone();
+        assert!(
+            bp.form[1].layers.contains(&part.name) && msg.contains(&next) == bp.form[2].layers.contains(&part.name)
+        );
+        assert!(played(&mut bp, "nowhere", &notes, &p).unwrap_err().contains("no section 'nowhere'"));
+        assert!(played(&mut bp, &from, &[], &p).unwrap_err().contains("no notes"));
+        let wild = [Note { t: 0.0, d: 1.0, p: 200, v: 1.0 }];
+        assert!(played(&mut bp, &from, &wild, &p).is_err());
+        // staccato hits, a sixty-fourth of a beat each, are notes like any other
+        let hits: Vec<Note> = (0..4).map(|k| Note { t: k as f64, d: 1.0 / 64.0, p: 72, v: 0.9 }).collect();
+        played(&mut bp, &from, &hits, &Played { name: Some("hits".into()), ..p.clone() }).unwrap();
+        let hits = bp.parts.iter().find(|p| p.name == "hits").unwrap();
+        assert_eq!(hits.notes[&bp.form[1].prog].len(), 4);
     }
 
     #[test]

@@ -71,6 +71,10 @@ form([sec("intro", 8, "drums keys"), sec("drop", 16, "*").impact(), sec("break",
   `blueprint.json` (`mix.master` and `mix.buses`), which `claudius render` plays after a careful edit.
 - An error names the line and what it accepts (`unknown sound 'bdd' (drums: bd kick ...)`). Fix that and run again;
   don't guess around it.
+- **Exact notes.** For a melody, a bass line or chords you write out, or that the person dictates, use `add_notes`. It
+  takes the section the notes start with and each note's start and length in beats, its MIDI pitch (60 is middle C)
+  and its velocity. They become a new part playing `sounds`. Patterns are for loops; `add_notes` is for a line that
+  should be exactly so.
 
 ## Reading the verdict
 

@@ -69,6 +69,10 @@ an audio interface, in the studio app.
   so to hear yourself without delay, use your interface's direct monitoring.
 - **Timing.** If takes land late or early, use the Latency setting. Bluetooth headphones, for one, add a delay the
   system may not report.
+- **A MIDI keyboard.** Choose it as the input, then what plays your notes (an instrument or a synth), the part they make
+  (keys, a lead, chords, a pad, an arp or a bass) and the grid they go to, or "as played". While you record, a soft
+  guide tone plays what you play, for a keyboard with no sound of its own. When you stop, the notes become a new part
+  ([Notes played on a keyboard](../guide/samples.md#notes-played-on-a-keyboard)).
 
 ## Help and assistants
 

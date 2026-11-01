@@ -154,6 +154,15 @@ afterwards, whose sound, level and sections you change as you would any other's.
   progression. Another section with that progression plays the same notes, and a section the part is turned on in
   later, which the take never covered, has the part write its own.
 
+### Notes played on a keyboard
+
+What you play on a MIDI keyboard in the studio's [Record](../getting-started/studio.md#the-panels) window, chords and
+all, becomes a new part named `played`, which the instrument or synth you choose plays. The notes go onto the grid
+you choose, or stay as played. Over the [HTTP API](http-api.md#commands) and MCP, `add_notes` does the same with
+notes given one by one: `t` and `d` in beats from the start of section `from`, `p` a MIDI pitch (60 is middle C) and
+`v` a velocity from 0 to 1. Like a take's melody, the notes go into the sections they reach, by each section's
+progression.
+
 ## Files in scripts
 
 A script plays any audio file through [`.s()`](../language/sounds.md#your-own-files) on a `note()`, `n()` or

@@ -342,6 +342,35 @@ pub struct TakeArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct NoteArg {
+    /// where it starts, in beats from the section's start
+    pub t: f64,
+    /// how long it lasts, in beats
+    pub d: f64,
+    /// its MIDI pitch: 60 is middle C, 69 the A above it
+    pub p: i32,
+    /// how hard it is played, 0..1 (default 0.8)
+    #[serde(default)]
+    pub v: Option<f32>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct NotesArgs {
+    /// the section the notes start with, by name (get_song lists them)
+    pub from: String,
+    /// the notes, several at once for a chord
+    pub notes: Vec<NoteArg>,
+    /// what plays them, one new part each: synth presets or installed instruments (catalog lists them)
+    pub sounds: Vec<String>,
+    /// the first part's name: letters, digits, - and _ (default played)
+    #[serde(default)]
+    pub name: Option<String>,
+    /// lead (default), keys, chords, pad, arp or bass
+    #[serde(default)]
+    pub role: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct TranscribeArgs {
     /// the take's name (get_song lists its tracks; a take's kind is "take")
     pub take: String,
@@ -679,6 +708,15 @@ impl Studio {
     }
 
     #[tool(
+        description = "Write notes into the song: a melody, a bass line or chords, note by note, in beats from the start of section `from` (t start, d length, p MIDI pitch with 60 middle C, v velocity 0..1; notes at the same t make a chord). They become the notes of new parts, one playing each of `sounds` (synth presets or installed instruments), on in the sections the notes reach; a section keeps the notes over it by its progression, and other sections with that progression play the same. The parts are ordinary parts afterwards: set_part changes their sound."
+    )]
+    async fn add_notes(&self, Parameters(a): Parameters<NotesArgs>) -> Result<String, String> {
+        let notes =
+            a.notes.iter().map(|n| claudius_api::NoteView { t: n.t, d: n.d, p: n.p, v: n.v.unwrap_or(0.8) }).collect();
+        self.edit(Command::AddNotes { from: a.from, notes, sounds: a.sounds, name: a.name, role: a.role }, true).await
+    }
+
+    #[tool(
         description = "Turn a take's melody into notes: a take sung, hummed, whistled or played one note at a time becomes the notes of new parts, one playing each of `sounds` (synth presets or installed instruments, so several make a set of instruments on one melody), in the song's key and on its sixteenth-note grid, in the sections the take plays in. The take is muted unless keep_take. The parts are ordinary parts afterwards: set_part changes their sound."
     )]
     async fn transcribe_take(&self, Parameters(a): Parameters<TranscribeArgs>) -> Result<String, String> {
@@ -694,7 +732,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Send one raw claudius API command (JSON tagged by \"cmd\"), for edits scripts do not cover: add_section {after, kind, bars}, remove_section {index}, move_section {from, to}, toggle_layer {section, layer}, set_drum_step {lane, variant, step, velocity}, set_section {index, name?, bars?, energy?, layers?, prog?, variant?, build?, gap?, impact?, fills?, filter_in?}, set_part {name, style?, preset?, register?, density?, reseed?}, set_mix {track, level_db?, pan?, reverb?, delay?, duck?, muted?, solo?}, add_take {path, from, name?, role?}, transcribe_take {take, sounds, name?, role?, chromatic?, keep_take?}."
+        description = "Send one raw claudius API command (JSON tagged by \"cmd\"), for edits scripts do not cover: add_section {after, kind, bars}, remove_section {index}, move_section {from, to}, toggle_layer {section, layer}, set_drum_step {lane, variant, step, velocity}, set_section {index, name?, bars?, energy?, layers?, prog?, variant?, build?, gap?, impact?, fills?, filter_in?}, set_part {name, style?, preset?, register?, density?, reseed?}, set_mix {track, level_db?, pan?, reverb?, delay?, duck?, muted?, solo?}, add_take {path, from, name?, role?}, transcribe_take {take, sounds, name?, role?, chromatic?, keep_take?}, add_notes {from, notes: [{t, d, p, v}], sounds, name?, role?}."
     )]
     async fn command(&self, Parameters(a): Parameters<CommandArgs>) -> Result<String, String> {
         let c: Command = serde_json::from_value(a.command).map_err(|e| format!("not a claudius command: {e}"))?;

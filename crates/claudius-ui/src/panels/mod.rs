@@ -337,6 +337,18 @@ pub fn layer_color(song: &SongView, layer: &str) -> Color32 {
     theme::role_color(role)
 }
 
+/// the synth presets offered to play a melody or a part played in
+const MELODIC: &[&str] =
+    &["pluck", "bell", "epiano", "keys", "square_lead", "supersaw", "strings", "organ", "chip", "stab", "pad"];
+
+/// what may play a melody: the installed instruments (not a drum machine's hits), and the synths made for a line
+pub fn melodic_sounds(sounds: Option<&SoundList>) -> (Vec<String>, Vec<String>) {
+    let Some(s) = sounds else { return (Vec::new(), Vec::new()) };
+    let instruments = s.instruments.iter().filter(|i| !i.contains(':')).cloned().collect();
+    let synths = s.synths.iter().filter(|p| MELODIC.contains(&p.as_str())).cloned().collect();
+    (instruments, synths)
+}
+
 pub fn small(text: impl Into<String>) -> RichText {
     RichText::new(text).size(11.0).color(TEXT_DIM)
 }

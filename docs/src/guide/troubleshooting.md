@@ -201,6 +201,13 @@ When the Record window says `nothing is coming in`, or a take arrives silent:
 - **The input is turned down.** Check the gain knob on the interface, or the input level in the system's sound
   settings.
 
+## A MIDI keyboard is not in the Record window
+
+The Record window lists the MIDI inputs there are when it opens: plug the keyboard in first, then open the window
+again. A keyboard that needs a driver, or one that only connects over Bluetooth MIDI, has to show up in the system
+first: on a Mac, in Audio MIDI Setup's MIDI Studio window. When the notes arrive but sound late, set the window's
+**Latency**, as for an audio take.
+
 ## A take lands early or late
 
 claudius lines a take up with what you heard from the times the audio devices report. Some delays are not reported,
