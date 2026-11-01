@@ -112,7 +112,6 @@ mod tests {
 }
 
 /// played notes as notes in beats from the take's start, `beat` seconds each, on a grid of `grid` beats (0: as played)
-#[cfg(not(target_arch = "wasm32"))]
 fn to_beats(played: &[crate::audio::record::Played], beat: f64, grid: f64) -> Vec<claudius_api::NoteView> {
     let snap = |b: f64| if grid > 0.0 { (b / grid).round() * grid } else { b };
     let shortest = if grid > 0.0 { grid } else { 1.0 / 64.0 };
@@ -178,7 +177,6 @@ struct Live {
     /// notes)
     take_start: f64,
     song_end: f64,
-    #[cfg(not(target_arch = "wasm32"))]
     beat: f64,
     /// it records what a MIDI input plays
     midi: bool,
@@ -466,13 +464,26 @@ fn input(ui: &mut Ui, r: &mut Record) {
                     (r.settings.input, r.settings.midi) = (Some(i.name.clone()), None);
                 }
             }
-            if !r.midi_inputs.is_empty() {
+            let offer = crate::audio::record::midi_offer();
+            if !r.midi_inputs.is_empty() || offer.is_some() {
                 ui.label(small("MIDI").weak());
             }
             for m in &r.midi_inputs {
                 if ui.selectable_label(r.settings.midi.as_ref() == Some(m), m).clicked() {
                     r.settings.midi = Some(m.clone());
                 }
+            }
+            // a browser asks the person before the page may use MIDI keyboards
+            match offer {
+                Some((what, true)) => {
+                    if ui.selectable_label(false, &what).clicked() {
+                        crate::audio::record::ask_for_midi();
+                    }
+                }
+                Some((why, false)) => {
+                    ui.label(small(why).weak());
+                }
+                None => {}
             }
         });
         if r.settings.midi.is_some() {
@@ -614,7 +625,6 @@ fn begin(cx: &mut Cx, song: &SongView) {
                 recorder,
                 take_start: start,
                 song_end: end,
-                #[cfg(not(target_arch = "wasm32"))]
                 beat,
                 midi,
                 measuring: false,
@@ -642,7 +652,6 @@ fn measure_latency(cx: &mut Cx) {
                 recorder,
                 take_start: 0.0,
                 song_end: end,
-                #[cfg(not(target_arch = "wasm32"))]
                 beat: 0.5,
                 midi: false,
                 measuring: true,
@@ -734,7 +743,6 @@ fn done(cx: &mut Cx) {
             r.sending = true;
             r.upload = Some(Upload { wav, from, name, role: r.settings.role.clone() });
         }
-        #[cfg(not(target_arch = "wasm32"))]
         Ok(Take::Notes(played)) => {
             let notes = to_beats(&played, live.beat, r.settings.grid);
             r.status = Some((true, format!("sending {} notes to claudius ...", notes.len())));
@@ -760,7 +768,11 @@ fn keep_up(ctx: &egui::Context, cx: &mut Cx) {
         finish(cx);
         return;
     }
-    if std::mem::take(&mut r.start)
+    // a plan's start waits while the song loads for the take, as a person waits for the Record button
+    let loading = r.start && cx.player.has_audio() && matches!(song_audio(cx), Ok(None));
+    let r = &mut cx.view.record;
+    if !loading
+        && std::mem::take(&mut r.start)
         && r.live.is_none()
         && let Some(song) = cx.state.song.clone()
     {
@@ -815,10 +827,12 @@ fn listen(ctx: &egui::Context, r: &mut Record) {
         (r.listener, r.deaf, r.deaf_why, r.level) = (None, None, None, 0.0);
         return;
     }
-    // a browser lists its inputs when it gets round to it, and names them once the page may use the microphone
+    // a browser lists its inputs when it gets round to it, names them once the page may use the microphone, and
+    // lists MIDI keyboards once it may use those
     #[cfg(target_arch = "wasm32")]
     {
         r.inputs = crate::audio::record::inputs();
+        r.midi_inputs = crate::audio::record::midi_inputs();
     }
     // a channel remembered from another input may be one this input does not have
     let shown = r.settings.input.clone().filter(|n| r.inputs.iter().any(|i| i.name == *n));

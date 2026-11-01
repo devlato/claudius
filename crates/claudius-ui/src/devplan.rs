@@ -1,13 +1,16 @@
 //! A scripted run for checking the studio without a person at the screen: env `CLAUDIUS_UI_PLAN` is a `;`-separated
 //! list of steps, e.g. `wait:4;shot:/tmp/a.png;tab:mixer;play;wait:2;shot:/tmp/b.png;exit`. A web build with the
 //! `plan` feature (for tests only) takes the page's `?plan=` instead, and leaves out screenshots and pointer input.
-//! What the Record window says goes to stderr (the browser's console), as `record: ...`.
+//! What the Record window says goes to stderr (the browser's console), as `record: ...`, and what it offers for MIDI
+//! keyboards, as `midi: ...`.
 //! Steps: `wait:<s>`, `tab:<sequencer|mixer|parts|harmony|script|log>`, `section:<i>`, `play`, `pause`, `seek:<s>`,
-//! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `record` (the Record window), `rec:<start|stop|measure>`
-//! (a take, or the latency), `cmd:<command json>`, `size:<w>,<h>`, `script:<code; \n for a newline, %3B for ;>` (into
-//! the editor), `run`, `audiopath:<file>` (the editor's script), `reference`, `shot:<file.png>` (the window as rendered),
-//! `exit`, and synthetic pointer input in points: `move:x,y`, `click:x,y`, `rclick:x,y`, `drag:x1,y1,x2,y2`,
-//! `sdrag:x1,y1,x2,y2` (with shift).
+//! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `record` (the Record window),
+//! `rec:<start|stop|measure>` (a take, or the latency), `rec:allow-midi`, `rec:midi:<input>` (a MIDI input chosen),
+//! `rec:grid:<beats>` (its notes' grid, 0 as played), `cmd:<command json>`,
+//! `size:<w>,<h>`,
+//! `script:<code; \n for a newline, %3B for ;>` (into the editor), `run`, `audiopath:<file>` (the editor's script),
+//! `reference`, `shot:<file.png>` (the window as rendered), `exit`, and synthetic pointer input in points: `move:x,y`,
+//! `click:x,y`, `rclick:x,y`, `drag:x1,y1,x2,y2`, `sdrag:x1,y1,x2,y2` (with shift).
 
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -43,7 +46,7 @@ pub enum Step {
     Exit,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Rec {
     /// a take starts, as the Record button starts one
     Start,
@@ -51,6 +54,12 @@ pub enum Rec {
     Stop,
     /// the latency is measured, as the Measure button measures it
     Measure,
+    /// the MIDI input of that name is chosen
+    Midi(String),
+    /// a MIDI take's notes go to a grid of this many beats (0: as played)
+    Grid(f64),
+    /// the page asks the browser for MIDI keyboards, as choosing "let the page use them" does
+    AllowMidi,
 }
 
 pub struct Plan {
@@ -182,10 +191,18 @@ impl Plan {
                 "start" => Some(Step::Rec(Rec::Start)),
                 "stop" => Some(Step::Rec(Rec::Stop)),
                 "measure" => Some(Step::Rec(Rec::Measure)),
-                _ => {
-                    say(&format!("a plan's rec is rec:start, rec:stop or rec:measure, not '{step}'"));
-                    None
-                }
+                "allow-midi" => Some(Step::Rec(Rec::AllowMidi)),
+                other => match (other.strip_prefix("midi:"), other.strip_prefix("grid:").map(str::parse)) {
+                    (Some(name), _) => Some(Step::Rec(Rec::Midi(name.to_string()))),
+                    (_, Some(Ok(beats))) => Some(Step::Rec(Rec::Grid(beats))),
+                    _ => {
+                        say(&format!(
+                            "a plan's rec is rec:start, rec:stop, rec:measure, rec:allow-midi, rec:midi:<input> or \
+                             rec:grid:<beats>, not '{step}'"
+                        ));
+                        None
+                    }
+                },
             },
             "close" => Some(Step::Close),
             "cmd" => match serde_json::from_str(arg) {

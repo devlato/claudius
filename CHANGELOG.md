@@ -24,8 +24,7 @@ stereo, with reverb, delay and the kick's ducking, each track as loud as claudiu
 master at the genre's loudness.
 
 The studio records, in the app and in the browser: a take from a microphone or an audio interface, which plays
-once from the section it starts with and goes with the song, and, in the app, what a MIDI keyboard plays, as a
-part's notes. A sung, hummed or played line becomes notes for an instrument or several, as it is or as harmony,
+once from the section it starts with and goes with the song, and what a MIDI keyboard plays, as a part's notes. A sung, hummed or played line becomes notes for an instrument or several, as it is or as harmony,
 octaves, chords, a bass line, an arpeggio or a pad. **Measure** plays clicks and listens for them, so that takes land
 in time ([Takes](https://github.com/devlato/claudius/blob/main/docs/src/guide/samples.md#takes)).
 

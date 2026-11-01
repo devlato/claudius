@@ -45,10 +45,11 @@ wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = [
   "AudioBuffer", "AudioBufferSourceNode", "AudioContext", "AudioContextLatencyCategory", "AudioContextOptions",
-  "AudioContextState", "AudioDestinationNode", "AudioNode", "AudioScheduledSourceNode", "AudioWorklet",
+  "AudioContextState", "AudioDestinationNode", "AudioNode", "AudioParam", "AudioScheduledSourceNode", "AudioWorklet",
   "AudioWorkletNode", "AudioWorkletNodeOptions", "BaseAudioContext", "Blob", "BlobPropertyBag", "ChannelCountMode",
-  "console", "Document", "DomException", "Element", "HtmlAudioElement", "HtmlCanvasElement", "HtmlMediaElement",
-  "Location", "MediaDeviceInfo", "MediaDeviceKind", "MediaDevices", "MediaError", "MediaStream",
+  "console", "Document", "DomException", "Element", "Event", "GainNode", "HtmlAudioElement", "HtmlCanvasElement",
+  "HtmlMediaElement", "Location", "MediaDeviceInfo", "MediaDeviceKind", "MediaDevices", "MediaError", "MediaStream",
   "MediaStreamAudioSourceNode", "MediaStreamConstraints", "MediaStreamTrack", "MediaTrackSettings", "MessageEvent",
-  "MessagePort", "Navigator", "Url", "UrlSearchParams", "Window", "Worklet",
+  "MessagePort", "MidiAccess", "MidiInput", "MidiInputMap", "MidiMessageEvent", "MidiPort", "Navigator",
+  "OscillatorNode", "OscillatorType", "Performance", "Url", "UrlSearchParams", "Window", "Worklet",
 ] }

@@ -219,7 +219,15 @@ around it.
 
 The Record window lists the MIDI inputs there are when it opens: plug the keyboard in first, then open the window
 again. A keyboard that needs a driver, or one that only connects over Bluetooth MIDI, has to show up in the system
-first: on a Mac, in Audio MIDI Setup's MIDI Studio window. When the notes arrive but sound late, set the window's
+first: on a Mac, in Audio MIDI Setup's MIDI Studio window. In a browser:
+
+- **The page may not use MIDI keyboards yet.** Choose **MIDI keyboards: let the page use them** in the input list,
+  and allow it when the browser asks.
+- **`MIDI keyboards are blocked for this page`.** Allow MIDI devices in the site settings behind the icon at the left of
+  the address bar, then reload the page.
+- **`this browser has none`.** Safari has no Web MIDI: use Chrome, Edge or Firefox, or the app.
+
+When the notes arrive but sound late, set the window's
 **Latency** for MIDI, which it shows while the keyboard is the input: positive when the notes land late. Only the way
 out counts there (a key is timed as it is pressed), so it is not what **Measure** finds for an audio input.
 
