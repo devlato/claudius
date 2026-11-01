@@ -29,6 +29,7 @@ struct Prefs {
     children: usize,
     sevenths: bool,
     tour_done: bool,
+    record: panels::record::Settings,
 }
 
 impl Default for Prefs {
@@ -44,6 +45,7 @@ impl Default for Prefs {
             children: v.children,
             sevenths: v.sevenths,
             tour_done: v.tour_done,
+            record: v.record.settings,
         }
     }
 }
@@ -107,6 +109,7 @@ impl Studio {
             tour_done: prefs.tour_done,
             ..View::default()
         };
+        view.record.settings = prefs.record;
         view.volume = view.volume.clamp(0.0, 1.0);
         let backend = Backend::new(&connection, &cc.egui_ctx);
         let mut player = Player::new(&cc.egui_ctx);
@@ -196,6 +199,12 @@ impl Studio {
                         self.view.new_song.open = false;
                     }
                     self.view.analysis = Some((ok, message));
+                }
+                if what == "take" {
+                    match &result {
+                        Ok(r) => self.view.record.answered(r.ok, r.message.clone()),
+                        Err(e) => self.view.record.answered(false, format!("the take did not arrive: {e}")),
+                    }
                 }
                 let rejected = !matches!(&result, Ok(r) if r.ok);
                 if rejected && is_edit(&what) && self.pending.is_none() {
@@ -415,6 +424,7 @@ impl Studio {
                 }
                 Step::Assistants => self.view.assistants.show(),
                 Step::Publish => self.view.publish.show(),
+                Step::Record => self.view.record.show(),
                 Step::AudioPath(p) => self.view.audio_path = p,
                 Step::Exit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             }
@@ -912,11 +922,17 @@ impl eframe::App for Studio {
             };
             panels::transport::new_song_dialog(&ctx, &mut cx);
             panels::publish::dialog(&ctx, &mut cx);
+            panels::record::dialog(&ctx, &mut cx);
         }
         if let Some(bytes) = self.view.publish.upload.take() {
             self.inflight += 1;
             self.inflight_since = now;
             self.backend.upload_artwork(bytes);
+        }
+        if let Some(t) = self.view.record.upload.take() {
+            self.inflight += 1;
+            self.inflight_since = now;
+            self.backend.upload_take(t.wav, &t.from, t.name.as_deref(), &t.role);
         }
         if let Some(release) = &self.state.release
             && let Some(v) = self.view.publish.wants_preview(release)
@@ -999,6 +1015,7 @@ impl eframe::App for Studio {
             children: v.children,
             sevenths: v.sevenths,
             tour_done: v.tour_done,
+            record: v.record.settings.clone(),
         };
         eframe::set_value(storage, eframe::APP_KEY, &prefs);
     }

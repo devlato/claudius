@@ -31,5 +31,7 @@
   <true/>
   <key>NSHumanReadableCopyright</key>
   <string>MIT licence. The sample packs and listening models it downloads have their own.</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Claudius listens to your microphone or audio interface while its Record window is open, to show the input's level and record takes, and at no other time.</string>
 </dict>
 </plist>

@@ -16,7 +16,7 @@ The studio is still being finished; this page describes its structure, which is 
 | `edits.rs` | edits applied to a `SongView`, for optimistic updates and for the mock |
 | `cmds.rs` | builders for commands that change a few fields |
 | `panels/` | one module per panel |
-| `audio/` | the player: rodio natively, an `HtmlAudioElement` on the web |
+| `audio/` | the player: rodio natively, an `HtmlAudioElement` on the web; natively, the take [recorder](#recording) |
 | `mock/` | a built-in stand-in for the server, with a generated song played on claudius' own sounds ([below](#the-demos-sounds)) |
 | `music.rs` | the theory needed to label things: keys, numerals as chord names, note names |
 | `theme.rs`, `widgets.rs` | the palette (one colour per role and section kind), knobs, faders, meters, chips |
@@ -117,6 +117,30 @@ When a new render arrives (`render.version` changed), the player loads it:
 
 A new render of the same song keeps the playback position (and the loop region, which the studio sets
 separately), so you can listen to a section while you edit it and hear each change land in place.
+
+## Recording
+
+The Record window (`panels/record.rs`) records a [take](../guide/samples.md#takes) and sends it to `POST /api/takes`,
+natively. The demo has none: a take goes to a claudius, which keeps it with the song.
+
+`audio/record.rs` opens two cpal streams of its own. The player is paused meanwhile.
+
+- **The output** plays the latest render from the count-in on, resampled to the device's rate, with a click on every
+  beat of the count-in, and of the take too when asked (`fill`, a plain function the tests read).
+- **The input** sends the chosen channels to the window in chunks, and its loudest sample to the meter.
+
+While the window is open and nothing records, a `Listener` keeps the input open for the meter alone, and closes it
+when a take starts, since some systems give a device to one stream at a time.
+
+Each stream's timestamps give its own latency: playback minus callback says when what the output plays is heard,
+callback minus capture when what the input hears was captured. A host's streams need not share a clock's origin, so
+the two are related through the system clock read in each callback. Of those estimates the earliest wins (a callback
+runs late, never early), after the first four, while the streams settle. The take is cut from where the section's
+downbeat was heard, plus the window's **Latency** for what the devices do not report (`cut`). It goes as a 32-bit
+float WAV at the input's rate.
+
+A stream's dropped buffer (`Xrun`), or a route that changed under it, does not end a take: the window says how often
+the take dropped audio. Any other stream error ends it.
 
 ## The mock
 

@@ -924,6 +924,7 @@ name = "claudius-ui"
 version = "0.2.0"
 dependencies = [
  "claudius-api",
+ "cpal",
  "eframe",
  "ehttp",
  "env_logger",
