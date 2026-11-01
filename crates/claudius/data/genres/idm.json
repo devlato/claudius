@@ -1,0 +1,160 @@
+{
+  "name": "idm",
+  "description": "IDM: intricate broken beats with ratchets, ghost notes and shifting accents, glitches, stutters and gated bursts, crystalline bells and detuned pads, an acid or sub bass, odd modal harmony, every part processed into something new as the track goes on",
+  "query": "glitchy intelligent dance music with complex broken beats and bells",
+  "alts": ["glitch hop music", "drum and bass music", "ambient synth pad music", "chiptune video game music"],
+  "accepted_flaws": ["a cheap synthesized beep"],
+  "bpm": [96, 140],
+  "swing": [0.5, 0.56],
+  "humanize": 0.15,
+  "modes": [["lydian", 0.25], ["dorian", 0.25], ["minor", 0.25], ["phrygian", 0.15], ["major", 0.1]],
+  "harmony": [["major7_jazz", 0.3], ["minimal", 0.25], ["dorian_vamp", 0.25], ["minor_soul", 0.2]],
+  "markov": 0.4,
+  "ext": 2,
+  "bars_per_chord": [[2, 0.5], [4, 0.5]],
+  "forms": [
+    [
+      {"name": "intro", "kind": "intro", "bars": 8, "energy": 0.3, "layers": ["bells", "pad", "click"], "variant": "sparse"},
+      {"name": "groove", "kind": "groove", "bars": 16, "energy": 0.6, "layers": ["kick", "snare", "hat", "click", "bass", "bells", "pad"], "fills": true},
+      {"name": "groove2", "kind": "groove", "bars": 16, "energy": 0.75, "layers": ["kick", "snare", "hat", "click", "tom", "bass", "bells", "pad", "arp"], "fills": true},
+      {"name": "break", "kind": "break", "bars": 8, "energy": 0.3, "prog": "B", "layers": ["pad", "bells", "click"], "gap": true},
+      {"name": "peak", "kind": "drop", "bars": 16, "energy": 0.95, "layers": ["kick", "snare", "hat", "click", "tom", "bass", "bells", "pad", "arp"], "impact": true, "fills": true},
+      {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.3, "layers": ["bells", "pad", "click"], "variant": "sparse"}
+    ]
+  ],
+  "drums": [
+    {
+      "name": "kick",
+      "voice": "kick",
+      "template": {
+        "steps": [1, 0, 0, 0.3, 0, 0, 0.6, 0, 0, 0.4, 1, 0, 0, 0, 0.3, 0, 1, 0, 0.4, 0, 0, 0, 0, 0.5, 0, 0.6, 0, 0, 1, 0, 0, 0],
+        "vel": [0.75, 1.0],
+        "vary": 0.5
+      },
+      "variants": {"sparse": {"steps": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0, 0, 0, 0, 0], "vel": [0.6, 0.8]}},
+      "params": {"decay": [0.15, 0.4], "tune": [44, 62], "tone": [0.3, 0.8], "punch": [0.4, 0.8], "drive": [3, 10]},
+      "mix": {"bus": "drums"}
+    },
+    {
+      "name": "snare",
+      "voice": "snare",
+      "template": {
+        "steps": [0, 0, 0, 0, 1, 0, 0, 0.3, 0, 0, 0, 0.4, 0, 0, 1, 0, 0, 0.3, 0, 0, 1, 0, 0, 0, 0, 0, 0.5, 0, 1, 0.4, 0.4, 0.6],
+        "vel": [0.7, 1.0],
+        "ghost": 0.2,
+        "rolls": 0.15,
+        "vary": 0.5
+      },
+      "params": {"decay": [0.08, 0.22], "tune": [180, 320], "snap": [0.6, 1.0], "tone": [0.5, 0.95]},
+      "mix": {"bus": "drums", "reverb": 0.12, "pan": 0.05}
+    },
+    {
+      "name": "hat",
+      "voice": "closed_hat",
+      "template": {"steps": [1, 0.5, 0.7, 0.4, 0.9, 0.5, 0.7, 0.6, 1, 0.4, 0.7, 0.5, 0.9, 0.6, 0.7, 0.8], "vel": [0.2, 0.7], "ghost": 0.1, "rolls": 0.35},
+      "params": {"decay": [0.02, 0.06], "tone": [0.6, 0.95]},
+      "choke": "hats",
+      "mix": {"bus": "drums", "pan": 0.35}
+    },
+    {
+      "name": "click",
+      "voice": "rim",
+      "euclid": [7, 16],
+      "params": {"tune": [800, 1800], "decay": [0.01, 0.04]},
+      "mix": {"bus": "drums", "pan": -0.4, "delay": 0.3}
+    },
+    {
+      "name": "tom",
+      "voice": "tom",
+      "euclid": [5, 12],
+      "params": {"tune": [90, 260], "decay": [0.08, 0.2]},
+      "mix": {"bus": "drums", "pan": 0.2, "reverb": 0.2, "level_db": -4}
+    }
+  ],
+  "kits": [],
+  "parts": [
+    {
+      "name": "bass",
+      "role": "bass",
+      "presets": ["sub_bass", "acid", "808"],
+      "styles": ["syncopated", "sustain", "acid"],
+      "register": [28, 50],
+      "mix": {"bus": "bass", "duck": 0.25, "fx": [{"fx": "saturate", "kind": "tube", "drive_db": 4, "mix": 0.4}]}
+    },
+    {
+      "name": "bells",
+      "role": "lead",
+      "presets": ["bell", "vibraphone|bell", "kalimba|bell"],
+      "styles": ["motif"],
+      "register": [64, 91],
+      "density": [0.35, 0.6],
+      "mix": {
+        "reverb": 0.35,
+        "delay": 0.35,
+        "pan": -0.15,
+        "fx": [
+          {"fx": "parallel", "dry": 1, "chains": [{"amount": {"rest": 0.0, "sections": {"drop": [0.5], "groove": [0.0, 0.3]}}, "fx": [{"fx": "bitcrush", "bits": 6, "downsample": 6}, {"fx": "filter", "mode": "bp", "cutoff": 2500, "res": 0.4}]}]}
+        ]
+      }
+    },
+    {
+      "name": "pad",
+      "role": "pad",
+      "presets": ["warm_pad", "pad", "choir|pad"],
+      "styles": ["sustain"],
+      "register": [48, 79],
+      "voices": 4,
+      "voicing": "spread",
+      "mix": {
+        "reverb": 0.5,
+        "fx": [
+          {
+            "fx": "parallel",
+            "dry": {"rest": 1, "sections": {"drop": [0.15], "groove": [1, 0.4]}},
+            "chains": [{"amount": {"rest": 0, "sections": {"drop": [0.85], "groove": [0, 0.6]}}, "fx": [{"fx": "gate", "steps": [1, 0, 0.6, 0, 1, 0.3, 0, 0.8, 0, 1, 0, 0.5, 1, 0, 0.7, 0], "step_beats": 0.25, "depth": 1.0, "smooth_ms": 4}]}]
+          }
+        ]
+      }
+    },
+    {
+      "name": "arp",
+      "role": "arp",
+      "presets": ["pluck", "chip", "bell"],
+      "styles": ["random", "updown", "pinky"],
+      "rates": [0.125, 0.25],
+      "register": [60, 88],
+      "optional": 0.2,
+      "mix": {"delay": 0.3, "reverb": 0.2, "pan": 0.3, "fx": [{"fx": "bitcrush", "bits": 10, "downsample": 3, "mix": 0.4}]}
+    }
+  ],
+  "loops": [],
+  "transitions": {
+    "riser": false,
+    "impact": true,
+    "downlifter": false,
+    "reverse_crash": true,
+    "riser_bars": 4,
+    "mix": {"bus": "fx", "reverb": 0.35}
+  },
+  "mix": {
+    "lufs": -10.0,
+    "reverb": {"fx": "reverb", "decay": 2.6, "damping": 0.35, "predelay_ms": 25, "width": 1.4, "mix": 1.0, "lowcut": 300},
+    "delay": {"fx": "delay", "beats": 0.375, "feedback": {"rest": 0.35, "sections": {"break": [0.35, 0.7]}}, "damping": 0.35, "pingpong": true, "mix": 1.0},
+    "buses": {
+      "drums": [
+        {"fx": "parallel", "dry": 1, "chains": [
+          {"amount": 0.35, "fx": [{"fx": "bitcrush", "bits": 7, "downsample": 5}, {"fx": "filter", "mode": "hp", "cutoff": 600}]},
+          {"amount": {"rest": 0.0, "sections": {"drop": [0.4]}}, "fx": [{"fx": "compressor", "threshold_db": -32, "ratio": 12, "attack_ms": 0.5, "release_ms": 40, "knee_db": 2}, {"fx": "saturate", "kind": "fold", "drive_db": 10}]}
+        ]},
+        {"fx": "compressor", "threshold_db": -14, "ratio": 2.5, "attack_ms": 6, "release_ms": 80, "knee_db": 4, "makeup_db": 1}
+      ],
+      "music": [{"fx": "eq", "bands": [{"kind": "highpass", "freq": 120, "q": 0.7}]}]
+    },
+    "master": [
+      {"fx": "eq", "bands": [{"kind": "highpass", "freq": 28, "q": 0.7}]},
+      {"fx": "compressor", "threshold_db": -12, "ratio": 1.8, "attack_ms": 20, "release_ms": 150, "knee_db": 6}
+    ],
+    "duck_release": 0.3,
+    "levels": {"snare": 1.0, "hat": 1.0, "lead": 0.5}
+  }
+}

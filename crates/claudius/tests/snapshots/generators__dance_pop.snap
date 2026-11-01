@@ -1,0 +1,41 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+dance_pop at 126.0 BPM in G major, swing 0.51
+prog A: I IV I V
+prog B: I IVsus4 I V
+bars per chord: 1
+section intro (intro) 8 bars, energy 0.45, prog A, sparse [filter_in]: chords pad hat
+section verse (verse) 16 bars, energy 0.60, prog A, pop []: kick clap hat bass chords hook
+section pre (build) 8 bars, energy 0.70, prog B, main [build gap]: clap hat bass chords pad hook
+section chorus (hook) 16 bars, energy 0.95, prog A, main [impact fills]: kick clap hat ohat shaker bass chords pad hook lead
+section verse2 (verse) 16 bars, energy 0.65, prog A, pop []: kick clap hat shaker bass chords hook
+section pre2 (build) 8 bars, energy 0.70, prog B, main [build gap]: clap hat bass chords pad hook
+section chorus2 (hook) 16 bars, energy 1.00, prog A, main [impact fills]: kick clap hat ohat shaker bass chords pad hook lead
+section bridge (break) 8 bars, energy 0.40, prog B, main []: pad hook chords
+section chorus3 (hook) 16 bars, energy 1.00, prog A, main [impact fills]: kick clap hat ohat shaker bass chords pad hook lead
+section outro (outro) 8 bars, energy 0.45, prog A, sparse []: kick hat chords pad
+drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
+drum kick pop (drum kick): X.......X.X.....|X.......X.X.....|X.......X.X.....|X.......X.X.....
+drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
+drum hat main (drum closed_hat): xxxx.xx.xxx...x.|xxxx.xx.xxx...x.|xxxx.xx.xxx...x.|xxxx.xx.xxx...x.
+drum hat pop (drum closed_hat): x.x.x.x.x.x.x.xx|x.x.x.x.x.x.x.xx|x.x.x.x.x.x.x.xx|x.x.x.x.x.x.x.xx
+drum hat sparse (drum closed_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
+drum ohat main (drum open_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
+drum shaker main (drum shaker): ....o....oo.....|....o....oo.....|....o....oo.....|....o....oo.....
+part bass (bass): syncopated synth pluck_bass, register 33..52, density 0.51
+part chords (chords): syncopated synth keys, register 55..76, density 0.60
+part pad (pad): sustain synth pad, register 50..76, density 0.59
+part hook (lead): motif synth bell, register 60..77, density 0.40
+part lead (lead): motif synth pluck, register 67..88, density 0.49
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix clap: +0.0 dB, pan +0.00, reverb 0.20, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.20, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix ohat: +0.0 dB, pan -0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix shaker: +0.0 dB, pan -0.35, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.60, bus bass
+mix chords: +0.0 dB, pan +0.00, reverb 0.20, delay 0.10, duck 0.50, bus music
+mix pad: +0.0 dB, pan +0.00, reverb 0.35, delay 0.00, duck 0.55, bus music
+mix hook: +0.0 dB, pan +0.00, reverb 0.30, delay 0.20, duck 0.20, bus music
+mix lead: +0.0 dB, pan +0.15, reverb 0.25, delay 0.25, duck 0.35, bus music

@@ -1,0 +1,38 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+neo_psychedelia at 117.0 BPM in G mixolydian, swing 0.52
+prog A: I7 IVmaj7 I7 v7
+prog B: I7 IVsus4 I7 v7
+bars per chord: 1
+section intro (intro) 8 bars, energy 0.35, prog A, sparse [filter_in]: synth guitar
+section verse (verse) 16 bars, energy 0.55, prog A, main []: kick snare hat bass guitar organ
+section chorus (hook) 16 bars, energy 0.85, prog A, main [impact fills]: kick snare hat ride tom bass guitar organ synth lead
+section verse2 (verse) 16 bars, energy 0.60, prog A, main []: kick snare hat bass guitar organ synth
+section chorus2 (hook) 16 bars, energy 0.90, prog A, main [impact fills]: kick snare hat ride tom bass guitar organ synth lead
+section bridge (break) 16 bars, energy 0.35, prog B, main []: synth lead
+section chorus3 (hook) 16 bars, energy 1.00, prog A, main [impact fills]: kick snare hat ride tom bass guitar organ synth lead
+section outro (outro) 8 bars, energy 0.40, prog A, sparse []: synth guitar organ
+drum kick main (drum kick): X.......X.X.....|X.......X.X.....|X.......X.X.....|X.......X.X.....
+drum kick sparse (drum kick): x...............|x...............|x...............|x...............
+drum snare main (drum snare): ....X......oX...|....X......oX...|....X......oX...|....X.o.....X...
+drum hat main (drum closed_hat): xxx.x.xxxx..x.x.|xxx.x.xxxx..x.x.|xxx.x.xxxx..x.x.|xxx.x.xxxx..x.x.
+drum hat sparse (drum closed_hat): o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.
+drum ride main (drum ride): o.o.o.o...o.....|o.o.o.o...o.....|o.o.o.o...o.....|o.o.o.o...o.....
+drum tom main (drum tom): .............xxx|.............xxx|.............xxx|.............xxx
+part bass (bass): pulse synth saw_bass, register 31..50, density 0.51
+part guitar (chords): syncopated synth pluck, register 52..76, density 0.60
+part organ (keys): half synth organ, register 50..74, density 0.53
+part synth (pad): sustain synth warm_pad, register 52..79, density 0.51
+part lead (lead): motif synth strings, register 62..81, density 0.42
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix snare: +0.0 dB, pan +0.00, reverb 0.25, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.25, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix ride: +0.0 dB, pan -0.30, reverb 0.15, delay 0.00, duck 0.00, bus drums
+mix tom: +0.0 dB, pan -0.20, reverb 0.25, delay 0.00, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
+mix guitar: +0.0 dB, pan +0.25, reverb 0.35, delay 0.20, duck 0.00, bus music
+mix organ: +0.0 dB, pan -0.25, reverb 0.30, delay 0.00, duck 0.00, bus music
+mix synth: +0.0 dB, pan +0.00, reverb 0.50, delay 0.00, duck 0.00, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.40, delay 0.30, duck 0.00, bus music

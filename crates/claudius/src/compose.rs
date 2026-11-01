@@ -152,7 +152,7 @@ pub fn kit_sound(lane: &str, kit: &str) -> Option<Sound> {
         "ride" => "rd",
         "crash" => "cr",
         "tom" => "mt",
-        "perc" => "rim",
+        "perc" | "rim" => "rim",
         "shaker" => "sh",
         _ => return None,
     };
@@ -169,6 +169,7 @@ pub fn default_hints(lane: &str) -> Vec<String> {
         "hat" | "ohat" => &["Hi-hat"],
         "shaker" => &["Shaker", "Tambourine"],
         "perc" => &["Clave", "Conga", "Bongo", "Cowbell"],
+        "rim" => &["Clave", "name:Rim"],
         "ride" | "crash" => &["Cymbal"],
         "tom" => &["Tom"],
         _ => &[],
