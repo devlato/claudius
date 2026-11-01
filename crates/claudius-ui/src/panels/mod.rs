@@ -87,10 +87,29 @@ pub struct Link {
 pub struct NewSongForm {
     pub open: bool,
     pub genre: String,
+    /// the genre fused with it, which plays the drums and lends its sounds (`genres::fuse`)
+    pub with: Option<String>,
     pub seed: String,
     pub loops: bool,
     pub bpm: Option<f64>,
     pub key: Option<String>,
+}
+
+impl NewSongForm {
+    /// the genre as claudius takes it: `trip_hop`, or `trip_hop+idm` for a fusion
+    pub fn genre_name(&self) -> String {
+        match self.with.as_ref().filter(|w| **w != self.genre) {
+            Some(w) => format!("{}+{w}", self.genre),
+            None => self.genre.clone(),
+        }
+    }
+
+    /// set from a song's genre, a fusion's first two genres included
+    pub fn set_genre(&mut self, name: &str) {
+        let mut parts = name.split('+');
+        self.genre = parts.next().unwrap_or(name).to_string();
+        self.with = parts.next().map(String::from);
+    }
 }
 
 #[derive(Default)]
@@ -199,6 +218,7 @@ impl Default for View {
             new_song: NewSongForm {
                 open: false,
                 genre: "house".into(),
+                with: None,
                 seed: String::new(),
                 loops: false,
                 bpm: None,

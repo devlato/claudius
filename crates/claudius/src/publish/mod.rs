@@ -199,7 +199,8 @@ pub fn preview(bytes: &[u8], side: u32) -> Option<Vec<u8>> {
 
 /// The genre and subgenre stores list a claudius genre under.
 pub fn store_genre(genre: &str) -> (&'static str, &'static str) {
-    match genre {
+    // a fusion is listed as the genre that leads it
+    match genre.split('+').next().unwrap_or(genre) {
         "house" => ("Dance", "House"),
         "deep_house" => ("Dance", "Deep House"),
         "techno" => ("Electronic", "Techno"),

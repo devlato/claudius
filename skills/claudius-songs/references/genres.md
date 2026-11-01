@@ -1,5 +1,10 @@
 # Starting points for the eighteen genres
 
+Two or three genres fuse with `+`: `song("trip_hop+idm", 3)` (or `new_song` with genre `trip_hop+idm`) is trip-hop's
+song, harmony, parts and mix with IDM's drums, and IDM's sounds lent to the parts. The first genre leads, the last
+plays the drums. Fuse when the person describes a mix of styles ("trip-hop but with glitchy drums", "disco with
+house drums"): it is one call, and the result is a song like any other to edit.
+
 `new_song` (or `song("<genre>", seed)`) writes a complete song in any of these, and is the quickest start. The
 sketches below are for when you build from patterns: each is a skeleton to grow, not a finished song. They write the
 harmony with `prog()` and let the bass and chords follow it (`chord("prog")`), so that the parts agree with each

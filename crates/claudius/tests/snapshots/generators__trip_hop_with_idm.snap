@@ -1,0 +1,36 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+trip_hop+idm at 81.0 BPM in D minor, swing 0.51
+prog A: i VI iv V
+prog B: i VII VI V
+bars per chord: 2
+section intro (intro) 8 bars, energy 0.30, prog A, sparse [filter_in]: strings keys
+section verse (verse) 16 bars, energy 0.55, prog A, main []: bass keys strings kick snare hat click tom
+section hook (hook) 16 bars, energy 0.80, prog A, main [impact fills]: bass keys strings lead kick snare hat click tom arp
+section break (break) 8 bars, energy 0.30, prog B, main [gap]: strings lead
+section verse2 (verse) 16 bars, energy 0.60, prog A, main []: bass keys strings kick snare hat click tom arp
+section hook2 (hook) 16 bars, energy 0.90, prog A, main [impact fills]: bass keys strings lead kick snare hat click tom arp
+section outro (outro) 8 bars, energy 0.30, prog A, sparse []: strings keys lead
+drum kick main (drum kick): X.....X..XX.....|X.X......X..X...|X.....X..XX.....|X.X......X..X...
+drum kick sparse (drum kick): x...............|x...............|x...............|x...............
+drum snare main (drum snare): ......o.....oxxxo...o.o.....X...|........X...........o.......oxxx|......o.X.......o...o.o.....X...|........X...........o...X.......
+drum hat main (drum closed_hat): x........x..x.....x..x..x.....x..x..x...........|x........x..x.....x..x..X.Xx.xx.xx.xx...........|x........x..x.....x..x..x.....x..x........X.xx.x|x........x..x.....x..x..x.....x..x..XXXxxxxxxxxx
+drum click main (drum rim): x.x.x.x..x.x.x..|x.x.x.x..x.x.x..|x.x.x.x..x.x.x..|x.x.x.x..x.x.x..
+drum click sparse (drum rim): x.....x....x....|x.....x....x....|x.....x....x....|x.....x....x....
+drum tom main (drum tom): ........x.......x...........x.......x.......x...|........x.......x...........x.......x.......x...|........x.......x...........x.......x.......x...|........x.......x...........x.......x.......x...
+drum tom sparse (drum tom): ....................x.......................x...|....................x.......................x...|....................x.......................x...|....................x.......................x...
+part bass (bass): syncopated synth saw_bass, register 28..46, density 0.43
+part keys (keys): half synth epiano, register 50..74, density 0.53
+part strings (pad): sustain synth warm_pad, register 48..79, density 0.56
+part lead (lead): motif synth bell, register 62..79, density 0.38
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix snare: +0.0 dB, pan +0.05, reverb 0.12, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.35, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix click: +0.0 dB, pan -0.40, reverb 0.00, delay 0.30, duck 0.00, bus drums
+mix tom: -4.0 dB, pan +0.20, reverb 0.20, delay 0.00, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.15, bus bass
+mix keys: +0.0 dB, pan -0.15, reverb 0.35, delay 0.15, duck 0.00, bus music
+mix strings: +0.0 dB, pan +0.10, reverb 0.50, delay 0.00, duck 0.00, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.35, delay 0.28, duck 0.00, bus music

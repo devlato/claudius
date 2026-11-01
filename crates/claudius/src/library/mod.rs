@@ -23,7 +23,8 @@ pub struct Library {
 
 /// GarageBand genre names that suit each claudius genre (one-shots and loops are drawn from these first)
 pub fn apple_genres(genre: &str) -> &'static [&'static str] {
-    match genre {
+    // a fusion's, by the genre that leads it
+    match genre.split('+').next().unwrap_or(genre) {
         "house" => &["House", "Deep House", "Tech House", "Bass House", "Electro House", "Disco Funk"],
         "deep_house" => &["Deep House", "House", "Chillwave", "Tech House"],
         "techno" => &["Tech House", "Electronic/Dance", "Electro House", "Bass House"],

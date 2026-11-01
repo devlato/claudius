@@ -38,6 +38,23 @@ dub techno's chord echoes feed back and swell in the break, all of it values by 
 The "against" list matters: the genre score is high only when a song reads as its genre *more than* as the styles it
 is usually confused with.
 
+## Fusing genres
+
+Two or three genres joined by `+` are one genre: `trip_hop+idm` in `song()`, `claudius make --genre`, `new_song`, or
+**Fused with** in the studio's New song dialog. `genres::fuse` makes it from the profiles:
+
+| from the first genre | from the second |
+|---|---|
+| tempo, keys, harmony (three quarters of the time), forms, transitions, the mix and the master, what the ears listen for | the drum lanes, their kits, the drums bus, the drum levels, a quarter of the progressions |
+| the parts | its first sound and its styles added to each part of the same role, and its parts of roles the first has none of, as optional parts in the sections with energy 0.6 or more |
+
+The second genre's lanes play in the first genre's sections: a lane of the same name where that lane played, the
+others where most of the first genre's drums played. Swing is the average of the two, humanize the larger, and the
+flaws either genre accepts are accepted. Sounding like the second genre no longer counts against the song: its
+query leaves the first genre's list of confusions. With three genres the first two fuse, then the third plays the
+drums. A fusion's Apple Loops, its store genre and the demo's sounds are the first genre's. The
+[Fusions](../../cookbook/fusions.md) recipes hear three of them.
+
 ## What a profile contains
 
 Each profile (`crates/claudius/data/genres/*.json`) has:

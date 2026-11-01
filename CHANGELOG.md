@@ -46,6 +46,11 @@ in the climaxes, pads gated harder as a groove goes on. The cookbook has a recip
 ([Trip-hop, big beat, electro house, nu-disco, filter house](https://github.com/devlato/claudius/blob/main/docs/src/cookbook/breaks-and-disco.md);
 [Dance-pop, neo-psychedelia, art rock, IDM, dub techno](https://github.com/devlato/claudius/blob/main/docs/src/cookbook/pop-psych-and-glitch.md)).
 
+Genres fuse: `trip_hop+idm`, `art_rock+idm` or `house+dnb+lofi` is one genre, in scripts, on the command line, for
+assistants and in the studio's New song dialog (**Fused with**). The first genre leads the song, its harmony, parts
+and mix, and the last plays the drums and lends its sounds
+([Fusions](https://github.com/devlato/claudius/blob/main/docs/src/cookbook/fusions.md)).
+
 `claudius publish` checks a song the way stores and distributors check a release (its artwork's size, colours and
 sharpness, its audio, the licences of its sounds, and its details, including how it was made) and writes a release
 kit: the WAV and the cover a distributor takes, and the answers its form asks for

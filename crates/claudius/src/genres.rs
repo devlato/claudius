@@ -224,7 +224,20 @@ pub fn all() -> Result<Vec<GenreProfile>> {
     Ok(out.into_values().collect())
 }
 
+/// how many genres one fusion takes at most
+pub const MOST_FUSED: usize = 3;
+
+/// A genre by name, or two or three fused (`trip_hop+idm`): the first leads and each after it plays the drums
+/// (`fuse`).
 pub fn get(name: &str) -> Result<GenreProfile> {
+    if name.contains('+') {
+        let names: Vec<&str> = name.split('+').map(str::trim).collect();
+        if names.len() > MOST_FUSED || names.iter().any(|n| n.is_empty()) {
+            anyhow::bail!("a fusion is two or three genres joined by +, such as trip_hop+idm, not '{name}'");
+        }
+        let first = get(names[0])?;
+        return names[1..].iter().try_fold(first, |g, n| Ok(fuse(&g, &get(n)?)));
+    }
     let key = name.trim().to_ascii_lowercase().replace([' ', '-'], "_");
     all()?.into_iter().find(|g| g.name == key).with_context(|| {
         format!(
@@ -234,9 +247,151 @@ pub fn get(name: &str) -> Result<GenreProfile> {
     })
 }
 
+/// the lanes that are drums, for the levels a fusion takes from the genre that plays its drums
+const DRUM_ROLES: &[&str] = &["kick", "snare", "clap", "hat", "ohat", "shaker", "perc", "ride", "tom", "crash", "top"];
+
+/// Two genres as one. `a` leads: its tempo, keys, harmony, forms, parts, loops, transitions and mix, and what the ears
+/// listen for. `b` plays the drums: its lanes, kits, drums bus and drum levels, in `a`'s sections where `a`'s drums
+/// played. Its harmony comes in now and then, its first preset and its styles join `a`'s parts of the same role (so
+/// that each part mostly sounds as it did), and its parts of roles `a` has none of come in now and then too. Sounding like `b` no longer counts against the song.
+pub fn fuse(a: &GenreProfile, b: &GenreProfile) -> GenreProfile {
+    let mut g = a.clone();
+    g.name = format!("{}+{}", a.name, b.name);
+    g.description = format!(
+        "{} Fused with {}: its drums and their sound, and its sounds and styles in the parts.",
+        a.description.trim_end_matches('.'),
+        b.name.replace('_', " ")
+    );
+    g.alts.retain(|alt| *alt != b.query);
+    for flaw in &b.accepted_flaws {
+        if !g.accepted_flaws.contains(flaw) {
+            g.accepted_flaws.push(flaw.clone());
+        }
+    }
+    g.swing = ((a.swing.0 + b.swing.0) / 2.0, (a.swing.1 + b.swing.1) / 2.0);
+    g.humanize = a.humanize.max(b.humanize);
+    // b's progressions a quarter of the time
+    for h in g.harmony.iter_mut() {
+        h.1 *= 0.75;
+    }
+    for (style, w) in &b.harmony {
+        match g.harmony.iter_mut().find(|h| h.0 == *style) {
+            Some(h) => h.1 += w * 0.25,
+            None => g.harmony.push((style.clone(), w * 0.25)),
+        }
+    }
+    // b's drums play where a's did: a lane of the same name where that lane played, b's others where most of a's did
+    let lanes_a: Vec<&str> = a.drums.iter().map(|d| d.name.as_str()).collect();
+    let lanes_b: Vec<String> = b.drums.iter().map(|d| d.name.clone()).collect();
+    let mut added: Vec<String> = Vec::new();
+    for p in &b.parts {
+        if !a.parts.iter().any(|q| q.role == p.role || q.name == p.name) {
+            added.push(p.name.clone());
+        }
+    }
+    for form in g.forms.iter_mut() {
+        for s in form.iter_mut() {
+            let drums_a = s.layers.iter().filter(|l| lanes_a.contains(&l.as_str())).count();
+            let most = drums_a * 2 >= lanes_a.len().max(1);
+            let mut layers: Vec<String> = s.layers.iter().filter(|l| !lanes_a.contains(&l.as_str())).cloned().collect();
+            for lane in &lanes_b {
+                if s.layers.contains(lane) || (!lanes_a.contains(&lane.as_str()) && most) {
+                    layers.push(lane.clone());
+                }
+            }
+            if s.energy >= 0.6 {
+                layers.extend(added.iter().cloned());
+            }
+            s.layers = layers;
+        }
+    }
+    g.drums = b.drums.clone();
+    g.kits = b.kits.clone();
+    for p in g.parts.iter_mut() {
+        if let Some(q) = b.parts.iter().find(|q| q.role == p.role) {
+            if let Some(preset) = q.presets.first().filter(|x| !p.presets.contains(x)) {
+                p.presets.push(preset.clone());
+            }
+            for style in &q.styles {
+                if !p.styles.contains(style) {
+                    p.styles.push(style.clone());
+                }
+            }
+        }
+    }
+    for q in b.parts.iter().filter(|q| added.contains(&q.name)) {
+        let mut q = q.clone();
+        q.optional = q.optional.max(0.4);
+        g.parts.push(q);
+    }
+    for l in &b.loops {
+        if !g.loops.iter().any(|x| x.name == l.name) {
+            g.loops.push(l.clone());
+        }
+    }
+    match b.mix.buses.get("drums") {
+        Some(chain) => g.mix.buses.insert("drums".into(), chain.clone()),
+        None => g.mix.buses.remove("drums"),
+    };
+    g.mix.levels.retain(|role, _| !DRUM_ROLES.contains(&role.as_str()));
+    for (role, db) in &b.mix.levels {
+        if DRUM_ROLES.contains(&role.as_str()) {
+            g.mix.levels.insert(role.clone(), *db);
+        }
+    }
+    g
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_fusion_keeps_the_first_genre_and_takes_the_seconds_drums() {
+        let (a, b) = (get("trip_hop").unwrap(), get("idm").unwrap());
+        let g = get("Trip-Hop + IDM").unwrap();
+        assert_eq!((g.name.as_str(), g.bpm, &g.query), ("trip_hop+idm", a.bpm, &a.query));
+        assert_eq!(
+            g.drums.iter().map(|d| &d.name).collect::<Vec<_>>(),
+            b.drums.iter().map(|d| &d.name).collect::<Vec<_>>()
+        );
+        assert_eq!((&g.kits, g.mix.buses.get("drums")), (&b.kits, b.mix.buses.get("drums")));
+        assert_eq!(
+            (g.mix.lufs, &g.mix.master, g.mix.buses.get("music")),
+            (a.mix.lufs, &a.mix.master, a.mix.buses.get("music"))
+        );
+        // the parts: trip-hop's, the lead with the bells' presets too, and IDM's arpeggio, which trip-hop has none of
+        let lead = g.parts.iter().find(|p| p.name == "lead").unwrap();
+        let bells = &b.parts.iter().find(|p| p.role == lead.role).unwrap().presets[0];
+        assert!(lead.presets.ends_with(std::slice::from_ref(bells)), "{:?}", lead.presets);
+        let arp = g.parts.iter().find(|p| p.name == "arp").expect("the arp comes in");
+        assert!(arp.optional >= 0.4);
+        // IDM's lanes play where trip-hop's did: a section with most of the drums has them all, the intro's one
+        // lane none of them but its own name's
+        let hook = g.forms[0].iter().find(|s| s.name == "hook").unwrap();
+        for lane in ["kick", "snare", "hat", "click", "tom", "arp"] {
+            assert!(hook.layers.iter().any(|l| l == lane), "{lane} in {:?}", hook.layers);
+        }
+        assert!(!hook.layers.iter().any(|l| l == "ohat"), "trip-hop's open hat goes with its drums");
+        let intro = &g.forms[0][0];
+        assert!(!intro.layers.iter().any(|l| l == "click" || l == "kick"), "{:?}", intro.layers);
+        // the harmony leans on the first genre's, the flaws either genre accepts are accepted
+        let lead_weight: f64 = g.harmony.iter().filter(|h| a.harmony.iter().any(|x| x.0 == h.0)).map(|h| h.1).sum();
+        assert!(lead_weight >= 0.75);
+        assert!(g.accepted_flaws.iter().any(|f| f == "a cheap synthesized beep"));
+    }
+
+    #[test]
+    fn a_fusion_says_what_it_takes() {
+        assert!(get("house+techno+dnb").unwrap().name == "house+techno+dnb");
+        let e = |n: &str| get(n).unwrap_err().to_string();
+        assert!(e("house+techno+dnb+trap").contains("two or three genres"));
+        assert!(e("house+").contains("two or three genres"));
+        assert!(e("house+polka").contains("unknown genre 'polka'"));
+        // what the second genre is no longer counts against the first
+        let g = get("house+dnb").unwrap();
+        assert!(!g.alts.iter().any(|a| a == "drum and bass music"), "{:?}", g.alts);
+    }
 
     #[test]
     fn the_accepted_flaws_are_flaws_the_ears_know() {
