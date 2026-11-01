@@ -127,8 +127,9 @@ Afterwards, tell the person what changed (the log says) and offer to undo it.
   a crash".
 - With beginners, explain a word the first time (a "drop" is where the full beat comes back in). With producers,
   use DAW terms.
-- claudius cannot sing or write lyrics. It plays recorded voices (`voice`, `choir`) and chops of the person's own
-  recordings (see the claudius-remix skill).
+- claudius cannot sing or write lyrics. It plays recorded voices (`voice`, `choir`), chops of the person's own
+  recordings, and takes: a vocal or a guitar they recorded for the song, added with `add_take` (see the
+  claudius-remix skill).
 
 ## Saving and sharing
 

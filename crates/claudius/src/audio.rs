@@ -216,7 +216,11 @@ fn cache_key(path: &Path) -> Result<String> {
 
 /// a file decoded (claudius-decode) and resampled to 48 kHz stereo, interleaved
 fn decode_file(path: &Path) -> Result<Vec<f32>> {
-    let d = claudius_decode::decode(path)?;
+    Ok(at_rate(claudius_decode::decode(path)?))
+}
+
+/// decoded audio resampled to 48 kHz stereo, interleaved
+fn at_rate(d: claudius_decode::Decoded) -> Vec<f32> {
     let (mut l, mut r) = d.stereo();
     if d.rate != SR && d.rate > 0 {
         let step = d.rate as f64 / SR as f64;
@@ -224,12 +228,17 @@ fn decode_file(path: &Path) -> Result<Vec<f32>> {
         l = resample_step(&l, step, out_len);
         r = resample_step(&r, step, out_len);
     }
-    Ok(l.iter().zip(&r).flat_map(|(a, b)| [*a, *b]).collect())
+    l.iter().zip(&r).flat_map(|(a, b)| [*a, *b]).collect()
 }
 
 /// decode any audio file to 48 kHz stereo without keeping a decoded copy: for files read once, like a render's WAV
 pub fn load_once(path: &Path) -> Result<Stereo> {
     Ok(Stereo::from_interleaved(&decode_file(path)?))
+}
+
+/// decode audio in memory (a file's bytes, `ext` its kind: wav, flac, ...) to 48 kHz stereo
+pub fn load_bytes(bytes: Vec<u8>, ext: &str) -> Result<Stereo> {
+    Ok(Stereo::from_interleaved(&at_rate(claudius_decode::decode_bytes(bytes, ext)?)))
 }
 
 /// decode any audio file to 48 kHz stereo (cached as raw f32 under ~/.cache/claudius/decoded)

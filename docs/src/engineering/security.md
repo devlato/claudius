@@ -110,10 +110,10 @@ checks every path it is given against a list of roots,
 
 - **Reading** (`config::path_allowed`): the path must exist and, canonicalised (symbolic links and `..` resolved),
   start with one of the canonicalised roots. `config::read_error` turns a refusal into a message. Used for scripts'
-  `.s(path)`, `load` / `open` (and every audio file a loaded blueprint plays), `analyze` and `remake`.
+  `.s(path)`, `load` / `open` (and every audio file a loaded blueprint plays), `analyze`, `remake` and `add_take`.
 - **Writing** (`config::write_allowed`): the nearest existing ancestor of the path must pass the reading check, and
   every remaining component must be a plain name, so `allowed/../outside` and `allowed/missing/../../outside` are
-  refused. Used for `save`.
+  refused. Used for `save` and for where a take is kept.
 
 `config::shared_roots()` is the song folder (`~/Music/claudius`), claudius' cache folder, the sample packs folder and
 the two Apple Loops folders. Sample-pack instruments and Apple Loops one-shots are found by name, not path, and stay

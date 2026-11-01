@@ -239,6 +239,7 @@ pub fn generate(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn Li
             chop: Vec::new(),
             slice_beats: 0.5,
             mix,
+            from: None,
         });
     };
     let chord_mix =
@@ -420,6 +421,7 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
                     chop: Vec::new(),
                     slice_beats: 0.5,
                     mix: spec.mix.clone(),
+                    from: None,
                 });
             }
         }
@@ -550,6 +552,7 @@ pub fn add_sample(bp: &mut Blueprint, path: &str, bpm: f64, beats: f64, key: Opt
         chop: chop.clone(),
         slice_beats: 0.5,
         mix: TrackMix { duck: 0.4, reverb: 0.15, bus: "music".into(), ..Default::default() },
+        from: None,
     });
     for s in bp.form.iter_mut() {
         if matches!(s.kind, SectionKind::Drop | SectionKind::Hook | SectionKind::Groove)

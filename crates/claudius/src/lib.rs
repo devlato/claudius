@@ -36,5 +36,6 @@ pub mod rng;
 pub mod script;
 pub mod song;
 pub mod synth;
+pub mod take;
 pub mod theory;
 pub mod warp;

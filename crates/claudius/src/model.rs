@@ -307,6 +307,10 @@ pub struct LoopPart {
     pub slice_beats: f64,
     #[serde(default)]
     pub mix: TrackMix,
+    /// a take (a recording made for the song): it plays once from the start of this section, and on through the
+    /// later sections that play it for as long as it lasts, instead of looping in each section
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from: Option<String>,
 }
 
 /// a track written as a pattern expression (see `script`): the code is the source of truth, `sounds` the sound each
@@ -528,6 +532,9 @@ pub struct Clip {
     pub fade_in: f64,
     #[serde(default)]
     pub fade_out: f64,
+    /// the recording plays once, from `offset` to its end, and is silent after it instead of starting over
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub once: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

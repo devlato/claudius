@@ -41,7 +41,7 @@ Each track plays its notes or clips through its `Sound`:
 | `synth` | the [synth engine](#the-synth-engine) renders the notes |
 | `instrument` | the sample-pack player renders the notes ([Sample packs](packs.md#the-player)) |
 | `fx` | each note renders a transition effect of the note's length: `riser`, `downlifter`, `impact`, `reverse_crash`, `sweep_up` or `sweep_down`; risers are tuned to the key's tonic |
-| `loop` | the loop is [warped](../guide/samples.md#warping) to the tempo and key, then each clip copies it in, re-sliced by `chop` when set, with fades of at least 1 ms in and 2 ms out |
+| `loop` | the loop is [warped](../guide/samples.md#warping) to the tempo and key, then each clip copies it in, re-sliced by `chop` when set, with fades of at least 1 ms in and 2 ms out; a [take](../guide/samples.md#takes)'s clips (`once`) play it from their offset to its end and not again, warped between silences instead of wrapping |
 
 Details that make it sound played rather than printed:
 

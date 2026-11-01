@@ -113,6 +113,32 @@ The song's history records it as `flipped '<file>' (<tempo> BPM, <beats> beats, 
 To write a whole new song on another song's skeleton instead, use `claudius remake`; see
 [Remaking a song from audio](../cookbook/remake.md).
 
+## Takes
+
+A take is a recording made for the song: a vocal, a guitar, a melody sung into a microphone. A loop starts over in
+every section it is in; a take plays once, from the start of the section it was recorded over, and on through the
+sections after it for as long as it lasts. It arrives as an audio file, recorded at the song's tempo and starting on
+that section's first downbeat. Send it to the [HTTP API](http-api.md#routes), or give the file to an assistant, which
+adds it with `add_take`:
+
+```sh
+curl -X POST 'http://127.0.0.1:7878/api/takes?from=drop&name=vox&role=vocal' \
+  -H 'Content-Type: audio/wav' --data-binary @vocal.wav
+```
+
+- **The mix.** The take is mixed like any track, at the loudness of its role: `vocal` (-15 LUFS while it plays),
+  `lead` (-18, the default), `chords`, `keys`, `bass`, `drums` or `texture`. The critic hears it with the rest.
+- **Where it is kept.** claudius keeps each take as 24-bit FLAC, named after its sound, in `takes/` in the song's
+  folder, or in `~/Music/claudius/takes` while the song has no folder yet. A save copies the song's takes into the
+  folder it writes, so a song folder carries its recordings, and a song folder that moved or came from another
+  computer finds them in its own `takes/`.
+- **Tempo and key.** When the song's tempo changes, the take is [warped](#warping) to it, between silences rather than
+  wrapped around as a loop is. It does not follow a change of key.
+- **The arrangement.** The take is a track of kind `take`, on in the sections it reaches. `toggle_layer` turns it off
+  in a section, which silences that stretch of it. In a section before the one it starts with, it plays nothing.
+- **Releasing it.** [Publishing](publish.md) lists takes with your own recordings: release them only if you made them or
+  have cleared their rights.
+
 ## Files in scripts
 
 A script plays any audio file through [`.s()`](../language/sounds.md#your-own-files) on a `note()`, `n()` or
@@ -145,7 +171,7 @@ given against a list of folders:
 
 The checks:
 
-- **Reading.** A file named in `.s()`, opened with `load` / `open`, or given to `analyze` or `remake` must exist and,
+- **Reading.** A file named in `.s()`, opened with `load` / `open`, or given to `analyze`, `remake` or `add_take` must exist and,
   after links and `..` are resolved, lie inside one of the folders. Opening a `blueprint.json` also checks every
   audio file the song plays.
 - **Writing.** `save` may create a folder when its nearest existing parent lies inside one of the folders and the

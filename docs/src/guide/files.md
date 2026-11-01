@@ -42,6 +42,7 @@ MCP made it, so they hold the same files:
 | `stems/<track>.wav` | every track, 32-bit float: always from a `save`, from `make` and `render` with `--stems` |
 | `release.json` | what you gave `claudius publish`: the artist, the songwriters, the artwork, how the song was made |
 | `release/` | the release kit `claudius publish` writes ([Publishing](publish.md)) |
+| `takes/` | the song's [takes](samples.md#takes), 24-bit FLAC: recordings made for it, which a save copies in |
 
 Stems are floating point because a track can peak above full scale before the master's limiter brings the mix down.
 `claudius judge` runs its arrangement and theory checks when `project.json` sits next to the audio, so any song
@@ -51,7 +52,8 @@ folder gets the full verdict.
 mutate`, and `open` in the studio and the MCP tools all start from it. [The song model](../engineering/song-model.md)
 describes its fields. Every later claudius opens it; a newer claudius's song, in a format this one does not read
 yet, says so and asks for an update. A blueprint that plays audio files (Apple Loops, chops, files from scripts) stores their paths,
-so it plays on another computer only where those files exist.
+so it plays on another computer only where those files exist. Takes are the exception: they travel in the folder's
+`takes/`, and a song folder that moved finds them there.
 
 ## Caches
 

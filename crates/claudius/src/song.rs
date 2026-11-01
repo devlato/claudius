@@ -77,10 +77,14 @@ pub struct Written {
     pub mp3: PathBuf,
 }
 
-/// a song from its blueprint.json, checked: its size, and that its pattern tracks still read
+/// a song from its blueprint.json, checked: its size, and that its pattern tracks still read; takes that moved with the
+/// song folder are found in it
 pub fn read_blueprint(path: &Path) -> Result<Blueprint> {
     let text = std::fs::read_to_string(path).with_context(|| format!("cannot read {}", path.display()))?;
-    let bp = Blueprint::from_json(&text).map_err(|e| anyhow::anyhow!("cannot open {}: {e}", path.display()))?;
+    let mut bp = Blueprint::from_json(&text).map_err(|e| anyhow::anyhow!("cannot open {}: {e}", path.display()))?;
+    if let Some(folder) = path.parent() {
+        crate::take::find_moved(&mut bp, folder);
+    }
     bp.check_size().map_err(anyhow::Error::msg)?;
     crate::script::check_patterns(&bp).map_err(anyhow::Error::msg)?;
     Ok(bp)
@@ -128,9 +132,15 @@ fn write_audio(dir: &Path, bp: &Blueprint, r: &Rendered) -> Result<(PathBuf, Pat
     Ok((wav, mp3))
 }
 
-/// everything in the folder but the audio
+/// everything in the folder but the audio; the song's takes are copied into its `takes/`, and what the folder says
+/// plays the copies
 fn write_documents(dir: &Path, bp: &Blueprint, project: &Project, r: &Rendered, verdict: &Verdict) -> Result<()> {
     std::fs::create_dir_all(dir)?;
+    let mut bp = bp.clone();
+    let moves = crate::take::gather(&mut bp, dir)?;
+    let mut project = project.clone();
+    crate::take::repoint_tracks(&mut project, &moves);
+    let (bp, project) = (&bp, &project);
     std::fs::write(dir.join("verdict.json"), serde_json::to_string_pretty(verdict)?)?;
     std::fs::write(dir.join("blueprint.json"), bp.to_json())?;
     std::fs::write(dir.join("song.rhai"), crate::script::to_script(bp))?;

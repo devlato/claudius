@@ -221,7 +221,7 @@ pub struct SectionView {
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct TrackView {
     pub name: String,
-    /// "drum" | "part" | "loop" | "pattern" | "fx"
+    /// "drum" | "part" | "loop" | "take" | "pattern" | "fx"
     pub kind: String,
     /// mixing role (kick, bass, chords, lead, top, ...)
     pub role: String,
@@ -498,6 +498,18 @@ pub enum Command {
         /// the tempo (default: the recording's, halved or doubled into the genre's range when it is outside)
         #[serde(default)]
         bpm: Option<f64>,
+    },
+    /// a recording (an audio file) as a take: it plays once from the start of section `from`, on through the sections
+    /// after it as long as it lasts, at the song's tempo; claudius keeps a copy with the song
+    AddTake {
+        path: String,
+        from: String,
+        /// the track's name (default take1, take2, ...)
+        #[serde(default)]
+        name: Option<String>,
+        /// vocal, lead, chords, keys, bass, drums or texture: how loud the mix makes it (default lead)
+        #[serde(default)]
+        role: Option<String>,
     },
     /// try `count` random mutations, keep the best-judged one when `keep_best` (else only report them)
     Mutate {

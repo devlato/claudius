@@ -1,6 +1,7 @@
 //! Loop warping: fit a recorded loop to the project tempo and key. Signalsmith Stretch does time-stretch and
 //! pitch-shift in one pass; a tempo change under 1.5 % with no transpose is plain varispeed (no artifacts at all).
-//! Loops are stretched three copies end to end and the middle one is kept, so the result wraps seamlessly.
+//! Loops are stretched three copies end to end and the middle one is kept, so the result wraps seamlessly; a take,
+//! played once, is stretched between silences, so neither of its ends hears the other.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -19,9 +20,10 @@ fn cache() -> &'static Cache {
     C.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-/// the loop at `path` (`beats` long at `src_bpm`) warped to `dst_bpm` and transposed by `semis`
-pub fn warp(path: &str, src_bpm: f64, beats: f64, dst_bpm: f64, semis: i32) -> Result<Arc<Stereo>> {
-    let key = format!("{path}|{src_bpm:.3}|{beats:.3}|{dst_bpm:.3}|{semis}");
+/// the loop at `path` (`beats` long at `src_bpm`) warped to `dst_bpm` and transposed by `semis`; `seamless` for a loop,
+/// which wraps, and not for a take
+pub fn warp(path: &str, src_bpm: f64, beats: f64, dst_bpm: f64, semis: i32, seamless: bool) -> Result<Arc<Stereo>> {
+    let key = format!("{path}|{src_bpm:.3}|{beats:.3}|{dst_bpm:.3}|{semis}{}", if seamless { "" } else { "|once" });
     if let Some(x) = cache().lock().unwrap().get(&key) {
         return Ok(x.clone());
     }
@@ -44,7 +46,9 @@ pub fn warp(path: &str, src_bpm: f64, beats: f64, dst_bpm: f64, semis: i32) -> R
     } else {
         let mut tripled = Stereo::zeros(src_len * 3);
         for k in 0..3 {
-            tripled.add_at(&x, (k * src_len) as i64, 1.0, 1.0);
+            if seamless || k == 1 {
+                tripled.add_at(&x, (k * src_len) as i64, 1.0, 1.0);
+            }
         }
         let mut st = Stretch::preset_default(2, SR);
         st.set_transpose_factor_semitones(semis as f32, None);

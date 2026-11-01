@@ -328,6 +328,20 @@ pub struct RemakeArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct TakeArgs {
+    /// the recording: an audio file (WAV, FLAC, MP3, ...) made at the song's tempo, starting on the section's downbeat
+    pub path: String,
+    /// the section it starts with, by name (get_song lists them)
+    pub from: String,
+    /// the track's name: letters, digits, - and _ (default take1, take2, ...)
+    #[serde(default)]
+    pub name: Option<String>,
+    /// vocal, lead, chords, keys, bass, drums or texture: how loud the mix makes it (default lead)
+    #[serde(default)]
+    pub role: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct CommandArgs {
     /// one command object, e.g. {"cmd": "add_section", "after": 2, "kind": "break", "bars": 8}
     pub command: serde_json::Value,
@@ -638,7 +652,14 @@ impl Studio {
     }
 
     #[tool(
-        description = "Send one raw claudius API command (JSON tagged by \"cmd\"), for edits scripts do not cover: add_section {after, kind, bars}, remove_section {index}, move_section {from, to}, toggle_layer {section, layer}, set_drum_step {lane, variant, step, velocity}, set_section {index, name?, bars?, energy?, layers?, prog?, variant?, build?, gap?, impact?, fills?, filter_in?}, set_part {name, style?, preset?, register?, density?, reseed?}, set_mix {track, level_db?, pan?, reverb?, delay?, duck?, muted?, solo?}."
+        description = "Add a recording to the song as a take: an audio file someone recorded for it (a vocal, a guitar, a sung melody), which plays once from the start of section `from` and on through the sections after it for as long as it lasts, at the song's tempo. claudius keeps a copy with the song, mixes the take by its role and judges it with the rest. It turns off like any track (toggle_layer)."
+    )]
+    async fn add_take(&self, Parameters(a): Parameters<TakeArgs>) -> Result<String, String> {
+        self.edit(Command::AddTake { path: a.path, from: a.from, name: a.name, role: a.role }, true).await
+    }
+
+    #[tool(
+        description = "Send one raw claudius API command (JSON tagged by \"cmd\"), for edits scripts do not cover: add_section {after, kind, bars}, remove_section {index}, move_section {from, to}, toggle_layer {section, layer}, set_drum_step {lane, variant, step, velocity}, set_section {index, name?, bars?, energy?, layers?, prog?, variant?, build?, gap?, impact?, fills?, filter_in?}, set_part {name, style?, preset?, register?, density?, reseed?}, set_mix {track, level_db?, pan?, reverb?, delay?, duck?, muted?, solo?}, add_take {path, from, name?, role?}."
     )]
     async fn command(&self, Parameters(a): Parameters<CommandArgs>) -> Result<String, String> {
         let c: Command = serde_json::from_value(a.command).map_err(|e| format!("not a claudius command: {e}"))?;
