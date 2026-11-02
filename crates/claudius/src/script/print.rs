@@ -12,7 +12,7 @@ use super::steps::{hits_to_steps, shortest_steps};
 use crate::synth::drums::DrumParams;
 
 /// a number as the shortest text that reads back as the same f32
-fn f32s(v: f32) -> String {
+pub(super) fn f32s(v: f32) -> String {
     if v == v.trunc() && v.abs() < 1e9 { format!("{}", v as i64) } else { format!("{v}") }
 }
 
@@ -283,6 +283,10 @@ pub fn to_script(bp: &Blueprint) -> String {
             "\n// drums: X accent, x hit, o ghost, . rest, | bar line; 16 steps per bar unless a number follows\n",
         );
     }
+    for line in super::trigs::groove_lines(bp) {
+        s.push_str(&line);
+        s.push('\n');
+    }
     for d in &bp.drums {
         for (v, hits) in &d.patterns {
             let (steps, res) = hits_to_steps(hits, d.pattern_bars);
@@ -296,6 +300,10 @@ pub fn to_script(bp: &Blueprint) -> String {
                 s.push_str(&line);
                 s.push('\n');
             }
+        }
+        if let Some(line) = super::trigs::lane_line(d) {
+            s.push_str(&line);
+            s.push('\n');
         }
         match &d.sound {
             Sound::Drum { voice, params } => {

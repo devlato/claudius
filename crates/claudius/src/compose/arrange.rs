@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::theory::Lock;
+use crate::theory::rhythm::Groove;
 
 /// chord spans of one cycle of progression `name` starting at beat 0
 pub fn cycle_spans(bp: &Blueprint, name: &str) -> Vec<ChordSpan> {
@@ -79,15 +80,30 @@ fn tile(notes: &[Note], period: f64, start: f64, end: f64) -> Vec<Note> {
     out
 }
 
-/// A drum lane's pattern over a section, from beat `a` to `b`, `period` beats a time round: each time round, every
-/// hit as its trig says (`rhythm::Trig`). A condition counts the times round from the section's start; a chance is
-/// drawn afresh each time round, the same in every render of the song (`seed`, with the lane and section `si`); a
-/// ratchet or a flam is its strokes, and the locks go with each.
-fn lane_notes(lane: &DrumLane, hits: &[Hit], period: f64, a: f64, b: f64, seed: u64, si: usize, bpm: f64) -> Vec<Note> {
+/// A drum lane's pattern over a section, from beat `a` to `b`, a time round lasting the lane's `period` (its own
+/// length at its own speed): each time round, every hit as its trig says (`rhythm::Trig`), and every stroke in the
+/// lane's groove. A condition counts the times round from the section's start; a chance is drawn afresh each time
+/// round, the same in every render of the song (its seed, with the lane and section `si`); a ratchet or a flam is
+/// its strokes, and the locks go with each.
+fn lane_notes(
+    bp: &Blueprint,
+    lane: &DrumLane,
+    hits: &[Hit],
+    groove: Option<&Groove>,
+    (a, b): (f64, f64),
+    si: usize,
+) -> Vec<Note> {
+    let (seed, bpm) = (bp.seed, bp.bpm);
     let mut out = Vec::new();
+    let period = lane.period();
     if hits.is_empty() || period <= 0.0 {
         return out;
     }
+    let speed = lane.speed.max(0.125) as f64;
+    let cut = lane.length.map_or(f64::MAX, |l| l as f64 * 0.25);
+    let hits: Vec<Hit> = hits.iter().filter(|h| h.t < cut - 1e-9).map(|h| Hit { t: h.t / speed, ..*h }).collect();
+    let step = 0.25 / speed;
+    let feel = |t: f64, v: f32| groove.map_or((t, v), |g| g.apply(t, v, lane.groove_amount));
     let rounds = ((b - a) / period - 1e-9).ceil().max(1.0) as usize;
     let lane_seed = seed ^ hash_str(&lane.name) ^ (si as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15);
     for k in 0..rounds {
@@ -98,7 +114,8 @@ fn lane_notes(lane: &DrumLane, hits: &[Hit], period: f64, a: f64, b: f64, seed: 
                 continue;
             }
             let Some(tr) = h.trig else {
-                out.push(Note { t, d: 0.25, p: 60 + lane.pitch, v: h.v, lock: None });
+                let (t, v) = feel(t, h.v);
+                out.push(Note { t, d: step, p: 60 + lane.pitch, v, lock: None });
                 continue;
             };
             if !tr.cond.plays(k, rounds) {
@@ -110,9 +127,10 @@ fn lane_notes(lane: &DrumLane, hits: &[Hit], period: f64, a: f64, b: f64, seed: 
             let lock = Lock { nudge: tr.nudge as f64 * 0.25, decay: tr.decay, tone: tr.tone, pan: tr.pan };
             let lock = (lock != Lock::default()).then_some(lock);
             let p = 60 + lane.pitch + tr.pitch as i32;
-            for (st, v) in tr.strokes(t, h.v, bpm) {
+            for (st, v) in tr.strokes(t, h.v, bpm, step) {
                 if st >= 0.0 && st < b - 1e-9 {
-                    out.push(Note { t: st, d: 0.25 / tr.ratchet.max(1) as f64, p, v, lock });
+                    let (st, v) = feel(st, v);
+                    out.push(Note { t: st, d: step / tr.ratchet.max(1) as f64, p, v, lock });
                 }
             }
         }
@@ -209,8 +227,9 @@ pub fn arrange(bp: &Blueprint) -> Project {
             if on {
                 let pat = lane.patterns.get(&s.variant).or_else(|| lane.patterns.get("main"));
                 if let Some(p) = pat {
-                    let period = lane.pattern_bars as f64 * 4.0;
-                    let mut seg = lane_notes(lane, p, period, a, b, bp.seed, si, bp.bpm);
+                    let groove =
+                        lane.groove.as_deref().and_then(|g| bp.grooves.get(g).cloned().or_else(|| rhythm::groove(g)));
+                    let mut seg = lane_notes(bp, lane, p, groove.as_ref(), (a, b), si);
                     // builds: the fill lane turns into a snare roll; the kick drops out for the last bar
                     if s.build && is_fill_lane {
                         seg.retain(|n| n.t < b - roll_len);
@@ -260,6 +279,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
             chop: Vec::new(),
             slice_beats: 0.0,
             choke: lane.choke.clone(),
+            swing: lane.swing,
             mix: TrackMix {
                 bus: if lane.mix.bus == "music" { "drums".into() } else { lane.mix.bus.clone() },
                 ..lane.mix.clone()
@@ -309,6 +329,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
             chop: Vec::new(),
             slice_beats: 0.0,
             choke: None,
+            swing: None,
             mix: part.mix.clone(),
         });
     }
@@ -349,6 +370,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
             chop: lp.chop.clone(),
             slice_beats: lp.slice_beats,
             choke: None,
+            swing: None,
             mix: lp.mix.clone(),
         });
     }
@@ -391,6 +413,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
                 chop: Vec::new(),
                 slice_beats: 0.0,
                 choke: None,
+                swing: None,
                 mix: pt.mix.clone(),
             });
         }
@@ -443,6 +466,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
                 chop: Vec::new(),
                 slice_beats: 0.0,
                 choke: None,
+                swing: None,
                 mix: fxmix.clone(),
             });
         }

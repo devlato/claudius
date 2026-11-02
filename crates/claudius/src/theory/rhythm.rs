@@ -88,9 +88,9 @@ impl Trig {
         }
     }
 
-    /// The strokes it makes for a hit at `t` (beats) of velocity `v` at `bpm`: (beat, velocity), the flam's grace
-    /// stroke first.
-    pub fn strokes(&self, t: f64, v: f32, bpm: f64) -> Vec<(f64, f32)> {
+    /// The strokes it makes for a hit at `t` (beats) of velocity `v` at `bpm`, its step `step` beats long (a sixteenth
+    /// at the lane's own speed): (beat, velocity), the flam's grace stroke first.
+    pub fn strokes(&self, t: f64, v: f32, bpm: f64, step: f64) -> Vec<(f64, f32)> {
         let mut out = Vec::new();
         if self.flam > 0.0 {
             out.push((t - self.flam as f64 / 1000.0 * bpm / 60.0, v * 0.5));
@@ -100,7 +100,7 @@ impl Trig {
             let across = if n == 1 { 0.0 } else { k as f32 / (n - 1) as f32 };
             // a swell starts soft and ends at the velocity; a fade the other way round
             let level = 1.0 - self.ramp.abs() * if self.ramp > 0.0 { 1.0 - across } else { across } * 0.75;
-            out.push((t + 0.25 * k as f64 / n as f64, (v * level).clamp(0.05, 1.0)));
+            out.push((t + step * k as f64 / n as f64, (v * level).clamp(0.05, 1.0)));
         }
         out
     }
@@ -117,6 +117,94 @@ fn is_one_u8(v: &u8) -> bool {
 }
 fn is_zero_i8(v: &i8) -> bool {
     *v == 0
+}
+
+/// A groove: where each sixteenth of the bar lands against the grid and how hard, as a drummer's feel or a drum
+/// machine's groove template has it. `timing` is beats (below 0 early), `accent` a factor on the velocity.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Groove {
+    pub timing: [f32; 16],
+    pub accent: [f32; 16],
+}
+
+/// the grooves claudius has by name, as `groove` makes them
+pub const GROOVES: &[&str] =
+    &["straight", "swing54", "swing58", "swing62", "swing66", "swing71", "shuffle", "dilla", "push", "lazy"];
+
+/// The groove named `name`, one of `GROOVES`. The swings put each second sixteenth of an eighth that far into the
+/// eighth (54 % to 71 %, as a drum machine's swing setting; 66 % is a triplet); `shuffle` moves the off-beat eighths
+/// and sixteenths onto triplets; `dilla` drags the off-beats and the backbeat unevenly and leans on the
+/// downbeats; `push` plays everything but the beats a little early, `lazy` a little late.
+pub fn groove(name: &str) -> Option<Groove> {
+    let swing = |pct: f32| {
+        let late = 0.5 * pct / 100.0 - 0.25;
+        let timing = std::array::from_fn(|i| if i % 2 == 1 { late } else { 0.0 });
+        Groove { timing, accent: [1.0; 16] }
+    };
+    Some(match name {
+        "straight" => Groove { timing: [0.0; 16], accent: [1.0; 16] },
+        "swing54" => swing(54.0),
+        "swing58" => swing(58.0),
+        "swing62" => swing(62.0),
+        "swing66" => swing(66.0),
+        "swing71" => swing(71.0),
+        "shuffle" => Groove {
+            timing: std::array::from_fn(|i| match i % 4 {
+                1 => 1.0 / 3.0 - 0.25,
+                2 => 2.0 / 3.0 - 0.5,
+                3 => 5.0 / 6.0 - 0.75,
+                _ => 0.0,
+            }),
+            accent: std::array::from_fn(|i| if i % 4 == 0 { 1.0 } else { 0.85 }),
+        },
+        "dilla" => Groove {
+            timing: [
+                0.0, 0.07, 0.02, 0.06, 0.03, 0.08, 0.025, 0.05, 0.0, 0.065, 0.015, 0.07, 0.035, 0.075, 0.02, 0.055,
+            ],
+            accent: [1.0, 0.7, 0.85, 0.75, 0.95, 0.7, 0.8, 0.72, 0.98, 0.7, 0.85, 0.74, 0.95, 0.72, 0.82, 0.7],
+        },
+        "push" => Groove {
+            timing: std::array::from_fn(|i| if i % 4 == 0 { 0.0 } else { -0.02 }),
+            accent: std::array::from_fn(|i| if i % 2 == 1 { 1.08 } else { 1.0 }),
+        },
+        "lazy" => Groove {
+            timing: std::array::from_fn(|i| if i % 4 == 0 { 0.0 } else { 0.03 }),
+            accent: std::array::from_fn(|i| if i % 4 == 0 { 1.0 } else { 0.92 }),
+        },
+        _ => return None,
+    })
+}
+
+impl Groove {
+    /// Where a stroke at beat `t` of the song (bar lines every 4 beats) lands and how hard, `amount` of the groove (0
+    /// to 1): only strokes on a sixteenth take it.
+    pub fn apply(&self, t: f64, v: f32, amount: f32) -> (f64, f32) {
+        let q = t * 4.0;
+        if (q - q.round()).abs() > 1e-6 {
+            return (t, v);
+        }
+        let i = (q.round() as i64).rem_euclid(16) as usize;
+        let a = amount.clamp(0.0, 1.0);
+        (t + (a * self.timing[i]) as f64, (v * (1.0 + a * (self.accent[i] - 1.0))).clamp(0.05, 1.0))
+    }
+
+    /// in words: how late the off-beat sixteenths land (as a swing), how the backbeat sits, where the accents are
+    pub fn describe(&self) -> String {
+        let mean = |idx: &[usize], v: &[f32; 16]| idx.iter().map(|&i| v[i]).sum::<f32>() / idx.len() as f32;
+        let off = mean(&[1, 3, 5, 7, 9, 11, 13, 15], &self.timing);
+        let swing = (off + 0.25) / 0.5 * 100.0;
+        let back = mean(&[4, 12], &self.timing);
+        let feel = match back {
+            b if b > 0.01 => format!("the backbeat {:.0}% of a sixteenth behind", b / 0.25 * 100.0),
+            b if b < -0.01 => format!("the backbeat {:.0}% of a sixteenth ahead", -b / 0.25 * 100.0),
+            _ => "the backbeat on the beat".to_string(),
+        };
+        let mut loud: Vec<usize> = (0..16).collect();
+        loud.sort_by(|a, b| self.accent[*b].total_cmp(&self.accent[*a]));
+        let names = ["1", "1e", "1&", "1a", "2", "2e", "2&", "2a", "3", "3e", "3&", "3a", "4", "4e", "4&", "4a"];
+        let accents: Vec<&str> = loud.iter().take(3).map(|&i| names[i]).collect();
+        format!("the off-beat sixteenths at {swing:.0}% swing, {feel}, the accents on {}", accents.join(", "))
+    }
 }
 
 /// When a step plays, counted in times round its pattern from the start of each section: every time, the `a`-th of
@@ -472,14 +560,14 @@ mod tests {
     #[test]
     fn a_ratchet_strikes_within_its_sixteenth_and_a_flam_comes_before() {
         let swell = Trig { ratchet: 4, ramp: 1.0, ..Trig::default() };
-        let s = swell.strokes(1.0, 0.8, 120.0);
+        let s = swell.strokes(1.0, 0.8, 120.0, 0.25);
         let at: Vec<f64> = s.iter().map(|x| x.0).collect();
         assert_eq!(at, [1.0, 1.0625, 1.125, 1.1875]);
         assert!(s.windows(2).all(|w| w[0].1 < w[1].1) && (s[3].1 - 0.8).abs() < 1e-6, "{s:?}");
-        let fade = Trig { ratchet: 3, ramp: -1.0, ..Trig::default() }.strokes(0.0, 1.0, 120.0);
+        let fade = Trig { ratchet: 3, ramp: -1.0, ..Trig::default() }.strokes(0.0, 1.0, 120.0, 0.25);
         assert!(fade.windows(2).all(|w| w[0].1 > w[1].1) && fade[0].1 == 1.0, "{fade:?}");
         // 20 ms at 120 BPM is 0.04 beats, at half the velocity
-        let flam = Trig { flam: 20.0, ..Trig::default() }.strokes(2.0, 0.8, 120.0);
+        let flam = Trig { flam: 20.0, ..Trig::default() }.strokes(2.0, 0.8, 120.0, 0.25);
         assert_eq!(flam.len(), 2);
         assert!((flam[0].0 - 1.96).abs() < 1e-9 && flam[0].1 == 0.4 && flam[1] == (2.0, 0.8), "{flam:?}");
     }
