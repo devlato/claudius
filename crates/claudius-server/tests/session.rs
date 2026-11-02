@@ -106,6 +106,32 @@ fn tracks_are_added_and_removed() {
     assert!(!app.command(Command::RemoveTrack { name: "nope".into() }).ok);
 }
 
+#[test]
+fn a_parts_notes_are_written_out_and_given_back() {
+    let app = App::new(Settings { library: false, ears: false, auto_render: false, file_roots: None, voice: None });
+    let new = Command::NewSong { genre: "house".into(), seed: Some(4), bpm: None, key: None, loops: false };
+    assert!(app.command(new).ok);
+    let lead = |app: &App| app.state().song.unwrap().parts.into_iter().find(|p| p.name == "lead").unwrap();
+    let before = lead(&app);
+    let cycle = before.cycles.first().expect("the lead plays a progression").clone();
+    assert!(!cycle.written && !cycle.notes.is_empty() && cycle.beats >= 16.0, "{cycle:?}");
+    let mut notes = cycle.notes.clone();
+    notes[0].p += 1;
+    notes.push(claudius_api::NoteView { t: 0.5, d: 0.25, p: 84, v: 0.6 });
+    let set = |notes| Command::SetNotes { part: "lead".into(), prog: cycle.prog.clone(), notes };
+    let r = app.command(set(Some(notes.clone())));
+    assert!(r.ok, "{}", r.message);
+    let written = lead(&app).cycles.into_iter().find(|c| c.prog == cycle.prog).unwrap();
+    assert!(written.written);
+    let mut sorted = notes.clone();
+    sorted.sort_by(|a, b| a.t.total_cmp(&b.t).then(a.p.cmp(&b.p)));
+    assert_eq!(written.notes, sorted, "the notes as they were sent, in order");
+    let bad = app.command(Command::SetNotes { part: "nope".into(), prog: "A".into(), notes: Some(Vec::new()) });
+    assert!(!bad.ok && bad.message.contains("no part 'nope'"), "{}", bad.message);
+    assert!(app.command(set(None)).ok);
+    assert_eq!(lead(&app).cycles, before.cycles, "the theory engine writes what it wrote");
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn a_shared_session_keeps_to_its_folders() {
     let inside = std::env::temp_dir().join(format!("claudius-roots-{}", std::process::id()));

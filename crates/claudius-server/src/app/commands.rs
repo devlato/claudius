@@ -305,6 +305,25 @@ impl App {
             Command::RemoveTrack { name } => {
                 self.run_script(&format!("remove({})", quote(&name)), Some(format!("removed {name}")))
             }
+            Command::SetNotes { part, prog, notes } => {
+                let (code, what) = match notes {
+                    Some(notes) => {
+                        // as the script reads them back exactly: whole numbers whole, the rest as Rust prints them
+                        let n = |x: f64| {
+                            if x == x.trunc() && x.abs() < 1e15 { format!("{}", x as i64) } else { format!("{x}") }
+                        };
+                        let list: Vec<String> =
+                            notes.iter().map(|x| format!("[{}, {}, {}, {}]", n(x.t), n(x.d), x.p, x.v)).collect();
+                        let what = format!("{part} over {prog}: {} notes written out", notes.len());
+                        (format!("notes({}, {}, [{}])", quote(&part), quote(&prog), list.join(", ")), what)
+                    }
+                    None => (
+                        format!("clear_notes({}, {})", quote(&part), quote(&prog)),
+                        format!("{part} over {prog}: the theory engine's again"),
+                    ),
+                };
+                self.run_script(&code, Some(what))
+            }
             Command::SetMix { track, level_db, pan, reverb, delay, duck, muted, solo, bus } => {
                 let mut fields = Vec::new();
                 for (k, x) in [("level", level_db), ("pan", pan), ("reverb", reverb), ("delay", delay), ("duck", duck)]

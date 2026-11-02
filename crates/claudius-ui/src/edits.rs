@@ -370,6 +370,7 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
                         presets: Vec::new(),
                         register,
                         density: 0.55,
+                        cycles: Vec::new(),
                     });
                     let bus = if role == "bass" { "bass" } else { "music" };
                     (TrackView { kind: "part".into(), role, sound: preset, ..Default::default() }, bus)
@@ -386,6 +387,40 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
                 s.layers.push(name.clone());
             }
             Ok(format!("new track {name}"))
+        }
+        Command::SetNotes { part, prog, notes } => {
+            let Some(p) = song.parts.iter_mut().find(|p| &p.name == part) else {
+                return Some(Err(format!("no part '{part}'")));
+            };
+            if !song.progressions.iter().any(|(name, _)| name == prog) {
+                return Some(Err(format!("no progression '{prog}'")));
+            }
+            let at = match p.cycles.iter().position(|c| &c.prog == prog) {
+                Some(i) => i,
+                None => {
+                    // a progression the part has no cycle for yet (the demo writes its parts as they play, a chord a
+                    // bar)
+                    let beats = song
+                        .progressions
+                        .iter()
+                        .find(|(name, _)| name == prog)
+                        .map_or(16.0, |(_, chords)| (chords.len().max(1) * 4) as f64);
+                    p.cycles.push(claudius_api::CycleView { prog: prog.clone(), beats, ..Default::default() });
+                    p.cycles.len() - 1
+                }
+            };
+            let c = &mut p.cycles[at];
+            match notes {
+                Some(n) => {
+                    c.notes = n.clone();
+                    c.written = true;
+                    Ok(format!("{part} over {prog}: {} notes written out", n.len()))
+                }
+                None => {
+                    c.written = false;
+                    Ok(format!("{part} over {prog}: the theory engine's again"))
+                }
+            }
         }
         Command::RemoveTrack { name } => {
             if !song.layers.contains(name) {

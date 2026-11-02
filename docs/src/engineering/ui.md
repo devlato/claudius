@@ -51,6 +51,7 @@ The studio is still being finished; this page describes its structure, which is 
 | record | a take recorded over the song from a count-in, played back, kept; latency measured; a take an assistant asks for; a pitch check: its phrases synthesised from `State.pitch_check` and played as the song a take records over, the answers sent to `/api/pitch-check` when the phrases end | `add_notes`, `cancel_take_request`, `request_pitch_check`, `cancel_pitch_check` |
 | mixer | a strip per track: pan, sends, duck, fader, mute, solo, with its loudness from the latest render | `set_mix` |
 | parts | style, sound, register (drag on a keyboard), density, reseed | `set_part` |
+| piano roll | a part's cycle over a progression from `PartView::cycles`, on a grid of beats and pitches: click adds a note at the grid (1/16 to 1/2), a drag moves a note or, by its right edge, makes it longer, right-click takes it out; a drag edits a draft sent when let go, and a cycle the theory engine writes is written out by the first edit. The demo writes its cycles with the same code it plays them with (`mock::synth::write_cycles`) and plays a cycle written out | `set_notes` |
 | harmony | which progression each section plays; progressions as chord chips, from the key's diatonic chords or as text | `set_section`, `set_progression` |
 | script | the song as a script, highlighted, Run with Cmd or Ctrl+Enter, errors marking their line, sounds to insert, the reference | `run_script` |
 | sounds | the packs and every sound name; click one to put it on a part | `set_part` |

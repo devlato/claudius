@@ -389,6 +389,38 @@ fn blank_songs_print_and_rebuild_exactly() {
 }
 
 #[test]
+fn written_notes_print_play_and_clear_back_to_the_theory_engine() {
+    let g = genres::get("house").unwrap();
+    let bp = compose::generate(&g, 3, &Options::default(), None);
+    let code = r#"notes("lead", "A", [[0, 0.5, 64], [0.5, 0.25, 67, 0.6], [1, 1, 71, 1]]);"#;
+    let out = script::run(code, Some(bp.clone()), None).unwrap().bp.unwrap();
+    let written = &out.parts.iter().find(|p| p.name == "lead").unwrap().notes["A"];
+    assert_eq!(written.iter().map(|n| (n.p, n.v)).collect::<Vec<_>>(), [(64, 0.8), (67, 0.6), (71, 1.0)]);
+    // printed, it is the same song
+    let printed = script::to_script(&out);
+    assert!(
+        printed.contains(r#"notes("lead", "A", [[0, 0.5, 64, 0.8], [0.5, 0.25, 67, 0.6], [1, 1, 71, 1]]);"#),
+        "{printed}"
+    );
+    assert!(script::run(&printed, Some(out.clone()), None).unwrap().bp.unwrap() == out);
+    // the lead plays them
+    let p = compose::arrange(&out);
+    let lead = p.tracks.iter().find(|t| t.name == "lead").unwrap();
+    assert!(lead.notes.iter().any(|n| n.p == 67 && n.v == 0.6), "{:?}", &lead.notes[..lead.notes.len().min(8)]);
+    // cleared, the theory engine writes the progression again
+    assert!(script::run(r#"clear_notes("lead", "A");"#, Some(out), None).unwrap().bp.unwrap() == bp);
+    for (code, says) in [
+        (r#"notes("lead", "Z", [])"#, "no progression 'Z'"),
+        (r#"notes("nope", "A", [])"#, "no part 'nope'"),
+        (r#"notes("lead", "A", [[0, 0, 60]])"#, "note 1 is [start, length, pitch]"),
+        (r#"notes("lead", "A", [[0, 1, 60], [1, 1, 200]])"#, "note 2 is"),
+    ] {
+        let Err(e) = script::run(code, Some(bp.clone()), None) else { panic!("{code} ran") };
+        assert!(e.to_string().contains(says), "{code}: {e}");
+    }
+}
+
+#[test]
 fn parts_of_your_own_print_with_their_role_and_rebuild_exactly() {
     // techno has a lead (lead2 is written like it) and no keys (keys gets the role's own styles and presets)
     let code = r#"

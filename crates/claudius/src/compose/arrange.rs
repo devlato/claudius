@@ -62,6 +62,50 @@ pub fn part_cycle(bp: &Blueprint, part: &Part, prog: &str, kick_main: &[Hit], ki
     }
 }
 
+/// the beats a part's cycle over `prog` comes round in: its progression's, doubled for a lead until a phrase of four
+/// bars at least, and for notes written out as many cycles as they run over
+fn cycle_period(bp: &Blueprint, part: &Part, prog: &str, notes: &[Note]) -> f64 {
+    let mut p = cycle_beats(&cycle_spans(bp, prog));
+    if part.role == Role::Lead {
+        while p < 16.0 {
+            p *= 2.0;
+        }
+    }
+    if part.notes.contains_key(prog) {
+        let (cycle, end) = (p, notes.iter().map(|x| x.t + x.d).fold(0.0, f64::max));
+        while p + 1e-9 < end {
+            p += cycle;
+        }
+    }
+    p
+}
+
+/// the kick's main pattern and its length in bars, which a bass follows
+fn kick_of(bp: &Blueprint) -> (Vec<Hit>, u32) {
+    let kick = bp.drums.iter().find(|d| d.role() == "kick");
+    (kick.and_then(|k| k.patterns.get("main")).cloned().unwrap_or_default(), kick.map_or(4, |k| k.pattern_bars))
+}
+
+/// A part's cycle over each progression its sections play, in the order they first play it: the notes, the beats they
+/// come round in, and whether they are written out (else the theory engine writes them).
+pub fn cycles(bp: &Blueprint, part: &Part) -> Vec<(String, Vec<Note>, f64, bool)> {
+    let (kick_main, kick_bars) = kick_of(bp);
+    let mut progs: Vec<&str> = Vec::new();
+    for s in bp.form.iter().filter(|s| s.layers.contains(&part.name)) {
+        if !progs.contains(&s.prog.as_str()) {
+            progs.push(&s.prog);
+        }
+    }
+    progs
+        .into_iter()
+        .map(|prog| {
+            let notes = part_cycle(bp, part, prog, &kick_main, kick_bars);
+            let period = cycle_period(bp, part, prog, &notes);
+            (prog.to_string(), notes, period, part.notes.contains_key(prog))
+        })
+        .collect()
+}
+
 fn tile(notes: &[Note], period: f64, start: f64, end: f64) -> Vec<Note> {
     let mut out = Vec::new();
     if notes.is_empty() || period <= 0.0 {
@@ -206,9 +250,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
     }
     let total_bars = bar;
     let roles: Vec<String> = bp.drums.iter().map(|d| d.role()).collect();
-    let kick = bp.drums.iter().zip(&roles).find(|(_, r)| *r == "kick").map(|(d, _)| d);
-    let kick_main: Vec<Hit> = kick.and_then(|k| k.patterns.get("main")).cloned().unwrap_or_default();
-    let kick_bars = kick.map_or(4, |k| k.pattern_bars);
+    let (kick_main, kick_bars) = kick_of(bp);
     let fill_lane = ["snare", "clap"]
         .iter()
         .find_map(|n| bp.drums.iter().zip(&roles).find(|(_, r)| *r == n))
@@ -300,21 +342,8 @@ pub fn arrange(bp: &Blueprint) -> Project {
             let (cyc, period) = cycles
                 .entry(s.prog.clone())
                 .or_insert_with(|| {
-                    let spans = cycle_spans(bp, &s.prog);
-                    let mut p = cycle_beats(&spans);
                     let n = part_cycle(bp, part, &s.prog, &kick_main, kick_bars);
-                    if part.role == Role::Lead {
-                        while p < 16.0 {
-                            p *= 2.0;
-                        }
-                    }
-                    // written notes may run over several cycles: they come round again after the last they reach
-                    if part.notes.contains_key(&s.prog) {
-                        let (cycle, end) = (p, n.iter().map(|x| x.t + x.d).fold(0.0, f64::max));
-                        while p + 1e-9 < end {
-                            p += cycle;
-                        }
-                    }
+                    let p = cycle_period(bp, part, &s.prog, &n);
                     (n, p)
                 })
                 .clone();

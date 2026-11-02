@@ -905,6 +905,7 @@ pub fn generate(genre_name: &str, seed: u64, bpm: Option<f64>, key: Option<&str>
             presets: presets.iter().map(|s| s.to_string()).collect(),
             register: *register,
             density: ((0.3 + rng.f32() * 0.35) * 100.0).round() / 100.0,
+            cycles: Vec::new(),
         })
         .collect();
     let mut tracks: Vec<TrackView> = drums

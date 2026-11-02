@@ -355,6 +355,12 @@ pub fn to_script(bp: &Blueprint) -> String {
             f32s(p.density),
             p.seed as i64
         ));
+        // notes written out (by hand, from a take, or in the piano roll): [start, length, pitch, velocity]
+        for (prog, notes) in &p.notes {
+            let list: Vec<String> =
+                notes.iter().map(|n| format!("[{}, {}, {}, {}]", f64s(n.t), f64s(n.d), n.p, f32s(n.v))).collect();
+            s.push_str(&format!("notes({}, {}, [{}]);\n", quote(&p.name), quote(prog), list.join(", ")));
+        }
     }
     if !bp.patterns.is_empty() {
         s.push_str("\n// pattern tracks (mini-notation, Strudel style)\n");

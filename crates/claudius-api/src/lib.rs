@@ -848,6 +848,20 @@ pub struct PartView {
     pub presets: Vec<String>,
     pub register: (i32, i32),
     pub density: f32,
+    /// what it plays over each progression its sections play, one cycle each
+    #[serde(default)]
+    pub cycles: Vec<CycleView>,
+}
+
+/// One cycle of a part over a progression: its notes (beats from the cycle's start), which come round every `beats`.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct CycleView {
+    pub prog: String,
+    pub beats: f64,
+    /// written out (by hand, from a take, or in the piano roll); otherwise the theory engine writes them, and editing
+    /// them writes them out
+    pub written: bool,
+    pub notes: Vec<NoteView>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -1150,6 +1164,14 @@ pub enum Command {
     /// A track out of the song, with every section's mention of it: a drum lane, part, loop, take or pattern track.
     RemoveTrack {
         name: String,
+    },
+    /// A part's notes over progression `prog`, written out: they replace what the theory engine writes there and come
+    /// round with the progression (an empty list rests). No `notes`: the theory engine writes it again.
+    SetNotes {
+        part: String,
+        prog: String,
+        #[serde(default)]
+        notes: Option<Vec<NoteView>>,
     },
     SetMix {
         track: String,

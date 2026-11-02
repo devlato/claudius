@@ -79,6 +79,31 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
             Ok(())
         })
     });
+    // notes(part, prog, [[t, d, pitch, velocity], ...]): what a part plays over a progression, written out
+    let c = ctx.clone();
+    engine.register_fn("notes", move |name: &str, prog: &str, list: Array| -> R<()> {
+        let notes = list.iter().enumerate().map(|(i, n)| read_note(i, n)).collect::<Result<Vec<_>, String>>()?;
+        if notes.len() > MAX_WRITTEN {
+            return fail(format!("notes(): {} notes in one progression; the limit is {MAX_WRITTEN}", notes.len()));
+        }
+        with_bp(&c, |bp, _| {
+            check_progression(bp, "notes()", prog)?;
+            let part = written_part(bp, "notes()", name)?;
+            let mut notes = notes;
+            notes.sort_by(|a, b| a.t.total_cmp(&b.t).then(a.p.cmp(&b.p)));
+            part.notes.insert(prog.to_string(), notes);
+            Ok(())
+        })
+    });
+    // clear_notes(part, prog): the theory engine writes that progression again
+    let c = ctx.clone();
+    engine.register_fn("clear_notes", move |name: &str, prog: &str| -> R<()> {
+        with_bp(&c, |bp, _| {
+            check_progression(bp, "clear_notes()", prog)?;
+            written_part(bp, "clear_notes()", name)?.notes.remove(prog);
+            Ok(())
+        })
+    });
     for (name, banked) in [("drum_sound", false), ("drum_sound", true)] {
         let c = ctx.clone();
         let set = move |lane: &str, label: &str, bank: Option<&str>| -> R<()> {
@@ -231,6 +256,51 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
             Ok(())
         })
     });
+}
+
+/// the most notes one progression of a part may have written out
+const MAX_WRITTEN: usize = 4096;
+
+/// note `i` of a `notes()` list: `[t, d, pitch]` or `[t, d, pitch, velocity]`
+fn read_note(i: usize, n: &rhai::Dynamic) -> Result<crate::theory::Note, String> {
+    let bad = || {
+        format!(
+            "notes(): note {} is [start, length, pitch] or [start, length, pitch, velocity]: beats from the \
+             progression's start, beats long, a MIDI pitch from 0 to 127 (60 is middle C) and a velocity from 0 to 1",
+            i + 1
+        )
+    };
+    let a = n.clone().try_cast::<Array>().ok_or_else(bad)?;
+    let x: Vec<f64> = a.iter().map(num).collect::<Option<Vec<f64>>>().ok_or_else(bad)?;
+    let (t, d, p, v) = match x.as_slice() {
+        [t, d, p] => (*t, *d, *p, 0.8),
+        [t, d, p, v] => (*t, *d, *p, *v),
+        _ => return Err(bad()),
+    };
+    if t < 0.0 || d <= 0.0 || p != p.trunc() || !(0.0..=127.0).contains(&p) || !(0.0..=1.0).contains(&v) {
+        return Err(bad());
+    }
+    Ok(crate::theory::Note { t, d, p: p as i32, v: v as f32, lock: None })
+}
+
+fn check_progression(bp: &Blueprint, f: &str, prog: &str) -> R<()> {
+    if bp.harmony.progressions.contains_key(prog) {
+        return Ok(());
+    }
+    let names: Vec<&str> = bp.harmony.progressions.keys().map(String::as_str).collect();
+    fail(format!("{f}: no progression '{prog}' (progressions: {})", names.join(" ")))
+}
+
+fn written_part<'a>(bp: &'a mut Blueprint, f: &str, name: &str) -> Result<&'a mut Part, Box<rhai::EvalAltResult>> {
+    if !bp.parts.iter().any(|p| p.name == name) {
+        let names: Vec<&str> = bp.parts.iter().map(|p| p.name.as_str()).collect();
+        return Err(format!(
+            "{f}: no part '{name}' (parts: {})",
+            if names.is_empty() { "none".into() } else { names.join(" ") }
+        )
+        .into());
+    }
+    Ok(bp.parts.iter_mut().find(|p| p.name == name).expect("found above"))
 }
 
 /// a part added to a song that does not have it yet: the genre's part of that name (a blank song's, say), or, with a
