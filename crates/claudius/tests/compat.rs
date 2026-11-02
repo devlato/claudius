@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use claudius::compose::{self, Options};
 use claudius::genres;
 use claudius::model::{BLUEPRINT_FORMAT, Blueprint};
+use claudius::theory::rhythm::Hit;
 
 fn saved(ext: &str) -> Vec<PathBuf> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/compat");
@@ -50,6 +51,17 @@ fn every_script_an_earlier_release_printed_still_runs_on_its_song() {
         claudius::script::run(&code, Some(song), None)
             .unwrap_or_else(|e| panic!("{} no longer runs: {e}", path.display()));
     }
+}
+
+#[test]
+fn a_saved_song_opens_with_every_time_exactly_as_it_was() {
+    let mut bp =
+        compose::generate(&genres::get("trap").unwrap(), 1, &Options { short: true, ..Default::default() }, None);
+    // a roll's strokes fall on sixths of a beat, which take all seventeen digits to write
+    let hits = bp.drums[0].patterns.get_mut("main").unwrap();
+    hits.push(Hit::new(1.6666666666666665, 0.65));
+    hits.push(Hit::new(1.8333333333333335, 0.575));
+    assert!(Blueprint::from_json(&bp.to_json()).unwrap() == bp, "a time moved on the way through blueprint.json");
 }
 
 #[test]
