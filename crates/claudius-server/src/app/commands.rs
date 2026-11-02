@@ -269,6 +269,42 @@ impl App {
                     Some(format!("{name}: {}", fields.join(", "))),
                 )
             }
+            Command::AddTrack { name, kind, role, sound } => {
+                // a name is one word: sections list their tracks separated by spaces
+                if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+                    return no(format!("a track's name is one word of letters, digits, _ and -, not '{name}'"), v);
+                }
+                if self.blueprint().is_some_and(|bp| bp.layer_names().contains(&name)) {
+                    return no(format!("the song already has a track '{name}': give the new one another name"), v);
+                }
+                let code = match kind.as_str() {
+                    // the sound makes a lane of any name; without one, drum() makes a lane named for a drum
+                    "drum" => match &sound {
+                        Some(s) => format!("drum_sound({}, {});", quote(&name), quote(s)),
+                        None => format!("drum({}, \"main\", \"................\");", quote(&name)),
+                    },
+                    "part" => {
+                        let mut fields = Vec::new();
+                        if let Some(r) = &role {
+                            fields.push(format!("role: {}", quote(r)));
+                        }
+                        if let Some(s) = &sound {
+                            fields.push(format!("preset: {}", quote(s)));
+                        }
+                        format!("part({}, #{{ {} }})", quote(&name), fields.join(", "))
+                    }
+                    other => {
+                        return no(
+                            format!("a track is a drum lane (kind \"drum\") or a part (\"part\"), not '{other}'"),
+                            v,
+                        );
+                    }
+                };
+                self.run_script(&code, Some(format!("new track {name}")))
+            }
+            Command::RemoveTrack { name } => {
+                self.run_script(&format!("remove({})", quote(&name)), Some(format!("removed {name}")))
+            }
             Command::SetMix { track, level_db, pan, reverb, delay, duck, muted, solo, bus } => {
                 let mut fields = Vec::new();
                 for (k, x) in [("level", level_db), ("pan", pan), ("reverb", reverb), ("delay", delay), ("duck", duck)]

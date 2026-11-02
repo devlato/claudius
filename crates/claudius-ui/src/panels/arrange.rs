@@ -31,6 +31,110 @@ impl Timeline {
     }
 }
 
+/// `base`, or `base` numbered (`lead2`, `lead3` ...) when the song has a track of that name
+fn unique_track_name(song: &SongView, base: &str) -> String {
+    let base: String = base.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-').collect();
+    let base = if base.is_empty() { "track".to_string() } else { base };
+    (1..)
+        .map(|n| if n == 1 { base.clone() } else { format!("{base}{n}") })
+        .find(|n| !song.layers.contains(n))
+        .unwrap_or(base)
+}
+
+/// The "+ Track" menu: a drum lane or a part of a role, its name, and its sound from those installed. The command
+/// once Add is pressed.
+fn add_track_menu(
+    ui: &mut Ui,
+    f: &mut super::AddTrackForm,
+    song: &SongView,
+    sounds: Option<&claudius_api::SoundList>,
+) -> Option<Command> {
+    ui.set_min_width(320.0);
+    ui.horizontal(|ui| {
+        ui.selectable_value(&mut f.drum, false, "Part").on_hover_text("notes the theory engine writes, in a role");
+        ui.selectable_value(&mut f.drum, true, "Drum lane").on_hover_text("steps you write in the step sequencer");
+    });
+    if !f.drum {
+        ui.horizontal_wrapped(|ui| {
+            for r in ["bass", "chords", "pad", "keys", "lead", "arp"] {
+                ui.selectable_value(&mut f.role, r.to_string(), r);
+            }
+        });
+    }
+    let short = f.sound.rsplit(':').next().unwrap_or("").to_string();
+    let base = if f.drum { if short.is_empty() { "perc".to_string() } else { short } } else { f.role.clone() };
+    let suggested = unique_track_name(song, &base);
+    ui.horizontal(|ui| {
+        ui.label(small("name"));
+        ui.add(egui::TextEdit::singleline(&mut f.name).hint_text(suggested.as_str()).desired_width(150.0));
+    });
+    ui.add(egui::TextEdit::singleline(&mut f.filter).hint_text("search sounds").desired_width(f32::INFINITY));
+    let hit = |n: &String| f.filter.is_empty() || n.to_lowercase().contains(&f.filter.to_lowercase());
+    let (empty_list, empty_kit) = (Vec::new(), Vec::new());
+    let (drums, kit, synths, instruments) = match sounds {
+        Some(s) => (&s.drums, &s.kit, &s.synths, &s.instruments),
+        None => (&empty_list, &empty_kit, &empty_list, &empty_list),
+    };
+    let lists: Vec<(String, Vec<String>)> = if f.drum {
+        vec![
+            ("synthesized".into(), drums.iter().filter(|n| hit(n)).cloned().collect()),
+            ("recorded".into(), kit.iter().filter(|n| hit(n)).cloned().collect()),
+        ]
+    } else {
+        // the role's synths first, then the rest; the installed instruments by their short names
+        let made_for = |n: &String| {
+            sounds.is_some_and(|s| s.synth_roles.iter().any(|(p, roles)| p == n && roles.contains(&f.role)))
+        };
+        let (mine, others): (Vec<String>, Vec<String>) = synths.iter().filter(|n| hit(n)).cloned().partition(made_for);
+        let named: Vec<String> = instruments
+            .iter()
+            .filter(|n| !n.contains(':') && !kit.contains(n) && !drums.contains(n) && hit(n))
+            .cloned()
+            .collect();
+        vec![(format!("synths for {}", f.role), mine), ("other synths".into(), others), ("instruments".into(), named)]
+    };
+    egui::ScrollArea::vertical().max_height(220.0).show(ui, |ui| {
+        for (heading, names) in &lists {
+            if names.is_empty() {
+                continue;
+            }
+            ui.label(small(heading.as_str()).weak());
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
+                for n in names {
+                    ui.selectable_value(&mut f.sound, n.clone(), n.as_str());
+                }
+            });
+        }
+    });
+    let name = if f.name.trim().is_empty() { suggested } else { f.name.trim().to_string() };
+    let hint = if f.sound.is_empty() && !f.drum { "the genre draws its sound" } else { "" };
+    // a lane needs its sound; a part may take the genre's
+    let ready = !f.drum || !f.sound.is_empty();
+    ui.horizontal(|ui| {
+        let add = ui.add_enabled(ready, egui::Button::new(format!("Add {name}")));
+        if !hint.is_empty() {
+            ui.label(small(hint));
+        }
+        if add.clicked() {
+            let cmd = Command::AddTrack {
+                name,
+                kind: if f.drum { "drum" } else { "part" }.into(),
+                role: (!f.drum).then(|| f.role.clone()),
+                sound: (!f.sound.is_empty()).then(|| f.sound.clone()),
+            };
+            f.name.clear();
+            f.sound.clear();
+            f.filter.clear();
+            ui.close();
+            Some(cmd)
+        } else {
+            None
+        }
+    })
+    .inner
+}
+
 /// hits per bar of a drum lane's pattern for a section (0..1 density)
 fn density(song: &SongView, lane: &str, variant: &str, bar: u32) -> Option<f32> {
     let d = song.drums.iter().find(|d| d.lane == lane)?;
@@ -52,7 +156,10 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let (instruments, synths) = super::melodic_sounds(cx.sounds);
     let mut style = cx.view.melody_style.clone();
     let mut row_menu = cx.view.row_menu;
+    let mut add_form = std::mem::take(&mut cx.view.add_track);
+    let sounds = cx.sounds;
     let Some(song) = cx.state.song.as_ref() else {
+        cx.view.add_track = add_form;
         empty(ui, "No song yet: make one with New song.");
         super::missing_packs(ui, cx);
         return;
@@ -303,7 +410,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let rows_rect =
         Rect::from_min_max(pos2(full.left(), blocks.bottom() + 6.0), pos2(full.right(), full.bottom() - wave_h - 26.0));
     let n = song.layers.len().max(1);
-    let row_h = (rows_rect.height() / n as f32).clamp(15.0, 26.0);
+    // room for + Track under the last row
+    let row_h = ((rows_rect.height() - 28.0) / n as f32).clamp(15.0, 26.0);
     let mut rows_ui = ui.new_child(UiBuilder::new().max_rect(rows_rect));
     egui::ScrollArea::vertical().id_salt("arrange_rows").auto_shrink([false, false]).show(&mut rows_ui, |ui| {
         let (rect, resp) = ui.allocate_exact_size(vec2(rows_rect.width(), row_h * n as f32), Sense::click_and_drag());
@@ -628,6 +736,30 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 }
                 ui.close();
             }
+            ui.separator();
+            if ui
+                .button("Remove the track")
+                .on_hover_text("out of the song and every section; Undo brings it back")
+                .clicked()
+            {
+                out.push(Command::RemoveTrack { name: layer.clone() });
+                ui.close();
+            }
+        });
+        // a track more, under the last
+        ui.horizontal(|ui| {
+            ui.add_space(6.0);
+            let add = ui
+                .button(RichText::new("+ Track").size(11.5).color(TEXT_DIM))
+                .on_hover_text("add a part the theory engine writes, or a drum lane to fill in the step sequencer");
+            // a form: choosing its role or sound keeps it open
+            egui::Popup::from_toggle_button_response(&add)
+                .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+                .show(|ui| {
+                    if let Some(c) = add_track_menu(ui, &mut add_form, song, sounds) {
+                        out.push(c);
+                    }
+                });
         });
     });
 
@@ -762,5 +894,6 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     ui.advance_cursor_after_rect(full);
     cx.view.melody_style = style;
     cx.view.row_menu = row_menu;
+    cx.view.add_track = add_form;
     cx.out.extend(out);
 }

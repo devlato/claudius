@@ -45,9 +45,9 @@ The messages, as printed after `Runtime error:`.
 | `key()` | `cannot read key 'H minor' (try "A minor", "F#m", "Eb", "D dorian")` |
 | `swing()`, `humanize()` | `swing needs a number`, `humanize needs a number` |
 | `prog()` | `cannot read chord 'Q7' (Roman numerals like i7 VImaj7 bVII, or names like Am7)` |
-| `drum()` | `no drum lane 'bongo', and drum() makes lanes only for drum names (bd kick sd ...); the song's lanes: none yet. For other sounds, track("bongo", s("..."))` |
-| `drum_sound()` | `no drum lane 'bongo' (lanes: none yet); drum() makes one`; `'pad' is not a drum sound (a drum name, a kit sound, or a sample)`; the `track()` sound errors below |
-| `part()` | `no part 'keys' (the song has: ...; house parts: bass chords pad lead arp); track() writes your own`; `a bass part has no style 'funky' (styles: ...)`; `unknown preset 'nope' (synths: ...; or an installed instrument such as piano, rhodes, string_ensemble)`; `part() has no option 'styles' (options: style preset register density seed rate)` |
+| `drum()` | `no drum lane 'bongo', and drum() makes lanes only for drum names (bd kick sd ...); the song's lanes: none yet. drum_sound("bongo", "tr909:lt") makes a lane of any name with its sound, and track("bongo", s("...")) a pattern track` |
+| `drum_sound()` | `'lead' is a track of the song that is not a drum lane`; `'pad' is not a drum sound (a drum name, a kit sound, or a sample)`; the `track()` sound errors below |
+| `part()` | `no part 'keys' (the song has: ...; house parts: bass chords pad lead arp); a role makes one of your own (...), and track() writes your own notes`; `part 'lead' is a lead part; remove("lead") first to make it another`; `part(): a role is bass, chords, pad, keys, lead or arp, not 'drums'`; `'kick' is a track of the song that is not a part: give the part another name`; `a bass part has no style 'funky' (styles: ...)`; `unknown preset 'nope' (synths: ...; or an installed instrument such as piano, rhodes, string_ensemble)`; `part() has no option 'styles' (options: role style preset register density seed rate)` |
 | `mix()`, `mute()`, `solo()`, `remove()` ... | `no track 'nope'`; `mix() has no option 'volume' (options: level pan reverb room delay duck mute solo)` |
 | `master()` | `master() has no option 'loudness' (options: lufs ceiling)` |
 | `track()` | `track 'x': unknown sound 'bdd' (drums: ...; synths: ...; sampled: ...)` |

@@ -936,6 +936,34 @@ mod tests {
     }
 
     #[test]
+    fn tracks_are_added_and_removed() {
+        let mut mock = Mock::new(None);
+        mock.update(0.0);
+        let add = |name: &str, kind: &str, role: Option<&str>, sound: &str| Command::AddTrack {
+            name: name.into(),
+            kind: kind.into(),
+            role: role.map(String::from),
+            sound: Some(sound.into()),
+        };
+        mock.send(add("lead2", "part", Some("lead"), "square_lead"));
+        mock.send(add("bongo", "drum", None, "tom"));
+        let song = mock.state.song.clone().unwrap();
+        assert!(song.parts.iter().any(|p| p.name == "lead2" && p.role == "lead" && p.preset == "square_lead"));
+        let lane = song.drums.iter().find(|d| d.lane == "bongo").expect("the new lane");
+        assert!(lane.variants[0].1.iter().all(|v| *v == 0.0));
+        assert!(song.tracks.iter().any(|t| t.name == "bongo" && t.bus == "drums"));
+        assert!(song.sections.iter().filter(|s| s.energy >= 0.6).all(|s| s.layers.contains(&"lead2".to_string())));
+        mock.send(add("lead2", "part", Some("lead"), "pluck"));
+        mock.send(Command::RemoveTrack { name: "bongo".into() });
+        let song = mock.state.song.clone().unwrap();
+        assert_eq!(song.parts.iter().filter(|p| p.name == "lead2").count(), 1, "a name the song has is refused");
+        assert!(!song.layers.contains(&"bongo".to_string()) && song.drums.iter().all(|d| d.lane != "bongo"));
+        assert!(song.sections.iter().all(|s| !s.layers.contains(&"bongo".to_string())));
+        mock.send(Command::Undo);
+        assert!(mock.state.song.as_ref().unwrap().drums.iter().any(|d| d.lane == "bongo"));
+    }
+
+    #[test]
     fn drums_copy_on_write_and_step_notation() {
         let mut mock = Mock::new(None);
         mock.update(0.0);

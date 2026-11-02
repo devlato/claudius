@@ -213,7 +213,8 @@ A lane's [mixing role](mixing.md#roles) comes from its name when the name is a d
 the snare lane, else the clap; the kick drops out at the end of a build, and the other tracks duck against it.
 
 Errors: `no drum lane 'bongo', and drum() makes lanes only for drum names (bd kick sd ...); the song's lanes: kick clap
-hat ohat shaker perc. For other sounds, track("bongo", s("..."))`.
+hat ohat shaker perc. drum_sound("bongo", "tr909:lt") makes a lane of any name with its sound, and track("bongo",
+s("...")) a pattern track`.
 
 ```js
 drum("kick", "X...x...X...x..x");                     // a pickup into the next bar
@@ -386,9 +387,14 @@ Naming the sound the lane already plays keeps it as it is, including the tuning 
 The lane keeps its name, so a lane named with a drum name keeps its role; a lane named otherwise takes the role of
 its new sound.
 
-Errors: `no drum lane 'bongo' (lanes: kick clap hat ohat shaker perc); drum() makes one`, or `(lanes: none yet)` on a
-song without drum lanes; `'pad' is not a drum sound (a drum name, a kit sound, or a sample)` for a synth preset; the
-[sound errors](sounds.md#how-a-name-is-resolved) for a name that does not resolve.
+On a lane the song does not have, `drum_sound()` adds it, playing the sound and silent until `drum()` writes its
+steps, under any name: `drum_sound("bongo", "tr909:lt"); drum("bongo", "..x...x...x.x...");` (`drum()` alone makes
+lanes only for drum names). It joins the sections the way a new [track](#track) does. A song printed as a script
+writes such a lane's sound before its steps.
+
+Errors: `'lead' is a track of the song that is not a drum lane`; `'pad' is not a drum sound (a drum name, a kit
+sound, or a sample)` for a synth preset; the [sound errors](sounds.md#how-a-name-is-resolved) for a name that does
+not resolve.
 
 ```js packs
 song("house", 9);
@@ -409,8 +415,15 @@ song without that part (a `blank()` song has none), `part()` first adds the genr
 engine over the song's progressions and joining the sections the way a new [track](#track) does; the options then
 edit it. `part("bass", #{})` adds the genre's bass as it comes.
 
+With a `role`, `part()` adds a part of your own under any name: `part("lead2", #{ role: "lead" })` is a second lead,
+written the way the genre writes its lead (its styles, register and mix, and a sound of its own), and
+`part("keys", #{ role: "keys" })` on a techno song, which has no keys, gets the role's styles and synth presets. A
+role the part already has changes nothing; another is an error. A song printed as a script writes the role of every
+part the genre does not have, so it builds again.
+
 | field | type | effect |
 |---|---|---|
+| `role` | string | `bass`, `chords`, `pad`, `keys`, `lead` or `arp`: a part of your own, when the song has no part of that name |
 | `style` | string | how the part is written (below) |
 | `preset` | string | a synth preset or a sampled instrument; naming the current preset keeps its patch |
 | `register` | `[low, high]` | MIDI range the part is written in |
@@ -427,10 +440,13 @@ edit it. `part("bass", #{})` adds the genre's bass as it comes.
 
 A style the part's role does not have is an error. A decimal `seed` is ignored.
 
-Errors: `no part 'keys' (the song has: bass chords pad lead arp; house parts: bass chords pad lead arp); track()
-writes your own`; `a bass part has no style 'wobbly' (styles: sustain pulse root8 ...)`; `unknown preset 'nope'
-(synths: ...; or an installed instrument such as piano, rhodes, string_ensemble)`; `part() has no option 'styles'
-(options: style preset register density seed rate)`.
+Errors: `no part 'keys' (the song has: bass chords pad lead arp; house parts: bass chords pad lead arp); a role makes
+one of your own (part("keys", #{ role: "keys" })), and track() writes your own notes`; `part 'lead' is a lead part;
+remove("lead") first to make it another`; `part(): a role is bass, chords, pad, keys, lead or arp, not 'drums'`; `'kick'
+is a track of the song that is not a part: give the part another name`;
+`a bass part has no style 'wobbly' (styles: sustain pulse root8 ...)`; `unknown preset 'nope' (synths: ...; or an
+installed instrument such as piano, rhodes, string_ensemble)`; `part() has no option 'styles' (options: role style
+preset register density seed rate)`.
 
 ```js
 part("bass", #{ style: "rolling", preset: "reese" });

@@ -283,6 +283,13 @@ pub enum Role {
 }
 
 impl Role {
+    pub const ALL: [Role; 6] = [Role::Bass, Role::Chords, Role::Pad, Role::Keys, Role::Lead, Role::Arp];
+
+    /// the role called `name`: `bass`, `chords`, `pad`, `keys`, `lead` or `arp`
+    pub fn parse(name: &str) -> Option<Role> {
+        Role::ALL.into_iter().find(|r| r.name() == name)
+    }
+
     pub fn name(self) -> &'static str {
         match self {
             Role::Bass => "bass",

@@ -288,6 +288,29 @@ pub fn to_script(bp: &Blueprint) -> String {
         s.push('\n');
     }
     for d in &bp.drums {
+        let sound = match &d.sound {
+            Sound::Drum { voice, params } => {
+                // what drum() makes for this name needs no line; the generator's own settings have no word to print
+                let made =
+                    drum_name(&d.name).is_some_and(|(v, _)| v == *voice && *params == DrumParams::default_for(v));
+                let label = drum_label(*voice, params).or_else(|| {
+                    drum_name(&d.name).is_none_or(|(v, _)| v != *voice).then(|| voice_word(*voice).to_string())
+                });
+                label.filter(|_| !made).map(|label| format!("drum_sound({}, {});\n", quote(&d.name), quote(&label)))
+            }
+            Sound::Instrument { name, .. } => Some(format!("drum_sound({}, {});\n", quote(&d.name), quote(name))),
+            // a one-shot cut from your library lives in claudius' cache: its path means nothing on another machine
+            Sound::Sample { path, label, .. } if std::path::Path::new(path).starts_with(crate::config::home()) => {
+                Some(format!("// {}: {label}\n", d.name))
+            }
+            Sound::Sample { path, .. } => Some(format!("drum_sound({}, {});\n", quote(&d.name), quote(path))),
+            _ => None,
+        };
+        // drum() makes a lane only for a drum's name: a lane of another name is made by its sound, first
+        let named = drum_name(&d.name).is_some() || d.name == "hats";
+        if !named && let Some(line) = &sound {
+            s.push_str(line);
+        }
         for (v, hits) in &d.patterns {
             let (steps, res) = hits_to_steps(hits, d.pattern_bars);
             let steps = shortest_steps(&steps);
@@ -305,32 +328,14 @@ pub fn to_script(bp: &Blueprint) -> String {
             s.push_str(&line);
             s.push('\n');
         }
-        match &d.sound {
-            Sound::Drum { voice, params } => {
-                // what drum() makes for this name needs no line; the generator's own settings have no word to print
-                let made =
-                    drum_name(&d.name).is_some_and(|(v, _)| v == *voice && *params == DrumParams::default_for(v));
-                let label = drum_label(*voice, params).or_else(|| {
-                    drum_name(&d.name).is_none_or(|(v, _)| v != *voice).then(|| voice_word(*voice).to_string())
-                });
-                if let Some(label) = label.filter(|_| !made) {
-                    s.push_str(&format!("drum_sound({}, {});\n", quote(&d.name), quote(&label)));
-                }
-            }
-            Sound::Instrument { name, .. } => {
-                s.push_str(&format!("drum_sound({}, {});\n", quote(&d.name), quote(name)));
-            }
-            // a one-shot cut from your library lives in claudius' cache: its path means nothing on another machine
-            Sound::Sample { path, label, .. } if std::path::Path::new(path).starts_with(crate::config::home()) => {
-                s.push_str(&format!("// {}: {label}\n", d.name));
-            }
-            Sound::Sample { path, .. } => s.push_str(&format!("drum_sound({}, {});\n", quote(&d.name), quote(path))),
-            _ => {}
+        if named && let Some(line) = &sound {
+            s.push_str(line);
         }
     }
     if !bp.parts.is_empty() {
         s.push_str("\n// parts written by the theory engine: change the style, preset, register, density or seed\n");
     }
+    let genre = super::song::genre_of(bp);
     for p in &bp.parts {
         let preset = match &p.sound {
             Sound::Synth { preset, .. } => format!(", preset: {}", quote(preset)),
@@ -338,8 +343,11 @@ pub fn to_script(bp: &Blueprint) -> String {
             _ => String::new(),
         };
         let rate = if p.role == Role::Arp { format!(", rate: {}", f64s(p.rate)) } else { String::new() };
+        // a part of your own says what it is; the genre's own are known by name
+        let own = genre.as_ref().is_some_and(|g| g.parts.iter().any(|q| q.name == p.name && q.role == p.role));
+        let role = if own { String::new() } else { format!("role: {}, ", quote(p.role.name())) };
         s.push_str(&format!(
-            "part({}, #{{ style: {}{preset}, register: [{}, {}], density: {}{rate}, seed: {} }});\n",
+            "part({}, #{{ {role}style: {}{preset}, register: [{}, {}], density: {}{rate}, seed: {} }});\n",
             quote(&p.name),
             quote(&p.style),
             p.register.0,

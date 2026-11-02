@@ -16,7 +16,7 @@ this API, so anything it does you can do with `curl`. The types are plain serde 
 | `POST /api/command` | runs one [command](#commands) (JSON body) and answers with a [reply](#replies-and-errors) |
 | `GET /api/script` | the song as a script, `text/plain` (`// no song yet: try song("house")` before the first song) |
 | `GET /api/reference` | the script language reference, `text/markdown` |
-| `GET /api/sounds` | every sound name: drum voices, synth presets, installed instruments, and every pack |
+| `GET /api/sounds` | every sound name: drum voices, synth presets, installed instruments, and every pack; also the installed kits' drums (`kit`) and the roles each synth preset is made for (`synth_roles`) |
 | `GET /api/audio/{version}.wav` | the master of that render, 48 kHz 24-bit |
 | `GET /api/audio/{version}.mp3` | the same as MP3, encoded on the first request |
 | `GET /api/stems/{version}/{track}.wav` | one track of a render made with stems |
@@ -213,6 +213,8 @@ fields marked optional may be left out.
 | `set_trig` | `lane`, `variant`, `step` (a sixteenth, from 0); optional `trig` | what the step does beyond striking, as [`trig()`](../language/song-functions.md#trig) sets it; no `trig` clears it, and a step without a hit gets one |
 | `set_lane` | `lane`; optional `length` (0: its pattern's), `speed`, `swing` (0: the song's), `groove` (`""`: none), `groove_amount` | the lane's own time and feel, as [`lane()`](../language/song-functions.md#lane) sets it |
 | `set_part` | `name`; optional `style`, `preset`, `register` (`[low, high]`), `density`, `reseed` (false) | as `part()`; `reseed` writes the part again with a new seed |
+| `add_track` | `name` (one word of letters, digits, `_` and `-`, not one the song has), `kind` (`drum` or `part`); optional `role` (a part's: `bass`, `chords`, `pad`, `keys`, `lead`, `arp`), `sound` | a drum lane, silent until its steps are written, playing `sound` (a drum voice or a kit's `tr909:bd`), as `drum()` and `drum_sound()`; or a part of your own, as [`part()` with a `role`](../language/song-functions.md#part), playing `sound` (a synth preset or an instrument; the genre's draw when left out). It plays where the form names it, else in every section with energy 0.6 or more |
+| `remove_track` | `name` | a drum lane, part, loop, take or pattern track out of the song and every section, as `remove()` |
 | `set_mix` | `track`; optional `level_db`, `pan`, `reverb`, `delay`, `duck`, `muted`, `solo`, `bus` | as `mix()` |
 | `set_fx` | `target` (`track:<name>`, `bus:<name>`, `master`, `send:reverb`, `send:delay`), `fx` (effects as `TrackView.fx` has them; a send takes exactly one) | replaces that chain, as [`fx()`, `bus()`, `master(#{ fx })` and `send_fx()`](../language/mixing.md#effect-chains) do; an effect it cannot read is refused with its place and why |
 | `run_script` | `code` | runs a script on the song |
@@ -242,12 +244,14 @@ fields marked optional may be left out.
 {"cmd": "set_section", "index": 0, "energy": 0.5, "layers": ["kick", "hat"]}
 {"cmd": "set_drum_step", "lane": "kick", "variant": "main", "step": 3, "velocity": 0.6}
 {"cmd": "set_part", "name": "bass", "style": "rolling", "reseed": true}
+{"cmd": "add_track", "name": "lead2", "kind": "part", "role": "lead", "sound": "saw_lead"}
+{"cmd": "add_track", "name": "conga", "kind": "drum", "sound": "tr909:lt"}
 {"cmd": "run_script", "code": "tempo(126); mix(\"lead\", #{ level: -2 });"}
 ```
 
-`set_tempo`, `set_key`, `set_swing`, `set_progression`, `set_drum_pattern`, `set_part` and `set_mix` are turned into
-the matching script call and run as a script, so they accept exactly what the script functions accept and fail with
-the same messages. The other edits change the blueprint directly. Every edit that changes the song is one undo step
+`set_tempo`, `set_key`, `set_swing`, `set_progression`, `set_drum_pattern`, `set_part`, `add_track`, `remove_track`
+and `set_mix` are turned into the matching script call and run as a script, so they accept exactly what the script
+functions accept and fail with the same messages (`add_track` checks its name first). The other edits change the blueprint directly. Every edit that changes the song is one undo step
 with a label, and starts a render after 200 ms unless the session runs with `--no-auto-render`.
 
 ### Jobs

@@ -331,7 +331,8 @@ pub(crate) fn put_drum(bp: &mut Blueprint, lane: &str, variant: &str, steps: &st
         let lanes: Vec<&str> = bp.drums.iter().map(|d| d.name.as_str()).collect();
         return Err(format!(
             "no drum lane '{lane}', and drum() makes lanes only for drum names ({}); the song's lanes: {}. \
-             For other sounds, track(\"{lane}\", s(\"...\"))",
+             drum_sound(\"{lane}\", \"tr909:lt\") makes a lane of any name with its sound, and \
+             track(\"{lane}\", s(\"...\")) a pattern track",
             super::drum_names().join(" "),
             if lanes.is_empty() { "none yet".to_string() } else { lanes.join(" ") }
         ));

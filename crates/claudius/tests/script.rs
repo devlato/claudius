@@ -389,6 +389,50 @@ fn blank_songs_print_and_rebuild_exactly() {
 }
 
 #[test]
+fn parts_of_your_own_print_with_their_role_and_rebuild_exactly() {
+    // techno has a lead (lead2 is written like it) and no keys (keys gets the role's own styles and presets)
+    let code = r#"
+        blank("techno");
+        drum("kick", "x...x...x...x...");
+        drum_sound("bongo", "tom");
+        drum("bongo", "..x...x...x.x...");
+        part("keys", #{ role: "keys", preset: "epiano" });
+        part("lead2", #{ role: "lead" });
+    "#;
+    let bp = script::run(code, None, None).unwrap().bp.unwrap();
+    let roles: Vec<(&str, &str)> = bp.parts.iter().map(|p| (p.name.as_str(), p.role.name())).collect();
+    assert_eq!(roles, [("keys", "keys"), ("lead2", "lead")]);
+    assert!(bp.drums.iter().any(|d| d.name == "bongo"), "drum_sound() makes a lane of any name");
+    let printed = script::to_script(&bp);
+    assert!(printed.contains(r#"part("keys", #{ role: "keys", "#), "{printed}");
+    // a lane not named for a drum: its sound first, which makes it
+    let (sound, steps) = (printed.find(r#"drum_sound("bongo""#), printed.find(r#"drum("bongo""#));
+    assert!(sound.zip(steps).is_some_and(|(a, b)| a < b), "{printed}");
+    // built from nothing, as the printed header says: blank("techno") uncommented
+    let from_nothing = printed.replacen("// blank(", "blank(", 1);
+    let rebuilt = script::run(&from_nothing, None, None).unwrap().bp.unwrap();
+    assert!(rebuilt == bp, "rebuilt differs\n{printed}\n{}", script::to_script(&rebuilt));
+    let again = script::run(&printed, Some(bp.clone()), None).unwrap().bp.unwrap();
+    assert!(again == bp);
+    // the genre's own parts print without one, and another role than a part's is an error
+    let house = script::run(r#"song("house", 1);"#, None, None).unwrap().bp.unwrap();
+    assert!(!script::to_script(&house).contains("role:"));
+    let Err(err) = script::run(r#"song("house", 1); part("lead", #{ role: "bass" });"#, None, None) else {
+        panic!("a lead made a bass")
+    };
+    assert!(err.to_string().contains("is a lead part"), "{err}");
+    let Err(err) = script::run(r#"song("house", 1); part("x", #{ role: "drums" });"#, None, None) else {
+        panic!("a part of role drums")
+    };
+    assert!(err.to_string().contains("not 'drums'"), "{err}");
+    // a drum lane's name is the lane's
+    let Err(err) = script::run(r#"song("house", 1); part("kick", #{ role: "bass" });"#, None, None) else {
+        panic!("a part named after a drum lane")
+    };
+    assert!(err.to_string().contains("'kick' is a track of the song that is not a part"), "{err}");
+}
+
+#[test]
 fn a_tempo_or_key_of_your_own_changes_only_that() {
     let g = genres::get("house").unwrap();
     let plain = compose::generate(&g, 9, &Options::default(), None);

@@ -43,8 +43,10 @@ Notes:
 - `get_song` is the way to read the open song: tempo, key, progressions, sections with their tracks, every track's
   sound and mix, the latest verdict, and the whole song as a script.
 - `command` takes JSON such as `{"cmd": "add_section", "after": 2, "kind": "break", "bars": 8}`, `move_section`,
-  `remove_section`, `toggle_layer`, `set_drum_step`, `set_trig`, `set_lane`, `set_section`, `set_part` and `set_mix`.
-  Scripts do nearly everything these do, more readably.
+  `remove_section`, `toggle_layer`, `set_drum_step`, `set_trig`, `set_lane`, `set_section`, `set_part`,
+  `add_track` (`{"cmd": "add_track", "name": "lead2", "kind": "part", "role": "lead", "sound": "saw_lead"}`, or
+  `"kind": "drum"` and a drum sound for a lane), `remove_track` and `set_mix`. Scripts do nearly everything these
+  do, more readably: `part("lead2", #{ role: "lead" })`, `drum()`, `remove()`.
 - `SONG` is a song folder. `make`, `script` and `remake` write theirs as `<genre>-<title>-<seed>/` inside `--out`,
   which is `out/` in the current folder unless given; `render` writes into the blueprint's own folder, or straight
   into `--out`. Each prints the path at the end. When the person needs to find the song, give a folder they know:

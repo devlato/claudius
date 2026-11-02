@@ -905,6 +905,12 @@ pub struct SoundList {
     pub instruments: Vec<String>,
     /// installed packs and whether they are installed
     pub packs: Vec<PackInfo>,
+    /// the drums of the installed kits, as `pack:drum` ("tr909:bd", "tr808:cp" ...)
+    #[serde(default)]
+    pub kit: Vec<String>,
+    /// the roles each synth preset is made for (bass, chords, pad, keys, lead, arp)
+    #[serde(default)]
+    pub synth_roles: Vec<(String, Vec<String>)>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -1127,6 +1133,23 @@ pub enum Command {
         /// write the part again with a new seed
         #[serde(default)]
         reseed: bool,
+    },
+    /// A new track. `kind` "drum" is a drum lane, silent until its steps are written, playing `sound`: a drum
+    /// voice (`kick`, `snare`, `clap`, `hat`, `rim`, `tom` ...) or a kit's (`tr909:bd`). `kind` "part" is a part the
+    /// theory engine writes, in `role`'s styles (bass, chords, pad, keys, lead or arp; the genre's part of that name
+    /// when it has one), playing `sound`: a synth preset or an installed instrument (the genre's draw when left out).
+    /// It plays where the form already names it, otherwise in every section with energy 0.6 or more.
+    AddTrack {
+        name: String,
+        kind: String,
+        #[serde(default)]
+        role: Option<String>,
+        #[serde(default)]
+        sound: Option<String>,
+    },
+    /// A track out of the song, with every section's mention of it: a drum lane, part, loop, take or pattern track.
+    RemoveTrack {
+        name: String,
     },
     SetMix {
         track: String,

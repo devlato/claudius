@@ -122,6 +122,12 @@ you land a step than a leap included; your takes are tuned as it heard you from 
 Record window, or let an assistant ask with `request_pitch_check` and wait with `wait_for_pitch_check`
 ([Checking your pitch](https://github.com/devlato/claudius/blob/main/docs/src/guide/voice.md#checking-your-pitch)).
 
+The studio adds and removes tracks. **+ Track** in the arrangement adds a part of any role (a second lead, keys on a
+techno song) or a drum lane, with its name and its sound from a browser of the synths made for the role, the
+installed instruments, and the drum voices and kits; right-click a row to remove a track. Scripts make a part of
+any role with `part("lead2", #{ role: "lead" })`, and assistants use `add_track` and `remove_track`
+([The studio](https://github.com/devlato/claudius/blob/main/docs/src/getting-started/studio.md#the-panels)).
+
 `claudius publish` checks a song the way stores and distributors check a release (its artwork's size, colours and
 sharpness, its audio, the licences of its sounds, and its details, including how it was made) and writes a release
 kit: the WAV and the cover a distributor takes, and the answers its form asks for

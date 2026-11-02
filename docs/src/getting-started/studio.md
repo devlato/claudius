@@ -41,7 +41,12 @@ the song it opens.
 
 - **Arrangement.** The sections of the song from left to right (intro, build, drop and so on), and below them one row
   per track. Click a cell, or drag across cells, to switch a track on or off in those sections. Drag a section to
-  move it; right-click it to duplicate, insert or remove one. Right-click a [take](../guide/samples.md#takes)'s row
+  move it; right-click it to duplicate, insert or remove one. **+ Track** adds a track: a part (a bass, chords, a
+  pad, keys, a lead or an arpeggio the theory engine writes over the song's chords, written the way the genre writes
+  that role) or a drum lane to fill in under Steps, its name, and its sound, from the synths made for the role, the
+  installed instruments, or the drum voices and kits; a new track plays in the sections with energy 0.6 or more,
+  ready for you to move. Right-click a row to mute or solo it, switch it on or off everywhere, or remove it (Undo
+  brings it back). Right-click a [take](../guide/samples.md#takes)'s row
   to hear [how it is sung](../guide/voice.md) (**How is it sung?**), to [tune it](../guide/voice.md#tuning-a-voice)
   (**Tune it**: naturally, tightly, hard, or not at all), to turn a beat you played or beatboxed into the song's
   drum lanes ([**Turn it into drums**](../guide/samples.md#turning-a-take-into-drums)), or to turn the melody you

@@ -519,15 +519,8 @@ fn parts_from_notes(
 }
 
 fn role_of(role: Option<&str>) -> Result<Role, String> {
-    Ok(match role.unwrap_or("lead") {
-        "lead" => Role::Lead,
-        "keys" => Role::Keys,
-        "chords" => Role::Chords,
-        "pad" => Role::Pad,
-        "arp" => Role::Arp,
-        "bass" => Role::Bass,
-        other => return Err(format!("a part is lead, keys, chords, pad, arp or bass, not '{other}'")),
-    })
+    let name = role.unwrap_or("lead");
+    Role::parse(name).ok_or_else(|| format!("a part is lead, keys, chords, pad, arp or bass, not '{name}'"))
 }
 
 fn check_sounds(sounds: &[String]) -> Result<(), String> {

@@ -584,6 +584,33 @@ pub fn sounds() -> SoundList {
             pack("salamander-piano", "Salamander Grand Piano, 16 velocity layers", "CC-BY 3.0", false, 380.0),
             pack("vsco2-strings", "VSCO 2 community orchestra strings", "CC0", false, 210.0),
         ],
+        kit: list(&["tr909:bd", "tr909:sd", "tr909:hh", "tr808:bd", "tr808:cp", "tr808:hh"]),
+        // as the synth presets have them
+        synth_roles: [
+            ("sub_bass", &["bass"][..]),
+            ("808", &["bass"]),
+            ("reese", &["bass"]),
+            ("acid", &["bass", "lead"]),
+            ("saw_bass", &["bass"]),
+            ("pluck_bass", &["bass"]),
+            ("organ_bass", &["bass"]),
+            ("wobble", &["bass"]),
+            ("pluck", &["arp", "chords", "lead"]),
+            ("supersaw", &["lead", "chords"]),
+            ("pad", &["pad", "chords"]),
+            ("warm_pad", &["pad"]),
+            ("stab", &["chords"]),
+            ("epiano", &["keys", "chords"]),
+            ("keys", &["keys", "chords"]),
+            ("bell", &["lead", "arp"]),
+            ("organ", &["chords", "keys"]),
+            ("strings", &["pad", "chords"]),
+            ("square_lead", &["lead"]),
+            ("chip", &["lead", "arp"]),
+        ]
+        .iter()
+        .map(|(n, r)| (n.to_string(), list(r)))
+        .collect(),
     }
 }
 
