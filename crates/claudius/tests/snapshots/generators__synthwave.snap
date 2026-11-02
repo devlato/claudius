@@ -5,15 +5,16 @@ expression: summary(&bp)
 synthwave at 112.0 BPM in G minor, swing 0.50
 prog A: i iv III VI
 prog B: i IVsus4 III VI
+prog C: VI iv III i
 bars per chord: 1
 section intro (intro) 8 bars, energy 0.34, prog A, main [filter_in]: pad arp
 section verse (verse) 16 bars, energy 0.60, prog A, main [fills]: kick snare hat bass arp pad
 section lift (build) 4 bars, energy 0.60, prog A, main [build]: snare hat bass arp pad
-section chorus (hook) 8 bars, energy 0.81, prog A, main [impact fills]: kick snare hat bass arp pad lead chords
+section chorus (hook) 8 bars, energy 0.81, prog C, main [impact fills]: kick snare hat bass arp pad lead chords
 section verse2 (verse) 16 bars, energy 0.69, prog A, main [fills]: kick snare hat bass arp pad chords
-section chorus2 (hook) 16 bars, energy 0.93, prog A, main [impact fills]: kick snare hat bass arp pad lead chords
+section chorus2 (hook) 16 bars, energy 0.93, prog C, main [impact fills]: kick snare hat bass arp pad lead chords
 section bridge (break) 16 bars, energy 0.50, prog B, main [build]: pad lead
-section chorus3 (hook) 8 bars, energy 1.00, prog A, main [impact fills]: kick snare hat bass arp pad lead chords
+section chorus3 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick snare hat bass arp pad lead chords
 section outro (outro) 8 bars, energy 0.40, prog A, main []: pad arp
 drum kick alt (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum kick main (drum kick): X.......X.......|X.......X.......|X.......X.......|X.......X.......

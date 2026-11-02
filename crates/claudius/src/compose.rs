@@ -317,6 +317,12 @@ pub fn generate(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn Li
     bp.harmony.progressions.insert("A".into(), prog.clone());
     bp.harmony.progressions.insert("B".into(), prog.clone());
     bp.harmony.bars_per_chord = 1;
+    // the family's loops play its own chords everywhere, choruses too
+    if bp.harmony.progressions.remove("C").is_some() {
+        for s in bp.form.iter_mut().filter(|s| s.prog == "C") {
+            s.prog = "A".into();
+        }
+    }
     let add = |bp: &mut Blueprint, name: &str, role: &str, sound: Sound, mix: TrackMix| {
         bp.parts.retain(|p| p.name != name);
         bp.loops.retain(|l| l.name != name);
@@ -419,11 +425,22 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
     let in_key = |p: Vec<String>| -> Vec<String> {
         if key.mode == mode { p } else { p.iter().map(|rn| crate::script::remode(rn, &style_key, &key)).collect() }
     };
-    let (prog_a, prog_b) = (in_key(prog_a), in_key(prog_b));
     let mut bpc = *pick_weighted(&g.bars_per_chord, &mut hr);
     if prog_a.len() == 1 {
         bpc = 4;
     }
+    // eight chords loop in sixteen bars at most, so that a section hears the whole of them
+    if prog_a.len() >= 8 {
+        bpc = bpc.min(2);
+    }
+    // a loop answered, the second time round ending another way, when the eight chords still fit (in the style's
+    // key, like everything here, so that a key of your own gets what key() would make of it)
+    let answered = |p: Vec<String>, chance: f64, label: &str| -> Vec<String> {
+        let mut r = hr.fork(label);
+        if bpc <= 2 && r.chance(chance) { progression::answer(&p, &style_key, &mut r).map_or(p, |(a, _)| a) } else { p }
+    };
+    let (style_a, style_b) = (answered(prog_a, 0.4, "answer A"), answered(prog_b, 0.25, "answer B"));
+    let (prog_a, prog_b) = (in_key(style_a.clone()), in_key(style_b.clone()));
     let mut progressions = BTreeMap::new();
     progressions.insert("A".to_string(), prog_a);
     progressions.insert("B".to_string(), prog_b);
@@ -440,6 +457,28 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
     if opts.short {
         for s in form.iter_mut() {
             s.bars = (s.bars / 2).max(4);
+        }
+    }
+    // a chorus of its own: the hooks on a progression the verses do not play
+    if form.iter().any(|s| s.kind == SectionKind::Hook)
+        && form.iter().any(|s| s.kind == SectionKind::Verse)
+        && let mut cr = hr.fork("chorus")
+        && cr.chance(0.35)
+    {
+        let (a, b) = (&style_a, &style_b);
+        let others: Vec<Vec<String>> =
+            style_progs.iter().map(|p| progression::parse(p)).filter(|p| p != a && p != b).collect();
+        let c = if !others.is_empty() && cr.chance(0.5) {
+            cr.pick(&others).clone()
+        } else {
+            let (c, _) = progression::substitute(a, &style_key, &mut cr);
+            if &c == a || &c == b { progression::substitute(&c, &style_key, &mut cr).0 } else { c }
+        };
+        if &c != a {
+            progressions.insert("C".to_string(), in_key(c));
+            for s in form.iter_mut().filter(|s| s.kind == SectionKind::Hook && s.prog == "A") {
+                s.prog = "C".into();
+            }
         }
     }
 

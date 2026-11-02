@@ -4,7 +4,7 @@ expression: summary(&bp)
 ---
 future_bass at 156.0 BPM in G major, swing 0.51
 prog A: Imaj9 IVmaj9 Imaj9 V9
-prog B: Imaj9 IVsus4 Imaj9 V9
+prog B: Imaj9 IVsus2 Imaj9 V9
 bars per chord: 1
 section intro (intro) 8 bars, energy 0.34, prog A, main [filter_in]: pad lead
 section verse (verse) 16 bars, energy 0.55, prog A, main []: kick snare hat bass pad lead

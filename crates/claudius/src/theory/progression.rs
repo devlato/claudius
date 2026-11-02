@@ -23,12 +23,24 @@ pub const STYLES: &[Style] = &[
             "VI III VII i",
             "i VI VII v",
             "i iv VI VII",
+            "i VII VI V",
+            "VI VII i v",
+            "i VI III VII i VI iv V",
         ],
     },
     Style {
         name: "minor_dark",
         mode: Mode::Minor,
-        progs: &["i i VI VII", "i VI iv V", "i iv i v", "i VI i VII", "i v VI iv", "i VII VI V"],
+        progs: &[
+            "i i VI VII",
+            "i VI iv V",
+            "i iv i v",
+            "i VI i VII",
+            "i v VI iv",
+            "i VII VI V",
+            "i VI bII V",
+            "i iv V7 i",
+        ],
     },
     Style {
         name: "minor_soul",
@@ -40,20 +52,49 @@ pub const STYLES: &[Style] = &[
             "iiø7 V7 i7 i7",
             "i7 iv7 v7 i7",
             "VImaj7 v7 iv7 i7",
+            "i7 IV9 VImaj7 V7",
+            "VImaj7 VII7 i7 i7",
+            "iv9 v7 i7 VImaj7",
         ],
     },
     Style {
         name: "dorian_vamp",
         mode: Mode::Dorian,
-        progs: &["i7 IV7", "i7 IV9 i7 VIImaj7", "i9 IV7", "i7 ii7 i7 IV7"],
+        progs: &["i7 IV7", "i7 IV9 i7 VIImaj7", "i9 IV7", "i7 ii7 i7 IV7", "i7 IV7 i7 v7", "i7 VIImaj7 IV7 IV7"],
     },
-    Style { name: "phrygian", mode: Mode::Phrygian, progs: &["i II", "i II i VII", "i i II i", "i vii i II"] },
-    Style { name: "harmonic", mode: Mode::HarmonicMinor, progs: &["i iv V i", "i VI V V", "i iv VI V", "i VI iv V"] },
-    Style { name: "minimal", mode: Mode::Minor, progs: &["i", "i i i VI", "i i iv iv", "i9 i9 i9 VII"] },
+    Style {
+        name: "phrygian",
+        mode: Mode::Phrygian,
+        progs: &["i II", "i II i VII", "i i II i", "i vii i II", "i II VII i", "i II III II"],
+    },
+    Style {
+        name: "harmonic",
+        mode: Mode::HarmonicMinor,
+        progs: &["i iv V i", "i VI V V", "i iv VI V", "i VI iv V", "i VI ii° V", "iv V i VI"],
+    },
+    Style {
+        name: "minimal",
+        mode: Mode::Minor,
+        progs: &["i", "i i i VI", "i i iv iv", "i9 i9 i9 VII", "i i VII VII", "i i VI VI"],
+    },
     Style {
         name: "major_pop",
         mode: Mode::Major,
-        progs: &["I V vi IV", "vi IV I V", "I vi IV V", "IV I V vi", "I IV vi V", "I iii vi IV", "IV V vi I"],
+        progs: &[
+            "I V vi IV",
+            "vi IV I V",
+            "I vi IV V",
+            "IV I V vi",
+            "I IV vi V",
+            "I iii vi IV",
+            "IV V vi I",
+            "I iii IV iv",
+            "I bVII IV I",
+            "I V/vi vi IV",
+            "I bVI bVII I",
+            "IV V iii vi",
+            "I V vi iii IV I IV V",
+        ],
     },
     Style {
         name: "major7_jazz",
@@ -66,14 +107,29 @@ pub const STYLES: &[Style] = &[
             "ii9 V9 Imaj9 vi9",
             "vi7 ii7 V7 Imaj7",
             "IVmaj7 V7 iii7 vi7",
+            "Imaj7 VI7 ii7 V7",
+            "IVmaj7 iv7 iii7 VI7",
+            "ii9 bII7 Imaj9 Imaj9",
         ],
     },
     Style {
         name: "minor_80s",
         mode: Mode::Minor,
-        progs: &["i VI III VII", "i VII VI VII", "VI VII i i", "i III VII IV", "i VI VII i"],
+        progs: &[
+            "i VI III VII",
+            "i VII VI VII",
+            "VI VII i i",
+            "i III VII IV",
+            "i VI VII i",
+            "VI VII i III",
+            "i VII VI iv",
+        ],
     },
-    Style { name: "mixolydian", mode: Mode::Mixolydian, progs: &["I VII IV I", "I VII", "I IV VII IV"] },
+    Style {
+        name: "mixolydian",
+        mode: Mode::Mixolydian,
+        progs: &["I VII IV I", "I VII", "I IV VII IV", "I VII IV IV", "I v IV I"],
+    },
 ];
 
 pub fn style(name: &str) -> Option<&'static Style> {
@@ -107,8 +163,10 @@ fn diatonic_quality(key: &Key, d: i32) -> Quality {
     }
 }
 
-/// diatonic chord on degree d with `ext` (0 triad, 1 seventh, 2 ninth)
+/// diatonic chord on degree d with `ext` (0 triad, 1 seventh, 2 ninth; a seventh where the key has no ninth above
+/// the root, as on the fifth of a minor key)
 pub fn diatonic(key: &Key, d: i32, ext: u8) -> Chord {
+    let ext = if ext >= 2 && !key.pcs().contains(&((key.degree_pc(d) + 2) % 12)) { 1 } else { ext };
     let q = diatonic_quality(key, d);
     let q = match (q, ext) {
         (Quality::Maj, 1)
@@ -130,6 +188,26 @@ pub fn diatonic(key: &Key, d: i32, ext: u8) -> Chord {
         (q, e) => q.extended(e),
     };
     Chord::new(key.degree_pc(d), q)
+}
+
+/// `c` richer by `level` (1 a seventh, 2 a ninth): a diatonic chord with the key's own notes (a dominant seventh on
+/// the fifth, never a major seventh), a borrowed one with its own quality's
+fn richer(c: &Chord, key: &Key, level: u8) -> Chord {
+    if let Some(d) = key.pcs().iter().position(|&p| p == c.root)
+        && diatonic(key, d as i32, 0).quality == c.quality.triad()
+    {
+        return diatonic(key, d as i32, level);
+    }
+    Chord::new(c.root, c.quality.triad().extended(level))
+}
+
+/// whether `c` can be suspended to `q` (sus2 or sus4) with the key's own notes
+fn suspends(c: &Chord, key: &Key, q: Quality) -> bool {
+    let pcs = key.pcs();
+    let added = if q == Quality::Sus4 { 5 } else { 2 };
+    matches!(c.quality.triad(), Quality::Maj | Quality::Min)
+        && pcs.contains(&((c.root + added) % 12))
+        && pcs.contains(&((c.root + 7) % 12))
 }
 
 /// functional-harmony transitions between scale degrees (tonic -> subdominant -> dominant -> tonic, plus the
@@ -204,7 +282,8 @@ pub fn substitute(prog: &[String], key: &Key, rng: &mut Rng) -> (Vec<String>, St
         }
         (1, _) => {
             let up = if c.quality == c.quality.triad() { 1 } else { 0 };
-            let q = if up == 1 { c.quality.extended(if rng.chance(0.4) { 2 } else { 1 }) } else { c.quality.triad() };
+            let q =
+                if up == 1 { richer(&c, key, if rng.chance(0.4) { 2 } else { 1 }).quality } else { c.quality.triad() };
             out[k] = roman_of(&Chord::new(c.root, q), key);
             format!("chord {}: {} -> {} ({})", k + 1, prog[k], out[k], if up == 1 { "extended" } else { "plain triad" })
         }
@@ -223,11 +302,15 @@ pub fn substitute(prog: &[String], key: &Key, rng: &mut Rng) -> (Vec<String>, St
             format!("chord {}: {} -> {} (borrowed from the parallel mode)", k + 1, prog[k], out[k])
         }
         (4, _) => {
-            let q = if rng.chance(0.5) { Quality::Sus4 } else { Quality::Sus2 };
             if c.quality.triad() == Quality::Dim {
                 return (out, "kept a diminished chord".into());
             }
-            out[k] = roman_of(&Chord::new(c.root, q), key);
+            let qs: Vec<Quality> =
+                [Quality::Sus4, Quality::Sus2].into_iter().filter(|&q| suspends(&c, key, q)).collect();
+            if qs.is_empty() {
+                return (out, format!("kept chord {}: no suspension in the key", k + 1));
+            }
+            out[k] = roman_of(&Chord::new(c.root, qs[rng.below(qs.len())]), key);
             format!("chord {}: {} -> {} (suspension)", k + 1, prog[k], out[k])
         }
         (5, _) if out.len() >= 2 => {
@@ -242,4 +325,72 @@ pub fn substitute(prog: &[String], key: &Key, rng: &mut Rng) -> (Vec<String>, St
         }
     };
     (out, what)
+}
+
+/// A four-chord loop answered, as a player bends it the second time round: the loop and then the loop again, ending
+/// another way back to its first chord (its dominant; on the tonic, a chord borrowed from the parallel mode or the
+/// flat sixth and seventh; a suspension of its last chord), and half the time with one chord in between coloured (a
+/// seventh, a ninth, a suspension). `None` for a loop of another length. Returns the eight chords and what the answer
+/// did.
+pub fn answer(prog: &[String], key: &Key, rng: &mut Rng) -> Option<(Vec<String>, String)> {
+    if prog.len() != 4 {
+        return None;
+    }
+    let cs = chords(prog, key);
+    let (first, last) = (cs[0], cs[3]);
+    let t = key.tonic;
+    // a borrowed chord as the mode it comes from has it, a seventh in a loop of sevenths
+    let ext = u8::from(cs.iter().any(|c| c.quality != c.quality.triad()));
+    let from = |mode: Mode, d: i32| diatonic(&Key::new(t, mode), d, ext);
+    let mut ways: Vec<(f64, Vec<Chord>, &str)> = Vec::new();
+    if first.quality.triad() != Quality::Dim {
+        ways.push((2.0, vec![Chord::new((first.root + 7) % 12, Quality::Dom7)], "its dominant"));
+    }
+    if first.root == t {
+        if key.mode.is_minor() {
+            ways.push((1.0, vec![from(Mode::Dorian, 3)], "the major fourth, borrowed"));
+            ways.push((1.0, vec![from(Mode::Minor, 5), from(Mode::Minor, 6)], "the sixth and the seventh"));
+            ways.push((0.5, vec![from(Mode::Phrygian, 1)], "the flat second"));
+        } else {
+            ways.push((1.0, vec![from(Mode::Minor, 6)], "the flat seventh, borrowed"));
+            ways.push((1.0, vec![from(Mode::Minor, 3)], "the minor fourth, borrowed"));
+            ways.push((1.0, vec![from(Mode::Minor, 5), from(Mode::Minor, 6)], "the flat sixth and seventh"));
+        }
+    }
+    if suspends(&last, key, Quality::Sus4) {
+        ways.push((1.0, vec![Chord::new(last.root, Quality::Sus4)], "a suspension"));
+    }
+    // only a new way: a tail it already ends on is no answer
+    ways.retain(|(_, tail, _)| tail.as_slice() != &cs[4 - tail.len()..]);
+    if ways.is_empty() {
+        return None;
+    }
+    let weights: Vec<f64> = ways.iter().map(|w| w.0).collect();
+    let (_, tail, how) = &ways[rng.weighted(&weights)];
+    let mut second = prog.to_vec();
+    for (i, c) in tail.iter().enumerate() {
+        second[4 - tail.len() + i] = roman_of(c, key);
+    }
+    let mut what = format!("answered, ending on {how} ({})", second[4 - tail.len()..].join(" "));
+    // a chord between the first and the new ending, coloured with the key's own notes
+    let inner: Vec<usize> = (1..4 - tail.len()).filter(|&i| cs[i].quality.triad() != Quality::Dim).collect();
+    if !inner.is_empty() && rng.chance(0.5) {
+        let i = inner[rng.below(inner.len())];
+        let c = cs[i];
+        let triad = c.quality == c.quality.triad();
+        let mut colours: Vec<Chord> = [Quality::Sus4, Quality::Sus2]
+            .into_iter()
+            .filter(|&q| triad && suspends(&c, key, q))
+            .map(|q| Chord::new(c.root, q))
+            .collect();
+        colours.push(richer(&c, key, if triad { 1 } else { 2 }));
+        let coloured = colours[rng.below(colours.len())];
+        if coloured != c {
+            second[i] = roman_of(&coloured, key);
+            what.push_str(&format!(", chord {} coloured ({})", i + 5, second[i]));
+        }
+    }
+    let mut out = prog.to_vec();
+    out.extend(second);
+    Some((out, what))
 }

@@ -151,3 +151,39 @@ fn songs_of_one_genre_draw_many_sounds_and_no_song_plays_one_twice() {
         assert!(most >= 8, "{name}: {by_role:?}");
     }
 }
+
+#[test]
+fn some_songs_answer_their_loop_and_some_choruses_play_their_own_progression() {
+    use claudius::model::SectionKind;
+    without_installed_packs();
+    for name in ["dance_pop", "lofi", "trap", "synthwave"] {
+        let g = genres::get(name).unwrap();
+        let (mut answered, mut choruses) = (0, 0);
+        for seed in 0..40 {
+            let bp = compose::generate(&g, seed, &Options::default(), None);
+            let progs = &bp.harmony.progressions;
+            let a = &progs["A"];
+            if a.len() == 8 && a[..4] != a[4..] {
+                answered += 1;
+                assert!(
+                    bp.harmony.bars_per_chord <= 2,
+                    "{name} {seed}: eight chords at {} bars each",
+                    bp.harmony.bars_per_chord
+                );
+            }
+            if let Some(c) = progs.get("C") {
+                choruses += 1;
+                assert_ne!(c, a, "{name} {seed}");
+                for s in &bp.form {
+                    match s.kind {
+                        SectionKind::Hook => assert_eq!(s.prog, "C", "{name} {seed}: {}", s.name),
+                        SectionKind::Verse => assert_eq!(s.prog, "A", "{name} {seed}: {}", s.name),
+                        _ => {}
+                    }
+                }
+            }
+        }
+        assert!(answered >= 4, "{name}: {answered} of 40 songs answer their loop");
+        assert!(choruses >= 6, "{name}: {choruses} of 40 songs have a chorus of its own");
+    }
+}

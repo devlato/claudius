@@ -3,9 +3,9 @@ source: crates/claudius/tests/generators.rs
 expression: summary(&bp)
 ---
 idm at 132.0 BPM in G lydian, swing 0.52
-prog A: Imaj9 ivø7 Imaj9 Vmaj9
-prog B: Imaj9 IVmaj7 Imaj9 Vmaj9
-bars per chord: 4
+prog A: Imaj9 ivø7 Imaj9 Vmaj9 Imaj9 ivø7 bVImaj7 bVII7
+prog B: Imaj9 ivø7 Vmaj9 Imaj9
+bars per chord: 2
 section intro (intro) 8 bars, energy 0.29, prog A, sparse []: bells pad click
 section groove (groove) 16 bars, energy 0.60, prog A, main [fills]: kick snare hat click bass bells pad
 section groove2 (groove) 32 bars, energy 0.75, prog A, main [fills]: kick snare hat click tom bass bells pad arp

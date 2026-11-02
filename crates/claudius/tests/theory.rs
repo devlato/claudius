@@ -70,6 +70,74 @@ fn markov_progressions_are_diatonic_loops() {
 }
 
 #[test]
+fn every_library_progression_reads_in_its_mode() {
+    for style in progression::STYLES {
+        for p in style.progs {
+            for tonic in 0..12 {
+                let key = Key::new(tonic, style.mode);
+                for rn in progression::parse(p) {
+                    assert!(roman(&rn, &key).is_some(), "{}: {rn} in {p} does not read in {}", style.name, key.name());
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn an_answer_plays_the_loop_then_ends_it_another_way() {
+    let mut answered = 0;
+    for style in progression::STYLES {
+        for p in style.progs.iter().map(|p| progression::parse(p)).filter(|p| p.len() == 4) {
+            for seed in 0..8 {
+                let key = Key::new(seed as u8 % 12, style.mode);
+                let Some((a, what)) = progression::answer(&p, &key, &mut Rng::new(seed)) else { continue };
+                answered += 1;
+                assert_eq!(a.len(), 8, "{what}");
+                assert_eq!(a[..4], p[..], "{what}");
+                assert!(a.iter().all(|rn| roman(rn, &key).is_some()), "{a:?}");
+                // the second time round ends another way, and changes at most one chord before that
+                assert_ne!(a[6..], p[2..], "{} {p:?}: {what}", style.name);
+                assert_eq!(a[4], p[0], "{what}");
+                let changed = (4..8).filter(|&i| a[i] != p[i - 4]).count();
+                assert!(changed <= 3, "{p:?} -> {a:?}: {what}");
+            }
+        }
+    }
+    assert!(answered > 300, "{answered} loops answered");
+}
+
+#[test]
+fn colours_and_suspensions_of_diatonic_chords_keep_to_the_key() {
+    // a chord coloured in place (extended or suspended, not borrowed) stays in the key, unless it became a
+    // dominant, which may lean on a leading tone the mode does not have
+    let in_key = |rn: &str, key: &Key| {
+        let c = roman(rn, key).unwrap();
+        c.quality == Quality::Dom7 || c.quality == Quality::Dom9 || c.pcs().iter().all(|pc| key.pcs().contains(pc))
+    };
+    for mode in [Mode::Major, Mode::Minor, Mode::Dorian, Mode::Phrygian, Mode::Mixolydian] {
+        let key = Key::new(4, mode);
+        let mut rng = Rng::new(11);
+        for _ in 0..60 {
+            let p = progression::markov(&key, 4, rng.below(3) as u8, &mut rng);
+            if let Some((a, what)) = progression::answer(&p, &key, &mut rng) {
+                for i in 4..8 {
+                    let (was, now) = (roman(&p[i - 4], &key).unwrap(), roman(&a[i], &key).unwrap());
+                    let coloured = now.quality.triad() == was.quality.triad()
+                        || matches!(now.quality, Quality::Sus2 | Quality::Sus4);
+                    if now != was && now.root == was.root && coloured {
+                        assert!(in_key(&a[i], &key), "{} {p:?} -> {a:?}: {what}", key.name());
+                    }
+                }
+            }
+            let (s, what) = progression::substitute(&p, &key, &mut rng);
+            if what.contains("extended") || what.contains("suspension") {
+                assert!(s.iter().all(|rn| in_key(rn, &key)), "{} {p:?} -> {s:?}: {what}", key.name());
+            }
+        }
+    }
+}
+
+#[test]
 fn euclid_spreads_onsets() {
     let e = rhythm::euclid(3, 8, 0);
     assert_eq!(e.iter().filter(|x| **x).count(), 3);

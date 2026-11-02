@@ -3,8 +3,8 @@ source: crates/claudius/tests/generators.rs
 expression: summary(&bp)
 ---
 trip_hop+idm at 81.0 BPM in D minor, swing 0.51
-prog A: i VI iv V
-prog B: i VII VI V
+prog A: i iv V7 i
+prog B: i VI iv V
 bars per chord: 2
 section intro (intro) 16 bars, energy 0.44, prog A, sparse []: strings keys
 section verse (verse) 16 bars, energy 0.51, prog A, main [fills]: bass keys strings kick snare hat click tom
