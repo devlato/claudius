@@ -213,16 +213,16 @@ form:
   3. drop (drop) bar 48 +16, energy 0.99, drums 'main' [impact]: kick clap hat ohat shaker perc bass chords lead arp top
   4. outro (outro) bar 64 +8, energy 0.20, drums 'sparse': hat perc
 tracks:
-  kick [drum kick] sampled bd (tr909:bd); level +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, -13.0 LUFS
-  clap [drum clap] sampled cp (tr909:cp); level +0.0 dB, pan +0.00, reverb 0.18, delay 0.00, duck 0.00, -15.0 LUFS
+  kick [drum kick] sampled bd (tr909:bd); level +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, -13.1 LUFS
+  clap [drum clap] sampled cp (tr909:cp); level +0.0 dB, pan +0.00, reverb 0.18, delay 0.00, duck 0.00, -15.1 LUFS
   ...
-  lead [part lead] synth patch 'brass_lead'; level -2.0 dB, pan +0.00, reverb 0.21, delay 0.34, duck 0.20, -20.5 LUFS
-  arp [part arp] synth patch 'bell'; level +0.0 dB, pan +0.20, reverb 0.29, delay 0.18, duck 0.30, -21.0 LUFS
+  lead [part lead] synth patch 'brass_lead'; level -2.0 dB, pan +0.00, reverb 0.21, delay 0.34, duck 0.20, -20.6 LUFS
+  arp [part arp] synth patch 'bell'; level +0.0 dB, pan +0.20, reverb 0.29, delay 0.18, duck 0.30, -21.1 LUFS
   fx [fx fx] risers, impacts, crashes; level +0.0 dB, pan +0.00, reverb 0.25, delay 0.00, duck 0.00
 render: -10.0 LUFS, true peak -1.0 dBTP, 142 s
 verdict 93.3/100: 93/100 (arc 0.89, mix 0.92, theory 1.00). Fix first: nearly mono (correlation 0.97): widen pads, chords and effects
   scores: arc 0.89, mix 0.92, theory 1.00
-  loudness by section (LUFS): intro -11.9, groove -9.4, break -12.5, drop -9.0, outro -20.7
+  loudness by section (LUFS): intro -11.8, groove -9.4, break -12.5, drop -9.0, outro -20.7
   issue (0.35): nearly mono (correlation 0.97): widen pads, chords and effects — fix: width+
 audio: http://127.0.0.1:7931/api/audio/8.wav (the studio at http://127.0.0.1:7931 plays it)
 ```

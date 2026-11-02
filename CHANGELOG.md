@@ -96,13 +96,6 @@ darkness and pre-delay, the delay's time and bounce, every part's sends, a colou
 deepens in the drops, tape on the keys, a tube on the bass), a high-pass on the music in the breaks, and the master's
 saturation ([A form and a mix of its own](https://github.com/devlato/claudius/blob/main/docs/src/engineering/theory.md#a-form-and-a-mix-of-its-own)).
 
-Nor do new songs share a shape or a mix. A genre's forms are templates: each song lengthens or shortens their
-sections, and may add a bridge, a third verse and chorus, a lift into the first chorus or a last chorus played twice,
-start or end cold, or thin its intro, its first verse or its outro. Its mix is its own too: the reverb's length,
-darkness and pre-delay, the delay's time and bounce, every part's sends, a colour on some parts (a phaser that
-deepens in the drops, tape on the keys, a tube on the bass), a high-pass on the music in the breaks, and the master's
-saturation ([A form and a mix of its own](https://github.com/devlato/claudius/blob/main/docs/src/engineering/theory.md#a-form-and-a-mix-of-its-own)).
-
 claudius hears how a voice is sung: the notes it means, how near each came, and how its singer sings (where they go
 sharp or flat by register, how widely their notes scatter, how fast they settle, their vibrato). Right-click a take
 and choose **How is it sung?**, run `claudius voice` on a file, or let an assistant call `assess_voice`
