@@ -209,8 +209,11 @@ pub(super) fn set_lane(bp: &mut Blueprint, lane: &str, m: &Map) -> R<String> {
             v => Ok(v),
         }
     };
-    if let Some(v) = range("length", 0.0, 256.0)? {
+    if let Some(v) = map_f32(m, "length") {
         let pattern = l.pattern_bars.max(1) * 16;
+        if v < 0.0 {
+            return fail(format!("lane()'s length is a number of steps, or 0 for its pattern's, not {v}"));
+        }
         if v.round() as u32 > pattern {
             return fail(format!(
                 "lane(): {lane}'s length is up to its pattern's {pattern} steps (a longer pattern first, with drum()), not {v}"

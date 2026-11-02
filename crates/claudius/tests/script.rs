@@ -731,6 +731,7 @@ fn a_lane_keeps_its_own_length_speed_swing_and_groove() {
         (r#"lane("hat", #{ groove: "jazz" })"#, "lane(): no groove 'jazz' (grooves: straight swing54"),
         (r#"lane("hat", #{ speed: 8 })"#, "lane()'s speed is 0.125 to 4, not 8"),
         (r#"lane("hat", #{ length: 24 })"#, "lane(): hat's length is up to its pattern's 16 steps"),
+        (r#"lane("hat", #{ length: -3 })"#, "lane()'s length is a number of steps, or 0 for its pattern's, not -3"),
         (r#"lane("hat", #{ swing: 0.3 })"#, "lane()'s swing is 0.5 (straight) to 0.8, or 0 for the song's"),
         (r#"lane("hat", #{ steps: 12 })"#, "lane() has no option 'steps'"),
         (r#"groove("x", #{ timing: [0, 0.1] })"#, "groove()'s timing is a list of 16 numbers, one a sixteenth, not 2"),
