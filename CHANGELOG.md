@@ -46,6 +46,12 @@ in the climaxes, pads gated harder as a groove goes on. The cookbook has a recip
 ([Trip-hop, big beat, electro house, nu-disco, filter house](https://github.com/devlato/claudius/blob/main/docs/src/cookbook/breaks-and-disco.md);
 [Dance-pop, neo-psychedelia, art rock, IDM, dub techno](https://github.com/devlato/claudius/blob/main/docs/src/cookbook/pop-psych-and-glitch.md)).
 
+Five more: `boom_bap`, 90s hip hop with a sampler's lazy swing and a piano loop; `uk_drill`, at half time with
+sliding 808s and skippy hats in threes; `dubstep`, a wobble over a clean sub under a big snare on the third beat;
+`uk_garage`, a shuffled two-step with organ and Rhodes chords; and `jungle`, a chopped, rolling breakbeat over a deep
+sub, its chords lost in long delays. The studio's demo plays them too, and the cookbook has a recipe for each
+([Boom bap, UK drill, dubstep, UK garage, jungle](https://github.com/devlato/claudius/blob/main/docs/src/cookbook/hip-hop-and-uk-bass.md)).
+
 Genres fuse: `trip_hop+idm`, `art_rock+idm` or `house+dnb+lofi` is one genre, in scripts, on the command line, for
 assistants and in the studio's New song dialog (**Fused with**). The first genre leads the song, its harmony, parts
 and mix, and the last plays the drums and lends its sounds

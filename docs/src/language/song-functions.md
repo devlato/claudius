@@ -28,7 +28,8 @@ any machine. The recordings installed (sample packs, Apple Loops) change only wh
 | `samples` | number | 0.75 | chance that each drum lane uses a recorded one-shot from your library instead of synthesis |
 
 The genre is one of `house deep_house techno trap lofi dnb future_bass synthwave trip_hop big_beat electro_house
-nu_disco filter_house dance_pop neo_psychedelia art_rock idm dub_techno`, two or three of them fused (`trip_hop+idm`:
+nu_disco filter_house dance_pop neo_psychedelia art_rock idm dub_techno boom_bap uk_drill dubstep uk_garage jungle`,
+two or three of them fused (`trip_hop+idm`:
 the first leads, the last plays the drums; see [Fusing genres](../learn/producers/genres-and-evolution.md#fusing-genres)),
 or one of your own (see
 [Genres](../learn/producers/genres-and-evolution.md)); case, spaces and hyphens do not matter (`"deep house"`). A
@@ -38,7 +39,7 @@ into that mode, as [`key()`](#key) does. The options are checked like [`tempo()`
 [`key()`](#key) check their arguments, and an option the map should not have is an error rather than ignored (so is a
 misspelt one).
 
-Errors: `unknown genre 'polka' (try: art_rock, big_beat, dance_pop, deep_house, dnb, dub_techno, electro_house, filter_house, future_bass, house, idm, lofi, neo_psychedelia, nu_disco, synthwave, techno, trap, trip_hop)`;
+Errors: `unknown genre 'polka' (try: art_rock, big_beat, boom_bap, dance_pop, deep_house, dnb, dub_techno, dubstep, electro_house, filter_house, future_bass, house, idm, jungle, lofi, neo_psychedelia, nu_disco, synthwave, techno, trap, trip_hop, uk_drill, uk_garage)`;
 `tempo between 40 and 240 BPM`; `cannot read key 'H minor' (try "A minor", "F#m", "Eb", "D dorian")`;
 `song() has no option 'tempo' (options: seed bpm key loops short samples)`.
 

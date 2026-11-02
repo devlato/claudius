@@ -1,4 +1,4 @@
-# Starting points for the eighteen genres
+# Starting points for the twenty-three genres
 
 Two or three genres fuse with `+`: `song("trip_hop+idm", 3)` (or `new_song` with genre `trip_hop+idm`) is trip-hop's
 song, harmony, parts and mix with IDM's drums, and IDM's sounds lent to the parts. The first genre leads, the last
@@ -304,4 +304,86 @@ track("drums", s("bd*4, [~ hh]*4, [~ ~ ~ rim]*2").gain("1 0.6"));
 track("chords", chord("prog").struct("~ x ~ ~").voicing(50, 70).s("stab").room(0.4).delay(0.6));
 track("bass", chord("prog").root().struct("x ~ ~ ~").s("sub_bass").legato(0.9));
 send_fx(#{ delay: #{ fx: "delay", beats: 0.75, feedback: 0.6, damping: 0.7, pingpong: true, mix: 1 } });
+```
+
+## boom_bap (86-96 BPM)
+
+90s hip hop: a hard kick and a cracking snare on 2 and 4 with a lazy swing, dusty hats, a piano or Rhodes loop over
+jazzy minor chords, an upright or sub bass, horn or flute phrases in the hooks. `swing(0.58)` gives the lean.
+
+```js
+blank("boom_bap");
+tempo(90);
+swing(0.58);
+key("D minor");
+prog("A", "i9 iv9 VImaj7 v7");
+track("drums", s("bd ~ ~ [~ bd] ~ bd ~ ~, ~ sd ~ sd, hh*8").gain("1 0.8"));
+track("bass", chord("prog").root().octave(2).struct("x ~ ~ x ~ x ~ ~").s("sub_bass").legato(0.8));
+track("keys", chord("prog").struct("x ~ ~ ~ ~ ~ x ~").voicing(50, 74).s("epiano").room(0.25));
+track("horns", n("<[7 ~ 9 7] [5 ~ 3 ~]>").scale("D:minor").octave(5).s("brass_lead").room(0.3));
+```
+
+## uk_drill (138-146 BPM)
+
+Felt at half time: a snare on the third beat, skippy hats in threes, sliding 808s that follow a sparse kick, dark
+minor and harmonic minor chords on piano, strings or choir, a bell line in the hooks.
+
+```js
+blank("uk_drill");
+tempo(142);
+key("G minor");
+prog("A", "i VI");
+track("drums", s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~, ~ sd, [hh hh hh]*4").gain("1 0.75"));
+track("808", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ ~ ~ ~ ~ x ~ ~ ~ ~ ~").s("808").legato(1));
+track("keys", chord("prog").voicing(52, 76).s("keys").room(0.35));
+track("bells", n("<[0 ~ 3 2] [7 ~ 5 ~]>").scale("G:minor").octave(5).s("bell").delay(0.25));
+```
+
+## dubstep (138-142 BPM)
+
+At half time: a big snare on the third beat over a sparse kick, a wobbling mid bass over a clean sub, dark minor and
+phrygian chords on pads, risers into heavy drops.
+
+```js
+blank("dubstep");
+tempo(140);
+key("F minor");
+prog("A", "i VI");
+track("drums", s("bd ~ ~ ~ ~ ~ ~ ~, ~ sd, hh*8").gain("1 0.7"));
+track("sub", chord("prog").root().octave(1).struct("x ~ ~ ~").s("sub_bass").legato(1));
+track("wobble", n("0 0 ~ 0 3 ~ 0 ~").scale("F:minor").octave(2).s("wobble"));
+track("pad", chord("prog").voicing(48, 74).s("pad").role("pad").room(0.5));
+form([sec("intro", 16, "pad"), sec("build", 8, "pad drums").build().gap(), sec("drop", 32, "*").impact()]);
+```
+
+## uk_garage (130-136 BPM)
+
+A heavy shuffle: a two-step kick that skips the third beat, snares on 2 and 4, shuffled hats and shakers, a
+bouncing organ or sub bass, soulful minor 7th chords on organ or Rhodes. `swing(0.62)` is the shuffle.
+
+```js
+blank("uk_garage");
+tempo(132);
+swing(0.62);
+key("A minor");
+prog("A", "i7 iv7 VImaj7 v7");
+track("drums", s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~, ~ sd ~ sd, [~ hh]*4, sh*16").gain("1 0.8"));
+track("bass", chord("prog").root().octave(2).struct("x ~ ~ x ~ ~ x ~").s("organ_bass").legato(0.7));
+track("chords", chord("prog").struct("~ x ~ ~ x ~ ~ ~").voicing(55, 76).s("organ").room(0.2));
+```
+
+## jungle (160-172 BPM)
+
+A chopped, rolling breakbeat with ghost snares on an acoustic kit, a deep sub or reese bass at half the speed of the
+drums, dub chords and stabs with long delays, warm pads.
+
+```js
+blank("jungle");
+tempo(166);
+key("E minor");
+prog("A", "i7 iv7");
+track("drums", s("bd ~ bd ~ sd ~ ~ sd ~ sd bd ~ sd ~ ~ sd, hh*8, rd*8").gain("1 0.8"));
+track("bass", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ ~ ~").s("reese").legato(1));
+track("chords", chord("prog").struct("~ x ~ ~").voicing(55, 74).s("stab").room(0.35).delay(0.4));
+track("pad", chord("prog").voicing(48, 74).s("pad").role("pad").room(0.5));
 ```
