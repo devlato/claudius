@@ -147,10 +147,12 @@ Streams have one trap: an option that skipped a random draw would shift every dr
 tempo and a tonic whether or not they are given, and a `bpm` or `key` of your own replaces only the result.
 `song("house", #{ seed: 9, bpm: 131 })` is "Crimson Tide" at 131 BPM, with the form, progressions and drums of
 `song("house", 9)`; `a_tempo_or_key_of_your_own_changes_only_that` in `tests/script.rs` holds the title, the form,
-progression `A` and every drum pattern to that. A `key` brings its mode too, and progression `B` is derived in the
-key, so it can differ when the mode does: seed 9 asked for `E minor` instead of its own G dorian turns `B` from
-`i7 VIImaj7 i7 IV7` into `i7 VII7 i7 IV7`, while `A` keeps its numerals. A song printed as a script still starts from
-`song("house", 9)`; the `tempo()` and `key()` lines after it set the rest.
+progression `A` and every drum pattern to that. A `key` brings its mode too: the progressions are written, answered
+and derived in the style's mode as always, then moved to the key's the way `key()` moves them, so seed 9 asked for
+`E minor` instead of its own G dorian plays `A` as `i7 iv9 i7 VII7 i7 iv9 i7 V7` where G dorian has
+`i7 IV9 i7 VIImaj7 i7 IV9 i7 V7`; `a_key_in_another_mode_gets_the_progressions_in_that_mode` holds every progression
+of 24 songs in three keys to that. A song printed as a script still starts from `song("house", 9)`; the `tempo()`
+and `key()` lines after it set the rest.
 
 ## Errors
 

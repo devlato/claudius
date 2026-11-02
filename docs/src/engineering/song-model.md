@@ -21,7 +21,8 @@ This is the head of a real one, house with seed 9 (`claudius make --genre house 
 ```json
 {"version": 1, "title": "Crimson Tide", "genre": "house", "seed": 9, "bpm": 124.0,
  "key": {"tonic": 7, "mode": "dorian"}, "swing": 0.5257842, "humanize": 0.25,
- "harmony": {"progressions": {"A": ["i7", "ii7", "i7", "IV7"], "B": ["i7", "VIImaj7", "i7", "IV7"]},
+ "harmony": {"progressions": {"A": ["i7", "IV9", "i7", "VIImaj7", "i7", "IV9", "i7", "V7"],
+                              "B": ["i7", "ii7", "i7", "VIImaj7"]},
              "bars_per_chord": 1},
  "form": [{"name": "intro", "kind": "intro", "bars": 8, "energy": 0.35950592, "prog": "A",
            "layers": ["kick", "hat", "perc"], "variant": "sparse",
@@ -49,8 +50,8 @@ This is the head of a real one, house with seed 9 (`claudius make --genre house 
 
 Progressions are Roman numerals **in the key's own mode** (`VI` in A minor is F major), so changing the key moves
 every chord with it, and `key()` in a script re-spells diatonic numerals when the mode changes (`Imaj7` in E major
-becomes `i7` in F minor). Generated songs have two, `A` and `B`; sections play `A` unless they say otherwise, and
-breaks play `B`. Scripts may add more names. [Composition and theory](theory.md#progressions) covers the numeral
+becomes `i7` in F minor). Generated songs have `A` and `B`, and sometimes `C`, a chorus of its own that the hooks
+play; sections play `A` unless they say otherwise, and breaks play `B`. Scripts may add more names. [Composition and theory](theory.md#progressions) covers the numeral
 grammar.
 
 ### Form

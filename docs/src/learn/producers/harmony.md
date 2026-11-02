@@ -156,7 +156,7 @@ The theory score reads the arranged song, not the audio:
 
 | check | passes when |
 |---|---|
-| melody in key | 95 % of the lead's notes are in the key |
+| melody in key | 95 % of the lead's notes are in the key, or in the chord sounding with them (a borrowed chord's third, an applied dominant's leading note) |
 | chord tones on strong beats | 60 % of the lead's notes on beats 1 and 3 are tones of the chord sounding there |
 | range | the lead spans 19 semitones or less |
 | leaps | at most 20 % of the lead's moves (between notes less than two beats apart) are larger than a fifth |

@@ -41,14 +41,14 @@ the result. On this machine it printed:
 ```text
 ears loaded in 3.5 s
 Crimson Tide — house at 124 BPM in G dorian, 72 bars (2:19)
-  progression A: i7 ii7 i7 IV7
-  progression B: i7 VIImaj7 i7 IV7
+  progression A: i7 IV9 i7 VIImaj7 i7 IV9 i7 V7
+  progression B: i7 ii7 i7 VIImaj7
   form: intro 8 | groove 32 | break 8 | drop 16 | outro 8
   tracks: kick (sampled bd (tr909:bd)), clap (sampled cp (tr909:cp)), hat (sampled hh (tr707:hh)), ohat (sampled oh (tr909:oh)), shaker (shaker cut from 'Cosmic Harmony Shaker' (Apple Loops)), perc (sampled rim (tr909:rim)), bass (synth patch 'saw_bass'), chords (sampled fm_piano (freepats:fm_piano)), pad (sampled strings (vsco2:strings)), lead (synth patch 'brass_lead'), arp (synth patch 'bell'), crash (synth crash), riser (synth riser), impact (synth impact), downlifter (synth downlifter), reverse_crash (synth reverse_crash)
-  master: -10.1 LUFS, true peak -1.0 dBTP (pre-master -9.4 LUFS); done in 7.3 s
-  ears: 'house music' z +3.4 (closest confusion 'techno music' +3.7); production z +1.9 vs 'a distorted clipped recording' +2.1; p_real 0.65
-        sounds like: techno music, tech house music, house music, drum and bass music
-  verdict: 82/100 (arc 0.88, genre 0.63, mix 0.92, production 0.46, theory 1.00). Fix first: nearly mono (correlation 0.96): widen pads, chords and effects; sounds about as much like a clipped recording as a professional mix: less drive and saturation, or a quieter master; sounds more like 'techno music' than 'house music'
+  master: -10.0 LUFS, true peak -1.0 dBTP (pre-master -9.4 LUFS); done in 7.9 s
+  ears: 'house music' z +3.4 (closest confusion 'techno music' +3.7); production z +2.0 vs 'a distorted clipped recording' +2.1; p_real 0.66
+        sounds like: techno music, house music, tech house music, drum and bass music
+  verdict: 82/100 (arc 0.88, genre 0.67, mix 0.92, production 0.47, theory 1.00). Fix first: nearly mono (correlation 0.96): widen pads, chords and effects; sounds about as much like a clipped recording as a professional mix: less drive and saturation, or a quieter master; sounds more like 'techno music' than 'house music'
   wrote out/house-crimson-tide-9/song.mp3
 ```
 
@@ -102,16 +102,16 @@ claudius script edit.rhai --on out/house-crimson-tide-9
 ```
 
 ```text
-ears loaded in 3.6 s
+ears loaded in 3.4 s
 Crimson Tide — house at 122 BPM in G dorian, 88 bars (2:53)
-  progression A: i7 ii7 i7 IV7
-  progression B: i7 VIImaj7 i7 IV7
+  progression A: i7 IV9 i7 VIImaj7 i7 IV9 i7 V7
+  progression B: i7 ii7 i7 VIImaj7
   form: intro 8 | groove 32 | break 8 | drop 32 | outro 8
   tracks: kick (sampled bd (tr909:bd)), clap (sampled cp (tr909:cp)), hat (sampled hh (tr707:hh)), ohat (sampled oh (tr909:oh)), shaker (shaker cut from 'Cosmic Harmony Shaker' (Apple Loops)), perc (sampled rim (tr909:rim)), bass (synth patch 'saw_bass'), chords (sampled piano (salamander:piano)), pad (sampled strings (vsco2:strings)), lead (synth patch 'brass_lead'), arp (synth patch 'bell'), crash (synth crash), riser (synth riser), impact (synth impact), downlifter (synth downlifter), reverse_crash (synth reverse_crash)
-  master: -10.1 LUFS, true peak -1.0 dBTP (pre-master -9.2 LUFS); done in 7.7 s
-  ears: 'house music' z +3.1 (closest confusion 'techno music' +3.4); production z +1.9 vs 'a distorted clipped recording' +2.0; p_real 0.73
-        sounds like: techno music, tech house music, house music, drum and bass music
-  verdict: 83/100 (arc 0.89, genre 0.59, mix 1.00, production 0.46, theory 1.00). Fix first: sounds about as much like a clipped recording as a professional mix: less drive and saturation, or a quieter master; sounds more like 'techno music' than 'house music'
+  master: -10.0 LUFS, true peak -1.0 dBTP (pre-master -9.3 LUFS); done in 8.1 s
+  ears: 'house music' z +3.0 (closest confusion 'techno music' +3.4); production z +1.9 vs 'a distorted clipped recording' +2.1; p_real 0.73
+        sounds like: techno music, house music, tech house music, drum and bass music
+  verdict: 83/100 (arc 0.88, genre 0.56, mix 1.00, production 0.46, theory 1.00). Fix first: sounds about as much like a clipped recording as a professional mix: less drive and saturation, or a quieter master; sounds more like 'techno music' than 'house music'
   wrote out/house-crimson-tide-9/song.mp3
 ```
 
@@ -139,8 +139,8 @@ echo "" | claudius script - --on out/house-crimson-tide-9 --print
 // song("house", 9);   // uncomment to start over from the generator
 title("Crimson Tide"); tempo(122); key("G dorian"); swing(0.5257842);
 humanize(0.25);
-prog("A", "i7 ii7 i7 IV7");
-prog("B", "i7 VIImaj7 i7 IV7");
+prog("A", "i7 IV9 i7 VIImaj7 i7 IV9 i7 V7");
+prog("B", "i7 ii7 i7 VIImaj7");
 bars_per_chord(1);
 master(#{ lufs: -10, ceiling: -1 });
 

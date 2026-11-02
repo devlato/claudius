@@ -163,42 +163,39 @@ fn diatonic_quality(key: &Key, d: i32) -> Quality {
     }
 }
 
-/// diatonic chord on degree d with `ext` (0 triad, 1 seventh, 2 ninth; a seventh where the key has no ninth above
-/// the root, as on the fifth of a minor key)
+/// diatonic chord on degree d with `ext` (0 triad, 1 seventh, 2 ninth), with the key's own notes: the seventh the
+/// key has above the root (a dominant seventh on the fifth of a major key, a diminished one on the seventh of a
+/// harmonic minor), a ninth only where the key has one (the fifth of a minor key stays a seventh), and a triad where
+/// no seventh fits (the tonic of a harmonic minor, whose seventh is major over a minor third)
 pub fn diatonic(key: &Key, d: i32, ext: u8) -> Chord {
-    let ext = if ext >= 2 && !key.pcs().contains(&((key.degree_pc(d) + 2) % 12)) { 1 } else { ext };
-    let q = diatonic_quality(key, d);
-    let q = match (q, ext) {
-        (Quality::Maj, 1)
-            if (key.mode.intervals()[((d + 6).rem_euclid(7)) as usize]
-                - key.mode.intervals()[d.rem_euclid(7) as usize])
-                .rem_euclid(12)
-                == 10 =>
-        {
-            Quality::Dom7
-        }
-        (Quality::Maj, 2)
-            if (key.mode.intervals()[((d + 6).rem_euclid(7)) as usize]
-                - key.mode.intervals()[d.rem_euclid(7) as usize])
-                .rem_euclid(12)
-                == 10 =>
-        {
-            Quality::Dom9
-        }
-        (q, e) => q.extended(e),
+    let iv = key.mode.intervals();
+    let seventh = (iv[(d + 6).rem_euclid(7) as usize] - iv[d.rem_euclid(7) as usize]).rem_euclid(12);
+    let ninth = key.pcs().contains(&((key.degree_pc(d) + 2) % 12));
+    let with_seventh = match (diatonic_quality(key, d), seventh) {
+        (Quality::Maj, 10) => Some(Quality::Dom7),
+        (Quality::Maj, 11) => Some(Quality::Maj7),
+        (Quality::Min, 10) => Some(Quality::Min7),
+        (Quality::Dim, 10) => Some(Quality::HalfDim7),
+        (Quality::Dim, 9) => Some(Quality::Dim7),
+        _ => None,
+    };
+    let q = match (ext, with_seventh) {
+        (0, _) | (_, None) => diatonic_quality(key, d),
+        (1, Some(s)) => s,
+        (_, Some(Quality::Dom7)) if ninth => Quality::Dom9,
+        (_, Some(Quality::Maj7)) if ninth => Quality::Maj9,
+        (_, Some(Quality::Min7)) if ninth => Quality::Min9,
+        (_, Some(s)) => s,
     };
     Chord::new(key.degree_pc(d), q)
 }
 
-/// `c` richer by `level` (1 a seventh, 2 a ninth): a diatonic chord with the key's own notes (a dominant seventh on
-/// the fifth, never a major seventh), a borrowed one with its own quality's
-fn richer(c: &Chord, key: &Key, level: u8) -> Chord {
-    if let Some(d) = key.pcs().iter().position(|&p| p == c.root)
-        && diatonic(key, d as i32, 0).quality == c.quality.triad()
-    {
-        return diatonic(key, d as i32, level);
-    }
-    Chord::new(c.root, c.quality.triad().extended(level))
+/// `c` richer by `level` (1 a seventh, 2 a ninth) with the key's own notes (a dominant seventh on the fifth of a major
+/// key, never a major seventh), or `None` for a chord the key does not have: a borrowed or applied chord has no
+/// seventh of the key's to add
+fn richer(c: &Chord, key: &Key, level: u8) -> Option<Chord> {
+    let d = key.pcs().iter().position(|&p| p == c.root)? as i32;
+    (diatonic(key, d, 0).quality == c.quality.triad()).then(|| diatonic(key, d, level))
 }
 
 /// whether `c` can be suspended to `q` (sus2 or sus4) with the key's own notes
@@ -281,11 +278,17 @@ pub fn substitute(prog: &[String], key: &Key, rng: &mut Rng) -> (Vec<String>, St
             format!("chord {}: {} -> {} (third relation)", k + 1, prog[k], out[k])
         }
         (1, _) => {
-            let up = if c.quality == c.quality.triad() { 1 } else { 0 };
-            let q =
-                if up == 1 { richer(&c, key, if rng.chance(0.4) { 2 } else { 1 }).quality } else { c.quality.triad() };
+            let up = c.quality == c.quality.triad();
+            let q = if up {
+                match richer(&c, key, if rng.chance(0.4) { 2 } else { 1 }) {
+                    Some(r) => r.quality,
+                    None => return (out, format!("kept chord {}: nothing richer in the key", k + 1)),
+                }
+            } else {
+                c.quality.triad()
+            };
             out[k] = roman_of(&Chord::new(c.root, q), key);
-            format!("chord {}: {} -> {} ({})", k + 1, prog[k], out[k], if up == 1 { "extended" } else { "plain triad" })
+            format!("chord {}: {} -> {} ({})", k + 1, prog[k], out[k], if up { "extended" } else { "plain triad" })
         }
         (2, _) if out.len() >= 2 => {
             // the chord before becomes the dominant of this one
@@ -383,9 +386,10 @@ pub fn answer(prog: &[String], key: &Key, rng: &mut Rng) -> Option<(Vec<String>,
             .filter(|&q| triad && suspends(&c, key, q))
             .map(|q| Chord::new(c.root, q))
             .collect();
-        colours.push(richer(&c, key, if triad { 1 } else { 2 }));
-        let coloured = colours[rng.below(colours.len())];
-        if coloured != c {
+        colours.extend(richer(&c, key, if triad { 1 } else { 2 }));
+        if let Some(&coloured) = colours.get(rng.below(colours.len().max(1)))
+            && coloured != c
+        {
             second[i] = roman_of(&coloured, key);
             what.push_str(&format!(", chord {} coloured ({})", i + 5, second[i]));
         }

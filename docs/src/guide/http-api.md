@@ -63,7 +63,7 @@ the moment the verdict describes the song as it is now. When the session renders
 ```sh
 curl -s -X POST http://127.0.0.1:7878/api/command -H 'Content-Type: application/json' \
   -d '{"cmd":"new_song","genre":"house","seed":9,"bpm":126}'
-curl -s 'http://127.0.0.1:7878/api/state?settled=1&timeout=120'    # returned after 6.0 s, with the render and verdict
+curl -s 'http://127.0.0.1:7878/api/state?settled=1&timeout=120'    # returned after 6.5 s, with the render and verdict
 ```
 
 The MCP tools wait the same way after every edit.
@@ -79,19 +79,19 @@ The MCP tools wait the same way after every edit.
   "undo_label": "new song: Crimson Tide — house at 126 BPM in G dorian (seed 9)", "redo_label": null,
   "log": ["sample library: Apple Loops and your folders",
           "new song: Crimson Tide — house at 126 BPM in G dorian (seed 9)",
-          "rendered in 5.8 s: -10.1 LUFS, verdict 93.0 — 93/100 (arc 0.87, mix 0.92, theory 1.00). Fix first: nearly mono (correlation 0.96): widen pads, chords and effects; the drop is only 2.9 LU louder than the breakdown (aim for 3-7): thin the break or push the drop"],
+          "rendered in 6.3 s: -9.9 LUFS, verdict 92.6 — 93/100 (arc 0.86, mix 0.92, theory 1.00). Fix first: nearly mono (correlation 0.96): widen pads, chords and effects; the drop is only 2.8 LU louder than the breakdown (aim for 3-7): thin the break or push the drop"],
   "genres": [{ "name": "deep_house", "description": "Deep house: softer four-on-the-floor, ...", "bpm": [118.0, 124.0] }],
   "song": {
     "title": "Crimson Tide", "genre": "house", "seed": 9, "bpm": 126.0, "key": "G dorian", "swing": 0.5257842,
     "bars": 72, "seconds": 137.14285714285714,
-    "progressions": [["A", ["i7", "ii7", "i7", "IV7"]], ["B", ["i7", "VIImaj7", "i7", "IV7"]]],
+    "progressions": [["A", ["i7", "IV9", "i7", "VIImaj7", "i7", "IV9", "i7", "V7"]], ["B", ["i7", "ii7", "i7", "VIImaj7"]]],
     "sections": [{ "name": "intro", "kind": "intro", "start_bar": 0, "bars": 8, "energy": 0.35950592,
                    "layers": ["kick", "hat", "perc"], "prog": "A", "variant": "sparse",
                    "filter_in": true, "build": false, "gap": false, "impact": false, "fills": false }],
     "layers": ["kick", "clap", "hat", "ohat", "shaker", "perc", "bass", "chords", "pad", "lead", "arp"],
     "tracks": [{ "name": "kick", "kind": "drum", "role": "kick", "sound": "sampled bd (tr909:bd)",
                  "level_db": 0.0, "pan": 0.0, "reverb": 0.0, "delay": 0.0, "duck": 0.0,
-                 "muted": false, "solo": false, "loudness": -13.3, "fx": [], "bus": "drums" }],
+                 "muted": false, "solo": false, "loudness": -13.0, "fx": [], "bus": "drums" }],
     "drums": [{ "lane": "kick", "pattern_bars": 4,
                 "variants": [["main", [0.99353635, 0.0, 0.0, 0.0, 0.9903264, 0.0, 0.0, 0.0]]] }],
     "parts": [{ "name": "bass", "role": "bass", "style": "syncopated", "styles": ["offbeat", "syncopated", "offbeat"],
@@ -102,20 +102,20 @@ The MCP tools wait the same way after every edit.
     "lineage": ["generated: house seed 9"]
   },
   "render": {
-    "version": 2, "url": "/api/audio/2.mp3", "seconds": 137.75695833333333, "lufs": -10.148563082017638,
+    "version": 2, "url": "/api/audio/2.mp3", "seconds": 137.75695833333333, "lufs": -9.918853251636394,
     "true_peak_db": -1.05, "bpm": 126.0,
     "sections": [["intro", 0.0, 15.238095238095237], ["groove", 15.238095238095237, 76.19047619047619]],
-    "waveform": [0.78448004, 0.6707311, 0.23634785, 0.78448004],
+    "waveform": [0.7832023, 0.6933847, 0.24473634, 0.7832023],
     "stems": []
   },
   "verdict": {
-    "total": 92.98569605828814,
-    "summary": "93/100 (arc 0.87, mix 0.92, theory 1.00). Fix first: nearly mono (correlation 0.96): widen pads, chords and effects; the drop is only 2.9 LU louder than the breakdown (aim for 3-7): thin the break or push the drop",
-    "scores": [["arc", 0.8744993620400839], ["mix", 0.92], ["theory", 1.0]],
+    "total": 92.55483794905726,
+    "summary": "93/100 (arc 0.86, mix 0.92, theory 1.00). Fix first: nearly mono (correlation 0.96): widen pads, chords and effects; the drop is only 2.8 LU louder than the breakdown (aim for 3-7): thin the break or push the drop",
+    "scores": [["arc", 0.8594193282170034], ["mix", 0.92], ["theory", 1.0]],
     "issues": [[0.35, "nearly mono (correlation 0.96): widen pads, chords and effects", "width+"],
-               [0.027414673248886245, "the drop is only 2.9 LU louder than the breakdown (aim for 3-7): thin the break or push the drop", "form"]],
+               [0.0695062248036405, "the drop is only 2.8 LU louder than the breakdown (aim for 3-7): thin the break or push the drop", "form"]],
     "ears": null,
-    "measures": [["arc_correlation", 0.77], ["band_air_db", -18.4], ["band_low_db", -3.4]]
+    "measures": [["arc_correlation", 0.76], ["band_air_db", -18.5], ["band_low_db", -3.4]]
   }
 }
 ```

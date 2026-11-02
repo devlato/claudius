@@ -114,24 +114,66 @@ fn colours_and_suspensions_of_diatonic_chords_keep_to_the_key() {
         let c = roman(rn, key).unwrap();
         c.quality == Quality::Dom7 || c.quality == Quality::Dom9 || c.pcs().iter().all(|pc| key.pcs().contains(pc))
     };
+    let diatonic = |c: &Chord, key: &Key| c.pcs().iter().all(|pc| key.pcs().contains(pc));
+    // the library's loops (borrowed and applied chords among them) and Markov ones, in every mode
+    let mut loops: Vec<(Key, Vec<String>)> = progression::STYLES
+        .iter()
+        .flat_map(|s| s.progs.iter().map(move |p| (Key::new(4, s.mode), progression::parse(p))))
+        .filter(|(_, p)| p.len() == 4)
+        .collect();
+    let mut rng = Rng::new(11);
     for mode in [Mode::Major, Mode::Minor, Mode::Dorian, Mode::Phrygian, Mode::Mixolydian] {
         let key = Key::new(4, mode);
-        let mut rng = Rng::new(11);
-        for _ in 0..60 {
-            let p = progression::markov(&key, 4, rng.below(3) as u8, &mut rng);
-            if let Some((a, what)) = progression::answer(&p, &key, &mut rng) {
+        for _ in 0..30 {
+            loops.push((key, progression::markov(&key, 4, rng.below(3) as u8, &mut rng)));
+        }
+    }
+    for (key, p) in &loops {
+        for _ in 0..4 {
+            if let Some((a, what)) = progression::answer(p, key, &mut rng) {
                 for i in 4..8 {
-                    let (was, now) = (roman(&p[i - 4], &key).unwrap(), roman(&a[i], &key).unwrap());
+                    let (was, now) = (roman(&p[i - 4], key).unwrap(), roman(&a[i], key).unwrap());
                     let coloured = now.quality.triad() == was.quality.triad()
                         || matches!(now.quality, Quality::Sus2 | Quality::Sus4);
-                    if now != was && now.root == was.root && coloured {
-                        assert!(in_key(&a[i], &key), "{} {p:?} -> {a:?}: {what}", key.name());
+                    if now != was && now.root == was.root && coloured && diatonic(&was, key) {
+                        assert!(in_key(&a[i], key), "{} {p:?} -> {a:?}: {what}", key.name());
                     }
                 }
             }
-            let (s, what) = progression::substitute(&p, &key, &mut rng);
+            let (s, what) = progression::substitute(p, key, &mut rng);
             if what.contains("extended") || what.contains("suspension") {
-                assert!(s.iter().all(|rn| in_key(rn, &key)), "{} {p:?} -> {s:?}: {what}", key.name());
+                for (now, was) in s.iter().zip(p).filter(|(now, was)| now != was) {
+                    if diatonic(&roman(was, key).unwrap(), key) {
+                        assert!(in_key(now, key), "{} {p:?} -> {s:?}: {what}", key.name());
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn diatonic_sevenths_and_ninths_are_the_keys_own() {
+    let q = |mode: Mode, d: i32, ext: u8| progression::diatonic(&Key::new(9, mode), d, ext).quality;
+    // C major's fifth: a dominant seventh and ninth, never a major seventh
+    assert_eq!((q(Mode::Major, 4, 1), q(Mode::Major, 4, 2)), (Quality::Dom7, Quality::Dom9));
+    assert_eq!(q(Mode::Major, 0, 1), Quality::Maj7);
+    // a minor key's fifth has no ninth in the key: it stays a seventh
+    assert_eq!(q(Mode::Minor, 4, 2), Quality::Min7);
+    assert_eq!(q(Mode::Minor, 0, 2), Quality::Min9);
+    // harmonic minor: the tonic's seventh would be major over a minor third, so it stays a triad, and the leading
+    // note's seventh chord is fully diminished
+    assert_eq!(q(Mode::HarmonicMinor, 0, 1), Quality::Min);
+    assert_eq!(q(Mode::HarmonicMinor, 6, 1), Quality::Dim7);
+    assert_eq!(q(Mode::HarmonicMinor, 4, 1), Quality::Dom7);
+    for mode in
+        [Mode::Major, Mode::Minor, Mode::Dorian, Mode::Phrygian, Mode::Lydian, Mode::Mixolydian, Mode::HarmonicMinor]
+    {
+        let key = Key::new(2, mode);
+        for d in 0..7 {
+            for ext in 0..3 {
+                let c = progression::diatonic(&key, d, ext);
+                assert!(c.pcs().iter().all(|pc| key.pcs().contains(pc)), "{} degree {d} ext {ext}: {c:?}", key.name());
             }
         }
     }

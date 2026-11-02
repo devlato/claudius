@@ -101,7 +101,8 @@ all), among them borrowed chords (`I iii IV iv`, `I bVI bVII I`), secondary domi
 Neapolitan. A song may answer its loop, playing it again with another way back to its first chord (its dominant, a
 borrowed chord, a suspension) and sometimes a chord coloured on the way, and its choruses may play a progression of
 their own. Sevenths, ninths and suspensions keep to the key's notes: a dominant no longer gains a major seventh, and
-the fifth of a minor key no longer a ninth the key does not have
+the fifth of a minor key no longer a ninth the key does not have. The critic no longer counts a lead note the chord
+under it has (a borrowed chord's third, a dominant's leading note) as outside the key
 ([The generator's harmony](https://github.com/devlato/claudius/blob/main/docs/src/learn/producers/harmony.md#the-generators-harmony)).
 
 claudius hears how a voice is sung: the notes it means, how near each came, and how its singer sings (where they go
