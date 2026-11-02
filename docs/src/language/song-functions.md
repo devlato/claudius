@@ -442,7 +442,8 @@ A style the part's role does not have is an error. A decimal `seed` is ignored.
 
 Errors: `no part 'keys' (the song has: bass chords pad lead arp; house parts: bass chords pad lead arp); a role makes
 one of your own (part("keys", #{ role: "keys" })), and track() writes your own notes`; `part 'lead' is a lead part;
-remove("lead") first to make it another`; `part(): a role is bass, chords, pad, keys, lead or arp, not 'drums'`;
+remove("lead") first to make it another`; `part(): a role is bass, chords, pad, keys, lead or arp, not 'drums'`; `'kick'
+is a track of the song that is not a part: give the part another name`;
 `a bass part has no style 'wobbly' (styles: sustain pulse root8 ...)`; `unknown preset 'nope' (synths: ...; or an
 installed instrument such as piano, rhodes, string_ensemble)`; `part() has no option 'styles' (options: role style
 preset register density seed rate)`.
