@@ -184,18 +184,28 @@ impl Instrument {
         (v as f32 / 127.0).powf(2.0 * self.def.veltrack.clamp(0.0, 1.0))
     }
 
+    /// the loudest zone nearest middle C, which stands for the instrument's level and channels
+    fn reference(&self) -> Option<&Zone> {
+        let zones = self.zones();
+        zones
+            .iter()
+            .filter(|z| z.plays_vel(127))
+            .min_by(|a, b| {
+                (a.root - 60.0).abs().partial_cmp(&(b.root - 60.0).abs()).unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .or_else(|| zones.first())
+    }
+
+    /// Whether the instrument was recorded in mono (its zone nearest middle C has one channel, or two the same), so
+    /// that its notes all sit in the centre. Decodes that one sample, and for a lazy pack downloads it.
+    pub fn recorded_mono(&self) -> bool {
+        self.reference().and_then(|z| self.sample(z.file)).is_some_and(|s| s.r.is_none())
+    }
+
     /// level so the loudest zone nearest middle C peaks at NORM_DB at full velocity
     fn norm(&self) -> f32 {
         *self.norm.get_or_init(|| {
-            let zones = self.zones();
-            let reference = zones
-                .iter()
-                .filter(|z| z.plays_vel(127))
-                .min_by(|a, b| {
-                    (a.root - 60.0).abs().partial_cmp(&(b.root - 60.0).abs()).unwrap_or(std::cmp::Ordering::Equal)
-                })
-                .or_else(|| zones.first());
-            let Some(z) = reference else { return 1.0 };
+            let Some(z) = self.reference() else { return 1.0 };
             let Some(s) = self.sample(z.file) else { return 1.0 };
             let level = s.peak * db(z.gain_db) * z.xf_gain(127).max(1e-3);
             if level < 1e-6 {
@@ -695,6 +705,30 @@ mod tests {
         // choke: an open-hat style cut 0.05 s after the start
         let (ch, _) = inst.render_choked(&notes[..1], &[2400], 48000);
         assert!(ch[2400 + 800..].iter().all(|v| v.abs() < 1e-6));
+    }
+
+    #[test]
+    fn a_recording_in_one_channel_is_mono_and_one_in_two_is_not() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut inst = test_instrument(dir.path(), false, 0.05, false);
+        assert!(inst.recorded_mono());
+        // the same sine, its right channel half a millisecond late
+        let p = dir.path().join("wide.wav");
+        let spec = hound::WavSpec {
+            channels: 2,
+            sample_rate: 44100,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        let mut w = hound::WavWriter::create(&p, spec).unwrap();
+        let sine = |i: i64| ((2.0 * std::f64::consts::PI * 440.0 * i as f64 / 44100.0).sin() * 16000.0) as i16;
+        for i in 0..22050 {
+            w.write_sample(sine(i)).unwrap();
+            w.write_sample(sine(i - 22)).unwrap();
+        }
+        w.finalize().unwrap();
+        inst.files = vec![p];
+        assert!(!inst.recorded_mono());
     }
 
     #[test]

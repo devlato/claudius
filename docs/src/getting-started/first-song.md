@@ -39,16 +39,16 @@ claudius composes a song in the style, arranges it, renders it with real sounds,
 the result. On this machine it printed:
 
 ```text
-ears loaded in 3.6 s
+ears loaded in 3.5 s
 Crimson Tide — house at 124 BPM in G dorian, 72 bars (2:19)
   progression A: i7 ii7 i7 IV7
   progression B: i7 VIImaj7 i7 IV7
   form: intro 8 | groove 32 | break 8 | drop 16 | outro 8
   tracks: kick (sampled bd (tr909:bd)), clap (sampled cp (tr909:cp)), hat (sampled hh (tr707:hh)), ohat (sampled oh (tr909:oh)), shaker (shaker cut from 'Cosmic Harmony Shaker' (Apple Loops)), perc (sampled rim (tr909:rim)), bass (synth patch 'saw_bass'), chords (sampled fm_piano (freepats:fm_piano)), pad (sampled strings (vsco2:strings)), lead (synth patch 'brass_lead'), arp (synth patch 'bell'), crash (synth crash), riser (synth riser), impact (synth impact), downlifter (synth downlifter), reverse_crash (synth reverse_crash)
-  master: -10.1 LUFS, true peak -1.0 dBTP (pre-master -9.4 LUFS); done in 10.1 s
+  master: -10.1 LUFS, true peak -1.0 dBTP (pre-master -9.4 LUFS); done in 7.3 s
   ears: 'house music' z +3.4 (closest confusion 'techno music' +3.7); production z +1.9 vs 'a distorted clipped recording' +2.1; p_real 0.65
         sounds like: techno music, tech house music, house music, drum and bass music
-  verdict: 81/100 (arc 0.88, genre 0.63, mix 0.92, production 0.45, theory 1.00). Fix first: nearly mono (correlation 0.97): widen pads, chords and effects; sounds about as much like a clipped recording as a professional mix: less drive and saturation, or a quieter master; sounds more like 'techno music' than 'house music'
+  verdict: 82/100 (arc 0.88, genre 0.63, mix 0.92, production 0.46, theory 1.00). Fix first: nearly mono (correlation 0.96): widen pads, chords and effects; sounds about as much like a clipped recording as a professional mix: less drive and saturation, or a quieter master; sounds more like 'techno music' than 'house music'
   wrote out/house-crimson-tide-9/song.mp3
 ```
 
@@ -102,21 +102,21 @@ claudius script edit.rhai --on out/house-crimson-tide-9
 ```
 
 ```text
-ears loaded in 4.0 s
+ears loaded in 3.6 s
 Crimson Tide — house at 122 BPM in G dorian, 88 bars (2:53)
   progression A: i7 ii7 i7 IV7
   progression B: i7 VIImaj7 i7 IV7
   form: intro 8 | groove 32 | break 8 | drop 32 | outro 8
   tracks: kick (sampled bd (tr909:bd)), clap (sampled cp (tr909:cp)), hat (sampled hh (tr707:hh)), ohat (sampled oh (tr909:oh)), shaker (shaker cut from 'Cosmic Harmony Shaker' (Apple Loops)), perc (sampled rim (tr909:rim)), bass (synth patch 'saw_bass'), chords (sampled piano (salamander:piano)), pad (sampled strings (vsco2:strings)), lead (synth patch 'brass_lead'), arp (synth patch 'bell'), crash (synth crash), riser (synth riser), impact (synth impact), downlifter (synth downlifter), reverse_crash (synth reverse_crash)
-  master: -10.1 LUFS, true peak -1.0 dBTP (pre-master -9.2 LUFS); done in 8.2 s
-  ears: 'house music' z +3.0 (closest confusion 'techno music' +3.4); production z +1.8 vs 'a distorted clipped recording' +2.0; p_real 0.73
+  master: -10.1 LUFS, true peak -1.0 dBTP (pre-master -9.2 LUFS); done in 7.7 s
+  ears: 'house music' z +3.1 (closest confusion 'techno music' +3.4); production z +1.9 vs 'a distorted clipped recording' +2.0; p_real 0.73
         sounds like: techno music, tech house music, house music, drum and bass music
-  verdict: 83/100 (arc 0.89, genre 0.58, mix 1.00, production 0.45, theory 1.00). Fix first: sounds about as much like a clipped recording as a professional mix: less drive and saturation, or a quieter master; sounds more like 'techno music' than 'house music'
+  verdict: 83/100 (arc 0.89, genre 0.59, mix 1.00, production 0.46, theory 1.00). Fix first: sounds about as much like a clipped recording as a professional mix: less drive and saturation, or a quieter master; sounds more like 'techno music' than 'house music'
   wrote out/house-crimson-tide-9/song.mp3
 ```
 
 Everything you did not name stayed as it was. The chords are now `sampled piano`, the song is 88 bars, and the score
-moved two points: the grand piano is recorded in stereo, so the mix is no longer nearly mono. The critic is a guide,
+moved a point: the grand piano is recorded in stereo, so the mix is no longer nearly mono. The critic is a guide,
 and your ears decide whether the piano is better.
 
 The edited song is written back into the same folder, because its genre, title and seed are the same, so the

@@ -68,7 +68,8 @@ change the rest of the song.
    random point), the kick tuned to the key; then a 4-bar pattern per variant from the lane's template or euclidean
    rhythm; then, when a kit was drawn, the kit's drum for the lane;
 5. **parts**: per part, unless its `optional` chance leaves it out, a preset, a style, a density and a seed of its
-   own. A chords, keys or pad part on a single-voice synth patch gets a light chorus so it does not sit dead centre;
+   own. A chords, keys or pad part on a single-voice synth patch, or on an instrument recorded in mono (FreePats' FM
+   piano, say), gets a light chorus so it does not sit dead centre;
 6. **loops** from the library, when there is one;
 7. **transitions**: a crash (recorded or synthesized) and the genre's switches;
 8. the **mix** from the genre, made the song's own by `colour::vary` ([below](#a-form-and-a-mix-of-its-own)), and a
