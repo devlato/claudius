@@ -7,7 +7,11 @@ adds fills at phrase ends, rolls and risers into drops, crashes on downbeats, fi
 
 ## Forms by genre
 
-The generator picks one of the genre's forms. They are a useful starting point for your own:
+The generator picks one of the genre's forms and makes it the song's own: sections a little longer or shorter, and
+sometimes a bridge, a third verse and chorus, a last chorus played twice, a lift into the first chorus, a cold start
+or a cold ending, a thinner first verse
+([A form and a mix of its own](../../engineering/theory.md#a-form-and-a-mix-of-its-own) lists every change). The
+forms as the genres write them are a useful starting point for your own:
 
 | genre | form (bars) |
 |---|---|

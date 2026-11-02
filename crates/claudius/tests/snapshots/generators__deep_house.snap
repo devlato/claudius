@@ -6,12 +6,12 @@ deep_house at 123.0 BPM in G minor, swing 0.55
 prog A: i9 iv9 IIImaj9 VImaj9
 prog B: i9 IVsus4 IIImaj9 VImaj9
 bars per chord: 1
-section intro (intro) 16 bars, energy 0.40, prog A, sparse [filter_in]: kick hat shaker perc top
+section intro (intro) 16 bars, energy 0.39, prog A, sparse [filter_in]: kick hat shaker perc top
 section groove (groove) 16 bars, energy 0.65, prog A, main [fills]: kick clap hat shaker perc bass chords top
-section break (break) 16 bars, energy 0.35, prog B, main []: pad chords lead shaker
-section build (build) 8 bars, energy 0.55, prog B, main [build]: clap hat shaker chords lead pad
-section drop (drop) 32 bars, energy 0.90, prog A, main [fills]: kick clap hat shaker perc bass chords lead pad top
-section outro (outro) 16 bars, energy 0.40, prog A, sparse []: kick hat shaker perc bass
+section break (break) 8 bars, energy 0.35, prog B, main []: pad chords lead shaker
+section build (build) 8 bars, energy 0.51, prog B, main [build]: clap hat shaker chords lead pad
+section drop (drop) 32 bars, energy 0.94, prog A, main [fills]: kick clap hat shaker perc bass chords lead pad top
+section outro (outro) 4 bars, energy 0.23, prog A, sparse []: hat shaker bass
 drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum kick sparse (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
@@ -30,6 +30,6 @@ mix hat: +0.0 dB, pan +0.18, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix shaker: +0.0 dB, pan -0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix perc: +0.0 dB, pan +0.40, reverb 0.10, delay 0.20, duck 0.00, bus drums
 mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.45, bus bass
-mix chords: +0.0 dB, pan +0.00, reverb 0.30, delay 0.10, duck 0.35, bus music
-mix pad: +0.0 dB, pan +0.00, reverb 0.40, delay 0.00, duck 0.40, bus music
-mix lead: +0.0 dB, pan +0.00, reverb 0.35, delay 0.25, duck 0.15, bus music
+mix chords: +0.0 dB, pan +0.00, reverb 0.40, delay 0.08, duck 0.35, bus music
+mix pad: +0.0 dB, pan +0.00, reverb 0.33, delay 0.00, duck 0.40, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.32, delay 0.35, duck 0.15, bus music

@@ -23,8 +23,8 @@ This is the head of a real one, house with seed 9 (`claudius make --genre house 
  "key": {"tonic": 7, "mode": "dorian"}, "swing": 0.5257842, "humanize": 0.25,
  "harmony": {"progressions": {"A": ["i7", "ii7", "i7", "IV7"], "B": ["i7", "VIImaj7", "i7", "IV7"]},
              "bars_per_chord": 1},
- "form": [{"name": "intro", "kind": "intro", "bars": 8, "energy": 0.4, "prog": "A",
-           "layers": ["kick", "hat", "perc", "top"], "variant": "sparse",
+ "form": [{"name": "intro", "kind": "intro", "bars": 8, "energy": 0.35950592, "prog": "A",
+           "layers": ["kick", "hat", "perc"], "variant": "sparse",
            "filter_in": true, "build": false, "gap": false, "impact": false, "fills": false}, ...],
  "drums": [...], "parts": [...], "loops": [], "patterns": [], "transitions": {...}, "mix": {...},
  "lineage": ["generated: house seed 9"]}

@@ -6,12 +6,12 @@ idm at 132.0 BPM in G lydian, swing 0.52
 prog A: Imaj9 ivø7 Imaj9 Vmaj9
 prog B: Imaj9 IVmaj7 Imaj9 Vmaj9
 bars per chord: 4
-section intro (intro) 8 bars, energy 0.30, prog A, sparse []: bells pad click
+section intro (intro) 8 bars, energy 0.29, prog A, sparse []: bells pad click
 section groove (groove) 16 bars, energy 0.60, prog A, main [fills]: kick snare hat click bass bells pad
-section groove2 (groove) 16 bars, energy 0.75, prog A, main [fills]: kick snare hat click tom bass bells pad arp
-section break (break) 8 bars, energy 0.30, prog B, main [gap]: pad bells click
-section peak (drop) 16 bars, energy 0.95, prog A, main [impact fills]: kick snare hat click tom bass bells pad arp
-section outro (outro) 8 bars, energy 0.30, prog A, sparse []: bells pad click
+section groove2 (groove) 32 bars, energy 0.75, prog A, main [fills]: kick snare hat click tom bass bells pad arp
+section break (break) 8 bars, energy 0.26, prog B, main [gap]: pad bells click
+section peak (drop) 16 bars, energy 0.99, prog A, main [impact fills]: kick snare hat click tom bass bells pad arp
+section outro (outro) 4 bars, energy 0.28, prog A, sparse []: bells click
 drum kick main (drum kick): X.....X..XX...X.|X.X....X....X...|X.....X...X...X.|X...........X...
 drum kick sparse (drum kick): x...............|x...............|x...............|x...............
 drum snare main (drum snare): ..o.o...X...........o.......Xxxx|....o...X...............X.o.X.X.|..o.o...X...........o.......X...|....o...X...................oxxx
@@ -30,6 +30,6 @@ mix hat: +0.0 dB, pan +0.35, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix click: +0.0 dB, pan -0.40, reverb 0.00, delay 0.30, duck 0.00, bus drums
 mix tom: -4.0 dB, pan +0.20, reverb 0.20, delay 0.00, duck 0.00, bus drums
 mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.25, bus bass
-mix bells: +0.0 dB, pan -0.15, reverb 0.35, delay 0.35, duck 0.00, bus music
-mix pad: +0.0 dB, pan +0.00, reverb 0.50, delay 0.00, duck 0.00, bus music
-mix arp: +0.0 dB, pan +0.30, reverb 0.20, delay 0.30, duck 0.00, bus music
+mix bells: +0.0 dB, pan -0.15, reverb 0.47, delay 0.28, duck 0.00, bus music
+mix pad: +0.0 dB, pan +0.00, reverb 0.41, delay 0.00, duck 0.00, bus music
+mix arp: +0.0 dB, pan +0.30, reverb 0.18, delay 0.42, duck 0.00, bus music

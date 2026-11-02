@@ -6,11 +6,11 @@ dub_techno at 124.0 BPM in G minor, swing 0.51
 prog A: i9 i9 i9 VII
 prog B: i i iv iv
 bars per chord: 4
-section intro (intro) 16 bars, energy 0.40, prog A, sparse [filter_in]: kick hat rim chords
+section intro (intro) 16 bars, energy 0.39, prog A, sparse [filter_in]: kick hat rim chords
 section groove (groove) 32 bars, energy 0.65, prog A, main [fills]: kick hat ohat rim bass chords pad
-section break (break) 16 bars, energy 0.35, prog A, main []: chords pad rim
-section deep (drop) 32 bars, energy 0.85, prog A, main [fills]: kick hat ohat rim shaker bass chords pad
-section outro (outro) 16 bars, energy 0.40, prog A, sparse []: kick hat rim chords
+section break (break) 8 bars, energy 0.35, prog A, main []: chords pad rim
+section deep (drop) 32 bars, energy 0.81, prog A, main [fills]: kick hat ohat rim shaker bass chords pad
+section outro (outro) 16 bars, energy 0.34, prog A, sparse []: kick hat
 drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum hat main (drum closed_hat): .ox...xx..x.x.x.|.ox...xx..x.x.x.|.ox...xx..x.x.x.|.ox...xx..x.x.x.
 drum hat sparse (drum closed_hat): ..o...o...o...o.|..o...o...o...o.|..o...o...o...o.|..o...o...o...o.
@@ -26,5 +26,5 @@ mix ohat: +0.0 dB, pan -0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix rim: +0.0 dB, pan -0.30, reverb 0.35, delay 0.45, duck 0.00, bus drums
 mix shaker: +0.0 dB, pan +0.35, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.50, bus bass
-mix chords: +0.0 dB, pan +0.00, reverb 0.40, delay 0.50, duck 0.35, bus music
-mix pad: +0.0 dB, pan +0.00, reverb 0.45, delay 0.00, duck 0.40, bus music
+mix chords: +0.0 dB, pan +0.00, reverb 0.54, delay 0.40, duck 0.35, bus music
+mix pad: +0.0 dB, pan +0.00, reverb 0.37, delay 0.00, duck 0.40, bus music

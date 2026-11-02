@@ -431,7 +431,12 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
     // form
     let mut fr = rng.fork("form");
     let fi = opts.form.unwrap_or_else(|| fr.below(g.forms.len().max(1))).min(g.forms.len().saturating_sub(1));
-    let mut form = g.forms[fi].clone();
+    // a form of its own, unless one was asked for
+    let mut form = if opts.form.is_some() {
+        g.forms[fi].clone()
+    } else {
+        crate::form::vary(&g.forms[fi], g, bpm, &fr.fork("vary"))
+    };
     if opts.short {
         for s in form.iter_mut() {
             s.bars = (s.bars / 2).max(4);
@@ -546,7 +551,7 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
         riser_bars: t.riser_bars,
         mix: t.mix.clone(),
     };
-    let mix = MixPlan {
+    let mut mix = MixPlan {
         reverb: g.mix.reverb.clone(),
         delay: g.mix.delay.clone(),
         buses: g.mix.buses.clone(),
@@ -554,6 +559,8 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
         levels: g.mix.levels.clone(),
         master: Master { fx: g.mix.master.clone(), lufs: g.mix.lufs, ceiling_db: -1.0 },
     };
+    // a mix of its own
+    crate::colour::vary(&mut mix, &mut parts, &rng.fork("colour"));
     Blueprint {
         version: crate::model::BLUEPRINT_FORMAT,
         title: title(&mut rng.fork("title")),
