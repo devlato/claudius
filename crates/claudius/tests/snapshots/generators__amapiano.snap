@@ -1,0 +1,33 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+amapiano at 115.0 BPM in G minor, swing 0.56
+prog A: i9 iv9 IIImaj9 VImaj9
+prog B: i9 IVsus4 IIImaj9 VImaj9
+bars per chord: 1
+section intro (intro) 16 bars, energy 0.34, prog A, main [filter_in]: keys shaker ohat
+section groove (groove) 16 bars, energy 0.65, prog A, main [fills]: kick clap shaker ohat rim keys logdrum
+section break (break) 16 bars, energy 0.35, prog B, main [build]: keys pad lead shaker
+section drop (drop) 32 bars, energy 0.91, prog A, main [impact fills]: kick clap shaker ohat rim keys logdrum lead pad
+section break2 (break) 16 bars, energy 0.44, prog B, main [build gap]: keys pad shaker ohat
+section drop2 (drop) 16 bars, energy 1.00, prog A, main [impact fills]: kick clap shaker ohat rim keys logdrum lead pad
+section outro (outro) 8 bars, energy 0.30, prog A, main []: kick shaker
+drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
+drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
+drum shaker main (drum shaker): o.o...o.o.oooooo|o.o...o.o.oooooo|o.o...o.o.oooooo|o.o...o.o.oooooo
+drum ohat main (drum open_hat): ..x...o...x...o.|..x...o...x...o.|..x...o...x...o.|..x...o...x...o.
+drum rim main (drum rim): ...x.....x......|...x.....x......|...x.....x......|...x............
+part logdrum (bass): offbeat synth fm_bass, register 33..52, density 0.59
+part keys (keys): half synth epiano, register 52..76, density 0.59
+part pad (pad): sustain synth air_pad, register 50..76, density 0.52
+part lead (lead): motif synth vox_lead, register 64..86, density 0.25
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix clap: +0.0 dB, pan +0.00, reverb 0.20, delay 0.00, duck 0.00, bus drums
+mix shaker: +0.0 dB, pan -0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix ohat: +0.0 dB, pan +0.20, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix rim: +0.0 dB, pan +0.35, reverb 0.15, delay 0.00, duck 0.00, bus drums
+mix logdrum: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.20, bus bass
+mix keys: +0.0 dB, pan +0.00, reverb 0.40, delay 0.08, duck 0.00, bus music
+mix pad: +0.0 dB, pan +0.00, reverb 0.37, delay 0.00, duck 0.30, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.32, delay 0.42, duck 0.00, bus music

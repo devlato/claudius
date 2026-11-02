@@ -1,4 +1,4 @@
-# Starting points for the twenty-three genres
+# Starting points for the twenty-eight genres
 
 Two or three genres fuse with `+`: `song("trip_hop+idm", 3)` (or `new_song` with genre `trip_hop+idm`) is trip-hop's
 song, harmony, parts and mix with IDM's drums, and IDM's sounds lent to the parts. The first genre leads, the last
@@ -386,4 +386,85 @@ track("drums", s("bd ~ bd ~ sd ~ ~ sd ~ sd bd ~ sd ~ ~ sd, hh*8, rd*8").gain("1 
 track("bass", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ ~ ~").s("reese").legato(1));
 track("chords", chord("prog").struct("~ x ~ ~").voicing(55, 74).s("stab").room(0.35).delay(0.4));
 track("pad", chord("prog").voicing(48, 74).s("pad").role("pad").room(0.5));
+```
+
+## afrobeats (100-115 BPM)
+
+A rolling West African groove: a kick on one and three, claps on 2 and 4, a rim on the clave, shakers and congas,
+bright chords on guitar plucks and keys, a warm sub, a sung-sounding lead in the hooks.
+
+```js
+blank("afrobeats");
+tempo(106);
+swing(0.55);
+key("A major");
+prog("A", "I vi IV V");
+track("drums", s("bd ~ bd ~, ~ cp ~ cp, rim ~ ~ rim ~ ~ rim ~ ~ ~ rim ~ rim ~ ~ ~, sh*16").gain("1 0.8"));
+track("bass", chord("prog").root().octave(2).struct("x ~ ~ x ~ ~ x ~").s("sub_bass").legato(0.8));
+track("guitar", chord("prog").struct("~ x ~ x ~ x ~ x").voicing(55, 76).s("pluck").delay(0.15));
+track("lead", n("<[4 ~ 2 4] [5 4 2 ~]>").scale("A:major").octave(5).s("vox_lead").room(0.3));
+```
+
+## amapiano (110-116 BPM)
+
+A steady kick under shakers and open hats, the log drum (a pitched, woody bass in syncopated lines), jazzy minor 7th
+and 9th chords on piano and Rhodes, airy pads, a whistle or flute line, long grooves that hold back.
+
+```js
+blank("amapiano");
+tempo(113);
+swing(0.56);
+key("F minor");
+prog("A", "i9 iv9");
+track("drums", s("bd*4, [~ cp]*2, sh*16, [~ oh]*4").gain("1 0.7"));
+track("logdrum", chord("prog").root().octave(2).struct("~ ~ x ~ ~ x ~ ~ x ~ ~ ~ x ~ x ~").s("pluck_bass").role("bass"));
+track("keys", chord("prog").struct("x ~ ~ x ~ ~ x ~").voicing(52, 76).s("keys").room(0.3));
+```
+
+## reggaeton (88-100 BPM)
+
+The dembow: a kick on every beat and a snare after the first and before the third of each half bar, minor chords on
+plucks, pianos and pads, a sub on the roots, a synth or voice-like lead.
+
+```js
+blank("reggaeton");
+tempo(94);
+key("C minor");
+prog("A", "i VI III VII");
+track("drums", s("bd*4, ~ ~ ~ sd ~ ~ sd ~ ~ ~ ~ sd ~ ~ sd ~, hh*8").gain("1 0.75"));
+track("bass", chord("prog").root().octave(1).struct("x ~ ~ ~ x ~ ~ ~").s("sub_bass").legato(0.9));
+track("chords", chord("prog").struct("x ~ ~ x ~ ~ x ~").voicing(55, 76).s("pluck").room(0.25));
+```
+
+## trance (134-140 BPM)
+
+Four on the floor with offbeat open hats, a rolling bass, euphoric minor progressions under supersaw chords and a
+soaring lead, arpeggios, a long breakdown that builds back into the drop.
+
+```js
+blank("trance");
+tempo(138);
+key("A minor");
+prog("A", "i VI III VII");
+track("drums", s("bd*4, [~ cp]*2, [~ oh]*4").gain("1 0.8"));
+track("bass", chord("prog").root().octave(2).struct("[~ x x x]*4").s("saw_bass"));
+track("chords", chord("prog").voicing(55, 79).s("supersaw").role("chords").room(0.35));
+track("arp", chord("prog").struct("x*16").arp("up").voicing(60, 84).s("pluck").role("arp").delay(0.3));
+form([sec("intro", 16, "drums arp"), sec("break", 16, "chords arp").build().gap(), sec("drop", 32, "*").impact()]);
+```
+
+## neo_soul (72-92 BPM)
+
+A laid-back groove on a live kit with ghost notes and a cross-stick, rich 9th and 11th chords on Rhodes, a round bass
+that walks between roots, soft strings, a sung-sounding lead. `swing(0.58)` leans it back.
+
+```js
+blank("neo_soul");
+tempo(84);
+swing(0.58);
+key("E dorian");
+prog("A", "i9 IV9");
+track("drums", s("bd ~ ~ [~ bd] ~ ~ bd ~, ~ sd ~ sd, hh*8, [~ ~ ~ rim]*2").gain("1 0.7"));
+track("bass", chord("prog").root().octave(2).struct("x ~ ~ x ~ x ~ ~").s("rubber_bass").legato(0.9));
+track("keys", chord("prog").struct("x ~ ~ ~ ~ x ~ ~").voicing(50, 76).s("epiano").room(0.3));
 ```

@@ -52,6 +52,12 @@ sliding 808s and skippy hats in threes; `dubstep`, a wobble over a clean sub und
 sub, its chords lost in long delays. The studio's demo plays them too, and the cookbook has a recipe for each
 ([Boom bap, UK drill, dubstep, UK garage, jungle](https://github.com/devlato/claudius/blob/main/docs/src/cookbook/hip-hop-and-uk-bass.md)).
 
+And five more: `afrobeats`, a clave, congas and shakers under guitar plucks; `amapiano`, the log drum's woody bass
+under a steady kick and jazzy piano; `reggaeton`, on the dembow; `trance`, a rolling bass and supersaws with a long
+breakdown that builds back into the drop; and `neo_soul`, a laid-back live kit under 9th and 11th chords on Rhodes.
+Each has a recipe in the cookbook too
+([Afrobeats, amapiano, reggaeton, trance, neo-soul](https://github.com/devlato/claudius/blob/main/docs/src/cookbook/afro-latin-trance-and-soul.md)).
+
 Genres fuse: `trip_hop+idm`, `art_rock+idm` or `house+dnb+lofi` is one genre, in scripts, on the command line, for
 assistants and in the studio's New song dialog (**Fused with**). The first genre leads the song, its harmony, parts
 and mix, and the last plays the drums and lends its sounds

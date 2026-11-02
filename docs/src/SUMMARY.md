@@ -40,6 +40,7 @@
 - [Trip-hop, big beat, electro house, nu-disco, filter house](cookbook/breaks-and-disco.md)
 - [Dance-pop, neo-psychedelia, art rock, IDM, dub techno](cookbook/pop-psych-and-glitch.md)
 - [Boom bap, UK drill, dubstep, UK garage, jungle](cookbook/hip-hop-and-uk-bass.md)
+- [Afrobeats, amapiano, reggaeton, trance, neo-soul](cookbook/afro-latin-trance-and-soul.md)
 - [Fusions](cookbook/fusions.md)
 - [The drum machine](cookbook/drum-machine.md)
 - [Remaking a song from audio](cookbook/remake.md)

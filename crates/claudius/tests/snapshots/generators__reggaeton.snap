@@ -1,0 +1,36 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+reggaeton at 98.0 BPM in G minor, swing 0.51
+prog A: i iv III VI
+prog B: i IVsus4 III VI
+prog C: VI iv III i
+bars per chord: 1
+section intro (intro) 8 bars, energy 0.34, prog A, main [filter_in]: chords pad
+section verse (verse) 16 bars, energy 0.70, prog A, main [fills]: kick snare hat rim bass chords
+section lift (build) 4 bars, energy 0.70, prog A, main [build]: snare hat rim bass chords
+section hook (hook) 8 bars, energy 0.86, prog C, main [impact fills]: kick snare hat rim shaker bass chords lead pad
+section verse2 (verse) 16 bars, energy 0.84, prog A, main [fills]: kick snare hat rim bass chords pad lead
+section hook2 (hook) 16 bars, energy 0.98, prog C, main [impact fills]: kick snare hat rim shaker bass chords lead pad
+section break (break) 16 bars, energy 0.45, prog B, main [build]: chords lead hat
+section hook3 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick snare hat rim shaker bass chords lead pad
+section outro (outro) 8 bars, energy 0.35, prog A, main []: chords hat
+drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
+drum snare main (drum snare): ...X..X....X..X.|...X..X....X..X.|...X..X....X..X.|...X..X....X..X.
+drum hat main (drum closed_hat): x.....x.....x.....x.....XXXxxxxxxxxxx.....x..x..|x.....x.....x.....x.....x.....x.....X.Xx.xx.xx.x|x.....x.....x.....x.....x.....x.....x.....x..x..|x.....x.....x.....x.....x.....x.....x.....x..x..
+drum rim main (drum rim): ..x.......x....x|..x.......x....x|..x.......x....x|..x.......x....x
+drum shaker main (drum shaker): ooooo.o.oo..o.o.|ooooo.o.oo..o.o.|ooooo.o.oo..o.o.|ooooo.o.oo..o.o.
+part bass (bass): root8 synth sub_bass, register 28..45, density 0.59
+part chords (chords): stabs synth brass_stab, register 55..76, density 0.59
+part pad (pad): sustain synth warm_pad, register 48..72, density 0.52
+part lead (lead): motif synth saw_lead, register 62..86, density 0.50
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix snare: +0.0 dB, pan +0.00, reverb 0.10, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix rim: +0.0 dB, pan -0.30, reverb 0.10, delay 0.00, duck 0.00, bus drums
+mix shaker: +0.0 dB, pan +0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.30, bus bass
+mix chords: +0.0 dB, pan +0.00, reverb 0.34, delay 0.08, duck 0.30, bus music
+mix pad: +0.0 dB, pan +0.00, reverb 0.33, delay 0.00, duck 0.35, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.27, delay 0.35, duck 0.20, bus music

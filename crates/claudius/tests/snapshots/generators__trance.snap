@@ -1,0 +1,32 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+trance at 139.0 BPM in G minor, swing 0.50
+prog A: i iv III VI
+prog B: i IVsus4 III VI
+bars per chord: 2
+section intro (intro) 16 bars, energy 0.39, prog A, main [filter_in]: kick hat ohat
+section groove (groove) 16 bars, energy 0.70, prog A, main [fills]: kick clap hat ohat bass arp
+section break (break) 16 bars, energy 0.40, prog B, main [build]: pad chords lead
+section build (build) 8 bars, energy 0.61, prog A, main [build gap]: clap hat pad chords lead arp
+section drop (drop) 32 bars, energy 1.00, prog A, main [impact fills]: kick clap hat ohat bass arp pad chords lead
+section outro (outro) 4 bars, energy 0.33, prog A, main []: kick hat
+drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
+drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
+drum hat main (drum closed_hat): .o.oo..oo..o.o.o|.o.oo..oo..o.o.o|.o.oo..oo..o.o.o|.o.oo..oo..o.o.o
+drum ohat main (drum open_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
+part bass (bass): pulse synth saw_bass, register 33..50, density 0.51
+part chords (chords): pump synth pwm_pad, register 55..79, density 0.60
+part pad (pad): sustain synth vowel_pad, register 48..76, density 0.59
+part lead (lead): motif synth whistle, register 64..88, density 0.48
+part arp (arp): up synth harp_pluck, register 60..86, density 0.59
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix clap: +0.0 dB, pan +0.00, reverb 0.20, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix ohat: +0.0 dB, pan -0.10, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.60, bus bass
+mix chords: +0.0 dB, pan +0.00, reverb 0.40, delay 0.12, duck 0.50, bus music
+mix pad: +0.0 dB, pan +0.00, reverb 0.41, delay 0.00, duck 0.40, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.32, delay 0.35, duck 0.30, bus music
+mix arp: +0.0 dB, pan +0.00, reverb 0.41, delay 0.24, duck 0.40, bus music

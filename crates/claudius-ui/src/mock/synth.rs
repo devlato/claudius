@@ -102,10 +102,10 @@ fn target_level(role: &str) -> f32 {
 pub(crate) fn master_level(genre: &str) -> f32 {
     match genre {
         "lofi" => -12.5,
-        "deep_house" | "trip_hop" => -11.0,
+        "deep_house" | "trip_hop" | "neo_soul" => -11.0,
         "synthwave" | "art_rock" | "dub_techno" => -10.5,
-        "uk_garage" | "jungle" => -9.5,
-        "trap" | "techno" | "future_bass" | "filter_house" | "uk_drill" | "dubstep" => -9.0,
+        "uk_garage" | "jungle" | "afrobeats" => -9.5,
+        "trap" | "techno" | "future_bass" | "filter_house" | "uk_drill" | "dubstep" | "reggaeton" | "trance" => -9.0,
         "dnb" | "big_beat" | "dance_pop" => -8.5,
         "electro_house" => -8.0,
         _ => -10.0,
@@ -137,10 +137,11 @@ impl KWeight {
     }
 }
 
-/// the drum machine a genre plays: the 707's house and techno, the 808's trap, drill, lo-fi and future bass
+/// the drum machine a genre plays: the 707's house and techno, the 808's trap, drill, reggaeton, lo-fi and future
+/// bass
 fn machine(genre: &str) -> &'static str {
     match genre {
-        "trap" | "uk_drill" | "lofi" | "future_bass" | "trip_hop" => "808",
+        "trap" | "uk_drill" | "reggaeton" | "afrobeats" | "lofi" | "future_bass" | "trip_hop" => "808",
         _ => "707",
     }
 }

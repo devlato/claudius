@@ -1,0 +1,35 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+neo_soul at 88.0 BPM in G dorian, swing 0.57
+prog A: i9 IV9 IIImaj9 viø7
+prog B: i9 IVsus4 IIImaj9 viø7
+prog C: viø7 IV9 IIImaj9 i9
+bars per chord: 1
+section intro (intro) 4 bars, energy 0.29, prog A, main [filter_in]: keys
+section verse (verse) 16 bars, energy 0.60, prog A, main [fills]: kick snare hat rim bass keys
+section hook (hook) 16 bars, energy 0.80, prog C, main [fills]: kick snare hat ride bass keys lead strings
+section verse2 (verse) 16 bars, energy 0.66, prog A, main [gap fills]: kick snare hat rim bass keys strings lead
+section hook2 (hook) 8 bars, energy 0.89, prog C, main [fills]: kick snare hat ride bass keys lead strings
+section bridge (break) 16 bars, energy 0.33, prog B, main []: keys
+section hook3 (hook) 16 bars, energy 0.95, prog C, main [fills]: kick snare hat ride bass keys lead strings
+section outro (outro) 8 bars, energy 0.26, prog A, main []: keys bass
+drum kick main (drum kick): X.........X.....|X.........X.....|X.........X.....|X.........X.....
+drum snare main (drum snare): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
+drum hat main (drum closed_hat): x...x.x.x.x.x.xx|x...x.x.x.x.x.xx|x...x.x.x.x.x.xx|x...x.x.x.x.x.xx
+drum rim main (drum rim): ..............x.|..............x.|..............x.|..............x.
+drum ride main (drum ride): o.o.o.o.o.......|o.o.o.o.o.......|o.o.o.o.o.......|o.o.o.o.o.......
+part bass (bass): sustain synth saw_bass, register 28..48, density 0.59
+part keys (keys): charleston synth epiano, register 50..76, density 0.59
+part lead (lead): motif synth vox_lead, register 62..84, density 0.41
+part strings (pad): sustain synth warm_pad, register 52..79, density 0.56
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix snare: +0.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.20, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix rim: +0.0 dB, pan -0.15, reverb 0.15, delay 0.00, duck 0.00, bus drums
+mix ride: +0.0 dB, pan -0.25, reverb 0.10, delay 0.00, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
+mix keys: +0.0 dB, pan +0.00, reverb 0.34, delay 0.00, duck 0.00, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.29, delay 0.13, duck 0.00, bus music
+mix strings: +0.0 dB, pan +0.00, reverb 0.41, delay 0.00, duck 0.00, bus music
