@@ -5,14 +5,15 @@ expression: summary(&bp)
 trap at 146.0 BPM in G minor, swing 0.51
 prog A: i iv III VI
 prog B: i IVsus4 III VI
+prog C: VI iv III i
 bars per chord: 2
 section intro (intro) 8 bars, energy 0.34, prog A, main [filter_in]: keys pad hat
-section hook (hook) 16 bars, energy 0.90, prog A, main [impact]: kick snare clap hat ohat perc bass keys lead pad
+section hook (hook) 16 bars, energy 0.90, prog C, main [impact]: kick snare clap hat ohat perc bass keys lead pad
 section verse (verse) 8 bars, energy 0.65, prog A, alt [gap]: kick snare hat perc bass keys
-section hook2 (hook) 16 bars, energy 0.91, prog A, main [impact]: kick snare clap hat ohat perc bass keys lead pad
+section hook2 (hook) 16 bars, energy 0.91, prog C, main [impact]: kick snare clap hat ohat perc bass keys lead pad
 section verse2 (verse) 8 bars, energy 0.69, prog A, alt [gap]: kick snare hat bass keys pad lead
 section bridge (break) 8 bars, energy 0.28, prog B, sparse []: keys lead
-section hook3 (hook) 8 bars, energy 1.00, prog A, main [impact]: kick snare clap hat ohat perc bass keys lead pad
+section hook3 (hook) 8 bars, energy 1.00, prog C, main [impact]: kick snare clap hat ohat perc bass keys lead pad
 section outro (outro) 16 bars, energy 0.31, prog A, main []: keys lead
 drum kick alt (drum kick): X...............|X......X........|X...............|X......X........
 drum kick main (drum kick): X.........X.....|X.....X......X..|X...............|X..X............

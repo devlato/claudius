@@ -453,6 +453,26 @@ fn a_key_in_another_mode_gets_the_progressions_in_that_mode() {
         plain.harmony.progressions["A"].iter().map(|rn| script::remode(rn, &plain.key, &major.key)).collect();
     assert_eq!(major.harmony.progressions["A"], remoded);
     assert!(plain.key.mode != major.key.mode || major.harmony.progressions["A"] == plain.harmony.progressions["A"]);
+    // every progression, answered loops and choruses of their own too, whatever the mode
+    for (name, seeds) in [("house", 0..12), ("dance_pop", 0..12)] {
+        let g = genres::get(name).unwrap();
+        for seed in seeds {
+            let plain = compose::generate(&g, seed, &Options::default(), None);
+            for k in ["C major", "A minor", "D dorian"] {
+                let key = claudius::theory::scale::Key::parse(k);
+                let mine = compose::generate(&g, seed, &Options { key, ..Default::default() }, None);
+                assert_eq!(
+                    mine.harmony.progressions.keys().collect::<Vec<_>>(),
+                    plain.harmony.progressions.keys().collect::<Vec<_>>()
+                );
+                for (p, chords) in &plain.harmony.progressions {
+                    let moved: Vec<String> =
+                        chords.iter().map(|rn| script::remode(rn, &plain.key, &mine.key)).collect();
+                    assert_eq!(mine.harmony.progressions[p], moved, "{name} {seed} in {k}: progression {p}");
+                }
+            }
+        }
+    }
 }
 
 #[test]

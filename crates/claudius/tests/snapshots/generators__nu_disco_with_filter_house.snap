@@ -3,8 +3,8 @@ source: crates/claudius/tests/generators.rs
 expression: summary(&bp)
 ---
 nu_disco+filter_house at 113.0 BPM in D dorian, swing 0.51
-prog A: i7 ii7 i7 IV7
-prog B: i7 IV7
+prog A: i7 IV9 i7 VIImaj7
+prog B: i7 VIImaj7 IV7 IV7
 bars per chord: 1
 section intro (intro) 16 bars, energy 0.59, prog A, sparse []: bass kick hat shaker
 section verse (verse) 16 bars, energy 0.61, prog A, main []: bass guitar keys kick clap hat ohat shaker

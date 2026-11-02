@@ -205,8 +205,8 @@ port 7931:
 
 ```text
 Crimson Tide — house at 122 BPM in G dorian, swing 0.53, 72 bars (2:22)
-progression A: i7 ii7 i7 IV7
-progression B: i7 VIImaj7 i7 IV7
+progression A: i7 IV9 i7 VIImaj7 i7 IV9 i7 V7
+progression B: i7 ii7 i7 VIImaj7
 form:
   0. intro (intro) bar 0 +8, energy 0.36, drums 'sparse' [filter_in]: kick hat perc
   1. groove (groove) bar 8 +32, energy 0.66, drums 'main': kick clap hat ohat perc bass chords top
@@ -220,10 +220,10 @@ tracks:
   lead [part lead] synth patch 'brass_lead'; level -2.0 dB, pan +0.00, reverb 0.21, delay 0.34, duck 0.20, -20.6 LUFS
   arp [part arp] synth patch 'bell'; level +0.0 dB, pan +0.20, reverb 0.29, delay 0.18, duck 0.30, -21.1 LUFS
   fx [fx fx] risers, impacts, crashes; level +0.0 dB, pan +0.00, reverb 0.25, delay 0.00, duck 0.00
-render: -10.0 LUFS, true peak -1.0 dBTP, 142 s
-verdict 93.3/100: 93/100 (arc 0.89, mix 0.92, theory 1.00). Fix first: nearly mono (correlation 0.97): widen pads, chords and effects
-  scores: arc 0.89, mix 0.92, theory 1.00
-  loudness by section (LUFS): intro -11.8, groove -9.4, break -12.5, drop -9.0, outro -20.7
+render: -10.1 LUFS, true peak -1.0 dBTP, 142 s
+verdict 93.3/100: 93/100 (arc 0.88, mix 0.92, theory 1.00). Fix first: nearly mono (correlation 0.97): widen pads, chords and effects
+  scores: arc 0.88, mix 0.92, theory 1.00
+  loudness by section (LUFS): intro -11.8, groove -9.5, break -12.4, drop -9.0, outro -20.7
   issue (0.35): nearly mono (correlation 0.97): widen pads, chords and effects — fix: width+
 audio: http://127.0.0.1:7931/api/audio/8.wav (the studio at http://127.0.0.1:7931 plays it)
 ```

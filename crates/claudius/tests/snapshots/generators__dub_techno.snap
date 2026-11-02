@@ -3,8 +3,8 @@ source: crates/claudius/tests/generators.rs
 expression: summary(&bp)
 ---
 dub_techno at 124.0 BPM in G minor, swing 0.51
-prog A: i9 i9 i9 VII
-prog B: i i iv iv
+prog A: i i i VI
+prog B: i
 bars per chord: 4
 section intro (intro) 16 bars, energy 0.39, prog A, sparse [filter_in]: kick hat rim chords
 section groove (groove) 32 bars, energy 0.65, prog A, main [fills]: kick hat ohat rim bass chords pad

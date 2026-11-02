@@ -17,16 +17,16 @@ claudius make --genre deep_house --seed 7 --short
 ```
 
 ```text
-ears loaded in 3.5 s
+ears loaded in 3.4 s
 Glass Garden — deep_house at 118 BPM in D minor, 64 bars (2:10)
-  progression A: i7 VImaj7 iv7 v7
-  progression B: VImaj7 v7 iv7 i7
+  progression A: i7 iv7 v7 i7
+  progression B: iv9 v7 i7 VImaj7
   form: intro 4 | groove 8 | break 8 | build 4 | drop 16 | drop2 16 | outro 8
   tracks: kick (synth kick), clap (sampled cp (tr707:cp)), hat (hat cut from 'Silver Hi-Hat 04' (Apple Loops)), shaker (shaker cut from 'Ride With Me Shaker' (Apple Loops)), perc (perc cut from 'Latin Day Bongo 05' (Apple Loops)), bass (synth patch 'pluck_bass'), chords (synth patch 'keys'), pad (sampled violins (vsco2:violins)), lead (sampled pianet (epianos:pianet)), crash (crash cut from 'Beautiful Memories Percussion 02' (Apple Loops)), riser (synth riser)
-  master: -11.1 LUFS, true peak -1.1 dBTP (pre-master -9.5 LUFS); done in 8.8 s
-  ears: 'house music' z +3.8 (closest confusion 'techno music' +3.7); production z +1.6 vs 'a low quality recording with hiss' +1.0; p_real 0.70
-        sounds like: house music, techno music, tech house music, drum and bass music
-  verdict: 88/100 (arc 0.89, genre 0.76, mix 0.96, production 0.64, theory 1.00). Fix first: dull 4-8 kHz: hats, claps and snare lack bite (presence -27.9 dB, healthy from -26)
+  master: -11.1 LUFS, true peak -1.1 dBTP (pre-master -9.5 LUFS); done in 6.5 s
+  ears: 'house music' z +3.7 (closest confusion 'techno music' +3.7); production z +1.6 vs 'a low quality recording with hiss' +1.0; p_real 0.69
+        sounds like: house music, tech house music, techno music, drum and bass music
+  verdict: 88/100 (arc 0.90, genre 0.77, mix 0.95, production 0.66, theory 1.00). Fix first: dull 4-8 kHz: hats, claps and snare lack bite (presence -27.9 dB, healthy from -26); not enough sub: the kick and bass lack weight (sub -14.3 dB, healthy from -14)
   wrote out/deep_house-glass-garden-7/song.mp3
 ```
 

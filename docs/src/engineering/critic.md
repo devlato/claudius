@@ -105,7 +105,7 @@ The critic reads the project's notes, not the audio, so these checks are exact:
 
 | check | measure | issue when |
 |---|---|---|
-| the lead stays in key | `lead_in_key`, the share of lead notes in the key | under 95 % |
+| the lead stays in key | `lead_in_key`, the share of lead notes in the key or in the chord sounding with them | under 95 % |
 | the lead lands on chord tones | `lead_chord_tones_on_strong_beats`, on beats 1 and 3 | under 60 % |
 | the lead is singable | `lead_range_semitones` | over 19 semitones |
 | the lead moves by steps | `lead_stepwise`, and the share of leaps over a fifth | more than 20 % leaps |

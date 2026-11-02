@@ -200,7 +200,9 @@ track("bass", note("<d2 g1 bb1 a1>").struct("x ~ ~ x ~ x ~ ~").s("upright_bass")
   more. Print the song afterwards and place it with `form()`, `section()` or `layer()`.
 - **Pieces a generated song doesn't use.** A generated song can define a progression `B` that no section plays, and
   name optional parts the generator left out this time, which stay silent. `section("<name>", #{ prog: "B" })` uses
-  the other progression; `part("<name>", #{ ... })` adds the missing part where the form names it.
+  the other progression; `part("<name>", #{ ... })` adds the missing part where the form names it. Its hooks may play
+  a chorus of their own, progression `C`, while its verses play `A`: print the song before you change a progression,
+  to see which sections play it.
 - **Guessing names.** Unknown sounds, options, chords and notes are errors that list what is accepted. Read the
   list, or `catalog`, instead of trying variants.
 - **`transpose` and `add`.** `transpose` is always semitones; `add` adds to the value, which on `n()` means scale
