@@ -4,17 +4,18 @@ expression: summary(&bp)
 ---
 dance_pop at 126.0 BPM in G major, swing 0.51
 prog A: I IV I V
-prog B: I IVsus4 I V
+prog B: I IVsus2 I V
+prog C: V IV I I
 bars per chord: 1
 section intro (intro) 8 bars, energy 0.44, prog A, sparse [filter_in]: chords pad hat
 section verse (verse) 16 bars, energy 0.60, prog A, pop []: kick clap hat bass chords hook
 section pre (build) 4 bars, energy 0.70, prog B, main [build gap]: clap hat bass chords pad hook
-section chorus (hook) 16 bars, energy 0.91, prog A, main [impact fills]: kick clap hat ohat shaker bass chords pad hook lead
+section chorus (hook) 16 bars, energy 0.91, prog C, main [impact fills]: kick clap hat ohat shaker bass chords pad hook lead
 section verse2 (verse) 16 bars, energy 0.74, prog A, pop []: kick clap hat shaker bass chords hook lead
 section pre2 (build) 4 bars, energy 0.73, prog B, main [build gap]: clap hat bass chords pad hook
-section chorus2 (hook) 8 bars, energy 1.00, prog A, main [impact fills]: kick clap hat ohat shaker bass chords pad hook lead
+section chorus2 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick clap hat ohat shaker bass chords pad hook lead
 section bridge (break) 8 bars, energy 0.41, prog B, main []: pad hook chords
-section chorus3 (hook) 8 bars, energy 1.00, prog A, main [impact fills]: kick clap hat ohat shaker bass chords pad hook lead
+section chorus3 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick clap hat ohat shaker bass chords pad hook lead
 section outro (outro) 8 bars, energy 0.32, prog A, sparse []: kick hat
 drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum kick pop (drum kick): X.......X.X.....|X.......X.X.....|X.......X.X.....|X.......X.X.....

@@ -404,6 +404,8 @@ pub fn to_blueprint(
         );
         bp.harmony.bars_per_chord = a.bars_per_chord;
     }
+    // the form below plays A and B only: a chorus of the generator's own would be left unplayed
+    bp.harmony.progressions.remove("C");
     bp.swing = a.swing;
     let drums: Vec<String> = bp.drums.iter().map(|d| d.name.clone()).collect();
     let parts: Vec<String> = bp.parts.iter().map(|p| p.name.clone()).collect();

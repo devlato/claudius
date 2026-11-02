@@ -5,14 +5,15 @@ expression: summary(&bp)
 art_rock at 105.0 BPM in G minor, swing 0.51
 prog A: i7 iv7 IIImaj7 VImaj7
 prog B: i7 IVsus4 IIImaj7 VImaj7
+prog C: VImaj7 iv7 IIImaj7 i7
 bars per chord: 1
 section intro (intro) 8 bars, energy 0.24, prog A, sparse []: piano arp
 section verse (verse) 16 bars, energy 0.45, prog A, sparse []: kick hat piano arp bass
 section verse2 (verse) 8 bars, energy 0.65, prog A, main []: kick snare hat piano arp bass strings lead
 section rise (build) 8 bars, energy 0.66, prog B, main [build gap]: snare hat tom piano strings guitar arp
-section climax (hook) 16 bars, energy 1.00, prog A, main [impact fills]: kick snare hat ride tom bass piano strings guitar arp lead
+section climax (hook) 16 bars, energy 1.00, prog C, main [impact fills]: kick snare hat ride tom bass piano strings guitar arp lead
 section fall (break) 16 bars, energy 0.33, prog B, main [gap]: piano strings
-section climax2 (hook) 8 bars, energy 1.00, prog A, main [impact fills]: kick snare hat ride tom bass piano strings guitar arp lead
+section climax2 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick snare hat ride tom bass piano strings guitar arp lead
 section outro (outro) 8 bars, energy 0.26, prog A, sparse []: piano arp
 drum kick main (drum kick): X.......X....X..|X.......X....X..|X.......X....X..|X.......X....X..
 drum kick sparse (drum kick): x...............|x...............|x...............|x...............

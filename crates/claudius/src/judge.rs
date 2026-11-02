@@ -2,8 +2,8 @@
 //! words and a hint for which part of the blueprint to change:
 //!   mix      meters on the master: loudness vs target, true peak, tonal balance per band, stereo width, mono low end
 //!   arc      the energy arc: section loudness follows the arrangement's energy, drops clearly louder than breaks
-//!   theory   the score itself: melody in key, chord tones on strong beats, singable range and leaps, bass on the roots,
-//!            smooth voice leading, form
+//!   theory   the score itself: melody in key (or in its chord), chord tones on strong beats, singable range and
+//!            leaps, bass on the roots, smooth voice leading, form
 //!   ears     (when earshot's models are available) genre fit against named confusions, production quality
 //! The total is a weighted mean (0..100). Held-out evidence (AudioSet tags) is reported, never optimised.
 
@@ -271,7 +271,16 @@ fn theory_checks(p: &Project, m: &mut BTreeMap<String, f64>, issues: &mut Vec<Is
     if let Some(lead) = p.tracks.iter().find(|t| t.role == "lead") {
         let notes = &lead.notes;
         if !notes.is_empty() {
-            let in_key = notes.iter().filter(|n| key.contains(n.p)).count() as f64 / notes.len() as f64;
+            // a note outside the key is in place when the chord sounding with it has it: a borrowed chord's third, an
+            // applied dominant's leading note
+            let in_key = notes
+                .iter()
+                .filter(|n| {
+                    key.contains(n.p)
+                        || chord_at(&p.chords, n.t).is_some_and(|c| c.chord.has_pc(n.p.rem_euclid(12) as u8))
+                })
+                .count() as f64
+                / notes.len() as f64;
             let strong: Vec<_> = notes.iter().filter(|n| n.t.fract() < 1e-6 && (n.t as i64) % 2 == 0).collect();
             let chord_tone = if strong.is_empty() {
                 1.0
@@ -499,6 +508,31 @@ pub fn judge(p: &Project, r: &Rendered, ears: Option<EarsReport>) -> Verdict {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_lead_note_out_of_the_key_is_in_place_on_a_chord_that_has_it() {
+        use crate::theory::chord::{Chord, Quality};
+        use crate::theory::scale::{Key, Mode};
+        use crate::theory::{ChordSpan, Note};
+        let g = crate::genres::get("house").unwrap();
+        let mut p = crate::compose::arrange(&crate::compose::generate(&g, 1, &Default::default(), None));
+        // A minor: Am for a bar, then E7, whose G sharp the key does not have
+        p.key = Key::new(9, Mode::Minor);
+        p.chords = vec![
+            ChordSpan { start: 0.0, len: 4.0, chord: Chord::new(9, Quality::Min) },
+            ChordSpan { start: 4.0, len: 4.0, chord: Chord::new(4, Quality::Dom7) },
+        ];
+        let note = |t: f64, p: i32| Note { t, d: 1.0, p, v: 0.8, lock: None };
+        let lead = p.tracks.iter_mut().find(|t| t.role == "lead").unwrap();
+        lead.notes = vec![note(0.0, 69), note(1.0, 72), note(4.0, 68), note(5.0, 71)];
+        let mut m = BTreeMap::new();
+        theory_checks(&p, &mut m, &mut Vec::new());
+        assert_eq!(m["lead_in_key"], 1.0);
+        // an F sharp is neither A minor's nor E7's
+        p.tracks.iter_mut().find(|t| t.role == "lead").unwrap().notes.push(note(6.0, 66));
+        theory_checks(&p, &mut m, &mut Vec::new());
+        assert_eq!(m["lead_in_key"], 0.8);
+    }
 
     fn heard(genre_z: f64, alt_z: f64, production_z: f64, flaw_z: f64) -> EarsReport {
         EarsReport {

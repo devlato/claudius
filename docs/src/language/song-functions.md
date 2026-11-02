@@ -108,7 +108,7 @@ semitones).
 Errors: `cannot read key 'H minor' (try "A minor", "F#m", "Eb", "D dorian")`.
 
 ```js
-// G dorian to A minor: "i7 ii7 i7 IV7" becomes "i7 iiø7 i7 iv7"
+// G dorian to A minor: progression B, "i7 ii7 i7 VIImaj7", becomes "i7 iiø7 i7 VII7"
 key("A minor");
 ```
 

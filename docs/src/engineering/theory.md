@@ -55,13 +55,18 @@ change the rest of the song.
    time in five) in one of the genre's modes; otherwise a progression from a library style, in that style's mode. The
    tonic is drawn the same way, always, and a key of your own replaces the tonic and the mode. Progression `B` is
    another progression of the same style half the time, else a substitution of `A` worked out in the style's mode.
-   When a key of your own has another mode, both progressions then move to it the way `key()` moves them: diatonic
-   chords keep their degree and take the new mode's quality, borrowed chords keep their sound spelled in the new mode,
-   and applied chords stay as written. Chord length comes from `bars_per_chord`, and a one-chord progression lasts 4
-   bars;
+   Chord length comes from `bars_per_chord`; a one-chord progression lasts 4 bars, and a song with eight chords in
+   `A` or `B` plays 2 bars a chord at most.
+   Then, each from a fork of its own, a four-chord `A` is [answered](#progressions) with chance 0.4 and `B` with
+   0.25, when the eight chords last 16 bars or less. When a key of your own has another mode, the progressions then
+   move to it the way `key()` moves them: diatonic chords keep their degree and take the new mode's quality,
+   borrowed chords keep their sound spelled in the new mode, and applied chords stay as written;
 3. **form**: one of the genre's forms, made the song's own by `form::vary` ([below](#a-form-and-a-mix-of-its-own)),
    then every section halved (to at least 4 bars) with `--short`; a form asked for by number (`Options::form`) plays
-   as written;
+   as written. In a form with verses and hooks, the hooks play a chorus of their own with chance 0.35: progression
+   `C`, another progression of the style or a substitution of `A`, never what `A` or `B` play (as drawn or answered,
+   or the first half of their eight chords) and no longer a loop than `A`'s or 16 bars, worked out in the style's
+   mode and moved to the key like the others;
 4. **drums**: per lane, a one-shot from the library (with chance `samples`, 0.75 unless `--samples` or a script says
    otherwise, the same for `make`, scripts and the studio's new songs, when there is a library) or a
    synthesized voice with parameters in the genre's ranges (or a third of the way from the voice's default towards a
@@ -173,11 +178,30 @@ The critic checks the result: `voice_leading_<track>` is the average movement pe
 
 ## Progressions
 
-**The library** in `progression::STYLES` has eleven styles, each a mode and a handful of progressions:
+**The library** in `progression::STYLES` has eleven styles, each a mode and five to thirteen progressions:
 `minor_epic`, `minor_dark`, `minor_soul`, `dorian_vamp`, `phrygian`, `harmonic`, `minimal`, `major_pop`,
 `major7_jazz`, `minor_80s` and `mixolydian`. For example `minor_soul` holds `i7 iv7 VII7 IIImaj7` and
 `iiø7 V7 i7 i7`; genres weight the styles they use (house: `minor_soul` 0.35, `minor_epic` 0.25, `dorian_vamp` and
-`major7_jazz` 0.2 each).
+`major7_jazz` 0.2 each). Some progressions bend the mode as songs do: borrowed chords (`I iii IV iv`,
+`I bVI bVII I`), applied ones (`I V/vi vi IV`, `Imaj7 VI7 ii7 V7`), a tritone substitute (`ii9 bII7 Imaj9 Imaj9`),
+the Neapolitan (`i VI bII V`), and two of eight chords (`I V vi iii IV I IV V`). `every_library_progression_reads_in_its_mode`
+in `tests/theory.rs` reads every numeral of every style in all twelve keys.
+
+**An answer** (`progression::answer`) is what a player does with a four-chord loop the second time round: the loop,
+then the loop again with another way back to its first chord. The ways, weighted:
+
+| way | when | weight | example, the second time round |
+|---|---|---|---|
+| the dominant of the first chord | the first chord is not diminished | 2 | `I V vi IV` → `I V vi V7` |
+| in a major key: the flat seventh, the minor fourth, or the flat sixth and seventh, borrowed from the parallel minor | the loop starts on the tonic | 1 each | `I V vi IV` → `I V vi bVII`, `I V vi iv`, `I V bVI bVII` |
+| in a minor key: the major fourth (as dorian has it), the sixth and seventh, or the flat second (as phrygian has it) | the loop starts on the tonic | 1, 1, 0.5 | `i iv i v` → `i iv i IV`, `i iv VI VII`, `i iv i bII` |
+| a suspension of the last chord | its fourth and fifth are in the key | 1 | `I vi IV V` → `I vi IV Vsus4` |
+
+A way the loop already ends on is no answer. In a loop of sevenths, a borrowed chord comes as the mode it is
+borrowed from has it (`bVII7` from the parallel minor, `IV7` from dorian, `bIImaj7` from phrygian). Half the time one
+chord between the first and the new ending is coloured as well: a seventh or ninth with the key's own notes, or a
+suspension whose notes are in the key. `answer` says what it did (`answered, ending on the minor fourth, borrowed
+(iv), chord 7 coloured (vi7)`).
 
 **The Markov generator** walks a 7 by 7 table of transition weights between scale degrees, one for major and one for
 minor keys, written by hand around functional harmony: tonic to subdominant to dominant to tonic, plus the stepwise
@@ -185,7 +209,7 @@ and third moves pop and EDM use. A progression starts on the tonic (three times 
 repeats a chord immediately (its weight is cut to a tenth), and is accepted only when its last chord leads back to
 its first with a weight of at least 1; otherwise it tries again, up to 64 times. The chords are the diatonic chords of
 those degrees, extended to sevenths or ninths by the genre's `ext` (a major chord whose seventh is minor becomes a
-dominant seventh).
+dominant seventh, and a chord whose ninth is not in the key, such as the fifth of a minor key, stays a seventh).
 
 **Substitutions** change one chord in a way a musician would, and say what they did, for the song's history (the
 examples are on `i VI iv VII` in A minor):
@@ -193,15 +217,15 @@ examples are on `i VI iv VII` in A minor):
 | substitution | example |
 |---|---|
 | a chord a third away (up a sixth or up a third, in the scale) | `chord 2: VI -> iv (third relation)` |
-| richer or plainer: a triad gains a seventh or ninth, an extended chord loses it | `chord 1: i -> i7 (extended)` |
+| richer or plainer: a triad gains the key's own seventh or ninth (on the fifth of a major key a dominant seventh, never a major one), an extended chord loses it | `chord 1: i -> i7 (extended)` |
 | the chord before becomes the secondary dominant of this one | `chord 3: iv -> IV7 (secondary dominant of VII)` |
 | modal interchange: the same root with the opposite third | `chord 4: VII -> vii (borrowed from the parallel mode)` |
-| a suspension (sus2 or sus4), except on diminished chords | `chord 2: VI -> VIsus4 (suspension)` |
+| a suspension (sus2 or sus4) whose notes are in the key, never on diminished chords | `chord 2: VI -> VIsus2 (suspension)` |
 | swap two neighbouring chords | `swapped chords 2 and 3` |
 | rotate the progression | `rotated the progression by 2` |
 
-`generate` uses them to derive progression `B` from `A`, and evolution's `harmony_sub` operator applies one at a
-time.
+`generate` uses them to derive progression `B` from `A` (and `C`, a chorus of its own, half the time), and
+evolution's `harmony_sub` operator applies one at a time.
 
 ## Rhythm
 

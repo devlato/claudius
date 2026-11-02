@@ -117,22 +117,38 @@ on a chord that leads back to the start). The styles:
 
 | style | mode | example progressions |
 |---|---|---|
-| `minor_epic` | minor | `i VI III VII`, `VI VII i i`, `i iv VI VII` |
-| `minor_dark` | minor | `i i VI VII`, `i VI iv V`, `i v VI iv` |
-| `minor_soul` | minor | `i7 iv7 VII7 IIImaj7`, `i7 VImaj7 iv7 v7`, `iiø7 V7 i7 i7` |
+| `minor_epic` | minor | `i VI III VII`, `i VII VI V`, `i VI III VII i VI iv V` |
+| `minor_dark` | minor | `i i VI VII`, `i VI iv V`, `i VI bII V` |
+| `minor_soul` | minor | `i7 iv7 VII7 IIImaj7`, `iiø7 V7 i7 i7`, `i7 IV9 VImaj7 V7` |
 | `dorian_vamp` | dorian | `i7 IV7`, `i7 IV9 i7 VIImaj7`, `i7 ii7 i7 IV7` |
-| `phrygian` | phrygian | `i II`, `i II i VII`, `i vii i II` |
-| `harmonic` | harmonic minor | `i iv V i`, `i VI V V`, `i VI iv V` |
+| `phrygian` | phrygian | `i II`, `i II i VII`, `i II III II` |
+| `harmonic` | harmonic minor | `i iv V i`, `i VI iv V`, `i VI ii° V` |
 | `minimal` | minor | `i`, `i i i VI`, `i i iv iv`, `i9 i9 i9 VII` |
-| `major_pop` | major | `I V vi IV`, `vi IV I V`, `I vi IV V` |
-| `major7_jazz` | major | `Imaj7 vi7 ii7 V7`, `ii7 V7 Imaj7 Imaj7`, `ii9 V9 Imaj9 vi9` |
-| `minor_80s` | minor | `i VI III VII`, `i VII VI VII`, `i III VII IV` |
-| `mixolydian` | mixolydian | `I VII IV I`, `I VII`, `I IV VII IV` |
+| `major_pop` | major | `I V vi IV`, `I iii IV iv`, `I V/vi vi IV`, `I bVI bVII I`, `I V vi iii IV I IV V` |
+| `major7_jazz` | major | `Imaj7 vi7 ii7 V7`, `Imaj7 VI7 ii7 V7`, `IVmaj7 iv7 iii7 VI7`, `ii9 bII7 Imaj9 Imaj9` |
+| `minor_80s` | minor | `i VI III VII`, `i VII VI VII`, `i VII VI iv` |
+| `mixolydian` | mixolydian | `I VII IV I`, `I VII`, `I v IV I` |
+
+Some bend the rules as songs do: a minor fourth borrowed into a major key (`I iii IV iv`), a secondary dominant
+(`V/vi`, `VI7`), the flat sixth and seventh into the tonic (`I bVI bVII I`), a tritone substitute (`bII7`), the
+Neapolitan (`bII`), a major dominant in a minor key (`i VII VI V`).
+
+A generated song bends them a little more:
+
+- **an answered loop**: four times in ten a four-chord progression `A` (`B` a quarter of the time) plays the loop
+  and then the loop again, ending the second time another way back to its first chord: its dominant, a chord
+  borrowed from the parallel mode, the flat sixth and seventh, or a suspension, and half the time with one chord in
+  between coloured (a seventh, a ninth or a suspension, all with the key's own notes). `i7 IV9 i7 VIImaj7` becomes
+  `i7 IV9 i7 VIImaj7 i7 IV9 i7 V7`. A loop is answered only when its eight chords last 16 bars or less, so that a
+  section hears all of them;
+- **a chorus of its own**: in a song with verses and hooks, about a third of the time the hooks play progression `C`,
+  another progression of the style or a substitution of `A`, while the verses keep `A`.
 
 Progression `B` is another progression of the same style or a substitution of `A`. Evolution changes harmony with
 these substitutions, each recorded in the song's lineage: a chord a third away, an extended or plain version, a
 secondary dominant before a chord, a chord borrowed from the parallel mode, a suspension, two chords swapped, the
-progression rotated.
+progression rotated. An extended chord takes the key's own seventh (a dominant seventh on the fifth, never a major
+seventh), and a suspension is made only when its notes are in the key.
 
 ## What the critic checks
 
@@ -140,7 +156,7 @@ The theory score reads the arranged song, not the audio:
 
 | check | passes when |
 |---|---|
-| melody in key | 95 % of the lead's notes are in the key |
+| melody in key | 95 % of the lead's notes are in the key, or in the chord sounding with them (a borrowed chord's third, an applied dominant's leading note) |
 | chord tones on strong beats | 60 % of the lead's notes on beats 1 and 3 are tones of the chord sounding there |
 | range | the lead spans 19 semitones or less |
 | leaps | at most 20 % of the lead's moves (between notes less than two beats apart) are larger than a fifth |

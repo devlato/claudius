@@ -96,6 +96,15 @@ darkness and pre-delay, the delay's time and bounce, every part's sends, a colou
 deepens in the drops, tape on the keys, a tube on the bass), a high-pass on the music in the breaks, and the master's
 saturation ([A form and a mix of its own](https://github.com/devlato/claudius/blob/main/docs/src/engineering/theory.md#a-form-and-a-mix-of-its-own)).
 
+Their harmony bends the rules a little, as people's does. The progression library has 29 more progressions (86 in
+all), among them borrowed chords (`I iii IV iv`, `I bVI bVII I`), secondary dominants, a tritone substitute and the
+Neapolitan. A song may answer its loop, playing it again with another way back to its first chord (its dominant, a
+borrowed chord, a suspension) and sometimes a chord coloured on the way, and its choruses may play a progression of
+their own. Sevenths, ninths and suspensions keep to the key's notes: a dominant no longer gains a major seventh, and
+the fifth of a minor key no longer a ninth the key does not have. The critic no longer counts a lead note the chord
+under it has (a borrowed chord's third, a dominant's leading note) as outside the key
+([The generator's harmony](https://github.com/devlato/claudius/blob/main/docs/src/learn/producers/harmony.md#the-generators-harmony)).
+
 claudius hears how a voice is sung: the notes it means, how near each came, and how its singer sings (where they go
 sharp or flat by register, how widely their notes scatter, how fast they settle, their vibrato). Right-click a take
 and choose **How is it sung?**, run `claudius voice` on a file, or let an assistant call `assess_voice`

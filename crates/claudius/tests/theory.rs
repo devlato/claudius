@@ -70,6 +70,116 @@ fn markov_progressions_are_diatonic_loops() {
 }
 
 #[test]
+fn every_library_progression_reads_in_its_mode() {
+    for style in progression::STYLES {
+        for p in style.progs {
+            for tonic in 0..12 {
+                let key = Key::new(tonic, style.mode);
+                for rn in progression::parse(p) {
+                    assert!(roman(&rn, &key).is_some(), "{}: {rn} in {p} does not read in {}", style.name, key.name());
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn an_answer_plays_the_loop_then_ends_it_another_way() {
+    let mut answered = 0;
+    for style in progression::STYLES {
+        for p in style.progs.iter().map(|p| progression::parse(p)).filter(|p| p.len() == 4) {
+            for seed in 0..8 {
+                let key = Key::new(seed as u8 % 12, style.mode);
+                let Some((a, what)) = progression::answer(&p, &key, &mut Rng::new(seed)) else { continue };
+                answered += 1;
+                assert_eq!(a.len(), 8, "{what}");
+                assert_eq!(a[..4], p[..], "{what}");
+                assert!(a.iter().all(|rn| roman(rn, &key).is_some()), "{a:?}");
+                // the second time round ends another way, and changes at most one chord before that
+                assert_ne!(a[6..], p[2..], "{} {p:?}: {what}", style.name);
+                assert_eq!(a[4], p[0], "{what}");
+                let changed = (4..8).filter(|&i| a[i] != p[i - 4]).count();
+                assert!(changed <= 3, "{p:?} -> {a:?}: {what}");
+            }
+        }
+    }
+    assert!(answered > 300, "{answered} loops answered");
+}
+
+#[test]
+fn colours_and_suspensions_of_diatonic_chords_keep_to_the_key() {
+    // a chord coloured in place (extended or suspended, not borrowed) stays in the key, unless it became a
+    // dominant, which may lean on a leading tone the mode does not have
+    let in_key = |rn: &str, key: &Key| {
+        let c = roman(rn, key).unwrap();
+        c.quality == Quality::Dom7 || c.quality == Quality::Dom9 || c.pcs().iter().all(|pc| key.pcs().contains(pc))
+    };
+    let diatonic = |c: &Chord, key: &Key| c.pcs().iter().all(|pc| key.pcs().contains(pc));
+    // the library's loops (borrowed and applied chords among them) and Markov ones, in every mode
+    let mut loops: Vec<(Key, Vec<String>)> = progression::STYLES
+        .iter()
+        .flat_map(|s| s.progs.iter().map(move |p| (Key::new(4, s.mode), progression::parse(p))))
+        .filter(|(_, p)| p.len() == 4)
+        .collect();
+    let mut rng = Rng::new(11);
+    for mode in [Mode::Major, Mode::Minor, Mode::Dorian, Mode::Phrygian, Mode::Mixolydian] {
+        let key = Key::new(4, mode);
+        for _ in 0..30 {
+            loops.push((key, progression::markov(&key, 4, rng.below(3) as u8, &mut rng)));
+        }
+    }
+    for (key, p) in &loops {
+        for _ in 0..4 {
+            if let Some((a, what)) = progression::answer(p, key, &mut rng) {
+                for i in 4..8 {
+                    let (was, now) = (roman(&p[i - 4], key).unwrap(), roman(&a[i], key).unwrap());
+                    let coloured = now.quality.triad() == was.quality.triad()
+                        || matches!(now.quality, Quality::Sus2 | Quality::Sus4);
+                    if now != was && now.root == was.root && coloured && diatonic(&was, key) {
+                        assert!(in_key(&a[i], key), "{} {p:?} -> {a:?}: {what}", key.name());
+                    }
+                }
+            }
+            let (s, what) = progression::substitute(p, key, &mut rng);
+            if what.contains("extended") || what.contains("suspension") {
+                for (now, was) in s.iter().zip(p).filter(|(now, was)| now != was) {
+                    if diatonic(&roman(was, key).unwrap(), key) {
+                        assert!(in_key(now, key), "{} {p:?} -> {s:?}: {what}", key.name());
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn diatonic_sevenths_and_ninths_are_the_keys_own() {
+    let q = |mode: Mode, d: i32, ext: u8| progression::diatonic(&Key::new(9, mode), d, ext).quality;
+    // C major's fifth: a dominant seventh and ninth, never a major seventh
+    assert_eq!((q(Mode::Major, 4, 1), q(Mode::Major, 4, 2)), (Quality::Dom7, Quality::Dom9));
+    assert_eq!(q(Mode::Major, 0, 1), Quality::Maj7);
+    // a minor key's fifth has no ninth in the key: it stays a seventh
+    assert_eq!(q(Mode::Minor, 4, 2), Quality::Min7);
+    assert_eq!(q(Mode::Minor, 0, 2), Quality::Min9);
+    // harmonic minor: the tonic's seventh would be major over a minor third, so it stays a triad, and the leading
+    // note's seventh chord is fully diminished
+    assert_eq!(q(Mode::HarmonicMinor, 0, 1), Quality::Min);
+    assert_eq!(q(Mode::HarmonicMinor, 6, 1), Quality::Dim7);
+    assert_eq!(q(Mode::HarmonicMinor, 4, 1), Quality::Dom7);
+    for mode in
+        [Mode::Major, Mode::Minor, Mode::Dorian, Mode::Phrygian, Mode::Lydian, Mode::Mixolydian, Mode::HarmonicMinor]
+    {
+        let key = Key::new(2, mode);
+        for d in 0..7 {
+            for ext in 0..3 {
+                let c = progression::diatonic(&key, d, ext);
+                assert!(c.pcs().iter().all(|pc| key.pcs().contains(pc)), "{} degree {d} ext {ext}: {c:?}", key.name());
+            }
+        }
+    }
+}
+
+#[test]
 fn euclid_spreads_onsets() {
     let e = rhythm::euclid(3, 8, 0);
     assert_eq!(e.iter().filter(|x| **x).count(), 3);

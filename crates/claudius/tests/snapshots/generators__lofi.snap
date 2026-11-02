@@ -4,11 +4,12 @@ expression: summary(&bp)
 ---
 lofi at 86.0 BPM in G major, swing 0.58
 prog A: Imaj9 IVmaj9 Imaj9 V9
-prog B: Imaj9 IVsus4 Imaj9 V9
+prog B: Imaj9 IVsus2 Imaj9 V9
+prog C: V9 IVmaj9 Imaj9 Imaj9
 bars per chord: 1
 section intro (intro) 4 bars, energy 0.29, prog A, main [filter_in]: keys
 section a (verse) 16 bars, energy 0.60, prog A, main [fills]: kick snare hat bass keys
-section b (hook) 8 bars, energy 0.75, prog A, main [fills]: kick snare hat shaker bass keys lead
+section b (hook) 8 bars, energy 0.75, prog C, main [fills]: kick snare hat shaker bass keys lead
 section bridge (break) 8 bars, energy 0.21, prog B, sparse []: keys lead
 section a2 (verse) 16 bars, energy 0.69, prog A, main [fills]: kick snare hat bass keys pad
 section outro (outro) 8 bars, energy 0.28, prog A, main []: keys lead
