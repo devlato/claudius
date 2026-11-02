@@ -257,13 +257,25 @@ fn bass_note(numeral: &str, key: &Key, lo: i32) -> i32 {
     n
 }
 
-/// a note the demo writes in a bar: its sixteenth, how many sixteenths it lasts, its voice, pitches and gain
+/// a note the demo writes in a bar: its sixteenth, how many sixteenths it lasts, its voice and pitches
 struct BarNote {
     step: u32,
     len: f32,
     voice: Voice,
     pitches: Vec<i32>,
-    gain: f32,
+}
+
+/// the velocity the demo writes its own notes out at: a written note at it plays as loud as the demo's own
+const VELOCITY: f32 = 0.8;
+
+/// how loud the synth plays a note of voice `voice` in a part of role `role`
+fn gain_of(role: &str, voice: Voice) -> f32 {
+    match voice {
+        Voice::Pluck => 0.45,
+        Voice::Stab => 0.6,
+        Voice::Pad if role != "pad" => 0.55,
+        _ => 0.5,
+    }
 }
 
 /// What the demo writes for part `p` in a bar over chord `i` (`numeral`) of its progression. The same every time
@@ -272,8 +284,8 @@ fn bar_notes(p: &PartView, numeral: &str, i: usize, key: &Key) -> Vec<BarNote> {
     let (lo, hi) = p.register;
     let center = (lo + hi) / 2;
     let mut out = Vec::new();
-    let mut note = |step: u32, len: f32, voice: Voice, pitches: Vec<i32>, gain: f32| {
-        out.push(BarNote { step, len, voice, pitches, gain });
+    let mut note = |step: u32, len: f32, voice: Voice, pitches: Vec<i32>| {
+        out.push(BarNote { step, len, voice, pitches });
     };
     match p.role.as_str() {
         "bass" => {
@@ -289,10 +301,10 @@ fn bar_notes(p: &PartView, numeral: &str, i: usize, key: &Key) -> Vec<BarNote> {
             for (k, &s) in steps.iter().enumerate() {
                 let next = steps.get(k + 1).copied().unwrap_or(16);
                 let walk = if p.style == "walking" { [0, 3, 5, 7][k % 4] } else { 0 };
-                note(s, ((next - s) as f32 * 0.85).max(0.8), Voice::Bass, vec![root + walk], 0.5);
+                note(s, ((next - s) as f32 * 0.85).max(0.8), Voice::Bass, vec![root + walk]);
             }
         }
-        "pad" => note(0, 16.0, Voice::Pad, voicing(numeral, key, center), 0.5),
+        "pad" => note(0, 16.0, Voice::Pad, voicing(numeral, key, center)),
         "lead" => {
             let tones = voicing(numeral, key, center + 5);
             let rhythm = [0u32, 3, 6, 8, 10, 12];
@@ -302,7 +314,7 @@ fn bar_notes(p: &PartView, numeral: &str, i: usize, key: &Key) -> Vec<BarNote> {
                 }
                 let n = tones[(k * 2 + i) % tones.len()] + if k == 3 { 12 } else { 0 };
                 let next = rhythm.get(k + 1).copied().unwrap_or(16);
-                note(s, (next - s) as f32 * 0.9, Voice::Lead, vec![n], 0.5);
+                note(s, (next - s) as f32 * 0.9, Voice::Lead, vec![n]);
             }
         }
         "arp" => {
@@ -314,7 +326,7 @@ fn bar_notes(p: &PartView, numeral: &str, i: usize, key: &Key) -> Vec<BarNote> {
                 } else {
                     s as usize % tones.len()
                 };
-                note(s, 1.6, Voice::Pluck, vec![tones[j]], 0.45);
+                note(s, 1.6, Voice::Pluck, vec![tones[j]]);
             }
         }
         _ => {
@@ -323,7 +335,7 @@ fn bar_notes(p: &PartView, numeral: &str, i: usize, key: &Key) -> Vec<BarNote> {
                 "sustain" | "half" => {
                     let half = if p.style == "half" { 2 } else { 1 };
                     for h in 0..half {
-                        note(h * 8, 16.0 / half as f32, Voice::Pad, chord.clone(), 0.55);
+                        note(h * 8, 16.0 / half as f32, Voice::Pad, chord.clone());
                     }
                 }
                 style => {
@@ -333,7 +345,7 @@ fn bar_notes(p: &PartView, numeral: &str, i: usize, key: &Key) -> Vec<BarNote> {
                         _ => &[2, 6, 10, 14],
                     };
                     for &s in steps {
-                        note(s, 2.3, Voice::Stab, chord.clone(), 0.6);
+                        note(s, 2.3, Voice::Stab, chord.clone());
                     }
                 }
             }
@@ -342,8 +354,8 @@ fn bar_notes(p: &PartView, numeral: &str, i: usize, key: &Key) -> Vec<BarNote> {
     out
 }
 
-/// Every part's cycles as the demo writes them, a chord a bar, for the progressions its sections play; a cycle
-/// written out stays as it is.
+/// Every part's cycles as the demo writes them, a chord a bar, for the progressions its sections play, then those it
+/// has notes written out for and plays nowhere now, as claudius lists them; a cycle written out stays as it is.
 pub fn write_cycles(song: &mut SongView) {
     let key = Key::parse(&song.key).unwrap_or(Key { tonic: 9, mode: 1 });
     let progressions = song.progressions.clone();
@@ -356,25 +368,30 @@ pub fn write_cycles(song: &mut SongView) {
                 progs.push(prog);
             }
         }
-        let written: Vec<CycleView> = p.cycles.iter().filter(|c| c.written).cloned().collect();
+        let mut written: Vec<CycleView> = p.cycles.iter().filter(|c| c.written).cloned().collect();
+        written.sort_by(|a, b| a.prog.cmp(&b.prog));
         let view: PartView = p.clone();
-        p.cycles = progs
-            .into_iter()
+        let mut cycles: Vec<CycleView> = progs
+            .iter()
             .map(|prog| {
-                if let Some(c) = written.iter().find(|c| c.prog == prog) {
+                if let Some(c) = written.iter().find(|c| &c.prog == prog) {
                     return c.clone();
                 }
-                let chords = progressions.iter().find(|(n, _)| *n == prog).map(|(_, c)| c.clone()).unwrap_or_default();
+                let chords = progressions.iter().find(|(n, _)| n == prog).map(|(_, c)| c.clone()).unwrap_or_default();
                 let mut notes = Vec::new();
                 for (i, numeral) in chords.iter().enumerate() {
                     for n in bar_notes(&view, numeral, i, &key) {
                         let (t, d) = (i as f64 * 4.0 + n.step as f64 / 4.0, n.len as f64 / 4.0);
-                        notes.extend(n.pitches.iter().map(|&p| NoteView { t, d, p, v: 0.8 }));
+                        notes.extend(n.pitches.iter().map(|&p| NoteView { t, d, p, v: VELOCITY }));
                     }
                 }
-                CycleView { prog, beats: (chords.len().max(1) * 4) as f64, written: false, notes }
+                CycleView { prog: prog.clone(), beats: (chords.len().max(1) * 4) as f64, written: false, notes }
             })
             .collect();
+        cycles.extend(
+            written.into_iter().filter(|c| !progs.contains(&c.prog) && progressions.iter().any(|(n, _)| *n == c.prog)),
+        );
+        p.cycles = cycles;
     }
 }
 
@@ -397,6 +414,19 @@ impl Render {
     #[cfg(test)]
     pub fn plays(&self, name: &str, pitch: i32) -> bool {
         self.events.iter().any(|e| self.tracks.get(e.track).is_some_and(|t| t == name) && e.notes.contains(&pitch))
+    }
+
+    /// every note track `name` plays, one pitch each: its start and length in frames, pitch, gain and voice
+    #[cfg(test)]
+    pub fn notes_of(&self, name: &str) -> Vec<(usize, usize, i32, f32, String)> {
+        let mut out: Vec<_> = self
+            .events
+            .iter()
+            .filter(|e| self.tracks.get(e.track).is_some_and(|t| t == name))
+            .flat_map(|e| e.notes.iter().map(move |&p| (e.at, e.len, p, e.gain, format!("{:?}", e.voice))))
+            .collect();
+        out.sort_by(|a, b| a.0.cmp(&b.0).then(a.2.cmp(&b.2)));
+        out
     }
 
     pub fn new(song: &SongView, kit: &Kit) -> Render {
@@ -437,6 +467,15 @@ impl Render {
         let at = |bar: u32, s: u32| -> usize {
             let t = (bar * 16 + s) as f32 * step + if s % 2 == 1 { swing } else { 0.0 };
             (t * SR) as usize
+        };
+        // a beat from a bar's start as `at` swings it: the odd sixteenths late, what lies between in proportion
+        let late = (song.swing - 0.5).max(0.0) as f64 * 2.0;
+        let swung = |t: f64| -> f64 {
+            let s = t * 4.0;
+            let pair = (s / 2.0).floor() * 2.0;
+            let u = s - pair;
+            let warped = if u <= 1.0 { u * (1.0 + late) } else { 1.0 + late + (u - 1.0) * (1.0 - late) };
+            (pair + warped) / 4.0
         };
         let secs = |x: f32| (x * SR) as usize;
         let mut active = vec![0f64; tracks.len()];
@@ -523,7 +562,8 @@ impl Render {
                 let mut note = |at: usize, len: usize, voice: Voice, notes: Vec<i32>, gain: f32| {
                     events.push(Ev { at, len, voice, notes, gain, track, sound });
                 };
-                // notes written out (the piano roll's): they come round with their cycle, in place of the demo's own
+                // notes written out (the piano roll's): they come round with their cycle, in place of the demo's own,
+                // and play as the demo's own would: as loud at its velocity, as long, and swung alike
                 if let Some(c) = p.cycles.iter().find(|c| c.written && c.prog == prog_name && c.beats > 0.0) {
                     let (from, len) = (at(sec.start_bar, 0), sec.bars as f64 * 4.0);
                     let mut off = 0.0;
@@ -537,8 +577,14 @@ impl Render {
                                 _ if d >= 1.0 => Voice::Pad,
                                 _ => Voice::Stab,
                             };
-                            let (start, length) = (from + secs(t as f32 * beat), secs(d as f32 * beat * 0.95));
-                            note(start, length, voice, vec![n.p], unit(0.5) * n.v);
+                            let start = from + secs(swung(t) as f32 * beat);
+                            note(
+                                start,
+                                secs(d as f32 * beat),
+                                voice,
+                                vec![n.p],
+                                unit(gain_of(&p.role, voice)) * n.v / VELOCITY,
+                            );
                         }
                         off += c.beats;
                     }
@@ -548,7 +594,9 @@ impl Render {
                     let i = (bar as usize) % chords.len();
                     let b = sec.start_bar + bar;
                     for n in bar_notes(p, &chords[i], i, &key) {
-                        note(at(b, n.step), secs(n.len * step), n.voice, n.pitches, unit(n.gain));
+                        // as long as it lasts in the section, as claudius cuts a part's notes at a section's end
+                        let len = n.len.min(((sec.bars - bar) * 16 - n.step) as f32);
+                        note(at(b, n.step), secs(len * step), n.voice, n.pitches, unit(gain_of(&p.role, n.voice)));
                     }
                 }
             }

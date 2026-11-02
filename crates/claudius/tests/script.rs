@@ -421,6 +421,31 @@ fn written_notes_print_play_and_clear_back_to_the_theory_engine() {
 }
 
 #[test]
+fn written_notes_keep_their_loop_when_they_ring_past_it_and_stay_listed_where_the_part_plays_nowhere() {
+    let g = genres::get("house").unwrap();
+    let bp = compose::generate(&g, 3, &Options::default(), None);
+    let cycles = |code: &str| {
+        let out = script::run(code, Some(bp.clone()), None).unwrap().bp.unwrap();
+        let lead = out.parts.iter().find(|p| p.name == "lead").unwrap();
+        compose::cycles(&out, lead)
+            .into_iter()
+            .map(|(prog, _, beats, written)| (prog, beats, written))
+            .collect::<Vec<_>>()
+    };
+    let beats = cycles("").iter().find(|c| c.0 == "A").unwrap().1;
+    // a note in the last beat that rings on into the next time round, as the theory engine's do, keeps the loop
+    let ringing = cycles(&format!(r#"notes("lead", "A", [[0, 1, 64], [{}, 2, 67]]);"#, beats - 1.0));
+    assert!(ringing.contains(&("A".into(), beats, true)), "{ringing:?}");
+    // one that starts in the next time round makes the loop two of them
+    let longer = cycles(&format!(r#"notes("lead", "A", [[0, 1, 64], [{beats}, 1, 67]]);"#));
+    assert!(longer.contains(&("A".into(), beats * 2.0, true)), "{longer:?}");
+    // notes written out over a progression the lead plays nowhere are listed after those it plays
+    let elsewhere = cycles(r#"prog("Z", "i iv"); notes("lead", "Z", [[0, 1, 64]]);"#);
+    assert!(elsewhere.last().is_some_and(|c| c.0 == "Z" && c.2), "{elsewhere:?}");
+    assert!(elsewhere.iter().any(|c| c.0 == "A" && !c.2), "{elsewhere:?}");
+}
+
+#[test]
 fn parts_of_your_own_print_with_their_role_and_rebuild_exactly() {
     // techno has a lead (lead2 is written like it) and no keys (keys gets the role's own styles and presets)
     let code = r#"

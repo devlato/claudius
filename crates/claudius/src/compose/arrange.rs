@@ -63,7 +63,8 @@ pub fn part_cycle(bp: &Blueprint, part: &Part, prog: &str, kick_main: &[Hit], ki
 }
 
 /// the beats a part's cycle over `prog` comes round in: its progression's, doubled for a lead until a phrase of four
-/// bars at least, and for notes written out as many cycles as they run over
+/// bars at least, and for notes written out as many cycles as it takes for each to start within them (a note may ring
+/// on into the next time round, as the theory engine's do)
 fn cycle_period(bp: &Blueprint, part: &Part, prog: &str, notes: &[Note]) -> f64 {
     let mut p = cycle_beats(&cycle_spans(bp, prog));
     if part.role == Role::Lead {
@@ -72,8 +73,8 @@ fn cycle_period(bp: &Blueprint, part: &Part, prog: &str, notes: &[Note]) -> f64 
         }
     }
     if part.notes.contains_key(prog) {
-        let (cycle, end) = (p, notes.iter().map(|x| x.t + x.d).fold(0.0, f64::max));
-        while p + 1e-9 < end {
+        let (cycle, last) = (p, notes.iter().map(|x| x.t).fold(f64::NEG_INFINITY, f64::max));
+        while p <= last + 1e-9 {
             p += cycle;
         }
     }
@@ -86,14 +87,20 @@ fn kick_of(bp: &Blueprint) -> (Vec<Hit>, u32) {
     (kick.and_then(|k| k.patterns.get("main")).cloned().unwrap_or_default(), kick.map_or(4, |k| k.pattern_bars))
 }
 
-/// A part's cycle over each progression its sections play, in the order they first play it: the notes, the beats they
-/// come round in, and whether they are written out (else the theory engine writes them).
+/// A part's cycle over each progression its sections play, in the order they first play it, then over those it has
+/// notes written out for and plays nowhere now: the notes, the beats they come round in, and whether they are written
+/// out (else the theory engine writes them).
 pub fn cycles(bp: &Blueprint, part: &Part) -> Vec<(String, Vec<Note>, f64, bool)> {
     let (kick_main, kick_bars) = kick_of(bp);
     let mut progs: Vec<&str> = Vec::new();
     for s in bp.form.iter().filter(|s| s.layers.contains(&part.name)) {
         if !progs.contains(&s.prog.as_str()) {
             progs.push(&s.prog);
+        }
+    }
+    for prog in part.notes.keys() {
+        if !progs.contains(&prog.as_str()) && bp.harmony.progressions.contains_key(prog) {
+            progs.push(prog);
         }
     }
     progs

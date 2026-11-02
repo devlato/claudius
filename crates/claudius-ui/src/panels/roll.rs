@@ -89,11 +89,20 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     }
     let ci = roll.prog.as_ref().and_then(|g| part.cycles.iter().position(|c| &c.prog == g)).unwrap_or(0);
     let cycle = &part.cycles[ci];
+    let played = |prog: &str| {
+        song.sections
+            .iter()
+            .any(|s| s.layers.contains(&part.name) && (s.prog == prog || (s.prog.is_empty() && prog == "A")))
+    };
     let mut out: Vec<Command> = Vec::new();
     ui.horizontal_wrapped(|ui| {
         ui.label(small("over"));
         for c in &part.cycles {
-            let how = if c.written { "written out" } else { "the theory engine's" };
+            let how = match (c.written, played(&c.prog)) {
+                (true, true) => "written out",
+                (true, false) => "written out, played nowhere now",
+                _ => "the theory engine's",
+            };
             let label = format!("{} · {how}", c.prog);
             if ui.selectable_label(c.prog == cycle.prog, label).on_hover_text(format!("{} beats", c.beats)).clicked() {
                 roll.prog = Some(c.prog.clone());

@@ -991,6 +991,65 @@ mod tests {
     }
 
     #[test]
+    fn a_cycle_written_out_as_the_demo_wrote_it_plays_the_same_and_outlasts_a_rearrangement() {
+        let mut mock = Mock::new(None);
+        mock.update(0.0);
+        // swung, so that the written notes have to swing as the demo's own do
+        mock.send(Command::SetSwing { swing: 0.6 });
+        let heard =
+            |mock: &Mock, name: &str| synth::Render::new(mock.state.song.as_ref().unwrap(), &mock.kit).notes_of(name);
+        let song = mock.state.song.clone().unwrap();
+        for p in &song.parts {
+            let before = heard(&mock, &p.name);
+            for c in &p.cycles {
+                mock.send(Command::SetNotes {
+                    part: p.name.clone(),
+                    prog: c.prog.clone(),
+                    notes: Some(c.notes.clone()),
+                });
+            }
+            let after = heard(&mock, &p.name);
+            assert!(
+                !before.is_empty() && before.len() == after.len(),
+                "{}: {} then {}",
+                p.name,
+                before.len(),
+                after.len()
+            );
+            for (a, b) in before.iter().zip(&after) {
+                let same = a.0.abs_diff(b.0) <= 2 && a.1.abs_diff(b.1) <= 2 && a.2 == b.2 && a.4 == b.4;
+                assert!(same && (a.3 - b.3).abs() < 1e-5, "{}: {a:?} then {b:?}", p.name);
+            }
+        }
+        // the part switched off everywhere, and on again: what was written out is still there
+        let name = song.parts[0].name.clone();
+        let written = |mock: &Mock| {
+            let song = mock.state.song.as_ref().unwrap();
+            song.parts
+                .iter()
+                .find(|p| p.name == name)
+                .unwrap()
+                .cycles
+                .iter()
+                .filter(|c| c.written)
+                .cloned()
+                .collect::<Vec<_>>()
+        };
+        let before = written(&mock);
+        let playing: Vec<usize> =
+            (0..song.sections.len()).filter(|&i| song.sections[i].layers.contains(&name)).collect();
+        assert!(!before.is_empty() && !playing.is_empty());
+        for &i in &playing {
+            mock.send(Command::ToggleLayer { section: i, layer: name.clone() });
+        }
+        assert_eq!(written(&mock), before, "kept while {name} plays nowhere");
+        for &i in &playing {
+            mock.send(Command::ToggleLayer { section: i, layer: name.clone() });
+        }
+        assert_eq!(written(&mock), before, "and played again");
+    }
+
+    #[test]
     fn drums_copy_on_write_and_step_notation() {
         let mut mock = Mock::new(None);
         mock.update(0.0);

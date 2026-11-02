@@ -848,7 +848,8 @@ pub struct PartView {
     pub presets: Vec<String>,
     pub register: (i32, i32),
     pub density: f32,
-    /// what it plays over each progression its sections play, one cycle each
+    /// what it plays over each progression its sections play, one cycle each, then over those it has notes written out
+    /// for and plays nowhere now
     #[serde(default)]
     pub cycles: Vec<CycleView>,
 }
