@@ -28,12 +28,23 @@ the critic judges against it, and evolution mutates songs within it. This page c
 | `art_rock` | 76–112 | 0.50–0.53 | minor, dorian, phrygian, lydian, major | −10.5 | acoustic (70 %) | progressive rock music with piano, strings and synthesizers (rock with electric guitars, cinematic orchestral, indie pop, ambient pad) |
 | `idm` | 96–140 | 0.50–0.56 | lydian, dorian, minor, phrygian, major | −10 | none: synthesized | glitchy intelligent dance music with complex broken beats and bells (glitch hop, drum and bass, ambient pad, chiptune) |
 | `dub_techno` | 116–126 | 0.50–0.54 | minor, dorian, phrygian | −10.5 | 909 (30 %), 808 (20 %) | dub techno music with echoing chords (techno, minimal, ambient pad, house) |
+| `boom_bap` | 86–96 | 0.55–0.62 | minor, dorian, phrygian | −10 | acoustic (45 %), 808 (15 %) | boom bap hip hop beat (lo-fi hip hop, trap, jazz, funk) |
+| `uk_drill` | 138–146 | 0.50–0.53 | minor, harmonic minor, phrygian | −9 | 808 (50 %) | uk drill beat (trap, heavy-bass hip hop, dubstep, grime) |
+| `dubstep` | 138–142 | 0.50–0.52 | minor, phrygian, harmonic minor | −9 | 909 (30 %), 808 (25 %) | dubstep music (drum and bass, trap, electro house, techno) |
+| `uk_garage` | 130–136 | 0.58–0.66 | minor, dorian, major | −9.5 | 909 (35 %), 808 (25 %) | uk garage music (house, drum and bass, r&b, dubstep) |
+| `jungle` | 160–172 | 0.50–0.53 | minor, dorian, phrygian | −9.5 | acoustic (60 %) | jungle music (drum and bass, breakbeat, dubstep, reggae) |
 
 The ten after synthwave lean on [effect chains](../../language/mixing.md#effect-chains) in their profiles:
 trip-hop's drums go through parallel compression and a crushed copy, and its delay feeds back harder in the breaks;
 big beat's acid line opens its filter across the builds; filter house's loop sweeps a resonant lowpass with the
 arrangement; art rock's guitars turn distorted in its climaxes; IDM's pads are gated harder as each groove goes on;
 dub techno's chord echoes feed back and swell in the break, all of it values by section that follow the form.
+
+The five after dub techno are built on their drums and their bass: boom bap's swung sampler drums under a piano
+loop, drill's late snare and hats in threes over a sliding 808, dubstep's wobble over a clean sub, garage's two-step
+kick and shuffle, jungle's chopped breakbeat under a deep sub. Each is close kin of a style the ears know well
+(lo-fi hip hop, trap, drum and bass, house), and its "against" list names that style, so its genre score runs lower
+than most: the ears often hear the family before the genre.
 
 The "against" list matters: the genre score is high only when a song reads as its genre *more than* as the styles it
 is usually confused with.

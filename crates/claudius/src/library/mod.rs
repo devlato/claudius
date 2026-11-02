@@ -43,6 +43,11 @@ pub fn apple_genres(genre: &str) -> &'static [&'static str] {
         "art_rock" => &["Indie", "Rock/Blues", "Cinematic", "Experimental"],
         "idm" => &["Experimental", "Electronic/Dance", "Dubstep", "Chillwave"],
         "dub_techno" => &["Tech House", "Deep House", "Electronic/Dance", "Chillwave"],
+        "boom_bap" => &["Hip Hop", "Vintage Breaks", "Funk", "Jazz"],
+        "uk_drill" => &["Hip Hop", "Urban", "Hip Hop/RnB", "Dubstep"],
+        "dubstep" => &["Dubstep", "Electronic/Dance", "Bass House", "Electro House"],
+        "uk_garage" => &["Bass House", "House", "Modern RnB", "Deep House"],
+        "jungle" => &["Vintage Breaks", "Dubstep", "Electronic/Dance", "Hip Hop"],
         _ => &[],
     }
 }

@@ -15,6 +15,7 @@ pub enum Feel {
     Breakbeat,
     BoomBap,
     Straight,
+    TwoStep,
 }
 
 type PartSpec = (&'static str, &'static str, &'static [&'static str], &'static [&'static str], (i32, i32));
@@ -530,6 +531,135 @@ pub const GENRES: &[Genre] = &[
         query: "dub techno music with echoing chords",
         alts: &["techno music", "minimal electronic music", "ambient synth pad music"],
     },
+    Genre {
+        name: "boom_bap",
+        description: "Boom bap: 90s hip hop at 86 to 96 BPM, a hard kick and a cracking snare on 2 and 4 with a lazy sampler swing, dusty hats and a rim, a piano or Rhodes loop over jazzy minor chords, an upright or sub bass, horn or flute phrases in the hooks, three verses and hooks",
+        bpm: (86.0, 96.0),
+        swing: (0.55, 0.62),
+        feel: Feel::BoomBap,
+        drums: &["kick", "snare", "hat", "ohat", "rim"],
+        parts: &[
+            ("bass", "bass", &["syncopated", "sustain", "walking"], &["sub_bass", "organ_bass"], (31, 48)),
+            ("keys", "keys", &["charleston", "sustain", "half"], &["keys", "epiano"], (50, 74)),
+            ("horns", "lead", &["motif"], &["square_lead", "bell"], (60, 82)),
+            ("pad", "pad", &["sustain"], &["strings", "warm_pad"], (52, 76)),
+        ],
+        form: &[
+            ("intro", "intro", 4),
+            ("verse", "verse", 16),
+            ("hook", "hook", 8),
+            ("verse2", "verse", 16),
+            ("hook2", "hook", 8),
+            ("verse3", "verse", 16),
+            ("hook3", "hook", 8),
+            ("outro", "outro", 8),
+        ],
+        modes: &["minor", "dorian", "phrygian"],
+        query: "boom bap hip hop beat",
+        alts: &["lo-fi hip hop beat", "jazz music", "funk music"],
+    },
+    Genre {
+        name: "uk_drill",
+        description: "UK drill: 138 to 146 BPM felt at half time, a snare on the third beat answered late in every other bar, skippy hats in threes with rolls, sliding 808s that follow a sparse kick, dark minor and harmonic minor chords on piano, strings or choir, a bell or flute line in the hooks",
+        bpm: (138.0, 146.0),
+        swing: (0.5, 0.53),
+        feel: Feel::HalfTime,
+        drums: &["kick", "snare", "hat", "ohat", "perc"],
+        parts: &[
+            ("bass", "bass", &["kick_follow"], &["808"], (28, 43)),
+            ("keys", "keys", &["sustain", "half"], &["keys", "strings", "bell"], (52, 76)),
+            ("lead", "lead", &["motif"], &["bell", "pluck", "square_lead"], (64, 88)),
+            ("pad", "pad", &["sustain"], &["strings", "pad", "warm_pad"], (48, 72)),
+        ],
+        form: &[
+            ("intro", "intro", 8),
+            ("hook", "hook", 16),
+            ("verse", "verse", 16),
+            ("hook2", "hook", 16),
+            ("verse2", "verse", 16),
+            ("hook3", "hook", 16),
+            ("outro", "outro", 8),
+        ],
+        modes: &["minor", "harmonic_minor", "phrygian"],
+        query: "uk drill beat",
+        alts: &["trap beat", "hip hop beat with heavy bass", "grime music"],
+    },
+    Genre {
+        name: "dubstep",
+        description: "Dubstep: 138 to 142 BPM at half time, a big snare on the third beat over a sparse kick, a wobbling mid bass over a clean sub, dark minor and phrygian chords on pads and strings, risers into heavy drops and a stripped back break",
+        bpm: (138.0, 142.0),
+        swing: (0.5, 0.52),
+        feel: Feel::HalfTime,
+        drums: &["kick", "snare", "hat", "ohat", "rim"],
+        parts: &[
+            ("sub", "bass", &["sustain"], &["sub_bass"], (24, 38)),
+            ("wobble", "bass", &["syncopated", "pulse", "sustain"], &["wobble", "reese", "saw_bass"], (36, 52)),
+            ("pad", "pad", &["sustain"], PAD_PRESETS, (48, 74)),
+            ("lead", "lead", &["motif"], &["supersaw", "bell", "square_lead"], (62, 86)),
+        ],
+        form: &[
+            ("intro", "intro", 16),
+            ("build", "build", 8),
+            ("drop", "drop", 32),
+            ("break", "break", 16),
+            ("drop2", "drop", 32),
+            ("outro", "outro", 16),
+        ],
+        modes: &["minor", "phrygian", "harmonic_minor"],
+        query: "dubstep music",
+        alts: &["drum and bass music", "trap beat", "electro house music"],
+    },
+    Genre {
+        name: "uk_garage",
+        description: "UK garage: 130 to 136 BPM with a heavy shuffle, a two-step kick that skips the third beat, snares on 2 and 4 with skippy ghosts, shuffled hats, shakers and a rim, a bouncing sub or organ bass, soulful minor 7th chords on organ, Rhodes or stabs, a vocal-like lead in the hooks",
+        bpm: (130.0, 136.0),
+        swing: (0.58, 0.66),
+        feel: Feel::TwoStep,
+        drums: &["kick", "snare", "hat", "ohat", "shaker", "rim"],
+        parts: &[
+            ("bass", "bass", &["syncopated", "offbeat", "pulse"], &["sub_bass", "organ_bass", "reese"], (28, 46)),
+            ("chords", "chords", &["stabs", "syncopated", "offbeat"], &["organ", "epiano", "stab"], (55, 76)),
+            ("pad", "pad", &["sustain"], &["warm_pad", "strings"], (50, 74)),
+            ("lead", "lead", &["motif"], &["pluck", "bell", "epiano"], (64, 86)),
+        ],
+        form: &[
+            ("intro", "intro", 8),
+            ("verse", "verse", 16),
+            ("hook", "hook", 16),
+            ("break", "break", 8),
+            ("verse2", "verse", 16),
+            ("hook2", "hook", 16),
+            ("outro", "outro", 16),
+        ],
+        modes: &["minor", "dorian", "major"],
+        query: "uk garage music",
+        alts: &["house music", "r&b music", "drum and bass music"],
+    },
+    Genre {
+        name: "jungle",
+        description: "Jungle: 160 to 172 BPM, a chopped and rolling breakbeat with ghost snares on an acoustic kit, a deep sub or reese bass moving at half the speed of the drums, dub chords and stabs with long delays, warm pads and a sparse lead",
+        bpm: (160.0, 172.0),
+        swing: (0.5, 0.53),
+        feel: Feel::Breakbeat,
+        drums: &["kick", "snare", "hat", "ride"],
+        parts: &[
+            ("bass", "bass", &["sustain", "reese", "rolling"], &["sub_bass", "reese"], (24, 40)),
+            ("chords", "chords", &["offbeat", "stabs", "sustain"], &["organ", "stab", "epiano"], (55, 74)),
+            ("pad", "pad", &["sustain"], PAD_PRESETS, (48, 74)),
+            ("lead", "lead", &["motif"], &["pluck", "bell"], (64, 86)),
+        ],
+        form: &[
+            ("intro", "intro", 16),
+            ("build", "build", 8),
+            ("drop", "drop", 32),
+            ("break", "break", 16),
+            ("drop2", "drop", 32),
+            ("outro", "outro", 16),
+        ],
+        modes: &["minor", "dorian", "phrygian"],
+        query: "jungle music",
+        alts: &["drum and bass music", "breakbeat music", "reggae music"],
+    },
 ];
 
 /// a genre of the demo's; a fusion plays the genre that leads it
@@ -696,6 +826,17 @@ fn drum_lane(lane: &str, feel: Feel, rng: &mut Rng) -> DrumView {
                     main[at(7)] = rng.range(0.55, 0.7);
                 }
             }
+            ("kick", Feel::TwoStep) => {
+                main[at(0)] = 1.0;
+                if bar % 2 == 0 {
+                    main[at(10)] = rng.range(0.85, 0.95);
+                } else {
+                    main[at(11)] = rng.range(0.85, 0.95);
+                    if rng.chance(0.5) {
+                        main[at(7)] = rng.range(0.3, 0.45);
+                    }
+                }
+            }
             ("clap" | "snare", Feel::HalfTime) => {
                 main[at(8)] = rng.range(0.95, 1.0);
                 if last && lane == "snare" {
@@ -705,7 +846,7 @@ fn drum_lane(lane: &str, feel: Feel, rng: &mut Rng) -> DrumView {
             ("clap" | "snare", _) => {
                 main[at(4)] = rng.range(0.92, 1.0);
                 main[at(12)] = rng.range(0.92, 1.0);
-                if lane == "snare" && matches!(feel, Feel::Breakbeat | Feel::BoomBap) {
+                if lane == "snare" && matches!(feel, Feel::Breakbeat | Feel::BoomBap | Feel::TwoStep) {
                     for s in [7, 9, 15] {
                         if rng.chance(0.4) {
                             main[at(s)] = rng.range(0.25, 0.4);
@@ -733,6 +874,14 @@ fn drum_lane(lane: &str, feel: Feel, rng: &mut Rng) -> DrumView {
                 let roll = if bar % 2 == 1 { 12 } else { 6 };
                 for s in roll..roll + 3 {
                     main[at(s)] = rng.range(0.45, 0.6);
+                }
+            }
+            ("hat", Feel::TwoStep) => {
+                for s in [2, 6, 10, 14] {
+                    main[at(s)] = rng.range(0.6, 0.75);
+                    if rng.chance(0.5) {
+                        main[at(s + 1)] = rng.range(0.3, 0.4);
+                    }
                 }
             }
             ("hat", _) => {
@@ -829,12 +978,12 @@ fn section_layers(kind: &str, song: &SongView, genre: &Genre) -> Vec<String> {
     let parts: Vec<&str> = song.parts.iter().map(|p| p.name.as_str()).collect();
     let loops: Vec<&str> = song.tracks.iter().filter(|t| t.kind == "loop").map(|t| t.name.as_str()).collect();
     let is = |l: &str, set: &[&str]| set.contains(&l);
-    let four = genre.feel == Feel::FourFloor;
+    let club = matches!(genre.feel, Feel::FourFloor | Feel::TwoStep);
     let pick = |l: &&str| -> bool {
         let l = *l;
         match kind {
             "intro" => {
-                (four && l == "kick")
+                (club && l == "kick")
                     || is(l, &["hat", "shaker", "perc", "ride"])
                     || (genre.feel == Feel::BoomBap && is(l, &["keys", "pad"]))
                     || is(l, &loops)

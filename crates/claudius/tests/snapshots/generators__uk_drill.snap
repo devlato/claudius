@@ -1,0 +1,33 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+uk_drill at 145.0 BPM in G minor, swing 0.51
+prog A: i iv III VI
+prog B: i IVsus4 III VI
+prog C: VI iv III i
+bars per chord: 2
+section intro (intro) 8 bars, energy 0.34, prog A, main [filter_in]: keys pad
+section hook (hook) 16 bars, energy 0.90, prog C, main [impact fills]: kick snare hat ohat perc bass keys lead pad
+section verse (verse) 8 bars, energy 0.70, prog A, main [gap fills]: kick snare hat perc bass keys
+section hook2 (hook) 16 bars, energy 0.86, prog C, main [impact fills]: kick snare hat ohat perc bass keys lead pad
+section verse2 (verse) 16 bars, energy 0.84, prog A, main [fills]: kick snare hat perc bass keys pad lead
+section bridge (break) 8 bars, energy 0.28, prog B, sparse []: keys lead
+section hook3 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick snare hat ohat perc bass keys lead pad
+section outro (outro) 16 bars, energy 0.31, prog A, main []: keys lead
+drum kick main (drum kick): X.........X.....|......X.........|X.........X.....|......X.........
+drum snare main (drum snare): ........X.......|........X.......|........X.......|........X.......
+drum hat main (drum closed_hat): x........x........x.................x.....x.....|x........x..ooxxxxxxxxXX............X.Xx.xx.xx.x|x........x........x.....XXXxxxxxxxxxx.....x.....|x........x..X.Xx.xx.xx.x............x.....x.....
+drum ohat main (drum open_hat): ..............x.|................|..............x.|................
+drum perc main (drum rim): ......x......x..|......x......x..|......x......x..|......x......x..
+part bass (bass): kick_follow synth 808, register 28..43, density 0.47
+part keys (keys): sustain synth pad, register 52..76, density 0.57
+part lead (lead): motif synth bell, register 64..88, density 0.37
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix snare: +0.0 dB, pan +0.00, reverb 0.10, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix ohat: +0.0 dB, pan -0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix perc: +0.0 dB, pan -0.25, reverb 0.15, delay 0.00, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
+mix keys: +0.0 dB, pan +0.00, reverb 0.47, delay 0.08, duck 0.00, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.25, delay 0.21, duck 0.00, bus music

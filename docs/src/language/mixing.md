@@ -89,6 +89,11 @@ settings come from the genre:
 | art_rock | 2.8 s, 25 ms, 250 Hz | 0.75 beats, 0.35, ping-pong |
 | idm | 2.6 s, 25 ms, 300 Hz, bright and wide | 0.375 beats, 0.35, rising to 0.7 across each break, ping-pong |
 | dub_techno | 3.5 s, 35 ms, 300 Hz, dark and wide | 0.75 beats, 0.45, rising to 0.7 across each break, ping-pong |
+| boom_bap | 1.2 s, 10 ms, 300 Hz, a short room | 0.5 beats, 0.25 |
+| uk_drill | 2.2 s, 15 ms, 300 Hz | 0.75 beats, 0.3, ping-pong |
+| dubstep | 2.4 s, 20 ms, 350 Hz | 0.75 beats, 0.35, ping-pong |
+| uk_garage | 1.6 s, 12 ms, 300 Hz | 0.75 beats, 0.3, ping-pong |
+| jungle | 2.4 s, 20 ms, 350 Hz | 0.75 beats, 0.4, ping-pong |
 
 The sends are taken after the track's level, sidechain and pan. The returns are ducked by the kick too, by 30 % of
 the full depth, so tails breathe with the groove.
@@ -291,8 +296,8 @@ The master stage runs the genre's master chain (EQ, a glue compressor, saturatio
 searches for the input gain that lands the song within 0.15 LU of `lufs`, through a soft clipper 0.1 dB under the
 ceiling and a limiter 0.5 dB below it, and trims the result if the true peak still pokes over. The genre targets are house −10,
 deep_house −11, techno −9, trap −9, lofi −12.5, dnb −8.5, future_bass −9, synthwave −10.5, trip_hop −11, big_beat
-−8.5, electro_house −8, nu_disco −10, filter_house −9, dance_pop −8.5, neo_psychedelia −10, art_rock −10.5, idm −10 and
-dub_techno −10.5 LUFS.
+−8.5, electro_house −8, nu_disco −10, filter_house −9, dance_pop −8.5, neo_psychedelia −10, art_rock −10.5, idm −10,
+dub_techno −10.5, boom_bap −10, uk_drill −9, dubstep −9, uk_garage −9.5 and jungle −9.5 LUFS.
 
 Every printed song has a `master()` line with these two values (see [Printing a song](printing.md)).
 

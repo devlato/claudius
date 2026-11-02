@@ -219,6 +219,11 @@ pub fn store_genre(genre: &str) -> (&'static str, &'static str) {
         "art_rock" => ("Rock", "Art Rock"),
         "idm" => ("Electronic", "IDM/Experimental"),
         "dub_techno" => ("Electronic", "Dub Techno"),
+        "boom_bap" => ("Hip-Hop/Rap", "Boom Bap"),
+        "uk_drill" => ("Hip-Hop/Rap", "UK Drill"),
+        "dubstep" => ("Electronic", "Dubstep"),
+        "uk_garage" => ("Dance", "UK Garage"),
+        "jungle" => ("Electronic", "Jungle"),
         _ => ("Electronic", ""),
     }
 }

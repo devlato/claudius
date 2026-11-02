@@ -33,6 +33,11 @@ const BUILTIN: &[(&str, &str)] = &[
     ("art_rock", include_str!("../data/genres/art_rock.json")),
     ("idm", include_str!("../data/genres/idm.json")),
     ("dub_techno", include_str!("../data/genres/dub_techno.json")),
+    ("boom_bap", include_str!("../data/genres/boom_bap.json")),
+    ("uk_drill", include_str!("../data/genres/uk_drill.json")),
+    ("dubstep", include_str!("../data/genres/dubstep.json")),
+    ("uk_garage", include_str!("../data/genres/uk_garage.json")),
+    ("jungle", include_str!("../data/genres/jungle.json")),
 ];
 
 fn straight() -> (f32, f32) {
