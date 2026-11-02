@@ -435,7 +435,7 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
     let mut form = if opts.form.is_some() {
         g.forms[fi].clone()
     } else {
-        crate::form::vary(&g.forms[fi], g, bpm, &mut fr.fork("vary"))
+        crate::form::vary(&g.forms[fi], g, bpm, &fr.fork("vary"))
     };
     if opts.short {
         for s in form.iter_mut() {
@@ -560,7 +560,7 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
         master: Master { fx: g.mix.master.clone(), lufs: g.mix.lufs, ceiling_db: -1.0 },
     };
     // a mix of its own
-    crate::colour::vary(&mut mix, &mut parts, &mut rng.fork("colour"));
+    crate::colour::vary(&mut mix, &mut parts, &rng.fork("colour"));
     Blueprint {
         version: crate::model::BLUEPRINT_FORMAT,
         title: title(&mut rng.fork("title")),

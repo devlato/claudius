@@ -6,15 +6,14 @@ art_rock at 105.0 BPM in G minor, swing 0.51
 prog A: i7 iv7 IIImaj7 VImaj7
 prog B: i7 IVsus4 IIImaj7 VImaj7
 bars per chord: 1
-section intro (intro) 8 bars, energy 0.29, prog A, sparse []: piano arp
-section verse (verse) 16 bars, energy 0.49, prog A, sparse []: kick hat piano bass
-section verse2 (verse) 16 bars, energy 0.61, prog A, main [fills]: kick snare hat piano arp bass strings
-section rise (build) 4 bars, energy 0.73, prog B, main [build gap]: snare hat tom piano strings guitar arp
-section climax (hook) 16 bars, energy 0.97, prog A, main [impact fills]: kick snare hat ride tom bass piano strings guitar arp lead
-section fall (break) 8 bars, energy 0.27, prog B, main [gap]: piano strings
-section climax2 (hook) 8 bars, energy 0.98, prog A, main [gap impact fills]: kick snare hat ride tom bass piano strings guitar arp lead
-section climax3 (hook) 8 bars, energy 1.00, prog A, main [fills]: kick snare hat ride tom bass piano strings guitar arp lead
-section outro (outro) 4 bars, energy 0.25, prog A, sparse []: piano arp
+section intro (intro) 8 bars, energy 0.24, prog A, sparse []: piano arp
+section verse (verse) 16 bars, energy 0.45, prog A, sparse []: kick hat piano arp bass
+section verse2 (verse) 8 bars, energy 0.65, prog A, main []: kick snare hat piano arp bass strings lead
+section rise (build) 8 bars, energy 0.66, prog B, main [build gap]: snare hat tom piano strings guitar arp
+section climax (hook) 16 bars, energy 1.00, prog A, main [impact fills]: kick snare hat ride tom bass piano strings guitar arp lead
+section fall (break) 16 bars, energy 0.33, prog B, main [gap]: piano strings
+section climax2 (hook) 8 bars, energy 1.00, prog A, main [impact fills]: kick snare hat ride tom bass piano strings guitar arp lead
+section outro (outro) 8 bars, energy 0.26, prog A, sparse []: piano arp
 drum kick main (drum kick): X.......X....X..|X.......X....X..|X.......X....X..|X.......X....X..
 drum kick sparse (drum kick): x...............|x...............|x...............|x...............
 drum snare main (drum snare): ....X......oX..X|....X......oX..X|....X......oX..X|....X.o.....X..X
@@ -33,9 +32,9 @@ mix snare: +0.0 dB, pan +0.00, reverb 0.20, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.25, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix ride: +0.0 dB, pan -0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix tom: +0.0 dB, pan -0.20, reverb 0.25, delay 0.00, duck 0.00, bus drums
-mix piano: +0.0 dB, pan -0.10, reverb 0.35, delay 0.00, duck 0.00, bus music
-mix arp: +0.0 dB, pan +0.25, reverb 0.25, delay 0.30, duck 0.00, bus music
+mix piano: +0.0 dB, pan -0.10, reverb 0.31, delay 0.00, duck 0.00, bus music
+mix arp: +0.0 dB, pan +0.25, reverb 0.34, delay 0.24, duck 0.00, bus music
 mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
-mix strings: +0.0 dB, pan +0.00, reverb 0.45, delay 0.00, duck 0.00, bus music
-mix guitar: +0.0 dB, pan +0.30, reverb 0.25, delay 0.00, duck 0.00, bus music
-mix lead: +0.0 dB, pan +0.00, reverb 0.35, delay 0.25, duck 0.00, bus music
+mix strings: +0.0 dB, pan +0.00, reverb 0.41, delay 0.00, duck 0.00, bus music
+mix guitar: +0.0 dB, pan +0.30, reverb 0.34, delay 0.00, duck 0.00, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.43, delay 0.25, duck 0.00, bus music

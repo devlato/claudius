@@ -27,7 +27,7 @@ Everything a genre knows is in one JSON file. The fields `generate` reads:
 | `modes` | weighted modes for Markov progressions |
 | `harmony`, `markov`, `ext` | weighted progression styles from the library, the chance of a Markov progression instead, and its chord extensions (0 triads, 1 sevenths, 2 ninths) |
 | `bars_per_chord` | weighted chord lengths |
-| `forms` | one or more forms, each a list of sections with layers, energy and flags |
+| `forms` | one or more forms, each a list of sections with layers, energy and flags: templates, which each song [varies](#a-form-and-a-mix-of-its-own) |
 | `drums` | lanes: a voice, a step template or a euclidean rhythm, named variants, parameter ranges, Apple Loops subtypes for one-shots, a choke group, whether to tune the kick to the key, a mix |
 | `kits` | weighted sample-pack drum kits; the weight left over keeps the lanes' own sounds |
 | `kit_mix` | the chance that a drum lane plays a kit of its own instead (another installed kit, or its synthesized voice); 0.3 when not given |
@@ -35,7 +35,7 @@ Everything a genre knows is in one JSON file. The fields `generate` reads:
 | `parts` | melodic parts: a role, weighted-by-repetition lists of presets and styles, a register, a density range, voices, voicing, arpeggio rates, a chance of leaving the part out, its own `core` (an acid line stays acid), a mix |
 | `loops` | Apple Loops parts: instrument, subtype, genre and mood filters, whether tonal |
 | `transitions` | riser, impact, downlifter and reverse crash switches, the riser length |
-| `mix` | the LUFS target, the reverb and delay, bus and master chains, sidechain release, per-role level offsets |
+| `mix` | the LUFS target, the reverb and delay, bus and master chains, sidechain release, per-role level offsets; each song [varies](#a-form-and-a-mix-of-its-own) the reverb, the delay, the sends and the colours |
 | `query`, `alts` | what the ears should hear (`"house music"`) and the genres it is most often confused with |
 | `accepted_flaws` | production flaws of the ears' that are the genre's sound, left out of its production reading (lofi's hiss) |
 
@@ -59,7 +59,9 @@ change the rest of the song.
    chords keep their degree and take the new mode's quality, borrowed chords keep their sound spelled in the new mode,
    and applied chords stay as written. Chord length comes from `bars_per_chord`, and a one-chord progression lasts 4
    bars;
-3. **form**: one of the genre's forms, every section halved (to at least 4 bars) with `--short`;
+3. **form**: one of the genre's forms, made the song's own by `form::vary` ([below](#a-form-and-a-mix-of-its-own)),
+   then every section halved (to at least 4 bars) with `--short`; a form asked for by number (`Options::form`) plays
+   as written;
 4. **drums**: per lane, a one-shot from the library (with chance `samples`, 0.75 unless `--samples` or a script says
    otherwise, the same for `make`, scripts and the studio's new songs, when there is a library) or a
    synthesized voice with parameters in the genre's ranges (or a third of the way from the voice's default towards a
@@ -69,11 +71,55 @@ change the rest of the song.
    own. A chords, keys or pad part on a single-voice synth patch gets a light chorus so it does not sit dead centre;
 6. **loops** from the library, when there is one;
 7. **transitions**: a crash (recorded or synthesized) and the genre's switches;
-8. the **mix** from the genre, and a **title** from two word lists.
+8. the **mix** from the genre, made the song's own by `colour::vary` ([below](#a-form-and-a-mix-of-its-own)), and a
+   **title** from two word lists.
 
 With `--loops` (a loop family), the song is generated with the family's tempo and key, both progressions become the
 chords read from the family's harmony loop, one chord per bar, and the family's chord, bass and beat loops replace the
 parts and lanes of those names.
+
+### A form and a mix of its own
+
+A genre's forms are templates. `form::vary` changes one for its song, each change drawn with a chance of its own, so
+that songs of a genre rarely share a form (24 songs of house, lofi, trap, dance-pop or techno play at least 18):
+
+| change | chance |
+|---|---|
+| a section another length its kind takes: an intro or outro 4, 8 or 16 bars, a verse, hook or break 8 or 16, a build 4 or 8, a drop 16, 24 or 32, a groove 8, 16 or 32 | 0.45 a section |
+| a third verse and hook, after the last hook before the first break (or after the last hook) | 0.3 |
+| a bridge, 8 bars of the melodic parts without drums or bass on progression `B`: before the last hook or drop (and the build into it), in a song of two or more with no break between the first and the last, or after a song's only hook or drop when more than the outro follows | 0.35 |
+| the last hook or drop played twice, the second at full energy | 0.3 |
+| a lift, a 4-bar build without the kick at the energy of the section before it, into a first hook that has no build, in a genre with risers | 0.35 |
+| no intro (a cold start); an intro of only its drums (when they have the kick) or only its melodic parts | 0.15; 0.25 |
+| no outro (the song ends on its last section); an outro of half its tracks | 0.15; 0.25 |
+| the first verse without one melodic part; a later verse with one more track from the next hook; the first hook without one of its melodic parts | 0.3; 0.35; 0.25 |
+| fills switched in a verse, groove or drop; a gap switched before a hook or drop; the intro's filter sweep switched | 0.25; 0.3; 0.4 |
+| each section's energy moved | up to ±0.05 |
+
+The song then keeps to 2 to 5½ minutes at its tempo, its longest sections shortened or its shortest lengthened, and
+each repeated section gets a name of its own (`verse3`, `chorus4`). A section only leaves out what it can: a
+stripped intro, a thinned outro or a bridge keeps a drum lane or a part that every song of the genre has, never only
+an optional part or a loop. A section's energy moves with what it plays, so that the [critic](critic.md) still hears
+its loudness follow its energy: 0.15 for a kick gained or lost, 0.1 for a bass, 0.05 for anything else, at most 0.2
+for a section left without drums, and 0.1 less for an intro whose filter sweep is switched on (0.1 more when it is
+switched off).
+
+`colour::vary` does the same for the mix:
+
+- the reverb: its decay up to 1.5 times longer or shorter (0.6 to 8 s), its damping ±0.15, its pre-delay −10 to
+  +25 ms, its width and its low cut;
+- the delay: half the time another length (a sixteenth, a dotted sixteenth, an eighth, a dotted eighth, a quarter or
+  a dotted quarter), its feedback, and ping-pong switched three times in ten;
+- each part's reverb and delay sends;
+- four parts in ten get a colour by role, unless they already have an effect of its kind: on a pad a chorus, phaser,
+  flanger, slow autopan or more width; on chords and keys a chorus, phaser, tremolo, autopan or tape; on a lead tape,
+  a tube, a chorus, phaser or flanger; on an arp an autopan, bitcrusher, phaser or chorus; on a bass a tube, tape or a
+  little wavefolding. A phaser's or bitcrusher's mix rises in the hooks and drops;
+- three songs in ten high-pass the music bus in the breaks, at 250 to 500 Hz;
+- half the time, the master's saturation becomes tape, a tube or tanh.
+
+Both draw from forks of their own, one for each change, so a song's tempo, harmony, drums and parts stay what its
+seed makes them whatever its form and mix draw, and a new or changed rule leaves the other changes' draws as they were.
 
 ## Keys and modes
 

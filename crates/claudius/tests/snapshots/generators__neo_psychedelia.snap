@@ -6,14 +6,14 @@ neo_psychedelia at 117.0 BPM in G mixolydian, swing 0.52
 prog A: I7 IVmaj7 I7 v7
 prog B: I7 IVsus4 I7 v7
 bars per chord: 1
-section intro (intro) 8 bars, energy 0.39, prog A, sparse [filter_in]: synth guitar
-section verse (verse) 16 bars, energy 0.52, prog A, main []: kick snare hat bass guitar organ
-section chorus (hook) 16 bars, energy 0.86, prog A, main [impact fills]: kick snare hat ride tom bass guitar organ synth lead
-section verse2 (verse) 8 bars, energy 0.59, prog A, main [gap]: kick snare hat bass guitar organ synth
-section chorus2 (hook) 16 bars, energy 0.87, prog A, main [impact fills]: kick snare hat ride tom bass guitar organ synth lead
-section bridge (break) 16 bars, energy 0.33, prog B, main [gap]: synth lead
+section intro (intro) 8 bars, energy 0.34, prog A, sparse [filter_in]: synth guitar
+section verse (verse) 16 bars, energy 0.55, prog A, main []: kick snare hat bass guitar organ
+section chorus (hook) 8 bars, energy 0.85, prog A, main [impact fills]: kick snare hat ride tom bass guitar organ synth lead
+section verse2 (verse) 16 bars, energy 0.61, prog A, main [gap]: kick snare hat bass guitar organ synth lead
+section chorus2 (hook) 16 bars, energy 0.94, prog A, main [impact fills]: kick snare hat ride tom bass guitar organ synth lead
+section bridge (break) 8 bars, energy 0.38, prog B, main []: synth lead
 section chorus3 (hook) 8 bars, energy 1.00, prog A, main [impact fills]: kick snare hat ride tom bass guitar organ synth lead
-section chorus4 (hook) 8 bars, energy 1.00, prog A, main [fills]: kick snare hat ride tom bass guitar organ synth lead
+section outro (outro) 8 bars, energy 0.36, prog A, sparse []: synth organ
 drum kick main (drum kick): X.......X.X.....|X.......X.X.....|X.......X.X.....|X.......X.X.....
 drum kick sparse (drum kick): x...............|x...............|x...............|x...............
 drum snare main (drum snare): ....X......oX...|....X......oX...|....X......oX...|....X.o.....X...
@@ -32,7 +32,7 @@ mix hat: +0.0 dB, pan +0.25, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix ride: +0.0 dB, pan -0.30, reverb 0.15, delay 0.00, duck 0.00, bus drums
 mix tom: +0.0 dB, pan -0.20, reverb 0.25, delay 0.00, duck 0.00, bus drums
 mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
-mix guitar: +0.0 dB, pan +0.25, reverb 0.35, delay 0.20, duck 0.00, bus music
-mix organ: +0.0 dB, pan -0.25, reverb 0.30, delay 0.00, duck 0.00, bus music
-mix synth: +0.0 dB, pan +0.00, reverb 0.50, delay 0.00, duck 0.00, bus music
-mix lead: +0.0 dB, pan +0.00, reverb 0.40, delay 0.30, duck 0.00, bus music
+mix guitar: +0.0 dB, pan +0.25, reverb 0.47, delay 0.16, duck 0.00, bus music
+mix organ: +0.0 dB, pan -0.25, reverb 0.25, delay 0.00, duck 0.00, bus music
+mix synth: +0.0 dB, pan +0.00, reverb 0.46, delay 0.00, duck 0.00, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.54, delay 0.24, duck 0.00, bus music

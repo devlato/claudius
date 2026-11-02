@@ -63,14 +63,14 @@ Each profile (`crates/claudius/data/genres/*.json`) has:
 |---|---|
 | `bpm`, `swing`, `humanize` | tempo and feel ranges |
 | `modes`, `harmony`, `markov`, `ext`, `bars_per_chord` | keys, [harmonic styles](harmony.md#the-generators-harmony), how often a fresh Markov progression is written, chord extensions, chord lengths |
-| `forms` | the section plans, with layers, energies and flags |
+| `forms` | the section plans, with layers, energies and flags; each song plays one [its own way](../../engineering/theory.md#a-form-and-a-mix-of-its-own) |
 | `drums` | the lanes: per-step hit probabilities and velocity ranges per variant, or a euclidean rhythm; drum voice parameter ranges; which Apple Loops one-shots may replace the voice; choke groups (open and closed hat) |
 | `kits`, `kit_mix` | which recorded drum machines the drums may be played on, and how often; how often a lane plays a kit of its own |
 | `palette` | for each role, how often a part keeps its own sounds, and which kinds of sound it draws from otherwise: synths, or the installed packs' strings, brass, woodwinds, mallets, pianos, guitars and more |
 | `parts` | bass, chords, pad, lead, arp, keys: their own presets and instruments, writing styles, registers, density, voicing, and the chance a song leaves the part out |
 | `loops` | the Apple Loops a song may layer, by instrument, genre and descriptors |
 | `transitions` | risers, impacts, downlifters, reverse crashes, riser length |
-| `mix` | the loudness target, reverb and delay, bus and master chains, sidechain release, role level offsets |
+| `mix` | the loudness target, reverb and delay, bus and master chains, sidechain release, role level offsets; each song varies its reverb, delay, sends and colours |
 | `query`, `alts` | what the ears should hear, and its confusions |
 | `accepted_flaws` | flaws the ears may hear that are the genre's sound, such as lofi's hiss, so they do not count against it |
 

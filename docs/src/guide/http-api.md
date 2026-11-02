@@ -63,7 +63,7 @@ the moment the verdict describes the song as it is now. When the session renders
 ```sh
 curl -s -X POST http://127.0.0.1:7878/api/command -H 'Content-Type: application/json' \
   -d '{"cmd":"new_song","genre":"house","seed":9,"bpm":126}'
-curl -s 'http://127.0.0.1:7878/api/state?settled=1&timeout=120'    # returned after 7.9 s, with the render and verdict
+curl -s 'http://127.0.0.1:7878/api/state?settled=1&timeout=120'    # returned after 6.3 s, with the render and verdict
 ```
 
 The MCP tools wait the same way after every edit.
@@ -79,40 +79,43 @@ The MCP tools wait the same way after every edit.
   "undo_label": "new song: Crimson Tide — house at 126 BPM in G dorian (seed 9)", "redo_label": null,
   "log": ["sample library: Apple Loops and your folders",
           "new song: Crimson Tide — house at 126 BPM in G dorian (seed 9)",
-          "rendered in 7.7 s: -10.1 LUFS, verdict 98.0 — 98/100 (arc 0.93, mix 1.00, theory 1.00)"],
+          "rendered in 6.1 s: -10.0 LUFS, verdict 93.0 — 93/100 (arc 0.88, mix 0.92, theory 1.00). Fix first: nearly mono (correlation 0.97): widen pads, chords and effects; the drop is only 2.9 LU louder than the breakdown (aim for 3-7): thin the break or push the drop"],
   "genres": [{ "name": "deep_house", "description": "Deep house: softer four-on-the-floor, ...", "bpm": [118.0, 124.0] }],
   "song": {
     "title": "Crimson Tide", "genre": "house", "seed": 9, "bpm": 126.0, "key": "G dorian", "swing": 0.5257842,
-    "bars": 64, "seconds": 121.9047619047619,
+    "bars": 72, "seconds": 137.14285714285714,
     "progressions": [["A", ["i7", "ii7", "i7", "IV7"]], ["B", ["i7", "VIImaj7", "i7", "IV7"]]],
-    "sections": [{ "name": "intro", "kind": "intro", "start_bar": 0, "bars": 8, "energy": 0.4,
-                   "layers": ["kick", "hat", "perc", "top"], "prog": "A", "variant": "sparse",
+    "sections": [{ "name": "intro", "kind": "intro", "start_bar": 0, "bars": 8, "energy": 0.35950592,
+                   "layers": ["kick", "hat", "perc"], "prog": "A", "variant": "sparse",
                    "filter_in": true, "build": false, "gap": false, "impact": false, "fills": false }],
     "layers": ["kick", "clap", "hat", "ohat", "shaker", "perc", "bass", "chords", "pad", "lead", "arp"],
     "tracks": [{ "name": "kick", "kind": "drum", "role": "kick", "sound": "sampled bd (tr909:bd)",
                  "level_db": 0.0, "pan": 0.0, "reverb": 0.0, "delay": 0.0, "duck": 0.0,
-                 "muted": false, "solo": false, "loudness": -13.2 }],
+                 "muted": false, "solo": false, "loudness": -13.1, "fx": [], "bus": "drums" }],
     "drums": [{ "lane": "kick", "pattern_bars": 4,
                 "variants": [["main", [0.99353635, 0.0, 0.0, 0.0, 0.9903264, 0.0, 0.0, 0.0]]] }],
     "parts": [{ "name": "bass", "role": "bass", "style": "syncopated", "styles": ["offbeat", "syncopated", "offbeat"],
                 "preset": "saw_bass", "presets": ["organ_bass", "pluck_bass", "saw_bass", "sub_bass", "808", "reese",
-                "acid", "wobble", "upright_bass", "electric_bass", "synth_bass", "contrabass"],
+                "acid", "wobble", "fm_bass", "rubber_bass", "moog_bass", "dist_bass", "deep_bass", "salamander:piano"],
                 "register": [33, 52], "density": 0.42195085 }],
     "script": "// Crimson Tide — house (seed 9)\n// song(\"house\", 9);   // uncomment to start over from the generator\n...",
     "lineage": ["generated: house seed 9"]
   },
   "render": {
-    "version": 2, "url": "/api/audio/2.mp3", "seconds": 123.58135416666667, "lufs": -10.091306995130768,
+    "version": 2, "url": "/api/audio/2.mp3", "seconds": 137.75695833333333, "lufs": -10.005946262987049,
     "true_peak_db": -1.05, "bpm": 126.0,
-    "sections": [["intro", 0.0, 15.238095238095237], ["groove", 15.238095238095237, 45.71428571428571]],
-    "waveform": [0.8221747, 0.501973, 0.47014454, 0.8221747],
+    "sections": [["intro", 0.0, 15.238095238095237], ["groove", 15.238095238095237, 76.19047619047619]],
+    "waveform": [0.78396755, 0.6841407, 0.24127346, 0.78396755],
     "stems": []
   },
   "verdict": {
-    "total": 97.96757459489606, "summary": "98/100 (arc 0.93, mix 1.00, theory 1.00)",
-    "scores": [["arc", 0.9288651108213621], ["mix", 1.0], ["theory", 1.0]],
-    "issues": [], "ears": null,
-    "measures": [["arc_correlation", 0.86], ["band_air_db", -19.1], ["band_low_db", -3.2]]
+    "total": 93.00001702215826,
+    "summary": "93/100 (arc 0.88, mix 0.92, theory 1.00). Fix first: nearly mono (correlation 0.97): widen pads, chords and effects; the drop is only 2.9 LU louder than the breakdown (aim for 3-7): thin the break or push the drop",
+    "scores": [["arc", 0.8750005957755389], ["mix", 0.92], ["theory", 1.0]],
+    "issues": [[0.35, "nearly mono (correlation 0.97): widen pads, chords and effects", "width+"],
+               [0.02583562880300505, "the drop is only 2.9 LU louder than the breakdown (aim for 3-7): thin the break or push the drop", "form"]],
+    "ears": null,
+    "measures": [["arc_correlation", 0.77], ["band_air_db", -18.5], ["band_low_db", -3.5]]
   }
 }
 ```

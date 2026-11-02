@@ -6,14 +6,15 @@ synthwave at 112.0 BPM in G minor, swing 0.50
 prog A: i iv III VI
 prog B: i IVsus4 III VI
 bars per chord: 1
-section intro (intro) 8 bars, energy 0.39, prog A, main [filter_in]: pad arp
-section verse (verse) 16 bars, energy 0.57, prog A, main [fills]: kick snare hat bass arp pad
-section chorus (hook) 16 bars, energy 0.86, prog A, main [impact fills]: kick snare hat bass arp pad lead chords
-section verse2 (verse) 8 bars, energy 0.59, prog A, main [gap fills]: kick snare hat bass arp pad
-section chorus2 (hook) 16 bars, energy 0.87, prog A, main [impact fills]: kick snare hat bass arp pad lead chords
-section bridge (break) 8 bars, energy 0.41, prog B, main [build]: pad lead
-section chorus3 (hook) 8 bars, energy 1.00, prog A, main [gap impact fills]: kick snare hat bass arp pad lead chords
-section chorus4 (hook) 8 bars, energy 1.00, prog A, main [fills]: kick snare hat bass arp pad lead chords
+section intro (intro) 8 bars, energy 0.34, prog A, main [filter_in]: pad arp
+section verse (verse) 16 bars, energy 0.60, prog A, main [fills]: kick snare hat bass arp pad
+section lift (build) 4 bars, energy 0.60, prog A, main [build]: snare hat bass arp pad
+section chorus (hook) 8 bars, energy 0.81, prog A, main [impact fills]: kick snare hat bass arp pad lead chords
+section verse2 (verse) 16 bars, energy 0.69, prog A, main [fills]: kick snare hat bass arp pad chords
+section chorus2 (hook) 16 bars, energy 0.93, prog A, main [impact fills]: kick snare hat bass arp pad lead chords
+section bridge (break) 16 bars, energy 0.50, prog B, main [build]: pad lead
+section chorus3 (hook) 8 bars, energy 1.00, prog A, main [impact fills]: kick snare hat bass arp pad lead chords
+section outro (outro) 8 bars, energy 0.40, prog A, main []: pad arp
 drum kick alt (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum kick main (drum kick): X.......X.......|X.......X.......|X.......X.......|X.......X.......
 drum snare main (drum snare): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
@@ -28,7 +29,7 @@ mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.45, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.20, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.30, bus bass
-mix arp: +0.0 dB, pan +0.15, reverb 0.25, delay 0.30, duck 0.20, bus music
-mix pad: +0.0 dB, pan +0.00, reverb 0.40, delay 0.00, duck 0.25, bus music
-mix lead: +0.0 dB, pan +0.00, reverb 0.30, delay 0.25, duck 0.00, bus music
-mix chords: +0.0 dB, pan +0.00, reverb 0.30, delay 0.00, duck 0.30, bus music
+mix arp: +0.0 dB, pan +0.15, reverb 0.34, delay 0.24, duck 0.20, bus music
+mix pad: +0.0 dB, pan +0.00, reverb 0.33, delay 0.00, duck 0.25, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.27, delay 0.35, duck 0.00, bus music
+mix chords: +0.0 dB, pan +0.00, reverb 0.41, delay 0.00, duck 0.30, bus music

@@ -77,31 +77,35 @@ fn colour(role: Role, rng: &mut Rng) -> Effect {
     }
 }
 
-/// `mix` and the parts' own mixes varied for one song (the module's doc says how)
-pub fn vary(mix: &mut MixPlan, parts: &mut [Part], rng: &mut Rng) {
+/// `mix` and the parts' own mixes varied for one song (the module's doc says how). Each change draws from a fork of
+/// `rng` of its own, so that changing one leaves the others' draws as they were.
+pub fn vary(mix: &mut MixPlan, parts: &mut [Part], rng: &Rng) {
+    let mut r = rng.fork("reverb");
     if let Effect::Reverb { decay, damping, predelay_ms, width, lowcut, .. } = &mut mix.reverb {
-        *decay = by(*decay, 1.5, rng).clamp(0.6, 8.0);
-        *damping = (*damping + rng.range(-0.15, 0.15) as f32).clamp(0.05, 0.95);
-        *predelay_ms = (*predelay_ms + rng.range(-10.0, 25.0) as f32).clamp(0.0, 80.0);
-        *width = by(*width, 1.2, rng).clamp(0.6, 1.5);
-        *lowcut = by(*lowcut, 1.4, rng).clamp(80.0, 800.0);
+        *decay = by(*decay, 1.5, &mut r).clamp(0.6, 8.0);
+        *damping = (*damping + r.range(-0.15, 0.15) as f32).clamp(0.05, 0.95);
+        *predelay_ms = (*predelay_ms + r.range(-10.0, 25.0) as f32).clamp(0.0, 80.0);
+        *width = by(*width, 1.2, &mut r).clamp(0.6, 1.5);
+        *lowcut = by(*lowcut, 1.4, &mut r).clamp(80.0, 800.0);
     }
+    let mut r = rng.fork("delay");
     if let Effect::Delay { beats, feedback, pingpong, .. } = &mut mix.delay {
-        if rng.chance(0.5) {
-            *beats = *rng.pick(&[0.25, 0.375, 0.5, 0.75, 1.0, 1.5]);
+        if r.chance(0.5) {
+            *beats = *r.pick(&[0.25, 0.375, 0.5, 0.75, 1.0, 1.5]);
         }
         if let Param::Const(f) = feedback {
-            *f = by(*f, 1.3, rng).clamp(0.1, 0.7);
+            *f = by(*f, 1.3, &mut r).clamp(0.1, 0.7);
         }
-        if rng.chance(0.3) {
+        if r.chance(0.3) {
             *pingpong = !*pingpong;
         }
     }
+    let (mut sends, mut colours) = (rng.fork("sends"), rng.fork("colours"));
     for p in parts.iter_mut() {
-        p.mix.reverb = by(p.mix.reverb, 1.5, rng).clamp(0.0, 0.8);
-        p.mix.delay = by(p.mix.delay, 1.7, rng).clamp(0.0, 0.6);
-        if rng.chance(0.4) {
-            let e = colour(p.role, rng);
+        p.mix.reverb = by(p.mix.reverb, 1.5, &mut sends).clamp(0.0, 0.8);
+        p.mix.delay = by(p.mix.delay, 1.7, &mut sends).clamp(0.0, 0.6);
+        if colours.chance(0.4) {
+            let e = colour(p.role, &mut colours);
             // one of each kind: a part with a phaser of its genre's keeps that one
             if !p.mix.fx.iter().any(|f| f.name() == e.name()) {
                 p.mix.fx.push(e);
@@ -109,8 +113,9 @@ pub fn vary(mix: &mut MixPlan, parts: &mut [Part], rng: &mut Rng) {
         }
     }
     // the music high-passed in the breaks, as if the room emptied
-    if rng.chance(0.3) {
-        let cutoff = rng.range(250.0, 500.0) as f32;
+    let mut r = rng.fork("room");
+    if r.chance(0.3) {
+        let cutoff = r.range(250.0, 500.0) as f32;
         mix.buses.entry("music".into()).or_default().push(Effect::Filter {
             mode: FilterMode::Hp,
             cutoff: Param::Sections(BySection { rest: 20.0, sections: [("break".into(), vec![cutoff])].into() }),
@@ -120,11 +125,12 @@ pub fn vary(mix: &mut MixPlan, parts: &mut [Part], rng: &mut Rng) {
         });
     }
     // the master's saturation in another flavour
+    let mut r = rng.fork("master");
     for e in mix.master.fx.iter_mut() {
         if let Effect::Saturate { kind, .. } = e
-            && rng.chance(0.5)
+            && r.chance(0.5)
         {
-            *kind = *rng.pick(&[SatKind::Tape, SatKind::Tube, SatKind::Tanh]);
+            *kind = *r.pick(&[SatKind::Tape, SatKind::Tube, SatKind::Tanh]);
         }
     }
 }

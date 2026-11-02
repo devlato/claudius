@@ -39,30 +39,34 @@ claudius composes a song in the style, arranges it, renders it with real sounds,
 the result. On this machine it printed:
 
 ```text
-ears loaded in 3.5 s
-Crimson Tide — house at 124 BPM in G dorian, 64 bars (2:04)
+ears loaded in 3.6 s
+Crimson Tide — house at 124 BPM in G dorian, 72 bars (2:19)
   progression A: i7 ii7 i7 IV7
   progression B: i7 VIImaj7 i7 IV7
-  form: intro 8 | groove 16 | break 8 | drop 24 | outro 8
-  tracks: kick (sampled bd (tr909:bd)), clap (sampled cp (tr909:cp)), hat (sampled hh (tr909:hh)), ohat (sampled oh (tr909:oh)), shaker (shaker cut from 'Cosmic Harmony Shaker' (Apple Loops)), perc (sampled rim (tr909:rim)), bass (synth patch 'saw_bass'), chords (synth patch 'stab'), pad (synth patch 'warm_pad'), lead (synth patch 'pluck'), arp (synth patch 'bell'), crash (synth crash), riser (synth riser), impact (synth impact), downlifter (synth downlifter), reverse_crash (synth reverse_crash)
-  master: -10.0 LUFS, true peak -1.0 dBTP (pre-master -9.3 LUFS); done in 24.2 s
-  ears: 'house music' z +3.2 (closest confusion 'techno music' +3.7); production z +1.6 vs 'a low quality recording with hiss' +1.7; p_real 0.74
-        sounds like: techno music, drum and bass music, tech house music, house music
-  verdict: 84/100 (arc 0.92, genre 0.58, mix 1.00, production 0.47, theory 1.00). Fix first: sounds about as much like a hissy recording as a professional mix: noise-built sounds (hats, shakers, risers) and long reverbs are the usual cause; sounds more like 'techno music' than 'house music'
+  form: intro 8 | groove 32 | break 8 | drop 16 | outro 8
+  tracks: kick (sampled bd (tr909:bd)), clap (sampled cp (tr909:cp)), hat (sampled hh (tr707:hh)), ohat (sampled oh (tr909:oh)), shaker (shaker cut from 'Cosmic Harmony Shaker' (Apple Loops)), perc (sampled rim (tr909:rim)), bass (synth patch 'saw_bass'), chords (sampled fm_piano (freepats:fm_piano)), pad (sampled strings (vsco2:strings)), lead (synth patch 'brass_lead'), arp (synth patch 'bell'), crash (synth crash), riser (synth riser), impact (synth impact), downlifter (synth downlifter), reverse_crash (synth reverse_crash)
+  master: -10.1 LUFS, true peak -1.0 dBTP (pre-master -9.4 LUFS); done in 10.1 s
+  ears: 'house music' z +3.4 (closest confusion 'techno music' +3.7); production z +1.9 vs 'a distorted clipped recording' +2.1; p_real 0.65
+        sounds like: techno music, tech house music, house music, drum and bass music
+  verdict: 81/100 (arc 0.88, genre 0.63, mix 0.92, production 0.45, theory 1.00). Fix first: nearly mono (correlation 0.97): widen pads, chords and effects; sounds about as much like a clipped recording as a professional mix: less drive and saturation, or a quieter master; sounds more like 'techno music' than 'house music'
   wrote out/house-crimson-tide-9/song.mp3
 ```
 
 The same genre and seed give the same song on any machine. What is installed changes only which recordings play:
-without Apple Loops, the shaker cut from them is synthesized, and without the sample packs so are the 909 drums, but
-the notes and drum patterns stay the same. Leave out `--seed` and you get a new song each time.
+without Apple Loops, the shaker cut from them is synthesized; without the sample packs, synthesized drums and
+one-shots cut from Apple Loops stand in for the drum machines, and the chords and pad play synths instead of the FM
+piano and the strings. The notes and drum patterns stay the same. Leave out `--seed` and you get a new song each
+time.
 
 Open `out/house-crimson-tide-9/song.mp3` and listen. Reading the summary while it plays:
 
 - **Crimson Tide**: the title the generator chose, the style, tempo, key and length.
 - **progression**: the chord sequences, as Roman numerals ([what those are](../learn/basics/chords.md#the-numbers-in-the-progression)).
-- **form**: the sections and their lengths in bars. The drop is the loud part in the middle.
-- **tracks**: every part and the sound playing it: a real Roland TR-909 for most of the drums, synthesizers for bass,
-  chords, pad, lead and arpeggio, and the transition effects at the end.
+- **form**: the sections and their lengths in bars. The drop is the loud part after the break. Every song of a genre
+  plays its own form: another seed may start without an intro, add a bridge or play its last drop twice.
+- **tracks**: every part and the sound playing it: a real Roland TR-909 for most of the drums and a TR-707 for the
+  hats, a sampled FM piano for the chords and a string section for the pad, synthesizers for bass, lead and
+  arpeggio, and the transition effects at the end.
 - **master**: how loud the finished song is, in LUFS (the loudness measure streaming services use), and its highest
   peak. claudius masters a song to the loudness its style usually has.
 - **ears** and **sounds like**: what the listening models hear. The first reading is how clearly the song sounds like
@@ -70,8 +74,9 @@ Open `out/house-crimson-tide-9/song.mp3` and listen. Reading the summary while i
   second compares "professionally mixed" with the closest of six typical flaws. `p_real` is the models' guess that
   this is a real recording, reported and not scored. These are a machine's impressions: hints, not rules.
 - **verdict**: the critic's score out of 100, and the issues that cost the most, each with where it usually comes
-  from. This song sounds about as much like a hissy recording as a professional mix, and a little more like techno
-  than house. [Listening, judging, finishing](../learn/basics/finishing.md) explains every part of it.
+  from. This song is nearly mono, sounds about as much like a clipped recording as a professional mix, and a little
+  more like techno than house. [Listening, judging, finishing](../learn/basics/finishing.md) explains every part of
+  it.
 
 The folder holds the song (`song.mp3`, and `song.wav` in 24-bit), the song's full description (`blueprint.json`) and
 the same song as a script (`song.rhai`), the arranged timeline (`project.json`), the critic's report (`verdict.json`),
@@ -89,7 +94,7 @@ mix("lead", #{ level: -2, reverb: 0.35 });
 section("drop", #{ bars: 32 });
 ```
 
-It slows the song down a little, plays the chords on a sampled grand piano instead of a synth stab, pulls the lead
+It slows the song down a little, plays the chords on a sampled grand piano instead of the FM piano, pulls the lead
 back and into more reverb, and makes the drop 32 bars long. Run it on the song:
 
 ```sh
@@ -97,21 +102,22 @@ claudius script edit.rhai --on out/house-crimson-tide-9
 ```
 
 ```text
-ears loaded in 6.2 s
-Crimson Tide — house at 122 BPM in G dorian, 72 bars (2:22)
+ears loaded in 4.0 s
+Crimson Tide — house at 122 BPM in G dorian, 88 bars (2:53)
   progression A: i7 ii7 i7 IV7
   progression B: i7 VIImaj7 i7 IV7
-  form: intro 8 | groove 16 | break 8 | drop 32 | outro 8
-  tracks: kick (sampled bd (tr909:bd)), clap (sampled cp (tr909:cp)), hat (sampled hh (tr909:hh)), ohat (sampled oh (tr909:oh)), shaker (shaker cut from 'Cosmic Harmony Shaker' (Apple Loops)), perc (sampled rim (tr909:rim)), bass (synth patch 'saw_bass'), chords (sampled piano (salamander:piano)), pad (synth patch 'warm_pad'), lead (synth patch 'pluck'), arp (synth patch 'bell'), crash (synth crash), riser (synth riser), impact (synth impact), downlifter (synth downlifter), reverse_crash (synth reverse_crash)
-  master: -10.1 LUFS, true peak -1.0 dBTP (pre-master -9.3 LUFS); done in 22.4 s
-  ears: 'house music' z +3.4 (closest confusion 'techno music' +3.7); production z +1.6 vs 'a low quality recording with hiss' +1.6; p_real 0.75
+  form: intro 8 | groove 32 | break 8 | drop 32 | outro 8
+  tracks: kick (sampled bd (tr909:bd)), clap (sampled cp (tr909:cp)), hat (sampled hh (tr707:hh)), ohat (sampled oh (tr909:oh)), shaker (shaker cut from 'Cosmic Harmony Shaker' (Apple Loops)), perc (sampled rim (tr909:rim)), bass (synth patch 'saw_bass'), chords (sampled piano (salamander:piano)), pad (sampled strings (vsco2:strings)), lead (synth patch 'brass_lead'), arp (synth patch 'bell'), crash (synth crash), riser (synth riser), impact (synth impact), downlifter (synth downlifter), reverse_crash (synth reverse_crash)
+  master: -10.1 LUFS, true peak -1.0 dBTP (pre-master -9.2 LUFS); done in 8.2 s
+  ears: 'house music' z +3.0 (closest confusion 'techno music' +3.4); production z +1.8 vs 'a distorted clipped recording' +2.0; p_real 0.73
         sounds like: techno music, tech house music, house music, drum and bass music
-  verdict: 85/100 (arc 0.92, genre 0.63, mix 1.00, production 0.49, theory 1.00). Fix first: sounds about as much like a hissy recording as a professional mix: noise-built sounds (hats, shakers, risers) and long reverbs are the usual cause; sounds more like 'techno music' than 'house music'
+  verdict: 83/100 (arc 0.89, genre 0.58, mix 1.00, production 0.45, theory 1.00). Fix first: sounds about as much like a clipped recording as a professional mix: less drive and saturation, or a quieter master; sounds more like 'techno music' than 'house music'
   wrote out/house-crimson-tide-9/song.mp3
 ```
 
-Everything you did not name stayed as it was. The chords are now `sampled piano`, the song is 72 bars, and the score
-moved a point: the critic is a guide, and your ears decide whether the piano is better.
+Everything you did not name stayed as it was. The chords are now `sampled piano`, the song is 88 bars, and the score
+moved two points: the grand piano is recorded in stereo, so the mix is no longer nearly mono. The critic is a guide,
+and your ears decide whether the piano is better.
 
 The edited song is written back into the same folder, because its genre, title and seed are the same, so the
 original files are replaced. To keep both, add `title("Crimson Tide (piano)")` to the script, or pass

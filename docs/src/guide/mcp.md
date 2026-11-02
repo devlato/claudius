@@ -203,25 +203,27 @@ This is `listen` after `tempo(122); mix("lead", #{ level: -2 });` on a house son
 port 7931:
 
 ```text
-Crimson Tide — house at 122 BPM in G dorian, swing 0.53, 64 bars (2:06)
+Crimson Tide — house at 122 BPM in G dorian, swing 0.53, 72 bars (2:22)
 progression A: i7 ii7 i7 IV7
 progression B: i7 VIImaj7 i7 IV7
 form:
-  0. intro (intro) bar 0 +8, energy 0.40, drums 'sparse' [filter_in]: kick hat perc top
-  1. groove (groove) bar 8 +16, energy 0.70, drums 'main' [fills]: kick clap hat ohat perc bass chords top
-  2. break (break) bar 24 +8, energy 0.35, drums 'main' [build, gap]: pad lead chords
-  3. drop (drop) bar 32 +24, energy 0.95, drums 'main' [impact, fills]: kick clap hat ohat shaker perc bass chords lead arp top
-  4. outro (outro) bar 56 +8, energy 0.40, drums 'sparse': kick hat perc bass
+  0. intro (intro) bar 0 +8, energy 0.36, drums 'sparse' [filter_in]: kick hat perc
+  1. groove (groove) bar 8 +32, energy 0.66, drums 'main': kick clap hat ohat perc bass chords top
+  2. break (break) bar 40 +8, energy 0.35, drums 'main' [build, gap]: pad lead chords
+  3. drop (drop) bar 48 +16, energy 0.99, drums 'main' [impact]: kick clap hat ohat shaker perc bass chords lead arp top
+  4. outro (outro) bar 64 +8, energy 0.20, drums 'sparse': hat perc
 tracks:
-  kick [drum kick] sampled bd (tr909:bd); level +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, -13.2 LUFS
-  clap [drum clap] sampled cp (tr909:cp); level +0.0 dB, pan +0.00, reverb 0.18, delay 0.00, duck 0.00, -15.2 LUFS
+  kick [drum kick] sampled bd (tr909:bd); level +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, -13.0 LUFS
+  clap [drum clap] sampled cp (tr909:cp); level +0.0 dB, pan +0.00, reverb 0.18, delay 0.00, duck 0.00, -15.0 LUFS
   ...
-  lead [part lead] synth patch 'pluck'; level -2.0 dB, pan +0.00, reverb 0.25, delay 0.20, duck 0.20, -20.7 LUFS
-  arp [part arp] synth patch 'bell'; level +0.0 dB, pan +0.20, reverb 0.20, delay 0.25, duck 0.30, -21.2 LUFS
+  lead [part lead] synth patch 'brass_lead'; level -2.0 dB, pan +0.00, reverb 0.21, delay 0.34, duck 0.20, -20.5 LUFS
+  arp [part arp] synth patch 'bell'; level +0.0 dB, pan +0.20, reverb 0.29, delay 0.18, duck 0.30, -21.0 LUFS
   fx [fx fx] risers, impacts, crashes; level +0.0 dB, pan +0.00, reverb 0.25, delay 0.00, duck 0.00
-render: -10.1 LUFS, true peak -1.0 dBTP, 128 s
-verdict 97.2/100: 97/100 (arc 0.90, mix 1.00, theory 1.00)
-  scores: arc 0.90, mix 1.00, theory 1.00
+render: -10.0 LUFS, true peak -1.0 dBTP, 142 s
+verdict 93.3/100: 93/100 (arc 0.89, mix 0.92, theory 1.00). Fix first: nearly mono (correlation 0.97): widen pads, chords and effects
+  scores: arc 0.89, mix 0.92, theory 1.00
+  loudness by section (LUFS): intro -11.9, groove -9.4, break -12.5, drop -9.0, outro -20.7
+  issue (0.35): nearly mono (correlation 0.97): widen pads, chords and effects — fix: width+
 audio: http://127.0.0.1:7931/api/audio/8.wav (the studio at http://127.0.0.1:7931 plays it)
 ```
 

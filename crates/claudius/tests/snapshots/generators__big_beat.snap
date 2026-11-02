@@ -6,14 +6,13 @@ big_beat at 135.0 BPM in G minor, swing 0.51
 prog A: i iv III VI
 prog B: i IVsus4 III VI
 bars per chord: 2
-section intro (intro) 8 bars, energy 0.45, prog A, sparse []: hat perc riff
-section groove (groove) 16 bars, energy 0.72, prog A, main [gap fills]: kick snare hat perc bass stabs
-section drop (drop) 16 bars, energy 0.98, prog A, main [impact fills]: kick snare hat ride perc bass acid stabs riff
-section break (break) 16 bars, energy 0.41, prog B, main [gap]: riff perc
+section intro (intro) 8 bars, energy 0.39, prog A, sparse [filter_in]: hat perc riff
+section groove (groove) 16 bars, energy 0.70, prog A, main [fills]: kick snare hat perc bass stabs
+section drop (drop) 32 bars, energy 0.95, prog A, main [impact fills]: kick snare hat ride perc bass acid stabs riff
+section break (break) 8 bars, energy 0.36, prog B, main [gap]: riff perc
 section build (build) 8 bars, energy 0.74, prog A, main [build gap]: snare hat acid riff
-section drop2 (drop) 16 bars, energy 0.97, prog A, main [impact fills]: kick snare hat ride perc bass acid stabs riff
-section drop3 (drop) 16 bars, energy 1.00, prog A, main [fills]: kick snare hat ride perc bass acid stabs riff
-section outro (outro) 4 bars, energy 0.42, prog A, sparse []: kick snare hat riff
+section drop2 (drop) 24 bars, energy 1.00, prog A, main [impact fills]: kick snare hat ride perc bass acid stabs riff
+section outro (outro) 16 bars, energy 0.40, prog A, sparse []: kick snare
 drum kick main (drum kick): X.........X.....|X.....X...X....X|X.........X.....|X.....X...X....X
 drum kick sparse (drum kick): X.......X.......|X.......X.......|X.......X.......|X.......X.......
 drum snare main (drum snare): .o..X.o.....X...|....X....X..X...|.o..X.o.....X...|....X....X..X...
@@ -31,6 +30,6 @@ mix hat: +0.0 dB, pan +0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix ride: +0.0 dB, pan -0.35, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix perc: +0.0 dB, pan -0.40, reverb 0.15, delay 0.00, duck 0.00, bus drums
 mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.35, bus bass
-mix acid: +0.0 dB, pan +0.00, reverb 0.00, delay 0.12, duck 0.30, bus music
-mix stabs: +0.0 dB, pan +0.20, reverb 0.30, delay 0.20, duck 0.45, bus music
-mix riff: +0.0 dB, pan +0.00, reverb 0.15, delay 0.15, duck 0.25, bus music
+mix acid: +0.0 dB, pan +0.00, reverb 0.00, delay 0.10, duck 0.30, bus music
+mix stabs: +0.0 dB, pan +0.20, reverb 0.25, delay 0.17, duck 0.45, bus music
+mix riff: +0.0 dB, pan +0.00, reverb 0.14, delay 0.21, duck 0.25, bus music

@@ -6,11 +6,11 @@ house at 125.0 BPM in G minor, swing 0.52
 prog A: i7 iv7 IIImaj7 VImaj7
 prog B: i7 IVsus4 IIImaj7 VImaj7
 bars per chord: 1
-section intro (intro) 8 bars, energy 0.37, prog A, sparse [filter_in]: kick hat perc
-section groove (groove) 16 bars, energy 0.69, prog A, main [fills]: kick clap hat ohat perc bass chords top
-section break (break) 8 bars, energy 0.31, prog B, main [build gap]: pad lead chords
-section drop (drop) 32 bars, energy 0.95, prog A, main [impact fills]: kick clap hat ohat shaker perc bass chords lead arp top
-section outro (outro) 8 bars, energy 0.43, prog A, sparse []: kick hat perc bass
+section intro (intro) 8 bars, energy 0.39, prog A, sparse [filter_in]: kick hat perc top
+section groove (groove) 16 bars, energy 0.70, prog A, main [fills]: kick clap hat ohat perc bass chords top
+section break (break) 16 bars, energy 0.35, prog B, main [build gap]: pad lead chords
+section drop (drop) 24 bars, energy 0.91, prog A, main [impact fills]: kick clap hat ohat shaker perc bass chords lead arp top
+section outro (outro) 8 bars, energy 0.29, prog A, sparse []: kick hat
 drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum kick sparse (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
@@ -31,6 +31,6 @@ mix ohat: +0.0 dB, pan -0.10, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix shaker: +0.0 dB, pan -0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix perc: +0.0 dB, pan +0.35, reverb 0.00, delay 0.15, duck 0.00, bus drums
 mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.55, bus bass
-mix chords: +0.0 dB, pan +0.00, reverb 0.20, delay 0.08, duck 0.45, bus music
-mix pad: +0.0 dB, pan +0.00, reverb 0.35, delay 0.00, duck 0.50, bus music
-mix lead: +0.0 dB, pan +0.00, reverb 0.25, delay 0.20, duck 0.20, bus music
+mix chords: +0.0 dB, pan +0.00, reverb 0.27, delay 0.06, duck 0.45, bus music
+mix pad: +0.0 dB, pan +0.00, reverb 0.29, delay 0.00, duck 0.50, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.23, delay 0.28, duck 0.20, bus music

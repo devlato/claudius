@@ -6,17 +6,16 @@ dance_pop at 126.0 BPM in G major, swing 0.51
 prog A: I IV I V
 prog B: I IVsus4 I V
 bars per chord: 1
-section intro (intro) 8 bars, energy 0.49, prog A, sparse []: chords pad hat
-section verse (verse) 16 bars, energy 0.61, prog A, pop [fills]: kick clap hat bass chords hook
-section pre (build) 8 bars, energy 0.73, prog B, main [build gap]: clap hat bass chords pad hook
-section chorus (hook) 8 bars, energy 0.92, prog A, main [impact fills]: kick clap hat ohat shaker bass chords pad hook lead
-section verse2 (verse) 16 bars, energy 0.62, prog A, pop []: kick clap hat shaker bass chords hook
-section pre2 (build) 8 bars, energy 0.66, prog B, main [build gap]: clap hat bass chords pad hook
-section chorus2 (hook) 8 bars, energy 0.98, prog A, main [impact fills]: kick clap hat ohat shaker bass chords pad hook lead
-section bridge (break) 4 bars, energy 0.40, prog B, main []: pad hook chords
-section chorus3 (hook) 16 bars, energy 0.99, prog A, main [impact fills]: kick clap hat ohat shaker bass chords pad hook lead
-section chorus4 (hook) 16 bars, energy 0.97, prog A, main [fills]: kick clap hat ohat shaker bass chords pad hook lead
-section outro (outro) 16 bars, energy 0.47, prog A, sparse []: kick hat chords pad
+section intro (intro) 8 bars, energy 0.44, prog A, sparse [filter_in]: chords pad hat
+section verse (verse) 16 bars, energy 0.60, prog A, pop []: kick clap hat bass chords hook
+section pre (build) 4 bars, energy 0.70, prog B, main [build gap]: clap hat bass chords pad hook
+section chorus (hook) 16 bars, energy 0.91, prog A, main [impact fills]: kick clap hat ohat shaker bass chords pad hook lead
+section verse2 (verse) 16 bars, energy 0.74, prog A, pop []: kick clap hat shaker bass chords hook lead
+section pre2 (build) 4 bars, energy 0.73, prog B, main [build gap]: clap hat bass chords pad hook
+section chorus2 (hook) 8 bars, energy 1.00, prog A, main [impact fills]: kick clap hat ohat shaker bass chords pad hook lead
+section bridge (break) 8 bars, energy 0.41, prog B, main []: pad hook chords
+section chorus3 (hook) 8 bars, energy 1.00, prog A, main [impact fills]: kick clap hat ohat shaker bass chords pad hook lead
+section outro (outro) 8 bars, energy 0.32, prog A, sparse []: kick hat
 drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum kick pop (drum kick): X.......X.X.....|X.......X.X.....|X.......X.X.....|X.......X.X.....
 drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
@@ -36,7 +35,7 @@ mix hat: +0.0 dB, pan +0.20, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix ohat: +0.0 dB, pan -0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix shaker: +0.0 dB, pan -0.35, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.60, bus bass
-mix chords: +0.0 dB, pan +0.00, reverb 0.20, delay 0.10, duck 0.50, bus music
-mix pad: +0.0 dB, pan +0.00, reverb 0.35, delay 0.00, duck 0.55, bus music
-mix hook: +0.0 dB, pan +0.00, reverb 0.30, delay 0.20, duck 0.20, bus music
-mix lead: +0.0 dB, pan +0.15, reverb 0.25, delay 0.25, duck 0.35, bus music
+mix chords: +0.0 dB, pan +0.00, reverb 0.27, delay 0.08, duck 0.50, bus music
+mix pad: +0.0 dB, pan +0.00, reverb 0.29, delay 0.00, duck 0.55, bus music
+mix hook: +0.0 dB, pan +0.00, reverb 0.27, delay 0.28, duck 0.20, bus music
+mix lead: +0.0 dB, pan +0.15, reverb 0.34, delay 0.20, duck 0.35, bus music
