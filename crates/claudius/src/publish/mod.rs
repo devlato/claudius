@@ -224,6 +224,11 @@ pub fn store_genre(genre: &str) -> (&'static str, &'static str) {
         "dubstep" => ("Electronic", "Dubstep"),
         "uk_garage" => ("Dance", "UK Garage"),
         "jungle" => ("Electronic", "Jungle"),
+        "afrobeats" => ("African", "Afrobeats"),
+        "amapiano" => ("African", "Amapiano"),
+        "reggaeton" => ("Latin", "Reggaeton"),
+        "trance" => ("Dance", "Trance"),
+        "neo_soul" => ("R&B/Soul", "Neo-Soul"),
         _ => ("Electronic", ""),
     }
 }

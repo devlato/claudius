@@ -16,6 +16,8 @@ pub enum Feel {
     BoomBap,
     Straight,
     TwoStep,
+    Afro,
+    Dembow,
 }
 
 type PartSpec = (&'static str, &'static str, &'static [&'static str], &'static [&'static str], (i32, i32));
@@ -660,6 +662,140 @@ pub const GENRES: &[Genre] = &[
         query: "jungle music",
         alts: &["drum and bass music", "breakbeat music", "reggae music"],
     },
+    Genre {
+        name: "afrobeats",
+        description: "Afrobeats: 100 to 115 BPM, a rolling West African groove (a kick on one and three with a pickup, claps on 2 and 4, a rim on the clave, shakers in sixteenths, congas), bright major and minor chords on guitar plucks and keys, a warm sub, a sung-sounding lead in the hooks",
+        bpm: (100.0, 115.0),
+        swing: (0.52, 0.58),
+        feel: Feel::Afro,
+        drums: &["kick", "clap", "rim", "hat", "shaker", "perc"],
+        parts: &[
+            ("bass", "bass", &["syncopated", "sustain", "offbeat"], &["sub_bass", "pluck_bass"], (31, 48)),
+            ("guitar", "chords", &["stabs", "syncopated", "offbeat"], &["pluck"], (55, 76)),
+            ("keys", "keys", &["sustain", "half"], &["epiano", "keys"], (50, 74)),
+            ("lead", "lead", &["motif"], &["bell", "pluck", "square_lead"], (62, 84)),
+            ("pad", "pad", &["sustain"], &["warm_pad", "strings"], (50, 74)),
+        ],
+        form: &[
+            ("intro", "intro", 8),
+            ("verse", "verse", 16),
+            ("hook", "hook", 16),
+            ("verse2", "verse", 16),
+            ("hook2", "hook", 16),
+            ("break", "break", 8),
+            ("hook3", "hook", 16),
+            ("outro", "outro", 8),
+        ],
+        modes: &["major", "minor", "dorian"],
+        query: "afrobeats music",
+        alts: &["dancehall music", "reggaeton music", "house music"],
+    },
+    Genre {
+        name: "amapiano",
+        description: "Amapiano: 110 to 116 BPM, a steady kick under shakers and open hats, the log drum, a pitched and woody bass playing syncopated lines, jazzy minor 7th and 9th chords on piano and Rhodes, airy pads, a whistle or flute line, long grooves that hold back before they drop",
+        bpm: (110.0, 116.0),
+        swing: (0.54, 0.6),
+        feel: Feel::FourFloor,
+        drums: &["kick", "clap", "shaker", "ohat", "rim"],
+        parts: &[
+            ("logdrum", "bass", &["syncopated", "kick_follow", "offbeat"], &["pluck_bass", "808"], (33, 52)),
+            ("keys", "keys", &["sustain", "charleston", "half", "stabs"], &["keys", "epiano"], (52, 76)),
+            ("pad", "pad", &["sustain"], &["warm_pad", "pad"], (50, 76)),
+            ("lead", "lead", &["motif"], &["bell", "pluck"], (64, 86)),
+        ],
+        form: &[
+            ("intro", "intro", 16),
+            ("groove", "groove", 16),
+            ("break", "break", 8),
+            ("drop", "drop", 32),
+            ("break2", "break", 16),
+            ("drop2", "drop", 32),
+            ("outro", "outro", 16),
+        ],
+        modes: &["minor", "dorian", "major"],
+        query: "amapiano music",
+        alts: &["deep house music", "afrobeats music", "jazz music"],
+    },
+    Genre {
+        name: "reggaeton",
+        description: "Reggaeton: 88 to 100 BPM on the dembow, a kick on every beat and a snare after the first and before the third, minor chords on plucks, pianos and pads, a sub bass on the roots, a synth or voice-like lead, verses and hooks",
+        bpm: (88.0, 100.0),
+        swing: (0.5, 0.53),
+        feel: Feel::Dembow,
+        drums: &["kick", "snare", "hat", "rim", "shaker"],
+        parts: &[
+            ("bass", "bass", &["sustain", "kick_follow", "root8"], &["sub_bass", "808"], (28, 45)),
+            ("chords", "chords", &["sustain", "stabs", "syncopated"], &["pluck", "keys", "strings"], (55, 76)),
+            ("pad", "pad", &["sustain"], PAD_PRESETS, (48, 72)),
+            ("lead", "lead", &["motif"], &["pluck", "square_lead", "supersaw"], (62, 86)),
+        ],
+        form: &[
+            ("intro", "intro", 8),
+            ("verse", "verse", 16),
+            ("hook", "hook", 16),
+            ("verse2", "verse", 16),
+            ("hook2", "hook", 16),
+            ("break", "break", 8),
+            ("hook3", "hook", 16),
+            ("outro", "outro", 8),
+        ],
+        modes: &["minor", "harmonic_minor", "dorian"],
+        query: "reggaeton music",
+        alts: &["dancehall music", "latin pop music", "trap beat"],
+    },
+    Genre {
+        name: "trance",
+        description: "Trance: 134 to 140 BPM, four on the floor with offbeat open hats and a clap on 2 and 4, a rolling sixteenth-note bass, euphoric minor progressions under supersaw chords and a soaring lead, arpeggios, a long breakdown that strips to pads and builds back with risers and a roll into the drop",
+        bpm: (134.0, 140.0),
+        swing: (0.5, 0.51),
+        feel: Feel::FourFloor,
+        drums: &["kick", "clap", "hat", "ohat"],
+        parts: &[
+            ("bass", "bass", &["rolling", "offbeat", "pulse"], &["saw_bass", "pluck_bass"], (33, 50)),
+            ("chords", "chords", &["sustain", "pump", "stabs"], &["supersaw", "stab"], (55, 79)),
+            ("pad", "pad", &["sustain"], PAD_PRESETS, (48, 76)),
+            ("lead", "lead", &["motif"], &["supersaw", "pluck", "square_lead"], (64, 88)),
+            ("arp", "arp", &["up", "updown", "random"], ARP_PRESETS, (60, 86)),
+        ],
+        form: &[
+            ("intro", "intro", 16),
+            ("groove", "groove", 16),
+            ("break", "break", 32),
+            ("build", "build", 8),
+            ("drop", "drop", 32),
+            ("outro", "outro", 16),
+        ],
+        modes: &["minor", "dorian", "major"],
+        query: "trance music",
+        alts: &["techno music", "house music", "electro house music"],
+    },
+    Genre {
+        name: "neo_soul",
+        description: "Neo-soul: 72 to 92 BPM, a laid-back groove on a live kit with ghost notes and a cross-stick, rich 9th and 11th chords on Rhodes and organ, a round bass that walks and slides between roots, soft strings, a sung-sounding lead, verses, hooks and a bridge",
+        bpm: (72.0, 92.0),
+        swing: (0.55, 0.62),
+        feel: Feel::BoomBap,
+        drums: &["kick", "snare", "hat", "rim", "ride"],
+        parts: &[
+            ("bass", "bass", &["syncopated", "walking", "sustain"], &["pluck_bass", "sub_bass"], (28, 48)),
+            ("keys", "keys", &["sustain", "charleston", "half"], &["epiano", "keys", "organ"], (50, 76)),
+            ("lead", "lead", &["motif"], &["bell", "square_lead", "pluck"], (62, 84)),
+            ("strings", "pad", &["sustain"], &["strings", "warm_pad"], (52, 79)),
+        ],
+        form: &[
+            ("intro", "intro", 4),
+            ("verse", "verse", 16),
+            ("hook", "hook", 8),
+            ("verse2", "verse", 16),
+            ("hook2", "hook", 8),
+            ("bridge", "break", 8),
+            ("hook3", "hook", 8),
+            ("outro", "outro", 8),
+        ],
+        modes: &["dorian", "minor", "major"],
+        query: "neo soul music",
+        alts: &["r&b music", "jazz music", "lo-fi hip hop beat"],
+    },
 ];
 
 /// a genre of the demo's; a fusion plays the genre that leads it
@@ -800,7 +936,9 @@ fn drum_lane(lane: &str, feel: Feel, rng: &mut Rng) -> DrumView {
         let at = |s: usize| bar * 16 + s;
         let last = bar + 1 == bars as usize;
         match (lane, feel) {
-            ("kick", Feel::FourFloor) => [0, 4, 8, 12].iter().for_each(|&s| main[at(s)] = rng.range(0.93, 1.0)),
+            ("kick", Feel::FourFloor | Feel::Dembow) => {
+                [0, 4, 8, 12].iter().for_each(|&s| main[at(s)] = rng.range(0.93, 1.0))
+            }
             ("kick", Feel::Straight) => [0, 4, 8, 12].iter().for_each(|&s| main[at(s)] = rng.range(0.9, 1.0)),
             ("kick", Feel::HalfTime) => {
                 main[at(0)] = 1.0;
@@ -826,6 +964,15 @@ fn drum_lane(lane: &str, feel: Feel, rng: &mut Rng) -> DrumView {
                     main[at(7)] = rng.range(0.55, 0.7);
                 }
             }
+            ("kick", Feel::Afro) => {
+                main[at(0)] = 1.0;
+                main[at(8)] = rng.range(0.85, 0.95);
+                if bar % 2 == 1 {
+                    main[at(7)] = rng.range(0.35, 0.5);
+                }
+            }
+            ("snare", Feel::Dembow) => [3, 6, 11, 14].iter().for_each(|&s| main[at(s)] = rng.range(0.88, 1.0)),
+            ("rim", Feel::Afro) => [0, 3, 6, 10, 12].iter().for_each(|&s| main[at(s)] = rng.range(0.5, 0.7)),
             ("kick", Feel::TwoStep) => {
                 main[at(0)] = 1.0;
                 if bar % 2 == 0 {

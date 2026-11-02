@@ -33,6 +33,11 @@ the critic judges against it, and evolution mutates songs within it. This page c
 | `dubstep` | 138–142 | 0.50–0.52 | minor, phrygian, harmonic minor | −9 | 909 (30 %), 808 (25 %) | dubstep music (drum and bass, trap, electro house, techno) |
 | `uk_garage` | 130–136 | 0.58–0.66 | minor, dorian, major | −9.5 | 909 (35 %), 808 (25 %) | uk garage music (house, drum and bass, r&b, dubstep) |
 | `jungle` | 160–172 | 0.50–0.53 | minor, dorian, phrygian | −9.5 | acoustic (60 %) | jungle music (drum and bass, breakbeat, dubstep, reggae) |
+| `afrobeats` | 100–115 | 0.52–0.58 | major, minor, dorian | −9.5 | 808 (30 %), acoustic (30 %) | afrobeats music (dancehall, reggaeton, house, r&b) |
+| `amapiano` | 110–116 | 0.54–0.60 | minor, dorian, major | −10 | 909 (30 %), 808 (30 %) | amapiano music (deep house, afrobeats, house, jazz) |
+| `reggaeton` | 88–100 | 0.50–0.53 | minor, harmonic minor, dorian | −9 | 808 (50 %) | reggaeton music (dancehall, latin pop, trap, afrobeats) |
+| `trance` | 134–140 | 0.50–0.51 | minor, dorian, major | −9 | 909 (60 %) | trance music (techno, house, electro house, synthwave) |
+| `neo_soul` | 72–92 | 0.55–0.62 | dorian, minor, major | −11 | acoustic (60 %) | neo soul music (r&b, jazz, lo-fi hip hop, funk) |
 
 The ten after synthwave lean on [effect chains](../../language/mixing.md#effect-chains) in their profiles:
 trip-hop's drums go through parallel compression and a crushed copy, and its delay feeds back harder in the breaks;
@@ -45,6 +50,10 @@ loop, drill's late snare and hats in threes over a sliding 808, dubstep's wobble
 kick and shuffle, jungle's chopped breakbeat under a deep sub. Each is close kin of a style the ears know well
 (lo-fi hip hop, trap, drum and bass, house), and its "against" list names that style, so its genre score runs lower
 than most: the ears often hear the family before the genre.
+
+The last five bring grooves of their own: afrobeats' clave, congas and shakers, amapiano's log drum under a steady
+kick, reggaeton's dembow, trance's rolling bass and long breakdown, neo-soul's laid-back live kit under ninth and
+eleventh chords.
 
 The "against" list matters: the genre score is high only when a song reads as its genre *more than* as the styles it
 is usually confused with.
