@@ -1218,3 +1218,104 @@ async fn a_lane_takes_its_own_time_and_a_recordings_groove() {
     assert!(!r.ok && r.message.contains("too few drum hits"), "{}", r.message);
     std::fs::remove_file(&quiet).unwrap();
 }
+
+/// `bars` bars of a kit at `bpm`, from `lead` seconds in: a kick on 1 and 3, a snare on 2 and 4, a hat on every off-beat
+fn beat(bars: usize, bpm: f64, lead: f64) -> claudius::audio::Stereo {
+    use claudius::dsp::filter::butter;
+    let sr = claudius::config::SR as f64;
+    let spb = 60.0 / bpm;
+    let n = ((lead + bars as f64 * 4.0 * spb) * sr) as usize + 24_000;
+    let mut l = vec![0f32; n];
+    let mut rng = claudius::rng::Rng::new(5);
+    let fade = |i: usize, len: usize| ((len - i) as f32 / 480.0).min(1.0);
+    let mut noise = |lo: f64, hi: f64, len: usize| {
+        let mut x: Vec<f32> = (0..len).map(|_| rng.f32() * 2.0 - 1.0).collect();
+        butter(&mut x, true, lo, sr, 4);
+        butter(&mut x, false, hi, sr, 4);
+        x
+    };
+    for b in 0..bars * 4 {
+        let at = |beat: f64| ((lead + (b as f64 + beat) * spb) * sr) as usize;
+        if b % 2 == 0 {
+            let (len, mut ph) = (14_400, 0f32);
+            for i in 0..len {
+                let t = i as f32 / sr as f32;
+                ph += std::f32::consts::TAU * (50.0 + 100.0 * (-t / 0.03).exp()) / sr as f32;
+                l[at(0.0) + i] += 0.9 * ph.sin() * (-t / 0.15).exp() * fade(i, len);
+            }
+        } else {
+            let x = noise(1000.0, 6000.0, 9_600);
+            for (i, v) in x.iter().enumerate() {
+                l[at(0.0) + i] += 0.6 * v * (-(i as f32 / sr as f32) / 0.08).exp() * fade(i, x.len());
+            }
+        }
+        let x = noise(7000.0, 20_000.0, 4_800);
+        for (i, v) in x.iter().enumerate() {
+            l[at(0.5) + i] += 0.35 * v * (-(i as f32 / sr as f32) / 0.03).exp() * fade(i, x.len());
+        }
+    }
+    claudius::audio::Stereo { l: l.clone(), r: l }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_beat_played_or_beatboxed_becomes_the_drum_lanes() {
+    let app = app();
+    let song = Command::NewSong { genre: "house".into(), seed: Some(3), bpm: Some(100.0), key: None, loops: false };
+    assert!(app.command(song).ok);
+    let from = app.state().song.unwrap().sections[0].name.clone();
+    let file = std::env::temp_dir().join(format!("claudius-beat-{}.wav", std::process::id()));
+    claudius::audio::save_wav(&file, &beat(4, 100.0, 0.005), true).unwrap();
+    let take = Command::AddTake {
+        path: file.display().to_string(),
+        from,
+        name: Some("beat".into()),
+        role: Some("drums".into()),
+    };
+    let r = app.command(take);
+    assert!(r.ok, "{}", r.message);
+    let drums =
+        |bars: Option<u32>, take: Option<&str>, path: Option<String>, variant: Option<&str>| Command::TranscribeDrums {
+            take: take.map(String::from),
+            path,
+            bars,
+            variant: variant.map(String::from),
+            bpm: None,
+            keep_take: false,
+        };
+    let r = app.command(drums(Some(1), Some("beat"), None, None));
+    assert!(r.ok, "{}", r.message);
+    assert!(r.message.contains("beat into drums, 1 bar as their main patterns"), "{}", r.message);
+    assert!(
+        r.message.contains("kick 2 steps into kick, snare 2 steps into clap, hat 4 steps into hat"),
+        "{}",
+        r.message
+    );
+    assert!(r.message.ends_with("; the take is muted"), "{}", r.message);
+    let song = app.state().song.unwrap();
+    let steps = |lane: &str, variant: &str| -> Vec<usize> {
+        let d = song.drums.iter().find(|d| d.lane == lane).unwrap();
+        let v = &d.variants.iter().find(|(n, _)| n == variant).unwrap().1;
+        (0..16).filter(|&i| v[i] > 0.0).collect()
+    };
+    assert_eq!(
+        (steps("kick", "main"), steps("clap", "main"), steps("hat", "main")),
+        (vec![0, 8], vec![4, 12], vec![2, 6, 10, 14])
+    );
+    assert!(song.tracks.iter().find(|t| t.name == "beat").unwrap().muted, "the take goes quiet");
+    // the same beat as a file: its tempo heard, its own downbeat, into a variant of its own
+    let r = app.command(drums(Some(1), None, Some(file.display().to_string()), Some("played")));
+    assert!(r.ok && r.message.contains("as their played patterns"), "{}", r.message);
+    let song = app.state().song.unwrap();
+    let played =
+        |lane: &str| song.drums.iter().find(|d| d.lane == lane).unwrap().variants.iter().any(|(n, _)| n == "played");
+    assert!(played("kick") && played("clap") && played("hat"));
+    for (c, says) in [
+        (drums(Some(3), Some("beat"), None, None), "a beat's pattern is 1, 2 or 4 bars, not 3"),
+        (drums(None, Some("vox"), None, None), "no take called 'vox' (takes: beat)"),
+        (drums(None, None, None, None), "transcribe_drums wants a take, or the path of a recording"),
+    ] {
+        let r = app.command(c);
+        assert!(!r.ok && r.message.contains(says), "{}", r.message);
+    }
+    std::fs::remove_file(&file).unwrap();
+}

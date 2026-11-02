@@ -43,8 +43,10 @@ the song it opens.
   per track. Click a cell, or drag across cells, to switch a track on or off in those sections. Drag a section to
   move it; right-click it to duplicate, insert or remove one. Right-click a [take](../guide/samples.md#takes)'s row
   to hear [how it is sung](../guide/voice.md) (**How is it sung?**), to [tune it](../guide/voice.md#tuning-a-voice)
-  (**Tune it**: naturally, tightly, hard, or not at all), or to turn the melody you sang into notes an instrument
-  plays, as you sang it or as harmony, octaves, chords, a bass line, an arpeggio or a pad. The waveform of the latest render is underneath; click it to jump.
+  (**Tune it**: naturally, tightly, hard, or not at all), to turn a beat you played or beatboxed into the song's
+  drum lanes ([**Turn it into drums**](../guide/samples.md#turning-a-take-into-drums)), or to turn the melody you
+  sang into notes an instrument plays, as you sang it or as harmony, octaves, chords, a bass line, an arpeggio or a
+  pad. The waveform of the latest render is underneath; click it to jump.
 - **Section.** The selected section's length, energy, drum variant, which chord progression it plays, and the
   switches for a build, a gap before the next section, an impact, drum fills, and a filter that opens over the
   section.

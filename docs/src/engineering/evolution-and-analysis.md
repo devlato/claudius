@@ -90,6 +90,7 @@ sixteenth, swing and a bass style. It uses no models: everything is signal proce
 | `melody.rs` | a [take](../guide/samples.md#takes)'s melody as notes, read by `voice/` ([below](#hearing-a-melody)) |
 | `song.rs` | the rest: sections, progressions, drum steps, swing, and `to_blueprint` |
 | `groove.rs` | the [groove](../language/song-functions.md#groove) of a recording's drums ([below](#hearing-a-groove)) |
+| `drums.rs` | a beat's hits, played or beatboxed, named kick, snare or hat and folded into lanes ([below](#hearing-drums)) |
 
 **Tempo.** The onset envelope adds the full-band flux to twice the kick-band flux (30 to 160 Hz), because in dance
 music the kick marks the beat. Its autocorrelation, weighted by a prior centred on 120 BPM (or on the middle of the
@@ -157,6 +158,41 @@ Each onset is then set against the sixteenth nearest it. Each of the sixteen pos
 distances from the grid (a position with fewer than two keeps no timing), clamped to 0.12 beats, and their mean loudness
 against the recording's, clamped to 0.4 to 1.3, as its accent. The beats are put back on the grid by the mean of their
 timings, so a downbeat found a little early or late doesn't move the whole groove.
+
+### Hearing drums
+
+`analysis::drums::hear(audio)` names the hits of a beat, played on a kit or beatboxed, and `fold` sets them on a grid
+(a take's, from its first beat at the song's tempo; a file's, from `groove::beat`) and folds the times round into a
+pattern of 1, 2 or 4 bars.
+
+- **The onsets.** Those of the whole sound and of its top over 5 kHz, which finds a quiet hat under a kick's tail,
+  merged within 25 ms (a kick's body arriving after its click is the same hit).
+- **What each adds.** Every band at its strongest in the 50 ms after the onset, in 20 ms windows (a period of the
+  lowest kick), less its level in the 20 ms before: the tail of the hit before is not part of this one. Of that, the
+  shares under 150 Hz, in a drum's body (150 to 800 Hz) and over 5 kHz. An onset that doubles none of the whole
+  sound, its low band or its high band is a ripple inside a sound, and one 30 dB under the loudest hit is breath or
+  the room.
+- **Naming.** Three clusters of those shares, started amid the quarter of hits that lie most low, most in the middle
+  and most high, so a stray sound can't take one. Each is named by where its middle lies, and kept only if that is
+  near its kind: a kick's 0.12 under 150 Hz, a hat's 0.2 over 5 kHz with next to nothing in the body, a snare's 40 %
+  between. Otherwise the recording lacks that kind (a loop of kicks alone still makes three clusters), and its hits
+  are named alone: a quarter under 150 Hz is a kick, a half over 5 kHz (or a fifth, with nothing in the body) a hat,
+  the rest a snare. Those thresholds come from the shares of about 2,400 hits in GarageBand's single-drum loops.
+- **A second sound.** A hit that adds to another kind's band far more than hits of its own kind do there (a quarter
+  of them add less) is that kind too: half what that kind's own hits add, or, when every one of them lies under
+  other hits (open hats on the kicks), three times what its own kind adds.
+- **Folding.** A step hit in at least three quarters of the times round is a hit; one hit in a quarter to three
+  quarters plays with that chance (a trig's `prob`). Its velocity is its median level against the loudest of its kind,
+  to the power 0.6.
+
+Measured on kits, against 15 mixes of a kick, a snare and a hat loop from GarageBand at one tempo (each loop's own
+onsets the truth): kicks 89 % precision and 95 % recall, snares 68 % and 56 %, hats 91 % and 59 %. The hits missed
+are mostly quiet hats under other hits and snares layered with a sub, which add as much under 150 Hz as a kick does.
+On beatboxing, against 20 four-bar beats built from the recordings of a published beatbox dataset (Mehta and others,
+2022; `maxardito/beatbox` on Hugging Face), one performer's kick, snare and hat each, hits are found nearly all the
+time (98 to 100 % recall). The kicks are the weak kind, at
+49 % precision: a beatboxed snare's release, 12 to 27 dB under it and a sixteenth later, is heard as a kick, and
+telling it from a ghost note a sixteenth after a hit would take more than level. Snares are at 65 %, hats at 87 %.
 
 ### Writing a new song on it
 

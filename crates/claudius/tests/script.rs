@@ -742,3 +742,88 @@ fn a_lane_keeps_its_own_length_speed_swing_and_groove() {
         assert!(e.contains(says), "{bad}: {e}");
     }
 }
+
+/// `bars` bars of a kit at `bpm`, from `lead` seconds in: a kick on 1 and 3, a snare on 2 and 4, a hat on every off-beat
+fn beat(bars: usize, bpm: f64, lead: f64) -> claudius::audio::Stereo {
+    use claudius::dsp::filter::butter;
+    let sr = 48_000.0;
+    let spb = 60.0 / bpm;
+    let n = ((lead + bars as f64 * 4.0 * spb) * sr) as usize + 24_000;
+    let mut l = vec![0f32; n];
+    let mut rng = claudius::rng::Rng::new(5);
+    let fade = |i: usize, len: usize| ((len - i) as f32 / 480.0).min(1.0);
+    let mut noise = |lo: f64, hi: f64, len: usize| {
+        let mut x: Vec<f32> = (0..len).map(|_| rng.f32() * 2.0 - 1.0).collect();
+        butter(&mut x, true, lo, sr, 4);
+        butter(&mut x, false, hi, sr, 4);
+        x
+    };
+    for b in 0..bars * 4 {
+        let at = |beat: f64| ((lead + (b as f64 + beat) * spb) * sr) as usize;
+        if b % 2 == 0 {
+            let (len, mut ph) = (14_400, 0f32);
+            for i in 0..len {
+                let t = i as f32 / sr as f32;
+                ph += std::f32::consts::TAU * (50.0 + 100.0 * (-t / 0.03).exp()) / sr as f32;
+                l[at(0.0) + i] += 0.9 * ph.sin() * (-t / 0.15).exp() * fade(i, len);
+            }
+        } else {
+            let x = noise(1000.0, 6000.0, 9_600);
+            for (i, v) in x.iter().enumerate() {
+                l[at(0.0) + i] += 0.6 * v * (-(i as f32 / sr as f32) / 0.08).exp() * fade(i, x.len());
+            }
+        }
+        let x = noise(7000.0, 20_000.0, 4_800);
+        for (i, v) in x.iter().enumerate() {
+            l[at(0.5) + i] += 0.35 * v * (-(i as f32 / sr as f32) / 0.03).exp() * fade(i, x.len());
+        }
+    }
+    claudius::audio::Stereo { l: l.clone(), r: l }
+}
+
+#[test]
+fn a_beat_in_a_recording_becomes_the_drum_lanes() {
+    let dir = std::env::temp_dir().join(format!("claudius-drums-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("beat 100bpm.wav");
+    claudius::audio::save_wav(&file, &beat(4, 100.0, 0.3), true).unwrap();
+    let path = claudius::pattern::quote(&file.display().to_string());
+    let out = script::run(&format!(r#"song("house", 3); drums_from({path}, #{{ bars: 1 }});"#), None, None).unwrap();
+    let said = out.log.iter().find(|l| l.contains("into drums")).cloned().unwrap_or_default();
+    assert!(
+        said.contains(
+            "1 bar as their main patterns: kick 2 steps into kick, snare 2 steps into clap, hat 4 steps into hat"
+        ),
+        "{:?}",
+        out.log
+    );
+    let bp = out.bp.unwrap();
+    let steps = |lane: &str| -> Vec<u32> {
+        let mut s: Vec<u32> = bp.drums.iter().find(|d| d.name == lane).unwrap().patterns["main"]
+            .iter()
+            .map(|h| (h.t * 4.0).round() as u32)
+            .filter(|s| *s < 16)
+            .collect();
+        s.dedup();
+        s
+    };
+    assert_eq!((steps("kick"), steps("clap"), steps("hat")), (vec![0, 8], vec![4, 12], vec![2, 6, 10, 14]));
+    // the printed script writes the lanes as patterns: it needs no recording to read back
+    let printed = script::to_script(&bp);
+    assert!(!printed.contains("drums_from"), "{printed}");
+    assert!(script::run(&printed, Some(bp.clone()), None).unwrap().bp.unwrap() == bp, "{printed}");
+    let silent = dir.join("silence.wav");
+    claudius::audio::save_wav(&silent, &claudius::audio::Stereo::zeros(96_000), true).unwrap();
+    let quiet = claudius::pattern::quote(&silent.display().to_string());
+    for (bad, says) in [
+        (format!("drums_from({path}, #{{ bars: 3 }})"), "a beat's pattern is 1, 2 or 4 bars, not 3".to_string()),
+        (format!("drums_from({path}, #{{ beats: 2 }})"), "drums_from() has no option 'beats'".to_string()),
+        (format!("drums_from({path}, #{{ bpm: 400 }})"), "drums_from()'s bpm is 40 to 250, not 400".to_string()),
+        (format!("drums_from({quiet})"), "too few drum hits".to_string()),
+        (r#"drums_from("/nowhere/beat.wav")"#.to_string(), "drums_from(): /nowhere/beat.wav".to_string()),
+    ] {
+        let e = script::run(&bad, Some(bp.clone()), None).err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(e.contains(&says), "{bad}: {e}");
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+}

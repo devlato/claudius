@@ -308,6 +308,9 @@ impl Mock {
                 }
                 _ => Err(format!("no pitch check {id} waiting")),
             },
+            Command::TranscribeDrums { .. } => {
+                Err("the demo hears no drums: start `claudius serve` to turn a beat into lanes".into())
+            }
             Command::ExtractGroove { .. } => {
                 Err("the demo hears no grooves: start `claudius serve` to take a recording's groove".into())
             }

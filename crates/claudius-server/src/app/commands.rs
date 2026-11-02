@@ -490,6 +490,28 @@ impl App {
                 let m = claudius::take::Melody { sounds, name, role, chromatic, keep_take, style };
                 claudius::take::melody(bp, &take, &m)
             }),
+            Command::TranscribeDrums { take, path, bars, variant, bpm, keep_take } => {
+                let o = claudius::take::Drums { bars, variant, keep_take };
+                if let Some(b) = bpm.filter(|b| !(40.0..=250.0).contains(b)) {
+                    return no(format!("a beat's tempo is 40 to 250 BPM, not {b}"), v);
+                }
+                match (take, path) {
+                    (Some(take), _) => self.edit_with(|bp| claudius::take::drums(bp, &take, &o)),
+                    (None, Some(path)) => match self
+                        .readable(Path::new(&path))
+                        .and_then(|_| audio::load(Path::new(&path)).map_err(|e| format!("cannot read {path}: {e}")))
+                    {
+                        Ok(x) => {
+                            let named = Path::new(&path)
+                                .file_name()
+                                .and_then(|f| claudius::analysis::groove::tempo_in_name(&f.to_string_lossy()));
+                            self.edit_with(|bp| claudius::take::drums_from(bp, &x, &path, bpm.or(named), &o))
+                        }
+                        Err(e) => no(e, v),
+                    },
+                    (None, None) => no("transcribe_drums wants a take, or the path of a recording", v),
+                }
+            }
             Command::AssessVoice { take, path, key } => self.assess_voice(take, path, key),
             Command::Tune { track, strength, speed_ms, humanize, vibrato, scale, off } => {
                 let profile = self.lock().voice.clone();

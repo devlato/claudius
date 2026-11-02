@@ -84,6 +84,10 @@ form([sec("intro", 8, "drums keys"), sec("drop", 16, "*").impact(), sec("break",
   `lazy` ...) or one heard in a record. `extract_groove` (or `groove(name, file)` in a script) measures where each
   sixteenth of a recording's drums lands and how hard, and puts the lanes in that feel; pass `bpm` when the tempo is
   known, as a loop's heard can come out twice or half what it is.
+- **A beat of the person's own.** Someone who can't program drums can beatbox them: `request_take` asks for a beat
+  over a section ("beatbox a bar or two: kick, snare, hats"), and `transcribe_drums` with that take writes it into
+  the kick, snare (or clap) and hat lanes and mutes the take. A drum loop goes in with `path`. It gets some hits
+  wrong, so say what went where and offer to fix steps; `trig()` and `lane()` take it from there.
 - An error names the line and what it accepts (`unknown sound 'bdd' (drums: bd kick ...)`). Fix that and run again;
   don't guess around it.
 - **Exact notes.** For a melody, a bass line or chords you write out, or that the person dictates, use `add_notes`. It

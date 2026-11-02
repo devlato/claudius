@@ -25,6 +25,7 @@ Everything on one page. Each name links to its full entry.
 | [`trig("hat", 14, #{ ratchet: 3, cond: "1:2" })`](song-functions.md#trig) | a step's chance, condition, ratchet, flam, nudge and locks (pitch, decay, tone, pan) |
 | [`lane("hat", #{ length: 12, groove: "dilla" })`](song-functions.md#lane) | a lane's own length (a polymeter), speed, swing and groove |
 | [`groove("funk", "loops/funk.wav")`](song-functions.md#groove) | a groove heard in a recording's drums (or written as a table), for lanes to play in |
+| [`drums_from("beat.wav", #{ bars: 2 })`](song-functions.md#drums_from) | a beat in a recording, played or beatboxed, into the kick, snare and hat lanes |
 | [`drum_sound("kick", "tr909:bd")`](song-functions.md#drum_sound) | a drum name, a kit sound (or a name and a bank), a file |
 | [`part("bass", #{ ... })`](song-functions.md#part) | `style preset register density seed rate`; adds the genre's part when the song has none |
 | [`track("hats", pattern)`](song-functions.md#track) | a pattern track; new ones join sections with energy ≥ 0.6 |
