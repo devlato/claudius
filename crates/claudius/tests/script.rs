@@ -425,6 +425,11 @@ fn parts_of_your_own_print_with_their_role_and_rebuild_exactly() {
         panic!("a part of role drums")
     };
     assert!(err.to_string().contains("not 'drums'"), "{err}");
+    // a drum lane's name is the lane's
+    let Err(err) = script::run(r#"song("house", 1); part("kick", #{ role: "bass" });"#, None, None) else {
+        panic!("a part named after a drum lane")
+    };
+    assert!(err.to_string().contains("'kick' is a track of the song that is not a part"), "{err}");
 }
 
 #[test]

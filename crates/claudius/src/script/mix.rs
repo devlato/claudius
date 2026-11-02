@@ -237,6 +237,10 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
 /// role, a part of the role written the way the genre writes it (its part of that role, renamed) or, when the genre
 /// has none, in every style of the role
 fn add_part(bp: &mut Blueprint, name: &str, role: Option<Role>) -> R<()> {
+    // one track to a name: a drum lane, a loop or a pattern track of this name is not to be shadowed
+    if bp.layer_names().iter().any(|n| n == name) {
+        return fail(format!("'{name}' is a track of the song that is not a part: give the part another name"));
+    }
     let g = genre_of(bp);
     let Some(genre) = g.as_ref() else { return fail(format!("part(): the song's genre '{}' is unknown", bp.genre)) };
     let spec = match (genre.parts.iter().find(|p| p.name == name), role) {
