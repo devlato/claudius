@@ -220,6 +220,26 @@ afterwards, whose sound, level and sections you change as you would any other's.
 
   In the studio, the take's menu lets you pick one before the sound.
 
+### Turning a take into drums
+
+A beat, played on a kit or beatboxed into the microphone, can become the song's drums. In the studio, right-click the
+take's row in the arrangement, choose **Turn it into drums** and a length (1, 2 or 4 bars); over MCP,
+`transcribe_drums`. claudius hears each hit, names it a kick, a snare or a hat, and sets it on the song's sixteenth
+grid from the take's first beat. It folds every time round into a pattern of that length, writes it into the song's
+kick, snare (or clap) and hat lanes as their `main` patterns, and the take goes quiet. A step you hit only some of
+the times round plays with that chance, as a [trig](../language/song-functions.md#trig). The lanes are ordinary lanes
+afterwards: change a step in the step sequencer, give it a trig, or put the lane in a groove.
+
+- **How it hears.** A kick adds most of what it adds under 150 Hz, a hat over 5 kHz, and a snare, a clap or a
+  beatboxer's "k" in between. claudius finds those three among the take's own hits, so a mouth's kick and a kit's
+  both sort as kicks. A hat struck with a kick is both.
+- **What to check.** It hears a kit or a clear beatbox well, and gets some hits wrong: the release of a beatboxed snare
+  can come out as a kick a step later, and a snare layered with a sub as a kick. The step sequencer shows what it
+  wrote; right-click a step to change it.
+- **A recording of drums.** A drum loop or a break goes in the same way, as `transcribe_drums` with a `path`, or
+  [`drums_from()`](../language/song-functions.md#drums_from) in a script. Its tempo is the one given, or one in its file's
+  name (`92bpm`), or heard, and the grid starts at its own downbeat.
+
 ### Notes played on a keyboard
 
 What you play on a MIDI keyboard in the studio's [Record](../getting-started/studio.md#the-panels) window, chords and

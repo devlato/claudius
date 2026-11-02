@@ -207,6 +207,8 @@ pub struct View {
     pub graph: graph::GraphView,
     /// what a take's melody becomes when it turns into notes (`claudius_api::NOTE_STYLES`)
     pub melody_style: String,
+    /// the arrangement row whose menu is open (the row right-clicked: the pointer's press is gone once it opens)
+    pub row_menu: Option<usize>,
     /// the tour's step on screen, and whether it was taken or skipped (kept between runs)
     pub tour: Option<usize>,
     pub tour_done: bool,
@@ -270,6 +272,7 @@ impl Default for View {
             record: record::Record::default(),
             graph: graph::GraphView::default(),
             melody_style: "line".into(),
+            row_menu: None,
             tour: None,
             tour_done: false,
             tour_asks: false,

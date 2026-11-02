@@ -10,7 +10,8 @@ gives a step what a drum machine's trig gives it:
 
 A lane can also keep a time and feel of its own. [`lane()`](../language/song-functions.md#lane) gives it a length (a
 polymeter against the others), a speed, a swing and a groove, and [`groove()`](../language/song-functions.md#groove)
-takes a groove from a record.
+takes a groove from a record. A beat you play or beatbox, or a drum loop, becomes the lanes' steps
+([Beatbox a beat](#beatbox-a-beat)).
 
 In the studio, right-click a step in the [step sequencer](../getting-started/studio.md#the-panels) and open **Trig**,
 or right-click a lane for its time and feel. Each recipe below starts from a generated song and changes only its
@@ -156,3 +157,24 @@ The tempo matters most. claudius hears it from the drums when it isn't given, bu
 twice or half what it is, and then the groove is measured against the wrong sixteenths. A tempo in the file's name or
 a third argument (`groove("break", "loops/break.wav", 96)`) is used as it is, and `extract_groove` and the studio
 also take an Apple Loop's from GarageBand's catalogue.
+
+## Beatbox a beat
+
+The quickest way to a beat of your own is to make it with your mouth. Record a take over a section with the studio's
+**Record** button: a kick ("b"), a snare ("k" or "pf") and hats ("ts"), a bar or two round and round. Then right-click
+the take in the arrangement, choose **Turn it into drums** and a length. claudius names each hit, puts it on the song's
+grid, folds the times round into the pattern, writes it into the kick, snare (or clap) and hat lanes, and mutes the
+take. A hat you did only every other time round plays half the time.
+
+The lanes then take everything above: a ratchet on the hats, a groove, a length of their own. An assistant does the
+same with `transcribe_drums`, and a drum loop goes in as a file:
+
+```js no-run
+song("lofi", 2);
+drums_from("loops/Lazy Break 85bpm.wav", #{ bars: 2 });
+lane("hat", #{ groove: "dilla" });
+trig("hat", 14, #{ ratchet: 3, ramp: 1 });
+```
+
+It names a kick, a snare and a hat well when the sounds are clear; check what it wrote in the step sequencer, as a
+beatboxed snare's release can come out as a kick a step later.

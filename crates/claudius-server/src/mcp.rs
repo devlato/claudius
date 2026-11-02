@@ -537,6 +537,29 @@ pub struct TranscribeArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct DrumsArgs {
+    /// a take of the song with a beat in it, played or beatboxed (get_song lists its tracks; a take's kind is "take")
+    #[serde(default)]
+    pub take: Option<String>,
+    /// or a recording with a beat in it (a drum loop, a break): WAV, FLAC, MP3, AAC, Ogg, AIFF
+    #[serde(default)]
+    pub path: Option<String>,
+    /// the pattern's length in bars: 1, 2 or 4 (default: the recording's, up to 4)
+    #[serde(default)]
+    pub bars: Option<u32>,
+    /// the lanes' variant to write (default main)
+    #[serde(default)]
+    pub variant: Option<String>,
+    /// a recording's tempo, when known (default: one in its file name, such as "92bpm", or heard); a take's is the
+    /// song's
+    #[serde(default)]
+    pub bpm: Option<f64>,
+    /// let the take go on playing beside the drums (default: it is muted)
+    #[serde(default)]
+    pub keep_take: bool,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct CommandArgs {
     /// one command object, e.g. {"cmd": "add_section", "after": 2, "kind": "break", "bars": 8}
     pub command: serde_json::Value,
@@ -1034,6 +1057,21 @@ impl Studio {
             chromatic: a.chromatic,
             keep_take: a.keep_take,
             style: a.style,
+        };
+        self.edit(c, true).await
+    }
+
+    #[tool(
+        description = "Turn a beat into the song's drums: the kicks, snares and hats of a take (a beat played, or beatboxed into the microphone) or of a recording (`path`: a drum loop, a break), each struck on the song's sixteenth grid, folded into a pattern of `bars` bars and written into the song's kick, snare (or clap) and hat lanes as their `variant` patterns. A step hit only some of the times round plays with that chance (a trig). The take is muted unless keep_take. The lanes are ordinary lanes afterwards: trig(), lane() and drum() change them."
+    )]
+    async fn transcribe_drums(&self, Parameters(a): Parameters<DrumsArgs>) -> Result<String, String> {
+        let c = Command::TranscribeDrums {
+            take: a.take,
+            path: a.path,
+            bars: a.bars,
+            variant: a.variant,
+            bpm: a.bpm,
+            keep_take: a.keep_take,
         };
         self.edit(c, true).await
     }

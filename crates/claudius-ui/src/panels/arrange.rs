@@ -51,6 +51,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let solo = cx.any_solo();
     let (instruments, synths) = super::melodic_sounds(cx.sounds);
     let mut style = cx.view.melody_style.clone();
+    let mut row_menu = cx.view.row_menu;
     let Some(song) = cx.state.song.as_ref() else {
         empty(ui, "No song yet: make one with New song.");
         super::missing_packs(ui, cx);
@@ -487,10 +488,11 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             }
         }
         // the mute / solo menu on a row label
+        if resp.secondary_clicked() {
+            row_menu = resp.interact_pointer_pos().map(|p| ((p.y - rect.top()) / row_h).max(0.0) as usize);
+        }
         resp.context_menu(|ui| {
-            let Some(pos) = ui.ctx().input(|i| i.pointer.press_origin()) else { return };
-            let row = ((pos.y - rect.top()) / row_h) as usize;
-            let Some(layer) = song.layers.get(row) else { return };
+            let Some(layer) = row_menu.and_then(|row| song.layers.get(row)) else { return };
             ui.label(RichText::new(layer).strong());
             if let Some(t) = song.tracks.iter().find(|t| &t.name == layer) {
                 if ui.button(if t.muted { "Unmute" } else { "Mute" }).clicked() {
@@ -552,6 +554,29 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                             }
                             out.push(off);
                             ui.close();
+                        }
+                    });
+                    ui.menu_button("Turn it into drums", |ui| {
+                        ui.label(small(
+                            "its kicks, snares and hats, played or beatboxed, become the song's drum lanes, and the \
+                             take goes quiet",
+                        ));
+                        for (label, bars) in [("1 bar", 1), ("2 bars", 2), ("4 bars", 4)] {
+                            if ui
+                                .button(label)
+                                .on_hover_text("the pattern's length, folded from every time round")
+                                .clicked()
+                            {
+                                out.push(Command::TranscribeDrums {
+                                    take: Some(layer.clone()),
+                                    path: None,
+                                    bars: Some(bars),
+                                    variant: None,
+                                    bpm: None,
+                                    keep_take: false,
+                                });
+                                ui.close();
+                            }
                         }
                     });
                     ui.menu_button("Turn the melody into notes", |ui| {
@@ -736,5 +761,6 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     painter.line_segment([pos2(tl.x0, ruler.bottom()), pos2(tl.x1, ruler.bottom())], Stroke::new(1.0, LINE));
     ui.advance_cursor_after_rect(full);
     cx.view.melody_style = style;
+    cx.view.row_menu = row_menu;
     cx.out.extend(out);
 }

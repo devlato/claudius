@@ -2,6 +2,7 @@
 
 pub mod beats;
 pub mod chroma;
+pub mod drums;
 pub mod groove;
 pub mod melody;
 pub mod onsets;

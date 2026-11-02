@@ -295,68 +295,73 @@ fn register_settings(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     });
 }
 
+/// Writes drum lane `lane`'s variant `variant` as the step string `steps` (`per_bar` steps a bar), as `drum()` does:
+/// every variant of the lane keeps one length, the trigs of steps that still strike stay, and a song without the lane
+/// gets one when its name is a drum name.
+pub(crate) fn put_drum(bp: &mut Blueprint, lane: &str, variant: &str, steps: &str, per_bar: u32) -> Result<(), String> {
+    let (hits, bars) = steps_to_hits(steps, per_bar);
+    if let Some(l) = bp.drums.iter_mut().find(|d| d.name == lane) {
+        // every variant of a lane has the same length: repeat the shorter ones up to the longest
+        let len = if l.pattern_bars % bars == 0 {
+            l.pattern_bars
+        } else if bars % l.pattern_bars == 0 {
+            bars
+        } else {
+            l.pattern_bars * bars
+        };
+        let hits = tile_hits(&hits, bars, len);
+        if len != l.pattern_bars {
+            for v in l.patterns.values_mut() {
+                *v = tile_hits(v, l.pattern_bars, len);
+            }
+            l.pattern_bars = len;
+        }
+        // the same steps as now: keep the exact hits (step strings round velocities)
+        if l.patterns.get(variant).is_some_and(|old| hits_to_steps(old, len) == hits_to_steps(&hits, len)) {
+            return Ok(());
+        }
+        let hits = super::trigs::carry(l.patterns.get(variant), hits);
+        l.patterns.insert(variant.to_string(), hits);
+        return Ok(());
+    }
+    let Some((voice, _)) = drum_name(lane).or_else(|| match lane {
+        "hats" => drum_name("hh"),
+        _ => None,
+    }) else {
+        let lanes: Vec<&str> = bp.drums.iter().map(|d| d.name.as_str()).collect();
+        return Err(format!(
+            "no drum lane '{lane}', and drum() makes lanes only for drum names ({}); the song's lanes: {}. \
+             For other sounds, track(\"{lane}\", s(\"...\"))",
+            super::drum_names().join(" "),
+            if lanes.is_empty() { "none yet".to_string() } else { lanes.join(" ") }
+        ));
+    };
+    let mut patterns = BTreeMap::new();
+    patterns.insert(variant.to_string(), hits);
+    bp.drums.push(DrumLane {
+        length: None,
+        speed: 1.0,
+        swing: None,
+        groove: None,
+        groove_amount: 1.0,
+        name: lane.to_string(),
+        sound: Sound::Drum { voice, params: DrumParams::default_for(voice) },
+        patterns,
+        pattern_bars: bars,
+        pitch: 0,
+        choke: None,
+        mix: TrackMix { bus: "drums".into(), ..Default::default() },
+    });
+    place_new(bp, lane);
+    Ok(())
+}
+
 /// `drum(lane, [variant,] steps[, steps per bar])`
 fn register_drums(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     let drum = {
         let c = ctx.clone();
         move |lane: &str, variant: &str, steps: &str, per_bar: u32| -> R<()> {
-            with_bp(&c, |bp, _| {
-                let (hits, bars) = steps_to_hits(steps, per_bar);
-                if let Some(l) = bp.drums.iter_mut().find(|d| d.name == lane) {
-                    // every variant of a lane has the same length: repeat the shorter ones up to the longest
-                    let len = if l.pattern_bars % bars == 0 {
-                        l.pattern_bars
-                    } else if bars % l.pattern_bars == 0 {
-                        bars
-                    } else {
-                        l.pattern_bars * bars
-                    };
-                    let hits = tile_hits(&hits, bars, len);
-                    if len != l.pattern_bars {
-                        for v in l.patterns.values_mut() {
-                            *v = tile_hits(v, l.pattern_bars, len);
-                        }
-                        l.pattern_bars = len;
-                    }
-                    // the same steps as now: keep the exact hits (step strings round velocities)
-                    if l.patterns.get(variant).is_some_and(|old| hits_to_steps(old, len) == hits_to_steps(&hits, len)) {
-                        return Ok(());
-                    }
-                    let hits = super::trigs::carry(l.patterns.get(variant), hits);
-                    l.patterns.insert(variant.to_string(), hits);
-                    return Ok(());
-                }
-                let Some((voice, _)) = drum_name(lane).or_else(|| match lane {
-                    "hats" => drum_name("hh"),
-                    _ => None,
-                }) else {
-                    let lanes: Vec<&str> = bp.drums.iter().map(|d| d.name.as_str()).collect();
-                    return fail(format!(
-                        "no drum lane '{lane}', and drum() makes lanes only for drum names ({}); the song's lanes: {}. \
-                         For other sounds, track(\"{lane}\", s(\"...\"))",
-                        super::drum_names().join(" "),
-                        if lanes.is_empty() { "none yet".to_string() } else { lanes.join(" ") }
-                    ));
-                };
-                let mut patterns = BTreeMap::new();
-                patterns.insert(variant.to_string(), hits);
-                bp.drums.push(DrumLane {
-                    length: None,
-                    speed: 1.0,
-                    swing: None,
-                    groove: None,
-                    groove_amount: 1.0,
-                    name: lane.to_string(),
-                    sound: Sound::Drum { voice, params: DrumParams::default_for(voice) },
-                    patterns,
-                    pattern_bars: bars,
-                    pitch: 0,
-                    choke: None,
-                    mix: TrackMix { bus: "drums".into(), ..Default::default() },
-                });
-                place_new(bp, lane);
-                Ok(())
-            })
+            with_bp(&c, |bp, _| put_drum(bp, lane, variant, steps, per_bar).or_else(fail))
         }
     };
     let d = Rc::new(drum);
@@ -423,6 +428,37 @@ fn register_drums(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
             Ok(())
         })
     });
+    // drums_from(file) and drums_from(file, #{ bars, variant, bpm }): a beat in a recording, played or beatboxed,
+    // into the kick, snare and hat lanes
+    let c = ctx.clone();
+    let from = move |path: &str, m: Map| -> R<()> {
+        check_keys(&m, "drums_from()", &["bars", "variant", "bpm"])?;
+        let bpm = map_f32(&m, "bpm").map(f64::from);
+        if let Some(b) = bpm.filter(|b| !(40.0..=250.0).contains(b)) {
+            return fail(format!("drums_from()'s bpm is 40 to 250, not {b}"));
+        }
+        let roots = c.borrow().roots.clone();
+        if let Some(e) = crate::config::read_error(std::path::Path::new(path), roots.as_deref()) {
+            return fail(format!("drums_from(): {e}"));
+        }
+        let x = crate::audio::load(std::path::Path::new(path))
+            .map_err(|e| format!("drums_from(): cannot read {path}: {e:#}"))?;
+        let file = std::path::Path::new(path).file_name().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default();
+        let bpm = bpm.or_else(|| crate::analysis::groove::tempo_in_name(&file));
+        let o = crate::take::Drums {
+            bars: map_f32(&m, "bars").map(|b| b.round().max(0.0) as u32),
+            variant: map_str(&m, "variant"),
+            keep_take: true,
+        };
+        with_bp(&c, |bp, log| {
+            let said = crate::take::drums_from(bp, &x, path, bpm, &o).map_err(|e| format!("drums_from(): {e}"))?;
+            log.push(said);
+            Ok(())
+        })
+    };
+    let f = from.clone();
+    engine.register_fn("drums_from", move |path: &str| f(path, Map::new()));
+    engine.register_fn("drums_from", from);
     let d1 = d.clone();
     engine.register_fn("drum", move |lane: &str, variant: &str, steps: &str| d1(lane, variant, steps, 16));
     let d1 = d.clone();

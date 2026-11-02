@@ -35,30 +35,7 @@ struct Onset {
 
 /// The groove of the drums in `x` (at `bpm` when the tempo is known), or why there is none to hear (too few onsets).
 pub fn hear(x: &Stereo, bpm: Option<f64>) -> Result<Heard, String> {
-    let mono = x.mono();
-    let mut low = mono.clone();
-    biquad(&mut low, BiquadKind::Lowpass, 120.0, SRF, std::f64::consts::FRAC_1_SQRT_2, 0.0);
-    let rms = |v: &[f32]| (v.iter().map(|x| x * x).sum::<f32>() / v.len().max(1) as f32).sqrt();
-    let (win, kick) = ((0.02 * SRF) as usize, (0.04 * SRF) as usize);
-    let hits: Vec<Onset> = super::onsets::detect(&mono, 0.06, 0.03)
-        .into_iter()
-        .map(|s| Onset {
-            t: s as f64 / SRF,
-            loud: rms(&mono[s..(s + win).min(mono.len())]),
-            low: rms(&low[s..(s + kick).min(low.len())]),
-        })
-        .collect();
-    if hits.len() < 8 {
-        return Err(format!(
-            "too few drum hits to hear a groove in ({}): it wants a beat, a few bars of it",
-            hits.len()
-        ));
-    }
-    let bpm = match bpm {
-        Some(b) => tune(&hits, b, 0.03).0,
-        None => estimate(&hits, mono.len() as f64 / SRF, super::song::analyze(x, None).bpm),
-    };
-    let downbeat = downbeat(&hits, bpm);
+    let (hits, bpm, downbeat) = grid(x, bpm)?;
     let spb = 60.0 / bpm;
     let mut at: Vec<Vec<(f32, f32)>> = vec![Vec::new(); 16];
     for h in &hits {
@@ -92,6 +69,41 @@ pub fn hear(x: &Stereo, bpm: Option<f64>) -> Result<Heard, String> {
     let mean = heard.iter().sum::<f32>() / heard.len().max(1) as f32;
     let accent = std::array::from_fn(|i| if loud[i] > 0.0 { (loud[i] / mean.max(1e-9)).clamp(0.4, 1.3) } else { 1.0 });
     Ok(Heard { groove: Groove { timing, accent }, bpm, onsets: hits.len() })
+}
+
+/// The tempo of the drums in `x` (tuned from `bpm` when it is known) and the time of a downbeat, in seconds, or why
+/// there are no drums to hear a beat in.
+pub fn beat(x: &Stereo, bpm: Option<f64>) -> Result<(f64, f64), String> {
+    grid(x, bpm).map(|(_, bpm, downbeat)| (bpm, downbeat))
+}
+
+/// the onsets of `x`, the tempo they keep (tuned from `bpm` when known) and the time of a downbeat
+fn grid(x: &Stereo, bpm: Option<f64>) -> Result<(Vec<Onset>, f64, f64), String> {
+    let mono = x.mono();
+    let mut low = mono.clone();
+    biquad(&mut low, BiquadKind::Lowpass, 120.0, SRF, std::f64::consts::FRAC_1_SQRT_2, 0.0);
+    let rms = |v: &[f32]| (v.iter().map(|x| x * x).sum::<f32>() / v.len().max(1) as f32).sqrt();
+    let (win, kick) = ((0.02 * SRF) as usize, (0.04 * SRF) as usize);
+    let hits: Vec<Onset> = super::onsets::detect(&mono, 0.06, 0.03)
+        .into_iter()
+        .map(|s| Onset {
+            t: s as f64 / SRF,
+            loud: rms(&mono[s..(s + win).min(mono.len())]),
+            low: rms(&low[s..(s + kick).min(low.len())]),
+        })
+        .collect();
+    if hits.len() < 8 {
+        return Err(format!(
+            "too few drum hits to hear a groove in ({}): it wants a beat, a few bars of it",
+            hits.len()
+        ));
+    }
+    let bpm = match bpm {
+        Some(b) => tune(&hits, b, 0.03).0,
+        None => estimate(&hits, mono.len() as f64 / SRF, super::song::analyze(x, None).bpm),
+    };
+    let downbeat = downbeat(&hits, bpm);
+    Ok((hits, bpm, downbeat))
 }
 
 /// How near the hits sit to the sixteenths of the grid at `bpm`, a swing allowed: the mean squared distance, in

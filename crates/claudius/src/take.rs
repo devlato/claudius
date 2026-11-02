@@ -246,6 +246,114 @@ pub fn melody(bp: &mut Blueprint, take: &str, m: &Melody) -> Result<String, Stri
     Ok(format!("{}{}", made.describe(&source), if m.keep_take { "" } else { "; the take is muted" }))
 }
 
+/// How a beat, played or beatboxed, becomes the song's drum lanes
+#[derive(Clone, Debug, Default)]
+pub struct Drums {
+    /// the pattern's length in bars: 1, 2 or 4 (the recording's, up to 4, when not given)
+    pub bars: Option<u32>,
+    /// the variant of the lanes it writes (main when not given)
+    pub variant: Option<String>,
+    /// leave the take playing (a take turned into drums goes quiet otherwise)
+    pub keep_take: bool,
+}
+
+/// Turns take `take` (a beat played or beatboxed with the song, from its section's first beat) into the song's kick,
+/// snare and hat lanes, as `analysis::drums` hears it. The take goes quiet unless `keep_take`. Returns what was made,
+/// in words.
+pub fn drums(bp: &mut Blueprint, take: &str, o: &Drums) -> Result<String, String> {
+    let Some(t) = bp.loops.iter().position(|l| l.name == take && l.from.is_some()) else {
+        let names: Vec<&str> = bp.loops.iter().filter(|l| l.from.is_some()).map(|l| l.name.as_str()).collect();
+        return Err(if names.is_empty() {
+            "the song has no takes: record one first".to_string()
+        } else {
+            format!("no take called '{take}' (takes: {})", names.join(" "))
+        });
+    };
+    let (path, bpm) = match &bp.loops[t].sound {
+        Sound::Loop { path, bpm, .. } => (path.clone(), *bpm),
+        _ => return Err(format!("{take} is not a recording")),
+    };
+    let audio = crate::audio::load_once(Path::new(&path)).map_err(|e| format!("cannot read {take}: {e:#}"))?;
+    let made = put_drums(bp, &audio, take, (bpm, 0.0), o)?;
+    if !o.keep_take {
+        bp.loops[t].mix.mute = true;
+    }
+    Ok(format!("{made}{}", if o.keep_take { "" } else { "; the take is muted" }))
+}
+
+/// Turns a recording of drums `x` (heard in the file `from`, at `bpm` when its tempo is known) into the song's kick,
+/// snare and hat lanes, on the grid of its own beat. Returns what was made, in words.
+pub fn drums_from(bp: &mut Blueprint, x: &Stereo, from: &str, bpm: Option<f64>, o: &Drums) -> Result<String, String> {
+    let grid = crate::analysis::groove::beat(x, bpm).map_err(|e| format!("{from}: {e}"))?;
+    put_drums(bp, x, from, grid, o)
+}
+
+/// the lane a kind of hit goes to: the song's lane of that role (a snare's, else its clap's), else a new one
+fn lane_for(bp: &Blueprint, kind: crate::analysis::drums::Kind) -> String {
+    use crate::analysis::drums::Kind;
+    let roles: &[&str] = match kind {
+        Kind::Kick => &["kick"],
+        Kind::Snare => &["snare", "clap"],
+        Kind::Hat => &["hat"],
+    };
+    roles
+        .iter()
+        .find_map(|r| bp.drums.iter().find(|d| d.role() == *r))
+        .map_or(kind.name().to_string(), |d| d.name.clone())
+}
+
+/// `x`'s drum hits on the grid `(bpm, first downbeat in seconds)`, folded into a pattern and written into the lanes
+fn put_drums(
+    bp: &mut Blueprint,
+    x: &Stereo,
+    from: &str,
+    (bpm, start): (f64, f64),
+    o: &Drums,
+) -> Result<String, String> {
+    let heard = (x.len() as f64 / crate::config::SRF - start) * bpm / 240.0;
+    let bars = match o.bars {
+        Some(b @ (1 | 2 | 4)) => b,
+        Some(b) => return Err(format!("a beat's pattern is 1, 2 or 4 bars, not {b}")),
+        None => [4, 2, 1].into_iter().find(|&b| b as f64 <= heard + 0.1).unwrap_or(1),
+    };
+    let variant = o.variant.clone().filter(|v| !v.trim().is_empty()).unwrap_or_else(|| "main".into());
+    let steps = crate::analysis::drums::fold(&crate::analysis::drums::hear(x), bpm, start, bars);
+    if steps.iter().all(|s| s.hits() == 0) {
+        return Err(format!(
+            "{from} has no drums claudius can hear: it wants a beat, kicks, snares and hats, played or beatboxed"
+        ));
+    }
+    let n = (bars * 16) as usize;
+    let mut made = Vec::new();
+    for s in steps.iter().filter(|s| s.hits() > 0) {
+        let lane = lane_for(bp, s.kind);
+        crate::script::put_drum(bp, &lane, &variant, &s.string(), 16)?;
+        // each step plays as often as it was heard: one hit only some of the times round with that chance, the rest
+        // every time (a chance the lane had there before goes)
+        let chances = s.chances();
+        if let Some(hits) = bp.drums.iter_mut().find(|d| d.name == lane).and_then(|d| d.patterns.get_mut(&variant)) {
+            use crate::theory::rhythm::Trig;
+            for h in hits.iter_mut() {
+                let step = ((h.t * 4.0).round() as usize) % n;
+                let prob = chances.iter().find(|(c, _)| *c == step).map_or(1.0, |&(_, p)| p);
+                let trig = Trig { prob, ..h.trig.unwrap_or_default() };
+                h.trig = (trig != Trig::default()).then_some(trig);
+            }
+        }
+        let by_chance = match chances.len() {
+            0 => String::new(),
+            c => format!(" ({c} by chance)"),
+        };
+        made.push(format!("{} {} steps into {lane}{by_chance}", s.kind.name(), s.hits()));
+    }
+    bp.lineage.push(format!("{from} into drums: {}", made.join(", ")));
+    Ok(format!(
+        "{from} into drums, {bars} bar{} as their {variant} patterns: {}",
+        if bars == 1 { "" } else { "s" },
+        made.join(", ")
+    ))
+}
+
 /// How take `take` is sung: its notes read in the song's key and over its chords from where the take starts (as
 /// `voice::assess` reads them), and the singer learnt from them.
 pub fn assess(bp: &Blueprint, take: &str) -> Result<crate::voice::Assessment, String> {

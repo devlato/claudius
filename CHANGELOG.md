@@ -73,6 +73,12 @@ feel, or the groove of a record. **Take its groove** under **New song** (or `ext
 script) measures where each sixteenth of a recording's drums lands and how hard, and puts the lanes in that feel.
 Right-click a lane in the step sequencer for its time and feel, or write `lane()` in a script.
 
+Beatbox a beat and it becomes the song's drums: right-click a take in the arrangement and choose **Turn it into
+drums**. claudius names each hit a kick, a snare or a hat, folds the times round into a pattern of 1, 2 or 4 bars,
+writes it into the drum lanes (a step hit only some of the times round plays with that chance) and mutes the take.
+A drum loop goes in the same way, with `transcribe_drums` or `drums_from()`. The arrangement's right-click menu on a
+row opens again: it had come up empty.
+
 claudius hears how a voice is sung: the notes it means, how near each came, and how its singer sings (where they go
 sharp or flat by register, how widely their notes scatter, how fast they settle, their vibrato). Right-click a take
 and choose **How is it sung?**, run `claudius voice` on a file, or let an assistant call `assess_voice`

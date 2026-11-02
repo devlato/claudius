@@ -342,6 +342,30 @@ Errors: `groove()'s timing is a list of 16 numbers, one a sixteenth, not 2`, `gr
 3`, `groove()'s tempo is 40 to 250 BPM, not 400`, a file that can't be read, and one without enough drums in it: `too
 few drum hits to hear a groove in (3): it wants a beat, a few bars of it`.
 
+### `drums_from()`
+
+```js no-run
+drums_from(file)             // file: a recording of a beat, played or beatboxed
+drums_from(file, settings)   // settings: #{ bars, variant, bpm }
+```
+
+Writes the beat in a recording into the song's drum lanes. claudius hears each hit and names it a kick, a snare or a
+hat, sets the hits on the recording's own grid (its tempo `bpm`, else one in the file's name such as `92bpm`, else
+heard; its own downbeat), and folds every time round into a pattern of `bars` bars: 1, 2 or 4, the recording's length
+up to 4 when not given. Each kind goes into the song's lane of that role, the snares into its snare lane, else its
+clap's, as their `variant` patterns (`main`), and a song without such a lane gets one. A step hit in only some of the
+times round plays with that chance, as a [`trig()`](#trig) `prob`. The log says what went where: `beat.wav into drums,
+2 bars as their main patterns: kick 6 steps into kick, snare 4 steps into clap, hat 16 steps into hat (2 by chance)`.
+
+[Takes](../guide/samples.md#turning-a-take-into-drums) turn into drums the same way, from the studio or over MCP, on
+the song's grid from the take's first beat. The printed script writes the lanes as patterns, so it reads back without
+the recording.
+
+Errors: `a beat's pattern is 1, 2 or 4 bars, not 3`, `drums_from() has no option 'beats' (options: bars variant
+bpm)`, `drums_from()'s bpm is 40 to 250, not 400`, a file that can't be read, one too short or too quiet to hear a
+beat in (`too few drum hits to hear a groove in (0)`), and one without drums: `beat.wav has no drums claudius can
+hear: it wants a beat, kicks, snares and hats, played or beatboxed`.
+
 ### `drum_sound()`
 
 ```js no-run

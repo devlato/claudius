@@ -1246,6 +1246,24 @@ pub enum Command {
         #[serde(default)]
         style: Option<String>,
     },
+    /// a beat, played or beatboxed, as the song's drums: the kicks, snares and hats of take `take`, or of the audio
+    /// file at `path`, folded into a pattern of `bars` bars (1, 2 or 4; the recording's, up to 4) and written as
+    /// the lanes' `variant` (main); a step hit only some of the times round plays with that chance. A file's tempo
+    /// is `bpm`, else one in its name, else heard. The take goes quiet unless `keep_take`.
+    TranscribeDrums {
+        #[serde(default)]
+        take: Option<String>,
+        #[serde(default)]
+        path: Option<String>,
+        #[serde(default)]
+        bars: Option<u32>,
+        #[serde(default)]
+        variant: Option<String>,
+        #[serde(default)]
+        bpm: Option<f64>,
+        #[serde(default)]
+        keep_take: bool,
+    },
     /// Asks the person for a pitch check: the studio's Record window opens with phrases to sing back (`State.pitch_check`),
     /// the notes played between MIDI `low` and `high` (default 57 to 69, A3 to A4: sung in any octave)
     RequestPitchCheck {
