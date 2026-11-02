@@ -436,6 +436,7 @@ impl App {
                 let m = claudius::take::Melody { sounds, name, role, chromatic, keep_take, style };
                 claudius::take::melody(bp, &take, &m)
             }),
+            Command::AssessVoice { take, path, key } => self.assess_voice(take, path, key),
             Command::Analyze { path } => match self
                 .readable(Path::new(&path))
                 .and_then(|_| audio::load(Path::new(&path)).map_err(|e| e.to_string()))
@@ -559,6 +560,38 @@ impl App {
             _ => Err(()),
         });
         Reply { version: if answered.is_ok() { self.version() } else { r.version }, ..r }
+    }
+
+    /// how a take of the song, or a recording at `path` (in `key` when given), is sung
+    fn assess_voice(self: &Arc<Self>, take: Option<String>, path: Option<String>, key: Option<String>) -> Reply {
+        let v = self.version();
+        let heard = match (take, path) {
+            (Some(take), _) => match self.blueprint() {
+                Some(bp) => claudius::take::assess(&bp, &take).map(|a| (take, a)),
+                None => Err("no song yet: start one with new_song".into()),
+            },
+            (None, Some(path)) => {
+                let scale = match key.as_deref().map(|k| Key::parse(k).ok_or(k)) {
+                    Some(Ok(k)) => claudius::voice::intent::Scale::key(&k),
+                    Some(Err(k)) => return no(format!("cannot read the key '{k}' (try \"A minor\" or \"F#m\")"), v),
+                    None => claudius::voice::intent::Scale::free(),
+                };
+                self.readable(Path::new(&path))
+                    .and_then(|_| audio::load(Path::new(&path)).map_err(|e| format!("cannot read {path}: {e}")))
+                    .map(|x| (path, claudius::voice::assess(&x, &scale)))
+            }
+            (None, None) => Err("name a take of the song or an audio file to hear".into()),
+        };
+        match heard {
+            Ok((name, a)) => {
+                let v = self.update(|s| {
+                    s.say(format!("heard how {name} is sung"));
+                    s.version + 1
+                });
+                ok(a.describe(), v)
+            }
+            Err(e) => no(e, v),
+        }
     }
 
     /// what claudius hears in a recording (`name`: its path, or the name of the file it came in)

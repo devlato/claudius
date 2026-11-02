@@ -67,6 +67,7 @@
 - [Publishing](guide/publish.md)
 - [Sample packs](guide/packs.md)
 - [Apple Loops and your own samples](guide/samples.md)
+- [Your voice](guide/voice.md)
 - [Files and settings](guide/files.md)
 - [Privacy and usage statistics](guide/privacy.md)
 - [Updates](guide/updates.md)

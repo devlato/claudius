@@ -272,6 +272,31 @@ fn run(cli: Cli) -> Result<()> {
                 print_analysis(&a);
             }
         }
+        Cmd::Voice { file, key, notes, json } => {
+            use claudius::voice::intent::Scale;
+            let scale = match key {
+                Some(k) => Scale::key(&Key::parse(&k).with_context(|| format!("cannot read the key '{k}'"))?),
+                None => Scale::free(),
+            };
+            let a = claudius::voice::assess(&claudius::audio::load(&file)?, &scale);
+            if json {
+                println!("{}", serde_json::to_string_pretty(&a)?);
+            } else {
+                println!("{}", a.describe());
+                if notes {
+                    for n in &a.notes {
+                        let name = claudius::theory::scale::note_name(n.note);
+                        println!(
+                            "{:>8.2} s  {name:<4} {:+4.0} cents  {:.2} s  {:.0}% sure",
+                            n.at,
+                            n.cents(),
+                            n.secs,
+                            n.sure * 100.0
+                        );
+                    }
+                }
+            }
+        }
         Cmd::Remake { file, genre, seed, bpm, ears, out } => {
             let g = genres::get(&genre)?;
             let seed = seed.unwrap_or_else(seed_now);

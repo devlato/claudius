@@ -195,8 +195,8 @@ on a MIDI keyboard answer the request as soon as you stop.
 
 A melody sung, hummed, whistled or played one note at a time can become notes, which any instrument then plays: in the
 studio, right-click the take's row in the arrangement and choose **Turn the melody into notes**; over MCP,
-`transcribe_take`. claudius hears the take's pitch every 10 ms, makes a note of each stretch where it holds, and puts
-the notes in the song's key (unless `chromatic`) and on its sixteenth-note grid. They become a new part named `melody`,
+`transcribe_take`. claudius reads the notes the take means, as [Your voice](voice.md#how-claudius-reads-it) says,
+and puts them in the song's key (unless `chromatic`) and on its sixteenth-note grid. They become a new part named `melody`,
 a lead unless told otherwise, on in the sections the take plays in, and the take goes quiet. Several sounds make one
 part each, so a set of instruments plays the same line: `"sounds": ["piano", "strings"]`. The parts are ordinary parts
 afterwards, whose sound, level and sections you change as you would any other's.

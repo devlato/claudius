@@ -378,6 +378,19 @@ pub struct SampleArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct AssessVoiceArgs {
+    /// a take of the song, by name (get_song lists the tracks; takes are kind "take")
+    #[serde(default)]
+    pub take: Option<String>,
+    /// or an audio file of someone singing (WAV, FLAC, MP3, AAC, Ogg, AIFF)
+    #[serde(default)]
+    pub path: Option<String>,
+    /// the key a file is sung in ("A minor"), which settles doubtful notes (a take is heard in the song's)
+    #[serde(default)]
+    pub key: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct RequestTakeArgs {
     /// the section the take starts with, by name (get_song lists them)
     pub from: String,
@@ -794,6 +807,15 @@ impl Studio {
     }
 
     #[tool(
+        description = "How a take of the song or a recording is sung: the notes it means (read with the song's key and chords for a take, or `key` for a file, and with how this singer sings), how many land within 25 and 50 cents of the note meant, the furthest off, and the singer: their range, where they sing sharp or flat at the bottom, the middle and the top of it, how widely their held notes scatter, how fast they settle on a note, their vibrato. Changes nothing.",
+        annotations(read_only_hint = true)
+    )]
+    async fn assess_voice(&self, Parameters(a): Parameters<AssessVoiceArgs>) -> Result<String, String> {
+        let r = self.b.command(Command::AssessVoice { take: a.take, path: a.path, key: a.key }).await?;
+        if r.ok { Ok(r.message) } else { Err(r.message) }
+    }
+
+    #[tool(
         description = "Ask the person to record a take for the song (a vocal, a guitar, a part on a MIDI keyboard ...) that starts with section `from`. The studio's Record window opens for it, showing `note`; the person records it over the song, listens back, records it again as often as they like, and sends it, or says not now. Returns at once with the request's id and the link that opens the studio, for when none is open; then call wait_for_take with the id until the take arrives. The take is added as add_take adds one (or, from a keyboard, as add_notes adds notes)."
     )]
     async fn request_take(&self, Parameters(a): Parameters<RequestTakeArgs>) -> Result<String, String> {
@@ -929,7 +951,7 @@ mod tests {
         read_only.sort();
         assert_eq!(
             read_only,
-            ["analyze", "catalog", "get_song", "graph", "script_reference", "status", "wait_for_take"]
+            ["analyze", "assess_voice", "catalog", "get_song", "graph", "script_reference", "status", "wait_for_take"]
         );
     }
 

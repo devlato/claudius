@@ -266,6 +266,9 @@ impl Mock {
             Command::SampleSong { .. } => {
                 Err("the demo samples nothing: start `claudius serve` to sample a recording".into())
             }
+            Command::AssessVoice { .. } => {
+                Err("the demo hears no singing: start `claudius serve` to hear how a take is sung".into())
+            }
             Command::Save { path } => {
                 let title =
                     self.state.song.as_ref().map_or("song".into(), |s| s.title.to_lowercase().replace(' ', "-"));

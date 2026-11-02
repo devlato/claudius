@@ -39,4 +39,5 @@ pub mod song;
 pub mod synth;
 pub mod take;
 pub mod theory;
+pub mod voice;
 pub mod warp;

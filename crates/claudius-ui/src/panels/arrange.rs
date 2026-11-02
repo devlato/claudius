@@ -507,6 +507,14 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 }
                 if t.kind == "take" {
                     ui.separator();
+                    if ui
+                        .button("How is it sung?")
+                        .on_hover_text("the notes it means, how near each came, and how its singer sings")
+                        .clicked()
+                    {
+                        out.push(Command::AssessVoice { take: Some(layer.clone()), path: None, key: None });
+                        ui.close();
+                    }
                     ui.menu_button("Turn the melody into notes", |ui| {
                         ui.label(small(
                             "a new part plays what was sung, in the key and on the grid, and the take goes quiet",
