@@ -32,6 +32,10 @@ pub(super) fn set(bp: &mut Blueprint, lane: &str, variant: &str, step: f64, m: &
     let t = step * 0.25;
     let at = match hits.iter().position(|h| (h.t - t).abs() < 1e-6) {
         Some(i) => i,
+        // nothing to clear on a step without a hit
+        None if m.is_empty() => {
+            return Ok(format!("{lane} {variant} step {}: no hit, no trig", super::print::number(step)));
+        }
         None => {
             hits.push(Hit::new(t, 0.8));
             hits.sort_by(|a, b| a.t.total_cmp(&b.t));
@@ -147,10 +151,10 @@ pub(super) fn lines(lane: &str, variant: &str, hits: &[Hit]) -> Vec<String> {
         .filter_map(|h| {
             let tr = h.trig?;
             let d = Trig::default();
-            let n = super::print::number;
+            let (n, f) = (super::print::number, super::print::f32s);
             let mut parts = Vec::new();
             if tr.prob != d.prob {
-                parts.push(format!("prob: {}", n(tr.prob as f64)));
+                parts.push(format!("prob: {}", f(tr.prob)));
             }
             if tr.cond != d.cond {
                 parts.push(format!("cond: {}", quote(&String::from(tr.cond))));
@@ -159,25 +163,25 @@ pub(super) fn lines(lane: &str, variant: &str, hits: &[Hit]) -> Vec<String> {
                 parts.push(format!("ratchet: {}", tr.ratchet));
             }
             if tr.ramp != d.ramp {
-                parts.push(format!("ramp: {}", n(tr.ramp as f64)));
+                parts.push(format!("ramp: {}", f(tr.ramp)));
             }
             if tr.flam != d.flam {
-                parts.push(format!("flam: {}", n(tr.flam as f64)));
+                parts.push(format!("flam: {}", f(tr.flam)));
             }
             if tr.nudge != d.nudge {
-                parts.push(format!("nudge: {}", n(tr.nudge as f64)));
+                parts.push(format!("nudge: {}", f(tr.nudge)));
             }
             if tr.pitch != d.pitch {
                 parts.push(format!("pitch: {}", tr.pitch));
             }
             if tr.decay != d.decay {
-                parts.push(format!("decay: {}", n(tr.decay as f64)));
+                parts.push(format!("decay: {}", f(tr.decay)));
             }
             if tr.tone != d.tone {
-                parts.push(format!("tone: {}", n(tr.tone as f64)));
+                parts.push(format!("tone: {}", f(tr.tone)));
             }
             if tr.pan != d.pan {
-                parts.push(format!("pan: {}", n(tr.pan as f64)));
+                parts.push(format!("pan: {}", f(tr.pan)));
             }
             Some(format!("trig({}, {}, {}, #{{ {} }});", quote(lane), quote(variant), n(h.t * 4.0), parts.join(", ")))
         })

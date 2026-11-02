@@ -12,7 +12,7 @@ use super::steps::{hits_to_steps, shortest_steps};
 use crate::synth::drums::DrumParams;
 
 /// a number as the shortest text that reads back as the same f32
-fn f32s(v: f32) -> String {
+pub(super) fn f32s(v: f32) -> String {
     if v == v.trunc() && v.abs() < 1e9 { format!("{}", v as i64) } else { format!("{v}") }
 }
 

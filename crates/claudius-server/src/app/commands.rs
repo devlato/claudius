@@ -435,9 +435,13 @@ impl App {
                     if velocity > 0.0 { format!("{velocity:.2}") } else { "off".into() }
                 ))
             }),
+            // the trig given in place of the one there: cleared, then set with what differs from the defaults
             Command::SetTrig { lane, variant, step, trig } => {
-                let set = trig.map(|t| t.script()).unwrap_or_default();
-                let code = format!("trig({}, {}, {step}, #{{ {set} }});", quote(&lane), quote(&variant));
+                let (lane_q, variant_q) = (quote(&lane), quote(&variant));
+                let mut code = format!("trig({lane_q}, {variant_q}, {step}, #{{}});");
+                if let Some(set) = trig.map(|t| t.script()).filter(|s| !s.is_empty()) {
+                    code.push_str(&format!(" trig({lane_q}, {variant_q}, {step}, #{{ {set} }});"));
+                }
                 self.run_script(&code, Some(format!("{lane} {variant} step {step}")))
             }
             Command::RunScript { code } => self.run_script(&code, None),
