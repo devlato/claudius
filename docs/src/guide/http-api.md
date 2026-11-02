@@ -154,7 +154,7 @@ The MCP tools wait the same way after every edit.
 | `mix` | `MixView`: the `buses` as `[name, effects]`, the `master` chain, its `lufs` and `ceiling_db`, and the `reverb` and `delay` the sends feed |
 | `drums` | `DrumView` per lane: `lane`, `pattern_bars`, `variants` as `[name, velocities]` with one velocity per sixteenth (0 for none), and `trigs` as `[name, [[step, trig]]]` for the steps with a [trig](../language/song-functions.md#trig) (`prob`, `cond`, `ratchet`, `ramp`, `flam`, `nudge`, `pitch`, `decay`, `tone`, `pan`, each only where it differs from its default), and the lane's own time and feel as [`lane()`](../language/song-functions.md#lane) sets it: `length` (sixteenths before it starts again, when it has a length of its own), `speed` (1), `swing` (when it has its own), `groove` and `groove_amount` (1) |
 | `grooves` | the names of the grooves the song keeps, heard in recordings or written as tables; lanes play them as they play claudius' own |
-| `parts` | `PartView` per generated part: `name`, `role`, `style`, the `styles` its genre offers, `preset`, the `presets` it may switch to, `register` (MIDI low, high), `density` |
+| `parts` | `PartView` per generated part: `name`, `role`, `style`, the `styles` its genre offers, `preset`, the `presets` it may switch to, `register` (MIDI low, high), `density`, and `cycles`: for each progression its sections play, then each it has notes written out for and plays nowhere now, `prog`, the `beats` its cycle comes round in, whether it is `written` out, and its `notes` (`{t, d, p, v}`, beats from the cycle's start), as the theory engine writes them or as written |
 | `script` | the song as a script; running it on the song changes nothing |
 | `lineage` | what was done to the song, oldest first |
 
@@ -215,6 +215,7 @@ fields marked optional may be left out.
 | `set_part` | `name`; optional `style`, `preset`, `register` (`[low, high]`), `density`, `reseed` (false) | as `part()`; `reseed` writes the part again with a new seed |
 | `add_track` | `name` (one word of letters, digits, `_` and `-`, not one the song has), `kind` (`drum` or `part`); optional `role` (a part's: `bass`, `chords`, `pad`, `keys`, `lead`, `arp`), `sound` | a drum lane, silent until its steps are written, playing `sound` (a drum voice or a kit's `tr909:bd`), as `drum()` and `drum_sound()`; or a part of your own, as [`part()` with a `role`](../language/song-functions.md#part), playing `sound` (a synth preset or an instrument; the genre's draw when left out). It plays where the form names it, else in every section with energy 0.6 or more |
 | `remove_track` | `name` | a drum lane, part, loop, take or pattern track out of the song and every section, as `remove()` |
+| `set_notes` | `part`, `prog`; optional `notes` (`[{t, d, p, v}]`, beats from the cycle's start; velocity 0.8 when left out) | the part's notes over that progression written out, as [`notes()`](../language/song-functions.md#notes): they replace what the theory engine writes there (an empty list rests); without `notes`, the theory engine writes it again, as `clear_notes()` |
 | `set_mix` | `track`; optional `level_db`, `pan`, `reverb`, `delay`, `duck`, `muted`, `solo`, `bus` | as `mix()` |
 | `set_fx` | `target` (`track:<name>`, `bus:<name>`, `master`, `send:reverb`, `send:delay`), `fx` (effects as `TrackView.fx` has them; a send takes exactly one) | replaces that chain, as [`fx()`, `bus()`, `master(#{ fx })` and `send_fx()`](../language/mixing.md#effect-chains) do; an effect it cannot read is refused with its place and why |
 | `run_script` | `code` | runs a script on the song |
@@ -249,8 +250,8 @@ fields marked optional may be left out.
 {"cmd": "run_script", "code": "tempo(126); mix(\"lead\", #{ level: -2 });"}
 ```
 
-`set_tempo`, `set_key`, `set_swing`, `set_progression`, `set_drum_pattern`, `set_part`, `add_track`, `remove_track`
-and `set_mix` are turned into the matching script call and run as a script, so they accept exactly what the script
+`set_tempo`, `set_key`, `set_swing`, `set_progression`, `set_drum_pattern`, `set_part`, `add_track`, `remove_track`,
+`set_notes` and `set_mix` are turned into the matching script call and run as a script, so they accept exactly what the script
 functions accept and fail with the same messages (`add_track` checks its name first). The other edits change the blueprint directly. Every edit that changes the song is one undo step
 with a label, and starts a render after 200 ms unless the session runs with `--no-auto-render`.
 

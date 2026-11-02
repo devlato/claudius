@@ -32,6 +32,7 @@ Integers and decimals are different types: counts (`ply(2)`, `octave(4)`, the ba
 | `drum_sound("kick", "tr909:bd")` | what a drum lane plays: a drum word, a kit sound, or a sample file; on a new name, a new lane (`drum_sound("bongo", "tr909:lt")`, then `drum("bongo", ...)`) |
 | `part("bass", #{ style: "syncopated", preset: "reese", density: 0.6, seed: 5 })` | a part the theory engine writes |
 | `part("lead2", #{ role: "lead", preset: "saw_lead" })` | a part of your own, of any role (`bass chords pad keys lead arp`), written the way the genre writes that role |
+| `notes("lead", "A", [[0, 0.5, 69], [0.5, 0.5, 72, 0.6]])` | a part's notes over a progression written out (`[start, length, pitch, velocity]`, beats from the cycle's start), in place of the theory engine's; `clear_notes("lead", "A")` gives them back. `get_song`'s script shows the notes a part has written out |
 | `track("hats", s("[~ hh]*4"))` | a track that plays a pattern (replaces a track of that name) |
 | `mix("pad", #{ level: -4, pan: -0.3, reverb: 0.4, delay: 0.2, duck: 0.5 })` | level in dB from the role's target; sends 0 to 1; `duck` is the sidechain from the kick |
 | `mute("hat")`, `solo("lead")`, `remove("perc")`, `master(#{ lufs: -9, ceiling: -1 })` | the rest of the mix |

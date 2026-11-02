@@ -51,7 +51,8 @@ Every edit works on a copy and commits only on success:
   undo: the caller's (`tempo 124`, `mix bass: level: -2, duck: 0.6`), or one made from the script's first line.
 - `set_tempo`, `set_key`, `set_swing`, `set_progression`, `set_drum_pattern`, `set_part`, `add_track` (`drum()` and
   `drum_sound()` for a lane, `part()` with a `role` for a part, after checking the name is one word and new),
-  `remove_track` (`remove()`) and `set_mix` build script code (every string through `pattern::quote`) and go through
+  `remove_track` (`remove()`), `set_notes` (`notes()`, or `clear_notes()` without notes) and `set_mix` build script
+  code (every string through `pattern::quote`) and go through
   `run_script`, so the studio's controls and scripts validate the same way and fail with the same messages.
 - The other edits (`set_section`, `add_section`, `remove_section`, `move_section`, `toggle_layer`, `set_drum_step`)
   change the blueprint directly in `edit_with`, which also checks the song's size and commits only when something

@@ -464,6 +464,33 @@ part("bass", #{ style: "offbeat" });
 part("chords", #{ style: "stabs", preset: "stab" });
 ```
 
+### `notes()`
+
+```js no-run
+notes(part, prog, [[start, length, pitch, velocity], ...])
+clear_notes(part, prog)
+```
+
+Writes out what a part plays over a progression: the notes replace what the theory engine writes there, every time
+round, and the part keeps its sound, its mix and its sections. Each note is `[start, length, pitch]` or `[start,
+length, pitch, velocity]`: beats from the start of the progression's cycle, beats long, a MIDI pitch from 0 to 127
+(60 is middle C), and a velocity from 0 to 1 (0.8 when left out). Notes that run past one cycle make it longer: the
+part comes round after the last note it reaches. An empty list rests over that progression. `clear_notes()` lets
+the theory engine write the progression again.
+
+The studio's **Piano roll** writes these. A song printed as a script writes a `notes()` line for every progression a
+part has written out, by hand, from a take or from a keyboard, so the script plays the same notes.
+
+Errors: `notes(): no part 'nope' (parts: bass chords pad lead arp)`; `notes(): no progression 'Z' (progressions: A
+B)`; `notes(): note 2 is [start, length, pitch] or [start, length, pitch, velocity]: ...` for a note it cannot read
+(a length of 0, a pitch outside 0 to 127); `notes(): 5000 notes in one progression; the limit is 4096`.
+
+```js
+notes("lead", "A", [[0, 0.5, 69], [0.5, 0.5, 72], [1, 1, 76, 1], [3, 0.5, 74, 0.6]]);
+notes("bass", "B", []);
+clear_notes("bass", "B");
+```
+
 ## Tracks
 
 ### `track()`

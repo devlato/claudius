@@ -13,6 +13,7 @@ pub mod mixer;
 pub mod parts;
 pub mod publish;
 pub mod record;
+pub mod roll;
 pub mod script;
 pub mod sequencer;
 pub mod transport;
@@ -31,6 +32,7 @@ pub enum Tab {
     Sequencer,
     Mixer,
     Parts,
+    Notes,
     Harmony,
     Script,
     Sounds,
@@ -39,14 +41,24 @@ pub enum Tab {
 }
 
 impl Tab {
-    pub const ALL: [Tab; 8] =
-        [Tab::Sequencer, Tab::Mixer, Tab::Parts, Tab::Harmony, Tab::Script, Tab::Sounds, Tab::Graph, Tab::Log];
+    pub const ALL: [Tab; 9] = [
+        Tab::Sequencer,
+        Tab::Mixer,
+        Tab::Parts,
+        Tab::Notes,
+        Tab::Harmony,
+        Tab::Script,
+        Tab::Sounds,
+        Tab::Graph,
+        Tab::Log,
+    ];
 
     pub fn label(self) -> &'static str {
         match self {
             Tab::Sequencer => "Step sequencer",
             Tab::Mixer => "Mixer",
             Tab::Parts => "Parts",
+            Tab::Notes => "Piano roll",
             Tab::Harmony => "Harmony",
             Tab::Script => "Script",
             Tab::Sounds => "Sounds",
@@ -225,6 +237,8 @@ pub struct View {
     pub row_menu: Option<usize>,
     /// the arrangement's "+ Track" form
     pub add_track: AddTrackForm,
+    /// the piano roll's part, progression, grid and drag
+    pub roll: roll::RollView,
     /// the tour's step on screen, and whether it was taken or skipped (kept between runs)
     pub tour: Option<usize>,
     pub tour_done: bool,
@@ -290,6 +304,7 @@ impl Default for View {
             melody_style: "line".into(),
             row_menu: None,
             add_track: AddTrackForm { role: "lead".into(), ..Default::default() },
+            roll: roll::RollView::default(),
             tour: None,
             tour_done: false,
             tour_asks: false,

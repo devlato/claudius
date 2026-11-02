@@ -7,7 +7,7 @@ use claudius::model::{Blueprint, Sound, TrackMix};
 use claudius::palette;
 use claudius::render::Rendered;
 use claudius::synth::presets;
-use claudius::{genres, script};
+use claudius::{compose, genres, script};
 use claudius_api::*;
 
 pub fn genre_infos() -> Vec<GenreInfo> {
@@ -199,6 +199,15 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
                 presets: presets_for,
                 register: p.register,
                 density: p.density,
+                cycles: compose::cycles(bp, p)
+                    .into_iter()
+                    .map(|(prog, notes, beats, written)| CycleView {
+                        prog,
+                        beats,
+                        written,
+                        notes: notes.iter().map(|n| NoteView { t: n.t, d: n.d, p: n.p, v: n.v }).collect(),
+                    })
+                    .collect(),
             }
         })
         .collect();
