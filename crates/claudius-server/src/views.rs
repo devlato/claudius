@@ -129,6 +129,21 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
                     (v.clone(), steps)
                 })
                 .collect(),
+            trigs: d
+                .patterns
+                .iter()
+                .map(|(v, hits)| {
+                    let on_steps = hits.iter().filter_map(|h| {
+                        let step = h.t * 4.0;
+                        let tr = h.trig.filter(|_| (step - step.round()).abs() < 1e-6)?;
+                        // the engine's trig and the view are the same JSON
+                        let view = serde_json::to_value(tr).ok().and_then(|j| serde_json::from_value(j).ok())?;
+                        Some((step.round() as usize, view))
+                    });
+                    (v.clone(), on_steps.collect())
+                })
+                .filter(|(_, t): &(String, Vec<(usize, claudius_api::TrigView)>)| !t.is_empty())
+                .collect(),
         })
         .collect();
     let parts = bp

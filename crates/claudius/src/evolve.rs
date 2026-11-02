@@ -185,7 +185,7 @@ fn apply_op(
                     if hits.iter().any(|h| (h.t - step).abs() < 1e-6) {
                         return None;
                     }
-                    hits.push(Hit { t: step, v: 0.5 + 0.4 * rng.f32() });
+                    hits.push(Hit::new(step, 0.5 + 0.4 * rng.f32()));
                     hits.sort_by(|a, c| a.t.partial_cmp(&c.t).unwrap());
                     format!("added a {} hit at beat {:.2}", lane.name, step)
                 }

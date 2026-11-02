@@ -20,6 +20,15 @@ fn f64s(v: f64) -> String {
     if v == v.trunc() && v.abs() < 1e15 { format!("{}", v as i64) } else { format!("{v}") }
 }
 
+/// a setting as a script writes it: whole numbers whole, the rest to four places at most
+pub(super) fn number(v: f64) -> String {
+    if v == v.trunc() && v.abs() < 1e15 {
+        format!("{}", v as i64)
+    } else {
+        format!("{v:.4}").trim_end_matches('0').trim_end_matches('.').to_string()
+    }
+}
+
 /// the mix settings that differ from what the track would get without a mix() line
 fn mix_line(name: &str, m: &TrackMix, base: &TrackMix, out: &mut String) {
     let mut parts = Vec::new();
@@ -282,6 +291,10 @@ pub fn to_script(bp: &Blueprint) -> String {
                 s.push_str(&format!("drum({}, {}, {});\n", quote(&d.name), quote(v), quote(&steps)));
             } else {
                 s.push_str(&format!("drum({}, {}, {}, {res});\n", quote(&d.name), quote(v), quote(&steps)));
+            }
+            for line in super::trigs::lines(&d.name, v, hits) {
+                s.push_str(&line);
+                s.push('\n');
             }
         }
         match &d.sound {

@@ -74,6 +74,11 @@ form([sec("intro", 8, "drums keys"), sec("drop", 16, "*").impact(), sec("break",
   [references/script.md](references/script.md). `graph` describes the whole signal flow in words, which is the
   quickest way to see what a track goes through before changing it, and what the person sees in the studio's Graph
   tab.
+- **Drum steps.** A drum lane's step can do what a drum machine's trig does: `trig(lane, step, #{ ... })` gives it a
+  chance (`prob`), a condition (`cond: "1:2"`, `"last"` for the bar before the next section), a ratchet that swells
+  or fades (`ratchet`, `ramp`), a flam, a nudge off the grid, and its own pitch, decay, tone and pan. Rolls into a
+  beat, a turnaround only in a section's last bar, ghost notes by chance and late snares come from these, not from
+  more lanes. Steps count sixteenths from 0 (4 is beat 2).
 - An error names the line and what it accepts (`unknown sound 'bdd' (drums: bd kick ...)`). Fix that and run again;
   don't guess around it.
 - **Exact notes.** For a melody, a bass line or chords you write out, or that the person dictates, use `add_notes`. It

@@ -175,6 +175,20 @@ The house hat template reads like this, a pattern a person would program:
 thirty-seconds, or thirty-second triplets, with a velocity ramp up (six times in ten) or down. They fall mostly on the
 last beat of a bar and rarely on the downbeat.
 
+**Trigs.** A hit may carry a `Trig`, what its step does beyond striking, as a drum machine's does. `arrange` plays a
+lane's pattern round by round over each section (`lane_notes`):
+
+- **When.** A step's condition counts the times round from the section's start (`Cond::plays`), and its chance is
+  drawn for each time round from a generator seeded by the song, the lane, the section, the time round and the step.
+  So a song sounds the same in every render, and different from bar to bar.
+- **How.** A step that plays becomes its strokes (`Trig::strokes`): a flam's grace stroke the flam's milliseconds
+  before at half the velocity, then the ratchet's strokes spread evenly over the sixteenth, their velocities ramping
+  up to the hit's or down from it by three quarters at most.
+- **The sound.** Its pitch goes on the strokes' notes. Its nudge, decay, tone and pan go with them as a `Lock`, and
+  render adds the nudge after swing (swing moves only notes exactly on an off-beat sixteenth). A synthesized drum's
+  decay and tone are its own settings, rendered and cached as another sound; a sample is cut shorter by a falling
+  curve and blended towards itself low-passed at 2 kHz (darker) or away from it (brighter). The pan is a balance.
+
 **Euclidean rhythms** spread `k` onsets over `n` steps as evenly as possible (`rhythm::euclid`, computed with the
 `(i * k) % n < k` formula, which gives the same patterns as Bjorklund's algorithm up to rotation). A lane with
 `"euclid": [5, 16]` gets a random rotation and a `sparse` variant with half the onsets.

@@ -322,6 +322,7 @@ fn register_drums(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                     if l.patterns.get(variant).is_some_and(|old| hits_to_steps(old, len) == hits_to_steps(&hits, len)) {
                         return Ok(());
                     }
+                    let hits = super::trigs::carry(l.patterns.get(variant), hits);
                     l.patterns.insert(variant.to_string(), hits);
                     return Ok(());
                 }
@@ -356,6 +357,25 @@ fn register_drums(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     let d = Rc::new(drum);
     let d1 = d.clone();
     engine.register_fn("drum", move |lane: &str, steps: &str| d1(lane, "main", steps, 16));
+    // trig(lane, [variant,] step, #{ ... }): what a step does beyond striking
+    let trig = {
+        let c = ctx.clone();
+        move |lane: &str, variant: &str, step: f64, m: Map| -> R<()> {
+            with_bp(&c, |bp, log| {
+                log.push(super::trigs::set(bp, lane, variant, step, &m)?);
+                Ok(())
+            })
+        }
+    };
+    let t = Rc::new(trig);
+    let t1 = t.clone();
+    engine.register_fn("trig", move |lane: &str, step: INT, m: Map| t1(lane, "main", step as f64, m));
+    let t1 = t.clone();
+    engine.register_fn("trig", move |lane: &str, step: rhai::FLOAT, m: Map| t1(lane, "main", step, m));
+    let t1 = t.clone();
+    engine.register_fn("trig", move |lane: &str, variant: &str, step: INT, m: Map| t1(lane, variant, step as f64, m));
+    let t1 = t.clone();
+    engine.register_fn("trig", move |lane: &str, variant: &str, step: rhai::FLOAT, m: Map| t1(lane, variant, step, m));
     let d1 = d.clone();
     engine.register_fn("drum", move |lane: &str, variant: &str, steps: &str| d1(lane, variant, steps, 16));
     let d1 = d.clone();

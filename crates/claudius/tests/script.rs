@@ -515,3 +515,110 @@ fn effects_a_script_gets_wrong_say_what_they_are() {
     // a kind's other names count as the kind
     assert!(fails(r#"fx("lead", [#{ fx: "gain", db: sections(0, #{ chorus: -3, breakdown: -6 }) }]);"#).is_none());
 }
+
+#[test]
+fn trigs_play_by_chance_and_condition_ratchet_flam_and_lock_the_sound() {
+    use claudius::theory::rhythm::{Cond, Trig};
+    let code = r#"
+        blank("house"); tempo(120);
+        drum("kick", "x...............");
+        drum("hat", "x.x.x.x.x.x.x.x.");
+        form([sec("drop", 16, "hat kick")]);
+        trig("hat", 2, #{ ratchet: 3, ramp: 1 });
+        trig("hat", 4, #{ prob: 0.5 });
+        trig("hat", 6, #{ cond: "last" });
+        trig("hat", 8, #{ nudge: 0.25, pitch: 3, pan: -1, decay: 0.5 });
+        trig("hat", 10, #{ flam: 20 });
+        trig("hat", 13, #{ v: 0.6, cond: "1:2" });
+    "#;
+    let out = script::run(code, None, None).unwrap();
+    assert!(out.log.iter().any(|l| l == "hat main step 2: 3 strokes swelling"), "{:?}", out.log);
+    let bp = out.bp.unwrap();
+    let hat = bp.drums.iter().find(|d| d.name == "hat").unwrap();
+    let main = &hat.patterns["main"];
+    assert_eq!(main.len(), 9, "step 13 is a hit now: {main:?}");
+    assert_eq!(main.iter().find(|h| h.t == 3.25).and_then(|h| h.trig).map(|t| t.cond), Some(Cond::Every(1, 2)));
+    let p = compose::arrange(&bp);
+    let notes = &p.tracks.iter().find(|t| t.name == "hat").unwrap().notes;
+    let at = |beat: f64| notes.iter().filter(|n| (n.t % 4.0 - beat).abs() < 1e-6).count();
+    assert_eq!((at(0.0), at(3.0), at(3.5)), (16, 16, 16), "plain steps every bar");
+    assert_eq!((at(0.5), at(0.5 + 1.0 / 12.0), at(0.5 + 2.0 / 12.0)), (16, 16, 16), "three strokes in a sixteenth");
+    let chance = at(1.0);
+    assert!((4..=12).contains(&chance), "about half the bars: {chance}");
+    assert_eq!(
+        chance,
+        compose::arrange(&bp)
+            .tracks
+            .iter()
+            .find(|t| t.name == "hat")
+            .unwrap()
+            .notes
+            .iter()
+            .filter(|n| (n.t % 4.0 - 1.0).abs() < 1e-6)
+            .count(),
+        "the same each render"
+    );
+    assert_eq!(
+        notes.iter().filter(|n| (n.t % 4.0 - 1.5).abs() < 1e-6).map(|n| n.t).collect::<Vec<_>>(),
+        [61.5],
+        "only the last bar"
+    );
+    assert_eq!((at(3.25), at(2.5 - 0.04), at(2.5)), (8, 16, 16), "1:2, and a flam 20 ms ahead at 120 BPM");
+    let locked: Vec<_> = notes.iter().filter(|n| (n.t % 4.0 - 2.0).abs() < 1e-6).collect();
+    assert_eq!(locked.len(), 16);
+    assert!(
+        locked
+            .iter()
+            .all(|n| n.p == 63 && n.lock.is_some_and(|l| l.nudge == 0.0625 && l.pan == -1.0 && l.decay == 0.5))
+    );
+    // the song prints with them and reads back as the same song
+    let printed = script::to_script(&bp);
+    for line in [
+        r#"trig("hat", "main", 2, #{ ratchet: 3, ramp: 1 });"#,
+        r#"trig("hat", "main", 8, #{ nudge: 0.25, pitch: 3, decay: 0.5, pan: -1 });"#,
+    ] {
+        assert!(printed.contains(line), "{line} is missing from\n{printed}");
+    }
+    assert!(script::run(&printed, Some(bp.clone()), None).unwrap().bp.unwrap() == bp, "{printed}");
+    // the pattern written again keeps the trigs of the steps that still strike; an empty map clears one
+    let again =
+        script::run(r#"drum("hat", "x.x.x...x.x.x.x."); trig("hat", 2, #{});"#, Some(bp.clone()), None).unwrap();
+    let hats = &again.bp.unwrap().drums.into_iter().find(|d| d.name == "hat").unwrap().patterns["main"];
+    assert_eq!(hats.iter().filter(|h| h.trig.is_some()).count(), 3, "{hats:?}");
+    assert!(hats.iter().find(|h| h.t == 2.0).and_then(|h| h.trig).is_some_and(|t| t.pitch == 3));
+    assert!(hats.iter().find(|h| h.t == 0.5).is_some_and(|h| h.trig.is_none()));
+    for (bad, says) in [
+        (r#"trig("hat", 2, #{ ratchets: 3 })"#, "trig() has no option 'ratchets'"),
+        (r#"trig("hat", 2, #{ ratchet: 12 })"#, "trig()'s ratchet is 1 to 8, not 12"),
+        (r#"trig("hat", 64, #{ prob: 0.5 })"#, "hat's steps go from 0 to 15"),
+        (r#"trig("hat", "fill", 2, #{ prob: 0.5 })"#, "hat has no variant 'fill' (variants: main)"),
+        (r#"trig("bongo", 2, #{ prob: 0.5 })"#, "no drum lane 'bongo'"),
+        (r#"trig("hat", 2, #{ cond: "often" })"#, "not 'often'"),
+    ] {
+        let e = script::run(bad, Some(bp.clone()), None).err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(e.contains(says), "{bad}: {e}");
+    }
+    let _ = Trig::default();
+}
+
+#[test]
+fn a_nudge_moves_the_stroke_late_and_a_pan_sends_it_to_one_side() {
+    let song = |extra: &str| {
+        let code = format!(
+            r#"blank("house"); tempo(120); swing(0.5); drum("kick", "....x..........."); form([sec("drop", 1, "kick")]); {extra}"#
+        );
+        let bp = script::run(&code, None, None).unwrap().bp.unwrap();
+        let r = render::render(&compose::arrange(&bp), &render::Options { stems: true, tail_secs: 0.5 }).unwrap();
+        r.stems.into_iter().find(|(n, _)| n == "kick").unwrap().1
+    };
+    let onset =
+        |x: &claudius::audio::Stereo| x.l.iter().zip(&x.r).position(|(l, r)| l.abs().max(r.abs()) > 0.01).unwrap();
+    // on beat 2, where the jitter humanize adds moves both alike
+    let (plain, late) = (song(""), song(r#"trig("kick", 4, #{ nudge: 0.5 });"#));
+    // half a sixteenth at 120 BPM: 62.5 ms, 3000 samples
+    let moved = onset(&late) as i64 - onset(&plain) as i64;
+    assert!((moved - 3000).abs() < 2, "{moved}");
+    let left = song(r#"trig("kick", 4, #{ pan: -1 });"#);
+    let (l, r) = (left.l.iter().map(|v| v * v).sum::<f32>(), left.r.iter().map(|v| v * v).sum::<f32>());
+    assert!(r < 0.01 * l, "all of it on the left: {l} {r}");
+}

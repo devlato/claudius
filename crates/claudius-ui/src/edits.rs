@@ -221,6 +221,32 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
                 if *velocity > 0.0 { format!("{velocity:.2}") } else { "off".into() }
             ))
         }
+        // a step's trig, as the server keeps it; a step without a hit gets one
+        Command::SetTrig { lane, variant, step, trig } => {
+            let Some(d) = song.drums.iter_mut().find(|d| &d.lane == lane) else {
+                return Some(Err(format!("no drum lane '{lane}'")));
+            };
+            let len = (d.pattern_bars.max(1) * 16) as usize;
+            if *step >= len {
+                return Some(Err(format!("{lane}'s steps go from 0 to {}", len - 1)));
+            }
+            if let Some((_, steps)) = d.variants.iter_mut().find(|(n, _)| n == variant) {
+                steps.resize(len, 0.0);
+                if steps[*step] <= 0.0 && trig.is_some() {
+                    steps[*step] = 0.8;
+                }
+            }
+            if d.trigs.iter().all(|(n, _)| n != variant) {
+                d.trigs.push((variant.clone(), Vec::new()));
+            }
+            let trigs = &mut d.trigs.iter_mut().find(|(n, _)| n == variant)?.1;
+            trigs.retain(|(s, _)| s != step);
+            if let Some(t) = trig.clone().filter(|t| *t != claudius_api::TrigView::default()) {
+                trigs.push((*step, t));
+                trigs.sort_by_key(|(s, _)| *s);
+            }
+            Ok(format!("{lane} {variant} step {step}: trig set"))
+        }
         Command::SetDrumPattern { lane, variant, steps } => {
             let Some(d) = song.drums.iter_mut().find(|d| &d.lane == lane) else {
                 return Some(Err(format!("no drum lane '{lane}'")));

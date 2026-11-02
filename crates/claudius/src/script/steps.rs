@@ -11,7 +11,7 @@ pub(super) fn tile_hits(hits: &[Hit], bars: u32, to_bars: u32) -> Vec<Hit> {
     let mut out = Vec::new();
     let mut off = 0.0;
     while off < end - 1e-9 {
-        out.extend(hits.iter().map(|h| Hit { t: h.t + off, v: h.v }).filter(|h| h.t < end - 1e-9));
+        out.extend(hits.iter().map(|h| Hit { t: h.t + off, ..*h }).filter(|h| h.t < end - 1e-9));
         off += period;
     }
     out
@@ -38,7 +38,7 @@ pub fn steps_to_hits(steps: &str, per_bar: u32) -> (Vec<Hit>, u32) {
                 d if d.is_ascii_digit() && *d != '0' => d.to_digit(10).unwrap() as f32 / 10.0,
                 _ => return None,
             };
-            Some(Hit { t: i as f64 * step, v })
+            Some(Hit::new(i as f64 * step, v))
         })
         .collect();
     (hits, (cells.len() as u32).div_ceil(per_bar).clamp(1, 16))

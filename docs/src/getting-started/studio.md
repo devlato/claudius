@@ -48,7 +48,11 @@ the song it opens.
   switches for a build, a gap before the next section, an impact, drum fills, and a filter that opens over the
   section.
 - **Steps.** A step sequencer for every drum track. Click a step to toggle it, drag to paint, shift-drag to set how
-  hard a hit is.
+  hard a hit is. Right-click a step and open **Trig** to set the chance it plays, when it plays (`1:2`, `last` ...),
+  a ratchet of strokes inside it and how they swell or fade, a flam, a nudge off the grid, and its pitch, decay, tone
+  and pan for that stroke ([The drum machine](../cookbook/drum-machine.md)). A step with a trig shows it: its chance
+  as a number, its condition, a ratchet's strokes, a dot for a flam, a diamond for the sound it changes, and a nudged
+  step sits off the grid.
 - **Parts.** The bass, chords, pad, lead and arpeggio parts: their writing style, their sound (a synth or a sampled
   instrument), their range and how busy they are. **Reseed** rewrites a part.
 - **Mixer.** Level, pan, reverb, delay and how much each track ducks under the kick; mute and solo; meters from the

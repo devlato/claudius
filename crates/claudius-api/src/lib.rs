@@ -738,6 +738,80 @@ pub struct DrumView {
     pub pattern_bars: u32,
     /// variant name -> velocity per 1/16 step (0 = no hit)
     pub variants: Vec<(String, Vec<f32>)>,
+    /// variant name -> the trigs of its steps, by 1/16 step
+    #[serde(default)]
+    pub trigs: Vec<(String, Vec<(usize, TrigView)>)>,
+}
+
+/// What a step does beyond striking, as the engine's `Trig` keeps it (the same JSON): the chance it plays each time
+/// round; when (`cond`: "always", "1:2" the first of every two times round a section, "3:4", "first", "last", "!first",
+/// "!last"); strokes within its sixteenth (`ratchet`, 1 to 8) and how their velocity moves (`ramp`, -1 fading to 1
+/// swelling); a flam this many ms before; a nudge off the grid in sixteenths (-0.5 to 0.5); and what it locks in the
+/// sound: semitones, decay (times the lane's, 0.1 to 4), tone (-1 darker to 1 brighter), pan (-1 to 1).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct TrigView {
+    pub prob: f32,
+    pub cond: String,
+    pub ratchet: u8,
+    pub ramp: f32,
+    pub flam: f32,
+    pub nudge: f32,
+    pub pitch: i8,
+    pub decay: f32,
+    pub tone: f32,
+    pub pan: f32,
+}
+
+impl Default for TrigView {
+    fn default() -> TrigView {
+        TrigView {
+            prob: 1.0,
+            cond: "always".into(),
+            ratchet: 1,
+            ramp: 0.0,
+            flam: 0.0,
+            nudge: 0.0,
+            pitch: 0,
+            decay: 1.0,
+            tone: 0.0,
+            pan: 0.0,
+        }
+    }
+}
+
+impl TrigView {
+    /// the settings it changes, as `trig()` writes them in a script: `prob: 0.5, cond: "1:2"`
+    pub fn script(&self) -> String {
+        let d = TrigView::default();
+        let n = |v: f32| {
+            if v == v.trunc() { format!("{}", v as i64) } else { format!("{v:.4}").trim_end_matches('0').to_string() }
+        };
+        let mut parts = Vec::new();
+        for (k, v, base) in [
+            ("prob", self.prob, d.prob),
+            ("ramp", self.ramp, d.ramp),
+            ("flam", self.flam, d.flam),
+            ("nudge", self.nudge, d.nudge),
+            ("decay", self.decay, d.decay),
+            ("tone", self.tone, d.tone),
+            ("pan", self.pan, d.pan),
+        ] {
+            if v != base {
+                parts.push(format!("{k}: {}", n(v)));
+            }
+        }
+        if self.cond != d.cond && !self.cond.is_empty() {
+            parts.push(format!("cond: \"{}\"", self.cond.replace(['"', '\\'], "")));
+        }
+        if self.ratchet != d.ratchet {
+            parts.push(format!("ratchet: {}", self.ratchet));
+        }
+        if self.pitch != d.pitch {
+            parts.push(format!("pitch: {}", self.pitch));
+        }
+        parts.join(", ")
+    }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -974,6 +1048,15 @@ pub enum Command {
         variant: String,
         step: usize,
         velocity: f32,
+    },
+    /// what step `step` (a sixteenth, from 0) of a lane variant does beyond striking, as `trig()` sets it in a script;
+    /// no `trig` clears it. A step without a hit gets one.
+    SetTrig {
+        lane: String,
+        variant: String,
+        step: usize,
+        #[serde(default)]
+        trig: Option<TrigView>,
     },
     /// a whole lane variant in step notation: "x...x...x...x..." (x hit, X accent, o ghost, . rest; 16 per bar)
     SetDrumPattern {

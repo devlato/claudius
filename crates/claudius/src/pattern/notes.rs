@@ -121,7 +121,7 @@ pub fn place(p: &Pattern, from: u32, to: u32, offset_beats: f64, ctx: &Context) 
                     Some(i) if i != 0 => format!("{base}:{i}"),
                     _ => base,
                 };
-                out.push(Placed { sound: label, note: Note { t, d, p: 60 + add + semis, v } });
+                out.push(Placed { sound: label, note: Note { t, d, p: 60 + add + semis, v, lock: None } });
             }
             Kind::Note | Kind::Plain => {
                 let pitch = match &ev.v {
@@ -130,14 +130,14 @@ pub fn place(p: &Pattern, from: u32, to: u32, offset_beats: f64, ctx: &Context) 
                         format!("cannot read '{w}' as a note (names with an octave like c3, f#4, bb2, or MIDI numbers)")
                     })?,
                 };
-                out.push(Placed { sound: sound.clone(), note: Note { t, d, p: pitch + add + semis, v } });
+                out.push(Placed { sound: sound.clone(), note: Note { t, d, p: pitch + add + semis, v, lock: None } });
             }
             Kind::Degree => {
                 let Some(deg) = ev.v.num() else {
                     return Err(format!("n() takes scale degrees (0 1 2 -1 ...), not '{}'", super::mini_word(&ev.v)));
                 };
                 let pitch = degree_pitch(deg.round() as i32 + add, tonic, &iv, octave);
-                out.push(Placed { sound: sound.clone(), note: Note { t, d, p: pitch + semis, v } });
+                out.push(Placed { sound: sound.clone(), note: Note { t, d, p: pitch + semis, v, lock: None } });
             }
             Kind::Chord => {
                 let w = super::mini_word(&ev.v);
@@ -153,7 +153,7 @@ pub fn place(p: &Pattern, from: u32, to: u32, offset_beats: f64, ctx: &Context) 
                     // the bass note of the chord, in the octave asked for (2 by default: bass register)
                     let oct = p.opts.octave.unwrap_or(2);
                     let pitch = ch.bass_pc() as i32 + 12 * (oct + 1) + add + semis;
-                    out.push(Placed { sound: sound.clone(), note: Note { t, d, p: pitch, v } });
+                    out.push(Placed { sound: sound.clone(), note: Note { t, d, p: pitch, v, lock: None } });
                     continue;
                 }
                 let pitches = voice(
@@ -188,13 +188,14 @@ pub fn place(p: &Pattern, from: u32, to: u32, offset_beats: f64, ctx: &Context) 
                                     d: (step * ev.ctrl.legato.unwrap_or(0.9)).max(0.02),
                                     p: *pch,
                                     v,
+                                    lock: None,
                                 },
                             });
                         }
                     }
                     _ => {
                         for pch in pitches {
-                            out.push(Placed { sound: sound.clone(), note: Note { t, d, p: pch, v } });
+                            out.push(Placed { sound: sound.clone(), note: Note { t, d, p: pch, v, lock: None } });
                         }
                     }
                 }

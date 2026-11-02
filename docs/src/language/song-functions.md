@@ -221,6 +221,47 @@ drum("hat", "sparse", "..x...x...x...x.");
 drum("hat", "main", "x.x.x.x.x.x.x.x.x.x.x.x.x.x.xxxx", 32);
 ```
 
+### `trig()`
+
+```js no-run
+trig(lane, step, settings)            // the "main" variant
+trig(lane, variant, step, settings)   // step: sixteenths from the pattern's start, from 0; settings: a map
+```
+
+Sets what a step does beyond striking, as a drum machine's trig does: when it plays, how it strikes, where, and what
+it changes in the sound for that stroke. `step` counts sixteenths from the start of the lane's pattern: 0 is the
+downbeat, 4 beat 2, 8 beat 3, 12 beat 4, 16 the next bar's downbeat. A fraction reaches a 32nd or a triplet step. A
+step without a hit gets one, and an empty map clears the step's trig.
+
+| setting | range | what it does |
+|---|---|---|
+| `v` | 0.05 to 1 | the hit's velocity |
+| `prob` | 0 to 1 | the chance it plays, drawn afresh each time round the pattern, the same in every render of the song |
+| `cond` | `"always"`, `"1:2"` ... `"16:16"`, `"first"`, `"last"`, `"!first"`, `"!last"` | when it plays, counting times round from each section's start: `"1:2"` the first of every two, `"4:4"` the fourth of every four, `"last"` only the last time round in the section |
+| `ratchet` | 1 to 8 | strokes within its sixteenth: 2 are 32nds, 3 a triplet, 4 64ths |
+| `ramp` | -1 to 1 | how a ratchet's velocity moves: 1 swells to the last stroke, -1 fades from the first |
+| `flam` | 0 to 60 | a grace stroke that many ms before it, at half its velocity |
+| `nudge` | -0.5 to 0.5 | where it lands off the grid, in sixteenths: below 0 early, above late (after swing) |
+| `pitch` | -24 to 24 | semitones, for that stroke |
+| `decay` | 0.1 to 4 | its decay, times the lane's: a synthesized drum rings for that long, a sample is cut shorter (it cannot ring longer than it is) |
+| `tone` | -1 to 1 | darker below 0, brighter above |
+| `pan` | -1 to 1 | a balance for that stroke: -1 all left |
+
+```js
+song("trap", 2);
+trig("hat", 6, #{ ratchet: 4, ramp: 1 });                     // a roll that swells into beat 3
+trig("hat", 14, #{ ratchet: 3, ramp: -1, cond: "1:2" });      // a fading triplet, every other bar
+trig("snare", 12, #{ flam: 18 });
+trig("kick", 10, #{ v: 0.7, prob: 0.5, cond: "last", pitch: -2 });
+```
+
+[`drum()`](#drum) writing a lane's pattern again keeps the trigs of the steps that still strike. The printed script
+writes each trig after its pattern, with only the settings it changes. Errors: `trig() has no option 'ratchets'
+(options: v prob cond ...)`, `trig()'s ratchet is 1 to 8, not 12`, `trig(): hat's steps go from 0 to 15 (sixteenths),
+not 64`, `trig(): hat has no variant 'fill' (variants: main sparse)`, and a condition that does not read: `a step
+plays always, a:b (1:2, 3:4 ...: the a-th time round of every b, b up to 16), first, last, !first or !last, not
+'often'`.
+
 ### `drum_sound()`
 
 ```js no-run
