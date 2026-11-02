@@ -55,7 +55,8 @@ change the rest of the song.
    time in five) in one of the genre's modes; otherwise a progression from a library style, in that style's mode. The
    tonic is drawn the same way, always, and a key of your own replaces the tonic and the mode. Progression `B` is
    another progression of the same style half the time, else a substitution of `A` worked out in the style's mode.
-   Chord length comes from `bars_per_chord`; a one-chord progression lasts 4 bars, and one of eight chords 2 at most.
+   Chord length comes from `bars_per_chord`; a one-chord progression lasts 4 bars, and a song with eight chords in
+   `A` or `B` plays 2 bars a chord at most.
    Then, each from a fork of its own, a four-chord `A` is [answered](#progressions) with chance 0.4 and `B` with
    0.25, when the eight chords last 16 bars or less. When a key of your own has another mode, the progressions then
    move to it the way `key()` moves them: diatonic chords keep their degree and take the new mode's quality,
@@ -63,8 +64,9 @@ change the rest of the song.
 3. **form**: one of the genre's forms, made the song's own by `form::vary` ([below](#a-form-and-a-mix-of-its-own)),
    then every section halved (to at least 4 bars) with `--short`; a form asked for by number (`Options::form`) plays
    as written. In a form with verses and hooks, the hooks play a chorus of their own with chance 0.35: progression
-   `C`, another progression of the style or a substitution of `A`, worked out in the style's mode and moved to the
-   key like the others;
+   `C`, another progression of the style or a substitution of `A`, never what `A` or `B` play (as drawn or answered,
+   or the first half of their eight chords) and no longer a loop than `A`'s or 16 bars, worked out in the style's
+   mode and moved to the key like the others;
 4. **drums**: per lane, a one-shot from the library (with chance `samples`, 0.75 unless `--samples` or a script says
    otherwise, the same for `make`, scripts and the studio's new songs, when there is a library) or a
    synthesized voice with parameters in the genre's ranges (or a third of the way from the voice's default towards a

@@ -187,3 +187,27 @@ fn some_songs_answer_their_loop_and_some_choruses_play_their_own_progression() {
         assert!(choruses >= 6, "{name}: {choruses} of 40 songs have a chorus of its own");
     }
 }
+
+#[test]
+fn eight_chords_loop_in_sixteen_bars_and_no_chorus_plays_what_the_verses_play() {
+    without_installed_packs();
+    for g in genres::all().unwrap() {
+        for seed in 0..40 {
+            let bp = compose::generate(&g, seed, &Options::default(), None);
+            let (progs, bpc) = (&bp.harmony.progressions, bp.harmony.bars_per_chord);
+            for (name, p) in progs {
+                assert!(p.len() < 8 || bpc <= 2, "{} {seed}: {name} has {} chords at {bpc} bars", g.name, p.len());
+            }
+            if let Some(c) = progs.get("C") {
+                for (name, p) in progs.iter().filter(|(n, _)| *n != "C") {
+                    let half = &p[..p.len() / 2];
+                    assert!(
+                        c != p && (p.len() != 8 || c.as_slice() != half),
+                        "{} {seed}: C {c:?} is {name}'s {p:?}",
+                        g.name
+                    );
+                }
+            }
+        }
+    }
+}

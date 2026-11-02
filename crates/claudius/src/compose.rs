@@ -430,9 +430,10 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
         bpc = 4;
     }
     // eight chords loop in sixteen bars at most, so that a section hears the whole of them
-    if prog_a.len() >= 8 {
+    if prog_a.len().max(prog_b.len()) >= 8 {
         bpc = bpc.min(2);
     }
+    let (drawn_a, drawn_b) = (prog_a.clone(), prog_b.clone());
     // a loop answered, the second time round ending another way, when the eight chords still fit (in the style's
     // key, like everything here, so that a key of your own gets what key() would make of it)
     let answered = |p: Vec<String>, chance: f64, label: &str| -> Vec<String> {
@@ -465,16 +466,24 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
         && let mut cr = hr.fork("chorus")
         && cr.chance(0.35)
     {
-        let (a, b) = (&style_a, &style_b);
-        let others: Vec<Vec<String>> =
-            style_progs.iter().map(|p| progression::parse(p)).filter(|p| p != a && p != b).collect();
+        // not what the verses or the breaks play (as drawn or answered, or the first half of eight chords), and no
+        // longer a loop than the verses'
+        let played = [&drawn_a, &drawn_b, &style_a, &style_b];
+        let halves: Vec<&[String]> = played.iter().filter(|p| p.len() == 8).map(|p| &p[..4]).collect();
+        let heard = |p: &Vec<String>| played.contains(&p) || halves.contains(&p.as_slice());
+        let longest = (style_a.len() as u32 * bpc).max(16);
+        let others: Vec<Vec<String>> = style_progs
+            .iter()
+            .map(|p| progression::parse(p))
+            .filter(|p| !heard(p) && p.len() as u32 * bpc <= longest)
+            .collect();
         let c = if !others.is_empty() && cr.chance(0.5) {
             cr.pick(&others).clone()
         } else {
-            let (c, _) = progression::substitute(a, &style_key, &mut cr);
-            if &c == a || &c == b { progression::substitute(&c, &style_key, &mut cr).0 } else { c }
+            let (c, _) = progression::substitute(&style_a, &style_key, &mut cr);
+            if heard(&c) { progression::substitute(&c, &style_key, &mut cr).0 } else { c }
         };
-        if &c != a {
+        if !heard(&c) {
             progressions.insert("C".to_string(), in_key(c));
             for s in form.iter_mut().filter(|s| s.kind == SectionKind::Hook && s.prog == "A") {
                 s.prog = "C".into();
