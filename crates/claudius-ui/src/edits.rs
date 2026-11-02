@@ -325,6 +325,44 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             }
             Ok(format!("{target}: {} effects", fx.len()))
         }
+        // a tuner first in the track's chain, or the one there changed, as the server puts it
+        Command::Tune { track, strength, speed_ms, humanize, vibrato, scale, off } => {
+            let Some(t) = song.tracks.iter_mut().find(|t| t.name == *track) else {
+                return Some(Err(format!("no track '{track}'")));
+            };
+            let at = t.fx.iter().position(|e| e.get("fx").and_then(|f| f.as_str()) == Some("tune"));
+            if *off {
+                if let Some(i) = at {
+                    t.fx.remove(i);
+                }
+                return Some(Ok(format!("{track}: tuned no longer")));
+            }
+            let mut e = at.map(|i| t.fx[i].clone()).unwrap_or_else(|| {
+                serde_json::from_str(
+                    claudius_api::EFFECT_TEMPLATES.iter().find(|(n, _)| *n == "tune").map_or("{}", |t| t.1),
+                )
+                .unwrap_or_default()
+            });
+            for (k, v) in [("strength", strength), ("speed_ms", speed_ms), ("humanize", humanize), ("vibrato", vibrato)]
+            {
+                if let Some(v) = v {
+                    e[k] = serde_json::json!(v);
+                }
+            }
+            if let Some(s) = scale {
+                e["scale"] = match s.trim() {
+                    "chords" | "key" | "chromatic" => serde_json::json!(s.trim()),
+                    notes => {
+                        serde_json::json!({ "notes": notes.split([' ', ',']).filter(|n| !n.is_empty()).collect::<Vec<_>>() })
+                    }
+                };
+            }
+            match at {
+                Some(i) => t.fx[i] = e,
+                None => t.fx.insert(0, e),
+            }
+            Ok(format!("{track}: tuned"))
+        }
         _ => return None,
     })
 }

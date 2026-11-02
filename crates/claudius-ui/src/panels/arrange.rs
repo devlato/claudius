@@ -515,6 +515,45 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         out.push(Command::AssessVoice { take: Some(layer.clone()), path: None, key: None });
                         ui.close();
                     }
+                    ui.menu_button("Tune it", |ui| {
+                        ui.label(small("each note moved onto the note it means, as the song's chords read it"));
+                        let tuned = t.fx.iter().any(|e| e.get("fx").and_then(|f| f.as_str()) == Some("tune"));
+                        let tune = |speed: f32, humanize: f32, vibrato: f32| Command::Tune {
+                            track: layer.clone(),
+                            strength: Some(1.0),
+                            speed_ms: Some(speed),
+                            humanize: Some(humanize),
+                            vibrato: Some(vibrato),
+                            scale: None,
+                            off: false,
+                        };
+                        for (label, hint, cmd) in [
+                            ("Naturally", "the scoop into each note and the vibrato stay", tune(40.0, 10.0, 1.0)),
+                            (
+                                "Tightly",
+                                "on the note within 15 ms, a little of the singer's own left",
+                                tune(15.0, 3.0, 1.0),
+                            ),
+                            (
+                                "Hard",
+                                "snapped onto each note at once, held dead still: the robotic sound",
+                                tune(0.0, 0.0, 0.0),
+                            ),
+                        ] {
+                            if ui.button(label).on_hover_text(hint).clicked() {
+                                out.push(cmd);
+                                ui.close();
+                            }
+                        }
+                        if tuned && ui.button("Not at all").clicked() {
+                            let mut off = tune(0.0, 0.0, 0.0);
+                            if let Command::Tune { off: o, .. } = &mut off {
+                                *o = true;
+                            }
+                            out.push(off);
+                            ui.close();
+                        }
+                    });
                     ui.menu_button("Turn the melody into notes", |ui| {
                         ui.label(small(
                             "a new part plays what was sung, in the key and on the grid, and the take goes quiet",

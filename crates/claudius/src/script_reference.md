@@ -90,10 +90,11 @@ pingpong mix` (the repeats' level on top) · `chorus rate_hz depth_ms delay_ms m
 `feedback`, a phaser's `stages depth`) · `width width mono_below_hz` · `tremolo` and `auto_pan beats depth` · `gate steps
 step_beats depth smooth_ms` · `transient attack_db sustain_db` · `tape wow flutter drive_db lowpass_hz` · `vinyl crackle
 hiss_db` · `tape_stop`, `reverse start len` and `stutter start len slice` (beats) · `parallel chains: [#{ fx: [...],
-amount }] dry`.
+amount }] dry` · `tune strength (1) speed_ms (40) humanize (10) vibrato (1) scale ("chords" "key" "chromatic" or
+#{ notes: [...] })`, a voice moved onto the notes it means.
 
 These settings can move: `gain db`, `filter cutoff res`, `saturate drive_db`, `bitcrush bits`, `delay feedback`,
-`width width`, a `parallel`'s `amount` and `dry`, and every `mix`. A setting that moves is a curve of `[beat, value]`
+`width width`, a `parallel`'s `amount` and `dry`, a `tune`'s `strength`, and every `mix`. A setting that moves is a curve of `[beat, value]`
 points from the song's start (`[[0, 400], [32, 8000]]`), or `sections(rest, #{ section: value })`: a value held
 through each section named (by name, or every section of a kind), several moved through across it (`[0, 1]`,
 `[0, 1, 0]`), `rest` elsewhere; it follows the form when sections move. Quote `"break"` as a key (or write

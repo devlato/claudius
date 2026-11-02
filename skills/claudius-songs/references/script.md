@@ -32,7 +32,7 @@ Integers and decimals are different types: counts (`ply(2)`, `octave(4)`, the ba
 | `mute("hat")`, `solo("lead")`, `remove("perc")`, `master(#{ lufs: -9, ceiling: -1 })` | the rest of the mix |
 | `fx("lead", [#{ fx: "saturate", kind: "tape", drive_db: 6 }, #{ fx: "delay", beats: 0.75, feedback: 0.4, mix: 0.25 }])` | a track's whole chain of effects, in order (`[]` empties it); `bus(name, [...])` a bus's, `master(#{ fx: [...] })` the master's, `send_fx(#{ reverb: #{...}, delay: #{...} })` what the sends feed |
 | `mix("pad", #{ bus: "keys" })` | the bus a track plays into: `drums bass music fx`, or one of your own with `bus("keys", [...])` |
-| `sections(0.15, #{ build: [0.15, 0.6], drop: 0.2 })` | a setting that moves by section, for `gain db`, `filter cutoff res`, `saturate drive_db`, `bitcrush bits`, `delay feedback`, `width width`, every `mix` and a `parallel`'s `amount` and `dry`; a curve `[[beat, value], ...]` works too |
+| `sections(0.15, #{ build: [0.15, 0.6], drop: 0.2 })` | a setting that moves by section, for `gain db`, `filter cutoff res`, `saturate drive_db`, `bitcrush bits`, `delay feedback`, `width width`, every `mix`, a `parallel`'s `amount` and `dry`, and a `tune`'s `strength`; a curve `[[beat, value], ...]` works too |
 | `form([sec("intro", 8, "kick hat pad"), sec("drop", 16, "*").impact()])` | the arrangement: kind, bars, tracks |
 | `section("drop", #{ energy: 1.0, layers: "kick bass lead", prog: "B" })`, `layer("break", "lead", true)` | edit one section |
 

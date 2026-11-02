@@ -297,6 +297,36 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
+        Cmd::Tune { file, out, key, notes, strength, speed, humanize, vibrato } => {
+            use claudius::voice::tune::{self, TuneScale, Tuning};
+            let harmony = match (key, notes) {
+                (_, Some(n)) => n.parse::<TuneScale>().map_err(anyhow::Error::msg)?.alone(),
+                (Some(k), None) => {
+                    TuneScale::Key.harmony(&Key::parse(&k).with_context(|| format!("cannot read the key '{k}'"))?, &[])
+                }
+                (None, None) => TuneScale::Chromatic.alone(),
+            };
+            let mut x = claudius::audio::load(&file)?;
+            let t = Tuning {
+                strength: strength.clamp(0.0, 1.0).into(),
+                speed_ms: speed.max(0.0),
+                humanize: humanize.max(0.0),
+                vibrato: vibrato.clamp(0.0, 1.0),
+                voice: None,
+            };
+            let tuned = tune::tune(&mut x, &harmony, &t, 120.0);
+            let stem = file.file_stem().map_or("voice".into(), |s| s.to_string_lossy().into_owned());
+            let out = out.unwrap_or_else(|| file.with_file_name(format!("{stem}-tuned.wav")));
+            claudius::audio::save_wav(&out, &x, false)?;
+            let moved: Vec<f32> = tuned.iter().map(|t| ((t.now - t.sung) * 100.0).abs()).collect();
+            let mean = moved.iter().sum::<f32>() / moved.len().max(1) as f32;
+            let most = moved.iter().copied().fold(0f32, f32::max);
+            println!(
+                "{} notes tuned, moved {mean:.0} cents on average and {most:.0} at most; wrote {}",
+                tuned.len(),
+                out.display()
+            );
+        }
         Cmd::Remake { file, genre, seed, bpm, ears, out } => {
             let g = genres::get(&genre)?;
             let seed = seed.unwrap_or_else(seed_now);

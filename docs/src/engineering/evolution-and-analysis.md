@@ -207,6 +207,32 @@ over several cycles of their progression, and `arrange` repeats them only after 
 way, `take::styled` can make them harmony, octaves, chords, a bass line, an arpeggio or a pad. It counts by the
 key's scale steps (`Key::step`), so a third above or a triad under a note stays in the key.
 
+### Tuning a voice
+
+`voice::tune::tune` moves a voice onto the notes it means, as the `tune` effect, `claudius tune` and the `tune`
+command do. It reads the notes (`intent::decode` with the singer given, or `voice::learn` from the voice itself) and
+works out a move for every frame, in semitones:
+
+- **Towards the note.** A frame's centre is the mean pitch of the frames around it within 90 ms, inside its note,
+  which takes out a vibrato; frames more than 1.5 semitones from where the note is held (a slide, an octave misheard)
+  count for nothing and move as the frames around them. Of how far the centre is from the note, the singer's bias goes
+  whole; of the rest, a share `humanize² / spread²` stays (all of it when the singer scatters less than `humanize`),
+  so the tuner moves a loose singer in and leaves a precise one.
+- **When.** The move comes in as `1 - e^(-t / speed_ms)` from the note's start, so a slow tuner leaves the scoop into
+  a note, and `strength` (a `Param`, by beat) scales it.
+- **The vibrato.** `vibrato` below 1 takes that share of the swing around the centre out as well.
+- **Between notes,** the move goes in a straight line from one note's to the next, and a three-frame mean smooths it.
+
+The voiced stretches (voiced frames, with gaps of up to two) are then moved by TD-PSOLA (Moulines and Charpentier
+1990, `dsp/psola.rs`). Marks go a period apart, each where the voice looks most like it did a period before (the
+best normalised correlation within a sixth of a period), so that every grain is cut at the same point of its period.
+Each output mark takes the grain at the input mark nearest it, two periods long with Hann halves as long as the
+periods either side, and the next output mark comes the input period on, over the ratio. Laid back where they were
+cut, the grains add up to the signal itself; moved, they are divided by how much of them overlaps. The first and the
+last period of a stretch are crossfaded from and back to the signal, and frames without a pitch pass as they are.
+The grains keep their spectra, so the voice keeps its formants. A move by the same grains, resampled, would shift the
+formants instead, which is how a voice can later sound larger or smaller.
+
 The tests sing to it (`voice::sing`): three harmonics with a 5.5 Hz vibrato, breath noise, a 30 ms glide into each
 note and breaths where asked. Their melodies come back with every pitch and onset where it was sung, a singer 60 cents
 flat comes back as the notes meant once the voice is known, and a singer flat at the top only is learnt as flat there.

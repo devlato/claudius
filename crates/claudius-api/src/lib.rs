@@ -414,6 +414,22 @@ pub fn effect_summary(v: &serde_json::Value) -> String {
         "delay" => vec![with(" beats", "beats"), with(" feedback", "feedback")],
         "width" => vec![with("x", "width")],
         "parallel" => vec![v.get("chains").and_then(|c| c.as_array()).map(|c| format!("{} chains", c.len()))],
+        "tune" => {
+            let scale = match v.get("scale") {
+                Some(serde_json::Value::Object(o)) => o
+                    .get("notes")
+                    .and_then(|n| n.as_array())
+                    .map(|n| n.iter().filter_map(|x| x.as_str()).collect::<Vec<_>>().join(" ")),
+                Some(serde_json::Value::String(s)) => Some(s.clone()),
+                _ => Some("chords".into()),
+            };
+            let strength = num("strength").and_then(|s| match s.parse::<f64>() {
+                Ok(f) if (f - 1.0).abs() < 1e-9 => None,
+                Ok(f) => Some(format!("{:.0}%", f * 100.0)),
+                Err(_) => Some(format!("strength {s}")),
+            });
+            vec![scale, with(" ms", "speed_ms").or_else(|| Some("40 ms".into())), strength]
+        }
         _ => Vec::new(),
     }
     .into_iter()
@@ -684,6 +700,7 @@ pub const EFFECT_TEMPLATES: &[(&str, &str)] = &[
         "parallel",
         r#"{"fx": "parallel", "dry": 1, "chains": [{"amount": 0.4, "fx": [{"fx": "compressor", "threshold_db": -30, "ratio": 10, "attack_ms": 1, "release_ms": 60}]}]}"#,
     ),
+    ("tune", r#"{"fx": "tune", "strength": 1, "speed_ms": 40, "humanize": 10, "vibrato": 1, "scale": "chords"}"#),
 ];
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -1081,6 +1098,28 @@ pub enum Command {
         /// the key a file is sung in ("A minor"), which settles doubtful notes
         #[serde(default)]
         key: Option<String>,
+    },
+    /// Tunes a track (a take, a sampled vocal) to the notes it means: a `tune` effect first in its chain, or the one
+    /// there changed, with what is given (the rest as before, or as a new tuner has them); `off` takes it out.
+    Tune {
+        track: String,
+        /// how much of the way to the notes, 0 to 1 (default 1)
+        #[serde(default)]
+        strength: Option<f32>,
+        /// how fast a note is brought onto its pitch after it starts, ms (default 40; 0 is the hard-tuned sound)
+        #[serde(default)]
+        speed_ms: Option<f32>,
+        /// the cents of the singer's own wandering around a note that stay (default 10)
+        #[serde(default)]
+        humanize: Option<f32>,
+        /// how much of the vibrato stays, 0 to 1 (default 1)
+        #[serde(default)]
+        vibrato: Option<f32>,
+        /// what the notes are read against: chords (the default), key, chromatic, or the notes to go to ("C D E G A")
+        #[serde(default)]
+        scale: Option<String>,
+        #[serde(default)]
+        off: bool,
     },
     /// try `count` random mutations, keep the best-judged one when `keep_best` (else only report them)
     Mutate {

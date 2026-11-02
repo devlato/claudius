@@ -486,6 +486,7 @@ fn effect(ui: &mut Ui, cx: &mut Cx, song: &SongView, id: &str, c: &Chain, i: usi
                         let options: &[&str] = match (name.as_str(), k.as_str()) {
                             ("filter", "mode") => &["lp", "hp", "bp", "notch", "ladder"],
                             ("saturate", "kind") => &["tanh", "tube", "tape", "hard", "fold"],
+                            ("tune", "scale") => &["chords", "key", "chromatic"],
                             _ => &[],
                         };
                         let before = s.clone();

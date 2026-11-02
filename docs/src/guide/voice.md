@@ -1,6 +1,6 @@
 # Your voice
 
-claudius listens to singing the way a vocal coach does. It hears which note you mean at every moment and how near you
+claudius listens to singing the way a vocal coach does, and tunes it the way a careful producer would. It hears which note you mean at every moment and how near you
 come to it, and it learns how you sing: where you tend to go sharp or flat, how widely your notes scatter, how fast you
 settle on a note, and your vibrato. It hears this in any recording of one voice, a [take](samples.md#takes) in your
 song or a file, and the same reading turns your melodies into the notes you meant when you
@@ -55,3 +55,49 @@ all of it as data.
 It wants one voice at a time: a dry take or an a cappella, not a full mix. A voice more than half a semitone off on
 most notes, with nothing to sing against, is heard as singing the notes next to them; sung over the song, or with a
 key, it is heard against those.
+
+## Tuning a voice
+
+The tuner moves each note of a voice onto the note it means, as far as its singer needs. It learns how the take is
+sung, as above, so it knows that you go flat at the top and that your notes usually land within 15 cents. Your usual
+error goes. Of the scatter, only what is within `humanize` cents of the note stays, as expression. A precise singer
+is left nearly alone and a loose one is brought in. Each note is read against the song's key and the chord under it,
+so a note sung between two goes to the one the music has.
+
+In the studio, right-click a take's row and choose **Tune it**:
+
+| setting | what it does |
+|---|---|
+| **Naturally** | each note brought on over 40 ms, 10 cents of your own kept, the vibrato as sung: the scoop into each note stays |
+| **Tightly** | on the note within 15 ms, 3 cents of your own kept |
+| **Hard** | snapped onto each note at once and held dead still: the robotic sound |
+| **Not at all** | the tuner taken out |
+
+The voice keeps its own character: claudius moves it period by period (TD-PSOLA), so it sounds like you singing a
+little higher or lower, not like a tape sped up. The tuner is an effect, first in the take's chain, so the
+[graph](../getting-started/studio.md#the-panels) shows it and its settings, and undo takes it out. An assistant tunes a
+track with `tune`, and a script with `fx()`:
+
+```js no-run
+fx("take1", [#{ fx: "tune", speed_ms: 20, humanize: 5 }, #{ fx: "compressor", threshold_db: -20, ratio: 3, attack_ms: 5, release_ms: 80 }]);
+fx("take1", [#{ fx: "tune", strength: sections(0.5, #{ hook: 1 }) }]);
+```
+
+| setting | default | what it does |
+|---|---|---|
+| `strength` | 1 | how much of the way to the notes, from 0 to 1; it can move, by section or along a curve, like a mix |
+| `speed_ms` | 40 | how fast a note is brought onto its pitch after it starts; 0 at once |
+| `humanize` | 10 | the cents of your own wandering around a note that stay |
+| `vibrato` | 1 | how much of the vibrato stays, from 0 to 1 |
+| `scale` | `"chords"` | what the notes are read against: `"chords"` (the song's key and the chord under each note), `"key"`, `"chromatic"` (any note), or only some notes, `#{ notes: ["C", "D", "E", "G", "A"] }` |
+| `voice` | learnt | the singer, as `assess_voice --json` gives one; learnt from the take itself when not given |
+
+On the command line, `claudius tune` tunes a file outside any song (with `--key` or `--notes`) and writes the tuned
+recording beside it:
+
+```text
+$ claudius tune "Lights and Sound Vox Melody.caf" --key "F major"
+12 notes tuned, moved 10 cents on average and 27 at most; wrote Lights and Sound Vox Melody-tuned.wav
+```
+
+`--speed 0 --humanize 0 --vibrato 0` is the hard-tuned sound, and `--strength` how much of the way to go.

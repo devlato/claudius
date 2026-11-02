@@ -67,6 +67,12 @@ and choose **How is it sung?**, run `claudius voice` on a file, or let an assist
 ([Your voice](https://github.com/devlato/claudius/blob/main/docs/src/guide/voice.md)). Turning a take into notes reads
 the same way, so a singer's flat high notes become the notes they meant.
 
+A tuner moves a voice onto the notes it means, as far as its singer needs: their usual error goes, and of their scatter
+only a few cents stay, as expression. It reads each note against the song's chords, brings it on as fast as asked
+(slowly enough to keep the scoop, or at once for the hard-tuned sound) and keeps the voice's character. Right-click a
+take and choose **Tune it**, add the `tune` effect in a script or the graph, run `claudius tune`, or let an assistant
+call `tune`.
+
 `claudius publish` checks a song the way stores and distributors check a release (its artwork's size, colours and
 sharpness, its audio, the licences of its sounds, and its details, including how it was made) and writes a release
 kit: the WAV and the cover a distributor takes, and the answers its form asks for

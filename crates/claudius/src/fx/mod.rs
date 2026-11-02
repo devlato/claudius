@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 use crate::audio::Stereo;
 use crate::dsp::env::Param;
 use crate::dsp::filter::{BiquadKind, FilterMode};
+use crate::voice::singer::Voice;
+use crate::voice::tune::{TuneScale, Tuning};
 
 pub use dynamics::{compress, limit, soft_clip, true_peak_db};
 pub use space::{delay, reverb};
@@ -44,6 +46,12 @@ fn default_lowcut() -> f32 {
 }
 fn default_q() -> f32 {
     0.707
+}
+fn retune_ms() -> f32 {
+    40.0
+}
+fn humanize_cents() -> f32 {
+    10.0
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -209,6 +217,28 @@ pub enum Effect {
         #[serde(default = "full")]
         dry: Param,
     },
+    /// a voice moved towards the notes it means (`voice::tune`): `strength` of the way (0 to 1), brought onto each
+    /// note over `speed_ms` after it starts (0: at once, the hard-tuned sound), keeping `humanize` cents of the
+    /// singer's own wandering and `vibrato` of their vibrato (0 to 1), read against `scale`, as `voice` sings (a pitch
+    /// check's; learnt from the voice itself when not given)
+    Tune {
+        #[serde(default = "full")]
+        strength: Param,
+        #[serde(default = "retune_ms")]
+        speed_ms: f32,
+        #[serde(default = "humanize_cents")]
+        humanize: f32,
+        #[serde(default = "one")]
+        vibrato: f32,
+        #[serde(default)]
+        scale: TuneScale,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        voice: Option<Voice>,
+        /// the weights of each pitch class from each beat on, from `scale` and the song's key and chords (`arrange`
+        /// sets them; empty, any note, as for a voice tuned outside a song)
+        #[serde(skip)]
+        harmony: Vec<(f64, [f32; 12])>,
+    },
 }
 
 /// every effect's name, as `fx` names it in a blueprint or a script
@@ -236,6 +266,7 @@ pub const EFFECT_NAMES: &[&str] = &[
     "stutter",
     "reverse",
     "parallel",
+    "tune",
 ];
 
 /// one of a `Parallel` effect's chains, and how loud it comes out
@@ -272,6 +303,7 @@ impl Effect {
             Effect::Stutter { .. } => "stutter",
             Effect::Reverse { .. } => "reverse",
             Effect::Parallel { .. } => "parallel",
+            Effect::Tune { .. } => "tune",
         }
     }
 
@@ -296,6 +328,7 @@ impl Effect {
             | Effect::Flanger { mix, .. }
             | Effect::Phaser { mix, .. } => f(mix),
             Effect::Width { width, .. } => f(width),
+            Effect::Tune { strength, .. } => f(strength),
             Effect::Parallel { chains, dry } => {
                 f(dry);
                 for b in chains {
@@ -314,12 +347,25 @@ impl Effect {
         self.starts_mut(&mut |start| *start -= beats);
     }
 
-    /// the beat each transition starts on, those in a parallel effect's chains included
+    /// the beat each transition starts on, and each change of a tuner's harmony, those in a parallel effect's chains
+    /// included
     fn starts_mut(&mut self, f: &mut dyn FnMut(&mut f64)) {
         match self {
             Effect::TapeStop { start, .. } | Effect::Stutter { start, .. } | Effect::Reverse { start, .. } => f(start),
+            Effect::Tune { harmony, .. } => harmony.iter_mut().for_each(|(beat, _)| f(beat)),
             Effect::Parallel { chains, .. } => {
                 chains.iter_mut().flat_map(|b| b.fx.iter_mut()).for_each(|e| e.starts_mut(f))
+            }
+            _ => {}
+        }
+    }
+
+    /// every tuner's harmony set from its scale, by `harmony` (those in a parallel effect's chains included)
+    pub fn harmonize(&mut self, harmony: &dyn Fn(&TuneScale) -> Vec<(f64, [f32; 12])>) {
+        match self {
+            Effect::Tune { scale, harmony: h, .. } => *h = harmony(scale),
+            Effect::Parallel { chains, .. } => {
+                chains.iter_mut().flat_map(|b| b.fx.iter_mut()).for_each(|e| e.harmonize(harmony))
             }
             _ => {}
         }
@@ -429,6 +475,23 @@ fn run(fx: &Effect, x: &mut Stereo, ctx: &Ctx) {
         Effect::Stutter { start, len, slice } => transition::stutter(x, *start, *len, *slice, ctx),
         Effect::Reverse { start, len } => transition::reverse(x, *start, *len, ctx),
         Effect::Parallel { chains, dry } => parallel(x, chains, dry, ctx),
+        Effect::Tune { strength, speed_ms, humanize, vibrato, scale, voice, harmony } => {
+            let alone;
+            let harmony = if harmony.is_empty() {
+                alone = scale.alone();
+                &alone
+            } else {
+                harmony
+            };
+            let t = Tuning {
+                strength: strength.clone(),
+                speed_ms: *speed_ms,
+                humanize: *humanize,
+                vibrato: *vibrato,
+                voice: voice.clone(),
+            };
+            crate::voice::tune::tune(x, harmony, &t, ctx.bpm);
+        }
     }
 }
 

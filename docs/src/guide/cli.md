@@ -332,6 +332,26 @@ claudius voice vocal.wav --key "A minor" --notes
 | `--notes` | off | every note too: where it starts, the note meant, how far off it was sung, how long, how sure |
 | `--json` | off | the whole assessment as JSON, the singer and every note |
 
+### `claudius tune`
+
+Tunes a recording of one voice to the notes it means and writes the tuned recording (see
+[Your voice](voice.md#tuning-a-voice)).
+
+```sh
+claudius tune vocal.wav --key "A minor" --speed 20
+```
+
+| flag | default | what it does |
+|---|---|---|
+| `<file>` | | the audio file |
+| `-o`, `--out` | `<file>-tuned.wav` beside it | where to write it |
+| `-k`, `--key` | none | the key it is sung in (else any note) |
+| `--notes` | none | only these notes, in any octave: `"C D E G A"` |
+| `--strength` | 1 | how much of the way to the notes, 0 to 1 |
+| `--speed` | 40 | how fast a note is brought onto its pitch after it starts, ms; 0 at once |
+| `--humanize` | 10 | the cents of the singer's own wandering around a note that stay |
+| `--vibrato` | 1 | how much of the vibrato stays, 0 to 1 |
+
 ## Make material
 
 ### `claudius chop`

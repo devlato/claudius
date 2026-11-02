@@ -45,7 +45,7 @@ The studio is still being finished; this page describes its structure, which is 
 
 | panel | what it edits | commands it sends |
 |---|---|---|
-| arrangement | section order; which layers play in which section (click or drag across cells); seeking; a take's menu: how it is sung (shown in a window until closed), its melody as notes | `move_section`, `toggle_layer`, `assess_voice`, `transcribe_take` |
+| arrangement | section order; which layers play in which section (click or drag across cells); seeking; a take's menu: how it is sung (shown in a window until closed), tuning it, its melody as notes | `move_section`, `toggle_layer`, `assess_voice`, `tune`, `transcribe_take` |
 | inspector | the selected section's name, bars, energy, variant and flags; adding, duplicating, removing | `set_section`, `add_section`, `remove_section`, `move_section` |
 | step sequencer | one row per drum lane, one cell per sixteenth, one variant at a time; click toggles (velocity 0.8), drag paints, shift sets velocity, right-click offers presets; an accent dot and the "(accent)" and "(ghost)" labels follow `claudius_api::{ACCENT, GHOST}`, the thresholds of the engine's step strings | `set_drum_step`, `set_drum_pattern` |
 | mixer | a strip per track: pan, sends, duck, fader, mute, solo, with its loudness from the latest render | `set_mix` |

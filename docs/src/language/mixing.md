@@ -238,6 +238,7 @@ where it is how loud the repeats are on top of the signal.
 | `tape_stop`, `reverse` | `start` (a beat), `len` (beats) | |
 | `stutter` | `start`, `len`, `slice` (beats) | |
 | `parallel` | `chains`: a list of `#{ fx: chain, amount (1) }`; `dry` (1) | `amount dry` |
+| `tune` | `strength` (1), `speed_ms` (40), `humanize` (10 cents), `vibrato` (1), `scale` (`"chords"`, `"key"`, `"chromatic"` or `#{ notes: ["C", "E", "G"] }`), `voice` (learnt from the track when not given); see [Your voice](../guide/voice.md#tuning-a-voice) | `strength` |
 
 Errors say which effect of which chain is wrong, and how: `fx("lead")'s effect 2: unknown variant `revrb`, expected
 one of `gain`, `eq` ...`; `... is a map such as #{ fx: "reverb", ... }`; `missing field `decay``; a setting that
