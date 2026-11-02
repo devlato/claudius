@@ -79,6 +79,11 @@ form([sec("intro", 8, "drums keys"), sec("drop", 16, "*").impact(), sec("break",
   or fades (`ratchet`, `ramp`), a flam, a nudge off the grid, and its own pitch, decay, tone and pan. Rolls into a
   beat, a turnaround only in a section's last bar, ghost notes by chance and late snares come from these, not from
   more lanes. Steps count sixteenths from 0 (4 is beat 2).
+- **Drum time and feel.** `lane(lane, #{ ... })` gives one lane its own `length` (hats 12 steps round against the
+  kick's 16 is a polymeter), `speed`, `swing` and `groove`: claudius' own (`swing62`, `shuffle`, `dilla`, `push`,
+  `lazy` ...) or one heard in a record. `extract_groove` (or `groove(name, file)` in a script) measures where each
+  sixteenth of a recording's drums lands and how hard, and puts the lanes in that feel; pass `bpm` when the tempo is
+  known, as a loop's heard can come out twice or half what it is.
 - An error names the line and what it accepts (`unknown sound 'bdd' (drums: bd kick ...)`). Fix that and run again;
   don't guess around it.
 - **Exact notes.** For a melody, a bass line or chords you write out, or that the person dictates, use `add_notes`. It

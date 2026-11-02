@@ -32,7 +32,8 @@ song, so a seed is a way to come back to one you liked. **Fused with** fuses a s
 the song, and the second plays the drums and lends its sounds ([Fusions](../cookbook/fusions.md)). It can also start from a recording: **Choose a file** under
 "Or start from an audio file", then **Analyze** shows what claudius hears in it, and **Remake** writes a new song on
 its tempo, key, chords, form and groove. **Sample its vocals into the song** puts its best sung phrases into the song
-that is open ([Sampling a song's vocals](../guide/samples.md#sampling-a-songs-vocals)). **Open** opens a song you saved: choose the `blueprint.json` in its folder,
+that is open ([Sampling a song's vocals](../guide/samples.md#sampling-a-songs-vocals)), and **Take its groove** puts
+the open song's drum lanes in the feel of the recording's drums ([Grooves](../cookbook/drum-machine.md#a-groove-from-a-record)). **Open** opens a song you saved: choose the `blueprint.json` in its folder,
 or a `.rhai` script. The studio reads the file on its own computer, in a browser too, and nothing of it is kept but
 the song it opens.
 
@@ -52,7 +53,9 @@ the song it opens.
   a ratchet of strokes inside it and how they swell or fade, a flam, a nudge off the grid, and its pitch, decay, tone
   and pan for that stroke ([The drum machine](../cookbook/drum-machine.md)). A step with a trig shows it: its chance
   as a number, its condition, a ratchet's strokes, a dot for a flam, a diamond for the sound it changes, and a nudged
-  step sits off the grid.
+  step sits off the grid. Right-click a lane for its own time and feel: a length of its own (steps past it are faint,
+  showing the steps that come round again there), its speed, a swing of its own or the song's, and a groove and how
+  much of it. The lane's name shows what it has.
 - **Parts.** The bass, chords, pad, lead and arpeggio parts: their writing style, their sound (a synth or a sampled
   instrument), their range and how busy they are. **Reseed** rewrites a part.
 - **Mixer.** Level, pan, reverb, delay and how much each track ducks under the kick; mute and solo; meters from the

@@ -67,6 +67,12 @@ late of the grid, and change its pitch, decay, tone and pan for that stroke. Rig
 and open **Trig**, or write `trig()` in a script; the step shows what it does
 ([The drum machine](https://github.com/devlato/claudius/blob/main/docs/src/cookbook/drum-machine.md)).
 
+Each drum lane can keep its own time: a length of its own, so hats twelve steps long turn against a kick of sixteen,
+a speed (triplets over a straight beat), a swing of its own, and a groove: a swing, a shuffle, a dragged `dilla`
+feel, or the groove of a record. **Take its groove** under **New song** (or `extract_groove`, or `groove()` in a
+script) measures where each sixteenth of a recording's drums lands and how hard, and puts the lanes in that feel.
+Right-click a lane in the step sequencer for its time and feel, or write `lane()` in a script.
+
 claudius hears how a voice is sung: the notes it means, how near each came, and how its singer sings (where they go
 sharp or flat by register, how widely their notes scatter, how fast they settle, their vibrato). Right-click a take
 and choose **How is it sung?**, run `claudius voice` on a file, or let an assistant call `assess_voice`

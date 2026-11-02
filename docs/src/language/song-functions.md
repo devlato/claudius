@@ -262,6 +262,85 @@ not 64`, `trig(): hat has no variant 'fill' (variants: main sparse)`, and a cond
 plays always, a:b (1:2, 3:4 ...: the a-th time round of every b, b up to 16), first, last, !first or !last, not
 'often'`.
 
+### `lane()`
+
+```js no-run
+lane(lane, settings)   // settings: a map
+```
+
+Gives a drum lane a time and feel of its own, apart from the song's:
+
+| setting | range | what it does |
+|---|---|---|
+| `length` | 0 to 256 | how many sixteenths it plays before it starts again; 0 is its pattern's length. 12 against the bar's 16 is a polymeter: the lane comes round every three beats while the others take four |
+| `speed` | 0.125 to 4 | how fast it runs through its steps: 2 plays them as 32nds, 0.5 as eighths, 0.75 stretches a bar of steps over a bar and a third |
+| `swing` | 0.5 to 0.8, or 0 | its own swing, as [`swing()`](#swing) sets the song's; 0 gives it the song's again |
+| `groove` | a groove's name, or `""` | the groove it plays in: one of claudius' own (below) or one of the song's from [`groove()`](#groove); `""` none |
+| `groove_amount` | 0 to 1 | how much of the groove: 0.5 moves each stroke half as far and accents it half as much |
+
+A groove moves each sixteenth of the bar by its own amount and accents it by its own factor, as a drum machine's groove
+template does. Only strokes exactly on the song's sixteenths take it: a 32nd, a triplet or a ratchet's inner strokes
+stay where they are. A lane in a groove takes its timing from the groove rather than from the song's swing, unless it
+has a swing of its own.
+
+| groove | feel |
+|---|---|
+| `straight` | on the grid |
+| `swing54`, `swing58`, `swing62`, `swing66`, `swing71` | each second sixteenth of an eighth that far into the eighth, as a drum machine's swing setting; 66 is a triplet |
+| `shuffle` | the off-beat eighths and sixteenths on triplets, a little softer than the beats |
+| `dilla` | the off-beats and the backbeat dragged, each by its own amount, and the downbeats leaned on |
+| `push` | everything but the beats a little early |
+| `lazy` | everything but the beats a little late |
+
+```js
+song("house", 3);
+lane("hat", #{ length: 12 });                            // round every three beats, against the kick's four
+lane("shaker", #{ speed: 1.5, swing: 0.6 });
+lane("perc", #{ groove: "dilla", groove_amount: 0.7 });
+```
+
+The printed script writes a lane's settings after its pattern, with only those that differ from the song's. Errors:
+`lane(): no drum lane 'bongo' (lanes: kick clap hat ohat shaker perc)`, `lane()'s speed is 0.125 to 4, not 8`,
+`lane()'s swing is 0.5 (straight) to 0.8, or 0 for the song's, not 0.3`, `lane(): no groove 'jazz' (grooves: straight
+swing54 ...)`, `lane() has no option 'steps' (options: length speed ...)`.
+
+### `groove()`
+
+```js no-run
+groove(name, file)        // file: a recording with drums in it
+groove(name, file, bpm)   // bpm: its tempo, when known
+groove(name, table)       // table: #{ timing: [16 numbers], accent: [16 numbers] }
+```
+
+Keeps a groove with the song as `name`, for [`lane()`](#lane) to put lanes in. From a recording, claudius finds the
+tempo and beat grid of its drums, sets every hit against the sixteenth nearest it, and measures where each of the
+sixteen sixteenths of the bar lands (the median of its hits' distances from the grid) and how hard (their mean loudness
+against the recording's). The beats themselves are put back on the grid, so a downbeat found a little early or late
+doesn't move the whole groove. The log says what it heard: `groove funk, heard in loops/funk.wav at 96 BPM: the
+off-beat sixteenths at 58% swing, the backbeat 9% of a sixteenth behind, the accents on 1, 2, 3e`.
+
+The recording's tempo is `bpm` when given, else one written in the file's name (`Funk Break 92bpm.wav`,
+`loop_85_BPM.aif`), else heard. Heard, a loop's tempo can come out twice or half what it is, as its drums sit on
+sixteenths at either, and then the groove is measured on the wrong sixteenths: give the tempo when you know it.
+
+A table writes a groove out: `timing` in beats for each sixteenth (below 0 early, -0.25 to 0.25), `accent` a factor on
+each one's velocity (0 to 2). Either can be left out: on the grid, all 1. The printed script writes the song's grooves
+as tables before its drums, so it reads back without the recording.
+
+```js
+song("lofi", 2);
+groove("lean", #{
+    timing: [0, 0.04, 0, 0.05, 0.02, 0.04, 0, 0.05, 0, 0.04, 0, 0.05, 0.02, 0.04, 0, 0.05],
+    accent: [1, 0.7, 0.9, 0.75, 1.1, 0.7, 0.9, 0.75, 1, 0.7, 0.9, 0.75, 1.1, 0.7, 0.9, 0.75]
+});
+lane("hat", #{ groove: "lean" });
+lane("snare", #{ groove: "lean", groove_amount: 0.5 });
+```
+
+Errors: `groove()'s timing is a list of 16 numbers, one a sixteenth, not 2`, `groove()'s accent holds 0 to 2, not
+3`, `groove()'s tempo is 40 to 250 BPM, not 400`, a file that can't be read, and one without enough drums in it: `too
+few drum hits to hear a groove in (3): it wants a beat, a few bars of it`.
+
 ### `drum_sound()`
 
 ```js no-run

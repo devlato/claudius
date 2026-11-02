@@ -417,6 +417,22 @@ pub struct TuneArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct GrooveArgs {
+    /// a recording with drums in it (a loop, a song, a break): WAV, FLAC, MP3, AAC, Ogg, AIFF
+    pub path: String,
+    /// what to call the groove in the song (default: the file's name)
+    #[serde(default)]
+    pub name: Option<String>,
+    /// the drum lanes to put in it (default: all of them)
+    #[serde(default)]
+    pub lanes: Vec<String>,
+    /// its tempo, when known (default: an Apple Loop's, or one written in the file's name such as "92bpm", or else
+    /// heard; a loop's tempo heard can come out twice or half what it is)
+    #[serde(default)]
+    pub bpm: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct PitchCheckArgs {
     /// the lowest and highest notes played, MIDI (default 57 and 69, A3 to A4); the person sings them in whatever
     /// octave suits them, so the default suits most voices
@@ -896,6 +912,13 @@ impl Studio {
             r.message,
             self.b.base_url()
         ))
+    }
+
+    #[tool(
+        description = "Take the groove of a recording's drums: claudius finds its tempo and beat grid, measures where each sixteenth of the bar lands against the grid and how hard (its swing, a backbeat played behind the beat, its accents), keeps that as a groove of the song, and puts the drum lanes in it (`lanes`, or all of them). Says what it heard. Give `bpm` when the tempo is known: heard, a loop's can come out twice or half what it is. A lane's groove is a lane() setting afterwards: lane(\"hat\", #{ groove: \"name\", groove_amount: 0.5 }), or one of claudius' own (straight, swing54 to swing71, shuffle, dilla, push, lazy)."
+    )]
+    async fn extract_groove(&self, Parameters(a): Parameters<GrooveArgs>) -> Result<String, String> {
+        self.edit(Command::ExtractGroove { path: a.path, name: a.name, lanes: a.lanes, bpm: a.bpm }, true).await
     }
 
     #[tool(

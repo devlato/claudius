@@ -770,7 +770,17 @@ fn drum_lane(lane: &str, feel: Feel, rng: &mut Rng) -> DrumView {
     if let Some(a) = alt {
         variants.push(("alt".into(), a));
     }
-    DrumView { lane: lane.into(), pattern_bars: bars, variants, trigs: Vec::new() }
+    DrumView {
+        lane: lane.into(),
+        pattern_bars: bars,
+        variants,
+        trigs: Vec::new(),
+        length: None,
+        speed: 1.0,
+        swing: None,
+        groove: None,
+        groove_amount: 1.0,
+    }
 }
 
 fn energy(kind: &str, rng: &mut Rng) -> f32 {

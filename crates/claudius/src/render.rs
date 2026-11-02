@@ -361,6 +361,7 @@ fn duck_curve(p: &Project, tm: &Timing, len: usize) -> Option<Vec<f32>> {
     let rel = (p.mix.duck_release.max(0.05) as f64 * tm.spb) as usize;
     let att = (0.003 * SRF) as usize;
     let mut env = vec![1.0f32; len];
+    let tm = tm.of(kick);
     for n in &kick.notes {
         let pos = tm.onset(n, 0.0).max(0) as usize;
         let start = pos.saturating_sub(att);

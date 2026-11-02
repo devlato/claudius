@@ -237,8 +237,8 @@ pub(super) fn set_lane(bp: &mut Blueprint, lane: &str, m: &Map) -> R<String> {
     Ok(format!("{lane}: {}", lane_words(l)))
 }
 
-/// a lane's own time and feel in words: "12 steps, at 3/4 speed, swing 0.6, in the dilla groove (80%)", or that it
-/// keeps the song's
+/// a lane's own time and feel in words: "12 steps round, at 0.75 speed, swing 0.6, in the dilla groove (80%)", or
+/// that it keeps the song's
 pub fn lane_words(l: &crate::model::DrumLane) -> String {
     let mut w = Vec::new();
     if let Some(n) = l.length {
@@ -279,7 +279,7 @@ pub(super) fn groove_of(m: &Map) -> R<crate::theory::rhythm::Groove> {
         Ok(out)
     };
     Ok(crate::theory::rhythm::Groove {
-        timing: list("timing", -0.125, 0.125, 0.0)?,
+        timing: list("timing", -0.25, 0.25, 0.0)?,
         accent: list("accent", 0.0, 2.0, 1.0)?,
     })
 }

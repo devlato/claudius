@@ -217,6 +217,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
     // drum lanes
     for (lane, role) in bp.drums.iter().zip(&roles) {
         let is_kick = role == "kick";
+        let groove = lane.groove.as_deref().and_then(|g| bp.grooves.get(g).cloned().or_else(|| rhythm::groove(g)));
         let mut notes = Vec::new();
         for (si, s) in bp.form.iter().enumerate() {
             let info = &sections[si];
@@ -227,8 +228,6 @@ pub fn arrange(bp: &Blueprint) -> Project {
             if on {
                 let pat = lane.patterns.get(&s.variant).or_else(|| lane.patterns.get("main"));
                 if let Some(p) = pat {
-                    let groove =
-                        lane.groove.as_deref().and_then(|g| bp.grooves.get(g).cloned().or_else(|| rhythm::groove(g)));
                     let mut seg = lane_notes(bp, lane, p, groove.as_ref(), (a, b), si);
                     // builds: the fill lane turns into a snare roll; the kick drops out for the last bar
                     if s.build && is_fill_lane {
@@ -279,7 +278,8 @@ pub fn arrange(bp: &Blueprint) -> Project {
             chop: Vec::new(),
             slice_beats: 0.0,
             choke: lane.choke.clone(),
-            swing: lane.swing,
+            // a lane in a groove takes its timing from it: straight, unless it has a swing of its own
+            swing: lane.swing.or(groove.as_ref().map(|_| 0.5)),
             mix: TrackMix {
                 bus: if lane.mix.bus == "music" { "drums".into() } else { lane.mix.bus.clone() },
                 ..lane.mix.clone()

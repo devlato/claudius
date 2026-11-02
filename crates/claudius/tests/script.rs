@@ -657,6 +657,9 @@ fn a_lane_keeps_its_own_length_speed_swing_and_groove() {
     assert_eq!(p.tracks.iter().find(|t| t.name == "shaker").unwrap().swing, Some(0.66));
     // the kick on the beats does not move; half of swing66 moves nothing on a beat
     assert_eq!(&times("kick")[..4], &[0.0, 1.0, 2.0, 3.0]);
+    // a lane in a groove takes its timing from it, not from the song's swing; one in neither keeps the song's
+    let swing = |name: &str| p.tracks.iter().find(|t| t.name == name).unwrap().swing;
+    assert_eq!((swing("kick"), swing("hat")), (Some(0.5), None));
     let groove = |code: &str| {
         let bp = script::run(code, Some(bp.clone()), None).unwrap().bp.unwrap();
         compose::arrange(&bp)
@@ -693,11 +696,22 @@ fn a_lane_keeps_its_own_length_speed_swing_and_groove() {
     }
     claudius::audio::save_wav(&file, &claudius::audio::Stereo { l: l.clone(), r: l }, true).unwrap();
     let code = format!(
-        r#"groove("loop", "{}"); groove("mine", #{{ timing: [0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05] }}); lane("hat", #{{ groove: "loop" }}); lane("perc", #{{ groove: "mine" }});"#,
+        r#"groove("loop", "{0}"); groove("half", "{0}", 50); groove("mine", #{{ timing: [0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05] }}); lane("hat", #{{ groove: "loop" }}); lane("perc", #{{ groove: "mine" }});"#,
         file.display()
     );
     let out = script::run(&code, Some(bp.clone()), None).unwrap();
-    assert!(out.log.iter().any(|l| l.contains("heard in") && l.contains("62% swing")), "{:?}", out.log);
+    assert!(
+        out.log
+            .iter()
+            .any(|l| l.contains("heard in") && l.contains("at 100 BPM: the off-beat sixteenths at 62% swing")),
+        "{:?}",
+        out.log
+    );
+    assert!(
+        out.log.iter().any(|l| l.starts_with("groove half,") && l.contains("at 50 BPM")),
+        "a tempo given is kept: {:?}",
+        out.log
+    );
     let grooved = out.bp.unwrap();
     assert!((grooved.grooves["loop"].timing[1] - 0.06).abs() < 0.012, "{:?}", grooved.grooves["loop"]);
     let printed = script::to_script(&grooved);
@@ -709,9 +723,10 @@ fn a_lane_keeps_its_own_length_speed_swing_and_groove() {
         (r#"lane("hat", #{ groove: "jazz" })"#, "lane(): no groove 'jazz' (grooves: straight swing54"),
         (r#"lane("hat", #{ speed: 8 })"#, "lane()'s speed is 0.125 to 4, not 8"),
         (r#"lane("hat", #{ swing: 0.3 })"#, "lane()'s swing is 0.5 (straight) to 0.8, or 0 for the song's"),
-        (r#"lane("hat", #{ lenght: 12 })"#, "lane() has no option 'lenght'"),
+        (r#"lane("hat", #{ steps: 12 })"#, "lane() has no option 'steps'"),
         (r#"groove("x", #{ timing: [0, 0.1] })"#, "groove()'s timing is a list of 16 numbers, one a sixteenth, not 2"),
         (r#"groove("x", "/nowhere/loop.wav")"#, "groove(): /nowhere/loop.wav"),
+        (r#"groove("x", "/nowhere/loop.wav", 400)"#, "groove()'s tempo is 40 to 250 BPM, not 400"),
     ] {
         let e = script::run(bad, Some(bp.clone()), None).err().map(|e| e.to_string()).unwrap_or_default();
         assert!(e.contains(says), "{bad}: {e}");

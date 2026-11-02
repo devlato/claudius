@@ -221,6 +221,28 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
                 if *velocity > 0.0 { format!("{velocity:.2}") } else { "off".into() }
             ))
         }
+        // a lane's own time and feel, as the server keeps them
+        Command::SetLane { lane, length, speed, swing, groove, groove_amount } => {
+            let Some(d) = song.drums.iter_mut().find(|d| &d.lane == lane) else {
+                return Some(Err(format!("no drum lane '{lane}'")));
+            };
+            if let Some(l) = length {
+                d.length = (*l >= 1).then_some(*l);
+            }
+            if let Some(v) = speed {
+                d.speed = v.clamp(0.125, 4.0);
+            }
+            if let Some(v) = swing {
+                d.swing = (*v != 0.0).then_some(*v);
+            }
+            if let Some(g) = groove {
+                d.groove = (!g.is_empty() && g != "none").then(|| g.clone());
+            }
+            if let Some(v) = groove_amount {
+                d.groove_amount = v.clamp(0.0, 1.0);
+            }
+            Ok(format!("{lane}: its own time"))
+        }
         // a step's trig, as the server keeps it; a step without a hit gets one
         Command::SetTrig { lane, variant, step, trig } => {
             let Some(d) = song.drums.iter_mut().find(|d| &d.lane == lane) else {

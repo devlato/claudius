@@ -105,6 +105,26 @@ impl App {
         ok(said, v)
     }
 
+    /// a recording sent as the file itself (`name`: the file's name), whose groove to take, as `extract_groove` takes
+    /// one from a path
+    pub fn groove_bytes(
+        self: &Arc<Self>,
+        bytes: Vec<u8>,
+        name: &str,
+        groove: Option<String>,
+        lanes: &[String],
+        bpm: Option<f64>,
+    ) -> Reply {
+        match self.decode(bytes, name) {
+            Ok(x) => {
+                let groove =
+                    groove.filter(|g| !g.trim().is_empty()).unwrap_or_else(|| super::commands::groove_name(name));
+                self.groove_audio(&x, name, &groove, lanes, bpm)
+            }
+            Err(e) => no(e, self.version()),
+        }
+    }
+
     pub fn sample_bytes(self: &Arc<Self>, bytes: Vec<u8>, name: &str, opt: &claudius::sampler::Options) -> Reply {
         match self.decode(bytes, name) {
             Ok(x) => self.sample_audio(&x, name, opt),

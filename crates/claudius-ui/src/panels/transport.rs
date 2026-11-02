@@ -634,7 +634,8 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                 .clicked()
             {
                 cx.view.analysis = None;
-                cx.view.listen = file.clone().map(|file| super::Listen { file, remake: None, sample: false });
+                cx.view.listen =
+                    file.clone().map(|file| super::Listen { file, remake: None, sample: false, groove: false });
             }
             if ui
                 .add_enabled(file.is_some(), egui::Button::new(format!("Remake as {shown}")))
@@ -643,7 +644,7 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
             {
                 cx.view.analysis = None;
                 let remake = Some((f.genre_name(), f.seed.trim().parse().ok()));
-                cx.view.listen = file.clone().map(|file| super::Listen { file, remake, sample: false });
+                cx.view.listen = file.clone().map(|file| super::Listen { file, remake, sample: false, groove: false });
             }
             let song = cx.state.song.is_some();
             if ui
@@ -656,7 +657,21 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                 .clicked()
             {
                 cx.view.analysis = None;
-                cx.view.listen = file.map(|file| super::Listen { file, remake: None, sample: true });
+                cx.view.listen =
+                    file.clone().map(|file| super::Listen { file, remake: None, sample: true, groove: false });
+            }
+            let drums = cx.state.song.as_ref().is_some_and(|s| !s.drums.is_empty());
+            if ui
+                .add_enabled(file.is_some() && drums, egui::Button::new("Take its groove"))
+                .on_hover_text(
+                    "claudius measures where each sixteenth of the recording's drums lands and how hard, and puts the \
+                     open song's drum lanes in that groove",
+                )
+                .on_disabled_hover_text(if drums { "choose a recording first" } else { "make a song with drums first" })
+                .clicked()
+            {
+                cx.view.analysis = None;
+                cx.view.listen = file.map(|file| super::Listen { file, remake: None, sample: false, groove: true });
             }
             if cx.view.analyzing {
                 ui.add(egui::Spinner::new().color(ACCENT));

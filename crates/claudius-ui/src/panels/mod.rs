@@ -70,6 +70,8 @@ pub struct Listen {
     pub remake: Option<(String, Option<u64>)>,
     /// its vocals are to be sampled into the open song instead (the auto-sampler)
     pub sample: bool,
+    /// its groove is to be taken for the open song's drum lanes instead
+    pub groove: bool,
 }
 
 /// what the studio knows about its connection

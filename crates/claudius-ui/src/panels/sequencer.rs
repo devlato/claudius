@@ -133,7 +133,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     .or(d.variants.first())
                     .map(|(_, s)| s.as_slice())
                     .unwrap_or(&[]);
-                let len = (d.pattern_bars.max(1) * 16) as usize;
+                // a lane of its own length plays that many steps: those after it are faint
+                let len = d.length.map_or((d.pattern_bars.max(1) * 16) as usize, |l| l as usize);
                 let label = Rect::from_min_size(pos2(rect.left(), y + 1.0), vec2(LABEL_W - 10.0, row_h - 2.0));
                 p.rect_filled(label, 4.0, RAISED);
                 p.rect_filled(
@@ -150,6 +151,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 );
                 let note = if !has {
                     "uses main".to_string()
+                } else if d.length.is_some() || d.speed != 1.0 || d.groove.is_some() {
+                    lane_time(d)
                 } else {
                     format!("{} bar{}", d.pattern_bars, if d.pattern_bars == 1 { "" } else { "s" })
                 };
@@ -391,8 +394,10 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     });
                     ui.separator();
                 }
+                lane_menu(ui, &song.drums[li], song, &mut out);
+                ui.separator();
                 ui.label(RichText::new(format!("{lane} · {variant}")).strong());
-                let bar = |pat: &str| -> String { pat.repeat(len / 16) };
+                let bar = |pat: &str| -> String { pat.repeat((len / 16).max(1)) };
                 let presets = [
                     ("Clear", bar("................")),
                     ("Every beat (x...)", bar("x...x...x...x...")),
@@ -591,10 +596,101 @@ fn trig_editor(
     }
 }
 
+/// a lane's own time and feel, in a few words for its label: "12 steps · x0.75 · dilla"
+fn lane_time(d: &claudius_api::DrumView) -> String {
+    let mut w = Vec::new();
+    if let Some(l) = d.length {
+        w.push(format!("{l} steps"));
+    }
+    if d.speed != 1.0 {
+        w.push(format!("x{}", d.speed));
+    }
+    if let Some(sw) = d.swing {
+        w.push(format!("{:.0}% swing", sw * 100.0));
+    }
+    if let Some(g) = &d.groove {
+        w.push(g.clone());
+    }
+    w.join(" · ")
+}
+
+/// A lane's own time and feel as controls: its length in steps (the pattern's, or its own), its speed, its swing
+/// (the song's, or its own), its groove (one of the song's or a template) and how much of it. Each sends `set_lane`
+/// when let go.
+fn lane_menu(ui: &mut Ui, d: &claudius_api::DrumView, song: &claudius_api::SongView, out: &mut Vec<Command>) {
+    let set =
+        |length: Option<u32>, speed: Option<f32>, swing: Option<f32>, groove: Option<String>, amount: Option<f32>| {
+            Command::SetLane { lane: d.lane.clone(), length, speed, swing, groove, groove_amount: amount }
+        };
+    ui.label(RichText::new(format!("{}'s time", d.lane)).strong());
+    egui::Grid::new(("lane-time", &d.lane)).num_columns(2).spacing([10.0, 5.0]).show(ui, |ui| {
+        ui.label(small("length"));
+        let mut length = d.length.unwrap_or(0);
+        let r = ui
+            .add(
+                egui::Slider::new(&mut length, 0..=64)
+                    .custom_formatter(|v, _| if v < 1.0 { "its pattern".into() } else { format!("{v} steps") }),
+            )
+            .on_hover_text("a length of its own: 12 against the bar's 16 is a polymeter");
+        if let_go(&r) {
+            out.push(set(Some(length), None, None, None, None));
+        }
+        ui.end_row();
+        ui.label(small("speed"));
+        ui.horizontal(|ui| {
+            for (label, v) in [("¼", 0.25), ("½", 0.5), ("¾", 0.75), ("1", 1.0), ("1½", 1.5), ("2", 2.0)] {
+                if ui.selectable_label(d.speed == v, label).on_hover_text(format!("x{v}")).clicked() {
+                    out.push(set(None, Some(v), None, None, None));
+                }
+            }
+        });
+        ui.end_row();
+        ui.label(small("swing"));
+        ui.horizontal(|ui| {
+            if ui.selectable_label(d.swing.is_none(), "the song's").clicked() && d.swing.is_some() {
+                out.push(set(None, None, Some(0.0), None, None));
+            }
+            // its own starts where the song's is, so choosing it changes nothing until the slider moves
+            if ui.selectable_label(d.swing.is_some(), "its own").clicked() && d.swing.is_none() {
+                out.push(set(None, None, Some(song.swing.clamp(0.5, 0.8)), None, None));
+            }
+            if let Some(mut s) = d.swing {
+                let r = ui.add(egui::Slider::new(&mut s, 0.5..=0.8));
+                if let_go(&r) {
+                    out.push(set(None, None, Some(s), None, None));
+                }
+            }
+        });
+        ui.end_row();
+        ui.label(small("groove"));
+        let current = d.groove.clone().unwrap_or_else(|| "none".into());
+        egui::ComboBox::from_id_salt(("lane-groove", &d.lane)).selected_text(&current).show_ui(ui, |ui| {
+            let names = std::iter::once("none".to_string())
+                .chain(claudius_api::GROOVES.iter().map(|g| g.to_string()))
+                .chain(song.grooves.iter().cloned());
+            for g in names {
+                if ui.selectable_label(g == current, &g).clicked() && g != current {
+                    out.push(set(None, None, None, Some(if g == "none" { String::new() } else { g }), None));
+                }
+            }
+        });
+        ui.end_row();
+        if d.groove.is_some() {
+            ui.label(small("how much"));
+            let mut a = d.groove_amount;
+            let r = ui.add(egui::Slider::new(&mut a, 0.0..=1.0).custom_formatter(|v, _| format!("{:.0}%", v * 100.0)));
+            if let_go(&r) {
+                out.push(set(None, None, None, None, Some(a)));
+            }
+            ui.end_row();
+        }
+    });
+}
+
 /// a lane's name, step count and the steps shown for `variant` (falling back to main)
 fn lane_steps(song: &claudius_api::SongView, li: usize, variant: &str) -> (String, usize, Vec<f32>) {
     let d = &song.drums[li];
-    let len = (d.pattern_bars.max(1) * 16) as usize;
+    let len = d.length.map_or((d.pattern_bars.max(1) * 16) as usize, |l| l as usize);
     let steps = d
         .variants
         .iter()
