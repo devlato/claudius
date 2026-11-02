@@ -517,6 +517,26 @@ async fn a_take_sent_over_http_plays_and_goes_with_the_song() {
         style: None,
     });
     assert!(r.ok && r.message.starts_with("1 note from vox"), "{}", r.message);
+    // how it is sung: one note, 29 cents under A#3, by the take's name or as the file kept for it, in a key
+    let hear = |take: Option<&str>, path: Option<String>, key: Option<&str>| {
+        app.command(Command::AssessVoice { take: take.map(String::from), path, key: key.map(String::from) })
+    };
+    let r = hear(Some("vox"), None, None);
+    assert!(
+        r.ok && r.message.starts_with("1 note, 0% within 25 cents of the note meant and 100% within 50"),
+        "{}",
+        r.message
+    );
+    assert!(r.message.contains("furthest off: A#3 at 0.0 s (-29 cents)"), "{}", r.message);
+    let file = kept[0].path().display().to_string();
+    assert!(hear(None, Some(file.clone()), Some("A# minor")).ok);
+    for (r, says) in [
+        (hear(Some("nope"), None, None), "no take called 'nope' (takes: vox)"),
+        (hear(None, Some(file), Some("H minor")), "cannot read the key 'H minor'"),
+        (hear(None, None, None), "name a take of the song or an audio file to hear"),
+    ] {
+        assert!(!r.ok && r.message.starts_with(says), "{}", r.message);
+    }
     let song = app.state().song.unwrap();
     let melody = song.tracks.iter().find(|t| t.name == "melody").expect("a part for the melody");
     assert_eq!(melody.kind, "part");

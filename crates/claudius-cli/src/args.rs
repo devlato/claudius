@@ -123,6 +123,19 @@ pub(crate) enum Cmd {
         #[arg(long)]
         json: bool,
     },
+    /// Hear how a recording is sung: the notes it means, how near each came, and the singer (where they sing sharp or
+    /// flat, how widely their notes scatter, how fast they settle, their vibrato)
+    Voice {
+        file: PathBuf,
+        /// the key it is sung in, which settles doubtful notes (default: no key, any note as likely as another)
+        #[arg(short, long)]
+        key: Option<String>,
+        /// every note too, with where it was sung
+        #[arg(long)]
+        notes: bool,
+        #[arg(long)]
+        json: bool,
+    },
     /// Write a new song on the skeleton of an existing one (its tempo, key, form, progressions, drum habits)
     Remake {
         file: PathBuf,

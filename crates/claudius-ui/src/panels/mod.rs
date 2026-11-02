@@ -188,6 +188,8 @@ pub struct View {
     pub audio_file: Option<std::sync::Arc<crate::pick::Picked>>,
     pub listen: Option<Listen>,
     pub analysis: Option<(bool, String)>,
+    /// how a take is sung, as the server heard it, until the window showing it is closed
+    pub heard: Option<(bool, String)>,
     pub analyzing: bool,
     pub library_filter: String,
     /// the section name being typed (section index, text), so incoming states do not overwrite it
@@ -252,6 +254,7 @@ impl Default for View {
             audio_file: None,
             listen: None,
             analysis: None,
+            heard: None,
             analyzing: false,
             library_filter: String::new(),
             name_edit: None,

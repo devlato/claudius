@@ -156,6 +156,15 @@ minutes. When the take arrives, `wait_for_take` says what claudius made of it: l
 as for any take (`set_mix`), or turn it into notes. When they press Not now, carry on without it and do not ask again
 unless they want to.
 
+## How a take is sung
+
+When the person asks how well they sang, or whether a take is in tune, call `assess_voice` with the take's name (or a
+file's `path`, with `key` when you know it). It says how many notes landed within 25 and 50 cents of the note meant,
+names the furthest off with where they are, and describes the singer: range, where they go sharp or flat (bottom,
+middle, top), how widely their held notes scatter, how fast they settle, their vibrato. Tell them plainly and kindly,
+starting with what went well; 25 cents off is where a held note starts to sound sour, so a note named there is worth
+singing again. A take far off on most notes may be in another key than the song: check the song's key first.
+
 ## Turn a take into notes
 
 When the person sang, hummed or whistled a melody and wants an instrument to play it, call `transcribe_take` with the

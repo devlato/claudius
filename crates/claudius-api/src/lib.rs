@@ -1068,6 +1068,20 @@ pub enum Command {
         #[serde(default)]
         style: Option<String>,
     },
+    /// How a take or a recording is sung: the notes it means, how near each came, and the singer (where they sing sharp
+    /// or flat by register, how widely their notes scatter, how fast they settle, their vibrato). A take is heard in
+    /// the song's key and over its chords from where it starts; a file in `key` when given. Changes nothing.
+    AssessVoice {
+        /// a take in the song
+        #[serde(default)]
+        take: Option<String>,
+        /// or an audio file
+        #[serde(default)]
+        path: Option<String>,
+        /// the key a file is sung in ("A minor"), which settles doubtful notes
+        #[serde(default)]
+        key: Option<String>,
+    },
     /// try `count` random mutations, keep the best-judged one when `keep_best` (else only report them)
     Mutate {
         #[serde(default = "four")]

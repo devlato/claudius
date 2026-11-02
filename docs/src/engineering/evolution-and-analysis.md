@@ -87,7 +87,7 @@ sixteenth, swing and a bass style. It uses no models: everything is signal proce
 | `onsets.rs` | onset strength as log-compressed spectral flux, optionally in a frequency band; peaks above a moving median; onsets refined to where the energy starts rising |
 | `beats.rs` | tempo by autocorrelation of the onset envelope, beats by dynamic programming (Ellis 2007), then a constant-tempo grid and the downbeat |
 | `chroma.rs` | pitch-class energy, keys by Krumhansl-Kessler profiles, chords by template matching |
-| `melody.rs` | a [take](../guide/samples.md#takes)'s melody as notes ([below](#hearing-a-melody)) |
+| `melody.rs` | a [take](../guide/samples.md#takes)'s melody as notes, read by `voice/` ([below](#hearing-a-melody)) |
 | `song.rs` | the rest: sections, progressions, drum steps, swing, and `to_blueprint` |
 
 **Tempo.** The onset envelope adds the full-band flux to twice the kick-band flux (30 to 160 Hz), because in dance
@@ -158,25 +158,55 @@ their energy is close. `CLAUDIUS_DEBUG=1` prints the downbeat cues per phase.
 
 ## Hearing a melody
 
-`analysis::melody::transcribe(audio, key, options)` turns a take's melody, one note at a time, into notes, for
-`take::melody` (the `transcribe_take` command):
+`voice/` reads a voice, one note at a time: its pitch, the notes it means, and how its singer sings.
+`analysis::melody::transcribe(audio, key, options)` uses it to turn a take's melody into notes for `take::melody`
+(the `transcribe_take` command), and `voice::assess` and `take::assess` (`assess_voice`) to say how it is sung.
 
-- **Pitch.** The take is mixed to mono, low-passed twice at 3 kHz and decimated to 8 kHz, which leaves a voice's
-  fundamental and its first harmonics. YIN (de Cheveigné and Kawahara 2002) reads a pitch from 50 Hz to 1 kHz every
-  10 ms, over a 50 ms window: the first dip of the cumulative mean normalised difference under 0.15, refined between
-  samples by a parabola. A frame more than 35 dB under the take's loudest is unvoiced, whatever its pitch, and a
-  median over five frames takes out a lone octave jump.
-- **Notes.** A note is a run of voiced frames. It ends after three unvoiced frames, when the pitch has stayed more
-  than 0.7 semitone from the note's median for three frames, or when the voice grows 6 dB louder again within 30 ms,
-  which is the same pitch sung anew. Notes under 70 ms are dropped, and a note's pitch is the median of its frames.
+- **Pitch** (`voice/pitch.rs`). The take is mixed to mono, low-passed twice at 3 kHz and decimated to 8 kHz, which
+  leaves a voice's fundamental and its first harmonics. YIN (de Cheveigné and Kawahara 2002) reads a pitch from 50 Hz
+  to 1 kHz every 10 ms, over a 50 ms window: the first dip of the cumulative mean normalised difference under 0.15,
+  refined between samples by a parabola, and its depth is the frame's clarity. A frame more than 35 dB under the
+  take's loudest is unvoiced, whatever its pitch, and a frame more than four semitones from the median of its five
+  neighbours (an octave or a harmonic jumped to) takes the median. Each voiced frame's period is then found again at
+  48 kHz, within 3 % of YIN's, as the lag that differs least from itself over 20 ms, which reads a held pitch to a
+  cent. `pitch::rough` skips that, for the sampler's look at whole songs.
+- **Where the notes are** (`voice/intent.rs`). A hidden Markov model over the notes the take may be singing (pYIN's
+  note tracker in Tony, Mauch et al. 2015, works the same way): each note has an attack state, which reaches a
+  semitone or so for scoops and slides and costs half its likelihood, and a hold state, read from the pitch's median
+  over 150 ms, which keeps a note's edges and loses its vibrato; silence is a state of its own. A frame without a pitch
+  is likelier in silence (0.9) than in a note (0.1), and a rise of more than 3 dB within 30 ms speaks for an attack.
+  A hold is left at 2 % a frame, an attack settles at 20 %, and silence starts a note at 3 %. Viterbi gives the
+  states; a note runs from where the path enters its attack to where it leaves the note or attacks it again, and
+  notes under 70 ms are dropped. A note is settled from the first of three frames within 30 cents of its median, and
+  its place is the median after that.
+- **Which note each one is.** A singer puts a note off by so much for the whole of it, so frames, which would make
+  any small error certain, do not decide it. A chain over the notes does: each note is read once, from its place, as a
+  normal around where this singer puts each candidate (`Voice::bias_at`) with their scatter (`Voice::spread_at`), and
+  a note follows the one before by the song's weights (1 for a tone of the key, 1.6 for a tone of the chord under the
+  note, 0.12 for any other) and the step (0.8 for the same note, falling by e for every 5 semitones beyond the
+  first); after a silence of more than a second the step counts for nothing. Viterbi names the notes and
+  forward-backward gives each its `sure`. The wider the singer's scatter, the further the song moves the line between
+  two notes: in C major, from anyone's 30 cents, a note is read as F up to about 70 cents above it.
+- **The singer** (`voice/singer.rs`). `fit` learns a `Voice` from notes heard against the notes meant. Notes 0.75
+  semitone or more off were another note, missed, and do not count. Where they sing is a least-squares fit of three
+  values, at the bottom, the middle and the top of the range, interpolated between, each leaning on in-tune singing by
+  a tenth of a note; how widely is the scatter left around that at each place, leaning on anyone's 30 cents by half a
+  note. The settling is the median, and the vibrato the median of the notes of 400 ms or more whose detrended pitch
+  swings 4 to 8 times a second by 5 cents or more (an autocorrelation peak over 0.3). `Voice::hit` is the chance of a
+  note within so many cents, from that normal.
+- **Learning from the singing alone.** `voice::assess` reads the notes with anyone's voice, fits the singer to them,
+  and reads them again with that voice, twice. A take is read with the song's key and the chords under it from where
+  it starts (`intent::Scale::song`).
 - **The grid.** Each note's start and end go to the nearest sixteenth, measured from the middle of the frames' windows.
-  Its pitch goes to the nearest tone of the song's key (unless `chromatic`), and its velocity follows its loudness. Two
-  notes on one sixteenth keep the longer, and a note ends where the next begins.
+  A note in the song's key keeps its pitch; one outside it goes to the key's tone nearest where it was sung (unless
+  `chromatic`), and its velocity follows its loudness. Two notes on one sixteenth keep the longer, and a note ends where
+  the next begins.
 
 The notes go into the new parts' `notes`, by the progression of each section the take covers. Written notes may run
 over several cycles of their progression, and `arrange` repeats them only after the last cycle they reach. On the
 way, `take::styled` can make them harmony, octaves, chords, a bass line, an arpeggio or a pad. It counts by the
 key's scale steps (`Key::step`), so a third above or a triad under a note stays in the key.
 
-The tests sing to it: three harmonics with a 5.5 Hz vibrato, breath noise, a 30 ms glide into each note and breaths
-where asked. Their melodies come back with every pitch and onset where it was sung.
+The tests sing to it (`voice::sing`): three harmonics with a 5.5 Hz vibrato, breath noise, a 30 ms glide into each
+note and breaths where asked. Their melodies come back with every pitch and onset where it was sung, a singer 60 cents
+flat comes back as the notes meant once the voice is known, and a singer flat at the top only is learnt as flat there.

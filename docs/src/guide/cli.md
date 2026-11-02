@@ -316,6 +316,22 @@ grids, `X` is a hit in almost every bar, `x` a common one, `.` a rare one and `-
 | `-g`, `--genre` | none | a genre whose tempo range guides the beat tracker (else 70 to 180 BPM, centred on 120) |
 | `--json` | off | the whole analysis as JSON, including the chord of every bar |
 
+### `claudius voice`
+
+Hears how a recording of one voice is sung: the notes it means, how near each came, and the singer (see
+[Your voice](voice.md#how-a-take-is-sung)).
+
+```sh
+claudius voice vocal.wav --key "A minor" --notes
+```
+
+| flag | default | what it does |
+|---|---|---|
+| `<file>` | | the audio file |
+| `-k`, `--key` | none | the key it is sung in, which settles doubtful notes (else any note is as likely as another) |
+| `--notes` | off | every note too: where it starts, the note meant, how far off it was sung, how long, how sure |
+| `--json` | off | the whole assessment as JSON, the singer and every note |
+
 ## Make material
 
 ### `claudius chop`

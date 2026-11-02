@@ -246,6 +246,29 @@ pub fn melody(bp: &mut Blueprint, take: &str, m: &Melody) -> Result<String, Stri
     Ok(format!("{}{}", made.describe(&source), if m.keep_take { "" } else { "; the take is muted" }))
 }
 
+/// How take `take` is sung: its notes read in the song's key and over its chords from where the take starts (as
+/// `voice::assess` reads them), and the singer learnt from them.
+pub fn assess(bp: &Blueprint, take: &str) -> Result<crate::voice::Assessment, String> {
+    let Some(l) = bp.loops.iter().find(|l| l.name == take && l.from.is_some()) else {
+        let names: Vec<&str> = bp.loops.iter().filter(|l| l.from.is_some()).map(|l| l.name.as_str()).collect();
+        return Err(if names.is_empty() {
+            "the song has no takes: record one first".to_string()
+        } else {
+            format!("no take called '{take}' (takes: {})", names.join(" "))
+        });
+    };
+    let Sound::Loop { path, bpm, .. } = &l.sound else { return Err(format!("{take} is not a recording")) };
+    let audio = crate::audio::load_once(Path::new(path)).map_err(|e| format!("cannot read {take}: {e:#}"))?;
+    // the take starts with its section, or the first that plays it when that one is gone
+    let p = crate::compose::arrange(bp);
+    let from = l.from.as_deref().unwrap_or_default();
+    let first =
+        bp.form.iter().position(|s| s.name == from).or_else(|| bp.form.iter().position(|s| s.layers.contains(&l.name)));
+    let start = first.and_then(|i| p.sections.get(i)).map_or(0.0, |s| s.start_bar as f64 * 4.0);
+    let scale = crate::voice::intent::Scale::song(&p.key, &p.chords, start, *bpm);
+    Ok(crate::voice::assess(&audio, &scale))
+}
+
 /// what notes played on an instrument become
 #[derive(Clone, Debug, Default)]
 pub struct Played {
@@ -596,10 +619,10 @@ mod tests {
         }
     }
 
-    /// a song at 120 BPM (as `melody::sing` sings) with a take of `notes` from its second section
+    /// a song at 120 BPM (as `voice::sing` sings) with a take of `notes` from its second section
     fn sung(what: &str, notes: &[(f32, f64, bool)]) -> (Blueprint, PathBuf) {
         let dir = scratch(what);
-        let voice = melody::sing(notes);
+        let voice = crate::voice::sing(notes);
         let path = store(&voice, &dir).unwrap();
         let mut bp = song();
         bp.bpm = 120.0;

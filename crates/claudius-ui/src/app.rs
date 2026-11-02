@@ -204,6 +204,12 @@ impl Studio {
                     }
                     self.view.analysis = Some((ok, message));
                 }
+                if what == "assess_voice" {
+                    self.view.heard = Some(match &result {
+                        Ok(r) => (r.ok, r.message.clone()),
+                        Err(e) => (false, e.clone()),
+                    });
+                }
                 if what == "take" || what == "add_notes" {
                     match &result {
                         Ok(r) => self.view.record.answered(r.ok, r.message.clone()),
@@ -488,8 +494,24 @@ impl Studio {
         plan.tell("record", &self.view.record.said());
         plan.tell("midi", &crate::audio::record::midi_offer().map(|(what, _)| what).unwrap_or_default());
         plan.tell("analysis", &self.view.analysis.as_ref().map(|(_, text)| text.clone()).unwrap_or_default());
+        plan.tell("heard", &self.view.heard.as_ref().map(|(_, text)| text.clone()).unwrap_or_default());
         plan.tell("toast", &self.view.toast.as_ref().map(|t| t.text.clone()).unwrap_or_default());
         plan.tell("graph", &self.view.graph.selected.clone().unwrap_or_default());
+    }
+
+    /// how a take is sung, as the server heard it
+    fn heard_window(&mut self, ctx: &egui::Context) {
+        let Some((ok, text)) = self.view.heard.clone() else { return };
+        let mut open = true;
+        egui::Window::new("How it is sung").open(&mut open).default_width(460.0).collapsible(false).show(ctx, |ui| {
+            let color = if ok { TEXT } else { theme::BAD };
+            for part in text.split("; ") {
+                ui.label(RichText::new(part).color(color));
+            }
+        });
+        if !open {
+            self.view.heard = None;
+        }
     }
 
     fn reference_window(&mut self, ctx: &egui::Context) {
@@ -1036,6 +1058,7 @@ impl eframe::App for Studio {
         if self.view.reference_open {
             self.reference_window(&ctx);
         }
+        self.heard_window(&ctx);
         if self.view.reference_open && self.view.reference.is_none() && !self.view.reference_loading {
             self.view.reference_loading = true;
             self.backend.fetch_reference();
