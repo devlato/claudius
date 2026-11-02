@@ -134,6 +134,13 @@ installed instruments, and the drum voices and kits; right-click a row to remove
 any role with `part("lead2", #{ role: "lead" })`, and assistants use `add_track` and `remove_track`
 ([The studio](https://github.com/devlato/claudius/blob/main/docs/src/getting-started/studio.md#the-panels)).
 
+The studio has a piano roll: a part's notes over a progression, as the theory engine writes them, to change note by
+note (add, move, lengthen, take out); the first change writes the notes out, and **Back to the theory engine**
+gives them back. Scripts write a part's notes with `notes("lead", "A", [[0, 0.5, 69], ...])` and give them back
+with `clear_notes()`, assistants with `set_notes`, and a song printed as a script now keeps the notes a part has
+written out, from a take or a keyboard too
+([`notes()`](https://github.com/devlato/claudius/blob/main/docs/src/language/song-functions.md#notes)).
+
 `claudius publish` checks a song the way stores and distributors check a release (its artwork's size, colours and
 sharpness, its audio, the licences of its sounds, and its details, including how it was made) and writes a release
 kit: the WAV and the cover a distributor takes, and the answers its form asks for

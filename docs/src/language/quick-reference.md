@@ -28,6 +28,7 @@ Everything on one page. Each name links to its full entry.
 | [`drums_from("beat.wav", #{ bars: 2 })`](song-functions.md#drums_from) | a beat in a recording, played or beatboxed, into the kick, snare and hat lanes |
 | [`drum_sound("kick", "tr909:bd")`](song-functions.md#drum_sound) | a drum name, a kit sound (or a name and a bank), a file |
 | [`part("bass", #{ ... })`](song-functions.md#part) | `role style preset register density seed rate`; adds the genre's part when the song has none, and with `role` one of your own |
+| [`notes("lead", "A", [[0, 0.5, 69], ...])`, `clear_notes("lead", "A")`](song-functions.md#notes) | a part's notes over a progression written out, `[start, length, pitch, velocity]` in beats; cleared, the theory engine's again |
 | [`track("hats", pattern)`](song-functions.md#track) | a pattern track; new ones join sections with energy ≥ 0.6 |
 | [`mix("pad", #{ ... })`](mixing.md#mix) | `level` −40..12, `pan` −1..1, `reverb`/`room`, `delay`, `duck` 0..1, `mute`, `solo` |
 | [`master(#{ lufs: -9, ceiling: -1 })`](mixing.md#master) | −24..−5 LUFS, −3..−0.1 dBTP |

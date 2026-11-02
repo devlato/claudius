@@ -807,6 +807,7 @@ impl Studio {
             Tab::Sequencer => panels::sequencer::show(ui, &mut cx),
             Tab::Mixer => panels::mixer::show(ui, &mut cx),
             Tab::Parts => panels::parts::show(ui, &mut cx),
+            Tab::Notes => panels::roll::show(ui, &mut cx),
             Tab::Harmony => panels::harmony::show(ui, &mut cx),
             Tab::Script => panels::script::show(ui, &mut cx),
             Tab::Sounds => panels::library::show(ui, &mut cx),
@@ -837,6 +838,7 @@ fn is_edit(what: &str) -> bool {
             | "set_part"
             | "add_track"
             | "remove_track"
+            | "set_notes"
             | "set_mix"
             | "set_fx"
             | "tune"
@@ -1180,6 +1182,7 @@ mod tests {
             json!({"cmd": "set_part", "name": "bass", "density": 0.5, "reseed": false}),
             json!({"cmd": "add_track", "name": "lead2", "kind": "part", "role": "lead"}),
             json!({"cmd": "remove_track", "name": "arp"}),
+            json!({"cmd": "set_notes", "part": "bass", "prog": "A", "notes": [{"t": 0.0, "d": 1.0, "p": 36}]}),
             json!({"cmd": "set_mix", "track": "kick", "level_db": -3.0}),
             json!({"cmd": "set_fx", "target": "master", "fx": []}),
             json!({"cmd": "tune", "track": "kick", "speed_ms": 0}),
@@ -1196,7 +1199,7 @@ mod tests {
                 assert!(is_edit(&crate::net::command_name(&cmd)), "{c} is shown at once but not put back");
             }
         }
-        assert_eq!(shown, 19, "every edit above but render and undo is shown at once");
+        assert_eq!(shown, 20, "every edit above but render and undo is shown at once");
         assert!(is_edit("run_script"), "the graph shows the master's loudness at once");
     }
 }

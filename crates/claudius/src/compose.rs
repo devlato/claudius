@@ -23,7 +23,7 @@ use crate::theory::{ChordSpan, Note, bass, melody, progression};
 
 mod arrange;
 
-pub use arrange::{arrange, cycle_spans, part_cycle};
+pub use arrange::{arrange, cycle_spans, cycles, part_cycle};
 
 /// a loop family picked for a song: loops produced to play together (one tempo, one key), with the chords of the
 /// harmony loop read bar by bar

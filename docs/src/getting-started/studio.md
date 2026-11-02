@@ -65,6 +65,11 @@ the song it opens.
   much of it. The lane's name shows what it has.
 - **Parts.** The bass, chords, pad, lead and arpeggio parts: their writing style, their sound (a synth or a sampled
   instrument), their range and how busy they are. **Reseed** rewrites a part.
+- **Piano roll.** A part's notes over one of its progressions, on a grid of beats and pitches. Click an empty place
+  to add a note, drag a note to move it, drag its right edge to make it longer or shorter, right-click it to take it
+  out; the grid (1/16 to 1/2) is what notes snap to. The notes the theory engine writes are shown faint, and the
+  first change writes them out for you to edit; **Back to the theory engine** lets it write them again. The notes
+  come round every time the part plays that progression.
 - **Mixer.** Level, pan, reverb, delay and how much each track ducks under the kick; mute and solo; meters from the
   last render; the master's loudness and true peak.
 - **Harmony.** The chord progressions, as chords in the song's key and as numerals, and which sections play which.

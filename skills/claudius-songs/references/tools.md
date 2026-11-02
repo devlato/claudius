@@ -45,8 +45,10 @@ Notes:
 - `command` takes JSON such as `{"cmd": "add_section", "after": 2, "kind": "break", "bars": 8}`, `move_section`,
   `remove_section`, `toggle_layer`, `set_drum_step`, `set_trig`, `set_lane`, `set_section`, `set_part`,
   `add_track` (`{"cmd": "add_track", "name": "lead2", "kind": "part", "role": "lead", "sound": "saw_lead"}`, or
-  `"kind": "drum"` and a drum sound for a lane), `remove_track` and `set_mix`. Scripts do nearly everything these
-  do, more readably: `part("lead2", #{ role: "lead" })`, `drum()`, `remove()`.
+  `"kind": "drum"` and a drum sound for a lane), `remove_track`, `set_notes` (`{"cmd": "set_notes", "part": "lead",
+  "prog": "A", "notes": [{"t": 0, "d": 0.5, "p": 69}]}`; no `notes` gives them back to the theory engine) and
+  `set_mix`. Scripts do nearly everything these do, more readably: `part("lead2", #{ role: "lead" })`, `drum()`,
+  `remove()`, `notes()`. `get_song`'s parts carry each cycle's notes, as the theory engine writes them or as written.
 - `SONG` is a song folder. `make`, `script` and `remake` write theirs as `<genre>-<title>-<seed>/` inside `--out`,
   which is `out/` in the current folder unless given; `render` writes into the blueprint's own folder, or straight
   into `--out`. Each prints the path at the end. When the person needs to find the song, give a folder they know:

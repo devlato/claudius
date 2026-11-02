@@ -10,7 +10,7 @@
 use std::collections::HashMap;
 use std::f32::consts::{FRAC_PI_4, SQRT_2, TAU};
 
-use claudius_api::{PartView, SongView};
+use claudius_api::{CycleView, NoteView, PartView, SongView};
 
 use super::kit::{Kit, Need, Sound};
 use crate::audio::Pcm;
@@ -258,6 +258,144 @@ fn bass_note(numeral: &str, key: &Key, lo: i32) -> i32 {
     n
 }
 
+/// a note the demo writes in a bar: its sixteenth, how many sixteenths it lasts, its voice and pitches
+struct BarNote {
+    step: u32,
+    len: f32,
+    voice: Voice,
+    pitches: Vec<i32>,
+}
+
+/// the velocity the demo writes its own notes out at: a written note at it plays as loud as the demo's own
+const VELOCITY: f32 = 0.8;
+
+/// how loud the synth plays a note of voice `voice` in a part of role `role`
+fn gain_of(role: &str, voice: Voice) -> f32 {
+    match voice {
+        Voice::Pluck => 0.45,
+        Voice::Stab => 0.6,
+        Voice::Pad if role != "pad" => 0.55,
+        _ => 0.5,
+    }
+}
+
+/// What the demo writes for part `p` in a bar over chord `i` (`numeral`) of its progression. The same every time
+/// round, so that a cycle is what the piano roll shows.
+fn bar_notes(p: &PartView, numeral: &str, i: usize, key: &Key) -> Vec<BarNote> {
+    let (lo, hi) = p.register;
+    let center = (lo + hi) / 2;
+    let mut out = Vec::new();
+    let mut note = |step: u32, len: f32, voice: Voice, pitches: Vec<i32>| {
+        out.push(BarNote { step, len, voice, pitches });
+    };
+    match p.role.as_str() {
+        "bass" => {
+            let steps: &[u32] = match p.style.as_str() {
+                "offbeat" => &[2, 6, 10, 14],
+                "syncopated" | "kick_follow" => &[0, 3, 6, 10, 13],
+                "rolling" => &[1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15],
+                "walking" => &[0, 4, 8, 12],
+                "sustain" | "reese" => &[0],
+                _ => &[0, 2, 4, 6, 8, 10, 12, 14],
+            };
+            let root = bass_note(numeral, key, lo);
+            for (k, &s) in steps.iter().enumerate() {
+                let next = steps.get(k + 1).copied().unwrap_or(16);
+                let walk = if p.style == "walking" { [0, 3, 5, 7][k % 4] } else { 0 };
+                note(s, ((next - s) as f32 * 0.85).max(0.8), Voice::Bass, vec![root + walk]);
+            }
+        }
+        "pad" => note(0, 16.0, Voice::Pad, voicing(numeral, key, center)),
+        "lead" => {
+            let tones = voicing(numeral, key, center + 5);
+            let rhythm = [0u32, 3, 6, 8, 10, 12];
+            for (k, &s) in rhythm.iter().enumerate() {
+                if (k + i) % 5 == 4 {
+                    continue;
+                }
+                let n = tones[(k * 2 + i) % tones.len()] + if k == 3 { 12 } else { 0 };
+                let next = rhythm.get(k + 1).copied().unwrap_or(16);
+                note(s, (next - s) as f32 * 0.9, Voice::Lead, vec![n]);
+            }
+        }
+        "arp" => {
+            let mut tones = voicing(numeral, key, center);
+            tones.extend(tones.clone().iter().map(|n| n + 12));
+            for s in 0..16u32 {
+                let j = if p.style == "updown" && (s / tones.len() as u32) % 2 == 1 {
+                    tones.len() - 1 - s as usize % tones.len()
+                } else {
+                    s as usize % tones.len()
+                };
+                note(s, 1.6, Voice::Pluck, vec![tones[j]]);
+            }
+        }
+        _ => {
+            let chord = voicing(numeral, key, center);
+            match p.style.as_str() {
+                "sustain" | "half" => {
+                    let half = if p.style == "half" { 2 } else { 1 };
+                    for h in 0..half {
+                        note(h * 8, 16.0 / half as f32, Voice::Pad, chord.clone());
+                    }
+                }
+                style => {
+                    let steps: &[u32] = match style {
+                        "charleston" => &[0, 3],
+                        "syncopated" | "pump" => &[0, 3, 6, 10, 12],
+                        _ => &[2, 6, 10, 14],
+                    };
+                    for &s in steps {
+                        note(s, 2.3, Voice::Stab, chord.clone());
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Every part's cycles as the demo writes them, a chord a bar, for the progressions its sections play, then those it
+/// has notes written out for and plays nowhere now, as claudius lists them; a cycle written out stays as it is.
+pub fn write_cycles(song: &mut SongView) {
+    let key = Key::parse(&song.key).unwrap_or(Key { tonic: 9, mode: 1 });
+    let progressions = song.progressions.clone();
+    let sections = song.sections.clone();
+    for p in song.parts.iter_mut() {
+        let mut progs: Vec<String> = Vec::new();
+        for s in sections.iter().filter(|s| s.layers.contains(&p.name)) {
+            let prog = if s.prog.is_empty() { "A".to_string() } else { s.prog.clone() };
+            if !progs.contains(&prog) {
+                progs.push(prog);
+            }
+        }
+        let mut written: Vec<CycleView> = p.cycles.iter().filter(|c| c.written).cloned().collect();
+        written.sort_by(|a, b| a.prog.cmp(&b.prog));
+        let view: PartView = p.clone();
+        let mut cycles: Vec<CycleView> = progs
+            .iter()
+            .map(|prog| {
+                if let Some(c) = written.iter().find(|c| &c.prog == prog) {
+                    return c.clone();
+                }
+                let chords = progressions.iter().find(|(n, _)| n == prog).map(|(_, c)| c.clone()).unwrap_or_default();
+                let mut notes = Vec::new();
+                for (i, numeral) in chords.iter().enumerate() {
+                    for n in bar_notes(&view, numeral, i, &key) {
+                        let (t, d) = (i as f64 * 4.0 + n.step as f64 / 4.0, n.len as f64 / 4.0);
+                        notes.extend(n.pitches.iter().map(|&p| NoteView { t, d, p, v: VELOCITY }));
+                    }
+                }
+                CycleView { prog: prog.clone(), beats: (chords.len().max(1) * 4) as f64, written: false, notes }
+            })
+            .collect();
+        cycles.extend(
+            written.into_iter().filter(|c| !progs.contains(&c.prog) && progressions.iter().any(|(n, _)| *n == c.prog)),
+        );
+        p.cycles = cycles;
+    }
+}
+
 /// the gain at frame `t` of a track that ducks `depth` under kicks at `kicks`, `next` the index of the first kick
 /// after the previous frame asked about (each note of a chord asks from its start again)
 fn ducked(kicks: &[usize], next: &mut usize, t: usize, depth: f32, release: f32) -> f32 {
@@ -273,6 +411,25 @@ fn ducked(kicks: &[usize], next: &mut usize, t: usize, depth: f32, release: f32)
 }
 
 impl Render {
+    /// whether track `name` plays MIDI note `pitch` somewhere in the song
+    #[cfg(test)]
+    pub fn plays(&self, name: &str, pitch: i32) -> bool {
+        self.events.iter().any(|e| self.tracks.get(e.track).is_some_and(|t| t == name) && e.notes.contains(&pitch))
+    }
+
+    /// every note track `name` plays, one pitch each: its start and length in frames, pitch, gain and voice
+    #[cfg(test)]
+    pub fn notes_of(&self, name: &str) -> Vec<(usize, usize, i32, f32, String)> {
+        let mut out: Vec<_> = self
+            .events
+            .iter()
+            .filter(|e| self.tracks.get(e.track).is_some_and(|t| t == name))
+            .flat_map(|e| e.notes.iter().map(move |&p| (e.at, e.len, p, e.gain, format!("{:?}", e.voice))))
+            .collect();
+        out.sort_by(|a, b| a.0.cmp(&b.0).then(a.2.cmp(&b.2)));
+        out
+    }
+
     pub fn new(song: &SongView, kit: &Kit) -> Render {
         let key = Key::parse(&song.key).unwrap_or(Key { tonic: 9, mode: 1 });
         let beat = 60.0 / song.bpm.max(30.0) as f32;
@@ -311,6 +468,15 @@ impl Render {
         let at = |bar: u32, s: u32| -> usize {
             let t = (bar * 16 + s) as f32 * step + if s % 2 == 1 { swing } else { 0.0 };
             (t * SR) as usize
+        };
+        // a beat from a bar's start as `at` swings it: the odd sixteenths late, what lies between in proportion
+        let late = (song.swing - 0.5).max(0.0) as f64 * 2.0;
+        let swung = |t: f64| -> f64 {
+            let s = t * 4.0;
+            let pair = (s / 2.0).floor() * 2.0;
+            let u = s - pair;
+            let warped = if u <= 1.0 { u * (1.0 + late) } else { 1.0 + late + (u - 1.0) * (1.0 - late) };
+            (pair + warped) / 4.0
         };
         let secs = |x: f32| (x * SR) as usize;
         let mut active = vec![0f64; tracks.len()];
@@ -394,80 +560,44 @@ impl Render {
                 playing_here[track] = true;
                 let sound = sound_at(Some(p.preset.clone()), reach(p));
                 let unit = |synth: f32| if sound.is_some() { sec_gain } else { synth * sec_gain };
-                let (lo, hi) = p.register;
-                let center = (lo + hi) / 2;
                 let mut note = |at: usize, len: usize, voice: Voice, notes: Vec<i32>, gain: f32| {
                     events.push(Ev { at, len, voice, notes, gain, track, sound });
                 };
-                for bar in 0..sec.bars {
-                    let numeral = &chords[(bar as usize) % chords.len()];
-                    let b = sec.start_bar + bar;
-                    let bar_len = secs(16.0 * step);
-                    match p.role.as_str() {
-                        "bass" => {
-                            let steps: &[u32] = match p.style.as_str() {
-                                "offbeat" => &[2, 6, 10, 14],
-                                "syncopated" | "kick_follow" => &[0, 3, 6, 10, 13],
-                                "rolling" => &[1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15],
-                                "walking" => &[0, 4, 8, 12],
-                                "sustain" | "reese" => &[0],
-                                _ => &[0, 2, 4, 6, 8, 10, 12, 14],
+                // notes written out (the piano roll's): they come round with their cycle, in place of the demo's own,
+                // and play as the demo's own would: as loud at its velocity, as long, and swung alike
+                if let Some(c) = p.cycles.iter().find(|c| c.written && c.prog == prog_name && c.beats > 0.0) {
+                    let (from, len) = (at(sec.start_bar, 0), sec.bars as f64 * 4.0);
+                    let mut off = 0.0;
+                    while off < len {
+                        for n in c.notes.iter().filter(|n| off + n.t < len) {
+                            let (t, d) = (off + n.t, n.d.min(len - off - n.t));
+                            let voice = match p.role.as_str() {
+                                "bass" => Voice::Bass,
+                                "lead" => Voice::Lead,
+                                "arp" => Voice::Pluck,
+                                _ if d >= 1.0 => Voice::Pad,
+                                _ => Voice::Stab,
                             };
-                            let root = bass_note(numeral, &key, lo);
-                            for (k, &s) in steps.iter().enumerate() {
-                                let next = steps.get(k + 1).copied().unwrap_or(16);
-                                let walk = if p.style == "walking" { [0, 3, 5, 7][k % 4] } else { 0 };
-                                let dur = ((next - s) as f32 * step * 0.85).max(step * 0.8);
-                                note(at(b, s), secs(dur), Voice::Bass, vec![root + walk], unit(0.5));
-                            }
+                            let start = from + secs(swung(t) as f32 * beat);
+                            note(
+                                start,
+                                secs(d as f32 * beat),
+                                voice,
+                                vec![n.p],
+                                unit(gain_of(&p.role, voice)) * n.v / VELOCITY,
+                            );
                         }
-                        "pad" => note(at(b, 0), bar_len, Voice::Pad, voicing(numeral, &key, center), unit(0.5)),
-                        "lead" => {
-                            let tones = voicing(numeral, &key, center + 5);
-                            let rhythm = [0u32, 3, 6, 8, 10, 12];
-                            for (k, &s) in rhythm.iter().enumerate() {
-                                if (k + bar as usize) % 5 == 4 {
-                                    continue;
-                                }
-                                let n = tones[(k * 2 + bar as usize) % tones.len()] + if k == 3 { 12 } else { 0 };
-                                let next = rhythm.get(k + 1).copied().unwrap_or(16);
-                                note(at(b, s), secs((next - s) as f32 * step * 0.9), Voice::Lead, vec![n], unit(0.5));
-                            }
-                        }
-                        "arp" => {
-                            let mut tones = voicing(numeral, &key, center);
-                            tones.extend(tones.clone().iter().map(|n| n + 12));
-                            for s in 0..16u32 {
-                                let i = if p.style == "updown" && (s / tones.len() as u32) % 2 == 1 {
-                                    tones.len() - 1 - s as usize % tones.len()
-                                } else {
-                                    s as usize % tones.len()
-                                };
-                                note(at(b, s), secs(step * 1.6), Voice::Pluck, vec![tones[i]], unit(0.45));
-                            }
-                        }
-                        _ => {
-                            let chord = voicing(numeral, &key, center);
-                            match p.style.as_str() {
-                                "sustain" | "half" => {
-                                    let half = if p.style == "half" { 2 } else { 1 };
-                                    for h in 0..half {
-                                        let len = bar_len / half as usize;
-                                        note(at(b, h * 8), len, Voice::Pad, chord.clone(), unit(0.55));
-                                    }
-                                }
-                                style => {
-                                    let steps: &[u32] = match style {
-                                        "charleston" => &[0, 3],
-                                        "syncopated" | "pump" => &[0, 3, 6, 10, 12],
-                                        _ => &[2, 6, 10, 14],
-                                    };
-                                    for &s in steps {
-                                        note(at(b, s), secs(0.28), Voice::Stab, chord.clone(), unit(0.6));
-                                    }
-                                }
-                            }
-                        }
+                        off += c.beats;
+                    }
+                    continue;
+                }
+                for bar in 0..sec.bars {
+                    let i = (bar as usize) % chords.len();
+                    let b = sec.start_bar + bar;
+                    for n in bar_notes(p, &chords[i], i, &key) {
+                        // as long as it lasts in the section, as claudius cuts a part's notes at a section's end
+                        let len = n.len.min(((sec.bars - bar) * 16 - n.step) as f32);
+                        note(at(b, n.step), secs(len * step), n.voice, n.pitches, unit(gain_of(&p.role, n.voice)));
                     }
                 }
             }
