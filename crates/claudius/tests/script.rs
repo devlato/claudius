@@ -808,6 +808,17 @@ fn a_beat_in_a_recording_becomes_the_drum_lanes() {
         s
     };
     assert_eq!((steps("kick"), steps("clap"), steps("hat")), (vec![0, 8], vec![4, 12], vec![2, 6, 10, 14]));
+    // a step heard every time round plays every time: a chance it had goes, what else its trig does stays
+    let code = format!(
+        r#"song("house", 3); trig("kick", 0, #{{ prob: 0.5, ratchet: 2 }}); drums_from({path}, #{{ bars: 1 }});"#
+    );
+    let again = script::run(&code, None, None).unwrap().bp.unwrap();
+    let first = again.drums.iter().find(|d| d.name == "kick").unwrap().patterns["main"]
+        .iter()
+        .find(|h| h.t == 0.0)
+        .unwrap()
+        .trig;
+    assert_eq!(first.map(|t| (t.prob, t.ratchet)), Some((1.0, 2)), "{first:?}");
     // the printed script writes the lanes as patterns: it needs no recording to read back
     let printed = script::to_script(&bp);
     assert!(!printed.contains("drums_from"), "{printed}");

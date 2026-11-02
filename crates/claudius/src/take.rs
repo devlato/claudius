@@ -328,14 +328,16 @@ fn put_drums(
     for s in steps.iter().filter(|s| s.hits() > 0) {
         let lane = lane_for(bp, s.kind);
         crate::script::put_drum(bp, &lane, &variant, &s.string(), 16)?;
-        // a step hit only some of the times round plays with that chance
+        // each step plays as often as it was heard: one hit only some of the times round with that chance, the rest
+        // every time (a chance the lane had there before goes)
         let chances = s.chances();
         if let Some(hits) = bp.drums.iter_mut().find(|d| d.name == lane).and_then(|d| d.patterns.get_mut(&variant)) {
+            use crate::theory::rhythm::Trig;
             for h in hits.iter_mut() {
                 let step = ((h.t * 4.0).round() as usize) % n;
-                if let Some(&(_, prob)) = chances.iter().find(|(c, _)| *c == step) {
-                    h.trig = Some(crate::theory::rhythm::Trig { prob, ..h.trig.unwrap_or_default() });
-                }
+                let prob = chances.iter().find(|(c, _)| *c == step).map_or(1.0, |&(_, p)| p);
+                let trig = Trig { prob, ..h.trig.unwrap_or_default() };
+                h.trig = (trig != Trig::default()).then_some(trig);
             }
         }
         let by_chance = match chances.len() {
