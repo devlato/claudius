@@ -67,6 +67,14 @@
     }
   ],
   "kits": [["muldjord", 0.7]],
+  "kit_mix": 0.15,
+  "palette": {
+    "bass": {"core": 0.6, "bass": 2.5, "synth": 1},
+    "chords": {"core": 0.6, "guitar": 3, "electric piano": 0.5, "organ": 0.8, "synth": 0.6, "piano": 0.5},
+    "keys": {"core": 0.5, "organ": 3, "electric piano": 1.5, "piano": 0.8, "synth": 0.8, "mallets": 0.5},
+    "pad": {"core": 0.45, "synth": 2, "strings": 1.2, "pad": 1, "choir": 0.8, "organ": 0.6},
+    "lead": {"core": 0.3, "woodwinds": 1.5, "strings": 1.2, "synth": 1.5, "mallets": 1, "guitar": 1, "brass": 0.5, "organ": 0.5}
+  },
   "parts": [
     {
       "name": "bass",

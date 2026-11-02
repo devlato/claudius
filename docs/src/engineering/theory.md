@@ -30,7 +30,9 @@ Everything a genre knows is in one JSON file. The fields `generate` reads:
 | `forms` | one or more forms, each a list of sections with layers, energy and flags |
 | `drums` | lanes: a voice, a step template or a euclidean rhythm, named variants, parameter ranges, Apple Loops subtypes for one-shots, a choke group, whether to tune the kick to the key, a mix |
 | `kits` | weighted sample-pack drum kits; the weight left over keeps the lanes' own sounds |
-| `parts` | melodic parts: a role, weighted-by-repetition lists of presets and styles, a register, a density range, voices, voicing, arpeggio rates, a chance of leaving the part out, a mix |
+| `kit_mix` | the chance that a drum lane plays a kit of its own instead (another installed kit, or its synthesized voice); 0.3 when not given |
+| `palette` | by role, how a part's sound is drawn beyond its own presets: `core`, the chance of one of its own, and a weight for each kind (`synth`, or an instrument category: `strings`, `brass`, `mallets`, `electric piano` ...) |
+| `parts` | melodic parts: a role, weighted-by-repetition lists of presets and styles, a register, a density range, voices, voicing, arpeggio rates, a chance of leaving the part out, its own `core` (an acid line stays acid), a mix |
 | `loops` | Apple Loops parts: instrument, subtype, genre and mood filters, whether tonal |
 | `transitions` | riser, impact, downlifter and reverse crash switches, the riser length |
 | `mix` | the LUFS target, the reverb and delay, bus and master chains, sidechain release, per-role level offsets |
@@ -263,16 +265,36 @@ every `rate` beats.
 
 ## Sounds for parts and drums
 
-`compose::part_sound(entry, rng)` turns a preset entry into a sound. For `"piano|epiano"` it plays the first
-alternative that exists (a synth preset, or an instrument an installed pack answers to), and falls back to the `pluck`
-synth. It always draws the variation of the last synth alternative first, whether or not that is the sound it
-returns, and varies any other synth from a fork of the generator; instruments draw nothing. So the generator's
-streams advance the same way with or without sample packs, and installing packs changes the sounds of a song without
-changing its notes. (A synth patch is varied by moving its filter cutoff by a factor of 0.8 to 1.25 and its detune by
-0.85 to 1.2.)
+`compose::draw_sound` chooses a part's sound. It first draws one of the part's own presets with
+`compose::part_sound(entry, rng)`: for `"piano|epiano"` that plays the first alternative that exists (a synth preset,
+or an instrument an installed pack answers to), and falls back to the `pluck` synth. It always draws the variation of
+the last synth alternative first, whether or not that is the sound it returns, and varies any other synth from a fork
+of the generator; instruments draw nothing. So the generator's main stream advances the same way with or without
+sample packs, and installing packs changes the sounds of a song without changing its notes.
+
+Then, from a fork of its own, it draws whether the part keeps that sound: the genre's `palette` for the role gives the
+chance it does (`core`), else a kind by its weight (`palette.rs`):
+
+- `synth`: any preset made for the role, of the 46, varied widely (`compose::widen`: the filter, envelopes, detune,
+  vibrato, FM, drive and glide each moved up or down by half again at most, now and then a voice more or less in the
+  unison, or a soft octave above it). A part's own synth is varied too, by half as much.
+- an instrument category (`strings`, `brass`, `mallets`, `electric piano` ...): any installed instrument of it whose
+  recorded range holds most of the part's register (within 5 semitones of its outermost samples), whose articulation
+  suits the role (a pad sustains: no pizzicato, no one-shot, no piano; a lead is one player, not a section; chords on
+  strings are the section's; a bass starts low enough), and whose pack's licence lets music made with it be published
+  as one likes: packs without a licence, and share-alike or non-commercial ones, are only chosen by hand. A category
+  with no such instrument installed plays its synth stand-in: an FM electric piano for `electric piano`, a mallet or
+  marimba for `mallets`, a brass patch for `brass`.
+
+No two parts of a song play the same sound (`palette::identity`): a draw leaves out what the others play, and a part
+whose own sound is another's draws from the palette. The genre's own parts weigh it all: a lead keeps its own sound
+three times in ten in every genre, an acid line always (its `core` is 1), trap's 808 nineteen times in twenty.
 
 Drum kits work the same way: the kit is drawn from a fork, and `kit_sound` maps lanes to the kit's drums (`kick` to
-`bd`, `hat` to `hh`, `perc` to `rim`, ...), so a missing kit leaves the lane's synthesized voice in place. Apple Loops
+`bd`, `hat` to `hh`, `perc` to `rim`, ...), so a missing kit leaves the lane's synthesized voice in place. Then each
+lane, from a fork of its own, plays a kit of its own with the genre's `kit_mix` chance: any installed kit whose licence
+lets music be published freely and that has the lane's sound, or its synthesized voice, so a song's kick, snare and
+hats can come from different machines. Apple Loops
 one-shots follow the same rule: each lane draws the chance of using one, and picks it, from a fork of its own
 (`dr.fork(lane)`), and draws that chance whether or not there is a library. The drum stream that writes the patterns
 advances the same way either way, so a seed gives the same drum patterns on every machine, and Apple Loops change only

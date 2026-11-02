@@ -38,6 +38,10 @@ const BUILTIN: &[(&str, &str)] = &[
 fn straight() -> (f32, f32) {
     (0.5, 0.5)
 }
+fn kit_mix() -> f64 {
+    0.3
+}
+
 fn yes() -> bool {
     true
 }
@@ -98,6 +102,10 @@ pub struct PartSpec {
     /// probability that a generated song leaves this part out
     #[serde(default)]
     pub optional: f64,
+    /// the chance it plays one of its own presets, in place of its genre's palette's for the role (an acid line
+    /// stays an acid line)
+    #[serde(default)]
+    pub core: Option<f64>,
     #[serde(default)]
     pub mix: TrackMix,
 }
@@ -181,6 +189,12 @@ pub struct GenreProfile {
     pub ext: u8,
     pub bars_per_chord: Vec<(u32, f64)>,
     pub forms: Vec<Vec<SectionSpec>>,
+    /// how each role's sounds are drawn beyond the parts' own presets (`palette`): by role name
+    #[serde(default)]
+    pub palette: BTreeMap<String, crate::palette::RolePalette>,
+    /// the chance that a drum lane plays a kit of its own rather than the song's
+    #[serde(default = "kit_mix")]
+    pub kit_mix: f64,
     pub drums: Vec<LaneSpec>,
     /// drum machines / kits from the sample packs a song may play its drums on (bank name, weight); the remaining
     /// weight up to 1 keeps the lanes' own sounds

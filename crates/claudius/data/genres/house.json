@@ -182,6 +182,14 @@
     {"name": "perc", "voice": "rim", "euclid": [5, 16], "mix": {"bus": "drums", "pan": 0.35, "delay": 0.15}}
   ],
   "kits": [["tr909", 0.45], ["tr707", 0.1]],
+  "kit_mix": 0.35,
+  "palette": {
+    "bass": {"core": 0.6, "synth": 3, "bass": 0.8},
+    "chords": {"core": 0.45, "synth": 2, "piano": 2, "electric piano": 2, "organ": 1.5, "brass": 0.5, "strings": 0.5, "guitar": 0.5},
+    "pad": {"core": 0.45, "synth": 2.5, "strings": 1.5, "pad": 1.5, "choir": 0.5},
+    "lead": {"core": 0.3, "synth": 3, "piano": 1.5, "electric piano": 1, "mallets": 1, "brass": 0.8, "woodwinds": 0.5, "voice": 0.3},
+    "arp": {"core": 0.4, "synth": 3, "mallets": 1, "piano": 0.8, "harp": 0.5}
+  },
   "parts": [
     {
       "name": "bass",

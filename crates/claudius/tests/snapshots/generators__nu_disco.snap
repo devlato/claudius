@@ -23,7 +23,7 @@ drum perc main (drum cowbell): ....x...x.....x.|....x...x.....x.|....x...x.....x
 drum perc sparse (drum cowbell): ........x.......|........x.......|........x.......|........x.......
 part bass (bass): syncopated synth pluck_bass, register 33..52, density 0.51
 part guitar (chords): syncopated synth pluck, register 52..76, density 0.60
-part keys (keys): syncopated synth epiano, register 52..74, density 0.59
+part keys (keys): syncopated synth tine_piano, register 52..74, density 0.59
 part strings (pad): half synth strings, register 55..82, density 0.56
 part lead (lead): motif synth square_lead, register 62..82, density 0.48
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums

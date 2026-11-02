@@ -192,10 +192,11 @@ render one voice that follows the notes, retriggering its envelopes unless notes
 or `glide`, in which case it slides. Envelopes, pitch and filter coefficients update every 16 samples, with amplitude
 interpolated across the block so there is no zipper noise.
 
-The 20 presets in `synth/presets.rs` are `sub_bass`, `808`, `reese`, `acid`, `saw_bass`, `pluck_bass`, `organ_bass`,
-`wobble`, `pluck`, `supersaw`, `pad`, `warm_pad`, `stab`, `epiano`, `keys`, `bell`, `organ`, `strings`,
-`square_lead` and `chip`, each tagged with the roles it suits. A part holds a full copy of its patch, which the
-generator varies slightly and evolution tweaks (cutoff, resonance, release, drive, detune).
+The 46 presets in `synth/presets.rs` ([Synth presets](../language/sounds.md#synth-presets) lists them) are each
+tagged with the roles they suit, at least six for every role. A part holds a full copy of its patch, which the
+generator varies (`compose::widen`: a little for a genre's own sound, more for one drawn from its palette) and
+evolution tweaks (cutoff, resonance, release, drive, detune). No preset after the first twenty may share its name with
+an instrument in the packs' registry, as a preset hides an instrument of its name.
 
 ## Drum voices and transition effects
 

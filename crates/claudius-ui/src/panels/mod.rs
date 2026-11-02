@@ -386,8 +386,38 @@ pub fn layer_color(song: &SongView, layer: &str) -> Color32 {
 }
 
 /// the synth presets offered to play a melody or a part played in
-const MELODIC: &[&str] =
-    &["pluck", "bell", "epiano", "keys", "square_lead", "supersaw", "strings", "organ", "chip", "stab", "pad"];
+const MELODIC: &[&str] = &[
+    "pluck",
+    "bell",
+    "epiano",
+    "keys",
+    "square_lead",
+    "supersaw",
+    "strings",
+    "organ",
+    "chip",
+    "stab",
+    "pad",
+    "saw_lead",
+    "pwm_lead",
+    "whistle",
+    "brass_lead",
+    "fm_lead",
+    "vox_lead",
+    "tine_piano",
+    "clav",
+    "house_piano",
+    "rock_organ",
+    "brass_stab",
+    "solina",
+    "glass_pad",
+    "pwm_pad",
+    "vowel_pad",
+    "fm_marimba",
+    "fm_kalimba",
+    "harp_pluck",
+    "mallet",
+];
 
 /// what may play a melody: the installed instruments (not a drum machine's hits), and the synths made for a line
 pub fn melodic_sounds(sounds: Option<&SoundList>) -> (Vec<String>, Vec<String>) {

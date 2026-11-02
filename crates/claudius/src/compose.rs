@@ -4,7 +4,7 @@
 //! crashes on phrase starts, builds with snare rolls, risers and a highpass sweep, a gap before the drop, impacts,
 //! and filter automation in intros and outros.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::audio::midi_to_hz;
 use crate::dsp::env::Param;
@@ -12,6 +12,7 @@ use crate::dsp::filter::FilterMode;
 use crate::fx::Effect;
 use crate::genres::{GenreProfile, LoopSpec, PartSpec};
 use crate::model::*;
+use crate::palette;
 use crate::pattern::notes;
 use crate::rng::{Rng, hash_str};
 use crate::synth::drums::{DrumParams, DrumVoice};
@@ -141,6 +142,16 @@ fn pick_kit(kits: &[(String, f64)], rng: &mut Rng) -> Option<String> {
     None
 }
 
+/// a lane's own kit some of the time (`mix`, its genre's `kit_mix`): another of the installed kits that has its sound,
+/// or None to keep the song's (or its synthesized voice)
+fn lane_kit(lane: &str, mix: f64, kits: &[String], rng: &mut Rng) -> Option<Sound> {
+    if !rng.chance(mix) {
+        return None;
+    }
+    let have: Vec<Sound> = kits.iter().filter_map(|k| kit_sound(lane, k)).collect();
+    have.get(rng.below(have.len() + 1)).cloned()
+}
+
 /// a drum lane played on a kit from the sample packs
 pub fn kit_sound(lane: &str, kit: &str) -> Option<Sound> {
     let name = match lane {
@@ -206,6 +217,83 @@ pub fn part_sound(entry: &str, rng: &mut Rng) -> Sound {
         }
     }
     fallback
+}
+
+/// A synth sound varied by `amount` (0 to 1): its filter, envelopes, detune, vibrato, FM, drive and glide each
+/// moved up or down (by half again at most), now and then a voice more or less in its unison or a soft octave above
+/// it, so that the same preset in two songs sounds like two patches of one family. Instruments stay as they are.
+pub fn widen(sound: Sound, amount: f64, rng: &mut Rng) -> Sound {
+    let Sound::Synth { preset, mut patch } = sound else { return sound };
+    let a = amount.clamp(0.0, 1.0);
+    let mut by = |x: f64, spread: f64| x * (rng.range(-1.0, 1.0) * spread.ln() * a).exp();
+    if let Some(f) = patch.filter.as_mut() {
+        f.cutoff = by(f.cutoff as f64, 1.5).clamp(80.0, 16_000.0) as f32;
+        f.env = by(f.env as f64, 1.3) as f32;
+    }
+    // to a tenth of a millisecond: a time with no more digits than that reads back from JSON as it was
+    let ms = |x: f64| (x * 1e4).round() / 1e4;
+    for env in [&mut patch.fenv, &mut patch.aenv] {
+        env.a = ms(by(env.a, 1.8).max(0.001));
+        env.d = ms(by(env.d, 1.5).max(0.005));
+        env.r = ms(by(env.r, 1.5).max(0.005));
+    }
+    for o in patch.osc.iter_mut() {
+        o.detune = by(o.detune as f64, 1.4) as f32;
+    }
+    if let Some(l) = patch.lfo.as_mut() {
+        l.rate = by(l.rate as f64, 1.3) as f32;
+        l.vibrato = by(l.vibrato as f64, 1.5) as f32;
+    }
+    if let Some(fm) = patch.fm.as_mut() {
+        fm.index = by(fm.index as f64, 1.35) as f32;
+        fm.decay = by(fm.decay as f64, 1.4) as f32;
+    }
+    patch.drive = by(patch.drive as f64, 1.5) as f32;
+    patch.glide = by(patch.glide as f64, 1.5) as f32;
+    let (more, bass) = (rng.chance(0.25 * a), patch.mono && patch.osc.iter().all(|o| o.octave <= 0));
+    if more {
+        if let Some(o) = patch.osc.iter_mut().find(|o| o.voices > 1) {
+            o.voices = if rng.chance(0.5) { (o.voices + 1).min(9) } else { (o.voices - 1).max(2) };
+        } else if bass {
+            patch.sub = (patch.sub + 0.2).min(0.8);
+        } else {
+            patch.osc.push(crate::synth::voice::OscSpec::new(crate::dsp::osc::Wave::Tri).octave(1).level(0.12));
+        }
+    }
+    Sound::Synth { preset, patch }
+}
+
+/// The sound of a part as its genre draws it: one of the genre's own (the part's `presets`), varied a little, or, by
+/// the genre's palette for the role, a synth preset made for the role, varied more, or an installed instrument
+/// (`palette`), none of them one the song's other parts play (`used`, by `palette::identity`). The genre's own is
+/// drawn from `rng` either way, so the rest of the part comes out the same.
+pub fn draw_sound(
+    spec: &PartSpec,
+    g: &GenreProfile,
+    available: &[palette::Instrument],
+    used: &BTreeSet<String>,
+    rng: &mut Rng,
+) -> Sound {
+    let preset = rng.pick(&spec.presets).clone();
+    let own = part_sound(&preset, rng);
+    let mut rp = g.palette.get(spec.role.name()).cloned().unwrap_or_else(|| palette::default_for(spec.role));
+    rp.core = spec.core.unwrap_or(rp.core);
+    // its own is another part's already: one from the palette instead, unless it must keep its own
+    if palette::identity(&own).is_some_and(|k| used.contains(&k)) && spec.core != Some(1.0) {
+        rp.core = 0.0;
+    }
+    let mut sr = rng.fork("palette");
+    match palette::draw(spec.role, spec.register, &rp, available, used, &mut sr) {
+        None => widen(own, 0.5, &mut sr),
+        Some(palette::Drawn::Synth(name)) => {
+            let patch = presets::get(name).unwrap_or_else(|| presets::get("pluck").unwrap());
+            widen(Sound::Synth { preset: name.to_string(), patch }, 1.0, &mut sr)
+        }
+        Some(palette::Drawn::Instrument(name)) => {
+            let label = name.rsplit(':').next().unwrap_or(&name).to_string();
+            Sound::Instrument { name, label }
+        }
+    }
 }
 
 fn vary_patch(name: &str, rng: &mut Rng) -> Sound {
@@ -350,9 +438,10 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
         }
     }
 
-    // drums (on a drum machine from the sample packs, sometimes)
+    // drums (on a drum machine from the sample packs, sometimes; some lanes on a kit of their own)
     let mut dr = rng.fork("drums");
     let kit = pick_kit(&g.kits, &mut rng.fork("kit"));
+    let kits = palette::kits();
     let mut drums = Vec::new();
     for spec in &g.drums {
         let hints: Vec<String> = if spec.samples.is_empty() { default_hints(&spec.name) } else { spec.samples.clone() };
@@ -383,6 +472,8 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
             patterns.insert(name.clone(), rhythm::generate(t, pattern_bars, &mut dr));
         }
         let sound = kit.as_deref().and_then(|k| kit_sound(&spec.name, k)).unwrap_or(sound);
+        let sound =
+            lane_kit(&spec.name, g.kit_mix, &kits, &mut dr.fork(&format!("{}-kit", spec.name))).unwrap_or(sound);
         drums.push(DrumLane {
             length: None,
             speed: 1.0,
@@ -402,11 +493,13 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
     // parts
     let mut pr = rng.fork("parts");
     let mut parts = Vec::new();
+    let available = palette::instruments();
+    let mut used = BTreeSet::new();
     for spec in &g.parts {
         if spec.optional > 0.0 && pr.chance(spec.optional) {
             continue;
         }
-        parts.push(new_part(spec, &mut pr));
+        parts.push(new_part(spec, g, &available, &mut used, &mut pr));
     }
 
     // loops from the library
@@ -483,10 +576,17 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
     }
 }
 
-/// a part as the genre describes it: its preset, style, density and rate drawn from the genre's choices
-pub fn new_part(spec: &PartSpec, rng: &mut Rng) -> Part {
-    let preset = rng.pick(&spec.presets).clone();
-    let sound = part_sound(&preset, rng);
+/// a part as the genre describes it: its sound drawn as `draw_sound` does (and added to `used`), its style, density
+/// and rate drawn from the genre's choices
+pub fn new_part(
+    spec: &PartSpec,
+    g: &GenreProfile,
+    available: &[palette::Instrument],
+    used: &mut BTreeSet<String>,
+    rng: &mut Rng,
+) -> Part {
+    let sound = draw_sound(spec, g, available, used, rng);
+    used.extend(palette::identity(&sound));
     let mut mix = spec.mix.clone();
     // harmony parts from single-voice patches would sit dead centre: a light chorus spreads them
     let single_voice = matches!(&sound, Sound::Synth { patch, .. } if patch.osc.iter().all(|o| o.voices <= 1));

@@ -223,9 +223,9 @@ to stderr; and `http_service(app, public)`, rmcp's Streamable HTTP service with 
 decisions:
 
 - A part's `presets` (what the studio offers to switch to) are the genre's entries, every alternative of an `a|b`
-  entry that exists here, then the synth presets suited to the role, then installed instruments suited to it
-  (`instruments_for`: upright and electric bass for a bass, pianos, Rhodes, Wurlitzer and organs for chords, strings,
-  choir and brass for pads, ...).
+  entry that exists here, then the synth presets suited to the role, then the part's own instrument and every
+  installed instrument that can play it, as the generator's palette judges (`palette::suits`: its register in range,
+  an articulation for the role, a pack free to publish with), by its full name (`vsco2:flute`).
 - `summary` and `verdict_text` write the song and the verdict as the plain text the MCP tools return. They are the
   assistant's eyes, so they list every section with its flags and layers, every track with its sound, mix and
   measured loudness, and up to eight issues with their targets.

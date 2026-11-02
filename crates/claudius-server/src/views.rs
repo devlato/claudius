@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 
 use claudius::judge::{EarsReport, Verdict};
 use claudius::model::{Blueprint, Sound, TrackMix};
+use claudius::palette;
 use claudius::render::Rendered;
 use claudius::synth::presets;
 use claudius::{genres, script};
@@ -151,6 +152,7 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
             groove_amount: d.groove_amount,
         })
         .collect();
+    let available = palette::instruments();
     let parts = bp
         .parts
         .iter()
@@ -177,10 +179,12 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
             for n in presets::for_role(p.role.name()) {
                 offer(n);
             }
-            for n in instruments_for(p.role.name()) {
-                if claudius_packs::resolve(n, None).is_some() {
-                    offer(n);
-                }
+            // every installed instrument that can play the part, from every pack free to publish with
+            if let Sound::Instrument { name, .. } = &p.sound {
+                offer(name);
+            }
+            for i in available.iter().filter(|i| palette::suits(i, p.role, p.register)) {
+                offer(&i.name);
             }
             PartView {
                 name: p.name.clone(),
@@ -189,13 +193,7 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
                 styles,
                 preset: match &p.sound {
                     Sound::Synth { preset, .. } => preset.clone(),
-                    Sound::Instrument { label, name } => {
-                        if label.is_empty() {
-                            name.clone()
-                        } else {
-                            label.clone()
-                        }
-                    }
+                    Sound::Instrument { name, .. } => name.clone(),
                     other => other.describe(),
                 },
                 presets: presets_for,
@@ -276,41 +274,6 @@ pub fn waveform(r: &Rendered, n: usize) -> Vec<f32> {
                 .min(1.0)
         })
         .collect()
-}
-
-/// sampled instruments that suit a part's role (offered when their pack is installed)
-pub fn instruments_for(role: &str) -> &'static [&'static str] {
-    match role {
-        "bass" => &["upright_bass", "electric_bass", "synth_bass", "contrabass"],
-        "chords" | "keys" => &[
-            "piano",
-            "upright",
-            "rhodes",
-            "wurlitzer",
-            "cp80",
-            "hammond",
-            "church_organ",
-            "nylon_guitar",
-            "electric_guitar",
-        ],
-        "pad" => &["string_ensemble", "choir", "violins", "cellos", "brass", "woodwinds"],
-        "lead" => &[
-            "piano",
-            "rhodes",
-            "vibes",
-            "marimba",
-            "kalimba",
-            "flute",
-            "clarinet",
-            "sax",
-            "trumpet",
-            "violins",
-            "nylon_guitar",
-            "harmonica",
-        ],
-        "arp" => &["harp", "marimba", "glock", "pizzicato", "kalimba", "vibes"],
-        _ => &[],
-    }
 }
 
 pub fn sounds() -> SoundList {

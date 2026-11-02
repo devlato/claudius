@@ -20,10 +20,10 @@ drum click main (drum rim): x.x..x.x.x..x.x.|x.x..x.x.x..x.x.|x.x..x.x.x..x.x.|x
 drum click sparse (drum rim): ..x....x....x...|..x....x....x...|..x....x....x...|..x....x....x...
 drum tom main (drum tom): x.......x...........x.......x.......x...........|x.......x...........x.......x.......x...........|x.......x...........x.......x.......x...........|x.......x...........x.......x.......x...........
 drum tom sparse (drum tom): ....x.......x...|....x.......x...|....x.......x...|....x.......x...
-part bass (bass): acid synth sub_bass, register 28..50, density 0.59
-part bells (lead): motif synth bell, register 64..91, density 0.43
+part bass (bass): acid synth saw_bass, register 28..50, density 0.59
+part bells (lead): motif synth mallet, register 64..91, density 0.43
 part pad (pad): sustain synth pad, register 48..79, density 0.56
-part arp (arp): updown synth bell, register 60..88, density 0.53
+part arp (arp): updown synth fm_lead, register 60..88, density 0.53
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.05, reverb 0.12, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.35, reverb 0.00, delay 0.00, duck 0.00, bus drums

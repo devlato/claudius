@@ -1263,7 +1263,7 @@ async fn a_beat_played_or_beatboxed_becomes_the_drum_lanes() {
     let song = Command::NewSong { genre: "house".into(), seed: Some(3), bpm: Some(100.0), key: None, loops: false };
     assert!(app.command(song).ok);
     let from = app.state().song.unwrap().sections[0].name.clone();
-    let file = std::env::temp_dir().join(format!("claudius-beat-{}.wav", std::process::id()));
+    let file = std::env::temp_dir().join(format!("claudius-played-beat-{}.wav", std::process::id()));
     claudius::audio::save_wav(&file, &beat(4, 100.0, 0.005), true).unwrap();
     let take = Command::AddTake {
         path: file.display().to_string(),

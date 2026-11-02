@@ -67,6 +67,14 @@
     }
   ],
   "kits": [["tr909", 0.5]],
+  "kit_mix": 0.3,
+  "palette": {
+    "bass": {"core": 0.75, "synth": 3},
+    "chords": {"core": 0.55, "synth": 3.5, "brass": 0.6, "piano": 0.4},
+    "lead": {"core": 0.3, "synth": 4, "brass": 0.5},
+    "pad": {"core": 0.5, "synth": 3, "strings": 0.8, "choir": 0.5},
+    "arp": {"core": 0.45, "synth": 3, "mallets": 0.6}
+  },
   "parts": [
     {
       "name": "bass",

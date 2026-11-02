@@ -20,10 +20,10 @@ drum hat main (drum closed_hat): x.....x.x.x.x..x|x.....x.x.x.x..x|x.....x.x.x.x
 drum hat sparse (drum closed_hat): ..o...o...o...o.|..o...o...o...o.|..o...o...o...o.|..o...o...o...o.
 drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
 drum perc main (drum rim): ...........x....|...........x....|...........x....|...........x....
-part bass (bass): syncopated synth sub_bass, register 28..46, density 0.59
-part keys (keys): sustain synth epiano, register 50..74, density 0.59
+part bass (bass): syncopated synth saw_bass, register 28..46, density 0.59
+part keys (keys): sustain synth clav, register 50..74, density 0.59
 part strings (pad): sustain synth strings, register 48..79, density 0.53
-part lead (lead): motif synth bell, register 62..79, density 0.33
+part lead (lead): motif synth fm_marimba, register 62..79, density 0.33
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.20, reverb 0.00, delay 0.00, duck 0.00, bus drums

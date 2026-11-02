@@ -217,7 +217,9 @@ fn add_genre_part(bp: &mut Blueprint, name: &str) -> R<()> {
         ));
     };
     let mut rng = crate::rng::Rng::new(bp.seed ^ crate::rng::hash_str(name));
-    bp.parts.push(compose::new_part(spec, &mut rng));
+    let genre = g.as_ref().expect("a part of the genre's");
+    let mut used = bp.parts.iter().filter_map(|p| crate::palette::identity(&p.sound)).collect();
+    bp.parts.push(compose::new_part(spec, genre, &crate::palette::instruments(), &mut used, &mut rng));
     super::song::place_new(bp, name);
     Ok(())
 }

@@ -71,6 +71,12 @@
     }
   ],
   "kits": [["tr909", 0.5]],
+  "kit_mix": 0.3,
+  "palette": {
+    "chords": {"core": 0.5, "synth": 2, "electric piano": 2, "organ": 1.5, "guitar": 1.5, "brass": 1, "strings": 1, "piano": 1},
+    "bass": {"core": 0.6, "synth": 2.5, "bass": 1.5},
+    "keys": {"core": 0.45, "electric piano": 2, "organ": 1.5, "piano": 1.5, "synth": 1, "mallets": 0.5}
+  },
   "parts": [
     {
       "name": "loop",

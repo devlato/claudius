@@ -79,6 +79,15 @@ writes it into the drum lanes (a step hit only some of the times round plays wit
 A drum loop goes in the same way, with `transcribe_drums` or `drums_from()`. The arrangement's right-click menu on a
 row opens again: it had come up empty.
 
+New songs sound far less alike. Every part draws its sound from 46 synth presets (26 new: FM, rubber, moog and
+distorted basses; saw, PWM, brass, FM and vowel leads and a whistle; a string machine, glass, PWM, breathy and vowel
+pads; a tine piano, a clav, a house piano, brass stabs, an overdriven organ, FM mallets and a harp pluck), each varied
+so that no two songs play quite the same patch, and from every instrument of the installed sample packs that suits its
+genre and role: strings, brass, woodwinds, mallets, pianos, electric pianos, guitars, organs, choirs and more. No two
+parts of a song play the same sound, and a drum lane sometimes plays a kit of its own, so a song's drums come from
+more than one machine. Packs without a licence or with share-alike terms are never drawn; choose them by hand. The
+studio's Parts tab offers every installed instrument that can play a part.
+
 claudius hears how a voice is sung: the notes it means, how near each came, and how its singer sings (where they go
 sharp or flat by register, how widely their notes scatter, how fast they settle, their vibrato). Right-click a take
 and choose **How is it sung?**, run `claudius voice` on a file, or let an assistant call `assess_voice`

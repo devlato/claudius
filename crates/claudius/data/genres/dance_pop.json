@@ -72,6 +72,13 @@
     }
   ],
   "kits": [["tr909", 0.3], ["tr808", 0.2]],
+  "kit_mix": 0.3,
+  "palette": {
+    "bass": {"core": 0.6, "synth": 3, "bass": 0.8},
+    "chords": {"core": 0.45, "synth": 2, "piano": 2, "guitar": 1.2, "electric piano": 1, "strings": 0.6, "mallets": 0.5},
+    "pad": {"core": 0.45, "synth": 2.5, "strings": 1.5, "pad": 1, "choir": 0.8},
+    "lead": {"core": 0.3, "synth": 3, "mallets": 1, "piano": 1, "woodwinds": 0.6, "brass": 0.6, "strings": 0.6, "voice": 0.6, "guitar": 0.6}
+  },
   "parts": [
     {
       "name": "bass",

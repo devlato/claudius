@@ -86,6 +86,12 @@
     }
   ],
   "kits": [["muldjord", 0.45], ["tr909", 0.2], ["tr808", 0.1]],
+  "kit_mix": 0.3,
+  "palette": {
+    "bass": {"core": 0.7, "synth": 3, "bass": 0.8},
+    "chords": {"core": 0.5, "synth": 2.5, "brass": 1.5, "organ": 1.2, "strings": 0.5, "piano": 0.4},
+    "lead": {"core": 0.3, "synth": 3, "guitar": 0.8, "brass": 0.6, "organ": 0.5}
+  },
   "parts": [
     {
       "name": "bass",
@@ -101,6 +107,7 @@
     },
     {
       "name": "acid",
+      "core": 1.0,
       "role": "bass",
       "presets": ["acid"],
       "styles": ["acid"],

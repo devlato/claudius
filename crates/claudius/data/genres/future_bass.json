@@ -101,6 +101,14 @@
     {"name": "perc", "voice": "snap", "euclid": [3, 8], "mix": {"bus": "drums", "pan": 0.4, "reverb": 0.3}}
   ],
   "kits": [["tr808", 0.3]],
+  "kit_mix": 0.25,
+  "palette": {
+    "chords": {"core": 0.6, "synth": 4, "piano": 0.5, "strings": 0.5},
+    "bass": {"core": 0.7, "synth": 2},
+    "lead": {"core": 0.3, "synth": 3, "mallets": 1.5, "voice": 1, "piano": 0.8, "woodwinds": 0.5},
+    "pad": {"core": 0.45, "synth": 2.5, "choir": 1.2, "strings": 1, "pad": 1},
+    "arp": {"core": 0.4, "synth": 2.5, "mallets": 1.5, "harp": 0.8, "piano": 0.6}
+  },
   "parts": [
     {
       "name": "chords",

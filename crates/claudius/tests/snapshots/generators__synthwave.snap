@@ -20,10 +20,10 @@ drum snare main (drum snare): ....X.......X...|....X.......X...|....X.......X...
 drum hat alt (drum closed_hat): x.x.xxx.xxx.xxxx|x.x.xxx.xxx.xxxx|x.x.xxx.xxx.xxxx|x.x.xxx.xxx.xxxx
 drum hat main (drum closed_hat): x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.
 part bass (bass): root8 synth pluck_bass, register 33..48, density 0.51
-part arp (arp): up synth chip, register 60..84, density 0.59
-part pad (pad): sustain synth strings, register 50..76, density 0.56
-part lead (lead): motif synth square_lead, register 64..86, density 0.40
-part chords (chords): half synth supersaw, register 55..76, density 0.48
+part arp (arp): up synth pwm_lead, register 60..84, density 0.59
+part pad (pad): sustain synth pwm_pad, register 50..76, density 0.56
+part lead (lead): motif synth pluck, register 64..86, density 0.40
+part chords (chords): half synth keys, register 55..76, density 0.48
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.45, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.20, reverb 0.00, delay 0.00, duck 0.00, bus drums
