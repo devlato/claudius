@@ -717,9 +717,14 @@ impl App {
             return no(format!("a groove's tempo is 40 to 250 BPM, not {b}"), self.version());
         }
         let file = Path::new(from);
+        // the library's own loops (chopped from recordings) carry a tempo claudius heard, not one it knows
         let apple = self.lib.as_ref().and_then(|lib| {
             let stem = file.file_stem().map(|s| s.to_string_lossy());
-            let l = lib.loops.iter().find(|l| l.path == from || stem.as_deref() == Some(l.name.as_str()))?;
+            let l = lib
+                .loops
+                .iter()
+                .filter(|l| l.genre != "User")
+                .find(|l| l.path == from || stem.as_deref() == Some(l.name.as_str()))?;
             (l.tempo > 0.0).then_some(l.tempo)
         });
         let named = file.file_name().and_then(|f| claudius::analysis::groove::tempo_in_name(&f.to_string_lossy()));

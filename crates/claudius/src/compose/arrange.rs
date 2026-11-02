@@ -100,7 +100,7 @@ fn lane_notes(
         return out;
     }
     let speed = lane.speed.max(0.125) as f64;
-    let cut = lane.length.map_or(f64::MAX, |l| l as f64 * 0.25);
+    let cut = lane.steps() as f64 * 0.25;
     let hits: Vec<Hit> = hits.iter().filter(|h| h.t < cut - 1e-9).map(|h| Hit { t: h.t / speed, ..*h }).collect();
     let step = 0.25 / speed;
     let feel = |t: f64, v: f32| groove.map_or((t, v), |g| g.apply(t, v, lane.groove_amount));
@@ -127,9 +127,10 @@ fn lane_notes(
             let lock = Lock { nudge: tr.nudge as f64 * 0.25, decay: tr.decay, tone: tr.tone, pan: tr.pan };
             let lock = (lock != Lock::default()).then_some(lock);
             let p = 60 + lane.pitch + tr.pitch as i32;
-            for (st, v) in tr.strokes(t, h.v, bpm, step) {
+            // the step takes the groove, and its strokes go with it: a ratchet keeps its order
+            let (t, v) = feel(t, h.v);
+            for (st, v) in tr.strokes(t, v, bpm, step) {
                 if st >= 0.0 && st < b - 1e-9 {
-                    let (st, v) = feel(st, v);
                     out.push(Note { t: st, d: step / tr.ratchet.max(1) as f64, p, v, lock });
                 }
             }

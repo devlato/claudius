@@ -246,10 +246,15 @@ fn is_one(v: &f32) -> bool {
 }
 
 impl DrumLane {
-    /// how long a time round its pattern lasts, in beats: its own length, or its pattern's bars, at its speed
+    /// the sixteenths a time round of it plays: its own length, at most its pattern's
+    pub fn steps(&self) -> u32 {
+        let pattern = self.pattern_bars.max(1) * 16;
+        self.length.map_or(pattern, |l| l.min(pattern))
+    }
+
+    /// how long a time round its pattern lasts, in beats: its steps at its speed
     pub fn period(&self) -> f64 {
-        let beats = self.length.map_or(self.pattern_bars as f64 * 4.0, |l| l as f64 * 0.25);
-        beats / self.speed.max(0.125) as f64
+        self.steps() as f64 * 0.25 / self.speed.max(0.125) as f64
     }
 
     /// what the lane plays (kick, snare, hat ...): its name when that is a drum word ("bd" and "kick" are both the

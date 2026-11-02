@@ -134,7 +134,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     .map(|(_, s)| s.as_slice())
                     .unwrap_or(&[]);
                 // a lane of its own length plays that many steps: those after it are faint
-                let len = d.length.map_or((d.pattern_bars.max(1) * 16) as usize, |l| l as usize);
+                let len = lane_len(d);
                 let label = Rect::from_min_size(pos2(rect.left(), y + 1.0), vec2(LABEL_W - 10.0, row_h - 2.0));
                 p.rect_filled(label, 4.0, RAISED);
                 p.rect_filled(
@@ -151,7 +151,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 );
                 let note = if !has {
                     "uses main".to_string()
-                } else if d.length.is_some() || d.speed != 1.0 || d.groove.is_some() {
+                } else if d.length.is_some() || d.speed != 1.0 || d.swing.is_some() || d.groove.is_some() {
                     lane_time(d)
                 } else {
                     format!("{} bar{}", d.pattern_bars, if d.pattern_bars == 1 { "" } else { "s" })
@@ -628,7 +628,7 @@ fn lane_menu(ui: &mut Ui, d: &claudius_api::DrumView, song: &claudius_api::SongV
         let mut length = d.length.unwrap_or(0);
         let r = ui
             .add(
-                egui::Slider::new(&mut length, 0..=64)
+                egui::Slider::new(&mut length, 0..=d.pattern_bars.max(1) * 16)
                     .custom_formatter(|v, _| if v < 1.0 { "its pattern".into() } else { format!("{v} steps") }),
             )
             .on_hover_text("a length of its own: 12 against the bar's 16 is a polymeter");
@@ -687,10 +687,16 @@ fn lane_menu(ui: &mut Ui, d: &claudius_api::DrumView, song: &claudius_api::SongV
     });
 }
 
+/// the steps a time round of lane `d` plays: its own length, at most its pattern's
+fn lane_len(d: &claudius_api::DrumView) -> usize {
+    let pattern = (d.pattern_bars.max(1) * 16) as usize;
+    d.length.map_or(pattern, |l| (l as usize).min(pattern))
+}
+
 /// a lane's name, step count and the steps shown for `variant` (falling back to main)
 fn lane_steps(song: &claudius_api::SongView, li: usize, variant: &str) -> (String, usize, Vec<f32>) {
     let d = &song.drums[li];
-    let len = d.length.map_or((d.pattern_bars.max(1) * 16) as usize, |l| l as usize);
+    let len = lane_len(d);
     let steps = d
         .variants
         .iter()

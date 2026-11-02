@@ -189,8 +189,8 @@ lane's pattern round by round over each section (`lane_notes`):
   decay and tone are its own settings, rendered and cached as another sound; a sample is cut shorter by a falling
   curve and blended towards itself low-passed at 2 kHz (darker) or away from it (brighter). The pan is a balance.
 
-**A lane's own time.** A time round of a lane lasts its `period`: its own `length` in sixteenths (else its pattern's
-bars), divided by its `speed`. `lane_notes` plays the pattern's hits up to that length, their times divided by the
+**A lane's own time.** A time round of a lane lasts its `period`: its own `length` in sixteenths (at most its
+pattern's; else its pattern's bars), divided by its `speed`. `lane_notes` plays the pattern's hits up to that length, their times divided by the
 speed, round after round over the section, so a lane twelve steps long against the others' sixteen is a polymeter,
 and conditions count its own times round. A lane's own `swing` goes on its track (`Track.swing`), and render uses it
 for that track's notes, its chokes and the duck curves it drives, in place of the song's.

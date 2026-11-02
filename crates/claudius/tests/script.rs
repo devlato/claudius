@@ -680,6 +680,14 @@ fn a_lane_keeps_its_own_length_speed_swing_and_groove() {
     assert!((shuffled[1] - 2.0 / 3.0).abs() < 1e-6, "{shuffled:?}");
     let half = groove(r#"lane("hat", #{ length: 0, groove: "shuffle", groove_amount: 0.5 });"#);
     assert!((half[1] - (0.5 + 1.0 / 12.0)).abs() < 1e-6, "{half:?}");
+    // a step's strokes go with it: a ratchet on a swung sixteenth keeps its order and its spacing
+    let code = r#"lane("hat", #{ length: 0, groove: "swing71" }); trig("hat", 1, #{ ratchet: 4 });"#;
+    let rolled = script::run(code, Some(bp.clone()), None).unwrap().bp.unwrap();
+    let hat = compose::arrange(&rolled).tracks.into_iter().find(|t| t.name == "hat").unwrap();
+    let roll: Vec<f64> = hat.notes.iter().filter(|n| n.d < 0.1 && n.t < 1.0).map(|n| n.t).collect();
+    assert_eq!(roll.len(), 4, "{roll:?}");
+    assert!((roll[0] - (0.25 + 0.105)).abs() < 1e-6, "the step swung: {roll:?}");
+    assert!(roll.windows(2).all(|w| (w[1] - w[0] - 0.0625).abs() < 1e-9), "{roll:?}");
     // a groove written as a table, and one heard in a recording: kept with the song, printed as tables
     let dir = std::env::temp_dir().join(format!("claudius-groove-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
@@ -696,8 +704,8 @@ fn a_lane_keeps_its_own_length_speed_swing_and_groove() {
     }
     claudius::audio::save_wav(&file, &claudius::audio::Stereo { l: l.clone(), r: l }, true).unwrap();
     let code = format!(
-        r#"groove("loop", "{0}"); groove("half", "{0}", 50); groove("mine", #{{ timing: [0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05] }}); lane("hat", #{{ groove: "loop" }}); lane("perc", #{{ groove: "mine" }});"#,
-        file.display()
+        r#"groove("loop", {0}); groove("half", {0}, 50); groove("mine", #{{ timing: [0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05] }}); lane("hat", #{{ groove: "loop" }}); lane("perc", #{{ groove: "mine" }});"#,
+        claudius::pattern::quote(&file.display().to_string())
     );
     let out = script::run(&code, Some(bp.clone()), None).unwrap();
     assert!(
@@ -722,6 +730,7 @@ fn a_lane_keeps_its_own_length_speed_swing_and_groove() {
     for (bad, says) in [
         (r#"lane("hat", #{ groove: "jazz" })"#, "lane(): no groove 'jazz' (grooves: straight swing54"),
         (r#"lane("hat", #{ speed: 8 })"#, "lane()'s speed is 0.125 to 4, not 8"),
+        (r#"lane("hat", #{ length: 24 })"#, "lane(): hat's length is up to its pattern's 16 steps"),
         (r#"lane("hat", #{ swing: 0.3 })"#, "lane()'s swing is 0.5 (straight) to 0.8, or 0 for the song's"),
         (r#"lane("hat", #{ steps: 12 })"#, "lane() has no option 'steps'"),
         (r#"groove("x", #{ timing: [0, 0.1] })"#, "groove()'s timing is a list of 16 numbers, one a sixteenth, not 2"),

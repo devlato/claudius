@@ -272,7 +272,7 @@ Gives a drum lane a time and feel of its own, apart from the song's:
 
 | setting | range | what it does |
 |---|---|---|
-| `length` | 0 to 256 | how many sixteenths it plays before it starts again; 0 is its pattern's length. 12 against the bar's 16 is a polymeter: the lane comes round every three beats while the others take four |
+| `length` | 0, or up to its pattern's sixteenths | how many sixteenths it plays before it starts again; 0 is its pattern's length. 12 against the bar's 16 is a polymeter: the lane comes round every three beats while the others take four. For a lane longer than a bar, write its pattern that long first with [`drum()`](#drum) |
 | `speed` | 0.125 to 4 | how fast it runs through its steps: 2 plays them as 32nds, 0.5 as eighths, 0.75 stretches a bar of steps over a bar and a third |
 | `swing` | 0.5 to 0.8, or 0 | its own swing, as [`swing()`](#swing) sets the song's; 0 gives it the song's again |
 | `groove` | a groove's name, or `""` | the groove it plays in: one of claudius' own (below) or one of the song's from [`groove()`](#groove); `""` none |
@@ -300,7 +300,8 @@ lane("perc", #{ groove: "dilla", groove_amount: 0.7 });
 ```
 
 The printed script writes a lane's settings after its pattern, with only those that differ from the song's. Errors:
-`lane(): no drum lane 'bongo' (lanes: kick clap hat ohat shaker perc)`, `lane()'s speed is 0.125 to 4, not 8`,
+`lane(): no drum lane 'bongo' (lanes: kick clap hat ohat shaker perc)`, `lane(): hat's length is up to its pattern's
+16 steps (a longer pattern first, with drum()), not 24`, `lane()'s speed is 0.125 to 4, not 8`,
 `lane()'s swing is 0.5 (straight) to 0.8, or 0 for the song's, not 0.3`, `lane(): no groove 'jazz' (grooves: straight
 swing54 ...)`, `lane() has no option 'steps' (options: length speed ...)`.
 
