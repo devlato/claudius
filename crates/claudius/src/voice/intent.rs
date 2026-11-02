@@ -28,10 +28,13 @@ const AGAIN: f32 = 0.15;
 /// a frame that is something else entirely (a harmonic taken for the note, a consonant's noise), anywhere in four
 /// octaves; more of them where the frame is less clearly a pitch
 const STRAY: f32 = 0.05;
-/// a frame without a pitch inside a note (a consonant, a breath through it), and with one in silence
+/// a frame without a pitch inside a note (a consonant, a breath through it), or 30 dB under the loudest, which is a
+/// silence rather than a consonant; and a frame with a pitch in silence
 const UNVOICED_IN_NOTE: f32 = 0.1;
+const QUIET_IN_NOTE: f32 = 0.02;
 const VOICED_IN_REST: f32 = 0.1;
 /// what a rise in loudness of more than 3 dB within 30 ms (a new syllable, a note sung anew) adds to an attack, per dB
+/// up to 20
 const ONSET: f32 = 0.15;
 /// a frame is an attack's only so often: what its wider reach costs, so that a note held off its centre stays held
 const ATTACK: f32 = 0.5;
@@ -63,20 +66,7 @@ impl Scale {
 
     /// the song's key and its chords (in beats), for a recording that starts on beat `from` of a song at `bpm`
     pub fn song(key: &Key, chords: &[ChordSpan], from: f64, bpm: f64) -> Scale {
-        let base = key_weights(key);
-        let mut at = vec![(0.0, base)];
-        for c in chords {
-            let (t0, t1) = ((c.start - from) * 60.0 / bpm, (c.start + c.len - from) * 60.0 / bpm);
-            if t1 <= 0.0 {
-                continue;
-            }
-            let mut w = base;
-            for pc in c.chord.pcs() {
-                w[pc as usize % 12] = IN_CHORD;
-            }
-            at.push((t0.max(0.0), w));
-        }
-        Scale { at }
+        Scale { at: harmony(key, chords).into_iter().map(|(b, w)| (((b - from) * 60.0 / bpm).max(0.0), w)).collect() }
     }
 
     /// which of its weights hold at `secs`
@@ -96,6 +86,21 @@ fn key_weights(key: &Key) -> [f32; 12] {
         w[pc as usize] = IN_KEY;
     }
     w
+}
+
+/// the weights of the song's key, and of its chords from the beat each starts on (a chord that ends before the
+/// recording starts still stands until the next: `Scale::entry` takes the last one begun)
+pub fn harmony(key: &Key, chords: &[ChordSpan]) -> Vec<(f64, [f32; 12])> {
+    let base = key_weights(key);
+    let mut at = vec![(f64::MIN, base)];
+    for c in chords {
+        let mut w = base;
+        for pc in c.chord.pcs() {
+            w[pc as usize % 12] = IN_CHORD;
+        }
+        at.push((c.start, w));
+    }
+    at
 }
 
 /// a note the voice means
@@ -131,20 +136,27 @@ pub fn decode(frames: &[Frame], voice: &Voice, scale: &Scale) -> Vec<Meant> {
 
 /// Which note each held note is: a chain over the notes, each read from where it was held as this voice sings, with
 /// the song's weights and the step from the note before; Viterbi names them, forward-backward says how sure each is.
+/// A note's candidates are the notes within a tritone of where it was held that the song allows at all.
 fn name(notes: &mut [Meant], voice: &Voice, scale: &Scale) {
     if notes.is_empty() {
         return;
     }
-    // each note's candidates: the notes within a tone of where it was held
-    let near = |m: &Meant| -> Vec<i32> { (-2..=2).map(|d| m.sung.round() as i32 + d).collect() };
-    let cands: Vec<Vec<i32>> = notes.iter().map(near).collect();
+    let weight = |m: &Meant, n: i32| scale.at[scale.entry(m.start as f64 * FRAME_SECS)].1[n.rem_euclid(12) as usize];
+    let cands: Vec<Vec<i32>> = notes
+        .iter()
+        .map(|m| {
+            let round = m.sung.round() as i32;
+            let allowed: Vec<i32> = (-6..=6).map(|d| round + d).filter(|&n| weight(m, n) > 0.0).collect();
+            if allowed.is_empty() { (-2..=2).map(|d| round + d).collect() } else { allowed }
+        })
+        .collect();
     let heard = |m: &Meant, n: i32| {
         let s = voice.spread_at(n as f32).hypot(MEASURED);
         let z = (m.sung - n as f32 - voice.bias_at(n as f32)) / s;
         -0.5 * z * z - s.ln()
     };
-    let weight = |m: &Meant, n: i32| scale.at[scale.entry(m.start as f64 * FRAME_SECS)].1[n.rem_euclid(12) as usize];
     let step = |a: i32, b: i32| if a == b { UNISON } else { (-((a.abs_diff(b) - 1) as f32) / 5.0).exp() };
+    let ln_weight = |m: &Meant, n: i32| weight(m, n).max(1e-9).ln();
     // ln of moving from candidate i of note j - 1 to candidate k of note j, normalised over k
     let moves = |j: usize| -> Vec<Vec<f32>> {
         let gap = (notes[j].start - notes[j - 1].end) as f64 * FRAME_SECS;
@@ -153,65 +165,72 @@ fn name(notes: &mut [Meant], voice: &Voice, scale: &Scale) {
             .map(|&a| {
                 let row: Vec<f32> = cands[j]
                     .iter()
-                    .map(|&b| weight(&notes[j], b) * if gap > FORGET { 1.0 } else { step(a, b) })
+                    .map(|&b| ln_weight(&notes[j], b) + if gap > FORGET { 0.0 } else { step(a, b).ln() })
                     .collect();
-                let sum: f32 = row.iter().sum();
-                row.iter().map(|r| (r / sum).ln()).collect()
+                let total = lse(&row);
+                row.iter().map(|r| r - total).collect()
             })
             .collect()
     };
     let first: Vec<f32> = {
-        let row: Vec<f32> = cands[0].iter().map(|&b| weight(&notes[0], b)).collect();
-        let sum: f32 = row.iter().sum();
-        row.iter().zip(&cands[0]).map(|(r, &b)| (r / sum).ln() + heard(&notes[0], b)).collect()
+        let row: Vec<f32> = cands[0].iter().map(|&b| ln_weight(&notes[0], b)).collect();
+        let total = lse(&row);
+        row.iter().zip(&cands[0]).map(|(r, &b)| r - total + heard(&notes[0], b)).collect()
     };
     let steps: Vec<Vec<Vec<f32>>> = (1..notes.len()).map(moves).collect();
     // forward, in ln, with Viterbi's best and its way back alongside
-    let lse = |v: &[f32]| {
-        let top = v.iter().copied().fold(f32::MIN, f32::max);
-        top + v.iter().map(|x| (x - top).exp()).sum::<f32>().ln()
-    };
     let mut alpha = vec![first.clone()];
     let mut best = vec![first];
-    let mut back: Vec<Vec<usize>> = vec![vec![0; 5]];
+    let mut back: Vec<Vec<usize>> = vec![vec![0; cands[0].len()]];
     for j in 1..notes.len() {
         let mv = &steps[j - 1];
-        let (a, b): (Vec<f32>, Vec<(f32, usize)>) = (0..5)
-            .map(|k| {
-                let e = heard(&notes[j], cands[j][k]);
-                let into: Vec<f32> = (0..5).map(|i| alpha[j - 1][i] + mv[i][k]).collect();
-                let (arg, top) = (0..5)
-                    .map(|i| (i, best[j - 1][i] + mv[i][k]))
-                    .max_by(|x, y| x.1.total_cmp(&y.1))
-                    .unwrap_or((0, f32::MIN));
-                (lse(&into) + e, (top + e, arg))
-            })
-            .unzip();
+        let (prev, here) = (cands[j - 1].len(), cands[j].len());
+        let mut a = Vec::with_capacity(here);
+        let mut b = Vec::with_capacity(here);
+        let mut from = Vec::with_capacity(here);
+        for k in 0..here {
+            let e = heard(&notes[j], cands[j][k]);
+            let into: Vec<f32> = (0..prev).map(|i| alpha[j - 1][i] + mv[i][k]).collect();
+            let (arg, top) = (0..prev)
+                .map(|i| (i, best[j - 1][i] + mv[i][k]))
+                .max_by(|x, y| x.1.total_cmp(&y.1))
+                .unwrap_or((0, f32::MIN));
+            a.push(lse(&into) + e);
+            b.push(top + e);
+            from.push(arg);
+        }
         alpha.push(a);
-        best.push(b.iter().map(|x| x.0).collect());
-        back.push(b.iter().map(|x| x.1).collect());
+        best.push(b);
+        back.push(from);
     }
     // backward
     let last = notes.len() - 1;
-    let mut beta = vec![vec![0f32; 5]; notes.len()];
+    let mut beta: Vec<Vec<f32>> = cands.iter().map(|c| vec![0f32; c.len()]).collect();
     for j in (0..last).rev() {
         let mv = &steps[j];
-        beta[j] = (0..5)
+        beta[j] = (0..cands[j].len())
             .map(|i| {
-                let out: Vec<f32> =
-                    (0..5).map(|k| mv[i][k] + heard(&notes[j + 1], cands[j + 1][k]) + beta[j + 1][k]).collect();
+                let out: Vec<f32> = (0..cands[j + 1].len())
+                    .map(|k| mv[i][k] + heard(&notes[j + 1], cands[j + 1][k]) + beta[j + 1][k])
+                    .collect();
                 lse(&out)
             })
             .collect();
     }
-    let mut k = (0..5).max_by(|&x, &y| best[last][x].total_cmp(&best[last][y])).unwrap_or(2);
+    let mut k = (0..cands[last].len()).max_by(|&x, &y| best[last][x].total_cmp(&best[last][y])).unwrap_or(0);
     for j in (0..notes.len()).rev() {
-        let post: Vec<f32> = (0..5).map(|i| alpha[j][i] + beta[j][i]).collect();
+        let post: Vec<f32> = (0..cands[j].len()).map(|i| alpha[j][i] + beta[j][i]).collect();
         let total = lse(&post);
         notes[j].note = cands[j][k];
         notes[j].sure = (post[k] - total).exp();
         k = back[j][k];
     }
+}
+
+/// ln of the sum of the exponentials of `v`
+fn lse(v: &[f32]) -> f32 {
+    let top = v.iter().copied().fold(f32::MIN, f32::max);
+    top + v.iter().map(|x| (x - top).exp()).sum::<f32>().ln()
 }
 
 /// the model over one recording: its candidate notes and what each frame says of each
@@ -226,6 +245,8 @@ struct Model<'a> {
     held: Vec<Option<f32>>,
     /// each frame's rise in loudness over the 30 ms before it, dB
     rise: Vec<f32>,
+    /// 30 dB under the recording's loudest frame
+    quiet: f32,
 }
 
 /// the transitions under one set of weights: from each hold to each attack, and from silence to each attack (ln)
@@ -256,10 +277,11 @@ impl<'a> Model<'a> {
         let rise = (0..frames.len())
             .map(|t| {
                 let before = frames[t.saturating_sub(3)..t].iter().map(|f| f.db).fold(f32::MAX, f32::min);
-                if t == 0 { 0.0 } else { (frames[t].db - before).clamp(0.0, 15.0) }
+                if t == 0 { 0.0 } else { (frames[t].db - before).clamp(0.0, 20.0) }
             })
             .collect();
-        Some(Model { frames, voice, scale, lo, m: (hi - lo + 1) as usize, held, rise })
+        let quiet = frames.iter().map(|f| f.db).fold(f32::MIN, f32::max) - 30.0;
+        Some(Model { frames, voice, scale, lo, m: (hi - lo + 1) as usize, held, rise, quiet })
     }
 
     fn rest(&self) -> usize {
@@ -269,7 +291,9 @@ impl<'a> Model<'a> {
     /// ln of what frame `t` says of note `k` (its attack or its hold)
     fn heard(&self, t: usize, k: usize, attack: bool) -> f32 {
         let f = &self.frames[t];
-        let Some(p) = f.pitch else { return UNVOICED_IN_NOTE.ln() };
+        let Some(p) = f.pitch else {
+            return if f.db < self.quiet { QUIET_IN_NOTE.ln() } else { UNVOICED_IN_NOTE.ln() };
+        };
         let note = (self.lo + k as i32) as f32;
         let centre = note + self.voice.bias_at(note);
         let s = self.voice.spread_at(note).hypot(0.03);

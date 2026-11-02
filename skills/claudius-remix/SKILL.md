@@ -165,6 +165,21 @@ middle, top), how widely their held notes scatter, how fast they settle, their v
 starting with what went well; 25 cents off is where a held note starts to sound sour, so a note named there is worth
 singing again. A take far off on most notes may be in another key than the song: check the song's key first.
 
+## Tune a take
+
+When the person wants a take in tune ("fix my pitch", "autotune it", "the T-Pain sound"), call `tune` with the take's
+name. It learns how they sing from the take itself and reads each note against the song's chords:
+
+- **Naturally** (the default: `speed_ms` 40, `humanize` 10): the scoop into each note and the vibrato stay. Start here.
+- **Tightly**: `speed_ms` 15, `humanize` 3.
+- **Hard**, the robotic sound: `speed_ms` 0, `humanize` 0, `vibrato` 0.
+- `strength` below 1 goes part of the way. It is a setting that can move, so a script can tune the hook harder than
+  the verse with `sections()`; `tune` itself sets one value.
+- `off: true` takes the tuner out.
+
+The tuner is an effect first in the take's chain, so `get_song` shows it and undo removes it. Say what you did in
+the person's words ("I tuned the take gently; it keeps your slides into notes") and suggest listening.
+
 ## Turn a take into notes
 
 When the person sang, hummed or whistled a melody and wants an instrument to play it, call `transcribe_take` with the

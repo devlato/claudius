@@ -171,6 +171,7 @@ Parameters that can move are `Param`s: a number, or a curve of `[beat, value]` p
 | `transient` | a transient shaper (a fast and a slow envelope split attack from sustain) |
 | `tape`, `vinyl` | wow and flutter with saturation and a lowpass; crackle and hiss |
 | `tape_stop`, `stutter`, `reverse` | edits on a region of beats: a slowdown to a halt, a beat repeat, a reversal |
+| `tune` | a voice moved onto the notes it means (`voice::tune`, [below](evolution-and-analysis.md#tuning-a-voice)): the notes read against the song's key and chords, which `arrange` sets as the tuner's `harmony` in beats, and moved by TD-PSOLA (`dsp/psola.rs`) |
 
 ## The synth engine
 

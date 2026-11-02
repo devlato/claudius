@@ -5,6 +5,7 @@
 pub mod intent;
 pub mod pitch;
 pub mod singer;
+pub mod tune;
 
 use crate::audio::Stereo;
 use crate::theory::scale::note_name;
@@ -75,21 +76,27 @@ impl Assessment {
 /// over, each reading sharper than the one before).
 pub fn assess(x: &Stereo, scale: &Scale) -> Assessment {
     let frames = pitch::track(x);
-    let mut voice = Voice::default();
-    let mut meant = intent::decode(&frames, &voice, scale);
-    for _ in 0..2 {
-        let heard = heard(&frames, &meant);
-        if heard.is_empty() {
-            break;
-        }
-        voice = singer::fit(&heard);
-        meant = intent::decode(&frames, &voice, scale);
-    }
+    let (voice, meant) = learn(&frames, scale);
     let notes = meant
         .iter()
         .map(|m| Reading { at: pitch::time(m.start), secs: m.secs(), note: m.note, sung: m.sung, sure: m.sure })
         .collect();
     Assessment { voice, notes }
+}
+
+/// the singer in `frames` and the notes they mean, learnt from the singing alone as `assess` learns them
+pub fn learn(frames: &[Frame], scale: &Scale) -> (Voice, Vec<Meant>) {
+    let mut voice = Voice::default();
+    let mut meant = intent::decode(frames, &voice, scale);
+    for _ in 0..2 {
+        let heard = heard(frames, &meant);
+        if heard.is_empty() {
+            break;
+        }
+        voice = singer::fit(&heard);
+        meant = intent::decode(frames, &voice, scale);
+    }
+    (voice, meant)
 }
 
 /// the notes meant, as heard against them: where each was held, how long it took to settle, its vibrato

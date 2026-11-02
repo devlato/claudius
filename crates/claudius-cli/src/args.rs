@@ -136,6 +136,31 @@ pub(crate) enum Cmd {
         #[arg(long)]
         json: bool,
     },
+    /// Tune a recording of one voice to the notes it means, as far as its singer needs, and write the tuned recording
+    Tune {
+        file: PathBuf,
+        /// where to write it (default: beside it, its name with -tuned, as WAV)
+        #[arg(short, long)]
+        out: Option<PathBuf>,
+        /// the key it is sung in, which settles doubtful notes (default: any note)
+        #[arg(short, long)]
+        key: Option<String>,
+        /// only these notes, in any octave ("C D E G A")
+        #[arg(long)]
+        notes: Option<String>,
+        /// how much of the way to the notes, 0 to 1
+        #[arg(long, default_value_t = 1.0)]
+        strength: f32,
+        /// how fast a note is brought onto its pitch after it starts, ms (0: at once, the hard-tuned sound)
+        #[arg(long, default_value_t = 40.0)]
+        speed: f32,
+        /// the cents of the singer's own wandering around a note that stay
+        #[arg(long, default_value_t = 10.0)]
+        humanize: f32,
+        /// how much of the vibrato stays, 0 to 1
+        #[arg(long, default_value_t = 1.0)]
+        vibrato: f32,
+    },
     /// Write a new song on the skeleton of an existing one (its tempo, key, form, progressions, drum habits)
     Remake {
         file: PathBuf,

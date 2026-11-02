@@ -11,6 +11,7 @@ arange = "arange"     # numpy.arange, in the earshot port
 caf = "caf"           # Core Audio Format, the Apple Loops container
 existant = "existant" # mdBook's own CSS variable, --sidebar-non-existant
 fo = "fo"             # fade-out length
+formant = "formant"   # a resonance of the vocal tract, which shapes a voice's timbre
 nd = "nd"             # a new scale degree; the ordinal suffix
 seeked = "seeked"     # the media element event
 stlye = "stlye"       # a misspelled option in a test of the error it gives

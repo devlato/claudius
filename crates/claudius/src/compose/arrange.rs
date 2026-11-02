@@ -82,6 +82,22 @@ fn hits_to_notes(hits: &[Hit], pitch: i32) -> Vec<Note> {
     hits.iter().map(|h| Note { t: h.t, d: 0.25, p: 60 + pitch, v: h.v }).collect()
 }
 
+/// every tuner's harmony, from its scale and the song's key and chords, in every chain the song plays through
+fn harmonize(
+    tracks: &mut [Track],
+    mix: &mut MixPlan,
+    key: &crate::theory::scale::Key,
+    chords: &[crate::theory::ChordSpan],
+) {
+    let harmony = |s: &crate::voice::tune::TuneScale| s.harmony(key, chords);
+    let chains = tracks.iter_mut().map(|t| &mut t.mix.fx).chain(mix.buses.values_mut()).chain([&mut mix.master.fx]);
+    for chain in chains {
+        chain.iter_mut().for_each(|e| e.harmonize(&harmony));
+    }
+    mix.reverb.harmonize(&harmony);
+    mix.delay.harmonize(&harmony);
+}
+
 /// expand a blueprint into the arranged project
 /// values by section as curves through the form as it is laid out (`Param::resolve`), in every chain the song plays
 /// through
@@ -476,6 +492,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
         drumbus.push(Effect::Saturate { kind: crate::fx::SatKind::Tanh, drive_db: 2.5.into(), mix: 0.5.into() });
     }
     resolve_sections(&mut tracks, &mut mix, &sections);
+    harmonize(&mut tracks, &mut mix, &bp.key, &chords);
 
     Project {
         title: bp.title.clone(),

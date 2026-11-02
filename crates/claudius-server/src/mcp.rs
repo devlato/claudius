@@ -391,6 +391,32 @@ pub struct AssessVoiceArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct TuneArgs {
+    /// the track to tune: a take, a sampled vocal, any track of one voice
+    pub track: String,
+    /// how much of the way to the notes, 0 to 1 (default 1)
+    #[serde(default)]
+    pub strength: Option<f32>,
+    /// how fast a note is brought onto its pitch after it starts, ms: 40 is natural (the default), 10 tight, 0 the
+    /// hard-tuned sound
+    #[serde(default)]
+    pub speed_ms: Option<f32>,
+    /// the cents of the singer's own wandering around a note that stay, as expression (default 10; 0 for hard tuning)
+    #[serde(default)]
+    pub humanize: Option<f32>,
+    /// how much of the vibrato stays, 0 to 1 (default 1; 0 for hard tuning)
+    #[serde(default)]
+    pub vibrato: Option<f32>,
+    /// what the notes are read against: chords (the song's key and the chord under each note, the default), key,
+    /// chromatic, or the notes to go to ("C D E G A")
+    #[serde(default)]
+    pub scale: Option<String>,
+    /// take the tuner out
+    #[serde(default)]
+    pub off: bool,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct RequestTakeArgs {
     /// the section the take starts with, by name (get_song lists them)
     pub from: String,
@@ -813,6 +839,22 @@ impl Studio {
     async fn assess_voice(&self, Parameters(a): Parameters<AssessVoiceArgs>) -> Result<String, String> {
         let r = self.b.command(Command::AssessVoice { take: a.take, path: a.path, key: a.key }).await?;
         if r.ok { Ok(r.message) } else { Err(r.message) }
+    }
+
+    #[tool(
+        description = "Tune a track (a take, a sampled vocal) to the notes it means: a tune effect first in its chain, or the one there changed. The tuner reads the notes the voice means against the song's key and the chord under each (or `scale`), learns from the take how its singer sings, and moves each note onto its pitch as far as the singer needs: their usual error goes, and of their scatter only `humanize` cents stay. `speed_ms` 40 keeps the scoop into each note, 0 snaps it (with humanize 0 and vibrato 0: the hard-tuned, robotic sound). The voice keeps its own character. `off` takes the tuner out. It sounds once the song renders; assess_voice says how the take was sung before it."
+    )]
+    async fn tune(&self, Parameters(a): Parameters<TuneArgs>) -> Result<String, String> {
+        let c = Command::Tune {
+            track: a.track,
+            strength: a.strength,
+            speed_ms: a.speed_ms,
+            humanize: a.humanize,
+            vibrato: a.vibrato,
+            scale: a.scale,
+            off: a.off,
+        };
+        self.edit(c, true).await
     }
 
     #[tool(

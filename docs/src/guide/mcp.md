@@ -158,6 +158,7 @@ says the job is still running; `status` follows it from there.
 | `publish` | what the person said: `artist`, `title`, `version`, `featuring`, `album`, `genre`, `subgenre`, `date`, `label`, `writers`, `producers`, `owner`, `isrc`, `upc`, `explicit`, `made`, `artwork` (a file); `write`, `path` | checks the song for release as stores do and, with `write`, writes the [release kit](publish.md); what is left out stays as it was, and the assistant is told never to choose `made` |
 | `open` | `path` (required) | opens a song folder, a `blueprint.json`, or a `.rhai` script (which runs on the open song) |
 | `analyze` | `path` (required) | tempo, key, progressions, sections, drum grid and bass style of an audio file |
+| `tune` | `track` (required), `strength`, `speed_ms`, `humanize`, `vibrato`, `scale`, `off` | a tuner first in the track's chain, or the one there changed, or taken out ([Tuning a voice](voice.md#tuning-a-voice)) |
 | `assess_voice` | `take`, or `path` and `key` | how a take or a recording is sung: how many notes land within 25 and 50 cents of the note meant, the furthest off, and the singer's range, sharpness or flatness by register, scatter, settling and vibrato ([Your voice](voice.md)); read only |
 | `remake` | `path` (required), `genre`, `seed`, `bpm` | a new song on the skeleton of an audio file, in a genre's sounds, at a tempo the genre plays |
 | `add_take` | `path`, `from` (required), `name`, `role` | adds a recording as a [take](samples.md#takes) that plays once from the start of section `from`, and listens |

@@ -20,6 +20,7 @@ to. On the command line, each command reads and writes song folders instead.
 | `publish` | what the person said: `artist`, `writers`, `artwork` (a file), `made`, and `title`, `album`, `genre`, `date` ...; `write` (default false: only check), `path` | `claudius publish SONG --artwork FILE --artist NAME --writer "FULL NAME" --made written` (`--check` only checks) |
 | `open` | `path`: a song folder, a `blueprint.json` or a `.rhai` script | `--on SONG` |
 | `analyze` | `path` of any audio file | `claudius analyze song.mp3` |
+| `tune` | `track`; `strength`, `speed_ms` (40 natural, 15 tight, 0 hard), `humanize`, `vibrato`, `scale`, `off` | `claudius tune vocal.wav --key "A minor"` |
 | `assess_voice` | `take`, or `path` (and `key`) of a recording of one voice | `claudius voice vocal.wav --key "A minor"` |
 | `remake` | `path`, `genre`, `seed`, `bpm` | `claudius remake song.mp3 --genre lofi [--bpm 82]` |
 | `add_take` | `path` of a recording, `from` (a section's name), `name`, `role` (`vocal`, `lead`, `chords`, `keys`, `bass`, `drums`, `texture`) | |

@@ -537,6 +537,55 @@ async fn a_take_sent_over_http_plays_and_goes_with_the_song() {
     ] {
         assert!(!r.ok && r.message.starts_with(says), "{}", r.message);
     }
+    // tuned hard, first in its chain, and the song renders with it; then untuned
+    let tune = |track: &str, speed: Option<f32>, scale: Option<&str>, off: bool| Command::Tune {
+        track: track.into(),
+        strength: None,
+        speed_ms: speed,
+        humanize: speed.map(|_| 0.0),
+        vibrato: speed.map(|_| 0.0),
+        scale: scale.map(String::from),
+        off,
+    };
+    let muted = |m: bool| Command::SetMix {
+        track: "vox".into(),
+        level_db: None,
+        pan: None,
+        reverb: None,
+        delay: None,
+        duck: None,
+        muted: Some(m),
+        solo: None,
+        bus: None,
+    };
+    assert!(app.command(muted(false)).ok);
+    let r = app.command(tune("vox", Some(0.0), None, false));
+    assert!(
+        r.ok && r.message.starts_with("vox: tuned to the song's chords, each note brought on at once, keeping 0 cents"),
+        "{}",
+        r.message
+    );
+    let st = app.settled(Duration::from_secs(240)).await;
+    let vox = st.song.unwrap().tracks.into_iter().find(|t| t.name == "vox").unwrap();
+    assert_eq!(vox.fx[0]["fx"], "tune");
+    assert_eq!((vox.fx[0]["speed_ms"].as_f64(), vox.fx[0]["scale"].as_str()), (Some(0.0), Some("chords")));
+    assert!(vox.loudness.is_some_and(|l| l > -40.0), "it plays, tuned: {:?}", vox.loudness);
+    let r = app.command(tune("vox", None, Some("C D E"), false));
+    assert!(
+        r.ok && r.message.contains("tuned to C D E, each note brought on at once"),
+        "the rest as it was: {}",
+        r.message
+    );
+    for (r, says) in [
+        (app.command(tune("vox", None, Some("C H"), false)), "a tuner goes to chords, key, chromatic or notes"),
+        (app.command(tune("nope", None, None, false)), "no track 'nope'"),
+    ] {
+        assert!(!r.ok && r.message.starts_with(says), "{}", r.message);
+    }
+    assert!(app.command(tune("vox", None, None, true)).message.starts_with("vox: tuned no longer"));
+    let vox = app.state().song.unwrap().tracks.into_iter().find(|t| t.name == "vox").unwrap();
+    assert!(vox.fx.iter().all(|e| e["fx"] != "tune"), "{:?}", vox.fx);
+    assert!(app.command(muted(true)).ok, "quiet again, as its notes left it");
     let song = app.state().song.unwrap();
     let melody = song.tracks.iter().find(|t| t.name == "melody").expect("a part for the melody");
     assert_eq!(melody.kind, "part");

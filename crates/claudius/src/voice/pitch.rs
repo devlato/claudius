@@ -109,6 +109,10 @@ fn lowpass(hz: f64, rate: f64) -> ([f32; 3], [f32; 2]) {
 fn yin(x: &[f32]) -> Frame {
     let w = &x[..WINDOW];
     let db = 10.0 * (w.iter().map(|v| v * v).sum::<f32>() / WINDOW as f32).max(1e-12).log10();
+    // under -60 dB a frame holds no pitch whatever YIN finds (`frames` would take it away): spare it the search
+    if db < -60.0 {
+        return Frame { pitch: None, clarity: 0.0, db };
+    }
     // the difference function, and its cumulative mean normalised form
     let mut d = vec![0f32; TAU_MAX + 1];
     for (tau, dt) in d.iter_mut().enumerate().skip(1) {
