@@ -587,6 +587,8 @@ fn trigs_play_by_chance_and_condition_ratchet_flam_and_lock_the_sound() {
     assert_eq!(hats.iter().filter(|h| h.trig.is_some()).count(), 3, "{hats:?}");
     assert!(hats.iter().find(|h| h.t == 2.0).and_then(|h| h.trig).is_some_and(|t| t.pitch == 3));
     assert!(hats.iter().find(|h| h.t == 0.5).is_some_and(|h| h.trig.is_none()));
+    let cleared = script::run(r#"trig("hat", 3, #{});"#, Some(bp.clone()), None).unwrap().bp.unwrap();
+    assert_eq!(cleared.drums, bp.drums, "clearing a step without a hit adds none");
     for (bad, says) in [
         (r#"trig("hat", 2, #{ ratchets: 3 })"#, "trig() has no option 'ratchets'"),
         (r#"trig("hat", 2, #{ ratchet: 12 })"#, "trig()'s ratchet is 1 to 8, not 12"),

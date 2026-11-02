@@ -362,7 +362,7 @@ fn duck_curve(p: &Project, tm: &Timing, len: usize) -> Option<Vec<f32>> {
     let att = (0.003 * SRF) as usize;
     let mut env = vec![1.0f32; len];
     for n in &kick.notes {
-        let pos = tm.sample(n.t, 0.0).max(0) as usize;
+        let pos = tm.onset(n, 0.0).max(0) as usize;
         let start = pos.saturating_sub(att);
         for i in start..(pos + rel).min(len) {
             let v = if i < pos {
@@ -595,6 +595,19 @@ mod tests {
         let mut dark = x.clone();
         shape(&mut dark, 1.0, -1.0);
         assert!(edge(&dark) < 0.5 * edge(&x));
+    }
+
+    #[test]
+    fn the_mix_ducks_under_a_nudged_kick_where_it_sounds() {
+        let song = |trig: &str| {
+            let code =
+                format!(r#"blank("house"); drum("kick", "....x..........."); form([sec("drop", 1, "kick")]); {trig}"#);
+            crate::compose::arrange(&crate::script::run(&code, None, None).unwrap().bp.unwrap())
+        };
+        let tm = Timing { spb: SRF * 60.0 / 120.0, swing: 0.5, humanize: 0.0 };
+        let dip = |p: &Project| duck_curve(p, &tm, 96_000).unwrap().iter().position(|&g| g < 0.99).unwrap() as i64;
+        let (plain, late) = (song(""), song(r#"trig("kick", 4, #{ nudge: 0.5 });"#));
+        assert!((dip(&late) - dip(&plain) - 3_000).abs() <= 1, "{} {}", dip(&plain), dip(&late));
     }
 
     #[test]

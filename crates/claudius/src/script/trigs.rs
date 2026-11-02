@@ -33,6 +33,10 @@ pub(super) fn set(bp: &mut Blueprint, lane: &str, variant: &str, step: f64, m: &
     let t = step * 0.25;
     let at = match hits.iter().position(|h| (h.t - t).abs() < 1e-6) {
         Some(i) => i,
+        // nothing to clear on a step without a hit
+        None if m.is_empty() => {
+            return Ok(format!("{lane} {variant} step {}: no hit, no trig", super::print::number(step)));
+        }
         None => {
             hits.push(Hit::new(t, 0.8));
             hits.sort_by(|a, b| a.t.total_cmp(&b.t));

@@ -1078,6 +1078,11 @@ fn a_steps_trig_is_set_shown_kept_and_cleared() {
         d.trigs.into_iter().find(|(v, _)| v == "main").map(|(_, t)| t).unwrap_or_default()
     };
     assert_eq!(shown(&app), vec![(2, roll.clone())]);
+    // a trig given whole replaces the one there: what is back at its default goes back
+    let lighter = TrigView { prob: 0.5, ..TrigView::default() };
+    assert!(app.command(set(Some(lighter.clone()))).ok);
+    assert_eq!(shown(&app), vec![(2, lighter)]);
+    assert!(app.command(set(Some(roll.clone()))).ok);
     // the view and the engine's trig are the same JSON, every setting set
     let every = TrigView {
         prob: 0.25,
