@@ -6,13 +6,15 @@ nu_disco at 122.0 BPM in G minor, swing 0.52
 prog A: i7 iv7 IIImaj7 VImaj7
 prog B: i7 IVsus4 IIImaj7 VImaj7
 bars per chord: 1
-section intro (intro) 8 bars, energy 0.45, prog A, sparse [filter_in]: kick hat shaker bass
-section verse (verse) 16 bars, energy 0.65, prog A, main [fills]: kick clap hat ohat shaker bass guitar keys
-section hook (hook) 16 bars, energy 0.90, prog A, main [impact fills]: kick clap hat ohat shaker perc bass guitar keys strings lead
-section break (break) 8 bars, energy 0.40, prog B, main []: strings keys perc
-section verse2 (verse) 16 bars, energy 0.70, prog A, main [fills]: kick clap hat ohat shaker bass guitar keys strings
-section hook2 (hook) 16 bars, energy 0.95, prog A, main [impact fills]: kick clap hat ohat shaker perc bass guitar keys strings lead
-section outro (outro) 8 bars, energy 0.45, prog A, sparse []: kick hat shaker bass guitar
+section intro (intro) 8 bars, energy 0.44, prog A, sparse [filter_in]: bass
+section verse (verse) 16 bars, energy 0.66, prog A, main [gap fills]: kick clap hat ohat shaker bass keys
+section hook (hook) 16 bars, energy 0.93, prog A, main [impact fills]: kick clap hat ohat shaker perc bass guitar keys strings lead
+section verse2 (verse) 16 bars, energy 0.62, prog A, main []: kick clap hat ohat shaker bass guitar keys
+section hook2 (hook) 16 bars, energy 0.86, prog A, main [impact fills]: kick clap hat ohat shaker perc bass guitar keys strings lead
+section break (break) 16 bars, energy 0.38, prog B, main []: strings keys perc
+section verse3 (verse) 16 bars, energy 0.70, prog A, main [fills]: kick clap hat ohat shaker bass guitar keys strings
+section hook3 (hook) 16 bars, energy 0.94, prog A, main [impact fills]: kick clap hat ohat shaker perc bass guitar keys strings lead
+section outro (outro) 4 bars, energy 0.42, prog A, sparse []: kick hat shaker bass guitar
 drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
 drum hat main (drum closed_hat): x...x..xx..xx..o|x...x..xx..xx..o|x...x..xx..xx..o|x...x..xx..xx..o

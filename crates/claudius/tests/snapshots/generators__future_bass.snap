@@ -6,14 +6,14 @@ future_bass at 156.0 BPM in G major, swing 0.51
 prog A: Imaj9 IVmaj9 Imaj9 V9
 prog B: Imaj9 IVsus4 Imaj9 V9
 bars per chord: 1
-section intro (intro) 8 bars, energy 0.35, prog A, main [filter_in]: pad lead
-section verse (verse) 16 bars, energy 0.55, prog A, main []: kick snare hat bass pad lead
-section build (build) 8 bars, energy 0.65, prog A, main [build gap]: snare hat chords lead
-section drop (drop) 16 bars, energy 1.00, prog A, main [impact fills]: kick snare hat ohat perc bass chords lead
-section break (break) 8 bars, energy 0.40, prog B, main []: pad lead arp
-section build2 (build) 8 bars, energy 0.65, prog B, main [build gap]: snare chords arp
-section drop2 (drop) 16 bars, energy 1.00, prog A, main [impact fills]: kick snare hat ohat perc bass chords lead arp
-section outro (outro) 8 bars, energy 0.35, prog A, main []: pad chords
+section intro (intro) 8 bars, energy 0.38, prog A, main [filter_in]: pad lead
+section verse (verse) 16 bars, energy 0.59, prog A, main []: kick snare hat bass lead
+section build (build) 8 bars, energy 0.64, prog A, main [build gap]: snare hat chords lead
+section drop (drop) 32 bars, energy 0.97, prog A, main [impact fills]: kick snare hat ohat perc bass chords lead
+section break (break) 8 bars, energy 0.41, prog B, main []: pad lead arp
+section build2 (build) 8 bars, energy 0.68, prog B, main [build gap]: snare chords arp
+section drop2 (drop) 24 bars, energy 0.99, prog A, main [impact]: kick snare hat ohat perc bass chords lead arp
+section outro (outro) 4 bars, energy 0.32, prog A, main []: pad chords
 drum kick main (drum kick): X.........X.....|X.........X.....|X.........X.....|X.........X.....
 drum snare main (drum snare): ........X.......|........X.......|........X.......|........X.......
 drum hat main (drum closed_hat): x...x...x...x.x.x...x.x.x...x...|x...x...XXxxxxxxx...x.x.x...x...|x...x...x...x.x.x...x.x.x...x...|x...x...x...x.x.x...x.x.x...x...

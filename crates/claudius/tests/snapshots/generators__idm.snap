@@ -6,12 +6,12 @@ idm at 132.0 BPM in G lydian, swing 0.52
 prog A: Imaj9 ivø7 Imaj9 Vmaj9
 prog B: Imaj9 IVmaj7 Imaj9 Vmaj9
 bars per chord: 4
-section intro (intro) 8 bars, energy 0.30, prog A, sparse []: bells pad click
-section groove (groove) 16 bars, energy 0.60, prog A, main [fills]: kick snare hat click bass bells pad
+section intro (intro) 8 bars, energy 0.35, prog A, sparse [filter_in]: bells pad
+section groove (groove) 16 bars, energy 0.56, prog A, main [fills]: kick snare hat click bass bells pad
 section groove2 (groove) 16 bars, energy 0.75, prog A, main [fills]: kick snare hat click tom bass bells pad arp
-section break (break) 8 bars, energy 0.30, prog B, main [gap]: pad bells click
-section peak (drop) 16 bars, energy 0.95, prog A, main [impact fills]: kick snare hat click tom bass bells pad arp
-section outro (outro) 8 bars, energy 0.30, prog A, sparse []: bells pad click
+section break (break) 16 bars, energy 0.31, prog B, main [gap]: pad bells click
+section peak (drop) 16 bars, energy 0.94, prog A, main [impact fills]: kick snare hat click tom bass bells pad arp
+section outro (outro) 8 bars, energy 0.34, prog A, sparse []: bells pad click
 drum kick main (drum kick): X.....X..XX...X.|X.X....X....X...|X.....X...X...X.|X...........X...
 drum kick sparse (drum kick): x...............|x...............|x...............|x...............
 drum snare main (drum snare): ..o.o...X...........o.......Xxxx|....o...X...............X.o.X.X.|..o.o...X...........o.......X...|....o...X...................oxxx

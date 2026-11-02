@@ -6,13 +6,16 @@ trap at 146.0 BPM in G minor, swing 0.51
 prog A: i iv III VI
 prog B: i IVsus4 III VI
 bars per chord: 2
-section intro (intro) 8 bars, energy 0.35, prog A, main [filter_in]: keys pad hat
-section hook (hook) 16 bars, energy 0.90, prog A, main [impact]: kick snare clap hat ohat perc bass keys lead pad
-section verse (verse) 16 bars, energy 0.65, prog A, alt []: kick snare hat perc bass keys
-section hook2 (hook) 16 bars, energy 0.95, prog A, main [impact]: kick snare clap hat ohat perc bass keys lead pad
-section verse2 (verse) 8 bars, energy 0.60, prog A, alt [gap]: kick snare hat bass keys pad
+section intro (intro) 8 bars, energy 0.34, prog A, main [filter_in]: keys pad hat
+section lift (build) 4 bars, energy 0.66, prog A, main [build]: keys pad hat
+section hook (hook) 16 bars, energy 0.87, prog A, main [impact]: kick snare clap hat ohat perc bass keys lead pad
+section verse (verse) 16 bars, energy 0.62, prog A, alt []: kick snare hat perc bass
+section hook2 (hook) 8 bars, energy 0.94, prog A, main [impact]: kick snare clap hat ohat perc bass keys lead pad
+section verse2 (verse) 8 bars, energy 0.58, prog A, alt [fills]: kick snare hat bass keys pad
 section hook3 (hook) 16 bars, energy 1.00, prog A, main [impact]: kick snare clap hat ohat perc bass keys lead pad
-section outro (outro) 8 bars, energy 0.35, prog A, main []: keys pad lead
+section verse3 (verse) 8 bars, energy 0.59, prog A, alt [gap]: kick snare hat bass keys pad
+section hook4 (hook) 16 bars, energy 0.97, prog A, main [impact]: kick snare clap hat ohat perc bass keys lead pad
+section outro (outro) 4 bars, energy 0.37, prog A, main []: keys pad lead
 drum kick alt (drum kick): X...............|X......X........|X...............|X......X........
 drum kick main (drum kick): X.........X.....|X.....X......X..|X...............|X..X............
 drum snare main (drum snare): ........X.......|........X.......|........X.......|........X.......

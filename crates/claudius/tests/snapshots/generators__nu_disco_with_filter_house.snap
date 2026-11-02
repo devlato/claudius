@@ -6,13 +6,13 @@ nu_disco+filter_house at 113.0 BPM in D dorian, swing 0.51
 prog A: i7 ii7 i7 IV7
 prog B: i7 IV7
 bars per chord: 1
-section intro (intro) 8 bars, energy 0.45, prog A, sparse [filter_in]: bass kick hat shaker
-section verse (verse) 16 bars, energy 0.65, prog A, main [fills]: bass guitar keys kick clap hat ohat shaker
-section hook (hook) 16 bars, energy 0.90, prog A, main [impact fills]: bass guitar keys strings lead kick clap hat ohat shaker perc
-section break (break) 8 bars, energy 0.40, prog B, main []: strings keys perc
-section verse2 (verse) 16 bars, energy 0.70, prog A, main [fills]: bass guitar keys strings kick clap hat ohat shaker
-section hook2 (hook) 16 bars, energy 0.95, prog A, main [impact fills]: bass guitar keys strings lead kick clap hat ohat shaker perc
-section outro (outro) 8 bars, energy 0.45, prog A, sparse []: bass guitar kick hat shaker
+section intro (intro) 16 bars, energy 0.45, prog A, sparse []: bass kick hat shaker
+section verse (verse) 8 bars, energy 0.60, prog A, main [fills]: bass guitar keys kick clap hat ohat shaker
+section hook (hook) 8 bars, energy 0.91, prog A, main [impact fills]: bass guitar keys strings lead kick clap hat ohat shaker perc
+section break (break) 8 bars, energy 0.42, prog B, main []: strings keys perc
+section verse2 (verse) 16 bars, energy 0.65, prog A, main [gap]: bass guitar keys strings kick clap hat ohat shaker perc
+section hook2 (hook) 8 bars, energy 0.99, prog A, main [impact fills]: bass guitar keys strings lead kick clap hat ohat shaker perc
+section outro (outro) 4 bars, energy 0.46, prog A, sparse []: bass guitar kick hat shaker
 drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
 drum hat main (drum closed_hat): x.xx.xx...x...xx|x.xx.xx...x...xx|x.xx.xx...x...xx|x.xx.xx...x...xx

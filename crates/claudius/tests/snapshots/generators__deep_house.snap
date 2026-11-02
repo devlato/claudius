@@ -6,12 +6,12 @@ deep_house at 123.0 BPM in G minor, swing 0.55
 prog A: i9 iv9 IIImaj9 VImaj9
 prog B: i9 IVsus4 IIImaj9 VImaj9
 bars per chord: 1
-section intro (intro) 16 bars, energy 0.40, prog A, sparse [filter_in]: kick hat shaker perc top
-section groove (groove) 16 bars, energy 0.65, prog A, main [fills]: kick clap hat shaker perc bass chords top
-section break (break) 16 bars, energy 0.35, prog B, main []: pad chords lead shaker
-section build (build) 8 bars, energy 0.55, prog B, main [build]: clap hat shaker chords lead pad
-section drop (drop) 32 bars, energy 0.90, prog A, main [fills]: kick clap hat shaker perc bass chords lead pad top
-section outro (outro) 16 bars, energy 0.40, prog A, sparse []: kick hat shaker perc bass
+section intro (intro) 16 bars, energy 0.45, prog A, sparse []: top
+section groove (groove) 16 bars, energy 0.61, prog A, main [fills]: kick clap hat shaker perc bass chords top
+section break (break) 16 bars, energy 0.37, prog B, main []: pad chords lead shaker
+section build (build) 4 bars, energy 0.55, prog B, main [build]: clap hat shaker chords lead pad
+section drop (drop) 32 bars, energy 0.91, prog A, main [fills]: kick clap hat shaker perc bass chords lead pad top
+section outro (outro) 16 bars, energy 0.44, prog A, sparse []: kick hat shaker perc bass
 drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum kick sparse (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...

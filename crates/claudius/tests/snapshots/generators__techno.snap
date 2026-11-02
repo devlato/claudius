@@ -6,12 +6,12 @@ techno at 133.0 BPM in G minor, swing 0.51
 prog A: i9 i9 i9 VII
 prog B: i i iv iv
 bars per chord: 4
-section intro (intro) 32 bars, energy 0.45, prog A, sparse [filter_in]: kick hat perc top
-section groove (groove) 32 bars, energy 0.70, prog A, main [fills]: kick hat ohat clap perc ride bass top
-section break (break) 16 bars, energy 0.35, prog A, main []: pad chords lead ride
-section build (build) 8 bars, energy 0.60, prog A, main [build gap]: clap hat ride chords pad
+section intro (intro) 32 bars, energy 0.50, prog A, sparse []: top
+section groove (groove) 32 bars, energy 0.66, prog A, main [fills]: kick hat ohat clap perc ride bass top
+section break (break) 16 bars, energy 0.37, prog A, main []: pad chords lead ride
+section build (build) 4 bars, energy 0.60, prog A, main [build gap]: clap hat ride chords pad
 section peak (drop) 32 bars, energy 1.00, prog A, main [impact fills]: kick hat ohat clap perc ride bass acid chords top
-section outro (outro) 16 bars, energy 0.45, prog A, sparse []: kick hat perc ride
+section outro (outro) 16 bars, energy 0.49, prog A, sparse []: kick hat perc ride
 drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
 drum hat main (drum closed_hat): .xx...x...x..xx.|.xx...x...x..xx.|.xx...x...x..xx.|.xx...x...x..xx.
 drum hat sparse (drum closed_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
