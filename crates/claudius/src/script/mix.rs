@@ -89,15 +89,33 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
             with_bp(&c, |bp, _| {
                 let g = genre_of(bp);
                 let sound = resolve_sound(label, bank, lib.as_deref(), g.as_ref(), bp.seed, roots.as_deref())?;
-                let lanes = match bp.drums.iter().map(|d| d.name.as_str()).collect::<Vec<_>>().join(" ") {
-                    l if l.is_empty() => "none yet".to_string(),
-                    l => l,
-                };
-                let l = bp
-                    .drums
-                    .iter_mut()
-                    .find(|d| d.name == lane)
-                    .ok_or_else(|| format!("no drum lane '{lane}' (lanes: {lanes}); drum() makes one"))?;
+                let drum_sound = matches!(sound, Sound::Drum { .. } | Sound::Sample { .. } | Sound::Instrument { .. });
+                if !bp.drums.iter().any(|d| d.name == lane) {
+                    // a lane of any name, playing this sound, silent until drum() writes its steps
+                    if bp.layer_names().iter().any(|n| n == lane) {
+                        return fail(format!("'{lane}' is a track of the song that is not a drum lane"));
+                    }
+                    if !drum_sound {
+                        return fail(format!("'{label}' is not a drum sound (a drum name, a kit sound, or a sample)"));
+                    }
+                    bp.drums.push(DrumLane {
+                        length: None,
+                        speed: 1.0,
+                        swing: None,
+                        groove: None,
+                        groove_amount: 1.0,
+                        name: lane.to_string(),
+                        sound,
+                        patterns: [("main".to_string(), Vec::new())].into(),
+                        pattern_bars: 1,
+                        pitch: 0,
+                        choke: None,
+                        mix: TrackMix { bus: "drums".into(), ..Default::default() },
+                    });
+                    super::song::place_new(bp, lane);
+                    return Ok(());
+                }
+                let l = bp.drums.iter_mut().find(|d| d.name == lane).expect("found above");
                 // the sound it already plays stays as it is (labels and cut points included)
                 let same = match (&l.sound, &sound) {
                     (Sound::Instrument { name: a, .. }, Sound::Instrument { name: b, .. }) => a == b,
@@ -238,9 +256,10 @@ fn add_part(bp: &mut Blueprint, name: &str, role: Option<Role>) -> R<()> {
         (None, None) => {
             let have: Vec<&str> = bp.parts.iter().map(|p| p.name.as_str()).collect();
             let theirs: Vec<&str> = genre.parts.iter().map(|p| p.name.as_str()).collect();
+            let like = Role::parse(name).map_or("lead", |r| r.name());
             return fail(format!(
                 "no part '{name}' (the song has: {}; {} parts: {}); a role makes one of your own \
-                 (part(\"{name}\", #{{ role: \"lead\" }})), and track() writes your own notes",
+                 (part(\"{name}\", #{{ role: \"{like}\" }})), and track() writes your own notes",
                 if have.is_empty() { "none".into() } else { have.join(" ") },
                 bp.genre,
                 theirs.join(" ")

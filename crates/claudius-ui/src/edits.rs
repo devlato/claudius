@@ -1,7 +1,7 @@
 //! Song edits applied to a `SongView` the way the server applies them. The mock uses this as its engine; the studio
 //! uses it to show an edit at once (optimistically) while the server's own state is on its way.
 
-use claudius_api::{Command, SectionView, SongView};
+use claudius_api::{Command, DrumView, PartView, SectionView, SongView, TrackView};
 
 use crate::music::Key;
 
@@ -323,6 +323,82 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
                 t.sound = format!("synth patch '{v}'");
             }
             Ok(format!("{name}: {}", what.join(", ")))
+        }
+        Command::AddTrack { name, kind, role, sound } => {
+            // like the server: one word, a name of its own, playing in the sections with energy 0.6 or more
+            if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+                return Some(Err(format!("a track's name is one word of letters, digits, _ and -, not '{name}'")));
+            }
+            if song.layers.contains(name) {
+                return Some(Err(format!("the song already has a track '{name}': give the new one another name")));
+            }
+            let (track, bus) = match kind.as_str() {
+                "drum" => {
+                    song.drums.push(DrumView {
+                        lane: name.clone(),
+                        pattern_bars: 1,
+                        variants: vec![("main".into(), vec![0.0; 16])],
+                        speed: 1.0,
+                        ..Default::default()
+                    });
+                    (
+                        TrackView {
+                            kind: "drum".into(),
+                            role: name.clone(),
+                            sound: sound.clone().unwrap_or_default(),
+                            ..Default::default()
+                        },
+                        "drums",
+                    )
+                }
+                "part" => {
+                    let role = role.clone().unwrap_or_else(|| "lead".into());
+                    let register = match role.as_str() {
+                        "bass" => (28, 52),
+                        "pad" => (48, 72),
+                        "chords" | "keys" => (52, 76),
+                        _ => (60, 86),
+                    };
+                    let preset =
+                        sound.clone().unwrap_or_else(|| if role == "bass" { "saw_bass" } else { "pluck" }.into());
+                    song.parts.push(PartView {
+                        name: name.clone(),
+                        role: role.clone(),
+                        style: String::new(),
+                        styles: Vec::new(),
+                        preset: preset.clone(),
+                        presets: Vec::new(),
+                        register,
+                        density: 0.55,
+                    });
+                    let bus = if role == "bass" { "bass" } else { "music" };
+                    (TrackView { kind: "part".into(), role, sound: preset, ..Default::default() }, bus)
+                }
+                other => {
+                    return Some(Err(format!(
+                        "a track is a drum lane (kind \"drum\") or a part (\"part\"), not '{other}'"
+                    )));
+                }
+            };
+            song.tracks.push(TrackView { name: name.clone(), bus: bus.into(), ..track });
+            song.layers.push(name.clone());
+            for s in song.sections.iter_mut().filter(|s| s.energy >= 0.6) {
+                s.layers.push(name.clone());
+            }
+            Ok(format!("new track {name}"))
+        }
+        Command::RemoveTrack { name } => {
+            if !song.layers.contains(name) {
+                return Some(Err(format!("no track '{name}'")));
+            }
+            song.layers.retain(|l| l != name);
+            song.tracks.retain(|t| &t.name != name);
+            song.drums.retain(|d| &d.lane != name);
+            song.parts.retain(|p| &p.name != name);
+            for s in song.sections.iter_mut() {
+                s.layers.retain(|l| l != name);
+            }
+            Ok(format!("removed {name}"))
         }
         Command::SetMix { track, level_db, pan, reverb, delay, duck, muted, solo, bus } => {
             let Some(t) = song.tracks.iter_mut().find(|t| &t.name == track) else {

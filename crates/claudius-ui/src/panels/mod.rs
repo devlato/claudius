@@ -156,6 +156,20 @@ pub enum Gesture {
     Velocity { lane: usize, step: usize, start: f32, y0: f32 },
 }
 
+/// a new track, as the arrangement's "+ Track" menu is filling it in
+#[derive(Default)]
+pub struct AddTrackForm {
+    /// a drum lane; otherwise a part
+    pub drum: bool,
+    /// a part's role: bass, chords, pad, keys, lead or arp
+    pub role: String,
+    /// left empty, a name made from the role or the sound
+    pub name: String,
+    /// left empty, a part plays what its genre draws
+    pub sound: String,
+    pub filter: String,
+}
+
 pub struct View {
     pub tab: Tab,
     pub section: usize,
@@ -209,6 +223,8 @@ pub struct View {
     pub melody_style: String,
     /// the arrangement row whose menu is open (the row right-clicked: the pointer's press is gone once it opens)
     pub row_menu: Option<usize>,
+    /// the arrangement's "+ Track" form
+    pub add_track: AddTrackForm,
     /// the tour's step on screen, and whether it was taken or skipped (kept between runs)
     pub tour: Option<usize>,
     pub tour_done: bool,
@@ -273,6 +289,7 @@ impl Default for View {
             graph: graph::GraphView::default(),
             melody_style: "line".into(),
             row_menu: None,
+            add_track: AddTrackForm { role: "lead".into(), ..Default::default() },
             tour: None,
             tour_done: false,
             tour_asks: false,

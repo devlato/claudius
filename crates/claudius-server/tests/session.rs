@@ -65,6 +65,47 @@ async fn a_session_edits_renders_and_undoes() {
     assert!(st.busy.is_none() && st.render.is_some_and(|r| r.version >= st.song_version));
 }
 
+#[test]
+fn tracks_are_added_and_removed() {
+    let app = App::new(Settings { library: false, ears: false, auto_render: false, file_roots: None, voice: None });
+    let new = Command::NewSong { genre: "house".into(), seed: Some(4), bpm: None, key: None, loops: false };
+    assert!(app.command(new).ok);
+    let add = |name: &str, kind: &str, role: Option<&str>, sound: Option<&str>| {
+        app.command(Command::AddTrack {
+            name: name.into(),
+            kind: kind.into(),
+            role: role.map(String::from),
+            sound: sound.map(String::from),
+        })
+    };
+    let r = add("lead2", "part", Some("lead"), Some("saw_lead"));
+    assert!(r.ok, "{}", r.message);
+    let song = app.state().song.unwrap();
+    let part = song.parts.iter().find(|p| p.name == "lead2").expect("the new part");
+    assert_eq!((part.role.as_str(), part.preset.as_str()), ("lead", "saw_lead"));
+    assert!(song.sections.iter().any(|s| s.layers.contains(&"lead2".to_string())));
+    let r = add("conga", "drum", None, Some("tom"));
+    assert!(r.ok, "{}", r.message);
+    let song = app.state().song.unwrap();
+    let lane = song.drums.iter().find(|d| d.lane == "conga").expect("the new lane");
+    assert!(lane.variants.iter().all(|(_, steps)| steps.iter().all(|v| *v == 0.0)), "a new lane is silent");
+    // a name the song has, or of two words, and a kind there is not
+    for (name, kind, says) in
+        [("lead2", "part", "already has a track"), ("my lead", "part", "one word"), ("x", "loop", "not 'loop'")]
+    {
+        let r = add(name, kind, Some("lead"), None);
+        assert!(!r.ok && r.message.contains(says), "{name}: {}", r.message);
+    }
+    let r = app.command(Command::RemoveTrack { name: "lead2".into() });
+    assert!(r.ok, "{}", r.message);
+    let song = app.state().song.unwrap();
+    assert!(!song.layers.contains(&"lead2".to_string()));
+    assert!(song.sections.iter().all(|s| !s.layers.contains(&"lead2".to_string())));
+    assert!(app.command(Command::Undo).ok);
+    assert!(app.state().song.unwrap().parts.iter().any(|p| p.name == "lead2"));
+    assert!(!app.command(Command::RemoveTrack { name: "nope".into() }).ok);
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn a_shared_session_keeps_to_its_folders() {
     let inside = std::env::temp_dir().join(format!("claudius-roots-{}", std::process::id()));

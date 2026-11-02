@@ -188,7 +188,8 @@ Details that matter when you read an assistant's transcript:
 - `save` without a path writes to `~/Music/claudius/<genre>-<title>-<seed>`. Paths are on the computer running
   claudius, and a shared claudius refuses paths outside its folders.
 - `command` covers the edits the studio makes and scripts do not: `add_section`, `remove_section`, `move_section`,
-  `toggle_layer`, `set_drum_step`, `set_section` (including `prog`), `set_part` (including `reseed`) and `set_mix`
+  `toggle_layer`, `set_drum_step`, `set_section` (including `prog`), `set_part` (including `reseed`), `add_track`
+  and `remove_track` (a drum lane or a part of any role, as the arrangement's **+ Track** adds), and `set_mix`
   (including `solo`).
 - A failed edit changes nothing and comes back as a tool error (`isError: true`) with claudius' message, the same text
   the studio shows:

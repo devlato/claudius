@@ -288,6 +288,29 @@ pub fn to_script(bp: &Blueprint) -> String {
         s.push('\n');
     }
     for d in &bp.drums {
+        let sound = match &d.sound {
+            Sound::Drum { voice, params } => {
+                // what drum() makes for this name needs no line; the generator's own settings have no word to print
+                let made =
+                    drum_name(&d.name).is_some_and(|(v, _)| v == *voice && *params == DrumParams::default_for(v));
+                let label = drum_label(*voice, params).or_else(|| {
+                    drum_name(&d.name).is_none_or(|(v, _)| v != *voice).then(|| voice_word(*voice).to_string())
+                });
+                label.filter(|_| !made).map(|label| format!("drum_sound({}, {});\n", quote(&d.name), quote(&label)))
+            }
+            Sound::Instrument { name, .. } => Some(format!("drum_sound({}, {});\n", quote(&d.name), quote(name))),
+            // a one-shot cut from your library lives in claudius' cache: its path means nothing on another machine
+            Sound::Sample { path, label, .. } if std::path::Path::new(path).starts_with(crate::config::home()) => {
+                Some(format!("// {}: {label}\n", d.name))
+            }
+            Sound::Sample { path, .. } => Some(format!("drum_sound({}, {});\n", quote(&d.name), quote(path))),
+            _ => None,
+        };
+        // drum() makes a lane only for a drum's name: a lane of another name is made by its sound, first
+        let named = drum_name(&d.name).is_some() || d.name == "hats";
+        if !named && let Some(line) = &sound {
+            s.push_str(line);
+        }
         for (v, hits) in &d.patterns {
             let (steps, res) = hits_to_steps(hits, d.pattern_bars);
             let steps = shortest_steps(&steps);
@@ -305,27 +328,8 @@ pub fn to_script(bp: &Blueprint) -> String {
             s.push_str(&line);
             s.push('\n');
         }
-        match &d.sound {
-            Sound::Drum { voice, params } => {
-                // what drum() makes for this name needs no line; the generator's own settings have no word to print
-                let made =
-                    drum_name(&d.name).is_some_and(|(v, _)| v == *voice && *params == DrumParams::default_for(v));
-                let label = drum_label(*voice, params).or_else(|| {
-                    drum_name(&d.name).is_none_or(|(v, _)| v != *voice).then(|| voice_word(*voice).to_string())
-                });
-                if let Some(label) = label.filter(|_| !made) {
-                    s.push_str(&format!("drum_sound({}, {});\n", quote(&d.name), quote(&label)));
-                }
-            }
-            Sound::Instrument { name, .. } => {
-                s.push_str(&format!("drum_sound({}, {});\n", quote(&d.name), quote(name)));
-            }
-            // a one-shot cut from your library lives in claudius' cache: its path means nothing on another machine
-            Sound::Sample { path, label, .. } if std::path::Path::new(path).starts_with(crate::config::home()) => {
-                s.push_str(&format!("// {}: {label}\n", d.name));
-            }
-            Sound::Sample { path, .. } => s.push_str(&format!("drum_sound({}, {});\n", quote(&d.name), quote(path))),
-            _ => {}
+        if named && let Some(line) = &sound {
+            s.push_str(line);
         }
     }
     if !bp.parts.is_empty() {

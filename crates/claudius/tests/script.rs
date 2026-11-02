@@ -394,14 +394,20 @@ fn parts_of_your_own_print_with_their_role_and_rebuild_exactly() {
     let code = r#"
         blank("techno");
         drum("kick", "x...x...x...x...");
+        drum_sound("bongo", "tom");
+        drum("bongo", "..x...x...x.x...");
         part("keys", #{ role: "keys", preset: "epiano" });
         part("lead2", #{ role: "lead" });
     "#;
     let bp = script::run(code, None, None).unwrap().bp.unwrap();
     let roles: Vec<(&str, &str)> = bp.parts.iter().map(|p| (p.name.as_str(), p.role.name())).collect();
     assert_eq!(roles, [("keys", "keys"), ("lead2", "lead")]);
+    assert!(bp.drums.iter().any(|d| d.name == "bongo"), "drum_sound() makes a lane of any name");
     let printed = script::to_script(&bp);
     assert!(printed.contains(r#"part("keys", #{ role: "keys", "#), "{printed}");
+    // a lane not named for a drum: its sound first, which makes it
+    let (sound, steps) = (printed.find(r#"drum_sound("bongo""#), printed.find(r#"drum("bongo""#));
+    assert!(sound.zip(steps).is_some_and(|(a, b)| a < b), "{printed}");
     // built from nothing, as the printed header says: blank("techno") uncommented
     let from_nothing = printed.replacen("// blank(", "blank(", 1);
     let rebuilt = script::run(&from_nothing, None, None).unwrap().bp.unwrap();

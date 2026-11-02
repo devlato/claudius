@@ -292,11 +292,17 @@ pub fn sounds() -> SoundList {
             opt_in: p.opt_in,
         })
         .collect();
+    let kit = claudius_packs::instruments().into_iter().filter(|i| i.kind == "drum").map(|i| i.name).collect();
     SoundList {
         drums: script::drum_names().into_iter().map(String::from).collect(),
         synths: presets::names().into_iter().map(String::from).collect(),
         instruments,
         packs,
+        kit,
+        synth_roles: presets::ROLES
+            .iter()
+            .map(|(name, roles)| (name.to_string(), roles.iter().map(|r| r.to_string()).collect()))
+            .collect(),
     }
 }
 
