@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use rhai::{Dynamic, Engine, INT, Map};
+use rhai::{Dynamic, Engine, FLOAT, INT, Map};
 
 use crate::compose::{self, Options};
 use crate::dsp::filter::FilterMode;
@@ -341,6 +341,11 @@ fn register_drums(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                 let mut patterns = BTreeMap::new();
                 patterns.insert(variant.to_string(), hits);
                 bp.drums.push(DrumLane {
+                    length: None,
+                    speed: 1.0,
+                    swing: None,
+                    groove: None,
+                    groove_amount: 1.0,
                     name: lane.to_string(),
                     sound: Sound::Drum { voice, params: DrumParams::default_for(voice) },
                     patterns,
@@ -376,6 +381,48 @@ fn register_drums(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("trig", move |lane: &str, variant: &str, step: INT, m: Map| t1(lane, variant, step as f64, m));
     let t1 = t.clone();
     engine.register_fn("trig", move |lane: &str, variant: &str, step: rhai::FLOAT, m: Map| t1(lane, variant, step, m));
+    // lane(lane, #{ ... }): a lane's own time and feel
+    let c = ctx.clone();
+    engine.register_fn("lane", move |lane: &str, m: Map| -> R<()> {
+        with_bp(&c, |bp, log| {
+            log.push(super::trigs::set_lane(bp, lane, &m)?);
+            Ok(())
+        })
+    });
+    // groove(name, file), groove(name, file, bpm) and groove(name, #{ timing, accent }): a groove for lanes to play in
+    let c = ctx.clone();
+    let heard = move |name: &str, path: &str, bpm: Option<f64>| -> R<()> {
+        if let Some(b) = bpm.filter(|b| !(40.0..=250.0).contains(b)) {
+            return fail(format!("groove()'s tempo is 40 to 250 BPM, not {b}"));
+        }
+        let roots = c.borrow().roots.clone();
+        if let Some(e) = crate::config::read_error(std::path::Path::new(path), roots.as_deref()) {
+            return fail(format!("groove(): {e}"));
+        }
+        let x = crate::audio::load(std::path::Path::new(path))
+            .map_err(|e| format!("groove(): cannot read {path}: {e:#}"))?;
+        let file = std::path::Path::new(path).file_name().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default();
+        let bpm = bpm.or_else(|| crate::analysis::groove::tempo_in_name(&file));
+        let heard = crate::analysis::groove::hear(&x, bpm).map_err(|e| format!("groove(): {path}: {e}"))?;
+        with_bp(&c, |bp, log| {
+            log.push(format!("groove {name}, heard in {path} at {:.0} BPM: {}", heard.bpm, heard.groove.describe()));
+            bp.grooves.insert(name.to_string(), heard.groove);
+            Ok(())
+        })
+    };
+    let h = heard.clone();
+    engine.register_fn("groove", move |name: &str, path: &str| h(name, path, None));
+    let h = heard.clone();
+    engine.register_fn("groove", move |name: &str, path: &str, bpm: INT| h(name, path, Some(bpm as f64)));
+    engine.register_fn("groove", move |name: &str, path: &str, bpm: FLOAT| heard(name, path, Some(bpm)));
+    let c = ctx.clone();
+    engine.register_fn("groove", move |name: &str, m: Map| -> R<()> {
+        let g = super::trigs::groove_of(&m)?;
+        with_bp(&c, |bp, _| {
+            bp.grooves.insert(name.to_string(), g);
+            Ok(())
+        })
+    });
     let d1 = d.clone();
     engine.register_fn("drum", move |lane: &str, variant: &str, steps: &str| d1(lane, variant, steps, 16));
     let d1 = d.clone();

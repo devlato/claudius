@@ -1,5 +1,6 @@
-//! Trigs in scripts: `trig(lane, [variant,] step, #{ ... })` sets what a step does beyond striking (`rhythm::Trig`),
-//! and the printed script writes them back.
+//! The drum machine in scripts: `trig(lane, [variant,] step, #{ ... })` sets what a step does beyond striking
+//! (`rhythm::Trig`), `lane(lane, #{ ... })` a lane's own time and feel, and `groove(name, ...)` a groove heard in a
+//! recording or written as a table; the printed script writes them all back.
 
 use rhai::Map;
 
@@ -186,4 +187,145 @@ pub(super) fn lines(lane: &str, variant: &str, hits: &[Hit]) -> Vec<String> {
             Some(format!("trig({}, {}, {}, #{{ {} }});", quote(lane), quote(variant), n(h.t * 4.0), parts.join(", ")))
         })
         .collect()
+}
+
+/// what `lane()`'s map may hold
+pub(super) const LANE_KEYS: &[&str] = &["length", "speed", "swing", "groove", "groove_amount"];
+
+/// Sets drum lane `lane`'s own time and feel from `m`: its `length` in sixteenths (0: its pattern's bars), its
+/// `speed`, its `swing` (0: the song's), its `groove` (a name from `rhythm::GROOVES` or the song's grooves; "" none)
+/// and how much of it, `groove_amount`. Returns what it did, in words.
+pub(super) fn set_lane(bp: &mut Blueprint, lane: &str, m: &Map) -> R<String> {
+    use crate::theory::rhythm::GROOVES;
+    check_keys(m, "lane()", LANE_KEYS)?;
+    let lanes: Vec<String> = bp.drums.iter().map(|d| d.name.clone()).collect();
+    let grooves: Vec<String> = GROOVES.iter().map(|g| g.to_string()).chain(bp.grooves.keys().cloned()).collect();
+    let Some(l) = bp.drums.iter_mut().find(|d| d.name == lane) else {
+        return fail(format!("lane(): no drum lane '{lane}' (lanes: {})", lanes.join(" ")));
+    };
+    let range = |k: &str, lo: f32, hi: f32| -> R<Option<f32>> {
+        match map_f32(m, k) {
+            Some(v) if !(lo..=hi).contains(&v) => fail(format!("lane()'s {k} is {lo} to {hi}, not {v}")),
+            v => Ok(v),
+        }
+    };
+    if let Some(v) = map_f32(m, "length") {
+        let pattern = l.pattern_bars.max(1) * 16;
+        if v < 0.0 {
+            return fail(format!("lane()'s length is a number of steps, or 0 for its pattern's, not {v}"));
+        }
+        if v.round() as u32 > pattern {
+            return fail(format!(
+                "lane(): {lane}'s length is up to its pattern's {pattern} steps (a longer pattern first, with drum()), not {v}"
+            ));
+        }
+        l.length = (v >= 1.0).then_some(v.round() as u32);
+    }
+    if let Some(v) = range("speed", 0.125, 4.0)? {
+        l.speed = v;
+    }
+    if let Some(v) = map_f32(m, "swing") {
+        if v != 0.0 && !(0.5..=0.8).contains(&v) {
+            return fail(format!("lane()'s swing is 0.5 (straight) to 0.8, or 0 for the song's, not {v}"));
+        }
+        l.swing = (v != 0.0).then_some(v);
+    }
+    if let Some(g) = map_str(m, "groove") {
+        let g = g.trim().to_string();
+        if g.is_empty() || g == "none" {
+            l.groove = None;
+        } else if grooves.contains(&g) {
+            l.groove = Some(g);
+        } else {
+            return fail(format!("lane(): no groove '{g}' (grooves: {})", grooves.join(" ")));
+        }
+    }
+    if let Some(v) = range("groove_amount", 0.0, 1.0)? {
+        l.groove_amount = v;
+    }
+    Ok(format!("{lane}: {}", lane_words(l)))
+}
+
+/// a lane's own time and feel in words: "12 steps round, at 0.75 speed, swing 0.6, in the dilla groove (80%)", or
+/// that it keeps the song's
+pub fn lane_words(l: &crate::model::DrumLane) -> String {
+    let mut w = Vec::new();
+    if let Some(n) = l.length {
+        w.push(format!("{n} steps round"));
+    }
+    if l.speed != 1.0 {
+        w.push(format!("at {} speed", super::print::number(l.speed as f64)));
+    }
+    if let Some(s) = l.swing {
+        w.push(format!("swing {}", super::print::number(s as f64)));
+    }
+    if let Some(g) = &l.groove {
+        let amount = if l.groove_amount < 1.0 { format!(" ({:.0}%)", l.groove_amount * 100.0) } else { String::new() };
+        w.push(format!("in the {g} groove{amount}"));
+    }
+    if w.is_empty() { "on the song's time and feel".into() } else { w.join(", ") }
+}
+
+/// a groove as a script writes it: `#{ timing: [16 beats], accent: [16 factors] }`
+pub(super) fn groove_of(m: &Map) -> R<crate::theory::rhythm::Groove> {
+    check_keys(m, "groove()", &["timing", "accent"])?;
+    let list = |k: &str, lo: f32, hi: f32, base: f32| -> R<[f32; 16]> {
+        let Some(v) = m.get(k) else { return Ok([base; 16]) };
+        let Some(a) = v.clone().try_cast::<rhai::Array>() else {
+            return fail(format!("groove()'s {k} is a list of 16 numbers"));
+        };
+        if a.len() != 16 {
+            return fail(format!("groove()'s {k} is a list of 16 numbers, one a sixteenth, not {}", a.len()));
+        }
+        let mut out = [base; 16];
+        for (o, d) in out.iter_mut().zip(&a) {
+            let x = super::num(d).ok_or_else(|| format!("groove()'s {k} is a list of numbers"))? as f32;
+            if !(lo..=hi).contains(&x) {
+                return fail(format!("groove()'s {k} holds {lo} to {hi}, not {x}"));
+            }
+            *o = x;
+        }
+        Ok(out)
+    };
+    Ok(crate::theory::rhythm::Groove {
+        timing: list("timing", -0.25, 0.25, 0.0)?,
+        accent: list("accent", 0.0, 2.0, 1.0)?,
+    })
+}
+
+/// the `groove()` lines that set the song's grooves again, as tables (they need no recording to read back)
+pub(super) fn groove_lines(bp: &Blueprint) -> Vec<String> {
+    use crate::pattern::quote;
+    let n = |v: &f32| super::print::f32s(*v);
+    bp.grooves
+        .iter()
+        .map(|(name, g)| {
+            let timing: Vec<String> = g.timing.iter().map(n).collect();
+            let accent: Vec<String> = g.accent.iter().map(n).collect();
+            format!("groove({}, #{{ timing: [{}], accent: [{}] }});", quote(name), timing.join(", "), accent.join(", "))
+        })
+        .collect()
+}
+
+/// the `lane()` line that sets a lane's own time and feel again, when it has any
+pub(super) fn lane_line(l: &crate::model::DrumLane) -> Option<String> {
+    use crate::pattern::quote;
+    let n = super::print::f32s;
+    let mut parts = Vec::new();
+    if let Some(len) = l.length {
+        parts.push(format!("length: {len}"));
+    }
+    if l.speed != 1.0 {
+        parts.push(format!("speed: {}", n(l.speed)));
+    }
+    if let Some(s) = l.swing {
+        parts.push(format!("swing: {}", n(s)));
+    }
+    if let Some(g) = &l.groove {
+        parts.push(format!("groove: {}", quote(g)));
+    }
+    if l.groove_amount != 1.0 {
+        parts.push(format!("groove_amount: {}", n(l.groove_amount)));
+    }
+    (!parts.is_empty()).then(|| format!("lane({}, #{{ {} }});", quote(&l.name), parts.join(", ")))
 }

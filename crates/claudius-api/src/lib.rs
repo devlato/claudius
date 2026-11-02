@@ -256,6 +256,9 @@ pub struct SongView {
     pub layers: Vec<String>,
     pub tracks: Vec<TrackView>,
     pub drums: Vec<DrumView>,
+    /// the grooves the song keeps, heard in recordings, by name (lanes play them as they play `GROOVES`)
+    #[serde(default)]
+    pub grooves: Vec<String>,
     pub parts: Vec<PartView>,
     /// the mix around the tracks: the buses' chains, the master's, and what the sends feed
     #[serde(default)]
@@ -741,7 +744,27 @@ pub struct DrumView {
     /// variant name -> the trigs of its steps, by 1/16 step
     #[serde(default)]
     pub trigs: Vec<(String, Vec<(usize, TrigView)>)>,
+    /// its own cycle in sixteenths (none: its pattern's bars), how fast its steps go, its own swing (none: the song's),
+    /// its groove (a name from `GROOVES` or the song's `grooves`) and how much of it
+    #[serde(default)]
+    pub length: Option<u32>,
+    #[serde(default = "one_f32")]
+    pub speed: f32,
+    #[serde(default)]
+    pub swing: Option<f32>,
+    #[serde(default)]
+    pub groove: Option<String>,
+    #[serde(default = "one_f32")]
+    pub groove_amount: f32,
 }
+
+fn one_f32() -> f32 {
+    1.0
+}
+
+/// the grooves claudius has by name, as the engine's `rhythm::GROOVES`
+pub const GROOVES: &[&str] =
+    &["straight", "swing54", "swing58", "swing62", "swing66", "swing71", "shuffle", "dilla", "push", "lazy"];
 
 /// What a step does beyond striking, as the engine's `Trig` keeps it (the same JSON): the chance it plays each time
 /// round; when (`cond`: "always", "1:2" the first of every two times round a section, "3:4", "first", "last", "!first",
@@ -1048,6 +1071,33 @@ pub enum Command {
         variant: String,
         step: usize,
         velocity: f32,
+    },
+    /// a drum lane's own time and feel, as `lane()` sets it: `length` in sixteenths (0: its pattern's bars), `speed`
+    /// (0.125 to 4), `swing` (0: the song's), `groove` (a name; "" none), `groove_amount` (0 to 1)
+    SetLane {
+        lane: String,
+        #[serde(default)]
+        length: Option<u32>,
+        #[serde(default)]
+        speed: Option<f32>,
+        #[serde(default)]
+        swing: Option<f32>,
+        #[serde(default)]
+        groove: Option<String>,
+        #[serde(default)]
+        groove_amount: Option<f32>,
+    },
+    /// the groove of the drums in an audio file, kept with the song as `name` (the file's name when not given), and
+    /// the lanes `lanes` (every drum lane when none) put in it. Its tempo is `bpm` when given, else the Apple Loop's
+    /// or one written in the file's name ("92bpm"), else heard.
+    ExtractGroove {
+        path: String,
+        #[serde(default)]
+        name: Option<String>,
+        #[serde(default)]
+        lanes: Vec<String>,
+        #[serde(default)]
+        bpm: Option<f64>,
     },
     /// what step `step` (a sixteenth, from 0) of a lane variant does beyond striking, as `trig()` sets it in a script;
     /// no `trig` clears it. A step without a hit gets one.

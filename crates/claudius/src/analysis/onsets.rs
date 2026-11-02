@@ -58,7 +58,7 @@ pub fn pick(env: &[f32], delta: f32, min_gap_frames: usize) -> Vec<usize> {
     out
 }
 
-/// onset sample positions, refined to where a 1 ms RMS envelope starts rising before each flux peak
+/// onset sample positions, refined to where a 1 ms RMS envelope starts rising in each flux peak's window
 pub fn detect(mono: &[f32], delta: f32, min_gap_s: f64) -> Vec<usize> {
     let env = flux(mono, None);
     let frames = pick(&env, delta, ((min_gap_s * SRF) as usize / HOP).max(1));
@@ -70,22 +70,27 @@ pub fn detect(mono: &[f32], delta: f32, min_gap_s: f64) -> Vec<usize> {
         }
         (mono[a..b].iter().map(|v| v * v).sum::<f32>() / (b - a) as f32).sqrt()
     };
-    frames
-        .iter()
-        .map(|&f| {
-            // the flux frame lags the attack by up to one window: search back for the start of the rise
-            let centre = f * HOP + NFFT / 2;
-            let start = centre.saturating_sub(NFFT + HOP);
-            let end = (centre + HOP).min(mono.len());
-            let peak = (start..end).step_by(win.max(1)).map(rms).fold(0.0f32, f32::max);
-            let mut pos = start;
-            for s in (start..end).step_by(win.max(1)) {
-                if rms(s) > peak * 0.1 {
-                    pos = s;
-                    break;
-                }
+    let mut out = Vec::with_capacity(frames.len());
+    let mut after = 0usize;
+    for &f in &frames {
+        // the attack is in the peak frame's window, anywhere in it (log flux peaks where it first comes in, at the
+        // window's end): look from a hop before the window to a hop after it, never back before the onset found last
+        let start = (f * HOP).saturating_sub(HOP).max(after);
+        let end = (f * HOP + NFFT + HOP).min(mono.len());
+        if start >= end {
+            continue;
+        }
+        let peak = (start..end).step_by(win.max(1)).map(rms).fold(0.0f32, f32::max);
+        let mut pos = start;
+        for s in (start..end).step_by(win.max(1)) {
+            if rms(s) > peak * 0.1 {
+                pos = s;
+                break;
             }
-            pos.saturating_sub(win)
-        })
-        .collect()
+        }
+        let pos = pos.saturating_sub(win).max(after);
+        out.push(pos);
+        after = pos + 2 * win;
+    }
+    out
 }

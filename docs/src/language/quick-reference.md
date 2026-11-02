@@ -23,6 +23,8 @@ Everything on one page. Each name links to its full entry.
 | [`bars_per_chord(2)`](song-functions.md#bars_per_chord) | bars each chord lasts, 1..8 |
 | [`drum("kick", "X...x...")`](song-functions.md#drum) | `X` 1.0, `x` 0.8, `o` 0.45, `1`-`9`, `.` rest; `drum(lane, variant, steps, per_bar)` |
 | [`trig("hat", 14, #{ ratchet: 3, cond: "1:2" })`](song-functions.md#trig) | a step's chance, condition, ratchet, flam, nudge and locks (pitch, decay, tone, pan) |
+| [`lane("hat", #{ length: 12, groove: "dilla" })`](song-functions.md#lane) | a lane's own length (a polymeter), speed, swing and groove |
+| [`groove("funk", "loops/funk.wav")`](song-functions.md#groove) | a groove heard in a recording's drums (or written as a table), for lanes to play in |
 | [`drum_sound("kick", "tr909:bd")`](song-functions.md#drum_sound) | a drum name, a kit sound (or a name and a bank), a file |
 | [`part("bass", #{ ... })`](song-functions.md#part) | `style preset register density seed rate`; adds the genre's part when the song has none |
 | [`track("hats", pattern)`](song-functions.md#track) | a pattern track; new ones join sections with energy ≥ 0.6 |

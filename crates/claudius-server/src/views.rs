@@ -144,6 +144,11 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
                 })
                 .filter(|(_, t): &(String, Vec<(usize, claudius_api::TrigView)>)| !t.is_empty())
                 .collect(),
+            length: d.length,
+            speed: d.speed,
+            swing: d.swing,
+            groove: d.groove.clone(),
+            groove_amount: d.groove_amount,
         })
         .collect();
     let parts = bp
@@ -213,6 +218,7 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
         layers: bp.layer_names(),
         tracks,
         drums,
+        grooves: bp.grooves.keys().cloned().collect(),
         parts,
         mix: claudius_api::MixView {
             buses: bp.mix.buses.iter().map(|(name, fx)| (name.clone(), chain(fx))).collect(),

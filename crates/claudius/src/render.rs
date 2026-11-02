@@ -182,6 +182,7 @@ impl Default for Options {
     }
 }
 
+#[derive(Clone, Copy)]
 struct Timing {
     spb: f64,
     swing: f32,
@@ -191,6 +192,11 @@ struct Timing {
 impl Timing {
     fn sample(&self, beat: f64, jitter: f64) -> i64 {
         ((swing(beat, self.swing) + jitter) * self.spb).round() as i64
+    }
+
+    /// the timing of track `t`: its own swing, when it has one
+    fn of(self, t: &Track) -> Timing {
+        Timing { swing: t.swing.unwrap_or(self.swing), ..self }
     }
 
     /// where note `n` starts: swung, then moved by its step's nudge
@@ -204,6 +210,7 @@ fn choke_onsets(p: &Project, tm: &Timing) -> BTreeMap<String, Vec<i64>> {
     let mut m: BTreeMap<String, Vec<i64>> = BTreeMap::new();
     for t in &p.tracks {
         if let Some(g) = &t.choke {
+            let tm = tm.of(t);
             m.entry(g.clone()).or_default().extend(t.notes.iter().map(|n| tm.onset(n, 0.0)));
         }
     }
@@ -231,7 +238,7 @@ fn render_source(
             let group = t.choke.as_ref().and_then(|g| chokes.get(g));
             for n in &t.notes {
                 let jitter = rng.normal() * human * 0.004 * p.bpm / 60.0;
-                let pos = tm.onset(n, jitter);
+                let pos = tm.of(t).onset(n, jitter);
                 let lock = n.lock.unwrap_or_default();
                 let buf = locked_shot(&t.sound, n.p + t.transpose - root, seed, &lock)?;
                 let vel = (n.v as f64 * (1.0 + rng.normal() * human * 0.05)).clamp(0.05, 1.0) as f32;
@@ -354,6 +361,7 @@ fn duck_curve(p: &Project, tm: &Timing, len: usize) -> Option<Vec<f32>> {
     let rel = (p.mix.duck_release.max(0.05) as f64 * tm.spb) as usize;
     let att = (0.003 * SRF) as usize;
     let mut env = vec![1.0f32; len];
+    let tm = tm.of(kick);
     for n in &kick.notes {
         let pos = tm.onset(n, 0.0).max(0) as usize;
         let start = pos.saturating_sub(att);

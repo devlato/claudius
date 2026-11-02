@@ -435,6 +435,34 @@ impl App {
                     if velocity > 0.0 { format!("{velocity:.2}") } else { "off".into() }
                 ))
             }),
+            Command::SetLane { lane, length, speed, swing, groove, groove_amount } => {
+                let mut set = Vec::new();
+                if let Some(v) = length {
+                    set.push(format!("length: {v}"));
+                }
+                for (k, v) in [("speed", speed), ("swing", swing), ("groove_amount", groove_amount)] {
+                    if let Some(v) = v {
+                        set.push(format!("{k}: {v:?}"));
+                    }
+                }
+                if let Some(g) = &groove {
+                    set.push(format!("groove: {}", quote(g)));
+                }
+                self.run_script(
+                    &format!("lane({}, #{{ {} }});", quote(&lane), set.join(", ")),
+                    Some(format!("{lane}'s time")),
+                )
+            }
+            Command::ExtractGroove { path, name, lanes, bpm } => match self
+                .readable(Path::new(&path))
+                .and_then(|_| audio::load(Path::new(&path)).map_err(|e| format!("cannot read {path}: {e}")))
+            {
+                Ok(x) => {
+                    let name = name.unwrap_or_else(|| groove_name(&path));
+                    self.groove_audio(&x, &path, &name, &lanes, bpm)
+                }
+                Err(e) => no(e, v),
+            },
             // the trig given in place of the one there: cleared, then set with what differs from the defaults
             Command::SetTrig { lane, variant, step, trig } => {
                 let (lane_q, variant_q) = (quote(&lane), quote(&variant));
@@ -671,6 +699,59 @@ impl App {
             _ => Err(()),
         });
         Reply { version: if answered.is_ok() { self.version() } else { r.version }, ..r }
+    }
+
+    /// The groove of the drums in recording `x` (`from`: its path or its name), kept with the song as `name`, and the
+    /// lanes `lanes` (every drum lane when none) put in it.
+    /// The groove of `x` (heard in the file `from`, a path or a name) for the lanes `lanes`, at `bpm` when given,
+    /// else at the tempo GarageBand's catalogue has for it as an Apple Loop, else at one written in its name.
+    pub(super) fn groove_audio(
+        self: &Arc<Self>,
+        x: &audio::Stereo,
+        from: &str,
+        name: &str,
+        lanes: &[String],
+        bpm: Option<f64>,
+    ) -> Reply {
+        if let Some(b) = bpm.filter(|b| !(40.0..=250.0).contains(b)) {
+            return no(format!("a groove's tempo is 40 to 250 BPM, not {b}"), self.version());
+        }
+        let file = Path::new(from);
+        // the library's own loops (chopped from recordings) carry a tempo claudius heard, not one it knows
+        let apple = self.lib.as_ref().and_then(|lib| {
+            let stem = file.file_stem().map(|s| s.to_string_lossy());
+            let l = lib
+                .loops
+                .iter()
+                .filter(|l| l.genre != "User")
+                .find(|l| l.path == from || stem.as_deref() == Some(l.name.as_str()))?;
+            (l.tempo > 0.0).then_some(l.tempo)
+        });
+        let named = file.file_name().and_then(|f| claudius::analysis::groove::tempo_in_name(&f.to_string_lossy()));
+        let heard = match claudius::analysis::groove::hear(x, bpm.or(apple).or(named)) {
+            Ok(h) => h,
+            Err(e) => return no(format!("{from}: {e}"), self.version()),
+        };
+        let (name, lanes) = (name.to_string(), lanes.to_vec());
+        self.edit_with(move |bp| {
+            let names: Vec<String> = bp.drums.iter().map(|d| d.name.clone()).collect();
+            if let Some(l) = lanes.iter().find(|l| !names.contains(l)) {
+                return Err(format!("no drum lane '{l}' (lanes: {})", names.join(" ")));
+            }
+            let lanes = if lanes.is_empty() { names } else { lanes };
+            bp.grooves.insert(name.clone(), heard.groove.clone());
+            for d in bp.drums.iter_mut().filter(|d| lanes.contains(&d.name)) {
+                (d.groove, d.groove_amount) = (Some(name.clone()), 1.0);
+            }
+            bp.lineage.push(format!("groove {name} from {from}"));
+            Ok(format!(
+                "groove {name}, heard in {from} at {:.0} BPM over {} hits: {}; {} play in it",
+                heard.bpm,
+                heard.onsets,
+                heard.groove.describe(),
+                lanes.join(", ")
+            ))
+        })
     }
 
     /// how a take of the song, or a recording at `path` (in `key` when given), is sung
@@ -982,4 +1063,11 @@ pub fn analysis_text(a: &analysis::song::Analysis) -> String {
         a.bass_style
     ));
     out
+}
+
+/// a groove's name from the file it was heard in: its stem, in letters, digits, - and _
+pub(super) fn groove_name(path: &str) -> String {
+    let stem = Path::new(path).file_stem().map_or("groove".into(), |s| s.to_string_lossy().to_lowercase());
+    let name: String = stem.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '_' }).collect();
+    if name.is_empty() { "groove".into() } else { name }
 }

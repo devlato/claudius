@@ -624,3 +624,121 @@ fn a_nudge_moves_the_stroke_late_and_a_pan_sends_it_to_one_side() {
     let (l, r) = (left.l.iter().map(|v| v * v).sum::<f32>(), left.r.iter().map(|v| v * v).sum::<f32>());
     assert!(r < 0.01 * l, "all of it on the left: {l} {r}");
 }
+
+#[test]
+fn a_lane_keeps_its_own_length_speed_swing_and_groove() {
+    let code = r#"
+        blank("house"); tempo(120);
+        drum("kick", "x...x...x...x...");
+        drum("hat", "x.x.x.x.x.x.x.x.");
+        drum("perc", "x...............");
+        drum("shaker", "xxxxxxxxxxxxxxxx");
+        form([sec("drop", 4, "kick hat perc shaker")]);
+        lane("hat", #{ length: 12 });
+        lane("perc", #{ speed: 0.75 });
+        lane("shaker", #{ speed: 2, swing: 0.66 });
+        lane("kick", #{ groove: "swing66", groove_amount: 0.5 });
+    "#;
+    let out = script::run(code, None, None).unwrap();
+    assert!(out.log.iter().any(|l| l == "hat: 12 steps round"), "{:?}", out.log);
+    let bp = out.bp.unwrap();
+    let p = compose::arrange(&bp);
+    let times = |name: &str| -> Vec<f64> {
+        p.tracks.iter().find(|t| t.name == name).unwrap().notes.iter().map(|n| n.t).collect()
+    };
+    // 12 steps round against the bar: the hat's six hits come round every 3 beats, not every 4
+    let hat = times("hat");
+    assert_eq!(&hat[..8], &[0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5]);
+    assert_eq!(hat.len(), 32, "16 beats at two a beat");
+    let perc = times("perc");
+    assert_eq!(&perc[..3], &[0.0, 16.0 / 3.0, 32.0 / 3.0], "a bar at 3/4 speed lasts 16/3 beats");
+    let shaker = times("shaker");
+    assert_eq!((shaker.len(), shaker[1]), (128, 0.125), "32nds at double speed");
+    assert_eq!(p.tracks.iter().find(|t| t.name == "shaker").unwrap().swing, Some(0.66));
+    // the kick on the beats does not move; half of swing66 moves nothing on a beat
+    assert_eq!(&times("kick")[..4], &[0.0, 1.0, 2.0, 3.0]);
+    // a lane in a groove takes its timing from it, not from the song's swing; one in neither keeps the song's
+    let swing = |name: &str| p.tracks.iter().find(|t| t.name == name).unwrap().swing;
+    assert_eq!((swing("kick"), swing("hat")), (Some(0.5), None));
+    let groove = |code: &str| {
+        let bp = script::run(code, Some(bp.clone()), None).unwrap().bp.unwrap();
+        compose::arrange(&bp)
+            .tracks
+            .into_iter()
+            .find(|t| t.name == "hat")
+            .unwrap()
+            .notes
+            .iter()
+            .map(|n| n.t)
+            .take(4)
+            .collect::<Vec<f64>>()
+    };
+    // the off-beat eighths of a straight hat are no sixteenth off-beats: a swing groove moves the sixteenths, a
+    // shuffle the eighths
+    assert_eq!(groove(r#"lane("hat", #{ length: 0, groove: "swing66" });"#), [0.0, 0.5, 1.0, 1.5]);
+    let shuffled = groove(r#"lane("hat", #{ length: 0, groove: "shuffle" });"#);
+    assert!((shuffled[1] - 2.0 / 3.0).abs() < 1e-6, "{shuffled:?}");
+    let half = groove(r#"lane("hat", #{ length: 0, groove: "shuffle", groove_amount: 0.5 });"#);
+    assert!((half[1] - (0.5 + 1.0 / 12.0)).abs() < 1e-6, "{half:?}");
+    // a step's strokes go with it: a ratchet on a swung sixteenth keeps its order and its spacing
+    let code = r#"lane("hat", #{ length: 0, groove: "swing71" }); trig("hat", 1, #{ ratchet: 4 });"#;
+    let rolled = script::run(code, Some(bp.clone()), None).unwrap().bp.unwrap();
+    let hat = compose::arrange(&rolled).tracks.into_iter().find(|t| t.name == "hat").unwrap();
+    let roll: Vec<f64> = hat.notes.iter().filter(|n| n.d < 0.1 && n.t < 1.0).map(|n| n.t).collect();
+    assert_eq!(roll.len(), 4, "{roll:?}");
+    assert!((roll[0] - (0.25 + 0.105)).abs() < 1e-6, "the step swung: {roll:?}");
+    assert!(roll.windows(2).all(|w| (w[1] - w[0] - 0.0625).abs() < 1e-9), "{roll:?}");
+    // a groove written as a table, and one heard in a recording: kept with the song, printed as tables
+    let dir = std::env::temp_dir().join(format!("claudius-groove-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("swung.wav");
+    let spb = 0.6;
+    let n = (8.0 * 4.0 * spb * 48_000.0) as usize + 4_800;
+    let mut l = vec![0f32; n];
+    for k in 0..8 * 16 {
+        let b = k as f64 / 4.0 + if k % 2 == 1 { 0.06 } else { 0.0 };
+        let at = (0.1 * 48_000.0 + b * spb * 48_000.0) as usize;
+        for i in 0..240.min(n - at) {
+            l[at + i] += 0.5 * (-(i as f32) / 40.0).exp() * if i % 2 == 0 { 1.0 } else { -1.0 };
+        }
+    }
+    claudius::audio::save_wav(&file, &claudius::audio::Stereo { l: l.clone(), r: l }, true).unwrap();
+    let code = format!(
+        r#"groove("loop", {0}); groove("half", {0}, 50); groove("mine", #{{ timing: [0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05, 0, 0.05] }}); lane("hat", #{{ groove: "loop" }}); lane("perc", #{{ groove: "mine" }});"#,
+        claudius::pattern::quote(&file.display().to_string())
+    );
+    let out = script::run(&code, Some(bp.clone()), None).unwrap();
+    assert!(
+        out.log
+            .iter()
+            .any(|l| l.contains("heard in") && l.contains("at 100 BPM: the off-beat sixteenths at 62% swing")),
+        "{:?}",
+        out.log
+    );
+    assert!(
+        out.log.iter().any(|l| l.starts_with("groove half,") && l.contains("at 50 BPM")),
+        "a tempo given is kept: {:?}",
+        out.log
+    );
+    let grooved = out.bp.unwrap();
+    assert!((grooved.grooves["loop"].timing[1] - 0.06).abs() < 0.012, "{:?}", grooved.grooves["loop"]);
+    let printed = script::to_script(&grooved);
+    assert!(printed.contains(r#"groove("mine", #{ timing: [0, 0.05, 0, 0.05"#), "{printed}");
+    assert!(printed.contains(r#"lane("hat", #{ length: 12, groove: "loop" });"#), "{printed}");
+    assert!(script::run(&printed, Some(grooved.clone()), None).unwrap().bp.unwrap() == grooved, "{printed}");
+    std::fs::remove_dir_all(&dir).unwrap();
+    for (bad, says) in [
+        (r#"lane("hat", #{ groove: "jazz" })"#, "lane(): no groove 'jazz' (grooves: straight swing54"),
+        (r#"lane("hat", #{ speed: 8 })"#, "lane()'s speed is 0.125 to 4, not 8"),
+        (r#"lane("hat", #{ length: 24 })"#, "lane(): hat's length is up to its pattern's 16 steps"),
+        (r#"lane("hat", #{ length: -3 })"#, "lane()'s length is a number of steps, or 0 for its pattern's, not -3"),
+        (r#"lane("hat", #{ swing: 0.3 })"#, "lane()'s swing is 0.5 (straight) to 0.8, or 0 for the song's"),
+        (r#"lane("hat", #{ steps: 12 })"#, "lane() has no option 'steps'"),
+        (r#"groove("x", #{ timing: [0, 0.1] })"#, "groove()'s timing is a list of 16 numbers, one a sixteenth, not 2"),
+        (r#"groove("x", "/nowhere/loop.wav")"#, "groove(): /nowhere/loop.wav"),
+        (r#"groove("x", "/nowhere/loop.wav", 400)"#, "groove()'s tempo is 40 to 250 BPM, not 400"),
+    ] {
+        let e = script::run(bad, Some(bp.clone()), None).err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(e.contains(says), "{bad}: {e}");
+    }
+}

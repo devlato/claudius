@@ -26,6 +26,7 @@ to. On the command line, each command reads and writes song folders instead.
 | `add_take` | `path` of a recording, `from` (a section's name), `name`, `role` (`vocal`, `lead`, `chords`, `keys`, `bass`, `drums`, `texture`) | |
 | `graph` | (the song's signal flow in words: tracks through their effects into buses, the master, out) | |
 | `sample_song` | `path` of a recording, `count` (1-4, default 2), `bars` (1, 2 or 4), `find` ("a person singing"), `sections` | `claudius sample FILE --on SONG --count 2 --in drop` |
+| `extract_groove` | `path` of a recording with drums, `name` (default the file's), `lanes` (default all), `bpm` (when known) | a script: `groove("funk", "FILE", 96); lane("hat", #{ groove: "funk" });` |
 | `request_pitch_check` | `low`, `high` (MIDI; default A3 to A4, sung in any octave), `note` (for the person) | |
 | `wait_for_pitch_check` | `id` (from `request_pitch_check`), `seconds` (50, 1 to 300) | |
 | `request_take` | `from` (a section's name), `role`, `name`, `note` (what to record, for the person) | |
@@ -41,8 +42,8 @@ Notes:
 - `get_song` is the way to read the open song: tempo, key, progressions, sections with their tracks, every track's
   sound and mix, the latest verdict, and the whole song as a script.
 - `command` takes JSON such as `{"cmd": "add_section", "after": 2, "kind": "break", "bars": 8}`, `move_section`,
-  `remove_section`, `toggle_layer`, `set_drum_step`, `set_section`, `set_part` and `set_mix`. Scripts do nearly
-  everything these do, more readably.
+  `remove_section`, `toggle_layer`, `set_drum_step`, `set_trig`, `set_lane`, `set_section`, `set_part` and `set_mix`.
+  Scripts do nearly everything these do, more readably.
 - `SONG` is a song folder. `make`, `script` and `remake` write theirs as `<genre>-<title>-<seed>/` inside `--out`,
   which is `out/` in the current folder unless given; `render` writes into the blueprint's own folder, or straight
   into `--out`. Each prints the path at the end. When the person needs to find the song, give a folder they know:

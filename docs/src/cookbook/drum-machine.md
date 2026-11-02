@@ -8,8 +8,13 @@ gives a step what a drum machine's trig gives it:
 - a nudge off the grid;
 - and what it changes in the sound for that stroke: its pitch, decay, tone and pan.
 
-In the studio, right-click a step in the [step sequencer](../getting-started/studio.md#the-panels) and open **Trig**.
-Each recipe below starts from a generated song and changes only its drums.
+A lane can also keep a time and feel of its own. [`lane()`](../language/song-functions.md#lane) gives it a length (a
+polymeter against the others), a speed, a swing and a groove, and [`groove()`](../language/song-functions.md#groove)
+takes a groove from a record.
+
+In the studio, right-click a step in the [step sequencer](../getting-started/studio.md#the-panels) and open **Trig**,
+or right-click a lane for its time and feel. Each recipe below starts from a generated song and changes only its
+drums.
 
 ## Hats that roll
 
@@ -82,3 +87,72 @@ trig("ride", 14, #{ ratchet: 2, cond: "!first" });
 ```
 
 Judged without the listening models, these five render at 95 to 97 out of 100, as their songs do without the trigs.
+
+## Hats in twelve
+
+A lane of its own length comes round on its own cycle. Hats twelve steps long start their pattern again every three
+beats while the kick keeps four, so the accent wanders across the bar and lands back on the downbeat after three bars.
+Percussion ten steps long turns against both.
+
+```js
+song("techno", 7);
+drum("hat", "x.xx.xx.x.x.x.xx");
+lane("hat", #{ length: 12 });
+lane("perc", #{ length: 10 });
+```
+
+## Triplets on a straight beat
+
+A lane's speed scales its steps. At 0.75 its sixteenths become eighth-note triplets, three to a beat, and at 1.5
+sixteenth-note triplets, over drums that stay straight.
+
+```js
+song("trap", 5);
+drum("perc", "x.xx.x.xx.x.x.xx");
+lane("perc", #{ speed: 0.75 });
+lane("ohat", #{ speed: 1.5 });
+```
+
+## Swing on one lane
+
+The song can play straight while one lane swings: hats at 62% over a kick and clap on the grid. `swing: 0` gives the
+lane the song's swing again.
+
+```js
+song("house", 3);
+swing(0.5);
+lane("hat", #{ swing: 0.62 });
+lane("shaker", #{ swing: 0.58 });
+```
+
+## A dragged feel
+
+`dilla` drags each off-beat and the backbeat late by its own amount and leans on the downbeats, the way a drummer
+plays behind the beat. Lanes take as much of a groove as `groove_amount` gives them: the hats all of it and the snare
+a little less, so the backbeat drags less than the hats.
+
+```js
+song("lofi", 2);
+lane("hat", #{ groove: "dilla" });
+lane("snare", #{ groove: "dilla", groove_amount: 0.6 });
+lane("kick", #{ groove: "dilla", groove_amount: 0.4 });
+```
+
+## A groove from a record
+
+A break, a loop or a whole song has a feel of its own: how late its off-beats come, whether its backbeat sits behind
+the beat, which sixteenths are hit hardest. [`groove()`](../language/song-functions.md#groove) measures that in a
+recording's drums and keeps it with the song, and the lanes play in it as in one of claudius' own. In the studio,
+choose the file under **New song** and press **Take its groove**. An assistant calls `extract_groove`.
+
+```js no-run
+song("lofi", 2);
+groove("break", "loops/Funk Break 96bpm.wav");     // the tempo in the name is the one it is measured at
+lane("hat", #{ groove: "break" });
+lane("snare", #{ groove: "break", groove_amount: 0.8 });
+```
+
+The tempo matters most. claudius hears it from the drums when it isn't given, but a loop's tempo heard can come out
+twice or half what it is, and then the groove is measured against the wrong sixteenths. A tempo in the file's name or
+a third argument (`groove("break", "loops/break.wav", 96)`) is used as it is, and `extract_groove` and the studio
+also take an Apple Loop's from GarageBand's catalogue.

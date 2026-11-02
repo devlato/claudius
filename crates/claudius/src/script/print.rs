@@ -283,6 +283,10 @@ pub fn to_script(bp: &Blueprint) -> String {
             "\n// drums: X accent, x hit, o ghost, . rest, | bar line; 16 steps per bar unless a number follows\n",
         );
     }
+    for line in super::trigs::groove_lines(bp) {
+        s.push_str(&line);
+        s.push('\n');
+    }
     for d in &bp.drums {
         for (v, hits) in &d.patterns {
             let (steps, res) = hits_to_steps(hits, d.pattern_bars);
@@ -296,6 +300,10 @@ pub fn to_script(bp: &Blueprint) -> String {
                 s.push_str(&line);
                 s.push('\n');
             }
+        }
+        if let Some(line) = super::trigs::lane_line(d) {
+            s.push_str(&line);
+            s.push('\n');
         }
         match &d.sound {
             Sound::Drum { voice, params } => {

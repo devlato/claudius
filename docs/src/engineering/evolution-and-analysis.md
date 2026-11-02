@@ -84,11 +84,12 @@ sixteenth, swing and a bass style. It uses no models: everything is signal proce
 
 | file | what it does |
 |---|---|
-| `onsets.rs` | onset strength as log-compressed spectral flux, optionally in a frequency band; peaks above a moving median; onsets refined to where the energy starts rising |
+| `onsets.rs` | onset strength as log-compressed spectral flux, optionally in a frequency band; peaks above a moving median; onsets refined to where the energy starts rising: the first millisecond above a tenth of the loudest, from a hop before the peak frame's window to a hop after it (log flux peaks when an attack first comes into the window, at its end) |
 | `beats.rs` | tempo by autocorrelation of the onset envelope, beats by dynamic programming (Ellis 2007), then a constant-tempo grid and the downbeat |
 | `chroma.rs` | pitch-class energy, keys by Krumhansl-Kessler profiles, chords by template matching |
 | `melody.rs` | a [take](../guide/samples.md#takes)'s melody as notes, read by `voice/` ([below](#hearing-a-melody)) |
 | `song.rs` | the rest: sections, progressions, drum steps, swing, and `to_blueprint` |
+| `groove.rs` | the [groove](../language/song-functions.md#groove) of a recording's drums ([below](#hearing-a-groove)) |
 
 **Tempo.** The onset envelope adds the full-band flux to twice the kick-band flux (30 to 160 Hz), because in dance
 music the kick marks the beat. Its autocorrelation, weighted by a prior centred on 120 BPM (or on the middle of the
@@ -126,6 +127,36 @@ in almost every bar becomes certain, weaker steps become probabilities. Swing is
 the second half of each eighth. The bass style is guessed from the kick's step profile: `rolling` when ten or more
 sixteenths are busy, `offbeat` when the off-beat eighths carry more than 55 % of the on-beat weight, `sustain` when at
 most two are busy, `syncopated` otherwise.
+
+### Hearing a groove
+
+`analysis::groove::hear(audio, bpm)` measures where each sixteenth of a recording's bar lands and how hard. Everything
+rests on the grid, and a groove measured against the wrong sixteenths means nothing, so a tempo that is known (given,
+an Apple Loop's in GarageBand's catalogue, or `92bpm` in the file's name) is only tuned, within 3 %. Otherwise the
+song analysis guesses one, which on a short loop is often off by 3:4 or 4:3 or a few percent (on twelve of Apple's
+drum loops it was right for four), and the drums' onsets choose:
+
+- **The tempos tried.** The guess and its octaves, and for a recording of 40 seconds or less the whole bars it lasts
+  (half a bar, 1, 2, 4, 8 or 16), which give a loop's tempo exactly. Less likely, and winning only when they fit
+  clearly better: 3:4, 4:3, 2:3 and 3:2 of the guess, and 3, 6 or 12 bars. Over a bar or two a guess tuned freely fits
+  anything near, so in a recording of 12 seconds or less one within 3 % of an octave of the length is dropped.
+- **How well each fits.** Each is tuned in steps of 0.01 % to where the onsets sit nearest its sixteenths: the mean
+  squared distance, in sixteenths, weighted by loudness, with the grid's phase where the distances balance. The on-beat
+  and the off-beat sixteenths are measured each from where they land on average, so a swing costs nothing; otherwise
+  a loop swung at 62 % fits the grid of triplets half as fast again better than its own.
+- **The tempo.** The slowest that fits about as well as the best (a grid twice as fine always fits at least as well).
+- **The downbeat.** The beats are the sixteenths of four that the loud onsets fall on, and the downbeat is the beat
+  with the most energy under 120 Hz.
+
+On fourteen of those loops this finds the tempo of nine of the thirteen it can read (one has too few hits). Three of the
+others come out an octave off, which is where the drums sit on sixteenths either way. Telling which octave a drummer
+counts takes knowing a snare from a kick, which the onsets alone don't. With the catalogue's tempo, all thirteen are
+right.
+
+Each onset is then set against the sixteenth nearest it. Each of the sixteen positions takes the median of its onsets'
+distances from the grid (a position with fewer than two keeps no timing), clamped to 0.12 beats, and their mean loudness
+against the recording's, clamped to 0.4 to 1.3, as its accent. The beats are put back on the grid by the mean of their
+timings, so a downbeat found a little early or late doesn't move the whole groove.
 
 ### Writing a new song on it
 

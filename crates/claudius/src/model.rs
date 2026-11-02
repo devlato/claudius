@@ -221,9 +221,42 @@ pub struct DrumLane {
     pub choke: Option<String>,
     #[serde(default)]
     pub mix: TrackMix,
+    /// its own cycle, in sixteenths, instead of its pattern's bars (12 against the bar's 16 is a polymeter)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub length: Option<u32>,
+    /// how fast its steps go: 2 makes them 32nds, 0.5 eighths, 0.75 eighth-note triplets
+    #[serde(default = "one", skip_serializing_if = "is_one")]
+    pub speed: f32,
+    /// its own swing, instead of the song's
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub swing: Option<f32>,
+    /// its groove, by name (`rhythm::GROOVES`, or one of the song's `grooves`), and how much of it it takes
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub groove: Option<String>,
+    #[serde(default = "one", skip_serializing_if = "is_one")]
+    pub groove_amount: f32,
+}
+
+fn one() -> f32 {
+    1.0
+}
+
+fn is_one(v: &f32) -> bool {
+    *v == 1.0
 }
 
 impl DrumLane {
+    /// the sixteenths a time round of it plays: its own length, at most its pattern's
+    pub fn steps(&self) -> u32 {
+        let pattern = self.pattern_bars.max(1) * 16;
+        self.length.map_or(pattern, |l| l.min(pattern))
+    }
+
+    /// how long a time round its pattern lasts, in beats: its steps at its speed
+    pub fn period(&self) -> f64 {
+        self.steps() as f64 * 0.25 / self.speed.max(0.125) as f64
+    }
+
     /// what the lane plays (kick, snare, hat ...): its name when that is a drum word ("bd" and "kick" are both the
     /// kick), else its sound. The role picks the lane's level, its fills and the kick the bass locks to.
     pub fn role(&self) -> String {
@@ -432,6 +465,9 @@ pub struct Blueprint {
     pub mix: MixPlan,
     #[serde(default)]
     pub lineage: Vec<String>,
+    /// grooves heard in recordings, by name, for lanes to play in (`DrumLane::groove`)
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub grooves: BTreeMap<String, crate::theory::rhythm::Groove>,
 }
 
 /// the longest song claudius makes, in bars and in time, and the most tracks it plays
@@ -568,6 +604,9 @@ pub struct Track {
     pub choke: Option<String>,
     #[serde(default)]
     pub mix: TrackMix,
+    /// its own swing, instead of the song's (a drum lane's)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub swing: Option<f32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

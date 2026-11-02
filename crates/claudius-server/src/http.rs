@@ -68,6 +68,7 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
         .route("/api/release/preview.png", get(artwork_preview))
         .route("/api/takes", post(add_take).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/pitch-check", post(pitch_check).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
+        .route("/api/groove", post(groove).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/analyze", post(analyze).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/remake", post(remake).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/sample", post(sample).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
@@ -397,6 +398,40 @@ async fn add_take(State(c): State<Ctx>, Query(q): Query<TakeQuery>, headers: Hea
     })
     .await
     .unwrap_or_else(|e| claudius_api::Reply { ok: false, message: format!("internal error: {e}"), version: 0 });
+    Json(reply).into_response()
+}
+
+#[derive(Deserialize)]
+struct GrooveQuery {
+    /// the file's name, whose extension says its format
+    #[serde(default)]
+    name: Option<String>,
+    /// what to call the groove, and the lanes (comma-separated) to put in it
+    #[serde(default)]
+    groove: Option<String>,
+    #[serde(default)]
+    lanes: Option<String>,
+    /// its tempo, when known
+    #[serde(default)]
+    bpm: Option<f64>,
+}
+
+/// a recording whose groove to take, as the file itself, as `extract_groove` takes one from a path
+async fn groove(State(c): State<Ctx>, Query(q): Query<GrooveQuery>, headers: HeaderMap, body: Bytes) -> Response {
+    if !sent_as_file(&headers) {
+        return (
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            "send the recording as the file itself, with Content-Type audio/wav or application/octet-stream",
+        )
+            .into_response();
+    }
+    let app = c.app.clone();
+    let name = q.name.filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "the recording".into());
+    let lanes: Vec<String> =
+        q.lanes.unwrap_or_default().split(',').map(str::trim).filter(|l| !l.is_empty()).map(String::from).collect();
+    let reply = tokio::task::spawn_blocking(move || app.groove_bytes(body.to_vec(), &name, q.groove, &lanes, q.bpm))
+        .await
+        .unwrap_or_else(|e| claudius_api::Reply { ok: false, message: format!("internal error: {e}"), version: 0 });
     Json(reply).into_response()
 }
 

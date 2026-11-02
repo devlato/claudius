@@ -193,7 +193,7 @@ impl Studio {
             Event::Reply { what, result } => {
                 self.inflight = self.inflight.saturating_sub(1);
                 let script = what == "run_script";
-                if matches!(what.as_str(), "analyze" | "remake" | "sample_song") {
+                if matches!(what.as_str(), "analyze" | "remake" | "sample_song" | "extract_groove") {
                     self.view.analyzing = false;
                     let (ok, message) = match &result {
                         Ok(r) => (r.ok, r.message.clone()),
@@ -493,8 +493,12 @@ impl Studio {
                 Step::Listen(remake) => {
                     let f = &self.view.new_song;
                     let remake = remake.then(|| (f.genre_name(), f.seed.trim().parse().ok()));
-                    self.view.listen =
-                        self.view.audio_file.clone().map(|file| panels::Listen { file, remake, sample: false });
+                    self.view.listen = self.view.audio_file.clone().map(|file| panels::Listen {
+                        file,
+                        remake,
+                        sample: false,
+                        groove: false,
+                    });
                 }
                 Step::Exit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             }
@@ -829,6 +833,7 @@ fn is_edit(what: &str) -> bool {
             | "set_drum_step"
             | "set_drum_pattern"
             | "set_trig"
+            | "set_lane"
             | "set_part"
             | "set_mix"
             | "set_fx"
@@ -1175,6 +1180,7 @@ mod tests {
             json!({"cmd": "set_fx", "target": "master", "fx": []}),
             json!({"cmd": "tune", "track": "kick", "speed_ms": 0}),
             json!({"cmd": "set_trig", "lane": "kick", "variant": "main", "step": 0, "trig": {"prob": 0.5}}),
+            json!({"cmd": "set_lane", "lane": "kick", "length": 12}),
             json!({"cmd": "render"}),
             json!({"cmd": "undo"}),
         ];
@@ -1186,7 +1192,7 @@ mod tests {
                 assert!(is_edit(&crate::net::command_name(&cmd)), "{c} is shown at once but not put back");
             }
         }
-        assert_eq!(shown, 16, "every edit above but render and undo is shown at once");
+        assert_eq!(shown, 17, "every edit above but render and undo is shown at once");
         assert!(is_edit("run_script"), "the graph shows the master's loudness at once");
     }
 }

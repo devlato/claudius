@@ -1114,3 +1114,107 @@ fn a_steps_trig_is_set_shown_kept_and_cleared() {
     let r = app.command(Command::SetTrig { lane: "bongo".into(), variant: "main".into(), step: 0, trig: None });
     assert!(!r.ok && r.message.contains("no drum lane 'bongo'"), "{}", r.message);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_lane_takes_its_own_time_and_a_recordings_groove() {
+    let app = app();
+    assert!(
+        app.command(Command::NewSong { genre: "house".into(), seed: Some(3), bpm: None, key: None, loops: false }).ok
+    );
+    let lanes: Vec<String> = app.state().song.unwrap().drums.iter().map(|d| d.lane.clone()).collect();
+    let hat = lanes.iter().find(|l| l.contains("hat")).unwrap().clone();
+    let set = Command::SetLane {
+        lane: hat.clone(),
+        length: Some(12),
+        speed: Some(0.75),
+        swing: Some(0.62),
+        groove: Some("dilla".into()),
+        groove_amount: Some(0.5),
+    };
+    let r = app.command(set);
+    assert!(
+        r.ok && r.message.contains("12 steps round, at 0.75 speed, swing 0.62, in the dilla groove (50%)"),
+        "{}",
+        r.message
+    );
+    let lane = |app: &App| app.state().song.unwrap().drums.into_iter().find(|d| d.lane == hat).unwrap();
+    let d = lane(&app);
+    assert_eq!(
+        (d.length, d.speed, d.swing, d.groove.as_deref(), d.groove_amount),
+        (Some(12), 0.75, Some(0.62), Some("dilla"), 0.5)
+    );
+    assert_eq!(claudius::theory::rhythm::GROOVES, claudius_api::GROOVES);
+    // a recording's groove: eight bars of sixteenths at 100 BPM, the off-beats 0.06 beats late, by path and as a file
+    let (sr, spb) = (claudius::config::SR as f64, 0.6);
+    let n = (8.0 * 4.0 * spb * sr) as usize + 4_800;
+    let mut l = vec![0f32; n];
+    for k in 0..8 * 16 {
+        let b = k as f64 / 4.0 + if k % 2 == 1 { 0.06 } else { 0.0 };
+        let at = (0.1 * sr + b * spb * sr) as usize;
+        for i in 0..240.min(n - at) {
+            l[at + i] += 0.5 * (-(i as f32) / 40.0).exp() * if i % 2 == 0 { 1.0 } else { -1.0 };
+        }
+    }
+    let file = std::env::temp_dir().join(format!("claudius-swung-{}.wav", std::process::id()));
+    claudius::audio::save_wav(&file, &claudius::audio::Stereo { l: l.clone(), r: l }, true).unwrap();
+    let r = app.command(Command::ExtractGroove {
+        path: file.display().to_string(),
+        name: None,
+        lanes: Vec::new(),
+        bpm: None,
+    });
+    assert!(r.ok && r.message.contains("at 62% swing") && r.message.contains(&lanes.join(", ")), "{}", r.message);
+    let swung = format!("claudius-swung-{}", std::process::id());
+    assert_eq!(lane(&app).groove.as_deref(), Some(swung.as_str()), "every lane plays in it");
+    assert_eq!(app.state().song.unwrap().grooves, vec![swung.clone()]);
+    let r = app.command(Command::ExtractGroove {
+        path: file.display().to_string(),
+        name: Some("x".into()),
+        lanes: vec!["bongo".into()],
+        bpm: None,
+    });
+    assert!(!r.ok && r.message.contains("no drum lane 'bongo'"), "{}", r.message);
+    let r = app.command(Command::ExtractGroove {
+        path: file.display().to_string(),
+        name: None,
+        lanes: Vec::new(),
+        bpm: Some(400.0),
+    });
+    assert!(!r.ok && r.message.contains("a groove's tempo is 40 to 250 BPM, not 400"), "{}", r.message);
+    let router = http::router(app.clone(), &Options::default());
+    let wav = std::fs::read(&file).unwrap();
+    std::fs::remove_file(&file).unwrap();
+    let post = |query: &str, kind: &str, bytes: Vec<u8>| {
+        Request::post(format!("/api/groove?{query}"))
+            .header(header::HOST, "localhost")
+            .header(header::CONTENT_TYPE, kind)
+            .body(Body::from(bytes))
+            .unwrap()
+    };
+    let (s, _, _) = call(&router, post("name=loop.wav", "text/plain", wav.clone())).await;
+    assert_eq!(s, StatusCode::UNSUPPORTED_MEDIA_TYPE);
+    // a tempo given, or written in the file's name, is the one it is measured at (here an octave off, to tell)
+    let (s, _, b) =
+        call(&router, post(&format!("name=Loop%20A.wav&lanes={hat}&bpm=50"), "audio/wav", wav.clone())).await;
+    assert!(
+        s == StatusCode::OK
+            && b.contains("groove loop_a, heard in Loop A.wav at 50 BPM")
+            && b.contains(&format!("; {hat} play in it")),
+        "{b}"
+    );
+    assert_eq!(lane(&app).groove.as_deref(), Some("loop_a"));
+    let (s, _, b) = call(&router, post("name=Loop%20B%20200bpm.wav", "audio/wav", wav)).await;
+    let at: f64 = b.split(" at ").nth(1).and_then(|r| r.split(" BPM").next()).and_then(|n| n.parse().ok()).unwrap();
+    assert!(s == StatusCode::OK && (at / 200.0 - 1.0).abs() < 0.02, "{b}");
+    let silent = claudius::audio::Stereo::zeros(48_000 * 2);
+    let quiet = std::env::temp_dir().join(format!("claudius-quiet-{}.wav", std::process::id()));
+    claudius::audio::save_wav(&quiet, &silent, true).unwrap();
+    let r = app.command(Command::ExtractGroove {
+        path: quiet.display().to_string(),
+        name: None,
+        lanes: Vec::new(),
+        bpm: None,
+    });
+    assert!(!r.ok && r.message.contains("too few drum hits"), "{}", r.message);
+    std::fs::remove_file(&quiet).unwrap();
+}

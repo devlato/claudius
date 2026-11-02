@@ -384,6 +384,11 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
         }
         let sound = kit.as_deref().and_then(|k| kit_sound(&spec.name, k)).unwrap_or(sound);
         drums.push(DrumLane {
+            length: None,
+            speed: 1.0,
+            swing: None,
+            groove: None,
+            groove_amount: 1.0,
             name: spec.name.clone(),
             sound,
             patterns,
@@ -474,6 +479,7 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
         transitions,
         mix,
         lineage: vec![format!("generated: {} seed {seed}", g.name)],
+        grooves: BTreeMap::new(),
     }
 }
 
