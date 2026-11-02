@@ -154,6 +154,16 @@ mod tests {
         assert!(!r.set_up_check(Some(&c)), "once");
         let sung = PitchCheck { id: 5, status: TakeStatus::Taken, ..c.clone() };
         assert!(!r.set_up_check(Some(&sung)), "a check already sung opens nothing");
+        // the window is the check's, unless a take is in hand: that is finished first
+        assert!(r.checking(true) && !r.checking(false));
+        let song = Arc::new(crate::audio::Pcm { rate: 48_000, channels: 2, samples: Vec::new() });
+        r.held =
+            Some(Held { wav: Vec::new(), secs: 1.0, from: "drop".into(), song, start: 0.0, bar: 2.0, request: None });
+        assert!(r.take_in_hand() && !r.checking(true), "a take waiting to be kept keeps the window");
+        (r.held, r.sending) = (None, true);
+        assert!(!r.checking(true), "nor one on its way");
+        r.check_sending = true;
+        assert!(r.checking(false), "a check's answers on their way are the check's");
         let g = guide(&c);
         let beat = (60.0 / 90.0 * 48_000.0) as usize;
         assert_eq!((g.rate, g.channels, g.frames()), (48_000, 2, 10 * beat));
@@ -338,6 +348,18 @@ impl Record {
         true
     }
 
+    /// a take in hand: one recording, waiting to be kept, or on its way (a pitch check waits for it)
+    fn take_in_hand(&self) -> bool {
+        self.live.as_ref().is_some_and(|l| l.check.is_none())
+            || self.held.is_some()
+            || (self.sending && !self.check_sending)
+    }
+
+    /// the window is the pitch check's: one waits, is being sung, or is on its way, and no take is in hand
+    fn checking(&self, waiting: bool) -> bool {
+        !self.take_in_hand() && (waiting || self.live.as_ref().is_some_and(|l| l.check.is_some()) || self.check_sending)
+    }
+
     /// what claudius heard in a pitch check's answers (the How it is sung window shows all of it)
     pub fn check_answered(&mut self, ok: bool, message: String) {
         (self.sending, self.check_sending) = (false, false);
@@ -407,9 +429,7 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
         return;
     }
     let mut open = true;
-    let r = &cx.view.record;
-    let checking =
-        waiting_check(cx.state).is_some() || r.live.as_ref().is_some_and(|l| l.check.is_some()) || r.check_sending;
+    let checking = cx.view.record.checking(waiting_check(cx.state).is_some());
     egui::Window::new(if checking { "Check your pitch" } else { "Record a take" })
         .id(egui::Id::unique("record"))
         .open(&mut open)
@@ -682,10 +702,10 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
 fn check_body(ui: &mut Ui, cx: &mut Cx) -> bool {
     let waiting = waiting_check(cx.state);
     let r = &mut cx.view.record;
-    let singing = r.live.as_ref().and_then(|l| l.check.map(|id| (id, l.recorder.time(), l.beat)));
-    if waiting.is_none() && singing.is_none() && !r.check_sending {
+    if !r.checking(waiting.is_some()) {
         return false;
     }
+    let singing = r.live.as_ref().and_then(|l| l.check.map(|id| (id, l.recorder.time(), l.beat)));
     let note = waiting.as_ref().map(|c| c.note.clone()).unwrap_or_default();
     let asks = if note.is_empty() {
         "A pitch check".to_string()
@@ -750,6 +770,10 @@ fn check_body(ui: &mut Ui, cx: &mut Cx) -> bool {
 
 /// a pitch check to ask for, and the voice the last one heard
 fn offer_check(ui: &mut Ui, cx: &mut Cx) {
+    if waiting_check(cx.state).is_some() {
+        ui.label(small("A pitch check waits: it comes up once this take is kept or thrown away.").color(TEXT_DIM));
+        return;
+    }
     ui.horizontal(|ui| {
         let asked = ui
             .button(small("Check my pitch"))
@@ -1244,6 +1268,7 @@ fn keep_up(ctx: &egui::Context, cx: &mut Cx) {
     cx.view.record.check_asked(cx.state.pitch_check.as_ref());
     if std::mem::take(&mut cx.view.record.check)
         && cx.view.record.live.is_none()
+        && !cx.view.record.take_in_hand()
         && let Some(c) = waiting_check(cx.state)
     {
         begin_check(cx, &c);

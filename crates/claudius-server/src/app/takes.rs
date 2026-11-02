@@ -91,7 +91,11 @@ impl App {
             }
         }
         let v = self.update(|s| {
-            if let Some((_, view)) = &mut s.pitch_check {
+            // the check these answers are for, while it waits: one asked for since keeps waiting for its own
+            if let Some((_, view)) = &mut s.pitch_check
+                && view.id == id
+                && view.status == claudius_api::TakeStatus::Waiting
+            {
                 (view.status, view.answer) = (claudius_api::TakeStatus::Taken, Some(said.clone()));
             }
             s.voice = Some(heard.voice.clone());
