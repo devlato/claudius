@@ -595,12 +595,15 @@ pub fn new_part(
     let sound = draw_sound(spec, g, available, used, rng);
     used.extend(palette::identity(&sound));
     let mut mix = spec.mix.clone();
-    // harmony parts from single-voice patches would sit dead centre: a light chorus spreads them
-    let single_voice = matches!(&sound, Sound::Synth { patch, .. } if patch.osc.iter().all(|o| o.voices <= 1));
-    if single_voice
-        && matches!(spec.role, Role::Chords | Role::Keys | Role::Pad)
-        && !mix.fx.iter().any(|e| e.name() == "chorus")
-    {
+    // harmony parts from single-voice patches or mono recordings would sit dead centre: a light chorus spreads them
+    let harmony = matches!(spec.role, Role::Chords | Role::Keys | Role::Pad);
+    let centred = harmony
+        && match &sound {
+            Sound::Synth { patch, .. } => patch.osc.iter().all(|o| o.voices <= 1),
+            Sound::Instrument { name, .. } => claudius_packs::instrument(name, None).is_ok_and(|i| i.recorded_mono()),
+            _ => false,
+        };
+    if centred && !mix.fx.iter().any(|e| e.name() == "chorus") {
         mix.fx.push(Effect::Chorus { rate_hz: 0.45, depth_ms: 2.5, delay_ms: 11.0, mix: 0.4.into() });
     }
     Part {

@@ -86,7 +86,8 @@ so that no two songs play quite the same patch, and from every instrument of the
 genre and role: strings, brass, woodwinds, mallets, pianos, electric pianos, guitars, organs, choirs and more. No two
 parts of a song play the same sound, and a drum lane sometimes plays a kit of its own, so a song's drums come from
 more than one machine. Packs without a licence or with share-alike terms are never drawn; choose them by hand. The
-studio's Parts tab offers every installed instrument that can play a part.
+studio's Parts tab offers every installed instrument that can play a part. Chords, keys and pads on an instrument
+recorded in mono get a light chorus, as a single-voice synth does, so they do not sit dead centre.
 
 Nor do new songs share a shape or a mix. A genre's forms are templates: each song lengthens or shortens their
 sections, and may add a bridge, a third verse and chorus, a lift into the first chorus or a last chorus played twice,
