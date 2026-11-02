@@ -1,6 +1,7 @@
 //! The step sequencer: one row per drum lane, one cell per 1/16 step of the lane's pattern (`pattern_bars * 16`),
 //! for one variant at a time. Click toggles a step (velocity 0.8), dragging paints, shift-click / shift-drag sets the
-//! velocity, right-click offers velocity presets and whole-lane patterns.
+//! velocity, right-click offers velocity presets, the step's trig (its chance, condition, ratchet, flam, nudge and
+//! locks) and whole-lane patterns. A step with a trig shows what it does on its cell.
 
 use claudius_api::Command;
 use eframe::egui::{self, Align2, Color32, Rect, RichText, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
@@ -211,7 +212,17 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     if ghost {
                         fill = theme::mix(fill, WELL, 0.55);
                     }
+                    let trig = trig_of(d, &variant, s % len.max(1)).filter(|_| v > 0.0 && !ghost);
+                    // a nudged step sits off the grid by as much
+                    let grid_cell = cell;
+                    let cell = cell.translate(vec2(trig.map_or(0.0, |t| t.nudge) * cell_w, 0.0));
+                    if cell != grid_cell {
+                        p.rect_filled(grid_cell, 3.0, off);
+                    }
                     p.rect_filled(cell, 3.0, fill);
+                    if let Some(tr) = trig {
+                        draw_trig(p, cell, tr);
+                    }
                     if v > 0.0 && !ghost {
                         let h = (cell.height() - 4.0) * v;
                         let meter = Rect::from_min_max(
@@ -334,7 +345,9 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         }
                     )
                 };
-                resp.clone().on_hover_text(format!("{name} · bar {bar} beat {beat}.{tick} · {what}"));
+                let trig = trig_of(&song.drums[li], &variant, s % len.max(1)).map(trig_words).unwrap_or_default();
+                let trig = if trig.is_empty() || v <= 0.0 { String::new() } else { format!(" · {trig}") };
+                resp.clone().on_hover_text(format!("{name} · bar {bar} beat {beat}.{tick} · {what}{trig}"));
             }
             if resp.secondary_clicked() {
                 cx.view.cell_menu = pointer.and_then(|p| {
@@ -372,6 +385,10 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                             ui.close();
                         }
                     }
+                    let current = trig_of(&song.drums[li], &variant, step).cloned();
+                    ui.menu_button("Trig", |ui| {
+                        trig_editor(ui, &mut cx.view.trig_edit, &lane, &variant, step, current, &mut out);
+                    });
                     ui.separator();
                 }
                 ui.label(RichText::new(format!("{lane} · {variant}")).strong());
@@ -405,6 +422,173 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         });
     });
     cx.out.extend(out);
+}
+
+/// the trig of step `step` of `d`'s variant `variant` (main's when the lane has no such variant, as its steps are)
+fn trig_of<'a>(d: &'a claudius_api::DrumView, variant: &str, step: usize) -> Option<&'a claudius_api::TrigView> {
+    let shown = if d.variants.iter().any(|(v, _)| v == variant) { variant } else { "main" };
+    d.trigs.iter().find(|(v, _)| v == shown)?.1.iter().find(|(s, _)| *s == step).map(|(_, t)| t)
+}
+
+/// what a trig does, in a few words, for a step's tooltip
+fn trig_words(t: &claudius_api::TrigView) -> String {
+    let d = claudius_api::TrigView::default();
+    let mut w = Vec::new();
+    if t.prob < 1.0 {
+        w.push(format!("{:.0}% of the time", t.prob * 100.0));
+    }
+    if t.cond != d.cond {
+        w.push(format!("only {}", t.cond));
+    }
+    if t.ratchet > 1 {
+        w.push(format!("{} strokes", t.ratchet));
+    }
+    if t.flam > 0.0 {
+        w.push(format!("flam {:.0} ms", t.flam));
+    }
+    if t.nudge != 0.0 {
+        w.push(format!("{} {:.2}", if t.nudge < 0.0 { "early" } else { "late" }, t.nudge.abs()));
+    }
+    if t.pitch != 0 {
+        w.push(format!("{:+} st", t.pitch));
+    }
+    if t.decay != d.decay || t.tone != d.tone || t.pan != d.pan {
+        w.push("sound locked".into());
+    }
+    w.join(", ")
+}
+
+/// a trig's marks on its cell (a nudge has moved the cell itself): a ratchet's strokes as the cell cut into as many,
+/// its chance, its condition, a dot for a flam, a diamond for what it locks in the sound
+fn draw_trig(p: &egui::Painter, cell: Rect, t: &claudius_api::TrigView) {
+    let ink = theme::alpha(Color32::WHITE, 0.9);
+    let font = theme::prop(8.0);
+    if t.ratchet > 1 {
+        let n = t.ratchet as usize;
+        for k in 1..n {
+            let x = cell.left() + k as f32 * cell.width() / n as f32;
+            p.line_segment(
+                [pos2(x, cell.top() + 1.0), pos2(x, cell.bottom() - 1.0)],
+                Stroke::new(1.5, theme::alpha(Color32::BLACK, 0.55)),
+            );
+        }
+    }
+    if t.prob < 1.0 {
+        p.text(
+            cell.right_bottom() - vec2(2.0, 1.0),
+            Align2::RIGHT_BOTTOM,
+            format!("{:.0}", t.prob * 100.0),
+            font.clone(),
+            ink,
+        );
+    }
+    let d = claudius_api::TrigView::default();
+    if t.cond != d.cond {
+        let short = match t.cond.as_str() {
+            "first" => "F".to_string(),
+            "last" => "L".to_string(),
+            "!first" => "!F".to_string(),
+            "!last" => "!L".to_string(),
+            other => other.to_string(),
+        };
+        p.text(pos2(cell.center().x, cell.top() + 1.5), Align2::CENTER_TOP, short, font.clone(), ink);
+    }
+    if t.flam > 0.0 {
+        p.circle_filled(pos2(cell.left() - 1.5, cell.center().y), 2.0, ink);
+    }
+    if t.pitch != 0 || t.decay != d.decay || t.tone != d.tone || t.pan != d.pan {
+        let c = pos2(cell.right() - 4.5, cell.bottom() - 11.0);
+        let r = 2.4;
+        p.add(egui::Shape::convex_polygon(
+            vec![c + vec2(0.0, -r), c + vec2(r, 0.0), c + vec2(0.0, r), c + vec2(-r, 0.0)],
+            ink,
+            Stroke::NONE,
+        ));
+    }
+}
+
+/// a slider or a drag let go, or a value typed or stepped: the moment to send it
+fn let_go(r: &egui::Response) -> bool {
+    r.drag_stopped() || (r.changed() && !r.dragged())
+}
+
+/// The step's trig as controls; what changes is sent as `set_trig` when a control is let go. The menu edits its own
+/// copy, taken up afresh for another step.
+fn trig_editor(
+    ui: &mut Ui,
+    edit: &mut Option<(String, String, usize, claudius_api::TrigView)>,
+    lane: &str,
+    variant: &str,
+    step: usize,
+    current: Option<claudius_api::TrigView>,
+    out: &mut Vec<Command>,
+) {
+    let mut t = match edit.as_ref() {
+        Some((l, v, s, t)) if l == lane && v == variant && *s == step => t.clone(),
+        _ => current.unwrap_or_default(),
+    };
+    let mut send = false;
+    egui::Grid::new(("trig-edit", lane, step)).num_columns(2).spacing([10.0, 5.0]).show(ui, |ui| {
+        ui.label(small("chance"));
+        let r = ui.add(egui::Slider::new(&mut t.prob, 0.0..=1.0).custom_formatter(|v, _| format!("{:.0}%", v * 100.0)));
+        send |= let_go(&r);
+        ui.end_row();
+        ui.label(small("plays"));
+        let before = t.cond.clone();
+        egui::ComboBox::from_id_salt(("trig-cond", lane, step)).selected_text(&t.cond).show_ui(ui, |ui| {
+            for (c, what) in [
+                ("always", "every time"),
+                ("1:2", "the first of every two times round"),
+                ("2:2", "the second of every two"),
+                ("1:4", "the first of every four"),
+                ("4:4", "the fourth of every four"),
+                ("first", "the first time round in a section"),
+                ("last", "the last time round in a section"),
+                ("!first", "every time but the first"),
+                ("!last", "every time but the last"),
+            ] {
+                ui.selectable_value(&mut t.cond, c.to_string(), c).on_hover_text(what);
+            }
+        });
+        send |= t.cond != before;
+        ui.end_row();
+        ui.label(small("ratchet"));
+        send |= let_go(&ui.add(egui::Slider::new(&mut t.ratchet, 1..=8).suffix(" strokes")));
+        ui.end_row();
+        ui.label(small("ramp"));
+        send |= let_go(&ui.add(egui::Slider::new(&mut t.ramp, -1.0..=1.0)).on_hover_text("-1 fades, 1 swells"));
+        ui.end_row();
+        ui.label(small("flam"));
+        send |= let_go(&ui.add(egui::Slider::new(&mut t.flam, 0.0..=60.0).suffix(" ms")));
+        ui.end_row();
+        ui.label(small("nudge"));
+        let r = ui
+            .add(egui::Slider::new(&mut t.nudge, -0.5..=0.5).suffix(" step"))
+            .on_hover_text("below 0 early, above late");
+        send |= let_go(&r);
+        ui.end_row();
+        ui.label(small("pitch"));
+        send |= let_go(&ui.add(egui::Slider::new(&mut t.pitch, -12..=12).suffix(" st")));
+        ui.end_row();
+        ui.label(small("decay"));
+        send |= let_go(&ui.add(egui::Slider::new(&mut t.decay, 0.1..=4.0).logarithmic(true).prefix("x")));
+        ui.end_row();
+        ui.label(small("tone"));
+        send |=
+            let_go(&ui.add(egui::Slider::new(&mut t.tone, -1.0..=1.0)).on_hover_text("darker below 0, brighter above"));
+        ui.end_row();
+        ui.label(small("pan"));
+        send |= let_go(&ui.add(egui::Slider::new(&mut t.pan, -1.0..=1.0)));
+        ui.end_row();
+    });
+    if ui.button("Clear the trig").clicked() {
+        (t, send) = (claudius_api::TrigView::default(), true);
+    }
+    *edit = Some((lane.to_string(), variant.to_string(), step, t.clone()));
+    if send {
+        let trig = (t != claudius_api::TrigView::default()).then_some(t);
+        out.push(Command::SetTrig { lane: lane.to_string(), variant: variant.to_string(), step, trig });
+    }
 }
 
 /// a lane's name, step count and the steps shown for `variant` (falling back to main)

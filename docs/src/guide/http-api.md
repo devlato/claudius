@@ -148,7 +148,7 @@ The MCP tools wait the same way after every edit.
 | `layers` | every name a section can switch on: drum lanes, parts, loops, pattern tracks |
 | `tracks` | `TrackView` per track: `name`, `kind` (`drum`, `part`, `loop`, `pattern`, `fx`), `role`, `sound` in words, the mix (`level_db`, `pan`, `reverb`, `delay`, `duck`, `muted`, `solo`), its `bus`, its chain of effects `fx` (each as the song keeps it, a map named by `fx`, as [`fx()`](../language/mixing.md#effect-chains) writes it) and `loudness` in the master (LUFS while playing) once rendered |
 | `mix` | `MixView`: the `buses` as `[name, effects]`, the `master` chain, its `lufs` and `ceiling_db`, and the `reverb` and `delay` the sends feed |
-| `drums` | `DrumView` per lane: `lane`, `pattern_bars`, and `variants` as `[name, velocities]` with one velocity per sixteenth (0 for none) |
+| `drums` | `DrumView` per lane: `lane`, `pattern_bars`, `variants` as `[name, velocities]` with one velocity per sixteenth (0 for none), and `trigs` as `[name, [[step, trig]]]` for the steps with a [trig](../language/song-functions.md#trig) (`prob`, `cond`, `ratchet`, `ramp`, `flam`, `nudge`, `pitch`, `decay`, `tone`, `pan`, each only where it differs from its default) |
 | `parts` | `PartView` per generated part: `name`, `role`, `style`, the `styles` its genre offers, `preset`, the `presets` it may switch to, `register` (MIDI low, high), `density` |
 | `script` | the song as a script; running it on the song changes nothing |
 | `lineage` | what was done to the song, oldest first |
@@ -205,6 +205,7 @@ fields marked optional may be left out.
 | `toggle_layer` | `section`, `layer` | switches a track on or off in a section |
 | `set_drum_step` | `lane`, `variant`, `step`, `velocity` | sets one sixteenth (0 removes the hit); a new variant starts as a copy of `main` |
 | `set_drum_pattern` | `lane`, `variant`, `steps` | a whole variant in step notation, as `drum()` |
+| `set_trig` | `lane`, `variant`, `step` (a sixteenth, from 0); optional `trig` | what the step does beyond striking, as [`trig()`](../language/song-functions.md#trig) sets it; no `trig` clears it, and a step without a hit gets one |
 | `set_part` | `name`; optional `style`, `preset`, `register` (`[low, high]`), `density`, `reseed` (false) | as `part()`; `reseed` writes the part again with a new seed |
 | `set_mix` | `track`; optional `level_db`, `pan`, `reverb`, `delay`, `duck`, `muted`, `solo`, `bus` | as `mix()` |
 | `set_fx` | `target` (`track:<name>`, `bus:<name>`, `master`, `send:reverb`, `send:delay`), `fx` (effects as `TrackView.fx` has them; a send takes exactly one) | replaces that chain, as [`fx()`, `bus()`, `master(#{ fx })` and `send_fx()`](../language/mixing.md#effect-chains) do; an effect it cannot read is refused with its place and why |

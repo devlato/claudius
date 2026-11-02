@@ -5,11 +5,193 @@ use serde::{Deserialize, Serialize};
 
 use crate::rng::Rng;
 
-/// one drum hit: position in beats within its pattern, velocity 0..1
+/// one drum hit: position in beats within its pattern, velocity 0..1, and what the step does beyond striking
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Hit {
     pub t: f64,
     pub v: f32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trig: Option<Trig>,
+}
+
+impl Hit {
+    pub const fn new(t: f64, v: f32) -> Hit {
+        Hit { t, v, trig: None }
+    }
+}
+
+/// What a step does beyond striking, as a drum machine's trig does: when it plays (a chance each time round, a
+/// condition), how it strikes (a ratchet of strokes within its sixteenth, a flam), where (nudged off the grid), and
+/// what it changes in the sound for that stroke (pitch, decay, tone, pan).
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Trig {
+    /// the chance it plays each time round, 0 to 1
+    #[serde(skip_serializing_if = "is_one")]
+    pub prob: f32,
+    #[serde(skip_serializing_if = "Cond::is_always")]
+    pub cond: Cond,
+    /// strokes within its sixteenth (1 once, 2 two 32nds, 3 a triplet, up to 8), and how their velocity moves
+    /// across them (1 swells to the last, -1 fades from the first)
+    #[serde(skip_serializing_if = "is_one_u8")]
+    pub ratchet: u8,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub ramp: f32,
+    /// a grace stroke this many ms before it, at half its velocity (0: none)
+    #[serde(skip_serializing_if = "is_zero")]
+    pub flam: f32,
+    /// where it lands off the grid, in sixteenths: -0.5 early to 0.5 late
+    #[serde(skip_serializing_if = "is_zero")]
+    pub nudge: f32,
+    /// its pitch in semitones; its decay, times the lane's; its tone, -1 darker to 1 brighter; its pan, -1 to 1
+    #[serde(skip_serializing_if = "is_zero_i8")]
+    pub pitch: i8,
+    #[serde(skip_serializing_if = "is_one")]
+    pub decay: f32,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub tone: f32,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub pan: f32,
+}
+
+impl Default for Trig {
+    fn default() -> Trig {
+        Trig {
+            prob: 1.0,
+            cond: Cond::Always,
+            ratchet: 1,
+            ramp: 0.0,
+            flam: 0.0,
+            nudge: 0.0,
+            pitch: 0,
+            decay: 1.0,
+            tone: 0.0,
+            pan: 0.0,
+        }
+    }
+}
+
+impl Trig {
+    /// every setting within its range
+    pub fn clamped(self) -> Trig {
+        Trig {
+            prob: self.prob.clamp(0.0, 1.0),
+            cond: self.cond,
+            ratchet: self.ratchet.clamp(1, 8),
+            ramp: self.ramp.clamp(-1.0, 1.0),
+            flam: self.flam.clamp(0.0, 60.0),
+            nudge: self.nudge.clamp(-0.5, 0.5),
+            pitch: self.pitch.clamp(-24, 24),
+            decay: self.decay.clamp(0.1, 4.0),
+            tone: self.tone.clamp(-1.0, 1.0),
+            pan: self.pan.clamp(-1.0, 1.0),
+        }
+    }
+
+    /// The strokes it makes for a hit at `t` (beats) of velocity `v` at `bpm`: (beat, velocity), the flam's grace
+    /// stroke first.
+    pub fn strokes(&self, t: f64, v: f32, bpm: f64) -> Vec<(f64, f32)> {
+        let mut out = Vec::new();
+        if self.flam > 0.0 {
+            out.push((t - self.flam as f64 / 1000.0 * bpm / 60.0, v * 0.5));
+        }
+        let n = self.ratchet.max(1);
+        for k in 0..n {
+            let across = if n == 1 { 0.0 } else { k as f32 / (n - 1) as f32 };
+            // a swell starts soft and ends at the velocity; a fade the other way round
+            let level = 1.0 - self.ramp.abs() * if self.ramp > 0.0 { 1.0 - across } else { across } * 0.75;
+            out.push((t + 0.25 * k as f64 / n as f64, (v * level).clamp(0.05, 1.0)));
+        }
+        out
+    }
+}
+
+fn is_one(v: &f32) -> bool {
+    *v == 1.0
+}
+fn is_zero(v: &f32) -> bool {
+    *v == 0.0
+}
+fn is_one_u8(v: &u8) -> bool {
+    *v == 1
+}
+fn is_zero_i8(v: &i8) -> bool {
+    *v == 0
+}
+
+/// When a step plays, counted in times round its pattern from the start of each section: every time, the `a`-th of
+/// every `b` ("1:2" every other time, "4:4" the fourth), only the first or the last time round in a section, or every
+/// time but those. Written as a string: "always", "1:2", "first", "last", "!first", "!last".
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub enum Cond {
+    #[default]
+    Always,
+    Every(u8, u8),
+    First,
+    Last,
+    NotFirst,
+    NotLast,
+}
+
+impl Cond {
+    pub fn is_always(&self) -> bool {
+        *self == Cond::Always
+    }
+
+    /// whether it plays the `k`-th time round (from 0) of `n` in a section
+    pub fn plays(&self, k: usize, n: usize) -> bool {
+        match *self {
+            Cond::Always => true,
+            Cond::Every(a, b) => k % b.max(1) as usize == (a.max(1) - 1) as usize % b.max(1) as usize,
+            Cond::First => k == 0,
+            Cond::Last => k + 1 == n,
+            Cond::NotFirst => k != 0,
+            Cond::NotLast => k + 1 != n,
+        }
+    }
+}
+
+impl TryFrom<String> for Cond {
+    type Error = String;
+
+    fn try_from(s: String) -> Result<Cond, String> {
+        let s = s.trim().to_lowercase();
+        Ok(match s.as_str() {
+            "" | "always" => Cond::Always,
+            "first" => Cond::First,
+            "last" => Cond::Last,
+            "!first" | "not first" => Cond::NotFirst,
+            "!last" | "not last" => Cond::NotLast,
+            other => {
+                let parsed = other
+                    .split_once(':')
+                    .and_then(|(a, b)| Some((a.trim().parse::<u8>().ok()?, b.trim().parse::<u8>().ok()?)));
+                match parsed {
+                    Some((a, b)) if (1..=16).contains(&b) && (1..=b).contains(&a) => Cond::Every(a, b),
+                    _ => {
+                        return Err(format!(
+                            "a step plays always, a:b (1:2, 3:4 ...: the a-th time round of every b, b up to 16), \
+                             first, last, !first or !last, not '{other}'"
+                        ));
+                    }
+                }
+            }
+        })
+    }
+}
+
+impl From<Cond> for String {
+    fn from(c: Cond) -> String {
+        match c {
+            Cond::Always => "always".into(),
+            Cond::Every(a, b) => format!("{a}:{b}"),
+            Cond::First => "first".into(),
+            Cond::Last => "last".into(),
+            Cond::NotFirst => "!first".into(),
+            Cond::NotLast => "!last".into(),
+        }
+    }
 }
 
 /// a lane's habits: probability of a hit on each 1/16 step (16 = one bar, 32 = two bars); values >= 1 always hit.
@@ -51,9 +233,9 @@ fn sample_bar(t: &LaneTemplate, rng: &mut Rng, vary: bool) -> Vec<Hit> {
         let hit = p >= 1.0 || rng.chance(p as f64);
         if hit {
             let v = t.vel.0 + (t.vel.1 - t.vel.0) * (0.35 + 0.65 * step_weight(s)) * (0.85 + 0.15 * rng.f32());
-            hits.push(Hit { t: s as f64 * 0.25, v: v.clamp(0.05, 1.0) });
+            hits.push(Hit::new(s as f64 * 0.25, v.clamp(0.05, 1.0)));
         } else if t.ghost > 0.0 && rng.chance(t.ghost as f64) {
-            hits.push(Hit { t: s as f64 * 0.25, v: (t.vel.0 * 0.45).clamp(0.05, 1.0) });
+            hits.push(Hit::new(s as f64 * 0.25, (t.vel.0 * 0.45).clamp(0.05, 1.0)));
         }
     }
     hits
@@ -72,7 +254,7 @@ pub fn generate(t: &LaneTemplate, bars: u32, rng: &mut Rng) -> Vec<Hit> {
         let part =
             if last && t.vary > 0.0 && rng.chance(t.vary as f64) { sample_bar(t, rng, true) } else { main.clone() };
         for h in &part {
-            out.push(Hit { t: h.t + b as f64 * 4.0, v: h.v });
+            out.push(Hit { t: h.t + b as f64 * 4.0, ..*h });
         }
         b += tmpl_bars;
     }
@@ -123,7 +305,7 @@ pub fn add_rolls(hits: &[Hit], len_beats: f64, prob: f32, rng: &mut Rng) -> Vec<
         for k in 0..n {
             let f = k as f32 / n.max(1) as f32;
             let v = if up { 0.45 + 0.5 * f } else { 0.95 - 0.45 * f };
-            out.push(Hit { t: start + k as f64 / div, v });
+            out.push(Hit::new(start + k as f64 / div, v));
         }
     }
     out
@@ -164,7 +346,7 @@ pub fn euclid_hits(k: usize, n: usize, rot: usize, bars: u32, vel: f32) -> Vec<H
     for b in 0..bars {
         for (i, on) in pat.iter().enumerate() {
             if *on {
-                out.push(Hit { t: b as f64 * 4.0 + i as f64 * step, v: vel * (0.75 + 0.25 * step_weight(i)) });
+                out.push(Hit::new(b as f64 * 4.0 + i as f64 * step, vel * (0.75 + 0.25 * step_weight(i))));
             }
         }
     }
@@ -181,7 +363,7 @@ pub fn snare_roll(len_beats: f64) -> Vec<Hit> {
         let end = t + span;
         while t < end - 1e-9 && t < len_beats {
             let v = 0.4 + 0.6 * (t / len_beats) as f32;
-            out.push(Hit { t, v });
+            out.push(Hit::new(t, v));
             t += step;
         }
     }
@@ -193,18 +375,18 @@ pub fn fill(kind: &str, len_beats: f64, rng: &mut Rng) -> Vec<Hit> {
     match kind {
         "roll" => {
             let n = (len_beats * 4.0) as usize;
-            (0..n).map(|i| Hit { t: i as f64 * 0.25, v: 0.5 + 0.5 * i as f32 / n as f32 }).collect()
+            (0..n).map(|i| Hit::new(i as f64 * 0.25, 0.5 + 0.5 * i as f32 / n as f32)).collect()
         }
         "triplets" => {
             let n = (len_beats * 3.0) as usize;
-            (0..n).map(|i| Hit { t: i as f64 / 3.0, v: 0.6 + 0.4 * i as f32 / n as f32 }).collect()
+            (0..n).map(|i| Hit::new(i as f64 / 3.0, 0.6 + 0.4 * i as f32 / n as f32)).collect()
         }
         _ => {
             let mut out = Vec::new();
             let n = (len_beats * 4.0) as usize;
             for i in 0..n {
                 if i % 2 == 1 && rng.chance(0.5) || rng.chance(0.55) {
-                    out.push(Hit { t: i as f64 * 0.25, v: 0.55 + 0.45 * rng.f32() });
+                    out.push(Hit::new(i as f64 * 0.25, 0.55 + 0.45 * rng.f32()));
                 }
             }
             out
@@ -262,4 +444,55 @@ pub fn syncopation(hits: &[Hit], len_beats: f64) -> f64 {
 
 pub fn density(hits: &[Hit], len_beats: f64) -> f64 {
     hits.len() as f64 / len_beats.max(1.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_condition_counts_the_times_round_in_a_section() {
+        let plays = |c: &str, n: usize| -> Vec<usize> {
+            let c = Cond::try_from(c.to_string()).unwrap();
+            (0..n).filter(|&k| c.plays(k, n)).collect()
+        };
+        assert_eq!(plays("1:2", 6), [0, 2, 4]);
+        assert_eq!(plays("2:2", 6), [1, 3, 5]);
+        assert_eq!(plays("4:4", 8), [3, 7]);
+        assert_eq!((plays("first", 4), plays("last", 4)), (vec![0], vec![3]));
+        assert_eq!((plays("!first", 3), plays("!last", 3)), (vec![1, 2], vec![0, 1]));
+        assert_eq!(plays("always", 2), [0, 1]);
+        for bad in ["5:4", "0:2", "1:17", "sometimes"] {
+            let e = Cond::try_from(bad.to_string()).unwrap_err();
+            assert!(e.contains(&format!("not '{bad}'")), "{e}");
+        }
+        assert_eq!(String::from(Cond::Every(3, 4)), "3:4");
+    }
+
+    #[test]
+    fn a_ratchet_strikes_within_its_sixteenth_and_a_flam_comes_before() {
+        let swell = Trig { ratchet: 4, ramp: 1.0, ..Trig::default() };
+        let s = swell.strokes(1.0, 0.8, 120.0);
+        let at: Vec<f64> = s.iter().map(|x| x.0).collect();
+        assert_eq!(at, [1.0, 1.0625, 1.125, 1.1875]);
+        assert!(s.windows(2).all(|w| w[0].1 < w[1].1) && (s[3].1 - 0.8).abs() < 1e-6, "{s:?}");
+        let fade = Trig { ratchet: 3, ramp: -1.0, ..Trig::default() }.strokes(0.0, 1.0, 120.0);
+        assert!(fade.windows(2).all(|w| w[0].1 > w[1].1) && fade[0].1 == 1.0, "{fade:?}");
+        // 20 ms at 120 BPM is 0.04 beats, at half the velocity
+        let flam = Trig { flam: 20.0, ..Trig::default() }.strokes(2.0, 0.8, 120.0);
+        assert_eq!(flam.len(), 2);
+        assert!((flam[0].0 - 1.96).abs() < 1e-9 && flam[0].1 == 0.4 && flam[1] == (2.0, 0.8), "{flam:?}");
+    }
+
+    #[test]
+    fn a_hit_without_a_trig_is_written_as_before_and_a_trig_only_with_what_it_changes() {
+        assert_eq!(serde_json::to_string(&Hit::new(0.5, 0.8)).unwrap(), r#"{"t":0.5,"v":0.8}"#);
+        let h =
+            Hit { trig: Some(Trig { prob: 0.5, cond: Cond::Every(1, 2), ..Trig::default() }), ..Hit::new(1.0, 1.0) };
+        let json = serde_json::to_string(&h).unwrap();
+        assert_eq!(json, r#"{"t":1.0,"v":1.0,"trig":{"prob":0.5,"cond":"1:2"}}"#);
+        assert_eq!(serde_json::from_str::<Hit>(&json).unwrap(), h);
+        let wide = Trig { ratchet: 20, nudge: 2.0, pan: -3.0, ..Trig::default() }.clamped();
+        assert_eq!((wide.ratchet, wide.nudge, wide.pan), (8, 0.5, -1.0));
+    }
 }

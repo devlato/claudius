@@ -964,7 +964,7 @@ fn the_studio_reads_and_writes_steps_as_scripts_do() {
     );
     for i in 1..=100 {
         let v = i as f32 / 100.0;
-        let (steps, _) = claudius::script::hits_to_steps(&[Hit { t: 0.0, v }], 1);
+        let (steps, _) = claudius::script::hits_to_steps(&[Hit::new(0.0, v)], 1);
         assert_eq!(steps.chars().next(), Some(claudius_api::step_char(v)), "velocity {v}");
     }
     for c in "Xxo123456789".chars() {
@@ -1059,4 +1059,58 @@ async fn a_pitch_check_sung_back_becomes_the_voice_tune_sings_as() {
     assert_eq!(app.state().pitch_check.map(|c| c.status), Some(TakeStatus::Cancelled));
     assert!(!app.command(Command::CancelPitchCheck { id }).ok);
     std::fs::remove_dir_all(&home).unwrap();
+}
+
+#[test]
+fn a_steps_trig_is_set_shown_kept_and_cleared() {
+    use claudius_api::TrigView;
+    let app = app();
+    assert!(
+        app.command(Command::NewSong { genre: "house".into(), seed: Some(3), bpm: None, key: None, loops: false }).ok
+    );
+    let lane = app.state().song.unwrap().drums.iter().find(|d| d.lane.contains("hat")).unwrap().lane.clone();
+    let set = |trig: Option<TrigView>| Command::SetTrig { lane: lane.clone(), variant: "main".into(), step: 2, trig };
+    let roll = TrigView { ratchet: 3, ramp: 1.0, cond: "1:2".into(), ..TrigView::default() };
+    let r = app.command(set(Some(roll.clone())));
+    assert!(r.ok && r.message.contains("only 1:2, 3 strokes swelling"), "{}", r.message);
+    let shown = |app: &App| {
+        let d = app.state().song.unwrap().drums.into_iter().find(|d| d.lane == lane).unwrap();
+        d.trigs.into_iter().find(|(v, _)| v == "main").map(|(_, t)| t).unwrap_or_default()
+    };
+    assert_eq!(shown(&app), vec![(2, roll.clone())]);
+    // a trig given whole replaces the one there: what is back at its default goes back
+    let lighter = TrigView { prob: 0.5, ..TrigView::default() };
+    assert!(app.command(set(Some(lighter.clone()))).ok);
+    assert_eq!(shown(&app), vec![(2, lighter)]);
+    assert!(app.command(set(Some(roll.clone()))).ok);
+    // the view and the engine's trig are the same JSON, every setting set
+    let every = TrigView {
+        prob: 0.25,
+        cond: "!last".into(),
+        ratchet: 5,
+        ramp: -0.5,
+        flam: 12.0,
+        nudge: -0.125,
+        pitch: -7,
+        decay: 0.5,
+        tone: 0.75,
+        pan: 0.5,
+    };
+    let engine: claudius::theory::rhythm::Trig = serde_json::from_value(serde_json::to_value(&every).unwrap()).unwrap();
+    assert_eq!(serde_json::from_value::<TrigView>(serde_json::to_value(engine).unwrap()).unwrap(), every);
+    // a step played softer keeps its trig; a trig of nothing clears it
+    let softer = Command::SetDrumStep { lane: lane.clone(), variant: "main".into(), step: 2, velocity: 0.5 };
+    assert!(app.command(softer).ok);
+    assert_eq!(shown(&app), vec![(2, roll)]);
+    assert!(app.command(set(None)).ok);
+    assert!(shown(&app).is_empty());
+    let bad = Command::SetTrig {
+        lane: lane.clone(),
+        variant: "main".into(),
+        step: 2,
+        trig: Some(TrigView { cond: "often".into(), ..TrigView::default() }),
+    };
+    assert!(app.command(bad).message.contains("not 'often'"));
+    let r = app.command(Command::SetTrig { lane: "bongo".into(), variant: "main".into(), step: 0, trig: None });
+    assert!(!r.ok && r.message.contains("no drum lane 'bongo'"), "{}", r.message);
 }

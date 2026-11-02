@@ -1,6 +1,7 @@
 //! `arrange`: a blueprint expanded into the tracks, notes and clips the renderer plays.
 
 use super::*;
+use crate::theory::Lock;
 
 /// chord spans of one cycle of progression `name` starting at beat 0
 pub fn cycle_spans(bp: &Blueprint, name: &str) -> Vec<ChordSpan> {
@@ -78,8 +79,45 @@ fn tile(notes: &[Note], period: f64, start: f64, end: f64) -> Vec<Note> {
     out
 }
 
-fn hits_to_notes(hits: &[Hit], pitch: i32) -> Vec<Note> {
-    hits.iter().map(|h| Note { t: h.t, d: 0.25, p: 60 + pitch, v: h.v }).collect()
+/// A drum lane's pattern over a section, from beat `a` to `b`, `period` beats a time round: each time round, every
+/// hit as its trig says (`rhythm::Trig`). A condition counts the times round from the section's start; a chance is
+/// drawn afresh each time round, the same in every render of the song (`seed`, with the lane and section `si`); a
+/// ratchet or a flam is its strokes, and the locks go with each.
+fn lane_notes(lane: &DrumLane, hits: &[Hit], period: f64, a: f64, b: f64, seed: u64, si: usize, bpm: f64) -> Vec<Note> {
+    let mut out = Vec::new();
+    if hits.is_empty() || period <= 0.0 {
+        return out;
+    }
+    let rounds = ((b - a) / period - 1e-9).ceil().max(1.0) as usize;
+    let lane_seed = seed ^ hash_str(&lane.name) ^ (si as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    for k in 0..rounds {
+        let off = a + k as f64 * period;
+        for (i, h) in hits.iter().enumerate() {
+            let t = off + h.t;
+            if t >= b - 1e-9 {
+                continue;
+            }
+            let Some(tr) = h.trig else {
+                out.push(Note { t, d: 0.25, p: 60 + lane.pitch, v: h.v, lock: None });
+                continue;
+            };
+            if !tr.cond.plays(k, rounds) {
+                continue;
+            }
+            if tr.prob < 1.0 && !Rng::new(lane_seed ^ ((k as u64) << 24) ^ i as u64).chance(tr.prob as f64) {
+                continue;
+            }
+            let lock = Lock { nudge: tr.nudge as f64 * 0.25, decay: tr.decay, tone: tr.tone, pan: tr.pan };
+            let lock = (lock != Lock::default()).then_some(lock);
+            let p = 60 + lane.pitch + tr.pitch as i32;
+            for (st, v) in tr.strokes(t, h.v, bpm) {
+                if st >= 0.0 && st < b - 1e-9 {
+                    out.push(Note { t: st, d: 0.25 / tr.ratchet.max(1) as f64, p, v, lock });
+                }
+            }
+        }
+    }
+    out
 }
 
 /// every tuner's harmony, from its scale and the song's key and chords, in every chain the song plays through
@@ -171,7 +209,8 @@ pub fn arrange(bp: &Blueprint) -> Project {
             if on {
                 let pat = lane.patterns.get(&s.variant).or_else(|| lane.patterns.get("main"));
                 if let Some(p) = pat {
-                    let mut seg = tile(&hits_to_notes(p, lane.pitch), lane.pattern_bars as f64 * 4.0, a, b);
+                    let period = lane.pattern_bars as f64 * 4.0;
+                    let mut seg = lane_notes(lane, p, period, a, b, bp.seed, si, bp.bpm);
                     // builds: the fill lane turns into a snare roll; the kick drops out for the last bar
                     if s.build && is_fill_lane {
                         seg.retain(|n| n.t < b - roll_len);
@@ -188,7 +227,13 @@ pub fn arrange(bp: &Blueprint) -> Project {
                                 seg.retain(|n| n.t < fill_at || n.t >= phrase);
                                 let kind = *r.pick(&["roll", "groove", "triplets", "groove"]);
                                 for h in rhythm::fill(kind, phrase - fill_at, &mut r) {
-                                    seg.push(Note { t: fill_at + h.t, d: 0.25, p: 60 + lane.pitch, v: h.v * 0.85 });
+                                    seg.push(Note {
+                                        t: fill_at + h.t,
+                                        d: 0.25,
+                                        p: 60 + lane.pitch,
+                                        v: h.v * 0.85,
+                                        lock: None,
+                                    });
                                 }
                             } else if is_kick && r.chance(0.35) {
                                 seg.retain(|n| n.t < phrase - 0.5 || n.t >= phrase);
@@ -201,7 +246,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
             }
             if s.build && is_fill_lane {
                 for h in rhythm::snare_roll(roll_len) {
-                    notes.push(Note { t: b - roll_len + h.t, d: 0.25, p: 60 + lane.pitch, v: h.v });
+                    notes.push(Note { t: b - roll_len + h.t, d: 0.25, p: 60 + lane.pitch, v: h.v, lock: None });
                 }
             }
         }
@@ -363,27 +408,27 @@ pub fn arrange(bp: &Blueprint) -> Project {
         let (a, b) = (info.start_bar as f64 * 4.0, (info.start_bar + info.bars) as f64 * 4.0);
         let next_impact = bp.form.get(si + 1).is_some_and(|n| n.impact);
         if s.impact {
-            crash.push(Note { t: a, d: 4.0, p: 60, v: 1.0 });
+            crash.push(Note { t: a, d: 4.0, p: 60, v: 1.0, lock: None });
             if tr.use_impact {
-                impact.push(Note { t: a, d: 8.0, p: 60, v: 1.0 });
+                impact.push(Note { t: a, d: 8.0, p: 60, v: 1.0, lock: None });
             }
             if tr.use_downlifter {
-                down.push(Note { t: a, d: 8.0, p: 60, v: 0.8 });
+                down.push(Note { t: a, d: 8.0, p: 60, v: 0.8, lock: None });
             }
         }
         if matches!(s.kind, SectionKind::Drop | SectionKind::Hook) {
             let mut t = a + 32.0;
             while t < b - 1e-9 {
-                crash.push(Note { t, d: 4.0, p: 60, v: 0.7 });
+                crash.push(Note { t, d: 4.0, p: 60, v: 0.7, lock: None });
                 t += 32.0;
             }
         }
         if s.build && tr.riser.is_some() {
             let len = (tr.riser_bars.min(s.bars) as f64 * 4.0).max(4.0);
-            riser.push(Note { t: b - len, d: len, p: 60, v: 1.0 });
+            riser.push(Note { t: b - len, d: len, p: 60, v: 1.0, lock: None });
         }
         if next_impact && tr.use_reverse_crash {
-            reverse.push(Note { t: b - 2.0, d: 2.0, p: 60, v: 0.8 });
+            reverse.push(Note { t: b - 2.0, d: 2.0, p: 60, v: 0.8, lock: None });
         }
     }
     let mut push_fx = |name: &str, sound: Sound, notes: Vec<Note>, role: &str| {

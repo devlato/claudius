@@ -25,6 +25,7 @@ mod print;
 mod song;
 mod sounds;
 mod steps;
+mod trigs;
 
 use std::cell::RefCell;
 use std::rc::Rc;

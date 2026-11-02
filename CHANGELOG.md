@@ -61,6 +61,12 @@ and returns into the master, out, on a canvas to drag and zoom. Every node is ed
 bus, sections and sound, an effect's settings or its place, a chain's new effects, the master's loudness. Assistants
 read the same graph with the `graph` tool and change chains with `set_fx`.
 
+Every drum step can do what a drum machine's trig does: play by chance, play only on some times round (every other
+bar, the fourth, or the last bar before the next section), roll in a ratchet that swells or fades, flam, land early or
+late of the grid, and change its pitch, decay, tone and pan for that stroke. Right-click a step in the step sequencer
+and open **Trig**, or write `trig()` in a script; the step shows what it does
+([The drum machine](https://github.com/devlato/claudius/blob/main/docs/src/cookbook/drum-machine.md)).
+
 claudius hears how a voice is sung: the notes it means, how near each came, and how its singer sings (where they go
 sharp or flat by register, how widely their notes scatter, how fast they settle, their vibrato). Right-click a take
 and choose **How is it sung?**, run `claudius voice` on a file, or let an assistant call `assess_voice`

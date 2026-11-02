@@ -423,9 +423,11 @@ impl App {
                 let main = l.patterns.get("main").cloned().unwrap_or_default();
                 let hits = l.patterns.entry(variant.clone()).or_insert(main);
                 let t = step as f64 * 0.25;
+                // a step that still strikes keeps what its trig does
+                let trig = hits.iter().find(|h| (h.t - t).abs() <= 1e-6).and_then(|h| h.trig);
                 hits.retain(|h| (h.t - t).abs() > 1e-6);
                 if velocity > 0.0 {
-                    hits.push(Hit { t, v: velocity.min(1.0) });
+                    hits.push(Hit { trig, ..Hit::new(t, velocity.min(1.0)) });
                     hits.sort_by(|a, b| a.t.partial_cmp(&b.t).unwrap());
                 }
                 Ok(format!(
@@ -433,6 +435,15 @@ impl App {
                     if velocity > 0.0 { format!("{velocity:.2}") } else { "off".into() }
                 ))
             }),
+            // the trig given in place of the one there: cleared, then set with what differs from the defaults
+            Command::SetTrig { lane, variant, step, trig } => {
+                let (lane_q, variant_q) = (quote(&lane), quote(&variant));
+                let mut code = format!("trig({lane_q}, {variant_q}, {step}, #{{}});");
+                if let Some(set) = trig.map(|t| t.script()).filter(|s| !s.is_empty()) {
+                    code.push_str(&format!(" trig({lane_q}, {variant_q}, {step}, #{{ {set} }});"));
+                }
+                self.run_script(&code, Some(format!("{lane} {variant} step {step}")))
+            }
             Command::RunScript { code } => self.run_script(&code, None),
             Command::AddTake { path, from, name, role } => {
                 self.add_take_file(Path::new(&path), &from, name.as_deref(), role.as_deref())
@@ -440,8 +451,10 @@ impl App {
             Command::AddNotes { from, notes, sounds, name, role, style, request } => self.answer(
                 request,
                 self.edit_with(|bp| {
-                    let notes: Vec<claudius::theory::Note> =
-                        notes.iter().map(|n| claudius::theory::Note { t: n.t, d: n.d, p: n.p, v: n.v }).collect();
+                    let notes: Vec<claudius::theory::Note> = notes
+                        .iter()
+                        .map(|n| claudius::theory::Note { t: n.t, d: n.d, p: n.p, v: n.v, lock: None })
+                        .collect();
                     claudius::take::played(bp, &from, &notes, &claudius::take::Played { sounds, name, role, style })
                 }),
             ),

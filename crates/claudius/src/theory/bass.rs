@@ -181,7 +181,7 @@ pub fn bassline(style: &str, chords: &[ChordSpan], key: &Key, kicks: &[f64], cen
                 if st.slide {
                     d += 0.06;
                 }
-                out.push(Note { t, d, p, v: st.v });
+                out.push(Note { t, d, p, v: st.v, lock: None });
             }
             if style == "sustain" || style == "reese" {
                 break;
@@ -200,7 +200,13 @@ pub fn bassline(style: &str, chords: &[ChordSpan], key: &Key, kicks: &[f64], cen
             let next = ks.get(i + 1).copied().unwrap_or(span.start + span.len);
             let iv = if i % 4 == 3 && rng.chance(0.35) { [12, 7, 10][rng.below(3)] } else { 0 };
             let slide = iv != 0 && rng.chance(0.5);
-            out.push(Note { t, d: (next - t).clamp(0.25, 4.0) + if slide { 0.06 } else { 0.0 }, p: root + iv, v: 1.0 });
+            out.push(Note {
+                t,
+                d: (next - t).clamp(0.25, 4.0) + if slide { 0.06 } else { 0.0 },
+                p: root + iv,
+                v: 1.0,
+                lock: None,
+            });
         }
     }
     out

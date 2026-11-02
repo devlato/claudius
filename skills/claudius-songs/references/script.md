@@ -25,6 +25,7 @@ Integers and decimals are different types: counts (`ply(2)`, `octave(4)`, the ba
 | `title("Night Drive")`, `tempo(124)`, `key("A minor")`, `swing(0.56)`, `humanize(0.3)` | song settings |
 | `prog("A", "i VI III VII")`, `bars_per_chord(2)` | progressions (numerals or chord names like `Am F C G`) and chord length |
 | `drum("kick", "x...x...x...x...")`, `drum("hat", "sparse", "..x...x...x...x.")` | a drum lane's pattern (variant `main` by default): `X` 1.0, `x` 0.8, `o` 0.45, `1`-`9` tenths, `.` a rest, `\|` a bar line |
+| `trig("hat", 14, #{ ratchet: 3, ramp: -1, cond: "1:2" })`, `trig("snare", "main", 12, #{ flam: 18 })` | what one step does beyond striking (step: sixteenths from 0, 4 is beat 2): `prob` (chance each time round), `cond` (`"1:2"` first of every two times round a section, `"4:4"`, `"last"` the bar before the next section, `"!first"`), `ratchet` 1-8 strokes and `ramp` (1 swells, -1 fades), `flam` ms, `nudge` (sixteenths, -0.5 early to 0.5 late), and for that stroke `pitch`, `decay` (x0.1-4), `tone` (-1 darker to 1 brighter), `pan`; `v` sets the velocity; `#{}` clears |
 | `drum_sound("kick", "tr909:bd")` | what a drum lane plays: a drum word, a kit sound, or a sample file |
 | `part("bass", #{ style: "syncopated", preset: "reese", density: 0.6, seed: 5 })` | a part the theory engine writes |
 | `track("hats", s("[~ hh]*4"))` | a track that plays a pattern (replaces a track of that name) |

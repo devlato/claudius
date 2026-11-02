@@ -160,6 +160,8 @@ pub struct View {
     pub variant: String,
     pub gesture: Option<Gesture>,
     pub cell_menu: Option<(usize, usize)>,
+    /// the trig the step sequencer's menu is editing: its lane, variant and step, and the trig as it stands
+    pub trig_edit: Option<(String, String, usize, claudius_api::TrigView)>,
     pub script: ScriptEditor,
     pub new_song: NewSongForm,
     pub stems: bool,
@@ -223,6 +225,7 @@ impl Default for View {
             variant: "main".into(),
             gesture: None,
             cell_menu: None,
+            trig_edit: None,
             script: ScriptEditor::default(),
             new_song: NewSongForm {
                 open: false,

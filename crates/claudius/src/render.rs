@@ -22,6 +22,7 @@ use crate::rng::{Rng, hash_str};
 use crate::synth::voice::{self, NoteEv};
 use crate::synth::{drums, fxsounds};
 use crate::theory::rhythm::swing;
+use crate::theory::{Lock, Note};
 
 /// target loudness (LUFS while playing) of each role before the master stage
 pub fn target_level(role: &str) -> f32 {
@@ -104,6 +105,50 @@ fn one_shot(sound: &Sound, semis: i32, seed: u64) -> Result<Arc<Stereo>> {
     Ok(x)
 }
 
+/// the one-shot a drum stroke plays: its lane's, with what its step locks worked in (a synth drum's own decay and
+/// tone; a sample shortened and darkened or brightened), cached as the lane's is
+fn locked_shot(sound: &Sound, semis: i32, seed: u64, lock: &Lock) -> Result<Arc<Stereo>> {
+    if lock.decay == 1.0 && lock.tone == 0.0 {
+        return one_shot(sound, semis, seed);
+    }
+    if let Sound::Drum { voice, params } = sound {
+        let mut p = *params;
+        p.decay *= lock.decay;
+        p.tone = (p.tone + 0.5 * lock.tone).clamp(0.0, 1.0);
+        return one_shot(&Sound::Drum { voice: *voice, params: p }, semis, seed);
+    }
+    let key = format!(
+        "{}|{semis}|{seed}|{:.3}|{:.3}",
+        serde_json::to_string(sound).unwrap_or_default(),
+        lock.decay,
+        lock.tone
+    );
+    if let Some(x) = shots().lock().unwrap().get(&key) {
+        return Ok(x.clone());
+    }
+    let mut x = (*one_shot(sound, semis, seed)?).clone();
+    shape(&mut x, lock.decay, lock.tone);
+    let x = Arc::new(x);
+    shots().lock().unwrap().insert(key, x.clone());
+    Ok(x)
+}
+
+/// A sample's decay and tone moved: under a decay of 1, a falling curve over its length that takes it to e^-3 at
+/// half the decay and on down; a tone below 0 blends towards it low-passed at 2 kHz, above 0 adds what is above that.
+fn shape(x: &mut Stereo, decay: f32, tone: f32) {
+    let n = x.len().max(1) as f32;
+    let k = 3.0 * (1.0 / decay.clamp(0.1, 1.0) - 1.0);
+    let a = 1.0 - (-std::f32::consts::TAU * 2_000.0 / SRF as f32).exp();
+    for ch in x.channels_mut() {
+        let mut low = 0f32;
+        for (i, v) in ch.iter_mut().enumerate() {
+            low += a * (*v - low);
+            let toned = if tone < 0.0 { *v + -tone * (low - *v) } else { *v + tone * (*v - low) };
+            *v = toned * (-k * i as f32 / n).exp();
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct TrackReport {
     pub name: String,
@@ -147,6 +192,11 @@ impl Timing {
     fn sample(&self, beat: f64, jitter: f64) -> i64 {
         ((swing(beat, self.swing) + jitter) * self.spb).round() as i64
     }
+
+    /// where note `n` starts: swung, then moved by its step's nudge
+    fn onset(&self, n: &Note, jitter: f64) -> i64 {
+        self.sample(n.t, jitter + n.lock.map_or(0.0, |l| l.nudge))
+    }
 }
 
 /// onset sample positions of every track in each choke group
@@ -154,7 +204,7 @@ fn choke_onsets(p: &Project, tm: &Timing) -> BTreeMap<String, Vec<i64>> {
     let mut m: BTreeMap<String, Vec<i64>> = BTreeMap::new();
     for t in &p.tracks {
         if let Some(g) = &t.choke {
-            m.entry(g.clone()).or_default().extend(t.notes.iter().map(|n| tm.sample(n.t, 0.0)));
+            m.entry(g.clone()).or_default().extend(t.notes.iter().map(|n| tm.onset(n, 0.0)));
         }
     }
     for v in m.values_mut() {
@@ -181,10 +231,13 @@ fn render_source(
             let group = t.choke.as_ref().and_then(|g| chokes.get(g));
             for n in &t.notes {
                 let jitter = rng.normal() * human * 0.004 * p.bpm / 60.0;
-                let pos = tm.sample(n.t, jitter);
-                let buf = one_shot(&t.sound, n.p + t.transpose - root, seed)?;
+                let pos = tm.onset(n, jitter);
+                let lock = n.lock.unwrap_or_default();
+                let buf = locked_shot(&t.sound, n.p + t.transpose - root, seed, &lock)?;
                 let vel = (n.v as f64 * (1.0 + rng.normal() * human * 0.05)).clamp(0.05, 1.0) as f32;
                 let g = vel.powf(1.6);
+                // a step's pan is a balance: the other side comes down
+                let (gl, gr) = (g * (1.0 - lock.pan).min(1.0), g * (1.0 + lock.pan).min(1.0));
                 let mut max_len = buf.len();
                 if let Some(onsets) = group
                     && let Some(next) = onsets.iter().find(|&&o| o > pos + 32)
@@ -198,9 +251,9 @@ fn render_source(
                     let mut s = buf.slice(0, max_len);
                     let f = (0.004 * SRF) as usize;
                     s.fade(0, f.min(max_len));
-                    out.add_at(&s, pos, g, g);
+                    out.add_at(&s, pos, gl, gr);
                 } else {
-                    out.add_at(&buf, pos, g, g);
+                    out.add_at(&buf, pos, gl, gr);
                 }
             }
         }
@@ -302,7 +355,7 @@ fn duck_curve(p: &Project, tm: &Timing, len: usize) -> Option<Vec<f32>> {
     let att = (0.003 * SRF) as usize;
     let mut env = vec![1.0f32; len];
     for n in &kick.notes {
-        let pos = tm.sample(n.t, 0.0).max(0) as usize;
+        let pos = tm.onset(n, 0.0).max(0) as usize;
         let start = pos.saturating_sub(att);
         for i in start..(pos + rel).min(len) {
             let v = if i < pos {
@@ -512,4 +565,54 @@ pub fn finalize(x: &mut Stereo, target: f32, ceiling: f32) -> (f64, f32) {
     }
     *x = out;
     (lufs, tp)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_sample_locked_shorter_dies_away_sooner_and_darker_loses_its_top() {
+        let n = 24_000;
+        let noise: Vec<f32> = (0..n).map(|i| ((i * 7_919 % 1_000) as f32 / 500.0 - 1.0) * 0.5).collect();
+        let x = Stereo { l: noise.clone(), r: noise };
+        let tail = |s: &Stereo| s.l[n / 2..].iter().map(|v| v * v).sum::<f32>();
+        let mut short = x.clone();
+        shape(&mut short, 0.5, 0.0);
+        assert!(tail(&short) < 0.05 * tail(&x), "{} {}", tail(&short), tail(&x));
+        let mut same = x.clone();
+        shape(&mut same, 1.0, 0.0);
+        assert!(same.l == x.l && same.r == x.r, "a decay of 1 and no tone leave it as it is");
+        // darker: what changes from sample to sample (the top) is smaller
+        let edge = |s: &Stereo| s.l.windows(2).map(|w| (w[1] - w[0]).abs()).sum::<f32>();
+        let mut dark = x.clone();
+        shape(&mut dark, 1.0, -1.0);
+        assert!(edge(&dark) < 0.5 * edge(&x));
+    }
+
+    #[test]
+    fn the_mix_ducks_under_a_nudged_kick_where_it_sounds() {
+        let song = |trig: &str| {
+            let code =
+                format!(r#"blank("house"); drum("kick", "....x..........."); form([sec("drop", 1, "kick")]); {trig}"#);
+            crate::compose::arrange(&crate::script::run(&code, None, None).unwrap().bp.unwrap())
+        };
+        let tm = Timing { spb: SRF * 60.0 / 120.0, swing: 0.5, humanize: 0.0 };
+        let dip = |p: &Project| duck_curve(p, &tm, 96_000).unwrap().iter().position(|&g| g < 0.99).unwrap() as i64;
+        let (plain, late) = (song(""), song(r#"trig("kick", 4, #{ nudge: 0.5 });"#));
+        assert!((dip(&late) - dip(&plain) - 3_000).abs() <= 1, "{} {}", dip(&plain), dip(&late));
+    }
+
+    #[test]
+    fn a_synth_drum_locked_shorter_is_its_own_sound_with_less_decay() {
+        let kick = Sound::Drum {
+            voice: drums::DrumVoice::Kick,
+            params: drums::DrumParams::default_for(drums::DrumVoice::Kick),
+        };
+        let whole = locked_shot(&kick, 0, 1, &Lock::default()).unwrap();
+        let short = locked_shot(&kick, 0, 1, &Lock { decay: 0.3, ..Lock::default() }).unwrap();
+        let energy = |s: &Stereo, from: usize| s.l[from.min(s.len())..].iter().map(|v| v * v).sum::<f32>();
+        assert!(energy(&short, 9_600) < 0.2 * energy(&whole, 9_600), "less after 200 ms");
+        assert!(Arc::ptr_eq(&short, &locked_shot(&kick, 0, 1, &Lock { decay: 0.3, ..Lock::default() }).unwrap()));
+    }
 }

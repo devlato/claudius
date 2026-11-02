@@ -22,6 +22,7 @@ Everything on one page. Each name links to its full entry.
 | [`prog("A", "i7 VImaj7 iv7 v7")`](song-functions.md#prog) | numerals, chord names, slash chords; sections play `A`, breaks `B` (or `A`) |
 | [`bars_per_chord(2)`](song-functions.md#bars_per_chord) | bars each chord lasts, 1..8 |
 | [`drum("kick", "X...x...")`](song-functions.md#drum) | `X` 1.0, `x` 0.8, `o` 0.45, `1`-`9`, `.` rest; `drum(lane, variant, steps, per_bar)` |
+| [`trig("hat", 14, #{ ratchet: 3, cond: "1:2" })`](song-functions.md#trig) | a step's chance, condition, ratchet, flam, nudge and locks (pitch, decay, tone, pan) |
 | [`drum_sound("kick", "tr909:bd")`](song-functions.md#drum_sound) | a drum name, a kit sound (or a name and a bank), a file |
 | [`part("bass", #{ ... })`](song-functions.md#part) | `style preset register density seed rate`; adds the genre's part when the song has none |
 | [`track("hats", pattern)`](song-functions.md#track) | a pattern track; new ones join sections with energy ≥ 0.6 |

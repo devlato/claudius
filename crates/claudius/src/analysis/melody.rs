@@ -69,10 +69,10 @@ fn to_grid(heard: &[Heard], key: &Key, o: &Options) -> Vec<Note> {
             // two notes snapped onto one step: the longer one has it
             Some(last) if last.t == t => {
                 if d > last.d {
-                    *last = Note { t, d, p, v };
+                    *last = Note { t, d, p, v, lock: None };
                 }
             }
-            _ => notes.push(Note { t, d, p, v }),
+            _ => notes.push(Note { t, d, p, v, lock: None }),
         }
     }
     // one at a time: a note ends where the next begins

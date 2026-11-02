@@ -156,7 +156,7 @@ pub fn lead(
             while p < register.0 {
                 p += 12;
             }
-            out.push(Note { t, d: c.d, p, v: c.v });
+            out.push(Note { t, d: c.d, p, v: c.v, lock: None });
         }
     }
     out
@@ -205,7 +205,8 @@ pub fn arp(
             }
             _ => i % n,
         };
-        out.push(Note { t, d: rate * gate, p: pool[idx], v: if (t - start).fract() < 1e-6 { 0.95 } else { 0.78 } });
+        let v = if (t - start).fract() < 1e-6 { 0.95 } else { 0.78 };
+        out.push(Note { t, d: rate * gate, p: pool[idx], v, lock: None });
         t += rate;
         i += 1;
     }
@@ -252,7 +253,7 @@ pub fn chord_part(
                 }
                 let d = if rhythm_name == "sustain" { span.len } else { hd.min(span.start + span.len - t) };
                 for &p in &pitches {
-                    out.push(Note { t, d, p, v: hv });
+                    out.push(Note { t, d, p, v: hv, lock: None });
                 }
             }
             if rhythm_name == "sustain" {

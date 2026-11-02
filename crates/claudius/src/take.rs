@@ -163,7 +163,7 @@ fn styled(notes: Vec<Note>, style: &str, key: &crate::theory::scale::Key) -> Res
                 let steps = (n.d / 0.25).ceil().max(1.0) as usize;
                 for k in 0..steps {
                     let t = n.t + k as f64 * 0.25;
-                    out.push(Note { t, d: 0.25f64.min(n.t + n.d - t), p: tones[k % 4], v: n.v });
+                    out.push(Note { t, d: 0.25f64.min(n.t + n.d - t), p: tones[k % 4], v: n.v, lock: None });
                 }
             }
             (out, Some(Role::Arp))
@@ -186,7 +186,7 @@ fn styled(notes: Vec<Note>, style: &str, key: &crate::theory::scale::Key) -> Res
                 if let Some(n) = on {
                     let root = n.p - 12;
                     for p in [root, key.step(root, 2), key.step(root, 4)] {
-                        out.push(Note { t: bar, d: 4.0, p, v: 0.6 });
+                        out.push(Note { t: bar, d: 4.0, p, v: 0.6, lock: None });
                     }
                 }
                 bar += 4.0;
@@ -720,9 +720,9 @@ mod tests {
         let key = Key::new(0, Mode::Major);
         // C4, E4 and G4, a beat, a beat and two
         let line = vec![
-            Note { t: 0.0, d: 1.0, p: 60, v: 1.0 },
-            Note { t: 1.0, d: 1.0, p: 64, v: 1.0 },
-            Note { t: 2.0, d: 2.0, p: 67, v: 1.0 },
+            Note { t: 0.0, d: 1.0, p: 60, v: 1.0, lock: None },
+            Note { t: 1.0, d: 1.0, p: 64, v: 1.0, lock: None },
+            Note { t: 2.0, d: 2.0, p: 67, v: 1.0, lock: None },
         ];
         let pitches = |style: &str| -> (Vec<(f64, i32)>, Option<Role>) {
             let (notes, role) = styled(line.clone(), style, &key).unwrap();
@@ -754,9 +754,9 @@ mod tests {
         // C held over three bars keeps its chord in each, a bar of rest has none, and G heard for a sliver of the
         // sixth bar gives way to the E that sings most of its first beat
         let held = vec![
-            Note { t: 0.0, d: 12.0, p: 60, v: 1.0 },
-            Note { t: 16.0, d: 4.1, p: 67, v: 1.0 },
-            Note { t: 20.25, d: 2.0, p: 64, v: 1.0 },
+            Note { t: 0.0, d: 12.0, p: 60, v: 1.0, lock: None },
+            Note { t: 16.0, d: 4.1, p: 67, v: 1.0, lock: None },
+            Note { t: 20.25, d: 2.0, p: 64, v: 1.0, lock: None },
         ];
         let pad: Vec<(f64, i32)> = styled(held, "pad", &key).unwrap().0.iter().map(|n| (n.t, n.p)).collect();
         let triad = |t: f64, ps: [i32; 3]| ps.map(|p| (t, p));
@@ -776,7 +776,7 @@ mod tests {
         let mut bp = song();
         bp.form[1].bars = 4;
         let from = bp.form[1].name.clone();
-        let chord = |t: f64| [60, 64, 67].map(|p| Note { t, d: 2.0, p, v: 0.8 });
+        let chord = |t: f64| [60, 64, 67].map(|p| Note { t, d: 2.0, p, v: 0.8, lock: None });
         // two chords in the section, and one held into the next
         let notes: Vec<Note> = [0.0, 8.0, 14.0].iter().flat_map(|&t| chord(t)).collect();
         let p = Played { sounds: vec!["epiano".into()], role: Some("keys".into()), ..Default::default() };
@@ -794,10 +794,10 @@ mod tests {
         );
         assert!(played(&mut bp, "nowhere", &notes, &p).unwrap_err().contains("no section 'nowhere'"));
         assert!(played(&mut bp, &from, &[], &p).unwrap_err().contains("no notes"));
-        let wild = [Note { t: 0.0, d: 1.0, p: 200, v: 1.0 }];
+        let wild = [Note { t: 0.0, d: 1.0, p: 200, v: 1.0, lock: None }];
         assert!(played(&mut bp, &from, &wild, &p).is_err());
         // staccato hits, a sixty-fourth of a beat each, are notes like any other
-        let hits: Vec<Note> = (0..4).map(|k| Note { t: k as f64, d: 1.0 / 64.0, p: 72, v: 0.9 }).collect();
+        let hits: Vec<Note> = (0..4).map(|k| Note { t: k as f64, d: 1.0 / 64.0, p: 72, v: 0.9, lock: None }).collect();
         played(&mut bp, &from, &hits, &Played { name: Some("hits".into()), ..p.clone() }).unwrap();
         let hits = bp.parts.iter().find(|p| p.name == "hits").unwrap();
         assert_eq!(hits.notes[&bp.form[1].prog].len(), 4);

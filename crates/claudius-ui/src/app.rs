@@ -828,6 +828,7 @@ fn is_edit(what: &str) -> bool {
             | "toggle_layer"
             | "set_drum_step"
             | "set_drum_pattern"
+            | "set_trig"
             | "set_part"
             | "set_mix"
             | "set_fx"
@@ -1173,6 +1174,7 @@ mod tests {
             json!({"cmd": "set_mix", "track": "kick", "level_db": -3.0}),
             json!({"cmd": "set_fx", "target": "master", "fx": []}),
             json!({"cmd": "tune", "track": "kick", "speed_ms": 0}),
+            json!({"cmd": "set_trig", "lane": "kick", "variant": "main", "step": 0, "trig": {"prob": 0.5}}),
             json!({"cmd": "render"}),
             json!({"cmd": "undo"}),
         ];
@@ -1184,7 +1186,7 @@ mod tests {
                 assert!(is_edit(&crate::net::command_name(&cmd)), "{c} is shown at once but not put back");
             }
         }
-        assert_eq!(shown, 15, "every edit above but render and undo is shown at once");
+        assert_eq!(shown, 16, "every edit above but render and undo is shown at once");
         assert!(is_edit("run_script"), "the graph shows the master's loudness at once");
     }
 }
