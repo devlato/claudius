@@ -67,6 +67,7 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
         )
         .route("/api/release/preview.png", get(artwork_preview))
         .route("/api/takes", post(add_take).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
+        .route("/api/pitch-check", post(pitch_check).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/analyze", post(analyze).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/remake", post(remake).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/sample", post(sample).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
@@ -396,6 +397,28 @@ async fn add_take(State(c): State<Ctx>, Query(q): Query<TakeQuery>, headers: Hea
     })
     .await
     .unwrap_or_else(|e| claudius_api::Reply { ok: false, message: format!("internal error: {e}"), version: 0 });
+    Json(reply).into_response()
+}
+
+#[derive(Deserialize)]
+struct CheckQuery {
+    /// the pitch check (`request_pitch_check`) it was sung for
+    id: u64,
+}
+
+/// the answers to a pitch check: the recording as the file itself, from the check's first beat, and which check
+async fn pitch_check(State(c): State<Ctx>, Query(q): Query<CheckQuery>, headers: HeaderMap, body: Bytes) -> Response {
+    if !sent_as_file(&headers) {
+        return (
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            "send the pitch check as the file itself, with Content-Type audio/wav or application/octet-stream",
+        )
+            .into_response();
+    }
+    let app = c.app.clone();
+    let reply = tokio::task::spawn_blocking(move || app.pitch_check_bytes(body.to_vec(), q.id))
+        .await
+        .unwrap_or_else(|e| claudius_api::Reply { ok: false, message: format!("internal error: {e}"), version: 0 });
     Json(reply).into_response()
 }
 

@@ -14,6 +14,7 @@ on its own. The paths below are for macOS and Linux; where an environment variab
 | scratch space while a pack installs | `~/Library/Caches/claudius/packs` | `~/.cache/claudius/packs` | |
 | listening models | `~/.cache/earshot-rs` | `~/.cache/earshot-rs` | `EARSHOT_HOME` |
 | your genres | `~/Library/Application Support/claudius/genres` | `~/.config/claudius/genres` | |
+| your voice, as a [pitch check](voice.md#checking-your-pitch) heard it | `~/Library/Application Support/claudius/voice.json` | `~/.config/claudius/voice.json` | `CLAUDIUS_HOME` |
 | the answer about [usage statistics](privacy.md) | `~/Library/Application Support/claudius/telemetry.json` | `~/.config/claudius/telemetry.json` | |
 | whether to [update](updates.md) automatically, and the day it last looked | `~/Library/Application Support/claudius/updates.json` | `~/.config/claudius/updates.json` | |
 | studio window preferences | `~/Library/Application Support/claudius-studio/app.ron` | `~/.local/share/claudius-studio/app.ron` | |
@@ -65,7 +66,7 @@ Everything in the cache folder can be deleted while claudius is not running; it 
 | `stretched/` | Apple Loops and samples warped to a tempo and key | one file per loop, tempo and key |
 | `samples/` | drum one-shots cut from Apple Loops | a few hundred KB each |
 | `user/library.json` | the user library: chops and found sounds from `claudius chop` | |
-| `renders/<process id>/` | a running session's renders: `<version>.wav`, `.mp3`, and `<version>/` with stems | about 70 MB per four-minute render, and a WAV per track more for a render with stems, which every save makes: a new two-minute lofi song and one save left 433 MB |
+| `renders/<process id>-<session>/` | a running session's renders: `<version>.wav`, `.mp3`, and `<version>/` with stems | about 70 MB per four-minute render, and a WAV per track more for a render with stems, which every save makes: a new two-minute lofi song and one save left 433 MB |
 
 A session keeps its last ten renders and deletes older ones as it goes. It holds a lock on `.in-use` in its folder
 while it runs, which the system lets go of when the process ends, however it ends. When a session starts, it deletes

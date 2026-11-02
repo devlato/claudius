@@ -87,6 +87,10 @@ since a take goes to a claudius, which keeps it with the song.
 - **For an assistant.** When an assistant asks you for a take, the Record window opens set up for it, with a line
   saying what to record. **Send it** sends the take to claudius and to the assistant, and **Not now** tells the
   assistant you will not record it ([A take an assistant asks for](../guide/samples.md#a-take-an-assistant-asks-for)).
+- **Checking your pitch.** **Check my pitch** plays six short phrases for you to sing back, one at a time. claudius
+  learns from it how you sing, shows your voice under the button, and tunes your takes so
+  ([Checking your pitch](../guide/voice.md#checking-your-pitch)). An assistant can ask for one too, and the window
+  opens for it.
 - **Monitoring.** Wear headphones, or the microphone records the song too. The studio does not play the input back,
   so to hear yourself without delay, use your interface's direct monitoring.
 - **Timing.** Press **Measure** next to Latency once for each setup: claudius plays eight clicks, listens for them

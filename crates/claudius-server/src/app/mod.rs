@@ -35,11 +35,13 @@ pub struct Settings {
     pub auto_render: bool,
     /// the folders commands and scripts may read and write (None: anywhere, for a claudius only you can reach)
     pub file_roots: Option<Vec<PathBuf>>,
+    /// the file the person's voice is kept in, as a pitch check heard it (None: for this session only)
+    pub voice: Option<PathBuf>,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { library: true, ears: true, auto_render: true, file_roots: None }
+        Settings { library: true, ears: true, auto_render: true, file_roots: None, voice: None }
     }
 }
 
@@ -76,6 +78,10 @@ struct Session {
     /// the last take asked of the person, and how many have been asked for
     take_request: Option<claudius_api::TakeRequest>,
     asked: u64,
+    /// the last pitch check asked of the person: its phrases, and the check as the studio sees it
+    pitch_check: Option<(claudius::voice::check::Check, claudius_api::PitchCheck)>,
+    /// the person's voice, as their last pitch check heard it
+    voice: Option<claudius::voice::singer::Voice>,
 }
 
 impl Session {
@@ -113,6 +119,19 @@ pub struct App {
     last_export: Mutex<Option<Export>>,
     base: Mutex<String>,
     roots: Option<Vec<PathBuf>>,
+    /// where the person's voice is kept
+    voice_file: Option<PathBuf>,
+}
+
+/// how many sessions this process has started
+static SESSIONS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// a session's renders are only for it: they go when it does (its lock first, which Windows wants closed)
+impl Drop for App {
+    fn drop(&mut self) {
+        drop(self._in_use.take());
+        let _ = std::fs::remove_dir_all(&self.cache);
+    }
 }
 
 fn now_seed() -> u64 {
@@ -129,7 +148,9 @@ fn no(message: impl Into<String>, version: u64) -> Reply {
 
 impl App {
     pub fn new(settings: Settings) -> Arc<App> {
-        let cache = config::cache_dir("renders").join(format!("{}", std::process::id()));
+        // each session's own folder, though a process runs several (tests do): starting one clears its folder
+        let n = SESSIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let cache = config::cache_dir("renders").join(format!("{}-{n}", std::process::id()));
         // a folder left by an ended process with the same id holds none of this session's renders
         let _ = std::fs::remove_dir_all(&cache);
         let _ = std::fs::create_dir_all(&cache);
@@ -152,9 +173,15 @@ impl App {
             last_export: Mutex::new(None),
             base: Mutex::new(format!("http://127.0.0.1:{DEFAULT_PORT}")),
             roots: settings.file_roots,
+            voice_file: settings.voice.clone(),
         });
         {
             let mut s = app.lock();
+            s.voice = settings
+                .voice
+                .as_ref()
+                .and_then(|p| std::fs::read_to_string(p).ok())
+                .and_then(|t| serde_json::from_str(&t).ok());
             s.say(match (&app.lib, claudius_packs::installed().len()) {
                 (Some(_), _) => "sample library: Apple Loops and your folders".to_string(),
                 (None, 0) => "no sample packs, Apple Loops or sample folders found: every sound is synthesized".to_string(),
@@ -298,6 +325,8 @@ impl App {
             exports: self.exports.clone(),
             release,
             take_request: s.take_request.clone(),
+            pitch_check: s.pitch_check.as_ref().map(|(_, v)| v.clone()),
+            voice: s.voice.as_ref().map(|v| v.describe()),
         }
     }
 

@@ -473,6 +473,16 @@ impl Backend {
         }
     }
 
+    /// Sends the answers to pitch check `id`, sung from its first beat (the answer arrives as a reply to "pitch_check").
+    pub fn upload_pitch_check(&mut self, wav: Vec<u8>, id: u64) {
+        match self {
+            Backend::Remote(r) => r.listen(wav, "/api/pitch-check", &format!("id={id}"), "pitch_check"),
+            Backend::Mock(m) => {
+                m.refuse("pitch_check", "the demo hears no singing: start `claudius serve` for a pitch check")
+            }
+        }
+    }
+
     /// Sends a recording chosen on this computer, the file itself, to be listened to, remade or sampled (the answer
     /// arrives as a reply to "analyze", "remake" or "sample_song").
     pub fn listen(&mut self, l: &crate::panels::Listen) {

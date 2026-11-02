@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use claudius_api::{SongView, TakeRequest, TakeStatus};
+use claudius_api::{PitchCheck, SongView, TakeRequest, TakeStatus};
 use eframe::egui::{self, RichText, Sense, Ui, vec2};
 use serde::{Deserialize, Serialize};
 
@@ -139,6 +139,41 @@ mod tests {
     }
 
     #[test]
+    fn a_pitch_check_is_taken_up_once_and_its_guide_plays_its_notes_on_their_beats() {
+        let note = claudius_api::NoteView { t: 1.0, d: 0.9, p: 69, v: 0.8 };
+        let c = PitchCheck {
+            id: 4,
+            bpm: 90.0,
+            notes: vec![note],
+            answers: vec![(5.0, 10.0)],
+            beats: 10.0,
+            ..Default::default()
+        };
+        let mut r = Record::default();
+        assert!(r.set_up_check(Some(&c)));
+        assert!(!r.set_up_check(Some(&c)), "once");
+        let sung = PitchCheck { id: 5, status: TakeStatus::Taken, ..c.clone() };
+        assert!(!r.set_up_check(Some(&sung)), "a check already sung opens nothing");
+        // the window is the check's, unless a take is in hand: that is finished first
+        assert!(r.checking(true) && !r.checking(false));
+        let song = Arc::new(crate::audio::Pcm { rate: 48_000, channels: 2, samples: Vec::new() });
+        r.held =
+            Some(Held { wav: Vec::new(), secs: 1.0, from: "drop".into(), song, start: 0.0, bar: 2.0, request: None });
+        assert!(r.take_in_hand() && !r.checking(true), "a take waiting to be kept keeps the window");
+        (r.held, r.sending) = (None, true);
+        assert!(!r.checking(true), "nor one on its way");
+        r.check_sending = true;
+        assert!(r.checking(false), "a check's answers on their way are the check's");
+        let g = guide(&c);
+        let beat = (60.0 / 90.0 * 48_000.0) as usize;
+        assert_eq!((g.rate, g.channels, g.frames()), (48_000, 2, 10 * beat));
+        assert!(g.samples[..2 * beat].iter().all(|&v| v == 0.0), "nothing before its beat");
+        let a4: Vec<f32> = g.samples[2 * (beat + 4_800)..2 * (beat + 14_400)].iter().step_by(2).copied().collect();
+        let crossings = a4.windows(2).filter(|w| w[0] < 0.0 && w[1] >= 0.0).count();
+        assert!((crossings as i32 - 88).abs() <= 2, "A4 for 0.2 s: {crossings} rising crossings");
+    }
+
+    #[test]
     fn a_measurement_says_how_late_through_what_and_what_it_set() {
         let route = "MacBook Pro Speakers and MacBook Pro Microphone";
         let late = measured(44.0, route);
@@ -215,6 +250,13 @@ pub struct Record {
     /// the take request (`request_take`) the window last opened for, and the one a take on its way answers
     asked: u64,
     answers: Option<u64>,
+    /// a pitch check is to start now, as its Start button starts one (a scripted run's `rec:check`)
+    pub check: bool,
+    /// the pitch check the window last opened for; one's answers on their way to claudius (its id, the recording);
+    /// and whether they are still on their way
+    checked: u64,
+    pub check_upload: Option<(u64, Vec<u8>)>,
+    check_sending: bool,
     /// a take that has stopped, waiting to be kept, recorded again or thrown away; and what plays it back in the song
     held: Option<Held>,
     preview: Option<crate::audio::Player>,
@@ -253,6 +295,8 @@ struct Live {
     midi: bool,
     /// it is a measurement of the latency, not a take
     measuring: bool,
+    /// it is the answers to a pitch check, by its id
+    check: Option<u64>,
     /// when it was asked to stop, while the recorder hands over the last of what it heard (in a browser)
     stopping: Option<f64>,
     /// since when the input has heard nothing at all, and whether for long enough to say so
@@ -284,6 +328,46 @@ impl Record {
         let sent = if ok && self.answers.is_some() { " (the assistant has it now)" } else { "" };
         self.answers = None;
         self.status = Some((ok, format!("{message}{}{sent}", std::mem::take(&mut self.note))));
+    }
+
+    /// a pitch check asked for opens the window for it, once
+    pub fn check_asked(&mut self, check: Option<&PitchCheck>) {
+        if self.set_up_check(check) {
+            self.show();
+        }
+    }
+
+    /// Takes up a pitch check asked for, once; whether it was one it had not taken up yet. A take that records, waits
+    /// to be kept or is on its way keeps the window as it is until it is done with.
+    fn set_up_check(&mut self, check: Option<&PitchCheck>) -> bool {
+        if self.live.is_some() || self.held.is_some() || self.sending {
+            return false;
+        }
+        let Some(c) = check.filter(|c| c.status == TakeStatus::Waiting && c.id != self.checked) else { return false };
+        (self.checked, self.status) = (c.id, None);
+        true
+    }
+
+    /// a take in hand: one recording, waiting to be kept, or on its way (a pitch check waits for it)
+    fn take_in_hand(&self) -> bool {
+        self.live.as_ref().is_some_and(|l| l.check.is_none())
+            || self.held.is_some()
+            || (self.sending && !self.check_sending)
+    }
+
+    /// the window is the pitch check's: one waits, is being sung, or is on its way, and no take is in hand
+    fn checking(&self, waiting: bool) -> bool {
+        !self.take_in_hand() && (waiting || self.live.as_ref().is_some_and(|l| l.check.is_some()) || self.check_sending)
+    }
+
+    /// what claudius heard in a pitch check's answers (the How it is sung window shows all of it)
+    pub fn check_answered(&mut self, ok: bool, message: String) {
+        (self.sending, self.check_sending) = (false, false);
+        self.status = Some(if ok {
+            (true, "the pitch check is in: your voice is in the How it is sung window".into())
+        } else {
+            (false, message)
+        });
     }
 
     /// a take an assistant asks for opens the window, set up for it
@@ -345,7 +429,8 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
         return;
     }
     let mut open = true;
-    egui::Window::new("Record a take")
+    let checking = cx.view.record.checking(waiting_check(cx.state).is_some());
+    egui::Window::new(if checking { "Check your pitch" } else { "Record a take" })
         .id(egui::Id::unique("record"))
         .open(&mut open)
         .collapsible(false)
@@ -370,8 +455,13 @@ fn wake_while_stopping(ctx: &egui::Context, cx: &Cx) {
 }
 
 fn body(ui: &mut Ui, cx: &mut Cx) {
+    if check_body(ui, cx) {
+        return;
+    }
     let Some(song) = cx.state.song.clone() else {
         ui.label(RichText::new("Make a song first.").color(TEXT));
+        ui.add_space(8.0);
+        offer_check(ui, cx);
         return;
     };
     let selected = song.sections.get(cx.view.section).map(|s| s.name.clone());
@@ -595,6 +685,8 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
     if throw {
         (r.held, r.preview, r.status) = (None, None, Some((true, "thrown away".into())));
     }
+    ui.add_space(10.0);
+    offer_check(ui, cx);
     if start {
         begin(cx, &song);
     }
@@ -603,6 +695,164 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
     }
     if stop {
         finish(cx);
+    }
+}
+
+/// a pitch check to sing, being sung, or on its way to claudius: the window is for it alone until it is done
+fn check_body(ui: &mut Ui, cx: &mut Cx) -> bool {
+    let waiting = waiting_check(cx.state);
+    let r = &mut cx.view.record;
+    if !r.checking(waiting.is_some()) {
+        return false;
+    }
+    let singing = r.live.as_ref().and_then(|l| l.check.map(|id| (id, l.recorder.time(), l.beat)));
+    let note = waiting.as_ref().map(|c| c.note.clone()).unwrap_or_default();
+    let asks = if note.is_empty() {
+        "A pitch check".to_string()
+    } else {
+        format!("An assistant asks for a pitch check: {note}")
+    };
+    egui::Frame::new().fill(theme::mix(WELL, theme::ACCENT, 0.16)).corner_radius(6).inner_margin(8).show(ui, |ui| {
+        ui.add(egui::Label::new(RichText::new(asks).color(TEXT)).wrap());
+    });
+    ui.add_space(6.0);
+    ui.label(small(
+        "Six short phrases play, one at a time. Sing each back in the gap after it, in whatever octave suits you: about \
+         a minute. Wear headphones, so that the microphone hears you and not the phrases.",
+    ));
+    ui.add_space(8.0);
+    let busy = singing.is_some() || r.check_sending;
+    ui.horizontal(|ui| {
+        ui.label(small("Input"));
+        ui.add_enabled_ui(!busy, |ui| input(ui, r));
+    });
+    ui.add_space(10.0);
+    meter(ui, r.level);
+    ui.add_space(10.0);
+    let (mut start, mut stop, mut not_now) = (false, false, false);
+    ui.horizontal(|ui| {
+        if singing.is_some() {
+            stop = widgets::tool_button(ui, Icon::Stop, "Stop", true, true).clicked();
+        } else if !r.check_sending {
+            start = widgets::tool_button(ui, Icon::Record, "Start the pitch check", true, true).clicked();
+            not_now = ui.button(small("Not now")).on_hover_text("leave the pitch check for now").clicked();
+        }
+    });
+    if let (Some((_, t, beat)), Some(c)) = (singing, waiting.as_ref()) {
+        let b = t / beat.max(1e-6);
+        let phrases = c.answers.len().max(1);
+        let say = if b < 0.0 {
+            "the count-in: the first phrase is next".to_string()
+        } else {
+            let k = ((b / 10.0) as usize).min(phrases - 1);
+            let doing = if b - k as f64 * 10.0 < 4.5 { "listen" } else { "now sing it back" };
+            format!("phrase {} of {phrases}: {doing}", k + 1)
+        };
+        ui.add_space(6.0);
+        ui.label(RichText::new(say).color(TEXT));
+    }
+    let (good, text) = what_now(r);
+    if !text.is_empty() {
+        ui.add_space(6.0);
+        let color = if good { TEXT_DIM } else { theme::BAD };
+        ui.add(egui::Label::new(small(text).color(color)).wrap());
+    }
+    r.check |= start;
+    if stop {
+        finish(cx);
+    }
+    if not_now && let Some(c) = waiting {
+        cx.out.push(claudius_api::Command::CancelPitchCheck { id: c.id });
+        cx.view.record.status = Some((true, "the pitch check can wait".into()));
+    }
+    true
+}
+
+/// a pitch check to ask for, and the voice the last one heard
+fn offer_check(ui: &mut Ui, cx: &mut Cx) {
+    if waiting_check(cx.state).is_some() {
+        ui.label(small("A pitch check waits: it comes up once this take is kept or thrown away.").color(TEXT_DIM));
+        return;
+    }
+    ui.horizontal(|ui| {
+        let asked = ui
+            .button(small("Check my pitch"))
+            .on_hover_text("six short phrases to sing back: claudius learns how you sing, and tunes your takes so")
+            .clicked();
+        if asked {
+            cx.out.push(claudius_api::Command::RequestPitchCheck { low: None, high: None, note: String::new() });
+        }
+        if let Some(v) = &cx.state.voice {
+            ui.add(egui::Label::new(small(format!("your voice: {v}")).color(TEXT_DIM)).wrap());
+        }
+    });
+}
+
+/// the pitch check asked for, while it waits to be sung
+fn waiting_check(state: &claudius_api::State) -> Option<PitchCheck> {
+    state.pitch_check.clone().filter(|c| c.status == TakeStatus::Waiting)
+}
+
+/// what a pitch check plays: each note a clear tone with its first harmonics, a 10 ms attack and an 80 ms release
+fn guide(c: &PitchCheck) -> crate::audio::Pcm {
+    let rate = 48_000u32;
+    let beat = 60.0 / c.bpm.max(1.0);
+    let n = (c.beats * beat * rate as f64) as usize;
+    let mut mono = vec![0f32; n];
+    for note in &c.notes {
+        let (at, len) = ((note.t * beat * rate as f64) as usize, (note.d * beat * rate as f64) as usize);
+        let hz = 440.0 * 2f64.powf((note.p as f64 - 69.0) / 12.0);
+        for i in 0..len.min(n.saturating_sub(at)) {
+            let s = i as f64 / rate as f64;
+            let env = (s / 0.01).min(1.0).min((len - i) as f64 / rate as f64 / 0.08);
+            let ph = std::f64::consts::TAU * hz * s;
+            mono[at + i] += ((ph.sin() + 0.35 * (2.0 * ph).sin() + 0.15 * (3.0 * ph).sin()) * 0.25 * env) as f32;
+        }
+    }
+    crate::audio::Pcm { rate, channels: 2, samples: mono.iter().flat_map(|&v| [v, v]).collect() }
+}
+
+/// starts a pitch check: its phrases play from a bar of count-in, and the input records from the first
+fn begin_check(cx: &mut Cx, c: &PitchCheck) {
+    use crate::audio::record::{Plan, Recorder};
+    let beat = 60.0 / c.bpm.max(1.0);
+    let song = Arc::new(guide(c));
+    let r = &mut cx.view.record;
+    (r.held, r.preview) = (None, None);
+    let plan = Plan {
+        input: r.settings.input.clone(),
+        midi: None,
+        channel: r.settings.channel,
+        stereo: false,
+        song: song.clone(),
+        start: 0.0,
+        count_in: 4.0 * beat,
+        beat,
+        bar: 4,
+        click: false,
+        offset: r.settings.offset_ms as f64 / 1000.0,
+    };
+    cx.player.pause();
+    r.listener = None;
+    match Recorder::start(plan) {
+        Ok(recorder) => {
+            r.live = Some(Live {
+                recorder,
+                take_start: 0.0,
+                song_end: song.seconds(),
+                beat,
+                song,
+                request: None,
+                midi: false,
+                measuring: false,
+                check: Some(c.id),
+                stopping: None,
+                silent_since: None,
+                silent: false,
+            });
+            (r.status, r.level) = (None, 0.0);
+        }
+        Err(e) => r.status = Some((false, e)),
     }
 }
 
@@ -802,6 +1052,7 @@ fn begin(cx: &mut Cx, song: &SongView) {
                 request,
                 midi,
                 measuring: false,
+                check: None,
                 stopping: None,
                 silent_since: None,
                 silent: false,
@@ -831,6 +1082,7 @@ fn measure_latency(cx: &mut Cx) {
                 request: None,
                 midi: false,
                 measuring: true,
+                check: None,
                 stopping: None,
                 silent_since: None,
                 silent: false,
@@ -896,6 +1148,20 @@ fn done(cx: &mut Cx) {
     let still = waiting(cx.state).map(|t| t.id);
     let r = &mut cx.view.record;
     let Some(live) = r.live.take() else { return };
+    if let Some(id) = live.check {
+        match live.recorder.finish() {
+            Ok(Take::Audio { peak: 0.0, .. }) => {
+                r.status = Some((false, "nothing came in from the input: check it, and sing the phrases again".into()));
+            }
+            Ok(Take::Audio { wav, .. }) => {
+                r.status = Some((true, "sending your answers to claudius ...".into()));
+                (r.sending, r.check_sending, r.check_upload) = (true, true, Some((id, wav)));
+            }
+            Ok(Take::Notes(_)) => r.status = Some((false, "a pitch check is sung, not played".into())),
+            Err(e) => r.status = Some((false, e)),
+        }
+        return;
+    }
     // the request it was started for, while that is still the one waiting
     let asked = live.request.filter(|id| Some(*id) == still);
     if live.measuring {
@@ -999,6 +1265,15 @@ fn not_now(cx: &mut Cx) {
 fn keep_up(ctx: &egui::Context, cx: &mut Cx) {
     let now = cx.now;
     cx.view.record.asked(cx.state.take_request.as_ref());
+    cx.view.record.check_asked(cx.state.pitch_check.as_ref());
+    if std::mem::take(&mut cx.view.record.check)
+        && cx.view.record.live.is_none()
+        && !cx.view.record.take_in_hand()
+        && let Some(c) = waiting_check(cx.state)
+    {
+        begin_check(cx, &c);
+        return;
+    }
     let r = &mut cx.view.record;
     if std::mem::take(&mut r.not_now) {
         not_now(cx);

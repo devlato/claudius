@@ -106,7 +106,7 @@ ended between the two steps, the save tries again to start, so it is never left 
    were asked for or the render is for a save;
 2. judges the render, with the ears when the background loader has finished (the session loads CLAP only, not the
    AudioSet tagger);
-3. writes the master to `<cache>/renders/<process id>/<version>.wav`, and stems to `<version>/<track>.wav` as 24-bit
+3. writes the master to `<cache>/renders/<process id>-<session>/<version>.wav`, and stems to `<version>/<track>.wav` as 24-bit
    WAVs;
 4. builds the `RenderView`: URL, length, loudness, section times, a 1000-point waveform, stem names;
 5. computes each track's loudness in the master (its measured level plus its gain plus the master's gain from
@@ -202,6 +202,11 @@ Two helpers shape every tool:
 - `job(command, timeout)` remembers the log, sends the command, waits for the session to settle (240 to 300 s), and
   returns the log lines written since, the candidate scores of a mutation or evolution, followed by the description,
   or a note that the job is still running.
+
+`request_pitch_check` and `wait_for_pitch_check` work the same way, with the session's `pitch_check`; the answers
+arrive at `POST /api/pitch-check`, and the voice heard in them is the session's from then on (kept in the file
+`Settings.voice` names, which `claudius studio` and `serve` set to `voice.json` in the settings folder), which a
+`tune` without a voice of its own sings as.
 
 `request_take` and `wait_for_take` are the exception: the person records the take, which can take minutes. The first
 sets the session's `take_request` and answers at once; the second waits on the state's version, a change at a time,

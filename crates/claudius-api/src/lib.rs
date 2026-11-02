@@ -92,6 +92,12 @@ pub struct State {
     /// the last take someone asked the person to record (`Command::RequestTake`), and how it went
     #[serde(default)]
     pub take_request: Option<TakeRequest>,
+    /// the last pitch check asked of the person (`request_pitch_check`), and how it went
+    #[serde(default)]
+    pub pitch_check: Option<PitchCheck>,
+    /// the person's voice as their last pitch check heard it, in words; a tuner sings it as it heard it
+    #[serde(default)]
+    pub voice: Option<String>,
 }
 
 /// A take someone (an assistant, say) asked the person to record. The studio's Record window opens for it, and the take
@@ -112,6 +118,28 @@ pub struct TakeRequest {
     pub note: String,
     pub status: TakeStatus,
     /// what claudius said of the take sent for it
+    #[serde(default)]
+    pub answer: Option<String>,
+}
+
+/// A pitch check (`request_pitch_check`): phrases the studio plays for the person to sing back, each followed by a gap
+/// to answer it in, in whatever octave suits them. The recording sent for it (`POST /api/pitch-check?id=`) answers it,
+/// and the voice claudius hears in it becomes the person's (`State.voice`).
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct PitchCheck {
+    pub id: u64,
+    pub bpm: f64,
+    /// the notes played: `t` and `d` in beats from the check's start, `p` a MIDI pitch
+    pub notes: Vec<NoteView>,
+    /// where each phrase's answer goes, (first beat, last beat)
+    pub answers: Vec<(f64, f64)>,
+    /// how long it lasts, beats
+    pub beats: f64,
+    /// what the asker said, in their words
+    #[serde(default)]
+    pub note: String,
+    pub status: TakeStatus,
+    /// what claudius heard in the answers
     #[serde(default)]
     pub answer: Option<String>,
 }
@@ -1084,6 +1112,20 @@ pub enum Command {
         /// what the line becomes: line (as sung, the default), harmony, octaves, chords, bass, arp or pad
         #[serde(default)]
         style: Option<String>,
+    },
+    /// Asks the person for a pitch check: the studio's Record window opens with phrases to sing back (`State.pitch_check`),
+    /// the notes played between MIDI `low` and `high` (default 57 to 69, A3 to A4: sung in any octave)
+    RequestPitchCheck {
+        #[serde(default)]
+        low: Option<i32>,
+        #[serde(default)]
+        high: Option<i32>,
+        #[serde(default)]
+        note: String,
+    },
+    /// the person will not do pitch check `id` now
+    CancelPitchCheck {
+        id: u64,
     },
     /// How a take or a recording is sung: the notes it means, how near each came, and the singer (where they sing sharp
     /// or flat by register, how widely their notes scatter, how fast they settle, their vibrato). A take is heard in

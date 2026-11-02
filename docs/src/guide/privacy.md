@@ -2,8 +2,9 @@
 
 claudius runs on your computer and sends nothing about you or your music anywhere. It listens to the microphone only
 while the studio's Record window is open (its meter shows what the input hears), in a browser once you have allowed
-the page to use it, and keeps the takes you record with your song, on your computer. It goes on the network for four
-things only: the downloads you ask for (the sample packs, from GitHub and their authors' sites, and the listening
+the page to use it, and keeps the takes you record with your song, on your computer. What a
+[pitch check](voice.md#checking-your-pitch) learns of your voice stays there too, in its settings folder. It goes on
+the network for four things only: the downloads you ask for (the sample packs, from GitHub and their authors' sites, and the listening
 models, from Hugging Face), the [update](updates.md) check, once a day, to GitHub, an assistant you connect from
 outside your computer if you set that up, and anonymous usage statistics, which are off until you turn them on.
 

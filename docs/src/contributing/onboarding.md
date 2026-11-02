@@ -91,7 +91,7 @@ Now the same song in the studio, after `claudius studio`:
 3. `http.rs` checks the host name, parses the JSON, and calls `App::command` on a blocking thread
    (`claudius-server/src/app/commands.rs`). `edit_with` changes a copy of the blueprint, `commit` pushes the old one
    for undo, and `after_change` starts a render job (`app/jobs.rs`).
-4. The job arranges, renders and judges as above, writes `<cache>/renders/<pid>/<version>.wav`, and bumps the version.
+4. The job arranges, renders and judges as above, writes `<cache>/renders/<pid>-<session>/<version>.wav`, and bumps the version.
    The long poll returns, the studio sees a new `render.version`, fetches the WAV and plays it from where you were.
 
 And an assistant, through `claudius mcp`: `mcp.rs` finds the studio on the port, picks `Backend::Remote`, and turns a

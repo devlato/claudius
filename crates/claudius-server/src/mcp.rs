@@ -417,6 +417,28 @@ pub struct TuneArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct PitchCheckArgs {
+    /// the lowest and highest notes played, MIDI (default 57 and 69, A3 to A4); the person sings them in whatever
+    /// octave suits them, so the default suits most voices
+    #[serde(default)]
+    pub low: Option<i32>,
+    #[serde(default)]
+    pub high: Option<i32>,
+    /// what to tell the person, shown in the window ("so that I know how to tune your takes")
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct WaitCheckArgs {
+    /// the pitch check's id, as request_pitch_check gave it
+    pub id: u64,
+    /// how long to wait at most before saying the person is still at it, seconds (default 50)
+    #[serde(default)]
+    pub seconds: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct RequestTakeArgs {
     /// the section the take starts with, by name (get_song lists them)
     pub from: String,
@@ -877,6 +899,58 @@ impl Studio {
     }
 
     #[tool(
+        description = "Ask the person for a pitch check: the studio's Record window opens with six short phrases of four notes, each played and then sung back by the person in the gap after it, in any octave (about a minute). claudius hears how near each note came and learns their voice: their range, where they go sharp or flat, how widely they scatter, steps against leaps, their vibrato; tune then sings their takes as it heard them. Returns at once with the check's id and the link that opens the studio; then call wait_for_pitch_check with the id."
+    )]
+    async fn request_pitch_check(&self, Parameters(a): Parameters<PitchCheckArgs>) -> Result<String, String> {
+        let r = self
+            .b
+            .command(Command::RequestPitchCheck { low: a.low, high: a.high, note: a.note.unwrap_or_default() })
+            .await?;
+        if !r.ok {
+            return Err(r.message);
+        }
+        let id = self.b.state().await?.pitch_check.map(|c| c.id).unwrap_or_default();
+        Ok(format!(
+            "{}. A studio that is open shows its Record window now; otherwise the person opens {}/?record=1 in a \
+             browser, or runs claudius studio. Call wait_for_pitch_check with id {id}.",
+            r.message,
+            self.b.base_url()
+        ))
+    }
+
+    #[tool(
+        description = "Wait for the pitch check asked for with request_pitch_check: returns what claudius heard once the person has sung it (how many notes, how near, in which octave, steps against leaps, and their voice), says so if they will not do it now, or, after `seconds` (default 50), that they are still at it: call it again then.",
+        annotations(read_only_hint = true)
+    )]
+    async fn wait_for_pitch_check(&self, Parameters(a): Parameters<WaitCheckArgs>) -> Result<String, String> {
+        let deadline = std::time::Instant::now() + Duration::from_secs(a.seconds.unwrap_or(50).clamp(1, 300));
+        let mut st = self.b.state().await?;
+        loop {
+            let Some(c) = st.pitch_check.clone().filter(|c| c.id == a.id) else {
+                return Err(match st.pitch_check {
+                    Some(newer) if newer.id > a.id => format!("pitch check {} gave way to check {}", a.id, newer.id),
+                    _ => format!("no pitch check {}: ask with request_pitch_check", a.id),
+                });
+            };
+            match c.status {
+                TakeStatus::Taken => return Ok(format!("the pitch check is in: {}", c.answer.unwrap_or_default())),
+                TakeStatus::Cancelled => {
+                    return Ok(format!("the person will not do the pitch check now (check {})", a.id));
+                }
+                TakeStatus::Waiting => {}
+            }
+            let left = deadline.saturating_duration_since(std::time::Instant::now());
+            if left.is_zero() {
+                return Ok(format!(
+                    "the person has not sung the pitch check yet (check {}): call wait_for_pitch_check again",
+                    a.id
+                ));
+            }
+            st = self.b.state_after(st.version, left.min(Duration::from_secs(20))).await?;
+        }
+    }
+
+    #[tool(
         description = "Wait for the take asked for with request_take: returns what claudius made of it once the person sends it (then listen and set_mix as after add_take), says so if they will not record it, or, after `seconds` (default 50), that they are still at it: call it again then.",
         annotations(read_only_hint = true)
     )]
@@ -993,7 +1067,17 @@ mod tests {
         read_only.sort();
         assert_eq!(
             read_only,
-            ["analyze", "assess_voice", "catalog", "get_song", "graph", "script_reference", "status", "wait_for_take"]
+            [
+                "analyze",
+                "assess_voice",
+                "catalog",
+                "get_song",
+                "graph",
+                "script_reference",
+                "status",
+                "wait_for_pitch_check",
+                "wait_for_take"
+            ]
         );
     }
 
