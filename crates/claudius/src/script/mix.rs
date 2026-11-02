@@ -17,10 +17,23 @@ use super::{Ctx, R, fail, num};
 pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     let c = ctx.clone();
     engine.register_fn("part", move |name: &str, m: Map| -> R<()> {
-        check_keys(&m, "part()", &["style", "preset", "register", "density", "seed", "rate"])?;
+        check_keys(&m, "part()", &["role", "style", "preset", "register", "density", "seed", "rate"])?;
         with_bp(&c, |bp, _| {
-            if !bp.parts.iter().any(|p| p.name == name) {
-                add_genre_part(bp, name)?;
+            let role = match map_str(&m, "role") {
+                Some(r) => Some(Role::parse(&r).ok_or_else(|| {
+                    format!("part(): a role is bass, chords, pad, keys, lead or arp, not '{r}'")
+                })?),
+                None => None,
+            };
+            match bp.parts.iter().find(|p| p.name == name) {
+                None => add_part(bp, name, role)?,
+                Some(p) if role.is_some_and(|r| r != p.role) => {
+                    return fail(format!(
+                        "part '{name}' is a {} part; remove(\"{name}\") first to make it another",
+                        p.role.name()
+                    ));
+                }
+                Some(_) => {}
             }
             let part = bp.parts.iter_mut().find(|p| p.name == name).expect("added above");
             if let Some(s) = map_str(&m, "style") {
@@ -202,26 +215,67 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     });
 }
 
-/// a part the genre has, added to a song that does not have it yet (a blank song, say)
-fn add_genre_part(bp: &mut Blueprint, name: &str) -> R<()> {
+/// a part added to a song that does not have it yet: the genre's part of that name (a blank song's, say), or, with a
+/// role, a part of the role written the way the genre writes it (its part of that role, renamed) or, when the genre
+/// has none, in every style of the role
+fn add_part(bp: &mut Blueprint, name: &str, role: Option<Role>) -> R<()> {
     let g = genre_of(bp);
-    let Some(spec) = g.as_ref().and_then(|g| g.parts.iter().find(|p| p.name == name)) else {
-        let have: Vec<&str> = bp.parts.iter().map(|p| p.name.as_str()).collect();
-        let genre: Vec<&str> =
-            g.as_ref().map(|g| g.parts.iter().map(|p| p.name.as_str()).collect()).unwrap_or_default();
-        return fail(format!(
-            "no part '{name}' (the song has: {}; {} parts: {}); track() writes your own",
-            if have.is_empty() { "none".into() } else { have.join(" ") },
-            bp.genre,
-            genre.join(" ")
-        ));
+    let Some(genre) = g.as_ref() else { return fail(format!("part(): the song's genre '{}' is unknown", bp.genre)) };
+    let spec = match (genre.parts.iter().find(|p| p.name == name), role) {
+        (Some(s), Some(r)) if s.role != r => {
+            return fail(format!(
+                "{} has a part '{name}' that is a {}, not a {}; give yours another name",
+                bp.genre,
+                s.role.name(),
+                r.name()
+            ));
+        }
+        (Some(s), _) => s.clone(),
+        (None, Some(r)) => match genre.parts.iter().find(|p| p.role == r) {
+            Some(s) => crate::genres::PartSpec { name: name.into(), optional: 0.0, ..s.clone() },
+            None => default_spec(name, r),
+        },
+        (None, None) => {
+            let have: Vec<&str> = bp.parts.iter().map(|p| p.name.as_str()).collect();
+            let theirs: Vec<&str> = genre.parts.iter().map(|p| p.name.as_str()).collect();
+            return fail(format!(
+                "no part '{name}' (the song has: {}; {} parts: {}); a role makes one of your own \
+                 (part(\"{name}\", #{{ role: \"lead\" }})), and track() writes your own notes",
+                if have.is_empty() { "none".into() } else { have.join(" ") },
+                bp.genre,
+                theirs.join(" ")
+            ));
+        }
     };
     let mut rng = crate::rng::Rng::new(bp.seed ^ crate::rng::hash_str(name));
-    let genre = g.as_ref().expect("a part of the genre's");
     let mut used = bp.parts.iter().filter_map(|p| crate::palette::identity(&p.sound)).collect();
-    bp.parts.push(compose::new_part(spec, genre, &crate::palette::instruments(), &mut used, &mut rng));
+    bp.parts.push(compose::new_part(&spec, genre, &crate::palette::instruments(), &mut used, &mut rng));
     super::song::place_new(bp, name);
     Ok(())
+}
+
+/// a part of `role` for a genre that has none: its role's presets and styles, in the role's usual register
+fn default_spec(name: &str, role: Role) -> crate::genres::PartSpec {
+    let register = match role {
+        Role::Bass => (28, 52),
+        Role::Pad => (48, 72),
+        Role::Chords | Role::Keys => (52, 76),
+        Role::Lead | Role::Arp => (60, 86),
+    };
+    crate::genres::PartSpec {
+        name: name.into(),
+        role,
+        presets: presets::for_role(role.name()).into_iter().map(String::from).collect(),
+        styles: compose::styles_for(role).iter().map(|s| s.to_string()).collect(),
+        register,
+        density: (0.4, 0.7),
+        voices: if matches!(role, Role::Chords | Role::Pad | Role::Keys) { 4 } else { 0 },
+        voicing: crate::theory::chord::Voicing::Close,
+        rates: if role == Role::Arp { vec![0.25] } else { Vec::new() },
+        optional: 0.0,
+        core: None,
+        mix: crate::model::TrackMix::default(),
+    }
 }
 
 pub fn mix_of<'a>(bp: &'a mut Blueprint, name: &str) -> Option<&'a mut TrackMix> {

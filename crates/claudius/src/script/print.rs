@@ -331,6 +331,7 @@ pub fn to_script(bp: &Blueprint) -> String {
     if !bp.parts.is_empty() {
         s.push_str("\n// parts written by the theory engine: change the style, preset, register, density or seed\n");
     }
+    let genre = super::song::genre_of(bp);
     for p in &bp.parts {
         let preset = match &p.sound {
             Sound::Synth { preset, .. } => format!(", preset: {}", quote(preset)),
@@ -338,8 +339,11 @@ pub fn to_script(bp: &Blueprint) -> String {
             _ => String::new(),
         };
         let rate = if p.role == Role::Arp { format!(", rate: {}", f64s(p.rate)) } else { String::new() };
+        // a part of your own says what it is; the genre's own are known by name
+        let own = genre.as_ref().is_some_and(|g| g.parts.iter().any(|q| q.name == p.name && q.role == p.role));
+        let role = if own { String::new() } else { format!("role: {}, ", quote(p.role.name())) };
         s.push_str(&format!(
-            "part({}, #{{ style: {}{preset}, register: [{}, {}], density: {}{rate}, seed: {} }});\n",
+            "part({}, #{{ {role}style: {}{preset}, register: [{}, {}], density: {}{rate}, seed: {} }});\n",
             quote(&p.name),
             quote(&p.style),
             p.register.0,
