@@ -56,6 +56,33 @@ It wants one voice at a time: a dry take or an a cappella, not a full mix. A voi
 most notes, with nothing to sing against, is heard as singing the notes next to them; sung over the song, or with a
 key, it is heard against those.
 
+## Checking your pitch
+
+A pitch check tells claudius how you sing without any take at all. In the studio's Record window, press **Check my
+pitch**, or let an assistant ask for one. Six short phrases of four notes play, one at a time, and you sing each back in
+the gap after it, in whatever octave suits you. It takes about a minute. Wear headphones, so that the microphone
+hears you and not the phrases.
+
+```text
+24 of 24 notes sung back (1 octave below the notes played), 63% within 25 cents of the note and 96% within 50; by step
+71% within 25 cents, by leap 40%; range A2-A3; flat by 18 cents at the top (A3); held notes scatter 14 cents either
+way, so a note lands within 25 cents 79% of the time; settles on a note in 90 ms; a vibrato of 5.6 Hz, 22 cents either
+way, on long notes; furthest off: A3 (-41 cents), G3 (-36 cents), F#3 (+33 cents)
+```
+
+Besides what [a take](#how-a-take-is-sung) tells, a check knows the notes you were asked for, so it says how many you
+sang back, in which octave, and how much nearer you land a note reached by step than one reached by a leap. The
+phrases walk a major scale between A3 and A4, mostly by step. An assistant can give other notes with `low` and `high`.
+
+The voice it hears becomes yours. The Record window shows it, and from then on [tuning](#tuning-a-voice) sings your
+takes as the check heard you, unless a tuner's `voice` says otherwise. claudius keeps it in `voice.json` in its
+settings folder ([Files and settings](files.md)), on this computer only. A new check replaces it, and deleting the file
+forgets it.
+
+An assistant asks with `request_pitch_check`. The studio's Record window opens for it (or the link the assistant gives
+opens one), you sing it, and the assistant, which has been waiting with `wait_for_pitch_check`, hears what claudius
+heard. **Not now** tells it you will do it another time.
+
 ## Tuning a voice
 
 The tuner moves each note of a voice onto the note it means, as far as its singer needs. It learns how the take is

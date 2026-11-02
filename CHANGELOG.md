@@ -73,6 +73,11 @@ only a few cents stay, as expression. It reads each note against the song's chor
 take and choose **Tune it**, add the `tune` effect in a script or the graph, run `claudius tune`, or let an assistant
 call `tune`.
 
+A pitch check plays six short phrases to sing back, in any octave, and learns from them how you sing, how much nearer
+you land a step than a leap included; your takes are tuned as it heard you from then on. Press **Check my pitch** in the
+Record window, or let an assistant ask with `request_pitch_check` and wait with `wait_for_pitch_check`
+([Checking your pitch](https://github.com/devlato/claudius/blob/main/docs/src/guide/voice.md#checking-your-pitch)).
+
 `claudius publish` checks a song the way stores and distributors check a release (its artwork's size, colours and
 sharpness, its audio, the licences of its sounds, and its details, including how it was made) and writes a release
 kit: the WAV and the cover a distributor takes, and the answers its form asks for

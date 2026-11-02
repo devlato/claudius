@@ -266,6 +266,48 @@ impl Mock {
             Command::SampleSong { .. } => {
                 Err("the demo samples nothing: start `claudius serve` to sample a recording".into())
             }
+            Command::RequestPitchCheck { note, .. } => {
+                // the same six phrases each time: the demo hears no singing, so they only have to play
+                let phrases = [
+                    [60, 62, 64, 67],
+                    [67, 65, 64, 62],
+                    [60, 64, 67, 72],
+                    [72, 71, 69, 67],
+                    [65, 64, 62, 60],
+                    [62, 65, 69, 67],
+                ];
+                let id = self.state.pitch_check.as_ref().map_or(1, |c| c.id + 1);
+                let notes = phrases
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(i, ph)| {
+                        ph.iter().enumerate().map(move |(k, &p)| claudius_api::NoteView {
+                            t: i as f64 * 10.0 + k as f64,
+                            d: 0.9,
+                            p,
+                            v: 0.8,
+                        })
+                    })
+                    .collect();
+                let answers = (0..6).map(|i| (i as f64 * 10.0 + 5.0, (i + 1) as f64 * 10.0)).collect();
+                self.state.pitch_check = Some(claudius_api::PitchCheck {
+                    id,
+                    bpm: 90.0,
+                    notes,
+                    answers,
+                    beats: 60.0,
+                    note: note.clone(),
+                    ..Default::default()
+                });
+                Ok(format!("asked the person for a pitch check (check {id}): six phrases of four notes to sing back"))
+            }
+            Command::CancelPitchCheck { id } => match self.state.pitch_check.as_mut() {
+                Some(c) if c.id == *id && c.status == claudius_api::TakeStatus::Waiting => {
+                    c.status = claudius_api::TakeStatus::Cancelled;
+                    Ok(format!("pitch check {id}: not now, then"))
+                }
+                _ => Err(format!("no pitch check {id} waiting")),
+            },
             Command::AssessVoice { .. } => {
                 Err("the demo hears no singing: start `claudius serve` to hear how a take is sung".into())
             }

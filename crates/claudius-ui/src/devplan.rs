@@ -72,6 +72,8 @@ pub enum Rec {
     Keep,
     /// the take an assistant asked for is turned down, as Not now turns it down
     NotNow,
+    /// the pitch check waiting to be sung starts, as its Start button starts it
+    Check,
 }
 
 pub struct Plan {
@@ -206,13 +208,14 @@ impl Plan {
                 "allow-midi" => Some(Step::Rec(Rec::AllowMidi)),
                 "play" => Some(Step::Rec(Rec::Play)),
                 "keep" => Some(Step::Rec(Rec::Keep)),
+                "check" => Some(Step::Rec(Rec::Check)),
                 "not-now" => Some(Step::Rec(Rec::NotNow)),
                 other => match (other.strip_prefix("midi:"), other.strip_prefix("grid:").map(str::parse)) {
                     (Some(name), _) => Some(Step::Rec(Rec::Midi(name.to_string()))),
                     (_, Some(Ok(beats))) => Some(Step::Rec(Rec::Grid(beats))),
                     _ => {
                         say(&format!(
-                            "a plan's rec is rec:start, rec:stop, rec:measure, rec:play, rec:keep, rec:not-now, \
+                            "a plan's rec is rec:start, rec:stop, rec:measure, rec:play, rec:keep, rec:check, rec:not-now, \
                              rec:allow-midi, rec:midi:<input> or rec:grid:<beats>, not '{step}'"
                         ));
                         None

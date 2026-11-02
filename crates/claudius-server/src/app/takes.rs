@@ -9,7 +9,7 @@ use claudius::audio::{self, Stereo};
 use claudius::{config, model, take};
 use claudius_api::Reply;
 
-use super::{App, no};
+use super::{App, no, ok};
 
 /// the largest take the studio may send: about 13 minutes of 32-bit float stereo at 48 kHz
 pub const MAX_TAKE: usize = 300 << 20;
@@ -60,6 +60,47 @@ impl App {
     }
 
     /// a recording sent as a file's bytes, its vocals sampled into the song, as `sample_song` samples a path's
+    /// The recording sent for pitch check `id`, sung over its phrases from their first beat: what claudius hears in
+    /// it, which answers the check, and the voice it hears, which becomes the person's (and is kept, when the app
+    /// keeps one).
+    pub fn pitch_check_bytes(self: &Arc<Self>, bytes: Vec<u8>, id: u64) -> Reply {
+        let v = self.version();
+        let check = match &self.lock().pitch_check {
+            Some((c, view)) if view.id == id && view.status == claudius_api::TakeStatus::Waiting => c.clone(),
+            Some((_, view)) if view.id == id => return no(format!("pitch check {id} is answered already"), v),
+            _ => return no(format!("no pitch check {id}: ask for one with request_pitch_check"), v),
+        };
+        let Some(ext) = kind(&bytes) else {
+            return no("send the pitch check as a WAV, FLAC, Ogg, MP3 or AIFF file", v);
+        };
+        let x = match audio::load_bytes(bytes, ext) {
+            Ok(x) => x,
+            Err(e) => return no(format!("cannot read the pitch check: {e:#}"), v),
+        };
+        let heard = check.hear(&x);
+        let said = heard.describe();
+        if heard.answers.iter().all(|a| a.sung.is_none()) {
+            return no(said, v);
+        }
+        if let Some(path) = &self.voice_file {
+            let kept = path.parent().map_or(Ok(()), std::fs::create_dir_all).and_then(|_| {
+                std::fs::write(path, serde_json::to_string_pretty(&heard.voice).unwrap_or_default() + "\n")
+            });
+            if let Err(e) = kept {
+                self.update(|s| s.say(format!("cannot keep the voice in {}: {e}", path.display())));
+            }
+        }
+        let v = self.update(|s| {
+            if let Some((_, view)) = &mut s.pitch_check {
+                (view.status, view.answer) = (claudius_api::TakeStatus::Taken, Some(said.clone()));
+            }
+            s.voice = Some(heard.voice.clone());
+            s.say(format!("heard the pitch check: {said}"));
+            s.version + 1
+        });
+        ok(said, v)
+    }
+
     pub fn sample_bytes(self: &Arc<Self>, bytes: Vec<u8>, name: &str, opt: &claudius::sampler::Options) -> Reply {
         match self.decode(bytes, name) {
             Ok(x) => self.sample_audio(&x, name, opt),

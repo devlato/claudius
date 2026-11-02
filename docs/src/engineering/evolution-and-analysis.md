@@ -207,6 +207,17 @@ over several cycles of their progression, and `arrange` repeats them only after 
 way, `take::styled` can make them harmony, octaves, chords, a bass line, an arpeggio or a pad. It counts by the
 key's scale steps (`Key::step`), so a third above or a triad under a note stays in the key.
 
+### Checking a voice
+
+`voice::check::Check` is a pitch check: six phrases of four notes in a random major key between two notes, each a
+random walk on the scale, a step of one or two degrees seven times in ten and a leap of three or four otherwise, at 90
+BPM, a beat a note. A phrase takes ten beats: its four notes, a beat's rest, four beats to answer in, a beat's rest.
+`Check::hear` reads each answer from 200 ms before its first beat to the next phrase, with anyone's voice in no key
+(what was sung, not what should have been), and lines the notes up with the phrase's by the least cost: a note sung
+for a note played costs how far off it was (a semitone and a half at most), a note not sung 1.2, a note that answers
+none 0.8. It tries the phrase two octaves down to one up and keeps the octave that costs least, and fits the voice
+(`singer::fit`) to the notes as meant in the singer's octave. A note reached by three semitones or more is a leap.
+
 ### Tuning a voice
 
 `voice::tune::tune` moves a voice onto the notes it means, as the `tune` effect, `claudius tune` and the `tune`

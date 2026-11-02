@@ -2,6 +2,7 @@
 //! assessment reads a recording's notes as anyone sings them, learns the singer from how near they came, and reads the
 //! notes again as that singer sings them.
 
+pub mod check;
 pub mod intent;
 pub mod pitch;
 pub mod singer;

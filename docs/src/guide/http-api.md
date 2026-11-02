@@ -25,6 +25,7 @@ this API, so anything it does you can do with `curl`. The types are plain serde 
 | `GET /api/release/artwork` | the artwork as it was given |
 | `GET /api/release/preview.png` | the artwork at most 512 pixels on a side, as PNG |
 | `POST /api/sample` | a recording whose vocals to [sample into the song](samples.md#sampling-a-songs-vocals), as the file itself, as for `/api/takes`; optional `name` (whose extension says the format), `count`, `bars`, `find` and `sections` (comma-separated) in the query, as for `sample_song`; answers with a [reply](#replies-and-errors) |
+| `POST /api/pitch-check?id=ID` | the answers to [pitch check](voice.md#checking-your-pitch) `id`, sung from its first beat, as the file itself, as for `/api/takes`; answers with a [reply](#replies-and-errors) saying what claudius heard, and the voice it heard becomes the person's (`voice`) |
 | `POST /api/takes?from=SECTION` | a recording as a [take](samples.md#takes), as the file itself (WAV, FLAC, Ogg, MP3 or AIFF) with `Content-Type: audio/...` or `application/octet-stream` (300 MB at most); optional `name` and `role` in the query, as for `add_take`, and `request`, the id of the [take request](samples.md#a-take-an-assistant-asks-for) it answers; answers with a [reply](#replies-and-errors) |
 | `POST /api/analyze?name=FILE` | a recording to listen to, as the file itself with `Content-Type: audio/...` or `application/octet-stream` (300 MB at most), named in the query so that its extension says its format (WAV, FLAC, MP3, AAC, ALAC, Ogg, AIFF ...); answers as `analyze` does, and keeps nothing of it |
 | `POST /api/remake?name=FILE` | a recording to remake, sent as for `/api/analyze`; optional `genre`, `seed` and `bpm` in the query, as for `remake`; answers with a [reply](#replies-and-errors) |
@@ -132,6 +133,8 @@ The MCP tools wait the same way after every edit.
 | `log` | strings | the last 200 lines of the session log, oldest first |
 | `genres` | `GenreInfo` list | every genre: `name`, `description`, `bpm` range |
 | `release` | `ReleaseView` or null | the release in the making for the song: its `details` (as `set_release` takes them), `song_title`, what the `artwork` is and its `artwork_version`, the `checks` (each a `level`, `problem`, `warning` or `note`, what it is `about` and its `message`) of the render `checked`, whether it is `ready`, where the last `kit` went, and the `made_options` |
+| `pitch_check` | `PitchCheck` or null | the last [pitch check](voice.md#checking-your-pitch) asked of the person: its `id`, `bpm`, the `notes` to play (`t` and `d` in beats, `p` MIDI), where each phrase's answer goes (`answers`, beats), how long it lasts (`beats`), the asker's `note`, its `status` (`waiting`, `taken` or `cancelled`), and, once sung, claudius' `answer` |
+| `voice` | string or null | the person's voice as their last pitch check heard it, in words |
 | `take_request` | `TakeRequest` or null | the last [take someone asked the person to record](samples.md#a-take-an-assistant-asks-for): its `id`, `from`, `role`, `name` and `note` as `request_take` gave them, its `status` (`waiting`, `taken` or `cancelled`), and, once taken, claudius' `answer` to the take |
 
 ### `SongView`
@@ -216,6 +219,8 @@ fields marked optional may be left out.
 | `add_notes` | `from` (a section's name), `notes` (`[{t, d, p, v}]`: beats from the section's start, length in beats, MIDI pitch, velocity, 0.8 when left out), `sounds`; optional `name` (played), `role` (lead), `style` (line), `request` (the take request the notes answer) | [notes played or written](samples.md#notes-played-on-a-keyboard), chords and all, as a new part for each sound |
 | `request_take` | `from` (a section's name); optional `role` (as `add_take`'s, or a part's: `pad`, `arp` ...), `name`, `note` (what to record, for the person) | [asks the person to record a take](samples.md#a-take-an-assistant-asks-for): the studio's Record window opens for it; the request goes in `take_request`, waiting, and replaces one asked before |
 | `cancel_take_request` | `id` | the person will not record the take asked for, as the Record window's Not now says |
+| `request_pitch_check` | optional `low` and `high` (MIDI, default 57 and 69), `note` | asks the person for a [pitch check](voice.md#checking-your-pitch): the Record window opens with its phrases; it goes in `pitch_check`, waiting, and replaces one asked before |
+| `cancel_pitch_check` | `id` | the person will not do the pitch check now |
 | `mutate` | optional `count` (4, 1 to 32), `keep_best` (true) | a job: tries variations and keeps the best if it beats the song |
 | `evolve` | optional `generations` (3, 1 to 20), `children` (6, 2 to 32) | a job: an evolutionary search from the song |
 | `install_packs` | optional `names` (the missing default packs when left out) | a job: downloads sample packs, as `claudius setup` does; not the opt-in packs, whose licence is unclear, and not on a shared claudius |

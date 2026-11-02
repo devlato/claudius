@@ -165,6 +165,15 @@ middle, top), how widely their held notes scatter, how fast they settle, their v
 starting with what went well; 25 cents off is where a held note starts to sound sour, so a note named there is worth
 singing again. A take far off on most notes may be in another key than the song: check the song's key first.
 
+## Check the person's pitch
+
+A pitch check tells claudius how the person sings before or without a take: call `request_pitch_check` (with a `note`
+such as "so that I know how to tune your takes"), give them the link it returns in case no studio is open, and say
+what to do: six short phrases play, and they sing each back in the gap after it, in any octave, with headphones on.
+Then call `wait_for_pitch_check` with the id until it is in. Tell them what it found, kindly: how many notes landed
+near, whether leaps are harder than steps, where they go sharp or flat. From then on `tune` sings their takes as the
+check heard them, and says so. When they press Not now, carry on and do not ask again unless they want to.
+
 ## Tune a take
 
 When the person wants a take in tune ("fix my pitch", "autotune it", "the T-Pain sound"), call `tune` with the take's

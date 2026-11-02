@@ -202,6 +202,19 @@ impl App {
                 self.commit(Some(bp), msg)
             }
             Command::RequestTake { from, role, name, note } => self.request_take(from, role, name, note),
+            Command::RequestPitchCheck { low, high, note } => self.request_pitch_check(low, high, note),
+            Command::CancelPitchCheck { id } => match self.try_update(|s| match &mut s.pitch_check {
+                Some((_, c)) if c.id == id && c.status == TakeStatus::Waiting => {
+                    c.status = TakeStatus::Cancelled;
+                    s.say(format!("the pitch check will not be sung (check {id})"));
+                    Ok(())
+                }
+                Some((_, c)) if c.id == id => Err(format!("pitch check {id} is answered already")),
+                _ => Err(format!("no pitch check {id}")),
+            }) {
+                Ok(()) => ok(format!("pitch check {id}: not now, then"), self.version()),
+                Err(e) => no(e, v),
+            },
             Command::CancelTakeRequest { id } => match self.try_update(|s| match &mut s.take_request {
                 Some(r) if r.id == id && r.status == TakeStatus::Waiting => {
                     r.status = TakeStatus::Cancelled;
@@ -438,6 +451,7 @@ impl App {
             }),
             Command::AssessVoice { take, path, key } => self.assess_voice(take, path, key),
             Command::Tune { track, strength, speed_ms, humanize, vibrato, scale, off } => {
+                let profile = self.lock().voice.clone();
                 let scale = match scale.as_deref().map(str::parse::<claudius::voice::tune::TuneScale>).transpose() {
                     Ok(s) => s,
                     Err(e) => return no(e, v),
@@ -476,7 +490,14 @@ impl App {
                             *sc = x;
                         }
                     }
-                    claudius::voice::tune::put(bp, &track, Some(t))
+                    // the person's voice, as their pitch check heard it, unless the tuner has one of its own
+                    let mut as_checked = false;
+                    if let (claudius::fx::Effect::Tune { voice: v @ None, .. }, Some(p)) = (&mut t, profile.as_ref()) {
+                        (*v, as_checked) = (Some(p.clone()), true);
+                    }
+                    claudius::voice::tune::put(bp, &track, Some(t)).map(|said| {
+                        if as_checked { format!("{said}, as your pitch check heard you sing") } else { said }
+                    })
                 })
             }
             Command::Analyze { path } => match self
@@ -589,6 +610,41 @@ impl App {
             id
         });
         ok(format!("asked the person for a take from {from} (request {id})"), self.version())
+    }
+
+    /// asks the person for a pitch check of phrases between MIDI notes `low` and `high`: the studio opens its Record
+    /// window for it
+    fn request_pitch_check(self: &Arc<Self>, low: Option<i32>, high: Option<i32>, note: String) -> Reply {
+        let (low, high) = (low.unwrap_or(57), high.unwrap_or(69));
+        if !(36..=84).contains(&low) || !(36..=84).contains(&high) || high < low + 7 {
+            return no(
+                "a pitch check's notes go from low to high, MIDI 36 to 84, at least a fifth apart",
+                self.version(),
+            );
+        }
+        let check = claudius::voice::check::Check::new(low, high, now_seed());
+        let notes = check.notes().iter().map(|&(p, t, d)| claudius_api::NoteView { t, d, p, v: 0.8 }).collect();
+        let (answers, beats) = (check.answers(), check.beats());
+        let id = self.update(|s| {
+            s.asked += 1;
+            let id = s.asked;
+            s.say(format!("asked the person for a pitch check (check {id})"));
+            let view = claudius_api::PitchCheck {
+                id,
+                bpm: claudius::voice::check::BPM,
+                notes,
+                answers,
+                beats,
+                note,
+                ..Default::default()
+            };
+            s.pitch_check = Some((check, view));
+            id
+        });
+        ok(
+            format!("asked the person for a pitch check (check {id}): six phrases of four notes to sing back"),
+            self.version(),
+        )
     }
 
     /// `r`, which answers take request `request` (the take sent for it) when claudius kept the take

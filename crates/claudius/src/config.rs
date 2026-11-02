@@ -15,6 +15,14 @@ pub fn home() -> PathBuf {
         .unwrap_or_else(|| dirs::cache_dir().unwrap_or_else(std::env::temp_dir).join("claudius"))
 }
 
+/// where claudius keeps what it learns of the person (their voice): $CLAUDIUS_HOME, or claudius in the user's settings
+/// folder (~/Library/Application Support on macOS, ~/.config on Linux)
+pub fn settings_dir() -> PathBuf {
+    std::env::var_os("CLAUDIUS_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| dirs::config_dir().unwrap_or_else(std::env::temp_dir).join("claudius"))
+}
+
 pub fn cache_dir(name: &str) -> PathBuf {
     let d = home().join(name);
     let _ = std::fs::create_dir_all(&d);

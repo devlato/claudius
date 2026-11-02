@@ -8,7 +8,7 @@ use claudius_server::{App, Options, Settings, http};
 use tower::ServiceExt;
 
 fn app() -> Arc<App> {
-    App::new(Settings { library: false, ears: false, auto_render: true, file_roots: None })
+    App::new(Settings { library: false, ears: false, auto_render: true, file_roots: None, voice: None })
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -73,8 +73,13 @@ async fn a_shared_session_keeps_to_its_folders() {
     std::fs::create_dir_all(&outside).unwrap();
     std::fs::write(outside.join("song.rhai"), "tempo(100);").unwrap();
     std::fs::write(inside.join("song.rhai"), "tempo(100);").unwrap();
-    let app =
-        App::new(Settings { library: false, ears: false, auto_render: false, file_roots: Some(vec![inside.clone()]) });
+    let app = App::new(Settings {
+        library: false,
+        ears: false,
+        auto_render: false,
+        file_roots: Some(vec![inside.clone()]),
+        voice: None,
+    });
     assert!(
         app.command(Command::NewSong { genre: "lofi".into(), seed: Some(1), bpm: None, key: None, loops: false }).ok
     );
@@ -112,6 +117,7 @@ fn packs_install_only_on_the_computer_claudius_runs_on() {
         ears: false,
         auto_render: false,
         file_roots: Some(vec![std::env::temp_dir()]),
+        voice: None,
     });
     let r = shared.command(Command::InstallPacks { names: Vec::new() });
     assert!(!r.ok && r.message.contains("shared claudius"), "{}", r.message);
@@ -965,4 +971,92 @@ fn the_studio_reads_and_writes_steps_as_scripts_do() {
         let (hits, _) = claudius::script::steps_to_hits(&c.to_string(), 16);
         assert_eq!(hits.first().map(|h| h.v), claudius_api::step_velocity(c), "'{c}'");
     }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_pitch_check_sung_back_becomes_the_voice_tune_sings_as() {
+    use claudius_api::TakeStatus;
+    let home = std::env::temp_dir().join(format!("claudius-voice-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&home);
+    let kept = home.join("voice.json");
+    // a voice kept before is the session's from the start (one App only: each clears this process' renders)
+    std::fs::create_dir_all(&home).unwrap();
+    let before = claudius::voice::singer::Voice { notes: 3, ..Default::default() };
+    std::fs::write(&kept, serde_json::to_string(&before).unwrap()).unwrap();
+    let settings =
+        Settings { library: false, ears: false, auto_render: false, file_roots: None, voice: Some(kept.clone()) };
+    let app = App::new(settings);
+    assert!(app.state().voice.is_some_and(|v| v.starts_with("range C3-C5")), "the kept voice");
+    let r = app.command(Command::RequestPitchCheck { low: Some(60), high: Some(55), note: String::new() });
+    assert!(!r.ok && r.message.contains("at least a fifth apart"), "{}", r.message);
+    let r = app.command(Command::RequestPitchCheck { low: None, high: None, note: "so that I can tune you".into() });
+    assert!(r.ok && r.message.contains("six phrases of four notes"), "{}", r.message);
+    let check = app.state().pitch_check.expect("a pitch check");
+    assert_eq!((check.notes.len(), check.answers.len(), check.status), (24, 6, TakeStatus::Waiting));
+    assert!(check.notes.iter().all(|n| (57..=69).contains(&n.p)), "{:?}", check.notes);
+    // sung back an octave down and 20 cents flat, a beat a note in each gap
+    let (sr, beat) = (claudius::config::SR as f64, 60.0 / check.bpm);
+    let mut l = vec![0f32; (check.beats * beat * sr) as usize];
+    let mut phase = 0f64;
+    for (i, (a, _)) in check.answers.iter().enumerate() {
+        for k in 0..4 {
+            let p = check.notes[i * 4 + k].p as f64 - 12.2;
+            let at = ((a + k as f64) * beat * sr) as usize;
+            for j in 0..(0.85 * beat * sr) as usize {
+                let hz =
+                    440.0 * 2f64.powf((p + 0.1 * (j as f64 / sr * std::f64::consts::TAU * 5.5).sin() - 69.0) / 12.0);
+                phase += std::f64::consts::TAU * hz / sr;
+                l[at + j] = ((phase.sin() + 0.5 * (2.0 * phase).sin()) * 0.3) as f32;
+            }
+        }
+    }
+    let file = home.join("answers.wav");
+    claudius::audio::save_wav(&file, &claudius::audio::Stereo { l: l.clone(), r: l }, true).unwrap();
+    let wav = std::fs::read(&file).unwrap();
+    let router = http::router(app.clone(), &Options::default());
+    let post = |query: String| {
+        Request::post(format!("/api/pitch-check?{query}"))
+            .header(header::HOST, "localhost")
+            .header(header::CONTENT_TYPE, "audio/wav")
+            .body(Body::from(wav.clone()))
+            .unwrap()
+    };
+    let (_, _, b) = call(&router, post("id=99".into())).await;
+    assert!(b.contains("no pitch check 99"), "{b}");
+    let (s, _, b) = call(&router, post(format!("id={}", check.id))).await;
+    let reply: claudius_api::Reply = serde_json::from_str(&b).unwrap();
+    assert!(s == StatusCode::OK && reply.ok, "{b}");
+    assert!(reply.message.contains("of 24 notes sung back (1 octave below the notes played)"), "{}", reply.message);
+    let st = app.state();
+    assert_eq!(st.pitch_check.as_ref().map(|c| c.status), Some(TakeStatus::Taken));
+    assert!(st.voice.as_deref().is_some_and(|v| v.contains("flat by ")), "{:?}", st.voice);
+    let (_, _, b) = call(&router, post(format!("id={}", check.id))).await;
+    assert!(b.contains("answered already"), "{b}");
+    // the voice heard is kept in place of the one before
+    let voice: claudius::voice::singer::Voice = serde_json::from_str(&std::fs::read_to_string(&kept).unwrap()).unwrap();
+    assert!(voice.notes >= 20 && voice.bias.iter().all(|b| (b + 0.2).abs() < 0.08), "{voice:?}");
+    // a take tuned from here on is sung as the check heard it
+    assert!(
+        app.command(Command::NewSong { genre: "house".into(), seed: Some(2), bpm: None, key: None, loops: false }).ok
+    );
+    let tune = Command::Tune {
+        track: "kick".into(),
+        strength: None,
+        speed_ms: None,
+        humanize: None,
+        vibrato: None,
+        scale: None,
+        off: false,
+    };
+    let r = app.command(tune);
+    assert!(r.ok && r.message.ends_with("as your pitch check heard you sing"), "{}", r.message);
+    let kick = app.state().song.unwrap().tracks.into_iter().find(|t| t.name == "kick").unwrap();
+    assert!(kick.fx[0]["voice"]["bias"].is_array(), "{:?}", kick.fx[0]);
+    // one asked for and not sung now
+    assert!(app.command(Command::RequestPitchCheck { low: None, high: None, note: String::new() }).ok);
+    let id = app.state().pitch_check.unwrap().id;
+    assert!(app.command(Command::CancelPitchCheck { id }).ok);
+    assert_eq!(app.state().pitch_check.map(|c| c.status), Some(TakeStatus::Cancelled));
+    assert!(!app.command(Command::CancelPitchCheck { id }).ok);
+    std::fs::remove_dir_all(&home).unwrap();
 }

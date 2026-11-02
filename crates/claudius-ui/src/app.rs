@@ -204,6 +204,14 @@ impl Studio {
                     }
                     self.view.analysis = Some((ok, message));
                 }
+                if what == "pitch_check" {
+                    let (ok, message) = match &result {
+                        Ok(r) => (r.ok, r.message.clone()),
+                        Err(e) => (false, format!("the pitch check did not arrive: {e}")),
+                    };
+                    self.view.record.check_answered(ok, message.clone());
+                    self.view.heard = Some((ok, message));
+                }
                 if what == "assess_voice" {
                     self.view.heard = Some(match &result {
                         Ok(r) => (r.ok, r.message.clone()),
@@ -475,6 +483,7 @@ impl Studio {
                 Step::Rec(Rec::AllowMidi) => crate::audio::record::ask_for_midi(),
                 Step::Rec(Rec::Play) => self.view.record.play = true,
                 Step::Rec(Rec::Keep) => self.view.record.keep = true,
+                Step::Rec(Rec::Check) => self.view.record.check = true,
                 Step::Rec(Rec::NotNow) => self.view.record.not_now = true,
                 #[cfg(not(target_arch = "wasm32"))]
                 Step::AudioPath(p) => crate::pick::take_path(crate::pick::Want::Audio, std::path::Path::new(&p)),
@@ -1030,6 +1039,11 @@ impl eframe::App for Studio {
             self.inflight += 1;
             self.inflight_since = now;
             self.backend.upload_take(t.wav, &t.from, t.name.as_deref(), &t.role, t.request);
+        }
+        if let Some((id, wav)) = self.view.record.check_upload.take() {
+            self.inflight += 1;
+            self.inflight_since = now;
+            self.backend.upload_pitch_check(wav, id);
         }
         if let Some(release) = &self.state.release
             && let Some(v) = self.view.publish.wants_preview(release)
