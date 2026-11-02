@@ -20,7 +20,7 @@ drum ride main (drum ride): o.o.o.o.o.o.o...|o.o.o.o.o.o.o...|o.o.o.o.o.o.o...|o
 drum shaker main (drum shaker): .oo.oo.ooooo.ooo|.oo.oo.ooooo.ooo|.oo.oo.ooooo.ooo|.oo.oo.ooooo.ooo
 part bass (bass): rolling synth reese, register 26..41, density 0.51
 part pad (pad): sustain synth strings, register 48..74, density 0.57
-part lead (lead): motif synth pluck, register 64..86, density 0.45
+part lead (lead): motif synth bell, register 64..86, density 0.45
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums

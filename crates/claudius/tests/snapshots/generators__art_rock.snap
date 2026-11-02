@@ -23,10 +23,10 @@ drum ride main (drum ride): o...o...o...o.o.|o...o...o...o.o.|o...o...o...o.o.|o
 drum tom main (drum tom): .............xxx|.............xxx|.............xxx|.............xxx
 part piano (keys): syncopated synth keys, register 48..76, density 0.51
 part arp (arp): random synth bell, register 60..84, density 0.59
-part bass (bass): syncopated synth sub_bass, register 28..47, density 0.53
-part strings (pad): sustain synth strings, register 45..81, density 0.54
-part guitar (chords): half synth pluck, register 50..74, density 0.41
-part lead (lead): motif synth square_lead, register 62..81, density 0.43
+part bass (bass): syncopated synth moog_bass, register 28..47, density 0.53
+part strings (pad): sustain synth warm_pad, register 45..81, density 0.54
+part guitar (chords): half synth organ, register 50..74, density 0.41
+part lead (lead): motif synth vox_lead, register 62..81, density 0.43
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.20, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.25, reverb 0.00, delay 0.00, duck 0.00, bus drums

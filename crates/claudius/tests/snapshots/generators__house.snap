@@ -1,6 +1,5 @@
 ---
 source: crates/claudius/tests/generators.rs
-assertion_line: 98
 expression: summary(&bp)
 ---
 house at 125.0 BPM in G minor, swing 0.52
@@ -23,7 +22,7 @@ drum perc main (drum rim): .x..x...x..x..x.|.x..x...x..x..x.|.x..x...x..x..x.|.x
 drum perc sparse (drum rim): x.......x.......|x.......x.......|x.......x.......|x.......x.......
 part bass (bass): offbeat synth pluck_bass, register 33..52, density 0.51
 part chords (chords): offbeat synth organ, register 55..76, density 0.58
-part pad (pad): sustain synth strings, register 50..76, density 0.43
+part pad (pad): sustain synth vowel_pad, register 50..76, density 0.43
 part lead (lead): motif synth supersaw, register 64..86, density 0.55
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix clap: +0.0 dB, pan +0.00, reverb 0.18, delay 0.00, duck 0.00, bus drums

@@ -169,8 +169,9 @@ A pattern is a cycle of events; **one cycle is one bar**. Each section starts it
   cr crash lt mt ht tom rim rs sh shaker cb cowbell snap perc`.
 - Real drum machines and kits from the sample packs: `s("bd*4, [~ sd]*2, hh*8").bank("tr909")`. Banks: `tr909`
   (`909`), `tr808` (`808`), `tr707` (`707`), `acoustic` (a recorded rock kit), `uzu`; `bd:2` picks a variation.
-- Synth presets: see `catalog` / `GET /api/sounds` (e.g. `808 sub_bass reese acid pluck supersaw pad epiano keys organ
-  bell`).
+- Synth presets: see `catalog` / `GET /api/sounds` (e.g. `808 sub_bass reese acid moog_bass fm_bass pluck supersaw
+  saw_lead pwm_lead whistle brass_lead pad solina glass_pad vowel_pad epiano tine_piano clav keys organ rock_organ bell
+  fm_marimba mallet`).
 - Sampled instruments, when their packs are installed (`claudius-packs install --defaults`): `piano upright rhodes
   wurlitzer cp80 hammond church_organ` · `string_ensemble violins violas cellos contrabass pizzicato spiccato brass
   brass_stabs trumpet horn trombone tuba woodwinds flute oboe clarinet bassoon piccolo harp timpani` · `marimba vibes

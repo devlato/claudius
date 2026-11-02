@@ -90,8 +90,11 @@ Methods on patterns:
   shaker cb cowbell snap perc`.
 - Real drum machines and kits from the sample packs: `.bank("tr909")`, `"tr808"`, `"tr707"`, `"acoustic"`, `"uzu"`,
   `"synthdrums"`, `"sonicpi"` (Sonic Pi's `bd`, `sn`, `hat`), `"body"` (`stomp clap snap chest`).
-- Synth presets: `sub_bass 808 reese acid saw_bass pluck_bass organ_bass wobble pluck supersaw pad warm_pad stab
-  epiano keys bell organ strings square_lead chip`.
+- Synth presets: basses `sub_bass 808 reese acid saw_bass pluck_bass organ_bass wobble fm_bass rubber_bass moog_bass
+  dist_bass deep_bass`; leads `square_lead supersaw saw_lead pwm_lead whistle brass_lead fm_lead vox_lead chip`; keys and
+  chords `epiano keys organ stab tine_piano clav house_piano brass_stab rock_organ`; pads `pad warm_pad strings solina
+  glass_pad pwm_pad air_pad vowel_pad swell_pad`; plucks and mallets `pluck bell fm_marimba fm_kalimba harp_pluck
+  mallet`.
 - Sampled instruments when their packs are installed: `piano upright rhodes wurlitzer hammond string_ensemble
   violins cellos pizzicato brass trumpet flute harp marimba vibes kalimba upright_bass electric_bass guitar choir
   voice sax solo_cello erhu steel_pan hang water_glasses wine_glasses bowed_vibraphone dan_tranh clavisynth` and more;

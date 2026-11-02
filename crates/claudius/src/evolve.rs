@@ -307,9 +307,10 @@ fn apply_op(
                     Some(what)
                 }
                 "part_preset" => {
-                    let s = spec?.presets.clone();
-                    let np = rng.pick(&s).clone();
-                    let sound = crate::compose::part_sound(&np, rng);
+                    let others = b.parts.iter().enumerate().filter(|(i, _)| *i != pi);
+                    let used = others.filter_map(|(_, p)| crate::palette::identity(&p.sound)).collect();
+                    let part = b.parts.get_mut(pi)?;
+                    let sound = crate::compose::draw_sound(spec?, g, &crate::palette::instruments(), &used, rng);
                     if sound == part.sound {
                         return None;
                     }

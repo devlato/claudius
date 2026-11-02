@@ -115,6 +115,13 @@
     }
   ],
   "kits": [["tr909", 0.5], ["tr808", 0.15]],
+  "kit_mix": 0.35,
+  "palette": {
+    "bass": {"core": 0.7, "synth": 4},
+    "chords": {"core": 0.5, "synth": 4, "organ": 1, "brass": 0.3, "strings": 0.3},
+    "pad": {"core": 0.5, "synth": 3, "strings": 1, "pad": 1, "choir": 0.5},
+    "lead": {"core": 0.3, "synth": 4, "mallets": 1, "woodwinds": 0.3}
+  },
   "parts": [
     {
       "name": "bass",
@@ -126,6 +133,7 @@
     },
     {
       "name": "acid",
+      "core": 1.0,
       "role": "bass",
       "presets": ["acid"],
       "styles": ["acid"],

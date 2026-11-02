@@ -2,8 +2,10 @@
 
 The sample packs are recordings of real instruments and drum machines, mapped so that claudius can play any note at
 any velocity with them. Every pack in the default set is under a licence that lets you make and publish music with
-it. Without packs claudius synthesizes every sound; with them, genres reach for a Rhodes, an upright bass or a real
-909 where those belong.
+it. Without packs claudius synthesizes every sound; with them, every new song draws its parts from all the installed
+instruments that suit its genre (a flute or a vibraphone for a lofi lead, a string section or a choir for a trap pad,
+a Rhodes or an organ for house chords) and its drums from all the installed kits, so two songs of one genre rarely
+sound alike. The studio's Parts tab offers every instrument that can play a part.
 
 Packs live in `~/Library/Application Support/claudius/packs` on macOS and `~/.local/share/claudius/packs` on Linux,
 or in `$CLAUDIUS_PACKS`. Each pack is a folder with an `index.json` (its licence, attribution, files and how every
@@ -59,7 +61,9 @@ Three are **opt-in**: their licences are unclear or carry conditions, and they i
 | `dirt-samples` | the TidalCycles Dirt-Samples | no licence, and some samples come from commercial records |
 | `mridangam` | mridangam strokes by Arthur Carabott | CC BY-SA 4.0: share-alike may extend to your music |
 
-All three install lazily: their samples download the first time a song plays them.
+All three install lazily: their samples download the first time a song plays them. New songs never draw from them,
+as nothing says what you may do with music made with them; choose them by hand in a script (`.bank("LinnDrum")`,
+`part("lead", #{ preset: "pack:instrument" })`) when you know their terms suit you.
 [0007 Which samples we ship](../design/0007-sample-licensing.md) explains how packs are chosen.
 
 ## Installing

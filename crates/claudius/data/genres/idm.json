@@ -72,6 +72,13 @@
     }
   ],
   "kits": [],
+  "kit_mix": 0.5,
+  "palette": {
+    "bass": {"core": 0.6, "synth": 3},
+    "lead": {"core": 0.3, "mallets": 3, "synth": 2, "harp": 1, "piano": 0.8, "woodwinds": 0.5, "electric piano": 0.6},
+    "pad": {"core": 0.45, "synth": 2.5, "strings": 1, "choir": 1, "pad": 1, "woodwinds": 0.5},
+    "arp": {"core": 0.4, "synth": 2.5, "mallets": 2, "harp": 1, "piano": 0.8}
+  },
   "parts": [
     {
       "name": "bass",

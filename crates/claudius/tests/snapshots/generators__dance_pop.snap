@@ -26,9 +26,9 @@ drum ohat main (drum open_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...
 drum shaker main (drum shaker): ....o....oo.....|....o....oo.....|....o....oo.....|....o....oo.....
 part bass (bass): syncopated synth pluck_bass, register 33..52, density 0.51
 part chords (chords): syncopated synth keys, register 55..76, density 0.60
-part pad (pad): sustain synth pad, register 50..76, density 0.59
+part pad (pad): sustain synth vowel_pad, register 50..76, density 0.59
 part hook (lead): motif synth bell, register 60..77, density 0.40
-part lead (lead): motif synth pluck, register 67..88, density 0.49
+part lead (lead): motif synth brass_lead, register 67..88, density 0.49
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix clap: +0.0 dB, pan +0.00, reverb 0.20, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.20, reverb 0.00, delay 0.00, duck 0.00, bus drums

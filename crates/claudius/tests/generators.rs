@@ -122,3 +122,32 @@ fn the_same_seed_gives_the_same_song() {
         assert_eq!(p1, p2, "{}", g.name);
     }
 }
+
+#[test]
+fn songs_of_one_genre_draw_many_sounds_and_no_song_plays_one_twice() {
+    use std::collections::{BTreeMap, BTreeSet};
+    without_installed_packs();
+    for name in ["house", "lofi", "techno", "trap"] {
+        let g = genres::get(name).unwrap();
+        // the sounds each role played, and in how many songs
+        let mut by_role: BTreeMap<&str, (BTreeSet<String>, usize)> = BTreeMap::new();
+        for seed in 0..24 {
+            let bp = compose::generate(&g, seed, &Options::default(), None);
+            for p in &bp.parts {
+                let e = by_role.entry(p.role.name()).or_default();
+                e.0.insert(p.sound.describe());
+                e.1 += 1;
+            }
+            let ids: Vec<String> = bp.parts.iter().filter_map(|p| claudius::palette::identity(&p.sound)).collect();
+            assert_eq!(ids.iter().collect::<BTreeSet<_>>().len(), ids.len(), "{name} seed {seed}: {ids:?}");
+        }
+        for (role, (sounds, songs)) in &by_role {
+            // trap's bass is its 808
+            if *songs >= 10 && !(name == "trap" && *role == "bass") {
+                assert!(sounds.len() >= 4, "{name} {role} in {songs} songs: {sounds:?}");
+            }
+        }
+        let most = by_role.values().map(|(s, _)| s.len()).max().unwrap_or(0);
+        assert!(most >= 8, "{name}: {by_role:?}");
+    }
+}

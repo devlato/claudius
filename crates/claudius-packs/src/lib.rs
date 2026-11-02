@@ -422,6 +422,20 @@ pub fn aliases() -> Vec<(String, InstrumentRef)> {
     out
 }
 
+/// Every name the embedded registry's instruments answer to, installed or not: their names and their aliases.
+pub fn registry_names() -> Vec<String> {
+    let mut out = Vec::new();
+    for p in &catalog::REGISTRY.packs {
+        for i in &p.instruments {
+            out.push(i.name.clone());
+            out.extend(i.aliases.iter().cloned());
+        }
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
 /// Version of the embedded curated registry.
 pub fn registry_version() -> u32 {
     catalog::REGISTRY.version
