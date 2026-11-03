@@ -44,7 +44,7 @@ them.
 | `--stems` | off | also writes every track to `stems/<track>.wav` (32-bit float) |
 | `--samples` | `0.75` | the chance that a drum lane uses a one-shot cut from Apple Loops or your library instead of a synthesized voice |
 | `--synth-only` | off | synthesizes every sound: no sample packs, Apple Loops or user library |
-| `--no-library` | off | leaves out Apple Loops and your user library; the sample packs still play |
+| `--no-library` | off | leaves out Apple Loops and your user library; the sample packs, and the samples a [genre built on samples](online-samples.md#genres-built-on-samples) gathered, still play |
 | `--offline` | off | downloads no samples: a [genre built on samples](online-samples.md#genres-built-on-samples) plays what was gathered before, or the layers it plays without them |
 | `--sample <file>` | none | flips a recording into the song, warped to its tempo and key; repeatable |
 | `--loops` | off | builds the song around a family of Apple Loops (their chords, bass and beat), GarageBand style |
