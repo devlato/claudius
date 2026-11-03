@@ -69,6 +69,12 @@ claudius samples gather trip_hop        # or gather on its own
 claudius make --genre trip_hop --offline  # play what was gathered before, download nothing
 ```
 
+The studio and an assistant gather the same way. The first new song of a genre built on samples, while it has none
+of one of them, starts a job, *sampling for trip_hop*, that gathers them, then makes the song with them. Its log shows
+each recording tried. **Stop** ends the gathering, and the song is made with what is there. A claudius shared with
+others (`--root`) and `claudius studio --offline` gather nothing: they play what was gathered before, or what stands in
+for it.
+
 Gathering searches the libraries for each role's words ("slow drum break", "cinematic strings", "vinyl crackle"),
 downloads recordings of a fitting length, and cuts each on its beat grid:
 

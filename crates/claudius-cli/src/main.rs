@@ -116,7 +116,7 @@ fn gather(
     policy: &claudius_packs::online::Policy,
 ) -> Vec<claudius::library::prepared::Prepared> {
     let ix = claudius::library::prepared::Index::open();
-    match claudius::sampling::gather(g, ears, policy, &ix, &mut |s| eprintln!("gathering {s}")) {
+    match claudius::sampling::gather(g, ears, policy, &ix, &|| false, &mut |s| eprintln!("gathering {s}")) {
         Ok(got) => {
             for n in &got.notes {
                 eprintln!("  {n}");

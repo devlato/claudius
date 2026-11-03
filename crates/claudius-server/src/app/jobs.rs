@@ -7,10 +7,11 @@ use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 use claudius::compose::{self};
+use claudius::library::prepared::Role;
 use claudius::model::*;
 use claudius::render::Rendered;
 use claudius::rng::Rng;
-use claudius::{audio, evolve, genres, judge, render, song};
+use claudius::{audio, evolve, genres, judge, render, sampling, song};
 use claudius_api::*;
 use rayon::prelude::*;
 
@@ -30,7 +31,7 @@ impl App {
     }
 
     /// the job slot for `what`, or the reply that says what holds it
-    fn take_slot(&self, what: &str) -> Result<(), Reply> {
+    pub(super) fn take_slot(&self, what: &str) -> Result<(), Reply> {
         let started = self.try_update(|s| {
             if s.job {
                 return Err(());
@@ -129,7 +130,7 @@ impl App {
     }
 
     /// run a job that holds the job slot, and hand the slot on when it ends
-    fn spawn_job(self: &Arc<Self>, job: impl FnOnce(Arc<App>) + Send + 'static) {
+    pub(super) fn spawn_job(self: &Arc<Self>, job: impl FnOnce(Arc<App>) + Send + 'static) {
         self.cancel.store(false, Ordering::Relaxed);
         let app = self.clone();
         std::thread::spawn(move || {
@@ -183,6 +184,90 @@ impl App {
             Next::Render(stems) => self.start_render(stems, Duration::from_millis(100)),
             Next::Nothing => {}
         }
+    }
+
+    /// what a genre built on samples has none of yet, to gather before a song of it is made ("a break and a texture");
+    /// none when it has some of each, or gathers nothing here (said in the log, so that the song's sound is explained)
+    pub(super) fn samples_wanted(&self, g: &genres::GenreProfile) -> Option<String> {
+        let lib = self.samples_lib.as_ref()?;
+        let missing: Vec<&str> = Role::ALL
+            .into_iter()
+            .filter(|&r| sampling::need(g, r).is_some() && lib.prepared_for(r, &g.name) == 0)
+            .map(|r| match r {
+                Role::Break => "a break",
+                Role::Phrase => "a phrase",
+                Role::Texture => "a texture",
+            })
+            .collect();
+        if missing.is_empty() {
+            return None;
+        }
+        if !self.gather {
+            self.update(|s| {
+                s.say(format!(
+                    "{} has no samples here yet, so it plays what stands in for them \
+                     (`claudius samples gather {}` on the computer claudius runs on gathers them)",
+                    g.name, g.name
+                ))
+            });
+            return None;
+        }
+        Some(match missing.as_slice() {
+            [one] => one.to_string(),
+            [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
+            [] => String::new(),
+        })
+    }
+
+    /// gathers what a genre built on samples plays (with the ears, once they have loaded), then makes the new song with
+    /// what it found, unless a newer one has been asked for since (`asked`: the new song it was); stopping it makes the
+    /// song with what is there
+    pub(super) fn sampled_song_job(
+        self: &Arc<Self>,
+        g: genres::GenreProfile,
+        seed: u64,
+        opts: compose::Options,
+        asked: u64,
+    ) {
+        let Some(lib) = self.samples_lib.clone() else { return };
+        self.wait_for_ears(Duration::from_secs(90));
+        let ears = self.ears.get().and_then(|e| e.as_ref());
+        // each role's recordings tried, about twice the samples it keeps
+        let expected = Role::ALL.into_iter().filter_map(|r| sampling::need(&g, r)).map(|n| n.keep * 2).sum::<usize>();
+        let label = format!("sampling for {}", g.name);
+        let mut tried = 0;
+        let ix = claudius::library::prepared::Index::open();
+        let stop = || self.cancel.load(Ordering::Relaxed);
+        let got = sampling::gather(&g, ears, &claudius_packs::online::Policy::default(), &ix, &stop, &mut |line| {
+            tried += 1;
+            self.progress(&label, tried as f32 / expected.max(1) as f32 * 0.95);
+            self.update(|s| s.say(format!("sampling: {line}")));
+        });
+        match got {
+            Ok(got) => {
+                let n = got.added.len();
+                lib.add_prepared(got.added);
+                self.update(|s| {
+                    for note in &got.notes {
+                        s.say(format!("sampling: {note}"));
+                    }
+                    s.say(format!("sampled {n} recording(s) for {}", g.name));
+                });
+            }
+            Err(e) => self.update(|s| s.say(format!("sampling for {}: {e:#}; the song plays without them", g.name))),
+        }
+        let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
+        if self.new_songs.load(Ordering::Relaxed) != asked {
+            self.update(|s| {
+                s.say(format!("a newer song was asked for, so the {} song is not made; its samples are kept", g.name))
+            });
+            return;
+        }
+        let bp = compose::generate(&g, seed, &opts, Some(lib.as_ref() as &dyn compose::Library));
+        let msg =
+            format!("new song: {} — {} at {:.0} BPM in {} (seed {seed})", bp.title, bp.genre, bp.bpm, bp.key.name());
+        self.lock().folder = None;
+        self.commit(Some(bp), msg);
     }
 
     fn progress(&self, what: &str, p: f32) {

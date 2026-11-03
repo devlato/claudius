@@ -476,7 +476,8 @@ assistants and the HTTP API share. They take the same session flags:
 | `--port` | `7878` (`CLAUDIUS_PORT`) | the port the HTTP server listens on |
 | `--no-ears` | off | no earshot models; verdicts use meters and theory |
 | `--synth-only` | off | synthesizes every sound: no sample packs, Apple Loops or user library |
-| `--no-library` | off | no Apple Loops or user library; the sample packs still play |
+| `--no-library` | off | no Apple Loops or user library; the sample packs, and the samples a genre built on them gathered, still play |
+| `--offline` | off | gathers no samples: a [genre built on samples](online-samples.md#genres-built-on-samples) plays what was gathered before, or what stands in for it |
 | `--no-auto-render` | off | renders only when asked, instead of after every change |
 | `--web <dir>` | found automatically (`CLAUDIUS_WEB`) | the built web studio; see [Files and settings](files.md#the-web-studio) |
 
