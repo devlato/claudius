@@ -209,6 +209,8 @@ pub struct View {
     pub prog_text: Vec<(String, String)>,
     pub chip_edit: String,
     pub toast: Option<Toast>,
+    /// a download asked for: the song's version then, handed over once a render of it is here, and when it was asked
+    pub download: Option<(u64, f64)>,
     /// the script reference (markdown from `/api/reference`), its window, and whether it is on its way
     pub reference: Option<String>,
     pub reference_open: bool,
@@ -285,6 +287,7 @@ impl Default for View {
             prog_text: Vec::new(),
             chip_edit: String::new(),
             toast: None,
+            download: None,
             reference: None,
             reference_open: false,
             reference_loading: false,

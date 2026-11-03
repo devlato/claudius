@@ -1,10 +1,10 @@
 //! The top of the studio: transport and the LCD, the song's tempo / key / swing, the score, and the engine's
 //! actions (new song, render, mutate, evolve, undo / redo, save, cancel) with the busy indicator.
 
-use claudius_api::{Command, GenreInfo};
+use claudius_api::{Command, GenreInfo, State};
 use eframe::egui::{self, Align, Align2, Layout, Rect, RichText, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
 
-use super::{Cx, small};
+use super::{Cx, View, small};
 use crate::music::{self, Key};
 use crate::theme::{self, ACCENT, LCD, LCD_TEXT, LINE, TEXT, TEXT_DIM, TEXT_FAINT};
 use crate::widgets::{self, Icon, commit};
@@ -391,17 +391,19 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
         if widgets::icon_button(ui, Icon::Redo, 28.0, false, cx.state.can_redo, &redo_tip).clicked() {
             cx.out.push(Command::Redo);
         }
-        if widgets::icon_button(
-            ui,
-            Icon::Save,
-            28.0,
-            false,
-            has_song,
-            "save the song in a folder of its own under ~/Music/claudius: blueprint, script, audio, stems and verdict",
-        )
-        .clicked()
-        {
-            cx.out.push(Command::Save { path: None });
+        let demo = cx.server.is_none();
+        let page = cfg!(target_arch = "wasm32");
+        let save_tip = if demo {
+            "download the song as a WAV file"
+        } else if page {
+            "download the song, and save it in a folder of its own on the computer claudius runs on: blueprint, \
+             script, audio, stems and verdict"
+        } else {
+            "save the song in a folder of its own under ~/Music/claudius (blueprint, script, audio, stems and \
+             verdict), and show the folder"
+        };
+        if widgets::icon_button(ui, Icon::Save, 28.0, false, has_song, save_tip).clicked() {
+            ask_download(cx.state, cx.view, cx.out, demo, cx.now);
         }
 
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -731,8 +733,21 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
     }
 }
 
+/// What the download button asks for: in a page, the song as a download once a render of it as it is now is here (the
+/// demo renders it when its render is older); a server saves the song's folder too, and the app only saves it.
+pub(crate) fn ask_download(state: &State, view: &mut View, out: &mut Vec<Command>, demo: bool, now: f64) {
+    if demo || cfg!(target_arch = "wasm32") {
+        view.download = Some((state.song_version, now));
+    }
+    if !demo {
+        out.push(Command::Save { path: None });
+    } else if state.busy.is_none() && (state.render.is_none() || super::render_stale(state)) {
+        out.push(Command::Render { stems: false });
+    }
+}
+
 /// a song title as a file name: `Glass Garden` -> `glass-garden`
-fn file_name(title: &str) -> String {
+pub(crate) fn file_name(title: &str) -> String {
     let name: String = title.to_lowercase().chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '-' }).collect();
     match name.trim_matches('-') {
         "" => "song".to_string(),
