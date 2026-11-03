@@ -37,14 +37,24 @@ pub struct Settings {
     pub file_roots: Option<Vec<PathBuf>>,
     /// the file the person's voice is kept in, as a pitch check heard it (None: for this session only)
     pub voice: Option<PathBuf>,
-    /// gather what a genre built on samples plays, from free online libraries, before the first song of it is made
-    /// (a shared claudius, one with `file_roots`, gathers nothing)
+    /// play the samples gathered for the genres built on them (they are neither Apple Loops nor the user library)
     pub samples: bool,
+    /// gather what such a genre has none of, from free online libraries, before the first song of it is made (a
+    /// shared claudius, one with `file_roots`, gathers nothing)
+    pub gather: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { library: true, ears: true, auto_render: true, file_roots: None, voice: None, samples: true }
+        Settings {
+            library: true,
+            ears: true,
+            auto_render: true,
+            file_roots: None,
+            voice: None,
+            samples: true,
+            gather: true,
+        }
     }
 }
 
@@ -127,8 +137,8 @@ pub struct App {
     roots: Option<Vec<PathBuf>>,
     /// where the person's voice is kept
     voice_file: Option<PathBuf>,
-    /// whether a genre built on samples gathers them (Settings::samples)
-    samples: bool,
+    /// whether a genre built on samples gathers what it has none of (Settings::gather)
+    gather: bool,
 }
 
 /// how many sessions this process has started
@@ -165,7 +175,7 @@ impl App {
         let in_use = hold(&cache);
         clean_old_sessions(cache.parent().unwrap_or(&cache), &cache, ENDED_GRACE, UNLOCKED_AGE);
         let lib = if settings.library { Library::open().ok().filter(|l| !l.is_empty()).map(Arc::new) } else { None };
-        let samples_lib = settings.library.then(|| lib.clone().unwrap_or_else(|| Arc::new(Library::prepared_only())));
+        let samples_lib = settings.samples.then(|| lib.clone().unwrap_or_else(|| Arc::new(Library::prepared_only())));
         let (tx, _) = tokio::sync::watch::channel(0);
         let app = Arc::new(App {
             s: Mutex::new(Session::default()),
@@ -182,7 +192,7 @@ impl App {
             exports: export_formats(),
             last_export: Mutex::new(None),
             base: Mutex::new(format!("http://127.0.0.1:{DEFAULT_PORT}")),
-            samples: settings.samples && settings.file_roots.is_none(),
+            gather: settings.gather && settings.file_roots.is_none(),
             roots: settings.file_roots,
             voice_file: settings.voice.clone(),
         });
@@ -500,6 +510,7 @@ mod tests {
             file_roots: shared.then(|| vec![std::env::temp_dir()]),
             voice: None,
             samples: true,
+            gather: true,
         });
         Arc::get_mut(&mut app).expect("no one else holds it yet").samples_lib =
             samples.map(|p| Arc::new(Library::with_prepared(p)));

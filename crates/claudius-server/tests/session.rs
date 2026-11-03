@@ -8,7 +8,15 @@ use claudius_server::{App, Options, Settings, http};
 use tower::ServiceExt;
 
 fn app() -> Arc<App> {
-    App::new(Settings { library: false, ears: false, auto_render: true, file_roots: None, voice: None, samples: false })
+    App::new(Settings {
+        library: false,
+        ears: false,
+        auto_render: true,
+        file_roots: None,
+        voice: None,
+        samples: false,
+        gather: false,
+    })
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -74,6 +82,7 @@ fn tracks_are_added_and_removed() {
         file_roots: None,
         voice: None,
         samples: false,
+        gather: false,
     });
     let new = Command::NewSong { genre: "house".into(), seed: Some(4), bpm: None, key: None, loops: false };
     assert!(app.command(new).ok);
@@ -122,6 +131,7 @@ fn a_parts_notes_are_written_out_and_given_back() {
         file_roots: None,
         voice: None,
         samples: false,
+        gather: false,
     });
     let new = Command::NewSong { genre: "house".into(), seed: Some(4), bpm: None, key: None, loops: false };
     assert!(app.command(new).ok);
@@ -161,6 +171,7 @@ async fn a_shared_session_keeps_to_its_folders() {
         file_roots: Some(vec![inside.clone()]),
         voice: None,
         samples: false,
+        gather: false,
     });
     assert!(
         app.command(Command::NewSong { genre: "lofi".into(), seed: Some(1), bpm: None, key: None, loops: false }).ok
@@ -201,6 +212,7 @@ fn packs_install_only_on_the_computer_claudius_runs_on() {
         file_roots: Some(vec![std::env::temp_dir()]),
         voice: None,
         samples: false,
+        gather: false,
     });
     let r = shared.command(Command::InstallPacks { names: Vec::new() });
     assert!(!r.ok && r.message.contains("shared claudius"), "{}", r.message);
@@ -1073,6 +1085,7 @@ async fn a_pitch_check_sung_back_becomes_the_voice_tune_sings_as() {
         file_roots: None,
         voice: Some(kept.clone()),
         samples: false,
+        gather: false,
     };
     let app = App::new(settings);
     assert!(app.state().voice.is_some_and(|v| v.starts_with("range C3-C5")), "the kept voice");

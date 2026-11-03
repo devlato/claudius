@@ -202,7 +202,7 @@ impl App {
         if missing.is_empty() {
             return None;
         }
-        if !self.samples {
+        if !self.gather {
             self.update(|s| {
                 s.say(format!(
                     "{} has no samples here yet, so it plays what stands in for them \
