@@ -79,7 +79,7 @@ pub fn gather(
     let mut out = Gathered::default();
     for role in Role::ALL {
         let Some(n) = need(g, role) else { continue };
-        let known: HashSet<String> = ix.of(role, &g.name).into_iter().map(|p| p.source).collect();
+        let mut known: HashSet<String> = ix.of(role, &g.name).into_iter().map(|p| p.source).collect();
         let mut have = known.len();
         if have >= n.keep {
             continue;
@@ -108,6 +108,7 @@ pub fn gather(
                     continue;
                 }
                 budget -= 1;
+                known.insert(f.id.clone());
                 say(&format!("{} for {}: \"{}\" by {} ({})", role.name(), g.name, f.title, f.creator, f.id));
                 let kept = online::fetch(&f, policy).and_then(|path| prepare(role, &path, &f, g, n, ears, ix.root()));
                 match kept {
@@ -410,20 +411,30 @@ pub fn apply(
         let Some(p) = lib.and_then(|l| l.prepared(role, g, &mut r)) else { continue };
         if role == Role::Phrase {
             // the song is built on the phrase: its key, its tempo where the genre allows, its chords
+            let mut chords = p.chords.clone();
             if let Some(k) = p.key {
                 let was = bp.key;
-                bp.key = Key::new(k, if p.minor { Mode::Minor } else { Mode::Major });
-                // the other progressions move into the phrase's key as key() would move them
+                let heard = Key::new(k, if p.minor { Mode::Minor } else { Mode::Major });
+                // a genre that knows no major mode plays a major phrase in its relative minor, where the phrase's
+                // chord on its first degree is the third (a swell on A major is III of F sharp minor)
+                let dark = !g.modes.is_empty() && g.modes.iter().all(|(m, _)| m.is_minor());
+                bp.key = if !p.minor && dark { Key::new((k + 9) % 12, Mode::Minor) } else { heard };
+                // the other progressions move into the new key as key() would move them
                 for prog in bp.harmony.progressions.values_mut() {
                     *prog = prog.iter().map(|rn| crate::script::remode(rn, &was, &bp.key)).collect();
                 }
+                let heard_chords = crate::theory::progression::chords(&p.chords, &heard);
+                chords = if heard_chords.len() == p.chords.len() {
+                    heard_chords.iter().map(|c| crate::theory::chord::roman_of(c, &bp.key)).collect()
+                } else {
+                    Vec::new()
+                };
             }
             if !tempo_given && let Some(t) = fit_tempo(p.bpm, g.bpm) {
                 bp.bpm = t.round();
             }
-            let chords = crate::theory::progression::chords(&p.chords, &bp.key);
-            if p.chords.len() >= 2 && chords.len() == p.chords.len() {
-                bp.harmony.progressions.insert("A".into(), p.chords.clone());
+            if chords.len() >= 2 {
+                bp.harmony.progressions.insert("A".into(), chords);
                 bp.harmony.bars_per_chord = 1;
             }
             // a recording plays its own chords: the sections it plays in play them too
@@ -634,6 +645,21 @@ mod tests {
         assert!(matches!(&kick.sound, Sound::Sample { path, .. } if path == "/b/kick.wav"), "{:?}", kick.sound);
         assert!(bp.form.iter().any(|s| s.layers.contains(&BREAK.to_string())));
         assert!(bp.lineage.iter().any(|l| l.starts_with("sampled: phrase")), "{:?}", bp.lineage);
+    }
+
+    #[test]
+    fn a_dark_genre_plays_a_major_phrase_in_its_relative_minor() {
+        let g = sampling_genre();
+        let mut s = shelf();
+        for p in s.0.iter_mut().filter(|p| p.role == Role::Phrase) {
+            p.key = Some(9);
+            p.minor = false;
+            p.chords = vec!["I".into(), "IV".into()];
+        }
+        let bp = crate::compose::generate(&g, 3, &crate::compose::Options::default(), Some(&s));
+        // A major's I and IV are III and VI of F sharp minor
+        assert_eq!((bp.key.tonic, bp.key.mode), (6, Mode::Minor));
+        assert_eq!(bp.harmony.progressions["A"], ["III", "VI"]);
     }
 
     #[test]

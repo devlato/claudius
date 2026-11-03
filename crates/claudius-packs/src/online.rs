@@ -327,7 +327,10 @@ pub fn openverse_results(v: &Value) -> Vec<Found> {
                 _ => None,
             }
             .unwrap_or_else(|| format!("openverse:{}", str_at(r, "id")));
+            // Commons' files without the tracking Openverse adds to their links
             let audio = str_at(r, "url");
+            let audio =
+                if audio.contains("upload.wikimedia.org") { audio.split('?').next().unwrap_or(audio) } else { audio };
             (!audio.is_empty()).then(|| Found {
                 id,
                 source: Source::Openverse,
@@ -571,7 +574,12 @@ pub fn fetch(f: &Found, policy: &Policy) -> Result<PathBuf> {
     if path.is_file() && meta_path(&path).is_file() {
         return Ok(path);
     }
-    fetch::download_file(&f.audio, &path, 0, false).with_context(|| format!("downloading {}", f.audio))?;
+    let got = if f.provider == "ccmixter" {
+        fetch::download_file_from(&f.audio, &f.page, &path)
+    } else {
+        fetch::download_file(&f.audio, &path, 0, false)
+    };
+    got.with_context(|| format!("downloading {}", f.audio))?;
     if let Err(e) = claudius_decode::decode(&path) {
         let _ = std::fs::remove_file(&path);
         return Err(anyhow!("{} downloaded but does not decode: {e:#}", f.id));

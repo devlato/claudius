@@ -18,6 +18,8 @@ static AGENT: LazyLock<ureq::Agent> = LazyLock::new(|| {
         .timeout_connect(Some(Duration::from_secs(20)))
         .timeout_recv_response(Some(Duration::from_secs(60)))
         .timeout_recv_body(Some(Duration::from_secs(900)))
+        // some libraries (ccMixter) send headers past the usual 64 KB
+        .max_response_header_size(256 * 1024)
         .build()
         .into()
 });
@@ -96,10 +98,13 @@ fn is_lfs_pointer(p: &Path) -> bool {
 const MAX_UNKNOWN_SIZE: u64 = 1 << 30;
 
 /// one attempt: resume a previous `.part` when the server supports ranges
-fn download_once(url: &str, part: &Path, expected: u64, bytes: &dyn Fn(u64)) -> Result<()> {
+fn download_once(url: &str, referer: Option<&str>, part: &Path, expected: u64, bytes: &dyn Fn(u64)) -> Result<()> {
     let have = std::fs::metadata(part).map(|m| m.len()).unwrap_or(0);
     let have = if expected > 0 && have >= expected { 0 } else { have };
     let mut req = AGENT.get(url);
+    if let Some(r) = referer {
+        req = req.header("Referer", r);
+    }
     if have > 0 {
         req = req.header("Range", format!("bytes={have}-"));
     }
@@ -153,10 +158,22 @@ fn download_once(url: &str, part: &Path, expected: u64, bytes: &dyn Fn(u64)) -> 
 /// Download `url` to `dest` atomically (`dest.part`, verified, renamed), with retries and resume. With `flac`, a
 /// WAV download is converted to lossless FLAC at `dest`.
 pub fn download_file(url: &str, dest: &Path, expected: u64, flac: bool) -> Result<u64> {
-    download_file_with(url, dest, expected, flac, &|_| {})
+    download_file_with(url, None, dest, expected, flac, &|_| {})
 }
 
-fn download_file_with(url: &str, dest: &Path, expected: u64, flac: bool, bytes: &dyn Fn(u64)) -> Result<u64> {
+/// `download_file` for a host that serves a file only to visitors of the page it is on (ccMixter)
+pub fn download_file_from(url: &str, page: &str, dest: &Path) -> Result<u64> {
+    download_file_with(url, Some(page), dest, 0, false, &|_| {})
+}
+
+fn download_file_with(
+    url: &str,
+    referer: Option<&str>,
+    dest: &Path,
+    expected: u64,
+    flac: bool,
+    bytes: &dyn Fn(u64),
+) -> Result<u64> {
     if dest.is_file() {
         return Ok(0);
     }
@@ -169,7 +186,7 @@ fn download_file_with(url: &str, dest: &Path, expected: u64, flac: bool, bytes: 
         if attempt > 0 {
             std::thread::sleep(Duration::from_millis(500 * (1 << attempt)));
         }
-        match download_once(&url, &part, expected, bytes) {
+        match download_once(&url, referer, &part, expected, bytes) {
             Ok(()) => {
                 if is_lfs_pointer(&part)
                     && let Some(u) = lfs_url(&url)
@@ -350,7 +367,7 @@ pub fn download_all(tasks: &[Task], threads: usize, label: &str, progress: &dyn 
                     }
                     let t = todo[i];
                     let txb = tx.clone();
-                    let r = download_file_with(&t.url, &t.dest, t.size, t.flac, &move |n| {
+                    let r = download_file_with(&t.url, None, &t.dest, t.size, t.flac, &move |n| {
                         let _ = txb.send(Event::Bytes(n));
                     });
                     let _ = tx.send(match r {
