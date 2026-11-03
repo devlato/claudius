@@ -55,6 +55,15 @@ pub trait Library: Sync {
     fn family(&self, _genre: &GenreProfile, _rng: &mut Rng) -> Option<FamilyPick> {
         None
     }
+    /// a sample prepared for the genre to play as `role` (`library::prepared`), when one is at hand
+    fn prepared(
+        &self,
+        _role: crate::library::prepared::Role,
+        _genre: &GenreProfile,
+        _rng: &mut Rng,
+    ) -> Option<crate::library::prepared::Prepared> {
+        None
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -609,7 +618,7 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
     };
     // a mix of its own
     crate::colour::vary(&mut mix, &mut parts, &rng.fork("colour"));
-    Blueprint {
+    let mut bp = Blueprint {
         version: crate::model::BLUEPRINT_FORMAT,
         title: title(&mut rng.fork("title")),
         genre: g.name.clone(),
@@ -628,7 +637,10 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
         mix,
         lineage: vec![format!("generated: {} seed {seed}", g.name)],
         grooves: BTreeMap::new(),
-    }
+    };
+    // the samples a sampling genre is built on
+    crate::sampling::apply(&mut bp, g, opts.bpm.is_some(), lib, &rng.fork("sampling"));
+    bp
 }
 
 /// a part as the genre describes it: its sound drawn as `draw_sound` does (and added to `used`), its style, density

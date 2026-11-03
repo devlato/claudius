@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
+use claudius::genres::GenreProfile;
 use claudius::library::Library;
 
 use crate::connect;
@@ -482,6 +483,9 @@ pub(crate) struct SoundArgs {
     /// leave out Apple Loops and your own library; the sample packs still play
     #[arg(long)]
     pub(crate) no_library: bool,
+    /// download no samples: a genre built on samples plays what was gathered before, or plays without them
+    #[arg(long)]
+    pub(crate) offline: bool,
 }
 
 impl SoundArgs {
@@ -498,6 +502,21 @@ impl SoundArgs {
             return Ok(None);
         }
         open_library()
+    }
+
+    /// what a song of `g` is made with: the library, and for a genre built on samples without it (--no-library, or
+    /// no Apple Loops or folders), the samples gathered for it, which are neither; none of it with --synth-only
+    pub(crate) fn library_for(&self, g: &GenreProfile) -> Result<Option<Library>> {
+        let lib = self.library()?;
+        Ok(match lib {
+            None if g.sampling.is_some() && !self.synth_only => Some(Library::prepared_only()),
+            lib => lib,
+        })
+    }
+
+    /// whether a genre built on samples gathers them before a song is made
+    pub(crate) fn gathers(&self) -> bool {
+        !self.synth_only && !self.offline
     }
 }
 
@@ -590,6 +609,15 @@ pub(crate) enum SamplesCmd {
     },
     /// List the downloaded sounds, with their licences
     List,
+    /// Gather what a genre built on samples plays (its breaks, phrases and textures): search, download, cut on the beat
+    /// grid, and with the ears keep the ones that sound like the genre
+    Gather {
+        genre: String,
+        #[command(flatten)]
+        licences: LicenceArgs,
+        #[command(flatten)]
+        ears: EarsArgs,
+    },
 }
 
 /// licences a search or download keeps beyond CC0, an author's public domain mark and CC BY

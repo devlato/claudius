@@ -213,8 +213,58 @@ pub struct GenreProfile {
     pub parts: Vec<PartSpec>,
     #[serde(default)]
     pub loops: Vec<LoopSpec>,
+    /// the samples the genre is built on, cut from recordings in free online libraries (`crate::sampling`)
+    #[serde(default)]
+    pub sampling: Option<SamplingSpec>,
     pub transitions: TransitionSpec,
     pub mix: MixSpec,
+}
+
+/// What a genre samples: a drum break, a phrase to build the song on, a texture under it. Each plays as a loop track
+/// of its own (`sampling::BREAK`, `PHRASE`, `TEXTURE`) in the sections that list it.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct SamplingSpec {
+    #[serde(default, rename = "break")]
+    pub drum_break: Option<SampleNeed>,
+    #[serde(default)]
+    pub phrase: Option<SampleNeed>,
+    #[serde(default)]
+    pub texture: Option<SampleNeed>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct SampleNeed {
+    /// what to search the libraries for ("drum break", "cinematic strings")
+    pub search: Vec<String>,
+    /// what the ears should hear in a good one, to choose among them ("a slow funky drum break")
+    pub listen: String,
+    /// the shortest and longest recording worth downloading, in seconds
+    #[serde(default = "any_length")]
+    pub seconds: (f64, f64),
+    /// how many to keep at the ready for the genre
+    #[serde(default = "three")]
+    pub keep: usize,
+    /// the chance that a song plays one, when one is at hand
+    #[serde(default = "always")]
+    pub chance: f64,
+    /// the chance that the loop is re-chopped, its half-beat slices played in another order
+    #[serde(default)]
+    pub chop: f64,
+    /// the layers that play where the sample would, when the song has none (offline, or nothing gathered yet)
+    #[serde(default)]
+    pub instead: Vec<String>,
+    #[serde(default)]
+    pub mix: TrackMix,
+}
+
+fn any_length() -> (f64, f64) {
+    (2.0, 600.0)
+}
+fn three() -> usize {
+    3
+}
+fn always() -> f64 {
+    1.0
 }
 
 /// the genres claudius comes with (`all` adds the user's own)
@@ -302,6 +352,22 @@ pub fn fuse(a: &GenreProfile, b: &GenreProfile) -> GenreProfile {
         match g.harmony.iter_mut().find(|h| h.0 == *style) {
             Some(h) => h.1 += w * 0.25,
             None => g.harmony.push((style.clone(), w * 0.25)),
+        }
+    }
+    // a's sampled break is a's drums: the lanes it falls back to stand in for it, and b's drums replace them below
+    if let Some(n) = a.sampling.as_ref().and_then(|s| s.drum_break.as_ref()) {
+        for s in g.forms.iter_mut().flatten() {
+            if s.layers.iter().any(|l| l == crate::sampling::BREAK) {
+                s.layers.retain(|l| l != crate::sampling::BREAK);
+                for l in &n.instead {
+                    if !s.layers.contains(l) {
+                        s.layers.push(l.clone());
+                    }
+                }
+            }
+        }
+        if let Some(sp) = g.sampling.as_mut() {
+            sp.drum_break = None;
         }
     }
     // b's drums play where a's did: a lane of the same name where that lane played, b's others where most of a's did

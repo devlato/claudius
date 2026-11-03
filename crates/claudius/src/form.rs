@@ -54,12 +54,19 @@ fn melodic<'a>(s: &'a SectionSpec, g: &GenreProfile) -> Vec<&'a String> {
 
 /// whether a layer is sure to play in every song of the genre: a drum lane, or a part never left out
 fn sure(layer: &str, g: &GenreProfile) -> bool {
-    g.drums.iter().any(|d| d.name == layer) || g.parts.iter().any(|p| p.name == layer && p.optional <= 0.0)
+    let plays =
+        |l: &str| g.drums.iter().any(|d| d.name == l) || g.parts.iter().any(|p| p.name == l && p.optional <= 0.0);
+    // a sample, or the layers the genre plays instead of it when it has none
+    let sampled = crate::library::prepared::Role::ALL.into_iter().any(|r| {
+        crate::sampling::track_name(r) == layer
+            && crate::sampling::need(g, r).is_some_and(|n| n.instead.iter().any(|l| plays(l)))
+    });
+    plays(layer) || sampled
 }
 
 /// how much energy a track brings to a section: a kick the most, then a bass, then anything else
 fn weight(layer: &str, g: &GenreProfile) -> f32 {
-    if layer == "kick" {
+    if layer == "kick" || layer == crate::sampling::BREAK {
         0.15
     } else if g.parts.iter().any(|p| p.name == layer && p.role == Role::Bass) {
         0.1

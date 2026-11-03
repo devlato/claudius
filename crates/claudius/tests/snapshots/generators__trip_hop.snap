@@ -2,18 +2,18 @@
 source: crates/claudius/tests/generators.rs
 expression: summary(&bp)
 ---
-trip_hop at 93.0 BPM in G minor, swing 0.53
+trip_hop at 91.0 BPM in G minor, swing 0.53
 prog A: i iv III VI
 prog B: i IVsus4 III VI
 prog C: VI iv III i
 bars per chord: 2
-section intro (intro) 8 bars, energy 0.29, prog A, sparse [filter_in]: keys perc hat
-section verse (verse) 16 bars, energy 0.55, prog A, main []: kick snare hat perc bass keys
-section break (break) 16 bars, energy 0.35, prog B, main []: strings lead
-section hook (hook) 16 bars, energy 0.81, prog C, main [impact fills]: kick snare hat ohat perc bass keys strings lead
-section break2 (break) 8 bars, energy 0.34, prog B, main []: strings lead
-section hook2 (hook) 8 bars, energy 0.93, prog C, main [impact fills]: kick snare hat ohat perc bass keys strings lead
-section outro (outro) 16 bars, energy 0.35, prog A, sparse []: strings keys
+section intro (intro) 8 bars, energy 0.29, prog A, sparse [filter_in]: perc keys strings
+section verse (verse) 16 bars, energy 0.55, prog A, main []: perc bass kick snare hat keys strings
+section break (break) 16 bars, energy 0.35, prog A, main []: strings keys
+section hook (hook) 16 bars, energy 0.81, prog C, main [fills]: ohat perc bass strings lead kick snare hat keys
+section break2 (break) 8 bars, energy 0.34, prog A, main []: lead keys strings
+section hook2 (hook) 8 bars, energy 0.93, prog C, main [fills]: ohat perc bass strings lead keys kick snare hat
+section outro (outro) 16 bars, energy 0.30, prog A, sparse []: keys strings
 drum kick main (drum kick): X.........X.....|X..X.....XX.....|X.........X.....|X..X.....XX.....
 drum kick sparse (drum kick): x...............|x...............|x...............|x...............
 drum snare main (drum snare): ..o.X.......X...|....X.......X..X|..o.X.......X...|....X.......X..X
@@ -22,7 +22,7 @@ drum hat sparse (drum closed_hat): ..o...o...o...o.|..o...o...o...o.|..o...o...o
 drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
 drum perc main (drum rim): ...........x....|...........x....|...........x....|...........x....
 part bass (bass): syncopated synth saw_bass, register 28..46, density 0.59
-part keys (keys): sustain synth clav, register 50..74, density 0.59
+part keys (keys): sustain synth tine_piano, register 50..74, density 0.59
 part strings (pad): sustain synth strings, register 48..79, density 0.53
 part lead (lead): motif synth fm_marimba, register 62..79, density 0.33
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums

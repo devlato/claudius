@@ -37,6 +37,7 @@ pub mod publish;
 pub mod render;
 pub mod rng;
 pub mod sampler;
+pub mod sampling;
 pub mod script;
 pub mod song;
 pub mod synth;

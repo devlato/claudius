@@ -6,6 +6,13 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+Trip-hop is built on samples now, as trip-hop records are: a slowed drum break whose own hits the drum lanes play, a
+dark phrase from a recording that the song takes its key, tempo and chords from, and vinyl crackle under it. `claudius
+make` gathers them first from free online libraries, cuts them on their beat grids and lets the ears choose the ones
+that sound right; `claudius samples gather <genre>` gathers on its own, and `--offline` plays what was gathered. Other
+genres can do the same with a `sampling` section in their profile
+([Genres built on samples](https://github.com/devlato/claudius/blob/main/docs/src/guide/online-samples.md#genres-built-on-samples)).
+
 `claudius samples` finds sounds in free online libraries (Freesound and Wikimedia Commons through Openverse, Commons
 itself, ccMixter) and downloads them: drum breaks, vinyl crackle, field recordings, stems, old records. It keeps only
 what the licence lets you publish music made with (CC0, public domain, CC BY), leaves out uploads that say they were

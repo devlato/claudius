@@ -55,3 +55,32 @@ Samples:
 
 A claudius shared with others may read the samples folder, as it reads the sample packs
 ([What a shared claudius may read and write](samples.md#what-a-shared-claudius-may-read-and-write)).
+
+## Genres built on samples
+
+Trip-hop is built on samples, as trip-hop records are: a drum break, a phrase from a recording that the song is built
+on, and a texture under it. Its profile says what to look for (`sampling`), and `claudius make` gathers them before it
+composes:
+
+```sh
+claudius make --genre trip_hop          # gathers what trip-hop samples first, then composes
+claudius samples gather trip_hop        # or gather on its own
+claudius make --genre trip_hop --offline  # play what was gathered before, download nothing
+```
+
+Gathering searches the libraries for each role's words ("slow drum break", "cinematic strings", "vinyl crackle"),
+downloads recordings of a fitting length, and cuts each on its beat grid:
+
+| role | what is cut | how a song plays it |
+|---|---|---|
+| break | whole bars of the break, and its kick, snare and hat | as a loop track (`break`) in the sections that list it, re-chopped at times; the drum lanes play the break's own hits |
+| phrase | the two bars the ears hear as most like what the genre listens for ("dark cinematic orchestral strings"), with their key and chords | as a loop track (`sample`); the song takes its key, its tempo when the genre's range allows, and its chords as progression A. A genre with no major mode plays a major phrase in its relative minor |
+| texture | sixteen seconds from the middle | as a loop track (`texture`) under the song |
+
+With earshot's models, the ears score each cut against what the genre listens for, and cuts under z 1.5 are left out
+and not fetched again. The cuts go into `<samples>/prepared/`, each with its recording's credit beside it, so a song's
+`credits.txt` names them. A genre keeps a few of each (four breaks, four phrases, two textures for trip-hop), and each
+song draws one by its seed.
+
+Offline, or before anything is gathered, a genre plays the layers its profile names in a sample's place (trip-hop's
+drum lanes for the break, its electric piano and strings for the phrase), so it still makes a song.

@@ -134,11 +134,13 @@ track("chords", chord("prog").struct("x ~ x x ~ x ~ x").voicing().s("supersaw").
 track("hook", n("<[0 2 4 2] [4 5 4 ~]>").octave(5).s("pluck").delay(0.25));
 ```
 
-## trip_hop (80-96 BPM)
+## trip_hop (78-94 BPM)
 
-Slow, heavy, swung breakbeats under dark minor chords, a deep sub bass, dusty electric piano and strings, dub delays
-and long reverbs. The generated songs put the drums through parallel compression and a crushed copy, and let the
-delay feed back harder in the breaks.
+Built on samples, as trip-hop records are: a slowed drum break, a dark phrase from a recording (film-score strings, a
+harpsichord), vinyl crackle, a deep dub bass under them, strings that swell in the hooks, dub delays and long reverbs.
+`new_song` builds on the samples gathered for trip-hop (`claudius samples gather trip_hop` on the person's computer):
+the song takes the phrase's key, tempo and chords, and its drum lanes play the break's own hits. Without samples it
+plays electric piano and strings instead. A sketch from patterns, without samples:
 
 ```js
 blank("trip_hop");

@@ -54,6 +54,8 @@ pub struct Analysis {
     pub bar_secs: f64,
     pub bars: usize,
     pub chords: Vec<String>,
+    /// each bar's chord as a Roman numeral in `key`
+    pub numerals: Vec<String>,
     pub progression_a: Vec<String>,
     pub progression_b: Vec<String>,
     pub bars_per_chord: u32,
@@ -362,6 +364,7 @@ pub fn analyze(x: &Stereo, bpm_range: Option<(f64, f64)>) -> Analysis {
         bar_secs: bar_len,
         bars,
         chords: chords.iter().map(|c| c.symbol(key.flats())).collect(),
+        numerals: chords.iter().map(|c| roman_of(c, &key)).collect(),
         progression_a: to_rn(&ca),
         progression_b: to_rn(&cb),
         bars_per_chord: bpc,
