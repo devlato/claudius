@@ -162,7 +162,8 @@ stock share = clamp(stock_z − genre_z + 1)        total × (1 − 0.4 × stock
 ```
 
 The issue, with the stock share as its severity, says `sounds close to stock background music ('inspirational
-corporate background music'): too clean and polite for 'trip hop music'`, and `stock_share` is among the measures.
+corporate background music'): too clean and polite for 'trip hop music'`; when a stock reading beats the genre
+outright, the `sounds more like` issue says it instead, with that severity. `stock_share` is among the measures.
 
 **Production.** The best of two descriptions of a professional track (`a professionally mixed and mastered music
 track`, `a high quality studio recording`) against the best of six flaws (a cheap synthesized beep, hiss, clipping,

@@ -449,9 +449,12 @@ pub const STOCK_CUT: f64 = 0.4;
 fn ears_score(e: &EarsReport, issues: &mut Vec<Issue>) -> (f64, f64) {
     let margin = e.genre_z - e.best_alt_z;
     let genre = clamp01(0.5 * clamp01((e.genre_z - 1.0) / 2.5) + 0.5 * clamp01((margin + 1.0) / 2.0));
+    let stock = stock_share(e);
+    // stock music that wins outright is said by this issue, which then weighs as much as the verdict's cut
+    let stock_won = margin < 0.0 && e.best_alt == e.stock;
     if e.genre_z < 2.5 || margin < 0.0 {
         issues.push(Issue {
-            severity: clamp01((2.5 - e.genre_z).max(-margin) / 2.5),
+            severity: clamp01((2.5 - e.genre_z).max(-margin) / 2.5).max(if stock_won { stock } else { 0.0 }),
             what: if margin < 0.0 {
                 format!("sounds more like '{}' than '{}'", e.best_alt, e.genre_query)
             } else {
@@ -460,8 +463,7 @@ fn ears_score(e: &EarsReport, issues: &mut Vec<Issue>) -> (f64, f64) {
             target: "genre".into(),
         });
     }
-    let stock = stock_share(e);
-    if stock > 0.0 && !(margin < 0.0 && e.best_alt == e.stock) {
+    if stock > 0.0 && !stock_won {
         issues.push(Issue {
             severity: stock,
             what: format!(
@@ -643,6 +645,8 @@ mod tests {
         let both = issues(&e);
         assert_eq!(both.len(), 1, "{both:?}");
         assert!(both[0].what.starts_with("sounds more like 'inspirational corporate background music'"));
+        // and it weighs as much as the cut it brings, not as a 0.2 z lead would
+        assert_eq!(both[0].severity, 1.0);
     }
 
     #[test]
