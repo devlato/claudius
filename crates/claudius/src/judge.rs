@@ -35,6 +35,9 @@ pub struct EarsReport {
     pub genre_z: f64,
     pub best_alt: String,
     pub best_alt_z: f64,
+    /// the strongest reading of stock library music the genre does not count among its confusions (`ears::STOCK`)
+    pub stock: String,
+    pub stock_z: f64,
     pub production_z: f64,
     pub worst_flaw: String,
     pub worst_flaw_z: f64,
@@ -431,6 +434,18 @@ fn flaw_advice(flaw: &str) -> (&str, &'static str) {
     }
 }
 
+/// How far the strongest reading of stock library music has caught up with the genre's: none until it is plausible
+/// (z 2.5) and within one z of the genre, all once it draws level. The verdict loses up to `STOCK_CUT` of itself by it.
+pub fn stock_share(e: &EarsReport) -> f64 {
+    if e.stock.is_empty() || e.stock_z < 2.5 {
+        return 0.0;
+    }
+    clamp01(e.stock_z - (e.genre_z - 1.0))
+}
+
+/// the share of the verdict a song that reads as much like stock music as like its genre loses
+pub const STOCK_CUT: f64 = 0.4;
+
 fn ears_score(e: &EarsReport, issues: &mut Vec<Issue>) -> (f64, f64) {
     let margin = e.genre_z - e.best_alt_z;
     let genre = clamp01(0.5 * clamp01((e.genre_z - 1.0) / 2.5) + 0.5 * clamp01((margin + 1.0) / 2.0));
@@ -442,6 +457,17 @@ fn ears_score(e: &EarsReport, issues: &mut Vec<Issue>) -> (f64, f64) {
             } else {
                 format!("sounds only faintly like '{}' (the nearest other reading: '{}')", e.genre_query, e.best_alt)
             },
+            target: "genre".into(),
+        });
+    }
+    let stock = stock_share(e);
+    if stock > 0.0 && !(margin < 0.0 && e.best_alt == e.stock) {
+        issues.push(Issue {
+            severity: stock,
+            what: format!(
+                "sounds close to stock background music ('{}'): too clean and polite for '{}'",
+                e.stock, e.genre_query
+            ),
             target: "genre".into(),
         });
     }
@@ -490,7 +516,12 @@ pub fn judge(p: &Project, r: &Rendered, ears: Option<EarsReport>) -> Verdict {
         }
     }
     let wsum: f64 = weights.iter().map(|w| w.1).sum();
-    let total = 100.0 * weights.iter().map(|(k, w)| scores.get(*k).copied().unwrap_or(0.0) * w).sum::<f64>() / wsum;
+    let mut total = 100.0 * weights.iter().map(|(k, w)| scores.get(*k).copied().unwrap_or(0.0) * w).sum::<f64>() / wsum;
+    if let Some(e) = &ears {
+        let stock = stock_share(e);
+        measures.insert("stock_share".to_string(), stock);
+        total *= 1.0 - STOCK_CUT * stock;
+    }
     issues.sort_by(|a, b| b.severity.partial_cmp(&a.severity).unwrap());
     let summary = format!(
         "{:.0}/100 ({}){}",
@@ -581,6 +612,37 @@ mod tests {
         assert!(tie[0].severity < 0.3, "{}", tie[0].severity);
         let clear = issues(&heard(3.5, 2.0, 0.2, 1.7));
         assert!(clear[0].severity > 0.6, "{}", clear[0].severity);
+    }
+
+    #[test]
+    fn a_song_that_reads_as_stock_music_says_so_and_loses_up_to_forty_percent() {
+        let mut e = heard(3.2, 2.0, 2.0, 1.0);
+        e.stock = "inspirational corporate background music".into();
+        // implausible, or a full z behind the genre: nothing
+        e.stock_z = 2.4;
+        assert_eq!(stock_share(&e), 0.0);
+        e.stock_z = 2.5;
+        e.genre_z = 3.6;
+        assert_eq!(stock_share(&e), 0.0);
+        assert!(issues(&e).is_empty());
+        // 0.3 behind: most of the cut
+        e.genre_z = 3.2;
+        e.stock_z = 2.9;
+        assert!((stock_share(&e) - 0.7).abs() < 1e-9);
+        assert_eq!(
+            issues(&e)[0].what,
+            "sounds close to stock background music ('inspirational corporate background music'): too clean and \
+             polite for 'house music'"
+        );
+        // level with the genre or past it: all of it
+        e.stock_z = 3.4;
+        assert_eq!(stock_share(&e), 1.0);
+        // past it as the strongest reading of all: one issue says so, not two
+        e.best_alt = e.stock.clone();
+        e.best_alt_z = 3.4;
+        let both = issues(&e);
+        assert_eq!(both.len(), 1, "{both:?}");
+        assert!(both[0].what.starts_with("sounds more like 'inspirational corporate background music'"));
     }
 
     #[test]

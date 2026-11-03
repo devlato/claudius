@@ -8,7 +8,7 @@ evidence of three kinds, plus a fourth when earshot's models are loaded:
 | `mix` | meters on the master: loudness, true peak, tonal balance, stereo width, mono low end | 0.30 |
 | `arc` | the energy arc: does loudness follow the arrangement's energy, is the drop louder than the break | 0.20 |
 | `theory` | the score itself: the lead, the bass, voice leading, the form | 0.20 |
-| `genre` | the ears: does it read as its genre rather than the genres it is confused with | 0.15 |
+| `genre` | the ears: does it read as its genre rather than the genres it is confused with, or stock background music | 0.15 |
 | `production` | the ears: does it read as professionally produced rather than as a typical flaw | 0.15 |
 | `refs` | the ears, with reference tracks: how typical it is of them | 0.15 |
 
@@ -139,8 +139,11 @@ A `z` says how much better this text describes this sound than the vocabulary do
 plausible and 3 strong.
 
 **Genre.** Each genre profile names what the ears should hear (`query`, `"house music"` for house and deep house) and
-the genres it is most often confused with (`alts`: `"techno music"`, `"minimal electronic music"`, ...). The genre
-score rewards a high `genre_z` and a margin over the best alternative:
+the genres it is most often confused with (`alts`: `"techno music"`, `"minimal electronic music"`, ...). Every genre is
+also measured against five readings of stock library music: `inspirational corporate background music`, `upbeat
+corporate pop music`, `playful children's piano music`, `cheerful ukulele music` and `chiptune video game music`. A
+song that sounds like an advert's background music has failed its genre, however clearly it beats its neighbours. The
+genre score rewards a high `genre_z` and a margin over the best alternative, stock music included:
 
 ```text
 genre = 0.5 × clamp((genre_z − 1) / 2.5) + 0.5 × clamp((genre_z − best_alt_z + 1) / 2)
@@ -150,6 +153,16 @@ An issue is raised when an alternative beats the genre, `sounds more like 'techn
 `genre_z` is under 2.5, `sounds only faintly like 'house music' (the nearest other reading: 'techno music')`. Its
 severity is the larger of `(2.5 − genre_z) / 2.5` and `(best_alt_z − genre_z) / 2.5`. The issues leave the `z` values
 out; the `ears` line of the command line and the MCP tools prints them.
+
+Stock music also cuts the whole verdict. When the strongest stock reading is plausible (`stock_z` of 2.5 or more) and
+within one z of the genre's, the total loses up to 40 % of itself, in proportion:
+
+```text
+stock share = clamp(stock_z − genre_z + 1)        total × (1 − 0.4 × stock share)
+```
+
+The issue, with the stock share as its severity, says `sounds close to stock background music ('inspirational
+corporate background music'): too clean and polite for 'trip hop music'`, and `stock_share` is among the measures.
 
 **Production.** The best of two descriptions of a professional track (`a professionally mixed and mastered music
 track`, `a high quality studio recording`) against the best of six flaws (a cheap synthesized beep, hiss, clipping,
