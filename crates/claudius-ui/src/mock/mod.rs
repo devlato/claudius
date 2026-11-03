@@ -553,7 +553,7 @@ impl Mock {
             self.kit.sample(&c.label(), c.clip.clone());
         }
         let song = song::generate_with(&s.genre, s.seed, s.bpm, s.key.as_deref(), s.loops, &cuts);
-        let key = crate::music::Key::parse(&song.key);
+        let (key, bpm) = (crate::music::Key::parse(&song.key), song.bpm);
         let msg = format!(
             "new song: {} — {} at {:.0} BPM in {} (seed {}), {}",
             song.title,
@@ -567,7 +567,7 @@ impl Mock {
         let before = self.state.song.clone();
         self.new_song(song, before, &msg);
         for c in &cuts {
-            self.log(format!("  {}: {}; {}", c.role.noun(), c.about(key.as_ref()), c.found.credit()));
+            self.log(format!("  {}: {}; {}", c.role.noun(), c.about(key.as_ref(), bpm), c.found.credit()));
         }
         // the samples a song that can come back (by undo or redo) plays are kept; the rest let go
         let sounds = self
@@ -1345,6 +1345,10 @@ mod tests {
         let song = song::generate_with("trip_hop", 3, Some(101.0), None, false, &[cut]);
         assert_eq!(song.key, "B minor");
         assert_eq!(song.progressions[0].1, ["i", "VI"]);
+        // and the log names them as the song plays them
+        let b_minor = crate::music::Key::parse("B minor").unwrap();
+        let cut = sample::cut(sample::Role::Phrase, &pcm, &f, fit, &want).unwrap();
+        assert!(cut.about(Some(&b_minor), 101.0).ends_with("in B minor: i VI"), "{}", cut.about(Some(&b_minor), 101.0));
     }
 
     #[test]

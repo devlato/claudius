@@ -1298,7 +1298,7 @@ pub fn generate_with(
         mode: music::MODES.iter().position(|(m, _)| *m == mode).unwrap_or(1),
     });
     // a phrase played faster than it was cut sounds higher: its key and its notes move by as many semitones
-    let shift = phrase.map_or(0, |p| (12.0 * (bpm / p.bpm).log2()).round() as i32);
+    let shift = phrase.map_or(0, |p| p.shift(bpm));
     let key = match phrase.and_then(|p| p.key) {
         Some(heard) => {
             let k = Key { tonic: (heard.tonic + shift).rem_euclid(12), mode: heard.mode };
@@ -1450,12 +1450,7 @@ pub fn generate_with(
 
     let mut progressions = progressions(key.mode_name(), &mut rng);
     if let (Some(p), Some(a)) = (phrase, progressions.first_mut()) {
-        let heard: Vec<[f32; 12]> = p
-            .bars
-            .iter()
-            .map(|bar| std::array::from_fn(|pc| bar[(pc as i32 - shift).rem_euclid(12) as usize]))
-            .collect();
-        a.1 = super::sample::chords(&heard, &key);
+        a.1 = super::sample::chords(&p.bars_moved(shift), &key);
     }
     let mut lineage =
         vec![format!("generated: {} seed {seed}{}", genre.name, if loops { " (around Apple Loops)" } else { "" })];

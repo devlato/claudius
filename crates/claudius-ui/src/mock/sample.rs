@@ -417,15 +417,26 @@ impl Cut {
     }
 
     /// what was cut, for the log
-    pub fn about(&self, key: Option<&Key>) -> String {
+    pub fn about(&self, key: Option<&Key>, bpm: f64) -> String {
         let bars = self.beats as f64 / 4.0;
         match (self.role, key.or(self.key.as_ref())) {
             (Role::Texture, _) => format!("{:.0} s", self.clip.secs),
             (Role::Phrase, Some(k)) => {
-                format!("{bars} bars at {:.0} BPM, in {}: {}", self.bpm, k.name(), chords(&self.bars, k).join(" "))
+                let heard = self.bars_moved(self.shift(bpm));
+                format!("{bars} bars at {:.0} BPM, in {}: {}", self.bpm, k.name(), chords(&heard, k).join(" "))
             }
             _ => format!("{bars} bars at {:.0} BPM", self.bpm),
         }
+    }
+
+    /// how many semitones a phrase moves when it plays at `bpm`: read faster than it was cut, it sounds higher
+    pub fn shift(&self, bpm: f64) -> i32 {
+        if self.bpm <= 0.0 { 0 } else { (12.0 * (bpm / self.bpm).log2()).round() as i32 }
+    }
+
+    /// its pitch classes bar by bar, moved by `shift` semitones
+    pub fn bars_moved(&self, shift: i32) -> Vec<[f32; 12]> {
+        self.bars.iter().map(|bar| std::array::from_fn(|pc| bar[(pc as i32 - shift).rem_euclid(12) as usize])).collect()
     }
 }
 
