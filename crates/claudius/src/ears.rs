@@ -134,6 +134,12 @@ mod listening {
             })
         }
 
+        /// how strongly the ears hear `query` in `x`, as a calibrated z (2.5 plausible, 3 strong)
+        pub fn z(&self, x: &Stereo, query: &str) -> Result<f64> {
+            let emb = self.inner.embed(&Self::mono(x))?;
+            Ok(self.inner.scores(&emb, &[query])?.first().map_or(0.0, |s| s.z))
+        }
+
         /// earshot's p_real: the mean over 4 s windows, each one CLAP pass and a set of signal measurements. A song
         /// has sixty of them, which took most of the critic's time for a reading the score does not use, so the mean
         /// is taken over eight windows spread across the song.
@@ -213,6 +219,10 @@ mod unavailable {
             _refs: Option<&[Vec<f32>]>,
             _realness: bool,
         ) -> Result<EarsReport> {
+            match self.never {}
+        }
+
+        pub fn z(&self, _x: &Stereo, _query: &str) -> Result<f64> {
             match self.never {}
         }
     }

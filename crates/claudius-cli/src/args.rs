@@ -482,6 +482,9 @@ pub(crate) struct SoundArgs {
     /// leave out Apple Loops and your own library; the sample packs still play
     #[arg(long)]
     pub(crate) no_library: bool,
+    /// download no samples: a genre built on samples plays what was gathered before, or plays without them
+    #[arg(long)]
+    pub(crate) offline: bool,
 }
 
 impl SoundArgs {
@@ -590,6 +593,15 @@ pub(crate) enum SamplesCmd {
     },
     /// List the downloaded sounds, with their licences
     List,
+    /// Gather what a genre built on samples plays (its breaks, phrases and textures): search, download, cut on the beat
+    /// grid, and with the ears keep the ones that sound like the genre
+    Gather {
+        genre: String,
+        #[command(flatten)]
+        licences: LicenceArgs,
+        #[command(flatten)]
+        ears: EarsArgs,
+    },
 }
 
 /// licences a search or download keeps beyond CC0, an author's public domain mark and CC BY

@@ -109,6 +109,27 @@ fn app_args(mut args: Vec<OsString>, exe: Option<&Path>) -> Vec<OsString> {
     args
 }
 
+/// gather what `g` samples, saying what it downloads; a library that does not answer only costs the samples
+fn gather(
+    g: &GenreProfile,
+    ears: Option<&Ears>,
+    policy: &claudius_packs::online::Policy,
+) -> Vec<claudius::library::prepared::Prepared> {
+    let ix = claudius::library::prepared::Index::open();
+    match claudius::sampling::gather(g, ears, policy, &ix, &mut |s| eprintln!("gathering {s}")) {
+        Ok(got) => {
+            for n in &got.notes {
+                eprintln!("  {n}");
+            }
+            got.added
+        }
+        Err(e) => {
+            eprintln!("gathering samples for {}: {e:#}", g.name);
+            Vec::new()
+        }
+    }
+}
+
 fn samples(cmd: SamplesCmd) -> Result<()> {
     use claudius_packs::online::{self, Query, Source};
     match cmd {
@@ -143,6 +164,16 @@ fn samples(cmd: SamplesCmd) -> Result<()> {
             let path = online::fetch(&f, &licences.policy())?;
             println!("{}", path.display());
             println!("credit: {}", f.credit());
+        }
+        SamplesCmd::Gather { genre, licences, ears } => {
+            let g = genres::get(&genre)?;
+            if g.sampling.is_none() {
+                anyhow::bail!("{} is not built on samples: it gathers none", g.name);
+            }
+            let listening = listen(&ears);
+            for p in gather(&g, listening.ears.as_ref(), &licences.policy()) {
+                println!("{} {}: {}", g.name, p.role.name(), p.path);
+            }
         }
         SamplesCmd::List => {
             let all = online::fetched();
@@ -190,6 +221,9 @@ fn run(cli: Cli) -> Result<()> {
             };
             let listening = listen(&ears);
             let t = std::time::Instant::now();
+            if g.sampling.is_some() && sound.library_on() && !sound.offline {
+                gather(&g, listening.ears.as_ref(), &claudius_packs::online::Policy::default());
+            }
             let lib = sound.library()?;
             let lib_ref = lib.as_ref().map(|l| l as &dyn compose::Library);
             let mut bp = compose::generate(&g, seed, &opts, lib_ref);

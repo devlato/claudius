@@ -581,6 +581,13 @@ pub fn fetch(f: &Found, policy: &Policy) -> Result<PathBuf> {
     Ok(path)
 }
 
+/// Put a sound's credit beside a file made from it (a loop or a hit cut out of it), so that a song that plays the file
+/// credits the sound.
+pub fn write_credit(file: &Path, f: &Found) -> Result<()> {
+    std::fs::write(meta_path(file), serde_json::to_string_pretty(f)?)
+        .with_context(|| format!("writing {}", meta_path(file).display()))
+}
+
 /// every downloaded sound, with what its `.json` says
 pub fn fetched() -> Vec<(PathBuf, Found)> {
     let mut out = Vec::new();

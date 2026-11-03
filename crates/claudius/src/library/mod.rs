@@ -1,10 +1,12 @@
 //! The sample library: recorded sounds the composer can use instead of (or next to) synthesis. Today: Apple Loops
 //! (when GarageBand / Logic content is installed), from which it also cuts drum one-shots; user folders and chops
-//! of imported songs land in the same index.
+//! of imported songs land in the same index; and samples prepared from online libraries (`prepared`), which genres
+//! built on samples are built from.
 
 pub mod apple;
 pub mod chop;
 pub mod oneshot;
+pub mod prepared;
 
 use std::path::PathBuf;
 
@@ -19,6 +21,8 @@ use apple::LoopInfo;
 
 pub struct Library {
     pub loops: Vec<LoopInfo>,
+    /// samples prepared from online libraries, for the genres that sample
+    pub prepared: Vec<prepared::Prepared>,
 }
 
 /// GarageBand genre names that suit each claudius genre (one-shots and loops are drawn from these first)
@@ -91,11 +95,11 @@ impl Library {
             None => Vec::new(),
         };
         loops.extend(user_entries().into_iter().filter(|e| std::path::Path::new(&e.path).exists()));
-        Ok(Library { loops })
+        Ok(Library { loops, prepared: prepared::Index::open().all() })
     }
 
     pub fn is_empty(&self) -> bool {
-        self.loops.is_empty()
+        self.loops.is_empty() && self.prepared.is_empty()
     }
 
     fn matches_hint(l: &LoopInfo, hint: &str) -> bool {
@@ -226,6 +230,14 @@ fn read_progression(chords: &LoopInfo, bass: Option<&LoopInfo>, key: &Key) -> Op
 }
 
 impl compose::Library for Library {
+    fn prepared(&self, role: prepared::Role, genre: &GenreProfile, rng: &mut Rng) -> Option<prepared::Prepared> {
+        // a fusion samples as the genre that leads it
+        let lead = genre.name.split('+').next().unwrap_or(&genre.name);
+        let fits: Vec<&prepared::Prepared> =
+            self.prepared.iter().filter(|p| p.role == role && p.genre == lead).collect();
+        (!fits.is_empty()).then(|| fits[rng.below(fits.len())].clone())
+    }
+
     fn family(&self, genre: &GenreProfile, rng: &mut Rng) -> Option<compose::FamilyPick> {
         use std::collections::BTreeMap;
         let pref = apple_genres(&genre.name);

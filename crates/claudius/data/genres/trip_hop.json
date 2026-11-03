@@ -1,10 +1,10 @@
 {
   "name": "trip_hop",
-  "description": "Trip-hop: slow, heavy, swung breakbeats under dark minor chords, a deep sub bass, dusty electric piano and strings, a high lonely melody, dub delays that swell in the breaks, long reverbs, tape and vinyl over everything",
+  "description": "Trip-hop: a slowed, dusty drum break and a dark phrase sampled from a record or a film score, looped in a minor key, a deep dub bass under it, strings that swell in the hooks, a high lonely melody, vinyl crackle, tape, dub delays and long reverbs",
   "query": "trip hop music",
   "alts": ["lo-fi hip hop beat", "hip hop beat with heavy bass", "ambient synth pad music", "cinematic orchestral music"],
   "accepted_flaws": ["a low quality recording with hiss"],
-  "bpm": [80, 96],
+  "bpm": [78, 94],
   "swing": [0.51, 0.56],
   "humanize": 0.45,
   "modes": [["minor", 0.7], ["phrygian", 0.15], ["dorian", 0.15]],
@@ -14,22 +14,22 @@
   "bars_per_chord": [[2, 0.6], [4, 0.4]],
   "forms": [
     [
-      {"name": "intro", "kind": "intro", "bars": 8, "energy": 0.3, "layers": ["strings", "keys", "perc"], "filter_in": true, "variant": "sparse"},
-      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.55, "layers": ["kick", "snare", "hat", "perc", "bass", "keys", "strings"]},
-      {"name": "hook", "kind": "hook", "bars": 16, "energy": 0.8, "layers": ["kick", "snare", "hat", "ohat", "perc", "bass", "keys", "strings", "lead"], "impact": true, "fills": true},
-      {"name": "break", "kind": "break", "bars": 8, "energy": 0.3, "prog": "B", "layers": ["strings", "lead"], "gap": true},
-      {"name": "verse2", "kind": "verse", "bars": 16, "energy": 0.6, "layers": ["kick", "snare", "hat", "perc", "bass", "keys", "strings"]},
-      {"name": "hook2", "kind": "hook", "bars": 16, "energy": 0.9, "layers": ["kick", "snare", "hat", "ohat", "perc", "bass", "keys", "strings", "lead"], "impact": true, "fills": true},
-      {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.3, "layers": ["strings", "keys", "lead"], "variant": "sparse"}
+      {"name": "intro", "kind": "intro", "bars": 8, "energy": 0.3, "layers": ["sample", "texture"], "filter_in": true, "variant": "sparse"},
+      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.55, "layers": ["break", "perc", "bass", "sample", "texture"]},
+      {"name": "hook", "kind": "hook", "bars": 16, "energy": 0.8, "layers": ["break", "ohat", "perc", "bass", "sample", "strings", "lead", "texture"], "fills": true},
+      {"name": "break", "kind": "break", "bars": 8, "energy": 0.3, "layers": ["sample", "texture", "lead"], "gap": true},
+      {"name": "verse2", "kind": "verse", "bars": 16, "energy": 0.6, "layers": ["break", "perc", "bass", "sample", "keys", "texture"]},
+      {"name": "hook2", "kind": "hook", "bars": 16, "energy": 0.9, "layers": ["break", "ohat", "perc", "bass", "sample", "strings", "lead", "texture"], "fills": true},
+      {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.3, "layers": ["sample", "strings", "texture"], "variant": "sparse"}
     ],
     [
-      {"name": "intro", "kind": "intro", "bars": 8, "energy": 0.3, "layers": ["keys", "perc", "hat"], "filter_in": true, "variant": "sparse"},
-      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.55, "layers": ["kick", "snare", "hat", "perc", "bass", "keys"]},
-      {"name": "break", "kind": "break", "bars": 8, "energy": 0.35, "prog": "B", "layers": ["strings", "lead"]},
-      {"name": "hook", "kind": "hook", "bars": 16, "energy": 0.85, "layers": ["kick", "snare", "hat", "ohat", "perc", "bass", "keys", "strings", "lead"], "impact": true, "fills": true},
-      {"name": "break2", "kind": "break", "bars": 8, "energy": 0.3, "prog": "B", "layers": ["strings", "lead"], "gap": true},
-      {"name": "hook2", "kind": "hook", "bars": 16, "energy": 0.9, "layers": ["kick", "snare", "hat", "ohat", "perc", "bass", "keys", "strings", "lead"], "impact": true, "fills": true},
-      {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.3, "layers": ["strings", "keys"], "variant": "sparse"}
+      {"name": "intro", "kind": "intro", "bars": 8, "energy": 0.3, "layers": ["sample", "perc", "texture"], "filter_in": true, "variant": "sparse"},
+      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.55, "layers": ["break", "perc", "bass", "sample", "texture"]},
+      {"name": "break", "kind": "break", "bars": 8, "energy": 0.35, "layers": ["sample", "strings", "texture"]},
+      {"name": "hook", "kind": "hook", "bars": 16, "energy": 0.85, "layers": ["break", "ohat", "perc", "bass", "sample", "strings", "lead", "texture"], "fills": true},
+      {"name": "break2", "kind": "break", "bars": 8, "energy": 0.3, "layers": ["sample", "lead", "texture"], "gap": true},
+      {"name": "hook2", "kind": "hook", "bars": 16, "energy": 0.9, "layers": ["break", "ohat", "perc", "bass", "sample", "strings", "lead", "keys", "texture"], "fills": true},
+      {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.3, "layers": ["sample", "keys", "texture"], "variant": "sparse"}
     ]
   ],
   "drums": [
@@ -165,10 +165,40 @@
       "mix": {"bus": "drums", "level_db": -4}
     }
   ],
+  "sampling": {
+    "break": {
+      "search": ["slow drum break", "funk drum break", "hip hop drum loop", "breakbeat loop"],
+      "listen": "a slow dusty hip hop drum break",
+      "seconds": [2, 40],
+      "keep": 4,
+      "chance": 0.95,
+      "chop": 0.35,
+      "instead": ["kick", "snare", "hat"],
+      "mix": {"bus": "drums", "fx": [{"fx": "filter", "mode": "lp", "cutoff": 10000, "res": 0.05}]}
+    },
+    "phrase": {
+      "search": ["cinematic strings", "orchestral strings", "string quartet", "film noir", "harpsichord", "dark piano", "jazz orchestra"],
+      "listen": "dark cinematic orchestral strings from a film score",
+      "seconds": [6, 900],
+      "keep": 4,
+      "chance": 0.95,
+      "chop": 0.2,
+      "instead": ["keys", "strings"],
+      "mix": {"bus": "music", "reverb": 0.3, "delay": 0.15, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 160, "res": 0.05}, {"fx": "tape", "wow": 0.5, "flutter": 0.3, "drive_db": 3, "lowpass_hz": 8500}, {"fx": "bitcrush", "bits": 12, "downsample": 2}]}
+    },
+    "texture": {
+      "search": ["vinyl crackle", "record crackle", "vinyl noise"],
+      "listen": "the crackle of an old vinyl record",
+      "seconds": [5, 600],
+      "keep": 2,
+      "chance": 0.85,
+      "mix": {"bus": "music"}
+    }
+  },
   "transitions": {
     "riser": false,
     "impact": false,
-    "downlifter": true,
+    "downlifter": false,
     "reverse_crash": true,
     "riser_bars": 4,
     "mix": {"bus": "fx", "reverb": 0.45}
