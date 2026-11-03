@@ -85,7 +85,7 @@
       "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.92, 1.0]},
       "params": {"decay": [0.2, 0.35], "room": [0.4, 0.7], "tone": [0.5, 0.8]},
       "samples": ["Snare"],
-      "mix": {"bus": "drums", "reverb": 0.45}
+      "mix": {"bus": "drums", "reverb": 0.5}
     },
     {
       "name": "hat",
@@ -101,17 +101,17 @@
   "kits": [["tr707", 0.4], ["tr808", 0.2]],
   "kit_mix": 0.25,
   "palette": {
-    "bass": {"core": 0.6, "synth": 3},
-    "arp": {"core": 0.45, "synth": 3, "mallets": 0.5},
-    "pad": {"core": 0.45, "synth": 3, "strings": 1, "pad": 1, "choir": 0.5},
-    "lead": {"core": 0.3, "synth": 3, "brass": 0.6, "woodwinds": 0.4, "electric piano": 0.5},
-    "chords": {"core": 0.45, "synth": 3, "electric piano": 1, "strings": 0.5, "brass": 0.5}
+    "bass": {"core": 1.0, "synth": 1},
+    "arp": {"core": 0.9, "synth": 1},
+    "pad": {"core": 0.85, "synth": 2, "strings": 0.5},
+    "lead": {"core": 0.9, "synth": 1},
+    "chords": {"core": 0.9, "synth": 1}
   },
   "parts": [
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["saw_bass", "pluck_bass"],
+      "presets": ["saw_bass", "moog_bass", "saw_bass"],
       "styles": ["root8", "octave"],
       "register": [33, 48],
       "mix": {"bus": "bass", "duck": 0.3}
@@ -119,7 +119,7 @@
     {
       "name": "arp",
       "role": "arp",
-      "presets": ["pluck", "chip"],
+      "presets": ["pluck"],
       "styles": ["up", "updown"],
       "rates": [0.25],
       "register": [60, 84],
@@ -128,7 +128,7 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["pad", "strings", "warm_pad"],
+      "presets": ["warm_pad", "pwm_pad", "solina"],
       "styles": ["sustain"],
       "register": [50, 76],
       "voices": 4,
@@ -142,7 +142,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["square_lead", "supersaw"],
+      "presets": ["saw_lead", "square_lead"],
       "styles": ["motif"],
       "register": [64, 86],
       "density": [0.35, 0.55],
@@ -155,7 +155,7 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["supersaw", "strings"],
+      "presets": ["solina", "supersaw", "strings"],
       "styles": ["half", "sustain"],
       "register": [55, 76],
       "voices": 4,
@@ -195,11 +195,15 @@
           "makeup_db": 1
         }
       ],
-      "music": [{"fx": "eq", "bands": [{"kind": "highpass", "freq": 110, "q": 0.7}]}]
+      "music": [
+        {"fx": "eq", "bands": [{"kind": "highpass", "freq": 110, "q": 0.7}]},
+        {"fx": "chorus", "rate_hz": 0.5, "depth_ms": 4, "delay_ms": 14, "mix": 0.35}
+      ]
     },
     "master": [
       {"fx": "eq", "bands": [{"kind": "highpass", "freq": 25, "q": 0.7}]},
       {"fx": "compressor", "threshold_db": -11, "ratio": 1.6, "attack_ms": 30, "release_ms": 200, "knee_db": 6},
+      {"fx": "tape", "wow": 0.35, "flutter": 0.25, "drive_db": 3, "lowpass_hz": 14000},
       {"fx": "saturate", "kind": "tape", "drive_db": 2.5, "mix": 0.4}
     ],
     "duck_release": 0.3

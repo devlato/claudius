@@ -96,7 +96,8 @@ The MCP tools wait the same way after every edit.
                 "variants": [["main", [0.99353635, 0.0, 0.0, 0.0, 0.9903264, 0.0, 0.0, 0.0]]] }],
     "parts": [{ "name": "bass", "role": "bass", "style": "syncopated", "styles": ["offbeat", "syncopated", "offbeat"],
                 "preset": "saw_bass", "presets": ["organ_bass", "pluck_bass", "saw_bass", "sub_bass", "808", "reese",
-                "acid", "wobble", "fm_bass", "rubber_bass", "moog_bass", "dist_bass", "deep_bass", "salamander:piano"],
+                "acid", "wobble", "log_drum", "fm_bass", "rubber_bass", "moog_bass", "dist_bass", "deep_bass",
+                "salamander:piano"],
                 "register": [33, 52], "density": 0.42195085 }],
     "script": "// Crimson Tide — house (seed 9)\n// song(\"house\", 9);   // uncomment to start over from the generator\n...",
     "lineage": ["generated: house seed 9"]

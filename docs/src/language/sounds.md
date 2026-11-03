@@ -30,7 +30,7 @@ track("x", s("bdd*4"));
 ```
 
 ```text
-Error: Runtime error: track 'x': unknown sound 'bdd' (drums: bd kick sd snare cp clap hh ch hat oh ohat rd ride cr crash lt mt ht tom rim rs sh shaker cb cowbell snap perc; synths: sub_bass 808 reese acid saw_bass pluck_bass organ_bass wobble pluck supersaw pad warm_pad stab epiano keys bell organ strings square_lead chip fm_bass rubber_bass moog_bass dist_bass deep_bass saw_lead pwm_lead whistle brass_lead fm_lead vox_lead solina glass_pad pwm_pad air_pad vowel_pad swell_pad tine_piano clav house_piano brass_stab rock_organ fm_marimba fm_kalimba harp_pluck mallet; sampled: piano upright rhodes wurlitzer hammond string_ensemble violins cellos pizzicato brass trumpet flute harp marimba vibes kalimba upright_bass guitar choir sax ... (claudius-packs aliases)) (line 2, position 1)
+Error: Runtime error: track 'x': unknown sound 'bdd' (drums: bd kick sd snare cp clap hh ch hat oh ohat rd ride cr crash lt mt ht tom rim rs sh shaker cb cowbell snap perc; synths: sub_bass 808 reese acid saw_bass pluck_bass organ_bass wobble log_drum pluck supersaw pad warm_pad stab epiano keys bell organ strings square_lead chip fm_bass rubber_bass moog_bass dist_bass deep_bass saw_lead pwm_lead whistle brass_lead fm_lead vox_lead solina glass_pad pwm_pad air_pad vowel_pad swell_pad tine_piano clav house_piano brass_stab rock_organ fm_marimba fm_kalimba harp_pluck mallet; sampled: piano upright rhodes wurlitzer hammond string_ensemble violins cellos pizzicato brass trumpet flute harp marimba vibes kalimba upright_bass guitar choir sax ... (claudius-packs aliases)) (line 2, position 1)
 ```
 
 Because drum names and synth presets come first, a few names play synthesis even when a recording by that name
@@ -86,6 +86,7 @@ pattern track.
 | `pluck_bass` | square and saw with a short filter pluck | yes | bass |
 | `organ_bass` | three sine drawbars (fundamental, octave, two octaves) | yes | bass |
 | `wobble` | detuned saws and a square, ladder filter swept by a tempo-synced LFO | yes, tied notes | bass |
+| `log_drum` | a sine knocked into its note, a pitch drop and a woody FM click, dying away; glides a little | yes | bass, when named (amapiano's) |
 | `pluck` | three detuned saws and a square an octave up, fast filter decay | no | by pitch |
 | `supersaw` | seven detuned saws plus three an octave down, delayed vibrato | no | by pitch |
 | `pad` | five saws and a triangle, slow attack, long release, slow filter drift | no | by pitch |
