@@ -2,18 +2,18 @@
 source: crates/claudius/tests/generators.rs
 expression: summary(&bp)
 ---
-art_rock at 105.0 BPM in G minor, swing 0.51
+art_rock at 94.0 BPM in G minor, swing 0.51
 prog A: i7 iv7 IIImaj7 VImaj7
 prog B: i7 IVsus4 IIImaj7 VImaj7
 prog C: VImaj7 iv7 IIImaj7 i7
 bars per chord: 1
 section intro (intro) 8 bars, energy 0.24, prog A, sparse []: piano arp
 section verse (verse) 16 bars, energy 0.45, prog A, sparse []: kick hat piano arp bass
-section verse2 (verse) 8 bars, energy 0.65, prog A, main []: kick snare hat piano arp bass strings lead
-section rise (build) 8 bars, energy 0.66, prog B, main [build gap]: snare hat tom piano strings guitar arp
-section climax (hook) 16 bars, energy 1.00, prog C, main [impact fills]: kick snare hat ride tom bass piano strings guitar arp lead
+section verse2 (verse) 8 bars, energy 0.65, prog A, main []: kick snare hat piano arp bass strings guitar ride
+section rise (build) 8 bars, energy 0.66, prog B, main [build gap]: snare hat tom piano strings guitar arp dist dist2
+section climax (hook) 16 bars, energy 1.00, prog C, main [impact fills]: kick snare hat ride tom bass piano strings guitar arp lead dist dist2
 section fall (break) 16 bars, energy 0.33, prog B, main [gap]: piano strings
-section climax2 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick snare hat ride tom bass piano strings guitar arp lead
+section climax2 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick snare hat ride tom bass piano strings guitar arp lead dist dist2
 section outro (outro) 8 bars, energy 0.26, prog A, sparse []: piano arp
 drum kick main (drum kick): X.......X....X..|X.......X....X..|X.......X....X..|X.......X....X..
 drum kick sparse (drum kick): x...............|x...............|x...............|x...............
@@ -22,20 +22,24 @@ drum hat main (drum closed_hat): xoo.x..ox...x.x.|xoo.x..ox...x.x.|xoo.x..ox...x
 drum hat sparse (drum closed_hat): o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.
 drum ride main (drum ride): o...o...o...o.o.|o...o...o...o.o.|o...o...o...o.o.|o...o...o...o.o.
 drum tom main (drum tom): .............xxx|.............xxx|.............xxx|.............xxx
-part piano (keys): syncopated synth keys, register 48..76, density 0.51
-part arp (arp): random synth bell, register 60..84, density 0.59
-part bass (bass): syncopated synth moog_bass, register 28..47, density 0.53
-part strings (pad): sustain synth warm_pad, register 45..81, density 0.54
-part guitar (chords): half synth organ, register 50..74, density 0.41
-part lead (lead): motif synth vox_lead, register 62..81, density 0.43
+part piano (keys): half synth keys, register 48..76, density 0.51
+part arp (arp): random synth pluck, register 60..84, density 0.60
+part bass (bass): syncopated synth deep_bass, register 28..47, density 0.43
+part strings (pad): sustain synth strings, register 45..81, density 0.50
+part guitar (arp): updown synth pwm_lead, register 52..76, density 0.58
+part dist (chords): pump synth saw_bass, register 40..64, density 0.59
+part dist2 (chords): sustain synth supersaw, register 40..64, density 0.60
+part lead (lead): motif synth bell, register 62..81, density 0.42
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
-mix snare: +0.0 dB, pan +0.00, reverb 0.20, delay 0.00, duck 0.00, bus drums
+mix snare: +0.0 dB, pan +0.00, reverb 0.35, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.25, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix ride: +0.0 dB, pan -0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums
-mix tom: +0.0 dB, pan -0.20, reverb 0.25, delay 0.00, duck 0.00, bus drums
+mix tom: +0.0 dB, pan -0.20, reverb 0.35, delay 0.00, duck 0.00, bus drums
 mix piano: +0.0 dB, pan -0.10, reverb 0.31, delay 0.00, duck 0.00, bus music
 mix arp: +0.0 dB, pan +0.25, reverb 0.34, delay 0.24, duck 0.00, bus music
 mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
 mix strings: +0.0 dB, pan +0.00, reverb 0.41, delay 0.00, duck 0.00, bus music
-mix guitar: +0.0 dB, pan +0.30, reverb 0.34, delay 0.00, duck 0.00, bus music
-mix lead: +0.0 dB, pan +0.00, reverb 0.43, delay 0.25, duck 0.00, bus music
+mix guitar: +0.0 dB, pan +0.35, reverb 0.41, delay 0.24, duck 0.00, bus music
+mix dist: +1.5 dB, pan -0.45, reverb 0.18, delay 0.00, duck 0.00, bus music
+mix dist2: +1.5 dB, pan +0.45, reverb 0.20, delay 0.00, duck 0.00, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.33, delay 0.25, duck 0.00, bus music
