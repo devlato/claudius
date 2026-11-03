@@ -255,7 +255,8 @@ fn commons_url(text: &str, per: usize) -> String {
 }
 
 fn ccmixter_url(text: &str, p: &Policy, per: usize) -> String {
-    let lic = if p.share_alike { "by,by-sa" } else { "by" };
+    // ccMixter's own codes, a list being any of them: `by`, `zero` (CC0) and `sa` (BY-SA); it refuses `by-sa`
+    let lic = if p.share_alike { "by,zero,sa" } else { "by,zero" };
     format!("https://ccmixter.org/api/query?f=json&search={}&lic={lic}&limit={per}&sort=rank", enc(text))
 }
 
@@ -748,6 +749,20 @@ mod tests {
         assert_eq!(got[2].licence, Licence::Restricted);
         let p = Policy::default();
         assert!(p.allows(&got[0]) && !p.allows(&got[1]) && !p.allows(&got[2]));
+    }
+
+    #[test]
+    fn ccmixter_is_asked_for_cc_by_and_cc0_and_share_alike_when_wanted() {
+        let url = ccmixter_url("dark piano", &Policy::default(), 20);
+        assert!(url.contains("&lic=by,zero&"), "{url}");
+        let url = ccmixter_url("dark piano", &Policy { share_alike: true, us_public_domain: false }, 20);
+        assert!(url.contains("&lic=by,zero,sa&"), "{url}");
+        let zero = serde_json::json!([{"upload_name": "Zero", "user_name": "z", "license_url": "http://creativecommons.org/publicdomain/zero/1.0/",
+             "file_page_url": "https://ccmixter.org/files/z/3", "files": [{"download_url": "https://x/w.mp3",
+             "file_format_info": {"default-ext": "mp3", "ps": "1:00"}}]}]);
+        let got = ccmixter_results(&zero);
+        assert_eq!(got[0].licence, Licence::Cc0);
+        assert!(Policy::default().allows(&got[0]));
     }
 
     #[test]
