@@ -6,6 +6,16 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+Four genres play their signature sounds instead of whatever the palette drew, and the ears hear them as themselves
+more often:
+
+- dubstep's wobble bass, a sine sub and a big snare-and-clap on the third beat, on an 808 kit, with hats no longer
+  on the offbeat, which the ears heard as techno;
+- future bass's supersaw chords, plucked and vocal leads, and no chip or mallet sounds, which the ears heard as
+  chiptune;
+- synthwave's saw and Moog basses, string-machine and PWM pads, saw and square leads, chorus and a wobbling tape;
+- amapiano's log drum, a new synth preset (`log_drum`): a pitched, woody knock that glides from note to note.
+
 Trip-hop is built on samples now, as trip-hop records are: a slowed drum break whose own hits the drum lanes play, a
 dark phrase from a recording that the song takes its key, tempo and chords from, and vinyl crackle under it. `claudius
 make` gathers them first from free online libraries, cuts them on their beat grids and lets the ears choose the ones

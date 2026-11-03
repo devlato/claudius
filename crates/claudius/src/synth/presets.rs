@@ -47,6 +47,7 @@ pub const ROLES: &[(&str, &[&str])] = &[
     ("pluck_bass", &["bass"]),
     ("organ_bass", &["bass"]),
     ("wobble", &["bass"]),
+    ("log_drum", &["bass"]),
     ("pluck", &["arp", "chords", "lead"]),
     ("supersaw", &["lead", "chords"]),
     ("pad", &["pad", "chords"]),
@@ -317,6 +318,21 @@ pub fn get(name: &str) -> Option<Patch> {
             Patch { analog: 0.0, velocity: 0.3, ..base(vec![o(Wave::Pulse).pw(0.25)], a(0.001, 0.12, 0.6, 0.05)) }
         }
         // a DX bass: a sine whose FM brightness falls away fast, over a sub
+        // amapiano's log drum: a pitched, woody knock that drops into its note and dies away
+        "log_drum" => Patch {
+            noise: 0.08,
+            fm: Some(FmSpec { ratio: 2.0, index: 1.2, decay: 0.05, sustain: 0.0, tine: 0.0 }),
+            filter: filt(FilterMode::Lp, 900.0, 0.15, 2.2, 0.4),
+            fenv: a(0.001, 0.08, 0.0, 0.05),
+            pitch_env: 7.0,
+            pitch_time: 0.025,
+            glide: 0.03,
+            mono: true,
+            drive: 4.0,
+            analog: 0.5,
+            velocity: 0.5,
+            ..base(vec![o(Wave::Sine)], a(0.001, 0.42, 0.0, 0.08))
+        },
         "fm_bass" => Patch {
             sub: 0.35,
             fm: Some(FmSpec { ratio: 1.0, index: 2.8, decay: 0.12, sustain: 0.18, tine: 0.0 }),

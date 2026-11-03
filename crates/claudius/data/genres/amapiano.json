@@ -73,7 +73,7 @@
     {
       "name": "logdrum",
       "role": "bass",
-      "presets": ["pluck_bass", "fm_bass", "rubber_bass", "808"],
+      "presets": ["log_drum", "log_drum", "pluck_bass"],
       "styles": ["syncopated", "kick_follow", "offbeat"],
       "register": [33, 52],
       "mix": {"bus": "bass", "duck": 0.2}

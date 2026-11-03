@@ -419,7 +419,7 @@ swing(0.56);
 key("F minor");
 prog("A", "i9 iv9");
 track("drums", s("bd*4, [~ cp]*2, sh*16, [~ oh]*4").gain("1 0.7"));
-track("logdrum", chord("prog").root().octave(2).struct("~ ~ x ~ ~ x ~ ~ x ~ ~ ~ x ~ x ~").s("pluck_bass").role("bass"));
+track("logdrum", chord("prog").root().octave(2).struct("~ ~ x ~ ~ x ~ ~ x ~ ~ ~ x ~ x ~").s("log_drum").role("bass"));
 track("keys", chord("prog").struct("x ~ ~ x ~ ~ x ~").voicing(52, 76).s("keys").room(0.3));
 ```
 
