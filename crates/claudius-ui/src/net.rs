@@ -610,14 +610,16 @@ mod tests {
     #[test]
     fn the_demo_hands_over_its_render_as_a_wav_named_after_the_song() {
         let mut backend = Backend::Mock(Box::new(Mock::new(None)));
-        let (mut now, mut render) = (0.0, None);
-        while render.is_none() && now < 600.0 {
+        let (mut now, mut render, t0) = (0.0, None, std::time::Instant::now());
+        // the demo's engine renders on a thread of its own
+        while render.is_none() && t0.elapsed() < Duration::from_secs(180) {
             now += 0.05;
             for ev in backend.update(now) {
                 if let Event::State(s) = ev {
-                    render = render.or(s.render);
+                    render = render.or(s.render.filter(|r| r.url != claudius_api::PREVIEW_URL));
                 }
             }
+            std::thread::sleep(Duration::from_millis(10));
         }
         let render = render.expect("the demo renders its song");
         let Ok(Delivery::Bytes { name, mime, bytes }) = backend.download(&render, &[], "glass-garden") else {

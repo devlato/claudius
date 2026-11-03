@@ -1,0 +1,29 @@
+[package]
+name = "claudius-web"
+description = "The claudius engine in a browser's Web Worker: the web studio's demo makes, edits and renders its songs with it"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[[bin]]
+name = "claudius-engine"
+path = "src/main.rs"
+
+[features]
+# trunk builds every crate of the studio's page with the same features, and the scripted plan's build (`cargo xtask
+# web --plan`) asks for claudius-ui's; the engine has nothing to do with it
+plan = []
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+claudius = { path = "../claudius", default-features = false }
+claudius-api = { path = "../claudius-api" }
+claudius-session = { path = "../claudius-session" }
+js-sys = "0.3"
+serde_json = "1"
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = ["console", "DedicatedWorkerGlobalScope", "MessageEvent", "WorkerGlobalScope"] }

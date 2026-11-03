@@ -72,7 +72,7 @@ pub fn build(sh: &Shell, out: &Path, site_url: &str, sounds: bool) -> Result<()>
     if sounds {
         demo_sounds(sh, &out.join("studio").join("sounds"))?;
     } else {
-        eprintln!("note: no demo sounds (--sounds renders them): the studio's demo plays its own rough synth");
+        eprintln!("note: no demo sounds (--sounds renders them)");
     }
 
     for script in ["install.sh", "install.ps1"] {

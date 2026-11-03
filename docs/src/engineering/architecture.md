@@ -1,6 +1,6 @@
 # Architecture
 
-claudius is a Cargo workspace of ten crates. One of them, `claudius`, is the engine and does all the music; the
+claudius is a Cargo workspace of eleven crates. One of them, `claudius`, is the engine and does all the music; the
 others decode and encode audio, manage sample packs, listen, edit, serve, draw and parse command lines around it.
 
 ## The crates
@@ -32,13 +32,15 @@ others decode and encode audio, manage sample packs, listen, edit, serve, draw a
 | `claudius-api` | the wire types of the HTTP API: plain serde structs, so they build for WebAssembly | serde |
 | `claudius-session` | what a session does to a song: the edits the API's commands make (as scripts, or in place), and the views of the song, its render and its verdict as API types | `claudius`, `claudius-api`, `claudius-packs` |
 | `claudius-server` | the session (`App`), the HTTP routes, the MCP tools | `claudius`, `claudius-api`, `claudius-packs`, `claudius-session` |
-| `claudius-ui` | the studio, in egui: a native window and a WebAssembly app, both clients of the HTTP API | `claudius-api` |
+| `claudius-ui` | the studio, in egui: a native window and a WebAssembly app, both clients of the HTTP API, with a demo that runs the engine itself | `claudius-api`; in the app, `claudius-session` for the demo |
+| `claudius-web` | the demo's engine in a browser's Web Worker (`claudius-engine`, which trunk builds beside the web studio) | `claudius-session` |
 | `claudius-cli` | the `claudius` binary: one subcommand per task, `setup`, `doctor`, `connect` | all of the above |
 
 Two dependency rules hold the shape together. The engine knows nothing about HTTP, sessions or windows: it takes a
-blueprint and returns audio and a verdict. And the UI knows nothing about the engine: it depends only on
-`claudius-api`, so it compiles to `wasm32-unknown-unknown` without pulling in ONNX Runtime, rayon or file access.
-Everything the studio does, it does through the API, which keeps the API complete.
+blueprint and returns audio and a verdict. And the UI knows nothing about the engine: everything the studio does, it
+does through the API's commands and states, which keeps the API complete. Its demo answers them with the engine
+itself, the server's own session code run in memory (`claudius_session::host`): in a page, in a Web Worker of its own
+(`claudius-web`), so the studio's WebAssembly still depends only on `claudius-api`; in the app, on a thread.
 
 The engine builds for the browser too (`wasm32-unknown-unknown`), without its `native` feature: what a computer of
 one's own has, and the C and C++ libraries a browser's build cannot compile. Downloading packs is left out

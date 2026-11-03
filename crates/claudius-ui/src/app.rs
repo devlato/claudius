@@ -512,6 +512,7 @@ impl Studio {
                 }
                 Step::Assistants => self.view.assistants.show(),
                 Step::Publish => self.view.publish.show(),
+                Step::Download if self.state.song.is_none() => plan.again("download", now),
                 Step::Download => {
                     let demo = self.server_url.is_none();
                     crate::panels::transport::ask_download(&self.state, &mut self.view, &mut self.out, demo, now);
@@ -1212,7 +1213,9 @@ mod tests {
 
     #[test]
     fn every_edit_shown_at_once_is_put_back_when_refused() {
-        let song = crate::mock::song::generate("house", 1, None, None, false);
+        let g = claudius::genres::get("house").unwrap();
+        let bp = claudius::compose::generate(&g, 1, &claudius::compose::Options::default(), None);
+        let song = claudius_session::views::song(&bp, &Default::default());
         let commands = [
             json!({"cmd": "set_tempo", "bpm": 120}),
             json!({"cmd": "set_key", "key": "A minor"}),

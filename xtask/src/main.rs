@@ -125,7 +125,7 @@ fn ci(sh: &Shell) -> Result<()> {
             "clippy, engine for the browser",
             cmd!(
                 sh,
-                "cargo clippy --locked -p claudius --no-default-features --target wasm32-unknown-unknown -- -D warnings"
+                "cargo clippy --locked -p claudius -p claudius-web --no-default-features --target wasm32-unknown-unknown -- -D warnings"
             ),
         ),
     ];

@@ -45,7 +45,7 @@ pub enum Step {
     Assistants,
     /// the Publish dialog
     Publish,
-    /// the song downloaded (or saved, in the app), as the download button does
+    /// the song downloaded (or saved, in the app), as the download button does, once there is a song to download
     Download,
     /// the Record window
     Record,
@@ -166,6 +166,12 @@ impl Plan {
     }
 
     /// the next step to apply now, if any (screenshots and waits are handled here)
+    /// puts `step` back, to be taken again a quarter second from now: what it waits for has not happened yet
+    pub fn again(&mut self, step: &str, now: f64) {
+        self.steps.push_front(step.to_string());
+        self.until = now + 0.25;
+    }
+
     pub fn next(&mut self, ctx: &egui::Context, now: f64) -> Option<Step> {
         ctx.request_repaint_after(std::time::Duration::from_millis(50));
         if let Some((done, path, at)) = &self.shot {

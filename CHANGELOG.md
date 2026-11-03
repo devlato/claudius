@@ -6,6 +6,13 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+The [studio demo](https://claudius.devlato.com/studio/?mock) runs claudius itself: the same composer, edits, script
+language, renderer and critic as the app, in a Web Worker of the page, in place of the stand-in that made every genre
+sound alike. Its songs are the app's, every track and section of them, on claudius' own synths and drums; a
+script runs as in the app, and a song file opens. A new song plays its first 16 bars a few seconds after it is made,
+and the whole of it once that has rendered. What needs a computer of one's own, such as recording, packs and
+evolution, the demo says it leaves to the app.
+
 Trap's and UK drill's 808 hits like a subwoofer: 6 dB louder than before, lower, driven through a saturator and kept
 dry and centred, so it is the loudest thing in the song. Every track has a drive in the mixer (`drive`, 0 to 36 dB, in
 `mix()` and `set_mix` too) that overloads it at the loudness its level gives it. The critic takes an 808 genre's
