@@ -812,7 +812,7 @@ checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 
 [[package]]
 name = "claudius"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "blake3",
@@ -838,7 +838,7 @@ dependencies = [
 
 [[package]]
 name = "claudius-api"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -846,7 +846,7 @@ dependencies = [
 
 [[package]]
 name = "claudius-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -872,7 +872,7 @@ dependencies = [
 
 [[package]]
 name = "claudius-decode"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "hound",
@@ -881,7 +881,7 @@ dependencies = [
 
 [[package]]
 name = "claudius-encode"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "claudius-decode",
@@ -895,7 +895,7 @@ dependencies = [
 
 [[package]]
 name = "claudius-packs"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "claudius-decode",
@@ -913,7 +913,7 @@ dependencies = [
 
 [[package]]
 name = "claudius-server"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -937,7 +937,7 @@ dependencies = [
 
 [[package]]
 name = "claudius-ui"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "claudius-api",
  "cpal",
@@ -1776,7 +1776,7 @@ checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
 name = "earshot"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "claudius-decode",
