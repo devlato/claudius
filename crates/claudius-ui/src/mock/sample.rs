@@ -361,7 +361,7 @@ fn rank(
                         + if key.is_some() { 0.3 } else { 0.0 }
                         + if key.is_some_and(|k| k.is_minor()) { 0.2 } else { 0.0 }
                         + if fit.beats >= 8 { 0.2 } else { 0.0 };
-                    (off < 0.12).then(|| (score, f.clone(), Some(fit)))
+                    (off < 0.06).then(|| (score, f.clone(), Some(fit)))
                 }
                 Role::Break => {
                     let fit = fit_loop(f.seconds, &said, (tempo / 1.2, tempo * 1.2))

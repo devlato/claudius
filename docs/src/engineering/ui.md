@@ -316,7 +316,7 @@ of a long recording as claudius does, so it looks for recordings made to loop) a
 
 - **The tempo.** A loop's tempo is one its title or tags state ("75bpm", "[148bpm]"), if a whole number of bars at it
   fills the recording, a short tail left out; or else its length alone, as whole bars at a tempo in the genre's
-  range. The phrase must sit within 12% of that range. The break is fitted to the phrase's tempo, within 17%.
+  range. The phrase must sit within 6% of that range. The break is fitted to the phrase's tempo, within 17%.
 - **The key and the chords.** The phrase's spectrum, folded onto the twelve notes once its tuning is found, gives
   its key (Krumhansl and Kessler's profiles, a key its title states preferred a little) and a triad of that key for
   each bar. A loop whose notes do not stand out from one another, such as noise, is passed over.
