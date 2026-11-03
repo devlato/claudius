@@ -90,3 +90,10 @@ song draws one by its seed.
 
 Offline, or before anything is gathered, a genre plays the layers its profile names in a sample's place (trip-hop's
 drum lanes for the break, its electric piano and strings for the phrase), so it still makes a song.
+
+## In the web demo
+
+The [studio demo](https://claudius.devlato.com/studio/?mock) samples as well. A trip-hop song there is built on loops
+from Freesound under CC0 or CC BY, found as the song is made: a phrase it takes its tempo, key and chords from, a
+break, and crackle. The demo asks the website for them, and the website asks Openverse and Freesound, so your browser
+contacts no one else. Each track names its recording, author and licence, and the log gives each one's full credit.

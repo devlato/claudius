@@ -12,7 +12,8 @@ use crate::{copy_tree, fresh_dir, root};
 pub const DEFAULT_URL: &str = "http://localhost:8000";
 const REPO_URL: &str = "https://github.com/devlato/claudius";
 
-/// the entries of site/ that are tooling (the smoke test, its packages, the scripts that make the demos), not pages;
+/// the entries of site/ that are tooling (the smoke test, its packages, the scripts that make the demos, the Worker),
+/// not pages;
 /// the same list as PRIVATE in site/tests/serve.mjs
 const TOOLING: &[&str] = &[
     ".DS_Store",
@@ -27,6 +28,7 @@ const TOOLING: &[&str] = &[
     "test-results",
     "tests",
     "tools",
+    "worker",
     "wrangler.toml",
 ];
 

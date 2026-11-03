@@ -307,6 +307,38 @@ cargo xtask site --sounds
 CLAUDIUS_DEMO_SOUNDS=target/site/studio/sounds cargo run -p claudius-ui -- --mock
 ```
 
+### The demo's samples
+
+A genre built on samples (trip-hop) is built on them in the demo too. Making a song of it starts a job,
+`mock/sample.rs`, that gathers three samples: a phrase, a drum break and a texture. For each, it searches with one of
+the genre's words for a loop ("dark piano loop", "hip hop drum loop", "vinyl crackle"; the demo cannot cut a loop out
+of a long recording as claudius does, so it looks for recordings made to loop) and fetches its preview:
+
+- **The tempo.** A loop's tempo is one its title or tags state ("75bpm", "[148bpm]"), if a whole number of bars at it
+  fills the recording, a short tail left out; or else its length alone, as whole bars at a tempo in the genre's
+  range. The phrase must sit within 6% of that range. The break is fitted to the phrase's tempo, within 17%.
+- **The key and the chords.** The phrase's spectrum, folded onto the twelve notes once its tuning is found, gives
+  its key (Krumhansl and Kessler's profiles, a key its title states preferred a little) and a triad of that key for
+  each bar. A loop whose notes do not stand out from one another, such as noise, is passed over.
+- **The colour.** Each sample is coloured as trip-hop's profile mixes it: the break lowpassed at 10 kHz, the phrase
+  high-passed at 160 Hz, through tape and crushed to 12 bits, the crackle high-passed at 300 Hz.
+
+The song takes the phrase's tempo, its key (in the relative minor for a genre with no major mode) and its chords as
+progression A. It plays the break, the phrase and the texture as loop tracks (`break`, `sample`, `texture`), at the
+levels claudius gives those roles, with each section's layers as trip-hop's profile writes them. The break is
+re-chopped in the last bar of every eight in a section with fills. A role with no sample plays what stands in for it:
+the drum lanes for the break, keys and strings for the phrase. Each track's sound names its recording, author and
+licence, and the log gives the full credit with the links.
+
+The demo asks the site, never Openverse or Freesound: `samples/search?q=…` and `samples/audio/…`, relative to the
+page. The site's Worker answers those (see [Privacy](../guide/privacy.md#the-website)). Natively,
+`CLAUDIUS_DEMO_SAMPLES` names an address, such as the local site's:
+
+```sh
+cd site && node tests/serve.mjs &          # its /studio/samples/ asks Openverse and Freesound live
+CLAUDIUS_DEMO_SAMPLES=http://127.0.0.1:4321/studio/samples cargo run -p claudius-ui -- --mock
+```
+
 ## Scripted runs
 
 `CLAUDIUS_UI_PLAN` drives the native window from a list of steps separated by `;`, so a change to the UI can be

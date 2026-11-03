@@ -261,7 +261,7 @@ test.describe("assembled site", () => {
   test.skip(!site.assembled, "needs target/site from cargo xtask site");
 
   test("leaves the site's own tooling out", async ({ request }) => {
-    for (const path of ["/package.json", "/package-lock.json", "/tests/smoke.spec.mjs", "/playwright.config.mjs", "/README.md", "/node_modules/.package-lock.json", "/tools/excerpt.py"]) {
+    for (const path of ["/package.json", "/package-lock.json", "/tests/smoke.spec.mjs", "/playwright.config.mjs", "/README.md", "/node_modules/.package-lock.json", "/tools/excerpt.py", "/worker/index.js"]) {
       expect((await request.get(path)).status(), path).toBe(404);
     }
   });

@@ -96,6 +96,21 @@ start under their own policies, and that the installers are served as text.
 To look at the page, `SCREENSHOT_DIR=/tmp/shots npx playwright test screens` writes full-page screenshots at
 1440 and 390 px.
 
+## The Worker
+
+The site is static except for one Worker, `worker/index.js`, which answers the studio demo's samples
+(`/studio/samples/*`; `run_worker_first` in `wrangler.toml` sends only those paths to it):
+
+| path | what |
+|---|---|
+| `/studio/samples/search?q=<words>` | Openverse's loops on Freesound under CC0 or CC BY, under 30 seconds, for one of the demo's own searches (`SEARCHES`), as the demo reads them |
+| `/studio/samples/audio/<folder>/<sound>_<user>.ogg` | that loop's preview, from Freesound's servers |
+
+It caches both at the edge (searches for a day, audio for a year) and passes on nothing about the visitor.
+`wrangler deploy` publishes it with the assets. `tests/serve.mjs` runs it too, asking Openverse and Freesound live,
+and `tests/worker.spec.mjs` tests it with them stood in for. A search the demo adds goes into `SEARCHES` as well; a
+test in `claudius-ui` checks that it has.
+
 ## The demos
 
 | file | genre | made with |
