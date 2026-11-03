@@ -16,7 +16,7 @@ use claudius_api::*;
 use rayon::prelude::*;
 
 use super::{App, RenderOut, no, now_seed, ok};
-use crate::views;
+use claudius_session::views;
 
 impl App {
     pub(super) fn start_job(self: &Arc<Self>, what: &str, job: impl FnOnce(Arc<App>) + Send + 'static) -> Reply {

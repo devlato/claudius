@@ -14,7 +14,7 @@ use serde::Deserialize;
 use serde::de::DeserializeOwned;
 
 use crate::app::App;
-use crate::views;
+use claudius_session::views;
 
 #[derive(Clone)]
 pub enum Backend {

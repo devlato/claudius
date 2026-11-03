@@ -7,15 +7,12 @@ use std::time::Duration;
 
 use claudius::compose::{self, Options};
 use claudius::model::*;
-use claudius::pattern::quote;
-use claudius::rng::Rng;
-use claudius::theory::rhythm::Hit;
 use claudius::theory::scale::Key;
 use claudius::{analysis, audio, config, export, genres, script, song};
 use claudius_api::*;
 
 use super::{App, no, now_seed, ok};
-use crate::views;
+use claudius_session::{edit, views};
 
 /// what to sample, from what a command or a query says
 pub(crate) fn sampling(
@@ -81,47 +78,15 @@ impl App {
         }
     }
 
-    /// replaces a chain of effects: a track's, a bus's, the master's, or the one effect a send feeds
-    fn set_fx(self: &Arc<Self>, target: &str, fx: Vec<serde_json::Value>) -> Reply {
-        let chain: Result<Vec<claudius::fx::Effect>, String> = fx
-            .into_iter()
-            .enumerate()
-            .map(|(i, v)| serde_json::from_value(v).map_err(|e| format!("{target}'s effect {}: {e}", i + 1)))
-            .collect();
-        let chain = match chain {
-            Ok(c) => c,
-            Err(e) => return no(e, self.version()),
-        };
-        self.edit_with(|bp| {
-            let n = chain.len();
-            match target.split_once(':') {
-                Some(("track", name)) => {
-                    script::mix_of(bp, name).ok_or_else(|| format!("no track '{name}'"))?.fx = chain;
-                }
-                Some(("bus", name)) => {
-                    if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
-                        return Err(format!("a bus is named with letters, digits, - and _, not '{name}'"));
-                    }
-                    bp.mix.buses.insert(name.to_string(), chain);
-                }
-                Some(("send", which @ ("reverb" | "delay"))) => {
-                    let [one]: [claudius::fx::Effect; 1] =
-                        chain.try_into().map_err(|_| format!("the {which} send feeds one effect, not {n}"))?;
-                    if which == "reverb" {
-                        bp.mix.reverb = one;
-                    } else {
-                        bp.mix.delay = one;
-                    }
-                }
-                None if target == "master" => bp.mix.master.fx = chain,
-                _ => {
-                    return Err(format!(
-                        "'{target}' is no chain of effects: track:<name>, bus:<name>, master, send:reverb or send:delay"
-                    ));
-                }
+    /// an edit of the song, as `claudius_session::edit` makes it: a script run on it, or a change in place
+    fn edit(self: &Arc<Self>, c: &Command) -> Reply {
+        match edit::script(c, self.blueprint().as_ref(), now_seed()) {
+            Some(Ok(s)) => self.run_script(&s.code, s.label),
+            Some(Err(e)) => no(e, self.version()),
+            None => {
+                self.edit_with(|bp| edit::change(c, bp).unwrap_or_else(|| Err("that is no edit of the song".into())))
             }
-            Ok(format!("{target}: {n} effect{}", if n == 1 { "" } else { "s" }))
-        })
+        }
     }
 
     /// run a script on the current song (or on none: the script starts one)
@@ -250,286 +215,26 @@ impl App {
             Command::Export { formats, path } => self.export(&formats, path.map(PathBuf::from)),
             Command::SetRelease { details, artwork } => self.set_release(*details, artwork.map(PathBuf::from)),
             Command::WriteKit { path } => self.write_kit(path.map(PathBuf::from)),
-            Command::SetTempo { bpm } => self.run_script(&format!("tempo({bpm})"), Some(format!("tempo {bpm:.0}"))),
-            Command::SetKey { key } => self.run_script(&format!("key({})", quote(&key)), Some(format!("key {key}"))),
-            Command::SetSwing { swing } => {
-                self.run_script(&format!("swing({swing})"), Some(format!("swing {swing:.2}")))
-            }
-            Command::SetProgression { name, chords } => self.run_script(
-                &format!("prog({}, {})", quote(&name), quote(&chords.join(" "))),
-                Some(format!("progression {name}: {}", chords.join(" "))),
-            ),
-            Command::SetDrumPattern { lane, variant, steps } => self.run_script(
-                &format!("drum({}, {}, {})", quote(&lane), quote(&variant), quote(&steps)),
-                Some(format!("{lane} ({variant}) pattern")),
-            ),
-            Command::SetPart { name, style, preset, register, density, reseed } => {
-                let mut fields = Vec::new();
-                if let Some(s) = &style {
-                    fields.push(format!("style: {}", quote(s)));
-                }
-                if let Some(p) = &preset {
-                    fields.push(format!("preset: {}", quote(p)));
-                }
-                if let Some((a, b)) = register {
-                    fields.push(format!("register: [{a}, {b}]"));
-                }
-                if let Some(d) = density {
-                    fields.push(format!("density: {d}"));
-                }
-                if reseed {
-                    fields.push(format!("seed: {}", Rng::new(now_seed()).next_u64() as i64));
-                }
-                self.run_script(
-                    &format!("part({}, #{{ {} }})", quote(&name), fields.join(", ")),
-                    Some(format!("{name}: {}", fields.join(", "))),
-                )
-            }
-            Command::AddTrack { name, kind, role, sound } => {
-                // a name is one word: sections list their tracks separated by spaces
-                if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
-                    return no(format!("a track's name is one word of letters, digits, _ and -, not '{name}'"), v);
-                }
-                if self.blueprint().is_some_and(|bp| bp.layer_names().contains(&name)) {
-                    return no(format!("the song already has a track '{name}': give the new one another name"), v);
-                }
-                let code = match kind.as_str() {
-                    // the sound makes a lane of any name; without one, drum() makes a lane named for a drum
-                    "drum" => match &sound {
-                        Some(s) => format!("drum_sound({}, {});", quote(&name), quote(s)),
-                        None => format!("drum({}, \"main\", \"................\");", quote(&name)),
-                    },
-                    "part" => {
-                        let mut fields = Vec::new();
-                        if let Some(r) = &role {
-                            fields.push(format!("role: {}", quote(r)));
-                        }
-                        if let Some(s) = &sound {
-                            fields.push(format!("preset: {}", quote(s)));
-                        }
-                        format!("part({}, #{{ {} }})", quote(&name), fields.join(", "))
-                    }
-                    other => {
-                        return no(
-                            format!("a track is a drum lane (kind \"drum\") or a part (\"part\"), not '{other}'"),
-                            v,
-                        );
-                    }
-                };
-                self.run_script(&code, Some(format!("new track {name}")))
-            }
-            Command::RemoveTrack { name } => {
-                self.run_script(&format!("remove({})", quote(&name)), Some(format!("removed {name}")))
-            }
-            Command::SetNotes { part, prog, notes } => {
-                let (code, what) = match notes {
-                    Some(notes) => {
-                        // as the script reads them back exactly: whole numbers whole, the rest as Rust prints them
-                        let n = |x: f64| {
-                            if x == x.trunc() && x.abs() < 1e15 { format!("{}", x as i64) } else { format!("{x}") }
-                        };
-                        let list: Vec<String> =
-                            notes.iter().map(|x| format!("[{}, {}, {}, {}]", n(x.t), n(x.d), x.p, x.v)).collect();
-                        let what = format!("{part} over {prog}: {} notes written out", notes.len());
-                        (format!("notes({}, {}, [{}])", quote(&part), quote(&prog), list.join(", ")), what)
-                    }
-                    None => (
-                        format!("clear_notes({}, {})", quote(&part), quote(&prog)),
-                        format!("{part} over {prog}: the theory engine's again"),
-                    ),
-                };
-                self.run_script(&code, Some(what))
-            }
-            Command::SetMix { track, level_db, pan, reverb, delay, duck, drive_db, muted, solo, bus } => {
-                let mut fields = Vec::new();
-                for (k, x) in [
-                    ("level", level_db),
-                    ("pan", pan),
-                    ("reverb", reverb),
-                    ("delay", delay),
-                    ("duck", duck),
-                    ("drive", drive_db),
-                ] {
-                    if let Some(x) = x {
-                        fields.push(format!("{k}: {x}"));
-                    }
-                }
-                if let Some(m) = muted {
-                    fields.push(format!("mute: {m}"));
-                }
-                if let Some(m) = solo {
-                    fields.push(format!("solo: {m}"));
-                }
-                if let Some(b) = bus {
-                    fields.push(format!("bus: {}", quote(&b)));
-                }
-                self.run_script(
-                    &format!("mix({}, #{{ {} }})", quote(&track), fields.join(", ")),
-                    Some(format!("mix {track}: {}", fields.join(", "))),
-                )
-            }
-            Command::SetSection {
-                index,
-                name,
-                bars,
-                energy,
-                layers,
-                prog,
-                variant,
-                filter_in,
-                build,
-                gap,
-                impact,
-                fills,
-            } => self.edit_with(|bp| {
-                if let Some(p) = &prog
-                    && !bp.harmony.progressions.contains_key(p)
-                {
-                    return Err(format!(
-                        "no progression '{p}' (there are {})",
-                        bp.harmony.progressions.keys().cloned().collect::<Vec<_>>().join(", ")
-                    ));
-                }
-                let n = bp.form.len();
-                let s = bp.form.get_mut(index).ok_or(format!("no section {index} (there are {n})"))?;
-                if let Some(x) = name {
-                    s.name = x;
-                }
-                if let Some(x) = bars {
-                    s.bars = x.clamp(1, 256);
-                }
-                if let Some(x) = energy {
-                    s.energy = x.clamp(0.0, 1.0);
-                }
-                if let Some(x) = layers {
-                    s.layers = x;
-                }
-                if let Some(x) = prog {
-                    s.prog = x;
-                }
-                if let Some(x) = variant {
-                    s.variant = x;
-                }
-                for (src, dst) in [
-                    (filter_in, &mut s.filter_in),
-                    (build, &mut s.build),
-                    (gap, &mut s.gap),
-                    (impact, &mut s.impact),
-                    (fills, &mut s.fills),
-                ] {
-                    if let Some(x) = src {
-                        *dst = x;
-                    }
-                }
-                Ok(format!("section {index} ({})", s.name))
-            }),
-            Command::AddSection { after, kind, bars } => self.edit_with(|bp| {
-                let k = section_kind(&kind)?;
-                let like = bp.form.get(after.min(bp.form.len().saturating_sub(1))).cloned();
-                let mut spec = like.unwrap_or_else(|| SectionSpec {
-                    name: String::new(),
-                    kind: k,
-                    bars,
-                    energy: 0.7,
-                    prog: "A".into(),
-                    layers: bp.layer_names(),
-                    variant: "main".into(),
-                    filter_in: false,
-                    build: false,
-                    gap: false,
-                    impact: false,
-                    fills: false,
-                });
-                spec.kind = k;
-                spec.bars = bars.clamp(1, 256);
-                spec.build = k == SectionKind::Build;
-                spec.impact = matches!(k, SectionKind::Drop);
-                spec.gap = false;
-                let base = kind.clone();
-                let mut i = 1;
-                spec.name = base.clone();
-                while bp.form.iter().any(|s| s.name == spec.name) {
-                    i += 1;
-                    spec.name = format!("{base}{i}");
-                }
-                let at = (after + 1).min(bp.form.len());
-                let name = spec.name.clone();
-                bp.form.insert(at, spec);
-                Ok(format!("added {name} ({bars} bars) at {at}"))
-            }),
-            Command::RemoveSection { index } => self.edit_with(|bp| {
-                if bp.form.len() <= 1 {
-                    return Err("a song needs at least one section".into());
-                }
-                if index >= bp.form.len() {
-                    return Err(format!("no section {index}"));
-                }
-                let s = bp.form.remove(index);
-                Ok(format!("removed {}", s.name))
-            }),
-            Command::MoveSection { from, to } => self.edit_with(|bp| {
-                if from >= bp.form.len() || to >= bp.form.len() {
-                    return Err(format!("sections are 0..{}", bp.form.len()));
-                }
-                let s = bp.form.remove(from);
-                let name = s.name.clone();
-                bp.form.insert(to, s);
-                Ok(format!("moved {name} to {to}"))
-            }),
-            Command::ToggleLayer { section, layer } => self.edit_with(|bp| {
-                let s = bp.form.get_mut(section).ok_or(format!("no section {section}"))?;
-                if let Some(i) = s.layers.iter().position(|l| *l == layer) {
-                    s.layers.remove(i);
-                    Ok(format!("{layer} off in {}", s.name))
-                } else {
-                    s.layers.push(layer.clone());
-                    Ok(format!("{layer} on in {}", s.name))
-                }
-            }),
-            Command::SetDrumStep { lane, variant, step, velocity } => self.edit_with(|bp| {
-                let names: Vec<String> = bp.drums.iter().map(|d| d.name.clone()).collect();
-                let l = bp
-                    .drums
-                    .iter_mut()
-                    .find(|d| d.name == lane)
-                    .ok_or(format!("no drum lane '{lane}' (lanes: {})", names.join(" ")))?;
-                let steps = (l.pattern_bars * 16) as usize;
-                if step >= steps {
-                    return Err(format!("{lane} has {steps} steps"));
-                }
-                let main = l.patterns.get("main").cloned().unwrap_or_default();
-                let hits = l.patterns.entry(variant.clone()).or_insert(main);
-                let t = step as f64 * 0.25;
-                // a step that still strikes keeps what its trig does
-                let trig = hits.iter().find(|h| (h.t - t).abs() <= 1e-6).and_then(|h| h.trig);
-                hits.retain(|h| (h.t - t).abs() > 1e-6);
-                if velocity > 0.0 {
-                    hits.push(Hit { trig, ..Hit::new(t, velocity.min(1.0)) });
-                    hits.sort_by(|a, b| a.t.partial_cmp(&b.t).unwrap());
-                }
-                Ok(format!(
-                    "{lane} ({variant}) step {step}: {}",
-                    if velocity > 0.0 { format!("{velocity:.2}") } else { "off".into() }
-                ))
-            }),
-            Command::SetLane { lane, length, speed, swing, groove, groove_amount } => {
-                let mut set = Vec::new();
-                if let Some(v) = length {
-                    set.push(format!("length: {v}"));
-                }
-                for (k, v) in [("speed", speed), ("swing", swing), ("groove_amount", groove_amount)] {
-                    if let Some(v) = v {
-                        set.push(format!("{k}: {v:?}"));
-                    }
-                }
-                if let Some(g) = &groove {
-                    set.push(format!("groove: {}", quote(g)));
-                }
-                self.run_script(
-                    &format!("lane({}, #{{ {} }});", quote(&lane), set.join(", ")),
-                    Some(format!("{lane}'s time")),
-                )
-            }
+            c @ (Command::SetTempo { .. }
+            | Command::SetKey { .. }
+            | Command::SetSwing { .. }
+            | Command::SetProgression { .. }
+            | Command::SetDrumPattern { .. }
+            | Command::SetPart { .. }
+            | Command::AddTrack { .. }
+            | Command::RemoveTrack { .. }
+            | Command::SetNotes { .. }
+            | Command::SetMix { .. }
+            | Command::SetLane { .. }
+            | Command::SetTrig { .. }
+            | Command::RunScript { .. }
+            | Command::SetSection { .. }
+            | Command::AddSection { .. }
+            | Command::RemoveSection { .. }
+            | Command::MoveSection { .. }
+            | Command::ToggleLayer { .. }
+            | Command::SetDrumStep { .. }
+            | Command::SetFx { .. }) => self.edit(&c),
             Command::ExtractGroove { path, name, lanes, bpm } => match self
                 .readable(Path::new(&path))
                 .and_then(|_| audio::load(Path::new(&path)).map_err(|e| format!("cannot read {path}: {e}")))
@@ -540,16 +245,6 @@ impl App {
                 }
                 Err(e) => no(e, v),
             },
-            // the trig given in place of the one there: cleared, then set with what differs from the defaults
-            Command::SetTrig { lane, variant, step, trig } => {
-                let (lane_q, variant_q) = (quote(&lane), quote(&variant));
-                let mut code = format!("trig({lane_q}, {variant_q}, {step}, #{{}});");
-                if let Some(set) = trig.map(|t| t.script()).filter(|s| !s.is_empty()) {
-                    code.push_str(&format!(" trig({lane_q}, {variant_q}, {step}, #{{ {set} }});"));
-                }
-                self.run_script(&code, Some(format!("{lane} {variant} step {step}")))
-            }
-            Command::RunScript { code } => self.run_script(&code, None),
             Command::AddTake { path, from, name, role } => {
                 self.add_take_file(Path::new(&path), &from, name.as_deref(), role.as_deref())
             }
@@ -656,7 +351,6 @@ impl App {
                     Err(e) => no(format!("cannot read {path}: {e}"), v),
                 }
             }
-            Command::SetFx { target, fx } => self.set_fx(&target, fx),
             Command::SampleSong { path, count, bars, find, sections } => {
                 let opt = sampling(count, bars, find, sections);
                 if let Err(e) = self.readable(Path::new(&path)) {
@@ -1103,22 +797,6 @@ impl App {
             }
         }
     }
-}
-
-fn section_kind(k: &str) -> Result<SectionKind, String> {
-    Ok(match k {
-        "intro" => SectionKind::Intro,
-        "verse" => SectionKind::Verse,
-        "build" => SectionKind::Build,
-        "drop" => SectionKind::Drop,
-        "break" | "breakdown" => SectionKind::Break,
-        "hook" | "chorus" => SectionKind::Hook,
-        "groove" | "loop" => SectionKind::Groove,
-        "outro" => SectionKind::Outro,
-        other => {
-            return Err(format!("unknown section kind '{other}' (intro verse build drop break hook groove outro)"));
-        }
-    })
 }
 
 pub fn analysis_text(a: &analysis::song::Analysis) -> String {
