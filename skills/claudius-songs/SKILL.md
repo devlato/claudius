@@ -32,7 +32,7 @@ judges it. You do the work; the person you make music with decides what sounds g
 1. **Get the brief.** Genre or mood, tempo feel, a song it should be like, how long. Ask one or two questions at
    most, pick sensible defaults for the rest, and say which you picked.
 2. **Start.** `new_song` with a genre (and seed, bpm, key if they matter) gives a complete, arranged song in 10 to
-   60 seconds. A script that begins with `blank("<genre>")` builds one from your own patterns instead. Use the
+   60 seconds; the first song of a genre built on samples (trip-hop) gathers them first, a minute or two more. A script that begins with `blank("<genre>")` builds one from your own patterns instead. Use the
    generator when the person wants a song; use patterns when they describe the parts.
 3. **Listen.** Every edit through the tools renders and returns the verdict. On the command line, `claudius script`
    and `claudius render` write the folder and print the verdict.
