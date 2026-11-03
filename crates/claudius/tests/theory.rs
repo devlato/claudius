@@ -57,6 +57,18 @@ fn voicings_stay_in_range_and_move_little() {
 }
 
 #[test]
+fn power_chords_are_the_root_its_fifth_and_the_octave_and_move_by_their_roots() {
+    let key = Key::new(4, Mode::Minor);
+    let prog = progression::chords(&progression::parse("i VI III"), &key);
+    let e = voice(&prog[0], None, 40, 64, 3, Voicing::Power, None);
+    assert_eq!(e, [40, 47, 52], "E2 B2 E3");
+    let c = voice(&prog[1], Some(&e), 40, 64, 3, Voicing::Power, None);
+    assert_eq!(c, [48, 55, 60], "C3 is the only C with room for its fifth and octave");
+    let g = voice(&prog[2], Some(&c), 40, 64, 2, Voicing::Power, None);
+    assert_eq!(g, [43, 50], "two voices: no octave; G2 is nearer C3 than G3 is");
+}
+
+#[test]
 fn markov_progressions_are_diatonic_loops() {
     let key = Key::new(0, Mode::Major);
     let mut rng = Rng::new(3);

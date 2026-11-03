@@ -259,10 +259,12 @@ fx("guitar", [
 track("organ", chord("prog").voicing(50, 72).s("organ").role("keys").room(0.3));
 ```
 
-## art_rock (76-112 BPM)
+## art_rock (70-100 BPM)
 
-Grows from a quiet piano and a glitchy arpeggio into a loud climax: live drums, a dark bass, strings, guitars that
-turn from clean to distorted, minor and modal chords, a long arc rather than a loop.
+Grows from a quiet piano and a glitchy synth arpeggio into a loud climax, as a band plays it: an acoustic kit with
+fills, a pick or finger bass that distorts in the climaxes, strings, a clean guitar arpeggio, and two distorted
+power-chord guitars panned wide in the rise and the climaxes. Dark minor, phrygian and harmonic-minor chords, a long arc
+rather than a loop, tape on the mix, and no EDM risers or impacts.
 
 ```js
 blank("art_rock");
@@ -272,7 +274,7 @@ prog("A", "i VI III VII");
 track("piano", chord("prog").struct("x ~ x ~").voicing(48, 74).s("keys").role("keys").room(0.35));
 track("arp", chord("prog").struct("x*8").arp("up").voicing(60, 84).s("pluck").role("arp").crush(10).delay(0.3));
 track("drums", s("bd ~ ~ bd sd ~ ~ ~, hh*8").gain("1 0.7"));
-form([sec("intro", 8, "piano arp"), sec("verse", 16, "piano arp drums"), sec("hook", 16, "*").impact()]);
+form([sec("intro", 8, "piano arp"), sec("verse", 16, "piano arp drums"), sec("hook", 16, "*")]);
 ```
 
 ## idm (96-140 BPM)
