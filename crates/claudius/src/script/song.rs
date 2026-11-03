@@ -563,6 +563,7 @@ pub(super) fn pattern_mix(o: &crate::pattern::TrackOpts, labels: &[String], role
         reverb: o.reverb.unwrap_or(0.0),
         delay: o.delay.unwrap_or(0.0),
         duck: o.duck.unwrap_or(if drum_like || role == "kick" { 0.0 } else { 0.3 }),
+        drive_db: 0.0,
         bus: if drum_like {
             "drums"
         } else if role == "bass" {

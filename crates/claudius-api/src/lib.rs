@@ -304,6 +304,9 @@ pub struct TrackView {
     pub reverb: f32,
     pub delay: f32,
     pub duck: f32,
+    /// the mixer's drive in dB (0..36): saturation after its effects, at the loudness its level gives it
+    #[serde(default)]
+    pub drive_db: f32,
     pub muted: bool,
     /// soloed: when any track is, only soloed tracks play
     #[serde(default)]
@@ -1186,6 +1189,9 @@ pub enum Command {
         delay: Option<f32>,
         #[serde(default)]
         duck: Option<f32>,
+        /// the mixer's drive in dB (0..36): saturation after its effects, which thickens and roughens it
+        #[serde(default)]
+        drive_db: Option<f32>,
         #[serde(default)]
         muted: Option<bool>,
         #[serde(default)]

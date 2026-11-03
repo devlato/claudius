@@ -54,14 +54,14 @@ Why:
   the choir, the open hat and the lead so the hook has somewhere to return to.
 
 ```text
-  ears: 'trap beat' z +3.4 (closest confusion 'hip hop beat with heavy bass' +3.2); production z +1.0 vs 'a recording made on a phone' +0.8; p_real 0.30
+  ears: 'trap beat' z +3.5 (closest confusion 'hip hop beat with heavy bass' +3.2); production z +1.1 vs 'a recording made on a phone' +0.8; p_real 0.27
         sounds like: trap beat, hip hop beat with heavy bass, lo-fi hip hop beat, a success chime
-  verdict: 88/100 (arc 0.97, genre 0.79, mix 0.94, production 0.56, theory 1.00). Fix first: too much sub (boomy): lower the bass / kick, or highpass the music bus (sub -1.8 dB, healthy up to -4); a thin low end: bass or kick too quiet (low -7.7 dB, healthy from -7); sounds about as much like a phone recording as a professional mix: a thin or narrow mix is the usual cause
+  verdict: 89/100 (arc 0.96, genre 0.81, mix 0.97, production 0.57, theory 1.00). Fix first: fizzy top end (air -15.6 dB, healthy up to -17); sounds about as much like a phone recording as a professional mix: a thin or narrow mix is the usual cause
 ```
 
-The low end is the 808's: a lot of sub, not much above it. That is trap's sound and the critic's taste disagreeing.
-Drive on the 808 (`.distort(6)`) adds harmonics in the 60–250 Hz band, where small speakers can hear it, without
-changing its notes; `.level(-2)` on it trims the sub.
+The low end is the 808's: a lot of sub, not much above it. That is trap's sound, and trap's profile tells the critic
+so: its sub may reach −1 dB of the whole. Drive on the 808 (`mix("808", #{ drive: 12 })`) adds harmonics above
+60 Hz, where small speakers can hear it, at the same loudness; `.level(4)` on it as well makes it hit harder.
 
 Try:
 

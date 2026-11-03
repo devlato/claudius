@@ -41,6 +41,11 @@ fn track_mix<'a>(bp: &'a mut Blueprint, name: &str) -> Option<&'a mut TrackMix> 
     bp.loops.iter_mut().find(|l| l.name == name).map(|l| &mut l.mix)
 }
 
+/// the kick and the bass parts: the low end, which stays centred and dry
+fn low_end(bp: &Blueprint, name: &str) -> bool {
+    name == "kick" || bp.parts.iter().any(|p| p.name == name && p.role == Role::Bass)
+}
+
 const OPS: &[&str] = &[
     "harmony_sub",
     "harmony_new",
@@ -378,6 +383,9 @@ fn apply_op(
         }
         "mix_send" => {
             let name = rng.pick(&layer_names).clone();
+            if low_end(b, &name) {
+                return None;
+            }
             let m = track_mix(b, &name)?;
             if rng.chance(0.5) {
                 m.reverb = (m.reverb + (rng.f32() - 0.5) * 0.2).clamp(0.0, 0.6);
@@ -396,7 +404,7 @@ fn apply_op(
         }
         "mix_pan" => {
             let name = rng.pick(&layer_names).clone();
-            if matches!(name.as_str(), "kick" | "bass" | "snare" | "clap") {
+            if low_end(b, &name) || matches!(name.as_str(), "snare" | "clap") {
                 return None;
             }
             let m = track_mix(b, &name)?;
@@ -685,4 +693,30 @@ pub fn run(
     }
     all.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
     Ok(all)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mutation_leaves_the_low_end_centred_and_dry() {
+        // dubstep's basses are a sub and a wobble: neither is called bass
+        let g = crate::genres::get("dubstep").unwrap();
+        let bp = compose::generate(&g, 1, &compose::Options::default(), None);
+        let low = |b: &Blueprint| -> Vec<(f32, f32, f32)> {
+            let kick = b.drums.iter().filter(|d| d.name == "kick").map(|d| &d.mix);
+            let basses = b.parts.iter().filter(|p| p.role == Role::Bass).map(|p| &p.mix);
+            kick.chain(basses).map(|m| (m.pan, m.reverb, m.delay)).collect()
+        };
+        assert_eq!(low(&bp).len(), 3, "a kick, a sub and a wobble");
+        for seed in 0..200 {
+            let mut b = bp.clone();
+            let mut rng = Rng::new(seed);
+            for op in ["mix_send", "mix_pan"] {
+                apply_op(&mut b, op, &g, None, &[], &mut rng);
+            }
+            assert_eq!(low(&b), low(&bp), "seed {seed}");
+        }
+    }
 }

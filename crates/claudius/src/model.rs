@@ -118,6 +118,10 @@ pub struct TrackMix {
     /// sidechain ducking depth from the kick (0..1)
     #[serde(default)]
     pub duck: f32,
+    /// The mixer's drive, in dB (0..36): tanh saturation after the inserts, which thickens and roughens the track
+    /// while its loudness stays what the level makes it.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub drive_db: f32,
     #[serde(default = "bus_music")]
     pub bus: String,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -136,12 +140,20 @@ impl Default for TrackMix {
             reverb: 0.0,
             delay: 0.0,
             duck: 0.0,
+            drive_db: 0.0,
             bus: bus_music(),
             mute: false,
             solo: false,
         }
     }
 }
+
+fn is_zero(x: &f32) -> bool {
+    *x == 0.0
+}
+
+/// the most drive the mixer gives a track, in dB
+pub const MAX_DRIVE_DB: f32 = 36.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -430,6 +442,9 @@ pub struct MixPlan {
     /// role -> dB offset from the default target loudness of that role
     #[serde(default)]
     pub levels: BTreeMap<String, f32>,
+    /// band -> the healthy range of its energy share in dB, where the genre's masters part from the usual ones
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub bands: BTreeMap<String, [f32; 2]>,
     pub master: Master,
 }
 

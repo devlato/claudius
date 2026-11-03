@@ -74,6 +74,10 @@ built around a spectrum whose energy per octave is flat from 40 to 150 Hz and fa
 | presence | 4–8 kHz | −26 to −15 dB |
 | air | 8–16 kHz | −30 to −17 dB |
 
+A genre whose masters part from these sets its own ranges in its profile (`mix.bands`): trap and UK drill let the
+sub reach −1 dB of the whole, since their 808 carries most of the song's energy, and let the mids and highs above it
+fall lower than usual (mid from −22, presence from −31, air from −35).
+
 Outside its range, a band costs 0.12 × severity, where severity is the distance in dB over 6 (at most 1), and the
 issue says what is likely wrong: `too much sub (boomy): lower the bass / kick, or highpass the music bus`,
 `muddy 250 Hz-1 kHz: too much pad / chord body`, `no air above 8 kHz: hats and cymbals too quiet or too dark`.
@@ -206,8 +210,8 @@ reading, not a good song.
 - earshot was validated for matching sound effects, not music. House, tech house and techno sit close together for
   it, and fully synthesized songs read only marginally "professionally mixed"; songs with sampled instruments read
   better.
-- The healthy band ranges are one target for every genre: a lofi track is meant to be darker than they allow, so it
-  gets `no air` issues that are style, not fault.
+- The healthy band ranges are one target for nearly every genre: only the 808 genres set their own. A lofi track is
+  meant to be darker than they allow, so it gets `no air` issues that are style, not fault.
 - `judge` on an arbitrary file without its `project.json` has no sections and no notes: the arc scores 1, the theory
   checks only the length, and the length is estimated at 120 BPM.
 - The evolution loop judges 32-bar previews, so a preview's length issue (`30 s long`) is in every candidate's

@@ -6,6 +6,12 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+Trap's and UK drill's 808 hits like a subwoofer: 6 dB louder than before, lower, driven through a saturator and kept
+dry and centred, so it is the loudest thing in the song. Every track has a drive in the mixer (`drive`, 0 to 36 dB, in
+`mix()` and `set_mix` too) that overloads it at the loudness its level gives it. The critic takes an 808 genre's
+heavier sub as its sound rather than a fault, and Evolve no longer sends a bass or the kick into the reverb or pans
+them.
+
 Boom bap is built on samples too: a dusty drum break, a soul or jazz phrase from a record, chopped and crushed to 12
 bits, and vinyl crackle, gathered from free libraries as trip-hop's are. The ears no longer hear it as stock ukulele
 music; they hear the hip hop family, lo-fi hip hop (boom bap's offspring) first.

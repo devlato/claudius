@@ -165,7 +165,7 @@ fn mix_checks(r: &Rendered, p: &Project, m: &mut BTreeMap<String, f64>, issues: 
     for (i, (name, _, _)) in BANDS.iter().enumerate() {
         let v = shares[i];
         m.insert(format!("band_{name}_db"), (v * 10.0).round() / 10.0);
-        let (a, b) = BAND_RANGE[i];
+        let (a, b) = p.mix.bands.get(*name).map_or(BAND_RANGE[i], |r| (f64::from(r[0]), f64::from(r[1])));
         let (over, under) = (v - b, a - v);
         if over > 0.0 {
             let sev = clamp01(over / 6.0);

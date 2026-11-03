@@ -170,6 +170,10 @@ pub struct MixSpec {
     /// role -> dB offset from the default target loudness
     #[serde(default)]
     pub levels: BTreeMap<String, f32>,
+    /// band -> the healthy range of its energy share in dB, where this genre's masters part from the usual ones (an
+    /// 808 genre's sub, and the bands above it that the 808 leaves less of)
+    #[serde(default)]
+    pub bands: BTreeMap<String, [f32; 2]>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -435,6 +439,19 @@ pub fn fuse(a: &GenreProfile, b: &GenreProfile) -> GenreProfile {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_genres_bands_are_bands_the_critic_measures_each_with_a_range() {
+        for (name, src) in BUILTIN {
+            let g: GenreProfile = serde_json::from_str(src).unwrap();
+            for (band, [lo, hi]) in &g.mix.bands {
+                assert!(crate::judge::BANDS.iter().any(|(b, _, _)| b == band), "{name}: no band '{band}'");
+                assert!(lo < hi, "{name}: {band} from {lo} to {hi}");
+            }
+        }
+        let trap = get("trap").unwrap();
+        assert!(trap.mix.bands["sub"][1] > -4.0, "an 808 genre's sub may be heavier than the usual master's");
+    }
 
     #[test]
     fn a_fusion_keeps_the_first_genre_and_takes_the_seconds_drums() {

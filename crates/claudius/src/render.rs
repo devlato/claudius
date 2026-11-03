@@ -407,6 +407,11 @@ pub fn render(p: &Project, opts: &Options) -> Result<Rendered> {
             let ts = crate::clock::Instant::now();
             let mut x = render_source(t, p, &tm, len, &chokes)?;
             fx::apply_chain(&t.mix.fx, &mut x, &ctx(&t.name));
+            if t.mix.drive_db > 0.0 {
+                let drive_db = t.mix.drive_db.min(crate::model::MAX_DRIVE_DB).into();
+                let drive = Effect::Saturate { kind: fx::SatKind::Tanh, drive_db, mix: 1.0.into() };
+                fx::apply_chain(std::slice::from_ref(&drive), &mut x, &ctx(&t.name));
+            }
             if debug() {
                 eprintln!("render: track {} in {:.2} s", t.name, ts.elapsed().as_secs_f64());
             }
