@@ -56,7 +56,8 @@ kick, reggaeton's dembow, trance's rolling bass and long breakdown, neo-soul's l
 eleventh chords.
 
 The "against" list matters: the genre score is high only when a song reads as its genre *more than* as the styles it
-is usually confused with.
+is usually confused with, and more than stock library music (corporate background music, children's piano music and
+the like), which every genre is measured against.
 
 ## Fusing genres
 

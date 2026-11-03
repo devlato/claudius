@@ -52,3 +52,19 @@ of data we could license.
   the song.
 - The models cost a download, about half a gigabyte of memory, and a few seconds to load; verdicts made before they load
   have no ears.
+
+## Amendment: stock music
+
+Status: accepted
+
+Verdicts of 90 and more came out for songs whose own `sounds like` line read "inspirational corporate background
+music" or "playful children's piano music": the genre was a 0.15 share of the weight, and its margin was taken only
+over the genre's named neighbours, so a trip-hop song that sounded like an advert's background music still beat lo-fi
+hip hop and scored well.
+
+Every genre is now also measured against five readings of stock library music (`ears::STOCK`), and when the strongest
+of them is plausible (z 2.5 or more) and within one z of the genre's reading, the verdict loses up to 40 % of itself,
+in proportion: `total × (1 − 0.4 × clamp(stock_z − genre_z + 1))`. Scores of songs that sound like their genre are
+unchanged; songs that sound as much like stock music as like their genre drop by up to 40 %. The cut is a gate on the
+whole verdict rather than a bigger genre weight, because sounding like stock music is a failure of the song, not one
+measure among others.

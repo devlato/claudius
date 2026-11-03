@@ -6,6 +6,11 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+Verdicts are stricter about style. Every genre is now measured against stock library music too (corporate background
+music, children's piano music, ukulele music, chiptune), and a song that sounds as much like it as like its genre
+loses up to 40 % of its score, with an issue saying so. Songs that scored 90 while sounding like an advert's background
+music now score in the 60s ([The critic](https://github.com/devlato/claudius/blob/main/docs/src/engineering/critic.md)).
+
 ## [0.3.0] - 2026-11-03
 
 Claudius updates itself from this release on: the studio downloads a new release in the background and offers to

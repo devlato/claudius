@@ -11,7 +11,7 @@ command line it is `verdict.json` in the song's folder, and `claudius judge song
 | mix | loudness, true peak, the balance of six frequency bands, stereo width, a mono low end | 0.30 |
 | arc | whether loudness follows the arrangement, and the drop against the break | 0.20 |
 | theory | the lead and bass against the key and chords, voice leading, the form | 0.20 |
-| genre | whether it sounds like its genre more than the genres it is confused with (needs the models) | 0.15 |
+| genre | whether it sounds like its genre more than the genres it is confused with, and more than stock background music (needs the models) | 0.15 |
 | production | whether it sounds professionally produced more than like a typical flaw (needs the models) | 0.15 |
 
 Without the listening models (`--no-ears`, Intel Macs) the total is out of the first three.
@@ -85,6 +85,10 @@ moves them a little; leave them when that dusty sound is what the person asked f
 - `sounds more like 'techno music' than 'house music'`, or `sounds only faintly like 'house music'`: move toward the
   genre's own sounds and habits ([genres.md](genres.md)): for house, softer drums, swing, 7th chords on electric
   piano. Treat it as a hint; neighbouring genres often sit close, and the person's taste decides.
+- `sounds more like 'inspirational corporate background music' than ...` (or another stock reading: corporate pop,
+  children's piano, ukulele, chiptune): the song is too clean and polite for its genre. This one is not a matter of
+  taste: dirty the sounds (tape, saturation, a crushed copy of the drums), darken the harmony, swap bright synth
+  presets for recorded instruments, and take out what is there only to be pleasant.
 - `sounds about as much like a hissy recording as a professional mix: ...` (or `more like`): the issue ends with the
   flaw's usual cause. Fix the band and width issues first, since most production readings follow from an unbalanced
   spectrum or too much reverb, and try sampled instruments in place of synth patches, which read as more
