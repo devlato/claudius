@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
+use claudius::genres::GenreProfile;
 use claudius::library::Library;
 
 use crate::connect;
@@ -501,6 +502,21 @@ impl SoundArgs {
             return Ok(None);
         }
         open_library()
+    }
+
+    /// what a song of `g` is made with: the library, and for a genre built on samples without it (--no-library, or
+    /// no Apple Loops or folders), the samples gathered for it, which are neither; none of it with --synth-only
+    pub(crate) fn library_for(&self, g: &GenreProfile) -> Result<Option<Library>> {
+        let lib = self.library()?;
+        Ok(match lib {
+            None if g.sampling.is_some() && !self.synth_only => Some(Library::prepared_only()),
+            lib => lib,
+        })
+    }
+
+    /// whether a genre built on samples gathers them before a song is made
+    pub(crate) fn gathers(&self) -> bool {
+        !self.synth_only && !self.offline
     }
 }
 
