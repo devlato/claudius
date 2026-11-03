@@ -1,6 +1,6 @@
 {
   "name": "boom_bap",
-  "description": "Boom bap: 90s hip hop at 86 to 96 BPM, a hard kick and a cracking snare on 2 and 4 with a lazy sampler swing, dusty hats and a rim, a piano or Rhodes loop over jazzy minor chords, an upright or sub bass, horn or flute phrases in the hooks, three verses and hooks",
+  "description": "Boom bap: 90s hip hop at 86 to 96 BPM, built on samples: a dusty drum break with a lazy sampler swing, a soul or jazz phrase from a record chopped and crushed to 12 bits, vinyl crackle, a rim, an upright or sub bass, horn or flute phrases in the hooks, three verses and hooks",
   "query": "boom bap hip hop beat",
   "alts": ["lo-fi hip hop beat", "trap beat", "jazz music", "funk music"],
   "accepted_flaws": ["a low quality recording with hiss"],
@@ -14,14 +14,14 @@
   "bars_per_chord": [[1, 0.4], [2, 0.6]],
   "forms": [
     [
-      {"name": "intro", "kind": "intro", "bars": 4, "energy": 0.35, "layers": ["keys", "hat"], "filter_in": true},
-      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.65, "layers": ["kick", "snare", "hat", "rim", "bass", "keys"], "fills": true},
-      {"name": "hook", "kind": "hook", "bars": 8, "energy": 0.85, "layers": ["kick", "snare", "hat", "ohat", "rim", "bass", "keys", "horns"], "fills": true},
-      {"name": "verse2", "kind": "verse", "bars": 16, "energy": 0.7, "layers": ["kick", "snare", "hat", "rim", "bass", "keys", "pad"], "fills": true},
-      {"name": "hook2", "kind": "hook", "bars": 8, "energy": 0.9, "layers": ["kick", "snare", "hat", "ohat", "rim", "bass", "keys", "horns", "pad"], "fills": true},
-      {"name": "verse3", "kind": "verse", "bars": 16, "energy": 0.7, "layers": ["kick", "snare", "hat", "rim", "bass", "keys"], "fills": true},
-      {"name": "hook3", "kind": "hook", "bars": 8, "energy": 0.95, "layers": ["kick", "snare", "hat", "ohat", "rim", "bass", "keys", "horns", "pad"], "fills": true},
-      {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.35, "layers": ["keys", "hat", "pad"]}
+      {"name": "intro", "kind": "intro", "bars": 4, "energy": 0.35, "layers": ["sample", "texture", "hat"], "filter_in": true},
+      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.65, "layers": ["break", "rim", "bass", "sample", "texture"], "fills": true},
+      {"name": "hook", "kind": "hook", "bars": 8, "energy": 0.85, "layers": ["break", "ohat", "rim", "bass", "sample", "horns", "texture"], "fills": true},
+      {"name": "verse2", "kind": "verse", "bars": 16, "energy": 0.7, "layers": ["break", "rim", "bass", "sample", "texture", "pad"], "fills": true},
+      {"name": "hook2", "kind": "hook", "bars": 8, "energy": 0.9, "layers": ["break", "ohat", "rim", "bass", "sample", "horns", "texture", "pad"], "fills": true},
+      {"name": "verse3", "kind": "verse", "bars": 16, "energy": 0.7, "layers": ["break", "rim", "bass", "sample", "texture"], "fills": true},
+      {"name": "hook3", "kind": "hook", "bars": 8, "energy": 0.95, "layers": ["break", "ohat", "rim", "bass", "sample", "horns", "texture", "pad"], "fills": true},
+      {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.35, "layers": ["sample", "pad", "texture"]}
     ]
   ],
   "drums": [
@@ -126,6 +126,36 @@
       "mix": {"reverb": 0.35}
     }
   ],
+  "sampling": {
+    "break": {
+      "search": ["funk drum break", "hip hop drum loop", "boom bap drum loop", "dusty drum loop", "soul drum break"],
+      "listen": "a dusty boom bap hip hop drum break",
+      "seconds": [2, 40],
+      "keep": 4,
+      "chance": 0.95,
+      "chop": 0.3,
+      "instead": ["kick", "snare", "hat"],
+      "mix": {"bus": "drums", "fx": [{"fx": "saturate", "kind": "tape", "drive_db": 3, "mix": 0.5}, {"fx": "filter", "mode": "lp", "cutoff": 13000, "res": 0.05}]}
+    },
+    "phrase": {
+      "search": ["soul piano", "jazz piano", "rhodes", "soul music", "jazz quartet", "jazz trio", "old jazz record"],
+      "listen": "a soulful jazz piano sample from an old record",
+      "seconds": [6, 900],
+      "keep": 4,
+      "chance": 0.95,
+      "chop": 0.4,
+      "instead": ["keys"],
+      "mix": {"bus": "music", "level_db": 1, "reverb": 0.1, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 120, "res": 0.05}, {"fx": "tape", "wow": 0.3, "flutter": 0.2, "drive_db": 4, "lowpass_hz": 10000}, {"fx": "bitcrush", "bits": 12, "downsample": 2}]}
+    },
+    "texture": {
+      "search": ["vinyl crackle", "record crackle", "vinyl noise"],
+      "listen": "the crackle of an old vinyl record",
+      "seconds": [5, 600],
+      "keep": 2,
+      "chance": 0.75,
+      "mix": {"bus": "music"}
+    }
+  },
   "transitions": {"riser": false, "impact": false, "downlifter": false, "reverse_crash": true, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.25}},
   "mix": {
     "lufs": -10.0,

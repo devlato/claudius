@@ -25,23 +25,26 @@ fx("keys", [
 
 Why:
 
-- **What the genre already does.** Three verses and hooks; a kick on the one with pickups around the third beat, a
-  cracking snare on 2 and 4 and swung hats, a sampler's swing; a piano or Rhodes loop over jazzy minor chords, an
-  upright or sub bass, and horns or a flute in the hooks.
+- **What the genre already does.** Three verses and hooks built on samples from free libraries
+  ([Genres built on samples](../guide/online-samples.md#genres-built-on-samples)). Here they are a hip hop drum loop,
+  whose own kick, snare and hat the drum lanes play, a neo-soul chord loop the song takes its key and chords from,
+  chopped and crushed to 12 bits, and a texture under them, with an organ bass and horns in the hooks. Without
+  gathered samples, the drum lanes and a piano or Rhodes play in their place.
 - **A sampler's drums.** The drums bus is compressed at 4:1 with an attack slow enough to let the kick and snare
   crack through, then saturated on tape; beside it, a third as loud, a copy crushed to 12 bits and half the sample
   rate, above 300 Hz, for the grit of an old sampler.
-- **A loop that leaves room.** The keys are high-passed at 180 Hz, as a sampled loop is thinned to sit over a bass,
-  and run through a tape that wavers a little.
+- **A loop that leaves room, without samples.** When the keys play in the phrase's place, they are high-passed at
+  180 Hz, as a sampled loop is thinned to sit over a bass, and run through a tape that wavers a little.
 
 ```text
-  ears: 'boom bap hip hop beat' z +2.6 (closest confusion 'lo-fi hip hop beat' +2.7); production z +1.6 vs 'a recording made on a phone' +0.5; p_real 0.77
-        sounds like: hip hop beat with heavy bass, drum and bass music, upbeat corporate pop music, lo-fi hip hop beat
-  verdict: 88/100 (arc 0.93, genre 0.53, mix 1.00, production 0.77, theory 1.00). Fix first: sounds more like 'lo-fi hip hop beat' than 'boom bap hip hop beat'; fizzy top end (air -17.0 dB, healthy up to -17)
+  ears: 'boom bap hip hop beat' z +3.3 (closest confusion 'lo-fi hip hop beat' +5.0); production z +1.7 vs 'a low bitrate mp3 with artifacts' +1.1; p_real 0.86
+        sounds like: lo-fi hip hop beat, hip hop beat with heavy bass, glitch hop music, minimal electronic music
+  verdict: 86/100 (arc 0.96, genre 0.45, mix 1.00, production 0.66, theory 1.00). Fix first: sounds more like 'lo-fi hip hop beat' than 'boom bap hip hop beat'
 ```
 
-Lo-fi hip hop grew out of boom bap, and the ears often hear it; the harder drums, the brighter mix and the song form
-of verses and hooks are what boom bap keeps of its own.
+Its `credits.txt` names the three samples. Lo-fi hip hop grew out of boom bap, sampled loops and all, and the ears
+hear it first; the harder drums, the brighter mix and the song form of verses and hooks are what boom bap keeps of its
+own.
 
 Try:
 
