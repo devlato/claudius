@@ -952,7 +952,9 @@ dependencies = [
 name = "claudius-ui"
 version = "0.3.0"
 dependencies = [
+ "claudius",
  "claudius-api",
+ "claudius-session",
  "cpal",
  "eframe",
  "ehttp",
@@ -969,6 +971,19 @@ dependencies = [
  "symphonia",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
+name = "claudius-web"
+version = "0.3.0"
+dependencies = [
+ "claudius",
+ "claudius-api",
+ "claudius-session",
+ "js-sys",
+ "serde_json",
+ "wasm-bindgen",
  "web-sys",
 ]
 

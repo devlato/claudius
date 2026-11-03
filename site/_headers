@@ -20,16 +20,21 @@
 
 # The web studio (trunk + wasm-bindgen + egui): 'wasm-unsafe-eval' compiles the WebAssembly (it allows no JavaScript
 # eval); trunk's index.html starts the app from an inline module script that names the hashed files of each build,
-# and carries an inline <style>; the demo plays its rendered previews from blob: URLs.
+# and carries an inline <style>; the demo plays its rendered previews from blob: URLs, and runs the engine in a Web
+# Worker of the site's own (claudius-engine_loader.js), which gets this policy too.
 /studio/*
   ! Content-Security-Policy
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'self'; worker-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'self'; worker-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
 
 # caching: trunk and mdBook (0.5 and later) put a content hash in these file names
 /studio/*.wasm
   Cache-Control: public, max-age=31536000, immutable
 /studio/*.js
   Cache-Control: public, max-age=31536000, immutable
+# the demo's engine, a Web Worker, which trunk names without a hash: each visit checks for a newer one
+/studio/claudius-engine*
+  ! Cache-Control
+  Cache-Control: no-cache
 /docs/*.js
   Cache-Control: public, max-age=31536000, immutable
 /docs/*.css

@@ -55,6 +55,10 @@ pub fn step_velocity(c: char) -> Option<f32> {
 
 pub const DEFAULT_PORT: u16 = 7878;
 
+/// The `RenderView::url` of a preview: a render of the song's first bars only, which the browser's demo plays while
+/// the whole song renders. It is no render of the song as it is.
+pub const PREVIEW_URL: &str = "preview:";
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct State {
     /// increases on every change of anything below

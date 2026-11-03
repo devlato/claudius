@@ -16,10 +16,9 @@ use eframe::egui;
 use serde::Deserialize;
 
 use super::Rng;
-use super::kit::{Clip, TIMES};
+use super::clip::{Clip, RATE};
 use crate::music::{self, Key};
 
-const RATE: u32 = super::synth::RATE;
 const SR: f64 = RATE as f64;
 /// the address of a sampler a test answers by hand
 #[cfg(test)]
@@ -45,24 +44,6 @@ impl Role {
     /// in the order they are gathered: the break is fitted to the phrase's tempo
     pub const ALL: [Role; 3] = [Role::Phrase, Role::Break, Role::Texture];
 
-    /// its track, as claudius names it
-    pub fn track(self) -> &'static str {
-        match self {
-            Role::Phrase => "sample",
-            Role::Break => "break",
-            Role::Texture => "texture",
-        }
-    }
-
-    /// the role its track is levelled as (claudius' `render::target_level`)
-    pub fn level(self) -> &'static str {
-        match self {
-            Role::Phrase => "sample",
-            Role::Break => "drums",
-            Role::Texture => "texture",
-        }
-    }
-
     pub fn noun(self) -> &'static str {
         match self {
             Role::Phrase => "phrase",
@@ -72,31 +53,68 @@ impl Role {
     }
 }
 
-/// what a sample's colour is made of, in the order it is applied
-#[derive(Clone, Copy, Debug)]
-pub enum Fx {
-    Highpass(f64),
-    Lowpass(f64),
-    /// drive in dB into a soft clip, then a lowpass at `lowpass` Hz
-    Tape {
-        drive_db: f64,
-        lowpass: f64,
-    },
-    /// fewer bits, and each sample held for `down`
-    Crush {
-        bits: u32,
-        down: usize,
-    },
-}
-
-/// a role's searches (recordings made to loop: the demo cannot cut one out of a long recording), the words one of which
-/// a recording's title or tags must have and those it must not (a search for "vinyl noise" finds welding too), and its
-/// colour
+/// a role's searches (recordings made to loop: the demo cannot cut one out of a long recording), and the words one of
+/// which a recording's title or tags must have and those it must not (a search for "vinyl noise" finds welding too).
+/// Its colour is the engine's: the genre's profile mixes each sample, as it does a song's own.
 pub struct Want {
     pub search: &'static [&'static str],
     pub words: &'static [&'static str],
     pub not: &'static [&'static str],
-    pub fx: &'static [Fx],
+}
+
+/// trip-hop's samples in the demo: loops, as trip-hop's profile describes its samples
+static TRIP_HOP: Spec = Spec {
+    phrase: Want {
+        search: &[
+            "dark piano loop",
+            "sad piano loop",
+            "strings loop",
+            "cello loop",
+            "orchestral strings loop",
+            "dark melody loop",
+            "orchestral melody",
+            "sad violin loop",
+        ],
+        words: &[
+            "piano",
+            "strings",
+            "string",
+            "cello",
+            "cellos",
+            "violin",
+            "violins",
+            "viola",
+            "orchestra",
+            "orchestral",
+            "harp",
+            "harpsichord",
+            "mellotron",
+            "choir",
+            "rhodes",
+            "keys",
+            "flute",
+            "guitar",
+        ],
+        not: &["cowbell", "percussion", "drumloop"],
+    },
+    drum_break: Want {
+        search: &["hip hop drum loop", "dusty drum loop", "slow drum break", "funk drum loop"],
+        words: &["drum", "drums", "drumloop", "break", "breakbeat", "breaks", "beat", "groove"],
+        not: &["industrial", "techno", "dubstep", "edm", "trance", "house"],
+    },
+    texture: Want {
+        search: &["vinyl crackle", "record crackle", "vinyl noise"],
+        words: &["vinyl", "turntable", "gramophone", "phonograph", "lp", "78rpm", "shellac"],
+        not: &["foley", "sfx", "metal", "electric", "welding"],
+    },
+};
+
+/// the samples a genre is built on in the demo, if it is (a fusion: the genre that leads it)
+pub fn spec(genre: &str) -> Option<&'static Spec> {
+    match genre.split('+').next().unwrap_or_default().trim() {
+        "trip_hop" => Some(&TRIP_HOP),
+        _ => None,
+    }
 }
 
 /// the samples a genre is built on, in the demo
@@ -407,36 +425,33 @@ pub struct Cut {
 }
 
 impl Cut {
-    /// as the studio shows its track's sound
-    pub fn label(&self) -> String {
-        let by = format!("'{}' by {} ({})", self.found.title, self.found.creator, self.found.licence());
-        match self.role {
-            Role::Texture => format!("loop {by}"),
-            _ => format!("loop {by}, {:.0} BPM", self.bpm),
-        }
-    }
-
-    /// what was cut, for the log
-    pub fn about(&self, key: Option<&Key>, bpm: f64) -> String {
-        let bars = self.beats as f64 / 4.0;
-        match (self.role, key.or(self.key.as_ref())) {
-            (Role::Texture, _) => format!("{:.0} s", self.clip.secs),
-            (Role::Phrase, Some(k)) => {
-                let heard = self.bars_moved(self.shift(bpm));
-                format!("{bars} bars at {:.0} BPM, in {}: {}", self.bpm, k.name(), chords(&heard, k).join(" "))
-            }
-            _ => format!("{bars} bars at {:.0} BPM", self.bpm),
-        }
-    }
-
-    /// how many semitones a phrase moves when it plays at `bpm`: read faster than it was cut, it sounds higher
-    pub fn shift(&self, bpm: f64) -> i32 {
-        if self.bpm <= 0.0 { 0 } else { (12.0 * (bpm / self.bpm).log2()).round() as i32 }
-    }
-
-    /// its pitch classes bar by bar, moved by `shift` semitones
-    pub fn bars_moved(&self, shift: i32) -> Vec<[f32; 12]> {
-        self.bars.iter().map(|bar| std::array::from_fn(|pc| bar[(pc as i32 - shift).rem_euclid(12) as usize])).collect()
+    /// The cut as the engine prepares a sample, for a song of `genre`: its role, its tempo and length (a texture's
+    /// two beats a second, as the engine loops one), its key and its chords bar by bar, at a path of its own; its
+    /// credit; and its audio.
+    pub fn prepared(&self, genre: &str) -> super::engine::Loop {
+        let role = self.role.noun();
+        let (bpm, beats) = match self.role {
+            Role::Texture => (120.0, (f64::from(self.clip.secs) * 2.0).floor().max(1.0)),
+            _ => (self.bpm, f64::from(self.beats)),
+        };
+        let chords = match (&self.key, self.role) {
+            (Some(k), Role::Phrase) => chords(&self.bars, k),
+            _ => Vec::new(),
+        };
+        let prepared = serde_json::json!({
+            "path": format!("demo:{role}:{}", self.found.id),
+            "role": role,
+            "genre": genre.split('+').next().unwrap_or(genre).trim(),
+            "bpm": bpm,
+            "beats": beats,
+            "key": self.key.as_ref().map(|k| k.tonic.rem_euclid(12)),
+            "minor": self.key.as_ref().is_some_and(|k| k.is_minor()),
+            "chords": chords,
+            "source": format!("freesound:{}", self.found.id),
+        });
+        let (l, r) = (&self.clip.l, &self.clip.r);
+        let samples = l.iter().enumerate().flat_map(|(i, &v)| [v, r.get(i).copied().unwrap_or(v)]).collect();
+        super::engine::Loop { prepared, credit: self.found.credit(), samples }
     }
 }
 
@@ -457,34 +472,6 @@ fn biquad(x: &mut [f32], highpass: bool, hz: f64) {
         let y0 = b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
         (x2, x1, y2, y1) = (x1, x0, y1, y0);
         *s = y0 as f32;
-    }
-}
-
-/// a sample's colour, channel by channel
-fn colour(x: &mut [f32], fx: &[Fx]) {
-    for f in fx {
-        match *f {
-            Fx::Highpass(hz) => biquad(x, true, hz),
-            Fx::Lowpass(hz) => biquad(x, false, hz),
-            Fx::Tape { drive_db, lowpass } => {
-                let g = 10f32.powf(drive_db as f32 / 20.0);
-                let norm = g.tanh();
-                for s in x.iter_mut() {
-                    *s = (*s * g).tanh() / norm;
-                }
-                biquad(x, false, lowpass);
-            }
-            Fx::Crush { bits, down } => {
-                let steps = (1u32 << bits.clamp(2, 24).saturating_sub(1)) as f32;
-                let mut held = 0.0;
-                for (i, s) in x.iter_mut().enumerate() {
-                    if i % down.max(1) == 0 {
-                        held = (*s * steps).round() / steps;
-                    }
-                    *s = held;
-                }
-            }
-        }
     }
 }
 
@@ -522,22 +509,13 @@ fn k_weighted(x: &[f32]) -> Vec<f64> {
 
 /// a cut as the kit's clips are: its K-weighted energy (both channels, mean square times seconds) up to each of
 /// `TIMES`, and its power while it plays
-fn clip(l: Vec<f32>, r: Vec<f32>, beats: u32) -> Clip {
+fn clip(l: Vec<f32>, r: Vec<f32>) -> Clip {
     let (kl, kr) = (k_weighted(&l), k_weighted(if r.is_empty() { &l } else { &r }));
-    let sums: Vec<f64> = kl
-        .iter()
-        .zip(&kr)
-        .scan(0.0, |acc, (a, b)| {
-            *acc += a + b;
-            Some(*acc)
-        })
-        .collect();
     let n = l.len().max(1);
-    let until = |frames: usize| sums.get(frames.min(n) - 1).copied().unwrap_or(0.0) / SR;
-    let energy = TIMES.iter().map(|&t| until((t as f64 * SR) as usize) as f32).collect();
+    let total: f64 = kl.iter().zip(&kr).map(|(a, b)| a + b).sum::<f64>() / SR;
     let secs = l.len() as f32 / RATE as f32;
-    let power = (until(n) / (n as f64 / SR)) as f32;
-    Clip { l, r, secs, energy, power, beats: beats as f32 }
+    let power = (total / (n as f64 / SR)) as f32;
+    Clip { l, r, secs, power }
 }
 
 fn loudness(power: f32) -> f32 {
@@ -711,8 +689,8 @@ pub fn chords(bars: &[[f32; 12]], key: &Key) -> Vec<String> {
     out
 }
 
-/// a recording cut and coloured for its role; or why it cannot be played
-pub fn cut(role: Role, pcm: &Pcm2, found: &Found, fit: Option<Fit>, want: &Want) -> Result<Cut, String> {
+/// a recording cut for its role; or why it cannot be played
+pub fn cut(role: Role, pcm: &Pcm2, found: &Found, fit: Option<Fit>) -> Result<Cut, String> {
     let (frames, bpm, beats) = match (role, fit) {
         (Role::Texture, _) => (pcm.len().min((TEXTURE_SECS * SR) as usize), 0.0, 0),
         (_, Some(f)) => ((f.secs * SR).round() as usize, f.bpm, f.beats),
@@ -727,7 +705,7 @@ pub fn cut(role: Role, pcm: &Pcm2, found: &Found, fit: Option<Fit>, want: &Want)
     }
     let take = |x: &[f32]| -> Vec<f32> { (0..frames).map(|i| x.get(i).copied().unwrap_or(0.0)).collect() };
     let (mut l, mut r) = (take(&pcm.l), if pcm.r.is_empty() { Vec::new() } else { take(&pcm.r) });
-    let heard = clip(l.clone(), r.clone(), beats);
+    let heard = clip(l.clone(), r.clone());
     if loudness(heard.power) < -45.0 {
         return Err("too quiet".into());
     }
@@ -746,11 +724,10 @@ pub fn cut(role: Role, pcm: &Pcm2, found: &Found, fit: Option<Fit>, want: &Want)
         if x.is_empty() {
             continue;
         }
-        colour(x, want.fx);
         let edge = if role == Role::Texture { (0.02 * SR) as usize } else { (0.001 * SR) as usize };
         fade(x, edge, edge.max((0.006 * SR) as usize));
     }
-    Ok(Cut { role, clip: Arc::new(clip(l, r, beats)), bpm, beats, key, bars, found: found.clone() })
+    Ok(Cut { role, clip: Arc::new(clip(l, r)), bpm, beats, key, bars, found: found.clone() })
 }
 
 /// a cubic between samples: the previews come at 44.1 kHz, the demo plays at 48
@@ -777,7 +754,7 @@ fn resample(x: &[f32], from: u32) -> Vec<f32> {
 
 /// a preview (Ogg Vorbis) at the demo's rate
 pub fn decode(bytes: Vec<u8>) -> Result<Pcm2, String> {
-    let (l, r, rate) = super::kit::decode_at(bytes)?;
+    let (l, r, rate) = super::clip::decode_at(bytes)?;
     Ok(Pcm2 { l: resample(&l, rate), r: resample(&r, rate) })
 }
 
@@ -1090,10 +1067,7 @@ impl Sampler {
                                 break;
                             }
                             Some(got) => {
-                                let made = got
-                                    .as_ref()
-                                    .map_err(|e| e.clone())
-                                    .and_then(|pcm| cut(role, pcm, f, *fit, g.spec.want(role)));
+                                let made = got.as_ref().map_err(|e| e.clone()).and_then(|pcm| cut(role, pcm, f, *fit));
                                 match made {
                                     Ok(c) => {
                                         g.cuts.push(c);
@@ -1132,6 +1106,7 @@ impl Sampler {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use serde_json::json;
 
     pub fn found(id: &str, title: &str, secs: f64, tags: &[&str]) -> Found {
         Found {
@@ -1236,21 +1211,23 @@ pub mod tests {
         let f = found("8", "strings 90bpm", pcm.len() as f64 / SR, &[]);
         let fit = fit_loop(f.seconds, &said_tempos(&f), (78.0, 94.0));
         assert_eq!(fit.map(|f| (f.bpm, f.beats)), Some((90.0, 8)));
-        let want = Want {
-            search: &[],
-            words: &[],
-            not: &[],
-            fx: &[Fx::Highpass(160.0), Fx::Tape { drive_db: 3.0, lowpass: 8500.0 }],
-        };
-        let c = cut(Role::Phrase, &pcm, &f, fit, &want).unwrap();
+        let c = cut(Role::Phrase, &pcm, &f, fit).unwrap();
         assert_eq!(c.key.map(|k| k.name()), Some("A minor".into()));
         assert_eq!(chords(&c.bars, &c.key.unwrap()), ["i", "VI"]);
         // in the relative major, the same chords are named from C
         assert_eq!(chords(&c.bars, &Key::parse("C major").unwrap()), ["vi", "IV"]);
-        assert_eq!(c.clip.beats, 8.0);
         assert!((c.clip.secs - 5.333).abs() < 0.01, "{}", c.clip.secs);
         assert!(loudness(c.clip.power) > -30.0);
-        assert!(c.label().contains("'strings 90bpm' by someone (CC BY 4.0), 90 BPM"), "{}", c.label());
+        // as the engine prepares it: a phrase of 8 beats at 90 BPM in A minor, its chords, its credit, its audio
+        let p = c.prepared("trip_hop+idm");
+        let read = |k: &str| p.prepared[k].clone();
+        assert_eq!(
+            (read("role"), read("genre"), read("bpm"), read("beats")),
+            (json!("phrase"), json!("trip_hop"), json!(90.0), json!(8.0))
+        );
+        assert_eq!((read("key"), read("minor"), read("chords")), (json!(9), json!(true), json!(["i", "VI"])));
+        assert!(p.credit.contains("'strings 90bpm' by someone, CC BY 4.0"), "{}", p.credit);
+        assert_eq!(p.samples.len(), c.clip.l.len() * 2, "interleaved stereo");
     }
 
     #[test]
@@ -1259,11 +1236,10 @@ pub mod tests {
         let noise = Pcm2 { l: (0..(SR as usize * 4)).map(|_| rng.range(-0.3, 0.3)).collect(), r: Vec::new() };
         let f = found("9", "noise 120bpm", 4.0, &[]);
         let fit = fit_loop(4.0, &[120.0], (78.0, 94.0));
-        let want = Want { search: &[], words: &[], not: &[], fx: &[] };
-        assert!(cut(Role::Phrase, &noise, &f, fit, &want).err().is_some_and(|e| e.contains("no key")));
-        assert!(cut(Role::Texture, &noise, &f, None, &want).is_ok(), "noise is a texture");
+        assert!(cut(Role::Phrase, &noise, &f, fit).err().is_some_and(|e| e.contains("no key")));
+        assert!(cut(Role::Texture, &noise, &f, None).is_ok(), "noise is a texture");
         let quiet = Pcm2 { l: vec![0.0; SR as usize * 4], r: Vec::new() };
-        assert_eq!(cut(Role::Break, &quiet, &f, fit, &want).err().as_deref(), Some("too quiet"));
+        assert_eq!(cut(Role::Break, &quiet, &f, fit).err().as_deref(), Some("too quiet"));
     }
 
     #[test]
@@ -1299,14 +1275,9 @@ pub mod tests {
     }
 
     pub static SPEC: Spec = Spec {
-        phrase: Want { search: &["strings loop"], words: &["strings", "piano"], not: &[], fx: &[] },
-        drum_break: Want {
-            search: &["drum loop"],
-            words: &["drums", "drum", "beat", "breakbeat"],
-            not: &[],
-            fx: &[Fx::Lowpass(10_000.0)],
-        },
-        texture: Want { search: &["vinyl crackle"], words: &["vinyl"], not: &["foley"], fx: &[] },
+        phrase: Want { search: &["strings loop"], words: &["strings", "piano"], not: &[] },
+        drum_break: Want { search: &["drum loop"], words: &["drums", "drum", "beat", "breakbeat"], not: &[] },
+        texture: Want { search: &["vinyl crackle"], words: &["vinyl"], not: &["foley"] },
     };
 
     #[test]

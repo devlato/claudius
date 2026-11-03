@@ -6,6 +6,8 @@
   <meta name="theme-color" content="#101217" />
   <title>Claudius</title>
   <link data-trunk rel="rust" data-bin="claudius-ui" data-wasm-opt="2" />
+  <!-- the demo's engine, in a Web Worker of its own: the studio's songs made and rendered in the page -->
+  <link data-trunk rel="rust" href="../claudius-web/Cargo.toml" data-bin="claudius-engine" data-type="worker" data-loader-shim data-wasm-opt="2" />
   <!-- the recorder's AudioWorklet, loaded from beside the page -->
   <link data-trunk rel="copy-file" href="record-worklet.js" />
   <style>

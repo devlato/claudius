@@ -13,11 +13,11 @@ The studio is still being finished; this page describes its structure, which is 
 | `lib.rs`, `main.rs` | `run_native`, `start_web`, the `claudius-ui` program's arguments |
 | `app.rs` | `Studio`, the `eframe::App`: state, layout, shortcuts, applying server state |
 | `net.rs` | the connection: long polling, commands, the backend (a server or the mock) |
-| `edits.rs` | edits applied to a `SongView`, for optimistic updates and for the mock |
+| `edits.rs` | edits applied to a `SongView`, for optimistic updates |
 | `cmds.rs` | builders for commands that change a few fields |
 | `panels/` | one module per panel |
 | `audio/` | the player: rodio natively, an `HtmlAudioElement` on the web; the take [recorder](#recording): cpal and midir natively, Web Audio in the browser |
-| `mock/` | a built-in stand-in for the server, with a generated song played on claudius' own sounds ([below](#the-demos-sounds)) |
+| `mock/` | the built-in demo: the claudius engine in a Web Worker (in the app, on a thread of its own) ([below](#the-demo)) |
 | `music.rs` | the theory needed to label things: keys, numerals as chord names, note names |
 | `theme.rs`, `widgets.rs` | the palette (one colour per role and section kind), knobs, faders, meters, chips |
 | `mark.rs` | the logo's C, drawn at the size the header shows it, from the numbers `scripts/icons.py` draws the icons with |
@@ -266,12 +266,26 @@ So nothing the studio asks for is a path on the computer claudius runs on, and a
 the same. Scripted runs open the dialogs (`pick:<song|audio|cover>`) and press the buttons (`listen:<analyze|remake>`);
 `site/tests/files.spec.mjs` fills the page's file input as a person choosing a file would.
 
-## The mock
+## The demo
 
-`mock/` plays the server's part without one: a generated song per genre with a plausible form, patterns, parts and
-mix; edits through `edits.rs`; undo and redo with labels; jobs simulated with progress and log lines; a critic that
-reacts to edits the way the real verdict reads; and a render, a slice per frame (no threads, so it runs in the
-browser). It is how the studio is developed and tested without an engine, and what Use the demo switches to.
+`mock/` is the built-in demo: the claudius engine itself, which makes, edits and renders the studio's songs as the
+server does, kept in memory. In a page it runs in a Web Worker, `claudius-engine` (`crates/claudius-web`), which trunk
+builds beside the studio; in the app, on a thread of its own. Both run `claudius_session::host::Host`: a new song from
+the composer, the API's edits (`claudius_session::edit`, the server's own), undo and redo, and a render after every
+change, judged with the meters and the theory (the ears do not run in a browser). A render takes about an eighth of
+the time the song plays on the one thread a page has (a 4:48 house song in 36 s), so a longer song first plays its
+first 16 bars, a few seconds after a change, while the rest renders: its render's `url` is `PREVIEW_URL` meanwhile,
+which the studio treats as older than the song.
+
+The page and the worker trade messages of JSON and audio (`mock/engine.rs`): a command at a time goes out, and its
+reply and the state after it come back; a render comes with its master, handed over rather than copied. A message
+sent before the worker has loaded its WebAssembly would be lost, so the page holds its messages until the worker
+first speaks.
+
+What needs a computer of one's own the demo turns down, and says so: takes, folders, files written (the download
+button hands over the render as a WAV file), packs, mutation and evolution. A recording to listen to gets an analysis
+made up from its name, since the demo hears nothing, and a remake of one is a new song of the genre asked for. Scripts,
+opened songs and every edit are the engine's, as in the studio.
 
 ```sh
 cargo run -p claudius-ui -- --mock          # the native studio on the demo song
@@ -279,33 +293,6 @@ CLAUDIUS_MOCK=1 cargo run -p claudius-ui
 ```
 
 On the web, `?mock` in the URL does the same.
-
-### The demo's sounds
-
-The render plays claudius' own sounds: each of the synth presets, rendered by the engine at a note every half octave
-across its register, and the TR-707 and TR-808 drum machines (public domain and CC0, so the site may pass them on),
-with the 707's kick replaced by claudius' synthesized one, which has the body a house kick needs.
-`crates/claudius/examples/demo_sounds.rs` makes them, as Ogg Vorbis files and a `kit.json` that gives each file's
-note, length and K-weighted energy over time; `cargo xtask site --sounds` puts them at `/studio/sounds/`, installing
-the two packs into `target/demo-sounds/`.
-
-`mock/kit.rs` fetches the manifest, then only the files a song plays: its genre's machine for each drum lane (the 808
-for trap, lo-fi and future bass, the 707 for the rest), each part's preset within half an octave of its register,
-and the effects. They are decoded in Rust (symphonia), as browsers before Safari 18.4 cannot decode Vorbis. A render
-waits up to ten seconds for them; after that the synth plays what has not come, and the song renders again, without
-waiting, as more of it arrives.
-
-`mock/synth.rs` sets each track to the loudness claudius' mix gives its role (`render::target_level`), from each
-sound's energy and how much the track plays it, then renders in stereo at 48 kHz: the tracks' levels and pans, ducking
-under the kick by their `duck`, sends into a dotted-eighth ping-pong delay and a reverb (Freeverb), and a soft clip
-that brings the master to the genre's loudness (its `mix.lufs`, -10 LUFS for house), under -1 dBFS. Without the sounds (a local site
-built without `--sounds`, a studio served by `claudius serve`), a rough synth stands in. Natively,
-`CLAUDIUS_DEMO_SOUNDS` names their folder or address:
-
-```sh
-cargo xtask site --sounds
-CLAUDIUS_DEMO_SOUNDS=target/site/studio/sounds cargo run -p claudius-ui -- --mock
-```
 
 ### The demo's samples
 
@@ -320,15 +307,12 @@ of a long recording as claudius does, so it looks for recordings made to loop) a
 - **The key and the chords.** The phrase's spectrum, folded onto the twelve notes once its tuning is found, gives
   its key (Krumhansl and Kessler's profiles, a key its title states preferred a little) and a triad of that key for
   each bar. A loop whose notes do not stand out from one another, such as noise, is passed over.
-- **The colour.** Each sample is coloured as trip-hop's profile mixes it: the break lowpassed at 10 kHz, the phrase
-  high-passed at 160 Hz, through tape and crushed to 12 bits, the crackle high-passed at 300 Hz.
-
-The song takes the phrase's tempo, its key (in the relative minor for a genre with no major mode) and its chords as
-progression A. It plays the break, the phrase and the texture as loop tracks (`break`, `sample`, `texture`), at the
-levels claudius gives those roles, with each section's layers as trip-hop's profile writes them. The break is
-re-chopped in the last bar of every eight in a section with fills. A role with no sample plays what stands in for it:
-the drum lanes for the break, keys and strings for the phrase. Each track's sound names its recording, author and
-licence, and the log gives the full credit with the links.
+The page hands the engine what it found: each loop as claudius prepares a sample (its role, tempo, length, key, and
+chords bar by bar, at a path of its own), with its credit and its audio, which the engine plays from memory. The song
+is made from them as the server makes one from the samples it gathered: it takes the phrase's tempo, key and chords,
+plays the break, the phrase and the texture as loop tracks (`break`, `sample`, `texture`), coloured and mixed as
+trip-hop's profile mixes its samples, and a role with no sample plays what stands in for it. The log gives each
+sample's full credit with the links.
 
 The demo asks the site, never Openverse or Freesound: `samples/search?q=…` and `samples/audio/…`, relative to the
 page. The site's Worker answers those (see [Privacy](../guide/privacy.md#the-website)). Natively,

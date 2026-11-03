@@ -241,8 +241,25 @@ pub fn load_bytes(bytes: Vec<u8>, ext: &str) -> Result<Stereo> {
     Ok(Stereo::from_interleaved(&at_rate(claudius_decode::decode_bytes(bytes, ext)?)))
 }
 
-/// decode any audio file to 48 kHz stereo (cached as raw f32 under ~/.cache/claudius/decoded)
+type Remembered = std::sync::Mutex<std::collections::HashMap<String, std::sync::Arc<Stereo>>>;
+
+fn remembered() -> &'static Remembered {
+    static R: std::sync::OnceLock<Remembered> = std::sync::OnceLock::new();
+    R.get_or_init(Default::default)
+}
+
+/// Keeps `x` (48 kHz stereo) as the audio at `path`, which `load` then hands out without a file: what a browser's page
+/// fetched for the engine to play, where there are no files to read.
+pub fn remember(path: &str, x: Stereo) {
+    remembered().lock().unwrap_or_else(|e| e.into_inner()).insert(path.to_string(), std::sync::Arc::new(x));
+}
+
+/// decode any audio file to 48 kHz stereo (cached as raw f32 under ~/.cache/claudius/decoded), or hand out what
+/// `remember` keeps for its path
 pub fn load(path: &Path) -> Result<Stereo> {
+    if let Some(x) = remembered().lock().unwrap_or_else(|e| e.into_inner()).get(&*path.to_string_lossy()) {
+        return Ok((**x).clone());
+    }
     let key = cache_key(path)?;
     let cached = config::cache_dir("decoded").join(format!("{key}.f32"));
     if let Ok(bytes) = std::fs::read(&cached) {

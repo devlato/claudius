@@ -150,8 +150,8 @@ jobs:
           tool: trunk@0.21.14
       # the native clippy job never sees the code behind cfg(target_arch = "wasm32")
       - run: cargo clippy -p claudius-ui --target wasm32-unknown-unknown --locked -- -D warnings
-      # the engine as a browser builds it: without its native libraries
-      - run: cargo clippy -p claudius --no-default-features --target wasm32-unknown-unknown --locked -- -D warnings
+      # the engine as a browser builds it, without its native libraries, and the demo's worker that runs it
+      - run: cargo clippy -p claudius -p claudius-web --no-default-features --target wasm32-unknown-unknown --locked -- -D warnings
       - run: cargo xtask web
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

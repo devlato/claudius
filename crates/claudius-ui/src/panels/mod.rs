@@ -358,8 +358,10 @@ impl Cx<'_> {
     }
 }
 
+/// is the render older than the song, or only its first bars (the demo's preview while the rest renders)
 pub fn render_stale(state: &State) -> bool {
-    state.song.is_some() && state.render.as_ref().is_some_and(|r| r.version < state.song_version)
+    state.song.is_some()
+        && state.render.as_ref().is_some_and(|r| r.version < state.song_version || r.url == claudius_api::PREVIEW_URL)
 }
 
 /// A download asked for: the song's version when it was, and when, and which song it was (its title, genre and seed).
@@ -391,7 +393,7 @@ impl Download {
         if state.song.as_ref().map(song_id) != self.song {
             return Due::Off("another song took the place of the one asked for: download again");
         }
-        match state.render.as_ref().filter(|r| r.version >= self.version) {
+        match state.render.as_ref().filter(|r| r.version >= self.version && r.url != claudius_api::PREVIEW_URL) {
             Some(r) => Due::Render(r.clone()),
             None if now - self.asked > wait => {
                 Due::Off("no render came for it: render the song, then download it again")
