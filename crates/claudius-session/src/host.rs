@@ -43,6 +43,8 @@ pub struct Host {
     /// the loops a genre built on samples plays: the ones the page found for it, and the library of them
     prepared: Vec<Prepared>,
     lib: Option<Arc<Library>>,
+    /// the song version whose render failed: it is not tried again until the song changes
+    failed: Option<u64>,
     seeds: Rng,
 }
 
@@ -61,6 +63,7 @@ impl Host {
             verdict: None,
             prepared: Vec::new(),
             lib: None,
+            failed: None,
             seeds: Rng::new(seed),
         }
     }
@@ -106,9 +109,11 @@ impl Host {
         }
     }
 
-    /// whether the song is newer than its render (a preview is not a render of it)
+    /// whether the song is newer than its render (a preview is not a render of it), unless rendering it failed
     pub fn stale(&self) -> bool {
-        self.bp.is_some() && self.render.as_ref().is_none_or(|r| r.version < self.song_version || r.url == PREVIEW_URL)
+        self.bp.is_some()
+            && self.failed != Some(self.song_version)
+            && self.render.as_ref().is_none_or(|r| r.version < self.song_version || r.url == PREVIEW_URL)
     }
 
     /// Renders the first bars of a song newer than its render, to play while the whole of it renders, and hands them
@@ -184,17 +189,26 @@ impl Host {
         let bp = compose::generate(&g, seed, &opts, lib);
         let msg =
             format!("new song: {} — {} at {:.0} BPM in {} (seed {seed})", bp.title, bp.genre, bp.bpm, bp.key.name());
+        self.forget_render();
         self.commit(Some(bp), msg)
     }
 
     /// a blueprint (`.json`) opened, or a script run as a new song
     fn open_text(&mut self, name: &str, text: &str) -> Reply {
         if !std::path::Path::new(name).extension().is_some_and(|e| e.eq_ignore_ascii_case("json")) {
-            return self.run_script(text, Some(format!("opened {name}")));
+            let before = self.song_version;
+            let r = self.run_script(text, Some(format!("opened {name}")));
+            if self.song_version != before {
+                self.forget_render();
+            }
+            return r;
         }
         let bp = Blueprint::from_json(text);
         match bp.and_then(|bp| bp.check_size().and_then(|_| script::check_patterns(&bp)).map(|_| bp)) {
-            Ok(bp) => self.commit(Some(bp), format!("opened {name}")),
+            Ok(bp) => {
+                self.forget_render();
+                self.commit(Some(bp), format!("opened {name}"))
+            }
             Err(e) => self.no(format!("cannot open {name}: {e}")),
         }
     }
@@ -254,6 +268,12 @@ impl Host {
         }
     }
 
+    /// another song takes the place of this one: its render, verdict and meters are not that song's
+    fn forget_render(&mut self) {
+        (self.render, self.verdict) = (None, None);
+        self.loudness.clear();
+    }
+
     fn commit(&mut self, bp: Option<Blueprint>, msg: String) -> Reply {
         let label = msg.lines().next().unwrap_or("").to_string();
         self.commit_as(bp, msg, label)
@@ -299,7 +319,8 @@ impl Host {
         let r = match render::render(&project, &render::Options::default()) {
             Ok(r) => r,
             Err(e) => {
-                self.say(format!("render failed: {e}"));
+                self.say(format!("render failed: {e}; change the song to try again"));
+                self.failed = Some(self.song_version);
                 self.version += 1;
                 return Some(Err(e.to_string()));
             }
@@ -417,6 +438,34 @@ mod tests {
         let whole = h.render().unwrap().unwrap();
         assert!(whole.view.url.is_empty() && whole.view.seconds > preview.view.seconds * 3.0);
         assert!(!h.stale() && h.preview().is_none());
+    }
+
+    #[test]
+    fn a_new_song_forgets_the_render_of_the_one_before() {
+        let mut h = Host::new(1);
+        command(&mut h, json!({"cmd": "new_song", "genre": "trap", "seed": 1, "bpm": 140}));
+        h.render().unwrap().unwrap();
+        assert!(h.state().render.is_some() && h.state().verdict.is_some());
+        command(&mut h, json!({"cmd": "set_swing", "swing": 0.55}));
+        assert!(h.state().render.is_some(), "an edit keeps the render until the next one lands, as the server does");
+        command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 2}));
+        let s = h.state();
+        assert!(s.render.is_none() && s.verdict.is_none(), "another song's render is no render of this one");
+        assert!(s.song.unwrap().tracks.iter().all(|t| t.loudness.is_none()), "nor are its meters");
+    }
+
+    #[test]
+    fn a_render_that_failed_is_not_tried_again_until_the_song_changes() {
+        let mut h = Host::new(1);
+        command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 2}));
+        // longer than the renderer takes (the edits would refuse it)
+        h.bp.as_mut().unwrap().form[0].bars = 100_000;
+        assert!(h.preview().is_some(), "its first bars still play");
+        assert!(h.render().unwrap().is_err());
+        assert!(!h.stale() && h.preview().is_none(), "not tried again, over and over");
+        assert!(h.state().log.iter().any(|l| l.contains("render failed")));
+        command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3}));
+        assert!(h.stale(), "another song renders");
     }
 
     #[test]

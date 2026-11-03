@@ -156,6 +156,14 @@ impl Mock {
 
     pub fn send(&mut self, cmd: Command) {
         let what = command_name(&cmd);
+        // the song asked for now is the one the person wants, not the one the samples were being gathered for
+        let replaces = matches!(
+            cmd,
+            Command::NewSong { .. } | Command::Remake { .. } | Command::OpenText { .. } | Command::Load { .. }
+        );
+        if replaces && let Some(s) = self.sampling.take() {
+            self.say(format!("stopped gathering the samples of a {} song: another song was asked for", s.genre));
+        }
         let here: Option<Result<String, String>> = match &cmd {
             Command::NewSong { genre, .. } if self.sampler.on() && sample::spec(genre).is_some() => {
                 Some(Ok(self.gather(genre, cmd.clone())))
@@ -537,6 +545,22 @@ mod tests {
             assert!(t.loudness.is_some(), "{name} plays");
         }
         assert!(mock.state.log.iter().any(|l| l.contains("'Orchestral Strings Loop 90 BPM' by someone")), "credited");
+    }
+
+    #[test]
+    fn a_song_asked_for_while_samples_are_gathered_for_another_is_the_song_made() {
+        let (mut mock, mut now) = (Mock::new(None), 0.0);
+        until(&mut mock, &mut now, |m| m.waiting == 0);
+        mock.sampler = sample::Sampler::by_hand();
+        mock.send(Command::NewSong { genre: "trip_hop".into(), seed: Some(4), bpm: None, key: None, loops: false });
+        assert!(mock.sampling.is_some());
+        mock.send(Command::NewSong { genre: "dnb".into(), seed: Some(2), bpm: None, key: None, loops: false });
+        assert!(mock.sampling.is_none(), "the gathering for the trip-hop song stops");
+        until(&mut mock, &mut now, |m| m.waiting == 0);
+        feed_samples(&mut mock, &mut now);
+        until(&mut mock, &mut now, |m| m.waiting == 0);
+        assert_eq!(mock.state.song.as_ref().unwrap().genre, "dnb", "and its song never replaces the one asked for");
+        assert!(mock.said.iter().any(|l| l.starts_with("stopped gathering the samples of a trip_hop song")));
     }
 
     #[test]
