@@ -81,6 +81,8 @@ struct Mix {
     verb: f32,
     echo: f32,
     duck: f32,
+    /// the drive's gain into the saturation (0: none)
+    drive: f32,
 }
 
 #[derive(PartialEq)]
@@ -417,6 +419,11 @@ pub fn write_cycles(song: &mut SongView) {
         );
         p.cycles = cycles;
     }
+}
+
+/// a sample through the drive's saturation, which takes full scale to full scale as the engine's does
+fn driven(v: f32, gain: f32) -> f32 {
+    (v * gain).tanh() / gain.tanh()
 }
 
 /// the gain at frame `t` of a track that ducks `depth` under kicks at `kicks`, `next` the index of the first kick
@@ -796,6 +803,7 @@ impl Render {
                 verb: g * t.reverb.clamp(0.0, 1.0),
                 echo: g * t.delay.clamp(0.0, 1.0),
                 duck: if t.role == "kick" { 0.0 } else { t.duck.clamp(0.0, 1.0) * 0.8 },
+                drive: if t.drive_db > 0.0 { db(t.drive_db.min(36.0)) } else { 0.0 },
             };
         }
         let from_synth = events.iter().filter(|e| e.sound.is_none()).count();
@@ -891,6 +899,7 @@ impl Render {
         let (mut energy, mut spent) = (0f64, 0usize);
         let mut put = |out: &mut [f32], verb: &mut [f32], echo: &mut [f32], f: usize, l: f32, r: f32| {
             let g = if mix.duck > 0.0 { ducked(&self.kicks, &mut next_kick, f, mix.duck, release) } else { 1.0 };
+            let (l, r) = if mix.drive > 0.0 { (driven(l, mix.drive), driven(r, mix.drive)) } else { (l, r) };
             let (l, r) = (l * g, r * g);
             let (left, right) = (l * mix.left, r * mix.right);
             out[2 * f] += left;

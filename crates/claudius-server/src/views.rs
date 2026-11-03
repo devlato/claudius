@@ -41,6 +41,7 @@ fn track(
         reverb: m.reverb,
         delay: m.delay,
         duck: m.duck,
+        drive_db: m.drive_db,
         muted: m.mute,
         solo: m.solo,
         loudness: loudness.get(name).copied(),
@@ -360,7 +361,7 @@ pub fn summary(s: &SongView, v: Option<&VerdictView>, r: Option<&RenderView>) ->
     out.push_str("tracks:\n");
     for t in &s.tracks {
         out.push_str(&format!(
-            "  {} [{} {}] {}; level {:+.1} dB, pan {:+.2}, reverb {:.2}, delay {:.2}, duck {:.2}{}{}\n",
+            "  {} [{} {}] {}; level {:+.1} dB, pan {:+.2}, reverb {:.2}, delay {:.2}, duck {:.2}{}{}{}\n",
             t.name,
             t.kind,
             t.role,
@@ -370,6 +371,7 @@ pub fn summary(s: &SongView, v: Option<&VerdictView>, r: Option<&RenderView>) ->
             t.reverb,
             t.delay,
             t.duck,
+            if t.drive_db > 0.0 { format!(", drive {:.0} dB", t.drive_db) } else { String::new() },
             if t.muted { ", MUTED" } else { "" },
             t.loudness.map(|l| format!(", {l:.1} LUFS")).unwrap_or_default()
         ));

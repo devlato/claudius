@@ -43,6 +43,34 @@ fn songs_print_as_scripts_that_change_nothing() {
 }
 
 #[test]
+fn the_mixers_drive_roughens_a_track_at_the_loudness_its_level_gives_it() {
+    use claudius::model::Blueprint;
+    let g = genres::get("trap").unwrap();
+    let clean = compose::generate(&g, 1, &Options::default(), None);
+    let driven = script::run(r#"mix("bass", #{ drive: 24 });"#, Some(clean.clone()), None).unwrap().bp.unwrap();
+    let drive = |bp: &Blueprint| bp.parts.iter().find(|p| p.name == "bass").unwrap().mix.drive_db;
+    assert_eq!((drive(&clean), drive(&driven)), (0.0, 24.0));
+    let code = script::to_script(&driven);
+    assert!(code.lines().any(|l| l.starts_with(r#"mix("bass", #{"#) && l.contains("drive: 24")), "{code}");
+    assert_eq!(drive(&script::run(&code, Some(driven.clone()), None).unwrap().bp.unwrap()), 24.0);
+    // two bars where the bass plays: its stem as loud either way, and driven, more of it where small speakers play
+    let stem = |bp: &Blueprint| {
+        let at = bp.form.iter().position(|s| s.layers.iter().any(|l| l == "bass")).unwrap();
+        let p = compose::arrange(bp);
+        let s = &p.sections[at];
+        let r =
+            render::render(&p.slice(s.start_bar, s.start_bar + 2), &render::Options { stems: true, tail_secs: 0.0 })
+                .unwrap();
+        r.stems.into_iter().find(|(n, _)| n == "bass").unwrap().1
+    };
+    let (a, b) = (stem(&clean), stem(&driven));
+    let (la, lb) = (claudius::loudness::active_level(&a).unwrap(), claudius::loudness::active_level(&b).unwrap());
+    assert!((la - lb).abs() < 0.5, "as loud: {la:.1} and {lb:.1} LUFS");
+    let body = |x| claudius::judge::band_shares(x)[2];
+    assert!(body(&b) > body(&a) + 3.0, "250 Hz-1 kHz: {:.1} dB driven, {:.1} dB clean", body(&b), body(&a));
+}
+
+#[test]
 fn pattern_tracks_play_in_their_sections() {
     let code = r#"
         blank("house");

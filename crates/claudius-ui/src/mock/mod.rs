@@ -1235,6 +1235,7 @@ mod tests {
             reverb: None,
             delay: None,
             duck: None,
+            drive_db: None,
             muted: None,
             solo: Some(true),
             bus: None,

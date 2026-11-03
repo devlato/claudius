@@ -70,8 +70,8 @@ the song it opens.
   out; the grid (1/16 to 1/2) is what notes snap to. The notes the theory engine writes are shown faint, and the
   first change writes them out for you to edit; **Back to the theory engine** lets it write them again. The notes
   come round every time the part plays that progression.
-- **Mixer.** Level, pan, reverb, delay and how much each track ducks under the kick; mute and solo; meters from the
-  last render; the master's loudness and true peak.
+- **Mixer.** Level, pan, reverb, delay, how much each track ducks under the kick, and its drive, which overloads it
+  (rougher at the same loudness); mute and solo; meters from the last render; the master's loudness and true peak.
 - **Harmony.** The chord progressions, as chords in the song's key and as numerals, and which sections play which.
 - **Script.** The whole song as a script. Edit it and press Cmd+Enter (Ctrl+Enter on Windows and Linux) to run it.
   The sound browser lists every drum, synth and instrument name.
@@ -79,7 +79,7 @@ the song it opens.
   the sections it plays in) runs through a node for each of its effects into its bus; each bus runs through its
   effects into the master, and the master through its chain out at its loudness. Curves show the sends into the
   reverb and delay returns, and the kick ducking the tracks it ducks. Click a node to change it beside the canvas:
-  a track's level, pan, sends, duck, bus, mute and solo, the sections it plays in and its sound; an effect's
+  a track's level, pan, sends, duck, drive, bus, mute and solo, the sections it plays in and its sound; an effect's
   settings (numbers to drag, switches, modes, and everything else as the JSON the song keeps it as), its place in its
   chain; a bus's or the master's chain; the master's loudness. Right-click a node to add an effect after it, move
   it or take it out. Every change undoes. The arranger's own filter moves, width and saturation are added at render
