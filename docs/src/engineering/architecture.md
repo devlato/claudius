@@ -50,14 +50,6 @@ and Opus are Rust and stay). It composes, runs scripts and renders there on one 
 house. std's clock and temporary folder exist in a browser only to panic, so the engine reads them through
 `claudius::clock` and `config::temp_dir`; `tests/browser.rs` keeps it so.
 
-The engine builds for the browser too (`wasm32-unknown-unknown`), without its `native` feature: what a computer of
-one's own has, and the C and C++ libraries a browser's build cannot compile. Downloading packs is left out
-(`claudius-packs` without `net`), and so are the Apple Loops database (SQLite), Signalsmith's time-stretch (loops are
-varispeeded to the tempo instead, as a turntable would) and Ogg Vorbis (`claudius-encode` without `vorbis`; MP3, FLAC
-and Opus are Rust and stay). It composes, runs scripts and renders there on one thread, about 1.5 s for 8 bars of
-house. std's clock and temporary folder exist in a browser only to panic, so the engine reads them through
-`claudius::clock` and `config::temp_dir`; `tests/browser.rs` keeps it so.
-
 Outside `crates/` are `xtask/` (the repository's build and release chores, run as `cargo xtask`) and `fuzz/` (two
 cargo-fuzz targets, in a workspace of their own because they need nightly).
 
