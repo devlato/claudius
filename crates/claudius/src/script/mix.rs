@@ -358,7 +358,7 @@ fn default_spec(name: &str, role: Role) -> crate::genres::PartSpec {
     crate::genres::PartSpec {
         name: name.into(),
         role,
-        presets: presets::for_role(role.name()).into_iter().map(String::from).collect(),
+        presets: presets::drawable(role.name()).into_iter().map(String::from).collect(),
         styles: compose::styles_for(role).iter().map(|s| s.to_string()).collect(),
         register,
         density: (0.4, 0.7),
