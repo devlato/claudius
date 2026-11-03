@@ -121,6 +121,13 @@ fn ci(sh: &Shell) -> Result<()> {
             cmd!(sh, "cargo clippy --locked -p claudius -p claudius-server --no-default-features -- -D warnings"),
         ),
         ("check, headless", cmd!(sh, "cargo check --locked -p claudius-cli --no-default-features --features ears")),
+        (
+            "clippy, engine for the browser",
+            cmd!(
+                sh,
+                "cargo clippy --locked -p claudius --no-default-features --target wasm32-unknown-unknown -- -D warnings"
+            ),
+        ),
     ];
     // the tests' renders and caches go in target/, which `cargo clean` empties, not in the cache of the person running
     // them, where each run would leave its sessions' renders

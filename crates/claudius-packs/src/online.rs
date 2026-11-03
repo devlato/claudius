@@ -494,7 +494,7 @@ pub fn samples_dir() -> PathBuf {
     {
         return PathBuf::from(p);
     }
-    dirs::data_dir().unwrap_or_else(std::env::temp_dir).join("claudius").join("samples")
+    dirs::data_dir().unwrap_or_else(crate::temp_dir).join("claudius").join("samples")
 }
 
 fn searches_file() -> PathBuf {

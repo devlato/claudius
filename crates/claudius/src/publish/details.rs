@@ -217,7 +217,9 @@ pub(super) fn year(days: i64) -> i64 {
 
 /// today, in days from 1970-01-01
 pub(super) fn today() -> i64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| (d.as_secs() / 86_400) as i64)
+    crate::clock::SystemTime::now()
+        .duration_since(crate::clock::UNIX_EPOCH)
+        .map_or(0, |d| (d.as_secs() / 86_400) as i64)
 }
 
 #[cfg(test)]

@@ -177,7 +177,9 @@ fn register_start(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     engine.register_fn("song", move |genre: &str| {
         s(
             genre,
-            1 + (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos() as u64)
+            1 + (crate::clock::SystemTime::now()
+                .duration_since(crate::clock::UNIX_EPOCH)
+                .map_or(0, |d| d.as_nanos() as u64)
                 % 1_000_000),
             None,
         )

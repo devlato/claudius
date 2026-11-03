@@ -19,7 +19,7 @@ name = "claudius-studio"
 path = "src/bin/claudius-studio.rs"
 
 [dependencies]
-claudius = { path = "../claudius", default-features = false }
+claudius = { path = "../claudius", default-features = false, features = ["native"] }
 claudius-server = { path = "../claudius-server", default-features = false }
 claudius-packs = { path = "../claudius-packs" }
 earshot = { path = "../earshot", optional = true }

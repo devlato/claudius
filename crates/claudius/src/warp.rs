@@ -1,17 +1,18 @@
 //! Loop warping: fit a recorded loop to the project tempo and key. Signalsmith Stretch does time-stretch and
 //! pitch-shift in one pass; a tempo change under 1.5 % with no transpose is plain varispeed (no artifacts at all).
 //! Loops are stretched three copies end to end and the middle one is kept, so the result wraps seamlessly; a take,
-//! played once, is stretched between silences, so neither of its ends hears the other.
+//! played once, is stretched between silences, so neither of its ends hears the other. A build without the `native`
+//! feature (a browser's, which cannot build Signalsmith's C++) varispeeds every loop, as a turntable would: it fits the
+//! tempo and keeps its own key.
 
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex, OnceLock};
 
 use anyhow::Result;
-use signalsmith_stretch::Stretch;
 
 use crate::audio::{self, Stereo, resample_step};
-use crate::config::{self, SR, SRF};
+use crate::config::{self, SRF};
 
 type Cache = Mutex<HashMap<String, Arc<Stereo>>>;
 
@@ -50,12 +51,7 @@ pub fn warp(path: &str, src_bpm: f64, beats: f64, dst_bpm: f64, semis: i32, seam
                 tripled.add_at(&x, (k * src_len) as i64, 1.0, 1.0);
             }
         }
-        let mut st = Stretch::preset_default(2, SR);
-        st.set_transpose_factor_semitones(semis as f32, None);
-        let input = tripled.interleaved();
-        let mut output = vec![0.0f32; dst_len * 3 * 2];
-        st.exact(&input, &mut output);
-        Stereo::from_interleaved(&output).slice(dst_len, 2 * dst_len)
+        stretch(&tripled, dst_len * 3, semis).slice(dst_len, 2 * dst_len)
     };
     let bytes: Vec<u8> = out.interleaved().iter().flat_map(|v| v.to_le_bytes()).collect();
     let tmp = disk.with_extension(format!("{}.tmp", std::process::id()));
@@ -65,4 +61,21 @@ pub fn warp(path: &str, src_bpm: f64, beats: f64, dst_bpm: f64, semis: i32, seam
     let out = Arc::new(out);
     cache().lock().unwrap().insert(key, out.clone());
     Ok(out)
+}
+
+/// `x` stretched to `len` samples and transposed by `semis`, in one pass
+#[cfg(feature = "native")]
+fn stretch(x: &Stereo, len: usize, semis: i32) -> Stereo {
+    let mut st = signalsmith_stretch::Stretch::preset_default(2, crate::config::SR);
+    st.set_transpose_factor_semitones(semis as f32, None);
+    let mut output = vec![0.0f32; len * 2];
+    st.exact(x.interleaved(), &mut output);
+    Stereo::from_interleaved(&output)
+}
+
+/// `x` varispeeded to `len` samples, in its own key
+#[cfg(not(feature = "native"))]
+fn stretch(x: &Stereo, len: usize, _semis: i32) -> Stereo {
+    let step = x.len() as f64 / len.max(1) as f64;
+    Stereo { l: resample_step(&x.l, step, len), r: resample_step(&x.r, step, len) }
 }

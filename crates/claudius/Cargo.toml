@@ -11,9 +11,12 @@ homepage.workspace = true
 publish = false
 
 [features]
-default = ["ears"]
+default = ["ears", "native"]
 # earshot's listening models through ONNX Runtime; leave it out where ORT has no build (Intel Macs)
 ears = ["dep:earshot"]
+# what only a computer of one's own has: downloading packs, the Apple Loops database, stretching loops in time and
+# Ogg Vorbis (C and C++ libraries). Without it the engine also builds for the browser (wasm32-unknown-unknown).
+native = ["claudius-packs/net", "claudius-encode/vorbis", "dep:rusqlite", "dep:signalsmith-stretch"]
 
 [dependencies]
 anyhow = "1"
@@ -24,15 +27,20 @@ image = { version = "0.25", default-features = false, features = ["jpeg", "png"]
 png = "0.18"
 rayon = "1"
 realfft = "3"
-rusqlite = { version = "0.40", features = ["bundled"] }
+rusqlite = { version = "0.40", features = ["bundled"], optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
-signalsmith-stretch = "0.1"
+signalsmith-stretch = { version = "0.1", optional = true }
 earshot = { path = "../earshot", optional = true }
-claudius-packs = { path = "../claudius-packs" }
-rhai = "1.26"
+claudius-packs = { path = "../claudius-packs", default-features = false }
+# without its default runtime-seeded hashing, which needs a random source a browser build lacks
+rhai = { version = "1.26", default-features = false, features = ["std"] }
 claudius-decode = { version = "0.3.0", path = "../claudius-decode" }
-claudius-encode = { version = "0.3.0", path = "../claudius-encode" }
+claudius-encode = { version = "0.3.0", path = "../claudius-encode", default-features = false }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# std's clock panics in a browser: the page's instead
+web-time = "1"
 
 [dev-dependencies]
 criterion = "0.8"

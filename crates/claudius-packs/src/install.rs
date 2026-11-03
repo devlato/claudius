@@ -267,7 +267,7 @@ fn build_compose(ctx: &Ctx, spec: &InstSpec) -> Result<InstrumentDef> {
 // install / remove
 
 fn now() -> u64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+    crate::clock::SystemTime::now().duration_since(crate::clock::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
 pub(crate) fn index_from_spec(

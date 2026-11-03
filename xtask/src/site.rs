@@ -98,7 +98,8 @@ fn demo_sounds(sh: &Shell, out: &Path) -> Result<()> {
     let work = root().join("target/demo-sounds");
     let _packs = sh.push_env("CLAUDIUS_PACKS", work.join("packs"));
     let _home = sh.push_env("CLAUDIUS_HOME", work.join("home"));
-    cmd!(sh, "cargo run --locked -p claudius --no-default-features --example demo_sounds -- {out}").run()?;
+    cmd!(sh, "cargo run --locked -p claudius --no-default-features --features native --example demo_sounds -- {out}")
+        .run()?;
     Ok(())
 }
 

@@ -18,10 +18,15 @@ path = "src/lib.rs"
 name = "claudius-packs"
 path = "src/bin/claudius-packs.rs"
 
+[features]
+default = ["net"]
+# installing packs: downloading them
+net = ["dep:ureq"]
+
 [dependencies]
 anyhow = "1"
 claudius-decode = { version = "0.3.0", path = "../claudius-decode" }
-claudius-encode = { version = "0.3.0", path = "../claudius-encode" }
+claudius-encode = { version = "0.3.0", path = "../claudius-encode", default-features = false }
 dirs = "7"
 hound = "3"
 rayon = "1"
@@ -29,7 +34,11 @@ regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
-ureq = { version = "3", default-features = false, features = ["rustls"] }
+ureq = { version = "3", default-features = false, features = ["rustls"], optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# std's clock panics in a browser: the page's instead
+web-time = "1"
 
 [dev-dependencies]
 tempfile = "3"
