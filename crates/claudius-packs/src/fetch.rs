@@ -14,10 +14,12 @@ use serde_json::Value;
 
 static AGENT: LazyLock<ureq::Agent> = LazyLock::new(|| {
     ureq::Agent::config_builder()
-        .user_agent(concat!("claudius-packs/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("claudius-packs/", env!("CARGO_PKG_VERSION"), " (https://github.com/devlato/claudius)"))
         .timeout_connect(Some(Duration::from_secs(20)))
         .timeout_recv_response(Some(Duration::from_secs(60)))
         .timeout_recv_body(Some(Duration::from_secs(900)))
+        // some libraries (ccMixter) send headers past the usual 64 KB
+        .max_response_header_size(256 * 1024)
         .build()
         .into()
 });
@@ -96,10 +98,15 @@ fn is_lfs_pointer(p: &Path) -> bool {
 const MAX_UNKNOWN_SIZE: u64 = 1 << 30;
 
 /// one attempt: resume a previous `.part` when the server supports ranges
-fn download_once(url: &str, part: &Path, expected: u64, bytes: &dyn Fn(u64)) -> Result<()> {
+fn download_once(url: &str, referer: Option<&str>, part: &Path, expected: u64, bytes: &dyn Fn(u64)) -> Result<()> {
     let have = std::fs::metadata(part).map(|m| m.len()).unwrap_or(0);
     let have = if expected > 0 && have >= expected { 0 } else { have };
-    let mut req = AGENT.get(url);
+    // ccMixter serves a file only to whoever comes from its page, the second time as the first
+    let get = || match referer {
+        Some(r) => AGENT.get(url).header("Referer", r),
+        None => AGENT.get(url),
+    };
+    let mut req = get();
     if have > 0 {
         req = req.header("Range", format!("bytes={have}-"));
     }
@@ -107,7 +114,7 @@ fn download_once(url: &str, part: &Path, expected: u64, bytes: &dyn Fn(u64)) -> 
         Ok(r) => r,
         Err(ureq::Error::StatusCode(416)) => {
             let _ = std::fs::remove_file(part);
-            AGENT.get(url).call().with_context(|| format!("GET {url}"))?
+            get().call().with_context(|| format!("GET {url}"))?
         }
         Err(e) => return Err(anyhow!(e).context(format!("GET {url}"))),
     };
@@ -153,10 +160,22 @@ fn download_once(url: &str, part: &Path, expected: u64, bytes: &dyn Fn(u64)) -> 
 /// Download `url` to `dest` atomically (`dest.part`, verified, renamed), with retries and resume. With `flac`, a
 /// WAV download is converted to lossless FLAC at `dest`.
 pub fn download_file(url: &str, dest: &Path, expected: u64, flac: bool) -> Result<u64> {
-    download_file_with(url, dest, expected, flac, &|_| {})
+    download_file_with(url, None, dest, expected, flac, &|_| {})
 }
 
-fn download_file_with(url: &str, dest: &Path, expected: u64, flac: bool, bytes: &dyn Fn(u64)) -> Result<u64> {
+/// `download_file` for a host that serves a file only to visitors of the page it is on (ccMixter)
+pub fn download_file_from(url: &str, page: &str, dest: &Path) -> Result<u64> {
+    download_file_with(url, Some(page), dest, 0, false, &|_| {})
+}
+
+fn download_file_with(
+    url: &str,
+    referer: Option<&str>,
+    dest: &Path,
+    expected: u64,
+    flac: bool,
+    bytes: &dyn Fn(u64),
+) -> Result<u64> {
     if dest.is_file() {
         return Ok(0);
     }
@@ -169,7 +188,7 @@ fn download_file_with(url: &str, dest: &Path, expected: u64, flac: bool, bytes: 
         if attempt > 0 {
             std::thread::sleep(Duration::from_millis(500 * (1 << attempt)));
         }
-        match download_once(&url, &part, expected, bytes) {
+        match download_once(&url, referer, &part, expected, bytes) {
             Ok(()) => {
                 if is_lfs_pointer(&part)
                     && let Some(u) = lfs_url(&url)
@@ -350,7 +369,7 @@ pub fn download_all(tasks: &[Task], threads: usize, label: &str, progress: &dyn 
                     }
                     let t = todo[i];
                     let txb = tx.clone();
-                    let r = download_file_with(&t.url, &t.dest, t.size, t.flac, &move |n| {
+                    let r = download_file_with(&t.url, None, &t.dest, t.size, t.flac, &move |n| {
                         let _ = txb.send(Event::Bytes(n));
                     });
                     let _ = tx.send(match r {
@@ -466,6 +485,57 @@ pub fn walk(dir: &Path) -> Vec<(String, u64)> {
     }
     out.sort();
     out
+}
+
+#[cfg(test)]
+mod download_tests {
+    use std::io::{BufRead, BufReader, Write};
+
+    /// a server for two requests: it refuses the first one's range, and sends the second whatever it asked with
+    fn refuses_a_range_then_answers() -> (String, std::thread::JoinHandle<Vec<String>>) {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/file.mp3", listener.local_addr().unwrap());
+        let served = std::thread::spawn(move || {
+            let mut asked = Vec::new();
+            for (n, stream) in listener.incoming().take(2).enumerate() {
+                let mut stream = stream.unwrap();
+                let mut head = String::new();
+                let mut reader = BufReader::new(stream.try_clone().unwrap());
+                loop {
+                    let mut line = String::new();
+                    if reader.read_line(&mut line).unwrap() == 0 || line == "\r\n" {
+                        break;
+                    }
+                    head.push_str(&line.to_ascii_lowercase());
+                }
+                let reply = if n == 0 {
+                    "HTTP/1.1 416 Range Not Satisfiable\r\ncontent-length: 0\r\nconnection: close\r\n\r\n".to_string()
+                } else {
+                    "HTTP/1.1 200 OK\r\ncontent-length: 5\r\nconnection: close\r\n\r\nmusic".to_string()
+                };
+                stream.write_all(reply.as_bytes()).unwrap();
+                asked.push(head);
+            }
+            asked
+        });
+        (url, served)
+    }
+
+    #[test]
+    fn a_download_whose_range_is_refused_starts_again_from_the_same_page() {
+        let dir = tempfile::tempdir().unwrap();
+        let part = dir.path().join("file.mp3.part");
+        std::fs::write(&part, b"stale").unwrap();
+        let (url, served) = refuses_a_range_then_answers();
+        super::download_once(&url, Some("https://ccmixter.org/files/a/1"), &part, 0, &|_| {}).unwrap();
+        let asked = served.join().unwrap();
+        assert!(asked[0].contains("range: bytes=5-"), "{}", asked[0]);
+        for head in &asked {
+            assert!(head.contains("referer: https://ccmixter.org/files/a/1"), "{head}");
+        }
+        assert!(!asked[1].contains("range:"), "{}", asked[1]);
+        assert_eq!(std::fs::read(&part).unwrap(), b"music");
+    }
 }
 
 #[cfg(test)]

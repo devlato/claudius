@@ -48,18 +48,34 @@ pub fn report<'a>(bp: &'a Blueprint, p: &Project, r: &'a Rendered) -> Report<'a>
     }
 }
 
-/// credits for the recorded instruments a project plays (the sample packs whose licences ask for attribution)
+/// credits for the recorded sounds a project plays: the sample packs whose licences ask for attribution, and the
+/// samples downloaded from online libraries
 pub fn credits(p: &Project) -> String {
+    use crate::model::Sound;
     let mut names: Vec<&str> = p
         .tracks
         .iter()
-        .filter_map(|t| {
-            if let crate::model::Sound::Instrument { name, .. } = &t.sound { Some(name.as_str()) } else { None }
-        })
+        .filter_map(|t| if let Sound::Instrument { name, .. } = &t.sound { Some(name.as_str()) } else { None })
         .collect();
     names.sort();
     names.dedup();
-    if names.is_empty() { String::new() } else { claudius_packs::credits_for(&names) }
+    let mut s = if names.is_empty() { String::new() } else { claudius_packs::credits_for(&names) };
+    let files: Vec<&Path> = p
+        .tracks
+        .iter()
+        .filter_map(|t| match &t.sound {
+            Sound::Sample { path, .. } | Sound::Loop { path, .. } => Some(Path::new(path.as_str())),
+            _ => None,
+        })
+        .collect();
+    let samples = claudius_packs::online::credits_for_files(&files);
+    if !samples.is_empty() {
+        if !s.is_empty() && !s.ends_with('\n') {
+            s.push('\n');
+        }
+        s.push_str(&samples);
+    }
+    s
 }
 
 pub fn slug(s: &str) -> String {

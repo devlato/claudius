@@ -22,6 +22,7 @@ mod fetch;
 mod install;
 mod model;
 mod notes;
+pub mod online;
 mod player;
 mod resample;
 mod resolve;

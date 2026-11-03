@@ -408,6 +408,38 @@ claudius sample ~/Music/a-cappella.wav --on out/deep_house-velvet-orbit-4 --coun
 | `--no-ears` | | find the phrases by pitch and stereo picture alone |
 | `-o`, `--out` | `out` | the song goes into `<out>/<genre>-<title>-<seed>/` |
 
+### `claudius samples`
+
+Finds sounds in free online libraries and downloads them, keeping only what their licences let you publish music made
+with ([Samples from free online libraries](online-samples.md)).
+
+```sh
+claudius samples search "drum break" --limit 4
+claudius samples get freesound:629052
+claudius samples list
+```
+
+```text
+freesound:51247  "Silly Drum Break 1.wav" by RutgerMuller, CC0 1.0, 3 s
+commons:Bauchamp - 130 old drum break.ogg  "Bauchamp - 130 old drum break" by Bauchamp, CC0
+ccmixter:37792  "Drops of H2O ( The Filtered Water Treatment )" by J.Lang, CC BY 3.0, 315 s
+freesound:629052  "Crunchy Drum Break 2 [128bpm]" by deadrobotmusic, CC0 1.0, 15 s
+`claudius samples get <id>` downloads one
+```
+
+`get` prints where the sound went and the credit a song that plays it gives.
+
+| subcommand and flag | default | what it does |
+|---|---|---|
+| `search <description>` | | asks the libraries |
+| `search --source <library>` | all | `openverse`, `commons` or `ccmixter`; repeatable |
+| `search --limit` | `12` | how many sounds at most |
+| `search --json` | | prints the results as JSON |
+| `get <id>` | | downloads a sound a search found, with its credit beside it |
+| `list` | | lists the downloaded sounds and their credits |
+| `--us-public-domain` | | `search` and `get` also keep recordings in the public domain by age |
+| `--share-alike` | | `search` and `get` also keep CC BY-SA sounds |
+
 ### `claudius sounds`
 
 Renders every built-in synthesized sound to WAV files, so you can hear them: the 13 drum voices in `drums/`, the 20

@@ -355,6 +355,12 @@ pub(crate) enum Cmd {
         #[arg(long, value_enum)]
         auto: Option<OnOff>,
     },
+    /// Samples from free online libraries (Freesound and Wikimedia Commons through Openverse, Commons, ccMixter),
+    /// kept only when their licence lets you publish music made with them, credited in every song that plays them
+    Samples {
+        #[command(subcommand)]
+        cmd: SamplesCmd,
+    },
     /// Anonymous usage statistics: off until you turn them on; with no answer, shows them and exactly what is sent
     Telemetry {
         #[arg(value_enum)]
@@ -557,4 +563,49 @@ pub(crate) fn open_library() -> Result<Option<Library>> {
 pub(crate) enum OnOff {
     On,
     Off,
+}
+
+#[derive(Subcommand)]
+pub(crate) enum SamplesCmd {
+    /// Search the libraries: a description such as "drum break", "vinyl crackle" or "cinematic strings"
+    Search {
+        query: String,
+        /// a library to ask: openverse, commons or ccmixter (repeatable; default: all of them)
+        #[arg(long = "source")]
+        sources: Vec<String>,
+        /// how many sounds at most
+        #[arg(long, default_value_t = 12)]
+        limit: usize,
+        #[command(flatten)]
+        licences: LicenceArgs,
+        /// print the results as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Download a sound a search found, by its id (`freesound:629052`), into the samples folder with its credit
+    Get {
+        id: String,
+        #[command(flatten)]
+        licences: LicenceArgs,
+    },
+    /// List the downloaded sounds, with their licences
+    List,
+}
+
+/// licences a search or download keeps beyond CC0, an author's public domain mark and CC BY
+#[derive(clap::Args, Clone, Default)]
+pub(crate) struct LicenceArgs {
+    /// also old recordings in the public domain by age: free in the United States, but a tune on them may still be
+    /// protected where copyright lasts 70 years after the composer's death
+    #[arg(long)]
+    pub(crate) us_public_domain: bool,
+    /// also share-alike sounds (CC BY-SA): the music made with them must carry the same licence
+    #[arg(long)]
+    pub(crate) share_alike: bool,
+}
+
+impl LicenceArgs {
+    pub(crate) fn policy(&self) -> claudius_packs::online::Policy {
+        claudius_packs::online::Policy { us_public_domain: self.us_public_domain, share_alike: self.share_alike }
+    }
 }
