@@ -45,8 +45,8 @@ big beat's acid line opens its filter across the builds; filter house's loop swe
 arrangement; art rock's guitars turn distorted in its climaxes; IDM's pads are gated harder as each groove goes on;
 dub techno's chord echoes feed back and swell in the break, all of it values by section that follow the form.
 
-The five after dub techno are built on their drums and their bass: boom bap's swung sampler drums under a piano
-loop, drill's late snare and hats in threes over a sliding 808, dubstep's wobble over a clean sub, garage's two-step
+The five after dub techno are built on their drums and their bass: boom bap's sampled break under a chopped soul or
+jazz phrase, drill's late snare and hats in threes over a sliding 808, dubstep's wobble over a clean sub, garage's two-step
 kick and shuffle, jungle's chopped breakbeat under a deep sub. Each is close kin of a style the ears know well
 (lo-fi hip hop, trap, drum and bass, house), and its "against" list names that style, so its genre score runs lower
 than most: the ears often hear the family before the genre.

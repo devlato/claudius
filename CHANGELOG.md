@@ -6,6 +6,10 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+Boom bap is built on samples too: a dusty drum break, a soul or jazz phrase from a record, chopped and crushed to 12
+bits, and vinyl crackle, gathered from free libraries as trip-hop's are. The ears no longer hear it as stock ukulele
+music; they hear the hip hop family, lo-fi hip hop (boom bap's offspring) first.
+
 Art rock plays like a band rather than a dance track. It has an acoustic kit with fills, a pick or finger bass that
 distorts in the climaxes, piano, strings, a clean guitar arpeggio, and two distorted power-chord guitars panned wide
 in the rise and the climaxes, over dark minor and phrygian chords. EDM risers, impacts and downlifters, harps,
