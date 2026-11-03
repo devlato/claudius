@@ -58,9 +58,10 @@ A claudius shared with others may read the samples folder, as it reads the sampl
 
 ## Genres built on samples
 
-Trip-hop is built on samples, as trip-hop records are: a drum break, a phrase from a recording that the song is built
-on, and a texture under it. Its profile says what to look for (`sampling`), and `claudius make` gathers them before it
-composes:
+Trip-hop and boom bap are built on samples, as their records are: a drum break, a phrase from a recording that the
+song is built on, and a texture under it. Trip-hop's phrase is a dark film-score string or piano phrase, and boom
+bap's a soul or jazz phrase, chopped and crushed to 12 bits. Each profile says what to look for (`sampling`), and
+`claudius make` gathers them before it composes:
 
 ```sh
 claudius make --genre trip_hop          # gathers what trip-hop samples first, then composes

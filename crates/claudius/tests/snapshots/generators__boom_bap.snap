@@ -7,15 +7,15 @@ prog A: i7 iv7 IIImaj7 VImaj7
 prog B: i7 IVsus4 IIImaj7 VImaj7
 prog C: VImaj7 iv7 IIImaj7 i7
 bars per chord: 1
-section intro (intro) 4 bars, energy 0.34, prog A, main [filter_in]: keys hat
-section verse (verse) 16 bars, energy 0.65, prog A, main [fills]: kick snare hat rim bass keys
-section hook (hook) 16 bars, energy 0.85, prog C, main [fills]: kick snare hat ohat rim bass keys horns
-section verse2 (verse) 16 bars, energy 0.71, prog A, main [gap fills]: kick snare hat rim bass keys pad horns
-section hook2 (hook) 8 bars, energy 0.94, prog C, main [fills]: kick snare hat ohat rim bass keys horns pad
-section verse3 (verse) 8 bars, energy 0.73, prog A, main [fills]: kick snare hat rim bass keys
-section bridge (break) 8 bars, energy 0.30, prog B, sparse []: keys horns
-section hook3 (hook) 16 bars, energy 0.96, prog C, main [fills]: kick snare hat ohat rim bass keys horns pad
-section outro (outro) 8 bars, energy 0.25, prog A, main []: keys pad
+section intro (intro) 4 bars, energy 0.34, prog A, main [filter_in]: hat keys
+section verse (verse) 16 bars, energy 0.65, prog A, main [fills]: rim bass kick snare hat keys
+section hook (hook) 16 bars, energy 0.85, prog C, main [fills]: ohat rim bass horns kick snare hat keys
+section verse2 (verse) 16 bars, energy 0.71, prog A, main [gap fills]: rim bass pad horns kick snare hat keys
+section hook2 (hook) 8 bars, energy 0.94, prog C, main [fills]: ohat rim bass horns pad kick snare hat keys
+section verse3 (verse) 8 bars, energy 0.73, prog A, main [fills]: rim bass kick snare hat keys
+section bridge (break) 8 bars, energy 0.30, prog B, sparse []: horns keys
+section hook3 (hook) 16 bars, energy 0.96, prog C, main [fills]: ohat rim bass horns pad kick snare hat keys
+section outro (outro) 8 bars, energy 0.35, prog A, main []: keys
 drum kick main (drum kick): X.........X.....|X.........X.....|X.........X.....|X.........X.....
 drum snare main (drum snare): ....X.......X.o.|....X.......X.o.|....X.......X.o.|....X.......X.o.
 drum hat main (drum closed_hat): x...x.x.x...x.x.|x...x.x.x...x.x.|x...x.x.x...x.x.|x...x.x.x...x.x.

@@ -313,8 +313,10 @@ send_fx(#{ delay: #{ fx: "delay", beats: 0.75, feedback: 0.6, damping: 0.7, ping
 
 ## boom_bap (86-96 BPM)
 
-90s hip hop: a hard kick and a cracking snare on 2 and 4 with a lazy swing, dusty hats, a piano or Rhodes loop over
-jazzy minor chords, an upright or sub bass, horn or flute phrases in the hooks. `swing(0.58)` gives the lean.
+90s hip hop, built on samples: a dusty drum break with a lazy sampler swing, a soul or jazz phrase from a record,
+chopped and crushed to 12 bits, vinyl crackle, an upright or sub bass, horn or flute phrases in the hooks. The first
+`new_song` of boom bap gathers its samples, as trip-hop's does. Without them it plays the drum lanes and a piano or
+Rhodes in their place. `swing(0.58)` gives the lean. A sketch from patterns, without samples:
 
 ```js
 blank("boom_bap");
