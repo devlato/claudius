@@ -103,11 +103,11 @@
   "kits": [["tr808", 0.3]],
   "kit_mix": 0.25,
   "palette": {
-    "chords": {"core": 0.6, "synth": 4, "piano": 0.5, "strings": 0.5},
+    "chords": {"core": 1.0, "synth": 1},
     "bass": {"core": 0.7, "synth": 2},
-    "lead": {"core": 0.3, "synth": 3, "mallets": 1.5, "voice": 1, "piano": 0.8, "woodwinds": 0.5},
+    "lead": {"core": 0.9, "synth": 1, "voice": 1},
     "pad": {"core": 0.45, "synth": 2.5, "choir": 1.2, "strings": 1, "pad": 1},
-    "arp": {"core": 0.4, "synth": 2.5, "mallets": 1.5, "harp": 0.8, "piano": 0.6}
+    "arp": {"core": 0.9, "synth": 1}
   },
   "parts": [
     {
@@ -131,7 +131,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["pluck", "bell", "supersaw"],
+      "presets": ["pluck", "supersaw", "vox_lead"],
       "styles": ["motif"],
       "register": [67, 91],
       "density": [0.45, 0.7],
@@ -150,7 +150,7 @@
     {
       "name": "arp",
       "role": "arp",
-      "presets": ["pluck", "chip"],
+      "presets": ["pluck"],
       "styles": ["up", "updown", "random"],
       "rates": [0.25],
       "register": [64, 88],
