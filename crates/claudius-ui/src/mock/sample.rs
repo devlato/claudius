@@ -828,6 +828,16 @@ impl Gathering {
     pub fn cut(&self, role: Role) -> Option<&Cut> {
         self.cuts.iter().find(|c| c.role == role)
     }
+
+    /// stops waiting for what has not come (a browser's fetch waits as long as the server takes); returns what to log
+    pub fn give_up(&mut self) -> Vec<String> {
+        let mut log = Vec::new();
+        for h in self.hunts.iter_mut().filter(|h| !matches!(h.state, Step::Done)) {
+            log.push(format!("  no {} in time: the song plays without one", h.role.noun()));
+            h.state = Step::Done;
+        }
+        log
+    }
 }
 
 /// what the demo asks the site for, and what has come back
@@ -946,9 +956,15 @@ impl Sampler {
                     self.searched.insert(q, r);
                 }
                 Arrival::Audio(name, r) => {
-                    // the recordings fetched are kept while the demo runs, a few at a time
+                    // the recordings fetched are kept while the demo runs, a few at a time; one let go is asked for
+                    // again when a song wants it
                     if self.fetched.len() > 8 {
-                        self.fetched.retain(|_, v| v.is_err());
+                        let gone: Vec<String> =
+                            self.fetched.iter().filter(|(_, v)| v.is_ok()).map(|(k, _)| k.clone()).collect();
+                        for k in gone {
+                            self.fetched.remove(&k);
+                            self.asked.remove(&format!("audio:{k}"));
+                        }
                     }
                     self.fetched.insert(name, r);
                 }
@@ -1300,6 +1316,32 @@ pub mod tests {
         let brk = g.cut(Role::Break).expect("a break");
         assert_eq!((brk.found.id.as_str(), brk.bpm, brk.beats), ("11", 92.0, 4));
         assert_eq!(g.cut(Role::Texture).map(|c| c.found.id.as_str()), Some("12"));
+    }
+
+    #[test]
+    fn a_recording_let_go_of_is_asked_for_again() {
+        let mut s = Sampler::by_hand();
+        for i in 0..12 {
+            let audio = format!("audio/1/{i}_1.ogg");
+            s.fetch(&audio);
+            s.arrive_audio(&audio, Ok(Pcm2 { l: vec![0.0; 10], r: Vec::new() }));
+            s.poll();
+        }
+        assert!(s.fetched.len() <= 9, "a few are kept: {}", s.fetched.len());
+        let gone = (0..12).map(|i| format!("audio/1/{i}_1.ogg")).find(|a| !s.fetched.contains_key(a)).unwrap();
+        s.fetch(&gone);
+        assert_eq!(s.pending(), [format!("audio:{gone}")], "asked for again, not waited for forever");
+    }
+
+    #[test]
+    fn a_gathering_that_waits_too_long_gives_up_on_what_has_not_come() {
+        let mut s = Sampler::by_hand();
+        let mut rng = Rng::new(5);
+        let mut g = s.start(&SPEC, (78.0, 94.0), &mut rng);
+        s.advance(&mut g, &mut rng);
+        assert!(!g.done());
+        let log = g.give_up();
+        assert!(g.done() && g.cuts.is_empty() && log.len() == 3, "{log:?}");
     }
 
     #[test]

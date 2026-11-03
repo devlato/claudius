@@ -81,6 +81,8 @@ enum Job {
 /// a new song of a genre built on samples, waiting for them
 struct Sampling {
     gathering: sample::Gathering,
+    /// when it began: a gathering waits a minute at most
+    started: f64,
     rng: Rng,
     genre: String,
     seed: u64,
@@ -126,6 +128,8 @@ const CHILD_SECS: f64 = 0.45;
 const AUTO_RENDER_DELAY: f64 = 0.35;
 /// how long a render waits for the demo's sounds before the synth stands in for what has not arrived
 const KIT_WAIT: f64 = 10.0;
+/// how long a new song waits for its samples before it is made with what has come
+const SAMPLE_WAIT: f64 = 60.0;
 /// voice-samples a frame renders: a few milliseconds' work in a browser
 const RENDER_BUDGET: usize = 400_000;
 const AUDIO: [&str; 7] = [".wav", ".mp3", ".flac", ".aif", ".aiff", ".m4a", ".ogg"];
@@ -296,6 +300,7 @@ impl Mock {
                 self.state.progress = Some(0.0);
                 self.job = Some(Job::Sample(Box::new(Sampling {
                     gathering,
+                    started: self.now,
                     rng,
                     genre: genre.clone(),
                     seed,
@@ -807,7 +812,10 @@ impl Mock {
                 }
             }
             Some(Job::Sample(mut s)) => {
-                let lines = self.sampler.advance(&mut s.gathering, &mut s.rng);
+                let mut lines = self.sampler.advance(&mut s.gathering, &mut s.rng);
+                if now - s.started > SAMPLE_WAIT {
+                    lines.extend(s.gathering.give_up());
+                }
                 let moved = !lines.is_empty();
                 for line in lines {
                     self.log(line);
