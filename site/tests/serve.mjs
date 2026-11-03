@@ -5,12 +5,25 @@
 //
 //   node tests/serve.mjs [--port 4321] [--root DIR]
 //
-// Differences from Pages: no HTTPS, so `upgrade-insecure-requests` is left out of the CSP; nothing is cached.
+// The studio demo's samples (/studio/samples/*) go to the site's Worker, as Cloudflare sends them, and the Worker asks
+// Openverse and Freesound for them live, each thing once while the server runs (as the edge's cache keeps them).
+//
+// Differences from Pages: no HTTPS, so `upgrade-insecure-requests` is left out of the CSP; nothing else is cached.
 
 import { createServer } from "node:http";
 import { existsSync, readFileSync, statSync, createReadStream } from "node:fs";
 import { extname, join, normalize, resolve, sep, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import worker from "../worker/index.js";
+
+// the edge's cache, as the Worker uses it: so that Openverse, which limits how often it is asked, is asked once
+const kept = new Map();
+globalThis.caches ??= {
+  default: {
+    match: async (r) => kept.get(r.url)?.clone(),
+    put: async (r, res) => void kept.set(r.url, res),
+  },
+};
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const SITE_SRC = resolve(here, "..");
@@ -54,7 +67,7 @@ const TEXT = new Set([".html", ".css", ".js", ".mjs", ".json", ".webmanifest", "
 // Pages reads these and never serves them
 const CONFIG = /^\/(_headers|_redirects)$/;
 // files in site/ that are not part of the website (the build leaves them out)
-export const PRIVATE = /^\/(node_modules|tests|tools|test-results|playwright-report|blob-report)(\/|$)|^\/(package(-lock)?\.json|playwright\.config\.mjs|README\.md|\.gitignore|wrangler\.toml)$/;
+export const PRIVATE = /^\/(node_modules|tests|tools|worker|test-results|playwright-report|blob-report)(\/|$)|^\/(package(-lock)?\.json|playwright\.config\.mjs|README\.md|\.gitignore|wrangler\.toml)$/;
 
 function workspaceVersion() {
   try {
@@ -187,6 +200,20 @@ export function start({ port = 4321, root } = {}) {
       createReadStream(file).pipe(res);
     };
 
+    if (path.startsWith("/studio/samples/")) {
+      worker
+        .fetch(new Request(url, { method: req.method }), {}, {})
+        .then(async (r) => {
+          res.statusCode = r.status;
+          for (const [k, v] of r.headers) res.setHeader(k, v);
+          res.end(req.method === "HEAD" ? undefined : Buffer.from(await r.arrayBuffer()));
+        })
+        .catch((e) => {
+          res.statusCode = 502;
+          res.end(String(e));
+        });
+      return;
+    }
     for (const r of redirects) {
       if (r.re.test(path)) return send(r.code, null, { Location: r.to });
     }
