@@ -1331,6 +1331,23 @@ mod tests {
     }
 
     #[test]
+    fn a_tempo_asked_for_moves_the_phrase_and_its_chords_together_and_keeps_the_seeds_song() {
+        use sample::tests::{chord_loop, found};
+        // a seed and a tempo make the song they made before samples: no tempo is drawn
+        let plain = song::generate("house", 5, Some(124.0), None, false);
+        assert_eq!(plain.title, song::generate_with("house", 5, Some(124.0), None, false, &[]).title);
+        // A minor, then F major, at 90; played at 101 (two semitones up) it is B minor: i, VI
+        let pcm = chord_loop(90.0, &[&[57, 60, 64], &[53, 57, 60]], 0.0);
+        let f = found("p", "strings 90bpm", pcm.l.len() as f64 / 48_000.0, &[]);
+        let fit = sample::fit_loop(f.seconds, &sample::said_tempos(&f), (78.0, 94.0));
+        let want = sample::Want { search: &[], words: &[], not: &[], fx: &[] };
+        let cut = sample::cut(sample::Role::Phrase, &pcm, &f, fit, &want).unwrap();
+        let song = song::generate_with("trip_hop", 3, Some(101.0), None, false, &[cut]);
+        assert_eq!(song.key, "B minor");
+        assert_eq!(song.progressions[0].1, ["i", "VI"]);
+    }
+
+    #[test]
     fn an_edit_made_while_the_samples_are_gathered_is_kept_for_undo() {
         let mut mock = Mock::new(None);
         mock.sampler = sample::Sampler::by_hand();

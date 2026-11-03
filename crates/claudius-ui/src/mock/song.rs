@@ -1285,19 +1285,22 @@ pub fn generate_with(
 ) -> SongView {
     let genre = genre(genre_name);
     let mut rng = Rng::new(seed ^ 0x9e37_79b9_7f4a_7c15);
-    let drawn = (genre.bpm.0 + (genre.bpm.1 - genre.bpm.0) * rng.f64()).round();
+    // a tempo is drawn only when none is asked for, so that a seed and a tempo make the song they always made
     let phrase = cuts.iter().find(|c| c.role == Role::Phrase);
-    let bpm = bpm.unwrap_or_else(|| phrase.map_or(drawn, |p| (p.bpm * 10.0).round() / 10.0));
+    let bpm = bpm.unwrap_or_else(|| {
+        let drawn = (genre.bpm.0 + (genre.bpm.1 - genre.bpm.0) * rng.f64()).round();
+        phrase.map_or(drawn, |p| (p.bpm * 10.0).round() / 10.0)
+    });
     let swing = ((genre.swing.0 + (genre.swing.1 - genre.swing.0) * rng.f32()) * 100.0).round() / 100.0;
     let mode = *rng.pick(genre.modes);
     let drawn_key = key.and_then(Key::parse).unwrap_or(Key {
         tonic: rng.below(12) as i32,
         mode: music::MODES.iter().position(|(m, _)| *m == mode).unwrap_or(1),
     });
-    let key = match phrase.and_then(|p| p.key.map(|k| (p, k))) {
-        Some((p, heard)) => {
-            // a phrase played faster than it was cut sounds higher
-            let shift = (12.0 * (bpm / p.bpm).log2()).round() as i32;
+    // a phrase played faster than it was cut sounds higher: its key and its notes move by as many semitones
+    let shift = phrase.map_or(0, |p| (12.0 * (bpm / p.bpm).log2()).round() as i32);
+    let key = match phrase.and_then(|p| p.key) {
+        Some(heard) => {
             let k = Key { tonic: (heard.tonic + shift).rem_euclid(12), mode: heard.mode };
             // a genre with no major mode plays a major phrase in its relative minor: the same notes
             if dark(genre) && !k.is_minor() { Key { tonic: (k.tonic + 9) % 12, mode: 1 } } else { k }
@@ -1447,7 +1450,12 @@ pub fn generate_with(
 
     let mut progressions = progressions(key.mode_name(), &mut rng);
     if let (Some(p), Some(a)) = (phrase, progressions.first_mut()) {
-        a.1 = super::sample::chords(&p.bars, &key);
+        let heard: Vec<[f32; 12]> = p
+            .bars
+            .iter()
+            .map(|bar| std::array::from_fn(|pc| bar[(pc as i32 - shift).rem_euclid(12) as usize]))
+            .collect();
+        a.1 = super::sample::chords(&heard, &key);
     }
     let mut lineage =
         vec![format!("generated: {} seed {seed}{}", genre.name, if loops { " (around Apple Loops)" } else { "" })];
