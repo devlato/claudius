@@ -189,8 +189,21 @@ impl App {
                 };
                 let seed = seed.unwrap_or_else(now_seed);
                 let opts = Options { bpm, key, family: loops && self.lib.is_some(), ..Default::default() };
+                if let Some(wanted) = self.samples_wanted(&g) {
+                    if let Err(busy) = self.take_slot(&format!("sampling for {}", g.name)) {
+                        return busy;
+                    }
+                    let msg = format!(
+                        "sampling for a {} song first: {wanted}, from free libraries under CC0, public domain or CC BY",
+                        g.name
+                    );
+                    self.update(|s| s.say(msg.clone()));
+                    self.spawn_job(move |app| app.sampled_song_job(g, seed, opts));
+                    return ok(msg, self.version());
+                }
+                let lib = if g.sampling.is_some() { &self.samples_lib } else { &self.lib };
                 let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
-                let bp = compose::generate(&g, seed, &opts, self.lib.as_deref().map(|l| l as &dyn compose::Library));
+                let bp = compose::generate(&g, seed, &opts, lib.as_deref().map(|l| l as &dyn compose::Library));
                 let msg = format!(
                     "new song: {} — {} at {:.0} BPM in {} (seed {seed})",
                     bp.title,
@@ -657,7 +670,8 @@ impl App {
             }
             Command::InstallPacks { names } => self.install_packs(names),
             Command::Render { stems } => {
-                if self.blueprint().is_none() {
+                // a new song still being made (its samples gathered) renders when it is
+                if self.blueprint().is_none() && !self.lock().job {
                     return no("no song yet", v);
                 }
                 {

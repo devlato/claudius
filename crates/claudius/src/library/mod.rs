@@ -21,8 +21,8 @@ use apple::LoopInfo;
 
 pub struct Library {
     pub loops: Vec<LoopInfo>,
-    /// samples prepared from online libraries, for the genres that sample
-    pub prepared: Vec<prepared::Prepared>,
+    /// samples prepared from online libraries, for the genres that sample; more come as a session gathers them
+    prepared: std::sync::RwLock<Vec<prepared::Prepared>>,
 }
 
 /// GarageBand genre names that suit each claudius genre (one-shots and loops are drawn from these first)
@@ -95,11 +95,41 @@ impl Library {
             None => Vec::new(),
         };
         loops.extend(user_entries().into_iter().filter(|e| std::path::Path::new(&e.path).exists()));
-        Ok(Library { loops, prepared: prepared::Index::open().all() })
+        Ok(Library { loops, prepared: std::sync::RwLock::new(prepared::Index::open().all()) })
+    }
+
+    /// no Apple Loops or user library: only the samples prepared for the genres that sample
+    pub fn prepared_only() -> Library {
+        Library::with_prepared(prepared::Index::open().all())
+    }
+
+    /// no Apple Loops or user library, and these samples
+    pub fn with_prepared(prepared: Vec<prepared::Prepared>) -> Library {
+        Library { loops: Vec::new(), prepared: std::sync::RwLock::new(prepared) }
+    }
+
+    fn prepared_now(&self) -> std::sync::RwLockReadGuard<'_, Vec<prepared::Prepared>> {
+        self.prepared.read().unwrap_or_else(|e| e.into_inner())
     }
 
     pub fn is_empty(&self) -> bool {
-        self.loops.is_empty() && self.prepared.is_empty()
+        self.loops.is_empty() && self.prepared_now().is_empty()
+    }
+
+    /// how many samples are prepared for `role` of `genre` (a fusion's: the genre that leads it)
+    pub fn prepared_for(&self, role: prepared::Role, genre: &str) -> usize {
+        let lead = genre.split('+').next().unwrap_or(genre);
+        self.prepared_now().iter().filter(|p| p.role == role && p.genre == lead).count()
+    }
+
+    /// samples gathered while the library is open, for the songs made after
+    pub fn add_prepared(&self, more: Vec<prepared::Prepared>) {
+        let mut all = self.prepared.write().unwrap_or_else(|e| e.into_inner());
+        for p in more {
+            if !all.iter().any(|q| q.path == p.path) {
+                all.push(p);
+            }
+        }
     }
 
     fn matches_hint(l: &LoopInfo, hint: &str) -> bool {
@@ -233,8 +263,8 @@ impl compose::Library for Library {
     fn prepared(&self, role: prepared::Role, genre: &GenreProfile, rng: &mut Rng) -> Option<prepared::Prepared> {
         // a fusion samples as the genre that leads it
         let lead = genre.name.split('+').next().unwrap_or(&genre.name);
-        let fits: Vec<&prepared::Prepared> =
-            self.prepared.iter().filter(|p| p.role == role && p.genre == lead).collect();
+        let all = self.prepared_now();
+        let fits: Vec<&prepared::Prepared> = all.iter().filter(|p| p.role == role && p.genre == lead).collect();
         (!fits.is_empty()).then(|| fits[rng.below(fits.len())].clone())
     }
 

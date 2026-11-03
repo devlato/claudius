@@ -68,12 +68,13 @@ pub struct Gathered {
 /// Download and prepare samples until the genre has `keep` of each role it samples: search the libraries for the
 /// role's words, download recordings of a fitting length (at most three for each one still missing), cut them, and
 /// with the ears keep those that sound like what the genre listens for. A recording found wanting is remembered and
-/// not fetched again.
+/// not fetched again. `stop` is asked before each download: when it says so, what was kept so far is what there is.
 pub fn gather(
     g: &GenreProfile,
     ears: Option<&Ears>,
     policy: &Policy,
     ix: &Index,
+    stop: &dyn Fn() -> bool,
     say: &mut dyn FnMut(&str),
 ) -> Result<Gathered> {
     let mut out = Gathered::default();
@@ -98,7 +99,7 @@ pub fn gather(
                 out.notes.push(format!("{} did not answer: {e}", s.name()));
             }
             for f in got.found {
-                if have >= n.keep || budget == 0 {
+                if have >= n.keep || budget == 0 || stop() {
                     break 'search;
                 }
                 if known.contains(&f.id)

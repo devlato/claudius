@@ -6,6 +6,10 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+The studio and assistants gather samples on demand too: the first new trip-hop song gathers its break, phrase and
+crackle as a job, with progress and its log, then makes the song with them. `claudius studio --offline` and a shared
+claudius gather nothing.
+
 Trip-hop is built on samples now, as trip-hop records are: a slowed drum break whose own hits the drum lanes play, a
 dark phrase from a recording that the song takes its key, tempo and chords from, and vinyl crackle under it. `claudius
 make` gathers them first from free online libraries, cuts them on their beat grids and lets the ears choose the ones

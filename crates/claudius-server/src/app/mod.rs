@@ -37,11 +37,14 @@ pub struct Settings {
     pub file_roots: Option<Vec<PathBuf>>,
     /// the file the person's voice is kept in, as a pitch check heard it (None: for this session only)
     pub voice: Option<PathBuf>,
+    /// gather what a genre built on samples plays, from free online libraries, before the first song of it is made
+    /// (a shared claudius, one with `file_roots`, gathers nothing)
+    pub samples: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { library: true, ears: true, auto_render: true, file_roots: None, voice: None }
+        Settings { library: true, ears: true, auto_render: true, file_roots: None, voice: None, samples: true }
     }
 }
 
@@ -108,6 +111,9 @@ pub struct App {
     edit: Mutex<()>,
     tx: tokio::sync::watch::Sender<u64>,
     lib: Option<Arc<Library>>,
+    /// what a genre built on samples is made with: the library, or without Apple Loops and sample folders, the
+    /// prepared samples alone (so that every other genre's songs are made as they were)
+    samples_lib: Option<Arc<Library>>,
     ears: Arc<OnceLock<Option<Ears>>>,
     cancel: Arc<AtomicBool>,
     auto_render: AtomicBool,
@@ -121,6 +127,8 @@ pub struct App {
     roots: Option<Vec<PathBuf>>,
     /// where the person's voice is kept
     voice_file: Option<PathBuf>,
+    /// whether a genre built on samples gathers them (Settings::samples)
+    samples: bool,
 }
 
 /// how many sessions this process has started
@@ -157,12 +165,14 @@ impl App {
         let in_use = hold(&cache);
         clean_old_sessions(cache.parent().unwrap_or(&cache), &cache, ENDED_GRACE, UNLOCKED_AGE);
         let lib = if settings.library { Library::open().ok().filter(|l| !l.is_empty()).map(Arc::new) } else { None };
+        let samples_lib = settings.library.then(|| lib.clone().unwrap_or_else(|| Arc::new(Library::prepared_only())));
         let (tx, _) = tokio::sync::watch::channel(0);
         let app = Arc::new(App {
             s: Mutex::new(Session::default()),
             edit: Mutex::new(()),
             tx,
             lib,
+            samples_lib,
             ears: Arc::new(OnceLock::new()),
             cancel: Arc::new(AtomicBool::new(false)),
             auto_render: AtomicBool::new(settings.auto_render),
@@ -172,6 +182,7 @@ impl App {
             exports: export_formats(),
             last_export: Mutex::new(None),
             base: Mutex::new(format!("http://127.0.0.1:{DEFAULT_PORT}")),
+            samples: settings.samples && settings.file_roots.is_none(),
             roots: settings.file_roots,
             voice_file: settings.voice.clone(),
         });
@@ -478,6 +489,82 @@ fn export_formats() -> Vec<ExportFormat> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use claudius::genres;
+    use claudius::library::prepared::{Prepared, Role};
+
+    fn app(samples: Option<Vec<Prepared>>, shared: bool) -> Arc<App> {
+        let mut app = App::new(Settings {
+            library: false,
+            ears: false,
+            auto_render: false,
+            file_roots: shared.then(|| vec![std::env::temp_dir()]),
+            voice: None,
+            samples: true,
+        });
+        Arc::get_mut(&mut app).expect("no one else holds it yet").samples_lib =
+            samples.map(|p| Arc::new(Library::with_prepared(p)));
+        app
+    }
+
+    fn sample(role: Role, path: &str) -> Prepared {
+        Prepared {
+            path: path.into(),
+            role,
+            genre: "trip_hop".into(),
+            bpm: 90.0,
+            beats: 8.0,
+            key: Some(2),
+            minor: true,
+            kick: None,
+            snare: None,
+            hat: None,
+            chords: vec!["i".into(), "VI".into()],
+            z: Some(3.0),
+            source: format!("freesound:{path}"),
+        }
+    }
+
+    #[test]
+    fn a_genre_built_on_samples_gathers_only_what_it_has_none_of() {
+        let g = genres::get("trip_hop").unwrap();
+        assert_eq!(app(Some(Vec::new()), false).samples_wanted(&g).as_deref(), Some("a break, a phrase and a texture"));
+        let some = vec![sample(Role::Break, "/b.wav")];
+        assert_eq!(app(Some(some), false).samples_wanted(&g).as_deref(), Some("a phrase and a texture"));
+        let all = vec![sample(Role::Break, "/b.wav"), sample(Role::Phrase, "/p.wav"), sample(Role::Texture, "/t.wav")];
+        assert_eq!(app(Some(all), false).samples_wanted(&g), None);
+        assert_eq!(app(None, false).samples_wanted(&g), None, "without the library: no samples at all");
+        assert_eq!(app(Some(Vec::new()), false).samples_wanted(&genres::get("house").unwrap()), None);
+        let shared = app(Some(Vec::new()), true);
+        assert_eq!(shared.samples_wanted(&g), None, "a shared claudius gathers nothing");
+        assert!(shared.state().log.iter().any(|l| l.contains("claudius samples gather trip_hop")));
+    }
+
+    #[test]
+    fn with_its_samples_a_new_song_of_a_genre_built_on_them_is_made_at_once() {
+        let all = vec![sample(Role::Break, "/b.wav"), sample(Role::Phrase, "/p.wav"), sample(Role::Texture, "/t.wav")];
+        let app = app(Some(all), false);
+        let r = app.command(Command::NewSong {
+            genre: "trip_hop".into(),
+            seed: Some(3),
+            bpm: None,
+            key: None,
+            loops: false,
+        });
+        assert!(r.ok && r.message.starts_with("new song"), "{}", r.message);
+        let bp = app.blueprint().unwrap();
+        assert_eq!((bp.bpm, bp.key.name()), (90.0, "D minor".to_string()), "the phrase's tempo and key");
+        assert!(bp.loops.iter().any(|l| l.name == "sample"), "the phrase plays");
+    }
+
+    #[test]
+    fn a_render_asked_for_while_a_new_song_is_made_waits_for_it() {
+        let app = app(None, false);
+        assert!(!app.command(Command::Render { stems: false }).ok, "no song yet");
+        app.lock().job = true;
+        let r = app.command(Command::Render { stems: false });
+        assert!(r.ok && r.message.contains("after the job"), "{}", r.message);
+        assert_eq!(app.lock().rerender, Some(false));
+    }
 
     #[test]
     fn ended_sessions_lose_their_renders_and_running_ones_keep_them() {

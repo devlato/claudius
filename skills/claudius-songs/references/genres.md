@@ -138,9 +138,10 @@ track("hook", n("<[0 2 4 2] [4 5 4 ~]>").octave(5).s("pluck").delay(0.25));
 
 Built on samples, as trip-hop records are: a slowed drum break, a dark phrase from a recording (film-score strings, a
 harpsichord), vinyl crackle, a deep dub bass under them, strings that swell in the hooks, dub delays and long reverbs.
-`new_song` builds on the samples gathered for trip-hop (`claudius samples gather trip_hop` on the person's computer):
-the song takes the phrase's key, tempo and chords, and its drum lanes play the break's own hits. Without samples it
-plays electric piano and strings instead. A sketch from patterns, without samples:
+The first `new_song` of trip-hop gathers its samples from free libraries before it composes, which takes a minute or
+two; the songs after it draw on what was gathered. The song takes the phrase's key, tempo and chords, and its drum
+lanes play the break's own hits. Without samples (offline, or a shared claudius) it plays electric piano and strings
+instead. A sketch from patterns, without samples:
 
 ```js
 blank("trip_hop");
