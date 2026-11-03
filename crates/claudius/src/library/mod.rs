@@ -112,6 +112,11 @@ impl Library {
         self.prepared.read().unwrap_or_else(|e| e.into_inner())
     }
 
+    /// no Apple Loops or user library: only the samples prepared for the genres that sample
+    pub fn prepared_only() -> Library {
+        Library { loops: Vec::new(), prepared: prepared::Index::open().all() }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.loops.is_empty() && self.prepared_now().is_empty()
     }

@@ -221,10 +221,10 @@ fn run(cli: Cli) -> Result<()> {
             };
             let listening = listen(&ears);
             let t = std::time::Instant::now();
-            if g.sampling.is_some() && sound.library_on() && !sound.offline {
+            if g.sampling.is_some() && sound.gathers() {
                 gather(&g, listening.ears.as_ref(), &claudius_packs::online::Policy::default());
             }
-            let lib = sound.library()?;
+            let lib = sound.library_for(&g)?;
             let lib_ref = lib.as_ref().map(|l| l as &dyn compose::Library);
             let mut bp = compose::generate(&g, seed, &opts, lib_ref);
             let mut rng = claudius::rng::Rng::new(seed ^ 0x5a);
@@ -267,7 +267,7 @@ fn run(cli: Cli) -> Result<()> {
             let g = genres::get(&genre)?;
             let seed = seed.unwrap_or_else(seed_now);
             let listening = listen(&ears);
-            let lib = sound.library()?;
+            let lib = sound.library_for(&g)?;
             let lib_ref = lib.as_ref().map(|l| l as &dyn compose::Library);
             let opts = Options {
                 samples,

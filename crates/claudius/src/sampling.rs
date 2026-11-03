@@ -80,7 +80,7 @@ pub fn gather(
     let mut out = Gathered::default();
     for role in Role::ALL {
         let Some(n) = need(g, role) else { continue };
-        let mut known: HashSet<String> = ix.of(role, &g.name).into_iter().map(|p| p.source).collect();
+        let mut known: HashSet<String> = ix.of(role, lead(&g.name)).into_iter().map(|p| p.source).collect();
         let mut have = known.len();
         if have >= n.keep {
             continue;
@@ -110,7 +110,7 @@ pub fn gather(
                 }
                 budget -= 1;
                 known.insert(f.id.clone());
-                say(&format!("{} for {}: \"{}\" by {} ({})", role.name(), g.name, f.title, f.creator, f.id));
+                say(&format!("{} for {}: \"{}\" by {} ({})", role.name(), lead(&g.name), f.title, f.creator, f.id));
                 let kept = online::fetch(&f, policy).and_then(|path| prepare(role, &path, &f, g, n, ears, ix.root()));
                 match kept {
                     Ok(p) if p.z.is_none_or(|z| z >= MIN_Z) => {
@@ -140,7 +140,7 @@ pub fn gather(
                 "only {have} of the {} {}s {} keeps could be prepared",
                 n.keep,
                 role.name(),
-                g.name
+                lead(&g.name)
             ));
         }
     }
@@ -178,7 +178,7 @@ pub fn prepare(
         Role::Phrase => cut_phrase(&x, n, ears, &dir)?,
         Role::Texture => cut_texture(&x, &dir)?,
     };
-    p.genre = g.name.clone();
+    p.genre = lead(&g.name).to_string();
     p.source = f.id.clone();
     if role != Role::Phrase
         && let Some(e) = ears
@@ -382,6 +382,11 @@ pub fn fit_tempo(bpm: f64, range: (f64, f64)) -> Option<f64> {
         .min_by(|a, b| (a - mid).abs().total_cmp(&(b - mid).abs()))
 }
 
+/// a fusion samples as the genre that leads it
+fn lead(genre: &str) -> &str {
+    genre.split('+').next().unwrap_or(genre)
+}
+
 /// a loop's tempo and beats, halved or doubled toward `target`: a break of 8 beats at 150 plays as 4 at 75 under a
 /// song at 80, rather than slowed to half its speed
 fn fold(bpm: f64, beats: f64, target: f64) -> (f64, f64) {
@@ -434,9 +439,17 @@ pub fn apply(
             if !tempo_given && let Some(t) = fit_tempo(p.bpm, g.bpm) {
                 bp.bpm = t.round();
             }
-            if chords.len() >= 2 {
+            // a bar of the phrase as the song counts it: counted at half its tempo, a song's bar holds two of its
+            // bars (and plays the first one's chord); at twice its tempo, each of its chords lasts two
+            let (_, beats) = fold(p.bpm, p.beats, bp.bpm);
+            let (chords, per) = if beats < p.beats {
+                (chords.iter().step_by(2).cloned().collect(), 1)
+            } else {
+                (chords, if beats > p.beats { 2 } else { 1 })
+            };
+            if !chords.is_empty() {
                 bp.harmony.progressions.insert("A".into(), chords);
-                bp.harmony.bars_per_chord = 1;
+                bp.harmony.bars_per_chord = per;
             }
             // a recording plays its own chords: the sections it plays in play them too
             for s in bp.form.iter_mut().filter(|s| s.layers.iter().any(|l| l == PHRASE)) {
@@ -586,7 +599,7 @@ mod tests {
             None
         }
         fn prepared(&self, role: Role, g: &GenreProfile, _: &mut Rng) -> Option<Prepared> {
-            self.0.iter().find(|p| p.role == role && p.genre == g.name).cloned()
+            self.0.iter().find(|p| p.role == role && p.genre == lead(&g.name)).cloned()
         }
     }
 
@@ -632,10 +645,11 @@ mod tests {
         let g = sampling_genre();
         let opts = crate::compose::Options::default();
         let bp = crate::compose::generate(&g, 3, &opts, Some(&shelf()));
-        // the phrase's key, its tempo halved into trip-hop's, its chords
+        // the phrase's key, its tempo halved into trip-hop's, and its chords as the song counts its bars: its two bars
+        // at 176 are one at 88, which plays the first one's chord
         assert_eq!((bp.key.tonic, bp.key.mode), (2, Mode::Minor));
         assert_eq!(bp.bpm, 88.0);
-        assert_eq!(bp.harmony.progressions["A"], ["i", "VI"]);
+        assert_eq!(bp.harmony.progressions["A"], ["i"]);
         assert_eq!(bp.harmony.bars_per_chord, 1);
         let names: Vec<&str> = bp.loops.iter().map(|l| l.name.as_str()).collect();
         assert!(names.contains(&BREAK) && names.contains(&PHRASE) && names.contains(&TEXTURE), "{names:?}");
@@ -649,6 +663,33 @@ mod tests {
     }
 
     #[test]
+    fn a_phrases_chords_last_as_long_as_its_bars_do_in_the_song() {
+        let g = sampling_genre();
+        let at = |bpm: f64| {
+            let mut s = shelf();
+            for p in s.0.iter_mut().filter(|p| p.role == Role::Phrase) {
+                p.bpm = bpm;
+            }
+            let bp = crate::compose::generate(&g, 3, &crate::compose::Options::default(), Some(&s));
+            let phrase = bp.loops.iter().find(|l| l.name == PHRASE).unwrap();
+            let Sound::Loop { beats, .. } = phrase.sound else { panic!("a loop") };
+            (bp.bpm, beats, bp.harmony.progressions["A"].clone(), bp.harmony.bars_per_chord)
+        };
+        // two bars at its own tempo: a chord a bar
+        assert_eq!(at(88.0), (88.0, 8.0, vec!["i".to_string(), "VI".to_string()], 1));
+        // two bars at 44 are four at 88: each chord lasts two
+        assert_eq!(at(44.0), (88.0, 16.0, vec!["i".to_string(), "VI".to_string()], 2));
+    }
+
+    #[test]
+    fn a_fusion_gathers_and_plays_the_samples_of_the_genre_that_leads_it() {
+        let g = crate::genres::get("trip_hop+idm").unwrap();
+        assert_eq!(lead(&g.name), "trip_hop");
+        let bp = crate::compose::generate(&g, 3, &crate::compose::Options::default(), Some(&shelf()));
+        assert!(bp.loops.iter().any(|l| l.name == PHRASE), "trip-hop's phrase plays in trip_hop+idm");
+    }
+
+    #[test]
     fn a_dark_genre_plays_a_major_phrase_in_its_relative_minor() {
         let g = sampling_genre();
         let mut s = shelf();
@@ -656,6 +697,8 @@ mod tests {
             p.key = Some(9);
             p.minor = false;
             p.chords = vec!["I".into(), "IV".into()];
+            // at the song's tempo, a chord a bar
+            p.bpm = 88.0;
         }
         let bp = crate::compose::generate(&g, 3, &crate::compose::Options::default(), Some(&s));
         // A major's I and IV are III and VI of F sharp minor
