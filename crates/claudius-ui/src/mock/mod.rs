@@ -89,7 +89,6 @@ struct Sampling {
     bpm: Option<f64>,
     key: Option<String>,
     loops: bool,
-    before: Option<SongView>,
 }
 
 pub struct Mock {
@@ -307,7 +306,6 @@ impl Mock {
                     bpm: *bpm,
                     key: key.clone(),
                     loops: *loops,
-                    before,
                 })));
                 let msg =
                     format!("sampling for a {} song (seed {seed}): loops from Freesound under CC0 or CC BY", g.name);
@@ -565,7 +563,9 @@ impl Mock {
             s.seed,
             if cuts.is_empty() { "without samples" } else { "built on samples" }
         );
-        self.new_song(song, s.before, &msg);
+        // undo goes back to the song as it is now, edits made while the samples were gathered and all
+        let before = self.state.song.clone();
+        self.new_song(song, before, &msg);
         for c in &cuts {
             self.log(format!("  {}: {}; {}", c.role.noun(), c.about(key.as_ref()), c.found.credit()));
         }
@@ -1265,19 +1265,14 @@ mod tests {
         assert!(r.iter().rev().nth(1).is_some_and(|r| r.ok && r.message.contains("tempo")) && !r.last().unwrap().ok);
     }
 
-    #[test]
-    fn a_song_of_a_genre_built_on_samples_is_made_from_what_the_sampler_finds() {
+    /// answers what a gathering for trip-hop asks, as the site would, until the song is made; returns the time
+    fn feed_samples(mock: &mut Mock, mut now: f64) -> f64 {
         use sample::tests::{chord_loop, found};
-        let mut mock = Mock::new(None);
-        mock.sampler = sample::Sampler::by_hand();
-        mock.send(Command::NewSong { genre: "trip_hop".into(), seed: Some(4), bpm: None, key: None, loops: false });
-        assert!(mock.state.busy.as_deref().is_some_and(|b| b.starts_with("sampling")), "{:?}", mock.state.busy);
         let spec = song::sampling("trip_hop").unwrap();
         let noise = |secs: f64| {
             let mut rng = Rng::new(9);
             sample::Pcm2 { l: (0..(secs * 48_000.0) as usize).map(|_| rng.range(-0.2, 0.2)).collect(), r: Vec::new() }
         };
-        let mut now = 0.0;
         for _ in 0..40 {
             now += 0.05;
             mock.update(now);
@@ -1304,6 +1299,16 @@ mod tests {
                 break;
             }
         }
+        now
+    }
+
+    #[test]
+    fn a_song_of_a_genre_built_on_samples_is_made_from_what_the_sampler_finds() {
+        let mut mock = Mock::new(None);
+        mock.sampler = sample::Sampler::by_hand();
+        mock.send(Command::NewSong { genre: "trip_hop".into(), seed: Some(4), bpm: None, key: None, loops: false });
+        assert!(mock.state.busy.as_deref().is_some_and(|b| b.starts_with("sampling")), "{:?}", mock.state.busy);
+        let now = feed_samples(&mut mock, 0.0);
         let song = mock.state.song.clone().unwrap();
         assert_eq!((song.bpm, song.key.as_str()), (90.0, "A minor"), "the phrase's tempo and key");
         assert_eq!(song.progressions[0].1, ["i", "VI"], "and its chords");
@@ -1323,6 +1328,20 @@ mod tests {
             let t = song.tracks.iter().find(|t| t.name == name).unwrap();
             assert!(t.loudness.is_some(), "{name} plays");
         }
+    }
+
+    #[test]
+    fn an_edit_made_while_the_samples_are_gathered_is_kept_for_undo() {
+        let mut mock = Mock::new(None);
+        mock.sampler = sample::Sampler::by_hand();
+        mock.update(0.0);
+        mock.send(Command::NewSong { genre: "trip_hop".into(), seed: Some(4), bpm: None, key: None, loops: false });
+        mock.send(Command::ToggleLayer { section: 0, layer: "bass".into() });
+        let edited = mock.state.song.clone().unwrap();
+        feed_samples(&mut mock, 0.0);
+        assert_eq!(mock.state.song.as_ref().unwrap().genre, "trip_hop");
+        mock.send(Command::Undo);
+        assert_eq!(mock.state.song.as_ref().unwrap().sections, edited.sections, "the edit, not the song before it");
     }
 
     #[test]

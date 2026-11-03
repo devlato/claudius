@@ -201,8 +201,10 @@ export function start({ port = 4321, root } = {}) {
     };
 
     if (path.startsWith("/studio/samples/")) {
+      // as Cloudflare runs it: what the Worker keeps in the cache, it keeps after answering
+      const ctx = { waitUntil: (p) => p.catch(() => {}) };
       worker
-        .fetch(new Request(url, { method: req.method }), {}, {})
+        .fetch(new Request(url, { method: req.method }), {}, ctx)
         .then(async (r) => {
           res.statusCode = r.status;
           for (const [k, v] of r.headers) res.setHeader(k, v);

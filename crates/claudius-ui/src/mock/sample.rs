@@ -1008,8 +1008,21 @@ impl Sampler {
         let _ = self.tx.send(Arrival::Audio(audio.to_string(), pcm.map(Arc::new)));
     }
 
-    /// starts gathering what `spec` plays, for a song of the genre's `range` of tempos
+    /// starts gathering what `spec` plays, for a song of the genre's `range` of tempos; what failed before (a busy
+    /// library, a recording that did not come) is asked for again
     pub fn start(&mut self, spec: &'static Spec, range: (f64, f64), rng: &mut Rng) -> Gathering {
+        let failed: Vec<String> = self
+            .searched
+            .iter()
+            .filter(|(_, r)| r.is_err())
+            .map(|(q, _)| format!("search:{q}"))
+            .chain(self.fetched.iter().filter(|(_, r)| r.is_err()).map(|(a, _)| format!("audio:{a}")))
+            .collect();
+        self.searched.retain(|_, r| r.is_ok());
+        self.fetched.retain(|_, r| r.is_ok());
+        for k in failed {
+            self.asked.remove(&k);
+        }
         let hunts = Role::ALL
             .iter()
             .map(|&role| {
@@ -1331,6 +1344,23 @@ pub mod tests {
         let gone = (0..12).map(|i| format!("audio/1/{i}_1.ogg")).find(|a| !s.fetched.contains_key(a)).unwrap();
         s.fetch(&gone);
         assert_eq!(s.pending(), [format!("audio:{gone}")], "asked for again, not waited for forever");
+    }
+
+    #[test]
+    fn a_search_that_failed_is_asked_again_for_the_next_song() {
+        let mut s = Sampler::by_hand();
+        let mut rng = Rng::new(5);
+        let mut g = s.start(&SPEC, (78.0, 94.0), &mut rng);
+        s.advance(&mut g, &mut rng);
+        for q in ["strings loop", "drum loop", "vinyl crackle"] {
+            s.arrive_search(q, Err("the library is busy: try again in a minute".into()));
+        }
+        s.poll();
+        s.advance(&mut g, &mut rng);
+        assert!(g.done() && s.pending().is_empty());
+        let mut again = s.start(&SPEC, (78.0, 94.0), &mut rng);
+        s.advance(&mut again, &mut rng);
+        assert_eq!(s.pending().len(), 3, "each search asked again: {:?}", s.pending());
     }
 
     #[test]
