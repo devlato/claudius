@@ -737,7 +737,7 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
 /// demo renders it when its render is older); a server saves the song's folder too, and the app only saves it.
 pub(crate) fn ask_download(state: &State, view: &mut View, out: &mut Vec<Command>, demo: bool, now: f64) {
     if demo || cfg!(target_arch = "wasm32") {
-        view.download = Some((state.song_version, now));
+        view.download = Some(super::Download::of(state, now));
     }
     if !demo {
         out.push(Command::Save { path: None });

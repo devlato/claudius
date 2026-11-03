@@ -13,7 +13,7 @@ use crate::audio::Player;
 use crate::edits;
 use crate::native::{Native, Update};
 use crate::net::{Backend, Connection, Event};
-use crate::panels::{self, Action, Cx, Link, Tab, Toast, View};
+use crate::panels::{self, Action, Cx, Due, Link, Tab, Toast, View};
 use crate::theme::{self, ACCENT, BG, LINE, LINE_SOFT, PANEL, TEXT, TEXT_DIM, TEXT_FAINT};
 use crate::widgets::{self, Icon};
 
@@ -167,6 +167,7 @@ impl Studio {
         self.player.clear();
         self.view.reference = None;
         self.view.reference_loading = false;
+        self.view.download = None;
     }
 
     /// the tour from step `i`; it asks about usage statistics at the end when the app has no answer yet
@@ -352,17 +353,15 @@ impl Studio {
 
     /// Hands over the download asked for, once a render of the song as it was then is here.
     fn deliver(&mut self, now: f64) {
-        let Some((version, asked)) = self.view.download else { return };
-        let Some(render) = self.state.render.clone().filter(|r| r.version >= version) else {
-            if now - asked > DOWNLOAD_WAIT {
+        let Some(download) = &self.view.download else { return };
+        let render = match download.due(&self.state, now, DOWNLOAD_WAIT) {
+            Due::Wait => return,
+            Due::Render(r) => r,
+            Due::Off(why) => {
                 self.view.download = None;
-                self.toast(
-                    "no render came for the download: render the song, then download it again".into(),
-                    false,
-                    now,
-                );
+                self.toast(format!("the download is off: {why}"), false, now);
+                return;
             }
-            return;
         };
         self.view.download = None;
         let title = self.state.song.as_ref().map_or("song", |s| s.title.as_str());
@@ -387,6 +386,7 @@ impl Studio {
             ) {
                 self.view.section = 0;
                 self.view.script.dirty = false;
+                self.view.download = None;
             }
             if matches!(cmd, Command::Analyze { .. } | Command::Remake { .. }) {
                 self.view.analyzing = true;

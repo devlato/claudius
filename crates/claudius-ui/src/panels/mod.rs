@@ -209,8 +209,8 @@ pub struct View {
     pub prog_text: Vec<(String, String)>,
     pub chip_edit: String,
     pub toast: Option<Toast>,
-    /// a download asked for: the song's version then, handed over once a render of it is here, and when it was asked
-    pub download: Option<(u64, f64)>,
+    /// a download asked for, handed over once a render of the song as it was then is here
+    pub download: Option<Download>,
     /// the script reference (markdown from `/api/reference`), its window, and whether it is on its way
     pub reference: Option<String>,
     pub reference_open: bool,
@@ -362,6 +362,49 @@ pub fn render_stale(state: &State) -> bool {
     state.song.is_some() && state.render.as_ref().is_some_and(|r| r.version < state.song_version)
 }
 
+/// A download asked for: the song's version when it was, and when, and which song it was (its title, genre and seed).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Download {
+    pub version: u64,
+    pub asked: f64,
+    pub song: Option<(String, String, u64)>,
+}
+
+/// what a download waits for
+pub enum Due {
+    /// a render of the song as it was asked for
+    Wait,
+    /// this one
+    Render(claudius_api::RenderView),
+    /// none will come: why
+    Off(&'static str),
+}
+
+impl Download {
+    pub fn of(state: &State, now: f64) -> Download {
+        Download { version: state.song_version, asked: now, song: state.song.as_ref().map(song_id) }
+    }
+
+    /// Whether it is due: a render of the song asked for, once that song's version then is rendered; off when another
+    /// song took its place, or no render came for `wait` seconds.
+    pub fn due(&self, state: &State, now: f64, wait: f64) -> Due {
+        if state.song.as_ref().map(song_id) != self.song {
+            return Due::Off("another song took the place of the one asked for: download again");
+        }
+        match state.render.as_ref().filter(|r| r.version >= self.version) {
+            Some(r) => Due::Render(r.clone()),
+            None if now - self.asked > wait => {
+                Due::Off("no render came for it: render the song, then download it again")
+            }
+            None => Due::Wait,
+        }
+    }
+}
+
+fn song_id(s: &SongView) -> (String, String, u64) {
+    (s.title.clone(), s.genre.clone(), s.seed)
+}
+
 pub fn any_solo(song: &SongView) -> bool {
     song.tracks.iter().any(|t| t.solo)
 }
@@ -474,4 +517,30 @@ pub fn fmt_time(secs: f64) -> String {
 /// a frame for one tab page
 pub fn page_frame() -> egui::Frame {
     egui::Frame::new().inner_margin(egui::Margin::symmetric(12, 8))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use claudius_api::RenderView;
+
+    #[test]
+    fn a_download_waits_for_its_songs_render_and_is_off_when_another_song_comes() {
+        let song = |title: &str| SongView { title: title.into(), genre: "trap".into(), seed: 1, ..Default::default() };
+        let render = |version| Some(RenderView { version, ..Default::default() });
+        let mut state =
+            State { song: Some(song("Liquid Signal")), song_version: 4, render: render(3), ..Default::default() };
+        let d = Download::of(&state, 10.0);
+        assert!(matches!(d.due(&state, 11.0, 300.0), Due::Wait), "render 3 is from before the click");
+        state.render = render(4);
+        assert!(matches!(d.due(&state, 12.0, 300.0), Due::Render(r) if r.version == 4));
+        state.render = render(3);
+        assert!(matches!(d.due(&state, 400.0, 300.0), Due::Off(why) if why.contains("no render came")));
+        state.song = Some(song("Static Haze"));
+        state.render = render(9);
+        assert!(
+            matches!(d.due(&state, 12.0, 300.0), Due::Off(why) if why.contains("another song")),
+            "a newer render, of another song"
+        );
+    }
 }
