@@ -45,6 +45,7 @@ them.
 | `--samples` | `0.75` | the chance that a drum lane uses a one-shot cut from Apple Loops or your library instead of a synthesized voice |
 | `--synth-only` | off | synthesizes every sound: no sample packs, Apple Loops or user library |
 | `--no-library` | off | leaves out Apple Loops and your user library; the sample packs still play |
+| `--offline` | off | downloads no samples: a [genre built on samples](online-samples.md#genres-built-on-samples) plays what was gathered before, or the layers it plays without them |
 | `--sample <file>` | none | flips a recording into the song, warped to its tempo and key; repeatable |
 | `--loops` | off | builds the song around a family of Apple Loops (their chords, bass and beat), GarageBand style |
 | `--no-ears` | off | judges with meters and theory only, without loading earshot's models |
@@ -437,6 +438,7 @@ freesound:629052  "Crunchy Drum Break 2 [128bpm]" by deadrobotmusic, CC0 1.0, 15
 | `search --json` | | prints the results as JSON |
 | `get <id>` | | downloads a sound a search found, with its credit beside it |
 | `list` | | lists the downloaded sounds and their credits |
+| `gather <genre>` | | gathers what a [genre built on samples](online-samples.md#genres-built-on-samples) plays: searches, downloads, cuts, and with the ears keeps the best |
 | `--us-public-domain` | | `search` and `get` also keep recordings in the public domain by age |
 | `--share-alike` | | `search` and `get` also keep CC BY-SA sounds |
 

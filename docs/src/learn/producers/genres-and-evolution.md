@@ -18,7 +18,7 @@ the critic judges against it, and evolution mutates songs within it. This page c
 | `dnb` | 170–176 | 0.50–0.51 | minor, dorian, phrygian | −8.5 | acoustic (30 %) | drum and bass music (dubstep, techno, house, trap) |
 | `future_bass` | 140–160 | 0.50–0.53 | major, minor | −9 | 808 (30 %) | future bass music (dubstep, corporate pop, trap, house) |
 | `synthwave` | 85–118 | straight | minor, dorian | −10.5 | 707 (40 %), 808 (20 %) | synthwave music (corporate pop, chiptune, house, ambient pad) |
-| `trip_hop` | 80–96 | 0.51–0.56 | minor, phrygian, dorian | −11 | acoustic (50 %), 808 (10 %) | trip hop music (lo-fi hip hop, heavy-bass hip hop, ambient pad, cinematic orchestral) |
+| `trip_hop` | 78–94 | 0.51–0.56 | minor, phrygian, dorian | −11 | acoustic (50 %), 808 (10 %) | trip hop music (lo-fi hip hop, heavy-bass hip hop, ambient pad, cinematic orchestral) |
 | `big_beat` | 124–138 | 0.50–0.54 | minor, mixolydian, phrygian, dorian | −8.5 | acoustic (45 %), 909 (20 %), 808 (10 %) | big beat breakbeat music with distorted drums (drum and bass, techno, rock with electric guitars, heavy-bass hip hop) |
 | `electro_house` | 126–130 | 0.50–0.52 | minor, dorian | −8 | 909 (50 %) | dirty electro house dance music with big synth leads (house, dubstep, techno, corporate pop) |
 | `nu_disco` | 112–124 | 0.50–0.56 | minor, dorian, major | −10 | acoustic (30 %), 707 (20 %), 909 (15 %) | disco music (house, corporate pop, synthwave, jazz) |
@@ -90,6 +90,7 @@ Each profile (`crates/claudius/data/genres/*.json`) has:
 | `palette` | for each role, how often a part keeps its own sounds, and which kinds of sound it draws from otherwise: synths, or the installed packs' strings, brass, woodwinds, mallets, pianos, guitars and more |
 | `parts` | bass, chords, pad, lead, arp, keys: their own presets and instruments, writing styles, registers, density, voicing, and the chance a song leaves the part out |
 | `loops` | the Apple Loops a song may layer, by instrument, genre and descriptors |
+| `sampling` | the samples the genre is built on, from [free online libraries](../../guide/online-samples.md#genres-built-on-samples): for a break, a phrase and a texture, what to search for, what the ears should hear, how many to keep, how often a song plays one and re-chops it, its mix, and the layers that play `instead` when there is none |
 | `transitions` | risers, impacts, downlifters, reverse crashes, riser length |
 | `mix` | the loudness target, reverb and delay, bus and master chains, sidechain release, role level offsets; each song varies its reverb, delay, sends and colours |
 | `query`, `alts` | what the ears should hear, and its confusions |

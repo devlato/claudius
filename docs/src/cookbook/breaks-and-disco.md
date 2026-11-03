@@ -10,7 +10,7 @@ instruments.
 ## Trip-hop: "Grey Harbour"
 
 ```js
-song("trip_hop", 1);
+song("trip_hop", 2);
 title("Grey Harbour");
 fx("keys", [
   #{ fx: "parallel", dry: 1, chains: [
@@ -27,10 +27,13 @@ send_fx(#{ delay: #{ fx: "delay", beats: 0.75, feedback: sections(0.3, #{ "break
 
 Why:
 
-- **What the genre already does.** A slow two-bar break (the kick on 1, the *and* of 3, and a push into bar two),
-  ghost snares, a sub bass, electric piano and strings, a high melody. The drums go through parallel compression
-  with tape drive, and a crushed, lowpassed copy beside it; the music bus dips 3.5 dB in the breaks, so that they
-  fall away; the strings' lowpass opens in the hooks.
+- **What the genre already does.** It is built on samples from free online libraries
+  ([Genres built on samples](../guide/online-samples.md#genres-built-on-samples)): here a 96 BPM drum break, whose own
+  kick, snare and hat the drum lanes play; two bars of "Scary & Suspense", a string phrase the song takes its key
+  (E flat minor), tempo and chords from; vinyl crackle under it all; and a sub bass, cellos and a high melody around
+  them. The drums go through parallel compression with tape drive and a crushed, lowpassed copy; the music bus dips
+  3.5 dB in the breaks. Without gathered samples the song plays electric piano and strings in the phrase's place, and
+  its drum lanes in the break's.
 - **A broken copy of the keys.** A `parallel` chain bitcrushes the electric piano and band-passes it around 1.4 kHz,
   at a third of the level, under the clean sound: the chords keep their warmth and gain a worn, sampled edge.
 - **A melody that wears in.** The lead's tape drive rises from 2 to 8 dB across each hook, by section, so the second
@@ -39,14 +42,14 @@ Why:
   still into the outro, so the echoes swell where the drums drop out.
 
 ```text
-  ears: 'trip hop music' z +3.5 (closest confusion 'lo-fi hip hop beat' +2.6); production z +2.2 vs 'a distorted clipped recording' +1.0; p_real 0.76
-        sounds like: funk music, jazz music, indie pop music, lo-fi hip hop beat
-  verdict: 96/100 (arc 0.94, genre 0.98, mix 1.00, production 0.80, theory 1.00)
+  ears: 'trip hop music' z +2.8 (closest confusion 'lo-fi hip hop beat' +3.5); production z +1.9 vs 'a distorted clipped recording' +1.1; p_real 0.83
+        sounds like: lo-fi hip hop beat, house music, glitch hop music, hip hop beat with heavy bass
+  verdict: 86/100 (arc 0.92, genre 0.46, mix 1.00, production 0.70, theory 1.00). Fix first: sounds more like 'lo-fi hip hop beat' than 'trip hop music'
 ```
 
-Lo-fi hip hop is the style trip-hop is most often taken for: both are slow, swung and dusty. Plain triads, a dark
-string section and heavy drums keep this one apart; jazzy sevenths, vinyl crackle and comping electric piano pull it
-back toward lo-fi.
+Its `credits.txt` names the three samples, their authors and licences. Lo-fi hip hop is the style trip-hop is most
+often taken for: both are slow, swung, dusty and sampled, and the ears still hear lo-fi first here. A darker phrase and
+heavier drums pull it toward trip-hop; jazzy sevenths and comping electric piano pull it back toward lo-fi.
 
 Try:
 

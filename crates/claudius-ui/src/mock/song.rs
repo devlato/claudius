@@ -268,7 +268,7 @@ pub const GENRES: &[Genre] = &[
     Genre {
         name: "trip_hop",
         description: "Trip-hop: slow, heavy, swung breakbeats under dark minor chords, a deep sub bass, dusty electric piano and strings, a high lonely melody, dub delays that swell in the breaks, long reverbs, tape and vinyl over everything",
-        bpm: (80.0, 96.0),
+        bpm: (78.0, 94.0),
         swing: (0.51, 0.56),
         feel: Feel::BoomBap,
         drums: &["kick", "snare", "hat", "ohat", "perc"],
