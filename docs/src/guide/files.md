@@ -11,6 +11,7 @@ on its own. The paths below are for macOS and Linux; where an environment variab
 | songs written by the command line | `./out` (where you run it) | `./out` | `-o` |
 | caches | `~/Library/Caches/claudius` | `$XDG_CACHE_HOME/claudius` or `~/.cache/claudius` | `CLAUDIUS_HOME` |
 | sample packs | `~/Library/Application Support/claudius/packs` | `~/.local/share/claudius/packs` | `CLAUDIUS_PACKS` |
+| [samples from online libraries](online-samples.md), each with its credit | `~/Library/Application Support/claudius/samples` | `~/.local/share/claudius/samples` | `CLAUDIUS_SAMPLES` |
 | scratch space while a pack installs | `~/Library/Caches/claudius/packs` | `~/.cache/claudius/packs` | |
 | listening models | `~/.cache/earshot-rs` | `~/.cache/earshot-rs` | `EARSHOT_HOME` |
 | your genres | `~/Library/Application Support/claudius/genres` | `~/.config/claudius/genres` | |
@@ -124,6 +125,7 @@ Without one, `/` shows a page that says how to build it, and the API and MCP wor
 |---|---|---|
 | `CLAUDIUS_HOME` | the cache folder above | where caches and session renders go |
 | `CLAUDIUS_PACKS` | the packs folder above | where packs are installed and read |
+| `CLAUDIUS_SAMPLES` | the samples folder above | where samples from online libraries are downloaded and read |
 | `CLAUDIUS_PACKS_CACHE_MB` | `3072` | memory for decoded sample-pack audio |
 | `CLAUDIUS_PORT` | `7878` | `--port` of `studio`, `serve`, `mcp`, `doctor` and `connect` |
 | `CLAUDIUS_TOKEN` | none | `--token` of `serve` and `mcp` |

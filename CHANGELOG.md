@@ -6,6 +6,12 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+`claudius samples` finds sounds in free online libraries (Freesound and Wikimedia Commons through Openverse, Commons
+itself, ccMixter) and downloads them: drum breaks, vinyl crackle, field recordings, stems, old records. It keeps only
+what the licence lets you publish music made with (CC0, public domain, CC BY), leaves out uploads that say they were
+cut from someone's record, and every song that plays a downloaded sound credits it in its `credits.txt`
+([Samples from free online libraries](https://github.com/devlato/claudius/blob/main/docs/src/guide/online-samples.md)).
+
 Verdicts are stricter about style. Every genre is now measured against stock library music too (corporate background
 music, children's piano music, ukulele music, chiptune), and a song that sounds as much like it as like its genre
 loses up to 40 % of its score, with an issue saying so. Songs that scored 90 while sounding like an advert's background

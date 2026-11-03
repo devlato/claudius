@@ -70,6 +70,7 @@
 - [Publishing](guide/publish.md)
 - [Sample packs](guide/packs.md)
 - [Apple Loops and your own samples](guide/samples.md)
+- [Samples from free online libraries](guide/online-samples.md)
 - [Your voice](guide/voice.md)
 - [Files and settings](guide/files.md)
 - [Privacy and usage statistics](guide/privacy.md)
@@ -103,6 +104,7 @@
 - [0007 Which samples we ship](design/0007-sample-licensing.md)
 - [0008 egui for native and web](design/0008-egui.md)
 - [0009 Releases through pull requests](design/0009-releases.md)
+- [0010 Samples from online libraries](design/0010-online-samples.md)
 
 # Contributing
 

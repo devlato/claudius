@@ -109,6 +109,54 @@ fn app_args(mut args: Vec<OsString>, exe: Option<&Path>) -> Vec<OsString> {
     args
 }
 
+fn samples(cmd: SamplesCmd) -> Result<()> {
+    use claudius_packs::online::{self, Query, Source};
+    match cmd {
+        SamplesCmd::Search { query, sources, limit, licences, json } => {
+            let sources = sources
+                .iter()
+                .map(|s| {
+                    Source::parse(s)
+                        .ok_or_else(|| anyhow::anyhow!("no library '{s}' (try: openverse, commons, ccmixter)"))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            let got = online::search(&Query { text: query.clone(), sources, policy: licences.policy(), limit })?;
+            for (s, e) in &got.failed {
+                eprintln!("{} did not answer: {e}", s.name());
+            }
+            if json {
+                println!("{}", serde_json::to_string_pretty(&got.found)?);
+            } else if got.found.is_empty() {
+                println!("nothing for \"{query}\" under a licence that lets you publish music made with it");
+            } else {
+                for f in &got.found {
+                    let secs = f.seconds.map(|s| format!(", {s:.0} s")).unwrap_or_default();
+                    println!("{}  \"{}\" by {}, {}{secs}", f.id, f.title, f.creator, f.licence_name);
+                }
+                println!("`claudius samples get <id>` downloads one");
+            }
+        }
+        SamplesCmd::Get { id, licences } => {
+            let Some(f) = online::recall(&id) else {
+                anyhow::bail!("no sound '{id}' among your searches: `claudius samples search` finds it first")
+            };
+            let path = online::fetch(&f, &licences.policy())?;
+            println!("{}", path.display());
+            println!("credit: {}", f.credit());
+        }
+        SamplesCmd::List => {
+            let all = online::fetched();
+            if all.is_empty() {
+                println!("no samples downloaded yet: `claudius samples search`, then `claudius samples get`");
+            }
+            for (p, f) in all {
+                println!("{}  {} ({})", p.display(), f.credit(), f.id);
+            }
+        }
+    }
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let args = app_args(std::env::args_os().collect(), std::env::current_exe().ok().as_deref());
     let matches = <Cli as clap::CommandFactory>::command().get_matches_from(args);
@@ -500,6 +548,7 @@ fn run(cli: Cli) -> Result<()> {
         Cmd::Doctor { port } => doctor::run(port, web_dir(std::env::var_os("CLAUDIUS_WEB").map(PathBuf::from))),
         Cmd::Connect { client, http, remove, no_skills, port } => connect::run(client, http, remove, port, !no_skills)?,
         Cmd::Update { check, yes, auto } => update::command(check, yes, auto.map(|a| a == OnOff::On))?,
+        Cmd::Samples { cmd } => samples(cmd)?,
         Cmd::Telemetry { answer } => {
             if let Some(a) = answer {
                 telemetry::set(a == OnOff::On)?;
