@@ -67,6 +67,8 @@ struct Sampling {
     rng: Rng,
     genre: String,
     song: Command,
+    /// a song asked for since, sent to the engine as this: once the engine makes it, it takes this one's place
+    superseded: Option<String>,
 }
 
 pub struct Mock {
@@ -156,14 +158,7 @@ impl Mock {
 
     pub fn send(&mut self, cmd: Command) {
         let what = command_name(&cmd);
-        // the song asked for now is the one the person wants, not the one the samples were being gathered for
-        let replaces = matches!(
-            cmd,
-            Command::NewSong { .. } | Command::Remake { .. } | Command::OpenText { .. } | Command::Load { .. }
-        );
-        if replaces && let Some(s) = self.sampling.take() {
-            self.say(format!("stopped gathering the samples of a {} song: another song was asked for", s.genre));
-        }
+        let replaces = matches!(cmd, Command::NewSong { .. } | Command::Remake { .. } | Command::OpenText { .. });
         let here: Option<Result<String, String>> = match &cmd {
             Command::NewSong { genre, .. } if self.sampler.on() && sample::spec(genre).is_some() => {
                 Some(Ok(self.gather(genre, cmd.clone())))
@@ -245,10 +240,15 @@ impl Mock {
                 let reply = Reply { ok, message, version: self.state.version };
                 self.events.push(Event::Reply { what, result: Ok(reply) });
             }
-            None if matches!(cmd, Command::Remake { .. }) => {}
             None => {
-                self.engine.command(&what, &cmd);
-                self.waiting += 1;
+                if !matches!(cmd, Command::Remake { .. }) {
+                    self.engine.command(&what, &cmd);
+                    self.waiting += 1;
+                }
+                // the song asked for now is the one the person wants, once the engine has made it
+                if replaces && let Some(s) = self.sampling.as_mut() {
+                    s.superseded = Some(what);
+                }
             }
         }
     }
@@ -259,7 +259,8 @@ impl Mock {
         let mut rng = Rng::new(self.rng.next());
         let spec = sample::spec(genre).expect("a genre built on samples");
         let gathering = self.sampler.start(spec, range, &mut rng);
-        self.sampling = Some(Sampling { gathering, started: self.now, rng, genre: genre.to_string(), song });
+        self.sampling =
+            Some(Sampling { gathering, started: self.now, rng, genre: genre.to_string(), song, superseded: None });
         let msg = format!("sampling for a {genre} song first: loops from Freesound under CC0 or CC BY");
         self.say(msg.clone());
         msg
@@ -346,6 +347,17 @@ impl Mock {
             match heard {
                 Heard::Answer { what, mut reply, state } => {
                     self.waiting = self.waiting.saturating_sub(1);
+                    if let Some(s) = self.sampling.as_mut()
+                        && s.superseded.as_deref() == Some(what.as_str())
+                    {
+                        if reply.ok {
+                            let genre = s.genre.clone();
+                            self.sampling = None;
+                            self.say(format!("stopped gathering the samples of a {genre} song: another song was made"));
+                        } else {
+                            s.superseded = None;
+                        }
+                    }
                     self.state = *state;
                     self.publish();
                     if what == "remake"
@@ -382,7 +394,8 @@ impl Mock {
             for line in lines {
                 self.say(line);
             }
-            if s.gathering.done() {
+            // done, unless a song asked for since may take its place: the engine's answer to it decides
+            if s.gathering.done() && s.superseded.is_none() {
                 self.sampled(s);
             } else {
                 self.sampling = Some(s);
@@ -554,9 +567,13 @@ mod tests {
         mock.sampler = sample::Sampler::by_hand();
         mock.send(Command::NewSong { genre: "trip_hop".into(), seed: Some(4), bpm: None, key: None, loops: false });
         assert!(mock.sampling.is_some());
-        mock.send(Command::NewSong { genre: "dnb".into(), seed: Some(2), bpm: None, key: None, loops: false });
-        assert!(mock.sampling.is_none(), "the gathering for the trip-hop song stops");
+        mock.send(Command::Load { path: "elsewhere/song.json".into() });
+        mock.send(Command::NewSong { genre: "polka".into(), seed: Some(2), bpm: None, key: None, loops: false });
         until(&mut mock, &mut now, |m| m.waiting == 0);
+        assert!(mock.sampling.is_some(), "a song that could not be made takes nothing's place");
+        mock.send(Command::NewSong { genre: "dnb".into(), seed: Some(2), bpm: None, key: None, loops: false });
+        until(&mut mock, &mut now, |m| m.waiting == 0);
+        assert!(mock.sampling.is_none(), "the gathering for the trip-hop song stops once the dnb song is made");
         feed_samples(&mut mock, &mut now);
         until(&mut mock, &mut now, |m| m.waiting == 0);
         assert_eq!(mock.state.song.as_ref().unwrap().genre, "dnb", "and its song never replaces the one asked for");
