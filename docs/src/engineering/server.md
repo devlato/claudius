@@ -8,11 +8,10 @@ records why there is exactly one.
 |---|---|
 | `lib.rs` | `serve` (on the caller's runtime) and `spawn` (on a thread with its own runtime, for the native window), and what a taken port says |
 | `app/mod.rs` | `App` and its `Session`: state, versions, waiting for changes |
-| `app/commands.rs` | every `Command`: edits, undo and redo, load and save, analysis |
+| `app/commands.rs` | every `Command`: the edits (made by `claudius-session`), undo and redo, load and save, analysis |
 | `app/jobs.rs` | the long jobs: render and judge, mutate, evolve, save, install packs |
 | `http.rs` | the routes, the guard (host names, token), CORS, security headers |
 | `mcp.rs` | the MCP tools, the backends they run on, the stdio and HTTP transports |
-| `views.rs` | blueprints and verdicts as `claudius-api` types, and the text summaries the MCP tools return |
 
 ## The session
 
@@ -49,14 +48,15 @@ Every edit works on a copy and commits only on success:
 - `run_script(code)` runs the script on a copy of the blueprint. If the copy did not change, the reply is the
   script's log (or `ran; nothing changed`) and no undo step is made. If it changed, it is committed with a label for
   undo: the caller's (`tempo 124`, `mix bass: level: -2, duck: 0.6`), or one made from the script's first line.
-- `set_tempo`, `set_key`, `set_swing`, `set_progression`, `set_drum_pattern`, `set_part`, `add_track` (`drum()` and
-  `drum_sound()` for a lane, `part()` with a `role` for a part, after checking the name is one word and new),
-  `remove_track` (`remove()`), `set_notes` (`notes()`, or `clear_notes()` without notes) and `set_mix` build script
-  code (every string through `pattern::quote`) and go through
-  `run_script`, so the studio's controls and scripts validate the same way and fail with the same messages.
-- The other edits (`set_section`, `add_section`, `remove_section`, `move_section`, `toggle_layer`, `set_drum_step`)
-  change the blueprint directly in `edit_with`, which also checks the song's size and commits only when something
-  changed.
+- The edits themselves live in `claudius-session` (`edit.rs`), which the browser's demo shares. `set_tempo`,
+  `set_key`, `set_swing`, `set_progression`, `set_drum_pattern`, `set_part`, `add_track` (`drum()` and `drum_sound()`
+  for a lane, `part()` with a `role` for a part, after checking the name is one word and new), `remove_track`
+  (`remove()`), `set_notes` (`notes()`, or `clear_notes()` without notes), `set_mix`, `set_lane` and `set_trig` are the
+  script that says them (`edit::script`, every string through `pattern::quote`) and go through `run_script`, so the
+  studio's controls and scripts validate the same way and fail with the same messages.
+- The other edits (`set_section`, `add_section`, `remove_section`, `move_section`, `toggle_layer`, `set_drum_step`,
+  `set_fx`) change the blueprint in place (`edit::change`), in `edit_with`, which also checks the song's size and
+  commits only when something changed.
 
 `commit` pushes the old blueprint and the label onto `undo`, clears `redo`, rebuilds the view, logs the message, and
 then `after_change` sets `song_version` to the new version and, unless the session runs with `--no-auto-render`,
@@ -221,7 +221,7 @@ to stderr; and `http_service(app, public)`, rmcp's Streamable HTTP service with 
 
 ## Views
 
-`views.rs` turns the engine's documents into the wire types. Most of it is direct, with two places that encode
+`claudius-session`'s `views.rs` turns the engine's documents into the wire types. Most of it is direct, with two places that encode
 decisions:
 
 - A part's `presets` (what the studio offers to switch to) are the genre's entries, every alternative of an `a|b`

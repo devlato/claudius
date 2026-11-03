@@ -1,0 +1,17 @@
+[package]
+name = "claudius-session"
+description = "What a claudius session does to a song: its edits, and the views of it the API shows; shared by the server and the browser's demo"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[dependencies]
+claudius = { path = "../claudius", default-features = false }
+claudius-api = { path = "../claudius-api" }
+claudius-packs = { path = "../claudius-packs", default-features = false }
+serde_json = "1"

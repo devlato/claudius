@@ -1,7 +1,7 @@
 # Architecture
 
-claudius is a Cargo workspace of eight crates. One of them, `claudius`, is the engine and does all the music; the
-others decode audio, manage sample packs, listen, serve, draw and parse command lines around it.
+claudius is a Cargo workspace of ten crates. One of them, `claudius`, is the engine and does all the music; the
+others decode and encode audio, manage sample packs, listen, edit, serve, draw and parse command lines around it.
 
 ## The crates
 
@@ -11,7 +11,8 @@ others decode audio, manage sample packs, listen, serve, draw and parse command 
                      /       |                                  \
           claudius-server    |                     claudius-ui (feature "studio")
            /     |     \     |                                  |
-          /      |      \    |                                  |
+          /      |   claudius-session                           |
+         /       |      /    |                                  |
  claudius-api  claudius (the engine)                      claudius-api
                /      |       \
               /       |        \
@@ -25,10 +26,12 @@ others decode audio, manage sample packs, listen, serve, draw and parse command 
 |---|---|---|
 | `claudius` | the engine: theory, composition, patterns and scripts, synthesis, effects, rendering, the critic, evolution, analysis, the Apple Loops library | `claudius-packs`, `earshot`, `claudius-decode` |
 | `claudius-decode` | audio files to samples: symphonia in pure Rust, ffmpeg as a fallback, limited to the one file and to 30 minutes; trims the encoder priming of AAC in CAF | symphonia |
+| `claudius-encode` | samples to audio files: WAV, AIFF, FLAC, MP3 and Opus in Rust, Ogg Vorbis through libvorbis, AAC and Apple Lossless through the system's encoder | `claudius-decode` |
 | `claudius-packs` | the sample packs: registry, installer, SFZ and Strudel-map readers, name resolution, the multi-sample player, credits; also the `claudius-packs` binary | `claudius-decode` |
 | `earshot` | a Rust port of the Python earshot: CLAP and the AudioSet tagger through ONNX Runtime, the calibrated vocabulary, realness, measurements | `claudius-decode`, `ort` |
 | `claudius-api` | the wire types of the HTTP API: plain serde structs, so they build for WebAssembly | serde |
-| `claudius-server` | the session (`App`), the HTTP routes, the MCP tools | `claudius`, `claudius-api`, `claudius-packs` |
+| `claudius-session` | what a session does to a song: the edits the API's commands make (as scripts, or in place), and the views of the song, its render and its verdict as API types | `claudius`, `claudius-api`, `claudius-packs` |
+| `claudius-server` | the session (`App`), the HTTP routes, the MCP tools | `claudius`, `claudius-api`, `claudius-packs`, `claudius-session` |
 | `claudius-ui` | the studio, in egui: a native window and a WebAssembly app, both clients of the HTTP API | `claudius-api` |
 | `claudius-cli` | the `claudius` binary: one subcommand per task, `setup`, `doctor`, `connect` | all of the above |
 

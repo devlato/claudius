@@ -89,7 +89,8 @@ Now the same song in the studio, after `claudius studio`:
 2. The studio long-polls `GET /api/state?since=N` (`claudius-ui/src/net.rs`). You click a step in the sequencer
    (`panels/sequencer.rs`): it pushes `Command::SetDrumStep`, shows the step at once (`edits.rs`), and posts it.
 3. `http.rs` checks the host name, parses the JSON, and calls `App::command` on a blocking thread
-   (`claudius-server/src/app/commands.rs`). `edit_with` changes a copy of the blueprint, `commit` pushes the old one
+   (`claudius-server/src/app/commands.rs`), which has `claudius-session` make the edit: `edit_with` changes a copy
+   of the blueprint, `commit` pushes the old one
    for undo, and `after_change` starts a render job (`app/jobs.rs`).
 4. The job arranges, renders and judges as above, writes `<cache>/renders/<pid>-<session>/<version>.wav`, and bumps the version.
    The long poll returns, the studio sees a new `render.version`, fetches the WAV and plays it from where you were.

@@ -921,6 +921,7 @@ dependencies = [
  "claudius-api",
  "claudius-decode",
  "claudius-packs",
+ "claudius-session",
  "dirs",
  "image",
  "rayon",
@@ -933,6 +934,16 @@ dependencies = [
  "tower-http",
  "tracing",
  "ureq",
+]
+
+[[package]]
+name = "claudius-session"
+version = "0.3.0"
+dependencies = [
+ "claudius",
+ "claudius-api",
+ "claudius-packs",
+ "serde_json",
 ]
 
 [[package]]
