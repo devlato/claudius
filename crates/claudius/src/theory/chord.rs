@@ -367,6 +367,9 @@ pub enum Voicing {
     Close,
     Open,
     Spread,
+    /// a power chord: the root, its fifth and the octave above, as a rock guitar plays it (no third, so that a
+    /// distorted guitar stays clear)
+    Power,
 }
 
 /// choose pitches for `chord` within [low, high] with `n` voices: candidates are scored by voice-leading distance
@@ -380,6 +383,9 @@ pub fn voice(
     style: Voicing,
     rng: Option<&mut Rng>,
 ) -> Vec<i32> {
+    if style == Voicing::Power {
+        return power(chord, prev, low, high, n);
+    }
     let mut tones: Vec<u8> = chord.pcs();
     // drop the fifth, then the root, when there are more tones than voices (the bass covers the root)
     while tones.len() > n {
@@ -431,6 +437,22 @@ pub fn voice(
     })
 }
 
+/// a power chord in [low, high]: its root nearest the last one's (the lowest when there was none), the fifth above
+/// it, and the octave when there are three voices and room
+fn power(chord: &Chord, prev: Option<&[i32]>, low: i32, high: i32, n: usize) -> Vec<i32> {
+    let roots: Vec<i32> = (low..=(high - 7).max(low)).filter(|p| p.rem_euclid(12) as u8 == chord.root).collect();
+    let root = match prev.and_then(|p| p.first()) {
+        Some(&last) => roots.iter().copied().min_by_key(|r| (r - last).abs()),
+        None => roots.first().copied(),
+    }
+    .unwrap_or(low + (chord.root as i32 - low).rem_euclid(12));
+    let mut v = vec![root, root + 7];
+    if n >= 3 && root + 12 <= high {
+        v.push(root + 12);
+    }
+    v
+}
+
 /// every distinct voicing of `want` within [low, high], scored (lower is better) into `best`
 fn voicings(
     want: &[u8],
@@ -444,7 +466,7 @@ fn voicings(
     let options: Vec<Vec<i32>> =
         want.iter().map(|&pc| (low..=high).filter(|p| p.rem_euclid(12) as u8 == pc).collect()).collect();
     let (span_lo, span_hi) = match style {
-        Voicing::Close => (3, 14),
+        Voicing::Close | Voicing::Power => (3, 14),
         Voicing::Open => (10, 24),
         Voicing::Spread => (17, 34),
     };

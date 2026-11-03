@@ -100,23 +100,26 @@ fx("strings", [#{ fx: "filter", mode: "lp", cutoff: sections(1800, #{ build: [18
 
 Why:
 
-- **What the genre already does.** The arc of the song: a quiet piano and a crushed, arpeggiated synth, then drums
-  and bass, a rising section with a riser and toms, a loud climax, a fall to piano and strings, the climax again. The
-  arpeggio is gated harder across the verses; the guitars' distorted copy rises from a fifth to most of the sound in
-  the climaxes, and the drums are compressed in parallel harder there.
+- **What the genre already does.** The arc of the song, as a band plays it: a quiet piano and a crushed,
+  arpeggiated synth, then an acoustic kit and a finger or pick bass, a clean guitar arpeggio, a rise on the toms, and
+  loud climaxes where two distorted power-chord guitars come in, panned wide, and the bass distorts. Then a fall to
+  piano and strings, and the climax again. There are no risers or impacts, the chords are dark (here E harmonic
+  minor), and tape runs over the mix. The arpeggio is gated harder across the verses, and the drums are compressed in
+  parallel harder in the climaxes.
 - **A piano that breaks up.** Across each verse a bitcrushed, band-passed copy of the piano fades in beside the clean
   one, up to 40 %, and stays at a quarter in the climaxes: the acoustic sound turns digital as the song grows.
 - **Strings that open into the climax.** Their lowpass goes from 1.8 kHz to 9 kHz across the rise and stays open in
   the climaxes.
 
 ```text
-  ears: 'progressive rock music with piano, strings and synthesizers' z +3.0 (closest confusion 'indie pop music' +1.6); production z +1.5 vs 'a recording made on a phone' +0.1; p_real 0.77
-        sounds like: funk music, jazz music, playful and quirky music, celebratory and joyful music
-  verdict: 96/100 (arc 0.98, genre 0.91, mix 0.99, production 0.83, theory 1.00). Fix first: muddy 250 Hz-1 kHz: too much pad / chord body (lowmid -3.6 dB, healthy up to -4)
+  ears: 'progressive rock music with piano, strings and synthesizers' z +3.9 (closest confusion 'inspirational corporate background music' +2.8); production z +1.4 vs 'a cheap synthesized beep' +0.5; p_real 0.54
+        sounds like: uplifting and hopeful music, inspirational corporate background music, playful children's piano music, romantic music
+  verdict: 92/100 (arc 0.99, genre 1.00, mix 0.93, production 0.71, theory 0.95). Fix first: not enough sub: the kick and bass lack weight (sub -15.6 dB, healthy from -14)
 ```
 
 The arc is nearly perfect because the form is written as one: the climaxes have everything, and the intro, the fall
-and the outro have almost nothing.
+and the outro have almost nothing. Piano and strings building to a climax is also the shape of stock inspirational
+music, the reading the ears keep closest. The distorted guitars and the tape keep this one rock.
 
 Try:
 

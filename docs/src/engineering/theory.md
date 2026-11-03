@@ -173,6 +173,10 @@ stores chord names as numerals this way.
 3. It takes the best. When the second best is within one point, it takes the second three times in ten, so repeated
    progressions do not voice identically every time.
 
+`power` is the exception: a power chord, as a rock guitar plays it, is the root, the fifth above it and, with three
+voices and room, the octave. It has no third, so a distorted guitar stays clear. Its root moves to the root nearest
+the last one's.
+
 The critic checks the result: `voice_leading_<track>` is the average movement per voice per chord change, and above
 4.5 semitones it raises an issue.
 
