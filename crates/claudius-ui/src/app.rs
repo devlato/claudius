@@ -13,7 +13,7 @@ use crate::audio::Player;
 use crate::edits;
 use crate::native::{Native, Update};
 use crate::net::{Backend, Connection, Event};
-use crate::panels::{self, Action, Cx, Link, Tab, Toast, View};
+use crate::panels::{self, Action, Cx, Due, Link, Tab, Toast, View};
 use crate::theme::{self, ACCENT, BG, LINE, LINE_SOFT, PANEL, TEXT, TEXT_DIM, TEXT_FAINT};
 use crate::widgets::{self, Icon};
 
@@ -87,6 +87,8 @@ pub struct Studio {
 const DOCS: &str = "https://github.com/devlato/claudius/blob/main/docs/src/SUMMARY.md";
 const REPORT: &str = "https://github.com/devlato/claudius/issues/new?template=bug_report.yml";
 const RELEASES: &str = "https://github.com/devlato/claudius/releases";
+/// seconds a download waits for its render
+const DOWNLOAD_WAIT: f64 = 300.0;
 const UPDATES_TIP: &str = "look for a new release on GitHub once a day and download it in the background; it installs \
                            when you click Restart to update";
 const STATISTICS_TIP: &str = "a few anonymous counts, each at most once a day: the version, the system, which part you \
@@ -165,6 +167,7 @@ impl Studio {
         self.player.clear();
         self.view.reference = None;
         self.view.reference_loading = false;
+        self.view.download = None;
     }
 
     /// the tour from step `i`; it asks about usage statistics at the end when the app has no answer yet
@@ -223,6 +226,17 @@ impl Studio {
                         Ok(r) => self.view.record.answered(r.ok, r.message.clone()),
                         Err(e) => self.view.record.answered(false, format!("the take did not arrive: {e}")),
                     }
+                }
+                #[cfg(not(target_arch = "wasm32"))]
+                if what == "save"
+                    && self.plan.is_none()
+                    && let Ok(r) = &result
+                    && r.ok
+                    && let Some(dir) = crate::keep::saved_folder(&r.message).map(std::path::Path::new)
+                    && dir.is_dir()
+                    && let Err(e) = crate::keep::reveal(dir)
+                {
+                    log::warn!("{e}");
                 }
                 let rejected = !matches!(&result, Ok(r) if r.ok);
                 if rejected && is_edit(&what) && self.pending.is_none() {
@@ -337,6 +351,29 @@ impl Studio {
         }
     }
 
+    /// Hands over the download asked for, once a render of the song as it was then is here.
+    fn deliver(&mut self, now: f64) {
+        let Some(download) = &self.view.download else { return };
+        let render = match download.due(&self.state, now, DOWNLOAD_WAIT) {
+            Due::Wait => return,
+            Due::Render(r) => r,
+            Due::Off(why) => {
+                self.view.download = None;
+                self.toast(format!("the download is off: {why}"), false, now);
+                return;
+            }
+        };
+        self.view.download = None;
+        let title = self.state.song.as_ref().map_or("song", |s| s.title.as_str());
+        let name = crate::panels::transport::file_name(title);
+        match self.backend.download(&render, &self.state.exports, &name).and_then(crate::keep::deliver) {
+            Ok(Some(file)) if cfg!(target_arch = "wasm32") => self.toast(format!("downloading {file}"), true, now),
+            Ok(Some(file)) => self.toast(format!("saved {file}"), true, now),
+            Ok(None) => {}
+            Err(e) => self.toast(e, false, now),
+        }
+    }
+
     /// sends this frame's commands, showing simple edits at once
     fn flush(&mut self, now: f64) {
         for cmd in std::mem::take(&mut self.out) {
@@ -349,6 +386,7 @@ impl Studio {
             ) {
                 self.view.section = 0;
                 self.view.script.dirty = false;
+                self.view.download = None;
             }
             if matches!(cmd, Command::Analyze { .. } | Command::Remake { .. }) {
                 self.view.analyzing = true;
@@ -474,6 +512,10 @@ impl Studio {
                 }
                 Step::Assistants => self.view.assistants.show(),
                 Step::Publish => self.view.publish.show(),
+                Step::Download => {
+                    let demo = self.server_url.is_none();
+                    crate::panels::transport::ask_download(&self.state, &mut self.view, &mut self.out, demo, now);
+                }
                 Step::Record => self.view.record.show(),
                 Step::Rec(Rec::Start) => self.view.record.start = true,
                 Step::Rec(Rec::Stop) => self.view.record.stop = true,
@@ -883,6 +925,10 @@ impl eframe::App for Studio {
         self.link.retry_in = self.backend.retry_in(now);
         self.player.tick();
         self.apply_pending(ctx, now);
+        self.deliver(now);
+        if self.view.download.is_some() {
+            ctx.request_repaint_after(Duration::from_millis(100));
+        }
         self.update_loop();
         // keeps retries and mock jobs going while the window is hidden too
         if let Some(s) = self.backend.next_wake(now) {

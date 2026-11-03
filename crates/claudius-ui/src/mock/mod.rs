@@ -379,16 +379,9 @@ impl Mock {
             Command::AssessVoice { .. } => {
                 Err("the demo hears no singing: start `claudius serve` to hear how a take is sung".into())
             }
-            Command::Save { path } => {
-                let title =
-                    self.state.song.as_ref().map_or("song".into(), |s| s.title.to_lowercase().replace(' ', "-"));
-                let msg = format!(
-                    "saved to {} (demo: nothing was written)",
-                    path.clone().unwrap_or_else(|| format!("out/{title}"))
-                );
-                self.log(msg.clone());
-                Ok(msg)
-            }
+            Command::Save { .. } => Err("the demo keeps no folders: the download button hands you the song as a WAV \
+                                         file"
+                .into()),
             Command::Export { .. } => Err("the demo cannot export: start `claudius serve` for that".into()),
             Command::SetRelease { details, .. } => {
                 if let Some(r) = self.state.release.as_mut() {

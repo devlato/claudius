@@ -88,8 +88,11 @@ the song it opens.
 - **Log.** What happened, and the song's history.
 
 **Mutate** tries a few variations and keeps the best one if it beats the current song; **Evolve** runs several
-generations of that. Both run in the background and can be stopped. **Save** writes the song folder, and the
-**export** menu downloads the song as WAV, AIFF, FLAC, Apple Lossless, MP3, AAC, Opus or Ogg Vorbis
+generations of that. Both run in the background and can be stopped. The **download** button, after undo and redo,
+hands you the song. In a browser it downloads it: the demo as a WAV file, and a claudius as an MP3, which also saves
+the song's folder on the computer claudius runs on. In the app it saves the folder, under `~/Music/claudius`, and
+shows it. When the song changed since its last render, the download waits for the new render. The **export** menu
+downloads the song as WAV, AIFF, FLAC, Apple Lossless, MP3, AAC, Opus or Ogg Vorbis
 ([Exporting](../guide/export.md)). **publish** checks the song as stores do and writes what a distributor takes
 ([Publishing](../guide/publish.md)).
 
