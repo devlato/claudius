@@ -6,6 +6,8 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-03
+
 Claudius updates itself from this release on: the studio downloads a new release in the background and offers to
 restart into it, and `claudius update` does the same in a terminal
 ([Updates](https://github.com/devlato/claudius/blob/main/docs/src/guide/updates.md)). The releases before this one
@@ -152,6 +154,71 @@ sharpness, its audio, the licences of its sounds, and its details, including how
 kit: the WAV and the cover a distributor takes, and the answers its form asks for
 ([Publishing](https://github.com/devlato/claudius/blob/main/docs/src/guide/publish.md)).
 
+### Added
+
+- studio: Connect an assistant from the app ([#25](https://github.com/devlato/claudius/pull/25))
+- studio: A short tour the first time the studio opens ([#26](https://github.com/devlato/claudius/pull/26))
+- Opt-in anonymous usage statistics ([#27](https://github.com/devlato/claudius/pull/27))
+- macos: A disk image for each chip, and the app is called Claudius ([#29](https://github.com/devlato/claudius/pull/29))
+- songs: Every release opens the songs earlier ones saved ([#30](https://github.com/devlato/claudius/pull/30))
+- updates: Claudius downloads new releases and installs them on restart ([#31](https://github.com/devlato/claudius/pull/31))
+- brand: A new logo, a C cut out of colourful ripples ([#32](https://github.com/devlato/claudius/pull/32))
+- connect: Set claudius up with each assistant's own command ([#33](https://github.com/devlato/claudius/pull/33))
+- assistants: A Claude Code plugin with the skills, and a Claude Desktop extension ([#37](https://github.com/devlato/claudius/pull/37))
+- install: Download Claudius and drag it into Applications, no terminal needed ([#35](https://github.com/devlato/claudius/pull/35))
+- packs: Eight more default packs and 21 more instruments: Sonic Pi's samples, a solo cello, an erhu, a steel pan, synth drums, body percussion, glitch kits and sound effects ([#45](https://github.com/devlato/claudius/pull/45))
+- export: Songs export to WAV, AIFF, FLAC, Apple Lossless, MP3, AAC, Opus and Ogg Vorbis, and song.mp3 no longer needs ffmpeg ([#46](https://github.com/devlato/claudius/pull/46))
+- studio: An export menu, and export over MCP and the HTTP API ([#47](https://github.com/devlato/claudius/pull/47))
+- publish: Check a song for release, and write a release kit for a distributor ([#48](https://github.com/devlato/claudius/pull/48))
+- studio: A Publish dialog, and publishing over MCP and the HTTP API ([#49](https://github.com/devlato/claudius/pull/49))
+- studio: The demo plays claudius' own synth presets and TR-707 and TR-808 drums, mixed as claudius mixes ([#56](https://github.com/devlato/claudius/pull/56))
+- takes: Recordings a song plays once from a section, sent to /api/takes or added with add_take ([#58](https://github.com/devlato/claudius/pull/58))
+- studio: Record a take from a microphone or an audio interface ([#59](https://github.com/devlato/claudius/pull/59))
+- takes: Turn a take's melody into notes that an instrument, or several, plays ([#60](https://github.com/devlato/claudius/pull/60))
+- studio: Record what a MIDI keyboard plays, and write notes into a song with add_notes ([#61](https://github.com/devlato/claudius/pull/61))
+- takes: A sung or played line becomes harmony, octaves, chords, a bass line, an arp or a pad ([#62](https://github.com/devlato/claudius/pull/62))
+- studio: Measure how late takes land, and set the latency from it ([#63](https://github.com/devlato/claudius/pull/63))
+- studio: Record takes in the browser studio ([#64](https://github.com/devlato/claudius/pull/64))
+- studio: Record what a MIDI keyboard plays in the browser studio ([#65](https://github.com/devlato/claudius/pull/65))
+- studio: Choose files on this computer instead of typing paths ([#67](https://github.com/devlato/claudius/pull/67))
+- studio: Record the takes an assistant asks for, and play a take back before keeping it ([#68](https://github.com/devlato/claudius/pull/68))
+- script: Set any effect chain, run chains in parallel, and move settings by section ([#69](https://github.com/devlato/claudius/pull/69))
+- genres: Trip-hop, big beat, electro house, nu-disco and filter house ([#70](https://github.com/devlato/claudius/pull/70))
+- genres: Dance-pop, neo-psychedelia, art rock, IDM and dub techno ([#71](https://github.com/devlato/claudius/pull/71))
+- genres: Fuse two or three genres into one ([#72](https://github.com/devlato/claudius/pull/72))
+- sampler: Sample a recording's vocals into a song ([#74](https://github.com/devlato/claudius/pull/74))
+- studio: A graph of the song's signal, editable node by node ([#75](https://github.com/devlato/claudius/pull/75))
+- voice: Hear the notes a singer means, and how they sing ([#76](https://github.com/devlato/claudius/pull/76))
+- fx: Tune, which moves a voice onto the notes it means ([#77](https://github.com/devlato/claudius/pull/77))
+- voice: A pitch check that plays phrases to sing back and learns the voice from them ([#78](https://github.com/devlato/claudius/pull/78))
+- drums: Trigs, so a step plays by chance and condition, ratchets, flams, nudges and locks its sound ([#79](https://github.com/devlato/claudius/pull/79))
+- drums: Lanes with their own length, speed, swing and groove, and grooves heard in recordings ([#80](https://github.com/devlato/claudius/pull/80))
+- drums: Turn a beat, played or beatboxed, into the drum lanes ([#81](https://github.com/devlato/claudius/pull/81))
+- compose: Songs draw their sounds from every pack and 46 synth presets ([#82](https://github.com/devlato/claudius/pull/82))
+- compose: Every song plays a form and a mix of its own ([#83](https://github.com/devlato/claudius/pull/83))
+- theory: Harmony that bends the rules: answered loops, choruses of their own, 29 more progressions ([#85](https://github.com/devlato/claudius/pull/85))
+- studio: Add and remove tracks, with a sound browser ([#86](https://github.com/devlato/claudius/pull/86))
+- studio: A piano roll, and notes() to write a part's notes ([#87](https://github.com/devlato/claudius/pull/87))
+- genres: Boom bap, UK drill, dubstep, UK garage and jungle ([#88](https://github.com/devlato/claudius/pull/88))
+- genres: Afrobeats, amapiano, reggaeton, trance and neo-soul ([#90](https://github.com/devlato/claudius/pull/90))
+
+### Changed
+
+- server: Compress the web studio, a third of its size, and cache its hashed files ([#39](https://github.com/devlato/claudius/pull/39))
+- render: Saturation and the master stage stream their oversampling, the same samples faster ([#40](https://github.com/devlato/claudius/pull/40))
+
+### Fixed
+
+- install: Install claudius.app on a Mac, which opens without Gatekeeper's warning ([#28](https://github.com/devlato/claudius/pull/28))
+- server: A session's renders go when it ends, and the tests keep theirs in target/ ([#41](https://github.com/devlato/claudius/pull/41))
+- docs: Readable type, at the sizes the theme meant, and the new logo in the menu bar ([#43](https://github.com/devlato/claudius/pull/43))
+- packs: Every FLAC conversion is read back, and installing again repairs the damaged ones ([#44](https://github.com/devlato/claudius/pull/44))
+- deps: Update rustls-webpki, webpki-roots and webpki-root-certs for RUSTSEC-2026-0381, 0382 and 0383 ([#52](https://github.com/devlato/claudius/pull/52))
+- deps: Update zip to 9.0.5 for GHSA-m665-v7pm-7grj ([#55](https://github.com/devlato/claudius/pull/55))
+- studio: Say claudius, never the server ([#66](https://github.com/devlato/claudius/pull/66))
+- compose: Chords, keys and pads on mono recordings get the light chorus ([#84](https://github.com/devlato/claudius/pull/84))
+- model: Songs open from blueprint.json with every time exactly as saved ([#89](https://github.com/devlato/claudius/pull/89))
+
 ## [0.2.0] - 2026-10-19
 
 ### Added
@@ -199,6 +266,7 @@ The first public release.
   theory checks), Linux on x86_64 and ARM64 with a headless build for machines without sound or a display, and
   Windows as a preview. One-line installers for each, which come with every release and are in its checksums.
 
-[unreleased]: https://github.com/devlato/claudius/compare/v0.2.0...HEAD
+[unreleased]: https://github.com/devlato/claudius/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/devlato/claudius/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/devlato/claudius/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/devlato/claudius/releases/tag/v0.1.0
