@@ -583,6 +583,21 @@ mod tests {
     }
 
     #[test]
+    fn a_new_song_turned_away_as_busy_is_no_newer_song() {
+        let app = app(Some(Vec::new()), false);
+        app.lock().job = true;
+        let r = app.command(Command::NewSong {
+            genre: "trip_hop".into(),
+            seed: Some(3),
+            bpm: None,
+            key: None,
+            loops: false,
+        });
+        assert!(!r.ok && r.message.contains("busy"), "{}", r.message);
+        assert_eq!(app.new_songs.load(Ordering::Relaxed), 0, "the job already running stays the newest");
+    }
+
+    #[test]
     fn a_render_asked_for_while_a_new_song_is_made_waits_for_it() {
         let app = app(None, false);
         assert!(!app.command(Command::Render { stems: false }).ok, "no song yet");
