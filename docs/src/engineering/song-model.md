@@ -146,11 +146,13 @@ Every track has a `TrackMix`:
 | `fx` | insert effects |
 | `reverb`, `delay` | send levels to the two returns, 0 to 1 |
 | `duck` | sidechain depth from the kick, 0 to 1 |
+| `drive_db` | the mixer's drive, 0 to 36 dB: tanh saturation after the inserts, before the gain to the role's target |
 | `bus` | `drums`, `bass`, `music` or `fx` |
 | `mute`, `solo` | while any track is soloed, only soloed tracks are arranged |
 
 The song's `MixPlan` holds the reverb and delay effects of the returns, an insert chain per bus, `duck_release` (the
-sidechain recovery, in beats), `levels` (a dB offset per role) and the master (`fx`, a `lufs` target and a
+sidechain recovery, in beats), `levels` (a dB offset per role), `bands` (where the genre's healthy share of a band
+parts from the usual master's, as in an 808 genre's sub, for the critic) and the master (`fx`, a `lufs` target and a
 `ceiling_db`, −1 by default). Effects are plain data too; [Rendering, mixing and
 mastering](rendering.md#effects) lists them.
 

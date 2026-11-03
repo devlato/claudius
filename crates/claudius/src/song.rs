@@ -216,6 +216,7 @@ fn empty_project(r: &Rendered) -> Project {
             buses: Default::default(),
             duck_release: 0.3,
             levels: Default::default(),
+            bands: Default::default(),
             master: Master { fx: Vec::new(), lufs: r.lufs as f32, ceiling_db: -1.0 },
         },
     }

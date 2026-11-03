@@ -209,8 +209,14 @@
       "role": "bass",
       "presets": ["808"],
       "styles": ["kick_follow"],
-      "register": [28, 43],
-      "mix": {"bus": "bass"}
+      "register": [24, 40],
+      "mix": {
+        "bus": "bass",
+        "fx": [
+          {"fx": "saturate", "kind": "tanh", "drive_db": 6, "mix": 1.0},
+          {"fx": "filter", "mode": "lp", "cutoff": 5000, "res": 0.1}
+        ]
+      }
     },
     {
       "name": "keys",
@@ -284,6 +290,7 @@
       {"fx": "saturate", "kind": "tanh", "drive_db": 2, "mix": 0.3}
     ],
     "duck_release": 0.25,
-    "levels": {"bass": 1.5, "kick": -1.0, "hat": -1.0}
+    "levels": {"bass": 6.0, "kick": -1.0, "hat": 2.5, "ohat": 1.0, "snare": 1.0},
+    "bands": {"sub": [-14, -1], "low": [-9, -1], "mid": [-22, -8], "presence": [-31, -15], "air": [-35, -17]}
   }
 }

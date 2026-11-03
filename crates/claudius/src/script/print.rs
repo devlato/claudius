@@ -38,6 +38,7 @@ fn mix_line(name: &str, m: &TrackMix, base: &TrackMix, out: &mut String) {
         ("reverb", m.reverb, base.reverb),
         ("delay", m.delay, base.delay),
         ("duck", m.duck, base.duck),
+        ("drive", m.drive_db, base.drive_db),
     ] {
         if v != b {
             parts.push(format!("{k}: {}", f32s(v)));

@@ -435,7 +435,7 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             }
             Ok(format!("removed {name}"))
         }
-        Command::SetMix { track, level_db, pan, reverb, delay, duck, muted, solo, bus } => {
+        Command::SetMix { track, level_db, pan, reverb, delay, duck, drive_db, muted, solo, bus } => {
             let Some(t) = song.tracks.iter_mut().find(|t| &t.name == track) else {
                 return Some(Err(format!("no track '{track}'")));
             };
@@ -453,6 +453,9 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             }
             if let Some(v) = duck {
                 t.duck = v.clamp(0.0, 1.0);
+            }
+            if let Some(v) = drive_db {
+                t.drive_db = v.clamp(0.0, 36.0);
             }
             if let Some(v) = muted {
                 t.muted = *v;

@@ -1,4 +1,4 @@
-//! The mixer: a channel strip per track (pan, reverb and delay sends, sidechain duck, level fader, mute, solo) with
+//! The mixer: a channel strip per track (pan, reverb and delay sends, sidechain duck, drive, level fader, mute, solo) with
 //! its loudness from the latest render, and the master strip. While anything is soloed only soloed tracks play, so
 //! the others are dimmed. While playing, the meters follow the render's envelope for the tracks that play in the
 //! section under the playhead.
@@ -157,6 +157,16 @@ fn strip(
                     widgets::knob(ui, &mut t.duck, 0.0..=1.0, "duck", color, false, |v| format!("{:.0}%", v * 100.0));
                 if commit(&r) {
                     out.push(MixEdit { duck: Some(t.duck), ..Default::default() }.on(&t.name));
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 0.0;
+                let r = widgets::knob(ui, &mut t.drive_db, 0.0..=36.0, "drive", color, false, |v| {
+                    if v < 0.5 { "off".into() } else { format!("{v:.0} dB") }
+                })
+                .on_hover_text("saturation after its effects: it thickens and roughens the track at the same loudness");
+                if commit(&r) {
+                    out.push(MixEdit { drive_db: Some(t.drive_db), ..Default::default() }.on(&t.name));
                 }
             });
             let fader_h = (ui.available_height() - 64.0).clamp(60.0, 220.0);

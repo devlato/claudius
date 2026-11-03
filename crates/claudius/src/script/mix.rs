@@ -165,7 +165,7 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     }
     let c = ctx.clone();
     engine.register_fn("mix", move |name: &str, m: Map| -> R<()> {
-        check_keys(&m, "mix()", &["level", "pan", "reverb", "room", "delay", "duck", "mute", "solo", "bus"])?;
+        check_keys(&m, "mix()", &["level", "pan", "reverb", "room", "delay", "duck", "drive", "mute", "solo", "bus"])?;
         with_bp(&c, |bp, _| {
             let mix = mix_of(bp, name).ok_or_else(|| format!("no track '{name}'"))?;
             if let Some(v) = map_f32(&m, "level") {
@@ -182,6 +182,9 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
             }
             if let Some(v) = map_f32(&m, "duck") {
                 mix.duck = v.clamp(0.0, 1.0);
+            }
+            if let Some(v) = map_f32(&m, "drive") {
+                mix.drive_db = v.clamp(0.0, crate::model::MAX_DRIVE_DB);
             }
             if let Some(v) = m.get("mute").and_then(|d| d.as_bool().ok()) {
                 mix.mute = v;

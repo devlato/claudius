@@ -58,7 +58,8 @@ Details that make it sound played rather than printed:
 ## The auto-mixer
 
 A producer balances by ear: the kick here, the bass a little under it, the pad well back. claudius does the same with a
-meter. After its inserts, each track's **active level** is measured: the 80th percentile of its short-term loudness
+meter. After its inserts and its drive (a tanh saturator `drive_db` hard, when it has one), each track's **active
+level** is measured: the 80th percentile of its short-term loudness
 (3 s blocks every 0.5 s) over the blocks where it is audible (above −50 LUFS), falling back to momentary blocks
 (0.4 s) for tracks that play only a few hits. The track is then scaled to:
 

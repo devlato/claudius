@@ -114,6 +114,19 @@ The kick is the first track whose role is `kick`; a song without one ducks nothi
 `duck` 0.3, except drum sounds and the kick itself, which start at 0. Generated parts take the genre's values (in
 house: bass 0.55, chords 0.45, pad 0.5, lead 0.2).
 
+## Drive
+
+`drive` (0..36 dB) overloads a track: after its own effects it goes through a tanh saturator, driven that hard,
+before it is brought to its level. The track stays as loud as its `level` makes it, and gets denser and rougher:
+the drive squashes its peaks and adds harmonics, which is what lets an 808 or a sub be heard on small speakers.
+Around 6 dB thickens, 12 dB growls, and 24 dB and up is a speaker going to pieces. For a bass that is louder as
+well, raise its `level` too:
+
+```js
+song("trap", 594000);
+mix("bass", #{ drive: 18, level: 4 });
+```
+
 ## Buses
 
 Each track plays into a bus, and the buses are summed with the reverb and delay returns into the master:
@@ -269,6 +282,7 @@ mix(track, options)   // options: map with any of the fields below
 | `reverb` (or `room`) | number, send | 0..1 |
 | `delay` | number, send | 0..1 |
 | `duck` | number, sidechain depth | 0..1 |
+| `drive` | number, dB of saturation after the track's effects ([Drive](#drive)) | 0..36 |
 | `mute` | bool | |
 | `solo` | bool | |
 | `bus` | string, the bus the track plays into | letters, digits, `-` and `_` |
@@ -277,7 +291,8 @@ mix(track, options)   // options: map with any of the fields below
 (`.level()`, `.pan()` ...), until the next `track()` for that name resets the mix to the pattern's settings. The
 names `fx` and `transitions` address the transition effects (crashes, risers, impacts).
 
-Errors: `no track 'nope'`; `mix() has no option 'volume' (options: level pan reverb room delay duck mute solo bus)`.
+Errors: `no track 'nope'`; `mix() has no option 'volume' (options: level pan reverb room delay duck drive mute solo
+bus)`.
 
 ```js
 mix("pad", #{ level: -4, reverb: 0.45 });

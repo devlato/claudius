@@ -340,10 +340,16 @@ impl App {
                 };
                 self.run_script(&code, Some(what))
             }
-            Command::SetMix { track, level_db, pan, reverb, delay, duck, muted, solo, bus } => {
+            Command::SetMix { track, level_db, pan, reverb, delay, duck, drive_db, muted, solo, bus } => {
                 let mut fields = Vec::new();
-                for (k, x) in [("level", level_db), ("pan", pan), ("reverb", reverb), ("delay", delay), ("duck", duck)]
-                {
+                for (k, x) in [
+                    ("level", level_db),
+                    ("pan", pan),
+                    ("reverb", reverb),
+                    ("delay", delay),
+                    ("duck", duck),
+                    ("drive", drive_db),
+                ] {
                     if let Some(x) = x {
                         fields.push(format!("{k}: {x}"));
                     }
