@@ -5,7 +5,7 @@
 //! keyboards as `midi: ...`, the last analysis as `analysis: ...`, each toast as `toast: ...`, and the graph's node
 //! chosen as `graph: ...`.
 //! Steps: `wait:<s>`, `tab:<sequencer|mixer|parts|harmony|script|sounds|graph|log>`, `section:<i>`, `play`, `pause`, `seek:<s>`,
-//! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `record` (the Record window),
+//! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `download`, `record` (the Record window),
 //! `rec:<start|stop|measure>` (a take, or the latency), `rec:<play|keep|not-now>` (the take back, kept or sent; the
 //! take an assistant asked for turned down), `rec:allow-midi`, `rec:midi:<input>` (a MIDI input chosen),
 //! `rec:grid:<beats>` (its notes' grid, 0 as played), `pick:<song|audio|cover>` (a file dialog, as its button opens
@@ -45,6 +45,8 @@ pub enum Step {
     Assistants,
     /// the Publish dialog
     Publish,
+    /// the song downloaded (or saved, in the app), as the download button does
+    Download,
     /// the Record window
     Record,
     /// what the Record window's buttons do
@@ -200,6 +202,7 @@ impl Plan {
             "tour" => Some(Step::Tour(arg.parse().unwrap_or(0))),
             "assistants" => Some(Step::Assistants),
             "publish" => Some(Step::Publish),
+            "download" => Some(Step::Download),
             "record" => Some(Step::Record),
             "rec" => match arg {
                 "start" => Some(Step::Rec(Rec::Start)),
