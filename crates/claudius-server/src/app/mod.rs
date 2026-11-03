@@ -4,7 +4,7 @@
 
 use std::collections::{BTreeMap, VecDeque};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -139,6 +139,9 @@ pub struct App {
     voice_file: Option<PathBuf>,
     /// whether a genre built on samples gathers what it has none of (Settings::gather)
     gather: bool,
+    /// how many new songs have been asked for: a song whose samples were still being gathered when a newer one was
+    /// asked for is not made
+    new_songs: AtomicU64,
 }
 
 /// how many sessions this process has started
@@ -193,6 +196,7 @@ impl App {
             last_export: Mutex::new(None),
             base: Mutex::new(format!("http://127.0.0.1:{DEFAULT_PORT}")),
             gather: settings.gather && settings.file_roots.is_none(),
+            new_songs: AtomicU64::new(0),
             roots: settings.file_roots,
             voice_file: settings.voice.clone(),
         });
@@ -565,6 +569,17 @@ mod tests {
         let bp = app.blueprint().unwrap();
         assert_eq!((bp.bpm, bp.key.name()), (90.0, "D minor".to_string()), "the phrase's tempo and key");
         assert!(bp.loops.iter().any(|l| l.name == "sample"), "the phrase plays");
+    }
+
+    #[test]
+    fn a_song_whose_samples_came_after_a_newer_one_was_asked_for_is_not_made() {
+        let app = app(Some(Vec::new()), false);
+        app.new_songs.store(2, Ordering::Relaxed);
+        // stopped at once, so that no library is asked
+        app.cancel.store(true, Ordering::Relaxed);
+        app.sampled_song_job(genres::get("trip_hop").unwrap(), 3, claudius::compose::Options::default(), 1);
+        assert!(app.blueprint().is_none(), "the newer song stays");
+        assert!(app.state().log.iter().any(|l| l.contains("a newer song was asked for")), "{:?}", app.state().log);
     }
 
     #[test]

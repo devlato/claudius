@@ -80,6 +80,9 @@ pub fn gather(
     let mut out = Gathered::default();
     for role in Role::ALL {
         let Some(n) = need(g, role) else { continue };
+        if stop() {
+            break;
+        }
         let mut known: HashSet<String> = ix.of(role, lead(&g.name)).into_iter().map(|p| p.source).collect();
         let mut have = known.len();
         if have >= n.keep {
@@ -87,6 +90,9 @@ pub fn gather(
         }
         let mut budget = (n.keep - have) * 3;
         'search: for words in &n.search {
+            if stop() {
+                break;
+            }
             let q = Query { text: words.clone(), sources: Vec::new(), policy: *policy, limit: 12 };
             let got = match online::search(&q) {
                 Ok(s) => s,
@@ -679,6 +685,17 @@ mod tests {
         assert_eq!(at(88.0), (88.0, 8.0, vec!["i".to_string(), "VI".to_string()], 1));
         // two bars at 44 are four at 88: each chord lasts two
         assert_eq!(at(44.0), (88.0, 16.0, vec!["i".to_string(), "VI".to_string()], 2));
+    }
+
+    #[test]
+    fn a_gathering_told_to_stop_asks_no_library() {
+        let root = std::env::temp_dir().join(format!("claudius-stopped-{}", std::process::id()));
+        let ix = Index::at(&root);
+        let mut said = Vec::new();
+        let got = gather(&sampling_genre(), None, &Policy::default(), &ix, &|| true, &mut |s| said.push(s.to_string()))
+            .unwrap();
+        assert!(got.added.is_empty() && got.notes.is_empty() && said.is_empty(), "{:?} {said:?}", got.notes);
+        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]

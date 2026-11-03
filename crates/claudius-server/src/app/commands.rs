@@ -189,6 +189,7 @@ impl App {
                 };
                 let seed = seed.unwrap_or_else(now_seed);
                 let opts = Options { bpm, key, family: loops && self.lib.is_some(), ..Default::default() };
+                let asked = self.new_songs.fetch_add(1, Ordering::Relaxed) + 1;
                 if let Some(wanted) = self.samples_wanted(&g) {
                     if let Err(busy) = self.take_slot(&format!("sampling for {}", g.name)) {
                         return busy;
@@ -198,7 +199,7 @@ impl App {
                         g.name
                     );
                     self.update(|s| s.say(msg.clone()));
-                    self.spawn_job(move |app| app.sampled_song_job(g, seed, opts));
+                    self.spawn_job(move |app| app.sampled_song_job(g, seed, opts, asked));
                     return ok(msg, self.version());
                 }
                 let lib = if g.sampling.is_some() { &self.samples_lib } else { &self.lib };

@@ -220,8 +220,15 @@ impl App {
     }
 
     /// gathers what a genre built on samples plays (with the ears, once they have loaded), then makes the new song with
-    /// what it found; stopping it makes the song with what is there
-    pub(super) fn sampled_song_job(self: &Arc<Self>, g: genres::GenreProfile, seed: u64, opts: compose::Options) {
+    /// what it found, unless a newer one has been asked for since (`asked`: the new song it was); stopping it makes the
+    /// song with what is there
+    pub(super) fn sampled_song_job(
+        self: &Arc<Self>,
+        g: genres::GenreProfile,
+        seed: u64,
+        opts: compose::Options,
+        asked: u64,
+    ) {
         let Some(lib) = self.samples_lib.clone() else { return };
         self.wait_for_ears(Duration::from_secs(90));
         let ears = self.ears.get().and_then(|e| e.as_ref());
@@ -250,6 +257,12 @@ impl App {
             Err(e) => self.update(|s| s.say(format!("sampling for {}: {e:#}; the song plays without them", g.name))),
         }
         let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
+        if self.new_songs.load(Ordering::Relaxed) != asked {
+            self.update(|s| {
+                s.say(format!("a newer song was asked for, so the {} song is not made; its samples are kept", g.name))
+            });
+            return;
+        }
         let bp = compose::generate(&g, seed, &opts, Some(lib.as_ref() as &dyn compose::Library));
         let msg =
             format!("new song: {} — {} at {:.0} BPM in {} (seed {seed})", bp.title, bp.genre, bp.bpm, bp.key.name());
