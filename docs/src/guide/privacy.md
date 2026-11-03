@@ -11,6 +11,15 @@ Wikimedia Commons and ccMixter (`--offline` keeps it from asking); the [update](
 GitHub; an assistant you connect from outside your computer if you set that up; and anonymous usage statistics, which
 are off until you turn them on.
 
+## The website
+
+[claudius.devlato.com](https://claudius.devlato.com) makes no requests to anyone else from your browser: no
+analytics, no cookies, no fonts or scripts from other servers. The studio demo's samples are the one thing it fetches
+for you. When the demo makes a song of a genre built on samples, it asks the site, and the site's Worker
+(`site/worker/index.js`) asks Openverse for loops and Freesound for their audio. It sends them the demo's own search
+words and nothing about you, and they see the site, not your address. What they answer is kept in Cloudflare's cache,
+searches for a day and audio for a year.
+
 ## Usage statistics
 
 They stay off unless you say yes. The studio asks once, at the end of its first-run tour, with two answers and neither

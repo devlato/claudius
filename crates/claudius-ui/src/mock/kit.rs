@@ -43,6 +43,10 @@ pub struct Clip {
     pub secs: f32,
     /// K-weighted energy from its start to each of `TIMES`
     pub energy: Vec<f32>,
+    /// a sampled loop's K-weighted power while it plays (0 for the kit's own files)
+    pub power: f32,
+    /// a sampled loop's length in beats (0 for a texture and the kit's own files)
+    pub beats: f32,
 }
 
 impl Clip {
@@ -116,6 +120,8 @@ enum Arrival {
 pub struct Kit {
     /// a folder, or an address (relative to the page on the web)
     base: Option<String>,
+    /// the samples songs play (`sampled:` and their tracks' sounds), as the sampler cut them
+    sampled: HashMap<String, Sound>,
     manifest: Option<Manifest>,
     /// there is no kit, or it could not be read: the demo plays its synth
     gone: bool,
@@ -155,6 +161,7 @@ impl Kit {
         let kit = Kit {
             gone: base.is_none(),
             base,
+            sampled: HashMap::new(),
             manifest: None,
             clips: HashMap::new(),
             asked: HashSet::new(),
@@ -291,7 +298,10 @@ impl Kit {
             let FileSpec { file, secs, energy, .. } = f;
             let name = file.clone();
             self.fetch(file, move |bytes| {
-                Arrival::File(name, bytes.and_then(decode).map(|(l, r)| Clip { l, r, secs, energy }))
+                Arrival::File(
+                    name,
+                    bytes.and_then(decode).map(|(l, r)| Clip { l, r, secs, energy, power: 0.0, beats: 0.0 }),
+                )
             });
         }
     }
@@ -312,6 +322,9 @@ impl Kit {
 
     /// the sound as far as it has arrived, for the notes a need reaches
     pub fn sound(&self, need: &Need) -> Option<Sound> {
+        if let Some(s) = self.sampled.get(&need.sound) {
+            return Some(s.clone());
+        }
         let spec = self.manifest.as_ref()?.sounds.get(&need.sound)?;
         let clips: Vec<(i32, Arc<Clip>)> =
             self.files(need).iter().filter_map(|s| Some((s.note, self.clips.get(&s.file)?.clone()))).collect();
@@ -320,12 +333,33 @@ impl Kit {
 
     /// whether the kit has `sound` at all
     pub fn has(&self, sound: &str) -> bool {
-        self.manifest.as_ref().is_some_and(|m| m.sounds.contains_key(sound))
+        self.sampled.contains_key(sound) || self.manifest.as_ref().is_some_and(|m| m.sounds.contains_key(sound))
+    }
+
+    /// a sample a loop track plays, by the track's sound
+    pub fn sample(&mut self, track_sound: &str, clip: Arc<Clip>) {
+        let sound = Sound { pitched: false, release: 0.005, clips: vec![(60, clip)] };
+        self.sampled.insert(sampled(track_sound), sound);
+    }
+
+    /// lets go of the samples no track of these sounds plays
+    pub fn keep_samples(&mut self, track_sounds: &HashSet<String>) {
+        self.sampled.retain(|name, _| track_sounds.iter().any(|t| sampled(t) == *name));
     }
 }
 
-/// an Ogg Vorbis file as samples, the right channel empty for a mono one
+/// the name a sampled loop's sound has in the kit: its track's sound
+pub fn sampled(track_sound: &str) -> String {
+    format!("sampled:{track_sound}")
+}
+
+/// an Ogg Vorbis file as samples, the right channel empty for a mono one (the kit's files are at its rate)
 fn decode(bytes: Vec<u8>) -> Result<(Vec<f32>, Vec<f32>), String> {
+    decode_at(bytes).map(|(l, r, _)| (l, r))
+}
+
+/// an Ogg Vorbis file as samples, and the rate they are at
+pub fn decode_at(bytes: Vec<u8>) -> Result<(Vec<f32>, Vec<f32>, u32), String> {
     use symphonia::core::codecs::CodecParameters;
     use symphonia::core::codecs::audio::AudioDecoderOptions;
     use symphonia::core::errors::Error as Sym;
@@ -347,6 +381,7 @@ fn decode(bytes: Vec<u8>) -> Result<(Vec<f32>, Vec<f32>), String> {
         .make_audio_decoder(&params, &AudioDecoderOptions::default())
         .map_err(|e| e.to_string())?;
     let channels = params.channels.as_ref().map_or(1, |c| c.count()).max(1);
+    let rate = params.sample_rate.unwrap_or(RATE);
     let (mut l, mut r, mut buf) = (Vec::new(), Vec::new(), Vec::new());
     loop {
         let packet = match format.next_packet() {
@@ -372,7 +407,7 @@ fn decode(bytes: Vec<u8>) -> Result<(Vec<f32>, Vec<f32>), String> {
             Err(e) => return Err(e.to_string()),
         }
     }
-    Ok((l, r))
+    Ok((l, r, rate))
 }
 
 #[cfg(test)]

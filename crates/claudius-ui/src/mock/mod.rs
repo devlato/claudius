@@ -4,6 +4,7 @@
 //! synthesized a slice per frame) and keeps `song_version`, so stale renders, solo and history behave the same.
 
 mod kit;
+mod sample;
 pub(crate) mod song;
 mod synth;
 
@@ -56,9 +57,38 @@ impl Rng {
 }
 
 enum Job {
-    Render { synth: Box<synth::Render>, stems: bool, version: u64, after: Option<String> },
-    Mutate { count: usize, keep_best: bool, started: f64 },
-    Evolve { generations: usize, children: usize, started: f64, reported: usize },
+    Render {
+        synth: Box<synth::Render>,
+        stems: bool,
+        version: u64,
+        after: Option<String>,
+    },
+    Mutate {
+        count: usize,
+        keep_best: bool,
+        started: f64,
+    },
+    Evolve {
+        generations: usize,
+        children: usize,
+        started: f64,
+        reported: usize,
+    },
+    /// gathering the samples a new song is built on, then making it
+    Sample(Box<Sampling>),
+}
+
+/// a new song of a genre built on samples, waiting for them
+struct Sampling {
+    gathering: sample::Gathering,
+    /// when it began: a gathering waits a minute at most
+    started: f64,
+    rng: Rng,
+    genre: String,
+    seed: u64,
+    bpm: Option<f64>,
+    key: Option<String>,
+    loops: bool,
 }
 
 pub struct Mock {
@@ -80,6 +110,8 @@ pub struct Mock {
     song_changed: bool,
     /// the demo's sounds, arriving while it runs
     kit: kit::Kit,
+    /// what finds and fetches the samples a genre built on them plays
+    sampler: sample::Sampler,
     /// how many times sounds have arrived, and how many had when the last render started
     kit_arrivals: usize,
     rendered_with: usize,
@@ -95,6 +127,8 @@ const CHILD_SECS: f64 = 0.45;
 const AUTO_RENDER_DELAY: f64 = 0.35;
 /// how long a render waits for the demo's sounds before the synth stands in for what has not arrived
 const KIT_WAIT: f64 = 10.0;
+/// how long a new song waits for its samples before it is made with what has come
+const SAMPLE_WAIT: f64 = 60.0;
 /// voice-samples a frame renders: a few milliseconds' work in a browser
 const RENDER_BUDGET: usize = 400_000;
 const AUDIO: [&str; 7] = [".wav", ".mp3", ".flac", ".aif", ".aiff", ".m4a", ".ogg"];
@@ -154,6 +188,7 @@ impl Mock {
             render_at: Some(0.0),
             stems_wanted: false,
             song_changed: false,
+            sampler: sample::Sampler::new(ctx.clone()),
             kit: kit::Kit::new(ctx),
             kit_arrivals: 0,
             rendered_with: 0,
@@ -252,6 +287,31 @@ impl Mock {
         let busy = self.job.is_some();
         let before = self.state.song.clone();
         let result: Result<String, String> = match &cmd {
+            Command::NewSong { genre, seed, bpm, key, loops }
+                if self.sampler.on() && song::sampling(genre).is_some() =>
+            {
+                let seed = seed.unwrap_or_else(|| self.rng.next() % 1000);
+                let g = song::genre(genre);
+                let mut rng = Rng::new(seed ^ 0x5eed_5a3f);
+                let spec = song::sampling(genre).expect("a genre built on samples");
+                let gathering = self.sampler.start(spec, g.bpm, &mut rng);
+                self.state.busy = Some(gathering.doing());
+                self.state.progress = Some(0.0);
+                self.job = Some(Job::Sample(Box::new(Sampling {
+                    gathering,
+                    started: self.now,
+                    rng,
+                    genre: genre.clone(),
+                    seed,
+                    bpm: *bpm,
+                    key: key.clone(),
+                    loops: *loops,
+                })));
+                let msg =
+                    format!("sampling for a {} song (seed {seed}): loops from Freesound under CC0 or CC BY", g.name);
+                self.log(msg.clone());
+                Ok(msg)
+            }
             Command::NewSong { genre, seed, bpm, key, loops } => {
                 let seed = seed.unwrap_or_else(|| self.rng.next() % 1000);
                 let song = song::generate(genre, seed, *bpm, key.as_deref(), *loops);
@@ -486,6 +546,42 @@ impl Mock {
         self.reply(&cmd, result);
     }
 
+    /// the new song a gathering of samples was for, made from what it found
+    fn sampled_song(&mut self, mut s: Sampling) {
+        let cuts = std::mem::take(&mut s.gathering.cuts);
+        for c in &cuts {
+            self.kit.sample(&c.label(), c.clip.clone());
+        }
+        let song = song::generate_with(&s.genre, s.seed, s.bpm, s.key.as_deref(), s.loops, &cuts);
+        let (key, bpm) = (crate::music::Key::parse(&song.key), song.bpm);
+        let msg = format!(
+            "new song: {} — {} at {:.0} BPM in {} (seed {}), {}",
+            song.title,
+            song.genre,
+            song.bpm,
+            song.key,
+            s.seed,
+            if cuts.is_empty() { "without samples" } else { "built on samples" }
+        );
+        // undo goes back to the song as it is now, edits made while the samples were gathered and all
+        let before = self.state.song.clone();
+        self.new_song(song, before, &msg);
+        for c in &cuts {
+            self.log(format!("  {}: {}; {}", c.role.noun(), c.about(key.as_ref(), bpm), c.found.credit()));
+        }
+        // the samples a song that can come back (by undo or redo) plays are kept; the rest let go
+        let sounds = self
+            .state
+            .song
+            .iter()
+            .chain(self.undo.iter().map(|(s, _)| s))
+            .chain(self.redo.iter().map(|(s, _)| s))
+            .flat_map(|s| s.tracks.iter().filter(|t| t.kind == "loop").map(|t| t.sound.clone()))
+            .collect();
+        self.kit.keep_samples(&sounds);
+        self.publish();
+    }
+
     fn new_song(&mut self, song: SongView, before: Option<SongView>, msg: &str) {
         self.state.song = Some(song);
         self.state.render = None;
@@ -602,6 +698,7 @@ impl Mock {
             self.publish();
             self.events.push(Event::Sounds(song::sounds()));
         }
+        self.sampler.poll();
         if self.kit.poll() {
             self.kit_arrivals += 1;
             if let Some(credits) = self.kit.credits.take() {
@@ -712,6 +809,27 @@ impl Mock {
                 if now - self.last_progress > 0.1 || t >= 1.0 || reported != done_gens {
                     self.last_progress = now;
                     self.publish();
+                }
+            }
+            Some(Job::Sample(mut s)) => {
+                let mut lines = self.sampler.advance(&mut s.gathering, &mut s.rng);
+                if now - s.started > SAMPLE_WAIT {
+                    lines.extend(s.gathering.give_up());
+                }
+                let moved = !lines.is_empty();
+                for line in lines {
+                    self.log(line);
+                }
+                if s.gathering.done() {
+                    self.sampled_song(*s);
+                } else {
+                    self.state.busy = Some(s.gathering.doing());
+                    self.state.progress = Some(s.gathering.progress());
+                    self.job = Some(Job::Sample(s));
+                    if moved || now - self.last_progress > 0.25 {
+                        self.last_progress = now;
+                        self.publish();
+                    }
                 }
             }
             None => {}
@@ -883,7 +1001,14 @@ mod tests {
 
     #[test]
     fn sounds_that_come_late_are_mixed_in_as_they_come() {
-        let hit = || kit::Clip { l: vec![0.5; 4_800], r: Vec::new(), secs: 0.1, energy: vec![0.01; kit::TIMES.len()] };
+        let hit = || kit::Clip {
+            l: vec![0.5; 4_800],
+            r: Vec::new(),
+            secs: 0.1,
+            energy: vec![0.01; kit::TIMES.len()],
+            power: 0.0,
+            beats: 0.0,
+        };
         let drums = ["kick", "snare", "clap", "hat"].iter().flat_map(|d| ["707", "808"].map(|m| format!("{m}:{d}")));
         let names: Vec<String> = drums.collect();
         let mut mock = Mock::new(None);
@@ -1138,6 +1263,130 @@ mod tests {
         let events = mock.update(now);
         let r = replies(&events);
         assert!(r.iter().rev().nth(1).is_some_and(|r| r.ok && r.message.contains("tempo")) && !r.last().unwrap().ok);
+    }
+
+    /// answers what a gathering for trip-hop asks, as the site would, until the song is made; returns the time
+    fn feed_samples(mock: &mut Mock, mut now: f64) -> f64 {
+        use sample::tests::{chord_loop, found};
+        let spec = song::sampling("trip_hop").unwrap();
+        let noise = |secs: f64| {
+            let mut rng = Rng::new(9);
+            sample::Pcm2 { l: (0..(secs * 48_000.0) as usize).map(|_| rng.range(-0.2, 0.2)).collect(), r: Vec::new() }
+        };
+        for _ in 0..40 {
+            now += 0.05;
+            mock.update(now);
+            for asked in mock.sampler.pending() {
+                if let Some(q) = asked.strip_prefix("search:") {
+                    let list = if spec.phrase.search.contains(&q) {
+                        vec![found("p", "Orchestral Strings Loop 90 BPM", 5.333, &[])]
+                    } else if spec.drum_break.search.contains(&q) {
+                        vec![found("b", "drums 92 bpm", 2.6087, &[])]
+                    } else {
+                        vec![found("t", "Vinyl Crackle Analogue 1.wav", 6.0, &[])]
+                    };
+                    mock.sampler.arrive_search(q, Ok(list));
+                } else if let Some(a) = asked.strip_prefix("audio:") {
+                    let pcm = match a {
+                        "audio/1/p_1.ogg" => chord_loop(90.0, &[&[57, 60, 64], &[53, 57, 60]], 0.0),
+                        "audio/1/b_1.ogg" => noise(2.6087),
+                        _ => noise(6.0),
+                    };
+                    mock.sampler.arrive_audio(a, Ok(pcm));
+                }
+            }
+            if !matches!(mock.job, Some(Job::Sample(_))) {
+                break;
+            }
+        }
+        now
+    }
+
+    #[test]
+    fn a_song_of_a_genre_built_on_samples_is_made_from_what_the_sampler_finds() {
+        let mut mock = Mock::new(None);
+        mock.sampler = sample::Sampler::by_hand();
+        mock.send(Command::NewSong { genre: "trip_hop".into(), seed: Some(4), bpm: None, key: None, loops: false });
+        assert!(mock.state.busy.as_deref().is_some_and(|b| b.starts_with("sampling")), "{:?}", mock.state.busy);
+        let now = feed_samples(&mut mock, 0.0);
+        let song = mock.state.song.clone().unwrap();
+        assert_eq!((song.bpm, song.key.as_str()), (90.0, "A minor"), "the phrase's tempo and key");
+        assert_eq!(song.progressions[0].1, ["i", "VI"], "and its chords");
+        let sample = song.tracks.iter().find(|t| t.name == "sample").expect("a sample track");
+        assert_eq!(sample.sound, "loop 'Orchestral Strings Loop 90 BPM' by someone (CC BY 4.0), 90 BPM");
+        assert!(song.tracks.iter().any(|t| t.name == "break" && t.bus == "drums"));
+        let verse = song.sections.iter().find(|s| s.name == "verse").unwrap();
+        let has = |l: &str| verse.layers.iter().any(|x| x == l);
+        assert!(has("break") && has("sample") && has("texture"), "{:?}", verse.layers);
+        assert!(!has("snare") && !has("keys"), "what plays in the samples' place stays out: {:?}", verse.layers);
+        assert!(song.lineage.iter().any(|l| l.starts_with("sampled: phrase 'Orchestral Strings Loop 90 BPM'")));
+        let credit = "'Orchestral Strings Loop 90 BPM' by someone, CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), https://freesound.org/s/p/";
+        assert!(mock.state.log.iter().any(|l| l.contains(credit)), "{:#?}", mock.state.log);
+        render(&mut mock, now);
+        let song = mock.state.song.as_ref().unwrap();
+        for name in ["sample", "break", "texture"] {
+            let t = song.tracks.iter().find(|t| t.name == name).unwrap();
+            assert!(t.loudness.is_some(), "{name} plays");
+        }
+    }
+
+    #[test]
+    fn a_tempo_asked_for_moves_the_phrase_and_its_chords_together_and_keeps_the_seeds_song() {
+        use sample::tests::{chord_loop, found};
+        // a seed and a tempo make the song they made before samples: no tempo is drawn
+        let plain = song::generate("house", 5, Some(124.0), None, false);
+        assert_eq!(plain.title, song::generate_with("house", 5, Some(124.0), None, false, &[]).title);
+        // A minor, then F major, at 90; played at 101 (two semitones up) it is B minor: i, VI
+        let pcm = chord_loop(90.0, &[&[57, 60, 64], &[53, 57, 60]], 0.0);
+        let f = found("p", "strings 90bpm", pcm.l.len() as f64 / 48_000.0, &[]);
+        let fit = sample::fit_loop(f.seconds, &sample::said_tempos(&f), (78.0, 94.0));
+        let want = sample::Want { search: &[], words: &[], not: &[], fx: &[] };
+        let cut = sample::cut(sample::Role::Phrase, &pcm, &f, fit, &want).unwrap();
+        let song = song::generate_with("trip_hop", 3, Some(101.0), None, false, &[cut]);
+        assert_eq!(song.key, "B minor");
+        assert_eq!(song.progressions[0].1, ["i", "VI"]);
+        // and the log names them as the song plays them
+        let b_minor = crate::music::Key::parse("B minor").unwrap();
+        let cut = sample::cut(sample::Role::Phrase, &pcm, &f, fit, &want).unwrap();
+        assert!(cut.about(Some(&b_minor), 101.0).ends_with("in B minor: i VI"), "{}", cut.about(Some(&b_minor), 101.0));
+    }
+
+    #[test]
+    fn an_edit_made_while_the_samples_are_gathered_is_kept_for_undo() {
+        let mut mock = Mock::new(None);
+        mock.sampler = sample::Sampler::by_hand();
+        mock.update(0.0);
+        mock.send(Command::NewSong { genre: "trip_hop".into(), seed: Some(4), bpm: None, key: None, loops: false });
+        mock.send(Command::ToggleLayer { section: 0, layer: "bass".into() });
+        let edited = mock.state.song.clone().unwrap();
+        feed_samples(&mut mock, 0.0);
+        assert_eq!(mock.state.song.as_ref().unwrap().genre, "trip_hop");
+        mock.send(Command::Undo);
+        assert_eq!(mock.state.song.as_ref().unwrap().sections, edited.sections, "the edit, not the song before it");
+    }
+
+    #[test]
+    fn without_anywhere_to_ask_a_genre_built_on_samples_plays_what_stands_in_for_them() {
+        let mut mock = Mock::new(None);
+        mock.sampler = sample::Sampler::at(None, None);
+        mock.send(Command::NewSong { genre: "trip_hop".into(), seed: Some(4), bpm: None, key: None, loops: false });
+        let song = mock.state.song.as_ref().unwrap();
+        assert!(!song.tracks.iter().any(|t| t.name == "sample"));
+        let verse = song.sections.iter().find(|s| s.name == "verse").unwrap();
+        assert!(["kick", "snare", "hat", "keys", "strings"].iter().all(|l| verse.layers.iter().any(|x| x == l)));
+    }
+
+    #[test]
+    fn the_sites_worker_searches_for_every_sample_the_demo_looks_for() {
+        let worker = include_str!("../../../../site/worker/index.js");
+        for g in song::GENRES {
+            let Some(spec) = song::sampling(g.name) else { continue };
+            for role in sample::Role::ALL {
+                for q in spec.want(role).search {
+                    assert!(worker.contains(&format!("\"{q}\",")), "site/worker/index.js does not search for '{q}'");
+                }
+            }
+        }
     }
 
     #[test]

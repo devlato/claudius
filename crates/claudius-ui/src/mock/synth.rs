@@ -12,7 +12,7 @@ use std::f32::consts::{FRAC_PI_4, SQRT_2, TAU};
 
 use claudius_api::{CycleView, NoteView, PartView, SongView};
 
-use super::kit::{Kit, Need, Sound};
+use super::kit::{self, Kit, Need, Sound};
 use crate::audio::Pcm;
 use crate::music::{self, Key};
 
@@ -45,7 +45,18 @@ enum Voice {
     Riser,
     Impact,
     Crash,
+    /// a sampled loop, read round and round from `Ev::from` at `Ev::speed`, its ends faded
+    Loop,
 }
+
+/// how a break's bar is chopped in a fill: which of its eight half-beat slices plays in each place
+const CHOPS: [[u8; 8]; 5] = [
+    [0, 1, 2, 3, 4, 5, 4, 5],
+    [0, 1, 2, 3, 0, 1, 6, 7],
+    [0, 1, 4, 5, 2, 3, 6, 6],
+    [0, 0, 2, 3, 4, 4, 6, 7],
+    [0, 1, 2, 2, 4, 5, 7, 7],
+];
 
 struct Ev {
     at: usize,
@@ -57,6 +68,9 @@ struct Ev {
     track: usize,
     /// what the kit plays it with, in `Render::sounds`
     sound: Option<usize>,
+    /// how fast its sound is read, and from where (in the sound's frames)
+    speed: f32,
+    from: f32,
 }
 
 /// a track's level and pan in each channel, its sends, and how far it ducks under the kick
@@ -94,6 +108,9 @@ fn target_level(role: &str) -> f32 {
         "lead" => -18.0,
         "arp" => -20.5,
         "top" => -22.0,
+        "drums" => -14.5,
+        "sample" => -18.0,
+        "texture" => -27.0,
         _ => -19.0,
     }
 }
@@ -173,8 +190,13 @@ pub fn needs(song: &SongView, kit: &Kit) -> Vec<Need> {
     for d in &song.drums {
         add(drum_sound(kit, &song.genre, &d.lane), (60, 60));
     }
-    if song.tracks.iter().any(|t| t.kind == "loop") {
-        add(drum_sound(kit, &song.genre, "shaker"), (60, 60));
+    for t in song.tracks.iter().filter(|t| t.kind == "loop") {
+        let sample = kit::sampled(&t.sound);
+        if kit.has(&sample) {
+            add(Some(sample), (60, 60));
+        } else if t.role == "top" {
+            add(drum_sound(kit, &song.genre, "shaker"), (60, 60));
+        }
     }
     for p in &song.parts {
         add(Some(p.preset.clone()), reach(p));
@@ -537,6 +559,8 @@ impl Render {
                                 gain: v * base * sec_gain,
                                 track,
                                 sound,
+                                speed: 1.0,
+                                from: 0.0,
                             });
                         }
                     }
@@ -551,6 +575,8 @@ impl Render {
                                 gain: (0.4 + 0.15 * (s - 12) as f32) * base,
                                 track,
                                 sound,
+                                speed: 1.0,
+                                from: 0.0,
                             });
                         }
                     }
@@ -562,7 +588,7 @@ impl Render {
                 let sound = sound_at(Some(p.preset.clone()), reach(p));
                 let unit = |synth: f32| if sound.is_some() { sec_gain } else { synth * sec_gain };
                 let mut note = |at: usize, len: usize, voice: Voice, notes: Vec<i32>, gain: f32| {
-                    events.push(Ev { at, len, voice, notes, gain, track, sound });
+                    events.push(Ev { at, len, voice, notes, gain, track, sound, speed: 1.0, from: 0.0 });
                 };
                 // notes written out (the piano roll's): they come round with their cycle, in place of the demo's own,
                 // and play as the demo's own would: as loud at its velocity, as long, and swung alike
@@ -604,6 +630,58 @@ impl Render {
             }
             for t in song.tracks.iter().filter(|t| t.kind == "loop") {
                 let Some(track) = playing(&t.name).filter(|_| on(&t.name)) else { continue };
+                if let Some(si) = sound_of(Some(kit::sampled(&t.sound))) {
+                    playing_here[track] = true;
+                    let clip = &sounds[si].clips[0].1;
+                    // frames a beat takes at the song's tempo; a phrase or a break is read at it, a texture as it is
+                    let bf = beat * SR;
+                    let (speed, beats) = if clip.beats > 0.0 {
+                        (clip.len() as f32 / (clip.beats * bf), clip.beats)
+                    } else {
+                        (1.0, clip.len() as f32 / bf)
+                    };
+                    let (start, end) = (at(sec.start_bar, 0), at(sec.start_bar + sec.bars, 0));
+                    let chopped: Vec<u32> = if t.role == "drums" && sec.fills && clip.beats >= 4.0 {
+                        (0..sec.bars).filter(|b| b % 8 == 7).collect()
+                    } else {
+                        Vec::new()
+                    };
+                    let mut loop_ev = |from_beat: f32, beats_long: f32, from: f32| {
+                        let at = start + (from_beat * bf) as usize;
+                        let len = ((beats_long * bf) as usize).min(end.saturating_sub(at));
+                        let ev = Ev {
+                            at,
+                            len,
+                            voice: Voice::Loop,
+                            notes: Vec::new(),
+                            gain: sec_gain,
+                            track,
+                            sound: Some(si),
+                            speed,
+                            from,
+                        };
+                        events.push(ev);
+                    };
+                    // played straight between the chopped bars
+                    let mut from_beat = 0.0;
+                    for to in chopped.iter().map(|&b| b as f32 * 4.0).chain([sec.bars as f32 * 4.0]) {
+                        if to > from_beat {
+                            loop_ev(from_beat, to - from_beat, (from_beat % beats) * bf * speed);
+                        }
+                        from_beat = to + 4.0;
+                    }
+                    for &bar in &chopped {
+                        let order = &CHOPS[(song.seed as usize + sec.start_bar as usize + bar as usize) % CHOPS.len()];
+                        let at_beat = bar as f32 * 4.0;
+                        for (j, &k) in order.iter().enumerate() {
+                            loop_ev(at_beat + j as f32 * 0.5, 0.5, ((at_beat % beats) + k as f32 * 0.5) * bf * speed);
+                        }
+                    }
+                    continue;
+                }
+                if t.role != "top" {
+                    continue;
+                }
                 playing_here[track] = true;
                 let sound = sound_of(drum_sound(kit, &song.genre, "shaker"));
                 for bar in 0..sec.bars {
@@ -621,6 +699,8 @@ impl Render {
                             gain: g * sec_gain,
                             track,
                             sound,
+                            speed: 1.0,
+                            from: 0.0,
                         });
                     }
                 }
@@ -635,7 +715,17 @@ impl Render {
                     for (voice, len, gain, sound) in
                         [(Voice::Impact, 1.6, 0.8, impact), (Voice::Crash, 1.8, 0.6, crash)]
                     {
-                        events.push(Ev { at: start, len: secs(len), voice, notes: Vec::new(), gain, track, sound });
+                        events.push(Ev {
+                            at: start,
+                            len: secs(len),
+                            voice,
+                            notes: Vec::new(),
+                            gain,
+                            track,
+                            sound,
+                            speed: 1.0,
+                            from: 0.0,
+                        });
                     }
                 }
                 if sec.build {
@@ -650,6 +740,8 @@ impl Render {
                         gain: 0.7,
                         track,
                         sound: sound_of(Some("fx:riser".into())),
+                        speed: 1.0,
+                        from: 0.0,
                     });
                 }
                 if sec.gap {
@@ -673,7 +765,9 @@ impl Render {
             let notes: &[i32] = if ev.notes.is_empty() { &[60] } else { &ev.notes };
             for &n in notes {
                 let Some((clip, ratio)) = s.pick(n as f32) else { continue };
-                let energy = if s.pitched {
+                let energy = if ev.voice == Voice::Loop {
+                    clip.power * ev.len as f32 / SR
+                } else if s.pitched {
                     // the clip read `ratio` times as fast: held, then fading over its release (a third of its energy)
                     let (held, gone) = (ev.len as f32 / SR * ratio, (ev.len as f32 / SR + s.release.max(0.03)) * ratio);
                     let until_held = clip.energy_until(held);
@@ -817,19 +911,33 @@ impl Render {
                     let ratio = if ev.voice == Voice::Riser {
                         (clip.len() as f32 / ev.len.max(1) as f32).clamp(0.5, 2.0)
                     } else {
-                        ratio
+                        ratio * ev.speed
                     };
+                    let looped = ev.voice == Voice::Loop;
                     let whole = (clip.len() as f32 / ratio) as usize;
-                    let frames = if sound.pitched { (ev.len + fade).min(whole) } else { whole }.min(room);
+                    let frames = if looped {
+                        ev.len
+                    } else if sound.pitched {
+                        (ev.len + fade).min(whole)
+                    } else {
+                        whole
+                    }
+                    .min(room);
+                    // a loop's stretch ends faded inside it: the next stretch, or a slice, starts where it ends
+                    let edge = (0.003 * SR) as usize;
                     spent += frames;
                     for k in 0..frames {
-                        let (l, r) = if ratio == 1.0 {
+                        let (l, r) = if looped {
+                            clip.linear((ev.from + k as f32 * ratio) % clip.len().max(1) as f32)
+                        } else if ratio == 1.0 {
                             (clip.l[k], clip.r.get(k).copied().unwrap_or(clip.l[k]))
                         } else {
                             clip.linear(k as f32 * ratio)
                         };
                         let mut env = if k < attack { k as f32 / attack as f32 } else { 1.0 };
-                        if sound.pitched && k > ev.len {
+                        if looped && frames - k < edge {
+                            env *= (frames - k) as f32 / edge as f32;
+                        } else if sound.pitched && k > ev.len {
                             env *= 1.0 - (k - ev.len) as f32 / fade as f32;
                         }
                         let g = env * ev.gain;
@@ -1115,6 +1223,8 @@ impl SynthVoice {
                     + self.white() * (-t * 9.0).exp() * 0.25
             }
             Voice::Crash => self.bright() * (-t * 2.5).exp() * 0.35,
+            // a loop plays only its sample
+            Voice::Loop => 0.0,
         }
     }
 }
@@ -1134,7 +1244,7 @@ mod tests {
             .iter()
             .map(|t| l.iter().take((t * SR) as usize).map(|x| x * x).sum::<f32>() / SR)
             .collect();
-        Clip { secs, l, r: Vec::new(), energy }
+        Clip { secs, l, r: Vec::new(), energy, power: 0.0, beats: 0.0 }
     }
 
     /// a kit with a sound for everything a demo song plays

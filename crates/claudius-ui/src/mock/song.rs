@@ -6,6 +6,7 @@ use claudius_api::{
 };
 
 use super::Rng;
+use super::sample::{Cut, Fx, Role, Spec, Want};
 use crate::music::{self, Key};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -267,7 +268,7 @@ pub const GENRES: &[Genre] = &[
     },
     Genre {
         name: "trip_hop",
-        description: "Trip-hop: slow, heavy, swung breakbeats under dark minor chords, a deep sub bass, dusty electric piano and strings, a high lonely melody, dub delays that swell in the breaks, long reverbs, tape and vinyl over everything",
+        description: "Trip-hop, built on samples: a slowed drum break, a dark phrase from a recording that the song takes its key and chords from, vinyl crackle, a deep sub bass, strings that swell in the hooks, a high lonely melody, dub delays and long reverbs",
         bpm: (78.0, 94.0),
         swing: (0.51, 0.56),
         feel: Feel::BoomBap,
@@ -798,6 +799,65 @@ pub const GENRES: &[Genre] = &[
     },
 ];
 
+/// trip-hop's samples in the demo: loops, as trip-hop's profile describes its samples, with its colours (the
+/// break lowpassed; the phrase high-passed, through tape and a little crushed)
+static TRIP_HOP: Spec = Spec {
+    phrase: Want {
+        search: &[
+            "dark piano loop",
+            "sad piano loop",
+            "strings loop",
+            "cello loop",
+            "orchestral strings loop",
+            "dark melody loop",
+            "orchestral melody",
+            "sad violin loop",
+        ],
+        words: &[
+            "piano",
+            "strings",
+            "string",
+            "cello",
+            "cellos",
+            "violin",
+            "violins",
+            "viola",
+            "orchestra",
+            "orchestral",
+            "harp",
+            "harpsichord",
+            "mellotron",
+            "choir",
+            "rhodes",
+            "keys",
+            "flute",
+            "guitar",
+        ],
+        not: &["cowbell", "percussion", "drumloop"],
+        fx: &[Fx::Highpass(160.0), Fx::Tape { drive_db: 3.0, lowpass: 8500.0 }, Fx::Crush { bits: 12, down: 2 }],
+    },
+    drum_break: Want {
+        search: &["hip hop drum loop", "dusty drum loop", "slow drum break", "funk drum loop"],
+        words: &["drum", "drums", "drumloop", "break", "breakbeat", "breaks", "beat", "groove"],
+        not: &["industrial", "techno", "dubstep", "edm", "trance", "house"],
+        fx: &[Fx::Lowpass(10_000.0)],
+    },
+    texture: Want {
+        search: &["vinyl crackle", "record crackle", "vinyl noise"],
+        words: &["vinyl", "turntable", "gramophone", "phonograph", "lp", "78rpm", "shellac"],
+        not: &["foley", "sfx", "metal", "electric", "welding"],
+        fx: &[Fx::Highpass(300.0)],
+    },
+};
+
+/// the samples a genre is built on, if it is (a fusion: the genre that leads it)
+pub fn sampling(name: &str) -> Option<&'static Spec> {
+    match genre(name).name {
+        "trip_hop" => Some(&TRIP_HOP),
+        _ => None,
+    }
+}
+
 /// a genre of the demo's; a fusion plays the genre that leads it
 pub fn genre(name: &str) -> &'static Genre {
     let name = name.split('+').next().unwrap_or(name).trim();
@@ -1145,6 +1205,39 @@ fn section_layers(kind: &str, song: &SongView, genre: &Genre) -> Vec<String> {
     drums.iter().chain(parts.iter()).chain(loops.iter()).copied().filter(|l| pick(l)).map(|s| s.to_string()).collect()
 }
 
+/// what a section of a genre built on samples plays, as trip-hop's profile writes its forms; in a sample's place,
+/// what plays instead of it: the drum lanes for the break, keys and strings for the phrase
+fn sampled_layers(kind: &str, song: &SongView) -> Vec<String> {
+    let has = |name: &str| song.tracks.iter().any(|t| t.name == name);
+    let plan: &[&str] = match kind {
+        "intro" => &["sample", "texture", "perc"],
+        "verse" | "groove" => &["break", "perc", "bass", "sample", "texture"],
+        "hook" | "drop" => &["break", "ohat", "perc", "bass", "sample", "strings", "lead", "texture"],
+        "break" | "build" => &["sample", "texture", "lead"],
+        "outro" => &["sample", "strings", "texture"],
+        _ => &["break", "bass", "sample", "texture"],
+    };
+    let mut out: Vec<String> = Vec::new();
+    for &layer in plan {
+        let instead: &[&str] = match layer {
+            "break" if !has("break") => &["kick", "snare", "hat"],
+            "sample" if !has("sample") => &["keys", "strings"],
+            _ => std::slice::from_ref(&layer),
+        };
+        for l in instead {
+            if has(l) && !out.iter().any(|o| o == l) {
+                out.push(l.to_string());
+            }
+        }
+    }
+    out
+}
+
+/// whether every mode a genre plays in is minor
+fn dark(genre: &Genre) -> bool {
+    genre.modes.iter().all(|m| Key::parse(&format!("C {m}")).is_some_and(|k| k.is_minor()))
+}
+
 /// a whole new song: title, tempo, key, form, drums, parts, tracks
 /// the demo's mix around the tracks, as claudius' genres build theirs: a glue compressor on the drums, the music
 /// high-passed, the master's EQ, compressor and saturation, and its reverb and delay
@@ -1177,15 +1270,43 @@ fn demo_mix(genre: &str) -> claudius_api::MixView {
 }
 
 pub fn generate(genre_name: &str, seed: u64, bpm: Option<f64>, key: Option<&str>, loops: bool) -> SongView {
+    generate_with(genre_name, seed, bpm, key, loops, &[])
+}
+
+/// a whole new song built on the samples `cuts`: the phrase's tempo (unless one is asked for), its key and its chords
+/// become the song's. A genre built on samples plays what plays instead of those it has not got
+pub fn generate_with(
+    genre_name: &str,
+    seed: u64,
+    bpm: Option<f64>,
+    key: Option<&str>,
+    loops: bool,
+    cuts: &[Cut],
+) -> SongView {
     let genre = genre(genre_name);
     let mut rng = Rng::new(seed ^ 0x9e37_79b9_7f4a_7c15);
-    let bpm = bpm.unwrap_or_else(|| (genre.bpm.0 + (genre.bpm.1 - genre.bpm.0) * rng.f64()).round());
+    // a tempo is drawn only when none is asked for, so that a seed and a tempo make the song they always made
+    let phrase = cuts.iter().find(|c| c.role == Role::Phrase);
+    let bpm = bpm.unwrap_or_else(|| {
+        let drawn = (genre.bpm.0 + (genre.bpm.1 - genre.bpm.0) * rng.f64()).round();
+        phrase.map_or(drawn, |p| (p.bpm * 10.0).round() / 10.0)
+    });
     let swing = ((genre.swing.0 + (genre.swing.1 - genre.swing.0) * rng.f32()) * 100.0).round() / 100.0;
     let mode = *rng.pick(genre.modes);
-    let key = key.and_then(Key::parse).unwrap_or(Key {
+    let drawn_key = key.and_then(Key::parse).unwrap_or(Key {
         tonic: rng.below(12) as i32,
         mode: music::MODES.iter().position(|(m, _)| *m == mode).unwrap_or(1),
     });
+    // a phrase played faster than it was cut sounds higher: its key and its notes move by as many semitones
+    let shift = phrase.map_or(0, |p| p.shift(bpm));
+    let key = match phrase.and_then(|p| p.key) {
+        Some(heard) => {
+            let k = Key { tonic: (heard.tonic + shift).rem_euclid(12), mode: heard.mode };
+            // a genre with no major mode plays a major phrase in its relative minor: the same notes
+            if dark(genre) && !k.is_minor() { Key { tonic: (k.tonic + 9) % 12, mode: 1 } } else { k }
+        }
+        None => drawn_key,
+    };
     let title = format!("{} {}", rng.pick(ADJECTIVES), rng.pick(NOUNS));
 
     let drums: Vec<DrumView> = genre.drums.iter().map(|l| drum_lane(l, genre.feel, &mut rng)).collect();
@@ -1286,6 +1407,30 @@ pub fn generate(genre_name: &str, seed: u64, bpm: Option<f64>, key: Option<&str>
             bus: "drums".into(),
         });
     }
+    for c in cuts {
+        // as trip-hop's profile mixes its samples: the break on the drum bus, the phrase up 2 dB into reverb and delay
+        let (bus, level_db, reverb, delay) = match c.role {
+            Role::Break => ("drums", 0.0, 0.0, 0.0),
+            Role::Phrase => ("music", 2.0, 0.3, 0.15),
+            Role::Texture => ("music", 0.0, 0.0, 0.0),
+        };
+        tracks.push(TrackView {
+            name: c.role.track().into(),
+            kind: "loop".into(),
+            role: c.role.level().into(),
+            sound: c.label(),
+            level_db,
+            pan: 0.0,
+            reverb,
+            delay,
+            duck: 0.0,
+            muted: false,
+            solo: false,
+            loudness: None,
+            fx: Vec::new(),
+            bus: bus.into(),
+        });
+    }
     tracks.push(TrackView {
         name: "fx".into(),
         kind: "fx".into(),
@@ -1303,6 +1448,17 @@ pub fn generate(genre_name: &str, seed: u64, bpm: Option<f64>, key: Option<&str>
         bus: "fx".into(),
     });
 
+    let mut progressions = progressions(key.mode_name(), &mut rng);
+    if let (Some(p), Some(a)) = (phrase, progressions.first_mut()) {
+        a.1 = super::sample::chords(&p.bars_moved(shift), &key);
+    }
+    let mut lineage =
+        vec![format!("generated: {} seed {seed}{}", genre.name, if loops { " (around Apple Loops)" } else { "" })];
+    if !cuts.is_empty() {
+        let what: Vec<String> =
+            cuts.iter().map(|c| format!("{} '{}' by {}", c.role.noun(), c.found.title, c.found.creator)).collect();
+        lineage.push(format!("sampled: {}", what.join(", ")));
+    }
     let mut song = SongView {
         title,
         genre: genre.name.into(),
@@ -1310,18 +1466,15 @@ pub fn generate(genre_name: &str, seed: u64, bpm: Option<f64>, key: Option<&str>
         bpm,
         key: key.name(),
         swing,
-        progressions: progressions(key.mode_name(), &mut rng),
+        progressions,
         drums,
         parts,
         tracks,
         mix: demo_mix(genre.name),
-        lineage: vec![format!(
-            "generated: {} seed {seed}{}",
-            genre.name,
-            if loops { " (around Apple Loops)" } else { "" }
-        )],
+        lineage,
         ..Default::default()
     };
+    let samples = sampling(genre.name).is_some();
     song.layers = song
         .drums
         .iter()
@@ -1338,14 +1491,17 @@ pub fn generate(genre_name: &str, seed: u64, bpm: Option<f64>, key: Option<&str>
         } else {
             "main"
         };
+        let layers = if samples { sampled_layers(kind, &song) } else { section_layers(kind, &song, genre) };
+        // what plays the phrase plays its chords
+        let prog = if matches!(*kind, "break" | "build") && !layers.iter().any(|l| l == "sample") { "B" } else { "A" };
         let section = SectionView {
             name: name.to_string(),
             kind: kind.to_string(),
             start_bar: 0,
             bars: *bars,
             energy: energy(kind, &mut rng),
-            layers: section_layers(kind, &song, genre),
-            prog: if matches!(*kind, "break" | "build") { "B".into() } else { "A".into() },
+            layers,
+            prog: prog.into(),
             variant: variant.into(),
             filter_in: *kind == "intro",
             build: *kind == "build" || (*kind == "break" && rng.chance(0.4)),

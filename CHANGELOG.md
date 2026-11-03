@@ -10,6 +10,11 @@ Boom bap is built on samples too: a dusty drum break, a soul or jazz phrase from
 bits, and vinyl crackle, gathered from free libraries as trip-hop's are. The ears no longer hear it as stock ukulele
 music; they hear the hip hop family, lo-fi hip hop (boom bap's offspring) first.
 
+The web demo samples too: a trip-hop song in the [studio demo](https://claudius.devlato.com/studio/?mock) is built
+on loops from Freesound under CC0 or CC BY, found as the song is made. Its tempo, key and chords come from the phrase,
+and a drum break (re-chopped in the fills) and vinyl crackle play with it, each credited in its track and in the log.
+The browser asks only the site, whose Worker asks Openverse and Freesound.
+
 The studio and assistants gather samples on demand too: the first new trip-hop song gathers its break, phrase and
 crackle as a job, with progress and its log, then makes the song with them. `claudius studio --offline` and a shared
 claudius gather nothing.
