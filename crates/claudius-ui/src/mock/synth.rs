@@ -426,6 +426,37 @@ fn driven(v: f32, gain: f32) -> f32 {
     (v * gain).tanh() / gain.tanh()
 }
 
+/// The gain that takes track `track`, driven by `gain`, back to the loudness its level gives it, as the engine's
+/// balance after the drive does: what the drive does to its first notes, a quarter second of each, undone. 1 without a
+/// drive.
+fn drive_makeup(events: &[Ev], sounds: &[Sound], track: usize, gain: f32) -> f32 {
+    if gain <= 0.0 {
+        return 1.0;
+    }
+    let (mut dry, mut wet) = (0.0f64, 0.0f64);
+    let mut heard = |s: f32| {
+        dry += f64::from(s * s);
+        wet += f64::from(driven(s, gain).powi(2));
+    };
+    for ev in events.iter().filter(|e| e.track == track).take(8) {
+        let n = ev.len.min((0.25 * SR) as usize);
+        match ev.sound.map(|s| &sounds[s]) {
+            Some(sound) => {
+                let note = ev.notes.first().copied().unwrap_or(60) as f32;
+                if let Some((clip, ratio)) = sound.pick(note) {
+                    let n = n.min((clip.len() as f32 / ratio.max(1e-3)) as usize);
+                    (0..n).for_each(|k| heard(clip.linear(k as f32 * ratio).0 * ev.gain));
+                }
+            }
+            None => {
+                let mut voice = SynthVoice::new(ev);
+                (0..n).for_each(|k| heard(voice.next(k, ev.len) * ev.gain));
+            }
+        }
+    }
+    if wet > 0.0 { (dry / wet).sqrt() as f32 } else { 1.0 }
+}
+
 /// the gain at frame `t` of a track that ducks `depth` under kicks at `kicks`, `next` the index of the first kick
 /// after the previous frame asked about (each note of a chord asks from its start again)
 fn ducked(kicks: &[usize], next: &mut usize, t: usize, depth: f32, release: f32) -> f32 {
@@ -796,14 +827,15 @@ impl Render {
                 set_to[i] = Some(f64::from(target + t.level_db));
             }
             let theta = (t.pan.clamp(-1.0, 1.0) + 1.0) * FRAC_PI_4;
-            let g = level[i] * db(t.level_db);
+            let drive = if t.drive_db > 0.0 { db(t.drive_db.min(36.0)) } else { 0.0 };
+            let g = level[i] * db(t.level_db) * drive_makeup(&events, &sounds, i, drive);
             mix[i] = Mix {
                 left: g * theta.cos() * SQRT_2,
                 right: g * theta.sin() * SQRT_2,
                 verb: g * t.reverb.clamp(0.0, 1.0),
                 echo: g * t.delay.clamp(0.0, 1.0),
                 duck: if t.role == "kick" { 0.0 } else { t.duck.clamp(0.0, 1.0) * 0.8 },
-                drive: if t.drive_db > 0.0 { db(t.drive_db.min(36.0)) } else { 0.0 },
+                drive,
             };
         }
         let from_synth = events.iter().filter(|e| e.sound.is_none()).count();

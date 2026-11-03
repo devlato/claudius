@@ -978,6 +978,33 @@ mod tests {
     }
 
     #[test]
+    fn a_driven_track_plays_as_loud_as_its_level_makes_it() {
+        let mut mock = Mock::new(None);
+        mock.update(0.0);
+        let now = render(&mut mock, 0.0);
+        let bass = |m: &Mock| {
+            let t = m.state.song.as_ref().unwrap().tracks.iter().find(|t| t.role == "bass").unwrap();
+            (t.name.clone(), t.loudness.unwrap())
+        };
+        let (name, clean) = bass(&mock);
+        mock.send(Command::SetMix {
+            track: name,
+            level_db: None,
+            pan: None,
+            reverb: None,
+            delay: None,
+            duck: None,
+            drive_db: Some(24.0),
+            muted: None,
+            solo: None,
+            bus: None,
+        });
+        render(&mut mock, now);
+        let (_, driven) = bass(&mock);
+        assert!((driven - clean).abs() < 2.0, "{clean:.1} LUFS clean, {driven:.1} LUFS driven 24 dB");
+    }
+
+    #[test]
     fn renders_judges_and_plays_back() {
         let mut mock = Mock::new(None);
         let first = mock.update(0.0);
