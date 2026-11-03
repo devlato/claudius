@@ -214,7 +214,7 @@ pub fn draw(
         return Some(Drawn::Instrument(of[rng.below(of.len())].name.clone()));
     }
     // a synth: any made for the role, or the kind's stand-in when no instrument of it is installed
-    let all = crate::synth::presets::for_role(role.name());
+    let all = crate::synth::presets::drawable(role.name());
     let like: Vec<&str> = stand_ins(kind.0).iter().copied().filter(|p| all.contains(p)).collect();
     let pool = if kind.0 == "synth" || like.is_empty() { all } else { like };
     let free: Vec<&str> = pool.iter().copied().filter(|p| !taken.contains(&format!("synth:{p}"))).collect();

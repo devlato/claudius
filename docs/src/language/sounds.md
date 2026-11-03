@@ -86,7 +86,7 @@ pattern track.
 | `pluck_bass` | square and saw with a short filter pluck | yes | bass |
 | `organ_bass` | three sine drawbars (fundamental, octave, two octaves) | yes | bass |
 | `wobble` | detuned saws and a square, ladder filter swept by a tempo-synced LFO | yes, tied notes | bass |
-| `log_drum` | a sine knocked into its note, a pitch drop and a woody FM click, dying away; glides a little | yes | bass |
+| `log_drum` | a sine knocked into its note, a pitch drop and a woody FM click, dying away; glides a little | yes | bass, when named (amapiano's) |
 | `pluck` | three detuned saws and a square an octave up, fast filter decay | no | by pitch |
 | `supersaw` | seven detuned saws plus three an octave down, delayed vibrato | no | by pitch |
 | `pad` | five saws and a triangle, slow attack, long release, slow filter drift | no | by pitch |

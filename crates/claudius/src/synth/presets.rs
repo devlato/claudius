@@ -96,6 +96,15 @@ pub fn for_role(role: &str) -> Vec<&'static str> {
     ROLES.iter().filter(|(_, r)| r.contains(&role)).map(|(n, _)| *n).collect()
 }
 
+/// presets that are one genre's own sound (amapiano's log drum): a part plays them when its genre or a person names
+/// them, never as a sound drawn for any song
+const OWN: &[&str] = &["log_drum"];
+
+/// the presets a part of `role` may be given when no one has named its sound
+pub fn drawable(role: &str) -> Vec<&'static str> {
+    for_role(role).into_iter().filter(|p| !OWN.contains(p)).collect()
+}
+
 pub fn get(name: &str) -> Option<Patch> {
     let p = match name {
         "sub_bass" => Patch {
@@ -646,6 +655,13 @@ mod tests {
             assert!(x.l.iter().chain(&x.r).all(|v| v.is_finite()), "{name}");
             assert!((0.02..8.0).contains(&peak), "{name}: peak {peak}");
         }
+    }
+
+    #[test]
+    fn a_genres_own_sound_is_offered_for_its_role_but_never_drawn() {
+        assert!(for_role("bass").contains(&"log_drum"), "a bass part may be set to it");
+        assert!(!drawable("bass").contains(&"log_drum"), "no song is given it unless its genre names it");
+        assert_eq!(drawable("lead"), for_role("lead"));
     }
 
     #[test]

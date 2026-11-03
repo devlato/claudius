@@ -64,7 +64,7 @@
   "kits": [["tr909", 0.3], ["tr808", 0.3]],
   "kit_mix": 0.3,
   "palette": {
-    "bass": {"core": 0.95, "synth": 1},
+    "bass": {"core": 1.0, "synth": 1},
     "keys": {"core": 0.4, "piano": 3, "electric piano": 2.5, "organ": 0.8, "mallets": 0.8},
     "lead": {"core": 0.35, "woodwinds": 2.5, "voice": 1.5, "mallets": 1.5, "synth": 1},
     "pad": {"core": 0.5, "strings": 1.5, "pad": 1.5, "synth": 1, "choir": 1}
@@ -73,7 +73,7 @@
     {
       "name": "logdrum",
       "role": "bass",
-      "presets": ["log_drum", "log_drum", "pluck_bass"],
+      "presets": ["log_drum"],
       "styles": ["syncopated", "kick_follow", "offbeat"],
       "register": [33, 52],
       "mix": {"bus": "bass", "duck": 0.2}

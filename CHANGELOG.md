@@ -6,15 +6,16 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
-Four genres play their signature sounds instead of whatever the palette drew, and the ears hear them as themselves
-more often:
+Four genres play their signature sounds instead of whatever the palette drew, and the ears hear the first three
+as themselves more often:
 
 - dubstep's wobble bass, a sine sub and a big snare-and-clap on the third beat, on an 808 kit, with hats no longer
   on the offbeat, which the ears heard as techno;
 - future bass's supersaw chords, plucked and vocal leads, and no chip or mallet sounds, which the ears heard as
   chiptune;
 - synthwave's saw and Moog basses, string-machine and PWM pads, saw and square leads, chorus and a wobbling tape;
-- amapiano's log drum, a new synth preset (`log_drum`): a pitched, woody knock that glides from note to note.
+- amapiano's log drum, a new synth preset (`log_drum`): a pitched, woody knock that glides from note to note. The ears
+  still hear its close kin, afrobeats, first.
 
 Art rock plays like a band rather than a dance track. It has an acoustic kit with fills, a pick or finger bass that
 distorts in the climaxes, piano, strings, a clean guitar arpeggio, and two distorted power-chord guitars panned wide
