@@ -49,7 +49,15 @@ fn drums<'a>(s: &'a SectionSpec, g: &GenreProfile) -> Vec<&'a String> {
 /// the parts among a section's layers that every song of the genre has (a loop, or a part a song may leave out, is
 /// not sure to play)
 fn melodic<'a>(s: &'a SectionSpec, g: &GenreProfile) -> Vec<&'a String> {
-    s.layers.iter().filter(|l| g.parts.iter().any(|p| p.name == **l && p.optional <= 0.0)).collect()
+    // a genre built on samples plays its phrase as a part (or, without one, the parts it names instead)
+    let phrase = crate::sampling::need(g, crate::library::prepared::Role::Phrase).is_some();
+    s.layers
+        .iter()
+        .filter(|l| {
+            g.parts.iter().any(|p| p.name == **l && p.optional <= 0.0)
+                || (phrase && l.as_str() == crate::sampling::PHRASE)
+        })
+        .collect()
 }
 
 /// whether a layer is sure to play in every song of the genre: a drum lane, or a part never left out
@@ -134,7 +142,9 @@ pub fn vary(template: &[SectionSpec], g: &GenreProfile, bpm: f64, rng: &Rng) -> 
         // a breakdown: the bass leaves with the drums (a trap 808 alone is as loud as the hook)
         let layers: Vec<String> = melodic(&form[last], g)
             .into_iter()
-            .filter(|l| g.parts.iter().any(|q| q.name == **l && q.role != Role::Bass))
+            .filter(|l| {
+                l.as_str() == crate::sampling::PHRASE || g.parts.iter().any(|q| q.name == **l && q.role != Role::Bass)
+            })
             .cloned()
             .collect();
         if layers.len() >= 2 {
@@ -389,14 +399,17 @@ mod tests {
 
     #[test]
     fn a_bridge_plays_the_melodic_parts_without_drums_or_bass_on_the_second_progression() {
-        for name in ["trap", "lofi"] {
+        // boom bap's melody is its sampled phrase
+        for name in ["trap", "lofi", "boom_bap"] {
             let g = crate::genres::get(name).unwrap();
             let bridge = (0..200)
                 .map(|seed| vary(&g.forms[0], &g, 120.0, &Rng::new(seed)))
                 .find_map(|f| f.into_iter().find(|s| s.name == "bridge"))
-                .expect("some song has a bridge");
+                .unwrap_or_else(|| panic!("some {name} song has a bridge"));
             assert_eq!((bridge.kind, bridge.prog.as_str()), (SectionKind::Break, "B"));
-            let melodic = |l: &String| g.parts.iter().any(|p| &p.name == l && p.role != Role::Bass);
+            let melodic = |l: &String| {
+                g.parts.iter().any(|p| &p.name == l && p.role != Role::Bass) || l == crate::sampling::PHRASE
+            };
             assert!(bridge.layers.iter().all(melodic), "{name}: {:?}", bridge.layers);
         }
     }

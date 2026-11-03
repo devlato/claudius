@@ -13,8 +13,9 @@ section hook (hook) 16 bars, energy 0.85, prog C, main [fills]: ohat rim bass ho
 section verse2 (verse) 16 bars, energy 0.71, prog A, main [gap fills]: rim bass pad horns kick snare hat keys
 section hook2 (hook) 8 bars, energy 0.94, prog C, main [fills]: ohat rim bass horns pad kick snare hat keys
 section verse3 (verse) 8 bars, energy 0.73, prog A, main [fills]: rim bass kick snare hat keys
-section hook3 (hook) 16 bars, energy 1.00, prog C, main [fills]: ohat rim bass horns pad kick snare hat keys
-section outro (outro) 8 bars, energy 0.31, prog A, main []: keys
+section bridge (break) 8 bars, energy 0.30, prog B, sparse []: horns keys
+section hook3 (hook) 16 bars, energy 0.96, prog C, main [fills]: ohat rim bass horns pad kick snare hat keys
+section outro (outro) 8 bars, energy 0.35, prog A, main []: keys
 drum kick main (drum kick): X.........X.....|X.........X.....|X.........X.....|X.........X.....
 drum snare main (drum snare): ....X.......X.o.|....X.......X.o.|....X.......X.o.|....X.......X.o.
 drum hat main (drum closed_hat): x...x.x.x...x.x.|x...x.x.x...x.x.|x...x.x.x...x.x.|x...x.x.x...x.x.
