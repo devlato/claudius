@@ -6,6 +6,12 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+`claudius samples` finds sounds in free online libraries (Freesound and Wikimedia Commons through Openverse, Commons
+itself, ccMixter) and downloads them: drum breaks, vinyl crackle, field recordings, stems, old records. It keeps only
+what the licence lets you publish music made with (CC0, public domain, CC BY), leaves out uploads that say they were
+cut from someone's record, and every song that plays a downloaded sound credits it in its `credits.txt`
+([Samples from free online libraries](https://github.com/devlato/claudius/blob/main/docs/src/guide/online-samples.md)).
+
 ## [0.3.0] - 2026-11-03
 
 Claudius updates itself from this release on: the studio downloads a new release in the background and offers to

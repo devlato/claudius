@@ -37,13 +37,13 @@ pub fn songs_dir() -> PathBuf {
 }
 
 /// the folders a claudius shared beyond this computer may read and write: saved songs, its own caches, and the sound
-/// libraries (sample packs, Apple Loops)
+/// libraries (sample packs, samples downloaded from online libraries, Apple Loops)
 pub fn shared_roots() -> Vec<PathBuf> {
     // claudius' own folders exist from the start: a folder that does not exist cannot hold an allowed path
     for own in [songs_dir(), home()] {
         let _ = std::fs::create_dir_all(own);
     }
-    let mut roots = vec![songs_dir(), home(), claudius_packs::packs_dir()];
+    let mut roots = vec![songs_dir(), home(), claudius_packs::packs_dir(), claudius_packs::online::samples_dir()];
     roots.extend(APPLE_LOOP_DIRS.iter().map(PathBuf::from));
     if let Some(h) = dirs::home_dir() {
         roots.push(h.join("Library/Audio/Apple Loops"));

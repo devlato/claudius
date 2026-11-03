@@ -14,7 +14,7 @@ use serde_json::Value;
 
 static AGENT: LazyLock<ureq::Agent> = LazyLock::new(|| {
     ureq::Agent::config_builder()
-        .user_agent(concat!("claudius-packs/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("claudius-packs/", env!("CARGO_PKG_VERSION"), " (https://github.com/devlato/claudius)"))
         .timeout_connect(Some(Duration::from_secs(20)))
         .timeout_recv_response(Some(Duration::from_secs(60)))
         .timeout_recv_body(Some(Duration::from_secs(900)))

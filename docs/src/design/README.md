@@ -18,6 +18,7 @@ earth is it done this way?", and the answer is a trade-off rather than a mistake
 | [0007 Which samples we ship](0007-sample-licensing.md) | none: curated packs are downloaded from their authors, and only clear licences are on by default |
 | [0008 egui for native and web](0008-egui.md) | one immediate-mode UI compiled natively and to WebAssembly, talking only HTTP |
 | [0009 Releases through pull requests](0009-releases.md) | a release is a reviewed pull request; merging it builds and publishes |
+| [0010 Samples from online libraries](0010-online-samples.md) | samples come from libraries made to be used (Openverse, Commons, ccMixter), never from YouTube or the streaming services, and only under licences that allow publishing |
 
 ## The format
 
