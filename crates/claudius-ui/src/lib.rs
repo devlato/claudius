@@ -13,6 +13,7 @@ mod cmds;
 #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
 mod devplan;
 mod edits;
+mod keep;
 mod mark;
 mod mock;
 mod music;

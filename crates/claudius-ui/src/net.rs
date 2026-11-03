@@ -6,10 +6,11 @@
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::Duration;
 
-use claudius_api::{Command, RenderView, Reply, SoundList, State};
+use claudius_api::{Command, ExportFormat, RenderView, Reply, SoundList, State};
 use eframe::egui;
 
 use crate::audio::Source;
+use crate::keep::Delivery;
 use crate::mock::Mock;
 
 /// where the studio gets its state from
@@ -571,6 +572,33 @@ impl Backend {
             Backend::Mock(m) => m.audio(render.version).map(Source::Pcm),
         }
     }
+
+    /// What downloading the song as rendered in `render` hands over, named `name` and its extension: the demo's render
+    /// as a WAV; a server's MP3, else its WAV, else the audio the player plays.
+    pub fn download(&self, render: &RenderView, exports: &[ExportFormat], name: &str) -> Result<Delivery, String> {
+        match self {
+            Backend::Mock(m) => {
+                let pcm = m.audio(render.version).ok_or("the demo has let go of that render: render again")?;
+                Ok(Delivery::Bytes { name: format!("{name}.wav"), mime: "audio/wav", bytes: pcm.encode_wav() })
+            }
+            Backend::Remote(r) => Ok(match download_format(exports) {
+                Some(f) => {
+                    let file = format!("{name}.{}", f.extension);
+                    let url = r.url(&format!("/api/export/{}/{file}?format={}", render.version, f.spec));
+                    Delivery::Url { name: file, url }
+                }
+                None => {
+                    let extension = render.url.rsplit_once('.').map_or("mp3", |(_, e)| e);
+                    Delivery::Url { name: format!("{name}.{extension}"), url: r.url(&render.url) }
+                }
+            }),
+        }
+    }
+}
+
+/// the format a download is in: MP3, which plays anywhere, else WAV, of those this machine can write
+fn download_format(exports: &[ExportFormat]) -> Option<&ExportFormat> {
+    ["mp3", "wav"].iter().find_map(|ext| exports.iter().find(|f| f.extension == *ext && f.unavailable.is_none()))
 }
 
 #[cfg(test)]
@@ -578,6 +606,59 @@ mod tests {
     use super::*;
     use crate::panels::Listen;
     use crate::pick::Picked;
+
+    #[test]
+    fn the_demo_hands_over_its_render_as_a_wav_named_after_the_song() {
+        let mut backend = Backend::Mock(Box::new(Mock::new(None)));
+        let (mut now, mut render) = (0.0, None);
+        while render.is_none() && now < 600.0 {
+            now += 0.05;
+            for ev in backend.update(now) {
+                if let Event::State(s) = ev {
+                    render = render.or(s.render);
+                }
+            }
+        }
+        let render = render.expect("the demo renders its song");
+        let Ok(Delivery::Bytes { name, mime, bytes }) = backend.download(&render, &[], "glass-garden") else {
+            panic!("the demo hands over bytes")
+        };
+        assert_eq!((name.as_str(), mime), ("glass-garden.wav", "audio/wav"));
+        let Backend::Mock(m) = &backend else { unreachable!() };
+        let pcm = m.audio(render.version).unwrap();
+        assert_eq!(&bytes[..4], b"RIFF");
+        assert_eq!(bytes.len(), 44 + pcm.samples.len() * 2, "the whole render, as 16-bit samples");
+        let later = RenderView { version: render.version + 1, ..render };
+        assert!(backend.download(&later, &[], "glass-garden").is_err(), "a render the demo does not hold");
+    }
+
+    #[test]
+    fn a_server_hands_over_its_mp3_else_its_wav_else_what_the_player_plays() {
+        let backend = Backend::Remote(Remote::new("http://127.0.0.1:7878".into(), &egui::Context::default()));
+        let render = RenderView { version: 7, url: "/api/audio/7.mp3".into(), ..Default::default() };
+        let format = |spec: &str, extension: &str, unavailable: Option<&str>| ExportFormat {
+            spec: spec.into(),
+            label: spec.into(),
+            extension: extension.into(),
+            lossless: extension == "wav",
+            unavailable: unavailable.map(Into::into),
+        };
+        let all = [format("wav:24", "wav", None), format("mp3", "mp3", None), format("opus", "opus", None)];
+        let url = |name: &str, url: &str| Delivery::Url { name: name.into(), url: url.into() };
+        assert_eq!(
+            backend.download(&render, &all, "glass-garden"),
+            Ok(url("glass-garden.mp3", "http://127.0.0.1:7878/api/export/7/glass-garden.mp3?format=mp3"))
+        );
+        let no_mp3 = [format("mp3", "mp3", Some("no encoder")), format("wav:24", "wav", None)];
+        assert_eq!(
+            backend.download(&render, &no_mp3, "glass-garden"),
+            Ok(url("glass-garden.wav", "http://127.0.0.1:7878/api/export/7/glass-garden.wav?format=wav:24"))
+        );
+        assert_eq!(
+            backend.download(&render, &[], "glass-garden"),
+            Ok(url("glass-garden.mp3", "http://127.0.0.1:7878/api/audio/7.mp3"))
+        );
+    }
 
     #[test]
     fn a_recording_to_listen_to_is_named_in_the_query() {
