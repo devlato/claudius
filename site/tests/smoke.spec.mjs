@@ -288,4 +288,35 @@ test.describe("assembled site", () => {
       expect(res.headers()["content-type"], path).toMatch(/^text\/plain/);
     }
   });
+
+  test("the hero leads with this computer's download and links every system's", async ({ browser, baseURL }) => {
+    const files = [
+      "aarch64-apple-darwin.dmg",
+      "x86_64-apple-darwin.dmg",
+      "x86_64-pc-windows-msvc.msi",
+      "x86_64-unknown-linux-gnu.deb",
+      "x86_64-unknown-linux-gnu.rpm",
+      "x86_64-unknown-linux-gnu.AppImage",
+    ];
+    for (const [platform, os] of [["MacIntel", "Mac"], ["Win32", "Windows"], ["Linux x86_64", "Linux"]]) {
+      const context = await browser.newContext({ baseURL });
+      const page = await context.newPage();
+      await page.addInitScript((p) => {
+        Object.defineProperty(navigator, "platform", { get: () => p });
+        Object.defineProperty(navigator, "userAgentData", { get: () => undefined });
+      }, platform);
+      await page.goto("/");
+      const shown = page.locator("[data-get] .btn-get:visible");
+      await expect(shown).toHaveCount(1);
+      await expect(shown).toHaveText(`Download for ${os}`);
+      await expect(page.locator(".get-all")).toBeVisible();
+      const version = (await page.locator(".tagline .chip").textContent()).trim().replace(/^v/, "");
+      const links = await page.locator(".get-all a").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
+      for (const f of files) {
+        const name = `/releases/download/v${version}/claudius-${version}-${f}`;
+        expect(links.some((h) => h.endsWith(name)), `${os}: ${name} in ${links}`).toBe(true);
+      }
+      await context.close();
+    }
+  });
 });
