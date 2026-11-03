@@ -479,10 +479,27 @@ button {
   display: none;
 }
 
-.get-more {
-  margin: 10px 0 0;
+.get-all {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
   color: var(--text-dim);
   font-size: 0.92rem;
+}
+
+.get-all li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.get-os {
+  color: var(--text);
+  font-weight: 600;
 }
 
 /* install box and commands */
