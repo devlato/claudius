@@ -14,7 +14,7 @@ use claudius::model::*;
 use claudius::{audio, config, export, song};
 use claudius_api::*;
 
-use crate::views;
+use claudius_session::views;
 
 mod commands;
 mod jobs;

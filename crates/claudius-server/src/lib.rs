@@ -7,7 +7,6 @@
 pub mod app;
 pub mod http;
 pub mod mcp;
-pub mod views;
 
 use std::net::SocketAddr;
 use std::sync::{Arc, OnceLock};
