@@ -23,18 +23,19 @@ Why:
 
 - **Art rock's song, IDM's machine.** The arc of art rock (a quiet piano and arpeggio, a rise, loud climaxes, a fall)
   over IDM's synthesized two-bar broken beats with ratchets, clicks and toms, crushed in parallel on IDM's drums bus.
-- **Sounds from both.** The arpeggio and the lead may pick up IDM's bells and arpeggio sounds; the piano, strings and
-  guitars stay art rock's.
+- **Sounds from both.** The arpeggio and the lead may pick up IDM's bells and arpeggio sounds; the piano, strings,
+  the clean guitar and the two distorted power-chord guitars of the climaxes stay art rock's.
 - **A piano that breaks up in the climaxes.** A crushed, band-passed copy beside the piano at 30 % in the hooks.
 
 ```text
-  ears: 'progressive rock music with piano, strings and synthesizers' z +2.4 (closest confusion 'ambient synth pad music' +1.2); production z +1.2 vs 'a recording made on a phone' +0.7; p_real 0.64
-        sounds like: chiptune video game music, playful and quirky music, funk music, celebratory and joyful music
-  verdict: 90/100 (arc 0.98, genre 0.79, mix 0.96, production 0.62, theory 1.00). Fix first: fizzy top end (air -15.6 dB, healthy up to -17); boxy or harsh mids (mid -7.6 dB, healthy up to -8); sounds only faintly like 'progressive rock music with piano, strings and synthesizers' (the nearest other reading: 'ambient synth pad music')
+  ears: 'progressive rock music with piano, strings and synthesizers' z +3.6 (closest confusion 'chiptune video game music' +2.9); production z +1.0 vs 'a recording made on a phone' +0.7; p_real 0.66
+        sounds like: chiptune video game music, ambient synth pad music, uplifting and hopeful music, inspirational corporate background music
+  verdict: 82/100 (arc 0.97, genre 0.93, mix 1.00, production 0.59, theory 0.99). Fix first: sounds close to stock background music ('chiptune video game music'): too clean and polite for 'progressive rock music with piano, strings and synthesizers'
 ```
 
-The machine drums pull the song toward chiptune and away from rock, as they should; the arc stays nearly perfect,
-because the form is art rock's.
+The machine drums and IDM's bells pull the song toward chiptune, which the critic counts against it as stock music;
+the arc stays nearly perfect, because the form is art rock's. Fusing the other way, `idm+art_rock`, keeps IDM's song
+over art rock's acoustic kit.
 
 ## Dub techno with trip-hop's drums: "Low Tide Relay"
 

@@ -25,7 +25,7 @@ the critic judges against it, and evolution mutates songs within it. This page c
 | `filter_house` | 118–126 | 0.50–0.55 | dorian, minor, mixolydian | −9 | 909 (50 %) | french house music with a filtered disco loop (house, funk, techno, corporate pop) |
 | `dance_pop` | 116–128 | 0.50–0.52 | major, minor, dorian | −8.5 | 909 (30 %), 808 (20 %) | upbeat dance pop music (corporate pop, house, synthwave, future bass) |
 | `neo_psychedelia` | 96–122 | 0.50–0.55 | mixolydian, dorian, major, lydian | −10 | acoustic (70 %) | dreamy psychedelic pop music with phased guitars and organ (rock with electric guitars, indie pop, synthwave, funk) |
-| `art_rock` | 76–112 | 0.50–0.53 | minor, dorian, phrygian, lydian, major | −10.5 | acoustic (70 %) | progressive rock music with piano, strings and synthesizers (rock with electric guitars, cinematic orchestral, indie pop, ambient pad) |
+| `art_rock` | 70–100 | 0.50–0.53 | minor, dorian, phrygian, harmonic minor | −10.5 | acoustic (70 %) | progressive rock music with piano, strings and synthesizers (rock with electric guitars, cinematic orchestral, indie pop, ambient pad) |
 | `idm` | 96–140 | 0.50–0.56 | lydian, dorian, minor, phrygian, major | −10 | none: synthesized | glitchy intelligent dance music with complex broken beats and bells (glitch hop, drum and bass, ambient pad, chiptune) |
 | `dub_techno` | 116–126 | 0.50–0.54 | minor, dorian, phrygian | −10.5 | 909 (30 %), 808 (20 %) | dub techno music with echoing chords (techno, minimal, ambient pad, house) |
 | `boom_bap` | 86–96 | 0.55–0.62 | minor, dorian, phrygian | −10 | acoustic (45 %), 808 (15 %) | boom bap hip hop beat (lo-fi hip hop, trap, jazz, funk) |

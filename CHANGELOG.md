@@ -16,6 +16,12 @@ more often:
 - synthwave's saw and Moog basses, string-machine and PWM pads, saw and square leads, chorus and a wobbling tape;
 - amapiano's log drum, a new synth preset (`log_drum`): a pitched, woody knock that glides from note to note.
 
+Art rock plays like a band rather than a dance track. It has an acoustic kit with fills, a pick or finger bass that
+distorts in the climaxes, piano, strings, a clean guitar arpeggio, and two distorted power-chord guitars panned wide
+in the rise and the climaxes, over dark minor and phrygian chords. EDM risers, impacts and downlifters, harps,
+mallets and music-box bells are gone. Chord parts can be voiced as power chords (`"voicing": "power"`: the root, its
+fifth and the octave).
+
 Trip-hop is built on samples now, as trip-hop records are: a slowed drum break whose own hits the drum lanes play, a
 dark phrase from a recording that the song takes its key, tempo and chords from, and vinyl crackle under it. `claudius
 make` gathers them first from free online libraries, cuts them on their beat grids and lets the ears choose the ones
