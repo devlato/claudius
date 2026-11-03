@@ -1,8 +1,9 @@
 //! The ears: earshot (ported to Rust in crates/earshot) listening to what claudius renders. One CLAP embedding of the
 //! master (earshot's windowing: at most six 10 s windows) answers every question the critic asks: does it read as
-//! the genre rather than its named confusions, does it read as professionally produced rather than as one of the
-//! usual flaws, what does it sound like, how typical is it of reference tracks. AudioSet tags of a few excerpts are
-//! reported as held-out evidence and never optimised (earshot's own advice against Goodhart).
+//! the genre rather than its named confusions or stock background music, does it read as professionally produced
+//! rather than as one of the usual flaws, what does it sound like, how typical is it of reference tracks. AudioSet
+//! tags of a few excerpts are reported as held-out evidence and never optimised (earshot's own advice against
+//! Goodhart).
 //!
 //! Built without the `ears` feature (for platforms ONNX Runtime has no build for, such as Intel Macs), `Ears::load`
 //! says so and the critic judges with meters and theory only.
@@ -16,6 +17,15 @@ pub const FLAWS: &[&str] = &[
     "a low bitrate mp3 with artifacts",
     "a recording made on a phone",
 ];
+/// stock library music, which every genre is measured against besides its own confusions: a trip-hop song that the
+/// ears hear as an advert's background music has failed as trip-hop, however clearly it beats its neighbours
+pub const STOCK: &[&str] = &[
+    "inspirational corporate background music",
+    "upbeat corporate pop music",
+    "playful children's piano music",
+    "cheerful ukulele music",
+    "chiptune video game music",
+];
 
 #[cfg(feature = "ears")]
 pub use listening::Ears;
@@ -28,7 +38,7 @@ mod listening {
 
     use anyhow::Result;
 
-    use super::{FLAWS, PRO};
+    use super::{FLAWS, PRO, STOCK};
     use crate::audio::{self, Stereo};
     use crate::genres::GenreProfile;
     use crate::judge::EarsReport;
@@ -62,8 +72,8 @@ mod listening {
             files.iter().map(|f| self.inner.embed_file(Path::new(f))).collect()
         }
 
-        /// what the ears hear in `x`, against the genre's query and confusions; without a genre, the best-fitting
-        /// music genre of earshot's vocabulary is reported against the runner-up
+        /// what the ears hear in `x`, against the genre's query, its confusions and stock background music; without
+        /// a genre, the best-fitting music genre of earshot's vocabulary is reported against the runner-up
         pub fn report(
             &self,
             x: &Stereo,
@@ -73,13 +83,16 @@ mod listening {
         ) -> Result<EarsReport> {
             let mono = Self::mono(x);
             let emb = self.inner.embed(&mono)?;
-            let (genre_query, genre_z, best_alt, best_alt_z) = match genre {
+            let (genre_query, genre_z, best_alt, best_alt_z, stock, stock_z) = match genre {
                 Some(g) => {
                     let mut qs: Vec<&str> = vec![g.query.as_str()];
                     qs.extend(g.alts.iter().map(|s| s.as_str()));
+                    let named = qs.len();
+                    qs.extend(STOCK.iter().copied().filter(|s| *s != g.query && !g.alts.iter().any(|a| a == s)));
                     let gs = self.inner.scores(&emb, &qs)?;
                     let (a, az) = best(&gs[1..]);
-                    (g.query.clone(), gs[0].z, a, az)
+                    let (s, sz) = if gs.len() > named { best(&gs[named..]) } else { (String::new(), 0.0) };
+                    (g.query.clone(), gs[0].z, a, az, s, sz)
                 }
                 None => {
                     let terms = self.inner.top_terms(
@@ -105,7 +118,7 @@ mod listening {
                     );
                     let top = terms.first().map(|t| (t.term.clone(), t.z)).unwrap_or_default();
                     let second = terms.get(1).map(|t| (t.term.clone(), t.z)).unwrap_or_default();
-                    (top.0, top.1, second.0, second.1)
+                    (top.0, top.1, second.0, second.1, String::new(), 0.0)
                 }
             };
             let (_, production_z) = best(&self.inner.scores(&emb, PRO)?);
@@ -124,6 +137,8 @@ mod listening {
                 genre_z,
                 best_alt: if best_alt.is_empty() { "-".into() } else { best_alt },
                 best_alt_z: if best_alt_z == f64::MIN { 0.0 } else { best_alt_z },
+                stock,
+                stock_z,
                 production_z,
                 worst_flaw,
                 worst_flaw_z,
