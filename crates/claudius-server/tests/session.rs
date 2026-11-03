@@ -8,7 +8,15 @@ use claudius_server::{App, Options, Settings, http};
 use tower::ServiceExt;
 
 fn app() -> Arc<App> {
-    App::new(Settings { library: false, ears: false, auto_render: true, file_roots: None, voice: None })
+    App::new(Settings {
+        library: false,
+        ears: false,
+        auto_render: true,
+        file_roots: None,
+        voice: None,
+        samples: false,
+        gather: false,
+    })
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -67,7 +75,15 @@ async fn a_session_edits_renders_and_undoes() {
 
 #[test]
 fn tracks_are_added_and_removed() {
-    let app = App::new(Settings { library: false, ears: false, auto_render: false, file_roots: None, voice: None });
+    let app = App::new(Settings {
+        library: false,
+        ears: false,
+        auto_render: false,
+        file_roots: None,
+        voice: None,
+        samples: false,
+        gather: false,
+    });
     let new = Command::NewSong { genre: "house".into(), seed: Some(4), bpm: None, key: None, loops: false };
     assert!(app.command(new).ok);
     let add = |name: &str, kind: &str, role: Option<&str>, sound: Option<&str>| {
@@ -108,7 +124,15 @@ fn tracks_are_added_and_removed() {
 
 #[test]
 fn a_parts_notes_are_written_out_and_given_back() {
-    let app = App::new(Settings { library: false, ears: false, auto_render: false, file_roots: None, voice: None });
+    let app = App::new(Settings {
+        library: false,
+        ears: false,
+        auto_render: false,
+        file_roots: None,
+        voice: None,
+        samples: false,
+        gather: false,
+    });
     let new = Command::NewSong { genre: "house".into(), seed: Some(4), bpm: None, key: None, loops: false };
     assert!(app.command(new).ok);
     let lead = |app: &App| app.state().song.unwrap().parts.into_iter().find(|p| p.name == "lead").unwrap();
@@ -146,6 +170,8 @@ async fn a_shared_session_keeps_to_its_folders() {
         auto_render: false,
         file_roots: Some(vec![inside.clone()]),
         voice: None,
+        samples: false,
+        gather: false,
     });
     assert!(
         app.command(Command::NewSong { genre: "lofi".into(), seed: Some(1), bpm: None, key: None, loops: false }).ok
@@ -185,6 +211,8 @@ fn packs_install_only_on_the_computer_claudius_runs_on() {
         auto_render: false,
         file_roots: Some(vec![std::env::temp_dir()]),
         voice: None,
+        samples: false,
+        gather: false,
     });
     let r = shared.command(Command::InstallPacks { names: Vec::new() });
     assert!(!r.ok && r.message.contains("shared claudius"), "{}", r.message);
@@ -1050,8 +1078,15 @@ async fn a_pitch_check_sung_back_becomes_the_voice_tune_sings_as() {
     std::fs::create_dir_all(&home).unwrap();
     let before = claudius::voice::singer::Voice { notes: 3, ..Default::default() };
     std::fs::write(&kept, serde_json::to_string(&before).unwrap()).unwrap();
-    let settings =
-        Settings { library: false, ears: false, auto_render: false, file_roots: None, voice: Some(kept.clone()) };
+    let settings = Settings {
+        library: false,
+        ears: false,
+        auto_render: false,
+        file_roots: None,
+        voice: Some(kept.clone()),
+        samples: false,
+        gather: false,
+    };
     let app = App::new(settings);
     assert!(app.state().voice.is_some_and(|v| v.starts_with("range C3-C5")), "the kept voice");
     let r = app.command(Command::RequestPitchCheck { low: Some(60), high: Some(55), note: String::new() });

@@ -446,6 +446,8 @@ impl AppArgs {
             auto_render: !self.no_auto_render,
             file_roots,
             voice: Some(claudius::config::settings_dir().join("voice.json")),
+            samples: !self.sound.synth_only,
+            gather: self.sound.gathers(),
         })
     }
 
