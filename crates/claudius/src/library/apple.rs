@@ -4,8 +4,7 @@
 
 use std::path::Path;
 
-use anyhow::{Context, Result};
-use rusqlite::Connection;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -24,6 +23,7 @@ pub struct LoopInfo {
     pub descriptors: Vec<String>,
 }
 
+#[cfg(feature = "native")]
 fn url_to_path(url: &str) -> String {
     let s = url.strip_prefix("file://").unwrap_or(url);
     let bytes = s.as_bytes();
@@ -44,7 +44,10 @@ fn url_to_path(url: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
+#[cfg(feature = "native")]
 pub fn load(db: &Path) -> Result<Vec<LoopInfo>> {
+    use anyhow::Context;
+    use rusqlite::Connection;
     let conn = Connection::open_with_flags(db, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
         .with_context(|| format!("open {}", db.display()))?;
     let mut st = conn.prepare(
@@ -83,4 +86,10 @@ pub fn load(db: &Path) -> Result<Vec<LoopInfo>> {
         }
     }
     Ok(out)
+}
+
+/// A build without the `native` feature (a browser's) has no SQLite, and no GarageBand to have installed loops.
+#[cfg(not(feature = "native"))]
+pub fn load(db: &Path) -> Result<Vec<LoopInfo>> {
+    anyhow::bail!("this build of claudius reads no Apple Loops database ({})", db.display())
 }

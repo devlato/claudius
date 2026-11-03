@@ -113,7 +113,7 @@ fn limits(engine: &mut Engine) {
     engine.set_max_map_size(1_000);
     engine.set_module_resolver(rhai::module_resolvers::DummyModuleResolver::new());
     engine.disable_symbol("eval");
-    let start = std::time::Instant::now();
+    let start = crate::clock::Instant::now();
     engine.on_progress(move |_| {
         (start.elapsed().as_secs() >= MAX_SCRIPT_SECONDS)
             .then(|| Dynamic::from(format!("the script ran for more than {MAX_SCRIPT_SECONDS} seconds")))

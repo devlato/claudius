@@ -12,7 +12,7 @@ pub const STEPS_PER_BAR: u32 = BEATS_PER_BAR * STEPS_PER_BEAT;
 pub fn home() -> PathBuf {
     std::env::var_os("CLAUDIUS_HOME")
         .map(PathBuf::from)
-        .unwrap_or_else(|| dirs::cache_dir().unwrap_or_else(std::env::temp_dir).join("claudius"))
+        .unwrap_or_else(|| dirs::cache_dir().unwrap_or_else(temp_dir).join("claudius"))
 }
 
 /// where claudius keeps what it learns of the person (their voice): $CLAUDIUS_HOME, or claudius in the user's settings
@@ -20,7 +20,12 @@ pub fn home() -> PathBuf {
 pub fn settings_dir() -> PathBuf {
     std::env::var_os("CLAUDIUS_HOME")
         .map(PathBuf::from)
-        .unwrap_or_else(|| dirs::config_dir().unwrap_or_else(std::env::temp_dir).join("claudius"))
+        .unwrap_or_else(|| dirs::config_dir().unwrap_or_else(temp_dir).join("claudius"))
+}
+
+/// the system's temporary folder; in a browser, which has no files (and whose std panics when asked), no folder at all
+pub fn temp_dir() -> PathBuf {
+    if cfg!(target_arch = "wasm32") { PathBuf::new() } else { std::env::temp_dir() }
 }
 
 pub fn cache_dir(name: &str) -> PathBuf {

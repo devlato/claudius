@@ -17,6 +17,7 @@
 pub mod analysis;
 pub mod audio;
 pub mod audition;
+pub mod clock;
 pub mod colour;
 pub mod compose;
 pub mod config;

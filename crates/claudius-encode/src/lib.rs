@@ -10,6 +10,7 @@ mod opus;
 mod pcm;
 mod resample;
 mod system;
+#[cfg(feature = "vorbis")]
 mod vorbis;
 
 use std::fmt;
@@ -183,6 +184,9 @@ impl Spec {
                 "{} needs Core Audio (macOS) or ffmpeg, and this machine has neither: install ffmpeg, or export MP3 or Opus",
                 self.label(48_000).split(',').next().unwrap_or_default()
             )),
+            Format::Vorbis(_) if cfg!(not(feature = "vorbis")) => {
+                Some("Ogg Vorbis needs libvorbis, which this build of claudius leaves out: export Opus or MP3".into())
+            }
             _ => None,
         }
     }
@@ -342,7 +346,10 @@ pub fn encode(spec: &Spec, pcm: Pcm, tags: &Tags) -> Result<Vec<u8>> {
         Format::Mp3Vbr(q) => mp3::encode(&pcm, 320, Some(q), tags),
         Format::Aac(k) => system::aac(&pcm, k, tags),
         Format::Opus(k) => opus::encode(&pcm, k, tags),
+        #[cfg(feature = "vorbis")]
         Format::Vorbis(q) => vorbis::encode(&pcm, q, tags),
+        #[cfg(not(feature = "vorbis"))]
+        Format::Vorbis(_) => unreachable!("unavailable() refuses Vorbis without libvorbis"),
     }
 }
 

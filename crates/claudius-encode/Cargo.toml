@@ -10,6 +10,11 @@ repository.workspace = true
 homepage.workspace = true
 publish = false
 
+[features]
+default = ["vorbis"]
+# Ogg Vorbis through libvorbis (C): leave it out of a browser's build, where it does not compile
+vorbis = ["dep:vorbis_rs"]
+
 [dependencies]
 anyhow = "1"
 claudius-decode = { version = "0.3.0", path = "../claudius-decode" }
@@ -17,7 +22,7 @@ flacenc = "0.5"
 hound = "3"
 opus-pure = "0.2"
 rusty_mp3 = "1"
-vorbis_rs = "0.5"
+vorbis_rs = { version = "0.5", optional = true }
 
 [dev-dependencies]
 tempfile = "3"

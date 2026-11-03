@@ -79,7 +79,7 @@ pub fn prepare(sh: &Shell, bump: &str) -> Result<()> {
     sh.write_file(PLUGIN, plugin.replacen(&old_plugin, &format!("\"version\": \"{next}\""), 1))?;
     // the songs this version saves, which every later claudius has to open (crates/claudius/tests/compat.rs)
     let songs = format!("crates/claudius/tests/compat/v{next}");
-    cmd!(sh, "cargo run --quiet --offline -p claudius --no-default-features --example compat_fixtures -- {songs}")
+    cmd!(sh, "cargo run --quiet --offline -p claudius --no-default-features --features native --example compat_fixtures -- {songs}")
         .run()
         .context("could not write the songs of this version for tests/compat")?;
     let root = crate::root();

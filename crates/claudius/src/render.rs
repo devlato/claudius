@@ -384,7 +384,7 @@ pub fn render(p: &Project, opts: &Options) -> Result<Rendered> {
     }
     // a pattern with several sounds plays as a track for each, so the arranged song can have more than its blueprint
     crate::model::check_tracks(p.tracks.len(), p.secs()).map_err(anyhow::Error::msg)?;
-    let t0 = std::time::Instant::now();
+    let t0 = crate::clock::Instant::now();
     let tm = Timing { spb: SRF * 60.0 / p.bpm, swing: p.swing, humanize: p.humanize };
     let tail = opts.tail_secs.max(0.0)
         + p.tracks.iter().map(|t| fx::chain_tail_secs(&t.mix.fx, p.bpm)).fold(0.0, f64::max).min(6.0);
@@ -404,7 +404,7 @@ pub fn render(p: &Project, opts: &Options) -> Result<Rendered> {
         .tracks
         .par_iter()
         .map(|t| -> Result<Done> {
-            let ts = std::time::Instant::now();
+            let ts = crate::clock::Instant::now();
             let mut x = render_source(t, p, &tm, len, &chokes)?;
             fx::apply_chain(&t.mix.fx, &mut x, &ctx(&t.name));
             if t.mix.drive_db > 0.0 {

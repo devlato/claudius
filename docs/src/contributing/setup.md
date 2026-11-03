@@ -148,3 +148,4 @@ and the examples in the docs. CI runs more; when you changed the matching part, 
 | a lockfile | `osv-scanner scan source --config osv-scanner.toml --lockfile Cargo.lock --lockfile site/package-lock.json` |
 | benchmarks | `cargo bench --no-run` |
 | code that the Intel Mac build compiles | `rustup target add x86_64-apple-darwin`, then `cargo check --target x86_64-apple-darwin -p claudius-cli --no-default-features --features studio` (CI's `intel mac build` job) |
+| the engine, as a browser builds it | `cargo clippy -p claudius --no-default-features --target wasm32-unknown-unknown -- -D warnings` (`cargo xtask ci` runs it) |

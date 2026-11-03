@@ -834,6 +834,7 @@ dependencies = [
  "serde",
  "serde_json",
  "signalsmith-stretch",
+ "web-time",
 ]
 
 [[package]]
@@ -909,6 +910,7 @@ dependencies = [
  "sha2",
  "tempfile",
  "ureq",
+ "web-time",
 ]
 
 [[package]]

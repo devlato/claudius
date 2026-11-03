@@ -1,45 +1,164 @@
 //! Networking: one shared HTTP agent, GitHub tree / licence lookups, parallel downloads that are atomic per file
 //! (`.part` + rename), resumable (HTTP range), size-verified and retried, archive extraction and lossless
-//! WAV -> FLAC conversion.
+//! WAV -> FLAC conversion. Without the `net` feature (a browser's build) nothing is downloaded: a request fails,
+//! saying so.
 
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{LazyLock, mpsc};
-use std::time::{Duration, Instant};
+use std::sync::mpsc;
+use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow, bail};
 use serde_json::Value;
 
-static AGENT: LazyLock<ureq::Agent> = LazyLock::new(|| {
-    ureq::Agent::config_builder()
-        .user_agent(concat!("claudius-packs/", env!("CARGO_PKG_VERSION"), " (https://github.com/devlato/claudius)"))
-        .timeout_connect(Some(Duration::from_secs(20)))
-        .timeout_recv_response(Some(Duration::from_secs(60)))
-        .timeout_recv_body(Some(Duration::from_secs(900)))
-        // some libraries (ccMixter) send headers past the usual 64 KB
-        .max_response_header_size(256 * 1024)
-        .build()
-        .into()
-});
+use crate::clock::Instant;
 
-fn github_token() -> Option<String> {
-    ["GITHUB_TOKEN", "GH_TOKEN"].iter().find_map(|k| std::env::var(k).ok().filter(|v| !v.trim().is_empty()))
+/// The requests themselves, over the one shared agent.
+#[cfg(feature = "net")]
+mod http {
+    use std::io::{Read, Write};
+    use std::path::Path;
+    use std::sync::LazyLock;
+    use std::time::Duration;
+
+    use anyhow::{Context, Result, anyhow, bail};
+
+    static AGENT: LazyLock<ureq::Agent> = LazyLock::new(|| {
+        ureq::Agent::config_builder()
+            .user_agent(concat!("claudius-packs/", env!("CARGO_PKG_VERSION"), " (https://github.com/devlato/claudius)"))
+            .timeout_connect(Some(Duration::from_secs(20)))
+            .timeout_recv_response(Some(Duration::from_secs(60)))
+            .timeout_recv_body(Some(Duration::from_secs(900)))
+            // some libraries (ccMixter) send headers past the usual 64 KB
+            .max_response_header_size(256 * 1024)
+            .build()
+            .into()
+    });
+
+    /// the most a download of unknown size may be; a server that sends more is cut off
+    const MAX_UNKNOWN_SIZE: u64 = 1 << 30;
+
+    fn github_token() -> Option<String> {
+        ["GITHUB_TOKEN", "GH_TOKEN"].iter().find_map(|k| std::env::var(k).ok().filter(|v| !v.trim().is_empty()))
+    }
+
+    pub fn get_text(url: &str) -> Result<String> {
+        let mut req = AGENT.get(url);
+        if url.starts_with("https://api.github.com/") {
+            req = req.header("Accept", "application/vnd.github+json");
+            if let Some(t) = github_token() {
+                req = req.header("Authorization", format!("Bearer {t}"));
+            }
+        }
+        let mut resp = req.call().with_context(|| format!("GET {url}"))?;
+        let s =
+            resp.body_mut().with_config().limit(64 << 20).read_to_string().with_context(|| format!("reading {url}"))?;
+        Ok(s)
+    }
+
+    /// one attempt: resume a previous `.part` when the server supports ranges
+    pub fn download_once(
+        url: &str,
+        referer: Option<&str>,
+        part: &Path,
+        expected: u64,
+        bytes: &dyn Fn(u64),
+    ) -> Result<()> {
+        let have = std::fs::metadata(part).map(|m| m.len()).unwrap_or(0);
+        let have = if expected > 0 && have >= expected { 0 } else { have };
+        // ccMixter serves a file only to whoever comes from its page, the second time as the first
+        let get = || match referer {
+            Some(r) => AGENT.get(url).header("Referer", r),
+            None => AGENT.get(url),
+        };
+        let mut req = get();
+        if have > 0 {
+            req = req.header("Range", format!("bytes={have}-"));
+        }
+        let resp = match req.call() {
+            Ok(r) => r,
+            Err(ureq::Error::StatusCode(416)) => {
+                let _ = std::fs::remove_file(part);
+                get().call().with_context(|| format!("GET {url}"))?
+            }
+            Err(e) => return Err(anyhow!(e).context(format!("GET {url}"))),
+        };
+        let resumed = resp.status().as_u16() == 206 && have > 0;
+        let start = if resumed { have } else { 0 };
+        let len =
+            resp.headers().get("content-length").and_then(|v| v.to_str().ok()).and_then(|v| v.parse::<u64>().ok());
+        let total = len.map(|l| l + start);
+        let mut out = std::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .append(resumed)
+            .truncate(!resumed)
+            .open(part)
+            .with_context(|| format!("cannot write {}", part.display()))?;
+        let mut rd = resp.into_body().into_reader();
+        let mut buf = vec![0u8; 1 << 16];
+        let mut done = start;
+        let limit = if expected > 0 { expected } else { MAX_UNKNOWN_SIZE };
+        loop {
+            let k = rd.read(&mut buf).with_context(|| format!("download interrupted: {url}"))?;
+            if k == 0 {
+                break;
+            }
+            if done + k as u64 > limit {
+                drop(out);
+                let _ = std::fs::remove_file(part);
+                bail!("{url} sends more than {limit} bytes");
+            }
+            out.write_all(&buf[..k])?;
+            done += k as u64;
+            bytes(k as u64);
+        }
+        out.flush()?;
+        drop(out);
+        if let Some(t) = total
+            && done != t
+        {
+            bail!("{url}: truncated ({done} of {t} bytes)");
+        }
+        Ok(())
+    }
+
+    /// a 4xx other than a range problem or too many requests: it will not get better
+    pub fn hopeless(e: &anyhow::Error) -> bool {
+        e.chain().any(|c| {
+            c.downcast_ref::<ureq::Error>()
+                .is_some_and(|u| matches!(u, ureq::Error::StatusCode(s) if (400..500).contains(s) && *s != 429))
+        })
+    }
+}
+
+/// A build without the `net` feature: it asks nothing of the network and encodes nothing.
+#[cfg(not(feature = "net"))]
+mod http {
+    use std::path::Path;
+
+    use anyhow::{Result, bail};
+
+    const NONE: &str = "this build of claudius downloads nothing (a browser's): packs install in the app";
+
+    pub fn get_text(url: &str) -> Result<String> {
+        bail!("{NONE}, so {url} is out of reach")
+    }
+
+    pub fn download_once(url: &str, _: Option<&str>, _: &Path, _: u64, _: &dyn Fn(u64)) -> Result<()> {
+        bail!("{NONE}, so {url} is out of reach")
+    }
+
+    pub fn hopeless(_: &anyhow::Error) -> bool {
+        true
+    }
 }
 
 /// GET a small text resource (sample maps, SFZ files, API responses).
 pub fn get_text(url: &str) -> Result<String> {
-    let mut req = AGENT.get(url);
-    if url.starts_with("https://api.github.com/") {
-        req = req.header("Accept", "application/vnd.github+json");
-        if let Some(t) = github_token() {
-            req = req.header("Authorization", format!("Bearer {t}"));
-        }
-    }
-    let mut resp = req.call().with_context(|| format!("GET {url}"))?;
-    let s = resp.body_mut().with_config().limit(64 << 20).read_to_string().with_context(|| format!("reading {url}"))?;
-    Ok(s)
+    http::get_text(url)
 }
 
 pub fn get_json(url: &str) -> Result<Value> {
@@ -94,69 +213,6 @@ fn is_lfs_pointer(p: &Path) -> bool {
     std::fs::read(p).map(|b| b.starts_with(b"version https://git-lfs")).unwrap_or(false)
 }
 
-/// the most a download of unknown size may be; a server that sends more is cut off
-const MAX_UNKNOWN_SIZE: u64 = 1 << 30;
-
-/// one attempt: resume a previous `.part` when the server supports ranges
-fn download_once(url: &str, referer: Option<&str>, part: &Path, expected: u64, bytes: &dyn Fn(u64)) -> Result<()> {
-    let have = std::fs::metadata(part).map(|m| m.len()).unwrap_or(0);
-    let have = if expected > 0 && have >= expected { 0 } else { have };
-    // ccMixter serves a file only to whoever comes from its page, the second time as the first
-    let get = || match referer {
-        Some(r) => AGENT.get(url).header("Referer", r),
-        None => AGENT.get(url),
-    };
-    let mut req = get();
-    if have > 0 {
-        req = req.header("Range", format!("bytes={have}-"));
-    }
-    let resp = match req.call() {
-        Ok(r) => r,
-        Err(ureq::Error::StatusCode(416)) => {
-            let _ = std::fs::remove_file(part);
-            get().call().with_context(|| format!("GET {url}"))?
-        }
-        Err(e) => return Err(anyhow!(e).context(format!("GET {url}"))),
-    };
-    let resumed = resp.status().as_u16() == 206 && have > 0;
-    let start = if resumed { have } else { 0 };
-    let len = resp.headers().get("content-length").and_then(|v| v.to_str().ok()).and_then(|v| v.parse::<u64>().ok());
-    let total = len.map(|l| l + start);
-    let mut out = std::fs::OpenOptions::new()
-        .create(true)
-        .write(true)
-        .append(resumed)
-        .truncate(!resumed)
-        .open(part)
-        .with_context(|| format!("cannot write {}", part.display()))?;
-    let mut rd = resp.into_body().into_reader();
-    let mut buf = vec![0u8; 1 << 16];
-    let mut done = start;
-    let limit = if expected > 0 { expected } else { MAX_UNKNOWN_SIZE };
-    loop {
-        let k = rd.read(&mut buf).with_context(|| format!("download interrupted: {url}"))?;
-        if k == 0 {
-            break;
-        }
-        if done + k as u64 > limit {
-            drop(out);
-            let _ = std::fs::remove_file(part);
-            bail!("{url} sends more than {limit} bytes");
-        }
-        out.write_all(&buf[..k])?;
-        done += k as u64;
-        bytes(k as u64);
-    }
-    out.flush()?;
-    drop(out);
-    if let Some(t) = total
-        && done != t
-    {
-        bail!("{url}: truncated ({done} of {t} bytes)");
-    }
-    Ok(())
-}
-
 /// Download `url` to `dest` atomically (`dest.part`, verified, renamed), with retries and resume. With `flac`, a
 /// WAV download is converted to lossless FLAC at `dest`.
 pub fn download_file(url: &str, dest: &Path, expected: u64, flac: bool) -> Result<u64> {
@@ -188,7 +244,7 @@ fn download_file_with(
         if attempt > 0 {
             std::thread::sleep(Duration::from_millis(500 * (1 << attempt)));
         }
-        match download_once(&url, referer, &part, expected, bytes) {
+        match http::download_once(&url, referer, &part, expected, bytes) {
             Ok(()) => {
                 if is_lfs_pointer(&part)
                     && let Some(u) = lfs_url(&url)
@@ -219,11 +275,7 @@ fn download_file_with(
                 return Ok(got);
             }
             Err(e) => {
-                // 4xx other than range problems will not get better
-                let fatal = e.chain().any(|c| {
-                    c.downcast_ref::<ureq::Error>()
-                        .is_some_and(|u| matches!(u, ureq::Error::StatusCode(s) if (400..500).contains(s) && *s != 429))
-                });
+                let fatal = http::hopeless(&e);
                 last_err = Some(e);
                 if fatal {
                     let _ = std::fs::remove_file(&part);
@@ -489,9 +541,11 @@ pub fn walk(dir: &Path) -> Vec<(String, u64)> {
 
 #[cfg(test)]
 mod download_tests {
+    #[cfg(feature = "net")]
     use std::io::{BufRead, BufReader, Write};
 
     /// a server for two requests: it refuses the first one's range, and sends the second whatever it asked with
+    #[cfg(feature = "net")]
     fn refuses_a_range_then_answers() -> (String, std::thread::JoinHandle<Vec<String>>) {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let url = format!("http://{}/file.mp3", listener.local_addr().unwrap());
@@ -522,12 +576,13 @@ mod download_tests {
     }
 
     #[test]
+    #[cfg(feature = "net")]
     fn a_download_whose_range_is_refused_starts_again_from_the_same_page() {
         let dir = tempfile::tempdir().unwrap();
         let part = dir.path().join("file.mp3.part");
         std::fs::write(&part, b"stale").unwrap();
         let (url, served) = refuses_a_range_then_answers();
-        super::download_once(&url, Some("https://ccmixter.org/files/a/1"), &part, 0, &|_| {}).unwrap();
+        super::http::download_once(&url, Some("https://ccmixter.org/files/a/1"), &part, 0, &|_| {}).unwrap();
         let asked = served.join().unwrap();
         assert!(asked[0].contains("range: bytes=5-"), "{}", asked[0]);
         for head in &asked {

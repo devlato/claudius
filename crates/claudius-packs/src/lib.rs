@@ -17,6 +17,7 @@
 #![forbid(unsafe_code)]
 
 mod catalog;
+mod clock;
 mod decode;
 mod fetch;
 mod install;
@@ -84,12 +85,17 @@ pub fn packs_dir() -> PathBuf {
     {
         return PathBuf::from(p);
     }
-    dirs::data_dir().unwrap_or_else(std::env::temp_dir).join("claudius").join("packs")
+    dirs::data_dir().unwrap_or_else(temp_dir).join("claudius").join("packs")
+}
+
+/// the system's temporary folder; in a browser, which has no files (and whose std panics when asked), no folder at all
+fn temp_dir() -> PathBuf {
+    if cfg!(target_arch = "wasm32") { PathBuf::new() } else { std::env::temp_dir() }
 }
 
 /// Scratch space for archives being installed: `<cache dir>/claudius/packs`.
 pub fn cache_dir() -> PathBuf {
-    dirs::cache_dir().unwrap_or_else(std::env::temp_dir).join("claudius").join("packs")
+    dirs::cache_dir().unwrap_or_else(temp_dir).join("claudius").join("packs")
 }
 
 static INDEXES: Mutex<Option<Vec<Arc<PackIndex>>>> = Mutex::new(None);

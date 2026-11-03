@@ -13,7 +13,7 @@ publish = false
 [dependencies]
 anyhow = "1.0.104"
 axum = "0.8.9"
-claudius = { path = "../claudius", default-features = false }
+claudius = { path = "../claudius", default-features = false, features = ["native"] }
 claudius-api = { path = "../claudius-api" }
 claudius-session = { path = "../claudius-session" }
 claudius-packs = { version = "0.3.0", path = "../claudius-packs" }

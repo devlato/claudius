@@ -73,6 +73,12 @@ pub(super) fn genre_of(bp: &Blueprint) -> Option<GenreProfile> {
     genres::get(&bp.genre).ok()
 }
 
+/// The seed of a song asked for without one, from the clock's reading in nanoseconds: 1 to a million, all of the reading
+/// mixed in (a browser's clock counts whole milliseconds).
+fn seed_at(nanos: u64) -> u64 {
+    1 + crate::rng::Rng::new(nanos).next_u64() % 1_000_000
+}
+
 /// an empty song for scripts that build everything themselves
 pub fn blank(genre: &str) -> Result<Blueprint, String> {
     let g = genres::get(genre).map_err(|e| e.to_string())?;
@@ -175,12 +181,8 @@ fn register_start(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     let s1 = Rc::new(start);
     let s = s1.clone();
     engine.register_fn("song", move |genre: &str| {
-        s(
-            genre,
-            1 + (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos() as u64)
-                % 1_000_000),
-            None,
-        )
+        let now = crate::clock::SystemTime::now().duration_since(crate::clock::UNIX_EPOCH);
+        s(genre, seed_at(now.map_or(0, |d| d.as_nanos() as u64)), None)
     });
     let s = s1.clone();
     engine.register_fn("song", move |genre: &str, seed: INT| s(genre, seed.max(0) as u64, None));
@@ -572,5 +574,19 @@ pub(super) fn pattern_mix(o: &crate::pattern::TrackOpts, labels: &[String], role
         .into(),
         mute: false,
         solo: false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn songs_asked_for_a_millisecond_apart_get_seeds_of_their_own() {
+        // a browser's clock in nanoseconds: whole milliseconds
+        let ms = 1_700_000_000_000u64 * 1_000_000;
+        let seeds: std::collections::BTreeSet<u64> = (0..100).map(|k| seed_at(ms + k * 1_000_000)).collect();
+        assert!(seeds.len() > 95, "{} seeds from 100 milliseconds", seeds.len());
+        assert!(seeds.iter().all(|s| (1..=1_000_000).contains(s)));
     }
 }
