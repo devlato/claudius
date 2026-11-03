@@ -614,6 +614,7 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
         buses: g.mix.buses.clone(),
         duck_release: g.mix.duck_release,
         levels: g.mix.levels.clone(),
+        bands: g.mix.bands.clone(),
         master: Master { fx: g.mix.master.clone(), lufs: g.mix.lufs, ceiling_db: -1.0 },
     };
     // a mix of its own

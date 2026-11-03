@@ -59,7 +59,8 @@ track("stab", chord("prog").struct("~ ~ x ~").s("stab").delay(0.3));
 ## trap (130-150 BPM)
 
 Half-time feel with the snare on beat 3, syncopated kicks, 808s gliding on the kicks, rolling hi-hats, dark minor
-keys and bells.
+keys and bells. The 808 is the loudest thing in the song: 6 dB over a bass's usual level, low, driven, centred and
+dry. When a person wants it to hit harder, `mix("bass", #{ drive: 18, level: 9 })` overloads it.
 
 ```js
 blank("trap");
@@ -68,7 +69,8 @@ key("C minor");
 prog("A", "i i VI VII");
 track("drums", s("[bd ~ ~ bd] [~ ~ bd ~], ~ ~ sd ~, hh*8").gain("1 0.9"));
 track("rolls", s("~ ~ ~ [hh*3]").gain(0.5));
-track("808", chord("prog").root().octave(1).struct("x ~ ~ x ~ ~ x ~").s("808"));
+track("808", chord("prog").root().octave(1).struct("x ~ ~ x ~ ~ x ~").s("808").level(6));
+mix("808", #{ drive: 12 });
 track("bells", n("<[0 ~ 3 ~] [5 ~ 3 2]>").scale("C:minor").octave(5).s("bell").level(-6));
 ```
 
@@ -333,7 +335,8 @@ track("horns", n("<[7 ~ 9 7] [5 ~ 3 ~]>").scale("D:minor").octave(5).s("brass_le
 ## uk_drill (138-146 BPM)
 
 Felt at half time: a snare on the third beat, skippy hats in threes, sliding 808s that follow a sparse kick, dark
-minor and harmonic minor chords on piano, strings or choir, a bell line in the hooks.
+minor and harmonic minor chords on piano, strings or choir, a bell line in the hooks. The 808 is as loud and as
+driven as trap's.
 
 ```js
 blank("uk_drill");
@@ -341,7 +344,8 @@ tempo(142);
 key("G minor");
 prog("A", "i VI");
 track("drums", s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~, ~ sd, [hh hh hh]*4").gain("1 0.75"));
-track("808", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ ~ ~ ~ ~ x ~ ~ ~ ~ ~").s("808").legato(1));
+track("808", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ ~ ~ ~ ~ x ~ ~ ~ ~ ~").s("808").legato(1).level(6));
+mix("808", #{ drive: 12 });
 track("keys", chord("prog").voicing(52, 76).s("keys").room(0.35));
 track("bells", n("<[0 ~ 3 2] [7 ~ 5 ~]>").scale("G:minor").octave(5).s("bell").delay(0.25));
 ```

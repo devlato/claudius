@@ -74,9 +74,16 @@ pub fn script(cmd: &Command, bp: Option<&Blueprint>, seed: u64) -> Option<Result
                 label: Some(format!("{part} over {prog}: the theory engine's again")),
             },
         })),
-        Command::SetMix { track, level_db, pan, reverb, delay, duck, muted, solo, bus } => {
+        Command::SetMix { track, level_db, pan, reverb, delay, duck, drive_db, muted, solo, bus } => {
             let mut fields = Vec::new();
-            for (k, x) in [("level", level_db), ("pan", pan), ("reverb", reverb), ("delay", delay), ("duck", duck)] {
+            for (k, x) in [
+                ("level", level_db),
+                ("pan", pan),
+                ("reverb", reverb),
+                ("delay", delay),
+                ("duck", duck),
+                ("drive", drive_db),
+            ] {
                 if let Some(x) = x {
                     fields.push(format!("{k}: {x}"));
                 }
@@ -427,12 +434,12 @@ mod tests {
     #[test]
     fn a_mix_edit_is_the_line_a_person_would_write_and_runs_as_one() {
         let bp = song();
-        let s = script(&cmd(&json!({"cmd": "set_mix", "track": "bass", "level_db": 2.0, "muted": true})), Some(&bp), 1);
-        let s = s.unwrap().unwrap();
-        assert_eq!(s.code, r#"mix("bass", #{ level: 2, mute: true })"#);
+        let set = json!({"cmd": "set_mix", "track": "bass", "level_db": 2.0, "drive_db": 12.0, "muted": true});
+        let s = script(&cmd(&set), Some(&bp), 1).unwrap().unwrap();
+        assert_eq!(s.code, r#"mix("bass", #{ level: 2, drive: 12, mute: true })"#);
         let mut out = claudius::script::run(&s.code, Some(bp), None).unwrap().bp.unwrap();
         let m = script::mix_of(&mut out, "bass").unwrap();
-        assert_eq!((m.level_db, m.mute), (2.0, true));
+        assert_eq!((m.level_db, m.drive_db, m.mute), (2.0, 12.0, true));
     }
 
     #[test]

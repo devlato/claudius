@@ -2,7 +2,7 @@
 //! each effect of its chain, into its bus, through the bus's effects into the master, through the master's into the
 //! finished song; the sends run to the reverb and delay returns, and the kick's ducking to the tracks it ducks
 //! (`SongView::graph`). A node chosen opens in the inspector beside the canvas, where everything about it changes: a
-//! track's level, pan, sends, duck, bus, mute, solo and the sections it plays in, its sound if it is a part; an
+//! track's level, pan, sends, duck, drive, bus, mute, solo and the sections it plays in, its sound if it is a part; an
 //! effect's settings, its place in its chain, or the effect itself, as the song keeps it; a chain's new effects; the
 //! master's loudness. Every change is a command, so it undoes, and the graph follows the song.
 
@@ -320,6 +320,7 @@ fn track(ui: &mut Ui, cx: &mut Cx, song: &SongView, name: &str) {
             field(ui, "reverb send", &mut t.reverb, 0.0..=1.0, |v| MixEdit { reverb: Some(v), ..Default::default() });
             field(ui, "delay send", &mut t.delay, 0.0..=1.0, |v| MixEdit { delay: Some(v), ..Default::default() });
             field(ui, "duck", &mut t.duck, 0.0..=1.0, |v| MixEdit { duck: Some(v), ..Default::default() });
+            field(ui, "drive dB", &mut t.drive_db, 0.0..=36.0, |v| MixEdit { drive_db: Some(v), ..Default::default() });
             ui.label(small("bus"));
             let mut bus = t.bus.clone();
             egui::ComboBox::from_id_salt("graph-bus").selected_text(&bus).show_ui(ui, |ui| {
