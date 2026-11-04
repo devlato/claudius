@@ -477,6 +477,13 @@ impl Backend {
         }
     }
 
+    /// where the playhead is, in seconds: the demo's engine previews an edit there
+    pub fn playhead(&mut self, secs: f64) {
+        if let Backend::Mock(m) = self {
+            m.playhead(secs);
+        }
+    }
+
     /// new events; keeps the long-poll running (or steps the mock's jobs)
     pub fn update(&mut self, now: f64) -> Vec<Event> {
         match self {

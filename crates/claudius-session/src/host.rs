@@ -11,7 +11,7 @@ use claudius::compose::{self, Options};
 use claudius::genres::SampleNeed;
 use claudius::library::Library;
 use claudius::library::prepared::{Prepared, Role};
-use claudius::model::Blueprint;
+use claudius::model::{self, Blueprint};
 use claudius::rng::Rng;
 use claudius::theory::scale::Key;
 use claudius::{audio, genres, judge, pads, render, sampling, scratch, script, take};
@@ -26,6 +26,8 @@ const UNDO: usize = 200;
 const LOG: usize = 200;
 /// the bars a preview renders
 const PREVIEW_BARS: u32 = 16;
+/// the seconds from the playhead an edit to a song heard whole is previewed for
+const WINDOW: f64 = 12.0;
 
 /// A sound a phone playing along asks for: every drum lane's hit, notes of a sound for its keys, or a record of bars of
 /// a track to scratch.
@@ -73,6 +75,11 @@ pub struct Host {
     seeds: Rng,
     /// each track as the last render made it, so that the next renders only the tracks an edit changed
     kept: render::Kept,
+    /// the last whole render's master, and what it settled for the whole song: an edit is heard at the playhead in it
+    /// first (`preview`)
+    last: Option<(Arc<Stereo>, render::Settled)>,
+    /// where the studio's playhead is, in seconds (`set_playhead`)
+    playhead: f64,
 }
 
 impl Host {
@@ -93,6 +100,8 @@ impl Host {
             failed: None,
             seeds: Rng::new(seed),
             kept: render::Kept::default(),
+            last: None,
+            playhead: 0.0,
         }
     }
 
@@ -170,16 +179,20 @@ impl Host {
             && self.render.as_ref().is_none_or(|r| r.version < self.song_version || r.url == PREVIEW_URL)
     }
 
-    /// Renders the first bars of a song newer than its render, to play while the whole of it renders, and hands them
-    /// over; None when there is nothing to preview: no song, a render of it already, a preview of it already, or a
-    /// song no longer than a preview.
+    /// Something of a song newer than its render to play while the whole of it renders, handed over; None when there is
+    /// nothing to preview: no song, a render of it already, a preview of it already, or a song no longer than a
+    /// preview. A song heard whole before, and as long as it was, is that render with the bars at the playhead as they
+    /// are now (`window`); another, its first bars.
     pub fn preview(&mut self) -> Option<Audio> {
-        let bp = self.bp.as_ref()?;
         if !self.stale() || self.render.as_ref().is_some_and(|r| r.url == PREVIEW_URL && r.version == self.song_version)
         {
             return None;
         }
-        let project = compose::arrange(bp);
+        let project = compose::arrange(self.bp.as_ref()?);
+        if let Some(audio) = self.window(&project) {
+            return Some(audio);
+        }
+        let bp = self.bp.as_ref()?;
         if project.bars <= PREVIEW_BARS {
             return None;
         }
@@ -211,6 +224,59 @@ impl Host {
         self.render = Some(view.clone());
         self.version += 1;
         Some(Audio { view, samples: r.master.interleaved() })
+    }
+
+    /// The last whole render with the `WINDOW` seconds from the playhead on as the song is now (`render::render_window`:
+    /// the whole song's render there, but for the master's loudness, held as it was), crossfaded in, so that an edit is
+    /// heard where the person listens within a moment; the rest of the song is as it was until the whole of it renders.
+    fn window(&mut self, project: &model::Project) -> Option<Audio> {
+        let (last, settled) = self.last.clone()?;
+        let from = ((self.playhead - 0.25).max(0.0) * claudius::config::SRF) as usize;
+        let n = (WINDOW * claudius::config::SRF) as usize;
+        let opts = render::Options::default();
+        let w = render::render_window(project, &opts, &mut self.kept, &settled, from, n).ok()??;
+        let mut master = (*last).clone();
+        let fade = (0.01 * claudius::config::SRF) as usize;
+        let len = w.master.len();
+        for i in 0..len.min(master.len().saturating_sub(w.start)) {
+            // in over its first 10 ms and out over its last, unless it runs to the song's end
+            let g = if i < fade {
+                i as f32 / fade as f32
+            } else if len - i <= fade && w.start + len < master.len() {
+                (len - i) as f32 / fade as f32
+            } else {
+                1.0
+            };
+            let k = w.start + i;
+            master.l[k] += (w.master.l[i] - master.l[k]) * g;
+            master.r[k] += (w.master.r[i] - master.r[k]) * g;
+        }
+        let spb = 60.0 / project.bpm;
+        let view = RenderView {
+            version: self.song_version,
+            url: PREVIEW_URL.into(),
+            seconds: master.secs(),
+            lufs: self.render.as_ref().map_or(f64::NAN, |r| r.lufs),
+            true_peak_db: self.render.as_ref().map_or(f32::NAN, |r| r.true_peak_db),
+            bpm: project.bpm,
+            sections: project
+                .sections
+                .iter()
+                .map(|s| (s.name.clone(), s.start_bar as f64 * 4.0 * spb, (s.start_bar + s.bars) as f64 * 4.0 * spb))
+                .collect(),
+            waveform: views::waveform_of(&master, 1000),
+            stems: Vec::new(),
+        };
+        let at = w.start as f64 / claudius::config::SRF;
+        self.say(format!(
+            "the change heard from {}:{:02} for {WINDOW:.0} s, at the loudness of the render before, while the whole song \
+             renders",
+            (at / 60.0) as u64,
+            (at % 60.0) as u64
+        ));
+        self.render = Some(view.clone());
+        self.version += 1;
+        Some(Audio { view, samples: master.interleaved() })
     }
 
     /// the song as it is now
@@ -459,7 +525,14 @@ impl Host {
         self.render = Some(view.clone());
         self.verdict = Some(verdict);
         self.version += 1;
-        Some(Ok(Audio { view, samples: r.master.interleaved() }))
+        let samples = r.master.interleaved();
+        self.last = r.settled.map(|s| (Arc::new(r.master), s));
+        Some(Ok(Audio { view, samples }))
+    }
+
+    /// where the studio's playhead is, in seconds: an edit is heard there first
+    pub fn set_playhead(&mut self, secs: f64) {
+        self.playhead = secs.max(0.0);
     }
 
     fn seed(&mut self) -> u64 {
@@ -606,6 +679,36 @@ mod tests {
         assert!(h.state().log.iter().any(|l| l.contains("render failed")));
         command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3}));
         assert!(h.stale(), "another song renders");
+    }
+
+    #[test]
+    fn an_edit_to_a_song_heard_whole_is_heard_at_the_playhead_in_that_render_first() {
+        let mut h = Host::new(1);
+        command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 2}));
+        h.preview();
+        let Some(Ok(before)) = h.render() else { panic!("a whole render") };
+        let sr = claudius::config::SR as usize;
+        h.set_playhead(30.0);
+        command(&mut h, json!({"cmd": "set_mix", "track": "bass", "level_db": 4.0}));
+        let heard = h.preview().expect("the change, heard at once");
+        assert_eq!(heard.view.url, PREVIEW_URL);
+        assert_eq!(heard.samples.len(), before.samples.len(), "the whole song, with the change in it");
+        // before the window and after it, the song as it was; in it, the song as it is now
+        let at = |sec: f64| (sec * sr as f64) as usize * 2;
+        assert_eq!(heard.samples[..at(29.0)], before.samples[..at(29.0)]);
+        assert_eq!(heard.samples[at(43.0)..], before.samples[at(43.0)..]);
+        let (a, b) = (at(31.0), at(41.0));
+        assert_ne!(heard.samples[a..b], before.samples[a..b], "the bass is louder there");
+        assert!(h.stale(), "the whole song renders still");
+        // which brings the master back to its loudness: the window differs from it by that, under a decibel or so
+        let Some(Ok(after)) = h.render() else { panic!("the whole render") };
+        let rms = |v: &mut dyn Iterator<Item = f32>| {
+            let (s, n) = v.fold((0.0f64, 0usize), |(s, n), x| (s + (x as f64).powi(2), n + 1));
+            (s / n.max(1) as f64).sqrt()
+        };
+        let off = rms(&mut after.samples[a..b].iter().zip(&heard.samples[a..b]).map(|(x, y)| x - y));
+        let level = rms(&mut heard.samples[a..b].iter().copied());
+        assert!(off < 0.15 * level, "{off} of {level}");
     }
 
     #[test]

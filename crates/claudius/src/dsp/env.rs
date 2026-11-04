@@ -196,9 +196,14 @@ impl Param {
 
     /// its value at each of `n` samples from beat 0, `samples_per_beat` a beat
     pub fn values(&self, n: usize, samples_per_beat: f64, log: bool) -> Values {
+        self.values_from(0, n, samples_per_beat, log)
+    }
+
+    /// its value at each of `n` samples from sample `start`
+    pub fn values_from(&self, start: usize, n: usize, samples_per_beat: f64, log: bool) -> Values {
         match self {
             Param::Const(v) => Values::One(*v),
-            _ => Values::Each(self.render(n, samples_per_beat, log)),
+            _ => Values::Each((0..n).map(|i| self.at((start + i) as f64 / samples_per_beat, log)).collect()),
         }
     }
 

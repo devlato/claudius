@@ -31,6 +31,10 @@ An edit renders again only the tracks it changed: a level, a pan, a send or the 
 another track's notes only that track, so mixing waits for the mix alone (a level change in the web demo takes about
 13 s where the whole song takes 31). What comes out is the same to the sample as a fresh render.
 
+In the [studio demo](https://claudius.devlato.com/studio/?mock), an edit is heard where you are listening within a
+second: the twelve seconds from the playhead, rendered again with the edit through the same effects as the whole song
+(within a rounding of it, at the loudness of the render before), while the whole song renders again behind them.
+
 A phone plays along: the studio's new phone button shows a QR code that opens drum pads, keys and a turntable on a
 phone on the same Wi-Fi, with the song's own sounds. The phone plays them itself, so a tap sounds at once, and follows
 the studio as it plays, so a take lands where it was heard. A take on the pads becomes the song's drum lanes, on the
