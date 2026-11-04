@@ -24,7 +24,7 @@ use claudius::{pads, scratch};
 use claudius_api::{Command, PhoneView};
 use serde::{Deserialize, Serialize};
 
-use crate::app::{App, Running};
+use crate::app::{App, Running, Take};
 
 const PAGE: &str = include_str!("phone/index.html");
 const SCRIPT: &str = include_str!("phone/phone.js");
@@ -323,7 +323,13 @@ fn three() -> usize {
 
 /// notes of a sound from `low` to `high` every `step` semitones, in one WAV with a note every `slot` seconds
 async fn keys(State(p): State<Arc<Phone>>, Query(k): Query<Keys>) -> Response {
-    let pitches: Vec<i32> = (k.low..=k.high).step_by(k.step.max(1)).collect();
+    let span = k.high.checked_sub(k.low).and_then(|s| usize::try_from(s).ok());
+    let fits = (1..=12).contains(&k.step) && (12..=120).contains(&k.low) && (12..=120).contains(&k.high);
+    if !fits || span.is_none_or(|s| s / k.step + 1 > pads::MAX_NOTES) {
+        let says = format!("keys are 1 to {} notes from MIDI 12 to 120, 1 to 12 semitones apart", pads::MAX_NOTES);
+        return (StatusCode::BAD_REQUEST, says).into_response();
+    }
+    let pitches: Vec<i32> = (k.low..=k.high).step_by(k.step).collect();
     let name = format!("{}:{}:{}:{}", k.sound, k.low, k.high, k.step);
     p.sound(
         |s| &mut s.keys,
@@ -366,13 +372,29 @@ async fn record(State(p): State<Arc<Phone>>, Query(r): Query<Record>) -> Respons
     .await
 }
 
-/// a take played on the phone, as the command it makes
+/// a take played on the phone, sent as the command it makes, and made as no more than the edit it is
 async fn take(State(p): State<Arc<Phone>>, Json(c): Json<Command>) -> Response {
-    if !matches!(c, Command::AddHits { .. } | Command::AddNotes { .. } | Command::AddScratch { .. }) {
-        return (StatusCode::FORBIDDEN, "a phone sends takes: add_hits, add_notes or add_scratch").into_response();
-    }
+    let t = match c {
+        Command::AddHits { from, hits, bars, variant, grid, start, beats } => Take::Hits {
+            from,
+            struck: hits.into_iter().map(|h| claudius::take::Struck { lane: h.lane, t: h.t, v: h.v }).collect(),
+            pads: claudius::take::Pads { bars, variant, grid, start, beats },
+        },
+        Command::AddNotes { from, notes, sounds, name, role, style, request: _ } => Take::Notes {
+            from,
+            notes: notes
+                .iter()
+                .map(|n| claudius::theory::Note { t: n.t, d: n.d, p: n.p, v: n.v, lock: None })
+                .collect(),
+            played: claudius::take::Played { sounds, name, role, style },
+        },
+        Command::AddScratch { from, track, bar, bars, moves, name, role } => {
+            Take::Scratch { from, scratch: claudius_session::edit::scratch(track, bar, bars, &moves), name, role }
+        }
+        _ => return (StatusCode::FORBIDDEN, "a phone sends takes: add_hits, add_notes or add_scratch").into_response(),
+    };
     let Some(app) = p.app.upgrade() else { return gone() };
-    match tokio::task::spawn_blocking(move || app.command(c)).await {
+    match tokio::task::spawn_blocking(move || app.take(t)).await {
         Ok(reply) => Json(reply).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("the take was lost: {e}")).into_response(),
     }
@@ -466,6 +488,12 @@ mod tests {
         let x = audio::load_bytes(wav, "wav").unwrap();
         assert_eq!(status, StatusCode::OK);
         assert!((x.secs() - 3.0 * pads::SLOT_SECS).abs() < 0.01, "three notes, a slot each: {} s", x.secs());
+        for wild in
+            ["low=-2147483648&high=2147483647", "low=60&high=59", "low=12&high=120&step=1", "low=60&high=72&step=0"]
+        {
+            let (status, ..) = ask(&r, get(&format!("/api/keys?sound=epiano&{wild}"), c)).await;
+            assert_eq!(status, StatusCode::BAD_REQUEST, "{wild}");
+        }
         let (status, _, wav) = ask(&r, get("/api/record?track=kick&bar=0&bars=1", c)).await;
         assert_eq!((status, &wav[..4]), (StatusCode::OK, &b"RIFF"[..]));
         // the clock: stopped, then where the studio says the song is

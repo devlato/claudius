@@ -6,7 +6,7 @@ const $ = (id) => document.getElementById(id);
 
 /** the seconds of the record one turn of the platter plays: 33⅓ turns a minute */
 const TURN = 1.8;
-/** how many bars of a track a record is */
+/** how many bars of a track a record is, at most (a shorter section gives a shorter one) */
 const RECORD_BARS = 2;
 
 let ctx = null;
@@ -55,6 +55,8 @@ function play(buf, v, rate = 1, from = 0, secs = undefined) {
 const trips = [];
 let offset = 0;
 let transport = { playing: false, at: 0, since: 0 };
+/** since when the clock has not been reached (the page's time), while it has not */
+let lost = null;
 
 async function tick() {
   const t0 = performance.now();
@@ -67,8 +69,11 @@ async function tick() {
     if (trips.length > 12) trips.shift();
     offset = trips.reduce((a, b) => (b.rtt < a.rtt ? b : a)).offset;
     transport = c;
+    lost = null;
   } catch (e) {
-    transport = { playing: false, at: 0, since: 0 };
+    // a blip on the Wi-Fi keeps the song going as it was; only a studio gone for a while stops it here
+    lost ??= performance.now();
+    if (performance.now() - lost > 5000) transport = { playing: false, at: 0, since: 0 };
     say(`cannot reach the studio: ${e.message}`, "no");
   }
 }
@@ -377,6 +382,7 @@ const deck = {
   buf: null,
   track: "",
   bar: 0,
+  bars: RECORD_BARS,
   pos: 0,
   vel: 0,
   target: 0,
@@ -393,13 +399,15 @@ async function loadRecord() {
   const track = $("track").value;
   const bar = Number($("from").value || 0);
   if (!track || !song || !ctx) return;
-  const name = `${track}:${bar}:${song.version}`;
+  const section = song.sections.find((s) => s.start_bar === bar);
+  const bars = Math.min(RECORD_BARS, section ? section.bars : RECORD_BARS);
+  const name = `${track}:${bar}:${bars}:${song.version}`;
   if (deck.name === name) return;
   Object.assign(deck, { name, buf: null, pos: 0, vel: 0 });
   const done = loading(`cutting a record of ${track}…`);
   try {
-    const b = await sound(`api/record?track=${encodeURIComponent(track)}&bar=${bar}&bars=${RECORD_BARS}`);
-    if (deck.name === name) Object.assign(deck, { buf: b, track, bar });
+    const b = await sound(`api/record?track=${encodeURIComponent(track)}&bar=${bar}&bars=${bars}`);
+    if (deck.name === name) Object.assign(deck, { buf: b, track, bar, bars });
     done();
   } catch (e) {
     say(e.message, "no");
@@ -542,7 +550,7 @@ function record() {
   if (take) return send();
   const at = songAt(performance.now() + latency());
   if (!song || at === null) return say("play the song in the studio first: a take records along with it", "no");
-  take = { mode, from: at, hits: [], notes: [], moves: [], track: deck.track, bar: deck.bar };
+  take = { mode, from: at, hits: [], notes: [], moves: [], track: deck.track, bar: deck.bar, bars: deck.bars };
   take.sound = $("sound").value;
   take.role = $("role").value;
   $("rec").classList.add("taking");
@@ -578,7 +586,7 @@ async function send() {
       .map((m) => ({ t: round(m.at - start), at: round(m.pos), fader: round(m.fader, 1000) }));
     if (moves.length < 2) return say("the record did not move", "no");
     if (moves[0].t > 0) moves.unshift({ t: 0, at: moves[0].at, fader: 0 });
-    cmd = { cmd: "add_scratch", from: sec.name, track: t.track, bar: t.bar, bars: RECORD_BARS, moves };
+    cmd = { cmd: "add_scratch", from: sec.name, track: t.track, bar: t.bar, bars: t.bars, moves };
   }
   say("sending the take…");
   try {

@@ -3,9 +3,12 @@
 
 use std::collections::HashMap;
 use std::net::IpAddr;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use claudius_api::{PhoneView, Transport};
+use claudius::take::{self, Pads, Played, Struck};
+use claudius::{scratch, theory::Note};
+use claudius_api::{PhoneView, Reply, Transport};
 
 use super::App;
 
@@ -20,7 +23,25 @@ pub(crate) struct Running {
     pub seen: HashMap<IpAddr, Instant>,
 }
 
+/// a take played on a phone, as the edit it makes: what a phone may change, and nothing else a command could do
+pub(crate) enum Take {
+    Hits { from: String, struck: Vec<Struck>, pads: Pads },
+    Notes { from: String, notes: Vec<Note>, played: Played },
+    Scratch { from: String, scratch: scratch::Take, name: Option<String>, role: Option<String> },
+}
+
 impl App {
+    /// a take played on a phone, into the song
+    pub(crate) fn take(self: &Arc<Self>, t: Take) -> Reply {
+        match t {
+            Take::Hits { from, struck, pads } => self.edit_with(|bp| take::hits(bp, &from, &struck, &pads)),
+            Take::Notes { from, notes, played } => self.edit_with(|bp| take::played(bp, &from, &notes, &played)),
+            Take::Scratch { from, scratch, name, role } => {
+                self.add_scratch(&from, &scratch, name.as_deref(), role.as_deref())
+            }
+        }
+    }
+
     /// where the studio's song is, as the studio says (`POST /api/transport`)
     pub fn set_transport(&self, t: Transport) {
         *self.transport.lock().unwrap_or_else(|e| e.into_inner()) = (t, Instant::now());

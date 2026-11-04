@@ -22,7 +22,7 @@ mod phone;
 mod release;
 mod takes;
 
-pub(crate) use phone::Running;
+pub(crate) use phone::{Running, Take};
 
 pub use commands::analysis_text;
 pub(crate) use commands::sampling;
