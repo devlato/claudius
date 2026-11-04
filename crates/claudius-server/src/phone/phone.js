@@ -514,8 +514,9 @@ async function send() {
   if (t.mode === "pads") {
     const played = t.hits.filter((h) => h.at >= start).map((h) => ({ lane: h.lane, t: round(beats(h.at)), v: round(h.v, 100) }));
     if (!played.length) return say("nothing was played", "no");
-    const last = played[played.length - 1].t;
-    cmd = { cmd: "add_hits", from: sec.name, hits: played, beats: round(Math.max(end === null ? 0 : beats(end), last + 0.25)) };
+    const [first, last] = [played[0].t, played[played.length - 1].t];
+    const until = round(Math.max(end === null ? 0 : beats(end), last + 0.25));
+    cmd = { cmd: "add_hits", from: sec.name, hits: played, start: round(Math.min(Math.max(0, beats(t.from)), first)), beats: until };
   } else if (t.mode === "keys") {
     const notes = t.notes
       .filter((n) => n.at >= start)
