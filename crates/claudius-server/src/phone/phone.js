@@ -20,6 +20,15 @@ function say(text, kind) {
   f.className = kind || "";
 }
 
+/** says what is loading, unless what a take did is being said; the function it returns takes the words back, unless
+ * something else has been said since */
+function loading(text) {
+  if (!$("said").className) say(text);
+  return () => {
+    if ($("said").textContent === text) say("");
+  };
+}
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function sound(url) {
@@ -117,13 +126,45 @@ function open(s) {
   $("title").textContent = s.title;
   $("rec").disabled = false;
   buildPads();
-  fill($("sound"), s.sounds, (x) => [x, x], ["epiano", "piano", "rhodes"]);
+  fillSounds(s);
   fill($("track"), s.tracks, (x) => [x, x], s.tracks.filter((t) => !s.lanes.includes(t)));
-  fill($("from"), s.sections, (x) => [x.start_bar, `${x.name}, bar ${x.start_bar + 1}`], []);
+  fillFrom();
   hits.clear();
   keys.name = "";
   deck.name = "";
   if (ctx) loadSounds();
+}
+
+/** the sounds the keys can play: the song's parts' own first, then the synths and the instruments */
+function fillSounds(s) {
+  const select = $("sound");
+  const had = select.value;
+  select.textContent = "";
+  const group = (label, items) => {
+    const g = document.createElement("optgroup");
+    g.label = label;
+    for (const [value, text] of items) {
+      const o = document.createElement("option");
+      o.value = value;
+      o.textContent = text;
+      g.append(o);
+    }
+    select.append(g);
+  };
+  group("In the song", s.parts.map(([part, sound]) => [sound, `${part}: ${sound}`]));
+  group("Synths", s.synths.map((x) => [x, x]));
+  group("Instruments", s.instruments.map((x) => [x, x]));
+  const all = [...s.parts.map(([, x]) => x), ...s.synths, ...s.instruments];
+  const keysPart = s.parts.find(([part]) => /keys|piano|chords/.test(part));
+  const pick = [had, keysPart && keysPart[1], "epiano", all[0]].find((x) => x && all.includes(x));
+  if (pick) select.value = pick;
+}
+
+/** the sections a record can be cut from: those the chosen track plays in */
+function fillFrom() {
+  const track = $("track").value;
+  const playing = song.sections.filter((x) => x.layers.includes(track));
+  fill($("from"), playing.length ? playing : song.sections, (x) => [x.start_bar, `${x.name}, bar ${x.start_bar + 1}`], []);
 }
 
 /** `select` offering `items` (as [value, label]), keeping what it had, or else the first of `liked` there is */
@@ -247,15 +288,22 @@ async function loadKeys() {
   const name = `${s}:${low}:${song.version}`;
   if (keys.name === name) return;
   Object.assign(keys, { name, low, buf: null });
-  say(`getting ${s} ready…`);
+  const done = loading(`getting ${s} ready…`);
   try {
     const b = await sound(`api/keys?sound=${encodeURIComponent(s)}&low=${low}&high=${low + 27}&step=3`);
-    if (keys.name === name) {
-      keys.buf = b;
-      say("");
-    }
+    if (keys.name === name) keys.buf = b;
+    done();
   } catch (e) {
     say(e.message, "no");
+  }
+}
+
+/** the pointer's moves go to `el` until it lets go, where the browser allows it */
+function capture(el, e) {
+  try {
+    el.setPointerCapture(e.pointerId);
+  } catch {
+    // a pointer the browser no longer tracks: its moves go where they fall
   }
 }
 
@@ -296,7 +344,7 @@ function keyboard() {
   const kb = $("keyboard");
   kb.addEventListener("pointerdown", (e) => {
     e.preventDefault();
-    kb.setPointerCapture(e.pointerId);
+    capture(kb, e);
     const k = keyAt(e);
     if (k) noteOn(e.pointerId, k, e);
   });
@@ -348,13 +396,11 @@ async function loadRecord() {
   const name = `${track}:${bar}:${song.version}`;
   if (deck.name === name) return;
   Object.assign(deck, { name, buf: null, pos: 0, vel: 0 });
-  say(`cutting a record of ${track}…`);
+  const done = loading(`cutting a record of ${track}…`);
   try {
     const b = await sound(`api/record?track=${encodeURIComponent(track)}&bar=${bar}&bars=${RECORD_BARS}`);
-    if (deck.name === name) {
-      Object.assign(deck, { buf: b, track, bar });
-      say("");
-    }
+    if (deck.name === name) Object.assign(deck, { buf: b, track, bar });
+    done();
   } catch (e) {
     say(e.message, "no");
   }
@@ -434,7 +480,7 @@ function platter() {
   const c = $("platter");
   c.addEventListener("pointerdown", (e) => {
     e.preventDefault();
-    c.setPointerCapture(e.pointerId);
+    capture(c, e);
     Object.assign(deck, { touching: true, angle: angleOf(e, c), turned: 0, start: deck.pos, target: deck.pos });
   });
   c.addEventListener("pointermove", (e) => {
@@ -448,7 +494,10 @@ function platter() {
     deck.target = deck.start + (deck.turned / (2 * Math.PI)) * TURN;
   });
   for (const up of ["pointerup", "pointercancel"]) c.addEventListener(up, () => (deck.touching = false));
-  $("track").onchange = loadRecord;
+  $("track").onchange = () => {
+    fillFrom();
+    loadRecord();
+  };
   $("from").onchange = loadRecord;
 }
 

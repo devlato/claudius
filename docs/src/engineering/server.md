@@ -173,6 +173,28 @@ main thread to the window. Both turn a taken port into `port <port> is taken, by
 
 [HTTP API](../guide/http-api.md) documents the routes and types for clients.
 
+### The phone's page
+
+`POST /api/phone` starts a second listener (`phone.rs`) for [playing from a phone](../guide/phone.md): on every
+interface, on port 7879 or any free one, with a key of 16 random bytes. Its address names the computer as the network
+sees it, found by connecting a UDP socket towards a TEST-NET address, which picks the way out and sends nothing. It
+answers only the page (`index.html`, `phone.js` and `phone.css`, compiled into the binary) and its routes, all behind
+the key:
+
+| route | what it gives the page |
+| --- | --- |
+| `GET /api/song?after=V` | what the page shows and plays of the song: its sections (with the tracks that play in each), drum lanes, tracks, and the sounds the keys can play; with `after`, once the song's version is past `V` |
+| `GET /api/clock` | the server's time in milliseconds and the studio's transport (`POST /api/transport`), for the page to keep its clock (the offset of the quickest of its last twelve round trips) and place what is played in the song |
+| `GET /api/hits/{lane}` | a drum lane's hit (`claudius::pads::hits`: every lane struck in turn and rendered through the song's mix and master, once for each version of the song) |
+| `GET /api/keys?sound=&low=&high=&step=` | notes of a sound, a slot of 1.5 seconds each, in one WAV (`pads::notes`) |
+| `GET /api/record?track=&bar=&bars=` | the record a scratch moves (`scratch::record`) |
+| `POST /api/take` | a take, as `add_hits`, `add_notes` or `add_scratch`; any other command gets 403 |
+
+The page plays what it is sent itself and stamps what is played with its own clock moved onto the server's, plus the
+delay of the phone's output, so a take does not depend on how late the Wi-Fi carries it. The listener holds the session weakly, and stops when the session lets go of its stop signal, as `DELETE /api/phone`
+has it do.
+The session counts the phones that asked for the time in the last ten seconds, and the state's `phone` says how many.
+
 ## MCP
 
 `mcp::Studio` is an `rmcp` server handler whose tools are methods marked `#[tool]`; their parameter structs derive

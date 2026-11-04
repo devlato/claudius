@@ -88,6 +88,10 @@ form([sec("intro", 8, "drums keys"), sec("drop", 16, "*").impact(), sec("break",
   over a section ("beatbox a bar or two: kick, snare, hats"), and `transcribe_drums` with that take writes it into
   the kick, snare (or clap) and hat lanes and mutes the take. A drum loop goes in with `path`. It gets some hits
   wrong, so say what went where and offer to fix steps; `trig()` and `lane()` take it from there.
+- **Played on a phone.** Someone who would rather tap than type can play along on their phone: the studio's phone
+  button shows a QR code that opens drum pads, keys and a turntable with the song's sounds. Their takes arrive as
+  edits, `add_hits` (into the lanes they struck), `add_notes` (a new part) and `add_scratch` (a take, `scratch1` ...),
+  and show in the log; read the song again before you change what they played.
 - An error names the line and what it accepts (`unknown sound 'bdd' (drums: bd kick ...)`). Fix that and run again;
   don't guess around it.
 - **Exact notes.** For a melody, a bass line or chords you write out, or that the person dictates, use `add_notes`. It

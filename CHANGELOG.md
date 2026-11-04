@@ -6,6 +6,12 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+A phone plays along: the studio's new phone button shows a QR code that opens drum pads, keys and a turntable on a
+phone on the same Wi-Fi, with the song's own sounds. The phone plays them itself, so a tap sounds at once, and follows
+the studio as it plays, so a take lands where it was heard. A take on the pads becomes the song's drum lanes, on the
+keys a new part, and a scratch a take of its own ([Playing from a phone](https://claudius.devlato.com/docs/guide/phone.html)).
+Assistants and scripts reach the same through the new `add_hits` and `add_scratch` commands.
+
 The [studio demo](https://claudius.devlato.com/studio/?mock) runs claudius itself: the same composer, edits, script
 language, renderer and critic as the app, in a Web Worker of the page, in place of the stand-in that made every genre
 sound alike. Its songs are the app's, every track and section of them, on claudius' own synths and drums; a

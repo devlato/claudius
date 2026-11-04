@@ -100,6 +100,10 @@ downloads the song as WAV, AIFF, FLAC, Apple Lossless, MP3, AAC, Opus or Ogg Vor
 an audio interface, in the studio app and in the browser studio that `claudius serve` serves. The demo has none,
 since a take goes to a claudius, which keeps it with the song.
 
+The phone button after it opens **Play from a phone**: a QR code for a phone on the same Wi-Fi, which opens drum pads,
+keys and a turntable with the song's sounds there, and sends the takes played on them into the song
+([Playing from a phone](../guide/phone.md)).
+
 - **Setting it up.** Choose the input and its channel, the section the take starts with, a bar or two of count-in, and
   what it is (a vocal, a guitar playing chords ...).
 - **Recording.** The song plays from the count-in, and the take records from the section's first downbeat until you

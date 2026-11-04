@@ -61,6 +61,9 @@ pub fn record(bp: &Blueprint, track: &str, bar: u32, bars: u32) -> Result<Stereo
     p.tracks.retain(|t| t.name == track);
     let slice = p.slice(bar, bar + bars);
     let r = render::render(&slice, &render::Options { stems: false, tail_secs: 0.0 }).map_err(|e| format!("{e:#}"))?;
+    if r.master.l.iter().chain(&r.master.r).all(|s| s.abs() < 1e-4) {
+        return Err(format!("{track} is silent in bars {} to {}: cut the record where it plays", bar + 1, bar + bars));
+    }
     Ok(r.master)
 }
 
@@ -231,6 +234,10 @@ mod tests {
         assert!((rec.secs() - bar).abs() < 0.01, "{} s, a bar is {bar} s", rec.secs());
         assert!(rec.l.iter().any(|s| s.abs() > 0.01), "the lane sounds");
         assert!(record(&bp, "nothing", 0, 1).unwrap_err().contains("tracks:"));
+        let mut quiet = bp.clone();
+        quiet.drums[0].patterns.values_mut().for_each(Vec::clear);
+        let silent = record(&quiet, &lane, 0, 1).unwrap_err();
+        assert!(silent.contains("is silent in bars 1 to 1"), "not a silent record: {silent}");
         assert!(record(&bp, &lane, 10_000, 1).is_err());
         let last = compose::arrange(&bp).bars - 1;
         assert!(record(&bp, &lane, last, 1).is_ok());

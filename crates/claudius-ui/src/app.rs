@@ -518,6 +518,7 @@ impl Studio {
                     crate::panels::transport::ask_download(&self.state, &mut self.view, &mut self.out, demo, now);
                 }
                 Step::Record => self.view.record.show(),
+                Step::Phone => self.view.phone.show(self.state.phone.is_some()),
                 Step::Rec(Rec::Start) => self.view.record.start = true,
                 Step::Rec(Rec::Stop) => self.view.record.stop = true,
                 Step::Rec(Rec::Measure) => self.view.record.measure = true,

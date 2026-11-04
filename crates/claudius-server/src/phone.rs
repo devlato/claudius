@@ -167,11 +167,12 @@ async fn page() -> Response {
     asset(PAGE, "text/html; charset=utf-8")
 }
 
-impl Phone {
-    fn app(&self) -> Result<Arc<App>, Response> {
-        self.app.upgrade().ok_or_else(|| (StatusCode::GONE, "the claudius session has ended").into_response())
-    }
+/// what the page hears once the session it played into has ended
+fn gone() -> Response {
+    (StatusCode::GONE, "the claudius session has ended").into_response()
+}
 
+impl Phone {
     /// the milliseconds from when the page started being served to `t` (before it, below zero)
     fn ms(&self, t: Instant) -> f64 {
         match t.checked_duration_since(self.started) {
@@ -187,10 +188,7 @@ impl Phone {
         name: String,
         make: impl FnOnce(claudius::model::Blueprint) -> Result<Vec<(String, Stereo)>, String> + Send + 'static,
     ) -> Response {
-        let app = match self.app() {
-            Ok(a) => a,
-            Err(r) => return r,
-        };
+        let Some(app) = self.app.upgrade() else { return gone() };
         let Some(bp) = app.blueprint() else { return (StatusCode::NOT_FOUND, "no song yet").into_response() };
         let version = app.state().song_version;
         let mut s = self.sounds.lock().await;
@@ -229,8 +227,11 @@ struct Song {
     lanes: Vec<String>,
     /// the tracks a record can be cut from
     tracks: Vec<String>,
-    /// what the keys can play: synth presets and installed instruments
-    sounds: Vec<String>,
+    /// what the keys can play: the sounds of the song's parts (with the part's name), the synth presets, and the
+    /// installed instruments
+    parts: Vec<(String, String)>,
+    synths: Vec<String>,
+    instruments: Vec<String>,
     /// the seconds between notes in `/api/keys`
     slot: f64,
 }
@@ -240,6 +241,8 @@ struct Section {
     name: String,
     start_bar: u32,
     bars: u32,
+    /// the tracks that play in it
+    layers: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -249,10 +252,7 @@ struct After {
 }
 
 async fn song(State(p): State<Arc<Phone>>, Query(q): Query<After>) -> Response {
-    let app = match p.app() {
-        Ok(a) => a,
-        Err(r) => return r,
-    };
+    let Some(app) = p.app.upgrade() else { return gone() };
     let mut st = app.state();
     if let Some(after) = q.after {
         let deadline = Instant::now() + Duration::from_secs(20);
@@ -272,11 +272,13 @@ async fn song(State(p): State<Arc<Phone>>, Query(q): Query<After>) -> Response {
         sections: s
             .sections
             .into_iter()
-            .map(|x| Section { name: x.name, start_bar: x.start_bar, bars: x.bars })
+            .map(|x| Section { name: x.name, start_bar: x.start_bar, bars: x.bars, layers: x.layers })
             .collect(),
         lanes: s.drums.into_iter().map(|d| d.lane).collect(),
         tracks: s.tracks.into_iter().map(|t| t.name).collect(),
-        sounds: sounds.synths.into_iter().chain(sounds.instruments).collect(),
+        parts: s.parts.into_iter().map(|p| (p.name, p.preset)).filter(|(_, s)| !s.is_empty()).collect(),
+        synths: sounds.synths,
+        instruments: sounds.instruments,
         slot: pads::SLOT_SECS,
     })
     .into_response()
@@ -295,10 +297,7 @@ struct Clock {
 }
 
 async fn clock(State(p): State<Arc<Phone>>, ConnectInfo(from): ConnectInfo<SocketAddr>) -> Response {
-    let app = match p.app() {
-        Ok(a) => a,
-        Err(r) => return r,
-    };
+    let Some(app) = p.app.upgrade() else { return gone() };
     app.phone_seen(from.ip());
     let (t, when) = app.transport();
     let version = app.state().song_version;
@@ -372,10 +371,7 @@ async fn take(State(p): State<Arc<Phone>>, Json(c): Json<Command>) -> Response {
     if !matches!(c, Command::AddHits { .. } | Command::AddNotes { .. } | Command::AddScratch { .. }) {
         return (StatusCode::FORBIDDEN, "a phone sends takes: add_hits, add_notes or add_scratch").into_response();
     }
-    let app = match p.app() {
-        Ok(a) => a,
-        Err(r) => return r,
-    };
+    let Some(app) = p.app.upgrade() else { return gone() };
     match tokio::task::spawn_blocking(move || app.command(c)).await {
         Ok(reply) => Json(reply).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("the take was lost: {e}")).into_response(),
@@ -460,7 +456,8 @@ mod tests {
         let s: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let lanes: Vec<String> = serde_json::from_value(s["lanes"].clone()).unwrap();
         assert!(lanes.iter().any(|l| l == "kick"), "{lanes:?}");
-        assert!(s["sounds"].as_array().unwrap().iter().any(|x| x == "epiano"));
+        assert!(s["synths"].as_array().unwrap().iter().any(|x| x == "epiano"));
+        assert!(!s["parts"].as_array().unwrap().is_empty(), "the song's own sounds come first");
         let (status, headers, wav) = ask(&r, get("/api/hits/kick", c)).await;
         assert_eq!((status, &wav[..4]), (StatusCode::OK, &b"RIFF"[..]));
         assert_eq!(headers[header::CONTENT_TYPE], "audio/wav");

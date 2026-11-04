@@ -111,7 +111,7 @@ fn qr(ui: &mut Ui, code: &mut Option<(String, QrCode)>, url: &str) {
         *code = QrCode::encode_text(url, QrCodeEcc::Medium).ok().map(|c| (url.to_string(), c));
     }
     let Some((_, q)) = code else { return };
-    let (n, quiet) = (q.size(), 3);
+    let (n, quiet) = (q.size(), 4);
     let cell = (220.0 / (n + 2 * quiet) as f32).floor().max(2.0);
     let side = cell * (n + 2 * quiet) as f32;
     let (rect, _) = ui.allocate_exact_size(vec2(side, side), Sense::hover());

@@ -31,6 +31,9 @@ this API, so anything it does you can do with `curl`. The types are plain serde 
 | `POST /api/analyze?name=FILE` | a recording to listen to, as the file itself with `Content-Type: audio/...` or `application/octet-stream` (300 MB at most), named in the query so that its extension says its format (WAV, FLAC, MP3, AAC, ALAC, Ogg, AIFF ...); answers as `analyze` does, and keeps nothing of it |
 | `POST /api/remake?name=FILE` | a recording to remake, sent as for `/api/analyze`; optional `genre`, `seed` and `bpm` in the query, as for `remake`; answers with a [reply](#replies-and-errors) |
 | `/mcp` | the [MCP endpoint](mcp.md#mcp-over-http) |
+| `POST /api/phone` | serves the [page a phone plays along on](phone.md), with a new key (or answers with the one being served): `{"url": "http://192.168.1.23:7879/?key=…", "phones": 0}`, also in the state as `phone`; 503 when the computer is on no network |
+| `DELETE /api/phone` | stops serving it |
+| `POST /api/transport` | where the studio's song is, `{"playing": true, "at": 12.5}` (seconds from its start), for the phone's page to follow; the studio sends it as it plays while the page is served |
 | `GET /` and anything else | the web studio; when it is not built, a page that says how to build it |
 
 `state`, `since`, `settled` and `timeout` combine as described below; `timeout` is in seconds, 20 by default and 600
