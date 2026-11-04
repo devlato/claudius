@@ -10,7 +10,7 @@
 //! (the Play from a phone window, which has claudius serve the phone's page),
 //! `rec:<start|stop|measure>` (a take, or the latency), `rec:<play|keep|not-now>` (the take back, kept or sent; the
 //! take an assistant asked for turned down), `rec:allow-midi`, `rec:midi:<input>` (a MIDI input chosen),
-//! `rec:grid:<beats>` (its notes' grid, 0 as played), `pick:<song|audio|cover>` (a file dialog, as its button opens
+//! `rec:grid:<beats>` (its notes' grid, 0 as played), `rec:part:<role|drums>` (what its notes play), `pick:<song|audio|cover>` (a file dialog, as its button opens
 //! one), `listen:<analyze|remake>` (as the New song dialog's buttons), `audiopath:<file>` (a recording read as if
 //! chosen for Analyze, in the app), `cmd:<command json>`, `size:<w>,<h>`, `script:<code; \n for a newline, %3B for ;>`
 //! (into the editor), `run`, `reference`, `shot:<file.png>` (the window as rendered), `exit`, and synthetic pointer
@@ -70,6 +70,8 @@ pub enum Rec {
     Midi(String),
     /// a MIDI take's notes go to a grid of this many beats (0: as played)
     Grid(f64),
+    /// a MIDI take plays a part of this role, or the song's drums (`drums`)
+    Part(String),
     /// the page asks the browser for MIDI keyboards, as choosing "let the page use them" does
     AllowMidi,
     /// the take that waits to be kept plays back, as Play it back plays it
@@ -227,10 +229,11 @@ impl Plan {
                 other => match (other.strip_prefix("midi:"), other.strip_prefix("grid:").map(str::parse)) {
                     (Some(name), _) => Some(Step::Rec(Rec::Midi(name.to_string()))),
                     (_, Some(Ok(beats))) => Some(Step::Rec(Rec::Grid(beats))),
+                    _ if other.starts_with("part:") => Some(Step::Rec(Rec::Part(other["part:".len()..].to_string()))),
                     _ => {
                         say(&format!(
                             "a plan's rec is rec:start, rec:stop, rec:measure, rec:play, rec:keep, rec:check, rec:not-now, \
-                             rec:allow-midi, rec:midi:<input> or rec:grid:<beats>, not '{step}'"
+                             rec:allow-midi, rec:midi:<input>, rec:grid:<beats> or rec:part:<role>, not '{step}'"
                         ));
                         None
                     }

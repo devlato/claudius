@@ -65,8 +65,78 @@ impl Default for Settings {
     }
 }
 
-/// what a MIDI take's part can be
-const PART_ROLES: &[&str] = &["keys", "lead", "chords", "pad", "arp", "bass"];
+/// what a MIDI take's part can be: a part's role, or the song's drums
+const PART_ROLES: &[&str] = &["keys", "lead", "chords", "pad", "arp", "bass", DRUMS];
+/// what a MIDI take plays as the song's drum lanes: a drum pad's notes, by the General MIDI drum map
+const DRUMS: &str = "drums";
+
+/// the drum a General MIDI note plays (channel 10's map, which drum pads and drum apps send), as a lane's role
+fn gm_drum(pitch: u8) -> Option<&'static str> {
+    Some(match pitch {
+        35 | 36 => "kick",
+        38 | 40 => "snare",
+        39 => "clap",
+        42 | 44 => "hat",
+        46 => "ohat",
+        41 | 43 | 45 | 47 | 48 | 50 => "tom",
+        49 | 52 | 55 | 57 => "crash",
+        51 | 53 | 59 => "ride",
+        54 | 69 | 70 | 82 => "shaker",
+        37 | 56 | 58 | 60..=68 | 71..=81 => "perc",
+        _ => return None,
+    })
+}
+
+/// the roles of lanes that play a drum when the song has no lane of its own role
+fn stand_ins(role: &str) -> &'static [&'static str] {
+    match role {
+        "snare" => &["clap"],
+        "clap" => &["snare"],
+        "ohat" => &["hat"],
+        "hat" => &["shaker", "ohat"],
+        "ride" => &["hat", "ohat"],
+        "crash" => &["ride", "ohat"],
+        "tom" => &["perc"],
+        "shaker" => &["hat", "perc"],
+        "perc" => &["shaker"],
+        _ => &[],
+    }
+}
+
+/// Notes played on drum pads as hits on the song's lanes (`(name, role)`): each note's drum (`gm_drum`) on the lane
+/// of its role, or of one that stands in for it, in beats from the take's start; with the drums the song has no lane
+/// for, and the notes the map has no drum for. A pad struck before the take began is no hit of it, unless it was struck
+/// early by less than half a step of the `grid`, for the downbeat.
+fn to_hits(
+    played: &[crate::audio::record::Played],
+    beat: f64,
+    grid: f64,
+    lanes: &[(String, String)],
+) -> (Vec<claudius_api::HitView>, Vec<&'static str>, usize) {
+    let (mut missing, mut strange) = (Vec::new(), 0);
+    let early = if grid > 0.0 { grid / 2.0 } else { 1.0 / 32.0 } * beat;
+    let hits = played
+        .iter()
+        .filter(|n| n.start >= -early)
+        .filter_map(|n| {
+            let Some(drum) = gm_drum(n.pitch) else {
+                strange += 1;
+                return None;
+            };
+            let roles = std::iter::once(drum).chain(stand_ins(drum).iter().copied());
+            let lane = roles.into_iter().find_map(|role| lanes.iter().find(|(_, r)| r == role));
+            if lane.is_none() && !missing.contains(&drum) {
+                missing.push(drum);
+            }
+            lane.map(|(name, _)| claudius_api::HitView {
+                lane: name.clone(),
+                t: n.start.max(0.0) / beat,
+                v: n.velocity,
+            })
+        })
+        .collect();
+    (hits, missing, strange)
+}
 
 #[cfg(test)]
 mod tests {
@@ -84,6 +154,23 @@ mod tests {
         assert_eq!(on.iter().map(|n| (n.t, n.d, n.p)).collect::<Vec<_>>(), [(0.0, 1.0, 60), (2.0, 0.25, 64)]);
         let loose = to_beats(&played, 0.5, 0.0);
         assert!((loose[0].t - 0.06).abs() < 1e-9 && (loose[1].d - 0.1).abs() < 1e-9, "as played");
+        let held = to_beats(&[Played { start: -1.0, end: 0.5, pitch: 60, velocity: 0.5 }], 0.5, 0.25);
+        assert_eq!((held[0].t, held[0].d), (0.0, 1.0), "a key held across the take's start starts with it");
+    }
+
+    #[test]
+    fn drum_pads_play_the_songs_lanes_by_the_general_midi_map() {
+        let pad = |start, pitch| Played { start, end: start + 0.1, pitch, velocity: 0.8 };
+        // a kick a little early for the downbeat, a snare (the song has a clap), an open hat (it has a closed one), a
+        // tom (no lane), a note no drum, and a kick struck a sixteenth before the take began
+        let played = [pad(-0.02, 36), pad(0.5, 38), pad(1.0, 46), pad(1.25, 45), pad(1.5, 20), pad(-0.125, 36)];
+        let lanes: Vec<(String, String)> =
+            [("kick", "kick"), ("clap", "clap"), ("hat", "hat")].map(|(n, r)| (n.into(), r.into())).to_vec();
+        let (hits, missing, strange) = to_hits(&played, 0.5, 0.25, &lanes);
+        let on = hits.iter().map(|h| (h.lane.as_str(), h.t)).collect::<Vec<_>>();
+        assert_eq!(on, [("kick", 0.0), ("clap", 1.0), ("hat", 2.0)]);
+        assert_eq!((missing, strange), (vec!["tom"], 1));
+        assert!((hits[0].v - 0.8).abs() < 1e-6, "as hard as it was struck");
     }
 
     #[test]
@@ -194,7 +281,8 @@ fn to_beats(played: &[crate::audio::record::Played], beat: f64, grid: f64) -> Ve
     played
         .iter()
         .map(|n| {
-            let t = snap(n.start / beat);
+            // a key held across the take's start starts with it
+            let t = snap(n.start.max(0.0) / beat);
             claudius_api::NoteView {
                 t,
                 d: (snap(n.end / beat) - t).max(shortest),
@@ -542,7 +630,13 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
                             }
                         })
                         .response
-                        .on_hover_text("the part the notes make: keys, a lead, chords, a pad, an arp or a bass");
+                        .on_hover_text(
+                            "the part the notes make: keys, a lead, chords, a pad, an arp or a bass; or the song's \
+                             drums, struck on drum pads (by the General MIDI drum map, which pads and drum apps send)",
+                        );
+                }
+                let drums = midi && r.settings.part_role == DRUMS;
+                if midi && !drums {
                     egui::ComboBox::from_id_salt("record-sound").selected_text(&r.settings.sound).width(100.0).show_ui(
                         ui,
                         |ui| {
@@ -556,6 +650,8 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
                             }
                         },
                     );
+                }
+                if midi {
                     let grid = |g: f64| match g {
                         0.0 => "as played".to_string(),
                         0.25 => "on sixteenths".to_string(),
@@ -570,6 +666,8 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
                             }
                         },
                     );
+                }
+                if midi && !drums {
                     egui::ComboBox::from_id_salt("record-style")
                         .selected_text(format!("as {}", r.settings.style))
                         .show_ui(ui, |ui| {
@@ -583,7 +681,8 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
                              below; chords puts a triad under each note, bass moves them down, arp breaks each into \
                              a rising arpeggio, pad holds a chord a bar",
                         );
-                } else {
+                }
+                if !midi {
                     egui::ComboBox::from_id_salt("record-role")
                         .selected_text(&r.settings.role)
                         .width(80.0)
@@ -595,9 +694,12 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
                         .response
                         .on_hover_text("what the take is, for the mix: it sets how loud claudius makes it");
                 }
-                let hint = if midi { "named played ..." } else { "named take1, take2 ..." };
-                ui.add(egui::TextEdit::singleline(&mut r.name).hint_text(hint).desired_width(130.0))
-                    .on_hover_text("the track's name: letters, digits, - and _");
+                // drums go into the song's lanes, which have their names
+                if !drums {
+                    let hint = if midi { "named played ..." } else { "named take1, take2 ..." };
+                    ui.add(egui::TextEdit::singleline(&mut r.name).hint_text(hint).desired_width(130.0))
+                        .on_hover_text("the track's name: letters, digits, - and _");
+                }
             });
         });
         ui.end_row();
@@ -1178,6 +1280,8 @@ fn done(cx: &mut Cx) {
     }
     let name = Some(r.name.trim().to_string()).filter(|n| !n.is_empty());
     let from = r.from.clone().unwrap_or_default();
+    // how long the take went on, in beats from its section's start
+    let length = ((live.recorder.time() - live.take_start) / live.beat).max(0.0);
     match live.recorder.finish() {
         Ok(Take::Audio { peak: 0.0, .. }) => {
             r.status = Some((false, "the take is silent: nothing came in from the input".into()));
@@ -1189,6 +1293,37 @@ fn done(cx: &mut Cx) {
                 Some((true, format!("{secs:.1} s recorded: play it back, record it again, or {keep}{}", r.note)));
             let (song, start, bar) = (live.song, live.take_start, 4.0 * live.beat);
             r.held = Some(Held { wav, secs, from, song, start, bar, request: asked });
+        }
+        Ok(Take::Notes(played)) if r.settings.part_role == DRUMS => {
+            let lanes: Vec<(String, String)> = cx.state.song.as_ref().map_or_else(Vec::new, |s| {
+                let role =
+                    |lane: &str| s.tracks.iter().find(|t| t.name == lane).map_or(lane.into(), |t| t.role.clone());
+                s.drums.iter().map(|d| (d.lane.clone(), role(&d.lane))).collect()
+            });
+            let (hits, missing, strange) = to_hits(&played, live.beat, r.settings.grid, &lanes);
+            let mut left = Vec::new();
+            if !missing.is_empty() {
+                left.push(format!("the song has no lane for {}", missing.join(" or ")));
+            }
+            if strange > 0 {
+                left.push(format!("{strange} notes play no drum of the General MIDI map"));
+            }
+            let left = if left.is_empty() { String::new() } else { format!(" ({})", left.join("; ")) };
+            if hits.is_empty() {
+                r.status = Some((false, format!("no drum of the song was struck{left}")));
+                return;
+            }
+            r.status = Some((true, format!("sending {} hits to claudius ...{left}", hits.len())));
+            (r.sending, r.answers) = (true, None);
+            cx.out.push(claudius_api::Command::AddHits {
+                from,
+                hits,
+                bars: None,
+                variant: None,
+                grid: Some(r.settings.grid),
+                start: Some(0.0),
+                beats: Some(length),
+            });
         }
         Ok(Take::Notes(played)) => {
             let notes = to_beats(&played, live.beat, r.settings.grid);

@@ -26,6 +26,12 @@
   ! Content-Security-Policy
   Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'self'; worker-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
 
+# The page a phone plays along with the demo on: a MIDI controller plugged into what opens it (a drum pad, a jog wheel)
+# plays its pads, keys and turntable, so it may use MIDI, and only it
+/phone/*
+  ! Permissions-Policy
+  Permissions-Policy: accelerometer=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(self), payment=(), serial=(), usb=(), xr-spatial-tracking=(), browsing-topics=()
+
 # caching: trunk and mdBook (0.5 and later) put a content hash in these file names
 /studio/*.wasm
   Cache-Control: public, max-age=31536000, immutable

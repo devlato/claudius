@@ -111,6 +111,13 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
     ui.vertical_centered(|ui| qr(ui, &mut cx.view.phone.code, &phone.url));
     ui.add_space(8.0);
     ui.add(egui::Label::new(RichText::new(&phone.url).small().color(TEXT_DIM)).selectable(true));
+    ui.add_space(4.0);
+    // a MIDI controller plugged into this computer plays the page in a browser here: on this computer's own address,
+    // which a browser lets use MIDI, as it does the site
+    ui.horizontal(|ui| {
+        ui.hyperlink_to(RichText::new("Open it on this computer").small(), here(&phone.url));
+        ui.label(small("for a MIDI controller plugged in here: drum pads, keys, a jog wheel"));
+    });
     ui.add_space(8.0);
     let who = match phone.phones {
         0 => "No phone has it open yet.".to_string(),
@@ -126,6 +133,14 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
     if ui.button("Stop serving the page").clicked() {
         cx.view.phone.ask = Some(false);
         cx.view.phone.open = false;
+    }
+}
+
+/// the page's address on this computer: its own (127.0.0.1) for the page a claudius serves on the network
+fn here(url: &str) -> String {
+    match url.strip_prefix("http://").and_then(|rest| rest.split_once(':')) {
+        Some((_, rest)) => format!("http://127.0.0.1:{rest}"),
+        None => url.to_string(),
     }
 }
 
@@ -149,5 +164,16 @@ fn qr(ui: &mut Ui, code: &mut Option<(String, QrCode)>, url: &str) {
                 p.rect_filled(Rect::from_min_size(at, vec2(cell, cell)), 0.0, Color32::BLACK);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn the_page_is_opened_here_on_this_computers_own_address() {
+        let lan = "http://192.168.0.126:7879/?key=abc";
+        assert_eq!(super::here(lan), "http://127.0.0.1:7879/?key=abc");
+        let site = "https://claudius.devlato.com/phone/?room=0f";
+        assert_eq!(super::here(site), site, "the demo's page is the site's, here as anywhere");
     }
 }

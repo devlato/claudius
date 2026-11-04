@@ -21,10 +21,10 @@ const offered = (page) => heard(page, "midi");
 /**
  * Web MIDI as a browser gives it, before the page's own scripts: `state` is what the browser says of the page
  * ("granted", "prompt" (it asks, and the person says yes) or "denied"), or "absent" for a browser without it. Its one
- * keyboard plays middle C every half second, held a fifth of a second, to whatever listens, its messages stamped where
- * they arrived, or 0 when `stamped` is false, as Chromium stamps a real keyboard's.
+ * keyboard plays `pitch` (middle C) every half second, held a fifth of a second, to whatever listens, its messages
+ * stamped where they arrived, or 0 when `stamped` is false, as Chromium stamps a real keyboard's.
  */
-function fakeMidi({ state, stamped = true, slow = 0 }) {
+function fakeMidi({ state, stamped = true, slow = 0, pitch = 60 }) {
   if (state === "absent") {
     delete Navigator.prototype.requestMIDIAccess;
     return;
@@ -46,7 +46,9 @@ function fakeMidi({ state, stamped = true, slow = 0 }) {
   const due = [];
   setInterval(() => {
     const now = performance.now();
-    for (; t0 + next * 500 <= now; next++) due.push([t0 + next * 500, [0x90, 60, 100]], [t0 + next * 500 + 200, [0x80, 60, 0]]);
+    for (; t0 + next * 500 <= now; next++) {
+      due.push([t0 + next * 500, [0x90, pitch, 100]], [t0 + next * 500 + 200, [0x80, pitch, 0]]);
+    }
     due.sort((a, b) => a[0] - b[0]);
     while (due.length && due[0][0] <= now) {
       const [at, bytes] = due.shift();
@@ -219,6 +221,28 @@ test.describe("recording in the browser", () => {
         expect(Math.abs(b.t - a.t - 1), `a beat apart: ${a.t} then ${b.t}`).toBeLessThan(0.06);
       }
       for (const note of notes) expect(Math.abs(note.d - 0.4), `held 0.4 of a beat: ${note.d}`).toBeLessThan(0.06);
+    } finally {
+      await close();
+      c.stop();
+    }
+  });
+
+  test("drum pads on MIDI play the song's lanes, by the General MIDI drum map", async () => {
+    test.setTimeout(180_000);
+    const c = await claudius();
+    const { page, close } = await browser(c.base);
+    try {
+      // a pad struck every half second, the General MIDI kick: a kick on every beat at 120 BPM
+      await page.addInitScript(fakeMidi, { state: "granted", pitch: 36 });
+      const lines = said(page);
+      const plan = "wait:3;record;rec:midi:Fake Keyboard;rec:part:drums;wait:3;rec:start;wait:7;rec:stop;wait:4";
+      await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
+      await expect.poll(() => lines.join("\n"), { timeout: 60_000 }).toMatch(/drums played from intro, \d bars? as their main patterns: \d+ steps into kick/);
+      const state = await (await c.api("/api/state")).json();
+      const kick = state.song.drums.find((d) => d.lane === "kick").variants.find(([n]) => n === "main")[1];
+      const steps = kick.slice(0, 16).map((v, i) => (v > 0 ? i : -1)).filter((i) => i >= 0);
+      expect(steps.length, `a kick on each beat of the first bar: ${steps}`).toBe(4);
+      expect(steps.every((s, i) => i === 0 || s - steps[i - 1] === 4), `a beat apart: ${steps}`).toBe(true);
     } finally {
       await close();
       c.stop();

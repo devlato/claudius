@@ -221,7 +221,7 @@ impl Studio {
                         Err(e) => (false, e.clone()),
                     });
                 }
-                if what == "take" || what == "add_notes" {
+                if what == "take" || what == "add_notes" || what == "add_hits" {
                     match &result {
                         Ok(r) => self.view.record.answered(r.ok, r.message.clone()),
                         Err(e) => self.view.record.answered(false, format!("the take did not arrive: {e}")),
@@ -529,6 +529,7 @@ impl Studio {
                 Step::Rec(Rec::Measure) => self.view.record.measure = true,
                 Step::Rec(Rec::Midi(name)) => self.view.record.settings.midi = Some(name),
                 Step::Rec(Rec::Grid(beats)) => self.view.record.settings.grid = beats,
+                Step::Rec(Rec::Part(role)) => self.view.record.settings.part_role = role,
                 Step::Rec(Rec::AllowMidi) => crate::audio::record::ask_for_midi(),
                 Step::Rec(Rec::Play) => self.view.record.play = true,
                 Step::Rec(Rec::Keep) => self.view.record.keep = true,

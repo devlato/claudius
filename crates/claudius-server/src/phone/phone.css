@@ -173,6 +173,15 @@ main {
   white-space: nowrap;
 }
 
+#learn {
+  white-space: nowrap;
+}
+
+#learn.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 #pads {
   display: none;
 }

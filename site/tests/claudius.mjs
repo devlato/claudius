@@ -91,13 +91,17 @@ export function heard(page, thing) {
 
 /**
  * On the phone's page: a take started on the bar after next, two bars of a beat struck on its pads in time with the
- * song (the first lane on every other beat, the second on the others), and the take sent. Returns what the page says.
+ * song (the first lane on every other beat, the second on the others), and the take sent. The pads are struck by touch,
+ * or with `midi`, by a drum pad's General MIDI notes (`window.sendMidi`, a controller a test stands in for). Returns what
+ * the page says.
  */
-export function playTwoBars() {
+export function playTwoBars(midi) {
   const wait = (ms) => new Promise((r) => setTimeout(r, Math.max(0, ms)));
   const [low, high] = song.lanes;
   const pad = (lane) => [...document.querySelectorAll(".pad")].find((p) => p.textContent === lane);
+  const NOTES = { kick: 36, snare: 38, clap: 39, hat: 42, ohat: 46, tom: 45, crash: 49, ride: 51, shaker: 70, perc: 37 };
   const strike = (lane) => {
+    if (midi) return window.sendMidi(0x99, NOTES[song.roles[song.lanes.indexOf(lane)]], 120);
     const r = pad(lane).getBoundingClientRect();
     pad(lane).dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: r.left + 10, clientY: r.top + 10 }));
   };
