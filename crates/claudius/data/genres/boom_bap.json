@@ -141,6 +141,7 @@
     "phrase": {
       "search": ["soul", "jazz piano", "rhodes", "jazz guitar", "horn section", "vibraphone", "gospel", "funk", "70s soul", "jazz organ", "bossa nova", "blues guitar", "flute", "soul strings", "jazz quartet", "old jazz record"],
       "listen": "a soulful jazz piano sample from an old record",
+      "treat": {"as it is": 0.45, "filtered until it lifts": 0.3, "a telephone's band in the intro and the breaks": 0.15, "overloaded": 0.1},
       "seconds": [6, 900],
       "keep": 8,
       "chance": 0.95,

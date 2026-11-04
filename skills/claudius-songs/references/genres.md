@@ -18,7 +18,10 @@ slower by whole semitones as a sampler would, in place of the genre's chords or 
 what the genre's producers dig for. Another passage of the same record plays as `sample2` in some sections, on its
 own chords (progression A2): the louder of the two where the song lifts, the other elsewhere. To keep one passage all
 through, give those sections `sample` in place of `sample2` and progression A, so that the parts play the phrase's
-chords under it. Trip-hop, boom bap, lo-fi, jungle, big beat and filter house are
+chords under it. The song's history names the move its phrase was treated with (filtered until it lifts, darkened, a
+telephone's band in the intro and the breaks, overloaded, smashed, crushed): the effects of it are in the `sample`
+track's mix, to describe in musical terms when you say what was sampled. Trip-hop, boom bap, lo-fi, jungle, big beat
+and filter house are
 built on samples unless `sampled: false`. When the person wants a sampled song, say which record kind you searched
 for, and offer another if the phrase is not to their taste.
 

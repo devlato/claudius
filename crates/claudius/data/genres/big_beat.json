@@ -182,6 +182,7 @@
     "phrase": {
       "search": ["rock guitar riff", "surf guitar", "funk guitar", "hammond organ", "brass section", "psychedelic rock", "60s rock", "garage rock", "fuzz guitar", "soul horns"],
       "listen": "a raw distorted rock guitar riff",
+      "treat": {"overloaded": 0.35, "smashed": 0.25, "as it is": 0.2, "filtered until it lifts": 0.2},
       "seconds": [6, 900],
       "keep": 6,
       "chance": 0.95,

@@ -142,6 +142,7 @@
     "phrase": {
       "search": ["disco", "disco strings", "funk guitar", "disco bass", "boogie", "philly soul", "70s funk", "brass section", "disco loop", "soul", "funk"],
       "listen": "a funky 70s disco loop with strings and guitar",
+      "treat": {"as it is": 1},
       "seconds": [6, 900],
       "keep": 8,
       "chance": 0.95,

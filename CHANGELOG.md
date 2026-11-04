@@ -27,6 +27,11 @@ and two bars from another section of the recording (or on other chords). The lou
 lifts, in its drops and hooks, and the other in its verses, breaks, intro and outro, each on its own chords (the
 `sample` and `sample2` tracks).
 
+A song treats its phrase as producers treat a record, with one move that its seed picks from those its genre makes:
+held behind a filter that opens as the song lifts, darkened, narrowed to a telephone's band in the intro and the
+breaks, overloaded or smashed, or crushed to 12 bits. Trip-hop darkens and filters, big beat overloads, lo-fi darkens
+and crushes, and filter house keeps its own sweep. The song's history names the move.
+
 A recording decodes ten times as fast: converting its rate (44.1 kHz, most often) to claudius' 48 kHz works out its
 filter's weights once for each position between samples, where it worked them out for every sample, and what comes out
 agrees to a rounding of a 32-bit float. The demo cuts a 3.6-minute song into a phrase in about 4.5 s where it took 18.

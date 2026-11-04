@@ -149,6 +149,7 @@
     "phrase": {
       "search": ["jazz piano", "rhodes", "jazz guitar", "bossa nova", "vibraphone", "soul", "jazz trio", "saxophone", "nylon guitar", "smooth jazz", "piano ballad", "jazz ballad", "70s soul", "flute", "harp"],
       "listen": "a mellow jazz piano or rhodes from an old record",
+      "treat": {"as it is": 0.35, "darkened": 0.35, "a telephone's band in the intro and the breaks": 0.2, "crushed": 0.1},
       "seconds": [6, 900],
       "keep": 8,
       "chance": 0.95,
