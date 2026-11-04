@@ -206,7 +206,7 @@ impl Mock {
                 Heard::Replaced => {
                     self.relay = None;
                     let text = "the phone plays along with this demo opened in another tab now".to_string();
-                    self.events.push(Event::Said { text, ok: true });
+                    self.events.push(Event::PhoneRefused(text));
                     self.publish();
                     return;
                 }

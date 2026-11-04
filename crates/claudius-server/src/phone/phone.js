@@ -437,9 +437,10 @@ async function loadKeys() {
   try {
     const b = await sound(`api/keys?sound=${encodeURIComponent(s)}&low=${low}&high=${low + 27}&step=3`);
     if (keys.name === name) keys.buf = b;
-    done();
   } catch (e) {
     if (!e.quiet) say(e.message, trouble(e));
+  } finally {
+    done();
   }
 }
 
@@ -548,9 +549,10 @@ async function loadRecord() {
   try {
     const b = await sound(`api/record?track=${encodeURIComponent(track)}&bar=${bar}&bars=${bars}`);
     if (deck.name === name) Object.assign(deck, { buf: b, track, bar, bars });
-    done();
   } catch (e) {
     if (!e.quiet) say(e.message, trouble(e));
+  } finally {
+    done();
   }
   if (!deck.node) {
     deck.node = ctx.createScriptProcessor(1024, 0, 2);

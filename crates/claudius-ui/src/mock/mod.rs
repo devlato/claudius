@@ -560,7 +560,7 @@ mod tests {
         mock.relay.as_mut().unwrap().inbox.push("\n{\"event\":\"replaced\"}".into());
         let events = mock.update(now);
         assert_eq!(mock.phone_view(), None);
-        assert!(events.iter().any(|e| matches!(e, Event::Said { text, .. } if text.contains("another tab"))));
+        assert!(events.iter().any(|e| matches!(e, Event::PhoneRefused(text) if text.contains("another tab"))));
     }
 
     #[test]
