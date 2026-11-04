@@ -842,7 +842,8 @@ function heard(e) {
       if (lane) hit(lane, Math.max(0.3, b / 127), t);
     } else if (mode === "keys") press(`midi${a}`, a, b / 127, t);
   } else if (kind === 0x80 || kind === 0x90) {
-    if (mode === "keys") noteOff(`midi${a}`, t);
+    // a key let go sounds no more, whatever is on the screen now
+    noteOff(`midi${a}`, t);
   } else if (kind === 0xb0) control(ch, a, b);
 }
 

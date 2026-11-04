@@ -188,6 +188,22 @@ mod tests {
     }
 
     #[test]
+    fn drums_asked_for_are_a_beat_to_hear_not_drum_pads() {
+        let ask = TakeRequest {
+            id: 1,
+            from: "verse".into(),
+            role: Some("drums".into()),
+            name: None,
+            note: "beatbox a bar".into(),
+            status: TakeStatus::Waiting,
+            answer: None,
+        };
+        let mut r = Record::default();
+        assert!(r.set_up_for(Some(&ask)));
+        assert_eq!((r.settings.role.as_str(), r.settings.part_role.as_str()), ("drums", "keys"), "no pads");
+    }
+
+    #[test]
     fn a_take_asked_for_sets_the_window_up_once_and_says_when_the_assistant_has_it() {
         let ask = |id, status, role: &str| TakeRequest {
             id,
@@ -479,7 +495,9 @@ impl Record {
             if ROLES.contains(&role) {
                 self.settings.role = role.into();
             }
-            if PART_ROLES.contains(&role) {
+            // an assistant's drums are a take to hear (a beat played or beatboxed), not drum pads on MIDI, which answer
+            // no request
+            if PART_ROLES.contains(&role) && role != DRUMS {
                 self.settings.part_role = role.into();
             }
         }

@@ -80,6 +80,14 @@ test.describe("playing from a phone", () => {
         [0, 8, 16, 24],
         [4, 12, 20, 28],
       ]);
+      // a key held as the screen changes is let go of all the same
+      await phone.click("nav button[data-mode=keys]");
+      await phone.waitForFunction(() => keys.buf !== null, null, { timeout: 60_000 });
+      await phone.evaluate(() => window.sendMidi(0x90, 60, 100));
+      expect(await phone.evaluate(() => held.size)).toBe(1);
+      await phone.click("nav button[data-mode=pads]");
+      await phone.evaluate(() => window.sendMidi(0x80, 60, 0));
+      expect(await phone.evaluate(() => held.size), "the key sounds no more").toBe(0);
       // the turntable: the wheel and the fader learnt, then turning the record and cutting it
       await phone.click("nav button[data-mode=deck]");
       await phone.waitForFunction(() => deck.buf !== null, null, { timeout: 60_000 });
