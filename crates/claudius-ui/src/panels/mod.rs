@@ -20,7 +20,7 @@ pub mod sequencer;
 pub mod transport;
 pub mod verdict;
 
-use claudius_api::{Command, SongView, SoundList, State};
+use claudius_api::{Command, GenreInfo, SongView, SoundList, State};
 use eframe::egui::{self, Color32, RichText, Ui};
 use serde::{Deserialize, Serialize};
 
@@ -113,6 +113,10 @@ pub struct NewSongForm {
     pub loops: bool,
     pub bpm: Option<f64>,
     pub key: Option<String>,
+    /// build it on samples from free libraries, as asked here; none: as the genre does
+    pub sampled: Option<bool>,
+    /// what its phrase is searched for; empty: what the genre's producers dig for
+    pub sample_search: String,
 }
 
 impl NewSongForm {
@@ -124,11 +128,35 @@ impl NewSongForm {
         }
     }
 
-    /// set from a song's genre, a fusion's first two genres included
+    /// set from a song's genre, a fusion's first two genres included; it samples as that genre does until asked
     pub fn set_genre(&mut self, name: &str) {
         let mut parts = name.split('+');
-        self.genre = parts.next().unwrap_or(name).to_string();
+        let genre = parts.next().unwrap_or(name).to_string();
+        if genre != self.genre {
+            self.sampled = None;
+        }
+        self.genre = genre;
         self.with = parts.next().map(String::from);
+    }
+
+    /// whether the song is built on samples, as the dialog shows it: as asked, else as the genre is by default
+    pub fn sampling_on(&self, genres: &[GenreInfo]) -> bool {
+        let sampling = genres.iter().find(|g| g.name == self.genre).and_then(|g| g.sampling.as_ref());
+        sampling.is_some() && self.sampled.unwrap_or(sampling.is_some_and(|s| s.by_default))
+    }
+
+    /// the new song asked for: the words for its phrase go only with samples, as the dialog shows them
+    pub fn command(&self, genres: &[GenreInfo]) -> Command {
+        let words = self.sample_search.trim();
+        Command::NewSong {
+            genre: self.genre_name(),
+            seed: self.seed.trim().parse().ok(),
+            bpm: self.bpm,
+            key: self.key.clone(),
+            loops: self.loops,
+            sampled: self.sampled,
+            sample_search: Some(words.to_string()).filter(|w| !w.is_empty() && self.sampling_on(genres)),
+        }
     }
 }
 
@@ -273,6 +301,8 @@ impl Default for View {
                 loops: false,
                 bpm: None,
                 key: None,
+                sampled: None,
+                sample_search: String::new(),
             },
             stems: false,
             mutate_count: 4,
@@ -527,7 +557,36 @@ pub fn page_frame() -> egui::Frame {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use claudius_api::RenderView;
+    use claudius_api::{GenreSampling, RenderView};
+
+    #[test]
+    fn the_new_song_asked_for_samples_as_the_dialog_shows_it() {
+        let genre = |name: &str, by_default: bool| GenreInfo {
+            name: name.into(),
+            sampling: Some(GenreSampling { by_default, roles: Vec::new() }),
+            ..Default::default()
+        };
+        let genres =
+            [genre("house", false), genre("trip_hop", true), GenreInfo { name: "mine".into(), ..Default::default() }];
+        let mut f = View::default().new_song;
+        let asked = |f: &NewSongForm| match f.command(&genres) {
+            Command::NewSong { sampled, sample_search, .. } => (sampled, sample_search),
+            _ => unreachable!("a new song"),
+        };
+        // house as it is: no samples, and words typed under another genre do not ask for them
+        f.sample_search = " 70s soul ".into();
+        assert_eq!(asked(&f), (None, None));
+        f.sampled = Some(true);
+        assert_eq!(asked(&f), (Some(true), Some("70s soul".into())));
+        // another genre samples as it does: trip-hop is, with the words
+        f.set_genre("trip_hop");
+        assert_eq!(asked(&f), (None, Some("70s soul".into())));
+        f.sampled = Some(false);
+        assert_eq!(asked(&f), (Some(false), None));
+        // a genre that says nothing of what it samples sends no words
+        f.set_genre("mine");
+        assert!(!f.sampling_on(&genres) && asked(&f).1.is_none());
+    }
 
     #[test]
     fn a_download_waits_for_its_songs_render_and_is_off_when_another_song_comes() {
