@@ -264,6 +264,12 @@ bus and sends, in the order a fresh render does, so what comes out is the same t
 In the web demo, a level change on one track renders again in about 13 s where the whole song takes 31.
 Installing packs forgets what was kept, since an instrument may sound otherwise.
 
+Where there are no threads, in a browser, the tracks are made elsewhere and kept instead. `Kept::stale` lists the
+tracks a render would make anew, with the key each will be kept under; `render::track_sound` makes one, in another
+worker; and `Kept::keep` keeps it, so the render only mixes. The demo's engine shares a song's tracks out among
+copies of itself this way (see [The demo](ui.md#the-demo)). A test checks that tracks made so render the song as it
+would have rendered alone.
+
 ### Hearing an edit at once
 
 `render::render_window` renders a stretch of the song as the whole song's render has it there.

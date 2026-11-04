@@ -57,6 +57,15 @@ pub struct Audio {
     pub samples: Vec<f32>,
 }
 
+/// What a song's next render would make anew (`Host::to_make`): the song as the renderer reads it, the tracks to make,
+/// each with the key it is kept under and about what it costs (`render::track_cost`), the costliest first, and the
+/// audio handed over that they play, by its path.
+pub struct ToMake {
+    pub project: model::Project,
+    pub tracks: Vec<(String, render::TrackKey, f64)>,
+    pub audio: Vec<(String, Arc<audio::Stereo>)>,
+}
+
 pub struct Host {
     bp: Option<Blueprint>,
     undo: Vec<(Option<Blueprint>, String)>,
@@ -535,6 +544,39 @@ impl Host {
         self.playhead = secs.max(0.0);
     }
 
+    /// What the song's next render would make anew, for other workers to make first (`render::track_sound`), so that
+    /// the render only mixes; none when the song is not stale.
+    pub fn to_make(&self) -> Option<ToMake> {
+        if !self.stale() {
+            return None;
+        }
+        let project = compose::arrange(self.bp.as_ref()?);
+        let stale = self.kept.stale(&project, &render::Options::default()).ok()?;
+        let mut tracks: Vec<(String, render::TrackKey, f64)> = stale
+            .into_iter()
+            .filter_map(|(name, key)| {
+                let cost = render::track_cost(project.tracks.iter().find(|t| t.name == name)?);
+                Some((name, key, cost))
+            })
+            .collect();
+        tracks.sort_by(|a, b| b.2.total_cmp(&a.2));
+        let mut audio: Vec<(String, Arc<audio::Stereo>)> = Vec::new();
+        for t in project.tracks.iter().filter(|t| tracks.iter().any(|(n, _, _)| *n == t.name)) {
+            if let model::Sound::Sample { path, .. } | model::Sound::Loop { path, .. } = &t.sound
+                && !audio.iter().any(|(p, _)| p == path)
+                && let Some(x) = audio::remembered_audio(path)
+            {
+                audio.push((path.clone(), x));
+            }
+        }
+        Some(ToMake { project, tracks, audio })
+    }
+
+    /// keeps a track `to_make` listed as another worker made it, for the next render
+    pub fn made(&mut self, name: &str, key: render::TrackKey, sound: audio::Stereo, level: Option<f64>) {
+        self.kept.keep(name, key, sound, level);
+    }
+
     fn seed(&mut self) -> u64 {
         1 + self.seeds.next_u64() % 1_000_000
     }
@@ -665,6 +707,24 @@ mod tests {
         let s = h.state();
         assert!(s.render.is_none() && s.verdict.is_none(), "another song's render is no render of this one");
         assert!(s.song.unwrap().tracks.iter().all(|t| t.loudness.is_none()), "nor are its meters");
+    }
+
+    #[test]
+    fn a_song_whose_tracks_were_made_elsewhere_renders_as_it_would_have_alone() {
+        let mut h = Host::new(1);
+        command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 2}));
+        let make = h.to_make().expect("a new song has tracks to make");
+        assert!(make.tracks.len() >= 2 && make.tracks.windows(2).all(|w| w[0].2 >= w[1].2), "the costliest first");
+        for (name, key, _) in &make.tracks {
+            let (sound, level) = render::track_sound(&make.project, &render::Options::default(), name).unwrap();
+            h.made(name, *key, sound, level);
+        }
+        assert!(h.to_make().is_some_and(|m| m.tracks.is_empty()), "nothing left to make");
+        let shared = h.render().unwrap().unwrap();
+        let mut alone = Host::new(1);
+        command(&mut alone, json!({"cmd": "new_song", "genre": "house", "seed": 2}));
+        assert!(shared.samples == alone.render().unwrap().unwrap().samples);
+        assert!(h.to_make().is_none(), "a song rendered has nothing to make");
     }
 
     #[test]

@@ -9,7 +9,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use rayon::prelude::*;
 use serde::Serialize;
 
@@ -413,6 +413,53 @@ impl Kept {
     pub fn is_empty(&self) -> bool {
         self.tracks.is_empty()
     }
+
+    /// the tracks of `p` a render of it would make anew, each with the key it is kept under
+    pub fn stale(&self, p: &Project, opts: &Options) -> Result<Vec<(String, TrackKey)>> {
+        let s = Song::of(p, opts)?;
+        Ok(p.tracks
+            .iter()
+            .map(|t| (t, track_key(p, t, s.len, &s.chokes)))
+            .filter(|(t, key)| self.tracks.get(&t.name).is_none_or(|k| k.key != *key))
+            .map(|(t, key)| (t.name.clone(), TrackKey(key)))
+            .collect())
+    }
+
+    /// keeps `sound` and `level`, the track `name`'s as `track_sound` made them elsewhere, under `key`, for the renders
+    /// after
+    pub fn keep(&mut self, name: &str, key: TrackKey, sound: Stereo, level: Option<f64>) {
+        self.tracks.insert(name.to_string(), KeptTrack { key: key.0, sound: Arc::new(sound), level });
+    }
+}
+
+/// what a track's sound is kept under (`Kept::stale`)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TrackKey(blake3::Hash);
+
+/// The sound of the track `name` of `p` before the mix, as a render makes it, and the level the mix hears in it: for a
+/// render elsewhere that keeps it (`Kept::keep`), so that tracks are made side by side where there are no threads (in
+/// a browser's workers).
+pub fn track_sound(p: &Project, opts: &Options, name: &str) -> Result<(Stereo, Option<f64>)> {
+    let s = Song::of(p, opts)?;
+    let t = p.tracks.iter().find(|t| t.name == name).with_context(|| format!("the song has no track {name}"))?;
+    s.sound(t)
+}
+
+/// About how long a track takes to make, to share a song's tracks out: the beats its notes and clips last, a beat
+/// more each for their release, times what a beat of it costs (a synth's oscillators, each voice of them, and its
+/// filter; a recording's or a sampled instrument's notes little, a drum's hits less).
+pub fn track_cost(t: &Track) -> f64 {
+    let beats: f64 =
+        t.notes.iter().map(|n| n.d + 1.0).sum::<f64>() + t.clips.iter().map(|c| c.d.max(0.0) + 1.0).sum::<f64>();
+    let per_beat = match &t.sound {
+        Sound::Synth { patch, .. } => {
+            patch.osc.iter().map(|o| o.voices.max(1) as f64).sum::<f64>().max(1.0)
+                + if patch.filter.is_some() { 1.0 } else { 0.0 }
+        }
+        Sound::Drum { .. } => 0.05,
+        _ => 0.3,
+    };
+    beats * per_beat
 }
 
 /// what a track's sound before the mix comes from: the track, but for what the mix does after its drive, the song's
@@ -592,6 +639,23 @@ impl<'a> Song<'a> {
         Ctx { start, ..Ctx::whole(SRF, self.p.bpm, self.p.seed ^ hash_str(name), self.len) }
     }
 
+    /// a track's sound before the mix, through its effects and its drive, and the level the mix hears in it
+    fn sound(&self, t: &Track) -> Result<(Stereo, Option<f64>)> {
+        let ts = crate::clock::Instant::now();
+        let mut x = render_source(t, self.p, &self.tm, self.len, &self.chokes)?;
+        fx::apply_chain(&t.mix.fx, &mut x, &self.ctx(&t.name, 0));
+        if t.mix.drive_db > 0.0 {
+            let drive_db = t.mix.drive_db.min(crate::model::MAX_DRIVE_DB).into();
+            let drive = Effect::Saturate { kind: fx::SatKind::Tanh, drive_db, mix: 1.0.into() };
+            fx::apply_chain(std::slice::from_ref(&drive), &mut x, &self.ctx(&t.name, 0));
+        }
+        if debug() {
+            eprintln!("render: track {} in {:.2} s", t.name, ts.elapsed().as_secs_f64());
+        }
+        let level = loudness::active_level(&x);
+        Ok((x, level))
+    }
+
     /// each track's sound before the mix: kept from the render before when nothing it comes from has changed, and kept
     /// for the next
     fn sounds(&self, kept: &mut Kept) -> Result<Vec<Made>> {
@@ -604,18 +668,7 @@ impl<'a> Song<'a> {
                 if let Some(k) = kept.tracks.get(&t.name).filter(|k| k.key == key) {
                     return Ok((key, k.sound.clone(), k.level));
                 }
-                let ts = crate::clock::Instant::now();
-                let mut x = render_source(t, p, &self.tm, self.len, &self.chokes)?;
-                fx::apply_chain(&t.mix.fx, &mut x, &self.ctx(&t.name, 0));
-                if t.mix.drive_db > 0.0 {
-                    let drive_db = t.mix.drive_db.min(crate::model::MAX_DRIVE_DB).into();
-                    let drive = Effect::Saturate { kind: fx::SatKind::Tanh, drive_db, mix: 1.0.into() };
-                    fx::apply_chain(std::slice::from_ref(&drive), &mut x, &self.ctx(&t.name, 0));
-                }
-                if debug() {
-                    eprintln!("render: track {} in {:.2} s", t.name, ts.elapsed().as_secs_f64());
-                }
-                let level = loudness::active_level(&x);
+                let (x, level) = self.sound(t)?;
                 Ok((key, Arc::new(x), level))
             })
             .collect::<Result<Vec<_>>>()?;
@@ -963,6 +1016,33 @@ mod tests {
             eprintln!("{genre}: a window is within {worst:e} of the whole song's render");
             assert!(worst < 1e-6, "{genre}: {worst}");
         }
+    }
+
+    #[test]
+    fn tracks_made_elsewhere_and_kept_render_the_song_as_it_would_have_been() {
+        let g = crate::genres::get("house").unwrap();
+        let o = crate::compose::Options { short: true, samples: 0.0, loops: false, ..Default::default() };
+        let p = crate::compose::arrange(&crate::compose::generate(&g, 5, &o, None));
+        let opts = Options::default();
+        let mut kept = Kept::default();
+        let stale = kept.stale(&p, &opts).unwrap();
+        assert_eq!(stale.len(), p.tracks.len(), "a first render makes every track");
+        for (name, key) in stale {
+            let (sound, level) = track_sound(&p, &opts, &name).unwrap();
+            kept.keep(&name, key, sound, level);
+        }
+        assert!(kept.stale(&p, &opts).unwrap().is_empty(), "and then none");
+        let shared = render_kept(&p, &opts, &mut kept).unwrap();
+        let alone = render(&p, &opts).unwrap();
+        assert!(shared.master.l == alone.master.l && shared.master.r == alone.master.r);
+        // an edit to a synth's notes leaves the other tracks kept
+        let mut q = p.clone();
+        let synth = q.tracks.iter().position(|t| matches!(t.sound, Sound::Synth { .. })).unwrap();
+        q.tracks[synth].notes.pop();
+        let stale: Vec<String> = kept.stale(&q, &opts).unwrap().into_iter().map(|(n, _)| n).collect();
+        assert_eq!(stale, [q.tracks[synth].name.clone()]);
+        let drum = q.tracks.iter().find(|t| matches!(t.sound, Sound::Drum { .. })).unwrap();
+        assert!(track_cost(&q.tracks[synth]) > track_cost(drum), "a synth's notes cost more than a drum's hits");
     }
 
     #[test]

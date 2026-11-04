@@ -286,6 +286,20 @@ reply and the state after it come back; a render comes with its master, handed o
 sent before the worker has loaded its WebAssembly would be lost, so the page holds its messages until the worker
 first speaks.
 
+Where the browser has cores to spare, the engine makes a render's tracks side by side, as the app does on threads
+(`crates/claudius-web/src/crew.rs`):
+- It starts up to three copies of itself (`claudius-engine_loader.js?crew`), as many as there are cores beyond the
+  page's and its own.
+- It shares out the tracks the render would make anew (`Host::to_make`), the costliest first to the copy with the
+  least to make (`render::track_cost`), with the audio they play. Each copy speaks first, as the engine does, before
+  it is handed its share.
+- It keeps each track a copy posts back (`render::track_sound`, `Host::made`). The render that waited for them then
+  only mixes, and comes out as it would have alone. A copy that has made its share stops, which gives back its memory.
+
+A crew that fails leaves the engine to make the tracks itself, as it does on a phone, whose browser holds a page's
+workers in the memory it gives the page, and when started as `claudius-engine_loader.js?alone`. A four-minute deep
+house song renders whole in about 22 s with a crew of three, where the engine alone takes 29.
+
 What needs a computer of one's own the demo turns down, and says so: takes, folders, files written (the download
 button hands over the render as a WAV file), packs, mutation and evolution. A recording to listen to gets an analysis
 made up from its name, since the demo hears nothing, and a remake of one is a new song of the genre asked for. Scripts,

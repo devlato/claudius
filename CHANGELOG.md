@@ -37,7 +37,9 @@ another track's notes only that track, so mixing waits for the mix alone (a leve
 
 In the [studio demo](https://claudius.devlato.com/studio/?mock), an edit is heard where you are listening within a
 second: the twelve seconds from the playhead, rendered again with the edit through the same effects as the whole song
-(within a rounding of it, at the loudness of the render before), while the whole song renders again behind them.
+(within a rounding of it, at the loudness of the render before), while the whole song renders again behind them. Where
+the browser has cores to spare, the demo renders a song's tracks side by side in copies of its engine, as the app does
+on threads, and comes out the same: a four-minute song renders whole in about 22 s where it took 29.
 
 A phone plays along: the studio's new phone button shows a QR code that opens drum pads, keys and a turntable on a
 phone on the same Wi-Fi, with the song's own sounds. The phone plays them itself, so a tap sounds at once, and follows
