@@ -20,6 +20,11 @@ for you. When the demo makes a song of a genre built on samples, it asks the sit
 words and nothing about you, and they see the site, not your address. What they answer is kept in Cloudflare's cache,
 searches for a day and audio for a year.
 
+A phone [playing along with the demo](phone.md#with-the-demo) reaches the demo's tab through a room of the site's
+relay (`site/worker/room.js`, a Durable Object on Cloudflare): what the tab and the phone say to each other (the song's
+sounds, the time, the takes) passes through it and is kept nowhere. A room's name is 128 random bits that the demo's QR
+code alone carries, and only the site's own pages may join one.
+
 ## Usage statistics
 
 They stay off unless you say yes. The studio asks once, at the end of its first-run tour, with two answers and neither

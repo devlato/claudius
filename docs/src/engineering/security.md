@@ -97,6 +97,13 @@ traffic is plain HTTP, like the rest of a LAN claudius: someone who can watch th
 into the song until the page stops, which `DELETE /api/phone`, the window's **Stop serving the page** or quitting
 does.
 
+The demo pairs with a phone through a room of the site's relay instead (`site/worker/room.js`, a Durable Object). A
+room is named with 128 random bits that only the demo's QR code carries, takes one tab as its host (the same tab again
+after a reload, which keeps the name) and four phones, and only pages of the site's own origin may join it. It passes a
+phone's requests to the host, tagged with an id it gives the phone, and the host's answers to that phone alone; it keeps
+nothing. The demo, like the server, makes nothing of a phone's requests but its sounds and `add_hits`, `add_notes` and
+`add_scratch`.
+
 ### `--public`
 
 `--public` lifts the Host check so a tunnel's or a LAN's host name is accepted, and switches on the file policy below.

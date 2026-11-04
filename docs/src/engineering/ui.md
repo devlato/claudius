@@ -294,6 +294,18 @@ CLAUDIUS_MOCK=1 cargo run -p claudius-ui
 
 On the web, `?mock` in the URL does the same.
 
+### A phone with the demo
+
+A phone plays along with the demo through the site's relay (`site/worker/room.js`): the demo's **Play from a phone**
+joins a room, named with 128 random bits kept in the tab's `sessionStorage` (a reload keeps it), as its host, and shows
+the phone's page on the site, `/phone/?room=<name>`, as a QR code. The page is the one `claudius serve` serves to a
+phone ([Server, sessions and MCP](server.md#the-phones-page)); with `?room=` it sends each request as a message
+`{id, method, path, body}` through the room. `mock/phone.rs` answers them as the server's `phone.rs` does: the song and
+the clock from the demo's state and the transport the studio reports, each lane's hit, the keys' notes and a record
+rendered by the engine (`claudius_session::host::Host::sound`, a message of their own to the worker) and kept as WAV
+files for the song's version, and a take sent to the engine as a command of its own name, whose answer goes to the
+phone and to the person as a toast. A sound goes back as a binary message: the phone's id, the request's, and the WAV.
+
 ### The demo's samples
 
 A genre built on samples (trip-hop) is built on them in the demo too. Making a song of it starts a job,

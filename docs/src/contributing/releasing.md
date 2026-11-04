@@ -216,6 +216,10 @@ cargo xtask site --site-url https://claudius.devlato.com
 npx wrangler deploy --config site/wrangler.toml
 ```
 
+The Worker has a Durable Object, the rooms of the relay between the studio demo and a phone (`site/worker/room.js`):
+SQLite-backed, as the Workers Free plan allows, and kept by nothing, so the deploy that first carries it creates its
+class from the `[[migrations]]` in `site/wrangler.toml`, and a later one changes it only with a migration of its own.
+
 **Apple.** Both need a membership of the [Apple Developer Program](https://developer.apple.com/programs/). In
 Xcode, *Settings*, *Accounts*, *Manage Certificates*, add a **Developer ID Application** certificate, then export it
 from Keychain Access as a `.p12` file with a password: `MACOS_CERTIFICATE` is the file in base64
