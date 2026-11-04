@@ -16,6 +16,24 @@ let song = null;
 let mode = "pads";
 const hits = new Map();
 
+/** what is said of the studio being out of reach: cleared once it answers again */
+const LOST = "no lost";
+
+/** how a failure is said: as the studio out of reach (the link's own failures, and a network's), or as what it is */
+function trouble(e) {
+  return e.lost || e instanceof TypeError ? LOST : "no";
+}
+
+/** a failure of the link to the demo: none of the demo's own answers */
+function unreachable(why) {
+  return Object.assign(new Error(why), { lost: true });
+}
+
+/** clears what was said of the studio being out of reach */
+function found() {
+  if ($("said").classList.contains("lost")) say("");
+}
+
 function say(text, kind) {
   const f = $("said");
   f.textContent = text || "";
@@ -66,6 +84,12 @@ function relay(room) {
   let opening = null;
   let next = 1;
   let gone = false;
+  const rearm = (id, ms) => {
+    const w = waiting.get(id);
+    clearTimeout(w.timer);
+    w.short = ms < 120_000;
+    w.timer = setTimeout(() => fail(id, gone ? "the demo is not open" : "the demo did not answer"), ms);
+  };
   const fail = (id, why) => {
     const w = waiting.get(id);
     if (!w) return;
@@ -73,7 +97,7 @@ function relay(room) {
     clearTimeout(w.timer);
     failed.set(id, w.path);
     if (failed.size > 64) failed.delete(failed.keys().next().value);
-    w.no(new Error(why));
+    w.no(unreachable(why));
   };
   const settle = (id, status, body) => {
     const w = waiting.get(id);
@@ -86,7 +110,9 @@ function relay(room) {
     waiting.delete(id);
     clearTimeout(w.timer);
     if (gone) {
+      // what was asked while it was away waits as long as anything now
       gone = false;
+      for (const [other, x] of waiting) if (x.short) rearm(other, 120_000);
       back();
     }
     w.ok(answer(status, body));
@@ -99,7 +125,7 @@ function relay(room) {
         ws = s;
         ok();
       };
-      s.onerror = () => no(new Error("the site's relay cannot be reached"));
+      s.onerror = () => no(unreachable("the site's relay cannot be reached"));
       s.onclose = () => {
         ws = null;
         for (const id of [...waiting.keys()]) fail(id, "the connection to the demo closed");
@@ -111,7 +137,7 @@ function relay(room) {
           // nothing that waits is answered by a demo that is not there: each asks again, and is answered once it is
           gone = true;
           for (const id of [...waiting.keys()]) fail(id, "the demo is not open");
-          say("the demo is not open: open it again and scan its code", "no");
+          say("the demo is not open: open it again and scan its code", LOST);
         } else if (m.id) settle(m.id, m.status, m.body);
       };
     });
@@ -122,12 +148,11 @@ function relay(room) {
     }
     const id = next++;
     return new Promise((ok, no) => {
-      waiting.set(id, { ok, no, path: path.split("?")[0] });
+      waiting.set(id, { ok, no, path: path.split("?")[0], short: gone });
       ws.send(JSON.stringify({ id, method, path, body }));
       // the demo's engine renders a whole song at a time, and what a phone asks for meanwhile waits for it; while the
       // demo is away, the room drops what is asked
-      const wait = gone ? 5000 : 120_000;
-      waiting.get(id).timer = setTimeout(() => fail(id, gone ? "the demo is not open" : "the demo did not answer"), wait);
+      rearm(id, gone ? 5000 : 120_000);
     });
   }
   return { get: (path) => ask("GET", path), post: (path, body) => ask("POST", path, body) };
@@ -135,7 +160,7 @@ function relay(room) {
 
 /** the demo answers again: what did not load while it was away is asked for again */
 function back() {
-  if (/^(cannot reach the studio|the demo is not open)/.test($("said").textContent)) say("");
+  found();
   if (!ctx || !song) return;
   if (!keys.buf) keys.name = "";
   if (!deck.buf) deck.name = "";
@@ -184,14 +209,14 @@ async function tick() {
     transport = c;
     lost = null;
     reached = t1;
-    if (/^(cannot reach the studio|the demo is not open)/.test($("said").textContent)) say("");
+    found();
   } catch (e) {
     // what failed after an answer came for something asked since says nothing of the studio now
     if (t0 < reached) return;
     // a blip on the Wi-Fi keeps the song going as it was; only a studio gone for a while stops it here
     lost ??= performance.now();
     if (performance.now() - lost > 5000) transport = { playing: false, at: 0, since: 0 };
-    say(`cannot reach the studio: ${e.message}`, "no");
+    say(`cannot reach the studio: ${e.message}`, LOST);
   }
 }
 
@@ -237,7 +262,7 @@ async function watch() {
       const s = await r.json();
       if (!song || s.version !== song.version) open(s);
     } catch (e) {
-      say(`cannot reach the studio: ${e.message}`, "no");
+      say(`cannot reach the studio: ${e.message}`, LOST);
       await sleep(3000);
     }
   }
@@ -316,7 +341,7 @@ async function loadSounds() {
           const b = await sound(`api/hits/${encodeURIComponent(lane)}`);
           if (song && song.version === v) hits.set(lane, b);
         } catch (e) {
-          say(`no sound for ${lane}: ${e.message}`, "no");
+          say(`no sound for ${lane}: ${e.message}`, trouble(e));
         }
       }),
   );
@@ -418,7 +443,7 @@ async function loadKeys() {
     if (keys.name === name) keys.buf = b;
     done();
   } catch (e) {
-    say(e.message, "no");
+    say(e.message, trouble(e));
   }
 }
 
@@ -529,7 +554,7 @@ async function loadRecord() {
     if (deck.name === name) Object.assign(deck, { buf: b, track, bar, bars });
     done();
   } catch (e) {
-    say(e.message, "no");
+    say(e.message, trouble(e));
   }
   if (!deck.node) {
     deck.node = ctx.createScriptProcessor(1024, 0, 2);
