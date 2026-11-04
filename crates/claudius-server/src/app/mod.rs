@@ -18,8 +18,11 @@ use claudius_session::views;
 
 mod commands;
 mod jobs;
+mod phone;
 mod release;
 mod takes;
+
+pub(crate) use phone::Running;
 
 pub use commands::analysis_text;
 pub(crate) use commands::sampling;
@@ -142,6 +145,10 @@ pub struct App {
     /// how many new songs have been asked for: a song whose samples were still being gathered when a newer one was
     /// asked for is not made
     new_songs: AtomicU64,
+    /// the studio's transport, and when it said so
+    transport: Mutex<(Transport, Instant)>,
+    /// the page a phone plays along on, while it is served
+    phone: Mutex<Option<phone::Running>>,
 }
 
 /// how many sessions this process has started
@@ -199,6 +206,8 @@ impl App {
             new_songs: AtomicU64::new(0),
             roots: settings.file_roots,
             voice_file: settings.voice.clone(),
+            transport: Mutex::new((Transport::default(), Instant::now())),
+            phone: Mutex::new(None),
         });
         {
             let mut s = app.lock();
@@ -330,6 +339,7 @@ impl App {
     }
 
     pub fn state(&self) -> State {
+        let phone = self.phone_view();
         let mut s = self.lock();
         let release = self.release_view(&mut s);
         State {
@@ -352,6 +362,7 @@ impl App {
             take_request: s.take_request.clone(),
             pitch_check: s.pitch_check.as_ref().map(|(_, v)| v.clone()),
             voice: s.voice.as_ref().map(|v| v.describe()),
+            phone,
         }
     }
 

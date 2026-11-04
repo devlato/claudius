@@ -32,6 +32,7 @@ pub mod judge;
 pub mod library;
 pub mod loudness;
 pub mod model;
+pub mod pads;
 pub mod palette;
 pub mod pattern;
 pub mod publish;

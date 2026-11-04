@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#101217">
+<title>claudius: play along</title>
+<link rel="stylesheet" href="phone.css">
+<script src="phone.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="song">
+    <b id="title">claudius</b>
+    <span id="where">connecting…</span>
+  </div>
+  <div id="beat" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <button id="rec" type="button" aria-label="Record a take" disabled><span></span></button>
+</header>
+<nav>
+  <button type="button" data-mode="pads" class="on">Pads</button>
+  <button type="button" data-mode="keys">Keys</button>
+  <button type="button" data-mode="deck">Turntable</button>
+</nav>
+<main>
+  <section id="pads" class="mode on" aria-label="Drum pads"></section>
+  <section id="keys" class="mode" aria-label="Keys">
+    <div class="bar">
+      <select id="sound" aria-label="Sound"></select>
+      <select id="role" aria-label="Role">
+        <option value="keys">keys</option>
+        <option value="lead">lead</option>
+        <option value="chords">chords</option>
+        <option value="bass">bass</option>
+        <option value="pad">pad</option>
+      </select>
+      <button type="button" id="down" aria-label="An octave down">−</button>
+      <span id="octave">C3</span>
+      <button type="button" id="up" aria-label="An octave up">+</button>
+    </div>
+    <div id="keyboard"></div>
+  </section>
+  <section id="deck" class="mode" aria-label="Turntable">
+    <div class="bar">
+      <select id="track" aria-label="Track to scratch"></select>
+      <select id="from" aria-label="Bars to cut the record from"></select>
+      <label class="toggle"><input type="checkbox" id="motor"> motor</label>
+    </div>
+    <canvas id="platter"></canvas>
+    <div class="fader">
+      <span>cut</span>
+      <input id="fader" type="range" min="0" max="1" step="0.01" value="1" aria-label="Crossfader">
+      <span>open</span>
+    </div>
+  </section>
+</main>
+<footer id="said" role="status"></footer>
+<div id="start" class="overlay">
+  <div>
+    <h1>Play along with claudius</h1>
+    <p>Pads, keys and a turntable with the song's own sounds. Play the song in the studio, tap <b>●</b> to record a
+      take, and tap it again to send the take into the song.</p>
+    <button type="button" id="go">Start</button>
+  </div>
+</div>
+</body>
+</html>

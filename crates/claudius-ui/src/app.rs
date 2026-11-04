@@ -1075,6 +1075,13 @@ impl eframe::App for Studio {
             panels::transport::new_song_dialog(&ctx, &mut cx);
             panels::publish::dialog(&ctx, &mut cx);
             panels::record::dialog(&ctx, &mut cx);
+            panels::phone::dialog(&ctx, &mut cx);
+        }
+        if let Some(on) = self.view.phone.ask.take() {
+            self.backend.phone(on);
+        }
+        if let Some(t) = self.view.phone.report.take() {
+            self.backend.transport(t);
         }
         if let Some(bytes) = self.view.publish.upload.take() {
             self.inflight += 1;

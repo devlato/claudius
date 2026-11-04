@@ -1,0 +1,312 @@
+:root {
+  --bg: #101217;
+  --panel: #1a1d25;
+  --line: #2b2f3a;
+  --text: #e8e8ec;
+  --dim: #8d92a0;
+  --accent: #f0a83a;
+  --rec: #e5484d;
+  --ok: #4cc38a;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+button,
+select {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+}
+
+.song {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.song b,
+.song span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.song span {
+  color: var(--dim);
+  font-size: 13px;
+}
+
+#beat {
+  display: flex;
+  gap: 4px;
+}
+
+#beat i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--line);
+}
+
+#beat i.on {
+  background: var(--accent);
+}
+
+#rec {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+#rec span {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--rec);
+}
+
+#rec:disabled span {
+  background: var(--dim);
+}
+
+#rec.taking span {
+  border-radius: 3px;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+nav {
+  display: flex;
+  gap: 6px;
+  padding: 0 12px 8px;
+}
+
+nav button {
+  flex: 1;
+}
+
+nav button.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+main {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.mode {
+  display: none;
+  position: absolute;
+  inset: 0;
+  padding: 0 12px 8px;
+}
+
+.mode.on {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bar select {
+  flex: 1;
+  min-width: 0;
+}
+
+#octave {
+  min-width: 2.5em;
+  text-align: center;
+  color: var(--dim);
+}
+
+.toggle {
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+#pads {
+  display: none;
+}
+
+#pads.on {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 3), 1fr);
+  grid-auto-rows: 1fr;
+  gap: 8px;
+}
+
+.pad {
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, hsl(var(--hue, 30) 45% 30%), hsl(var(--hue, 30) 35% 17%));
+  display: flex;
+  align-items: flex-end;
+  padding: 8px;
+  font-weight: 600;
+  touch-action: none;
+  transition: filter 0.12s;
+}
+
+.pad.hit {
+  filter: brightness(1.8);
+  transition: none;
+}
+
+#keyboard {
+  flex: 1;
+  position: relative;
+  display: flex;
+  touch-action: none;
+}
+
+.white {
+  flex: 1;
+  margin: 0 1px;
+  border-radius: 0 0 8px 8px;
+  background: #ecebe7;
+  color: #555;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 6px;
+  font-size: 11px;
+}
+
+.black {
+  position: absolute;
+  top: 0;
+  height: 58%;
+  border-radius: 0 0 6px 6px;
+  background: #1c1c1f;
+  border: 1px solid #000;
+  z-index: 1;
+}
+
+.white.down {
+  background: var(--accent);
+}
+
+.black.down {
+  background: #a26b1c;
+}
+
+#platter {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  touch-action: none;
+}
+
+.fader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--dim);
+  font-size: 13px;
+}
+
+#fader {
+  flex: 1;
+  height: 44px;
+  accent-color: var(--accent);
+}
+
+footer {
+  min-height: 2.6em;
+  padding: 6px 12px 10px;
+  color: var(--dim);
+  font-size: 13px;
+}
+
+footer.ok {
+  color: var(--ok);
+}
+
+footer.no {
+  color: var(--rec);
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 11, 15, 0.94);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  z-index: 5;
+}
+
+.overlay.gone {
+  display: none;
+}
+
+.overlay div {
+  max-width: 26em;
+}
+
+.overlay h1 {
+  font-size: 22px;
+  margin: 0 0 8px;
+}
+
+.overlay p {
+  color: var(--dim);
+}
+
+.overlay button {
+  margin-top: 8px;
+  width: 100%;
+  padding: 14px;
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
