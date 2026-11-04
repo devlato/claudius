@@ -124,7 +124,12 @@ drum lanes for the break, its electric piano and strings for the phrase), so it 
 
 ## In the web demo
 
-The [studio demo](https://claudius.devlato.com/studio/?mock) samples as well. A trip-hop song there is built on loops
-from Freesound under CC0 or CC BY, found as the song is made: a phrase it takes its tempo, key and chords from, a
-break, and crackle. The demo asks the website for them, and the website asks Openverse and Freesound, so your browser
-contacts no one else. Each track names its recording, author and licence, and the log gives each one's full credit.
+The [studio demo](https://claudius.devlato.com/studio/?mock) samples as well, as the app does: a song of a genre
+built on samples, or one asked to be, is built on recordings from Freesound, Jamendo and Wikimedia Commons under CC0 or
+CC BY, found as the song is made from what the genre digs for or your words, loops and whole songs alike. claudius
+itself cuts them, in the page, as the app cuts them: a phrase of two bars out of a whole song, in its key, with its
+chords, played up or down by whole semitones into the genre's tempo. The demo has no ears, so its phrase is the
+loudest two bars of a recording's harmonic sections, and it only varispeeds, so it passes over a recording that no
+speed fits in tune. The demo asks the website for the recordings, and the website asks Openverse and the libraries, so
+your browser contacts no one else; a visitor may ask for 30 new searches a minute. Each track names its recording,
+and the log gives each one's full credit.

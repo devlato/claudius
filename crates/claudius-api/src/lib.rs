@@ -260,6 +260,28 @@ pub struct GenreInfo {
     pub name: String,
     pub description: String,
     pub bpm: (f64, f64),
+    /// what its songs built on samples dig for (none: a genre of one's own that says nothing of it)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sampling: Option<GenreSampling>,
+}
+
+/// What a genre's songs built on samples dig for in free libraries (`new_song`'s `sampled`).
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct GenreSampling {
+    /// whether its songs are built on samples unless asked not to be (trip-hop's are)
+    pub by_default: bool,
+    /// each role it samples, in the order it gathers them
+    pub roles: Vec<SampleRoleInfo>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct SampleRoleInfo {
+    /// `phrase`, `break` or `texture`
+    pub role: String,
+    /// the kinds of record it is searched for ("disco", "gospel choir"), a song trying them in an order its seed picks
+    pub search: Vec<String>,
+    /// the shortest and longest recording worth fetching, in seconds
+    pub seconds: (f64, f64),
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]

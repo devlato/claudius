@@ -15,10 +15,12 @@ are off until you turn them on.
 
 [claudius.devlato.com](https://claudius.devlato.com) makes no requests to anyone else from your browser: no
 analytics, no cookies, no fonts or scripts from other servers. The studio demo's samples are the one thing it fetches
-for you. When the demo makes a song of a genre built on samples, it asks the site, and the site's Worker
-(`site/worker/index.js`) asks Openverse for loops and Freesound for their audio. It sends them the demo's own search
-words and nothing about you, and they see the site, not your address. What they answer is kept in Cloudflare's cache,
-searches for a day and audio for a year.
+for you. When the demo makes a song built on samples, it asks the site, and the site's Worker
+(`site/worker/index.js`) asks Openverse for recordings and Freesound, Jamendo or Wikimedia Commons for their audio. It
+sends them the search's words (the kinds of record the genre digs for, or the words you typed for it) and nothing
+about you, and they see the site, not your address. What they answer is kept in Cloudflare's cache, searches for a day
+and audio for a year. To keep the site within what Openverse lets it ask, Cloudflare's rate limiting counts each
+address's searches that the cache has not kept, 30 a minute at most; the site itself records none of them.
 
 A phone [playing along with the demo](phone.md#with-the-demo) reaches the demo's tab through a room of the site's
 relay (`site/worker/room.js`, a Durable Object on Cloudflare): what the tab and the phone say to each other (the song's

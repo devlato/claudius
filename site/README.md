@@ -104,8 +104,10 @@ those paths to it):
 
 | path | what |
 |---|---|
-| `/studio/samples/search?q=<words>` | Openverse's loops on Freesound under CC0 or CC BY, under 30 seconds, for one of the demo's own searches (`SEARCHES`), as the demo reads them |
-| `/studio/samples/audio/<folder>/<sound>_<user>.ogg` | that loop's preview, from Freesound's servers |
+| `/studio/samples/search?q=<words>` | Openverse's recordings on Freesound, Jamendo and Wikimedia Commons under CC0 or CC BY, of 12 MB at most, for a few words of letters and digits (`WORDS`), as the demo reads them; a visitor may ask for 30 a minute that the edge has not kept (the `SEARCHES` rate limit in `wrangler.toml`) |
+| `/studio/samples/audio/<folder>/<sound>_<user>.ogg` | a Freesound preview, from Freesound's servers |
+| `/studio/samples/audio/jamendo/<track>.mp3` | a Jamendo song, from Jamendo's servers |
+| `/studio/samples/audio/commons/<a>/<ab>/<file>` | a Wikimedia Commons recording (MP3 or Ogg), from Wikimedia's servers |
 | `/relay/<room>?as=host` or `?as=phone` | a WebSocket into a room of the relay (`worker/room.js`, a Durable Object), for pages of the site's own origin: the demo's tab as its host, and the phones playing along with it on `/phone/` |
 
 `cargo xtask site` copies the phone's page into `/phone/` from `crates/claudius-server/src/phone`, the page
@@ -114,9 +116,9 @@ gives them WebSockets), `tests/relay.spec.mjs` tests them, and `tests/demo-phone
 page along with the demo through one.
 
 It caches both at the edge (searches for a day, audio for a year) and passes on nothing about the visitor.
-`wrangler deploy` publishes it with the assets. `tests/serve.mjs` runs it too, asking Openverse and Freesound live,
-and `tests/worker.spec.mjs` tests it with them stood in for. A search the demo adds goes into `SEARCHES` as well; a
-test in `claudius-ui` checks that it has.
+`wrangler deploy` publishes it with the assets. `tests/serve.mjs` runs it too, asking Openverse and the libraries
+live, and `tests/worker.spec.mjs` tests it with them stood in for. A test in `claudius-ui` checks that every search a
+genre digs with is words the Worker takes.
 
 ## The demos
 

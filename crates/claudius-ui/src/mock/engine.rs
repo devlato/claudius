@@ -1,11 +1,17 @@
 //! The demo's link to the claudius engine: a Web Worker running `claudius-engine` in a page, a thread of its own with
-//! the same `Host` in the app. Both carry the same messages: commands, the loops found for a genre built on samples
-//! and a question for the script reference go out; replies, states, renders, the sounds and the reference come in.
+//! the same `Host` in the app. Both carry the same messages: commands, the recordings fetched for a song built on
+//! samples and a question for the script reference go out; replies, states, renders, what each recording was cut
+//! into, the sounds and the reference come in.
 
 use claudius_api::{Reply, SoundList, State};
 
 /// what the engine says
 pub enum Heard {
+    /// what the recording sent as `id` was cut into (the engine's `Prepared`, as JSON), or why nothing
+    Sampled {
+        id: u64,
+        result: Result<serde_json::Value, String>,
+    },
     /// its answer to a command sent as `what`, and the state after it
     Answer {
         what: String,
@@ -27,12 +33,14 @@ pub enum Heard {
     },
 }
 
-/// a loop found for a genre built on samples: as the engine prepares it (`Prepared`, as JSON), its credit, and its
-/// audio, interleaved stereo at 48 kHz
-pub struct Loop {
-    pub prepared: serde_json::Value,
-    pub credit: String,
-    pub samples: Vec<f32>,
+/// what the engine's answer to a recording says it was cut into, or why nothing
+fn sampled(s: &serde_json::Value) -> Heard {
+    let id = s["id"].as_u64().unwrap_or(0);
+    let result = match s["ok"].as_bool() {
+        Some(true) => Ok(s["prepared"].clone()),
+        _ => Err(s["why"].as_str().unwrap_or("the engine cut nothing").to_string()),
+    };
+    Heard::Sampled { id, result }
 }
 
 /// what a message from the engine says: its JSON, and the audio it hands over
@@ -40,6 +48,9 @@ pub struct Loop {
 fn heard(json: &str, audio: Option<Vec<f32>>) -> Vec<Heard> {
     let Ok(v) = serde_json::from_str::<serde_json::Value>(json) else { return Vec::new() };
     let mut out = Vec::new();
+    if let Some(s) = v.get("sampled") {
+        out.push(sampled(s));
+    }
     if let Some(r) = v["reference"].as_str() {
         out.push(Heard::Reference(r.to_string()));
     }
@@ -90,11 +101,11 @@ mod web {
 
     use claudius_api::Command;
     use eframe::egui;
-    use js_sys::{Array, Float32Array, Object, Reflect};
+    use js_sys::{Array, Float32Array, Object, Reflect, Uint8Array};
     use wasm_bindgen::JsCast;
     use wasm_bindgen::prelude::*;
 
-    use super::{Heard, Loop};
+    use super::Heard;
 
     /// where trunk puts the engine's worker, beside the page
     const WORKER: &str = "./claudius-engine_loader.js";
@@ -106,7 +117,7 @@ mod web {
         /// listening only once its WebAssembly is loaded
         listening: Rc<std::cell::Cell<bool>>,
         /// what waits for it to listen
-        held: Vec<(serde_json::Value, Vec<Float32Array>)>,
+        held: Vec<(serde_json::Value, Option<Uint8Array>)>,
     }
 
     impl Link {
@@ -138,60 +149,55 @@ mod web {
         }
 
         pub fn command(&mut self, what: &str, cmd: &Command) {
-            self.post(&serde_json::json!({ "what": what, "command": cmd }), Vec::new());
+            self.post(&serde_json::json!({ "what": what, "command": cmd }), None);
         }
 
-        pub fn loops(&mut self, loops: Vec<Loop>) {
-            let json: Vec<serde_json::Value> =
-                loops.iter().map(|l| serde_json::json!({ "prepared": l.prepared, "credit": l.credit })).collect();
-            let audio = loops.into_iter().map(|l| Float32Array::from(l.samples.as_slice())).collect();
-            self.post(&serde_json::json!({ "loops": json }), audio);
+        /// a recording fetched for a song built on samples (`claudius_session::host::Recording`, as JSON), and the
+        /// file's bytes, for the engine to cut; its answer comes as `Heard::Sampled` with `id`
+        pub fn recording(&mut self, id: u64, recording: serde_json::Value, bytes: &[u8]) {
+            let json = serde_json::json!({ "recording": recording, "id": id });
+            self.post(&json, Some(Uint8Array::from(bytes)));
         }
 
         pub fn reference(&mut self) {
-            self.post(&serde_json::json!({ "reference": true }), Vec::new());
+            self.post(&serde_json::json!({ "reference": true }), None);
         }
 
         /// where the studio's playhead is, in seconds
         pub fn playhead(&mut self, secs: f64) {
-            self.post(&serde_json::json!({ "playhead": secs }), Vec::new());
+            self.post(&serde_json::json!({ "playhead": secs }), None);
         }
 
         /// a sound of the song for a phone, as `claudius_session::host::SoundAsk` asks for it, answered as `id`
         pub fn sound(&mut self, id: u64, ask: serde_json::Value) {
             let mut ask = ask;
             ask["id"] = id.into();
-            self.post(&serde_json::json!({ "sound": ask }), Vec::new());
+            self.post(&serde_json::json!({ "sound": ask }), None);
         }
 
         pub fn take(&mut self) -> Vec<Heard> {
             if self.listening.get() {
-                for (json, audio) in std::mem::take(&mut self.held) {
-                    self.post(&json, audio);
+                for (json, bytes) in std::mem::take(&mut self.held) {
+                    self.post(&json, bytes);
                 }
             }
             self.heard.borrow_mut().drain(..).collect()
         }
 
-        fn post(&mut self, json: &serde_json::Value, audio: Vec<Float32Array>) {
+        fn post(&mut self, json: &serde_json::Value, bytes: Option<Uint8Array>) {
             if !self.listening.get() {
-                self.held.push((json.clone(), audio));
+                self.held.push((json.clone(), bytes));
                 return;
             }
             let Some(worker) = &self.worker else { return };
             let msg = Object::new();
             let _ = Reflect::set(&msg, &"json".into(), &json.to_string().into());
-            let sent = if audio.is_empty() {
-                worker.post_message(&msg)
-            } else {
-                let transfer = Array::new();
-                let arrays = Array::new();
-                for a in audio {
-                    transfer.push(&a.buffer());
-                    arrays.push(&a);
+            let sent = match bytes {
+                Some(b) => {
+                    let _ = Reflect::set(&msg, &"bytes".into(), &b);
+                    worker.post_message_with_transfer(&msg, &Array::of1(&b.buffer()))
                 }
-                let _ = Reflect::set(&msg, &"audio".into(), &arrays);
-                worker.post_message_with_transfer(&msg, &transfer)
+                None => worker.post_message(&msg),
             };
             if let Err(e) = sent {
                 web_sys::console::error_1(&e);
@@ -207,17 +213,16 @@ pub use native::Link;
 mod native {
     use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 
-    use claudius::library::prepared::Prepared;
     use claudius_api::Command;
-    use claudius_session::host::Host;
+    use claudius_session::host::{Host, Recording};
     use eframe::egui;
 
-    use super::{Heard, Loop};
+    use super::Heard;
 
     enum Ask {
         Command(String, Command),
         Playhead(f64),
-        Loops(Vec<Loop>),
+        Recording(u64, serde_json::Value, Vec<u8>),
         Reference,
         Sound(u64, serde_json::Value),
     }
@@ -261,15 +266,17 @@ mod native {
                             let reply = host.command(c);
                             say(Heard::Answer { what, reply, state: Box::new(host.state()) });
                         }
-                        Some(Ask::Loops(loops)) => {
-                            let found = loops
-                                .into_iter()
-                                .filter_map(|l| {
-                                    let p: Prepared = serde_json::from_value(l.prepared).ok()?;
-                                    Some((p, l.credit, l.samples))
-                                })
-                                .collect();
-                            host.add_loops(found);
+                        Some(Ask::Recording(id, r, bytes)) => {
+                            let made = serde_json::from_value::<Recording>(r)
+                                .map_err(|e| format!("no recording the engine knows: {e}"))
+                                .and_then(|r| host.sample(r, bytes));
+                            let ok = made.as_ref().is_ok();
+                            let s = match made {
+                                Ok(p) => serde_json::json!({ "id": id, "ok": ok, "prepared": p }),
+                                Err(why) => serde_json::json!({ "id": id, "ok": ok, "why": why }),
+                            };
+                            say(super::sampled(&s));
+                            say(Heard::State(Box::new(host.state())));
                         }
                         Some(Ask::Reference) => say(Heard::Reference(Host::reference().to_string())),
                         Some(Ask::Playhead(secs)) => host.set_playhead(secs),
@@ -295,8 +302,9 @@ mod native {
             let _ = self.tx.send(Ask::Command(what.to_string(), cmd.clone()));
         }
 
-        pub fn loops(&mut self, loops: Vec<Loop>) {
-            let _ = self.tx.send(Ask::Loops(loops));
+        /// a recording fetched for a song built on samples, for the engine to cut (`web::Link::recording`)
+        pub fn recording(&mut self, id: u64, recording: serde_json::Value, bytes: &[u8]) {
+            let _ = self.tx.send(Ask::Recording(id, recording, bytes.to_vec()));
         }
 
         pub fn reference(&mut self) {

@@ -312,30 +312,27 @@ phone and to the person as a toast. A sound goes back as a binary message: the p
 
 ### The demo's samples
 
-A genre built on samples (trip-hop) is built on them in the demo too. Making a song of it starts a job,
-`mock/sample.rs`, that gathers three samples: a phrase, a drum break and a texture. For each, it searches with one of
-the genre's words for a loop ("dark piano loop", "hip hop drum loop", "vinyl crackle"; the demo cannot cut a loop out
-of a long recording as claudius does, so it looks for recordings made to loop) and fetches its preview:
-
-- **The tempo.** A loop's tempo is one its title or tags state ("75bpm", "[148bpm]"), if a whole number of bars at it
-  fills the recording, a short tail left out; or else its length alone, as whole bars at a tempo in the genre's
-  range. The phrase must sit within 6% of that range. The break is fitted to the phrase's tempo, within 17%.
-- **The key and the chords.** The phrase's spectrum, folded onto the twelve notes once its tuning is found, gives
-  its key (Krumhansl and Kessler's profiles, a key its title states preferred a little) and a triad of that key for
-  each bar. A loop whose notes do not stand out from one another, such as noise, is passed over.
-The page hands the engine what it found: each loop as claudius prepares a sample (its role, tempo, length, key, and
-chords bar by bar, at a path of its own), with its credit and its audio, which the engine plays from memory. The song
-is made from them as the server makes one from the samples it gathered: it takes the phrase's tempo, key and chords,
-plays the break, the phrase and the texture as loop tracks (`break`, `sample`, `texture`), coloured and mixed as
-trip-hop's profile mixes its samples, and a role with no sample plays what stands in for it. The log gives each
+A song built on samples is built on them in the demo too: one of a genre that is by default (trip-hop, boom bap,
+lo-fi, jungle, big beat, filter house), or one asked to be (`sampled`, `sample_search`). Making it starts a job,
+`mock/sample.rs`, that gathers what the genre samples, as the engine's genre info says (`GenreInfo::sampling`): a
+phrase, and a drum break or a texture where the genre has them. For each it tries the genre's searches in an order the
+song picks ("disco", "gospel choir", "funk drum break"; the phrase's searched for the words asked instead), takes the
+recordings of a length the role takes under CC0 or CC BY, and fetches one, a loop or a whole song. The page only finds
+and fetches: it hands the engine the file's bytes (`Link::recording`), and the engine, in its Web Worker, cuts it as
+claudius cuts one (`Host::sample`, `sampling::cut`): it decodes the file, finds its beat grid, and cuts the phrase out
+of the two bars of its harmonic sections that are loudest (the demo has no ears to choose by), with their key and
+chords, or the break with its own hits, or sixteen seconds of texture, and keeps the cuts in memory. A recording it can
+cut nothing from, or one that no speed brings into the genre's tempo in tune (the browser only varispeeds), it turns
+down, and the page tries the next. The song is made from what was kept as the server makes one from the samples it
+gathered (see [Songs built on samples](../guide/online-samples.md#songs-built-on-samples)), and the log gives each
 sample's full credit with the links.
 
-The demo asks the site, never Openverse or Freesound: `samples/search?q=…` and `samples/audio/…`, relative to the
+The demo asks the site, never the libraries: `samples/search?q=…` and `samples/audio/…`, relative to the
 page. The site's Worker answers those (see [Privacy](../guide/privacy.md#the-website)). Natively,
 `CLAUDIUS_DEMO_SAMPLES` names an address, such as the local site's:
 
 ```sh
-cd site && node tests/serve.mjs &          # its /studio/samples/ asks Openverse and Freesound live
+cd site && node tests/serve.mjs &          # its /studio/samples/ asks Openverse and the libraries live
 CLAUDIUS_DEMO_SAMPLES=http://127.0.0.1:4321/studio/samples cargo run -p claudius-ui -- --mock
 ```
 

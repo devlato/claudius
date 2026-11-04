@@ -1,10 +1,9 @@
 //! The built-in demo: the claudius engine itself, in a browser's Web Worker (in the app, on a thread of its own),
 //! which makes, edits and renders songs as the server does, without files, jobs or ears (`engine`). What needs a
 //! computer of one's own it turns down and says so, as for takes, folders and packs; a recording to listen to gets an
-//! analysis made up from its name, since the demo hears nothing. A song of a genre built on samples is built on free
-//! loops the page finds for it first (`sample`), which it hands to the engine.
+//! analysis made up from its name, since the demo hears nothing. A song built on samples is built on free recordings
+//! the page finds for it first (`sample`), which the engine cuts as the app does.
 
-mod clip;
 mod engine;
 mod phone;
 mod sample;
@@ -19,7 +18,7 @@ use eframe::egui;
 
 use crate::audio::Pcm;
 use crate::net::{Event, command_name};
-use engine::{Heard, Link, Loop};
+use engine::{Heard, Link};
 
 /// xorshift; deterministic per seed
 pub struct Rng(u64);
@@ -189,10 +188,14 @@ impl Mock {
         let what = command_name(&cmd);
         let replaces = matches!(cmd, Command::NewSong { .. } | Command::Remake { .. } | Command::OpenText { .. });
         let here: Option<Result<String, String>> = match &cmd {
-            Command::NewSong { genre, sampled, .. }
-                if *sampled != Some(false) && self.sampler.on() && sample::spec(genre).is_some() =>
+            Command::NewSong { genre, sampled, sample_search, .. }
+                if self.sampler.on()
+                    && self
+                        .sampling_of(genre)
+                        .is_some_and(|s| sample::sampled(&s, *sampled, sample_search.as_deref())) =>
             {
-                Some(Ok(self.gather(genre, cmd.clone())))
+                let search = sample_search.clone();
+                Some(Ok(self.gather(genre, search.as_deref(), cmd.clone())))
             }
             Command::Remake { path, genre, seed, .. } => match audio_file(path) {
                 Ok(()) => {
@@ -292,26 +295,36 @@ impl Mock {
         }
     }
 
-    /// starts gathering the samples a song of `genre` is built on; `song` makes it once they are here
-    fn gather(&mut self, genre: &str, song: Command) -> String {
-        let range = self.state.genres.iter().find(|g| g.name == genre).map_or((70.0, 110.0), |g| g.bpm);
+    /// what a genre's songs built on samples dig for, as the engine says (a fusion: the genre that leads it)
+    fn sampling_of(&self, genre: &str) -> Option<claudius_api::GenreSampling> {
+        let lead = genre.split('+').next().unwrap_or(genre).trim();
+        let mut s = self.state.genres.iter().find(|g| g.name == lead).and_then(|g| g.sampling.clone())?;
+        // a fusion's drums are the genre it fuses with: it samples no break (`genres::fuse`)
+        if genre.contains('+') {
+            s.roles.retain(|r| r.role != "break");
+        }
+        Some(s)
+    }
+
+    /// starts gathering the samples a song of `genre` is built on (its phrase searched for `search`, when given);
+    /// `song` makes it once they are here
+    fn gather(&mut self, genre: &str, search: Option<&str>, song: Command) -> String {
         let mut rng = Rng::new(self.rng.next());
-        let spec = sample::spec(genre).expect("a genre built on samples");
-        let gathering = self.sampler.start(spec, range, &mut rng);
+        let sampling = self.sampling_of(genre).unwrap_or_default();
+        let gathering = self.sampler.start(genre, &sampling, search, &mut rng);
         self.sampling =
             Some(Sampling { gathering, started: self.now, rng, genre: genre.to_string(), song, superseded: None });
-        let msg = format!("sampling for a {genre} song first: loops from Freesound under CC0 or CC BY");
+        let msg = format!(
+            "sampling for a {genre} song first: recordings from Freesound, Jamendo and Wikimedia Commons under CC0 or \
+             CC BY"
+        );
         self.say(msg.clone());
         msg
     }
 
-    /// what the gathering found goes to the engine, and then the song asked for, which is built on it
+    /// the gathering is done: the engine has cut what it found, and makes the song asked for, built on it
     fn sampled(&mut self, s: Sampling) {
-        let loops: Vec<Loop> = s.gathering.cuts.iter().map(|c| c.prepared(&s.genre)).collect();
-        let n = loops.len();
-        if n > 0 {
-            self.engine.loops(loops);
-        }
+        let n = s.gathering.kept.len();
         self.say(format!("{n} sample{} for the {} song", if n == 1 { "" } else { "s" }, s.genre));
         self.engine.command("new_song", &s.song);
         self.waiting += 1;
@@ -427,12 +440,24 @@ impl Mock {
                 }
                 Heard::Reference(text) => self.events.push(Event::Reference(Ok(text))),
                 Heard::Sound { id, sounds } => self.rendered(id, sounds),
+                Heard::Sampled { id, result } => {
+                    if let Some(s) = self.sampling.as_mut() {
+                        let lines = s.gathering.answer(id, result);
+                        for line in lines {
+                            self.say(line);
+                        }
+                        self.publish();
+                    }
+                }
             }
         }
         self.phones();
         self.sampler.poll();
         if let Some(mut s) = self.sampling.take() {
             let mut lines = self.sampler.advance(&mut s.gathering, &mut s.rng);
+            for c in s.gathering.take_cuts() {
+                self.engine.recording(c.id, c.recording, &c.bytes);
+            }
             if now - s.started > SAMPLE_WAIT {
                 lines.extend(s.gathering.give_up());
             }
@@ -635,39 +660,77 @@ mod tests {
         }
     }
 
-    /// answers what the sampler asks for: a string phrase in A minor at 90 BPM, a break and some crackle
-    fn feed_samples(mock: &mut Mock, now: &mut f64) {
-        use sample::tests::{chord_loop, found};
-        let spec = sample::spec("trip_hop").unwrap();
-        let noise = |secs: f64| {
-            let mut rng = Rng::new(9);
-            sample::Pcm2 { l: (0..(secs * 48_000.0) as usize).map(|_| rng.range(-0.2, 0.2)).collect(), r: Vec::new() }
+    /// a WAV file of `l` (mono, at 48 kHz), as a library would serve a recording
+    fn wav(l: &[f32]) -> Vec<u8> {
+        let spec = hound::WavSpec {
+            channels: 1,
+            sample_rate: 48_000,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
         };
-        for _ in 0..40 {
+        let mut out = std::io::Cursor::new(Vec::new());
+        let mut w = hound::WavWriter::new(&mut out, spec).unwrap();
+        for v in l {
+            w.write_sample((v.clamp(-1.0, 1.0) * 32_000.0) as i16).unwrap();
+        }
+        w.finalize().unwrap();
+        out.into_inner()
+    }
+
+    /// eight bars at 90 BPM of A minor and F major, a chord struck on each beat over a kick, as a record would play
+    fn phrase() -> Vec<f32> {
+        let (sr, beat) = (48_000.0, 60.0 / 90.0);
+        let n = (32.0 * beat * sr) as usize;
+        (0..n)
+            .map(|i| {
+                let t = i as f64 / sr;
+                let (b, into) = ((t / beat) as usize, t % beat);
+                let notes: &[f64] = if (b / 4) % 2 == 0 { &[57.0, 60.0, 64.0] } else { &[53.0, 57.0, 60.0] };
+                let chord: f64 = notes
+                    .iter()
+                    .map(|m| (std::f64::consts::TAU * 440.0 * 2f64.powf((m - 69.0) / 12.0) * t).sin())
+                    .sum();
+                let kick = (std::f64::consts::TAU * 55.0 * t).sin() * (-into * 30.0).exp();
+                (0.15 * chord * (-into * 3.0).exp() + 0.5 * kick) as f32
+            })
+            .collect()
+    }
+
+    fn noise(secs: f64, seed: u64) -> Vec<f32> {
+        let mut rng = Rng::new(seed);
+        (0..(secs * 48_000.0) as usize).map(|_| rng.range(-0.2, 0.2)).collect()
+    }
+
+    /// answers what the sampler asks for, as the site would: a phrase in A minor at 90 BPM, a break and some crackle,
+    /// each found for the searches of its role in the genre's sampling, as files the engine cuts
+    fn feed_samples(mock: &mut Mock, now: &mut f64) {
+        use sample::tests::found;
+        let roles = mock.sampling_of("trip_hop").expect("trip-hop samples").roles;
+        let of = |q: &str| roles.iter().find(|r| r.search.iter().any(|s| s == q)).map(|r| r.role.clone());
+        for _ in 0..200 {
             *now += 0.05;
             mock.update(*now);
             for asked in mock.sampler.pending() {
                 if let Some(q) = asked.strip_prefix("search:") {
-                    let list = if spec.phrase.search.contains(&q) {
-                        vec![found("p", "Orchestral Strings Loop 90 BPM", 5.333, &[])]
-                    } else if spec.drum_break.search.contains(&q) {
-                        vec![found("b", "drums 92 bpm", 2.6087, &[])]
-                    } else {
-                        vec![found("t", "Vinyl Crackle Analogue 1.wav", 6.0, &[])]
+                    let list = match of(q).as_deref() {
+                        Some("phrase") => vec![found("p", "Orchestral Strings", 21.333, &[])],
+                        Some("break") => vec![found("b", "drums 92 bpm", 2.6087, &[])],
+                        _ => vec![found("t", "Vinyl Crackle Analogue 1", 6.0, &[])],
                     };
                     mock.sampler.arrive_search(q, Ok(list));
                 } else if let Some(a) = asked.strip_prefix("audio:") {
-                    let pcm = match a {
-                        "audio/1/p_1.ogg" => chord_loop(90.0, &[&[57, 60, 64], &[53, 57, 60]], 0.0),
-                        "audio/1/b_1.ogg" => noise(2.6087),
-                        _ => noise(6.0),
+                    let file = match a {
+                        "audio/1/p_1.ogg" => wav(&phrase()),
+                        "audio/1/b_1.ogg" => wav(&noise(2.6087, 9)),
+                        _ => wav(&noise(6.0, 11)),
                     };
-                    mock.sampler.arrive_audio(a, Ok(pcm));
+                    mock.sampler.arrive_audio(a, Ok(file));
                 }
             }
             if mock.sampling.is_none() {
                 break;
             }
+            std::thread::sleep(Duration::from_millis(10));
         }
     }
 
@@ -691,12 +754,39 @@ mod tests {
         feed_samples(&mut mock, &mut now);
         until(&mut mock, &mut now, rendered);
         let song = mock.state.song.as_ref().unwrap();
-        assert_eq!((song.genre.as_str(), song.bpm, song.key.as_str()), ("trip_hop", 90.0, "A minor"), "the phrase's");
+        // the phrase's tempo, played at its own speed or a few semitones slower, in trip-hop's range
+        assert_eq!(song.genre, "trip_hop");
+        assert!((78.0..=94.0).contains(&song.bpm), "{}", song.bpm);
         for name in ["sample", "break", "texture"] {
             let t = song.tracks.iter().find(|t| t.name == name).unwrap_or_else(|| panic!("a {name} track"));
             assert!(t.loudness.is_some(), "{name} plays");
         }
-        assert!(mock.state.log.iter().any(|l| l.contains("'Orchestral Strings Loop 90 BPM' by someone")), "credited");
+        // credited as the app credits a sample it cut
+        assert!(mock.state.log.iter().any(|l| l.contains("\"Orchestral Strings\" by someone, CC BY 4.0")), "credited");
+    }
+
+    #[test]
+    fn a_house_song_asked_for_samples_is_built_on_them_and_one_not_asked_is_not() {
+        let (mut mock, mut now) = (Mock::new(None), 0.0);
+        until(&mut mock, &mut now, |m| m.waiting == 0);
+        mock.sampler = sample::Sampler::by_hand();
+        let house = |sampled: Option<bool>, sample_search: Option<&str>| Command::NewSong {
+            genre: "house".into(),
+            seed: Some(4),
+            bpm: None,
+            key: None,
+            loops: false,
+            sampled,
+            sample_search: sample_search.map(str::to_string),
+        };
+        mock.send(house(None, None));
+        assert!(mock.sampling.is_none(), "house is not sampled unless asked");
+        until(&mut mock, &mut now, |m| m.waiting == 0);
+        mock.send(house(None, Some("70s soul")));
+        assert!(mock.sampling.is_some(), "words of one's own ask for samples");
+        mock.update(now);
+        let words: Vec<String> = mock.sampler.pending();
+        assert!(words.iter().any(|w| w == "search:70s soul"), "{words:?}");
     }
 
     #[test]
@@ -764,13 +854,29 @@ mod tests {
     }
 
     #[test]
-    fn the_sites_worker_searches_for_every_sample_the_demo_looks_for() {
+    fn a_fusion_looks_for_no_break_its_drums_are_the_other_genres() {
+        let (mut mock, mut now) = (Mock::new(None), 0.0);
+        until(&mut mock, &mut now, |m| m.waiting == 0);
+        let roles = |genre: &str| -> Vec<String> {
+            mock.sampling_of(genre).map(|s| s.roles.into_iter().map(|r| r.role).collect()).unwrap_or_default()
+        };
+        assert!(roles("trip_hop").contains(&"break".to_string()));
+        assert!(!roles("trip_hop+idm").contains(&"break".to_string()));
+        assert!(roles("trip_hop+idm").contains(&"phrase".to_string()));
+    }
+
+    #[test]
+    fn the_sites_worker_takes_every_search_a_genre_digs_with() {
+        // the words the Worker passes on to the libraries, as it reads them (`WORDS` in site/worker/index.js)
         let worker = include_str!("../../../../site/worker/index.js");
+        assert!(worker.contains(r"const WORDS = /^[\p{L}\p{N}][\p{L}\p{N} &'.-]{0,59}$/u;"), "the Worker's words");
         for g in claudius::genres::all().unwrap() {
-            let Some(spec) = sample::spec(&g.name) else { continue };
-            for role in sample::Role::ALL {
-                for q in spec.want(role).search {
-                    assert!(worker.contains(&format!("\"{q}\",")), "site/worker/index.js does not search for '{q}'");
+            for r in g.sampling.iter().flat_map(|s| [&s.drum_break, &s.phrase, &s.texture]).flatten() {
+                for q in &r.search {
+                    let ok = q.chars().count() <= 60
+                        && q.chars().next().is_some_and(char::is_alphanumeric)
+                        && q.chars().all(|c| c.is_alphanumeric() || " &'.-".contains(c));
+                    assert!(ok, "{} digs with '{q}', which the site's Worker would turn down", g.name);
                 }
             }
         }
