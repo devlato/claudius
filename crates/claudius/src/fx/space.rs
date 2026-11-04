@@ -95,7 +95,7 @@ pub fn reverb(
 pub fn delay(x: &mut Stereo, beats: f32, feedback: &Param, damping: f32, pingpong: bool, mix: f32, ctx: &Ctx) {
     let d = ((beats as f64 * ctx.spb()).round() as usize).max(1);
     let n = x.len();
-    let feedback = feedback.values(n, ctx.spb(), false);
+    let feedback = ctx.values(feedback, n, false);
     let damp = coef(0.00002 + damping.clamp(0.0, 1.0) as f64 * 0.0004, ctx.sr) as f32;
     let mut bl = vec![0.0f32; d];
     let mut br = vec![0.0f32; d];

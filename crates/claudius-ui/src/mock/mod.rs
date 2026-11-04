@@ -180,6 +180,11 @@ impl Mock {
         self.events.push(Event::Reply { what: what.into(), result: Ok(reply) });
     }
 
+    /// where the playhead is: the engine previews an edit to a song heard whole there
+    pub fn playhead(&mut self, secs: f64) {
+        self.engine.playhead(secs);
+    }
+
     pub fn send(&mut self, cmd: Command) {
         let what = command_name(&cmd);
         let replaces = matches!(cmd, Command::NewSong { .. } | Command::Remake { .. } | Command::OpenText { .. });

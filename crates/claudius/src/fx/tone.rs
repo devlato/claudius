@@ -6,6 +6,7 @@ use crate::dsp::env::Param;
 use crate::dsp::filter::{self, Biquad, BiquadKind, FilterMode};
 use crate::dsp::osc;
 use crate::rng::Rng;
+use std::sync::{Arc, Mutex, OnceLock};
 
 pub fn gain(x: &mut Stereo, db: &Param, ctx: &Ctx) {
     match db {
@@ -13,7 +14,7 @@ pub fn gain(x: &mut Stereo, db: &Param, ctx: &Ctx) {
         _ => {
             let spb = ctx.spb();
             for i in 0..x.len() {
-                let g = db_to_gain(db.at(i as f64 / spb, false));
+                let g = db_to_gain(db.at((ctx.start + i) as f64 / spb, false));
                 x.l[i] *= g;
                 x.r[i] *= g;
             }
@@ -31,8 +32,7 @@ pub fn eq(x: &mut Stereo, bands: &[EqBand], ctx: &Ctx) {
 
 pub fn filter(x: &mut Stereo, mode: FilterMode, cutoff: &Param, res: &Param, drive: f32, mix: f32, ctx: &Ctx) {
     let dry = if mix < 0.999 { Some(x.clone()) } else { None };
-    let spb = ctx.spb();
-    let (cut, res) = (cutoff.values(x.len(), spb, true), res.values(x.len(), spb, false));
+    let (cut, res) = (ctx.values(cutoff, x.len(), true), ctx.values(res, x.len(), false));
     let (f, r) = (|i: usize| cut.at(i) as f64, |i: usize| res.at(i) as f64);
     for ch in x.channels_mut() {
         filter::run_filter(ch, &f, ctx.sr, &r, mode, drive as f64);
@@ -56,7 +56,7 @@ fn shape(kind: SatKind, v: f64) -> f64 {
 /// waveshaper at 2x oversampling; drive maps full scale to full scale, so quieter material gets denser
 pub fn saturate(x: &mut Stereo, kind: SatKind, drive_db: &Param, mix: f32, ctx: &Ctx) {
     let sr = ctx.sr;
-    let drive = drive_db.values(x.len(), ctx.spb(), false);
+    let drive = ctx.values(drive_db, x.len(), false);
     // the gain and what full scale shapes to, again only when the drive moves
     let (mut last, mut g, mut norm) = (f32::NAN, 1.0, 1.0);
     let mut at = |i: usize| {
@@ -91,7 +91,7 @@ pub fn saturate(x: &mut Stereo, kind: SatKind, drive_db: &Param, mix: f32, ctx: 
 
 pub fn bitcrush(x: &mut Stereo, bits: &Param, downsample: f32, mix: f32, ctx: &Ctx) {
     let dry = if mix < 0.999 { Some(x.clone()) } else { None };
-    let bits = bits.values(x.len(), ctx.spb(), false);
+    let bits = ctx.values(bits, x.len(), false);
     let (mut last, mut levels) = (f32::NAN, 1.0);
     let mut levels_at = |i: usize| {
         let b = bits.at(i);
@@ -101,8 +101,16 @@ pub fn bitcrush(x: &mut Stereo, bits: &Param, downsample: f32, mix: f32, ctx: &C
         levels
     };
     let step = downsample.max(1.0) as f64;
+    // where the hold's count stands at the buffer's start, as the whole's first samples left it
+    let mut from = 0.0f64;
+    for _ in 0..ctx.start {
+        from += 1.0;
+        if from >= step {
+            from -= step;
+        }
+    }
     for ch in x.channels_mut() {
-        let mut acc = 0.0f64;
+        let mut acc = from;
         let mut held = 0.0f32;
         for (i, v) in ch.iter_mut().enumerate() {
             acc += 1.0;
@@ -127,9 +135,13 @@ pub fn tape(x: &mut Stereo, wow: f32, flutter: f32, drive_db: f32, lowpass_hz: f
     let mut rng = Rng::new(ctx.seed ^ 0x7a9e);
     let mut drift = osc::Drift::new(rng.fork("wow"), 1.0, 0.5, sr);
     let ph = rng.f64();
+    // the wow as far as the whole had wandered by the buffer's start
+    for _ in 0..ctx.start {
+        drift.next();
+    }
     let d: Vec<f64> = (0..n)
         .map(|i| {
-            let t = i as f64 / sr;
+            let t = (ctx.start + i) as f64 / sr;
             let w = (drift.next().log2() * 1200.0) * wow as f64 * 0.0015 * sr;
             let f = (2.0 * std::f64::consts::PI * (6.3 * t + ph)).sin() * flutter as f64 * 0.00012 * sr;
             (base + w + f).max(1.0)
@@ -169,11 +181,36 @@ pub fn tape(x: &mut Stereo, wow: f32, flutter: f32, drive_db: f32, lowpass_hz: f
     }
 }
 
-/// vinyl surface: sparse crackles (short filtered impulses) and hiss
+/// vinyl surface: sparse crackles (short filtered impulses) and hiss, as they lie in the whole (made for all of it,
+/// and kept for the next part of it a window asks for)
 pub fn vinyl(x: &mut Stereo, crackle: f32, hiss_db: f32, ctx: &Ctx) {
-    let sr = ctx.sr;
-    let n = x.len();
-    let mut rng = Rng::new(ctx.seed ^ 0x51ab);
+    let surface = if ctx.start == 0 && ctx.total <= x.len() {
+        Arc::new(surface(crackle, hiss_db, ctx.seed, x.len(), ctx.sr))
+    } else {
+        type Kept = Mutex<Vec<((u32, u32, u64, usize), Arc<Vec<f32>>)>>;
+        static KEPT: OnceLock<Kept> = OnceLock::new();
+        let key = (crackle.to_bits(), hiss_db.to_bits(), ctx.seed, ctx.total);
+        let mut kept = KEPT.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner());
+        match kept.iter().find(|(k, _)| *k == key) {
+            Some((_, s)) => s.clone(),
+            None => {
+                let s = Arc::new(surface(crackle, hiss_db, ctx.seed, ctx.total.max(x.len()), ctx.sr));
+                kept.insert(0, (key, s.clone()));
+                kept.truncate(2);
+                s
+            }
+        }
+    };
+    let from = ctx.start.min(surface.len());
+    for (i, &v) in surface[from..].iter().take(x.len()).enumerate() {
+        x.l[i] += v;
+        x.r[i] += v * 0.92;
+    }
+}
+
+/// the noise of a vinyl surface `n` samples long: hiss under its crackles
+fn surface(crackle: f32, hiss_db: f32, seed: u64, n: usize, sr: f64) -> Vec<f32> {
+    let mut rng = Rng::new(seed ^ 0x51ab);
     let mut hiss = osc::noise(n, &mut rng, "pink");
     filter::butter(&mut hiss, true, 1500.0, sr, 2);
     filter::butter(&mut hiss, false, 9000.0, sr, 2);
@@ -196,9 +233,5 @@ pub fn vinyl(x: &mut Stereo, crackle: f32, hiss_db: f32, ctx: &Ctx) {
     }
     let mut bq = Biquad::new(BiquadKind::Bandpass, 2500.0, sr, 0.7, 0.0);
     bq.process(&mut clicks);
-    for i in 0..n {
-        let v = hiss[i] * hg + clicks[i];
-        x.l[i] += v;
-        x.r[i] += v * 0.92;
-    }
+    (0..n).map(|i| hiss[i] * hg + clicks[i]).collect()
 }

@@ -39,6 +39,10 @@ fn receive(engine: &Shared, m: &MessageEvent) {
     let data = m.data();
     let Some(text) = js_sys::Reflect::get(&data, &"json".into()).ok().and_then(|j| j.as_string()) else { return };
     let v: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
+    if let Some(secs) = v["playhead"].as_f64() {
+        engine.borrow_mut().host.set_playhead(secs);
+        return;
+    }
     if v.get("reference").is_some() {
         post(&engine.borrow().scope, &serde_json::json!({ "reference": Host::reference() }), None);
         return;

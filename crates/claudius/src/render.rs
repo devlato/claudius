@@ -168,6 +168,8 @@ pub struct Rendered {
     pub lufs: f64,
     pub true_peak_db: f32,
     pub premaster_lufs: f64,
+    /// what the master settled on for the whole song, which a window of it holds to (none: a file judged as it is)
+    pub settled: Option<Settled>,
 }
 
 #[derive(Clone, Debug)]
@@ -442,168 +444,15 @@ pub fn render(p: &Project, opts: &Options) -> Result<Rendered> {
 
 /// `render`, drawing on what `kept` keeps of the tracks from the render before, and keeping this one's
 pub fn render_kept(p: &Project, opts: &Options, kept: &mut Kept) -> Result<Rendered> {
-    if p.bars > crate::model::MAX_BARS || p.secs() > crate::model::MAX_SECONDS {
-        anyhow::bail!("the song is too long to render ({} bars, {:.0} s)", p.bars, p.secs());
-    }
-    // a pattern with several sounds plays as a track for each, so the arranged song can have more than its blueprint
-    crate::model::check_tracks(p.tracks.len(), p.secs()).map_err(anyhow::Error::msg)?;
     let t0 = crate::clock::Instant::now();
-    let tm = Timing { spb: SRF * 60.0 / p.bpm, swing: p.swing, humanize: p.humanize };
-    let tail = opts.tail_secs.max(0.0)
-        + p.tracks.iter().map(|t| fx::chain_tail_secs(&t.mix.fx, p.bpm)).fold(0.0, f64::max).min(6.0);
-    let len = (p.beats() * tm.spb) as usize + (tail * SRF) as usize;
-    let chokes = choke_onsets(p, &tm);
-    let duck = duck_curve(p, &tm, len);
-    let ctx = |name: &str| Ctx { sr: SRF, bpm: p.bpm, seed: p.seed ^ hash_str(name) };
-
-    // each track's sound before the mix: kept from the render before when nothing it comes from has changed
-    let sounds: Vec<(blake3::Hash, Arc<Stereo>, Option<f64>)> = p
-        .tracks
-        .par_iter()
-        .map(|t| -> Result<(blake3::Hash, Arc<Stereo>, Option<f64>)> {
-            let key = track_key(p, t, len, &chokes);
-            if let Some(k) = kept.tracks.get(&t.name).filter(|k| k.key == key) {
-                return Ok((key, k.sound.clone(), k.level));
-            }
-            let ts = crate::clock::Instant::now();
-            let mut x = render_source(t, p, &tm, len, &chokes)?;
-            fx::apply_chain(&t.mix.fx, &mut x, &ctx(&t.name));
-            if t.mix.drive_db > 0.0 {
-                let drive_db = t.mix.drive_db.min(crate::model::MAX_DRIVE_DB).into();
-                let drive = Effect::Saturate { kind: fx::SatKind::Tanh, drive_db, mix: 1.0.into() };
-                fx::apply_chain(std::slice::from_ref(&drive), &mut x, &ctx(&t.name));
-            }
-            if debug() {
-                eprintln!("render: track {} in {:.2} s", t.name, ts.elapsed().as_secs_f64());
-            }
-            let level = loudness::active_level(&x);
-            Ok((key, Arc::new(x), level))
-        })
-        .collect::<Result<Vec<_>>>()?;
-    kept.tracks = p
-        .tracks
-        .iter()
-        .zip(&sounds)
-        .map(|(t, (key, sound, level))| (t.name.clone(), KeptTrack { key: *key, sound: sound.clone(), level: *level }))
-        .collect();
-
-    // each track into its bus and the sends, levelled to its role's target, ducked under the kick and panned, as the
-    // sum of its own copy scaled in that order would be
-    let mut buses: BTreeMap<String, Stereo> = BTreeMap::new();
-    let mut rev_send = Stereo::zeros(len);
-    let mut del_send = Stereo::zeros(len);
-    let mut stems = Vec::new();
-    let mut tracks = Vec::new();
-    for (t, (_, sound, level)) in p.tracks.iter().zip(&sounds) {
-        let target = target_level(&t.role) + p.mix.levels.get(&t.role).copied().unwrap_or(0.0) + t.mix.level_db;
-        let gain_db = level.map_or(0.0, |l| (target as f64 - l) as f32).clamp(-40.0, 30.0);
-        let gain = db_to_gain(gain_db);
-        let duck = duck.as_ref().filter(|_| t.mix.duck > 0.0 && t.role != "kick");
-        let depth = t.mix.duck.clamp(0.0, 1.0);
-        let pan = (t.mix.pan.abs() > 1e-3).then(|| audio::balance_gains(t.mix.pan));
-        let bus = buses.entry(t.mix.bus.clone()).or_insert_with(|| Stereo::zeros(len));
-        // a block at a time, each sample scaled, ducked and panned in that order
-        let mut block = Stereo::zeros(BLOCK);
-        let shape = |b: &mut Stereo, from: usize, n: usize| {
-            for j in 0..n {
-                b.l[j] = sound.l[from + j] * gain;
-                b.r[j] = sound.r[from + j] * gain;
-            }
-            if let Some(d) = duck {
-                for j in 0..n.min(d.len().saturating_sub(from)) {
-                    let g = 1.0 - depth * (1.0 - d[from + j]);
-                    b.l[j] *= g;
-                    b.r[j] *= g;
-                }
-            }
-            if let Some((gl, gr)) = pan {
-                for j in 0..n {
-                    b.l[j] *= gl;
-                    b.r[j] *= gr;
-                }
-            }
-        };
-        let end = len.min(sound.len());
-        for from in (0..end).step_by(BLOCK) {
-            let n = BLOCK.min(end - from);
-            shape(&mut block, from, n);
-            let (bl, br) = (&block.l[..n], &block.r[..n]);
-            for (o, v) in bus.l[from..from + n].iter_mut().zip(bl) {
-                *o += v;
-            }
-            for (o, v) in bus.r[from..from + n].iter_mut().zip(br) {
-                *o += v;
-            }
-            for (send, amount) in [(&mut rev_send, t.mix.reverb), (&mut del_send, t.mix.delay)] {
-                if amount > 0.0 {
-                    for (o, v) in send.l[from..from + n].iter_mut().zip(bl) {
-                        *o += v * amount;
-                    }
-                    for (o, v) in send.r[from..from + n].iter_mut().zip(br) {
-                        *o += v * amount;
-                    }
-                }
-            }
-        }
-        if opts.stems {
-            let mut stem = Stereo::zeros(sound.len());
-            shape(&mut stem, 0, sound.len());
-            stems.push((t.name.clone(), stem));
-        }
-        tracks.push(TrackReport {
-            name: t.name.clone(),
-            role: t.role.clone(),
-            sound: t.sound.describe(),
-            bus: t.mix.bus.clone(),
-            notes: t.notes.len(),
-            clips: t.clips.len(),
-            level_lufs: level.map(|l| (l * 10.0).round() / 10.0),
-            gain_db: (gain_db * 10.0).round() / 10.0,
-        });
-    }
-    let mut sum = Stereo::zeros(len);
-    let bus_out: Vec<(String, Stereo)> = buses
-        .into_par_iter()
-        .map(|(name, mut x)| {
-            if let Some(chain) = p.mix.buses.get(&name) {
-                fx::apply_chain(chain, &mut x, &ctx(&name));
-            }
-            (name, x)
-        })
-        .collect();
-    for (_, x) in &bus_out {
-        sum.mix(x, 1.0);
-    }
-    let returns: Vec<Stereo> = [(rev_send, p.mix.reverb.clone()), (del_send, p.mix.delay.clone())]
-        .into_par_iter()
-        .map(|(mut s, e)| {
-            let dry = matches!(e, Effect::Delay { .. }).then(|| s.clone());
-            fx::apply(&e, &mut s, &ctx(e.name()));
-            if let Some(d) = dry {
-                s.mix(&d, -1.0);
-            }
-            s
-        })
-        .collect();
-    for r in &returns {
-        if let Some(d) = &duck {
-            let mut r = r.clone();
-            for i in 0..r.len().min(d.len()) {
-                let g = 1.0 - 0.3 * (1.0 - d[i]);
-                r.l[i] *= g;
-                r.r[i] *= g;
-            }
-            sum.mix(&r, 1.0);
-        } else {
-            sum.mix(r, 1.0);
-        }
-    }
-    let premaster_lufs = loudness::integrated(&sum);
-    let mut master = sum;
+    let s = Song::of(p, opts)?;
+    let sounds = s.sounds(kept)?;
+    let mut out = s.mix(&sounds, 0..s.len, opts.stems);
+    let premaster_lufs = loudness::integrated(&out.sum);
     if debug() {
         eprintln!("render: tracks + buses + returns in {:.2} s", t0.elapsed().as_secs_f64());
     }
-    fx::apply_chain(&p.mix.master.fx, &mut master, &ctx("master"));
+    let mut master = s.master(out.sum, 0);
     if debug() {
         eprintln!(
             "render: master chain done at {:.2} s ({:.2} LUFS)",
@@ -611,41 +460,363 @@ pub fn render_kept(p: &Project, opts: &Options, kept: &mut Kept) -> Result<Rende
             loudness::integrated(&master)
         );
     }
-    let (lufs, tp) = finalize(&mut master, p.mix.master.lufs, p.mix.master.ceiling_db);
+    let m = finalize(&mut master, p.mix.master.lufs, p.mix.master.ceiling_db);
     if debug() {
         eprintln!("render: finalized at {:.2} s", t0.elapsed().as_secs_f64());
     }
-    let end = master.active_len(-80.0).max((p.beats() * tm.spb) as usize).min(master.len());
+    let end = master.active_len(-80.0).max((p.beats() * s.tm.spb) as usize).min(master.len());
     master.truncate(end);
     let fo = ((0.5 * SRF) as usize).min(end);
     master.fade(0, fo);
-    Ok(Rendered { master, stems, tracks, lufs, true_peak_db: tp, premaster_lufs })
+    let settled = Some(Settled { gain_db: m.gain_db, trim_db: m.trim_db, end, len: s.len });
+    Ok(Rendered {
+        master,
+        stems: std::mem::take(&mut out.stems),
+        tracks: out.tracks,
+        lufs: m.lufs,
+        true_peak_db: m.true_peak_db,
+        premaster_lufs,
+        settled,
+    })
+}
+
+/// What the last whole render settled for the whole song, which a window of it holds to (`render_window`): the gain
+/// the master's loudness search found and the trim that kept its true peak under the ceiling (both measured over the
+/// whole song), where it ends, and how long it rendered.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Settled {
+    pub gain_db: f64,
+    pub trim_db: f32,
+    pub end: usize,
+    pub len: usize,
+}
+
+/// A window of a song: its samples from `start` on, as the whole song's render has them.
+pub struct Window {
+    pub start: usize,
+    pub master: Stereo,
+}
+
+/// The song's `n` samples from `from` on as its whole render would make them, mixed from what `kept` keeps (a track an
+/// edit changed rendered whole first, as `render_kept` would) and through the buses, returns and master from early
+/// enough that every effect has settled as the whole song's would have (their automation, LFOs and noise where they
+/// would be), at the master's gain and trim the last whole render settled (`settled`). So what comes out differs from
+/// the whole song's render only by that gain: an edit that makes the song louder or quieter is levelled again by the
+/// next whole render. None when the song is no longer as long as the one `settled` was rendered from.
+pub fn render_window(
+    p: &Project,
+    opts: &Options,
+    kept: &mut Kept,
+    settled: &Settled,
+    from: usize,
+    n: usize,
+) -> Result<Option<Window>> {
+    let s = Song::of(p, opts)?;
+    if s.len != settled.len {
+        return Ok(None);
+    }
+    let sounds = s.sounds(kept)?;
+    let from = from.min(settled.end);
+    let to = (from + n).min(settled.end);
+    // the effects after the tracks settle within their tails; a region an edit of time (a tape stop) works on starts it
+    let reach = (s.settle_secs() * SRF) as usize;
+    let mut a = from.saturating_sub(reach);
+    for (start, _) in s.regions() {
+        if start < to && start < a {
+            a = start;
+        }
+    }
+    // the limiter looks ahead, and tape and the true-peak filters lag: a little after the window too
+    let b = (to + (0.25 * SRF) as usize).min(s.len);
+    let out = s.mix(&sounds, a..b, false);
+    let mut master = s.master(out.sum, a);
+    master.scale(db_to_gain(settled.gain_db as f32));
+    let ceiling = p.mix.master.ceiling_db;
+    fx::soft_clip(&mut master, ceiling - 0.1, 0.7, SRF);
+    fx::limit(&mut master, ceiling - 0.5, 50.0, SRF);
+    if settled.trim_db != 0.0 {
+        master.scale(db_to_gain(settled.trim_db));
+    }
+    let mut w = master.slice(from - a, to - a);
+    // the whole song's fade at its end
+    let fo = ((0.5 * SRF) as usize).min(settled.end);
+    for k in from.max(settled.end - fo)..to {
+        let i = settled.end - 1 - k;
+        let g = 0.5 - 0.5 * (std::f32::consts::PI * i as f32 / fo as f32).cos();
+        if fo > 1 {
+            w.l[k - from] *= g;
+            w.r[k - from] *= g;
+        }
+    }
+    Ok(Some(Window { start: from, master: w }))
+}
+
+/// A song as the renderer lays it out: its tracks' timing, its length with the tails, its chokes and its duck.
+struct Song<'a> {
+    p: &'a Project,
+    tm: Timing,
+    len: usize,
+    chokes: BTreeMap<String, Vec<i64>>,
+    duck: Option<Vec<f32>>,
+}
+
+/// what the tracks make on their way to the master: the sum of the buses and returns, each track's stem when asked,
+/// and what the mix did to each track
+struct Mixed {
+    sum: Stereo,
+    stems: Vec<(String, Stereo)>,
+    tracks: Vec<TrackReport>,
+}
+
+type Made = (blake3::Hash, Arc<Stereo>, Option<f64>);
+
+impl<'a> Song<'a> {
+    fn of(p: &'a Project, opts: &Options) -> Result<Song<'a>> {
+        if p.bars > crate::model::MAX_BARS || p.secs() > crate::model::MAX_SECONDS {
+            anyhow::bail!("the song is too long to render ({} bars, {:.0} s)", p.bars, p.secs());
+        }
+        // a pattern with several sounds plays as a track for each, so the arranged song can have more than its blueprint
+        crate::model::check_tracks(p.tracks.len(), p.secs()).map_err(anyhow::Error::msg)?;
+        let tm = Timing { spb: SRF * 60.0 / p.bpm, swing: p.swing, humanize: p.humanize };
+        let tail = opts.tail_secs.max(0.0)
+            + p.tracks.iter().map(|t| fx::chain_tail_secs(&t.mix.fx, p.bpm)).fold(0.0, f64::max).min(6.0);
+        let len = (p.beats() * tm.spb) as usize + (tail * SRF) as usize;
+        let chokes = choke_onsets(p, &tm);
+        let duck = duck_curve(p, &tm, len);
+        Ok(Song { p, tm, len, chokes, duck })
+    }
+
+    /// what an effect on `name` works in, the buffer beginning `start` samples into the song
+    fn ctx(&self, name: &str, start: usize) -> Ctx {
+        Ctx { start, ..Ctx::whole(SRF, self.p.bpm, self.p.seed ^ hash_str(name), self.len) }
+    }
+
+    /// each track's sound before the mix: kept from the render before when nothing it comes from has changed, and kept
+    /// for the next
+    fn sounds(&self, kept: &mut Kept) -> Result<Vec<Made>> {
+        let p = self.p;
+        let sounds: Vec<Made> = p
+            .tracks
+            .par_iter()
+            .map(|t| -> Result<Made> {
+                let key = track_key(p, t, self.len, &self.chokes);
+                if let Some(k) = kept.tracks.get(&t.name).filter(|k| k.key == key) {
+                    return Ok((key, k.sound.clone(), k.level));
+                }
+                let ts = crate::clock::Instant::now();
+                let mut x = render_source(t, p, &self.tm, self.len, &self.chokes)?;
+                fx::apply_chain(&t.mix.fx, &mut x, &self.ctx(&t.name, 0));
+                if t.mix.drive_db > 0.0 {
+                    let drive_db = t.mix.drive_db.min(crate::model::MAX_DRIVE_DB).into();
+                    let drive = Effect::Saturate { kind: fx::SatKind::Tanh, drive_db, mix: 1.0.into() };
+                    fx::apply_chain(std::slice::from_ref(&drive), &mut x, &self.ctx(&t.name, 0));
+                }
+                if debug() {
+                    eprintln!("render: track {} in {:.2} s", t.name, ts.elapsed().as_secs_f64());
+                }
+                let level = loudness::active_level(&x);
+                Ok((key, Arc::new(x), level))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        kept.tracks = p
+            .tracks
+            .iter()
+            .zip(&sounds)
+            .map(|(t, (key, sound, level))| {
+                (t.name.clone(), KeptTrack { key: *key, sound: sound.clone(), level: *level })
+            })
+            .collect();
+        Ok(sounds)
+    }
+
+    /// The tracks' samples in `range` into their buses and the sends, levelled to their roles' targets, ducked under
+    /// the kick and panned, as the sum of each one's own copy scaled in that order would be; the buses through their
+    /// chains and the returns through theirs, added up.
+    fn mix(&self, sounds: &[Made], range: std::ops::Range<usize>, want_stems: bool) -> Mixed {
+        let p = self.p;
+        let (a, n) = (range.start, range.len());
+        let mut buses: BTreeMap<String, Stereo> = BTreeMap::new();
+        let mut rev_send = Stereo::zeros(n);
+        let mut del_send = Stereo::zeros(n);
+        let mut stems = Vec::new();
+        let mut tracks = Vec::new();
+        for (t, (_, sound, level)) in p.tracks.iter().zip(sounds) {
+            let target = target_level(&t.role) + p.mix.levels.get(&t.role).copied().unwrap_or(0.0) + t.mix.level_db;
+            let gain_db = level.map_or(0.0, |l| (target as f64 - l) as f32).clamp(-40.0, 30.0);
+            let gain = db_to_gain(gain_db);
+            let duck = self.duck.as_ref().filter(|_| t.mix.duck > 0.0 && t.role != "kick");
+            let depth = t.mix.duck.clamp(0.0, 1.0);
+            let pan = (t.mix.pan.abs() > 1e-3).then(|| audio::balance_gains(t.mix.pan));
+            let bus = buses.entry(t.mix.bus.clone()).or_insert_with(|| Stereo::zeros(n));
+            // a block at a time, each sample scaled, ducked and panned in that order
+            let mut block = Stereo::zeros(BLOCK);
+            let shape = |b: &mut Stereo, from: usize, n: usize| {
+                for j in 0..n {
+                    b.l[j] = sound.l[from + j] * gain;
+                    b.r[j] = sound.r[from + j] * gain;
+                }
+                if let Some(d) = duck {
+                    for j in 0..n.min(d.len().saturating_sub(from)) {
+                        let g = 1.0 - depth * (1.0 - d[from + j]);
+                        b.l[j] *= g;
+                        b.r[j] *= g;
+                    }
+                }
+                if let Some((gl, gr)) = pan {
+                    for j in 0..n {
+                        b.l[j] *= gl;
+                        b.r[j] *= gr;
+                    }
+                }
+            };
+            let end = range.end.min(sound.len());
+            for from in (a..end).step_by(BLOCK) {
+                let k = BLOCK.min(end - from);
+                shape(&mut block, from, k);
+                let (bl, br) = (&block.l[..k], &block.r[..k]);
+                let at = from - a;
+                for (o, v) in bus.l[at..at + k].iter_mut().zip(bl) {
+                    *o += v;
+                }
+                for (o, v) in bus.r[at..at + k].iter_mut().zip(br) {
+                    *o += v;
+                }
+                for (send, amount) in [(&mut rev_send, t.mix.reverb), (&mut del_send, t.mix.delay)] {
+                    if amount > 0.0 {
+                        for (o, v) in send.l[at..at + k].iter_mut().zip(bl) {
+                            *o += v * amount;
+                        }
+                        for (o, v) in send.r[at..at + k].iter_mut().zip(br) {
+                            *o += v * amount;
+                        }
+                    }
+                }
+            }
+            if want_stems {
+                let mut stem = Stereo::zeros(sound.len());
+                shape(&mut stem, 0, sound.len());
+                stems.push((t.name.clone(), stem));
+            }
+            tracks.push(TrackReport {
+                name: t.name.clone(),
+                role: t.role.clone(),
+                sound: t.sound.describe(),
+                bus: t.mix.bus.clone(),
+                notes: t.notes.len(),
+                clips: t.clips.len(),
+                level_lufs: level.map(|l| (l * 10.0).round() / 10.0),
+                gain_db: (gain_db * 10.0).round() / 10.0,
+            });
+        }
+        let mut sum = Stereo::zeros(n);
+        let bus_out: Vec<(String, Stereo)> = buses
+            .into_par_iter()
+            .map(|(name, mut x)| {
+                if let Some(chain) = p.mix.buses.get(&name) {
+                    fx::apply_chain(chain, &mut x, &self.ctx(&name, a));
+                }
+                (name, x)
+            })
+            .collect();
+        for (_, x) in &bus_out {
+            sum.mix(x, 1.0);
+        }
+        let returns: Vec<Stereo> = [(rev_send, p.mix.reverb.clone()), (del_send, p.mix.delay.clone())]
+            .into_par_iter()
+            .map(|(mut s, e)| {
+                let dry = matches!(e, Effect::Delay { .. }).then(|| s.clone());
+                fx::apply(&e, &mut s, &self.ctx(e.name(), a));
+                if let Some(d) = dry {
+                    s.mix(&d, -1.0);
+                }
+                s
+            })
+            .collect();
+        for r in &returns {
+            if let Some(d) = &self.duck {
+                let mut r = r.clone();
+                for i in 0..r.len().min(d.len().saturating_sub(a)) {
+                    let g = 1.0 - 0.3 * (1.0 - d[a + i]);
+                    r.l[i] *= g;
+                    r.r[i] *= g;
+                }
+                sum.mix(&r, 1.0);
+            } else {
+                sum.mix(r, 1.0);
+            }
+        }
+        Mixed { sum, stems, tracks }
+    }
+
+    /// the master chain on `sum`, which begins `start` samples into the song
+    fn master(&self, mut sum: Stereo, start: usize) -> Stereo {
+        fx::apply_chain(&self.p.mix.master.fx, &mut sum, &self.ctx("master", start));
+        sum
+    }
+
+    /// how long the effects after the tracks take to settle: the longest of their tails, and a second
+    fn settle_secs(&self) -> f64 {
+        let m = &self.p.mix;
+        let chains = m.buses.values().map(|c| c.as_slice()).chain([m.master.fx.as_slice()]);
+        let returns = [std::slice::from_ref(&m.reverb), std::slice::from_ref(&m.delay)];
+        chains.chain(returns).map(|c| fx::chain_tail_secs(c, self.p.bpm)).fold(0.0, f64::max) + 1.0
+    }
+
+    /// where the edits of time on the buses and the master begin, in samples
+    fn regions(&self) -> Vec<(usize, usize)> {
+        let m = &self.p.mix;
+        m.buses
+            .values()
+            .flatten()
+            .chain(&m.master.fx)
+            .filter_map(|e| match e {
+                Effect::TapeStop { start, len }
+                | Effect::Stutter { start, len, .. }
+                | Effect::Reverse { start, len } => {
+                    Some(((start * self.tm.spb) as usize, ((start + len) * self.tm.spb) as usize))
+                }
+                _ => None,
+            })
+            .collect()
+    }
 }
 
 fn debug() -> bool {
     std::env::var_os("CLAUDIUS_DEBUG").is_some()
 }
 
-/// gain, soft clip, limit, and a final trim if the true peak still pokes over `ceiling`
-fn master_stage(src: &Stereo, gain_db: f64, ceiling: f32) -> (Stereo, f32) {
+/// gain, soft clip, limit, and a final trim if the true peak still pokes over `ceiling`: the master, its true peak,
+/// and the trim (0 when none)
+fn master_stage(src: &Stereo, gain_db: f64, ceiling: f32) -> (Stereo, f32, f32) {
     let mut out = src.clone();
     out.scale(db_to_gain(gain_db as f32));
     fx::soft_clip(&mut out, ceiling - 0.1, 0.7, SRF);
     fx::limit(&mut out, ceiling - 0.5, 50.0, SRF);
     let mut tp = fx::true_peak_db(&out);
+    let mut trim = 0.0;
     if tp > ceiling - 0.02 {
-        out.scale(db_to_gain(ceiling - 0.05 - tp));
+        trim = ceiling - 0.05 - tp;
+        out.scale(db_to_gain(trim));
         tp = ceiling - 0.05;
     }
-    (out, tp)
+    (out, tp, trim)
 }
 
 /// loudness to `target` LUFS through a soft clipper and a true-peak-safe limiter (secant search on the input gain)
-pub fn finalize(x: &mut Stereo, target: f32, ceiling: f32) -> (f64, f32) {
+/// what `finalize` settled on: the loudness and true peak it came to, by the gain it found and the trim after it
+pub struct Mastered {
+    pub lufs: f64,
+    pub true_peak_db: f32,
+    pub gain_db: f64,
+    pub trim_db: f32,
+}
+
+pub fn finalize(x: &mut Stereo, target: f32, ceiling: f32) -> Mastered {
     let src = x.clone();
     let t = target as f64;
     let mut g0 = t - loudness::integrated(&src);
-    let (mut out, mut tp) = master_stage(&src, g0, ceiling);
+    let (mut out, mut tp, mut trim) = master_stage(&src, g0, ceiling);
+    let mut gain = g0;
     let mut l0 = loudness::integrated(&out);
     // the loudness of `out`, measured once
     let mut lufs = l0;
@@ -657,13 +828,15 @@ pub fn finalize(x: &mut Stereo, target: f32, ceiling: f32) -> (f64, f32) {
         if (t - l0).abs() < 0.15 {
             break;
         }
-        let (o, p) = master_stage(&src, g1, ceiling);
+        let (o, p, tr) = master_stage(&src, g1, ceiling);
         let l1 = loudness::integrated(&o);
         if debug() {
             eprintln!("finalize: gain {g1:+.2} -> {l1:.2} LUFS (tp {p:.2})");
         }
         out = o;
         tp = p;
+        trim = tr;
+        gain = g1;
         lufs = l1;
         let slope = if (g1 - g0).abs() > 1e-3 { ((l1 - l0) / (g1 - g0)).clamp(0.15, 1.5) } else { 1.0 };
         let next = g1 + (t - l1) / slope;
@@ -672,7 +845,7 @@ pub fn finalize(x: &mut Stereo, target: f32, ceiling: f32) -> (f64, f32) {
         g1 = next.clamp(g0 - 6.0, g0 + 6.0);
     }
     *x = out;
-    (lufs, tp)
+    Mastered { lufs, true_peak_db: tp, gain_db: gain, trim_db: trim }
 }
 
 #[cfg(test)]
@@ -728,6 +901,30 @@ mod tests {
         p.bpm += 2.0;
         render_kept(&p, &Options::default(), &mut kept).unwrap();
         assert!(p.tracks.iter().all(|t| !same(&kept, &t.name)));
+    }
+
+    #[test]
+    fn a_window_of_a_song_is_the_whole_songs_render_there() {
+        for genre in ["house", "lofi", "synthwave", "trip_hop"] {
+            let g = crate::genres::get(genre).unwrap();
+            let o = crate::compose::Options { short: true, samples: 0.0, loops: false, ..Default::default() };
+            let p = crate::compose::arrange(&crate::compose::generate(&g, 5, &o, None));
+            let mut kept = Kept::default();
+            let whole = render_kept(&p, &Options::default(), &mut kept).unwrap();
+            let settled = whole.settled.unwrap();
+            let n = (4.0 * SRF) as usize;
+            let mut worst = 0.0f32;
+            for from in [(3.0 * SRF) as usize, settled.end / 2, settled.end - n / 2] {
+                let w = render_window(&p, &Options::default(), &mut kept, &settled, from, n).unwrap().unwrap();
+                assert_eq!(w.start, from);
+                for i in 0..w.master.len() {
+                    worst = worst.max((w.master.l[i] - whole.master.l[from + i]).abs());
+                    worst = worst.max((w.master.r[i] - whole.master.r[from + i]).abs());
+                }
+            }
+            eprintln!("{genre}: a window is within {worst:e} of the whole song's render");
+            assert!(worst < 1e-6, "{genre}: {worst}");
+        }
     }
 
     #[test]

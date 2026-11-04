@@ -152,6 +152,11 @@ mod web {
             self.post(&serde_json::json!({ "reference": true }), Vec::new());
         }
 
+        /// where the studio's playhead is, in seconds
+        pub fn playhead(&mut self, secs: f64) {
+            self.post(&serde_json::json!({ "playhead": secs }), Vec::new());
+        }
+
         /// a sound of the song for a phone, as `claudius_session::host::SoundAsk` asks for it, answered as `id`
         pub fn sound(&mut self, id: u64, ask: serde_json::Value) {
             let mut ask = ask;
@@ -211,6 +216,7 @@ mod native {
 
     enum Ask {
         Command(String, Command),
+        Playhead(f64),
         Loops(Vec<Loop>),
         Reference,
         Sound(u64, serde_json::Value),
@@ -266,6 +272,7 @@ mod native {
                             host.add_loops(found);
                         }
                         Some(Ask::Reference) => say(Heard::Reference(Host::reference().to_string())),
+                        Some(Ask::Playhead(secs)) => host.set_playhead(secs),
                         Some(Ask::Sound(id, ask)) => {
                             let sounds = serde_json::from_value::<claudius_session::host::SoundAsk>(ask)
                                 .map_err(|e| e.to_string())
@@ -294,6 +301,10 @@ mod native {
 
         pub fn reference(&mut self) {
             let _ = self.tx.send(Ask::Reference);
+        }
+
+        pub fn playhead(&mut self, secs: f64) {
+            let _ = self.tx.send(Ask::Playhead(secs));
         }
 
         pub fn sound(&mut self, id: u64, ask: serde_json::Value) {

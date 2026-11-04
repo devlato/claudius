@@ -11,7 +11,7 @@ mod transition;
 use serde::{Deserialize, Serialize};
 
 use crate::audio::Stereo;
-use crate::dsp::env::Param;
+use crate::dsp::env::{Param, Values};
 use crate::dsp::filter::{BiquadKind, FilterMode};
 use crate::voice::singer::Voice;
 use crate::voice::tune::{TuneScale, Tuning};
@@ -24,11 +24,27 @@ pub struct Ctx {
     pub sr: f64,
     pub bpm: f64,
     pub seed: u64,
+    /// where the buffer begins in the whole it is part of, in samples, and how long that whole is: a window of the
+    /// song (`render::render_window`) runs through an effect as that part of the whole song would, its automation,
+    /// LFOs, gates and noise where they would be. Tuning a voice reads its harmony from the buffer's start: it plays on
+    /// tracks, which a window does not cut.
+    pub start: usize,
+    pub total: usize,
 }
 
 impl Ctx {
+    /// for a whole buffer of `total` samples
+    pub fn whole(sr: f64, bpm: f64, seed: u64, total: usize) -> Ctx {
+        Ctx { sr, bpm, seed, start: 0, total }
+    }
+
     pub fn spb(&self) -> f64 {
         self.sr * 60.0 / self.bpm
+    }
+
+    /// `p`'s value at each of the buffer's `n` samples, where they are in the whole
+    pub fn values(&self, p: &Param, n: usize, log: bool) -> Values {
+        p.values_from(self.start, n, self.spb(), log)
     }
 }
 
@@ -408,7 +424,7 @@ pub fn apply(fx: &Effect, x: &mut Stereo, ctx: &Ctx) {
     // each moment's mix.
     let mut wet = fx.clone();
     if let Some(mix) = wet.mix_mut().filter(|m| !m.is_const()) {
-        let m = std::mem::replace(mix, Param::Const(1.0)).values(x.len(), ctx.spb(), false);
+        let m = ctx.values(&std::mem::replace(mix, Param::Const(1.0)), x.len(), false);
         let dry = x.clone();
         run(&wet, x, ctx);
         for i in 0..x.len().min(dry.len()) {
@@ -452,13 +468,13 @@ fn run(fx: &Effect, x: &mut Stereo, ctx: &Ctx) {
             space::delay(x, *beats, feedback, *damping, *pingpong, k(mix), ctx)
         }
         Effect::Chorus { rate_hz, depth_ms, delay_ms, mix } => {
-            modulation::chorus(x, *rate_hz, *depth_ms, *delay_ms, k(mix), ctx.sr)
+            modulation::chorus(x, *rate_hz, *depth_ms, *delay_ms, k(mix), ctx)
         }
         Effect::Flanger { rate_hz, depth_ms, delay_ms, feedback, mix } => {
-            modulation::flanger(x, *rate_hz, *depth_ms, *delay_ms, *feedback, k(mix), ctx.sr)
+            modulation::flanger(x, *rate_hz, *depth_ms, *delay_ms, *feedback, k(mix), ctx)
         }
         Effect::Phaser { rate_hz, stages, depth, feedback, mix } => {
-            modulation::phaser(x, *rate_hz, *stages, *depth, *feedback, k(mix), ctx.sr)
+            modulation::phaser(x, *rate_hz, *stages, *depth, *feedback, k(mix), ctx)
         }
         Effect::Width { width, mono_below_hz } => modulation::width(x, width, *mono_below_hz, ctx),
         Effect::Tremolo { beats, depth } => modulation::tremolo(x, *beats, *depth, ctx),
@@ -497,9 +513,9 @@ fn run(fx: &Effect, x: &mut Stereo, ctx: &Ctx) {
 
 /// the signal as loud as `dry`, and through each chain as loud as its amount, all at once
 fn parallel(x: &mut Stereo, chains: &[Branch], dry: &Param, ctx: &Ctx) {
-    let (n, spb) = (x.len(), ctx.spb());
+    let n = x.len();
     let input = x.clone();
-    let d = dry.values(n, spb, false);
+    let d = ctx.values(dry, n, false);
     for i in 0..n {
         let g = d.at(i);
         x.l[i] *= g;
@@ -508,7 +524,7 @@ fn parallel(x: &mut Stereo, chains: &[Branch], dry: &Param, ctx: &Ctx) {
     for b in chains {
         let mut y = input.clone();
         apply_chain(&b.fx, &mut y, ctx);
-        let a = b.amount.values(n, spb, false);
+        let a = ctx.values(&b.amount, n, false);
         for i in 0..n.min(y.len()) {
             let g = a.at(i);
             x.l[i] += y.l[i] * g;
@@ -548,7 +564,7 @@ mod tests {
         Stereo { l: l.clone(), r: l }
     }
 
-    const CTX: Ctx = Ctx { sr: 1_000.0, bpm: 60.0, seed: 1 };
+    const CTX: Ctx = Ctx { sr: 1_000.0, bpm: 60.0, seed: 1, start: 0, total: 0 };
 
     #[test]
     fn every_effect_is_named_as_a_blueprint_names_it() {
