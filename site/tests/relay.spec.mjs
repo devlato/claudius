@@ -61,12 +61,13 @@ test.describe("the relay", () => {
     const host = socket();
     r.join(host, "host");
     expect(host.said, "the phone that came first").toEqual([`${r.phones()[0]}\n{"event":"joined"}`]);
+    expect(early.said.at(-1), "and it hears the demo is back").toBe('{"event":"back"}');
     const again = socket();
     r.join(again, "host");
     expect(host.readyState).toBe(3);
     expect(again.said).toHaveLength(1);
     r.webSocketClose(host);
-    expect(early.said, "the room still has its host").toHaveLength(1);
+    expect(early.said.at(-1), "the room still has its host").toBe('{"event":"back"}');
     r.webSocketMessage(early, '{"id":2}');
     expect(again.said.at(-1)).toBe(`${r.phones()[0]}\n{"id":2}`);
     r.webSocketClose(early);

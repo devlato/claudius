@@ -6,13 +6,15 @@
 //
 // A phone's messages go to the host as `<phone>\n<message>`. The host's text answers come as `<phone>\n<message>` and
 // go to that phone as `<message>`; its binary answers (sounds) carry the phone's 36-character id first. The host hears
-// `{"event":"joined"}` and `{"event":"left"}` from each phone (every phone there again when it comes back), and a
-// phone hears `{"event":"gone"}` while the room has no host.
+// `{"event":"joined"}` and `{"event":"left"}` from each phone (every phone there again when it comes back); a phone
+// hears `{"event":"gone"}` when the room has no host, and `{"event":"back"}` when one joins, and what it asks between
+// the two goes nowhere.
 
 /** the most phones a room takes */
 export const PHONES = 4;
 
 const GONE = '{"event":"gone"}';
+const BACK = '{"event":"back"}';
 
 /** what `ws` is told, unless it has closed meanwhile */
 function send(ws, message) {
@@ -53,7 +55,10 @@ export class Room {
     if (as === "host") {
       for (const old of this.ctx.getWebSockets("host")) old.close(4000, "the demo was opened again in another tab");
       this.ctx.acceptWebSocket(ws, ["host"]);
-      for (const p of this.ctx.getWebSockets("phone")) send(ws, `${this.ctx.getTags(p)[1]}\n{"event":"joined"}`);
+      for (const p of this.ctx.getWebSockets("phone")) {
+        send(ws, `${this.ctx.getTags(p)[1]}\n{"event":"joined"}`);
+        send(p, BACK);
+      }
       return;
     }
     const id = crypto.randomUUID();

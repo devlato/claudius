@@ -83,13 +83,8 @@ function relay(room) {
   let ws = null;
   let opening = null;
   let next = 1;
+  /** the room has no demo: it says so, and says when one is back, and what is asked meanwhile goes nowhere */
   let gone = false;
-  const rearm = (id, ms) => {
-    const w = waiting.get(id);
-    clearTimeout(w.timer);
-    w.short = ms < 120_000;
-    w.timer = setTimeout(() => fail(id, gone ? "the demo is not open" : "the demo did not answer"), ms);
-  };
   const fail = (id, why) => {
     const w = waiting.get(id);
     if (!w) return;
@@ -109,12 +104,6 @@ function relay(room) {
     }
     waiting.delete(id);
     clearTimeout(w.timer);
-    if (gone) {
-      // what was asked while it was away waits as long as anything now
-      gone = false;
-      for (const [other, x] of waiting) if (x.short) rearm(other, 120_000);
-      back();
-    }
     w.ok(answer(status, body));
   };
   const open = () =>
@@ -122,7 +111,9 @@ function relay(room) {
       const s = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/relay/${room}?as=phone`);
       s.binaryType = "arraybuffer";
       s.onopen = () => {
+        // a room with no demo says so at once
         ws = s;
+        gone = false;
         ok();
       };
       s.onerror = () => no(unreachable("the site's relay cannot be reached"));
@@ -134,10 +125,12 @@ function relay(room) {
         if (typeof e.data !== "string") return settle(new DataView(e.data).getUint32(0, true), 200, e.data.slice(4));
         const m = JSON.parse(e.data);
         if (m.event === "gone") {
-          // nothing that waits is answered by a demo that is not there: each asks again, and is answered once it is
           gone = true;
           for (const id of [...waiting.keys()]) fail(id, "the demo is not open");
           say("the demo is not open: open it again and scan its code", LOST);
+        } else if (m.event === "back") {
+          gone = false;
+          back();
         } else if (m.id) settle(m.id, m.status, m.body);
       };
     });
@@ -146,13 +139,13 @@ function relay(room) {
       opening ??= open().finally(() => (opening = null));
       await opening;
     }
+    if (gone) throw unreachable("the demo is not open");
     const id = next++;
     return new Promise((ok, no) => {
-      waiting.set(id, { ok, no, path: path.split("?")[0], short: gone });
+      waiting.set(id, { ok, no, path: path.split("?")[0] });
       ws.send(JSON.stringify({ id, method, path, body }));
-      // the demo's engine renders a whole song at a time, and what a phone asks for meanwhile waits for it; while the
-      // demo is away, the room drops what is asked
-      rearm(id, gone ? 5000 : 120_000);
+      // the demo's engine renders a whole song at a time, and what a phone asks for meanwhile waits for it
+      waiting.get(id).timer = setTimeout(() => fail(id, "the demo did not answer"), 120_000);
     });
   }
   return { get: (path) => ask("GET", path), post: (path, body) => ask("POST", path, body) };
