@@ -373,8 +373,9 @@ pub struct Pads {
     pub variant: Option<String>,
     /// the grid the hits go to, in beats: a sixteenth (0.25) when not given, and 0 keeps them where they were played
     pub grid: Option<f64>,
-    /// how long the take went on, in beats (to its last hit, when not given): a step it passed more often than it was
-    /// struck plays by chance
+    /// when the take began and how long it went on, in beats from the section's start (from 0 to its last hit, when
+    /// not given): a step it passed more often than it was struck plays by chance
+    pub start: Option<f64>,
     pub beats: Option<f64>,
 }
 
@@ -400,12 +401,17 @@ pub fn hits(bp: &mut Blueprint, from: &str, struck: &[Struck], o: &Pads) -> Resu
     if !(grid == 0.0 || (0.125..=1.0).contains(&grid)) {
         return Err(format!("the grid is 0 (as played) or from a 32nd (0.125) to a beat (1), not {grid}"));
     }
+    let first = struck.iter().map(|h| h.t).fold(f64::INFINITY, f64::min);
     let last = struck.iter().map(|h| h.t).fold(0.0, f64::max);
+    let start = o.start.unwrap_or(0.0);
+    if !(start.is_finite() && (0.0..=first).contains(&start)) {
+        return Err(format!("the take began from the section's start on, by its first hit, not at {start}"));
+    }
     let beats = o.beats.unwrap_or(last).max(last + 1e-6);
     let bars = match o.bars {
         Some(b @ (1 | 2 | 4)) => b,
         Some(b) => return Err(format!("a beat's pattern is 1, 2 or 4 bars, not {b}")),
-        None => [4, 2, 1].into_iter().find(|&b| f64::from(b * 4) <= beats + 0.1).unwrap_or(1),
+        None => [4, 2, 1].into_iter().find(|&b| f64::from(b * 4) <= beats - start + 0.1).unwrap_or(1),
     };
     let variant = o.variant.clone().filter(|v| !v.trim().is_empty()).unwrap_or_else(|| "main".into());
     let len = f64::from(bars * 4);
@@ -429,8 +435,9 @@ pub fn hits(bp: &mut Blueprint, from: &str, struck: &[Struck], o: &Pads) -> Resu
         let hits: Vec<Hit> = steps
             .iter()
             .map(|&(t, n, v)| {
-                // the times round the take passed this step, and the times it was struck there
-                let passed = ((beats - t) / len).ceil().max(1.0) as u32;
+                // the times round the take passed this step while it went on, and the times it was struck there
+                let times = |until: f64| ((until - t) / len).ceil().max(0.0);
+                let passed = (times(beats) - times(start)).max(1.0) as u32;
                 let prob = (n as f32 / passed as f32).min(1.0);
                 let trig = (prob < 0.99).then(|| {
                     by_chance += 1;
@@ -750,6 +757,33 @@ mod tests {
         assert_eq!(hat.len(), bars);
         assert!((hat[0].t - 3.5).abs() < 1e-9 && (hat[0].trig.unwrap().prob - 0.5).abs() < 1e-4, "one time of two");
         assert!(bp.lineage.last().unwrap().starts_with("drums played"));
+    }
+
+    #[test]
+    fn a_take_that_began_late_counts_the_times_round_from_its_start() {
+        let mut bp = song();
+        let kick = bp.drums[0].name.clone();
+        let from = bp.form[0].name.clone();
+        // begun a bar into the section, a 2-bar beat played once: every step was struck the one time it was passed
+        let played: Vec<Struck> = (4..12).map(|b| struck(&kick, f64::from(b), 1.0)).collect();
+        let o = Pads { start: Some(4.0), beats: Some(12.0), ..Default::default() };
+        let said = hits(&mut bp, &from, &played, &o).unwrap();
+        assert!(said.contains("2 bars") && !said.contains("by chance"), "{said}");
+        let late = Pads { start: Some(5.0), ..Default::default() };
+        assert!(hits(&mut bp, &from, &played, &late).unwrap_err().contains("by its first hit"));
+    }
+
+    #[test]
+    fn played_drums_rewrite_a_pattern_with_the_same_steps() {
+        let mut bp = song();
+        let kick = bp.drums[0].name.clone();
+        let from = bp.form[0].name.clone();
+        let o = Pads { bars: Some(1), ..Default::default() };
+        let beat = |v: f32| (0..4).map(|b| struck(&kick, f64::from(b), v)).collect::<Vec<_>>();
+        hits(&mut bp, &from, &beat(1.0), &o).unwrap();
+        hits(&mut bp, &from, &beat(0.5), &o).unwrap();
+        let lane = bp.drums.iter().find(|d| d.name == kick).unwrap();
+        assert!(lane.patterns["main"].iter().all(|h| (h.v - 0.5).abs() < 1e-4), "as hard as it was played again");
     }
 
     #[test]

@@ -262,10 +262,16 @@ pub fn change(cmd: &Command, bp: &mut Blueprint) -> Option<Result<String, String
         },
         Command::SetDrumStep { lane, variant, step, velocity } => drum_step(bp, lane, variant, *step, *velocity),
         Command::SetFx { target, fx } => set_fx(bp, target, fx),
-        Command::AddHits { from, hits, bars, variant, grid, beats } => {
+        Command::AddHits { from, hits, bars, variant, grid, start, beats } => {
             let struck: Vec<claudius::take::Struck> =
                 hits.iter().map(|h| claudius::take::Struck { lane: h.lane.clone(), t: h.t, v: h.v }).collect();
-            let o = claudius::take::Pads { bars: *bars, variant: variant.clone(), grid: *grid, beats: *beats };
+            let o = claudius::take::Pads {
+                bars: *bars,
+                variant: variant.clone(),
+                grid: *grid,
+                start: *start,
+                beats: *beats,
+            };
             claudius::take::hits(bp, from, &struck, &o)
         }
         _ => return None,

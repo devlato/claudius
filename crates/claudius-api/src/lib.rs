@@ -1347,8 +1347,8 @@ pub enum Command {
     /// drums played on pads (a phone's, a MIDI controller's) with the song from section `from`, as the lanes they
     /// strike: folded into a pattern of `bars` bars (1, 2 or 4; as much of 4 as was played) on a `grid` in beats (a
     /// sixteenth, 0.25, by default; 0 keeps the hits where they were played) and written as the lanes' `variant`
-    /// (main); a step struck only some of the times round the take (`beats` long, to its last hit by default) plays
-    /// with that chance
+    /// (main); a step struck only some of the times round the take (from `start` to `beats`, in beats from the
+    /// section's start: from 0 to its last hit by default) plays with that chance
     AddHits {
         from: String,
         hits: Vec<HitView>,
@@ -1358,6 +1358,8 @@ pub enum Command {
         variant: Option<String>,
         #[serde(default)]
         grid: Option<f64>,
+        #[serde(default)]
+        start: Option<f64>,
         #[serde(default)]
         beats: Option<f64>,
     },

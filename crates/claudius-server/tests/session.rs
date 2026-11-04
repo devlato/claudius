@@ -1382,6 +1382,7 @@ async fn drums_played_on_pads_and_a_scratch_join_the_song() {
         bars: Some(1),
         variant: Some("played".into()),
         grid: None,
+        start: None,
         beats: Some(8.0),
     };
     let r = app.command(played);

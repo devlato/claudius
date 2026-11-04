@@ -332,8 +332,8 @@ pub(crate) fn put_hits(
             }
             l.pattern_bars = len;
         }
-        // the same steps as now: keep the exact hits (step strings round velocities)
-        if l.patterns.get(variant).is_some_and(|old| hits_to_steps(old, len) == hits_to_steps(&hits, len)) {
+        // the same steps as now: keep the exact hits (step strings round velocities; played hits bring their own)
+        if carry && l.patterns.get(variant).is_some_and(|old| hits_to_steps(old, len) == hits_to_steps(&hits, len)) {
             return Ok(());
         }
         let hits = if carry { super::trigs::carry(l.patterns.get(variant), hits) } else { hits };

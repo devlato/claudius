@@ -51,11 +51,11 @@ pub fn record(bp: &Blueprint, track: &str, bar: u32, bars: u32) -> Result<Stereo
         let names: Vec<&str> = p.tracks.iter().map(|t| t.name.as_str()).collect();
         return Err(format!("no track '{track}' to scratch (tracks: {})", names.join(" ")));
     }
-    if bar >= p.bars {
-        return Err(format!("the song has {} bars, so no bar {bar} (they count from 0)", p.bars));
-    }
     if !(1..=MAX_BARS).contains(&bars) {
         return Err(format!("a record is 1 to {MAX_BARS} bars, not {bars}"));
+    }
+    if bar + bars > p.bars {
+        return Err(format!("the song has {} bars (counted from 0), so {bars} from bar {bar} go past its end", p.bars));
     }
     p.tracks.retain(|t| t.name == track);
     let slice = p.slice(bar, bar + bars);
@@ -190,6 +190,9 @@ mod tests {
         assert!(rec.l.iter().any(|s| s.abs() > 0.01), "the lane sounds");
         assert!(record(&bp, "nothing", 0, 1).unwrap_err().contains("tracks:"));
         assert!(record(&bp, &lane, 10_000, 1).is_err());
+        let last = compose::arrange(&bp).bars - 1;
+        assert!(record(&bp, &lane, last, 1).is_ok());
+        assert!(record(&bp, &lane, last, 2).unwrap_err().contains("go past its end"), "not a shorter record");
         assert!(record(&bp, &lane, 0, 0).is_err());
     }
 }
