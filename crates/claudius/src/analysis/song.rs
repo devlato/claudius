@@ -60,6 +60,9 @@ pub struct Analysis {
     pub progression_b: Vec<String>,
     pub bars_per_chord: u32,
     pub sections: Vec<SectionGuess>,
+    /// each bar's pitch classes, summing to 1
+    #[serde(skip)]
+    pub bar_chroma: Vec<[f32; 12]>,
     /// per 16th step of a bar, 0..1: how often each lane hits there in the busiest sections
     pub kick_steps: Vec<f32>,
     pub snare_steps: Vec<f32>,
@@ -369,6 +372,7 @@ pub fn analyze(x: &Stereo, bpm_range: Option<(f64, f64)>) -> Analysis {
         progression_b: to_rn(&cb),
         bars_per_chord: bpc,
         sections,
+        bar_chroma,
         kick_steps: template(&ks),
         snare_steps: template(&ss),
         hat_steps: template(&hs),

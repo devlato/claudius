@@ -21,6 +21,12 @@ one, where the demo cut only loops whose titles stated a tempo. In the studio an
 **auto-sample from free libraries** turns it on or off for the song, and its field takes the kind of record to search
 the phrase for.
 
+A song built on samples plays two passages of its record, as records built on samples change what they play from one
+part to the next: the phrase, now chosen from bars the recording plays again, so that it loops as the record does,
+and two bars from another section of the recording (or on other chords). The louder of the two plays where the song
+lifts, in its drops and hooks, and the other in its verses, breaks, intro and outro, each on its own chords (the
+`sample` and `sample2` tracks).
+
 A recording decodes ten times as fast: converting its rate (44.1 kHz, most often) to claudius' 48 kHz works out its
 filter's weights once for each position between samples, where it worked them out for every sample, and what comes out
 agrees to a rounding of a 32-bit float. The demo cuts a 3.6-minute song into a phrase in about 4.5 s where it took 18.
