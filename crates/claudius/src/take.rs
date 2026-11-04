@@ -435,8 +435,10 @@ pub fn hits(bp: &mut Blueprint, from: &str, struck: &[Struck], o: &Pads) -> Resu
         let hits: Vec<Hit> = steps
             .iter()
             .map(|&(t, n, v)| {
-                // the times round the take passed this step while it went on, and the times it was struck there
-                let times = |until: f64| ((until - t) / len).ceil().max(0.0);
+                // the times round the take passed this step while it went on (by half a step at least: a take stopped
+                // just after a downbeat did not play it), and the times it was struck there
+                let half = if grid > 0.0 { grid / 2.0 } else { 0.0625 };
+                let times = |until: f64| ((until - half - t) / len).ceil().max(0.0);
                 let passed = (times(beats) - times(start)).max(1.0) as u32;
                 let prob = (n as f32 / passed as f32).min(1.0);
                 let trig = (prob < 0.99).then(|| {
@@ -764,9 +766,10 @@ mod tests {
         let mut bp = song();
         let kick = bp.drums[0].name.clone();
         let from = bp.form[0].name.clone();
-        // begun a bar into the section, a 2-bar beat played once: every step was struck the one time it was passed
+        // begun a bar into the section, a 2-bar beat played once and stopped just after the next downbeat: every step
+        // was struck the one time it was passed
         let played: Vec<Struck> = (4..12).map(|b| struck(&kick, f64::from(b), 1.0)).collect();
-        let o = Pads { start: Some(4.0), beats: Some(12.0), ..Default::default() };
+        let o = Pads { start: Some(3.7), beats: Some(12.07), ..Default::default() };
         let said = hits(&mut bp, &from, &played, &o).unwrap();
         assert!(said.contains("2 bars") && !said.contains("by chance"), "{said}");
         let late = Pads { start: Some(5.0), ..Default::default() };
