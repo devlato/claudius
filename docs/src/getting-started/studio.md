@@ -29,7 +29,13 @@ installed.
 
 **New song** asks for a genre and, if you like, a seed, tempo and key. The same genre and seed always give the same
 song, so a seed is a way to come back to one you liked. **Fused with** fuses a second genre into it: the first leads
-the song, and the second plays the drums and lends its sounds ([Fusions](../cookbook/fusions.md)). It can also start from a recording: **Choose a file** under
+the song, and the second plays the drums and lends its sounds ([Fusions](../cookbook/fusions.md)). **Samples**,
+**auto-sample from free libraries**, builds the song on recordings from free libraries, as records built on samples
+are: a phrase it takes its key, tempo and chords from, a drum break, a texture. It starts ticked for the genres built
+on samples (trip-hop, boom bap, lo-fi, jungle, big beat, filter house), and for any other genre you tick it. Its field
+takes the kind of record to search the phrase for ("70s soul", "bossa nova guitar"); empty, it shows the records the
+genre's producers dig for, and the song picks among them, and the dice puts one of them in the field
+([Songs built on samples](../guide/online-samples.md#songs-built-on-samples)). It can also start from a recording: **Choose a file** under
 "Or start from an audio file", then **Analyze** shows what claudius hears in it, and **Remake** writes a new song on
 its tempo, key, chords, form and groove. **Sample its vocals into the song** puts its best sung phrases into the song
 that is open ([Sampling a song's vocals](../guide/samples.md#sampling-a-songs-vocals)), and **Take its groove** puts

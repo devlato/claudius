@@ -17,7 +17,9 @@ and in tune. Lo-fi, jungle, big beat and filter house are now built on samples b
 new song ([Songs built on samples](https://claudius.devlato.com/docs/guide/online-samples.html#songs-built-on-samples)).
 The [studio demo](https://claudius.devlato.com/studio/?mock) samples every genre the same way, from Freesound, Jamendo
 and Wikimedia Commons: claudius itself cuts each recording in the page, a phrase out of a whole song as the app cuts
-one, where the demo cut only loops whose titles stated a tempo.
+one, where the demo cut only loops whose titles stated a tempo. In the studio and the demo alike, the New song dialog's
+**auto-sample from free libraries** turns it on or off for the song, and its field takes the kind of record to search
+the phrase for.
 
 A song built on samples plays two passages of its record, as records built on samples change what they play from one
 part to the next: the phrase, now chosen from bars the recording plays again, so that it loops as the record does,
