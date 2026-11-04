@@ -946,6 +946,7 @@ dependencies = [
  "claudius",
  "claudius-api",
  "claudius-packs",
+ "serde",
  "serde_json",
 ]
 

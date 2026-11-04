@@ -262,6 +262,17 @@ pub fn change(cmd: &Command, bp: &mut Blueprint) -> Option<Result<String, String
         },
         Command::SetDrumStep { lane, variant, step, velocity } => drum_step(bp, lane, variant, *step, *velocity),
         Command::SetFx { target, fx } => set_fx(bp, target, fx),
+        Command::AddNotes { from, notes, sounds, name, role, style, request: _ } => {
+            let notes: Vec<claudius::theory::Note> =
+                notes.iter().map(|n| claudius::theory::Note { t: n.t, d: n.d, p: n.p, v: n.v, lock: None }).collect();
+            let played = claudius::take::Played {
+                sounds: sounds.clone(),
+                name: name.clone(),
+                role: role.clone(),
+                style: style.clone(),
+            };
+            claudius::take::played(bp, from, &notes, &played)
+        }
         Command::AddHits { from, hits, bars, variant, grid, start, beats } => {
             let struck: Vec<claudius::take::Struck> =
                 hits.iter().map(|h| claudius::take::Struck { lane: h.lane.clone(), t: h.t, v: h.v }).collect();

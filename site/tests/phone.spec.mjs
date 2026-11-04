@@ -5,37 +5,7 @@
 //   cargo build --bin claudius && cargo xtask web --plan
 //   npx playwright test tests/phone.spec.mjs      (in site/)
 import { test, expect, chromium, devices } from "@playwright/test";
-import { claudius, ready, why } from "./claudius.mjs";
-
-/**
- * On the phone's page: a take started on the bar after next, two bars of a beat struck on its pads in time with the
- * song (the first lane on every other beat, the second on the others), and the take sent. Returns what the page says.
- */
-function playTwoBars() {
-  const wait = (ms) => new Promise((r) => setTimeout(r, Math.max(0, ms)));
-  const [low, high] = song.lanes;
-  const pad = (lane) => [...document.querySelectorAll(".pad")].find((p) => p.textContent === lane);
-  const strike = (lane) => {
-    const r = pad(lane).getBoundingClientRect();
-    pad(lane).dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: r.left + 10, clientY: r.top + 10 }));
-  };
-  const now = () => songAt(performance.now() + latency());
-  const beat = 60 / song.bpm;
-  return (async () => {
-    const t0 = (Math.ceil(now() / (4 * beat)) + 1) * 4 * beat;
-    await wait((t0 - 0.2 - now()) * 1000);
-    record();
-    for (let b = 0; b < 8; b++) {
-      await wait((t0 + b * beat - now()) * 1000);
-      strike(b % 2 ? high : low);
-    }
-    await wait((t0 + 8 * beat + 0.05 - now()) * 1000);
-    record();
-    const said = () => document.getElementById("said").textContent;
-    for (let i = 0; i < 100 && !/played|nothing|cannot|no /.test(said()); i++) await wait(100);
-    return { said: said(), low, high };
-  })();
-}
+import { claudius, playTwoBars, ready, why } from "./claudius.mjs";
 
 test.describe("playing from a phone", () => {
   test.skip(!ready, why);

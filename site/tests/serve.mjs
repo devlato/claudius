@@ -6,7 +6,8 @@
 //   node tests/serve.mjs [--port 4321] [--root DIR]
 //
 // The studio demo's samples (/studio/samples/*) go to the site's Worker, as Cloudflare sends them, and the Worker asks
-// Openverse and Freesound for them live, each thing once while the server runs (as the edge's cache keeps them).
+// Openverse and Freesound for them live, each thing once while the server runs (as the edge's cache keeps them). The
+// relay's WebSockets (/relay/*) go to the Worker's own rooms, run here by rooms.mjs.
 //
 // Differences from Pages: no HTTPS, so `upgrade-insecure-requests` is left out of the CSP; nothing else is cached.
 
@@ -15,6 +16,7 @@ import { existsSync, readFileSync, statSync, createReadStream } from "node:fs";
 import { extname, join, normalize, resolve, sep, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import worker from "../worker/index.js";
+import { upgrade } from "./rooms.mjs";
 
 // the edge's cache, as the Worker uses it: so that Openverse, which limits how often it is asked, is asked once
 const kept = new Map();
@@ -40,7 +42,7 @@ export function siteRoot() {
 }
 
 /** paths that only exist once `cargo xtask site` has run */
-export const BUILD_PATHS = [/^\/docs(\/|$)/, /^\/studio(\/|$)/, /^\/install\.(sh|ps1)$/];
+export const BUILD_PATHS = [/^\/docs(\/|$)/, /^\/studio(\/|$)/, /^\/phone(\/|$)/, /^\/install\.(sh|ps1)$/];
 
 const TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -234,6 +236,10 @@ export function start({ port = 4321, root } = {}) {
     if (existsSync(file)) return send(200, file);
     if (existsSync(file + ".html")) return send(200, file + ".html");
     return notFound();
+  });
+  server.on("upgrade", (req, socket) => {
+    if (new URL(req.url, origin).pathname.startsWith("/relay/")) upgrade(req, socket, origin).catch(() => socket.destroy());
+    else socket.destroy();
   });
   return new Promise((ok) => server.listen(port, "127.0.0.1", () => ok({ server, site, origin })));
 }

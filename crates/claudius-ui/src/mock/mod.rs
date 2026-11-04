@@ -6,12 +6,14 @@
 
 mod clip;
 mod engine;
+mod phone;
 mod sample;
 
 use std::sync::Arc;
 
 use claudius_api::{
-    Command, NoteView, PitchCheck, ReleaseCheck, ReleaseDetails, ReleaseView, Reply, State, TakeStatus,
+    Command, NoteView, PitchCheck, ReleaseCheck, ReleaseDetails, ReleaseView, Reply, SoundList, State, TakeStatus,
+    Transport,
 };
 use eframe::egui;
 
@@ -90,6 +92,13 @@ pub struct Mock {
     sampling: Option<Sampling>,
     rng: Rng,
     now: f64,
+    ctx: Option<egui::Context>,
+    /// the engine's sounds, as the phone's keys offer them
+    sounds: Option<SoundList>,
+    /// the room a phone plays along through, while the page for it is served
+    relay: Option<phone::Relay>,
+    /// where the studio says the song is, and when (`now`) it said so
+    transport: (Transport, f64),
 }
 
 /// the demo's release: what `claudius publish` asks, and a note that nothing is checked here
@@ -129,10 +138,14 @@ impl Mock {
             audio: None,
             waiting: 1,
             remade: None,
-            sampler: sample::Sampler::new(ctx),
+            sampler: sample::Sampler::new(ctx.clone()),
             sampling: None,
             rng: Rng::new(42),
             now: 0.0,
+            ctx,
+            sounds: None,
+            relay: None,
+            transport: (Transport::default(), 0.0),
         }
     }
 
@@ -332,6 +345,7 @@ impl Mock {
         }
         s.release = Some(self.release.clone());
         s.pitch_check = self.pitch_check.clone();
+        s.phone = self.phone_view();
         s.log.extend(self.said.iter().cloned());
         if let Some(g) = &self.sampling {
             s.busy = Some(g.gathering.doing());
@@ -365,7 +379,8 @@ impl Mock {
                     {
                         reply.message = format!("{said}\n{}", reply.message);
                     }
-                    if what != OPENING {
+                    // a take from a phone answers the phone, and is news to the person rather than an answer
+                    if what != OPENING && !self.took(&what, &reply) {
                         self.events.push(Event::Reply { what, result: Ok(reply) });
                     }
                 }
@@ -380,10 +395,15 @@ impl Mock {
                     self.state = *state;
                     self.publish();
                 }
-                Heard::Sounds(list) => self.events.push(Event::Sounds(list)),
+                Heard::Sounds(list) => {
+                    self.sounds = Some(list.clone());
+                    self.events.push(Event::Sounds(list));
+                }
                 Heard::Reference(text) => self.events.push(Event::Reference(Ok(text))),
+                Heard::Sound { id, sounds } => self.rendered(id, sounds),
             }
         }
+        self.phones();
         self.sampler.poll();
         if let Some(mut s) = self.sampling.take() {
             let mut lines = self.sampler.advance(&mut s.gathering, &mut s.rng);
@@ -430,6 +450,9 @@ mod tests {
 
     use super::*;
 
+    /// the seconds between the keys' notes, as the engine lays them out and as the demo tells the phone
+    const SLOT: f64 = claudius::pads::SLOT_SECS;
+
     /// Steps the demo until `done` says it is there, its events kept: the engine works on a thread of its own.
     fn until(mock: &mut Mock, now: &mut f64, done: impl Fn(&Mock) -> bool) -> Vec<Event> {
         let (t0, mut events) = (Instant::now(), Vec::new());
@@ -453,6 +476,69 @@ mod tests {
 
     fn replies(events: &[Event]) -> Vec<&Reply> {
         events.iter().filter_map(|e| if let Event::Reply { result: Ok(r), .. } = e { Some(r) } else { None }).collect()
+    }
+
+    #[test]
+    fn a_phone_plays_along_through_the_relay() {
+        use phone::Said;
+        use serde_json::{Value, json};
+        let (mut mock, mut now) = (Mock::new(None), 0.0);
+        // once the engine is idle, so that the phone's questions are its next work
+        until(&mut mock, &mut now, |m| rendered(m) && m.sounds.is_some());
+        // the room, as the relay gives it, without its socket: what it brings goes in the inbox
+        mock.relay = Some(phone::Relay::standing("https://claudius.devlato.com/phone/?room=r"));
+        let p = "0f0f0f0f-0f0f-0f0f-0f0f-0f0f0f0f0f0f";
+        let ask = |m: &mut Mock, id: u64, method: &str, path: &str, body: Value| {
+            let q = json!({ "id": id, "method": method, "path": path, "body": body });
+            m.relay.as_mut().unwrap().inbox.push(format!("{p}\n{q}"));
+        };
+        let answer = |m: &Mock, want: u64| {
+            m.relay.as_ref().unwrap().out.iter().find_map(|s| match s {
+                Said::Answer { id, status, body, .. } if *id == want => Some((*status, body.clone())),
+                Said::Sound { id, wav, .. } if *id == want => Some((200, json!(wav.len()))),
+                _ => None,
+            })
+        };
+        mock.relay.as_mut().unwrap().inbox.push(format!("{p}\n{{\"event\":\"joined\"}}"));
+        mock.transport(Transport { playing: true, at: 3.0 });
+        ask(&mut mock, 1, "GET", "api/clock", Value::Null);
+        ask(&mut mock, 2, "GET", "api/song", Value::Null);
+        ask(&mut mock, 3, "GET", "api/hits/kick", Value::Null);
+        ask(&mut mock, 4, "POST", "api/take", json!({ "cmd": "set_tempo", "bpm": 90 }));
+        ask(&mut mock, 5, "GET", "api/settings", Value::Null);
+        until(&mut mock, &mut now, |m| answer(m, 3).is_some());
+        let (_, clock) = answer(&mock, 1).unwrap();
+        assert_eq!((clock["playing"].as_bool(), clock["at"].as_f64()), (Some(true), Some(3.0)));
+        let (status, song) = answer(&mock, 2).unwrap();
+        assert_eq!(status, 200);
+        assert!(song["lanes"].as_array().unwrap().iter().any(|l| l == "kick"), "{song}");
+        assert_eq!(song["slot"], json!(SLOT), "the phone's keys are laid out as the engine lays them");
+        let hit = mock.relay.as_ref().unwrap().out.iter().find_map(|s| match s {
+            Said::Sound { id: 3, wav, .. } => Some(wav.clone()),
+            _ => None,
+        });
+        assert_eq!(&hit.unwrap()[..4], b"RIFF");
+        assert_eq!(answer(&mock, 4).unwrap().0, 403, "a phone sends takes and nothing else");
+        assert_eq!(answer(&mock, 5).unwrap().0, 404);
+        assert_eq!(mock.phone_view().map(|v| v.phones), Some(1), "the studio sees the phone");
+        // a song newer than this one is waited for; a take makes one
+        let version = mock.state.song_version;
+        ask(&mut mock, 6, "GET", &format!("api/song?after={version}"), Value::Null);
+        let from = mock.state.song.as_ref().unwrap().sections[0].name.clone();
+        let hits = json!([{ "lane": "kick", "t": 0 }, { "lane": "kick", "t": 2 }]);
+        ask(&mut mock, 7, "POST", "api/take", json!({ "cmd": "add_hits", "from": from, "hits": hits, "bars": 1 }));
+        mock.update(now);
+        assert!(answer(&mock, 6).is_none(), "held until the song changes");
+        let events = until(&mut mock, &mut now, |m| answer(m, 7).is_some() && answer(m, 6).is_some());
+        let (status, reply) = answer(&mock, 7).unwrap();
+        assert!(status == 200 && reply["ok"] == true, "{reply}");
+        assert!(answer(&mock, 6).unwrap().1["version"].as_u64() > Some(version));
+        assert!(
+            events.iter().any(|e| matches!(e, Event::Said { text, ok: true } if text.starts_with("from the phone: ")))
+        );
+        assert!(replies(&events).is_empty(), "the phone's take is no answer to the person");
+        mock.phone(false);
+        assert_eq!(mock.phone_view(), None);
     }
 
     #[test]

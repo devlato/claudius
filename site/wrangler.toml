@@ -2,7 +2,8 @@
 # Worker's static assets, with _headers and _redirects. `npx wrangler deploy --config site/wrangler.toml` publishes a
 # build; .github/workflows/site.yml does it for main. The custom domain comes with its DNS record.
 #
-# The Worker (worker/index.js) answers only the studio demo's samples; every other path is a static asset.
+# The Worker (worker/index.js) answers only the studio demo's samples and the relay between the demo and a phone (a
+# Durable Object, worker/room.js); every other path is a static asset.
 name = "claudius-site"
 main = "worker/index.js"
 compatibility_date = "2026-10-01"
@@ -15,7 +16,16 @@ directory = "../target/site"
 binding = "ASSETS"
 html_handling = "auto-trailing-slash"
 not_found_handling = "404-page"
-run_worker_first = ["/studio/samples/*"]
+run_worker_first = ["/studio/samples/*", "/relay/*"]
+
+# a room of the relay for each demo a phone plays along with
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
 
 [observability]
 enabled = false

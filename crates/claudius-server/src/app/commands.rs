@@ -253,16 +253,7 @@ impl App {
                 let s = edit::scratch(track, bar, bars, &moves);
                 self.add_scratch(&from, &s, name.as_deref(), role.as_deref())
             }
-            Command::AddNotes { from, notes, sounds, name, role, style, request } => self.answer(
-                request,
-                self.edit_with(|bp| {
-                    let notes: Vec<claudius::theory::Note> = notes
-                        .iter()
-                        .map(|n| claudius::theory::Note { t: n.t, d: n.d, p: n.p, v: n.v, lock: None })
-                        .collect();
-                    claudius::take::played(bp, &from, &notes, &claudius::take::Played { sounds, name, role, style })
-                }),
-            ),
+            ref c @ Command::AddNotes { request, .. } => self.answer(request, self.edit(c)),
             Command::TranscribeTake { take, sounds, name, role, chromatic, keep_take, style } => self.edit_with(|bp| {
                 let m = claudius::take::Melody { sounds, name, role, chromatic, keep_take, style };
                 claudius::take::melody(bp, &take, &m)

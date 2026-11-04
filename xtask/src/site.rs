@@ -69,6 +69,8 @@ pub fn build(sh: &Shell, out: &Path, site_url: &str, sounds: bool) -> Result<()>
     copy_tree(&root().join("target/book"), &out.join("docs"), &|_| false, &|bytes| bytes)?;
 
     crate::web(sh, "/studio/", &out.join("studio"))?;
+    // the page a phone plays along with the demo on: the one `claudius serve` serves, reaching the demo by the relay
+    copy_tree(&root().join("crates/claudius-server/src/phone"), &out.join("phone"), &|_| false, &|bytes| bytes)?;
     if sounds {
         demo_sounds(sh, &out.join("studio").join("sounds"))?;
     } else {

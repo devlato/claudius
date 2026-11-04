@@ -79,10 +79,12 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
         ui.label(RichText::new("Asking claudius for the phone's page…").color(TEXT));
         return;
     };
-    ui.label(
-        RichText::new("Scan this with your phone's camera. The phone has to be on the same Wi-Fi as this computer.")
-            .color(TEXT),
-    );
+    let how = if cx.server.is_some() {
+        "Scan this with your phone's camera. The phone has to be on the same Wi-Fi as this computer."
+    } else {
+        "Scan this with your phone's camera. It plays along with this page through claudius' site, on any network."
+    };
+    ui.label(RichText::new(how).color(TEXT));
     ui.add_space(10.0);
     ui.vertical_centered(|ui| qr(ui, &mut cx.view.phone.code, &phone.url));
     ui.add_space(8.0);

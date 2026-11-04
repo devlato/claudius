@@ -62,6 +62,25 @@ pub fn notes(bp: &Blueprint, sound: &str, pitches: &[i32]) -> Result<Vec<Stereo>
     play(p, pitches.len())
 }
 
+/// The keys of a phone or a controller: notes of `sound` from MIDI `low` to `high`, every `step` semitones, one after
+/// another `SLOT_SECS` apart in one recording.
+pub fn keys(bp: &Blueprint, sound: &str, low: i32, high: i32, step: usize) -> Result<Stereo, String> {
+    let span = high.checked_sub(low).and_then(|s| usize::try_from(s).ok());
+    let fits = (1..=12).contains(&step) && (12..=120).contains(&low) && (12..=120).contains(&high);
+    if !fits || span.is_none_or(|s| s / step + 1 > MAX_NOTES) {
+        return Err(format!("keys are 1 to {MAX_NOTES} notes from MIDI 12 to 120, 1 to 12 semitones apart"));
+    }
+    let pitches: Vec<i32> = (low..=high).step_by(step).collect();
+    let notes = notes(bp, sound, &pitches)?;
+    let slot = (SLOT_SECS * SRF) as usize;
+    let mut all = Stereo::zeros(slot * notes.len());
+    for (i, n) in notes.iter().enumerate() {
+        all.l[i * slot..i * slot + n.len()].copy_from_slice(&n.l);
+        all.r[i * slot..i * slot + n.len()].copy_from_slice(&n.r);
+    }
+    Ok(all)
+}
+
 /// the song with every track heard: none muted, none soloed
 pub(crate) fn heard(bp: &Blueprint) -> Blueprint {
     let mut bp = bp.clone();
@@ -148,5 +167,15 @@ mod tests {
         }
         assert!(notes(&bp, "kazoo9", &[60]).unwrap_err().contains("no synth preset"));
         assert!(notes(&bp, "epiano", &[]).is_err());
+    }
+
+    #[test]
+    fn keys_lay_their_notes_a_slot_apart_and_stay_in_bounds() {
+        let bp = song();
+        let k = keys(&bp, "epiano", 59, 65, 3).unwrap();
+        assert!((k.secs() - 3.0 * SLOT_SECS).abs() < 1e-6, "three notes, a slot each: {} s", k.secs());
+        for (low, high, step) in [(i32::MIN, i32::MAX, 3), (60, 59, 3), (12, 120, 1), (60, 72, 0), (0, 12, 3)] {
+            assert!(keys(&bp, "epiano", low, high, step).is_err(), "{low} {high} {step}");
+        }
     }
 }

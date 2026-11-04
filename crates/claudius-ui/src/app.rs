@@ -278,6 +278,7 @@ impl Studio {
                     Some(result.unwrap_or_else(|e| format!("# The reference is not available\n\n{e}")));
             }
             Event::Preview { version, image } => self.view.publish.arrived = Some((version, image)),
+            Event::Said { text, ok } => self.toast(text, ok, now),
         }
     }
 
@@ -554,6 +555,8 @@ impl Studio {
         plan.tell("heard", &self.view.heard.as_ref().map(|(_, text)| text.clone()).unwrap_or_default());
         plan.tell("toast", &self.view.toast.as_ref().map(|t| t.text.clone()).unwrap_or_default());
         plan.tell("graph", &self.view.graph.selected.clone().unwrap_or_default());
+        plan.tell("phone", &self.state.phone.as_ref().map(|p| p.url.clone()).unwrap_or_default());
+        plan.tell("phones", &self.state.phone.as_ref().map(|p| p.phones.to_string()).unwrap_or_default());
     }
 
     /// how a take is sung, as the server heard it

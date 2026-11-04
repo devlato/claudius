@@ -20,6 +20,11 @@ pub enum Heard {
     },
     Sounds(SoundList),
     Reference(String),
+    /// the sounds asked for as `id` (`Link::sound`), named, each interleaved stereo at 48 kHz, or why there are none
+    Sound {
+        id: u64,
+        sounds: Result<Vec<(String, Vec<f32>)>, String>,
+    },
 }
 
 /// a loop found for a genre built on samples: as the engine prepares it (`Prepared`, as JSON), its credit, and its
@@ -40,6 +45,30 @@ fn heard(json: &str, audio: Option<Vec<f32>>) -> Vec<Heard> {
     }
     if let Ok(s) = serde_json::from_value::<SoundList>(v["sounds"].clone()) {
         out.push(Heard::Sounds(s));
+    }
+    if let Some(s) = v.get("sound") {
+        let id = s["id"].as_u64().unwrap_or(0);
+        let sounds = match (s["error"].as_str(), audio) {
+            (Some(e), _) => Err(e.to_string()),
+            (None, Some(samples)) => {
+                let names = s["names"].as_array().cloned().unwrap_or_default();
+                let frames = s["frames"].as_array().cloned().unwrap_or_default();
+                let mut at = 0;
+                Ok(names
+                    .iter()
+                    .zip(&frames)
+                    .map(|(n, f)| {
+                        let len = (f.as_u64().unwrap_or(0) as usize * 2).min(samples.len() - at);
+                        let one = samples[at..at + len].to_vec();
+                        at += len;
+                        (n.as_str().unwrap_or_default().to_string(), one)
+                    })
+                    .collect())
+            }
+            (None, None) => Err("the engine sent no sound".into()),
+        };
+        out.push(Heard::Sound { id, sounds });
+        return out;
     }
     let Ok(state) = serde_json::from_value::<State>(v["state"].clone()).map(Box::new) else { return out };
     out.push(match (v["what"].as_str(), serde_json::from_value::<Reply>(v["reply"].clone()), audio) {
@@ -123,6 +152,13 @@ mod web {
             self.post(&serde_json::json!({ "reference": true }), Vec::new());
         }
 
+        /// a sound of the song for a phone, as `claudius_session::host::SoundAsk` asks for it, answered as `id`
+        pub fn sound(&mut self, id: u64, ask: serde_json::Value) {
+            let mut ask = ask;
+            ask["id"] = id.into();
+            self.post(&serde_json::json!({ "sound": ask }), Vec::new());
+        }
+
         pub fn take(&mut self) -> Vec<Heard> {
             if self.listening.get() {
                 for (json, audio) in std::mem::take(&mut self.held) {
@@ -177,6 +213,7 @@ mod native {
         Command(String, Command),
         Loops(Vec<Loop>),
         Reference,
+        Sound(u64, serde_json::Value),
     }
 
     pub struct Link {
@@ -229,6 +266,13 @@ mod native {
                             host.add_loops(found);
                         }
                         Some(Ask::Reference) => say(Heard::Reference(Host::reference().to_string())),
+                        Some(Ask::Sound(id, ask)) => {
+                            let sounds = serde_json::from_value::<claudius_session::host::SoundAsk>(ask)
+                                .map_err(|e| e.to_string())
+                                .and_then(|a| host.sound(&a))
+                                .map(|s| s.into_iter().map(|(n, x)| (n, x.interleaved())).collect());
+                            say(Heard::Sound { id, sounds });
+                        }
                         // the song's first bars first, to play while the rest renders
                         None => match host.preview().map(Ok).or_else(|| host.render()) {
                             Some(Ok(a)) => say(Heard::Rendered { state: Box::new(host.state()), samples: a.samples }),
@@ -250,6 +294,10 @@ mod native {
 
         pub fn reference(&mut self) {
             let _ = self.tx.send(Ask::Reference);
+        }
+
+        pub fn sound(&mut self, id: u64, ask: serde_json::Value) {
+            let _ = self.tx.send(Ask::Sound(id, ask));
         }
 
         pub fn take(&mut self) -> Vec<Heard> {

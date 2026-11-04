@@ -116,6 +116,11 @@ pub enum Event {
         version: u64,
         image: Result<egui::ColorImage, String>,
     },
+    /// news for the person that no request of theirs asked for: a take played on a phone, say
+    Said {
+        text: String,
+        ok: bool,
+    },
 }
 
 /// the `"cmd"` tag of a command ("set_tempo")
@@ -542,17 +547,19 @@ impl Backend {
     }
 
     /// ask for the artwork as a picture to show (arrives as `Event::Preview`)
-    /// the page a phone plays along on, served or stopped (the demo has none)
+    /// the page a phone plays along on, served or stopped
     pub fn phone(&mut self, on: bool) {
-        if let Backend::Remote(r) = self {
-            r.phone(on);
+        match self {
+            Backend::Remote(r) => r.phone(on),
+            Backend::Mock(m) => m.phone(on),
         }
     }
 
     /// where the song is, while a phone plays along
     pub fn transport(&mut self, t: Transport) {
-        if let Backend::Remote(r) = self {
-            r.transport(t);
+        match self {
+            Backend::Remote(r) => r.transport(t),
+            Backend::Mock(m) => m.transport(t),
         }
     }
 
