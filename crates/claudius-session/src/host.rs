@@ -8,13 +8,15 @@ use std::sync::Arc;
 
 use claudius::audio::Stereo;
 use claudius::compose::{self, Options};
+use claudius::genres::SampleNeed;
 use claudius::library::Library;
-use claudius::library::prepared::Prepared;
+use claudius::library::prepared::{Prepared, Role};
 use claudius::model::Blueprint;
 use claudius::rng::Rng;
 use claudius::theory::scale::Key;
-use claudius::{audio, genres, judge, pads, render, scratch, script, take};
+use claudius::{audio, genres, judge, pads, render, sampling, scratch, script, take};
 use claudius_api::*;
+use claudius_packs::online::Found;
 
 use crate::{edit, views};
 
@@ -33,6 +35,18 @@ pub enum SoundAsk {
     Hits,
     Keys { sound: String, low: i32, high: i32, step: usize },
     Record { track: String, bar: u32, bars: u32 },
+}
+
+/// A recording the page fetched for a song built on samples, as a library offers it: what `Host::sample` cuts it into
+/// (`role`), for songs of `genre` or for the words `asked`, and the kind of file it is (`mp3`, `ogg`).
+#[derive(Clone, Debug, serde::Deserialize)]
+pub struct Recording {
+    pub role: Role,
+    pub genre: String,
+    #[serde(default)]
+    pub asked: Option<String>,
+    pub found: Found,
+    pub ext: String,
 }
 
 /// A render: what the API shows of it, and the master, interleaved stereo at 48 kHz.
@@ -82,17 +96,43 @@ impl Host {
         }
     }
 
-    /// Loops found for a genre built on samples, each prepared (its role, tempo, length, key and chords, at a path of
-    /// its own), with its credit and its audio (interleaved stereo at 48 kHz): the songs of that genre play them from
-    /// now on, along with the ones that came before.
-    pub fn add_loops(&mut self, loops: Vec<(Prepared, String, Vec<f32>)>) {
-        for (p, credit, samples) in loops {
-            claudius::audio::remember(&p.path, claudius::audio::Stereo::from_interleaved(&samples));
-            self.say(format!("  {}: {credit}", p.path));
-            self.prepared.retain(|q| q.path != p.path);
-            self.prepared.push(p);
+    /// Cuts a recording the page fetched (`bytes`, a file of its `ext`) as claudius cuts one (`sampling::cut`), keeps
+    /// what it cut in memory, and lists it for the songs after it, along with what came before; what it cut (its role,
+    /// tempo, length, key and chords, at a path of its own), or why nothing.
+    pub fn sample(&mut self, r: Recording, bytes: Vec<u8>) -> Result<Prepared, String> {
+        let g = genres::get(&r.genre).map_err(|e| e.to_string())?;
+        let n = sampling::need(&g, r.role).ok_or_else(|| format!("{} samples no {}", g.name, r.role.name()))?;
+        let asked = r.asked.as_deref().and_then(sampling::words).filter(|_| r.role == Role::Phrase);
+        // without the ears a phrase is the loudest of the recording's harmonic bars, as it is in the app without them
+        let n = SampleNeed { listen: asked.clone().unwrap_or_else(|| n.listen.clone()), ..n.clone() };
+        let x = audio::load_bytes(bytes, &r.ext).map_err(|e| format!("cannot read it: {e:#}"))?;
+        let name = format!("{}-{}", claudius::song::slug(&r.found.title), claudius::song::slug(&r.found.id));
+        let dir = std::path::PathBuf::from(format!(
+            "demo:samples/{}/{}/{name}",
+            r.role.name(),
+            sampling::whose(&g, asked.as_deref())
+        ));
+        let cut = sampling::cut(r.role, &x, &r.found, &g, &n, None, &dir).map_err(|e| format!("{e:#}"))?;
+        if !sampling::plays_in(&cut.prepared, &g) {
+            return Err(format!("{} plays nothing at {:.0} BPM as it was played", g.name, cut.prepared.bpm));
         }
+        for f in cut.files {
+            let mut a = f.audio;
+            if !f.float {
+                // as the 24-bit file it would be written to keeps it
+                for v in a.l.iter_mut().chain(a.r.iter_mut()) {
+                    *v = v.clamp(-1.0, 1.0);
+                }
+            }
+            audio::remember(&f.path.to_string_lossy(), a);
+        }
+        let mut p = cut.prepared;
+        p.asked = asked;
+        self.say(format!("  {}: {}", p.path, r.found.credit()));
+        self.prepared.retain(|q| q.path != p.path);
+        self.prepared.push(p.clone());
         self.lib = Some(Arc::new(Library::with_prepared(self.prepared.clone())));
+        Ok(p)
     }
 
     /// the script language's reference, as the studio shows it

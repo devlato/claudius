@@ -2,8 +2,9 @@
 # Worker's static assets, with _headers and _redirects. `npx wrangler deploy --config site/wrangler.toml` publishes a
 # build; .github/workflows/site.yml does it for main. The custom domain comes with its DNS record.
 #
-# The Worker (worker/index.js) answers only the studio demo's samples and the relay between the demo and a phone (a
-# Durable Object, worker/room.js); every other path is a static asset.
+# The Worker (worker/index.js) answers only the studio demo's samples (searched and fetched from free libraries, a visitor's
+# searches limited by SEARCHES) and the relay between the demo and a phone (a Durable Object, worker/room.js); every
+# other path is a static asset.
 name = "claudius-site"
 main = "worker/index.js"
 compatibility_date = "2026-10-01"
@@ -26,6 +27,12 @@ class_name = "Room"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]
+
+# the searches a visitor may ask Openverse for in a minute, beyond what the edge has kept: a song asks for a few
+[[ratelimits]]
+name = "SEARCHES"
+namespace_id = "1001"
+simple = { limit = 30, period = 60 }
 
 [observability]
 enabled = false

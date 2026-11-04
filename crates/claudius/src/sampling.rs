@@ -7,7 +7,7 @@
 //! times) and lends the drum lanes its hits, and the texture lies under everything.
 
 use std::collections::HashSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use claudius_packs::online::{self, Found, Policy, Query};
@@ -246,10 +246,75 @@ fn forget(p: &Prepared) {
     }
 }
 
+/// A recording cut into what a role plays: the sample as the composer lists it, and each file it names with the audio
+/// that goes in it, the loop first (`float`: written as 32-bit floats, as a drum hit is, else as 24-bit samples).
+pub struct Cut {
+    pub prepared: Prepared,
+    pub files: Vec<CutFile>,
+}
+
+pub struct CutFile {
+    pub path: PathBuf,
+    pub audio: Stereo,
+    pub float: bool,
+}
+
+impl Cut {
+    fn new(prepared: Prepared) -> Cut {
+        Cut { prepared, files: Vec::new() }
+    }
+
+    /// keeps `audio` as the file at `path`, and says where that is
+    fn file(&mut self, path: PathBuf, audio: Stereo, float: bool) -> String {
+        let at = path.to_string_lossy().into_owned();
+        self.files.push(CutFile { path, audio, float });
+        at
+    }
+
+    /// writes its files, each with the recording's credit beside it
+    pub fn write(&self, f: &Found) -> Result<()> {
+        for c in &self.files {
+            audio::save_wav(&c.path, &c.audio, c.float)?;
+            online::write_credit(&c.path, f)?;
+        }
+        Ok(())
+    }
+}
+
+/// Cut `x`, the recording `f`, into what `role` plays, its files named in `dir`, and with the ears say how strongly it
+/// sounds like what was asked for. Nothing is written: `prepare` writes the files, and a browser keeps them in memory.
+pub fn cut(
+    role: Role,
+    x: &Stereo,
+    f: &Found,
+    g: &GenreProfile,
+    n: &SampleNeed,
+    ears: Option<&Ears>,
+    dir: &Path,
+) -> Result<Cut> {
+    if x.len() < SRF as usize {
+        bail!("shorter than a second");
+    }
+    let mut c = match role {
+        Role::Break => cut_break(x, f, g, dir)?,
+        Role::Phrase => cut_phrase(x, n, ears, dir)?,
+        Role::Texture => cut_texture(x, dir)?,
+    };
+    c.prepared.genre = lead(&g.name).to_string();
+    c.prepared.source = f.id.clone();
+    if role != Role::Phrase
+        && let Some(e) = ears
+        && let Some(main) = c.files.first()
+    {
+        c.prepared.z = Some(e.z(&main.audio, &n.listen)?);
+    }
+    Ok(c)
+}
+
 /// the folder of `<root>/<role>/` the cuts of a gathering go into: the genre's, or the words asked for (`asked-…`, with
 /// a hash of the words themselves, since words that differ only in what a folder's name leaves out are other words), so
 /// that one recording cut for two of them is two cuts, neither in the other's place
-fn whose(g: &GenreProfile, asked: Option<&str>) -> String {
+pub fn whose(g: &GenreProfile, asked: Option<&str>) -> String {
     match asked {
         Some(w) => {
             let hash = &blake3::hash(w.as_bytes()).to_hex()[..8];
@@ -274,28 +339,12 @@ pub fn prepare(
     folder: &Path,
 ) -> Result<Prepared> {
     let x = audio::load(path).with_context(|| format!("reading {}", path.display()))?;
-    if x.len() < SRF as usize {
-        bail!("shorter than a second");
-    }
     let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "sound".into());
     let dir = folder.join(crate::song::slug(&stem));
+    let c = cut(role, &x, f, g, n, ears, &dir)?;
     std::fs::create_dir_all(&dir).with_context(|| format!("cannot create {}", dir.display()))?;
-    let mut p = match role {
-        Role::Break => cut_break(&x, f, g, &dir)?,
-        Role::Phrase => cut_phrase(&x, n, ears, &dir)?,
-        Role::Texture => cut_texture(&x, &dir)?,
-    };
-    p.genre = lead(&g.name).to_string();
-    p.source = f.id.clone();
-    if role != Role::Phrase
-        && let Some(e) = ears
-    {
-        p.z = Some(e.z(&audio::load(Path::new(&p.path))?, &n.listen)?);
-    }
-    for file in [Some(&p.path), p.kick.as_ref(), p.snare.as_ref(), p.hat.as_ref()].into_iter().flatten() {
-        online::write_credit(Path::new(file), f)?;
-    }
-    Ok(p)
+    c.write(f)?;
+    Ok(c.prepared)
 }
 
 fn blank(path: &Path, role: Role, bpm: f64, beats: f64) -> Prepared {
@@ -376,7 +425,7 @@ fn cut_hit(x: &Stereo, hits: &[drums::Hit], kind: Kind) -> Option<Stereo> {
     Some(s)
 }
 
-fn cut_break(x: &Stereo, f: &Found, g: &GenreProfile, dir: &Path) -> Result<Prepared> {
+fn cut_break(x: &Stereo, f: &Found, g: &GenreProfile, dir: &Path) -> Result<Cut> {
     let secs = x.len() as f64 / SRF;
     let (bpm, beats, start) = if secs <= 16.0 {
         let (bpm, beats) = loop_tempo(secs, said_bpm(f), g.bpm).context("no tempo fits its length")?;
@@ -394,9 +443,8 @@ fn cut_break(x: &Stereo, f: &Found, g: &GenreProfile, dir: &Path) -> Result<Prep
     let len = seg.len();
     seg.fade(32.min(len), 64.min(len));
     let file = dir.join("break.wav");
-    audio::save_wav(&file, &seg, false)?;
-    let mut p = blank(&file, Role::Break, bpm, beats);
     let hits = drums::hear(&seg);
+    let mut c = Cut::new(blank(&file, Role::Break, bpm, beats));
     for kind in Kind::ALL {
         if let Some(hit) = cut_hit(&seg, &hits, kind) {
             let name = match kind {
@@ -404,20 +452,19 @@ fn cut_break(x: &Stereo, f: &Found, g: &GenreProfile, dir: &Path) -> Result<Prep
                 Kind::Snare => "snare",
                 Kind::Hat => "hat",
             };
-            let path = dir.join(format!("{name}.wav"));
-            audio::save_wav(&path, &hit, true)?;
-            let path = Some(path.to_string_lossy().into_owned());
+            let path = Some(c.file(dir.join(format!("{name}.wav")), hit, true));
             match kind {
-                Kind::Kick => p.kick = path,
-                Kind::Snare => p.snare = path,
-                Kind::Hat => p.hat = path,
+                Kind::Kick => c.prepared.kick = path,
+                Kind::Snare => c.prepared.snare = path,
+                Kind::Hat => c.prepared.hat = path,
             }
         }
     }
-    Ok(p)
+    c.files.insert(0, CutFile { path: file, audio: seg, float: false });
+    Ok(c)
 }
 
-fn cut_phrase(x: &Stereo, n: &SampleNeed, ears: Option<&Ears>, dir: &Path) -> Result<Prepared> {
+fn cut_phrase(x: &Stereo, n: &SampleNeed, ears: Option<&Ears>, dir: &Path) -> Result<Cut> {
     let a = analysis::analyze(x, Some((55.0, 180.0)));
     let bar = a.bar_secs;
     if bar <= 0.0 || a.bars < PHRASE_BARS {
@@ -458,16 +505,16 @@ fn cut_phrase(x: &Stereo, n: &SampleNeed, ears: Option<&Ears>, dir: &Path) -> Re
     let len = seg.len();
     seg.fade(64.min(len), 256.min(len));
     let file = dir.join("phrase.wav");
-    audio::save_wav(&file, &seg, false)?;
-    let mut p = blank(&file, Role::Phrase, a.bpm, (PHRASE_BARS * 4) as f64);
-    p.key = Some(a.key.tonic);
-    p.minor = a.key.mode.is_minor();
-    p.chords = a.numerals.get(b..b + PHRASE_BARS).map(<[String]>::to_vec).unwrap_or_default();
-    p.z = ears.map(|_| score);
-    Ok(p)
+    let mut c = Cut::new(blank(&file, Role::Phrase, a.bpm, (PHRASE_BARS * 4) as f64));
+    c.prepared.key = Some(a.key.tonic);
+    c.prepared.minor = a.key.mode.is_minor();
+    c.prepared.chords = a.numerals.get(b..b + PHRASE_BARS).map(<[String]>::to_vec).unwrap_or_default();
+    c.prepared.z = ears.map(|_| score);
+    c.file(file, seg, false);
+    Ok(c)
 }
 
-fn cut_texture(x: &Stereo, dir: &Path) -> Result<Prepared> {
+fn cut_texture(x: &Stereo, dir: &Path) -> Result<Cut> {
     let secs = x.len() as f64 / SRF;
     let take = secs.min(16.0);
     let start = ((secs - take) / 2.0).max(0.0);
@@ -476,9 +523,10 @@ fn cut_texture(x: &Stereo, dir: &Path) -> Result<Prepared> {
     let fade = ((0.4 * SRF) as usize).min(len / 4);
     seg.fade(fade, fade);
     let file = dir.join("texture.wav");
-    audio::save_wav(&file, &seg, false)?;
     // a texture has no tempo: it is warped as a loop of two beats a second, which it stretches along with
-    Ok(blank(&file, Role::Texture, 120.0, (take * 2.0).floor().max(1.0)))
+    let mut c = Cut::new(blank(&file, Role::Texture, 120.0, (take * 2.0).floor().max(1.0)));
+    c.file(file, seg, false);
+    Ok(c)
 }
 
 /// a recording's tempo, halved or doubled, inside `range`: the one nearest its middle, if any
@@ -535,12 +583,21 @@ fn speeds(bpm: f64, range: (f64, f64), pitch: (i32, i32)) -> Vec<(i32, f64, f64)
     out
 }
 
-/// whether a song of `g` can play `p` in tune at the genre's tempo: a phrase some speed fits, or any phrase where
-/// claudius can stretch it in time without changing its pitch; any break or texture
+/// Whether a song of `g` can play `p` at the genre's tempo as it was played: where claudius can stretch a loop in time
+/// without changing its pitch, any; else (in a browser, which only varispeeds) a phrase some speed fits in tune, and a
+/// break whose tempo, or half or twice it, lies within about a semitone of the genre's. A texture has no tempo.
 pub fn plays_in(p: &Prepared, g: &GenreProfile) -> bool {
-    p.role != Role::Phrase
-        || cfg!(feature = "native")
-        || need(g, Role::Phrase).is_some_and(|n| !speeds(p.bpm, g.bpm, n.pitch).is_empty())
+    plays(p, g, cfg!(feature = "native"))
+}
+
+/// `plays_in`, where claudius `stretches` or does not
+fn plays(p: &Prepared, g: &GenreProfile, stretches: bool) -> bool {
+    match p.role {
+        Role::Texture => true,
+        _ if stretches => true,
+        Role::Phrase => need(g, Role::Phrase).is_some_and(|n| !speeds(p.bpm, g.bpm, n.pitch).is_empty()),
+        Role::Break => [p.bpm, p.bpm / 2.0, p.bpm * 2.0].iter().any(|t| *t >= g.bpm.0 * 0.94 && *t <= g.bpm.1 * 1.06),
+    }
 }
 
 /// the tempo a loop plays at in a song at `bpm` before it is sped up or slowed down by `semis`
@@ -935,6 +992,19 @@ mod tests {
     }
 
     #[test]
+    fn where_nothing_stretches_only_what_plays_in_tune_near_the_genres_tempo_plays() {
+        let house = crate::genres::get("house").unwrap();
+        let at = |role: Role, bpm: f64| Prepared { role, bpm, ..soul("house", None) };
+        // a phrase at 98 sped up four semitones; one at 80 no speed brings into house's tempo
+        assert!(plays(&at(Role::Phrase, 98.0), &house, false) && !plays(&at(Role::Phrase, 80.0), &house, false));
+        // a break at 61 doubled is near enough; one at 92 would play four semitones off
+        assert!(plays(&at(Role::Break, 61.0), &house, false) && !plays(&at(Role::Break, 92.0), &house, false));
+        assert!(plays(&at(Role::Texture, 92.0), &house, false), "a texture has no tempo");
+        // where claudius stretches, every one plays
+        assert!(plays(&at(Role::Phrase, 80.0), &house, true) && plays(&at(Role::Break, 92.0), &house, true));
+    }
+
+    #[test]
     fn one_recording_gathered_twice_is_cut_twice_each_cut_in_its_own_folder() {
         let get = |name: &str| crate::genres::get(name).unwrap();
         let (house, nu_disco) = (get("house"), get("nu_disco"));
@@ -1082,15 +1152,18 @@ mod tests {
             hit(t, 0.0, 0.015, true, 0.25);
             hit(t + beat / 2.0, 0.0, 0.015, true, 0.25);
         }
-        let dir = std::env::temp_dir().join(format!("claudius-sampling-break-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
         let f = found("Synthetic break", &[]);
         let g = crate::genres::get("trip_hop").unwrap();
-        let p = cut_break(&x, &f, &g, &dir);
-        let _ = std::fs::remove_dir_all(&dir);
-        let p = p.unwrap();
+        let c = cut_break(&x, &f, &g, Path::new("demo:break")).unwrap();
+        let p = &c.prepared;
         assert!((p.bpm - 100.0).abs() < 0.5 && p.beats == 8.0, "{} {}", p.bpm, p.beats);
         assert!(p.kick.is_some() && p.snare.is_some(), "{p:?}");
+        // nothing is written: the loop first, then each hit, at the paths the sample names
+        let paths: Vec<String> = c.files.iter().map(|f| f.path.to_string_lossy().into_owned()).collect();
+        assert_eq!(paths[0], p.path);
+        assert!(paths.contains(p.kick.as_ref().unwrap()) && paths.contains(p.snare.as_ref().unwrap()));
+        assert!(!Path::new(&p.path).exists());
+        assert_eq!((c.files[0].float, c.files[1].float), (false, true), "a hit keeps its floats");
     }
 
     #[test]
