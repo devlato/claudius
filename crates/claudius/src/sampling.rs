@@ -18,7 +18,7 @@ use crate::audio::{self, Stereo};
 use crate::config::SRF;
 use crate::ears::Ears;
 use crate::genres::{GenreProfile, SampleNeed};
-use crate::library::prepared::{Index, Prepared, Role};
+use crate::library::prepared::{Index, Passage, Prepared, Role};
 use crate::model::*;
 use crate::rng::Rng;
 use crate::theory::scale::{Key, Mode};
@@ -27,6 +27,8 @@ use crate::theory::scale::{Key, Mode};
 pub const BREAK: &str = "break";
 pub const PHRASE: &str = "sample";
 pub const TEXTURE: &str = "texture";
+/// the loop track a phrase's second passage plays as, in some of the sections that list the phrase
+pub const SECOND: &str = "sample2";
 
 /// the ears' z below which a cut is not kept: a reading short of plausible (2.5) can still be the best a library has,
 /// but under this it is unlikely to be what was asked for
@@ -240,7 +242,8 @@ pub fn gather(
 
 /// remove the files a cut left behind
 fn forget(p: &Prepared) {
-    for f in [Some(&p.path), p.kick.as_ref(), p.snare.as_ref(), p.hat.as_ref()].into_iter().flatten() {
+    let second = p.second.as_ref().map(|s| &s.path);
+    for f in [Some(&p.path), p.kick.as_ref(), p.snare.as_ref(), p.hat.as_ref(), second].into_iter().flatten() {
         let _ = std::fs::remove_file(f);
         let _ = std::fs::remove_file(format!("{f}.json"));
     }
@@ -363,6 +366,7 @@ fn blank(path: &Path, role: Role, bpm: f64, beats: f64) -> Prepared {
         z: None,
         source: String::new(),
         asked: None,
+        second: None,
     }
 }
 
@@ -464,6 +468,19 @@ fn cut_break(x: &Stereo, f: &Found, g: &GenreProfile, dir: &Path) -> Result<Cut>
     Ok(c)
 }
 
+/// how many places in a recording a phrase is listened for at most, spread over it
+const STARTS: usize = 24;
+
+/// a passage of a recording `cut_phrase` weighs: the bar it starts on, the section of the recording it is in, its
+/// power, the ears' z for what the genre listens for, and how much the recording plays it again (`repeats`)
+struct Passed {
+    bar: usize,
+    section: usize,
+    power: f64,
+    z: Option<f64>,
+    repeats: f64,
+}
+
 fn cut_phrase(x: &Stereo, n: &SampleNeed, ears: Option<&Ears>, dir: &Path) -> Result<Cut> {
     let a = analysis::analyze(x, Some((55.0, 180.0)));
     let bar = a.bar_secs;
@@ -471,47 +488,96 @@ fn cut_phrase(x: &Stereo, n: &SampleNeed, ears: Option<&Ears>, dir: &Path) -> Re
         bail!("no bars to cut it on");
     }
     // where a phrase may start: every two bars of the sections that hold harmony, else of the whole recording
-    let mut starts: Vec<usize> = Vec::new();
-    for s in a.sections.iter().filter(|s| s.harmony) {
+    let mut starts: Vec<(usize, usize)> = Vec::new();
+    for (si, s) in a.sections.iter().enumerate().filter(|(_, s)| s.harmony) {
         let mut b = s.start_bar;
-        while b + PHRASE_BARS <= s.start_bar + s.bars && starts.len() < 24 {
-            starts.push(b);
+        while b + PHRASE_BARS <= s.start_bar + s.bars {
+            starts.push((b, si));
             b += 2;
         }
     }
     if starts.is_empty() {
-        starts = (0..=a.bars - PHRASE_BARS).step_by(2).take(24).collect();
+        starts = (0..=a.bars - PHRASE_BARS).step_by(2).map(|b| (b, 0)).collect();
+    }
+    if starts.len() > STARTS {
+        starts = (0..STARTS).map(|i| starts[i * starts.len() / STARTS]).collect();
     }
     let cut = |b: usize| -> Option<Stereo> {
         let t0 = a.first_downbeat + b as f64 * bar;
         let (s0, s1) = ((t0 * SRF) as usize, ((t0 + PHRASE_BARS as f64 * bar) * SRF) as usize);
         (s1 <= x.len()).then(|| x.slice(s0, s1))
     };
-    let loudness = |s: &Stereo| s.mono().iter().map(|v| (v * v) as f64).sum::<f64>() / s.len().max(1) as f64;
-    // the ears choose the phrase most like what the genre listens for; without them, the loudest
-    let mut best: Option<(usize, f64)> = None;
-    for &b in &starts {
+    let power = |s: &Stereo| s.mono().iter().map(|v| (v * v) as f64).sum::<f64>() / s.len().max(1) as f64;
+    let mut passages: Vec<Passed> = Vec::new();
+    for &(b, section) in &starts {
         let Some(seg) = cut(b) else { continue };
-        let score = match ears {
-            Some(e) => e.z(&seg, &n.listen)?,
-            None => loudness(&seg),
+        let z = match ears {
+            Some(e) => Some(e.z(&seg, &n.listen)?),
+            None => None,
         };
-        if best.is_none_or(|(_, s)| score > s) {
-            best = Some((b, score));
-        }
+        passages.push(Passed { bar: b, section, power: power(&seg), z, repeats: repeats(&a.bar_chroma, b) });
     }
-    let (b, score) = best.context("no whole phrase in it")?;
-    let mut seg = cut(b).context("no whole phrase in it")?;
-    let len = seg.len();
-    seg.fade(64.min(len), 256.min(len));
+    let loudest = passages.iter().map(|p| p.power).fold(0.0, f64::max);
+    let level = |p: &Passed| if loudest > 0.0 { (p.power / loudest).sqrt() } else { 0.0 };
+    // the ears choose the passage most like what the genre listens for, without them the loudest, and either way
+    // rather one the recording plays again, which loops as the recording plays it
+    let score = |p: &Passed| p.z.unwrap_or_else(|| level(p)) + p.repeats;
+    let best =
+        |ok: &dyn Fn(&Passed) -> bool| passages.iter().filter(|p| ok(p)).min_by(|x, y| score(y).total_cmp(&score(x)));
+    let first = best(&|p| p.power > 0.0).context("no whole phrase in it")?;
+    let chords = |b: usize| a.numerals.get(b..b + PHRASE_BARS).map(<[String]>::to_vec).unwrap_or_default();
+    // the other sections of a song play another passage: one the ears hear what the genre listens for in too, or,
+    // without them, one at most 6 dB quieter; from another section of the recording, else on other chords
+    let other = |p: &Passed| p.bar.abs_diff(first.bar) >= PHRASE_BARS && p.z.map_or(level(p) >= 0.5, |z| z >= MIN_Z);
+    let second = best(&|p| other(p) && p.section != first.section)
+        .or_else(|| best(&|p| other(p) && chords(p.bar) != chords(first.bar)));
+    let take = |b: usize| -> Result<Stereo> {
+        let mut seg = cut(b).context("no whole phrase in it")?;
+        let len = seg.len();
+        seg.fade(64.min(len), 256.min(len));
+        Ok(seg)
+    };
     let file = dir.join("phrase.wav");
     let mut c = Cut::new(blank(&file, Role::Phrase, a.bpm, (PHRASE_BARS * 4) as f64));
     c.prepared.key = Some(a.key.tonic);
     c.prepared.minor = a.key.mode.is_minor();
-    c.prepared.chords = a.numerals.get(b..b + PHRASE_BARS).map(<[String]>::to_vec).unwrap_or_default();
-    c.prepared.z = ears.map(|_| score);
-    c.file(file, seg, false);
+    c.prepared.chords = chords(first.bar);
+    c.prepared.z = first.z;
+    c.file(file, take(first.bar)?, false);
+    if let Some(s) = second {
+        let path = c.file(dir.join("phrase-2.wav"), take(s.bar)?, false);
+        c.prepared.second = Some(Passage { path, chords: chords(s.bar), louder: s.power > first.power });
+    }
     Ok(c)
+}
+
+/// How much a recording plays the bars of a phrase from bar `b` again, in the bars after them or in those before:
+/// the correlation of their pitch classes (`chroma`, a bar's each) with those bars', from -1 to 1; 0 with no bars on
+/// either side.
+fn repeats(chroma: &[[f32; 12]], b: usize) -> f64 {
+    let at = |from: usize| chroma.get(from..from + PHRASE_BARS);
+    let Some(own) = at(b) else { return 0.0 };
+    [Some(b + PHRASE_BARS), b.checked_sub(PHRASE_BARS)]
+        .into_iter()
+        .flatten()
+        .filter_map(|o| correlation(own, at(o)?))
+        .reduce(f64::max)
+        .unwrap_or(0.0)
+}
+
+fn correlation(x: &[[f32; 12]], y: &[[f32; 12]]) -> Option<f64> {
+    let flat = |v: &[[f32; 12]]| -> Vec<f64> { v.iter().flatten().map(|s| *s as f64).collect() };
+    let (x, y) = (flat(x), flat(y));
+    let mean = |v: &[f64]| v.iter().sum::<f64>() / v.len().max(1) as f64;
+    let (mx, my) = (mean(&x), mean(&y));
+    let (mut xy, mut xx, mut yy) = (0.0, 0.0, 0.0);
+    for (a, b) in x.iter().zip(&y) {
+        let (da, db) = (a - mx, b - my);
+        xy += da * db;
+        xx += da * da;
+        yy += db * db;
+    }
+    (xx > 0.0 && yy > 0.0).then(|| xy / (xx * yy).sqrt())
 }
 
 fn cut_texture(x: &Stereo, dir: &Path) -> Result<Cut> {
@@ -605,6 +671,22 @@ fn unsped(bpm: f64, semis: i32) -> f64 {
     bpm / 2f64.powf(semis as f64 / 12.0)
 }
 
+/// The sections that play a phrase's second passage in its place: the louder of the two passages plays where the song
+/// lifts (its drops and hooks) and the other elsewhere; in a song that only lifts, or never does, every other section
+/// the phrase plays in, from the second.
+fn second_sections(bp: &Blueprint, louder: bool) -> Vec<usize> {
+    let playing: Vec<usize> = (0..bp.form.len()).filter(|&i| bp.form[i].layers.iter().any(|l| l == PHRASE)).collect();
+    let (lifts, rest): (Vec<usize>, Vec<usize>) =
+        playing.iter().partition(|&&i| matches!(bp.form[i].kind, SectionKind::Drop | SectionKind::Hook));
+    if lifts.is_empty() || rest.is_empty() {
+        playing.into_iter().skip(1).step_by(2).collect()
+    } else if louder {
+        lifts
+    } else {
+        rest
+    }
+}
+
 /// Make room for `role`'s track in a song whose genre's sections do not list it: it plays in place of the layers its
 /// need names `instead`, in each section that has one of them (in every section, when it names none).
 fn place(bp: &mut Blueprint, role: Role, n: &SampleNeed) {
@@ -658,27 +740,24 @@ pub fn apply(
         }
         let semis = speed.map_or(0, |(s, _)| s);
         place(bp, role, n);
+        // the second passage of a phrase, and its chords as the song counts them
+        let mut second: Option<(&Passage, Vec<String>)> = None;
         if role == Role::Phrase {
             // the song is built on the phrase: its key, its tempo where the genre allows, its chords
-            let mut chords = p.chords.clone();
+            let mut heard = None;
             if let Some(k) = p.key {
                 let was = bp.key;
                 let k = (k as i32 + semis).rem_euclid(12) as u8;
-                let heard = Key::new(k, if p.minor { Mode::Minor } else { Mode::Major });
+                let h = Key::new(k, if p.minor { Mode::Minor } else { Mode::Major });
                 // a genre that knows no major mode plays a major phrase in its relative minor, where the phrase's
                 // chord on its first degree is the third (a swell on A major is III of F sharp minor)
                 let dark = !g.modes.is_empty() && g.modes.iter().all(|(m, _)| m.is_minor());
-                bp.key = if !p.minor && dark { Key::new((k + 9) % 12, Mode::Minor) } else { heard };
+                bp.key = if !p.minor && dark { Key::new((k + 9) % 12, Mode::Minor) } else { h };
                 // the other progressions move into the new key as key() would move them
                 for prog in bp.harmony.progressions.values_mut() {
                     *prog = prog.iter().map(|rn| crate::script::remode(rn, &was, &bp.key)).collect();
                 }
-                let heard_chords = crate::theory::progression::chords(&p.chords, &heard);
-                chords = if heard_chords.len() == p.chords.len() {
-                    heard_chords.iter().map(|c| crate::theory::chord::roman_of(c, &bp.key)).collect()
-                } else {
-                    Vec::new()
-                };
+                heard = Some(h);
             }
             match speed {
                 Some((_, t)) => bp.bpm = t,
@@ -692,11 +771,26 @@ pub fn apply(
             // a bar of the phrase as the song counts it: counted at half its tempo, a song's bar holds two of its
             // bars (and plays the first one's chord); at twice its tempo, each of its chords lasts two
             let (_, beats) = fold(p.bpm, p.beats, unsped(bp.bpm, semis));
-            let (chords, per) = if beats < p.beats {
-                (chords.iter().step_by(2).cloned().collect(), 1)
-            } else {
-                (chords, if beats > p.beats { 2 } else { 1 })
+            let key = bp.key;
+            let counted = |numerals: &[String]| -> (Vec<String>, u32) {
+                let chords: Vec<String> = match &heard {
+                    Some(h) => {
+                        let cs = crate::theory::progression::chords(numerals, h);
+                        if cs.len() == numerals.len() {
+                            cs.iter().map(|c| crate::theory::chord::roman_of(c, &key)).collect()
+                        } else {
+                            Vec::new()
+                        }
+                    }
+                    None => numerals.to_vec(),
+                };
+                if beats < p.beats {
+                    (chords.iter().step_by(2).cloned().collect(), 1)
+                } else {
+                    (chords, if beats > p.beats { 2 } else { 1 })
+                }
             };
+            let (chords, per) = counted(&p.chords);
             if !chords.is_empty() {
                 bp.harmony.progressions.insert("A".into(), chords);
                 bp.harmony.bars_per_chord = per;
@@ -705,6 +799,7 @@ pub fn apply(
             for s in bp.form.iter_mut().filter(|s| s.layers.iter().any(|l| l == PHRASE)) {
                 s.prog = "A".into();
             }
+            second = p.second.as_ref().map(|s| (s, counted(&s.chords).0));
         }
         let tonal = role == Role::Phrase && p.key.is_some();
         let (bpm, beats) =
@@ -744,6 +839,37 @@ pub fn apply(
             from: None,
             sampled: false,
         });
+        if role == Role::Phrase {
+            bp.loops.retain(|l| l.name != SECOND);
+        }
+        let mut also = String::new();
+        if let Some((s, chords)) = second
+            && let Some(mut other) = bp.loops.last().cloned()
+        {
+            let at = second_sections(bp, s.louder);
+            if !at.is_empty() {
+                other.name = SECOND.into();
+                if let Sound::Loop { path, label, .. } = &mut other.sound {
+                    *path = s.path.clone();
+                    *label = format!("{label}, another passage");
+                }
+                bp.loops.push(other);
+                for &i in &at {
+                    let sec = &mut bp.form[i];
+                    for l in sec.layers.iter_mut().filter(|l| *l == PHRASE) {
+                        *l = SECOND.into();
+                    }
+                    if !chords.is_empty() {
+                        sec.prog = "B".into();
+                    }
+                }
+                if !chords.is_empty() {
+                    bp.harmony.progressions.insert("B".into(), chords);
+                }
+                let names: Vec<&str> = at.iter().map(|&i| bp.form[i].name.as_str()).collect();
+                also = format!(" (another passage of it in {})", names.join(", "));
+            }
+        }
         if role == Role::Break {
             // the drum lanes it plays in place of play the break's own hits (a break under house's kick leaves it be)
             for lane in bp.drums.iter_mut().filter(|d| n.instead.contains(&d.name)) {
@@ -773,7 +899,7 @@ pub fn apply(
                 if s > 0 { "up" } else { "down" }
             ),
         };
-        placed.push((role, format!("'{label}'{how}")));
+        placed.push((role, format!("'{label}'{how}{also}")));
     }
     for role in Role::ALL {
         let Some(n) = need(g, role) else { continue };
@@ -883,6 +1009,7 @@ mod tests {
             z: Some(2.0),
             source: "freesound:1".into(),
             asked: None,
+            second: None,
         };
         Shelf(vec![
             Prepared {
@@ -940,6 +1067,113 @@ mod tests {
         assert_eq!(at(88.0), (88.0, 8.0, vec!["i".to_string(), "VI".to_string()], 1));
         // two bars at 44 are four at 88: each chord lasts two
         assert_eq!(at(44.0), (88.0, 16.0, vec!["i".to_string(), "VI".to_string()], 2));
+    }
+
+    #[test]
+    fn a_phrases_other_passage_plays_where_the_song_lifts_when_it_is_the_louder_on_its_own_chords() {
+        let g = sampling_genre();
+        let song = |second: Option<bool>| {
+            let mut s = shelf();
+            for p in s.0.iter_mut().filter(|p| p.role == Role::Phrase) {
+                // at the song's tempo: a chord a bar
+                p.bpm = 88.0;
+                p.second = second.map(|louder| Passage {
+                    path: "/p/phrase-2.wav".into(),
+                    chords: vec!["iv".into(), "v".into()],
+                    louder,
+                });
+            }
+            crate::compose::generate(&g, 3, &crate::compose::Options::default(), Some(&s))
+        };
+        let on = |bp: &Blueprint, layer: &str| -> Vec<SectionKind> {
+            bp.form.iter().filter(|s| s.layers.iter().any(|l| l == layer)).map(|s| s.kind).collect()
+        };
+        let lifts = |k: &SectionKind| matches!(k, SectionKind::Drop | SectionKind::Hook);
+        let plain = song(None);
+        let playing = on(&plain, PHRASE);
+        assert!(playing.iter().any(lifts) && !playing.iter().all(lifts), "{playing:?}");
+        assert!(plain.loops.iter().all(|l| l.name != SECOND));
+        // the louder passage where the song lifts, the phrase where it played the rest of the time
+        let bp = song(Some(true));
+        let (first, second) = (on(&bp, PHRASE), on(&bp, SECOND));
+        assert_eq!(first.len() + second.len(), playing.len());
+        assert!(!second.is_empty() && second.iter().all(lifts) && !first.iter().any(lifts), "{first:?} {second:?}");
+        let other = bp.loops.iter().find(|l| l.name == SECOND).expect("the other passage plays");
+        let phrase = bp.loops.iter().find(|l| l.name == PHRASE).unwrap();
+        let Sound::Loop { path, bpm, beats, .. } = &other.sound else { panic!("a loop") };
+        assert_eq!(path, "/p/phrase-2.wav");
+        assert!(matches!(phrase.sound, Sound::Loop { bpm: b, beats: n, .. } if b == *bpm && n == *beats));
+        assert_eq!((other.transpose, &other.mix.fx), (phrase.transpose, &phrase.mix.fx));
+        // on its own chords
+        assert_eq!(bp.harmony.progressions["B"], ["iv", "v"]);
+        assert!(bp.form.iter().filter(|s| s.layers.iter().any(|l| l == SECOND)).all(|s| s.prog == "B"));
+        assert!(bp.lineage.iter().any(|l| l.contains("another passage of it in")), "{:?}", bp.lineage);
+        // the quieter one where it does not lift
+        let quiet = song(Some(false));
+        assert!(on(&quiet, SECOND).iter().all(|k| !lifts(k)) && on(&quiet, PHRASE).iter().all(lifts));
+        // in a song that never lifts, every other section the phrase plays in
+        let mut flat = plain.clone();
+        flat.form.iter_mut().for_each(|s| s.kind = SectionKind::Groove);
+        let at: Vec<usize> =
+            (0..flat.form.len()).filter(|&i| flat.form[i].layers.iter().any(|l| l == PHRASE)).collect();
+        assert_eq!(second_sections(&flat, true), at.iter().copied().skip(1).step_by(2).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn a_passage_the_recording_plays_again_repeats() {
+        let pc = |p: usize| {
+            let mut c = [0f32; 12];
+            (c[p], c[(p + 7) % 12]) = (0.7, 0.3);
+            c
+        };
+        // A, F, A, F, then C and G once
+        let ch = [pc(9), pc(5), pc(9), pc(5), pc(0), pc(7)];
+        assert!((repeats(&ch, 0) - 1.0).abs() < 1e-9 && (repeats(&ch, 2) - 1.0).abs() < 1e-9);
+        assert!(repeats(&ch, 4) < 0.0, "{}", repeats(&ch, 4));
+        assert_eq!(repeats(&ch[..2], 0), 0.0, "nothing either side");
+    }
+
+    /// sixteen bars at 120 BPM, a kick on every beat, and from each bar on the chord `chord` says for it, at its level:
+    /// A minor's notes or F major's
+    fn recording(chord: impl Fn(usize) -> (bool, f64)) -> Stereo {
+        let n = (32.0 * SRF) as usize;
+        let mut x = Stereo::zeros(n);
+        for i in 0..n {
+            let t = i as f64 / SRF;
+            let (minor, amp) = chord((t / 2.0) as usize);
+            let notes = if minor { [220.0, 261.63, 329.63] } else { [174.61, 220.0, 261.63] };
+            let held: f64 = notes.iter().map(|f| (std::f64::consts::TAU * f * t).sin()).sum::<f64>() * amp;
+            let tb = t % 0.5;
+            let kick = (std::f64::consts::TAU * 55.0 * tb).sin() * (-tb / 0.08).exp() * 0.5;
+            (x.l[i], x.r[i]) = ((held + kick) as f32, (held + kick) as f32);
+        }
+        x
+    }
+
+    #[test]
+    fn a_phrase_and_another_passage_are_cut_from_two_sections_of_a_recording_or_on_other_chords() {
+        let n = need(&sampling_genre(), Role::Phrase).unwrap().clone();
+        // A minor for eight bars, then F major, louder
+        let halves = recording(|bar| if bar < 8 { (true, 0.08) } else { (false, 0.14) });
+        let c = cut_phrase(&halves, &n, None, Path::new("demo:phrase")).unwrap();
+        let p = &c.prepared;
+        let s = p.second.as_ref().expect("another passage");
+        // the louder half's is the phrase, and the other half's the other passage, on other chords
+        assert!(!s.louder && p.chords != s.chords, "{:?} {:?}", p.chords, s.chords);
+        let paths: Vec<String> = c.files.iter().map(|f| f.path.to_string_lossy().into_owned()).collect();
+        assert_eq!(paths, [p.path.clone(), s.path.clone()]);
+        let power = |x: &Stereo| x.mono().iter().map(|v| (v * v) as f64).sum::<f64>();
+        assert!(power(&c.files[0].audio) > power(&c.files[1].audio));
+        assert_eq!(c.files[0].audio.len(), c.files[1].audio.len());
+        // four bars of each all through, heard as one section: the other passage is on the other chord
+        let turns = recording(|bar| (bar % 8 < 4, 0.1));
+        let c = cut_phrase(&turns, &n, None, Path::new("demo:phrase")).unwrap();
+        let s = c.prepared.second.as_ref().expect("another passage");
+        assert_ne!(c.prepared.chords, s.chords);
+        // one chord all through: nothing else to play
+        let one = cut_phrase(&recording(|_| (true, 0.1)), &n, None, Path::new("demo:phrase")).unwrap();
+        assert_eq!(one.prepared.second, None);
+        assert_eq!(one.files.len(), 1);
     }
 
     #[test]

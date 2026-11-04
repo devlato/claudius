@@ -19,6 +19,12 @@ The [studio demo](https://claudius.devlato.com/studio/?mock) samples every genre
 and Wikimedia Commons: claudius itself cuts each recording in the page, a phrase out of a whole song as the app cuts
 one, where the demo cut only loops whose titles stated a tempo.
 
+A song built on samples plays two passages of its record, as records built on samples change what they play from one
+part to the next: the phrase, now chosen from bars the recording plays again, so that it loops as the record does,
+and two bars from another section of the recording (or on other chords). The louder of the two plays where the song
+lifts, in its drops and hooks, and the other in its verses, breaks, intro and outro, each on its own chords (the
+`sample` and `sample2` tracks).
+
 An edit renders again only the tracks it changed: a level, a pan, a send or the master renders no track again, and
 another track's notes only that track, so mixing waits for the mix alone (a level change in the web demo takes about
 13 s where the whole song takes 31). What comes out is the same to the sample as a fresh render.

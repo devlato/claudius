@@ -61,6 +61,18 @@ pub struct Prepared {
     /// the words a person searched for it with (`sampling::words`); none: the genre's own searches found it
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub asked: Option<String>,
+    /// a phrase's second passage, from another section of its recording, which other sections of a song play
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub second: Option<Passage>,
+}
+
+/// Another passage of a phrase's recording, as long as the phrase and at its tempo and key: its file, its chords (a
+/// Roman numeral for each of its bars, in the phrase's key), and whether it is the louder of the two.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Passage {
+    pub path: String,
+    pub chords: Vec<String>,
+    pub louder: bool,
 }
 
 impl Prepared {
@@ -110,10 +122,16 @@ impl Index {
         &self.root
     }
 
-    /// every prepared sample whose file is still there
+    /// every prepared sample whose file is still there (with its second passage while that is too)
     pub fn all(&self) -> Vec<Prepared> {
         let list: Vec<Prepared> = read(&self.root.join("index.json"));
-        list.into_iter().filter(|p| Path::new(&p.path).is_file()).collect()
+        list.into_iter()
+            .filter(|p| Path::new(&p.path).is_file())
+            .map(|mut p| {
+                p.second = p.second.filter(|s| Path::new(&s.path).is_file());
+                p
+            })
+            .collect()
     }
 
     /// the prepared samples of `role` a song of `genre` draws on, asked for `asked` (`Prepared::fits`)
@@ -186,11 +204,19 @@ mod tests {
             z: Some(2.0),
             source: "freesound:1".into(),
             asked: None,
+            second: None,
         };
         ix.add(p.clone()).unwrap();
         ix.add(Prepared { bpm: 93.0, ..p.clone() }).unwrap();
         assert_eq!(ix.of(Role::Break, "trip_hop", None).len(), 1);
         assert_eq!(ix.of(Role::Break, "trip_hop", None)[0].bpm, 93.0);
+        // a second passage is listed while its file is there
+        let other = tmp.join("phrase-2.wav");
+        let second = Passage { path: other.to_string_lossy().into_owned(), chords: vec!["iv".into()], louder: true };
+        ix.add(Prepared { second: Some(second.clone()), ..p.clone() }).unwrap();
+        assert_eq!(ix.all()[0].second, None);
+        std::fs::write(&other, b"x").unwrap();
+        assert_eq!(ix.all()[0].second, Some(second));
         assert!(ix.of(Role::Phrase, "trip_hop", None).is_empty());
         // one asked for by its words is a song's that asks for them, of any genre, and not the genre's own
         ix.add(Prepared { role: Role::Phrase, asked: Some("70s soul".into()), ..p.clone() }).unwrap();
