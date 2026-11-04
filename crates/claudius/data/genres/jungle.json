@@ -125,6 +125,7 @@
     "phrase": {
       "search": ["dub reggae", "reggae", "ragga", "jazz", "soul", "strings", "rhodes", "pad", "reggae vocal", "dub siren"],
       "listen": "a deep dub reggae phrase",
+      "treat": {"as it is": 0.45, "filtered until it lifts": 0.25, "darkened": 0.15, "overloaded": 0.15},
       "seconds": [6, 900],
       "keep": 6,
       "chance": 0.95,

@@ -17,6 +17,7 @@ use crate::analysis::song as analysis;
 use crate::audio::{self, Stereo};
 use crate::config::SRF;
 use crate::ears::Ears;
+use crate::fx::Effect;
 use crate::genres::{GenreProfile, SampleNeed};
 use crate::library::prepared::{Index, Passage, Prepared, Role};
 use crate::model::*;
@@ -674,6 +675,99 @@ fn unsped(bpm: f64, semis: i32) -> f64 {
     bpm / 2f64.powf(semis as f64 / 12.0)
 }
 
+/// the moves a phrase may be treated with (`SampleNeed::treat`)
+pub const MOVES: [&str; 7] = [
+    "as it is",
+    "filtered until it lifts",
+    "darkened",
+    "a telephone's band in the intro and the breaks",
+    "overloaded",
+    "smashed",
+    "crushed",
+];
+
+/// What a move adds to a phrase's mix: the effects after its own and the drive that overloads it; and the kinds of
+/// section it works on, one of which the phrase must play in for the move to be heard (none: it works all through).
+struct Move {
+    fx: Vec<Effect>,
+    drive_db: f32,
+    works_in: &'static [SectionKind],
+}
+
+/// a move by its name (`MOVES`)
+fn treatment(name: &str) -> Option<Move> {
+    use crate::dsp::env::{BySection, Param};
+    use crate::dsp::filter::FilterMode;
+    let by = |rest: f32, at: &[(&str, f32)]| {
+        Param::Sections(BySection { rest, sections: at.iter().map(|(k, v)| (k.to_string(), vec![*v])).collect() })
+    };
+    let filter = |mode, cutoff, mix| Effect::Filter { mode, cutoff, res: Param::Const(0.1), drive: 1.0, mix };
+    let nothing = |fx: Vec<Effect>, drive_db: f32| Move { fx, drive_db, works_in: &[] };
+    Some(match name {
+        "as it is" => nothing(Vec::new(), 0.0),
+        // closed to 1.4 kHz, opening across a build before a lift, and out of the way where the song lifts
+        "filtered until it lifts" => {
+            let mut cutoff = by(1400.0, &[("drop", 16_000.0), ("hook", 16_000.0)]);
+            if let Param::Sections(s) = &mut cutoff {
+                s.sections.insert("build".into(), vec![1400.0, 16_000.0]);
+            }
+            Move {
+                fx: vec![filter(FilterMode::Lp, cutoff, by(1.0, &[("drop", 0.0), ("hook", 0.0)]))],
+                drive_db: 0.0,
+                works_in: &[SectionKind::Drop, SectionKind::Hook],
+            }
+        }
+        "darkened" => nothing(vec![filter(FilterMode::Lp, Param::Const(2600.0), Param::Const(1.0))], 0.0),
+        // 450 Hz to 3.2 kHz in the intro and the breaks, as it is elsewhere
+        "a telephone's band in the intro and the breaks" => {
+            let there = by(0.0, &[("intro", 1.0), ("break", 1.0)]);
+            Move {
+                fx: vec![
+                    filter(FilterMode::Hp, Param::Const(450.0), there.clone()),
+                    filter(FilterMode::Lp, Param::Const(3200.0), there),
+                ],
+                drive_db: 0.0,
+                works_in: &[SectionKind::Intro, SectionKind::Break],
+            }
+        }
+        "overloaded" => nothing(Vec::new(), 9.0),
+        "smashed" => nothing(Vec::new(), 15.0),
+        // a 12-bit sampler at half the rate
+        "crushed" => {
+            nothing(vec![Effect::Bitcrush { bits: Param::Const(12.0), downsample: 2.0, mix: 1.0.into() }], 0.0)
+        }
+        _ => return None,
+    })
+}
+
+/// The move a song's phrase is treated with: one of the genre's (`treat`) that it would be heard in, the sections the
+/// phrase plays in being `kinds`, picked by `rng` as often as each is made; none to make, or one that is no move: as
+/// it is.
+fn treat(n: &SampleNeed, kinds: &[SectionKind], rng: &mut Rng) -> (&'static str, Move) {
+    let heard: Vec<(&'static str, f64, Move)> = MOVES
+        .iter()
+        .filter_map(|&name| {
+            let weight = n.treat.get(name).copied().filter(|w| *w > 0.0)?;
+            let m = treatment(name)?;
+            (m.works_in.is_empty() || m.works_in.iter().any(|k| kinds.contains(k))).then_some((name, weight, m))
+        })
+        .collect();
+    let total: f64 = heard.iter().map(|(_, w, _)| w).sum();
+    let at = rng.f64() * total;
+    let i = heard
+        .iter()
+        .scan(0.0, |sum, (_, w, _)| {
+            *sum += w;
+            Some(*sum)
+        })
+        .position(|sum| at < sum)
+        .unwrap_or(heard.len().saturating_sub(1));
+    match heard.into_iter().nth(i) {
+        Some((name, _, m)) => (name, m),
+        None => ("as it is", Move { fx: Vec::new(), drive_db: 0.0, works_in: &[] }),
+    }
+}
+
 /// The sections that play a phrase's second passage in its place: the louder of the two passages plays where the song
 /// lifts (its drops and hooks) and the other elsewhere; in a song that only lifts, or never does, every other section
 /// the phrase plays in, from the second.
@@ -743,6 +837,19 @@ pub fn apply(
         }
         let semis = speed.map_or(0, |(s, _)| s);
         place(bp, role, n);
+        // a phrase is treated as the genre's producers treat a record, the move its seed picks
+        let mut mix = n.mix.clone();
+        let mut treated = String::new();
+        if role == Role::Phrase {
+            let kinds: Vec<SectionKind> =
+                bp.form.iter().filter(|s| s.layers.iter().any(|l| l == PHRASE)).map(|s| s.kind).collect();
+            let (name, m) = treat(n, &kinds, &mut r.fork("treat"));
+            mix.fx.extend(m.fx);
+            mix.drive_db = mix.drive_db.max(m.drive_db);
+            if name != "as it is" {
+                treated = format!(", {name}");
+            }
+        }
         // the second passage of a phrase, and its chords as the song counts them
         let mut second: Option<(&Passage, Vec<String>)> = None;
         if role == Role::Phrase {
@@ -838,7 +945,7 @@ pub fn apply(
             transpose: semis,
             chop,
             slice_beats: 0.5,
-            mix: n.mix.clone(),
+            mix,
             from: None,
             sampled: false,
         });
@@ -902,7 +1009,7 @@ pub fn apply(
                 if s > 0 { "up" } else { "down" }
             ),
         };
-        placed.push((role, format!("'{label}'{how}{also}")));
+        placed.push((role, format!("'{label}'{how}{treated}{also}")));
     }
     for role in Role::ALL {
         let Some(n) = need(g, role) else { continue };
@@ -1122,6 +1229,57 @@ mod tests {
         let at: Vec<usize> =
             (0..flat.form.len()).filter(|&i| flat.form[i].layers.iter().any(|l| l == PHRASE)).collect();
         assert_eq!(second_sections(&flat, true), at.iter().copied().skip(1).step_by(2).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn a_phrase_is_treated_with_a_move_its_genre_makes_and_its_seed_picks() {
+        let g = sampling_genre();
+        let base = need(&g, Role::Phrase).unwrap().mix.clone();
+        let mut made = std::collections::BTreeSet::new();
+        let mut played = 0;
+        for seed in 0..40 {
+            let bp = crate::compose::generate(&g, seed, &crate::compose::Options::default(), Some(&shelf()));
+            // a song plays its genre's phrase as often as its chance says
+            let Some(phrase) = bp.loops.iter().find(|l| l.name == PHRASE) else { continue };
+            played += 1;
+            let said = bp.lineage.iter().find(|l| l.starts_with("sampled: phrase")).unwrap();
+            let name = MOVES.iter().skip(1).find(|m| said.contains(&format!(", {m}"))).copied().unwrap_or("as it is");
+            assert!(g.sampling.as_ref().unwrap().phrase.as_ref().unwrap().treat.contains_key(name), "{said}");
+            // the move's effects after the genre's own, and its drive
+            let m = treatment(name).unwrap();
+            assert_eq!(phrase.mix.fx[..base.fx.len()], base.fx[..], "{name}");
+            assert_eq!(phrase.mix.fx[base.fx.len()..], m.fx[..], "{name}");
+            assert_eq!(phrase.mix.drive_db, base.drive_db.max(m.drive_db), "{name}");
+            made.insert(name);
+        }
+        assert!(played >= 32, "{played} of 40 songs played their phrase");
+        assert!(made.len() >= 3, "a few moves across songs: {made:?}");
+    }
+
+    #[test]
+    fn a_move_is_made_only_where_the_phrase_plays_for_it_to_be_heard() {
+        let lift = |name: &str| SampleNeed { treat: [(name.to_string(), 1.0)].into(), ..soul_need() };
+        let mut r = Rng::new(1);
+        let verses = [SectionKind::Verse, SectionKind::Groove];
+        assert_eq!(treat(&lift("filtered until it lifts"), &verses, &mut r).0, "as it is");
+        assert_eq!(treat(&lift("filtered until it lifts"), &[SectionKind::Hook], &mut r).0, "filtered until it lifts");
+        let telephone = "a telephone's band in the intro and the breaks";
+        assert_eq!(treat(&lift(telephone), &verses, &mut r).0, "as it is");
+        assert_eq!(treat(&lift(telephone), &[SectionKind::Break], &mut r).0, telephone);
+        assert_eq!(treat(&lift("darkened"), &verses, &mut r).0, "darkened", "it works all through");
+        assert_eq!(treat(&lift("no such move"), &verses, &mut r).0, "as it is");
+        // every genre's moves are moves claudius makes
+        for g in crate::genres::all().unwrap() {
+            for role in Role::ALL {
+                for name in need(&g, role).map(|n| n.treat.keys().collect::<Vec<_>>()).unwrap_or_default() {
+                    assert!(MOVES.contains(&name.as_str()), "{}: {name}", g.name);
+                }
+            }
+        }
+    }
+
+    fn soul_need() -> SampleNeed {
+        need(&sampling_genre(), Role::Phrase).unwrap().clone()
     }
 
     #[test]

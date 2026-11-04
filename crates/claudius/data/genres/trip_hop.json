@@ -180,6 +180,7 @@
     "phrase": {
       "search": ["film score", "spy theme", "soundtrack", "string quartet", "harpsichord", "jazz ballad", "psychedelic soul", "library music", "cello", "vibraphone", "60s orchestra", "film noir", "lounge", "flute", "organ", "bossa nova", "cinematic strings", "jazz orchestra", "torch song", "harp"],
       "listen": "dark cinematic orchestral strings from a film score",
+      "treat": {"as it is": 0.3, "darkened": 0.25, "filtered until it lifts": 0.2, "overloaded": 0.15, "a telephone's band in the intro and the breaks": 0.1},
       "seconds": [6, 900],
       "keep": 8,
       "chance": 0.95,

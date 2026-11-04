@@ -105,6 +105,21 @@ genre's tempo in its own key where claudius can stretch; the web demo, which can
 Each role keeps its own colour from the profile: the high-pass that leaves the low end to the song's bass, the tape,
 the 12-bit crush.
 
+On top of that colour, a song treats its phrase with one move its genre's producers make, which the song's seed picks
+(`treat` in the profile says which moves and how often). The moves:
+- **filtered until it lifts**: held behind a low-pass at 1.4 kHz that opens across the build into each drop or hook,
+  then out of the way there;
+- **darkened**: a low-pass at 2.6 kHz all through;
+- **a telephone's band in the intro and the breaks**: 450 Hz to 3.2 kHz there, as it is elsewhere;
+- **overloaded** and **smashed**: the mixer's drive at 9 or 15 dB;
+- **crushed**: 12 bits at half the rate;
+- **as it is**.
+
+Trip-hop darkens and filters, big beat overloads, lo-fi darkens and crushes, and filter house keeps its own sweep. A
+move is made only where the phrase plays for it to be heard: a song whose phrase never plays in a drop or a hook is not
+filtered until it lifts. The song's lineage names the move (`sampled: phrase 'Old Soul' 4 semitones up, filtered until
+it lifts`), and the second passage plays through the same.
+
 With earshot's models, the ears score each cut against what was asked for, and cuts under z 1.5 are left out and not
 fetched again. The cuts go into `<samples>/prepared/<role>/<genre>/`, or `asked-<words>-<hash>/` for words of your own, so
 that a recording gathered for two of them is cut for each, each with its recording's credit beside it, so a song's

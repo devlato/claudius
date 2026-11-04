@@ -270,6 +270,24 @@ pub struct SampleNeed {
     pub instead: Vec<String>,
     #[serde(default)]
     pub mix: TrackMix,
+    /// How a phrase may be treated, as a producer treats a record, each move (`sampling::MOVES`) by how often a song
+    /// makes it: held behind a filter until the song lifts, darkened, narrowed to a telephone's band in the intro and
+    /// the breaks, overloaded, crushed. A song makes one, which its seed picks. None said: those that suit most genres.
+    #[serde(default = "moves")]
+    pub treat: BTreeMap<String, f64>,
+}
+
+/// the moves a phrase is treated with when its genre does not say, and how often each is made
+fn moves() -> BTreeMap<String, f64> {
+    [
+        ("as it is", 0.4),
+        ("filtered until it lifts", 0.25),
+        ("a telephone's band in the intro and the breaks", 0.2),
+        ("overloaded", 0.15),
+    ]
+    .into_iter()
+    .map(|(m, w)| (m.to_string(), w))
+    .collect()
 }
 
 fn any_length() -> (f64, f64) {
