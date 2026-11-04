@@ -5,6 +5,11 @@ engineer does in a DAW, in a fixed order, and everything it does is decided by t
 and no randomness that is not seeded from the project's seed and the track's name.
 
 Everything inside claudius runs at 48 kHz (earshot's rate) on planar stereo `f32` buffers (`audio::Stereo`).
+A file at another rate is converted as it is decoded, through a windowed sinc (16 taps a side under a Hann window,
+cutting below the lower Nyquist). A conversion between two rates comes back to the same positions between input
+samples (160 of them from 44.1 kHz), so `audio::resample_rate` works out each one's weights once and counts the
+positions in whole numbers. It decodes a 3.6-minute song ten times as fast as weighing every tap anew, which reading
+at any step (`resample_step`, the sampler's varispeed) still does, and agrees with it to a rounding of a 32-bit float.
 
 ```text
  per track, in parallel (rayon)

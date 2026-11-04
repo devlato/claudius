@@ -225,8 +225,8 @@ fn at_rate(d: claudius_decode::Decoded) -> Vec<f32> {
     if d.rate != SR && d.rate > 0 {
         let step = d.rate as f64 / SR as f64;
         let out_len = (l.len() as f64 / step).round() as usize;
-        l = resample_step(&l, step, out_len);
-        r = resample_step(&r, step, out_len);
+        l = resample_rate(&l, d.rate, SR, out_len);
+        r = resample_rate(&r, d.rate, SR, out_len);
     }
     l.iter().zip(&r).flat_map(|(a, b)| [*a, *b]).collect()
 }
@@ -341,6 +341,16 @@ pub fn save_wav(path: &Path, x: &Stereo, float: bool) -> Result<()> {
 
 const SINC_HALF: i64 = 16;
 
+/// the weight of the input sample `d` samples before the position read, for a filter cutting at `fc` (of the input's
+/// Nyquist) with `half` taps a side: a sinc under a Hann window
+fn sinc_weight(d: f64, fc: f64, half: i64) -> f64 {
+    let t = d * fc;
+    let sinc = if t.abs() < 1e-9 { 1.0 } else { (std::f64::consts::PI * t).sin() / (std::f64::consts::PI * t) };
+    let wpos = d / half as f64;
+    let win = if wpos.abs() >= 1.0 { 0.0 } else { 0.5 + 0.5 * (std::f64::consts::PI * wpos).cos() };
+    sinc * win
+}
+
 /// read `x` at fractional positions start + i * step (windowed-sinc, anti-aliased when step > 1): the core of
 /// sampler pitch shifting and varispeed
 pub fn resample_step(x: &[f32], step: f64, out_len: usize) -> Vec<f32> {
@@ -357,18 +367,64 @@ pub fn resample_step(x: &[f32], step: f64, out_len: usize) -> Vec<f32> {
             if k < 0 || k >= n {
                 continue;
             }
-            let d = p - k as f64;
-            let t = d * fc;
-            let sinc = if t.abs() < 1e-9 { 1.0 } else { (std::f64::consts::PI * t).sin() / (std::f64::consts::PI * t) };
-            let wpos = d / half as f64;
-            let win = if wpos.abs() >= 1.0 { 0.0 } else { 0.5 + 0.5 * (std::f64::consts::PI * wpos).cos() };
-            let w = sinc * win;
+            let w = sinc_weight(p - k as f64, fc, half);
             acc += x[k as usize] as f64 * w;
             wsum += w;
         }
         *o = if wsum.abs() > 1e-9 { (acc / wsum) as f32 } else { 0.0 };
     }
     out
+}
+
+/// the most positions between input samples `resample_rate` works out the weights of before it reads with
+/// `resample_step` instead
+const MOST_PHASES: i64 = 4096;
+
+/// `x`, recorded at `from` Hz, at `to` Hz: `resample_step`'s filter, with its weights worked out once for each of the
+/// positions between input samples that the conversion comes back to (`to / gcd(from, to)` of them, 160 from 44.1 to
+/// 48 kHz), so that each sample out is a sum of its taps, and with each position counted in whole numbers, exactly
+pub fn resample_rate(x: &[f32], from: u32, to: u32, out_len: usize) -> Vec<f32> {
+    let g = gcd(from as u64, to as u64).max(1);
+    let (num, den) = ((from as u64 / g) as i64, (to as u64 / g) as i64);
+    if den == 0 || den > MOST_PHASES {
+        return resample_step(x, from as f64 / to as f64, out_len);
+    }
+    let fc = (den as f64 / num as f64).min(1.0);
+    let half = (SINC_HALF as f64 / fc).ceil() as i64;
+    let taps = 2 * half as usize;
+    // the weights of the taps from `half - 1` samples before a position to `half` after it, for each phase r / den
+    let mut weights = vec![0.0f64; den as usize * taps];
+    let mut sums = vec![0.0f64; den as usize];
+    for r in 0..den as usize {
+        let frac = r as f64 / den as f64;
+        for j in 0..taps {
+            let w = sinc_weight(frac + (half - 1 - j as i64) as f64, fc, half);
+            weights[r * taps + j] = w;
+            sums[r] += w;
+        }
+    }
+    let n = x.len() as i64;
+    let mut out = vec![0.0f32; out_len];
+    for (i, o) in out.iter_mut().enumerate() {
+        let q = i as i64 * num;
+        let (base, r) = ((q / den), (q % den) as usize);
+        let first = base - half + 1;
+        let w = &weights[r * taps..(r + 1) * taps];
+        let (acc, wsum) = if first >= 0 && base + half < n {
+            let taps = &x[first as usize..first as usize + taps];
+            (taps.iter().zip(w).map(|(v, w)| *v as f64 * w).sum::<f64>(), sums[r])
+        } else {
+            (0..taps)
+                .filter(|&j| (0..n).contains(&(first + j as i64)))
+                .fold((0.0, 0.0), |(a, s), j| (a + x[(first + j as i64) as usize] as f64 * w[j], s + w[j]))
+        };
+        *o = if wsum.abs() > 1e-9 { (acc / wsum) as f32 } else { 0.0 };
+    }
+    out
+}
+
+fn gcd(a: u64, b: u64) -> u64 {
+    if b == 0 { a } else { gcd(b, a % b) }
 }
 
 /// play `x` `semis` semitones higher / lower (shorter / longer, like a classic sampler)
@@ -411,4 +467,40 @@ pub fn list_audio(paths: &[String]) -> Vec<String> {
 
 pub fn midi_to_hz(p: f64) -> f64 {
     440.0 * 2f64.powf((p - 69.0) / 12.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// two seconds at `rate` of a chord, a sweep up to near its Nyquist, and noise
+    fn recording(rate: u32) -> Vec<f32> {
+        let mut rng = crate::rng::Rng::new(5);
+        let sr = rate as f64;
+        (0..2 * rate as usize)
+            .map(|i| {
+                let t = i as f64 / sr;
+                let chord: f64 = [220.0, 277.18, 329.63].iter().map(|f| (std::f64::consts::TAU * f * t).sin()).sum();
+                let sweep = (std::f64::consts::TAU * (200.0 + 0.45 * sr * t / 2.0) * t).sin();
+                (0.2 * chord + 0.2 * sweep) as f32 + 0.05 * (rng.f32() - 0.5)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_rate_converts_as_the_resampler_reads_it_to_within_a_rounding() {
+        for from in [44_100, 32_000, 96_000, 22_050] {
+            let x = recording(from);
+            let out_len = (x.len() as f64 * SR as f64 / from as f64).round() as usize;
+            let read = resample_step(&x, from as f64 / SR as f64, out_len);
+            let converted = resample_rate(&x, from, SR, out_len);
+            let worst = read.iter().zip(&converted).map(|(a, b)| (a - b).abs()).fold(0.0f32, f32::max);
+            eprintln!("{from} Hz: within {worst:e} of reading it a step at a time");
+            assert!(worst < 1e-6, "{from} Hz: {worst}");
+        }
+        // a rate with no few positions between samples to come back to is read as before
+        let x = recording(44_057);
+        let out_len = (x.len() as f64 * SR as f64 / 44_057.0).round() as usize;
+        assert_eq!(resample_rate(&x, 44_057, SR, out_len), resample_step(&x, 44_057.0 / SR as f64, out_len));
+    }
 }
