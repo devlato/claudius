@@ -249,6 +249,17 @@ notes given one by one: `t` and `d` in beats from the start of section `from`, `
 `v` a velocity from 0 to 1. Like a take's melody, the notes go into the sections they reach, by each section's
 progression, and a `style` makes them harmony, octaves, chords, a bass line, an arpeggio or a pad, as above.
 
+### Drums played on pads
+
+Drum pads on MIDI (a pad controller, a drum app sending MIDI from a phone or tablet) play the song's drums: in the
+Record window, choose **drums** for what a MIDI take is. Each note is a drum of the General MIDI drum map, which pads
+and drum apps send (36 the kick, 38 the snare, 39 the clap, 42 the closed hat, 46 the open hat, 37 a rim), played on
+the song's lane of that drum, or of one that stands in for it (a clap for a snare, a closed hat for an open one). The
+take becomes those lanes' `main` patterns, folded as [a beat played or beatboxed](#turning-a-take-into-drums) is, and
+the window says what had no lane in the song. Over the [HTTP API](http-api.md#commands) and MCP, `add_hits` does the
+same with hits given one by one: the lane struck, `t` in beats from the start of section `from`, and `v`. A phone
+plays the song's pads, keys and turntable from [the phone's page](phone.md) too.
+
 ## Files in scripts
 
 A script plays any audio file through [`.s()`](../language/sounds.md#your-own-files) on a `note()`, `n()` or
