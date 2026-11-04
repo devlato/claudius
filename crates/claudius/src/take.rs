@@ -42,7 +42,7 @@ pub fn store(audio: &Stereo, dir: &Path) -> Result<PathBuf> {
     let tags =
         claudius_encode::Tags { software: format!("claudius {}", env!("CARGO_PKG_VERSION")), ..Default::default() };
     let flac = claudius_encode::encode(&spec, pcm, &tags)?;
-    let tmp = path.with_extension(format!("{}.tmp", std::process::id()));
+    let tmp = path.with_extension(format!("{}.tmp", config::process_id()));
     std::fs::write(&tmp, flac).with_context(|| format!("cannot write {}", tmp.display()))?;
     std::fs::rename(&tmp, &path).with_context(|| format!("cannot write {}", path.display()))?;
     Ok(path)

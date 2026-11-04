@@ -115,7 +115,7 @@ impl Ctx<'_> {
             if let Some(want) = &f.sha256 {
                 check_archive(&archive, want).with_context(|| format!("{url} is not the archive claudius knows"))?;
             }
-            let dir = cache.join("extract").join(format!("{}-{}", self.pack.name, std::process::id()));
+            let dir = cache.join("extract").join(format!("{}-{}", self.pack.name, crate::process_id()));
             let _ = std::fs::remove_dir_all(&dir);
             fetch::extract_archive(&archive, &dir)?;
             self.temp_dirs.push(dir.clone());
