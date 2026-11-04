@@ -27,6 +27,10 @@ and two bars from another section of the recording (or on other chords). The lou
 lifts, in its drops and hooks, and the other in its verses, breaks, intro and outro, each on its own chords (the
 `sample` and `sample2` tracks).
 
+A recording decodes ten times as fast: converting its rate (44.1 kHz, most often) to claudius' 48 kHz works out its
+filter's weights once for each position between samples, where it worked them out for every sample, and what comes out
+agrees to a rounding of a 32-bit float. The demo cuts a 3.6-minute song into a phrase in about 4.5 s where it took 18.
+
 An edit renders again only the tracks it changed: a level, a pan, a send or the master renders no track again, and
 another track's notes only that track, so mixing waits for the mix alone (a level change in the web demo takes about
 13 s where the whole song takes 31). What comes out is the same to the sample as a fresh render.
