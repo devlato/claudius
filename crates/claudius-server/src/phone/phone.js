@@ -64,11 +64,24 @@ function relay(room) {
   let opening = null;
   let next = 1;
   let gone = false;
+  /** the answer to `id` waited for `ms` more at most */
+  const due = (id, ms) => {
+    const w = waiting.get(id);
+    if (!w) return;
+    clearTimeout(w.timer);
+    w.timer = setTimeout(() => {
+      if (waiting.delete(id)) w.no(new Error(gone ? "the demo is not open" : "the demo did not answer"));
+    }, ms);
+  };
   const settle = (id, status, body) => {
     const w = waiting.get(id);
     if (!w) return;
     waiting.delete(id);
-    gone = false;
+    clearTimeout(w.timer);
+    if (gone) {
+      gone = false;
+      back();
+    }
     w.ok(answer(status, body));
   };
   const open = () =>
@@ -82,17 +95,19 @@ function relay(room) {
       s.onerror = () => no(new Error("the site's relay cannot be reached"));
       s.onclose = () => {
         ws = null;
-        for (const w of waiting.values()) w.no(new Error("the connection to the demo closed"));
+        for (const w of waiting.values()) {
+          clearTimeout(w.timer);
+          w.no(new Error("the connection to the demo closed"));
+        }
         waiting.clear();
       };
       s.onmessage = (e) => {
         if (typeof e.data !== "string") return settle(new DataView(e.data).getUint32(0, true), 200, e.data.slice(4));
         const m = JSON.parse(e.data);
         if (m.event === "gone") {
-          // what waits for the demo will not be answered: it is asked again, and answered once the tab is back
+          // the demo may come back (a reload keeps the room) with the answers it owes: they are waited for a little
           gone = true;
-          for (const w of waiting.values()) w.no(new Error("the demo is not open"));
-          waiting.clear();
+          for (const id of waiting.keys()) due(id, 10_000);
           say("the demo is not open: open it again and scan its code", "no");
         } else if (m.id) settle(m.id, m.status, m.body);
       };
@@ -107,10 +122,19 @@ function relay(room) {
       waiting.set(id, { ok, no });
       ws.send(JSON.stringify({ id, method, path, body }));
       // the demo's engine renders a whole song at a time, and what a phone asks for meanwhile waits for it
-      setTimeout(() => waiting.delete(id) && no(new Error("the demo did not answer")), gone ? 5000 : 120_000);
+      due(id, gone ? 10_000 : 120_000);
     });
   }
   return { get: (path) => ask("GET", path), post: (path, body) => ask("POST", path, body) };
+}
+
+/** the demo answers again: what did not load while it was away is asked for again */
+function back() {
+  say("");
+  if (!ctx || !song) return;
+  if (!keys.buf) keys.name = "";
+  if (!deck.buf) deck.name = "";
+  loadSounds();
 }
 
 async function sound(url) {
@@ -274,14 +298,16 @@ async function loadSounds() {
   if (!song) return;
   const v = song.version;
   await Promise.all(
-    song.lanes.map(async (lane) => {
-      try {
-        const b = await sound(`api/hits/${encodeURIComponent(lane)}`);
-        if (song && song.version === v) hits.set(lane, b);
-      } catch (e) {
-        say(`no sound for ${lane}: ${e.message}`, "no");
-      }
-    }),
+    song.lanes
+      .filter((lane) => !hits.has(lane))
+      .map(async (lane) => {
+        try {
+          const b = await sound(`api/hits/${encodeURIComponent(lane)}`);
+          if (song && song.version === v) hits.set(lane, b);
+        } catch (e) {
+          say(`no sound for ${lane}: ${e.message}`, "no");
+        }
+      }),
   );
   if (mode === "keys") loadKeys();
   if (mode === "deck") loadRecord();
