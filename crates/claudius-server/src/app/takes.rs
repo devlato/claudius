@@ -6,7 +6,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use claudius::audio::{self, Stereo};
-use claudius::{config, model, take};
+use claudius::{config, model, scratch, take};
 use claudius_api::Reply;
 
 use super::{App, no, ok};
@@ -169,6 +169,25 @@ impl App {
         match audio::load_once(path) {
             Ok(x) => self.add_take(x, from, name, role),
             Err(e) => no(format!("cannot read {}: {e:#}", path.display()), self.version()),
+        }
+    }
+
+    /// a scratch on a bar or a few of one of the song's tracks, kept as a take that plays from section `from`
+    pub(super) fn add_scratch(
+        self: &Arc<Self>,
+        from: &str,
+        s: &scratch::Take,
+        name: Option<&str>,
+        role: Option<&str>,
+    ) -> Reply {
+        let Some(bp) = self.blueprint() else {
+            return no("no song yet: start one with new_song, then scratch one of its tracks", self.version());
+        };
+        match scratch::take(&bp, s) {
+            Ok(x) => {
+                self.add_take(x, from, Some(name.map_or_else(|| scratch::name(&bp), str::to_string).as_str()), role)
+            }
+            Err(e) => no(e, self.version()),
         }
     }
 

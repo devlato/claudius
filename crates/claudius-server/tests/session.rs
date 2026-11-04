@@ -1362,6 +1362,65 @@ fn beat(bars: usize, bpm: f64, lead: f64) -> claudius::audio::Stereo {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn drums_played_on_pads_and_a_scratch_join_the_song() {
+    use claudius_api::{HitView, ScratchMove};
+    let app = app();
+    let song = Command::NewSong { genre: "house".into(), seed: Some(3), bpm: Some(100.0), key: None, loops: false };
+    assert!(app.command(song).ok);
+    let from = app.state().song.unwrap().sections[0].name.clone();
+    // a bar played twice, a little late the second time; the hat's offbeat only once
+    let mut hits = Vec::new();
+    for (round, late) in [(0.0, 0.0), (4.0, 0.03)] {
+        for (lane, t) in [("kick", 0.0), ("clap", 1.0), ("kick", 2.0), ("clap", 3.0)] {
+            hits.push(HitView { lane: lane.into(), t: round + t + late, v: 0.9 });
+        }
+    }
+    hits.push(HitView { lane: "hat".into(), t: 0.5, v: 0.5 });
+    let played = Command::AddHits {
+        from: from.clone(),
+        hits,
+        bars: Some(1),
+        variant: Some("played".into()),
+        grid: None,
+        beats: Some(8.0),
+    };
+    let r = app.command(played);
+    assert!(r.ok, "{}", r.message);
+    assert!(r.message.contains("1 bar as their played patterns"), "{}", r.message);
+    assert!(r.message.contains("1 steps into hat (1 by chance)"), "{}", r.message);
+    let song = app.state().song.unwrap();
+    let steps = |lane: &str| -> Vec<usize> {
+        let d = song.drums.iter().find(|d| d.lane == lane).unwrap();
+        let v = &d.variants.iter().find(|(n, _)| n == "played").unwrap().1;
+        (0..16).filter(|&i| v[i] > 0.0).collect()
+    };
+    assert_eq!((steps("kick"), steps("clap"), steps("hat")), (vec![0, 8], vec![4, 12], vec![2]));
+    // a scratch on the clap: forward, back, a cut, forward again
+    let moves =
+        [(0.0, 0.0, 1.0), (0.2, 0.3, 1.0), (0.4, 0.05, 1.0), (0.4, 0.05, 0.0), (0.6, 0.2, 0.0), (0.8, 0.5, 1.0)]
+            .map(|(t, at, fader)| ScratchMove { t, at, fader })
+            .to_vec();
+    let scratch = |track: &str, moves: Vec<ScratchMove>| Command::AddScratch {
+        from: from.clone(),
+        track: track.into(),
+        bar: 0,
+        bars: None,
+        moves,
+        name: None,
+        role: None,
+    };
+    let r = app.command(scratch("clap", moves.clone()));
+    assert!(r.ok, "{}", r.message);
+    let song = app.state().song.unwrap();
+    let take = song.tracks.iter().find(|t| t.name == "scratch1").expect("the scratch is a take");
+    assert_eq!(take.role, "lead");
+    let r = app.command(scratch("nothing", moves));
+    assert!(!r.ok && r.message.contains("no track 'nothing' to scratch"), "{}", r.message);
+    let r = app.command(scratch("clap", Vec::new()));
+    assert!(!r.ok && r.message.contains("two moves at least"), "{}", r.message);
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_beat_played_or_beatboxed_becomes_the_drum_lanes() {
     let app = app();
     let song = Command::NewSong { genre: "house".into(), seed: Some(3), bpm: Some(100.0), key: None, loops: false };

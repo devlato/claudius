@@ -234,7 +234,8 @@ impl App {
             | Command::MoveSection { .. }
             | Command::ToggleLayer { .. }
             | Command::SetDrumStep { .. }
-            | Command::SetFx { .. }) => self.edit(&c),
+            | Command::SetFx { .. }
+            | Command::AddHits { .. }) => self.edit(&c),
             Command::ExtractGroove { path, name, lanes, bpm } => match self
                 .readable(Path::new(&path))
                 .and_then(|_| audio::load(Path::new(&path)).map_err(|e| format!("cannot read {path}: {e}")))
@@ -247,6 +248,10 @@ impl App {
             },
             Command::AddTake { path, from, name, role } => {
                 self.add_take_file(Path::new(&path), &from, name.as_deref(), role.as_deref())
+            }
+            Command::AddScratch { from, track, bar, bars, moves, name, role } => {
+                let s = edit::scratch(track, bar, bars, &moves);
+                self.add_scratch(&from, &s, name.as_deref(), role.as_deref())
             }
             Command::AddNotes { from, notes, sounds, name, role, style, request } => self.answer(
                 request,

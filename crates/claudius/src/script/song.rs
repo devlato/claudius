@@ -302,11 +302,25 @@ fn register_settings(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
 /// gets one when its name is a drum name.
 pub(crate) fn put_drum(bp: &mut Blueprint, lane: &str, variant: &str, steps: &str, per_bar: u32) -> Result<(), String> {
     let (hits, bars) = steps_to_hits(steps, per_bar);
+    put_hits(bp, lane, variant, hits, bars, true)
+}
+
+/// Writes drum lane `lane`'s variant `variant` as `hits` over `bars` bars: every variant of the lane keeps one length,
+/// and with `carry` the trigs of steps that still strike stay (a pattern played instead brings its own). A song without
+/// the lane gets one when its name is a drum name.
+pub(crate) fn put_hits(
+    bp: &mut Blueprint,
+    lane: &str,
+    variant: &str,
+    hits: Vec<crate::theory::rhythm::Hit>,
+    bars: u32,
+    carry: bool,
+) -> Result<(), String> {
     if let Some(l) = bp.drums.iter_mut().find(|d| d.name == lane) {
         // every variant of a lane has the same length: repeat the shorter ones up to the longest
-        let len = if l.pattern_bars % bars == 0 {
+        let len = if l.pattern_bars.is_multiple_of(bars) {
             l.pattern_bars
-        } else if bars % l.pattern_bars == 0 {
+        } else if bars.is_multiple_of(l.pattern_bars) {
             bars
         } else {
             l.pattern_bars * bars
@@ -322,7 +336,7 @@ pub(crate) fn put_drum(bp: &mut Blueprint, lane: &str, variant: &str, steps: &st
         if l.patterns.get(variant).is_some_and(|old| hits_to_steps(old, len) == hits_to_steps(&hits, len)) {
             return Ok(());
         }
-        let hits = super::trigs::carry(l.patterns.get(variant), hits);
+        let hits = if carry { super::trigs::carry(l.patterns.get(variant), hits) } else { hits };
         l.patterns.insert(variant.to_string(), hits);
         return Ok(());
     }

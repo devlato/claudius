@@ -49,6 +49,12 @@ Notes:
   "prog": "A", "notes": [{"t": 0, "d": 0.5, "p": 69}]}`; no `notes` gives them back to the theory engine) and
   `set_mix`. Scripts do nearly everything these do, more readably: `part("lead2", #{ role: "lead" })`, `drum()`,
   `remove()`, `notes()`. `get_song`'s parts carry each cycle's notes, as the theory engine writes them or as written.
+- `command` also takes what is played on pads and turntables: `add_hits` (`{"cmd": "add_hits", "from": "intro",
+  "hits": [{"lane": "kick", "t": 0}, {"lane": "clap", "t": 1, "v": 0.7}], "bars": 1}`, beats from the section's start,
+  folded into the lanes' pattern) and `add_scratch`, a take of the record (`bars` bars of a `track` from `bar`) moved
+  along `moves`: `t` seconds into the scratch, `at` seconds into the record, `fader` 0 shut to 1 open. A baby scratch
+  goes forward and back over the record's start, `[{"t": 0, "at": 0}, {"t": 0.12, "at": 0.15}, {"t": 0.24, "at": 0}]`
+  and so on; a chirp closes the fader as the record comes back.
 - `SONG` is a song folder. `make`, `script` and `remake` write theirs as `<genre>-<title>-<seed>/` inside `--out`,
   which is `out/` in the current folder unless given; `render` writes into the blueprint's own folder, or straight
   into `--out`. Each prints the path at the end. When the person needs to find the song, give a folder they know:

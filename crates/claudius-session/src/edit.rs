@@ -8,7 +8,7 @@ use claudius::pattern::quote;
 use claudius::rng::Rng;
 use claudius::script;
 use claudius::theory::rhythm::Hit;
-use claudius_api::Command;
+use claudius_api::{Command, ScratchMove};
 
 /// A script an edit runs on the song, and what undo calls it (None: the script's first line).
 #[derive(Clone, Debug, PartialEq)]
@@ -262,8 +262,20 @@ pub fn change(cmd: &Command, bp: &mut Blueprint) -> Option<Result<String, String
         },
         Command::SetDrumStep { lane, variant, step, velocity } => drum_step(bp, lane, variant, *step, *velocity),
         Command::SetFx { target, fx } => set_fx(bp, target, fx),
+        Command::AddHits { from, hits, bars, variant, grid, beats } => {
+            let struck: Vec<claudius::take::Struck> =
+                hits.iter().map(|h| claudius::take::Struck { lane: h.lane.clone(), t: h.t, v: h.v }).collect();
+            let o = claudius::take::Pads { bars: *bars, variant: variant.clone(), grid: *grid, beats: *beats };
+            claudius::take::hits(bp, from, &struck, &o)
+        }
         _ => return None,
     })
+}
+
+/// the scratch a command asks for, on `bars` bars (1 when not given) of `track` from bar `bar`
+pub fn scratch(track: String, bar: u32, bars: Option<u32>, moves: &[ScratchMove]) -> claudius::scratch::Take {
+    let moves = moves.iter().map(|m| claudius::scratch::Move { t: m.t, at: m.at, fader: m.fader }).collect();
+    claudius::scratch::Take { track, bar, bars: bars.unwrap_or(1), moves }
 }
 
 fn add_section(bp: &mut Blueprint, after: usize, kind: &str, bars: u32) -> Result<String, String> {
