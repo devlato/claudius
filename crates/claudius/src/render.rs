@@ -525,14 +525,8 @@ pub fn render_window(
     let sounds = s.sounds(kept)?;
     let from = from.min(settled.end);
     let to = (from + n).min(settled.end);
-    // the effects after the tracks settle within their tails; a region an edit of time (a tape stop) works on starts it
-    let reach = (s.settle_secs() * SRF) as usize;
-    let mut a = from.saturating_sub(reach);
-    for (start, _) in s.regions() {
-        if start < to && start < a {
-            a = start;
-        }
-    }
+    // the effects after the tracks settle within their tails
+    let a = s.mix_start(from.saturating_sub((s.settle_secs() * SRF) as usize));
     // the limiter looks ahead, and tape and the true-peak filters lag: a little after the window too
     let b = (to + (0.25 * SRF) as usize).min(s.len);
     let out = s.mix(&sounds, a..b, false);
@@ -769,7 +763,8 @@ impl<'a> Song<'a> {
         chains.chain(returns).map(|c| fx::chain_tail_secs(c, self.p.bpm)).fold(0.0, f64::max) + 1.0
     }
 
-    /// where the edits of time on the buses and the master begin, in samples
+    /// where the edits of time on the buses and the master begin and end, in samples, reaching at least as far as
+    /// they work
     fn regions(&self) -> Vec<(usize, usize)> {
         let m = &self.p.mix;
         m.buses
@@ -780,11 +775,22 @@ impl<'a> Song<'a> {
                 Effect::TapeStop { start, len }
                 | Effect::Stutter { start, len, .. }
                 | Effect::Reverse { start, len } => {
-                    Some(((start * self.tm.spb) as usize, ((start + len) * self.tm.spb) as usize))
+                    Some(((start * self.tm.spb) as usize, ((start + len) * self.tm.spb).ceil() as usize))
                 }
                 _ => None,
             })
             .collect()
+    }
+
+    /// Where a mix must begin to make every sample from `a` on as the whole song's does: at `a`, or at the start of
+    /// a region an edit of time (a tape stop) works on that `a` falls in, which it works on whole. One that ended
+    /// before leaves what follows it as it was.
+    fn mix_start(&self, mut a: usize) -> usize {
+        let regions = self.regions();
+        while let Some(start) = regions.iter().filter(|(s, e)| *s < a && *e > a).map(|r| r.0).min() {
+            a = start;
+        }
+        a
     }
 }
 
@@ -956,6 +962,36 @@ mod tests {
             }
             eprintln!("{genre}: a window is within {worst:e} of the whole song's render");
             assert!(worst < 1e-6, "{genre}: {worst}");
+        }
+    }
+
+    #[test]
+    fn a_window_mixes_from_where_a_tape_stop_it_falls_in_starts_and_not_from_one_that_ended() {
+        let g = crate::genres::get("house").unwrap();
+        let o = crate::compose::Options { short: true, samples: 0.0, loops: false, ..Default::default() };
+        let mut p = crate::compose::arrange(&crate::compose::generate(&g, 5, &o, None));
+        p.mix.master.fx.push(Effect::TapeStop { start: 16.0, len: 4.0 });
+        let s = Song::of(&p, &Options::default()).unwrap();
+        let beat = |b: f64| (b * s.tm.spb) as usize;
+        let reach = (s.settle_secs() * SRF) as usize;
+        // a mix that would begin in the stop begins where it does; one that would begin after it, where it would
+        let (inside, after) = (beat(18.0) + reach, beat(21.0) + reach);
+        assert_eq!(s.mix_start(inside - reach), beat(16.0));
+        assert_eq!(s.mix_start(after - reach), after - reach);
+        let mut kept = Kept::default();
+        let whole = render_kept(&p, &Options::default(), &mut kept).unwrap();
+        let settled = whole.settled.unwrap();
+        let n = (2.0 * SRF) as usize;
+        for from in [inside, after] {
+            let w = render_window(&p, &Options::default(), &mut kept, &settled, from, n).unwrap().unwrap();
+            let worst = (0..w.master.len())
+                .map(|i| {
+                    (w.master.l[i] - whole.master.l[from + i])
+                        .abs()
+                        .max((w.master.r[i] - whole.master.r[from + i]).abs())
+                })
+                .fold(0.0f32, f32::max);
+            assert!(worst < 1e-6, "from {from}: {worst}");
         }
     }
 
