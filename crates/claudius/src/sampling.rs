@@ -100,11 +100,13 @@ impl Ask {
     }
 }
 
-/// what a gathering did: the samples it prepared, and a line for each thing worth saying
+/// what a gathering did: the samples it prepared, a line for each thing worth saying, and the roles the libraries had
+/// nothing more of (every search answered, and none found a recording it had not tried that it could take)
 #[derive(Debug, Default)]
 pub struct Gathered {
     pub added: Vec<Prepared>,
     pub notes: Vec<String>,
+    pub exhausted: Vec<Role>,
 }
 
 /// `items` in the order `rng` picks
@@ -154,9 +156,13 @@ pub fn gather(
         // the ears listen for what was asked: the words of one's own, or what the genre listens for
         let n = &SampleNeed { listen: asked.map_or_else(|| n.listen.clone(), str::to_string), ..n.clone() };
         let who = asked.map_or_else(|| lead(&g.name).to_string(), |w| format!("\"{w}\""));
-        let folder = ix.root().join(role.name()).join(whose(g, asked));
+        let theirs = whose(g, asked);
+        let folder = ix.root().join(role.name()).join(&theirs);
+        // whether every search answered and was looked through to its end: then what is not had is not there
+        let mut through = true;
         'search: for words in &searches {
             if stop() {
+                through = false;
                 break;
             }
             let q = Query { text: words.clone(), sources: Vec::new(), policy: *policy, limit: 12 };
@@ -164,19 +170,22 @@ pub fn gather(
                 Ok(s) => s,
                 Err(e) => {
                     out.notes.push(format!("searching for \"{words}\": {e:#}"));
+                    through = false;
                     continue;
                 }
             };
             for (s, e) in &got.failed {
                 out.notes.push(format!("{} did not answer: {e}", s.name()));
+                through = false;
             }
             let found = if ask.seed.is_some() { shuffled(&got.found, &mut r) } else { got.found };
             for f in found {
                 if have >= goal || budget == 0 || stop() {
+                    through = false;
                     break 'search;
                 }
                 if known.contains(&f.id)
-                    || ix.rejected(role, &f.id)
+                    || ix.rejected(role, &f.id, &theirs)
                     || f.seconds.is_some_and(|s| s < n.seconds.0 || s > n.seconds.1)
                 {
                     continue;
@@ -184,8 +193,17 @@ pub fn gather(
                 budget -= 1;
                 known.insert(f.id.clone());
                 say(&format!("{} for {who}: \"{}\" by {} ({})", role.name(), f.title, f.creator, f.id));
-                let kept = online::fetch(&f, policy).and_then(|path| prepare(role, &path, &f, g, n, ears, &folder));
-                match kept {
+                let path = match online::fetch(&f, policy) {
+                    Ok(p) => p,
+                    Err(e) => {
+                        // a download that did not come may come next time: it is not the recording's fault
+                        out.notes.push(format!("{}: {e:#}", f.id));
+                        known.remove(&f.id);
+                        through = false;
+                        continue;
+                    }
+                };
+                match prepare(role, &path, &f, g, n, ears, &folder) {
                     Ok(mut p) if p.z.is_none_or(|z| z >= MIN_Z) => {
                         p.asked = asked.map(str::to_string);
                         ix.add(p.clone())?;
@@ -200,17 +218,21 @@ pub fn gather(
                             p.z.unwrap_or_default()
                         ));
                         forget(&p);
-                        ix.reject(role, &f.id)?;
+                        // the ears heard other than what this gathering asked for: another may want it
+                        ix.reject(role, &f.id, Some(&theirs))?;
                     }
                     Err(e) => {
                         out.notes.push(format!("{}: {e:#}", f.id));
-                        ix.reject(role, &f.id)?;
+                        ix.reject(role, &f.id, None)?;
                     }
                 }
             }
         }
         if have < goal {
             out.notes.push(format!("only {have} of the {} {}s for {who} could be prepared", n.keep, role.name()));
+            if through {
+                out.exhausted.push(role);
+            }
         }
     }
     Ok(out)
