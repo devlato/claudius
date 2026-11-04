@@ -281,7 +281,12 @@ pub fn verdict(v: &Verdict) -> VerdictView {
 
 /// peak envelope of the master, `n` points 0..1
 pub fn waveform(r: &Rendered, n: usize) -> Vec<f32> {
-    let len = r.master.l.len();
+    waveform_of(&r.master, n)
+}
+
+/// peak envelope of `master`, `n` points 0..1
+pub fn waveform_of(master: &claudius::audio::Stereo, n: usize) -> Vec<f32> {
+    let len = master.l.len();
     if len == 0 {
         return Vec::new();
     }
@@ -289,9 +294,9 @@ pub fn waveform(r: &Rendered, n: usize) -> Vec<f32> {
     (0..len.div_ceil(step))
         .map(|i| {
             let (a, b) = (i * step, ((i + 1) * step).min(len));
-            r.master.l[a..b]
+            master.l[a..b]
                 .iter()
-                .zip(&r.master.r[a..b])
+                .zip(&master.r[a..b])
                 .map(|(l, r)| l.abs().max(r.abs()))
                 .fold(0.0f32, f32::max)
                 .min(1.0)

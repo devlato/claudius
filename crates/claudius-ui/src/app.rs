@@ -399,6 +399,8 @@ impl Studio {
             self.inflight += 1;
             self.inflight_since = now;
             log::debug!("send {cmd:?}");
+            // an edit is heard where the person listens first
+            self.backend.playhead(self.player.position());
             self.backend.send(&cmd);
         }
     }

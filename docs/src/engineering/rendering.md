@@ -259,5 +259,17 @@ bus and sends, in the order a fresh render does, so what comes out is the same t
 In the web demo, a level change on one track renders again in about 13 s where the whole song takes 31.
 Installing packs forgets what was kept, since an instrument may sound otherwise.
 
+### Hearing an edit at once
+
+`render::render_window` renders a stretch of the song as the whole song's render has it there.
+- The tracks come from what is kept; a track the edit changed is rendered whole first, as a whole render would.
+- The buses, returns and master run from early enough that every effect has settled as the whole song's would have: the longest tail of their chains, and a second, and back to the start of any tape stop, stutter or reverse on them.
+- They also run a quarter of a second past the window's end, for the limiter's lookahead and the lag of tape and the true-peak filters.
+- Every effect knows where its buffer lies in the whole song (`fx::Ctx::start` and `total`), so its automation, LFOs, gates, bitcrush hold and vinyl surface are where they would be. A whole render starts them at 0, as before, and comes out the same to the byte.
+
+The one thing a window cannot know is the master's loudness: its gain and true-peak trim are measured over the whole song (`finalize`). A window holds them as the last whole render settled them (`Settled`). With those held, a window is within about 2×10⁻⁷ of the whole song's render (−135 dBFS, a rounding or two of a 32-bit float), in house, lo-fi, synthwave and trip-hop alike (a test checks it). An edit that makes the song louder or quieter is levelled again by the next whole render.
+
+The demo's engine uses it to preview an edit where the person is listening: the studio says where its playhead is with each command, and an edit to a song heard whole is first the last render with the twelve seconds from the playhead on rendered again and crossfaded in. That arrives in about 0.8 s in the browser, and the whole song follows. A song whose length an edit changed (its tempo, its form) gets its first bars first instead, as a new song does.
+
 `cargo bench -p claudius` measures generating, arranging and rendering 8 bars, and records results in
 `target/criterion`.

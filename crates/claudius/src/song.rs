@@ -188,6 +188,7 @@ pub fn judge_file(path: &Path, ears: Option<&dyn Fn(&Project, &Rendered) -> Opti
         stems: Vec::new(),
         tracks: Vec::new(),
         master,
+        settled: None,
     };
     let p = project.unwrap_or_else(|| empty_project(&r));
     let e = ears.and_then(|f| f(&p, &r));

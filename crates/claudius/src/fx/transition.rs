@@ -3,10 +3,11 @@
 use super::Ctx;
 use crate::audio::Stereo;
 
+/// the region's samples in the buffer, which begins `ctx.start` samples into the whole
 fn region(x: &Stereo, start: f64, len: f64, ctx: &Ctx) -> Option<(usize, usize)> {
     let spb = ctx.spb();
-    let a = (start * spb).round().max(0.0) as usize;
-    let b = (((start + len) * spb).round() as usize).min(x.len());
+    let a = ((start * spb).round().max(0.0) as usize).saturating_sub(ctx.start);
+    let b = ((((start + len) * spb).round() as usize).saturating_sub(ctx.start)).min(x.len());
     if b > a + 16 { Some((a, b)) } else { None }
 }
 
