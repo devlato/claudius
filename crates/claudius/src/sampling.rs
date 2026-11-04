@@ -29,6 +29,9 @@ pub const PHRASE: &str = "sample";
 pub const TEXTURE: &str = "texture";
 /// the loop track a phrase's second passage plays as, in some of the sections that list the phrase
 pub const SECOND: &str = "sample2";
+/// the progression of the second passage's chords: the phrase's are `A`, and the genre's own `B` stays the contrast
+/// it gives the sections on it
+pub const SECOND_PROG: &str = "A2";
 
 /// the ears' z below which a cut is not kept: a reading short of plausible (2.5) can still be the best a library has,
 /// but under this it is unlikely to be what was asked for
@@ -860,11 +863,11 @@ pub fn apply(
                         *l = SECOND.into();
                     }
                     if !chords.is_empty() {
-                        sec.prog = "B".into();
+                        sec.prog = SECOND_PROG.into();
                     }
                 }
                 if !chords.is_empty() {
-                    bp.harmony.progressions.insert("B".into(), chords);
+                    bp.harmony.progressions.insert(SECOND_PROG.into(), chords);
                 }
                 let names: Vec<&str> = at.iter().map(|&i| bp.form[i].name.as_str()).collect();
                 also = format!(" (another passage of it in {})", names.join(", "));
@@ -1104,9 +1107,11 @@ mod tests {
         assert_eq!(path, "/p/phrase-2.wav");
         assert!(matches!(phrase.sound, Sound::Loop { bpm: b, beats: n, .. } if b == *bpm && n == *beats));
         assert_eq!((other.transpose, &other.mix.fx), (phrase.transpose, &phrase.mix.fx));
-        // on its own chords
-        assert_eq!(bp.harmony.progressions["B"], ["iv", "v"]);
-        assert!(bp.form.iter().filter(|s| s.layers.iter().any(|l| l == SECOND)).all(|s| s.prog == "B"));
+        // on its own chords, and the genre's own B left to the sections on it
+        assert_eq!(bp.harmony.progressions[SECOND_PROG], ["iv", "v"]);
+        assert!(bp.form.iter().filter(|s| s.layers.iter().any(|l| l == SECOND)).all(|s| s.prog == SECOND_PROG));
+        assert_eq!(bp.harmony.progressions.get("B"), plain.harmony.progressions.get("B"));
+        assert!(bp.form.iter().filter(|s| s.prog == "B").all(|s| !s.layers.iter().any(|l| l == SECOND)));
         assert!(bp.lineage.iter().any(|l| l.contains("another passage of it in")), "{:?}", bp.lineage);
         // the quieter one where it does not lift
         let quiet = song(Some(false));
