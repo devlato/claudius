@@ -252,6 +252,21 @@ fn remembered() -> &'static Remembered {
 /// fetched for the engine to play, where there are no files to read.
 pub fn remember(path: &str, x: Stereo) {
     remembered().lock().unwrap_or_else(|e| e.into_inner()).insert(path.to_string(), std::sync::Arc::new(x));
+    let mut v = versions().lock().unwrap_or_else(|e| e.into_inner());
+    let next = v.values().max().copied().unwrap_or(0) + 1;
+    v.insert(path.to_string(), next);
+}
+
+fn versions() -> &'static std::sync::Mutex<std::collections::HashMap<String, u64>> {
+    static V: std::sync::OnceLock<std::sync::Mutex<std::collections::HashMap<String, u64>>> =
+        std::sync::OnceLock::new();
+    V.get_or_init(Default::default)
+}
+
+/// which of the audio `remember` has kept at `path` this is: a number that changes each time the path is given audio
+/// anew (none: nothing kept there)
+pub fn remembered_version(path: &str) -> Option<u64> {
+    versions().lock().unwrap_or_else(|e| e.into_inner()).get(path).copied()
 }
 
 /// decode any audio file to 48 kHz stereo (cached as raw f32 under ~/.cache/claudius/decoded), or hand out what

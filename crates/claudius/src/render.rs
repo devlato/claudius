@@ -68,13 +68,22 @@ fn shots() -> &'static ShotCache {
     C.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+/// a sound as the shot cache knows it: its own words, and which audio a page handed over for its path
+fn shot_name(sound: &Sound) -> String {
+    let version = match sound {
+        Sound::Sample { path, .. } => audio::remembered_version(path),
+        _ => None,
+    };
+    format!("{}|{version:?}", serde_json::to_string(sound).unwrap_or_default())
+}
+
 /// the one-shot buffer of a drum or sample sound, transposed by `semis` (cached)
 fn one_shot(sound: &Sound, semis: i32, seed: u64) -> Result<Arc<Stereo>> {
-    let key = format!("{}|{semis}|{seed}", serde_json::to_string(sound).unwrap_or_default());
+    let key = format!("{}|{semis}|{seed}", shot_name(sound));
     if let Some(x) = shots().lock().unwrap().get(&key) {
         return Ok(x.clone());
     }
-    let base_key = format!("{}|0|{seed}", serde_json::to_string(sound).unwrap_or_default());
+    let base_key = format!("{}|0|{seed}", shot_name(sound));
     let base = if semis != 0 { shots().lock().unwrap().get(&base_key).cloned() } else { None };
     let base = match base {
         Some(b) => b,
@@ -117,12 +126,7 @@ fn locked_shot(sound: &Sound, semis: i32, seed: u64, lock: &Lock) -> Result<Arc<
         p.tone = (p.tone + 0.5 * lock.tone).clamp(0.0, 1.0);
         return one_shot(&Sound::Drum { voice: *voice, params: p }, semis, seed);
     }
-    let key = format!(
-        "{}|{semis}|{seed}|{:.3}|{:.3}",
-        serde_json::to_string(sound).unwrap_or_default(),
-        lock.decay,
-        lock.tone
-    );
+    let key = format!("{}|{semis}|{seed}|{:.3}|{:.3}", shot_name(sound), lock.decay, lock.tone);
     if let Some(x) = shots().lock().unwrap().get(&key) {
         return Ok(x.clone());
     }
@@ -413,7 +417,8 @@ impl Kept {
 
 /// what a track's sound before the mix comes from: the track, but for what the mix does after its drive, the song's
 /// tempo, swing, humanisation, seed, key and chords (which a tuned voice is tuned to), the render's length, the onsets
-/// that choke it, and the files it plays as they are now
+/// that choke it, and the audio it plays as it is now (a file's size and time, or which audio a page handed over for
+/// its path)
 fn track_key(p: &Project, t: &Track, len: usize, chokes: &BTreeMap<String, Vec<i64>>) -> blake3::Hash {
     let mut t = t.clone();
     let m = &mut t.mix;
@@ -425,12 +430,14 @@ fn track_key(p: &Project, t: &Track, len: usize, chokes: &BTreeMap<String, Vec<i
     if let Some(onsets) = t.choke.as_ref().and_then(|g| chokes.get(g)) {
         h.update(&serde_json::to_vec(onsets).unwrap_or_default());
     }
-    if crate::config::FILES
-        && let Sound::Sample { path, .. } | Sound::Loop { path, .. } = &t.sound
-        && let Ok(md) = std::fs::metadata(path)
-    {
-        let mtime = md.modified().ok().and_then(|m| m.duration_since(std::time::UNIX_EPOCH).ok());
-        h.update(format!("{}|{:?}", md.len(), mtime).as_bytes());
+    if let Sound::Sample { path, .. } | Sound::Loop { path, .. } = &t.sound {
+        h.update(format!("{:?}", audio::remembered_version(path)).as_bytes());
+        if crate::config::FILES
+            && let Ok(md) = std::fs::metadata(path)
+        {
+            let mtime = md.modified().ok().and_then(|m| m.duration_since(std::time::UNIX_EPOCH).ok());
+            h.update(format!("{}|{:?}", md.len(), mtime).as_bytes());
+        }
     }
     h.finalize()
 }
@@ -869,6 +876,31 @@ mod tests {
         let mut dark = x.clone();
         shape(&mut dark, 1.0, -1.0);
         assert!(edge(&dark) < 0.5 * edge(&x));
+    }
+
+    #[test]
+    fn a_sample_a_page_hands_over_anew_at_its_path_is_rendered_again() {
+        let g = crate::genres::get("house").unwrap();
+        let o = crate::compose::Options { short: true, samples: 0.0, loops: false, ..Default::default() };
+        let mut p = crate::compose::arrange(&crate::compose::generate(&g, 3, &o, None));
+        let path = "demo:test/kick-anew.wav";
+        let thump = |hz: f32| {
+            let l: Vec<f32> =
+                (0..4_800).map(|i| (i as f32 * hz / 48_000.0 * std::f32::consts::TAU).sin() * 0.8).collect();
+            Stereo { r: l.clone(), l }
+        };
+        audio::remember(path, thump(55.0));
+        let kick = p.tracks.iter().position(|t| t.role == "kick").unwrap();
+        p.tracks[kick].sound =
+            Sound::Sample { path: path.into(), root: 60, start: 0.0, end: None, label: "kick".into() };
+        let mut kept = Kept::default();
+        render_kept(&p, &Options::default(), &mut kept).unwrap();
+        let before = kept.tracks[&p.tracks[kick].name].sound.clone();
+        audio::remember(path, thump(80.0));
+        let r = render_kept(&p, &Options::default(), &mut kept).unwrap();
+        assert!(!Arc::ptr_eq(&kept.tracks[&p.tracks[kick].name].sound, &before), "the kick is rendered again");
+        let fresh = render(&p, &Options::default()).unwrap();
+        assert!(r.master.l == fresh.master.l, "and the song is the one a fresh render makes");
     }
 
     #[test]
