@@ -113,8 +113,8 @@ anywhere else does not recreate them.
 - one-shots cut from Apple Loops or your library, which print as a comment naming them;
 - the patch of a generated part beyond its preset name (the generator's variation and evolution's tweaks), its voice
   count and voicing style;
-- Apple Loops layered into the song as loops, the samples a genre built on samples plays (`break`, `sample`, `texture`),
-  and flipped samples;
+- Apple Loops layered into the song as loops, the samples a genre built on samples plays (`break`, `sample`,
+  `sample2`, `texture`), and flipped samples;
 - the transition sounds and settings;
 - the song's history (the lineage shown in the studio's log).
 

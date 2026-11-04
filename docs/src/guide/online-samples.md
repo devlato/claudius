@@ -91,7 +91,7 @@ Gathering downloads recordings of a fitting length and cuts each on its beat gri
 | role | what is cut | how a song plays it |
 |---|---|---|
 | break | whole bars of the break, and its kick, snare and hat | as a loop track (`break`), re-chopped at times, where the genre's sections list it, else in place of the layers the profile names (trip-hop's kit, house's top loop and shaker); the drum lanes it stands in for play the break's own hits |
-| phrase | the two bars the ears hear as most like what was asked for ("dark cinematic orchestral strings", or your words), with their key and chords | as a loop track (`sample`) in place of the genre's chords or keys; the song takes its key, its tempo and its chords as progression A. A genre with no major mode plays a major phrase in its relative minor |
+| phrase | the two bars the ears hear as most like what was asked for ("dark cinematic orchestral strings", or your words; without the ears, the loudest), rather two the recording plays again, which loop as it does, with their key and chords; and two bars of another passage, from another section of the recording or on other chords | as a loop track (`sample`) in place of the genre's chords or keys; the song takes its key, its tempo and its chords as progression A. The other passage plays as `sample2` in some of the sections that list the phrase, on its own chords as progression A2 (the genre's B stays the contrast it gives the sections on it): the louder of the two where the song lifts (its drops and hooks) and the other elsewhere, or every other section in a song that only lifts or never does. A genre with no major mode plays a major phrase in its relative minor |
 | texture | sixteen seconds from the middle | as a loop track (`texture`) under the song |
 
 A phrase plays as a sampler plays a record: faster or slower by whole semitones, its pitch moving with its tempo,
@@ -99,7 +99,8 @@ until its tempo (or half or twice it) falls in the genre's range. A soul record 
 house song at 123.47 BPM, in a key four semitones above its own, and the song takes that tempo and key, so the phrase
 is only resampled, never stretched, and plays in tune with everything else. How far a genre goes is in its profile
 (`pitch`: trip-hop slows a record by up to five semitones, house speeds one up by up to five), and the song's lineage
-says how far it went (`sampled: phrase 'Old Soul' 4 semitones up`). A phrase no such speed fits is stretched to the
+says how far it went and where the other passage plays (`sampled: phrase 'Old Soul' 4 semitones up (another passage
+of it in hook, hook2)`). Both passages play at the same speed. A phrase no such speed fits is stretched to the
 genre's tempo in its own key where claudius can stretch; the web demo, which cannot, goes without it.
 Each role keeps its own colour from the profile: the high-pass that leaves the low end to the song's bass, the tape,
 the 12-bit crush.
