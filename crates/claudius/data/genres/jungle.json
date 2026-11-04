@@ -110,6 +110,30 @@
       "mix": {"reverb": 0.35, "delay": 0.3, "duck": 0.25}
     }
   ],
+  "sampling": {
+    "by_default": true,
+    "break": {
+      "search": ["funk drum break", "breakbeat", "drum solo", "jazz drum break", "soul drum break", "70s drums", "live drums"],
+      "listen": "a fast chopped funk breakbeat",
+      "seconds": [2, 60],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.7,
+      "instead": ["snare", "hat", "ride"],
+      "mix": {"bus": "drums", "fx": [{"fx": "saturate", "kind": "tape", "drive_db": 3, "mix": 0.4}]}
+    },
+    "phrase": {
+      "search": ["dub reggae", "reggae", "ragga", "jazz", "soul", "strings", "rhodes", "pad", "reggae vocal", "dub siren"],
+      "listen": "a deep dub reggae phrase",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.2,
+      "pitch": [-3, 4],
+      "instead": ["chords", "pad"],
+      "mix": {"bus": "music", "reverb": 0.25, "delay": 0.2, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 180, "res": 0.05}]}
+    }
+  },
   "transitions": {"riser": true, "impact": true, "downlifter": true, "reverse_crash": true, "riser_bars": 8, "mix": {"bus": "fx", "reverb": 0.3, "level_db": -2}},
   "mix": {
     "lufs": -9.5,

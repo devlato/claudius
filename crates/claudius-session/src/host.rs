@@ -194,7 +194,11 @@ impl Host {
 
     pub fn command(&mut self, c: Command) -> Reply {
         match c {
-            Command::NewSong { genre, seed, bpm, key, .. } => self.new_song(&genre, seed, bpm, key),
+            Command::NewSong { genre, seed, bpm, key, sampled, sample_search, .. } => {
+                let sample_search = sample_search.as_deref().and_then(claudius::sampling::words);
+                let opts = Options { bpm, sampled, sample_search, ..Default::default() };
+                self.new_song(&genre, seed, key, opts)
+            }
             Command::OpenText { name, text } => self.open_text(&name, &text),
             Command::Undo => self.history(true),
             Command::Redo => self.history(false),
@@ -226,7 +230,8 @@ impl Host {
         }
     }
 
-    fn new_song(&mut self, genre: &str, seed: Option<u64>, bpm: Option<f64>, key: Option<String>) -> Reply {
+    /// a new song of `genre` made with `opts`, in `key` when one is given
+    fn new_song(&mut self, genre: &str, seed: Option<u64>, key: Option<String>, opts: Options) -> Reply {
         let g = match genres::get(genre) {
             Ok(g) => g,
             Err(e) => {
@@ -239,8 +244,9 @@ impl Host {
             Err(k) => return self.no(format!("cannot read key '{k}' (try \"A minor\", \"F#m\", \"Eb\")")),
         };
         let seed = seed.unwrap_or_else(|| self.seed());
-        let opts = Options { bpm, key, ..Default::default() };
-        let lib = self.lib.as_deref().filter(|_| g.sampling.is_some()).map(|l| l as &dyn compose::Library);
+        let opts = Options { key, ..opts };
+        let sampled = claudius::sampling::sampled(&g, opts.sampled, opts.sample_search.as_deref());
+        let lib = self.lib.as_deref().filter(|_| sampled).map(|l| l as &dyn compose::Library);
         let bp = compose::generate(&g, seed, &opts, lib);
         let msg =
             format!("new song: {} — {} at {:.0} BPM in {} (seed {seed})", bp.title, bp.genre, bp.bpm, bp.key.name());

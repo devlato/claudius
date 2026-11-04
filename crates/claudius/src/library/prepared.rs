@@ -58,6 +58,20 @@ pub struct Prepared {
     pub z: Option<f64>,
     /// the online sound it was cut from (`freesound:629052`)
     pub source: String,
+    /// the words a person searched for it with (`sampling::words`); none: the genre's own searches found it
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asked: Option<String>,
+}
+
+impl Prepared {
+    /// whether a song of `genre` draws on it: one asked for `asked`, a sample gathered for those words (for any
+    /// genre); else one the genre's own searches found
+    pub fn fits(&self, genre: &str, asked: Option<&str>) -> bool {
+        match asked {
+            Some(words) => self.asked.as_deref() == Some(words),
+            None => self.asked.is_none() && self.genre == genre,
+        }
+    }
 }
 
 /// where prepared samples are written: `<samples>/prepared`
@@ -102,9 +116,9 @@ impl Index {
         list.into_iter().filter(|p| Path::new(&p.path).is_file()).collect()
     }
 
-    /// the prepared samples of `role` for `genre`
-    pub fn of(&self, role: Role, genre: &str) -> Vec<Prepared> {
-        self.all().into_iter().filter(|p| p.role == role && p.genre == genre).collect()
+    /// the prepared samples of `role` a song of `genre` draws on, asked for `asked` (`Prepared::fits`)
+    pub fn of(&self, role: Role, genre: &str, asked: Option<&str>) -> Vec<Prepared> {
+        self.all().into_iter().filter(|p| p.role == role && p.fits(genre, asked)).collect()
     }
 
     /// list a prepared sample, in place of one cut to the same file
@@ -115,16 +129,32 @@ impl Index {
         write(&self.root.join("index.json"), &list)
     }
 
-    /// whether `source` was downloaded for `role` and found wanting, so that a later gathering does not fetch it again
-    pub fn rejected(&self, role: Role, source: &str) -> bool {
-        let list: Vec<(Role, String)> = read(&self.root.join("rejected.json"));
-        list.iter().any(|(r, s)| *r == role && s == source)
+    /// the recordings found wanting: for `role`, from `source`, and for whose gathering (`sampling::whose`), or for
+    /// every one when it could not be read or cut at all; an older list's `[role, source]` is the latter
+    fn rejections(&self) -> Vec<(Role, String, Option<String>)> {
+        let list: Vec<serde_json::Value> = read(&self.root.join("rejected.json"));
+        list.into_iter()
+            .filter_map(|v| {
+                serde_json::from_value(v.clone())
+                    .ok()
+                    .or_else(|| serde_json::from_value::<(Role, String)>(v).ok().map(|(r, s)| (r, s, None)))
+            })
+            .collect()
     }
 
-    pub fn reject(&self, role: Role, source: &str) -> Result<()> {
-        let mut list: Vec<(Role, String)> = read(&self.root.join("rejected.json"));
-        if !list.iter().any(|(r, s)| *r == role && s == source) {
-            list.push((role, source.to_string()));
+    /// whether `source` was downloaded for `role` and found wanting for the gathering `whose` (or for every one), so
+    /// that a later gathering for it does not fetch it again
+    pub fn rejected(&self, role: Role, source: &str, whose: &str) -> bool {
+        self.rejections().iter().any(|(r, s, w)| *r == role && s == source && w.as_deref().is_none_or(|w| w == whose))
+    }
+
+    /// `source` found wanting for `role`: for the gathering `whose` (the ears heard other than what it asked for), or
+    /// for every one (none: it could not be read or cut)
+    pub fn reject(&self, role: Role, source: &str, whose: Option<&str>) -> Result<()> {
+        let mut list = self.rejections();
+        let entry = (role, source.to_string(), whose.map(str::to_string));
+        if !list.contains(&entry) {
+            list.push(entry);
         }
         write(&self.root.join("rejected.json"), &list)
     }
@@ -155,17 +185,32 @@ mod tests {
             chords: Vec::new(),
             z: Some(2.0),
             source: "freesound:1".into(),
+            asked: None,
         };
         ix.add(p.clone()).unwrap();
         ix.add(Prepared { bpm: 93.0, ..p.clone() }).unwrap();
-        assert_eq!(ix.of(Role::Break, "trip_hop").len(), 1);
-        assert_eq!(ix.of(Role::Break, "trip_hop")[0].bpm, 93.0);
-        assert!(ix.of(Role::Phrase, "trip_hop").is_empty());
+        assert_eq!(ix.of(Role::Break, "trip_hop", None).len(), 1);
+        assert_eq!(ix.of(Role::Break, "trip_hop", None)[0].bpm, 93.0);
+        assert!(ix.of(Role::Phrase, "trip_hop", None).is_empty());
+        // one asked for by its words is a song's that asks for them, of any genre, and not the genre's own
+        ix.add(Prepared { role: Role::Phrase, asked: Some("70s soul".into()), ..p.clone() }).unwrap();
+        assert_eq!(ix.of(Role::Phrase, "house", Some("70s soul")).len(), 1);
+        assert!(
+            ix.of(Role::Phrase, "trip_hop", None).is_empty() && ix.of(Role::Phrase, "house", Some("soul")).is_empty()
+        );
         std::fs::remove_file(&file).unwrap();
         assert!(ix.all().is_empty());
-        assert!(!ix.rejected(Role::Phrase, "freesound:2"));
-        ix.reject(Role::Phrase, "freesound:2").unwrap();
-        assert!(ix.rejected(Role::Phrase, "freesound:2") && !ix.rejected(Role::Break, "freesound:2"));
+        assert!(!ix.rejected(Role::Phrase, "freesound:2", "house"));
+        // turned down for house's phrase: not for another genre's, nor for words of one's own
+        ix.reject(Role::Phrase, "freesound:2", Some("house")).unwrap();
+        assert!(ix.rejected(Role::Phrase, "freesound:2", "house"));
+        assert!(!ix.rejected(Role::Phrase, "freesound:2", "lofi") && !ix.rejected(Role::Break, "freesound:2", "house"));
+        // one that could not be cut at all is turned down for every gathering
+        ix.reject(Role::Break, "freesound:3", None).unwrap();
+        assert!(ix.rejected(Role::Break, "freesound:3", "house") && ix.rejected(Role::Break, "freesound:3", "lofi"));
+        // as an older list kept them: for every gathering
+        std::fs::write(tmp.join("rejected.json"), r#"[["texture", "freesound:4"]]"#).unwrap();
+        assert!(ix.rejected(Role::Texture, "freesound:4", "trip_hop"));
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }

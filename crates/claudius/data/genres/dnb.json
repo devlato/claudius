@@ -154,6 +154,30 @@
       "mix": {"delay": 0.3, "reverb": 0.25, "duck": 0.3}
     }
   ],
+  "sampling": {
+    "by_default": false,
+    "break": {
+      "search": ["funk drum break", "breakbeat", "jazz drum break", "drum solo", "soul drum break", "70s drums", "fusion drums"],
+      "listen": "a fast crisp funk breakbeat",
+      "seconds": [2, 60],
+      "keep": 6,
+      "chance": 0.9,
+      "chop": 0.5,
+      "instead": ["hat", "ride", "shaker"],
+      "mix": {"bus": "drums", "fx": [{"fx": "filter", "mode": "hp", "cutoff": 160, "res": 0.05}]}
+    },
+    "phrase": {
+      "search": ["jazz", "rhodes", "soul vocal", "strings", "pad", "jazz fusion", "reggae", "ambient", "choir", "flute", "harp"],
+      "listen": "a smooth jazzy pad or rhodes",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.2,
+      "pitch": [-3, 4],
+      "instead": ["pad"],
+      "mix": {"bus": "music", "reverb": 0.25, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 180, "res": 0.05}]}
+    }
+  },
   "transitions": {
     "riser": true,
     "impact": true,

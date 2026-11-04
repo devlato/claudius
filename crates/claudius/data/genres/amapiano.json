@@ -120,6 +120,20 @@
       "mix": {"bus": "drums", "level_db": -4}
     }
   ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["jazz piano", "south african jazz", "kwaito", "gospel choir", "deep house piano", "saxophone", "marimba", "soul piano", "jazz chords", "township jazz"],
+      "listen": "a soulful south african jazz piano",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.2,
+      "pitch": [-2, 3],
+      "instead": ["keys"],
+      "mix": {"bus": "music", "reverb": 0.15, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 160, "res": 0.05}]}
+    }
+  },
   "transitions": {"riser": true, "impact": true, "downlifter": true, "reverse_crash": true, "riser_bars": 8, "mix": {"bus": "fx", "reverb": 0.3, "level_db": -4}},
   "mix": {
     "lufs": -10.0,

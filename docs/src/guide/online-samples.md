@@ -56,38 +56,68 @@ Samples:
 A claudius shared with others may read the samples folder, as it reads the sample packs
 ([What a shared claudius may read and write](samples.md#what-a-shared-claudius-may-read-and-write)).
 
-## Genres built on samples
+## Songs built on samples
 
-Trip-hop and boom bap are built on samples, as their records are: a drum break, a phrase from a recording that the
-song is built on, and a texture under it. Trip-hop's phrase is a dark film-score string or piano phrase, and boom
-bap's a soul or jazz phrase, chopped and crushed to 12 bits. Each profile says what to look for (`sampling`), and
-`claudius make` gathers them before it composes:
+A song of any genre can be built on samples, as records built on samples are: a phrase from a recording that the song
+is built on, a drum break, and a texture under it. Trip-hop, boom bap, lo-fi, jungle, big beat and filter house are
+by default, as their records are; a song of another genre is when asked:
 
 ```sh
-claudius make --genre trip_hop          # gathers what trip-hop samples first, then composes
-claudius samples gather trip_hop        # or gather on its own
-claudius make --genre trip_hop --offline  # play what was gathered before, download nothing
+claudius make --genre trip_hop                            # gathers what trip-hop samples first, then composes
+claudius make --genre house --sampled                     # house built on the records house producers dig for
+claudius make --genre house --sample-search "70s soul"    # ... or on a phrase found for your own words
+claudius make --genre lofi --unsampled                    # lo-fi of its own sounds
+claudius samples gather trip_hop                          # or gather on its own
+claudius make --genre trip_hop --offline                  # play what was gathered before, download nothing
 ```
 
-The studio and an assistant gather the same way. The first new song of a genre built on samples, while it has none
-of one of them, starts a job, *sampling for trip_hop*, that gathers them, then makes the song with them. Its log shows
-each recording tried. **Stop** ends the gathering, and the song is made with what is there. A claudius shared with
-others (`--root`) and `claudius studio --offline` gather nothing: they play what was gathered before, or what stands in
-for it.
+`new_song` takes the same as `sampled` and `sample_search`, and a script's `song()` as options of the same names.
 
-Gathering searches the libraries for each role's words ("slow drum break", "cinematic strings", "vinyl crackle"),
-downloads recordings of a fitting length, and cuts each on its beat grid:
+### What each genre digs for
+
+A genre's profile says what its producers sample (`sampling`): not its own name or a mood, but kinds of records.
+Trip-hop digs for film scores, spy themes, library music and psychedelic soul; boom bap for soul, jazz piano, horn
+sections and vibraphone; house for disco, gospel choirs, philly soul and organ; filter house for disco loops it plays
+through a low-pass filter that opens in its drops; jungle for funk and jazz drum breaks and dub reggae; trap for
+orchestral strings, choirs, flutes and bells; afrobeats for highlife and palm-wine guitar. Each gathering tries the
+genre's searches in an order the song's seed picks, and the recordings each finds in an order the seed picks too, so
+that two songs dig through different records. Words of your own replace the genre's searches for the phrase; the
+break and the texture still come from the genre's.
+
+### How a sample is cut and played
+
+Gathering downloads recordings of a fitting length and cuts each on its beat grid:
 
 | role | what is cut | how a song plays it |
 |---|---|---|
-| break | whole bars of the break, and its kick, snare and hat | as a loop track (`break`) in the sections that list it, re-chopped at times; the drum lanes play the break's own hits |
-| phrase | the two bars the ears hear as most like what the genre listens for ("dark cinematic orchestral strings"), with their key and chords | as a loop track (`sample`); the song takes its key, its tempo when the genre's range allows, and its chords as progression A. A genre with no major mode plays a major phrase in its relative minor |
+| break | whole bars of the break, and its kick, snare and hat | as a loop track (`break`), re-chopped at times, where the genre's sections list it, else in place of the layers the profile names (trip-hop's kit, house's top loop and shaker); the drum lanes it stands in for play the break's own hits |
+| phrase | the two bars the ears hear as most like what was asked for ("dark cinematic orchestral strings", or your words), with their key and chords | as a loop track (`sample`) in place of the genre's chords or keys; the song takes its key, its tempo and its chords as progression A. A genre with no major mode plays a major phrase in its relative minor |
 | texture | sixteen seconds from the middle | as a loop track (`texture`) under the song |
 
-With earshot's models, the ears score each cut against what the genre listens for, and cuts under z 1.5 are left out
-and not fetched again. The cuts go into `<samples>/prepared/`, each with its recording's credit beside it, so a song's
-`credits.txt` names them. A genre keeps a few of each (four breaks, four phrases, two textures for trip-hop), and each
-song draws one by its seed.
+A phrase plays as a sampler plays a record: faster or slower by whole semitones, its pitch moving with its tempo,
+until its tempo (or half or twice it) falls in the genre's range. A soul record at 98 BPM plays four semitones up in a
+house song at 123.47 BPM, in a key four semitones above its own, and the song takes that tempo and key, so the phrase
+is only resampled, never stretched, and plays in tune with everything else. How far a genre goes is in its profile
+(`pitch`: trip-hop slows a record by up to five semitones, house speeds one up by up to five), and the song's lineage
+says how far it went (`sampled: phrase 'Old Soul' 4 semitones up`). A phrase no such speed fits is stretched to the
+genre's tempo in its own key where claudius can stretch; the web demo, which cannot, goes without it.
+Each role keeps its own colour from the profile: the high-pass that leaves the low end to the song's bass, the tape,
+the 12-bit crush.
+
+With earshot's models, the ears score each cut against what was asked for, and cuts under z 1.5 are left out and not
+fetched again. The cuts go into `<samples>/prepared/<role>/<genre>/`, or `asked-<words>-<hash>/` for words of your own, so
+that a recording gathered for two of them is cut for each, each with its recording's credit beside it, so a song's
+`credits.txt` names them.
+
+### Gathering, a few at a time
+
+The studio and an assistant gather the way `claudius make` does. A new song built on samples whose genre (or words)
+has fewer of a role than it keeps starts a job, *sampling for house*, that gathers up to two more of each, then makes
+the song with them. Its log shows each recording tried. **Stop** ends the gathering, and the song is made with what
+is there. So a genre's collection grows with its songs, to the number its profile keeps (eight phrases, six breaks
+and three textures for trip-hop), and each song draws one of each by its seed. A role the libraries had nothing more
+of is not searched again until claudius starts again. A claudius shared with others (`--root`) and
+`claudius studio --offline` gather nothing: they play what was gathered before, or what stands in for it.
 
 Offline, or before anything is gathered, a genre plays the layers its profile names in a sample's place (trip-hop's
 drum lanes for the break, its electric piano and strings for the phrase), so it still makes a song.

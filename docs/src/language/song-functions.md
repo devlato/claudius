@@ -26,6 +26,11 @@ any machine. The recordings installed (sample packs, Apple Loops) change only wh
 | `short` | bool | `false` | halve every section (at least 4 bars), for sketches |
 | `loops` | bool | `false` | build the song around a family of Apple Loops (GarageBand style), when they are installed |
 | `samples` | number | 0.75 | chance that each drum lane uses a recorded one-shot from your library instead of synthesis |
+| `sampled` | bool | as the genre is | build it on samples gathered from free libraries: a phrase it takes its key, tempo and chords from, a break, a texture ([Songs built on samples](../guide/online-samples.md#songs-built-on-samples)); trip-hop, boom bap, lo-fi, jungle, big beat and filter house are by default |
+| `sample_search` | string | none | play the phrases gathered for these words ("70s soul"); implies `sampled` |
+
+A script downloads nothing: `sampled` and `sample_search` play what `new_song`, `claudius make` or
+`claudius samples gather` gathered before, and a song with none at hand plays the genre's own sounds in their place.
 
 The genre is one of `house deep_house techno trap lofi dnb future_bass synthwave trip_hop big_beat electro_house
 nu_disco filter_house dance_pop neo_psychedelia art_rock idm dub_techno boom_bap uk_drill dubstep uk_garage jungle

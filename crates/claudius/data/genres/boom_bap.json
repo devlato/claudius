@@ -127,31 +127,33 @@
     }
   ],
   "sampling": {
+    "by_default": true,
     "break": {
-      "search": ["funk drum break", "hip hop drum loop", "boom bap drum loop", "dusty drum loop", "soul drum break"],
+      "search": ["funk drum break", "jazz drum break", "soul drum break", "breakbeat", "drum solo", "dusty drum loop", "hip hop drum loop", "70s drums", "live drums", "brush drums"],
       "listen": "a dusty boom bap hip hop drum break",
       "seconds": [2, 40],
-      "keep": 4,
+      "keep": 6,
       "chance": 0.95,
       "chop": 0.3,
       "instead": ["kick", "snare", "hat"],
       "mix": {"bus": "drums", "fx": [{"fx": "saturate", "kind": "tape", "drive_db": 3, "mix": 0.5}, {"fx": "filter", "mode": "lp", "cutoff": 13000, "res": 0.05}]}
     },
     "phrase": {
-      "search": ["soul piano", "jazz piano", "rhodes", "soul music", "jazz quartet", "jazz trio", "old jazz record"],
+      "search": ["soul", "jazz piano", "rhodes", "jazz guitar", "horn section", "vibraphone", "gospel", "funk", "70s soul", "jazz organ", "bossa nova", "blues guitar", "flute", "soul strings", "jazz quartet", "old jazz record"],
       "listen": "a soulful jazz piano sample from an old record",
       "seconds": [6, 900],
-      "keep": 4,
+      "keep": 8,
       "chance": 0.95,
       "chop": 0.4,
+      "pitch": [-3, 4],
       "instead": ["keys"],
       "mix": {"bus": "music", "level_db": 1, "reverb": 0.1, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 120, "res": 0.05}, {"fx": "tape", "wow": 0.3, "flutter": 0.2, "drive_db": 4, "lowpass_hz": 10000}, {"fx": "bitcrush", "bits": 12, "downsample": 2}]}
     },
     "texture": {
-      "search": ["vinyl crackle", "record crackle", "vinyl noise"],
+      "search": ["vinyl crackle", "record crackle", "vinyl noise", "gramophone crackle", "tape hiss"],
       "listen": "the crackle of an old vinyl record",
       "seconds": [5, 600],
-      "keep": 2,
+      "keep": 3,
       "chance": 0.75,
       "mix": {"bus": "music"}
     }

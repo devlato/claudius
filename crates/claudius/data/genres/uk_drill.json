@@ -131,6 +131,20 @@
       "mix": {"reverb": 0.4, "fx": [{"fx": "width", "width": 1.5, "mono_below_hz": 200}]}
     }
   ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["piano", "strings", "choir", "bells", "harp", "flute", "guitar", "cinematic", "orchestral", "violin", "music box"],
+      "listen": "a dark piano or string melody",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.2,
+      "pitch": [-5, 5],
+      "instead": ["keys"],
+      "mix": {"bus": "music", "fx": [{"fx": "filter", "mode": "hp", "cutoff": 200, "res": 0.05}]}
+    }
+  },
   "transitions": {"riser": false, "impact": true, "downlifter": false, "reverse_crash": true, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.2, "level_db": -2}},
   "mix": {
     "lufs": -9.0,

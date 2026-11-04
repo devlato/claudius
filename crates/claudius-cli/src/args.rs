@@ -5,7 +5,6 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
-use claudius::genres::GenreProfile;
 use claudius::library::Library;
 
 use crate::connect;
@@ -60,6 +59,18 @@ pub(crate) enum Cmd {
         /// build the song around an Apple Loops family (its chords, bass and beat loops), GarageBand style
         #[arg(long)]
         loops: bool,
+        /// build it on samples from free libraries (CC0, public domain, CC BY) as the genre's producers sample: a
+        /// phrase it takes its key, tempo and chords from, played up or down as a sampler plays it, a break, a texture
+        /// (trip-hop, boom bap, lo-fi, jungle, big beat and filter house are, unless --unsampled)
+        #[arg(long, conflicts_with = "unsampled")]
+        sampled: bool,
+        /// make it of the genre's own sounds, without samples from free libraries
+        #[arg(long)]
+        unsampled: bool,
+        /// what to search the libraries for its phrase with, a kind of record ("70s soul", "bossa nova guitar");
+        /// implies --sampled
+        #[arg(long, value_name = "WORDS", conflicts_with = "unsampled")]
+        sample_search: Option<String>,
         #[command(flatten)]
         ears: EarsArgs,
         #[arg(short, long, default_value = "out")]
@@ -506,12 +517,12 @@ impl SoundArgs {
         open_library()
     }
 
-    /// what a song of `g` is made with: the library, and for a genre built on samples without it (--no-library, or
-    /// no Apple Loops or folders), the samples gathered for it, which are neither; none of it with --synth-only
-    pub(crate) fn library_for(&self, g: &GenreProfile) -> Result<Option<Library>> {
+    /// what a song is made with: the library, and for a song built on samples without it (--no-library, or no Apple
+    /// Loops or folders), the samples gathered for it, which are neither; none of it with --synth-only
+    pub(crate) fn library_for(&self, sampled: bool) -> Result<Option<Library>> {
         let lib = self.library()?;
         Ok(match lib {
-            None if g.sampling.is_some() && !self.synth_only => Some(Library::prepared_only()),
+            None if sampled && !self.synth_only => Some(Library::prepared_only()),
             lib => lib,
         })
     }
@@ -611,10 +622,13 @@ pub(crate) enum SamplesCmd {
     },
     /// List the downloaded sounds, with their licences
     List,
-    /// Gather what a genre built on samples plays (its breaks, phrases and textures): search, download, cut on the beat
-    /// grid, and with the ears keep the ones that sound like the genre
+    /// Gather what a genre's songs built on samples play (its breaks, phrases and textures): search, download, cut on
+    /// the beat grid, and with the ears keep the ones that sound like the genre, until it has as many as it keeps
     Gather {
         genre: String,
+        /// search for the phrases with these words of your own ("70s soul"), for songs that ask for them
+        #[arg(long, value_name = "WORDS")]
+        search: Option<String>,
         #[command(flatten)]
         licences: LicenceArgs,
         #[command(flatten)]

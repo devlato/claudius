@@ -457,7 +457,15 @@ mod tests {
         let r = test_router(&app, "k");
         let c = Some("claudius_phone=k");
         assert_eq!(ask(&r, get("/api/song", c)).await.0, StatusCode::NOT_FOUND, "no song yet");
-        let song = Command::NewSong { genre: "house".into(), seed: Some(3), bpm: None, key: None, loops: false };
+        let song = Command::NewSong {
+            genre: "house".into(),
+            seed: Some(3),
+            bpm: None,
+            key: None,
+            loops: false,
+            sampled: None,
+            sample_search: None,
+        };
         assert!(app.command(song).ok);
         let (status, _, body) = ask(&r, get("/api/song", c)).await;
         assert_eq!(status, StatusCode::OK);
@@ -500,7 +508,15 @@ mod tests {
     async fn a_phone_sends_takes_and_nothing_else() {
         let app = app();
         let r = test_router(&app, "k");
-        let song = Command::NewSong { genre: "house".into(), seed: Some(3), bpm: None, key: None, loops: false };
+        let song = Command::NewSong {
+            genre: "house".into(),
+            seed: Some(3),
+            bpm: None,
+            key: None,
+            loops: false,
+            sampled: None,
+            sample_search: None,
+        };
         assert!(app.command(song).ok);
         let from = app.state().song.unwrap().sections[0].name.clone();
         let post = |body: serde_json::Value| {

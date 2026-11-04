@@ -166,31 +166,33 @@
     }
   ],
   "sampling": {
+    "by_default": true,
     "break": {
-      "search": ["slow drum break", "funk drum break", "hip hop drum loop", "breakbeat loop"],
+      "search": ["slow drum break", "funk drum break", "hip hop drum loop", "breakbeat loop", "jazz drum break", "psychedelic drums", "soul drum break", "dusty drum loop", "brush drums"],
       "listen": "a slow dusty hip hop drum break",
       "seconds": [2, 40],
-      "keep": 4,
+      "keep": 6,
       "chance": 0.95,
       "chop": 0.35,
       "instead": ["kick", "snare", "hat"],
       "mix": {"bus": "drums", "fx": [{"fx": "filter", "mode": "lp", "cutoff": 10000, "res": 0.05}]}
     },
     "phrase": {
-      "search": ["cinematic strings", "orchestral strings", "string quartet", "film noir", "harpsichord", "dark piano", "jazz orchestra"],
+      "search": ["film score", "spy theme", "soundtrack", "string quartet", "harpsichord", "jazz ballad", "psychedelic soul", "library music", "cello", "vibraphone", "60s orchestra", "film noir", "lounge", "flute", "organ", "bossa nova", "cinematic strings", "jazz orchestra", "torch song", "harp"],
       "listen": "dark cinematic orchestral strings from a film score",
       "seconds": [6, 900],
-      "keep": 4,
+      "keep": 8,
       "chance": 0.95,
       "chop": 0.2,
+      "pitch": [-5, 1],
       "instead": ["keys", "strings"],
       "mix": {"bus": "music", "level_db": 2, "reverb": 0.3, "delay": 0.15, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 160, "res": 0.05}, {"fx": "tape", "wow": 0.5, "flutter": 0.3, "drive_db": 3, "lowpass_hz": 8500}, {"fx": "bitcrush", "bits": 12, "downsample": 2}]}
     },
     "texture": {
-      "search": ["vinyl crackle", "record crackle", "vinyl noise"],
+      "search": ["vinyl crackle", "record crackle", "vinyl noise", "gramophone crackle", "tape hiss"],
       "listen": "the crackle of an old vinyl record",
       "seconds": [5, 600],
-      "keep": 2,
+      "keep": 3,
       "chance": 0.85,
       "mix": {"bus": "music"}
     }
