@@ -274,16 +274,13 @@ impl App {
         match got {
             Ok(got) => {
                 let n = got.added.len();
-                if !self.cancel.load(Ordering::Relaxed) {
-                    let mut dug_out = self.dug_out.lock().unwrap_or_else(|e| e.into_inner());
-                    for r in Role::ALL {
-                        let Some(need) = sampling::need(&g, r) else { continue };
-                        let short = lib.prepared_for(r, &g.name, ask.asked(r)) < need.keep;
-                        if short && !got.added.iter().any(|p| p.role == r) {
-                            dug_out.insert(sampling_key(&g, r, ask.asked(r)));
-                        }
-                    }
+                // only what the libraries had nothing more of: a gathering cut short (by its few downloads, a library
+                // that did not answer, or Stop) may find more next time
+                let mut dug_out = self.dug_out.lock().unwrap_or_else(|e| e.into_inner());
+                for &r in &got.exhausted {
+                    dug_out.insert(sampling_key(&g, r, ask.asked(r)));
                 }
+                drop(dug_out);
                 lib.add_prepared(got.added);
                 self.update(|s| {
                     for note in &got.notes {
