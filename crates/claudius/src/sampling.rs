@@ -289,11 +289,18 @@ pub fn cut(
     Ok(c)
 }
 
-/// the folder of `<root>/<role>/` the cuts of a gathering go into: the genre's, or the words asked for (`asked-…`), so
+/// the folder of `<root>/<role>/` the cuts of a gathering go into: the genre's, or the words asked for (`asked-…`, with
+/// a hash of the words themselves, since words that differ only in what a folder's name leaves out are other words), so
 /// that one recording cut for two of them is two cuts, neither in the other's place
 pub fn whose(g: &GenreProfile, asked: Option<&str>) -> String {
     match asked {
-        Some(w) => format!("asked-{}", crate::song::slug(w)),
+        Some(w) => {
+            let hash = &blake3::hash(w.as_bytes()).to_hex()[..8];
+            match crate::song::slug(w) {
+                s if s.is_empty() => format!("asked-{hash}"),
+                s => format!("asked-{s}-{hash}"),
+            }
+        }
         None => lead(&g.name).to_string(),
     }
 }
@@ -984,6 +991,11 @@ mod tests {
         assert_eq!(whose(&house, Some("70s soul")), whose(&nu_disco, Some("70s soul")), "words are for any genre");
         assert_ne!(whose(&house, Some("house")), whose(&house, None), "even words that name a genre");
         assert_eq!(whose(&get("trip_hop+idm"), None), "trip_hop", "a fusion's is its lead's");
+        // words a folder's name would make one are still two
+        assert_ne!(whose(&house, Some("r&b")), whose(&house, Some("r b")));
+        assert_ne!(whose(&house, Some("música")), whose(&house, Some("musica")));
+        assert_ne!(whose(&house, Some("шансон")), whose(&house, Some("фолк")), "words with no letter a name keeps");
+        assert!(whose(&house, Some("70s soul")).starts_with("asked-70s-soul-"), "and still say what they were");
     }
 
     #[test]
