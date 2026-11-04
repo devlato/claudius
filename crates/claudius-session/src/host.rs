@@ -57,6 +57,8 @@ pub struct Host {
     /// the song version whose render failed: it is not tried again until the song changes
     failed: Option<u64>,
     seeds: Rng,
+    /// each track as the last render made it, so that the next renders only the tracks an edit changed
+    kept: render::Kept,
 }
 
 impl Host {
@@ -76,6 +78,7 @@ impl Host {
             lib: None,
             failed: None,
             seeds: Rng::new(seed),
+            kept: render::Kept::default(),
         }
     }
 
@@ -374,7 +377,7 @@ impl Host {
         let bp = self.bp.clone()?;
         let version = self.song_version;
         let project = compose::arrange(&bp);
-        let r = match render::render(&project, &render::Options::default()) {
+        let r = match render::render_kept(&project, &render::Options::default(), &mut self.kept) {
             Ok(r) => r,
             Err(e) => {
                 self.say(format!("render failed: {e}; change the song to try again"));

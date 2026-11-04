@@ -16,6 +16,10 @@ and in tune. Lo-fi, jungle, big beat and filter house are now built on samples b
 `sampled: false` (`--unsampled`) makes them of their own sounds. A genre's collection grows a few recordings with each
 new song ([Songs built on samples](https://claudius.devlato.com/docs/guide/online-samples.html#songs-built-on-samples)).
 
+An edit renders again only the tracks it changed: a level, a pan, a send or the master renders no track again, and
+another track's notes only that track, so mixing waits for the mix alone (a level change in the web demo takes about
+13 s where the whole song takes 31). What comes out is the same to the sample as a fresh render.
+
 A phone plays along: the studio's new phone button shows a QR code that opens drum pads, keys and a turntable on a
 phone on the same Wi-Fi, with the song's own sounds. The phone plays them itself, so a tap sounds at once, and follows
 the studio as it plays, so a take lands where it was heard. A take on the pads becomes the song's drum lanes, on the

@@ -246,5 +246,18 @@ render: finalized at 6.22 s
 The tracks render in parallel, so the slowest track sets the pace of the first stage; the three `finalize` lines are
 the gain search converging on −10 LUFS.
 
+A session renders again only the tracks an edit changed (`render::render_kept`). It keeps each track's sound through
+its effects and drive from the render before, with the level the auto-mixer heard in it, under a key made of
+everything that sound comes from:
+- the track itself, but for what the mix does after its drive (its level, pan, sends, duck and bus);
+- the song's tempo, swing, humanisation, seed, key and chords;
+- the render's length, the onsets that choke the track, and the size and time of any file it plays.
+
+A level, pan or send, the master, or another track's notes render no track again. Only the stages after the tracks
+run: levelling, buses, returns and the master. The mix levels, ducks and pans each kept sound as it sums it into its
+bus and sends, in the order a fresh render does, so what comes out is the same to the sample (a test checks both).
+In the web demo, a level change on one track renders again in about 13 s where the whole song takes 31.
+Installing packs forgets what was kept, since an instrument may sound otherwise.
+
 `cargo bench -p claudius` measures generating, arranging and rendering 8 bars, and records results in
 `target/criterion`.
