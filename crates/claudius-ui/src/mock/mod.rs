@@ -293,7 +293,12 @@ impl Mock {
     /// what a genre's songs built on samples dig for, as the engine says (a fusion: the genre that leads it)
     fn sampling_of(&self, genre: &str) -> Option<claudius_api::GenreSampling> {
         let lead = genre.split('+').next().unwrap_or(genre).trim();
-        self.state.genres.iter().find(|g| g.name == lead).and_then(|g| g.sampling.clone())
+        let mut s = self.state.genres.iter().find(|g| g.name == lead).and_then(|g| g.sampling.clone())?;
+        // a fusion's drums are the genre it fuses with: it samples no break (`genres::fuse`)
+        if genre.contains('+') {
+            s.roles.retain(|r| r.role != "break");
+        }
+        Some(s)
     }
 
     /// starts gathering the samples a song of `genre` is built on (its phrase searched for `search`, when given);
@@ -841,6 +846,18 @@ mod tests {
         let song = mock.state.song.as_ref().unwrap();
         assert_eq!(song.genre, "trip_hop");
         assert!(!song.tracks.iter().any(|t| t.name == "sample"), "nothing sampled to play");
+    }
+
+    #[test]
+    fn a_fusion_looks_for_no_break_its_drums_are_the_other_genres() {
+        let (mut mock, mut now) = (Mock::new(None), 0.0);
+        until(&mut mock, &mut now, |m| m.waiting == 0);
+        let roles = |genre: &str| -> Vec<String> {
+            mock.sampling_of(genre).map(|s| s.roles.into_iter().map(|r| r.role).collect()).unwrap_or_default()
+        };
+        assert!(roles("trip_hop").contains(&"break".to_string()));
+        assert!(!roles("trip_hop+idm").contains(&"break".to_string()));
+        assert!(roles("trip_hop+idm").contains(&"phrase".to_string()));
     }
 
     #[test]

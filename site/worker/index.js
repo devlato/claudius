@@ -106,13 +106,38 @@ async function search(q) {
   });
 }
 
+/** a response's body, read until it passes `MOST` bytes (null then, the rest of it never read) */
+export async function bounded(r) {
+  const reader = r.body.getReader();
+  const chunks = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MOST) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    out.set(c, at);
+    at += c.byteLength;
+  }
+  return out;
+}
+
 /** the file at `url`, as a library serves it, with its kind, unless it is larger than the demo takes */
 async function audio(url, type) {
   const r = await fetch(url, { headers: { "user-agent": AGENT } });
   if (!r.ok) return plain(`the library answered ${r.status}`, r.status === 404 ? 404 : 502);
   if (Number(r.headers.get("content-length") ?? 0) > MOST) return plain("too long for the demo", 413);
-  const body = await r.arrayBuffer();
-  if (body.byteLength > MOST) return plain("too long for the demo", 413);
+  // a length the library leaves out, or understates, is not taken at its word
+  const body = await bounded(r);
+  if (!body) return plain("too long for the demo", 413);
   return new Response(body, {
     headers: {
       "content-type": type,
