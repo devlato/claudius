@@ -15,6 +15,9 @@ it falls in the genre's tempo, and the song takes the tempo and key that come of
 and in tune. Lo-fi, jungle, big beat and filter house are now built on samples by default, like trip-hop and boom bap;
 `sampled: false` (`--unsampled`) makes them of their own sounds. A genre's collection grows a few recordings with each
 new song ([Songs built on samples](https://claudius.devlato.com/docs/guide/online-samples.html#songs-built-on-samples)).
+The [studio demo](https://claudius.devlato.com/studio/?mock) samples every genre the same way, from Freesound, Jamendo
+and Wikimedia Commons: claudius itself cuts each recording in the page, a phrase out of a whole song as the app cuts
+one, where the demo cut only loops whose titles stated a tempo.
 
 A phone plays along: the studio's new phone button shows a QR code that opens drum pads, keys and a turntable on a
 phone on the same Wi-Fi, with the song's own sounds. The phone plays them itself, so a tap sounds at once, and follows

@@ -1,46 +1,39 @@
-// The site's code on the server: the studio demo's samples, and the relay between the demo and a phone. A genre built
-// on samples (trip-hop) asks for them as the demo makes a song, and the demo asks this site and no one else: this
-// Worker searches Openverse for loops on Freesound under CC0 or CC BY and serves their previews, caching both at
-// Cloudflare's edge. It passes on nothing about the visitor: Openverse and Freesound see this site ask, with the demo's
-// own words. A phone playing along with the demo reaches it through a room of the relay (room.js), which only the
-// site's own pages may join. Everything else the site serves is static (`run_worker_first` in wrangler.toml sends only
-// these paths here).
+// The site's code on the server: the studio demo's samples, and the relay between the demo and a phone. A song built
+// on samples asks for them as the demo makes it, and the demo asks this site and no one else: this Worker searches
+// Openverse for recordings on Freesound, Jamendo and Wikimedia Commons under CC0 or CC BY and serves them, caching
+// both at Cloudflare's edge. It passes on nothing about the visitor: the libraries see this site ask, with the demo's
+// words. A phone playing along with the demo reaches it through a room of the relay (room.js), which only the site's
+// own pages may join. Everything else the site serves is static (`run_worker_first` in wrangler.toml sends only these
+// paths here).
 //
-//   GET /studio/samples/search?q=dark%20piano%20loop   up to 20 loops, as the demo reads them
+//   GET /studio/samples/search?q=disco%20strings   up to 20 recordings, as the demo reads them
 //   GET /studio/samples/audio/<folder>/<sound>_<user>.ogg   a preview, as Freesound serves it
+//   GET /studio/samples/audio/jamendo/<track>.mp3   a song, as Jamendo serves it
+//   GET /studio/samples/audio/commons/<a>/<ab>/<file>   a recording, as Wikimedia Commons serves it
 //   GET /relay/<room>?as=host|phone   a WebSocket into the room (room.js)
 //
-// The searches are the demo's own (`crates/claudius-ui/src/mock/song.rs`), so that the Worker is no one's proxy.
+// A search is a few words of letters and digits: the kinds of record a genre digs for (its profile's `sampling`), or a
+// person's own. A visitor may ask for 30 a minute that the edge has not kept (SEARCHES in wrangler.toml), so that
+// Openverse, which limits how often this site asks it, is asked for songs.
 
 export { Room } from "./room.js";
 
-export const SEARCHES = new Set([
-  // trip-hop's phrase, break and texture
-  "dark piano loop",
-  "sad piano loop",
-  "strings loop",
-  "cello loop",
-  "orchestral strings loop",
-  "dark melody loop",
-  "orchestral melody",
-  "sad violin loop",
-  "hip hop drum loop",
-  "dusty drum loop",
-  "slow drum break",
-  "funk drum loop",
-  "vinyl crackle",
-  "record crackle",
-  "vinyl noise",
-]);
+/** a search's words, once read: a letter or digit, then letters, digits, spaces and & ' . - (60 at most) */
+export const WORDS = /^[\p{L}\p{N}][\p{L}\p{N} &'.-]{0,59}$/u;
 
 const OPENVERSE = "https://api.openverse.org/v1/audio/";
-const PREVIEWS = "https://cdn.freesound.org/previews/";
 const AGENT = "claudius-site/1 (https://claudius.devlato.com)";
 const DAY = 86_400;
-/// the longest preview served: a loop of half a minute is far less
-const MOST = 8 * 1024 * 1024;
-const PREVIEW = /^https:\/\/cdn\.freesound\.org\/previews\/(\d{1,6})\/(\d{1,10})_(\d{1,10})-(?:hq|lq)\.(?:mp3|ogg)$/;
-const AUDIO = /^\/studio\/samples\/audio\/(\d{1,6})\/(\d{1,10})_(\d{1,10})\.ogg$/;
+/// the largest recording served: a song of five minutes is less
+const MOST = 12 * 1024 * 1024;
+
+/** where each library keeps a recording, as Openverse names it, and the path the demo asks this site for it by */
+const FREESOUND = /^https:\/\/cdn\.freesound\.org\/previews\/(\d{1,6})\/(\d{1,10})_(\d{1,10})-(?:hq|lq)\.(?:mp3|ogg)$/;
+const JAMENDO = /^https:\/\/prod-1\.storage\.jamendo\.com\/\?trackid=(\d{1,10})&format=mp3[12]$/;
+const COMMONS = /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\/([0-9a-f])\/([0-9a-f]{2})\/([A-Za-z0-9%._(),'!~-]{1,200}\.(mp3|ogg|oga))$/;
+const AUDIO_FREESOUND = /^\/studio\/samples\/audio\/(\d{1,6})\/(\d{1,10})_(\d{1,10})\.ogg$/;
+const AUDIO_JAMENDO = /^\/studio\/samples\/audio\/jamendo\/(\d{1,10})\.mp3$/;
+const AUDIO_COMMONS = /^\/studio\/samples\/audio\/commons\/([0-9a-f])\/([0-9a-f]{2})\/([A-Za-z0-9%._(),'!~-]{1,200}\.(mp3|ogg|oga))$/;
 const ROOM = /^\/relay\/([0-9a-f]{32})$/;
 
 const plain = (body, status, headers = {}) =>
@@ -52,19 +45,40 @@ const plain = (body, status, headers = {}) =>
 /** a search's words as the demo writes them: lower case, single spaces */
 export const words = (q) => (q || "").trim().toLowerCase().replace(/\s+/g, " ");
 
+/** what file a library's recording is, and where the demo asks for it; null for one it cannot play */
+function where(url) {
+  let m = FREESOUND.exec(url);
+  if (m) return { id: `freesound:${m[2]}`, audio: `audio/${m[1]}/${m[2]}_${m[3]}.ogg`, ext: "ogg" };
+  m = JAMENDO.exec(url);
+  if (m) return { id: `jamendo:${m[1]}`, audio: `audio/jamendo/${m[1]}.mp3`, ext: "mp3" };
+  m = COMMONS.exec(url);
+  if (m && !m[3].includes("..")) {
+    let name = m[3];
+    try {
+      name = decodeURIComponent(m[3]);
+    } catch {
+      return null;
+    }
+    return { id: `commons:${name}`, audio: `audio/commons/${m[1]}/${m[2]}/${m[3]}`, ext: m[4] };
+  }
+  return null;
+}
+
 /** an Openverse result as the demo reads it, or null for one it cannot play */
 export function trim(x) {
-  const m = PREVIEW.exec(x?.url || "");
-  if (!m || !["cc0", "by"].includes(x.license)) return null;
+  const at = where(x?.url || "");
+  if (!at || !["cc0", "by"].includes(x.license) || Number(x.filesize ?? 0) > MOST) return null;
   return {
-    id: String(x.id ?? ""),
+    id: at.id,
+    provider: String(x.provider ?? x.source ?? ""),
     title: String(x.title ?? ""),
     creator: String(x.creator ?? ""),
     license: x.license,
     license_version: String(x.license_version ?? ""),
     license_url: String(x.license_url ?? ""),
     page: String(x.foreign_landing_url ?? ""),
-    audio: `audio/${m[1]}/${m[2]}_${m[3]}.ogg`,
+    audio: at.audio,
+    ext: at.ext,
     seconds: Number(x.duration ?? 0) / 1000,
     tags: (x.tags ?? []).map((t) => String(t?.name ?? "")).filter(Boolean).slice(0, 24),
   };
@@ -75,8 +89,7 @@ async function search(q) {
   up.search = new URLSearchParams({
     q,
     license: "cc0,by",
-    source: "freesound",
-    length: "shortest",
+    source: "freesound,jamendo,wikimedia_audio",
     page_size: "20",
     mature: "false",
   }).toString();
@@ -93,26 +106,45 @@ async function search(q) {
   });
 }
 
-async function audio(folder, sound, user) {
-  const r = await fetch(`${PREVIEWS}${folder}/${sound}_${user}-hq.ogg`, { headers: { "user-agent": AGENT } });
-  if (!r.ok) return plain(`Freesound answered ${r.status}`, r.status === 404 ? 404 : 502);
+/** the file at `url`, as a library serves it, with its kind, unless it is larger than the demo takes */
+async function audio(url, type) {
+  const r = await fetch(url, { headers: { "user-agent": AGENT } });
+  if (!r.ok) return plain(`the library answered ${r.status}`, r.status === 404 ? 404 : 502);
   if (Number(r.headers.get("content-length") ?? 0) > MOST) return plain("too long for the demo", 413);
-  return new Response(r.body, {
+  const body = await r.arrayBuffer();
+  if (body.byteLength > MOST) return plain("too long for the demo", 413);
+  return new Response(body, {
     headers: {
-      "content-type": "audio/ogg",
+      "content-type": type,
       "cache-control": `public, max-age=${365 * DAY}, immutable`,
       "x-content-type-options": "nosniff",
     },
   });
 }
 
-/** what `make` answers, from the edge's cache when it has it (a Worker run elsewhere, as the tests run it, has none) */
-async function cached(key, ctx, make) {
+/** the library's address for an audio path the demo asks for, and the kind of file it is; null for no such path */
+export function source(path) {
+  let m = AUDIO_FREESOUND.exec(path);
+  if (m) return [`https://cdn.freesound.org/previews/${m[1]}/${m[2]}_${m[3]}-hq.ogg`, "audio/ogg"];
+  m = AUDIO_JAMENDO.exec(path);
+  if (m) return [`https://prod-1.storage.jamendo.com/?trackid=${m[1]}&format=mp32`, "audio/mpeg"];
+  m = AUDIO_COMMONS.exec(path);
+  if (m && !m[3].includes("..")) {
+    return [`https://upload.wikimedia.org/wikipedia/commons/${m[1]}/${m[2]}/${m[3]}`, m[4] === "mp3" ? "audio/mpeg" : "audio/ogg"];
+  }
+  return null;
+}
+
+/** what the edge's cache keeps for `key`, if it is there (a Worker run elsewhere, as the tests run it, has none) */
+async function kept(key) {
   const cache = typeof caches === "undefined" ? null : caches.default;
-  const hit = cache && (await cache.match(key));
-  if (hit) return hit;
+  return cache ? await cache.match(key) : undefined;
+}
+
+/** what `make` answers, kept in the edge's cache when it went well */
+async function keep(key, ctx, make) {
   const res = await make();
-  if (cache && res.ok) ctx?.waitUntil?.(cache.put(key, res.clone()));
+  if (typeof caches !== "undefined" && res.ok) ctx?.waitUntil?.(caches.default.put(key, res.clone()));
   return res;
 }
 
@@ -137,12 +169,20 @@ export default {
     if (request.method !== "GET") return plain("only GET", 405, { allow: "GET" });
     if (url.pathname === "/studio/samples/search") {
       const q = words(url.searchParams.get("q"));
-      if (!SEARCHES.has(q)) return plain("the demo searches for its own samples only", 400);
+      if (!WORDS.test(q)) return plain("a search is a few words of letters and digits", 400);
       const key = new Request(`${url.origin}/studio/samples/search?q=${encodeURIComponent(q)}`);
-      return cached(key, ctx, () => search(q));
+      const hit = await kept(key);
+      if (hit) return hit;
+      // a search the edge has not kept asks Openverse: a visitor may ask for so many a minute
+      const visitor = request.headers.get("cf-connecting-ip") ?? "someone";
+      if (env?.SEARCHES && !(await env.SEARCHES.limit({ key: visitor })).success) {
+        return plain("too many searches at once: try again in a minute", 429, { "retry-after": "60" });
+      }
+      return keep(key, ctx, () => search(q));
     }
-    const m = AUDIO.exec(url.pathname);
-    if (m) return cached(new Request(`${url.origin}${url.pathname}`), ctx, () => audio(m[1], m[2], m[3]));
-    return plain("no such sample", 404);
+    const at = source(url.pathname);
+    if (!at) return plain("no such sample", 404);
+    const key = new Request(`${url.origin}${url.pathname}`);
+    return (await kept(key)) ?? keep(key, ctx, () => audio(at[0], at[1]));
   },
 };

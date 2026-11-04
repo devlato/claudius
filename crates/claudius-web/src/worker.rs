@@ -3,9 +3,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use claudius::library::prepared::Prepared;
 use claudius_api::{Command, Reply};
-use claudius_session::host::{Host, SoundAsk};
+use claudius_session::host::{Host, Recording, SoundAsk};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use web_sys::{DedicatedWorkerGlobalScope, MessageEvent};
@@ -47,19 +46,22 @@ fn receive(engine: &Shared, m: &MessageEvent) {
         sound(&engine.borrow(), ask);
         return;
     }
-    if let Some(loops) = v["loops"].as_array() {
-        let audio = js_sys::Reflect::get(&data, &"audio".into()).unwrap_or_default();
-        let audio: js_sys::Array = audio.dyn_into().unwrap_or_default();
-        let found = loops
-            .iter()
-            .enumerate()
-            .filter_map(|(i, l)| {
-                let p: Prepared = serde_json::from_value(l["prepared"].clone()).ok()?;
-                let samples = audio.get(i as u32).dyn_into::<js_sys::Float32Array>().ok()?.to_vec();
-                Some((p, l["credit"].as_str().unwrap_or_default().to_string(), samples))
-            })
-            .collect();
-        engine.borrow_mut().host.add_loops(found);
+    if let Some(r) = v.get("recording") {
+        let id = v["id"].as_u64().unwrap_or(0);
+        let bytes = js_sys::Reflect::get(&data, &"bytes".into())
+            .ok()
+            .and_then(|b| b.dyn_into::<js_sys::Uint8Array>().ok())
+            .map(|b| b.to_vec())
+            .unwrap_or_default();
+        let made = serde_json::from_value::<Recording>(r.clone())
+            .map_err(|e| format!("no recording the engine knows: {e}"))
+            .and_then(|r| engine.borrow_mut().host.sample(r, bytes));
+        let sampled = match made {
+            Ok(p) => serde_json::json!({ "id": id, "ok": true, "prepared": p }),
+            Err(why) => serde_json::json!({ "id": id, "ok": false, "why": why }),
+        };
+        let e = engine.borrow();
+        post(&e.scope, &serde_json::json!({ "sampled": sampled, "state": e.host.state() }), None);
         return;
     }
     let what = v["what"].as_str().unwrap_or_default().to_string();

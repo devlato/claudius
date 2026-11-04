@@ -31,8 +31,6 @@ log = "0.4"
 qrcodegen = "1.8"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-# the demo's sounds (Ogg Vorbis), decoded in Rust: browsers before Safari 18.4 cannot
-symphonia = { version = "0.6", default-features = false, features = ["ogg", "vorbis"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 # the demo's engine, on a thread of its own (a page runs it in a Web Worker: crates/claudius-web)

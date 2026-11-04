@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 
 use claudius::judge::{EarsReport, Verdict};
+use claudius::library::prepared::Role;
 use claudius::model::{Blueprint, Sound, TrackMix};
 use claudius::palette;
 use claudius::render::Rendered;
@@ -14,7 +15,19 @@ pub fn genre_infos() -> Vec<GenreInfo> {
     genres::all()
         .unwrap_or_default()
         .into_iter()
-        .map(|g| GenreInfo { name: g.name, description: g.description, bpm: g.bpm })
+        .map(|g| {
+            let sampling = g.sampling.as_ref().map(|s| GenreSampling {
+                by_default: s.by_default,
+                roles: [Role::Phrase, Role::Break, Role::Texture]
+                    .into_iter()
+                    .filter_map(|r| {
+                        let n = claudius::sampling::need(&g, r)?;
+                        Some(SampleRoleInfo { role: r.name().into(), search: n.search.clone(), seconds: n.seconds })
+                    })
+                    .collect(),
+            });
+            GenreInfo { name: g.name, description: g.description, bpm: g.bpm, sampling }
+        })
         .collect()
 }
 
