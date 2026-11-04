@@ -1,7 +1,7 @@
 //! The top of the studio: transport and the LCD, the song's tempo / key / swing, the score, and the engine's
 //! actions (new song, render, mutate, evolve, undo / redo, save, cancel) with the busy indicator.
 
-use claudius_api::{Command, GenreInfo, State};
+use claudius_api::{Command, GenreInfo, GenreSampling, State};
 use eframe::egui::{self, Align, Align2, Layout, Rect, RichText, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
 
 use super::{Cx, View, small};
@@ -528,8 +528,10 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                         let galley = ui.painter().layout(desc(g), theme::prop(10.5), TEXT_DIM, rect.width() - 22.0);
                         let clip = Rect::from_min_max(rect.min + vec2(12.0, 26.0), rect.max - vec2(8.0, 4.0));
                         ui.painter().with_clip_rect(clip).galley(clip.min, galley, TEXT_DIM);
-                        if r.on_hover_text(&g.description).clicked() {
+                        if r.on_hover_text(&g.description).clicked() && f.genre != g.name {
                             f.genre = g.name.clone();
+                            // each genre samples as it does until asked otherwise
+                            f.sampled = None;
                         }
                         if i % 2 == 1 {
                             ui.end_row();
@@ -621,6 +623,10 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
             ui.end_row();
             ui.label("Loops");
             ui.checkbox(&mut f.loops, "build it around an Apple Loops family (GarageBand style)");
+            ui.end_row();
+            let sampling = genres.iter().find(|g| g.name == f.genre).and_then(|g| g.sampling.clone());
+            ui.label("Samples");
+            ui.vertical(|ui| sample_options(ui, f, sampling.as_ref(), cx.server.is_none(), cx.now));
             ui.end_row();
         });
         ui.add_space(10.0);
@@ -730,21 +736,71 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
             });
         });
         if create {
-            cx.out.push(Command::NewSong {
-                genre: f.genre_name(),
-                seed: f.seed.trim().parse().ok(),
-                bpm: f.bpm,
-                key: f.key.clone(),
-                loops: f.loops,
-                sampled: None,
-                sample_search: None,
-            });
+            cx.out.push(f.command(&cx.state.genres));
             f.open = false;
         }
     });
     if modal.should_close() {
         cx.view.new_song.open = false;
     }
+}
+
+/// The New song dialog's samples: whether the song is built on samples from free libraries (as the genre does, until
+/// asked otherwise), and the words its phrase is searched for; with none, the kinds of record the genre digs for, which
+/// the field shows.
+fn sample_options(ui: &mut Ui, f: &mut super::NewSongForm, sampling: Option<&GenreSampling>, demo: bool, now: f64) {
+    let libraries = if demo {
+        "Freesound, Jamendo and Wikimedia Commons"
+    } else {
+        "Freesound, Jamendo, Wikimedia Commons and ccMixter"
+    };
+    let default = sampling.is_some_and(|s| s.by_default);
+    let mut on = sampling.is_some() && f.sampled.unwrap_or(default);
+    let r = ui
+        .add_enabled(sampling.is_some(), egui::Checkbox::new(&mut on, "auto-sample from free libraries"))
+        .on_hover_text(format!(
+            "builds the song on recordings from {libraries}, under CC0 or CC BY and credited: a phrase it takes its key, \
+             tempo and chords from, played up or down as a sampler plays it, a drum break, a texture. {}",
+            if default {
+                "This genre's songs are built on samples unless you untick it."
+            } else {
+                "This genre's songs are when you tick it."
+            }
+        ))
+        .on_disabled_hover_text("this genre says nothing of what it samples");
+    if r.changed() {
+        f.sampled = Some(on);
+    }
+    let Some(s) = sampling.filter(|_| on) else { return };
+    let theirs: Vec<&str> = s
+        .roles
+        .iter()
+        .find(|r| r.role == "phrase")
+        .map(|r| r.search.iter().map(String::as_str).collect())
+        .unwrap_or_default();
+    ui.horizontal(|ui| {
+        let hint = format!("{}, ...", theirs.iter().take(3).copied().collect::<Vec<_>>().join(", "));
+        ui.add(egui::TextEdit::singleline(&mut f.sample_search).desired_width(300.0).char_limit(60).hint_text(hint));
+        if !theirs.is_empty()
+            && widgets::icon_button(ui, Icon::Dice, 24.0, false, true, "one of the records this genre digs for")
+                .clicked()
+        {
+            let t = (now * 1000.0) as u64;
+            let mut i =
+                ((t.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407) >> 33) as usize) % theirs.len();
+            if theirs[i] == f.sample_search.trim() {
+                i = (i + 1) % theirs.len();
+            }
+            f.sample_search = theirs[i].to_string();
+        }
+    });
+    ui.label(small(if f.sample_search.trim().is_empty() {
+        "empty: the records the genre's producers dig for, tried in an order the seed picks".to_string()
+    } else {
+        "its phrase is searched for these words, a kind of record rather than a genre's name; the break and the \
+         texture come from the genre's own"
+            .to_string()
+    }));
 }
 
 /// What the download button asks for: in a page, the song as a download once a render of it as it is now is here (the
