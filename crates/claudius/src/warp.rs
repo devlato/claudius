@@ -26,7 +26,11 @@ fn cache() -> &'static Cache {
 /// the loop at `path` (`beats` long at `src_bpm`) warped to `dst_bpm` and transposed by `semis`; `seamless` for a loop,
 /// which wraps, and not for a take
 pub fn warp(path: &str, src_bpm: f64, beats: f64, dst_bpm: f64, semis: i32, seamless: bool) -> Result<Arc<Stereo>> {
-    let key = format!("{path}|{src_bpm:.3}|{beats:.3}|{dst_bpm:.3}|{semis}{}", if seamless { "" } else { "|once" });
+    let key = format!(
+        "{path}|{src_bpm:.3}|{beats:.3}|{dst_bpm:.3}|{semis}{}|{:?}",
+        if seamless { "" } else { "|once" },
+        audio::remembered_version(path)
+    );
     if let Some(x) = cache().lock().unwrap().get(&key) {
         return Ok(x.clone());
     }
