@@ -15,9 +15,12 @@ Any of them can be built on samples from free libraries: `new_song` with `sample
 naming a kind of record ("70s soul", "bossa nova guitar", "film score"; not the genre's own name, which finds other
 people's tracks rather than records to sample). The song takes a phrase's key, tempo and chords, played faster or
 slower by whole semitones as a sampler would, in place of the genre's chords or keys, with a break and a texture from
-what the genre's producers dig for. Trip-hop, boom bap, lo-fi, jungle, big beat and filter house are built on samples
-unless `sampled: false`. When the person wants a sampled song, say which record kind you searched for, and offer
-another if the phrase is not to their taste.
+what the genre's producers dig for. Another passage of the same record plays as `sample2` in some sections, on its
+own chords (progression A2): the louder of the two where the song lifts, the other elsewhere. To keep one passage all
+through, give those sections `sample` in place of `sample2` and progression A, so that the parts play the phrase's
+chords under it. Trip-hop, boom bap, lo-fi, jungle, big beat and filter house are
+built on samples unless `sampled: false`. When the person wants a sampled song, say which record kind you searched
+for, and offer another if the phrase is not to their taste.
 
 ## house (120-126 BPM)
 

@@ -554,6 +554,7 @@ mod tests {
             z: Some(3.0),
             source: format!("freesound:{path}"),
             asked: None,
+            second: None,
         }
     }
 
