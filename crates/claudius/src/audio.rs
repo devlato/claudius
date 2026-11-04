@@ -263,6 +263,11 @@ fn versions() -> &'static std::sync::Mutex<std::collections::HashMap<String, u64
     V.get_or_init(Default::default)
 }
 
+/// the audio `remember` keeps at `path`, if any
+pub fn remembered_audio(path: &str) -> Option<std::sync::Arc<Stereo>> {
+    remembered().lock().unwrap_or_else(|e| e.into_inner()).get(path).cloned()
+}
+
 /// which of the audio `remember` has kept at `path` this is: a number that changes each time the path is given audio
 /// anew (none: nothing kept there)
 pub fn remembered_version(path: &str) -> Option<u64> {

@@ -9,11 +9,17 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use web_sys::{DedicatedWorkerGlobalScope, MessageEvent};
 
+use crate::crew::{self, Crew, Said};
+
 struct Engine {
     host: Host,
     scope: DedicatedWorkerGlobalScope,
     /// a render is on its way: the commands that come before it are made first, and it renders them all at once
     scheduled: bool,
+    /// the crew making the tracks of the next render, which waits for it
+    crew: Option<Crew>,
+    /// how many workers a crew has (none after one failed: the engine makes the tracks itself)
+    crew_size: usize,
 }
 
 type Shared = Rc<RefCell<Engine>>;
@@ -21,10 +27,16 @@ type Shared = Rc<RefCell<Engine>>;
 pub fn start() {
     std::panic::set_hook(Box::new(|info| web_sys::console::error_1(&format!("claudius engine: {info}").into())));
     let scope: DedicatedWorkerGlobalScope = js_sys::global().unchecked_into();
+    if crew::member(&scope) {
+        crew::serve(scope);
+        return;
+    }
     let engine = Rc::new(RefCell::new(Engine {
         host: Host::new(js_sys::Date::now() as u64),
         scope: scope.clone(),
         scheduled: false,
+        crew: None,
+        crew_size: crew::size(&scope),
     }));
     let e = engine.clone();
     let onmessage = Closure::<dyn FnMut(MessageEvent)>::new(move |m: MessageEvent| receive(&e, &m));
@@ -120,6 +132,26 @@ fn render(engine: &Shared) {
         schedule(engine);
         return;
     }
+    // the render waits for a crew making its tracks; one making none the song still needs stops
+    let make = e.host.to_make();
+    if let Some(crew) = e.crew.take() {
+        if make.as_ref().is_some_and(|m| crew.makes_any_of(m)) {
+            e.crew = Some(crew);
+            return;
+        }
+        crew.end();
+    }
+    if let Some(make) = make.filter(|m| m.tracks.len() >= 2 && e.crew_size >= 2) {
+        let heard = {
+            let engine = engine.clone();
+            move |i: usize, data: JsValue| heard(&engine, i, &data)
+        };
+        if let Some(crew) = crew::start(&make, e.crew_size, heard) {
+            e.crew = Some(crew);
+            return;
+        }
+        e.crew_size = 0;
+    }
     let Some(done) = e.host.render() else { return };
     let state = serde_json::json!({ "state": e.host.state() });
     match done {
@@ -131,7 +163,36 @@ fn render(engine: &Shared) {
     schedule(engine);
 }
 
-fn post(scope: &DedicatedWorkerGlobalScope, json: &serde_json::Value, audio: Option<js_sys::Float32Array>) {
+/// What worker `i` of the crew posted (`data`; null when it failed): a track it made is kept for the render, and once
+/// the crew has made them all it stops, and the render that waited for it comes. A crew that fails stops too, and the
+/// engine makes the tracks itself from then on.
+fn heard(engine: &Shared, i: usize, data: &JsValue) {
+    let mut guard = engine.borrow_mut();
+    let e = &mut *guard;
+    let Some(crew) = e.crew.as_mut() else { return };
+    match crew.hear(i, data) {
+        Some(Said::Made(m)) => e.host.made(&m.name, m.key, m.sound, m.level),
+        Some(Said::Failed(why)) => {
+            web_sys::console::warn_1(&format!("claudius engine: {why}; it makes the tracks itself").into());
+            e.crew_size = 0;
+            if let Some(c) = e.crew.take() {
+                c.end();
+            }
+        }
+        Some(Said::Ready) | None => return,
+    }
+    if e.crew.as_ref().is_some_and(|c| c.done())
+        && let Some(c) = e.crew.take()
+    {
+        c.end();
+    }
+    if e.crew.is_none() {
+        drop(guard);
+        schedule(engine);
+    }
+}
+
+pub(crate) fn post(scope: &DedicatedWorkerGlobalScope, json: &serde_json::Value, audio: Option<js_sys::Float32Array>) {
     let msg = js_sys::Object::new();
     let _ = js_sys::Reflect::set(&msg, &"json".into(), &json.to_string().into());
     let sent = match audio {
