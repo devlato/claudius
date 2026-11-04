@@ -556,6 +556,11 @@ mod tests {
         });
         // three notes a slot each, 16-bit stereo at 48 kHz: not the record of one bar
         assert_eq!(keys, Some(44 + (3.0 * SLOT * 48_000.0) as usize * 4));
+        // the demo opened again in another tab took the room: this one lets it, and says so
+        mock.relay.as_mut().unwrap().inbox.push("\n{\"event\":\"replaced\"}".into());
+        let events = mock.update(now);
+        assert_eq!(mock.phone_view(), None);
+        assert!(events.iter().any(|e| matches!(e, Event::Said { text, .. } if text.contains("another tab"))));
     }
 
     #[test]

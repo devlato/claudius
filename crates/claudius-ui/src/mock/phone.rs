@@ -46,6 +46,9 @@ pub enum Heard {
     Left(String),
     /// the connection to the room closed (`\n{"event":"closed"}`, as the socket says it)
     Closed,
+    /// the room was taken by the demo opened again in another tab, which keeps the room's name
+    /// (`\n{"event":"replaced"}`)
+    Replaced,
 }
 
 /// the demo's side of its room
@@ -99,6 +102,7 @@ pub fn heard(text: &str) -> Option<Heard> {
         Some("joined") => return Some(Heard::Joined(phone.into())),
         Some("left") => return Some(Heard::Left(phone.into())),
         Some("closed") => return Some(Heard::Closed),
+        Some("replaced") => return Some(Heard::Replaced),
         _ => {}
     }
     Some(Heard::Asked(Asked {
@@ -197,6 +201,14 @@ impl Mock {
                     relay.phones.clear();
                     relay.rejoin = Some(self.now + 3.0);
                     self.publish();
+                }
+                // the tab opened again plays with the phone now: this one lets it, rather than take the room back
+                Heard::Replaced => {
+                    self.relay = None;
+                    let text = "the phone plays along with this demo opened in another tab now".to_string();
+                    self.events.push(Event::Said { text, ok: true });
+                    self.publish();
+                    return;
                 }
             }
         }
@@ -480,8 +492,11 @@ mod socket {
             }
         });
         let into = heard.clone();
-        let onclose = Closure::<dyn FnMut(web_sys::Event)>::new(move |_| {
-            into.borrow_mut().extend(super::heard("\n{\"event\":\"closed\"}"));
+        let onclose = Closure::<dyn FnMut(web_sys::Event)>::new(move |e: web_sys::Event| {
+            // the room closes a tab's socket with 4000 when the demo is opened again in another tab
+            let replaced = e.dyn_ref::<web_sys::CloseEvent>().is_some_and(|c| c.code() == 4000);
+            let said = if replaced { "\n{\"event\":\"replaced\"}" } else { "\n{\"event\":\"closed\"}" };
+            into.borrow_mut().extend(super::heard(said));
             if let Some(c) = &ctx {
                 c.request_repaint();
             }

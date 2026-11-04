@@ -129,7 +129,10 @@ function relay(room) {
           for (const id of [...waiting.keys()]) fail(id, "the demo is not open");
           say("the demo is not open: open it again and scan its code", LOST);
         } else if (m.event === "back") {
+          // a demo joined the room, in place of one gone or of one still there (opened again elsewhere): what was
+          // asked of the one before is asked again of it
           gone = false;
+          for (const id of [...waiting.keys()]) fail(id, "the demo was opened again");
           back();
         } else if (m.id) settle(m.id, m.status, m.body);
       };
