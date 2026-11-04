@@ -2,8 +2,9 @@
 //! list of steps, e.g. `wait:4;shot:/tmp/a.png;tab:mixer;play;wait:2;shot:/tmp/b.png;exit`. A web build with the
 //! `plan` feature (for tests only) takes the page's `?plan=` instead, and leaves out screenshots and pointer input.
 //! What the Record window says goes to stderr (the browser's console), as `record: ...`, what it offers for MIDI
-//! keyboards as `midi: ...`, the last analysis as `analysis: ...`, each toast as `toast: ...`, and the graph's node
-//! chosen as `graph: ...`.
+//! keyboards as `midi: ...`, the last analysis as `analysis: ...`, each toast as `toast: ...`, the graph's node
+//! chosen as `graph: ...`, and the page a phone plays along on as `phone: ...`, with how many have it open as
+//! `phones: ...`.
 //! Steps: `wait:<s>`, `tab:<sequencer|mixer|parts|harmony|script|sounds|graph|log>`, `section:<i>`, `play`, `pause`, `seek:<s>`,
 //! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `download`, `record` (the Record window), `phone`
 //! (the Play from a phone window, which has claudius serve the phone's page),

@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use claudius::library::prepared::Prepared;
 use claudius_api::{Command, Reply};
-use claudius_session::host::Host;
+use claudius_session::host::{Host, SoundAsk};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use web_sys::{DedicatedWorkerGlobalScope, MessageEvent};
@@ -43,6 +43,10 @@ fn receive(engine: &Shared, m: &MessageEvent) {
         post(&engine.borrow().scope, &serde_json::json!({ "reference": Host::reference() }), None);
         return;
     }
+    if let Some(ask) = v.get("sound") {
+        sound(&engine.borrow(), ask);
+        return;
+    }
     if let Some(loops) = v["loops"].as_array() {
         let audio = js_sys::Reflect::get(&data, &"audio".into()).unwrap_or_default();
         let audio: js_sys::Array = audio.dyn_into().unwrap_or_default();
@@ -67,6 +71,24 @@ fn receive(engine: &Shared, m: &MessageEvent) {
     post(&e.scope, &serde_json::json!({ "what": what, "reply": reply, "state": e.host.state() }), None);
     drop(e);
     schedule(engine);
+}
+
+/// a sound of the song for a phone playing along: the sounds asked for, one after another in one array, with their
+/// names and lengths in frames, or why there are none
+fn sound(e: &Engine, ask: &serde_json::Value) {
+    let id = ask["id"].as_u64().unwrap_or(0);
+    let made =
+        serde_json::from_value::<SoundAsk>(ask.clone()).map_err(|e| e.to_string()).and_then(|a| e.host.sound(&a));
+    match made {
+        Ok(sounds) => {
+            let names: Vec<&str> = sounds.iter().map(|(n, _)| n.as_str()).collect();
+            let frames: Vec<usize> = sounds.iter().map(|(_, x)| x.len()).collect();
+            let all: Vec<f32> = sounds.iter().flat_map(|(_, x)| x.interleaved()).collect();
+            let json = serde_json::json!({ "sound": { "id": id, "names": names, "frames": frames } });
+            post(&e.scope, &json, Some(js_sys::Float32Array::from(all.as_slice())));
+        }
+        Err(err) => post(&e.scope, &serde_json::json!({ "sound": { "id": id, "error": err } }), None),
+    }
 }
 
 /// a render soon, when the song is newer than its render and none is on its way

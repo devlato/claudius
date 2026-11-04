@@ -415,6 +415,9 @@ pub fn hits(bp: &mut Blueprint, from: &str, struck: &[Struck], o: &Pads) -> Resu
     };
     let variant = o.variant.clone().filter(|v| !v.trim().is_empty()).unwrap_or_else(|| "main".into());
     let len = f64::from(bars * 4);
+    // a take stopped within a beat of a pass's start ends with the pass before: it did not go round again
+    let whole = (beats / len).floor() * len;
+    let beats = if beats - whole < 1.0 && whole > start { whole.max(last + 1e-6) } else { beats };
     let mut lanes: Vec<&str> = struck.iter().map(|h| h.lane.as_str()).collect();
     lanes.sort_unstable();
     lanes.dedup();
@@ -774,6 +777,18 @@ mod tests {
         assert!(said.contains("2 bars") && !said.contains("by chance"), "{said}");
         let late = Pads { start: Some(5.0), ..Default::default() };
         assert!(hits(&mut bp, &from, &played, &late).unwrap_err().contains("by its first hit"));
+    }
+
+    #[test]
+    fn a_take_stopped_just_after_a_pass_began_did_not_go_round_again() {
+        let mut bp = song();
+        let kick = bp.drums[0].name.clone();
+        let from = bp.form[0].name.clone();
+        // a 2-bar beat played once, stopped 0.7 beats into the next time round, and 2 beats in
+        let played: Vec<Struck> = [0.0, 2.0, 4.0, 6.0].iter().map(|&t| struck(&kick, t, 1.0)).collect();
+        let late = |beats| Pads { bars: Some(2), beats: Some(beats), ..Default::default() };
+        assert!(!hits(&mut bp, &from, &played, &late(8.7)).unwrap().contains("by chance"));
+        assert!(hits(&mut bp, &from, &played, &late(10.0)).unwrap().contains("1 by chance"), "the downbeat passed");
     }
 
     #[test]

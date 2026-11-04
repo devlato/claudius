@@ -1,9 +1,9 @@
 # Playing from a phone
 
-A phone on the same Wi-Fi as your computer can play the open song with drum pads, a keyboard and a turntable, in the
-song's own sounds. What you record there goes into the song: drums as its drum lanes, keys as a new part, a scratch as
-a take. It works in the studio app and in the browser studio that `claudius serve` serves; the demo does not have it
-yet.
+A phone can play the open song with drum pads, a keyboard and a turntable, in the song's own sounds. What you record
+there goes into the song: drums as its drum lanes, keys as a new part, a scratch as a take. It works in the studio
+app and in the browser studio that `claudius serve` serves, with a phone on the same Wi-Fi, and in the
+[studio demo](https://claudius.devlato.com/studio/?mock) on the site, with a phone on any network.
 
 ## Pairing
 
@@ -12,6 +12,9 @@ for phones, and the window shows its address as a QR code: point the phone's cam
 address carries a key of its own, which the phone keeps, so the page stays open on that phone until the studio stops
 serving it (**Stop serving the page**) or claudius quits; the next time, the address has a new key. The window says
 when a phone has the page open, and the phone button stays lit while the page is served.
+
+In the demo, the code opens the same page on claudius' site instead, which reaches the demo's tab through a relay on
+the site ([below](#with-the-demo)).
 
 On the phone, tap **Start**: a phone plays sound only after a tap. The page shows the song, the section and bar the
 studio is at, and the beat. The sounds are the song's own, rendered by claudius as the song mixes them, and the phone
@@ -40,6 +43,15 @@ delay of the phone's own speaker is taken off.
   that plays from the start of the section it began in.
 
 The pads, keys and turntable play without a take too, for practice, and while the studio is stopped.
+
+## With the demo
+
+The demo runs claudius in the browser tab, which a phone cannot reach, so the tab and the phone both join a room of a
+relay on claudius' site, which passes what they say to each other. The room's name is random and in the QR code
+alone; the relay keeps nothing of what passes through it. The phone needs the internet rather than your Wi-Fi, and the
+tab has to stay open: closing it closes the room (the phone says the demo is not open), and reloading it keeps the
+room, so the phone plays on. The demo's engine renders the phone's sounds and takes in the tab, after any render it is
+busy with, so the first sounds can take half a minute to arrive.
 
 ## When it does not connect
 

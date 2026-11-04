@@ -323,29 +323,9 @@ fn three() -> usize {
 
 /// notes of a sound from `low` to `high` every `step` semitones, in one WAV with a note every `slot` seconds
 async fn keys(State(p): State<Arc<Phone>>, Query(k): Query<Keys>) -> Response {
-    let span = k.high.checked_sub(k.low).and_then(|s| usize::try_from(s).ok());
-    let fits = (1..=12).contains(&k.step) && (12..=120).contains(&k.low) && (12..=120).contains(&k.high);
-    if !fits || span.is_none_or(|s| s / k.step + 1 > pads::MAX_NOTES) {
-        let says = format!("keys are 1 to {} notes from MIDI 12 to 120, 1 to 12 semitones apart", pads::MAX_NOTES);
-        return (StatusCode::BAD_REQUEST, says).into_response();
-    }
-    let pitches: Vec<i32> = (k.low..=k.high).step_by(k.step).collect();
     let name = format!("{}:{}:{}:{}", k.sound, k.low, k.high, k.step);
-    p.sound(
-        |s| &mut s.keys,
-        name.clone(),
-        move |bp| {
-            let notes = pads::notes(&bp, &k.sound, &pitches)?;
-            let slot = (pads::SLOT_SECS * claudius::config::SRF) as usize;
-            let mut all = Stereo::zeros(slot * notes.len());
-            for (i, n) in notes.iter().enumerate() {
-                all.l[i * slot..i * slot + n.len()].copy_from_slice(&n.l);
-                all.r[i * slot..i * slot + n.len()].copy_from_slice(&n.r);
-            }
-            Ok(vec![(name, all)])
-        },
-    )
-    .await
+    let key = name.clone();
+    p.sound(|s| &mut s.keys, name, move |bp| Ok(vec![(key, pads::keys(&bp, &k.sound, k.low, k.high, k.step)?)])).await
 }
 
 #[derive(Deserialize)]

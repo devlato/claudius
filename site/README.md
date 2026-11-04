@@ -98,13 +98,20 @@ To look at the page, `SCREENSHOT_DIR=/tmp/shots npx playwright test screens` wri
 
 ## The Worker
 
-The site is static except for one Worker, `worker/index.js`, which answers the studio demo's samples
-(`/studio/samples/*`; `run_worker_first` in `wrangler.toml` sends only those paths to it):
+The site is static except for one Worker, `worker/index.js`, which answers the studio demo's samples and the relay
+between the demo and a phone (`/studio/samples/*` and `/relay/*`; `run_worker_first` in `wrangler.toml` sends only
+those paths to it):
 
 | path | what |
 |---|---|
 | `/studio/samples/search?q=<words>` | Openverse's loops on Freesound under CC0 or CC BY, under 30 seconds, for one of the demo's own searches (`SEARCHES`), as the demo reads them |
 | `/studio/samples/audio/<folder>/<sound>_<user>.ogg` | that loop's preview, from Freesound's servers |
+| `/relay/<room>?as=host` or `?as=phone` | a WebSocket into a room of the relay (`worker/room.js`, a Durable Object), for pages of the site's own origin: the demo's tab as its host, and the phones playing along with it on `/phone/` |
+
+`cargo xtask site` copies the phone's page into `/phone/` from `crates/claudius-server/src/phone`, the page
+`claudius serve` serves to a phone on the same Wi-Fi. `tests/serve.mjs` runs the relay's rooms too (`tests/rooms.mjs`
+gives them WebSockets), `tests/relay.spec.mjs` tests them, and `tests/demo-phone.spec.mjs` plays from a phone-sized
+page along with the demo through one.
 
 It caches both at the edge (searches for a day, audio for a year) and passes on nothing about the visitor.
 `wrangler deploy` publishes it with the assets. `tests/serve.mjs` runs it too, asking Openverse and Freesound live,

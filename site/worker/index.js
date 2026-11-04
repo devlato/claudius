@@ -1,13 +1,18 @@
-// The site's one piece of code on the server: the studio demo's samples. A genre built on samples (trip-hop) asks for
-// them as the demo makes a song, and the demo asks this site and no one else: this Worker searches Openverse for loops
-// on Freesound under CC0 or CC BY and serves their previews, caching both at Cloudflare's edge. It passes on nothing
-// about the visitor: Openverse and Freesound see this site ask, with the demo's own words. Everything else the site
-// serves is static (`run_worker_first` in wrangler.toml sends only these paths here).
+// The site's code on the server: the studio demo's samples, and the relay between the demo and a phone. A genre built
+// on samples (trip-hop) asks for them as the demo makes a song, and the demo asks this site and no one else: this
+// Worker searches Openverse for loops on Freesound under CC0 or CC BY and serves their previews, caching both at
+// Cloudflare's edge. It passes on nothing about the visitor: Openverse and Freesound see this site ask, with the demo's
+// own words. A phone playing along with the demo reaches it through a room of the relay (room.js), which only the
+// site's own pages may join. Everything else the site serves is static (`run_worker_first` in wrangler.toml sends only
+// these paths here).
 //
 //   GET /studio/samples/search?q=dark%20piano%20loop   up to 20 loops, as the demo reads them
 //   GET /studio/samples/audio/<folder>/<sound>_<user>.ogg   a preview, as Freesound serves it
+//   GET /relay/<room>?as=host|phone   a WebSocket into the room (room.js)
 //
 // The searches are the demo's own (`crates/claudius-ui/src/mock/song.rs`), so that the Worker is no one's proxy.
+
+export { Room } from "./room.js";
 
 export const SEARCHES = new Set([
   // trip-hop's phrase, break and texture
@@ -36,6 +41,7 @@ const DAY = 86_400;
 const MOST = 8 * 1024 * 1024;
 const PREVIEW = /^https:\/\/cdn\.freesound\.org\/previews\/(\d{1,6})\/(\d{1,10})_(\d{1,10})-(?:hq|lq)\.(?:mp3|ogg)$/;
 const AUDIO = /^\/studio\/samples\/audio\/(\d{1,6})\/(\d{1,10})_(\d{1,10})\.ogg$/;
+const ROOM = /^\/relay\/([0-9a-f]{32})$/;
 
 const plain = (body, status, headers = {}) =>
   new Response(body, {
@@ -110,9 +116,23 @@ async function cached(key, ctx, make) {
   return res;
 }
 
+/** the name of the room a request joins, or the answer that turns it away */
+export function room(request) {
+  const url = new URL(request.url);
+  const m = ROOM.exec(url.pathname);
+  if (!m) return plain("no such room", 404);
+  // the demo and the phone's page are the site's own; nothing else joins a room
+  if (request.headers.get("origin") !== url.origin) return plain("a room is for the site's own pages", 403);
+  return m[1];
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (url.pathname.startsWith("/relay/")) {
+      const name = room(request);
+      return typeof name === "string" ? env.ROOMS.get(env.ROOMS.idFromName(name)).fetch(request) : name;
+    }
     if (!url.pathname.startsWith("/studio/samples/")) return env.ASSETS.fetch(request);
     if (request.method !== "GET") return plain("only GET", 405, { allow: "GET" });
     if (url.pathname === "/studio/samples/search") {

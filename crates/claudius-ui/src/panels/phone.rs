@@ -21,14 +21,26 @@ pub struct Phone {
     told: Option<(bool, f64, f64)>,
     /// the QR code of the page's address
     code: Option<(String, QrCode)>,
+    /// the page is asked for and not served yet
+    asking: bool,
 }
 
 impl Phone {
     pub fn show(&mut self, served: bool) {
         self.open = true;
         if !served {
-            self.ask = Some(true);
+            self.serve();
         }
+    }
+
+    fn serve(&mut self) {
+        self.ask = Some(true);
+        self.asking = true;
+    }
+
+    /// the page was not served: the window says so, and offers to ask again
+    pub fn refused(&mut self) {
+        self.asking = false;
     }
 }
 
@@ -76,13 +88,25 @@ fn tell(cx: &mut Cx) {
 
 fn body(ui: &mut Ui, cx: &mut Cx) {
     let Some(phone) = cx.state.phone.clone() else {
-        ui.label(RichText::new("Asking claudius for the phone's page…").color(TEXT));
+        if cx.view.phone.asking {
+            ui.label(RichText::new("Asking claudius for the phone's page…").color(TEXT));
+        } else {
+            // it stopped: the demo opened again in another tab took the phone, or claudius stopped serving the page
+            ui.label(RichText::new("The phone's page is not served here now.").color(TEXT));
+            ui.add_space(6.0);
+            if ui.button("Serve it here").clicked() {
+                cx.view.phone.serve();
+            }
+        }
         return;
     };
-    ui.label(
-        RichText::new("Scan this with your phone's camera. The phone has to be on the same Wi-Fi as this computer.")
-            .color(TEXT),
-    );
+    cx.view.phone.asking = false;
+    let how = if cx.server.is_some() {
+        "Scan this with your phone's camera. The phone has to be on the same Wi-Fi as this computer."
+    } else {
+        "Scan this with your phone's camera. It plays along with this page through claudius' site, on any network."
+    };
+    ui.label(RichText::new(how).color(TEXT));
     ui.add_space(10.0);
     ui.vertical_centered(|ui| qr(ui, &mut cx.view.phone.code, &phone.url));
     ui.add_space(8.0);

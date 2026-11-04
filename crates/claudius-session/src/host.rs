@@ -6,13 +6,14 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use claudius::audio::Stereo;
 use claudius::compose::{self, Options};
 use claudius::library::Library;
 use claudius::library::prepared::Prepared;
 use claudius::model::Blueprint;
 use claudius::rng::Rng;
 use claudius::theory::scale::Key;
-use claudius::{audio, genres, judge, render, scratch, script, take};
+use claudius::{audio, genres, judge, pads, render, scratch, script, take};
 use claudius_api::*;
 
 use crate::{edit, views};
@@ -23,6 +24,16 @@ const UNDO: usize = 200;
 const LOG: usize = 200;
 /// the bars a preview renders
 const PREVIEW_BARS: u32 = 16;
+
+/// A sound a phone playing along asks for: every drum lane's hit, notes of a sound for its keys, or a record of bars of
+/// a track to scratch.
+#[derive(Clone, Debug, serde::Deserialize, PartialEq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum SoundAsk {
+    Hits,
+    Keys { sound: String, low: i32, high: i32, step: usize },
+    Record { track: String, bar: u32, bars: u32 },
+}
 
 /// A render: what the API shows of it, and the master, interleaved stereo at 48 kHz.
 pub struct Audio {
@@ -157,6 +168,25 @@ impl Host {
         self.render = Some(view.clone());
         self.version += 1;
         Some(Audio { view, samples: r.master.interleaved() })
+    }
+
+    /// the song as it is now
+    pub fn blueprint(&self) -> Option<&Blueprint> {
+        self.bp.as_ref()
+    }
+
+    /// a sound of the song for a phone playing along, named: each lane's hit by the lane, the others by what they are
+    pub fn sound(&self, ask: &SoundAsk) -> Result<Vec<(String, Stereo)>, String> {
+        let Some(bp) = &self.bp else { return Err("no song yet".into()) };
+        match ask {
+            SoundAsk::Hits => pads::hits(bp),
+            SoundAsk::Keys { sound, low, high, step } => {
+                Ok(vec![(sound.clone(), pads::keys(bp, sound, *low, *high, *step)?)])
+            }
+            SoundAsk::Record { track, bar, bars } => {
+                Ok(vec![(track.clone(), scratch::record(bp, track, *bar, *bars)?)])
+            }
+        }
     }
 
     pub fn command(&mut self, c: Command) -> Reply {
@@ -461,6 +491,25 @@ mod tests {
         assert!(audio.samples.iter().any(|s| s.abs() > 0.01));
         assert!(command(&mut h, json!({"cmd": "undo"})).ok);
         assert!(h.state().song.unwrap().tracks.iter().all(|t| t.name != "scratch1"));
+    }
+
+    #[test]
+    fn a_phone_gets_the_songs_sounds_and_plays_keys_into_it() {
+        let mut h = Host::new(1);
+        assert!(h.sound(&SoundAsk::Hits).is_err(), "no song yet");
+        command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3}));
+        let hits = h.sound(&SoundAsk::Hits).unwrap();
+        assert_eq!(hits.len(), h.blueprint().unwrap().drums.len());
+        let keys = SoundAsk::Keys { sound: "epiano".into(), low: 59, high: 65, step: 3 };
+        assert!((h.sound(&keys).unwrap()[0].1.secs() - 3.0 * pads::SLOT_SECS).abs() < 1e-6);
+        let ask: SoundAsk =
+            serde_json::from_value(json!({"kind": "record", "track": "kick", "bar": 0, "bars": 1})).unwrap();
+        assert!(h.sound(&ask).unwrap()[0].1.secs() > 0.0);
+        let from = h.state().song.unwrap().sections[0].name.clone();
+        let notes = json!([{"t": 0, "d": 1, "p": 60}, {"t": 1, "d": 1, "p": 64}]);
+        let r = command(&mut h, json!({"cmd": "add_notes", "from": from, "notes": notes, "sounds": ["epiano"]}));
+        assert!(r.ok, "{}", r.message);
+        assert!(h.state().song.unwrap().tracks.iter().any(|t| t.name == "played"));
     }
 
     #[test]

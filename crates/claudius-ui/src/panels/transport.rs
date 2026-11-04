@@ -147,6 +147,9 @@ pub fn top_row(ui: &mut Ui, cx: &mut Cx) {
                     cx.view.record.show();
                 }
             }
+        }
+        // the demo in a browser plays along with a phone through the site's relay
+        if cx.server.is_some() || cfg!(target_arch = "wasm32") {
             let served = cx.state.phone.is_some();
             let tip = if served {
                 "a phone is playing along: show its code"

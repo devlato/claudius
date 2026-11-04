@@ -39,6 +39,12 @@ const FOUND = {
 };
 
 test.describe("the samples Worker", () => {
+  // run as a Worker runs off the edge, with no cache: serve.mjs puts one in for the test server, and a spec that loads it
+  // (the smoke test does) may have run in this process first, keeping the previews these tests serve
+  test.beforeEach(() => {
+    delete globalThis.caches;
+  });
+
   test("searches Openverse for the demo's words with its filters, and passes on the loops it can play", async () => {
     let body;
     const asked = await upstream(

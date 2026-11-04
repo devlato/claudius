@@ -1,5 +1,7 @@
 // claudius on a phone: pads, keys and a turntable that play the song's own sounds here (so a tap sounds at once,
-// whatever the Wi-Fi does), follow the studio's transport, and send what was played back into the song as a take.
+// whatever the Wi-Fi does), follow the studio's transport, and send what was played back into the song as a take. The
+// page reaches its claudius over HTTP when claudius serves it, or, with `?room=`, the studio demo in a browser tab,
+// through a room of the site's relay (site/worker/room.js), where each request is a message with an answer back.
 "use strict";
 
 const $ = (id) => document.getElementById(id);
@@ -13,6 +15,24 @@ let ctx = null;
 let song = null;
 let mode = "pads";
 const hits = new Map();
+
+/** what is said of the studio being out of reach: cleared once it answers again */
+const LOST = "no lost";
+
+/** how a failure is said: as the studio out of reach (the link's own failures, and a network's), or as what it is */
+function trouble(e) {
+  return e.lost || e instanceof TypeError ? LOST : "no";
+}
+
+/** a failure of the link to the demo: none of the demo's own answers; a quiet one is only to be asked again */
+function unreachable(why, quiet = false) {
+  return Object.assign(new Error(why), { lost: true, quiet });
+}
+
+/** clears what was said of the studio being out of reach */
+function found() {
+  if ($("said").classList.contains("lost")) say("");
+}
 
 function say(text, kind) {
   const f = $("said");
@@ -31,8 +51,120 @@ function loading(text) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+const ROOM = new URLSearchParams(location.search).get("room");
+const link = ROOM
+  ? relay(ROOM)
+  : {
+      get: (path) => fetch(path, { cache: "no-store" }),
+      post: (path, body) =>
+        fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }),
+    };
+
+/** an answer that came through the relay, read as fetch's are */
+function answer(status, body) {
+  return {
+    ok: status < 400,
+    status,
+    json: async () => (typeof body === "string" ? JSON.parse(body) : body),
+    text: async () => (typeof body === "string" ? body : JSON.stringify(body)),
+    arrayBuffer: async () => body,
+  };
+}
+
+/**
+ * Requests to the demo in room `room`, as messages `{id, method, path, body}`; it answers each with `{id, status,
+ * body}`, or a sound with the request's id (4 bytes, little-endian) before it. While the room says the demo is gone,
+ * a request waits a few seconds, in case the tab comes back.
+ */
+function relay(room) {
+  const waiting = new Map();
+  /** what failed waiting for the demo, by id: a take the demo answers after all is still news */
+  const failed = new Map();
+  let ws = null;
+  let opening = null;
+  let next = 1;
+  /** the room has no demo: it says so, and says when one is back, and what is asked meanwhile goes nowhere */
+  let gone = false;
+  const fail = (id, why, quiet = false) => {
+    const w = waiting.get(id);
+    if (!w) return;
+    waiting.delete(id);
+    clearTimeout(w.timer);
+    failed.set(id, w.path);
+    if (failed.size > 64) failed.delete(failed.keys().next().value);
+    w.no(unreachable(why, quiet));
+  };
+  const settle = (id, status, body) => {
+    const w = waiting.get(id);
+    if (!w) {
+      // the demo kept its answer while it was away: a take it made after all is said
+      if (failed.get(id) === "api/take" && body && typeof body.message === "string") say(`the demo got the take: ${body.message}`, body.ok ? "ok" : "no");
+      failed.delete(id);
+      return;
+    }
+    waiting.delete(id);
+    clearTimeout(w.timer);
+    w.ok(answer(status, body));
+  };
+  const open = () =>
+    new Promise((ok, no) => {
+      const s = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/relay/${room}?as=phone`);
+      s.binaryType = "arraybuffer";
+      s.onopen = () => {
+        // a room with no demo says so at once
+        ws = s;
+        gone = false;
+        ok();
+      };
+      s.onerror = () => no(unreachable("the site's relay cannot be reached"));
+      s.onclose = () => {
+        ws = null;
+        for (const id of [...waiting.keys()]) fail(id, "the connection to the demo closed");
+      };
+      s.onmessage = (e) => {
+        if (typeof e.data !== "string") return settle(new DataView(e.data).getUint32(0, true), 200, e.data.slice(4));
+        const m = JSON.parse(e.data);
+        if (m.event === "gone") {
+          gone = true;
+          for (const id of [...waiting.keys()]) fail(id, "the demo is not open");
+          say("the demo is not open: open it again and scan its code", LOST);
+        } else if (m.event === "back") {
+          // a demo joined the room, in place of one gone or of one still there (opened again elsewhere): what was
+          // asked of the one before is asked again of it
+          gone = false;
+          for (const id of [...waiting.keys()]) fail(id, "the demo was opened again", true);
+          back();
+        } else if (m.id) settle(m.id, m.status, m.body);
+      };
+    });
+  async function ask(method, path, body) {
+    if (!ws) {
+      opening ??= open().finally(() => (opening = null));
+      await opening;
+    }
+    if (gone) throw unreachable("the demo is not open");
+    const id = next++;
+    return new Promise((ok, no) => {
+      waiting.set(id, { ok, no, path: path.split("?")[0] });
+      ws.send(JSON.stringify({ id, method, path, body }));
+      // the demo's engine renders a whole song at a time, and what a phone asks for meanwhile waits for it
+      waiting.get(id).timer = setTimeout(() => fail(id, "the demo did not answer"), 120_000);
+    });
+  }
+  return { get: (path) => ask("GET", path), post: (path, body) => ask("POST", path, body) };
+}
+
+/** the demo answers again: what did not load while it was away is asked for again */
+function back() {
+  found();
+  if (!ctx || !song) return;
+  if (!keys.buf) keys.name = "";
+  if (!deck.buf) deck.name = "";
+  loadSounds();
+}
+
 async function sound(url) {
-  const r = await fetch(url, { cache: "no-store" });
+  const r = await link.get(url);
   if (!r.ok) throw new Error(await r.text());
   return ctx.decodeAudioData(await r.arrayBuffer());
 }
@@ -57,11 +189,13 @@ let offset = 0;
 let transport = { playing: false, at: 0, since: 0 };
 /** since when the clock has not been reached (the page's time), while it has not */
 let lost = null;
+/** when the clock last answered (the page's time) */
+let reached = 0;
 
 async function tick() {
   const t0 = performance.now();
   try {
-    const r = await fetch("api/clock", { cache: "no-store" });
+    const r = await link.get("api/clock");
     if (!r.ok) throw new Error(await r.text());
     const c = await r.json();
     const t1 = performance.now();
@@ -70,11 +204,15 @@ async function tick() {
     offset = trips.reduce((a, b) => (b.rtt < a.rtt ? b : a)).offset;
     transport = c;
     lost = null;
+    reached = t1;
+    found();
   } catch (e) {
+    // what failed after an answer came for something asked since says nothing of the studio now
+    if (t0 < reached || e.quiet) return;
     // a blip on the Wi-Fi keeps the song going as it was; only a studio gone for a while stops it here
     lost ??= performance.now();
     if (performance.now() - lost > 5000) transport = { playing: false, at: 0, since: 0 };
-    say(`cannot reach the studio: ${e.message}`, "no");
+    say(`cannot reach the studio: ${e.message}`, LOST);
   }
 }
 
@@ -107,7 +245,7 @@ function sectionAt(secs) {
 async function watch() {
   for (;;) {
     try {
-      const r = await fetch(`api/song?after=${song ? song.version : 0}`, { cache: "no-store" });
+      const r = await link.get(`api/song?after=${song ? song.version : 0}`);
       if (r.status === 404) {
         song = null;
         $("title").textContent = "No song yet";
@@ -120,8 +258,8 @@ async function watch() {
       const s = await r.json();
       if (!song || s.version !== song.version) open(s);
     } catch (e) {
-      say(`cannot reach the studio: ${e.message}`, "no");
-      await sleep(3000);
+      if (!e.quiet) say(`cannot reach the studio: ${e.message}`, LOST);
+      await sleep(e.quiet ? 0 : 3000);
     }
   }
 }
@@ -192,14 +330,16 @@ async function loadSounds() {
   if (!song) return;
   const v = song.version;
   await Promise.all(
-    song.lanes.map(async (lane) => {
-      try {
-        const b = await sound(`api/hits/${encodeURIComponent(lane)}`);
-        if (song && song.version === v) hits.set(lane, b);
-      } catch (e) {
-        say(`no sound for ${lane}: ${e.message}`, "no");
-      }
-    }),
+    song.lanes
+      .filter((lane) => !hits.has(lane))
+      .map(async (lane) => {
+        try {
+          const b = await sound(`api/hits/${encodeURIComponent(lane)}`);
+          if (song && song.version === v) hits.set(lane, b);
+        } catch (e) {
+          if (!e.quiet) say(`no sound for ${lane}: ${e.message}`, trouble(e));
+        }
+      }),
   );
   if (mode === "keys") loadKeys();
   if (mode === "deck") loadRecord();
@@ -297,9 +437,10 @@ async function loadKeys() {
   try {
     const b = await sound(`api/keys?sound=${encodeURIComponent(s)}&low=${low}&high=${low + 27}&step=3`);
     if (keys.name === name) keys.buf = b;
-    done();
   } catch (e) {
-    say(e.message, "no");
+    if (!e.quiet) say(e.message, trouble(e));
+  } finally {
+    done();
   }
 }
 
@@ -408,9 +549,10 @@ async function loadRecord() {
   try {
     const b = await sound(`api/record?track=${encodeURIComponent(track)}&bar=${bar}&bars=${bars}`);
     if (deck.name === name) Object.assign(deck, { buf: b, track, bar, bars });
-    done();
   } catch (e) {
-    say(e.message, "no");
+    if (!e.quiet) say(e.message, trouble(e));
+  } finally {
+    done();
   }
   if (!deck.node) {
     deck.node = ctx.createScriptProcessor(1024, 0, 2);
@@ -590,11 +732,7 @@ async function send() {
   }
   say("sending the take…");
   try {
-    const r = await fetch("api/take", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(cmd),
-    });
+    const r = await link.post("api/take", cmd);
     const reply = r.ok ? await r.json() : { ok: false, message: await r.text() };
     say(reply.message, reply.ok ? "ok" : "no");
   } catch (e) {

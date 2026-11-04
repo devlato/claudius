@@ -14,4 +14,5 @@ publish = false
 claudius = { path = "../claudius", default-features = false }
 claudius-api = { path = "../claudius-api" }
 claudius-packs = { path = "../claudius-packs", default-features = false }
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
