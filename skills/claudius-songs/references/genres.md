@@ -11,6 +11,14 @@ harmony with `prog()` and let the bass and chords follow it (`chord("prog")`), s
 other and with what the critic checks the notes against. `catalog`
 lists the genres with their tempo ranges, and user genres when the person has added some.
 
+Any of them can be built on samples from free libraries: `new_song` with `sampled: true`, or with `sample_search`
+naming a kind of record ("70s soul", "bossa nova guitar", "film score"; not the genre's own name, which finds other
+people's tracks rather than records to sample). The song takes a phrase's key, tempo and chords, played faster or
+slower by whole semitones as a sampler would, in place of the genre's chords or keys, with a break and a texture from
+what the genre's producers dig for. Trip-hop, boom bap, lo-fi, jungle, big beat and filter house are built on samples
+unless `sampled: false`. When the person wants a sampled song, say which record kind you searched for, and offer
+another if the phrase is not to their taste.
+
 ## house (120-126 BPM)
 
 Four on the floor, offbeat hats, claps on 2 and 4, soulful 7th chords, a bouncing offbeat bass.
@@ -140,8 +148,8 @@ track("hook", n("<[0 2 4 2] [4 5 4 ~]>").octave(5).s("pluck").delay(0.25));
 
 Built on samples, as trip-hop records are: a slowed drum break, a dark phrase from a recording (film-score strings, a
 harpsichord), vinyl crackle, a deep dub bass under them, strings that swell in the hooks, dub delays and long reverbs.
-The first `new_song` of trip-hop gathers its samples from free libraries before it composes, which takes a minute or
-two; the songs after it draw on what was gathered. The song takes the phrase's key, tempo and chords, and its drum
+A `new_song` of trip-hop gathers a few samples from free libraries before it composes, which takes a minute or two,
+until the genre has as many as it keeps; the songs after that draw on what was gathered. The song takes the phrase's key, tempo and chords, and its drum
 lanes play the break's own hits. Without samples (offline, or a shared claudius) it plays electric piano and strings
 instead. A sketch from patterns, without samples:
 

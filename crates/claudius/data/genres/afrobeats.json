@@ -142,6 +142,20 @@
       "mix": {"bus": "drums", "level_db": -4}
     }
   ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["highlife guitar", "afrobeat horns", "west african guitar", "kora", "palm wine guitar", "afro jazz", "african choir", "juju music", "soukous guitar", "ethio jazz", "balafon", "afrobeat"],
+      "listen": "a bright west african highlife guitar",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.2,
+      "pitch": [-2, 3],
+      "instead": ["guitar", "keys"],
+      "mix": {"bus": "music", "duck": 0.2, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 150, "res": 0.05}]}
+    }
+  },
   "transitions": {"riser": false, "impact": true, "downlifter": false, "reverse_crash": true, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.25, "level_db": -3}},
   "mix": {
     "lufs": -9.5,

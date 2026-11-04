@@ -134,6 +134,38 @@
       "mix": {"reverb": 0.4}
     }
   ],
+  "sampling": {
+    "by_default": true,
+    "break": {
+      "search": ["jazz drum loop", "dusty drum loop", "brush drums", "hip hop drum loop", "jazz drums", "soul drum break"],
+      "listen": "a soft dusty lo-fi hip hop drum loop",
+      "seconds": [2, 60],
+      "keep": 4,
+      "chance": 0.5,
+      "chop": 0.2,
+      "instead": ["kick", "snare", "hat"],
+      "mix": {"bus": "drums", "fx": [{"fx": "filter", "mode": "lp", "cutoff": 9000, "res": 0.05}, {"fx": "saturate", "kind": "tape", "drive_db": 3, "mix": 0.5}]}
+    },
+    "phrase": {
+      "search": ["jazz piano", "rhodes", "jazz guitar", "bossa nova", "vibraphone", "soul", "jazz trio", "saxophone", "nylon guitar", "smooth jazz", "piano ballad", "jazz ballad", "70s soul", "flute", "harp"],
+      "listen": "a mellow jazz piano or rhodes from an old record",
+      "seconds": [6, 900],
+      "keep": 8,
+      "chance": 0.95,
+      "chop": 0.3,
+      "pitch": [-4, 2],
+      "instead": ["keys"],
+      "mix": {"bus": "music", "fx": [{"fx": "filter", "mode": "hp", "cutoff": 120, "res": 0.05}, {"fx": "tape", "wow": 0.4, "flutter": 0.3, "drive_db": 3, "lowpass_hz": 7500}]}
+    },
+    "texture": {
+      "search": ["vinyl crackle", "rain", "cassette hiss", "tape hiss", "cafe ambience", "rain on window", "city night", "record crackle"],
+      "listen": "soft vinyl crackle and rain",
+      "seconds": [5, 600],
+      "keep": 4,
+      "chance": 0.9,
+      "mix": {"bus": "music"}
+    }
+  },
   "transitions": {"riser": false, "impact": false, "downlifter": false, "reverse_crash": false, "mix": {"bus": "fx"}},
   "mix": {
     "lufs": -12.5,

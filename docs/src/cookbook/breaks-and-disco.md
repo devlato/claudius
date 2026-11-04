@@ -28,7 +28,7 @@ send_fx(#{ delay: #{ fx: "delay", beats: 0.75, feedback: sections(0.3, #{ "break
 Why:
 
 - **What the genre already does.** It is built on samples from free online libraries
-  ([Genres built on samples](../guide/online-samples.md#genres-built-on-samples)): here a 96 BPM drum break, whose own
+  ([Songs built on samples](../guide/online-samples.md#songs-built-on-samples)): here a 96 BPM drum break, whose own
   kick, snare and hat the drum lanes play; two bars of "Scary & Suspense", a string phrase the song takes its key
   (E flat minor), tempo and chords from; vinyl crackle under it all; and a sub bass, cellos and a high melody around
   them. The drums go through parallel compression with tape drive and a crushed, lowpassed copy; the music bus dips

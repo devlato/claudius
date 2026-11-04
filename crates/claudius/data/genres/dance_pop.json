@@ -142,6 +142,20 @@
     }
   ],
   "loops": [],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["disco strings", "piano chords", "funk guitar", "gospel choir", "synth pop", "80s pop", "disco", "string section", "brass section", "pop piano"],
+      "listen": "an uplifting disco string section",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.2,
+      "pitch": [-2, 5],
+      "instead": ["chords"],
+      "mix": {"bus": "music", "duck": 0.3, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 180, "res": 0.05}]}
+    }
+  },
   "transitions": {
     "riser": true,
     "impact": true,

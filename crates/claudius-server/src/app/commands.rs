@@ -135,7 +135,7 @@ impl App {
     pub fn command(self: &Arc<Self>, c: Command) -> Reply {
         let v = self.version();
         match c {
-            Command::NewSong { genre, seed, bpm, key, loops } => {
+            Command::NewSong { genre, seed, bpm, key, loops, sampled, sample_search } => {
                 let g = match genres::get(&genre) {
                     Ok(g) => g,
                     Err(e) => {
@@ -153,8 +153,17 @@ impl App {
                     Err(k) => return no(format!("cannot read key '{k}' (try \"A minor\", \"F#m\", \"Eb\")"), v),
                 };
                 let seed = seed.unwrap_or_else(now_seed);
-                let opts = Options { bpm, key, family: loops && self.lib.is_some(), ..Default::default() };
-                if let Some(wanted) = self.samples_wanted(&g) {
+                let sample_search = sample_search.as_deref().and_then(claudius::sampling::words);
+                let opts = Options {
+                    bpm,
+                    key,
+                    family: loops && self.lib.is_some(),
+                    sampled,
+                    sample_search,
+                    ..Default::default()
+                };
+                let on = claudius::sampling::sampled(&g, opts.sampled, opts.sample_search.as_deref());
+                if let Some(wanted) = self.samples_wanted(&g, &opts) {
                     if let Err(busy) = self.take_slot(&format!("sampling for {}", g.name)) {
                         return busy;
                     }
@@ -169,7 +178,7 @@ impl App {
                     return ok(msg, self.version());
                 }
                 self.new_songs.fetch_add(1, Ordering::Relaxed);
-                let lib = if g.sampling.is_some() { &self.samples_lib } else { &self.lib };
+                let lib = if on { &self.samples_lib } else { &self.lib };
                 let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
                 let bp = compose::generate(&g, seed, &opts, lib.as_deref().map(|l| l as &dyn compose::Library));
                 let msg = format!(

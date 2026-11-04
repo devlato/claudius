@@ -6,6 +6,16 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+A song of any genre can be built on samples from free libraries, as records built on samples are: a phrase the song
+takes its key, tempo and chords from, a drum break, a texture. Each genre digs for its own kinds of record (house for
+disco, gospel and philly soul, trap for orchestral strings, choirs and flutes, afrobeats for highlife guitar), tried in
+an order each song's seed picks, or for words of your own (`new_song` with `sample_search: "70s soul"`,
+`claudius make --sample-search`). A phrase plays as a sampler plays a record, faster or slower by whole semitones until
+it falls in the genre's tempo, and the song takes the tempo and key that come of it, so it is resampled, not stretched,
+and in tune. Lo-fi, jungle, big beat and filter house are now built on samples by default, like trip-hop and boom bap;
+`sampled: false` (`--unsampled`) makes them of their own sounds. A genre's collection grows a few recordings with each
+new song ([Songs built on samples](https://claudius.devlato.com/docs/guide/online-samples.html#songs-built-on-samples)).
+
 A phone plays along: the studio's new phone button shows a QR code that opens drum pads, keys and a turntable on a
 phone on the same Wi-Fi, with the song's own sounds. The phone plays them itself, so a tap sounds at once, and follows
 the studio as it plays, so a take lands where it was heard. A take on the pads becomes the song's drum lanes, on the

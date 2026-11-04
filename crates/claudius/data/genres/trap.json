@@ -249,6 +249,20 @@
       "mix": {"reverb": 0.3, "delay": 0.25}
     }
   ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["orchestral strings", "choir", "piano melody", "flute melody", "harp", "guitar melody", "bells", "cinematic", "music box", "saxophone", "violin", "soul", "string quartet", "eastern melody", "organ"],
+      "listen": "a haunting orchestral melody",
+      "seconds": [6, 900],
+      "keep": 8,
+      "chance": 0.95,
+      "chop": 0.2,
+      "pitch": [-5, 5],
+      "instead": ["keys"],
+      "mix": {"bus": "music", "fx": [{"fx": "filter", "mode": "hp", "cutoff": 180, "res": 0.05}]}
+    }
+  },
   "transitions": {
     "riser": false,
     "impact": true,

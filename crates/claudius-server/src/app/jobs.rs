@@ -186,23 +186,48 @@ impl App {
         }
     }
 
-    /// what a genre built on samples has none of yet, to gather before a song of it is made ("a break and a texture");
-    /// none when it has some of each, or gathers nothing here (said in the log, so that the song's sound is explained)
-    pub(super) fn samples_wanted(&self, g: &genres::GenreProfile) -> Option<String> {
+    /// What a song built on samples has too few of, to gather before it is made ("a phrase for \"70s soul\" and
+    /// another break"): a role holding fewer than its genre keeps, which the libraries had more of when last asked;
+    /// none when it has enough of each, or gathers nothing here (said in the log, so that the song's sound is
+    /// explained, when it has none at all).
+    pub(super) fn samples_wanted(&self, g: &genres::GenreProfile, opts: &compose::Options) -> Option<String> {
         let lib = self.samples_lib.as_ref()?;
-        let missing: Vec<&str> = Role::ALL
+        if !sampling::sampled(g, opts.sampled, opts.sample_search.as_deref()) {
+            return None;
+        }
+        let asked = sampling::Ask { seed: None, search: opts.sample_search.clone(), most: 0 };
+        let dug_out = self.dug_out.lock().unwrap_or_else(|e| e.into_inner());
+        let mut none = false;
+        let missing: Vec<String> = Role::ALL
             .into_iter()
-            .filter(|&r| sampling::need(g, r).is_some() && lib.prepared_for(r, &g.name) == 0)
-            .map(|r| match r {
-                Role::Break => "a break",
-                Role::Phrase => "a phrase",
-                Role::Texture => "a texture",
+            .filter_map(|r| {
+                let n = sampling::need(g, r)?;
+                let have = lib.prepared_for(r, &g.name, asked.asked(r));
+                none |= have == 0;
+                (have < n.keep && !dug_out.contains(&sampling_key(g, r, asked.asked(r)))).then(|| {
+                    let what = match (r, have) {
+                        (Role::Break, 0) => "a break",
+                        (Role::Break, _) => "another break",
+                        (Role::Phrase, 0) => "a phrase",
+                        (Role::Phrase, _) => "another phrase",
+                        (Role::Texture, 0) => "a texture",
+                        (Role::Texture, _) => "another texture",
+                    };
+                    match asked.asked(r) {
+                        Some(w) => format!("{what} for \"{w}\""),
+                        None => what.to_string(),
+                    }
+                })
             })
             .collect();
+        drop(dug_out);
         if missing.is_empty() {
             return None;
         }
         if !self.gather {
+            if !none {
+                return None;
+            }
             self.update(|s| {
                 s.say(format!(
                     "{} has no samples here yet, so it plays what stands in for them \
@@ -219,7 +244,7 @@ impl App {
         })
     }
 
-    /// gathers what a genre built on samples plays (with the ears, once they have loaded), then makes the new song with
+    /// gathers what a song built on samples plays (with the ears, once they have loaded), then makes the new song with
     /// what it found, unless a newer one has been asked for since (`asked`: the new song it was); stopping it makes the
     /// song with what is there
     pub(super) fn sampled_song_job(
@@ -238,7 +263,10 @@ impl App {
         let mut tried = 0;
         let ix = claudius::library::prepared::Index::open();
         let stop = || self.cancel.load(Ordering::Relaxed);
-        let got = sampling::gather(&g, ears, &claudius_packs::online::Policy::default(), &ix, &stop, &mut |line| {
+        // a few new recordings a song: the rest come with the songs after it
+        let ask = sampling::Ask { seed: Some(seed), search: opts.sample_search.clone(), most: 2 };
+        let policy = claudius_packs::online::Policy::default();
+        let got = sampling::gather(&g, &ask, ears, &policy, &ix, &stop, &mut |line| {
             tried += 1;
             self.progress(&label, tried as f32 / expected.max(1) as f32 * 0.95);
             self.update(|s| s.say(format!("sampling: {line}")));
@@ -246,6 +274,16 @@ impl App {
         match got {
             Ok(got) => {
                 let n = got.added.len();
+                if !self.cancel.load(Ordering::Relaxed) {
+                    let mut dug_out = self.dug_out.lock().unwrap_or_else(|e| e.into_inner());
+                    for r in Role::ALL {
+                        let Some(need) = sampling::need(&g, r) else { continue };
+                        let short = lib.prepared_for(r, &g.name, ask.asked(r)) < need.keep;
+                        if short && !got.added.iter().any(|p| p.role == r) {
+                            dug_out.insert(sampling_key(&g, r, ask.asked(r)));
+                        }
+                    }
+                }
                 lib.add_prepared(got.added);
                 self.update(|s| {
                     for note in &got.notes {
@@ -528,4 +566,12 @@ impl App {
 
 fn size_gb(packs: &[claudius_packs::PackInfo]) -> f64 {
     packs.iter().map(|p| p.size_mb as f64).sum::<f64>() / 1000.0
+}
+
+/// what `App::dug_out` knows a role's records by: the words asked for it (for any genre), else the genre's own
+pub(super) fn sampling_key(g: &genres::GenreProfile, r: Role, asked: Option<&str>) -> String {
+    match asked {
+        Some(w) => format!("{} for \"{w}\"", r.name()),
+        None => format!("{} of {}", r.name(), g.name.split('+').next().unwrap_or(&g.name)),
+    }
 }

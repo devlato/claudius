@@ -58,6 +58,20 @@ pub struct Prepared {
     pub z: Option<f64>,
     /// the online sound it was cut from (`freesound:629052`)
     pub source: String,
+    /// the words a person searched for it with (`sampling::words`); none: the genre's own searches found it
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asked: Option<String>,
+}
+
+impl Prepared {
+    /// whether a song of `genre` draws on it: one asked for `asked`, a sample gathered for those words (for any
+    /// genre); else one the genre's own searches found
+    pub fn fits(&self, genre: &str, asked: Option<&str>) -> bool {
+        match asked {
+            Some(words) => self.asked.as_deref() == Some(words),
+            None => self.asked.is_none() && self.genre == genre,
+        }
+    }
 }
 
 /// where prepared samples are written: `<samples>/prepared`
@@ -102,9 +116,9 @@ impl Index {
         list.into_iter().filter(|p| Path::new(&p.path).is_file()).collect()
     }
 
-    /// the prepared samples of `role` for `genre`
-    pub fn of(&self, role: Role, genre: &str) -> Vec<Prepared> {
-        self.all().into_iter().filter(|p| p.role == role && p.genre == genre).collect()
+    /// the prepared samples of `role` a song of `genre` draws on, asked for `asked` (`Prepared::fits`)
+    pub fn of(&self, role: Role, genre: &str, asked: Option<&str>) -> Vec<Prepared> {
+        self.all().into_iter().filter(|p| p.role == role && p.fits(genre, asked)).collect()
     }
 
     /// list a prepared sample, in place of one cut to the same file
@@ -155,12 +169,19 @@ mod tests {
             chords: Vec::new(),
             z: Some(2.0),
             source: "freesound:1".into(),
+            asked: None,
         };
         ix.add(p.clone()).unwrap();
         ix.add(Prepared { bpm: 93.0, ..p.clone() }).unwrap();
-        assert_eq!(ix.of(Role::Break, "trip_hop").len(), 1);
-        assert_eq!(ix.of(Role::Break, "trip_hop")[0].bpm, 93.0);
-        assert!(ix.of(Role::Phrase, "trip_hop").is_empty());
+        assert_eq!(ix.of(Role::Break, "trip_hop", None).len(), 1);
+        assert_eq!(ix.of(Role::Break, "trip_hop", None)[0].bpm, 93.0);
+        assert!(ix.of(Role::Phrase, "trip_hop", None).is_empty());
+        // one asked for by its words is a song's that asks for them, of any genre, and not the genre's own
+        ix.add(Prepared { role: Role::Phrase, asked: Some("70s soul".into()), ..p.clone() }).unwrap();
+        assert_eq!(ix.of(Role::Phrase, "house", Some("70s soul")).len(), 1);
+        assert!(
+            ix.of(Role::Phrase, "trip_hop", None).is_empty() && ix.of(Role::Phrase, "house", Some("soul")).is_empty()
+        );
         std::fs::remove_file(&file).unwrap();
         assert!(ix.all().is_empty());
         assert!(!ix.rejected(Role::Phrase, "freesound:2"));

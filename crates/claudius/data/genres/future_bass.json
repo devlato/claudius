@@ -158,6 +158,20 @@
       "mix": {"delay": 0.25, "reverb": 0.2, "duck": 0.4}
     }
   ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["kalimba", "music box", "choir", "harp", "piano", "flute", "vocal", "chimes", "glockenspiel"],
+      "listen": "a bright kalimba melody",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.2,
+      "pitch": [-3, 5],
+      "instead": ["pad"],
+      "mix": {"bus": "music", "duck": 0.35, "reverb": 0.2, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 200, "res": 0.05}]}
+    }
+  },
   "transitions": {
     "riser": true,
     "impact": true,

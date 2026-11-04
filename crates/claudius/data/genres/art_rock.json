@@ -187,6 +187,28 @@
     }
   ],
   "loops": [],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["mellotron", "string quartet", "chamber orchestra", "church organ", "choir", "music box", "sitar", "harmonium", "tape loop", "orchestral", "harp", "piano ballad"],
+      "listen": "a melancholy string quartet or mellotron passage",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.15,
+      "pitch": [-3, 2],
+      "instead": ["strings"],
+      "mix": {"bus": "music", "reverb": 0.25, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 120, "res": 0.05}, {"fx": "tape", "wow": 0.3, "flutter": 0.2, "drive_db": 2, "lowpass_hz": 9000}]}
+    },
+    "texture": {
+      "search": ["radio static", "tape hiss", "field recording", "room tone", "rain", "shortwave radio"],
+      "listen": "the hiss and static of an old radio",
+      "seconds": [5, 600],
+      "keep": 3,
+      "chance": 0.6,
+      "mix": {"bus": "music", "level_db": -2}
+    }
+  },
   "transitions": {
     "riser": false,
     "impact": false,

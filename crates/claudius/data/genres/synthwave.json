@@ -163,6 +163,28 @@
       "mix": {"reverb": 0.3, "duck": 0.3}
     }
   ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["synth pop", "80s", "film score", "retro", "saxophone", "80s funk", "electric piano", "space"],
+      "listen": "an 80s synth pop phrase",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.6,
+      "chop": 0.2,
+      "pitch": [-3, 3],
+      "instead": ["pad"],
+      "mix": {"bus": "music", "reverb": 0.25, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 160, "res": 0.05}, {"fx": "tape", "wow": 0.3, "flutter": 0.2, "drive_db": 2, "lowpass_hz": 10000}]}
+    },
+    "texture": {
+      "search": ["vhs", "tape hiss", "crt hum", "arcade", "radio static", "city night", "rain", "neon hum"],
+      "listen": "the hiss of an old vhs tape",
+      "seconds": [5, 600],
+      "keep": 4,
+      "chance": 0.8,
+      "mix": {"bus": "music", "level_db": -2}
+    }
+  },
   "transitions": {
     "riser": true,
     "impact": false,

@@ -158,6 +158,30 @@
       "mix": {"bus": "drums", "level_db": -3}
     }
   ],
+  "sampling": {
+    "by_default": false,
+    "break": {
+      "search": ["disco drum loop", "funk drum loop", "percussion loop", "conga loop"],
+      "listen": "a funky disco percussion loop",
+      "seconds": [2, 60],
+      "keep": 4,
+      "chance": 0.5,
+      "chop": 0.15,
+      "instead": ["top", "shaker"],
+      "mix": {"bus": "drums", "fx": [{"fx": "filter", "mode": "hp", "cutoff": 250, "res": 0.05}]}
+    },
+    "phrase": {
+      "search": ["disco", "disco strings", "funk guitar", "boogie", "80s funk", "philly soul", "brass section", "disco bass", "soul", "string section", "clavinet"],
+      "listen": "a groovy disco string and guitar phrase",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.2,
+      "pitch": [-2, 5],
+      "instead": ["strings", "guitar"],
+      "mix": {"bus": "music", "duck": 0.3, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 160, "res": 0.05}]}
+    }
+  },
   "transitions": {
     "riser": true,
     "impact": true,

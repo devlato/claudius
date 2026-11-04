@@ -44,10 +44,13 @@ them.
 | `--stems` | off | also writes every track to `stems/<track>.wav` (32-bit float) |
 | `--samples` | `0.75` | the chance that a drum lane uses a one-shot cut from Apple Loops or your library instead of a synthesized voice |
 | `--synth-only` | off | synthesizes every sound: no sample packs, Apple Loops or user library |
-| `--no-library` | off | leaves out Apple Loops and your user library; the sample packs, and the samples a [genre built on samples](online-samples.md#genres-built-on-samples) gathered, still play |
-| `--offline` | off | downloads no samples: a [genre built on samples](online-samples.md#genres-built-on-samples) plays what was gathered before, or the layers it plays without them |
+| `--no-library` | off | leaves out Apple Loops and your user library; the sample packs, and the samples a [song built on samples](online-samples.md#songs-built-on-samples) gathered, still play |
+| `--offline` | off | downloads no samples: a [song built on samples](online-samples.md#songs-built-on-samples) plays what was gathered before, or the layers it plays without them |
 | `--sample <file>` | none | flips a recording into the song, warped to its tempo and key; repeatable |
 | `--loops` | off | builds the song around a family of Apple Loops (their chords, bass and beat), GarageBand style |
+| `--sampled` | as the genre is | builds it on samples from free libraries, as the genre's producers sample: a phrase it takes its key, tempo and chords from, a break, a texture ([Songs built on samples](online-samples.md#songs-built-on-samples)); trip-hop, boom bap, lo-fi, jungle, big beat and filter house are by default |
+| `--unsampled` | off | makes it of the genre's own sounds, without samples from free libraries |
+| `--sample-search <words>` | none | searches the libraries for its phrase with your words, a kind of record (`"70s soul"`, `"bossa nova guitar"`); implies `--sampled` |
 | `--no-ears` | off | judges with meters and theory only, without loading earshot's models |
 | `--refs <path>` | none | reference tracks or folders; with two or more, the verdict scores how typical the song is of them |
 | `--tags` | off | also runs the AudioSet tagger and prints its labels as held-out evidence |
@@ -438,7 +441,8 @@ freesound:629052  "Crunchy Drum Break 2 [128bpm]" by deadrobotmusic, CC0 1.0, 15
 | `search --json` | | prints the results as JSON |
 | `get <id>` | | downloads a sound a search found, with its credit beside it |
 | `list` | | lists the downloaded sounds and their credits |
-| `gather <genre>` | | gathers what a [genre built on samples](online-samples.md#genres-built-on-samples) plays: searches, downloads, cuts, and with the ears keeps the best |
+| `gather <genre>` | | gathers what the genre's [songs built on samples](online-samples.md#songs-built-on-samples) play, until it has as many as it keeps: searches, downloads, cuts, and with the ears keeps the best |
+| `gather <genre> --search <words>` | | gathers phrases for your words instead, for the songs that ask for them |
 | `--us-public-domain` | | `search` and `get` also keep recordings in the public domain by age |
 | `--share-alike` | | `search` and `get` also keep CC BY-SA sounds |
 
@@ -477,7 +481,7 @@ assistants and the HTTP API share. They take the same session flags:
 | `--no-ears` | off | no earshot models; verdicts use meters and theory |
 | `--synth-only` | off | synthesizes every sound: no sample packs, Apple Loops or user library |
 | `--no-library` | off | no Apple Loops or user library; the sample packs, and the samples a genre built on them gathered, still play |
-| `--offline` | off | gathers no samples: a [genre built on samples](online-samples.md#genres-built-on-samples) plays what was gathered before, or what stands in for it |
+| `--offline` | off | gathers no samples: a [song built on samples](online-samples.md#songs-built-on-samples) plays what was gathered before, or what stands in for it |
 | `--no-auto-render` | off | renders only when asked, instead of after every change |
 | `--web <dir>` | found automatically (`CLAUDIUS_WEB`) | the built web studio; see [Files and settings](files.md#the-web-studio) |
 

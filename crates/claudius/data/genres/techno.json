@@ -183,6 +183,28 @@
       "mix": {"bus": "drums", "level_db": -3}
     }
   ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["synth stab", "jazz chord", "dub chord", "industrial", "spoken word", "organ stab", "string stab", "detroit"],
+      "listen": "a dark chord stab",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.6,
+      "chop": 0.3,
+      "pitch": [-3, 3],
+      "instead": ["chords"],
+      "mix": {"bus": "music", "delay": 0.2, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 250, "res": 0.05}]}
+    },
+    "texture": {
+      "search": ["field recording", "factory", "machine", "industrial noise", "train", "drone", "subway", "metal", "warehouse", "generator hum"],
+      "listen": "an industrial machine drone",
+      "seconds": [5, 600],
+      "keep": 4,
+      "chance": 0.9,
+      "mix": {"bus": "music", "level_db": -1, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 100, "res": 0.05}]}
+    }
+  },
   "transitions": {
     "riser": true,
     "impact": true,

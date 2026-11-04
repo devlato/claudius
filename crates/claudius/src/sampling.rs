@@ -58,6 +58,48 @@ pub fn layer_names(g: &GenreProfile) -> Vec<&'static str> {
     Role::ALL.into_iter().filter(|r| need(g, *r).is_some()).map(track_name).collect()
 }
 
+/// the longest search of one's own, in characters
+pub const MOST_WORDS: usize = 60;
+
+/// A search of one's own as a gathering keeps it: lower case, single spaces, at most `MOST_WORDS` characters; none
+/// when nothing is left.
+pub fn words(search: &str) -> Option<String> {
+    let w: String = search.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase();
+    let w: String = w.chars().take(MOST_WORDS).collect();
+    let w = w.trim().to_string();
+    (!w.is_empty()).then_some(w)
+}
+
+/// Whether a song of `g` is built on samples: as `sampled` says, else as the genre is by default, or when it is given
+/// words of its own to search for.
+pub fn sampled(g: &GenreProfile, sampled: Option<bool>, search: Option<&str>) -> bool {
+    let Some(s) = &g.sampling else { return false };
+    sampled.unwrap_or(s.by_default || search.and_then(words).is_some())
+}
+
+/// What a gathering is for: the song whose seed picks the order the genre's searches are tried in (and the order of
+/// what they find), the words of one's own its phrase is searched for, and how many new recordings each role may
+/// keep at most this time (the rest come with later songs, until the role has its `keep`).
+#[derive(Clone, Debug)]
+pub struct Ask {
+    /// none: the searches in the order the genre lists them
+    pub seed: Option<u64>,
+    pub search: Option<String>,
+    pub most: usize,
+}
+
+impl Ask {
+    /// a gathering of everything the genre keeps, in the order its searches are listed in
+    pub fn all() -> Ask {
+        Ask { seed: None, search: None, most: usize::MAX }
+    }
+
+    /// the words a role is searched for with, when they are one's own (the phrase's)
+    pub fn asked(&self, role: Role) -> Option<&str> {
+        self.search.as_deref().filter(|_| role == Role::Phrase)
+    }
+}
+
 /// what a gathering did: the samples it prepared, and a line for each thing worth saying
 #[derive(Debug, Default)]
 pub struct Gathered {
@@ -65,12 +107,23 @@ pub struct Gathered {
     pub notes: Vec<String>,
 }
 
-/// Download and prepare samples until the genre has `keep` of each role it samples: search the libraries for the
-/// role's words, download recordings of a fitting length (at most three for each one still missing), cut them, and
-/// with the ears keep those that sound like what the genre listens for. A recording found wanting is remembered and
-/// not fetched again. `stop` is asked before each download: when it says so, what was kept so far is what there is.
+/// `items` in the order `rng` picks
+fn shuffled<T: Clone>(items: &[T], rng: &mut Rng) -> Vec<T> {
+    let mut out = items.to_vec();
+    for i in (1..out.len()).rev() {
+        out.swap(i, rng.below(i + 1));
+    }
+    out
+}
+
+/// Download and prepare samples toward the genre's `keep` of each role it samples, at most `ask.most` new ones each:
+/// search the libraries (for the role's words, in the order the song's seed picks, or for the words asked for the
+/// phrase), download recordings of a fitting length (at most three for each one still missing), cut them, and with
+/// the ears keep those that sound like what was asked for. A recording found wanting is remembered and not fetched
+/// again. `stop` is asked before each download: when it says so, what was kept so far is what there is.
 pub fn gather(
     g: &GenreProfile,
+    ask: &Ask,
     ears: Option<&Ears>,
     policy: &Policy,
     ix: &Index,
@@ -78,18 +131,30 @@ pub fn gather(
     say: &mut dyn FnMut(&str),
 ) -> Result<Gathered> {
     let mut out = Gathered::default();
+    let rng = Rng::new(ask.seed.unwrap_or_default() ^ 0x6a7e_5a3b);
     for role in Role::ALL {
         let Some(n) = need(g, role) else { continue };
         if stop() {
             break;
         }
-        let mut known: HashSet<String> = ix.of(role, lead(&g.name)).into_iter().map(|p| p.source).collect();
+        let asked = ask.asked(role);
+        let mut known: HashSet<String> = ix.of(role, lead(&g.name), asked).into_iter().map(|p| p.source).collect();
         let mut have = known.len();
         if have >= n.keep {
             continue;
         }
-        let mut budget = (n.keep - have) * 3;
-        'search: for words in &n.search {
+        let goal = n.keep.min(have.saturating_add(ask.most));
+        let mut budget = (goal - have) * 3;
+        let mut r = rng.fork(role.name());
+        let searches = match (asked, ask.seed) {
+            (Some(w), _) => vec![w.to_string()],
+            (None, None) => n.search.clone(),
+            (None, Some(_)) => shuffled(&n.search, &mut r),
+        };
+        // the ears listen for what was asked: the words of one's own, or what the genre listens for
+        let n = &SampleNeed { listen: asked.map_or_else(|| n.listen.clone(), str::to_string), ..n.clone() };
+        let whose = asked.map_or_else(|| lead(&g.name).to_string(), |w| format!("\"{w}\""));
+        'search: for words in &searches {
             if stop() {
                 break;
             }
@@ -104,8 +169,9 @@ pub fn gather(
             for (s, e) in &got.failed {
                 out.notes.push(format!("{} did not answer: {e}", s.name()));
             }
-            for f in got.found {
-                if have >= n.keep || budget == 0 || stop() {
+            let found = if ask.seed.is_some() { shuffled(&got.found, &mut r) } else { got.found };
+            for f in found {
+                if have >= goal || budget == 0 || stop() {
                     break 'search;
                 }
                 if known.contains(&f.id)
@@ -116,10 +182,11 @@ pub fn gather(
                 }
                 budget -= 1;
                 known.insert(f.id.clone());
-                say(&format!("{} for {}: \"{}\" by {} ({})", role.name(), lead(&g.name), f.title, f.creator, f.id));
+                say(&format!("{} for {whose}: \"{}\" by {} ({})", role.name(), f.title, f.creator, f.id));
                 let kept = online::fetch(&f, policy).and_then(|path| prepare(role, &path, &f, g, n, ears, ix.root()));
                 match kept {
-                    Ok(p) if p.z.is_none_or(|z| z >= MIN_Z) => {
+                    Ok(mut p) if p.z.is_none_or(|z| z >= MIN_Z) => {
+                        p.asked = asked.map(str::to_string);
                         ix.add(p.clone())?;
                         have += 1;
                         out.added.push(p);
@@ -141,13 +208,8 @@ pub fn gather(
                 }
             }
         }
-        if have < n.keep {
-            out.notes.push(format!(
-                "only {have} of the {} {}s {} keeps could be prepared",
-                n.keep,
-                role.name(),
-                lead(&g.name)
-            ));
+        if have < goal {
+            out.notes.push(format!("only {have} of the {} {}s for {whose} could be prepared", n.keep, role.name()));
         }
     }
     Ok(out)
@@ -212,6 +274,7 @@ fn blank(path: &Path, role: Role, bpm: f64, beats: f64) -> Prepared {
         chords: Vec::new(),
         z: None,
         source: String::new(),
+        asked: None,
     }
 }
 
@@ -403,29 +466,108 @@ fn fold(bpm: f64, beats: f64, target: f64) -> (f64, f64) {
         .unwrap_or((bpm, beats))
 }
 
-/// Put the genre's prepared samples into `bp` as it is composed (see the module's doc). A role without one at hand
-/// leaves the sections that list it, and the layers the genre names `instead` play there.
+/// The semitones to play a phrase of `bpm` up or down by, within `pitch`, so that its tempo, which moves with its
+/// pitch as a sampler's varispeed moves it, falls in the genre's `range` (halved or doubled): the fewest semitones,
+/// then the tempo nearest the range's middle, `rng` choosing between near equals; and the song's tempo that comes of
+/// it.
+pub fn speed_for(bpm: f64, range: (f64, f64), pitch: (i32, i32), rng: &mut Rng) -> Option<(i32, f64)> {
+    let mut best: Option<(f64, i32, f64)> = None;
+    for (semis, t, cost) in speeds(bpm, range, pitch) {
+        let cost = cost - rng.f64() * 0.3;
+        if best.is_none_or(|(c, _, _)| cost < c) {
+            best = Some((cost, semis, t));
+        }
+    }
+    best.map(|(_, semis, t)| (semis, (t * 100.0).round() / 100.0))
+}
+
+/// every speed `speed_for` chooses among: the semitones, the tempo, and what it costs
+fn speeds(bpm: f64, range: (f64, f64), pitch: (i32, i32)) -> Vec<(i32, f64, f64)> {
+    let mid = (range.0 * range.1).sqrt();
+    let mut out = Vec::new();
+    for semis in pitch.0.min(pitch.1)..=pitch.0.max(pitch.1) {
+        let sped = bpm * 2f64.powf(semis as f64 / 12.0);
+        for t in [sped, sped / 2.0, sped * 2.0] {
+            if (range.0..=range.1).contains(&t) {
+                out.push((semis, t, semis.abs() as f64 + 3.0 * (t / mid).ln().abs()));
+            }
+        }
+    }
+    out
+}
+
+/// whether a song of `g` can play `p` in tune at the genre's tempo: a phrase some speed fits, or any phrase where
+/// claudius can stretch it in time without changing its pitch; any break or texture
+pub fn plays_in(p: &Prepared, g: &GenreProfile) -> bool {
+    p.role != Role::Phrase
+        || cfg!(feature = "native")
+        || need(g, Role::Phrase).is_some_and(|n| !speeds(p.bpm, g.bpm, n.pitch).is_empty())
+}
+
+/// the tempo a loop plays at in a song at `bpm` before it is sped up or slowed down by `semis`
+fn unsped(bpm: f64, semis: i32) -> f64 {
+    bpm / 2f64.powf(semis as f64 / 12.0)
+}
+
+/// Make room for `role`'s track in a song whose genre's sections do not list it: it plays in place of the layers its
+/// need names `instead`, in each section that has one of them (in every section, when it names none).
+fn place(bp: &mut Blueprint, role: Role, n: &SampleNeed) {
+    let name = track_name(role);
+    if bp.form.iter().any(|s| s.layers.iter().any(|l| l == name)) {
+        return;
+    }
+    for s in bp.form.iter_mut() {
+        if n.instead.is_empty() || s.layers.iter().any(|l| n.instead.contains(l)) {
+            s.layers.retain(|l| !n.instead.contains(l));
+            s.layers.push(name.to_string());
+        }
+    }
+}
+
+/// Put the genre's prepared samples into `bp` as it is composed (see the module's doc), when the song is built on
+/// samples (`sampled`). A role without one at hand leaves the sections that list it, and the layers the genre names
+/// `instead` play there.
 pub fn apply(
     bp: &mut Blueprint,
     g: &GenreProfile,
-    tempo_given: bool,
+    opts: &crate::compose::Options,
     lib: Option<&dyn crate::compose::Library>,
     rng: &Rng,
 ) {
     let Some(_) = &g.sampling else { return };
+    let search = opts.sample_search.as_deref().and_then(words);
+    let on = sampled(g, opts.sampled, search.as_deref());
+    let tempo_given = opts.bpm.is_some();
     let mut placed: Vec<(Role, String)> = Vec::new();
     for role in [Role::Phrase, Role::Break, Role::Texture] {
         let Some(n) = need(g, role) else { continue };
         let mut r = rng.fork(role.name());
-        if !r.chance(n.chance) {
+        if !on || !r.chance(n.chance) {
             continue;
         }
-        let Some(p) = lib.and_then(|l| l.prepared(role, g, &mut r)) else { continue };
+        let asked = search.as_deref().filter(|_| role == Role::Phrase);
+        let Some(p) = lib.and_then(|l| l.prepared(role, g, asked, &mut r)) else { continue };
+        // a phrase plays sped up or slowed down by whole semitones, as a sampler plays it, to the genre's tempo (or the
+        // one given); one that no such speed fits is stretched to it in tune, where claudius can stretch (not in a
+        // browser, which would play it out of tune, so it goes without)
+        let speed = match (role, tempo_given) {
+            (Role::Phrase, false) => speed_for(p.bpm, g.bpm, n.pitch, &mut r),
+            (Role::Phrase, true) => {
+                speed_for(p.bpm, (bp.bpm * 0.997, bp.bpm * 1.003), n.pitch, &mut r).map(|(s, _)| (s, bp.bpm))
+            }
+            _ => None,
+        };
+        if role == Role::Phrase && speed.is_none() && !cfg!(feature = "native") {
+            continue;
+        }
+        let semis = speed.map_or(0, |(s, _)| s);
+        place(bp, role, n);
         if role == Role::Phrase {
             // the song is built on the phrase: its key, its tempo where the genre allows, its chords
             let mut chords = p.chords.clone();
             if let Some(k) = p.key {
                 let was = bp.key;
+                let k = (k as i32 + semis).rem_euclid(12) as u8;
                 let heard = Key::new(k, if p.minor { Mode::Minor } else { Mode::Major });
                 // a genre that knows no major mode plays a major phrase in its relative minor, where the phrase's
                 // chord on its first degree is the third (a swell on A major is III of F sharp minor)
@@ -442,12 +584,18 @@ pub fn apply(
                     Vec::new()
                 };
             }
-            if !tempo_given && let Some(t) = fit_tempo(p.bpm, g.bpm) {
-                bp.bpm = t.round();
+            match speed {
+                Some((_, t)) => bp.bpm = t,
+                None if !tempo_given => {
+                    if let Some(t) = fit_tempo(p.bpm, g.bpm) {
+                        bp.bpm = t.round();
+                    }
+                }
+                None => {}
             }
             // a bar of the phrase as the song counts it: counted at half its tempo, a song's bar holds two of its
             // bars (and plays the first one's chord); at twice its tempo, each of its chords lasts two
-            let (_, beats) = fold(p.bpm, p.beats, bp.bpm);
+            let (_, beats) = fold(p.bpm, p.beats, unsped(bp.bpm, semis));
             let (chords, per) = if beats < p.beats {
                 (chords.iter().step_by(2).cloned().collect(), 1)
             } else {
@@ -463,7 +611,8 @@ pub fn apply(
             }
         }
         let tonal = role == Role::Phrase && p.key.is_some();
-        let (bpm, beats) = if role == Role::Texture { (p.bpm, p.beats) } else { fold(p.bpm, p.beats, bp.bpm) };
+        let (bpm, beats) =
+            if role == Role::Texture { (p.bpm, p.beats) } else { fold(p.bpm, p.beats, unsped(bp.bpm, semis)) };
         let slices = (beats / 0.5).round().max(1.0) as i32;
         let chop: Vec<i32> = if slices >= 4 && r.chance(n.chop) {
             (0..slices).map(|i| if i % 4 == 0 { i } else { r.below(slices as usize) as i32 }).collect()
@@ -492,7 +641,7 @@ pub fn apply(
                 tonal,
                 label: label.clone(),
             },
-            transpose: 0,
+            transpose: semis,
             chop,
             slice_beats: 0.5,
             mix: n.mix.clone(),
@@ -500,8 +649,8 @@ pub fn apply(
             sampled: false,
         });
         if role == Role::Break {
-            // the drum lanes play the break's own hits
-            for lane in bp.drums.iter_mut() {
+            // the drum lanes it plays in place of play the break's own hits (a break under house's kick leaves it be)
+            for lane in bp.drums.iter_mut().filter(|d| n.instead.contains(&d.name)) {
                 let hit = match lane.role().as_str() {
                     "kick" => p.kick.clone(),
                     "snare" | "clap" => p.snare.clone(),
@@ -519,7 +668,16 @@ pub fn apply(
                 }
             }
         }
-        placed.push((role, label));
+        let how = match semis {
+            0 => String::new(),
+            s => format!(
+                " {} semitone{} {}",
+                s.abs(),
+                if s.abs() == 1 { "" } else { "s" },
+                if s > 0 { "up" } else { "down" }
+            ),
+        };
+        placed.push((role, format!("'{label}'{how}")));
     }
     for role in Role::ALL {
         let Some(n) = need(g, role) else { continue };
@@ -540,7 +698,7 @@ pub fn apply(
         }
     }
     if !placed.is_empty() {
-        let said: Vec<String> = placed.iter().map(|(r, l)| format!("{} '{l}'", r.name())).collect();
+        let said: Vec<String> = placed.iter().map(|(r, l)| format!("{} {l}", r.name())).collect();
         bp.lineage.push(format!("sampled: {}", said.join(", ")));
     }
 }
@@ -604,8 +762,8 @@ mod tests {
         ) -> Option<(Sound, i32)> {
             None
         }
-        fn prepared(&self, role: Role, g: &GenreProfile, _: &mut Rng) -> Option<Prepared> {
-            self.0.iter().find(|p| p.role == role && p.genre == lead(&g.name)).cloned()
+        fn prepared(&self, role: Role, g: &GenreProfile, asked: Option<&str>, _: &mut Rng) -> Option<Prepared> {
+            self.0.iter().find(|p| p.role == role && p.fits(lead(&g.name), asked)).cloned()
         }
     }
 
@@ -628,6 +786,7 @@ mod tests {
             chords: Vec::new(),
             z: Some(2.0),
             source: "freesound:1".into(),
+            asked: None,
         };
         Shelf(vec![
             Prepared {
@@ -692,8 +851,10 @@ mod tests {
         let root = std::env::temp_dir().join(format!("claudius-stopped-{}", std::process::id()));
         let ix = Index::at(&root);
         let mut said = Vec::new();
-        let got = gather(&sampling_genre(), None, &Policy::default(), &ix, &|| true, &mut |s| said.push(s.to_string()))
-            .unwrap();
+        let ask = Ask { seed: Some(3), search: None, most: 2 };
+        let got =
+            gather(&sampling_genre(), &ask, None, &Policy::default(), &ix, &|| true, &mut |s| said.push(s.to_string()))
+                .unwrap();
         assert!(got.added.is_empty() && got.notes.is_empty() && said.is_empty(), "{:?} {said:?}", got.notes);
         std::fs::remove_dir_all(&root).ok();
     }
@@ -721,6 +882,98 @@ mod tests {
         // A major's I and IV are III and VI of F sharp minor
         assert_eq!((bp.key.tonic, bp.key.mode), (6, Mode::Minor));
         assert_eq!(bp.harmony.progressions["A"], ["III", "VI"]);
+    }
+
+    #[test]
+    fn a_phrase_plays_sped_up_or_slowed_down_by_whole_semitones_into_the_genres_tempo() {
+        let mut r = Rng::new(1);
+        // a soul record at 98 in house, from 120 to 126: four semitones up, at 123.47, as a sampler plays it
+        assert_eq!(speed_for(98.0, (120.0, 126.0), (-2, 5), &mut r), Some((4, 123.47)));
+        // at its own pitch when its tempo, or half of it, fits
+        assert_eq!(speed_for(176.0, (78.0, 94.0), (-5, 1), &mut r), Some((0, 88.0)));
+        // out of reach
+        assert_eq!(speed_for(98.0, (120.0, 126.0), (-2, 2), &mut r), None);
+    }
+
+    #[test]
+    fn a_song_is_sampled_as_asked_else_as_its_genre_is() {
+        let (trip_hop, house) = (sampling_genre(), crate::genres::get("house").unwrap());
+        assert!(sampled(&trip_hop, None, None) && !sampled(&house, None, None));
+        assert!(sampled(&house, None, Some("disco")) && !sampled(&house, Some(false), Some("disco")));
+        assert!(!sampled(&trip_hop, Some(false), None) && !sampled(&house, None, Some("   ")));
+        assert_eq!(words("  70s   Soul  ").as_deref(), Some("70s soul"));
+        // a trip-hop song asked not to be: the layers it plays instead, with samples at hand
+        let opts = crate::compose::Options { sampled: Some(false), ..Default::default() };
+        let bp = crate::compose::generate(&trip_hop, 3, &opts, Some(&shelf()));
+        assert!(bp.loops.iter().all(|l| ![BREAK, PHRASE, TEXTURE].contains(&l.name.as_str())));
+        let names = bp.layer_names();
+        assert!(bp.form.iter().all(|s| s.layers.iter().all(|l| names.contains(l))));
+    }
+
+    /// a soul record at 98 BPM in C minor, prepared for `genre` (or for the words `asked`)
+    fn soul(genre: &str, asked: Option<&str>) -> Prepared {
+        Prepared {
+            genre: genre.into(),
+            bpm: 98.0,
+            key: Some(0),
+            minor: true,
+            chords: vec!["i".into(), "iv".into()],
+            asked: asked.map(str::to_string),
+            ..shelf().0[1].clone()
+        }
+    }
+
+    #[test]
+    fn a_house_song_asked_for_samples_is_built_on_a_phrase_sped_up_in_place_of_its_chords() {
+        let g = crate::genres::get("house").unwrap();
+        let s = Shelf(vec![soul("house", None)]);
+        let plain = crate::compose::generate(&g, 3, &crate::compose::Options::default(), Some(&s));
+        assert!(plain.loops.iter().all(|l| l.name != PHRASE), "house is not sampled unless asked");
+        let opts = crate::compose::Options { sampled: Some(true), ..Default::default() };
+        let bp = crate::compose::generate(&g, 3, &opts, Some(&s));
+        // four semitones up: E minor at 123.47
+        assert_eq!((bp.bpm, bp.key.tonic, bp.key.mode), (123.47, 4, Mode::Minor));
+        let phrase = bp.loops.iter().find(|l| l.name == PHRASE).expect("the phrase plays");
+        assert_eq!(phrase.transpose, 4);
+        // where house played its chords, the phrase plays, on its own chords
+        let with = |bp: &Blueprint, layer: &str| -> Vec<String> {
+            bp.form.iter().filter(|s| s.layers.iter().any(|l| l == layer)).map(|s| s.name.clone()).collect()
+        };
+        assert!(!with(&plain, "chords").is_empty());
+        assert_eq!(with(&bp, PHRASE), with(&plain, "chords"));
+        assert!(with(&bp, "chords").is_empty());
+        assert_eq!(bp.harmony.progressions["A"], ["i", "iv"]);
+        assert!(bp.lineage.iter().any(|l| l.contains("4 semitones up")), "{:?}", bp.lineage);
+    }
+
+    #[test]
+    fn a_song_asked_for_words_of_its_own_plays_what_was_found_for_them_in_any_genre() {
+        let g = crate::genres::get("house").unwrap();
+        let s = Shelf(vec![soul("trip_hop", Some("70s soul"))]);
+        let asked = |search: Option<&str>, sampled: Option<bool>| {
+            let opts =
+                crate::compose::Options { sampled, sample_search: search.map(str::to_string), ..Default::default() };
+            crate::compose::generate(&g, 3, &opts, Some(&s)).loops.iter().any(|l| l.name == PHRASE)
+        };
+        assert!(asked(Some("  70s Soul"), None), "its words, as a gathering keeps them");
+        assert!(!asked(None, Some(true)), "house's own records: none at hand");
+        assert!(!asked(Some("disco"), None) && !asked(Some("70s soul"), Some(false)));
+    }
+
+    #[test]
+    fn a_break_under_a_genres_own_kick_leaves_the_kick_be() {
+        let g = crate::genres::get("house").unwrap();
+        let brk = Prepared { genre: "house".into(), bpm: 124.0, ..shelf().0[0].clone() };
+        let opts = crate::compose::Options { sampled: Some(true), ..Default::default() };
+        let bp = (0..20)
+            .map(|seed| crate::compose::generate(&g, seed, &opts, Some(&Shelf(vec![brk.clone()]))))
+            .find(|bp| bp.loops.iter().any(|l| l.name == BREAK))
+            .expect("house plays a break now and then");
+        let kick = bp.drums.iter().find(|d| d.name == "kick").unwrap();
+        assert!(!matches!(&kick.sound, Sound::Sample { path, .. } if path == "/b/kick.wav"), "{:?}", kick.sound);
+        // it plays where the top loop and the shaker did
+        assert!(bp.form.iter().any(|s| s.layers.iter().any(|l| l == BREAK)));
+        assert!(bp.form.iter().all(|s| !s.layers.iter().any(|l| l == "top" || l == "shaker")));
     }
 
     #[test]

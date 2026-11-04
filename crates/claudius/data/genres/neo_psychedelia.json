@@ -150,6 +150,28 @@
     }
   ],
   "loops": [],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["sitar", "mellotron", "60s psychedelic", "organ", "tape loop", "harmonium", "tanpura", "flute", "psychedelic rock", "fuzz guitar", "backwards guitar", "orchestral"],
+      "listen": "a hazy 60s psychedelic mellotron or sitar",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.2,
+      "pitch": [-3, 3],
+      "instead": ["organ"],
+      "mix": {"bus": "music", "reverb": 0.2, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 140, "res": 0.05}, {"fx": "tape", "wow": 0.5, "flutter": 0.3, "drive_db": 3, "lowpass_hz": 9000}]}
+    },
+    "texture": {
+      "search": ["tape hiss", "radio static", "field recording", "birdsong", "wind chimes"],
+      "listen": "tape hiss and birdsong",
+      "seconds": [5, 600],
+      "keep": 3,
+      "chance": 0.5,
+      "mix": {"bus": "music", "level_db": -2}
+    }
+  },
   "transitions": {
     "riser": false,
     "impact": false,

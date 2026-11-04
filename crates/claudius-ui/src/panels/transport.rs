@@ -736,6 +736,8 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                 bpm: f.bpm,
                 key: f.key.clone(),
                 loops: f.loops,
+                sampled: None,
+                sample_search: None,
             });
             f.open = false;
         }

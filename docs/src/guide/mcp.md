@@ -142,7 +142,7 @@ says the job is still running; `status` follows it from there.
 
 | tool | parameters | what it does |
 |---|---|---|
-| `new_song` | `genre` (required), `seed`, `bpm`, `key`, `loops` (false) | composes a new song in a genre, renders and judges it |
+| `new_song` | `genre` (required), `seed`, `bpm`, `key`, `loops` (false), `sampled` (as the genre is), `sample_search` | composes a new song in a genre, renders and judges it; `sampled` builds it on samples from free libraries and `sample_search` names the kind of record its phrase is searched for ([Songs built on samples](online-samples.md#songs-built-on-samples)) |
 | `get_song` | | the open song and its verdict, and the whole song as a script |
 | `run_script` | `code` (required), `listen` (true) | edits the song with a [script](../language/overview.md) |
 | `script_reference` | | the script language reference (markdown) |

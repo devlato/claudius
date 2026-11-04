@@ -55,11 +55,13 @@ pub trait Library: Sync {
     fn family(&self, _genre: &GenreProfile, _rng: &mut Rng) -> Option<FamilyPick> {
         None
     }
-    /// a sample prepared for the genre to play as `role` (`library::prepared`), when one is at hand
+    /// a sample prepared for the genre to play as `role` (`library::prepared`), or gathered for the words `asked`, when
+    /// one is at hand
     fn prepared(
         &self,
         _role: crate::library::prepared::Role,
         _genre: &GenreProfile,
+        _asked: Option<&str>,
         _rng: &mut Rng,
     ) -> Option<crate::library::prepared::Prepared> {
         None
@@ -78,11 +80,25 @@ pub struct Options {
     pub loops: bool,
     /// build the song around a loop family (its chords, bass and beat loops), GarageBand style
     pub family: bool,
+    /// build it on samples from free libraries (`crate::sampling`); none: as the genre does
+    pub sampled: Option<bool>,
+    /// what its phrase is searched for ("70s soul"); none: what the genre's producers sample
+    pub sample_search: Option<String>,
 }
 
 impl Default for Options {
     fn default() -> Self {
-        Options { bpm: None, key: None, form: None, short: false, samples: 0.75, loops: true, family: false }
+        Options {
+            bpm: None,
+            key: None,
+            form: None,
+            short: false,
+            samples: 0.75,
+            loops: true,
+            family: false,
+            sampled: None,
+            sample_search: None,
+        }
     }
 }
 
@@ -640,7 +656,7 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
         grooves: BTreeMap::new(),
     };
     // the samples a sampling genre is built on
-    crate::sampling::apply(&mut bp, g, opts.bpm.is_some(), lib, &rng.fork("sampling"));
+    crate::sampling::apply(&mut bp, g, opts, lib, &rng.fork("sampling"));
     bp
 }
 

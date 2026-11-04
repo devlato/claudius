@@ -1029,6 +1029,14 @@ pub enum Command {
         /// build it around an Apple Loops family
         #[serde(default)]
         loops: bool,
+        /// build it on samples from free libraries: a phrase to build it on, a break, a texture, as the genre's
+        /// producers sample them (none: as the genre does; trip-hop's songs are, a house song is when asked)
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        sampled: Option<bool>,
+        /// what to search the libraries for the phrase with ("70s soul", "bossa nova guitar"); none: the records the
+        /// genre's producers dig for, one picked at random
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        sample_search: Option<String>,
     },
     /// ask the person for a take that starts with section `from`: the studio's Record window opens for it, saying
     /// `note`, and the take sent for it answers the request (`State.take_request`)

@@ -167,6 +167,30 @@
     }
   ],
   "loops": [],
+  "sampling": {
+    "by_default": true,
+    "break": {
+      "search": ["funk drum break", "breakbeat", "rock drum break", "drum solo", "soul drum break", "70s drums", "hip hop drum loop", "live drums"],
+      "listen": "a loud funky breakbeat",
+      "seconds": [2, 60],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.4,
+      "instead": ["snare", "hat", "ride"],
+      "mix": {"bus": "drums", "fx": [{"fx": "saturate", "kind": "tube", "drive_db": 6, "mix": 0.6}]}
+    },
+    "phrase": {
+      "search": ["rock guitar riff", "surf guitar", "funk guitar", "hammond organ", "brass section", "psychedelic rock", "60s rock", "garage rock", "fuzz guitar", "soul horns"],
+      "listen": "a raw distorted rock guitar riff",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.35,
+      "pitch": [-2, 4],
+      "instead": ["riff"],
+      "mix": {"bus": "music", "fx": [{"fx": "filter", "mode": "hp", "cutoff": 140, "res": 0.05}, {"fx": "saturate", "kind": "tape", "drive_db": 4, "mix": 0.5}]}
+    }
+  },
   "transitions": {
     "riser": true,
     "impact": true,

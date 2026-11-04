@@ -135,6 +135,28 @@
     }
   ],
   "loops": [],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["music box", "toy piano", "gamelan", "glockenspiel", "harp", "choir", "string quartet", "celesta", "kalimba", "vibraphone"],
+      "listen": "a delicate music box melody",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.6,
+      "pitch": [-5, 5],
+      "instead": ["bells"],
+      "mix": {"bus": "music", "reverb": 0.2, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 150, "res": 0.05}, {"fx": "bitcrush", "bits": 10, "downsample": 3}]}
+    },
+    "texture": {
+      "search": ["field recording", "radio static", "glitch", "circuit bent", "dial up modem", "typewriter", "clock ticking", "water drops", "shortwave radio", "data noise"],
+      "listen": "glitchy radio static and digital noise",
+      "seconds": [5, 600],
+      "keep": 4,
+      "chance": 0.8,
+      "mix": {"bus": "music", "level_db": -1}
+    }
+  },
   "transitions": {
     "riser": false,
     "impact": true,

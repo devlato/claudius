@@ -124,6 +124,20 @@
       "mix": {"bus": "drums", "level_db": -4}
     }
   ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["latin guitar", "spanish guitar", "salsa piano", "bachata guitar", "latin brass", "cumbia", "bolero", "flamenco guitar", "tropical", "son cubano"],
+      "listen": "a latin spanish guitar melody",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.2,
+      "pitch": [-3, 3],
+      "instead": ["chords"],
+      "mix": {"bus": "music", "fx": [{"fx": "filter", "mode": "hp", "cutoff": 160, "res": 0.05}]}
+    }
+  },
   "transitions": {"riser": true, "impact": true, "downlifter": false, "reverse_crash": true, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.25, "level_db": -3}},
   "mix": {
     "lufs": -9.0,

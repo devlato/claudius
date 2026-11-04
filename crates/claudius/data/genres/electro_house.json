@@ -159,6 +159,20 @@
       "mix": {"bus": "drums", "level_db": -3}
     }
   ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["funk guitar", "disco", "rock guitar riff", "brass stab", "synth pop", "brass section", "piano chords", "gospel"],
+      "listen": "a punchy funk guitar riff",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.2,
+      "pitch": [-2, 5],
+      "instead": ["chords"],
+      "mix": {"bus": "music", "duck": 0.4, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 200, "res": 0.05}, {"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.4}]}
+    }
+  },
   "transitions": {
     "riser": true,
     "impact": true,

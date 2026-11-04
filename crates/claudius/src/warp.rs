@@ -1,5 +1,7 @@
 //! Loop warping: fit a recorded loop to the project tempo and key. Signalsmith Stretch does time-stretch and
-//! pitch-shift in one pass; a tempo change under 1.5 % with no transpose is plain varispeed (no artifacts at all).
+//! pitch-shift in one pass; a tempo change under 1.5 % with no transpose, or one that moves the pitch by just the
+//! semitones the loop is transposed (a sampler's varispeed: a record sped up four semitones into house), is plain
+//! resampling (no artifacts at all).
 //! Loops are stretched three copies end to end and the middle one is kept, so the result wraps seamlessly; a take,
 //! played once, is stretched between silences, so neither of its ends hears the other. A build without the `native`
 //! feature (a browser's, which cannot build Signalsmith's C++) varispeeds every loop, as a turntable would: it fits the
@@ -41,7 +43,7 @@ pub fn warp(path: &str, src_bpm: f64, beats: f64, dst_bpm: f64, semis: i32, seam
     x.truncate(src_len);
     let dst_len = ((beats * 60.0 / dst_bpm) * SRF).round() as usize;
     let ratio = dst_len as f64 / src_len.max(1) as f64;
-    let out = if semis == 0 && (ratio - 1.0).abs() < 0.015 {
+    let out = if resamples(ratio, semis) {
         let step = src_len as f64 / dst_len.max(1) as f64;
         Stereo { l: resample_step(&x.l, step, dst_len), r: resample_step(&x.r, step, dst_len) }
     } else {
@@ -63,6 +65,12 @@ pub fn warp(path: &str, src_bpm: f64, beats: f64, dst_bpm: f64, semis: i32, seam
     Ok(out)
 }
 
+/// whether a loop made `ratio` times as long and transposed by `semis` is only resampled: a tempo change under 1.5 %
+/// with no transpose, or one that moves its pitch by just the semitones asked (within 5 cents)
+fn resamples(ratio: f64, semis: i32) -> bool {
+    (12.0 * (1.0 / ratio).log2() - semis as f64).abs() < 0.05 || (semis == 0 && (ratio - 1.0).abs() < 0.015)
+}
+
 /// `x` stretched to `len` samples and transposed by `semis`, in one pass
 #[cfg(feature = "native")]
 fn stretch(x: &Stereo, len: usize, semis: i32) -> Stereo {
@@ -78,4 +86,21 @@ fn stretch(x: &Stereo, len: usize, semis: i32) -> Stereo {
 fn stretch(x: &Stereo, len: usize, _semis: i32) -> Stereo {
     let step = x.len() as f64 / len.max(1) as f64;
     Stereo { l: resample_step(&x.l, step, len), r: resample_step(&x.r, step, len) }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_loop_sped_up_by_as_many_semitones_as_it_is_transposed_is_only_resampled() {
+        // a record at 98 sped up four semitones plays at 123.48: a quarter shorter, as a sampler plays it
+        let four_up = 98.0 / (98.0 * 2f64.powf(4.0 / 12.0));
+        assert!(resamples(four_up, 4));
+        // the same tempo kept in its key, or moved by a semitone it was not asked: a stretch
+        assert!(!resamples(four_up, 0) && !resamples(four_up, 3));
+        assert!(!resamples(1.0, 2));
+        // a tempo nudged under 1.5 %, as before
+        assert!(resamples(1.01, 0) && !resamples(1.05, 0));
+    }
 }

@@ -224,10 +224,14 @@ pub struct GenreProfile {
     pub mix: MixSpec,
 }
 
-/// What a genre samples: a drum break, a phrase to build the song on, a texture under it. Each plays as a loop track
-/// of its own (`sampling::BREAK`, `PHRASE`, `TEXTURE`) in the sections that list it.
+/// What a genre samples, from the records its producers dig for: a drum break, a phrase to build the song on, a
+/// texture under it. Each plays as a loop track of its own (`sampling::BREAK`, `PHRASE`, `TEXTURE`) in the sections
+/// that list it, or, in a genre whose sections do not, in place of the layers it plays `instead` of.
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct SamplingSpec {
+    /// whether a song of the genre is built on samples when nobody says (trip-hop's is; a house song is when asked)
+    #[serde(default = "yes")]
+    pub by_default: bool,
     #[serde(default, rename = "break")]
     pub drum_break: Option<SampleNeed>,
     #[serde(default)]
@@ -238,7 +242,8 @@ pub struct SamplingSpec {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct SampleNeed {
-    /// what to search the libraries for ("drum break", "cinematic strings")
+    /// what to search the libraries for, from what the genre's producers sample ("soul", "film score", "funk drum
+    /// break"): a gathering tries them in an order the song's seed picks
     pub search: Vec<String>,
     /// what the ears should hear in a good one, to choose among them ("a slow funky drum break")
     pub listen: String,
@@ -254,7 +259,13 @@ pub struct SampleNeed {
     /// the chance that the loop is re-chopped, its half-beat slices played in another order
     #[serde(default)]
     pub chop: f64,
-    /// the layers that play where the sample would, when the song has none (offline, or nothing gathered yet)
+    /// the semitones a phrase may be played up or down, a sampler's varispeed, which moves its tempo with its pitch
+    /// (a soul record sped up into house, a film score slowed into trip-hop): the song takes the tempo and the key
+    /// that come of it
+    #[serde(default = "a_little")]
+    pub pitch: (i32, i32),
+    /// the layers that play where the sample would, when the song has none (offline, or nothing gathered yet); in a
+    /// genre whose sections do not list the sample, those it plays in place of (under everything, when none)
     #[serde(default)]
     pub instead: Vec<String>,
     #[serde(default)]
@@ -263,6 +274,9 @@ pub struct SampleNeed {
 
 fn any_length() -> (f64, f64) {
     (2.0, 600.0)
+}
+fn a_little() -> (i32, i32) {
+    (-3, 3)
 }
 fn three() -> usize {
     3
@@ -451,6 +465,36 @@ mod tests {
         }
         let trap = get("trap").unwrap();
         assert!(trap.mix.bands["sub"][1] > -4.0, "an 808 genre's sub may be heavier than the usual master's");
+    }
+
+    #[test]
+    fn every_genre_samples_from_its_own_records_in_place_of_layers_it_has() {
+        for (name, src) in BUILTIN {
+            let g: GenreProfile = serde_json::from_str(src).unwrap();
+            let s = g.sampling.as_ref().unwrap_or_else(|| panic!("{name} says what it samples"));
+            let phrase = s.phrase.as_ref().unwrap_or_else(|| panic!("{name} samples a phrase"));
+            assert!(phrase.search.len() >= 6, "{name}: a phrase has several records to dig for");
+            assert!(phrase.pitch.0 <= 0 && phrase.pitch.1 >= 0, "{name}: a phrase may play at its own pitch");
+            let known: Vec<&str> = g
+                .parts
+                .iter()
+                .map(|p| p.name.as_str())
+                .chain(g.drums.iter().map(|d| d.name.as_str()))
+                .chain(g.loops.iter().map(|l| l.name.as_str()))
+                .collect();
+            for n in [&s.drum_break, &s.phrase, &s.texture].into_iter().flatten() {
+                for l in &n.instead {
+                    assert!(known.contains(&l.as_str()), "{name}: a sample stands in for '{l}', which it lacks");
+                }
+                // what is searched for is a kind of record, not the genre itself or a mood
+                for w in &n.search {
+                    assert!(!w.contains(&name.replace('_', " ")), "{name} searches for itself: '{w}'");
+                    assert!(!["sad", "dark", "happy"].iter().any(|m| w.split(' ').any(|x| x == *m)), "{name}: '{w}'");
+                }
+            }
+        }
+        assert!(get("trip_hop").unwrap().sampling.unwrap().by_default);
+        assert!(!get("house").unwrap().sampling.unwrap().by_default);
     }
 
     #[test]

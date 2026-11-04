@@ -137,6 +137,20 @@
       "mix": {"bus": "drums", "level_db": -3}
     }
   ],
+  "sampling": {
+    "by_default": true,
+    "phrase": {
+      "search": ["disco", "disco strings", "funk guitar", "disco bass", "boogie", "philly soul", "70s funk", "brass section", "disco loop", "soul", "funk"],
+      "listen": "a funky 70s disco loop with strings and guitar",
+      "seconds": [6, 900],
+      "keep": 8,
+      "chance": 0.95,
+      "chop": 0.25,
+      "pitch": [-2, 5],
+      "instead": ["loop", "keys"],
+      "mix": {"bus": "music", "duck": 0.45, "fx": [{"fx": "filter", "mode": "lp", "res": 0.25, "cutoff": {"rest": 5000, "sections": {"intro": [600, 3000], "groove": [3000], "break": [900], "drop": [16000], "outro": [3000, 500]}}}]}
+    }
+  },
   "transitions": {
     "riser": false,
     "impact": true,
