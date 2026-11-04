@@ -31,7 +31,9 @@ pub fn warp(path: &str, src_bpm: f64, beats: f64, dst_bpm: f64, semis: i32, seam
         return Ok(x.clone());
     }
     let disk = config::cache_dir("stretched").join(format!("{}.f32", &blake3::hash(key.as_bytes()).to_hex()[..20]));
-    if let Ok(bytes) = std::fs::read(&disk) {
+    if config::FILES
+        && let Ok(bytes) = std::fs::read(&disk)
+    {
         let x: Vec<f32> = bytes.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
         let s = Arc::new(Stereo::from_interleaved(&x));
         cache().lock().unwrap().insert(key, s.clone());
@@ -55,10 +57,12 @@ pub fn warp(path: &str, src_bpm: f64, beats: f64, dst_bpm: f64, semis: i32, seam
         }
         stretch(&tripled, dst_len * 3, semis).slice(dst_len, 2 * dst_len)
     };
-    let bytes: Vec<u8> = out.interleaved().iter().flat_map(|v| v.to_le_bytes()).collect();
-    let tmp = disk.with_extension(format!("{}.tmp", std::process::id()));
-    if std::fs::write(&tmp, bytes).is_ok() {
-        let _ = std::fs::rename(&tmp, &disk);
+    if config::FILES {
+        let bytes: Vec<u8> = out.interleaved().iter().flat_map(|v| v.to_le_bytes()).collect();
+        let tmp = disk.with_extension(format!("{}.tmp", config::process_id()));
+        if std::fs::write(&tmp, bytes).is_ok() {
+            let _ = std::fs::rename(&tmp, &disk);
+        }
     }
     let out = Arc::new(out);
     cache().lock().unwrap().insert(key, out.clone());

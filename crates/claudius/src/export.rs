@@ -29,7 +29,7 @@ pub fn write(master: &Stereo, spec: &Spec, tags: &Tags, path: &Path) -> Result<(
         std::fs::create_dir_all(d)?;
     }
     let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    let tmp = path.with_file_name(format!(".{name}.{}.part", std::process::id()));
+    let tmp = path.with_file_name(format!(".{name}.{}.part", crate::config::process_id()));
     std::fs::write(&tmp, bytes).with_context(|| format!("cannot write {}", tmp.display()))?;
     std::fs::rename(&tmp, path).with_context(|| format!("cannot write {}", path.display()))
 }
