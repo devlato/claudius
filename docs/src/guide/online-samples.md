@@ -105,7 +105,7 @@ Each role keeps its own colour from the profile: the high-pass that leaves the l
 the 12-bit crush.
 
 With earshot's models, the ears score each cut against what was asked for, and cuts under z 1.5 are left out and not
-fetched again. The cuts go into `<samples>/prepared/<role>/<genre>/`, or `asked-<words>/` for words of your own, so
+fetched again. The cuts go into `<samples>/prepared/<role>/<genre>/`, or `asked-<words>-<hash>/` for words of your own, so
 that a recording gathered for two of them is cut for each, each with its recording's credit beside it, so a song's
 `credits.txt` names them.
 
