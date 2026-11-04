@@ -118,6 +118,10 @@ impl App {
         if !outcome.is_empty() {
             crate::report("setup", &outcome);
         }
+        if !installed.is_empty() {
+            // an instrument a track plays may sound otherwise now
+            self.kept.lock().unwrap_or_else(|e| e.into_inner()).clear();
+        }
         self.update(|s| {
             if !installed.is_empty() {
                 s.say(format!("installed {}: new songs, and the sounds you pick, play them", installed.join(", ")));
@@ -330,10 +334,9 @@ impl App {
         let t = Instant::now();
         self.progress("rendering", 0.05);
         let project = compose::arrange(&bp);
-        let r = match render::render(
-            &project,
-            &render::Options { stems: stems || !saves.is_empty(), ..Default::default() },
-        ) {
+        let opts = render::Options { stems: stems || !saves.is_empty(), ..Default::default() };
+        let rendered = render::render_kept(&project, &opts, &mut self.kept.lock().unwrap_or_else(|e| e.into_inner()));
+        let r = match rendered {
             Ok(r) => r,
             Err(e) => {
                 self.update(|s| s.say(format!("render failed: {e}")));

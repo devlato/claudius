@@ -151,6 +151,8 @@ pub struct App {
     transport: Mutex<(Transport, Instant)>,
     /// the page a phone plays along on, while it is served
     phone: Mutex<Option<phone::Running>>,
+    /// each track as the last render made it, so that the next renders only the tracks an edit changed
+    kept: Mutex<claudius::render::Kept>,
 }
 
 /// how many sessions this process has started
@@ -211,6 +213,7 @@ impl App {
             voice_file: settings.voice.clone(),
             transport: Mutex::new((Transport::default(), Instant::now())),
             phone: Mutex::new(None),
+            kept: Mutex::new(Default::default()),
         });
         {
             let mut s = app.lock();
