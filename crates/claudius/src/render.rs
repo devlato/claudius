@@ -378,7 +378,70 @@ fn duck_curve(p: &Project, tm: &Timing, len: usize) -> Option<Vec<f32>> {
     Some(env)
 }
 
+/// What a render keeps of each track for the next one (`render_kept`): its sound through its effects and its drive,
+/// before the mix levels, ducks and pans it, with the level the mix heard in it, under a key made of everything that
+/// sound comes from. A track an edit left as it was (another track's notes, its own level or send, the master) is not
+/// rendered again; one whose key has changed is, and what comes of it is the same either way.
+#[derive(Default)]
+pub struct Kept {
+    tracks: HashMap<String, KeptTrack>,
+}
+
+struct KeptTrack {
+    key: blake3::Hash,
+    sound: Arc<Stereo>,
+    level: Option<f64>,
+}
+
+impl Kept {
+    /// forgets every track (the sample packs changed under them)
+    pub fn clear(&mut self) {
+        self.tracks.clear();
+    }
+
+    /// the tracks it keeps
+    pub fn len(&self) -> usize {
+        self.tracks.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.tracks.is_empty()
+    }
+}
+
+/// what a track's sound before the mix comes from: the track, but for what the mix does after its drive, the song's
+/// tempo, swing, humanisation, seed, key and chords (which a tuned voice is tuned to), the render's length, the onsets
+/// that choke it, and the files it plays as they are now
+fn track_key(p: &Project, t: &Track, len: usize, chokes: &BTreeMap<String, Vec<i64>>) -> blake3::Hash {
+    let mut t = t.clone();
+    let m = &mut t.mix;
+    (m.level_db, m.pan, m.reverb, m.delay, m.duck, m.mute, m.solo) = (0.0, 0.0, 0.0, 0.0, 0.0, false, false);
+    m.bus = String::new();
+    let mut h = blake3::Hasher::new();
+    h.update(&serde_json::to_vec(&t).unwrap_or_default());
+    h.update(&serde_json::to_vec(&(p.bpm, p.swing, p.humanize, p.seed, &p.key, &p.chords, len)).unwrap_or_default());
+    if let Some(onsets) = t.choke.as_ref().and_then(|g| chokes.get(g)) {
+        h.update(&serde_json::to_vec(onsets).unwrap_or_default());
+    }
+    if crate::config::FILES
+        && let Sound::Sample { path, .. } | Sound::Loop { path, .. } = &t.sound
+        && let Ok(md) = std::fs::metadata(path)
+    {
+        let mtime = md.modified().ok().and_then(|m| m.duration_since(std::time::UNIX_EPOCH).ok());
+        h.update(format!("{}|{:?}", md.len(), mtime).as_bytes());
+    }
+    h.finalize()
+}
+
+/// the samples of a track the mix scales, ducks and pans at a time
+const BLOCK: usize = 4096;
+
 pub fn render(p: &Project, opts: &Options) -> Result<Rendered> {
+    render_kept(p, opts, &mut Kept::default())
+}
+
+/// `render`, drawing on what `kept` keeps of the tracks from the render before, and keeping this one's
+pub fn render_kept(p: &Project, opts: &Options, kept: &mut Kept) -> Result<Rendered> {
     if p.bars > crate::model::MAX_BARS || p.secs() > crate::model::MAX_SECONDS {
         anyhow::bail!("the song is too long to render ({} bars, {:.0} s)", p.bars, p.secs());
     }
@@ -393,17 +456,15 @@ pub fn render(p: &Project, opts: &Options) -> Result<Rendered> {
     let duck = duck_curve(p, &tm, len);
     let ctx = |name: &str| Ctx { sr: SRF, bpm: p.bpm, seed: p.seed ^ hash_str(name) };
 
-    struct Done {
-        bus: String,
-        stem: Stereo,
-        reverb: f32,
-        delay: f32,
-        report: TrackReport,
-    }
-    let done: Vec<Done> = p
+    // each track's sound before the mix: kept from the render before when nothing it comes from has changed
+    let sounds: Vec<(blake3::Hash, Arc<Stereo>, Option<f64>)> = p
         .tracks
         .par_iter()
-        .map(|t| -> Result<Done> {
+        .map(|t| -> Result<(blake3::Hash, Arc<Stereo>, Option<f64>)> {
+            let key = track_key(p, t, len, &chokes);
+            if let Some(k) = kept.tracks.get(&t.name).filter(|k| k.key == key) {
+                return Ok((key, k.sound.clone(), k.level));
+            }
             let ts = crate::clock::Instant::now();
             let mut x = render_source(t, p, &tm, len, &chokes)?;
             fx::apply_chain(&t.mix.fx, &mut x, &ctx(&t.name));
@@ -416,55 +477,89 @@ pub fn render(p: &Project, opts: &Options) -> Result<Rendered> {
                 eprintln!("render: track {} in {:.2} s", t.name, ts.elapsed().as_secs_f64());
             }
             let level = loudness::active_level(&x);
-            let target = target_level(&t.role) + p.mix.levels.get(&t.role).copied().unwrap_or(0.0) + t.mix.level_db;
-            let gain_db = level.map_or(0.0, |l| (target as f64 - l) as f32).clamp(-40.0, 30.0);
-            x.scale(db_to_gain(gain_db));
-            if t.mix.duck > 0.0
-                && t.role != "kick"
-                && let Some(d) = &duck
-            {
-                let depth = t.mix.duck.clamp(0.0, 1.0);
-                for i in 0..x.len().min(d.len()) {
-                    let g = 1.0 - depth * (1.0 - d[i]);
-                    x.l[i] *= g;
-                    x.r[i] *= g;
-                }
-            }
-            if t.mix.pan.abs() > 1e-3 {
-                let (gl, gr) = audio::balance_gains(t.mix.pan);
-                x.scale_lr(gl, gr);
-            }
-            let report = TrackReport {
-                name: t.name.clone(),
-                role: t.role.clone(),
-                sound: t.sound.describe(),
-                bus: t.mix.bus.clone(),
-                notes: t.notes.len(),
-                clips: t.clips.len(),
-                level_lufs: level.map(|l| (l * 10.0).round() / 10.0),
-                gain_db: (gain_db * 10.0).round() / 10.0,
-            };
-            Ok(Done { bus: t.mix.bus.clone(), stem: x, reverb: t.mix.reverb, delay: t.mix.delay, report })
+            Ok((key, Arc::new(x), level))
         })
         .collect::<Result<Vec<_>>>()?;
+    kept.tracks = p
+        .tracks
+        .iter()
+        .zip(&sounds)
+        .map(|(t, (key, sound, level))| (t.name.clone(), KeptTrack { key: *key, sound: sound.clone(), level: *level }))
+        .collect();
 
+    // each track into its bus and the sends, levelled to its role's target, ducked under the kick and panned, as the
+    // sum of its own copy scaled in that order would be
     let mut buses: BTreeMap<String, Stereo> = BTreeMap::new();
     let mut rev_send = Stereo::zeros(len);
     let mut del_send = Stereo::zeros(len);
     let mut stems = Vec::new();
     let mut tracks = Vec::new();
-    for d in done {
-        buses.entry(d.bus.clone()).or_insert_with(|| Stereo::zeros(len)).mix(&d.stem, 1.0);
-        if d.reverb > 0.0 {
-            rev_send.mix(&d.stem, d.reverb);
-        }
-        if d.delay > 0.0 {
-            del_send.mix(&d.stem, d.delay);
+    for (t, (_, sound, level)) in p.tracks.iter().zip(&sounds) {
+        let target = target_level(&t.role) + p.mix.levels.get(&t.role).copied().unwrap_or(0.0) + t.mix.level_db;
+        let gain_db = level.map_or(0.0, |l| (target as f64 - l) as f32).clamp(-40.0, 30.0);
+        let gain = db_to_gain(gain_db);
+        let duck = duck.as_ref().filter(|_| t.mix.duck > 0.0 && t.role != "kick");
+        let depth = t.mix.duck.clamp(0.0, 1.0);
+        let pan = (t.mix.pan.abs() > 1e-3).then(|| audio::balance_gains(t.mix.pan));
+        let bus = buses.entry(t.mix.bus.clone()).or_insert_with(|| Stereo::zeros(len));
+        // a block at a time, each sample scaled, ducked and panned in that order
+        let mut block = Stereo::zeros(BLOCK);
+        let shape = |b: &mut Stereo, from: usize, n: usize| {
+            for j in 0..n {
+                b.l[j] = sound.l[from + j] * gain;
+                b.r[j] = sound.r[from + j] * gain;
+            }
+            if let Some(d) = duck {
+                for j in 0..n.min(d.len().saturating_sub(from)) {
+                    let g = 1.0 - depth * (1.0 - d[from + j]);
+                    b.l[j] *= g;
+                    b.r[j] *= g;
+                }
+            }
+            if let Some((gl, gr)) = pan {
+                for j in 0..n {
+                    b.l[j] *= gl;
+                    b.r[j] *= gr;
+                }
+            }
+        };
+        let end = len.min(sound.len());
+        for from in (0..end).step_by(BLOCK) {
+            let n = BLOCK.min(end - from);
+            shape(&mut block, from, n);
+            let (bl, br) = (&block.l[..n], &block.r[..n]);
+            for (o, v) in bus.l[from..from + n].iter_mut().zip(bl) {
+                *o += v;
+            }
+            for (o, v) in bus.r[from..from + n].iter_mut().zip(br) {
+                *o += v;
+            }
+            for (send, amount) in [(&mut rev_send, t.mix.reverb), (&mut del_send, t.mix.delay)] {
+                if amount > 0.0 {
+                    for (o, v) in send.l[from..from + n].iter_mut().zip(bl) {
+                        *o += v * amount;
+                    }
+                    for (o, v) in send.r[from..from + n].iter_mut().zip(br) {
+                        *o += v * amount;
+                    }
+                }
+            }
         }
         if opts.stems {
-            stems.push((d.report.name.clone(), d.stem));
+            let mut stem = Stereo::zeros(sound.len());
+            shape(&mut stem, 0, sound.len());
+            stems.push((t.name.clone(), stem));
         }
-        tracks.push(d.report);
+        tracks.push(TrackReport {
+            name: t.name.clone(),
+            role: t.role.clone(),
+            sound: t.sound.describe(),
+            bus: t.mix.bus.clone(),
+            notes: t.notes.len(),
+            clips: t.clips.len(),
+            level_lufs: level.map(|l| (l * 10.0).round() / 10.0),
+            gain_db: (gain_db * 10.0).round() / 10.0,
+        });
     }
     let mut sum = Stereo::zeros(len);
     let bus_out: Vec<(String, Stereo)> = buses
@@ -601,6 +696,38 @@ mod tests {
         let mut dark = x.clone();
         shape(&mut dark, 1.0, -1.0);
         assert!(edge(&dark) < 0.5 * edge(&x));
+    }
+
+    #[test]
+    fn a_render_renders_again_only_the_tracks_an_edit_changed_and_comes_out_the_same() {
+        let g = crate::genres::get("house").unwrap();
+        let o = crate::compose::Options { short: true, samples: 0.0, loops: false, ..Default::default() };
+        let mut p = crate::compose::arrange(&crate::compose::generate(&g, 3, &o, None));
+        let mut kept = Kept::default();
+        render_kept(&p, &Options::default(), &mut kept).unwrap();
+        let before: HashMap<String, Arc<Stereo>> =
+            kept.tracks.iter().map(|(n, k)| (n.clone(), k.sound.clone())).collect();
+        let same = |kept: &Kept, name: &str| Arc::ptr_eq(&kept.tracks[name].sound, &before[name]);
+        // a level, a pan and a send: no track is rendered again, and the song is the one a fresh render makes
+        let bass = p.tracks.iter().position(|t| t.name == "bass").unwrap();
+        p.tracks[bass].mix.level_db += 3.0;
+        p.tracks[bass].mix.pan = 0.4;
+        p.tracks[bass].mix.reverb = 0.3;
+        let r = render_kept(&p, &Options::default(), &mut kept).unwrap();
+        assert!(p.tracks.iter().all(|t| same(&kept, &t.name)), "nothing rendered again");
+        let fresh = render(&p, &Options::default()).unwrap();
+        assert!(r.master.l == fresh.master.l && r.master.r == fresh.master.r, "the same song, sample for sample");
+        // the bass's notes: the bass alone is rendered again
+        p.tracks[bass].notes.pop();
+        let r = render_kept(&p, &Options::default(), &mut kept).unwrap();
+        assert!(!same(&kept, "bass"));
+        assert!(p.tracks.iter().filter(|t| t.name != "bass").all(|t| same(&kept, &t.name)));
+        let fresh = render(&p, &Options::default()).unwrap();
+        assert!(r.master.l == fresh.master.l && r.master.r == fresh.master.r);
+        // the tempo changes every track
+        p.bpm += 2.0;
+        render_kept(&p, &Options::default(), &mut kept).unwrap();
+        assert!(p.tracks.iter().all(|t| !same(&kept, &t.name)));
     }
 
     #[test]
