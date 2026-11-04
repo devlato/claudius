@@ -235,10 +235,22 @@ test.describe("the samples Worker", () => {
       () => new Response("x", { headers: { "content-length": String(64 * 1024 * 1024) } }),
       async () => expect((await get("/studio/samples/audio/0/123_456.ogg")).status).toBe(413),
     );
-    await upstream(
-      () => new Response(new Uint8Array(13 * 1024 * 1024)),
-      async () => expect((await get("/studio/samples/audio/jamendo/582248.mp3")).status).toBe(413),
-    );
+    // a body longer than its library says is read no further than the cap: a stream that would go on for ever
+    let pulled = 0;
+    const endless = () =>
+      new Response(
+        new ReadableStream({
+          pull(c) {
+            pulled += 1;
+            c.enqueue(new Uint8Array(1024 * 1024));
+          },
+        }),
+        { headers: { "content-length": "4" } },
+      );
+    await upstream(endless, async () => {
+      expect((await get("/studio/samples/audio/jamendo/582248.mp3")).status).toBe(413);
+    });
+    expect(pulled).toBeLessThan(20);
   });
 
   test("leaves every other path to the static assets, and takes only GET", async () => {
