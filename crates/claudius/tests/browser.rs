@@ -1,6 +1,6 @@
 //! What keeps the engine running in a browser (a build without the `native` feature, for wasm32-unknown-unknown): std's
-//! clock and temporary folder exist there only to panic, at run time, so the engine reads them through `clock` and
-//! `config::temp_dir`, which know.
+//! clock, temporary folder and process id exist there only to panic, at run time, so the engine reads them through
+//! `clock`, `config::temp_dir` and `config::process_id`, which know.
 
 use std::path::{Path, PathBuf};
 
@@ -16,7 +16,7 @@ fn sources(dir: &Path, out: &mut Vec<PathBuf>) {
 }
 
 #[test]
-fn the_engine_reads_no_clock_or_temporary_folder_a_browser_lacks() {
+fn the_engine_reads_no_clock_temporary_folder_or_process_id_a_browser_lacks() {
     let crates = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let mut files = Vec::new();
     for c in ["claudius", "claudius-packs"] {
@@ -31,11 +31,17 @@ fn the_engine_reads_no_clock_or_temporary_folder_a_browser_lacks() {
         let code = text.split("#[cfg(test)]").next().unwrap_or_default();
         for (n, line) in code.lines().enumerate() {
             let clock = line.contains("std::time") && (line.contains("Instant") || line.contains("SystemTime"));
-            let temp = line.contains("std::env::temp_dir") && !line.contains("if cfg!(target_arch = \"wasm32\")");
-            if clock || temp {
+            let known = line.contains("if cfg!(target_arch = \"wasm32\")");
+            let temp = line.contains("std::env::temp_dir") && !known;
+            let pid = line.contains("std::process::id") && !known;
+            if clock || temp || pid {
                 found.push(format!("{}:{}: {}", f.display(), n + 1, line.trim()));
             }
         }
     }
-    assert!(found.is_empty(), "use claudius::clock and config::temp_dir instead:\n{}", found.join("\n"));
+    assert!(
+        found.is_empty(),
+        "use claudius::clock, config::temp_dir and config::process_id instead:\n{}",
+        found.join("\n")
+    );
 }

@@ -267,10 +267,12 @@ pub fn load(path: &Path) -> Result<Stereo> {
         return Ok(Stereo::from_interleaved(&x));
     }
     let x = decode_file(path)?;
-    let tmp = cached.with_extension(format!("{}.tmp", std::process::id()));
-    let bytes: Vec<u8> = x.iter().flat_map(|v| v.to_le_bytes()).collect();
-    if std::fs::write(&tmp, bytes).is_ok() {
-        let _ = std::fs::rename(&tmp, &cached);
+    if config::FILES {
+        let tmp = cached.with_extension(format!("{}.tmp", config::process_id()));
+        let bytes: Vec<u8> = x.iter().flat_map(|v| v.to_le_bytes()).collect();
+        if std::fs::write(&tmp, bytes).is_ok() {
+            let _ = std::fs::rename(&tmp, &cached);
+        }
     }
     Ok(Stereo::from_interleaved(&x))
 }

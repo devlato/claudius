@@ -28,6 +28,15 @@ pub fn temp_dir() -> PathBuf {
     if cfg!(target_arch = "wasm32") { PathBuf::new() } else { std::env::temp_dir() }
 }
 
+/// whether there are files to keep: none in a browser, where a cache is only memory
+pub const FILES: bool = !cfg!(target_arch = "wasm32");
+
+/// this process's id, which names what it writes before renaming it into place; a browser has no processes (and its
+/// std panics when asked), and no files to write, and gets 0
+pub fn process_id() -> u32 {
+    if cfg!(target_arch = "wasm32") { 0 } else { std::process::id() }
+}
+
 pub fn cache_dir(name: &str) -> PathBuf {
     let d = home().join(name);
     let _ = std::fs::create_dir_all(&d);

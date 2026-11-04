@@ -44,6 +44,11 @@ pub use player::{Instrument, InstrumentInfo, NoteOn, SR};
 pub use resolve::InstrumentRef;
 
 /// Parsing helpers (note names, file-name analysis, Strudel maps, SFZ) for callers that want them.
+/// this process's id, which names what it unpacks; a browser has no processes (and its std panics when asked), and gets 0
+fn process_id() -> u32 {
+    if cfg!(target_arch = "wasm32") { 0 } else { std::process::id() }
+}
+
 pub mod parse {
     pub use crate::notes::{NameInfo, analyze_name, drum_canonical, note_name, parse_note};
     pub use crate::sfz::{SfzFile, SfzRegion, parse as parse_sfz};
