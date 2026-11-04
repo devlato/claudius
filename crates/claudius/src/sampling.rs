@@ -153,7 +153,8 @@ pub fn gather(
         };
         // the ears listen for what was asked: the words of one's own, or what the genre listens for
         let n = &SampleNeed { listen: asked.map_or_else(|| n.listen.clone(), str::to_string), ..n.clone() };
-        let whose = asked.map_or_else(|| lead(&g.name).to_string(), |w| format!("\"{w}\""));
+        let who = asked.map_or_else(|| lead(&g.name).to_string(), |w| format!("\"{w}\""));
+        let folder = ix.root().join(role.name()).join(whose(g, asked));
         'search: for words in &searches {
             if stop() {
                 break;
@@ -182,8 +183,8 @@ pub fn gather(
                 }
                 budget -= 1;
                 known.insert(f.id.clone());
-                say(&format!("{} for {whose}: \"{}\" by {} ({})", role.name(), f.title, f.creator, f.id));
-                let kept = online::fetch(&f, policy).and_then(|path| prepare(role, &path, &f, g, n, ears, ix.root()));
+                say(&format!("{} for {who}: \"{}\" by {} ({})", role.name(), f.title, f.creator, f.id));
+                let kept = online::fetch(&f, policy).and_then(|path| prepare(role, &path, &f, g, n, ears, &folder));
                 match kept {
                     Ok(mut p) if p.z.is_none_or(|z| z >= MIN_Z) => {
                         p.asked = asked.map(str::to_string);
@@ -209,7 +210,7 @@ pub fn gather(
             }
         }
         if have < goal {
-            out.notes.push(format!("only {have} of the {} {}s for {whose} could be prepared", n.keep, role.name()));
+            out.notes.push(format!("only {have} of the {} {}s for {who} could be prepared", n.keep, role.name()));
         }
     }
     Ok(out)
@@ -288,8 +289,17 @@ pub fn cut(
     Ok(c)
 }
 
-/// Cut a downloaded recording into what `role` plays, in `<root>/<role>/<recording>/`, with the recording's credit beside
-/// each file, and with the ears say how strongly it sounds like what the genre listens for.
+/// the folder of `<root>/<role>/` the cuts of a gathering go into: the genre's, or the words asked for (`asked-…`), so
+/// that one recording cut for two of them is two cuts, neither in the other's place
+pub fn whose(g: &GenreProfile, asked: Option<&str>) -> String {
+    match asked {
+        Some(w) => format!("asked-{}", crate::song::slug(w)),
+        None => lead(&g.name).to_string(),
+    }
+}
+
+/// Cut a downloaded recording into what `role` plays, in `<folder>/<recording>/` (the gathering's folder, `whose`), with
+/// the recording's credit beside each file, and with the ears say how strongly it sounds like what was asked for.
 pub fn prepare(
     role: Role,
     path: &Path,
@@ -297,11 +307,11 @@ pub fn prepare(
     g: &GenreProfile,
     n: &SampleNeed,
     ears: Option<&Ears>,
-    root: &Path,
+    folder: &Path,
 ) -> Result<Prepared> {
     let x = audio::load(path).with_context(|| format!("reading {}", path.display()))?;
     let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "sound".into());
-    let dir = root.join(role.name()).join(crate::song::slug(&stem));
+    let dir = folder.join(crate::song::slug(&stem));
     let c = cut(role, &x, f, g, n, ears, &dir)?;
     std::fs::create_dir_all(&dir).with_context(|| format!("cannot create {}", dir.display()))?;
     c.write(f)?;
@@ -963,6 +973,17 @@ mod tests {
         assert!(plays(&at(Role::Texture, 92.0), &house, false), "a texture has no tempo");
         // where claudius stretches, every one plays
         assert!(plays(&at(Role::Phrase, 80.0), &house, true) && plays(&at(Role::Break, 92.0), &house, true));
+    }
+
+    #[test]
+    fn one_recording_gathered_twice_is_cut_twice_each_cut_in_its_own_folder() {
+        let get = |name: &str| crate::genres::get(name).unwrap();
+        let (house, nu_disco) = (get("house"), get("nu_disco"));
+        assert_ne!(whose(&house, None), whose(&nu_disco, None), "a genre's own");
+        assert_ne!(whose(&house, None), whose(&house, Some("70s soul")), "the words' apart from the genre's");
+        assert_eq!(whose(&house, Some("70s soul")), whose(&nu_disco, Some("70s soul")), "words are for any genre");
+        assert_ne!(whose(&house, Some("house")), whose(&house, None), "even words that name a genre");
+        assert_eq!(whose(&get("trip_hop+idm"), None), "trip_hop", "a fusion's is its lead's");
     }
 
     #[test]

@@ -104,7 +104,11 @@ impl Host {
         let n = SampleNeed { listen: asked.clone().unwrap_or_else(|| n.listen.clone()), ..n.clone() };
         let x = audio::load_bytes(bytes, &r.ext).map_err(|e| format!("cannot read it: {e:#}"))?;
         let name = format!("{}-{}", claudius::song::slug(&r.found.title), claudius::song::slug(&r.found.id));
-        let dir = std::path::PathBuf::from(format!("demo:samples/{}/{name}", r.role.name()));
+        let dir = std::path::PathBuf::from(format!(
+            "demo:samples/{}/{}/{name}",
+            r.role.name(),
+            sampling::whose(&g, asked.as_deref())
+        ));
         let cut = sampling::cut(r.role, &x, &r.found, &g, &n, None, &dir).map_err(|e| format!("{e:#}"))?;
         if !sampling::plays_in(&cut.prepared, &g) {
             return Err(format!("{} plays nothing at {:.0} BPM as it was played", g.name, cut.prepared.bpm));
