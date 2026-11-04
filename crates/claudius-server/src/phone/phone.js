@@ -24,9 +24,9 @@ function trouble(e) {
   return e.lost || e instanceof TypeError ? LOST : "no";
 }
 
-/** a failure of the link to the demo: none of the demo's own answers */
-function unreachable(why) {
-  return Object.assign(new Error(why), { lost: true });
+/** a failure of the link to the demo: none of the demo's own answers; a quiet one is only to be asked again */
+function unreachable(why, quiet = false) {
+  return Object.assign(new Error(why), { lost: true, quiet });
 }
 
 /** clears what was said of the studio being out of reach */
@@ -85,14 +85,14 @@ function relay(room) {
   let next = 1;
   /** the room has no demo: it says so, and says when one is back, and what is asked meanwhile goes nowhere */
   let gone = false;
-  const fail = (id, why) => {
+  const fail = (id, why, quiet = false) => {
     const w = waiting.get(id);
     if (!w) return;
     waiting.delete(id);
     clearTimeout(w.timer);
     failed.set(id, w.path);
     if (failed.size > 64) failed.delete(failed.keys().next().value);
-    w.no(unreachable(why));
+    w.no(unreachable(why, quiet));
   };
   const settle = (id, status, body) => {
     const w = waiting.get(id);
@@ -132,7 +132,7 @@ function relay(room) {
           // a demo joined the room, in place of one gone or of one still there (opened again elsewhere): what was
           // asked of the one before is asked again of it
           gone = false;
-          for (const id of [...waiting.keys()]) fail(id, "the demo was opened again");
+          for (const id of [...waiting.keys()]) fail(id, "the demo was opened again", true);
           back();
         } else if (m.id) settle(m.id, m.status, m.body);
       };
@@ -208,7 +208,7 @@ async function tick() {
     found();
   } catch (e) {
     // what failed after an answer came for something asked since says nothing of the studio now
-    if (t0 < reached) return;
+    if (t0 < reached || e.quiet) return;
     // a blip on the Wi-Fi keeps the song going as it was; only a studio gone for a while stops it here
     lost ??= performance.now();
     if (performance.now() - lost > 5000) transport = { playing: false, at: 0, since: 0 };
@@ -258,8 +258,8 @@ async function watch() {
       const s = await r.json();
       if (!song || s.version !== song.version) open(s);
     } catch (e) {
-      say(`cannot reach the studio: ${e.message}`, LOST);
-      await sleep(3000);
+      if (!e.quiet) say(`cannot reach the studio: ${e.message}`, LOST);
+      await sleep(e.quiet ? 0 : 3000);
     }
   }
 }
@@ -337,7 +337,7 @@ async function loadSounds() {
           const b = await sound(`api/hits/${encodeURIComponent(lane)}`);
           if (song && song.version === v) hits.set(lane, b);
         } catch (e) {
-          say(`no sound for ${lane}: ${e.message}`, trouble(e));
+          if (!e.quiet) say(`no sound for ${lane}: ${e.message}`, trouble(e));
         }
       }),
   );
@@ -439,7 +439,7 @@ async function loadKeys() {
     if (keys.name === name) keys.buf = b;
     done();
   } catch (e) {
-    say(e.message, trouble(e));
+    if (!e.quiet) say(e.message, trouble(e));
   }
 }
 
@@ -550,7 +550,7 @@ async function loadRecord() {
     if (deck.name === name) Object.assign(deck, { buf: b, track, bar, bars });
     done();
   } catch (e) {
-    say(e.message, trouble(e));
+    if (!e.quiet) say(e.message, trouble(e));
   }
   if (!deck.node) {
     deck.node = ctx.createScriptProcessor(1024, 0, 2);

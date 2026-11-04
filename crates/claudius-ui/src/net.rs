@@ -121,6 +121,8 @@ pub enum Event {
         text: String,
         ok: bool,
     },
+    /// the page a phone plays along on was not served, and why
+    PhoneRefused(String),
 }
 
 /// the `"cmd"` tag of a command ("set_tempo")
@@ -336,7 +338,7 @@ impl Remote {
                 }
                 Err(e) => e,
             };
-            Self::deliver(&tx, &ctx, Event::Reply { what: "phone".into(), result: Err(refused) });
+            Self::deliver(&tx, &ctx, Event::PhoneRefused(refused));
         });
     }
 

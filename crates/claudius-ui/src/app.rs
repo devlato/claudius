@@ -279,6 +279,10 @@ impl Studio {
             }
             Event::Preview { version, image } => self.view.publish.arrived = Some((version, image)),
             Event::Said { text, ok } => self.toast(text, ok, now),
+            Event::PhoneRefused(why) => {
+                self.view.phone.refused();
+                self.toast(why, false, now);
+            }
         }
     }
 

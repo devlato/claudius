@@ -167,7 +167,7 @@ impl Mock {
         }
         match Relay::join(self.ctx.clone()) {
             Ok(r) => self.relay = Some(r),
-            Err(e) => self.events.push(Event::Said { text: e, ok: false }),
+            Err(e) => self.events.push(Event::PhoneRefused(e)),
         }
         self.publish();
     }
