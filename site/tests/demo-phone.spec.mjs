@@ -50,6 +50,9 @@ test.describe("a phone with the demo", () => {
       const said = phone.locator("#said");
       await expect(said).toHaveText(/^drums played from \S+, 2 bars as their main patterns: /, { timeout: 150_000 });
       await expect.poll(() => toasts.join("\n"), { message: "the demo says so" }).toMatch(/from the phone: drums played/);
+      // the demo closed: the phone says so at once, rather than once what it asked has waited its time
+      await demo.close();
+      await expect(phone.locator("#said")).toContainText("not open", { timeout: 15_000 });
     } finally {
       await browser.close();
       server.kill();

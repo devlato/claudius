@@ -99,6 +99,8 @@ pub struct Mock {
     relay: Option<phone::Relay>,
     /// where the studio says the song is, and when (`now`) it said so
     transport: (Transport, f64),
+    /// how many things the engine has been asked for the phones (`phone::Mock::ask_id`)
+    phone_asks: u64,
 }
 
 /// the demo's release: what `claudius publish` asks, and a note that nothing is checked here
@@ -146,6 +148,7 @@ impl Mock {
             sounds: None,
             relay: None,
             transport: (Transport::default(), 0.0),
+            phone_asks: 0,
         }
     }
 
@@ -539,6 +542,20 @@ mod tests {
         assert!(replies(&events).is_empty(), "the phone's take is no answer to the person");
         mock.phone(false);
         assert_eq!(mock.phone_view(), None);
+        // a sound still on its way when the page stopped answers nothing asked since it was served again
+        mock.relay = Some(phone::Relay::standing("https://claudius.devlato.com/phone/?room=r"));
+        ask(&mut mock, 8, "GET", "api/record?track=kick&bar=0&bars=1", Value::Null);
+        mock.update(now);
+        mock.relay = Some(phone::Relay::standing("https://claudius.devlato.com/phone/?room=r"));
+        ask(&mut mock, 9, "GET", "api/keys?sound=epiano&low=59&high=65&step=3", Value::Null);
+        until(&mut mock, &mut now, |m| answer(m, 9).is_some());
+        assert!(answer(&mock, 8).is_none(), "the record went to no one");
+        let keys = mock.relay.as_ref().unwrap().out.iter().find_map(|s| match s {
+            Said::Sound { id: 9, wav, .. } => Some(wav.len()),
+            _ => None,
+        });
+        // three notes a slot each, 16-bit stereo at 48 kHz: not the record of one bar
+        assert_eq!(keys, Some(44 + (3.0 * SLOT * 48_000.0) as usize * 4));
     }
 
     #[test]

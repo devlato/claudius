@@ -18,6 +18,8 @@ const HOLD: f64 = 20.0;
 pub const SLOT_SECS: f64 = 1.5;
 /// what a phone's take is sent to the engine as: this, and a number
 const TAKE: &str = "phone take ";
+/// the most answers kept for the phones while the room cannot be reached
+const KEEP: usize = 256;
 
 /// a question from a phone's page, as the relay brings it
 #[derive(Clone, Debug, PartialEq)]
@@ -59,8 +61,7 @@ pub struct Relay {
     rendering: HashMap<u64, Rendering>,
     /// takes sent to the engine, by what they were sent as
     takes: HashMap<String, Asked>,
-    next: u64,
-    /// what is to go to the phones
+    /// what is to go to the phones, kept while the room cannot be reached (the oldest let go past `KEEP`)
     pub out: Vec<Said>,
     /// when to join the room again, after the connection closed
     rejoin: Option<f64>,
@@ -265,10 +266,8 @@ impl Mock {
             },
             ("POST", "api/take") => match serde_json::from_value::<Command>(a.body.clone()) {
                 Ok(c @ (Command::AddHits { .. } | Command::AddNotes { .. } | Command::AddScratch { .. })) => {
-                    let relay = self.relay();
-                    relay.next += 1;
-                    let what = format!("{TAKE}{}", relay.next);
-                    relay.takes.insert(what.clone(), a);
+                    let what = format!("{TAKE}{}", self.ask_id());
+                    self.relay().takes.insert(what.clone(), a);
                     self.engine.command(&what, &c);
                     self.waiting += 1;
                 }
@@ -280,6 +279,13 @@ impl Mock {
 
     fn relay(&mut self) -> &mut Relay {
         self.relay.as_mut().expect("a relay, since a phone asked through it")
+    }
+
+    /// a number for what the engine is asked for the phones, never given before: an answer the engine was still
+    /// working on when the page stopped being served cannot go to a question asked since
+    fn ask_id(&mut self) -> u64 {
+        self.phone_asks += 1;
+        self.phone_asks
     }
 
     /// the song, as the page shows and plays it (the server's `phone.rs` says the same)
@@ -323,10 +329,9 @@ impl Mock {
             r.waiting.push((a, key.to_string()));
             return;
         }
-        relay.next += 1;
-        let id = relay.next;
+        let id = self.ask_id();
         let waiting = vec![(a, key.to_string())];
-        relay.rendering.insert(id, Rendering { version, what: what.to_string(), waiting });
+        self.relay().rendering.insert(id, Rendering { version, what: what.to_string(), waiting });
         self.engine.sound(id, ask);
     }
 
@@ -400,19 +405,18 @@ impl Relay {
         self.inbox.drain(..).filter_map(|t| heard(&t)).collect()
     }
 
-    #[cfg(target_arch = "wasm32")]
+    /// what is to go to the phones, sent while the room can be reached, and kept (the newest `KEEP` of it) until it can:
+    /// with no socket here, kept in `out`, where a test reads it
     fn send(&mut self) {
-        let out = std::mem::take(&mut self.out);
-        if let Some(s) = &self.socket {
-            for said in &out {
-                s.send(said);
+        #[cfg(target_arch = "wasm32")]
+        if let Some(s) = self.socket.as_ref().filter(|s| s.open()) {
+            for said in std::mem::take(&mut self.out) {
+                s.send(&said);
             }
         }
+        let n = self.out.len();
+        self.out.drain(..n.saturating_sub(KEEP));
     }
-
-    /// what is to go to the phones stays in `out`, where a test reads it
-    #[cfg(not(target_arch = "wasm32"))]
-    fn send(&mut self) {}
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -493,10 +497,11 @@ mod socket {
             self.heard.borrow_mut().drain(..).collect()
         }
 
+        pub fn open(&self) -> bool {
+            self.ws.ready_state() == WebSocket::OPEN
+        }
+
         pub fn send(&self, said: &Said) {
-            if self.ws.ready_state() != WebSocket::OPEN {
-                return;
-            }
             let _ = match said {
                 Said::Answer { phone, id, status, body } => {
                     let answer = serde_json::json!({ "id": id, "status": status, "body": body });

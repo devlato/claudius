@@ -89,7 +89,10 @@ function relay(room) {
         if (typeof e.data !== "string") return settle(new DataView(e.data).getUint32(0, true), 200, e.data.slice(4));
         const m = JSON.parse(e.data);
         if (m.event === "gone") {
+          // what waits for the demo will not be answered: it is asked again, and answered once the tab is back
           gone = true;
+          for (const w of waiting.values()) w.no(new Error("the demo is not open"));
+          waiting.clear();
           say("the demo is not open: open it again and scan its code", "no");
         } else if (m.id) settle(m.id, m.status, m.body);
       };
