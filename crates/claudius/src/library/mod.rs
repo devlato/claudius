@@ -116,10 +116,11 @@ impl Library {
         self.loops.is_empty() && self.prepared_now().is_empty()
     }
 
-    /// how many samples are prepared for `role` of `genre` (a fusion's: the genre that leads it)
-    pub fn prepared_for(&self, role: prepared::Role, genre: &str) -> usize {
+    /// how many samples are prepared for `role` of `genre` (a fusion's: the genre that leads it), or gathered for the
+    /// words `asked`
+    pub fn prepared_for(&self, role: prepared::Role, genre: &str, asked: Option<&str>) -> usize {
         let lead = genre.split('+').next().unwrap_or(genre);
-        self.prepared_now().iter().filter(|p| p.role == role && p.genre == lead).count()
+        self.prepared_now().iter().filter(|p| p.role == role && p.fits(lead, asked)).count()
     }
 
     /// samples gathered while the library is open, for the songs made after
@@ -260,11 +261,20 @@ fn read_progression(chords: &LoopInfo, bass: Option<&LoopInfo>, key: &Key) -> Op
 }
 
 impl compose::Library for Library {
-    fn prepared(&self, role: prepared::Role, genre: &GenreProfile, rng: &mut Rng) -> Option<prepared::Prepared> {
+    fn prepared(
+        &self,
+        role: prepared::Role,
+        genre: &GenreProfile,
+        asked: Option<&str>,
+        rng: &mut Rng,
+    ) -> Option<prepared::Prepared> {
         // a fusion samples as the genre that leads it
         let lead = genre.name.split('+').next().unwrap_or(&genre.name);
         let all = self.prepared_now();
-        let fits: Vec<&prepared::Prepared> = all.iter().filter(|p| p.role == role && p.genre == lead).collect();
+        let fits: Vec<&prepared::Prepared> = all
+            .iter()
+            .filter(|p| p.role == role && p.fits(lead, asked) && crate::sampling::plays_in(p, genre))
+            .collect();
         (!fits.is_empty()).then(|| fits[rng.below(fits.len())].clone())
     }
 

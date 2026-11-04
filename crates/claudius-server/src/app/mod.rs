@@ -145,6 +145,8 @@ pub struct App {
     /// how many new songs have been asked for: a song whose samples were still being gathered when a newer one was
     /// asked for is not made
     new_songs: AtomicU64,
+    /// what the libraries had nothing more of this session (`sampling_key`), which new songs do not search for again
+    dug_out: Mutex<std::collections::HashSet<String>>,
     /// the studio's transport, and when it said so
     transport: Mutex<(Transport, Instant)>,
     /// the page a phone plays along on, while it is served
@@ -204,6 +206,7 @@ impl App {
             base: Mutex::new(format!("http://127.0.0.1:{DEFAULT_PORT}")),
             gather: settings.gather && settings.file_roots.is_none(),
             new_songs: AtomicU64::new(0),
+            dug_out: Mutex::new(Default::default()),
             roots: settings.file_roots,
             voice_file: settings.voice.clone(),
             transport: Mutex::new((Transport::default(), Instant::now())),
@@ -547,34 +550,73 @@ mod tests {
             chords: vec!["i".into(), "VI".into()],
             z: Some(3.0),
             source: format!("freesound:{path}"),
+            asked: None,
         }
     }
 
-    #[test]
-    fn a_genre_built_on_samples_gathers_only_what_it_has_none_of() {
+    /// as many samples of each role as trip-hop keeps
+    fn shelf() -> Vec<Prepared> {
         let g = genres::get("trip_hop").unwrap();
-        assert_eq!(app(Some(Vec::new()), false).samples_wanted(&g).as_deref(), Some("a break, a phrase and a texture"));
+        Role::ALL
+            .into_iter()
+            .flat_map(|r| {
+                let keep = claudius::sampling::need(&g, r).unwrap().keep;
+                (0..keep).map(move |i| sample(r, &format!("/{}{i}.wav", r.name())))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_song_built_on_samples_gathers_what_it_has_too_few_of() {
+        let g = genres::get("trip_hop").unwrap();
+        let wanted =
+            |app: &Arc<App>, g: &genres::GenreProfile, opts: &claudius::compose::Options| app.samples_wanted(g, opts);
+        let plain = claudius::compose::Options::default();
+        assert_eq!(
+            wanted(&app(Some(Vec::new()), false), &g, &plain).as_deref(),
+            Some("a break, a phrase and a texture")
+        );
         let some = vec![sample(Role::Break, "/b.wav")];
-        assert_eq!(app(Some(some), false).samples_wanted(&g).as_deref(), Some("a phrase and a texture"));
-        let all = vec![sample(Role::Break, "/b.wav"), sample(Role::Phrase, "/p.wav"), sample(Role::Texture, "/t.wav")];
-        assert_eq!(app(Some(all), false).samples_wanted(&g), None);
-        assert_eq!(app(None, false).samples_wanted(&g), None, "without the library: no samples at all");
-        assert_eq!(app(Some(Vec::new()), false).samples_wanted(&genres::get("house").unwrap()), None);
+        assert_eq!(
+            wanted(&app(Some(some), false), &g, &plain).as_deref(),
+            Some("another break, a phrase and a texture"),
+            "each new song brings a few more, until the genre has as many as it keeps"
+        );
+        assert_eq!(wanted(&app(Some(shelf()), false), &g, &plain), None);
+        assert_eq!(wanted(&app(None, false), &g, &plain), None, "without the library: no samples at all");
+        // house is sampled when asked, for the words asked
+        let house = genres::get("house").unwrap();
+        assert_eq!(wanted(&app(Some(Vec::new()), false), &house, &plain), None);
+        let asked = claudius::compose::Options { sample_search: Some("70s soul".into()), ..Default::default() };
+        assert_eq!(
+            wanted(&app(Some(Vec::new()), false), &house, &asked).as_deref(),
+            Some("a break and a phrase for \"70s soul\"")
+        );
         let shared = app(Some(Vec::new()), true);
-        assert_eq!(shared.samples_wanted(&g), None, "a shared claudius gathers nothing");
+        assert_eq!(wanted(&shared, &g, &plain), None, "a shared claudius gathers nothing");
         assert!(shared.state().log.iter().any(|l| l.contains("claudius samples gather trip_hop")));
     }
 
     #[test]
+    fn a_role_the_libraries_had_nothing_more_of_is_not_searched_again_this_session() {
+        let app = app(Some(Vec::new()), false);
+        let g = genres::get("trip_hop").unwrap();
+        app.dug_out.lock().unwrap().insert(jobs::sampling_key(&g, Role::Texture, None));
+        let plain = claudius::compose::Options::default();
+        assert_eq!(app.samples_wanted(&g, &plain).as_deref(), Some("a break and a phrase"));
+    }
+
+    #[test]
     fn with_its_samples_a_new_song_of_a_genre_built_on_them_is_made_at_once() {
-        let all = vec![sample(Role::Break, "/b.wav"), sample(Role::Phrase, "/p.wav"), sample(Role::Texture, "/t.wav")];
-        let app = app(Some(all), false);
+        let app = app(Some(shelf()), false);
         let r = app.command(Command::NewSong {
             genre: "trip_hop".into(),
             seed: Some(3),
             bpm: None,
             key: None,
             loops: false,
+            sampled: None,
+            sample_search: None,
         });
         assert!(r.ok && r.message.starts_with("new song"), "{}", r.message);
         let bp = app.blueprint().unwrap();
@@ -603,6 +645,8 @@ mod tests {
             bpm: None,
             key: None,
             loops: false,
+            sampled: None,
+            sample_search: None,
         });
         assert!(!r.ok && r.message.contains("busy"), "{}", r.message);
         assert_eq!(app.new_songs.load(Ordering::Relaxed), 0, "the job already running stays the newest");

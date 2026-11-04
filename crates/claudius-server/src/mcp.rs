@@ -212,6 +212,15 @@ pub struct NewSongArgs {
     /// build the song around a family of Apple Loops recorded together (GarageBand style), when installed
     #[serde(default)]
     pub loops: bool,
+    /// build it on samples from free libraries (CC0, public domain, CC BY): a phrase the song takes its key, tempo and
+    /// chords from, played up or down by whole semitones as a sampler would, a drum break, a texture (default: as the
+    /// genre does; trip_hop, boom_bap, lofi, jungle, big_beat and filter_house are, the others when asked)
+    #[serde(default)]
+    pub sampled: Option<bool>,
+    /// what to search the libraries for the phrase with, a kind of record rather than the genre itself ("70s soul",
+    /// "bossa nova guitar", "film score"); implies sampled (default: the records the genre's producers dig for)
+    #[serde(default)]
+    pub sample_search: Option<String>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -652,7 +661,16 @@ impl Studio {
         description = "Start a new song: claudius composes it in a genre the way a producer would (drums, bass, chords, pad, lead, arrangement with builds and drops, mix and master), renders it with real synthesized or recorded sounds, and judges it. Returns the song and the critic's verdict."
     )]
     async fn new_song(&self, Parameters(a): Parameters<NewSongArgs>) -> Result<String, String> {
-        self.edit(Command::NewSong { genre: a.genre, seed: a.seed, bpm: a.bpm, key: a.key, loops: a.loops }, true).await
+        let song = Command::NewSong {
+            genre: a.genre,
+            seed: a.seed,
+            bpm: a.bpm,
+            key: a.key,
+            loops: a.loops,
+            sampled: a.sampled,
+            sample_search: a.sample_search,
+        };
+        self.edit(song, true).await
     }
 
     #[tool(

@@ -5,7 +5,7 @@ to. On the command line, each command reads and writes song folders instead.
 
 | MCP tool | arguments | command line |
 |---|---|---|
-| `new_song` | `genre`, `seed`, `bpm`, `key`, `loops` (build around an Apple Loops family) | `claudius make --genre house --seed 9 --bpm 124 --key "A minor"` |
+| `new_song` | `genre`, `seed`, `bpm`, `key`, `loops` (build around an Apple Loops family), `sampled` (build it on samples from free libraries; default as the genre is), `sample_search` (a kind of record for its phrase: "70s soul") | `claudius make --genre house --seed 9 --bpm 124 --key "A minor"`, `claudius make --genre house --sample-search "70s soul"` |
 | `get_song` | | `echo \| claudius script - --on SONG --print` (an empty script prints the song) |
 | `run_script` | `code`, `listen` (default true) | `claudius script edit.rhai --on SONG --out DIR` |
 | `script_reference` | | `claudius reference` |

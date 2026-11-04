@@ -15,6 +15,7 @@ the whole song as a script; running that script on the song changes nothing, so 
 |---|---|
 | `song("house")`, `song("trap", 7)` | generate a new song (genre, seed) |
 | `song("techno", #{ seed: 3, bpm: 130, key: "F minor", loops: true, short: true, samples: 0.5 })` | with options: `loops` builds it around a family of Apple Loops, `samples` (0..1, default 0.75) is the chance each drum lane is cut from a recording rather than synthesized |
+| `song("house", #{ sampled: true, sample_search: "70s soul" })` | built on samples gathered from free libraries (a script downloads none: `new_song` or `claudius samples gather` gathers them): a phrase it takes its key, tempo and chords from, played up or down by whole semitones as a sampler plays it, a break, a texture; `sampled: false` makes trip-hop of its own sounds; `sample_search` plays the phrases gathered for those words |
 | `blank("house")` | an empty song: the genre's tempo, one 8-bar section, progression `A` = the tonic chord, no tracks |
 
 Without either, edits apply to the current song (a blank house song when there is none). Option maps are checked:

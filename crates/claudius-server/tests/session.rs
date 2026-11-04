@@ -28,6 +28,8 @@ async fn a_session_edits_renders_and_undoes() {
         bpm: Some(122.0),
         key: None,
         loops: false,
+        sampled: None,
+        sample_search: None,
     });
     assert!(r.ok, "{}", r.message);
     let st = app.settled(Duration::from_secs(120)).await;
@@ -84,7 +86,15 @@ fn tracks_are_added_and_removed() {
         samples: false,
         gather: false,
     });
-    let new = Command::NewSong { genre: "house".into(), seed: Some(4), bpm: None, key: None, loops: false };
+    let new = Command::NewSong {
+        genre: "house".into(),
+        seed: Some(4),
+        bpm: None,
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+    };
     assert!(app.command(new).ok);
     let add = |name: &str, kind: &str, role: Option<&str>, sound: Option<&str>| {
         app.command(Command::AddTrack {
@@ -133,7 +143,15 @@ fn a_parts_notes_are_written_out_and_given_back() {
         samples: false,
         gather: false,
     });
-    let new = Command::NewSong { genre: "house".into(), seed: Some(4), bpm: None, key: None, loops: false };
+    let new = Command::NewSong {
+        genre: "house".into(),
+        seed: Some(4),
+        bpm: None,
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+    };
     assert!(app.command(new).ok);
     let lead = |app: &App| app.state().song.unwrap().parts.into_iter().find(|p| p.name == "lead").unwrap();
     let before = lead(&app);
@@ -174,7 +192,16 @@ async fn a_shared_session_keeps_to_its_folders() {
         gather: false,
     });
     assert!(
-        app.command(Command::NewSong { genre: "lofi".into(), seed: Some(1), bpm: None, key: None, loops: false }).ok
+        app.command(Command::NewSong {
+            genre: "lofi".into(),
+            seed: Some(1),
+            bpm: None,
+            key: None,
+            loops: false,
+            sampled: None,
+            sample_search: None
+        })
+        .ok
     );
     let r = app.command(Command::Load { path: outside.join("song.rhai").display().to_string() });
     assert!(!r.ok && r.message.contains("outside the folders"), "{}", r.message);
@@ -411,7 +438,15 @@ async fn saves_during_a_render_wait_for_it_and_write_everything() {
     let base = std::env::temp_dir().join(format!("claudius-save-{}", std::process::id()));
     let dirs = [base.join("a"), base.join("b")];
     let _ = std::fs::remove_dir_all(&base);
-    let new = Command::NewSong { genre: "lofi".into(), seed: Some(2), bpm: None, key: None, loops: false };
+    let new = Command::NewSong {
+        genre: "lofi".into(),
+        seed: Some(2),
+        bpm: None,
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+    };
     assert!(app.command(new).ok);
     // the new song's render is running: both saves wait for it instead of being dropped or replacing each other
     assert!(app.state().busy.is_some());
@@ -434,7 +469,15 @@ async fn saves_during_a_render_wait_for_it_and_write_everything() {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_render_exports_by_command_and_as_a_download() {
     let app = app();
-    let new = Command::NewSong { genre: "techno".into(), seed: Some(5), bpm: None, key: None, loops: false };
+    let new = Command::NewSong {
+        genre: "techno".into(),
+        seed: Some(5),
+        bpm: None,
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+    };
     assert!(app.command(new).ok);
     let st = app.settled(Duration::from_secs(240)).await;
     let v = st.render.as_ref().expect("a render").version;
@@ -486,7 +529,15 @@ fn cover(side: u32) -> Vec<u8> {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_release_is_checked_and_its_kit_written_and_kept_with_the_song() {
     let app = app();
-    let new = Command::NewSong { genre: "lofi".into(), seed: Some(6), bpm: None, key: None, loops: false };
+    let new = Command::NewSong {
+        genre: "lofi".into(),
+        seed: Some(6),
+        bpm: None,
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+    };
     assert!(app.command(new).ok);
     // a folder of the test's own: a song without one would release into ~/Music/claudius
     let dir = std::env::temp_dir().join(format!("claudius-release-{}", std::process::id()));
@@ -546,7 +597,15 @@ async fn a_release_is_checked_and_its_kit_written_and_kept_with_the_song() {
     assert!(app.state().release.unwrap().kit.is_some_and(|k| k.ends_with("release")));
 
     // another song starts afresh, and opening this one again brings its release back
-    let new = Command::NewSong { genre: "house".into(), seed: Some(3), bpm: None, key: None, loops: false };
+    let new = Command::NewSong {
+        genre: "house".into(),
+        seed: Some(3),
+        bpm: None,
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+    };
     assert!(app.command(new).ok);
     assert_eq!(app.state().release.unwrap().artwork, None);
     assert!(app.command(Command::Load { path: dir.display().to_string() }).ok);
@@ -560,7 +619,15 @@ async fn a_release_is_checked_and_its_kit_written_and_kept_with_the_song() {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_take_sent_over_http_plays_and_goes_with_the_song() {
     let app = app();
-    let new = Command::NewSong { genre: "house".into(), seed: Some(5), bpm: None, key: None, loops: false };
+    let new = Command::NewSong {
+        genre: "house".into(),
+        seed: Some(5),
+        bpm: None,
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+    };
     assert!(app.command(new).ok);
     // a short song: each save renders the stems of every track
     let short = r#"form([sec("intro", 4, "*"), sec("drop", 4, "*"), sec("outro", 4, "*")]);"#;
@@ -737,6 +804,8 @@ async fn files_a_studio_read_open_and_are_listened_to_by_their_contents() {
         bpm: None,
         key: None,
         loops: false,
+        sampled: None,
+        sample_search: None,
     };
     assert!(app.command(new("house", 5)).ok);
     let title = app.state().song.unwrap().title;
@@ -809,7 +878,15 @@ async fn a_take_an_assistant_asks_for_is_answered_by_the_take_sent_for_it() {
     };
     let r = app.command(ask("drop", None, ""));
     assert!(!r.ok && r.message.contains("no song yet"), "{}", r.message);
-    let new = Command::NewSong { genre: "house".into(), seed: Some(5), bpm: None, key: None, loops: false };
+    let new = Command::NewSong {
+        genre: "house".into(),
+        seed: Some(5),
+        bpm: None,
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+    };
     assert!(app.command(new).ok);
     // a folder of the test's own, for the take it sends: a song without one keeps its takes in ~/Music/claudius
     let short = r#"form([sec("intro", 4, "*"), sec("drop", 4, "*"), sec("outro", 4, "*")]);"#;
@@ -921,7 +998,15 @@ async fn a_take_an_assistant_asks_for_is_answered_by_the_take_sent_for_it() {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
     let app = app();
-    let new = Command::NewSong { genre: "house".into(), seed: Some(5), bpm: None, key: None, loops: false };
+    let new = Command::NewSong {
+        genre: "house".into(),
+        seed: Some(5),
+        bpm: None,
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+    };
     assert!(app.command(new).ok);
     let short = r#"form([sec("intro", 4, "*"), sec("drop", 8, "*"), sec("break", 4, "pad"), sec("drop", 8, "*")]);"#;
     assert!(app.command(Command::RunScript { code: short.into() }).ok);
@@ -990,7 +1075,15 @@ async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
 async fn chains_of_effects_are_seen_and_set_as_the_graph_sets_them() {
     use serde_json::json;
     let app = app();
-    let new = Command::NewSong { genre: "house".into(), seed: Some(5), bpm: None, key: None, loops: false };
+    let new = Command::NewSong {
+        genre: "house".into(),
+        seed: Some(5),
+        bpm: None,
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+    };
     assert!(app.command(new).ok);
     // the song as the studio sees it carries every chain, as the song keeps it, and every track's bus
     let song = app.state().song.unwrap();
@@ -1141,7 +1234,16 @@ async fn a_pitch_check_sung_back_becomes_the_voice_tune_sings_as() {
     assert!(voice.notes >= 20 && voice.bias.iter().all(|b| (b + 0.2).abs() < 0.08), "{voice:?}");
     // a take tuned from here on is sung as the check heard it
     assert!(
-        app.command(Command::NewSong { genre: "house".into(), seed: Some(2), bpm: None, key: None, loops: false }).ok
+        app.command(Command::NewSong {
+            genre: "house".into(),
+            seed: Some(2),
+            bpm: None,
+            key: None,
+            loops: false,
+            sampled: None,
+            sample_search: None
+        })
+        .ok
     );
     let tune = Command::Tune {
         track: "kick".into(),
@@ -1170,7 +1272,16 @@ fn a_steps_trig_is_set_shown_kept_and_cleared() {
     use claudius_api::TrigView;
     let app = app();
     assert!(
-        app.command(Command::NewSong { genre: "house".into(), seed: Some(3), bpm: None, key: None, loops: false }).ok
+        app.command(Command::NewSong {
+            genre: "house".into(),
+            seed: Some(3),
+            bpm: None,
+            key: None,
+            loops: false,
+            sampled: None,
+            sample_search: None
+        })
+        .ok
     );
     let lane = app.state().song.unwrap().drums.iter().find(|d| d.lane.contains("hat")).unwrap().lane.clone();
     let set = |trig: Option<TrigView>| Command::SetTrig { lane: lane.clone(), variant: "main".into(), step: 2, trig };
@@ -1223,7 +1334,16 @@ fn a_steps_trig_is_set_shown_kept_and_cleared() {
 async fn a_lane_takes_its_own_time_and_a_recordings_groove() {
     let app = app();
     assert!(
-        app.command(Command::NewSong { genre: "house".into(), seed: Some(3), bpm: None, key: None, loops: false }).ok
+        app.command(Command::NewSong {
+            genre: "house".into(),
+            seed: Some(3),
+            bpm: None,
+            key: None,
+            loops: false,
+            sampled: None,
+            sample_search: None
+        })
+        .ok
     );
     let lanes: Vec<String> = app.state().song.unwrap().drums.iter().map(|d| d.lane.clone()).collect();
     let hat = lanes.iter().find(|l| l.contains("hat")).unwrap().clone();
@@ -1365,7 +1485,15 @@ fn beat(bars: usize, bpm: f64, lead: f64) -> claudius::audio::Stereo {
 async fn drums_played_on_pads_and_a_scratch_join_the_song() {
     use claudius_api::{HitView, ScratchMove};
     let app = app();
-    let song = Command::NewSong { genre: "house".into(), seed: Some(3), bpm: Some(100.0), key: None, loops: false };
+    let song = Command::NewSong {
+        genre: "house".into(),
+        seed: Some(3),
+        bpm: Some(100.0),
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+    };
     assert!(app.command(song).ok);
     let from = app.state().song.unwrap().sections[0].name.clone();
     // a bar played twice, a little late the second time; the hat's offbeat only once
@@ -1427,7 +1555,15 @@ async fn drums_played_on_pads_and_a_scratch_join_the_song() {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_beat_played_or_beatboxed_becomes_the_drum_lanes() {
     let app = app();
-    let song = Command::NewSong { genre: "house".into(), seed: Some(3), bpm: Some(100.0), key: None, loops: false };
+    let song = Command::NewSong {
+        genre: "house".into(),
+        seed: Some(3),
+        bpm: Some(100.0),
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+    };
     assert!(app.command(song).ok);
     let from = app.state().song.unwrap().sections[0].name.clone();
     let file = std::env::temp_dir().join(format!("claudius-played-beat-{}.wav", std::process::id()));

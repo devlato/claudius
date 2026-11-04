@@ -123,6 +123,28 @@
       "mix": {"reverb": 0.3, "delay": 0.25, "duck": 0.25}
     }
   ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["dub reggae", "reggae", "dub siren", "choir", "orchestral", "eastern melody", "middle eastern", "sitar", "film score", "melodica"],
+      "listen": "a dark dub reggae phrase",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.2,
+      "pitch": [-3, 3],
+      "instead": ["pad"],
+      "mix": {"bus": "music", "delay": 0.25, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 200, "res": 0.05}]}
+    },
+    "texture": {
+      "search": ["rain", "city ambience", "radio static", "thunder", "urban night"],
+      "listen": "rain in a city at night",
+      "seconds": [5, 600],
+      "keep": 3,
+      "chance": 0.6,
+      "mix": {"bus": "music", "level_db": -2}
+    }
+  },
   "transitions": {"riser": true, "impact": true, "downlifter": true, "reverse_crash": true, "riser_bars": 8, "mix": {"bus": "fx", "reverb": 0.3, "level_db": -2}},
   "mix": {
     "lufs": -9.0,

@@ -171,6 +171,28 @@
       "mix": {"bus": "drums", "level_db": -2}
     }
   ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["rhodes", "jazz chords", "soul", "jazz piano", "spoken word", "gospel organ", "jazz guitar", "saxophone", "soul vocal", "jazz", "organ", "vibraphone"],
+      "listen": "warm jazzy rhodes chords",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.2,
+      "pitch": [-2, 5],
+      "instead": ["chords"],
+      "mix": {"bus": "music", "duck": 0.25, "reverb": 0.15, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 160, "res": 0.05}, {"fx": "filter", "mode": "lp", "cutoff": 9000, "res": 0.05}]}
+    },
+    "texture": {
+      "search": ["vinyl crackle", "rain", "city ambience", "night ambience"],
+      "listen": "soft rain and the crackle of a record",
+      "seconds": [5, 600],
+      "keep": 3,
+      "chance": 0.4,
+      "mix": {"bus": "music", "level_db": -2}
+    }
+  },
   "transitions": {
     "riser": true,
     "impact": false,

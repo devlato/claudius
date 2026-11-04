@@ -155,7 +155,7 @@ fn register_start(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         let lib = cx.lib.clone();
         let mut opts = Options::default();
         if let Some(m) = &extra {
-            check_keys(m, "song()", &["seed", "bpm", "key", "loops", "short", "samples"])?;
+            check_keys(m, "song()", &["seed", "bpm", "key", "loops", "short", "samples", "sampled", "sample_search"])?;
             opts.bpm = m.get("bpm").and_then(num);
             if let Some(b) = opts.bpm
                 && !(40.0..=240.0).contains(&b)
@@ -172,6 +172,8 @@ fn register_start(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
             if let Some(s) = map_f32(m, "samples") {
                 opts.samples = s as f64;
             }
+            opts.sampled = m.get("sampled").and_then(|d| d.as_bool().ok());
+            opts.sample_search = map_str(m, "sample_search").as_deref().and_then(crate::sampling::words);
         }
         let bp = compose::generate(&g, seed, &opts, lib.as_deref().map(|l| l as &dyn compose::Library));
         cx.log.push(format!("song: {} — {} at {:.0} BPM in {}", bp.title, bp.genre, bp.bpm, bp.key.name()));

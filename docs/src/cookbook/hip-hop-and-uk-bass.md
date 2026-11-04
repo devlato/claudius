@@ -26,7 +26,7 @@ fx("keys", [
 Why:
 
 - **What the genre already does.** Three verses and hooks built on samples from free libraries
-  ([Genres built on samples](../guide/online-samples.md#genres-built-on-samples)). Here they are a hip hop drum loop,
+  ([Songs built on samples](../guide/online-samples.md#songs-built-on-samples)). Here they are a hip hop drum loop,
   whose own kick, snare and hat the drum lanes play, a neo-soul chord loop the song takes its key and chords from,
   chopped and crushed to 12 bits, and a texture under them, with an organ bass and horns in the hooks. Without
   gathered samples, the drum lanes and a piano or Rhodes play in their place.

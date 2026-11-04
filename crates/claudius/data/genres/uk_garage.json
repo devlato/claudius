@@ -140,6 +140,20 @@
       "mix": {"bus": "drums", "level_db": -3}
     }
   ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["organ", "piano chords", "soul", "gospel", "rhodes", "strings", "jazz chords", "r&b", "soul vocal", "string section"],
+      "listen": "a soulful organ or rhodes chord stab",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.35,
+      "pitch": [-2, 5],
+      "instead": ["chords"],
+      "mix": {"bus": "music", "duck": 0.3, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 200, "res": 0.05}]}
+    }
+  },
   "transitions": {"riser": true, "impact": true, "downlifter": true, "reverse_crash": true, "riser_bars": 4, "mix": {"bus": "fx", "reverb": 0.25, "level_db": -3}},
   "mix": {
     "lufs": -9.5,

@@ -109,14 +109,16 @@ fn app_args(mut args: Vec<OsString>, exe: Option<&Path>) -> Vec<OsString> {
     args
 }
 
-/// gather what `g` samples, saying what it downloads; a library that does not answer only costs the samples
+/// gather what `g` samples, as `ask` asks, saying what it downloads; a library that does not answer only costs the
+/// samples
 fn gather(
     g: &GenreProfile,
+    ask: &claudius::sampling::Ask,
     ears: Option<&Ears>,
     policy: &claudius_packs::online::Policy,
 ) -> Vec<claudius::library::prepared::Prepared> {
     let ix = claudius::library::prepared::Index::open();
-    match claudius::sampling::gather(g, ears, policy, &ix, &|| false, &mut |s| eprintln!("gathering {s}")) {
+    match claudius::sampling::gather(g, ask, ears, policy, &ix, &|| false, &mut |s| eprintln!("gathering {s}")) {
         Ok(got) => {
             for n in &got.notes {
                 eprintln!("  {n}");
@@ -165,13 +167,17 @@ fn samples(cmd: SamplesCmd) -> Result<()> {
             println!("{}", path.display());
             println!("credit: {}", f.credit());
         }
-        SamplesCmd::Gather { genre, licences, ears } => {
+        SamplesCmd::Gather { genre, search, licences, ears } => {
             let g = genres::get(&genre)?;
             if g.sampling.is_none() {
-                anyhow::bail!("{} is not built on samples: it gathers none", g.name);
+                anyhow::bail!("{} says nothing of what it samples: it gathers none", g.name);
             }
             let listening = listen(&ears);
-            for p in gather(&g, listening.ears.as_ref(), &licences.policy()) {
+            let ask = claudius::sampling::Ask {
+                search: search.as_deref().and_then(claudius::sampling::words),
+                ..claudius::sampling::Ask::all()
+            };
+            for p in gather(&g, &ask, listening.ears.as_ref(), &licences.policy()) {
                 println!("{} {}: {}", g.name, p.role.name(), p.path);
             }
         }
@@ -206,7 +212,23 @@ fn main() -> Result<()> {
 
 fn run(cli: Cli) -> Result<()> {
     match cli.cmd {
-        Cmd::Make { genre, seed, bpm, key, short, stems, samples, sound, sample, loops, ears, out } => {
+        Cmd::Make {
+            genre,
+            seed,
+            bpm,
+            key,
+            short,
+            stems,
+            samples,
+            sound,
+            sample,
+            loops,
+            sampled,
+            unsampled,
+            sample_search,
+            ears,
+            out,
+        } => {
             let g = genres::get(&genre)?;
             let seed = seed.unwrap_or_else(seed_now);
             let key = key.map(|k| Key::parse(&k).with_context(|| format!("cannot read key '{k}'"))).transpose()?;
@@ -217,14 +239,19 @@ fn run(cli: Cli) -> Result<()> {
                 samples,
                 loops: sound.library_on(),
                 family: loops && sound.library_on(),
+                sampled: if unsampled { Some(false) } else { sampled.then_some(true) },
+                sample_search: sample_search.as_deref().and_then(claudius::sampling::words),
                 ..Default::default()
             };
             let listening = listen(&ears);
             let t = std::time::Instant::now();
-            if g.sampling.is_some() && sound.gathers() {
-                gather(&g, listening.ears.as_ref(), &claudius_packs::online::Policy::default());
+            let on = claudius::sampling::sampled(&g, opts.sampled, opts.sample_search.as_deref());
+            if on && sound.gathers() {
+                // a few new recordings a song, as the studio gathers them
+                let ask = claudius::sampling::Ask { seed: Some(seed), search: opts.sample_search.clone(), most: 2 };
+                gather(&g, &ask, listening.ears.as_ref(), &claudius_packs::online::Policy::default());
             }
-            let lib = sound.library_for(&g)?;
+            let lib = sound.library_for(on)?;
             let lib_ref = lib.as_ref().map(|l| l as &dyn compose::Library);
             let mut bp = compose::generate(&g, seed, &opts, lib_ref);
             let mut rng = claudius::rng::Rng::new(seed ^ 0x5a);
@@ -267,7 +294,7 @@ fn run(cli: Cli) -> Result<()> {
             let g = genres::get(&genre)?;
             let seed = seed.unwrap_or_else(seed_now);
             let listening = listen(&ears);
-            let lib = sound.library_for(&g)?;
+            let lib = sound.library_for(claudius::sampling::sampled(&g, None, None))?;
             let lib_ref = lib.as_ref().map(|l| l as &dyn compose::Library);
             let opts = Options {
                 samples,

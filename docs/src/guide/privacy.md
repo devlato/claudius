@@ -6,7 +6,7 @@ the page to use it, and keeps the takes you record with your song, on your compu
 [pitch check](voice.md#checking-your-pitch) learns of your voice stays there too, in its settings folder. It goes on
 the network for five things only: the downloads you ask for (the sample packs, from GitHub and their authors' sites,
 the listening models, from Hugging Face, and the recordings `claudius samples` finds); the samples a
-[genre built on samples](online-samples.md#genres-built-on-samples) gathers when you make a song of it, from Openverse,
+[song built on samples](online-samples.md#songs-built-on-samples) gathers as it is made, from Openverse,
 Wikimedia Commons and ccMixter (`--offline` keeps it from asking); the [update](updates.md) check, once a day, to
 GitHub; an assistant you connect from outside your computer if you set that up; and anonymous usage statistics, which
 are off until you turn them on.

@@ -107,6 +107,28 @@
     }
   ],
   "loops": [],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["dub reggae", "melodica", "dub", "reggae organ", "jazz chord", "dub chords", "reggae"],
+      "listen": "a dub reggae organ chord with echo",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.7,
+      "chop": 0.2,
+      "pitch": [-3, 4],
+      "instead": ["pad"],
+      "mix": {"bus": "music", "delay": 0.35, "reverb": 0.3, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 200, "res": 0.05}, {"fx": "filter", "mode": "lp", "cutoff": 5000, "res": 0.05}]}
+    },
+    "texture": {
+      "search": ["field recording", "rain", "city ambience", "train station", "room tone", "tape hiss", "vinyl crackle", "radio static", "wind"],
+      "listen": "a quiet field recording of rain and a distant city",
+      "seconds": [5, 600],
+      "keep": 4,
+      "chance": 0.95,
+      "mix": {"bus": "music", "level_db": -1}
+    }
+  },
   "transitions": {
     "riser": false,
     "impact": false,
