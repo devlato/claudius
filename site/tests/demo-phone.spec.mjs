@@ -55,6 +55,9 @@ test.describe("a phone with the demo", () => {
       await phone.waitForFunction(() => hits.size === song.lanes.length && transport.playing, null, { timeout: 180_000 });
       await phone.evaluate(playTwoBars);
       await expect(said).toHaveText(/^drums played from \S+, 2 bars as their main patterns: /, { timeout: 150_000 });
+      // what was asked while the demo was away fails long after it is back, and says nothing of it
+      await phone.waitForTimeout(6000);
+      await expect(said).toHaveText(/^drums played from /);
       // the demo closed: the phone says so at once, rather than once what it asked has waited its time
       await demo.close();
       await expect(said).toContainText("not open", { timeout: 15_000 });

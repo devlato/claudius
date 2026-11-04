@@ -60,22 +60,29 @@ function answer(status, body) {
  */
 function relay(room) {
   const waiting = new Map();
+  /** what failed waiting for the demo, by id: a take the demo answers after all is still news */
+  const failed = new Map();
   let ws = null;
   let opening = null;
   let next = 1;
   let gone = false;
-  /** the answer to `id` waited for `ms` more at most */
-  const due = (id, ms) => {
+  const fail = (id, why) => {
     const w = waiting.get(id);
     if (!w) return;
+    waiting.delete(id);
     clearTimeout(w.timer);
-    w.timer = setTimeout(() => {
-      if (waiting.delete(id)) w.no(new Error(gone ? "the demo is not open" : "the demo did not answer"));
-    }, ms);
+    failed.set(id, w.path);
+    if (failed.size > 64) failed.delete(failed.keys().next().value);
+    w.no(new Error(why));
   };
   const settle = (id, status, body) => {
     const w = waiting.get(id);
-    if (!w) return;
+    if (!w) {
+      // the demo kept its answer while it was away: a take it made after all is said
+      if (failed.get(id) === "api/take" && body && typeof body.message === "string") say(`the demo got the take: ${body.message}`, body.ok ? "ok" : "no");
+      failed.delete(id);
+      return;
+    }
     waiting.delete(id);
     clearTimeout(w.timer);
     if (gone) {
@@ -95,19 +102,15 @@ function relay(room) {
       s.onerror = () => no(new Error("the site's relay cannot be reached"));
       s.onclose = () => {
         ws = null;
-        for (const w of waiting.values()) {
-          clearTimeout(w.timer);
-          w.no(new Error("the connection to the demo closed"));
-        }
-        waiting.clear();
+        for (const id of [...waiting.keys()]) fail(id, "the connection to the demo closed");
       };
       s.onmessage = (e) => {
         if (typeof e.data !== "string") return settle(new DataView(e.data).getUint32(0, true), 200, e.data.slice(4));
         const m = JSON.parse(e.data);
         if (m.event === "gone") {
-          // the demo may come back (a reload keeps the room) with the answers it owes: they are waited for a little
+          // nothing that waits is answered by a demo that is not there: each asks again, and is answered once it is
           gone = true;
-          for (const id of waiting.keys()) due(id, 10_000);
+          for (const id of [...waiting.keys()]) fail(id, "the demo is not open");
           say("the demo is not open: open it again and scan its code", "no");
         } else if (m.id) settle(m.id, m.status, m.body);
       };
@@ -119,10 +122,12 @@ function relay(room) {
     }
     const id = next++;
     return new Promise((ok, no) => {
-      waiting.set(id, { ok, no });
+      waiting.set(id, { ok, no, path: path.split("?")[0] });
       ws.send(JSON.stringify({ id, method, path, body }));
-      // the demo's engine renders a whole song at a time, and what a phone asks for meanwhile waits for it
-      due(id, gone ? 10_000 : 120_000);
+      // the demo's engine renders a whole song at a time, and what a phone asks for meanwhile waits for it; while the
+      // demo is away, the room drops what is asked
+      const wait = gone ? 5000 : 120_000;
+      waiting.get(id).timer = setTimeout(() => fail(id, gone ? "the demo is not open" : "the demo did not answer"), wait);
     });
   }
   return { get: (path) => ask("GET", path), post: (path, body) => ask("POST", path, body) };
@@ -130,7 +135,7 @@ function relay(room) {
 
 /** the demo answers again: what did not load while it was away is asked for again */
 function back() {
-  say("");
+  if (/^(cannot reach the studio|the demo is not open)/.test($("said").textContent)) say("");
   if (!ctx || !song) return;
   if (!keys.buf) keys.name = "";
   if (!deck.buf) deck.name = "";
@@ -163,6 +168,8 @@ let offset = 0;
 let transport = { playing: false, at: 0, since: 0 };
 /** since when the clock has not been reached (the page's time), while it has not */
 let lost = null;
+/** when the clock last answered (the page's time) */
+let reached = 0;
 
 async function tick() {
   const t0 = performance.now();
@@ -176,7 +183,11 @@ async function tick() {
     offset = trips.reduce((a, b) => (b.rtt < a.rtt ? b : a)).offset;
     transport = c;
     lost = null;
+    reached = t1;
+    if (/^(cannot reach the studio|the demo is not open)/.test($("said").textContent)) say("");
   } catch (e) {
+    // what failed after an answer came for something asked since says nothing of the studio now
+    if (t0 < reached) return;
     // a blip on the Wi-Fi keeps the song going as it was; only a studio gone for a while stops it here
     lost ??= performance.now();
     if (performance.now() - lost > 5000) transport = { playing: false, at: 0, since: 0 };
