@@ -12,7 +12,7 @@ use claudius::library::prepared::Prepared;
 use claudius::model::Blueprint;
 use claudius::rng::Rng;
 use claudius::theory::scale::Key;
-use claudius::{genres, judge, render, script};
+use claudius::{audio, genres, judge, render, scratch, script, take};
 use claudius_api::*;
 
 use crate::{edit, views};
@@ -167,7 +167,29 @@ impl Host {
             Command::Redo => self.history(false),
             Command::Render { .. } if self.stale() => self.ok("rendering"),
             Command::Render { .. } => self.ok("the render is up to date"),
+            Command::AddScratch { from, track, bar, bars, moves, name, role } => {
+                self.add_scratch(&from, &edit::scratch(track, bar, bars, &moves), name, role.as_deref())
+            }
             c => self.edit(&c),
+        }
+    }
+
+    /// a scratch kept as a take, its audio in memory under a name of its own
+    fn add_scratch(&mut self, from: &str, s: &scratch::Take, name: Option<String>, role: Option<&str>) -> Reply {
+        let Some(mut bp) = self.bp.clone() else {
+            return self.no("no song yet: start one with a new song, then scratch one of its tracks");
+        };
+        let x = match scratch::take(&bp, s) {
+            Ok(x) => x,
+            Err(e) => return self.no(e),
+        };
+        let name = name.unwrap_or_else(|| scratch::name(&bp));
+        let path = format!("take:{name}:{}", self.version);
+        let secs = x.secs();
+        audio::remember(&path, x);
+        match take::add(&mut bp, std::path::Path::new(&path), secs, from, Some(&name), role) {
+            Ok(msg) => self.commit(Some(bp), msg),
+            Err(e) => self.no(e),
         }
     }
 
@@ -419,6 +441,26 @@ mod tests {
         assert!((audio.view.lufs + 10.0).abs() < 2.5, "a mastered house song, not {:.1} LUFS", audio.view.lufs);
         assert!(s.verdict.is_some_and(|v| v.total > 0.0));
         assert!(s.song.unwrap().tracks.iter().any(|t| t.loudness.is_some()), "the meters read the render");
+    }
+
+    #[test]
+    fn drums_played_on_pads_and_a_scratch_join_the_song_in_memory() {
+        let mut h = Host::new(1);
+        command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3}));
+        let from = h.state().song.unwrap().sections[0].name.clone();
+        let hits = json!([{"lane": "kick", "t": 0}, {"lane": "kick", "t": 2.5, "v": 0.6}]);
+        let r = command(&mut h, json!({"cmd": "add_hits", "from": from, "hits": hits, "bars": 1}));
+        assert!(r.ok, "{}", r.message);
+        let moves = json!([{"t": 0, "at": 0}, {"t": 0.3, "at": 0.4}, {"t": 0.5, "at": 0.1}]);
+        let r = command(&mut h, json!({"cmd": "add_scratch", "from": from, "track": "kick", "moves": moves}));
+        assert!(r.ok, "{}", r.message);
+        let take = h.state().song.unwrap().tracks.into_iter().find(|t| t.name == "scratch1").expect("a take");
+        assert_eq!(take.role, "lead");
+        // the take's audio is kept in memory, so the song renders with it
+        let audio = h.render().unwrap().unwrap();
+        assert!(audio.samples.iter().any(|s| s.abs() > 0.01));
+        assert!(command(&mut h, json!({"cmd": "undo"})).ok);
+        assert!(h.state().song.unwrap().tracks.iter().all(|t| t.name != "scratch1"));
     }
 
     #[test]

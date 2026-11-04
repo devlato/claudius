@@ -15,6 +15,7 @@ use crate::rng::{Rng, hash_str};
 use crate::synth::presets;
 use crate::theory::Note;
 use crate::theory::chord::Voicing;
+use crate::theory::rhythm::{Hit, Trig};
 use crate::{compose, config};
 
 /// what a take can be in the mix: its role sets how loud the mixer makes it
@@ -354,6 +355,112 @@ fn put_drums(
     ))
 }
 
+/// A drum hit someone played (on a phone's pads, a MIDI drum pad): the lane it struck, when, in beats from the start of
+/// the section the take began with, and how hard (0 to 1).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Struck {
+    pub lane: String,
+    pub t: f64,
+    pub v: f32,
+}
+
+/// How drums played on pads become the song's drum lanes
+#[derive(Clone, Debug, Default)]
+pub struct Pads {
+    /// the pattern's length in bars: 1, 2 or 4 (as much of 4 as was played, when not given)
+    pub bars: Option<u32>,
+    /// the variant of the lanes it writes (main when not given)
+    pub variant: Option<String>,
+    /// the grid the hits go to, in beats: a sixteenth (0.25) when not given, and 0 keeps them where they were played
+    pub grid: Option<f64>,
+    /// when the take began and how long it went on, in beats from the section's start (from 0 to its last hit, when
+    /// not given): a step it passed more often than it was struck plays by chance
+    pub start: Option<f64>,
+    pub beats: Option<f64>,
+}
+
+/// Drums played on pads with the song from section `from`, folded into a pattern of each lane they struck: a step
+/// struck only some of the times round plays by that chance, as hard as it was struck on average. Returns what was
+/// made, in words.
+pub fn hits(bp: &mut Blueprint, from: &str, struck: &[Struck], o: &Pads) -> Result<String, String> {
+    if !bp.form.iter().any(|s| s.name == from) {
+        let names: Vec<&str> = bp.form.iter().map(|s| s.name.as_str()).collect();
+        return Err(format!("no section '{from}' (sections: {})", names.join(" ")));
+    }
+    if struck.is_empty() {
+        return Err("no drums were played".into());
+    }
+    if let Some(h) = struck.iter().find(|h| !(h.t.is_finite() && h.t >= 0.0 && (0.0..=1.0).contains(&h.v))) {
+        return Err(format!("a hit is struck from the section's start on, 0 to 1 hard, not {h:?}"));
+    }
+    if let Some(h) = struck.iter().find(|h| !bp.drums.iter().any(|d| d.name == h.lane)) {
+        let lanes: Vec<&str> = bp.drums.iter().map(|d| d.name.as_str()).collect();
+        return Err(format!("no drum lane '{}' (lanes: {})", h.lane, lanes.join(" ")));
+    }
+    let grid = o.grid.unwrap_or(0.25);
+    if !(grid == 0.0 || (0.125..=1.0).contains(&grid)) {
+        return Err(format!("the grid is 0 (as played) or from a 32nd (0.125) to a beat (1), not {grid}"));
+    }
+    let first = struck.iter().map(|h| h.t).fold(f64::INFINITY, f64::min);
+    let last = struck.iter().map(|h| h.t).fold(0.0, f64::max);
+    let start = o.start.unwrap_or(0.0);
+    if !(start.is_finite() && (0.0..=first).contains(&start)) {
+        return Err(format!("the take began from the section's start on, by its first hit, not at {start}"));
+    }
+    let beats = o.beats.unwrap_or(last).max(last + 1e-6);
+    let bars = match o.bars {
+        Some(b @ (1 | 2 | 4)) => b,
+        Some(b) => return Err(format!("a beat's pattern is 1, 2 or 4 bars, not {b}")),
+        None => [4, 2, 1].into_iter().find(|&b| f64::from(b * 4) <= beats - start + 0.1).unwrap_or(1),
+    };
+    let variant = o.variant.clone().filter(|v| !v.trim().is_empty()).unwrap_or_else(|| "main".into());
+    let len = f64::from(bars * 4);
+    let mut lanes: Vec<&str> = struck.iter().map(|h| h.lane.as_str()).collect();
+    lanes.sort_unstable();
+    lanes.dedup();
+    let mut made = Vec::new();
+    for lane in lanes {
+        // where in the pattern each hit falls: on the grid, or with the hits a 64th from it as played
+        let mut steps: Vec<(f64, u32, f32)> = Vec::new();
+        for h in struck.iter().filter(|h| h.lane == lane) {
+            let at = h.t % len;
+            let at = if grid > 0.0 { ((at / grid).round() * grid) % len } else { at };
+            match steps.iter_mut().find(|(t, ..)| (t - at).abs() < if grid > 0.0 { 1e-6 } else { 0.0625 }) {
+                Some((_, n, v)) => (*n, *v) = (*n + 1, *v + h.v),
+                None => steps.push((at, 1, h.v)),
+            }
+        }
+        steps.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let mut by_chance = 0;
+        let hits: Vec<Hit> = steps
+            .iter()
+            .map(|&(t, n, v)| {
+                // the times round the take passed this step while it went on (by half a step at least: a take stopped
+                // just after a downbeat did not play it), and the times it was struck there
+                let half = if grid > 0.0 { grid / 2.0 } else { 0.0625 };
+                let times = |until: f64| ((until - half - t) / len).ceil().max(0.0);
+                let passed = (times(beats) - times(start)).max(1.0) as u32;
+                let prob = (n as f32 / passed as f32).min(1.0);
+                let trig = (prob < 0.99).then(|| {
+                    by_chance += 1;
+                    Trig { prob, ..Default::default() }
+                });
+                Hit { trig, ..Hit::new(t, (v / n as f32).clamp(0.05, 1.0)) }
+            })
+            .collect();
+        let n = hits.len();
+        crate::script::put_hits(bp, lane, &variant, hits, bars, false)?;
+        let chance = if by_chance > 0 { format!(" ({by_chance} by chance)") } else { String::new() };
+        made.push(format!("{n} steps into {lane}{chance}"));
+    }
+    bp.lineage.push(format!("drums played from {from}: {}", made.join(", ")));
+    Ok(format!(
+        "drums played from {from}, {bars} bar{} as their {variant} patterns: {}",
+        if bars == 1 { "" } else { "s" },
+        made.join(", ")
+    ))
+}
+
 /// How take `take` is sung: its notes read in the song's key and over its chords from where the take starts (as
 /// `voice::assess` reads them), and the singer learnt from them.
 pub fn assess(bp: &Blueprint, take: &str) -> Result<crate::voice::Assessment, String> {
@@ -617,6 +724,88 @@ mod tests {
     fn song() -> Blueprint {
         let g = genres::get("house").unwrap();
         compose::generate(&g, 3, &Options { short: true, samples: 0.0, loops: false, ..Default::default() }, None)
+    }
+
+    fn struck(lane: &str, t: f64, v: f32) -> Struck {
+        Struck { lane: lane.into(), t, v }
+    }
+
+    #[test]
+    fn played_drums_fold_into_the_lanes_pattern() {
+        let mut bp = song();
+        let (kick, hat) = (bp.drums[0].name.clone(), bp.drums[1].name.clone());
+        // a bar played twice: the kick on every beat, slightly off and harder the second time, the hat on the last
+        // eighth only the first time
+        let mut played = Vec::new();
+        for round in 0..2 {
+            let r = f64::from(round) * 4.0;
+            for beat in 0..4 {
+                played.push(struck(&kick, r + f64::from(beat) + 0.04 * f64::from(round), 0.6 + 0.2 * round as f32));
+            }
+        }
+        played.push(struck(&hat, 3.5, 0.5));
+        let o = Pads { bars: Some(1), variant: Some("played".into()), beats: Some(8.0), ..Default::default() };
+        let from = bp.form[0].name.clone();
+        let said = hits(&mut bp, &from, &played, &o).unwrap();
+        assert!(said.contains("1 bar") && said.contains("by chance"), "{said}");
+        let lane = bp.drums.iter().find(|d| d.name == kick).unwrap();
+        // the lane's patterns are longer than the bar played, which repeats to fill them
+        let bars = lane.pattern_bars as usize;
+        let p = &lane.patterns["played"];
+        assert_eq!(p.len(), 4 * bars);
+        assert_eq!(p.iter().take(4).map(|h| h.t).collect::<Vec<_>>(), [0.0, 1.0, 2.0, 3.0], "on the grid");
+        assert!(p.iter().all(|h| (h.v - 0.7).abs() < 1e-4 && h.trig.is_none()), "as hard as on average, always");
+        let hat = &bp.drums.iter().find(|d| d.name == hat).unwrap().patterns["played"];
+        assert_eq!(hat.len(), bars);
+        assert!((hat[0].t - 3.5).abs() < 1e-9 && (hat[0].trig.unwrap().prob - 0.5).abs() < 1e-4, "one time of two");
+        assert!(bp.lineage.last().unwrap().starts_with("drums played"));
+    }
+
+    #[test]
+    fn a_take_that_began_late_counts_the_times_round_from_its_start() {
+        let mut bp = song();
+        let kick = bp.drums[0].name.clone();
+        let from = bp.form[0].name.clone();
+        // begun a bar into the section, a 2-bar beat played once and stopped just after the next downbeat: every step
+        // was struck the one time it was passed
+        let played: Vec<Struck> = (4..12).map(|b| struck(&kick, f64::from(b), 1.0)).collect();
+        let o = Pads { start: Some(3.7), beats: Some(12.07), ..Default::default() };
+        let said = hits(&mut bp, &from, &played, &o).unwrap();
+        assert!(said.contains("2 bars") && !said.contains("by chance"), "{said}");
+        let late = Pads { start: Some(5.0), ..Default::default() };
+        assert!(hits(&mut bp, &from, &played, &late).unwrap_err().contains("by its first hit"));
+    }
+
+    #[test]
+    fn played_drums_rewrite_a_pattern_with_the_same_steps() {
+        let mut bp = song();
+        let kick = bp.drums[0].name.clone();
+        let from = bp.form[0].name.clone();
+        let o = Pads { bars: Some(1), ..Default::default() };
+        let beat = |v: f32| (0..4).map(|b| struck(&kick, f64::from(b), v)).collect::<Vec<_>>();
+        hits(&mut bp, &from, &beat(1.0), &o).unwrap();
+        hits(&mut bp, &from, &beat(0.5), &o).unwrap();
+        let lane = bp.drums.iter().find(|d| d.name == kick).unwrap();
+        assert!(lane.patterns["main"].iter().all(|h| (h.v - 0.5).abs() < 1e-4), "as hard as it was played again");
+    }
+
+    #[test]
+    fn played_drums_keep_their_feel_off_the_grid_and_say_what_is_wrong() {
+        let mut bp = song();
+        let kick = bp.drums[0].name.clone();
+        let from = bp.form[0].name.clone();
+        let o = Pads { grid: Some(0.0), ..Default::default() };
+        hits(&mut bp, &from, &[struck(&kick, 0.03, 1.0), struck(&kick, 4.03, 0.8)], &o).unwrap();
+        let lane = bp.drums.iter().find(|d| d.name == kick).unwrap();
+        assert_eq!(lane.patterns["main"].len(), lane.pattern_bars as usize, "the two hits a bar apart are one step");
+        assert!((lane.patterns["main"][0].t - 0.03).abs() < 1e-9, "where it was played");
+        let bad = |bp: &mut Blueprint, h: &[Struck], o: &Pads| hits(bp, &from, h, o).unwrap_err();
+        assert!(bad(&mut bp, &[], &o).contains("no drums"));
+        assert!(bad(&mut bp, &[struck("cowbell9", 0.0, 1.0)], &o).contains("lanes:"));
+        assert!(bad(&mut bp, &[struck(&kick, -1.0, 1.0)], &o).contains("0 to 1 hard"));
+        let three = Pads { bars: Some(3), ..Default::default() };
+        assert!(bad(&mut bp, &[struck(&kick, 0.0, 1.0)], &three).contains("1, 2 or 4"));
+        assert!(hits(&mut bp, "nowhere", &[struck(&kick, 0.0, 1.0)], &o).unwrap_err().contains("sections:"));
     }
 
     fn scratch(what: &str) -> PathBuf {

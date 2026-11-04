@@ -969,6 +969,30 @@ fn played_velocity() -> f32 {
     0.8
 }
 
+/// a drum hit played on a pad: the lane it strikes, when (in beats from the start of the take's section) and how hard
+/// (0..1, 0.8 when left out)
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct HitView {
+    pub lane: String,
+    pub t: f64,
+    #[serde(default = "played_velocity")]
+    pub v: f32,
+}
+
+/// where a scratched record was `t` seconds into the scratch: `at` seconds into the record, with the crossfader `fader`
+/// open (0 shut, 1 open, the default)
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ScratchMove {
+    pub t: f64,
+    pub at: f64,
+    #[serde(default = "open_fader")]
+    pub fader: f32,
+}
+
+fn open_fader() -> f32 {
+    1.0
+}
+
 /// an edit or action; JSON `{"cmd": "set_tempo", "bpm": 124}`
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "cmd", rename_all = "snake_case")]
@@ -1319,6 +1343,43 @@ pub enum Command {
         bpm: Option<f64>,
         #[serde(default)]
         keep_take: bool,
+    },
+    /// drums played on pads (a phone's, a MIDI controller's) with the song from section `from`, as the lanes they
+    /// strike: folded into a pattern of `bars` bars (1, 2 or 4; as much of 4 as was played) on a `grid` in beats (a
+    /// sixteenth, 0.25, by default; 0 keeps the hits where they were played) and written as the lanes' `variant`
+    /// (main); a step struck only some of the times round the take (from `start` to `beats`, in beats from the
+    /// section's start: from 0 to its last hit by default) plays with that chance
+    AddHits {
+        from: String,
+        hits: Vec<HitView>,
+        #[serde(default)]
+        bars: Option<u32>,
+        #[serde(default)]
+        variant: Option<String>,
+        #[serde(default)]
+        grid: Option<f64>,
+        #[serde(default)]
+        start: Option<f64>,
+        #[serde(default)]
+        beats: Option<f64>,
+    },
+    /// a scratch, kept as a take that plays from the start of section `from`: track `track` of the song alone over
+    /// `bars` bars (1, the default, to 8) from bar `bar` (0, the first, by default) is the record, read along `moves`
+    /// through the crossfader
+    AddScratch {
+        from: String,
+        track: String,
+        #[serde(default)]
+        bar: u32,
+        #[serde(default)]
+        bars: Option<u32>,
+        moves: Vec<ScratchMove>,
+        /// the take's name (default scratch1, scratch2, ...)
+        #[serde(default)]
+        name: Option<String>,
+        /// vocal, lead, chords, keys, bass, drums or texture: how loud the mix makes it (default lead)
+        #[serde(default)]
+        role: Option<String>,
     },
     /// Asks the person for a pitch check: the studio's Record window opens with phrases to sing back (`State.pitch_check`),
     /// the notes played between MIDI `low` and `high` (default 57 to 69, A3 to A4: sung in any octave)

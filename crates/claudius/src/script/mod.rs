@@ -39,8 +39,8 @@ use crate::pattern::{Node, Pattern, Value, fmt_num, mini, quote};
 pub use form::Sec;
 pub use mix::mix_of;
 pub use print::to_script;
-pub(crate) use song::put_drum;
 pub use song::{blank, remode};
+pub(crate) use song::{put_drum, put_hits};
 pub use sounds::{drum_name, drum_names, drum_role, resolve_sound, role_of};
 pub use steps::{STEP_ACCENT, STEP_GHOST, hits_to_steps, steps_to_hits};
 
