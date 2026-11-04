@@ -11,6 +11,7 @@ pub mod log;
 pub mod markdown;
 pub mod mixer;
 pub mod parts;
+pub mod phone;
 pub mod publish;
 pub mod record;
 pub mod roll;
@@ -231,6 +232,7 @@ pub struct View {
     pub assistants: assistants::Assistants,
     pub publish: publish::Publish,
     pub record: record::Record,
+    pub phone: phone::Phone,
     /// the graph tab: the node chosen, and where its canvas looks
     pub graph: graph::GraphView,
     /// what a take's melody becomes when it turns into notes (`claudius_api::NOTE_STYLES`)
@@ -303,6 +305,7 @@ impl Default for View {
             assistants: assistants::Assistants::default(),
             publish: publish::Publish::default(),
             record: record::Record::default(),
+            phone: phone::Phone::default(),
             graph: graph::GraphView::default(),
             melody_style: "line".into(),
             row_menu: None,

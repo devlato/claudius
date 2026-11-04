@@ -147,6 +147,15 @@ pub fn top_row(ui: &mut Ui, cx: &mut Cx) {
                     cx.view.record.show();
                 }
             }
+            let served = cx.state.phone.is_some();
+            let tip = if served {
+                "a phone is playing along: show its code"
+            } else {
+                "play from a phone: pads, keys and a turntable with the song's sounds"
+            };
+            if widgets::icon_button(ui, Icon::Phone, 30.0, served, true, tip).clicked() {
+                cx.view.phone.show(served);
+            }
         }
         ui.add_space(4.0);
         lcd(ui, cx);

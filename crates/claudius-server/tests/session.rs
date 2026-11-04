@@ -1401,10 +1401,13 @@ async fn drums_played_on_pads_and_a_scratch_join_the_song() {
         [(0.0, 0.0, 1.0), (0.2, 0.3, 1.0), (0.4, 0.05, 1.0), (0.4, 0.05, 0.0), (0.6, 0.2, 0.0), (0.8, 0.5, 1.0)]
             .map(|(t, at, fader)| ScratchMove { t, at, fader })
             .to_vec();
+    // the record is cut from a section the clap plays in
+    let song = app.state().song.unwrap();
+    let bar = song.sections.iter().find(|s| s.layers.iter().any(|l| l == "clap")).unwrap().start_bar;
     let scratch = |track: &str, moves: Vec<ScratchMove>| Command::AddScratch {
         from: from.clone(),
         track: track.into(),
-        bar: 0,
+        bar,
         bars: None,
         moves,
         name: None,

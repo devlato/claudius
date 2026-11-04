@@ -6,7 +6,7 @@
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::Duration;
 
-use claudius_api::{Command, ExportFormat, RenderView, Reply, SoundList, State};
+use claudius_api::{Command, ExportFormat, RenderView, Reply, SoundList, State, Transport};
 use eframe::egui;
 
 use crate::audio::Source;
@@ -317,6 +317,31 @@ impl Remote {
         });
     }
 
+    /// the page a phone plays along on: served (`on`), or stopped; the page itself comes with the state
+    fn phone(&self, on: bool) {
+        let url = self.url("/api/phone");
+        let request = if on { ehttp::Request::post(url, Vec::new()) } else { ehttp::Request::delete(&url) };
+        let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
+        ehttp::fetch(request, move |res| {
+            let refused = match res {
+                Ok(r) if r.ok => return,
+                Ok(r) => {
+                    let text = String::from_utf8_lossy(&r.bytes).trim().to_string();
+                    if text.is_empty() { format!("{} {}", r.status, r.status_text) } else { text }
+                }
+                Err(e) => e,
+            };
+            Self::deliver(&tx, &ctx, Event::Reply { what: "phone".into(), result: Err(refused) });
+        });
+    }
+
+    /// where the song is, for a phone playing along
+    fn transport(&self, t: Transport) {
+        let mut request = ehttp::Request::post(self.url("/api/transport"), serde_json::to_vec(&t).unwrap_or_default());
+        request.headers = ehttp::Headers::new(&[("Content-Type", "application/json")]);
+        ehttp::fetch(request, |_| {});
+    }
+
     fn fetch_preview(&self, version: u64) {
         let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
         let url = self.url(&format!("/api/release/preview.png?v={version}"));
@@ -517,6 +542,20 @@ impl Backend {
     }
 
     /// ask for the artwork as a picture to show (arrives as `Event::Preview`)
+    /// the page a phone plays along on, served or stopped (the demo has none)
+    pub fn phone(&mut self, on: bool) {
+        if let Backend::Remote(r) = self {
+            r.phone(on);
+        }
+    }
+
+    /// where the song is, while a phone plays along
+    pub fn transport(&mut self, t: Transport) {
+        if let Backend::Remote(r) = self {
+            r.transport(t);
+        }
+    }
+
     pub fn fetch_preview(&mut self, version: u64) {
         if let Backend::Remote(r) = self {
             r.fetch_preview(version);

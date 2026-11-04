@@ -518,6 +518,7 @@ impl Studio {
                     crate::panels::transport::ask_download(&self.state, &mut self.view, &mut self.out, demo, now);
                 }
                 Step::Record => self.view.record.show(),
+                Step::Phone => self.view.phone.show(self.state.phone.is_some()),
                 Step::Rec(Rec::Start) => self.view.record.start = true,
                 Step::Rec(Rec::Stop) => self.view.record.stop = true,
                 Step::Rec(Rec::Measure) => self.view.record.measure = true,
@@ -1075,6 +1076,13 @@ impl eframe::App for Studio {
             panels::transport::new_song_dialog(&ctx, &mut cx);
             panels::publish::dialog(&ctx, &mut cx);
             panels::record::dialog(&ctx, &mut cx);
+            panels::phone::dialog(&ctx, &mut cx);
+        }
+        if let Some(on) = self.view.phone.ask.take() {
+            self.backend.phone(on);
+        }
+        if let Some(t) = self.view.phone.report.take() {
+            self.backend.transport(t);
         }
         if let Some(bytes) = self.view.publish.upload.take() {
             self.inflight += 1;

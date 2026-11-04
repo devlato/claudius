@@ -72,6 +72,7 @@
 - [Apple Loops and your own samples](guide/samples.md)
 - [Samples from free online libraries](guide/online-samples.md)
 - [Your voice](guide/voice.md)
+- [Playing from a phone](guide/phone.md)
 - [Files and settings](guide/files.md)
 - [Privacy and usage statistics](guide/privacy.md)
 - [Updates](guide/updates.md)

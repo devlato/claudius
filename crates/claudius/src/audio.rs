@@ -275,6 +275,23 @@ pub fn load(path: &Path) -> Result<Stereo> {
     Ok(Stereo::from_interleaved(&x))
 }
 
+/// 16-bit PCM WAV in memory, for a player that fetches a sound (a phone's pads)
+pub fn wav_bytes(x: &Stereo) -> Vec<u8> {
+    let spec =
+        hound::WavSpec { channels: 2, sample_rate: SR, bits_per_sample: 16, sample_format: hound::SampleFormat::Int };
+    let mut out = std::io::Cursor::new(Vec::with_capacity(44 + x.len() * 4));
+    {
+        let mut w = hound::WavWriter::new(&mut out, spec).expect("a WAV header in memory");
+        for i in 0..x.len() {
+            for v in [x.l[i], x.r[i]] {
+                w.write_sample((v.clamp(-1.0, 1.0) * 32_767.0).round() as i16).expect("memory takes the samples");
+            }
+        }
+        w.finalize().expect("a WAV in memory");
+    }
+    out.into_inner()
+}
+
 /// 24-bit PCM WAV (or 32-bit float with `float = true`)
 pub fn save_wav(path: &Path, x: &Stereo, float: bool) -> Result<()> {
     if let Some(d) = path.parent() {

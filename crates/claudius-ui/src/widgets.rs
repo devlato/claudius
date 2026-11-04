@@ -40,6 +40,7 @@ pub enum Icon {
     Save,
     Open,
     Record,
+    Phone,
 }
 
 fn arc(center: Pos2, r: f32, from: f32, to: f32) -> Vec<Pos2> {
@@ -237,6 +238,11 @@ pub fn paint_icon(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color3
         // red, as a recorder's button is, unless it cannot be pressed
         Icon::Record => {
             painter.circle_filled(c, 0.58 * s, if color == TEXT_FAINT { color } else { theme::BAD });
+        }
+        Icon::Phone => {
+            let body = Rect::from_center_size(c, vec2(0.78 * s, 1.3 * s));
+            painter.rect_stroke(body, 0.18 * s, stroke, egui::StrokeKind::Middle);
+            painter.circle_filled(c + vec2(0.0, 0.43 * s), 0.09 * s, color);
         }
     }
 }

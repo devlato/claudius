@@ -84,6 +84,19 @@ What the token does not do:
   shared folders below. Treat it like a password: `openssl rand -hex 16` makes one of the same strength as the
   tokens claudius makes.
 
+### The phone's page
+
+[Playing from a phone](../guide/phone.md) opens a second port to the network, but only while the studio asks for it
+(`POST /api/phone`, which a page on another site cannot send: the main API's guard and CORS stand in front of it) and
+only for the page and its few routes, which play the song's sounds and take `add_hits`, `add_notes` and `add_scratch`,
+and nothing else. Every request needs the key the QR code carries: 16 random bytes, new each time the page is served,
+checked in constant time, and kept by the phone as an `HttpOnly; SameSite=Strict` cookie. Without it the answer is 403.
+The page's answers carry `Referrer-Policy: no-referrer` (its address holds the key),
+`Content-Security-Policy: default-src 'self'` with no inline script, `X-Frame-Options: DENY` and `no-store`. The
+traffic is plain HTTP, like the rest of a LAN claudius: someone who can watch the network can see the key and play
+into the song until the page stops, which `DELETE /api/phone`, the window's **Stop serving the page** or quitting
+does.
+
 ### `--public`
 
 `--public` lifts the Host check so a tunnel's or a LAN's host name is accepted, and switches on the file policy below.

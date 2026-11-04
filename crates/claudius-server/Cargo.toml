@@ -18,6 +18,7 @@ claudius-api = { path = "../claudius-api" }
 claudius-session = { path = "../claudius-session" }
 claudius-packs = { version = "0.3.0", path = "../claudius-packs" }
 dirs = "7"
+getrandom = "0.4"
 rayon = "1"
 rmcp = { version = "3.5.1", features = ["server", "macros", "transport-io", "transport-streamable-http-server", "schemars"] }
 schemars = "1"

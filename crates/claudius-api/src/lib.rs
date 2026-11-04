@@ -102,6 +102,26 @@ pub struct State {
     /// the person's voice as their last pitch check heard it, in words; a tuner sings it as it heard it
     #[serde(default)]
     pub voice: Option<String>,
+    /// the page a phone plays along on, while it is served (`POST /api/phone`)
+    #[serde(default)]
+    pub phone: Option<PhoneView>,
+}
+
+/// The studio's transport, as it tells the server (`POST /api/transport`) so that a phone playing along knows where the
+/// song is: whether it plays, and where it is, in seconds from its start.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct Transport {
+    pub playing: bool,
+    pub at: f64,
+}
+
+/// A page with pads, keys and a turntable for a phone on the same network (`POST /api/phone`): its address, with the
+/// key that opens it, which the studio shows as a QR code, and how many phones have it open.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct PhoneView {
+    pub url: String,
+    #[serde(default)]
+    pub phones: u32,
 }
 
 /// A take someone (an assistant, say) asked the person to record. The studio's Record window opens for it, and the take

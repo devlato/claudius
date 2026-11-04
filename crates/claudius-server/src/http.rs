@@ -72,6 +72,8 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
         .route("/api/analyze", post(analyze).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/remake", post(remake).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/sample", post(sample).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
+        .route("/api/phone", post(phone_start).delete(phone_stop))
+        .route("/api/transport", post(transport))
         .with_state(ctx);
     let mut r = api.nest_service("/mcp", crate::mcp::http_service(app, o.public));
     r = match &o.web {
@@ -143,7 +145,7 @@ async fn security_headers(req: Request, next: Next) -> Response {
 }
 
 /// compares secrets in time that does not depend on where they differ
-fn same_secret(a: &str, b: &str) -> bool {
+pub(crate) fn same_secret(a: &str, b: &str) -> bool {
     a.len() == b.len() && a.bytes().zip(b.bytes()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
@@ -212,6 +214,24 @@ impl Guard {
         (StatusCode::UNAUTHORIZED, "this claudius needs its token (Authorization: Bearer <token>, or ?token=<token>)")
             .into_response()
     }
+}
+
+/// the page a phone plays along on, served from now on (or the one served already)
+async fn phone_start(State(c): State<Ctx>) -> Response {
+    match crate::phone::start(&c.app).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => (StatusCode::SERVICE_UNAVAILABLE, e).into_response(),
+    }
+}
+
+async fn phone_stop(State(c): State<Ctx>) -> StatusCode {
+    c.app.set_phone(None);
+    StatusCode::NO_CONTENT
+}
+
+async fn transport(State(c): State<Ctx>, Json(t): Json<claudius_api::Transport>) -> StatusCode {
+    c.app.set_transport(t);
+    StatusCode::NO_CONTENT
 }
 
 async fn hello(State(c): State<Ctx>) -> Json<serde_json::Value> {
