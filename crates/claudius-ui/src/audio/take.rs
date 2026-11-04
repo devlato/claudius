@@ -69,7 +69,8 @@ pub enum Take {
     Notes(Vec<Played>),
 }
 
-/// a note played on a MIDI input: when it started and ended, in seconds from the take's start, its pitch, how hard
+/// a note played on a MIDI input: when it started (before the take's start, when it was held across it) and ended, in
+/// seconds from the take's start, its pitch, how hard
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Played {
     pub start: f64,
@@ -110,13 +111,14 @@ pub(crate) fn notes_of(bytes: &[u8]) -> Vec<(u8, f32)> {
 }
 
 /// The notes in what a MIDI input played (seconds since the recorder began, pitch, velocity), measured from `start`:
-/// a note on a pitch already sounding ends the one before, and a note still held at `stop` ends there.
+/// a note on a pitch already sounding ends the one before, a note held across `start` keeps when it was struck, and a
+/// note still held at `stop` ends there.
 pub(crate) fn pair(events: &[(f64, u8, f32)], start: f64, stop: f64) -> Vec<Played> {
     let mut open: [Option<(f64, f32)>; 128] = [None; 128];
     let mut out = Vec::new();
     let end = |pitch: u8, (at, velocity): (f64, f32), until: f64, out: &mut Vec<Played>| {
         if until > start {
-            out.push(Played { start: (at - start).max(0.0), end: until - start, pitch, velocity });
+            out.push(Played { start: at - start, end: until - start, pitch, velocity });
         }
     };
     for &(t, p, v) in events {
@@ -820,11 +822,11 @@ mod tests {
 
     #[test]
     fn what_was_played_is_notes_from_the_take_start() {
-        // the take starts 2 s in: a note held across it starts with it; one held at the stop ends there
+        // the take starts 2 s in: a note held across it was struck before it; one held at the stop ends there
         let events = [(1.0, 60, 0.5), (1.5, 62, 0.5), (1.8, 62, 0.0), (2.5, 60, 0.0), (3.0, 64, 0.9), (3.5, 67, 1.0)];
         let notes = pair(&events, 2.0, 4.0);
         let got: Vec<(f64, f64, u8)> = notes.iter().map(|n| (n.start, n.end, n.pitch)).collect();
-        assert_eq!(got, [(0.0, 0.5, 60), (1.0, 2.0, 64), (1.5, 2.0, 67)], "the note over before the take is gone");
+        assert_eq!(got, [(-1.0, 0.5, 60), (1.0, 2.0, 64), (1.5, 2.0, 67)], "the note over before the take is gone");
         let again = pair(&[(0.0, 60, 0.7), (1.0, 60, 0.8), (2.0, 60, 0.0)], 0.0, 3.0);
         assert_eq!(again.iter().map(|n| (n.start, n.end)).collect::<Vec<_>>(), [(0.0, 1.0), (1.0, 2.0)]);
     }

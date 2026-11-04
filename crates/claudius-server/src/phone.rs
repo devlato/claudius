@@ -223,8 +223,9 @@ struct Song {
     bpm: f64,
     key: String,
     sections: Vec<Section>,
-    /// the drum lanes, a pad each
+    /// the drum lanes, a pad each, and their roles (kick, snare, hat ...), which a drum pad's MIDI note plays
     lanes: Vec<String>,
+    roles: Vec<String>,
     /// the tracks a record can be cut from
     tracks: Vec<String>,
     /// what the keys can play: the sounds of the song's parts (with the part's name), the synth presets, and the
@@ -273,6 +274,11 @@ async fn song(State(p): State<Arc<Phone>>, Query(q): Query<After>) -> Response {
             .sections
             .into_iter()
             .map(|x| Section { name: x.name, start_bar: x.start_bar, bars: x.bars, layers: x.layers })
+            .collect(),
+        roles: s
+            .drums
+            .iter()
+            .map(|d| s.tracks.iter().find(|t| t.name == d.lane).map_or_else(|| d.lane.clone(), |t| t.role.clone()))
             .collect(),
         lanes: s.drums.into_iter().map(|d| d.lane).collect(),
         tracks: s.tracks.into_iter().map(|t| t.name).collect(),
@@ -458,6 +464,9 @@ mod tests {
         let s: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let lanes: Vec<String> = serde_json::from_value(s["lanes"].clone()).unwrap();
         assert!(lanes.iter().any(|l| l == "kick"), "{lanes:?}");
+        let roles: Vec<String> = serde_json::from_value(s["roles"].clone()).unwrap();
+        assert_eq!(roles.len(), lanes.len());
+        assert_eq!(roles[lanes.iter().position(|l| l == "kick").unwrap()], "kick");
         assert!(s["synths"].as_array().unwrap().iter().any(|x| x == "epiano"));
         assert!(!s["parts"].as_array().unwrap().is_empty(), "the song's own sounds come first");
         let (status, headers, wav) = ask(&r, get("/api/hits/kick", c)).await;

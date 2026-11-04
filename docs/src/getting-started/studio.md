@@ -105,7 +105,9 @@ keys and a turntable with the song's sounds there, and sends the takes played on
 ([Playing from a phone](../guide/phone.md)).
 
 - **Setting it up.** Choose the input and its channel, the section the take starts with, a bar or two of count-in, and
-  what it is (a vocal, a guitar playing chords ...).
+  what it is (a vocal, a guitar playing chords ...). A MIDI keyboard's take is a part of the sound you choose, and a
+  MIDI drum pad's, chosen as **drums**, plays the song's drum lanes
+  ([Drums played on pads](../guide/samples.md#drums-played-on-pads)).
 - **Recording.** The song plays from the count-in, and the take records from the section's first downbeat until you
   press Stop or the song ends. Then the take waits: **Play it back** plays it in the song, from a bar before it,
   **Record again** records it over, and **Keep it** sends it to claudius, which plays it once from that section, mixed

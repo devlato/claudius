@@ -11,7 +11,9 @@ phone on the same Wi-Fi, with the song's own sounds. The phone plays them itself
 the studio as it plays, so a take lands where it was heard. A take on the pads becomes the song's drum lanes, on the
 keys a new part, and a scratch a take of its own ([Playing from a phone](https://claudius.devlato.com/docs/guide/phone.html)).
 The [studio demo](https://claudius.devlato.com/studio/?mock) plays along with a phone too, on any network, through a
-relay on the site. Assistants and scripts reach the same through the new `add_hits` and `add_scratch` commands.
+relay on the site. A MIDI controller plugged into what opens the page plays its pads, keys and turntable, the jog wheel
+and crossfader learned once, and MIDI drum pads in the Record window play the song's drum lanes by the General MIDI
+drum map. Assistants and scripts reach the same through the new `add_hits` and `add_scratch` commands.
 
 The [studio demo](https://claudius.devlato.com/studio/?mock) runs claudius itself: the same composer, edits, script
 language, renderer and critic as the app, in a Web Worker of the page, in place of the stand-in that made every genre

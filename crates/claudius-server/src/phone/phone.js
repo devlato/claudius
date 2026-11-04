@@ -374,23 +374,25 @@ function buildPads() {
     pad.textContent = lane;
     const hue = HUES.find(([k]) => lane.toLowerCase().includes(k));
     pad.style.setProperty("--hue", hue ? hue[1] : 30);
+    pad.dataset.lane = lane;
     pad.addEventListener("pointerdown", (e) => {
       e.preventDefault();
-      strike(lane, pad, e);
+      const r = pad.getBoundingClientRect();
+      hit(lane, Math.min(1, Math.max(0.3, 1 - (0.7 * (e.clientY - r.top)) / r.height)), when(e));
     });
     box.append(pad);
   }
 }
 
-function strike(lane, pad, e) {
+/** lane `lane` struck `v` hard at `t` on this page's clock: heard, shown, and kept in a take */
+function hit(lane, v, t) {
   if (!ctx) return;
-  const r = pad.getBoundingClientRect();
-  const v = Math.min(1, Math.max(0.3, 1 - (0.7 * (e.clientY - r.top)) / r.height));
   const b = hits.get(lane);
   if (b) play(b, v);
-  pad.classList.add("hit");
-  setTimeout(() => pad.classList.remove("hit"), 90);
-  const at = songAt(when(e) + latency());
+  const pad = [...document.querySelectorAll(".pad")].find((p) => p.dataset.lane === lane);
+  pad?.classList.add("hit");
+  setTimeout(() => pad?.classList.remove("hit"), 90);
+  const at = songAt(t + latency());
   if (take && take.mode === "pads" && at !== null) take.hits.push({ lane, at, v });
 }
 
@@ -458,25 +460,30 @@ function keyAt(e) {
   return el && el.dataset && el.dataset.p ? el : null;
 }
 
+/** key `el` pressed where the pointer of `e` is: harder nearer its bottom */
 function noteOn(id, el, e) {
-  if (!keys.buf || !ctx) return;
-  const p = Number(el.dataset.p);
   const r = el.getBoundingClientRect();
-  const v = Math.min(1, 0.45 + (0.55 * (e.clientY - r.top)) / r.height);
-  const i = Math.max(0, Math.round((p - keys.low) / 3));
+  press(id, Number(el.dataset.p), Math.min(1, 0.45 + (0.55 * (e.clientY - r.top)) / r.height), when(e));
+}
+
+/** MIDI note `p` held down from `t` on this page's clock, `v` hard, as `id` until it is let go */
+function press(id, p, v, t) {
+  if (!keys.buf || !ctx || held.has(id)) return;
+  const i = Math.min(9, Math.max(0, Math.round((p - keys.low) / 3)));
   const voice = play(keys.buf, v, Math.pow(2, (p - (keys.low + 3 * i)) / 12), i * song.slot, song.slot);
-  const at = songAt(when(e) + latency());
+  const at = songAt(t + latency());
   const note = take && take.mode === "keys" && at !== null ? { at, d: null, p, v } : null;
   if (note) take.notes.push(note);
+  const el = document.querySelector(`#keyboard [data-p='${p}']`);
   held.set(id, { el, voice, note });
-  el.classList.add("down");
+  el?.classList.add("down");
 }
 
 function noteOff(id, t) {
   const n = held.get(id);
   if (!n) return;
   held.delete(id);
-  n.el.classList.remove("down");
+  n.el?.classList.remove("down");
   const now = ctx.currentTime;
   n.voice.g.gain.setTargetAtTime(0, now, 0.05);
   n.voice.src.stop(now + 0.4);
@@ -648,6 +655,10 @@ function platter() {
     fillFrom();
     loadRecord();
   };
+  $("learn").onclick = () => {
+    midi.learning = midi.learning ? null : "jog";
+    showMidi();
+  };
   $("from").onchange = loadRecord;
 }
 
@@ -740,6 +751,126 @@ async function send() {
   }
 }
 
+// MIDI: a controller plugged into whatever opens this page (a computer, an Android phone; an iPhone's Safari has no
+// MIDI) plays what is on the screen: the drum pads by the General MIDI drum map, on the lanes of those drums (as the
+// studio's Record window maps drum pads), the keys by their notes, and the turntable by its jog wheel and crossfader,
+// which the page learns once (Learn MIDI, then turn the wheel, then move the fader) and keeps.
+
+/** the ticks of a jog wheel that turn the record once */
+const TICKS = 128;
+/** where the page keeps what it learned of a controller */
+const LEARNT = "claudius-phone-midi";
+const midi = { inputs: [], jog: null, fader: null, learning: null, still: null };
+
+/** the drum a General MIDI note plays, as a lane's role */
+function gmDrum(p) {
+  if (p === 35 || p === 36) return "kick";
+  if (p === 38 || p === 40) return "snare";
+  if (p === 39) return "clap";
+  if (p === 42 || p === 44) return "hat";
+  if (p === 46) return "ohat";
+  if ([41, 43, 45, 47, 48, 50].includes(p)) return "tom";
+  if ([49, 52, 55, 57].includes(p)) return "crash";
+  if ([51, 53, 59].includes(p)) return "ride";
+  if ([54, 69, 70, 82].includes(p)) return "shaker";
+  if (p === 37 || p === 56 || p === 58 || (p >= 60 && p <= 81)) return "perc";
+  return null;
+}
+
+/** the roles of lanes that play a drum when the song has no lane of its own role */
+const STAND_INS = {
+  snare: ["clap"],
+  clap: ["snare"],
+  ohat: ["hat"],
+  hat: ["shaker", "ohat"],
+  ride: ["hat", "ohat"],
+  crash: ["ride", "ohat"],
+  tom: ["perc"],
+  shaker: ["hat", "perc"],
+  perc: ["shaker"],
+};
+
+/** the song's lane that General MIDI drum note `p` plays, if it has one for it */
+function laneFor(p) {
+  const drum = gmDrum(p);
+  for (const role of drum ? [drum, ...(STAND_INS[drum] || [])] : []) {
+    const i = (song.roles || song.lanes).indexOf(role);
+    if (i >= 0) return song.lanes[i];
+  }
+  return null;
+}
+
+async function startMidi() {
+  if (!navigator.requestMIDIAccess) return;
+  let access;
+  try {
+    access = await navigator.requestMIDIAccess();
+  } catch {
+    return;
+  }
+  try {
+    Object.assign(midi, JSON.parse(localStorage.getItem(LEARNT)) || {});
+  } catch {
+    // nothing learnt, or not kept
+  }
+  const listen = () => {
+    midi.inputs = [...access.inputs.values()];
+    for (const input of midi.inputs) input.onmidimessage = heard;
+    showMidi();
+  };
+  access.onstatechange = listen;
+  listen();
+}
+
+function showMidi() {
+  const b = $("learn");
+  b.hidden = !midi.inputs.length;
+  b.classList.toggle("on", !!midi.learning);
+  b.textContent =
+    midi.learning === "jog" ? "turn the jog wheel" : midi.learning === "fader" ? "move the crossfader" : midi.jog ? "learnt" : "Learn MIDI";
+}
+
+/** a MIDI message: a note on or off, or a control change */
+function heard(e) {
+  const [status, a, b] = e.data;
+  const kind = status & 0xf0;
+  const ch = status & 0x0f;
+  const t = e.timeStamp > 0 && e.timeStamp < 1e11 ? e.timeStamp : performance.now();
+  if (kind === 0x90 && b > 0) {
+    if (mode === "pads") {
+      const lane = laneFor(a);
+      if (lane) hit(lane, Math.max(0.3, b / 127), t);
+    } else if (mode === "keys") press(`midi${a}`, a, b / 127, t);
+  } else if (kind === 0x80 || kind === 0x90) {
+    // a key let go sounds no more, whatever is on the screen now
+    noteOff(`midi${a}`, t);
+  } else if (kind === 0xb0) control(ch, a, b);
+}
+
+/** a control change: learnt as the jog wheel or the crossfader, or turning or moving it */
+function control(ch, cc, v) {
+  const is = (c) => c && c.ch === ch && c.cc === cc;
+  if (midi.learning === "jog") {
+    // a wheel that says each turn as a step from 64 (63, 65), or as a step from 0 (127, 1)
+    Object.assign(midi, { jog: { ch, cc, offset: v >= 32 && v <= 96 }, learning: "fader" });
+  } else if (midi.learning === "fader" && !is(midi.jog)) {
+    Object.assign(midi, { fader: { ch, cc }, learning: null });
+    localStorage.setItem(LEARNT, JSON.stringify({ jog: midi.jog, fader: midi.fader }));
+  } else if (is(midi.jog)) {
+    const ticks = midi.jog.offset ? v - 64 : v < 64 ? v : v - 128;
+    // the wheel holds the record as it turns, and lets go of it once it rests
+    if (!deck.touching) Object.assign(deck, { touching: true, target: deck.pos });
+    deck.target += (ticks / TICKS) * TURN;
+    clearTimeout(midi.still);
+    midi.still = setTimeout(() => (deck.touching = false), 150);
+    return;
+  } else if (is(midi.fader)) {
+    $("fader").value = String(v / 127);
+    return;
+  } else return;
+  showMidi();
+}
+
 // What the page shows as the song goes: the section and bar, the beat, the record turning.
 
 function frame() {
@@ -778,6 +909,7 @@ async function start() {
   await ctx.resume();
   $("start").classList.add("gone");
   loadSounds();
+  startMidi();
   if (mode !== "pads") choose(mode);
 }
 

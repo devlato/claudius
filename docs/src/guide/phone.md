@@ -44,6 +44,17 @@ delay of the phone's own speaker is taken off.
 
 The pads, keys and turntable play without a take too, for practice, and while the studio is stopped.
 
+## MIDI controllers
+
+A MIDI controller plugged into what opens the page plays what is on its screen: drum pads by the General MIDI drum
+map (as in [the Record window](samples.md#drums-played-on-pads)), keys by their notes, and the turntable by its jog
+wheel and crossfader. For the turntable, tap **Learn MIDI**, turn the jog wheel, then move the crossfader: the page
+keeps what it learned. A browser lets a page use MIDI only on a secure connection, so this works on the demo's page,
+which is on claudius' site, and, for the app and `claudius serve`, on the computer itself: **Open it on this computer**
+in the **Play from a phone** window opens the page there, where a controller plugged into the computer plays it. Chrome
+and Edge have MIDI, on Android too; Firefox has it once you allow the site's MIDI add-on it offers; Safari has none, on
+an iPhone either, but there the phone is the controller.
+
 ## With the demo
 
 The demo runs claudius in the browser tab, which a phone cannot reach, so the tab and the phone both join a room of a
