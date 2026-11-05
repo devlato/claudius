@@ -514,6 +514,7 @@ const MELODIC: &[&str] = &[
     "saw_lead",
     "pwm_lead",
     "whistle",
+    "soft_lead",
     "brass_lead",
     "fm_lead",
     "vox_lead",
@@ -530,6 +531,8 @@ const MELODIC: &[&str] = &[
     "fm_kalimba",
     "harp_pluck",
     "mallet",
+    "cowbell_lead",
+    "acid",
 ];
 
 /// what may play a melody: the installed instruments (not a drum machine's hits), and the synths made for a line
@@ -558,6 +561,14 @@ pub fn page_frame() -> egui::Frame {
 mod tests {
     use super::*;
     use claudius_api::{GenreSampling, RenderView};
+
+    #[test]
+    fn every_synth_made_for_a_line_is_offered_to_play_a_melody() {
+        use claudius::synth::presets;
+        for p in presets::for_role("lead").into_iter().chain(presets::for_role("arp")) {
+            assert!(MELODIC.contains(&p), "{p} is made for a line, but the melody pickers leave it out");
+        }
+    }
 
     #[test]
     fn the_new_song_asked_for_samples_as_the_dialog_shows_it() {
