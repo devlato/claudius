@@ -84,14 +84,20 @@ fn a_project_opens_as_a_song_folder_that_plays_the_samples_it_holds() {
     let again = song::unpack_project(&zip, "My Song.zip", &songs).unwrap();
     assert_eq!(again, songs.join("my-song-2"), "a project opened twice is two folders");
 
-    // unpacked and zipped again by hand, as Finder zips a folder
+    // unpacked and zipped again by hand, as Finder zips a folder: deflated, under a folder of its name, with what
+    // Finder keeps of the files' attributes beside it
     let read = |f: &str| std::fs::read(dir.join(f)).unwrap();
-    let files = ["blueprint.json", "samples/drums/kick.flac"].map(|f| (f, read(f)));
-    let rezipped = zip_of(&files.iter().map(|(f, b)| (*f, b.as_slice())).collect::<Vec<_>>());
+    let (blueprint, sample) = (read("blueprint.json"), read("samples/drums/kick.flac"));
+    let rezipped = zip_of(&[
+        ("my-song/blueprint.json", &blueprint),
+        ("my-song/samples/drums/kick.flac", &sample),
+        ("__MACOSX/my-song/._blueprint.json", b"\x00\x05\x16\x07"),
+    ]);
     let third = song::unpack_project(&rezipped, "my-song.zip", &songs).unwrap();
+    assert!(!third.join("my-song").exists() && !third.join("__MACOSX").exists(), "the project, not its folder");
     let reopened = song::read_blueprint(&third.join("blueprint.json")).unwrap();
     let kick = third.join("samples/drums/kick.flac").display().to_string();
-    assert!(matches!(&reopened.drums[0].sound, Sound::Sample { path, .. } if *path == kick), "a deflated zip opens");
+    assert!(matches!(&reopened.drums[0].sound, Sound::Sample { path, .. } if *path == kick), "a folder zipped opens");
 }
 
 #[test]
