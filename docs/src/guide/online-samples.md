@@ -101,14 +101,32 @@ Gathering downloads recordings of a fitting length and cuts each on its beat gri
 | vocal | a note a voice holds, chopped: the steadiest and loudest of about a third of a second (with the ears, the one of the best eight most like what was asked for), with the note it was sung at | as a part (`vox`) in the drops and hooks (else the loudest sections) that plays the chop as a sampler would: moved from where it was sung to the song's chords, as a lead's motif or an arpeggio within a fifth of it, through a vocal's mix (a high-pass at 200 Hz, a little presence, compression, reverb and delay). Garage, future bass and house chop one most often; trip-hop, boom bap, lo-fi, jungle and drum & bass now and then |
 | bass | a note a bass plays on its own, chopped from its attack: from a recording of a note or a few (not a song, and not one that calls itself a kick, a drum or a sound effect), the steadiest and loudest of about two thirds of a second, within 15 dB of the recording's loudest, with most of its energy under 300 Hz and little above 2 kHz (a note out of a full mix has hats and voices over it). With the ears, the one of the best eight most like what was asked for. Its note is where it sounds: the pitch tracker hears the recording twice as fast, so that an 808's C1 is found, and a note whose fundamental is weaker than its octave, as a bass guitar's low notes are, is found an octave down | on the song's own bass part, where it plays, with its notes: a sampler plays them on the note, moved from where it was played, within an octave of it. Funk, reggae and phonk sample one most often (slap bass, dub bass, distorted 808s); boom bap, lo-fi and trip-hop an upright's pluck, neo-soul and R&B a fretless, the disco genres a bass guitar, hip hop and trap an 808, now and then |
 
-A phrase plays as a sampler plays a record: faster or slower by whole semitones, its pitch moving with its tempo,
-until its tempo (or half or twice it) falls in the genre's range. A soul record at 98 BPM plays four semitones up in a
-house song at 123.47 BPM, in a key four semitones above its own, and the song takes that tempo and key, so the phrase
-is only resampled, never stretched, and plays in tune with everything else. How far a genre goes is in its profile
-(`pitch`: trip-hop slows a record by up to five semitones, house speeds one up by up to five), and the song's lineage
-says how far it went and where the other passage plays (`sampled: phrase 'Old Soul' 4 semitones up (another passage
-of it in hook, hook2)`). Both passages play at the same speed. A phrase no such speed fits is stretched to the
-genre's tempo in its own key where claudius can stretch; the web demo, which cannot, goes without it.
+A phrase meets the genre's tempo as a producer plays a record, in one of three ways. The song's seed picks among the
+ways that cost about the least, so not every song does the same:
+
+- **Faster or slower by whole semitones**, as a sampler plays a record, its pitch moving with its tempo, until its
+  tempo (or half or twice it) falls in the genre's range. A soul record at 98 BPM plays four semitones up in a house
+  song at 123.47 BPM, in a key four semitones above its own, and the song takes that tempo and key, so the phrase is
+  only resampled and plays in tune with everything else. How far a genre goes is in its profile (`pitch`: trip-hop
+  slows a record by up to five semitones, house speeds one up by up to five).
+- **Chopped onto the song's grid at its own speed**, at a tempo two thirds, three quarters, four thirds or three halves
+  of its own (where you give the song's tempo, any from two thirds of it to three halves, never half or twice it, which
+  would count its bars at half or double time). Each half beat of it plays from the song's half beat, so its bars are
+  the song's and its chords change where the song's do, and its pitch is kept. Where the song is faster each slice is
+  cut short, and where it is slower a gap follows it, as with an MPC's chops. A 120 BPM record plays at its own pitch in
+  a boom bap song at 90, three quarters of its tempo; one at 80 plays in house at 120, three halves of it. Chopping
+  suits a recording with a clear pulse, whose slices are its hits, in a genre that chops (`chop` in the profile: boom
+  bap, grime, phonk and IDM most). A recording that flows, such as a string section, is chopped only when nothing else
+  fits it, since its chops would gate it, and house speeds its records up, as house does.
+- **Stretched in tune** to the genre's tempo, where claudius can stretch, when the stretch is small or nothing else
+  fits.
+
+The song's lineage says how far it went, which way, and where the other passage plays (`sampled: phrase 'Old Soul' 4
+semitones up (another passage of it in hook, hook2)`, or `... chopped onto the song's grid at its own pitch (played at
+120 BPM)`). Both passages play the same way. A break plays as it is within a few percent of the song's tempo, and
+otherwise chopped onto the song's grid at its own pitch, as jungle's producers chop one, since a break stretched far
+smears its hits. The web demo cannot stretch, so a phrase there is sped up or chopped, and a break off the song's
+tempo is chopped.
 Each role keeps its own colour from the profile: the high-pass that leaves the low end to the song's bass, the tape,
 the 12-bit crush.
 
@@ -151,9 +169,9 @@ The [studio demo](https://claudius.devlato.com/studio/?mock) samples as well, as
 built on samples, or one asked to be, is built on recordings from Freesound, Jamendo and Wikimedia Commons under CC0 or
 CC BY, found as the song is made from what the genre digs for or your words, loops and whole songs alike. claudius
 itself cuts them, in the page, as the app cuts them: a phrase of two bars out of a whole song, in its key, with its
-chords, played up or down by whole semitones into the genre's tempo. The demo has no ears, so its phrase is the
-loudest two bars of a recording's harmonic sections, and it only varispeeds, so it passes over a recording that no
-speed fits in tune. The demo asks the website for the recordings, and the website asks Openverse and the libraries, so
+chords, played up or down by whole semitones into the genre's tempo, or chopped onto the song's grid at its own
+pitch. The demo has no ears, so its phrase is the loudest two bars of a recording's harmonic sections, and it cannot
+stretch, so a recording that no speed fits plays chopped. The demo asks the website for the recordings, and the website asks Openverse and the libraries, so
 your browser contacts no one else; a visitor may ask for 30 new searches a minute. Each track names its recording,
 and the log gives each one's full credit.
 

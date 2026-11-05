@@ -358,6 +358,11 @@ pub struct LoopPart {
     pub chop: Vec<i32>,
     #[serde(default)]
     pub slice_beats: f64,
+    /// Its slices (`slice_beats` of its own beats) each start on the song's beat for them, at the loop's own speed (only
+    /// `transpose` resamples it): a phrase or a break played at a tempo it was not played at, its rhythm on the song's
+    /// grid and its pitch kept. A faster song cuts each slice short, a slower one leaves a gap after it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub retime: bool,
     #[serde(default)]
     pub mix: TrackMix,
     /// a take (a recording made for the song): it plays once from the start of this section, and on through the
@@ -641,6 +646,9 @@ pub struct Track {
     pub chop: Vec<i32>,
     #[serde(default)]
     pub slice_beats: f64,
+    /// a loop's slices each start on the song's beat for them, at its own speed (`LoopPart::retime`)
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub retime: bool,
     #[serde(default)]
     pub choke: Option<String>,
     #[serde(default)]

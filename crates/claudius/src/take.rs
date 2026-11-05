@@ -94,6 +94,7 @@ pub fn add(
         transpose: 0,
         chop: Vec::new(),
         slice_beats: 0.0,
+        retime: false,
         mix: TrackMix { reverb: 0.12, bus: "music".into(), ..Default::default() },
         from: Some(from.to_string()),
         sampled: false,

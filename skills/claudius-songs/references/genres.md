@@ -14,8 +14,10 @@ lists the genres with their tempo ranges, and user genres when the person has ad
 Any of them can be built on samples from free libraries: `new_song` with `sampled: true`, or with `sample_search`
 naming a kind of record ("70s soul", "bossa nova guitar", "film score"; not the genre's own name, which finds other
 people's tracks rather than records to sample). The song takes a phrase's key, tempo and chords, played faster or
-slower by whole semitones as a sampler would, in place of the genre's chords or keys, with a break and a texture from
-what the genre's producers dig for. Another passage of the same record plays as `sample2` in some sections, on its
+slower by whole semitones as a sampler would, or chopped onto the song's grid at its own pitch at a tempo a multiple of
+its own (two thirds, three quarters, four thirds, three halves: the history says `chopped onto the song's grid`; its
+`sample` track's `retime`), in place of the genre's chords or keys, with a break and a texture from what the genre's
+producers dig for. A break off the song's tempo is chopped onto the grid the same way. Another passage of the same record plays as `sample2` in some sections, on its
 own chords (progression A2): the louder of the two where the song lifts, the other elsewhere. To keep one passage all
 through, give those sections `sample` in place of `sample2` and progression A, so that the parts play the phrase's
 chords under it. Where either passage plays, the lead and the arpeggio leave the section's layers, so that the
