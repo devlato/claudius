@@ -5,7 +5,7 @@ evidence of three kinds, plus a fourth when earshot's models are loaded:
 
 | component | what it looks at | weight |
 |---|---|---|
-| `mix` | meters on the master: loudness, true peak, tonal balance, stereo width, mono low end | 0.30 |
+| `mix` | meters on the master (loudness, true peak, tonal balance, stereo width, mono low end), and each track's level against its role's | 0.30 |
 | `arc` | the energy arc: does loudness follow the arrangement's energy, is the drop louder than the break | 0.20 |
 | `theory` | the score itself: the lead, the bass, voice leading, the form | 0.20 |
 | `genre` | the ears: does it read as its genre rather than the genres it is confused with, or stock background music | 0.15 |
@@ -50,6 +50,8 @@ vocabulary that people, assistants and the evolution loop all read:
 | `master` | loudness or true peak of the master | |
 | `band:<band>+`, `band:<band>-` | too much or too little energy in a band | levels of the tracks that live in that band, drum sounds and kits, patches, space, pan |
 | `width+`, `width-` | too narrow, too wide or phasey, or a low end that is not mono | the same |
+| `level:<track>+`, `level:<track>-` | a track louder or quieter than its role's level | that track's level, turned the way back |
+| `sound:<part>` | a part plays a sound its genre has no place for | that part's preset and patch |
 | `form` | the arc or the length | layers, section flags, drum variants, section lengths |
 | `part:<name>` | a part's writing | that part's seed, style, density and register |
 | `genre` | it reads as another genre, or unlike the references | presets, styles, drum patterns and sounds, kits, tempo, progressions |
@@ -86,6 +88,14 @@ issue says what is likely wrong: `too much sub (boomy): lower the bass / kick, o
 below 0.15 `too wide / phasey` (−0.1). Below 150 Hz the correlation must stay above 0.9, or the low end is
 `not mono` (−0.08), which matters for club systems and vinyl.
 
+**Balance.** Every track should play at its role's level in the genre: the role's target plus the genre's offset
+for it, which the [auto-mixer](rendering.md#the-auto-mixer) sets each track to, measured the same way, on its hits.
+Engineers who mix the same song set its lead within about 1.5 dB of one another, so a track within 3 dB of its
+level is a choice. Further away, it costs 0.2 × severity, where severity is the distance beyond those 3 dB over 6
+(at most 1). The issue names the track and the way to turn it: `chords is 9.0 dB louder than the chords level: it
+covers the rest`, target `level:chords+`. The master's meters cannot hear this. A song with one track 9 dB too loud
+can keep every band in its range.
+
 ## Arc
 
 A producer shapes energy across a song: a breakdown drops back, a build rises, the drop hits. The critic measures
@@ -116,9 +126,10 @@ The critic reads the project's notes, not the audio, so these checks are exact:
 | the bass plays the roots | `bass_roots_on_changes`, the share of chord changes where the bass hits the chord's bass note | under 70 % |
 | chords move smoothly | `voice_leading_<track>`, the average movement per voice per chord change, for every chords, pad and keys track | over 4.5 semitones |
 | the form is sound | `length_s`; every section a multiple of 4 bars | under 90 s or over 330 s; any other section length |
+| every part plays a sound its genre has a place for | the rules the genre's own draws follow (`compose::has_place`, [Sounds for parts and drums](theory.md#sounds-for-parts-and-drums)) | a part that does not: `chords plays synth patch 'whistle', which house has no place for`, target `sound:chords` |
 
 The theory score is the mean of a score per check that applies: a song without a lead or bass is not marked down for
-them.
+them. A part whose sound has no place in its genre adds a check it fails outright, a 0 to that mean.
 
 ## The ears
 
@@ -206,6 +217,14 @@ evolution is gaming the scored parts: the scores rise and the held-out readings 
 
 The critic measures; it does not have taste. A high total means no measurable problems and a confident genre
 reading, not a good song.
+
+- The mix, arc and theory checks are what the generator aims at: the mixer sets each track to its level, the
+  arranger writes the arc, the composer writes in key. So a song claudius makes meets most of them by construction,
+  and they say most when something has been changed by hand or by evolution. No listener has checked yet that a
+  higher total is a song people prefer.
+- The ears' genre and production readings compare the audio with descriptions (CLAP). Published audits of such
+  judges find their scores follow how well the audio matches its description more than how good it is. They tell a
+  song that sounds like its genre from one that does not, but they do not rank good songs.
 
 - earshot was validated for matching sound effects, not music. House, tech house and techno sit close together for
   it, and fully synthesized songs read only marginally "professionally mixed"; songs with sampled instruments read

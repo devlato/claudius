@@ -260,6 +260,27 @@ pub fn named_instruments(g: &GenreProfile, role: Role) -> Vec<String> {
     out
 }
 
+/// Whether `sound` is one a genre has a place for in a part of `role`, as its draws judge (`palette::draw`): a synth
+/// that fits its parts or that its palette draws, an installed instrument its parts name or of a kind its palette
+/// would draw. Other sounds (recordings, samples, loops) are not judged.
+pub fn has_place(g: &GenreProfile, role: Role, sound: &Sound) -> bool {
+    let own = fitting_synths(g, role);
+    let mut rp = g.palette.get(role.name()).cloned().unwrap_or_else(|| palette::default_for(role));
+    if rp.synths.is_empty() {
+        rp.synths = own.clone();
+    }
+    if rp.instruments.is_empty() {
+        rp.instruments = named_instruments(g, role);
+    }
+    match sound {
+        Sound::Synth { preset, .. } => {
+            own.contains(preset) || palette::synths_drawn(role, &rp).contains(&preset.as_str())
+        }
+        Sound::Instrument { name, .. } => palette::instrument_has_place(role, &rp, name),
+        _ => true,
+    }
+}
+
 /// the sound for a genre's preset entry: alternatives separated by `|`, the first that exists wins (a synth preset,
 /// or an instrument from an installed sample pack: "piano|keys" plays the sampled piano when its pack is installed,
 /// else the keys patch). The random draws are the same either way, so the rest of the song does not change.

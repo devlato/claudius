@@ -41,6 +41,13 @@ fn track_mix<'a>(bp: &'a mut Blueprint, name: &str) -> Option<&'a mut TrackMix> 
     bp.loops.iter_mut().find(|l| l.name == name).map(|l| &mut l.mix)
 }
 
+/// whether `name` is a track of `bp` with a mix of its own (`track_mix`)
+fn has_mix(bp: &Blueprint, name: &str) -> bool {
+    bp.drums.iter().any(|d| d.name == name)
+        || bp.parts.iter().any(|p| p.name == name)
+        || bp.loops.iter().any(|l| l.name == name)
+}
+
 /// the kick and the bass parts: the low end, which stays centred and dry
 fn low_end(bp: &Blueprint, name: &str) -> bool {
     name == "kick" || bp.parts.iter().any(|p| p.name == name && p.role == Role::Bass)
@@ -86,6 +93,10 @@ fn weights(issues: &[Issue]) -> Vec<f64> {
             &["form_layer", "form_flags", "form_variant", "form_bars"]
         } else if t.starts_with("part:") {
             &["part_seed", "part_style", "part_density", "part_register"]
+        } else if t.starts_with("level:") {
+            &["mix_level"]
+        } else if t.starts_with("sound:") {
+            &["part_preset", "patch_tweak"]
         } else if t == "genre" {
             &["part_preset", "part_style", "drum_regen", "drum_sound", "drum_kit", "tempo", "harmony_new"]
         } else if t == "harmony" {
@@ -98,6 +109,13 @@ fn weights(issues: &[Issue]) -> Vec<f64> {
         }
     }
     OPS.iter().map(|o| w[o]).collect()
+}
+
+/// the track a level issue names, and which way to turn it
+fn level_track(target: &str) -> Option<(String, f32)> {
+    let t = target.strip_prefix("level:")?;
+    let (name, sign) = (&t[..t.len().saturating_sub(1)], if t.ends_with('+') { -1.0 } else { 1.0 });
+    (!name.is_empty()).then(|| (name.to_string(), sign))
 }
 
 /// the track a band issue points at (what to turn up or down)
@@ -289,7 +307,7 @@ fn apply_op(
         "part_seed" | "part_style" | "part_preset" | "patch_tweak" | "part_register" | "part_density" => {
             let targeted: Vec<usize> = issues
                 .iter()
-                .filter_map(|i| i.target.strip_prefix("part:"))
+                .filter_map(|i| i.target.strip_prefix("part:").or_else(|| i.target.strip_prefix("sound:")))
                 .filter_map(|n| b.parts.iter().position(|p| p.name == n))
                 .collect();
             let pi =
@@ -371,9 +389,13 @@ fn apply_op(
             }
         }
         "mix_level" => {
-            let band = issues.iter().find_map(|i| band_track(&i.target, rng));
-            let (name, sign) = match band {
-                Some((n, s)) if layer_names.contains(&n) && rng.chance(0.75) => (n, s),
+            let level = issues.iter().find_map(|i| level_track(&i.target)).filter(|(n, _)| has_mix(b, n));
+            let aimed = match level {
+                Some(l) => Some(l),
+                None => issues.iter().find_map(|i| band_track(&i.target, rng)).filter(|(n, _)| layer_names.contains(n)),
+            };
+            let (name, sign) = match aimed {
+                Some(a) if rng.chance(0.75) => a,
                 _ => (rng.pick(&layer_names).clone(), if rng.chance(0.5) { 1.0 } else { -1.0 }),
             };
             let m = track_mix(b, &name)?;

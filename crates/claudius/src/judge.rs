@@ -25,7 +25,8 @@ pub struct Issue {
     /// 0..1, how much it costs
     pub severity: f64,
     pub what: String,
-    /// where a fix lives: "mix:<track>", "master", "form", "harmony", "part:<name>", "drums:<lane>", "sound:<track>"
+    /// where a fix lives: "master", "band:<band>+/-", "width+/-", "level:<track>+/-", "form", "harmony",
+    /// "part:<name>", "sound:<part>", "genre", "production"
     pub target: String,
 }
 
@@ -214,6 +215,25 @@ fn mix_checks(r: &Rendered, p: &Project, m: &mut BTreeMap<String, f64>, issues: 
             severity: 0.4,
             what: format!("low end not mono (correlation {low_corr:.2} below 150 Hz)"),
             target: "width-".into(),
+        });
+    }
+    // each track at its role's level in the genre (its target and the genre's offset, which the mixer sets it to):
+    // engineers set a lead about 1.5 dB apart from one mix to another, so 3 dB either way is a choice, more a fault
+    for t in &r.tracks {
+        let Some(level) = t.level_lufs else { continue };
+        let meant = crate::render::target_level(&t.role) + p.mix.levels.get(&t.role).copied().unwrap_or(0.0);
+        let off = level + f64::from(t.gain_db) - f64::from(meant);
+        if off.abs() <= 3.0 {
+            continue;
+        }
+        let sev = clamp01((off.abs() - 3.0) / 6.0);
+        score -= 0.2 * sev;
+        let (how, so, sign) =
+            if off > 0.0 { ("louder", "it covers the rest", '+') } else { ("quieter", "the rest covers it", '-') };
+        issues.push(Issue {
+            severity: sev,
+            what: format!("{} is {:.1} dB {how} than the {} level: {so}", t.name, off.abs(), t.role),
+            target: format!("level:{}{sign}", t.name),
         });
     }
     clamp01(score)
@@ -412,6 +432,27 @@ fn theory_checks(p: &Project, m: &mut BTreeMap<String, f64>, issues: &mut Vec<Is
         });
     }
     parts.push(form);
+    // each part plays a sound its genre has a place for, as the genre's own draws would (`compose::has_place`): one
+    // that does not is a check failed outright
+    if let Ok(g) = crate::genres::get(&p.genre) {
+        for t in &p.tracks {
+            let Some(role) = crate::model::Role::parse(&t.role) else { continue };
+            if crate::compose::has_place(&g, role, &t.sound) {
+                continue;
+            }
+            parts.push(0.0);
+            issues.push(Issue {
+                severity: 0.5,
+                what: format!(
+                    "{} plays {}, which {} has no place for",
+                    t.name,
+                    t.sound.describe(),
+                    g.name.replace('_', " ")
+                ),
+                target: format!("sound:{}", t.name),
+            });
+        }
+    }
     if parts.is_empty() { 1.0 } else { parts.iter().sum::<f64>() / parts.len() as f64 }
 }
 
