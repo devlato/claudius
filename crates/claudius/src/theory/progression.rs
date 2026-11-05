@@ -130,6 +130,23 @@ pub const STYLES: &[Style] = &[
         mode: Mode::Mixolydian,
         progs: &["I VII IV I", "I VII", "I IV VII IV", "I VII IV IV", "I v IV I"],
     },
+    // lush ninths in a major key, its minor iv borrowed, a chromatic mediant, a secondary dominant and a tritone
+    // substitute, as neo-soul and alternative hip hop voice them
+    Style {
+        name: "lush_soul",
+        mode: Mode::Major,
+        progs: &[
+            "IVmaj9 iii7 vi9 ii9",
+            "Imaj9 IVmaj9 iv9 Imaj9",
+            "IVmaj9 iv9 iii7 VI7",
+            "ii9 V9 Imaj9 VI7",
+            "bVImaj7 bVII9 Imaj9 Imaj9",
+            "Imaj9 iii7 bIIImaj7 IVmaj9",
+            "IVmaj9 V/vi vi9 iv6",
+            "Imaj9 vi11 ii9 bII7",
+            "IVmaj9 iii7 vi9 ii9 IVmaj9 iv6 Imaj9 Imaj9",
+        ],
+    },
 ];
 
 pub fn style(name: &str) -> Option<&'static Style> {

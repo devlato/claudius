@@ -6,6 +6,12 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+A new genre, `alt_hip_hop`: alternative hip hop in the vein of Tyler, the Creator's records, layered as its producers
+layer it. It has lush ninth and eleventh chords (a new progression style, `lush_soul`, with its minor iv borrowed and
+chromatic mediants) on a Rhodes stacked on warm synths, strings and a flute; a distorted 808 with a fuzzy synth bass
+an octave over it; a swung kit with a clap on the snare; soul records chopped under it; and a beat switch into half
+time before the last hooks. Its songs are layered at complexity 0.8 unless asked otherwise.
+
 A new song can be as layered as you like: **Layers** in the New song dialog, `--complexity` on the command line and
 `complexity` in `new_song` and `song()`, from 0 to 1. At 0.5 a song is its genre as written; toward 1 its harmony and
 lead are doubled on second instruments (an octave up, or in unison on another sound), its bass an octave up through a

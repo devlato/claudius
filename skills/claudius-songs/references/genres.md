@@ -519,6 +519,26 @@ track("bass", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ x ~ ~ ~ x ~ ~ ~
 track("keys", chord("prog").struct("x ~ ~ ~ x ~ ~ ~").voicing(50, 74).s("keys").room(0.2));
 ```
 
+## alt_hip_hop (76-98 BPM)
+
+Alternative hip hop, layered as its producers layer it: lush ninth and eleventh chords on a Rhodes stacked on warm
+synths, strings and a flute, a distorted 808 with a fuzzy synth bass an octave over it (`fuzz`, a double of the
+`bass`), a swung kit with a clap on the snare, soul records chopped under it, a lead that sings and a counter-melody
+that answers it, and a beat switch into half time (`switch`) before the last hooks. Its songs are layered
+(complexity 0.8) unless asked otherwise; `complexity: 0.5` gives the genre as written.
+
+```js
+blank("alt_hip_hop");
+tempo(88);
+swing(0.57);
+key("Bb major");
+prog("A", "IVmaj9 iii7 vi9 ii9");
+track("drums", s("bd ~ ~ ~ ~ ~ ~ bd ~ ~ bd ~ ~ ~ ~ ~, ~ [sd,cp] ~ [sd,cp], hh*8, ~ ~ ~ rim ~ ~ rim ~"));
+part("bass", #{ style: "syncopated" });
+part("fuzz", #{});
+part("keys", #{ style: "charleston" });
+```
+
 ## rnb (64-80 BPM)
 
 Contemporary R&B: lush 9th chords on Rhodes and piano, an 808 or a warm sub that slides, sixteenth hats that roll, finger
