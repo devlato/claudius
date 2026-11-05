@@ -189,6 +189,7 @@ the key:
 | `GET /api/keys?sound=&low=&high=&step=` | notes of a sound, a slot of 1.5 seconds each, in one WAV (`pads::notes`) |
 | `GET /api/record?track=&bar=&bars=` | the record a scratch moves (`scratch::record`) |
 | `POST /api/take` | a take, as `add_hits`, `add_notes` or `add_scratch`; any other command gets 403 |
+| `POST /api/play` | `{"playing": true, "at": 12.5}` (`at` optional) or `{"playing": false}`: the phone asks the studio to play the song (from `at` seconds) or to stop it; the ask goes into the state's `phone.play` with an `id` of its own, and the studio does it once (`PlayAsk`) |
 
 The page plays what it is sent itself and stamps what is played with its own clock moved onto the server's, plus the
 delay of the phone's output, so a take does not depend on how late the Wi-Fi carries it. The listener holds the session weakly, and stops when the session lets go of its stop signal, as `DELETE /api/phone`

@@ -6,7 +6,7 @@
 
 use std::collections::{BTreeSet, HashMap};
 
-use claudius_api::{Command, PhoneView, Reply, Transport};
+use claudius_api::{Command, PhoneView, PlayAsk, Reply, Transport};
 use serde_json::{Value, json};
 
 use super::Mock;
@@ -68,6 +68,8 @@ pub struct Relay {
     pub out: Vec<Said>,
     /// when to join the room again, after the connection closed
     rejoin: Option<f64>,
+    /// the song played or stopped from a phone, last, which the studio does once
+    play: Option<PlayAsk>,
     #[cfg(target_arch = "wasm32")]
     socket: Option<socket::Socket>,
     /// what the room has brought, as it brings it: with no socket here, what a test puts in
@@ -179,7 +181,11 @@ impl Mock {
 
     /// what the page shows of the phones: the page's address, and how many have it open
     pub(super) fn phone_view(&self) -> Option<PhoneView> {
-        self.relay.as_ref().map(|r| PhoneView { url: r.url.clone(), phones: r.phones.len() as u32 })
+        self.relay.as_ref().map(|r| PhoneView {
+            url: r.url.clone(),
+            phones: r.phones.len() as u32,
+            play: r.play.clone(),
+        })
     }
 
     /// what the room brought since, answered, and the answers sent
@@ -284,6 +290,17 @@ impl Mock {
                     self.waiting += 1;
                 }
                 _ => self.relay().answer(&a, 403, json!("a phone sends takes: add_hits, add_notes or add_scratch")),
+            },
+            ("POST", "api/play") => match a.body["playing"].as_bool() {
+                Some(playing) => {
+                    let at = a.body["at"].as_f64().filter(|t| t.is_finite() && *t >= 0.0);
+                    let relay = self.relay();
+                    let id = relay.play.as_ref().map_or(1, |p| p.id + 1);
+                    relay.play = Some(PlayAsk { id, playing, at });
+                    relay.answer(&a, 204, Value::Null);
+                    self.publish();
+                }
+                None => self.relay().answer(&a, 400, json!("play is asked for with playing: true or false")),
             },
             _ => self.relay().answer(&a, 404, json!(format!("the demo has no {}", a.path))),
         }

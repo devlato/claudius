@@ -6,6 +6,10 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+The phone plays the song in the studio as well as following it: **▶** plays it and **■** stops it, so a take needs no
+trip to the computer. With the song stopped, ● starts it a bar before the section it is at, and the take starts with
+that section.
+
 The [studio demo](https://claudius.devlato.com/studio/?mock) mutates and evolves songs, as claudius does. Its engine
 judges the variations one after another in the page, without the ears, and keeps the best when it beats the song;
 **Stop** keeps the best judged so far.
