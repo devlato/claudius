@@ -133,6 +133,13 @@
       "pitch": [-3, 4],
       "instead": ["chords", "pad"],
       "mix": {"bus": "music", "reverb": 0.25, "delay": 0.2, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 180, "res": 0.05}]}
+    },
+    "vocal": {
+      "search": ["ragga vocal", "reggae vocal", "soul vocal", "a cappella"],
+      "listen": "a reggae singer holding a note",
+      "seconds": [1, 400],
+      "keep": 4,
+      "chance": 0.5
     }
   },
   "transitions": {"riser": true, "impact": true, "downlifter": true, "reverse_crash": true, "riser_bars": 8, "mix": {"bus": "fx", "reverb": 0.3, "level_db": -2}},

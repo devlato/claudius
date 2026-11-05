@@ -180,6 +180,13 @@
       "pitch": [-2, 5],
       "instead": ["strings", "guitar"],
       "mix": {"bus": "music", "duck": 0.3, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 160, "res": 0.05}]}
+    },
+    "vocal": {
+      "search": ["disco vocal", "female vocal", "soul vocal", "a cappella"],
+      "listen": "a disco singer holding a note",
+      "seconds": [1, 400],
+      "keep": 4,
+      "chance": 0.4
     }
   },
   "transitions": {

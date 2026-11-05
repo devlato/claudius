@@ -176,6 +176,13 @@
       "pitch": [-3, 4],
       "instead": ["pad"],
       "mix": {"bus": "music", "reverb": 0.25, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 180, "res": 0.05}]}
+    },
+    "vocal": {
+      "search": ["female vocal", "soul vocal", "reggae vocal", "a cappella"],
+      "listen": "a soulful woman singing",
+      "seconds": [1, 400],
+      "keep": 4,
+      "chance": 0.4
     }
   },
   "transitions": {

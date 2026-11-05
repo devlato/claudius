@@ -28,6 +28,8 @@ use crate::theory::scale::{Key, Mode};
 pub const BREAK: &str = "break";
 pub const PHRASE: &str = "sample";
 pub const TEXTURE: &str = "texture";
+/// the part a vocal chop plays as, in the sections where the song lifts
+pub const VOCAL: &str = "vox";
 /// the loop track a phrase's second passage plays as, in some of the sections that list the phrase
 pub const SECOND: &str = "sample2";
 /// the progression of the second passage's chords: the phrase's are `A`, and the genre's own `B` stays the contrast
@@ -46,6 +48,7 @@ pub fn track_name(role: Role) -> &'static str {
         Role::Break => BREAK,
         Role::Phrase => PHRASE,
         Role::Texture => TEXTURE,
+        Role::Vocal => VOCAL,
     }
 }
 
@@ -56,6 +59,7 @@ pub fn need(g: &GenreProfile, role: Role) -> Option<&SampleNeed> {
         Role::Break => s.drum_break.as_ref(),
         Role::Phrase => s.phrase.as_ref(),
         Role::Texture => s.texture.as_ref(),
+        Role::Vocal => s.vocal.as_ref(),
     }
 }
 
@@ -306,10 +310,11 @@ pub fn cut(
         Role::Break => cut_break(x, f, g, dir)?,
         Role::Phrase => cut_phrase(x, n, ears, dir)?,
         Role::Texture => cut_texture(x, dir)?,
+        Role::Vocal => cut_vocal(x, n, ears, dir)?,
     };
     c.prepared.genre = lead(&g.name).to_string();
     c.prepared.source = f.id.clone();
-    if role != Role::Phrase
+    if !matches!(role, Role::Phrase | Role::Vocal)
         && let Some(e) = ears
         && let Some(main) = c.files.first()
     {
@@ -371,6 +376,7 @@ fn blank(path: &Path, role: Role, bpm: f64, beats: f64) -> Prepared {
         source: String::new(),
         asked: None,
         second: None,
+        root: None,
     }
 }
 
@@ -584,6 +590,122 @@ fn correlation(x: &[[f32; 12]], y: &[[f32; 12]]) -> Option<f64> {
     (xx > 0.0 && yy > 0.0).then(|| xy / (xx * yy).sqrt())
 }
 
+/// the shortest and longest a note chopped for a vocal lasts, in seconds
+const CHOP: (f64, f64) = (0.15, 0.8);
+
+/// A note a voice holds: where it starts and ends in `pitches` (one for every 10 ms), the note it is held at (MIDI, its
+/// median), and how steadily (1: never off it; 0: a half-semitone off on average).
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Held {
+    from: usize,
+    to: usize,
+    at: f32,
+    steady: f32,
+}
+
+/// The notes a voice holds in `pitches`: runs in a voice's range (A2 to C6) that stay within half a semitone of where
+/// the run has been, at least `CHOP.0` long; one held longer than `CHOP.1` is chopped at that.
+fn held_notes(pitches: &[Option<f32>]) -> Vec<Held> {
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < pitches.len() {
+        let Some(first) = pitches[i].filter(|m| (45.0..=84.0).contains(m)) else {
+            i += 1;
+            continue;
+        };
+        let (mut j, mut sum) = (i + 1, first);
+        while let Some(p) = pitches.get(j).copied().flatten() {
+            if (p - sum / (j - i) as f32).abs() > 0.5 {
+                break;
+            }
+            sum += p;
+            j += 1;
+        }
+        if (j - i) as f64 / 100.0 >= CHOP.0 {
+            let to = j.min(i + (CHOP.1 * 100.0) as usize);
+            let mut run: Vec<f32> = pitches[i..to].iter().flatten().copied().collect();
+            run.sort_by(f32::total_cmp);
+            let at = run[run.len() / 2];
+            let off = run.iter().map(|p| (p - at).abs()).sum::<f32>() / run.len() as f32;
+            out.push(Held { from: i, to, at, steady: (1.0 - off / 0.5).max(0.0) });
+        }
+        i = j;
+    }
+    out
+}
+
+/// a sung note as a sampler keeps it: the middle of the stereo picture, above 120 Hz, its loudest at -1 dBFS, faded in
+/// over 5 ms and out over 30
+fn clean_chop(x: &Stereo) -> Stereo {
+    let mut v: Vec<f32> = x.l.iter().zip(&x.r).map(|(l, r)| 0.5 * (l + r)).collect();
+    crate::dsp::filter::butter(&mut v, true, 120.0, SRF, 2);
+    let peak = v.iter().fold(0f32, |m, s| m.max(s.abs()));
+    if peak > 0.0 {
+        let g = 0.891 / peak;
+        v.iter_mut().for_each(|s| *s *= g);
+    }
+    let mut out = Stereo { l: v.clone(), r: v };
+    let n = out.len();
+    out.fade(((0.005 * SRF) as usize).min(n / 4), ((0.03 * SRF) as usize).min(n / 4));
+    out
+}
+
+/// A recording's best sung note, chopped: among the notes a voice holds (`held_notes`), the steadiest and loudest of
+/// about a third of a second, and with the ears the one of the best eight most like what the genre listens for; with
+/// the note it was sung at, which a part playing it moves it from.
+fn cut_vocal(x: &Stereo, n: &SampleNeed, ears: Option<&Ears>, dir: &Path) -> Result<Cut> {
+    let pitches = crate::analysis::melody::pitches(x);
+    let notes = held_notes(&pitches);
+    // 10 ms before the note and 40 after it, for the consonant before it and the breath after
+    let chop = |h: &Held| {
+        let (a, b) = ((h.from as f64 * 0.01 - 0.01).max(0.0), h.to as f64 * 0.01 + 0.04);
+        x.slice((a * SRF) as usize, ((b * SRF) as usize).min(x.len()))
+    };
+    let power = |s: &Stereo| s.mono().iter().map(|v| (v * v) as f64).sum::<f64>() / s.len().max(1) as f64;
+    let powers: Vec<f64> = notes.iter().map(|h| power(&chop(h))).collect();
+    let loudest = powers.iter().copied().fold(0.0, f64::max);
+    if loudest <= 0.0 {
+        bail!("no note a voice holds in it");
+    }
+    let mut best: Vec<(f64, usize)> = notes
+        .iter()
+        .zip(&powers)
+        .enumerate()
+        .map(|(k, (h, p))| {
+            let secs = (h.to - h.from) as f64 * 0.01;
+            let near = 1.0 - ((secs - 0.35).abs() / 0.35).min(1.0);
+            ((p / loudest).sqrt() + h.steady as f64 + near, k)
+        })
+        .collect();
+    best.sort_by(|a, b| b.0.total_cmp(&a.0));
+    best.truncate(8);
+    let (k, z) = match ears {
+        Some(e) => {
+            let mut heard: Option<(usize, f64)> = None;
+            for &(_, k) in &best {
+                let z = e.z(&clean_chop(&chop(&notes[k])), &n.listen)?;
+                if heard.is_none_or(|(_, top)| z > top) {
+                    heard = Some((k, z));
+                }
+            }
+            heard.map(|(k, z)| (k, Some(z)))
+        }
+        None => best.first().map(|&(_, k)| (k, None)),
+    }
+    .context("no note a voice holds in it")?;
+    let h = notes[k];
+    let audio = clean_chop(&chop(&h));
+    let file = dir.join("vocal.wav");
+    // a note has no tempo: its length as beats at 120
+    let mut c = Cut::new(blank(&file, Role::Vocal, 120.0, audio.len() as f64 / SRF * 2.0));
+    let root = h.at.round() as i32;
+    c.prepared.root = Some(root);
+    c.prepared.key = Some(root.rem_euclid(12) as u8);
+    c.prepared.z = z;
+    c.file(file, audio, false);
+    Ok(c)
+}
+
 fn cut_texture(x: &Stereo, dir: &Path) -> Result<Cut> {
     let secs = x.len() as f64 / SRF;
     let take = secs.min(16.0);
@@ -655,7 +777,8 @@ fn speeds(bpm: f64, range: (f64, f64), pitch: (i32, i32)) -> Vec<(i32, f64, f64)
 
 /// Whether a song of `g` can play `p` at the genre's tempo as it was played: where claudius can stretch a loop in time
 /// without changing its pitch, any; else (in a browser, which only varispeeds) a phrase some speed fits in tune, and a
-/// break whose tempo, or half or twice it, lies within about a semitone of the genre's. A texture has no tempo.
+/// break whose tempo, or half or twice it, lies within about a semitone of the genre's. A texture has no tempo, and a
+/// vocal chop is a note, played at whatever tempo the song has.
 pub fn plays_in(p: &Prepared, g: &GenreProfile) -> bool {
     plays(p, g, cfg!(feature = "native"))
 }
@@ -663,7 +786,7 @@ pub fn plays_in(p: &Prepared, g: &GenreProfile) -> bool {
 /// `plays_in`, where claudius `stretches` or does not
 fn plays(p: &Prepared, g: &GenreProfile, stretches: bool) -> bool {
     match p.role {
-        Role::Texture => true,
+        Role::Texture | Role::Vocal => true,
         _ if stretches => true,
         Role::Phrase => need(g, Role::Phrase).is_some_and(|n| !speeds(p.bpm, g.bpm, n.pitch).is_empty()),
         Role::Break => [p.bpm, p.bpm / 2.0, p.bpm * 2.0].iter().any(|t| *t >= g.bpm.0 * 0.94 && *t <= g.bpm.1 * 1.06),
@@ -932,6 +1055,7 @@ pub fn apply(
                 Role::Break => "drums",
                 Role::Phrase => "sample",
                 Role::Texture => "texture",
+                Role::Vocal => "vocal",
             }
             .into(),
             sound: Sound::Loop {
@@ -1011,6 +1135,9 @@ pub fn apply(
         };
         placed.push((role, format!("'{label}'{how}{treated}{also}")));
     }
+    if on && let Some(said) = vocal(bp, g, lib, rng) {
+        placed.push((Role::Vocal, said));
+    }
     for role in Role::ALL {
         let Some(n) = need(g, role) else { continue };
         if placed.iter().any(|(r, _)| *r == role) {
@@ -1033,6 +1160,58 @@ pub fn apply(
         let said: Vec<String> = placed.iter().map(|(r, l)| format!("{} {l}", r.name())).collect();
         bp.lineage.push(format!("sampled: {}", said.join(", ")));
     }
+}
+
+/// Puts a vocal chop into `bp`, when its genre samples one, a song has one at hand and its chance says so: a part
+/// (`VOCAL`) that plays the sung note as a sampler would, moved from the note it was sung at to the song's chords, as a
+/// lead's motif or an arpeggio within a fifth of it, where the song lifts (its drops and hooks, else its loudest
+/// sections). What the song's lineage says of it, or none.
+fn vocal(bp: &mut Blueprint, g: &GenreProfile, lib: Option<&dyn crate::compose::Library>, rng: &Rng) -> Option<String> {
+    let n = need(g, Role::Vocal)?;
+    let mut r = rng.fork(Role::Vocal.name());
+    if !r.chance(n.chance) {
+        return None;
+    }
+    let p = lib?.prepared(Role::Vocal, g, None, &mut r)?;
+    let root = p.root?;
+    let lifts: Vec<usize> =
+        (0..bp.form.len()).filter(|&i| matches!(bp.form[i].kind, SectionKind::Drop | SectionKind::Hook)).collect();
+    let at = if lifts.is_empty() { (0..bp.form.len()).filter(|&i| bp.form[i].energy >= 0.7).collect() } else { lifts };
+    if at.is_empty() {
+        return None;
+    }
+    let (role, style) = if r.chance(0.5) {
+        (crate::model::Role::Lead, "motif")
+    } else {
+        (crate::model::Role::Arp, *r.pick(&["up", "updown", "random"]))
+    };
+    let label = Path::new(&p.path)
+        .parent()
+        .and_then(|d| d.file_name())
+        .map_or_else(|| p.path.clone(), |f| f.to_string_lossy().into_owned());
+    let mix = if n.mix == TrackMix::default() { crate::sampler::vocal_mix() } else { n.mix.clone() };
+    bp.parts.retain(|q| q.name != VOCAL);
+    bp.parts.push(Part {
+        name: VOCAL.into(),
+        role,
+        sound: Sound::Sample { path: p.path.clone(), root, start: 0.0, end: None, label: format!("{label} chop") },
+        style: style.into(),
+        register: (root - 7, root + 5),
+        density: 0.55,
+        voices: 1,
+        voicing: crate::theory::chord::Voicing::Close,
+        rate: 0.5,
+        seed: r.next_u64(),
+        notes: std::collections::BTreeMap::new(),
+        mix,
+    });
+    for &i in &at {
+        if !bp.form[i].layers.iter().any(|l| l == VOCAL) {
+            bp.form[i].layers.push(VOCAL.into());
+        }
+    }
+    let how = if role == crate::model::Role::Lead { "a motif" } else { "an arpeggio" };
+    Some(format!("'{label}' chopped, sung at {}, played as {how}", crate::theory::scale::note_name(root)))
 }
 
 #[cfg(test)]
@@ -1120,6 +1299,7 @@ mod tests {
             source: "freesound:1".into(),
             asked: None,
             second: None,
+            root: None,
         };
         Shelf(vec![
             Prepared {
@@ -1280,6 +1460,92 @@ mod tests {
 
     fn soul_need() -> SampleNeed {
         need(&sampling_genre(), Role::Phrase).unwrap().clone()
+    }
+
+    #[test]
+    fn the_notes_a_voice_holds_are_found_and_a_long_one_is_chopped() {
+        let held = |p: f32, frames: usize| std::iter::repeat_n(Some(p), frames);
+        let pitches: Vec<Option<f32>> = held(57.2, 30)
+            .chain([None; 5])
+            // a glide breaks a note; a moment of one is no note
+            .chain((0..40).map(|i| Some(60.0 + i as f32 * 0.1)))
+            .chain(held(64.0, 8))
+            .chain([None; 3])
+            // held for two seconds: a chop of 0.8
+            .chain(held(69.0, 200))
+            .collect();
+        let notes = held_notes(&pitches);
+        assert_eq!(notes.iter().map(|h| (h.from, h.to)).collect::<Vec<_>>()[..1], [(0, 30)]);
+        assert!(notes.iter().all(|h| (h.to - h.from) as f64 / 100.0 >= CHOP.0));
+        let last = notes.last().unwrap();
+        assert_eq!((last.at, last.to - last.from, last.steady), (69.0, 80, 1.0));
+        assert!((notes[0].at - 57.2).abs() < 1e-6);
+    }
+
+    /// two seconds of a voice: a quiet A3 for 0.6 s, a loud and steady C4 of a third of a second, and an E4 that
+    /// wavers
+    fn sung() -> Stereo {
+        let n = (2.0 * SRF) as usize;
+        let mut x = Stereo::zeros(n);
+        let mut phase = 0f64;
+        for i in 0..n {
+            let t = i as f64 / SRF;
+            let (midi, amp, wobble) = match t {
+                t if t < 0.6 => (57.0, 0.15, 0.0),
+                t if (0.8..1.13).contains(&t) => (60.0, 0.5, 0.0),
+                t if (1.3..1.9).contains(&t) => (64.0, 0.4, 0.45),
+                _ => continue,
+            };
+            let f = 440.0 * 2f64.powf((midi - 69.0 + wobble * (t * 6.0 * std::f64::consts::TAU).sin()) / 12.0);
+            phase += std::f64::consts::TAU * f / SRF;
+            let v = (amp * (phase.sin() + 0.4 * (2.0 * phase).sin() + 0.2 * (3.0 * phase).sin())) as f32;
+            (x.l[i], x.r[i]) = (v, v);
+        }
+        x
+    }
+
+    #[test]
+    fn a_vocal_is_the_steadiest_loudest_note_of_a_third_of_a_second_with_the_note_it_was_sung_at() {
+        let n = soul_need();
+        let c = cut_vocal(&sung(), &n, None, Path::new("demo:vocal")).unwrap();
+        assert_eq!((c.prepared.role, c.prepared.root, c.prepared.key), (Role::Vocal, Some(60), Some(0)));
+        let secs = c.files[0].audio.len() as f64 / SRF;
+        assert!((0.3..0.45).contains(&secs), "{secs}");
+        assert!((c.files[0].audio.peak() - 0.891).abs() < 0.01 && c.files[0].audio.l == c.files[0].audio.r);
+        assert!(plays(&c.prepared, &crate::genres::get("house").unwrap(), false), "a note plays at any tempo");
+    }
+
+    #[test]
+    fn a_vocal_chop_plays_as_a_part_on_the_chords_where_the_song_lifts() {
+        let g = crate::genres::get("house").unwrap();
+        let chop = Prepared {
+            path: "demo:samples/vocal/house/diva/vocal.wav".into(),
+            role: Role::Vocal,
+            genre: "house".into(),
+            root: Some(69),
+            ..soul("house", None)
+        };
+        let opts = crate::compose::Options { sampled: Some(true), short: true, ..Default::default() };
+        let songs: Vec<Blueprint> =
+            (0..12).map(|seed| crate::compose::generate(&g, seed, &opts, Some(&Shelf(vec![chop.clone()])))).collect();
+        let with: Vec<&Blueprint> = songs.iter().filter(|bp| bp.parts.iter().any(|p| p.name == VOCAL)).collect();
+        assert!(!with.is_empty() && with.len() < songs.len(), "house sings now and then: {}", with.len());
+        for bp in &with {
+            let vox = bp.parts.iter().find(|p| p.name == VOCAL).unwrap();
+            assert!(matches!(&vox.sound, Sound::Sample { root: 69, path, .. } if *path == chop.path));
+            assert_eq!(vox.register, (62, 74), "within a fifth of where it was sung");
+            for s in &bp.form {
+                let lifts = matches!(s.kind, SectionKind::Drop | SectionKind::Hook);
+                assert_eq!(s.layers.iter().any(|l| l == VOCAL), lifts, "{}", s.name);
+            }
+            assert!(bp.lineage.iter().any(|l| l.contains("vocal 'diva' chopped, sung at A4")), "{:?}", bp.lineage);
+        }
+        // and it sounds: the chop, moved to the chords, in the render
+        audio::remember(&chop.path, sung().slice((0.8 * SRF) as usize, (1.13 * SRF) as usize));
+        let p = crate::compose::arrange(with[0]);
+        let r = crate::render::render(&p, &crate::render::Options::default()).unwrap();
+        let vox = r.tracks.iter().find(|t| t.name == VOCAL).expect("the part renders");
+        assert!(vox.level_lufs.is_some_and(|l| l > -60.0), "{:?}", vox.level_lufs);
     }
 
     #[test]

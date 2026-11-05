@@ -165,6 +165,13 @@
       "keep": 4,
       "chance": 0.9,
       "mix": {"bus": "music"}
+    },
+    "vocal": {
+      "search": ["jazz vocal", "female vocal", "soul vocal", "a cappella"],
+      "listen": "a soft jazz voice",
+      "seconds": [1, 400],
+      "keep": 4,
+      "chance": 0.4
     }
   },
   "transitions": {"riser": false, "impact": false, "downlifter": false, "reverse_crash": false, "mix": {"bus": "fx"}},

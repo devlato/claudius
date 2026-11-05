@@ -707,7 +707,8 @@ mod tests {
         use sample::tests::found;
         let roles = mock.sampling_of("trip_hop").expect("trip-hop samples").roles;
         let of = |q: &str| roles.iter().find(|r| r.search.iter().any(|s| s == q)).map(|r| r.role.clone());
-        for _ in 0..200 {
+        let t0 = Instant::now();
+        loop {
             *now += 0.05;
             mock.update(*now);
             for asked in mock.sampler.pending() {
@@ -715,6 +716,8 @@ mod tests {
                     let list = match of(q).as_deref() {
                         Some("phrase") => vec![found("p", "Orchestral Strings", 21.333, &[])],
                         Some("break") => vec![found("b", "drums 92 bpm", 2.6087, &[])],
+                        // no voices here: the song goes without one
+                        Some("vocal") => Vec::new(),
                         _ => vec![found("t", "Vinyl Crackle Analogue 1", 6.0, &[])],
                     };
                     mock.sampler.arrive_search(q, Ok(list));
@@ -730,6 +733,7 @@ mod tests {
             if mock.sampling.is_none() {
                 break;
             }
+            assert!(t0.elapsed() < Duration::from_secs(120), "the gathering never ended: {:#?}", mock.state.log);
             std::thread::sleep(Duration::from_millis(10));
         }
     }
@@ -871,7 +875,7 @@ mod tests {
         let worker = include_str!("../../../../site/worker/index.js");
         assert!(worker.contains(r"const WORDS = /^[\p{L}\p{N}][\p{L}\p{N} &'.-]{0,59}$/u;"), "the Worker's words");
         for g in claudius::genres::all().unwrap() {
-            for r in g.sampling.iter().flat_map(|s| [&s.drum_break, &s.phrase, &s.texture]).flatten() {
+            for r in g.sampling.iter().flat_map(|s| [&s.drum_break, &s.phrase, &s.texture, &s.vocal]).flatten() {
                 for q in &r.search {
                     let ok = q.chars().count() <= 60
                         && q.chars().next().is_some_and(char::is_alphanumeric)

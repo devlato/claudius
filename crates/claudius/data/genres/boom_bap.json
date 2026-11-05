@@ -157,6 +157,13 @@
       "keep": 3,
       "chance": 0.75,
       "mix": {"bus": "music"}
+    },
+    "vocal": {
+      "search": ["soul vocal", "gospel vocal", "jazz vocal", "a cappella"],
+      "listen": "a soulful voice from an old record",
+      "seconds": [1, 400],
+      "keep": 4,
+      "chance": 0.35
     }
   },
   "transitions": {"riser": false, "impact": false, "downlifter": false, "reverse_crash": true, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.25}},

@@ -402,7 +402,7 @@ fn cosine(a: &[f32; 12], b: &[f32; 12]) -> f64 {
 
 /// a sampled phrase mixed as a vocal: above 200 Hz, a little presence, compressed, with some reverb and delay, ducked
 /// a little under the kick
-fn vocal_mix() -> TrackMix {
+pub(crate) fn vocal_mix() -> TrackMix {
     TrackMix {
         level_db: -1.0,
         fx: vec![

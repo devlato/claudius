@@ -32,6 +32,12 @@ held behind a filter that opens as the song lifts, darkened, narrowed to a telep
 breaks, overloaded or smashed, or crushed to 12 bits. Trip-hop darkens and filters, big beat overloads, lo-fi darkens
 and crushes, and filter house keeps its own sweep. The song's history names the move.
 
+Songs chop vocals from other records, as garage, house and future bass do: a gathering finds a note a voice holds on
+an a cappella or a vocal sample (the steadiest and loudest of about a third of a second), and a new part, `vox`, plays
+it on the song's chords in the drops and hooks, moved from the note it was sung at as a sampler would, as a motif or an
+arpeggio within a fifth of it. Eleven genres dig for vocals, each for its own kind (R&B vocals for garage, gospel and
+diva vocals for house, ragga for jungle), and it works in the web demo too, since a note has no tempo to fit.
+
 Searches for samples leave out the recordings of papers' supplementary material, which Wikimedia Commons holds
 by the thousand under their journals' names for them (`…-pone.0062397.s008.oga`): a vowel recorded for a study of
 voices holds a note, but it is no music. The studio demo's searches leave them out too.

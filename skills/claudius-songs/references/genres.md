@@ -20,8 +20,10 @@ own chords (progression A2): the louder of the two where the song lifts, the oth
 through, give those sections `sample` in place of `sample2` and progression A, so that the parts play the phrase's
 chords under it. The song's history names the move its phrase was treated with (filtered until it lifts, darkened, a
 telephone's band in the intro and the breaks, overloaded, smashed, crushed): the effects of it are in the `sample`
-track's mix, to describe in musical terms when you say what was sampled. Trip-hop, boom bap, lo-fi, jungle, big beat
-and filter house are
+track's mix, to describe in musical terms when you say what was sampled. Garage, future bass, house and some others
+also chop a note a voice sang on another record: a part, `vox`, plays it on the song's chords in the drops and hooks
+(the history says where it was sung and whether it plays a motif or an arpeggio); edit or remove it like any part.
+Trip-hop, boom bap, lo-fi, jungle, big beat and filter house are
 built on samples unless `sampled: false`. When the person wants a sampled song, say which record kind you searched
 for, and offer another if the phrase is not to their taste.
 

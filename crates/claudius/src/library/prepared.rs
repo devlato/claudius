@@ -17,16 +17,19 @@ pub enum Role {
     Phrase,
     /// noise of a medium (vinyl, tape) or a place, under the whole song
     Texture,
+    /// a note a voice sang, chopped from a recording, which a part plays on the song's chords as a sampler would
+    Vocal,
 }
 
 impl Role {
-    pub const ALL: [Role; 3] = [Role::Break, Role::Phrase, Role::Texture];
+    pub const ALL: [Role; 4] = [Role::Break, Role::Phrase, Role::Texture, Role::Vocal];
 
     pub fn name(self) -> &'static str {
         match self {
             Role::Break => "break",
             Role::Phrase => "phrase",
             Role::Texture => "texture",
+            Role::Vocal => "vocal",
         }
     }
 }
@@ -64,6 +67,9 @@ pub struct Prepared {
     /// a phrase's second passage, from another section of its recording, which other sections of a song play
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub second: Option<Passage>,
+    /// the note a vocal chop was sung at (MIDI), which a part playing it moves it from
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub root: Option<i32>,
 }
 
 /// Another passage of a phrase's recording, as long as the phrase and at its tempo and key: its file, its chords (a
@@ -205,6 +211,7 @@ mod tests {
             source: "freesound:1".into(),
             asked: None,
             second: None,
+            root: None,
         };
         ix.add(p.clone()).unwrap();
         ix.add(Prepared { bpm: 93.0, ..p.clone() }).unwrap();
