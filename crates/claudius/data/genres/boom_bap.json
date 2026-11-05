@@ -164,6 +164,13 @@
       "seconds": [1, 400],
       "keep": 4,
       "chance": 0.35
+    },
+    "bass": {
+      "search": ["upright bass pluck", "upright bass note", "bass guitar single note", "double bass pizzicato"],
+      "listen": "a warm upright or electric bass note",
+      "seconds": [0.3, 30],
+      "keep": 3,
+      "chance": 0.4
     }
   },
   "transitions": {"riser": false, "impact": false, "downlifter": false, "reverse_crash": true, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.25}},

@@ -203,6 +203,13 @@
       "seconds": [1, 400],
       "keep": 4,
       "chance": 0.45
+    },
+    "bass": {
+      "search": ["upright bass pluck", "dub bass note", "bass guitar single note"],
+      "listen": "a deep, round bass note",
+      "seconds": [0.3, 30],
+      "keep": 3,
+      "chance": 0.4
     }
   },
   "transitions": {

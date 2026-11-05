@@ -19,10 +19,13 @@ pub enum Role {
     Texture,
     /// a note a voice sang, chopped from a recording, which a part plays on the song's chords as a sampler would
     Vocal,
+    /// a note a bass played (a bass guitar's, an upright's, an 808's), chopped from a recording, which the song's bass
+    /// part plays its notes on as a sampler would
+    Bass,
 }
 
 impl Role {
-    pub const ALL: [Role; 4] = [Role::Break, Role::Phrase, Role::Texture, Role::Vocal];
+    pub const ALL: [Role; 5] = [Role::Break, Role::Phrase, Role::Texture, Role::Vocal, Role::Bass];
 
     pub fn name(self) -> &'static str {
         match self {
@@ -30,6 +33,7 @@ impl Role {
             Role::Phrase => "phrase",
             Role::Texture => "texture",
             Role::Vocal => "vocal",
+            Role::Bass => "bass",
         }
     }
 }

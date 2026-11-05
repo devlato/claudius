@@ -218,6 +218,8 @@ impl App {
                         (Role::Texture, _) => "another texture",
                         (Role::Vocal, 0) => "a vocal",
                         (Role::Vocal, _) => "another vocal",
+                        (Role::Bass, 0) => "a bass note",
+                        (Role::Bass, _) => "another bass note",
                     };
                     match asked.asked(r) {
                         Some(w) => format!("{what} for \"{w}\""),

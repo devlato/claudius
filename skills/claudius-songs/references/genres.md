@@ -25,6 +25,10 @@ telephone's band in the intro and the breaks, overloaded, smashed, crushed): the
 track's mix, to describe in musical terms when you say what was sampled. Garage, future bass, house and some others
 also chop a note a voice sang on another record: a part, `vox`, plays it on the song's chords in the drops and hooks
 (the history says where it was sung and whether it plays a motif or an arpeggio); edit or remove it like any part.
+Funk, reggae, phonk, the hip hop and soul genres and the disco ones sometimes sample a bass note (slap bass, dub
+bass, an upright's pluck, a fretless, an 808): the song's `bass` part keeps its notes and plays them on it as a
+sampler would, within an octave of where it was played (the history says `bass '<recording>', played at E1`). Its
+sound is a `sample` like any other: set the part's sound to a synth to go back.
 Trip-hop, boom bap, lo-fi, jungle, big beat and filter house are
 built on samples unless `sampled: false`. When the person wants a sampled song, say which record kind you searched
 for, and offer another if the phrase is not to their taste.

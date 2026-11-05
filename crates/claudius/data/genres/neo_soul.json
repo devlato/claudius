@@ -139,6 +139,13 @@
       "keep": 2,
       "chance": 0.4,
       "mix": {"bus": "music"}
+    },
+    "bass": {
+      "search": ["fretless bass note", "bass guitar single note", "upright bass pluck"],
+      "listen": "a warm, round bass note",
+      "seconds": [0.3, 30],
+      "keep": 3,
+      "chance": 0.35
     }
   },
   "transitions": {"riser": false, "impact": false, "downlifter": false, "reverse_crash": true, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.3, "level_db": -4}},

@@ -30,6 +30,8 @@ pub const PHRASE: &str = "sample";
 pub const TEXTURE: &str = "texture";
 /// the part a vocal chop plays as, in the sections where the song lifts
 pub const VOCAL: &str = "vox";
+/// the part a sampled bass note plays on: the song's own bass, wherever it plays
+pub const BASS: &str = "bass";
 /// the loop track a phrase's second passage plays as, in some of the sections that list the phrase
 pub const SECOND: &str = "sample2";
 /// the progression of the second passage's chords: the phrase's are `A`, and the genre's own `B` stays the contrast
@@ -49,6 +51,7 @@ pub fn track_name(role: Role) -> &'static str {
         Role::Phrase => PHRASE,
         Role::Texture => TEXTURE,
         Role::Vocal => VOCAL,
+        Role::Bass => BASS,
     }
 }
 
@@ -60,12 +63,13 @@ pub fn need(g: &GenreProfile, role: Role) -> Option<&SampleNeed> {
         Role::Phrase => s.phrase.as_ref(),
         Role::Texture => s.texture.as_ref(),
         Role::Vocal => s.vocal.as_ref(),
+        Role::Bass => s.bass.as_ref(),
     }
 }
 
-/// the layer names a genre's sampling adds to its sections
+/// the layer names a genre's sampling adds to its sections (a sampled bass plays on the bass the song has)
 pub fn layer_names(g: &GenreProfile) -> Vec<&'static str> {
-    Role::ALL.into_iter().filter(|r| need(g, *r).is_some()).map(track_name).collect()
+    Role::ALL.into_iter().filter(|r| *r != Role::Bass && need(g, *r).is_some()).map(track_name).collect()
 }
 
 /// the longest search of one's own, in characters
@@ -303,18 +307,27 @@ pub fn cut(
     ears: Option<&Ears>,
     dir: &Path,
 ) -> Result<Cut> {
-    if x.len() < SRF as usize {
-        bail!("shorter than a second");
+    let secs = x.len() as f64 / SRF;
+    match role {
+        // a bass note's recording is the note, or a few: a song, which a library may not say the length of, is not one
+        Role::Bass if secs < BASS_NOTE.0 + 0.1 => bail!("shorter than a note"),
+        Role::Bass if secs > n.seconds.1 => bail!("{secs:.0} s long, more than a bass note's recording"),
+        Role::Bass => {}
+        _ if secs < 1.0 => bail!("shorter than a second"),
+        _ => {}
     }
     let mut c = match role {
         Role::Break => cut_break(x, f, g, dir)?,
         Role::Phrase => cut_phrase(x, n, ears, dir)?,
         Role::Texture => cut_texture(x, dir)?,
         Role::Vocal => cut_vocal(x, n, ears, dir)?,
+        // a long kick rings as an 808 does: one that says it is a drum is one
+        Role::Bass if drum(f) => bail!("a drum, not a bass"),
+        Role::Bass => cut_bass(x, n, ears, dir)?,
     };
     c.prepared.genre = lead(&g.name).to_string();
     c.prepared.source = f.id.clone();
-    if !matches!(role, Role::Phrase | Role::Vocal)
+    if !matches!(role, Role::Phrase | Role::Vocal | Role::Bass)
         && let Some(e) = ears
         && let Some(main) = c.files.first()
     {
@@ -592,8 +605,16 @@ fn correlation(x: &[[f32; 12]], y: &[[f32; 12]]) -> Option<f64> {
 
 /// the shortest and longest a note chopped for a vocal lasts, in seconds
 const CHOP: (f64, f64) = (0.15, 0.8);
+/// the shortest and longest a bass note chopped lasts, in seconds: long enough to ring (a groove's staccato notes share
+/// their moment with its kicks), and a pluck dies within a second where an 808 rings on
+const BASS_NOTE: (f64, f64) = (0.2, 1.6);
+/// where a voice's notes are found (A2 to C6), and a bass's (a five-string's low B, under an 808's C1, to C4)
+const VOICE: (f32, f32) = (45.0, 84.0);
+const BASS_RANGE: (f32, f32) = (22.5, 60.0);
+/// how far under a recording's loudest a bass note may be, dB: a quieter one is a tail or the room, not the note
+const BASS_UNDER: f64 = 15.0;
 
-/// A note a voice holds: where it starts and ends in `pitches` (one for every 10 ms), the note it is held at (MIDI, its
+/// A note held: where it starts and ends in `pitches` (one for every 10 ms), the note it is held at (MIDI, its
 /// median), and how steadily (1: never off it; 0: a half-semitone off on average).
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Held {
@@ -603,13 +624,13 @@ struct Held {
     steady: f32,
 }
 
-/// The notes a voice holds in `pitches`: runs in a voice's range (A2 to C6) that stay within half a semitone of where
-/// the run has been, at least `CHOP.0` long; one held longer than `CHOP.1` is chopped at that.
-fn held_notes(pitches: &[Option<f32>]) -> Vec<Held> {
+/// The notes held in `pitches` within `range` (MIDI): runs that stay within half a semitone of where the run has been,
+/// at least `long.0` seconds long; one held longer than `long.1` is chopped at that.
+fn held_notes(pitches: &[Option<f32>], range: (f32, f32), long: (f64, f64)) -> Vec<Held> {
     let mut out = Vec::new();
     let mut i = 0;
     while i < pitches.len() {
-        let Some(first) = pitches[i].filter(|m| (45.0..=84.0).contains(m)) else {
+        let Some(first) = pitches[i].filter(|m| (range.0..=range.1).contains(m)) else {
             i += 1;
             continue;
         };
@@ -621,8 +642,8 @@ fn held_notes(pitches: &[Option<f32>]) -> Vec<Held> {
             sum += p;
             j += 1;
         }
-        if (j - i) as f64 / 100.0 >= CHOP.0 {
-            let to = j.min(i + (CHOP.1 * 100.0) as usize);
+        if (j - i) as f64 / 100.0 >= long.0 {
+            let to = j.min(i + (long.1 * 100.0) as usize);
             let mut run: Vec<f32> = pitches[i..to].iter().flatten().copied().collect();
             run.sort_by(f32::total_cmp);
             let at = run[run.len() / 2];
@@ -655,7 +676,7 @@ fn clean_chop(x: &Stereo) -> Stereo {
 /// the note it was sung at, which a part playing it moves it from.
 fn cut_vocal(x: &Stereo, n: &SampleNeed, ears: Option<&Ears>, dir: &Path) -> Result<Cut> {
     let pitches = crate::analysis::melody::pitches(x);
-    let notes = held_notes(&pitches);
+    let notes = held_notes(&pitches, VOICE, CHOP);
     // 10 ms before the note and 40 after it, for the consonant before it and the breath after
     let chop = |h: &Held| {
         let (a, b) = ((h.from as f64 * 0.01 - 0.01).max(0.0), h.to as f64 * 0.01 + 0.04);
@@ -704,6 +725,192 @@ fn cut_vocal(x: &Stereo, n: &SampleNeed, ears: Option<&Ears>, dir: &Path) -> Res
     c.prepared.z = z;
     c.file(file, audio, false);
     Ok(c)
+}
+
+/// A recording's best bass note, chopped from its attack: among the notes it holds in a bass's range (`held_notes`),
+/// as loud as the recording nearly (`BASS_UNDER`), that sound as a bass alone does (`bass_alone`: a note out of a full
+/// mix is not one), the steadiest and loudest of about two thirds of a second, and with the ears the one of the best
+/// eight most like what the genre listens for; with the note it was played at (`fundamental`), which the bass playing
+/// it moves it from.
+fn cut_bass(x: &Stereo, n: &SampleNeed, ears: Option<&Ears>, dir: &Path) -> Result<Cut> {
+    let notes = held_notes(&bass_pitches(x), BASS_RANGE, BASS_NOTE);
+    let mono = x.mono();
+    let mean_square = |v: &[f32]| v.iter().map(|s| (s * s) as f64).sum::<f64>() / v.len().max(1) as f64;
+    let top = mono.chunks((0.1 * SRF) as usize).map(mean_square).fold(0.0, f64::max);
+    let floor = top * 10f64.powf(-BASS_UNDER / 10.0);
+    // from the attack, which comes before the pitch settles, to 80 ms after it holds, for the note's release
+    let cuts: Vec<(Held, usize, Stereo)> = notes
+        .iter()
+        .filter_map(|h| {
+            let end = h.to as f64 * 0.01;
+            let a = attack(&mono, h.from as f64 * 0.01, end);
+            let b = (((end + 0.08).min(a as f64 / SRF + BASS_NOTE.1 + 0.08) * SRF) as usize).min(x.len());
+            if b < a + (BASS_NOTE.0 * SRF) as usize {
+                return None;
+            }
+            let seg = x.slice(a, b);
+            let m = seg.mono();
+            (mean_square(&m) >= floor && bass_alone(&m)).then_some((*h, a, seg))
+        })
+        .collect();
+    let power = |s: &Stereo| mean_square(&s.mono());
+    let loudest = cuts.iter().map(|(_, _, s)| power(s)).fold(0.0, f64::max);
+    if loudest <= 0.0 {
+        bail!("no note a bass plays on its own in it");
+    }
+    let mut best: Vec<(f64, usize)> = cuts
+        .iter()
+        .enumerate()
+        .map(|(k, (h, _, s))| {
+            let secs = (h.to - h.from) as f64 * 0.01;
+            let near = 1.0 - ((secs - 0.65).abs() / 0.65).min(1.0);
+            ((power(s) / loudest).sqrt() + h.steady as f64 + near, k)
+        })
+        .collect();
+    best.sort_by(|a, b| b.0.total_cmp(&a.0));
+    best.truncate(8);
+    let (k, z) = match ears {
+        Some(e) => {
+            let mut heard: Option<(usize, f64)> = None;
+            for &(_, k) in &best {
+                let z = e.z(&clean_bass(&cuts[k].2), &n.listen)?;
+                if heard.is_none_or(|(_, top)| z > top) {
+                    heard = Some((k, z));
+                }
+            }
+            heard.map(|(k, z)| (k, Some(z)))
+        }
+        None => best.first().map(|&(_, k)| (k, None)),
+    }
+    .context("no note a bass plays on its own in it")?;
+    let (h, a, seg) = &cuts[k];
+    let audio = clean_bass(seg);
+    // where the note holds its pitch, past the attack
+    let at = |frame: usize| ((frame as f64 * 0.01 * SRF) as usize).saturating_sub(*a);
+    let held = at(h.from)..at(h.to);
+    let root = fundamental(&audio.l[held.start.min(audio.len())..held.end.min(audio.len())], h.at);
+    let file = dir.join("bass.wav");
+    // a note has no tempo: its length as beats at 120
+    let mut c = Cut::new(blank(&file, Role::Bass, 120.0, audio.len() as f64 / SRF * 2.0));
+    c.prepared.root = Some(root);
+    c.prepared.key = Some(root.rem_euclid(12) as u8);
+    c.prepared.z = z;
+    c.file(file, audio, false);
+    Ok(c)
+}
+
+/// whether a recording says it is a drum (a kick, a snare, a hat, a drum loop or break) or a sound effect, in its title
+/// or a tag of its own
+fn drum(f: &Found) -> bool {
+    let title = f.title.to_lowercase();
+    ["kick", "snare", "hihat", "hi-hat", "drum", "break", "sfx"].iter().any(|w| title.contains(w))
+        || f.tags
+            .iter()
+            .any(|t| ["kick", "kickdrum", "kick-drum", "snare", "hihat"].contains(&t.to_lowercase().as_str()))
+}
+
+/// A bass's pitch every 10 ms, as the pitch tracker made for voices hears it, whose floor is G1: in the recording
+/// played twice as fast (an octave up, its floor G0, after what would fold back in is taken out), an octave down.
+fn bass_pitches(x: &Stereo) -> Vec<Option<f32>> {
+    let fast = |v: &[f32]| {
+        let mut v = v.to_vec();
+        crate::dsp::filter::butter(&mut v, false, 10_000.0, SRF, 4);
+        v.into_iter().step_by(2).collect::<Vec<f32>>()
+    };
+    let up = Stereo { l: fast(&x.l), r: fast(&x.r) };
+    // a frame of it is 20 ms of the recording: two of its frames
+    crate::analysis::melody::pitches(&up).into_iter().flat_map(|p| [p.map(|m| m - 12.0); 2]).collect()
+}
+
+/// Where a note's attack begins, in samples of `mono`, for a note whose pitch the tracker hears from `at` seconds (a
+/// little before or after it begins) to `end`: back from the note's loudest, which comes just after its attack, to
+/// where it was a tenth as loud, or, while the note before it still rings, to the quietest moment between them. A
+/// sampler's note starts there, neither late nor after silence.
+fn attack(mono: &[f32], at: f64, end: f64) -> usize {
+    let (win, step) = ((0.005 * SRF) as usize, (0.00125 * SRF) as usize);
+    let rms = |i: usize| {
+        let s = &mono[i.min(mono.len())..(i + win).min(mono.len())];
+        (s.iter().map(|v| v * v).sum::<f32>() / s.len().max(1) as f32).sqrt()
+    };
+    let heard = ((at * SRF) as usize).min(mono.len());
+    let earliest = heard.saturating_sub((0.08 * SRF) as usize);
+    let latest = (heard + (0.3 * SRF) as usize).min((end * SRF) as usize).min(mono.len());
+    let peak = (earliest..latest.max(earliest + 1)).step_by(step).max_by(|a, b| rms(*a).total_cmp(&rms(*b)));
+    let peak = peak.unwrap_or(heard);
+    let loudest = rms(peak);
+    let mut i = peak;
+    while i > earliest && rms(i) > 0.1 * loudest {
+        i = i.saturating_sub(step);
+    }
+    if rms(i) > 0.1 * loudest {
+        i = (earliest..=peak).step_by(step).min_by(|a, b| rms(*a).total_cmp(&rms(*b))).unwrap_or(earliest);
+    }
+    i.saturating_sub((0.002 * SRF) as usize)
+}
+
+/// Whether `x` sounds as a bass on its own does: most of its energy under 300 Hz, and little above 2 kHz (a bass's
+/// attack has a little; the hats, cymbals and voices of a full mix have more).
+fn bass_alone(x: &[f32]) -> bool {
+    let energy = |v: &[f32]| v.iter().map(|s| (s * s) as f64).sum::<f64>();
+    let all = energy(x);
+    if all <= 0.0 {
+        return false;
+    }
+    let (mut low, mut high) = (x.to_vec(), x.to_vec());
+    crate::dsp::filter::butter(&mut low, false, 300.0, SRF, 4);
+    crate::dsp::filter::butter(&mut high, true, 2000.0, SRF, 4);
+    energy(&low) / all > 0.6 && energy(&high) / all < 0.06
+}
+
+/// The note `x` plays, heard at `at` (MIDI) by a pitch tracker: an octave up when nothing sounds at the note heard nor
+/// at three times it (its odd harmonics) while twice it holds the energy, as for a note heard an octave under itself;
+/// else an octave down while the octave under it sounds, at its own pitch (with half the energy of the note heard) or
+/// at its third harmonic, half again above the note heard: a low bass note's fundamental is often weaker than its
+/// octave, which the tracker hears, and nothing else sounds there.
+fn fundamental(x: &[f32], at: f32) -> i32 {
+    let hz = |m: f32| 440.0 * 2f64.powf((m as f64 - 69.0) / 12.0);
+    let odd = power_at(x, hz(at)) + power_at(x, 3.0 * hz(at));
+    if odd < 0.1 * power_at(x, hz(at + 12.0)) {
+        return (at + 12.0).round() as i32;
+    }
+    let mut note = at;
+    for _ in 0..2 {
+        let (below, heard) = (note - 12.0, power_at(x, hz(note)));
+        let sounds = power_at(x, hz(below)) >= 0.5 * heard || power_at(x, 1.5 * hz(note)) >= 0.15 * heard;
+        if hz(below) < 25.0 || !sounds {
+            break;
+        }
+        note = below;
+    }
+    note.round() as i32
+}
+
+/// the power of `x` at `hz`: one bin of its spectrum, under a Hann window
+fn power_at(x: &[f32], hz: f64) -> f64 {
+    let (n, w) = (x.len().max(1) as f64, std::f64::consts::TAU * hz / SRF);
+    let (mut re, mut im) = (0.0, 0.0);
+    for (i, s) in x.iter().enumerate() {
+        let v = *s as f64 * (0.5 - 0.5 * (std::f64::consts::TAU * i as f64 / n).cos());
+        re += v * (w * i as f64).cos();
+        im -= v * (w * i as f64).sin();
+    }
+    re * re + im * im
+}
+
+/// a bass note as a sampler keeps it: in the middle of the stereo picture, rumble under 25 Hz taken out, its loudest
+/// at -1 dBFS, faded in over a millisecond (its attack is the note) and out over 40
+fn clean_bass(x: &Stereo) -> Stereo {
+    let mut v: Vec<f32> = x.l.iter().zip(&x.r).map(|(l, r)| 0.5 * (l + r)).collect();
+    crate::dsp::filter::butter(&mut v, true, 25.0, SRF, 2);
+    let peak = v.iter().fold(0f32, |m, s| m.max(s.abs()));
+    if peak > 0.0 {
+        let g = 0.891 / peak;
+        v.iter_mut().for_each(|s| *s *= g);
+    }
+    let mut out = Stereo { l: v.clone(), r: v };
+    let n = out.len();
+    out.fade(((0.001 * SRF) as usize).min(n / 4), ((0.04 * SRF) as usize).min(n / 4));
+    out
 }
 
 fn cut_texture(x: &Stereo, dir: &Path) -> Result<Cut> {
@@ -778,7 +985,7 @@ fn speeds(bpm: f64, range: (f64, f64), pitch: (i32, i32)) -> Vec<(i32, f64, f64)
 /// Whether a song of `g` can play `p` at the genre's tempo as it was played: where claudius can stretch a loop in time
 /// without changing its pitch, any; else (in a browser, which only varispeeds) a phrase some speed fits in tune, and a
 /// break whose tempo, or half or twice it, lies within about a semitone of the genre's. A texture has no tempo, and a
-/// vocal chop is a note, played at whatever tempo the song has.
+/// vocal chop or a bass note is a note, played at whatever tempo the song has.
 pub fn plays_in(p: &Prepared, g: &GenreProfile) -> bool {
     plays(p, g, cfg!(feature = "native"))
 }
@@ -786,7 +993,7 @@ pub fn plays_in(p: &Prepared, g: &GenreProfile) -> bool {
 /// `plays_in`, where claudius `stretches` or does not
 fn plays(p: &Prepared, g: &GenreProfile, stretches: bool) -> bool {
     match p.role {
-        Role::Texture | Role::Vocal => true,
+        Role::Texture | Role::Vocal | Role::Bass => true,
         _ if stretches => true,
         Role::Phrase => need(g, Role::Phrase).is_some_and(|n| !speeds(p.bpm, g.bpm, n.pitch).is_empty()),
         Role::Break => [p.bpm, p.bpm / 2.0, p.bpm * 2.0].iter().any(|t| *t >= g.bpm.0 * 0.94 && *t <= g.bpm.1 * 1.06),
@@ -1056,6 +1263,7 @@ pub fn apply(
                 Role::Phrase => "sample",
                 Role::Texture => "texture",
                 Role::Vocal => "vocal",
+                Role::Bass => "bass",
             }
             .into(),
             sound: Sound::Loop {
@@ -1142,9 +1350,13 @@ pub fn apply(
     if on && let Some(said) = vocal(bp, g, lib, rng) {
         placed.push((Role::Vocal, said));
     }
+    if on && let Some(said) = bass(bp, g, lib, rng) {
+        placed.push((Role::Bass, said));
+    }
     for role in Role::ALL {
         let Some(n) = need(g, role) else { continue };
-        if placed.iter().any(|(r, _)| *r == role) {
+        // a bass sampled or not is the song's bass, which plays where it plays
+        if role == Role::Bass || placed.iter().any(|(r, _)| *r == role) {
             continue;
         }
         let name = track_name(role);
@@ -1231,6 +1443,35 @@ fn vocal(bp: &mut Blueprint, g: &GenreProfile, lib: Option<&dyn crate::compose::
     }
     let how = if role == crate::model::Role::Lead { "a motif" } else { "an arpeggio" };
     Some(format!("'{label}' chopped, sung at {}, played as {how}", crate::theory::scale::note_name(root)))
+}
+
+/// Plays a sampled bass note on the song's bass (`BASS`), when its genre samples one, a song has one at hand and its
+/// chance says so: the bass keeps its notes, which a sampler plays on the note, moved from the one it was played at,
+/// within an octave of it, where a sampler's note still sounds as played. A note too far from where the bass plays
+/// is left for another song. What the song's lineage says of it, or none.
+fn bass(bp: &mut Blueprint, g: &GenreProfile, lib: Option<&dyn crate::compose::Library>, rng: &Rng) -> Option<String> {
+    let n = need(g, Role::Bass)?;
+    let mut r = rng.fork(Role::Bass.name());
+    if !r.chance(n.chance) {
+        return None;
+    }
+    let p = lib?.prepared(Role::Bass, g, None, &mut r)?;
+    let root = p.root?;
+    let part = bp.parts.iter_mut().find(|q| q.name == BASS && q.role == crate::model::Role::Bass)?;
+    let (low, high) = (part.register.0.max(root - 12), part.register.1.min(root + 12));
+    if high - low < 7 {
+        return None;
+    }
+    let label = Path::new(&p.path)
+        .parent()
+        .and_then(|d| d.file_name())
+        .map_or_else(|| p.path.clone(), |f| f.to_string_lossy().into_owned());
+    part.sound = Sound::Sample { path: p.path.clone(), root, start: 0.0, end: None, label: format!("{label} note") };
+    part.register = (low, high);
+    if n.mix != TrackMix::default() {
+        part.mix = n.mix.clone();
+    }
+    Some(format!("'{label}', played at {}", crate::theory::scale::note_name(root)))
 }
 
 #[cfg(test)]
@@ -1493,7 +1734,7 @@ mod tests {
             // held for two seconds: a chop of 0.8
             .chain(held(69.0, 200))
             .collect();
-        let notes = held_notes(&pitches);
+        let notes = held_notes(&pitches, VOICE, CHOP);
         assert_eq!(notes.iter().map(|h| (h.from, h.to)).collect::<Vec<_>>()[..1], [(0, 30)]);
         assert!(notes.iter().all(|h| (h.to - h.from) as f64 / 100.0 >= CHOP.0));
         let last = notes.last().unwrap();
@@ -1565,6 +1806,140 @@ mod tests {
         let r = crate::render::render(&p, &crate::render::Options::default()).unwrap();
         let vox = r.tracks.iter().find(|t| t.name == VOCAL).expect("the part renders");
         assert!(vox.level_lufs.is_some_and(|l| l > -60.0), "{:?}", vox.level_lufs);
+    }
+
+    /// a bass note plucked at `midi` into `x`, `secs` long from `at`, as a bass on its own plays it: its fundamental
+    /// the strongest of a few harmonics, dying away
+    fn plucked(x: &mut Stereo, midi: f64, at: f64, secs: f64, amp: f64) {
+        let f = 440.0 * 2f64.powf((midi - 69.0) / 12.0);
+        let a = (at * SRF) as usize;
+        for i in 0..((secs * SRF) as usize).min(x.len().saturating_sub(a)) {
+            let t = i as f64 / SRF;
+            let ph = std::f64::consts::TAU * f * t;
+            let tone = ph.sin() + 0.5 * (2.0 * ph).sin() + 0.25 * (3.0 * ph).sin() + 0.12 * (4.0 * ph).sin();
+            let v = (amp * (t / 0.003).min(1.0) * (-t / 0.6).exp() * tone) as f32;
+            x.l[a + i] += v;
+            x.r[a + i] += v;
+        }
+    }
+
+    #[test]
+    fn a_bass_note_is_cut_from_its_attack_with_the_note_it_was_played_at() {
+        let mut x = Stereo::zeros((2.5 * SRF) as usize);
+        plucked(&mut x, 33.0, 0.3, 0.8, 0.6);
+        // a quieter, shorter C3 after it
+        plucked(&mut x, 48.0, 1.4, 0.25, 0.2);
+        let c = cut_bass(&x, &soul_need(), None, Path::new("demo:bass")).unwrap();
+        assert_eq!((c.prepared.role, c.prepared.root, c.prepared.key), (Role::Bass, Some(33), Some(9)));
+        let note = &c.files[0].audio;
+        let first = note.l[..(0.01 * SRF) as usize].iter().fold(0f32, |m, v| m.max(v.abs()));
+        assert!(first > 0.3, "it starts on the attack, not before it: {first}");
+        let secs = note.len() as f64 / SRF;
+        assert!((0.5..=0.95).contains(&secs), "{secs}");
+        assert!((note.peak() - 0.891).abs() < 0.01 && note.l == note.r);
+        assert!(plays(&c.prepared, &crate::genres::get("house").unwrap(), false), "a note plays at any tempo");
+    }
+
+    #[test]
+    fn a_bass_note_as_low_as_an_808_is_found_where_it_is_played() {
+        for midi in [24.0, 28.0, 40.0, 52.0] {
+            let mut x = Stereo::zeros((1.6 * SRF) as usize);
+            plucked(&mut x, midi, 0.2, 1.0, 0.6);
+            let c = cut_bass(&x, &soul_need(), None, Path::new("demo:bass")).unwrap();
+            assert_eq!(c.prepared.root, Some(midi as i32), "{midi}");
+        }
+    }
+
+    #[test]
+    fn a_bass_note_is_found_where_it_sounds_however_its_harmonics_lie() {
+        // a low D whose fundamental is weaker than its octave, as a bass guitar's low notes are: heard at D2, a D1
+        let f = 440.0 * 2f64.powf((26.0 - 69.0) / 12.0);
+        let tone = |k: &[(f64, f64)]| -> Vec<f32> {
+            (0..SRF as usize)
+                .map(|i| {
+                    let t = i as f64 / SRF;
+                    k.iter().map(|(h, a)| a * (std::f64::consts::TAU * f * h * t).sin()).sum::<f64>() as f32
+                })
+                .collect()
+        };
+        let weak = tone(&[(1.0, 0.1), (2.0, 1.0), (3.0, 0.6), (4.0, 0.3)]);
+        assert_eq!(fundamental(&weak, 38.0), 26);
+        // a D2, whose harmonics are its own: a D2
+        let d2 = tone(&[(2.0, 1.0), (4.0, 0.5), (6.0, 0.25)]);
+        assert_eq!(fundamental(&d2, 38.0), 38);
+        // a D2 heard as a D1, with nothing at the D1 nor at its third harmonic: a D2
+        assert_eq!(fundamental(&d2, 26.0), 38);
+    }
+
+    #[test]
+    fn a_drum_a_song_or_a_moment_is_not_a_bass_notes_recording() {
+        let g = crate::genres::get("funk").unwrap();
+        let n = need(&g, Role::Bass).unwrap();
+        let found = |title: &str| -> Found {
+            serde_json::from_value(serde_json::json!({"id": "freesound:1", "source": "openverse", "provider": "freesound",
+                "title": title, "creator": "", "licence": "cc0", "licence_name": "CC0 1.0", "licence_url": "", "page": "",
+                "audio": "", "filetype": "wav", "seconds": 1.0}))
+            .unwrap()
+        };
+        let mut x = Stereo::zeros((1.6 * SRF) as usize);
+        plucked(&mut x, 33.0, 0.2, 1.0, 0.6);
+        let dir = Path::new("demo:bass");
+        assert!(cut(Role::Bass, &x, &found("Fender A1.wav"), &g, n, None, dir).is_ok());
+        let e = |c: Result<Cut>| c.err().map(|e| e.to_string()).unwrap_or_default();
+        assert_eq!(
+            e(cut(Role::Bass, &x, &found("[Kick] 'deadmau5 style' kick-drum"), &g, n, None, dir)),
+            "a drum, not a bass"
+        );
+        let song = Stereo::zeros(((n.seconds.1 + 1.0) * SRF) as usize);
+        assert!(e(cut(Role::Bass, &song, &found("RetroFuture"), &g, n, None, dir)).contains("more than a bass note's"));
+        let moment = x.slice(0, (0.25 * SRF) as usize);
+        assert_eq!(e(cut(Role::Bass, &moment, &found("Fender A1.wav"), &g, n, None, dir)), "shorter than a note");
+    }
+
+    #[test]
+    fn a_bass_note_out_of_a_full_mix_is_not_kept() {
+        let mut x = Stereo::zeros((1.6 * SRF) as usize);
+        plucked(&mut x, 33.0, 0.2, 1.0, 0.6);
+        // hats, cymbals and a voice's breath over it
+        let mut r = Rng::new(7);
+        for i in 0..x.len() {
+            let v = (r.f64() as f32 - 0.5) * 0.5;
+            x.l[i] += v;
+            x.r[i] += v;
+        }
+        let e = cut_bass(&x, &soul_need(), None, Path::new("demo:bass")).err().expect("a mix").to_string();
+        assert!(e.contains("no note a bass plays on its own"), "{e}");
+    }
+
+    #[test]
+    fn a_sampled_bass_note_plays_the_songs_bass_within_an_octave_of_it() {
+        let mut g = crate::genres::get("house").unwrap();
+        g.sampling.as_mut().unwrap().bass = Some(SampleNeed { chance: 1.0, ..soul_need() });
+        let note = Prepared {
+            path: "demo:samples/bass/house/fender/bass.wav".into(),
+            role: Role::Bass,
+            genre: "house".into(),
+            root: Some(40),
+            ..soul("house", None)
+        };
+        let opts = crate::compose::Options { sampled: Some(true), short: true, ..Default::default() };
+        let plain = crate::compose::generate(&g, 3, &crate::compose::Options::default(), None);
+        let bp = crate::compose::generate(&g, 3, &opts, Some(&Shelf(vec![note.clone()])));
+        let (was, bass) = [&plain, &bp].map(|b| b.parts.iter().find(|p| p.name == BASS).unwrap().clone()).into();
+        assert!(matches!(&bass.sound, Sound::Sample { root: 40, path, .. } if *path == note.path), "{:?}", bass.sound);
+        assert_eq!(bass.register, (was.register.0.max(28), was.register.1.min(52)), "within an octave of E2");
+        assert_eq!((bass.style.as_str(), bass.role), (was.style.as_str(), was.role), "the bass the song had");
+        let on = |b: &Blueprint| b.form.iter().map(|s| s.layers.contains(&BASS.to_string())).collect::<Vec<_>>();
+        assert_eq!(on(&bp), on(&plain), "where it played");
+        assert!(bp.lineage.iter().any(|l| l.contains("bass 'fender', played at E2")), "{:?}", bp.lineage);
+        // and it sounds
+        let mut x = Stereo::zeros(SRF as usize);
+        plucked(&mut x, 40.0, 0.0, 0.9, 0.6);
+        audio::remember(&note.path, x);
+        let p = crate::compose::arrange(&bp);
+        let r = crate::render::render(&p.slice(0, 8), &crate::render::Options::default()).unwrap();
+        let played = r.tracks.iter().find(|t| t.name == BASS).expect("the bass renders");
+        assert!(played.level_lufs.is_some_and(|l| l > -60.0), "{:?}", played.level_lufs);
     }
 
     #[test]

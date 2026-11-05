@@ -75,6 +75,13 @@
       "seconds": [1, 400],
       "keep": 4,
       "chance": 0.35
+    },
+    "bass": {
+      "search": ["808 bass", "808 sub bass", "bass guitar single note"],
+      "listen": "a deep 808 or bass note",
+      "seconds": [0.3, 30],
+      "keep": 3,
+      "chance": 0.4
     }
   },
   "transitions": {"riser": false, "impact": true, "downlifter": false, "reverse_crash": true, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.2, "level_db": -2}},

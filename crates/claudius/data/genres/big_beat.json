@@ -190,6 +190,13 @@
       "pitch": [-2, 4],
       "instead": ["riff"],
       "mix": {"bus": "music", "fx": [{"fx": "filter", "mode": "hp", "cutoff": 140, "res": 0.05}, {"fx": "saturate", "kind": "tape", "drive_db": 4, "mix": 0.5}]}
+    },
+    "bass": {
+      "search": ["bass guitar single note", "fuzz bass note", "distorted bass note"],
+      "listen": "a gritty electric bass note",
+      "seconds": [0.3, 30],
+      "keep": 3,
+      "chance": 0.35
     }
   },
   "transitions": {

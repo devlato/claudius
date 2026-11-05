@@ -17,6 +17,12 @@ in the studio, or `open` it from an assistant, and claudius unpacks it into a so
 `~/Music/claudius` and opens it there, samples and all. The `blueprint.json` of the folder Safari unpacks the zip
 into opens the same way.
 
+Some genres sample a bass note, as their records do: funk a slap bass, reggae a dub bass, phonk a distorted 808,
+boom bap, lo-fi and trip-hop an upright's pluck, and the disco, soul and hip hop genres a bass guitar, a fretless or
+an 808 now and then. The song's bass keeps its notes and plays them on the note, as a sampler would. A note is cut
+from its attack, at the pitch it sounds at: an 808's C1 is found, and so is a low note whose fundamental is weaker
+than its octave. A kick, a drum loop, a whole song or a note out of a full mix isn't kept.
+
 The mix balances each track on how loud its hits are. It measured a track over 3-second windows, which hear a clap on
 two and four with the silence between its hits, so the sparse tracks played louder than their levels said: snares and
 claps by about 4 dB, crashes by 3, impacts by 5 and reverse crashes by 7, an impact as loud as the kick. Measured over

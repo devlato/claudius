@@ -70,6 +70,13 @@
       "seconds": [1, 400],
       "keep": 4,
       "chance": 0.6
+    },
+    "bass": {
+      "search": ["distorted 808", "808 bass", "808 sub bass"],
+      "listen": "a distorted, booming 808",
+      "seconds": [0.3, 30],
+      "keep": 3,
+      "chance": 0.45
     }
   },
   "transitions": {"riser": false, "impact": true, "downlifter": false, "reverse_crash": true, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.2, "level_db": -2}},
