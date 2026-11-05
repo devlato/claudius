@@ -68,6 +68,7 @@ pub const ROLES: &[(&str, &[&str])] = &[
     ("saw_lead", &["lead"]),
     ("pwm_lead", &["lead", "arp"]),
     ("whistle", &["lead"]),
+    ("soft_lead", &["lead"]),
     ("brass_lead", &["lead", "chords"]),
     ("fm_lead", &["lead", "arp"]),
     ("vox_lead", &["lead"]),
@@ -99,6 +100,35 @@ pub fn for_role(role: &str) -> Vec<&'static str> {
 /// presets that are one genre's own sound (amapiano's log drum): a part plays them when its genre or a person names
 /// them, never as a sound drawn for any song
 const OWN: &[&str] = &["log_drum"];
+
+/// Presets of one character, which a genre that plays one of them has a place for: a song may draw any of a family
+/// whose member its genre names (`compose::fitting_synths`). A bell, a whistle, a chip tune's square, an 808, an acid
+/// line and a log drum are families of one, which play only where a genre names them.
+pub const FAMILIES: &[&[&str]] = &[
+    &["sub_bass", "deep_bass"],
+    &["saw_bass", "moog_bass", "rubber_bass", "pluck_bass", "fm_bass", "organ_bass"],
+    &["reese", "dist_bass", "wobble"],
+    &["pluck", "harp_pluck"],
+    &["saw_lead", "pwm_lead", "square_lead"],
+    &["soft_lead", "fm_lead"],
+    &["mallet", "fm_marimba", "fm_kalimba"],
+    &["brass_stab", "stab"],
+    &["epiano", "tine_piano"],
+    &["keys", "house_piano"],
+    &["organ", "rock_organ"],
+    &["pad", "warm_pad", "swell_pad", "air_pad"],
+    &["strings", "solina"],
+    &["glass_pad", "pwm_pad"],
+];
+
+/// the presets of `preset`'s character (`FAMILIES`), itself among them
+pub fn family(preset: &str) -> Vec<&'static str> {
+    FAMILIES
+        .iter()
+        .find(|f| f.contains(&preset))
+        .map(|f| f.to_vec())
+        .unwrap_or_else(|| names().into_iter().filter(|n| *n == preset).collect())
+}
 
 /// the presets a part of `role` may be given when no one has named its sound
 pub fn drawable(role: &str) -> Vec<&'static str> {
@@ -429,6 +459,19 @@ pub fn get(name: &str) -> Option<Patch> {
                 vec![o(Wave::Pulse).pw(0.32), o(Wave::Pulse).pw(0.46).semi(0.07).level(0.8)],
                 a(0.004, 0.3, 0.8, 0.16),
             )
+        },
+        // a soft, dark lead that sings as a theremin does: a sine with a little triangle an octave up, through a
+        // low-pass, a slow attack, a wide vibrato that comes in late, and a glide from note to note
+        "soft_lead" => Patch {
+            filter: filt(FilterMode::Lp, 1800.0, 0.05, 0.3, 0.3),
+            fenv: a(0.08, 0.4, 0.7, 0.3),
+            lfo: Some(LfoSpec { rate: 5.2, sync: false, vibrato: 0.28, filter: 0.0, amp: 0.04, delay: 0.35 }),
+            mono: true,
+            legato: true,
+            glide: 0.08,
+            analog: 1.2,
+            velocity: 0.4,
+            ..base(vec![o(Wave::Sine), o(Wave::Tri).octave(1).level(0.15)], a(0.06, 0.3, 0.9, 0.25))
         },
         "whistle" => Patch {
             noise: 0.04,

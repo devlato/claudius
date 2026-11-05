@@ -102,7 +102,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["pluck", "bell", "flute|whistle", "rhodes|epiano"],
+      "presets": ["rhodes|epiano", "pluck", "string_ensemble|strings"],
       "styles": ["motif"],
       "register": [64, 86],
       "density": [0.2, 0.4],

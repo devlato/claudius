@@ -1,7 +1,8 @@
 //! The sounds a generated song may play. A part plays one of its genre's own sounds (the part's `presets`) some of
 //! the time, its genre's `core` chance for the role; otherwise it draws a kind from the genre's `palette` for the
-//! role, by weight: `synth`, any synth preset made for the role, varied so that no two songs play quite the same
-//! patch, or a category of the installed sample packs' instruments (`strings`, `brass`, `mallets` ...). An
+//! role, by weight: `synth`, a synth preset that fits the genre's parts of the role, varied so that no two songs play
+//! quite the same patch, or a category of the installed sample packs' instruments (`strings`, `brass`, `mallets` ...),
+//! one whose sound pierces a mix only where the genre plays one of its kind itself. An
 //! instrument is drawn only when its range holds the part's register, it suits the role (a pad sustains: no
 //! pizzicato, no piano), and its pack's licence lets music made with it be published freely: packs without a
 //! licence, and share-alike or non-commercial ones, are left to be chosen by hand.
@@ -17,11 +18,19 @@ use serde::Deserialize;
 use crate::model::Role;
 use crate::rng::Rng;
 
-/// how a genre draws one role's sounds: the chance of one of its own (`core`), and the weight of each kind
+/// How a genre draws one role's sounds: the chance of one of its own (`core`), the weight of each kind, the synth
+/// presets that fit it (`synths`: what a draw of `synth` plays, and those that stand in for a kind of instrument
+/// none of which is installed), and the instruments that fit it (`instruments`, by name or alias: installed, they
+/// play for their kind, one whose sound pierces a mix too). None given: the synths that fit its genre's parts of the
+/// role (`compose::fitting_synths`), and the instruments those parts name (`compose::named_instruments`).
 #[derive(Clone, Debug, Deserialize)]
 pub struct RolePalette {
     #[serde(default = "half")]
     pub core: f64,
+    #[serde(default)]
+    pub synths: Vec<String>,
+    #[serde(default)]
+    pub instruments: Vec<String>,
     #[serde(flatten)]
     pub kinds: BTreeMap<String, f64>,
 }
@@ -99,7 +108,12 @@ pub fn default_for(role: Role) -> RolePalette {
             ],
         ),
     };
-    RolePalette { core, kinds: kinds.iter().map(|(k, w)| (k.to_string(), *w)).collect() }
+    RolePalette {
+        core,
+        synths: Vec::new(),
+        instruments: Vec::new(),
+        kinds: kinds.iter().map(|(k, w)| (k.to_string(), *w)).collect(),
+    }
 }
 
 /// whether music made with a pack under `licence` may be published freely (no share-alike, no non-commercial
@@ -161,8 +175,8 @@ pub fn suits(i: &Instrument, role: Role, register: (i32, i32)) -> bool {
         Role::Bass => i.low <= 45,
         // a melody is one player's
         Role::Lead => (!ensemble || short) && !instrument.contains("contrabass"),
-        // chords on strings are the whole section's
-        Role::Chords | Role::Keys => i.category != "strings" || ensemble,
+        // chords on strings, brass or woodwinds are the whole section's: one player plays one note
+        Role::Chords | Role::Keys => !matches!(i.category.as_str(), "strings" | "brass" | "woodwinds") || ensemble,
         Role::Arp => true,
     }
 }
@@ -183,8 +197,54 @@ pub enum Drawn {
     Instrument(String),
 }
 
+/// the kinds of instrument whose sound pierces a mix (a glockenspiel, a piccolo, a trumpet): a genre plays one only
+/// where one of its own synths stands in for it
+const PIERCING: &[&str] = &["mallets", "woodwinds", "brass"];
+
+/// the palette's synths: those it names, or any made for the role when it names none
+fn pool(role: Role, palette: &RolePalette) -> Vec<&'static str> {
+    if palette.synths.is_empty() {
+        crate::synth::presets::drawable(role.name())
+    } else {
+        crate::synth::presets::names().into_iter().filter(|n| palette.synths.iter().any(|s| s == n)).collect()
+    }
+}
+
+/// the synths that may play `kind`: the pool for `synth`; for another kind, those of the pool that stand in for it,
+/// or, for one that does not pierce a mix, the stand-ins made for the role
+fn players(kind: &str, role: Role, pool: &[&'static str]) -> Vec<&'static str> {
+    if kind == "synth" {
+        return pool.to_vec();
+    }
+    let among = |of: &[&'static str]| -> Vec<&'static str> {
+        stand_ins(kind).iter().copied().filter(|p| of.contains(p)).collect()
+    };
+    let own = among(pool);
+    if own.is_empty() && !PIERCING.contains(&kind) { among(&crate::synth::presets::drawable(role.name())) } else { own }
+}
+
+/// every synth a draw from `palette` may play for a part of `role`
+pub fn synths_drawn(role: Role, palette: &RolePalette) -> Vec<&'static str> {
+    let pool = pool(role, palette);
+    let mut out = pool.clone();
+    for kind in palette.kinds.iter().filter(|(_, w)| **w > 0.0).map(|(k, _)| k) {
+        for p in players(kind, role, &pool) {
+            if !out.contains(&p) {
+                out.push(p);
+            }
+        }
+    }
+    out
+}
+
 /// A sound for a part of `role` in `register`, drawn from `palette` among `available` instruments and not one of
 /// `taken` (`identity`: what the song's other parts play), or None when it plays one of its genre's own (`core`).
+/// A kind is drawn when something of it can play that no other part plays: an installed instrument of it that suits
+/// the part, or a synth that stands in for it. One whose sound pierces a mix (`PIERCING`) is drawn only where one of
+/// the palette's synths stands in for it, and an instrument with the character of a synth only where that synth is
+/// the palette's (`character`), unless the palette names the instrument. So a song sounds only what its genre has a
+/// place for: a genre that plays no whistle plays only the flute it names, and one that plays no bell no
+/// glockenspiel. `synth` plays one of the palette's synths (any made for the role, when it names none).
 pub fn draw(
     role: Role,
     register: (i32, i32),
@@ -196,10 +256,32 @@ pub fn draw(
     if rng.chance(palette.core) {
         return None;
     }
-    let fits: Vec<&Instrument> =
-        available.iter().filter(|i| suits(i, role, register) && !taken.contains(&i.name)).collect();
-    let kinds: Vec<(&str, f64)> =
-        palette.kinds.iter().filter(|(_, w)| **w > 0.0).map(|(k, w)| (k.as_str(), *w)).collect();
+    let pool = pool(role, palette);
+    let named: Vec<String> = palette
+        .instruments
+        .iter()
+        .filter_map(|n| {
+            if n.contains(':') { Some(n.clone()) } else { claudius_packs::resolve(n, None).map(|r| r.to_string()) }
+        })
+        .collect();
+    let its = |kind: &str| !PIERCING.contains(&kind) || !players(kind, role, &pool).is_empty();
+    let fits: Vec<&Instrument> = available
+        .iter()
+        .filter(|i| {
+            named.contains(&i.name) || character(&i.name).map_or_else(|| its(&i.category), |s| pool.contains(&s))
+        })
+        .filter(|i| suits(i, role, register) && !taken.contains(&i.name))
+        .collect();
+    // the synths that may play a kind, which no other part of the song plays
+    let synths_for = |kind: &str| -> Vec<&'static str> {
+        players(kind, role, &pool).into_iter().filter(|p| !taken.contains(&format!("synth:{p}"))).collect()
+    };
+    let kinds: Vec<(&str, f64)> = palette
+        .kinds
+        .iter()
+        .filter(|(k, w)| **w > 0.0 && (fits.iter().any(|i| i.category == **k) || !synths_for(k).is_empty()))
+        .map(|(k, w)| (k.as_str(), *w))
+        .collect();
     let total: f64 = kinds.iter().map(|k| k.1).sum();
     if total <= 0.0 {
         return None;
@@ -213,13 +295,8 @@ pub fn draw(
     if kind.0 != "synth" && !of.is_empty() {
         return Some(Drawn::Instrument(of[rng.below(of.len())].name.clone()));
     }
-    // a synth: any made for the role, or the kind's stand-in when no instrument of it is installed
-    let all = crate::synth::presets::drawable(role.name());
-    let like: Vec<&str> = stand_ins(kind.0).iter().copied().filter(|p| all.contains(p)).collect();
-    let pool = if kind.0 == "synth" || like.is_empty() { all } else { like };
-    let free: Vec<&str> = pool.iter().copied().filter(|p| !taken.contains(&format!("synth:{p}"))).collect();
-    let presets = if free.is_empty() { pool } else { free };
-    presets.get(rng.below(presets.len().max(1))).map(|p| Drawn::Synth(p))
+    let options = synths_for(kind.0);
+    options.get(rng.below(options.len().max(1))).map(|p| Drawn::Synth(p))
 }
 
 /// the synth presets that stand in for a category of instruments when none of them is installed
@@ -233,12 +310,25 @@ fn stand_ins(category: &str) -> &'static [&'static str] {
         "harp" => &["harp_pluck"],
         "strings" => &["strings", "solina"],
         "brass" => &["brass_lead", "brass_stab"],
-        "woodwinds" => &["whistle", "fm_lead"],
+        "woodwinds" => &["whistle"],
         "choir" | "voice" => &["vowel_pad", "vox_lead"],
         "pad" => &["pad", "warm_pad", "glass_pad", "air_pad", "pwm_pad"],
         "bass" => &["deep_bass", "rubber_bass", "fm_bass", "moog_bass"],
         _ => &[],
     }
+}
+
+/// the synth an installed instrument sounds like, where its category holds instruments of more than one character:
+/// a glockenspiel rings as the bell does, so it plays only where a genre has a place for a bell
+fn character(instrument: &str) -> Option<&'static str> {
+    const LIKE: &[(&[&str], &str)] = &[
+        (&["glockenspiel", "tubular", "celesta", "xylophone", "chime", "bell"], "bell"),
+        (&["vibraphone", "vibes"], "mallet"),
+        (&["marimba"], "fm_marimba"),
+        (&["kalimba", "mbira"], "fm_kalimba"),
+    ];
+    let name = instrument.rsplit(':').next().unwrap_or(instrument);
+    LIKE.iter().find(|(words, _)| words.iter().any(|w| name.contains(w))).map(|(_, synth)| *synth)
 }
 
 /// a drum kit a lane may play: an installed pack with drum sounds and a publishable licence
@@ -278,6 +368,9 @@ mod tests {
         assert!(!suits(&inst("vsco2:woodwinds", "woodwinds", 34, 96), Role::Lead, (64, 86)), "a section is no soloist");
         assert!(suits(&inst("vsco2:strings_pizz", "strings", 40, 86), Role::Lead, (64, 86)), "a pizzicato line is");
         assert!(!suits(&inst("vsco2:cellos", "strings", 36, 77), Role::Chords, (48, 72)), "chords on the section");
+        assert!(!suits(&inst("vsco2:trumpet", "brass", 54, 82), Role::Chords, (55, 76)), "one trumpet, one note");
+        assert!(!suits(&inst("vcsl:tenor_sax", "woodwinds", 44, 75), Role::Keys, (50, 72)));
+        assert!(suits(&inst("vsco2:brass", "brass", 34, 82), Role::Chords, (55, 76)), "the section plays chords");
         let choir = inst("voice:choir", "choir", 36, 58);
         assert!(!suits(&choir, Role::Pad, (60, 84)), "not up there");
         assert!(!suits(&inst("salamander:piano", "piano", 21, 108), Role::Pad, (50, 76)));
@@ -288,6 +381,8 @@ mod tests {
         let available = [inst("vsco2:flute", "woodwinds", 60, 96), inst("vcsl:marimba", "mallets", 41, 96)];
         let palette = RolePalette {
             core: 0.0,
+            synths: Vec::new(),
+            instruments: Vec::new(),
             kinds: [("synth".to_string(), 1.0), ("woodwinds".into(), 1.0), ("brass".into(), 5.0)].into(),
         };
         let mut seen = std::collections::BTreeSet::new();
@@ -302,12 +397,105 @@ mod tests {
         // no brass installed: a synth brass stands in
         let synths: Vec<&str> = seen.iter().filter(|s| *s != "vsco2:flute").map(String::as_str).collect();
         assert!(seen.contains("vsco2:flute") && synths.contains(&"brass_lead"), "{seen:?}");
-        let core = RolePalette { core: 1.0, kinds: palette.kinds.clone() };
+        let core = RolePalette { core: 1.0, ..palette.clone() };
         assert_eq!(draw(Role::Lead, (64, 86), &core, &available, &BTreeSet::new(), &mut Rng::new(1)), None);
         // what another part plays is not drawn again
         let taken: BTreeSet<String> = ["vsco2:flute".to_string()].into();
-        let only = RolePalette { core: 0.0, kinds: [("woodwinds".to_string(), 1.0)].into() };
+        let only = RolePalette { kinds: [("woodwinds".to_string(), 1.0)].into(), ..palette.clone() };
         let d = draw(Role::Lead, (64, 86), &only, &available, &taken, &mut Rng::new(1));
-        assert!(matches!(d, Some(Drawn::Synth("whistle" | "fm_lead"))), "a synth woodwind stands in: {d:?}");
+        assert_eq!(d, Some(Drawn::Synth("whistle")), "a synth woodwind stands in");
+    }
+
+    #[test]
+    fn an_instrument_the_genre_names_plays_where_its_kind_would_not() {
+        let winds = [inst("vcsl:tenor_sax", "woodwinds", 44, 75), inst("vsco2:flute", "woodwinds", 60, 96)];
+        let palette = RolePalette {
+            core: 0.0,
+            synths: vec!["vox_lead".into()],
+            instruments: vec!["vcsl:tenor_sax".into()],
+            kinds: [("woodwinds".to_string(), 1.0)].into(),
+        };
+        for seed in 0..20 {
+            let d = draw(Role::Lead, (55, 72), &palette, &winds, &BTreeSet::new(), &mut Rng::new(seed));
+            assert_eq!(d, Some(Drawn::Instrument("vcsl:tenor_sax".into())), "the saxophone it names, never the flute");
+        }
+    }
+
+    #[test]
+    fn a_genre_sounds_only_the_synths_it_has_a_place_for() {
+        // nothing installed, as in a browser: the woodwinds and mallets have no synth of the genre's to stand in
+        let palette = RolePalette {
+            core: 0.0,
+            synths: vec!["epiano".into(), "mallet".into()],
+            instruments: Vec::new(),
+            kinds: [("synth".to_string(), 1.0), ("woodwinds".into(), 3.0), ("mallets".into(), 2.0)].into(),
+        };
+        let mut seen = std::collections::BTreeSet::new();
+        for seed in 0..300 {
+            match draw(Role::Lead, (64, 86), &palette, &[], &BTreeSet::new(), &mut Rng::new(seed)) {
+                Some(Drawn::Synth(p)) => seen.insert(p),
+                other => panic!("a synth of the genre's: {other:?}"),
+            };
+        }
+        assert_eq!(seen, ["epiano", "mallet"].into(), "no whistle for the flute, no bell for the vibes");
+        // a kind the genre plays nothing of is not drawn at all, nor an instrument of it that is installed
+        let flutes = RolePalette {
+            core: 0.0,
+            synths: vec!["epiano".into()],
+            instruments: Vec::new(),
+            kinds: [("woodwinds".to_string(), 1.0)].into(),
+        };
+        let flute = [inst("vsco2:flute", "woodwinds", 60, 96)];
+        assert_eq!(draw(Role::Lead, (64, 86), &flutes, &[], &BTreeSet::new(), &mut Rng::new(1)), None);
+        assert_eq!(draw(Role::Lead, (64, 86), &flutes, &flute, &BTreeSet::new(), &mut Rng::new(1)), None);
+        // the FM lead is no woodwind's stand-in: a genre plays the flute where it plays the whistle
+        let reeds = RolePalette { synths: vec!["epiano".into(), "fm_lead".into()], ..flutes };
+        assert_eq!(draw(Role::Lead, (64, 86), &reeds, &flute, &BTreeSet::new(), &mut Rng::new(1)), None);
+        let whistles = RolePalette { synths: vec!["epiano".into(), "whistle".into()], ..reeds };
+        let d = draw(Role::Lead, (64, 86), &whistles, &flute, &BTreeSet::new(), &mut Rng::new(1));
+        assert_eq!(d, Some(Drawn::Instrument("vsco2:flute".into())));
+    }
+
+    #[test]
+    fn a_kind_that_does_not_pierce_a_mix_plays_where_the_palette_lists_it() {
+        let rhodes = [inst("jrhodes:rhodes", "electric piano", 29, 96)];
+        let keys = RolePalette {
+            core: 0.0,
+            synths: vec!["pluck".into()],
+            instruments: Vec::new(),
+            kinds: [("electric piano".to_string(), 1.0)].into(),
+        };
+        let d = draw(Role::Lead, (64, 86), &keys, &rhodes, &BTreeSet::new(), &mut Rng::new(1));
+        assert_eq!(d, Some(Drawn::Instrument("jrhodes:rhodes".into())));
+        // no synth electric piano is made for a lead: with none installed, the kind waits for one
+        assert_eq!(draw(Role::Lead, (64, 86), &keys, &[], &BTreeSet::new(), &mut Rng::new(1)), None);
+        let voices = RolePalette { kinds: [("voice".to_string(), 1.0)].into(), ..keys };
+        let d = draw(Role::Lead, (64, 86), &voices, &[], &BTreeSet::new(), &mut Rng::new(1));
+        assert_eq!(d, Some(Drawn::Synth("vox_lead")), "the voice made for a lead stands in");
+        assert_eq!(synths_drawn(Role::Lead, &voices), ["pluck", "vox_lead"]);
+    }
+
+    #[test]
+    fn a_glockenspiel_plays_where_a_bell_does_and_a_vibraphone_where_a_mallet_does() {
+        let available = [inst("vcsl:glockenspiel", "mallets", 67, 108), inst("vcsl:vibraphone", "mallets", 53, 89)];
+        let drawn = |synths: &[&str]| {
+            let palette = RolePalette {
+                core: 0.0,
+                synths: synths.iter().map(|s| s.to_string()).collect(),
+                instruments: Vec::new(),
+                kinds: [("mallets".to_string(), 1.0)].into(),
+            };
+            let mut seen = BTreeSet::new();
+            for seed in 0..50 {
+                if let Some(Drawn::Instrument(n)) =
+                    draw(Role::Lead, (70, 86), &palette, &available, &BTreeSet::new(), &mut Rng::new(seed))
+                {
+                    seen.insert(n);
+                }
+            }
+            seen
+        };
+        assert_eq!(drawn(&["mallet", "fm_marimba"]), ["vcsl:vibraphone".to_string()].into());
+        assert_eq!(drawn(&["bell", "pluck"]), ["vcsl:glockenspiel".to_string()].into());
     }
 }

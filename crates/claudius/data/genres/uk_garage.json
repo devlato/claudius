@@ -122,7 +122,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["vox_lead", "whistle", "pluck", "bell", "rhodes|epiano"],
+      "presets": ["vox_lead", "pluck", "rhodes|epiano", "organ"],
       "styles": ["motif"],
       "register": [64, 86],
       "density": [0.3, 0.55],
