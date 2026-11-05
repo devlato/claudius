@@ -222,6 +222,12 @@ pub struct NewSongArgs {
     /// "bossa nova guitar", "film score"); implies sampled (default: the records the genre's producers dig for)
     #[serde(default)]
     pub sample_search: Option<String>,
+    /// how layered the song is, from 0 to 1: 0 its genre's core, sparse; 0.5 the genre as written; 1 instruments
+    /// doubled on instruments (an octave up or in unison), a counter-melody, an arpeggio over the hooks, a pad, a clap
+    /// on the snare, a shaker and percussion, more of the samples a sampled genre colours its songs with, and the
+    /// drums a break stands in for played over it (default: the genre's own, 0.5 for most)
+    #[serde(default)]
+    pub complexity: Option<f64>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -670,6 +676,7 @@ impl Studio {
             loops: a.loops,
             sampled: a.sampled,
             sample_search: a.sample_search,
+            complexity: a.complexity,
         };
         self.edit(song, true).await
     }

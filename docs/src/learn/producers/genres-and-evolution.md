@@ -96,13 +96,14 @@ Each profile (`crates/claudius/data/genres/*.json`) has:
 | `drums` | the lanes: per-step hit probabilities and velocity ranges per variant, or a euclidean rhythm; drum voice parameter ranges; which Apple Loops one-shots may replace the voice; choke groups (open and closed hat) |
 | `kits`, `kit_mix` | which recorded drum machines the drums may be played on, and how often; how often a lane plays a kit of its own |
 | `palette` | for each role, how often a part keeps its own sounds, and which kinds of sound it draws from otherwise: synths, or the installed packs' strings, brass, woodwinds, mallets, pianos, guitars and more. It draws only what the genre has a [place for](../../engineering/theory.md#sounds-for-parts-and-drums): the synths of its parts' families, any synth pad for a pad, or the synths a role lists in `synths`; and of mallets, woodwinds and brass, whose sound pierces a mix, only those its synths stand in for and the instruments its parts name (or a role lists in `instruments`) |
-| `parts` | bass, chords, pad, lead, arp, keys: their own presets and instruments, writing styles, registers, density, voicing, and the chance a song leaves the part out |
+| `parts` | bass, chords, pad, lead, arp, keys: their own presets and instruments, writing styles, registers, density, voicing, and the chance a song leaves the part out; a part may double another (`doubles`, `octave`), playing its notes on a sound of its own, as a fuzzy synth bass an octave over an 808 |
 | `loops` | the Apple Loops a song may layer, by instrument, genre and descriptors |
 | `sampling` | the samples its songs are built on, from [free online libraries](../../guide/online-samples.md#songs-built-on-samples): whether they are by default (`by_default`), and for a break, a phrase, a texture, a vocal chop and a bass note, the kinds of record to search for, what the ears should hear, how many to keep, how often a song plays one and re-chops it, how many semitones a phrase may be played up or down (`pitch`), its mix, the moves a phrase is treated with and how often (`treat`), and the layers it plays `instead` of |
 | `transitions` | risers, impacts, downlifters, reverse crashes, riser length |
 | `mix` | the loudness target, reverb and delay, bus and master chains, sidechain release, role level offsets; each song varies its reverb, delay, sends and colours |
 | `query`, `alts` | what the ears should hear, and its confusions |
 | `accepted_flaws` | flaws the ears may hear that are the genre's sound, such as lofi's hiss, so they do not count against it |
+| `complexity` | how [layered](#how-layered-a-song-is) its songs are when nobody says: 0.5, the genre as its profile writes it, unless it is a layered genre |
 
 To add a genre or change one, drop a JSON file with the same fields into the `claudius/genres` folder of your
 configuration directory (`~/Library/Application Support/claudius/genres/` on macOS, `~/.config/claudius/genres/` on
@@ -125,6 +126,37 @@ patterns are the ones `--seed 7` gives without them, except that a key in anothe
 `key()` does. The same genre, seed and options make the same song on any
 machine, in the studio's New as on the command line; the sample packs and Apple Loops installed change only which
 recordings it plays.
+
+### How layered a song is
+
+`--complexity`, from 0 to 1 (`complexity` in `new_song` and in a script's `song()`, **Layers** in the studio's New
+song dialog), says how much plays at once. At 0.5, or when nobody says, a song is the genre as its profile writes it.
+Above that, more of it layers up, each layer with a chance that grows to sure at 1:
+
+- a pad holding the chords, in a genre whose songs have none, in the intro, breaks and outro and under the hooks;
+- a counter-melody under the lead, sparser and lower, with it in the hooks and in its place in the verses;
+- an arpeggio sparkling high over the hooks, quietly, through a delay;
+- the harmony and the lead doubled on second instruments: the same notes, an octave up or in unison on another
+  sound, 6 dB under and to the other side, and the bass an octave up through a high-pass and some drive, so that its
+  harmonics carry it;
+- a clap on the snare's backbeats, a shaker on the sixteenths, and a percussion line;
+- in a song built on samples, the sampled break, texture, vocal chop and bass note it may play, and the drums a break
+  stands in for, played over the break in the hooks.
+
+Each comes in where the song lifts, its hooks and drops first (at 1 the verses too), so the song still builds. Below
+0.5, down to 0, the song is thinned to its core: the parts a genre may leave out are left out, and so are the parts
+and drum lanes that only colour a section (all but the bass, the first harmony part, the kick, the snare, the clap
+and the hats), from its quieter sections most. The seed's song is the same under its layers: its tempo, key, chords,
+form and patterns do not move with the complexity. The history says what was layered (`layered at complexity 0.90:
+chords doubled an octave up on bell; a clap on the snare; ...`).
+
+```sh
+claudius make --genre neo_soul --complexity 0.9     # keys on keys, a counter-melody, a pad, a shaker
+claudius make --genre techno --complexity 0.1       # the kick, the hats and the bass
+```
+
+A double is a part that plays another part's notes on a sound of its own (`doubles` and `octave` in
+[`part()`](../../language/song-functions.md#part)), so it follows its part through edits, mutations and a new seed.
 
 ## Mutation
 

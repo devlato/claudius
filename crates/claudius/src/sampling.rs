@@ -1237,11 +1237,14 @@ pub fn apply(
     let search = opts.sample_search.as_deref().and_then(words);
     let on = sampled(g, opts.sampled, search.as_deref());
     let tempo_given = opts.bpm.is_some();
+    // the phrase is what the song is built on; the rest colours it, more of it the more layered the song
+    let complexity = opts.complexity.unwrap_or(g.complexity);
     let mut placed: Vec<(Role, String)> = Vec::new();
     for role in [Role::Phrase, Role::Break, Role::Texture] {
         let Some(n) = need(g, role) else { continue };
         let mut r = rng.fork(role.name());
-        if !on || !r.chance(n.chance) {
+        let chance = if role == Role::Phrase { n.chance } else { crate::compose::chance_at(n.chance, complexity) };
+        if !on || !r.chance(chance) {
             continue;
         }
         let asked = search.as_deref().filter(|_| role == Role::Phrase);
@@ -1451,10 +1454,10 @@ pub fn apply(
         }
         placed.push((role, format!("'{label}'{how}{treated}{also}")));
     }
-    if on && let Some(said) = vocal(bp, g, lib, rng) {
+    if on && let Some(said) = vocal(bp, g, lib, complexity, rng) {
         placed.push((Role::Vocal, said));
     }
-    if on && let Some(said) = bass(bp, g, lib, rng) {
+    if on && let Some(said) = bass(bp, g, lib, complexity, rng) {
         placed.push((Role::Bass, said));
     }
     for role in Role::ALL {
@@ -1501,10 +1504,16 @@ fn step_aside(bp: &mut Blueprint) {
 /// (`VOCAL`) that plays the sung note as a sampler would, moved from the note it was sung at to the song's chords, as a
 /// lead's motif or an arpeggio within a fifth of it, where the song lifts (its drops and hooks, else its loudest
 /// sections). What the song's lineage says of it, or none.
-fn vocal(bp: &mut Blueprint, g: &GenreProfile, lib: Option<&dyn crate::compose::Library>, rng: &Rng) -> Option<String> {
+fn vocal(
+    bp: &mut Blueprint,
+    g: &GenreProfile,
+    lib: Option<&dyn crate::compose::Library>,
+    complexity: f64,
+    rng: &Rng,
+) -> Option<String> {
     let n = need(g, Role::Vocal)?;
     let mut r = rng.fork(Role::Vocal.name());
-    if !r.chance(n.chance) {
+    if !r.chance(crate::compose::chance_at(n.chance, complexity)) {
         return None;
     }
     let p = lib?.prepared(Role::Vocal, g, None, &mut r)?;
@@ -1539,6 +1548,8 @@ fn vocal(bp: &mut Blueprint, g: &GenreProfile, lib: Option<&dyn crate::compose::
         seed: r.next_u64(),
         notes: std::collections::BTreeMap::new(),
         mix,
+        doubles: None,
+        octave: 0,
     });
     for &i in &at {
         if !bp.form[i].layers.iter().any(|l| l == VOCAL) {
@@ -1553,10 +1564,16 @@ fn vocal(bp: &mut Blueprint, g: &GenreProfile, lib: Option<&dyn crate::compose::
 /// chance says so: the bass keeps its notes, which a sampler plays on the note, moved from the one it was played at,
 /// within an octave of it, where a sampler's note still sounds as played. A note too far from where the bass plays
 /// is left for another song. What the song's lineage says of it, or none.
-fn bass(bp: &mut Blueprint, g: &GenreProfile, lib: Option<&dyn crate::compose::Library>, rng: &Rng) -> Option<String> {
+fn bass(
+    bp: &mut Blueprint,
+    g: &GenreProfile,
+    lib: Option<&dyn crate::compose::Library>,
+    complexity: f64,
+    rng: &Rng,
+) -> Option<String> {
     let n = need(g, Role::Bass)?;
     let mut r = rng.fork(Role::Bass.name());
-    if !r.chance(n.chance) {
+    if !r.chance(crate::compose::chance_at(n.chance, complexity)) {
         return None;
     }
     let p = lib?.prepared(Role::Bass, g, None, &mut r)?;

@@ -85,7 +85,7 @@ fn weight(layer: &str, g: &GenreProfile) -> f32 {
 
 /// a section's energy moved with the tracks it gained or lost since it played `before`, so that its loudness still
 /// follows its energy; a section that lost all its drums is quiet whatever it was
-fn retune(s: &mut SectionSpec, before: &[String], g: &GenreProfile) {
+pub(crate) fn retune(s: &mut SectionSpec, before: &[String], g: &GenreProfile) {
     let gained: f32 = s.layers.iter().filter(|l| !before.contains(l)).map(|l| weight(l, g)).sum();
     let lost: f32 = before.iter().filter(|l| !s.layers.contains(l)).map(|l| weight(l, g)).sum();
     s.energy = (s.energy + gained - lost).clamp(0.1, 1.0);

@@ -616,6 +616,7 @@ mod tests {
             loops: false,
             sampled: None,
             sample_search: None,
+            complexity: None,
         });
         assert!(r.ok && r.message.starts_with("new song"), "{}", r.message);
         let bp = app.blueprint().unwrap();
@@ -646,6 +647,7 @@ mod tests {
             loops: false,
             sampled: None,
             sample_search: None,
+            complexity: None,
         });
         assert!(!r.ok && r.message.contains("busy"), "{}", r.message);
         assert_eq!(app.new_songs.load(Ordering::Relaxed), 0, "the job already running stays the newest");

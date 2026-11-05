@@ -618,6 +618,8 @@ fn parts_from_notes(
             seed,
             notes: by_prog.clone(),
             mix: TrackMix { reverb: 0.15, bus: "music".into(), ..Default::default() },
+            doubles: None,
+            octave: 0,
         });
         for &i in &sections {
             bp.form[i].layers.push(name.clone());

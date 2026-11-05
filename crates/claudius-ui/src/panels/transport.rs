@@ -644,6 +644,9 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                 }
             });
             ui.end_row();
+            ui.label("Layers");
+            ui.horizontal(|ui| layer_options(ui, f, genres));
+            ui.end_row();
             ui.label("Loops");
             ui.checkbox(&mut f.loops, "build it around an Apple Loops family (GarageBand style)");
             ui.end_row();
@@ -765,6 +768,36 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
     });
     if modal.should_close() {
         cx.view.new_song.open = false;
+    }
+}
+
+/// The New song dialog's layers: how layered the song is (`complexity`), from its genre's core to instruments doubled
+/// on instruments and samples on samples; as the genre is until asked otherwise.
+fn layer_options(ui: &mut Ui, f: &mut super::NewSongForm, genres: &[GenreInfo]) {
+    let own = genres.iter().find(|g| g.name == f.genre).and_then(|g| g.complexity).unwrap_or(0.5);
+    let mut auto = f.complexity.is_none();
+    if ui.checkbox(&mut auto, "from the genre").changed() {
+        f.complexity = if auto { None } else { Some(own) };
+    }
+    if let Some(c) = &mut f.complexity {
+        ui.spacing_mut().slider_width = 160.0;
+        ui.add(egui::Slider::new(c, 0.0..=1.0).show_value(false)).on_hover_text(
+            "0: the genre's core, sparse. 0.5: the genre as written. 1: its harmony and lead doubled on second \
+             instruments, a counter-melody, an arpeggio over the hooks, a pad, a clap on the snare, a shaker and \
+             percussion, and more of the samples a sampled genre colours its songs with",
+        );
+    }
+    ui.label(small(layers_said(f.complexity.unwrap_or(own))));
+}
+
+/// what a song of complexity `c` plays, in a few words
+pub fn layers_said(c: f64) -> &'static str {
+    match c {
+        c if c < 0.15 => "sparse: the genre's core",
+        c if c < 0.4 => "lean: fewer parts",
+        c if c < 0.6 => "as the genre writes it",
+        c if c < 0.85 => "layered: doubles, more percussion",
+        _ => "dense: instruments on instruments",
     }
 }
 

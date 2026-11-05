@@ -6,6 +6,14 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+A new song can be as layered as you like: **Layers** in the New song dialog, `--complexity` on the command line and
+`complexity` in `new_song` and `song()`, from 0 to 1. At 0.5 a song is its genre as written; toward 1 its harmony and
+lead are doubled on second instruments (an octave up, or in unison on another sound), its bass an octave up through a
+high-pass, and a counter-melody, an arpeggio over the hooks, a pad, a clap on the snare, a shaker and a percussion line
+come in where the song lifts, with more of the samples a sampled genre colours its songs with and the drums a break
+stands in for played over it. Toward 0 it is thinned to its core. A double is a part that plays another part's notes
+(`doubles` and `octave` in `part()`), so it follows that part through edits and mutations.
+
 A sample doesn't always play slowed down or sped up to the song's tempo. A phrase can also be chopped onto the song's
 grid at its own pitch, at two thirds, three quarters, four thirds or three halves of its tempo, as an MPC chops a
 record: each half beat plays from the song's half beat, so its bars and chords line up. A 120 BPM record plays at its

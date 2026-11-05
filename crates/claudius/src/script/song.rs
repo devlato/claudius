@@ -155,7 +155,11 @@ fn register_start(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         let lib = cx.lib.clone();
         let mut opts = Options::default();
         if let Some(m) = &extra {
-            check_keys(m, "song()", &["seed", "bpm", "key", "loops", "short", "samples", "sampled", "sample_search"])?;
+            check_keys(
+                m,
+                "song()",
+                &["seed", "bpm", "key", "loops", "short", "samples", "sampled", "sample_search", "complexity"],
+            )?;
             opts.bpm = m.get("bpm").and_then(num);
             if let Some(b) = opts.bpm
                 && !(40.0..=240.0).contains(&b)
@@ -174,6 +178,10 @@ fn register_start(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
             }
             opts.sampled = m.get("sampled").and_then(|d| d.as_bool().ok());
             opts.sample_search = map_str(m, "sample_search").as_deref().and_then(crate::sampling::words);
+            opts.complexity = m.get("complexity").and_then(num);
+            if opts.complexity.is_some_and(|c| !(0.0..=1.0).contains(&c)) {
+                return fail("complexity from 0 (sparse) to 1 (layered)");
+            }
         }
         let bp = compose::generate(&g, seed, &opts, lib.as_deref().map(|l| l as &dyn compose::Library));
         cx.log.push(format!("song: {} — {} at {:.0} BPM in {}", bp.title, bp.genre, bp.bpm, bp.key.name()));
