@@ -158,8 +158,9 @@ pub struct Searched {
     pub failed: Vec<(Source, String)>,
 }
 
-/// Search the libraries for `q.text`. Sounds their licences keep out, and uploads that say they are cut from records
-/// (`suspect`), are left out; the rest come interleaved by library, and are remembered for `get`.
+/// Search the libraries for `q.text`. Sounds their licences keep out, uploads that say they are cut from records
+/// (`suspect`) and papers' supplementary recordings (`supplement`) are left out; the rest come interleaved by library,
+/// and are remembered for `get`.
 pub fn search(q: &Query) -> Result<Searched> {
     let text = q.text.trim();
     if text.is_empty() {
@@ -176,7 +177,9 @@ pub fn search(q: &Query) -> Result<Searched> {
             Source::Ccmixter => fetch::get_json(&ccmixter_url(text, &q.policy, per)).map(|v| ccmixter_results(&v)),
         };
         match got {
-            Ok(list) => lists.push(list.into_iter().filter(|f| q.policy.allows(f) && !suspect(f)).collect()),
+            Ok(list) => {
+                lists.push(list.into_iter().filter(|f| q.policy.allows(f) && !suspect(f) && !supplement(f)).collect())
+            }
             Err(e) => out.failed.push((s, format!("{e:#}"))),
         }
     }
@@ -219,6 +222,36 @@ pub fn suspect(f: &Found) -> bool {
     ];
     let words = format!("{} {}", f.title, f.tags.join(" ")).to_lowercase();
     SAYS.iter().any(|s| words.contains(s))
+}
+
+/// The files of a paper's supplementary material, which a bot imports to Wikimedia Commons under the names their
+/// journals give them: PLOS's `…-pone.0062397.s008.oga`, Springer's and BMC's `…_MOESM1_ESM`, Scientific Reports'
+/// `srep01234-s2`, Frontiers' `fpsyg-05-00123-s001`. A voice in one may hold a note, but it is no music.
+pub fn supplement(f: &Found) -> bool {
+    let name = format!("{} {}", f.id, f.title).to_lowercase();
+    if name.contains("supplementary") {
+        return true;
+    }
+    // words as a file's name or its title on Commons has them, which puts spaces for its underscores
+    let words: Vec<&str> = name.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| !w.is_empty()).collect();
+    let digits = |w: &str, n: usize| w.len() == n && w.bytes().all(|b| b.is_ascii_digit());
+    let numbered = |w: &str| w.len() >= 2 && w.starts_with('s') && w[1..].bytes().all(|b| b.is_ascii_digit());
+    let springer = words.windows(2).any(|w| {
+        w[0].len() > 5 && w[0].starts_with("moesm") && w[0][5..].bytes().all(|b| b.is_ascii_digit()) && w[1] == "esm"
+    });
+    const PLOS: [&str; 7] = ["pone", "pbio", "pcbi", "pgen", "ppat", "pmed", "pntd"];
+    let plos = words.windows(3).any(|w| PLOS.contains(&w[0]) && digits(w[1], 7) && numbered(w[2]));
+    let srep = words.windows(2).any(|w| {
+        w[0].len() > 4 && w[0].starts_with("srep") && w[0][4..].bytes().all(|b| b.is_ascii_digit()) && numbered(w[1])
+    });
+    let frontiers = words.windows(4).any(|w| {
+        w[0].len() >= 4
+            && w[0].bytes().all(|b| b.is_ascii_lowercase())
+            && digits(w[1], 2)
+            && digits(w[2], 5)
+            && numbered(w[3])
+    });
+    springer || plos || srep || frontiers
 }
 
 fn enc(s: &str) -> String {
@@ -774,6 +807,36 @@ mod tests {
         f.title = "funky loop".into();
         f.tags = vec!["sampled from".into()];
         assert!(suspect(&f));
+    }
+
+    #[test]
+    fn a_papers_supplementary_recordings_are_no_music() {
+        let mut f = openverse_results(&openverse_fixture()).remove(2);
+        assert!(!supplement(&f), "{}", f.title);
+        let named = |f: &mut Found, id: &str| {
+            f.id = format!("commons:{id}");
+            f.title = id.rsplit_once('.').map_or(id, |(t, _)| t).to_string();
+        };
+        for id in [
+            "Human-Vocal-Attractiveness-as-Signaled-by-Body-Size-Projection-pone.0062397.s008.oga",
+            "Birdsong-Learning-pbio.1001234.s012.ogg",
+            "12868_2015_123_MOESM1_ESM.oga",
+            "12868 2015 123 MOESM1 ESM.oga",
+            "Human Vocal Attractiveness pone.0062397.s008.oga",
+            "srep01234-s2.oga",
+            "fpsyg-05-00123-s001.oga",
+            "Supplementary audio 3.ogg",
+        ] {
+            named(&mut f, id);
+            assert!(supplement(&f), "{id}");
+        }
+        // music, whatever its numbers
+        for id in
+            ["Clean Soul (ISRC USUAN1300033).mp3", "Track 05 - 1999 mix.ogg", "Pone song s1.ogg", "Gymnopedie No.1.ogg"]
+        {
+            named(&mut f, id);
+            assert!(!supplement(&f), "{id}");
+        }
     }
 
     #[test]
