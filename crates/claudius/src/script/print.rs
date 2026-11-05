@@ -337,7 +337,8 @@ pub fn to_script(bp: &Blueprint) -> String {
         s.push_str("\n// parts written by the theory engine: change the style, preset, register, density or seed\n");
     }
     let genre = super::song::genre_of(bp);
-    for p in &bp.parts {
+    // a part the script doubles is one it has made by then
+    for p in bp.parts.iter().filter(|p| p.doubles.is_none()).chain(bp.parts.iter().filter(|p| p.doubles.is_some())) {
         let preset = match &p.sound {
             Sound::Synth { preset, .. } => format!(", preset: {}", quote(preset)),
             Sound::Instrument { name, .. } => format!(", preset: {}", quote(name)),
@@ -347,8 +348,13 @@ pub fn to_script(bp: &Blueprint) -> String {
         // a part of your own says what it is; the genre's own are known by name
         let own = genre.as_ref().is_some_and(|g| g.parts.iter().any(|q| q.name == p.name && q.role == p.role));
         let role = if own { String::new() } else { format!("role: {}, ", quote(p.role.name())) };
+        let doubles = match &p.doubles {
+            Some(d) if p.octave != 0 => format!(", doubles: {}, octave: {}", quote(d), p.octave),
+            Some(d) => format!(", doubles: {}", quote(d)),
+            None => String::new(),
+        };
         s.push_str(&format!(
-            "part({}, #{{ {role}style: {}{preset}, register: [{}, {}], density: {}{rate}, seed: {} }});\n",
+            "part({}, #{{ {role}style: {}{preset}, register: [{}, {}], density: {}{rate}, seed: {}{doubles} }});\n",
             quote(&p.name),
             quote(&p.style),
             p.register.0,

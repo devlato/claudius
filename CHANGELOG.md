@@ -6,6 +6,14 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+A new song can be as layered as you like: **Layers** in the New song dialog, `--complexity` on the command line and
+`complexity` in `new_song` and `song()`, from 0 to 1. At 0.5 a song is its genre as written; toward 1 its harmony and
+lead are doubled on second instruments (an octave up, or in unison on another sound), its bass an octave up through a
+high-pass, and a counter-melody, an arpeggio over the hooks, a pad, a clap on the snare, a shaker and a percussion line
+come in where the song lifts, with more of the samples a sampled genre colours its songs with and the drums a break
+stands in for played over it. Toward 0 it is thinned to its core. A double is a part that plays another part's notes
+(`doubles` and `octave` in `part()`), so it follows that part through edits and mutations.
+
 A scratch sounds like a turntable's, on the phone and in the take it makes. The platter follows the finger as a
 platter follows a hand, its speed changing smoothly through each turn back, where it jumped every few milliseconds. A
 record moved fast whistles no highs folded back: the needle reads it from a copy whose highs are taken out as far as

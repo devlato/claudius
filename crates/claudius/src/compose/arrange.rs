@@ -81,6 +81,15 @@ fn cycle_period(bp: &Blueprint, part: &Part, prog: &str, notes: &[Note]) -> f64 
     p
 }
 
+/// one cycle of what `part` plays over progression `prog`, and the beats it comes round in: the notes of the part it
+/// doubles, moved by its octaves (`Part::source`), or its own
+fn sounding(bp: &Blueprint, part: &Part, prog: &str, kick_main: &[Hit], kick_bars: u32) -> (Vec<Note>, f64) {
+    let (source, semis) = part.source(bp);
+    let notes = part_cycle(bp, source, prog, kick_main, kick_bars);
+    let period = cycle_period(bp, source, prog, &notes);
+    (notes.into_iter().map(|n| Note { p: (n.p + semis).clamp(0, 127), ..n }).collect(), period)
+}
+
 /// the kick's main pattern and its length in bars, which a bass follows
 fn kick_of(bp: &Blueprint) -> (Vec<Hit>, u32) {
     let kick = bp.drums.iter().find(|d| d.role() == "kick");
@@ -106,8 +115,7 @@ pub fn cycles(bp: &Blueprint, part: &Part) -> Vec<(String, Vec<Note>, f64, bool)
     progs
         .into_iter()
         .map(|prog| {
-            let notes = part_cycle(bp, part, prog, &kick_main, kick_bars);
-            let period = cycle_period(bp, part, prog, &notes);
+            let (notes, period) = sounding(bp, part, prog, &kick_main, kick_bars);
             (prog.to_string(), notes, period, part.notes.contains_key(prog))
         })
         .collect()
@@ -348,11 +356,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
             let (a, b) = (info.start_bar as f64 * 4.0, (info.start_bar + info.bars) as f64 * 4.0);
             let (cyc, period) = cycles
                 .entry(s.prog.clone())
-                .or_insert_with(|| {
-                    let n = part_cycle(bp, part, &s.prog, &kick_main, kick_bars);
-                    let p = cycle_period(bp, part, &s.prog, &n);
-                    (n, p)
-                })
+                .or_insert_with(|| sounding(bp, part, &s.prog, &kick_main, kick_bars))
                 .clone();
             notes.extend(tile(&cyc, period, a, b));
         }

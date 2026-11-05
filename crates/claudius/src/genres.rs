@@ -230,6 +230,14 @@ pub struct GenreProfile {
     pub sampling: Option<SamplingSpec>,
     pub transitions: TransitionSpec,
     pub mix: MixSpec,
+    /// how many layers its songs play when nobody says (`compose::Options::complexity`): 0.5, as the profile has
+    /// them, unless the genre is a layered one
+    #[serde(default = "as_written")]
+    pub complexity: f64,
+}
+
+fn as_written() -> f64 {
+    0.5
 }
 
 /// What a genre samples, from the records its producers dig for: a drum break, a phrase to build the song on, a

@@ -138,7 +138,7 @@ impl App {
     pub fn command(self: &Arc<Self>, c: Command) -> Reply {
         let v = self.version();
         match c {
-            Command::NewSong { genre, seed, bpm, key, loops, sampled, sample_search } => {
+            Command::NewSong { genre, seed, bpm, key, loops, sampled, sample_search, complexity } => {
                 let g = match genres::get(&genre) {
                     Ok(g) => g,
                     Err(e) => {
@@ -155,6 +155,9 @@ impl App {
                     Ok(k) => k,
                     Err(k) => return no(format!("cannot read key '{k}' (try \"A minor\", \"F#m\", \"Eb\")"), v),
                 };
+                if let Some(c) = complexity.filter(|c| !(0.0..=1.0).contains(c)) {
+                    return no(format!("a complexity is from 0 (sparse) to 1 (layered), not {c}"), v);
+                }
                 let seed = seed.unwrap_or_else(now_seed);
                 let sample_search = sample_search.as_deref().and_then(claudius::sampling::words);
                 let opts = Options {
@@ -163,6 +166,7 @@ impl App {
                     family: loops && self.lib.is_some(),
                     sampled,
                     sample_search,
+                    complexity,
                     ..Default::default()
                 };
                 let on = claudius::sampling::sampled(&g, opts.sampled, opts.sample_search.as_deref());

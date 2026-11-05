@@ -28,6 +28,7 @@ any machine. The recordings installed (sample packs, Apple Loops) change only wh
 | `samples` | number | 0.75 | chance that each drum lane uses a recorded one-shot from your library instead of synthesis |
 | `sampled` | bool | as the genre is | build it on samples gathered from free libraries: a phrase it takes its key, tempo and chords from, a break, a texture ([Songs built on samples](../guide/online-samples.md#songs-built-on-samples)); trip-hop, boom bap, lo-fi, jungle, big beat and filter house are by default |
 | `sample_search` | string | none | play the phrases gathered for these words ("70s soul"); implies `sampled` |
+| `complexity` | number, 0 to 1 | the genre's own (0.5 for most) | how [layered](../learn/producers/genres-and-evolution.md#how-layered-a-song-is) it is: 0 the genre's core, 1 its harmony and lead doubled, a counter-melody, a pad, more percussion |
 
 A script downloads nothing: `sampled` and `sample_search` play what `new_song`, `claudius make` or
 `claudius samples gather` gathered before, and a song with none at hand plays the genre's own sounds in their place.
@@ -46,7 +47,8 @@ misspelt one).
 
 Errors: `unknown genre 'polka' (try: afrobeats, amapiano, ambient, art_rock, big_beat, boom_bap, dance_pop, deep_house, dnb, dub_techno, dubstep, electro_house, filter_house, funk, future_bass, grime, hip_hop, house, idm, jungle, lofi, neo_psychedelia, neo_soul, nu_disco, phonk, reggae, reggaeton, rnb, synthwave, tech_house, techno, trance, trap, trip_hop, uk_drill, uk_garage)`;
 `tempo between 40 and 240 BPM`; `cannot read key 'H minor' (try "A minor", "F#m", "Eb", "D dorian")`;
-`song() has no option 'tempo' (options: seed bpm key loops short samples)`.
+`complexity from 0 (sparse) to 1 (layered)`;
+`song() has no option 'tempo' (options: seed bpm key loops short samples sampled sample_search complexity)`.
 
 ```js
 song("techno", #{ seed: 3, bpm: 130, key: "F minor", short: true });
@@ -436,6 +438,8 @@ part the genre does not have, so it builds again.
 | `density` | number, clamped to 0..1 | how busy a lead is |
 | `seed` | integer | a new seed rewrites this part, and only this part |
 | `rate` | number, clamped to 1/32..4 | arpeggio step in beats (0.25 is sixteenths) |
+| `doubles` | string | another part whose notes this one plays, on its own sound: a double; `""` makes it play its own again |
+| `octave` | integer, -2 to 2 | how many octaves from that part's notes a double plays them |
 
 | role | styles |
 |---|---|
@@ -446,13 +450,27 @@ part the genre does not have, so it builds again.
 
 A style the part's role does not have is an error. A decimal `seed` is ignored.
 
+A double plays the notes of the part it doubles, as they are written or as the theory engine writes them, moved by
+its octaves: a producer's layer of the same line on a second instrument. It plays in the sections that name it, and
+follows its part through edits, mutations and a new seed. Notes written out on the double itself, with
+[`notes()`](#notes) or in the piano roll, take its place, and a double whose part is gone plays notes of its own, as
+any part of its role. A part another doubles cannot double one itself. A [layered](../learn/producers/genres-and-evolution.md#how-layered-a-song-is)
+song's generator makes doubles this way (`chords_double`, `lead_double`, `bass_double`).
+
+```js
+song("house", 3);
+part("chords_double", #{ role: "chords", doubles: "chords", octave: 1, preset: "bell" });
+```
+
 Errors: `no part 'keys' (the song has: bass chords pad lead arp; house parts: bass chords pad lead arp); a role makes
 one of your own (part("keys", #{ role: "keys" })), and track() writes your own notes`; `part 'lead' is a lead part;
 remove("lead") first to make it another`; `part(): a role is bass, chords, pad, keys, lead or arp, not 'drums'`; `'kick'
 is a track of the song that is not a part: give the part another name`;
 `a bass part has no style 'wobbly' (styles: sustain pulse root8 ...)`; `unknown preset 'nope' (synths: ...; or an
-installed instrument such as piano, rhodes, string_ensemble)`; `part() has no option 'styles' (options: role style
-preset register density seed rate)`.
+installed instrument such as piano, rhodes, string_ensemble)`; `part 'lead' doubles 'keys', which is not a part of
+the song`; `part 'keys_double' doubles 'keys', which doubles another part: double that one`; `part 'keys' is doubled
+by 'keys_double', so it cannot double another`; `part(): an octave is a whole number from -2 to 2, not 3`;
+`part() has no option 'styles' (options: role style preset register density seed rate doubles octave)`.
 
 ```js
 part("bass", #{ style: "rolling", preset: "reese" });

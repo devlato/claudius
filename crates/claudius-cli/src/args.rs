@@ -71,6 +71,10 @@ pub(crate) enum Cmd {
         /// implies --sampled
         #[arg(long, value_name = "WORDS", conflicts_with = "unsampled")]
         sample_search: Option<String>,
+        /// how layered it is, from 0 (the genre's core, sparse) through 0.5 (the genre as written) to 1 (instruments
+        /// doubled on instruments, a counter-melody, more percussion, samples on samples); default: the genre's own
+        #[arg(long, value_name = "0..1", value_parser = complexity)]
+        complexity: Option<f64>,
         #[command(flatten)]
         ears: EarsArgs,
         #[arg(short, long, default_value = "out")]
@@ -440,6 +444,14 @@ pub(crate) struct AppArgs {
     /// the built web studio (default: the one installed with claudius, or crates/claudius-ui/dist in a source checkout)
     #[arg(long, env = "CLAUDIUS_WEB")]
     pub(crate) web: Option<PathBuf>,
+}
+
+/// a song's complexity, from 0 to 1
+fn complexity(s: &str) -> Result<f64, String> {
+    match s.parse::<f64>() {
+        Ok(c) if (0.0..=1.0).contains(&c) => Ok(c),
+        _ => Err(format!("a complexity is from 0 (sparse) to 1 (layered), not {s}")),
+    }
 }
 
 impl AppArgs {

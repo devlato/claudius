@@ -43,6 +43,47 @@ fn songs_print_as_scripts_that_change_nothing() {
 }
 
 #[test]
+fn layered_and_sparse_songs_print_as_scripts_that_change_nothing() {
+    for (genre, seed, complexity) in
+        [("neo_soul", 2, 1.0), ("house", 3, 0.9), ("boom_bap", 1, 1.0), ("techno", 11, 0.0)]
+    {
+        let g = genres::get(genre).unwrap();
+        let bp = compose::generate(&g, seed, &Options { complexity: Some(complexity), ..Default::default() }, None);
+        let code = script::to_script(&bp);
+        let got =
+            script::run(&code, Some(bp.clone()), None).unwrap_or_else(|e| panic!("{genre}: {e}\n{code}")).bp.unwrap();
+        assert!(got == bp, "{genre} at {complexity}: the script changed the song\n{code}");
+    }
+}
+
+#[test]
+fn a_part_doubles_another_and_says_why_it_cannot() {
+    let run = |code: &str| script::run(code, None, None);
+    let made = r#"song("house", 3); part("chords_double", #{ role: "chords", doubles: "chords", octave: 1, preset: "bell" });"#;
+    let bp = run(made).unwrap().bp.unwrap();
+    let double = bp.parts.iter().find(|p| p.name == "chords_double").unwrap();
+    assert_eq!((double.doubles.as_deref(), double.octave), (Some("chords"), 1));
+    let again = script::run(&script::to_script(&bp), Some(bp.clone()), None).unwrap().bp.unwrap();
+    assert!(again == bp, "printed and run again, the same");
+    let start = r#"song("house", 3); part("x", #{ role: "keys", doubles: "chords" });"#;
+    for (code, says) in [
+        (r#"part("lead", #{ doubles: "nope" });"#, "part 'lead' doubles 'nope', which is not a part of the song"),
+        (r#"part("lead", #{ doubles: "lead" });"#, "part 'lead' cannot double itself"),
+        (r#"part("lead", #{ doubles: "chords", octave: 3 });"#, "an octave is a whole number from -2 to 2, not 3"),
+        (
+            r#"part("y", #{ role: "keys", doubles: "x" });"#,
+            "part 'y' doubles 'x', which doubles another part: double that one",
+        ),
+        (r#"part("chords", #{ doubles: "lead" });"#, "part 'chords' is doubled by 'x', so it cannot double another"),
+    ] {
+        let e = run(&format!("{start} {code}")).err().unwrap_or_else(|| panic!("{code} ran")).to_string();
+        assert!(e.contains(says), "{code}: {e}");
+    }
+    let own = run(&format!(r#"{start} part("x", #{{ doubles: "" }});"#)).unwrap().bp.unwrap();
+    assert_eq!(own.parts.iter().find(|p| p.name == "x").unwrap().doubles, None, "doubles: \"\" plays its own again");
+}
+
+#[test]
 fn the_mixers_drive_roughens_a_track_at_the_loudness_its_level_gives_it() {
     use claudius::model::Blueprint;
     let g = genres::get("trap").unwrap();
