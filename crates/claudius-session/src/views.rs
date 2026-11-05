@@ -11,6 +11,25 @@ use claudius::synth::presets;
 use claudius::{compose, genres, script};
 use claudius_api::*;
 
+/// what `State.exports` lists: every format claudius writes, with why this machine cannot write it when it cannot
+pub fn export_formats() -> Vec<ExportFormat> {
+    static FORMATS: std::sync::OnceLock<Vec<ExportFormat>> = std::sync::OnceLock::new();
+    FORMATS
+        .get_or_init(|| {
+            claudius::export::presets()
+                .iter()
+                .map(|p| ExportFormat {
+                    spec: p.to_string(),
+                    label: p.label(claudius::config::SR),
+                    extension: p.extension().to_string(),
+                    lossless: p.lossless(),
+                    unavailable: p.unavailable(),
+                })
+                .collect()
+        })
+        .clone()
+}
+
 pub fn genre_infos() -> Vec<GenreInfo> {
     genres::all()
         .unwrap_or_default()

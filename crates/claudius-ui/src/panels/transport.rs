@@ -334,8 +334,11 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
         if let Some(r) = cx.state.render.as_ref().filter(|_| !cx.state.exports.is_empty()) {
             let version = r.version;
             let name = cx.state.song.as_ref().map_or_else(|| "song".to_string(), |s| file_name(&s.title));
+            // the demo has no server to fetch a file from: its engine makes the one asked for
+            let demo = cx.server.is_none();
+            let mut asked = None;
             ui.menu_button(small("export"), |ui| {
-                if version < cx.state.song_version {
+                if version < cx.state.song_version && !demo {
                     ui.label(small(format!("render {version}, from before the latest change")));
                 }
                 for (lossless, heading) in [(true, "lossless"), (false, "compressed")] {
@@ -344,6 +347,12 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
                         let path = format!("/api/export/{version}/{name}.{}?format={}", f.extension, f.spec);
                         let url = cx.server.map_or_else(|| path.clone(), |base| format!("{base}{path}"));
                         match &f.unavailable {
+                            None if demo => {
+                                if ui.button(&f.label).clicked() {
+                                    asked = Some(f.spec.clone());
+                                    ui.close();
+                                }
+                            }
                             None => {
                                 ui.hyperlink_to(&f.label, url);
                             }
@@ -356,6 +365,9 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
             })
             .response
             .on_hover_text("download the song as WAV, AIFF, FLAC, Apple Lossless, MP3, AAC, Opus or Ogg Vorbis");
+            if asked.is_some() {
+                ask_download(cx.state, cx.view, cx.out, demo, cx.now, asked);
+            }
         }
         if has_song
             && ui
@@ -406,7 +418,7 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
         let demo = cx.server.is_none();
         let page = cfg!(target_arch = "wasm32");
         let save_tip = if demo {
-            "download the song as a WAV file"
+            "download the song as a FLAC file, lossless at about half a WAV's size (export has MP3, Opus and WAV)"
         } else if page {
             "download the song, and save it in a folder of its own on the computer claudius runs on: blueprint, \
              script, audio, stems and verdict"
@@ -415,7 +427,7 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
              verdict), and show the folder"
         };
         if widgets::icon_button(ui, Icon::Save, 28.0, false, has_song, save_tip).clicked() {
-            ask_download(cx.state, cx.view, cx.out, demo, cx.now);
+            ask_download(cx.state, cx.view, cx.out, demo, cx.now, None);
         }
 
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -805,9 +817,16 @@ fn sample_options(ui: &mut Ui, f: &mut super::NewSongForm, sampling: Option<&Gen
 
 /// What the download button asks for: in a page, the song as a download once a render of it as it is now is here (the
 /// demo renders it when its render is older); a server saves the song's folder too, and the app only saves it.
-pub(crate) fn ask_download(state: &State, view: &mut View, out: &mut Vec<Command>, demo: bool, now: f64) {
+pub(crate) fn ask_download(
+    state: &State,
+    view: &mut View,
+    out: &mut Vec<Command>,
+    demo: bool,
+    now: f64,
+    format: Option<String>,
+) {
     if demo || cfg!(target_arch = "wasm32") {
-        view.download = Some(super::Download::of(state, now));
+        view.download = Some(super::Download::of(state, now, format));
     }
     if !demo {
         out.push(Command::Save { path: None });

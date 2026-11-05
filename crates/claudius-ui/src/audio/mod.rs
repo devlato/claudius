@@ -52,7 +52,8 @@ impl Pcm {
         Ok(Pcm { rate: spec.sample_rate, channels: spec.channels.max(1), samples })
     }
 
-    /// 16-bit PCM WAV (for handing generated audio to the browser, or to the person as a download)
+    /// 16-bit PCM WAV, for handing generated audio to the browser to play
+    #[cfg(any(target_arch = "wasm32", test))]
     pub fn encode_wav(&self) -> Vec<u8> {
         let data_len = (self.samples.len() * 2) as u32;
         let ch = self.channels.max(1);

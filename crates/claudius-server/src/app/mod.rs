@@ -203,7 +203,7 @@ impl App {
             cache,
             _in_use: in_use,
             genres: views::genre_infos(),
-            exports: export_formats(),
+            exports: claudius_session::views::export_formats(),
             last_export: Mutex::new(None),
             base: Mutex::new(format!("http://127.0.0.1:{DEFAULT_PORT}")),
             gather: settings.gather && settings.file_roots.is_none(),
@@ -501,20 +501,6 @@ fn clean_old_sessions(root: &Path, mine: &Path, grace: Duration, unlocked: Durat
             let _ = std::fs::remove_dir_all(&dir);
         }
     }
-}
-
-/// what `State.exports` lists: every preset, with why this machine cannot write it when it cannot
-fn export_formats() -> Vec<ExportFormat> {
-    export::presets()
-        .iter()
-        .map(|p| ExportFormat {
-            spec: p.to_string(),
-            label: p.label(config::SR),
-            extension: p.extension().to_string(),
-            lossless: p.lossless(),
-            unavailable: p.unavailable(),
-        })
-        .collect()
 }
 
 #[cfg(test)]

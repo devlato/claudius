@@ -6,7 +6,7 @@
 //! chosen as `graph: ...`, and the page a phone plays along on as `phone: ...`, with how many have it open as
 //! `phones: ...`.
 //! Steps: `wait:<s>`, `tab:<sequencer|mixer|parts|harmony|script|sounds|graph|log>`, `section:<i>`, `play`, `pause`, `seek:<s>`,
-//! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `download`, `record` (the Record window), `phone`
+//! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `download[:<format>]`, `record` (the Record window), `phone`
 //! (the Play from a phone window, which has claudius serve the phone's page),
 //! `rec:<start|stop|measure>` (a take, or the latency), `rec:<play|keep|not-now>` (the take back, kept or sent; the
 //! take an assistant asked for turned down), `rec:allow-midi`, `rec:midi:<input>` (a MIDI input chosen),
@@ -47,8 +47,9 @@ pub enum Step {
     Assistants,
     /// the Publish dialog
     Publish,
-    /// the song downloaded (or saved, in the app), as the download button does, once there is a song to download
-    Download,
+    /// the song downloaded (or saved, in the app), as the download button does, once there is a song to download; in
+    /// a format, as the export menu does (`download:mp3`)
+    Download(Option<String>),
     /// the Record window
     Record,
     /// the Play from a phone window, which has claudius serve the phone's page
@@ -214,7 +215,7 @@ impl Plan {
             "tour" => Some(Step::Tour(arg.parse().unwrap_or(0))),
             "assistants" => Some(Step::Assistants),
             "publish" => Some(Step::Publish),
-            "download" => Some(Step::Download),
+            "download" => Some(Step::Download((!arg.is_empty()).then(|| arg.to_string()))),
             "record" => Some(Step::Record),
             "phone" => Some(Step::Phone),
             "rec" => match arg {

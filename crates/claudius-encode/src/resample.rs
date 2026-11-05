@@ -71,10 +71,15 @@ pub fn convert(x: &[f32], channels: usize, from: u32, to: u32) -> Vec<f32> {
             })
             .collect()
     };
-    let planes: Vec<Vec<f32>> = std::thread::scope(|s| {
-        let handles: Vec<_> = (0..channels).map(|c| s.spawn(move || one(c))).collect();
-        handles.into_iter().map(|h| h.join().expect("resampler thread")).collect()
-    });
+    // a channel to a thread, but in a browser's WebAssembly, which starts none
+    let planes: Vec<Vec<f32>> = if cfg!(target_arch = "wasm32") {
+        (0..channels).map(one).collect()
+    } else {
+        std::thread::scope(|s| {
+            let handles: Vec<_> = (0..channels).map(|c| s.spawn(move || one(c))).collect();
+            handles.into_iter().map(|h| h.join().expect("resampler thread")).collect()
+        })
+    };
     let mut out = Vec::with_capacity(out_frames * channels);
     for n in 0..out_frames {
         for p in &planes {

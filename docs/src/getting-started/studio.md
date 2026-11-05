@@ -95,11 +95,12 @@ the song it opens.
 
 **Mutate** tries a few variations and keeps the best one if it beats the current song; **Evolve** runs several
 generations of that. Both run in the background and can be stopped. The **download** button, after undo and redo,
-hands you the song. In a browser it downloads it: the demo as a WAV file, and a claudius as an MP3, which also saves
-the song's folder on the computer claudius runs on. In the app it saves the folder, under `~/Music/claudius`, and
-shows it. When the song changed since its last render, the download waits for the new render. The **export** menu
-downloads the song as WAV, AIFF, FLAC, Apple Lossless, MP3, AAC, Opus or Ogg Vorbis
-([Exporting](../guide/export.md)). **publish** checks the song as stores do and writes what a distributor takes
+hands you the song. In a browser it downloads it: the demo as a FLAC file, lossless at about half a WAV's size, and a
+claudius as an MP3, which also saves the song's folder on the computer claudius runs on. In the app it saves the
+folder, under `~/Music/claudius`, and shows it. When the song changed since its last render, the download waits for
+the new render. The **export** menu downloads the song as WAV, AIFF, FLAC, Apple Lossless, MP3, AAC, Opus or Ogg
+Vorbis ([Exporting](../guide/export.md)). In the demo it offers WAV, AIFF, FLAC, MP3 and Opus, which the demo's engine
+writes in the page; AAC and Apple Lossless need the system's encoder, and Ogg Vorbis a library the demo leaves out. **publish** checks the song as stores do and writes what a distributor takes
 ([Publishing](../guide/publish.md)).
 
 **Record**, the red button after the loop button, records a [take](../guide/samples.md#takes) from a microphone or

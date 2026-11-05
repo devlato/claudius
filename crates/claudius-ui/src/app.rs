@@ -283,6 +283,7 @@ impl Studio {
                 self.view.phone.refused();
                 self.toast(why, false, now);
             }
+            Event::Delivered(file) => self.hand_over(file, now),
         }
     }
 
@@ -368,10 +369,19 @@ impl Studio {
                 return;
             }
         };
-        self.view.download = None;
+        let format = self.view.download.take().and_then(|d| d.format);
         let title = self.state.song.as_ref().map_or("song", |s| s.title.as_str());
         let name = crate::panels::transport::file_name(title);
-        match self.backend.download(&render, &self.state.exports, &name).and_then(crate::keep::deliver) {
+        match self.backend.download(&render, &self.state.exports, &name, format.as_deref()) {
+            Ok(Some(file)) => self.hand_over(Ok(file), now),
+            Ok(None) => self.toast("making the file to download".to_string(), true, now),
+            Err(e) => self.toast(e, false, now),
+        }
+    }
+
+    /// hands a download over, once it is made
+    fn hand_over(&mut self, file: Result<crate::keep::Delivery, String>, now: f64) {
+        match file.and_then(crate::keep::deliver) {
             Ok(Some(file)) if cfg!(target_arch = "wasm32") => self.toast(format!("downloading {file}"), true, now),
             Ok(Some(file)) => self.toast(format!("saved {file}"), true, now),
             Ok(None) => {}
@@ -519,10 +529,19 @@ impl Studio {
                 }
                 Step::Assistants => self.view.assistants.show(),
                 Step::Publish => self.view.publish.show(),
-                Step::Download if self.state.song.is_none() => plan.again("download", now),
-                Step::Download => {
+                Step::Download(format) if self.state.song.is_none() => {
+                    plan.again(&format.map_or_else(|| "download".to_string(), |f| format!("download:{f}")), now)
+                }
+                Step::Download(format) => {
                     let demo = self.server_url.is_none();
-                    crate::panels::transport::ask_download(&self.state, &mut self.view, &mut self.out, demo, now);
+                    crate::panels::transport::ask_download(
+                        &self.state,
+                        &mut self.view,
+                        &mut self.out,
+                        demo,
+                        now,
+                        format,
+                    );
                 }
                 Step::Record => self.view.record.show(),
                 Step::Phone => self.view.phone.show(self.state.phone.is_some()),

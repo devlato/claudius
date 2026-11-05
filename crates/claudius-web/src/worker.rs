@@ -3,6 +3,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use claudius::audio::Stereo;
+use claudius::export;
 use claudius_api::{Command, Reply};
 use claudius_session::host::{Host, Recording, SoundAsk};
 use wasm_bindgen::JsCast;
@@ -62,6 +64,15 @@ fn receive(engine: &Shared, m: &MessageEvent) {
         sound(&engine.borrow(), ask);
         return;
     }
+    if let Some(ask) = v.get("encode") {
+        let samples = js_sys::Reflect::get(&data, &"audio".into())
+            .ok()
+            .and_then(|a| a.dyn_into::<js_sys::Float32Array>().ok())
+            .map(|a| a.to_vec())
+            .unwrap_or_default();
+        encode(&engine.borrow().scope, ask, &samples);
+        return;
+    }
     if let Some(r) = v.get("recording") {
         let id = v["id"].as_u64().unwrap_or(0);
         let bytes = js_sys::Reflect::get(&data, &"bytes".into())
@@ -106,6 +117,27 @@ fn sound(e: &Engine, ask: &serde_json::Value) {
             post(&e.scope, &json, Some(js_sys::Float32Array::from(all.as_slice())));
         }
         Err(err) => post(&e.scope, &serde_json::json!({ "sound": { "id": id, "error": err } }), None),
+    }
+}
+
+/// a render as a file in the format the page asked for (`spec`, `flac:16`), here rather than in the page, which
+/// would stop for the seconds a song takes to encode: its bytes, or why there are none
+fn encode(scope: &DedicatedWorkerGlobalScope, ask: &serde_json::Value, samples: &[f32]) {
+    let id = ask["id"].as_u64().unwrap_or(0);
+    let made =
+        ask["spec"].as_str().unwrap_or_default().parse::<export::Spec>().map_err(|e| e.to_string()).and_then(|spec| {
+            let tags = export::tags(ask["title"].as_str().unwrap_or_default());
+            export::encode(&Stereo::from_interleaved(samples), &spec, &tags)
+                .map(|bytes| (spec, bytes))
+                .map_err(|e| format!("{e:#}"))
+        });
+    match made {
+        Ok((spec, bytes)) => {
+            let json =
+                serde_json::json!({ "encoded": { "id": id, "extension": spec.extension(), "mime": spec.mime() } });
+            post_bytes(scope, &json, js_sys::Uint8Array::from(bytes.as_slice()));
+        }
+        Err(why) => post(scope, &serde_json::json!({ "encoded": { "id": id, "error": why } }), None),
     }
 }
 
@@ -203,6 +235,16 @@ pub(crate) fn post(scope: &DedicatedWorkerGlobalScope, json: &serde_json::Value,
         None => scope.post_message(&msg),
     };
     if let Err(e) = sent {
+        web_sys::console::error_1(&e);
+    }
+}
+
+/// `json` and a file's `bytes`, handed over to the page rather than copied
+fn post_bytes(scope: &DedicatedWorkerGlobalScope, json: &serde_json::Value, bytes: js_sys::Uint8Array) {
+    let msg = js_sys::Object::new();
+    let _ = js_sys::Reflect::set(&msg, &"json".into(), &json.to_string().into());
+    let _ = js_sys::Reflect::set(&msg, &"bytes".into(), &bytes);
+    if let Err(e) = scope.post_message_with_transfer(&msg, &js_sys::Array::of1(&bytes.buffer())) {
         web_sys::console::error_1(&e);
     }
 }
