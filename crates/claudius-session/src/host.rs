@@ -489,6 +489,11 @@ impl Host {
     fn finish_breeding(&mut self) -> Reply {
         let Some(b) = self.breeding.take() else { return self.no("nothing to stop") };
         self.version += 1;
+        // its candidates are of the song as it was: one edited since, or another song, stays as it is
+        if b.from != self.song_version {
+            self.say(format!("{} stopped: the song changed", b.what));
+            return self.ok(&format!("{} stopped: the song changed", b.what));
+        }
         let all = b.run.into_candidates();
         let start = all.iter().find(|c| c.generation == 0).map_or(f64::MIN, |c| c.score);
         let margin = if b.what == "mutating" { 0.1 } else { 0.0 };
@@ -1011,6 +1016,13 @@ mod tests {
         let r = command(&mut h, json!({"cmd": "cancel"}));
         assert!(r.ok && !h.breeding(), "{}", r.message);
         assert!(!command(&mut h, json!({"cmd": "cancel"})).ok, "nothing to stop");
+        // a stop after an edit, before the next step has seen it, keeps the edited song
+        assert!(command(&mut h, json!({"cmd": "evolve", "generations": 2, "children": 2})).ok);
+        assert!(h.step().is_none());
+        assert!(command(&mut h, json!({"cmd": "set_tempo", "bpm": 104})).ok);
+        let r = command(&mut h, json!({"cmd": "cancel"}));
+        assert_eq!(r.message, "evolving stopped: the song changed");
+        assert_eq!(h.bp.as_ref().unwrap().bpm, 104.0, "the edit stays");
     }
 
     #[test]
