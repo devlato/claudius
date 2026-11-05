@@ -6,6 +6,12 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+The mix balances each track on how loud its hits are. It measured a track over 3-second windows, which hear a clap on
+two and four with the silence between its hits, so the sparse tracks played louder than their levels said: snares and
+claps by about 4 dB, crashes by 3, impacts by 5 and reverse crashes by 7, an impact as loud as the kick. Measured over
+the 0.4-second windows that hear each hit, every track now plays within about a dB of its level, and the snares, claps
+and transitions no longer crowd the bass and the chords.
+
 A song of any genre can be built on samples from free libraries, as records built on samples are: a phrase the song
 takes its key, tempo and chords from, a drum break, a texture. Each genre digs for its own kinds of record (house for
 disco, gospel and philly soul, trap for orchestral strings, choirs and flutes, afrobeats for highlife guitar), tried in

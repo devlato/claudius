@@ -64,9 +64,11 @@ Details that make it sound played rather than printed:
 
 A producer balances by ear: the kick here, the bass a little under it, the pad well back. claudius does the same with a
 meter. After its inserts and its drive (a tanh saturator `drive_db` hard, when it has one), each track's **active
-level** is measured: the 80th percentile of its short-term loudness
-(3 s blocks every 0.5 s) over the blocks where it is audible (above −50 LUFS), falling back to momentary blocks
-(0.4 s) for tracks that play only a few hits. The track is then scaled to:
+level** is measured: the 80th percentile of its momentary loudness (0.4 s blocks every 0.1 s) over the blocks where it
+is audible (above −50 LUFS). Momentary blocks hear each hit about as the ear does. A 3 s window would hear a clap on
+two and four with the silence between its hits, 3 to 4 dB under how loud its hits are, and an impact or a reverse
+crash 5 to 8 dB under, so a mix balanced on it played every sparse track louder than its target. The track is then
+scaled to:
 
 ```text
 target = role target + genre's offset for the role (mix.levels) + the track's level_db
