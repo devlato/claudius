@@ -25,7 +25,7 @@
   <button type="button" data-mode="deck">Turntable</button>
 </nav>
 <main>
-  <section id="pads" class="mode on" aria-label="Drum pads"></section>
+  <section id="pads" class="mode on" aria-label="Drum pads"><canvas id="padgrid"></canvas></section>
   <section id="keys" class="mode" aria-label="Keys">
     <div class="bar">
       <select id="sound" aria-label="Sound"></select>
@@ -40,7 +40,7 @@
       <span id="octave">C3</span>
       <button type="button" id="up" aria-label="An octave up">+</button>
     </div>
-    <div id="keyboard"></div>
+    <canvas id="keyboard"></canvas>
   </section>
   <section id="deck" class="mode" aria-label="Turntable">
     <div class="bar">

@@ -330,12 +330,55 @@ fn render_source(
                 out.add_at(&s, pos, n.v, n.v);
             }
         }
+        Sound::Loop { path, bpm, beats, .. } if t.retime => {
+            // the loop at its own speed (its transpose resamples it, as a sampler's varispeed does), each slice of its
+            // beats from the song's beat for it: cut short where the song is faster, a gap after it where slower
+            let own = bpm * 2f64.powf(t.transpose as f64 / 12.0);
+            let w = crate::warp::warp(path, *bpm, *beats, own, t.transpose, true)?;
+            let wl = w.len().max(1);
+            let beats_of = t.slice_beats.max(0.125);
+            // the slices counted from the loop's beats, each from where it starts to the sample: added up as rounded,
+            // they may come to more than the loop holds and lose its last
+            let per = beats_of * 60.0 / own * SRF;
+            let slice = per.round().max(1.0) as usize;
+            let slot = (beats_of * tm.spb).round().max(1.0) as usize;
+            let n_slices = ((*beats / beats_of).round() as usize).max(1);
+            let (fade_in, fade_out) = ((0.001 * SRF) as usize, (0.003 * SRF) as usize);
+            for c in &t.clips {
+                let a = (c.t * tm.spb).round() as usize;
+                let off = (c.offset * tm.spb).round() as usize;
+                let b = (((c.t + c.d) * tm.spb).round() as usize).min(len);
+                let g = db_to_gain(c.gain_db);
+                for i in a..b {
+                    let rel = i - a + off;
+                    let (k, at) = (rel / slot, rel % slot);
+                    let heard = slice.min(slot);
+                    if at >= heard {
+                        continue;
+                    }
+                    let idx = match t.chop.is_empty() {
+                        true => k % n_slices,
+                        false => t.chop[k % t.chop.len()].rem_euclid(n_slices as i32) as usize,
+                    };
+                    let edge = (at as f32 / fade_in as f32).min((heard - at) as f32 / fade_out as f32).min(1.0);
+                    let src = ((idx as f64 * per).round() as usize + at).min(wl - 1);
+                    out.l[i] += w.l[src] * g * edge;
+                    out.r[i] += w.r[src] * g * edge;
+                }
+                let fi = ((c.fade_in * tm.spb) as usize).max(48).min(b - a);
+                let fo = ((c.fade_out * tm.spb) as usize).max(96).min(b - a);
+                for ch in out.channels_mut() {
+                    audio::fade_slice(&mut ch[a..b], fi, fo);
+                }
+            }
+        }
         Sound::Loop { path, bpm, beats, .. } => {
             let once = t.clips.iter().any(|c| c.once);
             let w = crate::warp::warp(path, *bpm, *beats, p.bpm, t.transpose, !once)?;
             let wl = w.len().max(1);
-            let slice = (t.slice_beats.max(0.0625) * tm.spb).round() as usize;
-            let n_slices = (wl / slice.max(1)).max(1);
+            let beats_of = t.slice_beats.max(0.0625);
+            let slice = (beats_of * tm.spb).round() as usize;
+            let n_slices = ((*beats / beats_of).round() as usize).max(1);
             for c in &t.clips {
                 let a = (c.t * tm.spb).round() as usize;
                 let off = (c.offset * tm.spb).round() as usize;
@@ -351,7 +394,7 @@ fn render_source(
                     } else {
                         let k = rel / slice;
                         let idx = t.chop[k % t.chop.len()].rem_euclid(n_slices as i32) as usize;
-                        (idx * slice + rel % slice) % wl
+                        ((idx as f64 * beats_of * tm.spb).round() as usize + rel % slice) % wl
                     };
                     out.l[i] += w.l[src] * g;
                     out.r[i] += w.r[src] * g;
