@@ -345,6 +345,58 @@ fn render_note(p: &Patch, n: &NoteEv, k: usize, len: usize, sr: f64, bpm: f64, s
     buf
 }
 
+/// The samples `range` of what `render` makes of `notes` for a patch that plays its notes apart (not a mono one, whose
+/// notes glide one into the next): the notes that sound there, each rendered as `render` renders it, added in the
+/// order it adds them, so that every sample is the one `render` makes. A part of a track, for another worker to make.
+pub fn render_range(
+    p: &Patch,
+    notes: &[NoteEv],
+    len: usize,
+    range: std::ops::Range<usize>,
+    sr: f64,
+    bpm: f64,
+    seed: u64,
+) -> Stereo {
+    let mut out = Stereo::zeros(range.len());
+    let rel = p.aenv.release_samples(sr);
+    for (k, n) in notes.iter().enumerate().filter(|(_, n)| n.start < len) {
+        let end = n.start + (n.gate + rel).min(len - n.start);
+        if end > range.start && n.start < range.end {
+            out.add_at(&render_note(p, n, k, len, sr, bpm, seed), n.start as i64 - range.start as i64, 1.0, 1.0);
+        }
+    }
+    out
+}
+
+/// How long a second of one note of `p` around `pitch` takes to make here, in seconds: measured on a note of half a
+/// second and its release, at the C of `pitch`'s octave, once for each patch and octave, to tell which of a song's
+/// tracks take longest to make (what a voice costs depends on its oscillators, its filter, its modulation and how many
+/// harmonics its pitch leaves room for more than any count of them says).
+pub fn cost_of(p: &Patch, pitch: f64) -> f64 {
+    use std::sync::{Mutex, OnceLock};
+    static COSTS: OnceLock<Mutex<std::collections::HashMap<String, f64>>> = OnceLock::new();
+    let octave = (pitch / 12.0).floor() * 12.0;
+    let key = format!("{octave} {}", serde_json::to_string(p).unwrap_or_default());
+    let costs = COSTS.get_or_init(Default::default);
+    if let Some(c) = costs.lock().unwrap_or_else(|e| e.into_inner()).get(&key) {
+        return *c;
+    }
+    let sr = crate::config::SRF;
+    let note = NoteEv { start: 0, gate: (0.5 * sr) as usize, pitch: octave, vel: 0.8 };
+    let len = note.gate + p.aenv.release_samples(sr);
+    let t0 = crate::clock::Instant::now();
+    let made = render_note(p, &note, 0, len, sr, 120.0, 1);
+    let cost = t0.elapsed().as_secs_f64() / (made.len().max(1) as f64 / sr);
+    costs.lock().unwrap_or_else(|e| e.into_inner()).insert(key, cost);
+    cost
+}
+
+/// how much of a part's work each note is, by where it starts, to share a track's notes out evenly (`render_range`)
+pub fn note_spans(p: &Patch, notes: &[NoteEv], len: usize, sr: f64) -> Vec<(usize, usize)> {
+    let rel = p.aenv.release_samples(sr);
+    notes.iter().filter(|n| n.start < len).map(|n| (n.start, (n.gate + rel).min(len - n.start))).collect()
+}
+
 /// render a list of notes into a buffer of `len` samples (polyphonic notes in parallel)
 pub fn render(p: &Patch, notes: &[NoteEv], len: usize, sr: f64, bpm: f64, seed: u64) -> Stereo {
     use rayon::prelude::*;

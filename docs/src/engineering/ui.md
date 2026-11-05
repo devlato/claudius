@@ -291,14 +291,20 @@ Where the browser has cores to spare, the engine makes a render's tracks side by
 - It starts up to three copies of itself (`claudius-engine_loader.js?crew`), as many as there are cores beyond the
   page's and its own.
 - It shares out the tracks the render would make anew (`Host::to_make`), the costliest first to the copy with the
-  least to make (`render::track_cost`), with the audio they play. Each copy speaks first, as the engine does, before
-  it is handed its share.
+  least to make, with the audio they play. Each copy speaks first, as the engine does, before it is handed its share.
+  What a track costs is measured, not guessed (`render::track_cost`): half a second of a note of its patch at the
+  octave it plays around, and half a second of noise through its effects, each once.
+- The costliest track, when it is more than an even share of the work and a synth that plays its notes apart, is made
+  in parts, one a copy (`render::part_bounds`, `track_part`). Each copy renders the notes that sound in its stretch of
+  the song and adds them up as a render does, so its part is the track there to the sample; the engine puts the parts
+  together and runs the track's effects (`render::track_joined`).
 - It keeps each track a copy posts back (`render::track_sound`, `Host::made`). The render that waited for them then
   only mixes, and comes out as it would have alone. A copy that has made its share stops, which gives back its memory.
 
 A crew that fails leaves the engine to make the tracks itself, as it does on a phone, whose browser holds a page's
-workers in the memory it gives the page, and when started as `claudius-engine_loader.js?alone`. A four-minute deep
-house song renders whole in about 22 s with a crew of three, where the engine alone takes 29.
+workers in the memory it gives the page, and when started as `claudius-engine_loader.js?alone`. With a crew of three,
+a four-minute deep-house song renders whole in about 19 s where the engine alone takes 29, synthwave in 20 where it
+takes 30, and trap in 12 where it takes 16, each the same to the sample.
 
 What needs a computer of one's own the demo turns down, and says so: takes, folders, files written (the download
 button hands over the render as a WAV file), packs, mutation and evolution. A recording to listen to gets an analysis

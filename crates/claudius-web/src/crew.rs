@@ -36,8 +36,9 @@ pub fn serve(scope: DedicatedWorkerGlobalScope) {
     post(&scope, &serde_json::json!({ "ready": true }), None);
 }
 
-/// The tracks a message asks for (`{"make": {"project", "tracks", "audio": [{"path", "frames"}]}}`, the audio one
-/// interleaved array after another), each posted as it is made: `{"made": {"name", "level"}}` with its sound, or
+/// The parts of a track and the tracks a message asks for (`{"make": {"project", "parts": [{"name", "from", "to"}],
+/// "tracks", "audio": [{"path", "frames"}]}}`, the audio one interleaved array after another), the parts first, each
+/// posted as it is made: `{"part": {"name", "from", "to"}}` or `{"made": {"name", "level"}}` with its sound, or
 /// `{"made": {"name", "error"}}`.
 fn make(scope: &DedicatedWorkerGlobalScope, m: &MessageEvent) {
     let data = m.data();
@@ -58,6 +59,23 @@ fn make(scope: &DedicatedWorkerGlobalScope, m: &MessageEvent) {
     }
     let names: Vec<&str> = job["tracks"].as_array().into_iter().flatten().filter_map(|n| n.as_str()).collect();
     let project = serde_json::from_value::<claudius::model::Project>(job["project"].clone());
+    for part in job["parts"].as_array().into_iter().flatten() {
+        let (Some(name), Some(from), Some(to)) = (part["name"].as_str(), part["from"].as_u64(), part["to"].as_u64())
+        else {
+            continue;
+        };
+        let range = from as usize..to as usize;
+        let made = project.as_ref().map_err(|e| e.to_string()).and_then(|p| {
+            render::track_part(p, &render::Options::default(), name, range).map_err(|e| format!("{e:#}"))
+        });
+        match made {
+            Ok(sound) => {
+                let json = serde_json::json!({ "part": { "name": name, "from": from, "to": to } });
+                post(scope, &json, Some(js_sys::Float32Array::from(sound.interleaved().as_slice())));
+            }
+            Err(error) => post(scope, &serde_json::json!({ "made": { "name": name, "error": error } }), None),
+        }
+    }
     for name in names {
         let made = project
             .as_ref()
@@ -74,11 +92,23 @@ fn make(scope: &DedicatedWorkerGlobalScope, m: &MessageEvent) {
 }
 
 /// A crew at work on the tracks of a render: its workers, each with the tracks it is to make until it listens, what
-/// each track it makes is kept under, and the handlers of what they post, which live as long as it does.
+/// each track it makes whole is kept under, the track it makes in parts, and the handlers of what they post, which
+/// live as long as it does.
 pub struct Crew {
     workers: Vec<(Worker, Option<js_sys::Object>)>,
     keys: HashMap<String, render::TrackKey>,
+    split: Option<Split>,
     _heard: Vec<Closure<dyn FnMut(JsValue)>>,
+}
+
+/// A track a crew makes in parts, one a worker (`render::track_part`): its name, the key it is kept under, where each
+/// part begins and ends, the parts made so far, and the song, to put them together with (`render::track_joined`).
+struct Split {
+    name: String,
+    key: render::TrackKey,
+    bounds: Vec<std::ops::Range<usize>>,
+    parts: Vec<Option<Stereo>>,
+    project: claudius::model::Project,
 }
 
 /// what a worker of a crew said: that it listens, a track it made, or that it failed (`take`)
@@ -99,7 +129,9 @@ pub struct Made {
 impl Crew {
     /// whether it is still making a track that `make` lists, under the same key
     pub fn makes_any_of(&self, make: &ToMake) -> bool {
-        make.tracks.iter().any(|(name, key, _)| self.keys.get(name) == Some(key))
+        make.tracks.iter().any(|(name, key, _)| {
+            self.keys.get(name) == Some(key) || self.split.as_ref().is_some_and(|s| s.name == *name && s.key == *key)
+        })
     }
 
     /// What its worker `i` posted (`data`; null when the worker failed): that it listens, and so is handed its tracks
@@ -121,6 +153,9 @@ impl Crew {
                 Err(_) => Said::Failed("a worker of the crew could not be handed its tracks".into()),
             });
         }
+        if let Some(part) = v.get("part") {
+            return self.part(part, data);
+        }
         let made = &v["made"];
         if let Some(error) = made["error"].as_str() {
             return Some(Said::Failed(error.to_string()));
@@ -132,9 +167,28 @@ impl Crew {
         Some(Said::Made(Made { name, key, sound, level: made["level"].as_f64() }))
     }
 
+    /// A part of the track it makes in parts (`{"part": {"name", "from", "to"}}` with its sound): kept, and once every
+    /// part is in, the track they make together, through its effects as a render makes it.
+    fn part(&mut self, part: &serde_json::Value, data: &JsValue) -> Option<Said> {
+        let s = self.split.as_mut().filter(|s| part["name"].as_str() == Some(s.name.as_str()))?;
+        let from = part["from"].as_u64()? as usize;
+        let i = s.bounds.iter().position(|b| b.start == from && Some(b.end as u64) == part["to"].as_u64())?;
+        let samples = js_sys::Reflect::get(data, &"audio".into()).ok()?.dyn_into::<js_sys::Float32Array>().ok()?;
+        s.parts[i] = Some(Stereo::from_interleaved(&samples.to_vec()));
+        if s.parts.iter().any(Option::is_none) {
+            return None;
+        }
+        let s = self.split.take()?;
+        let parts: Vec<Stereo> = s.parts.into_iter().flatten().collect();
+        Some(match render::track_joined(&s.project, &render::Options::default(), &s.name, &parts) {
+            Ok((sound, level)) => Said::Made(Made { name: s.name, key: s.key, sound, level }),
+            Err(e) => Said::Failed(format!("{e:#}")),
+        })
+    }
+
     /// whether every track it was given is made
     pub fn done(&self) -> bool {
-        self.keys.is_empty()
+        self.keys.is_empty() && self.split.is_none()
     }
 
     /// stops its workers, and with them the memory they hold
@@ -157,24 +211,60 @@ pub fn size(scope: &DedicatedWorkerGlobalScope) -> usize {
     (n.hardware_concurrency() as usize).saturating_sub(2).min(MOST)
 }
 
-/// Shares out what `make` lists among a crew of `size` workers, the costliest track first to the one with the least
-/// to make, each to be handed the audio its tracks play with them once it listens; what worker `i` posts goes to
-/// `heard(i, ...)`. None when a worker could not be started.
+/// Shares out what `make` lists among a crew of `size` workers. The costliest track, when it is more than an even share
+/// of the work and its notes play apart (`render::splits`), is made in parts, one each, so that no worker waits on one
+/// that makes it alone; the others go the costliest first to the one with the least to make. Each worker is handed the
+/// audio its tracks play with them once it listens, and what worker `i` posts goes to `heard(i, ...)`. None when a
+/// worker could not be started.
 pub fn start(make: &ToMake, size: usize, heard: impl Fn(usize, JsValue) + Clone + 'static) -> Option<Crew> {
-    let n = size.min(make.tracks.len());
-    let mut parts: Vec<(f64, Vec<&str>)> = vec![(0.0, Vec::new()); n];
-    for (name, _, cost) in &make.tracks {
-        let least = (0..n).min_by(|&a, &b| parts[a].0.total_cmp(&parts[b].0)).unwrap_or(0);
-        parts[least].0 += cost.max(1e-3);
-        parts[least].1.push(name);
+    let total: f64 = make.tracks.iter().map(|(_, _, c)| c.max(1e-3)).sum();
+    let opts = render::Options::default();
+    let split = make.tracks.first().and_then(|(name, key, cost)| {
+        let track = make.project.tracks.iter().find(|t| t.name == *name)?;
+        let heavy = *cost > total / size as f64 && render::splits(track);
+        let bounds = render::part_bounds(&make.project, &opts, name, size).ok().filter(|_| heavy)?;
+        Some(Split {
+            name: name.clone(),
+            key: *key,
+            parts: vec![None; bounds.len()],
+            bounds,
+            project: make.project.clone(),
+        })
+    });
+    let whole: Vec<&(String, render::TrackKey, f64)> =
+        make.tracks.iter().filter(|(name, _, _)| split.as_ref().is_none_or(|s| s.name != *name)).collect();
+    let n = if split.is_some() { size } else { size.min(whole.len()) };
+    let mut shares: Vec<(f64, Vec<&str>)> = vec![(0.0, Vec::new()); n];
+    if let Some(s) = &split {
+        let each = make.tracks[0].2 / n as f64;
+        shares.iter_mut().for_each(|(load, _)| *load += each);
+        debug_assert_eq!(s.bounds.len(), n);
+    }
+    for (name, _, cost) in whole {
+        let least = (0..n).min_by(|&a, &b| shares[a].0.total_cmp(&shares[b].0)).unwrap_or(0);
+        shares[least].0 += cost.max(1e-3);
+        shares[least].1.push(name);
     }
     let project = serde_json::to_value(&make.project).ok()?;
+    let parts: Vec<Option<serde_json::Value>> = (0..n)
+        .map(|i| {
+            let s = split.as_ref()?;
+            let b = s.bounds.get(i)?;
+            Some(serde_json::json!({ "name": s.name, "from": b.start, "to": b.end }))
+        })
+        .collect();
     let mut crew = Crew {
         workers: Vec::new(),
-        keys: make.tracks.iter().map(|(name, key, _)| (name.clone(), *key)).collect(),
+        keys: make
+            .tracks
+            .iter()
+            .filter(|(name, _, _)| split.as_ref().is_none_or(|s| s.name != *name))
+            .map(|(name, key, _)| (name.clone(), *key))
+            .collect(),
+        split,
         _heard: Vec::new(),
     };
-    for (i, (_, names)) in parts.into_iter().enumerate() {
+    for (i, (_, names)) in shares.into_iter().enumerate() {
         let Ok(worker) = Worker::new(SCRIPT) else {
             crew.end();
             return None;
@@ -202,7 +292,8 @@ pub fn start(make: &ToMake, size: usize, heard: impl Fn(usize, JsValue) + Clone 
         }
         let audio: Vec<serde_json::Value> =
             list.iter().map(|(path, frames)| serde_json::json!({ "path": path, "frames": frames })).collect();
-        let job = serde_json::json!({ "make": { "project": project, "tracks": names, "audio": audio } });
+        let part: Vec<&serde_json::Value> = parts[i].iter().collect();
+        let job = serde_json::json!({ "make": { "project": project, "parts": part, "tracks": names, "audio": audio } });
         let msg = js_sys::Object::new();
         let _ = js_sys::Reflect::set(&msg, &"json".into(), &job.to_string().into());
         let _ = js_sys::Reflect::set(&msg, &"audio".into(), &js_sys::Float32Array::from(all.as_slice()));
