@@ -64,10 +64,28 @@ function where(url) {
   return null;
 }
 
+/**
+ * Whether a recording is a file of a paper's supplementary material, which a bot imports to Wikimedia Commons under the
+ * names their journals give them (PLOS's `…-pone.0062397.s008.oga`, Springer's `…_MOESM1_ESM`, Scientific Reports'
+ * `srep01234-s2`, Frontiers' `fpsyg-05-00123-s001`): a voice in one may hold a note, but it is no music. As claudius
+ * reads them (`claudius_packs::online::supplement`).
+ */
+export function supplement(name) {
+  const n = name.toLowerCase();
+  return (
+    n.includes("supplementary") ||
+    /(?:^|[^a-z0-9])moesm\d+[^a-z0-9]+esm(?:$|[^a-z0-9])/.test(n) ||
+    /(?:^|[^a-z0-9])(?:pone|pbio|pcbi|pgen|ppat|pmed|pntd)[^a-z0-9]+\d{7}[^a-z0-9]+s\d+(?:$|[^a-z0-9])/.test(n) ||
+    /(?:^|[^a-z0-9])srep\d+[^a-z0-9]+s\d+(?:$|[^a-z0-9])/.test(n) ||
+    /(?:^|[^a-z0-9])[a-z]{4,}[^a-z0-9]+\d{2}[^a-z0-9]+\d{5}[^a-z0-9]+s\d+(?:$|[^a-z0-9])/.test(n)
+  );
+}
+
 /** an Openverse result as the demo reads it, or null for one it cannot play */
 export function trim(x) {
   const at = where(x?.url || "");
   if (!at || !["cc0", "by"].includes(x.license) || Number(x.filesize ?? 0) > MOST) return null;
+  if (supplement(`${at.id} ${x.title ?? ""}`)) return null;
   return {
     id: at.id,
     provider: String(x.provider ?? x.source ?? ""),

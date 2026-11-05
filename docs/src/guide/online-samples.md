@@ -36,6 +36,10 @@ claudius also leaves out uploads whose own titles or tags say they were cut from
 "70s sample", "vinyl rip"). That is a guard, not a guarantee: a sound you plan to publish is worth a look at its
 page, which its credit links.
 
+Searches also leave out the recordings of papers' supplementary material, which a bot imports to Wikimedia Commons
+under the names their journals give them (`…-pone.0062397.s008.oga`, `…_MOESM1_ESM`): a vowel recorded for a study
+of voices holds a note, but it is no music. The studio demo's searches leave them out too.
+
 [0010 Samples from online libraries](../design/0010-online-samples.md) records why these libraries and not YouTube,
 Spotify, Apple Music or SoundCloud.
 
