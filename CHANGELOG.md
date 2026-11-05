@@ -6,6 +6,12 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+The mix balances each track on how loud its hits are. It measured a track over 3-second windows, which hear a clap on
+two and four with the silence between its hits, so the sparse tracks played louder than their levels said: snares and
+claps by about 4 dB, crashes by 3, impacts by 5 and reverse crashes by 7, an impact as loud as the kick. Measured over
+the 0.4-second windows that hear each hit, every track now plays within about a dB of its level, and the snares, claps
+and transitions no longer crowd the bass and the chords.
+
 The critic hears each track against the others. It judged the mix by meters on the master alone, so a song with its
 chords 9 dB too loud could still score in the high 80s. Now a track more than 3 dB from its role's level is named
 and costs the mix (`chords is 9.0 dB louder than the chords level`, target `level:chords+`), and evolution turns it

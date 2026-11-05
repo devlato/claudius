@@ -87,16 +87,42 @@ pub fn lra(x: &Stereo) -> Option<f64> {
     Some(p(0.95) - p(0.10))
 }
 
-/// how loud a stem is while it plays: the 80th percentile of its short-term loudness over the blocks where it is
-/// audible (one-shot tracks with little activity fall back to momentary blocks)
+/// how loud a stem is while it plays: the 80th percentile of its momentary loudness (0.4 s blocks) over the blocks
+/// where it is audible. A 3 s window would hear a clap on two and four with the silence between its hits, several dB
+/// under how loud the hits are, and a mix balanced by it would play the sparse tracks louder than the dense ones.
 pub fn active_level(x: &Stereo) -> Option<f64> {
-    let mut st: Vec<f64> = blocks(x, 3.0, 0.5).into_iter().map(|(_, l)| l).filter(|l| *l > -50.0).collect();
-    if st.len() < 3 {
-        st = blocks(x, 0.4, 0.1).into_iter().map(|(_, l)| l).filter(|l| *l > -50.0).collect();
-    }
-    if st.is_empty() {
+    let mut m: Vec<f64> = blocks(x, 0.4, 0.1).into_iter().map(|(_, l)| l).filter(|l| *l > -50.0).collect();
+    if m.is_empty() {
         return None;
     }
-    st.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    Some(st[((st.len() - 1) as f64 * 0.8).round() as usize])
+    m.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    Some(m[((m.len() - 1) as f64 * 0.8).round() as usize])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// a tenth of a second of a 1 kHz tone every `every` seconds, for twelve seconds
+    fn hits(every: f64) -> Stereo {
+        let n = (12.0 * SRF) as usize;
+        let mut m = vec![0.0f32; n];
+        let mut at = 0.0;
+        while at < 12.0 {
+            let s = (at * SRF) as usize;
+            for i in 0..(0.1 * SRF) as usize {
+                if s + i < n {
+                    m[s + i] = 0.5 * (std::f64::consts::TAU * 1000.0 * i as f64 / SRF).sin() as f32;
+                }
+            }
+            at += every;
+        }
+        Stereo::from_mono(&m)
+    }
+
+    #[test]
+    fn hits_as_loud_as_each_other_are_as_loud_however_often_they_come() {
+        let (kick, clap) = (active_level(&hits(0.5)).unwrap(), active_level(&hits(1.0)).unwrap());
+        assert!((kick - clap).abs() < 1.0, "every half second {kick:.1}, every second {clap:.1} LUFS");
+    }
 }
