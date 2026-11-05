@@ -356,8 +356,8 @@ and fetches: it hands the engine the file's bytes (`Link::recording`), and the e
 claudius cuts one (`Host::sample`, `sampling::cut`): it decodes the file, finds its beat grid, and cuts the phrase out
 of the two bars of its harmonic sections that are loudest (the demo has no ears to choose by), with their key and
 chords, or the break with its own hits, or sixteen seconds of texture, and keeps the cuts in memory. A recording it can
-cut nothing from, or one that no speed brings into the genre's tempo in tune (the browser only varispeeds), it turns
-down, and the page tries the next. The song is made from what was kept as the server makes one from the samples it
+cut nothing from it turns down, and the page tries the next; one that no speed brings into the genre's tempo (the
+browser cannot stretch) plays chopped onto the song's grid at its own pitch (`sampling::meets`, `LoopPart::retime`). The song is made from what was kept as the server makes one from the samples it
 gathered (see [Songs built on samples](../guide/online-samples.md#songs-built-on-samples)), and the log gives each
 sample's full credit with the links.
 

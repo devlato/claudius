@@ -549,6 +549,7 @@ mod tests {
             asked: None,
             second: None,
             root: None,
+            pulse: None,
         }
     }
 

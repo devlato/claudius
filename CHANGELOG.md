@@ -11,7 +11,6 @@ layer it. It has lush ninth and eleventh chords (a new progression style, `lush_
 chromatic mediants) on a Rhodes stacked on warm synths, strings and a flute; a distorted 808 with a fuzzy synth bass
 an octave over it; a swung kit with a clap on the snare; soul records chopped under it; and a beat switch into half
 time before the last hooks. Its songs are layered at complexity 0.8 unless asked otherwise.
-
 A new song can be as layered as you like: **Layers** in the New song dialog, `--complexity` on the command line and
 `complexity` in `new_song` and `song()`, from 0 to 1. At 0.5 a song is its genre as written; toward 1 its harmony and
 lead are doubled on second instruments (an octave up, or in unison on another sound), its bass an octave up through a
@@ -20,6 +19,17 @@ come in where the song lifts, with more of the samples a sampled genre colours i
 stands in for played over it. Toward 0 it is thinned to its core. A double is a part that plays another part's notes
 (`doubles` and `octave` in `part()`), so it follows that part through edits and mutations.
 
+A sample doesn't always play slowed down or sped up to the song's tempo. A phrase can also be chopped onto the song's
+grid at its own pitch, at two thirds, three quarters, four thirds or three halves of its tempo, as an MPC chops a
+record: each half beat plays from the song's half beat, so its bars and chords line up. A 120 BPM record plays at its
+own pitch in a boom bap song at 90. The song's seed picks among the ways that suit the record and the genre: chopping
+suits a record with a clear pulse in a genre that chops, and house still speeds its records up. A break off the song's
+tempo is chopped onto the grid too, rather than stretched, so its hits stay crisp. In the web demo, where nothing
+stretches, a phrase no speed fits now plays chopped instead of being left out.
+
+On a phone playing along, a quick second tap plays again instead of zooming the page in, wherever it lands, and two
+fingers apart are two fingers rather than a pinch. The pads and the keys are drawn on a canvas, where every finger is
+its own, so several play at once and a finger slid along the keys glides from key to key.
 A scratch sounds like a turntable's, on the phone and in the take it makes. The platter follows the finger as a
 platter follows a hand, its speed changing smoothly through each turn back, where it jumped every few milliseconds. A
 record moved fast whistles no highs folded back: the needle reads it from a copy whose highs are taken out as far as

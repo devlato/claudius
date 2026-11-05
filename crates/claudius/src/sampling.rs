@@ -390,6 +390,7 @@ fn blank(path: &Path, role: Role, bpm: f64, beats: f64) -> Prepared {
         asked: None,
         second: None,
         root: None,
+        pulse: None,
     }
 }
 
@@ -566,6 +567,7 @@ fn cut_phrase(x: &Stereo, n: &SampleNeed, ears: Option<&Ears>, dir: &Path) -> Re
     c.prepared.minor = a.key.mode.is_minor();
     c.prepared.chords = chords(first.bar);
     c.prepared.z = first.z;
+    c.prepared.pulse = Some(a.pulse_clarity);
     c.file(file, take(first.bar)?, false);
     if let Some(s) = second {
         let path = c.file(dir.join("phrase-2.wav"), take(s.bar)?, false);
@@ -982,10 +984,84 @@ fn speeds(bpm: f64, range: (f64, f64), pitch: (i32, i32)) -> Vec<(i32, f64, f64)
     out
 }
 
+/// The tempos, as multiples of a loop's own, that a song plays it at chopped onto its grid (`Fit::Chopped`): two
+/// thirds, three quarters, four thirds and three halves. Half and twice its tempo, and its own, it plays as it is.
+pub const RELATIONS: [f64; 4] = [2.0 / 3.0, 0.75, 4.0 / 3.0, 1.5];
+
+/// How a loop meets a song's tempo.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Fit {
+    /// played faster or slower by whole semitones, its tempo moving with its pitch as a sampler's varispeed moves it,
+    /// into the song's (or half or twice it)
+    Speed,
+    /// chopped onto the song's grid at its own speed (`LoopPart::retime`), at a tempo a multiple of its own
+    /// (`RELATIONS`), its pitch kept and its slices cut short or spaced out
+    Chopped,
+    /// stretched in time to the song's tempo, in tune, where claudius can stretch
+    Stretched,
+}
+
+/// Every way a phrase of `bpm`, whose recording keeps a pulse as clear as `pulse` (0 to 1), meets a song at a tempo
+/// in `range` (a given one: a range a fraction of a percent wide), in a genre that chops a record as readily as
+/// `chops` (its `chop`): the fit, the semitones it plays at, the song's tempo and what it costs. Played faster or
+/// slower by whole semitones within `pitch` until its tempo is the song's, as `speeds`; chopped onto the song's grid
+/// at its own speed at a tempo a multiple of its own (`RELATIONS`, or any near one for a given tempo), which suits a
+/// recording with a clear pulse, whose slices are its hits, in a genre that chops; and where claudius `stretches`,
+/// stretched in tune to the tempo nearest it.
+pub fn meets(
+    bpm: f64,
+    pulse: f64,
+    chops: f64,
+    range: (f64, f64),
+    pitch: (i32, i32),
+    stretches: bool,
+) -> Vec<(Fit, i32, f64, f64)> {
+    let mid = (range.0 * range.1).sqrt();
+    let given = range.1 / range.0 < 1.01;
+    let mut out: Vec<(Fit, i32, f64, f64)> =
+        speeds(bpm, range, pitch).into_iter().map(|(s, t, c)| (Fit::Speed, s, t, c)).collect();
+    // a slice cut a quarter short (or spaced a third apart) costs about two semitones of varispeed for a recording
+    // with a clear pulse in a genre that chops, and more for one that flows, whose chops gate it, or in a genre that
+    // plays its records whole
+    let unlike = 3.0 * (1.0 - pulse.clamp(0.0, 1.0)) + 6.0 * (0.5 - chops).max(0.0);
+    let chopping = |t: f64, sped: f64| 1.0 + 3.0 * (t / sped).ln().abs() + unlike;
+    // a record that flows, in a genre that plays its records whole, is not chopped at all: it would only be gated
+    let semitones = if unlike > 4.0 { Vec::new() } else { (pitch.0.min(pitch.1)..=pitch.0.max(pitch.1)).collect() };
+    for semis in semitones {
+        let sped = bpm * 2f64.powf(semis as f64 / 12.0);
+        let tempos: Vec<f64> = match given {
+            true => vec![mid],
+            false => RELATIONS.iter().map(|m| sped * m).collect(),
+        };
+        // chopped beat for beat, as `counted_loop` counts it, or not at all: counted at half or twice its time, its
+        // bars would not be the song's
+        for t in tempos.into_iter().filter(|t| (range.0..=range.1).contains(t) && beat_for_beat(t / sped)) {
+            let cost = semis.abs() as f64 + chopping(t, sped) + 3.0 * (t / mid).ln().abs();
+            out.push((Fit::Chopped, semis, t, cost));
+        }
+    }
+    if stretches {
+        let t = if given { mid } else { fit_tempo(bpm, range).unwrap_or(mid) };
+        // a stretch blurs a record the more the further it goes: a few percent is as good as a semitone or two
+        let stretched = (t / fold(bpm, 8.0, t).0).ln().abs();
+        out.push((Fit::Stretched, 0, t, 3.0 + 12.0 * stretched + 3.0 * (t / mid).ln().abs()));
+    }
+    out
+}
+
+/// One of the ways `meets` lists, which `rng` picks among those that cost at most 0.6 more than the cheapest (so that
+/// songs play their samples in more than the one way): the fit, its semitones, and the song's tempo, to a hundredth.
+pub fn choose(ways: &[(Fit, i32, f64, f64)], rng: &mut Rng) -> Option<(Fit, i32, f64)> {
+    let cheapest = ways.iter().map(|w| w.3).fold(f64::INFINITY, f64::min);
+    let near: Vec<&(Fit, i32, f64, f64)> = ways.iter().filter(|w| w.3 <= cheapest + 0.6).collect();
+    let w = near.get(rng.below(near.len().max(1)))?;
+    Some((w.0, w.1, (w.2 * 100.0).round() / 100.0))
+}
+
 /// Whether a song of `g` can play `p` at the genre's tempo as it was played: where claudius can stretch a loop in time
-/// without changing its pitch, any; else (in a browser, which only varispeeds) a phrase some speed fits in tune, and a
-/// break whose tempo, or half or twice it, lies within about a semitone of the genre's. A texture has no tempo, and a
-/// vocal chop or a bass note is a note, played at whatever tempo the song has.
+/// without changing its pitch, any; else (in a browser, which only varispeeds) a phrase some way of `meets` fits, and
+/// any break, chopped onto the song's grid where its tempo is not the song's. A texture has no tempo, and a vocal chop
+/// or a bass note is a note, played at whatever tempo the song has.
 pub fn plays_in(p: &Prepared, g: &GenreProfile) -> bool {
     plays(p, g, cfg!(feature = "native"))
 }
@@ -995,9 +1071,27 @@ fn plays(p: &Prepared, g: &GenreProfile, stretches: bool) -> bool {
     match p.role {
         Role::Texture | Role::Vocal | Role::Bass => true,
         _ if stretches => true,
-        Role::Phrase => need(g, Role::Phrase).is_some_and(|n| !speeds(p.bpm, g.bpm, n.pitch).is_empty()),
-        Role::Break => [p.bpm, p.bpm / 2.0, p.bpm * 2.0].iter().any(|t| *t >= g.bpm.0 * 0.94 && *t <= g.bpm.1 * 1.06),
+        Role::Phrase => need(g, Role::Phrase)
+            .is_some_and(|n| !meets(p.bpm, p.pulse.unwrap_or(0.5), n.chop, g.bpm, n.pitch, false).is_empty()),
+        Role::Break => true,
     }
+}
+
+/// A loop of `beats` at `bpm` as a song at `song` counts it, sped up or slowed down by `semis`: halved or doubled
+/// toward the song's tempo (`fold`), as a sampler plays a record at half or twice its time; or, `chopped` onto the
+/// song's grid at a tempo up to half again or two thirds of its own, beat for beat, so that its bars are the song's
+/// and its chords change where the song's do, its slices cut short or spaced out.
+fn counted_loop(bpm: f64, beats: f64, song: f64, semis: i32, chopped: bool) -> (f64, f64) {
+    match chopped && beat_for_beat(song / (bpm * 2f64.powf(semis as f64 / 12.0))) {
+        true => (bpm, beats),
+        false => fold(bpm, beats, unsped(song, semis)),
+    }
+}
+
+/// Whether a loop chopped onto the grid of a song at `ratio` times the tempo it is played at plays beat for beat: up
+/// to half again its tempo, each slice cut short, or down to two thirds, each spaced out
+fn beat_for_beat(ratio: f64) -> bool {
+    (2.0 / 3.0 - 1e-9..=1.5 + 1e-9).contains(&ratio)
 }
 
 /// the tempo a loop plays at in a song at `bpm` before it is sped up or slowed down by `semis`
@@ -1155,20 +1249,19 @@ pub fn apply(
         }
         let asked = search.as_deref().filter(|_| role == Role::Phrase);
         let Some(p) = lib.and_then(|l| l.prepared(role, g, asked, &mut r)) else { continue };
-        // a phrase plays sped up or slowed down by whole semitones, as a sampler plays it, to the genre's tempo (or the
-        // one given); one that no such speed fits is stretched to it in tune, where claudius can stretch (not in a
-        // browser, which would play it out of tune, so it goes without)
-        let speed = match (role, tempo_given) {
-            (Role::Phrase, false) => speed_for(p.bpm, g.bpm, n.pitch, &mut r),
-            (Role::Phrase, true) => {
-                speed_for(p.bpm, (bp.bpm * 0.997, bp.bpm * 1.003), n.pitch, &mut r).map(|(s, _)| (s, bp.bpm))
+        // a phrase meets the genre's tempo (or the one given) as a producer plays a record: faster or slower by whole
+        // semitones, chopped onto the song's grid at a tempo a multiple of its own, or stretched in tune where claudius
+        // can stretch (not in a browser), its seed picking among the ways that cost about the least (`meets`)
+        let range = if tempo_given { (bp.bpm * 0.997, bp.bpm * 1.003) } else { g.bpm };
+        let fit = match role {
+            Role::Phrase => {
+                let ways = meets(p.bpm, p.pulse.unwrap_or(0.5), n.chop, range, n.pitch, cfg!(feature = "native"));
+                let Some(f) = choose(&ways, &mut r) else { continue };
+                Some(f)
             }
             _ => None,
         };
-        if role == Role::Phrase && speed.is_none() && !cfg!(feature = "native") {
-            continue;
-        }
-        let semis = speed.map_or(0, |(s, _)| s);
+        let semis = fit.map_or(0, |(_, s, _)| s);
         place(bp, role, n);
         // a phrase is treated as the genre's producers treat a record, the move its seed picks
         let mut mix = n.mix.clone();
@@ -1202,18 +1295,15 @@ pub fn apply(
                 }
                 heard = Some(h);
             }
-            match speed {
-                Some((_, t)) => bp.bpm = t,
-                None if !tempo_given => {
-                    if let Some(t) = fit_tempo(p.bpm, g.bpm) {
-                        bp.bpm = t.round();
-                    }
-                }
-                None => {}
+            if let Some((how, _, t)) = fit
+                && !tempo_given
+            {
+                bp.bpm = if how == Fit::Stretched { t.round() } else { t };
             }
             // a bar of the phrase as the song counts it: counted at half its tempo, a song's bar holds two of its
             // bars (and plays the first one's chord); at twice its tempo, each of its chords lasts two
-            let (_, beats) = fold(p.bpm, p.beats, unsped(bp.bpm, semis));
+            let chopped = fit.is_some_and(|f| f.0 == Fit::Chopped);
+            let (_, beats) = counted_loop(p.bpm, p.beats, bp.bpm, semis, chopped);
             let key = bp.key;
             let counted = |numerals: &[String]| -> (Vec<String>, u32) {
                 let chords: Vec<String> = match &heard {
@@ -1245,8 +1335,16 @@ pub fn apply(
             second = p.second.as_ref().map(|s| (s, counted(&s.chords).0));
         }
         let tonal = role == Role::Phrase && p.key.is_some();
+        let chopped = fit.is_some_and(|f| f.0 == Fit::Chopped);
         let (bpm, beats) =
-            if role == Role::Texture { (p.bpm, p.beats) } else { fold(p.bpm, p.beats, unsped(bp.bpm, semis)) };
+            if role == Role::Texture { (p.bpm, p.beats) } else { counted_loop(p.bpm, p.beats, bp.bpm, semis, chopped) };
+        // a break plays as it is (within a few percent of the song's tempo), else chopped onto the song's grid at its
+        // own pitch, as jungle's producers chop one: stretched far, its hits would smear
+        let retime = match role {
+            Role::Phrase => chopped,
+            Role::Break => (bp.bpm / bpm).ln().abs() > 0.03,
+            _ => false,
+        };
         let slices = (beats / 0.5).round().max(1.0) as i32;
         let chop: Vec<i32> = if slices >= 4 && r.chance(n.chop) {
             (0..slices).map(|i| if i % 4 == 0 { i } else { r.below(slices as usize) as i32 }).collect()
@@ -1280,6 +1378,7 @@ pub fn apply(
             transpose: semis,
             chop,
             slice_beats: 0.5,
+            retime,
             mix,
             from: None,
             sampled: false,
@@ -1339,7 +1438,7 @@ pub fn apply(
                 }
             }
         }
-        let how = match semis {
+        let mut how = match semis {
             0 => String::new(),
             s => format!(
                 " {} semitone{} {}",
@@ -1348,6 +1447,11 @@ pub fn apply(
                 if s > 0 { "up" } else { "down" }
             ),
         };
+        if retime {
+            let played = p.bpm * 2f64.powf(semis as f64 / 12.0);
+            let at = if semis == 0 { "at its own pitch" } else { "at that pitch" };
+            how.push_str(&format!(", chopped onto the song's grid {at} (played at {played:.0} BPM)"));
+        }
         placed.push((role, format!("'{label}'{how}{treated}{also}")));
     }
     if on && let Some(said) = vocal(bp, g, lib, complexity, rng) {
@@ -1577,6 +1681,7 @@ mod tests {
             asked: None,
             second: None,
             root: None,
+            pulse: None,
         };
         Shelf(vec![
             Prepared {
@@ -1929,6 +2034,229 @@ mod tests {
     }
 
     #[test]
+    fn a_phrase_meets_the_songs_tempo_faster_or_slower_chopped_onto_its_grid_or_stretched() {
+        // a soul record at 98 BPM in house (120 to 126), a sampler going up to two semitones either way: no speed
+        // fits it, but chopped onto the grid at four thirds its tempo, a semitone down, it plays
+        let ways = meets(98.0, 0.8, 0.25, (120.0, 126.0), (-2, 2), false);
+        assert!(!ways.is_empty() && ways.iter().all(|w| w.0 == Fit::Chopped), "{ways:?}");
+        let (_, semis, t) = choose(&ways, &mut Rng::new(1)).unwrap();
+        let played = 98.0 * 2f64.powf(semis as f64 / 12.0);
+        assert!(RELATIONS.iter().any(|m| (t / played - m).abs() < 0.01), "{t} for a record played at {played}");
+        // up to five semitones: four up fits exactly, and in a genre that chops, chopping it is about as near, so
+        // songs play it either way; in house, which speeds its records up, sped up
+        let ways = meets(98.0, 0.8, 0.4, (120.0, 126.0), (-2, 5), false);
+        let picks: std::collections::HashSet<_> =
+            (0..40).filter_map(|s| choose(&ways, &mut Rng::new(s))).map(|w| w.0).collect();
+        assert_eq!(picks, [Fit::Speed, Fit::Chopped].into(), "not always sped up");
+        let house = meets(98.0, 0.8, 0.25, (120.0, 126.0), (-2, 5), false);
+        assert!((0..40).filter_map(|s| choose(&house, &mut Rng::new(s))).all(|w| w.0 == Fit::Speed));
+        // a recording that flows is chopped only when nothing else fits it: its chops would gate it
+        let flows = meets(98.0, 0.1, 0.4, (120.0, 126.0), (-2, 5), false);
+        assert!((0..40).filter_map(|s| choose(&flows, &mut Rng::new(s))).all(|w| w.0 == Fit::Speed));
+        // a string section in trip-hop, which plays its records whole, is not chopped even where nothing else fits
+        assert!(meets(140.0, 0.1, 0.2, (78.0, 94.0), (-5, 1), false).iter().all(|w| w.0 != Fit::Chopped));
+        // where claudius stretches, in tune, a stretch is among them; a tempo given is the song's
+        assert!(meets(98.0, 0.5, 0.25, (120.0, 126.0), (-2, 2), true).iter().any(|w| w.0 == Fit::Stretched));
+        let given = meets(98.0, 0.8, 0.4, (110.0 * 0.997, 110.0 * 1.003), (-2, 2), false);
+        assert!(!given.is_empty() && given.iter().all(|w| (w.2 - 110.0).abs() < 0.5), "{given:?}");
+    }
+
+    #[test]
+    fn a_phrase_is_chopped_only_where_it_plays_beat_for_beat() {
+        // whatever the tempo, given or free, a chop plays the phrase at up to half again its tempo or down to two
+        // thirds, never at half or twice its time
+        for bpm in [60.0, 72.0, 80.0, 98.0, 120.0, 140.0, 170.0] {
+            let given = |t: f64| (t * 0.997, t * 1.003);
+            for range in [(120.0, 126.0), (86.0, 96.0), (160.0, 175.0), given(124.0), given(70.0), given(150.0)] {
+                for w in meets(bpm, 0.9, 0.6, range, (-5, 5), false).iter().filter(|w| w.0 == Fit::Chopped) {
+                    let ratio = w.2 / (bpm * 2f64.powf(w.1 as f64 / 12.0));
+                    assert!(beat_for_beat(ratio), "{bpm} BPM in {range:?}: {w:?}, at {ratio}");
+                    assert_eq!(counted_loop(bpm, 8.0, w.2, w.1, true), (bpm, 8.0), "{bpm} BPM in {range:?}: {w:?}");
+                }
+            }
+        }
+        // an 80 BPM phrase in house at 124: a semitone or two up, chopped beat for beat
+        let ways = meets(80.0, 0.8, 0.4, (124.0 * 0.997, 124.0 * 1.003), (-2, 2), false);
+        assert!(ways.iter().any(|w| w.0 == Fit::Chopped && w.1 > 0), "{ways:?}");
+        // and in a song of it: the phrase's two bars, a chord a bar
+        let g = crate::genres::get("house").unwrap();
+        let phrase = Prepared { bpm: 80.0, pulse: Some(0.8), ..soul("house", None) };
+        let opts = crate::compose::Options { sampled: Some(true), short: true, bpm: Some(124.0), ..Default::default() };
+        let chopped: Vec<Blueprint> = (0..12)
+            .map(|seed| crate::compose::generate(&g, seed, &opts, Some(&Shelf(vec![phrase.clone()]))))
+            .filter(|bp| bp.loops.iter().any(|l| l.name == PHRASE && l.retime))
+            .collect();
+        assert!(!chopped.is_empty(), "chopped at 124");
+        for bp in &chopped {
+            let l = bp.loops.iter().find(|l| l.name == PHRASE).unwrap();
+            let Sound::Loop { beats, .. } = l.sound else { panic!("a loop") };
+            assert_eq!((bp.bpm, beats, bp.harmony.bars_per_chord), (124.0, 8.0, 1));
+        }
+    }
+
+    #[test]
+    fn a_record_no_speed_brings_into_the_genres_tempo_is_chopped_onto_the_songs_grid_and_so_is_its_break() {
+        let g = crate::genres::get("boom_bap").unwrap();
+        let phrase = Prepared { bpm: 120.0, pulse: Some(0.8), ..soul("boom_bap", None) };
+        let drums = Prepared {
+            path: "/b/break.wav".into(),
+            role: Role::Break,
+            bpm: 100.0,
+            beats: 8.0,
+            ..soul("boom_bap", None)
+        };
+        let opts = crate::compose::Options { sampled: Some(true), short: true, ..Default::default() };
+        let bp = crate::compose::generate(&g, 3, &opts, Some(&Shelf(vec![phrase.clone(), drums])));
+        assert!((g.bpm.0..=g.bpm.1).contains(&bp.bpm), "{}", bp.bpm);
+        let sample = bp.loops.iter().find(|l| l.name == PHRASE).expect("built on the phrase");
+        assert!(sample.retime, "chopped onto the grid");
+        let played = 120.0 * 2f64.powf(sample.transpose as f64 / 12.0);
+        assert!(RELATIONS.iter().any(|m| (bp.bpm / played - m).abs() < 0.01), "{} of {played}", bp.bpm);
+        assert!(bp.loops.iter().find(|l| l.name == BREAK).is_some_and(|l| l.retime), "the break chopped too");
+        let said = bp.lineage.iter().find(|l| l.starts_with("sampled:")).unwrap();
+        assert!(said.contains("chopped onto the song's grid") && said.contains("(played at 120 BPM)"), "{said}");
+    }
+
+    #[test]
+    fn a_phrase_chopped_onto_the_grid_keeps_its_bars_beat_for_beat() {
+        // at three halves its tempo, or two thirds, its two bars are the song's two, not four at half time or one
+        assert_eq!(counted_loop(80.0, 8.0, 120.0, 0, true), (80.0, 8.0));
+        assert_eq!(counted_loop(120.0, 8.0, 80.0, 0, true), (120.0, 8.0));
+        // played as a sampler plays a record, one at half the song's tempo is counted at twice it
+        assert_eq!(counted_loop(60.0, 8.0, 120.0, 0, false), (120.0, 16.0));
+        // in a song built on it: the phrase's two bars, a chord a bar
+        let g = crate::genres::get("house").unwrap();
+        let phrase = Prepared { bpm: 80.0, pulse: Some(0.8), ..soul("house", None) };
+        let opts = crate::compose::Options { sampled: Some(true), short: true, ..Default::default() };
+        let chopped: Vec<Blueprint> = (0..12)
+            .map(|seed| crate::compose::generate(&g, seed, &opts, Some(&Shelf(vec![phrase.clone()]))))
+            .filter(|bp| bp.loops.iter().any(|l| l.name == PHRASE && l.retime))
+            .collect();
+        assert!(!chopped.is_empty(), "no speed brings it into house's tempo: it is chopped");
+        for bp in &chopped {
+            let l = bp.loops.iter().find(|l| l.name == PHRASE).unwrap();
+            let Sound::Loop { bpm, beats, .. } = l.sound else { panic!("a loop") };
+            let ratio = bp.bpm / (bpm * 2f64.powf(l.transpose as f64 / 12.0));
+            assert!((2.0 / 3.0 - 1e-6..=1.5 + 1e-6).contains(&ratio), "{ratio}");
+            assert_eq!((beats, bp.harmony.bars_per_chord), (8.0, 1), "at {} BPM", bp.bpm);
+        }
+    }
+
+    #[test]
+    fn a_chopped_loop_plays_its_last_slice_where_rounded_slices_would_lose_it() {
+        // sixteen half beats at 98 BPM, each louder than the one before: a loop a hair short of sixteen slices each
+        // rounded on its own (14,694 samples, 235,102 of them)
+        let half = 0.5 * 60.0 / 98.0 * SRF;
+        let mut x = Stereo::zeros((16.0 * half) as usize);
+        for k in 0..16 {
+            let (a, b) = ((k as f64 * half) as usize, ((k + 1) as f64 * half) as usize);
+            for i in a..b.min(x.len()) {
+                x.l[i] = (0.04 * (k + 1) as f64 * (std::f64::consts::TAU * 220.0 * i as f64 / SRF).sin()) as f32;
+            }
+        }
+        x.r = x.l.clone();
+        audio::remember("demo:steps", x);
+        let g = crate::genres::get("house").unwrap();
+        let loudest = |song: f64, retime: bool, chop: Vec<i32>| {
+            let mut bp =
+                crate::compose::generate(&g, 3, &crate::compose::Options { short: true, ..Default::default() }, None);
+            bp.bpm = song;
+            let sound = Sound::Loop {
+                path: "demo:steps".into(),
+                bpm: 98.0,
+                beats: 8.0,
+                key: None,
+                tonal: false,
+                label: "steps".into(),
+            };
+            let part = LoopPart {
+                name: "steps".into(),
+                role: "sample".into(),
+                sound,
+                transpose: 0,
+                chop,
+                slice_beats: 0.5,
+                retime,
+                mix: TrackMix::default(),
+                from: None,
+                sampled: false,
+            };
+            bp.loops.push(part);
+            bp.form.iter_mut().for_each(|s| s.layers.push("steps".into()));
+            let p = crate::compose::arrange(&bp).slice(0, 2);
+            let (out, _) = crate::render::track_sound(&p, &crate::render::Options::default(), "steps").unwrap();
+            // the loudest of each of the song's half beats, past its fades
+            let slot = 0.5 * 60.0 / song * SRF;
+            (0..16)
+                .map(|k| {
+                    let (a, b) = ((k as f64 * slot) as usize + 480, ((k + 1) as f64 * slot) as usize - 480);
+                    out.l[a..b.min(out.len())].iter().fold(0f32, |m, v| m.max(v.abs()))
+                })
+                .collect::<Vec<f32>>()
+        };
+        // chopped onto a song at 120, half beat for half beat: the last is the loudest, not the first again
+        let heard = loudest(120.0, true, Vec::new());
+        assert!(heard[15] > 12.0 * heard[0], "{heard:?}");
+        // chopped in its own order at its own tempo, the last slice over and over
+        let heard = loudest(98.0, false, vec![15]);
+        assert!(heard.iter().all(|v| *v > 12.0 * loudest(98.0, false, vec![0])[0]), "{heard:?}");
+    }
+
+    #[test]
+    fn a_loop_chopped_onto_the_grid_plays_each_slice_from_the_songs_beat_at_its_own_speed() {
+        // four clicks at 90 BPM, each with a tone after it, in a song at 120: on the song's beats, each slice cut short
+        let beat = 60.0 / 90.0;
+        let mut x = Stereo::zeros((4.0 * beat * SRF) as usize);
+        for b in 0..4 {
+            let at = (b as f64 * beat * SRF) as usize;
+            x.l[at] = 1.0;
+            for i in 1..(0.2 * SRF) as usize {
+                x.l[at + i] = (0.3 * (std::f64::consts::TAU * 440.0 * i as f64 / SRF).sin()) as f32;
+            }
+        }
+        x.r = x.l.clone();
+        audio::remember("demo:clicks", x);
+        let g = crate::genres::get("house").unwrap();
+        let mut bp =
+            crate::compose::generate(&g, 3, &crate::compose::Options { short: true, ..Default::default() }, None);
+        bp.bpm = 120.0;
+        let sound = Sound::Loop {
+            path: "demo:clicks".into(),
+            bpm: 90.0,
+            beats: 4.0,
+            key: None,
+            tonal: false,
+            label: "clicks".into(),
+        };
+        let part = LoopPart {
+            name: "clicks".into(),
+            role: "sample".into(),
+            sound,
+            transpose: 0,
+            chop: Vec::new(),
+            slice_beats: 0.5,
+            retime: true,
+            mix: TrackMix::default(),
+            from: None,
+            sampled: false,
+        };
+        bp.loops.push(part);
+        bp.form.iter_mut().for_each(|s| s.layers.push("clicks".into()));
+        let p = crate::compose::arrange(&bp).slice(0, 2);
+        let (out, _) = crate::render::track_sound(&p, &crate::render::Options::default(), "clicks").unwrap();
+        let song_beat = (0.5 * SRF) as usize;
+        for b in 0..8 {
+            let at = b * song_beat;
+            let window = &out.l[at.saturating_sub(48)..(at + 480).min(out.len())];
+            let loud = window.iter().fold(0f32, |m, v| m.max(v.abs()));
+            assert!(loud > 0.05, "a click on the song's beat {b}: {loud}");
+        }
+        // between a slice's end (a quarter of a song's beat on) and the next beat: nothing, the slice is cut short
+        let gap = &out.l[(0.25 * SRF) as usize + 200..song_beat - 200];
+        assert!(gap.iter().all(|v| v.abs() < 1e-3), "each half-beat slice cut at the song's half-beat");
+    }
+
+    #[test]
     fn a_sampled_bass_note_plays_the_songs_bass_within_an_octave_of_it() {
         let mut g = crate::genres::get("house").unwrap();
         g.sampling.as_mut().unwrap().bass = Some(SampleNeed { chance: 1.0, ..soul_need() });
@@ -2097,13 +2425,17 @@ mod tests {
     }
 
     #[test]
-    fn where_nothing_stretches_only_what_plays_in_tune_near_the_genres_tempo_plays() {
+    fn where_nothing_stretches_a_phrase_plays_sped_up_or_chopped_and_any_break_plays() {
         let house = crate::genres::get("house").unwrap();
         let at = |role: Role, bpm: f64| Prepared { role, bpm, ..soul("house", None) };
-        // a phrase at 98 sped up four semitones; one at 80 no speed brings into house's tempo
-        assert!(plays(&at(Role::Phrase, 98.0), &house, false) && !plays(&at(Role::Phrase, 80.0), &house, false));
-        // a break at 61 doubled is near enough; one at 92 would play four semitones off
-        assert!(plays(&at(Role::Break, 61.0), &house, false) && !plays(&at(Role::Break, 92.0), &house, false));
+        // a phrase at 98 sped up four semitones; one at 80, which no speed brings into house's tempo, chopped onto the
+        // song's grid at three halves its tempo, at its own pitch
+        assert!(plays(&at(Role::Phrase, 98.0), &house, false) && plays(&at(Role::Phrase, 80.0), &house, false));
+        let ways = meets(80.0, 0.5, 0.25, house.bpm, need(&house, Role::Phrase).unwrap().pitch, false);
+        assert!(ways.iter().all(|w| w.0 == Fit::Chopped), "{ways:?}");
+        assert!(ways.iter().any(|w| w.1 == 0 && (w.2 - 120.0).abs() < 0.01), "{ways:?}");
+        // a break at 61 doubled is near enough; one at 92, four semitones off, is chopped onto the grid
+        assert!(plays(&at(Role::Break, 61.0), &house, false) && plays(&at(Role::Break, 92.0), &house, false));
         assert!(plays(&at(Role::Texture, 92.0), &house, false), "a texture has no tempo");
         // where claudius stretches, every one plays
         assert!(plays(&at(Role::Phrase, 80.0), &house, true) && plays(&at(Role::Break, 92.0), &house, true));

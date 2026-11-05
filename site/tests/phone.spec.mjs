@@ -35,7 +35,9 @@ test.describe("playing from a phone", () => {
       const phone = await browser.newPage({ ...devices["iPhone 13"] });
       await phone.goto(url);
       await phone.click("#go");
-      await expect(phone.locator(".pad")).not.toHaveCount(0);
+      await phone.waitForFunction(() => pads.length > 0);
+      // taps are taps: the page gives no double tap a zoom
+      expect(await phone.evaluate(() => getComputedStyle(document.documentElement).touchAction)).toBe("manipulation");
       await expect(phone.locator("#where"), "it follows the studio as it plays").toContainText(/, bar \d+/, { timeout: 60_000 });
       await expect.poll(async () => (await state()).phone.phones, { message: "the studio sees the phone" }).toBe(1);
       await phone.waitForFunction(() => hits.size === song.lanes.length, null, { timeout: 60_000 });

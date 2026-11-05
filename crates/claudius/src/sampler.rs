@@ -141,6 +141,7 @@ pub fn sample(
             transpose,
             chop: Vec::new(),
             slice_beats: 0.0,
+            retime: false,
             mix: vocal_mix(),
             from: None,
             sampled: true,

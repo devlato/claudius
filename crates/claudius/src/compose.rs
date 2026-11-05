@@ -458,7 +458,17 @@ pub fn generate(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn Li
         }
     }
     let add = |bp: &mut Blueprint, name: &str, role: &str, sound: Sound, mix: TrackMix| {
-        bp.parts.retain(|p| p.name != name);
+        // the part the loop takes the place of goes, and its doubles with it, from the sections too
+        let gone: Vec<String> = bp
+            .parts
+            .iter()
+            .filter(|p| p.name == name || p.doubles.as_deref() == Some(name))
+            .map(|p| p.name.clone())
+            .collect();
+        bp.parts.retain(|p| !gone.contains(&p.name));
+        for s in bp.form.iter_mut() {
+            s.layers.retain(|l| l == name || !gone.contains(l));
+        }
         bp.loops.retain(|l| l.name != name);
         bp.loops.push(LoopPart {
             name: name.into(),
@@ -467,6 +477,7 @@ pub fn generate(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn Li
             transpose: 0,
             chop: Vec::new(),
             slice_beats: 0.5,
+            retime: false,
             mix,
             from: None,
             sampled: false,
@@ -510,14 +521,19 @@ pub fn generate(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn Li
             s.layers.push(harmony_name.into());
         }
     }
-    bp.lineage = vec![format!(
+    // what was generated, said again; what else it says (how it was layered, what it sampled) stays
+    let generated = format!(
         "generated: {} seed {seed} around the Apple Loops family '{}' ({:.0} BPM, {}, chords {})",
         g.name,
         f.name,
         f.bpm,
         f.key.name(),
         prog.join(" ")
-    )];
+    );
+    match bp.lineage.first_mut() {
+        Some(first) => *first = generated,
+        None => bp.lineage.push(generated),
+    }
     bp
 }
 
@@ -719,6 +735,7 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
                     transpose,
                     chop: Vec::new(),
                     slice_beats: 0.5,
+                    retime: false,
                     mix: spec.mix.clone(),
                     from: None,
                     sampled: false,
@@ -882,6 +899,7 @@ pub fn add_sample(bp: &mut Blueprint, path: &str, bpm: f64, beats: f64, key: Opt
         transpose,
         chop: chop.clone(),
         slice_beats: 0.5,
+        retime: false,
         mix: TrackMix { duck: 0.4, reverb: 0.15, bus: "music".into(), ..Default::default() },
         from: None,
         sampled: false,
