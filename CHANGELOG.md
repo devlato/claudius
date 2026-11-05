@@ -6,6 +6,12 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+The mix balances each track on how loud its hits are. It measured a track over 3-second windows, which hear a clap on
+two and four with the silence between its hits, so the sparse tracks played louder than their levels said: snares and
+claps by about 4 dB, crashes by 3, impacts by 5 and reverse crashes by 7, an impact as loud as the kick. Measured over
+the 0.4-second windows that hear each hit, every track now plays within about a dB of its level, and the snares, claps
+and transitions no longer crowd the bass and the chords.
+
 Eight new genres, so that thirty-six in all:
 - **hip hop:** modern, between boom bap and trap.
 - **R&B:** lush ninths on Rhodes over an 808, with rolling hats and snaps.
