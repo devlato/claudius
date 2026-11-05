@@ -110,13 +110,14 @@ ways that cost about the least, so not every song does the same:
   only resampled and plays in tune with everything else. How far a genre goes is in its profile (`pitch`: trip-hop
   slows a record by up to five semitones, house speeds one up by up to five).
 - **Chopped onto the song's grid at its own speed**, at a tempo two thirds, three quarters, four thirds or three halves
-  of its own (or half or twice that). Each half beat of it plays from the song's half beat, so its bars are the song's
-  and its chords change where the song's do, and its pitch is kept. Where the song is faster each slice is cut short,
-  and where it is slower a gap follows it, as with an MPC's chops. A 120 BPM record plays at its own pitch in a boom
-  bap song at 90, three quarters of its tempo; one at 80 plays in house at 120, three halves of it. Chopping suits a
-  recording with a clear pulse, whose slices are its hits, in a genre that chops (`chop` in the profile: boom bap,
-  grime, phonk and IDM most). A recording that flows, such as a string section, is chopped only when nothing else fits
-  it, since its chops would gate it, and house speeds its records up, as house does.
+  of its own (where you give the song's tempo, any from two thirds of it to three halves, never half or twice it, which
+  would count its bars at half or double time). Each half beat of it plays from the song's half beat, so its bars are
+  the song's and its chords change where the song's do, and its pitch is kept. Where the song is faster each slice is
+  cut short, and where it is slower a gap follows it, as with an MPC's chops. A 120 BPM record plays at its own pitch in
+  a boom bap song at 90, three quarters of its tempo; one at 80 plays in house at 120, three halves of it. Chopping
+  suits a recording with a clear pulse, whose slices are its hits, in a genre that chops (`chop` in the profile: boom
+  bap, grime, phonk and IDM most). A recording that flows, such as a string section, is chopped only when nothing else
+  fits it, since its chops would gate it, and house speeds its records up, as house does.
 - **Stretched in tune** to the genre's tempo, where claudius can stretch, when the stretch is small or nothing else
   fits.
 

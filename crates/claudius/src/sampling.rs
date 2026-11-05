@@ -1024,17 +1024,18 @@ pub fn meets(
     // with a clear pulse in a genre that chops, and more for one that flows, whose chops gate it, or in a genre that
     // plays its records whole
     let unlike = 3.0 * (1.0 - pulse.clamp(0.0, 1.0)) + 6.0 * (0.5 - chops).max(0.0);
-    let chopping = |t: f64, sped: f64| 1.0 + 3.0 * (t / counted_loop(sped, 8.0, t, 0, true).0).ln().abs() + unlike;
+    let chopping = |t: f64, sped: f64| 1.0 + 3.0 * (t / sped).ln().abs() + unlike;
     // a record that flows, in a genre that plays its records whole, is not chopped at all: it would only be gated
     let semitones = if unlike > 4.0 { Vec::new() } else { (pitch.0.min(pitch.1)..=pitch.0.max(pitch.1)).collect() };
     for semis in semitones {
         let sped = bpm * 2f64.powf(semis as f64 / 12.0);
         let tempos: Vec<f64> = match given {
-            // a song whose tempo was given plays it at that tempo, whatever multiple of its own that is (near one)
-            true => vec![mid].into_iter().filter(|t| (t / fold(sped, 8.0, *t).0).ln().abs() <= 1.5f64.ln()).collect(),
-            false => RELATIONS.iter().flat_map(|m| [sped * m, sped * m / 2.0, sped * m * 2.0]).collect(),
+            true => vec![mid],
+            false => RELATIONS.iter().map(|m| sped * m).collect(),
         };
-        for t in tempos.into_iter().filter(|t| (range.0..=range.1).contains(t)) {
+        // chopped beat for beat, as `counted_loop` counts it, or not at all: counted at half or twice its time, its
+        // bars would not be the song's
+        for t in tempos.into_iter().filter(|t| (range.0..=range.1).contains(t) && beat_for_beat(t / sped)) {
             let cost = semis.abs() as f64 + chopping(t, sped) + 3.0 * (t / mid).ln().abs();
             out.push((Fit::Chopped, semis, t, cost));
         }
@@ -1081,11 +1082,16 @@ fn plays(p: &Prepared, g: &GenreProfile, stretches: bool) -> bool {
 /// song's grid at a tempo up to half again or two thirds of its own, beat for beat, so that its bars are the song's
 /// and its chords change where the song's do, its slices cut short or spaced out.
 fn counted_loop(bpm: f64, beats: f64, song: f64, semis: i32, chopped: bool) -> (f64, f64) {
-    let ratio = song / (bpm * 2f64.powf(semis as f64 / 12.0));
-    match chopped && (2.0 / 3.0 - 1e-9..=1.5 + 1e-9).contains(&ratio) {
+    match chopped && beat_for_beat(song / (bpm * 2f64.powf(semis as f64 / 12.0))) {
         true => (bpm, beats),
         false => fold(bpm, beats, unsped(song, semis)),
     }
+}
+
+/// Whether a loop chopped onto the grid of a song at `ratio` times the tempo it is played at plays beat for beat: up
+/// to half again its tempo, each slice cut short, or down to two thirds, each spaced out
+fn beat_for_beat(ratio: f64) -> bool {
+    (2.0 / 3.0 - 1e-9..=1.5 + 1e-9).contains(&ratio)
 }
 
 /// the tempo a loop plays at in a song at `bpm` before it is sped up or slowed down by `semis`
@@ -2036,6 +2042,39 @@ mod tests {
         assert!(meets(98.0, 0.5, 0.25, (120.0, 126.0), (-2, 2), true).iter().any(|w| w.0 == Fit::Stretched));
         let given = meets(98.0, 0.8, 0.4, (110.0 * 0.997, 110.0 * 1.003), (-2, 2), false);
         assert!(!given.is_empty() && given.iter().all(|w| (w.2 - 110.0).abs() < 0.5), "{given:?}");
+    }
+
+    #[test]
+    fn a_phrase_is_chopped_only_where_it_plays_beat_for_beat() {
+        // whatever the tempo, given or free, a chop plays the phrase at up to half again its tempo or down to two
+        // thirds, never at half or twice its time
+        for bpm in [60.0, 72.0, 80.0, 98.0, 120.0, 140.0, 170.0] {
+            let given = |t: f64| (t * 0.997, t * 1.003);
+            for range in [(120.0, 126.0), (86.0, 96.0), (160.0, 175.0), given(124.0), given(70.0), given(150.0)] {
+                for w in meets(bpm, 0.9, 0.6, range, (-5, 5), false).iter().filter(|w| w.0 == Fit::Chopped) {
+                    let ratio = w.2 / (bpm * 2f64.powf(w.1 as f64 / 12.0));
+                    assert!(beat_for_beat(ratio), "{bpm} BPM in {range:?}: {w:?}, at {ratio}");
+                    assert_eq!(counted_loop(bpm, 8.0, w.2, w.1, true), (bpm, 8.0), "{bpm} BPM in {range:?}: {w:?}");
+                }
+            }
+        }
+        // an 80 BPM phrase in house at 124: a semitone or two up, chopped beat for beat
+        let ways = meets(80.0, 0.8, 0.4, (124.0 * 0.997, 124.0 * 1.003), (-2, 2), false);
+        assert!(ways.iter().any(|w| w.0 == Fit::Chopped && w.1 > 0), "{ways:?}");
+        // and in a song of it: the phrase's two bars, a chord a bar
+        let g = crate::genres::get("house").unwrap();
+        let phrase = Prepared { bpm: 80.0, pulse: Some(0.8), ..soul("house", None) };
+        let opts = crate::compose::Options { sampled: Some(true), short: true, bpm: Some(124.0), ..Default::default() };
+        let chopped: Vec<Blueprint> = (0..12)
+            .map(|seed| crate::compose::generate(&g, seed, &opts, Some(&Shelf(vec![phrase.clone()]))))
+            .filter(|bp| bp.loops.iter().any(|l| l.name == PHRASE && l.retime))
+            .collect();
+        assert!(!chopped.is_empty(), "chopped at 124");
+        for bp in &chopped {
+            let l = bp.loops.iter().find(|l| l.name == PHRASE).unwrap();
+            let Sound::Loop { beats, .. } = l.sound else { panic!("a loop") };
+            assert_eq!((bp.bpm, beats, bp.harmony.bars_per_chord), (124.0, 8.0, 1));
+        }
     }
 
     #[test]
