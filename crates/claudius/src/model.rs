@@ -343,6 +343,30 @@ pub struct Part {
     pub notes: BTreeMap<String, Vec<Note>>,
     #[serde(default)]
     pub mix: TrackMix,
+    /// The part whose notes this one plays, `octave` octaves away, on a sound of its own: a double, as a producer
+    /// layers a lead or a chord part on a second instrument. With notes of its own written out, or once that part is
+    /// gone (or doubles another itself), it plays its own, as any part does.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub doubles: Option<String>,
+    #[serde(default, skip_serializing_if = "is_no_octave")]
+    pub octave: i32,
+}
+
+fn is_no_octave(x: &i32) -> bool {
+    *x == 0
+}
+
+impl Part {
+    /// the part `bp` has this one play the notes of, and the semitones they move by: its own, unmoved, unless it
+    /// doubles another (`doubles`) and has no notes of its own written out
+    pub fn source<'a>(&'a self, bp: &'a Blueprint) -> (&'a Part, i32) {
+        let doubled = self
+            .doubles
+            .as_deref()
+            .filter(|_| self.notes.is_empty())
+            .and_then(|d| bp.parts.iter().find(|p| p.name == d && p.name != self.name && p.doubles.is_none()));
+        doubled.map_or((self, 0), |p| (p, 12 * self.octave))
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -358,6 +382,11 @@ pub struct LoopPart {
     pub chop: Vec<i32>,
     #[serde(default)]
     pub slice_beats: f64,
+    /// Its slices (`slice_beats` of its own beats) each start on the song's beat for them, at the loop's own speed (only
+    /// `transpose` resamples it): a phrase or a break played at a tempo it was not played at, its rhythm on the song's
+    /// grid and its pitch kept. A faster song cuts each slice short, a slower one leaves a gap after it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub retime: bool,
     #[serde(default)]
     pub mix: TrackMix,
     /// a take (a recording made for the song): it plays once from the start of this section, and on through the
@@ -641,6 +670,9 @@ pub struct Track {
     pub chop: Vec<i32>,
     #[serde(default)]
     pub slice_beats: f64,
+    /// a loop's slices each start on the song's beat for them, at its own speed (`LoopPart::retime`)
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub retime: bool,
     #[serde(default)]
     pub choke: Option<String>,
     #[serde(default)]

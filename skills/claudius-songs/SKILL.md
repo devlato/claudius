@@ -34,8 +34,10 @@ judges it. You do the work; the person you make music with decides what sounds g
 2. **Start.** `new_song` with a genre (and seed, bpm, key if they matter) gives a complete, arranged song in 10 to
    60 seconds. A song built on samples (trip-hop, boom bap, lo-fi, jungle, big beat and filter house are; any other
    genre with `sampled: true`, or `sample_search` naming a kind of record such as "70s soul") gathers a few first, a
-   minute or two more. A script that begins with `blank("<genre>")` builds one from your own patterns instead. Use the
-   generator when the person wants a song; use patterns when they describe the parts.
+   minute or two more. `complexity` says how layered it is: 0.8 to 1 for a full, layered or lush song (its harmony and
+   lead doubled on second instruments, a counter-melody, a pad, more percussion), 0.1 to 0.3 for a sparse or minimal
+   one; leave it out for the genre as written. A script that begins with `blank("<genre>")` builds one from your own
+   patterns instead. Use the generator when the person wants a song; use patterns when they describe the parts.
 3. **Listen.** Every edit through the tools renders and returns the verdict. On the command line, `claudius script`
    and `claudius render` write the folder and print the verdict.
 4. **Change one thing**, from what the person says or from the verdict's "Fix first" list, then listen again. A

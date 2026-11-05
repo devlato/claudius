@@ -51,6 +51,7 @@ them.
 | `--sampled` | as the genre is | builds it on samples from free libraries, as the genre's producers sample: a phrase it takes its key, tempo and chords from, a break, a texture ([Songs built on samples](online-samples.md#songs-built-on-samples)); trip-hop, boom bap, lo-fi, jungle, big beat and filter house are by default |
 | `--unsampled` | off | makes it of the genre's own sounds, without samples from free libraries |
 | `--sample-search <words>` | none | searches the libraries for its phrase with your words, a kind of record (`"70s soul"`, `"bossa nova guitar"`); implies `--sampled` |
+| `--complexity <0..1>` | the genre's own | how [layered](../learn/producers/genres-and-evolution.md#how-layered-a-song-is) it is: 0 the genre's core, 0.5 the genre as written, 1 its harmony and lead doubled on second instruments, a counter-melody, a pad, more percussion, samples on samples |
 | `--no-ears` | off | judges with meters and theory only, without loading earshot's models |
 | `--refs <path>` | none | reference tracks or folders; with two or more, the verdict scores how typical the song is of them |
 | `--tags` | off | also runs the AudioSet tagger and prints its labels as held-out evidence |

@@ -481,6 +481,7 @@ mod tests {
             loops: false,
             sampled: None,
             sample_search: None,
+            complexity: None,
         };
         assert!(app.command(song).ok);
         let (status, _, body) = ask(&r, get("/api/song", c)).await;
@@ -532,6 +533,7 @@ mod tests {
             loops: false,
             sampled: None,
             sample_search: None,
+            complexity: None,
         };
         assert!(app.command(song).ok);
         let from = app.state().song.unwrap().sections[0].name.clone();

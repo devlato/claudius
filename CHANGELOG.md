@@ -10,6 +10,22 @@ The phone plays the song in the studio as well as following it: **▶** plays it
 trip to the computer. With the song stopped, ● starts it a bar before the section it is at, and the take starts with
 that section.
 
+A new song can be as layered as you like: **Layers** in the New song dialog, `--complexity` on the command line and
+`complexity` in `new_song` and `song()`, from 0 to 1. At 0.5 a song is its genre as written; toward 1 its harmony and
+lead are doubled on second instruments (an octave up, or in unison on another sound), its bass an octave up through a
+high-pass, and a counter-melody, an arpeggio over the hooks, a pad, a clap on the snare, a shaker and a percussion line
+come in where the song lifts, with more of the samples a sampled genre colours its songs with and the drums a break
+stands in for played over it. Toward 0 it is thinned to its core. A double is a part that plays another part's notes
+(`doubles` and `octave` in `part()`), so it follows that part through edits and mutations.
+
+A sample doesn't always play slowed down or sped up to the song's tempo. A phrase can also be chopped onto the song's
+grid at its own pitch, at two thirds, three quarters, four thirds or three halves of its tempo, as an MPC chops a
+record: each half beat plays from the song's half beat, so its bars and chords line up. A 120 BPM record plays at its
+own pitch in a boom bap song at 90. The song's seed picks among the ways that suit the record and the genre: chopping
+suits a record with a clear pulse in a genre that chops, and house still speeds its records up. A break off the song's
+tempo is chopped onto the grid too, rather than stretched, so its hits stay crisp. In the web demo, where nothing
+stretches, a phrase no speed fits now plays chopped instead of being left out.
+
 On a phone playing along, a quick second tap plays again instead of zooming the page in, wherever it lands, and two
 fingers apart are two fingers rather than a pinch. The pads and the keys are drawn on a canvas, where every finger is
 its own, so several play at once and a finger slid along the keys glides from key to key.

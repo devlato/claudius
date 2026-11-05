@@ -276,6 +276,9 @@ pub struct GenreInfo {
     /// what its songs built on samples dig for (none: a genre of one's own that says nothing of it)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sampling: Option<GenreSampling>,
+    /// how layered its songs are when nobody says (`new_song`'s `complexity`); none: 0.5, as the genre is written
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub complexity: Option<f64>,
 }
 
 /// What a genre's songs built on samples dig for in free libraries (`new_song`'s `sampled`).
@@ -1072,6 +1075,10 @@ pub enum Command {
         /// genre's producers dig for, one picked at random
         #[serde(default, skip_serializing_if = "Option::is_none")]
         sample_search: Option<String>,
+        /// how layered it is, from 0 (the genre's core, sparse) through 0.5 (the genre as written) to 1 (instruments
+        /// doubled on instruments, a counter-melody, more percussion, samples on samples); none: the genre's own
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        complexity: Option<f64>,
     },
     /// ask the person for a take that starts with section `from`: the studio's Record window opens for it, saying
     /// `note`, and the take sent for it answers the request (`State.take_request`)

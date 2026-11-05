@@ -146,6 +146,7 @@ impl Mock {
             loops: false,
             sampled: None,
             sample_search: None,
+            complexity: None,
         };
         engine.command(OPENING, &first);
         Mock {
@@ -246,6 +247,7 @@ impl Mock {
                         loops: false,
                         sampled: None,
                         sample_search: None,
+                        complexity: None,
                     };
                     self.engine.command(&what, &song);
                     self.waiting += 1;
@@ -808,6 +810,7 @@ mod tests {
             loops: false,
             sampled: None,
             sample_search: None,
+            complexity: None,
         });
         let shown = mock.update(now);
         let busy = shown.iter().find_map(|e| if let Event::State(s) = e { s.busy.clone() } else { None });
@@ -839,6 +842,7 @@ mod tests {
             loops: false,
             sampled,
             sample_search: sample_search.map(str::to_string),
+            complexity: None,
         };
         mock.send(house(None, None));
         assert!(mock.sampling.is_none(), "house is not sampled unless asked");
@@ -863,6 +867,7 @@ mod tests {
             loops: false,
             sampled: None,
             sample_search: None,
+            complexity: None,
         });
         assert!(mock.sampling.is_some());
         mock.send(Command::Load { path: "elsewhere/song.json".into() });
@@ -874,6 +879,7 @@ mod tests {
             loops: false,
             sampled: None,
             sample_search: None,
+            complexity: None,
         });
         until(&mut mock, &mut now, |m| m.waiting == 0);
         assert!(mock.sampling.is_some(), "a song that could not be made takes nothing's place");
@@ -885,6 +891,7 @@ mod tests {
             loops: false,
             sampled: None,
             sample_search: None,
+            complexity: None,
         });
         until(&mut mock, &mut now, |m| m.waiting == 0);
         assert!(mock.sampling.is_none(), "the gathering for the trip-hop song stops once the dnb song is made");
@@ -907,6 +914,7 @@ mod tests {
             loops: false,
             sampled: None,
             sample_search: None,
+            complexity: None,
         });
         until(&mut mock, &mut now, |m| m.waiting == 0);
         let song = mock.state.song.as_ref().unwrap();

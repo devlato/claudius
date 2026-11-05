@@ -77,6 +77,25 @@ fn colour(role: Role, rng: &mut Rng) -> Effect {
     }
 }
 
+/// a part's sends moved, and now and then a colour of its role on it, from `sends` and `colours`
+fn sends_and_colour(p: &mut Part, sends: &mut Rng, colours: &mut Rng) {
+    p.mix.reverb = by(p.mix.reverb, 1.5, sends).clamp(0.0, 0.8);
+    p.mix.delay = by(p.mix.delay, 1.7, sends).clamp(0.0, 0.6);
+    if colours.chance(0.4) {
+        let e = colour(p.role, colours);
+        // one of each kind: a part with a phaser of its genre's keeps that one
+        if !p.mix.fx.iter().any(|f| f.name() == e.name()) {
+            p.mix.fx.push(e);
+        }
+    }
+}
+
+/// one part's sends and colour as `vary` gives a song's, from draws of its own (`rng`): a part a song adds to those its
+/// genre writes, so that theirs stay as they were
+pub fn vary_part(p: &mut Part, rng: &Rng) {
+    sends_and_colour(p, &mut rng.fork("sends"), &mut rng.fork("colours"));
+}
+
 /// `mix` and the parts' own mixes varied for one song (the module's doc says how). Each change draws from a fork of
 /// `rng` of its own, so that changing one leaves the others' draws as they were.
 pub fn vary(mix: &mut MixPlan, parts: &mut [Part], rng: &Rng) {
@@ -102,15 +121,7 @@ pub fn vary(mix: &mut MixPlan, parts: &mut [Part], rng: &Rng) {
     }
     let (mut sends, mut colours) = (rng.fork("sends"), rng.fork("colours"));
     for p in parts.iter_mut() {
-        p.mix.reverb = by(p.mix.reverb, 1.5, &mut sends).clamp(0.0, 0.8);
-        p.mix.delay = by(p.mix.delay, 1.7, &mut sends).clamp(0.0, 0.6);
-        if colours.chance(0.4) {
-            let e = colour(p.role, &mut colours);
-            // one of each kind: a part with a phaser of its genre's keeps that one
-            if !p.mix.fx.iter().any(|f| f.name() == e.name()) {
-                p.mix.fx.push(e);
-            }
-        }
+        sends_and_colour(p, &mut sends, &mut colours);
     }
     // the music high-passed in the breaks, as if the room emptied
     let mut r = rng.fork("room");

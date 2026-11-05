@@ -94,6 +94,7 @@ pub fn add(
         transpose: 0,
         chop: Vec::new(),
         slice_beats: 0.0,
+        retime: false,
         mix: TrackMix { reverb: 0.12, bus: "music".into(), ..Default::default() },
         from: Some(from.to_string()),
         sampled: false,
@@ -617,6 +618,8 @@ fn parts_from_notes(
             seed,
             notes: by_prog.clone(),
             mix: TrackMix { reverb: 0.15, bus: "music".into(), ..Default::default() },
+            doubles: None,
+            octave: 0,
         });
         for &i in &sections {
             bp.form[i].layers.push(name.clone());

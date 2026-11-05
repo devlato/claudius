@@ -22,8 +22,10 @@ use crate::theory::scale::{Key, Mode};
 use crate::theory::{ChordSpan, Note, bass, melody, progression};
 
 mod arrange;
+mod layers;
 
 pub use arrange::{arrange, cycle_spans, cycles, part_cycle};
+pub use layers::{chance_at, left_out_at, reach};
 
 /// a loop family picked for a song: loops produced to play together (one tempo, one key), with the chords of the
 /// harmony loop read bar by bar
@@ -84,6 +86,10 @@ pub struct Options {
     pub sampled: Option<bool>,
     /// what its phrase is searched for ("70s soul"); none: what the genre's producers sample
     pub sample_search: Option<String>,
+    /// how many layers it plays, from 0 (its genre's core, sparse) through 0.5 (the genre as its profile has it) to
+    /// 1 (instruments doubled on instruments, a counter-melody, more percussion, samples on samples); none: the
+    /// genre's own (`complexity` in its profile)
+    pub complexity: Option<f64>,
 }
 
 impl Default for Options {
@@ -98,6 +104,7 @@ impl Default for Options {
             family: false,
             sampled: None,
             sample_search: None,
+            complexity: None,
         }
     }
 }
@@ -253,7 +260,10 @@ pub fn made_level(g: &GenreProfile, track: &str) -> f32 {
         "beat" => return FAMILY_BEAT_DB,
         _ => None,
     };
-    sampled.map_or(0.0, |n| n.mix.level_db)
+    match sampled {
+        Some(n) => n.mix.level_db,
+        None => layers::made_level(g, track).unwrap_or(0.0),
+    }
 }
 
 /// The synth presets that fit a genre's parts of `role`: those its own parts name (each entry's preset, or the synth
@@ -421,6 +431,16 @@ fn vary_patch(name: &str, rng: &mut Rng) -> Sound {
     Sound::Synth { preset: name.to_string(), patch }
 }
 
+/// Whether a song plays a part (or a loop) its genre leaves out with the chance `optional`, as written (at 0.5) and at
+/// `complexity`, from one draw of `rng` when it is optional
+fn kept(optional: f64, complexity: f64, rng: &mut Rng) -> (bool, bool) {
+    if optional <= 0.0 {
+        return (true, true);
+    }
+    let u = rng.f64();
+    (u >= optional, u >= left_out_at(optional, complexity))
+}
+
 /// the creative step: a blueprint from a genre profile and a seed
 pub fn generate(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn Library>) -> Blueprint {
     let family = if opts.family { lib.and_then(|l| l.family(g, &mut Rng::new(seed ^ 0xfa))) } else { None };
@@ -438,7 +458,17 @@ pub fn generate(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn Li
         }
     }
     let add = |bp: &mut Blueprint, name: &str, role: &str, sound: Sound, mix: TrackMix| {
-        bp.parts.retain(|p| p.name != name);
+        // the part the loop takes the place of goes, and its doubles with it, from the sections too
+        let gone: Vec<String> = bp
+            .parts
+            .iter()
+            .filter(|p| p.name == name || p.doubles.as_deref() == Some(name))
+            .map(|p| p.name.clone())
+            .collect();
+        bp.parts.retain(|p| !gone.contains(&p.name));
+        for s in bp.form.iter_mut() {
+            s.layers.retain(|l| l == name || !gone.contains(l));
+        }
         bp.loops.retain(|l| l.name != name);
         bp.loops.push(LoopPart {
             name: name.into(),
@@ -447,6 +477,7 @@ pub fn generate(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn Li
             transpose: 0,
             chop: Vec::new(),
             slice_beats: 0.5,
+            retime: false,
             mix,
             from: None,
             sampled: false,
@@ -490,19 +521,25 @@ pub fn generate(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn Li
             s.layers.push(harmony_name.into());
         }
     }
-    bp.lineage = vec![format!(
+    // what was generated, said again; what else it says (how it was layered, what it sampled) stays
+    let generated = format!(
         "generated: {} seed {seed} around the Apple Loops family '{}' ({:.0} BPM, {}, chords {})",
         g.name,
         f.name,
         f.bpm,
         f.key.name(),
         prog.join(" ")
-    )];
+    );
+    match bp.lineage.first_mut() {
+        Some(first) => *first = generated,
+        None => bp.lineage.push(generated),
+    }
     bp
 }
 
 fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn Library>) -> Blueprint {
     let mut rng = Rng::new(seed);
+    let complexity = opts.complexity.unwrap_or(g.complexity).clamp(0.0, 1.0);
     // drawn even when given, so that a tempo or a key of your own changes only that, not the rest of the song
     let drawn_bpm = rng.range(g.bpm.0, g.bpm.1).round();
     let bpm = opts.bpm.unwrap_or(drawn_bpm);
@@ -657,17 +694,25 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
         });
     }
 
-    // parts
+    // parts: each the genre plays as written drawn (and coloured, below) as it would be, kept or not, so that the
+    // others come out the same at any complexity; one only a more layered song plays, after them from its own fork
     let mut pr = rng.fork("parts");
-    let mut parts = Vec::new();
+    let mut written = Vec::new();
     let available = palette::instruments();
     let mut used = BTreeSet::new();
+    let mut late = Vec::new();
     for spec in &g.parts {
-        if spec.optional > 0.0 && pr.chance(spec.optional) {
-            continue;
+        let (as_written, kept) = kept(spec.optional, complexity, &mut pr);
+        if as_written {
+            written.push((new_part(spec, g, &available, &mut used, &mut pr), kept));
+        } else if kept {
+            late.push((written.iter().filter(|w| w.1).count(), spec));
         }
-        parts.push(new_part(spec, g, &available, &mut used, &mut pr));
     }
+    let late: Vec<(usize, Part)> = late
+        .into_iter()
+        .map(|(at, spec)| (at, new_part(spec, g, &available, &mut used, &mut pr.fork(&spec.name))))
+        .collect();
 
     // loops from the library
     let mut lr = rng.fork("loops");
@@ -676,10 +721,13 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
         && let Some(l) = lib
     {
         for spec in &g.loops {
-            if spec.optional > 0.0 && lr.chance(spec.optional) {
-                continue;
-            }
-            if let Some((sound, transpose)) = l.find_loop(spec, g, bpm, &key, &mut lr) {
+            let (as_written, kept) = kept(spec.optional, complexity, &mut lr);
+            let found = match as_written {
+                true => l.find_loop(spec, g, bpm, &key, &mut lr),
+                false if kept => l.find_loop(spec, g, bpm, &key, &mut lr.fork(&spec.name)),
+                false => None,
+            };
+            if kept && let Some((sound, transpose)) = found {
                 loops.push(LoopPart {
                     name: spec.name.clone(),
                     role: spec.role.clone(),
@@ -687,6 +735,7 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
                     transpose,
                     chop: Vec::new(),
                     slice_beats: 0.5,
+                    retime: false,
                     mix: spec.mix.clone(),
                     from: None,
                     sampled: false,
@@ -723,7 +772,14 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
         master: Master { fx: g.mix.master.clone(), lufs: g.mix.lufs, ceiling_db: -1.0 },
     };
     // a mix of its own
+    let (mut parts, keep): (Vec<Part>, Vec<bool>) = written.into_iter().unzip();
     crate::colour::vary(&mut mix, &mut parts, &rng.fork("colour"));
+    let mut parts: Vec<Part> = parts.into_iter().zip(keep).filter_map(|(p, k)| k.then_some(p)).collect();
+    for (at, mut part) in late.into_iter().rev() {
+        let own = rng.fork("colour").fork(&part.name);
+        crate::colour::vary_part(&mut part, &own);
+        parts.insert(at, part);
+    }
     let mut bp = Blueprint {
         version: crate::model::BLUEPRINT_FORMAT,
         title: title(&mut rng.fork("title")),
@@ -746,6 +802,7 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
     };
     // the samples a sampling genre is built on
     crate::sampling::apply(&mut bp, g, opts, lib, &rng.fork("sampling"));
+    layers::layer(&mut bp, g, complexity, lib, &rng.fork("layers"));
     bp
 }
 
@@ -785,6 +842,8 @@ pub fn new_part(
         seed: rng.next_u64(),
         notes: BTreeMap::new(),
         mix,
+        doubles: spec.doubles.clone(),
+        octave: spec.octave,
     }
 }
 
@@ -840,6 +899,7 @@ pub fn add_sample(bp: &mut Blueprint, path: &str, bpm: f64, beats: f64, key: Opt
         transpose,
         chop: chop.clone(),
         slice_beats: 0.5,
+        retime: false,
         mix: TrackMix { duck: 0.4, reverb: 0.15, bus: "music".into(), ..Default::default() },
         from: None,
         sampled: false,
