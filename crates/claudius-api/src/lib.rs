@@ -276,7 +276,7 @@ pub struct GenreSampling {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct SampleRoleInfo {
-    /// `phrase`, `break` or `texture`
+    /// `phrase`, `break`, `texture` or `vocal`
     pub role: String,
     /// the kinds of record it is searched for ("disco", "gospel choir"), a song trying them in an order its seed picks
     pub search: Vec<String>,

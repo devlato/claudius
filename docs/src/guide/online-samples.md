@@ -93,6 +93,7 @@ Gathering downloads recordings of a fitting length and cuts each on its beat gri
 | break | whole bars of the break, and its kick, snare and hat | as a loop track (`break`), re-chopped at times, where the genre's sections list it, else in place of the layers the profile names (trip-hop's kit, house's top loop and shaker); the drum lanes it stands in for play the break's own hits |
 | phrase | the two bars the ears hear as most like what was asked for ("dark cinematic orchestral strings", or your words; without the ears, the loudest), rather two the recording plays again, which loop as it does, with their key and chords; and two bars of another passage, from another section of the recording or on other chords | as a loop track (`sample`) in place of the genre's chords or keys; the song takes its key, its tempo and its chords as progression A. The other passage plays as `sample2` in some of the sections that list the phrase, on its own chords as progression A2 (the genre's B stays the contrast it gives the sections on it): the louder of the two where the song lifts (its drops and hooks) and the other elsewhere, or every other section in a song that only lifts or never does. A genre with no major mode plays a major phrase in its relative minor |
 | texture | sixteen seconds from the middle | as a loop track (`texture`) under the song |
+| vocal | a note a voice holds, chopped: the steadiest and loudest of about a third of a second (with the ears, the one of the best eight most like what was asked for), with the note it was sung at | as a part (`vox`) in the drops and hooks (else the loudest sections) that plays the chop as a sampler would: moved from where it was sung to the song's chords, as a lead's motif or an arpeggio within a fifth of it, through a vocal's mix (a high-pass at 200 Hz, a little presence, compression, reverb and delay). Garage, future bass and house chop one most often; trip-hop, boom bap, lo-fi, jungle and drum & bass now and then |
 
 A phrase plays as a sampler plays a record: faster or slower by whole semitones, its pitch moving with its tempo,
 until its tempo (or half or twice it) falls in the genre's range. A soul record at 98 BPM plays four semitones up in a
@@ -130,8 +131,8 @@ that a recording gathered for two of them is cut for each, each with its recordi
 The studio and an assistant gather the way `claudius make` does. A new song built on samples whose genre (or words)
 has fewer of a role than it keeps starts a job, *sampling for house*, that gathers up to two more of each, then makes
 the song with them. Its log shows each recording tried. **Stop** ends the gathering, and the song is made with what
-is there. So a genre's collection grows with its songs, to the number its profile keeps (eight phrases, six breaks
-and three textures for trip-hop), and each song draws one of each by its seed. A role the libraries had nothing more
+is there. So a genre's collection grows with its songs, to the number its profile keeps (eight phrases, six breaks,
+three textures and four vocals for trip-hop), and each song draws one of each by its seed. A role the libraries had nothing more
 of is not searched again until claudius starts again. A claudius shared with others (`--root`) and
 `claudius studio --offline` gather nothing: they play what was gathered before, or what stands in for it.
 

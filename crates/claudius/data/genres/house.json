@@ -272,6 +272,13 @@
       "pitch": [-2, 5],
       "instead": ["chords"],
       "mix": {"bus": "music", "duck": 0.35, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 180, "res": 0.05}]}
+    },
+    "vocal": {
+      "search": ["gospel vocal", "diva vocal", "soul vocal", "female vocal", "a cappella", "disco vocal"],
+      "listen": "a soulful woman singing a held note",
+      "seconds": [1, 400],
+      "keep": 4,
+      "chance": 0.6
     }
   },
   "transitions": {

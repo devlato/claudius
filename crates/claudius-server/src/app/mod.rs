@@ -555,6 +555,7 @@ mod tests {
             source: format!("freesound:{path}"),
             asked: None,
             second: None,
+            root: None,
         }
     }
 
@@ -578,12 +579,12 @@ mod tests {
         let plain = claudius::compose::Options::default();
         assert_eq!(
             wanted(&app(Some(Vec::new()), false), &g, &plain).as_deref(),
-            Some("a break, a phrase and a texture")
+            Some("a break, a phrase, a texture and a vocal")
         );
         let some = vec![sample(Role::Break, "/b.wav")];
         assert_eq!(
             wanted(&app(Some(some), false), &g, &plain).as_deref(),
-            Some("another break, a phrase and a texture"),
+            Some("another break, a phrase, a texture and a vocal"),
             "each new song brings a few more, until the genre has as many as it keeps"
         );
         assert_eq!(wanted(&app(Some(shelf()), false), &g, &plain), None);
@@ -594,7 +595,7 @@ mod tests {
         let asked = claudius::compose::Options { sample_search: Some("70s soul".into()), ..Default::default() };
         assert_eq!(
             wanted(&app(Some(Vec::new()), false), &house, &asked).as_deref(),
-            Some("a break and a phrase for \"70s soul\"")
+            Some("a break, a phrase for \"70s soul\" and a vocal")
         );
         let shared = app(Some(Vec::new()), true);
         assert_eq!(wanted(&shared, &g, &plain), None, "a shared claudius gathers nothing");
@@ -607,7 +608,7 @@ mod tests {
         let g = genres::get("trip_hop").unwrap();
         app.dug_out.lock().unwrap().insert(jobs::sampling_key(&g, Role::Texture, None));
         let plain = claudius::compose::Options::default();
-        assert_eq!(app.samples_wanted(&g, &plain).as_deref(), Some("a break and a phrase"));
+        assert_eq!(app.samples_wanted(&g, &plain).as_deref(), Some("a break, a phrase and a vocal"));
     }
 
     #[test]

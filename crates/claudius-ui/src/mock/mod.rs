@@ -871,7 +871,7 @@ mod tests {
         let worker = include_str!("../../../../site/worker/index.js");
         assert!(worker.contains(r"const WORDS = /^[\p{L}\p{N}][\p{L}\p{N} &'.-]{0,59}$/u;"), "the Worker's words");
         for g in claudius::genres::all().unwrap() {
-            for r in g.sampling.iter().flat_map(|s| [&s.drum_break, &s.phrase, &s.texture]).flatten() {
+            for r in g.sampling.iter().flat_map(|s| [&s.drum_break, &s.phrase, &s.texture, &s.vocal]).flatten() {
                 for q in &r.search {
                     let ok = q.chars().count() <= 60
                         && q.chars().next().is_some_and(char::is_alphanumeric)

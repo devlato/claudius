@@ -170,6 +170,13 @@
       "pitch": [-3, 5],
       "instead": ["pad"],
       "mix": {"bus": "music", "duck": 0.35, "reverb": 0.2, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 200, "res": 0.05}]}
+    },
+    "vocal": {
+      "search": ["female vocal", "pop vocal", "vocal phrase", "a cappella"],
+      "listen": "a bright woman's voice singing a held note",
+      "seconds": [1, 400],
+      "keep": 4,
+      "chance": 0.8
     }
   },
   "transitions": {

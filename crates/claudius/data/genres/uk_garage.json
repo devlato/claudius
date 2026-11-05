@@ -152,6 +152,13 @@
       "pitch": [-2, 5],
       "instead": ["chords"],
       "mix": {"bus": "music", "duck": 0.3, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 200, "res": 0.05}]}
+    },
+    "vocal": {
+      "search": ["r&b vocal", "female vocal", "soul vocal", "gospel vocal", "a cappella"],
+      "listen": "a smooth r&b voice singing",
+      "seconds": [1, 400],
+      "keep": 4,
+      "chance": 0.7
     }
   },
   "transitions": {"riser": true, "impact": true, "downlifter": true, "reverse_crash": true, "riser_bars": 4, "mix": {"bus": "fx", "reverb": 0.25, "level_db": -3}},
