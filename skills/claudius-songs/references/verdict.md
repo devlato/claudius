@@ -8,7 +8,7 @@ command line it is `verdict.json` in the song's folder, and `claudius judge song
 
 | score | listens to | weight |
 |---|---|---|
-| mix | loudness, true peak, the balance of six frequency bands, stereo width, a mono low end | 0.30 |
+| mix | loudness, true peak, the balance of six frequency bands, stereo width, a mono low end, each track's level against its role's | 0.30 |
 | arc | whether loudness follows the arrangement, and the drop against the break | 0.20 |
 | theory | the lead and bass against the key and chords, voice leading, the form | 0.20 |
 | genre | whether it sounds like its genre more than the genres it is confused with, and more than stock background music (needs the models) | 0.15 |
@@ -60,6 +60,13 @@ moves them a little; leave them when that dusty sound is what the person asked f
 - `too wide / phasey`: bring pans back toward the middle and lower the effect sends.
 - `low end not mono`: keep the kick and bass in the centre (`pan: 0`), and take wide effects off them.
 
+### A track's level (`level:<track>+` too loud, `level:<track>-` too quiet)
+
+- `chords is 9.0 dB louder than the chords level: it covers the rest`: the mixer sets every track to its role's
+  level in the genre, and a track's `level` moves it from there. Bring it back within 3 dB of it:
+  `mix("chords", #{ level: 0 })` is the role's own level, and `level: 2` a little over it. The master's meters can't
+  hear one track drowning the others, so this issue may be the only sign of it.
+
 ### The arrangement (`form`)
 
 - `the drop is only 1.8 LU louder than the breakdown (aim for 3-7)`: thin the break (fewer layers:
@@ -79,6 +86,12 @@ moves them a little; leave them when that dusty sound is what the person asked f
 - `the bass plays the chord root on only 40% of chord changes`: `chord("prog").root()` for a pattern bass, or a
   bass style that lands on the root (`part("bass", #{ style: "root8" })`).
 - `chords: voices jump 7.5 semitones per chord change`: `.voicing()` on a pattern, which leads voices smoothly.
+
+### A part's sound (`sound:<part>`)
+
+- `chords plays synth patch 'whistle', which house has no place for`: give the part one of the sounds its genre
+  plays (`get_song` lists the presets each part offers), such as `part("chords", #{ preset: "epiano" })` in house.
+  When the person asked for that sound, keep it and say why the critic counts it against the song.
 
 ### What the models hear (`genre`, `production`)
 

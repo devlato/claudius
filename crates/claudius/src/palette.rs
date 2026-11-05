@@ -223,6 +223,35 @@ fn players(kind: &str, role: Role, pool: &[&'static str]) -> Vec<&'static str> {
     if own.is_empty() && !PIERCING.contains(&kind) { among(&crate::synth::presets::drawable(role.name())) } else { own }
 }
 
+/// the installed instruments `palette` names (`pack:instrument`), its aliases answered by the installed packs
+fn named(palette: &RolePalette) -> Vec<String> {
+    palette
+        .instruments
+        .iter()
+        .filter_map(|n| {
+            if n.contains(':') { Some(n.clone()) } else { claudius_packs::resolve(n, None).map(|r| r.to_string()) }
+        })
+        .collect()
+}
+
+/// whether `i` may play for its kind where the palette's synths are `pool`: an instrument with the character of a
+/// synth where that synth is the palette's, one of a kind that pierces a mix where one of them stands in for it, and
+/// any other
+fn admitted(i: &Instrument, role: Role, pool: &[&'static str]) -> bool {
+    character(&i.name).map_or_else(
+        || !PIERCING.contains(&i.category.as_str()) || !players(&i.category, role, pool).is_empty(),
+        |s| pool.contains(&s),
+    )
+}
+
+/// Whether the installed instrument `name` is one a genre whose palette for `role` is `palette` has a place for: one
+/// it names, or one of a kind it lists and would draw. An instrument that is not installed is not judged.
+pub fn instrument_has_place(role: Role, palette: &RolePalette, name: &str) -> bool {
+    let Some(i) = instruments().into_iter().find(|i| i.name == name) else { return true };
+    named(palette).contains(&i.name)
+        || (palette.kinds.get(&i.category).is_some_and(|w| *w > 0.0) && admitted(&i, role, &pool(role, palette)))
+}
+
 /// every synth a draw from `palette` may play for a part of `role`
 pub fn synths_drawn(role: Role, palette: &RolePalette) -> Vec<&'static str> {
     let pool = pool(role, palette);
@@ -257,19 +286,10 @@ pub fn draw(
         return None;
     }
     let pool = pool(role, palette);
-    let named: Vec<String> = palette
-        .instruments
-        .iter()
-        .filter_map(|n| {
-            if n.contains(':') { Some(n.clone()) } else { claudius_packs::resolve(n, None).map(|r| r.to_string()) }
-        })
-        .collect();
-    let its = |kind: &str| !PIERCING.contains(&kind) || !players(kind, role, &pool).is_empty();
+    let named = named(palette);
     let fits: Vec<&Instrument> = available
         .iter()
-        .filter(|i| {
-            named.contains(&i.name) || character(&i.name).map_or_else(|| its(&i.category), |s| pool.contains(&s))
-        })
+        .filter(|i| named.contains(&i.name) || admitted(i, role, &pool))
         .filter(|i| suits(i, role, register) && !taken.contains(&i.name))
         .collect();
     // the synths that may play a kind, which no other part of the song plays
