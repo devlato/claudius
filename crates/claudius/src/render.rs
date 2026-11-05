@@ -537,8 +537,9 @@ fn split_track<'a>(p: &'a Project, name: &str) -> Result<(&'a Track, &'a voice::
     }
 }
 
-/// Where each of `parts` parts of the track `name` begins and ends in the song's samples, the first from its start and
-/// the last to the render's length, so that the notes that begin in each sound about as long as in any other.
+/// Where each of at most `parts` parts of the track `name` begins and ends in the song's samples, the first from its
+/// start and the last to the render's length, so that the notes that begin in each sound about as long as in any
+/// other; fewer when its notes begin in fewer places, and never one twice or empty.
 pub fn part_bounds(p: &Project, opts: &Options, name: &str, parts: usize) -> Result<Vec<std::ops::Range<usize>>> {
     let s = Song::of(p, opts)?;
     let (t, patch) = split_track(p, name)?;
@@ -553,9 +554,10 @@ pub fn part_bounds(p: &Project, opts: &Options, name: &str, parts: usize) -> Res
         }
         sum += l as f64;
     }
-    bounds.resize(parts.max(1), s.len);
     bounds.push(s.len);
-    Ok(bounds.windows(2).map(|w| w[0]..w[1].max(w[0])).collect())
+    // no stretch twice, and none empty: a track whose notes all begin together is one part
+    bounds.dedup();
+    Ok(bounds.windows(2).map(|w| w[0]..w[1]).collect())
 }
 
 /// The samples `range` of the track `name`'s source, as a render makes them there (`voice::render_range`): a part of a
@@ -1290,6 +1292,27 @@ mod tests {
             let (whole, whole_level) = track_sound(&p, &opts, &t.name).unwrap();
             assert!(joined.l == whole.l && joined.r == whole.r && level == whole_level, "{}", t.name);
         }
+        // notes that all begin together, or one note: never a stretch twice or an empty one, and still the track
+        let mut q = p.clone();
+        let at = q.tracks.iter().position(splits).unwrap();
+        for n in q.tracks[at].notes.iter_mut() {
+            n.t = 0.0;
+        }
+        let name = q.tracks[at].name.clone();
+        for notes in [None, Some(1)] {
+            if let Some(n) = notes {
+                q.tracks[at].notes.truncate(n);
+            }
+            let bounds = part_bounds(&q, &opts, &name, 3).unwrap();
+            assert!(!bounds.is_empty() && bounds.len() <= 3 && bounds.iter().all(|b| b.start < b.end), "{bounds:?}");
+            assert!(bounds[0].start == 0 && bounds.last().unwrap().end == len);
+            assert!(bounds.windows(2).all(|w| w[0].end == w[1].start), "{bounds:?}");
+            let parts: Vec<Stereo> = bounds.iter().map(|r| track_part(&q, &opts, &name, r.clone()).unwrap()).collect();
+            let (joined, _) = track_joined(&q, &opts, &name, &parts).unwrap();
+            assert!(joined.l == track_sound(&q, &opts, &name).unwrap().0.l);
+        }
+        let one = part_bounds(&q, &opts, &name, 3).unwrap();
+        assert!(one.len() == 1 && one[0] == (0..len), "one note is one part: {one:?}");
         // a mono synth glides one note into the next: it is made whole
         let mono = p.tracks.iter().find(|t| matches!(&t.sound, Sound::Synth { patch, .. } if patch.mono));
         if let Some(t) = mono {

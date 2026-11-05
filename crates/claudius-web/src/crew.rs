@@ -36,10 +36,10 @@ pub fn serve(scope: DedicatedWorkerGlobalScope) {
     post(&scope, &serde_json::json!({ "ready": true }), None);
 }
 
-/// The parts of a track and the tracks a message asks for (`{"make": {"project", "parts": [{"name", "from", "to"}],
-/// "tracks", "audio": [{"path", "frames"}]}}`, the audio one interleaved array after another), the parts first, each
-/// posted as it is made: `{"part": {"name", "from", "to"}}` or `{"made": {"name", "level"}}` with its sound, or
-/// `{"made": {"name", "error"}}`.
+/// The parts of a track and the tracks a message asks for (`{"make": {"project", "parts": [{"name", "index", "from",
+/// "to"}], "tracks", "audio": [{"path", "frames"}]}}`, the audio one interleaved array after another), the parts first,
+/// each posted as it is made: `{"part": {"name", "index", "from", "to"}}` or `{"made": {"name", "level"}}` with its
+/// sound, or `{"made": {"name", "error"}}`.
 fn make(scope: &DedicatedWorkerGlobalScope, m: &MessageEvent) {
     let data = m.data();
     let Some(text) = js_sys::Reflect::get(&data, &"json".into()).ok().and_then(|j| j.as_string()) else { return };
@@ -70,7 +70,8 @@ fn make(scope: &DedicatedWorkerGlobalScope, m: &MessageEvent) {
         });
         match made {
             Ok(sound) => {
-                let json = serde_json::json!({ "part": { "name": name, "from": from, "to": to } });
+                let json =
+                    serde_json::json!({ "part": { "name": name, "index": part["index"], "from": from, "to": to } });
                 post(scope, &json, Some(js_sys::Float32Array::from(sound.interleaved().as_slice())));
             }
             Err(error) => post(scope, &serde_json::json!({ "made": { "name": name, "error": error } }), None),
@@ -167,12 +168,15 @@ impl Crew {
         Some(Said::Made(Made { name, key, sound, level: made["level"].as_f64() }))
     }
 
-    /// A part of the track it makes in parts (`{"part": {"name", "from", "to"}}` with its sound): kept, and once every
-    /// part is in, the track they make together, through its effects as a render makes it.
+    /// A part of the track it makes in parts (`{"part": {"name", "index", "from", "to"}}` with its sound): kept, and
+    /// once every part is in, the track they make together, through its effects as a render makes it.
     fn part(&mut self, part: &serde_json::Value, data: &JsValue) -> Option<Said> {
         let s = self.split.as_mut().filter(|s| part["name"].as_str() == Some(s.name.as_str()))?;
-        let from = part["from"].as_u64()? as usize;
-        let i = s.bounds.iter().position(|b| b.start == from && Some(b.end as u64) == part["to"].as_u64())?;
+        let i = part["index"].as_u64()? as usize;
+        let b = s.bounds.get(i)?;
+        if part["from"].as_u64() != Some(b.start as u64) || part["to"].as_u64() != Some(b.end as u64) {
+            return None;
+        }
         let samples = js_sys::Reflect::get(data, &"audio".into()).ok()?.dyn_into::<js_sys::Float32Array>().ok()?;
         s.parts[i] = Some(Stereo::from_interleaved(&samples.to_vec()));
         if s.parts.iter().any(Option::is_none) {
@@ -222,7 +226,7 @@ pub fn start(make: &ToMake, size: usize, heard: impl Fn(usize, JsValue) + Clone 
     let split = make.tracks.first().and_then(|(name, key, cost)| {
         let track = make.project.tracks.iter().find(|t| t.name == *name)?;
         let heavy = *cost > total / size as f64 && render::splits(track);
-        let bounds = render::part_bounds(&make.project, &opts, name, size).ok().filter(|_| heavy)?;
+        let bounds = render::part_bounds(&make.project, &opts, name, size).ok().filter(|b| heavy && b.len() >= 2)?;
         Some(Split {
             name: name.clone(),
             key: *key,
@@ -236,9 +240,8 @@ pub fn start(make: &ToMake, size: usize, heard: impl Fn(usize, JsValue) + Clone 
     let n = if split.is_some() { size } else { size.min(whole.len()) };
     let mut shares: Vec<(f64, Vec<&str>)> = vec![(0.0, Vec::new()); n];
     if let Some(s) = &split {
-        let each = make.tracks[0].2 / n as f64;
-        shares.iter_mut().for_each(|(load, _)| *load += each);
-        debug_assert_eq!(s.bounds.len(), n);
+        let each = make.tracks[0].2 / s.bounds.len() as f64;
+        shares.iter_mut().take(s.bounds.len()).for_each(|(load, _)| *load += each);
     }
     for (name, _, cost) in whole {
         let least = (0..n).min_by(|&a, &b| shares[a].0.total_cmp(&shares[b].0)).unwrap_or(0);
@@ -250,7 +253,7 @@ pub fn start(make: &ToMake, size: usize, heard: impl Fn(usize, JsValue) + Clone 
         .map(|i| {
             let s = split.as_ref()?;
             let b = s.bounds.get(i)?;
-            Some(serde_json::json!({ "name": s.name, "from": b.start, "to": b.end }))
+            Some(serde_json::json!({ "name": s.name, "index": i, "from": b.start, "to": b.end }))
         })
         .collect();
     let mut crew = Crew {
