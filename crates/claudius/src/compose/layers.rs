@@ -636,6 +636,56 @@ mod tests {
         assert_eq!(own.source(&gone).0.name, double.name);
     }
 
+    /// a library with one loop family, of chords and a bass, and nothing else
+    struct Family;
+
+    impl Library for Family {
+        fn one_shot(&self, _: &str, _: &[String], _: &GenreProfile, _: &mut Rng) -> Option<Sound> {
+            None
+        }
+        fn find_loop(&self, _: &LoopSpec, _: &GenreProfile, _: f64, _: &Key, _: &mut Rng) -> Option<(Sound, i32)> {
+            None
+        }
+        fn family(&self, _: &GenreProfile, _: &mut Rng) -> Option<FamilyPick> {
+            let lp = |name: &str| Sound::Loop {
+                path: format!("demo:{name}"),
+                bpm: 120.0,
+                beats: 16.0,
+                key: Some(9),
+                tonal: true,
+                label: name.into(),
+            };
+            Some(FamilyPick {
+                name: "Test Family".into(),
+                bpm: 120.0,
+                key: Key::new(9, Mode::Minor),
+                progression: vec!["i".into(), "VI".into(), "III".into(), "VII".into()],
+                chords: vec![lp("chords")],
+                bass: Some(lp("bass")),
+                beat: None,
+            })
+        }
+    }
+
+    #[test]
+    fn a_loop_family_takes_the_place_of_a_part_and_of_its_doubles() {
+        let g = genres::get("house").unwrap();
+        let opts = Options { family: true, complexity: Some(1.0), ..Default::default() };
+        for seed in 0..8 {
+            let bp = generate(&g, seed, &opts, Some(&Family));
+            for p in bp.parts.iter().filter(|p| p.doubles.is_some()) {
+                assert!(p.source(&bp).0.name != p.name, "{seed}: {} doubles a part the family's loop replaced", p.name);
+            }
+            let names = bp.layer_names();
+            for s in &bp.form {
+                let gone = s.layers.iter().find(|l| l.ends_with("_double") && !names.contains(l));
+                assert!(gone.is_none(), "{seed} {}: {gone:?} plays in a section, its part gone", s.name);
+            }
+            assert!(bp.lineage[0].contains("around the Apple Loops family 'Test Family'"), "{:?}", bp.lineage);
+            assert!(bp.lineage.iter().any(|l| l.starts_with("layered at complexity 1.00")), "{:?}", bp.lineage);
+        }
+    }
+
     #[test]
     fn a_sparse_song_keeps_its_core() {
         for genre in ["house", "neo_soul", "boom_bap", "techno", "trap"] {
