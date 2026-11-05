@@ -6,6 +6,12 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+The critic hears each track against the others. It judged the mix by meters on the master alone, so a song with its
+chords 9 dB too loud could still score in the high 80s. Now a track more than 3 dB from its role's level is named
+and costs the mix (`chords is 9.0 dB louder than the chords level`, target `level:chords+`), and evolution turns it
+back. A part playing a sound its genre has no place for costs the song (`sound:<part>`). The critic is held to this
+by tests that break a song it passes, one fault at a time.
+
 A song of any genre can be built on samples from free libraries, as records built on samples are: a phrase the song
 takes its key, tempo and chords from, a drum break, a texture. Each genre digs for its own kinds of record (house for
 disco, gospel and philly soul, trap for orchestral strings, choirs and flutes, afrobeats for highlife guitar), tried in

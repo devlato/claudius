@@ -112,8 +112,10 @@ says where the fix lives:
 | `master` | loudness or true peak: usually the mix balance, rarely `master()` |
 | `band:<band>+` / `band:<band>-` | the tracks that live in that band: levels, sounds, filters |
 | `width+` / `width-` | panning, stereo pads and effects, a centred bass |
+| `level:<track>+` / `level:<track>-` | that track's level, back toward its role's (`mix("<track>", #{ level: 0 })` is the role's own) |
 | `form` | section energies and layers, section lengths, the song's length |
 | `part:<name>` | how that part is written: its style, seed, density or register, or its pattern |
+| `sound:<part>` | that part's sound: one of the sounds its genre plays |
 | `genre`, `production` | sounds, patterns and tempo typical of the genre; fix band issues first |
 
 [references/verdict.md](references/verdict.md) has every issue the critic raises and a change that answers it.
