@@ -590,6 +590,8 @@ impl Studio {
         plan.tell("analysis", &self.view.analysis.as_ref().map(|(_, text)| text.clone()).unwrap_or_default());
         plan.tell("heard", &self.view.heard.as_ref().map(|(_, text)| text.clone()).unwrap_or_default());
         plan.tell("toast", &self.view.toast.as_ref().map(|t| t.text.clone()).unwrap_or_default());
+        plan.tell("busy", &self.state.busy.clone().unwrap_or_default());
+        plan.tell("log", &self.state.log.last().cloned().unwrap_or_default());
         plan.tell("graph", &self.view.graph.selected.clone().unwrap_or_default());
         plan.tell("phone", &self.state.phone.as_ref().map(|p| p.url.clone()).unwrap_or_default());
         plan.tell("phones", &self.state.phone.as_ref().map(|p| p.phones.to_string()).unwrap_or_default());
