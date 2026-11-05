@@ -18,6 +18,13 @@ pub enum Heard {
         reply: Reply,
         state: Box<State>,
     },
+    /// what came of a mutation or an evolution (`what`, its command) once it ended, which no command waits for, and the
+    /// state after it
+    Bred {
+        what: String,
+        reply: Reply,
+        state: Box<State>,
+    },
     State(Box<State>),
     /// a render: the state with it, and the master, interleaved stereo at 48 kHz
     Rendered {
@@ -115,6 +122,9 @@ fn heard(json: &str, audio: Option<Vec<f32>>, bytes: Option<Vec<u8>>) -> Vec<Hea
     }
     let Ok(state) = serde_json::from_value::<State>(v["state"].clone()).map(Box::new) else { return out };
     out.push(match (v["what"].as_str(), serde_json::from_value::<Reply>(v["reply"].clone()), audio) {
+        (_, Ok(reply), _) if let Some(what) = v["bred"].as_str() => {
+            Heard::Bred { what: what.to_string(), reply, state }
+        }
         (Some(what), Ok(reply), _) => Heard::Answer { what: what.to_string(), reply, state },
         (_, _, Some(samples)) => Heard::Rendered { state, samples },
         _ => Heard::State(state),
@@ -304,8 +314,9 @@ mod native {
                 say(Heard::State(Box::new(host.state())));
                 say(Heard::Sounds(Host::sounds()));
                 loop {
-                    // what is asked comes first; once nothing is, a song newer than its render is rendered
-                    let ask = if host.stale() {
+                    // what is asked comes first; once nothing is, a song newer than its render is rendered, then the
+                    // next candidate of a mutation or an evolution is judged
+                    let ask = if host.stale() || host.breeding() {
                         match asks.try_recv() {
                             Ok(a) => Some(a),
                             Err(TryRecvError::Empty) => None,
@@ -351,6 +362,13 @@ mod native {
                                 mime: "application/zip".into(),
                             });
                             say(Heard::Encoded { id, file });
+                        }
+                        None if !host.stale() => {
+                            let what = host.breeding_command().unwrap_or_default().to_string();
+                            match host.step() {
+                                Some(reply) => say(Heard::Bred { what, reply, state: Box::new(host.state()) }),
+                                None => say(Heard::State(Box::new(host.state()))),
+                            }
                         }
                         // the song's first bars first, to play while the rest renders
                         None => match host.preview().map(Ok).or_else(|| host.render()) {
