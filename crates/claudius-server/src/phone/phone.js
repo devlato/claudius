@@ -270,7 +270,10 @@ function open(s) {
   $("rec").disabled = false;
   buildPads();
   fillSounds(s);
-  fill($("track"), s.tracks, (x) => [x, x], s.tracks.filter((t) => !s.lanes.includes(t)));
+  // a record to scratch: a voice, a sample, a lead, a stab or horns, which scratch as records do, else any part
+  const scratchy = (t) => /vox|vocal|sample|lead|stab|horn|brass|hook|chop/.test(t.toLowerCase());
+  const parts = s.tracks.filter((t) => !s.lanes.includes(t));
+  fill($("track"), s.tracks, (x) => [x, x], [...parts.filter(scratchy), ...parts]);
   fillFrom();
   hits.clear();
   keys.name = "";
@@ -617,6 +620,10 @@ function shift(by) {
 const deck = {
   name: "",
   buf: null,
+  /** the record at the bandwidths the needle reads it at (`levels`), its rate, and where its first sound is */
+  levels: null,
+  rate: 48000,
+  cue: 0,
   track: "",
   bar: 0,
   bars: RECORD_BARS,
@@ -632,6 +639,73 @@ const deck = {
   node: null,
 };
 
+/** the crossfader's travel over which it opens, as a scratch DJ's does (`claudius::scratch::CUT_IN`) */
+const CUT_IN = 0.08;
+/** how fast the platter catches the hand: a spring, critically damped, about 4 ms behind it */
+const SPRING = 2 * Math.PI * 40;
+
+/** how much of the record a crossfader at `f` lets through: all of it past a hair of travel (`scratch::opening`) */
+function opening(f) {
+  const x = Math.min(1, Math.max(0, f / CUT_IN));
+  return x * x * (3 - 2 * x);
+}
+
+/** `x` through a low-pass at `hz`: two biquads, as a fourth-order Butterworth filter is (`dsp::filter::butter`) */
+function lowpass(x, hz, rate) {
+  let y = x;
+  for (const q of [0.5412, 1.3066]) {
+    const w = (2 * Math.PI * hz) / rate;
+    const alpha = Math.sin(w) / (2 * q);
+    const cos = Math.cos(w);
+    const a0 = 1 + alpha;
+    const [b0, b1, a1, a2] = [(1 - cos) / 2 / a0, (1 - cos) / a0, (-2 * cos) / a0, (1 - alpha) / a0];
+    const out = new Float32Array(y.length);
+    let [x1, x2, y1, y2] = [0, 0, 0, 0];
+    for (let i = 0; i < y.length; i++) {
+      const v = b0 * y[i] + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2;
+      [x2, x1, y2, y1] = [x1, y[i], y1, v];
+      out[i] = v;
+    }
+    y = out;
+  }
+  return y;
+}
+
+/** The record at the bandwidths a needle reads it at (`scratch::levels`): the whole of it, and low-passed under a
+ * quarter, an eighth and a sixteenth of its rate, so that a record moved fast whistles no highs folded back. */
+function levels(b) {
+  const sides = [b.getChannelData(0), b.getChannelData(b.numberOfChannels > 1 ? 1 : 0)];
+  const out = [sides];
+  for (let k = 2; k <= 4; k++) out.push(out[out.length - 1].map((x) => lowpass(x, (0.8 * b.sampleRate) / 2 ** k, b.sampleRate)));
+  return out;
+}
+
+/** the record under the needle at `pos` seconds, read at `speed` times its own, into `out` (`scratch::needle`) */
+function needle(lv, rate, pos, speed, out) {
+  const len = lv[0][0].length;
+  const at = (((pos * rate) % len) + len) % len;
+  const j = Math.floor(at);
+  const [f, k] = [at - j, (j + 1) % len];
+  const level = Math.min(lv.length - 1, Math.log2(Math.max(1, speed)));
+  const lo = Math.floor(level);
+  const [mix, hi] = [level - lo, Math.min(lo + 1, lv.length - 1)];
+  for (let c = 0; c < 2; c++) {
+    const [a, b] = [lv[lo][c], lv[hi][c]];
+    const x = a[j] + (a[k] - a[j]) * f;
+    out[c] = x + (b[j] + (b[k] - b[j]) * f - x) * mix;
+  }
+}
+
+/** where the record's first sound begins, as a DJ marks a record: a little before it first plays a third as loud as
+ * its loudest */
+function cueOf(b) {
+  const x = b.getChannelData(0);
+  let peak = 0;
+  for (const v of x) peak = Math.max(peak, Math.abs(v));
+  const i = x.findIndex((v) => Math.abs(v) > peak / 3);
+  return Math.max(0, i / b.sampleRate - 0.005);
+}
+
 async function loadRecord() {
   const track = $("track").value;
   const bar = Number($("from").value || 0);
@@ -640,11 +714,13 @@ async function loadRecord() {
   const bars = Math.min(RECORD_BARS, section ? section.bars : RECORD_BARS);
   const name = `${track}:${bar}:${bars}:${song.version}`;
   if (deck.name === name) return;
-  Object.assign(deck, { name, buf: null, pos: 0, vel: 0 });
+  Object.assign(deck, { name, buf: null, levels: null, pos: 0, vel: 0 });
   const done = loading(`cutting a record of ${track}…`);
   try {
     const b = await sound(`api/record?track=${encodeURIComponent(track)}&bar=${bar}&bars=${bars}`);
-    if (deck.name === name) Object.assign(deck, { buf: b, track, bar, bars });
+    // the record waits at its cue, its first sound, under the needle
+    const cue = cueOf(b);
+    if (deck.name === name) Object.assign(deck, { buf: b, levels: levels(b), rate: b.sampleRate, cue, pos: cue, track, bar, bars });
   } catch (e) {
     if (!e.quiet) say(e.message, trouble(e));
   } finally {
@@ -657,42 +733,34 @@ async function loadRecord() {
   }
 }
 
-/** an audio block of the turntable: the record read from where it was to where it is now */
+/** An audio block of the turntable, a sample at a time: the platter follows the hand as a hand moves one (a spring),
+ * or, let go, the motor brings it up to speed in about a tenth of a second and without it it comes to rest in about a
+ * quarter; the needle reads the record where it is, from the bandwidth its speed leaves unaliased; and the crossfader
+ * opens within a hair of its travel, in about 2 ms. `claudius::scratch::render` reads a take again as this plays it. */
 function spin(e) {
   const L = e.outputBuffer.getChannelData(0);
   const R = e.outputBuffer.getChannelData(1);
-  const b = deck.buf;
-  if (!b) {
+  const lv = deck.levels;
+  if (!lv) {
     L.fill(0);
     R.fill(0);
     return;
   }
   const n = L.length;
-  const dt = n / ctx.sampleRate;
+  const dt = 1 / ctx.sampleRate;
   const from = deck.pos;
-  let to;
-  if (deck.touching) {
-    to = deck.target;
-    deck.vel = (to - from) / dt;
-  } else {
-    deck.vel += (($("motor").checked ? 1 : 0) - deck.vel) * Math.min(1, dt / 0.2);
-    to = from + deck.vel * dt;
-  }
+  const motor = $("motor").checked;
   const fader = Number($("fader").value);
-  const l = b.getChannelData(0);
-  const r = b.numberOfChannels > 1 ? b.getChannelData(1) : l;
-  const len = l.length;
-  const rate = b.sampleRate;
+  const slew = 1 - Math.exp(-1 / (0.002 * ctx.sampleRate));
   const dc = deck.dc;
+  const s = [0, 0];
   for (let i = 0; i < n; i++) {
-    const w = i / n;
-    const at = (from + (to - from) * w) * rate;
-    const j = ((Math.floor(at) % len) + len) % len;
-    const k = (j + 1) % len;
-    const f = at - Math.floor(at);
-    const g = deck.gain + (fader - deck.gain) * w;
-    const x = (l[j] + (l[k] - l[j]) * f) * g;
-    const y = (r[j] + (r[k] - r[j]) * f) * g;
+    if (deck.touching) deck.vel += (SPRING * SPRING * (deck.target - deck.pos) - 2 * SPRING * deck.vel) * dt;
+    else deck.vel += ((motor ? 1 : 0) - deck.vel) * Math.min(1, dt / (motor ? 0.1 : 0.25));
+    deck.pos += deck.vel * dt;
+    needle(lv, deck.rate, deck.pos, Math.abs(deck.vel), s);
+    deck.gain += (opening(fader) - deck.gain) * slew;
+    const [x, y] = [s[0] * deck.gain, s[1] * deck.gain];
     // a still record is silent: no direct current from a sample held
     L[i] = dc[1] = x - dc[0] + 0.9987 * dc[1];
     dc[0] = x;
@@ -702,10 +770,8 @@ function spin(e) {
   if (take && take.mode === "deck") {
     const at = songAt(heardAt(e.playbackTime));
     const last = take.moves[take.moves.length - 1];
-    if (at !== null && (!last || at > last.at)) take.moves.push({ at, pos: from, fader: deck.gain });
+    if (at !== null && (!last || at > last.at)) take.moves.push({ at, pos: from, fader });
   }
-  deck.gain = fader;
-  deck.pos = to;
 }
 
 /** the time on this page's clock at which the audio context's `t` is heard */
@@ -780,8 +846,18 @@ function drawPlatter() {
   g.font = `600 ${Math.round(rad * 0.09)}px -apple-system, sans-serif`;
   g.textAlign = "center";
   g.fillText(deck.track || "no record", 0, -rad * 0.12);
-  g.fillRect(-2, rad * 0.42, 4, rad * 0.5);
+  // the cue's sticker, which comes round under the needle as the record reaches its first sound
+  g.rotate((-(deck.cue || 0) / TURN) * 2 * Math.PI);
+  g.fillStyle = "#e8e8ec";
+  g.fillRect(-3, -rad * 0.97, 6, rad * 0.5);
   g.restore();
+  // the needle, which stays where it is over the record
+  g.fillStyle = "#f0a83a";
+  g.beginPath();
+  g.moveTo(w / 2 - 8, h / 2 - rad - 4);
+  g.lineTo(w / 2 + 8, h / 2 - rad - 4);
+  g.lineTo(w / 2, h / 2 - rad + 14);
+  g.fill();
 }
 
 // Takes: ● starts one along with the song, and stops it and sends it as the command it makes.
