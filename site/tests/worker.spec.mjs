@@ -2,7 +2,7 @@
 // asks for a few words of letters and digits at a time, a visitor only so many a minute, with its filters fixed,
 // passes on the recordings the demo can play, and serves them by path and nothing else.
 import { test, expect } from "@playwright/test";
-import worker from "../worker/index.js";
+import worker, { supplement } from "../worker/index.js";
 
 const ORIGIN = "https://claudius.devlato.com";
 const assets = { fetch: async (r) => new Response(`asset ${new URL(r.url).pathname}`) };
@@ -79,6 +79,12 @@ test.describe("the samples Worker", () => {
             { ...FOUND, id: "nc", license: "by-nc" },
             { ...RECORD, id: "huge", filesize: 80 * 1024 * 1024 },
             { ...RECORD, id: "flac", url: "https://upload.wikimedia.org/wikipedia/commons/a/ab/x.flac" },
+            {
+              ...RECORD,
+              id: "paper",
+              title: "Human-Vocal-Attractiveness-as-Signaled-by-Body-Size-Projection-pone.0062397.s008",
+              url: "https://upload.wikimedia.org/wikipedia/commons/1/1e/Human-Vocal-Attractiveness-pone.0062397.s008.oga",
+            },
             { ...FOUND, id: "elsewhere", url: "https://example.com/x.mp3" },
           ],
         }),
@@ -228,6 +234,24 @@ test.describe("the samples Worker", () => {
       "https://prod-1.storage.jamendo.com/?trackid=582248&format=mp32",
       "https://upload.wikimedia.org/wikipedia/commons/0/0e/Stringed_Disco_%28MacLeod%2C_Kevin%29.oga",
     ]);
+  });
+
+  test("leaves out a paper's supplementary recordings, as claudius does, and not music with numbers", () => {
+    for (const name of [
+      "Human-Vocal-Attractiveness-as-Signaled-by-Body-Size-Projection-pone.0062397.s008.oga",
+      "Birdsong-Learning-pbio.1001234.s012.ogg",
+      "12868_2015_123_MOESM1_ESM.oga",
+      "12868 2015 123 MOESM1 ESM.oga",
+      "Human Vocal Attractiveness pone.0062397.s008.oga",
+      "srep01234-s2.oga",
+      "fpsyg-05-00123-s001.oga",
+      "Supplementary audio 3.ogg",
+    ]) {
+      expect(supplement(`commons:${name}`), name).toBe(true);
+    }
+    for (const name of ["Clean Soul (ISRC USUAN1300033).mp3", "Track 05 - 1999 mix.ogg", "Pone song s1.ogg", "Gymnopedie No.1.ogg"]) {
+      expect(supplement(`commons:${name}`), name).toBe(false);
+    }
   });
 
   test("turns down a recording too long for the demo, said or not", async () => {
