@@ -86,6 +86,72 @@ pub fn render(record: &Stereo, moves: &[Move]) -> Result<Stereo, String> {
     Ok(x)
 }
 
+/// the crossfader's travel over which it opens, as a scratch DJ's does: a hair of it lets the whole record through
+pub const CUT_IN: f32 = 0.08;
+
+/// how much of the record a crossfader set to `f` (0 shut, 1 at the other end) lets through: all of it once it is past
+/// `CUT_IN`, on a smooth curve up to there
+pub fn opening(f: f32) -> f32 {
+    let x = (f / CUT_IN).clamp(0.0, 1.0);
+    x * x * (3.0 - 2.0 * x)
+}
+
+/// The record at the bandwidths a needle reads it at: the whole of it, and low-passed under a quarter, an eighth and a
+/// sixteenth of the rate (at 9.6, 4.8 and 2.4 kHz), so that a record moved at two, four or eight times its speed does
+/// not alias, its highs carried past half the rate and folded back as a scratch's whistle.
+fn levels(record: &Stereo) -> Vec<Stereo> {
+    let mut out = vec![record.clone()];
+    for k in 2..=4 {
+        let mut x = out[out.len() - 1].clone();
+        for side in [&mut x.l, &mut x.r] {
+            crate::dsp::filter::butter(side, false, 0.8 * SRF / 2f64.powi(k), SRF, 4);
+        }
+        out.push(x);
+    }
+    out
+}
+
+/// Where the record is at `t`, in seconds of it, and how fast it moves (seconds of it a second), between moves `k` and
+/// `k + 1`: along a curve through the moves that keeps its speed as a hand changes it (Catmull-Rom's), rather than in
+/// straight lines whose speed jumps at each move.
+fn place(moves: &[Move], k: usize, t: f64) -> (f64, f64) {
+    let (a, b) = (moves[k], moves[k + 1]);
+    let dt = b.t - a.t;
+    if dt <= 0.0 {
+        return (b.at, 0.0);
+    }
+    let slope = |p: Move, q: Move| if q.t > p.t { (q.at - p.at) / (q.t - p.t) } else { (b.at - a.at) / dt };
+    let m0 = if k > 0 { slope(moves[k - 1], b) } else { (b.at - a.at) / dt };
+    let m1 = moves.get(k + 2).map_or((b.at - a.at) / dt, |&c| slope(a, c));
+    let w = ((t - a.t) / dt).clamp(0.0, 1.0);
+    let (w2, w3) = (w * w, w * w * w);
+    let at = (2.0 * w3 - 3.0 * w2 + 1.0) * a.at
+        + (w3 - 2.0 * w2 + w) * dt * m0
+        + (3.0 * w2 - 2.0 * w3) * b.at
+        + (w3 - w2) * dt * m1;
+    let speed = ((6.0 * w2 - 6.0 * w) * a.at
+        + (3.0 * w2 - 4.0 * w + 1.0) * dt * m0
+        + (6.0 * w - 6.0 * w2) * b.at
+        + (3.0 * w2 - 2.0 * w) * dt * m1)
+        / dt;
+    (at, speed)
+}
+
+/// the record under the needle at `pos` seconds of it, read at `speed` times its own speed: from the bandwidth that
+/// leaves it unaliased (`levels`), between the two nearest
+fn needle(levels: &[Stereo], pos: f64, speed: f64) -> (f32, f32) {
+    let len = levels[0].len();
+    let at = (pos * SRF).rem_euclid(len as f64);
+    let (j, f) = ((at as usize).min(len - 1), (at - at.floor()) as f32);
+    let k = (j + 1) % len;
+    let level = speed.max(1.0).log2().min((levels.len() - 1) as f64);
+    let (lo, mix) = (level.floor() as usize, (level - level.floor()) as f32);
+    let hi = (lo + 1).min(levels.len() - 1);
+    let read = |x: &Stereo| (x.l[j] + (x.l[k] - x.l[j]) * f, x.r[j] + (x.r[k] - x.r[j]) * f);
+    let (a, b) = (read(&levels[lo]), read(&levels[hi]));
+    (a.0 + (b.0 - a.0) * mix, a.1 + (b.1 - a.1) * mix)
+}
+
 /// the record read along `moves` through the crossfader, as it is under the needle
 fn read(record: &Stereo, moves: &[Move]) -> Result<Stereo, String> {
     if moves.len() < 2 {
@@ -104,12 +170,12 @@ fn read(record: &Stereo, moves: &[Move]) -> Result<Stereo, String> {
     if record.is_empty() {
         return Err("the record is silent: it has no sound to scratch".into());
     }
+    let levels = levels(record);
     let n = (end * SRF).round() as usize;
     let mut out = Stereo::zeros(n);
-    let len = record.len();
     // the fader moves in about 2 ms, as a crossfader's does, so cutting the sound does not click
     let slew = 1.0 - (-1.0 / (0.002 * SRF)).exp() as f32;
-    let mut fader = moves[0].fader;
+    let mut fader = opening(moves[0].fader);
     let mut k = 0;
     for i in 0..n {
         let t = i as f64 / SRF;
@@ -118,12 +184,11 @@ fn read(record: &Stereo, moves: &[Move]) -> Result<Stereo, String> {
         }
         let (a, b) = (moves[k], moves[k + 1]);
         let w = if b.t > a.t { ((t - a.t) / (b.t - a.t)).clamp(0.0, 1.0) } else { 1.0 };
-        fader += (a.fader + (b.fader - a.fader) * w as f32 - fader) * slew;
-        let at = ((a.at + (b.at - a.at) * w) * SRF).rem_euclid(len as f64);
-        let (j, f) = ((at as usize).min(len - 1), (at - at.floor()) as f32);
-        let k = (j + 1) % len;
-        out.l[i] = (record.l[j] + (record.l[k] - record.l[j]) * f) * fader;
-        out.r[i] = (record.r[j] + (record.r[k] - record.r[j]) * f) * fader;
+        fader += (opening(a.fader + (b.fader - a.fader) * w as f32) - fader) * slew;
+        let (pos, speed) = place(moves, k, t);
+        let (l, r) = needle(&levels, pos, speed.abs());
+        out.l[i] = l * fader;
+        out.r[i] = r * fader;
     }
     Ok(out)
 }
@@ -159,17 +224,40 @@ mod tests {
     }
 
     #[test]
-    fn a_record_pulled_back_plays_backwards_at_the_speed_it_moves() {
+    fn a_record_pulled_back_slows_through_the_turn_and_plays_backwards() {
         let rec = ramp(2.0);
-        // forward over a second, then back over half a second: twice the speed, the other way
-        let moves = [
-            Move { t: 0.0, at: 0.0, fader: 1.0 },
-            Move { t: 1.0, at: 1.0, fader: 1.0 },
-            Move { t: 1.5, at: 0.0, fader: 1.0 },
-        ];
+        // forward over a second, then back over half a second
+        let moves = [(0.0, 0.0), (1.0, 1.0), (1.5, 0.0)].map(|(t, at)| Move { t, at, fader: 1.0 });
         let out = read(&rec, &moves).unwrap();
-        assert!((at(&out, 1.25) - at(&rec, 0.5)).abs() < 1e-3);
         assert!(at(&out, 1.1) > at(&out, 1.4), "it goes backwards");
+        assert!((at(&out, 1.499) - at(&rec, 0.0)).abs() < 0.01, "to where the hand took it");
+        // a hand turning a record back slows it to a stop first: its speed takes no step at the turn
+        let slope = |s: f64| (at(&out, s + 0.001) - at(&out, s)) / 0.001;
+        assert!(slope(0.998).abs() < 0.1 && slope(1.0).abs() < 0.1, "{} {}", slope(0.998), slope(1.0));
+    }
+
+    #[test]
+    fn a_record_moved_fast_whistles_no_highs_folded_back() {
+        // a 10 kHz tone moved at four times its speed would sound at 40 kHz, past half the rate, folded back to 8 kHz:
+        // the needle reads it from the record low-passed at 4.8 kHz, where it is not
+        let n = SRF as usize;
+        let mut rec = Stereo::zeros(n);
+        for i in 0..n {
+            let v = (0.5 * (i as f64 * 10_000.0 * std::f64::consts::TAU / SRF).sin()) as f32;
+            (rec.l[i], rec.r[i]) = (v, v);
+        }
+        let rms = |x: &[f32]| (x.iter().map(|v| v * v).sum::<f32>() / x.len() as f32).sqrt();
+        let fast = [Move { t: 0.0, at: 0.0, fader: 1.0 }, Move { t: 0.2, at: 0.8, fader: 1.0 }];
+        let out = read(&rec, &fast).unwrap();
+        assert!(rms(&out.l[960..8640]) < 0.02, "{}", rms(&out.l[960..8640]));
+        let plain = [Move { t: 0.0, at: 0.0, fader: 1.0 }, Move { t: 0.5, at: 0.5, fader: 1.0 }];
+        assert!(rms(&read(&rec, &plain).unwrap().l[960..]) > 0.3, "at its own speed it plays");
+    }
+
+    #[test]
+    fn a_crossfader_opens_within_a_hair_of_its_travel() {
+        assert_eq!((opening(0.0), opening(CUT_IN), opening(0.5), opening(1.0)), (0.0, 1.0, 1.0, 1.0));
+        assert!((opening(CUT_IN / 2.0) - 0.5).abs() < 1e-6);
     }
 
     #[test]
