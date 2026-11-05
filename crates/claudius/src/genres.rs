@@ -226,7 +226,8 @@ pub struct GenreProfile {
 
 /// What a genre samples, from the records its producers dig for: a drum break, a phrase to build the song on, a
 /// texture under it. Each plays as a loop track of its own (`sampling::BREAK`, `PHRASE`, `TEXTURE`) in the sections
-/// that list it, or, in a genre whose sections do not, in place of the layers it plays `instead` of.
+/// that list it, or, in a genre whose sections do not, in place of the layers it plays `instead` of. A vocal is a note
+/// a voice sang, chopped from another record, which a part plays on the song's chords where it lifts (`sampling::VOCAL`).
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct SamplingSpec {
     /// whether a song of the genre is built on samples when nobody says (trip-hop's is; a house song is when asked)
@@ -238,6 +239,8 @@ pub struct SamplingSpec {
     pub phrase: Option<SampleNeed>,
     #[serde(default)]
     pub texture: Option<SampleNeed>,
+    #[serde(default)]
+    pub vocal: Option<SampleNeed>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -500,7 +503,7 @@ mod tests {
                 .chain(g.drums.iter().map(|d| d.name.as_str()))
                 .chain(g.loops.iter().map(|l| l.name.as_str()))
                 .collect();
-            for n in [&s.drum_break, &s.phrase, &s.texture].into_iter().flatten() {
+            for n in [&s.drum_break, &s.phrase, &s.texture, &s.vocal].into_iter().flatten() {
                 for l in &n.instead {
                     assert!(known.contains(&l.as_str()), "{name}: a sample stands in for '{l}', which it lacks");
                 }

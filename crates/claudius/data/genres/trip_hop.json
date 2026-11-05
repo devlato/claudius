@@ -196,6 +196,13 @@
       "keep": 3,
       "chance": 0.85,
       "mix": {"bus": "music"}
+    },
+    "vocal": {
+      "search": ["female vocal", "jazz vocal", "soul vocal", "torch song", "a cappella"],
+      "listen": "a smoky woman's voice singing slowly",
+      "seconds": [1, 400],
+      "keep": 4,
+      "chance": 0.45
     }
   },
   "transitions": {

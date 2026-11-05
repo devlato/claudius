@@ -150,6 +150,13 @@
       "pitch": [-2, 5],
       "instead": ["loop", "keys"],
       "mix": {"bus": "music", "duck": 0.45, "fx": [{"fx": "filter", "mode": "lp", "res": 0.25, "cutoff": {"rest": 5000, "sections": {"intro": [600, 3000], "groove": [3000], "break": [900], "drop": [16000], "outro": [3000, 500]}}}]}
+    },
+    "vocal": {
+      "search": ["disco vocal", "soul vocal", "female vocal", "a cappella"],
+      "listen": "a disco singer holding a note",
+      "seconds": [1, 400],
+      "keep": 4,
+      "chance": 0.4
     }
   },
   "transitions": {

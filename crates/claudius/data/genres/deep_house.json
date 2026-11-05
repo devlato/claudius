@@ -191,6 +191,13 @@
       "keep": 3,
       "chance": 0.4,
       "mix": {"bus": "music", "level_db": -2}
+    },
+    "vocal": {
+      "search": ["soul vocal", "female vocal", "jazz vocal", "a cappella"],
+      "listen": "a soft soulful voice holding a note",
+      "seconds": [1, 400],
+      "keep": 4,
+      "chance": 0.5
     }
   },
   "transitions": {
