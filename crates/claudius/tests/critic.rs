@@ -20,10 +20,11 @@ fn without_installed_packs() {
     });
 }
 
-/// the critic's verdict, without the ears, on the first drop of `bp` and the eight bars before it
+/// the critic's verdict, without the ears, on the first drop of `bp` (or its first hook) and the eight bars before
 fn verdict(bp: &Blueprint) -> judge::Verdict {
     let p = compose::arrange(bp);
-    let drop = p.sections.iter().find(|s| s.kind == SectionKind::Drop).expect("a drop");
+    let first = |k: SectionKind| p.sections.iter().find(|s| s.kind == k);
+    let drop = first(SectionKind::Drop).or_else(|| first(SectionKind::Hook)).expect("a drop or a hook");
     let slice = p.slice(drop.start_bar.saturating_sub(8), drop.start_bar + drop.bars.min(16));
     let r = render::render(&slice, &render::Options { stems: false, tail_secs: 0.0 }).unwrap();
     judge::judge(&slice, &r, None)
@@ -33,9 +34,13 @@ fn targets(v: &judge::Verdict) -> Vec<&str> {
     v.issues.iter().map(|i| i.target.as_str()).collect()
 }
 
-fn song() -> Blueprint {
+fn song_of(genre: &str, seed: u64) -> Blueprint {
     without_installed_packs();
-    compose::generate(&genres::get("house").unwrap(), 3, &Options::default(), None)
+    compose::generate(&genres::get(genre).unwrap(), seed, &Options::default(), None)
+}
+
+fn song() -> Blueprint {
+    song_of("house", 3)
 }
 
 fn level(bp: &mut Blueprint, track: &str, db: f32) {
@@ -48,10 +53,13 @@ fn level(bp: &mut Blueprint, track: &str, db: f32) {
 
 #[test]
 fn a_song_as_its_genre_makes_it_has_no_track_out_of_balance_and_no_sound_out_of_place() {
-    let v = verdict(&song());
-    let wrong: Vec<&str> =
-        targets(&v).into_iter().filter(|t| t.starts_with("level:") || t.starts_with("sound:")).collect();
-    assert!(wrong.is_empty(), "{wrong:?}: {}", v.summary);
+    // trap and R&B set their claps under the snare, deep house its transitions under the drums: as they mean to
+    for (genre, seed) in [("house", 3), ("trap", 3), ("rnb", 3), ("deep_house", 3), ("hip_hop", 5)] {
+        let v = verdict(&song_of(genre, seed));
+        let wrong: Vec<&str> =
+            targets(&v).into_iter().filter(|t| t.starts_with("level:") || t.starts_with("sound:")).collect();
+        assert!(wrong.is_empty(), "{genre}: {wrong:?}: {}", v.summary);
+    }
 }
 
 #[test]

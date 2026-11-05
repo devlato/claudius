@@ -112,7 +112,7 @@ says where the fix lives:
 | `master` | loudness or true peak: usually the mix balance, rarely `master()` |
 | `band:<band>+` / `band:<band>-` | the tracks that live in that band: levels, sounds, filters |
 | `width+` / `width-` | panning, stereo pads and effects, a centred bass |
-| `level:<track>+` / `level:<track>-` | that track's level, back toward its role's (`mix("<track>", #{ level: 0 })` is the role's own) |
+| `level:<track>+` / `level:<track>-` | that track's level, back toward the one its genre made it at |
 | `form` | section energies and layers, section lengths, the song's length |
 | `part:<name>` | how that part is written: its style, seed, density or register, or its pattern |
 | `sound:<part>` | that part's sound: one of the sounds its genre plays |
