@@ -32,6 +32,10 @@ held behind a filter that opens as the song lifts, darkened, narrowed to a telep
 breaks, overloaded or smashed, or crushed to 12 bits. Trip-hop darkens and filters, big beat overloads, lo-fi darkens
 and crushes, and filter house keeps its own sweep. The song's history names the move.
 
+Searches for samples leave out the recordings of papers' supplementary material, which Wikimedia Commons holds
+by the thousand under their journals' names for them (`…-pone.0062397.s008.oga`): a vowel recorded for a study of
+voices holds a note, but it is no music. The studio demo's searches leave them out too.
+
 A recording decodes ten times as fast: converting its rate (44.1 kHz, most often) to claudius' 48 kHz works out its
 filter's weights once for each position between samples, where it worked them out for every sample, and what comes out
 agrees to a rounding of a 32-bit float. The demo cuts a 3.6-minute song into a phrase in about 4.5 s where it took 18.
