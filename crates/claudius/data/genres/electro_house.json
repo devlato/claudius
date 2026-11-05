@@ -140,7 +140,7 @@
     {
       "name": "arp",
       "role": "arp",
-      "presets": ["pluck", "bell"],
+      "presets": ["pluck", "fm_lead"],
       "styles": ["up", "updown"],
       "rates": [0.25],
       "register": [60, 84],

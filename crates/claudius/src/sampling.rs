@@ -1104,6 +1104,10 @@ pub fn apply(
                 also = format!(" (another passage of it in {})", names.join(", "));
             }
         }
+        if role == Role::Phrase {
+            // the record carries the melody where it plays: a lead or an arpeggio over it would play another
+            step_aside(bp);
+        }
         if role == Role::Break {
             // the drum lanes it plays in place of play the break's own hits (a break under house's kick leaves it be)
             for lane in bp.drums.iter_mut().filter(|d| n.instead.contains(&d.name)) {
@@ -1159,6 +1163,21 @@ pub fn apply(
     if !placed.is_empty() {
         let said: Vec<String> = placed.iter().map(|(r, l)| format!("{} {l}", r.name())).collect();
         bp.lineage.push(format!("sampled: {}", said.join(", ")));
+    }
+}
+
+/// The leads and arpeggios leave the sections a phrase (or its second passage) plays in, where the record carries the
+/// melody: one of them over it would play another, however well it agreed with the chords. They play on where it does
+/// not.
+fn step_aside(bp: &mut Blueprint) {
+    let melodic: Vec<String> = bp
+        .parts
+        .iter()
+        .filter(|p| matches!(p.role, crate::model::Role::Lead | crate::model::Role::Arp))
+        .map(|p| p.name.clone())
+        .collect();
+    for s in bp.form.iter_mut().filter(|s| s.layers.iter().any(|l| l == PHRASE || l == SECOND)) {
+        s.layers.retain(|l| !melodic.contains(l));
     }
 }
 
@@ -1546,6 +1565,37 @@ mod tests {
         let r = crate::render::render(&p, &crate::render::Options::default()).unwrap();
         let vox = r.tracks.iter().find(|t| t.name == VOCAL).expect("the part renders");
         assert!(vox.level_lufs.is_some_and(|l| l > -60.0), "{:?}", vox.level_lufs);
+    }
+
+    #[test]
+    fn a_lead_or_an_arpeggio_steps_aside_where_the_record_carries_the_melody() {
+        let g = crate::genres::get("house").unwrap();
+        let opts = crate::compose::Options { sampled: Some(true), ..Default::default() };
+        let mut stepped = 0;
+        for seed in 0..10 {
+            let plain = crate::compose::generate(&g, seed, &crate::compose::Options::default(), None);
+            let bp = crate::compose::generate(&g, seed, &opts, Some(&Shelf(vec![soul("house", None)])));
+            let melodic: Vec<&str> = bp
+                .parts
+                .iter()
+                .filter(|p| matches!(p.role, crate::model::Role::Lead | crate::model::Role::Arp))
+                .map(|p| p.name.as_str())
+                .collect();
+            for s in bp.form.iter().filter(|s| s.layers.iter().any(|l| l == PHRASE || l == SECOND)) {
+                assert!(
+                    s.layers.iter().all(|l| !melodic.contains(&l.as_str())),
+                    "seed {seed} {}: {:?}",
+                    s.name,
+                    s.layers
+                );
+            }
+            // where the record plays, a lead or an arpeggio played without it
+            let played = |bp: &Blueprint| {
+                bp.form.iter().filter(|s| s.layers.iter().any(|l| melodic.contains(&l.as_str()))).count()
+            };
+            stepped += usize::from(played(&bp) < played(&plain));
+        }
+        assert!(stepped > 0, "some songs' leads stepped aside");
     }
 
     #[test]

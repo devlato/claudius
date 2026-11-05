@@ -20,10 +20,10 @@ drum snare main (drum snare): ....X.......X...|....X.......X...|....X.......X...
 drum hat main (drum closed_hat): x...x.x.x.x.x.xx|x...x.x.x.x.x.xx|x...x.x.x.x.x.xx|x...x.x.x.x.x.xx
 drum rim main (drum rim): ..............x.|..............x.|..............x.|..............x.
 drum ride main (drum ride): o.o.o.o.o.......|o.o.o.o.o.......|o.o.o.o.o.......|o.o.o.o.o.......
-part bass (bass): sustain synth saw_bass, register 28..48, density 0.59
+part bass (bass): sustain synth organ_bass, register 28..48, density 0.59
 part keys (keys): charleston synth epiano, register 50..76, density 0.59
-part lead (lead): motif synth vox_lead, register 62..84, density 0.41
-part strings (pad): sustain synth warm_pad, register 52..79, density 0.56
+part lead (lead): motif synth vox_lead, register 62..84, density 0.38
+part strings (pad): sustain synth solina, register 52..79, density 0.45
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.20, reverb 0.00, delay 0.00, duck 0.00, bus drums

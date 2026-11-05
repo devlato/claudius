@@ -113,7 +113,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["bell", "flute|whistle", "pizzicato|pluck", "violins|strings"],
+      "presets": ["bell", "flute|fm_lead", "pizzicato|pluck", "violins|strings"],
       "styles": ["motif"],
       "register": [64, 88],
       "density": [0.25, 0.45],

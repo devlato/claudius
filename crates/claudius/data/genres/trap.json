@@ -221,7 +221,7 @@
     {
       "name": "keys",
       "role": "keys",
-      "presets": ["piano|keys", "bells|bell", "rhodes|epiano", "pad"],
+      "presets": ["piano|keys", "bells|bell", "rhodes|epiano", "pad", "harp|harp_pluck"],
       "styles": ["sustain", "half"],
       "register": [55, 76],
       "voices": 3,
@@ -242,7 +242,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["bell", "pluck", "flute|square_lead", "pizzicato|pluck"],
+      "presets": ["bell", "pluck", "flute|fm_lead", "pizzicato|pluck"],
       "styles": ["motif"],
       "register": [67, 88],
       "density": [0.3, 0.5],

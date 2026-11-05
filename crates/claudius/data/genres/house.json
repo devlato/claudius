@@ -202,7 +202,7 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["stab", "organ", "piano|epiano", "rhodes|keys"],
+      "presets": ["stab", "organ", "piano|epiano", "rhodes|keys", "pluck"],
       "styles": ["stabs", "offbeat", "syncopated", "charleston"],
       "register": [55, 76],
       "voices": 4,
@@ -231,7 +231,7 @@
     {
       "name": "arp",
       "role": "arp",
-      "presets": ["pluck", "bell"],
+      "presets": ["pluck", "piano|keys"],
       "styles": ["up", "updown", "pinky"],
       "rates": [0.25, 0.5],
       "register": [60, 84],

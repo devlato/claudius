@@ -44,6 +44,14 @@ it on the song's chords in the drops and hooks, moved from the note it was sung 
 arpeggio within a fifth of it. Eleven genres dig for vocals, each for its own kind (R&B vocals for garage, gospel and
 diva vocals for house, ragga for jungle), and it works in the web demo too, since a note has no tempo to fit.
 
+Songs play only sounds their genre has a place for. A part that leaves its genre's own sound plays another synth of
+the same family (the other electric piano, another analog bass, another soft lead), any synth pad for a pad, or an
+installed instrument of a kind its genre's palette lists. Bells, winds and brass, whose sound pierces a mix, play only
+where the genre plays one of their kind itself. So a house or drum & bass lead no longer rings a bell or whistles, an
+installed glockenspiel or tubular bells play only where the genre plays bells (trap, UK drill, IDM), and a flute or a
+saxophone only where one of the genre's parts names it. Where a song's sampled phrase plays, its lead and arpeggio
+step aside, so the record carries the melody.
+
 Searches for samples leave out the recordings of papers' supplementary material, which Wikimedia Commons holds
 by the thousand under their journals' names for them (`…-pone.0062397.s008.oga`): a vowel recorded for a study of
 voices holds a note, but it is no music. The studio demo's searches leave them out too.

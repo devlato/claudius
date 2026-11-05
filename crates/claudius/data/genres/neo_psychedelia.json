@@ -138,7 +138,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["flute|bell", "violins|strings", "bell"],
+      "presets": ["flute|fm_lead", "violins|strings", "soft_lead"],
       "styles": ["motif"],
       "register": [62, 81],
       "density": [0.3, 0.5],

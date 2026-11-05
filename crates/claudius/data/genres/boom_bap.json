@@ -98,7 +98,7 @@
     {
       "name": "keys",
       "role": "keys",
-      "presets": ["piano|keys", "rhodes|epiano", "wurlitzer|epiano", "vibes|bell"],
+      "presets": ["piano|keys", "rhodes|epiano", "wurlitzer|epiano", "vibes|mallet"],
       "styles": ["charleston", "sustain", "half", "stabs"],
       "register": [50, 74],
       "voices": 4,
@@ -108,7 +108,7 @@
     {
       "name": "horns",
       "role": "lead",
-      "presets": ["brass|brass_lead", "trumpet|brass_lead", "flute|whistle", "sax|brass_lead"],
+      "presets": ["brass|brass_lead", "trumpet|brass_lead", "flute|fm_lead", "sax|brass_lead"],
       "styles": ["motif"],
       "register": [60, 82],
       "density": [0.25, 0.45],

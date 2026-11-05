@@ -22,7 +22,8 @@ drum ohat main (drum open_hat): ..............x.|................|..............
 drum perc main (drum rim): ......x......x..|......x......x..|......x......x..|......x......x..
 part bass (bass): kick_follow synth 808, register 24..40, density 0.47
 part keys (keys): sustain synth pad, register 52..76, density 0.57
-part lead (lead): motif synth bell, register 64..88, density 0.37
+part lead (lead): motif synth fm_lead, register 64..88, density 0.41
+part pad (pad): sustain synth solina, register 48..72, density 0.45
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.10, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums
@@ -31,3 +32,4 @@ mix perc: +0.0 dB, pan -0.25, reverb 0.15, delay 0.00, duck 0.00, bus drums
 mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
 mix keys: +0.0 dB, pan +0.00, reverb 0.47, delay 0.08, duck 0.00, bus music
 mix lead: +0.0 dB, pan +0.00, reverb 0.25, delay 0.21, duck 0.00, bus music
+mix pad: +0.0 dB, pan +0.00, reverb 0.37, delay 0.00, duck 0.00, bus music

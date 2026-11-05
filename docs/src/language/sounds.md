@@ -30,7 +30,7 @@ track("x", s("bdd*4"));
 ```
 
 ```text
-Error: Runtime error: track 'x': unknown sound 'bdd' (drums: bd kick sd snare cp clap hh ch hat oh ohat rd ride cr crash lt mt ht tom rim rs sh shaker cb cowbell snap perc; synths: sub_bass 808 reese acid saw_bass pluck_bass organ_bass wobble log_drum pluck supersaw pad warm_pad stab epiano keys bell organ strings square_lead chip fm_bass rubber_bass moog_bass dist_bass deep_bass saw_lead pwm_lead whistle brass_lead fm_lead vox_lead solina glass_pad pwm_pad air_pad vowel_pad swell_pad tine_piano clav house_piano brass_stab rock_organ fm_marimba fm_kalimba harp_pluck mallet; sampled: piano upright rhodes wurlitzer hammond string_ensemble violins cellos pizzicato brass trumpet flute harp marimba vibes kalimba upright_bass guitar choir sax ... (claudius-packs aliases)) (line 2, position 1)
+Error: Runtime error: track 'x': unknown sound 'bdd' (drums: bd kick sd snare cp clap hh ch hat oh ohat rd ride cr crash lt mt ht tom rim rs sh shaker cb cowbell snap perc; synths: sub_bass 808 reese acid saw_bass pluck_bass organ_bass wobble log_drum pluck supersaw pad warm_pad stab epiano keys bell organ strings square_lead chip fm_bass rubber_bass moog_bass dist_bass deep_bass saw_lead pwm_lead whistle soft_lead brass_lead fm_lead vox_lead solina glass_pad pwm_pad air_pad vowel_pad swell_pad tine_piano clav house_piano brass_stab rock_organ fm_marimba fm_kalimba harp_pluck mallet; sampled: piano upright rhodes wurlitzer hammond string_ensemble violins cellos pizzicato brass trumpet flute harp marimba vibes kalimba upright_bass guitar choir sax ... (claudius-packs aliases)) (line 2, position 1)
 ```
 
 Because drum names and synth presets come first, a few names play synthesis even when a recording by that name
@@ -107,6 +107,7 @@ pattern track.
 | `saw_lead` | three detuned saws and one an octave down, delayed vibrato; glides | yes, tied notes | by pitch |
 | `pwm_lead` | two pulses of different widths, beating; glides | yes, tied notes | by pitch |
 | `whistle` | a sine with a breath of noise and a wide vibrato; glides | yes, tied notes | by pitch |
+| `soft_lead` | a sine and a quiet triangle an octave up through a soft low-pass, slow to speak, a late vibrato; glides | yes, tied notes | by pitch |
 | `brass_lead` | saws whose filter swells open, as brass does | no | by pitch |
 | `fm_lead` | an FM lead that keeps some brightness as it holds; glides | yes, tied notes | by pitch |
 | `vox_lead` | saws through a drifting band-pass, like a vowel; glides | yes, tied notes | by pitch |

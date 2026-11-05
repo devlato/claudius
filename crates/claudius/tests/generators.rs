@@ -10,8 +10,8 @@ use std::fmt::Write as _;
 use std::sync::Once;
 
 use claudius::compose::{self, Options};
-use claudius::genres;
 use claudius::model::{Blueprint, Sound};
+use claudius::{genres, palette};
 
 fn without_installed_packs() {
     static ONCE: Once = Once::new();
@@ -124,14 +124,53 @@ fn the_same_seed_gives_the_same_song() {
 }
 
 #[test]
+fn every_part_plays_a_synth_its_genre_has_a_place_for() {
+    without_installed_packs();
+    for g in genres::all().unwrap() {
+        for seed in 0..12 {
+            let bp = compose::generate(&g, seed, &Options::default(), None);
+            for p in &bp.parts {
+                let Sound::Synth { preset, .. } = &p.sound else { continue };
+                let own = compose::fitting_synths(&g, p.role);
+                let mut rp = g.palette.get(p.role.name()).cloned().unwrap_or_else(|| palette::default_for(p.role));
+                if rp.synths.is_empty() {
+                    rp.synths = own.clone();
+                }
+                let drawn = palette::synths_drawn(p.role, &rp);
+                let name = preset.as_str();
+                assert!(
+                    own.contains(preset) || drawn.contains(&name),
+                    "{} seed {seed}: its {} plays {preset}, none of {own:?} {drawn:?}",
+                    g.name,
+                    p.name
+                );
+                // a bell, a whistle and a chip tune's square ring out over a mix: only where the genre names one
+                if ["bell", "whistle", "chip"].contains(&name) {
+                    assert!(own.contains(preset) || rp.synths.contains(preset), "{} seed {seed}: {preset}", g.name);
+                }
+            }
+        }
+    }
+    // trip-hop's lead sings softly, or rings as a vibraphone or a Rhodes does: never a bell, a whistle or a chip
+    let g = genres::get("trip_hop").unwrap();
+    for seed in 0..24 {
+        let bp = compose::generate(&g, seed, &Options::default(), None);
+        if let Some(Sound::Synth { preset, .. }) = bp.parts.iter().find(|p| p.name == "lead").map(|p| &p.sound) {
+            assert!(!["bell", "whistle", "chip"].contains(&preset.as_str()), "seed {seed}: {preset}");
+        }
+    }
+}
+
+#[test]
 fn songs_of_one_genre_draw_many_sounds_and_no_song_plays_one_twice() {
     use std::collections::{BTreeMap, BTreeSet};
     without_installed_packs();
     for name in ["house", "lofi", "techno", "trap"] {
         let g = genres::get(name).unwrap();
-        // the sounds each role played, and in how many songs
+        // the sounds each role played, and in how many songs: enough songs that what a role plays shows how many
+        // sounds its genre has for it, more than the luck of the draw
         let mut by_role: BTreeMap<&str, (BTreeSet<String>, usize)> = BTreeMap::new();
-        for seed in 0..24 {
+        for seed in 0..48 {
             let bp = compose::generate(&g, seed, &Options::default(), None);
             for p in &bp.parts {
                 let e = by_role.entry(p.role.name()).or_default();
