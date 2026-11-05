@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use claudius::audio::Stereo;
 use claudius::compose::{self, Options};
+use claudius::evolve::Settings;
 use claudius::genres::SampleNeed;
 use claudius::library::Library;
 use claudius::library::prepared::{Prepared, Role};
@@ -92,6 +93,18 @@ pub struct Host {
     last: Option<(Arc<Stereo>, render::Settled)>,
     /// where the studio's playhead is, in seconds (`set_playhead`)
     playhead: f64,
+    /// a mutation or an evolution under way, a candidate at a time (`step`)
+    breeding: Option<Breeding>,
+}
+
+/// A mutation or an evolution under way: its candidates, judged one a `step`, from the song as it was at `from` (an
+/// edit meanwhile ends it), and whether the best is kept when it beats the song (a mutation's only when asked, and
+/// only by 0.1).
+struct Breeding {
+    what: &'static str,
+    run: claudius::evolve::Stepwise,
+    from: u64,
+    keep: bool,
 }
 
 impl Host {
@@ -115,6 +128,7 @@ impl Host {
             kept: render::Kept::default(),
             last: None,
             playhead: 0.0,
+            breeding: None,
         }
     }
 
@@ -213,7 +227,17 @@ impl Host {
             song: self.bp.as_ref().map(|b| views::song(b, &self.loudness)),
             render: self.render.clone(),
             verdict: self.verdict.clone(),
-            busy: self.stale().then(|| "rendering".to_string()),
+            busy: match &self.breeding {
+                Some(b) => {
+                    let (done, all) = b.run.progress();
+                    Some(format!("{}: {done} of {all} judged", b.what))
+                }
+                None => self.stale().then(|| "rendering".to_string()),
+            },
+            progress: self.breeding.as_ref().map(|b| {
+                let (done, all) = b.run.progress();
+                done as f32 / all.max(1) as f32
+            }),
             can_undo: !self.undo.is_empty(),
             can_redo: !self.redo.is_empty(),
             undo_label: self.undo.last().map(|(_, l)| l.clone()),
@@ -366,7 +390,132 @@ impl Host {
             Command::AddScratch { from, track, bar, bars, moves, name, role } => {
                 self.add_scratch(&from, &edit::scratch(track, bar, bars, &moves), name, role.as_deref())
             }
+            Command::Mutate { count, keep_best } => {
+                let count = count.clamp(1, 32);
+                let s = Settings {
+                    generations: 1,
+                    population: 1,
+                    children: count,
+                    crossover: 0.0,
+                    ..self.breed_settings()
+                };
+                self.breed("mutating", s, keep_best)
+            }
+            Command::Evolve { generations, children } => {
+                let s = Settings {
+                    generations: generations.clamp(1, 20),
+                    children: children.clamp(2, 32),
+                    ..self.breed_settings()
+                };
+                self.breed("evolving", s, true)
+            }
+            Command::Cancel => match self.breeding.is_some() {
+                true => {
+                    self.say("stopped: the candidates judged so far are all there are".into());
+                    self.finish_breeding()
+                }
+                false => self.no("nothing to cancel: the demo renders as it goes"),
+            },
             c => self.edit(&c),
+        }
+    }
+
+    /// what a mutation or an evolution breeds with: the server's, seeded anew each time
+    fn breed_settings(&mut self) -> Settings {
+        Settings { seed: self.seeds.next_u64(), ..Settings::default() }
+    }
+
+    /// starts a mutation or an evolution of the song (`what`), which `step` judges a candidate at a time; with
+    /// `keep`, the best is kept when it beats the song
+    fn breed(&mut self, what: &'static str, s: Settings, keep: bool) -> Reply {
+        let Some(bp) = self.bp.clone() else { return self.no("no song yet: start one with a new song") };
+        if let Some(b) = &self.breeding {
+            return self.no(format!("{} already: stop it first", b.what));
+        }
+        let g = match genres::get(&bp.genre) {
+            Ok(g) => g,
+            Err(e) => return self.no(e.to_string()),
+        };
+        let children = s.children * s.generations;
+        let run = claudius::evolve::Stepwise::new(&g, vec![bp], s);
+        self.breeding = Some(Breeding { what, run, from: self.song_version, keep });
+        self.version += 1;
+        self.ok(&format!("{what}: judging the song and {children} variations of it, one at a time"))
+    }
+
+    /// whether a mutation or an evolution is under way, for `step`
+    pub fn breeding(&self) -> bool {
+        self.breeding.is_some()
+    }
+
+    /// Judges the next candidate of the mutation or evolution under way, and once the last is judged keeps the best if
+    /// it beats the song. An edit since it began ends it, keeping nothing. Once it has ended, what came of it (the
+    /// command's answer, which comes after its candidates); None while it goes on, or when none is under way.
+    pub fn step(&mut self) -> Option<Reply> {
+        let b = self.breeding.as_mut()?;
+        if b.from != self.song_version {
+            let what = b.what;
+            self.breeding = None;
+            self.say(format!("{what} stopped: the song changed"));
+            self.version += 1;
+            return Some(self.ok(&format!("{what} stopped: the song changed")));
+        }
+        let lib = self.lib.clone();
+        let lib = lib.as_deref().map(|l| l as &dyn claudius::compose::Library);
+        match b.run.step(lib) {
+            Ok(Some(said)) => {
+                self.say(said);
+                self.version += 1;
+                None
+            }
+            Ok(None) => Some(self.finish_breeding()),
+            Err(e) => {
+                let what = b.what;
+                self.breeding = None;
+                self.say(format!("{what} failed: {e:#}"));
+                self.version += 1;
+                Some(self.no(format!("{what} failed: {e:#}")))
+            }
+        }
+    }
+
+    /// the command a mutation or evolution under way answers, for its answer once it ends (`step`)
+    pub fn breeding_command(&self) -> Option<&'static str> {
+        self.breeding.as_ref().map(|b| if b.what == "mutating" { "mutate" } else { "evolve" })
+    }
+
+    /// ends the mutation or evolution under way: its best candidate becomes the song when it was asked to be kept and
+    /// beats the song (a mutation's by 0.1)
+    fn finish_breeding(&mut self) -> Reply {
+        let Some(b) = self.breeding.take() else { return self.no("nothing to stop") };
+        self.version += 1;
+        // its candidates are of the song as it was: one edited since, or another song, stays as it is
+        if b.from != self.song_version {
+            self.say(format!("{} stopped: the song changed", b.what));
+            return self.ok(&format!("{} stopped: the song changed", b.what));
+        }
+        let all = b.run.into_candidates();
+        let start = all.iter().find(|c| c.generation == 0).map_or(f64::MIN, |c| c.score);
+        let margin = if b.what == "mutating" { 0.1 } else { 0.0 };
+        let best = all.into_iter().find(|c| c.generation > 0);
+        match best {
+            Some(best) if b.keep && best.score >= start + margin && best.score > start => {
+                let mut child = best.blueprint;
+                child.lineage.push(format!(
+                    "{}: {}",
+                    if b.what == "mutating" { "mutated" } else { "evolved" },
+                    best.change
+                ));
+                let msg = format!("kept {} ({start:.1} -> {:.1} on the preview)", best.change, best.score);
+                self.commit(Some(child), msg)
+            }
+            Some(best) => {
+                let said =
+                    format!("no variation beat the song ({start:.1}; best {:.1}): it stays as it was", best.score);
+                self.say(said.clone());
+                self.ok(&said)
+            }
+            None => self.ok("no variations were judged"),
         }
     }
 
@@ -825,6 +974,55 @@ mod tests {
         let off = rms(&mut after.samples[a..b].iter().zip(&heard.samples[a..b]).map(|(x, y)| x - y));
         let level = rms(&mut heard.samples[a..b].iter().copied());
         assert!(off < 0.15 * level, "{off} of {level}");
+    }
+
+    #[test]
+    fn the_demo_mutates_and_evolves_a_song_a_candidate_at_a_time() {
+        let mut h = Host::new(1);
+        assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
+        let r = command(&mut h, json!({"cmd": "mutate", "count": 2, "keep_best": true}));
+        assert!(r.ok && h.breeding(), "{}", r.message);
+        assert_eq!(h.state().busy.as_deref(), Some("mutating: 0 of 3 judged"));
+        assert!(!command(&mut h, json!({"cmd": "evolve", "generations": 1, "children": 2})).ok, "one at a time");
+        let mut judged = 0;
+        let said = loop {
+            match h.step() {
+                Some(reply) => break reply,
+                None => judged += 1,
+            }
+            assert!(judged <= 3, "the song and its two variations");
+        };
+        assert_eq!(judged, 3);
+        assert!(
+            said.ok && (said.message.starts_with("kept ") || said.message.contains("it stays as it was")),
+            "{}",
+            said.message
+        );
+        let s = h.state();
+        assert!(!h.breeding() && s.busy.as_deref().is_none_or(|b| !b.starts_with("mutating")), "{:?}", s.busy);
+        let log = s.log.join("\n");
+        assert!(log.contains("g1-0") && log.contains("g1-1"), "{log}");
+        let kept = h.bp.as_ref().unwrap().lineage.iter().any(|l| l.starts_with("mutated: "));
+        assert!(kept || log.contains("no variation beat the song"), "{log}");
+        // an evolution stops when the song changes under it, and when it is asked to
+        assert!(command(&mut h, json!({"cmd": "evolve", "generations": 2, "children": 2})).ok);
+        assert_eq!(h.breeding_command(), Some("evolve"));
+        assert!(h.step().is_none());
+        assert!(command(&mut h, json!({"cmd": "set_tempo", "bpm": 110})).ok);
+        assert_eq!(h.step().map(|r| r.message), Some("evolving stopped: the song changed".to_string()));
+        assert!(!h.breeding() && h.step().is_none());
+        assert!(command(&mut h, json!({"cmd": "evolve", "generations": 2, "children": 2})).ok);
+        assert!(h.step().is_none());
+        let r = command(&mut h, json!({"cmd": "cancel"}));
+        assert!(r.ok && !h.breeding(), "{}", r.message);
+        assert!(!command(&mut h, json!({"cmd": "cancel"})).ok, "nothing to stop");
+        // a stop after an edit, before the next step has seen it, keeps the edited song
+        assert!(command(&mut h, json!({"cmd": "evolve", "generations": 2, "children": 2})).ok);
+        assert!(h.step().is_none());
+        assert!(command(&mut h, json!({"cmd": "set_tempo", "bpm": 104})).ok);
+        let r = command(&mut h, json!({"cmd": "cancel"}));
+        assert_eq!(r.message, "evolving stopped: the song changed");
+        assert_eq!(h.bp.as_ref().unwrap().bpm, 104.0, "the edit stays");
     }
 
     #[test]

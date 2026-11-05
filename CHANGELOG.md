@@ -10,6 +10,10 @@ On a phone playing along, a quick second tap plays again instead of zooming the 
 fingers apart are two fingers rather than a pinch. The pads and the keys are drawn on a canvas, where every finger is
 its own, so several play at once and a finger slid along the keys glides from key to key.
 
+The [studio demo](https://claudius.devlato.com/studio/?mock) mutates and evolves songs, as claudius does. Its engine
+judges the variations one after another in the page, without the ears, and keeps the best when it beats the song;
+**Stop** keeps the best judged so far.
+
 The [studio demo](https://claudius.devlato.com/studio/?mock)'s download button hands over the song as FLAC,
 lossless at about half the size of the WAV it gave before. Its export menu offers WAV, AIFF, FLAC, MP3 and Opus,
 which the demo's engine writes in its Web Worker, so the page doesn't stop while a song encodes.

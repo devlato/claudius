@@ -299,13 +299,10 @@ impl Mock {
             Command::AssessVoice { .. } => {
                 Some(Err("the demo hears no singing: start `claudius serve` to hear how a take is sung".into()))
             }
-            Command::Mutate { .. } | Command::Evolve { .. } => {
-                Some(Err("the demo neither mutates nor evolves songs: start `claudius serve` for that".into()))
+            // a mutation or an evolution the engine stops
+            Command::Cancel => {
+                self.sampling.take().map(|s| Ok(format!("stopped gathering the samples of a {} song", s.genre)))
             }
-            Command::Cancel => Some(match self.sampling.take() {
-                Some(s) => Ok(format!("stopped gathering the samples of a {} song", s.genre)),
-                None => Err("nothing to cancel: the demo renders as it goes".into()),
-            }),
             _ => None,
         };
         match here {
@@ -458,6 +455,11 @@ impl Mock {
                     if what != OPENING && !self.took(&what, &reply) {
                         self.events.push(Event::Reply { what, result: Ok(reply) });
                     }
+                }
+                Heard::Bred { what, reply, state } => {
+                    self.state = *state;
+                    self.publish();
+                    self.events.push(Event::Reply { what, result: Ok(reply) });
                 }
                 Heard::State(state) => {
                     self.state = *state;
@@ -697,7 +699,6 @@ mod tests {
         let mut mock = Mock::new(None);
         for (cmd, words) in [
             (Command::Save { path: None }, "the download button"),
-            (Command::Mutate { count: 4, keep_best: true }, "neither mutates nor evolves"),
             (Command::InstallPacks { names: Vec::new() }, "install claudius"),
         ] {
             mock.send(cmd);

@@ -154,10 +154,11 @@ fn encode(scope: &DedicatedWorkerGlobalScope, ask: &serde_json::Value, samples: 
     }
 }
 
-/// a render soon, when the song is newer than its render and none is on its way
+/// a render soon, when the song is newer than its render and none is on its way, or the next candidate of a mutation
+/// or an evolution
 fn schedule(engine: &Shared) {
     let mut e = engine.borrow_mut();
-    if e.scheduled || !e.host.stale() {
+    if e.scheduled || !(e.host.stale() || e.host.breeding()) {
         return;
     }
     e.scheduled = true;
@@ -169,6 +170,18 @@ fn schedule(engine: &Shared) {
 fn render(engine: &Shared) {
     let mut e = engine.borrow_mut();
     e.scheduled = false;
+    // a candidate a turn, with the messages that came meanwhile (a stop, an edit) between them, once the song is heard
+    if !e.host.stale() && e.host.breeding() {
+        let what = e.host.breeding_command().unwrap_or_default();
+        let done = match e.host.step() {
+            Some(reply) => serde_json::json!({ "bred": what, "reply": reply, "state": e.host.state() }),
+            None => serde_json::json!({ "state": e.host.state() }),
+        };
+        post(&e.scope, &done, None);
+        drop(e);
+        schedule(engine);
+        return;
+    }
     // the song's first bars first, to play while the rest renders: the commands that come meanwhile are made before it
     if let Some(preview) = e.host.preview() {
         let state = serde_json::json!({ "state": e.host.state() });
