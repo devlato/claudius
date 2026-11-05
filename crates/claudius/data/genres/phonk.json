@@ -1,0 +1,97 @@
+{
+  "name": "phonk",
+  "description": "Phonk: Memphis rap's dark sound remade at 130 to 145 BPM: a distorted 808 that slides, an 808 cowbell playing the melody, a hard kick and a trap snare and clap, hats that drive in eighths and roll, Memphis vocal chops from old tapes, tape grime over everything",
+  "query": "phonk music",
+  "alts": ["trap beat", "hip hop beat with heavy bass", "dubstep music", "lo-fi hip hop beat"],
+  "accepted_flaws": ["a low quality recording with hiss"],
+  "bpm": [130, 145],
+  "swing": [0.5, 0.54],
+  "humanize": 0.1,
+  "modes": [["phrygian", 0.4], ["minor", 0.4], ["harmonic_minor", 0.2]],
+  "harmony": [["phrygian", 0.4], ["minor_dark", 0.4], ["harmonic", 0.2]],
+  "markov": 0.1,
+  "ext": 0,
+  "bars_per_chord": [[1, 0.5], [2, 0.5]],
+  "forms": [
+    [
+      {"name": "intro", "kind": "intro", "bars": 8, "energy": 0.45, "layers": ["cowbell", "hat", "texture"], "filter_in": true},
+      {"name": "hook", "kind": "hook", "bars": 16, "energy": 0.95, "layers": ["kick", "snare", "clap", "hat", "ohat", "bass", "cowbell", "pad", "texture"], "impact": true},
+      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.7, "layers": ["kick", "snare", "hat", "bass", "cowbell", "texture"], "variant": "alt"},
+      {"name": "hook2", "kind": "hook", "bars": 16, "energy": 1.0, "layers": ["kick", "snare", "clap", "hat", "ohat", "bass", "cowbell", "pad", "texture"], "impact": true},
+      {"name": "break", "kind": "break", "bars": 8, "energy": 0.45, "prog": "B", "layers": ["cowbell", "pad", "texture"]},
+      {"name": "hook3", "kind": "hook", "bars": 16, "energy": 1.0, "layers": ["kick", "snare", "clap", "hat", "ohat", "bass", "cowbell", "pad", "texture"], "impact": true},
+      {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.4, "layers": ["cowbell", "hat", "texture"]}
+    ]
+  ],
+  "drums": [
+    {"name": "kick", "voice": "kick", "template": {"steps": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0, 0, 0, 0, 0], "vel": [0.9, 1.0], "vary": 0.3}, "params": {"decay": [0.25, 0.4], "tune": [45, 55], "tone": [0.4, 0.7], "punch": [0.5, 0.8], "drive": [6, 10]}, "samples": ["Kick"], "mix": {"bus": "drums"}},
+    {"name": "snare", "voice": "snare", "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0], "vel": [0.92, 1.0], "vary": 0.2}, "params": {"decay": [0.12, 0.2], "tune": [190, 240], "snap": [0.7, 0.95], "tone": [0.5, 0.9]}, "samples": ["Snare"], "mix": {"bus": "drums", "reverb": 0.1}},
+    {"name": "clap", "voice": "clap", "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0], "vel": [0.8, 0.95]}, "mix": {"bus": "drums", "level_db": -3, "reverb": 0.12}},
+    {"name": "hat", "voice": "closed_hat", "template": {"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.5, 0.85], "rolls": 0.25, "vary": 0.2}, "variants": {"alt": {"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0], "vel": [0.5, 0.8], "rolls": 0.15}}, "params": {"decay": [0.025, 0.05]}, "samples": ["Hi-hat"], "choke": "hats", "mix": {"bus": "drums", "pan": 0.12}},
+    {"name": "ohat", "voice": "open_hat", "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0], "vel": [0.5, 0.7]}, "params": {"decay": [0.2, 0.35]}, "choke": "hats", "mix": {"bus": "drums", "pan": -0.15}}
+  ],
+  "kits": [["tr808", 0.7]],
+  "kit_mix": 0.15,
+  "palette": {
+    "bass": {"core": 0.95, "synth": 1},
+    "lead": {"core": 0.85, "synth": 1},
+    "pad": {"core": 0.5, "synth": 1, "choir": 1, "strings": 0.5}
+  },
+  "parts": [
+    {"name": "bass", "role": "bass", "presets": ["808"], "styles": ["kick_follow"], "register": [24, 40], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 9, "mix": 1.0}, {"fx": "filter", "mode": "lp", "cutoff": 4500, "res": 0.1}]}},
+    {"name": "cowbell", "role": "lead", "presets": ["cowbell_lead"], "styles": ["motif"], "register": [62, 82], "density": [0.45, 0.65], "mix": {"reverb": 0.15, "delay": 0.1}},
+    {"name": "pad", "role": "pad", "presets": ["warm_pad", "choir|vowel_pad", "pad"], "styles": ["sustain"], "register": [48, 72], "voices": 3, "voicing": "open", "optional": 0.4, "mix": {"reverb": 0.35}}
+  ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["horror movie score", "piano", "music box", "choir", "eastern melody", "organ", "old soul"],
+      "listen": "an eerie piano or choir phrase from an old tape",
+      "treat": {"as it is": 0.4, "crushed": 0.3, "overloaded": 0.3},
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.3,
+      "chop": 0.4,
+      "pitch": [-3, 2],
+      "instead": ["pad"],
+      "mix": {"bus": "music", "fx": [{"fx": "filter", "mode": "hp", "cutoff": 150, "res": 0.05}, {"fx": "bitcrush", "bits": 12, "downsample": 2}]}
+    },
+    "texture": {
+      "search": ["tape hiss", "vinyl crackle", "cassette noise"],
+      "listen": "the hiss of an old cassette tape",
+      "seconds": [5, 600],
+      "keep": 3,
+      "chance": 0.5,
+      "mix": {"bus": "music"}
+    },
+    "vocal": {
+      "search": ["memphis rap vocal", "rap vocal", "spoken word", "vocal chant", "a cappella"],
+      "listen": "a rapper's voice from an old tape",
+      "seconds": [1, 400],
+      "keep": 4,
+      "chance": 0.6
+    }
+  },
+  "transitions": {"riser": false, "impact": true, "downlifter": false, "reverse_crash": true, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.2, "level_db": -2}},
+  "mix": {
+    "lufs": -8.0,
+    "reverb": {"fx": "reverb", "decay": 1.0, "damping": 0.6, "predelay_ms": 10, "width": 1.2, "mix": 1.0, "lowcut": 350},
+    "delay": {"fx": "delay", "beats": 0.75, "feedback": 0.25, "damping": 0.6, "pingpong": true, "mix": 1.0},
+    "buses": {
+      "drums": [
+        {"fx": "saturate", "kind": "tanh", "drive_db": 5, "mix": 0.6},
+        {"fx": "compressor", "threshold_db": -10, "ratio": 4.0, "attack_ms": 5, "release_ms": 70, "knee_db": 4, "makeup_db": 2}
+      ],
+      "bass": [{"fx": "saturate", "kind": "tanh", "drive_db": 4, "mix": 0.6}],
+      "music": [{"fx": "eq", "bands": [{"kind": "highpass", "freq": 150, "q": 0.7}]}, {"fx": "tape", "wow": 0.2, "flutter": 0.15, "drive_db": 3, "lowpass_hz": 12000}]
+    },
+    "master": [
+      {"fx": "eq", "bands": [{"kind": "highpass", "freq": 25, "q": 0.7}]},
+      {"fx": "tape", "wow": 0.08, "flutter": 0.08, "drive_db": 2, "lowpass_hz": 15000},
+      {"fx": "compressor", "threshold_db": -9, "ratio": 2.5, "attack_ms": 10, "release_ms": 100, "knee_db": 6}
+    ],
+    "duck_release": 0.2,
+    "levels": {"bass": 5.0, "hat": 1.5, "kick": -1.0},
+    "bands": {"sub": [-14, -1], "low": [-9, -1], "mid": [-22, -8], "presence": [-31, -15], "air": [-35, -17]}
+  }
+}

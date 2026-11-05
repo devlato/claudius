@@ -38,6 +38,14 @@ the critic judges against it, and evolution mutates songs within it. This page c
 | `reggaeton` | 88–100 | 0.50–0.53 | minor, harmonic minor, dorian | −9 | 808 (50 %) | reggaeton music (dancehall, latin pop, trap, afrobeats) |
 | `trance` | 134–140 | 0.50–0.51 | minor, dorian, major | −9 | 909 (60 %) | trance music (techno, house, electro house, synthwave) |
 | `neo_soul` | 72–92 | 0.55–0.62 | dorian, minor, major | −11 | acoustic (60 %) | neo soul music (r&b, jazz, lo-fi hip hop, funk) |
+| `hip_hop` | 84–100 | 0.52–0.58 | minor, dorian, phrygian, harmonic minor | −9.5 | 808 (35 %), acoustic (30 %), 909 (10 %) | hip hop beat with heavy bass (boom bap, trap, lo-fi hip hop, r&b) |
+| `rnb` | 64–80 | 0.52–0.60 | minor, dorian, major, lydian | −10 | 808 (40 %), 909 (10 %) | r&b music (heavy-bass hip hop, lo-fi hip hop, jazz, corporate pop) |
+| `funk` | 96–116 | 0.52–0.60 | dorian, mixolydian, minor | −10 | acoustic (45 %), 707 (10 %) | funk music (jazz, heavy-bass hip hop, rock with electric guitars, house) |
+| `tech_house` | 124–128 | 0.50–0.56 | minor, dorian, phrygian | −8.5 | 909 (40 %), 808 (15 %), 707 (10 %) | tech house music (house, techno, minimal, drum and bass) |
+| `ambient` | 60–90 | 0.50–0.52 | major, lydian, dorian, minor | −14 | 808 (20 %) | ambient pad music (cinematic orchestral, solo piano, minimal, lo-fi hip hop) |
+| `grime` | 138–142 | 0.50–0.54 | minor, phrygian, harmonic minor | −9 | 808 (40 %), 909 (20 %) | grime music (dubstep, trap, heavy-bass hip hop, drum and bass) |
+| `phonk` | 130–145 | 0.50–0.54 | phrygian, minor, harmonic minor | −8 | 808 (70 %) | phonk music (trap, heavy-bass hip hop, dubstep, lo-fi hip hop) |
+| `reggae` | 66–84 | 0.56–0.64 | minor, major, dorian | −11 | acoustic (40 %), 808 (10 %) | reggae music (heavy-bass hip hop, jazz, funk, acoustic guitar) |
 
 The ten after synthwave lean on [effect chains](../../language/mixing.md#effect-chains) in their profiles:
 trip-hop's drums go through parallel compression and a crushed copy, and its delay feeds back harder in the breaks;

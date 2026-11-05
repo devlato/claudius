@@ -87,6 +87,7 @@ pub const ROLES: &[(&str, &[&str])] = &[
     ("fm_kalimba", &["arp", "lead"]),
     ("harp_pluck", &["arp", "chords"]),
     ("mallet", &["arp", "keys", "lead"]),
+    ("cowbell_lead", &["lead"]),
 ];
 
 pub fn names() -> Vec<&'static str> {
@@ -472,6 +473,21 @@ pub fn get(name: &str) -> Option<Patch> {
             analog: 1.2,
             velocity: 0.4,
             ..base(vec![o(Wave::Sine), o(Wave::Tri).octave(1).level(0.15)], a(0.06, 0.3, 0.9, 0.25))
+        },
+        // the TR-808's cowbell made to play a tune, as phonk plays its melodies on it: two squares a little under a
+        // fifth apart (its 540 and 800 Hz) through a band-pass, struck and dying fast
+        "cowbell_lead" => Patch {
+            filter: Some(FilterSpec {
+                mode: FilterMode::Bp,
+                cutoff: 1700.0,
+                res: 0.35,
+                env: 0.3,
+                keytrack: 0.8,
+                drive: 1.2,
+                velocity: 0.4,
+            }),
+            fenv: a(0.001, 0.08, 0.3, 0.1),
+            ..base(vec![o(Wave::Square), o(Wave::Square).semi(6.8).level(0.8)], a(0.001, 0.32, 0.0, 0.12))
         },
         "whistle" => Patch {
             noise: 0.04,

@@ -1,0 +1,31 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+ambient at 84.0 BPM in G major, swing 0.51
+prog A: Imaj9 IVmaj9 Imaj9 V9
+prog B: Imaj9 IVsus2 Imaj9 V9
+prog C: V9 IVmaj9 Imaj9 Imaj9
+bars per chord: 2
+section intro (intro) 8 bars, energy 0.19, prog A, main [filter_in]: pad
+section verse (verse) 16 bars, energy 0.35, prog A, main []: pad keys bass
+section hook (hook) 8 bars, energy 0.60, prog C, main []: pad strings keys lead bass shaker perc
+section break (break) 8 bars, energy 0.21, prog B, main [gap]: pad
+section hook2 (hook) 16 bars, energy 0.69, prog C, main []: pad strings keys lead arp bass kick shaker perc
+section outro (outro) 4 bars, energy 0.18, prog A, main []: pad
+drum kick main (drum kick): x...............|........x.......|x...............|........x.......
+drum shaker main (drum shaker): o.o..oo...o.o.o.|o.o..oo...o.o.o.|o.o..oo...o.o.o.|o.o..oo...o.o.o.
+drum perc main (drum rim): ................|................|................|................
+part pad (pad): sustain synth air_pad, register 45..76, density 0.51
+part strings (pad): sustain synth strings, register 55..84, density 0.48
+part keys (keys): half synth keys, register 55..80, density 0.43
+part lead (lead): motif synth fm_kalimba, register 62..86, density 0.25
+part bass (bass): sustain synth deep_bass, register 28..45, density 0.53
+mix kick: -4.0 dB, pan +0.00, reverb 0.20, delay 0.00, duck 0.00, bus drums
+mix shaker: +0.0 dB, pan -0.30, reverb 0.30, delay 0.00, duck 0.00, bus drums
+mix perc: +0.0 dB, pan +0.40, reverb 0.40, delay 0.30, duck 0.00, bus drums
+mix pad: +0.0 dB, pan +0.00, reverb 0.54, delay 0.22, duck 0.00, bus music
+mix strings: +0.0 dB, pan +0.00, reverb 0.74, delay 0.00, duck 0.00, bus music
+mix keys: +0.0 dB, pan +0.00, reverb 0.41, delay 0.25, duck 0.00, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.50, delay 0.56, duck 0.00, bus music
+mix bass: +0.0 dB, pan +0.00, reverb 0.14, delay 0.00, duck 0.00, bus music

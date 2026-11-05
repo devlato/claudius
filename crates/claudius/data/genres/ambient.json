@@ -1,0 +1,86 @@
+{
+  "name": "ambient",
+  "description": "Ambient: slow and spacious at 60 to 90 BPM, a soft pulse or no beat at all: long pads and string drones that evolve, washes of reverb and delay, a few notes of piano, mallet or a soft lead drifting over slow chords, field recordings and textures underneath, sections that swell and fade rather than drop",
+  "query": "ambient synth pad music",
+  "alts": ["cinematic orchestral music", "solo piano music", "minimal electronic music", "lo-fi hip hop beat"],
+  "bpm": [60, 90],
+  "swing": [0.5, 0.52],
+  "humanize": 0.4,
+  "modes": [["major", 0.3], ["lydian", 0.2], ["dorian", 0.25], ["minor", 0.25]],
+  "harmony": [["minimal", 0.4], ["major7_jazz", 0.3], ["dorian_vamp", 0.2], ["major_pop", 0.1]],
+  "markov": 0.2,
+  "ext": 2,
+  "bars_per_chord": [[2, 0.4], [4, 0.6]],
+  "forms": [
+    [
+      {"name": "intro", "kind": "intro", "bars": 8, "energy": 0.2, "layers": ["pad", "texture"], "filter_in": true},
+      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.35, "layers": ["pad", "keys", "bass", "texture"]},
+      {"name": "hook", "kind": "hook", "bars": 16, "energy": 0.6, "layers": ["pad", "strings", "keys", "lead", "bass", "shaker", "perc", "texture"]},
+      {"name": "break", "kind": "break", "bars": 8, "energy": 0.25, "prog": "B", "layers": ["pad", "texture"]},
+      {"name": "hook2", "kind": "hook", "bars": 16, "energy": 0.65, "layers": ["pad", "strings", "keys", "lead", "arp", "bass", "kick", "shaker", "perc", "texture"]},
+      {"name": "outro", "kind": "outro", "bars": 16, "energy": 0.2, "layers": ["pad", "keys", "texture"]}
+    ]
+  ],
+  "drums": [
+    {"name": "kick", "voice": "kick", "template": {"steps": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0], "vel": [0.5, 0.7]}, "params": {"decay": [0.4, 0.6], "tune": [40, 48], "tone": [0.1, 0.3], "punch": [0.0, 0.2], "drive": [0, 2]}, "samples": ["Kick"], "mix": {"bus": "drums", "level_db": -4, "reverb": 0.2}},
+    {"name": "shaker", "voice": "shaker", "template": {"steps": [0.4, 0.2, 0.5, 0.2, 0.4, 0.2, 0.5, 0.2, 0.4, 0.2, 0.5, 0.2, 0.4, 0.2, 0.5, 0.2], "vel": [0.1, 0.25]}, "mix": {"bus": "drums", "pan": -0.3, "reverb": 0.3}},
+    {"name": "perc", "voice": "rim", "template": {"steps": [0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0], "vel": [0.25, 0.45]}, "mix": {"bus": "drums", "pan": 0.4, "delay": 0.3, "reverb": 0.4}}
+  ],
+  "kits": [["tr808", 0.2]],
+  "kit_mix": 0.2,
+  "palette": {
+    "pad": {"core": 0.5, "pad": 2, "strings": 1.5, "choir": 1, "synth": 1},
+    "keys": {"core": 0.5, "piano": 3, "electric piano": 1.5, "mallets": 1, "harp": 0.8},
+    "lead": {"core": 0.4, "synth": 1.5, "mallets": 1.5, "strings": 1, "piano": 1},
+    "arp": {"core": 0.5, "harp": 1, "mallets": 1.5, "piano": 1, "synth": 1},
+    "bass": {"core": 0.8, "synth": 1}
+  },
+  "parts": [
+    {"name": "pad", "role": "pad", "presets": ["warm_pad", "air_pad", "swell_pad", "string_ensemble|strings"], "styles": ["sustain"], "register": [45, 76], "voices": 4, "voicing": "spread", "mix": {"reverb": 0.6, "delay": 0.15}},
+    {"name": "strings", "role": "pad", "presets": ["string_ensemble|strings", "solina", "choir|vowel_pad"], "styles": ["sustain"], "register": [55, 84], "voices": 3, "voicing": "open", "optional": 0.4, "mix": {"reverb": 0.55}},
+    {"name": "keys", "role": "keys", "presets": ["piano|keys", "rhodes|epiano", "vibes|mallet"], "styles": ["half", "sustain"], "register": [55, 80], "voices": 3, "voicing": "open", "mix": {"reverb": 0.5, "delay": 0.3}},
+    {"name": "lead", "role": "lead", "presets": ["soft_lead", "mallet", "kalimba|fm_kalimba"], "styles": ["motif"], "register": [62, 86], "density": [0.12, 0.28], "optional": 0.3, "mix": {"reverb": 0.55, "delay": 0.4}},
+    {"name": "arp", "role": "arp", "presets": ["harp|harp_pluck", "mallet", "pluck"], "styles": ["up", "updown", "random"], "rates": [0.5, 1.0], "register": [60, 86], "optional": 0.5, "mix": {"reverb": 0.5, "delay": 0.35, "pan": 0.2}},
+    {"name": "bass", "role": "bass", "presets": ["sub_bass", "deep_bass"], "styles": ["sustain"], "register": [28, 45], "optional": 0.3, "mix": {"reverb": 0.1}}
+  ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["drone", "new age", "piano", "string drone", "choir drone", "harp", "music box", "singing bowl", "glass harmonica", "slow strings"],
+      "listen": "a slow, spacious drone or piano phrase",
+      "treat": {"as it is": 0.5, "darkened": 0.3, "filtered until it lifts": 0.2},
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.45,
+      "chop": 0.2,
+      "pitch": [-3, 3],
+      "instead": ["keys"],
+      "mix": {"bus": "music", "reverb": 0.3, "delay": 0.15, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 80, "res": 0.05}]}
+    },
+    "texture": {
+      "search": ["field recording", "rain", "ocean waves", "forest", "wind", "stream", "birdsong", "night crickets", "room tone"],
+      "listen": "a calm field recording of nature",
+      "seconds": [5, 600],
+      "keep": 3,
+      "chance": 0.8,
+      "mix": {"bus": "music"}
+    }
+  },
+  "transitions": {"riser": false, "impact": false, "downlifter": false, "reverse_crash": true, "riser_bars": 4, "mix": {"bus": "fx", "reverb": 0.6, "level_db": -4}},
+  "mix": {
+    "lufs": -14.0,
+    "reverb": {"fx": "reverb", "decay": 4.5, "damping": 0.45, "predelay_ms": 40, "width": 1.6, "mix": 1.0, "lowcut": 200},
+    "delay": {"fx": "delay", "beats": 0.75, "feedback": 0.5, "damping": 0.6, "pingpong": true, "mix": 1.0},
+    "buses": {
+      "drums": [{"fx": "compressor", "threshold_db": -16, "ratio": 2.0, "attack_ms": 20, "release_ms": 150, "knee_db": 6, "makeup_db": 0}],
+      "music": [{"fx": "eq", "bands": [{"kind": "highpass", "freq": 60, "q": 0.7}]}]
+    },
+    "master": [
+      {"fx": "eq", "bands": [{"kind": "highpass", "freq": 25, "q": 0.7}]},
+      {"fx": "compressor", "threshold_db": -16, "ratio": 1.5, "attack_ms": 30, "release_ms": 250, "knee_db": 8}
+    ],
+    "duck_release": 0.5,
+    "levels": {"pad": 2.0, "kick": -3.0, "shaker": -3.0},
+    "bands": {"sub": [-22, -4], "low": [-12, -1], "presence": [-31, -15], "air": [-35, -17]}
+  }
+}

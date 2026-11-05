@@ -198,7 +198,7 @@ render one voice that follows the notes, retriggering its envelopes unless notes
 or `glide`, in which case it slides. Envelopes, pitch and filter coefficients update every 16 samples, with amplitude
 interpolated across the block so there is no zipper noise.
 
-The 46 presets in `synth/presets.rs` ([Synth presets](../language/sounds.md#synth-presets) lists them) are each
+The 49 presets in `synth/presets.rs` ([Synth presets](../language/sounds.md#synth-presets) lists them) are each
 tagged with the roles they suit, at least six for every role. A part holds a full copy of its patch, which the
 generator varies (`compose::widen`: a little for a genre's own sound, more for one drawn from its palette) and
 evolution tweaks (cutoff, resonance, release, drive, detune). No preset after the first twenty may share its name with
