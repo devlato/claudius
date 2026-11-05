@@ -40,7 +40,7 @@ test.describe("a phone with the demo", () => {
       const phone = await browser.newPage({ ...devices["iPhone 13"] });
       await phone.goto(page.at(-1));
       await phone.click("#go");
-      await expect(phone.locator(".pad")).not.toHaveCount(0, { timeout: 60_000 });
+      await phone.waitForFunction(() => pads.length > 0, null, { timeout: 60_000 });
       await expect.poll(() => phones.at(-1), { message: "the demo sees the phone" }).toBe("1");
       await expect(phone.locator("#where"), "it follows the demo as it plays").toContainText(/, bar \d+/, { timeout: 120_000 });
       // the demo's engine renders the song first, then the phone's sounds
