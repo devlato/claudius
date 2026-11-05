@@ -50,7 +50,7 @@ vocabulary that people, assistants and the evolution loop all read:
 | `master` | loudness or true peak of the master | |
 | `band:<band>+`, `band:<band>-` | too much or too little energy in a band | levels of the tracks that live in that band, drum sounds and kits, patches, space, pan |
 | `width+`, `width-` | too narrow, too wide or phasey, or a low end that is not mono | the same |
-| `level:<track>+`, `level:<track>-` | a track louder or quieter than its role's level | that track's level, turned the way back |
+| `level:<track>+`, `level:<track>-` | a track louder or quieter than its genre makes it | that track's level, turned the way back |
 | `sound:<part>` | a part plays a sound its genre has no place for | that part's preset and patch |
 | `form` | the arc or the length | layers, section flags, drum variants, section lengths |
 | `part:<name>` | a part's writing | that part's seed, style, density and register |
@@ -88,8 +88,10 @@ issue says what is likely wrong: `too much sub (boomy): lower the bass / kick, o
 below 0.15 `too wide / phasey` (−0.1). Below 150 Hz the correlation must stay above 0.9, or the low end is
 `not mono` (−0.08), which matters for club systems and vinyl.
 
-**Balance.** Every track should play at its role's level in the genre: the role's target plus the genre's offset
-for it, which the [auto-mixer](rendering.md#the-auto-mixer) sets each track to, measured the same way, on its hits.
+**Balance.** Every track should play at the level its genre makes it at: its role's target, the genre's offset for
+the role, and the level the genre gives the track itself, such as trap's clap 4 dB under its role or deep house's
+transitions 3 dB under theirs (`compose::made_level`). The [auto-mixer](rendering.md#the-auto-mixer) sets each track
+to that level and measures it the same way, on its hits.
 Engineers who mix the same song set its lead within about 1.5 dB of one another, so a track within 3 dB of its
 level is a choice. Further away, it costs 0.2 × severity, where severity is the distance beyond those 3 dB over 6
 (at most 1). The issue names the track and the way to turn it: `chords is 9.0 dB louder than the chords level: it

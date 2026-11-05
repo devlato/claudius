@@ -227,6 +227,35 @@ fn tune_to_key(tune: f32, lo: f32, hi: f32, key: &Key) -> f32 {
     best.1
 }
 
+/// how far under a drums track's level an Apple Loops family's beat plays, under the song's own drums
+pub const FAMILY_BEAT_DB: f32 = -4.0;
+
+/// The level (dB) a song of genre `g` gives a track of its own over its role's as it is made: its drum lane's,
+/// its part's, its loop's, its transitions' or its sample's `mix.level_db`, or what an Apple Loops family's beat
+/// plays at; 0 for any other track.
+pub fn made_level(g: &GenreProfile, track: &str) -> f32 {
+    if let Some(l) = g.drums.iter().find(|l| l.name == track) {
+        return l.mix.level_db;
+    }
+    if let Some(p) = g.parts.iter().find(|p| p.name == track) {
+        return p.mix.level_db;
+    }
+    if let Some(l) = g.loops.iter().find(|l| l.name == track) {
+        return l.mix.level_db;
+    }
+    let s = g.sampling.as_ref();
+    let sampled = match track {
+        crate::sampling::BREAK => s.and_then(|s| s.drum_break.as_ref()),
+        crate::sampling::PHRASE | crate::sampling::SECOND => s.and_then(|s| s.phrase.as_ref()),
+        crate::sampling::TEXTURE => s.and_then(|s| s.texture.as_ref()),
+        crate::sampling::VOCAL => s.and_then(|s| s.vocal.as_ref()),
+        "crash" | "riser" | "impact" | "downlifter" | "reverse_crash" => return g.transitions.mix.level_db,
+        "beat" => return FAMILY_BEAT_DB,
+        _ => None,
+    };
+    sampled.map_or(0.0, |n| n.mix.level_db)
+}
+
 /// The synth presets that fit a genre's parts of `role`: those its own parts name (each entry's preset, or the synth
 /// an instrument it names falls back to: `vibraphone|mallet`, the mallet), and the others of their families
 /// (`presets::FAMILIES`), so that a genre that plays an electric piano may play the other one, and one that plays no
@@ -445,7 +474,7 @@ pub fn generate(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn Li
             "beat",
             "drums",
             beat.clone(),
-            TrackMix { bus: "drums".into(), level_db: -4.0, ..Default::default() },
+            TrackMix { bus: "drums".into(), level_db: FAMILY_BEAT_DB, ..Default::default() },
         );
         for s in bp.form.iter_mut() {
             if s.layers.iter().any(|l| l == "hat" || l == "kick") && s.energy >= 0.6 {

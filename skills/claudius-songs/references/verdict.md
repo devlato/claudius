@@ -62,10 +62,10 @@ moves them a little; leave them when that dusty sound is what the person asked f
 
 ### A track's level (`level:<track>+` too loud, `level:<track>-` too quiet)
 
-- `chords is 9.0 dB louder than the chords level: it covers the rest`: the mixer sets every track to its role's
-  level in the genre, and a track's `level` moves it from there. Bring it back within 3 dB of it:
-  `mix("chords", #{ level: 0 })` is the role's own level, and `level: 2` a little over it. The master's meters can't
-  hear one track drowning the others, so this issue may be the only sign of it.
+- `chords is 9.0 dB louder than the chords level: it covers the rest`: the mixer sets every track to the level its
+  genre makes it at (most at `level: 0`, a few under it, such as trap's clap at −4), and a track's `level` moves it
+  from there. Bring it back within 3 dB: `get_song` shows each track's level, so undo the change that moved it. The
+  master's meters can't hear one track drowning the others, so this issue may be the only sign of it.
 
 ### The arrangement (`form`)
 

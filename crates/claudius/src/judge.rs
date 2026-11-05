@@ -15,6 +15,7 @@ use crate::audio::Stereo;
 use crate::config::SRF;
 use crate::dsp::fft::spectrogram;
 use crate::dsp::filter;
+use crate::genres::GenreProfile;
 use crate::loudness;
 use crate::model::{Project, SectionKind};
 use crate::render::Rendered;
@@ -125,7 +126,13 @@ fn clamp01(v: f64) -> f64 {
     v.clamp(0.0, 1.0)
 }
 
-fn mix_checks(r: &Rendered, p: &Project, m: &mut BTreeMap<String, f64>, issues: &mut Vec<Issue>) -> f64 {
+fn mix_checks(
+    r: &Rendered,
+    p: &Project,
+    g: Option<&GenreProfile>,
+    m: &mut BTreeMap<String, f64>,
+    issues: &mut Vec<Issue>,
+) -> f64 {
     let x = &r.master;
     let mut score = 1.0;
     let lufs_err = (r.lufs - p.mix.master.lufs as f64).abs();
@@ -217,11 +224,13 @@ fn mix_checks(r: &Rendered, p: &Project, m: &mut BTreeMap<String, f64>, issues: 
             target: "width-".into(),
         });
     }
-    // each track at its role's level in the genre (its target and the genre's offset, which the mixer sets it to):
-    // engineers set a lead about 1.5 dB apart from one mix to another, so 3 dB either way is a choice, more a fault
+    // each track at the level its genre makes it at (its role's target, the genre's offset for the role, and its
+    // own, as a clap under the snare): engineers set a lead about 1.5 dB apart from one mix to another, so 3 dB
+    // either way is a choice, more a fault
     for t in &r.tracks {
         let Some(level) = t.level_lufs else { continue };
-        let meant = crate::render::target_level(&t.role) + p.mix.levels.get(&t.role).copied().unwrap_or(0.0);
+        let made = g.map_or(0.0, |g| crate::compose::made_level(g, &t.name));
+        let meant = crate::render::target_level(&t.role) + p.mix.levels.get(&t.role).copied().unwrap_or(0.0) + made;
         let off = level + f64::from(t.gain_db) - f64::from(meant);
         if off.abs() <= 3.0 {
             continue;
@@ -288,7 +297,7 @@ fn arc_checks(r: &Rendered, p: &Project, m: &mut BTreeMap<String, f64>, issues: 
     clamp01(score)
 }
 
-fn theory_checks(p: &Project, m: &mut BTreeMap<String, f64>, issues: &mut Vec<Issue>) -> f64 {
+fn theory_checks(p: &Project, g: Option<&GenreProfile>, m: &mut BTreeMap<String, f64>, issues: &mut Vec<Issue>) -> f64 {
     let key = p.key;
     let mut parts: Vec<f64> = Vec::new();
     if let Some(lead) = p.tracks.iter().find(|t| t.role == "lead") {
@@ -434,10 +443,10 @@ fn theory_checks(p: &Project, m: &mut BTreeMap<String, f64>, issues: &mut Vec<Is
     parts.push(form);
     // each part plays a sound its genre has a place for, as the genre's own draws would (`compose::has_place`): one
     // that does not is a check failed outright
-    if let Ok(g) = crate::genres::get(&p.genre) {
+    if let Some(g) = g {
         for t in &p.tracks {
             let Some(role) = crate::model::Role::parse(&t.role) else { continue };
-            if crate::compose::has_place(&g, role, &t.sound) {
+            if crate::compose::has_place(g, role, &t.sound) {
                 continue;
             }
             parts.push(0.0);
@@ -537,9 +546,11 @@ pub fn judge(p: &Project, r: &Rendered, ears: Option<EarsReport>) -> Verdict {
     let mut measures = BTreeMap::new();
     let mut issues = Vec::new();
     let mut scores = BTreeMap::new();
-    scores.insert("mix".to_string(), mix_checks(r, p, &mut measures, &mut issues));
+    // the song's genre, as its parts and its levels were made (none for a file judged as it is)
+    let g = crate::genres::get(&p.genre).ok();
+    scores.insert("mix".to_string(), mix_checks(r, p, g.as_ref(), &mut measures, &mut issues));
     scores.insert("arc".to_string(), arc_checks(r, p, &mut measures, &mut issues));
-    scores.insert("theory".to_string(), theory_checks(p, &mut measures, &mut issues));
+    scores.insert("theory".to_string(), theory_checks(p, g.as_ref(), &mut measures, &mut issues));
     let mut weights: Vec<(&str, f64)> = vec![("mix", 0.3), ("arc", 0.2), ("theory", 0.2)];
     if let Some(e) = &ears {
         let (g, pq) = ears_score(e, &mut issues);
@@ -600,11 +611,11 @@ mod tests {
         let lead = p.tracks.iter_mut().find(|t| t.role == "lead").unwrap();
         lead.notes = vec![note(0.0, 69), note(1.0, 72), note(4.0, 68), note(5.0, 71)];
         let mut m = BTreeMap::new();
-        theory_checks(&p, &mut m, &mut Vec::new());
+        theory_checks(&p, None, &mut m, &mut Vec::new());
         assert_eq!(m["lead_in_key"], 1.0);
         // an F sharp is neither A minor's nor E7's
         p.tracks.iter_mut().find(|t| t.role == "lead").unwrap().notes.push(note(6.0, 66));
-        theory_checks(&p, &mut m, &mut Vec::new());
+        theory_checks(&p, None, &mut m, &mut Vec::new());
         assert_eq!(m["lead_in_key"], 0.8);
     }
 

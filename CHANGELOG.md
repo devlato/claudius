@@ -17,8 +17,8 @@ the 0.4-second windows that hear each hit, every track now plays within about a 
 and transitions no longer crowd the bass and the chords.
 
 The critic hears each track against the others. It judged the mix by meters on the master alone, so a song with its
-chords 9 dB too loud could still score in the high 80s. Now a track more than 3 dB from its role's level is named
-and costs the mix (`chords is 9.0 dB louder than the chords level`, target `level:chords+`), and evolution turns it
+chords 9 dB too loud could still score in the high 80s. Now a track more than 3 dB from the level its genre makes it
+at is named and costs the mix (`chords is 9.0 dB louder than the chords level`, target `level:chords+`), and evolution turns it
 back. A part playing a sound its genre has no place for costs the song (`sound:<part>`). The critic is held to this
 by tests that break a song it passes, one fault at a time.
 
