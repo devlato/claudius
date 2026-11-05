@@ -308,6 +308,24 @@ impl Remote {
         });
     }
 
+    /// a project to open, the zip itself, named `name`
+    fn upload_project(&mut self, name: &str, zip: Vec<u8>) {
+        let url = self.url(&format!("/api/project?name={}", query_value(name)));
+        let mut request = ehttp::Request::post(url, zip);
+        request.headers = ehttp::Headers::new(&[("Accept", "application/json"), ("Content-Type", "application/zip")]);
+        request.timeout = Some(Duration::from_secs(300));
+        let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
+        ehttp::fetch(request, move |res| {
+            let result = match res {
+                Ok(r) => {
+                    serde_json::from_slice::<Reply>(&r.bytes).map_err(|_| format!("{} {}", r.status, r.status_text))
+                }
+                Err(e) => Err(e),
+            };
+            Self::deliver(&tx, &ctx, Event::Reply { what: "open".into(), result });
+        });
+    }
+
     /// a recording to listen to or remake, the file itself, to `/api/analyze` or `/api/remake` with `query`
     fn listen(&mut self, bytes: Vec<u8>, path: &str, query: &str, what: &'static str) {
         let mut request = ehttp::Request::post(self.url(&format!("{path}?{query}")), bytes);
@@ -494,6 +512,15 @@ impl Backend {
         }
     }
 
+    /// open a project the demo saved, the zip itself, named `name`: claudius unpacks it into a song folder of its own
+    /// (the answer arrives as a reply to "open")
+    pub fn open_project(&mut self, name: &str, zip: Vec<u8>) {
+        match self {
+            Backend::Remote(r) => r.upload_project(name, zip),
+            Backend::Mock(m) => m.refuse("open", "the demo opens no projects: open it in claudius, which keeps it"),
+        }
+    }
+
     /// send the release's artwork, the file itself (the answer arrives as a reply to "artwork")
     pub fn upload_artwork(&mut self, bytes: Vec<u8>) {
         match self {
@@ -643,6 +670,9 @@ impl Backend {
         let asked = format.and_then(|s| exports.iter().find(|f| f.spec == s && f.unavailable.is_none()));
         match self {
             Backend::Mock(m) => m.download(render.version, name, format).map(|()| None),
+            Backend::Remote(_) if format == Some(crate::mock::PROJECT) => {
+                Err("claudius keeps the song in its folder, with the samples it plays: share that folder".into())
+            }
             Backend::Remote(r) => Ok(Some(match asked.or_else(|| download_format(exports)) {
                 Some(f) => {
                     let file = format!("{name}.{}", f.extension);
@@ -720,6 +750,13 @@ mod tests {
         };
         assert_eq!(name, "glass-garden.mp3");
         assert!(bytes.starts_with(b"ID3") || (bytes[0] == 0xff && bytes[1] & 0xe0 == 0xe0), "an MP3");
+        let project = delivered(&mut backend, &render, &exports, Some(crate::mock::PROJECT));
+        let Delivery::Bytes { name, mime, bytes } = project else { panic!("the demo hands over bytes") };
+        assert_eq!((name.as_str(), mime.as_str()), ("glass-garden.zip", "application/zip"));
+        let songs = std::env::temp_dir().join(format!("claudius-ui-project-{}", std::process::id()));
+        let dir = claudius::song::unpack_project(&bytes, &name, &songs).expect("a project claudius opens");
+        assert!(claudius::song::read_blueprint(&dir.join("blueprint.json")).is_ok() && dir.join("song.rhai").is_file());
+        let _ = std::fs::remove_dir_all(&songs);
         let later = RenderView { version: render.version + 1, ..render };
         assert!(backend.download(&later, &exports, "glass-garden", None).is_err(), "a render the demo does not hold");
     }
@@ -756,11 +793,17 @@ mod tests {
             backend.download(&render, &[], "glass-garden", None),
             Ok(Some(url("glass-garden.mp3", "http://127.0.0.1:7878/api/audio/7.mp3")))
         );
+        let project = backend.download(&render, &all, "glass-garden", Some(crate::mock::PROJECT));
+        assert!(
+            project.is_err_and(|e| e.contains("keeps the song in its folder")),
+            "a song in claudius has its folder"
+        );
     }
 
     #[test]
     fn a_recording_to_listen_to_is_named_in_the_query() {
-        let file = std::sync::Arc::new(Picked { name: "My Song (live) #2.m4a".into(), bytes: vec![1, 2] });
+        let file =
+            std::sync::Arc::new(Picked { name: "My Song (live) #2.m4a".into(), bytes: vec![1, 2], folder: None });
         let analyze = listen_request(&Listen { file: file.clone(), remake: None, sample: false, groove: false });
         assert_eq!(analyze, ("analyze", "/api/analyze", "name=My%20Song%20%28live%29%20%232.m4a".into()));
         let remake = listen_request(&Listen {

@@ -336,9 +336,19 @@ impl Studio {
     fn take_picks(&mut self, now: f64) {
         use crate::pick::{Want, chosen};
         if let Some(got) = chosen(Want::Song) {
-            match got.and_then(crate::pick::Picked::text) {
-                Ok((name, text)) => self.out.push(Command::OpenText { name, text }),
-                Err(e) => self.toast(e, false, now),
+            match got {
+                Ok(file) if file.name.to_lowercase().ends_with(".zip") => {
+                    self.backend.open_project(&file.name, file.bytes)
+                }
+                #[cfg(not(target_arch = "wasm32"))]
+                Ok(file) if let Some(project) = file.as_project() => match project {
+                    Ok((name, zip)) => self.backend.open_project(&name, zip),
+                    Err(e) => self.toast(e, false, now),
+                },
+                got => match got.and_then(crate::pick::Picked::text) {
+                    Ok((name, text)) => self.out.push(Command::OpenText { name, text }),
+                    Err(e) => self.toast(e, false, now),
+                },
             }
         }
         if let Some(got) = chosen(Want::Audio) {

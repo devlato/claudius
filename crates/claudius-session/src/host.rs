@@ -79,6 +79,9 @@ pub struct Host {
     /// the loops a genre built on samples plays: the ones the page found for it, and the library of them
     prepared: Vec<Prepared>,
     lib: Option<Arc<Library>>,
+    /// each file cut from a recording: the recording, which a project credits, and whether the file keeps floats (a
+    /// drum hit's does)
+    cuts: BTreeMap<String, (Found, bool)>,
     /// the song version whose render failed: it is not tried again until the song changes
     failed: Option<u64>,
     seeds: Rng,
@@ -106,6 +109,7 @@ impl Host {
             verdict: None,
             prepared: Vec::new(),
             lib: None,
+            cuts: BTreeMap::new(),
             failed: None,
             seeds: Rng::new(seed),
             kept: render::Kept::default(),
@@ -142,7 +146,9 @@ impl Host {
                     *v = v.clamp(-1.0, 1.0);
                 }
             }
-            audio::remember(&f.path.to_string_lossy(), a);
+            let path = f.path.to_string_lossy().into_owned();
+            self.cuts.insert(path.clone(), (r.found.clone(), f.float));
+            audio::remember(&path, a);
         }
         let mut p = cut.prepared;
         p.asked = asked;
@@ -151,6 +157,43 @@ impl Host {
         self.prepared.push(p.clone());
         self.lib = Some(Arc::new(Library::with_prepared(self.prepared.clone())));
         Ok(p)
+    }
+
+    /// The song as a project to open in claudius (`song::pack_project`), a zip: the files it plays, which only this
+    /// session holds, go in it (`project_path`), a drum hit as the 32-bit WAV it was cut as and the rest as 24-bit
+    /// FLAC, each with the recording it was cut from (its page, creator and licence) in a `.json` beside it, and
+    /// their credits in credits.txt.
+    pub fn project(&self) -> Result<Vec<u8>, String> {
+        let mut bp = self.bp.clone().ok_or("no song yet: start one with a new song")?;
+        let tags = claudius::export::tags(&bp.title);
+        let mut moved: BTreeMap<String, String> = BTreeMap::new();
+        let (mut files, mut found) = (Vec::new(), Vec::new());
+        for path in bp.files_mut() {
+            if let Some(to) = moved.get(path.as_str()) {
+                *path = to.clone();
+                continue;
+            }
+            let audio = audio::remembered_audio(path)
+                .ok_or_else(|| format!("the song plays {path}, which this page does not hold"))?;
+            let cut = self.cuts.get(path.as_str());
+            let float = cut.is_some_and(|c| c.1) || audio.l.iter().chain(&audio.r).any(|v| v.abs() > 1.0);
+            let to = project_path(path, float);
+            let spec = if float { "wav:32" } else { "flac:24" };
+            let spec = spec.parse::<claudius::export::Spec>().map_err(|e| e.to_string())?;
+            let bytes =
+                claudius::export::encode(&audio, &spec, &tags).map_err(|e| format!("cannot keep {to}: {e:#}"))?;
+            files.push((to.clone(), bytes));
+            if let Some((f, _)) = cut {
+                files.push((format!("{to}.json"), serde_json::to_vec_pretty(f).map_err(|e| e.to_string())?));
+                found.push(f.clone());
+            }
+            moved.insert(std::mem::replace(path, to.clone()), to);
+        }
+        let credits = claudius_packs::online::credits_of(&found);
+        if !credits.is_empty() {
+            files.push(("credits.txt".into(), credits.into_bytes()));
+        }
+        claudius::song::pack_project(&bp, &files).map_err(|e| format!("{e:#}"))
     }
 
     /// the script language's reference, as the studio shows it
@@ -604,6 +647,17 @@ fn name(c: &Command) -> String {
     serde_json::to_value(c).ok().and_then(|v| v["cmd"].as_str().map(String::from)).unwrap_or_default()
 }
 
+/// where a file a session holds goes in a project, which the blueprint names it by: a sample cut from a recording at
+/// the session's own name for it (`demo:samples/break/house/...` at `samples/break/house/...`), anything else (a
+/// scratch take) in `takes/`; a `.wav` when it keeps floats, else a `.flac`
+fn project_path(path: &str, float: bool) -> String {
+    let ext = if float { "wav" } else { "flac" };
+    match path.strip_prefix("demo:") {
+        Some(rest) => format!("{}.{ext}", rest.strip_suffix(".wav").unwrap_or(rest)),
+        None => format!("takes/{}.{ext}", claudius::song::slug(path)),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -781,5 +835,51 @@ mod tests {
         assert!(!r.ok && r.message.contains("the demo does not save"), "{}", r.message);
         let r = command(&mut h, json!({"cmd": "new_song", "genre": "polka"}));
         assert!(!r.ok && r.message.contains("genres: "), "{}", r.message);
+    }
+
+    #[test]
+    fn a_project_holds_the_song_and_the_files_it_plays_with_the_recordings_they_came_from() {
+        let mut h = Host::new(1);
+        assert!(h.project().is_err(), "no song, no project");
+        assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
+        let (hit, phrase) = ("demo:samples/break/house/amen/kick.wav", "demo:samples/phrase/house/keys/phrase.wav");
+        let x: Vec<f32> = (0..4800).map(|i| (i as f32 * 0.05).sin()).collect();
+        // a hit is kept as floats, louder than a 24-bit file holds
+        audio::remember(hit, Stereo::from_mono(&x.iter().map(|v| v * 1.5).collect::<Vec<_>>()));
+        audio::remember(phrase, Stereo::from_mono(&x));
+        let found = |id: &str, title: &str, licence: &str| -> Found {
+            serde_json::from_value(json!({"id": id, "source": "openverse", "provider": "freesound", "title": title,
+                "creator": "someone", "licence": licence, "licence_name": "CC BY 4.0", "page": format!("https://freesound.org/s/{id}/"),
+                "licence_url": "https://creativecommons.org/licenses/by/4.0/", "audio": "", "filetype": "mp3", "seconds": 4.0}))
+            .unwrap()
+        };
+        h.cuts.insert(hit.into(), (found("1", "Amen", "by"), true));
+        h.cuts.insert(phrase.into(), (found("2", "Keys", "cc0"), false));
+        let sample =
+            |path: &str| model::Sound::Sample { path: path.into(), root: 60, start: 0.0, end: None, label: "x".into() };
+        let bp = h.bp.as_mut().unwrap();
+        (bp.drums[0].sound, bp.drums[1].sound, bp.parts[0].sound) = (sample(hit), sample(hit), sample(phrase));
+
+        let songs = std::env::temp_dir().join(format!("claudius-session-project-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&songs);
+        let dir = claudius::song::unpack_project(&h.project().unwrap(), "song.zip", &songs).unwrap();
+        let opened = claudius::song::read_blueprint(&dir.join("blueprint.json")).unwrap();
+        let (kick, keys) =
+            (dir.join("samples/break/house/amen/kick.wav"), dir.join("samples/phrase/house/keys/phrase.flac"));
+        let at = |s: &model::Sound| match s {
+            model::Sound::Sample { path, .. } => std::path::PathBuf::from(path),
+            _ => panic!("a sample"),
+        };
+        assert_eq!([&opened.drums[0].sound, &opened.drums[1].sound].map(at), [kick.clone(), kick.clone()]);
+        assert_eq!(at(&opened.parts[0].sound), keys);
+        let peak = |p: &std::path::Path| audio::load(p).unwrap().l.iter().fold(0.0f32, |m, v| m.max(v.abs()));
+        assert!((peak(&kick) - 1.5).abs() < 0.01, "the hit is kept as floats: {}", peak(&kick));
+        assert!((peak(&keys) - 1.0).abs() < 0.01, "the phrase is kept as 24-bit FLAC: {}", peak(&keys));
+        let about = std::fs::read_to_string(dir.join("samples/break/house/amen/kick.wav.json")).unwrap();
+        assert!(about.contains("https://freesound.org/s/1/"), "{about}");
+        let credits = std::fs::read_to_string(dir.join("credits.txt")).unwrap();
+        let lines: Vec<&str> = credits.lines().collect();
+        assert!(lines[1].starts_with("\"Amen\" by someone") && lines[2].starts_with("\"Keys\""), "{credits}");
+        let _ = std::fs::remove_dir_all(&songs);
     }
 }

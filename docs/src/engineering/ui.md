@@ -310,7 +310,15 @@ takes 30, and trap in 12 where it takes 16, each the same to the sample.
 What needs a computer of one's own the demo turns down, and says so: takes, folders, files written, packs, mutation
 and evolution. The download button hands over the render as a file its engine writes in its Web Worker, where the
 seconds a song takes to encode do not stop the page: FLAC at 16 bits, or the format the export menu asks for (`State`'s
-`exports`, which lists for the demo what its engine can write). A recording to listen to gets an analysis
+`exports`, which lists for the demo what its engine can write). The menu's **claudius project (.zip)** is the song
+itself (`Host::project`): its blueprint and script, and the files it plays, which only the engine's memory holds, at
+the paths the blueprint names them by (`samples/<role>/<whose>/<recording>/break.flac`, `takes/...`), each cut with
+the recording it came from (`Found`) in the `.json` beside it, and `credits.txt`. A cut is kept as 24-bit FLAC, and a
+drum hit, cut as floats, as a 32-bit WAV. claudius opens the zip (`song::unpack_project`, from `load` or
+`POST /api/project`, which the studio sends a chosen `.zip` to) into a song folder of its own; a song's paths that
+name no file of its own (`find_moved`) are read in its folder, so the samples play from there. A `blueprint.json` the
+app's dialog chose beside the files it plays, as an unpacked project's is, goes as a project too (`Picked::as_project`):
+the studio reads those files, which claudius on another computer could not. A recording to listen to gets an analysis
 made up from its name, since the demo hears nothing, and a remake of one is a new song of the genre asked for. Scripts,
 opened songs and every edit are the engine's, as in the studio.
 

@@ -154,3 +154,7 @@ loudest two bars of a recording's harmonic sections, and it only varispeeds, so 
 speed fits in tune. The demo asks the website for the recordings, and the website asks Openverse and the libraries, so
 your browser contacts no one else; a visitor may ask for 30 new searches a minute. Each track names its recording,
 and the log gives each one's full credit.
+
+A song the demo sampled goes on in claudius: its [project](../getting-started/studio.md#carrying-on-in-claudius)
+holds what the demo cut from each recording, with the recording's `.json` beside it, as a sound downloaded here has
+one, so claudius credits them in the song's `credits.txt` from then on.

@@ -37,10 +37,16 @@ claudius-packs = { path = "../claudius-packs", default-features = false }
 rhai = { version = "1.26", default-features = false, features = ["std"] }
 claudius-decode = { version = "0.3.0", path = "../claudius-decode" }
 claudius-encode = { version = "0.3.0", path = "../claudius-encode", default-features = false }
+# a project's zip stores its files as they are: its audio is compressed already
+zip = { version = "9", default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 # std's clock panics in a browser: the page's instead
 web-time = "1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# a project zipped again by hand (Finder, Explorer) is deflated, and claudius opens it; a browser only writes them
+zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [dev-dependencies]
 criterion = "0.8"

@@ -560,6 +560,25 @@ impl Blueprint {
             .collect()
     }
 
+    /// the paths of every audio file the song plays (`files`), to point elsewhere
+    pub fn files_mut(&mut self) -> Vec<&mut String> {
+        let t = &mut self.transitions;
+        let sounds = self
+            .drums
+            .iter_mut()
+            .map(|d| &mut d.sound)
+            .chain(self.parts.iter_mut().map(|p| &mut p.sound))
+            .chain(self.loops.iter_mut().map(|l| &mut l.sound))
+            .chain(self.patterns.iter_mut().flat_map(|p| p.sounds.values_mut()))
+            .chain([Some(&mut t.crash), t.riser.as_mut(), t.impact.as_mut()].into_iter().flatten());
+        sounds
+            .filter_map(|s| match s {
+                Sound::Sample { path, .. } | Sound::Loop { path, .. } => Some(path),
+                _ => None,
+            })
+            .collect()
+    }
+
     pub fn layer_names(&self) -> Vec<String> {
         self.drums
             .iter()

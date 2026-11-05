@@ -41,7 +41,8 @@ its tempo, key, chords, form and groove. **Sample its vocals into the song** put
 that is open ([Sampling a song's vocals](../guide/samples.md#sampling-a-songs-vocals)), and **Take its groove** puts
 the open song's drum lanes in the feel of the recording's drums ([Grooves](../cookbook/drum-machine.md#a-groove-from-a-record)). **Open** opens a song you saved: choose the `blueprint.json` in its folder,
 or a `.rhai` script. The studio reads the file on its own computer, in a browser too, and nothing of it is kept but
-the song it opens.
+the song it opens. It also opens a project the demo saved, a `.zip`: claudius unpacks it into a song folder of its own
+([Carrying on in claudius](#carrying-on-in-claudius)).
 
 ## The panels
 
@@ -100,7 +101,9 @@ claudius as an MP3, which also saves the song's folder on the computer claudius 
 folder, under `~/Music/claudius`, and shows it. When the song changed since its last render, the download waits for
 the new render. The **export** menu downloads the song as WAV, AIFF, FLAC, Apple Lossless, MP3, AAC, Opus or Ogg
 Vorbis ([Exporting](../guide/export.md)). In the demo it offers WAV, AIFF, FLAC, MP3 and Opus, which the demo's engine
-writes in the page; AAC and Apple Lossless need the system's encoder, and Ogg Vorbis a library the demo leaves out. **publish** checks the song as stores do and writes what a distributor takes
+writes in the page; AAC and Apple Lossless need the system's encoder, and Ogg Vorbis a library the demo leaves out. In
+the demo it also offers the song itself, as a project to carry on with in claudius
+([Carrying on in claudius](#carrying-on-in-claudius)). **publish** checks the song as stores do and writes what a distributor takes
 ([Publishing](../guide/publish.md)).
 
 **Record**, the red button after the loop button, records a [take](../guide/samples.md#takes) from a microphone or
@@ -141,6 +144,25 @@ keys and a turntable with the song's sounds there, and sends the takes played on
   melody. While you record, a soft
   guide tone plays what you play, for a keyboard with no sound of its own. When you stop, the notes become a new part
   ([Notes played on a keyboard](../guide/samples.md#notes-played-on-a-keyboard)).
+
+## Carrying on in claudius
+
+A song begun in the [demo](https://claudius.devlato.com/studio/?mock) goes on in claudius. The demo's **export** menu
+downloads it as **claudius project (.zip)**: its `blueprint.json` and `song.rhai`, and under `samples/` every sample
+it plays, cut from the free libraries' recordings, with the recording it came from beside each (its page, who made it
+and its licence) in a `.json`, and their credits in `credits.txt`. A sample is kept as 24-bit FLAC, and a drum hit as
+the 32-bit WAV the demo cut it as, so nothing of them is lost.
+
+[Install claudius](install.md), then **Open** the zip in the studio, or have an assistant `open` it: claudius unpacks
+it into a song folder of its own under `~/Music/claudius`, named after the file, and opens the song there, playing
+the samples the zip brought. From then on it is a song like any other: it saves into that folder, and credits the
+recordings it plays in the folder's `credits.txt`
+([Where they go, and credits](../guide/online-samples.md#where-they-go-and-credits)). A zip with a file that would
+land outside its folder is not opened, nor one that would unpack to more than 2 GB or 10,000 files.
+
+Safari unpacks a zip it downloads into a folder. Choose the `blueprint.json` in that folder: the studio app brings the
+samples beside it along, as the zip would have, and the song opens in a folder of its own all the same. A project's
+folder zipped again, as Finder or Explorer zips one, opens as the demo's zip does.
 
 ## Help and assistants
 

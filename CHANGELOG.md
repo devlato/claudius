@@ -10,6 +10,13 @@ The [studio demo](https://claudius.devlato.com/studio/?mock)'s download button h
 lossless at about half the size of the WAV it gave before. Its export menu offers WAV, AIFF, FLAC, MP3 and Opus,
 which the demo's engine writes in its Web Worker, so the page doesn't stop while a song encodes.
 
+A song begun in the demo can be carried on in claudius. The export menu's **claudius project (.zip)** holds the
+song, every sample it plays (cut from the free libraries' recordings, in lossless FLAC) and, beside each, the
+recording it came from: its page, who made it and its licence, with their credits in `credits.txt`. **Open** the zip
+in the studio, or `open` it from an assistant, and claudius unpacks it into a song folder of its own under
+`~/Music/claudius` and opens it there, samples and all. The `blueprint.json` of the folder Safari unpacks the zip
+into opens the same way.
+
 The mix balances each track on how loud its hits are. It measured a track over 3-second windows, which hear a clap on
 two and four with the silence between its hits, so the sparse tracks played louder than their levels said: snares and
 claps by about 4 dB, crashes by 3, impacts by 5 and reverse crashes by 7, an impact as loud as the kick. Measured over

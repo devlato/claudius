@@ -868,7 +868,10 @@ impl Studio {
         Ok(text)
     }
 
-    #[tool(description = "Open a saved song: a folder or blueprint.json written by save, or a .rhai script.")]
+    #[tool(
+        description = "Open a saved song: a folder or blueprint.json written by save, a .rhai script, or a project \
+                       the online demo saved (a .zip, unpacked into a song folder of its own under ~/Music/claudius)."
+    )]
     async fn open(&self, Parameters(a): Parameters<PathArgs>) -> Result<String, String> {
         self.edit(Command::Load { path: a.path }, true).await
     }

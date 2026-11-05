@@ -93,6 +93,104 @@ pub struct Written {
     pub mp3: PathBuf,
 }
 
+/// A song as a project to open in claudius (`unpack_project`): a zip of its `blueprint.json` and `song.rhai`, and of
+/// `files`, each at its path in it (`samples/...`, which the blueprint names them by), stored as they are.
+pub fn pack_project(bp: &Blueprint, files: &[(String, Vec<u8>)]) -> Result<Vec<u8>> {
+    use std::io::Write;
+    let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    // a fixed date: a browser has no clock zip may ask
+    let opts = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Stored)
+        .last_modified_time(zip::DateTime::default());
+    let documents =
+        [("blueprint.json", bp.to_json().into_bytes()), ("song.rhai", crate::script::to_script(bp).into_bytes())];
+    for (name, bytes) in documents.iter().map(|(n, b)| (*n, b)).chain(files.iter().map(|(n, b)| (n.as_str(), b))) {
+        zip.start_file(name, opts)?;
+        zip.write_all(bytes)?;
+    }
+    Ok(zip.finish()?.into_inner())
+}
+
+/// the most a project unpacks to, and the most files it holds: a zip that says more is not opened
+const MOST_UNPACKED: u64 = 2 << 30;
+const MOST_FILES: usize = 10_000;
+
+/// A project (`pack_project`) unpacked into a song folder of its own under `songs`, named after `name` (the zip's
+/// file name): the folder, which opens as any song's. A project's folder zipped again, as Finder and Explorer zip one
+/// (its files under a folder of its name, with Finder's `__MACOSX/` beside it), unpacks as the project in it. A file it
+/// holds outside itself (`../`) is refused, and so is a zip with no blueprint.json, or one that unpacks to more than
+/// 2 GB or 10,000 files.
+pub fn unpack_project(bytes: &[u8], name: &str, songs: &Path) -> Result<PathBuf> {
+    let mut zip = zip::ZipArchive::new(std::io::Cursor::new(bytes)).with_context(|| format!("{name} is not a zip"))?;
+    if zip.len() > MOST_FILES {
+        anyhow::bail!("{name} holds {} files, more than a project does ({MOST_FILES}): it is not opened", zip.len());
+    }
+    // what Finder keeps of a file's attributes, which no project holds
+    let finders =
+        |p: &Path| p.starts_with("__MACOSX") || p.file_name().is_some_and(|f| f.to_string_lossy().starts_with("._"));
+    let mut entries = Vec::with_capacity(zip.len());
+    for i in 0..zip.len() {
+        let entry = zip.by_index(i)?;
+        match entry.enclosed_name() {
+            Some(rel) if finders(&rel) => {}
+            Some(rel) => entries.push((i, rel, entry.is_dir(), entry.size())),
+            None => {
+                let file = entry.name().map(|n| n.to_string()).unwrap_or_default();
+                anyhow::bail!("{name} holds a file outside itself ({file}): it is not opened");
+            }
+        }
+    }
+    let blueprint = |rel: &Path, dir: bool, depth: usize| {
+        !dir && rel.components().count() == depth && rel.ends_with("blueprint.json")
+    };
+    let root = match entries.iter().find(|(_, rel, dir, _)| blueprint(rel, *dir, 1)) {
+        Some(_) => PathBuf::new(),
+        None => entries
+            .iter()
+            .find(|(_, rel, dir, _)| blueprint(rel, *dir, 2))
+            .and_then(|(_, rel, _, _)| rel.parent().map(Path::to_path_buf))
+            .with_context(|| format!("{name} is not a claudius project: it holds no blueprint.json"))?,
+    };
+    let (mut files, mut total) = (Vec::with_capacity(entries.len()), 0u64);
+    for (i, rel, is_dir, size) in entries {
+        let Ok(rel) = rel.strip_prefix(&root) else { continue };
+        if rel.as_os_str().is_empty() {
+            continue;
+        }
+        total = total.saturating_add(size);
+        files.push((i, rel.to_path_buf(), is_dir, size));
+    }
+    if total > MOST_UNPACKED {
+        anyhow::bail!("{name} unpacks to {} MB, more than a project does: it is not opened", total >> 20);
+    }
+    let stem = slug(Path::new(name).file_stem().map_or(name.into(), |s| s.to_string_lossy()).as_ref());
+    let stem = if stem.is_empty() { "project".to_string() } else { stem };
+    let dir = (1..)
+        .map(|n| songs.join(if n == 1 { stem.clone() } else { format!("{stem}-{n}") }))
+        .find(|d| !d.exists())
+        .expect("a name no folder has");
+    let unpacked = files.into_iter().try_for_each(|(i, rel, is_dir, size)| -> Result<()> {
+        use std::io::Read;
+        let to = dir.join(rel);
+        let folder = if is_dir { Some(to.as_path()) } else { to.parent() };
+        if let Some(folder) = folder {
+            std::fs::create_dir_all(folder).with_context(|| format!("cannot write {}", folder.display()))?;
+        }
+        if !is_dir {
+            let mut out = std::fs::File::create(&to).with_context(|| format!("cannot write {}", to.display()))?;
+            // no more than the zip says the file holds, whatever its compressed bytes would make
+            let mut entry = zip.by_index(i)?.take(size);
+            std::io::copy(&mut entry, &mut out).with_context(|| format!("cannot write {}", to.display()))?;
+        }
+        Ok(())
+    });
+    if let Err(e) = unpacked {
+        let _ = std::fs::remove_dir_all(&dir);
+        return Err(e);
+    }
+    Ok(dir)
+}
+
 /// a song from its blueprint.json, checked: its size, and that its pattern tracks still read; takes that moved with the
 /// song folder are found in it
 pub fn read_blueprint(path: &Path) -> Result<Blueprint> {

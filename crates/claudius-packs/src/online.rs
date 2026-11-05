@@ -658,11 +658,16 @@ pub fn about(audio: &Path) -> Option<Found> {
 /// Credits for the downloaded sounds among `paths` (only what a song actually played): those whose licence asks for
 /// credit first, then the rest with thanks.
 pub fn credits_for_files(paths: &[&Path]) -> String {
+    credits_of(&paths.iter().filter_map(|p| about(p)).collect::<Vec<_>>())
+}
+
+/// the credits for the recordings `found`, as a song's credits.txt lists them: each recording once, those whose
+/// licence asks for credit first (empty: none)
+pub fn credits_of(found: &[Found]) -> String {
     let mut seen = std::collections::BTreeSet::new();
     let mut required = Vec::new();
     let mut thanks = Vec::new();
-    for p in paths {
-        let Some(f) = about(p) else { continue };
+    for f in found {
         if !seen.insert(f.id.clone()) {
             continue;
         }
