@@ -10,6 +10,13 @@ The phone plays the song in the studio as well as following it: **▶** plays it
 trip to the computer. With the song stopped, ● starts it a bar before the section it is at, and the take starts with
 that section.
 
+A scratch sounds like a turntable's, on the phone and in the take it makes. The platter follows the finger as a
+platter follows a hand, its speed changing smoothly through each turn back, where it jumped every few milliseconds. A
+record moved fast whistles no highs folded back: the needle reads it from a copy whose highs are taken out as far as
+its speed needs. The crossfader opens within a hair of its travel, as a scratch DJ's does. The record waits at its
+first sound, which a sticker marks, and the deck takes a voice, a sample, a lead or a stab when the song has one. Let
+go, the record comes up to speed (or to rest) in a fraction of a second, as a real one does.
+
 The [studio demo](https://claudius.devlato.com/studio/?mock) mutates and evolves songs, as claudius does. Its engine
 judges the variations one after another in the page, without the ears, and keeps the best when it beats the song;
 **Stop** keeps the best judged so far.

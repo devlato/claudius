@@ -39,10 +39,15 @@ phone's own speaker is taken off.
   preset or an installed instrument; a key sounds harder the nearer its bottom you strike it. A take becomes a new
   part playing what you played in that sound, in the role you choose (keys, lead, chords, bass or pad), as
   [notes played on a keyboard](samples.md#notes-played-on-a-keyboard) do.
-- **Turntable.** A record of two bars of one of the song's tracks, cut from a section the track plays in. Drag it round
-  to scratch (one turn is 1.8 seconds of it, as on a record at 33⅓) and move the crossfader to cut the sound; with
-  **motor** on, the record plays on when you let go. A take becomes a take of the scratch, `scratch1`, `scratch2` ...,
-  that plays from the start of the section it began in.
+- **Turntable.** A record of two bars of one of the song's tracks, cut from a section the track plays in: a voice, a
+  sample, a lead, a stab or horns when the song has one, which scratch as records do. The record waits at its cue, its
+  first sound, which a sticker marks as it comes round under the needle. Drag it round to scratch (one turn is 1.8
+  seconds of it, as on a record at 33⅓): it follows your finger as a platter follows a hand, its speed changing
+  smoothly through each turn back, and moved fast it whistles no highs folded back, as a needle reads a record. The
+  crossfader opens within a hair of its travel, as a scratch DJ's does, so a flick cuts the sound in and out. Let go,
+  and with **motor** on the record comes up to speed in about a tenth of a second; without it, it comes to rest. A take
+  becomes a take of the scratch, `scratch1`, `scratch2` ..., that plays from the start of the section it began in,
+  read along your moves as you heard it.
 
 The pads, keys and turntable play without a take too, for practice, and while the studio is stopped.
 
