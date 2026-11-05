@@ -17,6 +17,7 @@ use claudius_api::{
 use eframe::egui;
 
 use crate::audio::Pcm;
+use crate::keep::Delivery;
 use crate::net::{Event, command_name};
 use engine::{Heard, Link};
 
@@ -100,7 +101,13 @@ pub struct Mock {
     transport: (Transport, f64),
     /// how many things the engine has been asked for the phones (`phone::Mock::ask_id`)
     phone_asks: u64,
+    /// the renders the engine makes files of for downloads: what each is answered as, and the file's name
+    encodes: Vec<(u64, String)>,
+    encode_id: u64,
 }
+
+/// what a download is, unless another format is asked for: FLAC, lossless at about half a WAV's size
+pub const DOWNLOAD: &str = "flac:16";
 
 /// the demo's release: what `claudius publish` asks, and a note that nothing is checked here
 fn demo_release() -> ReleaseView {
@@ -156,6 +163,8 @@ impl Mock {
             relay: None,
             transport: (Transport::default(), 0.0),
             phone_asks: 0,
+            encodes: Vec::new(),
+            encode_id: 0,
         }
     }
 
@@ -166,6 +175,21 @@ impl Mock {
 
     pub fn audio(&self, version: u64) -> Option<Arc<Pcm>> {
         self.audio.as_ref().filter(|(v, _)| *v == version).map(|(_, p)| p.clone())
+    }
+
+    /// Sends the render of `version` to the engine to make a file of, called `name`: in `format` (`mp3:192`), else
+    /// as `DOWNLOAD`. The file comes as `Event::Delivered`.
+    pub fn download(&mut self, version: u64, name: &str, format: Option<&str>) -> Result<(), String> {
+        let pcm = self.audio(version).ok_or("the demo has let go of that render: render again")?;
+        let spec = format.unwrap_or(DOWNLOAD);
+        if let Some(why) = self.state.exports.iter().find(|f| f.spec == spec).and_then(|f| f.unavailable.clone()) {
+            return Err(why);
+        }
+        self.encode_id += 1;
+        let title = self.state.song.as_ref().map_or_else(String::new, |s| s.title.clone());
+        self.engine.encode(self.encode_id, spec, &title, &pcm.samples);
+        self.encodes.push((self.encode_id, name.to_string()));
+        Ok(())
     }
 
     /// the script reference, which arrives as an event
@@ -237,7 +261,9 @@ impl Mock {
                 Some(Ok("kept: the demo checks nothing".into()))
             }
             Command::Save { .. } | Command::Export { .. } => {
-                Some(Err("the demo keeps no files: the download button hands you the song as a WAV file".into()))
+                Some(Err("the demo keeps no files: the download button hands you the song as a FLAC file, and \
+                          export in another format"
+                    .into()))
             }
             Command::Load { path } => {
                 Some(Err(format!("the demo opens no paths ({path}): choose the file, and the studio hands it over")))
@@ -440,6 +466,16 @@ impl Mock {
                 }
                 Heard::Reference(text) => self.events.push(Event::Reference(Ok(text))),
                 Heard::Sound { id, sounds } => self.rendered(id, sounds),
+                Heard::Encoded { id, file } => {
+                    let Some(at) = self.encodes.iter().position(|(i, _)| *i == id) else { continue };
+                    let (_, name) = self.encodes.remove(at);
+                    let delivery = file.map(|f| Delivery::Bytes {
+                        name: format!("{name}.{}", f.extension),
+                        mime: f.mime,
+                        bytes: f.bytes,
+                    });
+                    self.events.push(Event::Delivered(delivery));
+                }
                 Heard::Sampled { id, result } => {
                     if let Some(s) = self.sampling.as_mut() {
                         let lines = s.gathering.answer(id, result);

@@ -72,6 +72,8 @@ fn stream(samples: &[i32], channels: usize, bits: usize, rate: u32, predict: Pre
     use flacenc::component::BitRepr;
     use flacenc::error::Verify;
     let mut config = flacenc::config::Encoder::default();
+    // a browser's WebAssembly starts no threads: one there would panic, and take the demo's engine with it
+    config.multithread &= !cfg!(target_arch = "wasm32");
     match predict {
         Predict::Estimate => {}
         Predict::Count => config.subframe_coding.fixed.order_sel = flacenc::config::OrderSel::BitCount,

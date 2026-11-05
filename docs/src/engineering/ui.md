@@ -307,8 +307,10 @@ workers in the memory it gives the page, and when started as `claudius-engine_lo
 a four-minute deep-house song renders whole in about 19 s where the engine alone takes 29, synthwave in 20 where it
 takes 30, and trap in 12 where it takes 16, each the same to the sample.
 
-What needs a computer of one's own the demo turns down, and says so: takes, folders, files written (the download
-button hands over the render as a WAV file), packs, mutation and evolution. A recording to listen to gets an analysis
+What needs a computer of one's own the demo turns down, and says so: takes, folders, files written, packs, mutation
+and evolution. The download button hands over the render as a file its engine writes in its Web Worker, where the
+seconds a song takes to encode do not stop the page: FLAC at 16 bits, or the format the export menu asks for (`State`'s
+`exports`, which lists for the demo what its engine can write). A recording to listen to gets an analysis
 made up from its name, since the demo hears nothing, and a remake of one is a new song of the genre asked for. Scripts,
 opened songs and every edit are the engine's, as in the studio.
 

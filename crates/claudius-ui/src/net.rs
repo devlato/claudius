@@ -123,6 +123,8 @@ pub enum Event {
     },
     /// the page a phone plays along on was not served, and why
     PhoneRefused(String),
+    /// a file asked for to download, made since (`Backend::download`), or why there is none
+    Delivered(Result<Delivery, String>),
 }
 
 /// the `"cmd"` tag of a command ("set_tempo")
@@ -628,15 +630,20 @@ impl Backend {
         }
     }
 
-    /// What downloading the song as rendered in `render` hands over, named `name` and its extension: the demo's render
-    /// as a WAV; a server's MP3, else its WAV, else the audio the player plays.
-    pub fn download(&self, render: &RenderView, exports: &[ExportFormat], name: &str) -> Result<Delivery, String> {
+    /// What downloading the song as rendered in `render` hands over, named `name` and its extension, in `format` (a
+    /// spec of `exports`) when one is asked for: a server's file, else its MP3, else its WAV, else the audio the player
+    /// plays. The demo makes the file in its engine, which hands it over later as `Event::Delivered`: None.
+    pub fn download(
+        &mut self,
+        render: &RenderView,
+        exports: &[ExportFormat],
+        name: &str,
+        format: Option<&str>,
+    ) -> Result<Option<Delivery>, String> {
+        let asked = format.and_then(|s| exports.iter().find(|f| f.spec == s && f.unavailable.is_none()));
         match self {
-            Backend::Mock(m) => {
-                let pcm = m.audio(render.version).ok_or("the demo has let go of that render: render again")?;
-                Ok(Delivery::Bytes { name: format!("{name}.wav"), mime: "audio/wav", bytes: pcm.encode_wav() })
-            }
-            Backend::Remote(r) => Ok(match download_format(exports) {
+            Backend::Mock(m) => m.download(render.version, name, format).map(|()| None),
+            Backend::Remote(r) => Ok(Some(match asked.or_else(|| download_format(exports)) {
                 Some(f) => {
                     let file = format!("{name}.{}", f.extension);
                     let url = r.url(&format!("/api/export/{}/{file}?format={}", render.version, f.spec));
@@ -646,7 +653,7 @@ impl Backend {
                     let extension = render.url.rsplit_once('.').map_or("mp3", |(_, e)| e);
                     Delivery::Url { name: format!("{name}.{extension}"), url: r.url(&render.url) }
                 }
-            }),
+            })),
         }
     }
 }
@@ -662,36 +669,64 @@ mod tests {
     use crate::panels::Listen;
     use crate::pick::Picked;
 
+    /// the file the demo's engine makes of `render` for a download, in `format`, once it hands it over
+    fn delivered(
+        backend: &mut Backend,
+        render: &RenderView,
+        exports: &[ExportFormat],
+        format: Option<&str>,
+    ) -> Delivery {
+        let made = backend.download(render, exports, "glass-garden", format);
+        assert!(matches!(made, Ok(None)), "the demo's engine makes the file");
+        let (mut now, t0) = (1000.0, std::time::Instant::now());
+        while t0.elapsed() < Duration::from_secs(60) {
+            now += 0.05;
+            for ev in backend.update(now) {
+                if let Event::Delivered(file) = ev {
+                    return file.expect("a file");
+                }
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        panic!("the demo's engine made no file")
+    }
+
     #[test]
-    fn the_demo_hands_over_its_render_as_a_wav_named_after_the_song() {
+    fn the_demo_hands_over_its_render_as_a_flac_named_after_the_song_or_in_the_format_asked_for() {
         let mut backend = Backend::Mock(Box::new(Mock::new(None)));
-        let (mut now, mut render, t0) = (0.0, None, std::time::Instant::now());
+        let (mut now, mut render, mut exports, t0) = (0.0, None, Vec::new(), std::time::Instant::now());
         // the demo's engine renders on a thread of its own
         while render.is_none() && t0.elapsed() < Duration::from_secs(180) {
             now += 0.05;
             for ev in backend.update(now) {
                 if let Event::State(s) = ev {
+                    exports = s.exports.clone();
                     render = render.or(s.render.filter(|r| r.url != claudius_api::PREVIEW_URL));
                 }
             }
             std::thread::sleep(Duration::from_millis(10));
         }
         let render = render.expect("the demo renders its song");
-        let Ok(Delivery::Bytes { name, mime, bytes }) = backend.download(&render, &[], "glass-garden") else {
+        assert!(exports.iter().any(|f| f.spec == crate::mock::DOWNLOAD && f.unavailable.is_none()), "{exports:?}");
+        let Delivery::Bytes { name, mime, bytes } = delivered(&mut backend, &render, &exports, None) else {
             panic!("the demo hands over bytes")
         };
-        assert_eq!((name.as_str(), mime), ("glass-garden.wav", "audio/wav"));
+        assert_eq!((name.as_str(), mime.as_str(), &bytes[..4]), ("glass-garden.flac", "audio/flac", &b"fLaC"[..]));
         let Backend::Mock(m) = &backend else { unreachable!() };
-        let pcm = m.audio(render.version).unwrap();
-        assert_eq!(&bytes[..4], b"RIFF");
-        assert_eq!(bytes.len(), 44 + pcm.samples.len() * 2, "the whole render, as 16-bit samples");
+        let wav = m.audio(render.version).unwrap().samples.len() * 2 * 44_100 / 48_000;
+        assert!(bytes.len() < wav * 85 / 100, "{} bytes, where a 16-bit WAV takes {wav}", bytes.len());
+        let Delivery::Bytes { name, bytes, .. } = delivered(&mut backend, &render, &exports, Some("mp3:192")) else {
+            panic!("the demo hands over bytes")
+        };
+        assert_eq!(name, "glass-garden.mp3");
+        assert!(bytes.starts_with(b"ID3") || (bytes[0] == 0xff && bytes[1] & 0xe0 == 0xe0), "an MP3");
         let later = RenderView { version: render.version + 1, ..render };
-        assert!(backend.download(&later, &[], "glass-garden").is_err(), "a render the demo does not hold");
+        assert!(backend.download(&later, &exports, "glass-garden", None).is_err(), "a render the demo does not hold");
     }
 
     #[test]
     fn a_server_hands_over_its_mp3_else_its_wav_else_what_the_player_plays() {
-        let backend = Backend::Remote(Remote::new("http://127.0.0.1:7878".into(), &egui::Context::default()));
+        let mut backend = Backend::Remote(Remote::new("http://127.0.0.1:7878".into(), &egui::Context::default()));
         let render = RenderView { version: 7, url: "/api/audio/7.mp3".into(), ..Default::default() };
         let format = |spec: &str, extension: &str, unavailable: Option<&str>| ExportFormat {
             spec: spec.into(),
@@ -703,17 +738,23 @@ mod tests {
         let all = [format("wav:24", "wav", None), format("mp3", "mp3", None), format("opus", "opus", None)];
         let url = |name: &str, url: &str| Delivery::Url { name: name.into(), url: url.into() };
         assert_eq!(
-            backend.download(&render, &all, "glass-garden"),
-            Ok(url("glass-garden.mp3", "http://127.0.0.1:7878/api/export/7/glass-garden.mp3?format=mp3"))
+            backend.download(&render, &all, "glass-garden", None),
+            Ok(Some(url("glass-garden.mp3", "http://127.0.0.1:7878/api/export/7/glass-garden.mp3?format=mp3")))
+        );
+        assert_eq!(
+            backend.download(&render, &all, "glass-garden", Some("opus")),
+            Ok(Some(url("glass-garden.opus", "http://127.0.0.1:7878/api/export/7/glass-garden.opus?format=opus"))),
+            "the format asked for"
         );
         let no_mp3 = [format("mp3", "mp3", Some("no encoder")), format("wav:24", "wav", None)];
         assert_eq!(
-            backend.download(&render, &no_mp3, "glass-garden"),
-            Ok(url("glass-garden.wav", "http://127.0.0.1:7878/api/export/7/glass-garden.wav?format=wav:24"))
+            backend.download(&render, &no_mp3, "glass-garden", Some("mp3")),
+            Ok(Some(url("glass-garden.wav", "http://127.0.0.1:7878/api/export/7/glass-garden.wav?format=wav:24"))),
+            "one it cannot write: the WAV"
         );
         assert_eq!(
-            backend.download(&render, &[], "glass-garden"),
-            Ok(url("glass-garden.mp3", "http://127.0.0.1:7878/api/audio/7.mp3"))
+            backend.download(&render, &[], "glass-garden", None),
+            Ok(Some(url("glass-garden.mp3", "http://127.0.0.1:7878/api/audio/7.mp3")))
         );
     }
 
