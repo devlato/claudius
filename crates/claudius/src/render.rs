@@ -337,9 +337,12 @@ fn render_source(
             let w = crate::warp::warp(path, *bpm, *beats, own, t.transpose, true)?;
             let wl = w.len().max(1);
             let beats_of = t.slice_beats.max(0.125);
-            let slice = ((beats_of * 60.0 / own) * SRF).round().max(1.0) as usize;
+            // the slices counted from the loop's beats, each from where it starts to the sample: added up as rounded,
+            // they may come to more than the loop holds and lose its last
+            let per = beats_of * 60.0 / own * SRF;
+            let slice = per.round().max(1.0) as usize;
             let slot = (beats_of * tm.spb).round().max(1.0) as usize;
-            let n_slices = (wl / slice).max(1);
+            let n_slices = ((*beats / beats_of).round() as usize).max(1);
             let (fade_in, fade_out) = ((0.001 * SRF) as usize, (0.003 * SRF) as usize);
             for c in &t.clips {
                 let a = (c.t * tm.spb).round() as usize;
@@ -358,7 +361,7 @@ fn render_source(
                         false => t.chop[k % t.chop.len()].rem_euclid(n_slices as i32) as usize,
                     };
                     let edge = (at as f32 / fade_in as f32).min((heard - at) as f32 / fade_out as f32).min(1.0);
-                    let src = (idx * slice + at) % wl;
+                    let src = ((idx as f64 * per).round() as usize + at).min(wl - 1);
                     out.l[i] += w.l[src] * g * edge;
                     out.r[i] += w.r[src] * g * edge;
                 }
@@ -373,8 +376,9 @@ fn render_source(
             let once = t.clips.iter().any(|c| c.once);
             let w = crate::warp::warp(path, *bpm, *beats, p.bpm, t.transpose, !once)?;
             let wl = w.len().max(1);
-            let slice = (t.slice_beats.max(0.0625) * tm.spb).round() as usize;
-            let n_slices = (wl / slice.max(1)).max(1);
+            let beats_of = t.slice_beats.max(0.0625);
+            let slice = (beats_of * tm.spb).round() as usize;
+            let n_slices = ((*beats / beats_of).round() as usize).max(1);
             for c in &t.clips {
                 let a = (c.t * tm.spb).round() as usize;
                 let off = (c.offset * tm.spb).round() as usize;
@@ -390,7 +394,7 @@ fn render_source(
                     } else {
                         let k = rel / slice;
                         let idx = t.chop[k % t.chop.len()].rem_euclid(n_slices as i32) as usize;
-                        (idx * slice + rel % slice) % wl
+                        ((idx as f64 * beats_of * tm.spb).round() as usize + rel % slice) % wl
                     };
                     out.l[i] += w.l[src] * g;
                     out.r[i] += w.r[src] * g;

@@ -2126,6 +2126,66 @@ mod tests {
     }
 
     #[test]
+    fn a_chopped_loop_plays_its_last_slice_where_rounded_slices_would_lose_it() {
+        // sixteen half beats at 98 BPM, each louder than the one before: a loop a hair short of sixteen slices each
+        // rounded on its own (14,694 samples, 235,102 of them)
+        let half = 0.5 * 60.0 / 98.0 * SRF;
+        let mut x = Stereo::zeros((16.0 * half) as usize);
+        for k in 0..16 {
+            let (a, b) = ((k as f64 * half) as usize, ((k + 1) as f64 * half) as usize);
+            for i in a..b.min(x.len()) {
+                x.l[i] = (0.04 * (k + 1) as f64 * (std::f64::consts::TAU * 220.0 * i as f64 / SRF).sin()) as f32;
+            }
+        }
+        x.r = x.l.clone();
+        audio::remember("demo:steps", x);
+        let g = crate::genres::get("house").unwrap();
+        let loudest = |song: f64, retime: bool, chop: Vec<i32>| {
+            let mut bp =
+                crate::compose::generate(&g, 3, &crate::compose::Options { short: true, ..Default::default() }, None);
+            bp.bpm = song;
+            let sound = Sound::Loop {
+                path: "demo:steps".into(),
+                bpm: 98.0,
+                beats: 8.0,
+                key: None,
+                tonal: false,
+                label: "steps".into(),
+            };
+            let part = LoopPart {
+                name: "steps".into(),
+                role: "sample".into(),
+                sound,
+                transpose: 0,
+                chop,
+                slice_beats: 0.5,
+                retime,
+                mix: TrackMix::default(),
+                from: None,
+                sampled: false,
+            };
+            bp.loops.push(part);
+            bp.form.iter_mut().for_each(|s| s.layers.push("steps".into()));
+            let p = crate::compose::arrange(&bp).slice(0, 2);
+            let (out, _) = crate::render::track_sound(&p, &crate::render::Options::default(), "steps").unwrap();
+            // the loudest of each of the song's half beats, past its fades
+            let slot = 0.5 * 60.0 / song * SRF;
+            (0..16)
+                .map(|k| {
+                    let (a, b) = ((k as f64 * slot) as usize + 480, ((k + 1) as f64 * slot) as usize - 480);
+                    out.l[a..b.min(out.len())].iter().fold(0f32, |m, v| m.max(v.abs()))
+                })
+                .collect::<Vec<f32>>()
+        };
+        // chopped onto a song at 120, half beat for half beat: the last is the loudest, not the first again
+        let heard = loudest(120.0, true, Vec::new());
+        assert!(heard[15] > 12.0 * heard[0], "{heard:?}");
+        // chopped in its own order at its own tempo, the last slice over and over
+        let heard = loudest(98.0, false, vec![15]);
+        assert!(heard.iter().all(|v| *v > 12.0 * loudest(98.0, false, vec![0])[0]), "{heard:?}");
+    }
+
+    #[test]
     fn a_loop_chopped_onto_the_grid_plays_each_slice_from_the_songs_beat_at_its_own_speed() {
         // four clicks at 90 BPM, each with a tone after it, in a song at 120: on the song's beats, each slice cut short
         let beat = 60.0 / 90.0;
