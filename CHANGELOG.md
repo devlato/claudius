@@ -6,6 +6,10 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+On a phone playing along, a quick second tap plays again instead of zooming the page in, wherever it lands, and two
+fingers apart are two fingers rather than a pinch. The pads and the keys are drawn on a canvas, where every finger is
+its own, so several play at once and a finger slid along the keys glides from key to key.
+
 A scratch sounds like a turntable's, on the phone and in the take it makes. The platter follows the finger as a
 platter follows a hand, its speed changing smoothly through each turn back, where it jumped every few milliseconds. A
 record moved fast whistles no highs folded back: the needle reads it from a copy whose highs are taken out as far as
