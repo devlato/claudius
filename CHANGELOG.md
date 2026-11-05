@@ -11,6 +11,7 @@ layer it. It has lush ninth and eleventh chords (a new progression style, `lush_
 chromatic mediants) on a Rhodes stacked on warm synths, strings and a flute; a distorted 808 with a fuzzy synth bass
 an octave over it; a swung kit with a clap on the snare; soul records chopped under it; and a beat switch into half
 time before the last hooks. Its songs are layered at complexity 0.8 unless asked otherwise.
+
 A new song can be as layered as you like: **Layers** in the New song dialog, `--complexity` on the command line and
 `complexity` in `new_song` and `song()`, from 0 to 1. At 0.5 a song is its genre as written; toward 1 its harmony and
 lead are doubled on second instruments (an octave up, or in unison on another sound), its bass an octave up through a
@@ -30,6 +31,7 @@ stretches, a phrase no speed fits now plays chopped instead of being left out.
 On a phone playing along, a quick second tap plays again instead of zooming the page in, wherever it lands, and two
 fingers apart are two fingers rather than a pinch. The pads and the keys are drawn on a canvas, where every finger is
 its own, so several play at once and a finger slid along the keys glides from key to key.
+
 A scratch sounds like a turntable's, on the phone and in the take it makes. The platter follows the finger as a
 platter follows a hand, its speed changing smoothly through each turn back, where it jumped every few milliseconds. A
 record moved fast whistles no highs folded back: the needle reads it from a copy whose highs are taken out as far as

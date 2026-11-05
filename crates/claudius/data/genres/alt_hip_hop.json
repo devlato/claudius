@@ -61,6 +61,7 @@
       "variants": {"half": {"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0], "vel": [0.35, 0.6]}},
       "params": {"decay": [0.03, 0.07], "tone": [0.35, 0.65]},
       "samples": ["Hi-hat"],
+      "choke": "hats",
       "mix": {"bus": "drums", "pan": 0.15}
     },
     {
@@ -68,7 +69,7 @@
       "voice": "open_hat",
       "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.7, 0], "vel": [0.45, 0.65]},
       "params": {"decay": [0.2, 0.35]},
-      "choke": "hat",
+      "choke": "hats",
       "mix": {"bus": "drums", "pan": -0.15}
     },
     {
