@@ -98,12 +98,13 @@ export function heard(page, thing) {
 export function playTwoBars(midi) {
   const wait = (ms) => new Promise((r) => setTimeout(r, Math.max(0, ms)));
   const [low, high] = song.lanes;
-  const pad = (lane) => [...document.querySelectorAll(".pad")].find((p) => p.textContent === lane);
   const NOTES = { kick: 36, snare: 38, clap: 39, hat: 42, ohat: 46, tom: 45, crash: 49, ride: 51, shaker: 70, perc: 37 };
   const strike = (lane) => {
     if (midi) return window.sendMidi(0x99, NOTES[song.roles[song.lanes.indexOf(lane)]], 120);
-    const r = pad(lane).getBoundingClientRect();
-    pad(lane).dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: r.left + 10, clientY: r.top + 10 }));
+    // the pads are drawn: struck where the page says the pad is
+    const r = padRect(lane);
+    const at = { bubbles: true, clientX: r.left + 10, clientY: r.top + 10 };
+    document.getElementById("padgrid").dispatchEvent(new PointerEvent("pointerdown", at));
   };
   const now = () => songAt(performance.now() + latency());
   const beat = 60 / song.bpm;
