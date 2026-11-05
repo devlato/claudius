@@ -307,8 +307,11 @@ workers in the memory it gives the page, and when started as `claudius-engine_lo
 a four-minute deep-house song renders whole in about 19 s where the engine alone takes 29, synthwave in 20 where it
 takes 30, and trap in 12 where it takes 16, each the same to the sample.
 
-What needs a computer of one's own the demo turns down, and says so: takes, folders, files written, packs, mutation
-and evolution. The download button hands over the render as a file its engine writes in its Web Worker, where the
+What needs a computer of one's own the demo turns down, and says so: takes, folders, files written, packs. Mutation
+and evolution run in its engine as the server's do, without the ears: a worker has no threads, so the engine judges
+one candidate a turn (`evolve::Stepwise`, `Host::step`), with the messages that came meanwhile between them, and the
+state's `busy` says how many it has judged. A stop keeps the best judged so far; an edit meanwhile ends it. The
+download button hands over the render as a file its engine writes in its Web Worker, where the
 seconds a song takes to encode do not stop the page: FLAC at 16 bits, or the format the export menu asks for (`State`'s
 `exports`, which lists for the demo what its engine can write). The menu's **claudius project (.zip)** is the song
 itself (`Host::project`): its blueprint and script, and the files it plays, which only the engine's memory holds, at

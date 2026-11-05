@@ -14,6 +14,10 @@ suits a record with a clear pulse in a genre that chops, and house still speeds 
 tempo is chopped onto the grid too, rather than stretched, so its hits stay crisp. In the web demo, where nothing
 stretches, a phrase no speed fits now plays chopped instead of being left out.
 
+The [studio demo](https://claudius.devlato.com/studio/?mock) mutates and evolves songs, as claudius does. Its engine
+judges the variations one after another in the page, without the ears, and keeps the best when it beats the song;
+**Stop** keeps the best judged so far.
+
 The [studio demo](https://claudius.devlato.com/studio/?mock)'s download button hands over the song as FLAC,
 lossless at about half the size of the WAV it gave before. Its export menu offers WAV, AIFF, FLAC, MP3 and Opus,
 which the demo's engine writes in its Web Worker, so the page doesn't stop while a song encodes.

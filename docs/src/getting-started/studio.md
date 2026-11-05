@@ -95,7 +95,8 @@ the song it opens. It also opens a project the demo saved, a `.zip`: claudius un
 - **Log.** What happened, and the song's history.
 
 **Mutate** tries a few variations and keeps the best one if it beats the current song; **Evolve** runs several
-generations of that. Both run in the background and can be stopped. The **download** button, after undo and redo,
+generations of that. Both run in the background and can be stopped, and in the demo too, where its engine judges the
+variations one after another without the ears, so they take a while longer. The **download** button, after undo and redo,
 hands you the song. In a browser it downloads it: the demo as a FLAC file, lossless at about half a WAV's size, and a
 claudius as an MP3, which also saves the song's folder on the computer claudius runs on. In the app it saves the
 folder, under `~/Music/claudius`, and shows it. When the song changed since its last render, the download waits for

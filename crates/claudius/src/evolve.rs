@@ -673,32 +673,8 @@ pub fn run(
             log("stopped");
             break;
         }
-        let mut pool: Vec<&Candidate> = all.iter().collect();
-        pool.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
-        let parents: Vec<Candidate> = pool.into_iter().take(s.population).cloned().collect();
-        let mut jobs: Vec<(Blueprint, Option<String>, String)> = Vec::new();
-        let mut tries = 0;
-        while jobs.len() < s.children && tries < s.children * 10 {
-            tries += 1;
-            let pa = &parents[rng.below(parents.len()).min(rng.below(parents.len()))];
-            let issues = pa.verdict.as_ref().map(|v| v.issues.clone()).unwrap_or_default();
-            let (mut child, mut change) = if parents.len() > 1 && rng.chance(s.crossover) {
-                let pb = &parents[rng.below(parents.len())];
-                crossover(&pa.blueprint, &pb.blueprint, &mut rng)
-            } else {
-                (pa.blueprint.clone(), String::new())
-            };
-            let n_ops = 1 + rng.below(2);
-            for _ in 0..n_ops {
-                let (c, w) = mutate(&child, g, lib, &issues, &mut rng);
-                child = c;
-                change = if change.is_empty() { w } else { format!("{change}; {w}") };
-            }
-            let h = hash_str(&child.to_json());
-            if seen.insert(h) {
-                jobs.push((child, Some(pa.id.clone()), change));
-            }
-        }
+        let jobs = children(&all, g, lib, s, &mut rng, &mut seen);
+        let parents = best(&all, s.population);
         let kids: Vec<Candidate> = jobs
             .into_par_iter()
             .enumerate()
@@ -715,6 +691,133 @@ pub fn run(
     }
     all.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
     Ok(all)
+}
+
+/// the `n` best of `all`, best first
+fn best(all: &[Candidate], n: usize) -> Vec<Candidate> {
+    let mut pool: Vec<&Candidate> = all.iter().collect();
+    pool.sort_by(|a, b| b.score.total_cmp(&a.score));
+    pool.into_iter().take(n).cloned().collect()
+}
+
+/// The next generation's children of the best of `all` (`s.population` of them): each one or two mutations of a
+/// parent, or of a crossover of two, aimed at its verdict's issues; none that `seen` has seen. With its parent and
+/// what changed.
+fn children(
+    all: &[Candidate],
+    g: &GenreProfile,
+    lib: Option<&dyn Library>,
+    s: &Settings,
+    rng: &mut Rng,
+    seen: &mut std::collections::HashSet<u64>,
+) -> Vec<(Blueprint, Option<String>, String)> {
+    let parents = best(all, s.population);
+    let mut jobs: Vec<(Blueprint, Option<String>, String)> = Vec::new();
+    let mut tries = 0;
+    while !parents.is_empty() && jobs.len() < s.children && tries < s.children * 10 {
+        tries += 1;
+        let pa = &parents[rng.below(parents.len()).min(rng.below(parents.len()))];
+        let issues = pa.verdict.as_ref().map(|v| v.issues.clone()).unwrap_or_default();
+        let (mut child, mut change) = if parents.len() > 1 && rng.chance(s.crossover) {
+            let pb = &parents[rng.below(parents.len())];
+            crossover(&pa.blueprint, &pb.blueprint, rng)
+        } else {
+            (pa.blueprint.clone(), String::new())
+        };
+        let n_ops = 1 + rng.below(2);
+        for _ in 0..n_ops {
+            let (c, w) = mutate(&child, g, lib, &issues, rng);
+            child = c;
+            change = if change.is_empty() { w } else { format!("{change}; {w}") };
+        }
+        let h = hash_str(&child.to_json());
+        if seen.insert(h) {
+            jobs.push((child, Some(pa.id.clone()), change));
+        }
+    }
+    jobs
+}
+
+/// An evolution made one candidate at a time (`step`), for a host with no threads that answers between them (the
+/// browser's demo): the generations `run` makes, judged on the same window, without the ears. A mutation is one
+/// generation of children of the song alone, none crossed (`Settings { generations: 1, population: 1, crossover:
+/// 0.0, .. }`).
+pub struct Stepwise {
+    g: GenreProfile,
+    s: Settings,
+    rng: Rng,
+    all: Vec<Candidate>,
+    waiting: std::collections::VecDeque<(Blueprint, Option<String>, String, usize)>,
+    generation: usize,
+    seen: std::collections::HashSet<u64>,
+}
+
+impl Stepwise {
+    pub fn new(g: &GenreProfile, initial: Vec<Blueprint>, s: Settings) -> Stepwise {
+        let rng = Rng::new(s.seed ^ hash_str("evolve"));
+        let seen = initial.iter().map(|bp| hash_str(&bp.to_json())).collect();
+        let waiting = initial.into_iter().map(|bp| (bp, None, "initial".to_string(), 0)).collect();
+        Stepwise { g: g.clone(), s, rng, all: Vec::new(), waiting, generation: 0, seen }
+    }
+
+    /// Judges the next candidate, after breeding the next generation when the last is judged: what the log says of
+    /// it, or None once every generation has been judged.
+    pub fn step(&mut self, lib: Option<&dyn Library>) -> Result<Option<String>> {
+        if self.waiting.is_empty() {
+            if self.generation >= self.s.generations {
+                return Ok(None);
+            }
+            self.generation += 1;
+            let jobs = children(&self.all, &self.g, lib, &self.s, &mut self.rng, &mut self.seen);
+            if jobs.is_empty() {
+                return Ok(None);
+            }
+            self.waiting.extend(jobs.into_iter().map(|(bp, parent, change)| (bp, parent, change, self.generation)));
+        }
+        let Some((bp, parent, change, generation)) = self.waiting.pop_front() else { return Ok(None) };
+        let v = evaluate(&bp, self.s.preview_bars, None)?;
+        let n = self.all.iter().filter(|c| c.generation == generation).count();
+        let best_before = self.all.iter().map(|c| c.score).fold(f64::MIN, f64::max);
+        let id = format!("g{generation}-{n}");
+        let said = match &parent {
+            None => format!("  {id} {:5.1}  {}", v.total, bp.title),
+            Some(p) => {
+                let mark = if v.total > best_before { "+" } else { " " };
+                format!("{mark} {id} {:5.1}  from {p}: {change}", v.total)
+            }
+        };
+        self.all.push(Candidate {
+            id,
+            generation,
+            parent,
+            change,
+            score: v.total,
+            summary: v.summary.clone(),
+            blueprint: bp,
+            verdict: Some(v),
+        });
+        Ok(Some(said))
+    }
+
+    /// the candidates judged, and how many there will be: every generation's children (or fewer, when the song's
+    /// mutations run out)
+    pub fn progress(&self) -> (usize, usize) {
+        let initial =
+            self.all.iter().filter(|c| c.generation == 0).count() + self.waiting.iter().filter(|w| w.3 == 0).count();
+        (self.all.len(), initial + self.s.generations * self.s.children)
+    }
+
+    /// the generation being judged
+    pub fn generation(&self) -> usize {
+        self.generation
+    }
+
+    /// every candidate judged, best first
+    pub fn into_candidates(self) -> Vec<Candidate> {
+        let mut all = self.all;
+        all.sort_by(|a, b| b.score.total_cmp(&a.score));
+        all
+    }
 }
 
 #[cfg(test)]
