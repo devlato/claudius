@@ -57,6 +57,14 @@ pub fn apple_genres(genre: &str) -> &'static [&'static str] {
         "reggaeton" => &["Reggaeton Pop", "Hip Hop", "Modern RnB", "Electronic Pop"],
         "trance" => &["Electronic/Dance", "Electro House", "Future Bass", "Electronic Pop"],
         "neo_soul" => &["Modern RnB", "Hip Hop/RnB", "Jazz", "Funk"],
+        "hip_hop" => &["Hip Hop", "Hip Hop/RnB", "Urban", "Modern RnB"],
+        "rnb" => &["Modern RnB", "Hip Hop/RnB", "Urban", "Jazz"],
+        "funk" => &["Funk", "Disco Funk", "Rock/Blues", "Jazz"],
+        "tech_house" => &["Tech House", "House", "Deep House", "Bass House"],
+        "ambient" => &["Chillwave", "Cinematic", "Experimental", "Electronic/Dance"],
+        "grime" => &["Urban", "Dubstep", "Hip Hop", "Bass House"],
+        "phonk" => &["Hip Hop", "Urban", "Hip Hop/RnB", "Dubstep"],
+        "reggae" => &["World/Ethnic", "Reggaeton Pop", "Funk", "Hip Hop"],
         _ => &[],
     }
 }

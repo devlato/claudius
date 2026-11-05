@@ -1,0 +1,33 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+phonk at 142.0 BPM in G phrygian, swing 0.51
+prog A: i iv III VI
+prog B: i IVsus4 III VI
+prog C: VI iv III i
+bars per chord: 1
+section intro (intro) 8 bars, energy 0.44, prog A, main [filter_in]: cowbell hat
+section hook (hook) 16 bars, energy 0.95, prog C, main [impact]: kick snare clap hat ohat bass cowbell pad
+section verse (verse) 8 bars, energy 0.70, prog A, alt [gap]: kick snare hat bass cowbell
+section hook2 (hook) 16 bars, energy 0.96, prog C, main [impact]: kick snare clap hat ohat bass cowbell pad
+section break (break) 8 bars, energy 0.49, prog B, main []: cowbell pad
+section hook3 (hook) 8 bars, energy 1.00, prog C, main [impact]: kick snare clap hat ohat bass cowbell pad
+section outro (outro) 16 bars, energy 0.25, prog A, main []: cowbell
+drum kick main (drum kick): X.........X.....|X.........X.....|X.........X.....|X.........X.....
+drum snare main (drum snare): ........X.......|........X.......|........X.......|........X.......
+drum clap main (drum clap): ........X.......|........X.......|........X.......|........X.......
+drum hat alt (drum closed_hat): x...........x...........x...........x.....x.....|x...........x...........x...........x.....x.....|x...........x...........x...........x.....x.....|x...........x...........x...........ooxxxxxxxxXX
+drum hat main (drum closed_hat): x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....XXXxxxxxxxxx|x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....
+drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
+part bass (bass): kick_follow synth 808, register 24..40, density 0.47
+part cowbell (lead): motif synth cowbell_lead, register 62..82, density 0.62
+part pad (pad): sustain synth vowel_pad, register 48..72, density 0.59
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix snare: +0.0 dB, pan +0.00, reverb 0.10, delay 0.00, duck 0.00, bus drums
+mix clap: -3.0 dB, pan +0.00, reverb 0.12, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.12, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix ohat: +0.0 dB, pan -0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
+mix cowbell: +0.0 dB, pan +0.00, reverb 0.20, delay 0.08, duck 0.00, bus music
+mix pad: +0.0 dB, pan +0.00, reverb 0.29, delay 0.00, duck 0.00, bus music

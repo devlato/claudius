@@ -22,6 +22,18 @@ and costs the mix (`chords is 9.0 dB louder than the chords level`, target `leve
 back. A part playing a sound its genre has no place for costs the song (`sound:<part>`). The critic is held to this
 by tests that break a song it passes, one fault at a time.
 
+Eight new genres, thirty-six in all:
+- **hip hop:** modern, between boom bap and trap.
+- **R&B:** lush ninths on Rhodes over an 808, with rolling hats and snaps.
+- **funk:** on the one, with ghost-note snares, clavinet, rhythm guitar and horns.
+- **tech house:** a rolling offbeat bass under looping percussion.
+- **ambient:** pads, drones and field recordings that swell and fade.
+- **grime:** jagged 140 BPM drums with square-wave bass and eski synths.
+- **phonk:** a distorted 808, with a new `cowbell_lead` preset playing the melody the way an 808's cowbell does.
+- **reggae:** the one drop, with a skank on the offbeats and dub's echo.
+
+Each digs for its own kinds of record when it samples.
+
 A song of any genre can be built on samples from free libraries, as records built on samples are: a phrase the song
 takes its key, tempo and chords from, a drum break, a texture. Each genre digs for its own kinds of record (house for
 disco, gospel and philly soul, trap for orchestral strings, choirs and flutes, afrobeats for highlife guitar), tried in

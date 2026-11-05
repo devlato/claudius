@@ -1,4 +1,4 @@
-# Starting points for the twenty-eight genres
+# Starting points for the thirty-six genres
 
 Two or three genres fuse with `+`: `song("trip_hop+idm", 3)` (or `new_song` with genre `trip_hop+idm`) is trip-hop's
 song, harmony, parts and mix with IDM's drums, and IDM's sounds lent to the parts. The first genre leads, the last
@@ -496,4 +496,128 @@ prog("A", "i9 IV9");
 track("drums", s("bd ~ ~ [~ bd] ~ ~ bd ~, ~ sd ~ sd, hh*8, [~ ~ ~ rim]*2").gain("1 0.7"));
 track("bass", chord("prog").root().octave(2).struct("x ~ ~ x ~ x ~ ~").s("rubber_bass").legato(0.9));
 track("keys", chord("prog").struct("x ~ ~ ~ ~ x ~ ~").voicing(50, 76).s("epiano").room(0.3));
+```
+
+## hip_hop (84-100 BPM)
+
+Modern hip hop between boom bap and trap: a hard kick, a snare and clap on 2 and 4, crisp eighth hats with the odd
+roll, an 808 or a deep sub under piano, Rhodes and strings, a melody that loops on piano, pizzicato or flute.
+
+```js
+blank("hip_hop");
+tempo(92);
+key("C minor");
+prog("A", "i7 iv7 VImaj7 V7");
+track("drums", s("bd ~ ~ ~ ~ ~ ~ bd ~ ~ bd ~ ~ ~ ~ ~, ~ [sd,cp] ~ [sd,cp], hh*8, ~ ~ ~ rim ~ ~ rim ~"));
+track("bass", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ x ~ ~ ~ x ~ ~ ~ ~ ~").s("808").legato(1.0));
+track("keys", chord("prog").struct("x ~ ~ ~ x ~ ~ ~").voicing(50, 74).s("keys").room(0.2));
+```
+
+## rnb (64-80 BPM)
+
+Contemporary R&B: lush 9th chords on Rhodes and piano, an 808 or a warm sub that slides, sixteenth hats that roll, finger
+snaps and a soft clap on the backbeat, airy pads, a sung or chopped hook. The vocal chops `sampled: true` gathers
+suit it best.
+
+```js
+blank("rnb");
+tempo(72);
+swing(0.56);
+key("F minor");
+prog("A", "i9 iv9 VImaj9 V9");
+track("drums", s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~, ~ sd ~ sd, hh*16, ~ snap ~ ~").gain("1 0.7 0.85 0.7"));
+track("bass", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ ~ ~ ~ ~ x ~ ~ ~ ~ ~").s("808").legato(1.0));
+track("keys", chord("prog").struct("x ~ ~ ~ ~ ~ x ~").voicing(50, 76).s("epiano").room(0.3));
+```
+
+## funk (96-116 BPM)
+
+Everything on the one: a syncopated kick, a snare on 2 and 4 with ghost notes between, sixteenth hats, a finger or
+slap bass off the beat, clavinet and a rhythm guitar chopping sixteenths, horn stabs, long vamps on one chord.
+
+```js
+blank("funk");
+tempo(104);
+swing(0.55);
+key("E dorian");
+prog("A", "i7 IV7");
+track("drums", s("bd ~ ~ bd ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ bd, ~ ~ ~ ~ sd ~ [~ sd] ~ ~ ~ ~ ~ sd ~ ~ [~ sd], hh*16").gain("1 0.6"));
+track("bass", chord("prog").root().octave(2).struct("x ~ ~ x ~ ~ x ~ ~ x ~ ~ x ~ x ~").s("pluck_bass").legato(0.5));
+track("clav", chord("prog").struct("~ x ~ x ~ x x ~ ~ x ~ x ~ x x ~").voicing(52, 74).s("clav"));
+```
+
+## tech_house (124-128 BPM)
+
+Between house and techno: a punchy kick on every beat, a rolling offbeat bassline that carries the groove, a clap on 2
+and 4, shakers and rims, percussion that loops, a stab now and then, chopped vocals, long builds into tight drops.
+
+```js
+blank("tech_house");
+tempo(126);
+key("A minor");
+prog("A", "i");
+track("drums", s("bd*4, ~ cp ~ cp, [~ hh]*4, sh*16, ~ ~ ~ rim ~ ~ ~ ~ ~ rim ~ ~ ~ ~ rim ~").gain("1 0.8"));
+track("bass", chord("prog").root().octave(1).struct("~ x x ~ ~ x x ~ ~ x x ~ ~ x x ~").s("rubber_bass").legato(0.6));
+```
+
+## ambient (60-90 BPM)
+
+Slow and spacious, a soft pulse or none: long pads and string drones that evolve, washes of reverb and delay, a few
+notes of piano or mallet over slow chords, field recordings under it (the textures `sampled: true` gathers), sections
+that swell and fade rather than drop.
+
+```js
+blank("ambient");
+tempo(70);
+key("D lydian");
+prog("A", "Imaj9 IImaj7");
+track("pad", chord("prog").voicing(45, 76).s("air_pad").room(0.6));
+track("keys", n("<0 ~ 4 ~> <2 ~ ~ 6>").scale("D:lydian").octave(5).s("mallet").room(0.5).delay(0.3));
+```
+
+## grime (138-142 BPM)
+
+London's sound: sparse, jagged drums with the snare on the third beat, square-wave and sine basslines in short bursts,
+cold eski synths, pizzicato or string stabs, sub drops, eight-bar sections made for MCs.
+
+```js
+blank("grime");
+tempo(140);
+key("G minor");
+prog("A", "i VI");
+track("drums", s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~, ~ ~ sd ~, hh ~ hh hh, ~ ~ ~ ~ ~ ~ rim ~ ~ ~ ~ rim ~ ~ ~ ~"));
+track("bass", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ x ~ ~ ~ ~ ~ x ~ ~ ~").s("pluck_bass").legato(0.4));
+track("lead", n("<[0 ~ 3 ~ 5 ~ 3 ~] [7 ~ 5 ~ 3 ~ 2 ~]>").scale("G:minor").octave(5).s("square_lead"));
+```
+
+## phonk (130-145 BPM)
+
+Memphis rap's dark sound remade: a distorted 808 that slides, an 808 cowbell playing the melody (`cowbell_lead`), a
+hard kick and a trap snare and clap on the third beat, hats that drive and roll, Memphis vocal chops (`sampled: true`),
+tape grime over all of it.
+
+```js
+blank("phonk");
+tempo(140);
+key("C phrygian");
+prog("A", "i II");
+track("drums", s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~, ~ ~ [sd,cp] ~, hh*8"));
+track("bass", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ ~ ~ ~ ~ x ~ ~ ~ ~ ~").s("808").legato(1.0));
+track("cowbell", n("0 ~ 3 0 ~ 5 3 ~ 0 ~ 3 0 ~ 7 5 3").scale("C:phrygian").octave(5).s("cowbell_lead"));
+```
+
+## reggae (66-84 BPM)
+
+Laid back: the one drop, kick and cross-stick together on the third beat, a hat skipping in swung eighths, a deep bass
+that leaves the one empty, guitar and organ skanking on the offbeats, horns in the choruses, dub's echo.
+
+```js
+blank("reggae");
+tempo(76);
+swing(0.6);
+key("A minor");
+prog("A", "i iv");
+track("drums", s("~ ~ [bd,rim] ~, hh*8").gain("1 0.7"));
+track("bass", chord("prog").root().octave(2).struct("~ ~ x ~ ~ x x ~").s("deep_bass").legato(0.8));
+track("guitar", chord("prog").struct("~ x ~ x").voicing(55, 76).s("clav").delay(0.2));
 ```

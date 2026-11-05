@@ -229,6 +229,14 @@ pub fn store_genre(genre: &str) -> (&'static str, &'static str) {
         "reggaeton" => ("Latin", "Reggaeton"),
         "trance" => ("Dance", "Trance"),
         "neo_soul" => ("R&B/Soul", "Neo-Soul"),
+        "hip_hop" => ("Hip-Hop/Rap", "Hip-Hop"),
+        "rnb" => ("R&B/Soul", "Contemporary R&B"),
+        "funk" => ("R&B/Soul", "Funk"),
+        "tech_house" => ("Dance", "Tech House"),
+        "ambient" => ("Electronic", "Ambient"),
+        "grime" => ("Hip-Hop/Rap", "Grime"),
+        "phonk" => ("Hip-Hop/Rap", "Phonk"),
+        "reggae" => ("Reggae", "Roots Reggae"),
         _ => ("Electronic", ""),
     }
 }

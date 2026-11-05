@@ -34,7 +34,7 @@ A script downloads nothing: `sampled` and `sample_search` play what `new_song`, 
 
 The genre is one of `house deep_house techno trap lofi dnb future_bass synthwave trip_hop big_beat electro_house
 nu_disco filter_house dance_pop neo_psychedelia art_rock idm dub_techno boom_bap uk_drill dubstep uk_garage jungle
-afrobeats amapiano reggaeton trance neo_soul`, two or three of them fused (`trip_hop+idm`:
+afrobeats amapiano reggaeton trance neo_soul hip_hop rnb funk tech_house ambient grime phonk reggae`, two or three of them fused (`trip_hop+idm`:
 the first leads, the last plays the drums; see [Fusing genres](../learn/producers/genres-and-evolution.md#fusing-genres)),
 or one of your own (see
 [Genres](../learn/producers/genres-and-evolution.md)); case, spaces and hyphens do not matter (`"deep house"`). A
@@ -44,7 +44,7 @@ into that mode, as [`key()`](#key) does. The options are checked like [`tempo()`
 [`key()`](#key) check their arguments, and an option the map should not have is an error rather than ignored (so is a
 misspelt one).
 
-Errors: `unknown genre 'polka' (try: afrobeats, amapiano, art_rock, big_beat, boom_bap, dance_pop, deep_house, dnb, dub_techno, dubstep, electro_house, filter_house, future_bass, house, idm, jungle, lofi, neo_psychedelia, neo_soul, nu_disco, reggaeton, synthwave, techno, trance, trap, trip_hop, uk_drill, uk_garage)`;
+Errors: `unknown genre 'polka' (try: afrobeats, amapiano, ambient, art_rock, big_beat, boom_bap, dance_pop, deep_house, dnb, dub_techno, dubstep, electro_house, filter_house, funk, future_bass, grime, hip_hop, house, idm, jungle, lofi, neo_psychedelia, neo_soul, nu_disco, phonk, reggae, reggaeton, rnb, synthwave, tech_house, techno, trance, trap, trip_hop, uk_drill, uk_garage)`;
 `tempo between 40 and 240 BPM`; `cannot read key 'H minor' (try "A minor", "F#m", "Eb", "D dorian")`;
 `song() has no option 'tempo' (options: seed bpm key loops short samples)`.
 
