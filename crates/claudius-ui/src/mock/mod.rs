@@ -109,6 +109,10 @@ pub struct Mock {
 /// what a download is, unless another format is asked for: FLAC, lossless at about half a WAV's size
 pub const DOWNLOAD: &str = "flac:16";
 
+/// the download that is the song itself, to open in claudius: a zip of its blueprint, the samples it plays and where
+/// each came from
+pub const PROJECT: &str = "project";
+
 /// the demo's release: what `claudius publish` asks, and a note that nothing is checked here
 fn demo_release() -> ReleaseView {
     let made = [
@@ -178,10 +182,16 @@ impl Mock {
     }
 
     /// Sends the render of `version` to the engine to make a file of, called `name`: in `format` (`mp3:192`), else
-    /// as `DOWNLOAD`. The file comes as `Event::Delivered`.
+    /// as `DOWNLOAD`; as `PROJECT`, the song itself, to open in claudius. The file comes as `Event::Delivered`.
     pub fn download(&mut self, version: u64, name: &str, format: Option<&str>) -> Result<(), String> {
-        let pcm = self.audio(version).ok_or("the demo has let go of that render: render again")?;
         let spec = format.unwrap_or(DOWNLOAD);
+        if spec == PROJECT {
+            self.encode_id += 1;
+            self.engine.project(self.encode_id);
+            self.encodes.push((self.encode_id, name.to_string()));
+            return Ok(());
+        }
+        let pcm = self.audio(version).ok_or("the demo has let go of that render: render again")?;
         if let Some(why) = self.state.exports.iter().find(|f| f.spec == spec).and_then(|f| f.unavailable.clone()) {
             return Err(why);
         }

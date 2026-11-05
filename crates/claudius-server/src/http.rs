@@ -67,6 +67,7 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
         )
         .route("/api/release/preview.png", get(artwork_preview))
         .route("/api/takes", post(add_take).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
+        .route("/api/project", post(open_project).layer(DefaultBodyLimit::max(crate::app::MAX_PROJECT)))
         .route("/api/pitch-check", post(pitch_check).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/groove", post(groove).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/analyze", post(analyze).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
@@ -418,6 +419,38 @@ async fn add_take(State(c): State<Ctx>, Query(q): Query<TakeQuery>, headers: Hea
     })
     .await
     .unwrap_or_else(|e| claudius_api::Reply { ok: false, message: format!("internal error: {e}"), version: 0 });
+    Json(reply).into_response()
+}
+
+#[derive(Deserialize)]
+struct ProjectQuery {
+    /// the zip's file name, which names the song folder it is unpacked into
+    #[serde(default)]
+    name: Option<String>,
+}
+
+/// a project the demo saved, to open: the zip itself, a zip's type so that a cross-site form cannot send one
+async fn open_project(
+    State(c): State<Ctx>,
+    Query(q): Query<ProjectQuery>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    let zip = headers.get(header::CONTENT_TYPE).and_then(|v| v.to_str().ok()).is_some_and(|v| {
+        ["application/zip", "application/x-zip-compressed", "application/octet-stream"].iter().any(|t| v.starts_with(t))
+    });
+    if !zip {
+        return (
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            "send the project as the zip itself, with Content-Type application/zip or application/octet-stream",
+        )
+            .into_response();
+    }
+    let app = c.app.clone();
+    let name = q.name.unwrap_or_else(|| "project.zip".to_string());
+    let reply = tokio::task::spawn_blocking(move || app.open_project(&name, &body))
+        .await
+        .unwrap_or_else(|e| claudius_api::Reply { ok: false, message: format!("internal error: {e}"), version: 0 });
     Json(reply).into_response()
 }
 

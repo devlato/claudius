@@ -30,6 +30,7 @@ this API, so anything it does you can do with `curl`. The types are plain serde 
 | `POST /api/takes?from=SECTION` | a recording as a [take](samples.md#takes), as the file itself (WAV, FLAC, Ogg, MP3 or AIFF) with `Content-Type: audio/...` or `application/octet-stream` (300 MB at most); optional `name` and `role` in the query, as for `add_take`, and `request`, the id of the [take request](samples.md#a-take-an-assistant-asks-for) it answers; answers with a [reply](#replies-and-errors) |
 | `POST /api/analyze?name=FILE` | a recording to listen to, as the file itself with `Content-Type: audio/...` or `application/octet-stream` (300 MB at most), named in the query so that its extension says its format (WAV, FLAC, MP3, AAC, ALAC, Ogg, AIFF ...); answers as `analyze` does, and keeps nothing of it |
 | `POST /api/remake?name=FILE` | a recording to remake, sent as for `/api/analyze`; optional `genre`, `seed` and `bpm` in the query, as for `remake`; answers with a [reply](#replies-and-errors) |
+| `POST /api/project?name=FILE` | a [project the demo saved](../getting-started/studio.md#carrying-on-in-claudius), as the zip itself with `Content-Type: application/zip` or `application/octet-stream` (300 MB at most), named in the query; claudius unpacks it into a song folder of its own under `~/Music/claudius`, named after the file, and opens it there; answers with a [reply](#replies-and-errors) |
 | `/mcp` | the [MCP endpoint](mcp.md#mcp-over-http) |
 | `POST /api/phone` | serves the [page a phone plays along on](phone.md), with a new key (or answers with the one being served): `{"url": "http://192.168.1.23:7879/?key=…", "phones": 0}`, also in the state as `phone`; 503 when the computer is on no network |
 | `DELETE /api/phone` | stops serving it |
@@ -197,7 +198,7 @@ fields marked optional may be left out.
 | `cmd` | fields | what it does |
 |---|---|---|
 | `new_song` | `genre`; optional `seed`, `bpm`, `key`, `loops` (false), `sampled` (as the genre is), `sample_search` | composes a new song; `sampled` builds it on samples from free libraries, `sample_search` searches for its phrase with your words ([Songs built on samples](online-samples.md#songs-built-on-samples)) |
-| `load` | `path` | opens a song folder, a `blueprint.json`, or a script file (run on the open song) |
+| `load` | `path` | opens a song folder, a `blueprint.json`, a script file (run on the open song), or a project the demo saved (a `.zip`, unpacked into a song folder of its own under `~/Music/claudius`) |
 | `open_text` | `name`, `text` | opens a song from a file's text, as the studio sends a file chosen on its computer: a `blueprint.json`'s when `name` ends in `.json`, otherwise a script's; saving makes a song folder of its own |
 | `save` | optional `path` | writes `blueprint.json` and `song.rhai` now, then the whole folder from a render (see [Jobs](#jobs)); default folder `~/Music/claudius/<genre>-<title>-<seed>` |
 | `export` | `formats` (such as `["mp3", "flac:16"]`), optional `path` | writes the latest render in those [formats](export.md#formats), when it is of the song as it is now (otherwise: `the song has changed since its last render: render it, then export`); default folder as for `save` |

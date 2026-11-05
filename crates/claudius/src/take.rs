@@ -700,9 +700,18 @@ fn moved(sound: &mut Sound, moves: &[(String, String)]) {
 }
 
 /// points the takes and sampled phrases whose file is gone (the song folder moved, or came from another computer) at
-/// the file of that name in `folder`'s `takes/`; returns how many it found
+/// the file of that name in `folder`'s `takes/`, and any file the song names from its folder (a project the demo
+/// saved names its samples `samples/...`) at it there; returns how many it found
 pub fn find_moved(bp: &mut Blueprint, folder: &Path) -> usize {
     let mut found = 0;
+    for path in bp.files_mut() {
+        let p = Path::new(&*path);
+        // a remembered recording's name (`demo:samples/...`) or a pack's (`vcsl:marimba`) is no file of the folder's
+        if p.is_relative() && !path.contains(':') && folder.join(p).is_file() {
+            *path = folder.join(p).display().to_string();
+            found += 1;
+        }
+    }
     for l in bp.loops.iter_mut().filter(|l| l.kept()) {
         let Sound::Loop { path, .. } = &mut l.sound else { continue };
         if Path::new(&*path).is_file() {

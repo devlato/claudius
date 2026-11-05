@@ -24,8 +24,8 @@ mod takes;
 
 pub(crate) use phone::{Running, Take};
 
-pub use commands::analysis_text;
 pub(crate) use commands::sampling;
+pub use commands::{MAX_PROJECT, analysis_text};
 pub use release::{MAX_ARTWORK, report_lines};
 pub use takes::MAX_TAKE;
 
@@ -45,6 +45,8 @@ pub struct Settings {
     /// gather what such a genre has none of, from free online libraries, before the first song of it is made (a
     /// shared claudius, one with `file_roots`, gathers nothing)
     pub gather: bool,
+    /// where songs are kept: a song saved without a folder of its own, and a project opened (None: ~/Music/claudius)
+    pub songs: Option<PathBuf>,
 }
 
 impl Default for Settings {
@@ -57,6 +59,7 @@ impl Default for Settings {
             voice: None,
             samples: true,
             gather: true,
+            songs: None,
         }
     }
 }
@@ -138,6 +141,8 @@ pub struct App {
     last_export: Mutex<Option<Export>>,
     base: Mutex<String>,
     roots: Option<Vec<PathBuf>>,
+    /// where songs are kept (Settings::songs)
+    songs: PathBuf,
     /// where the person's voice is kept
     voice_file: Option<PathBuf>,
     /// whether a genre built on samples gathers what it has none of (Settings::gather)
@@ -210,6 +215,7 @@ impl App {
             new_songs: AtomicU64::new(0),
             dug_out: Mutex::new(Default::default()),
             roots: settings.file_roots,
+            songs: settings.songs.unwrap_or_else(config::songs_dir),
             voice_file: settings.voice.clone(),
             transport: Mutex::new((Transport::default(), Instant::now())),
             phone: Mutex::new(None),
@@ -518,6 +524,7 @@ mod tests {
             voice: None,
             samples: true,
             gather: true,
+            songs: None,
         });
         Arc::get_mut(&mut app).expect("no one else holds it yet").samples_lib =
             samples.map(|p| Arc::new(Library::with_prepared(p)));

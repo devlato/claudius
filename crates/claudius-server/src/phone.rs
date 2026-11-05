@@ -414,6 +414,7 @@ mod tests {
             voice: None,
             samples: false,
             gather: false,
+            songs: None,
         };
         App::new(s)
     }

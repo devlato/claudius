@@ -362,6 +362,17 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
                         }
                     }
                 }
+                if demo {
+                    ui.label(small("project").weak());
+                    let project = ui.button("claudius project (.zip)").on_hover_text(
+                        "the song itself, the samples it plays and where each came from: open it in claudius to \
+                         carry on with it",
+                    );
+                    if project.clicked() {
+                        asked = Some(crate::mock::PROJECT.to_string());
+                        ui.close();
+                    }
+                }
             })
             .response
             .on_hover_text("download the song as WAV, AIFF, FLAC, Apple Lossless, MP3, AAC, Opus or Ogg Vorbis");

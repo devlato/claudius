@@ -14,6 +14,9 @@ use claudius_api::*;
 use super::{App, no, now_seed, ok};
 use claudius_session::{edit, views};
 
+/// the largest project the studio may send to open, as large as a file it reads
+pub const MAX_PROJECT: usize = 300 << 20;
+
 /// what to sample, from what a command or a query says
 pub(crate) fn sampling(
     count: Option<u32>,
@@ -638,11 +641,38 @@ impl App {
         if let Err(e) = self.readable(&path) {
             return no(e, v);
         }
+        if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("zip")) {
+            let name = path.file_name().map_or_else(|| "project.zip".into(), |n| n.to_string_lossy().into_owned());
+            return match std::fs::read(&path) {
+                Ok(zip) => self.open_project(&name, &zip),
+                Err(e) => no(format!("cannot read {}: {e}", path.display()), v),
+            };
+        }
         let text = match std::fs::read_to_string(&path) {
             Ok(t) => t,
             Err(e) => return no(format!("cannot read {}: {e}", path.display()), v),
         };
         self.open_text(&path.display().to_string(), &text, Some(&path))
+    }
+
+    /// a project the demo saved (`song::pack_project`), the zip named `name`, unpacked into a song folder of its own
+    /// under ~/Music/claudius and opened there, with the samples it holds
+    pub fn open_project(self: &Arc<Self>, name: &str, zip: &[u8]) -> Reply {
+        let v = self.version();
+        let songs = self.songs.clone();
+        if !config::write_allowed(&songs, self.roots.as_deref()) {
+            return no(format!("{} is outside the folders this claudius may write", songs.display()), v);
+        }
+        match song::unpack_project(zip, name, &songs) {
+            Ok(dir) => {
+                let r = self.load(&dir);
+                if !r.ok {
+                    return r;
+                }
+                Reply { message: format!("{} (from {name}, unpacked into {})", r.message, dir.display()), ..r }
+            }
+            Err(e) => no(format!("{e:#}"), v),
+        }
     }
 
     /// A song from a file's text: a blueprint (when `name` ends in `.json`) or a script. `file` is where claudius read
@@ -705,8 +735,7 @@ impl App {
         let Some(version) = rendered else {
             return no("the song has changed since its last render: render it, then export", v);
         };
-        let dir = path
-            .unwrap_or_else(|| config::songs_dir().join(format!("{}-{}-{}", bp.genre, song::slug(&bp.title), bp.seed)));
+        let dir = path.unwrap_or_else(|| super::release::default_folder(&self.songs, &bp));
         if !config::write_allowed(&dir, self.roots.as_deref()) {
             return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
         }
@@ -745,8 +774,7 @@ impl App {
     fn save(self: &Arc<Self>, path: Option<PathBuf>) -> Reply {
         let v = self.version();
         let Some(mut bp) = self.blueprint() else { return no("no song to save", v) };
-        let dir = path
-            .unwrap_or_else(|| config::songs_dir().join(format!("{}-{}-{}", bp.genre, song::slug(&bp.title), bp.seed)));
+        let dir = path.unwrap_or_else(|| super::release::default_folder(&self.songs, &bp));
         if !config::write_allowed(&dir, self.roots.as_deref()) {
             return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
         }

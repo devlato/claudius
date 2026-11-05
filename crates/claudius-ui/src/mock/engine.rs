@@ -221,6 +221,10 @@ mod web {
             self.post(&json, Some(Payload::Audio(Float32Array::from(samples))));
         }
 
+        pub fn project(&mut self, id: u64) {
+            self.post(&serde_json::json!({ "project": { "id": id } }), None);
+        }
+
         pub fn take(&mut self) -> Vec<Heard> {
             if self.listening.get() {
                 for (json, bytes) in std::mem::take(&mut self.held) {
@@ -276,6 +280,7 @@ mod native {
         Reference,
         Sound(u64, serde_json::Value),
         Encode(u64, String, String, Vec<f32>),
+        Project(u64),
     }
 
     pub struct Link {
@@ -339,6 +344,14 @@ mod native {
                             say(Heard::Sound { id, sounds });
                         }
                         Some(Ask::Encode(id, spec, title, samples)) => say(encode(id, &spec, &title, &samples)),
+                        Some(Ask::Project(id)) => {
+                            let file = host.project().map(|bytes| super::Encoded {
+                                bytes,
+                                extension: "zip".into(),
+                                mime: "application/zip".into(),
+                            });
+                            say(Heard::Encoded { id, file });
+                        }
                         // the song's first bars first, to play while the rest renders
                         None => match host.preview().map(Ok).or_else(|| host.render()) {
                             Some(Ok(a)) => say(Heard::Rendered { state: Box::new(host.state()), samples: a.samples }),
@@ -374,6 +387,11 @@ mod native {
         /// a render to make a file of (`web::Link::encode`)
         pub fn encode(&mut self, id: u64, spec: &str, title: &str, samples: &[f32]) {
             let _ = self.tx.send(Ask::Encode(id, spec.to_string(), title.to_string(), samples.to_vec()));
+        }
+
+        /// the song as a project to open in claudius (`web::Link::project`)
+        pub fn project(&mut self, id: u64) {
+            let _ = self.tx.send(Ask::Project(id));
         }
 
         pub fn take(&mut self) -> Vec<Heard> {

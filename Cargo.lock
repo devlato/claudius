@@ -835,6 +835,7 @@ dependencies = [
  "serde_json",
  "signalsmith-stretch",
  "web-time",
+ "zip",
 ]
 
 [[package]]
@@ -7265,6 +7266,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e04976da629d3b04204ba8105b396a193af8ad2583b2c79bfb3ab8af580a11e"
 dependencies = [
  "crc32fast",
+ "flate2",
  "indexmap",
  "memchr",
  "nix",

@@ -1075,7 +1075,8 @@ pub enum Command {
     CancelTakeRequest {
         id: u64,
     },
-    /// open a blueprint.json or a script file
+    /// open a song folder, a blueprint.json, a script file, or a project the demo saved (a zip, unpacked into a song
+    /// folder of its own)
     Load {
         path: String,
     },

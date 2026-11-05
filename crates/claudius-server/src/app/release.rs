@@ -57,8 +57,8 @@ pub(super) fn moved(s: &mut Session, dir: PathBuf) {
 }
 
 /// where Save puts a song that has no folder yet
-pub(super) fn default_folder(bp: &Blueprint) -> PathBuf {
-    config::songs_dir().join(format!("{}-{}-{}", bp.genre, song::slug(&bp.title), bp.seed))
+pub(super) fn default_folder(songs: &Path, bp: &Blueprint) -> PathBuf {
+    songs.join(format!("{}-{}-{}", bp.genre, song::slug(&bp.title), bp.seed))
 }
 
 fn to_api(r: &Release) -> ReleaseDetails {
@@ -139,7 +139,7 @@ impl App {
         let bp = s.bp.as_ref()?;
         let key = (bp.genre.clone(), bp.seed, s.folder.clone());
         if s.release.as_ref().is_none_or(|p| p.song != key) {
-            let dir = s.folder.clone().unwrap_or_else(|| default_folder(bp));
+            let dir = s.folder.clone().unwrap_or_else(|| default_folder(&self.songs, bp));
             let mut details = publish::load(&dir, bp);
             // the song's own title, which follows the song as it changes, unless one was given
             if details.title == bp.title && !dir.join(publish::FILE).exists() {
@@ -338,7 +338,7 @@ impl App {
         let Some(artwork) = artwork else {
             return no("add the artwork first: stores need a square JPEG or PNG, 3000 × 3000", v);
         };
-        let song_dir = folder.unwrap_or_else(|| default_folder(&bp));
+        let song_dir = folder.unwrap_or_else(|| default_folder(&self.songs, &bp));
         let dir = path.unwrap_or_else(|| song_dir.join("release"));
         for d in [&dir, &song_dir] {
             if !config::write_allowed(d, self.roots.as_deref()) {

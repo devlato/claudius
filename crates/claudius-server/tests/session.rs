@@ -16,6 +16,7 @@ fn app() -> Arc<App> {
         voice: None,
         samples: false,
         gather: false,
+        songs: None,
     })
 }
 
@@ -85,6 +86,7 @@ fn tracks_are_added_and_removed() {
         voice: None,
         samples: false,
         gather: false,
+        songs: None,
     });
     let new = Command::NewSong {
         genre: "house".into(),
@@ -142,6 +144,7 @@ fn a_parts_notes_are_written_out_and_given_back() {
         voice: None,
         samples: false,
         gather: false,
+        songs: None,
     });
     let new = Command::NewSong {
         genre: "house".into(),
@@ -190,6 +193,7 @@ async fn a_shared_session_keeps_to_its_folders() {
         voice: None,
         samples: false,
         gather: false,
+        songs: None,
     });
     assert!(
         app.command(Command::NewSong {
@@ -240,6 +244,7 @@ fn packs_install_only_on_the_computer_claudius_runs_on() {
         voice: None,
         samples: false,
         gather: false,
+        songs: None,
     });
     let r = shared.command(Command::InstallPacks { names: Vec::new() });
     assert!(!r.ok && r.message.contains("shared claudius"), "{}", r.message);
@@ -1181,6 +1186,7 @@ async fn a_pitch_check_sung_back_becomes_the_voice_tune_sings_as() {
         voice: Some(kept.clone()),
         samples: false,
         gather: false,
+        songs: None,
     };
     let app = App::new(settings);
     assert!(app.state().voice.is_some_and(|v| v.starts_with("range C3-C5")), "the kept voice");
@@ -1621,4 +1627,67 @@ async fn a_beat_played_or_beatboxed_becomes_the_drum_lanes() {
         assert!(!r.ok && r.message.contains(says), "{}", r.message);
     }
     std::fs::remove_file(&file).unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_project_the_demo_saved_opens_as_a_song_folder_of_its_own() {
+    use claudius::model::Sound;
+    let songs = std::env::temp_dir().join(format!("claudius-projects-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&songs);
+    let app = App::new(Settings {
+        library: false,
+        ears: false,
+        auto_render: false,
+        file_roots: None,
+        voice: None,
+        samples: false,
+        gather: false,
+        songs: Some(songs.clone()),
+    });
+    // a song whose first drum plays a sample the project holds, as the demo saves one
+    let genre = claudius::genres::get("house").unwrap();
+    let mut bp = claudius::compose::generate(&genre, 3, &claudius::compose::Options::default(), None);
+    let path = "samples/break/house/amen/kick.flac";
+    bp.drums[0].sound = Sound::Sample { path: path.into(), root: 60, start: 0.0, end: None, label: "kick".into() };
+    let x: Vec<f32> = (0..4800).map(|i| (i as f32 * 0.05).sin() * 0.5).collect();
+    let flac = claudius::export::encode(
+        &claudius::audio::Stereo::from_mono(&x),
+        &"flac:24".parse().unwrap(),
+        &claudius::export::tags("kick"),
+    )
+    .unwrap();
+    let zip = claudius::song::pack_project(&bp, &[(path.to_string(), flac)]).unwrap();
+
+    let router = http::router(app.clone(), &Options::default());
+    let post = |content_type: &str| {
+        Request::post("/api/project?name=Faded%20Engine.zip")
+            .header(header::HOST, "localhost")
+            .header(header::CONTENT_TYPE, content_type)
+            .body(Body::from(zip.clone()))
+            .unwrap()
+    };
+    let (s, _, _) = call(&router, post("text/plain")).await;
+    assert_eq!(s, StatusCode::UNSUPPORTED_MEDIA_TYPE, "a cross-site form cannot send a project");
+    let (s, _, b) = call(&router, post("application/zip")).await;
+    let reply: claudius_api::Reply = serde_json::from_str(&b).unwrap();
+    assert!(s == StatusCode::OK && reply.ok && reply.message.contains("unpacked into"), "{s} {b}");
+    let dir = songs.join("faded-engine");
+    let opened = app.blueprint().unwrap();
+    assert_eq!(opened.title, bp.title);
+    let kick = dir.join(path).display().to_string();
+    assert!(
+        matches!(&opened.drums[0].sound, Sound::Sample { path, .. } if *path == kick),
+        "{:?}",
+        opened.drums[0].sound
+    );
+
+    // a project's path opens it as well, in a folder of its own
+    let file = songs.join("Faded Engine.zip");
+    std::fs::write(&file, &zip).unwrap();
+    let r = app.command(Command::Load { path: file.display().to_string() });
+    assert!(r.ok && r.message.contains("faded-engine-2"), "{}", r.message);
+    std::fs::write(&file, b"not a zip").unwrap();
+    let r = app.command(Command::Load { path: file.display().to_string() });
+    assert!(!r.ok && r.message.contains("is not a zip"), "{}", r.message);
+    let _ = std::fs::remove_dir_all(&songs);
 }
