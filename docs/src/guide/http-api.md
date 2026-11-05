@@ -197,7 +197,7 @@ fields marked optional may be left out.
 
 | `cmd` | fields | what it does |
 |---|---|---|
-| `new_song` | `genre`; optional `seed`, `bpm`, `key`, `loops` (false), `sampled` (as the genre is), `sample_search` | composes a new song; `sampled` builds it on samples from free libraries, `sample_search` searches for its phrase with your words ([Songs built on samples](online-samples.md#songs-built-on-samples)) |
+| `new_song` | `genre`; optional `seed`, `bpm`, `key`, `loops` (false), `sampled` (as the genre is), `sample_search`, `complexity` (0 to 1; the genre's own) | composes a new song; `sampled` builds it on samples from free libraries, `sample_search` searches for its phrase with your words ([Songs built on samples](online-samples.md#songs-built-on-samples)), `complexity` says how [layered](../learn/producers/genres-and-evolution.md#how-layered-a-song-is) it is |
 | `load` | `path` | opens a song folder, a `blueprint.json`, a script file (run on the open song), or a project the demo saved (a `.zip`, unpacked into a song folder of its own under `~/Music/claudius`) |
 | `open_text` | `name`, `text` | opens a song from a file's text, as the studio sends a file chosen on its computer: a `blueprint.json`'s when `name` ends in `.json`, otherwise a script's; saving makes a song folder of its own |
 | `save` | optional `path` | writes `blueprint.json` and `song.rhai` now, then the whole folder from a render (see [Jobs](#jobs)); default folder `~/Music/claudius/<genre>-<title>-<seed>` |

@@ -226,6 +226,7 @@ fn run(cli: Cli) -> Result<()> {
             sampled,
             unsampled,
             sample_search,
+            complexity,
             ears,
             out,
         } => {
@@ -241,6 +242,7 @@ fn run(cli: Cli) -> Result<()> {
                 family: loops && sound.library_on(),
                 sampled: if unsampled { Some(false) } else { sampled.then_some(true) },
                 sample_search: sample_search.as_deref().and_then(claudius::sampling::words),
+                complexity,
                 ..Default::default()
             };
             let listening = listen(&ears);

@@ -126,6 +126,12 @@ pub struct PartSpec {
     pub core: Option<f64>,
     #[serde(default)]
     pub mix: TrackMix,
+    /// the genre's part whose notes this one plays, `octave` octaves away, on a sound of its own (`Part::doubles`): a
+    /// fuzzy synth bass an octave over an 808, a bell over the keys
+    #[serde(default)]
+    pub doubles: Option<String>,
+    #[serde(default)]
+    pub octave: i32,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -230,6 +236,14 @@ pub struct GenreProfile {
     pub sampling: Option<SamplingSpec>,
     pub transitions: TransitionSpec,
     pub mix: MixSpec,
+    /// how many layers its songs play when nobody says (`compose::Options::complexity`): 0.5, as the profile has
+    /// them, unless the genre is a layered one
+    #[serde(default = "as_written")]
+    pub complexity: f64,
+}
+
+fn as_written() -> f64 {
+    0.5
 }
 
 /// What a genre samples, from the records its producers dig for: a drum break, a phrase to build the song on, a

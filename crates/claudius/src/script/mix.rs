@@ -17,8 +17,34 @@ use super::{Ctx, R, fail, num};
 pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
     let c = ctx.clone();
     engine.register_fn("part", move |name: &str, m: Map| -> R<()> {
-        check_keys(&m, "part()", &["role", "style", "preset", "register", "density", "seed", "rate"])?;
+        check_keys(
+            &m,
+            "part()",
+            &["role", "style", "preset", "register", "density", "seed", "rate", "doubles", "octave"],
+        )?;
         with_bp(&c, |bp, _| {
+            // "" leaves it playing its own notes
+            let doubles = map_str(&m, "doubles").map(|d| Some(d).filter(|d| !d.is_empty()));
+            if let Some(Some(d)) = &doubles {
+                match bp.parts.iter().find(|p| p.name == *d) {
+                    _ if d == name => return fail(format!("part '{name}' cannot double itself")),
+                    None => return fail(format!("part '{name}' doubles '{d}', which is not a part of the song")),
+                    Some(p) if p.doubles.is_some() => {
+                        return fail(format!("part '{name}' doubles '{d}', which doubles another part: double that one"));
+                    }
+                    Some(_) => {}
+                }
+                if let Some(by) = bp.parts.iter().find(|p| p.doubles.as_deref() == Some(name)) {
+                    return fail(format!("part '{name}' is doubled by '{}', so it cannot double another", by.name));
+                }
+            }
+            let octave = match m.get("octave") {
+                None => None,
+                Some(o) => match o.as_int() {
+                    Ok(o) if (-2..=2).contains(&o) => Some(o as i32),
+                    _ => return fail(format!("part(): an octave is a whole number from -2 to 2, not {o}")),
+                },
+            };
             let role = match map_str(&m, "role") {
                 Some(r) => Some(Role::parse(&r).ok_or_else(|| {
                     format!("part(): a role is bass, chords, pad, keys, lead or arp, not '{r}'")
@@ -75,6 +101,12 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
             }
             if let Some(x) = m.get("rate").and_then(num) {
                 part.rate = x.clamp(1.0 / 32.0, 4.0);
+            }
+            if let Some(d) = doubles {
+                part.doubles = d;
+            }
+            if let Some(o) = octave {
+                part.octave = o;
             }
             Ok(())
         })
@@ -327,7 +359,9 @@ fn add_part(bp: &mut Blueprint, name: &str, role: Option<Role>) -> R<()> {
         }
         (Some(s), _) => s.clone(),
         (None, Some(r)) => match genre.parts.iter().find(|p| p.role == r) {
-            Some(s) => crate::genres::PartSpec { name: name.into(), optional: 0.0, ..s.clone() },
+            Some(s) => {
+                crate::genres::PartSpec { name: name.into(), optional: 0.0, doubles: None, octave: 0, ..s.clone() }
+            }
             None => default_spec(name, r),
         },
         (None, None) => {
@@ -371,6 +405,8 @@ fn default_spec(name: &str, role: Role) -> crate::genres::PartSpec {
         optional: 0.0,
         core: None,
         mix: crate::model::TrackMix::default(),
+        doubles: None,
+        octave: 0,
     }
 }
 

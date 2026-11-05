@@ -31,6 +31,7 @@ async fn a_session_edits_renders_and_undoes() {
         loops: false,
         sampled: None,
         sample_search: None,
+        complexity: None,
     });
     assert!(r.ok, "{}", r.message);
     let st = app.settled(Duration::from_secs(120)).await;
@@ -96,6 +97,7 @@ fn tracks_are_added_and_removed() {
         loops: false,
         sampled: None,
         sample_search: None,
+        complexity: None,
     };
     assert!(app.command(new).ok);
     let add = |name: &str, kind: &str, role: Option<&str>, sound: Option<&str>| {
@@ -154,6 +156,7 @@ fn a_parts_notes_are_written_out_and_given_back() {
         loops: false,
         sampled: None,
         sample_search: None,
+        complexity: None,
     };
     assert!(app.command(new).ok);
     let lead = |app: &App| app.state().song.unwrap().parts.into_iter().find(|p| p.name == "lead").unwrap();
@@ -203,7 +206,8 @@ async fn a_shared_session_keeps_to_its_folders() {
             key: None,
             loops: false,
             sampled: None,
-            sample_search: None
+            sample_search: None,
+            complexity: None
         })
         .ok
     );
@@ -451,6 +455,7 @@ async fn saves_during_a_render_wait_for_it_and_write_everything() {
         loops: false,
         sampled: None,
         sample_search: None,
+        complexity: None,
     };
     assert!(app.command(new).ok);
     // the new song's render is running: both saves wait for it instead of being dropped or replacing each other
@@ -482,6 +487,7 @@ async fn a_render_exports_by_command_and_as_a_download() {
         loops: false,
         sampled: None,
         sample_search: None,
+        complexity: None,
     };
     assert!(app.command(new).ok);
     let st = app.settled(Duration::from_secs(240)).await;
@@ -542,6 +548,7 @@ async fn a_release_is_checked_and_its_kit_written_and_kept_with_the_song() {
         loops: false,
         sampled: None,
         sample_search: None,
+        complexity: None,
     };
     assert!(app.command(new).ok);
     // a folder of the test's own: a song without one would release into ~/Music/claudius
@@ -610,6 +617,7 @@ async fn a_release_is_checked_and_its_kit_written_and_kept_with_the_song() {
         loops: false,
         sampled: None,
         sample_search: None,
+        complexity: None,
     };
     assert!(app.command(new).ok);
     assert_eq!(app.state().release.unwrap().artwork, None);
@@ -632,6 +640,7 @@ async fn a_take_sent_over_http_plays_and_goes_with_the_song() {
         loops: false,
         sampled: None,
         sample_search: None,
+        complexity: None,
     };
     assert!(app.command(new).ok);
     // a short song: each save renders the stems of every track
@@ -811,6 +820,7 @@ async fn files_a_studio_read_open_and_are_listened_to_by_their_contents() {
         loops: false,
         sampled: None,
         sample_search: None,
+        complexity: None,
     };
     assert!(app.command(new("house", 5)).ok);
     let title = app.state().song.unwrap().title;
@@ -893,6 +903,7 @@ async fn a_take_an_assistant_asks_for_is_answered_by_the_take_sent_for_it() {
         loops: false,
         sampled: None,
         sample_search: None,
+        complexity: None,
     };
     assert!(app.command(new).ok);
     // a folder of the test's own, for the take it sends: a song without one keeps its takes in ~/Music/claudius
@@ -1081,6 +1092,7 @@ async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
         loops: false,
         sampled: None,
         sample_search: None,
+        complexity: None,
     };
     assert!(app.command(new).ok);
     let short = r#"form([sec("intro", 4, "*"), sec("drop", 8, "*"), sec("break", 4, "pad"), sec("drop", 8, "*")]);"#;
@@ -1158,6 +1170,7 @@ async fn chains_of_effects_are_seen_and_set_as_the_graph_sets_them() {
         loops: false,
         sampled: None,
         sample_search: None,
+        complexity: None,
     };
     assert!(app.command(new).ok);
     // the song as the studio sees it carries every chain, as the song keeps it, and every track's bus
@@ -1317,7 +1330,8 @@ async fn a_pitch_check_sung_back_becomes_the_voice_tune_sings_as() {
             key: None,
             loops: false,
             sampled: None,
-            sample_search: None
+            sample_search: None,
+            complexity: None
         })
         .ok
     );
@@ -1355,7 +1369,8 @@ fn a_steps_trig_is_set_shown_kept_and_cleared() {
             key: None,
             loops: false,
             sampled: None,
-            sample_search: None
+            sample_search: None,
+            complexity: None
         })
         .ok
     );
@@ -1417,7 +1432,8 @@ async fn a_lane_takes_its_own_time_and_a_recordings_groove() {
             key: None,
             loops: false,
             sampled: None,
-            sample_search: None
+            sample_search: None,
+            complexity: None
         })
         .ok
     );
@@ -1569,6 +1585,7 @@ async fn drums_played_on_pads_and_a_scratch_join_the_song() {
         loops: false,
         sampled: None,
         sample_search: None,
+        complexity: None,
     };
     assert!(app.command(song).ok);
     let from = app.state().song.unwrap().sections[0].name.clone();
@@ -1639,6 +1656,7 @@ async fn a_beat_played_or_beatboxed_becomes_the_drum_lanes() {
         loops: false,
         sampled: None,
         sample_search: None,
+        complexity: None,
     };
     assert!(app.command(song).ok);
     let from = app.state().song.unwrap().sections[0].name.clone();

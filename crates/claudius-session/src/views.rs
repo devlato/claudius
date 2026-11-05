@@ -45,7 +45,7 @@ pub fn genre_infos() -> Vec<GenreInfo> {
                     })
                     .collect(),
             });
-            GenreInfo { name: g.name, description: g.description, bpm: g.bpm, sampling }
+            GenreInfo { name: g.name, description: g.description, bpm: g.bpm, sampling, complexity: Some(g.complexity) }
         })
         .collect()
 }

@@ -377,9 +377,12 @@ impl Host {
 
     pub fn command(&mut self, c: Command) -> Reply {
         match c {
-            Command::NewSong { genre, seed, bpm, key, sampled, sample_search, .. } => {
+            Command::NewSong { genre, seed, bpm, key, sampled, sample_search, complexity, .. } => {
+                if let Some(c) = complexity.filter(|c| !(0.0..=1.0).contains(c)) {
+                    return self.no(format!("a complexity is from 0 (sparse) to 1 (layered), not {c}"));
+                }
                 let sample_search = sample_search.as_deref().and_then(claudius::sampling::words);
-                let opts = Options { bpm, sampled, sample_search, ..Default::default() };
+                let opts = Options { bpm, sampled, sample_search, complexity, ..Default::default() };
                 self.new_song(&genre, seed, key, opts)
             }
             Command::OpenText { name, text } => self.open_text(&name, &text),

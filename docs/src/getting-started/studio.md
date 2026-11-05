@@ -35,7 +35,10 @@ are: a phrase it takes its key, tempo and chords from, a drum break, a texture. 
 on samples (trip-hop, boom bap, lo-fi, jungle, big beat, filter house), and for any other genre you tick it. Its field
 takes the kind of record to search the phrase for ("70s soul", "bossa nova guitar"); empty, it shows the records the
 genre's producers dig for, and the song picks among them, and the dice puts one of them in the field
-([Songs built on samples](../guide/online-samples.md#songs-built-on-samples)). It can also start from a recording: **Choose a file** under
+([Songs built on samples](../guide/online-samples.md#songs-built-on-samples)). **Layers** says how layered the song
+is, from the genre's core to its harmony and lead doubled on second instruments, a counter-melody, a pad and more
+percussion; ticked, it is as the genre writes it ([How layered a song is](../learn/producers/genres-and-evolution.md#how-layered-a-song-is)).
+It can also start from a recording: **Choose a file** under
 "Or start from an audio file", then **Analyze** shows what claudius hears in it, and **Remake** remixes it in the
 genre: a new song built on its hook, another passage of it, its drums, a flip cut from all over it and its sung
 phrases, at a tempo the genre plays. **Sample its vocals into the song** puts its best sung phrases into the song

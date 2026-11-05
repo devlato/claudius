@@ -117,6 +117,8 @@ pub struct NewSongForm {
     pub sampled: Option<bool>,
     /// what its phrase is searched for; empty: what the genre's producers dig for
     pub sample_search: String,
+    /// how layered it is, from 0 to 1; none: as the genre is
+    pub complexity: Option<f64>,
 }
 
 impl NewSongForm {
@@ -156,6 +158,7 @@ impl NewSongForm {
             loops: self.loops,
             sampled: self.sampled,
             sample_search: Some(words.to_string()).filter(|w| !w.is_empty() && self.sampling_on(genres)),
+            complexity: self.complexity,
         }
     }
 }
@@ -303,6 +306,7 @@ impl Default for View {
                 key: None,
                 sampled: None,
                 sample_search: String::new(),
+                complexity: None,
             },
             stems: false,
             mutate_count: 4,
