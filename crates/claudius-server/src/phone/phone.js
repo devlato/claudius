@@ -366,24 +366,85 @@ const HUES = [
   ["shaker", 100],
 ];
 
+/** each pad as drawn: its lane, its hue, how lit a hit has left it, and its place on the canvas (CSS pixels) */
+let pads = [];
+
 function buildPads() {
-  const box = $("pads");
-  box.textContent = "";
-  const n = song.lanes.length;
-  box.style.setProperty("--cols", n <= 4 ? 2 : n <= 9 ? 3 : 4);
-  for (const lane of song.lanes) {
-    const pad = document.createElement("div");
-    pad.className = "pad";
-    pad.textContent = lane;
+  pads = song.lanes.map((lane) => {
     const hue = HUES.find(([k]) => lane.toLowerCase().includes(k));
-    pad.style.setProperty("--hue", hue ? hue[1] : 30);
-    pad.dataset.lane = lane;
-    pad.addEventListener("pointerdown", (e) => {
-      e.preventDefault();
-      const r = pad.getBoundingClientRect();
-      hit(lane, Math.min(1, Math.max(0.3, 1 - (0.7 * (e.clientY - r.top)) / r.height)), when(e));
-    });
-    box.append(pad);
+    return { lane, hue: hue ? hue[1] : 30, lit: 0, x: 0, y: 0, w: 0, h: 0 };
+  });
+  layPads();
+}
+
+/** the pads in a grid on their canvas: two, three or four across, as many as fit the lanes, 8 pixels apart */
+function layPads() {
+  const c = $("padgrid");
+  const n = pads.length;
+  const cols = n <= 4 ? 2 : n <= 9 ? 3 : 4;
+  const rows = Math.max(1, Math.ceil(n / cols));
+  const gap = 8;
+  const w = (c.clientWidth - gap * (cols - 1)) / cols;
+  const h = (c.clientHeight - gap * (rows - 1)) / rows;
+  pads.forEach((p, i) => Object.assign(p, { x: (i % cols) * (w + gap), y: Math.floor(i / cols) * (h + gap), w, h }));
+}
+
+/** the pad under the pointer of `e`, and how hard it is struck there: harder nearer its top */
+function padAt(e) {
+  const r = $("padgrid").getBoundingClientRect();
+  const [x, y] = [e.clientX - r.left, e.clientY - r.top];
+  const pad = pads.find((p) => x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h);
+  return pad && { pad, v: Math.min(1, Math.max(0.3, 1 - (0.7 * (y - pad.y)) / pad.h)) };
+}
+
+/** where pad `lane` is on the screen (a test strikes it there) */
+function padRect(lane) {
+  const p = pads.find((p) => p.lane === lane);
+  const r = $("padgrid").getBoundingClientRect();
+  return p && { left: r.left + p.x, top: r.top + p.y, width: p.w, height: p.h };
+}
+
+function padsTouched() {
+  $("padgrid").addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    const at = padAt(e);
+    if (at) hit(at.pad.lane, at.v, when(e));
+  });
+}
+
+/** a canvas sized to the pixels it covers, with its drawing in CSS pixels */
+function sized(c) {
+  const [w, h] = [Math.round(c.clientWidth * devicePixelRatio), Math.round(c.clientHeight * devicePixelRatio)];
+  if (c.width !== w || c.height !== h) Object.assign(c, { width: w, height: h });
+  const g = c.getContext("2d");
+  g.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  g.clearRect(0, 0, c.clientWidth, c.clientHeight);
+  return g;
+}
+
+function rounded(g, x, y, w, h, r) {
+  g.beginPath();
+  if (g.roundRect) g.roundRect(x, y, w, h, r);
+  else g.rect(x, y, w, h);
+}
+
+function drawPads() {
+  const g = sized($("padgrid"));
+  layPads();
+  for (const p of pads) {
+    const grad = g.createLinearGradient(0, p.y, 0, p.y + p.h);
+    grad.addColorStop(0, `hsl(${p.hue} 45% ${30 + 35 * p.lit}%)`);
+    grad.addColorStop(1, `hsl(${p.hue} 35% ${17 + 25 * p.lit}%)`);
+    g.fillStyle = grad;
+    rounded(g, p.x + 0.5, p.y + 0.5, p.w - 1, p.h - 1, 12);
+    g.fill();
+    g.strokeStyle = "#2b2f3a";
+    g.stroke();
+    g.fillStyle = "#e8e8ec";
+    g.font = "600 15px -apple-system, BlinkMacSystemFont, sans-serif";
+    g.textBaseline = "bottom";
+    g.fillText(p.lane, p.x + 9, p.y + p.h - 8);
+    p.lit = Math.max(0, p.lit - 0.12);
   }
 }
 
@@ -392,9 +453,8 @@ function hit(lane, v, t) {
   if (!ctx) return;
   const b = hits.get(lane);
   if (b) play(b, v);
-  const pad = [...document.querySelectorAll(".pad")].find((p) => p.dataset.lane === lane);
-  pad?.classList.add("hit");
-  setTimeout(() => pad?.classList.remove("hit"), 90);
+  const pad = pads.find((p) => p.lane === lane);
+  if (pad) pad.lit = 1;
   const at = songAt(t + latency());
   if (take && take.mode === "pads" && at !== null) take.hits.push({ lane, at, v });
 }
@@ -405,30 +465,55 @@ let octave = 3;
 const keys = { name: "", low: 0, buf: null };
 const held = new Map();
 const BLACK = [1, 3, 6, 8, 10];
+/** the keys as drawn, the whites then the blacks over them: each its note and its place (CSS pixels) */
+let keyRects = [];
+/** the notes held down, and by how many fingers (or MIDI notes), which are drawn down */
+const down = new Map();
 
 function buildKeys() {
-  const kb = $("keyboard");
-  kb.textContent = "";
+  layKeys();
+  $("octave").textContent = `C${octave}`;
+}
+
+function layKeys() {
+  const c = $("keyboard");
+  const [w, h] = [c.clientWidth, c.clientHeight];
   const low = 12 * (octave + 1);
   const whites = [];
   for (let p = low; p <= low + 24; p++) if (!BLACK.includes(p % 12)) whites.push(p);
-  const w = 100 / whites.length;
+  const ww = w / whites.length;
+  const rects = whites.map((p, i) => ({ p, black: false, x: i * ww, y: 0, w: ww, h }));
   whites.forEach((p, i) => {
-    const k = document.createElement("div");
-    k.className = "white";
-    k.dataset.p = p;
-    k.textContent = p % 12 === 0 ? `C${p / 12 - 1}` : "";
-    kb.append(k);
     if (i < whites.length - 1 && BLACK.includes((p + 1) % 12)) {
-      const b = document.createElement("div");
-      b.className = "black";
-      b.dataset.p = p + 1;
-      b.style.left = `${(i + 0.68) * w}%`;
-      b.style.width = `${w * 0.64}%`;
-      kb.append(b);
+      rects.push({ p: p + 1, black: true, x: (i + 0.68) * ww, y: 0, w: ww * 0.64, h: h * 0.58 });
     }
   });
-  $("octave").textContent = `C${octave}`;
+  keyRects = rects;
+}
+
+function drawKeys() {
+  const g = sized($("keyboard"));
+  layKeys();
+  for (const k of keyRects.filter((k) => !k.black)) {
+    g.fillStyle = down.has(k.p) ? "#f0a83a" : "#ecebe7";
+    rounded(g, k.x + 1, -8, k.w - 2, k.h + 7, 8);
+    g.fill();
+    if (k.p % 12 === 0) {
+      g.fillStyle = "#555";
+      g.font = "11px -apple-system, BlinkMacSystemFont, sans-serif";
+      g.textAlign = "center";
+      g.textBaseline = "bottom";
+      g.fillText(`C${k.p / 12 - 1}`, k.x + k.w / 2, k.h - 6);
+      g.textAlign = "start";
+    }
+  }
+  for (const k of keyRects.filter((k) => k.black)) {
+    g.fillStyle = down.has(k.p) ? "#a26b1c" : "#1c1c1f";
+    rounded(g, k.x, -6, k.w, k.h + 5, 6);
+    g.fill();
+    g.strokeStyle = "#000";
+    g.stroke();
+  }
 }
 
 async function loadKeys() {
@@ -458,15 +543,18 @@ function capture(el, e) {
   }
 }
 
+/** the key under the pointer of `e`: a black one where it lies over the whites */
 function keyAt(e) {
-  const el = document.elementFromPoint(e.clientX, e.clientY);
-  return el && el.dataset && el.dataset.p ? el : null;
+  const r = $("keyboard").getBoundingClientRect();
+  const [x, y] = [e.clientX - r.left, e.clientY - r.top];
+  const inside = (k) => x >= k.x && x <= k.x + k.w && y >= k.y && y <= k.y + k.h;
+  return keyRects.find((k) => k.black && inside(k)) || keyRects.find((k) => !k.black && inside(k)) || null;
 }
 
-/** key `el` pressed where the pointer of `e` is: harder nearer its bottom */
-function noteOn(id, el, e) {
-  const r = el.getBoundingClientRect();
-  press(id, Number(el.dataset.p), Math.min(1, 0.45 + (0.55 * (e.clientY - r.top)) / r.height), when(e));
+/** key `k` pressed where the pointer of `e` is: harder nearer its bottom */
+function noteOn(id, k, e) {
+  const r = $("keyboard").getBoundingClientRect();
+  press(id, k.p, Math.min(1, 0.45 + (0.55 * (e.clientY - r.top - k.y)) / k.h), when(e));
 }
 
 /** MIDI note `p` held down from `t` on this page's clock, `v` hard, as `id` until it is let go */
@@ -477,16 +565,17 @@ function press(id, p, v, t) {
   const at = songAt(t + latency());
   const note = take && take.mode === "keys" && at !== null ? { at, d: null, p, v } : null;
   if (note) take.notes.push(note);
-  const el = document.querySelector(`#keyboard [data-p='${p}']`);
-  held.set(id, { el, voice, note });
-  el?.classList.add("down");
+  held.set(id, { p, voice, note });
+  down.set(p, (down.get(p) || 0) + 1);
 }
 
 function noteOff(id, t) {
   const n = held.get(id);
   if (!n) return;
   held.delete(id);
-  n.el?.classList.remove("down");
+  const left = (down.get(n.p) || 1) - 1;
+  if (left > 0) down.set(n.p, left);
+  else down.delete(n.p);
   const now = ctx.currentTime;
   n.voice.g.gain.setTargetAtTime(0, now, 0.05);
   n.voice.src.stop(now + 0.4);
@@ -507,7 +596,7 @@ function keyboard() {
   kb.addEventListener("pointermove", (e) => {
     const n = held.get(e.pointerId);
     const k = keyAt(e);
-    if (n && k && k !== n.el) {
+    if (n && k && k.p !== n.p) {
       noteOff(e.pointerId, when(e));
       noteOn(e.pointerId, k, e);
     }
@@ -962,6 +1051,8 @@ function frame() {
       [...dots].forEach((d, i) => d.classList.toggle("on", i === ((Math.floor(beat) % 4) + 4) % 4));
     }
   }
+  if (mode === "pads") drawPads();
+  if (mode === "keys") drawKeys();
   if (mode === "deck") drawPlatter();
   requestAnimationFrame(frame);
 }
@@ -993,8 +1084,11 @@ addEventListener("DOMContentLoaded", () => {
   for (const b of document.querySelectorAll("nav button")) b.onclick = () => choose(b.dataset.mode);
   $("rec").onclick = record;
   $("go").onclick = start;
+  padsTouched();
   keyboard();
   platter();
+  // a quick second tap is another tap, never a zoom, and two fingers apart are two fingers, not a pinch
+  for (const e of ["dblclick", "gesturestart"]) document.addEventListener(e, (ev) => ev.preventDefault(), { passive: false });
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && ctx) ctx.resume();
   });
