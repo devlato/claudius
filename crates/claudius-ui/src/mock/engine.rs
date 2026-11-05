@@ -31,6 +31,34 @@ pub enum Heard {
         id: u64,
         sounds: Result<Vec<(String, Vec<f32>)>, String>,
     },
+    /// the render asked for as `id` as a file (`Link::encode`), or why there is none
+    Encoded {
+        id: u64,
+        file: Result<Encoded, String>,
+    },
+}
+
+/// a render as a file: its bytes, the extension of its name and its media type
+pub struct Encoded {
+    pub bytes: Vec<u8>,
+    pub extension: String,
+    pub mime: String,
+}
+
+/// what the engine's answer to `encode` says: the file, or why there is none
+#[cfg(any(target_arch = "wasm32", test))]
+fn encoded(e: &serde_json::Value, bytes: Option<Vec<u8>>) -> Heard {
+    let id = e["id"].as_u64().unwrap_or(0);
+    let file = match (e["error"].as_str(), bytes) {
+        (Some(why), _) => Err(why.to_string()),
+        (None, Some(bytes)) => Ok(Encoded {
+            bytes,
+            extension: e["extension"].as_str().unwrap_or("bin").to_string(),
+            mime: e["mime"].as_str().unwrap_or("application/octet-stream").to_string(),
+        }),
+        (None, None) => Err("the engine sent no file".into()),
+    };
+    Heard::Encoded { id, file }
 }
 
 /// what the engine's answer to a recording says it was cut into, or why nothing
@@ -43,11 +71,15 @@ fn sampled(s: &serde_json::Value) -> Heard {
     Heard::Sampled { id, result }
 }
 
-/// what a message from the engine says: its JSON, and the audio it hands over
+/// what a message from the engine says: its JSON, and the audio or the file it hands over
 #[cfg(any(target_arch = "wasm32", test))]
-fn heard(json: &str, audio: Option<Vec<f32>>) -> Vec<Heard> {
+fn heard(json: &str, audio: Option<Vec<f32>>, bytes: Option<Vec<u8>>) -> Vec<Heard> {
     let Ok(v) = serde_json::from_str::<serde_json::Value>(json) else { return Vec::new() };
     let mut out = Vec::new();
+    if let Some(e) = v.get("encoded") {
+        out.push(encoded(e, bytes));
+        return out;
+    }
     if let Some(s) = v.get("sampled") {
         out.push(sampled(s));
     }
@@ -117,7 +149,13 @@ mod web {
         /// listening only once its WebAssembly is loaded
         listening: Rc<std::cell::Cell<bool>>,
         /// what waits for it to listen
-        held: Vec<(serde_json::Value, Option<Uint8Array>)>,
+        held: Vec<(serde_json::Value, Option<Payload>)>,
+    }
+
+    /// what a message hands over besides its JSON: a file's bytes, or audio
+    enum Payload {
+        Bytes(Uint8Array),
+        Audio(Float32Array),
     }
 
     impl Link {
@@ -138,7 +176,8 @@ mod web {
                 let data = m.data();
                 let json = Reflect::get(&data, &"json".into()).ok().and_then(|j| j.as_string()).unwrap_or_default();
                 let audio = Reflect::get(&data, &"audio".into()).ok().and_then(|a| a.dyn_into::<Float32Array>().ok());
-                into.borrow_mut().extend(super::heard(&json, audio.map(|a| a.to_vec())));
+                let bytes = Reflect::get(&data, &"bytes".into()).ok().and_then(|b| b.dyn_into::<Uint8Array>().ok());
+                into.borrow_mut().extend(super::heard(&json, audio.map(|a| a.to_vec()), bytes.map(|b| b.to_vec())));
                 if let Some(c) = &ctx {
                     c.request_repaint();
                 }
@@ -156,7 +195,7 @@ mod web {
         /// file's bytes, for the engine to cut; its answer comes as `Heard::Sampled` with `id`
         pub fn recording(&mut self, id: u64, recording: serde_json::Value, bytes: &[u8]) {
             let json = serde_json::json!({ "recording": recording, "id": id });
-            self.post(&json, Some(Uint8Array::from(bytes)));
+            self.post(&json, Some(Payload::Bytes(Uint8Array::from(bytes))));
         }
 
         pub fn reference(&mut self) {
@@ -175,6 +214,13 @@ mod web {
             self.post(&serde_json::json!({ "sound": ask }), None);
         }
 
+        /// a render (interleaved stereo at 48 kHz) to make a file of, as `spec` (`flac:16`), tagged with the song's
+        /// `title`; the file comes as `Heard::Encoded` with `id`
+        pub fn encode(&mut self, id: u64, spec: &str, title: &str, samples: &[f32]) {
+            let json = serde_json::json!({ "encode": { "id": id, "spec": spec, "title": title } });
+            self.post(&json, Some(Payload::Audio(Float32Array::from(samples))));
+        }
+
         pub fn take(&mut self) -> Vec<Heard> {
             if self.listening.get() {
                 for (json, bytes) in std::mem::take(&mut self.held) {
@@ -184,18 +230,22 @@ mod web {
             self.heard.borrow_mut().drain(..).collect()
         }
 
-        fn post(&mut self, json: &serde_json::Value, bytes: Option<Uint8Array>) {
+        fn post(&mut self, json: &serde_json::Value, payload: Option<Payload>) {
             if !self.listening.get() {
-                self.held.push((json.clone(), bytes));
+                self.held.push((json.clone(), payload));
                 return;
             }
             let Some(worker) = &self.worker else { return };
             let msg = Object::new();
             let _ = Reflect::set(&msg, &"json".into(), &json.to_string().into());
-            let sent = match bytes {
-                Some(b) => {
+            let sent = match payload {
+                Some(Payload::Bytes(b)) => {
                     let _ = Reflect::set(&msg, &"bytes".into(), &b);
                     worker.post_message_with_transfer(&msg, &Array::of1(&b.buffer()))
+                }
+                Some(Payload::Audio(a)) => {
+                    let _ = Reflect::set(&msg, &"audio".into(), &a);
+                    worker.post_message_with_transfer(&msg, &Array::of1(&a.buffer()))
                 }
                 None => worker.post_message(&msg),
             };
@@ -225,6 +275,7 @@ mod native {
         Recording(u64, serde_json::Value, Vec<u8>),
         Reference,
         Sound(u64, serde_json::Value),
+        Encode(u64, String, String, Vec<f32>),
     }
 
     pub struct Link {
@@ -287,6 +338,7 @@ mod native {
                                 .map(|s| s.into_iter().map(|(n, x)| (n, x.interleaved())).collect());
                             say(Heard::Sound { id, sounds });
                         }
+                        Some(Ask::Encode(id, spec, title, samples)) => say(encode(id, &spec, &title, &samples)),
                         // the song's first bars first, to play while the rest renders
                         None => match host.preview().map(Ok).or_else(|| host.render()) {
                             Some(Ok(a)) => say(Heard::Rendered { state: Box::new(host.state()), samples: a.samples }),
@@ -319,9 +371,28 @@ mod native {
             let _ = self.tx.send(Ask::Sound(id, ask));
         }
 
+        /// a render to make a file of (`web::Link::encode`)
+        pub fn encode(&mut self, id: u64, spec: &str, title: &str, samples: &[f32]) {
+            let _ = self.tx.send(Ask::Encode(id, spec.to_string(), title.to_string(), samples.to_vec()));
+        }
+
         pub fn take(&mut self) -> Vec<Heard> {
             self.rx.try_iter().collect()
         }
+    }
+
+    /// a render as a file, as the worker makes it in a page
+    fn encode(id: u64, spec: &str, title: &str, samples: &[f32]) -> Heard {
+        use claudius::export;
+        let file = spec
+            .parse::<export::Spec>()
+            .and_then(|s| {
+                let master = claudius::audio::Stereo::from_interleaved(samples);
+                export::encode(&master, &s, &export::tags(title)).map(|bytes| (s, bytes))
+            })
+            .map(|(s, bytes)| super::Encoded { bytes, extension: s.extension().into(), mime: s.mime().into() })
+            .map_err(|e| format!("{e:#}"));
+        Heard::Encoded { id, file }
     }
 
     fn seed() -> u64 {
@@ -338,17 +409,26 @@ mod tests {
     fn what_the_worker_sends_is_read_as_it_means() {
         let state = serde_json::to_value(State { version: 3, ..Default::default() }).unwrap();
         let reply = serde_json::to_value(Reply { ok: true, message: "tempo 100".into(), version: 3 }).unwrap();
-        let answer = heard(&json!({ "what": "set_tempo", "reply": reply, "state": state }).to_string(), None);
+        let answer = heard(&json!({ "what": "set_tempo", "reply": reply, "state": state }).to_string(), None, None);
         assert!(
             matches!(answer.as_slice(), [Heard::Answer { what, reply, .. }] if what == "set_tempo" && reply.ok),
             "an answer to a command"
         );
-        let rendered = heard(&json!({ "state": state }).to_string(), Some(vec![0.5, -0.5]));
+        let rendered = heard(&json!({ "state": state }).to_string(), Some(vec![0.5, -0.5]), None);
         assert!(matches!(rendered.as_slice(), [Heard::Rendered { samples, .. }] if samples.len() == 2), "a render");
-        let first = heard(&json!({ "state": state, "sounds": SoundList::default() }).to_string(), None);
+        let first = heard(&json!({ "state": state, "sounds": SoundList::default() }).to_string(), None, None);
         assert!(matches!(first.as_slice(), [Heard::Sounds(_), Heard::State(_)]), "the first, with the sounds");
-        let reference = heard(&json!({ "reference": "# claudius script" }).to_string(), None);
+        let reference = heard(&json!({ "reference": "# claudius script" }).to_string(), None, None);
         assert!(matches!(reference.as_slice(), [Heard::Reference(r)] if r.starts_with("# claudius")));
-        assert!(heard("not json", None).is_empty());
+        let file = json!({ "encoded": { "id": 4, "extension": "flac", "mime": "audio/flac" } }).to_string();
+        let encoded = heard(&file, None, Some(b"fLaC".to_vec()));
+        assert!(
+            matches!(encoded.as_slice(), [Heard::Encoded { id: 4, file: Ok(f) }]
+                if f.bytes == b"fLaC" && f.extension == "flac" && f.mime == "audio/flac"),
+            "a file"
+        );
+        let refused = heard(&json!({ "encoded": { "id": 5, "error": "no such format" } }).to_string(), None, None);
+        assert!(matches!(refused.as_slice(), [Heard::Encoded { id: 5, file: Err(why) }] if why == "no such format"));
+        assert!(heard("not json", None, None).is_empty());
     }
 }

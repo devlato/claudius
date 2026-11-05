@@ -4,7 +4,7 @@
 /// A file of the song to hand over: the bytes themselves (the demo's render), or where a server serves it.
 #[derive(Debug, PartialEq)]
 pub enum Delivery {
-    Bytes { name: String, mime: &'static str, bytes: Vec<u8> },
+    Bytes { name: String, mime: String, bytes: Vec<u8> },
     Url { name: String, url: String },
 }
 
@@ -12,7 +12,7 @@ pub enum Delivery {
 #[cfg(target_arch = "wasm32")]
 pub fn deliver(d: Delivery) -> Result<Option<String>, String> {
     match d {
-        Delivery::Bytes { name, mime, bytes } => download(&name, mime, &bytes).map(|()| Some(name)),
+        Delivery::Bytes { name, mime, bytes } => download(&name, &mime, &bytes).map(|()| Some(name)),
         Delivery::Url { name, url } => download_url(&url, &name).map(|()| Some(name)),
     }
 }

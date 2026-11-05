@@ -177,6 +177,7 @@ impl Host {
             redo_label: self.redo.last().map(|(_, l)| l.clone()),
             log: self.log.clone(),
             genres: views::genre_infos(),
+            exports: views::export_formats(),
             ..Default::default()
         }
     }

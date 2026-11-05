@@ -6,6 +6,10 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+The [studio demo](https://claudius.devlato.com/studio/?mock)'s download button hands over the song as FLAC,
+lossless at about half the size of the WAV it gave before. Its export menu offers WAV, AIFF, FLAC, MP3 and Opus,
+which the demo's engine writes in its Web Worker, so the page doesn't stop while a song encodes.
+
 The mix balances each track on how loud its hits are. It measured a track over 3-second windows, which hear a clap on
 two and four with the silence between its hits, so the sparse tracks played louder than their levels said: snares and
 claps by about 4 dB, crashes by 3, impacts by 5 and reverse crashes by 7, an impact as loud as the kick. Measured over

@@ -403,6 +403,8 @@ pub struct Download {
     pub version: u64,
     pub asked: f64,
     pub song: Option<(String, String, u64)>,
+    /// the format asked for (an `ExportFormat`'s spec), or None for the backend's own
+    pub format: Option<String>,
 }
 
 /// what a download waits for
@@ -416,8 +418,8 @@ pub enum Due {
 }
 
 impl Download {
-    pub fn of(state: &State, now: f64) -> Download {
-        Download { version: state.song_version, asked: now, song: state.song.as_ref().map(song_id) }
+    pub fn of(state: &State, now: f64, format: Option<String>) -> Download {
+        Download { version: state.song_version, asked: now, song: state.song.as_ref().map(song_id), format }
     }
 
     /// Whether it is due: a render of the song asked for, once that song's version then is rendered; off when another
@@ -605,7 +607,7 @@ mod tests {
         let render = |version| Some(RenderView { version, ..Default::default() });
         let mut state =
             State { song: Some(song("Liquid Signal")), song_version: 4, render: render(3), ..Default::default() };
-        let d = Download::of(&state, 10.0);
+        let d = Download::of(&state, 10.0, None);
         assert!(matches!(d.due(&state, 11.0, 300.0), Due::Wait), "render 3 is from before the click");
         state.render = render(4);
         assert!(matches!(d.due(&state, 12.0, 300.0), Due::Render(r) if r.version == 4));
