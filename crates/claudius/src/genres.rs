@@ -126,6 +126,12 @@ pub struct PartSpec {
     pub core: Option<f64>,
     #[serde(default)]
     pub mix: TrackMix,
+    /// the genre's part whose notes this one plays, `octave` octaves away, on a sound of its own (`Part::doubles`): a
+    /// fuzzy synth bass an octave over an 808, a bell over the keys
+    #[serde(default)]
+    pub doubles: Option<String>,
+    #[serde(default)]
+    pub octave: i32,
 }
 
 #[derive(Clone, Debug, Deserialize)]

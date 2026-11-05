@@ -260,7 +260,10 @@ pub fn made_level(g: &GenreProfile, track: &str) -> f32 {
         "beat" => return FAMILY_BEAT_DB,
         _ => None,
     };
-    sampled.map_or(0.0, |n| n.mix.level_db)
+    match sampled {
+        Some(n) => n.mix.level_db,
+        None => layers::made_level(g, track).unwrap_or(0.0),
+    }
 }
 
 /// The synth presets that fit a genre's parts of `role`: those its own parts name (each entry's preset, or the synth
@@ -756,7 +759,8 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
     crate::colour::vary(&mut mix, &mut parts, &rng.fork("colour"));
     let mut parts: Vec<Part> = parts.into_iter().zip(keep).filter_map(|(p, k)| k.then_some(p)).collect();
     for (at, mut part) in late.into_iter().rev() {
-        crate::colour::vary_part(&mut part, &rng.fork("colour").fork(&part.name));
+        let own = rng.fork("colour").fork(&part.name);
+        crate::colour::vary_part(&mut part, &own);
         parts.insert(at, part);
     }
     let mut bp = Blueprint {
@@ -821,8 +825,8 @@ pub fn new_part(
         seed: rng.next_u64(),
         notes: BTreeMap::new(),
         mix,
-        doubles: None,
-        octave: 0,
+        doubles: spec.doubles.clone(),
+        octave: spec.octave,
     }
 }
 

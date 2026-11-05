@@ -359,7 +359,9 @@ fn add_part(bp: &mut Blueprint, name: &str, role: Option<Role>) -> R<()> {
         }
         (Some(s), _) => s.clone(),
         (None, Some(r)) => match genre.parts.iter().find(|p| p.role == r) {
-            Some(s) => crate::genres::PartSpec { name: name.into(), optional: 0.0, ..s.clone() },
+            Some(s) => {
+                crate::genres::PartSpec { name: name.into(), optional: 0.0, doubles: None, octave: 0, ..s.clone() }
+            }
             None => default_spec(name, r),
         },
         (None, None) => {
@@ -403,6 +405,8 @@ fn default_spec(name: &str, role: Role) -> crate::genres::PartSpec {
         optional: 0.0,
         core: None,
         mix: crate::model::TrackMix::default(),
+        doubles: None,
+        octave: 0,
     }
 }
 

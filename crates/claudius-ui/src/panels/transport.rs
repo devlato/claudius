@@ -780,6 +780,7 @@ fn layer_options(ui: &mut Ui, f: &mut super::NewSongForm, genres: &[GenreInfo]) 
         f.complexity = if auto { None } else { Some(own) };
     }
     if let Some(c) = &mut f.complexity {
+        ui.spacing_mut().slider_width = 160.0;
         ui.add(egui::Slider::new(c, 0.0..=1.0).show_value(false)).on_hover_text(
             "0: the genre's core, sparse. 0.5: the genre as written. 1: its harmony and lead doubled on second \
              instruments, a counter-melody, an arpeggio over the hooks, a pad, a clap on the snare, a shaker and \
@@ -793,10 +794,10 @@ fn layer_options(ui: &mut Ui, f: &mut super::NewSongForm, genres: &[GenreInfo]) 
 pub fn layers_said(c: f64) -> &'static str {
     match c {
         c if c < 0.15 => "sparse: the genre's core",
-        c if c < 0.4 => "lean: fewer parts colouring it",
+        c if c < 0.4 => "lean: fewer parts",
         c if c < 0.6 => "as the genre writes it",
-        c if c < 0.85 => "layered: doubles, a pad, more percussion",
-        _ => "densely layered: instruments on instruments, samples on samples",
+        c if c < 0.85 => "layered: doubles, more percussion",
+        _ => "dense: instruments on instruments",
     }
 }
 

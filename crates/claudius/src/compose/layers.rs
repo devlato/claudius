@@ -14,6 +14,38 @@
 //! draws from a fork of its own, after everything else, so that a song's seed makes the same song under them.
 
 use super::*;
+use crate::theory::chord::Voicing;
+
+/// how far under its part a double plays, in dB: a bass's further, since its harmonics are what it brings
+const DOUBLE_DB: f32 = -6.0;
+const BASS_DOUBLE_DB: f32 = -9.0;
+/// how far under the lead a counter-melody plays
+const COUNTER_DB: f32 = -5.0;
+/// the levels of the other layers, from their roles' (`render::target_level`)
+const PAD_DB: f32 = -3.0;
+const SPARKLE_DB: f32 = -3.0;
+const CLAP_DB: f32 = -5.0;
+const SHAKER_DB: f32 = -2.0;
+const PERC_DB: f32 = -3.0;
+
+/// The level a layer of a more layered song is made at, as `compose::made_level` gives a genre's own track's: a double
+/// under its part, a counter-melody under the genre's lead, the others under their roles' level. None for a track
+/// that is not one.
+pub fn made_level(g: &GenreProfile, track: &str) -> Option<f32> {
+    let level = |name: &str| super::made_level(g, name);
+    match track {
+        "pad" => Some(PAD_DB),
+        "sparkle" => Some(SPARKLE_DB),
+        "clap" => Some(CLAP_DB),
+        "shaker" => Some(SHAKER_DB),
+        "perc" => Some(PERC_DB),
+        "counter" => g.parts.iter().find(|p| p.role == Role::Lead).map(|p| level(&p.name) + COUNTER_DB),
+        _ => track.strip_suffix("_double").map(|of| {
+            let bass = g.parts.iter().any(|p| p.name == of && p.role == Role::Bass);
+            level(of) + if bass { BASS_DOUBLE_DB } else { DOUBLE_DB }
+        }),
+    }
+}
 
 /// how far above (`more`) and below (`less`) the genre as written `complexity` is, each from 0 to 1
 pub fn reach(complexity: f64) -> (f64, f64) {
@@ -106,6 +138,8 @@ fn spec_for(g: &GenreProfile, name: &str, role: Role, fallback: &str) -> PartSpe
         optional: 0.0,
         core: None,
         mix: own.map(|p| p.mix.clone()).unwrap_or_default(),
+        doubles: None,
+        octave: 0,
     }
 }
 
@@ -121,7 +155,7 @@ fn pad(
         return None;
     }
     let mix = TrackMix {
-        level_db: -3.0,
+        level_db: PAD_DB,
         reverb: 0.5,
         fx: vec![Effect::Width { width: 1.4.into(), mono_below_hz: 200.0 }],
         ..Default::default()
@@ -164,7 +198,7 @@ fn counter(
         register: (low, low + 14),
         density: (0.15, 0.3),
         mix: TrackMix {
-            level_db: lead_mix.level_db - 5.0,
+            level_db: lead_mix.level_db + COUNTER_DB,
             pan: if lead_mix.pan.abs() > 0.1 {
                 -lead_mix.pan
             } else if r.chance(0.5) {
@@ -204,7 +238,7 @@ fn sparkle(
         register: (72, 96),
         rates: vec![if bp.bpm < 110.0 { 0.25 } else { 0.5 }],
         mix: TrackMix {
-            level_db: -3.0,
+            level_db: SPARKLE_DB,
             pan: r.range(-0.4, 0.4) as f32,
             reverb: 0.35,
             delay: 0.25,
@@ -222,7 +256,8 @@ fn sparkle(
     Some(format!("an arpeggio on {}", called(&part.sound)))
 }
 
-/// The song's harmony, lead and bass parts, each doubled with the chance `more` gives it: the same notes on a second
+/// The harmony, lead and bass parts its genre writes (not the layers above), each doubled with the chance `more` gives
+/// it: the same notes on a second
 /// sound drawn as the part's own would be (none the song plays already), an octave up or in unison, 6 dB under it
 /// and to the other side; a bass an octave up, 9 dB under it, through a high-pass and some drive. A double comes in
 /// where its part plays and the song lifts (the peaks, and at full complexity the verses too).
@@ -237,7 +272,7 @@ fn doubles(
     let sources: Vec<Part> = bp
         .parts
         .iter()
-        .filter(|p| p.doubles.is_none() && playable(&p.sound))
+        .filter(|p| p.doubles.is_none() && playable(&p.sound) && g.parts.iter().any(|q| q.name == p.name))
         .filter(|p| matches!(p.role, Role::Keys | Role::Chords | Role::Lead | Role::Bass))
         .filter(|p| !bp.parts.iter().any(|q| q.doubles.as_deref() == Some(&p.name)))
         .cloned()
@@ -262,7 +297,7 @@ fn doubles(
         mix.mute = false;
         mix.solo = false;
         if src.role == Role::Bass {
-            mix.level_db -= 9.0;
+            mix.level_db += BASS_DOUBLE_DB;
             mix.fx.push(Effect::Filter {
                 mode: crate::dsp::filter::FilterMode::Hp,
                 cutoff: 150.0.into(),
@@ -272,7 +307,7 @@ fn doubles(
             });
             mix.fx.push(Effect::Saturate { kind: crate::fx::SatKind::Tube, drive_db: 6.0.into(), mix: 0.5.into() });
         } else {
-            mix.level_db -= 6.0;
+            mix.level_db += DOUBLE_DB;
             mix.pan = if src.mix.pan.abs() > 0.1 {
                 -src.mix.pan
             } else if r.chance(0.5) {
@@ -370,11 +405,11 @@ fn percussion(bp: &mut Blueprint, g: &GenreProfile, more: f64, lib: Option<&dyn 
             .patterns
             .iter()
             .map(|(k, hits)| {
-                let backbeats = hits.iter().filter(|h| h.v >= 0.6).map(|h| Hit { v: h.v * 0.9, ..h.clone() });
+                let backbeats = hits.iter().filter(|h| h.v >= 0.6).map(|h| Hit { v: h.v * 0.9, ..*h });
                 (k.clone(), backbeats.collect())
             })
             .collect();
-        let mix = TrackMix { level_db: -5.0, reverb: 0.2, bus: snare.mix.bus.clone(), ..Default::default() };
+        let mix = TrackMix { level_db: CLAP_DB, reverb: 0.2, bus: snare.mix.bus.clone(), ..Default::default() };
         bp.drums.push(DrumLane {
             pattern_bars: snare.pattern_bars,
             ..lane("clap", DrumVoice::Clap, patterns, mix, lib, g, &mut cr)
@@ -405,7 +440,7 @@ fn percussion(bp: &mut Blueprint, g: &GenreProfile, more: f64, lib: Option<&dyn 
             vary: 0.25,
         };
         let patterns = BTreeMap::from([("main".to_string(), crate::theory::rhythm::generate(&t, 4, &mut sr))]);
-        let mix = TrackMix { level_db: -2.0, pan: 0.3, bus: "drums".into(), ..Default::default() };
+        let mix = TrackMix { level_db: SHAKER_DB, pan: 0.3, bus: "drums".into(), ..Default::default() };
         bp.drums.push(lane("shaker", DrumVoice::Shaker, patterns, mix, lib, g, &mut sr));
         for s in bp.form.iter_mut().filter(|s| s.layers.iter().any(|l| hats.contains(l)) && s.energy >= 0.5) {
             s.layers.push("shaker".into());
@@ -424,7 +459,7 @@ fn percussion(bp: &mut Blueprint, g: &GenreProfile, more: f64, lib: Option<&dyn 
             "main".to_string(),
             crate::theory::rhythm::euclid_hits(k, n, rot, 4, pr.range(0.55, 0.75) as f32),
         )]);
-        let mix = TrackMix { level_db: -3.0, pan: -0.35, reverb: 0.15, bus: "drums".into(), ..Default::default() };
+        let mix = TrackMix { level_db: PERC_DB, pan: -0.35, reverb: 0.15, bus: "drums".into(), ..Default::default() };
         bp.drums.push(lane("perc", DrumVoice::Perc, patterns, mix, lib, g, &mut pr));
         for s in bp.form.iter_mut().filter(|s| peak(s) && !s.layers.is_empty()) {
             s.layers.push("perc".into());
