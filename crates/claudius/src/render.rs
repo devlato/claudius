@@ -227,6 +227,22 @@ fn choke_onsets(p: &Project, tm: &Timing) -> BTreeMap<String, Vec<i64>> {
     m
 }
 
+/// a synth track's notes as its voices play them: where each starts and how long it holds, humanised by the track's
+/// own draws, the first a track's source makes
+fn synth_events(t: &Track, p: &Project, tm: &Timing) -> Vec<NoteEv> {
+    let mut rng = Rng::new(p.seed ^ hash_str(&t.name));
+    let human = tm.humanize as f64 * if is_drum_role(&t.role) { 1.0 } else { 0.6 };
+    t.notes
+        .iter()
+        .map(|n| {
+            let jitter = rng.normal() * human * 0.003 * p.bpm / 60.0;
+            let start = tm.sample(n.t, jitter).max(0) as usize;
+            let vel = (n.v as f64 * (1.0 + rng.normal() * human * 0.05)).clamp(0.05, 1.0) as f32;
+            NoteEv { start, gate: ((n.d * tm.spb) as usize).max(16), pitch: (n.p + t.transpose) as f64, vel }
+        })
+        .collect()
+}
+
 fn render_source(
     t: &Track,
     p: &Project,
@@ -271,17 +287,7 @@ fn render_source(
             }
         }
         Sound::Synth { patch, .. } => {
-            let evs: Vec<NoteEv> = t
-                .notes
-                .iter()
-                .map(|n| {
-                    let jitter = rng.normal() * human * 0.003 * p.bpm / 60.0;
-                    let start = tm.sample(n.t, jitter).max(0) as usize;
-                    let vel = (n.v as f64 * (1.0 + rng.normal() * human * 0.05)).clamp(0.05, 1.0) as f32;
-                    NoteEv { start, gate: ((n.d * tm.spb) as usize).max(16), pitch: (n.p + t.transpose) as f64, vel }
-                })
-                .collect();
-            out = voice::render(patch, &evs, len, SRF, p.bpm, seed);
+            out = voice::render(patch, &synth_events(t, p, tm), len, SRF, p.bpm, seed);
         }
         Sound::Instrument { name, .. } => {
             let inst = claudius_packs::instrument(name, None)?;
@@ -516,21 +522,158 @@ pub fn track_sound(p: &Project, opts: &Options, name: &str) -> Result<(Stereo, O
     s.sound(t)
 }
 
-/// About how long a track takes to make, to share a song's tracks out: the beats its notes and clips last, a beat
-/// more each for their release, times what a beat of it costs (a synth's oscillators, each voice of them, and its
-/// filter; a recording's or a sampled instrument's notes little, a drum's hits less).
-pub fn track_cost(t: &Track) -> f64 {
-    let beats: f64 =
-        t.notes.iter().map(|n| n.d + 1.0).sum::<f64>() + t.clips.iter().map(|c| c.d.max(0.0) + 1.0).sum::<f64>();
-    let per_beat = match &t.sound {
-        Sound::Synth { patch, .. } => {
-            patch.osc.iter().map(|o| o.voices.max(1) as f64).sum::<f64>().max(1.0)
-                + if patch.filter.is_some() { 1.0 } else { 0.0 }
+/// whether a track's sound can be made in parts side by side (`track_part`): a synth that plays its notes apart, not a
+/// mono one, whose notes glide one into the next
+pub fn splits(t: &Track) -> bool {
+    matches!(&t.sound, Sound::Synth { patch, .. } if !patch.mono)
+}
+
+/// a track of `p` that splits (`splits`), by its name, and its patch
+fn split_track<'a>(p: &'a Project, name: &str) -> Result<(&'a Track, &'a voice::Patch)> {
+    let t = p.tracks.iter().find(|t| t.name == name).with_context(|| format!("the song has no track {name}"))?;
+    match &t.sound {
+        Sound::Synth { patch, .. } if !patch.mono => Ok((t, patch)),
+        _ => anyhow::bail!("{name} is no synth that plays its notes apart, to make in parts"),
+    }
+}
+
+/// Where each of at most `parts` parts of the track `name` begins and ends in the song's samples, the first from its
+/// start and the last to the render's length, so that the notes that begin in each sound about as long as in any
+/// other; and each part's share of the work of making the track: the notes that sound in it, each of which it renders
+/// whole, against all of them (the shares come to more than 1 where a note sounds in two parts). Never a part twice,
+/// none empty, and none no note sounds in, which joins the next (or, last, the one before): so fewer parts when the
+/// notes begin in fewer places, and one for a track whose notes all begin together.
+pub fn part_bounds(
+    p: &Project,
+    opts: &Options,
+    name: &str,
+    parts: usize,
+) -> Result<Vec<(std::ops::Range<usize>, f64)>> {
+    let s = Song::of(p, opts)?;
+    let (t, patch) = split_track(p, name)?;
+    let mut spans = voice::note_spans(patch, &synth_events(t, p, &s.tm), s.len, SRF);
+    spans.sort_by_key(|(start, _)| *start);
+    let total: f64 = spans.iter().map(|(_, l)| *l as f64).sum();
+    let mut bounds = vec![0];
+    let mut sum = 0.0;
+    for (start, l) in &spans {
+        if bounds.len() < parts.max(1) && sum >= total * bounds.len() as f64 / parts.max(1) as f64 {
+            bounds.push((*start).max(*bounds.last().unwrap_or(&0)));
         }
-        Sound::Drum { .. } => 0.05,
-        _ => 0.3,
+        sum += *l as f64;
+    }
+    bounds.push(s.len);
+    bounds.dedup();
+    let share = |r: &std::ops::Range<usize>| {
+        let sounding = spans.iter().filter(|(a, l)| *a < r.end && a + l > r.start).map(|(_, l)| *l as f64).sum::<f64>();
+        if total > 0.0 { sounding / total } else { 0.0 }
     };
-    beats * per_beat
+    let mut ranges: Vec<std::ops::Range<usize>> = Vec::new();
+    let mut from = 0;
+    for w in bounds.windows(2) {
+        if share(&(w[0]..w[1])) == 0.0 && w[1] < s.len {
+            continue;
+        }
+        ranges.push(from..w[1]);
+        from = w[1];
+    }
+    if ranges.len() > 1 && ranges.last().is_some_and(|r| share(r) == 0.0) {
+        let last = ranges.pop().unwrap_or_default();
+        if let Some(r) = ranges.last_mut() {
+            r.end = last.end;
+        }
+    }
+    if ranges.is_empty() {
+        ranges.push(0..s.len);
+    }
+    Ok(ranges.into_iter().map(|r| (r.clone(), share(&r))).collect())
+}
+
+/// The samples `range` of the track `name`'s source, as a render makes them there (`voice::render_range`): a part of a
+/// track that splits, which `track_joined` puts together with the others.
+pub fn track_part(p: &Project, opts: &Options, name: &str, range: std::ops::Range<usize>) -> Result<Stereo> {
+    let s = Song::of(p, opts)?;
+    let (t, patch) = split_track(p, name)?;
+    let range = range.start.min(s.len)..range.end.min(s.len);
+    let seed = p.seed ^ hash_str(&t.name);
+    Ok(voice::render_range(patch, &synth_events(t, p, &s.tm), s.len, range, SRF, p.bpm, seed))
+}
+
+/// The track `name`'s sound from its parts (`track_part`, one after the other from the song's start to the render's
+/// length), through its effects and drive as a render makes it, and the level the mix hears in it: what `track_sound`
+/// makes.
+pub fn track_joined(p: &Project, opts: &Options, name: &str, parts: &[Stereo]) -> Result<(Stereo, Option<f64>)> {
+    let s = Song::of(p, opts)?;
+    let (t, _) = split_track(p, name)?;
+    let n: usize = parts.iter().map(Stereo::len).sum();
+    anyhow::ensure!(n == s.len, "the parts of {name} come to {n} samples, not the song's {}", s.len);
+    let mut x = Stereo::zeros(s.len);
+    let mut at = 0;
+    for part in parts {
+        x.l[at..at + part.len()].copy_from_slice(&part.l);
+        x.r[at..at + part.len()].copy_from_slice(&part.r);
+        at += part.len();
+    }
+    Ok(s.finish(t, x))
+}
+
+/// About how long a track of a song `secs` long takes to make here, in seconds, to share a song's tracks out: its
+/// source, and its effects and drive all through the song (`chain_cost`, measured). A synth's source is the seconds its
+/// voices sound with their release (a mono synth's one voice from its first note to the end of its last) times how long
+/// a second of its patch takes around their pitch (`voice::cost_of`, measured); anything else's, the seconds its notes
+/// and clips last times a little (a drum's hits, a recording's notes and a loop's clips cost little).
+pub fn track_cost(t: &Track, bpm: f64, secs: f64) -> f64 {
+    let beat = 60.0 / bpm.max(1.0);
+    let source = match &t.sound {
+        Sound::Synth { patch, .. } => {
+            let release = patch.aenv.release_samples(SRF) as f64 / SRF;
+            let voiced = if patch.mono {
+                let first = t.notes.iter().map(|n| n.t).fold(f64::MAX, f64::min);
+                let last = t.notes.iter().map(|n| n.t + n.d).fold(f64::MIN, f64::max);
+                if t.notes.is_empty() { 0.0 } else { (last - first) * beat + release }
+            } else {
+                t.notes.iter().map(|n| n.d * beat + release).sum::<f64>()
+            };
+            // at the pitch its notes play around
+            let mut pitches: Vec<i32> = t.notes.iter().map(|n| n.p + t.transpose).collect();
+            pitches.sort_unstable();
+            voiced * voice::cost_of(patch, pitches.get(pitches.len() / 2).copied().unwrap_or(60) as f64)
+        }
+        Sound::Drum { .. } => t.notes.len() as f64 * 2e-4,
+        _ => {
+            let beats = t.notes.iter().map(|n| n.d + 1.0).sum::<f64>()
+                + t.clips.iter().map(|c| c.d.max(0.0) + 1.0).sum::<f64>();
+            beats * beat * 1e-3
+        }
+    };
+    source + secs * chain_cost(&t.mix.fx, t.mix.drive_db, bpm)
+}
+
+/// how long a second of sound takes to go through `chain` and a drive of `drive_db` here, in seconds: measured once for
+/// each chain, on half a second of noise
+fn chain_cost(chain: &[Effect], drive_db: f32, bpm: f64) -> f64 {
+    static COSTS: OnceLock<Mutex<HashMap<String, f64>>> = OnceLock::new();
+    let key = serde_json::to_string(&(chain, drive_db, bpm.round())).unwrap_or_default();
+    let costs = COSTS.get_or_init(Default::default);
+    if let Some(c) = costs.lock().unwrap_or_else(|e| e.into_inner()).get(&key) {
+        return *c;
+    }
+    let n = (0.5 * SRF) as usize;
+    let mut rng = Rng::new(1);
+    let mut x = Stereo::zeros(n);
+    for i in 0..n {
+        (x.l[i], x.r[i]) = (rng.f32() - 0.5, rng.f32() - 0.5);
+    }
+    let ctx = Ctx::whole(SRF, bpm, 1, n);
+    let t0 = crate::clock::Instant::now();
+    fx::apply_chain(chain, &mut x, &ctx);
+    if drive_db > 0.0 {
+        let drive = Effect::Saturate { kind: fx::SatKind::Tanh, drive_db: drive_db.into(), mix: 1.0.into() };
+        fx::apply_chain(std::slice::from_ref(&drive), &mut x, &ctx);
+    }
+    let cost = t0.elapsed().as_secs_f64() / 0.5;
+    costs.lock().unwrap_or_else(|e| e.into_inner()).insert(key, cost);
+    cost
 }
 
 /// what a track's sound before the mix comes from: the track, but for what the mix does after its drive, the song's
@@ -713,18 +856,23 @@ impl<'a> Song<'a> {
     /// a track's sound before the mix, through its effects and its drive, and the level the mix hears in it
     fn sound(&self, t: &Track) -> Result<(Stereo, Option<f64>)> {
         let ts = crate::clock::Instant::now();
-        let mut x = render_source(t, self.p, &self.tm, self.len, &self.chokes)?;
+        let made = self.finish(t, render_source(t, self.p, &self.tm, self.len, &self.chokes)?);
+        if debug() {
+            eprintln!("render: track {} in {:.2} s", t.name, ts.elapsed().as_secs_f64());
+        }
+        Ok(made)
+    }
+
+    /// a track's source (`render_source`) through its effects and its drive, and the level the mix hears in it
+    fn finish(&self, t: &Track, mut x: Stereo) -> (Stereo, Option<f64>) {
         fx::apply_chain(&t.mix.fx, &mut x, &self.ctx(&t.name, 0));
         if t.mix.drive_db > 0.0 {
             let drive_db = t.mix.drive_db.min(crate::model::MAX_DRIVE_DB).into();
             let drive = Effect::Saturate { kind: fx::SatKind::Tanh, drive_db, mix: 1.0.into() };
             fx::apply_chain(std::slice::from_ref(&drive), &mut x, &self.ctx(&t.name, 0));
         }
-        if debug() {
-            eprintln!("render: track {} in {:.2} s", t.name, ts.elapsed().as_secs_f64());
-        }
         let level = loudness::active_level(&x);
-        Ok((x, level))
+        (x, level)
     }
 
     /// each track's sound before the mix: kept from the render before when nothing it comes from has changed, and kept
@@ -1150,7 +1298,58 @@ mod tests {
         let stale: Vec<String> = kept.stale(&q, &opts).unwrap().into_iter().map(|(n, _)| n).collect();
         assert_eq!(stale, [q.tracks[synth].name.clone()]);
         let drum = q.tracks.iter().find(|t| matches!(t.sound, Sound::Drum { .. })).unwrap();
-        assert!(track_cost(&q.tracks[synth]) > track_cost(drum), "a synth's notes cost more than a drum's hits");
+        let costs = |t: &Track| track_cost(t, q.bpm, q.secs());
+        assert!(costs(&q.tracks[synth]) > costs(drum), "a synth's notes cost more than a drum's hits");
+    }
+
+    #[test]
+    fn a_synths_track_made_in_parts_and_joined_is_the_track_made_whole() {
+        let g = crate::genres::get("house").unwrap();
+        let o = crate::compose::Options { short: true, samples: 0.0, loops: false, ..Default::default() };
+        let p = crate::compose::arrange(&crate::compose::generate(&g, 5, &o, None));
+        let opts = Options::default();
+        let len = Song::of(&p, &opts).unwrap().len;
+        // parts that cover the song in order, none empty or silent, which joined are the track made whole
+        let whole_in_parts = |q: &Project, name: &str| -> Vec<(std::ops::Range<usize>, f64)> {
+            let bounds = part_bounds(q, &opts, name, 3).unwrap();
+            assert!(!bounds.is_empty() && bounds.len() <= 3, "{bounds:?}");
+            assert!(bounds[0].0.start == 0 && bounds.last().unwrap().0.end == len);
+            assert!(bounds.windows(2).all(|w| w[0].0.end == w[1].0.start), "{bounds:?}");
+            assert!(bounds.iter().all(|(r, share)| r.start < r.end && *share > 0.0 && *share <= 1.0), "{bounds:?}");
+            assert!(bounds.iter().map(|(_, share)| share).sum::<f64>() >= 1.0 - 1e-9);
+            let parts: Vec<Stereo> =
+                bounds.iter().map(|(r, _)| track_part(q, &opts, name, r.clone()).unwrap()).collect();
+            let (joined, level) = track_joined(q, &opts, name, &parts).unwrap();
+            let (whole, whole_level) = track_sound(q, &opts, name).unwrap();
+            assert!(joined.l == whole.l && joined.r == whole.r && level == whole_level, "{name}");
+            bounds
+        };
+        let split: Vec<&Track> = p.tracks.iter().filter(|t| splits(t)).collect();
+        assert!(!split.is_empty(), "house has synths that play their notes apart");
+        assert!(
+            split.iter().any(|t| whole_in_parts(&p, &t.name).len() == 3),
+            "a track of notes all through splits in three"
+        );
+        // notes that all begin together, at the start or later (a chord held from bar 4): some part holds all of the
+        // work, which is why a crew would not split it
+        let mut q = p.clone();
+        let at = q.tracks.iter().position(splits).unwrap();
+        let name = q.tracks[at].name.clone();
+        for t in [0.0, 16.0] {
+            for n in q.tracks[at].notes.iter_mut() {
+                n.t = t;
+            }
+            let all = whole_in_parts(&q, &name);
+            assert!(all.iter().map(|(_, share)| *share).fold(0.0, f64::max) > 0.99, "{t}: {all:?}");
+        }
+        q.tracks[at].notes.truncate(1);
+        let one = whole_in_parts(&q, &name);
+        assert!(one.len() == 1 && one[0].0 == (0..len), "one note is one part: {one:?}");
+        // a mono synth glides one note into the next: it is made whole
+        let mono = p.tracks.iter().find(|t| matches!(&t.sound, Sound::Synth { patch, .. } if patch.mono));
+        if let Some(t) = mono {
+            assert!(!splits(t) && track_part(&p, &opts, &t.name, 0..len).is_err());
+        }
     }
 
     #[test]

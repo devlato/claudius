@@ -555,7 +555,8 @@ impl Host {
         let mut tracks: Vec<(String, render::TrackKey, f64)> = stale
             .into_iter()
             .filter_map(|(name, key)| {
-                let cost = render::track_cost(project.tracks.iter().find(|t| t.name == name)?);
+                let cost =
+                    render::track_cost(project.tracks.iter().find(|t| t.name == name)?, project.bpm, project.secs());
                 Some((name, key, cost))
             })
             .collect();
