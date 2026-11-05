@@ -521,6 +521,9 @@ struct ListenQuery {
     seed: Option<u64>,
     #[serde(default)]
     bpm: Option<f64>,
+    /// false: a remake on the recording's skeleton only, none of its sound
+    #[serde(default)]
+    sampled: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -579,7 +582,7 @@ async fn listen(c: Ctx, q: ListenQuery, headers: &HeaderMap, body: Bytes, remake
     let app = c.app.clone();
     let name = q.name.filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "the recording".into());
     let reply = tokio::task::spawn_blocking(move || match remake {
-        true => app.remake_bytes(body.to_vec(), &name, q.genre, q.seed, q.bpm),
+        true => app.remake_bytes(body.to_vec(), &name, q.genre, q.seed, q.bpm, q.sampled.unwrap_or(true)),
         false => app.analyze_bytes(body.to_vec(), &name),
     })
     .await

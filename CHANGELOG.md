@@ -6,6 +6,13 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+**Remake** remixes a recording in the genre you pick, rather than writing a new song only on its skeleton. The new
+song is built on the recording's own sound. Its hook without its drums plays in the hooks, and the song takes its key
+and chords. Another passage of it plays in the other sections, and its drums are the break where the genre plays one.
+A flip of it, half beats cut from all over it on the hook's chords, plays in the intro and the outro, and its sung
+phrases come in where they agree with the chords. The genre plays it at the recording's own tempo, or at a multiple of
+it as a sampler would. `sampled: false` (`--skeleton` on the command line) remakes the skeleton only, as before.
+
 A sample doesn't always play slowed down or sped up to the song's tempo. A phrase can also be chopped onto the song's
 grid at its own pitch, at two thirds, three quarters, four thirds or three halves of its tempo, as an MPC chops a
 record: each half beat plays from the song's half beat, so its bars and chords line up. A 120 BPM record plays at its

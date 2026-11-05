@@ -36,8 +36,9 @@ on samples (trip-hop, boom bap, lo-fi, jungle, big beat, filter house), and for 
 takes the kind of record to search the phrase for ("70s soul", "bossa nova guitar"); empty, it shows the records the
 genre's producers dig for, and the song picks among them, and the dice puts one of them in the field
 ([Songs built on samples](../guide/online-samples.md#songs-built-on-samples)). It can also start from a recording: **Choose a file** under
-"Or start from an audio file", then **Analyze** shows what claudius hears in it, and **Remake** writes a new song on
-its tempo, key, chords, form and groove. **Sample its vocals into the song** puts its best sung phrases into the song
+"Or start from an audio file", then **Analyze** shows what claudius hears in it, and **Remake** remixes it in the
+genre: a new song built on its hook, another passage of it, its drums, a flip cut from all over it and its sung
+phrases, at a tempo the genre plays. **Sample its vocals into the song** puts its best sung phrases into the song
 that is open ([Sampling a song's vocals](../guide/samples.md#sampling-a-songs-vocals)), and **Take its groove** puts
 the open song's drum lanes in the feel of the recording's drums ([Grooves](../cookbook/drum-machine.md#a-groove-from-a-record)). **Open** opens a song you saved: choose the `blueprint.json` in its folder,
 or a `.rhai` script. The studio reads the file on its own computer, in a browser too, and nothing of it is kept but
