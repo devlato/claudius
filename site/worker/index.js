@@ -74,7 +74,7 @@ export function supplement(name) {
   const n = name.toLowerCase();
   return (
     n.includes("supplementary") ||
-    /moesm\d+_esm/.test(n) ||
+    /(?:^|[^a-z0-9])moesm\d+[^a-z0-9]+esm(?:$|[^a-z0-9])/.test(n) ||
     /(?:^|[^a-z0-9])(?:pone|pbio|pcbi|pgen|ppat|pmed|pntd)[^a-z0-9]+\d{7}[^a-z0-9]+s\d+(?:$|[^a-z0-9])/.test(n) ||
     /(?:^|[^a-z0-9])srep\d+[^a-z0-9]+s\d+(?:$|[^a-z0-9])/.test(n) ||
     /(?:^|[^a-z0-9])[a-z]{4,}[^a-z0-9]+\d{2}[^a-z0-9]+\d{5}[^a-z0-9]+s\d+(?:$|[^a-z0-9])/.test(n)

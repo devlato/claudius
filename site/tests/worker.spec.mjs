@@ -241,6 +241,8 @@ test.describe("the samples Worker", () => {
       "Human-Vocal-Attractiveness-as-Signaled-by-Body-Size-Projection-pone.0062397.s008.oga",
       "Birdsong-Learning-pbio.1001234.s012.ogg",
       "12868_2015_123_MOESM1_ESM.oga",
+      "12868 2015 123 MOESM1 ESM.oga",
+      "Human Vocal Attractiveness pone.0062397.s008.oga",
       "srep01234-s2.oga",
       "fpsyg-05-00123-s001.oga",
       "Supplementary audio 3.ogg",

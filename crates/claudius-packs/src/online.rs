@@ -229,12 +229,16 @@ pub fn suspect(f: &Found) -> bool {
 /// `srep01234-s2`, Frontiers' `fpsyg-05-00123-s001`. A voice in one may hold a note, but it is no music.
 pub fn supplement(f: &Found) -> bool {
     let name = format!("{} {}", f.id, f.title).to_lowercase();
-    if name.contains("supplementary") || (name.contains("moesm") && name.contains("_esm")) {
+    if name.contains("supplementary") {
         return true;
     }
+    // words as a file's name or its title on Commons has them, which puts spaces for its underscores
     let words: Vec<&str> = name.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| !w.is_empty()).collect();
     let digits = |w: &str, n: usize| w.len() == n && w.bytes().all(|b| b.is_ascii_digit());
     let numbered = |w: &str| w.len() >= 2 && w.starts_with('s') && w[1..].bytes().all(|b| b.is_ascii_digit());
+    let springer = words.windows(2).any(|w| {
+        w[0].len() > 5 && w[0].starts_with("moesm") && w[0][5..].bytes().all(|b| b.is_ascii_digit()) && w[1] == "esm"
+    });
     const PLOS: [&str; 7] = ["pone", "pbio", "pcbi", "pgen", "ppat", "pmed", "pntd"];
     let plos = words.windows(3).any(|w| PLOS.contains(&w[0]) && digits(w[1], 7) && numbered(w[2]));
     let srep = words.windows(2).any(|w| {
@@ -247,7 +251,7 @@ pub fn supplement(f: &Found) -> bool {
             && digits(w[2], 5)
             && numbered(w[3])
     });
-    plos || srep || frontiers
+    springer || plos || srep || frontiers
 }
 
 fn enc(s: &str) -> String {
@@ -817,6 +821,8 @@ mod tests {
             "Human-Vocal-Attractiveness-as-Signaled-by-Body-Size-Projection-pone.0062397.s008.oga",
             "Birdsong-Learning-pbio.1001234.s012.ogg",
             "12868_2015_123_MOESM1_ESM.oga",
+            "12868 2015 123 MOESM1 ESM.oga",
+            "Human Vocal Attractiveness pone.0062397.s008.oga",
             "srep01234-s2.oga",
             "fpsyg-05-00123-s001.oga",
             "Supplementary audio 3.ogg",
