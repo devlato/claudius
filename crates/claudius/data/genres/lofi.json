@@ -172,6 +172,13 @@
       "seconds": [1, 400],
       "keep": 4,
       "chance": 0.4
+    },
+    "bass": {
+      "search": ["upright bass pluck", "upright bass note", "double bass pizzicato"],
+      "listen": "a soft upright bass note",
+      "seconds": [0.3, 30],
+      "keep": 3,
+      "chance": 0.45
     }
   },
   "transitions": {"riser": false, "impact": false, "downlifter": false, "reverse_crash": false, "mix": {"bus": "fx"}},

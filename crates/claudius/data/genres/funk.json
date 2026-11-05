@@ -74,6 +74,13 @@
       "seconds": [1, 400],
       "keep": 4,
       "chance": 0.3
+    },
+    "bass": {
+      "search": ["slap bass", "bass guitar single note", "electric bass note"],
+      "listen": "a punchy electric bass note",
+      "seconds": [0.3, 30],
+      "keep": 3,
+      "chance": 0.5
     }
   },
   "transitions": {"riser": false, "impact": false, "downlifter": false, "reverse_crash": false, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.2}},

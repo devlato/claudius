@@ -261,6 +261,13 @@
       "pitch": [-5, 5],
       "instead": ["keys"],
       "mix": {"bus": "music", "fx": [{"fx": "filter", "mode": "hp", "cutoff": 180, "res": 0.05}]}
+    },
+    "bass": {
+      "search": ["808 bass", "808 sub bass", "distorted 808"],
+      "listen": "a long, deep 808",
+      "seconds": [0.3, 30],
+      "keep": 3,
+      "chance": 0.35
     }
   },
   "transitions": {

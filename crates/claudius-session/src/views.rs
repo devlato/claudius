@@ -37,7 +37,7 @@ pub fn genre_infos() -> Vec<GenreInfo> {
         .map(|g| {
             let sampling = g.sampling.as_ref().map(|s| GenreSampling {
                 by_default: s.by_default,
-                roles: [Role::Phrase, Role::Break, Role::Texture, Role::Vocal]
+                roles: [Role::Phrase, Role::Break, Role::Texture, Role::Vocal, Role::Bass]
                     .into_iter()
                     .filter_map(|r| {
                         let n = claudius::sampling::need(&g, r)?;

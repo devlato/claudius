@@ -157,6 +157,13 @@
       "seconds": [1, 400],
       "keep": 4,
       "chance": 0.4
+    },
+    "bass": {
+      "search": ["bass guitar single note", "slap bass", "disco bass guitar note"],
+      "listen": "a bright, plucked disco bass note",
+      "seconds": [0.3, 30],
+      "keep": 3,
+      "chance": 0.35
     }
   },
   "transitions": {

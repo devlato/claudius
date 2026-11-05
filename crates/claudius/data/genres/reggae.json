@@ -63,6 +63,13 @@
       "seconds": [1, 400],
       "keep": 4,
       "chance": 0.3
+    },
+    "bass": {
+      "search": ["dub bass note", "bass guitar single note", "reggae bass guitar note"],
+      "listen": "a deep, round dub bass note",
+      "seconds": [0.3, 30],
+      "keep": 3,
+      "chance": 0.5
     }
   },
   "transitions": {"riser": false, "impact": false, "downlifter": false, "reverse_crash": false, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.3}},

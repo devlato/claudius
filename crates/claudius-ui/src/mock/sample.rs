@@ -37,6 +37,8 @@ pub enum Role {
     Texture,
     /// a note a voice sang, which a part plays on the song's chords where it lifts
     Vocal,
+    /// a note a bass played, which the song's bass plays its notes on
+    Bass,
 }
 
 impl Role {
@@ -47,11 +49,12 @@ impl Role {
             Role::Break => "break",
             Role::Texture => "texture",
             Role::Vocal => "vocal",
+            Role::Bass => "bass",
         }
     }
 
     fn named(name: &str) -> Option<Role> {
-        [Role::Phrase, Role::Break, Role::Texture, Role::Vocal].into_iter().find(|r| r.noun() == name)
+        [Role::Phrase, Role::Break, Role::Texture, Role::Vocal, Role::Bass].into_iter().find(|r| r.noun() == name)
     }
 }
 

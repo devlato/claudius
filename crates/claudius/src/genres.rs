@@ -236,6 +236,7 @@ pub struct GenreProfile {
 /// texture under it. Each plays as a loop track of its own (`sampling::BREAK`, `PHRASE`, `TEXTURE`) in the sections
 /// that list it, or, in a genre whose sections do not, in place of the layers it plays `instead` of. A vocal is a note
 /// a voice sang, chopped from another record, which a part plays on the song's chords where it lifts (`sampling::VOCAL`).
+/// A bass is a note a bass played, which the song's bass part plays its own notes on, as a sampler would.
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct SamplingSpec {
     /// whether a song of the genre is built on samples when nobody says (trip-hop's is; a house song is when asked)
@@ -249,6 +250,8 @@ pub struct SamplingSpec {
     pub texture: Option<SampleNeed>,
     #[serde(default)]
     pub vocal: Option<SampleNeed>,
+    #[serde(default)]
+    pub bass: Option<SampleNeed>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

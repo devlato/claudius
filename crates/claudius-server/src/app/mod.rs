@@ -572,12 +572,12 @@ mod tests {
         let plain = claudius::compose::Options::default();
         assert_eq!(
             wanted(&app(Some(Vec::new()), false), &g, &plain).as_deref(),
-            Some("a break, a phrase, a texture and a vocal")
+            Some("a break, a phrase, a texture, a vocal and a bass note")
         );
         let some = vec![sample(Role::Break, "/b.wav")];
         assert_eq!(
             wanted(&app(Some(some), false), &g, &plain).as_deref(),
-            Some("another break, a phrase, a texture and a vocal"),
+            Some("another break, a phrase, a texture, a vocal and a bass note"),
             "each new song brings a few more, until the genre has as many as it keeps"
         );
         assert_eq!(wanted(&app(Some(shelf()), false), &g, &plain), None);
@@ -601,7 +601,7 @@ mod tests {
         let g = genres::get("trip_hop").unwrap();
         app.dug_out.lock().unwrap().insert(jobs::sampling_key(&g, Role::Texture, None));
         let plain = claudius::compose::Options::default();
-        assert_eq!(app.samples_wanted(&g, &plain).as_deref(), Some("a break, a phrase and a vocal"));
+        assert_eq!(app.samples_wanted(&g, &plain).as_deref(), Some("a break, a phrase, a vocal and a bass note"));
     }
 
     #[test]
