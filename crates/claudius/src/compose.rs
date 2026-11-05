@@ -227,6 +227,39 @@ fn tune_to_key(tune: f32, lo: f32, hi: f32, key: &Key) -> f32 {
     best.1
 }
 
+/// The synth presets that fit a genre's parts of `role`: those its own parts name (each entry's preset, or the synth
+/// an instrument it names falls back to: `vibraphone|mallet`, the mallet), and the others of their families
+/// (`presets::FAMILIES`), so that a genre that plays an electric piano may play the other one, and one that plays no
+/// bell plays none. A pad, which holds its chords behind the song, may be any of the synth pads.
+pub fn fitting_synths(g: &GenreProfile, role: Role) -> Vec<String> {
+    let named = g
+        .parts
+        .iter()
+        .filter(|p| p.role == role)
+        .flat_map(|p| p.presets.iter())
+        .filter_map(|entry| entry.split('|').rev().find(|a| presets::get(a).is_some()));
+    let pads = if role == Role::Pad { presets::drawable("pad") } else { Vec::new() };
+    let mut out: Vec<String> = Vec::new();
+    for s in named.flat_map(presets::family).chain(pads) {
+        if !out.iter().any(|o| o == s) {
+            out.push(s.to_string());
+        }
+    }
+    out
+}
+
+/// The instruments a genre's parts of `role` name, by alias (`vibraphone|mallet`, the vibraphone): installed, a draw
+/// from the palette may play them for their kind, as the part itself would
+pub fn named_instruments(g: &GenreProfile, role: Role) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for alias in g.parts.iter().filter(|p| p.role == role).flat_map(|p| p.presets.iter()).flat_map(|e| e.split('|')) {
+        if presets::get(alias).is_none() && !out.iter().any(|o| o == alias) {
+            out.push(alias.to_string());
+        }
+    }
+    out
+}
+
 /// the sound for a genre's preset entry: alternatives separated by `|`, the first that exists wins (a synth preset,
 /// or an instrument from an installed sample pack: "piano|keys" plays the sampled piano when its pack is installed,
 /// else the keys patch). The random draws are the same either way, so the rest of the song does not change.
@@ -303,6 +336,12 @@ pub fn draw_sound(
     let own = part_sound(&preset, rng);
     let mut rp = g.palette.get(spec.role.name()).cloned().unwrap_or_else(|| palette::default_for(spec.role));
     rp.core = spec.core.unwrap_or(rp.core);
+    if rp.synths.is_empty() {
+        rp.synths = fitting_synths(g, spec.role);
+    }
+    if rp.instruments.is_empty() {
+        rp.instruments = named_instruments(g, spec.role);
+    }
     // its own is another part's already: one from the palette instead, unless it must keep its own
     if palette::identity(&own).is_some_and(|k| used.contains(&k)) && spec.core != Some(1.0) {
         rp.core = 0.0;

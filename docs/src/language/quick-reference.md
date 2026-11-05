@@ -111,7 +111,7 @@ Everything on one page. Each name links to its full entry.
 | | |
 |---|---|
 | drums | `bd sd cp hh oh rd cr lt mt ht rim sh cb snap perc` (and `kick snare clap hat ohat ride crash tom rs shaker cowbell ch`) |
-| synths | `sub_bass 808 reese acid saw_bass pluck_bass organ_bass wobble log_drum pluck supersaw pad warm_pad stab epiano keys bell organ strings square_lead chip fm_bass rubber_bass moog_bass dist_bass deep_bass saw_lead pwm_lead whistle brass_lead fm_lead vox_lead solina glass_pad pwm_pad air_pad vowel_pad swell_pad tine_piano clav house_piano brass_stab rock_organ fm_marimba fm_kalimba harp_pluck mallet` |
+| synths | `sub_bass 808 reese acid saw_bass pluck_bass organ_bass wobble log_drum pluck supersaw pad warm_pad stab epiano keys bell organ strings square_lead chip fm_bass rubber_bass moog_bass dist_bass deep_bass saw_lead pwm_lead whistle soft_lead brass_lead fm_lead vox_lead solina glass_pad pwm_pad air_pad vowel_pad swell_pad tine_piano clav house_piano brass_stab rock_organ fm_marimba fm_kalimba harp_pluck mallet` |
 | sampled | `piano upright rhodes wurlitzer hammond string_ensemble violins cellos pizzicato brass trumpet flute harp marimba vibes kalimba upright_bass bass guitar choir sax bongo conga ...` |
 | exact | `vsco2:violins`, `tr808:sd`, in `.s()` or in `s()` patterns |
 | files | `.s("/path/sound.wav")`: `c4` plays it as recorded |

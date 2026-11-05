@@ -93,7 +93,7 @@ Methods on patterns:
 - Real drum machines and kits from the sample packs: `.bank("tr909")`, `"tr808"`, `"tr707"`, `"acoustic"`, `"uzu"`,
   `"synthdrums"`, `"sonicpi"` (Sonic Pi's `bd`, `sn`, `hat`), `"body"` (`stomp clap snap chest`).
 - Synth presets: basses `sub_bass 808 reese acid saw_bass pluck_bass organ_bass wobble log_drum fm_bass rubber_bass moog_bass
-  dist_bass deep_bass`; leads `square_lead supersaw saw_lead pwm_lead whistle brass_lead fm_lead vox_lead chip`; keys and
+  dist_bass deep_bass`; leads `square_lead supersaw saw_lead pwm_lead whistle soft_lead brass_lead fm_lead vox_lead chip`; keys and
   chords `epiano keys organ stab tine_piano clav house_piano brass_stab rock_organ`; pads `pad warm_pad strings solina
   glass_pad pwm_pad air_pad vowel_pad swell_pad`; plucks and mallets `pluck bell fm_marimba fm_kalimba harp_pluck
   mallet`.

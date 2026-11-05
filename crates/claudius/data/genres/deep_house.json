@@ -152,7 +152,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["rhodes|epiano", "vibes|bell", "pluck"],
+      "presets": ["rhodes|epiano", "vibes|mallet", "pluck"],
       "styles": ["motif"],
       "register": [62, 84],
       "density": [0.25, 0.45],

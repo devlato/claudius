@@ -91,7 +91,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["vox_lead", "flute|whistle", "sax|brass_lead", "fm_lead"],
+      "presets": ["vox_lead", "flute|fm_lead", "sax|brass_lead", "fm_lead"],
       "styles": ["motif"],
       "register": [62, 84],
       "density": [0.25, 0.45],

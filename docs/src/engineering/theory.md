@@ -348,18 +348,32 @@ of the generator; instruments draw nothing. So the generator's main stream advan
 sample packs, and installing packs changes the sounds of a song without changing its notes.
 
 Then, from a fork of its own, it draws whether the part keeps that sound: the genre's `palette` for the role gives the
-chance it does (`core`), else a kind by its weight (`palette.rs`):
+chance it does (`core`), else a kind by its weight (`palette.rs`). What it draws is what its genre has a place for,
+first of all the synths that fit the genre's parts of the role (`compose::fitting_synths`): the presets those parts
+name (for `"vibraphone|mallet"`, the mallet) and the others of their families (`presets::FAMILIES`: the two electric
+pianos, the soft leads, the analog basses ...), any of the synth pads for a pad, or the palette's own `synths` where
+it lists them. A bell, a whistle, a chip tune's square, an 808 and an acid line are families of one, and no kind of
+instrument stands in with one the genre does not name, so a genre that names none of them plays none.
 
-- `synth`: any preset made for the role, of the 46, varied widely (`compose::widen`: the filter, envelopes, detune,
-  vibrato, FM, drive and glide each moved up or down by half again at most, now and then a voice more or less in the
-  unison, or a soft octave above it). A part's own synth is varied too, by half as much.
+- `synth`: one of those synths, varied widely (`compose::widen`: the filter, envelopes, detune, vibrato, FM, drive
+  and glide each moved up or down by half again at most, now and then a voice more or less in the unison, or a soft
+  octave above it). A part's own synth is varied too, by half as much.
 - an instrument category (`strings`, `brass`, `mallets`, `electric piano` ...): any installed instrument of it whose
   recorded range holds most of the part's register (within 5 semitones of its outermost samples), whose articulation
   suits the role (a pad sustains: no pizzicato, no one-shot, no piano; a lead is one player, not a section; chords on
-  strings are the section's; a bass starts low enough), and whose pack's licence lets music made with it be published
-  as one likes: packs without a licence, and share-alike or non-commercial ones, are only chosen by hand. A category
-  with no such instrument installed plays its synth stand-in: an FM electric piano for `electric piano`, a mallet or
-  marimba for `mallets`, a brass patch for `brass`.
+  strings, brass or woodwinds are the section's; a bass starts low enough), and whose pack's licence lets music made
+  with it be published as one likes: packs without a licence, and share-alike or non-commercial ones, are only chosen
+  by hand. With no such instrument installed, a synth stands in: one of those synths that stands in for the category
+  (an FM electric piano for `electric piano`, a mallet or a marimba for `mallets`, a brass patch for `brass`, the
+  whistle for `woodwinds`), else, for a category that does not pierce a mix, one made for the role (the clavinet for
+  a keys part's `guitar`, the vocal lead for a lead's `voice`); else none, and the category is not drawn.
+
+  The categories whose sound pierces a mix, `mallets`, `woodwinds` and `brass` (`palette::PIERCING`), play only where
+  the genre plays one of their kind itself: where one of those synths stands in for them, or the instrument is one
+  the genre's parts name (`"sax|brass_lead"`: an installed saxophone; `compose::named_instruments`). No genre plays the
+  whistle, so an installed flute, oboe or harmonica plays only where a part names it. An instrument whose category
+  holds more than one character plays only where the synth it sounds like does (`palette::character`): a
+  glockenspiel, tubular bells or a xylophone where the genre plays the bell, a vibraphone where it plays the mallet.
 
 No two parts of a song play the same sound (`palette::identity`): a draw leaves out what the others play, and a part
 whose own sound is another's draws from the palette. The genre's own parts weigh it all: a lead keeps its own sound

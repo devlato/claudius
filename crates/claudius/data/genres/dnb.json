@@ -137,7 +137,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["supersaw", "pluck", "bell"],
+      "presets": ["pluck", "rhodes|epiano", "piano|keys", "supersaw"],
       "styles": ["motif"],
       "register": [64, 86],
       "density": [0.3, 0.55],
