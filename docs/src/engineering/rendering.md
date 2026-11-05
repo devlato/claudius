@@ -261,6 +261,11 @@ everything that sound comes from:
 A level, pan or send, the master, or another track's notes render no track again. Only the stages after the tracks
 run: levelling, buses, returns and the master. The mix levels, ducks and pans each kept sound as it sums it into its
 bus and sends, in the order a fresh render does, so what comes out is the same to the sample (a test checks both).
+
+A kept sound is held in blocks of 4096 samples, without the blocks that are silent all through. A song's tracks rest
+much of it: 40% of the blocks of a deep-house song are silent, more than half of trip-hop's and lo-fi's, and 64% of
+trap's, so they take about half the memory a sound held whole would. The mix skips a silent block, which would add
+nothing, and reads any stretch back to the sample, a playhead window's too.
 In the web demo, a level change on one track renders again in about 13 s where the whole song takes 31.
 Installing packs forgets what was kept, since an instrument may sound otherwise.
 

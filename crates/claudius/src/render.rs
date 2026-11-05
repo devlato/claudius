@@ -395,8 +395,74 @@ pub struct Kept {
 
 struct KeptTrack {
     key: blake3::Hash,
-    sound: Arc<Stereo>,
+    sound: Arc<Blocks>,
     level: Option<f64>,
+}
+
+/// A track's sound as a render keeps it: its samples in blocks of `BLOCK`, without the blocks that are silent all
+/// through (a song's tracks rest about half of it), which read as silence. It holds what the sound holds, to the sample.
+struct Blocks {
+    len: usize,
+    /// each block's left samples and then its right, the last block shorter
+    blocks: Vec<Option<Box<[f32]>>>,
+}
+
+impl Blocks {
+    fn of(x: &Stereo) -> Blocks {
+        let len = x.len();
+        let blocks = (0..len.div_ceil(BLOCK))
+            .map(|b| {
+                let r = b * BLOCK..((b + 1) * BLOCK).min(len);
+                let (l, rr) = (&x.l[r.clone()], &x.r[r]);
+                (l.iter().chain(rr).any(|v| *v != 0.0)).then(|| l.iter().chain(rr).copied().collect())
+            })
+            .collect();
+        Blocks { len, blocks }
+    }
+
+    fn len(&self) -> usize {
+        self.len
+    }
+
+    /// Its `k` samples from `from` on into `l` and `r`, silence where it keeps none; whether there were any but
+    /// silence (when there were not, `l` and `r` are left as they were).
+    fn read(&self, from: usize, k: usize, l: &mut [f32], r: &mut [f32]) -> bool {
+        let first = from / BLOCK;
+        let last = (from + k).div_ceil(BLOCK);
+        if (first..last).all(|b| self.blocks.get(b).is_none_or(Option::is_none)) {
+            return false;
+        }
+        let mut i = 0;
+        while i < k {
+            let (b, off) = ((from + i) / BLOCK, (from + i) % BLOCK);
+            let take = (BLOCK - off).min(k - i);
+            match self.blocks.get(b).and_then(|x| x.as_deref()) {
+                Some(data) => {
+                    let n = data.len() / 2;
+                    l[i..i + take].copy_from_slice(&data[off..off + take]);
+                    r[i..i + take].copy_from_slice(&data[n + off..n + off + take]);
+                }
+                None => {
+                    l[i..i + take].fill(0.0);
+                    r[i..i + take].fill(0.0);
+                }
+            }
+            i += take;
+        }
+        true
+    }
+
+    /// the whole sound
+    fn stereo(&self) -> Stereo {
+        let mut x = Stereo::zeros(self.len);
+        self.read(0, self.len, &mut x.l, &mut x.r);
+        x
+    }
+
+    /// how many samples it holds, of both sides
+    fn held(&self) -> usize {
+        self.blocks.iter().flatten().map(|b| b.len()).sum()
+    }
 }
 
 impl Kept {
@@ -414,6 +480,11 @@ impl Kept {
         self.tracks.is_empty()
     }
 
+    /// how many samples it holds, of every track and both sides (its tracks' silent blocks hold none)
+    pub fn samples(&self) -> usize {
+        self.tracks.values().map(|t| t.sound.held()).sum()
+    }
+
     /// the tracks of `p` a render of it would make anew, each with the key it is kept under
     pub fn stale(&self, p: &Project, opts: &Options) -> Result<Vec<(String, TrackKey)>> {
         let s = Song::of(p, opts)?;
@@ -428,7 +499,7 @@ impl Kept {
     /// keeps `sound` and `level`, the track `name`'s as `track_sound` made them elsewhere, under `key`, for the renders
     /// after
     pub fn keep(&mut self, name: &str, key: TrackKey, sound: Stereo, level: Option<f64>) {
-        self.tracks.insert(name.to_string(), KeptTrack { key: key.0, sound: Arc::new(sound), level });
+        self.tracks.insert(name.to_string(), KeptTrack { key: key.0, sound: Arc::new(Blocks::of(&sound)), level });
     }
 }
 
@@ -616,7 +687,7 @@ struct Mixed {
     tracks: Vec<TrackReport>,
 }
 
-type Made = (blake3::Hash, Arc<Stereo>, Option<f64>);
+type Made = (blake3::Hash, Arc<Blocks>, Option<f64>);
 
 impl<'a> Song<'a> {
     fn of(p: &'a Project, opts: &Options) -> Result<Song<'a>> {
@@ -669,7 +740,7 @@ impl<'a> Song<'a> {
                     return Ok((key, k.sound.clone(), k.level));
                 }
                 let (x, level) = self.sound(t)?;
-                Ok((key, Arc::new(x), level))
+                Ok((key, Arc::new(Blocks::of(&x)), level))
             })
             .collect::<Result<Vec<_>>>()?;
         kept.tracks = p
@@ -702,12 +773,13 @@ impl<'a> Song<'a> {
             let depth = t.mix.duck.clamp(0.0, 1.0);
             let pan = (t.mix.pan.abs() > 1e-3).then(|| audio::balance_gains(t.mix.pan));
             let bus = buses.entry(t.mix.bus.clone()).or_insert_with(|| Stereo::zeros(n));
-            // a block at a time, each sample scaled, ducked and panned in that order
+            // a block at a time, each sample scaled, ducked and panned in that order; a block it holds only silence in
+            // adds nothing
             let mut block = Stereo::zeros(BLOCK);
             let shape = |b: &mut Stereo, from: usize, n: usize| {
                 for j in 0..n {
-                    b.l[j] = sound.l[from + j] * gain;
-                    b.r[j] = sound.r[from + j] * gain;
+                    b.l[j] *= gain;
+                    b.r[j] *= gain;
                 }
                 if let Some(d) = duck {
                     for j in 0..n.min(d.len().saturating_sub(from)) {
@@ -726,6 +798,9 @@ impl<'a> Song<'a> {
             let end = range.end.min(sound.len());
             for from in (a..end).step_by(BLOCK) {
                 let k = BLOCK.min(end - from);
+                if !sound.read(from, k, &mut block.l[..k], &mut block.r[..k]) {
+                    continue;
+                }
                 shape(&mut block, from, k);
                 let (bl, br) = (&block.l[..k], &block.r[..k]);
                 let at = from - a;
@@ -747,7 +822,7 @@ impl<'a> Song<'a> {
                 }
             }
             if want_stems {
-                let mut stem = Stereo::zeros(sound.len());
+                let mut stem = sound.stereo();
                 shape(&mut stem, 0, sound.len());
                 stems.push((t.name.clone(), stem));
             }
@@ -969,7 +1044,7 @@ mod tests {
         let mut p = crate::compose::arrange(&crate::compose::generate(&g, 3, &o, None));
         let mut kept = Kept::default();
         render_kept(&p, &Options::default(), &mut kept).unwrap();
-        let before: HashMap<String, Arc<Stereo>> =
+        let before: HashMap<String, Arc<Blocks>> =
             kept.tracks.iter().map(|(n, k)| (n.clone(), k.sound.clone())).collect();
         let same = |kept: &Kept, name: &str| Arc::ptr_eq(&kept.tracks[name].sound, &before[name]);
         // a level, a pan and a send: no track is rendered again, and the song is the one a fresh render makes
@@ -992,6 +1067,39 @@ mod tests {
         p.bpm += 2.0;
         render_kept(&p, &Options::default(), &mut kept).unwrap();
         assert!(p.tracks.iter().all(|t| !same(&kept, &t.name)));
+    }
+
+    #[test]
+    fn a_track_is_kept_without_its_silence_and_reads_back_to_the_sample() {
+        // noise in the second block and a moment of the fourth, silence elsewhere, and a short last block
+        let n = 4 * BLOCK + 1000;
+        let mut x = Stereo::zeros(n);
+        let mut rng = Rng::new(4);
+        for i in (BLOCK..2 * BLOCK).chain(3 * BLOCK + 10..3 * BLOCK + 20) {
+            x.l[i] = rng.f32() - 0.5;
+            x.r[i] = -x.l[i];
+        }
+        x.r[n - 1] = 0.25;
+        let b = Blocks::of(&x);
+        assert_eq!(b.held(), 2 * (BLOCK + BLOCK + 1000), "the second, fourth and last blocks");
+        let all = b.stereo();
+        assert!(all.l == x.l && all.r == x.r);
+        // from anywhere, across blocks
+        let (mut l, mut r) = (vec![9.0; 3000], vec![9.0; 3000]);
+        assert!(b.read(BLOCK - 1500, 3000, &mut l, &mut r));
+        assert!(l == x.l[BLOCK - 1500..BLOCK + 1500] && r == x.r[BLOCK - 1500..BLOCK + 1500]);
+        assert!(!b.read(10, 3000, &mut l, &mut r), "silence");
+        // a song's tracks rest much of it
+        let g = crate::genres::get("trap").unwrap();
+        let o = crate::compose::Options { short: true, samples: 0.0, loops: false, ..Default::default() };
+        let p = crate::compose::arrange(&crate::compose::generate(&g, 2, &o, None));
+        let mut kept = Kept::default();
+        let r = render_kept(&p, &Options::default(), &mut kept).unwrap();
+        let whole = 2 * p.tracks.len() * Song::of(&p, &Options::default()).unwrap().len;
+        let share = kept.samples() as f64 / whole as f64;
+        eprintln!("trap: its tracks are kept in {:.0}% of their length", share * 100.0);
+        assert!(share < 0.7, "{share}");
+        assert!(r.master.l == render(&p, &Options::default()).unwrap().master.l);
     }
 
     #[test]
