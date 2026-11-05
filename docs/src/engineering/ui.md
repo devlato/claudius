@@ -295,7 +295,8 @@ Where the browser has cores to spare, the engine makes a render's tracks side by
   What a track costs is measured, not guessed (`render::track_cost`): half a second of a note of its patch at the
   octave it plays around, and half a second of noise through its effects, each once.
 - The costliest track, when it is more than an even share of the work and a synth that plays its notes apart, is made
-  in parts, one a copy (`render::part_bounds`, `track_part`). Each copy renders the notes that sound in its stretch of
+  in parts, one a copy (`render::part_bounds`, `track_part`), unless one part would still hold most of its work (as a
+  chord held from one beat would, every part that it sounds in rendering it whole). Each copy renders the notes that sound in its stretch of
   the song and adds them up as a render does, so its part is the track there to the sample; the engine puts the parts
   together and runs the track's effects (`render::track_joined`).
 - It keeps each track a copy posts back (`render::track_sound`, `Host::made`). The render that waited for them then

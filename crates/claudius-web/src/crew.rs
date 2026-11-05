@@ -103,11 +103,13 @@ pub struct Crew {
 }
 
 /// A track a crew makes in parts, one a worker (`render::track_part`): its name, the key it is kept under, where each
-/// part begins and ends, the parts made so far, and the song, to put them together with (`render::track_joined`).
+/// part begins and ends and its share of the work, the parts made so far, and the song, to put them together with
+/// (`render::track_joined`).
 struct Split {
     name: String,
     key: render::TrackKey,
     bounds: Vec<std::ops::Range<usize>>,
+    shares: Vec<f64>,
     parts: Vec<Option<Stereo>>,
     project: claudius::model::Project,
 }
@@ -226,12 +228,17 @@ pub fn start(make: &ToMake, size: usize, heard: impl Fn(usize, JsValue) + Clone 
     let split = make.tracks.first().and_then(|(name, key, cost)| {
         let track = make.project.tracks.iter().find(|t| t.name == *name)?;
         let heavy = *cost > total / size as f64 && render::splits(track);
-        let bounds = render::part_bounds(&make.project, &opts, name, size).ok().filter(|b| heavy && b.len() >= 2)?;
+        // a split helps only when no part holds most of the work: notes held together all go in one part
+        let parts = render::part_bounds(&make.project, &opts, name, size)
+            .ok()
+            .filter(|b| heavy && b.len() >= 2 && b.iter().map(|(_, share)| *share).fold(0.0, f64::max) < 0.75)?;
+        let (bounds, shares): (Vec<_>, Vec<_>) = parts.into_iter().unzip();
         Some(Split {
             name: name.clone(),
             key: *key,
             parts: vec![None; bounds.len()],
             bounds,
+            shares,
             project: make.project.clone(),
         })
     });
@@ -240,8 +247,9 @@ pub fn start(make: &ToMake, size: usize, heard: impl Fn(usize, JsValue) + Clone 
     let n = if split.is_some() { size } else { size.min(whole.len()) };
     let mut shares: Vec<(f64, Vec<&str>)> = vec![(0.0, Vec::new()); n];
     if let Some(s) = &split {
-        let each = make.tracks[0].2 / s.bounds.len() as f64;
-        shares.iter_mut().take(s.bounds.len()).for_each(|(load, _)| *load += each);
+        for ((load, _), share) in shares.iter_mut().zip(&s.shares) {
+            *load += make.tracks[0].2 * share;
+        }
     }
     for (name, _, cost) in whole {
         let least = (0..n).min_by(|&a, &b| shares[a].0.total_cmp(&shares[b].0)).unwrap_or(0);

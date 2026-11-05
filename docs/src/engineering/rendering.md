@@ -279,8 +279,9 @@ A synth that plays its notes apart (not a mono one, whose voice glides from note
 `render::track_part` renders the notes that sound in a stretch of the song (`voice::render_range`), each as a render
 renders it, and adds them from silence in the order a render adds them. So every sample of a part is the one a render
 makes there, and `render::track_joined` puts the parts side by side and runs the track's effects. `render::part_bounds`
-places the stretches so that the notes beginning in each sound about as long. A test checks a track made in three parts
-against the track made whole.
+places the stretches so that the notes beginning in each sound about as long, joins a stretch no note sounds in to the
+next, and says what share of the work each part has: a part renders whole every note that sounds in it. A test checks
+a track made in three parts against the track made whole.
 
 ### Hearing an edit at once
 
