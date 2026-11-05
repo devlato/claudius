@@ -44,7 +44,9 @@ agrees to a rounding of a 32-bit float. The demo cuts a 3.6-minute song into a p
 
 An edit renders again only the tracks it changed: a level, a pan, a send or the master renders no track again, and
 another track's notes only that track, so mixing waits for the mix alone (a level change in the web demo takes about
-13 s where the whole song takes 31). What comes out is the same to the sample as a fresh render.
+13 s where the whole song takes 31). What comes out is the same to the sample as a fresh render. The tracks it keeps
+leave out their silent stretches, about half of a song, so they take half the memory, which matters most in the
+web demo on a phone.
 
 In the [studio demo](https://claudius.devlato.com/studio/?mock), an edit is heard where you are listening within a
 second: the twelve seconds from the playhead, rendered again with the edit through the same effects as the whole song
