@@ -5,6 +5,7 @@
 //! identifier. `claudius telemetry` prints what is sent, and
 //! docs/src/guide/privacy.md explains it. `DO_NOT_TRACK`, `CLAUDIUS_TELEMETRY=0` and `CI` keep them off.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::thread::JoinHandle;
@@ -18,6 +19,10 @@ const ENDPOINT: &str = "https://claudius-telemetry.devlato.workers.dev/v1/event"
 
 /// the sends still on their way, which `flush` waits for before the program ends
 static PENDING: Mutex<Vec<JoinHandle<()>>> = Mutex::new(Vec::new());
+
+/// the kinds this run has sent, and on which day; its lock makes deciding to send one and noting it one step, since
+/// work on many threads at once (decodes, renders) asks for the same kind together
+static SENT: Mutex<BTreeSet<(String, u64)>> = Mutex::new(BTreeSet::new());
 
 fn file() -> Option<PathBuf> {
     dirs::config_dir().map(|d| d.join("claudius").join("telemetry.json"))
@@ -121,6 +126,17 @@ fn due(path: &Path, key: &str, day: u64) -> bool {
     write(path, &m).is_ok()
 }
 
+/// `due`, for one thread at a time: true for only one of many asking at once, and, once a kind is sent, false for it
+/// the rest of the day without reading the file again
+fn claim(path: &Path, key: &str, day: u64) -> bool {
+    let mut sent = SENT.lock().unwrap_or_else(|e| e.into_inner());
+    let mine = (key.to_string(), day);
+    if sent.contains(&mine) || !due(path, key, day) {
+        return false;
+    }
+    sent.insert(mine)
+}
+
 fn send(url: &str, body: &Value, timeout: Duration) {
     let agent: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(timeout)).build().into();
     let _ = agent.post(url).content_type("application/json").send(body.to_string());
@@ -144,7 +160,7 @@ fn send_event(event: &'static str, command: &str, detail: &str, value: f64) {
         return;
     }
     let (Some(path), Some(url)) = (file(), endpoint()) else { return };
-    if !due(&path, &format!("{event}:{command}:{detail}"), today()) {
+    if !claim(&path, &format!("{event}:{command}:{detail}"), today()) {
         return;
     }
     let body = payload(event, command, detail, value);
@@ -253,6 +269,21 @@ mod tests {
         m.insert("enabled".into(), Value::Bool(false));
         write(&path, &m).unwrap();
         assert!(!due(&path, "started:serve:", 102));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn work_on_many_threads_sends_a_kind_once() {
+        let dir = std::env::temp_dir().join(format!("claudius-telemetry-threads-{}", std::process::id()));
+        let path = dir.join("telemetry.json");
+        write(&path, &Map::from_iter([("enabled".to_string(), Value::Bool(true))])).unwrap();
+        let claimed: usize = std::thread::scope(|s| {
+            let asks: Vec<_> = (0..16).map(|_| s.spawn(|| claim(&path, "perf:studio:decode", 100))).collect();
+            asks.into_iter().map(|a| usize::from(a.join().unwrap())).sum()
+        });
+        assert_eq!(claimed, 1, "sixteen decodes at once send one event");
+        assert!(!claim(&path, "perf:studio:decode", 100));
+        assert!(claim(&path, "perf:studio:decode", 101), "and the next day another");
         std::fs::remove_dir_all(&dir).ok();
     }
 
