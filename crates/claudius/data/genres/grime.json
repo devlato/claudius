@@ -1,5 +1,7 @@
 {
   "name": "grime",
+  "family": "bass music",
+  "aliases": ["uk rap", "eskibeat", "london", "wiley", "skepta"],
   "description": "Grime: London's sound at 138 to 142 BPM: sparse, jagged drums with the snare on the third beat, square-wave and sine basslines that hit in short bursts, cold eski synths and pizzicato or string stabs, sub drops, eight-bar sections made for MCs",
   "query": "grime music",
   "alts": ["dubstep music", "trap beat", "hip hop beat with heavy bass", "drum and bass music"],

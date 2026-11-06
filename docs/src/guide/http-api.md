@@ -18,6 +18,7 @@ this API, so anything it does you can do with `curl`. The types are plain serde 
 | `GET /api/script` | the song as a script, `text/plain` (`// no song yet: try song("house")` before the first song) |
 | `GET /api/reference` | the script language reference, `text/markdown` |
 | `GET /api/sounds` | every sound name: drum voices, synth presets, installed instruments, and every pack; also the installed kits' drums (`kit`) and the roles each synth preset is made for (`synth_roles`) |
+| `GET /api/genres?q=WORDS` | the genres as the state lists them, or those that answer the search `q`, best first: a name or another name, an era, a scene, an artist or a sound (`?q=west%20coast`) |
 | `GET /api/audio/{version}.wav` | the master of that render, 48 kHz 24-bit |
 | `GET /api/audio/{version}.mp3` | the same as MP3, encoded on the first request |
 | `GET /api/stems/{version}/{track}.wav` | one track of a render made with stems |
@@ -85,7 +86,8 @@ The MCP tools wait the same way after every edit.
   "log": ["sample library: Apple Loops and your folders",
           "new song: Crimson Tide — house at 126 BPM in G dorian (seed 9)",
           "rendered in 6.3 s: -9.9 LUFS, verdict 92.6 — 93/100 (arc 0.86, mix 0.92, theory 1.00). Fix first: nearly mono (correlation 0.96): widen pads, chords and effects; the drop is only 2.8 LU louder than the breakdown (aim for 3-7): thin the break or push the drop"],
-  "genres": [{ "name": "deep_house", "description": "Deep house: softer four-on-the-floor, ...", "bpm": [118.0, 124.0] }],
+  "genres": [{ "name": "deep_house", "family": "house", "aliases": ["deep", "soulful house", "lounge house"],
+               "description": "Deep house: softer four-on-the-floor, ...", "bpm": [118.0, 124.0] }],
   "song": {
     "title": "Crimson Tide", "genre": "house", "seed": 9, "bpm": 126.0, "key": "G dorian", "swing": 0.5257842,
     "bars": 72, "seconds": 137.14285714285714,

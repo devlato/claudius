@@ -1,5 +1,7 @@
 {
   "name": "phonk",
+  "family": "hip hop",
+  "aliases": ["memphis", "memphis rap", "drift phonk", "cowbell"],
   "description": "Phonk: Memphis rap's dark sound remade at 130 to 145 BPM: a distorted 808 that slides, an 808 cowbell playing the melody, a hard kick and a trap snare and clap, hats that drive in eighths and roll, Memphis vocal chops from old tapes, tape grime over everything",
   "query": "phonk music",
   "alts": ["trap beat", "hip hop beat with heavy bass", "dubstep music", "lo-fi hip hop beat"],

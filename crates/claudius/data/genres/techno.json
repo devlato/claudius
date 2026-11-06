@@ -1,5 +1,7 @@
 {
   "name": "techno",
+  "family": "techno and trance",
+  "aliases": ["berlin techno", "detroit techno", "warehouse", "industrial techno"],
   "description": "Techno: a driving distorted kick, offbeat hats and rides, rolling bass locked between the kicks, one- or two-chord stabs in minor or phrygian, long builds of layers, optional acid line",
   "query": "techno music",
   "alts": ["house music", "minimal electronic music", "drum and bass music", "dubstep music"],

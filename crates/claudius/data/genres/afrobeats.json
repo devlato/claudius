@@ -1,5 +1,7 @@
 {
   "name": "afrobeats",
+  "family": "afro and latin",
+  "aliases": ["afrobeat", "afropop", "afro", "naija", "burna boy", "wizkid"],
   "description": "Afrobeats: 100 to 115 BPM, a rolling West African groove (a kick on one and three with a pickup, claps on 2 and 4, a rim on the clave, shakers in sixteenths, congas), bright major and minor chords on guitar plucks and keys, a warm sub, a sung-sounding lead in the hooks",
   "query": "afrobeats music",
   "alts": ["dancehall music", "reggaeton music", "house music", "r&b music"],

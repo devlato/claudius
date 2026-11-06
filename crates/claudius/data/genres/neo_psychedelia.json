@@ -1,5 +1,7 @@
 {
   "name": "neo_psychedelia",
+  "family": "rock",
+  "aliases": ["psychedelic", "psych rock", "dream pop", "indie", "tame impala"],
   "description": "Neo-psychedelia: a loose live drum kit, a warm fuzzy electric bass, guitars swirling through phasers, flangers and choruses, organ and dreamy synths, sunny mixolydian and dorian chords, long reverbs and tape wobble, a hazy wall of sound that keeps opening up",
   "query": "dreamy psychedelic pop music with phased guitars and organ",
   "alts": ["rock music with electric guitars", "indie pop music", "synthwave music", "funk music"],

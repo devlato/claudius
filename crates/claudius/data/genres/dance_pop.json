@@ -1,5 +1,7 @@
 {
   "name": "dance_pop",
+  "family": "pop and disco",
+  "aliases": ["pop", "edm pop", "club pop", "radio pop"],
   "description": "Dance-pop: a song first, verse, pre-chorus and a big chorus, over a four-on-the-floor or pop beat with bright claps, a pumping synth bass, plucked chords and a hook a voice could sing, bright major and minor pop progressions, a glossy, loud and wide mix",
   "query": "upbeat dance pop music",
   "alts": ["upbeat corporate pop music", "house music", "synthwave music", "future bass music"],

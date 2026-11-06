@@ -119,6 +119,8 @@ pub struct NewSongForm {
     pub sample_search: String,
     /// how layered it is, from 0 to 1; none: as the genre is
     pub complexity: Option<f64>,
+    /// what the genres shown are searched by (`claudius_api::search_genres`); empty: all, by family
+    pub genre_search: String,
 }
 
 impl NewSongForm {
@@ -307,6 +309,7 @@ impl Default for View {
                 sampled: None,
                 sample_search: String::new(),
                 complexity: None,
+                genre_search: String::new(),
             },
             stems: false,
             mutate_count: 4,

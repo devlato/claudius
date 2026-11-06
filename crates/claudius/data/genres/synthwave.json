@@ -1,5 +1,7 @@
 {
   "name": "synthwave",
+  "family": "electronic",
+  "aliases": ["retrowave", "outrun", "80s", "retro", "synth pop"],
   "description": "Synthwave: 80s-style straight drums with a big reverberant snare on 2 and 4, a driving eighth-note saw bass, arpeggios, lush pads and a chorused square or supersaw lead over minor progressions",
   "query": "synthwave music",
   "alts": ["upbeat corporate pop music", "chiptune video game music", "house music", "ambient synth pad music"],

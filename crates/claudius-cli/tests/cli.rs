@@ -36,6 +36,12 @@ fn genres_and_reference() {
         .assert()
         .success()
         .stdout(predicate::str::contains("house").and(predicate::str::contains("lofi")));
+    claudius().args(["genres", "golden", "age"]).assert().success().stdout(predicate::str::starts_with("boom_bap "));
+    claudius()
+        .args(["genres", "polka"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("no genre answers 'polka'"));
     claudius().arg("reference").assert().success().stdout(predicate::str::starts_with("# claudius script"));
 }
 

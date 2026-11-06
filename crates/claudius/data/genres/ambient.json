@@ -1,5 +1,7 @@
 {
   "name": "ambient",
+  "family": "electronic",
+  "aliases": ["chill", "drone", "atmospheric", "relaxing", "brian eno"],
   "description": "Ambient: slow and spacious at 60 to 90 BPM, a soft pulse or no beat at all: long pads and string drones that evolve, washes of reverb and delay, a few notes of piano, mallet or a soft lead drifting over slow chords, field recordings and textures underneath, sections that swell and fade rather than drop",
   "query": "ambient synth pad music",
   "alts": ["cinematic orchestral music", "solo piano music", "minimal electronic music", "lo-fi hip hop beat"],

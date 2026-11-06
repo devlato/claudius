@@ -15,6 +15,7 @@ to. On the command line, each command reads and writes song folders instead.
 | `status` | | |
 | `undo`, `redo`, `stop` | | |
 | `catalog` | | `claudius genres`; `claudius-packs instruments` (installed next to `claudius`) |
+| `find_genre` | `query`: what the person said ("90s", "west coast", "r&b", "dusty") | `claudius genres west coast` |
 | `save` | `path` (default `~/Music/claudius/<genre>-<title>-<seed>`) | every command writes a song folder |
 | `export` | `formats` (`["mp3", "flac:16", "opus"]`), `path` | `claudius export SONG -f mp3,flac:16,opus` |
 | `publish` | what the person said: `artist`, `writers`, `artwork` (a file), `made`, and `title`, `album`, `genre`, `date` ...; `write` (default false: only check), `path` | `claudius publish SONG --artwork FILE --artist NAME --writer "FULL NAME" --made written` (`--check` only checks) |

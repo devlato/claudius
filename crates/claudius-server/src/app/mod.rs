@@ -403,6 +403,11 @@ impl App {
         app
     }
 
+    /// the genres a song can be made in, as the state lists them
+    pub fn genres(&self) -> &[GenreInfo] {
+        &self.genres
+    }
+
     pub fn sounds(&self) -> SoundList {
         views::sounds()
     }

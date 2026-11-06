@@ -152,7 +152,8 @@ says the job is still running; `status` follows it from there.
 | `status` | | idle or busy (with progress), the last 25 log lines, the latest verdict |
 | `undo`, `redo` | | takes back or brings back the last change, then renders |
 | `stop` | | stops a mutation after the candidate in progress, an evolution after its generation, or a pack download after the pack in progress; a render always finishes |
-| `catalog` | | the genres with tempo ranges, drum names, synth presets, installed instruments and every pack with its licence |
+| `catalog` | | the genres by family, with their other names and tempo ranges, drum names, synth presets, installed instruments and every pack with its licence |
+| `find_genre` | `query` (required) | the genres that answer what the person asks for, best first: a genre's name or another name for it, an era, a scene, an artist or a sound (`90s`, `west coast`, `r&b`, `dusty`) |
 | `save` | `path` (optional) | writes the song folder: `blueprint.json` and `song.rhai` at once, then, from a render of the song as it is then, the whole folder `claudius make` writes, stems included; a save asked for during a job waits for it |
 | `export` | `formats` (required, such as `["mp3", "flac:16"]`), `path` (optional) | writes the song in those [formats](export.md#formats) into its folder or `path`, named after the song; renders first when the song changed since its last render |
 | `publish` | what the person said: `artist`, `title`, `version`, `featuring`, `album`, `genre`, `subgenre`, `date`, `label`, `writers`, `producers`, `owner`, `isrc`, `upc`, `explicit`, `made`, `artwork` (a file); `write`, `path` | checks the song for release as stores do and, with `write`, writes the [release kit](publish.md); what is left out stays as it was, and the assistant is told never to choose `made` |

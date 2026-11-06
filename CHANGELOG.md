@@ -45,6 +45,14 @@ General MIDI's other sounds play only where nothing else of their kind is instal
 and R&B play Rhodes and Wurlitzers, pianos, real strings and warm or vocal synths instead of a DX7 piano, an FM lead
 standing in for a flute and a string machine.
 
+Genres can be searched, and are grouped by family. The New song dialog has a search box above the genres, which it
+lists under their families (hip hop, house, bass music ...) until one types: then it shows those that answer, best
+first. A search finds a genre by its name, by the other names, eras, scenes and artists it goes by (`aliases`: "90s
+hip hop", "golden age", "west coast", "r&b"), by its family and by its sound ("dusty"). So does `claudius genres
+WORDS`, `GET /api/genres?q=WORDS` and the MCP tool `find_genre`; `catalog` lists the genres by family with their
+other names, and `new_song` and `remake` take another name that is no other genre's ("90s hip hop" is boom bap). A
+genre file of your own can say its `family` and `aliases` too.
+
 ## [0.4.0] - 2026-11-06
 
 The phone plays the song in the studio as well as following it: **▶** plays it and **■** stops it, so a take needs no

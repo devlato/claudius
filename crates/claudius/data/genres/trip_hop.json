@@ -1,5 +1,7 @@
 {
   "name": "trip_hop",
+  "family": "electronic",
+  "aliases": ["downtempo", "bristol", "90s trip hop", "massive attack", "portishead"],
   "description": "Trip-hop: a slowed, dusty drum break and a dark phrase sampled from a record or a film score, looped in a minor key, a deep dub bass under it, strings that swell in the hooks, a high lonely melody, vinyl crackle, tape, dub delays and long reverbs",
   "query": "trip hop music",
   "alts": ["lo-fi hip hop beat", "hip hop beat with heavy bass", "ambient synth pad music", "cinematic orchestral music"],

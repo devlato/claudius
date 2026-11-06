@@ -271,6 +271,12 @@ pub struct ExportFormat {
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct GenreInfo {
     pub name: String,
+    /// the family it belongs to ("hip hop", "house"), which the studio groups genres under
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub family: String,
+    /// what else it is called, and the eras, scenes and artists it is known by ("90s hip hop", "golden age")
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub aliases: Vec<String>,
     pub description: String,
     pub bpm: (f64, f64),
     /// what its songs built on samples dig for (none: a genre of one's own that says nothing of it)
@@ -298,6 +304,71 @@ pub struct SampleRoleInfo {
     pub search: Vec<String>,
     /// the shortest and longest recording worth fetching, in seconds
     pub seconds: (f64, f64),
+}
+
+/// The genres that answer `query`, best first: each of its words begins a word of a genre's name, one of its other
+/// names (`aliases`), its family or its description, or a run of them typed together ("hiphop" finds hip hop; "rap"
+/// finds cloud rap, not trap). One that the whole query names, or names otherwise, comes first; then those whose name
+/// or other names hold its words, those whose family does, and those whose description does. An empty query answers
+/// every genre.
+pub fn search_genres<'a>(genres: &'a [GenreInfo], query: &str) -> Vec<&'a GenreInfo> {
+    let asked = search_words(query);
+    if asked.is_empty() {
+        return genres.iter().collect();
+    }
+    let whole = asked.concat();
+    let mut found: Vec<(u32, &GenreInfo)> = genres
+        .iter()
+        .filter_map(|g| {
+            let name = search_words(&g.name);
+            let aliases: Vec<Vec<String>> = g.aliases.iter().map(|a| search_words(a)).collect();
+            let family = search_words(&g.family);
+            let description = search_words(&g.description);
+            let named = name.concat() == whole || aliases.iter().any(|a| a.concat() == whole);
+            let mut score = if named {
+                100
+            } else if family.concat() == whole {
+                20
+            } else {
+                0
+            };
+            for w in &asked {
+                let weight = if begins(&name, w) {
+                    8
+                } else if aliases.iter().any(|a| begins(a, w)) {
+                    6
+                } else if begins(&family, w) {
+                    4
+                } else {
+                    u32::from(begins(&description, w))
+                };
+                if weight == 0 && !named {
+                    return None;
+                }
+                score += weight;
+            }
+            Some((score, g))
+        })
+        .collect();
+    found.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.name.cmp(&b.1.name)));
+    found.into_iter().map(|(_, g)| g).collect()
+}
+
+/// the words of `s` as a genre search compares them: lowercase letters and digits, `&` as `n` (R&B is rnb), an
+/// apostrophe dropped (d'angelo is dangelo)
+fn search_words(s: &str) -> Vec<String> {
+    s.to_lowercase()
+        .replace('&', "n")
+        .replace(['\'', '’'], "")
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
+/// whether `w` begins one of `words`, or a run of them typed together ("hiphop" in "alt hip hop")
+fn begins(words: &[String], w: &str) -> bool {
+    (0..words.len()).any(|i| words[i..].concat().starts_with(w))
 }
 
 /// the track a turntable's record of the whole mix is cut from (`claudius::scratch::MIX`)
@@ -1610,6 +1681,36 @@ pub struct Reply {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn a_genre_is_found_by_its_names_its_family_and_its_sound() {
+        let g = |name: &str, family: &str, aliases: &[&str], description: &str| GenreInfo {
+            name: name.into(),
+            family: family.into(),
+            aliases: aliases.iter().map(|a| a.to_string()).collect(),
+            description: description.into(),
+            ..Default::default()
+        };
+        let genres = [
+            g("trap", "hip hop", &["atlanta"], "Trap: 808s and rolling hats"),
+            g("boom_bap", "hip hop", &["90s hip hop", "golden age"], "Boom bap: dusty drums"),
+            g("rnb", "r&b, soul and funk", &["slow jam"], "R&B: lush chords"),
+            g("cloud_rap", "hip hop", &["based"], "Cloud rap: hazy pads"),
+            g("house", "house", &[], "House: four on the floor"),
+            g("deep_house", "house", &[], "Deep house: warm chords"),
+        ];
+        let names = |q: &str| search_genres(&genres, q).iter().map(|g| g.name.as_str()).collect::<Vec<_>>();
+        assert_eq!(names("rap"), ["cloud_rap"], "a word begins with it: trap is no rap");
+        assert_eq!(names("hiphop"), ["boom_bap", "cloud_rap", "trap"], "the other name first, then the family");
+        assert_eq!(names("Golden age hip"), ["boom_bap"]);
+        assert_eq!(names("90s"), ["boom_bap"]);
+        assert_eq!(names("R&B"), ["rnb"]);
+        assert_eq!(names("r n b"), ["rnb"]);
+        assert_eq!(names("house"), ["house", "deep_house"], "the genre of the name, then the family's others");
+        assert_eq!(names("dusty"), ["boom_bap"], "by its sound");
+        assert_eq!(names("gang"), Vec::<&str>::new());
+        assert_eq!(names(" ").len(), genres.len());
+    }
 
     #[test]
     fn a_turntable_takes_its_records_from_samples_voices_parts_and_beats_not_a_lone_drum() {

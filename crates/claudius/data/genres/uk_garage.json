@@ -1,5 +1,7 @@
 {
   "name": "uk_garage",
+  "family": "bass music",
+  "aliases": ["garage", "ukg", "2-step", "two step", "speed garage"],
   "description": "UK garage: 130 to 136 BPM with a heavy shuffle, a two-step kick that skips the third beat, snares on 2 and 4 with skippy ghosts, shuffled hats, shakers and a rim, a bouncing sub or organ bass, soulful minor 7th chords on organ, Rhodes or stabs, a vocal-like lead in the hooks",
   "query": "uk garage music",
   "alts": ["house music", "drum and bass music", "r&b music", "dubstep music"],

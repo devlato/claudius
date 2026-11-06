@@ -556,9 +556,38 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Cmd::Genres => {
-            for g in genres::all()? {
-                println!("{:12} {:>3.0}-{:<3.0} BPM  {}", g.name, g.bpm.0, g.bpm.1, g.description);
+        Cmd::Genres { query } => {
+            let all: Vec<claudius_api::GenreInfo> = genres::all()?
+                .into_iter()
+                .map(|g| claudius_api::GenreInfo {
+                    name: g.name,
+                    family: g.family,
+                    aliases: g.aliases,
+                    description: g.description,
+                    bpm: g.bpm,
+                    ..Default::default()
+                })
+                .collect();
+            let line = |g: &claudius_api::GenreInfo| {
+                format!("{:16} {:>3.0}-{:<3.0} BPM  {}", g.name, g.bpm.0, g.bpm.1, g.description)
+            };
+            let query = query.join(" ");
+            if query.trim().is_empty() {
+                let mut families: Vec<&str> = all.iter().map(|g| g.family.as_str()).collect();
+                families.sort_by_key(|f| (f.is_empty(), *f));
+                families.dedup();
+                for family in families {
+                    println!("{}", if family.is_empty() { "your own" } else { family });
+                    for g in all.iter().filter(|g| g.family == family) {
+                        println!("  {}", line(g));
+                    }
+                }
+            } else {
+                let found = claudius_api::search_genres(&all, &query);
+                anyhow::ensure!(!found.is_empty(), "no genre answers '{query}' (claudius genres lists them all)");
+                for g in found {
+                    println!("{}", line(g));
+                }
             }
         }
         Cmd::Sounds { out } => {

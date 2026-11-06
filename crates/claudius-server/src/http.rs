@@ -60,6 +60,7 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
         .route("/api/script", get(script))
         .route("/api/reference", get(reference))
         .route("/api/sounds", get(sounds))
+        .route("/api/genres", get(genres))
         .route("/api/audio/{file}", get(audio))
         .route("/api/stems/{version}/{file}", get(stem))
         .route("/api/export/{version}/{file}", get(export_file))
@@ -310,6 +311,16 @@ async fn reference() -> impl IntoResponse {
 
 async fn sounds(State(c): State<Ctx>) -> Json<claudius_api::SoundList> {
     Json(c.app.sounds())
+}
+
+#[derive(Deserialize)]
+struct GenreQuery {
+    q: Option<String>,
+}
+
+/// the genres, or those that answer `q` best first (`claudius_api::search_genres`)
+async fn genres(State(c): State<Ctx>, Query(q): Query<GenreQuery>) -> Json<Vec<claudius_api::GenreInfo>> {
+    Json(claudius_api::search_genres(c.app.genres(), q.q.as_deref().unwrap_or("")).into_iter().cloned().collect())
 }
 
 async fn serve_file(path: PathBuf, req: Request) -> Response {

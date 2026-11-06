@@ -1,5 +1,7 @@
 {
   "name": "dubstep",
+  "family": "bass music",
+  "aliases": ["brostep", "riddim", "uk dubstep", "wobble"],
   "description": "Dubstep: 138 to 142 BPM at half time, a big snare on the third beat over a sparse kick, a wobbling mid bass over a clean sub, dark minor and phrygian chords on pads and strings, risers into heavy drops and a stripped back break",
   "query": "dubstep music",
   "alts": ["drum and bass music", "trap beat", "electro house music", "techno music"],
