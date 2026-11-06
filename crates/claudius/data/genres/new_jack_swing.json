@@ -31,7 +31,7 @@
     {"name": "clap", "voice": "clap", "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.85, 0.95]}, "mix": {"bus": "drums", "level_db": -2, "reverb": 0.3}},
     {"name": "hat", "voice": "closed_hat", "template": {"steps": [1, 0.6, 1, 0.6, 1, 0.6, 1, 0.6, 1, 0.6, 1, 0.6, 1, 0.6, 1, 0.7], "vel": [0.4, 0.75], "vary": 0.15}, "params": {"decay": [0.025, 0.05], "tone": [0.55, 0.85]}, "samples": ["Hi-hat"], "choke": "hats", "mix": {"bus": "drums", "pan": 0.15}},
     {"name": "ohat", "voice": "open_hat", "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.7, 0], "vel": [0.5, 0.7]}, "params": {"decay": [0.2, 0.3]}, "choke": "hats", "mix": {"bus": "drums", "pan": -0.15}},
-    {"name": "perc", "voice": "cowbell", "template": {"steps": [0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0.4, 0], "vel": [0.35, 0.55], "vary": 0.3}, "mix": {"bus": "drums", "pan": -0.3, "level_db": -6}}
+    {"name": "perc", "voice": "rim", "template": {"steps": [0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0.4, 0], "vel": [0.35, 0.55], "vary": 0.3}, "mix": {"bus": "drums", "pan": -0.3, "level_db": -6}}
   ],
   "kits": [["tr808", 0.35], ["tr707", 0.25]],
   "kit_mix": 0.1,
@@ -43,11 +43,11 @@
     "pad": {"core": 0.6, "retro": true, "synth": 1}
   },
   "parts": [
-    {"name": "bass", "role": "bass", "presets": ["rubber_bass", "fm_bass", "pluck_bass"], "styles": ["syncopated", "octave", "syncopated"], "register": [28, 48], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.5}]}},
+    {"name": "bass", "role": "bass", "presets": ["rubber_bass", "fm_bass", "moog_bass"], "styles": ["syncopated", "octave", "syncopated"], "register": [28, 48], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.5}]}},
     {"name": "keys", "role": "keys", "presets": ["tine_piano", "epiano", "organ"], "styles": ["syncopated", "sustain", "half"], "register": [52, 76], "voices": 4, "voicing": "close", "mix": {"reverb": 0.25, "fx": [{"fx": "chorus", "rate_hz": 0.7, "depth_ms": 2.5, "delay_ms": 10, "mix": 0.3}]}},
     {"name": "stabs", "role": "chords", "presets": ["brass_stab", "stab", "tine_piano"], "styles": ["stabs", "pump"], "register": [55, 76], "voices": 4, "voicing": "close", "core": 1.0, "mix": {"level_db": -2, "reverb": 0.25}},
-    {"name": "lead", "role": "lead", "presets": ["brass_lead", "square_lead", "soft_lead"], "styles": ["motif"], "register": [62, 84], "density": [0.3, 0.45], "optional": 0.4, "mix": {"level_db": -3, "reverb": 0.3, "delay": 0.15}},
-    {"name": "pad", "role": "pad", "presets": ["pwm_pad", "strings"], "styles": ["sustain"], "register": [50, 74], "voices": 3, "voicing": "open", "optional": 0.5, "mix": {"level_db": -5, "reverb": 0.4}}
+    {"name": "lead", "role": "lead", "presets": ["brass_lead", "soft_lead"], "styles": ["motif"], "register": [60, 80], "density": [0.3, 0.45], "optional": 0.4, "mix": {"level_db": -3, "reverb": 0.3, "delay": 0.15}},
+    {"name": "pad", "role": "pad", "presets": ["strings", "warm_pad"], "styles": ["sustain"], "register": [50, 74], "voices": 3, "voicing": "open", "optional": 0.5, "mix": {"level_db": -5, "reverb": 0.4}}
   ],
   "sampling": {
     "by_default": false,

@@ -42,9 +42,9 @@
   },
   "parts": [
     {"name": "bass", "role": "bass", "presets": ["808"], "styles": ["kick_follow"], "register": [24, 40], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 8, "mix": 1.0}, {"fx": "filter", "mode": "lp", "cutoff": 5000, "res": 0.1}]}},
-    {"name": "lead", "role": "lead", "presets": ["saw_lead", "square_lead", "brass_lead"], "styles": ["motif"], "register": [64, 86], "density": [0.4, 0.6], "core": 1.0, "mix": {"level_db": -2, "reverb": 0.2, "delay": 0.1, "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 4, "mix": 0.4}]}},
-    {"name": "stabs", "role": "chords", "presets": ["brass_stab", "stab"], "styles": ["stabs"], "register": [52, 72], "voices": 3, "voicing": "close", "core": 1.0, "mix": {"level_db": -2, "reverb": 0.25}},
-    {"name": "pad", "role": "pad", "presets": ["string_ensemble|strings", "pad"], "styles": ["sustain"], "register": [48, 72], "voices": 3, "voicing": "open", "optional": 0.5, "mix": {"level_db": -5, "reverb": 0.4}}
+    {"name": "lead", "role": "lead", "presets": ["saw_lead", "brass|brass_lead", "brass_lead"], "styles": ["motif"], "register": [60, 82], "density": [0.4, 0.6], "core": 1.0, "mix": {"level_db": -2, "reverb": 0.3, "delay": 0.1, "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 4, "mix": 0.4}]}},
+    {"name": "stabs", "role": "chords", "presets": ["brass|brass_stab", "brass_stab"], "styles": ["stabs"], "register": [52, 72], "voices": 3, "voicing": "close", "core": 1.0, "mix": {"level_db": -2, "reverb": 0.35}},
+    {"name": "pad", "role": "pad", "presets": ["string_ensemble|strings", "pad"], "styles": ["sustain"], "register": [48, 72], "voices": 3, "voicing": "open", "optional": 0.2, "mix": {"level_db": -5, "reverb": 0.4}}
   ],
   "sampling": {
     "by_default": false,

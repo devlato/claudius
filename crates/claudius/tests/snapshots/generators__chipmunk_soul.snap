@@ -21,7 +21,7 @@ drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|.
 drum hat main (drum closed_hat): x.x.x.xxx.x.xxxx|x.x.x.xxx.x.xxxx|x.x.x.xxx.x.xxxx|x.x.x.xxx.x.xxxx
 drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
 part bass (bass): syncopated synth deep_bass, register 28..45, density 0.51
-part keys (keys): half synth epiano, register 50..74, density 0.60
+part keys (keys): half synth keys, register 50..74, density 0.60
 part horns (chords): stabs synth brass_stab, register 55..76, density 0.43
 part strings (pad): sustain synth strings, register 52..79, density 0.56
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums

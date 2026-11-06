@@ -53,6 +53,14 @@ WORDS`, `GET /api/genres?q=WORDS` and the MCP tool `find_genre`; `catalog` lists
 other names, and `new_song` and `remake` take another name that is no other genre's ("90s hip hop" is boom bap). A
 genre file of your own can say its `family` and `aliases` too.
 
+Fourteen more genres, most of them the hip hop and R&B people asked for by name: G-funk (the West Coast's Minimoog
+bass and the whine of a new synth lead that glides a long way, `glide_lead`), gangsta rap (the 90s' hardcore dark
+piano and string loops on dusty breaks), jazz rap (the Native Tongues' jazz records, upright bass and horns), chipmunk
+soul (the 2000s' soul records sped up until the voices rise), crunk, cloud rap, emo rap (built on a guitar loop),
+rage, plugg, NY drill, Chicago drill, 90s R&B (hip hop soul and slow jams on the DX7 piano), new jack swing and
+alternative R&B. Each is searched by what it is called (`west coast`, `90s r&b`, `pbr&b`, `sped up soul` ...).
+`drill` now finds all three drills rather than naming UK drill.
+
 ## [0.4.0] - 2026-11-06
 
 The phone plays the song in the studio as well as following it: **▶** plays it and **■** stops it, so a take needs no

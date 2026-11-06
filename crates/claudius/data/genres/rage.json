@@ -40,8 +40,8 @@
   },
   "parts": [
     {"name": "bass", "role": "bass", "presets": ["808"], "styles": ["kick_follow"], "register": [24, 40], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 10, "mix": 1.0}, {"fx": "filter", "mode": "lp", "cutoff": 5500, "res": 0.1}]}},
-    {"name": "lead", "role": "lead", "presets": ["supersaw", "saw_lead"], "styles": ["motif"], "register": [62, 84], "density": [0.4, 0.6], "core": 1.0, "mix": {"level_db": -1, "reverb": 0.25, "delay": 0.15, "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 6, "mix": 0.5}, {"fx": "width", "width": 1.5, "mono_below_hz": 200}]}},
-    {"name": "arp", "role": "arp", "presets": ["supersaw", "pluck"], "styles": ["updown", "up", "pinky"], "register": [60, 84], "rates": [0.25], "density": [0.5, 0.7], "mix": {"level_db": -5, "reverb": 0.3, "delay": 0.2, "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 4, "mix": 0.4}]}},
+    {"name": "lead", "role": "lead", "presets": ["supersaw", "saw_lead"], "styles": ["motif"], "register": [60, 82], "density": [0.4, 0.6], "core": 1.0, "mix": {"level_db": -1, "reverb": 0.25, "delay": 0.15, "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 6, "mix": 0.5}, {"fx": "width", "width": 1.5, "mono_below_hz": 200}]}},
+    {"name": "arp", "role": "arp", "presets": ["supersaw"], "styles": ["updown", "up", "pinky"], "register": [55, 79], "rates": [0.25], "density": [0.5, 0.7], "mix": {"level_db": -5, "reverb": 0.3, "delay": 0.2, "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 4, "mix": 0.4}]}},
     {"name": "pad", "role": "pad", "presets": ["supersaw", "pad"], "styles": ["sustain"], "register": [48, 72], "voices": 3, "voicing": "open", "optional": 0.4, "mix": {"level_db": -6, "reverb": 0.45}}
   ],
   "sampling": {

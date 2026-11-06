@@ -38,8 +38,8 @@ the critic judges against it, and evolution mutates songs within it. This page c
 | `reggaeton` | 88–100 | 0.50–0.53 | minor, harmonic minor, dorian | −9 | 808 (50 %) | reggaeton music (dancehall, latin pop, trap, afrobeats) |
 | `trance` | 134–140 | 0.50–0.51 | minor, dorian, major | −9 | 909 (60 %) | trance music (techno, house, electro house, synthwave) |
 | `neo_soul` | 72–92 | 0.55–0.62 | dorian, minor, major | −11 | acoustic (60 %) | neo soul music (r&b, jazz, lo-fi hip hop, funk) |
-| `alt_hip_hop` | 76–98 | 0.54–0.60 | major, dorian, minor | −10 | acoustic (50 %) | alternative hip hop with lush jazz chords (neo soul, jazz rap, r&b, lo-fi hip hop, funk); layered (complexity 0.8) |
-| `hip_hop` | 84–100 | 0.52–0.58 | minor, dorian, phrygian, harmonic minor | −9.5 | 808 (35 %), acoustic (30 %), 909 (10 %) | hip hop beat with heavy bass (boom bap, trap, lo-fi hip hop, r&b) |
+| `alt_hip_hop` | 76–98 | 0.54–0.60 | major, dorian, minor | −10 | acoustic (30 %) | alternative hip hop with lush jazz chords (neo soul, jazz rap, r&b, lo-fi hip hop, funk); layered (complexity 0.8) |
+| `hip_hop` | 84–100 | 0.50–0.54 | minor, harmonic minor, phrygian | −9.5 | none: synthesized | hip hop beat with heavy bass (boom bap, trap, lo-fi hip hop, r&b) |
 | `rnb` | 64–80 | 0.52–0.60 | minor, dorian, major, lydian | −10 | 808 (40 %), 909 (10 %) | r&b music (heavy-bass hip hop, lo-fi hip hop, jazz, corporate pop) |
 | `funk` | 96–116 | 0.52–0.60 | dorian, mixolydian, minor | −10 | acoustic (45 %), 707 (10 %) | funk music (jazz, heavy-bass hip hop, rock with electric guitars, house) |
 | `tech_house` | 124–128 | 0.50–0.56 | minor, dorian, phrygian | −8.5 | 909 (40 %), 808 (15 %), 707 (10 %) | tech house music (house, techno, minimal, drum and bass) |
@@ -47,6 +47,20 @@ the critic judges against it, and evolution mutates songs within it. This page c
 | `grime` | 138–142 | 0.50–0.54 | minor, phrygian, harmonic minor | −9 | 808 (40 %), 909 (20 %) | grime music (dubstep, trap, heavy-bass hip hop, drum and bass) |
 | `phonk` | 130–145 | 0.50–0.54 | phrygian, minor, harmonic minor | −8 | 808 (70 %) | phonk music (trap, heavy-bass hip hop, dubstep, lo-fi hip hop) |
 | `reggae` | 66–84 | 0.56–0.64 | minor, major, dorian | −11 | acoustic (40 %), 808 (10 %) | reggae music (heavy-bass hip hop, jazz, funk, acoustic guitar) |
+| `g_funk` | 88–100 | 0.55–0.60 | dorian, minor, mixolydian | −10 | 808 (40 %) | west coast g-funk hip hop beat with a whining synth lead (funk, heavy-bass hip hop, boom bap, r&b) |
+| `gangsta_rap` | 84–96 | 0.53–0.58 | minor, phrygian, harmonic minor | −10 | acoustic (30 %), 808 (10 %) | hardcore gangsta rap beat with a dark piano loop (boom bap, trap, heavy-bass hip hop, cinematic orchestral) |
+| `jazz_rap` | 86–100 | 0.56–0.62 | dorian, minor, major | −11 | acoustic (50 %) | jazz rap hip hop beat with jazz samples and upright bass (jazz, boom bap, lo-fi hip hop, neo soul) |
+| `chipmunk_soul` | 80–96 | 0.52–0.56 | major, minor, dorian | −9.5 | acoustic (25 %), 808 (15 %) | soulful hip hop beat with sped-up soul vocal samples (boom bap, r&b, gospel, heavy-bass hip hop) |
+| `crunk` | 80–104 | 0.50–0.53 | minor, phrygian, harmonic minor | −8 | 808 (70 %) | crunk hip hop with booming 808s and loud synth stabs (trap, heavy-bass hip hop, electro house, dubstep) |
+| `cloud_rap` | 128–148 | 0.50–0.53 | minor, dorian, major | −10.5 | 808 (50 %) | cloud rap beat with dreamy hazy reverb pads (trap, ambient pad, lo-fi hip hop, synthwave) |
+| `emo_rap` | 130–170 | 0.50–0.53 | minor, dorian, major | −9 | 808 (60 %) | emo rap trap beat with a sad guitar loop (trap, rock with electric guitars, lo-fi hip hop, indie pop) |
+| `rage` | 150–170 | 0.50–0.52 | minor, phrygian, harmonic minor | −7.5 | 808 (50 %) | rage trap beat with loud distorted synth leads (trap, dubstep, electro house, heavy-bass hip hop) |
+| `plugg` | 140–160 | 0.50–0.52 | major, dorian, minor | −9.5 | 808 (50 %) | pluggnb trap beat with soft bells and lush chords (trap, r&b, lo-fi hip hop, future bass) |
+| `ny_drill` | 138–146 | 0.50–0.53 | minor, harmonic minor, phrygian | −8.5 | 808 (50 %) | brooklyn drill beat with sliding 808s and a dark choir (uk drill, trap, heavy-bass hip hop, cinematic orchestral) |
+| `chicago_drill` | 130–150 | 0.50–0.53 | minor, harmonic minor, phrygian | −8.5 | 808 (60 %) | chicago drill beat with menacing brass and bells (trap, uk drill, cinematic orchestral, heavy-bass hip hop) |
+| `rnb_90s` | 66–100 | 0.54–0.60 | major, minor, dorian | −10.5 | 808 (30 %), acoustic (20 %) | 90s r&b slow jam with electric piano and finger snaps (r&b, neo soul, funk, boom bap) |
+| `new_jack_swing` | 100–118 | 0.58–0.64 | minor, dorian, mixolydian | −10 | 808 (35 %), 707 (25 %) | new jack swing with a swung drum machine and synth stabs (funk, r&b, synthwave, dance pop) |
+| `alt_rnb` | 60–90 | 0.50–0.56 | minor, dorian, phrygian | −10.5 | 808 (50 %) | dark alternative r&b with atmospheric reverb and 808s (r&b, trap, ambient pad, neo soul) |
 
 The ten after synthwave lean on [effect chains](../../language/mixing.md#effect-chains) in their profiles:
 trip-hop's drums go through parallel compression and a crushed copy, and its delay feeds back harder in the breaks;
