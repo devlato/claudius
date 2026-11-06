@@ -81,10 +81,8 @@ mod listening {
             refs: Option<&[Vec<f32>]>,
             realness: bool,
         ) -> Result<EarsReport> {
-            let t = crate::clock::Instant::now();
-            let report = self.listen(x, genre, refs, realness);
-            crate::metrics::observe(crate::metrics::Metric::Ears, x.secs(), t.elapsed().as_secs_f64());
-            report
+            let heard = |r: &Result<EarsReport>| r.as_ref().map_or(0.0, |_| x.secs());
+            crate::metrics::timed(crate::metrics::Metric::Ears, heard, || self.listen(x, genre, refs, realness))
         }
 
         fn listen(

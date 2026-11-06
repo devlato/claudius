@@ -138,8 +138,13 @@ mod tests {
         observe(Metric::Ears, 30.0, 1.5);
         observe(Metric::Ears, 0.0, 1.0);
         observe(Metric::Ears, 10.0, f64::NAN);
+        assert!(timed(Metric::Ears, |r: &Result<f64, ()>| r.unwrap_or(0.0), || Err(())).is_err());
         let after = totals()[1].1;
-        assert_eq!(after.count, before.count + 1, "a measurement of nothing, or of no time, is none");
+        assert_eq!(
+            after.count,
+            before.count + 1,
+            "a measurement of nothing, of no time, or of work that failed, is none"
+        );
         assert!((after.audio - before.audio - 30.0).abs() < 1e-9 && (after.last - 20.0).abs() < 1e-9);
         let text = prometheus(&[("claudius_build_info{version=\"1.2.3\"}", "its version", "gauge", 1.0)]);
         assert!(text.starts_with(
