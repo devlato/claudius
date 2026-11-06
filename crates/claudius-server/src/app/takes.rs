@@ -29,7 +29,7 @@ impl App {
             return no("send the take as a WAV, FLAC, Ogg, MP3 or AIFF file", self.version());
         };
         match audio::load_bytes(bytes, ext) {
-            Ok(x) => self.answer(request, self.add_take(x, from, name, role)),
+            Ok(x) => self.answer(request, self.add_take(x, from, name, role, &take::Sources::default())),
             Err(e) => no(format!("cannot read the take: {e:#}"), self.version()),
         }
     }
@@ -168,7 +168,7 @@ impl App {
             return no(e, self.version());
         }
         match audio::load_once(path) {
-            Ok(x) => self.add_take(x, from, name, role),
+            Ok(x) => self.add_take(x, from, name, role, &take::Sources::default()),
             Err(e) => no(format!("cannot read {}: {e:#}", path.display()), self.version()),
         }
     }
@@ -185,15 +185,26 @@ impl App {
         let Some(bp) = self.blueprint() else {
             return no("no song yet: start one with new_song, then scratch one of its tracks", self.version());
         };
-        match scratch::take(&bp, s) {
-            Ok(x) => {
-                self.add_take(x, from, Some(name.map_or_else(|| scratch::name(&bp), str::to_string).as_str()), role)
+        let made = scratch::take(&bp, s)
+            .and_then(|x| Ok((x, scratch::sources(&bp, &s.track, s.bar, s.bars, take::credited)?)));
+        match made {
+            Ok((x, sources)) => {
+                let name = name.map_or_else(|| scratch::name(&bp), str::to_string);
+                self.add_take(x, from, Some(&name), role, &sources)
             }
             Err(e) => no(e, self.version()),
         }
     }
 
-    fn add_take(self: &Arc<Self>, x: Stereo, from: &str, name: Option<&str>, role: Option<&str>) -> Reply {
+    /// a take, and what it was cut from, kept beside it for the credits of the song
+    fn add_take(
+        self: &Arc<Self>,
+        x: Stereo,
+        from: &str,
+        name: Option<&str>,
+        role: Option<&str>,
+        sources: &take::Sources,
+    ) -> Reply {
         let v = self.version();
         if self.blueprint().is_none() {
             return no("no song yet: start one with new_song, then add the take", v);
@@ -210,6 +221,9 @@ impl App {
             Ok(f) => f,
             Err(e) => return no(format!("cannot keep the take: {e:#}"), v),
         };
+        if let Err(e) = take::keep_sources(&file, sources) {
+            return no(format!("cannot keep what the take was cut from: {e:#}"), v);
+        }
         self.edit_with(|bp| take::add(bp, &file, secs, from, name, role))
     }
 }

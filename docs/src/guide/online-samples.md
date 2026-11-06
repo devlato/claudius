@@ -57,6 +57,11 @@ Samples:
 "Bauchamp - 130 old drum break" by Bauchamp, CC0 (http://creativecommons.org/publicdomain/zero/1.0/deed.en), https://commons.wikimedia.org/wiki/File:Bauchamp_-_130_old_drum_break.ogg
 ```
 
+A [scratch](phone.md) is a take of a record cut from the song, so it keeps the credits of what that record held (a
+sampled phrase, a break, a sample pack's instrument) beside its file, `<take>.flac.sources.json`. The song's
+`credits.txt` names them for as long as it plays the scratch, even once it no longer plays the tracks the record was
+cut from.
+
 A claudius shared with others may read the samples folder, as it reads the sample packs
 ([What a shared claudius may read and write](samples.md#what-a-shared-claudius-may-read-and-write)).
 
