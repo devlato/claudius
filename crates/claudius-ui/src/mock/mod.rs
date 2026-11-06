@@ -10,10 +10,7 @@ mod sample;
 
 use std::sync::Arc;
 
-use claudius_api::{
-    Command, NoteView, PitchCheck, ReleaseCheck, ReleaseDetails, ReleaseView, Reply, SoundList, State, TakeStatus,
-    Transport,
-};
+use claudius_api::{Command, ReleaseCheck, ReleaseDetails, ReleaseView, Reply, SoundList, State, Transport};
 use eframe::egui;
 
 use crate::audio::Pcm;
@@ -63,10 +60,9 @@ struct Sampling {
 
 pub struct Mock {
     engine: Link,
-    /// the engine's latest state, with what the page keeps itself: the release, a pitch check, sampling
+    /// the engine's latest state, with what the page keeps itself: the release, sampling
     state: State,
     release: ReleaseView,
-    pitch_check: Option<PitchCheck>,
     /// the page's own lines, after the engine's in the log
     said: Vec<String>,
     events: Vec<Event>,
@@ -139,7 +135,6 @@ impl Mock {
             engine,
             state: State::default(),
             release: demo_release(),
-            pitch_check: None,
             said: vec!["claudius demo: the engine runs in this page, and nothing is kept".into()],
             events: Vec::new(),
             audio: None,
@@ -239,14 +234,6 @@ impl Mock {
             | Command::ExtractGroove { path, .. } => {
                 Some(Err(format!("the demo opens no paths ({path}): choose the file, and the studio hands it over")))
             }
-            Command::RequestPitchCheck { note, .. } => Some(Ok(self.pitch_check(note))),
-            Command::CancelPitchCheck { id } => Some(match self.pitch_check.as_mut() {
-                Some(c) if c.id == *id && c.status == TakeStatus::Waiting => {
-                    c.status = TakeStatus::Cancelled;
-                    Ok(format!("pitch check {id}: not now, then"))
-                }
-                _ => Err(format!("no pitch check {id} waiting")),
-            }),
             Command::SetRelease { details, .. } => {
                 self.release.details = details.as_ref().clone();
                 Some(Ok("kept: the demo checks nothing".into()))
@@ -336,37 +323,6 @@ impl Mock {
         self.waiting += 1;
     }
 
-    fn pitch_check(&mut self, note: &str) -> String {
-        // the same six phrases each time: the demo hears no singing, so they only have to play
-        let phrases = [
-            [60, 62, 64, 67],
-            [67, 65, 64, 62],
-            [60, 64, 67, 72],
-            [72, 71, 69, 67],
-            [65, 64, 62, 60],
-            [62, 65, 69, 67],
-        ];
-        let id = self.pitch_check.as_ref().map_or(1, |c| c.id + 1);
-        let notes = phrases
-            .iter()
-            .enumerate()
-            .flat_map(|(i, ph)| {
-                ph.iter().enumerate().map(move |(k, &p)| NoteView { t: i as f64 * 10.0 + k as f64, d: 0.9, p, v: 0.8 })
-            })
-            .collect();
-        let answers = (0..6).map(|i| (i as f64 * 10.0 + 5.0, (i + 1) as f64 * 10.0)).collect();
-        self.pitch_check = Some(PitchCheck {
-            id,
-            bpm: 90.0,
-            notes,
-            answers,
-            beats: 60.0,
-            note: note.to_string(),
-            ..Default::default()
-        });
-        format!("asked the person for a pitch check (check {id}): six phrases of four notes to sing back")
-    }
-
     fn say(&mut self, line: String) {
         self.said.push(line);
         let n = self.said.len();
@@ -382,7 +338,6 @@ impl Mock {
             self.release.song_title = song.title.clone();
         }
         s.release = Some(self.release.clone());
-        s.pitch_check = self.pitch_check.clone();
         s.phone = self.phone_view();
         s.log.extend(self.said.iter().cloned());
         if let Some(g) = &self.sampling {

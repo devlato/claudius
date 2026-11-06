@@ -138,12 +138,35 @@ test.describe("recording in the browser", () => {
     const { page, close } = await browser(c.base);
     try {
       const lines = said(page);
-      const plan = "wait:12;record;wait:2;rec:start;wait:7;rec:stop;wait:2;rec:keep;wait:8";
+      // the take is recorded over the demo song once the engine has rendered it
+      const plan = "wait:20;record;wait:2;rec:start;wait:7;rec:stop;wait:2;rec:keep;wait:8";
       await page.goto(`${c.base}/?mock&plan=${encodeURIComponent(plan)}`);
       await expect.poll(() => lines.join("\n"), { timeout: 90_000 }).toMatch(/take1: a take of [\d.]+ bars from the start of /);
       expect(lines.join("\n")).not.toMatch(/dropped audio|went silent|claudius serve|render the song first/);
       // the claudius serving the page keeps nothing: the demo's engine holds the take
       expect(takes(c.home)).toHaveLength(0);
+    } finally {
+      await close();
+      c.stop();
+    }
+  });
+
+  test("in the demo, a pitch check sung back is heard in the page", async () => {
+    test.setTimeout(240_000);
+    const c = await claudius();
+    const { page, close } = await browser(c.base);
+    try {
+      const lines = said(page);
+      const answer = heard(page, "heard");
+      const ask = JSON.stringify({ cmd: "request_pitch_check" });
+      // the engine answers once the demo song is rendered; the check's six phrases and the gaps to sing them back in
+      // last 40 seconds at 90 BPM
+      const plan = `wait:20;cmd:${ask};wait:10;rec:check;wait:70`;
+      await page.goto(`${c.base}/?mock&plan=${encodeURIComponent(plan)}`);
+      await expect.poll(() => lines.join("\n"), { timeout: 150_000 }).toMatch(/^the pitch check is in/m);
+      // the microphone's one tone is some of the notes
+      expect(answer.join("\n")).toMatch(/^\d+ of 24 notes sung back/m);
+      expect(lines.join("\n")).not.toMatch(/hears no singing|claudius serve/);
     } finally {
       await close();
       c.stop();

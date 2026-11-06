@@ -80,7 +80,10 @@ The demo records takes too: the record button, which only the app and a claudius
 an instrument over the song in the browser, and the take joins the song and the project you save. A take's menu in
 the arrangement works there as in claudius: **How is it sung?** hears how it is sung, **Turn it into drums** turns a
 played or beatboxed beat into the drum lanes, and **Turn the melody into notes** plays what was sung as a part, which
-the demo turned down before (it said "the demo hears no singing" and "the demo hears no drums").
+the demo turned down before (it said "the demo hears no singing" and "the demo hears no drums"). **Tune it** tunes a
+take there too, and **Check my pitch** hears the phrases you sing back (it said "the demo hears no singing: start
+`claudius serve` for a pitch check"); the voice it hears tunes your takes from then on, as in claudius, for as long as
+the page is open.
 
 ## [0.4.0] - 2026-11-06
 

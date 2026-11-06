@@ -329,8 +329,10 @@ the engine as the file itself (`claudius_api::Listen` with its bytes, the worker
 it what the app does with one the studio sends (`claudius_session::listen`, shared with the server): **Analyze** hears
 it, **Remake** reworks it and **Flip into** flips it, **Sample its vocals into the song** samples them, and **Take its
 groove** puts the song's drums in its groove. A take recorded in the Record window goes the same way and joins
-the song, where `assess_voice` hears how it is sung, `transcribe_drums` turns it into the drum lanes and
-`transcribe_take` into a part's notes. What it
+the song, where `assess_voice` hears how it is sung, `transcribe_drums` turns it into the drum lanes,
+`transcribe_take` into a part's notes, and `tune` tunes it. A pitch check is the engine's as well: it makes the check
+(`request_pitch_check`) and hears the answers (`claudius_api::Listen::PitchCheck`), and the voice it hears tunes the
+takes after it (`claudius_session::edit::tune`, shared with the server). What it
 keeps of a recording (the rework's whole recording, a flip's pieces, the sampled phrases, a take) is kept in memory
 under `demo:takes/` (`take::IN_MEMORY`), and goes in the project the page saves under `takes/`. A command that names
 a path is answered that the demo opens no paths. Scripts, opened songs

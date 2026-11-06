@@ -286,54 +286,9 @@ impl App {
             }
             Command::AssessVoice { take, path, key } => self.assess_voice(take, path, key),
             Command::Tune { track, strength, speed_ms, humanize, vibrato, scale, off } => {
-                let profile = self.lock().voice.clone();
-                let scale = match scale.as_deref().map(str::parse::<claudius::voice::tune::TuneScale>).transpose() {
-                    Ok(s) => s,
-                    Err(e) => return no(e, v),
-                };
-                self.edit_with(|bp| {
-                    if off {
-                        return claudius::voice::tune::put(bp, &track, None);
-                    }
-                    let was = script::mix_of(bp, &track)
-                        .and_then(|m| m.fx.iter().find(|e| matches!(e, claudius::fx::Effect::Tune { .. })).cloned());
-                    let mut t = was.unwrap_or_else(|| {
-                        serde_json::from_value(serde_json::json!({ "fx": "tune" })).expect("a tuner from its defaults")
-                    });
-                    if let claudius::fx::Effect::Tune {
-                        strength: s,
-                        speed_ms: sp,
-                        humanize: h,
-                        vibrato: vb,
-                        scale: sc,
-                        ..
-                    } = &mut t
-                    {
-                        if let Some(x) = strength {
-                            *s = x.clamp(0.0, 1.0).into();
-                        }
-                        if let Some(x) = speed_ms {
-                            *sp = x.clamp(0.0, 1000.0);
-                        }
-                        if let Some(x) = humanize {
-                            *h = x.clamp(0.0, 100.0);
-                        }
-                        if let Some(x) = vibrato {
-                            *vb = x.clamp(0.0, 1.0);
-                        }
-                        if let Some(x) = scale {
-                            *sc = x;
-                        }
-                    }
-                    // the person's voice, as their pitch check heard it, unless the tuner has one of its own
-                    let mut as_checked = false;
-                    if let (claudius::fx::Effect::Tune { voice: v @ None, .. }, Some(p)) = (&mut t, profile.as_ref()) {
-                        (*v, as_checked) = (Some(p.clone()), true);
-                    }
-                    claudius::voice::tune::put(bp, &track, Some(t)).map(|said| {
-                        if as_checked { format!("{said}, as your pitch check heard you sing") } else { said }
-                    })
-                })
+                let voice = self.lock().voice.clone();
+                let asked = edit::Tuning { strength, speed_ms, humanize, vibrato, scale: scale.as_deref(), off };
+                self.edit_with(|bp| edit::tune(bp, &track, &asked, voice.as_ref()))
             }
             Command::Analyze { path } => match self
                 .readable(Path::new(&path))

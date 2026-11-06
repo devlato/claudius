@@ -10,6 +10,59 @@ use claudius::script;
 use claudius::theory::rhythm::Hit;
 use claudius_api::{Command, ScratchMove};
 
+/// What a tuner is asked for (`tune`): what is given changes the track's tuner, or a new one's defaults.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Tuning<'a> {
+    pub strength: Option<f32>,
+    pub speed_ms: Option<f32>,
+    pub humanize: Option<f32>,
+    pub vibrato: Option<f32>,
+    pub scale: Option<&'a str>,
+    /// the tuner taken off instead
+    pub off: bool,
+}
+
+/// `track` of `bp` tuned as `asked` asks, singing as `voice` (the person's, as their pitch check heard it) unless its
+/// tuner has a voice of its own; what it did, or why not.
+pub fn tune(
+    bp: &mut Blueprint,
+    track: &str,
+    asked: &Tuning,
+    voice: Option<&claudius::voice::singer::Voice>,
+) -> Result<String, String> {
+    let scale = asked.scale.map(str::parse::<claudius::voice::tune::TuneScale>).transpose()?;
+    if asked.off {
+        return claudius::voice::tune::put(bp, track, None);
+    }
+    let was = script::mix_of(bp, track).and_then(|m| m.fx.iter().find(|e| matches!(e, Effect::Tune { .. })).cloned());
+    let mut t = was.unwrap_or_else(|| {
+        serde_json::from_value(serde_json::json!({ "fx": "tune" })).expect("a tuner from its defaults")
+    });
+    if let Effect::Tune { strength: s, speed_ms: sp, humanize: h, vibrato: vb, scale: sc, .. } = &mut t {
+        if let Some(x) = asked.strength {
+            *s = x.clamp(0.0, 1.0).into();
+        }
+        if let Some(x) = asked.speed_ms {
+            *sp = x.clamp(0.0, 1000.0);
+        }
+        if let Some(x) = asked.humanize {
+            *h = x.clamp(0.0, 100.0);
+        }
+        if let Some(x) = asked.vibrato {
+            *vb = x.clamp(0.0, 1.0);
+        }
+        if let Some(x) = scale {
+            *sc = x;
+        }
+    }
+    let mut as_checked = false;
+    if let (Effect::Tune { voice: v @ None, .. }, Some(p)) = (&mut t, voice) {
+        (*v, as_checked) = (Some(p.clone()), true);
+    }
+    claudius::voice::tune::put(bp, track, Some(t))
+        .map(|said| if as_checked { format!("{said}, as your pitch check heard you sing") } else { said })
+}
+
 /// A script an edit runs on the song, and what undo calls it (None: the script's first line).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Script {

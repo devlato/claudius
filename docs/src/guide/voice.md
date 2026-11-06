@@ -77,7 +77,7 @@ phrases walk a major scale between A3 and A4, mostly by step. An assistant can g
 The voice it hears becomes yours. The Record window shows it, and from then on [tuning](#tuning-a-voice) sings your
 takes as the check heard you, unless a tuner's `voice` says otherwise. claudius keeps it in `voice.json` in its
 settings folder ([Files and settings](files.md)), on this computer only. A new check replaces it, and deleting the file
-forgets it.
+forgets it. The online demo hears a check as claudius does, and keeps the voice only while the page is open.
 
 An assistant asks with `request_pitch_check`. The studio's Record window opens for it (or the link the assistant gives
 opens one), you sing it, and the assistant, which has been waiting with `wait_for_pitch_check`, hears what claudius
