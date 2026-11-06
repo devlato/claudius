@@ -44,6 +44,7 @@ const BUILTIN: &[(&str, &str)] = &[
     ("trance", include_str!("../data/genres/trance.json")),
     ("neo_soul", include_str!("../data/genres/neo_soul.json")),
     ("hip_hop", include_str!("../data/genres/hip_hop.json")),
+    ("alt_hip_hop", include_str!("../data/genres/alt_hip_hop.json")),
     ("rnb", include_str!("../data/genres/rnb.json")),
     ("funk", include_str!("../data/genres/funk.json")),
     ("tech_house", include_str!("../data/genres/tech_house.json")),

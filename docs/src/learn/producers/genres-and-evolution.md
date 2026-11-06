@@ -38,6 +38,7 @@ the critic judges against it, and evolution mutates songs within it. This page c
 | `reggaeton` | 88–100 | 0.50–0.53 | minor, harmonic minor, dorian | −9 | 808 (50 %) | reggaeton music (dancehall, latin pop, trap, afrobeats) |
 | `trance` | 134–140 | 0.50–0.51 | minor, dorian, major | −9 | 909 (60 %) | trance music (techno, house, electro house, synthwave) |
 | `neo_soul` | 72–92 | 0.55–0.62 | dorian, minor, major | −11 | acoustic (60 %) | neo soul music (r&b, jazz, lo-fi hip hop, funk) |
+| `alt_hip_hop` | 76–98 | 0.54–0.60 | major, dorian, minor | −10 | acoustic (50 %) | alternative hip hop with lush jazz chords (neo soul, jazz rap, r&b, lo-fi hip hop, funk); layered (complexity 0.8) |
 | `hip_hop` | 84–100 | 0.52–0.58 | minor, dorian, phrygian, harmonic minor | −9.5 | 808 (35 %), acoustic (30 %), 909 (10 %) | hip hop beat with heavy bass (boom bap, trap, lo-fi hip hop, r&b) |
 | `rnb` | 64–80 | 0.52–0.60 | minor, dorian, major, lydian | −10 | 808 (40 %), 909 (10 %) | r&b music (heavy-bass hip hop, lo-fi hip hop, jazz, corporate pop) |
 | `funk` | 96–116 | 0.52–0.60 | dorian, mixolydian, minor | −10 | acoustic (45 %), 707 (10 %) | funk music (jazz, heavy-bass hip hop, rock with electric guitars, house) |
