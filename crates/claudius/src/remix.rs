@@ -721,13 +721,12 @@ mod tests {
 
     #[test]
     fn progressions_past_z_take_two_letters_and_none_is_named_twice() {
-        let names: Vec<String> = (0..80).map(progression_name).collect();
+        let names: Vec<String> = (0..800).map(progression_name).collect();
         assert_eq!(
             (names[0].as_str(), names[25].as_str(), names[26].as_str(), names[27].as_str()),
             ("A", "Z", "AA", "AB")
         );
-        assert_eq!(names[51], "AZ");
-        assert_eq!(names[52], "BA");
+        assert_eq!((names[51].as_str(), names[701].as_str(), names[702].as_str()), ("AZ", "ZZ", "AAA"));
         let unique: std::collections::BTreeSet<&String> = names.iter().collect();
         assert_eq!(unique.len(), names.len());
     }
