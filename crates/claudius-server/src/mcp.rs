@@ -382,7 +382,7 @@ pub struct RemakeArgs {
     pub sampled: Option<bool>,
     /// false (default): a rework, which keeps the recording the song it is: all of it plays through, its voice and
     /// its chords as they are, without its drums and its low end, in its own sections and on its chords, with the
-    /// genre's drums, bass and pads under it. true: a flip, a new song of the genre on its hook without its drums, a
+    /// genre's drums and bass under it. true: a flip, a new song of the genre on its hook without its drums, a
     /// verse passage, its drums as the break, a flip of it in pieces from all over it and its sung phrases
     #[serde(default)]
     pub flip: Option<bool>,
@@ -938,7 +938,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Make a song in a genre from an audio file, which stays recognizable: claudius analyzes it (tempo, key, chords, sections, groove) and reworks it, playing all of it through, its voice and chords as they are without its drums and low end, in its own sections and on its chords, with the genre's drums, bass, pads and mix under it. flip: true makes a new song of the genre on its hook and pieces of it instead; sampled: false a new song on its skeleton only."
+        description = "Make a song in a genre from an audio file, which stays recognizable: claudius analyzes it (tempo, key, chords, sections, groove) and reworks it, playing all of it through, its voice and chords as they are without its drums and low end, in its own sections and on its chords, with the genre's drums, bass and mix under it. flip: true makes a new song of the genre on its hook and pieces of it instead; sampled: false a new song on its skeleton only."
     )]
     async fn remake(&self, Parameters(a): Parameters<RemakeArgs>) -> Result<String, String> {
         let cmd = Command::Remake {

@@ -185,7 +185,7 @@ are rendered in full into numbered folders next to it, with their history printe
 
 Analyses an audio file and reworks it in a genre, so that it stays the song it is: all of it plays through, its voice
 and its chords as they are, without its drums and its low end, in its own sections and on its chords, with the genre's
-drums, bass, pads and mix under it ([Remaking a song from audio](../cookbook/remake.md)). With `--flip` it makes a new
+drums, bass and mix under it ([Remaking a song from audio](../cookbook/remake.md)). With `--flip` it makes a new
 song of the genre on the recording's sound instead: its hook without its drums in the hooks, another passage of it in
 the other sections, its drums as the break where the genre plays one, a flip of it cut from all over it, and its sung
 phrases. The recording, or its pieces, go into `takes/` in `--out`. It prints the analysis (as `analyze` does) and the

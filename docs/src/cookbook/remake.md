@@ -1,11 +1,13 @@
 # Remaking a song from audio
 
-`claudius remake` listens to a recording and remixes it in any genre: a new song built on the recording's own sound,
-its hook, another passage of it, its drums, a flip cut from all over it and its sung phrases, under the genre's drums,
-bass, parts and mix. With `--skeleton` it writes a new song on the recording's skeleton only (tempo, key, chords,
-sections, drum habits, the style of its bass), with none of its audio. This recipe remakes a song whose answers we
-know, so you can see what the analysis gets right and what it gets wrong, remixes it, remakes its skeleton, then
-edits and evolves the result.
+`claudius remake` listens to a recording and reworks it in any genre, so that it stays the song it is: all of it
+plays through, its voice and its chords as they are, without its drums and its low end, in its own sections and on its
+chords, with the genre's drums, bass and mix under it. With `--flip` it makes a new song of the genre on the
+recording's own sound instead: its hook, another passage of it, its drums, a flip cut from all over it and its sung
+phrases, under the genre's drums, bass, parts and mix. With `--skeleton` it writes a new song on the recording's
+skeleton only (tempo, key, chords, sections, drum habits, the style of its bass), with none of its audio. This recipe
+remakes a song whose answers we know, so you can see what the analysis gets right and what it gets wrong, reworks it,
+flips it, remakes its skeleton, then edits and evolves the result.
 
 ## A song to remake
 
@@ -51,13 +53,55 @@ Against what we know:
 
 The analysis is approximate by nature (it reads a finished mix, not stems) and works best on steady electronic music.
 
-## Remix it in another genre
+## Rework it in another genre
 
 ```sh
-claudius remake out/house-glass-avenue-1/song.mp3 --genre deep_house --seed 3
+claudius remake out/house-glass-avenue-1/song.mp3 --genre trap --seed 3
 ```
 
-It prints the analysis again, then the remix:
+It prints the analysis again, then the rework:
+
+```text
+Faded Engine — trap at 122 BPM in A minor, 64 bars (2:06)
+  progression A: i7 VI iv7 VII III VImaj7 iv7 bi° i VI iv7 v i VI iv7 v i VI iv7 v i VI iv7 v
+  progression B: i VII v7 i7 i VII v7 i7
+  progression C: III VImaj7 iv7 v7 VImaj7 VImaj7 iv7 VImaj7 i VImaj7 iv7 v i VImaj7 iv7 v i VImaj7 iv7 v ...
+  form: drop 24 | break 8 | drop2 32
+  tracks: kick (sampled bd (tr808:bd)), snare (sampled sd (tr808:sd)), clap (sampled cp (tr808:cp)), hat (sampled hh (tr808:hh)), ohat (sampled oh (tr808:oh)), perc (sampled rim (tr808:rim)), bass (synth patch '808'), original (loop song, all of it (122 BPM)), crash (synth crash), impact (synth impact)
+  ears: 'trap beat' z +3.5 (closest confusion 'hip hop beat with heavy bass' +4.2); production z +1.4 vs 'a distorted clipped recording' +0.6; p_real 0.55
+        sounds like: hip hop beat with heavy bass, trap beat, drum and bass music, glitch hop music
+  wrote out/remake-trap-faded-engine-3/song.mp3
+```
+
+Its history says what it kept:
+
+```text
+reworked from 'song.mp3': all 64 bars of it, its voice and its chords as they are, without its drums and its low end, in its own 3 sections and on its chords; trap's bass, kick, snare, clap, hat, ohat, perc under it
+```
+
+- **All of it**, from its first downbeat to its end, plays as one track, `original`, at its own speed and pitch: the
+  piano, the pad, the voice and the lead as they are. What strikes is taken out of it (`fft::harmonic` keeps what
+  sustains), and so is what is under 150 Hz, which leaves the low end to trap's 808 and kick. It goes through the
+  genre's treatment of a phrase it samples: boom bap's tape and 12 bits, lo-fi's dust.
+- **Its own sections**, as the analysis heard them, bar for bar: the song is as long as the recording and changes
+  where it changes.
+- **Its chords**, a bar each, a progression for each run of them (`A`, `B`, `C`), which the bass plays the roots of.
+  The analysis hears roots best, and the bass is all of the genre that plays a pitch: chords, pads, keys and leads
+  of the genre would play against the recording's own, and against it where a chord was heard wrong (`bi°` above).
+- **Its swing**, so that the genre's drums sit with it.
+
+The tempo is the recording's own, or double or half of it, the one nearest the genre's range, so that nothing is
+stretched: 122 BPM is under trap's 130 to 150, and 244 or 61 further from it. `--bpm` sets another tempo, and
+stretches the recording to it. The recording is kept in `out/takes/song/`, beside the song. To hear more of the genre,
+add its parts back over the recording in a script, or turn the recording down where they play.
+
+## Flip it into another genre
+
+```sh
+claudius remake out/house-glass-avenue-1/song.mp3 --genre deep_house --seed 3 --flip
+```
+
+It prints the analysis again, then the flip:
 
 ```text
 Faded Engine — deep_house at 122 BPM in A minor, 120 bars (3:56)
@@ -140,7 +184,7 @@ The score is high because the skeleton is simple and the sections are clearly la
 
 ## Edit the remake
 
-Either remake is an ordinary song. A script can fix what the analysis got wrong and replace any part with your own.
+Every remake is an ordinary song. A script can fix what the analysis got wrong and replace any part with your own.
 This one corrects the first chord of the skeleton remake and puts a written motif in place of the generated Rhodes
 lead:
 
@@ -176,7 +220,7 @@ songs. The lead, a pattern track, keeps its notes; the drums, parts, mix, form a
 
 ## Other ways to use its audio
 
-Besides a remix, two commands put the recording's sound in a song:
+Besides a rework and a flip, two commands put the recording's sound in a song:
 
 - `claudius chop song.mp3` cuts the recording into bar loops (2 bars by default, `--bars`) and drum one-shots, writes
   them into `out/chops/`, and adds them to your user library, where generated songs can pick them up as drum
@@ -187,7 +231,8 @@ Besides a remix, two commands put the recording's sound in a song:
   sections, as a track named `sample1`.
 
 Only use recordings you have the right to use this way. `analyze` and `remake --skeleton` take nothing but
-measurements from a recording; a remix, `chop` and `make --sample` put its audio in your song.
+measurements from a recording; a rework puts all of its audio in your song, and a flip, `chop` and `make --sample`
+pieces of it.
 
 From an assistant, the MCP tools `analyze` and `remake` take a file path and do the same as the commands (`remake`
-with `sampled: false` for the skeleton only); a remake becomes the song open in the studio.
+with `flip: true` for a flip, `sampled: false` for the skeleton only); a remake becomes the song open in the studio.

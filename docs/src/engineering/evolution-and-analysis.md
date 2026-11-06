@@ -216,8 +216,8 @@ high-pass at 150 Hz at least, which leaves the low end to the genre's bass and k
 at the recording's tempo (`rework_tempo`: from the length of its bars, doubled or halved toward the genre's range, so
 that the loop is not stretched) and in its key then takes the recording's skeleton exactly: one section per analysed
 section, as long as it was heard, its kind and energy, the layers of the genre's section most like it (of its kind, else
-the nearest in energy) that play under a recording (drum lanes, bass and pad parts, the break and the textures, not
-chords, keys or leads), a progression per run of its bars' chords at one chord a bar, and the recording's swing. Parts
+the nearest in energy) that play under a recording (drum lanes, the bass, the break and the textures, not chords,
+keys, pads or leads, which would play against its own and against it where a chord was heard wrong), a progression per run of its bars' chords at one chord a bar, and the recording's swing. Parts
 the sections do not play are left out. The history says `reworked from '<file>': all <n> bars of it, ...`.
 
 ### Flipping it

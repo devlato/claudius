@@ -715,7 +715,7 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                     format!("Remake as {shown}"),
                     "a rework that stays the song it is: all of it plays through, its voice and its chords as they \
                      are without its drums and its low end, in its own sections and on its chords, with the genre's \
-                     drums, bass and pads under it (the seed above, if any)",
+                     drums and bass under it (the seed above, if any)",
                 ),
                 (
                     true,

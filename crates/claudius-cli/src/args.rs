@@ -178,7 +178,7 @@ pub(crate) enum Cmd {
         vibrato: f32,
     },
     /// Rework a recording in a genre: all of it plays through, its voice and chords as they are without its drums
-    /// and low end, in its own sections and on its chords, with the genre's drums, bass and pads under it (--flip: a
+    /// and low end, in its own sections and on its chords, with the genre's drums and bass under it (--flip: a
     /// new song on its hook and pieces of it; --skeleton: a new song on its skeleton only, its tempo, key, form and
     /// chords)
     Remake {

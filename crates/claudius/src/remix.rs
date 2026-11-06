@@ -20,7 +20,7 @@
 //! A rework (`rework`) keeps the recording whole instead, so that it stays the song it is: it plays from its first
 //! downbeat to its end without its drums and with its low end cut, its voice, chords and melodies as they are, at its
 //! own speed and pitch. The song is its form bar for bar, on its chords bar by bar, in its swing, and the genre plays
-//! under it: its drums, its bass on those chords, its pads, its break and textures, its mix.
+//! under it: its drums, its bass on those chords' roots, its break and textures, its mix.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -440,10 +440,11 @@ pub fn rework(
     let bpm = opts.bpm.unwrap_or_else(|| rework_tempo(a, g));
     let o = Options { bpm: Some(bpm), key: Some(a.key), sample_search: None, family: false, ..opts.clone() };
     let mut bp = compose::generate(g, seed, &o, lib);
-    // the genre's drums, bass, pads, break and textures play under it; its chords, keys and leads would play over the
-    // recording's own, and another record's phrase or voice against it
+    // the genre's drums, bass, break and textures play under it; its chords, keys, pads and leads would play over the
+    // recording's own (where the chords heard in it are wrong, against them), and another record's phrase or voice
+    // against it. The bass plays only the chords' roots, which the analysis hears best.
     let lanes: Vec<String> = bp.drums.iter().map(|d| d.name.clone()).collect();
-    let under = |p: &Part| matches!(p.role, crate::model::Role::Bass | crate::model::Role::Pad);
+    let under = |p: &Part| p.role == crate::model::Role::Bass;
     let parts: Vec<String> = bp.parts.iter().filter(|p| under(p)).map(|p| p.name.clone()).collect();
     let loops = [BREAK, crate::sampling::TEXTURE];
     let keep = |l: &str| lanes.iter().chain(&parts).any(|n| n == l) || loops.contains(&l);
@@ -646,7 +647,7 @@ mod tests {
         // the genre's drums and bass under it, none of its chords, keys or leads over it
         assert!(bp.form.iter().any(|s| s.layers.iter().any(|l| l == "kick")), "{:?}", bp.form);
         assert!(bp.parts.iter().any(|p| p.role == crate::model::Role::Bass));
-        assert!(bp.parts.iter().all(|p| matches!(p.role, crate::model::Role::Bass | crate::model::Role::Pad)));
+        assert!(bp.parts.iter().all(|p| p.role == crate::model::Role::Bass), "{:?}", bp.parts);
         assert!(bp.loops.iter().all(|l| [ORIGINAL, BREAK, crate::sampling::TEXTURE].contains(&l.name.as_str())));
         assert!(
             bp.lineage.iter().any(|l| l.starts_with("reworked from 'my song.wav': all 16 bars")),

@@ -17,7 +17,7 @@ claudius can work from a recording in four ways, which differ in how much of the
 | | what it takes from the recording | the original's audio in the result |
 |---|---|---|
 | **analyze** | tempo, key, chords, sections, drum habits, bass style, as a report | none |
-| **remake** | all of it, its voice and chords as they are, reworked: its own sections and chords with a genre's drums, bass, pads and mix under it | yes, all through |
+| **remake** | all of it, its voice and chords as they are, reworked: its own sections and chords with a genre's drums, bass and mix under it | yes, all through |
 | **remake**, `flip: true` | its hook, another passage, its drums, a flip of it and its sung phrases, in a new song of a genre | yes, in pieces |
 | **remake**, `sampled: false` | that skeleton, rebuilt as a new song with a genre's sounds and production | none |
 | **chop and flip** | loops and one-shots cut from it, played in a song | yes |
@@ -71,9 +71,9 @@ recording in the genre, so that it stays the song it is:
   treatment of a phrase it samples (boom bap's tape and 12 bits, say);
 - the song is its form bar for bar: its own sections, their kinds, lengths and energies;
 - on its chords bar by bar, a progression for each run of them, and in its swing;
-- the genre plays under it: its drums, its bass on those chords (in place of the recording's), its pads, its break
-  and textures, its mix; not its chords, keys or leads, which would play over the recording's own playing and
-  singing.
+- the genre plays under it: its drums, its bass on those chords' roots (in place of the recording's), its break
+  and textures, its mix; not its chords, keys, pads or leads, which would play over the recording's own playing and
+  singing, and against it where a chord was heard wrong.
 
 Its tempo is the recording's, or double or half of it, the one nearest the genre's range, so that nothing is stretched;
 `bpm` sets another (and stretches it). The reply and the song's history say so (`reworked from '<file>': all 96 bars
