@@ -95,6 +95,19 @@ test.describe("playing from a phone", () => {
         return text();
       });
       expect(said).toMatch(/^drums played from \S+/);
+      // a section's own start finds that section at any tempo, though its seconds come back a hair short of it
+      const found = await phone.evaluate(() => {
+        const keep = song.bpm;
+        try {
+          return [91.5, 97, 87.3, 123.47].every((bpm) => {
+            song.bpm = bpm;
+            return song.sections.every((s) => sectionAt((s.start_bar * 240) / bpm) === s);
+          });
+        } finally {
+          song.bpm = keep;
+        }
+      });
+      expect(found, "each section found from its own start").toBe(true);
     } finally {
       await browser.close();
       c.stop();

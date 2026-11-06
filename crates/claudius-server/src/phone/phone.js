@@ -234,7 +234,8 @@ function when(e) {
 
 /** the section the song is in at `secs` */
 function sectionAt(secs) {
-  const bar = Math.floor((secs * song.bpm) / 240);
+  // a bar's own start, worked out from its seconds, comes back a hair short of it at most tempos
+  const bar = Math.floor((secs * song.bpm) / 240 + 1e-9);
   let at = song.sections[0];
   for (const s of song.sections) if (s.start_bar <= bar) at = s;
   return at;
@@ -901,9 +902,10 @@ async function record() {
   if (!song) return say("no song yet: start one in the studio", "no");
   let at = songAt(performance.now() + latency());
   let from = at;
+  let sec = null;
   if (at === null) {
     // stopped: the studio plays the song a bar before the section it is at, and the take starts with that section
-    const sec = sectionAt(transport.at || 0);
+    sec = sectionAt(transport.at || 0);
     const bar = (s) => (s * 240) / song.bpm;
     from = bar(sec.start_bar);
     say("starting the song in the studio…");
@@ -911,7 +913,7 @@ async function record() {
     at = await started();
     if (at === null) return say("the studio did not start the song: play it there, then tap ● again", "no");
   }
-  take = { mode, from, hits: [], notes: [], moves: [], track: deck.track, bar: deck.bar, bars: deck.bars };
+  take = { mode, from, sec, hits: [], notes: [], moves: [], track: deck.track, bar: deck.bar, bars: deck.bars };
   take.sound = $("sound").value;
   take.role = $("role").value;
   $("rec").classList.add("taking");
@@ -924,7 +926,7 @@ async function send() {
   $("rec").classList.remove("taking");
   for (const [id] of held) noteOff(id, performance.now());
   const end = songAt(performance.now() + latency());
-  const sec = sectionAt(t.from);
+  const sec = t.sec || sectionAt(t.from);
   const start = (sec.start_bar * 240) / song.bpm;
   const beats = (s) => ((s - start) * song.bpm) / 60;
   const round = (x, by = 1e4) => Math.round(x * by) / by;
