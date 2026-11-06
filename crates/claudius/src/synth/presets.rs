@@ -69,6 +69,7 @@ pub const ROLES: &[(&str, &[&str])] = &[
     ("pwm_lead", &["lead", "arp"]),
     ("whistle", &["lead"]),
     ("soft_lead", &["lead"]),
+    ("glide_lead", &["lead"]),
     ("brass_lead", &["lead", "chords"]),
     ("fm_lead", &["lead", "arp"]),
     ("vox_lead", &["lead"]),
@@ -489,6 +490,27 @@ pub fn get(name: &str) -> Option<Patch> {
             analog: 1.2,
             velocity: 0.4,
             ..base(vec![o(Wave::Sine), o(Wave::Tri).octave(1).level(0.15)], a(0.06, 0.3, 0.9, 0.25))
+        },
+        // the whine of G-funk: a Minimoog high over the beat, a sine with a saw a few cents off it through a ladder
+        // filter, gliding a long way from note to note (Dr. Dre's and Warren G's portamento), a slow vibrato
+        "glide_lead" => Patch {
+            filter: Some(FilterSpec {
+                mode: FilterMode::Ladder,
+                cutoff: 2600.0,
+                res: 0.2,
+                env: 0.5,
+                keytrack: 0.5,
+                drive: 1.3,
+                velocity: 0.3,
+            }),
+            fenv: a(0.02, 0.4, 0.6, 0.3),
+            lfo: Some(LfoSpec { rate: 4.6, sync: false, vibrato: 0.24, filter: 0.0, amp: 0.0, delay: 0.3 }),
+            mono: true,
+            legato: true,
+            glide: 0.16,
+            analog: 1.5,
+            velocity: 0.4,
+            ..base(vec![o(Wave::Sine), o(Wave::Saw).semi(0.07).level(0.3)], a(0.01, 0.3, 0.9, 0.22))
         },
         // the TR-808's cowbell made to play a tune, as phonk plays its melodies on it: two squares a little under a
         // fifth apart (its 540 and 800 Hz) through a band-pass, struck and dying fast

@@ -524,6 +524,7 @@ const MELODIC: &[&str] = &[
     "pwm_lead",
     "whistle",
     "soft_lead",
+    "glide_lead",
     "brass_lead",
     "fm_lead",
     "vox_lead",
