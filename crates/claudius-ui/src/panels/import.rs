@@ -57,6 +57,7 @@ impl Import {
     }
 
     /// what claudius said of the last recording, for a scripted run to read
+    #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
     pub fn told(&self) -> String {
         self.said.as_ref().map(|(_, text)| text.clone()).unwrap_or_default()
     }
