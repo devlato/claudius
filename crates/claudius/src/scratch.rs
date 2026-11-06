@@ -391,9 +391,18 @@ mod tests {
         let keys = bp.parts[0].name.clone();
         let path = phrase.display().to_string();
         bp.parts[0].sound = crate::model::Sound::Sample { path, root: 60, start: 0.0, end: None, label: "keys".into() };
-        let cut = sources(&bp, MIX, 0, 1, take::credited).unwrap();
+        // the keys rest in the first section, and play in a later one
+        bp.form[0].layers.retain(|l| *l != keys);
+        let arranged = compose::arrange(&crate::pads::heard(&bp));
+        let notes = &arranged.tracks.iter().find(|t| t.name == keys).unwrap().notes;
+        let plays = |bar: u32| notes.iter().any(|n| n.t >= f64::from(bar) * 4.0 && n.t < f64::from(bar + 1) * 4.0);
+        assert!(!plays(0));
+        let on = (0..arranged.bars).find(|b| plays(*b)).expect("the keys play");
+        let cut = sources(&bp, MIX, on, 1, take::credited).unwrap();
         assert_eq!(cut.recordings.iter().map(|f| f.id.as_str()).collect::<Vec<_>>(), ["freesound:2"]);
-        let kick = sources(&bp, &bp.drums[0].name, 0, 1, take::credited).unwrap();
+        let rest = sources(&bp, MIX, 0, 1, take::credited).unwrap();
+        assert!(rest.recordings.is_empty(), "a record of bars the keys rest in holds none of them");
+        let kick = sources(&bp, &bp.drums[0].name, on, 1, take::credited).unwrap();
         assert!(kick.recordings.is_empty(), "a record of the kick was cut from no recording");
         // the take of a scratch on the mix, kept with what it was cut from, credits the phrase with the keys gone
         let file = take::store(&tone, &dir).unwrap();

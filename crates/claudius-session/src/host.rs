@@ -1111,7 +1111,7 @@ mod tests {
     fn a_project_credits_what_a_scratch_was_cut_from_once_the_song_plays_it_no_more() {
         let mut h = Host::new(1);
         assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
-        let phrase = "demo:samples/phrase/house/keys/phrase.wav";
+        let phrase = "demo:samples/phrase/house/scratched/phrase.wav";
         let x: Vec<f32> = (0..48_000).map(|i| (i as f32 * 0.05).sin() * 0.5).collect();
         audio::remember(phrase, Stereo::from_mono(&x));
         h.cuts.insert(phrase.into(), (found("2", "Keys", "by"), false));
@@ -1119,8 +1119,13 @@ mod tests {
         bp.parts[0].sound =
             model::Sound::Sample { path: phrase.into(), root: 60, start: 0.0, end: None, label: "keys".into() };
         let (keys, from) = (bp.parts[0].name.clone(), bp.form[0].name.clone());
+        // a bar the keys play in, which a record of the whole mix holds them in
+        let arranged = claudius::compose::arrange(bp);
+        let first = arranged.tracks.iter().find(|t| t.name == keys).unwrap().notes.first().map(|n| n.t);
+        let bar = (first.expect("the keys play") / 4.0).floor() as u32;
         let moves = json!([{"t": 0.0, "at": 0.0}, {"t": 0.25, "at": 0.3}, {"t": 0.5, "at": 0.0}]);
-        let r = command(&mut h, json!({"cmd": "add_scratch", "from": from, "track": "*", "moves": moves}));
+        let scratch = json!({"cmd": "add_scratch", "from": from, "track": "*", "bar": bar, "moves": moves});
+        let r = command(&mut h, scratch);
         assert!(r.ok, "{}", r.message);
         assert!(command(&mut h, json!({"cmd": "remove_track", "name": keys})).ok);
 
