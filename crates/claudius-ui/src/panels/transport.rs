@@ -707,19 +707,29 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
             {
                 cx.view.analysis = None;
                 cx.view.listen =
-                    file.clone().map(|file| super::Listen { file, remake: None, sample: false, groove: false });
+                    file.clone().map(|file| super::Listen { file, remake: None, flip: false, sample: false, groove: false });
             }
-            if ui
-                .add_enabled(file.is_some(), egui::Button::new(format!("Remake as {shown}")))
-                .on_hover_text(
-                    "a remix of it in the genre, built on its sound: its hook without its drums, another passage of \
-                     it, its drums, a flip cut from all over it and its sung phrases (the seed above, if any)",
-                )
-                .clicked()
-            {
-                cx.view.analysis = None;
-                let remake = Some((f.genre_name(), f.seed.trim().parse().ok()));
-                cx.view.listen = file.clone().map(|file| super::Listen { file, remake, sample: false, groove: false });
+            for (flip, label, hint) in [
+                (
+                    false,
+                    format!("Remake as {shown}"),
+                    "a rework that stays the song it is: all of it plays through, its voice and its chords as they \
+                     are without its drums and its low end, in its own sections and on its chords, with the genre's \
+                     drums, bass and pads under it (the seed above, if any)",
+                ),
+                (
+                    true,
+                    format!("Flip into {shown}"),
+                    "a new song of the genre built on its sound: its hook without its drums, another passage of it, \
+                     its drums, a flip cut from all over it and its sung phrases (the seed above, if any)",
+                ),
+            ] {
+                if ui.add_enabled(file.is_some(), egui::Button::new(label)).on_hover_text(hint).clicked() {
+                    cx.view.analysis = None;
+                    let remake = Some((f.genre_name(), f.seed.trim().parse().ok()));
+                    cx.view.listen =
+                        file.clone().map(|file| super::Listen { file, remake, flip, sample: false, groove: false });
+                }
             }
             let song = cx.state.song.is_some();
             if ui
@@ -733,7 +743,7 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
             {
                 cx.view.analysis = None;
                 cx.view.listen =
-                    file.clone().map(|file| super::Listen { file, remake: None, sample: true, groove: false });
+                    file.clone().map(|file| super::Listen { file, remake: None, flip: false, sample: true, groove: false });
             }
             let drums = cx.state.song.as_ref().is_some_and(|s| !s.drums.is_empty());
             if ui
@@ -746,7 +756,7 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                 .clicked()
             {
                 cx.view.analysis = None;
-                cx.view.listen = file.map(|file| super::Listen { file, remake: None, sample: false, groove: true });
+                cx.view.listen = file.map(|file| super::Listen { file, remake: None, flip: false, sample: false, groove: true });
             }
             if cx.view.analyzing {
                 ui.add(egui::Spinner::new().color(ACCENT));

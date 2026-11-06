@@ -1073,7 +1073,7 @@ fn a_recording() -> claudius::audio::Stereo {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn a_recording_is_remixed_on_its_hook_and_its_pieces_kept_with_the_songs() {
+async fn a_recording_is_reworked_all_through_or_flipped_on_its_hook_and_kept_with_the_songs() {
     let songs = std::env::temp_dir().join(format!("claudius-remix-songs-{}", std::process::id()));
     let app = App::new(Settings {
         library: false,
@@ -1088,22 +1088,32 @@ async fn a_recording_is_remixed_on_its_hook_and_its_pieces_kept_with_the_songs()
     let file = std::env::temp_dir().join(format!("claudius-remix-{}.wav", std::process::id()));
     claudius::audio::save_wav(&file, &a_recording(), true).unwrap();
     let path = file.display().to_string();
-    let remake = |sampled| Command::Remake {
+    let remake = |sampled, flip| Command::Remake {
         path: path.clone(),
         genre: Some("boom_bap".into()),
         seed: Some(3),
         bpm: None,
         sampled,
+        flip,
     };
-    let r = app.command(remake(None));
+    // reworked: all of it, through
+    let r = app.command(remake(None, None));
+    assert!(r.ok && r.message.starts_with(&format!("reworked {path} as boom_bap")), "{}", r.message);
+    assert!(r.message.contains("reworked from 'claudius-remix-"), "{}", r.message);
+    let song = app.blueprint().unwrap();
+    assert!(song.loops.iter().any(|l| l.name == "original"), "{:?}", song.loops);
+    assert!(song.form.iter().all(|s| s.layers.iter().any(|l| l == "original")), "{:?}", song.form);
+    let kept = songs.join("takes").join(format!("claudius-remix-{}", std::process::id()));
+    assert_eq!(std::fs::read_dir(&kept).unwrap().count(), 1, "the recording, kept in {kept:?}");
+    // flipped: a new song on its hook and pieces of it
+    let r = app.command(remake(None, Some(true)));
     assert!(r.ok && r.message.starts_with(&format!("remixed {path} as boom_bap")), "{}", r.message);
     assert!(r.message.contains("remixed from 'claudius-remix-"), "{}", r.message);
     let song = app.blueprint().unwrap();
     assert!(["sample", "flip"].iter().all(|n| song.loops.iter().any(|l| l.name == *n)), "{:?}", song.loops);
-    let kept = songs.join("takes").join(format!("claudius-remix-{}", std::process::id()));
-    assert!(std::fs::read_dir(&kept).unwrap().count() >= 3, "its hook, a verse passage and a flip of it in {kept:?}");
+    assert!(std::fs::read_dir(&kept).unwrap().count() >= 4, "its hook, a verse passage and a flip of it in {kept:?}");
     // on its skeleton only, when asked: none of its sound
-    let r = app.command(remake(Some(false)));
+    let r = app.command(remake(Some(false), None));
     assert!(r.ok && r.message.starts_with(&format!("remade {path} as boom_bap")), "{}", r.message);
     assert!(!app.blueprint().unwrap().loops.iter().any(|l| l.name == "flip"));
     std::fs::remove_file(&file).unwrap();

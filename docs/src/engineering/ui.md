@@ -257,7 +257,8 @@ reads each frame:
 
 - **A song** goes as its text in `open_text`, which opens a blueprint.json (by the file's name) or runs a script; a
   file that is not text is no song, and a toast says so.
-- **A recording** waits in the New song dialog for **Analyze** or **Remake**, which send it, the file itself, to
+- **A recording** waits in the New song dialog for **Analyze**, **Remake** or **Flip into**, which send it, the file
+  itself (a flip with `flip=true`), to
   `POST /api/analyze` or `POST /api/remake`, named so that its extension says its format. claudius decodes it in
   memory and keeps nothing of it.
 - **A cover** goes to `POST /api/release/artwork`, as a dropped one does.

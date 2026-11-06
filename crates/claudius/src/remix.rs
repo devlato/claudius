@@ -15,8 +15,14 @@
 //! - Its sung phrases, when it sings (the ears hear a voice, or a pitch in a voice's range carries a third of a phrase),
 //!   come in where they agree with the song's chords (`crate::sampler`).
 //!
-//! Everything else is the genre's: its drums and bass, its parts, its form and its mix.
+//! Everything else is the genre's: its drums and bass, its parts, its form and its mix. That is the flip (`remix`).
+//!
+//! A rework (`rework`) keeps the recording whole instead, so that it stays the song it is: it plays from its first
+//! downbeat to its end without its drums and with its low end cut, its voice, chords and melodies as they are, at its
+//! own speed and pitch. The song is its form bar for bar, on its chords bar by bar, in its swing, and the genre plays
+//! under it: its drums, its bass on those chords, its pads, its break and textures, its mix.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::analysis::song::{Analysis, SectionGuess};
@@ -33,6 +39,9 @@ use crate::theory::scale::Key;
 
 /// the track a remix's flip plays on
 pub const FLIP: &str = "flip";
+
+/// the track a rework plays the whole recording on
+pub const ORIGINAL: &str = "original";
 
 /// bars of a recording, as its analysis counts them: the first, and how many
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -344,6 +353,161 @@ pub fn remix(
     Ok(bp)
 }
 
+/// The tempo a rework plays at: the recording's own (from the length of its bars), or double or half of it, the one
+/// nearest the genre's range, so that it plays at its own speed and pitch on the song's grid
+pub fn rework_tempo(a: &Analysis, g: &GenreProfile) -> f64 {
+    let own = 240.0 / a.bar_secs.max(1e-3);
+    let (lo, hi) = g.bpm;
+    let outside = |b: f64| (lo - b).max(b - hi).max(0.0);
+    [own, own * 2.0, own / 2.0].into_iter().min_by(|x, y| outside(*x).total_cmp(&outside(*y))).unwrap_or(own)
+}
+
+/// the genre's section most like `s`: one of its kind, else the one nearest it in energy
+fn like<'a>(form: &'a [SectionSpec], s: &SectionGuess) -> Option<&'a SectionSpec> {
+    form.iter()
+        .find(|t| t.kind == s.kind)
+        .or_else(|| form.iter().min_by(|x, y| (x.energy - s.energy).abs().total_cmp(&(y.energy - s.energy).abs())))
+}
+
+/// The recording's sections as the song's, bar for bar: each its own kind, length and energy, on a progression of its
+/// own bars' chords (one name for each run of chords, `A` the first), with the layers the genre plays in a section
+/// like it that `keep` takes, and the progressions
+fn rework_form(
+    a: &Analysis,
+    genre: &[SectionSpec],
+    keep: impl Fn(&str) -> bool,
+) -> (Vec<SectionSpec>, BTreeMap<String, Vec<String>>) {
+    let mut form = Vec::new();
+    let mut progs: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut named: Vec<(Vec<String>, String)> = Vec::new();
+    let mut last = a.numerals.iter().find(|c| !c.is_empty()).cloned().unwrap_or_else(|| "i".into());
+    for (i, s) in a.sections.iter().enumerate() {
+        let chords: Vec<String> = (s.start_bar..s.start_bar + s.bars)
+            .map(|b| {
+                if let Some(c) = a.numerals.get(b).filter(|c| !c.is_empty()) {
+                    last = c.clone();
+                }
+                last.clone()
+            })
+            .collect();
+        let prog = match named.iter().find(|(c, _)| *c == chords) {
+            Some((_, n)) => n.clone(),
+            None => {
+                let n = ((b'A' + (named.len() % 26) as u8) as char).to_string();
+                named.push((chords.clone(), n.clone()));
+                progs.insert(n.clone(), chords);
+                n
+            }
+        };
+        let of_kind = a.sections[..i].iter().filter(|o| o.kind == s.kind).count();
+        let name = if of_kind == 0 { s.kind.name().to_string() } else { format!("{}{}", s.kind.name(), of_kind + 1) };
+        let t = like(genre, s);
+        let mut layers: Vec<String> = t.map_or(Vec::new(), |t| t.layers.iter().filter(|l| keep(l)).cloned().collect());
+        layers.push(ORIGINAL.into());
+        form.push(SectionSpec {
+            name,
+            kind: s.kind,
+            bars: s.bars as u32,
+            energy: s.energy,
+            prog,
+            layers,
+            variant: t.map_or_else(|| "main".into(), |t| t.variant.clone()),
+            filter_in: false,
+            build: false,
+            gap: false,
+            impact: t.is_some_and(|t| t.impact),
+            fills: t.is_some_and(|t| t.fills),
+        });
+    }
+    (form, progs)
+}
+
+/// A rework of the recording `src` as a song of genre `g` (the module's doc says how), the recording kept in `dir`
+/// with the song's takes. `opts` as for a new song (its tempo, its layers); `lib` for the drums' one-shots and the
+/// genre's own break, textures and loops.
+pub fn rework(
+    src: &Source,
+    g: &GenreProfile,
+    seed: u64,
+    opts: &Options,
+    lib: Option<&dyn Library>,
+    dir: &Path,
+) -> Result<Blueprint, String> {
+    let (x, name, a) = (src.x, src.name, src.a);
+    if a.bars < 8 || a.sections.is_empty() {
+        return Err("the recording is too short, or its sections too unclear, to rework".into());
+    }
+    let bpm = opts.bpm.unwrap_or_else(|| rework_tempo(a, g));
+    let o = Options { bpm: Some(bpm), key: Some(a.key), sample_search: None, family: false, ..opts.clone() };
+    let mut bp = compose::generate(g, seed, &o, lib);
+    // the genre's drums, bass, pads, break and textures play under it; its chords, keys and leads would play over the
+    // recording's own, and another record's phrase or voice against it
+    let lanes: Vec<String> = bp.drums.iter().map(|d| d.name.clone()).collect();
+    let under = |p: &Part| matches!(p.role, crate::model::Role::Bass | crate::model::Role::Pad);
+    let parts: Vec<String> = bp.parts.iter().filter(|p| under(p)).map(|p| p.name.clone()).collect();
+    let loops = [BREAK, crate::sampling::TEXTURE];
+    let keep = |l: &str| lanes.iter().chain(&parts).any(|n| n == l) || loops.contains(&l);
+    let (form, progressions) = rework_form(a, &bp.form, keep);
+    bp.form = form;
+    bp.harmony.progressions = progressions;
+    bp.harmony.bars_per_chord = 1;
+    bp.swing = a.swing;
+    let used: Vec<String> = bp.form.iter().flat_map(|s| s.layers.iter().cloned()).collect();
+    bp.parts.retain(|p| used.contains(&p.name));
+    bp.loops.retain(|l| used.contains(&l.name));
+    // the recording, all of it, without its drums, and under the genre's bass and kick without its own low end: the
+    // genre's treatment of a phrase it samples, high-passed at 150 Hz at least
+    let (sustained, _) = split(x);
+    let slug = crate::song::slug(Path::new(name).file_stem().map_or(name.into(), |s| s.to_string_lossy()).as_ref());
+    let body = cut(&sustained, a, Bars { first: 0, count: a.bars });
+    let path = crate::take::store(&body, &dir.join(&slug)).map_err(|e| format!("{e:#}"))?;
+    let mut mix = crate::sampling::need(g, Role::Phrase).map(|n| n.mix.clone()).unwrap_or_default();
+    mix.fx.retain(|e| !matches!(e, crate::fx::Effect::Filter { mode: crate::dsp::filter::FilterMode::Hp, .. }));
+    let hp = crate::fx::Effect::Filter {
+        mode: crate::dsp::filter::FilterMode::Hp,
+        cutoff: crate::dsp::env::Param::Const(150.0),
+        res: crate::dsp::env::Param::Const(0.05),
+        drive: 1.0,
+        mix: crate::dsp::env::Param::Const(1.0),
+    };
+    mix.fx.insert(0, hp);
+    if mix.bus.is_empty() {
+        mix.bus = "music".into();
+    }
+    let beats = (a.bars * 4) as f64 * bpm * a.bar_secs / 240.0;
+    bp.loops.push(LoopPart {
+        name: ORIGINAL.into(),
+        role: "sample".into(),
+        sound: Sound::Loop {
+            path: path.to_string_lossy().into_owned(),
+            bpm,
+            beats,
+            key: None,
+            tonal: false,
+            label: format!("{slug}, all of it"),
+        },
+        transpose: 0,
+        chop: Vec::new(),
+        slice_beats: 0.0,
+        retime: false,
+        mix,
+        from: bp.form.first().map(|s| s.name.clone()),
+        sampled: true,
+    });
+    let kept: Vec<&str> =
+        bp.parts.iter().map(|p| p.name.as_str()).chain(bp.drums.iter().map(|d| d.name.as_str())).collect();
+    let line = format!(
+        "reworked from '{name}': all {} bars of it, its voice and its chords as they are, without its drums and its \
+         low end, in its own {} sections and on its chords; {}'s {} under it",
+        a.bars,
+        bp.form.len(),
+        g.name.replace('_', " "),
+        kept.join(", ")
+    );
+    bp.lineage.insert(1.min(bp.lineage.len()), line);
+    Ok(bp)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -457,6 +621,47 @@ mod tests {
         let flip = bp.loops.iter().find(|l| l.name == FLIP).expect("a flip");
         assert_eq!((flip.transpose, flip.retime), (phrase.transpose, phrase.retime), "the flip plays as the hook does");
         assert!(bp.form.iter().filter(|s| s.layers.iter().any(|l| l == FLIP)).all(|s| s.prog == "A"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_rework_plays_the_whole_recording_in_its_own_sections_on_its_chords() {
+        let x = recording();
+        let a = crate::analysis::song::analyze(&x, None);
+        let dir = std::env::temp_dir().join(format!("claudius-rework-{}", std::process::id()));
+        let g = crate::genres::get("boom_bap").unwrap();
+        let src = Source { x: &x, name: "my song.wav", a: &a };
+        let bp = rework(&src, &g, 3, &Options::default(), None, &dir).unwrap();
+        // at its own tempo, which boom bap plays: the recording at its own speed and pitch
+        assert!((bp.bpm - 240.0 / a.bar_secs).abs() < 1e-9 && (bp.bpm - 96.0).abs() < 0.5, "{}", bp.bpm);
+        // its sections, bar for bar, each on its own bars' chords, a bar each
+        assert_eq!(bp.form.len(), a.sections.len());
+        assert_eq!(bp.harmony.bars_per_chord, 1);
+        for (s, heard) in bp.form.iter().zip(&a.sections) {
+            assert_eq!((s.kind, s.bars as usize), (heard.kind, heard.bars));
+            let chords = &bp.harmony.progressions[&s.prog];
+            assert_eq!(chords.len(), heard.bars, "{}", s.name);
+            assert_eq!(chords[0], a.numerals[heard.start_bar], "{}", s.name);
+        }
+        // the genre's drums and bass under it, none of its chords, keys or leads over it
+        assert!(bp.form.iter().any(|s| s.layers.iter().any(|l| l == "kick")), "{:?}", bp.form);
+        assert!(bp.parts.iter().any(|p| p.role == crate::model::Role::Bass));
+        assert!(bp.parts.iter().all(|p| matches!(p.role, crate::model::Role::Bass | crate::model::Role::Pad)));
+        assert!(bp.loops.iter().all(|l| [ORIGINAL, BREAK, crate::sampling::TEXTURE].contains(&l.name.as_str())));
+        assert!(
+            bp.lineage.iter().any(|l| l.starts_with("reworked from 'my song.wav': all 16 bars")),
+            "{:?}",
+            bp.lineage
+        );
+        // the recording plays once, all through: one take from the first bar to the last
+        let bars: f64 = bp.form.iter().map(|s| s.bars as f64).sum();
+        let p = compose::arrange(&bp);
+        let t = p.tracks.iter().find(|t| t.name == ORIGINAL).expect("the recording plays");
+        assert_eq!(t.clips.len(), 1, "{:?}", t.clips);
+        assert_eq!((t.clips[0].t, t.clips[0].offset, t.clips[0].d), (0.0, 0.0, bars * 4.0));
+        let Sound::Loop { path, bpm, beats, .. } = &t.sound else { panic!("a loop") };
+        assert!(Path::new(path).starts_with(dir.join("my-song")), "{path}");
+        assert!((bpm - bp.bpm).abs() < 1e-9 && (beats - bars * 4.0).abs() < 1e-6, "{bpm} {beats}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

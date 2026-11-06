@@ -1,8 +1,9 @@
 ---
 name: claudius-remix
 description: >-
-  Works from existing audio with claudius: analyzes a song's tempo, key, chords, sections and groove, remixes a
-  track in another genre (or remakes its skeleton), chops recordings into bar loops and drum one-shots, plays
+  Works from existing audio with claudius: analyzes a song's tempo, key, chords, sections and groove, reworks a
+  track in another genre so that it stays recognizable (or flips its hook into a new song, or remakes its skeleton),
+  chops recordings into bar loops and drum one-shots, plays
   recordings as samples in a song, and adds recordings made for a song (a vocal, a guitar) as takes. Use it when
   someone shares an audio file or a reference track, asks for a song like one they love or a version of a song in
   another style, wants a song's BPM, key or chords, wants to sample, chop or flip a recording with claudius, or has
@@ -16,14 +17,16 @@ claudius can work from a recording in four ways, which differ in how much of the
 | | what it takes from the recording | the original's audio in the result |
 |---|---|---|
 | **analyze** | tempo, key, chords, sections, drum habits, bass style, as a report | none |
-| **remake** | its hook, another passage, its drums, a flip of it and its sung phrases, remixed in a genre | yes |
+| **remake** | all of it, its voice and chords as they are, reworked: its own sections and chords with a genre's drums, bass, pads and mix under it | yes, all through |
+| **remake**, `flip: true` | its hook, another passage, its drums, a flip of it and its sung phrases, in a new song of a genre | yes, in pieces |
 | **remake**, `sampled: false` | that skeleton, rebuilt as a new song with a genre's sounds and production | none |
 | **chop and flip** | loops and one-shots cut from it, played in a song | yes |
 | **take** | all of it, played once from a section, as recorded for the song | yes |
 
-Choose by what the person wants. "A remix of this song", "this song as house" or "flip this whole track" is a remake.
-"Something like this song" without its sound is a remake with `sampled: false`. "Use this vocal" or "sample this break"
-is a flip. "I sang the chorus" or "here's my guitar for the drop" is a take.
+Choose by what the person wants. "A remix of this song", "this song as house" or "a boom bap version of it" is a
+remake: the song stays recognizable. "Flip this track", "make a new beat out of its hook" is a remake with
+`flip: true`. "Something like this song" without its sound is a remake with `sampled: false`. "Use this vocal" or
+"sample this break" is a flip of a chop. "I sang the chorus" or "here's my guitar for the drop" is a take.
 
 ## Before you start
 
@@ -31,9 +34,10 @@ is a flip. "I sang the chorus" or "here's my guitar for the drop" is a take.
   only reads its own folders (`~/Music/claudius`, its caches, the sound libraries, and folders given with `--files`),
   so a file elsewhere needs moving there first. The person can also choose a file on their own computer in the
   studio (New song, "Or start from an audio file"), which reads it and sends claudius what it holds.
-- **Rights.** A remake (unless `sampled: false`), a chop and a flip put the original's audio in the song: publishing
-  it needs the right to use that recording. A remake with `sampled: false` uses none of its audio. Say so when the person flips something they did not make. Apple Loops
-  may be used in music the person makes, under Apple's licence.
+- **Rights.** A remake (unless `sampled: false`), a chop and a flip put the original's audio in the song, a rework
+  all of it: publishing it needs the right to use that recording. A remake with `sampled: false` uses none of its
+  audio. Say so when the person reworks or flips something they did not make. Apple Loops may be used in music the
+  person makes, under Apple's licence.
 
 ## Analyze
 
@@ -59,8 +63,26 @@ generated parts in the new key.
 
 ## Remake
 
-`remake` with `path`, `genre` and `seed` (MCP), or `claudius remake song.mp3 --genre lofi [--seed 3]`, remixes the
-recording in the genre, as a song built on samples is built:
+`remake` with `path`, `genre` and `seed` (MCP), or `claudius remake song.mp3 --genre lofi [--seed 3]`, reworks the
+recording in the genre, so that it stays the song it is:
+
+- all of it plays through, from its first downbeat to its end, at its own speed and pitch: its voice, its chords and
+  its melodies as they are, without its drums (what strikes) and its low end (under 150 Hz), through the genre's
+  treatment of a phrase it samples (boom bap's tape and 12 bits, say);
+- the song is its form bar for bar: its own sections, their kinds, lengths and energies;
+- on its chords bar by bar, a progression for each run of them, and in its swing;
+- the genre plays under it: its drums, its bass on those chords (in place of the recording's), its pads, its break
+  and textures, its mix; not its chords, keys or leads, which would play over the recording's own playing and
+  singing.
+
+Its tempo is the recording's, or double or half of it, the one nearest the genre's range, so that nothing is stretched;
+`bpm` sets another (and stretches it). The reply and the song's history say so (`reworked from '<file>': all 96 bars
+of it, ...`). The recording is the `original` track: turn it down, filter it or mute it in sections like any loop, and
+edit the genre's parts around it. A recording too short or without sections (under 8 bars) is remade on its skeleton,
+and the reply says so.
+
+With `flip: true` (`--flip`), `remake` makes a new song of the genre on the recording's sound instead, as a song built
+on samples is built:
 
 - its hook (four bars of its loudest section with chords) without its drums plays in the song's hooks or drops, and
   the song takes its key and chords;
@@ -69,11 +91,10 @@ recording in the genre, as a song built on samples is built:
 - a flip of it, half beats cut from all over it on the hook's chords, plays in the intro, the breaks and the outro;
 - its sung phrases, when it has any, come in where they agree with the chords.
 
-It plays at the recording's own tempo when the genre does, else at a multiple of it, faster or slower by whole
-semitones or chopped onto the song's grid; `bpm` sets the tempo. The reply and the song's history say what came from
-where (`remixed from '<file>': its hook (bars 33-36) without its drums; ...`), so tell the person which part of their
-song plays where. Everything else is the genre's. A recording without a section with chords is remade on its
-skeleton, and the reply says so.
+A flip plays at the recording's own tempo when the genre does, else at a multiple of it, faster or slower by whole
+semitones or chopped onto the song's grid. Its history says what came from where (`remixed from '<file>': its hook
+(bars 33-36) without its drums; ...`), so tell the person which part of their song plays where. Everything else is
+the genre's.
 
 With `sampled: false` (`--skeleton`), `remake` composes a new song at the analysed tempo and key instead, with its
 progressions, swing, form, section energies and drum habits, in the genre's sounds and production, and none of its

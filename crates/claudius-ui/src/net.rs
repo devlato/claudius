@@ -149,7 +149,8 @@ fn listen_request(l: &crate::panels::Listen) -> (&'static str, &'static str, Str
         None => ("analyze", "/api/analyze", name),
         Some((genre, seed)) => {
             let seed = seed.map_or_else(String::new, |s| format!("&seed={s}"));
-            ("remake", "/api/remake", format!("{name}&genre={}{seed}", query_value(genre)))
+            let flip = if l.flip { "&flip=true" } else { "" };
+            ("remake", "/api/remake", format!("{name}&genre={}{seed}{flip}", query_value(genre)))
         }
     }
 }
@@ -579,6 +580,7 @@ impl Backend {
                     seed: *seed,
                     bpm: None,
                     sampled: None,
+                    flip: Some(l.flip),
                 }),
                 None => m.send(Command::Analyze { path: l.file.name.clone() }),
             },
@@ -805,11 +807,13 @@ mod tests {
     fn a_recording_to_listen_to_is_named_in_the_query() {
         let file =
             std::sync::Arc::new(Picked { name: "My Song (live) #2.m4a".into(), bytes: vec![1, 2], folder: None });
-        let analyze = listen_request(&Listen { file: file.clone(), remake: None, sample: false, groove: false });
+        let analyze =
+            listen_request(&Listen { file: file.clone(), remake: None, flip: false, sample: false, groove: false });
         assert_eq!(analyze, ("analyze", "/api/analyze", "name=My%20Song%20%28live%29%20%232.m4a".into()));
         let remake = listen_request(&Listen {
             file: file.clone(),
             remake: Some(("drum_and_bass".into(), Some(42))),
+            flip: false,
             sample: false,
             groove: false,
         });
@@ -819,13 +823,23 @@ mod tests {
         let unseeded = listen_request(&Listen {
             file: file.clone(),
             remake: Some(("house".into(), None)),
+            flip: false,
             sample: false,
             groove: false,
         });
         assert!(unseeded.2.ends_with("&genre=house"), "a random seed is claudius' to pick");
-        let groove = listen_request(&Listen { file: file.clone(), remake: None, sample: false, groove: true });
+        let flipped = listen_request(&Listen {
+            file: file.clone(),
+            remake: Some(("house".into(), None)),
+            flip: true,
+            sample: false,
+            groove: false,
+        });
+        assert!(flipped.2.ends_with("&genre=house&flip=true"), "{}", flipped.2);
+        let groove =
+            listen_request(&Listen { file: file.clone(), remake: None, flip: false, sample: false, groove: true });
         assert_eq!(groove, ("extract_groove", "/api/groove", "name=My%20Song%20%28live%29%20%232.m4a".into()));
-        let sample = listen_request(&Listen { file, remake: None, sample: true, groove: false });
+        let sample = listen_request(&Listen { file, remake: None, flip: false, sample: true, groove: false });
         assert_eq!(sample, ("sample_song", "/api/sample", "name=My%20Song%20%28live%29%20%232.m4a".into()));
     }
 }

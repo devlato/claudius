@@ -440,7 +440,7 @@ fn run(cli: Cli) -> Result<()> {
                 out.display()
             );
         }
-        Cmd::Remake { file, genre, seed, bpm, skeleton, ears, out } => {
+        Cmd::Remake { file, genre, seed, bpm, skeleton, flip, ears, out } => {
             let g = genres::get(&genre)?;
             let seed = seed.unwrap_or_else(seed_now);
             let listening = listen(&ears);
@@ -453,8 +453,12 @@ fn run(cli: Cli) -> Result<()> {
             let name = file.file_name().map_or_else(|| file.to_string_lossy(), |n| n.to_string_lossy()).into_owned();
             let remixed = (!skeleton).then(|| {
                 let src = claudius::remix::Source { x: &x, name: &name, a: &a };
-                // its pieces go with the songs written under --out
-                claudius::remix::remix(&src, &g, seed, &opts, lib_ref, &out.join("takes"), listening.ears.as_ref())
+                // the recording, or its pieces, go with the songs written under --out
+                let takes = out.join("takes");
+                match flip {
+                    true => claudius::remix::remix(&src, &g, seed, &opts, lib_ref, &takes, listening.ears.as_ref()),
+                    false => claudius::remix::rework(&src, &g, seed, &opts, lib_ref, &takes),
+                }
             });
             let skeletal =
                 || claudius::analysis::song::to_blueprint(&a, &g, seed, &opts, lib_ref, &file.to_string_lossy());

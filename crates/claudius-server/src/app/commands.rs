@@ -14,6 +14,27 @@ use claudius_api::*;
 use super::{App, no, now_seed, ok};
 use claudius_session::{edit, views};
 
+/// how a remake is built on its recording (`Command::Remake`'s `sampled` and `flip`)
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Remade {
+    /// all of it, through, with the genre under it (`remix::rework`)
+    Rework,
+    /// a new song of the genre on its hook and pieces of it (`remix::remix`)
+    Flip,
+    /// a new song on its skeleton only, none of its sound
+    Skeleton,
+}
+
+impl Remade {
+    pub fn of(sampled: Option<bool>, flip: Option<bool>) -> Remade {
+        match (sampled.unwrap_or(true), flip.unwrap_or(false)) {
+            (false, _) => Remade::Skeleton,
+            (true, true) => Remade::Flip,
+            (true, false) => Remade::Rework,
+        }
+    }
+}
+
 /// the largest project the studio may send to open, as large as a file it reads
 pub const MAX_PROJECT: usize = 300 << 20;
 
@@ -356,12 +377,12 @@ impl App {
                 Ok(x) => self.analyze_audio(&x, &path),
                 Err(e) => no(format!("cannot read {path}: {e}"), v),
             },
-            Command::Remake { path, genre, seed, bpm, sampled } => {
+            Command::Remake { path, genre, seed, bpm, sampled, flip } => {
                 if let Err(e) = self.readable(Path::new(&path)) {
                     return no(e, v);
                 }
                 match audio::load(Path::new(&path)) {
-                    Ok(x) => self.remake_audio(&x, &path, genre, seed, bpm, sampled.unwrap_or(true)),
+                    Ok(x) => self.remake_audio(&x, &path, genre, seed, bpm, Remade::of(sampled, flip)),
                     Err(e) => no(format!("cannot read {path}: {e}"), v),
                 }
             }
@@ -604,9 +625,9 @@ impl App {
         ok(text, v)
     }
 
-    /// A new song from a recording (`name`: its path, or the name of the file it came in): a remix of it, built on
-    /// its sound (`remix`), when `sampled`, its pieces kept with the songs' takes; else, or when the recording has
-    /// nothing a remix can be built on, a song on its skeleton only.
+    /// A new song from a recording (`name`: its path, or the name of the file it came in), built on it as `how`
+    /// says, the recording kept with the songs' takes; a song on its skeleton only when the recording has nothing a
+    /// rework or a flip can be built on.
     pub(super) fn remake_audio(
         self: &Arc<Self>,
         x: &audio::Stereo,
@@ -614,7 +635,7 @@ impl App {
         genre: Option<String>,
         seed: Option<u64>,
         bpm: Option<f64>,
-        sampled: bool,
+        how: Remade,
     ) -> Reply {
         let v = self.version();
         let genre = genre.or_else(|| self.blueprint().map(|b| b.genre)).unwrap_or_else(|| "house".into());
@@ -623,7 +644,7 @@ impl App {
             Err(e) => return no(e.to_string(), v),
         };
         let dir = take::dir(Some(&self.songs));
-        if sampled && !config::write_allowed(&dir, self.roots.as_deref()) {
+        if how != Remade::Skeleton && !config::write_allowed(&dir, self.roots.as_deref()) {
             return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
         }
         let a = analysis::song::analyze(x, None);
@@ -632,34 +653,42 @@ impl App {
         let lib = self.lib.as_deref().map(|l| l as &dyn compose::Library);
         let name = Path::new(path).file_name().map_or_else(|| path.to_string(), |n| n.to_string_lossy().into_owned());
         let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
-        let remixed = sampled.then(|| {
-            let ears = self.ears.get().and_then(|e| e.as_ref());
-            claudius::remix::remix(&claudius::remix::Source { x, name: &name, a: &a }, &g, seed, &opts, lib, &dir, ears)
-        });
-        let (bp, verb, how) = match remixed {
+        let src = claudius::remix::Source { x, name: &name, a: &a };
+        let remixed = match how {
+            Remade::Rework => Some(claudius::remix::rework(&src, &g, seed, &opts, lib, &dir)),
+            Remade::Flip => {
+                let ears = self.ears.get().and_then(|e| e.as_ref());
+                Some(claudius::remix::remix(&src, &g, seed, &opts, lib, &dir, ears))
+            }
+            Remade::Skeleton => None,
+        };
+        let (bp, verb, told) = match remixed {
             Some(Ok(bp)) => {
-                let said: Vec<&String> =
-                    bp.lineage.iter().filter(|l| l.starts_with("remixed") || l.starts_with("sampled")).collect();
-                let how = said.iter().map(|l| format!("\n{l}")).collect::<String>();
-                (bp, "remixed", how)
+                let said: Vec<&String> = bp
+                    .lineage
+                    .iter()
+                    .filter(|l| ["remixed", "reworked", "sampled"].iter().any(|w| l.starts_with(w)))
+                    .collect();
+                let told = said.iter().map(|l| format!("\n{l}")).collect::<String>();
+                (bp, if how == Remade::Flip { "remixed" } else { "reworked" }, told)
             }
             remixed => {
                 let bp = analysis::song::to_blueprint(&a, &g, seed, &opts, lib, path);
-                let mut how = match remixed {
+                let mut told = match remixed {
                     Some(Err(e)) => format!("\na song on its skeleton, not a remix of it: {e}"),
                     _ => String::new(),
                 };
                 if bpm.is_none() && bp.bpm != a.bpm.round() {
-                    how.push_str(&format!(
+                    told.push_str(&format!(
                         "\nat {:.0} BPM: the recording's {:.0} is outside {genre}'s {:.0}-{:.0}",
                         bp.bpm, a.bpm, g.bpm.0, g.bpm.1
                     ));
                 }
-                (bp, "remade", how)
+                (bp, "remade", told)
             }
         };
         self.lock().folder = None;
-        self.commit(Some(bp), format!("{verb} {path} as {genre}{how}:\n{}", analysis_text(&a)))
+        self.commit(Some(bp), format!("{verb} {path} as {genre}{told}:\n{}", analysis_text(&a)))
     }
 
     fn load(self: &Arc<Self>, path: &Path) -> Reply {

@@ -577,6 +577,7 @@ impl Studio {
                     self.view.listen = self.view.audio_file.clone().map(|file| panels::Listen {
                         file,
                         remake,
+                        flip: false,
                         sample: false,
                         groove: false,
                     });
