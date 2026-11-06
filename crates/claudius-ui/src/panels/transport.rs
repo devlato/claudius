@@ -135,17 +135,14 @@ pub fn top_row(ui: &mut Ui, cx: &mut Cx) {
                 ui.close();
             }
         });
-        // a take goes to claudius, which keeps it with the song: there is no recording in the demo
-        if cx.server.is_some() {
-            let recording = cx.view.record.recording();
-            let tip = if recording { "stop recording" } else { "record a take: a voice or an instrument" };
-            let r = widgets::icon_button(ui, Icon::Record, 30.0, recording, cx.state.song.is_some(), tip);
-            if r.clicked() {
-                if recording {
-                    super::record::finish(cx);
-                } else {
-                    cx.view.record.show();
-                }
+        let recording = cx.view.record.recording();
+        let tip = if recording { "stop recording" } else { "record a take: a voice or an instrument" };
+        let r = widgets::icon_button(ui, Icon::Record, 30.0, recording, cx.state.song.is_some(), tip);
+        if r.clicked() {
+            if recording {
+                super::record::finish(cx);
+            } else {
+                cx.view.record.show();
             }
         }
         // the demo in a browser plays along with a phone through the site's relay

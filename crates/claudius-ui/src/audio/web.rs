@@ -2,7 +2,7 @@ use eframe::egui;
 use wasm_bindgen::JsValue;
 use web_sys::{Blob, BlobPropertyBag, HtmlAudioElement, Url};
 
-use super::Source;
+use super::{Pcm, Source};
 
 /// `HAVE_METADATA`: duration and seeking work from here on
 const HAVE_METADATA: u16 = 1;
@@ -11,6 +11,8 @@ pub struct Player {
     el: Option<HtmlAudioElement>,
     /// object URL of generated audio, revoked when replaced
     object_url: Option<String>,
+    /// the generated audio itself (the demo engine's render): what a take is recorded over
+    pcm: Option<std::sync::Arc<Pcm>>,
     pending_seek: Option<f64>,
     region: Option<(f64, f64)>,
     error: Option<String>,
@@ -25,7 +27,7 @@ impl Player {
             el.set_volume(0.9);
         }
         let error = el.is_none().then(|| "this browser has no audio element".to_string());
-        Player { el, object_url: None, pending_seek: None, region: None, error, loaded: false }
+        Player { el, object_url: None, pcm: None, pending_seek: None, region: None, error, loaded: false }
     }
 
     pub fn error(&self) -> Option<&str> {
@@ -40,10 +42,14 @@ impl Player {
         let Some(el) = &self.el else { return };
         let was_playing = !el.paused();
         let pos = if keep_position { self.position() } else { 0.0 };
+        self.pcm = None;
         let url = match source {
             Source::Url(url) => url,
             Source::Pcm(pcm) => match wav_object_url(&pcm.encode_wav()) {
-                Ok(url) => url,
+                Ok(url) => {
+                    self.pcm = Some(pcm);
+                    url
+                }
                 Err(e) => {
                     self.error = Some(format!("could not hand the audio to the browser: {e:?}"));
                     return;
@@ -75,6 +81,7 @@ impl Player {
         if let Some(old) = self.object_url.take() {
             let _ = Url::revoke_object_url(&old);
         }
+        self.pcm = None;
         self.loaded = false;
         self.pending_seek = None;
     }
@@ -100,6 +107,11 @@ impl Player {
 
     pub fn has_audio(&self) -> bool {
         self.loaded
+    }
+
+    /// the audio loaded, when it was handed over as audio rather than a URL: what a take is recorded over
+    pub fn pcm(&self) -> Option<std::sync::Arc<Pcm>> {
+        self.pcm.clone()
     }
 
     pub fn play(&mut self) {

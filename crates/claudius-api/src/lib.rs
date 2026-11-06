@@ -376,10 +376,29 @@ fn begins(words: &[String], w: &str) -> bool {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "what", rename_all = "snake_case")]
 pub enum Listen {
-    Analyze { name: String },
-    Remake { name: String, genre: Option<String>, seed: Option<u64>, flip: bool },
-    SampleSong { name: String },
-    ExtractGroove { name: String },
+    Analyze {
+        name: String,
+    },
+    Remake {
+        name: String,
+        genre: Option<String>,
+        seed: Option<u64>,
+        flip: bool,
+    },
+    SampleSong {
+        name: String,
+    },
+    ExtractGroove {
+        name: String,
+    },
+    /// a take recorded for the song (the Record window's), played from the start of section `from` as track `track`
+    /// (take1, take2, ... when none), for a part of `role`, as `/api/takes` adds one
+    Take {
+        name: String,
+        from: String,
+        track: Option<String>,
+        role: String,
+    },
 }
 
 impl Listen {
@@ -387,7 +406,7 @@ impl Listen {
     pub fn name(&self) -> &str {
         match self {
             Listen::Analyze { name } | Listen::SampleSong { name } | Listen::ExtractGroove { name } => name,
-            Listen::Remake { name, .. } => name,
+            Listen::Remake { name, .. } | Listen::Take { name, .. } => name,
         }
     }
 
@@ -398,6 +417,7 @@ impl Listen {
             Listen::Remake { .. } => "remake",
             Listen::SampleSong { .. } => "sample_song",
             Listen::ExtractGroove { .. } => "extract_groove",
+            Listen::Take { .. } => "take",
         }
     }
 }
