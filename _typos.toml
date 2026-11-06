@@ -19,6 +19,7 @@ tak = "tak"           # TAK, a lossless audio format, as ffmpeg names its demuxe
 thr = "thr"           # threshold
 tpe = "tpe"           # TPE1, ID3's frame for the artist
 trak = "trak"         # a misspelled function in an example of an error
+weeknd = "weeknd"     # The Weeknd, an artist alternative R&B is searched by
 
 [files]
 extend-exclude = [
