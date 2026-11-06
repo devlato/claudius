@@ -522,12 +522,11 @@ impl App {
             (l.tempo > 0.0).then_some(l.tempo)
         });
         let named = file.file_name().and_then(|f| claudius::analysis::groove::tempo_in_name(&f.to_string_lossy()));
-        let at = bpm.or(apple).or(named);
-        // heard before the song is locked, as a long recording takes a while
-        if let Err(e) = claudius::analysis::groove::hear(x, at) {
-            return no(format!("{from}: {e}"), self.version());
-        }
-        self.edit_with(|bp| listen::groove(bp, x, from, name, lanes, at))
+        let heard = match claudius::analysis::groove::hear(x, bpm.or(apple).or(named)) {
+            Ok(h) => h,
+            Err(e) => return no(format!("{from}: {e}"), self.version()),
+        };
+        self.edit_with(|bp| listen::groove(bp, &heard, from, name, lanes))
     }
 
     /// how a take of the song, or a recording at `path` (in `key` when given), is sung

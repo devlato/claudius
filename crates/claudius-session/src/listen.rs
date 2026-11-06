@@ -173,17 +173,16 @@ pub fn groove_name(path: &str) -> String {
     if name.is_empty() { "groove".into() } else { name }
 }
 
-/// The groove of the drums in recording `x` (heard in `from`, a path or a name, at `bpm` when given) kept with the
-/// song as `name`, and its lanes `lanes` (every drum lane when none) put in it: what to say of it
+/// The groove of the drums `heard` in a recording (`from`: its path or its name, `analysis::groove::hear`), kept with
+/// the song as `name`, and its lanes `lanes` (every drum lane when none) put in it: what to say of it. It is heard
+/// before, as a long recording takes a while, and the song need not wait for it.
 pub fn groove(
     bp: &mut Blueprint,
-    x: &Stereo,
+    heard: &analysis::groove::Heard,
     from: &str,
     name: &str,
     lanes: &[String],
-    bpm: Option<f64>,
 ) -> Result<String, String> {
-    let heard = analysis::groove::hear(x, bpm).map_err(|e| format!("{from}: {e}"))?;
     let names: Vec<String> = bp.drums.iter().map(|d| d.name.clone()).collect();
     if let Some(l) = lanes.iter().find(|l| !names.contains(l)) {
         return Err(format!("no drum lane '{l}' (lanes: {})", names.join(" ")));

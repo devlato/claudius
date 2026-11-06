@@ -226,8 +226,12 @@ impl Host {
                 let Some(mut bp) = self.bp.clone() else {
                     return self.no("no song yet: start one with a new song, then take a recording's groove");
                 };
-                let named = claudius::analysis::groove::tempo_in_name(&name);
-                match listen::groove(&mut bp, &x, &name, &listen::groove_name(&name), &[], named) {
+                let heard = match claudius::analysis::groove::hear(&x, claudius::analysis::groove::tempo_in_name(&name))
+                {
+                    Ok(h) => h,
+                    Err(e) => return self.no(format!("{name}: {e}")),
+                };
+                match listen::groove(&mut bp, &heard, &name, &listen::groove_name(&name), &[]) {
                     Ok(msg) => self.commit(Some(bp), msg),
                     Err(e) => self.no(e),
                 }
