@@ -183,11 +183,11 @@ the key:
 
 | route | what it gives the page |
 | --- | --- |
-| `GET /api/song?after=V` | what the page shows and plays of the song: its sections (with the tracks that play in each), drum lanes, tracks, and the sounds the keys can play; with `after`, once the song's version is past `V` |
+| `GET /api/song?after=V` | what the page shows and plays of the song: its sections (with the tracks that play in each), drum lanes, tracks, the records the turntable can cut (`claudius_api::records`), and the sounds the keys can play; with `after`, once the song's version is past `V` |
 | `GET /api/clock` | the server's time in milliseconds and the studio's transport (`POST /api/transport`), for the page to keep its clock (the offset of the quickest of its last twelve round trips) and place what is played in the song |
 | `GET /api/hits/{lane}` | a drum lane's hit (`claudius::pads::hits`: every lane struck in turn and rendered through the song's mix and master, once for each version of the song) |
 | `GET /api/keys?sound=&low=&high=&step=` | notes of a sound, a slot of 1.5 seconds each, in one WAV (`pads::notes`) |
-| `GET /api/record?track=&bar=&bars=` | the record a scratch moves (`scratch::record`) |
+| `GET /api/record?track=&bar=&bars=` | the record a scratch moves (`scratch::record`): one track, or the whole mix for `track=*` |
 | `POST /api/take` | a take, as `add_hits`, `add_notes` or `add_scratch`; any other command gets 403 |
 | `POST /api/play` | `{"playing": true, "at": 12.5}` (`at` optional) or `{"playing": false}`: the phone asks the studio to play the song (from `at` seconds) or to stop it; the ask goes into the state's `phone.play` with an `id` of its own, and the studio does it once (`PlayAsk`) |
 

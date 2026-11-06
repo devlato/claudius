@@ -192,7 +192,7 @@ Details that matter when you read an assistant's transcript:
   and `remove_track` (a drum lane or a part of any role, as the arrangement's **+ Track** adds), `set_notes` (a
   part's notes over a progression written out, as the **Piano roll** does), `set_mix` (including `solo`),
   `add_hits` (drums played on pads, folded into the lanes they strike) and `add_scratch` (a scratch on a bar or a few
-  of one of the song's tracks, kept as a take).
+  of one of the song's tracks, or of the whole mix, kept as a take).
 - A failed edit changes nothing and comes back as a tool error (`isError: true`) with claudius' message, the same text
   the studio shows:
 

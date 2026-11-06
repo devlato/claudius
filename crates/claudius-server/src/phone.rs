@@ -227,8 +227,10 @@ struct Song {
     /// the drum lanes, a pad each, and their roles (kick, snare, hat ...), which a drum pad's MIDI note plays
     lanes: Vec<String>,
     roles: Vec<String>,
-    /// the tracks a record can be cut from
+    /// the song's tracks
     tracks: Vec<String>,
+    /// the tracks a record can be cut from, each with what it is (`claudius_api::records`)
+    records: Vec<(String, String)>,
     /// what the keys can play: the sounds of the song's parts (with the part's name), the synth presets, and the
     /// installed instruments
     parts: Vec<(String, String)>,
@@ -266,6 +268,7 @@ async fn song(State(p): State<Arc<Phone>>, Query(q): Query<After>) -> Response {
     let Some(s) = st.song else {
         return (StatusCode::NOT_FOUND, "no song yet: start one in the studio").into_response();
     };
+    let records = claudius_api::records(&s);
     Json(Song {
         version: st.song_version,
         title: s.title,
@@ -283,6 +286,7 @@ async fn song(State(p): State<Arc<Phone>>, Query(q): Query<After>) -> Response {
             .collect(),
         lanes: s.drums.into_iter().map(|d| d.lane).collect(),
         tracks: s.tracks.into_iter().map(|t| t.name).collect(),
+        records,
         parts: s.parts.into_iter().map(|p| (p.name, p.preset)).filter(|(_, s)| !s.is_empty()).collect(),
         synths: sounds.synths,
         instruments: sounds.instruments,

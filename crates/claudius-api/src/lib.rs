@@ -300,6 +300,38 @@ pub struct SampleRoleInfo {
     pub seconds: (f64, f64),
 }
 
+/// the track a turntable's record of the whole mix is cut from (`claudius::scratch::MIX`)
+pub const WHOLE_MIX: &str = "*";
+
+/// The tracks of `song` a phone's turntable can cut a record from, each with what it is (`sample`, `voice`, `part`,
+/// `beat` or `mix`), in the order a DJ reaches for them: its samples and voices (a sampled phrase and its other
+/// passage, a flip, a vocal chop, a take), its parts that play notes, its beats (a sampled break, a drum take), then
+/// the whole mix. A drum lane alone (a kick, a clap) is one sound struck, no record to scratch, and nor is a texture's
+/// noise or a riser.
+pub fn records(song: &SongView) -> Vec<(String, String)> {
+    const DRUMS: &[&str] = &["kick", "snare", "clap", "hat", "ohat", "shaker", "perc", "ride", "tom", "crash", "top"];
+    let kind = |t: &TrackView| -> Option<(u8, &'static str)> {
+        let drum = t.role == "drums" || DRUMS.contains(&t.role.as_str());
+        match t.kind.as_str() {
+            "drum" | "fx" => None,
+            _ if t.role == "texture" => None,
+            "loop" if t.role == "sample" => Some((0, "sample")),
+            "loop" | "take" | "part" if t.role == "vocal" => Some((1, "voice")),
+            "take" if !drum => Some((0, "sample")),
+            "loop" | "take" | "pattern" if drum => Some((3, "beat")),
+            _ => Some((2, "part")),
+        }
+    };
+    let mut out: Vec<(u8, String, &'static str)> =
+        song.tracks.iter().filter_map(|t| kind(t).map(|(rank, k)| (rank, t.name.clone(), k))).collect();
+    out.sort_by_key(|(rank, _, _)| *rank);
+    let mut out: Vec<(String, String)> = out.into_iter().map(|(_, name, k)| (name, k.to_string())).collect();
+    if !song.tracks.is_empty() {
+        out.push((WHOLE_MIX.into(), "mix".into()));
+    }
+    out
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct SongView {
     pub title: String,
@@ -1438,9 +1470,9 @@ pub enum Command {
         #[serde(default)]
         beats: Option<f64>,
     },
-    /// a scratch, kept as a take that plays from the start of section `from`: track `track` of the song alone over
-    /// `bars` bars (1, the default, to 8) from bar `bar` (0, the first, by default) is the record, read along `moves`
-    /// through the crossfader
+    /// a scratch, kept as a take that plays from the start of section `from`: track `track` of the song alone (or the
+    /// whole mix, for `WHOLE_MIX`) over `bars` bars (1, the default, to 8) from bar `bar` (0, the first, by default) is
+    /// the record, read along `moves` through the crossfader
     AddScratch {
         from: String,
         track: String,
@@ -1561,6 +1593,48 @@ pub struct Reply {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn a_turntable_takes_its_records_from_samples_voices_parts_and_beats_not_a_lone_drum() {
+        let t = |name: &str, kind: &str, role: &str| TrackView {
+            name: name.into(),
+            kind: kind.into(),
+            role: role.into(),
+            ..Default::default()
+        };
+        let song = SongView {
+            tracks: vec![
+                t("kick", "drum", "kick"),
+                t("clap", "drum", "clap"),
+                t("bass", "part", "bass"),
+                t("lead", "part", "lead"),
+                t("break", "loop", "drums"),
+                t("sample", "loop", "sample"),
+                t("vox1", "part", "vocal"),
+                t("texture", "loop", "texture"),
+                t("riser", "fx", "riser"),
+                t("take1", "take", "lead"),
+                t("hats", "pattern", "hat"),
+            ],
+            ..Default::default()
+        };
+        let all = records(&song);
+        let got: Vec<(&str, &str)> = all.iter().map(|(n, k)| (n.as_str(), k.as_str())).collect();
+        assert_eq!(
+            got,
+            [
+                ("sample", "sample"),
+                ("take1", "sample"),
+                ("vox1", "voice"),
+                ("bass", "part"),
+                ("lead", "part"),
+                ("break", "beat"),
+                ("hats", "beat"),
+                (WHOLE_MIX, "mix"),
+            ]
+        );
+        assert!(records(&SongView::default()).is_empty());
+    }
 
     fn song() -> SongView {
         let track = |name: &str, role: &str, bus: &str, fx: Vec<serde_json::Value>, reverb: f32, duck: f32| TrackView {

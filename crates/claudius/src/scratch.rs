@@ -1,6 +1,6 @@
 //! Scratching: a record moved back and forth under the needle, its sound let through by a crossfader. The record is a
-//! bar or a few of one of the song's own tracks (`record`), the moves are played on a turntable (a phone's, a MIDI
-//! controller's jog wheel), and the scratch is the record read along them (`render`), kept as a take.
+//! bar or a few of one of the song's own tracks, or of the whole mix (`record`), the moves are played on a turntable
+//! (a phone's, a MIDI controller's jog wheel), and the scratch is the record read along them (`render`), kept as a take.
 
 use crate::audio::Stereo;
 use crate::config::SRF;
@@ -13,6 +13,9 @@ pub const MAX_SECS: f64 = 120.0;
 /// the most bars a record is
 pub const MAX_BARS: u32 = 8;
 
+/// the track a record of the whole mix is cut from
+pub const MIX: &str = "*";
+
 /// Where the record was under the needle `t` seconds into the scratch, `at` seconds into the record, and how far the
 /// crossfader let it through (0 shut, 1 open).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -22,8 +25,8 @@ pub struct Move {
     pub fader: f32,
 }
 
-/// A scratch on one of the song's tracks: the record, `bars` bars of track `track` from bar `bar` (0 the first), and
-/// the moves made on it.
+/// A scratch on one of the song's tracks, or on the whole mix (`MIX`): the record, `bars` bars of track `track` from
+/// bar `bar` (0 the first), and the moves made on it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Take {
     pub track: String,
@@ -44,11 +47,11 @@ pub fn name(bp: &Blueprint) -> String {
     (1..).map(|k| format!("scratch{k}")).find(|n| !taken.contains(n)).unwrap_or_default()
 }
 
-/// Track `track` of the song alone over `bars` bars from bar `bar` (0 the first), as the record a scratch moves; a
-/// track muted, or left out while others are soloed, is heard all the same.
+/// Track `track` of the song alone (or every track, for `MIX`) over `bars` bars from bar `bar` (0 the first), as the
+/// record a scratch moves; a track muted, or left out while others are soloed, is heard all the same.
 pub fn record(bp: &Blueprint, track: &str, bar: u32, bars: u32) -> Result<Stereo, String> {
     let mut p = compose::arrange(&crate::pads::heard(bp));
-    if !p.tracks.iter().any(|t| t.name == track) {
+    if track != MIX && !p.tracks.iter().any(|t| t.name == track) {
         let names: Vec<&str> = p.tracks.iter().map(|t| t.name.as_str()).collect();
         return Err(format!("no track '{track}' to scratch (tracks: {})", names.join(" ")));
     }
@@ -58,7 +61,9 @@ pub fn record(bp: &Blueprint, track: &str, bar: u32, bars: u32) -> Result<Stereo
     if bar + bars > p.bars {
         return Err(format!("the song has {} bars (counted from 0), so {bars} from bar {bar} go past its end", p.bars));
     }
-    p.tracks.retain(|t| t.name == track);
+    if track != MIX {
+        p.tracks.retain(|t| t.name == track);
+    }
     let slice = p.slice(bar, bar + bars);
     let r = render::render(&slice, &render::Options { stems: false, tail_secs: 0.0 }).map_err(|e| format!("{e:#}"))?;
     if r.master.l.iter().chain(&r.master.r).all(|s| s.abs() < 1e-4) {
@@ -331,5 +336,20 @@ mod tests {
         assert!(record(&bp, &lane, last, 1).is_ok());
         assert!(record(&bp, &lane, last, 2).unwrap_err().contains("go past its end"), "not a shorter record");
         assert!(record(&bp, &lane, 0, 0).is_err());
+    }
+
+    #[test]
+    fn a_record_of_the_whole_mix_holds_every_track() {
+        let g = crate::genres::get("house").unwrap();
+        let o = compose::Options { short: true, samples: 0.0, loops: false, ..Default::default() };
+        let bp = compose::generate(&g, 3, &o, None);
+        let at = bp.form.iter().take_while(|s| s.kind != crate::model::SectionKind::Drop).map(|s| s.bars).sum();
+        let mix = record(&bp, MIX, at, 1).unwrap();
+        let lane = record(&bp, &bp.drums[0].name, at, 1).unwrap();
+        assert_eq!(mix.len(), lane.len());
+        // each record is mastered to the same loudness, so the mix is told from its kick by what else it holds
+        let dot = |a: &Stereo, b: &Stereo| a.l.iter().zip(&b.l).map(|(x, y)| *x as f64 * *y as f64).sum::<f64>();
+        let corr = dot(&mix, &lane) / (dot(&mix, &mix) * dot(&lane, &lane)).sqrt();
+        assert!(corr < 0.9, "the mix is more than its kick: {corr}");
     }
 }

@@ -45,12 +45,18 @@
   </section>
   <section id="deck" class="mode" aria-label="Turntable">
     <div class="bar">
-      <select id="track" aria-label="Track to scratch"></select>
+      <select id="track" aria-label="Record: a sample, a voice, a part or a beat of the song, or the whole mix"></select>
       <select id="from" aria-label="Bars to cut the record from"></select>
       <label class="toggle"><input type="checkbox" id="motor"> motor</label>
       <button type="button" id="learn" hidden aria-label="Learn a MIDI controller's jog wheel and crossfader">Learn MIDI</button>
     </div>
     <canvas id="platter"></canvas>
+    <div class="fader pitch">
+      <span>pitch</span>
+      <input id="pitch" type="range" min="-16" max="16" step="0.1" value="0" aria-label="Pitch: how much faster or slower than the song's tempo the record spins">
+      <button type="button" id="sync" aria-label="Back to the song's tempo">in time</button>
+      <output id="speed" for="pitch"></output>
+    </div>
     <div class="fader">
       <span>cut</span>
       <input id="fader" type="range" min="0" max="1" step="0.01" value="1" aria-label="Crossfader">
