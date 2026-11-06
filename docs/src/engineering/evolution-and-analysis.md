@@ -203,8 +203,22 @@ what was heard (the kick when there was a kick, hat-like lanes with hats, bass a
 and breaks). Intros filter in, sections before a drop build with a gap, drops after something else get an impact,
 quiet sections use the sparse drum variant. The kick, snare, clap and hat lanes get new patterns drawn from the
 analysed templates, and the bass takes the analysed style when the genre has it. The sounds and the mix come from the
-genre. `claudius remake` and the `remake` command do exactly this, and the song's history begins with
-`remade from <file>: <tempo> BPM, <key>, <n> sections, progression <numerals>`.
+genre. `claudius remake --skeleton` and the `remake` command with `sampled: false` do exactly this, and the song's
+history begins with `remade from <file>: <tempo> BPM, <key>, <n> sections, progression <numerals>`.
+
+### Remixing it
+
+A remake is a remix unless asked otherwise (`remix::remix`): the recording is split into what sustains and what
+strikes (`fft::harmonic`), and cut into the pieces a producer would take from it, on the analysis's bar grid. Its hook
+(four bars from the start of the loudest section with chords, a hook or a drop first) without its drums is offered to
+the sampling pipeline as the phrase a song is built on (`sampling::apply`, through a library that holds only the
+recording's pieces and the libraries' one-shots, loops and textures), with another passage of it as the phrase's second
+passage and its drums as the break where the genre samples one. So the song takes the hook's key and chords and a tempo
+the genre plays, the recording's own or a multiple of it (`sampling::meets`). A flip of it follows: as many bars as
+the hook of half beats, each from another bar of the recording on the hook's chord at that place, in the intro, the
+breaks and the outro where the other passage does not play. Then `sampler::sample` brings in its sung phrases. A
+recording with no section with chords long enough falls back to the skeleton, and the reply says so. The song's history
+says what came from where: `remixed from '<file>': its hook (bars 33-36) without its drums; ...`.
 
 ### Where it goes wrong
 

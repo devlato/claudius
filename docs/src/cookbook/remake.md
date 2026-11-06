@@ -1,9 +1,11 @@
 # Remaking a song from audio
 
-`claudius remake` listens to a recording, works out its skeleton (tempo, key, chords, sections, drum habits, the
-style of its bass) and writes a new song on that skeleton in any genre, with its own parts and sounds. No audio from
-the original is used. This recipe remakes a song whose answers we know, so you can see what the analysis gets right
-and what it gets wrong, then edits and evolves the result.
+`claudius remake` listens to a recording and remixes it in any genre: a new song built on the recording's own sound,
+its hook, another passage of it, its drums, a flip cut from all over it and its sung phrases, under the genre's drums,
+bass, parts and mix. With `--skeleton` it writes a new song on the recording's skeleton only (tempo, key, chords,
+sections, drum habits, the style of its bass), with none of its audio. This recipe remakes a song whose answers we
+know, so you can see what the analysis gets right and what it gets wrong, remixes it, remakes its skeleton, then
+edits and evolves the result.
 
 ## A song to remake
 
@@ -49,10 +51,60 @@ Against what we know:
 
 The analysis is approximate by nature (it reads a finished mix, not stems) and works best on steady electronic music.
 
-## Remake it in another genre
+## Remix it in another genre
 
 ```sh
 claudius remake out/house-glass-avenue-1/song.mp3 --genre deep_house --seed 3
+```
+
+It prints the analysis again, then the remix:
+
+```text
+Faded Engine — deep_house at 122 BPM in A minor, 120 bars (3:56)
+  progression A: III VImaj7 iv7 v7
+  progression A2: i VII v7 i7
+  progression B: iiø7 v7 i7 i7 iiø7 v7 i7 VI7
+  form: intro 16 | groove 16 | break 8 | build 8 | drop 32 | drop2 32 | outro 8
+  tracks: kick (sampled bd (tr909:bd)), clap (sampled cp (tr909:cp)), hat (sampled hh (tr909:hh)), shaker (synth shaker), perc (sampled rim (tr909:rim)), bass (synth patch 'deep_bass'), chords (synth patch 'keys'), pad (synth patch 'vowel_pad'), lead (synth patch 'tine_piano'), sample (loop song (122 BPM)), sample2 (loop song, another passage (122 BPM)), flip (loop song, a flip of it (122 BPM)), crash (synth crash), riser (synth riser)
+  master: -11.1 LUFS, true peak -1.1 dBTP (pre-master -10.4 LUFS); done in 10.5 s
+  verdict: 95/100 (arc 0.86, mix 0.98, theory 1.00). Fix first: dull 4-8 kHz: hats, claps and snare lack bite (presence -27.1 dB, healthy from -26)
+  wrote out/remake-deep_house-faded-engine-3/song.mp3
+```
+
+Its history says what came from where:
+
+```text
+remixed from 'song.mp3': its hook (bars 33-36) without its drums; another passage of it (bars 25-28); a flip of 32 half beats from 17 of its bars in intro, outro
+sampled: phrase 'song', filtered until it lifts (another passage of it in groove, break, build)
+```
+
+- **Its hook**, four bars from the start of the loudest section with chords (the drop, bars 33 to 36), without its
+  drums (`fft::harmonic` keeps what sustains), is the phrase the song is built on, as a
+  [song built on samples](../guide/online-samples.md#songs-built-on-samples) is: the song takes its key and chords
+  (progression `A`) and plays it, as `sample`, in both drops.
+- **Another passage of it**, the four bars of its break with the pad and the chords, plays as `sample2` in the groove,
+  the break and the build, on its own chords (progression `A2`).
+- **Its drums** are the break in a genre that plays one (deep house does not; boom bap and trip-hop do), cut from its
+  busiest bars without the rest.
+- **A flip of it** plays in the intro and the outro: four bars of half beats, each from another bar of the recording
+  that plays the hook's chord there, at the same place in its bar (now and then another), here 17 of its bars, so
+  the song is heard in pieces from all over it, still on the hook's chords.
+- **Its sung phrases** come in where they agree with the chords, as
+  [Sample its vocals into the song](../guide/samples.md#sampling-a-songs-vocals) places them, when the recording
+  sings: when the ears hear a voice, or a pitch in a voice's range carries a third of a phrase. This one's `vox` track
+  is chops too sparse for that, some below a voice's range, so none come in here; it plays in the hook it was part
+  of.
+
+Everything else is the genre's: the drums, the bass, the chords and the pad written on the hook's chords, the form and
+the mix. The tempo here is the recording's own, 122 BPM, which deep house plays; another genre plays it at a multiple
+of it, faster or slower by whole semitones as a sampler plays a record, or chopped onto its grid at two thirds to three
+halves of it (as boom bap, this one plays at 92, three quarters of it, chopped onto the grid at its own pitch, and its own drums are the break). The pieces are kept in
+`out/takes/song/`, beside the song.
+
+## On its skeleton only
+
+```sh
+claudius remake out/house-glass-avenue-1/song.mp3 --genre deep_house --seed 3 --skeleton
 ```
 
 It prints the analysis again, then the new song:
@@ -88,8 +140,9 @@ The score is high because the skeleton is simple and the sections are clearly la
 
 ## Edit the remake
 
-The remake is an ordinary song. A script can fix what the analysis got wrong and replace any part with your own.
-This one corrects the first chord and puts a written motif in place of the generated Rhodes lead:
+Either remake is an ordinary song. A script can fix what the analysis got wrong and replace any part with your own.
+This one corrects the first chord of the skeleton remake and puts a written motif in place of the generated Rhodes
+lead:
 
 ```js packs
 prog("A", "i7 VImaj7 iv7 v7");
@@ -121,9 +174,9 @@ claudius evolve --genre deep_house --from out/deep_house-faded-engine-3/blueprin
 starts [evolution](../learn/producers/genres-and-evolution.md#evolution) from the edited remake instead of fresh
 songs. The lead, a pattern track, keeps its notes; the drums, parts, mix, form and global feel are mutated.
 
-## Using the audio itself
+## Other ways to use its audio
 
-A remake uses none of the recording's sound. Two commands do:
+Besides a remix, two commands put the recording's sound in a song:
 
 - `claudius chop song.mp3` cuts the recording into bar loops (2 bars by default, `--bars`) and drum one-shots, writes
   them into `out/chops/`, and adds them to your user library, where generated songs can pick them up as drum
@@ -133,8 +186,8 @@ A remake uses none of the recording's sound. Two commands do:
   tempo, transposed to its key, re-sliced in half-beat pieces (or played straight) and placed in the high-energy
   sections, as a track named `sample1`.
 
-Only use recordings you have the right to use this way. `analyze` and `remake` take nothing but measurements from a
-recording; `chop` and `make --sample` put its audio in your song.
+Only use recordings you have the right to use this way. `analyze` and `remake --skeleton` take nothing but
+measurements from a recording; a remix, `chop` and `make --sample` put its audio in your song.
 
-From an assistant, the MCP tools `analyze` and `remake` take a file path and do the same as the commands; a remake
-becomes the song open in the studio.
+From an assistant, the MCP tools `analyze` and `remake` take a file path and do the same as the commands (`remake`
+with `sampled: false` for the skeleton only); a remake becomes the song open in the studio.

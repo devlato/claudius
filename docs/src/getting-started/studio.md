@@ -39,8 +39,9 @@ genre's producers dig for, and the song picks among them, and the dice puts one 
 is, from the genre's core to its harmony and lead doubled on second instruments, a counter-melody, a pad and more
 percussion; ticked, it is as the genre writes it ([How layered a song is](../learn/producers/genres-and-evolution.md#how-layered-a-song-is)).
 It can also start from a recording: **Choose a file** under
-"Or start from an audio file", then **Analyze** shows what claudius hears in it, and **Remake** writes a new song on
-its tempo, key, chords, form and groove. **Sample its vocals into the song** puts its best sung phrases into the song
+"Or start from an audio file", then **Analyze** shows what claudius hears in it, and **Remake** remixes it in the
+genre: a new song built on its hook, another passage of it, its drums, a flip cut from all over it and its sung
+phrases, at a tempo the genre plays. **Sample its vocals into the song** puts its best sung phrases into the song
 that is open ([Sampling a song's vocals](../guide/samples.md#sampling-a-songs-vocals)), and **Take its groove** puts
 the open song's drum lanes in the feel of the recording's drums ([Grooves](../cookbook/drum-machine.md#a-groove-from-a-record)). **Open** opens a song you saved: choose the `blueprint.json` in its folder,
 or a `.rhai` script. The studio reads the file on its own computer, in a browser too, and nothing of it is kept but

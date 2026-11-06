@@ -842,7 +842,8 @@ async fn files_a_studio_read_open_and_are_listened_to_by_their_contents() {
     assert!(!r.ok && r.message.starts_with("cannot open notes.JSON"), "{}", r.message);
     let _ = std::fs::remove_dir_all(&dir);
 
-    // eight seconds of a beat at 120 BPM, sent as the file itself: listened to and remade, nothing of it kept
+    // eight seconds of a beat at 120 BPM, sent as the file itself: listened to and remade on its skeleton, nothing of it
+    // kept
     let sr = claudius::config::SR as usize;
     let l: Vec<f32> = (0..8 * sr)
         .map(|i| {
@@ -874,7 +875,8 @@ async fn files_a_studio_read_open_and_are_listened_to_by_their_contents() {
     assert!(b.contains("send the recording as the file itself"), "{b}");
     let (_, _, b) = call(&router, post("/api/analyze?name=notes.txt", "application/octet-stream", b"hello")).await;
     assert!(b.contains("cannot read notes.txt"), "{b}");
-    let (s, _, b) = call(&router, post("/api/remake?name=beat.wav&genre=techno&seed=3", "audio/wav", &wav)).await;
+    let (s, _, b) =
+        call(&router, post("/api/remake?name=beat.wav&genre=techno&seed=3&sampled=false", "audio/wav", &wav)).await;
     let reply: claudius_api::Reply = serde_json::from_str(&b).unwrap();
     assert!(s == StatusCode::OK && reply.ok && reply.message.starts_with("remade beat.wav as techno"), "{b}");
     let song = app.state().song.unwrap();
@@ -1009,6 +1011,74 @@ async fn a_take_an_assistant_asks_for_is_answered_by_the_take_sent_for_it() {
     assert!(text(&b).contains("gave way to request 3"), "{b}");
     assert_eq!(std::fs::read_dir(folder.join("takes")).unwrap().count(), 1, "the take is kept with the song");
     std::fs::remove_dir_all(&folder).unwrap();
+}
+
+/// sixteen bars of `i VI III VII` in A minor at 96 BPM as sine triads, a kick on one and three and a noise snare on two
+/// and four, quiet for eight bars and loud for eight
+fn a_recording() -> claudius::audio::Stereo {
+    let (sr, bar) = (claudius::config::SR as f64, 2.5);
+    let n = (16.0 * bar * sr) as usize;
+    let (roots, thirds) = ([57.0, 53.0, 48.0, 55.0], [3.0, 4.0, 4.0, 4.0]);
+    let mut seed = 9u32;
+    let l: Vec<f32> = (0..n)
+        .map(|i| {
+            let t = i as f64 / sr;
+            let b = (t / bar) as usize;
+            let loud = if b >= 8 { 1.0 } else { 0.45 };
+            let tone = |m: f64| (std::f64::consts::TAU * 440.0 * 2f64.powf((m - 69.0) / 12.0) * t).sin();
+            let (root, third) = (roots[b % 4], thirds[b % 4]);
+            let mut v = 0.12 * loud * (tone(root) + tone(root + third) + tone(root + 7.0));
+            let beat = t / (bar / 4.0);
+            let (k, into) = (beat as usize % 4, beat.fract() * bar / 4.0);
+            if (k == 0 || k == 2) && into < 0.12 {
+                v += 0.6 * (std::f64::consts::TAU * 55.0 * into).sin() * (1.0 - into / 0.12);
+            }
+            if (k == 1 || k == 3) && into < 0.08 {
+                seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                v += 0.3 * loud * (seed as f64 / u32::MAX as f64 * 2.0 - 1.0) * (1.0 - into / 0.08);
+            }
+            v as f32
+        })
+        .collect();
+    claudius::audio::Stereo { l: l.clone(), r: l }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_recording_is_remixed_on_its_hook_and_its_pieces_kept_with_the_songs() {
+    let songs = std::env::temp_dir().join(format!("claudius-remix-songs-{}", std::process::id()));
+    let app = App::new(Settings {
+        library: false,
+        ears: false,
+        auto_render: false,
+        file_roots: None,
+        voice: None,
+        samples: false,
+        gather: false,
+        songs: Some(songs.clone()),
+    });
+    let file = std::env::temp_dir().join(format!("claudius-remix-{}.wav", std::process::id()));
+    claudius::audio::save_wav(&file, &a_recording(), true).unwrap();
+    let path = file.display().to_string();
+    let remake = |sampled| Command::Remake {
+        path: path.clone(),
+        genre: Some("boom_bap".into()),
+        seed: Some(3),
+        bpm: None,
+        sampled,
+    };
+    let r = app.command(remake(None));
+    assert!(r.ok && r.message.starts_with(&format!("remixed {path} as boom_bap")), "{}", r.message);
+    assert!(r.message.contains("remixed from 'claudius-remix-"), "{}", r.message);
+    let song = app.blueprint().unwrap();
+    assert!(["sample", "flip"].iter().all(|n| song.loops.iter().any(|l| l.name == *n)), "{:?}", song.loops);
+    let kept = songs.join("takes").join(format!("claudius-remix-{}", std::process::id()));
+    assert!(std::fs::read_dir(&kept).unwrap().count() >= 3, "its hook, a verse passage and a flip of it in {kept:?}");
+    // on its skeleton only, when asked: none of its sound
+    let r = app.command(remake(Some(false)));
+    assert!(r.ok && r.message.starts_with(&format!("remade {path} as boom_bap")), "{}", r.message);
+    assert!(!app.blueprint().unwrap().loops.iter().any(|l| l.name == "flip"));
+    std::fs::remove_file(&file).unwrap();
+    std::fs::remove_dir_all(&songs).unwrap();
 }
 
 #[tokio::test(flavor = "multi_thread")]

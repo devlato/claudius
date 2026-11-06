@@ -357,9 +357,14 @@ pub struct RemakeArgs {
     pub genre: Option<String>,
     #[serde(default)]
     pub seed: Option<u64>,
-    /// the tempo (default: the recording's, halved or doubled into the genre's range when it is outside it)
+    /// the tempo (default: the recording's, or a multiple of it in the genre's range, as a sampler plays it)
     #[serde(default)]
     pub bpm: Option<f64>,
+    /// whether the song is a remix built on the recording's sound (default): its hook without its drums in the hooks,
+    /// a verse passage in the verses, its drums as the break, a flip of it in pieces from all over it, its sung
+    /// phrases; false: a new song on its skeleton only (its tempo, key, form and chords), none of its sound
+    #[serde(default)]
+    pub sampled: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -896,7 +901,8 @@ impl Studio {
         description = "Make a new song from an audio file: claudius analyzes it (tempo, key, progression, form, groove) and composes its own song with that skeleton in a genre's sounds and production."
     )]
     async fn remake(&self, Parameters(a): Parameters<RemakeArgs>) -> Result<String, String> {
-        self.edit(Command::Remake { path: a.path, genre: a.genre, seed: a.seed, bpm: a.bpm }, true).await
+        self.edit(Command::Remake { path: a.path, genre: a.genre, seed: a.seed, bpm: a.bpm, sampled: a.sampled }, true)
+            .await
     }
 
     #[tool(

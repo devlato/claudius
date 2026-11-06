@@ -1311,6 +1311,10 @@ pub enum Command {
         /// the tempo (default: the recording's, halved or doubled into the genre's range when it is outside)
         #[serde(default)]
         bpm: Option<f64>,
+        /// whether the song is a remix of the recording, built on its sound: its hook, a verse passage, its drums, a
+        /// flip of it and its sung phrases (none or true); false: a new song on its skeleton only, none of its sound
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        sampled: Option<bool>,
     },
     /// samples a recording's vocals into the song (the auto-sampler): its best sung phrases, cut on its beat grid and
     /// cleaned of its drums, fitted to the song's tempo and key, placed where they agree with its chords, mixed as
