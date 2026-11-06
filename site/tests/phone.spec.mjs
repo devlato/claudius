@@ -269,8 +269,10 @@ test.describe("playing from a phone", () => {
       const state = async () => (await c.api("/api/state")).json();
       await expect.poll(async () => (await state()).phone?.url ?? "", { timeout: 60_000 }).toMatch(/\/\?key=/);
       const url = new URL((await state()).phone.url);
-      const deckOf = async (address, permissions) => {
+      const deckOf = async (address, permissions, safari = false) => {
         const page = await (await browser.newContext({ ...devices["iPhone 13"], permissions })).newPage();
+        // Safari's audio session, which Chromium has none of: what the page sets it to shows
+        if (safari) await page.addInitScript(() => Object.defineProperty(navigator, "audioSession", { value: { type: "auto" } }));
         await page.goto(address);
         await page.click("#go");
         await page.click("nav button[data-mode=deck]");
@@ -278,7 +280,9 @@ test.describe("playing from a phone", () => {
         return page;
       };
       // the page on the computer itself, which a browser trusts with a microphone, as it trusts the demo's
-      const phone = await deckOf(`http://127.0.0.1:${url.port}/${url.search}`, ["microphone"]);
+      const phone = await deckOf(`http://127.0.0.1:${url.port}/${url.search}`, ["microphone"], true);
+      const session = () => phone.evaluate(() => navigator.audioSession.type);
+      expect(await session(), "it plays through the speaker").toBe("playback");
       // a second tap while the microphone opens starts no second recording
       await phone.evaluate(() => {
         const open = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
@@ -291,9 +295,12 @@ test.describe("playing from a phone", () => {
       });
       await phone.waitForFunction(() => mic.on, null, { timeout: 10_000 });
       expect(await phone.evaluate(() => window.opened), "one microphone opened").toBe(1);
+      expect(await session(), "Safari records in a session that plays and records").toBe("play-and-record");
+      expect(await phone.evaluate(() => ctx.state)).toBe("running");
       await phone.waitForTimeout(1500);
       await phone.click("#mic");
       await phone.waitForFunction(() => deck.track === MIC && deck.buf !== null, null, { timeout: 10_000 });
+      expect(await session(), "and plays through the speaker again").toBe("playback");
       await expect(phone.locator('#track option[value="mic:"]')).toHaveText("your recording");
       const secs = await phone.evaluate(() => deck.buf.duration);
       expect(secs).toBeGreaterThan(1);

@@ -892,12 +892,16 @@ async function micStart() {
   }
   mic.opening = true;
   $("mic").classList.add("taking");
+  // Safari records only in a session that plays and records, and may suspend the context as the microphone opens
+  if (navigator.audioSession) navigator.audioSession.type = "play-and-record";
   let stream;
   try {
     const raw = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
     stream = await navigator.mediaDevices.getUserMedia({ audio: raw });
+    await ctx.resume();
   } catch (e) {
     $("mic").classList.remove("taking");
+    if (navigator.audioSession) navigator.audioSession.type = "playback";
     return say(`the microphone did not open: ${e.message}`, "no");
   } finally {
     mic.opening = false;
@@ -920,6 +924,8 @@ function micStop() {
   $("mic").classList.remove("taking");
   mic.node.disconnect();
   for (const t of mic.stream.getTracks()) t.stop();
+  // the sound goes on through the speaker, the ring switch on silent or not, as `start` has it
+  if (navigator.audioSession) navigator.audioSession.type = "playback";
   const n = Math.min(
     mic.chunks.reduce((a, c) => a + c.length, 0),
     Math.floor(MIC_SECS * ctx.sampleRate),
