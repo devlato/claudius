@@ -31,8 +31,26 @@ pub struct RolePalette {
     pub synths: Vec<String>,
     #[serde(default)]
     pub instruments: Vec<String>,
+    /// whether it plays the sounds of an era gone (`dated`): synthwave's FM piano and string machine
+    #[serde(default)]
+    pub retro: bool,
     #[serde(flatten)]
     pub kinds: BTreeMap<String, f64>,
+}
+
+/// General MIDI's sounds: a fallback, played only where nothing else of its kind is installed
+fn general_midi(name: &str) -> bool {
+    name.starts_with("freepats:")
+}
+
+/// Instruments that date a song to the era they come from: the FM and early digital keyboards (an FM piano, a
+/// CP-80, a Pianet) and General MIDI's synth pads, strings, brass, leads and basses, the cheap polyphony of an 80s
+/// or 90s sound card. A genre plays one only where its palette names it or is `retro`.
+pub fn dated(name: &str) -> bool {
+    let instrument = name.rsplit(':').next().unwrap_or(name);
+    matches!(name, "epianos:cp80" | "epianos:pianet")
+        || instrument.starts_with("fm_")
+        || (general_midi(name) && ["synth_", "_pad", "bass_lead", "square_lead"].iter().any(|w| instrument.contains(w)))
 }
 
 fn half() -> f64 {
@@ -112,6 +130,7 @@ pub fn default_for(role: Role) -> RolePalette {
         core,
         synths: Vec::new(),
         instruments: Vec::new(),
+        retro: false,
         kinds: kinds.iter().map(|(k, w)| (k.to_string(), *w)).collect(),
     }
 }
@@ -201,10 +220,12 @@ pub enum Drawn {
 /// where one of its own synths stands in for it
 const PIERCING: &[&str] = &["mallets", "woodwinds", "brass"];
 
-/// the palette's synths: those it names, or any made for the role when it names none
+/// the palette's synths: those it names, or any made for the role when it names none (of their era only for a
+/// `retro` palette: `presets::DATED`)
 fn pool(role: Role, palette: &RolePalette) -> Vec<&'static str> {
     if palette.synths.is_empty() {
-        crate::synth::presets::drawable(role.name())
+        let dated = |p: &&str| !palette.retro && crate::synth::presets::DATED.contains(p);
+        crate::synth::presets::drawable(role.name()).into_iter().filter(|p| !dated(p)).collect()
     } else {
         crate::synth::presets::names().into_iter().filter(|n| palette.synths.iter().any(|s| s == n)).collect()
     }
@@ -220,7 +241,12 @@ fn players(kind: &str, role: Role, pool: &[&'static str]) -> Vec<&'static str> {
         stand_ins(kind).iter().copied().filter(|p| of.contains(p)).collect()
     };
     let own = among(pool);
-    if own.is_empty() && !PIERCING.contains(&kind) { among(&crate::synth::presets::drawable(role.name())) } else { own }
+    if own.is_empty() && !PIERCING.contains(&kind) {
+        let drawable = crate::synth::presets::drawable(role.name());
+        among(&drawable.into_iter().filter(|p| !crate::synth::presets::DATED.contains(p)).collect::<Vec<_>>())
+    } else {
+        own
+    }
 }
 
 /// the installed instruments `palette` names (`pack:instrument`), its aliases answered by the installed packs
@@ -249,7 +275,9 @@ fn admitted(i: &Instrument, role: Role, pool: &[&'static str]) -> bool {
 pub fn instrument_has_place(role: Role, palette: &RolePalette, name: &str) -> bool {
     let Some(i) = instruments().into_iter().find(|i| i.name == name) else { return true };
     named(palette).contains(&i.name)
-        || (palette.kinds.get(&i.category).is_some_and(|w| *w > 0.0) && admitted(&i, role, &pool(role, palette)))
+        || (palette.kinds.get(&i.category).is_some_and(|w| *w > 0.0)
+            && admitted(&i, role, &pool(role, palette))
+            && (palette.retro || !dated(&i.name)))
 }
 
 /// every synth a draw from `palette` may play for a part of `role`
@@ -289,8 +317,15 @@ pub fn draw(
     let named = named(palette);
     let fits: Vec<&Instrument> = available
         .iter()
-        .filter(|i| named.contains(&i.name) || admitted(i, role, &pool))
+        .filter(|i| named.contains(&i.name) || admitted(i, role, &pool) && (palette.retro || !dated(&i.name)))
         .filter(|i| suits(i, role, register) && !taken.contains(&i.name))
+        .collect();
+    // General MIDI's only where nothing of its kind but General MIDI's can play the part
+    let better = |category: &str| fits.iter().any(|i| i.category == category && !general_midi(&i.name));
+    let fits: Vec<&Instrument> = fits
+        .iter()
+        .copied()
+        .filter(|i| named.contains(&i.name) || !general_midi(&i.name) || !better(&i.category))
         .collect();
     // the synths that may play a kind, which no other part of the song plays
     let synths_for = |kind: &str| -> Vec<&'static str> {
@@ -403,6 +438,7 @@ mod tests {
             core: 0.0,
             synths: Vec::new(),
             instruments: Vec::new(),
+            retro: false,
             kinds: [("synth".to_string(), 1.0), ("woodwinds".into(), 1.0), ("brass".into(), 5.0)].into(),
         };
         let mut seen = std::collections::BTreeSet::new();
@@ -433,6 +469,7 @@ mod tests {
             core: 0.0,
             synths: vec!["vox_lead".into()],
             instruments: vec!["vcsl:tenor_sax".into()],
+            retro: false,
             kinds: [("woodwinds".to_string(), 1.0)].into(),
         };
         for seed in 0..20 {
@@ -448,6 +485,7 @@ mod tests {
             core: 0.0,
             synths: vec!["epiano".into(), "mallet".into()],
             instruments: Vec::new(),
+            retro: false,
             kinds: [("synth".to_string(), 1.0), ("woodwinds".into(), 3.0), ("mallets".into(), 2.0)].into(),
         };
         let mut seen = std::collections::BTreeSet::new();
@@ -463,6 +501,7 @@ mod tests {
             core: 0.0,
             synths: vec!["epiano".into()],
             instruments: Vec::new(),
+            retro: false,
             kinds: [("woodwinds".to_string(), 1.0)].into(),
         };
         let flute = [inst("vsco2:flute", "woodwinds", 60, 96)];
@@ -483,6 +522,7 @@ mod tests {
             core: 0.0,
             synths: vec!["pluck".into()],
             instruments: Vec::new(),
+            retro: false,
             kinds: [("electric piano".to_string(), 1.0)].into(),
         };
         let d = draw(Role::Lead, (64, 86), &keys, &rhodes, &BTreeSet::new(), &mut Rng::new(1));
@@ -503,6 +543,7 @@ mod tests {
                 core: 0.0,
                 synths: synths.iter().map(|s| s.to_string()).collect(),
                 instruments: Vec::new(),
+                retro: false,
                 kinds: [("mallets".to_string(), 1.0)].into(),
             };
             let mut seen = BTreeSet::new();
@@ -517,5 +558,71 @@ mod tests {
         };
         assert_eq!(drawn(&["mallet", "fm_marimba"]), ["vcsl:vibraphone".to_string()].into());
         assert_eq!(drawn(&["bell", "pluck"]), ["vcsl:glockenspiel".to_string()].into());
+    }
+
+    fn drawn(role: Role, register: (i32, i32), palette: &RolePalette, available: &[Instrument]) -> BTreeSet<String> {
+        (0..60)
+            .filter_map(|seed| match draw(role, register, palette, available, &BTreeSet::new(), &mut Rng::new(seed)) {
+                Some(Drawn::Instrument(n)) => Some(n),
+                Some(Drawn::Synth(p)) => Some(format!("synth:{p}")),
+                None => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_sound_of_an_era_gone_plays_where_its_genre_is_of_that_era_or_names_it() {
+        for old in
+            ["epianos:cp80", "epianos:pianet", "freepats:fm_piano", "freepats:synth_strings", "freepats:new_age_pad"]
+        {
+            assert!(dated(old), "{old}");
+        }
+        for now in ["epianos:wurlitzer", "jrhodes:rhodes", "freepats:upright_piano", "freepats:clean_guitar"] {
+            assert!(!dated(now), "{now}");
+        }
+        let keys =
+            [inst("epianos:cp80", "electric piano", 28, 103), inst("epianos:wurlitzer", "electric piano", 28, 103)];
+        let palette = RolePalette {
+            core: 0.0,
+            synths: vec!["epiano".into()],
+            instruments: Vec::new(),
+            retro: false,
+            kinds: [("electric piano".to_string(), 1.0)].into(),
+        };
+        assert_eq!(drawn(Role::Keys, (50, 72), &palette, &keys), ["epianos:wurlitzer".to_string()].into());
+        let synthwave = RolePalette { retro: true, ..palette.clone() };
+        let both: BTreeSet<String> = keys.iter().map(|i| i.name.clone()).collect();
+        assert_eq!(drawn(Role::Keys, (50, 72), &synthwave, &keys), both);
+        let named = RolePalette { instruments: vec!["epianos:cp80".into()], ..palette.clone() };
+        assert!(drawn(Role::Keys, (50, 72), &named, &keys).contains("epianos:cp80"));
+        // nor is an 80s preset drawn for a part: the FM and pulse leads, the FM piano standing in for one
+        let any = RolePalette { synths: Vec::new(), kinds: [("synth".to_string(), 1.0)].into(), ..palette };
+        let leads = synths_drawn(Role::Lead, &any);
+        assert!(!leads.iter().any(|p| crate::synth::presets::DATED.contains(p)), "{leads:?}");
+        let retro = synths_drawn(Role::Lead, &RolePalette { retro: true, ..any.clone() });
+        assert!(retro.contains(&"fm_lead") && retro.contains(&"square_lead"), "{retro:?}");
+        let pianos = RolePalette { kinds: [("piano".to_string(), 1.0)].into(), ..any };
+        assert_eq!(
+            drawn(Role::Keys, (50, 72), &pianos, &[]),
+            ["synth:house_piano".to_string(), "synth:keys".into()].into()
+        );
+    }
+
+    #[test]
+    fn general_midi_plays_a_kind_only_where_nothing_else_of_it_is_installed() {
+        let upright = inst("freepats:upright_piano", "piano", 21, 108);
+        let grand = inst("salamander:piano", "piano", 21, 108);
+        let palette = RolePalette {
+            core: 0.0,
+            synths: vec!["keys".into()],
+            instruments: Vec::new(),
+            retro: false,
+            kinds: [("piano".to_string(), 1.0)].into(),
+        };
+        let both = [upright.clone(), grand.clone()];
+        assert_eq!(drawn(Role::Keys, (50, 72), &palette, &both), [grand.name.clone()].into());
+        assert_eq!(drawn(Role::Keys, (50, 72), &palette, &[upright.clone()]), [upright.name.clone()].into());
+        let named = RolePalette { instruments: vec![upright.name.clone()], ..palette };
+        assert!(drawn(Role::Keys, (50, 72), &named, &both).contains(&upright.name), "one the genre names plays");
     }
 }

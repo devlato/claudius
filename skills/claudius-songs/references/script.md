@@ -97,7 +97,9 @@ Methods on patterns:
   dist_bass deep_bass`; leads `square_lead supersaw saw_lead pwm_lead whistle soft_lead brass_lead fm_lead vox_lead chip`; keys and
   chords `epiano keys organ stab tine_piano clav house_piano brass_stab rock_organ`; pads `pad warm_pad strings solina
   glass_pad pwm_pad air_pad vowel_pad swell_pad`; plucks and mallets `pluck bell fm_marimba fm_kalimba harp_pluck
-  mallet cowbell_lead`.
+  mallet cowbell_lead`. The FM ones (`tine_piano`, `fm_*`), the square and pulse-width ones (`square_lead`, `pwm_*`),
+  `solina` and `chip` date a song to the 80s: give them to synthwave, grime or a retro track, not to a modern hip hop,
+  R&B or pop one, where a Rhodes, a piano, real strings and the warm and vocal synths sound of now.
 - Sampled instruments when their packs are installed: `piano upright rhodes wurlitzer hammond string_ensemble
   violins cellos pizzicato brass trumpet flute harp marimba vibes kalimba upright_bass electric_bass guitar choir
   voice sax solo_cello erhu steel_pan hang water_glasses wine_glasses bowed_vibraphone dan_tranh clavisynth` and more;
