@@ -70,6 +70,12 @@ double it, so that nothing is stretched. The remix it made before, a new song of
 recording's hook, a passage of its verses, its drums, a flip of it and its sung phrases, is **Flip into** in the New
 song dialog, and `flip: true` in `remake` (`--flip`, `?flip=true`).
 
+The online demo listens to the recordings you choose, as claudius does, instead of making up what it hears: **Analyze**
+analyzes the file, **Remake** reworks it and **Flip into** flips it, **Sample its vocals into the song** samples them
+(it said "the demo samples no recordings: start `claudius serve` to sample one"), and **Take its groove** takes it
+(it said "the demo hears no grooves"). It all runs in the page, and what a song keeps of a recording goes in the
+project you save.
+
 ## [0.4.0] - 2026-11-06
 
 The phone plays the song in the studio as well as following it: **▶** plays it and **■** stops it, so a take needs no

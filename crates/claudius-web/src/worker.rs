@@ -7,6 +7,7 @@ use claudius::audio::Stereo;
 use claudius::export;
 use claudius_api::{Command, Reply};
 use claudius_session::host::{Host, Recording, SoundAsk};
+use claudius_session::listen::Listen;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use web_sys::{DedicatedWorkerGlobalScope, MessageEvent};
@@ -102,6 +103,25 @@ fn receive(engine: &Shared, m: &MessageEvent) {
         };
         let e = engine.borrow();
         post(&e.scope, &serde_json::json!({ "sampled": sampled, "state": e.host.state() }), None);
+        return;
+    }
+    if let Some(l) = v.get("listen") {
+        let bytes = js_sys::Reflect::get(&data, &"bytes".into())
+            .ok()
+            .and_then(|b| b.dyn_into::<js_sys::Uint8Array>().ok())
+            .map(|b| b.to_vec())
+            .unwrap_or_default();
+        let (what, reply) = match serde_json::from_value::<Listen>(l.clone()) {
+            Ok(l) => (l.what().to_string(), engine.borrow_mut().host.listen(&l, bytes)),
+            Err(e) => {
+                let why = format!("nothing the engine listens for: {e}");
+                ("listen".to_string(), Reply { ok: false, message: why, version: 0 })
+            }
+        };
+        let e = engine.borrow();
+        post(&e.scope, &serde_json::json!({ "what": what, "reply": reply, "state": e.host.state() }), None);
+        drop(e);
+        schedule(engine);
         return;
     }
     let what = v["what"].as_str().unwrap_or_default().to_string();

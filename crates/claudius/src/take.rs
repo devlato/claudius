@@ -89,13 +89,22 @@ pub fn credited(path: &Path) -> Sources {
     s
 }
 
+/// the folder the demo's page keeps a song's recordings in, in memory (`audio::remember`), where the app writes them
+/// into its takes
+pub const IN_MEMORY: &str = "demo:takes";
+
 /// writes a recording into `dir` as 24-bit FLAC (mono when both sides are the same), named after its sound, so that
-/// the same take is one file however often it is stored
+/// the same take is one file however often it is stored; in a folder under `IN_MEMORY`, it is kept in memory instead,
+/// where the demo's page renders and packs it from
 pub fn store(audio: &Stereo, dir: &Path) -> Result<PathBuf> {
     let mono = audio.l == audio.r;
     let samples = if mono { audio.l.clone() } else { audio.interleaved() };
     let bytes: Vec<u8> = samples.iter().flat_map(|v| v.to_le_bytes()).collect();
     let path = dir.join(format!("{}.flac", &blake3::hash(&bytes).to_hex()[..16]));
+    if dir.starts_with(IN_MEMORY) {
+        crate::audio::remember(&path.to_string_lossy(), audio.clone());
+        return Ok(path);
+    }
     if path.is_file() {
         return Ok(path);
     }

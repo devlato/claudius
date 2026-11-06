@@ -201,6 +201,12 @@ mod web {
             self.post(&serde_json::json!({ "what": what, "command": cmd }), None);
         }
 
+        /// a recording the person chose, the file itself, for the engine to listen to as `l` asks; its answer comes
+        /// as `Heard::Answer` for `l.what()`
+        pub fn listen(&mut self, l: &claudius_api::Listen, bytes: &[u8]) {
+            self.post(&serde_json::json!({ "listen": l }), Some(Payload::Bytes(Uint8Array::from(bytes))));
+        }
+
         /// a recording fetched for a song built on samples (`claudius_session::host::Recording`, as JSON), and the
         /// file's bytes, for the engine to cut; its answer comes as `Heard::Sampled` with `id`
         pub fn recording(&mut self, id: u64, recording: serde_json::Value, bytes: &[u8]) {
@@ -285,6 +291,7 @@ mod native {
 
     enum Ask {
         Command(String, Command),
+        Listen(claudius_api::Listen, Vec<u8>),
         Playhead(f64),
         Recording(u64, serde_json::Value, Vec<u8>),
         Reference,
@@ -332,6 +339,10 @@ mod native {
                         Some(Ask::Command(what, c)) => {
                             let reply = host.command(c);
                             say(Heard::Answer { what, reply, state: Box::new(host.state()) });
+                        }
+                        Some(Ask::Listen(l, bytes)) => {
+                            let reply = host.listen(&l, bytes);
+                            say(Heard::Answer { what: l.what().into(), reply, state: Box::new(host.state()) });
                         }
                         Some(Ask::Recording(id, r, bytes)) => {
                             let made = serde_json::from_value::<Recording>(r)
@@ -383,6 +394,11 @@ mod native {
 
         pub fn command(&mut self, what: &str, cmd: &Command) {
             let _ = self.tx.send(Ask::Command(what.to_string(), cmd.clone()));
+        }
+
+        /// a recording the person chose, for the engine to listen to (`web::Link::listen`)
+        pub fn listen(&mut self, l: &claudius_api::Listen, bytes: &[u8]) {
+            let _ = self.tx.send(Ask::Listen(l.clone(), bytes.to_vec()));
         }
 
         /// a recording fetched for a song built on samples, for the engine to cut (`web::Link::recording`)

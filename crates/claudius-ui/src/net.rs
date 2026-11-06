@@ -155,6 +155,22 @@ fn listen_request(l: &crate::panels::Listen) -> (&'static str, &'static str, Str
     }
 }
 
+/// a recording to listen to as the demo's engine takes it, which listens to it as the app does (`listen_request`)
+fn demo_listen(l: &crate::panels::Listen) -> claudius_api::Listen {
+    use claudius_api::Listen;
+    let name = l.file.name.clone();
+    if l.sample {
+        return Listen::SampleSong { name };
+    }
+    if l.groove {
+        return Listen::ExtractGroove { name };
+    }
+    match &l.remake {
+        None => Listen::Analyze { name },
+        Some((genre, seed)) => Listen::Remake { name, genre: Some(genre.clone()), seed: *seed, flip: l.flip },
+    }
+}
+
 /// text as a value in a URL's query: letters, digits and `-_.~` as they are, every other byte as %XX
 fn query_value(s: &str) -> String {
     s.bytes()
@@ -559,31 +575,13 @@ impl Backend {
     /// Sends a recording chosen on this computer, the file itself, to be listened to, remade or sampled (the answer
     /// arrives as a reply to "analyze", "remake" or "sample_song").
     pub fn listen(&mut self, l: &crate::panels::Listen) {
-        let (what, path, query) = listen_request(l);
         match self {
-            Backend::Remote(r) => r.listen(l.file.bytes.clone(), path, &query, what),
-            Backend::Mock(m) if l.groove => {
-                m.send(Command::ExtractGroove { path: l.file.name.clone(), name: None, lanes: Vec::new(), bpm: None })
+            Backend::Remote(r) => {
+                let (what, path, query) = listen_request(l);
+                r.listen(l.file.bytes.clone(), path, &query, what)
             }
-            Backend::Mock(m) if l.sample => m.send(Command::SampleSong {
-                path: l.file.name.clone(),
-                count: None,
-                bars: None,
-                find: None,
-                sections: Vec::new(),
-            }),
-            // the demo listens to nothing: it makes up an analysis from the file's name, as for a path
-            Backend::Mock(m) => match &l.remake {
-                Some((genre, seed)) => m.send(Command::Remake {
-                    path: l.file.name.clone(),
-                    genre: Some(genre.clone()),
-                    seed: *seed,
-                    bpm: None,
-                    sampled: None,
-                    flip: Some(l.flip),
-                }),
-                None => m.send(Command::Analyze { path: l.file.name.clone() }),
-            },
+            // the demo's engine listens to the file itself, as the app does
+            Backend::Mock(m) => m.listen(demo_listen(l), &l.file.bytes),
         }
     }
 

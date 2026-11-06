@@ -8,6 +8,7 @@ use std::sync::Arc;
 use claudius::audio::{self, Stereo};
 use claudius::{config, model, scratch, take};
 use claudius_api::Reply;
+use claudius_session::listen::kind;
 
 use super::{App, no, ok};
 
@@ -118,8 +119,7 @@ impl App {
     ) -> Reply {
         match self.decode(bytes, name) {
             Ok(x) => {
-                let groove =
-                    groove.filter(|g| !g.trim().is_empty()).unwrap_or_else(|| super::commands::groove_name(name));
+                let groove = groove.filter(|g| !g.trim().is_empty()).unwrap_or_else(|| super::groove_name(name));
                 self.groove_audio(&x, name, &groove, lanes, bpm)
             }
             Err(e) => no(e, self.version()),
@@ -147,13 +147,9 @@ impl App {
         self.edit_with(|bp| claudius::sampler::sample(bp, x, name, ears, opt, &dir).map(|s| s.lines.join("\n")))
     }
 
-    /// a recording's bytes decoded: the format its name's extension says, else the one its first bytes show
+    /// a recording's bytes decoded (`listen::decode`)
     fn decode(&self, bytes: Vec<u8>, name: &str) -> Result<Stereo, String> {
-        let named = Path::new(name).extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase);
-        let Some(ext) = named.or_else(|| kind(&bytes).map(String::from)) else {
-            return Err("send the recording as the file itself: WAV, FLAC, MP3, AAC (m4a), Ogg or AIFF".into());
-        };
-        audio::load_bytes(bytes, &ext).map_err(|e| format!("cannot read {name}: {e:#}"))
+        claudius_session::listen::decode(bytes, name)
     }
 
     /// the recording at `path` added as a take; the song keeps a copy of it
@@ -223,23 +219,5 @@ impl App {
             return no(format!("cannot keep what the take was cut from: {e:#}"), v);
         }
         self.edit_with(|bp| take::add(bp, &file, secs, from, name, role))
-    }
-}
-
-/// which kind of audio file the bytes are, by how they start
-fn kind(b: &[u8]) -> Option<&'static str> {
-    let at = |i: usize, s: &[u8]| b.get(i..i + s.len()) == Some(s);
-    if at(0, b"RIFF") && at(8, b"WAVE") {
-        Some("wav")
-    } else if at(0, b"FORM") && (at(8, b"AIFF") || at(8, b"AIFC")) {
-        Some("aiff")
-    } else if at(0, b"fLaC") {
-        Some("flac")
-    } else if at(0, b"OggS") {
-        Some("ogg")
-    } else if at(0, b"ID3") || (b.len() >= 2 && b[0] == 0xFF && b[1] & 0xE0 == 0xE0) {
-        Some("mp3")
-    } else {
-        None
     }
 }

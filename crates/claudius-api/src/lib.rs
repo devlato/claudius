@@ -371,6 +371,37 @@ fn begins(words: &[String], w: &str) -> bool {
     (0..words.len()).any(|i| words[i..].concat().starts_with(w))
 }
 
+/// What the demo's page asks its engine to do with a recording the person chose, which comes with the file's bytes:
+/// as the studio asks the app over HTTP (`/api/analyze`, `/api/remake`, `/api/sample`, `/api/groove`)
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "what", rename_all = "snake_case")]
+pub enum Listen {
+    Analyze { name: String },
+    Remake { name: String, genre: Option<String>, seed: Option<u64>, flip: bool },
+    SampleSong { name: String },
+    ExtractGroove { name: String },
+}
+
+impl Listen {
+    /// the file's name, whose extension says its format
+    pub fn name(&self) -> &str {
+        match self {
+            Listen::Analyze { name } | Listen::SampleSong { name } | Listen::ExtractGroove { name } => name,
+            Listen::Remake { name, .. } => name,
+        }
+    }
+
+    /// the command it answers for, as a reply names it
+    pub fn what(&self) -> &'static str {
+        match self {
+            Listen::Analyze { .. } => "analyze",
+            Listen::Remake { .. } => "remake",
+            Listen::SampleSong { .. } => "sample_song",
+            Listen::ExtractGroove { .. } => "extract_groove",
+        }
+    }
+}
+
 /// the track a turntable's record of the whole mix is cut from (`claudius::scratch::MIX`)
 pub const WHOLE_MIX: &str = "*";
 
