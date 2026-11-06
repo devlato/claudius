@@ -291,24 +291,33 @@ const MIC = "mic";
 const MIC_SECS = 8;
 /** where a recording's peak goes: the master's ceiling, 1 dB under full scale (`claudius::scratch::recorded`) */
 const CEILING = 10 ** (-1 / 20);
-/** recording a record off the microphone: what it has heard, and once stopped, the record, its name and the WAV a take
- * of it sends */
-const mic = { stream: null, node: null, chunks: [], on: false, buf: null, name: "", wav: "" };
+/** recording a record off the microphone: whether the microphone is opening, what it has heard, and once stopped, the
+ * record, its name and the WAV a take of it sends */
+const mic = { stream: null, node: null, chunks: [], on: false, opening: false, buf: null, name: "", wav: "" };
 
 /** the library's samples for the song as it is now; a studio without a library (the demo), or older than one, has none */
 async function loadLibrary() {
   const version = song.version;
-  let got = [];
+  let got = null;
   try {
     const r = await link.get("api/library");
-    if (r.ok) got = await r.json();
+    // a studio older than the library has no such route: it offers none
+    got = r.ok ? await r.json() : r.status === 404 ? [] : null;
   } catch {
-    // no library to offer: the song's own records are on the turntable all the same
+    // the studio did not answer: the turntable keeps what it offered
   }
-  if (!song || song.version !== version) return;
-  library = Array.isArray(got) ? got : [];
+  if (!song || song.version !== version || !Array.isArray(got)) return;
+  library = got;
   fillRecords(song);
   fillFrom();
+  // the record on the platter goes with the list: a sample turns at the speed the song's tempo needs now, and one the
+  // song no longer offers makes way for the record the menu holds
+  const sample = fromLibrary(deck.track);
+  if (sample) deck.base = sample.speed;
+  if (deck.track && $("track").value !== deck.track) {
+    deck.name = "";
+    if (mode === "deck") loadRecord();
+  }
 }
 
 /** the sounds the keys can play: the song's parts' own first, then the synths and the instruments */
@@ -875,16 +884,23 @@ function cueOf(b) {
  * served over https (the demo's), or from the computer itself; the studio's page on the network is not, so there the
  * studio's Record window records it, and the take comes to the turntable as a record of the song's. */
 async function micStart() {
+  // a tap while the microphone opens starts no second recording
+  if (mic.opening) return;
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
     const there = "record it in the studio's Record window, and the take comes here as a record";
     return say(`this page is not one the browser lets use the microphone: ${there}`, "no");
   }
+  mic.opening = true;
+  $("mic").classList.add("taking");
   let stream;
   try {
     const raw = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
     stream = await navigator.mediaDevices.getUserMedia({ audio: raw });
   } catch (e) {
+    $("mic").classList.remove("taking");
     return say(`the microphone did not open: ${e.message}`, "no");
+  } finally {
+    mic.opening = false;
   }
   const node = ctx.createScriptProcessor(4096, 1, 1);
   Object.assign(mic, { stream, node, chunks: [], on: true });
@@ -894,7 +910,6 @@ async function micStart() {
     if (mic.chunks.length * 4096 >= MIC_SECS * ctx.sampleRate) micStop();
   };
   ctx.createMediaStreamSource(stream).connect(node).connect(ctx.destination);
-  $("mic").classList.add("taking");
   say(`recording a record off the microphone: tap ● mic again to stop (${MIC_SECS} s at most)`);
 }
 
@@ -968,7 +983,8 @@ async function cutRecord(track) {
   const done = loading(`cutting a record of ${label}…`);
   try {
     const b = await sound(`api/record?track=${encodeURIComponent(track)}&bar=${bar}&bars=${bars}`);
-    if (deck.name === name) putOn(b, { track, label, base: sample ? sample.speed : 1, bar, bars });
+    // at the speed the list says now, which may have come while the record was cut
+    if (deck.name === name) putOn(b, { track, label, base: fromLibrary(track)?.speed ?? 1, bar, bars });
   } catch (e) {
     if (!e.quiet) say(e.message, trouble(e));
   } finally {

@@ -240,6 +240,13 @@ test.describe("playing from a phone", () => {
       await phone.click("#motor");
       const speed = await phone.evaluate(() => new Promise((r) => setTimeout(() => r(deck.vel), 600)));
       expect(speed).toBeCloseTo(want, 2);
+      // the studio changes the song's tempo: the sample stays on, and turns at the speed the new tempo needs
+      await c.api("/api/command", { cmd: "set_tempo", bpm: 110 });
+      await phone.waitForFunction(() => song.bpm === 110, null, { timeout: 60_000 });
+      await expect.poll(() => phone.evaluate(() => deck.base), { timeout: 30_000 }).toBeCloseTo(1.1, 6);
+      expect(await phone.evaluate(() => deck.track)).toBe(sample.track);
+      const now = await phone.evaluate(() => new Promise((r) => setTimeout(() => r(deck.vel), 600)));
+      expect(now).toBeCloseTo(1.1, 2);
     } finally {
       await browser.close();
       c.stop();
@@ -270,7 +277,18 @@ test.describe("playing from a phone", () => {
       };
       // the page on the computer itself, which a browser trusts with a microphone, as it trusts the demo's
       const phone = await deckOf(`http://127.0.0.1:${url.port}/${url.search}`, ["microphone"]);
-      await phone.click("#mic");
+      // a second tap while the microphone opens starts no second recording
+      await phone.evaluate(() => {
+        const open = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+        window.opened = 0;
+        navigator.mediaDevices.getUserMedia = (c) => (window.opened++, open(c));
+      });
+      await phone.evaluate(() => {
+        $("mic").click();
+        $("mic").click();
+      });
+      await phone.waitForFunction(() => mic.on, null, { timeout: 10_000 });
+      expect(await phone.evaluate(() => window.opened), "one microphone opened").toBe(1);
       await phone.waitForTimeout(1500);
       await phone.click("#mic");
       await phone.waitForFunction(() => deck.track === "mic" && deck.buf !== null, null, { timeout: 10_000 });
