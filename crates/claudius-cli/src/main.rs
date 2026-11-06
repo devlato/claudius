@@ -454,15 +454,18 @@ fn run(cli: Cli) -> Result<()> {
                 // its pieces go with the songs written under --out
                 claudius::remix::remix(&src, &g, seed, &opts, lib_ref, &out.join("takes"), listening.ears.as_ref())
             });
-            let bp = match remixed {
-                Some(Ok(bp)) => bp,
+            let skeletal =
+                || claudius::analysis::song::to_blueprint(&a, &g, seed, &opts, lib_ref, &file.to_string_lossy());
+            // a skeleton, asked for or fallen back to, plays at the tempo it took, which it says when it moved
+            let (bp, on_skeleton) = match remixed {
+                Some(Ok(bp)) => (bp, false),
                 Some(Err(e)) => {
                     eprintln!("a song on its skeleton, not a remix of it: {e}");
-                    claudius::analysis::song::to_blueprint(&a, &g, seed, &opts, lib_ref, &file.to_string_lossy())
+                    (skeletal(), true)
                 }
-                None => claudius::analysis::song::to_blueprint(&a, &g, seed, &opts, lib_ref, &file.to_string_lossy()),
+                None => (skeletal(), true),
             };
-            if skeleton && bpm.is_none() && bp.bpm != a.bpm.round() {
+            if on_skeleton && bpm.is_none() && bp.bpm != a.bpm.round() {
                 eprintln!(
                     "remaking at {:.0} BPM: the recording's {:.0} is outside {}'s {:.0}-{:.0} (--bpm sets another)",
                     bp.bpm, a.bpm, g.name, g.bpm.0, g.bpm.1
