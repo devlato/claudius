@@ -27,7 +27,7 @@ image = { version = "0.25", default-features = false, features = ["jpeg", "png"]
 png = "0.18"
 rayon = "1"
 realfft = "3"
-rusqlite = { version = "0.40", features = ["bundled"], optional = true }
+rusqlite = { version = "0.41", features = ["bundled"], optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 signalsmith-stretch = { version = "0.1", optional = true }
