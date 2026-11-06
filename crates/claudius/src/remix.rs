@@ -398,6 +398,18 @@ impl Library for Under<'_> {
     }
 }
 
+/// the `i`th progression's name, counting from 0: `A` to `Z`, then `AA`, `AB` ..., as a spreadsheet's columns go
+fn progression_name(i: usize) -> String {
+    let mut n = i + 1;
+    let mut out = Vec::new();
+    while n > 0 {
+        n -= 1;
+        out.push(b'A' + (n % 26) as u8);
+        n /= 26;
+    }
+    out.iter().rev().map(|&b| b as char).collect()
+}
+
 /// the genre's section most like `s`: one of its kind, else the one nearest it in energy
 fn like<'a>(form: &'a [SectionSpec], s: &SectionGuess) -> Option<&'a SectionSpec> {
     form.iter()
@@ -430,7 +442,7 @@ fn rework_form(
         let prog = match named.iter().find(|(c, _)| *c == chords) {
             Some((_, n)) => n.clone(),
             None => {
-                let n = ((b'A' + (named.len() % 26) as u8) as char).to_string();
+                let n = progression_name(named.len());
                 named.push((chords.clone(), n.clone()));
                 progs.insert(n.clone(), chords);
                 n
@@ -705,6 +717,19 @@ mod tests {
         assert!(Path::new(path).starts_with(dir.join("my-song")), "{path}");
         assert!((bpm - bp.bpm).abs() < 1e-9 && (beats - bars * 4.0).abs() < 1e-6, "{bpm} {beats}");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn progressions_past_z_take_two_letters_and_none_is_named_twice() {
+        let names: Vec<String> = (0..80).map(progression_name).collect();
+        assert_eq!(
+            (names[0].as_str(), names[25].as_str(), names[26].as_str(), names[27].as_str()),
+            ("A", "Z", "AA", "AB")
+        );
+        assert_eq!(names[51], "AZ");
+        assert_eq!(names[52], "BA");
+        let unique: std::collections::BTreeSet<&String> = names.iter().collect();
+        assert_eq!(unique.len(), names.len());
     }
 
     /// the recording's loop in a rework: the tempo it declares and the song's beats it lasts
