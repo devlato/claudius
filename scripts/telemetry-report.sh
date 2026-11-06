@@ -29,3 +29,6 @@ query "SELECT blob6, blob4, SUM(_sample_interval) AS n FROM claudius_events WHER
 echo
 echo "== panic: where, version, events"
 query "SELECT blob6, blob3, SUM(_sample_interval) AS n FROM claudius_events WHERE blob1 = 'panic' AND $since GROUP BY blob6, blob3 ORDER BY n DESC"
+echo
+echo "== perf: what, version, os, arch, median seconds of audio a second, events"
+query "SELECT blob6, blob3, blob4, blob5, quantileExactWeighted(0.5)(double2, _sample_interval) AS median, SUM(_sample_interval) AS n FROM claudius_events WHERE blob1 = 'perf' AND $since GROUP BY blob6, blob3, blob4, blob5 ORDER BY blob6, n DESC"

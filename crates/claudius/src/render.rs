@@ -780,6 +780,7 @@ pub fn render_kept(p: &Project, opts: &Options, kept: &mut Kept) -> Result<Rende
     let fo = ((0.5 * SRF) as usize).min(end);
     master.fade(0, fo);
     let settled = Some(Settled { gain_db: m.gain_db, trim_db: m.trim_db, end, len: s.len });
+    crate::metrics::observe(crate::metrics::Metric::Render, master.secs(), t0.elapsed().as_secs_f64());
     Ok(Rendered {
         master,
         stems: std::mem::take(&mut out.stems),

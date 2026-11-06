@@ -270,6 +270,35 @@ async fn call(router: &axum::Router, req: Request<Body>) -> (StatusCode, axum::h
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn the_engines_speed_shows_at_api_metrics_in_prometheus_text() {
+    let app = app();
+    assert!(
+        app.command(Command::NewSong {
+            genre: "house".into(),
+            seed: Some(2),
+            bpm: None,
+            key: None,
+            loops: false,
+            sampled: None,
+            sample_search: None,
+            complexity: None,
+        })
+        .ok
+    );
+    app.settled(Duration::from_secs(120)).await.render.expect("a render");
+    let router = http::router(app.clone(), &Options::default());
+    let get = Request::get("/api/metrics").header(header::HOST, "localhost").body(Body::empty()).unwrap();
+    let (status, headers, body) = call(&router, get).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(headers[header::CONTENT_TYPE].to_str().unwrap().starts_with("text/plain; version=0.0.4"));
+    let version = format!("claudius_build_info{{version=\"{}\"}} 1\n", env!("CARGO_PKG_VERSION"));
+    assert!(body.contains(&version), "{body}");
+    let renders = body.lines().find_map(|l| l.strip_prefix("claudius_render_total ")).expect("renders counted");
+    assert!(renders.parse::<f64>().unwrap() >= 1.0, "{body}");
+    assert!(body.contains("# TYPE claudius_render_speed gauge\n"), "{body}");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn the_web_studio_comes_compressed_and_its_hashed_files_cached() {
     let web = std::env::temp_dir().join(format!("claudius-web-{}", std::process::id()));
     std::fs::create_dir_all(&web).unwrap();

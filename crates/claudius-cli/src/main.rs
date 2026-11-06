@@ -202,6 +202,8 @@ fn main() -> Result<()> {
     if command != "telemetry" {
         telemetry::watch_panics(command.clone());
         telemetry::record("started", &command, "");
+        let measured = command.clone();
+        claudius::metrics::set_sink(move |m, speed| telemetry::record_perf(&measured, m.name(), speed));
         let from = command.clone();
         let _ = claudius_server::REPORT.set(Box::new(move |event, detail| telemetry::record(event, &from, detail)));
     }

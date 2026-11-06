@@ -50,9 +50,11 @@ struct Ctx {
 }
 
 pub fn router(app: Arc<App>, o: &Options) -> Router {
+    STARTED.get_or_init(std::time::Instant::now);
     let ctx = Ctx { app: app.clone() };
     let api = Router::new()
         .route("/api/hello", get(hello))
+        .route("/api/metrics", get(metrics))
         .route("/api/state", get(state))
         .route("/api/command", post(command).layer(DefaultBodyLimit::max(1 << 20)))
         .route("/api/script", get(script))
@@ -239,6 +241,21 @@ async fn hello(State(c): State<Ctx>) -> Json<serde_json::Value> {
     Json(
         serde_json::json!({ "name": "claudius", "version": env!("CARGO_PKG_VERSION"), "state": c.app.version(), "ears": c.app.has_ears() }),
     )
+}
+
+/// when the server started, for its uptime
+static STARTED: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+
+/// how fast claudius has run since it started, in Prometheus' text format (`claudius::metrics`)
+async fn metrics(State(c): State<Ctx>) -> Response {
+    let up = STARTED.get().map_or(0.0, |t| t.elapsed().as_secs_f64());
+    let version = format!("claudius_build_info{{version=\"{}\"}}", env!("CARGO_PKG_VERSION"));
+    let text = claudius::metrics::prometheus(&[
+        (&version, "claudius' version", "gauge", 1.0),
+        ("claudius_uptime_seconds", "seconds since claudius started serving", "gauge", up),
+        ("claudius_song_changes_total", "the song's changes since it started", "counter", c.app.version() as f64),
+    ]);
+    ([(header::CONTENT_TYPE, "text/plain; version=0.0.4; charset=utf-8")], text).into_response()
 }
 
 #[derive(Deserialize)]
