@@ -373,14 +373,19 @@ pub struct RemakeArgs {
     pub genre: Option<String>,
     #[serde(default)]
     pub seed: Option<u64>,
-    /// the tempo (default: the recording's, or a multiple of it in the genre's range, as a sampler plays it)
+    /// the tempo (default: the recording's, or double it when that is nearer the genre's range; another stretches it)
     #[serde(default)]
     pub bpm: Option<f64>,
-    /// whether the song is a remix built on the recording's sound (default): its hook without its drums in the hooks,
-    /// a verse passage in the verses, its drums as the break, a flip of it in pieces from all over it, its sung
-    /// phrases; false: a new song on its skeleton only (its tempo, key, form and chords), none of its sound
+    /// whether the song is built on the recording's sound (default); false: a new song on its skeleton only (its
+    /// tempo, key, form and chords), none of its sound
     #[serde(default)]
     pub sampled: Option<bool>,
+    /// false (default): a rework, which keeps the recording the song it is: all of it plays through, its voice and
+    /// its chords as they are, without its drums and its low end, in its own sections and on its chords, with the
+    /// genre's drums and bass under it. true: a flip, a new song of the genre on its hook without its drums, a
+    /// verse passage, its drums as the break, a flip of it in pieces from all over it and its sung phrases
+    #[serde(default)]
+    pub flip: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -933,11 +938,18 @@ impl Studio {
     }
 
     #[tool(
-        description = "Make a new song from an audio file: claudius analyzes it (tempo, key, progression, form, groove) and composes its own song with that skeleton in a genre's sounds and production."
+        description = "Make a song in a genre from an audio file, which stays recognizable: claudius analyzes it (tempo, key, chords, sections, groove) and reworks it, playing all of it through, its voice and chords as they are without its drums and low end, in its own sections and on its chords, with the genre's drums, bass and mix under it. flip: true makes a new song of the genre on its hook and pieces of it instead; sampled: false a new song on its skeleton only."
     )]
     async fn remake(&self, Parameters(a): Parameters<RemakeArgs>) -> Result<String, String> {
-        self.edit(Command::Remake { path: a.path, genre: a.genre, seed: a.seed, bpm: a.bpm, sampled: a.sampled }, true)
-            .await
+        let cmd = Command::Remake {
+            path: a.path,
+            genre: a.genre,
+            seed: a.seed,
+            bpm: a.bpm,
+            sampled: a.sampled,
+            flip: a.flip,
+        };
+        self.edit(cmd, true).await
     }
 
     #[tool(

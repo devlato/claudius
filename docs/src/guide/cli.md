@@ -183,18 +183,21 @@ are rendered in full into numbered folders next to it, with their history printe
 
 ### `claudius remake`
 
-Analyses an audio file and remixes it in a genre: a new song built on the recording's own sound, its hook without its
-drums in the hooks, another passage of it in the other sections, its drums as the break where the genre plays one, a
-flip of it cut from all over it, and its sung phrases, under the genre's drums, bass, parts and mix
-([Remaking a song from audio](../cookbook/remake.md)). Its pieces go into `takes/` in `--out`. It prints the analysis
-(as `analyze` does) and the new song.
+Analyses an audio file and reworks it in a genre, so that it stays the song it is: all of it plays through, its voice
+and its chords as they are, without its drums and its low end, in its own sections and on its chords, with the genre's
+drums, bass and mix under it ([Remaking a song from audio](../cookbook/remake.md)). With `--flip` it makes a new
+song of the genre on the recording's sound instead: its hook without its drums in the hooks, another passage of it in
+the other sections, its drums as the break where the genre plays one, a flip of it cut from all over it, and its sung
+phrases. The recording, or its pieces, go into `takes/` in `--out`. It prints the analysis (as `analyze` does) and the
+new song.
 
 | flag | default | what it does |
 |---|---|---|
 | `<file>` | | any audio file claudius can decode |
-| `-g`, `--genre` | `house` | the genre of the new song. It plays the recording at its own tempo when the genre does, else at a multiple of it, faster or slower by whole semitones as a sampler plays a record, or chopped onto the song's grid at two thirds to three halves of it |
+| `-g`, `--genre` | `house` | the genre of the new song. A rework plays at the recording's own tempo, or double it when that is nearer the genre's range; `--bpm` stretches it. A flip plays it at its own tempo when the genre does, else at a multiple of it, faster or slower by whole semitones as a sampler plays a record, or chopped onto the song's grid at two thirds to three halves of it |
 | `-s`, `--seed` | the clock | the new song's own choices |
 | `--bpm` | as above | the new song's tempo |
+| `--flip` | off | a new song of the genre on the recording's hook and pieces of it, rather than a rework of all of it |
 | `--skeleton` | off | a new song on the recording's skeleton only (tempo, key, swing, form, progressions, drum habits, bass style), none of its sound; a skeleton remake out of the genre's range plays at half or double the tempo when that falls in it, else at its nearest end |
 | `--no-ears`, `--refs`, `--tags` | | as for `make` |
 | `-o`, `--out` | `out` | the folder is `remake-<genre>-<title>-<seed>` |

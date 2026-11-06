@@ -81,6 +81,8 @@ pub enum Action {
 pub struct Listen {
     pub file: std::sync::Arc<crate::pick::Picked>,
     pub remake: Option<(String, Option<u64>)>,
+    /// the remake a flip of it, a new song on its hook and pieces of it, rather than a rework of all of it
+    pub flip: bool,
     /// its vocals are to be sampled into the open song instead (the auto-sampler)
     pub sample: bool,
     /// its groove is to be taken for the open song's drum lanes instead

@@ -24,8 +24,8 @@ mod takes;
 
 pub(crate) use phone::{Running, Take};
 
-pub(crate) use commands::sampling;
 pub use commands::{MAX_PROJECT, analysis_text};
+pub(crate) use commands::{Remade, sampling};
 pub use release::{MAX_ARTWORK, report_lines};
 pub use takes::MAX_TAKE;
 

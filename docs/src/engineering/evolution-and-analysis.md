@@ -206,10 +206,26 @@ analysed templates, and the bass takes the analysed style when the genre has it.
 genre. `claudius remake --skeleton` and the `remake` command with `sampled: false` do exactly this, and the song's
 history begins with `remade from <file>: <tempo> BPM, <key>, <n> sections, progression <numerals>`.
 
-### Remixing it
+### Reworking it
 
-A remake is a remix unless asked otherwise (`remix::remix`): the recording is split into what sustains and what
-strikes (`fft::harmonic`), and cut into the pieces a producer would take from it, on the analysis's bar grid. Its hook
+A remake is a rework unless asked otherwise (`remix::rework`), which keeps the recording the song it is. The recording
+is split into what sustains and what strikes (`fft::harmonic`), and what sustains, from its first downbeat to the end
+of its last bar, is one loop track, `original`, that plays once from the first section through all of them (a take's
+`from`): its voice, chords and melodies as they are, through the genre's treatment of a phrase it samples with a
+high-pass at 150 Hz at least, which leaves the low end to the genre's bass and kick. The song generated in the genre
+at the recording's tempo (`rework_tempo`: from the length of its bars, doubled when that is nearer the genre's range, two bars of the
+song to each of its own, never halved, which would put two of its chords in a bar; so
+that the loop is not stretched) and in its key then takes the recording's skeleton exactly: one section per analysed
+section, as long as it was heard, its kind and energy, the layers of the genre's section most like it (of its kind, else
+the nearest in energy) that play under a recording (drum lanes, the bass, the break and the textures, not chords,
+keys, pads or leads, which would play against its own and against it where a chord was heard wrong), a progression per run of its bars' chords at one chord a bar, and the recording's swing. Parts
+the sections do not play are left out. The history says `reworked from '<file>': all <n> bars of it, ...`.
+
+### Flipping it
+
+With `flip`, a remake is a new song on the recording's sound (`remix::remix`): the recording is split into what
+sustains and what strikes (`fft::harmonic`), and cut into the pieces a producer would take from it, on the analysis's
+bar grid. Its hook
 (four bars from the start of the loudest section with chords, a hook or a drop first) without its drums is offered to
 the sampling pipeline as the phrase a song is built on (`sampling::apply`, through a library that holds only the
 recording's pieces and the libraries' one-shots, loops and textures), with another passage of it as the phrase's second
