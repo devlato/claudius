@@ -19,6 +19,9 @@ finger holds it as a DJ's does: resting, it drags the record slower the harder i
 fingertip's touch is, since a phone measures no force) and stops it under a firm press; moving, it grabs it to scratch
 or spin it by hand; and let go mid-swipe, the record runs on faster, or spins back, until the slipmat brings it back.
 The motor brings the platter up to speed and the brake stops it in a third of a second, as a DJ's turntable does.
+It also puts on samples from the library: the phrases, vocal chops and breaks gathered for the song's genre, and Apple
+Loops and your own loops of its kinds, each spinning at the speed that plays it in time with the song, and a scratch
+on one credits it in the song's `credits.txt`.
 
 ## [0.4.0] - 2026-11-06
 

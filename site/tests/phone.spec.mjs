@@ -207,6 +207,53 @@ test.describe("playing from a phone", () => {
     }
   });
 
+  test("a sample from the library goes on the turntable, at the speed that plays it in time with the song", async () => {
+    test.setTimeout(240_000);
+    const c = await claudius({ samples: [{ name: "break", role: "break", bpm: 100, beats: 8, title: "Funky Break" }] });
+    const browser = await chromium.launch({ args: ["--autoplay-policy=no-user-gesture-required"] });
+    try {
+      const studio = await browser.newPage();
+      await studio.goto(`${c.base}/?plan=${encodeURIComponent("wait:2;phone;wait:220")}`);
+      const state = async () => (await c.api("/api/state")).json();
+      await expect.poll(async () => (await state()).phone?.url ?? "", { timeout: 60_000 }).toMatch(/\/\?key=/);
+      const phone = await browser.newPage({ ...devices["iPhone 13"] });
+      await phone.goto((await state()).phone.url);
+      await phone.click("#go");
+      await phone.click("nav button[data-mode=deck]");
+      await phone.waitForFunction(() => library.length > 0, null, { timeout: 60_000 });
+      // in a group of its own, by its recording's title and its tempo
+      const sample = await phone.evaluate(() => library[0]);
+      const groups = await phone.evaluate(() => [...$("track").querySelectorAll("optgroup")].map((g) => g.label));
+      expect(groups.at(-1)).toBe("From the library");
+      await expect(phone.locator(`#track option[value="${sample.track}"]`)).toHaveText("Funky Break · 100 BPM");
+      await phone.selectOption("#track", sample.track);
+      await phone.waitForFunction((t) => deck.track === t && deck.buf !== null, sample.track, { timeout: 60_000 });
+      expect(await phone.evaluate(() => $("from").disabled), "a sample plays from its start").toBe(true);
+      expect(await phone.evaluate(() => deck.buf.duration), "two bars at its 100 BPM").toBeCloseTo(4.8, 1);
+      // with the motor on it turns at the song's tempo over its own, by octaves the nearest
+      const bpm = await phone.evaluate(() => song.bpm);
+      let want = bpm / 100;
+      while (want > Math.SQRT2) want /= 2;
+      while (want < Math.SQRT1_2) want *= 2;
+      expect(sample.speed).toBeCloseTo(want, 6);
+      await phone.click("#motor");
+      const speed = await phone.evaluate(() => new Promise((r) => setTimeout(() => r(deck.vel), 600)));
+      expect(speed).toBeCloseTo(want, 2);
+      // the studio changes the song's tempo: the sample stays on, and turns at the speed the new tempo needs
+      await c.api("/api/command", { cmd: "set_tempo", bpm: 110 });
+      await phone.waitForFunction(() => song.bpm === 110, null, { timeout: 60_000 });
+      // the new song recuts the record, which waits at rest until the motor brings it up to speed
+      const recut = () => deck.buf !== null && deck.name.endsWith(`:${song.version}`);
+      await phone.waitForFunction(recut, null, { timeout: 60_000 });
+      await expect.poll(() => phone.evaluate(() => deck.base), { timeout: 30_000 }).toBeCloseTo(1.1, 6);
+      expect(await phone.evaluate(() => deck.track)).toBe(sample.track);
+      await expect.poll(() => phone.evaluate(() => deck.vel), { timeout: 5_000 }).toBeCloseTo(1.1, 2);
+    } finally {
+      await browser.close();
+      c.stop();
+    }
+  });
+
   test("a MIDI controller plays the pads by its notes and scratches with its jog wheel", async () => {
     test.setTimeout(240_000);
     const c = await claudius();

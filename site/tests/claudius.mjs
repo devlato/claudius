@@ -6,7 +6,7 @@
 // CLAUDIUS_BIN and CLAUDIUS_PLAN_STUDIO name others. Each claudius has a home of its own, which goes after.
 import { expect } from "@playwright/test";
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -48,11 +48,24 @@ export const freePort = () =>
     });
   });
 
-/** a claudius of its own, serving the studio, with a song rendered */
-export async function claudius() {
+/** A claudius of its own, serving the studio, with a song rendered. `samples` are samples gathered for it, as
+ * `claudius samples gather` prepares them: each `{ name, role, bpm, beats, title }`, a tone `secs` long in its samples
+ * folder with its recording's credit beside it, listed for house. */
+export async function claudius({ samples = [] } = {}) {
   const home = mkdtempSync(join(tmpdir(), "claudius-record-"));
   const port = await freePort();
-  const env = { ...process.env, HOME: home, CLAUDIUS_HOME: join(home, "cache") };
+  const prepared = join(home, "samples", "prepared");
+  mkdirSync(prepared, { recursive: true });
+  const index = samples.map(({ name, role, bpm, beats, title, secs = 6 }) => {
+    const path = join(prepared, `${name}.wav`);
+    tone(path, secs);
+    const credit = { id: `freesound:${name}`, source: "openverse", provider: "freesound", title, creator: "someone" };
+    const licence = { licence: "cc0", licence_name: "CC0 1.0", licence_url: "", page: "", audio: "", filetype: "wav" };
+    writeFileSync(`${path}.json`, JSON.stringify({ ...credit, ...licence }));
+    return { path, role, genre: "house", bpm, beats, source: credit.id };
+  });
+  writeFileSync(join(prepared, "index.json"), JSON.stringify(index));
+  const env = { ...process.env, HOME: home, CLAUDIUS_HOME: join(home, "cache"), CLAUDIUS_SAMPLES: join(home, "samples") };
   const args = ["serve", "--port", String(port), "--web", studio, "--no-ears", "--no-library"];
   const child = spawn(bin, args, { env, stdio: ["ignore", "ignore", "pipe"] });
   let log = "";

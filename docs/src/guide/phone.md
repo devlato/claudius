@@ -41,10 +41,17 @@ phone's own speaker is taken off.
   [notes played on a keyboard](samples.md#notes-played-on-a-keyboard) do.
 - **Turntable.** A record of two bars cut from a section of the song: one of its samples (the phrase it was built
   on, a flip, a take), a voice (a vocal chop), a part that plays notes, a beat (a sampled break), or the whole mix.
-  A drum lane alone, a kick or a clap, is one sound struck, so it is not offered. The record waits at its cue, its
-  first sound, which a sticker marks as it comes round under the needle. With **motor** on it spins in time with the
-  song, since it was cut from the song at its tempo; **pitch** moves it up to 16 % faster or slower, the tempo it
-  plays at shown beside it, and **in time** brings it back. One turn is 1.8 seconds of it, as on a record at 33⅓.
+  A drum lane alone, a kick or a clap, is one sound struck, so it is not offered. Under **From the library** are
+  samples to put on instead, each by its recording's title and tempo: the phrases, vocal chops and breaks claudius
+  [gathered](online-samples.md) for the song's genre (then those gathered for words you searched), and the Apple Loops
+  and loops of your own folders of the genre's kinds, nearest the song's tempo first. A sample is a record of its own
+  first bars (a vocal chop, all of it); the demo has no library, so it offers the song's own records only. The record
+  waits at its cue, its first sound, which a sticker marks as it comes round under the needle. With **motor** on it
+  spins in time with the song: one cut from the song at its own speed, since it was cut at the song's tempo, and a
+  sample at the speed its tempo needs, by octaves the nearest (a loop at half the song's tempo plays in time as half
+  time), as a DJ sets a record's pitch. **pitch** moves it up to 16 % faster or slower, the tempo it plays at shown
+  beside it, and **in time** brings it back. One turn is 1.8 seconds of it, as on a record at 33⅓. A scratch on a
+  sample credits it in the song's `credits.txt`, as the song's own samples are.
 
   Your finger holds it as a DJ's does. Rest a finger on it without moving and it drags: the record slows under it, the
   more the harder you press, and stops under a firm finger. A phone measures no force, so the page reads the press from
