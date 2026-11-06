@@ -288,17 +288,26 @@ let library = [];
 /** the library's samples for the song as it is now; a studio without a library (the demo), or older than one, has none */
 async function loadLibrary() {
   const version = song.version;
-  let got = [];
+  let got = null;
   try {
     const r = await link.get("api/library");
-    if (r.ok) got = await r.json();
+    // a studio older than the library has no such route: it offers none
+    got = r.ok ? await r.json() : r.status === 404 ? [] : null;
   } catch {
-    // no library to offer: the song's own records are on the turntable all the same
+    // the studio did not answer: the turntable keeps what it offered
   }
-  if (!song || song.version !== version) return;
-  library = Array.isArray(got) ? got : [];
+  if (!song || song.version !== version || !Array.isArray(got)) return;
+  library = got;
   fillRecords(song);
   fillFrom();
+  // the record on the platter goes with the list: a sample turns at the speed the song's tempo needs now, and one the
+  // song no longer offers makes way for the record the menu holds
+  const sample = fromLibrary(deck.track);
+  if (sample) deck.base = sample.speed;
+  if (deck.track && $("track").value !== deck.track) {
+    deck.name = "";
+    if (mode === "deck") loadRecord();
+  }
 }
 
 /** the sounds the keys can play: the song's parts' own first, then the synths and the instruments */
@@ -874,7 +883,8 @@ async function loadRecord() {
     const b = await sound(`api/record?track=${encodeURIComponent(track)}&bar=${bar}&bars=${bars}`);
     // the record waits at its cue, its first sound, under the needle
     const cue = cueOf(b);
-    const base = sample ? sample.speed : 1;
+    // at the speed the list says now, which may have come while the record was cut
+    const base = fromLibrary(track)?.speed ?? 1;
     if (deck.name === name) {
       Object.assign(deck, { buf: b, levels: levels(b), rate: b.sampleRate, cue, pos: cue, track, label, base, bar, bars });
     }

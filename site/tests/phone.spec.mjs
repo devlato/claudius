@@ -239,6 +239,13 @@ test.describe("playing from a phone", () => {
       await phone.click("#motor");
       const speed = await phone.evaluate(() => new Promise((r) => setTimeout(() => r(deck.vel), 600)));
       expect(speed).toBeCloseTo(want, 2);
+      // the studio changes the song's tempo: the sample stays on, and turns at the speed the new tempo needs
+      await c.api("/api/command", { cmd: "set_tempo", bpm: 110 });
+      await phone.waitForFunction(() => song.bpm === 110, null, { timeout: 60_000 });
+      await expect.poll(() => phone.evaluate(() => deck.base), { timeout: 30_000 }).toBeCloseTo(1.1, 6);
+      expect(await phone.evaluate(() => deck.track)).toBe(sample.track);
+      const now = await phone.evaluate(() => new Promise((r) => setTimeout(() => r(deck.vel), 600)));
+      expect(now).toBeCloseTo(1.1, 2);
     } finally {
       await browser.close();
       c.stop();
