@@ -1,0 +1,100 @@
+{
+  "name": "gangsta_rap",
+  "family": "hip hop",
+  "aliases": ["gangsta", "hardcore hip hop", "hardcore rap", "mafioso rap", "90s hardcore", "street rap", "mobb deep", "wu-tang"],
+  "description": "Gangsta rap: the hardcore hip hop of the 90s at 84 to 96 BPM, built on samples: a hard, dusty break, a menacing minor piano or string loop from an old film score chopped and crushed, low strings that hang under it, a sub that follows the kick, a high eerie piano note now and then, vinyl crackle, three verses and hooks",
+  "query": "hardcore gangsta rap beat with a dark piano loop",
+  "alts": ["boom bap hip hop beat", "trap beat", "hip hop beat with heavy bass", "cinematic orchestral music"],
+  "accepted_flaws": ["a low quality recording with hiss"],
+  "bpm": [84, 96],
+  "swing": [0.53, 0.58],
+  "humanize": 0.35,
+  "modes": [["minor", 0.5], ["phrygian", 0.3], ["harmonic_minor", 0.2]],
+  "harmony": [["minimal", 0.4], ["phrygian", 0.3], ["minor_dark", 0.3]],
+  "markov": 0.1,
+  "ext": 0,
+  "bars_per_chord": [[2, 0.4], [4, 0.4], [1, 0.2]],
+  "forms": [
+    [
+      {"name": "intro", "kind": "intro", "bars": 4, "energy": 0.35, "layers": ["sample", "texture", "strings"], "filter_in": true},
+      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.65, "layers": ["break", "bass", "sample", "texture"], "fills": true},
+      {"name": "hook", "kind": "hook", "bars": 8, "energy": 0.85, "layers": ["break", "ohat", "bass", "sample", "strings", "lead", "texture"], "fills": true},
+      {"name": "verse2", "kind": "verse", "bars": 16, "energy": 0.7, "layers": ["break", "bass", "sample", "strings", "texture"], "fills": true},
+      {"name": "hook2", "kind": "hook", "bars": 8, "energy": 0.9, "layers": ["break", "ohat", "bass", "sample", "strings", "lead", "texture"], "fills": true},
+      {"name": "verse3", "kind": "verse", "bars": 16, "energy": 0.7, "layers": ["break", "bass", "sample", "texture"], "fills": true},
+      {"name": "hook3", "kind": "hook", "bars": 8, "energy": 0.95, "layers": ["break", "ohat", "bass", "sample", "strings", "lead", "texture"], "fills": true},
+      {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.35, "layers": ["sample", "strings", "texture"]}
+    ]
+  ],
+  "drums": [
+    {"name": "kick", "late_ms": [-4, 0], "voice": "kick", "template": {"steps": [1, 0, 0, 0, 0, 0, 0, 0.3, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.3, 0.9, 0, 0, 0, 0, 0], "vel": [0.9, 1.0], "vary": 0.25}, "params": {"decay": [0.25, 0.4], "tune": [44, 54], "tone": [0.2, 0.45], "punch": [0.6, 0.9], "drive": [5, 9]}, "samples": ["Kick"], "mix": {"bus": "drums"}},
+    {"name": "snare", "late_ms": [6, 20], "voice": "snare", "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.92, 1.0], "ghost": 0.03, "vary": 0.15}, "params": {"decay": [0.16, 0.26], "tune": [165, 210], "snap": [0.7, 0.95], "tone": [0.35, 0.6], "room": [0.3, 0.5]}, "samples": ["Snare"], "mix": {"bus": "drums", "reverb": 0.1}},
+    {"name": "hat", "late_ms": [-3, 3], "voice": "closed_hat", "template": {"steps": [1, 0, 0.8, 0, 1, 0, 0.8, 0, 1, 0, 0.8, 0, 1, 0, 0.8, 0.2], "vel": [0.3, 0.6], "ghost": 0.03}, "params": {"tone": [0.35, 0.6], "decay": [0.03, 0.06]}, "samples": ["Hi-hat"], "choke": "hats", "mix": {"bus": "drums", "pan": 0.15}},
+    {"name": "ohat", "late_ms": [-3, 3], "voice": "open_hat", "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0], "vel": [0.45, 0.65]}, "params": {"decay": [0.2, 0.35]}, "choke": "hats", "mix": {"bus": "drums", "pan": -0.15}}
+  ],
+  "kits": [["muldjord", 0.3], ["tr808", 0.1]],
+  "kit_mix": 0.2,
+  "palette": {
+    "bass": {"core": 0.8, "bass": 1, "synth": 1},
+    "keys": {"core": 0.75, "piano": 3},
+    "lead": {"core": 0.7, "piano": 2, "strings": 1},
+    "pad": {"core": 0.6, "strings": 2}
+  },
+  "parts": [
+    {"name": "bass", "late_ms": [2, 10], "role": "bass", "presets": ["sub_bass", "deep_bass", "upright_bass|deep_bass"], "styles": ["kick_follow", "sustain", "root8"], "register": [28, 43], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.5}]}},
+    {"name": "keys", "role": "keys", "presets": ["piano|keys"], "styles": ["stabs", "sustain", "half"], "register": [45, 70], "voices": 2, "voicing": "open", "mix": {"reverb": 0.2, "fx": [{"fx": "tape", "wow": 0.25, "flutter": 0.15, "drive_db": 3, "lowpass_hz": 9000}, {"fx": "bitcrush", "bits": 12, "downsample": 2}]}},
+    {"name": "lead", "role": "lead", "presets": ["piano|keys", "bells|bell"], "styles": ["motif"], "register": [72, 88], "density": [0.12, 0.25], "optional": 0.3, "mix": {"level_db": -5, "reverb": 0.4, "delay": 0.15}},
+    {"name": "strings", "role": "pad", "presets": ["cellos|strings", "string_ensemble|strings"], "styles": ["sustain"], "register": [40, 64], "voices": 2, "voicing": "open", "optional": 0.4, "mix": {"level_db": -4, "reverb": 0.3}}
+  ],
+  "sampling": {
+    "by_default": true,
+    "break": {
+      "search": ["funk drum break", "soul drum break", "breakbeat", "hip hop drum loop", "dusty drum loop", "70s drums", "live drums"],
+      "listen": "a hard, dusty hip hop drum break",
+      "seconds": [2, 40],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.3,
+      "instead": ["kick", "snare", "hat"],
+      "mix": {"bus": "drums", "fx": [{"fx": "saturate", "kind": "tape", "drive_db": 4, "mix": 0.5}, {"fx": "filter", "mode": "lp", "cutoff": 12000, "res": 0.05}]}
+    },
+    "phrase": {
+      "search": ["film score", "horror film", "suspense", "minor piano", "cello", "orchestral strings", "string quartet", "old film", "piano"],
+      "listen": "a menacing minor piano or string phrase from an old film score",
+      "treat": {"as it is": 0.5, "filtered until it lifts": 0.2, "overloaded": 0.2, "a telephone's band in the intro and the breaks": 0.1},
+      "seconds": [6, 900],
+      "keep": 8,
+      "chance": 0.95,
+      "chop": 0.35,
+      "pitch": [-3, 3],
+      "instead": ["keys"],
+      "mix": {"bus": "music", "level_db": 1, "reverb": 0.1, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 120, "res": 0.05}, {"fx": "tape", "wow": 0.25, "flutter": 0.2, "drive_db": 4, "lowpass_hz": 10000}, {"fx": "bitcrush", "bits": 12, "downsample": 2}]}
+    },
+    "texture": {
+      "search": ["vinyl crackle", "record crackle", "vinyl noise", "tape hiss"],
+      "listen": "the crackle of an old vinyl record",
+      "seconds": [5, 600],
+      "keep": 3,
+      "chance": 0.7,
+      "mix": {"bus": "music"}
+    }
+  },
+  "transitions": {"riser": false, "impact": false, "downlifter": false, "reverse_crash": true, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.25}},
+  "mix": {
+    "lufs": -10.0,
+    "reverb": {"fx": "reverb", "decay": 1.3, "damping": 0.65, "predelay_ms": 10, "width": 1.1, "mix": 1.0, "lowcut": 300},
+    "delay": {"fx": "delay", "beats": 0.75, "feedback": 0.25, "damping": 0.65, "pingpong": false, "mix": 1.0},
+    "buses": {
+      "drums": [{"fx": "saturate", "kind": "tube", "drive_db": 5, "mix": 0.5}, {"fx": "compressor", "threshold_db": -12, "ratio": 3.5, "attack_ms": 8, "release_ms": 100, "knee_db": 6, "makeup_db": 2}],
+      "bass": [{"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.4}],
+      "music": [{"fx": "eq", "bands": [{"kind": "highpass", "freq": 110, "q": 0.7}]}]
+    },
+    "master": [
+      {"fx": "eq", "bands": [{"kind": "highpass", "freq": 28, "q": 0.7}]},
+      {"fx": "tape", "wow": 0.08, "flutter": 0.08, "drive_db": 2, "lowpass_hz": 16000},
+      {"fx": "compressor", "threshold_db": -11, "ratio": 2.2, "attack_ms": 15, "release_ms": 150, "knee_db": 6}
+    ],
+    "duck_release": 0.25,
+    "levels": {"snare": 1.5, "kick": 1.0, "bass": -1.0}
+  }
+}

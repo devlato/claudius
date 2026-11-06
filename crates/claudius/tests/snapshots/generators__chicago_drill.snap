@@ -1,0 +1,37 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+chicago_drill at 146.0 BPM in G minor, swing 0.51
+prog A: i iv III VI
+prog B: i IVsus4 III VI
+prog C: VI iv III i
+bars per chord: 1
+section intro (intro) 8 bars, energy 0.39, prog A, main [filter_in]: keys brass
+section hook (hook) 16 bars, energy 0.92, prog C, main [impact]: kick snare clap hat ohat bass keys brass lead strings
+section verse (verse) 8 bars, energy 0.70, prog A, alt [gap]: kick snare hat bass keys brass
+section hook2 (hook) 16 bars, energy 0.91, prog C, main [impact]: kick snare clap hat ohat bass keys brass lead strings
+section verse2 (verse) 16 bars, energy 0.81, prog A, alt [gap]: kick snare hat bass keys brass strings lead
+section bridge (break) 8 bars, energy 0.28, prog B, sparse []: keys brass
+section hook3 (hook) 8 bars, energy 1.00, prog C, main [impact]: kick snare clap hat ohat bass keys brass lead strings
+section outro (outro) 16 bars, energy 0.36, prog A, main []: keys lead
+drum kick alt (drum kick): X...............|X......X........|X...............|X......X........
+drum kick main (drum kick): X.........X.....|X.........X..X..|X...............|X..X............
+drum snare main (drum snare): ........X.......|........X.......|........X.......|........X.......
+drum clap main (drum clap): ........X.......|........X.......|........X.......|........X.......
+drum hat alt (drum closed_hat): x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....o.x.x.x.x.X.o.xx.xx.xx.X
+drum hat main (drum closed_hat): x.....x.....o.xx.xx.xx.XooxxxxxxxxXXx..x..x.....|x.....x.....ooxxxxxxxxXXx..x..x..x..x..x..x.....|x.....x.....x.....x.....x..x..x..x..XXXxxxxxxxxx|o.x.x.x.x.X.x.....x.....ooxxxxxxxxXXXXXxxxxxxxxx
+drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
+part bass (bass): kick_follow synth 808, register 24..40, density 0.47
+part keys (keys): sustain synth bell, register 55..79, density 0.53
+part brass (chords): sustain synth brass_stab, register 48..70, density 0.53
+part lead (lead): motif synth keys, register 67..88, density 0.36
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix snare: +0.0 dB, pan +0.00, reverb 0.12, delay 0.00, duck 0.00, bus drums
+mix clap: -3.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.12, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix ohat: +0.0 dB, pan -0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
+mix keys: +0.0 dB, pan +0.00, reverb 0.47, delay 0.08, duck 0.00, bus music
+mix brass: -2.0 dB, pan +0.00, reverb 0.25, delay 0.00, duck 0.00, bus music
+mix lead: -4.0 dB, pan +0.00, reverb 0.32, delay 0.35, duck 0.00, bus music

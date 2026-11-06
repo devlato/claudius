@@ -1,0 +1,89 @@
+{
+  "name": "emo_rap",
+  "family": "hip hop",
+  "aliases": ["emo", "sad rap", "melodic rap", "soundcloud rap", "guitar trap", "juice wrld", "lil peep"],
+  "description": "Emo rap: melodic SoundCloud rap at 130 to 170 BPM in half time, built on a guitar: a clean or acoustic guitar loop picking a sad minor progression, a distorted 808 that slides, a snare or clap on beat three, rolling hats, a soft pad under the hooks, verses and hooks",
+  "query": "emo rap trap beat with a sad guitar loop",
+  "alts": ["trap beat", "rock with electric guitars", "lo-fi hip hop beat", "indie pop music"],
+  "bpm": [130, 170],
+  "swing": [0.5, 0.53],
+  "humanize": 0.12,
+  "modes": [["minor", 0.7], ["dorian", 0.15], ["major", 0.15]],
+  "harmony": [["minor_epic", 0.5], ["minimal", 0.3], ["minor_dark", 0.2]],
+  "markov": 0.1,
+  "ext": 0,
+  "bars_per_chord": [[1, 0.5], [2, 0.5]],
+  "forms": [
+    [
+      {"name": "intro", "kind": "intro", "bars": 8, "energy": 0.35, "layers": ["sample", "pad"], "filter_in": true},
+      {"name": "hook", "kind": "hook", "bars": 16, "energy": 0.85, "layers": ["kick", "snare", "clap", "hat", "ohat", "bass", "sample", "pad", "lead"], "impact": true},
+      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.65, "layers": ["kick", "snare", "hat", "bass", "sample"], "variant": "alt"},
+      {"name": "hook2", "kind": "hook", "bars": 16, "energy": 0.9, "layers": ["kick", "snare", "clap", "hat", "ohat", "bass", "sample", "pad", "lead"], "impact": true},
+      {"name": "bridge", "kind": "break", "bars": 8, "energy": 0.4, "layers": ["sample", "pad"], "gap": true},
+      {"name": "hook3", "kind": "hook", "bars": 16, "energy": 0.95, "layers": ["kick", "snare", "clap", "hat", "ohat", "bass", "sample", "pad", "lead"], "impact": true},
+      {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.35, "layers": ["sample", "pad"]}
+    ]
+  ],
+  "drums": [
+    {"name": "kick", "voice": "kick", "template": {"steps": [1, 0, 0, 0, 0, 0, 0, 0.3, 0, 0, 0.7, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0.3, 0, 0, 0, 0.5, 0, 0, 0, 0, 0], "vel": [0.9, 1.0], "vary": 0.3}, "variants": {"alt": {"steps": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.4, 0, 0, 0, 0, 0], "vel": [0.9, 1.0]}}, "params": {"decay": [0.2, 0.35], "tune": [48, 58], "tone": [0.4, 0.7], "punch": [0.1, 0.3], "drive": [3, 7]}, "samples": ["Kick"], "mix": {"bus": "drums"}},
+    {"name": "snare", "voice": "snare", "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0], "vel": [0.9, 1.0]}, "params": {"decay": [0.12, 0.22], "tune": [190, 240], "snap": [0.6, 0.9], "tone": [0.5, 0.85]}, "samples": ["Snare"], "mix": {"bus": "drums", "reverb": 0.2}},
+    {"name": "clap", "voice": "clap", "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0], "vel": [0.8, 0.95]}, "mix": {"bus": "drums", "level_db": -4, "reverb": 0.25}},
+    {"name": "hat", "voice": "closed_hat", "template": {"steps": [1, 0, 1, 0.3, 1, 0, 1, 0.3, 1, 0, 1, 0.3, 1, 0, 1, 0.4], "vel": [0.4, 0.8], "rolls": 0.3}, "variants": {"alt": {"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.4, 0.75], "rolls": 0.2}}, "params": {"decay": [0.025, 0.05]}, "samples": ["Hi-hat"], "choke": "hats", "mix": {"bus": "drums", "pan": 0.12}},
+    {"name": "ohat", "voice": "open_hat", "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.45, 0], "vel": [0.5, 0.7]}, "params": {"decay": [0.25, 0.45]}, "choke": "hats", "mix": {"bus": "drums", "pan": -0.15}}
+  ],
+  "kits": [["tr808", 0.6]],
+  "kit_mix": 0.1,
+  "palette": {
+    "bass": {"core": 1.0, "synth": 1},
+    "keys": {"core": 0.8, "guitar": 2, "piano": 1},
+    "pad": {"core": 0.5, "synth": 1.5, "strings": 1},
+    "lead": {"core": 0.7, "synth": 1, "piano": 0.5}
+  },
+  "parts": [
+    {"name": "bass", "role": "bass", "presets": ["808"], "styles": ["kick_follow"], "register": [24, 40], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 9, "mix": 1.0}, {"fx": "filter", "mode": "lp", "cutoff": 4500, "res": 0.1}]}},
+    {"name": "guitar", "role": "keys", "presets": ["freepats:clean_guitar|harp_pluck", "guitar|harp_pluck", "freepats:classical_guitar|pluck"], "styles": ["syncopated", "half"], "register": [52, 76], "voices": 3, "voicing": "open", "mix": {"reverb": 0.35, "delay": 0.15, "fx": [{"fx": "chorus", "rate_hz": 0.6, "depth_ms": 2.0, "delay_ms": 10, "mix": 0.3}]}},
+    {"name": "pad", "role": "pad", "presets": ["warm_pad", "air_pad", "string_ensemble|strings"], "styles": ["sustain"], "register": [48, 72], "voices": 3, "voicing": "open", "optional": 0.3, "mix": {"level_db": -4, "reverb": 0.5}},
+    {"name": "lead", "role": "lead", "presets": ["pluck", "soft_lead", "piano|keys"], "styles": ["motif"], "register": [64, 84], "density": [0.2, 0.35], "optional": 0.4, "mix": {"level_db": -5, "reverb": 0.35, "delay": 0.25}}
+  ],
+  "sampling": {
+    "by_default": true,
+    "phrase": {
+      "search": ["acoustic guitar", "clean electric guitar", "guitar melody", "fingerstyle guitar", "indie guitar", "guitar arpeggio", "emo guitar", "folk guitar"],
+      "listen": "a clean guitar picking a melancholy loop",
+      "treat": {"as it is": 0.6, "darkened": 0.25, "filtered until it lifts": 0.15},
+      "seconds": [4, 900],
+      "keep": 8,
+      "chance": 0.95,
+      "chop": 0.3,
+      "pitch": [-3, 3],
+      "instead": ["guitar"],
+      "mix": {"bus": "music", "reverb": 0.2, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 150, "res": 0.05}, {"fx": "tape", "wow": 0.15, "flutter": 0.1, "drive_db": 1.5, "lowpass_hz": 12000}]}
+    },
+    "bass": {
+      "search": ["808 bass", "808 sub bass", "distorted 808"],
+      "listen": "a long, deep 808",
+      "seconds": [0.3, 30],
+      "keep": 3,
+      "chance": 0.35
+    }
+  },
+  "transitions": {"riser": false, "impact": true, "downlifter": false, "reverse_crash": true, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.3, "level_db": -3}},
+  "mix": {
+    "lufs": -9.0,
+    "reverb": {"fx": "reverb", "decay": 2.2, "damping": 0.5, "predelay_ms": 18, "width": 1.3, "mix": 1.0, "lowcut": 280},
+    "delay": {"fx": "delay", "beats": 0.75, "feedback": 0.32, "damping": 0.55, "pingpong": true, "mix": 1.0},
+    "buses": {
+      "drums": [{"fx": "compressor", "threshold_db": -10, "ratio": 2.0, "attack_ms": 8, "release_ms": 90, "knee_db": 6, "makeup_db": 1}],
+      "bass": [{"fx": "saturate", "kind": "tanh", "drive_db": 4, "mix": 0.6}],
+      "music": [{"fx": "eq", "bands": [{"kind": "highpass", "freq": 140, "q": 0.7}]}]
+    },
+    "master": [
+      {"fx": "eq", "bands": [{"kind": "highpass", "freq": 24, "q": 0.7}]},
+      {"fx": "compressor", "threshold_db": -9, "ratio": 1.8, "attack_ms": 25, "release_ms": 150, "knee_db": 6},
+      {"fx": "saturate", "kind": "tanh", "drive_db": 2, "mix": 0.3}
+    ],
+    "duck_release": 0.25,
+    "levels": {"bass": 6.0, "kick": -1.0, "hat": 2.0},
+    "bands": {"sub": [-14, -1], "low": [-9, -1], "mid": [-22, -8], "presence": [-31, -15], "air": [-35, -17]}
+  }
+}
