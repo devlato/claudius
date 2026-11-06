@@ -15,6 +15,7 @@ use claudius::library::prepared::{Prepared, Role};
 use claudius::model::{self, Blueprint};
 use claudius::rng::Rng;
 use claudius::theory::scale::Key;
+use claudius::voice::check;
 use claudius::{audio, genres, judge, pads, render, sampling, scratch, script, take};
 use claudius_api::*;
 use claudius_packs::online::Found;
@@ -97,6 +98,11 @@ pub struct Host {
     playhead: f64,
     /// a mutation or an evolution under way, a candidate at a time (`step`)
     breeding: Option<Breeding>,
+    /// the last pitch check asked for, as it was asked and as the studio shows it, and how many were asked for
+    pitch_check: Option<(check::Check, PitchCheck)>,
+    asked: u64,
+    /// the person's voice as their last pitch check heard it
+    voice: Option<claudius::voice::singer::Voice>,
 }
 
 /// A mutation or an evolution under way: its candidates, judged one a `step`, from the song as it was at `from` (an
@@ -132,6 +138,9 @@ impl Host {
             last: None,
             playhead: 0.0,
             breeding: None,
+            pitch_check: None,
+            asked: 0,
+            voice: None,
         }
     }
 
@@ -222,6 +231,7 @@ impl Host {
                     Err(e) => self.no(e),
                 }
             }
+            Listen::PitchCheck { id } => self.hear_pitch_check(*id, &x),
             Listen::Take { from, track, role, .. } => {
                 let Some(mut bp) = self.bp.clone() else {
                     return self.no("no song yet: start one with a new song, then record a take for it");
@@ -333,6 +343,8 @@ impl Host {
             log: self.log.clone(),
             genres: views::genre_infos(),
             exports: views::export_formats(),
+            pitch_check: self.pitch_check.as_ref().map(|(_, view)| view.clone()),
+            voice: self.voice.as_ref().map(|v| v.describe()),
             ..Default::default()
         }
     }
@@ -501,6 +513,22 @@ impl Host {
                     Err(e) => self.no(e),
                 }
             }
+            Command::RequestPitchCheck { low, high, note } => self.request_pitch_check(low, high, note),
+            Command::CancelPitchCheck { id } => match &mut self.pitch_check {
+                Some((_, view)) if view.id == id && view.status == TakeStatus::Waiting => {
+                    view.status = TakeStatus::Cancelled;
+                    self.say(format!("the pitch check will not be sung (check {id})"));
+                    self.version += 1;
+                    self.ok(&format!("pitch check {id}: not now, then"))
+                }
+                Some((_, view)) if view.id == id => self.no(format!("pitch check {id} is answered already")),
+                _ => self.no(format!("no pitch check {id}")),
+            },
+            Command::Tune { track, strength, speed_ms, humanize, vibrato, scale, off } => {
+                let asked = edit::Tuning { strength, speed_ms, humanize, vibrato, scale: scale.as_deref(), off };
+                let voice = self.voice.clone();
+                self.edit_take(|bp| edit::tune(bp, &track, &asked, voice.as_ref()))
+            }
             Command::TranscribeDrums { take: None, path: None, .. } => {
                 self.no("transcribe_drums wants a take, or the path of a recording")
             }
@@ -650,6 +678,54 @@ impl Host {
             s.add(take::Sources { recordings: vec![f.clone()], instruments: Vec::new() });
         }
         s
+    }
+
+    /// a pitch check for the person to sing back, six phrases of four notes from `low` to `high` (A3 to A4 by
+    /// default), as the app asks for one
+    fn request_pitch_check(&mut self, low: Option<i32>, high: Option<i32>, note: String) -> Reply {
+        let (low, high) = (low.unwrap_or(57), high.unwrap_or(69));
+        if !(36..=84).contains(&low) || !(36..=84).contains(&high) || high < low + 7 {
+            return self.no("a pitch check's notes go from low to high, MIDI 36 to 84, at least a fifth apart");
+        }
+        let c = check::Check::new(low, high, self.seed());
+        let notes = c.notes().iter().map(|&(p, t, d)| claudius_api::NoteView { t, d, p, v: 0.8 }).collect();
+        self.asked += 1;
+        let id = self.asked;
+        let view = PitchCheck {
+            id,
+            bpm: check::BPM,
+            notes,
+            answers: c.answers(),
+            beats: c.beats(),
+            note,
+            ..Default::default()
+        };
+        self.pitch_check = Some((c, view));
+        self.say(format!("asked the person for a pitch check (check {id})"));
+        self.version += 1;
+        self.ok(&format!("asked the person for a pitch check (check {id}): six phrases of four notes to sing back"))
+    }
+
+    /// the answers to pitch check `id`: what claudius hears in them, which answers the check, and the voice it hears,
+    /// which becomes the person's
+    fn hear_pitch_check(&mut self, id: u64, sung: &Stereo) -> Reply {
+        let c = match &self.pitch_check {
+            Some((c, view)) if view.id == id && view.status == TakeStatus::Waiting => c.clone(),
+            Some((_, view)) if view.id == id => return self.no(format!("pitch check {id} is answered already")),
+            _ => return self.no(format!("no pitch check {id}: ask for one with request_pitch_check")),
+        };
+        let heard = c.hear(sung);
+        let said = heard.describe();
+        if heard.answers.iter().all(|a| a.sung.is_none()) {
+            return self.no(said);
+        }
+        if let Some((_, view)) = &mut self.pitch_check {
+            (view.status, view.answer) = (TakeStatus::Taken, Some(said.clone()));
+        }
+        self.voice = Some(heard.voice);
+        self.say(format!("heard the pitch check: {said}"));
+        self.version += 1;
+        self.ok(&said)
     }
 
     /// the song changed by `f`, from a take it holds
@@ -1408,6 +1484,8 @@ mod tests {
         };
         let r = h.command(melody);
         assert!(r.ok, "{}", r.message);
+        let r = command(&mut h, json!({"cmd": "tune", "track": "take1", "speed_ms": 15}));
+        assert!(r.ok && !r.message.contains("pitch check"), "no check yet, so no voice: {}", r.message);
         // played: a beat at the song's tempo, whose kicks and snares become lanes
         let bpm = h.blueprint().unwrap().bpm;
         let r = h.listen(&take(&from, "drums"), wav(&a_beat(bpm)));
@@ -1425,6 +1503,49 @@ mod tests {
         let none =
             Command::TranscribeDrums { take: None, path: None, bars: None, variant: None, bpm: None, keep_take: false };
         assert!(!h.command(none).ok);
+    }
+
+    #[test]
+    fn a_pitch_check_asked_for_on_the_page_is_sung_back_heard_and_kept_as_the_voice() {
+        use crate::listen::Listen;
+        let mut h = Host::new(1);
+        let r = h.listen(&Listen::PitchCheck { id: 1 }, wav(&a_song()));
+        assert!(!r.ok && r.message.starts_with("no pitch check 1"), "{}", r.message);
+        let r = command(&mut h, json!({"cmd": "request_pitch_check", "low": 60, "high": 62}));
+        assert!(!r.ok && r.message.contains("at least a fifth apart"), "{}", r.message);
+        assert!(command(&mut h, json!({"cmd": "request_pitch_check", "note": "for a melody in your range"})).ok);
+        let view = h.state().pitch_check.expect("the studio shows the check");
+        assert_eq!((view.id, view.status, view.notes.len()), (1, TakeStatus::Waiting, 24));
+        // sung back as played, a beat to each note in the gap after its phrase
+        let (sr, beat) = (claudius::config::SRF, 60.0 / view.bpm);
+        let mut sung = Stereo::zeros((view.beats * beat * sr) as usize);
+        for (phrase, (from, _)) in view.notes.chunks(4).zip(&view.answers) {
+            for (k, n) in phrase.iter().enumerate() {
+                let (at, hz) = (((from + k as f64) * beat * sr) as usize, 440.0 * 2f64.powf((n.p - 69) as f64 / 12.0));
+                for i in 0..(0.9 * beat * sr) as usize {
+                    let v = 0.3 * (std::f64::consts::TAU * hz * i as f64 / sr).sin() as f32;
+                    (sung.l[at + i], sung.r[at + i]) = (v, v);
+                }
+            }
+        }
+        let r = h.listen(&Listen::PitchCheck { id: 1 }, wav(&sung));
+        assert!(r.ok, "{}", r.message);
+        let s = h.state();
+        assert_eq!(s.pitch_check.map(|c| (c.status, c.answer.is_some())), Some((TakeStatus::Taken, true)));
+        assert!(s.voice.is_some(), "the voice it heard is the person's");
+        // a take tuned from now on sings as the check heard the person
+        assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
+        let from = h.blueprint().unwrap().form[0].name.clone();
+        let take = Listen::Take { name: "take.wav".into(), from, track: None, role: "vocal".into() };
+        assert!(h.listen(&take, wav(&sung)).ok);
+        let r = command(&mut h, json!({"cmd": "tune", "track": "take1"}));
+        assert!(r.ok && r.message.ends_with("as your pitch check heard you sing"), "{}", r.message);
+        let r = h.listen(&Listen::PitchCheck { id: 1 }, wav(&sung));
+        assert!(!r.ok && r.message.contains("answered already"), "{}", r.message);
+        // asked for again, and not sung after all
+        assert!(command(&mut h, json!({"cmd": "request_pitch_check"})).ok);
+        assert!(command(&mut h, json!({"cmd": "cancel_pitch_check", "id": 2})).ok);
+        assert_eq!(h.state().pitch_check.map(|c| c.status), Some(TakeStatus::Cancelled));
     }
 
     #[test]

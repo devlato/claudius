@@ -399,14 +399,19 @@ pub enum Listen {
         track: Option<String>,
         role: String,
     },
+    /// the answers to pitch check `id`, sung over its phrases from their first beat, as `/api/pitch-check` hears them
+    PitchCheck {
+        id: u64,
+    },
 }
 
 impl Listen {
-    /// the file's name, whose extension says its format
+    /// the file's name, whose extension says its format (a pitch check has none: its bytes say)
     pub fn name(&self) -> &str {
         match self {
             Listen::Analyze { name } | Listen::SampleSong { name } | Listen::ExtractGroove { name } => name,
             Listen::Remake { name, .. } | Listen::Take { name, .. } => name,
+            Listen::PitchCheck { .. } => "the pitch check",
         }
     }
 
@@ -418,6 +423,7 @@ impl Listen {
             Listen::SampleSong { .. } => "sample_song",
             Listen::ExtractGroove { .. } => "extract_groove",
             Listen::Take { .. } => "take",
+            Listen::PitchCheck { .. } => "pitch_check",
         }
     }
 }

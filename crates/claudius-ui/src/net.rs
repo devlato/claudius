@@ -575,9 +575,7 @@ impl Backend {
     pub fn upload_pitch_check(&mut self, wav: Vec<u8>, id: u64) {
         match self {
             Backend::Remote(r) => r.listen(wav, "/api/pitch-check", &format!("id={id}"), "pitch_check"),
-            Backend::Mock(m) => {
-                m.refuse("pitch_check", "the demo hears no singing: start `claudius serve` for a pitch check")
-            }
+            Backend::Mock(m) => m.listen(claudius_api::Listen::PitchCheck { id }, &wav),
         }
     }
 
