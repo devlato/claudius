@@ -285,8 +285,8 @@ function open(s) {
 /** the samples of the library the turntable can put on (`GET api/library`): `{track, label, kind, bpm, bars, speed}` */
 let library = [];
 
-/** the track the record recorded off the microphone goes by */
-const MIC = "mic";
+/** the track the record recorded off the microphone goes by: no name of a song's track, which has no ":" */
+const MIC = "mic:";
 /** the longest a record recorded off the microphone is, in seconds (`claudius::scratch::MAX_RECORDING` and less) */
 const MIC_SECS = 8;
 /** where a recording's peak goes: the master's ceiling, 1 dB under full scale (`claudius::scratch::recorded`) */

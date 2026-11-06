@@ -293,8 +293,8 @@ test.describe("playing from a phone", () => {
       expect(await phone.evaluate(() => window.opened), "one microphone opened").toBe(1);
       await phone.waitForTimeout(1500);
       await phone.click("#mic");
-      await phone.waitForFunction(() => deck.track === "mic" && deck.buf !== null, null, { timeout: 10_000 });
-      await expect(phone.locator('#track option[value="mic"]')).toHaveText("your recording");
+      await phone.waitForFunction(() => deck.track === MIC && deck.buf !== null, null, { timeout: 10_000 });
+      await expect(phone.locator('#track option[value="mic:"]')).toHaveText("your recording");
       const secs = await phone.evaluate(() => deck.buf.duration);
       expect(secs).toBeGreaterThan(1);
       expect(secs).toBeLessThan(2.5);
@@ -303,7 +303,7 @@ test.describe("playing from a phone", () => {
       // a scratch on it, sent as the take sends it: the recording goes along, and the studio makes the take
       const reply = await phone.evaluate(async () => {
         const moves = [{ t: 0, at: 0, fader: 1 }, { t: 0.4, at: 0.3, fader: 1 }, { t: 0.8, at: 0, fader: 1 }];
-        const take = { cmd: "add_scratch", from: song.sections[0].name, track: "mic", bars: 1, moves, recording: mic.wav };
+        const take = { cmd: "add_scratch", from: song.sections[0].name, track: MIC, bars: 1, moves, recording: mic.wav };
         return (await link.post("api/take", take)).json();
       });
       expect(reply.ok, reply.message).toBe(true);

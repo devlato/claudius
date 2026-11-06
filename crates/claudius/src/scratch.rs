@@ -175,13 +175,18 @@ pub struct Take {
 pub const MAX_RECORDING: f64 = 10.0;
 
 /// A record recorded off a microphone, from the WAV file a phone sent: at most `MAX_RECORDING` seconds, its peak at
-/// the song's ceiling, where the phone puts it too.
+/// the song's ceiling, where the phone puts it too. Its header is read first, so that a file whose rate or length is
+/// out of bounds is refused before it is decoded and resampled to 48 kHz.
 pub fn recorded(bp: &Blueprint, wav: &[u8]) -> Result<Stereo, String> {
+    let (rate, secs) = wav_length(wav).ok_or("the recording is no WAV file claudius reads")?;
+    if !(8_000..=192_000).contains(&rate) {
+        return Err(format!("a recording is at 8 to 192 kHz, not {rate} Hz"));
+    }
+    if secs > MAX_RECORDING + 0.05 {
+        return Err(format!("a recording is {MAX_RECORDING:.0} s at most, not {secs:.1} s"));
+    }
     let mut x =
         crate::audio::load_bytes(wav.to_vec(), "wav").map_err(|e| format!("cannot read the recording: {e:#}"))?;
-    if x.secs() > MAX_RECORDING + 0.05 {
-        return Err(format!("a recording is {MAX_RECORDING:.0} s at most, not {:.1} s", x.secs()));
-    }
     let peak = x.l.iter().chain(&x.r).fold(0.0f32, |m, v| m.max(v.abs()));
     if peak < 1e-3 {
         return Err("the recording is silent".into());
@@ -191,6 +196,30 @@ pub fn recorded(bp: &Blueprint, wav: &[u8]) -> Result<Stereo, String> {
         *v *= gain;
     }
     Ok(x)
+}
+
+/// the rate a WAV file's header says it is at, and how many seconds its data holds (none: no WAV header)
+fn wav_length(wav: &[u8]) -> Option<(u32, f64)> {
+    if wav.len() < 12 || &wav[..4] != b"RIFF" || &wav[8..12] != b"WAVE" {
+        return None;
+    }
+    let u16_at = |i: usize| Some(u16::from_le_bytes(wav.get(i..i + 2)?.try_into().ok()?));
+    let u32_at = |i: usize| Some(u32::from_le_bytes(wav.get(i..i + 4)?.try_into().ok()?));
+    let (mut at, mut format, mut data) = (12usize, None, None);
+    while at + 8 <= wav.len() {
+        let size = u32_at(at + 4)? as usize;
+        let body = at + 8;
+        match &wav[at..at + 4] {
+            b"fmt " => format = Some((u16_at(body + 2)?, u32_at(body + 4)?, u16_at(body + 14)?)),
+            b"data" => data = Some(size.min(wav.len() - body)),
+            _ => {}
+        }
+        // chunks start on even bytes
+        at = body.checked_add(size)?.checked_add(size % 2)?;
+    }
+    let ((channels, rate, bits), data) = (format?, data?);
+    let frame = usize::from(channels) * usize::from(bits).div_ceil(8);
+    (frame > 0 && rate > 0).then(|| (rate, data as f64 / frame as f64 / f64::from(rate)))
 }
 
 /// What scratch `t` sounds like, and what its record was cut from, each file's credits as `credited` says
@@ -650,7 +679,20 @@ mod tests {
         let long = recorded(&bp, &wav(MAX_RECORDING + 1.0, 0.2)).unwrap_err();
         assert!(long.contains("at most"), "{long}");
         assert!(recorded(&bp, &wav(1.0, 0.0)).unwrap_err().contains("silent"));
-        assert!(recorded(&bp, b"not a wav").unwrap_err().contains("cannot read"));
+        assert!(recorded(&bp, b"not a wav").unwrap_err().contains("no WAV file"));
+        // a header that says a rate a resampling to 48 kHz would blow up is refused before the file is decoded, as is
+        // one that says more seconds than a recording is
+        let mut slow = wav(1.0, 0.2);
+        slow[24..28].copy_from_slice(&1u32.to_le_bytes());
+        assert!(recorded(&bp, &slow).unwrap_err().contains("8 to 192 kHz"));
+        assert_eq!(
+            wav_length(&wav(1.0, 0.2)).map(|(rate, secs)| (rate, (secs * 100.0).round())),
+            Some((48_000, 100.0))
+        );
+        let mut endless = wav(1.0, 0.2);
+        let data = endless.windows(4).position(|w| w == b"data").unwrap();
+        endless[data + 4..data + 8].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert!(wav_length(&endless).unwrap().1 < 1.01, "a data chunk past the file's end is the file's");
     }
 
     #[test]
