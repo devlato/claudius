@@ -183,15 +183,19 @@ are rendered in full into numbered folders next to it, with their history printe
 
 ### `claudius remake`
 
-Analyses an audio file and writes a new song on its skeleton: tempo, key, swing, form, progressions, drum habits
-and bass style, with the genre's sounds and mix. It prints the analysis (as `analyze` does) and the new song.
+Analyses an audio file and remixes it in a genre: a new song built on the recording's own sound, its hook without its
+drums in the hooks, another passage of it in the other sections, its drums as the break where the genre plays one, a
+flip of it cut from all over it, and its sung phrases, under the genre's drums, bass, parts and mix
+([Remaking a song from audio](../cookbook/remake.md)). Its pieces go into `takes/` in `--out`. It prints the analysis
+(as `analyze` does) and the new song.
 
 | flag | default | what it does |
 |---|---|---|
 | `<file>` | | any audio file claudius can decode |
-| `-g`, `--genre` | `house` | the genre of the new song. When the recording's tempo is outside the genre's range, the song plays at half or double it if that falls in the range (a 160 BPM recording as lofi at 80), else at the nearest end, and says so |
+| `-g`, `--genre` | `house` | the genre of the new song. It plays the recording at its own tempo when the genre does, else at a multiple of it, faster or slower by whole semitones as a sampler plays a record, or chopped onto the song's grid at two thirds to three halves of it |
 | `-s`, `--seed` | the clock | the new song's own choices |
 | `--bpm` | as above | the new song's tempo |
+| `--skeleton` | off | a new song on the recording's skeleton only (tempo, key, swing, form, progressions, drum habits, bass style), none of its sound; a skeleton remake out of the genre's range plays at half or double the tempo when that falls in it, else at its nearest end |
 | `--no-ears`, `--refs`, `--tags` | | as for `make` |
 | `-o`, `--out` | `out` | the folder is `remake-<genre>-<title>-<seed>` |
 

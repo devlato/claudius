@@ -36,6 +36,7 @@ pub mod pads;
 pub mod palette;
 pub mod pattern;
 pub mod publish;
+pub mod remix;
 pub mod render;
 pub mod rng;
 pub mod sampler;

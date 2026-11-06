@@ -1,7 +1,7 @@
-# Boom bap, UK drill, dubstep, UK garage, jungle
+# Boom bap, alternative hip hop, UK drill, dubstep, UK garage, jungle
 
-Five styles built on their drums and their bass: a sampler's lazy swing, a half-time snare over sliding 808s, a
-wobble, a shuffle, a chopped breakbeat. As in [the other recipes](pop-psych-and-glitch.md), each starts from a
+Six styles built on their drums and their bass: a sampler's lazy swing, lush chords layered over a distorted 808, a
+half-time snare over sliding 808s, a wobble, a shuffle, a chopped breakbeat. As in [the other recipes](pop-psych-and-glitch.md), each starts from a
 generated song and changes it with [effect chains](../language/mixing.md#effect-chains), and runs without the sample
 packs.
 
@@ -50,6 +50,38 @@ Try:
 
 - `swing(0.62)` for a lazier lean.
 - `part("horns", #{ preset: "whistle" })` for a whistled hook in place of the horns.
+
+## Alternative hip hop: "Flower Garden"
+
+```js
+song("alt_hip_hop", 2);
+title("Flower Garden");
+part("keys", #{ style: "charleston" });
+fx("keys", [
+  #{ fx: "tape", wow: 0.25, flutter: 0.2, drive_db: 2, lowpass_hz: 12000 },
+]);
+bus("bass", [
+  #{ fx: "saturate", kind: "hard", drive_db: 8, mix: 0.5 },
+  #{ fx: "filter", mode: "lp", cutoff: 6000 },
+]);
+```
+
+Why:
+
+- **What the genre already does.** Ninth and eleventh chords in a major key with its minor iv borrowed and chromatic
+  mediants (`Imaj9 iii7 bIIImaj7 IVmaj9`), on a Rhodes over a warm pad and strings; a distorted 808 with a fuzzy
+  synth bass an octave over it, a double of the 808's notes (`fuzz`); a swung kit with a clap on the snare; and a
+  beat switch, eight or sixteen bars of half time on the second progression (`switch`) before the bridge and the
+  last hook. Its songs are [layered](../learn/producers/genres-and-evolution.md#how-layered-a-song-is) at
+  complexity 0.8 unless asked otherwise: here the keys doubled an octave up, a shaker, a percussion line and an
+  arpeggio come in where the song lifts.
+- **The keys on the charleston**, the dotted push that lets the chords breathe between the drums, and through tape,
+  which wobbles them like a record.
+- **The bass bus driven hard**, so that the 808 and its double growl together, and a lowpass over them so that the
+  growl stays under the keys.
+
+With `sampled: true` (or `--sampled`), the song is built on a 70s soul or jazz record its producers would dig for,
+chopped under the same layers.
 
 ## UK drill: "Southside Glide"
 

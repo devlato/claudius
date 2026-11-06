@@ -8,7 +8,7 @@ use std::time::Duration;
 use claudius::compose::{self, Options};
 use claudius::model::*;
 use claudius::theory::scale::Key;
-use claudius::{analysis, audio, config, export, genres, script, song};
+use claudius::{analysis, audio, config, export, genres, script, song, take};
 use claudius_api::*;
 
 use super::{App, no, now_seed, ok};
@@ -354,12 +354,12 @@ impl App {
                 Ok(x) => self.analyze_audio(&x, &path),
                 Err(e) => no(format!("cannot read {path}: {e}"), v),
             },
-            Command::Remake { path, genre, seed, bpm } => {
+            Command::Remake { path, genre, seed, bpm, sampled } => {
                 if let Err(e) = self.readable(Path::new(&path)) {
                     return no(e, v);
                 }
                 match audio::load(Path::new(&path)) {
-                    Ok(x) => self.remake_audio(&x, &path, genre, seed, bpm),
+                    Ok(x) => self.remake_audio(&x, &path, genre, seed, bpm, sampled.unwrap_or(true)),
                     Err(e) => no(format!("cannot read {path}: {e}"), v),
                 }
             }
@@ -602,7 +602,9 @@ impl App {
         ok(text, v)
     }
 
-    /// a new song on a recording's skeleton (`name`: its path, or the name of the file it came in)
+    /// A new song from a recording (`name`: its path, or the name of the file it came in): a remix of it, built on
+    /// its sound (`remix`), when `sampled`, its pieces kept with the songs' takes; else, or when the recording has
+    /// nothing a remix can be built on, a song on its skeleton only.
     pub(super) fn remake_audio(
         self: &Arc<Self>,
         x: &audio::Stereo,
@@ -610,6 +612,7 @@ impl App {
         genre: Option<String>,
         seed: Option<u64>,
         bpm: Option<f64>,
+        sampled: bool,
     ) -> Reply {
         let v = self.version();
         let genre = genre.or_else(|| self.blueprint().map(|b| b.genre)).unwrap_or_else(|| "house".into());
@@ -617,26 +620,44 @@ impl App {
             Ok(g) => g,
             Err(e) => return no(e.to_string(), v),
         };
+        let dir = take::dir(Some(&self.songs));
+        if sampled && !config::write_allowed(&dir, self.roots.as_deref()) {
+            return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
+        }
         let a = analysis::song::analyze(x, None);
+        let seed = seed.unwrap_or_else(now_seed);
+        let opts = Options { bpm, ..Options::default() };
+        let lib = self.lib.as_deref().map(|l| l as &dyn compose::Library);
+        let name = Path::new(path).file_name().map_or_else(|| path.to_string(), |n| n.to_string_lossy().into_owned());
         let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
-        let bp = analysis::song::to_blueprint(
-            &a,
-            &g,
-            seed.unwrap_or_else(now_seed),
-            &Options { bpm, ..Options::default() },
-            self.lib.as_deref().map(|l| l as &dyn compose::Library),
-            path,
-        );
-        let moved = if bpm.is_none() && bp.bpm != a.bpm.round() {
-            format!(
-                "\nat {:.0} BPM: the recording's {:.0} is outside {genre}'s {:.0}-{:.0}",
-                bp.bpm, a.bpm, g.bpm.0, g.bpm.1
-            )
-        } else {
-            String::new()
+        let remixed = sampled.then(|| {
+            let ears = self.ears.get().and_then(|e| e.as_ref());
+            claudius::remix::remix(&claudius::remix::Source { x, name: &name, a: &a }, &g, seed, &opts, lib, &dir, ears)
+        });
+        let (bp, verb, how) = match remixed {
+            Some(Ok(bp)) => {
+                let said: Vec<&String> =
+                    bp.lineage.iter().filter(|l| l.starts_with("remixed") || l.starts_with("sampled")).collect();
+                let how = said.iter().map(|l| format!("\n{l}")).collect::<String>();
+                (bp, "remixed", how)
+            }
+            remixed => {
+                let bp = analysis::song::to_blueprint(&a, &g, seed, &opts, lib, path);
+                let mut how = match remixed {
+                    Some(Err(e)) => format!("\na song on its skeleton, not a remix of it: {e}"),
+                    _ => String::new(),
+                };
+                if bpm.is_none() && bp.bpm != a.bpm.round() {
+                    how.push_str(&format!(
+                        "\nat {:.0} BPM: the recording's {:.0} is outside {genre}'s {:.0}-{:.0}",
+                        bp.bpm, a.bpm, g.bpm.0, g.bpm.1
+                    ));
+                }
+                (bp, "remade", how)
+            }
         };
         self.lock().folder = None;
-        self.commit(Some(bp), format!("remade {path} as {genre}{moved}:\n{}", analysis_text(&a)))
+        self.commit(Some(bp), format!("{verb} {path} as {genre}{how}:\n{}", analysis_text(&a)))
     }
 
     fn load(self: &Arc<Self>, path: &Path) -> Reply {

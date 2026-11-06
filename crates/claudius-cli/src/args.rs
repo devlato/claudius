@@ -177,16 +177,21 @@ pub(crate) enum Cmd {
         #[arg(long, default_value_t = 1.0)]
         vibrato: f32,
     },
-    /// Write a new song on the skeleton of an existing one (its tempo, key, form, progressions, drum habits)
+    /// Remix a recording in a genre: a song built on its hook, a verse passage, its drums, a flip of it and its sung
+    /// phrases (--skeleton: a new song on its skeleton only, its tempo, key, form and chords)
     Remake {
         file: PathBuf,
         #[arg(short, long, default_value = "house")]
         genre: String,
         #[arg(short, long)]
         seed: Option<u64>,
-        /// the tempo (default: the recording's, halved or doubled into the genre's range when it is outside it)
+        /// the tempo (default: the recording's, or a multiple of it in the genre's range, as a sampler plays it)
         #[arg(long)]
         bpm: Option<f64>,
+        /// write a new song on the recording's skeleton only (its tempo, key, form, chords, drum habits), none of its
+        /// sound
+        #[arg(long)]
+        skeleton: bool,
         #[command(flatten)]
         ears: EarsArgs,
         #[arg(short, long, default_value = "out")]

@@ -95,7 +95,8 @@ The MCP tools give an assistant the controls; claudius' skills give it the craft
 
 - **claudius-songs**: how to make and edit a song: listen, read the verdict, change one thing, and say what changed
   in musical terms; the script language with recipes; a starting point for each genre.
-- **claudius-remix**: analysing a recording, remaking its skeleton in another genre, chopping and flipping it.
+- **claudius-remix**: analysing a recording, remixing it in another genre (or remaking its skeleton), chopping and
+  flipping it.
 - **claudius-setup**: installing claudius, connecting assistants, and fixing what goes wrong.
 
 `claudius connect` installs them for Claude Code, Cursor and Codex, and writes zips for the Claude apps.

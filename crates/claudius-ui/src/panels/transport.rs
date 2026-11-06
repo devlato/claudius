@@ -660,7 +660,7 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
         ui.label(RichText::new("Or start from an audio file").strong());
         let shown = f.genre_name().replace('_', " ").replace('+', " + ");
         ui.label(small(format!(
-            "claudius reads its tempo, key, chords, form and groove; Remake writes a new {shown} song on that skeleton"
+            "claudius reads its tempo, key, chords, form and groove; Remake remixes it as {shown}, on its hook, its drums and pieces of it"
         )));
         ui.horizontal(|ui| {
             let busy = cx.view.analyzing;
@@ -685,7 +685,10 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
             }
             if ui
                 .add_enabled(file.is_some(), egui::Button::new(format!("Remake as {shown}")))
-                .on_hover_text("a new song on the file's skeleton (the seed above, if any)")
+                .on_hover_text(
+                    "a remix of it in the genre, built on its sound: its hook without its drums, another passage of \
+                     it, its drums, a flip cut from all over it and its sung phrases (the seed above, if any)",
+                )
                 .clicked()
             {
                 cx.view.analysis = None;

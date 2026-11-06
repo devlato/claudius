@@ -438,7 +438,7 @@ fn run(cli: Cli) -> Result<()> {
                 out.display()
             );
         }
-        Cmd::Remake { file, genre, seed, bpm, ears, out } => {
+        Cmd::Remake { file, genre, seed, bpm, skeleton, ears, out } => {
             let g = genres::get(&genre)?;
             let seed = seed.unwrap_or_else(seed_now);
             let listening = listen(&ears);
@@ -447,15 +447,25 @@ fn run(cli: Cli) -> Result<()> {
             print_analysis(&a);
             let lib = open_library()?;
             let lib_ref = lib.as_ref().map(|l| l as &dyn compose::Library);
-            let bp = claudius::analysis::song::to_blueprint(
-                &a,
-                &g,
-                seed,
-                &Options { bpm, ..Options::default() },
-                lib_ref,
-                &file.to_string_lossy(),
-            );
-            if bpm.is_none() && bp.bpm != a.bpm.round() {
+            let opts = Options { bpm, ..Options::default() };
+            let name = file.file_name().map_or_else(|| file.to_string_lossy(), |n| n.to_string_lossy()).into_owned();
+            let remixed = (!skeleton).then(|| {
+                let src = claudius::remix::Source { x: &x, name: &name, a: &a };
+                // its pieces go with the songs written under --out
+                claudius::remix::remix(&src, &g, seed, &opts, lib_ref, &out.join("takes"), listening.ears.as_ref())
+            });
+            let skeletal =
+                || claudius::analysis::song::to_blueprint(&a, &g, seed, &opts, lib_ref, &file.to_string_lossy());
+            // a skeleton, asked for or fallen back to, plays at the tempo it took, which it says when it moved
+            let (bp, on_skeleton) = match remixed {
+                Some(Ok(bp)) => (bp, false),
+                Some(Err(e)) => {
+                    eprintln!("a song on its skeleton, not a remix of it: {e}");
+                    (skeletal(), true)
+                }
+                None => (skeletal(), true),
+            };
+            if on_skeleton && bpm.is_none() && bp.bpm != a.bpm.round() {
                 eprintln!(
                     "remaking at {:.0} BPM: the recording's {:.0} is outside {}'s {:.0}-{:.0} (--bpm sets another)",
                     bp.bpm, a.bpm, g.name, g.bpm.0, g.bpm.1

@@ -8,7 +8,7 @@ it opens when it needs them.
 | skill | for |
 |---|---|
 | [claudius-songs](claudius-songs/SKILL.md) | making and editing songs: the loop of listening, reading the verdict and changing one thing; the script language; the thirty-six genres |
-| [claudius-remix](claudius-remix/SKILL.md) | working from a recording: analysing it, remaking its skeleton in another genre, chopping it and flipping it into a song |
+| [claudius-remix](claudius-remix/SKILL.md) | working from a recording: analysing it, remixing it in another genre (or remaking its skeleton), chopping it and flipping it into a song |
 | [claudius-setup](claudius-setup/SKILL.md) | installing claudius, connecting an assistant, and fixing what goes wrong |
 
 The MCP tools give an assistant the controls; the skills give it the craft. They work with the tools and with the

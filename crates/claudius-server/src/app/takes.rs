@@ -52,9 +52,10 @@ impl App {
         genre: Option<String>,
         seed: Option<u64>,
         bpm: Option<f64>,
+        sampled: bool,
     ) -> Reply {
         match self.decode(bytes, name) {
-            Ok(x) => self.remake_audio(&x, name, genre, seed, bpm),
+            Ok(x) => self.remake_audio(&x, name, genre, seed, bpm, sampled),
             Err(e) => no(e, self.version()),
         }
     }

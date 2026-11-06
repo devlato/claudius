@@ -578,6 +578,7 @@ impl Backend {
                     genre: Some(genre.clone()),
                     seed: *seed,
                     bpm: None,
+                    sampled: None,
                 }),
                 None => m.send(Command::Analyze { path: l.file.name.clone() }),
             },
