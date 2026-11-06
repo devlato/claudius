@@ -1,9 +1,11 @@
 //! Anonymous usage statistics, off until the person turns them on: the studio's tour asks once, and `claudius
 //! telemetry on` or `off` changes the answer. When they are on, claudius sends a few counts, each kind at most once a
-//! day: which command started it, the version, the system and its chip, where a setup failed and where a panic
-//! happened. Never a file, a path, a song, a name or an identifier. `claudius telemetry` prints what is sent, and
+//! day: which command started it, the version, the system and its chip, where a setup failed, where a panic happened,
+//! and how fast it renders, listens and decodes (`claudius::metrics`). Never a file, a path, a song, a name or an
+//! identifier. `claudius telemetry` prints what is sent, and
 //! docs/src/guide/privacy.md explains it. `DO_NOT_TRACK`, `CLAUDIUS_TELEMETRY=0` and `CI` keep them off.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::thread::JoinHandle;
@@ -17,6 +19,10 @@ const ENDPOINT: &str = "https://claudius-telemetry.devlato.workers.dev/v1/event"
 
 /// the sends still on their way, which `flush` waits for before the program ends
 static PENDING: Mutex<Vec<JoinHandle<()>>> = Mutex::new(Vec::new());
+
+/// the kinds this run has sent, and on which day; its lock makes deciding to send one and noting it one step, since
+/// work on many threads at once (decodes, renders) asks for the same kind together
+static SENT: Mutex<BTreeSet<(String, u64)>> = Mutex::new(BTreeSet::new());
 
 fn file() -> Option<PathBuf> {
     dirs::config_dir().map(|d| d.join("claudius").join("telemetry.json"))
@@ -68,17 +74,28 @@ pub fn set(on: bool) -> Result<()> {
     write(&path, &m)
 }
 
-/// the event as it is sent
-fn payload(event: &str, command: &str, detail: &str) -> Value {
+/// the event as it is sent: `value` is 1, but for a speed (`perf`)
+fn payload(event: &str, command: &str, detail: &str, value: f64) -> Value {
     json!({
-        "v": 1,
+        "v": 2,
         "event": event,
         "command": command,
         "version": env!("CARGO_PKG_VERSION"),
         "os": std::env::consts::OS,
         "arch": std::env::consts::ARCH,
         "detail": detail,
+        "value": value,
     })
+}
+
+/// a speed to two significant figures (38, 3.8, 0.38), which says how fast without telling one machine from another
+fn two_figures(x: f64) -> f64 {
+    if !(x > 0.0 && x.is_finite()) {
+        return 0.0;
+    }
+    let decimals = (1 - x.log10().floor() as i32).max(0) as usize;
+    let step = 10f64.powi(x.log10().floor() as i32 - 1);
+    format!("{:.decimals$}", (x / step).round() * step).parse().unwrap_or(0.0)
 }
 
 /// `CLAUDIUS_TELEMETRY_URL` sends elsewhere (to test the endpoint); a debug build sends nowhere else
@@ -109,6 +126,17 @@ fn due(path: &Path, key: &str, day: u64) -> bool {
     write(path, &m).is_ok()
 }
 
+/// `due`, for one thread at a time: true for only one of many asking at once, and, once a kind is sent, false for it
+/// the rest of the day without reading the file again
+fn claim(path: &Path, key: &str, day: u64) -> bool {
+    let mut sent = SENT.lock().unwrap_or_else(|e| e.into_inner());
+    let mine = (key.to_string(), day);
+    if sent.contains(&mine) || !due(path, key, day) {
+        return false;
+    }
+    sent.insert(mine)
+}
+
 fn send(url: &str, body: &Value, timeout: Duration) {
     let agent: ureq::Agent = ureq::Agent::config_builder().timeout_global(Some(timeout)).build().into();
     let _ = agent.post(url).content_type("application/json").send(body.to_string());
@@ -116,14 +144,26 @@ fn send(url: &str, body: &Value, timeout: Duration) {
 
 /// sends an event when statistics are on and this one has not gone out today; it never waits, and never fails
 pub fn record(event: &'static str, command: &str, detail: &str) {
+    send_event(event, command, detail, 1.0);
+}
+
+/// sends how fast `metric` went (seconds of audio a second), as `record` sends an event: once a day for each
+pub fn record_perf(command: &str, metric: &str, speed: f64) {
+    let value = two_figures(speed);
+    if value > 0.0 {
+        send_event("perf", command, metric, value);
+    }
+}
+
+fn send_event(event: &'static str, command: &str, detail: &str, value: f64) {
     if vetoed(|name| std::env::var(name).ok()).is_some() {
         return;
     }
     let (Some(path), Some(url)) = (file(), endpoint()) else { return };
-    if !due(&path, &format!("{event}:{command}:{detail}"), today()) {
+    if !claim(&path, &format!("{event}:{command}:{detail}"), today()) {
         return;
     }
-    let body = payload(event, command, detail);
+    let body = payload(event, command, detail, value);
     let handle = std::thread::spawn(move || send(&url, &body, Duration::from_secs(3)));
     if let Ok(mut p) = PENDING.lock() {
         p.push(handle);
@@ -168,10 +208,11 @@ pub fn describe() -> String {
         (Some(false), None) => "Usage statistics are off.".to_string(),
         (None, None) => "Usage statistics are off: nobody has turned them on.".to_string(),
     };
-    let example = serde_json::to_string_pretty(&payload("started", "studio", "")).unwrap_or_default();
+    let example = serde_json::to_string_pretty(&payload("started", "studio", "", 1.0)).unwrap_or_default();
     format!(
         "{state}\n\nWhen they are on, claudius sends each kind of event at most once a day: which command started it, \
-         and where a setup or a panic failed. An event, exactly as it is sent:\n\n{example}\n\nIt goes to {ENDPOINT}, \
+         where a setup or a panic failed, and how fast it renders, listens and decodes (seconds of audio a second, to \
+         two figures). An event, exactly as it is sent:\n\n{example}\n\nIt goes to {ENDPOINT}, \
          which keeps no IP address. `claudius telemetry on` or `off` changes it; DO_NOT_TRACK=1 keeps it off \
          whatever the answer. More: docs/src/guide/privacy.md in github.com/devlato/claudius"
     )
@@ -194,13 +235,24 @@ mod tests {
     }
 
     #[test]
-    fn an_event_holds_the_seven_fields_and_nothing_else() {
-        let e = payload("setup", "setup", "packs:vcsl");
+    fn an_event_holds_the_eight_fields_and_nothing_else() {
+        let e = payload("setup", "setup", "packs:vcsl", 1.0);
         let keys: Vec<&str> = e.as_object().unwrap().keys().map(String::as_str).collect();
-        assert_eq!(keys.len(), 7);
-        for k in ["v", "event", "command", "version", "os", "arch", "detail"] {
+        assert_eq!(keys.len(), 8);
+        for k in ["v", "event", "command", "version", "os", "arch", "detail", "value"] {
             assert!(keys.contains(&k), "{k} is missing from {e}");
         }
+    }
+
+    #[test]
+    fn a_speed_goes_out_to_two_figures() {
+        assert_eq!(two_figures(38.47), 38.0);
+        assert_eq!(two_figures(3.847), 3.8);
+        assert_eq!(two_figures(0.3847), 0.38);
+        assert_eq!(two_figures(1234.5), 1200.0);
+        assert_eq!(two_figures(0.0), 0.0);
+        assert_eq!(two_figures(f64::NAN), 0.0);
+        assert_eq!(payload("perf", "studio", "render", two_figures(41.6))["value"], 42.0);
     }
 
     #[test]
@@ -217,6 +269,21 @@ mod tests {
         m.insert("enabled".into(), Value::Bool(false));
         write(&path, &m).unwrap();
         assert!(!due(&path, "started:serve:", 102));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn work_on_many_threads_sends_a_kind_once() {
+        let dir = std::env::temp_dir().join(format!("claudius-telemetry-threads-{}", std::process::id()));
+        let path = dir.join("telemetry.json");
+        write(&path, &Map::from_iter([("enabled".to_string(), Value::Bool(true))])).unwrap();
+        let claimed: usize = std::thread::scope(|s| {
+            let asks: Vec<_> = (0..16).map(|_| s.spawn(|| claim(&path, "perf:studio:decode", 100))).collect();
+            asks.into_iter().map(|a| usize::from(a.join().unwrap())).sum()
+        });
+        assert_eq!(claimed, 1, "sixteen decodes at once send one event");
+        assert!(!claim(&path, "perf:studio:decode", 100));
+        assert!(claim(&path, "perf:studio:decode", 101), "and the next day another");
         std::fs::remove_dir_all(&dir).ok();
     }
 

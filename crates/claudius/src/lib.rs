@@ -31,6 +31,7 @@ pub mod genres;
 pub mod judge;
 pub mod library;
 pub mod loudness;
+pub mod metrics;
 pub mod model;
 pub mod pads;
 pub mod palette;

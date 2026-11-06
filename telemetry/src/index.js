@@ -1,7 +1,8 @@
 // claudius' usage statistics: the events claudius sends after a person turns them on (crates/claudius-cli/src/
 // telemetry.rs). Each field is checked against what claudius can send, and the event is written to Workers Analytics
 // Engine with those fields only: no IP address, no identifier, nothing else from the request. Analytics Engine keeps
-// data for three months. docs/src/guide/privacy.md describes it for the people who send them.
+// data for three months. docs/src/guide/privacy.md describes it for the people who send them. Version 1 events (seven
+// fields, from claudius 0.4 and before) still count; version 2 adds `value`, 1 but for a speed (`perf`).
 
 const COMMANDS = new Set([
   "make", "evolve", "mutate", "analyze", "remake", "chop", "sample", "samples", "voice", "tune", "render", "export", "publish", "judge", "genres",
@@ -14,14 +15,24 @@ const DETAIL = {
   started: (d) => d === "",
   setup: (d) => /^(ok|models|packs:[a-z0-9-]{1,40})$/.test(d),
   panic: (d) => /^[A-Za-z0-9_.\-]{1,60}(\/[A-Za-z0-9_.\-]{1,60}){0,2}:\d{1,6}$/.test(d),
+  // how fast claudius rendered, listened (the ears) or decoded: seconds of audio a second, in `value`
+  perf: (d) => d === "render" || d === "ears" || d === "decode",
 };
+
+// a version 1 event has seven fields and no speed; a version 2 one has `value` too: a speed for `perf`, else 1
+function shaped(e) {
+  if (e.v === 1) return Object.keys(e).length === 7 && e.event !== "perf";
+  if (e.v !== 2 || Object.keys(e).length !== 8 || typeof e.value !== "number" || !Number.isFinite(e.value)) {
+    return false;
+  }
+  return e.event === "perf" ? e.value > 0 && e.value < 100000 : e.value === 1;
+}
 
 function valid(e) {
   return (
     e !== null &&
     typeof e === "object" &&
-    Object.keys(e).length === 7 &&
-    e.v === 1 &&
+    shaped(e) &&
     Object.hasOwn(DETAIL, e.event) &&
     typeof e.command === "string" &&
     COMMANDS.has(e.command) &&
@@ -64,7 +75,7 @@ export default {
     env.EVENTS.writeDataPoint({
       indexes: [e.event],
       blobs: [e.event, e.command, e.version, e.os, e.arch, e.detail],
-      doubles: [1],
+      doubles: [1, e.v === 2 ? e.value : 1],
     });
     return new Response(null, { status: 204 });
   },

@@ -6,6 +6,12 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+claudius keeps count of how fast it runs: each render, each listening of the ears and each recording decoded, the
+seconds of audio and the seconds they took. `claudius serve` answers `GET /api/metrics` with the totals in Prometheus'
+text format, for a scraper or a look. The usage statistics, for those who turned them on, now also send each kind's
+speed (seconds of audio a second, to two figures) at most once a day, so that a release that renders slower shows; the
+events have a `value` for it (`"v": 2`), and older versions' events still count.
+
 The phone's turntable plays records a DJ would reach for: the song's samples (the phrase it was built on, a flip, a
 take), its voices, its parts, a sampled break, or the whole mix, never a lone kick or clap. With the motor on, the
 record spins in time with the song, and a pitch fader moves it up to 16 % either way, with a button back to time. A

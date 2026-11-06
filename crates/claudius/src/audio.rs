@@ -216,7 +216,13 @@ fn cache_key(path: &Path) -> Result<String> {
 
 /// a file decoded (claudius-decode) and resampled to 48 kHz stereo, interleaved
 fn decode_file(path: &Path) -> Result<Vec<f32>> {
-    Ok(at_rate(claudius_decode::decode(path)?))
+    decoded(|| claudius_decode::decode(path))
+}
+
+/// what `decode` decoded, at the engine's rate and interleaved, timed as a decoding (`metrics`)
+fn decoded(decode: impl FnOnce() -> Result<claudius_decode::Decoded>) -> Result<Vec<f32>> {
+    let secs = |x: &Result<Vec<f32>>| x.as_ref().map_or(0.0, |x| x.len() as f64 / 2.0 / config::SRF);
+    crate::metrics::timed(crate::metrics::Metric::Decode, secs, || decode().map(at_rate))
 }
 
 /// decoded audio resampled to 48 kHz stereo, interleaved
@@ -238,7 +244,7 @@ pub fn load_once(path: &Path) -> Result<Stereo> {
 
 /// decode audio in memory (a file's bytes, `ext` its kind: wav, flac, ...) to 48 kHz stereo
 pub fn load_bytes(bytes: Vec<u8>, ext: &str) -> Result<Stereo> {
-    Ok(Stereo::from_interleaved(&at_rate(claudius_decode::decode_bytes(bytes, ext)?)))
+    Ok(Stereo::from_interleaved(&decoded(|| claudius_decode::decode_bytes(bytes, ext))?))
 }
 
 type Remembered = std::sync::Mutex<std::collections::HashMap<String, std::sync::Arc<Stereo>>>;
