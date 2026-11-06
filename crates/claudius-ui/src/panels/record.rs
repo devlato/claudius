@@ -1102,13 +1102,16 @@ fn what_now(r: &Record) -> (bool, String) {
     }
 }
 
-/// the render a take is recorded over: the player's, in the app; in the browser, fetched for the take (none while it
-/// loads)
+/// the render a take is recorded over: the player's, in the app and the demo; in a browser on a claudius, fetched for
+/// the take (none while it loads)
 fn song_audio(cx: &Cx) -> Result<Option<std::sync::Arc<crate::audio::Pcm>>, String> {
     #[cfg(not(target_arch = "wasm32"))]
     return Ok(cx.player.pcm());
     #[cfg(target_arch = "wasm32")]
     {
+        if let Some(pcm) = cx.player.pcm() {
+            return Ok(Some(pcm));
+        }
         let Some(render) = &cx.state.render else { return Ok(None) };
         let path = render.url.strip_suffix(".mp3").map_or_else(|| render.url.clone(), |stem| format!("{stem}.wav"));
         let url = if path.contains("://") { path } else { format!("{}{path}", cx.server.unwrap_or_default()) };

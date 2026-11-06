@@ -76,6 +76,12 @@ analyzes the file, **Remake** reworks it and **Flip into** flips it, **Sample it
 (it said "the demo hears no grooves"). It all runs in the page, and what a song keeps of a recording goes in the
 project you save.
 
+The demo records takes too: the record button, which only the app and a claudius' own page had, records a voice or
+an instrument over the song in the browser, and the take joins the song and the project you save. A take's menu in
+the arrangement works there as in claudius: **How is it sung?** hears how it is sung, **Turn it into drums** turns a
+played or beatboxed beat into the drum lanes, and **Turn the melody into notes** plays what was sung as a part, which
+the demo turned down before (it said "the demo hears no singing" and "the demo hears no drums").
+
 ## [0.4.0] - 2026-11-06
 
 The phone plays the song in the studio as well as following it: **▶** plays it and **■** stops it, so a take needs no

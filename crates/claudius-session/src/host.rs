@@ -222,6 +222,23 @@ impl Host {
                     Err(e) => self.no(e),
                 }
             }
+            Listen::Take { from, track, role, .. } => {
+                let Some(mut bp) = self.bp.clone() else {
+                    return self.no("no song yet: start one with a new song, then record a take for it");
+                };
+                let secs = x.secs();
+                if secs > model::MAX_SECONDS {
+                    return self.no(format!("the take is {secs:.0} s long, longer than a song may be"));
+                }
+                let path = match take::store(&x, dir) {
+                    Ok(p) => p,
+                    Err(e) => return self.no(format!("cannot keep the take: {e:#}")),
+                };
+                match take::add(&mut bp, &path, secs, from, track.as_deref(), Some(role)) {
+                    Ok(msg) => self.commit(Some(bp), msg),
+                    Err(e) => self.no(e),
+                }
+            }
             Listen::ExtractGroove { .. } => {
                 let Some(mut bp) = self.bp.clone() else {
                     return self.no("no song yet: start one with a new song, then take a recording's groove");
@@ -461,6 +478,35 @@ impl Host {
             Command::Redo => self.history(false),
             Command::Render { .. } if self.stale() => self.ok("rendering"),
             Command::Render { .. } => self.ok("the render is up to date"),
+            // a take's drums and singing, which the page holds in memory
+            Command::TranscribeDrums { take: Some(t), bars, variant, keep_take, .. } => {
+                let o = take::Drums { bars, variant, keep_take };
+                self.edit_take(|bp| take::drums(bp, &t, &o))
+            }
+            Command::TranscribeTake { take: t, sounds, name, role, chromatic, keep_take, style } => {
+                let m = take::Melody { sounds, name, role, chromatic, keep_take, style };
+                self.edit_take(|bp| take::melody(bp, &t, &m))
+            }
+            Command::AssessVoice { take: Some(t), .. } => {
+                let heard = match self.bp.as_ref() {
+                    Some(bp) => take::assess(bp, &t),
+                    None => Err("no song yet: start one with a new song".into()),
+                };
+                match heard {
+                    Ok(a) => {
+                        self.say(format!("heard how {t} is sung"));
+                        self.version += 1;
+                        self.ok(&a.describe())
+                    }
+                    Err(e) => self.no(e),
+                }
+            }
+            Command::TranscribeDrums { take: None, path: None, .. } => {
+                self.no("transcribe_drums wants a take, or the path of a recording")
+            }
+            Command::AssessVoice { take: None, path: None, .. } => {
+                self.no("name a take of the song or an audio file to hear")
+            }
             Command::AddScratch { from, track, bar, bars, moves, name, role, recording } => {
                 match edit::scratch(track, bar, bars, &moves, recording.as_deref()) {
                     Ok(s) => self.add_scratch(&from, &s, name, role.as_deref()),
@@ -604,6 +650,17 @@ impl Host {
             s.add(take::Sources { recordings: vec![f.clone()], instruments: Vec::new() });
         }
         s
+    }
+
+    /// the song changed by `f`, from a take it holds
+    fn edit_take(&mut self, f: impl FnOnce(&mut Blueprint) -> Result<String, String>) -> Reply {
+        let Some(mut bp) = self.bp.clone() else {
+            return self.no("no song yet: start one with a new song, then record a take for it");
+        };
+        match f(&mut bp) {
+            Ok(msg) => self.commit(Some(bp), msg),
+            Err(e) => self.no(e),
+        }
     }
 
     /// a scratch kept as a take, its audio in memory under a name of its own
@@ -1258,6 +1315,29 @@ mod tests {
         claudius::export::encode(x, &"wav".parse().unwrap(), &claudius::export::tags("recording")).unwrap()
     }
 
+    /// four bars of a beat at `bpm`: a kick falling from 150 Hz on one and three, a burst of noise on two and four
+    fn a_beat(bpm: f64) -> Stereo {
+        let (sr, spb) = (claudius::config::SRF, 60.0 / bpm);
+        let mut x = Stereo::zeros((16.0 * spb * sr) as usize + 24_000);
+        let mut noise = Rng::new(5);
+        for b in 0..16 {
+            let at = (b as f64 * spb * sr) as usize;
+            let mut ph = 0.0;
+            for i in 0..14_400 {
+                let t = i as f64 / sr;
+                let v = if b % 2 == 0 {
+                    ph += std::f64::consts::TAU * (50.0 + 100.0 * (-t / 0.03).exp()) / sr;
+                    0.9 * ph.sin() * (-t / 0.15).exp()
+                } else {
+                    0.5 * (noise.f32() as f64 * 2.0 - 1.0) * (-t / 0.06).exp()
+                };
+                x.l[at + i] += v as f32;
+                x.r[at + i] += v as f32;
+            }
+        }
+        x
+    }
+
     /// sixteen bars at 96 BPM in A minor, `i VI III VII` a bar each as sine triads, a kick on one and three and a noise
     /// snare on two and four, quiet for eight bars and loud for eight more
     fn a_song() -> Stereo {
@@ -1286,6 +1366,65 @@ mod tests {
             x.r[i] = v as f32;
         }
         x
+    }
+
+    #[test]
+    fn a_take_recorded_on_the_page_is_kept_in_memory_heard_and_turned_into_drums() {
+        use crate::listen::Listen;
+        let mut h = Host::new(1);
+        let take = |from: &str, role: &str| Listen::Take {
+            name: "take.wav".into(),
+            from: from.into(),
+            track: None,
+            role: role.into(),
+        };
+        let r = h.listen(&take("intro", "vocal"), wav(&a_song()));
+        assert!(!r.ok && r.message.starts_with("no song yet"), "{}", r.message);
+        assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
+        let from = h.blueprint().unwrap().form[0].name.clone();
+        // sung: A4 held for four seconds
+        let n = (4.0 * claudius::config::SRF) as usize;
+        let mut sung = Stereo::zeros(n);
+        for i in 0..n {
+            let v = 0.3 * (std::f64::consts::TAU * 440.0 * i as f64 / claudius::config::SRF).sin() as f32;
+            (sung.l[i], sung.r[i]) = (v, v);
+        }
+        let r = h.listen(&take(&from, "vocal"), wav(&sung));
+        assert!(r.ok, "{}", r.message);
+        let bp = h.blueprint().unwrap().clone();
+        let kept = bp.loops.iter().find(|l| l.name == "take1").expect("the take plays in the song");
+        let model::Sound::Loop { path, .. } = &kept.sound else { panic!("a loop") };
+        assert!(path.starts_with("demo:takes/") && audio::remembered_audio(path).is_some(), "{path}");
+        let r = h.command(Command::AssessVoice { take: Some("take1".into()), path: None, key: None });
+        assert!(r.ok && r.message.contains("A4"), "{}", r.message);
+        let melody = Command::TranscribeTake {
+            take: "take1".into(),
+            sounds: vec!["pluck".into()],
+            name: None,
+            role: None,
+            chromatic: true,
+            keep_take: true,
+            style: None,
+        };
+        let r = h.command(melody);
+        assert!(r.ok, "{}", r.message);
+        // played: a beat at the song's tempo, whose kicks and snares become lanes
+        let bpm = h.blueprint().unwrap().bpm;
+        let r = h.listen(&take(&from, "drums"), wav(&a_beat(bpm)));
+        assert!(r.ok, "{}", r.message);
+        let drums = Command::TranscribeDrums {
+            take: Some("take2".into()),
+            path: None,
+            bars: Some(2),
+            variant: None,
+            bpm: None,
+            keep_take: false,
+        };
+        let r = h.command(drums);
+        assert!(r.ok, "{}", r.message);
+        let none =
+            Command::TranscribeDrums { take: None, path: None, bars: None, variant: None, bpm: None, keep_take: false };
+        assert!(!h.command(none).ok);
     }
 
     #[test]

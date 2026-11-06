@@ -238,7 +238,11 @@ fn at_rate(d: claudius_decode::Decoded) -> Vec<f32> {
 }
 
 /// decode any audio file to 48 kHz stereo without keeping a decoded copy: for files read once, like a render's WAV
+/// (or hand out what `remember` keeps for its path, as `load` does)
 pub fn load_once(path: &Path) -> Result<Stereo> {
+    if let Some(x) = remembered_audio(&path.to_string_lossy()) {
+        return Ok((*x).clone());
+    }
     Ok(Stereo::from_interleaved(&decode_file(path)?))
 }
 

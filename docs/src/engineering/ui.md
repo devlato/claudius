@@ -126,8 +126,9 @@ separately), so you can listen to a section while you edit it and hear each chan
 
 The Record window (`panels/record.rs`) records a [take](../guide/samples.md#takes), holds it while the person plays it
 back (`take::preview`, the song with the take in it, through a player of the window's own) or records it again, and
-sends the one they keep to `POST /api/takes`, in the app and in a browser alike. The demo has none: a take goes to a
-claudius, which keeps it with the song.
+sends the one they keep to `POST /api/takes`, in the app and in a browser alike. In the demo it goes to the engine
+(`claudius_api::Listen::Take` with the WAV), recorded over the render the player holds, and is kept in memory like
+the recordings below.
 
 A take an assistant asks for (`request_take`) is the state's `take_request`. A new one that waits opens the window
 set up for it (`Record::asked`), and the take kept for it, or the notes played, carry its id (`request` in the take's
@@ -327,9 +328,12 @@ the studio reads those files, which claudius on another computer could not. A re
 the engine as the file itself (`claudius_api::Listen` with its bytes, the worker's `listen` message), which does with
 it what the app does with one the studio sends (`claudius_session::listen`, shared with the server): **Analyze** hears
 it, **Remake** reworks it and **Flip into** flips it, **Sample its vocals into the song** samples them, and **Take its
-groove** puts the song's drums in its groove. What it keeps of a recording (the rework's whole recording, a flip's
-pieces, the sampled phrases) is kept in memory under `demo:takes/` (`take::IN_MEMORY`), and goes in the project the
-page saves under `takes/`. A command that names a path is answered that the demo opens no paths. Scripts, opened songs
+groove** puts the song's drums in its groove. A take recorded in the Record window goes the same way and joins
+the song, where `assess_voice` hears how it is sung, `transcribe_drums` turns it into the drum lanes and
+`transcribe_take` into a part's notes. What it
+keeps of a recording (the rework's whole recording, a flip's pieces, the sampled phrases, a take) is kept in memory
+under `demo:takes/` (`take::IN_MEMORY`), and goes in the project the page saves under `takes/`. A command that names
+a path is answered that the demo opens no paths. Scripts, opened songs
 and every edit are the engine's, as in the studio.
 
 ```sh

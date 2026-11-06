@@ -1,7 +1,7 @@
 //! The built-in demo: the claudius engine itself, in a browser's Web Worker (in the app, on a thread of its own),
 //! which makes, edits and renders songs as the server does, without files, jobs or ears (`engine`). What needs a
-//! computer of one's own it turns down and says so, as for takes, folders and packs; a recording to listen to gets an
-//! analysis made up from its name, since the demo hears nothing. A song built on samples is built on free recordings
+//! computer of one's own it turns down and says so, as for folders and packs; a recording or a take the person hands
+//! it, the file itself, it listens to as the app does (`listen`). A song built on samples is built on free recordings
 //! the page finds for it first (`sample`), which the engine cuts as the app does.
 
 mod engine;
@@ -204,9 +204,9 @@ impl Mock {
         self.engine.playhead(secs);
     }
 
-    /// A recording the person chose, the file itself, for the engine to listen to as the app listens to one the
-    /// studio sends: analyzed, remade, its vocals sampled into the song, its groove taken. The answer comes as the
-    /// reply to `l.what()`.
+    /// A recording the person chose or recorded, the file itself, for the engine to listen to as the app listens to
+    /// one the studio sends: analyzed, remade, its vocals sampled into the song, its groove taken, or kept as a take.
+    /// The answer comes as the reply to `l.what()`.
     pub fn listen(&mut self, l: claudius_api::Listen, bytes: &[u8]) {
         let what = l.what().to_string();
         // the song remade now is the one the person wants, once the engine has made it
@@ -265,14 +265,14 @@ impl Mock {
             Command::InstallPacks { .. } => {
                 Some(Err("the demo downloads no packs: install claudius to get them".into()))
             }
-            Command::RequestTake { .. } | Command::CancelTakeRequest { .. } => {
-                Some(Err("the demo records nothing: start `claudius serve` to ask for takes".into()))
-            }
-            Command::TranscribeDrums { .. } => {
-                Some(Err("the demo hears no drums: start `claudius serve` to turn a beat into lanes".into()))
-            }
-            Command::AssessVoice { .. } => {
-                Some(Err("the demo hears no singing: start `claudius serve` to hear how a take is sung".into()))
+            Command::RequestTake { .. } | Command::CancelTakeRequest { .. } => Some(Err(
+                "an assistant asks for takes through `claudius serve`: in the demo, record one in the Record window"
+                    .into(),
+            )),
+            // a take of the song is the engine's to hear; a recording elsewhere is a path the page cannot open
+            Command::TranscribeDrums { take: None, path: Some(path), .. }
+            | Command::AssessVoice { take: None, path: Some(path), .. } => {
+                Some(Err(format!("the demo opens no paths ({path}): record a take, and the studio hands it over")))
             }
             // a mutation or an evolution the engine stops
             Command::Cancel => {

@@ -132,6 +132,24 @@ test.describe("recording in the browser", () => {
     }
   });
 
+  test("in the demo, a take kept joins the song in the page, recorded over the engine's render", async () => {
+    test.setTimeout(180_000);
+    const c = await claudius();
+    const { page, close } = await browser(c.base);
+    try {
+      const lines = said(page);
+      const plan = "wait:12;record;wait:2;rec:start;wait:7;rec:stop;wait:2;rec:keep;wait:8";
+      await page.goto(`${c.base}/?mock&plan=${encodeURIComponent(plan)}`);
+      await expect.poll(() => lines.join("\n"), { timeout: 90_000 }).toMatch(/take1: a take of [\d.]+ bars from the start of /);
+      expect(lines.join("\n")).not.toMatch(/dropped audio|went silent|claudius serve|render the song first/);
+      // the claudius serving the page keeps nothing: the demo's engine holds the take
+      expect(takes(c.home)).toHaveLength(0);
+    } finally {
+      await close();
+      c.stop();
+    }
+  });
+
   test("a take an assistant asks for opens the window for it, plays back in the song, and goes to the assistant", async () => {
     test.setTimeout(180_000);
     const c = await claudius();

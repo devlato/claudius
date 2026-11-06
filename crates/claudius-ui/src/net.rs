@@ -558,7 +558,16 @@ impl Backend {
         }
         match self {
             Backend::Remote(r) => r.upload_take(wav, &query),
-            Backend::Mock(m) => m.refuse("take", "the demo keeps no takes: start `claudius serve` to record"),
+            // the demo's engine keeps it in memory, as the app keeps it with the song
+            Backend::Mock(m) => {
+                let take = claudius_api::Listen::Take {
+                    name: "take.wav".into(),
+                    from: from.to_string(),
+                    track: name.map(String::from),
+                    role: role.to_string(),
+                };
+                m.listen(take, &wav)
+            }
         }
     }
 
