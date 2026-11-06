@@ -398,8 +398,11 @@ impl Host {
             Command::Redo => self.history(false),
             Command::Render { .. } if self.stale() => self.ok("rendering"),
             Command::Render { .. } => self.ok("the render is up to date"),
-            Command::AddScratch { from, track, bar, bars, moves, name, role } => {
-                self.add_scratch(&from, &edit::scratch(track, bar, bars, &moves), name, role.as_deref())
+            Command::AddScratch { from, track, bar, bars, moves, name, role, recording } => {
+                match edit::scratch(track, bar, bars, &moves, recording.as_deref()) {
+                    Ok(s) => self.add_scratch(&from, &s, name, role.as_deref()),
+                    Err(e) => self.no(e),
+                }
             }
             Command::Mutate { count, keep_best } => {
                 let count = count.clamp(1, 32);

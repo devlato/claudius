@@ -285,6 +285,16 @@ function open(s) {
 /** the samples of the library the turntable can put on (`GET api/library`): `{track, label, kind, bpm, bars, speed}` */
 let library = [];
 
+/** the track the record recorded off the microphone goes by */
+const MIC = "mic";
+/** the longest a record recorded off the microphone is, in seconds (`claudius::scratch::MAX_RECORDING` and less) */
+const MIC_SECS = 8;
+/** where a recording's peak goes: the master's ceiling, 1 dB under full scale (`claudius::scratch::recorded`) */
+const CEILING = 10 ** (-1 / 20);
+/** recording a record off the microphone: what it has heard, and once stopped, the record, its name and the WAV a take
+ * of it sends */
+const mic = { stream: null, node: null, chunks: [], on: false, buf: null, name: "", wav: "" };
+
 /** the library's samples for the song as it is now; a studio without a library (the demo), or older than one, has none */
 async function loadLibrary() {
   const version = song.version;
@@ -348,18 +358,22 @@ function fillRecords(s) {
     }
     select.append(g);
   }
-  if (library.length) {
+  const own = [
+    ["Recorded", mic.buf ? [[MIC, "your recording"]] : []],
+    ["From the library", library.map((r) => [r.track, r.bpm ? `${r.label} · ${Math.round(r.bpm)} BPM` : r.label])],
+  ];
+  for (const [heading, these] of own.filter(([, these]) => these.length)) {
     const g = document.createElement("optgroup");
-    g.label = "From the library";
-    for (const r of library) {
+    g.label = heading;
+    for (const [track, text] of these) {
       const o = document.createElement("option");
-      o.value = r.track;
-      o.textContent = r.bpm ? `${r.label} · ${Math.round(r.bpm)} BPM` : r.label;
+      o.value = track;
+      o.textContent = text;
       g.append(o);
     }
     select.append(g);
   }
-  const names = [...records.map(([t]) => t), ...library.map((r) => r.track)];
+  const names = [...records.map(([t]) => t), ...own.flatMap(([, these]) => these.map(([t]) => t))];
   if (names.includes(had)) select.value = had;
   else if (names.length) select.value = names[0];
 }
@@ -369,11 +383,12 @@ function fromLibrary(track) {
   return library.find((r) => r.track === track);
 }
 
-/** the sections a record can be cut from: those the chosen track plays in; a sample from the library from its start */
+/** the sections a record can be cut from: those the chosen track plays in; a sample from the library, or a recording,
+ * from its start */
 function fillFrom() {
   const track = $("track").value;
   const from = $("from");
-  from.disabled = !!fromLibrary(track);
+  from.disabled = track === MIC || !!fromLibrary(track);
   if (from.disabled) return fill(from, [0], () => [0, "from its start"], []);
   const playing = song.sections.filter((x) => x.layers.includes(track));
   fill(from, playing.length ? playing : song.sections, (x) => [x.start_bar, `${x.name}, bar ${x.start_bar + 1}`], []);
@@ -856,11 +871,92 @@ function cueOf(b) {
   return Math.max(0, i / b.sampleRate - 0.005);
 }
 
-async function loadRecord() {
-  const track = $("track").value;
-  if (!track || !song || !ctx) return;
-  // a sample from the library is a record of its own bars from its start, which turns at the speed that plays it in
-  // time with the song; one of the song's own is cut from the song, in time at its own speed
+/** Records a record off the microphone, up to `MIC_SECS` seconds. A browser lets only a page it trusts use one: one
+ * served over https (the demo's), or from the computer itself; the studio's page on the network is not, so there the
+ * studio's Record window records it, and the take comes to the turntable as a record of the song's. */
+async function micStart() {
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+    const there = "record it in the studio's Record window, and the take comes here as a record";
+    return say(`this page is not one the browser lets use the microphone: ${there}`, "no");
+  }
+  let stream;
+  try {
+    const raw = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+    stream = await navigator.mediaDevices.getUserMedia({ audio: raw });
+  } catch (e) {
+    return say(`the microphone did not open: ${e.message}`, "no");
+  }
+  const node = ctx.createScriptProcessor(4096, 1, 1);
+  Object.assign(mic, { stream, node, chunks: [], on: true });
+  node.onaudioprocess = (e) => {
+    if (!mic.on) return;
+    mic.chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+    if (mic.chunks.length * 4096 >= MIC_SECS * ctx.sampleRate) micStop();
+  };
+  ctx.createMediaStreamSource(stream).connect(node).connect(ctx.destination);
+  $("mic").classList.add("taking");
+  say(`recording a record off the microphone: tap ● mic again to stop (${MIC_SECS} s at most)`);
+}
+
+/** stops recording off the microphone, and puts what it heard on the turntable as the record */
+function micStop() {
+  if (!mic.on) return;
+  mic.on = false;
+  $("mic").classList.remove("taking");
+  mic.node.disconnect();
+  for (const t of mic.stream.getTracks()) t.stop();
+  const n = Math.min(
+    mic.chunks.reduce((a, c) => a + c.length, 0),
+    Math.floor(MIC_SECS * ctx.sampleRate),
+  );
+  const x = new Float32Array(n);
+  for (let i = 0, o = 0; o < n; o += mic.chunks[i++].length) x.set(mic.chunks[i].subarray(0, n - o), o);
+  const peak = x.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
+  if (peak < 1e-3) return say("the microphone heard nothing", "no");
+  for (let i = 0; i < n; i++) x[i] *= CEILING / peak;
+  const b = ctx.createBuffer(2, n, ctx.sampleRate);
+  b.copyToChannel(x, 0);
+  b.copyToChannel(x, 1);
+  Object.assign(mic, { buf: b, name: `${MIC}:${performance.now()}`, wav: wavBase64(x, ctx.sampleRate) });
+  fillRecords(song);
+  $("track").value = MIC;
+  fillFrom();
+  loadRecord();
+  say(`your recording, ${(n / ctx.sampleRate).toFixed(1)} s, is on the turntable`, "ok");
+}
+
+/** `x`, at `rate`, as a mono 16-bit WAV at half the rate (each pair of samples averaged), in base64: what a take of a
+ * scratch on it sends, a quarter of the floats' size */
+function wavBase64(x, rate) {
+  const n = Math.floor(x.length / 2);
+  const b = new DataView(new ArrayBuffer(44 + n * 2));
+  const text = (at, s) => [...s].forEach((c, i) => b.setUint8(at + i, c.charCodeAt(0)));
+  text(0, "RIFF");
+  b.setUint32(4, 36 + n * 2, true);
+  text(8, "WAVEfmt ");
+  b.setUint32(16, 16, true);
+  b.setUint16(20, 1, true);
+  b.setUint16(22, 1, true);
+  b.setUint32(24, rate / 2, true);
+  b.setUint32(28, rate, true);
+  b.setUint16(32, 2, true);
+  b.setUint16(34, 16, true);
+  text(36, "data");
+  b.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) {
+    const v = Math.max(-1, Math.min(1, (x[2 * i] + x[2 * i + 1]) / 2));
+    b.setInt16(44 + i * 2, Math.round(v * 32767), true);
+  }
+  const bytes = new Uint8Array(b.buffer);
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
+/** A record of `track`, cut by the studio: a sample from the library is one of its own bars from its start, which
+ * turns at the speed that plays it in time with the song; one of the song's own is cut from the song, in time at its
+ * own speed. */
+async function cutRecord(track) {
   const sample = fromLibrary(track);
   const bar = sample ? 0 : Number($("from").value || 0);
   const section = song.sections.find((s) => s.start_bar === bar);
@@ -872,16 +968,32 @@ async function loadRecord() {
   const done = loading(`cutting a record of ${label}…`);
   try {
     const b = await sound(`api/record?track=${encodeURIComponent(track)}&bar=${bar}&bars=${bars}`);
-    // the record waits at its cue, its first sound, under the needle
-    const cue = cueOf(b);
-    const base = sample ? sample.speed : 1;
-    if (deck.name === name) {
-      Object.assign(deck, { buf: b, levels: levels(b), rate: b.sampleRate, cue, pos: cue, track, label, base, bar, bars });
-    }
+    if (deck.name === name) putOn(b, { track, label, base: sample ? sample.speed : 1, bar, bars });
   } catch (e) {
     if (!e.quiet) say(e.message, trouble(e));
   } finally {
     done();
+  }
+}
+
+/** `b` on the platter as the record (`what`: its track, label, speed and bars), waiting at its cue, its first sound,
+ * under the needle */
+function putOn(b, what) {
+  const cue = cueOf(b);
+  Object.assign(deck, { buf: b, levels: levels(b), rate: b.sampleRate, cue, pos: cue, ...what });
+}
+
+async function loadRecord() {
+  const track = $("track").value;
+  if (!track || !song || !ctx) return;
+  if (track === MIC) {
+    // the recording is on the phone already, and turns at its own speed
+    if (mic.buf && deck.name !== mic.name) {
+      deck.name = mic.name;
+      putOn(mic.buf, { track, label: "your recording", base: 1, bar: 0, bars: 1 });
+    }
+  } else {
+    await cutRecord(track);
   }
   if (!deck.node) {
     deck.node = ctx.createScriptProcessor(1024, 0, 2);
@@ -997,6 +1109,7 @@ function platter() {
     });
   }
   $("sync").onclick = () => ($("pitch").value = "0");
+  $("mic").onclick = () => (mic.on ? micStop() : micStart());
   $("track").onchange = () => {
     fillFrom();
     loadRecord();
@@ -1115,6 +1228,7 @@ async function record() {
     if (at === null) return say("the studio did not start the song: play it there, then tap ● again", "no");
   }
   take = { mode, from, sec, hits: [], notes: [], moves: [], track: deck.track, bar: deck.bar, bars: deck.bars };
+  if (deck.track === MIC) take.recording = mic.wav;
   take.sound = $("sound").value;
   take.role = $("role").value;
   $("rec").classList.add("taking");
@@ -1151,6 +1265,8 @@ async function send() {
     if (moves.length < 2) return say("the record did not move", "no");
     if (moves[0].t > 0) moves.unshift({ t: 0, at: moves[0].at, fader: 0 });
     cmd = { cmd: "add_scratch", from: sec.name, track: t.track, bar: t.bar, bars: t.bars, moves };
+    // a recording is the phone's own, so the take carries it
+    if (t.recording) cmd.recording = t.recording;
   }
   say("sending the take…");
   try {

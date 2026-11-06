@@ -5,7 +5,8 @@
 //   cargo build --bin claudius && cargo xtask web --plan
 //   npx playwright test tests/phone.spec.mjs      (in site/)
 import { test, expect, chromium, devices } from "@playwright/test";
-import { claudius, playTwoBars, ready, why } from "./claudius.mjs";
+import { join } from "node:path";
+import { claudius, playTwoBars, ready, tone, why } from "./claudius.mjs";
 
 /** a MIDI controller, before the page's own scripts: `window.sendMidi(...bytes)` plays a message on it */
 function fakeController() {
@@ -239,6 +240,59 @@ test.describe("playing from a phone", () => {
       await phone.click("#motor");
       const speed = await phone.evaluate(() => new Promise((r) => setTimeout(() => r(deck.vel), 600)));
       expect(speed).toBeCloseTo(want, 2);
+    } finally {
+      await browser.close();
+      c.stop();
+    }
+  });
+
+  test("a record recorded off the microphone goes on the turntable, and a scratch on it is a take", async () => {
+    test.setTimeout(240_000);
+    const c = await claudius();
+    const microphone = join(c.home, "microphone.wav");
+    tone(microphone, 3);
+    const args = ["--autoplay-policy=no-user-gesture-required", "--use-fake-device-for-media-stream"];
+    args.push("--use-fake-ui-for-media-stream", `--use-file-for-fake-audio-capture=${microphone}`);
+    const browser = await chromium.launch({ args });
+    try {
+      const studio = await browser.newPage();
+      await studio.goto(`${c.base}/?plan=${encodeURIComponent("wait:2;phone;wait:220")}`);
+      const state = async () => (await c.api("/api/state")).json();
+      await expect.poll(async () => (await state()).phone?.url ?? "", { timeout: 60_000 }).toMatch(/\/\?key=/);
+      const url = new URL((await state()).phone.url);
+      const deckOf = async (address, permissions) => {
+        const page = await (await browser.newContext({ ...devices["iPhone 13"], permissions })).newPage();
+        await page.goto(address);
+        await page.click("#go");
+        await page.click("nav button[data-mode=deck]");
+        await page.waitForFunction(() => deck.buf !== null, null, { timeout: 60_000 });
+        return page;
+      };
+      // the page on the computer itself, which a browser trusts with a microphone, as it trusts the demo's
+      const phone = await deckOf(`http://127.0.0.1:${url.port}/${url.search}`, ["microphone"]);
+      await phone.click("#mic");
+      await phone.waitForTimeout(1500);
+      await phone.click("#mic");
+      await phone.waitForFunction(() => deck.track === "mic" && deck.buf !== null, null, { timeout: 10_000 });
+      await expect(phone.locator('#track option[value="mic"]')).toHaveText("your recording");
+      const secs = await phone.evaluate(() => deck.buf.duration);
+      expect(secs).toBeGreaterThan(1);
+      expect(secs).toBeLessThan(2.5);
+      const peak = await phone.evaluate(() => deck.buf.getChannelData(0).reduce((m, v) => Math.max(m, Math.abs(v)), 0));
+      expect(peak, "its peak at the master's ceiling").toBeCloseTo(10 ** (-1 / 20), 2);
+      // a scratch on it, sent as the take sends it: the recording goes along, and the studio makes the take
+      const reply = await phone.evaluate(async () => {
+        const moves = [{ t: 0, at: 0, fader: 1 }, { t: 0.4, at: 0.3, fader: 1 }, { t: 0.8, at: 0, fader: 1 }];
+        const take = { cmd: "add_scratch", from: song.sections[0].name, track: "mic", bars: 1, moves, recording: mic.wav };
+        return (await link.post("api/take", take)).json();
+      });
+      expect(reply.ok, reply.message).toBe(true);
+      await expect.poll(async () => (await state()).song.tracks.some((t) => t.name === "scratch1")).toBe(true);
+      // the page as a phone opens it, on the network: the browser lets it use no microphone, and it says where to record
+      const lan = await deckOf(url.href, []);
+      expect(await lan.evaluate(() => window.isSecureContext)).toBe(false);
+      await lan.click("#mic");
+      await expect(lan.locator("#said")).toContainText("Record window");
     } finally {
       await browser.close();
       c.stop();

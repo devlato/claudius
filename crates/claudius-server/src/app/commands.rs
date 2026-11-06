@@ -265,9 +265,11 @@ impl App {
             Command::AddTake { path, from, name, role } => {
                 self.add_take_file(Path::new(&path), &from, name.as_deref(), role.as_deref())
             }
-            Command::AddScratch { from, track, bar, bars, moves, name, role } => {
-                let s = edit::scratch(track, bar, bars, &moves);
-                self.add_scratch(&from, &s, name.as_deref(), role.as_deref())
+            Command::AddScratch { from, track, bar, bars, moves, name, role, recording } => {
+                match edit::scratch(track, bar, bars, &moves, recording.as_deref()) {
+                    Ok(s) => self.add_scratch(&from, &s, name.as_deref(), role.as_deref()),
+                    Err(e) => no(e, self.version()),
+                }
             }
             ref c @ Command::AddNotes { request, .. } => self.answer(request, self.edit(c)),
             Command::TranscribeTake { take, sounds, name, role, chromatic, keep_take, style } => self.edit_with(|bp| {

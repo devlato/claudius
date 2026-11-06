@@ -289,10 +289,22 @@ pub fn change(cmd: &Command, bp: &mut Blueprint) -> Option<Result<String, String
     })
 }
 
-/// the scratch a command asks for, on `bars` bars (1 when not given) of `track` from bar `bar`
-pub fn scratch(track: String, bar: u32, bars: Option<u32>, moves: &[ScratchMove]) -> claudius::scratch::Take {
+/// the scratch a command asks for, on `bars` bars (1 when not given) of `track` from bar `bar`, or on the record recorded
+/// off a microphone that `recording` holds (a WAV file in base64)
+pub fn scratch(
+    track: String,
+    bar: u32,
+    bars: Option<u32>,
+    moves: &[ScratchMove],
+    recording: Option<&str>,
+) -> Result<claudius::scratch::Take, String> {
+    use base64::Engine;
+    let recording = recording
+        .map(|b| base64::engine::general_purpose::STANDARD.decode(b.trim()))
+        .transpose()
+        .map_err(|_| "the recording is no WAV file in base64".to_string())?;
     let moves = moves.iter().map(|m| claudius::scratch::Move { t: m.t, at: m.at, fader: m.fader }).collect();
-    claudius::scratch::Take { track, bar, bars: bars.unwrap_or(1), moves }
+    Ok(claudius::scratch::Take { track, bar, bars: bars.unwrap_or(1), moves, recording })
 }
 
 fn add_section(bp: &mut Blueprint, after: usize, kind: &str, bars: u32) -> Result<String, String> {
@@ -417,6 +429,16 @@ mod tests {
 
     fn cmd(v: &serde_json::Value) -> Command {
         serde_json::from_value(v.clone()).unwrap_or_else(|e| panic!("{v}: {e}"))
+    }
+
+    #[test]
+    fn a_scratch_carries_the_recording_it_was_sent_as_its_bytes() {
+        let moves = [ScratchMove { t: 0.0, at: 0.0, fader: 1.0 }];
+        let s = scratch("mic".into(), 0, None, &moves, Some("UklGRg==")).unwrap();
+        assert_eq!((s.recording.as_deref(), s.bars), (Some(&b"RIFF"[..]), 1));
+        assert_eq!(scratch("kick".into(), 2, Some(2), &moves, None).unwrap().recording, None);
+        let e = scratch("mic".into(), 0, None, &moves, Some("not base64!")).unwrap_err();
+        assert!(e.contains("no WAV file in base64"), "{e}");
     }
 
     fn song() -> Blueprint {

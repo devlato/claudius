@@ -199,11 +199,13 @@ main {
   white-space: nowrap;
 }
 
-#learn {
+#learn,
+#mic {
   white-space: nowrap;
 }
 
-#learn.on {
+#learn.on,
+#mic.taking {
   border-color: var(--accent);
   color: var(--accent);
 }

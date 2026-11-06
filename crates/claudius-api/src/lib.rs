@@ -1488,6 +1488,10 @@ pub enum Command {
         /// vocal, lead, chords, keys, bass, drums or texture: how loud the mix makes it (default lead)
         #[serde(default)]
         role: Option<String>,
+        /// a record recorded off a microphone, in place of one cut from the song: a WAV file, in base64, up to
+        /// `claudius::scratch::MAX_RECORDING` seconds long (the phone's turntable sends it)
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        recording: Option<String>,
     },
     /// Asks the person for a pitch check: the studio's Record window opens with phrases to sing back (`State.pitch_check`),
     /// the notes played between MIDI `low` and `high` (default 57 to 69, A3 to A4: sung in any octave)

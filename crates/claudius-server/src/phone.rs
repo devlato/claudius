@@ -450,8 +450,11 @@ async fn take(State(p): State<Arc<Phone>>, Json(c): Json<Command>) -> Response {
                 .collect(),
             played: claudius::take::Played { sounds, name, role, style },
         },
-        Command::AddScratch { from, track, bar, bars, moves, name, role } => {
-            Take::Scratch { from, scratch: claudius_session::edit::scratch(track, bar, bars, &moves), name, role }
+        Command::AddScratch { from, track, bar, bars, moves, name, role, recording } => {
+            match claudius_session::edit::scratch(track, bar, bars, &moves, recording.as_deref()) {
+                Ok(scratch) => Take::Scratch { from, scratch, name, role },
+                Err(e) => return (StatusCode::BAD_REQUEST, e).into_response(),
+            }
         }
         _ => return (StatusCode::FORBIDDEN, "a phone sends takes: add_hits, add_notes or add_scratch").into_response(),
     };

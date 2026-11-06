@@ -160,23 +160,51 @@ pub struct Move {
 }
 
 /// A scratch on one of the song's tracks, or on the whole mix (`MIX`): the record, `bars` bars of track `track` from
-/// bar `bar` (0 the first), and the moves made on it.
+/// bar `bar` (0 the first), and the moves made on it. With a `recording` (a WAV file's bytes), the record is that,
+/// recorded off a microphone, instead.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Take {
     pub track: String,
     pub bar: u32,
     pub bars: u32,
     pub moves: Vec<Move>,
+    pub recording: Option<Vec<u8>>,
+}
+
+/// the longest a record recorded off a microphone is, in seconds
+pub const MAX_RECORDING: f64 = 10.0;
+
+/// A record recorded off a microphone, from the WAV file a phone sent: at most `MAX_RECORDING` seconds, its peak at
+/// the song's ceiling, where the phone puts it too.
+pub fn recorded(bp: &Blueprint, wav: &[u8]) -> Result<Stereo, String> {
+    let mut x =
+        crate::audio::load_bytes(wav.to_vec(), "wav").map_err(|e| format!("cannot read the recording: {e:#}"))?;
+    if x.secs() > MAX_RECORDING + 0.05 {
+        return Err(format!("a recording is {MAX_RECORDING:.0} s at most, not {:.1} s", x.secs()));
+    }
+    let peak = x.l.iter().chain(&x.r).fold(0.0f32, |m, v| m.max(v.abs()));
+    if peak < 1e-3 {
+        return Err("the recording is silent".into());
+    }
+    let gain = 10f32.powf(bp.mix.master.ceiling_db / 20.0) / peak;
+    for v in x.l.iter_mut().chain(x.r.iter_mut()) {
+        *v *= gain;
+    }
+    Ok(x)
 }
 
 /// What scratch `t` sounds like, and what its record was cut from, each file's credits as `credited` says
-/// (`take::credited`): a record of the song's (`record`), or of a sample of `lib` (`sample_record`).
+/// (`take::credited`): a record of the song's (`record`), of a sample of `lib` (`sample_record`), or one recorded off a
+/// microphone (`recorded`), which is the person's own and credits nothing.
 pub fn take(
     bp: &Blueprint,
     t: &Take,
     lib: Option<&Library>,
     credited: impl Fn(&Path) -> Sources,
 ) -> Result<(Stereo, Sources), String> {
+    if let Some(wav) = &t.recording {
+        return Ok((render(&recorded(bp, wav)?, &t.moves)?, Sources::default()));
+    }
     if t.track.starts_with(LIBRARY) {
         let s = lib
             .and_then(|l| sample(l, &bp.genre, bp.bpm, &t.track))
@@ -594,12 +622,35 @@ mod tests {
         assert!((sample_record(&bp, &all[2], 1).unwrap().secs() - 1.5).abs() < 0.01, "a vocal chop whole");
         // a scratch on it credits it
         let moves = vec![Move { t: 0.0, at: 0.0, fader: 1.0 }, Move { t: 0.5, at: 0.6, fader: 1.0 }];
-        let t = Take { track: beat.track(), bar: 0, bars: 2, moves };
+        let t = Take { track: beat.track(), bar: 0, bars: 2, moves, recording: None };
         let (x, cut) = take(&bp, &t, Some(&lib), crate::take::credited).unwrap();
         assert!(x.secs() > 0.4);
         assert_eq!(cut.recordings.iter().map(|f| f.title.as_str()).collect::<Vec<_>>(), ["Funky Break"]);
         assert!(take(&bp, &t, None, crate::take::credited).unwrap_err().contains("has no sample"), "no library");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_record_recorded_off_a_microphone_is_scratched_as_loud_as_the_songs_ceiling() {
+        let g = crate::genres::get("house").unwrap();
+        let o = compose::Options { short: true, samples: 0.0, loops: false, ..Default::default() };
+        let bp = compose::generate(&g, 3, &o, None);
+        let wav = |secs: f64, level: f32| {
+            let x: Vec<f32> = (0..(secs * SRF) as usize).map(|i| (i as f32 * 0.05).sin() * level).collect();
+            crate::audio::wav_bytes(&Stereo::from_mono(&x))
+        };
+        let x = recorded(&bp, &wav(1.0, 0.2)).unwrap();
+        let peak = x.l.iter().fold(0.0f32, |m, v| m.max(v.abs()));
+        assert!((peak - 10f32.powf(bp.mix.master.ceiling_db / 20.0)).abs() < 1e-3, "its peak at the ceiling: {peak}");
+        assert!((x.secs() - 1.0).abs() < 0.01);
+        let moves = vec![Move { t: 0.0, at: 0.0, fader: 1.0 }, Move { t: 0.5, at: 0.4, fader: 1.0 }];
+        let t = Take { track: "mic".into(), bar: 0, bars: 1, moves, recording: Some(wav(1.0, 0.2)) };
+        let (scratched, cut) = take(&bp, &t, None, crate::take::credited).unwrap();
+        assert!(scratched.secs() > 0.4 && cut.is_empty(), "a person's own recording credits nothing");
+        let long = recorded(&bp, &wav(MAX_RECORDING + 1.0, 0.2)).unwrap_err();
+        assert!(long.contains("at most"), "{long}");
+        assert!(recorded(&bp, &wav(1.0, 0.0)).unwrap_err().contains("silent"));
+        assert!(recorded(&bp, b"not a wav").unwrap_err().contains("cannot read"));
     }
 
     #[test]
