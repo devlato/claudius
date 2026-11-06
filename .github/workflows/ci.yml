@@ -293,6 +293,35 @@ jobs:
           cache-key: benches
       - run: cargo bench --workspace --locked --no-run
 
+  # the instructions each of the engine's main steps takes, counted by cachegrind (the same on every run, where a
+  # clock here wanders), against the base's on a pull request (`cargo xtask perf`)
+  perf:
+    name: performance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: ./.github/actions/rust
+        with:
+          cache-key: perf
+      - name: valgrind
+        timeout-minutes: 10
+        run: sudo apt-get install -y -qq --no-install-recommends valgrind
+      - name: instruction counts
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          # a deliberate slowdown is said in the description: a line `perf: render +20%`
+          CLAUDIUS_PERF_ACCEPT: ${{ github.event.pull_request.body }}
+        run: |
+          if [ -n "$BASE" ]; then
+            cargo xtask perf --base "$BASE"
+          else
+            cargo xtask perf
+          fi
+
   secrets:
     name: secrets
     runs-on: ubuntu-24.04
@@ -338,7 +367,7 @@ jobs:
   ci-ok:
     name: ci ok
     if: always()
-    needs: [fmt, clippy, test, features, intel-mac, wasm, docs, site, deny, typos, msrv, benches, secrets, workflows]
+    needs: [fmt, clippy, test, features, intel-mac, wasm, docs, site, deny, typos, msrv, benches, perf, secrets, workflows]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

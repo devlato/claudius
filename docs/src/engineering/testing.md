@@ -34,6 +34,7 @@ One kind at a time:
 | `cargo test -p earshot --release -- --ignored --nocapture` | earshot's model parity checks (downloads the models) |
 | `cargo +nightly fuzz run script` | a fuzz target, from `fuzz/` |
 | `cargo bench -p claudius` | the benchmarks |
+| `cargo xtask perf [--base REV]` | the instructions each of the engine's main steps takes (with Valgrind, on Linux); on a Mac, their wall times |
 
 ## What each kind protects
 
@@ -188,7 +189,23 @@ fuzzing finds the gaps first.
 
 `crates/claudius/benches/engine.rs` (criterion) times generating and arranging a house song, rendering 8 bars,
 querying a dense pattern for 64 bars, running a script edit and printing a song. Results go to `target/criterion`,
-with comparisons against the previous run. CI only checks that the benchmarks build.
+with comparisons against the previous run. CI checks that the benchmarks build.
+
+### Performance tests
+
+A clock on a shared CI machine wanders by a tenth from one run to the next, too much to tell a slower change from a
+busier machine, so CI counts instructions instead. `crates/claudius/examples/perf.rs` holds the workloads, each one of
+the engine's main steps on fixed input: generating a house song and a layered alternative hip hop one, arranging a
+song, rendering four bars, judging them, a script edit and printing the song, encoding eight seconds as MP3 and
+decoding them, a scratch, and the harmonic-percussive split a remix makes. `cargo xtask perf` runs each under
+Valgrind's cachegrind on one thread, once with its setup alone and once whole, and counts what the workload itself
+takes. The same build counts the same on every run, give or take a hash map's order.
+
+CI's `performance` job builds the pull request's workloads and its base's (in a worktree of the base) and fails a
+workload that takes more than 10 % more instructions than the base's. A change that slows one on purpose says so in
+its pull request's description, a line such as `perf: render +20% (twice the voices)`, and the job allows that
+workload as much. The job's summary has the table of counts. On a Mac, where Valgrind does not run,
+`cargo xtask perf` prints each workload's wall time instead.
 
 ## The rest of CI
 

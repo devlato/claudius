@@ -147,5 +147,6 @@ and the examples in the docs. CI runs more; when you changed the matching part, 
 | workflows or scripts | `actionlint` and `shellcheck scripts/*.sh scripts/ci/*.sh .githooks/*` |
 | a lockfile | `osv-scanner scan source --config osv-scanner.toml --lockfile Cargo.lock --lockfile site/package-lock.json` |
 | benchmarks | `cargo bench --no-run` |
+| the engine's main steps (composing, rendering, scripts, judging, encoding, decoding, scratches) | CI's `performance` job counts their instructions against the base's and fails one that takes more than 10 % more ([Performance tests](../engineering/testing.md#performance-tests)); `cargo xtask perf` on Linux with Valgrind counts them as it does. A change that slows one on purpose says so in the description: `perf: render +20% (why)` |
 | code that the Intel Mac build compiles | `rustup target add x86_64-apple-darwin`, then `cargo check --target x86_64-apple-darwin -p claudius-cli --no-default-features --features studio` (CI's `intel mac build` job) |
 | the engine, as a browser builds it | `cargo clippy -p claudius --no-default-features --target wasm32-unknown-unknown -- -D warnings` (`cargo xtask ci` runs it) |
