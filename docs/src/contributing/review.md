@@ -61,7 +61,9 @@ Every pull request is read for these. Pre-empting them in the description saves 
    the network or skips the guard ([Security model](../engineering/security.md)).
 7. **Error messages.** Read the failure path: is the message one a person can act on?
 8. **Performance.** Rendering and pattern queries are hot paths: no allocation per sample, no lock held across a render.
-   For changes there, `cargo bench -p claudius` before and after.
+   For changes there, `cargo bench -p claudius` before and after. CI's `performance` job counts the instructions of
+   the engine's main steps against the base; a slowdown the description accepts (`perf: render +20%`) needs its
+   reason there.
 9. **Compatibility.** The HTTP API's types and the blueprint format stay readable by older clients and files: every
    song a release saved still opens (`tests/compat.rs` holds a change to it), and a new field has a serde default. A
    change songs cannot take as they are raises `BLUEPRINT_FORMAT` with an upgrade step; a breaking change is marked

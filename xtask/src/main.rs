@@ -2,6 +2,7 @@
 //! `cargo xtask help` lists the commands.
 
 mod dist;
+mod perf;
 mod release;
 mod site;
 
@@ -32,6 +33,12 @@ usage: cargo xtask <command>
                           X11 or GL) and names the archive ...-headless; --no-ears leaves out earshot and ONNX
                           Runtime, as the Intel Mac and Windows builds always do; --web packages a studio that
                           is already built
+  perf [--base REV] [--threshold PCT]
+                          count the instructions each of the engine's main steps takes (the workloads of
+                          crates/claudius/examples/perf.rs) with Valgrind's cachegrind; --base counts REV's too
+                          and fails a workload that takes more than PCT percent (10) more, unless the pull
+                          request's description (CLAUDIUS_PERF_ACCEPT) has a line `perf: <workload> +N%`.
+                          Without Valgrind (on a Mac) it prints each workload's wall time instead
   release prepare <patch|minor|major|X.Y.Z>
                           bump the workspace version, Cargo.lock and CHANGELOG.md, then print the new version
   release notes <X.Y.Z>   print that version's section of CHANGELOG.md
@@ -85,6 +92,15 @@ fn main() -> Result<()> {
                 None => host_target(&sh)?,
             };
             dist::build(&sh, &target, web, headless, no_ears)
+        }
+        Some("perf") => {
+            let base = args.value("--base")?;
+            let threshold = match args.value("--threshold")? {
+                Some(t) => t.parse().with_context(|| format!("--threshold takes a percentage, not {t}"))?,
+                None => 10.0,
+            };
+            args.finish()?;
+            perf::run(&sh, base, threshold)
         }
         Some("release") => match args.next().as_deref() {
             Some("prepare") => {
