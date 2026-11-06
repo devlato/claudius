@@ -22,3 +22,11 @@ opt-level = 3
 lto = "thin"
 codegen-units = 4
 strip = true
+
+# what CI counts the instructions of (`cargo xtask perf`): the release's optimisations without its link-time ones,
+# which only make the build slower
+[profile.perf]
+inherits = "release"
+lto = false
+codegen-units = 16
+strip = false
