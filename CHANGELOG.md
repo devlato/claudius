@@ -12,6 +12,14 @@ text format, for a scraper or a look. The usage statistics, for those who turned
 speed (seconds of audio a second, to two figures) at most once a day, so that a release that renders slower shows; the
 events have a `value` for it (`"v": 2`), and older versions' events still count.
 
+The phone's turntable plays records a DJ would reach for: the song's samples (the phrase it was built on, a flip, a
+take), its voices, its parts, a sampled break, or the whole mix, never a lone kick or clap. With the motor on, the
+record spins in time with the song, and a pitch fader moves it up to 16 % either way, with a button back to time. A
+finger holds it as a DJ's does: resting, it drags the record slower the harder it presses (read from how large the
+fingertip's touch is, since a phone measures no force) and stops it under a firm press; moving, it grabs it to scratch
+or spin it by hand; and let go mid-swipe, the record runs on faster, or spins back, until the slipmat brings it back.
+The motor brings the platter up to speed and the brake stops it in a third of a second, as a DJ's turntable does.
+
 ## [0.4.0] - 2026-11-06
 
 The phone plays the song in the studio as well as following it: **▶** plays it and **■** stops it, so a take needs no

@@ -81,11 +81,12 @@ pub fn keys(bp: &Blueprint, sound: &str, low: i32, high: i32, step: usize) -> Re
     Ok(all)
 }
 
-/// the song with every track heard: none muted, none soloed
+/// the song with every track heard: none muted, none soloed, its patterns and transitions too
 pub(crate) fn heard(bp: &Blueprint) -> Blueprint {
     let mut bp = bp.clone();
     let mixes = bp.drums.iter_mut().map(|d| &mut d.mix);
     let mixes = mixes.chain(bp.parts.iter_mut().map(|p| &mut p.mix)).chain(bp.loops.iter_mut().map(|l| &mut l.mix));
+    let mixes = mixes.chain(bp.patterns.iter_mut().map(|p| &mut p.mix)).chain([&mut bp.transitions.mix]);
     for m in mixes {
         (m.mute, m.solo) = (false, false);
     }
@@ -151,6 +152,27 @@ mod tests {
             assert!(x.secs() <= SLOT_SECS + 1e-9);
             let first = (0..x.len()).find(|&i| x.l[i].abs().max(x.r[i].abs()) > 0.01).unwrap();
             assert!(first < 480, "{lane} strikes from its start, not {first} samples in");
+        }
+    }
+
+    #[test]
+    fn every_track_is_heard_its_patterns_and_transitions_too() {
+        let mut bp = song();
+        let solo = TrackMix { solo: true, ..TrackMix::default() };
+        let pattern = crate::model::PatternTrack {
+            name: "pat".into(),
+            code: String::new(),
+            sounds: Default::default(),
+            role: String::new(),
+            mix: solo,
+        };
+        bp.patterns.push(pattern);
+        bp.transitions.mix.mute = true;
+        bp.parts[0].mix.mute = true;
+        let h = heard(&bp);
+        let mixes = h.patterns.iter().map(|p| &p.mix).chain([&h.transitions.mix]).chain(h.parts.iter().map(|p| &p.mix));
+        for m in mixes {
+            assert_eq!((m.mute, m.solo), (false, false));
         }
     }
 

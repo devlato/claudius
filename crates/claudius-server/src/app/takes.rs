@@ -173,7 +173,8 @@ impl App {
         }
     }
 
-    /// a scratch on a bar or a few of one of the song's tracks, kept as a take that plays from section `from`
+    /// a scratch on a bar or a few of one of the song's tracks, or of the whole mix, kept as a take that plays from
+    /// section `from`
     pub(super) fn add_scratch(
         self: &Arc<Self>,
         from: &str,

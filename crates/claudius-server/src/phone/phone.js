@@ -273,10 +273,7 @@ function open(s) {
   $("play").disabled = false;
   buildPads();
   fillSounds(s);
-  // a record to scratch: a voice, a sample, a lead, a stab or horns, which scratch as records do, else any part
-  const scratchy = (t) => /vox|vocal|sample|lead|stab|horn|brass|hook|chop/.test(t.toLowerCase());
-  const parts = s.tracks.filter((t) => !s.lanes.includes(t));
-  fill($("track"), s.tracks, (x) => [x, x], [...parts.filter(scratchy), ...parts]);
+  fillRecords(s);
   fillFrom();
   hits.clear();
   keys.name = "";
@@ -307,6 +304,33 @@ function fillSounds(s) {
   const keysPart = s.parts.find(([part]) => /keys|piano|chords/.test(part));
   const pick = [had, keysPart && keysPart[1], "epiano", all[0]].find((x) => x && all.includes(x));
   if (pick) select.value = pick;
+}
+
+/** The records the turntable can cut, by what they are: the song's samples and voices first, its parts, its beats,
+ * then the whole mix (`claudius_api::records`); never a drum lane alone. A studio older than that sends only its tracks,
+ * which go in as parts, the drum lanes left out. */
+function fillRecords(s) {
+  const select = $("track");
+  const had = select.value;
+  const records = s.records || s.tracks.filter((t) => !s.lanes.includes(t)).map((t) => [t, "part"]);
+  const label = { sample: "Samples", voice: "Voices", part: "Parts", beat: "Beats", mix: "The mix" };
+  select.textContent = "";
+  for (const kind of Object.keys(label)) {
+    const these = records.filter(([, k]) => k === kind);
+    if (!these.length) continue;
+    const g = document.createElement("optgroup");
+    g.label = label[kind];
+    for (const [track] of these) {
+      const o = document.createElement("option");
+      o.value = track;
+      o.textContent = track === "*" ? "the whole song" : track;
+      g.append(o);
+    }
+    select.append(g);
+  }
+  const names = records.map(([t]) => t);
+  if (names.includes(had)) select.value = had;
+  else if (names.length) select.value = names[0];
 }
 
 /** the sections a record can be cut from: those the chosen track plays in */
@@ -632,6 +656,8 @@ const deck = {
   bars: RECORD_BARS,
   pos: 0,
   vel: 0,
+  /** how fast the platter under the record turns, in seconds of record a second */
+  platter: 0,
   target: 0,
   touching: false,
   angle: 0,
@@ -641,6 +667,84 @@ const deck = {
   dc: [0, 0, 0, 0],
   node: null,
 };
+
+/** How a finger holds the record, as a DJ's does. Resting on it without moving, it drags as hard as it presses: the
+ * record slows under it, and stops under a firm finger. Moving, it grabs, and the record goes with it until it lifts
+ * (a scratch, a spin by hand; still between moves, it holds the record still). Let go while moving, the record runs on
+ * at the speed it had, so a swipe spins it faster, until the slipmat brings it back to the platter's. A phone measures
+ * no force, so the press is read from how large the finger's touch is against the smallest and largest seen (pressing
+ * flattens a fingertip), where the screen says how large; where it says neither, from how long the finger has rested. */
+const hold = {
+  grab: false,
+  /** how hard the finger presses, 0 to 1, when the screen tells it (`measured`) */
+  grip: 0,
+  measured: false,
+  /** when it touched or last moved, how far round it has gone since it touched (radians, back and forth cancelling),
+   * and its speed along the record */
+  rested: 0,
+  moved: 0,
+  turned: 0,
+  speed: 0,
+  /** the smallest and largest touches seen, in square pixels */
+  lo: Infinity,
+  hi: 0,
+  /** whether a finger (not a jog wheel) holds it, and where it touches, in the canvas' pixels */
+  finger: false,
+  x: 0,
+  y: 0,
+};
+/** how far along the record, in CSS pixels, a resting finger goes before it grabs: about 3 mm on a phone, more than a
+ * fingertip's middle shifts as it flattens under a firmer press */
+const GRAB = 16;
+/** how fast the slipmat brings the record to the platter's speed, in seconds of record a second, each second: up to
+ * it at once from slower (a DJ lets go with a push), and down to it from a swipe, or from a spin backwards, slower */
+const CATCH_UP = 12;
+const SLOW_DOWN = 4;
+/** how fast the motor brings the platter up to speed, and its brake brings it to rest: in a third of a second, as a
+ * DJ's turntable does */
+const TORQUE = 3;
+const BRAKE = 3;
+/** the fastest a swipe spins the record, in seconds of record a second: about as fast as a finger turns one */
+const FLING = 4;
+
+/** `v` moved toward `to` by at most `by` */
+function toward(v, to, by) {
+  return Math.abs(to - v) <= by ? to : v + Math.sign(to - v) * by;
+}
+
+/** how hard a touch presses, 0 to 1, or null when the screen tells nothing of it */
+function firmness(e) {
+  // a screen that measures force says so; one that cannot says 0.5 (or 0, or 1) for a finger
+  if (e.pressure > 0 && e.pressure < 1 && Math.abs(e.pressure - 0.5) > 1e-3) return e.pressure;
+  const area = (e.width || 0) * (e.height || 0);
+  if (area <= 1) return null;
+  hold.lo = Math.min(hold.lo, area);
+  hold.hi = Math.max(hold.hi, area);
+  // a light touch and a firm one are told apart once two touches differ enough
+  if (hold.hi < hold.lo * 1.25) return null;
+  return Math.min(1, Math.max(0, (area - hold.lo) / (hold.hi - hold.lo)));
+}
+
+/** what a touch tells of the finger: where it is, and how hard it presses */
+function feel(e, c) {
+  const r = c.getBoundingClientRect();
+  hold.x = (e.clientX - r.left) * devicePixelRatio;
+  hold.y = (e.clientY - r.top) * devicePixelRatio;
+  const f = firmness(e);
+  hold.measured = f !== null;
+  if (hold.measured) hold.grip = 0.25 + 0.75 * f;
+}
+
+/** how hard a resting finger brakes now: as it presses, or the longer it rests the harder, stopping it in half a second */
+function gripNow(now) {
+  return hold.measured ? hold.grip : Math.min(1, 0.3 + (1.4 * (now - hold.rested)) / 1000);
+}
+
+/** the speed the platter turns at, in seconds of record a second: the song's tempo (a record cut from the song plays in
+ * time at its own speed) moved by the pitch fader, or none with the motor off */
+function platterSpeed() {
+  return $("motor").checked ? 1 + Number($("pitch").value) / 100 : 0;
+}
 
 /** the crossfader's travel over which it opens, as a scratch DJ's does (`claudius::scratch::CUT_IN`) */
 const CUT_IN = 0.08;
@@ -736,10 +840,12 @@ async function loadRecord() {
   }
 }
 
-/** An audio block of the turntable, a sample at a time: the platter follows the hand as a hand moves one (a spring),
- * or, let go, the motor brings it up to speed in about a tenth of a second and without it it comes to rest in about a
- * quarter; the needle reads the record where it is, from the bandwidth its speed leaves unaliased; and the crossfader
- * opens within a hair of its travel, in about 2 ms. `claudius::scratch::render` reads a take again as this plays it. */
+/** An audio block of the turntable, a sample at a time: a grabbing finger moves the record as a hand moves one (a
+ * spring, about 4 ms behind it), a resting one drags it toward a stop as hard as it presses, and let go, the slipmat
+ * brings it to the platter's speed (`hold`), which the motor brings up to its own, and the brake to rest, in a third of
+ * a second; the needle reads the record where it is, from the bandwidth its speed
+ * leaves unaliased; and the crossfader opens within a hair of its travel, in about 2 ms. `claudius::scratch::render`
+ * reads a take again as this plays it. */
 function spin(e) {
   const L = e.outputBuffer.getChannelData(0);
   const R = e.outputBuffer.getChannelData(1);
@@ -752,14 +858,18 @@ function spin(e) {
   const n = L.length;
   const dt = 1 / ctx.sampleRate;
   const from = deck.pos;
-  const motor = $("motor").checked;
+  const motor = platterSpeed();
+  const now = performance.now();
+  const grip = gripNow(now);
   const fader = Number($("fader").value);
   const slew = 1 - Math.exp(-1 / (0.002 * ctx.sampleRate));
   const dc = deck.dc;
   const s = [0, 0];
   for (let i = 0; i < n; i++) {
-    if (deck.touching) deck.vel += (SPRING * SPRING * (deck.target - deck.pos) - 2 * SPRING * deck.vel) * dt;
-    else deck.vel += ((motor ? 1 : 0) - deck.vel) * Math.min(1, dt / (motor ? 0.1 : 0.25));
+    const speed = (deck.platter = toward(deck.platter, motor, (motor > 0 ? TORQUE : BRAKE) * dt));
+    if (deck.touching && hold.grab) deck.vel += (SPRING * SPRING * (deck.target - deck.pos) - 2 * SPRING * deck.vel) * dt;
+    else if (deck.touching) deck.vel += (speed * (1 - grip) - deck.vel) * Math.min(1, dt / 0.04);
+    else deck.vel = toward(deck.vel, speed, (deck.vel >= 0 && deck.vel < speed ? CATCH_UP : SLOW_DOWN) * dt);
     deck.pos += deck.vel * dt;
     needle(lv, deck.rate, deck.pos, Math.abs(deck.vel), s);
     deck.gain += (opening(fader) - deck.gain) * slew;
@@ -791,24 +901,52 @@ function angleOf(e, c) {
   return Math.atan2(e.clientY - r.top - r.height / 2, e.clientX - r.left - r.width / 2);
 }
 
+/** how far from the record's middle a touch is, in CSS pixels */
+function radiusOf(e, c) {
+  const r = c.getBoundingClientRect();
+  return Math.hypot(e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
+}
+
 function platter() {
   const c = $("platter");
   c.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     capture(c, e);
+    const now = performance.now();
     Object.assign(deck, { touching: true, angle: angleOf(e, c), turned: 0, start: deck.pos, target: deck.pos });
+    Object.assign(hold, { grab: false, finger: true, rested: now, moved: now, turned: 0, speed: 0 });
+    feel(e, c);
   });
   c.addEventListener("pointermove", (e) => {
     if (!deck.touching) return;
+    const now = performance.now();
     const a = angleOf(e, c);
     let d = a - deck.angle;
     if (d > Math.PI) d -= 2 * Math.PI;
     if (d < -Math.PI) d += 2 * Math.PI;
     deck.angle = a;
-    deck.turned += d;
-    deck.target = deck.start + (deck.turned / (2 * Math.PI)) * TURN;
+    const secs = Math.max(0.004, (now - hold.moved) / 1000);
+    hold.speed += ((d / (2 * Math.PI)) * TURN / secs - hold.speed) * 0.5;
+    hold.moved = now;
+    if (hold.grab) {
+      deck.turned += d;
+      deck.target = deck.start + (deck.turned / (2 * Math.PI)) * TURN;
+    } else if (Math.abs((hold.turned += d)) * radiusOf(e, c) > GRAB) {
+      // it grabs the record where it is now
+      Object.assign(hold, { grab: true });
+      Object.assign(deck, { start: deck.pos, target: deck.pos, turned: 0 });
+    }
+    feel(e, c);
   });
-  for (const up of ["pointerup", "pointercancel"]) c.addEventListener(up, () => (deck.touching = false));
+  for (const up of ["pointerup", "pointercancel"]) {
+    c.addEventListener(up, () => {
+      // let go while moving, the record runs on at the finger's speed
+      if (hold.grab && performance.now() - hold.moved < 60) deck.vel = Math.max(-FLING, Math.min(FLING, hold.speed));
+      deck.touching = false;
+      Object.assign(hold, { grab: false, finger: false });
+    });
+  }
+  $("sync").onclick = () => ($("pitch").value = "0");
   $("track").onchange = () => {
     fillFrom();
     loadRecord();
@@ -848,12 +986,25 @@ function drawPlatter() {
   g.fillStyle = "#101217";
   g.font = `600 ${Math.round(rad * 0.09)}px -apple-system, sans-serif`;
   g.textAlign = "center";
-  g.fillText(deck.track || "no record", 0, -rad * 0.12);
+  g.fillText(deck.track === "*" ? "the whole song" : deck.track || "no record", 0, -rad * 0.12);
   // the cue's sticker, which comes round under the needle as the record reaches its first sound
   g.rotate((-(deck.cue || 0) / TURN) * 2 * Math.PI);
   g.fillStyle = "#e8e8ec";
   g.fillRect(-3, -rad * 0.97, 6, rad * 0.5);
   g.restore();
+  // the finger on the record: a ring where it grabs, a spot as dark as it presses where it rests
+  if (deck.touching && hold.finger) {
+    g.beginPath();
+    g.arc(hold.x, hold.y, 22 * devicePixelRatio, 0, 2 * Math.PI);
+    if (hold.grab) {
+      g.strokeStyle = "#f0a83a";
+      g.lineWidth = 3 * devicePixelRatio;
+      g.stroke();
+    } else {
+      g.fillStyle = `rgba(240, 168, 58, ${0.15 + 0.5 * gripNow(performance.now())})`;
+      g.fill();
+    }
+  }
   // the needle, which stays where it is over the record
   g.fillStyle = "#f0a83a";
   g.beginPath();
@@ -1070,6 +1221,7 @@ function control(ch, cc, v) {
     const ticks = midi.jog.offset ? v - 64 : v < 64 ? v : v - 128;
     // the wheel holds the record as it turns, and lets go of it once it rests
     if (!deck.touching) Object.assign(deck, { touching: true, target: deck.pos });
+    hold.grab = true;
     deck.target += (ticks / TICKS) * TURN;
     clearTimeout(midi.still);
     midi.still = setTimeout(() => (deck.touching = false), 150);
@@ -1099,7 +1251,12 @@ function frame() {
   }
   if (mode === "pads") drawPads();
   if (mode === "keys") drawKeys();
-  if (mode === "deck") drawPlatter();
+  if (mode === "deck") {
+    drawPlatter();
+    const pitch = Number($("pitch").value);
+    const sign = pitch > 0 ? "+" : "";
+    $("speed").textContent = song ? `${(song.bpm * (1 + pitch / 100)).toFixed(1)} BPM${pitch ? ` ${sign}${pitch.toFixed(1)}%` : ""}` : "";
+  }
   requestAnimationFrame(frame);
 }
 

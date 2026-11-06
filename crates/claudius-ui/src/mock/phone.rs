@@ -343,6 +343,7 @@ impl Mock {
                 .map(|d| s.tracks.iter().find(|t| t.name == d.lane).map_or(&d.lane, |t| &t.role))
                 .collect::<Vec<_>>(),
             "tracks": s.tracks.iter().map(|t| &t.name).collect::<Vec<_>>(),
+            "records": claudius_api::records(s),
             "parts": s.parts.iter().filter(|p| !p.preset.is_empty()).map(|p| (&p.name, &p.preset)).collect::<Vec<_>>(),
             "synths": synths,
             "instruments": instruments,

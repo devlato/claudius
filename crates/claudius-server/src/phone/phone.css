@@ -241,10 +241,21 @@ main {
   font-size: 13px;
 }
 
-#fader {
+#fader,
+#pitch {
   flex: 1;
   height: 44px;
   accent-color: var(--accent);
+}
+
+#sync {
+  white-space: nowrap;
+}
+
+#speed {
+  min-width: 6.5em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 footer {

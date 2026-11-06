@@ -114,6 +114,99 @@ test.describe("playing from a phone", () => {
     }
   });
 
+  test("the turntable's record spins in time, and a finger brakes it, grabs it and swipes it as a DJ's does", async () => {
+    test.setTimeout(240_000);
+    const c = await claudius();
+    const browser = await chromium.launch({ args: ["--autoplay-policy=no-user-gesture-required"] });
+    try {
+      const studio = await browser.newPage();
+      await studio.goto(`${c.base}/?plan=${encodeURIComponent("wait:2;phone;wait:220")}`);
+      const state = async () => (await c.api("/api/state")).json();
+      await expect.poll(async () => (await state()).phone?.url ?? "", { timeout: 60_000 }).toMatch(/\/\?key=/);
+      const phone = await browser.newPage({ ...devices["iPhone 13"] });
+      await phone.goto((await state()).phone.url);
+      await phone.click("#go");
+      await phone.click("nav button[data-mode=deck]");
+      await phone.waitForFunction(() => deck.buf !== null, null, { timeout: 60_000 });
+      // its records: samples, voices, parts, beats and the whole mix, never a drum lane alone
+      const offered = await phone.evaluate(() => [...$("track").options].map((o) => o.value));
+      const lanes = await phone.evaluate(() => song.lanes);
+      expect(offered.filter((r) => lanes.includes(r)), "no lone drum").toEqual([]);
+      expect(offered).toContain("*");
+      const speed = (wait) => phone.evaluate((ms) => new Promise((r) => setTimeout(() => r(deck.vel), ms)), wait);
+      // with the motor on, in time with the song; the pitch fader moves it, and "in time" brings it back
+      await phone.click("#motor");
+      expect(await speed(400)).toBeCloseTo(1, 1);
+      await phone.evaluate(() => ($("pitch").value = "8"));
+      expect(await speed(400)).toBeCloseTo(1.08, 2);
+      await expect(phone.locator("#speed")).toContainText("+8.0%");
+      await phone.click("#sync");
+      expect(await speed(400)).toBeCloseTo(1, 1);
+      // a finger on the record, at its edge: touched, moved round it, let go
+      const touch = (type, { turn = 0, size = 0, at = 0.4 } = {}) =>
+        phone.evaluate(
+          ([type, turn, size, at]) => {
+            const c = $("platter");
+            const r = c.getBoundingClientRect();
+            const rad = Math.min(r.width, r.height) * at;
+            const a = -Math.PI / 2 + turn;
+            const init = { pointerId: 7, pointerType: "touch", isPrimary: true, bubbles: true, pressure: 0.5 };
+            const xy = { clientX: r.left + r.width / 2 + rad * Math.cos(a), clientY: r.top + r.height / 2 + rad * Math.sin(a) };
+            c.dispatchEvent(new PointerEvent(type, { ...init, ...xy, width: size || 1, height: size || 1 }));
+          },
+          [type, turn, size, at],
+        );
+      // a screen that tells nothing of the touch: a resting finger slows the record, then stops it
+      await touch("pointerdown");
+      const slowing = await speed(150);
+      expect(slowing).toBeLessThan(0.9);
+      expect(slowing).toBeGreaterThan(0.05);
+      expect(await speed(600)).toBeLessThan(0.05);
+      await touch("pointerup");
+      expect(await speed(300)).toBeCloseTo(1, 1);
+      // a firmer press shifts the fingertip's middle a pixel or two, which near the label is more of a turn than at the
+      // edge: the finger still rests on the record and brakes it, rather than grabbing it
+      await touch("pointerdown", { at: 0.12 });
+      for (let i = 1; i <= 4; i++) await touch("pointermove", { at: 0.12, turn: i * 0.02 });
+      expect(await phone.evaluate(() => hold.grab), "a press is no grab").toBe(false);
+      await touch("pointerup", { at: 0.12 });
+      expect(await speed(300)).toBeCloseTo(1, 1);
+      // one that says how large: a light touch drags a little, a firm one stops it
+      await touch("pointerdown", { size: 40 });
+      await touch("pointerup", { size: 40 });
+      await touch("pointerdown", { size: 12 });
+      const light = await speed(400);
+      expect(light).toBeGreaterThan(0.6);
+      expect(light).toBeLessThan(0.9);
+      await touch("pointerup", { size: 12 });
+      await touch("pointerdown", { size: 40 });
+      expect(await speed(400)).toBeLessThan(0.1);
+      await touch("pointerup", { size: 40 });
+      expect(await speed(300)).toBeCloseTo(1, 1);
+      // a swipe: the finger grabs, carries the record round fast, and lets go; it runs on faster, then back in time
+      await touch("pointerdown");
+      for (let i = 1; i <= 8; i++) await touch("pointermove", { turn: i * 0.25 });
+      await touch("pointerup", { turn: 2 });
+      const flung = await speed(20);
+      expect(flung, "a swipe spins it faster").toBeGreaterThan(1.3);
+      expect(flung, "as fast as a finger turns one").toBeLessThanOrEqual(4);
+      expect(await speed(900)).toBeCloseTo(1, 1);
+      // a swipe backwards spins it back a moment, as the slipmat slows it, and then the platter carries it on in time
+      await touch("pointerdown", { turn: 2 });
+      for (let i = 1; i <= 8; i++) await touch("pointermove", { turn: 2 - i * 0.25 });
+      await touch("pointerup");
+      expect(await speed(150), "a spin back").toBeLessThan(-0.5);
+      expect(await speed(1500)).toBeCloseTo(1, 1);
+      // the motor off, the brake stops the platter, and the record with it, in about a third of a second
+      await phone.click("#motor");
+      expect(await speed(150)).toBeGreaterThan(0.2);
+      expect(await speed(400)).toBe(0);
+    } finally {
+      await browser.close();
+      c.stop();
+    }
+  });
+
   test("a MIDI controller plays the pads by its notes and scratches with its jog wheel", async () => {
     test.setTimeout(240_000);
     const c = await claudius();
