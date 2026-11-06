@@ -83,6 +83,8 @@ pub struct Host {
     /// each file cut from a recording: the recording, which a project credits, and whether the file keeps floats (a
     /// drum hit's does)
     cuts: BTreeMap<String, (Found, bool)>,
+    /// each scratch kept as a take: what its record was cut from, which a project credits
+    takes: BTreeMap<String, take::Sources>,
     /// the song version whose render failed: it is not tried again until the song changes
     failed: Option<u64>,
     seeds: Rng,
@@ -123,6 +125,7 @@ impl Host {
             prepared: Vec::new(),
             lib: None,
             cuts: BTreeMap::new(),
+            takes: BTreeMap::new(),
             failed: None,
             seeds: Rng::new(seed),
             kept: render::Kept::default(),
@@ -200,6 +203,11 @@ impl Host {
             if let Some((f, _)) = cut {
                 files.push((format!("{to}.json"), serde_json::to_vec_pretty(f).map_err(|e| e.to_string())?));
                 found.push(f.clone());
+            }
+            if let Some(s) = self.takes.get(path.as_str()).filter(|s| !s.is_empty()) {
+                let beside = take::sources_path(std::path::Path::new(&to)).to_string_lossy().into_owned();
+                files.push((beside, serde_json::to_vec_pretty(s).map_err(|e| e.to_string())?));
+                found.extend(s.recordings.iter().cloned());
             }
             moved.insert(std::mem::replace(path, to.clone()), to);
         }
@@ -522,19 +530,32 @@ impl Host {
         }
     }
 
+    /// what a file this session holds credits: the recording it was cut from, or what a scratch take was cut from
+    fn credited(&self, path: &std::path::Path) -> take::Sources {
+        let path = path.to_string_lossy();
+        let mut s = self.takes.get(path.as_ref()).cloned().unwrap_or_default();
+        if let Some((f, _)) = self.cuts.get(path.as_ref()) {
+            s.add(take::Sources { recordings: vec![f.clone()], instruments: Vec::new() });
+        }
+        s
+    }
+
     /// a scratch kept as a take, its audio in memory under a name of its own
     fn add_scratch(&mut self, from: &str, s: &scratch::Take, name: Option<String>, role: Option<&str>) -> Reply {
         let Some(mut bp) = self.bp.clone() else {
             return self.no("no song yet: start one with a new song, then scratch one of its tracks");
         };
-        let x = match scratch::take(&bp, s) {
-            Ok(x) => x,
+        let made = scratch::take(&bp, s)
+            .and_then(|x| Ok((x, scratch::sources(&bp, &s.track, s.bar, s.bars, |p| self.credited(p))?)));
+        let (x, sources) = match made {
+            Ok(made) => made,
             Err(e) => return self.no(e),
         };
         let name = name.unwrap_or_else(|| scratch::name(&bp));
         let path = format!("take:{name}:{}", self.version);
         let secs = x.secs();
         audio::remember(&path, x);
+        self.takes.insert(path.clone(), sources);
         match take::add(&mut bp, std::path::Path::new(&path), secs, from, Some(&name), role) {
             Ok(msg) => self.commit(Some(bp), msg),
             Err(e) => self.no(e),
@@ -1048,12 +1069,6 @@ mod tests {
         // a hit is kept as floats, louder than a 24-bit file holds
         audio::remember(hit, Stereo::from_mono(&x.iter().map(|v| v * 1.5).collect::<Vec<_>>()));
         audio::remember(phrase, Stereo::from_mono(&x));
-        let found = |id: &str, title: &str, licence: &str| -> Found {
-            serde_json::from_value(json!({"id": id, "source": "openverse", "provider": "freesound", "title": title,
-                "creator": "someone", "licence": licence, "licence_name": "CC BY 4.0", "page": format!("https://freesound.org/s/{id}/"),
-                "licence_url": "https://creativecommons.org/licenses/by/4.0/", "audio": "", "filetype": "mp3", "seconds": 4.0}))
-            .unwrap()
-        };
         h.cuts.insert(hit.into(), (found("1", "Amen", "by"), true));
         h.cuts.insert(phrase.into(), (found("2", "Keys", "cc0"), false));
         let sample =
@@ -1081,6 +1096,49 @@ mod tests {
         let credits = std::fs::read_to_string(dir.join("credits.txt")).unwrap();
         let lines: Vec<&str> = credits.lines().collect();
         assert!(lines[1].starts_with("\"Amen\" by someone") && lines[2].starts_with("\"Keys\""), "{credits}");
+        let _ = std::fs::remove_dir_all(&songs);
+    }
+
+    /// a recording an online library credits, as the page found it
+    fn found(id: &str, title: &str, licence: &str) -> Found {
+        serde_json::from_value(json!({"id": id, "source": "openverse", "provider": "freesound", "title": title,
+            "creator": "someone", "licence": licence, "licence_name": "CC BY 4.0", "page": format!("https://freesound.org/s/{id}/"),
+            "licence_url": "https://creativecommons.org/licenses/by/4.0/", "audio": "", "filetype": "mp3", "seconds": 4.0}))
+        .unwrap()
+    }
+
+    #[test]
+    fn a_project_credits_what_a_scratch_was_cut_from_once_the_song_plays_it_no_more() {
+        let mut h = Host::new(1);
+        assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
+        let phrase = "demo:samples/phrase/house/scratched/phrase.wav";
+        let x: Vec<f32> = (0..48_000).map(|i| (i as f32 * 0.05).sin() * 0.5).collect();
+        audio::remember(phrase, Stereo::from_mono(&x));
+        h.cuts.insert(phrase.into(), (found("2", "Keys", "by"), false));
+        let bp = h.bp.as_mut().unwrap();
+        bp.parts[0].sound =
+            model::Sound::Sample { path: phrase.into(), root: 60, start: 0.0, end: None, label: "keys".into() };
+        let (keys, from) = (bp.parts[0].name.clone(), bp.form[0].name.clone());
+        // a bar the keys play in, which a record of the whole mix holds them in
+        let arranged = claudius::compose::arrange(bp);
+        let first = arranged.tracks.iter().find(|t| t.name == keys).unwrap().notes.first().map(|n| n.t);
+        let bar = (first.expect("the keys play") / 4.0).floor() as u32;
+        let moves = json!([{"t": 0.0, "at": 0.0}, {"t": 0.25, "at": 0.3}, {"t": 0.5, "at": 0.0}]);
+        let scratch = json!({"cmd": "add_scratch", "from": from, "track": "*", "bar": bar, "moves": moves});
+        let r = command(&mut h, scratch);
+        assert!(r.ok, "{}", r.message);
+        assert!(command(&mut h, json!({"cmd": "remove_track", "name": keys})).ok);
+
+        let songs = std::env::temp_dir().join(format!("claudius-session-scratch-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&songs);
+        let dir = claudius::song::unpack_project(&h.project().unwrap(), "song.zip", &songs).unwrap();
+        let credits = std::fs::read_to_string(dir.join("credits.txt")).unwrap();
+        assert!(credits.contains("\"Keys\" by someone"), "{credits}");
+        // opened in claudius, the take credits it from what is kept beside it
+        let mut opened = claudius::song::read_blueprint(&dir.join("blueprint.json")).unwrap();
+        claudius::take::find_moved(&mut opened, &dir);
+        let credits = claudius::song::credits(&claudius::compose::arrange(&opened));
+        assert!(credits.contains("\"Keys\" by someone"), "{credits}");
         let _ = std::fs::remove_dir_all(&songs);
     }
 }

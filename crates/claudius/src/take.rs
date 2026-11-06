@@ -7,6 +7,8 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
+use claudius_packs::online::Found;
+use serde::{Deserialize, Serialize};
 
 use crate::analysis::melody;
 use crate::audio::Stereo;
@@ -24,6 +26,67 @@ pub const ROLES: &[&str] = &["vocal", "lead", "chords", "keys", "bass", "drums",
 /// the folder a song's takes go in: its own folder's `takes/`, or the songs folder's until it has one
 pub fn dir(folder: Option<&Path>) -> PathBuf {
     folder.map_or_else(config::songs_dir, Path::to_path_buf).join("takes")
+}
+
+/// What a take's sound was cut from, kept beside its file (`keep_sources`) for the credits of the songs that play it:
+/// the recordings its sounds come from, as the online libraries credit them, and the sample packs' instruments it
+/// plays. A scratch credits the record it moved even once the song no longer plays the tracks it was cut from.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Sources {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub recordings: Vec<Found>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub instruments: Vec<String>,
+}
+
+impl Sources {
+    /// `more` as well, each recording and each instrument once
+    pub fn add(&mut self, more: Sources) {
+        for f in more.recordings {
+            if !self.recordings.iter().any(|g| g.id == f.id) {
+                self.recordings.push(f);
+            }
+        }
+        for i in more.instruments {
+            if !self.instruments.contains(&i) {
+                self.instruments.push(i);
+            }
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.recordings.is_empty() && self.instruments.is_empty()
+    }
+}
+
+/// where what take `file` was cut from is kept: beside it
+pub fn sources_path(file: &Path) -> PathBuf {
+    let mut s = file.as_os_str().to_owned();
+    s.push(".sources.json");
+    PathBuf::from(s)
+}
+
+/// keeps beside take `file` what it was cut from; with nothing to keep, nothing is written
+pub fn keep_sources(file: &Path, s: &Sources) -> Result<()> {
+    if s.is_empty() {
+        return Ok(());
+    }
+    let path = sources_path(file);
+    std::fs::write(&path, serde_json::to_string_pretty(s)? + "\n")
+        .with_context(|| format!("cannot write {}", path.display()))
+}
+
+/// what the file at `path` credits: the recording it was downloaded or cut from (the `.json` beside it), and for a
+/// take, what it was cut from (`keep_sources`)
+pub fn credited(path: &Path) -> Sources {
+    let mut s: Sources = std::fs::read_to_string(sources_path(path))
+        .ok()
+        .and_then(|t| serde_json::from_str(&t).ok())
+        .unwrap_or_default();
+    if let Some(f) = claudius_packs::online::about(path) {
+        s.add(Sources { recordings: vec![f], instruments: Vec::new() });
+    }
+    s
 }
 
 /// writes a recording into `dir` as 24-bit FLAC (mono when both sides are the same), named after its sound, so that
@@ -672,6 +735,12 @@ pub fn gather(bp: &mut Blueprint, folder: &Path) -> Result<Vec<(String, String)>
             std::fs::copy(&src, &dst)
                 .with_context(|| format!("cannot copy the take {} into {}", src.display(), dir.display()))?;
         }
+        // and what it was cut from, which its credits come from
+        let (from, to) = (sources_path(&src), sources_path(&dst));
+        if from.is_file() && !to.is_file() {
+            std::fs::copy(&from, &to)
+                .with_context(|| format!("cannot copy {} into {}", from.display(), dir.display()))?;
+        }
         let new = dst.display().to_string();
         if *path != new {
             moves.push((std::mem::replace(path, new.clone()), new));
@@ -1128,6 +1197,9 @@ mod tests {
         let mut bp = song();
         let from = bp.form[0].name.clone();
         add(&mut bp, &path, 0.5, &from, None, None).unwrap();
+        // what it was cut from goes with it
+        let cut = Sources { instruments: vec!["salamander_piano".into()], ..Default::default() };
+        keep_sources(&path, &cut).unwrap();
         // a phrase sampled into the song is kept with it the same way
         let phrase = store(&tone(0.25), &home).unwrap();
         let mut vox = LoopPart { name: "vox1".into(), from: None, sampled: true, ..bp.loops[0].clone() };
@@ -1141,6 +1213,7 @@ mod tests {
         for file in [&path, &phrase] {
             assert!(saved.join("takes").join(file.file_name().unwrap()).is_file());
         }
+        assert_eq!(credited(&saved.join("takes").join(path.file_name().unwrap())), cut, "with what it was cut from");
         repoint(&mut bp, &moves);
         assert_eq!(bp, copy, "the song points at the copy too");
         assert!(gather(&mut copy, &saved).unwrap().is_empty(), "saved again: nothing to copy");

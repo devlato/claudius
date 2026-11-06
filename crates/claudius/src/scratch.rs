@@ -50,6 +50,28 @@ pub fn name(bp: &Blueprint) -> String {
 /// Track `track` of the song alone (or every track, for `MIX`) over `bars` bars from bar `bar` (0 the first), as the
 /// record a scratch moves; a track muted, or left out while others are soloed, is heard all the same.
 pub fn record(bp: &Blueprint, track: &str, bar: u32, bars: u32) -> Result<Stereo, String> {
+    let slice = cut(bp, track, bar, bars)?;
+    let r = render::render(&slice, &render::Options { stems: false, tail_secs: 0.0 }).map_err(|e| format!("{e:#}"))?;
+    if r.master.l.iter().chain(&r.master.r).all(|s| s.abs() < 1e-4) {
+        return Err(format!("{track} is silent in bars {} to {}: cut the record where it plays", bar + 1, bar + bars));
+    }
+    Ok(r.master)
+}
+
+/// What a record of `track` (or of the whole mix) over `bars` bars from `bar` was cut from, each file's as `credited`
+/// says (`take::credited`): what a take of a scratch on it credits.
+pub fn sources(
+    bp: &Blueprint,
+    track: &str,
+    bar: u32,
+    bars: u32,
+    credited: impl Fn(&std::path::Path) -> crate::take::Sources,
+) -> Result<crate::take::Sources, String> {
+    Ok(crate::song::sources(&cut(bp, track, bar, bars)?, credited))
+}
+
+/// the song arranged with every track heard, then `track` alone (or every track, for `MIX`) over the bars of the record
+fn cut(bp: &Blueprint, track: &str, bar: u32, bars: u32) -> Result<crate::model::Project, String> {
     let mut p = compose::arrange(&crate::pads::heard(bp));
     if track != MIX && !p.tracks.iter().any(|t| t.name == track) {
         let names: Vec<&str> = p.tracks.iter().map(|t| t.name.as_str()).collect();
@@ -64,12 +86,7 @@ pub fn record(bp: &Blueprint, track: &str, bar: u32, bars: u32) -> Result<Stereo
     if track != MIX {
         p.tracks.retain(|t| t.name == track);
     }
-    let slice = p.slice(bar, bar + bars);
-    let r = render::render(&slice, &render::Options { stems: false, tail_secs: 0.0 }).map_err(|e| format!("{e:#}"))?;
-    if r.master.l.iter().chain(&r.master.r).all(|s| s.abs() < 1e-4) {
-        return Err(format!("{track} is silent in bars {} to {}: cut the record where it plays", bar + 1, bar + bars));
-    }
-    Ok(r.master)
+    Ok(p.slice(bar, bar + bars))
 }
 
 /// The record read along `moves` (in time order) through the crossfader: what the scratch sounds like. The record goes
@@ -351,5 +368,53 @@ mod tests {
         let dot = |a: &Stereo, b: &Stereo| a.l.iter().zip(&b.l).map(|(x, y)| *x as f64 * *y as f64).sum::<f64>();
         let corr = dot(&mix, &lane) / (dot(&mix, &mix) * dot(&lane, &lane)).sqrt();
         assert!(corr < 0.9, "the mix is more than its kick: {corr}");
+    }
+
+    #[test]
+    fn a_take_of_a_scratch_credits_what_its_record_was_cut_from_once_the_song_plays_it_no_more() {
+        use crate::take;
+        let dir = std::env::temp_dir().join(format!("claudius-scratch-credits-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        // a phrase from an online library, under CC BY, with its credit beside it
+        let tone = Stereo::from_mono(&(0..48_000).map(|i| (i as f32 * 0.05).sin() * 0.5).collect::<Vec<_>>());
+        let phrase = dir.join("phrase.wav");
+        std::fs::write(&phrase, crate::audio::wav_bytes(&tone)).unwrap();
+        let found = serde_json::json!({"id": "freesound:2", "source": "openverse", "provider": "freesound",
+            "title": "Keys", "creator": "someone", "licence": "by", "licence_name": "CC BY 4.0",
+            "licence_url": "https://creativecommons.org/licenses/by/4.0/", "page": "https://freesound.org/s/2/",
+            "audio": "", "filetype": "mp3", "seconds": 1.0});
+        std::fs::write(dir.join("phrase.wav.json"), found.to_string()).unwrap();
+        let g = crate::genres::get("house").unwrap();
+        let o = compose::Options { short: true, samples: 0.0, loops: false, ..Default::default() };
+        let mut bp = compose::generate(&g, 3, &o, None);
+        let keys = bp.parts[0].name.clone();
+        let path = phrase.display().to_string();
+        bp.parts[0].sound = crate::model::Sound::Sample { path, root: 60, start: 0.0, end: None, label: "keys".into() };
+        // the keys rest in the first section, and play in a later one
+        bp.form[0].layers.retain(|l| *l != keys);
+        let arranged = compose::arrange(&crate::pads::heard(&bp));
+        let notes = &arranged.tracks.iter().find(|t| t.name == keys).unwrap().notes;
+        let plays = |bar: u32| notes.iter().any(|n| n.t >= f64::from(bar) * 4.0 && n.t < f64::from(bar + 1) * 4.0);
+        assert!(!plays(0));
+        let on = (0..arranged.bars).find(|b| plays(*b)).expect("the keys play");
+        let cut = sources(&bp, MIX, on, 1, take::credited).unwrap();
+        assert_eq!(cut.recordings.iter().map(|f| f.id.as_str()).collect::<Vec<_>>(), ["freesound:2"]);
+        let rest = sources(&bp, MIX, 0, 1, take::credited).unwrap();
+        assert!(rest.recordings.is_empty(), "a record of bars the keys rest in holds none of them");
+        let kick = sources(&bp, &bp.drums[0].name, on, 1, take::credited).unwrap();
+        assert!(kick.recordings.is_empty(), "a record of the kick was cut from no recording");
+        // the take of a scratch on the mix, kept with what it was cut from, credits the phrase with the keys gone
+        let file = take::store(&tone, &dir).unwrap();
+        take::keep_sources(&file, &cut).unwrap();
+        let from = bp.form[0].name.clone();
+        take::add(&mut bp, &file, 1.0, &from, Some("scratch1"), None).unwrap();
+        bp.parts.retain(|p| p.name != keys);
+        for s in bp.form.iter_mut() {
+            s.layers.retain(|l| *l != keys);
+        }
+        let credits = crate::song::credits(&compose::arrange(&bp));
+        assert!(credits.contains("\"Keys\" by someone"), "{credits}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

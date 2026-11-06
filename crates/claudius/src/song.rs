@@ -48,34 +48,43 @@ pub fn report<'a>(bp: &'a Blueprint, p: &Project, r: &'a Rendered) -> Report<'a>
     }
 }
 
-/// credits for the recorded sounds a project plays: the sample packs whose licences ask for attribution, and the
-/// samples downloaded from online libraries
-pub fn credits(p: &Project) -> String {
+/// what the recorded sounds `p` plays come from, each file's as `credited` says (`take::credited`): the recordings,
+/// and the sample packs' instruments, of the tracks that play in it (a track with no notes and no clips is not heard)
+pub fn sources(p: &Project, credited: impl Fn(&Path) -> crate::take::Sources) -> crate::take::Sources {
     use crate::model::Sound;
-    let mut names: Vec<&str> = p
-        .tracks
-        .iter()
-        .filter_map(|t| if let Sound::Instrument { name, .. } = &t.sound { Some(name.as_str()) } else { None })
-        .collect();
-    names.sort();
-    names.dedup();
-    let mut s = if names.is_empty() { String::new() } else { claudius_packs::credits_for(&names) };
-    let files: Vec<&Path> = p
-        .tracks
-        .iter()
-        .filter_map(|t| match &t.sound {
-            Sound::Sample { path, .. } | Sound::Loop { path, .. } => Some(Path::new(path.as_str())),
-            _ => None,
-        })
-        .collect();
-    let samples = claudius_packs::online::credits_for_files(&files);
-    if !samples.is_empty() {
-        if !s.is_empty() && !s.ends_with('\n') {
-            s.push('\n');
+    let mut s = crate::take::Sources::default();
+    for t in p.tracks.iter().filter(|t| !t.notes.is_empty() || !t.clips.is_empty()) {
+        match &t.sound {
+            Sound::Instrument { name, .. } => {
+                s.add(crate::take::Sources { instruments: vec![name.clone()], ..Default::default() })
+            }
+            Sound::Sample { path, .. } | Sound::Loop { path, .. } => s.add(credited(Path::new(path.as_str()))),
+            _ => {}
         }
-        s.push_str(&samples);
     }
     s
+}
+
+/// credits for the recorded sounds a project plays: the sample packs whose licences ask for attribution, and the
+/// samples downloaded from online libraries, those its takes were cut from too
+pub fn credits(p: &Project) -> String {
+    credits_of(&sources(p, crate::take::credited))
+}
+
+/// the credits for `s`, as a song's credits.txt lists them: the sample packs, then the recordings
+pub fn credits_of(s: &crate::take::Sources) -> String {
+    let mut names: Vec<&str> = s.instruments.iter().map(String::as_str).collect();
+    names.sort();
+    names.dedup();
+    let mut out = if names.is_empty() { String::new() } else { claudius_packs::credits_for(&names) };
+    let samples = claudius_packs::online::credits_of(&s.recordings);
+    if !samples.is_empty() {
+        if !out.is_empty() && !out.ends_with('\n') {
+            out.push('\n');
+        }
+        out.push_str(&samples);
+    }
+    out
 }
 
 pub fn slug(s: &str) -> String {
