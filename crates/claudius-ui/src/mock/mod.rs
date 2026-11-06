@@ -622,6 +622,16 @@ mod tests {
         assert_eq!(answer(&mock, 4).unwrap().0, 403, "a phone sends takes and nothing else");
         assert_eq!(answer(&mock, 5).unwrap().0, 404);
         assert_eq!(mock.phone_view().map(|v| v.phones), Some(1), "the studio sees the phone");
+        // the phone plays the song in the studio, from a place, and stops it: each ask its own, for the studio to do
+        ask(&mut mock, 8, "POST", "api/play", json!({ "playing": true, "at": 12.5 }));
+        ask(&mut mock, 9, "POST", "api/play", json!({ "at": 3 }));
+        mock.update(now);
+        assert_eq!((answer(&mock, 8).unwrap().0, answer(&mock, 9).unwrap().0), (204, 400));
+        let play = |id, playing, at| Some(claudius_api::PlayAsk { id, playing, at });
+        assert_eq!(mock.phone_view().and_then(|v| v.play), play(1, true, Some(12.5)));
+        ask(&mut mock, 10, "POST", "api/play", json!({ "playing": false }));
+        mock.update(now);
+        assert_eq!(mock.phone_view().and_then(|v| v.play), play(2, false, None));
         // a song newer than this one is waited for; a take makes one
         let version = mock.state.song_version;
         ask(&mut mock, 6, "GET", &format!("api/song?after={version}"), Value::Null);

@@ -122,6 +122,19 @@ pub struct PhoneView {
     pub url: String,
     #[serde(default)]
     pub phones: u32,
+    /// the song played or stopped from a phone, which the studio does once (`PlayAsk::id`)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub play: Option<PlayAsk>,
+}
+
+/// A phone asked the studio to play the song from `at` seconds (from where it is, when none), or to stop it. Each ask has
+/// an `id` of its own, so the studio does each once, and not one made before it opened.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct PlayAsk {
+    pub id: u64,
+    pub playing: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at: Option<f64>,
 }
 
 /// A take someone (an assistant, say) asked the person to record. The studio's Record window opens for it, and the take

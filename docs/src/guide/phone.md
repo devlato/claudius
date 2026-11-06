@@ -23,10 +23,12 @@ silent too.
 
 ## Recording a take
 
-Play the song in the studio, then tap ● on the phone, and the take records along with the song. Tap it again to send
-the take: the song changes as if you had made the edit in the studio, and undo takes it back. The phone keeps its
-clock with the computer's and follows the studio's transport, so what you play lands where you heard it, and the
-delay of the phone's own speaker is taken off.
+The phone plays the song in the studio as well as following it: **▶** plays it from where it is, and **■** stops it.
+Tap ● and the take records along with the song; with the song stopped, ● starts it in the studio a bar before the
+section it is at, so you hear a bar first, and the take starts with that section. Tap ● again to send the take: the
+song changes as if you had made the edit in the studio, and undo takes it back. The phone keeps its clock with the
+computer's and follows the studio's transport, so what you play lands where you heard it, and the delay of the
+phone's own speaker is taken off.
 
 - **Pads.** A pad for each of the song's drum lanes, which sounds harder the nearer its top you strike it. A take
   becomes the lanes you struck, folded into a pattern of 1, 2 or 4 bars (as many as you played, up to 4) on the

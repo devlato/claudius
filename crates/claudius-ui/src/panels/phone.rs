@@ -19,6 +19,8 @@ pub struct Phone {
     pub report: Option<Transport>,
     /// what was last told: whether it played, where, and when on the studio's clock
     told: Option<(bool, f64, f64)>,
+    /// the last of a phone's asks to play or stop that the studio has seen (`claudius_api::PlayAsk::id`)
+    played: Option<u64>,
     /// the QR code of the page's address
     code: Option<(String, QrCode)>,
     /// the page is asked for and not served yet
@@ -46,6 +48,7 @@ impl Phone {
 
 /// Tells claudius where the song is while a phone's page is served, and shows the window while it is open.
 pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
+    follow(cx);
     tell(cx);
     if !cx.view.phone.open {
         return;
@@ -62,6 +65,34 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
         .show(ctx, |ui| body(ui, cx));
     if !open {
         cx.view.phone.open = false;
+    }
+}
+
+/// What a phone asked of the song, done once: played from where it asked (or where it is), or stopped. What was asked
+/// before the studio saw the page is not done.
+fn follow(cx: &mut Cx) {
+    let p = &mut cx.view.phone;
+    let Some(view) = cx.state.phone.as_ref() else {
+        p.played = None;
+        return;
+    };
+    let ask = view.play.clone();
+    let id = ask.as_ref().map_or(0, |a| a.id);
+    match p.played {
+        None => p.played = Some(id),
+        Some(seen) if id > seen => {
+            p.played = Some(id);
+            let Some(ask) = ask else { return };
+            if !ask.playing {
+                cx.player.pause();
+                return;
+            }
+            if let Some(at) = ask.at {
+                cx.player.seek(at);
+            }
+            cx.player.play();
+        }
+        _ => {}
     }
 }
 

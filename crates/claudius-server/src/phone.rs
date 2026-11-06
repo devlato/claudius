@@ -86,7 +86,7 @@ async fn serve(app: &Arc<App>, bind: Ipv4Addr, ip: IpAddr) -> Result<PhoneView, 
         }
     });
     let url = format!("http://{}/?key={key}", SocketAddr::new(ip, port));
-    app.set_phone(Some(Running { url, _stop: stop, seen: HashMap::new() }));
+    app.set_phone(Some(Running { url, _stop: stop, seen: HashMap::new(), play: None }));
     app.phone_view().ok_or_else(|| "the phone's page stopped as it started".into())
 }
 
@@ -115,6 +115,7 @@ fn router(p: Arc<Phone>) -> Router {
         .route("/api/keys", get(keys))
         .route("/api/record", get(record))
         .route("/api/take", post(take).layer(DefaultBodyLimit::max(4 << 20)))
+        .route("/api/play", post(play))
         .layer(middleware::from_fn_with_state(p.clone(), guard))
         .layer(middleware::from_fn(headers))
         .with_state(p)
@@ -359,6 +360,20 @@ async fn record(State(p): State<Arc<Phone>>, Query(r): Query<Record>) -> Respons
 }
 
 /// a take played on the phone, sent as the command it makes, and made as no more than the edit it is
+#[derive(Deserialize)]
+struct Play {
+    playing: bool,
+    #[serde(default)]
+    at: Option<f64>,
+}
+
+/// the phone asks the studio to play the song (from `at` seconds) or to stop it, as its ▶ and ● do
+async fn play(State(p): State<Arc<Phone>>, Json(ask): Json<Play>) -> Response {
+    let Some(app) = p.app.upgrade() else { return gone() };
+    app.ask_play(ask.playing, ask.at);
+    StatusCode::NO_CONTENT.into_response()
+}
+
 async fn take(State(p): State<Arc<Phone>>, Json(c): Json<Command>) -> Response {
     let t = match c {
         Command::AddHits { from, hits, bars, variant, grid, start, beats } => Take::Hits {
@@ -535,6 +550,27 @@ mod tests {
         let (status, _, body) = ask(&r, post(hits)).await;
         let reply: claudius_api::Reply = serde_json::from_slice(&body).unwrap();
         assert!(status == StatusCode::OK && reply.ok, "{}", reply.message);
+    }
+
+    #[tokio::test]
+    async fn a_phone_plays_and_stops_the_song_in_the_studio() {
+        let app = app();
+        let _served = serve(&app, Ipv4Addr::LOCALHOST, Ipv4Addr::LOCALHOST.into()).await.unwrap();
+        let r = test_router(&app, "k");
+        let post = |body: serde_json::Value| {
+            Request::post("/api/play")
+                .header(header::COOKIE, "claudius_phone=k")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(body.to_string()))
+                .unwrap()
+        };
+        let play = |id, playing, at| Some(claudius_api::PlayAsk { id, playing, at });
+        assert_eq!(ask(&r, post(serde_json::json!({"playing": true, "at": 12.5}))).await.0, StatusCode::NO_CONTENT);
+        assert_eq!(app.state().phone.unwrap().play, play(1, true, Some(12.5)));
+        assert_eq!(ask(&r, post(serde_json::json!({"playing": false}))).await.0, StatusCode::NO_CONTENT);
+        assert_eq!(app.state().phone.unwrap().play, play(2, false, None), "each ask its own");
+        assert_ne!(ask(&r, post(serde_json::json!({"at": 3}))).await.0, StatusCode::NO_CONTENT, "it says which");
+        app.set_phone(None);
     }
 
     #[tokio::test]

@@ -57,6 +57,63 @@ test.describe("playing from a phone", () => {
     }
   });
 
+  test("the phone plays and stops the song in the studio, and a take started there starts it", async () => {
+    test.setTimeout(240_000);
+    const c = await claudius();
+    const browser = await chromium.launch({ args: ["--autoplay-policy=no-user-gesture-required"] });
+    try {
+      // the studio serves the phone's page and does not play
+      const studio = await browser.newPage();
+      await studio.goto(`${c.base}/?plan=${encodeURIComponent("wait:2;phone;wait:220")}`);
+      const state = async () => (await c.api("/api/state")).json();
+      await expect.poll(async () => (await state()).phone?.url ?? "", { timeout: 60_000 }).toMatch(/\/\?key=/);
+      await expect.poll(async () => (await state()).render?.version ?? 0, { timeout: 120_000 }).toBeGreaterThan(0);
+      const phone = await browser.newPage({ ...devices["iPhone 13"] });
+      await phone.goto((await state()).phone.url);
+      await phone.click("#go");
+      await phone.waitForFunction(() => hits.size === song.lanes.length, null, { timeout: 60_000 });
+      await expect(phone.locator("#where")).toContainText("stopped");
+      await phone.click("#play");
+      await expect(phone.locator("#where"), "the studio plays it").toContainText(/, bar \d+/, { timeout: 30_000 });
+      await phone.click("#play");
+      await expect(phone.locator("#where"), "and stops it").toContainText("stopped", { timeout: 30_000 });
+      // ● with the song stopped starts it a bar before its section, and records from the section's first beat
+      await phone.click("#rec");
+      await expect(phone.locator("#said")).toHaveText(/^recording: /, { timeout: 30_000 });
+      const said = await phone.evaluate(async () => {
+        const wait = (ms) => new Promise((r) => setTimeout(r, Math.max(0, ms)));
+        const beat = 60 / song.bpm;
+        const from = take.from;
+        for (let b = 0; b < 4; b++) {
+          await wait((from + b * beat - songAt(performance.now() + latency())) * 1000);
+          hit(song.lanes[0], 1, performance.now());
+        }
+        await wait((from + 4 * beat + 0.05 - songAt(performance.now() + latency())) * 1000);
+        record();
+        const text = () => document.getElementById("said").textContent;
+        for (let i = 0; i < 100 && !/played|nothing|cannot|no /.test(text()); i++) await wait(100);
+        return text();
+      });
+      expect(said).toMatch(/^drums played from \S+/);
+      // a section's own start finds that section at any tempo, though its seconds come back a hair short of it
+      const found = await phone.evaluate(() => {
+        const keep = song.bpm;
+        try {
+          return [91.5, 97, 87.3, 123.47].every((bpm) => {
+            song.bpm = bpm;
+            return song.sections.every((s) => sectionAt((s.start_bar * 240) / bpm) === s);
+          });
+        } finally {
+          song.bpm = keep;
+        }
+      });
+      expect(found, "each section found from its own start").toBe(true);
+    } finally {
+      await browser.close();
+      c.stop();
+    }
+  });
+
   test("a MIDI controller plays the pads by its notes and scratches with its jog wheel", async () => {
     test.setTimeout(240_000);
     const c = await claudius();

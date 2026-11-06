@@ -6,6 +6,10 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+The phone plays the song in the studio as well as following it: **▶** plays it and **■** stops it, so a take needs no
+trip to the computer. With the song stopped, ● starts it a bar before the section it is at, and the take starts with
+that section.
+
 **Remake** remixes a recording in the genre you pick, rather than writing a new song only on its skeleton. The new
 song is built on the recording's own sound. Its hook without its drums plays in the hooks, and the song takes its key
 and chords. Another passage of it plays in the other sections, and its drums are the break where the genre plays one.

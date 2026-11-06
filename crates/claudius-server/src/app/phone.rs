@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use claudius::take::{self, Pads, Played, Struck};
 use claudius::{scratch, theory::Note};
-use claudius_api::{PhoneView, Reply, Transport};
+use claudius_api::{PhoneView, PlayAsk, Reply, Transport};
 
 use super::App;
 
@@ -21,6 +21,8 @@ pub(crate) struct Running {
     /// dropping it stops the page's server
     pub _stop: tokio::sync::oneshot::Sender<()>,
     pub seen: HashMap<IpAddr, Instant>,
+    /// the song played or stopped from a phone, last (`ask_play`)
+    pub play: Option<PlayAsk>,
 }
 
 /// a take played on a phone, as the edit it makes: what a phone may change, and nothing else a command could do
@@ -54,7 +56,19 @@ impl App {
 
     pub(crate) fn phone_view(&self) -> Option<PhoneView> {
         let p = self.phone.lock().unwrap_or_else(|e| e.into_inner());
-        p.as_ref().map(|r| PhoneView { url: r.url.clone(), phones: phones(r) })
+        p.as_ref().map(|r| PhoneView { url: r.url.clone(), phones: phones(r), play: r.play.clone() })
+    }
+
+    /// a phone asks the studio to play the song from `at` seconds (from where it is, when none), or to stop it: an ask
+    /// of its own, which the studio sees in the state and does
+    pub(crate) fn ask_play(&self, playing: bool, at: Option<f64>) {
+        {
+            let mut p = self.phone.lock().unwrap_or_else(|e| e.into_inner());
+            let Some(r) = p.as_mut() else { return };
+            let id = r.play.as_ref().map_or(1, |a| a.id + 1);
+            r.play = Some(PlayAsk { id, playing, at: at.filter(|t| t.is_finite() && *t >= 0.0) });
+        }
+        self.update(|_| ());
     }
 
     /// the page served from now on (or none: the one served stops)

@@ -234,7 +234,8 @@ function when(e) {
 
 /** the section the song is in at `secs` */
 function sectionAt(secs) {
-  const bar = Math.floor((secs * song.bpm) / 240);
+  // a bar's own start, worked out from its seconds, comes back a hair short of it at most tempos
+  const bar = Math.floor((secs * song.bpm) / 240 + 1e-9);
   let at = song.sections[0];
   for (const s of song.sections) if (s.start_bar <= bar) at = s;
   return at;
@@ -251,6 +252,7 @@ async function watch() {
         $("title").textContent = "No song yet";
         $("where").textContent = "start one in the studio";
         $("rec").disabled = true;
+        $("play").disabled = true;
         await sleep(2000);
         continue;
       }
@@ -268,6 +270,7 @@ function open(s) {
   song = s;
   $("title").textContent = s.title;
   $("rec").disabled = false;
+  $("play").disabled = false;
   buildPads();
   fillSounds(s);
   // a record to scratch: a voice, a sample, a lead, a stab or horns, which scratch as records do, else any part
@@ -860,15 +863,57 @@ function drawPlatter() {
   g.fill();
 }
 
+// The studio's transport from here: ▶ plays the song in the studio (from where it is), ■ stops it.
+
+/** asks the studio to play the song (from `at` seconds) or to stop it; whether the ask got there */
+async function ask(play) {
+  try {
+    const r = await link.post("api/play", play);
+    if (r.ok) return true;
+    say(await r.text(), "no");
+  } catch (e) {
+    say(`the studio did not hear: ${e.message}`, trouble(e));
+  }
+  return false;
+}
+
+/** where the song is once the studio plays it, asked for a few times a second; null when it has not in 6 s */
+async function started() {
+  for (let i = 0; i < 40; i++) {
+    await tick();
+    const at = songAt(performance.now() + latency());
+    if (at !== null) return at;
+    await sleep(150);
+  }
+  return null;
+}
+
+async function playStop() {
+  const playing = songAt(performance.now()) !== null;
+  if (await ask({ playing: !playing })) await tick();
+}
+
 // Takes: ● starts one along with the song, and stops it and sends it as the command it makes.
 
 let take = null;
 
-function record() {
+async function record() {
   if (take) return send();
-  const at = songAt(performance.now() + latency());
-  if (!song || at === null) return say("play the song in the studio first: a take records along with it", "no");
-  take = { mode, from: at, hits: [], notes: [], moves: [], track: deck.track, bar: deck.bar, bars: deck.bars };
+  if (!song) return say("no song yet: start one in the studio", "no");
+  let at = songAt(performance.now() + latency());
+  let from = at;
+  let sec = null;
+  if (at === null) {
+    // stopped: the studio plays the song a bar before the section it is at, and the take starts with that section
+    sec = sectionAt(transport.at || 0);
+    const bar = (s) => (s * 240) / song.bpm;
+    from = bar(sec.start_bar);
+    say("starting the song in the studio…");
+    if (!(await ask({ playing: true, at: bar(Math.max(0, sec.start_bar - 1)) }))) return;
+    at = await started();
+    if (at === null) return say("the studio did not start the song: play it there, then tap ● again", "no");
+  }
+  take = { mode, from, sec, hits: [], notes: [], moves: [], track: deck.track, bar: deck.bar, bars: deck.bars };
   take.sound = $("sound").value;
   take.role = $("role").value;
   $("rec").classList.add("taking");
@@ -881,7 +926,7 @@ async function send() {
   $("rec").classList.remove("taking");
   for (const [id] of held) noteOff(id, performance.now());
   const end = songAt(performance.now() + latency());
-  const sec = sectionAt(t.from);
+  const sec = t.sec || sectionAt(t.from);
   const start = (sec.start_bar * 240) / song.bpm;
   const beats = (s) => ((s - start) * song.bpm) / 60;
   const round = (x, by = 1e4) => Math.round(x * by) / by;
@@ -1042,8 +1087,9 @@ function frame() {
   if (song) {
     const at = songAt(performance.now() + latency());
     const dots = $("beat").children;
+    $("play").classList.toggle("playing", at !== null);
     if (at === null) {
-      $("where").textContent = "stopped: play the song in the studio";
+      $("where").textContent = "stopped: tap ▶ to play it in the studio";
       for (const d of dots) d.classList.remove("on");
     } else {
       const beat = (at * song.bpm) / 60;
@@ -1083,6 +1129,7 @@ async function start() {
 addEventListener("DOMContentLoaded", () => {
   for (const b of document.querySelectorAll("nav button")) b.onclick = () => choose(b.dataset.mode);
   $("rec").onclick = record;
+  $("play").onclick = playStop;
   $("go").onclick = start;
   padsTouched();
   keyboard();
