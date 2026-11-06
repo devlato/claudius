@@ -1,4 +1,4 @@
-# Starting points for the thirty-six genres
+# Starting points for the fifty-one genres
 
 Two or three genres fuse with `+`: `song("trip_hop+idm", 3)` (or `new_song` with genre `trip_hop+idm`) is trip-hop's
 song, harmony, parts and mix with IDM's drums, and IDM's sounds lent to the parts. The first genre leads, the last
@@ -510,22 +510,25 @@ track("keys", chord("prog").struct("x ~ ~ ~ ~ x ~ ~").voicing(50, 76).s("epiano"
 ## hip_hop (84-100 BPM)
 
 Modern hip hop between boom bap and trap: a hard kick, a snare and clap on 2 and 4, crisp eighth hats with the odd
-roll, an 808 or a deep sub under piano, Rhodes and strings, a melody that loops on piano, pizzicato or flute.
+roll, a distorted 808 or a deep sub under a dark minor loop of a few chords on piano or Rhodes, strings now and then,
+a melody that loops on the piano. Not a lounge: no vibraphone, organ, flute or jazz sevenths, which make it sound like
+elevator music; `jazz_rap` is the genre for those.
 
 ```js
 blank("hip_hop");
 tempo(92);
 key("C minor");
-prog("A", "i7 iv7 VImaj7 V7");
-track("drums", s("bd ~ ~ ~ ~ ~ ~ bd ~ ~ bd ~ ~ ~ ~ ~, ~ [sd,cp] ~ [sd,cp], hh*8, ~ ~ ~ rim ~ ~ rim ~"));
+prog("A", "i VI iv V");
+track("drums", s("bd ~ ~ ~ ~ ~ ~ bd ~ ~ bd ~ ~ ~ ~ ~, ~ [sd,cp] ~ [sd,cp], hh*8"));
 track("bass", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ x ~ ~ ~ x ~ ~ ~ ~ ~").s("808").legato(1.0));
-track("keys", chord("prog").struct("x ~ ~ ~ x ~ ~ ~").voicing(50, 74).s("keys").room(0.2));
+mix("bass", #{ drive: 6 });
+track("keys", chord("prog").struct("x ~ ~ ~ x ~ ~ ~").voicing(45, 69).s("keys").room(0.2));
 ```
 
 ## alt_hip_hop (76-98 BPM)
 
-Alternative hip hop, layered as its producers layer it: lush ninth and eleventh chords on a Rhodes stacked on warm
-synths, strings and a flute, a distorted 808 with a fuzzy synth bass an octave over it (`fuzz`, a double of the
+Alternative hip hop, layered as its producers layer it: lush ninth and eleventh chords on a Rhodes or a Wurlitzer
+stacked on warm pads and strings, a distorted 808 with a fuzzy synth bass an octave over it (`fuzz`, a double of the
 `bass`), a swung kit with a clap on the snare, soul records chopped under it, a lead that sings and a counter-melody
 that answers it, and a beat switch into half time (`switch`) before the last hooks. Its songs are layered
 (complexity 0.8) unless asked otherwise; `complexity: 0.5` gives the genre as written.
@@ -649,4 +652,252 @@ prog("A", "i iv");
 track("drums", s("~ ~ [bd,rim] ~, hh*8").gain("1 0.7"));
 track("bass", chord("prog").root().octave(2).struct("~ ~ x ~ ~ x x ~").s("deep_bass").legato(0.8));
 track("guitar", chord("prog").struct("~ x ~ x").voicing(55, 76).s("clav").delay(0.2));
+```
+
+## g_funk (88-100 BPM)
+
+West Coast G-funk of the 90s, laid back and swung: a punchy kick, a snare and clap on 2 and 4, swung sixteenth hats
+and a shaker, a Minimoog bass bouncing through funk lines, a Rhodes vamping on minor sevenths, and the whine: a high
+synth lead that glides a long way from note to note (`glide_lead`). A voice through a talk box (`talkbox`, the vocal
+lead) answers in the hooks.
+
+```js
+blank("g_funk");
+tempo(94);
+swing(0.57);
+key("D minor");
+prog("A", "i7 iv7");
+track("drums", s("bd ~ ~ ~ ~ ~ ~ bd ~ ~ bd ~ ~ ~ ~ ~, ~ [sd,cp] ~ [sd,cp], hh*16, ~ sh ~ sh ~ sh ~ sh").gain("1 0.8"));
+track("bass", chord("prog").root().octave(2).struct("x ~ ~ x ~ ~ x ~ x ~ ~ ~ x ~ x ~").s("moog_bass").legato(0.7));
+track("keys", chord("prog").struct("x ~ ~ ~ ~ x ~ ~").voicing(50, 74).s("epiano").room(0.25));
+track("whine", n("<[7 ~ ~ 9] [7 ~ 4 ~]>").scale("D:minor").octave(5).s("glide_lead").delay(0.2).level(-4));
+```
+
+## gangsta_rap (84-96 BPM)
+
+The hardcore hip hop of the 90s, built on samples: a hard, dusty break, a menacing minor piano or string loop from an
+old film score, chopped and crushed, low strings hanging under it, a sub that follows the kick, a high eerie piano note
+now and then, vinyl crackle. Its first `new_song` gathers its samples, as boom bap's does; without them it plays the
+drum lanes and the piano. A sketch from patterns:
+
+```js
+blank("gangsta_rap");
+tempo(90);
+swing(0.55);
+key("E minor");
+prog("A", "i VI");
+track("drums", s("bd ~ ~ [~ bd] ~ ~ bd ~, ~ sd ~ sd, hh*8").gain("1 0.8"));
+track("bass", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ x ~ ~ ~ x ~ ~ ~ ~ ~").s("sub_bass").legato(0.9));
+track("piano", n("<[0 ~ 2 ~ 1 ~ 0 ~] [5 ~ 4 ~ ~ ~ ~ ~]>").scale("E:minor").octave(4).s("keys").room(0.2));
+track("strings", chord("prog").voicing(40, 64).s("strings").level(-4));
+```
+
+## jazz_rap (86-100 BPM)
+
+The hip hop of the Native Tongues, built on jazz records: a swung, dusty break, an upright bass that walks or loops a
+figure, a Rhodes, a piano or a vibraphone on sevenths and ninths, a muted trumpet, a sax or a flute answering in the
+hooks, vinyl crackle. This is where the lounge's sounds belong. Its first `new_song` gathers jazz records; a sketch
+from patterns:
+
+```js
+blank("jazz_rap");
+tempo(94);
+swing(0.58);
+key("D dorian");
+prog("A", "i9 IV9");
+track("drums", s("bd ~ ~ [~ bd] ~ bd ~ ~, ~ sd ~ sd, hh*8, ~ ~ ~ rim ~ ~ rim ~").gain("1 0.75"));
+track("bass", chord("prog").root().octave(2).struct("x ~ x ~ x ~ x ~").s("deep_bass").legato(0.8));
+track("keys", chord("prog").struct("x ~ ~ x ~ ~ x ~").voicing(50, 74).s("epiano").room(0.2));
+track("horns", n("<[4 ~ 6 4] [2 ~ 0 ~]>").scale("D:dorian").octave(5).s("brass_lead").room(0.3).level(-2));
+```
+
+## chipmunk_soul (80-96 BPM)
+
+The hip hop of the early 2000s, built on soul records played fast enough that their singers' voices rise (its phrase
+plays up to six semitones up): a hard programmed kick, a snare and a clap cracking together on 2 and 4, crisp hats, a
+deep bass under the sample's chords, horn stabs and strings in the hooks. Its first `new_song` gathers soul records
+with voices on them; without them a Rhodes plays the chords. A sketch from patterns:
+
+```js
+blank("chipmunk_soul");
+tempo(88);
+key("Eb major");
+prog("A", "IVmaj7 iii7 vi7 V");
+track("drums", s("bd ~ ~ ~ ~ ~ ~ bd ~ ~ bd ~ ~ ~ ~ ~, ~ [sd,cp] ~ [sd,cp], hh*8").gain("1 0.85"));
+track("bass", chord("prog").root().octave(2).struct("x ~ ~ ~ ~ ~ x ~").s("deep_bass").legato(0.9));
+track("keys", chord("prog").struct("x ~ ~ ~ x ~ ~ ~").voicing(50, 74).s("epiano").room(0.2));
+track("horns", chord("prog").struct("~ ~ x ~ ~ ~ ~ ~").voicing(55, 76).s("brass_stab").level(-3));
+```
+
+## crunk (80-104 BPM)
+
+The Southern club rap of the 2000s: booming 808 kicks and a long 808 bass, a loud snare and clap cracking together,
+straight eighth hats with a roll now and then, a squealing synth riff on one or two minor chords, big brass-synth stabs
+in the hooks, loud and driven.
+
+```js
+blank("crunk");
+tempo(100);
+key("F minor");
+prog("A", "i i VI i");
+track("drums", s("bd ~ bd ~, ~ [sd,cp] ~ [sd,cp], hh*8").gain("1 0.9"));
+track("808", chord("prog").root().octave(1).struct("x ~ x ~").s("808").legato(1).level(5));
+mix("808", #{ drive: 14 });
+track("riff", n("<[7 ~ 7 6 7 ~ 4 ~] [5 ~ 5 4 2 ~ 0 ~]>").scale("F:minor").octave(5).s("saw_lead").level(-2));
+track("stabs", chord("prog").struct("x ~ ~ ~ ~ ~ x ~").voicing(52, 72).s("brass_stab"));
+```
+
+## cloud_rap (128-148 BPM)
+
+Dreamy, hazy trap in half time: a soft 808 that holds its notes, a clap on beat 3 drowned in reverb, sparse hats, airy
+pads and voices washed out and slowed, lush sevenths that drift, everything in long reverb and tape.
+
+```js
+blank("cloud_rap");
+tempo(138);
+key("A minor");
+prog("A", "VImaj7 iv7 i7 v7");
+track("drums", s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~, ~ ~ cp ~, hh*4").gain("0.9 0.7").room(0.35));
+track("808", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ ~ ~").s("808").legato(1).level(4));
+track("pad", chord("prog").voicing(50, 76).s("air_pad").room(0.7));
+track("voice", n("<[4 ~ ~ ~ 2 ~ ~ ~] [0 ~ ~ ~ ~ ~ ~ ~]>").scale("A:minor").octave(5).s("vox_lead").room(0.6).delay(0.3).level(-4));
+```
+
+## emo_rap (130-170 BPM)
+
+Melodic SoundCloud rap in half time, built on a guitar: a clean or acoustic guitar loop picking a sad minor
+progression (`i VI III VII`), a distorted 808 that slides, a snare or clap on beat 3, rolling hats. Its first
+`new_song` gathers a guitar loop; without one the guitar part plays, on General MIDI's clean guitar when nothing better
+is installed.
+
+```js
+blank("emo_rap");
+tempo(150);
+key("E minor");
+prog("A", "i VI III VII");
+track("drums", s("[bd ~ ~ bd] [~ ~ bd ~], ~ ~ sd ~, hh*8").gain("1 0.85"));
+track("rolls", s("~ ~ ~ [hh*3]").gain(0.5));
+track("808", chord("prog").root().octave(1).struct("x ~ ~ x ~ ~ x ~").s("808").level(6));
+mix("808", #{ drive: 14 });
+track("guitar", chord("prog").struct("x*8").arp("updown").voicing(52, 76).s("harp_pluck").room(0.35).delay(0.15));
+```
+
+## rage (150-170 BPM)
+
+Aggressive synth trap in half time: a loud, distorted supersaw lead ringing over one or two minor chords, a supersaw
+arpeggio under it, a pounding 808 driven to the edge, a snare on beat 3, fast hats, loud and bright.
+
+```js
+blank("rage");
+tempo(160);
+key("C# minor");
+prog("A", "i i VI i");
+track("drums", s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~, ~ ~ sd ~, hh*16").gain("1 0.8"));
+track("808", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ x ~").s("808").legato(1).level(5));
+mix("808", #{ drive: 18 });
+track("lead", n("<[4 ~ 4 ~ 2 ~ 0 ~] [4 ~ 6 ~ 4 ~ ~ ~]>").scale("C#:minor").octave(5).s("supersaw").level(-1));
+track("arp", chord("prog").struct("x*16").arp("updown").voicing(55, 79).s("supersaw").level(-6));
+```
+
+## plugg (140-160 BPM)
+
+Soft, bright trap in half time: lush major and minor sevenths and ninths on a Rhodes and an airy pad, a bell or a
+pluck singing a simple melody, a sliding 808 under a sparse kick, a clap on beat 3, hats in triplet rolls.
+
+```js
+blank("plugg");
+tempo(150);
+key("F major");
+prog("A", "IVmaj7 iii7 vi9 ii9");
+track("drums", s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~, ~ ~ cp ~, hh*4").gain("0.9 0.7"));
+track("rolls", s("~ ~ ~ [hh*3]").gain(0.4));
+track("808", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ x ~").s("808").legato(1).level(5));
+track("keys", chord("prog").struct("x ~ ~ ~ ~ ~ ~ ~").voicing(52, 76).s("epiano").room(0.35));
+track("bells", n("<[4 ~ 2 ~ 4 ~ 5 ~] [4 ~ 2 ~ 0 ~ ~ ~]>").scale("F:major").octave(5).s("bell").delay(0.3).level(-3));
+```
+
+## ny_drill (138-146 BPM)
+
+Brooklyn's drill, felt at half time: heavy 808s that slide and bounce between octaves under a sparse kick, the drill
+snare on beat 3 answered late, skippy hats in threes, a dark choir or strings, a minor piano figure, a bell or flute
+line in the hooks. Its sample searches dig for R&B hooks to flip.
+
+```js
+blank("ny_drill");
+tempo(142);
+key("F minor");
+prog("A", "i VI");
+track("drums", s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~, ~ sd, [hh hh hh]*4").gain("1 0.75"));
+track("808", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ ~ x ~ ~ x ~ ~ ~ ~ ~").s("808").legato(1).level(6));
+mix("808", #{ drive: 16 });
+track("choir", chord("prog").voicing(48, 72).s("vowel_pad").room(0.45));
+track("keys", n("<[0 ~ 2 ~ 4 ~ 2 ~] [5 ~ 4 ~ 2 ~ ~ ~]>").scale("F:minor").octave(4).s("keys").room(0.3));
+```
+
+## chicago_drill (130-150 BPM)
+
+The drill of the early 2010s in half time: menacing synth brass and strings on dark minor chords, an eerie bell or
+piano figure over them, booming 808s that follow the kick, a clap and snare on beat 3, hats in triplet rolls.
+
+```js
+blank("chicago_drill");
+tempo(140);
+key("G minor");
+prog("A", "i iv");
+track("drums", s("[bd ~ ~ bd] [~ ~ bd ~], ~ ~ [sd,cp] ~, hh*8").gain("1 0.9"));
+track("rolls", s("~ ~ [hh*3] [hh*3]").gain(0.5));
+track("808", chord("prog").root().octave(1).struct("x ~ ~ x ~ ~ x ~").s("808").level(6));
+track("brass", chord("prog").struct("x ~ ~ ~ x ~ ~ ~").voicing(48, 70).s("brass_stab").level(-2));
+track("bells", n("<[0 ~ 4 ~ 3 ~ 2 ~] [0 ~ ~ ~ ~ ~ ~ ~]>").scale("G:minor").octave(5).s("bell").level(-5));
+```
+
+## rnb_90s (66-100 BPM)
+
+Hip hop soul and the slow jams of the 90s: a swung sampler beat with a soft snare and a finger snap on 2 and 4,
+sixteenth hats and a shaker, the bright DX7 electric piano (`tine_piano`, which this genre plays as its own) or a
+Rhodes on lush sevenths and ninths, a round synth bass that slides, strings in the hooks, a sax or a sung line.
+
+```js
+blank("rnb_90s");
+tempo(76);
+swing(0.57);
+key("Ab major");
+prog("A", "IVmaj9 iii7 ii9 V9");
+track("drums", s("bd ~ ~ [~ bd] ~ ~ bd ~, ~ [sd,snap] ~ [sd,snap], hh*16, sh*8").gain("0.9 0.6"));
+track("bass", chord("prog").root().octave(2).struct("x ~ ~ x ~ ~ x ~").s("moog_bass").legato(0.8));
+track("keys", chord("prog").struct("x ~ ~ ~ ~ x ~ ~").voicing(50, 76).s("tine_piano").room(0.3));
+```
+
+## new_jack_swing (100-118 BPM)
+
+The R&B of the late 80s and early 90s: a drum machine swung hard (`swing(0.62)`), a punchy kick, a big snare and clap
+on 2 and 4, shuffling sixteenth hats, synth stabs and brassy hits on minor sevenths, a slap synth bass that pops, the
+DX7 electric piano, a synth lead answering the hooks.
+
+```js
+blank("new_jack_swing");
+tempo(108);
+swing(0.62);
+key("C minor");
+prog("A", "i7 IV7");
+track("drums", s("bd ~ ~ bd bd ~ ~ ~, ~ [sd,cp] ~ [sd,cp], hh*16").gain("1 0.8"));
+track("bass", chord("prog").root().octave(2).struct("x ~ x x ~ x ~ x").s("rubber_bass").legato(0.5));
+track("stabs", chord("prog").struct("~ x ~ ~ ~ x ~ x").voicing(55, 76).s("brass_stab"));
+track("keys", chord("prog").struct("x ~ ~ ~ x ~ ~ ~").voicing(52, 76).s("tine_piano").room(0.25).level(-3));
+```
+
+## alt_rnb (60-90 BPM)
+
+Dark, atmospheric R&B: pads and voices in long reverb, a Rhodes, an organ or a piano on minor sevenths that hang, an
+808 or a sub that holds, a sparse kick, a snare or clap on 2 and 4 with a tail, hats that roll now and then.
+
+```js
+blank("alt_rnb");
+tempo(70);
+key("C minor");
+prog("A", "i7 VImaj7 iv7 v7");
+track("drums", s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~, ~ sd ~ sd, hh*8").gain("0.85 0.6").room(0.3));
+track("808", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ ~ ~").s("808").legato(1).level(4));
+track("keys", chord("prog").voicing(48, 74).s("epiano").room(0.45));
+track("pad", chord("prog").voicing(48, 74).s("glass_pad").room(0.7).level(-2));
 ```

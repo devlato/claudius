@@ -1,0 +1,108 @@
+{
+  "name": "jazz_rap",
+  "family": "hip hop",
+  "aliases": ["jazz hip hop", "jazzy hip hop", "conscious hip hop", "native tongues", "90s jazz rap", "a tribe called quest", "de la soul"],
+  "description": "Jazz rap: the hip hop of the Native Tongues at 86 to 100 BPM, built on jazz records: a swung, dusty break, an upright bass that walks or loops a figure, a Rhodes, a piano or a vibraphone on major and minor sevenths and ninths, a muted trumpet, a sax or a flute answering in the hooks, vinyl crackle, verses and hooks",
+  "query": "jazz rap hip hop beat with jazz samples and upright bass",
+  "alts": ["jazz music", "boom bap hip hop beat", "lo-fi hip hop beat", "neo soul music"],
+  "accepted_flaws": ["a low quality recording with hiss"],
+  "bpm": [86, 100],
+  "swing": [0.56, 0.62],
+  "humanize": 0.4,
+  "modes": [["dorian", 0.45], ["minor", 0.3], ["major", 0.25]],
+  "harmony": [["major7_jazz", 0.4], ["dorian_vamp", 0.3], ["lush_soul", 0.3]],
+  "markov": 0.1,
+  "ext": 2,
+  "bars_per_chord": [[1, 0.45], [2, 0.55]],
+  "forms": [
+    [
+      {"name": "intro", "kind": "intro", "bars": 4, "energy": 0.35, "layers": ["sample", "texture", "bass"], "filter_in": true},
+      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.65, "layers": ["break", "rim", "bass", "sample", "texture"], "fills": true},
+      {"name": "hook", "kind": "hook", "bars": 8, "energy": 0.85, "layers": ["break", "ohat", "rim", "bass", "sample", "horns", "texture"], "fills": true},
+      {"name": "verse2", "kind": "verse", "bars": 16, "energy": 0.7, "layers": ["break", "rim", "bass", "sample", "vibes", "texture"], "fills": true},
+      {"name": "hook2", "kind": "hook", "bars": 8, "energy": 0.9, "layers": ["break", "ohat", "rim", "bass", "sample", "horns", "vibes", "texture"], "fills": true},
+      {"name": "verse3", "kind": "verse", "bars": 16, "energy": 0.7, "layers": ["break", "rim", "bass", "sample", "texture"], "fills": true},
+      {"name": "hook3", "kind": "hook", "bars": 8, "energy": 0.95, "layers": ["break", "ohat", "rim", "bass", "sample", "horns", "vibes", "texture"], "fills": true},
+      {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.35, "layers": ["sample", "bass", "texture"]}
+    ]
+  ],
+  "drums": [
+    {"name": "kick", "late_ms": [-5, 0], "voice": "kick", "template": {"steps": [1, 0, 0, 0, 0, 0, 0, 0.35, 0, 0, 1, 0, 0, 0, 0, 0.2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.4, 0.8, 0, 0, 0, 0.3, 0], "vel": [0.8, 0.95], "vary": 0.3}, "params": {"decay": [0.22, 0.38], "tune": [46, 56], "tone": [0.3, 0.55], "punch": [0.4, 0.7], "drive": [2, 5]}, "samples": ["Kick"], "mix": {"bus": "drums"}},
+    {"name": "snare", "late_ms": [10, 26], "voice": "snare", "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.8, 0.95], "ghost": 0.08, "vary": 0.2}, "params": {"decay": [0.14, 0.24], "tune": [175, 225], "snap": [0.5, 0.8], "tone": [0.45, 0.75], "room": [0.3, 0.55]}, "samples": ["Snare"], "mix": {"bus": "drums", "reverb": 0.12}},
+    {"name": "hat", "late_ms": [-2, 4], "voice": "closed_hat", "template": {"steps": [1, 0, 0.6, 0, 1, 0, 0.6, 0.25, 1, 0, 0.6, 0, 1, 0, 0.6, 0.3], "vel": [0.3, 0.6], "ghost": 0.05}, "params": {"tone": [0.4, 0.7], "decay": [0.03, 0.06]}, "samples": ["Hi-hat"], "choke": "hats", "mix": {"bus": "drums", "pan": 0.18}},
+    {"name": "ohat", "late_ms": [-2, 4], "voice": "open_hat", "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0], "vel": [0.45, 0.65]}, "params": {"decay": [0.2, 0.35]}, "choke": "hats", "mix": {"bus": "drums", "pan": -0.15}},
+    {"name": "rim", "late_ms": [6, 18], "voice": "rim", "template": {"steps": [0, 0, 0, 0.4, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.3], "vel": [0.35, 0.6]}, "mix": {"bus": "drums", "pan": -0.3, "reverb": 0.15}}
+  ],
+  "kits": [["muldjord", 0.5]],
+  "kit_mix": 0.25,
+  "palette": {
+    "bass": {"core": 0.85, "bass": 2, "synth": 0.3},
+    "keys": {"core": 0.5, "electric piano": 3, "piano": 2.5, "mallets": 1.5, "guitar": 0.5},
+    "lead": {"core": 0.6, "brass": 3, "woodwinds": 2.5},
+    "pad": {"core": 0.6, "strings": 1}
+  },
+  "parts": [
+    {"name": "bass", "late_ms": [4, 14], "role": "bass", "presets": ["upright_bass|deep_bass", "upright_bass|deep_bass", "electric_bass|deep_bass"], "styles": ["walking", "syncopated", "walking"], "register": [31, 50], "mix": {"bus": "bass"}},
+    {"name": "keys", "role": "keys", "presets": ["rhodes|epiano", "piano|keys", "wurlitzer|epiano"], "styles": ["charleston", "sustain", "half"], "register": [50, 74], "voices": 4, "voicing": "close", "mix": {"reverb": 0.2, "fx": [{"fx": "tape", "wow": 0.2, "flutter": 0.15, "drive_db": 2, "lowpass_hz": 11000}]}},
+    {"name": "vibes", "role": "lead", "presets": ["vibes|mallet"], "styles": ["motif"], "register": [62, 84], "density": [0.15, 0.3], "optional": 0.6, "core": 1.0, "mix": {"level_db": -6, "reverb": 0.3, "delay": 0.1}},
+    {"name": "horns", "role": "lead", "presets": ["trumpet|brass_lead", "sax|brass_lead", "flute|whistle"], "styles": ["motif"], "register": [60, 82], "density": [0.25, 0.4], "mix": {"level_db": -2, "reverb": 0.25, "delay": 0.1}}
+  ],
+  "sampling": {
+    "by_default": true,
+    "break": {
+      "search": ["jazz drum break", "funk drum break", "soul drum break", "brush drums", "breakbeat", "live drums", "70s drums"],
+      "listen": "a swung, dusty jazz drum break",
+      "seconds": [2, 40],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.3,
+      "instead": ["kick", "snare", "hat"],
+      "mix": {"bus": "drums", "fx": [{"fx": "saturate", "kind": "tape", "drive_db": 3, "mix": 0.5}, {"fx": "filter", "mode": "lp", "cutoff": 12500, "res": 0.05}]}
+    },
+    "phrase": {
+      "search": ["jazz piano", "cool jazz", "jazz guitar", "vibraphone", "jazz organ", "jazz quartet", "jazz trumpet", "soul jazz", "upright bass", "old jazz record"],
+      "listen": "a mellow jazz phrase from an old record",
+      "treat": {"as it is": 0.5, "filtered until it lifts": 0.3, "a telephone's band in the intro and the breaks": 0.2},
+      "seconds": [6, 900],
+      "keep": 8,
+      "chance": 0.95,
+      "chop": 0.35,
+      "pitch": [-3, 4],
+      "instead": ["keys"],
+      "mix": {"bus": "music", "level_db": 1, "reverb": 0.1, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 110, "res": 0.05}, {"fx": "tape", "wow": 0.25, "flutter": 0.2, "drive_db": 3, "lowpass_hz": 10500}, {"fx": "bitcrush", "bits": 12, "downsample": 2}]}
+    },
+    "texture": {
+      "search": ["vinyl crackle", "record crackle", "vinyl noise", "gramophone crackle"],
+      "listen": "the crackle of an old vinyl record",
+      "seconds": [5, 600],
+      "keep": 3,
+      "chance": 0.75,
+      "mix": {"bus": "music"}
+    },
+    "bass": {
+      "search": ["upright bass pluck", "upright bass note", "double bass pizzicato"],
+      "listen": "a warm upright bass note",
+      "seconds": [0.3, 30],
+      "keep": 3,
+      "chance": 0.4
+    }
+  },
+  "transitions": {"riser": false, "impact": false, "downlifter": false, "reverse_crash": true, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.25}},
+  "mix": {
+    "lufs": -11.0,
+    "reverb": {"fx": "reverb", "decay": 1.3, "damping": 0.6, "predelay_ms": 12, "width": 1.2, "mix": 1.0, "lowcut": 300},
+    "delay": {"fx": "delay", "beats": 0.5, "feedback": 0.25, "damping": 0.6, "pingpong": false, "mix": 1.0},
+    "buses": {
+      "drums": [{"fx": "saturate", "kind": "tube", "drive_db": 3, "mix": 0.45}, {"fx": "compressor", "threshold_db": -13, "ratio": 2.8, "attack_ms": 12, "release_ms": 110, "knee_db": 6, "makeup_db": 2}],
+      "bass": [{"fx": "saturate", "kind": "tanh", "drive_db": 2, "mix": 0.3}],
+      "music": [{"fx": "eq", "bands": [{"kind": "highpass", "freq": 110, "q": 0.7}]}]
+    },
+    "master": [
+      {"fx": "eq", "bands": [{"kind": "highpass", "freq": 28, "q": 0.7}]},
+      {"fx": "tape", "wow": 0.1, "flutter": 0.1, "drive_db": 2, "lowpass_hz": 17000},
+      {"fx": "compressor", "threshold_db": -12, "ratio": 2.0, "attack_ms": 20, "release_ms": 160, "knee_db": 6}
+    ],
+    "duck_release": 0.25,
+    "levels": {"snare": 0.5, "bass": 1.0}
+  }
+}

@@ -52,6 +52,20 @@ const BUILTIN: &[(&str, &str)] = &[
     ("grime", include_str!("../data/genres/grime.json")),
     ("phonk", include_str!("../data/genres/phonk.json")),
     ("reggae", include_str!("../data/genres/reggae.json")),
+    ("g_funk", include_str!("../data/genres/g_funk.json")),
+    ("gangsta_rap", include_str!("../data/genres/gangsta_rap.json")),
+    ("jazz_rap", include_str!("../data/genres/jazz_rap.json")),
+    ("chipmunk_soul", include_str!("../data/genres/chipmunk_soul.json")),
+    ("crunk", include_str!("../data/genres/crunk.json")),
+    ("cloud_rap", include_str!("../data/genres/cloud_rap.json")),
+    ("emo_rap", include_str!("../data/genres/emo_rap.json")),
+    ("rage", include_str!("../data/genres/rage.json")),
+    ("plugg", include_str!("../data/genres/plugg.json")),
+    ("ny_drill", include_str!("../data/genres/ny_drill.json")),
+    ("chicago_drill", include_str!("../data/genres/chicago_drill.json")),
+    ("rnb_90s", include_str!("../data/genres/rnb_90s.json")),
+    ("new_jack_swing", include_str!("../data/genres/new_jack_swing.json")),
+    ("alt_rnb", include_str!("../data/genres/alt_rnb.json")),
 ];
 
 fn straight() -> (f32, f32) {
@@ -358,9 +372,21 @@ fn user_dir() -> Option<std::path::PathBuf> {
 pub fn all() -> Result<Vec<GenreProfile>> {
     let mut out: BTreeMap<String, GenreProfile> = BTreeMap::new();
     for (name, src) in BUILTIN {
-        let g: GenreProfile = serde_json::from_str(src).with_context(|| format!("built-in genre {name}"))?;
+        out.insert(name.to_string(), builtin(name, src)?);
+    }
+    for g in own()? {
         out.insert(g.name.clone(), g);
     }
+    Ok(out.into_values().collect())
+}
+
+fn builtin(name: &str, src: &str) -> Result<GenreProfile> {
+    serde_json::from_str(src).with_context(|| format!("built-in genre {name}"))
+}
+
+/// the genres of the person's own, in their genres folder (`user_dir`)
+fn own() -> Result<Vec<GenreProfile>> {
+    let mut out = Vec::new();
     if let Some(dir) = user_dir()
         && let Ok(rd) = std::fs::read_dir(&dir)
     {
@@ -368,13 +394,11 @@ pub fn all() -> Result<Vec<GenreProfile>> {
             let p = e.path();
             if p.extension().is_some_and(|x| x == "json") {
                 let src = std::fs::read_to_string(&p)?;
-                let g: GenreProfile =
-                    serde_json::from_str(&src).with_context(|| format!("genre file {}", p.display()))?;
-                out.insert(g.name.clone(), g);
+                out.push(serde_json::from_str(&src).with_context(|| format!("genre file {}", p.display()))?);
             }
         }
     }
-    Ok(out.into_values().collect())
+    Ok(out)
 }
 
 /// how many genres one fusion takes at most
@@ -392,10 +416,16 @@ pub fn get(name: &str) -> Result<GenreProfile> {
         return names[1..].iter().try_fold(first, |g, n| Ok(fuse(&g, &get(n)?)));
     }
     let key = name.trim().to_ascii_lowercase().replace([' ', '-'], "_");
-    let mut all = all()?;
-    if let Some(at) = all.iter().position(|g| g.name == key || folded(&g.name) == folded(name)) {
-        return Ok(all.swap_remove(at));
+    let named = |n: &str| n == key || folded(n) == folded(name);
+    // one of the person's own of that name, which takes a built-in's place; else the built-in, the only one read
+    let mut own = own()?;
+    if let Some(at) = own.iter().position(|g| named(&g.name)) {
+        return Ok(own.swap_remove(at));
     }
+    if let Some((n, src)) = BUILTIN.iter().find(|(n, _)| named(n)) {
+        return builtin(n, src);
+    }
+    let all = all()?;
     let called: Vec<GenreProfile> =
         all.iter().filter(|g| g.aliases.iter().any(|a| folded(a) == folded(name))).cloned().collect();
     match called.as_slice() {
@@ -584,6 +614,9 @@ mod tests {
         assert!(both.contains("uk_drill") && both.contains("grime"), "{both}");
         assert!(get("polka").unwrap_err().to_string().starts_with("unknown genre 'polka'"));
         let builtin: Vec<GenreProfile> = BUILTIN.iter().map(|(_, src)| serde_json::from_str(src).unwrap()).collect();
+        for ((listed, _), g) in BUILTIN.iter().zip(&builtin) {
+            assert_eq!(*listed, g.name, "a built-in genre is listed by its own name, which get reads it by");
+        }
         for g in &builtin {
             assert!(!g.family.is_empty(), "{} belongs to a family", g.name);
             for a in &g.aliases {

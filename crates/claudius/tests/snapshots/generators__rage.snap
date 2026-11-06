@@ -1,0 +1,35 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+rage at 166.0 BPM in G minor, swing 0.51
+prog A: i iv III VI
+prog B: i IVsus4 III VI
+prog C: VI iv III i
+bars per chord: 2
+section intro (intro) 8 bars, energy 0.44, prog A, main [filter_in]: lead arp
+section lift (build) 4 bars, energy 0.45, prog A, main [build]: lead arp
+section hook (hook) 16 bars, energy 0.95, prog C, main [impact]: kick snare hat ohat bass lead arp pad
+section verse (verse) 8 bars, energy 0.71, prog A, alt []: kick snare hat bass lead
+section hook2 (hook) 16 bars, energy 1.00, prog C, main [impact]: kick snare hat ohat bass lead arp pad
+section switch (break) 8 bars, energy 0.53, prog A, main []: arp pad
+section hook3 (hook) 8 bars, energy 1.00, prog C, main [impact]: kick snare hat ohat bass lead arp pad
+section outro (outro) 16 bars, energy 0.41, prog A, main []: lead arp
+drum kick alt (drum kick): X.........X.....|X...............|X.........X.....|X...............
+drum kick main (drum kick): X.........X.....|X..X......X.....|X.........X.....|X..X......X.....
+drum snare main (drum snare): ........X.......|........X.......|........X.......|........X.......
+drum hat alt (drum closed_hat): x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....ooxxxxxxxxXX
+drum hat main (drum closed_hat): x..x..x.....XXXxxxxxxxxxx.....x..x..x.....x..x..|x..x..x.....x.....x...........o.xx.xo.x.x.x.x.X.|x..x..x.....X.Xx.xx.xx.x......o.xx.xooxxxxxxxxXX|x..x..x.....x.....x.....x.....x..x..x.....x..x..
+drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
+part bass (bass): kick_follow synth 808, register 24..40, density 0.47
+part lead (lead): motif synth saw_lead, register 60..82, density 0.57
+part arp (arp): up synth supersaw, register 55..79, density 0.62
+part pad (pad): sustain synth swell_pad, register 48..72, density 0.56
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix snare: +0.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.12, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix ohat: +0.0 dB, pan -0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
+mix lead: -1.0 dB, pan +0.00, reverb 0.34, delay 0.12, duck 0.00, bus music
+mix arp: -5.0 dB, pan +0.00, reverb 0.25, delay 0.17, duck 0.00, bus music
+mix pad: -6.0 dB, pan +0.00, reverb 0.41, delay 0.00, duck 0.00, bus music

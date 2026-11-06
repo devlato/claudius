@@ -1,0 +1,90 @@
+{
+  "name": "g_funk",
+  "family": "hip hop",
+  "aliases": ["west coast", "west coast hip hop", "90s west coast", "gangsta funk", "dr dre", "warren g"],
+  "description": "G-funk: West Coast hip hop of the 90s at 88 to 100 BPM, laid back and swung: a punchy kick, a snare and a clap on two and four, swung sixteenth hats and a shaker, a Minimoog bass that bounces and slides through funk lines, a Rhodes vamping on minor sevenths, a high synth lead that whines and glides over it all, a voice through a talk box now and then, warm strings in the hooks",
+  "query": "west coast g-funk hip hop beat with a whining synth lead",
+  "alts": ["funk music", "hip hop beat with heavy bass", "boom bap hip hop beat", "r&b music"],
+  "bpm": [88, 100],
+  "swing": [0.55, 0.6],
+  "humanize": 0.35,
+  "modes": [["dorian", 0.45], ["minor", 0.4], ["mixolydian", 0.15]],
+  "harmony": [["dorian_vamp", 0.4], ["minor_soul", 0.35], ["mixolydian", 0.15], ["lush_soul", 0.1]],
+  "markov": 0.1,
+  "ext": 1,
+  "bars_per_chord": [[2, 0.65], [1, 0.35]],
+  "forms": [
+    [
+      {"name": "intro", "kind": "intro", "bars": 4, "energy": 0.4, "layers": ["keys", "lead", "hat"], "filter_in": true},
+      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.65, "layers": ["kick", "snare", "clap", "hat", "shaker", "bass", "keys"], "fills": true},
+      {"name": "hook", "kind": "hook", "bars": 8, "energy": 0.85, "layers": ["kick", "snare", "clap", "hat", "ohat", "shaker", "bass", "keys", "lead", "strings", "talkbox"], "fills": true},
+      {"name": "verse2", "kind": "verse", "bars": 16, "energy": 0.7, "variant": "alt", "layers": ["kick", "snare", "clap", "hat", "shaker", "bass", "keys", "lead"], "fills": true},
+      {"name": "hook2", "kind": "hook", "bars": 8, "energy": 0.9, "layers": ["kick", "snare", "clap", "hat", "ohat", "shaker", "bass", "keys", "lead", "strings", "talkbox"], "fills": true},
+      {"name": "bridge", "kind": "break", "bars": 8, "energy": 0.5, "prog": "B", "layers": ["hat", "bass", "keys", "lead", "strings"]},
+      {"name": "hook3", "kind": "hook", "bars": 8, "energy": 0.95, "layers": ["kick", "snare", "clap", "hat", "ohat", "shaker", "bass", "keys", "lead", "strings", "talkbox"], "fills": true},
+      {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.4, "layers": ["hat", "bass", "keys", "lead"]}
+    ]
+  ],
+  "drums": [
+    {"name": "kick", "late_ms": [-4, 0], "voice": "kick", "template": {"steps": [1, 0, 0, 0, 0, 0, 0, 0.4, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0.3, 0, 0, 0, 0, 0, 0, 0.8, 0, 0, 0, 0.3, 0], "vel": [0.88, 1.0], "vary": 0.3}, "variants": {"alt": {"steps": [1, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 1, 0, 0, 0, 0, 0.3, 1, 0, 0, 0, 0, 0, 0.4, 0, 0, 0, 0.8, 0, 0, 0, 0, 0], "vel": [0.88, 1.0]}}, "params": {"decay": [0.22, 0.38], "tune": [46, 56], "tone": [0.35, 0.6], "punch": [0.5, 0.8], "drive": [3, 6]}, "samples": ["Kick"], "mix": {"bus": "drums"}},
+    {"name": "snare", "late_ms": [6, 18], "voice": "snare", "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.88, 1.0], "ghost": 0.06, "vary": 0.2}, "params": {"decay": [0.14, 0.24], "tune": [180, 230], "snap": [0.6, 0.85], "tone": [0.45, 0.75], "room": [0.2, 0.4]}, "samples": ["Snare"], "mix": {"bus": "drums", "reverb": 0.15}},
+    {"name": "clap", "late_ms": [6, 18], "voice": "clap", "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.75, 0.9]}, "mix": {"bus": "drums", "level_db": -3, "reverb": 0.22}},
+    {"name": "hat", "late_ms": [-2, 3], "voice": "closed_hat", "template": {"steps": [1, 0.35, 0.8, 0.35, 1, 0.35, 0.8, 0.4, 1, 0.35, 0.8, 0.35, 1, 0.4, 0.8, 0.45], "vel": [0.35, 0.7], "ghost": 0.06, "vary": 0.25}, "params": {"decay": [0.03, 0.06], "tone": [0.4, 0.7]}, "samples": ["Hi-hat"], "choke": "hats", "mix": {"bus": "drums", "pan": 0.15}},
+    {"name": "ohat", "late_ms": [-2, 3], "voice": "open_hat", "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0], "vel": [0.5, 0.7]}, "params": {"decay": [0.2, 0.35]}, "choke": "hats", "mix": {"bus": "drums", "pan": -0.15}},
+    {"name": "shaker", "late_ms": [0, 8], "voice": "shaker", "template": {"steps": [0.3, 0, 0.7, 0, 0.3, 0, 0.7, 0, 0.3, 0, 0.7, 0, 0.3, 0, 0.7, 0.3], "vel": [0.3, 0.55], "vary": 0.3}, "mix": {"bus": "drums", "pan": -0.35, "level_db": -3}}
+  ],
+  "kits": [["tr808", 0.4]],
+  "kit_mix": 0.1,
+  "palette": {
+    "bass": {"core": 0.9, "synth": 1},
+    "keys": {"core": 0.7, "electric piano": 3},
+    "lead": {"core": 0.85, "synth": 1},
+    "pad": {"core": 0.5, "strings": 2, "synth": 1}
+  },
+  "parts": [
+    {"name": "bass", "late_ms": [4, 12], "role": "bass", "presets": ["moog_bass", "moog_bass", "rubber_bass"], "styles": ["syncopated", "octave", "syncopated"], "register": [28, 48], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tube", "drive_db": 3, "mix": 0.5}]}},
+    {"name": "keys", "role": "keys", "presets": ["rhodes|epiano", "wurlitzer|epiano", "rhodes|epiano"], "styles": ["sustain", "syncopated", "half"], "register": [50, 74], "voices": 4, "voicing": "close", "mix": {"reverb": 0.22, "fx": [{"fx": "chorus", "rate_hz": 0.5, "depth_ms": 2.0, "delay_ms": 10, "mix": 0.25}]}},
+    {"name": "lead", "role": "lead", "presets": ["glide_lead"], "styles": ["motif"], "register": [69, 90], "density": [0.2, 0.35], "core": 1.0, "mix": {"level_db": -4, "reverb": 0.3, "delay": 0.2}},
+    {"name": "talkbox", "role": "lead", "presets": ["vox_lead"], "styles": ["motif"], "register": [55, 72], "density": [0.25, 0.4], "optional": 0.5, "core": 1.0, "mix": {"level_db": -5, "reverb": 0.2, "delay": 0.1}},
+    {"name": "strings", "role": "pad", "presets": ["string_ensemble|strings", "warm_pad"], "styles": ["sustain"], "register": [52, 76], "voices": 3, "voicing": "open", "optional": 0.3, "mix": {"level_db": -3, "reverb": 0.4}}
+  ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["70s funk", "funk keys", "soul", "electric piano funk", "funk guitar", "70s soul", "synth funk", "slow funk"],
+      "listen": "a laid-back 70s funk groove",
+      "seconds": [6, 900],
+      "keep": 8,
+      "chance": 0.9,
+      "chop": 0.2,
+      "pitch": [-3, 3],
+      "instead": ["keys"],
+      "mix": {"bus": "music", "fx": [{"fx": "filter", "mode": "hp", "cutoff": 150, "res": 0.05}]}
+    },
+    "bass": {
+      "search": ["synth bass note", "moog bass", "funk bass note"],
+      "listen": "a round synth bass note",
+      "seconds": [0.3, 30],
+      "keep": 3,
+      "chance": 0.3
+    }
+  },
+  "transitions": {"riser": false, "impact": false, "downlifter": false, "reverse_crash": true, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.25, "level_db": -4}},
+  "mix": {
+    "lufs": -10.0,
+    "reverb": {"fx": "reverb", "decay": 1.6, "damping": 0.55, "predelay_ms": 15, "width": 1.3, "mix": 1.0, "lowcut": 280},
+    "delay": {"fx": "delay", "beats": 0.75, "feedback": 0.3, "damping": 0.6, "pingpong": true, "mix": 1.0},
+    "buses": {
+      "drums": [{"fx": "saturate", "kind": "tube", "drive_db": 3, "mix": 0.4}, {"fx": "compressor", "threshold_db": -12, "ratio": 3.0, "attack_ms": 10, "release_ms": 110, "knee_db": 6, "makeup_db": 2}],
+      "bass": [{"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.4}],
+      "music": [{"fx": "eq", "bands": [{"kind": "highpass", "freq": 110, "q": 0.7}]}]
+    },
+    "master": [
+      {"fx": "eq", "bands": [{"kind": "highpass", "freq": 26, "q": 0.7}]},
+      {"fx": "tape", "wow": 0.06, "flutter": 0.06, "drive_db": 1.5, "lowpass_hz": 18000},
+      {"fx": "compressor", "threshold_db": -11, "ratio": 2.0, "attack_ms": 20, "release_ms": 150, "knee_db": 6}
+    ],
+    "duck_release": 0.25,
+    "levels": {"bass": 2.0, "keys": 1.0, "lead": -1.0}
+  }
+}
