@@ -268,6 +268,29 @@ pub struct ExportFormat {
     pub unavailable: Option<String>,
 }
 
+/// A recording a free online library offers (CC0, public domain or CC BY), as a search lists it
+/// (`GET /api/library/search`): what the Add a recording window shows, to hear and to use.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct LibraryHit {
+    /// `freesound:629052`, `commons:Swanee 1920.ogg`, `ccmixter:71182`: a command takes it as `library:<id>`
+    pub id: String,
+    pub title: String,
+    pub creator: String,
+    /// the licence as the library states it: "CC0 1.0", "CC BY 4.0"
+    pub licence: String,
+    #[serde(default)]
+    pub seconds: Option<f64>,
+    /// where a person reads about it
+    pub page: String,
+    /// where its audio is fetched: a path on the claudius that found it, or a URL of the demo's site
+    pub audio: String,
+    /// what a song that plays it credits
+    pub credit: String,
+    /// the library's whole record of it, which the demo's engine credits it by (a claudius recalls it by its id)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub found: Option<serde_json::Value>,
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct GenreInfo {
     pub name: String,
@@ -387,6 +410,9 @@ pub enum Listen {
     },
     SampleSong {
         name: String,
+        /// the library's record of it, when a free library offered it (`LibraryHit::found`): the phrases credit it
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        found: Option<serde_json::Value>,
     },
     ExtractGroove {
         name: String,
@@ -401,6 +427,9 @@ pub enum Listen {
         /// added in the Add a recording window rather than recorded: the answer is that window's (`add_recording`)
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         recording: bool,
+        /// the library's record of it, when a free library offered it (`LibraryHit::found`): the take credits it
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        found: Option<serde_json::Value>,
     },
     /// the answers to pitch check `id`, sung over its phrases from their first beat, as `/api/pitch-check` hears them
     PitchCheck {
@@ -412,7 +441,7 @@ impl Listen {
     /// the file's name, whose extension says its format (a pitch check has none: its bytes say)
     pub fn name(&self) -> &str {
         match self {
-            Listen::Analyze { name } | Listen::SampleSong { name } | Listen::ExtractGroove { name } => name,
+            Listen::Analyze { name } | Listen::SampleSong { name, .. } | Listen::ExtractGroove { name } => name,
             Listen::Remake { name, .. } | Listen::Take { name, .. } => name,
             Listen::PitchCheck { .. } => "the pitch check",
         }

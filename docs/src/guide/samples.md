@@ -158,8 +158,9 @@ every section it is in; a take plays once, from the start of the section it was 
 sections after it for as long as it lasts. Record one with the studio's [Record](../getting-started/studio.md#the-panels)
 button. When you stop, the take waits for you: **Play it back** plays the song from a bar before it with the take in it,
 **Record again** records it over, **Keep it** adds it to the song, and **Throw it away** forgets it. Or bring an audio
-file: drop it on the studio, or press the **+** button after Record and choose it, and **Add it whole as a track** in
-the window that opens adds it as a take from the section you pick (**Sample its vocals into the song** samples it
+file: drop it on the studio, or press the **+** button after Record and choose it (or [search the free
+libraries](online-samples.md#choosing-one-in-the-studio) there for one), and **Add it whole as a track** in the window
+that opens adds it as a take from the section you pick (**Sample its vocals into the song** samples it
 instead, as [below](#sampling-a-songs-vocals) describes). A whole song works too, to trim and put effects on as you
 like. You can also send the file to the [HTTP API](http-api.md#routes), or give it to an assistant, which adds it with
 `add_take`:

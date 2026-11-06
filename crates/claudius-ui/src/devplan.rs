@@ -14,7 +14,9 @@
 //! `rec:grid:<beats>` (its notes' grid, 0 as played), `rec:part:<role|drums>` (what its notes play), `pick:<song|audio|cover|recording>` (a file dialog, as its button opens
 //! one), `listen:<analyze|remake>` (as the New song dialog's buttons), `audiopath:<file>` (a recording read as if
 //! chosen for Analyze, in the app), `recordingpath:<file>` (one read as if chosen in the Add a recording window, in
-//! the app), `import:whole` (the recording it holds added whole as a track), `cmd:<command json>`, `size:<w>,<h>`, `script:<code; \n for a newline, %3B for ;>`
+//! the app), `import:whole` (the recording it holds added whole as a track), `import:search:<words>` (the free
+//! libraries searched, as its Search button searches them; what they offer goes out as `library: ...`),
+//! `import:use:<n>` (the nth of them used, from 0), `cmd:<command json>`, `size:<w>,<h>`, `script:<code; \n for a newline, %3B for ;>`
 //! (into the editor), `run`, `reference`, `shot:<file.png>` (the window as rendered), `exit`, and synthetic pointer
 //! input in points: `move:x,y`, `click:x,y`, `rclick:x,y`, `drag:x1,y1,x2,y2`, `sdrag:x1,y1,x2,y2` (with shift).
 
@@ -40,6 +42,10 @@ pub enum Step {
     RecordingPath(String),
     /// the Add a recording window's recording added whole as a track, as its button adds it
     ImportWhole,
+    /// the free libraries searched for these words, as the Add a recording window's Search button searches them
+    ImportSearch(String),
+    /// the search's nth recording used, as its Use it button uses it
+    ImportUse(usize),
     /// a file dialog, as the button for what it is for opens one
     Pick(crate::pick::Want),
     /// the chosen recording sent to be listened to (false) or remade (true), as the New song dialog's buttons do
@@ -278,6 +284,8 @@ impl Plan {
             "audiopath" => Some(Step::AudioPath(arg.to_string())),
             "recordingpath" => Some(Step::RecordingPath(arg.to_string())),
             "import" if arg == "whole" => Some(Step::ImportWhole),
+            "import" if arg.starts_with("search:") => Some(Step::ImportSearch(arg["search:".len()..].to_string())),
+            "import" if arg.starts_with("use:") => arg["use:".len()..].parse().ok().map(Step::ImportUse),
             "pick" => match arg {
                 "song" => Some(Step::Pick(crate::pick::Want::Song)),
                 "audio" => Some(Step::Pick(crate::pick::Want::Audio)),

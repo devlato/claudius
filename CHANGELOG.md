@@ -84,6 +84,13 @@ on it in the mixer as on any track. Undo brings a trimmed take back whole. Assis
 `trim_take` tool (and command), and the state gives each take's length (`seconds`). It works the same in the online
 demo.
 
+The same window searches the free online libraries (CC0, public domain and CC BY): type a few words, press ▶ to hear
+a recording, and **Use it** to add it whole as a track or sample its vocals; the song credits it. Wherever a command
+takes a recording's path (`add_take`, `sample_song`, `analyze`, `remake`), `library:<id>` names one a search found,
+which claudius downloads; assistants search with the new `search_recordings` tool, and the HTTP API has
+`/api/library/search` and `/api/library/audio`. A take added from a downloaded recording, and each phrase sampled from
+one, now credits it too, as a song that plays the file did.
+
 The demo records takes too: the record button, which only the app and a claudius' own page had, records a voice or
 an instrument over the song in the browser, and the take joins the song and the project you save. A take's menu in
 the arrangement works there as in claudius: **How is it sung?** hears how it is sung, **Turn it into drums** turns a

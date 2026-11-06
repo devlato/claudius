@@ -88,6 +88,9 @@ pub struct Listen {
     pub sample: bool,
     /// its groove is to be taken for the open song's drum lanes instead
     pub groove: bool,
+    /// the library's record of it, when a free library offered it (`LibraryHit::found`): what the demo's engine
+    /// credits it by
+    pub found: Option<serde_json::Value>,
 }
 
 /// what the studio knows about its connection

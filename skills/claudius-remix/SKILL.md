@@ -159,6 +159,10 @@ not looped or chopped. Ask what they did not say:
   `texture`.
 - **A name**, if they want one ("vox", "guitar"). Otherwise it is take1, take2, ...
 
+A recording from a free library goes in the same way: `search_recordings` lists what the libraries offer (CC0,
+public domain or CC BY) as `library:<id>`, which `add_take`, `sample_song`, `analyze` and `remake` take as the
+`path`; claudius downloads it and the song credits it. Let the person hear it on its page before using it.
+
 A whole song or a long recording goes in the same way; `trim_take` then keeps part of it (`track`, `start` and `end`
 in seconds into its recording), so that it starts later in itself or stops sooner, and undo brings it back whole.
 Effects go on it as on any track.

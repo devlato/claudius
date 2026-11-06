@@ -133,7 +133,12 @@ the recordings below.
 **Add a recording** (`panels/import.rs`, the **+** after the record button) holds a recording of the person's own,
 chosen (`pick::Want::Recording`) or dropped anywhere on the studio (`pick::read_dropped`, unless Publish is open and
 waiting for artwork), and sends it as a take, to `POST /api/takes` like the Record window's (the demo's engine sniffs
-its kind from its bytes), or hands it to the auto-sampler (`Listen` with `sample`). A take's **Trim...**, in its
+its kind from its bytes), or hands it to the auto-sampler (`Listen` with `sample`). Its search of the free libraries
+(`Backend::search_library`: `/api/library/search`, or in the demo claudius' site, as the demo's sampler asks it)
+lists `LibraryHit`s, each heard in a player of the window's own (a browser plays its URL; the app fetches it and
+decodes it as claudius does). With a claudius, one chosen is added by its id (`add_take` or `sample_song` with
+`library:<id>`, which claudius downloads and credits); the demo fetches its audio and hands the engine its record
+(`found`) with it, which credits it. A take's **Trim...**, in its
 track's menu in the arrangement, opens a window of the same file that sends `trim_take` with the track's `seconds`
 for its range.
 

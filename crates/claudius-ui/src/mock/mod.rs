@@ -71,6 +71,8 @@ pub struct Mock {
     waiting: usize,
     /// a remake's made-up analysis, which goes before the engine's answer to it
     sampler: sample::Sampler,
+    /// the words the Add a recording window searched the libraries for, until the site answers
+    library: Option<String>,
     sampling: Option<Sampling>,
     rng: Rng,
     now: f64,
@@ -140,6 +142,7 @@ impl Mock {
             audio: None,
             waiting: 1,
             sampler: sample::Sampler::new(ctx.clone()),
+            library: None,
             sampling: None,
             rng: Rng::new(42),
             now: 0.0,
@@ -212,6 +215,17 @@ impl Mock {
         }
         self.engine.listen(&l, bytes);
         self.waiting += 1;
+    }
+
+    /// what the free libraries offer for `q`, as claudius' site finds it (the answer comes as `Event::Library`)
+    pub fn search_library(&mut self, q: &str) {
+        if !self.sampler.on() {
+            let why = "the demo searches the libraries through claudius' site, which it cannot reach from here";
+            self.events.push(Event::Library(Err(why.into())));
+            return;
+        }
+        self.sampler.search(q);
+        self.library = Some(q.to_string());
     }
 
     pub fn send(&mut self, cmd: Command) {
@@ -417,6 +431,13 @@ impl Mock {
         }
         self.phones();
         self.sampler.poll();
+        if let Some(q) = &self.library
+            && let Some(found) = self.sampler.searched(q)
+        {
+            let hits = found.map(|found| found.iter().map(|f| self.sampler.hit(f)).collect());
+            self.events.push(Event::Library(hits));
+            self.library = None;
+        }
         if let Some(mut s) = self.sampling.take() {
             let mut lines = self.sampler.advance(&mut s.gathering, &mut s.rng);
             for c in s.gathering.take_cuts() {

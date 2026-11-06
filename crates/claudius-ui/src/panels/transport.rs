@@ -716,6 +716,7 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                     flip: false,
                     sample: false,
                     groove: false,
+                    found: None,
                 });
             }
             for (flip, label, hint) in [
@@ -736,8 +737,14 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                 if ui.add_enabled(file.is_some(), egui::Button::new(label)).on_hover_text(hint).clicked() {
                     cx.view.analysis = None;
                     let remake = Some((f.genre_name(), f.seed.trim().parse().ok()));
-                    cx.view.listen =
-                        file.clone().map(|file| super::Listen { file, remake, flip, sample: false, groove: false });
+                    cx.view.listen = file.clone().map(|file| super::Listen {
+                        file,
+                        remake,
+                        flip,
+                        sample: false,
+                        groove: false,
+                        found: None,
+                    });
                 }
             }
             let song = cx.state.song.is_some();
@@ -757,6 +764,7 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                     flip: false,
                     sample: true,
                     groove: false,
+                    found: None,
                 });
             }
             let drums = cx.state.song.as_ref().is_some_and(|s| !s.drums.is_empty());
@@ -770,8 +778,14 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                 .clicked()
             {
                 cx.view.analysis = None;
-                cx.view.listen =
-                    file.map(|file| super::Listen { file, remake: None, flip: false, sample: false, groove: true });
+                cx.view.listen = file.map(|file| super::Listen {
+                    file,
+                    remake: None,
+                    flip: false,
+                    sample: false,
+                    groove: true,
+                    found: None,
+                });
             }
             if cx.view.analyzing {
                 ui.add(egui::Spinner::new().color(ACCENT));

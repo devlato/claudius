@@ -221,7 +221,7 @@ impl Studio {
                         Err(e) => (false, e.clone()),
                     });
                 }
-                if what == "add_recording" {
+                if what == "add_recording" || (what == "add_take" && self.view.import.waiting()) {
                     match &result {
                         Ok(r) => self.view.import.answered(r.ok, r.message.clone()),
                         Err(e) => self.view.import.answered(false, format!("the recording did not arrive: {e}")),
@@ -284,6 +284,7 @@ impl Studio {
                     Some(result.unwrap_or_else(|e| format!("# The reference is not available\n\n{e}")));
             }
             Event::Preview { version, image } => self.view.publish.arrived = Some((version, image)),
+            Event::Library(hits) => self.view.import.found(hits),
             Event::Said { text, ok } => self.toast(text, ok, now),
             Event::PhoneRefused(why) => {
                 self.view.phone.refused();
@@ -585,6 +586,8 @@ impl Studio {
                     crate::devplan::say(&format!("recordingpath:{p} reads a file in the app only"))
                 }
                 Step::ImportWhole => self.view.import.whole = true,
+                Step::ImportSearch(words) => self.view.import.ask(&words),
+                Step::ImportUse(n) => self.view.import.use_nth = Some(n),
                 Step::Pick(want) => crate::pick::choose(ctx, want),
                 Step::Listen(remake) => {
                     let f = &self.view.new_song;
@@ -595,6 +598,7 @@ impl Studio {
                         flip: false,
                         sample: false,
                         groove: false,
+                        found: None,
                     });
                 }
                 Step::Exit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
@@ -603,6 +607,7 @@ impl Studio {
         // what the Record window says, and offers for MIDI keyboards, for whoever runs the plan to read
         plan.tell("record", &self.view.record.said());
         plan.tell("import", &self.view.import.told());
+        plan.tell("library", &self.view.import.listed());
         plan.tell("midi", &crate::audio::record::midi_offer().map(|(what, _)| what).unwrap_or_default());
         plan.tell("analysis", &self.view.analysis.as_ref().map(|(_, text)| text.clone()).unwrap_or_default());
         plan.tell("heard", &self.view.heard.as_ref().map(|(_, text)| text.clone()).unwrap_or_default());
@@ -1156,6 +1161,9 @@ impl eframe::App for Studio {
             crate::pick::read_dropped(&ctx, crate::pick::Want::Recording, file);
         }
         self.take_picks(now);
+        if let Some(q) = self.view.import.search.take() {
+            self.backend.search_library(&q);
+        }
         if let Some(l) = self.view.listen.take() {
             self.inflight += 1;
             self.inflight_since = now;

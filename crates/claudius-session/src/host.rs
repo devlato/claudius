@@ -221,18 +221,27 @@ impl Host {
                 self.forget_render();
                 self.commit(Some(bp), format!("{verb} {name} as {genre}{told}:\n{}", listen::analysis_text(&a)))
             }
-            Listen::SampleSong { .. } => {
+            Listen::SampleSong { found, .. } => {
                 let Some(mut bp) = self.bp.clone() else {
                     return self.no("no song yet: start one with a new song, then sample a recording into it");
                 };
                 let opt = listen::sampling(None, None, None, Vec::new());
+                let before = sampled(&bp);
                 match claudius::sampler::sample(&mut bp, &x, &name, None, &opt, dir) {
-                    Ok(s) => self.commit(Some(bp), s.lines.join("\n")),
+                    Ok(s) => {
+                        // each phrase cut from a library's recording credits it
+                        if let Some(credit) = credit(found) {
+                            for path in sampled(&bp).difference(&before) {
+                                self.takes.insert(path.clone(), credit.clone());
+                            }
+                        }
+                        self.commit(Some(bp), s.lines.join("\n"))
+                    }
                     Err(e) => self.no(e),
                 }
             }
             Listen::PitchCheck { id } => self.hear_pitch_check(*id, &x),
-            Listen::Take { from, track, role, .. } => {
+            Listen::Take { from, track, role, found, .. } => {
                 let Some(mut bp) = self.bp.clone() else {
                     return self.no("no song yet: start one with a new song, then record a take for it");
                 };
@@ -245,7 +254,12 @@ impl Host {
                     Err(e) => return self.no(format!("cannot keep the take: {e:#}")),
                 };
                 match take::add(&mut bp, &path, secs, from, track.as_deref(), Some(role)) {
-                    Ok(msg) => self.commit(Some(bp), msg),
+                    Ok(msg) => {
+                        if let Some(credit) = credit(found) {
+                            self.takes.insert(path.to_string_lossy().into_owned(), credit);
+                        }
+                        self.commit(Some(bp), msg)
+                    }
                     Err(e) => self.no(e),
                 }
             }
@@ -1030,6 +1044,24 @@ impl Host {
     }
 }
 
+/// the files of the phrases sampled into `bp`
+fn sampled(bp: &Blueprint) -> std::collections::BTreeSet<String> {
+    bp.loops
+        .iter()
+        .filter(|l| l.sampled)
+        .filter_map(|l| match &l.sound {
+            model::Sound::Loop { path, .. } => Some(path.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+/// what a recording a free library offered credits, from its record (`LibraryHit::found`)
+fn credit(found: &Option<serde_json::Value>) -> Option<take::Sources> {
+    let f: Found = serde_json::from_value(found.clone()?).ok()?;
+    Some(take::Sources { recordings: vec![f], ..Default::default() })
+}
+
 /// a command's name, as the API tags it (`set_tempo`)
 fn name(c: &Command) -> String {
     serde_json::to_value(c).ok().and_then(|v| v["cmd"].as_str().map(String::from)).unwrap_or_default()
@@ -1471,6 +1503,7 @@ mod tests {
             track: None,
             role: role.into(),
             recording: false,
+            found: None,
         };
         assert_eq!(take("intro", "vocal").what(), "take");
         let added = Listen::Take {
@@ -1479,6 +1512,7 @@ mod tests {
             track: None,
             role: "vocal".into(),
             recording: true,
+            found: None,
         };
         assert_eq!(added.what(), "add_recording", "the Add a recording window's answer is its own");
         let r = h.listen(&take("intro", "vocal"), wav(&a_song()));
@@ -1542,6 +1576,36 @@ mod tests {
     }
 
     #[test]
+    fn a_take_a_free_library_offered_credits_it() {
+        use crate::listen::Listen;
+        let mut h = Host::new(1);
+        assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
+        let from = h.blueprint().unwrap().form[0].name.clone();
+        // the library's record of it, as the page hands it over (`LibraryHit::found`)
+        let found = json!({
+            "id": "freesound:629052", "source": "openverse", "provider": "freesound", "title": "Rain",
+            "creator": "Someone", "licence": "by", "licence_name": "CC BY 4.0",
+            "licence_url": "https://creativecommons.org/licenses/by/4.0/", "page": "https://freesound.org/s/629052/",
+            "audio": "https://example.org/rain.ogg", "filetype": "ogg", "seconds": 4.8
+        });
+        let take = Listen::Take {
+            name: "rain".into(),
+            from,
+            track: Some("rain".into()),
+            role: "texture".into(),
+            recording: true,
+            found: Some(found),
+        };
+        assert!(h.listen(&take, wav(&a_song())).ok);
+        let bp = h.blueprint().unwrap().clone();
+        let model::Sound::Loop { path, .. } = &bp.loops.iter().find(|l| l.name == "rain").unwrap().sound else {
+            panic!("a recording")
+        };
+        let credited = h.credited(std::path::Path::new(path));
+        assert_eq!(credited.recordings.iter().map(|f| f.id.as_str()).collect::<Vec<_>>(), ["freesound:629052"]);
+    }
+
+    #[test]
     fn a_pitch_check_asked_for_on_the_page_is_sung_back_heard_and_kept_as_the_voice() {
         use crate::listen::Listen;
         let mut h = Host::new(1);
@@ -1572,7 +1636,14 @@ mod tests {
         // a take tuned from now on sings as the check heard the person
         assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
         let from = h.blueprint().unwrap().form[0].name.clone();
-        let take = Listen::Take { name: "take.wav".into(), from, track: None, role: "vocal".into(), recording: false };
+        let take = Listen::Take {
+            name: "take.wav".into(),
+            from,
+            track: None,
+            role: "vocal".into(),
+            recording: false,
+            found: None,
+        };
         assert!(h.listen(&take, wav(&sung)).ok);
         let r = command(&mut h, json!({"cmd": "tune", "track": "take1"}));
         assert!(r.ok && r.message.ends_with("as your pitch check heard you sing"), "{}", r.message);
@@ -1644,7 +1715,7 @@ mod tests {
                 x.r[i] += v;
             }
         }
-        let r = h.listen(&Listen::SampleSong { name: "vocal.wav".into() }, wav(&x));
+        let r = h.listen(&Listen::SampleSong { name: "vocal.wav".into(), found: None }, wav(&x));
         assert!(r.ok && r.message.starts_with("vox1: bars ") && r.message.contains("% sung"), "{}", r.message);
         let bp = h.blueprint().unwrap();
         let vox = bp.loops.iter().find(|l| l.name == "vox1").expect("the phrase plays");

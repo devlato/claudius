@@ -61,6 +61,8 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
         .route("/api/reference", get(reference))
         .route("/api/sounds", get(sounds))
         .route("/api/genres", get(genres))
+        .route("/api/library/search", get(library_search))
+        .route("/api/library/audio", get(library_audio))
         .route("/api/audio/{file}", get(audio))
         .route("/api/stems/{version}/{file}", get(stem))
         .route("/api/export/{version}/{file}", get(export_file))
@@ -321,6 +323,39 @@ struct GenreQuery {
 /// the genres, or those that answer `q` best first (`claudius_api::search_genres`)
 async fn genres(State(c): State<Ctx>, Query(q): Query<GenreQuery>) -> Json<Vec<claudius_api::GenreInfo>> {
     Json(claudius_api::search_genres(c.app.genres(), q.q.as_deref().unwrap_or("")).into_iter().cloned().collect())
+}
+
+#[derive(Deserialize)]
+struct LibraryQuery {
+    #[serde(default)]
+    q: String,
+    #[serde(default)]
+    limit: Option<usize>,
+}
+
+/// the recordings the free libraries offer for `q` (`App::search_library`), or why there are none
+async fn library_search(State(c): State<Ctx>, Query(q): Query<LibraryQuery>) -> Response {
+    let app = c.app.clone();
+    match tokio::task::spawn_blocking(move || app.search_library(&q.q, q.limit.unwrap_or(20))).await {
+        Ok(Ok(hits)) => Json(hits).into_response(),
+        Ok(Err(e)) => (StatusCode::BAD_GATEWAY, e).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+#[derive(Deserialize)]
+struct LibraryAudioQuery {
+    id: String,
+}
+
+/// a recording a search found, downloaded once (`App::library_file`): to hear it before using it
+async fn library_audio(State(c): State<Ctx>, Query(q): Query<LibraryAudioQuery>, req: Request) -> Response {
+    let app = c.app.clone();
+    match tokio::task::spawn_blocking(move || app.library_file(&q.id)).await {
+        Ok(Ok(path)) => serve_file(path, req).await,
+        Ok(Err(e)) => (StatusCode::NOT_FOUND, e).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
 }
 
 async fn serve_file(path: PathBuf, req: Request) -> Response {

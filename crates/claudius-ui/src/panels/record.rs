@@ -319,6 +319,8 @@ pub struct Upload {
     pub request: Option<u64>,
     /// the name of the file it is, which says its kind when its bytes do not (an AAC file's)
     pub file: Option<String>,
+    /// the library's record of it, when a free library offered it: what the demo's engine credits it by
+    pub found: Option<serde_json::Value>,
 }
 
 /// a take recorded and not kept yet
@@ -1416,6 +1418,7 @@ fn keep(cx: &mut Cx) {
         role: r.settings.role.clone(),
         request: asked,
         file: None,
+        found: None,
     });
 }
 

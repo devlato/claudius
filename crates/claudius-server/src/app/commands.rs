@@ -123,6 +123,10 @@ impl App {
 
     pub fn command(self: &Arc<Self>, c: Command) -> Reply {
         let v = self.version();
+        let c = match self.from_library(c) {
+            Ok(c) => c,
+            Err(e) => return no(e, v),
+        };
         match c {
             Command::NewSong { genre, seed, bpm, key, loops, sampled, sample_search, complexity } => {
                 let g = match genres::get(&genre) {
@@ -322,7 +326,7 @@ impl App {
                     Ok(x) => {
                         let name =
                             Path::new(&path).file_name().map_or(path.clone(), |n| n.to_string_lossy().into_owned());
-                        self.sample_audio(&x, &name, &opt)
+                        self.sample_audio(&x, &name, &opt, &claudius::take::credited(Path::new(&path)))
                     }
                     Err(e) => no(format!("cannot read {path}: {e}"), v),
                 }
