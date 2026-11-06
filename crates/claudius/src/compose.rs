@@ -678,7 +678,9 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
         let sound = kit.as_deref().and_then(|k| kit_sound(&spec.name, k)).unwrap_or(sound);
         let sound =
             lane_kit(&spec.name, g.kit_mix, &kits, &mut dr.fork(&format!("{}-kit", spec.name))).unwrap_or(sound);
+        let feel = &mut dr.fork(&format!("{}-feel", spec.name));
         drums.push(DrumLane {
+            late_ms: spec.late_ms.map_or(0.0, |(lo, hi)| feel.range(lo as f64, hi as f64).round() as f32),
             length: None,
             speed: 1.0,
             swing: None,
@@ -830,6 +832,8 @@ pub fn new_part(
         mix.fx.push(Effect::Chorus { rate_hz: 0.45, depth_ms: 2.5, delay_ms: 11.0, mix: 0.4.into() });
     }
     Part {
+        // from a stream of its own, so that a genre's feel leaves the rest of its parts as they were; a whole ms
+        late_ms: spec.late_ms.map_or(0.0, |(lo, hi)| rng.fork("feel").range(lo as f64, hi as f64).round() as f32),
         name: spec.name.clone(),
         role: spec.role,
         sound,

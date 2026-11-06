@@ -24,10 +24,10 @@
     ]
   ],
   "drums": [
-    {"name": "kick", "voice": "kick", "template": {"steps": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0], "vel": [0.8, 0.95], "vary": 0.35}, "params": {"decay": [0.3, 0.5], "tune": [42, 52], "tone": [0.2, 0.45], "punch": [0.2, 0.45], "drive": [2, 5]}, "samples": ["Kick"], "mix": {"bus": "drums"}},
-    {"name": "snare", "voice": "snare", "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.75, 0.9], "ghost": 0.05}, "params": {"decay": [0.12, 0.2], "tune": [190, 240], "snap": [0.5, 0.8], "tone": [0.5, 0.8], "room": [0.25, 0.5]}, "samples": ["Snare"], "mix": {"bus": "drums", "reverb": 0.2}},
-    {"name": "clap", "voice": "clap", "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.6, 0.75]}, "mix": {"bus": "drums", "level_db": -6, "reverb": 0.25}},
-    {"name": "hat", "voice": "closed_hat", "template": {"steps": [1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4], "vel": [0.3, 0.65], "rolls": 0.3, "vary": 0.3}, "variants": {"alt": {"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0.3], "vel": [0.3, 0.6], "rolls": 0.15}}, "params": {"decay": [0.02, 0.045]}, "samples": ["Hi-hat"], "choke": "hats", "mix": {"bus": "drums", "pan": 0.18}},
+    {"name": "kick", "voice": "kick", "template": {"steps": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0], "vel": [0.8, 0.95], "vary": 0.35}, "params": {"decay": [0.3, 0.5], "tune": [42, 52], "tone": [0.2, 0.45], "punch": [0.2, 0.45], "drive": [2, 5]}, "samples": ["Kick"], "mix": {"bus": "drums"}, "late_ms": [-3, 0]},
+    {"name": "snare", "voice": "snare", "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.75, 0.9], "ghost": 0.05}, "params": {"decay": [0.12, 0.2], "tune": [190, 240], "snap": [0.5, 0.8], "tone": [0.5, 0.8], "room": [0.25, 0.5]}, "samples": ["Snare"], "mix": {"bus": "drums", "reverb": 0.2}, "late_ms": [4, 16]},
+    {"name": "clap", "voice": "clap", "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.6, 0.75]}, "mix": {"bus": "drums", "level_db": -6, "reverb": 0.25}, "late_ms": [4, 16]},
+    {"name": "hat", "voice": "closed_hat", "template": {"steps": [1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4], "vel": [0.3, 0.65], "rolls": 0.3, "vary": 0.3}, "variants": {"alt": {"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0.3], "vel": [0.3, 0.6], "rolls": 0.15}}, "params": {"decay": [0.02, 0.045]}, "samples": ["Hi-hat"], "choke": "hats", "mix": {"bus": "drums", "pan": 0.18}, "late_ms": [-2, 3]},
     {"name": "ohat", "voice": "open_hat", "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0], "vel": [0.4, 0.6]}, "params": {"decay": [0.2, 0.35]}, "choke": "hats", "mix": {"bus": "drums", "pan": -0.15}},
     {"name": "perc", "voice": "snap", "euclid": [3, 8], "mix": {"bus": "drums", "pan": -0.35, "reverb": 0.3}}
   ],
@@ -40,7 +40,7 @@
     "lead": {"core": 0.35, "voice": 2, "guitar": 1.5, "synth": 1.5, "electric piano": 1, "strings": 0.8}
   },
   "parts": [
-    {"name": "bass", "role": "bass", "presets": ["808", "sub_bass", "deep_bass"], "styles": ["kick_follow", "sustain", "syncopated"], "register": [26, 43], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.6}]}},
+    {"name": "bass", "role": "bass", "presets": ["808", "sub_bass", "deep_bass"], "styles": ["kick_follow", "sustain", "syncopated"], "register": [26, 43], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.6}]}, "late_ms": [2, 10]},
     {"name": "keys", "role": "keys", "presets": ["rhodes|epiano", "piano|keys", "wurlitzer|epiano", "tine_piano"], "styles": ["sustain", "half", "syncopated"], "register": [50, 76], "voices": 4, "voicing": "close", "mix": {"reverb": 0.3, "fx": [{"fx": "chorus", "rate_hz": 0.5, "depth_ms": 2.0, "delay_ms": 10, "mix": 0.25}, {"fx": "width", "width": 1.3, "mono_below_hz": 200}]}},
     {"name": "pad", "role": "pad", "presets": ["warm_pad", "air_pad", "string_ensemble|strings"], "styles": ["sustain"], "register": [48, 74], "voices": 3, "voicing": "open", "optional": 0.3, "mix": {"reverb": 0.45}},
     {"name": "lead", "role": "lead", "presets": ["soft_lead", "freepats:clean_guitar|pluck", "vox_lead"], "styles": ["motif"], "register": [60, 82], "density": [0.25, 0.45], "mix": {"reverb": 0.3, "delay": 0.25}}

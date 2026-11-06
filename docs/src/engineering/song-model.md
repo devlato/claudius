@@ -80,8 +80,9 @@ the library had none), and it plays nothing.
 A `DrumLane` has a `sound`, a `pattern_bars` length (4 in generated songs), and `patterns`: a map from variant name
 to hits, each hit a position in beats within the pattern and a velocity. Variants of one lane all have the same
 length; when a script sets a longer one, the others are repeated up to it. `pitch` transposes the lane, `choke` names
-a group in which a new hit cuts the previous one (the open hat stops when the closed hat plays), and `mix` is the
-lane's [`TrackMix`](#the-mix).
+a group in which a new hit cuts the previous one (the open hat stops when the closed hat plays), `late_ms` is how far
+behind the beat every hit plays (ahead, below zero; left out when 0), and `mix` is the lane's
+[`TrackMix`](#the-mix). A `Part` and an arranged `Track` have a `late_ms` too.
 
 ### Parts
 

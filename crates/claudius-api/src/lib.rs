@@ -853,6 +853,9 @@ pub struct DrumView {
     pub groove: Option<String>,
     #[serde(default = "one_f32")]
     pub groove_amount: f32,
+    /// how far behind the beat it plays, in milliseconds (ahead, below zero)
+    #[serde(default)]
+    pub late_ms: f32,
 }
 
 fn one_f32() -> f32 {
@@ -949,6 +952,9 @@ pub struct PartView {
     /// for and plays nowhere now
     #[serde(default)]
     pub cycles: Vec<CycleView>,
+    /// how far behind the beat it plays, in milliseconds (ahead, below zero)
+    #[serde(default)]
+    pub late_ms: f32,
 }
 
 /// One cycle of a part over a progression: its notes (beats from the cycle's start), which come round every `beats`.
@@ -1228,7 +1234,8 @@ pub enum Command {
         velocity: f32,
     },
     /// a drum lane's own time and feel, as `lane()` sets it: `length` in sixteenths (0: its pattern's bars), `speed`
-    /// (0.125 to 4), `swing` (0: the song's), `groove` (a name; "" none), `groove_amount` (0 to 1)
+    /// (0.125 to 4), `swing` (0: the song's), `groove` (a name; "" none), `groove_amount` (0 to 1), and `late_ms`, how
+    /// far behind the beat every hit plays (-80 to 80; below zero, ahead): a laid-back snare 20, a pushed kick -5
     SetLane {
         lane: String,
         #[serde(default)]
@@ -1241,6 +1248,8 @@ pub enum Command {
         groove: Option<String>,
         #[serde(default)]
         groove_amount: Option<f32>,
+        #[serde(default)]
+        late_ms: Option<f32>,
     },
     /// the groove of the drums in an audio file, kept with the song as `name` (the file's name when not given), and
     /// the lanes `lanes` (every drum lane when none) put in it. Its tempo is `bpm` when given, else the Apple Loop's
@@ -1282,6 +1291,9 @@ pub enum Command {
         /// write the part again with a new seed
         #[serde(default)]
         reseed: bool,
+        /// how far behind the beat it plays, in milliseconds (-80 to 80; below zero, ahead): a bass pulled behind
+        #[serde(default)]
+        late_ms: Option<f32>,
     },
     /// A new track. `kind` "drum" is a drum lane, silent until its steps are written, playing `sound`: a drum
     /// voice (`kick`, `snare`, `clap`, `hat`, `rim`, `tom` ...) or a kit's (`tr909:bd`). `kind` "part" is a part the

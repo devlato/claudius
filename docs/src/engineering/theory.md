@@ -28,7 +28,7 @@ Everything a genre knows is in one JSON file. The fields `generate` reads:
 | `harmony`, `markov`, `ext` | weighted progression styles from the library, the chance of a Markov progression instead, and its chord extensions (0 triads, 1 sevenths, 2 ninths) |
 | `bars_per_chord` | weighted chord lengths |
 | `forms` | one or more forms, each a list of sections with layers, energy and flags: templates, which each song [varies](#a-form-and-a-mix-of-its-own) |
-| `drums` | lanes: a voice, a step template or a euclidean rhythm, named variants, parameter ranges, Apple Loops subtypes for one-shots, a choke group, whether to tune the kick to the key, a mix |
+| `drums` | lanes: a voice, a step template or a euclidean rhythm, named variants, parameter ranges, Apple Loops subtypes for one-shots, a choke group, whether to tune the kick to the key, a mix, and a `late_ms` range its feel is drawn from (ms behind the beat: a laid-back snare `[8, 24]`, a pushed kick `[-6, 0]`) |
 | `kits` | weighted sample-pack drum kits; the weight left over keeps the lanes' own sounds |
 | `kit_mix` | the chance that a drum lane plays a kit of its own instead (another installed kit, or its synthesized voice); 0.3 when not given |
 | `palette` | by role, how a part's sound is drawn beyond its own presets: `core`, the chance of one of its own, and a weight for each kind (`synth`, or an instrument category: `strings`, `brass`, `mallets`, `electric piano` ...) |

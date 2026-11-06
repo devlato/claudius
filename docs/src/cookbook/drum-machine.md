@@ -139,6 +139,27 @@ lane("snare", #{ groove: "dilla", groove_amount: 0.6 });
 lane("kick", #{ groove: "dilla", groove_amount: 0.4 });
 ```
 
+## Behind and ahead of the beat
+
+J Dilla's drunk feel was not random: on an MPC he moved whole pads with its shift timing, the snare a few dozen
+milliseconds late on every backbeat, the kick a little early, the hats left on the grid, so that the parts pull
+against each other the same way in every bar. `late` does that to a lane, or to a part: every hit that many
+milliseconds behind the beat (ahead, below zero), at any tempo. The genres that play that way do it already, a
+neo-soul snare 18 to 38 ms behind and its bass 12 to 30, a boom bap snare 8 to 24; `lane()` and `part()` set
+your own.
+
+```js
+song("neo_soul", 4);
+lane("snare", #{ late: 32 });    // laid back
+lane("kick", #{ late: -8 });     // pushed
+part("bass", #{ late: 20 });     // the bass behind the drums
+humanize(0.6);                   // and each hit drifts besides, as a player's does
+```
+
+`humanize()` is the other half: a drift, not a jitter. Each hit moves with the ones around it, behind for a while and
+ahead for a while, as a drummer's does (see [`humanize()`](../language/song-functions.md#humanize)), up to about
+15 ms at 1. In the studio, a lane's settings in the sequencer have a **feel** slider for its `late`.
+
 ## A groove from a record
 
 A break, a loop or a whole song has a feel of its own: how late its off-beats come, whether its backbeat sits behind

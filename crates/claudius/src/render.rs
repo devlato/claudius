@@ -193,6 +193,38 @@ struct Timing {
     spb: f64,
     swing: f32,
     humanize: f32,
+    /// the song's seed, which its drifts are drawn from
+    seed: u64,
+}
+
+/// how far a hit drifts from the grid at `humanize` 1, in seconds, one standard deviation
+const DRIFT_SECS: f64 = 0.015;
+
+/// the most a hit drifts, in standard deviations
+const DRIFT_MOST: f64 = 3.0;
+
+/// whose drift the drum lanes share, as one player's limbs
+const KIT: u64 = 0x6b69_7400_0000_0000;
+
+/// how much of the drift a track takes: a kick holds the beat, hats and percussion wander the most, and a part's
+/// player is looser than the kick and tighter than the hats
+fn drift_share(role: &str) -> f64 {
+    match role {
+        "kick" => 0.5,
+        "snare" | "clap" => 0.8,
+        "hat" | "ohat" | "ride" | "crash" => 1.0,
+        _ if is_drum_role(role) => 1.2,
+        _ => 0.6,
+    }
+}
+
+/// A value of unit variance at sixteenth `step` of a 1/f noise `seed` draws, the same each time it is asked for: Voss
+/// and McCartney's, octaves of draws each held twice as long as the one before, summed, so that it wanders over every
+/// span from a sixteenth to 32 bars.
+fn pink(seed: u64, step: u64) -> f64 {
+    const OCTAVES: u64 = 10;
+    let draw = |octave: u64, at: u64| Rng::new(seed ^ (octave << 56) ^ at).normal();
+    (0..OCTAVES).map(|k| draw(k, step >> k)).sum::<f64>() / (OCTAVES as f64).sqrt()
 }
 
 impl Timing {
@@ -205,9 +237,26 @@ impl Timing {
         Timing { swing: t.swing.unwrap_or(self.swing), ..self }
     }
 
-    /// where note `n` starts: swung, then moved by its step's nudge
-    fn onset(&self, n: &Note, jitter: f64) -> i64 {
-        self.sample(n.t, jitter + n.lock.map_or(0.0, |l| l.nudge))
+    /// How far from the grid track `t` plays at `beat`, in beats: its own feel (`late_ms`), and with `humanize`, a
+    /// drift as a player's. Hennig et al. (2011, "The nature and perception of fluctuations in human musical rhythms",
+    /// PLOS ONE) found a player's deviations to be about 10 to 20 ms and correlated over tens of seconds, as a 1/f
+    /// noise is, and listeners to prefer them to a humaniser's even, independent jitter: so a hit drifts with the ones
+    /// around it, `DRIFT_SECS` at `humanize` 1 (as `drift_share` gives each role), the drum lanes together in part.
+    fn feel(&self, t: &Track, beat: f64) -> f64 {
+        let drift = if self.humanize > 0.0 {
+            let step = (beat * 4.0).floor().max(0.0) as u64;
+            let own = pink(self.seed ^ hash_str(&t.name), step);
+            let z = if is_drum_role(&t.role) { 0.6 * pink(self.seed ^ KIT, step) + 0.8 * own } else { own };
+            z.clamp(-DRIFT_MOST, DRIFT_MOST) * DRIFT_SECS * self.humanize as f64 * drift_share(&t.role)
+        } else {
+            0.0
+        };
+        (drift + t.late_ms as f64 / 1000.0) * SRF / self.spb
+    }
+
+    /// where track `t`'s note `n` starts: swung, moved by its feel, then by its step's nudge
+    fn onset(&self, t: &Track, n: &Note) -> i64 {
+        self.sample(n.t, self.feel(t, n.t) + n.lock.map_or(0.0, |l| l.nudge))
     }
 }
 
@@ -217,7 +266,7 @@ fn choke_onsets(p: &Project, tm: &Timing) -> BTreeMap<String, Vec<i64>> {
     for t in &p.tracks {
         if let Some(g) = &t.choke {
             let tm = tm.of(t);
-            m.entry(g.clone()).or_default().extend(t.notes.iter().map(|n| tm.onset(n, 0.0)));
+            m.entry(g.clone()).or_default().extend(t.notes.iter().map(|n| tm.onset(t, n)));
         }
     }
     for v in m.values_mut() {
@@ -227,16 +276,15 @@ fn choke_onsets(p: &Project, tm: &Timing) -> BTreeMap<String, Vec<i64>> {
     m
 }
 
-/// a synth track's notes as its voices play them: where each starts and how long it holds, humanised by the track's
-/// own draws, the first a track's source makes
+/// a synth track's notes as its voices play them: where each starts (with its feel) and how long it holds, its
+/// velocity humanised by the track's own draws, the first a track's source makes
 fn synth_events(t: &Track, p: &Project, tm: &Timing) -> Vec<NoteEv> {
     let mut rng = Rng::new(p.seed ^ hash_str(&t.name));
     let human = tm.humanize as f64 * if is_drum_role(&t.role) { 1.0 } else { 0.6 };
     t.notes
         .iter()
         .map(|n| {
-            let jitter = rng.normal() * human * 0.003 * p.bpm / 60.0;
-            let start = tm.sample(n.t, jitter).max(0) as usize;
+            let start = tm.sample(n.t, tm.feel(t, n.t)).max(0) as usize;
             let vel = (n.v as f64 * (1.0 + rng.normal() * human * 0.05)).clamp(0.05, 1.0) as f32;
             NoteEv { start, gate: ((n.d * tm.spb) as usize).max(16), pitch: (n.p + t.transpose) as f64, vel }
         })
@@ -259,8 +307,7 @@ fn render_source(
             let root = if let Sound::Sample { root, .. } = &t.sound { *root } else { 60 };
             let group = t.choke.as_ref().and_then(|g| chokes.get(g));
             for n in &t.notes {
-                let jitter = rng.normal() * human * 0.004 * p.bpm / 60.0;
-                let pos = tm.of(t).onset(n, jitter);
+                let pos = tm.of(t).onset(t, n);
                 let lock = n.lock.unwrap_or_default();
                 let buf = locked_shot(&t.sound, n.p + t.transpose - root, seed, &lock)?;
                 let vel = (n.v as f64 * (1.0 + rng.normal() * human * 0.05)).clamp(0.05, 1.0) as f32;
@@ -295,10 +342,9 @@ fn render_source(
                 .notes
                 .iter()
                 .map(|n| {
-                    let jitter = rng.normal() * human * 0.004 * p.bpm / 60.0;
                     let vel = (n.v as f64 * (1.0 + rng.normal() * human * 0.05)).clamp(0.05, 1.0) as f32;
                     claudius_packs::NoteOn {
-                        start: tm.sample(n.t, jitter).max(0) as usize,
+                        start: tm.sample(n.t, tm.feel(t, n.t)).max(0) as usize,
                         gate: ((n.d * tm.spb) as usize).max(16),
                         pitch: (n.p + t.transpose) as f64,
                         velocity: vel,
@@ -418,7 +464,7 @@ fn duck_curve(p: &Project, tm: &Timing, len: usize) -> Option<Vec<f32>> {
     let mut env = vec![1.0f32; len];
     let tm = tm.of(kick);
     for n in &kick.notes {
-        let pos = tm.onset(n, 0.0).max(0) as usize;
+        let pos = tm.onset(kick, n).max(0) as usize;
         let start = pos.saturating_sub(att);
         for i in start..(pos + rel).min(len) {
             let v = if i < pos {
@@ -883,7 +929,7 @@ impl<'a> Song<'a> {
         }
         // a pattern with several sounds plays as a track for each, so the arranged song can have more than its blueprint
         crate::model::check_tracks(p.tracks.len(), p.secs()).map_err(anyhow::Error::msg)?;
-        let tm = Timing { spb: SRF * 60.0 / p.bpm, swing: p.swing, humanize: p.humanize };
+        let tm = Timing { spb: SRF * 60.0 / p.bpm, swing: p.swing, humanize: p.humanize, seed: p.seed };
         let tail = opts.tail_secs.max(0.0)
             + p.tracks.iter().map(|t| fx::chain_tail_secs(&t.mix.fx, p.bpm)).fold(0.0, f64::max).min(6.0);
         let len = (p.beats() * tm.spb) as usize + (tail * SRF) as usize;
@@ -1185,6 +1231,91 @@ pub fn finalize(x: &mut Stereo, target: f32, ceiling: f32) -> Mastered {
 mod tests {
     use super::*;
 
+    /// a track of `role` striking every sixteenth over `bars` bars, `late_ms` behind the beat
+    fn ticks(role: &str, bars: u32, late_ms: f32) -> Track {
+        let notes =
+            (0..bars * 16).map(|i| Note { t: f64::from(i) / 4.0, d: 0.25, p: 60, v: 0.8, lock: None }).collect();
+        let sound = Sound::Sample { path: String::new(), root: 60, start: 0.0, end: None, label: String::new() };
+        Track {
+            name: role.into(),
+            role: role.into(),
+            sound,
+            notes,
+            clips: Vec::new(),
+            transpose: 0,
+            chop: Vec::new(),
+            slice_beats: 0.0,
+            retime: false,
+            choke: None,
+            mix: crate::model::TrackMix::default(),
+            swing: None,
+            late_ms,
+        }
+    }
+
+    fn sd(x: &[f64]) -> f64 {
+        let m = x.iter().sum::<f64>() / x.len() as f64;
+        (x.iter().map(|v| (v - m).powi(2)).sum::<f64>() / x.len() as f64).sqrt()
+    }
+
+    fn corr(a: &[f64], b: &[f64]) -> f64 {
+        let (ma, mb) = (a.iter().sum::<f64>() / a.len() as f64, b.iter().sum::<f64>() / b.len() as f64);
+        let cov = a.iter().zip(b).map(|(x, y)| (x - ma) * (y - mb)).sum::<f64>() / a.len() as f64;
+        cov / (sd(a) * sd(b))
+    }
+
+    #[test]
+    fn a_hit_drifts_as_a_player_does_with_the_hits_around_it_and_hats_more_than_the_kick() {
+        let tm = Timing { spb: SRF * 60.0 / 90.0, swing: 0.5, humanize: 1.0, seed: 7 };
+        let secs = |t: &Track| -> Vec<f64> { t.notes.iter().map(|n| tm.feel(t, n.t) * tm.spb / SRF).collect() };
+        let (hat, kick, bass) = (ticks("hat", 64, 0.0), ticks("kick", 64, 0.0), ticks("bass", 64, 0.0));
+        let (h, k, b) = (secs(&hat), secs(&kick), secs(&bass));
+        assert!((sd(&h) / DRIFT_SECS - 1.0).abs() < 0.35, "hats drift {:.1} ms", sd(&h) * 1e3);
+        assert!((sd(&k) / sd(&h) - 0.5).abs() < 0.2, "the kick holds the beat: {:.1} ms", sd(&k) * 1e3);
+        assert!(h.iter().all(|x| x.abs() <= DRIFT_MOST * DRIFT_SECS + 1e-9), "never past the cap");
+        // a hit moves with the one before it, as a humaniser's independent jitter does not; the kit moves together and
+        // a part on its own, from hit to hit (two drifts' own slow wanders make their levels look alike by chance)
+        assert!(corr(&h[1..], &h[..h.len() - 1]) > 0.6, "{}", corr(&h[1..], &h[..h.len() - 1]));
+        let step = |x: &[f64]| x.windows(2).map(|w| w[1] - w[0]).collect::<Vec<_>>();
+        let shared = corr(&step(&h), &step(&k));
+        assert!(shared > 0.2, "the lanes share a player: {shared}");
+        let apart = corr(&step(&h), &step(&b));
+        assert!(apart.abs() < 0.15, "a part has a player of its own: {apart}");
+        // over the bars: the drift of a bar's mean wanders far more than an even jitter's would (1/16 of its variance)
+        let bars: Vec<f64> = h.chunks(16).map(|c| c.iter().sum::<f64>() / 16.0).collect();
+        assert!(sd(&bars).powi(2) > 0.3 * sd(&h).powi(2), "{} against {}", sd(&bars), sd(&h));
+        let still = Timing { humanize: 0.0, ..tm };
+        assert!(hat.notes.iter().all(|n| still.feel(&hat, n.t) == 0.0), "humanize 0: on the grid");
+    }
+
+    #[test]
+    fn a_lane_twenty_ms_late_plays_every_hit_twenty_ms_behind_the_beat() {
+        let tm = Timing { spb: SRF * 60.0 / 90.0, swing: 0.5, humanize: 0.0, seed: 7 };
+        let snare = ticks("snare", 2, 20.0);
+        for n in &snare.notes {
+            assert_eq!(tm.onset(&snare, n) - tm.sample(n.t, 0.0), (0.020 * SRF).round() as i64);
+        }
+        let pushed = ticks("kick", 1, -5.0);
+        assert_eq!(tm.onset(&pushed, &pushed.notes[4]) - tm.sample(1.0, 0.0), -(0.005 * SRF).round() as i64);
+        // and in a render: the song's snare, alone and late, sounds that much later
+        let g = crate::genres::get("house").unwrap();
+        let o = crate::compose::Options { short: true, samples: 0.0, loops: false, ..Default::default() };
+        let mut p = crate::compose::arrange(&crate::compose::generate(&g, 3, &o, None));
+        p.humanize = 0.0;
+        p.tracks.retain(|t| t.role == "clap" || t.role == "snare");
+        p.tracks.truncate(1);
+        p.tracks[0].notes = vec![Note { t: 4.0, d: 0.25, p: 60, v: 0.9, lock: None }];
+        let first = |late: f32| {
+            let mut q = p.slice(0, 2);
+            q.tracks[0].late_ms = late;
+            let x = render(&q, &Options { stems: false, tail_secs: 0.0 }).unwrap().master;
+            let peak = x.l.iter().fold(0.0f32, |m, v| m.max(v.abs()));
+            x.l.iter().position(|v| v.abs() > 0.05 * peak).unwrap() as i64
+        };
+        let moved = first(20.0) - first(0.0);
+        assert!((moved - 960).abs() <= 2, "20 ms is 960 samples, not {moved}");
+    }
+
     #[test]
     fn a_sample_locked_shorter_dies_away_sooner_and_darker_loses_its_top() {
         let n = 24_000;
@@ -1433,7 +1564,7 @@ mod tests {
                 format!(r#"blank("house"); drum("kick", "....x..........."); form([sec("drop", 1, "kick")]); {trig}"#);
             crate::compose::arrange(&crate::script::run(&code, None, None).unwrap().bp.unwrap())
         };
-        let tm = Timing { spb: SRF * 60.0 / 120.0, swing: 0.5, humanize: 0.0 };
+        let tm = Timing { spb: SRF * 60.0 / 120.0, swing: 0.5, humanize: 0.0, seed: 0 };
         let dip = |p: &Project| duck_curve(p, &tm, 96_000).unwrap().iter().position(|&g| g < 0.99).unwrap() as i64;
         let (plain, late) = (song(""), song(r#"trig("kick", 4, #{ nudge: 0.5 });"#));
         assert!((dip(&late) - dip(&plain) - 3_000).abs() <= 1, "{} {}", dip(&plain), dip(&late));

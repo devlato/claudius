@@ -183,6 +183,7 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
             swing: d.swing,
             groove: d.groove.clone(),
             groove_amount: d.groove_amount,
+            late_ms: d.late_ms,
         })
         .collect();
     let available = palette::instruments();
@@ -232,6 +233,7 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
                 presets: presets_for,
                 register: p.register,
                 density: p.density,
+                late_ms: p.late_ms,
                 cycles: compose::cycles(bp, p)
                     .into_iter()
                     .map(|(prog, notes, beats, written)| CycleView {

@@ -45,6 +45,7 @@
   "drums": [
     {
       "name": "kick",
+      "late_ms": [-8, -2],
       "voice": "kick",
       "template": {"steps": [1, 0, 0, 0, 0, 0, 0, 0.25, 0, 0, 1, 0, 0, 0, 0, 0.2], "vel": [0.8, 1.0], "vary": 0.3},
       "params": {"decay": [0.25, 0.4], "tune": [48, 58], "tone": [0.15, 0.4], "punch": [0.3, 0.6], "drive": [2, 6]},
@@ -53,6 +54,7 @@
     },
     {
       "name": "snare",
+      "late_ms": [12, 30],
       "voice": "snare",
       "template": {
         "steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
@@ -66,6 +68,7 @@
     },
     {
       "name": "hat",
+      "late_ms": [0, 8],
       "voice": "closed_hat",
       "template": {
         "steps": [1, 0, 0.7, 0, 1, 0, 0.7, 0, 1, 0, 0.7, 0, 1, 0, 0.7, 0.3],
@@ -78,6 +81,7 @@
     },
     {
       "name": "shaker",
+      "late_ms": [2, 10],
       "voice": "shaker",
       "template": {
         "steps": [0.7, 0.4, 0.8, 0.4, 0.7, 0.4, 0.8, 0.4, 0.7, 0.4, 0.8, 0.4, 0.7, 0.4, 0.8, 0.4],
@@ -97,6 +101,7 @@
   "parts": [
     {
       "name": "bass",
+      "late_ms": [8, 22],
       "role": "bass",
       "presets": ["upright_bass|sub_bass", "sub_bass", "organ_bass"],
       "styles": ["walking", "sustain", "syncopated"],

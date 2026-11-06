@@ -247,6 +247,10 @@ pub struct DrumLane {
     pub groove: Option<String>,
     #[serde(default = "one", skip_serializing_if = "is_one")]
     pub groove_amount: f32,
+    /// How far behind the beat it plays (ahead, below zero), in milliseconds, every hit alike, as a drum machine's
+    /// shift timing moves a pad: a snare laid back 20, a kick pushed 5.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub late_ms: f32,
 }
 
 fn one() -> f32 {
@@ -350,6 +354,9 @@ pub struct Part {
     pub doubles: Option<String>,
     #[serde(default, skip_serializing_if = "is_no_octave")]
     pub octave: i32,
+    /// how far behind the beat it plays (ahead, below zero), in milliseconds: a bass pulled behind the drums
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub late_ms: f32,
 }
 
 fn is_no_octave(x: &i32) -> bool {
@@ -680,6 +687,9 @@ pub struct Track {
     /// its own swing, instead of the song's (a drum lane's)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub swing: Option<f32>,
+    /// how far behind the beat it plays, in milliseconds (its lane's or part's `late_ms`)
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub late_ms: f32,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

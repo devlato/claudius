@@ -1475,19 +1475,33 @@ async fn a_lane_takes_its_own_time_and_a_recordings_groove() {
         swing: Some(0.62),
         groove: Some("dilla".into()),
         groove_amount: Some(0.5),
+        late_ms: Some(-6.0),
     };
     let r = app.command(set);
     assert!(
-        r.ok && r.message.contains("12 steps round, at 0.75 speed, swing 0.62, in the dilla groove (50%)"),
+        r.ok && r
+            .message
+            .contains("12 steps round, at 0.75 speed, swing 0.62, in the dilla groove (50%), 6 ms ahead of the beat"),
         "{}",
         r.message
     );
     let lane = |app: &App| app.state().song.unwrap().drums.into_iter().find(|d| d.lane == hat).unwrap();
     let d = lane(&app);
     assert_eq!(
-        (d.length, d.speed, d.swing, d.groove.as_deref(), d.groove_amount),
-        (Some(12), 0.75, Some(0.62), Some("dilla"), 0.5)
+        (d.length, d.speed, d.swing, d.groove.as_deref(), d.groove_amount, d.late_ms),
+        (Some(12), 0.75, Some(0.62), Some("dilla"), 0.5, -6.0)
     );
+    let too_far = Command::SetLane {
+        lane: hat.clone(),
+        length: None,
+        speed: None,
+        swing: None,
+        groove: None,
+        groove_amount: None,
+        late_ms: Some(120.0),
+    };
+    let r = app.command(too_far);
+    assert!(!r.ok && r.message.contains("late is -80 to 80"), "{}", r.message);
     assert_eq!(claudius::theory::rhythm::GROOVES, claudius_api::GROOVES);
     // a recording's groove: eight bars of sixteenths at 100 BPM, the off-beats 0.06 beats late, by path and as a file
     let (sr, spb) = (claudius::config::SR as f64, 0.6);

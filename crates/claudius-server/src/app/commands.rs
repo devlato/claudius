@@ -731,11 +731,16 @@ impl App {
                 Err(e) => no(format!("cannot open {name}: {e}"), v),
             }
         } else {
-            let r = self.run_script(text, Some(format!("{said} {name}")));
+            let opened = format!("{said} {name}");
+            let mut r = self.run_script(text, Some(opened.clone()));
             if r.ok {
                 // a song folder's song.rhai opens that song; a script elsewhere makes a new one
                 let folder = folder.filter(|d| d.join("blueprint.json").is_file()).map(Path::to_path_buf);
                 self.update(|s| s.folder = folder);
+                // what was opened, before what its script says it did (a lane laid back, a groove taken)
+                if !r.message.starts_with(&opened) {
+                    r.message = format!("{opened}\n{}", r.message);
+                }
             }
             r
         }

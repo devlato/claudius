@@ -366,6 +366,7 @@ pub(crate) fn put_hits(
     let mut patterns = BTreeMap::new();
     patterns.insert(variant.to_string(), hits);
     bp.drums.push(DrumLane {
+        late_ms: 0.0,
         length: None,
         speed: 1.0,
         swing: None,

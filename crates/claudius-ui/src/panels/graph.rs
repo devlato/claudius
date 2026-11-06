@@ -374,6 +374,7 @@ fn track(ui: &mut Ui, cx: &mut Cx, song: &SongView, name: &str) {
                     register: None,
                     density: None,
                     reseed: false,
+                    late_ms: None,
                 });
             }
         });

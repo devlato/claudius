@@ -51,11 +51,12 @@ pub struct PartEdit {
     pub register: Option<(i32, i32)>,
     pub density: Option<f32>,
     pub reseed: bool,
+    pub late_ms: Option<f32>,
 }
 
 impl PartEdit {
     pub fn on(self, name: &str) -> Command {
-        let PartEdit { style, preset, register, density, reseed } = self;
-        Command::SetPart { name: name.to_string(), style, preset, register, density, reseed }
+        let PartEdit { style, preset, register, density, reseed, late_ms } = self;
+        Command::SetPart { name: name.to_string(), style, preset, register, density, reseed, late_ms }
     }
 }

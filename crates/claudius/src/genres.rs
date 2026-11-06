@@ -101,6 +101,10 @@ pub struct LaneSpec {
     pub tune_to_key: bool,
     #[serde(default)]
     pub mix: TrackMix,
+    /// how far behind the beat the lane plays, in milliseconds, drawn from this range (`DrumLane::late_ms`): a
+    /// backbeat laid back, a kick pushed ahead
+    #[serde(default)]
+    pub late_ms: Option<(f32, f32)>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -133,6 +137,9 @@ pub struct PartSpec {
     pub doubles: Option<String>,
     #[serde(default)]
     pub octave: i32,
+    /// how far behind the beat the part plays, in milliseconds, drawn from this range (`Part::late_ms`)
+    #[serde(default)]
+    pub late_ms: Option<(f32, f32)>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

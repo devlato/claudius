@@ -816,6 +816,38 @@ fn a_nudge_moves_the_stroke_late_and_a_pan_sends_it_to_one_side() {
 }
 
 #[test]
+fn a_lane_and_a_part_play_behind_or_ahead_of_the_beat_as_the_script_says_and_read_back() {
+    let code = r#"
+        blank("boom_bap"); tempo(90);
+        drum("kick", "x.......x.......");
+        drum("snare", "....x.......x...");
+        part("bass", #{ role: "bass", late: 12 });
+        form([sec("verse", 4, "kick snare bass")]);
+        lane("snare", #{ late: 22 });
+        lane("kick", #{ late: -4 });
+    "#;
+    let out = script::run(code, None, None).unwrap();
+    assert!(out.log.iter().any(|l| l == "snare: 22 ms behind the beat"), "{:?}", out.log);
+    let bp = out.bp.unwrap();
+    let late = |name: &str| bp.drums.iter().find(|d| d.name == name).unwrap().late_ms;
+    assert_eq!((late("snare"), late("kick")), (22.0, -4.0));
+    assert_eq!(bp.parts.iter().find(|p| p.name == "bass").unwrap().late_ms, 12.0);
+    // the arranged tracks carry it to the render
+    let p = compose::arrange(&bp);
+    let track = |name: &str| p.tracks.iter().find(|t| t.name == name).unwrap().late_ms;
+    assert_eq!((track("snare"), track("bass")), (22.0, 12.0));
+    // and the song's script says it again
+    let again = script::to_script(&bp);
+    assert!(again.contains(r#"lane("snare", #{ late: 22 });"#) && again.contains("late: 12 }"), "{again}");
+    let back = script::run(&again, None, None).unwrap().bp.unwrap();
+    assert_eq!((back.drums.iter().find(|d| d.name == "kick").unwrap().late_ms, back.parts[0].late_ms), (-4.0, 12.0));
+    let far = script::run(r#"lane("snare", #{ late: 200 });"#, Some(bp.clone()), None).err().unwrap().to_string();
+    assert!(far.contains("late is -80 to 80"), "{far}");
+    let far = script::run(r#"part("bass", #{ late: -90 });"#, Some(bp), None).err().unwrap().to_string();
+    assert!(far.contains("-80 (ahead) to 80 ms (behind)"), "{far}");
+}
+
+#[test]
 fn a_lane_keeps_its_own_length_speed_swing_and_groove() {
     let code = r#"
         blank("house"); tempo(120);

@@ -1536,6 +1536,7 @@ fn vocal(
     let mix = if n.mix == TrackMix::default() { crate::sampler::vocal_mix() } else { n.mix.clone() };
     bp.parts.retain(|q| q.name != VOCAL);
     bp.parts.push(Part {
+        late_ms: 0.0,
         name: VOCAL.into(),
         role,
         sound: Sound::Sample { path: p.path.clone(), root, start: 0.0, end: None, label: format!("{label} chop") },

@@ -34,18 +34,21 @@
     },
     {
       "name": "clap",
+      "late_ms": [2, 8],
       "voice": "clap",
       "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.8, 1.0], "vary": 0.2},
       "mix": {"bus": "drums", "reverb": 0.15}
     },
     {
       "name": "rim",
+      "late_ms": [2, 10],
       "voice": "rim",
       "template": {"steps": [1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0], "vel": [0.45, 0.7], "vary": 0.25},
       "mix": {"bus": "drums", "pan": 0.3, "reverb": 0.1}
     },
     {
       "name": "hat",
+      "late_ms": [-4, 0],
       "voice": "closed_hat",
       "template": {"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5], "vel": [0.35, 0.6], "ghost": 0.05},
       "params": {"tone": [0.45, 0.75]},
@@ -54,6 +57,7 @@
     },
     {
       "name": "shaker",
+      "late_ms": [-7, -2],
       "voice": "shaker",
       "template": {
         "steps": [0.8, 0.5, 0.7, 0.5, 0.8, 0.5, 0.7, 0.5, 0.8, 0.5, 0.7, 0.5, 0.8, 0.5, 0.7, 0.5],
@@ -64,6 +68,7 @@
     },
     {
       "name": "conga",
+      "late_ms": [-3, 3],
       "voice": "perc",
       "template": {"steps": [0, 0, 1, 0, 0, 0.6, 0, 0, 0, 0, 1, 0, 0, 0.6, 0, 0.5], "vel": [0.4, 0.75], "vary": 0.3},
       "samples": ["Conga", "Bongo"],

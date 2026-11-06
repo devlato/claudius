@@ -23,12 +23,12 @@
     ]
   ],
   "drums": [
-    {"name": "kick", "voice": "kick", "template": {"steps": [1, 0, 0, 0.35, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0.4, 1, 0, 0, 0, 0, 0, 0.45, 0, 0, 0, 1, 0, 0, 0.3, 0, 0], "vel": [0.85, 1.0], "vary": 0.35}, "params": {"decay": [0.2, 0.35], "tune": [50, 62], "tone": [0.35, 0.6], "punch": [0.4, 0.7], "drive": [1, 4]}, "samples": ["Kick"], "mix": {"bus": "drums"}},
-    {"name": "snare", "voice": "snare", "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.9, 1.0], "ghost": 0.28, "vary": 0.2}, "params": {"decay": [0.12, 0.2], "tune": [200, 260], "snap": [0.7, 0.95], "tone": [0.4, 0.7], "room": [0.15, 0.35]}, "samples": ["Snare"], "mix": {"bus": "drums", "reverb": 0.1}},
-    {"name": "hat", "voice": "closed_hat", "template": {"steps": [1, 0.55, 0.8, 0.55, 1, 0.55, 0.8, 0.55, 1, 0.55, 0.8, 0.55, 1, 0.55, 0.8, 0.55], "vel": [0.3, 0.75], "ghost": 0.05}, "params": {"decay": [0.025, 0.05], "tone": [0.5, 0.8]}, "samples": ["Hi-hat"], "choke": "hats", "mix": {"bus": "drums", "pan": 0.2}},
-    {"name": "ohat", "voice": "open_hat", "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0], "vel": [0.5, 0.7]}, "params": {"decay": [0.15, 0.3]}, "choke": "hats", "mix": {"bus": "drums", "pan": -0.12}},
+    {"name": "kick", "voice": "kick", "template": {"steps": [1, 0, 0, 0.35, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0.4, 1, 0, 0, 0, 0, 0, 0.45, 0, 0, 0, 1, 0, 0, 0.3, 0, 0], "vel": [0.85, 1.0], "vary": 0.35}, "params": {"decay": [0.2, 0.35], "tune": [50, 62], "tone": [0.35, 0.6], "punch": [0.4, 0.7], "drive": [1, 4]}, "samples": ["Kick"], "mix": {"bus": "drums"}, "late_ms": [-3, 2]},
+    {"name": "snare", "voice": "snare", "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.9, 1.0], "ghost": 0.28, "vary": 0.2}, "params": {"decay": [0.12, 0.2], "tune": [200, 260], "snap": [0.7, 0.95], "tone": [0.4, 0.7], "room": [0.15, 0.35]}, "samples": ["Snare"], "mix": {"bus": "drums", "reverb": 0.1}, "late_ms": [0, 8]},
+    {"name": "hat", "voice": "closed_hat", "template": {"steps": [1, 0.55, 0.8, 0.55, 1, 0.55, 0.8, 0.55, 1, 0.55, 0.8, 0.55, 1, 0.55, 0.8, 0.55], "vel": [0.3, 0.75], "ghost": 0.05}, "params": {"decay": [0.025, 0.05], "tone": [0.5, 0.8]}, "samples": ["Hi-hat"], "choke": "hats", "mix": {"bus": "drums", "pan": 0.2}, "late_ms": [-6, -1]},
+    {"name": "ohat", "voice": "open_hat", "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0], "vel": [0.5, 0.7]}, "params": {"decay": [0.15, 0.3]}, "choke": "hats", "mix": {"bus": "drums", "pan": -0.12}, "late_ms": [-6, -1]},
     {"name": "perc", "voice": "cowbell", "euclid": [3, 8], "params": {"tune": [540, 620], "decay": [0.05, 0.1]}, "mix": {"bus": "drums", "pan": 0.35, "level_db": -3}},
-    {"name": "shaker", "voice": "shaker", "template": {"steps": [0.6, 0.4, 0.7, 0.4, 0.6, 0.4, 0.7, 0.4, 0.6, 0.4, 0.7, 0.4, 0.6, 0.4, 0.7, 0.4], "vel": [0.15, 0.35]}, "mix": {"bus": "drums", "pan": -0.3}}
+    {"name": "shaker", "voice": "shaker", "template": {"steps": [0.6, 0.4, 0.7, 0.4, 0.6, 0.4, 0.7, 0.4, 0.6, 0.4, 0.7, 0.4, 0.6, 0.4, 0.7, 0.4], "vel": [0.15, 0.35]}, "mix": {"bus": "drums", "pan": -0.3}, "late_ms": [-6, -1]}
   ],
   "kits": [["muldjord", 0.45], ["tr707", 0.1]],
   "kit_mix": 0.3,
@@ -39,7 +39,7 @@
     "lead": {"core": 0.4, "brass": 3, "woodwinds": 1, "guitar": 1, "synth": 0.8}
   },
   "parts": [
-    {"name": "bass", "role": "bass", "presets": ["freepats:finger_bass|pluck_bass", "pluck_bass", "rubber_bass", "freepats:pick_bass|pluck_bass"], "styles": ["syncopated", "octave", "walking"], "register": [31, 52], "mix": {"bus": "bass", "fx": [{"fx": "compressor", "threshold_db": -18, "ratio": 4, "attack_ms": 8, "release_ms": 80, "knee_db": 4, "makeup_db": 2}]}},
+    {"name": "bass", "role": "bass", "presets": ["freepats:finger_bass|pluck_bass", "pluck_bass", "rubber_bass", "freepats:pick_bass|pluck_bass"], "styles": ["syncopated", "octave", "walking"], "register": [31, 52], "mix": {"bus": "bass", "fx": [{"fx": "compressor", "threshold_db": -18, "ratio": 4, "attack_ms": 8, "release_ms": 80, "knee_db": 4, "makeup_db": 2}]}, "late_ms": [-3, 3]},
     {"name": "guitar", "role": "chords", "presets": ["freepats:clean_guitar|pluck", "freepats:jazz_guitar|pluck", "clav"], "styles": ["stabs", "syncopated", "offbeat"], "register": [52, 76], "voices": 3, "voicing": "close", "mix": {"pan": 0.3, "reverb": 0.12, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 250, "res": 0.05}, {"fx": "compressor", "threshold_db": -20, "ratio": 4, "attack_ms": 3, "release_ms": 60, "knee_db": 4, "makeup_db": 2}, {"fx": "phaser", "rate_hz": 0.6, "stages": 4, "depth": 0.6, "feedback": 0.3, "mix": 0.25}]}},
     {"name": "keys", "role": "keys", "presets": ["clav", "hammond|rock_organ", "rhodes|epiano"], "styles": ["syncopated", "stabs", "half"], "register": [50, 74], "voices": 3, "voicing": "close", "mix": {"pan": -0.25, "reverb": 0.15}},
     {"name": "horns", "role": "lead", "presets": ["brass|brass_lead", "trumpet|brass_lead", "sax|brass_lead"], "styles": ["motif"], "register": [60, 82], "density": [0.3, 0.5], "optional": 0.25, "mix": {"reverb": 0.2, "delay": 0.1}}
