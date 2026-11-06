@@ -373,7 +373,7 @@ pub struct RemakeArgs {
     pub genre: Option<String>,
     #[serde(default)]
     pub seed: Option<u64>,
-    /// the tempo (default: the recording's, or double or half of it, as near the genre's range as that comes)
+    /// the tempo (default: the recording's, or double it when that is nearer the genre's range; another stretches it)
     #[serde(default)]
     pub bpm: Option<f64>,
     /// whether the song is built on the recording's sound (default); false: a new song on its skeleton only (its

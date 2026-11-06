@@ -213,7 +213,8 @@ is split into what sustains and what strikes (`fft::harmonic`), and what sustain
 of its last bar, is one loop track, `original`, that plays once from the first section through all of them (a take's
 `from`): its voice, chords and melodies as they are, through the genre's treatment of a phrase it samples with a
 high-pass at 150 Hz at least, which leaves the low end to the genre's bass and kick. The song generated in the genre
-at the recording's tempo (`rework_tempo`: from the length of its bars, doubled or halved toward the genre's range, so
+at the recording's tempo (`rework_tempo`: from the length of its bars, doubled when that is nearer the genre's range, two bars of the
+song to each of its own, never halved, which would put two of its chords in a bar; so
 that the loop is not stretched) and in its key then takes the recording's skeleton exactly: one section per analysed
 section, as long as it was heard, its kind and energy, the layers of the genre's section most like it (of its kind, else
 the nearest in energy) that play under a recording (drum lanes, the bass, the break and the textures, not chords,

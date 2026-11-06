@@ -66,7 +66,7 @@ it plays through, from its first downbeat to its end, at its own speed and pitch
 they are, without its drums and with its low end cut; the song is its own sections bar for bar, on its chords bar by
 bar and in its swing; and the genre plays under it, its drums, its bass on those chords' roots in place of the
 recording's, its break and textures and its treatment of a sampled phrase, its mix. It plays at the recording's tempo, or
-double or half of it, so that nothing is stretched. The remix it made before, a new song of the genre on the
+double it, so that nothing is stretched. The remix it made before, a new song of the genre on the
 recording's hook, a passage of its verses, its drums, a flip of it and its sung phrases, is **Flip into** in the New
 song dialog, and `flip: true` in `remake` (`--flip`, `?flip=true`).
 

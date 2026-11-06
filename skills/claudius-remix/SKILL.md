@@ -75,7 +75,7 @@ recording in the genre, so that it stays the song it is:
   and textures, its mix; not its chords, keys, pads or leads, which would play over the recording's own playing and
   singing, and against it where a chord was heard wrong.
 
-Its tempo is the recording's, or double or half of it, the one nearest the genre's range, so that nothing is stretched;
+Its tempo is the recording's, or double it (two bars of the song to each of the recording's) when that is nearer the genre's range, so that nothing is stretched;
 `bpm` sets another (and stretches it). The reply and the song's history say so (`reworked from '<file>': all 96 bars
 of it, ...`). The recording is the `original` track: turn it down, filter it or mute it in sections like any loop, and
 edit the genre's parts around it. A recording too short or without sections (under 8 bars) is remade on its skeleton,

@@ -187,7 +187,8 @@ pub(crate) enum Cmd {
         genre: String,
         #[arg(short, long)]
         seed: Option<u64>,
-        /// the tempo (default: the recording's, or double or half of it, as near the genre's range as that comes)
+        /// the tempo (default: the recording's, or double it when that is nearer the genre's range; another stretches
+        /// it)
         #[arg(long)]
         bpm: Option<f64>,
         /// write a new song on the recording's skeleton only (its tempo, key, form, chords, drum habits), none of its

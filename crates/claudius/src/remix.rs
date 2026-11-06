@@ -353,13 +353,49 @@ pub fn remix(
     Ok(bp)
 }
 
-/// The tempo a rework plays at: the recording's own (from the length of its bars), or double or half of it, the one
-/// nearest the genre's range, so that it plays at its own speed and pitch on the song's grid
-pub fn rework_tempo(a: &Analysis, g: &GenreProfile) -> f64 {
+/// The tempo a rework plays at, and the song's bars to each of the recording's: its own tempo (from the length of its
+/// bars), or double it (two bars to each of its own) when that is nearer the genre's range, so that it plays at its
+/// own speed and pitch on the song's grid. Never half: two of its bars to one of the song's would put two of its chords
+/// in a bar of the song's, which plays one chord a bar at most.
+pub fn rework_tempo(a: &Analysis, g: &GenreProfile) -> (f64, usize) {
     let own = 240.0 / a.bar_secs.max(1e-3);
     let (lo, hi) = g.bpm;
     let outside = |b: f64| (lo - b).max(b - hi).max(0.0);
-    [own, own * 2.0, own / 2.0].into_iter().min_by(|x, y| outside(*x).total_cmp(&outside(*y))).unwrap_or(own)
+    if outside(own * 2.0) < outside(own) { (own * 2.0, 2) } else { (own, 1) }
+}
+
+/// The library a rework draws on: the libraries' one-shots, loops, breaks and textures; no other record's phrase, voice
+/// or bass, which would play against the recording, and a phrase would give the song its own key.
+struct Under<'a> {
+    inner: Option<&'a dyn Library>,
+}
+
+impl Library for Under<'_> {
+    fn one_shot(&self, lane: &str, subtypes: &[String], genre: &GenreProfile, rng: &mut Rng) -> Option<Sound> {
+        self.inner.and_then(|l| l.one_shot(lane, subtypes, genre, rng))
+    }
+
+    fn find_loop(
+        &self,
+        spec: &LoopSpec,
+        genre: &GenreProfile,
+        bpm: f64,
+        key: &Key,
+        rng: &mut Rng,
+    ) -> Option<(Sound, i32)> {
+        self.inner.and_then(|l| l.find_loop(spec, genre, bpm, key, rng))
+    }
+
+    fn family(&self, _: &GenreProfile, _: &mut Rng) -> Option<FamilyPick> {
+        None
+    }
+
+    fn prepared(&self, role: Role, genre: &GenreProfile, asked: Option<&str>, rng: &mut Rng) -> Option<Prepared> {
+        match role {
+            Role::Break | Role::Texture => self.inner.and_then(|l| l.prepared(role, genre, asked, rng)),
+            Role::Phrase | Role::Vocal | Role::Bass => None,
+        }
+    }
 }
 
 /// the genre's section most like `s`: one of its kind, else the one nearest it in energy
@@ -369,11 +405,12 @@ fn like<'a>(form: &'a [SectionSpec], s: &SectionGuess) -> Option<&'a SectionSpec
         .or_else(|| form.iter().min_by(|x, y| (x.energy - s.energy).abs().total_cmp(&(y.energy - s.energy).abs())))
 }
 
-/// The recording's sections as the song's, bar for bar: each its own kind, length and energy, on a progression of its
-/// own bars' chords (one name for each run of chords, `A` the first), with the layers the genre plays in a section
-/// like it that `keep` takes, and the progressions
+/// The recording's sections as the song's, `per` bars of the song's to each of its own: each its own kind, length and
+/// energy, on a progression of its own bars' chords (a chord to each of its bars; one name for each run of chords, `A`
+/// the first), with the layers the genre plays in a section like it that `keep` takes, and the progressions
 fn rework_form(
     a: &Analysis,
+    per: usize,
     genre: &[SectionSpec],
     keep: impl Fn(&str) -> bool,
 ) -> (Vec<SectionSpec>, BTreeMap<String, Vec<String>>) {
@@ -407,7 +444,7 @@ fn rework_form(
         form.push(SectionSpec {
             name,
             kind: s.kind,
-            bars: s.bars as u32,
+            bars: (s.bars * per) as u32,
             energy: s.energy,
             prog,
             layers,
@@ -437,9 +474,11 @@ pub fn rework(
     if a.bars < 8 || a.sections.is_empty() {
         return Err("the recording is too short, or its sections too unclear, to rework".into());
     }
-    let bpm = opts.bpm.unwrap_or_else(|| rework_tempo(a, g));
+    // a tempo asked for stretches the recording to it, bar for bar
+    let (bpm, per) = opts.bpm.map_or_else(|| rework_tempo(a, g), |b| (b, 1));
     let o = Options { bpm: Some(bpm), key: Some(a.key), sample_search: None, family: false, ..opts.clone() };
-    let mut bp = compose::generate(g, seed, &o, lib);
+    let mut bp = compose::generate(g, seed, &o, Some(&Under { inner: lib }));
+    bp.key = a.key;
     // the genre's drums, bass, break and textures play under it; its chords, keys, pads and leads would play over the
     // recording's own (where the chords heard in it are wrong, against them), and another record's phrase or voice
     // against it. The bass plays only the chords' roots, which the analysis hears best.
@@ -448,10 +487,10 @@ pub fn rework(
     let parts: Vec<String> = bp.parts.iter().filter(|p| under(p)).map(|p| p.name.clone()).collect();
     let loops = [BREAK, crate::sampling::TEXTURE];
     let keep = |l: &str| lanes.iter().chain(&parts).any(|n| n == l) || loops.contains(&l);
-    let (form, progressions) = rework_form(a, &bp.form, keep);
+    let (form, progressions) = rework_form(a, per, &bp.form, keep);
     bp.form = form;
     bp.harmony.progressions = progressions;
-    bp.harmony.bars_per_chord = 1;
+    bp.harmony.bars_per_chord = per as u32;
     bp.swing = a.swing;
     let used: Vec<String> = bp.form.iter().flat_map(|s| s.layers.iter().cloned()).collect();
     bp.parts.retain(|p| used.contains(&p.name));
@@ -475,14 +514,16 @@ pub fn rework(
     if mix.bus.is_empty() {
         mix.bus = "music".into();
     }
-    let beats = (a.bars * 4) as f64 * bpm * a.bar_secs / 240.0;
+    // at its own tempo on the song's grid, `per` beats of the song's to each of its own: as long as the song's bars, or
+    // stretched to a tempo asked for
+    let own = 240.0 / a.bar_secs.max(1e-3) * per as f64;
     bp.loops.push(LoopPart {
         name: ORIGINAL.into(),
         role: "sample".into(),
         sound: Sound::Loop {
             path: path.to_string_lossy().into_owned(),
-            bpm,
-            beats,
+            bpm: own,
+            beats: (a.bars * 4 * per) as f64,
             key: None,
             tonal: false,
             label: format!("{slug}, all of it"),
@@ -663,6 +704,78 @@ mod tests {
         let Sound::Loop { path, bpm, beats, .. } = &t.sound else { panic!("a loop") };
         assert!(Path::new(path).starts_with(dir.join("my-song")), "{path}");
         assert!((bpm - bp.bpm).abs() < 1e-9 && (beats - bars * 4.0).abs() < 1e-6, "{bpm} {beats}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// the recording's loop in a rework: the tempo it declares and the song's beats it lasts
+    fn original(bp: &Blueprint) -> (f64, f64) {
+        let lp = bp.loops.iter().find(|l| l.name == ORIGINAL).expect("the recording plays");
+        let Sound::Loop { bpm, beats, .. } = &lp.sound else { panic!("a loop") };
+        (*bpm, *beats)
+    }
+
+    #[test]
+    fn a_rework_in_double_time_plays_two_bars_to_each_of_the_recordings_and_one_asked_for_stretches_it() {
+        let x = recording();
+        let a = crate::analysis::song::analyze(&x, None);
+        let dir = std::env::temp_dir().join(format!("claudius-rework-tempo-{}", std::process::id()));
+        let src = Source { x: &x, name: "my song.wav", a: &a };
+        let own = 240.0 / a.bar_secs;
+        // drum and bass plays twice the recording's 96: two of its bars to each of the recording's, a chord each
+        let dnb = crate::genres::get("dnb").unwrap();
+        let bp = rework(&src, &dnb, 3, &Options::default(), None, &dir).unwrap();
+        assert!((bp.bpm - 2.0 * own).abs() < 1e-9, "{}", bp.bpm);
+        assert_eq!(bp.harmony.bars_per_chord, 2);
+        for (s, heard) in bp.form.iter().zip(&a.sections) {
+            assert_eq!(s.bars as usize, 2 * heard.bars, "{}", s.name);
+            assert_eq!(bp.harmony.progressions[&s.prog].len(), heard.bars, "{}", s.name);
+        }
+        let bars: f64 = bp.form.iter().map(|s| s.bars as f64).sum();
+        let (bpm, beats) = original(&bp);
+        assert!((bpm - bp.bpm).abs() < 1e-9 && (beats - bars * 4.0).abs() < 1e-6, "unstretched: {bpm} {beats}");
+        // a tempo asked for keeps its bars and stretches the recording to it
+        let asked = Options { bpm: Some(100.0), ..Options::default() };
+        let bp = rework(&src, &crate::genres::get("boom_bap").unwrap(), 3, &asked, None, &dir).unwrap();
+        assert_eq!((bp.bpm, bp.harmony.bars_per_chord), (100.0, 1));
+        let bars: f64 = bp.form.iter().map(|s| s.bars as f64).sum();
+        let (bpm, beats) = original(&bp);
+        assert!((bpm - own).abs() < 1e-9 && (beats - bars * 4.0).abs() < 1e-6, "at its own {own}: {bpm} {beats}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_rework_plays_no_other_records_phrase_and_keeps_the_recordings_key() {
+        let x = recording();
+        let a = crate::analysis::song::analyze(&x, None);
+        let dir = std::env::temp_dir().join(format!("claudius-rework-key-{}", std::process::id()));
+        // a library with a phrase in C# minor, which a song of boom bap would be built on, in its key
+        let phrase = Prepared {
+            path: "demo:samples/phrase/boom_bap/other/phrase.wav".into(),
+            role: Role::Phrase,
+            genre: "boom_bap".into(),
+            bpm: 92.0,
+            beats: 16.0,
+            key: Some(1),
+            minor: true,
+            kick: None,
+            snare: None,
+            hat: None,
+            chords: vec!["i".into(), "VI".into(), "III".into(), "VII".into()],
+            z: None,
+            source: "another record".into(),
+            asked: None,
+            second: None,
+            root: None,
+            pulse: Some(0.8),
+        };
+        let lib = crate::library::Library::with_prepared(vec![phrase]);
+        let g = crate::genres::get("boom_bap").unwrap();
+        let built = compose::generate(&g, 3, &Options { sampled: Some(true), ..Options::default() }, Some(&lib));
+        assert_eq!(built.key.tonic, 1, "a song of the genre would take the phrase's key");
+        let src = Source { x: &x, name: "my song.wav", a: &a };
+        let bp = rework(&src, &g, 3, &Options::default(), Some(&lib), &dir).unwrap();
+        assert_eq!(bp.key, a.key);
+        assert!(bp.loops.iter().all(|l| l.name != PHRASE && l.name != SECOND), "{:?}", bp.loops);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
