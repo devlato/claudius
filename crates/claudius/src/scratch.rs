@@ -1,10 +1,15 @@
 //! Scratching: a record moved back and forth under the needle, its sound let through by a crossfader. The record is a
-//! bar or a few of one of the song's own tracks, or of the whole mix (`record`), the moves are played on a turntable
-//! (a phone's, a MIDI controller's jog wheel), and the scratch is the record read along them (`render`), kept as a take.
+//! bar or a few of one of the song's own tracks, or of the whole mix (`record`), or of a sample from the library
+//! (`sample_record`); the moves are played on a turntable (a phone's, a MIDI controller's jog wheel), and the scratch is
+//! the record read along them (`render`), kept as a take.
+
+use std::path::Path;
 
 use crate::audio::Stereo;
 use crate::config::SRF;
+use crate::library::Library;
 use crate::model::Blueprint;
+use crate::take::Sources;
 use crate::{compose, render};
 
 /// the longest a scratch is, in seconds
@@ -15,6 +20,135 @@ pub const MAX_BARS: u32 = 8;
 
 /// the track a record of the whole mix is cut from
 pub const MIX: &str = "*";
+
+/// what the track a record of a sample from the library goes by starts with (`Sample::track`)
+pub const LIBRARY: &str = "lib:";
+
+/// the longest a record of a sample with no tempo (a vocal chop) is, in seconds
+const SAMPLE_SECS: f64 = 30.0;
+
+/// A sample of the library a turntable can put on as a record: a phrase, a vocal chop or a break gathered for the
+/// song's genre, or a loop of the genre's (Apple Loops, your own folders).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Sample {
+    /// what the turntable calls it: the recording's title, or what it is
+    pub label: String,
+    /// which of the turntable's records it goes with: `sample`, `voice` or `beat` (`claudius_api::records`)
+    pub kind: &'static str,
+    pub path: String,
+    /// its tempo (none for a vocal chop, which has none), and how many beats it is
+    pub bpm: Option<f64>,
+    pub beats: f64,
+}
+
+impl Sample {
+    /// the track a record of it goes by: `LIBRARY` and its file's name, hashed
+    pub fn track(&self) -> String {
+        format!("{LIBRARY}{:016x}", crate::rng::hash_str(&self.path))
+    }
+
+    /// how many bars a record of it is: its own, 1 to `MAX_BARS`
+    pub fn bars(&self) -> u32 {
+        ((self.beats / 4.0).round() as u32).clamp(1, MAX_BARS)
+    }
+}
+
+/// The library's samples a turntable can put on for a song of `genre` at `bpm`: those gathered for the genre (its
+/// phrases, vocal chops and breaks, then those gathered for words asked), then the loops of the genre's kinds, each
+/// kind nearest the song's tempo first; at most `n`, each called by its recording's title as `credited` gives it.
+pub fn samples(lib: &Library, genre: &str, bpm: f64, n: usize, credited: impl Fn(&Path) -> Sources) -> Vec<Sample> {
+    let mut all = candidates(lib, genre, bpm);
+    all.truncate(n);
+    for s in &mut all {
+        if let Some(f) = credited(Path::new(&s.path)).recordings.first() {
+            s.label = f.title.clone();
+        }
+    }
+    all
+}
+
+/// the sample of the library `track` names (`Sample::track`), of those a song of `genre` at `bpm` can put on
+pub fn sample(lib: &Library, genre: &str, bpm: f64, track: &str) -> Option<Sample> {
+    candidates(lib, genre, bpm).into_iter().find(|s| s.track() == track)
+}
+
+fn candidates(lib: &Library, genre: &str, bpm: f64) -> Vec<Sample> {
+    use crate::library::prepared::Role;
+    let lead = genre.split('+').next().unwrap_or(genre);
+    let far = |s: &Sample| matched_speed(bpm, s.bpm).ln().abs();
+    let mut gathered: Vec<(u8, Sample)> = lib
+        .gathered()
+        .into_iter()
+        .filter(|p| p.fits(lead, None) || p.asked.is_some())
+        .filter_map(|p| {
+            let (rank, kind, noun, bpm) = match p.role {
+                Role::Phrase => (0, "sample", "a phrase", Some(p.bpm)),
+                Role::Vocal => (1, "voice", "a vocal chop", None),
+                Role::Break => (2, "beat", "a break", Some(p.bpm)),
+                Role::Texture | Role::Bass => return None,
+            };
+            // what was gathered for words asked comes after the genre's own
+            let rank = rank + if p.asked.is_some() { 3 } else { 0 };
+            Some((
+                rank,
+                Sample { label: noun.into(), kind, path: p.path, bpm: bpm.filter(|b| *b > 0.0), beats: p.beats },
+            ))
+        })
+        .collect();
+    gathered.sort_by(|a, b| a.0.cmp(&b.0).then(far(&a.1).total_cmp(&far(&b.1))));
+    let genres = crate::library::apple_genres(genre);
+    let mut loops: Vec<Sample> = lib
+        .loops
+        .iter()
+        .filter(|l| genres.contains(&l.genre.as_str()))
+        .map(|l| {
+            let what = l.instrument.to_lowercase();
+            let kind = if what.contains("drum") || what.contains("beat") || what.contains("percussion") {
+                "beat"
+            } else if what.contains("vocal") || what.contains("voice") {
+                "voice"
+            } else {
+                "sample"
+            };
+            let bpm = Some(l.tempo).filter(|t| *t > 0.0);
+            Sample { label: l.name.clone(), kind, path: l.path.clone(), bpm, beats: l.beats }
+        })
+        .collect();
+    loops.sort_by(|a, b| far(a).total_cmp(&far(b)));
+    gathered.into_iter().map(|(_, s)| s).chain(loops).collect()
+}
+
+/// The speed a record of a sample at `bpm` turns at to play in time with a song at `song`, as a DJ sets the pitch: the
+/// ratio of the tempos, by octaves into 1/√2 to √2, the least change of pitch (a loop at half the song's tempo plays in
+/// time as half time). 1 for a sample with no tempo.
+pub fn matched_speed(song: f64, bpm: Option<f64>) -> f64 {
+    let Some(bpm) = bpm.filter(|b| *b > 0.0 && song > 0.0) else { return 1.0 };
+    let mut r = song / bpm;
+    while r > std::f64::consts::SQRT_2 {
+        r /= 2.0;
+    }
+    while r < std::f64::consts::FRAC_1_SQRT_2 {
+        r *= 2.0;
+    }
+    r
+}
+
+/// A record of sample `s`: its first `bars` bars at its tempo (all of it, up to half a minute, for a vocal chop),
+/// mastered as loud as the song's own records are (`render::finalize`).
+pub fn sample_record(bp: &Blueprint, s: &Sample, bars: u32) -> Result<Stereo, String> {
+    if !(1..=MAX_BARS).contains(&bars) {
+        return Err(format!("a record is 1 to {MAX_BARS} bars, not {bars}"));
+    }
+    let x = crate::audio::load(Path::new(&s.path)).map_err(|e| format!("cannot read {}: {e:#}", s.label))?;
+    let secs = s.bpm.map_or(SAMPLE_SECS, |b| f64::from(bars) * 240.0 / b);
+    let n = ((secs * SRF) as usize).min(x.len());
+    let mut r = Stereo { l: x.l[..n].to_vec(), r: x.r[..n].to_vec() };
+    if r.l.iter().chain(&r.r).all(|v| v.abs() < 1e-4) {
+        return Err(format!("{} is silent", s.label));
+    }
+    render::finalize(&mut r, bp.mix.master.lufs, bp.mix.master.ceiling_db);
+    Ok(r)
+}
 
 /// Where the record was under the needle `t` seconds into the scratch, `at` seconds into the record, and how far the
 /// crossfader let it through (0 shut, 1 open).
@@ -35,10 +169,23 @@ pub struct Take {
     pub moves: Vec<Move>,
 }
 
-/// what scratch `t` sounds like
-pub fn take(bp: &Blueprint, t: &Take) -> Result<Stereo, String> {
+/// What scratch `t` sounds like, and what its record was cut from, each file's credits as `credited` says
+/// (`take::credited`): a record of the song's (`record`), or of a sample of `lib` (`sample_record`).
+pub fn take(
+    bp: &Blueprint,
+    t: &Take,
+    lib: Option<&Library>,
+    credited: impl Fn(&Path) -> Sources,
+) -> Result<(Stereo, Sources), String> {
+    if t.track.starts_with(LIBRARY) {
+        let s = lib
+            .and_then(|l| sample(l, &bp.genre, bp.bpm, &t.track))
+            .ok_or_else(|| format!("the library has no sample '{}' for a {} song", t.track, bp.genre))?;
+        let record = sample_record(bp, &s, t.bars)?;
+        return Ok((render(&record, &t.moves)?, credited(Path::new(&s.path))));
+    }
     let record = record(bp, &t.track, t.bar, t.bars)?;
-    render(&record, &t.moves)
+    Ok((render(&record, &t.moves)?, sources(bp, &t.track, t.bar, t.bars, credited)?))
 }
 
 /// the name of the song's next scratch: scratch1, scratch2, ...
@@ -368,6 +515,91 @@ mod tests {
         let dot = |a: &Stereo, b: &Stereo| a.l.iter().zip(&b.l).map(|(x, y)| *x as f64 * *y as f64).sum::<f64>();
         let corr = dot(&mix, &lane) / (dot(&mix, &mix) * dot(&lane, &lane)).sqrt();
         assert!(corr < 0.9, "the mix is more than its kick: {corr}");
+    }
+
+    #[test]
+    fn a_sample_from_the_library_is_a_record_that_turns_in_time_with_the_song() {
+        use crate::library::prepared::{Prepared, Role};
+        let dir = std::env::temp_dir().join(format!("claudius-scratch-library-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let tone = |secs: f64| {
+            Stereo::from_mono(&(0..(secs * SRF) as usize).map(|i| (i as f32 * 0.03).sin() * 0.3).collect::<Vec<_>>())
+        };
+        let file = |name: &str, secs: f64| {
+            let p = dir.join(name);
+            std::fs::write(&p, crate::audio::wav_bytes(&tone(secs))).unwrap();
+            p.display().to_string()
+        };
+        let prep = |path: String, role: Role, genre: &str, bpm: f64, beats: f64, asked: Option<&str>| Prepared {
+            path,
+            role,
+            genre: genre.into(),
+            bpm,
+            beats,
+            key: None,
+            minor: false,
+            kick: None,
+            snare: None,
+            hat: None,
+            chords: Vec::new(),
+            z: None,
+            source: "freesound:1".into(),
+            asked: asked.map(str::to_string),
+            second: None,
+            root: None,
+            pulse: None,
+        };
+        let brk = file("break.wav", 6.0);
+        let found = serde_json::json!({"id": "freesound:3", "source": "openverse", "provider": "freesound",
+            "title": "Funky Break", "creator": "someone", "licence": "by", "licence_name": "CC BY 4.0",
+            "licence_url": "https://creativecommons.org/licenses/by/4.0/", "page": "https://freesound.org/s/3/",
+            "audio": "", "filetype": "mp3", "seconds": 6.0});
+        std::fs::write(format!("{brk}.json"), found.to_string()).unwrap();
+        let lib = Library::with_prepared(vec![
+            prep(brk, Role::Break, "boom_bap", 90.0, 8.0, None),
+            prep(file("phrase.wav", 10.0), Role::Phrase, "boom_bap", 100.0, 16.0, None),
+            prep(file("far.wav", 10.0), Role::Phrase, "boom_bap", 70.0, 16.0, None),
+            prep(file("vocal.wav", 1.5), Role::Vocal, "boom_bap", 90.0, 2.0, None),
+            prep(file("noise.wav", 10.0), Role::Texture, "boom_bap", 90.0, 16.0, None),
+            prep(file("house.wav", 10.0), Role::Phrase, "house", 124.0, 16.0, None),
+            prep(file("asked.wav", 10.0), Role::Phrase, "house", 95.0, 16.0, Some("70s soul")),
+        ]);
+        // the genre's own phrases first, the nearest its tempo first, then its vocal chops and its breaks, then what was
+        // gathered for words asked; never a texture, nor another genre's own
+        let all = samples(&lib, "boom_bap", 92.0, 10, crate::take::credited);
+        let files: Vec<String> =
+            all.iter().map(|s| Path::new(&s.path).file_name().unwrap().to_string_lossy().into_owned()).collect();
+        assert_eq!(files, ["phrase.wav", "far.wav", "vocal.wav", "break.wav", "asked.wav"]);
+        assert_eq!(all.iter().map(|s| s.kind).collect::<Vec<_>>(), ["sample", "sample", "voice", "beat", "sample"]);
+        assert_eq!((all[3].label.as_str(), all[0].label.as_str()), ("Funky Break", "a phrase"), "by its title");
+        assert_eq!(all[2].bpm, None, "a vocal chop has no tempo");
+        assert_eq!(sample(&lib, "boom_bap", 92.0, &all[3].track()).map(|s| s.path), Some(all[3].path.clone()));
+        assert_eq!(samples(&lib, "boom_bap", 92.0, 2, crate::take::credited).len(), 2);
+        // it turns at the speed that plays it in time, by octaves the least change of pitch
+        assert!((matched_speed(92.0, Some(90.0)) - 92.0 / 90.0).abs() < 1e-12);
+        assert_eq!(matched_speed(140.0, Some(70.0)), 1.0, "half the tempo plays in time as half time");
+        assert!((matched_speed(150.0, Some(100.0)) - 0.75).abs() < 1e-12);
+        assert_eq!(matched_speed(92.0, None), 1.0);
+        // a record of its first bars at its own tempo, mastered as loud as the song (a song the samples were gathered for)
+        let g = crate::genres::get("house").unwrap();
+        let o = compose::Options { short: true, samples: 0.0, loops: false, ..Default::default() };
+        let bp = Blueprint { genre: "boom_bap".into(), ..compose::generate(&g, 3, &o, None) };
+        let beat = &all[3];
+        assert_eq!(beat.bars(), 2);
+        let r = sample_record(&bp, beat, 2).unwrap();
+        assert!((r.secs() - 2.0 * 240.0 / 90.0).abs() < 0.01, "two bars at 90 BPM: {} s", r.secs());
+        let lufs = crate::loudness::integrated(&r);
+        assert!((lufs - f64::from(bp.mix.master.lufs)).abs() < 1.5, "{lufs} LUFS for {}", bp.mix.master.lufs);
+        assert!((sample_record(&bp, &all[2], 1).unwrap().secs() - 1.5).abs() < 0.01, "a vocal chop whole");
+        // a scratch on it credits it
+        let moves = vec![Move { t: 0.0, at: 0.0, fader: 1.0 }, Move { t: 0.5, at: 0.6, fader: 1.0 }];
+        let t = Take { track: beat.track(), bar: 0, bars: 2, moves };
+        let (x, cut) = take(&bp, &t, Some(&lib), crate::take::credited).unwrap();
+        assert!(x.secs() > 0.4);
+        assert_eq!(cut.recordings.iter().map(|f| f.title.as_str()).collect::<Vec<_>>(), ["Funky Break"]);
+        assert!(take(&bp, &t, None, crate::take::credited).unwrap_err().contains("has no sample"), "no library");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

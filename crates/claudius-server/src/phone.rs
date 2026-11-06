@@ -114,6 +114,7 @@ fn router(p: Arc<Phone>) -> Router {
         .route("/api/hits/{lane}", get(hit))
         .route("/api/keys", get(keys))
         .route("/api/record", get(record))
+        .route("/api/library", get(library))
         .route("/api/take", post(take).layer(DefaultBodyLimit::max(4 << 20)))
         .route("/api/play", post(play))
         .layer(middleware::from_fn_with_state(p.clone(), guard))
@@ -352,15 +353,71 @@ fn one() -> u32 {
     1
 }
 
-/// the record a scratch moves: bars of one track of the song
+/// the record a scratch moves: bars of one track of the song, of the whole mix, or of a sample from the library
 async fn record(State(p): State<Arc<Phone>>, Query(r): Query<Record>) -> Response {
     let name = format!("{}:{}:{}", r.track, r.bar, r.bars);
+    let lib = p.app.upgrade().and_then(|a| a.library());
     p.sound(
         |s| &mut s.records,
         name.clone(),
-        move |bp| Ok(vec![(name, scratch::record(&bp, &r.track, r.bar, r.bars)?)]),
+        move |bp| {
+            let record = if r.track.starts_with(scratch::LIBRARY) {
+                let s = lib
+                    .and_then(|l| scratch::sample(&l, &bp.genre, bp.bpm, &r.track))
+                    .ok_or_else(|| format!("the library has no sample '{}' for this song", r.track))?;
+                scratch::sample_record(&bp, &s, r.bars)?
+            } else {
+                scratch::record(&bp, &r.track, r.bar, r.bars)?
+            };
+            Ok(vec![(name, record)])
+        },
     )
     .await
+}
+
+/// how many samples of the library the turntable offers
+const LIBRARY_RECORDS: usize = 24;
+
+/// a sample of the library the turntable can put on (`scratch::samples`)
+#[derive(Serialize)]
+struct LibraryRecord {
+    /// the track a record of it goes by (`lib:...`), and what the turntable calls it
+    track: String,
+    label: String,
+    /// `sample`, `voice` or `beat`
+    kind: &'static str,
+    /// its tempo (none for a vocal chop), how many bars a record of it is, and the speed it plays in time with the
+    /// song at (`scratch::matched_speed`)
+    bpm: Option<f64>,
+    bars: u32,
+    speed: f64,
+}
+
+/// the samples of the library the turntable can put on, for the song as it is: those gathered for its genre, then the
+/// loops of its genre's, nearest its tempo first
+async fn library(State(p): State<Arc<Phone>>) -> Response {
+    let Some(app) = p.app.upgrade() else { return gone() };
+    let (Some(bp), Some(lib)) = (app.blueprint(), app.library()) else {
+        return Json(Vec::<LibraryRecord>::new()).into_response();
+    };
+    let list = tokio::task::spawn_blocking(move || {
+        let all = scratch::samples(&lib, &bp.genre, bp.bpm, LIBRARY_RECORDS, claudius::take::credited);
+        all.into_iter()
+            .map(|s| LibraryRecord {
+                track: s.track(),
+                bars: s.bars(),
+                speed: scratch::matched_speed(bp.bpm, s.bpm),
+                label: s.label,
+                kind: s.kind,
+                bpm: s.bpm,
+            })
+            .collect::<Vec<_>>()
+    })
+    .await;
+    match list {
+        Ok(list) => Json(list).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("cannot list the library: {e}")).into_response(),
+    }
 }
 
 /// a take played on the phone, sent as the command it makes, and made as no more than the edit it is
@@ -523,6 +580,69 @@ mod tests {
         assert_eq!((t["playing"].as_bool(), t["at"].as_f64()), (Some(true), Some(12.5)));
         assert!(t["since"].as_f64().unwrap() <= t["now"].as_f64().unwrap());
         assert_eq!(app.state().phone, None, "no page is served: the test asked the router itself");
+    }
+
+    #[tokio::test]
+    async fn the_turntable_puts_on_a_sample_from_the_library_in_time_with_the_song() {
+        use claudius::library::prepared::{Prepared, Role};
+        let dir = std::env::temp_dir().join(format!("claudius-phone-library-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let x: Vec<f32> = (0..6 * 48_000).map(|i| (i as f32 * 0.03).sin() * 0.3).collect();
+        let path = dir.join("break.wav");
+        std::fs::write(&path, audio::wav_bytes(&Stereo::from_mono(&x))).unwrap();
+        let brk = Prepared {
+            path: path.display().to_string(),
+            role: Role::Break,
+            genre: "house".into(),
+            bpm: 100.0,
+            beats: 8.0,
+            key: None,
+            minor: false,
+            kick: None,
+            snare: None,
+            hat: None,
+            chords: Vec::new(),
+            z: None,
+            source: "freesound:1".into(),
+            asked: None,
+            second: None,
+            root: None,
+            pulse: None,
+        };
+        let app = App::with_library(app(), claudius::library::Library::with_prepared(vec![brk]));
+        let r = test_router(&app, "k");
+        let c = Some("claudius_phone=k");
+        let list = |b: Vec<u8>| serde_json::from_slice::<Vec<serde_json::Value>>(&b).unwrap();
+        assert!(list(ask(&r, get("/api/library", c)).await.2).is_empty(), "no song, nothing to put on");
+        let song = Command::NewSong {
+            genre: "house".into(),
+            seed: Some(3),
+            bpm: Some(124.0),
+            key: None,
+            loops: false,
+            sampled: Some(false),
+            sample_search: None,
+            complexity: None,
+        };
+        assert!(app.command(song).ok);
+        let all = list(ask(&r, get("/api/library", c)).await.2);
+        assert_eq!(all.len(), 1, "{all:?}");
+        let s = &all[0];
+        assert_eq!(
+            (s["label"].as_str(), s["kind"].as_str(), s["bars"].as_u64()),
+            (Some("a break"), Some("beat"), Some(2))
+        );
+        assert!((s["speed"].as_f64().unwrap() - 1.24).abs() < 1e-9, "124 BPM over its 100: {s}");
+        let track = s["track"].as_str().unwrap();
+        assert!(track.starts_with(scratch::LIBRARY));
+        let (status, _, wav) = ask(&r, get(&format!("/api/record?track={track}&bar=0&bars=2"), c)).await;
+        assert_eq!(status, StatusCode::OK, "{}", String::from_utf8_lossy(&wav));
+        let record = audio::load_bytes(wav, "wav").unwrap();
+        assert!((record.secs() - 4.8).abs() < 0.01, "two bars at 100 BPM: {} s", record.secs());
+        let (status, ..) = ask(&r, get("/api/record?track=lib:0000000000000000&bar=0&bars=2", c)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "no such sample");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]

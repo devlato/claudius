@@ -185,9 +185,7 @@ impl App {
         let Some(bp) = self.blueprint() else {
             return no("no song yet: start one with new_song, then scratch one of its tracks", self.version());
         };
-        let made = scratch::take(&bp, s)
-            .and_then(|x| Ok((x, scratch::sources(&bp, &s.track, s.bar, s.bars, take::credited)?)));
-        match made {
+        match scratch::take(&bp, s, self.library().as_deref(), take::credited) {
             Ok((x, sources)) => {
                 let name = name.map_or_else(|| scratch::name(&bp), str::to_string);
                 self.add_take(x, from, Some(&name), role, &sources)

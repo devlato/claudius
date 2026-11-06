@@ -1472,7 +1472,8 @@ pub enum Command {
     },
     /// a scratch, kept as a take that plays from the start of section `from`: track `track` of the song alone (or the
     /// whole mix, for `WHOLE_MIX`) over `bars` bars (1, the default, to 8) from bar `bar` (0, the first, by default) is
-    /// the record, read along `moves` through the crossfader
+    /// the record, read along `moves` through the crossfader; a `track` of `lib:...` is a sample from the library (the
+    /// phone's `GET /api/library`), its first `bars` bars
     AddScratch {
         from: String,
         track: String,

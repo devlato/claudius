@@ -282,6 +282,8 @@ impl Mock {
                 }
                 _ => self.relay().answer(&a, 400, json!("a record is asked for by track")),
             },
+            // the demo has no library of samples to put on the turntable: the song's own records are there
+            ("GET", "api/library") => self.relay().answer(&a, 200, json!([])),
             ("POST", "api/take") => match serde_json::from_value::<Command>(a.body.clone()) {
                 Ok(c @ (Command::AddHits { .. } | Command::AddNotes { .. } | Command::AddScratch { .. })) => {
                     let what = format!("{TAKE}{}", self.ask_id());

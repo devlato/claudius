@@ -279,6 +279,26 @@ function open(s) {
   keys.name = "";
   deck.name = "";
   if (ctx) loadSounds();
+  loadLibrary();
+}
+
+/** the samples of the library the turntable can put on (`GET api/library`): `{track, label, kind, bpm, bars, speed}` */
+let library = [];
+
+/** the library's samples for the song as it is now; a studio without a library (the demo), or older than one, has none */
+async function loadLibrary() {
+  const version = song.version;
+  let got = [];
+  try {
+    const r = await link.get("api/library");
+    if (r.ok) got = await r.json();
+  } catch {
+    // no library to offer: the song's own records are on the turntable all the same
+  }
+  if (!song || song.version !== version) return;
+  library = Array.isArray(got) ? got : [];
+  fillRecords(song);
+  fillFrom();
 }
 
 /** the sounds the keys can play: the song's parts' own first, then the synths and the instruments */
@@ -307,8 +327,8 @@ function fillSounds(s) {
 }
 
 /** The records the turntable can cut, by what they are: the song's samples and voices first, its parts, its beats,
- * then the whole mix (`claudius_api::records`); never a drum lane alone. A studio older than that sends only its tracks,
- * which go in as parts, the drum lanes left out. */
+ * then the whole mix (`claudius_api::records`), and then samples from the library (`library`); never a drum lane alone.
+ * A studio older than that sends only its tracks, which go in as parts, the drum lanes left out. */
 function fillRecords(s) {
   const select = $("track");
   const had = select.value;
@@ -328,16 +348,35 @@ function fillRecords(s) {
     }
     select.append(g);
   }
-  const names = records.map(([t]) => t);
+  if (library.length) {
+    const g = document.createElement("optgroup");
+    g.label = "From the library";
+    for (const r of library) {
+      const o = document.createElement("option");
+      o.value = r.track;
+      o.textContent = r.bpm ? `${r.label} · ${Math.round(r.bpm)} BPM` : r.label;
+      g.append(o);
+    }
+    select.append(g);
+  }
+  const names = [...records.map(([t]) => t), ...library.map((r) => r.track)];
   if (names.includes(had)) select.value = had;
   else if (names.length) select.value = names[0];
 }
 
-/** the sections a record can be cut from: those the chosen track plays in */
+/** the sample of the library record `track` is, if it is one */
+function fromLibrary(track) {
+  return library.find((r) => r.track === track);
+}
+
+/** the sections a record can be cut from: those the chosen track plays in; a sample from the library from its start */
 function fillFrom() {
   const track = $("track").value;
+  const from = $("from");
+  from.disabled = !!fromLibrary(track);
+  if (from.disabled) return fill(from, [0], () => [0, "from its start"], []);
   const playing = song.sections.filter((x) => x.layers.includes(track));
-  fill($("from"), playing.length ? playing : song.sections, (x) => [x.start_bar, `${x.name}, bar ${x.start_bar + 1}`], []);
+  fill(from, playing.length ? playing : song.sections, (x) => [x.start_bar, `${x.name}, bar ${x.start_bar + 1}`], []);
 }
 
 /** `select` offering `items` (as [value, label]), keeping what it had, or else the first of `liked` there is */
@@ -656,6 +695,9 @@ const deck = {
   bars: RECORD_BARS,
   pos: 0,
   vel: 0,
+  /** what the label says, and the speed the record plays in time with the song at (a sample's from the library) */
+  label: "",
+  base: 1,
   /** how fast the platter under the record turns, in seconds of record a second */
   platter: 0,
   target: 0,
@@ -741,9 +783,10 @@ function gripNow(now) {
 }
 
 /** the speed the platter turns at, in seconds of record a second: the song's tempo (a record cut from the song plays in
- * time at its own speed) moved by the pitch fader, or none with the motor off */
+ * time at its own speed, a sample from the library at the speed its tempo needs) moved by the pitch fader, or none with
+ * the motor off */
 function platterSpeed() {
-  return $("motor").checked ? 1 + Number($("pitch").value) / 100 : 0;
+  return $("motor").checked ? deck.base * (1 + Number($("pitch").value) / 100) : 0;
 }
 
 /** the crossfader's travel over which it opens, as a scratch DJ's does (`claudius::scratch::CUT_IN`) */
@@ -815,19 +858,26 @@ function cueOf(b) {
 
 async function loadRecord() {
   const track = $("track").value;
-  const bar = Number($("from").value || 0);
   if (!track || !song || !ctx) return;
+  // a sample from the library is a record of its own bars from its start, which turns at the speed that plays it in
+  // time with the song; one of the song's own is cut from the song, in time at its own speed
+  const sample = fromLibrary(track);
+  const bar = sample ? 0 : Number($("from").value || 0);
   const section = song.sections.find((s) => s.start_bar === bar);
-  const bars = Math.min(RECORD_BARS, section ? section.bars : RECORD_BARS);
+  const bars = sample ? sample.bars : Math.min(RECORD_BARS, section ? section.bars : RECORD_BARS);
+  const label = sample ? sample.label : track === "*" ? "the whole song" : track;
   const name = `${track}:${bar}:${bars}:${song.version}`;
   if (deck.name === name) return;
   Object.assign(deck, { name, buf: null, levels: null, pos: 0, vel: 0 });
-  const done = loading(`cutting a record of ${track}…`);
+  const done = loading(`cutting a record of ${label}…`);
   try {
     const b = await sound(`api/record?track=${encodeURIComponent(track)}&bar=${bar}&bars=${bars}`);
     // the record waits at its cue, its first sound, under the needle
     const cue = cueOf(b);
-    if (deck.name === name) Object.assign(deck, { buf: b, levels: levels(b), rate: b.sampleRate, cue, pos: cue, track, bar, bars });
+    const base = sample ? sample.speed : 1;
+    if (deck.name === name) {
+      Object.assign(deck, { buf: b, levels: levels(b), rate: b.sampleRate, cue, pos: cue, track, label, base, bar, bars });
+    }
   } catch (e) {
     if (!e.quiet) say(e.message, trouble(e));
   } finally {
@@ -986,7 +1036,7 @@ function drawPlatter() {
   g.fillStyle = "#101217";
   g.font = `600 ${Math.round(rad * 0.09)}px -apple-system, sans-serif`;
   g.textAlign = "center";
-  g.fillText(deck.track === "*" ? "the whole song" : deck.track || "no record", 0, -rad * 0.12);
+  g.fillText(deck.label || "no record", 0, -rad * 0.12);
   // the cue's sticker, which comes round under the needle as the record reaches its first sound
   g.rotate((-(deck.cue || 0) / TURN) * 2 * Math.PI);
   g.fillStyle = "#e8e8ec";

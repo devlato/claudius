@@ -390,6 +390,19 @@ impl App {
         self.lock().bp.clone()
     }
 
+    /// the recorded sounds this claudius may play: the samples gathered for the genres that sample, and Apple Loops and
+    /// your own folders when it reads them
+    pub fn library(&self) -> Option<Arc<Library>> {
+        self.samples_lib.clone().or_else(|| self.lib.clone())
+    }
+
+    /// a session that plays `lib`'s samples, for the tests of what reads them
+    #[cfg(test)]
+    pub(crate) fn with_library(mut app: Arc<App>, lib: Library) -> Arc<App> {
+        Arc::get_mut(&mut app).expect("no one else holds it yet").samples_lib = Some(Arc::new(lib));
+        app
+    }
+
     pub fn sounds(&self) -> SoundList {
         views::sounds()
     }

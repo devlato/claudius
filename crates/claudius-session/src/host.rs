@@ -545,9 +545,8 @@ impl Host {
         let Some(mut bp) = self.bp.clone() else {
             return self.no("no song yet: start one with a new song, then scratch one of its tracks");
         };
-        let made = scratch::take(&bp, s)
-            .and_then(|x| Ok((x, scratch::sources(&bp, &s.track, s.bar, s.bars, |p| self.credited(p))?)));
-        let (x, sources) = match made {
+        let lib = self.lib.clone();
+        let (x, sources) = match scratch::take(&bp, s, lib.as_deref(), |p| self.credited(p)) {
             Ok(made) => made,
             Err(e) => return self.no(e),
         };
@@ -1105,6 +1104,50 @@ mod tests {
             "creator": "someone", "licence": licence, "licence_name": "CC BY 4.0", "page": format!("https://freesound.org/s/{id}/"),
             "licence_url": "https://creativecommons.org/licenses/by/4.0/", "audio": "", "filetype": "mp3", "seconds": 4.0}))
         .unwrap()
+    }
+
+    #[test]
+    fn a_project_credits_a_scratch_on_a_sample_from_the_library() {
+        let mut h = Host::new(1);
+        assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3, "bpm": 124})).ok);
+        let path = "demo:samples/break/house/funk/break.wav";
+        let x: Vec<f32> = (0..6 * 48_000).map(|i| (i as f32 * 0.03).sin() * 0.3).collect();
+        audio::remember(path, Stereo::from_mono(&x));
+        h.cuts.insert(path.into(), (found("3", "Funky Break", "by"), false));
+        h.prepared.push(Prepared {
+            path: path.into(),
+            role: Role::Break,
+            genre: "house".into(),
+            bpm: 100.0,
+            beats: 8.0,
+            key: None,
+            minor: false,
+            kick: None,
+            snare: None,
+            hat: None,
+            chords: Vec::new(),
+            z: None,
+            source: "freesound:3".into(),
+            asked: None,
+            second: None,
+            root: None,
+            pulse: None,
+        });
+        h.lib = Some(Arc::new(Library::with_prepared(h.prepared.clone())));
+        let on = scratch::samples(h.lib.as_ref().unwrap(), "house", 124.0, 1, |p| h.credited(p));
+        assert_eq!(on.iter().map(|s| s.label.as_str()).collect::<Vec<_>>(), ["Funky Break"]);
+        let from = h.bp.as_ref().unwrap().form[0].name.clone();
+        let moves = json!([{"t": 0.0, "at": 0.0}, {"t": 0.25, "at": 0.3}, {"t": 0.5, "at": 0.0}]);
+        let scratch = json!({"cmd": "add_scratch", "from": from, "track": on[0].track(), "bars": 2, "moves": moves});
+        let r = command(&mut h, scratch);
+        assert!(r.ok, "{}", r.message);
+
+        let songs = std::env::temp_dir().join(format!("claudius-session-library-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&songs);
+        let dir = claudius::song::unpack_project(&h.project().unwrap(), "song.zip", &songs).unwrap();
+        let credits = std::fs::read_to_string(dir.join("credits.txt")).unwrap();
+        assert!(credits.contains("\"Funky Break\" by someone"), "{credits}");
+        let _ = std::fs::remove_dir_all(&songs);
     }
 
     #[test]

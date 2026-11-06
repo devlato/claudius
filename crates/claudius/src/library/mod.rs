@@ -124,6 +124,11 @@ impl Library {
         self.loops.is_empty() && self.prepared_now().is_empty()
     }
 
+    /// the samples gathered for the genres that sample, as they are now
+    pub fn gathered(&self) -> Vec<prepared::Prepared> {
+        self.prepared_now().clone()
+    }
+
     /// how many samples are prepared for `role` of `genre` (a fusion's: the genre that leads it), or gathered for the
     /// words `asked`
     pub fn prepared_for(&self, role: prepared::Role, genre: &str, asked: Option<&str>) -> usize {

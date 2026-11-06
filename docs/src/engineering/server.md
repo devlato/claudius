@@ -187,7 +187,8 @@ the key:
 | `GET /api/clock` | the server's time in milliseconds and the studio's transport (`POST /api/transport`), for the page to keep its clock (the offset of the quickest of its last twelve round trips) and place what is played in the song |
 | `GET /api/hits/{lane}` | a drum lane's hit (`claudius::pads::hits`: every lane struck in turn and rendered through the song's mix and master, once for each version of the song) |
 | `GET /api/keys?sound=&low=&high=&step=` | notes of a sound, a slot of 1.5 seconds each, in one WAV (`pads::notes`) |
-| `GET /api/record?track=&bar=&bars=` | the record a scratch moves (`scratch::record`): one track, or the whole mix for `track=*` |
+| `GET /api/record?track=&bar=&bars=` | the record a scratch moves (`scratch::record`): one track, or the whole mix for `track=*`; a sample from the library for `track=lib:...` (`scratch::sample_record`), its first `bars` bars |
+| `GET /api/library` | the samples of the library the turntable can put on, for the song as it is (`scratch::samples`): each `{track, label, kind, bpm, bars, speed}`, `track` the `lib:...` a record and a scratch of it go by, and `speed` what plays it in time with the song (`scratch::matched_speed`); none without a library |
 | `POST /api/take` | a take, as `add_hits`, `add_notes` or `add_scratch`; any other command gets 403 |
 | `POST /api/play` | `{"playing": true, "at": 12.5}` (`at` optional) or `{"playing": false}`: the phone asks the studio to play the song (from `at` seconds) or to stop it; the ask goes into the state's `phone.play` with an `id` of its own, and the studio does it once (`PlayAsk`) |
 
