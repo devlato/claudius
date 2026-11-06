@@ -103,9 +103,9 @@
   "palette": {
     "bass": {"core": 1.0, "synth": 1},
     "arp": {"core": 0.9, "synth": 1},
-    "pad": {"core": 0.85, "synth": 2, "strings": 0.5},
-    "lead": {"core": 0.9, "synth": 1},
-    "chords": {"core": 0.9, "synth": 1}
+    "pad": {"core": 0.85, "synth": 2, "strings": 0.5, "retro": true},
+    "lead": {"core": 0.9, "synth": 1, "retro": true},
+    "chords": {"core": 0.9, "synth": 1, "retro": true}
   },
   "parts": [
     {

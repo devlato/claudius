@@ -19,7 +19,7 @@ drum rim main (drum rim): .......o........|.......o........|.......o........|...
 drum shaker main (drum shaker): o.oo.oo.....oo..|o.oo.oo.....oo..|o.oo.oo.....oo..|o.oo.oo.....oo..
 part bass (bass): pulse synth organ_bass, register 28..43, density 0.45
 part chords (chords): stabs synth organ, register 50..70, density 0.56
-part pad (pad): sustain synth warm_pad, register 48..74, density 0.54
+part pad (pad): sustain synth air_pad, register 48..74, density 0.54
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix ohat: +0.0 dB, pan -0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums

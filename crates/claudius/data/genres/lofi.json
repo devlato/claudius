@@ -94,9 +94,9 @@
   "kit_mix": 0.4,
   "palette": {
     "bass": {"core": 0.6, "bass": 3, "synth": 1},
-    "keys": {"core": 0.4, "electric piano": 3, "piano": 2.5, "guitar": 2, "mallets": 1, "organ": 0.5, "harp": 0.5},
-    "lead": {"core": 0.3, "woodwinds": 2, "mallets": 2, "guitar": 2, "electric piano": 1, "piano": 1, "brass": 1, "synth": 0.8, "harp": 0.6},
-    "pad": {"core": 0.5, "strings": 1.5, "pad": 1, "synth": 1, "organ": 0.5, "choir": 0.5}
+    "keys": {"core": 0.4, "retro": true, "electric piano": 3, "piano": 2.5, "guitar": 2, "mallets": 1, "organ": 0.5, "harp": 0.5},
+    "lead": {"core": 0.3, "retro": true, "woodwinds": 2, "mallets": 2, "guitar": 2, "electric piano": 1, "piano": 1, "brass": 1, "synth": 0.8, "harp": 0.6},
+    "pad": {"core": 0.5, "retro": true, "strings": 1.5, "pad": 1, "synth": 1, "organ": 0.5, "choir": 0.5}
   },
   "parts": [
     {

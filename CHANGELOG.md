@@ -35,6 +35,16 @@ timing moves a pad: J Dilla's snare late and kick early. The genres that play th
 neo-soul snare 18 to 38 ms behind and its bass 12 to 30, a boom bap or lo-fi backbeat laid back, reggae's rim and
 bass behind, a funk drummer's hats pushed. Songs made before sound a little looser than they did.
 
+Hip hop sounds like hip hop rather than a lounge: no more vibraphone leads, organ, pizzicato, choir or soul-jazz
+vamps, but dark minor loops of a few chords on a piano or a Rhodes, strings under them now and then, a ticking hat,
+and a distorted 808 or sub. And a song sounds of the 80s only where its genre does: the FM tine piano, leads, basses
+and mallets, the square and pulse-width leads and pads, the string machine and the chip are drawn only in a genre
+whose palette is `retro` (synthwave) or whose parts name them (grime's square lead, UK garage's FM bass), and so are
+an installed FM piano, CP-80 or Pianet and General MIDI's synth patches, the cheap polyphony of an old sound card;
+General MIDI's other sounds play only where nothing else of their kind is installed. Alternative hip hop, neo-soul
+and R&B play Rhodes and Wurlitzers, pianos, real strings and warm or vocal synths instead of a DX7 piano, an FM lead
+standing in for a flute and a string machine.
+
 ## [0.4.0] - 2026-11-06
 
 The phone plays the song in the studio as well as following it: **▶** plays it and **■** stops it, so a take needs no

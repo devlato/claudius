@@ -23,20 +23,20 @@ drum snare half (drum snare): ........X.......|........X.......|........X.......
 drum snare main (drum snare): ....X.....o.X...|....X.....o.X...|....X.....o.X...|....X.....o.X...
 drum clap half (drum clap): ........X.......|........X.......|........X.......|........X.......
 drum clap main (drum clap): ....x.......x...|....x.......x...|....x.......x...|....x.......x...
-drum hat half (drum closed_hat): x...x...x...x.x.|x...x...x...x.x.|x...x...x...x.x.|x...x...x...x.x.
-drum hat main (drum closed_hat): x...x...x.......x...x...x...x...|x...x...x.......x...x...x...x...|x...x...x.......x...x...x...x...|x.......x.......x...x.......oxxx
-drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
-drum rim main (drum rim): ...x..x.........|...x..x.........|...x..x.........|...x..x.........
+drum hat half (drum closed_hat): x...x...x...x...|x...x...x...x...|x...x...x...x...|x...x...x...x...
+drum hat main (drum closed_hat): x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x...x...x.x.x.xx
+drum ohat main (drum open_hat): ................|..............x.|................|..............x.
+drum rim main (drum rim): ......x.......x.|......x.......x.|......x.......x.|...x..x.......x.
 drum shaker main (drum shaker): .xx...xxx.xxxxx.|.xx...xxx.xxxxx.|.xx...xxx.xxxxx.|.xx...xxx.xxxxx.
 drum perc main (drum perc): ..x...x.....x...|..x...x.....x...|..x...x.....x...|..x...x.....x...
 part bass (bass): sustain synth sub_bass, register 26..43, density 0.59
 part fuzz (bass): syncopated synth rubber_bass, register 38..55, density 0.53
-part keys (keys): syncopated synth tine_piano, register 50..76, density 0.53
-part pad (pad): sustain synth strings, register 48..74, density 0.55
-part lead (lead): motif synth vox_lead, register 62..84, density 0.26
-part strings (pad): half synth vowel_pad, register 55..81, density 0.55
-part sparkle (arp): random synth bell, register 72..96, density 0.37
-part keys_double (keys): syncopated synth keys, register 62..88, density 0.53
+part keys (keys): syncopated synth house_piano, register 50..76, density 0.53
+part pad (pad): sustain synth pad, register 48..74, density 0.55
+part lead (lead): motif synth soft_lead, register 62..84, density 0.35
+part strings (pad): half synth strings, register 55..81, density 0.55
+part sparkle (arp): random synth harp_pluck, register 72..96, density 0.37
+part keys_double (keys): syncopated synth epiano, register 62..88, density 0.53
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
 mix clap: -4.0 dB, pan +0.00, reverb 0.25, delay 0.00, duck 0.00, bus drums

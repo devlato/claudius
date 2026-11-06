@@ -31,7 +31,7 @@ Everything a genre knows is in one JSON file. The fields `generate` reads:
 | `drums` | lanes: a voice, a step template or a euclidean rhythm, named variants, parameter ranges, Apple Loops subtypes for one-shots, a choke group, whether to tune the kick to the key, a mix, and a `late_ms` range its feel is drawn from (ms behind the beat: a laid-back snare `[8, 24]`, a pushed kick `[-6, 0]`) |
 | `kits` | weighted sample-pack drum kits; the weight left over keeps the lanes' own sounds |
 | `kit_mix` | the chance that a drum lane plays a kit of its own instead (another installed kit, or its synthesized voice); 0.3 when not given |
-| `palette` | by role, how a part's sound is drawn beyond its own presets: `core`, the chance of one of its own, and a weight for each kind (`synth`, or an instrument category: `strings`, `brass`, `mallets`, `electric piano` ...) |
+| `palette` | by role, how a part's sound is drawn beyond its own presets: `core`, the chance of one of its own, a weight for each kind (`synth`, or an instrument category: `strings`, `brass`, `mallets`, `electric piano` ...), and `retro`, whether it plays the sounds of an era gone (synthwave's FM piano and string machine) |
 | `parts` | melodic parts: a role, weighted-by-repetition lists of presets and styles, a register, a density range, voices, voicing, arpeggio rates, a chance of leaving the part out, its own `core` (an acid line stays acid), a mix |
 | `loops` | Apple Loops parts: instrument, subtype, genre and mood filters, whether tonal |
 | `transitions` | riser, impact, downlifter and reverse crash switches, the riser length |
@@ -353,7 +353,11 @@ first of all the synths that fit the genre's parts of the role (`compose::fittin
 name (for `"vibraphone|mallet"`, the mallet) and the others of their families (`presets::FAMILIES`: the two electric
 pianos, the soft leads, the analog basses ...), any of the synth pads for a pad, or the palette's own `synths` where
 it lists them. A bell, a whistle, a chip tune's square, an 808 and an acid line are families of one, and no kind of
-instrument stands in with one the genre does not name, so a genre that names none of them plays none.
+instrument stands in with one the genre does not name, so a genre that names none of them plays none. Nor does it
+play the presets that date a song to the 80s (`presets::DATED`: the FM tine piano, leads, basses and mallets, the
+square and pulse-width leads and pads, the string machine and the chip) beyond those its parts name, unless its
+palette for the role is `retro`: grime keeps its square lead and UK garage its FM bass, while a hip hop song draws
+none of them.
 
 - `synth`: one of those synths, varied widely (`compose::widen`: the filter, envelopes, detune, vibrato, FM, drive
   and glide each moved up or down by half again at most, now and then a voice more or less in the unison, or a soft
@@ -363,7 +367,10 @@ instrument stands in with one the genre does not name, so a genre that names non
   suits the role (a pad sustains: no pizzicato, no one-shot, no piano; a lead is one player, not a section; chords on
   strings, brass or woodwinds are the section's; a bass starts low enough), and whose pack's licence lets music made
   with it be published as one likes: packs without a licence, and share-alike or non-commercial ones, are only chosen
-  by hand. With no such instrument installed, a synth stands in: one of those synths that stands in for the category
+  by hand. The instruments of an era gone (`palette::dated`: an FM piano, a CP-80, a Pianet, and General MIDI's synth
+  pads, strings, brass, leads and basses, the polyphony of an old sound card) play only where the genre names them or
+  its palette is `retro`, and General MIDI's others (its upright piano, its guitars) only where nothing else of their
+  kind is installed. With no such instrument installed, a synth stands in: one of those synths that stands in for the category
   (an FM electric piano for `electric piano`, a mallet or a marimba for `mallets`, a brass patch for `brass`, the
   whistle for `woodwinds`), else, for a category that does not pierce a mix, one made for the role (the clavinet for
   a keys part's `guitar`, the vocal lead for a lead's `voice`); else none, and the category is not drawn.

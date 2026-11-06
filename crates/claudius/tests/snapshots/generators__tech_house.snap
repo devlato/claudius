@@ -22,7 +22,7 @@ drum ohat main (drum open_hat): ......x.......x.|......x.......x.|......x.......
 drum shaker main (drum shaker): o.o.o.oo..o.oo..|o.o.o.oo..o.oo..|o.o.o.oo..o.oo..|o.o.o.oo..o.oo..
 drum perc main (drum rim): ...x............|...x............|...x............|...x............
 part bass (bass): rolling synth rubber_bass, register 28..45, density 0.47
-part pad (pad): sustain synth warm_pad, register 48..72, density 0.48
+part pad (pad): sustain synth air_pad, register 48..72, density 0.48
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix clap: +0.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums

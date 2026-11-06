@@ -136,6 +136,22 @@ pub fn drawable(role: &str) -> Vec<&'static str> {
     for_role(role).into_iter().filter(|p| !OWN.contains(p)).collect()
 }
 
+/// The presets that date a song to the 80s: the FM tine piano, leads, basses and mallets, the square and pulse-width
+/// leads and pads, the string machine and the chip. A genre's palette draws one only where it is `retro` or names it,
+/// and a genre's own part plays one where it lists it (synthwave's leads and pads).
+pub const DATED: &[&str] = &[
+    "tine_piano",
+    "fm_lead",
+    "fm_bass",
+    "fm_marimba",
+    "fm_kalimba",
+    "square_lead",
+    "pwm_lead",
+    "pwm_pad",
+    "solina",
+    "chip",
+];
+
 pub fn get(name: &str) -> Option<Patch> {
     let p = match name {
         "sub_bass" => Patch {

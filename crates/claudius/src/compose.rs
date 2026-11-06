@@ -271,16 +271,20 @@ pub fn made_level(g: &GenreProfile, track: &str) -> f32 {
 /// (`presets::FAMILIES`), so that a genre that plays an electric piano may play the other one, and one that plays no
 /// bell plays none. A pad, which holds its chords behind the song, may be any of the synth pads.
 pub fn fitting_synths(g: &GenreProfile, role: Role) -> Vec<String> {
-    let named = g
+    let named: Vec<&str> = g
         .parts
         .iter()
         .filter(|p| p.role == role)
         .flat_map(|p| p.presets.iter())
-        .filter_map(|entry| entry.split('|').rev().find(|a| presets::get(a).is_some()));
+        .filter_map(|entry| entry.split('|').rev().find(|a| presets::get(a).is_some()))
+        .collect();
     let pads = if role == Role::Pad { presets::drawable("pad") } else { Vec::new() };
+    // a preset of an era gone only where the genre names it or plays that era (`presets::DATED`)
+    let retro = g.palette.get(role.name()).is_some_and(|p| p.retro);
     let mut out: Vec<String> = Vec::new();
-    for s in named.flat_map(presets::family).chain(pads) {
-        if !out.iter().any(|o| o == s) {
+    for s in named.iter().flat_map(|n| presets::family(n)).chain(pads) {
+        let dated = presets::DATED.contains(&s) && !retro && !named.contains(&s);
+        if !dated && !out.iter().any(|o| o == s) {
             out.push(s.to_string());
         }
     }
@@ -406,8 +410,14 @@ pub fn draw_sound(
     if palette::identity(&own).is_some_and(|k| used.contains(&k)) && spec.core != Some(1.0) {
         rp.core = 0.0;
     }
+    // nor does it draw what a part that always keeps its own plays (an acid line's acid)
+    let mut taken = used.clone();
+    for other in g.parts.iter().filter(|p| p.core == Some(1.0) && p.name != spec.name) {
+        let own = other.presets.iter().filter_map(|e| e.split('|').rev().find(|a| presets::get(a).is_some()));
+        taken.extend(own.map(|p| format!("synth:{p}")));
+    }
     let mut sr = rng.fork("palette");
-    match palette::draw(spec.role, spec.register, &rp, available, used, &mut sr) {
+    match palette::draw(spec.role, spec.register, &rp, available, &taken, &mut sr) {
         None => widen(own, 0.5, &mut sr),
         Some(palette::Drawn::Synth(name)) => {
             let patch = presets::get(name).unwrap_or_else(|| presets::get("pluck").unwrap());

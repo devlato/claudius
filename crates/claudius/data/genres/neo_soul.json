@@ -71,7 +71,7 @@
   "palette": {
     "bass": {"core": 0.6, "bass": 3, "synth": 0.8},
     "keys": {"core": 0.35, "electric piano": 3, "piano": 2, "organ": 1.5, "guitar": 1},
-    "lead": {"core": 0.3, "voice": 2, "woodwinds": 2, "brass": 1.5, "guitar": 1.5, "electric piano": 1, "synth": 0.6},
+    "lead": {"core": 0.3, "voice": 2, "woodwinds": 1, "brass": 1.5, "guitar": 1.5, "electric piano": 1, "synth": 0.6},
     "pad": {"core": 0.4, "strings": 3, "choir": 1, "pad": 0.6}
   },
   "parts": [
@@ -87,7 +87,7 @@
     {
       "name": "keys",
       "role": "keys",
-      "presets": ["rhodes|epiano", "tine_piano", "wurlitzer|epiano", "piano|keys"],
+      "presets": ["rhodes|epiano", "wurlitzer|epiano", "piano|keys"],
       "styles": ["sustain", "charleston", "half"],
       "register": [50, 76],
       "voices": 5,
@@ -97,7 +97,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["vox_lead", "flute|fm_lead", "sax|brass_lead", "fm_lead"],
+      "presets": ["vox_lead", "sax|brass_lead", "soft_lead"],
       "styles": ["motif"],
       "register": [62, 84],
       "density": [0.25, 0.45],
@@ -106,7 +106,7 @@
     {
       "name": "strings",
       "role": "pad",
-      "presets": ["string_ensemble|strings", "warm_pad", "solina"],
+      "presets": ["string_ensemble|strings", "warm_pad"],
       "styles": ["sustain"],
       "register": [52, 79],
       "voices": 3,
