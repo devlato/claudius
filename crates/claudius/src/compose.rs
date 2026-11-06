@@ -410,8 +410,14 @@ pub fn draw_sound(
     if palette::identity(&own).is_some_and(|k| used.contains(&k)) && spec.core != Some(1.0) {
         rp.core = 0.0;
     }
+    // nor does it draw what a part that always keeps its own plays (an acid line's acid)
+    let mut taken = used.clone();
+    for other in g.parts.iter().filter(|p| p.core == Some(1.0) && p.name != spec.name) {
+        let own = other.presets.iter().filter_map(|e| e.split('|').rev().find(|a| presets::get(a).is_some()));
+        taken.extend(own.map(|p| format!("synth:{p}")));
+    }
     let mut sr = rng.fork("palette");
-    match palette::draw(spec.role, spec.register, &rp, available, used, &mut sr) {
+    match palette::draw(spec.role, spec.register, &rp, available, &taken, &mut sr) {
         None => widen(own, 0.5, &mut sr),
         Some(palette::Drawn::Synth(name)) => {
             let patch = presets::get(name).unwrap_or_else(|| presets::get("pluck").unwrap());

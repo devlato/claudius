@@ -621,7 +621,10 @@ mod tests {
         };
         let both = [upright.clone(), grand.clone()];
         assert_eq!(drawn(Role::Keys, (50, 72), &palette, &both), [grand.name.clone()].into());
-        assert_eq!(drawn(Role::Keys, (50, 72), &palette, &[upright.clone()]), [upright.name.clone()].into());
+        assert_eq!(
+            drawn(Role::Keys, (50, 72), &palette, std::slice::from_ref(&upright)),
+            [upright.name.clone()].into()
+        );
         let named = RolePalette { instruments: vec![upright.name.clone()], ..palette };
         assert!(drawn(Role::Keys, (50, 72), &named, &both).contains(&upright.name), "one the genre names plays");
     }

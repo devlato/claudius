@@ -20,7 +20,7 @@ drum ohat main (drum open_hat): ..............x.|..............x.|..............
 drum perc main (drum rim): ......x.........|......x.........|......x.........|......x.........
 part sub (bass): sustain synth sub_bass, register 24..38, density 0.59
 part wobble (bass): sustain synth wobble, register 38..55, density 0.59
-part pad (pad): sustain synth solina, register 48..74, density 0.56
+part pad (pad): sustain synth strings, register 48..74, density 0.56
 part lead (lead): motif synth saw_lead, register 62..86, density 0.45
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.30, delay 0.00, duck 0.00, bus drums

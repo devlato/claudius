@@ -23,7 +23,7 @@ drum perc sparse (drum tom): x...............|x...............|x...............|
 part bass (bass): pulse synth saw_bass, register 30..45, density 0.51
 part acid (bass): acid synth acid, register 36..55, density 0.60
 part chords (chords): offbeat synth organ, register 52..70, density 0.59
-part pad (pad): sustain synth warm_pad, register 45..70, density 0.50
+part pad (pad): sustain synth swell_pad, register 45..70, density 0.50
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.10, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix ohat: +0.0 dB, pan -0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums

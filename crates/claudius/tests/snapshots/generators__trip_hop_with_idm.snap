@@ -23,8 +23,8 @@ drum click sparse (drum rim): x.....x....x....|x.....x....x....|x.....x....x....
 drum tom main (drum tom): ........x.......x...........x.......x.......x...|........x.......x...........x.......x.......x...|........x.......x...........x.......x.......x...|........x.......x...........x.......x.......x...
 drum tom sparse (drum tom): ....................x.......................x...|....................x.......................x...|....................x.......................x...|....................x.......................x...
 part bass (bass): syncopated synth saw_bass, register 28..46, density 0.43
-part keys (keys): half synth tine_piano, register 50..74, density 0.53
-part strings (pad): sustain synth solina, register 48..79, density 0.56
+part keys (keys): half synth keys, register 50..74, density 0.53
+part strings (pad): sustain synth strings, register 48..79, density 0.56
 part lead (lead): motif synth vox_lead, register 62..79, density 0.38
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.05, reverb 0.12, delay 0.00, duck 0.00, bus drums
