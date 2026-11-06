@@ -1,5 +1,7 @@
 {
   "name": "trap",
+  "family": "hip hop",
+  "aliases": ["atlanta", "trap rap", "southern trap", "808", "metro boomin"],
   "description": "Trap: half-time feel with the snare on beat 3, syncopated kicks, 808s gliding on the kick hits, rolling hi-hats, dark minor or harmonic-minor keys and bells, hook / verse form",
   "query": "trap beat",
   "alts": ["hip hop beat with heavy bass", "lo-fi hip hop beat", "dubstep music", "house music"],

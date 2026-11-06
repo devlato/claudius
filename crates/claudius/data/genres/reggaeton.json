@@ -1,5 +1,7 @@
 {
   "name": "reggaeton",
+  "family": "afro and latin",
+  "aliases": ["latin", "dembow", "perreo", "urbano"],
   "description": "Reggaeton: 88 to 100 BPM on the dembow, a kick on every beat and a snare after the first and before the third, minor chords on plucks, pianos and pads, a sub bass on the roots, a synth or voice-like lead, verses and hooks",
   "query": "reggaeton music",
   "alts": ["dancehall music", "latin pop music", "trap beat", "afrobeats music"],

@@ -1,5 +1,7 @@
 {
   "name": "filter_house",
+  "family": "house",
+  "aliases": ["french house", "french touch", "disco house", "daft punk"],
   "description": "Filter house: a looped disco phrase of chords and bass sweeping through a resonant lowpass that opens and closes with the arrangement, a hard sidechain pump, a phaser on the loop, four-on-the-floor drums and a squashed, saturated mix",
   "query": "french house music with a filtered disco loop",
   "alts": ["house music", "funk music", "techno music", "upbeat corporate pop music"],

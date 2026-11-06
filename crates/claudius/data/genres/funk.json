@@ -1,5 +1,7 @@
 {
   "name": "funk",
+  "family": "r&b, soul and funk",
+  "aliases": ["p-funk", "70s funk", "soul funk", "james brown", "groove"],
   "description": "Funk: 96 to 116 BPM and everything on the one: a syncopated kick, a snare on two and four with ghost notes between, sixteenth hats, a finger or slap bass playing off the beat, clavinet and a rhythm guitar chopping sixteenths, horn stabs answering, an organ under it, long vamps on one chord",
   "query": "funk music",
   "alts": ["jazz music", "hip hop beat with heavy bass", "rock music with electric guitars", "house music"],

@@ -512,12 +512,37 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                 .map(|g| ui.painter().layout(desc(g), theme::prop(10.5), TEXT_DIM, 300.0 - 22.0).size().y)
                 .fold(0.0, f32::max)
                 .min(70.0);
+            ui.add(
+                egui::TextEdit::singleline(&mut f.genre_search)
+                    .hint_text("Search genres: rap, 90s, west coast, r&b, dusty …")
+                    .desired_width(f32::INFINITY),
+            );
+            ui.add_space(4.0);
+            let query = f.genre_search.trim().to_string();
+            // all of them by family (a genre of one's own, with none, last), or the search's answers, best first
+            let groups: Vec<(&str, Vec<&GenreInfo>)> = if query.is_empty() {
+                let mut families: Vec<&str> = genres.iter().map(|g| g.family.as_str()).collect();
+                families.sort_by_key(|f| (f.is_empty(), *f));
+                families.dedup();
+                families.into_iter().map(|f| (f, genres.iter().filter(|g| g.family == f).collect())).collect()
+            } else {
+                vec![("", claudius_api::search_genres(genres, &query))]
+            };
             egui::ScrollArea::vertical().id_salt("genre_cards").max_height(330.0).show(ui, |ui| {
-                egui::Grid::new("genres").num_columns(2).spacing(vec2(8.0, 8.0)).show(ui, |ui| {
-                    for (i, g) in genres.iter().enumerate() {
+                if groups.iter().all(|(_, of)| of.is_empty()) {
+                    ui.label(small(format!("No genre answers “{query}”.")));
+                }
+                for (family, of) in &groups {
+                    if query.is_empty() {
+                        ui.add_space(4.0);
+                        ui.label(RichText::new(if family.is_empty() { "your own" } else { family }).strong());
+                    }
+                    egui::Grid::new(("genres", *family)).num_columns(2).spacing(vec2(8.0, 8.0)).show(ui, |ui| {
+                    for (i, g) in of.iter().enumerate() {
                         let selected = f.genre == g.name;
+                        let at = genres.iter().position(|o| o.name == g.name).unwrap_or(i);
                         let color = theme::section_color(
-                            ["drop", "groove", "break", "build", "intro", "hook", "verse", "outro"][i % 8],
+                            ["drop", "groove", "break", "build", "intro", "hook", "verse", "outro"][at % 8],
                         );
                         let (rect, r) = ui.allocate_exact_size(vec2(300.0, 32.0 + text_height), Sense::click());
                         let fill = if selected {
@@ -560,7 +585,8 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                             ui.end_row();
                         }
                     }
-                });
+                    });
+                }
             });
             ui.add_space(6.0);
             ui.horizontal(|ui| {

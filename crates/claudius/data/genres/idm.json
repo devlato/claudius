@@ -1,5 +1,7 @@
 {
   "name": "idm",
+  "family": "electronic",
+  "aliases": ["intelligent dance music", "braindance", "glitch", "experimental electronic", "aphex twin"],
   "description": "IDM: intricate broken beats with ratchets, ghost notes and shifting accents, glitches, stutters and gated bursts, crystalline bells and detuned pads, an acid or sub bass, odd modal harmony, every part processed into something new as the track goes on",
   "query": "glitchy intelligent dance music with complex broken beats and bells",
   "alts": ["glitch hop music", "drum and bass music", "ambient synth pad music", "chiptune video game music"],

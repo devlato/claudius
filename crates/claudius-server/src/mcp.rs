@@ -193,12 +193,27 @@ fn six() -> usize {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct FindGenreArgs {
+    /// what the person asks for: a genre's name or another name for it, an era, a scene, an artist or a sound
+    /// ("90s", "west coast", "cloud rap", "r&b", "dusty")
+    pub query: String,
+}
+
+/// a genre as catalog and find_genre tell it: its name, family, other names, tempo range and sound
+fn genre_line(g: &claudius_api::GenreInfo) -> String {
+    let family = if g.family.is_empty() { String::new() } else { format!("{}; ", g.family) };
+    let aliases = if g.aliases.is_empty() { String::new() } else { format!("; also {}", g.aliases.join(", ")) };
+    format!("{} ({family}{:.0}-{:.0} BPM{aliases}): {}", g.name, g.bpm.0, g.bpm.1, g.description)
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct NewSongArgs {
     /// the genre: house, deep_house, techno, trap, lofi, dnb, future_bass, synthwave, trip_hop, big_beat,
     /// electro_house, nu_disco, filter_house, dance_pop, neo_psychedelia, art_rock, idm, dub_techno, boom_bap,
     /// uk_drill, dubstep, uk_garage, jungle, afrobeats, amapiano, reggaeton, trance, neo_soul, hip_hop, alt_hip_hop,
     /// rnb, funk, tech_house, ambient, grime, phonk or reggae (catalog lists them with their tempo ranges, and any
-    /// genres of the person's own); or two or three fused, such as trip_hop+idm: the first leads (tempo, harmony, form,
+    /// genres of the person's own; find_genre finds them by an era, a scene or a sound), or another name of one's
+    /// ("90s hip hop" is boom_bap); or two or three fused, such as trip_hop+idm: the first leads (tempo, harmony, form,
     /// parts, mix), the last plays the drums and lends its sounds
     pub genre: String,
     /// random seed: the same seed and genre give the same song
@@ -778,8 +793,14 @@ impl Studio {
         let st = self.b.state().await?;
         let s = self.b.sounds().await?;
         let mut out = String::from("genres:\n");
-        for g in &st.genres {
-            out.push_str(&format!("  {} ({:.0}-{:.0} BPM): {}\n", g.name, g.bpm.0, g.bpm.1, g.description));
+        let mut families: Vec<&str> = st.genres.iter().map(|g| g.family.as_str()).collect();
+        families.sort_by_key(|f| (f.is_empty(), *f));
+        families.dedup();
+        for family in families {
+            out.push_str(&format!("  {}:\n", if family.is_empty() { "your own" } else { family }));
+            for g in st.genres.iter().filter(|g| g.family == family) {
+                out.push_str(&format!("    {}\n", genre_line(g)));
+            }
         }
         out.push_str(&format!("drums: {}\nsynths: {}\n", s.drums.join(" "), s.synths.join(" ")));
         if !s.instruments.is_empty() {
@@ -796,6 +817,19 @@ impl Studio {
             ));
         }
         Ok(out)
+    }
+
+    #[tool(
+        description = "Find the genres that answer what the person asks for: a genre's name or another name for it, an era, a scene, an artist or a sound (\"90s\", \"west coast\", \"cloud rap\", \"r&b\", \"dusty\"). Returns them best first, each with its family, its other names, its tempo range and its sound; new_song and remake take the name.",
+        annotations(read_only_hint = true)
+    )]
+    async fn find_genre(&self, Parameters(a): Parameters<FindGenreArgs>) -> Result<String, String> {
+        let st = self.b.state().await?;
+        let found = claudius_api::search_genres(&st.genres, &a.query);
+        if found.is_empty() {
+            return Ok(format!("no genre answers \"{}\": catalog lists them all", a.query.trim()));
+        }
+        Ok(found.iter().take(12).map(|g| genre_line(g)).collect::<Vec<_>>().join("\n"))
     }
 
     #[tool(
@@ -1168,6 +1202,7 @@ mod tests {
                 "analyze",
                 "assess_voice",
                 "catalog",
+                "find_genre",
                 "get_song",
                 "graph",
                 "script_reference",

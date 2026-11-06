@@ -1,5 +1,7 @@
 {
   "name": "alt_hip_hop",
+  "family": "hip hop",
+  "aliases": ["alternative hip hop", "alt rap", "alternative rap", "experimental hip hop", "art rap", "tyler the creator"],
   "description": "Alternative hip hop: 76 to 98 BPM, lush ninth and eleventh chords on a Rhodes or a Wurlitzer stacked on warm pads and strings, a distorted 808 with a fuzzy synth bass an octave over it, a swung kit with a clap on the snare and a shaker, soul records chopped under it, a lead that sings and a counter-melody that answers it, and a beat switch into half time before the last hooks",
   "query": "alternative hip hop with lush jazz chords",
   "alts": ["neo soul music", "jazz rap", "r&b music", "lo-fi hip hop beat", "funk music"],

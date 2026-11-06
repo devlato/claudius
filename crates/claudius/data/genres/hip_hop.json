@@ -1,5 +1,7 @@
 {
   "name": "hip_hop",
+  "family": "hip hop",
+  "aliases": ["rap", "modern hip hop", "rap beat", "mainstream rap"],
   "description": "Hip hop: modern hip hop at 84 to 100 BPM, between boom bap and trap: a hard kick and a cracking snare and clap on two and four, crisp eighth and sixteenth hats with the odd roll, a distorted 808 or a deep sub under a dark minor loop of a few chords on piano or Rhodes, strings now and then, a melody that loops on the piano, verses and hooks",
   "query": "hip hop beat with heavy bass",
   "alts": ["boom bap hip hop beat", "trap beat", "lo-fi hip hop beat", "r&b music"],

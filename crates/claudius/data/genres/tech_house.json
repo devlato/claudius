@@ -1,5 +1,7 @@
 {
   "name": "tech_house",
+  "family": "house",
+  "aliases": ["minimal house", "club"],
   "description": "Tech house: 124 to 128 BPM, between house and techno: a punchy kick on every beat, a rolling offbeat bassline that carries the groove, a clap on two and four, shakers and rims, percussion that loops and swings, a stab or an organ hit now and then, chopped vocals, long builds into tight drops",
   "query": "tech house music",
   "alts": ["house music", "techno music", "minimal electronic music", "drum and bass music"],

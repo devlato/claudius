@@ -1,5 +1,7 @@
 {
   "name": "deep_house",
+  "family": "house",
+  "aliases": ["deep", "soulful house", "lounge house"],
   "description": "Deep house: softer four-on-the-floor, shuffled hats and shakers, minor 9th chords on electric piano and organ, a round syncopated bass, long warm reverbs",
   "query": "house music",
   "alts": ["techno music", "minimal electronic music", "lo-fi hip hop beat", "jazz music"],

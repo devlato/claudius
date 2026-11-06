@@ -1,5 +1,7 @@
 {
   "name": "boom_bap",
+  "family": "hip hop",
+  "aliases": ["90s hip hop", "east coast", "golden age", "new york hip hop", "underground hip hop", "dj premier", "pete rock"],
   "description": "Boom bap: 90s hip hop at 86 to 96 BPM, built on samples: a dusty drum break with a lazy sampler swing, a soul or jazz phrase from a record chopped and crushed to 12 bits, vinyl crackle, a rim, an upright or sub bass, horn or flute phrases in the hooks, three verses and hooks",
   "query": "boom bap hip hop beat",
   "alts": ["lo-fi hip hop beat", "trap beat", "jazz music", "funk music"],

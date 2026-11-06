@@ -1,5 +1,7 @@
 {
   "name": "nu_disco",
+  "family": "pop and disco",
+  "aliases": ["disco", "indie dance", "disco house"],
   "description": "Nu-disco: a four-on-the-floor kick with open hats on the offbeats and a clap on 2 and 4, an octave-jumping disco bass, funky muted guitar and electric piano chords, lush strings, a brassy hook, a warm and glossy mix with a touch of phaser",
   "query": "disco music",
   "alts": ["house music", "upbeat corporate pop music", "synthwave music", "jazz music"],

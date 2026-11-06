@@ -301,8 +301,12 @@ pub(crate) enum Cmd {
         #[arg(long)]
         json: bool,
     },
-    /// List the genre profiles
-    Genres,
+    /// List the genre profiles by family, or those that answer a search, best first
+    Genres {
+        /// what to search them by: a name or another name, an era, a scene, an artist or a sound ("90s", "west
+        /// coast", "r&b", "dusty")
+        query: Vec<String>,
+    },
     /// Render every built-in drum voice, synth preset and transition effect to WAVs for auditioning
     Sounds {
         #[arg(short, long, default_value = "out/sounds")]

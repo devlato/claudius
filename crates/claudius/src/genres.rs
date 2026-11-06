@@ -201,6 +201,13 @@ pub struct MixSpec {
 #[derive(Clone, Debug, Deserialize)]
 pub struct GenreProfile {
     pub name: String,
+    /// the family it belongs to ("hip hop", "house"), which the studio groups genres under
+    #[serde(default)]
+    pub family: String,
+    /// what else it is called, and the eras, scenes and artists it is known by ("90s hip hop", "golden age"): a
+    /// search finds it by them (`claudius_api::search_genres`), and `get` takes one that is no other genre's
+    #[serde(default)]
+    pub aliases: Vec<String>,
     pub description: String,
     /// what the ears should hear (a CLAP description; earshot's vocabulary terms calibrate best)
     pub query: String,
@@ -385,12 +392,28 @@ pub fn get(name: &str) -> Result<GenreProfile> {
         return names[1..].iter().try_fold(first, |g, n| Ok(fuse(&g, &get(n)?)));
     }
     let key = name.trim().to_ascii_lowercase().replace([' ', '-'], "_");
-    all()?.into_iter().find(|g| g.name == key).with_context(|| {
-        format!(
+    let mut all = all()?;
+    if let Some(at) = all.iter().position(|g| g.name == key || folded(&g.name) == folded(name)) {
+        return Ok(all.swap_remove(at));
+    }
+    let called: Vec<GenreProfile> =
+        all.iter().filter(|g| g.aliases.iter().any(|a| folded(a) == folded(name))).cloned().collect();
+    match called.as_slice() {
+        [g] => Ok(g.clone()),
+        [] => anyhow::bail!(
             "unknown genre '{name}' (try: {})",
-            all().map(|v| v.iter().map(|g| g.name.clone()).collect::<Vec<_>>().join(", ")).unwrap_or_default()
-        )
-    })
+            all.iter().map(|g| g.name.as_str()).collect::<Vec<_>>().join(", ")
+        ),
+        many => anyhow::bail!(
+            "'{name}' is what {} are called: say which",
+            many.iter().map(|g| g.name.as_str()).collect::<Vec<_>>().join(" and ")
+        ),
+    }
+}
+
+/// a name as a search compares it: lowercase letters and digits only, `&` as `n` (R&B, rnb and r n b alike)
+pub fn folded(name: &str) -> String {
+    name.to_lowercase().replace('&', "n").chars().filter(|c| c.is_alphanumeric()).collect()
 }
 
 /// the lanes that are drums, for the levels a fusion takes from the genre that plays its drums
@@ -403,6 +426,7 @@ const DRUM_ROLES: &[&str] = &["kick", "snare", "clap", "hat", "ohat", "shaker", 
 pub fn fuse(a: &GenreProfile, b: &GenreProfile) -> GenreProfile {
     let mut g = a.clone();
     g.name = format!("{}+{}", a.name, b.name);
+    g.aliases = Vec::new();
     g.description = format!(
         "{} Fused with {}: its drums and their sound, and its sounds and styles in the parts.",
         a.description.trim_end_matches('.'),
@@ -549,6 +573,23 @@ mod tests {
         }
         assert!(get("trip_hop").unwrap().sampling.unwrap().by_default);
         assert!(!get("house").unwrap().sampling.unwrap().by_default);
+    }
+
+    #[test]
+    fn a_genre_is_found_by_another_name_of_its_own() {
+        assert_eq!(get("90s hip hop").unwrap().name, "boom_bap");
+        assert_eq!(get("R&B").unwrap().name, "rnb");
+        assert_eq!(get("Lo-Fi Hip Hop").unwrap().name, "lofi");
+        let both = get("uk rap").unwrap_err().to_string();
+        assert!(both.contains("uk_drill") && both.contains("grime"), "{both}");
+        assert!(get("polka").unwrap_err().to_string().starts_with("unknown genre 'polka'"));
+        let builtin: Vec<GenreProfile> = BUILTIN.iter().map(|(_, src)| serde_json::from_str(src).unwrap()).collect();
+        for g in &builtin {
+            assert!(!g.family.is_empty(), "{} belongs to a family", g.name);
+            for a in &g.aliases {
+                assert!(builtin.iter().all(|o| folded(&o.name) != folded(a)), "{}: '{a}' is a genre's name", g.name);
+            }
+        }
     }
 
     #[test]

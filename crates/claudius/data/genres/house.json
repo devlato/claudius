@@ -1,5 +1,7 @@
 {
   "name": "house",
+  "family": "house",
+  "aliases": ["chicago house", "classic house", "club"],
   "description": "House: four-on-the-floor kick, offbeat hats, claps on 2 and 4, soulful 7th chords, a bouncing offbeat or syncopated bass, breakdown and build into the drop",
   "query": "house music",
   "alts": ["techno music", "minimal electronic music", "upbeat corporate pop music", "drum and bass music"],

@@ -1,5 +1,7 @@
 {
   "name": "dnb",
+  "family": "drum and bass",
+  "aliases": ["drum and bass", "drum & bass", "liquid", "neurofunk"],
   "description": "Drum and bass: 174 BPM two-step breakbeat (kick on 1 and the and-of-3, snares on 2 and 4 with ghost notes), a growling reese bass, atmospheric pads, long intro and breakdown",
   "query": "drum and bass music",
   "alts": ["dubstep music", "techno music", "house music", "trap beat"],

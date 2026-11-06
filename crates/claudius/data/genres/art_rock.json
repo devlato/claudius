@@ -1,5 +1,7 @@
 {
   "name": "art_rock",
+  "family": "rock",
+  "aliases": ["rock", "indie rock", "alternative rock", "prog rock", "radiohead"],
   "description": "Art rock with electronics: a song that grows from a quiet piano and a glitchy, arpeggiated synth into a loud climax, live drums, a dark electric bass, strings, guitars that turn from clean to distorted, minor and modal chords, stuttered edits, a long arc rather than a loop",
   "query": "progressive rock music with piano, strings and synthesizers",
   "alts": ["rock music with electric guitars", "cinematic orchestral music", "indie pop music", "ambient synth pad music"],

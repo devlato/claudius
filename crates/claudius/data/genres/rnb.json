@@ -1,5 +1,7 @@
 {
   "name": "rnb",
+  "family": "r&b, soul and funk",
+  "aliases": ["r and b", "rhythm and blues", "contemporary r&b", "modern r&b", "slow jam"],
   "description": "R&B: contemporary R&B at 64 to 80 BPM: lush seventh and ninth chords on Rhodes and piano, an 808 or a warm sub that slides, crisp sixteenth hats that roll into thirty-seconds, finger snaps and a soft clap on the backbeat, airy pads, a sung or chopped vocal hook, a guitar or a soft synth answering it",
   "query": "r&b music",
   "alts": ["hip hop beat with heavy bass", "lo-fi hip hop beat", "jazz music", "upbeat corporate pop music"],
