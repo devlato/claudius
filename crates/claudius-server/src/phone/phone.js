@@ -679,10 +679,11 @@ const hold = {
   /** how hard the finger presses, 0 to 1, when the screen tells it (`measured`) */
   grip: 0,
   measured: false,
-  /** when it touched or last moved, how far it has turned the record resting, and its speed along the record */
+  /** when it touched or last moved, how far round it has gone since it touched (radians, back and forth cancelling),
+   * and its speed along the record */
   rested: 0,
   moved: 0,
-  travel: 0,
+  turned: 0,
   speed: 0,
   /** the smallest and largest touches seen, in square pixels */
   lo: Infinity,
@@ -692,8 +693,9 @@ const hold = {
   x: 0,
   y: 0,
 };
-/** the turn, in radians, that makes a resting finger a grab */
-const GRAB = 0.04;
+/** how far along the record, in CSS pixels, a resting finger goes before it grabs: about 3 mm on a phone, more than a
+ * fingertip's middle shifts as it flattens under a firmer press */
+const GRAB = 16;
 /** how fast the slipmat brings the record to the platter's speed, in seconds of record a second, each second: up to
  * it at once from slower (a DJ lets go with a push), and down to it from a swipe, or from a spin backwards, slower */
 const CATCH_UP = 12;
@@ -899,6 +901,12 @@ function angleOf(e, c) {
   return Math.atan2(e.clientY - r.top - r.height / 2, e.clientX - r.left - r.width / 2);
 }
 
+/** how far from the record's middle a touch is, in CSS pixels */
+function radiusOf(e, c) {
+  const r = c.getBoundingClientRect();
+  return Math.hypot(e.clientX - r.left - r.width / 2, e.clientY - r.top - r.height / 2);
+}
+
 function platter() {
   const c = $("platter");
   c.addEventListener("pointerdown", (e) => {
@@ -906,7 +914,7 @@ function platter() {
     capture(c, e);
     const now = performance.now();
     Object.assign(deck, { touching: true, angle: angleOf(e, c), turned: 0, start: deck.pos, target: deck.pos });
-    Object.assign(hold, { grab: false, finger: true, rested: now, moved: now, travel: 0, speed: 0 });
+    Object.assign(hold, { grab: false, finger: true, rested: now, moved: now, turned: 0, speed: 0 });
     feel(e, c);
   });
   c.addEventListener("pointermove", (e) => {
@@ -923,7 +931,7 @@ function platter() {
     if (hold.grab) {
       deck.turned += d;
       deck.target = deck.start + (deck.turned / (2 * Math.PI)) * TURN;
-    } else if ((hold.travel += Math.abs(d)) > GRAB) {
+    } else if (Math.abs((hold.turned += d)) * radiusOf(e, c) > GRAB) {
       // it grabs the record where it is now
       Object.assign(hold, { grab: true });
       Object.assign(deck, { start: deck.pos, target: deck.pos, turned: 0 });

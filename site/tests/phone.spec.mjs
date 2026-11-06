@@ -143,18 +143,18 @@ test.describe("playing from a phone", () => {
       await phone.click("#sync");
       expect(await speed(400)).toBeCloseTo(1, 1);
       // a finger on the record, at its edge: touched, moved round it, let go
-      const touch = (type, { turn = 0, size = 0 } = {}) =>
+      const touch = (type, { turn = 0, size = 0, at = 0.4 } = {}) =>
         phone.evaluate(
-          ([type, turn, size]) => {
+          ([type, turn, size, at]) => {
             const c = $("platter");
             const r = c.getBoundingClientRect();
-            const rad = Math.min(r.width, r.height) * 0.4;
+            const rad = Math.min(r.width, r.height) * at;
             const a = -Math.PI / 2 + turn;
             const init = { pointerId: 7, pointerType: "touch", isPrimary: true, bubbles: true, pressure: 0.5 };
-            const at = { clientX: r.left + r.width / 2 + rad * Math.cos(a), clientY: r.top + r.height / 2 + rad * Math.sin(a) };
-            c.dispatchEvent(new PointerEvent(type, { ...init, ...at, width: size || 1, height: size || 1 }));
+            const xy = { clientX: r.left + r.width / 2 + rad * Math.cos(a), clientY: r.top + r.height / 2 + rad * Math.sin(a) };
+            c.dispatchEvent(new PointerEvent(type, { ...init, ...xy, width: size || 1, height: size || 1 }));
           },
-          [type, turn, size],
+          [type, turn, size, at],
         );
       // a screen that tells nothing of the touch: a resting finger slows the record, then stops it
       await touch("pointerdown");
@@ -163,6 +163,13 @@ test.describe("playing from a phone", () => {
       expect(slowing).toBeGreaterThan(0.05);
       expect(await speed(600)).toBeLessThan(0.05);
       await touch("pointerup");
+      expect(await speed(300)).toBeCloseTo(1, 1);
+      // a firmer press shifts the fingertip's middle a pixel or two, which near the label is more of a turn than at the
+      // edge: the finger still rests on the record and brakes it, rather than grabbing it
+      await touch("pointerdown", { at: 0.12 });
+      for (let i = 1; i <= 4; i++) await touch("pointermove", { at: 0.12, turn: i * 0.02 });
+      expect(await phone.evaluate(() => hold.grab), "a press is no grab").toBe(false);
+      await touch("pointerup", { at: 0.12 });
       expect(await speed(300)).toBeCloseTo(1, 1);
       // one that says how large: a light touch drags a little, a firm one stops it
       await touch("pointerdown", { size: 40 });

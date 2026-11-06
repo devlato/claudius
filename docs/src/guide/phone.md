@@ -46,16 +46,17 @@ phone's own speaker is taken off.
   song, since it was cut from the song at its tempo; **pitch** moves it up to 16 % faster or slower, the tempo it
   plays at shown beside it, and **in time** brings it back. One turn is 1.8 seconds of it, as on a record at 33⅓.
 
-  Your finger holds it as a DJ's does. Rest a finger on it without moving and it drags: the record slows under it,
-  the more the harder you press, and stops under a firm finger. A phone measures no force, so the page reads the press
-  from how large your fingertip's touch is (pressing flattens it), against the lightest and firmest touches it has
-  seen; where the screen says nothing of that either, the longer your finger rests, the harder it brakes, stopping the
-  record in about half a second. Move your finger and it grabs: the record goes with it until you lift it, to scratch
-  or to spin it by hand, and holds still while your finger does. Let go while moving and the record runs on at the
-  speed you gave it, up to four times its own, so a swipe spins it faster, and a swipe backwards spins it back a
-  moment, until the slipmat brings it to the platter's speed (with the motor off, to rest). The motor, like a DJ's
-  turntable's, brings the platter up to speed in a third of a second, and its brake stops it as fast. A spot under
-  your finger shows how hard it brakes, and a ring that it grabs.
+  Your finger holds it as a DJ's does. Rest a finger on it without moving and it drags: the record slows under it, the
+  more the harder you press, and stops under a firm finger. A phone measures no force, so the page reads the press from
+  how large your fingertip's touch is (pressing flattens it), against the lightest and firmest touches it has seen;
+  where the screen says nothing of that either, the longer your finger rests, the harder it brakes, stopping the record
+  in about half a second. Move your finger a few millimetres along the record (further than a fingertip shifts as you
+  press harder) and it grabs: the record goes with it until you lift it, to scratch or to spin it by hand, and holds
+  still while your finger does. Let go while moving and the record runs on at the speed you gave it, up to four times
+  its own, so a swipe spins it faster, and a swipe backwards spins it back a moment, until the slipmat brings it to the
+  platter's speed (with the motor off, to rest). The motor, like a DJ's turntable's, brings the platter up to speed in a
+  third of a second, and its brake stops it as fast. A spot under your finger shows how hard it brakes, and a ring that
+  it grabs.
 
   Moved fast, the record whistles no highs folded back, as a needle reads a record, and the crossfader opens within a
   hair of its travel, as a scratch DJ's does, so a flick cuts the sound in and out. A take becomes a take of the
