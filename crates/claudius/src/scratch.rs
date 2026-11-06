@@ -160,23 +160,80 @@ pub struct Move {
 }
 
 /// A scratch on one of the song's tracks, or on the whole mix (`MIX`): the record, `bars` bars of track `track` from
-/// bar `bar` (0 the first), and the moves made on it.
+/// bar `bar` (0 the first), and the moves made on it. With a `recording` (a WAV file's bytes), the record is that,
+/// recorded off a microphone, instead.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Take {
     pub track: String,
     pub bar: u32,
     pub bars: u32,
     pub moves: Vec<Move>,
+    pub recording: Option<Vec<u8>>,
+}
+
+/// the longest a record recorded off a microphone is, in seconds
+pub const MAX_RECORDING: f64 = 10.0;
+
+/// A record recorded off a microphone, from the WAV file a phone sent: at most `MAX_RECORDING` seconds, its peak at
+/// the song's ceiling, where the phone puts it too. Its header is read first, so that a file whose rate or length is
+/// out of bounds is refused before it is decoded and resampled to 48 kHz.
+pub fn recorded(bp: &Blueprint, wav: &[u8]) -> Result<Stereo, String> {
+    let (rate, secs) = wav_length(wav).ok_or("the recording is no WAV file claudius reads")?;
+    if !(8_000..=192_000).contains(&rate) {
+        return Err(format!("a recording is at 8 to 192 kHz, not {rate} Hz"));
+    }
+    if secs > MAX_RECORDING + 0.05 {
+        return Err(format!("a recording is {MAX_RECORDING:.0} s at most, not {secs:.1} s"));
+    }
+    let mut x =
+        crate::audio::load_bytes(wav.to_vec(), "wav").map_err(|e| format!("cannot read the recording: {e:#}"))?;
+    let peak = x.l.iter().chain(&x.r).fold(0.0f32, |m, v| m.max(v.abs()));
+    if peak < 1e-3 {
+        return Err("the recording is silent".into());
+    }
+    let gain = 10f32.powf(bp.mix.master.ceiling_db / 20.0) / peak;
+    for v in x.l.iter_mut().chain(x.r.iter_mut()) {
+        *v *= gain;
+    }
+    Ok(x)
+}
+
+/// the rate a WAV file's header says it is at, and how many seconds its data holds (none: no WAV header)
+fn wav_length(wav: &[u8]) -> Option<(u32, f64)> {
+    if wav.len() < 12 || &wav[..4] != b"RIFF" || &wav[8..12] != b"WAVE" {
+        return None;
+    }
+    let u16_at = |i: usize| Some(u16::from_le_bytes(wav.get(i..i + 2)?.try_into().ok()?));
+    let u32_at = |i: usize| Some(u32::from_le_bytes(wav.get(i..i + 4)?.try_into().ok()?));
+    let (mut at, mut format, mut data) = (12usize, None, None);
+    while at + 8 <= wav.len() {
+        let size = u32_at(at + 4)? as usize;
+        let body = at + 8;
+        match &wav[at..at + 4] {
+            b"fmt " => format = Some((u16_at(body + 2)?, u32_at(body + 4)?, u16_at(body + 14)?)),
+            b"data" => data = Some(size.min(wav.len() - body)),
+            _ => {}
+        }
+        // chunks start on even bytes
+        at = body.checked_add(size)?.checked_add(size % 2)?;
+    }
+    let ((channels, rate, bits), data) = (format?, data?);
+    let frame = usize::from(channels) * usize::from(bits).div_ceil(8);
+    (frame > 0 && rate > 0).then(|| (rate, data as f64 / frame as f64 / f64::from(rate)))
 }
 
 /// What scratch `t` sounds like, and what its record was cut from, each file's credits as `credited` says
-/// (`take::credited`): a record of the song's (`record`), or of a sample of `lib` (`sample_record`).
+/// (`take::credited`): a record of the song's (`record`), of a sample of `lib` (`sample_record`), or one recorded off a
+/// microphone (`recorded`), which is the person's own and credits nothing.
 pub fn take(
     bp: &Blueprint,
     t: &Take,
     lib: Option<&Library>,
     credited: impl Fn(&Path) -> Sources,
 ) -> Result<(Stereo, Sources), String> {
+    if let Some(wav) = &t.recording {
+        return Ok((render(&recorded(bp, wav)?, &t.moves)?, Sources::default()));
+    }
     if t.track.starts_with(LIBRARY) {
         let s = lib
             .and_then(|l| sample(l, &bp.genre, bp.bpm, &t.track))
@@ -594,12 +651,48 @@ mod tests {
         assert!((sample_record(&bp, &all[2], 1).unwrap().secs() - 1.5).abs() < 0.01, "a vocal chop whole");
         // a scratch on it credits it
         let moves = vec![Move { t: 0.0, at: 0.0, fader: 1.0 }, Move { t: 0.5, at: 0.6, fader: 1.0 }];
-        let t = Take { track: beat.track(), bar: 0, bars: 2, moves };
+        let t = Take { track: beat.track(), bar: 0, bars: 2, moves, recording: None };
         let (x, cut) = take(&bp, &t, Some(&lib), crate::take::credited).unwrap();
         assert!(x.secs() > 0.4);
         assert_eq!(cut.recordings.iter().map(|f| f.title.as_str()).collect::<Vec<_>>(), ["Funky Break"]);
         assert!(take(&bp, &t, None, crate::take::credited).unwrap_err().contains("has no sample"), "no library");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_record_recorded_off_a_microphone_is_scratched_as_loud_as_the_songs_ceiling() {
+        let g = crate::genres::get("house").unwrap();
+        let o = compose::Options { short: true, samples: 0.0, loops: false, ..Default::default() };
+        let bp = compose::generate(&g, 3, &o, None);
+        let wav = |secs: f64, level: f32| {
+            let x: Vec<f32> = (0..(secs * SRF) as usize).map(|i| (i as f32 * 0.05).sin() * level).collect();
+            crate::audio::wav_bytes(&Stereo::from_mono(&x))
+        };
+        let x = recorded(&bp, &wav(1.0, 0.2)).unwrap();
+        let peak = x.l.iter().fold(0.0f32, |m, v| m.max(v.abs()));
+        assert!((peak - 10f32.powf(bp.mix.master.ceiling_db / 20.0)).abs() < 1e-3, "its peak at the ceiling: {peak}");
+        assert!((x.secs() - 1.0).abs() < 0.01);
+        let moves = vec![Move { t: 0.0, at: 0.0, fader: 1.0 }, Move { t: 0.5, at: 0.4, fader: 1.0 }];
+        let t = Take { track: "mic".into(), bar: 0, bars: 1, moves, recording: Some(wav(1.0, 0.2)) };
+        let (scratched, cut) = take(&bp, &t, None, crate::take::credited).unwrap();
+        assert!(scratched.secs() > 0.4 && cut.is_empty(), "a person's own recording credits nothing");
+        let long = recorded(&bp, &wav(MAX_RECORDING + 1.0, 0.2)).unwrap_err();
+        assert!(long.contains("at most"), "{long}");
+        assert!(recorded(&bp, &wav(1.0, 0.0)).unwrap_err().contains("silent"));
+        assert!(recorded(&bp, b"not a wav").unwrap_err().contains("no WAV file"));
+        // a header that says a rate a resampling to 48 kHz would blow up is refused before the file is decoded, as is
+        // one that says more seconds than a recording is
+        let mut slow = wav(1.0, 0.2);
+        slow[24..28].copy_from_slice(&1u32.to_le_bytes());
+        assert!(recorded(&bp, &slow).unwrap_err().contains("8 to 192 kHz"));
+        assert_eq!(
+            wav_length(&wav(1.0, 0.2)).map(|(rate, secs)| (rate, (secs * 100.0).round())),
+            Some((48_000, 100.0))
+        );
+        let mut endless = wav(1.0, 0.2);
+        let data = endless.windows(4).position(|w| w == b"data").unwrap();
+        endless[data + 4..data + 8].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert!(wav_length(&endless).unwrap().1 < 1.01, "a data chunk past the file's end is the file's");
     }
 
     #[test]

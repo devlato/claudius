@@ -89,13 +89,14 @@ What the token does not do:
 [Playing from a phone](../guide/phone.md) opens a second port to the network, but only while the studio asks for it
 (`POST /api/phone`, which a page on another site cannot send: the main API's guard and CORS stand in front of it) and
 only for the page and its few routes, which play the song's sounds and take `add_hits`, `add_notes` and `add_scratch`,
-and nothing else. Every request needs the key the QR code carries: 16 random bytes, new each time the page is served,
-checked in constant time, and kept by the phone as an `HttpOnly; SameSite=Strict` cookie. Without it the answer is 403.
-The page's answers carry `Referrer-Policy: no-referrer` (its address holds the key),
-`Content-Security-Policy: default-src 'self'` with no inline script, `X-Frame-Options: DENY` and `no-store`. The
-traffic is plain HTTP, like the rest of a LAN claudius: someone who can watch the network can see the key and play
-into the song until the page stops, which `DELETE /api/phone`, the window's **Stop serving the page** or quitting
-does.
+and nothing else. A scratch's `recording` is the one audio a phone sends: a WAV file of at most 10 seconds, in a body of
+at most 4 MB, decoded as any recording is and kept as the take. Every request needs the key the QR code carries: 16
+random bytes, new each time the page is served, checked in constant time, and kept by the phone as an `HttpOnly;
+SameSite=Strict` cookie. Without it the answer is 403. The page's answers carry `Referrer-Policy: no-referrer` (its
+address holds the key), `Content-Security-Policy: default-src 'self'` with no inline script, `X-Frame-Options: DENY` and
+`no-store`. The traffic is plain HTTP, like the rest of a LAN claudius: someone who can watch the network can see the
+key and play into the song until the page stops, which `DELETE /api/phone`, the window's **Stop serving the page** or
+quitting does.
 
 The demo pairs with a phone through a room of the site's relay instead (`site/worker/room.js`, a Durable Object). A
 room is named with 128 random bits that only the demo's QR code carries, takes one tab as its host (the same tab again

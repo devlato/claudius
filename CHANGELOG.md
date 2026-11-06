@@ -21,7 +21,9 @@ or spin it by hand; and let go mid-swipe, the record runs on faster, or spins ba
 The motor brings the platter up to speed and the brake stops it in a third of a second, as a DJ's turntable does.
 It also puts on samples from the library: the phrases, vocal chops and breaks gathered for the song's genre, and Apple
 Loops and your own loops of its kinds, each spinning at the speed that plays it in time with the song, and a scratch
-on one credits it in the song's `credits.txt`.
+on one credits it in the song's `credits.txt`. **● mic** records a record off the phone's microphone, up to 8 seconds,
+where the browser lets the page use one (the demo's page, or the page opened on the computer running claudius); a
+scratch on it is a take like any other (`add_scratch` has a `recording`).
 
 ## [0.4.0] - 2026-11-06
 

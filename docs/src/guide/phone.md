@@ -53,6 +53,14 @@ phone's own speaker is taken off.
   beside it, and **in time** brings it back. One turn is 1.8 seconds of it, as on a record at 33⅓. A scratch on a
   sample credits it in the song's `credits.txt`, as the song's own samples are.
 
+  **● mic** records a record off the phone's microphone, up to 8 seconds (tap it again to stop sooner): a voice, a
+  sound in the room, a record playing nearby. It goes on the turntable as **your recording**, its peak at the master's
+  ceiling, and spins at its own speed; a take of a scratch on it carries the recording to the studio, which makes the
+  scratch of it. A browser lets only a page it trusts use the microphone: the demo's, served over https, or the page
+  opened on the computer that runs claudius. The page your phone opens from the studio's QR code is on your network
+  without https, so there **● mic** says so: record it in the studio's **Record** window instead, and the take comes
+  to the turntable as one of the song's records.
+
   Your finger holds it as a DJ's does. Rest a finger on it without moving and it drags: the record slows under it, the
   more the harder you press, and stops under a firm finger. A phone measures no force, so the page reads the press from
   how large your fingertip's touch is (pressing flattens it), against the lightest and firmest touches it has seen;

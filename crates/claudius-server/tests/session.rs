@@ -1662,6 +1662,7 @@ async fn drums_played_on_pads_and_a_scratch_join_the_song() {
         moves,
         name: None,
         role: None,
+        recording: None,
     };
     let r = app.command(scratch("clap", moves.clone()));
     assert!(r.ok, "{}", r.message);
