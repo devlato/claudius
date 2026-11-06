@@ -538,53 +538,53 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                         ui.label(RichText::new(if family.is_empty() { "your own" } else { family }).strong());
                     }
                     egui::Grid::new(("genres", *family)).num_columns(2).spacing(vec2(8.0, 8.0)).show(ui, |ui| {
-                    for (i, g) in of.iter().enumerate() {
-                        let selected = f.genre == g.name;
-                        let at = genres.iter().position(|o| o.name == g.name).unwrap_or(i);
-                        let color = theme::section_color(
-                            ["drop", "groove", "break", "build", "intro", "hook", "verse", "outro"][at % 8],
-                        );
-                        let (rect, r) = ui.allocate_exact_size(vec2(300.0, 32.0 + text_height), Sense::click());
-                        let fill = if selected {
-                            theme::alpha(color, 0.22)
-                        } else if r.hovered() {
-                            theme::RAISED_HI
-                        } else {
-                            theme::RAISED
-                        };
-                        let stroke = if selected { Stroke::new(1.5, color) } else { Stroke::new(1.0, LINE) };
-                        ui.painter().rect(rect, 6.0, fill, stroke, StrokeKind::Inside);
-                        ui.painter().rect_filled(
-                            Rect::from_min_size(rect.min + vec2(0.0, 8.0), vec2(3.0, rect.height() - 16.0)),
-                            1.0,
-                            color,
-                        );
-                        ui.painter().text(
-                            rect.min + vec2(12.0, 14.0),
-                            Align2::LEFT_CENTER,
-                            g.name.replace('_', " "),
-                            theme::prop(14.0),
-                            TEXT,
-                        );
-                        ui.painter().text(
-                            rect.right_top() + vec2(-10.0, 14.0),
-                            Align2::RIGHT_CENTER,
-                            format!("{:.0}-{:.0} BPM", g.bpm.0, g.bpm.1),
-                            theme::prop(11.0),
-                            TEXT_DIM,
-                        );
-                        let galley = ui.painter().layout(desc(g), theme::prop(10.5), TEXT_DIM, rect.width() - 22.0);
-                        let clip = Rect::from_min_max(rect.min + vec2(12.0, 26.0), rect.max - vec2(8.0, 4.0));
-                        ui.painter().with_clip_rect(clip).galley(clip.min, galley, TEXT_DIM);
-                        if r.on_hover_text(&g.description).clicked() && f.genre != g.name {
-                            f.genre = g.name.clone();
-                            // each genre samples as it does until asked otherwise
-                            f.sampled = None;
+                        for (i, g) in of.iter().enumerate() {
+                            let selected = f.genre == g.name;
+                            let at = genres.iter().position(|o| o.name == g.name).unwrap_or(i);
+                            let color = theme::section_color(
+                                ["drop", "groove", "break", "build", "intro", "hook", "verse", "outro"][at % 8],
+                            );
+                            let (rect, r) = ui.allocate_exact_size(vec2(300.0, 32.0 + text_height), Sense::click());
+                            let fill = if selected {
+                                theme::alpha(color, 0.22)
+                            } else if r.hovered() {
+                                theme::RAISED_HI
+                            } else {
+                                theme::RAISED
+                            };
+                            let stroke = if selected { Stroke::new(1.5, color) } else { Stroke::new(1.0, LINE) };
+                            ui.painter().rect(rect, 6.0, fill, stroke, StrokeKind::Inside);
+                            ui.painter().rect_filled(
+                                Rect::from_min_size(rect.min + vec2(0.0, 8.0), vec2(3.0, rect.height() - 16.0)),
+                                1.0,
+                                color,
+                            );
+                            ui.painter().text(
+                                rect.min + vec2(12.0, 14.0),
+                                Align2::LEFT_CENTER,
+                                g.name.replace('_', " "),
+                                theme::prop(14.0),
+                                TEXT,
+                            );
+                            ui.painter().text(
+                                rect.right_top() + vec2(-10.0, 14.0),
+                                Align2::RIGHT_CENTER,
+                                format!("{:.0}-{:.0} BPM", g.bpm.0, g.bpm.1),
+                                theme::prop(11.0),
+                                TEXT_DIM,
+                            );
+                            let galley = ui.painter().layout(desc(g), theme::prop(10.5), TEXT_DIM, rect.width() - 22.0);
+                            let clip = Rect::from_min_max(rect.min + vec2(12.0, 26.0), rect.max - vec2(8.0, 4.0));
+                            ui.painter().with_clip_rect(clip).galley(clip.min, galley, TEXT_DIM);
+                            if r.on_hover_text(&g.description).clicked() && f.genre != g.name {
+                                f.genre = g.name.clone();
+                                // each genre samples as it does until asked otherwise
+                                f.sampled = None;
+                            }
+                            if i % 2 == 1 {
+                                ui.end_row();
+                            }
                         }
-                        if i % 2 == 1 {
-                            ui.end_row();
-                        }
-                    }
                     });
                 }
             });
@@ -686,7 +686,8 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
         ui.label(RichText::new("Or start from an audio file").strong());
         let shown = f.genre_name().replace('_', " ").replace('+', " + ");
         ui.label(small(format!(
-            "claudius reads its tempo, key, chords, form and groove; Remake remixes it as {shown}, on its hook, its drums and pieces of it"
+            "claudius reads its tempo, key, chords, form and groove; Remake reworks all of it as {shown}, with the \
+             genre's drums and bass under it, and Flip into makes a new {shown} song on its hook and pieces of it"
         )));
         ui.horizontal(|ui| {
             let busy = cx.view.analyzing;
@@ -706,8 +707,13 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                 .clicked()
             {
                 cx.view.analysis = None;
-                cx.view.listen =
-                    file.clone().map(|file| super::Listen { file, remake: None, flip: false, sample: false, groove: false });
+                cx.view.listen = file.clone().map(|file| super::Listen {
+                    file,
+                    remake: None,
+                    flip: false,
+                    sample: false,
+                    groove: false,
+                });
             }
             for (flip, label, hint) in [
                 (
@@ -742,8 +748,13 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                 .clicked()
             {
                 cx.view.analysis = None;
-                cx.view.listen =
-                    file.clone().map(|file| super::Listen { file, remake: None, flip: false, sample: true, groove: false });
+                cx.view.listen = file.clone().map(|file| super::Listen {
+                    file,
+                    remake: None,
+                    flip: false,
+                    sample: true,
+                    groove: false,
+                });
             }
             let drums = cx.state.song.as_ref().is_some_and(|s| !s.drums.is_empty());
             if ui
@@ -756,7 +767,8 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                 .clicked()
             {
                 cx.view.analysis = None;
-                cx.view.listen = file.map(|file| super::Listen { file, remake: None, flip: false, sample: false, groove: true });
+                cx.view.listen =
+                    file.map(|file| super::Listen { file, remake: None, flip: false, sample: false, groove: true });
             }
             if cx.view.analyzing {
                 ui.add(egui::Spinner::new().color(ACCENT));
