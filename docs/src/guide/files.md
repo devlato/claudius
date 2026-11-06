@@ -90,10 +90,11 @@ the next verdict download 785 MB again (1.13 GB with the AudioSet tagger).
 
 ## Your genres
 
-A genre is a JSON file. claudius loads its eight built-in genres, then every `.json` file in your genres folder; a
-file whose `name` matches a built-in genre replaces it. The fields are those of
+A genre is a JSON file. claudius loads its built-in genres, then every `.json` file in your genres folder; a file
+whose `name` matches a built-in genre replaces it. The fields are those of
 `crates/claudius/data/genres/house.json`; copy it, rename the `name`, change what you like, and
-`claudius genres` lists it. A file that does not parse makes every genre lookup fail, the built-in genres included,
+`claudius genres` lists it: under its `family` ("house", "hip hop") if it names one, else under "your own", and a
+search finds it by its `aliases` too, the other names it goes by. A file that does not parse makes every genre lookup fail, the built-in genres included,
 so `make` and `song()` fail with `Error: genre file <path>` and the JSON error under `Caused by:`, and the studio's
 list of genres comes up empty. Fix or move the file and try again.
 

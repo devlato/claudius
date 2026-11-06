@@ -91,6 +91,7 @@ Each profile (`crates/claudius/data/genres/*.json`) has:
 
 | field | what it decides |
 |---|---|
+| `family`, `aliases` | the family the studio and `claudius genres` list it under (`hip hop`, `house`), and the other names, eras, scenes and artists a search finds it by (`90s hip hop`, `golden age`); `new_song` takes an alias no other genre has |
 | `bpm`, `swing`, `humanize` | tempo and feel ranges |
 | `modes`, `harmony`, `markov`, `ext`, `bars_per_chord` | keys, [harmonic styles](harmony.md#the-generators-harmony), how often a fresh Markov progression is written, chord extensions, chord lengths |
 | `forms` | the section plans, with layers, energies and flags; each song plays one [its own way](../../engineering/theory.md#a-form-and-a-mix-of-its-own) |

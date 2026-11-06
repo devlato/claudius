@@ -9,7 +9,10 @@ house drums"): it is one call, and the result is a song like any other to edit.
 sketches below are for when you build from patterns: each is a skeleton to grow, not a finished song. They write the
 harmony with `prog()` and let the bass and chords follow it (`chord("prog")`), so that the parts agree with each
 other and with what the critic checks the notes against. `catalog`
-lists the genres with their tempo ranges, and user genres when the person has added some.
+lists the genres by family with their other names and tempo ranges, and user genres when the person has added some.
+When the person names a style rather than a genre ("90s rap", "something west coast", "dusty"), `find_genre` with
+their words answers the genres for it, best first; `new_song` also takes another name of a genre that is no other
+genre's ("90s hip hop" is `boom_bap`).
 
 Any of them can be built on samples from free libraries: `new_song` with `sampled: true`, or with `sample_search`
 naming a kind of record ("70s soul", "bossa nova guitar", "film score"; not the genre's own name, which finds other

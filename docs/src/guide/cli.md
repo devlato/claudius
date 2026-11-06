@@ -464,15 +464,22 @@ synth presets playing a phrase in `synth/`, and five transition effects in `fx/`
 
 | command | prints |
 |---|---|
-| `claudius genres` | every genre with its tempo range and description, including your own genre files |
+| `claudius genres` | every genre by family, with its tempo range and description, including your own genre files (under "your own" when they name no family) |
+| `claudius genres WORDS` | the genres that answer a search, best first: a name or another name, an era, a scene, an artist or a sound (`claudius genres west coast`, `claudius genres 90s`) |
 | `claudius reference` | the script language reference, the same text `/api/reference` and the MCP tool `script_reference` return |
 | `claudius --version` | the version |
 
 ```text
 $ claudius genres
-deep_house   118-124 BPM  Deep house: softer four-on-the-floor, shuffled hats and shakers, minor 9th chords on electric piano and organ, a round syncopated bass, long warm reverbs
-dnb          170-176 BPM  Drum and bass: 174 BPM two-step breakbeat (kick on 1 and the and-of-3, snares on 2 and 4 with ghost notes), a growling reese bass, atmospheric pads, long intro and breakdown
+afro and latin
+  afrobeats        100-115 BPM  Afrobeats: 100 to 115 BPM, a rolling West African groove ...
 ...
+hip hop
+  alt_hip_hop       76-98  BPM  Alternative hip hop: 76 to 98 BPM, lush ninth and eleventh chords ...
+  boom_bap          86-96  BPM  Boom bap: 90s hip hop at 86 to 96 BPM, built on samples: ...
+...
+$ claudius genres golden age
+boom_bap          86-96  BPM  Boom bap: 90s hip hop at 86 to 96 BPM, built on samples: ...
 ```
 
 ## Run the studio and the server

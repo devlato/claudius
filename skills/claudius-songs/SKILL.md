@@ -32,7 +32,8 @@ judges it. You do the work; the person you make music with decides what sounds g
 1. **Get the brief.** Genre or mood, tempo feel, a song it should be like, how long. Ask one or two questions at
    most, pick sensible defaults for the rest, and say which you picked.
 2. **Start.** `new_song` with a genre (and seed, bpm, key if they matter) gives a complete, arranged song in 10 to
-   60 seconds. A song built on samples (trip-hop, boom bap, lo-fi, jungle, big beat and filter house are; any other
+   60 seconds; when the person names a style, an era or a scene rather than a genre ("90s rap", "west coast"),
+   `find_genre` with their words answers the genres for it. A song built on samples (trip-hop, boom bap, lo-fi, jungle, big beat and filter house are; any other
    genre with `sampled: true`, or `sample_search` naming a kind of record such as "70s soul") gathers a few first, a
    minute or two more. `complexity` says how layered it is: 0.8 to 1 for a full, layered or lush song (its harmony and
    lead doubled on second instruments, a counter-melody, a pad, more percussion), 0.1 to 0.3 for a sparse or minimal
