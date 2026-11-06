@@ -323,9 +323,14 @@ drum hit, cut as floats, as a 32-bit WAV. claudius opens the zip (`song::unpack_
 `POST /api/project`, which the studio sends a chosen `.zip` to) into a song folder of its own; a song's paths that
 name no file of its own (`find_moved`) are read in its folder, so the samples play from there. A `blueprint.json` the
 app's dialog chose beside the files it plays, as an unpacked project's is, goes as a project too (`Picked::as_project`):
-the studio reads those files, which claudius on another computer could not. A recording to listen to gets an analysis
-made up from its name, since the demo hears nothing, and a remake of one is a new song of the genre asked for. Scripts,
-opened songs and every edit are the engine's, as in the studio.
+the studio reads those files, which claudius on another computer could not. A recording chosen to listen to goes to
+the engine as the file itself (`claudius_api::Listen` with its bytes, the worker's `listen` message), which does with
+it what the app does with one the studio sends (`claudius_session::listen`, shared with the server): **Analyze** hears
+it, **Remake** reworks it and **Flip into** flips it, **Sample its vocals into the song** samples them, and **Take its
+groove** puts the song's drums in its groove. What it keeps of a recording (the rework's whole recording, a flip's
+pieces, the sampled phrases) is kept in memory under `demo:takes/` (`take::IN_MEMORY`), and goes in the project the
+page saves under `takes/`. A command that names a path is answered that the demo opens no paths. Scripts, opened songs
+and every edit are the engine's, as in the studio.
 
 ```sh
 cargo run -p claudius-ui -- --mock          # the native studio on the demo song

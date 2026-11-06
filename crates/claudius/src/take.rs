@@ -89,13 +89,25 @@ pub fn credited(path: &Path) -> Sources {
     s
 }
 
+/// the folder the demo's page keeps a song's recordings in, in memory (`audio::remember`), where the app writes them
+/// into its takes
+pub const IN_MEMORY: &str = "demo:takes";
+
 /// writes a recording into `dir` as 24-bit FLAC (mono when both sides are the same), named after its sound, so that
-/// the same take is one file however often it is stored
+/// the same take is one file however often it is stored; in a folder under `IN_MEMORY`, it is kept in memory instead,
+/// where the demo's page renders and packs it from
 pub fn store(audio: &Stereo, dir: &Path) -> Result<PathBuf> {
     let mono = audio.l == audio.r;
     let samples = if mono { audio.l.clone() } else { audio.interleaved() };
     let bytes: Vec<u8> = samples.iter().flat_map(|v| v.to_le_bytes()).collect();
-    let path = dir.join(format!("{}.flac", &blake3::hash(&bytes).to_hex()[..16]));
+    let file = format!("{}.flac", &blake3::hash(&bytes).to_hex()[..16]);
+    if dir.starts_with(IN_MEMORY) {
+        // by a name the same on every system, as the page's own (`demo:samples/...`) are, and a project's files
+        let key = format!("{}/{file}", dir.to_string_lossy().replace('\\', "/"));
+        crate::audio::remember(&key, audio.clone());
+        return Ok(PathBuf::from(key));
+    }
+    let path = dir.join(file);
     if path.is_file() {
         return Ok(path);
     }
@@ -805,6 +817,15 @@ mod tests {
     use super::*;
     use crate::compose::{self, Options};
     use crate::genres;
+
+    #[test]
+    fn a_recording_kept_in_memory_is_named_alike_on_every_system() {
+        let x = Stereo::from_mono(&[0.1, 0.2, 0.3]);
+        let path = store(&x, &Path::new(IN_MEMORY).join("my-song")).unwrap();
+        let key = path.to_string_lossy();
+        assert!(key.starts_with("demo:takes/my-song/") && key.ends_with(".flac"), "{key}");
+        assert!(crate::audio::remembered_audio(&key).is_some());
+    }
 
     fn song() -> Blueprint {
         let g = genres::get("house").unwrap();

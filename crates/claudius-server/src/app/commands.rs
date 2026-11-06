@@ -12,46 +12,11 @@ use claudius::{analysis, audio, config, export, genres, script, song, take};
 use claudius_api::*;
 
 use super::{App, no, now_seed, ok};
-use claudius_session::{edit, views};
-
-/// how a remake is built on its recording (`Command::Remake`'s `sampled` and `flip`)
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Remade {
-    /// all of it, through, with the genre under it (`remix::rework`)
-    Rework,
-    /// a new song of the genre on its hook and pieces of it (`remix::remix`)
-    Flip,
-    /// a new song on its skeleton only, none of its sound
-    Skeleton,
-}
-
-impl Remade {
-    pub fn of(sampled: Option<bool>, flip: Option<bool>) -> Remade {
-        match (sampled.unwrap_or(true), flip.unwrap_or(false)) {
-            (false, _) => Remade::Skeleton,
-            (true, true) => Remade::Flip,
-            (true, false) => Remade::Rework,
-        }
-    }
-}
+pub use claudius_session::listen::{Remade, analysis_text, groove_name, sampling};
+use claudius_session::{edit, listen, views};
 
 /// the largest project the studio may send to open, as large as a file it reads
 pub const MAX_PROJECT: usize = 300 << 20;
-
-/// what to sample, from what a command or a query says
-pub(crate) fn sampling(
-    count: Option<u32>,
-    bars: Option<u32>,
-    find: Option<String>,
-    sections: Vec<String>,
-) -> claudius::sampler::Options {
-    claudius::sampler::Options {
-        count: count.map_or(2, |c| c as usize),
-        bars,
-        find: find.filter(|f| !f.trim().is_empty()),
-        sections: sections.into_iter().filter(|s| !s.trim().is_empty()).collect(),
-    }
-}
 
 /// the parts notes played on a keyboard can make, as a take asked for may be
 const PART_ROLES: &[&str] = &["keys", "lead", "chords", "pad", "arp", "bass"];
@@ -561,26 +526,7 @@ impl App {
             Ok(h) => h,
             Err(e) => return no(format!("{from}: {e}"), self.version()),
         };
-        let (name, lanes) = (name.to_string(), lanes.to_vec());
-        self.edit_with(move |bp| {
-            let names: Vec<String> = bp.drums.iter().map(|d| d.name.clone()).collect();
-            if let Some(l) = lanes.iter().find(|l| !names.contains(l)) {
-                return Err(format!("no drum lane '{l}' (lanes: {})", names.join(" ")));
-            }
-            let lanes = if lanes.is_empty() { names } else { lanes };
-            bp.grooves.insert(name.clone(), heard.groove.clone());
-            for d in bp.drums.iter_mut().filter(|d| lanes.contains(&d.name)) {
-                (d.groove, d.groove_amount) = (Some(name.clone()), 1.0);
-            }
-            bp.lineage.push(format!("groove {name} from {from}"));
-            Ok(format!(
-                "groove {name}, heard in {from} at {:.0} BPM over {} hits: {}; {} play in it",
-                heard.bpm,
-                heard.onsets,
-                heard.groove.describe(),
-                lanes.join(", ")
-            ))
-        })
+        self.edit_with(|bp| listen::groove(bp, &heard, from, name, lanes))
     }
 
     /// how a take of the song, or a recording at `path` (in `key` when given), is sung
@@ -649,44 +595,12 @@ impl App {
         }
         let a = analysis::song::analyze(x, None);
         let seed = seed.unwrap_or_else(now_seed);
-        let opts = Options { bpm, ..Options::default() };
         let lib = self.lib.as_deref().map(|l| l as &dyn compose::Library);
         let name = Path::new(path).file_name().map_or_else(|| path.to_string(), |n| n.to_string_lossy().into_owned());
         let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
-        let src = claudius::remix::Source { x, name: &name, a: &a };
-        let remixed = match how {
-            Remade::Rework => Some(claudius::remix::rework(&src, &g, seed, &opts, lib, &dir)),
-            Remade::Flip => {
-                let ears = self.ears.get().and_then(|e| e.as_ref());
-                Some(claudius::remix::remix(&src, &g, seed, &opts, lib, &dir, ears))
-            }
-            Remade::Skeleton => None,
-        };
-        let (bp, verb, told) = match remixed {
-            Some(Ok(bp)) => {
-                let said: Vec<&String> = bp
-                    .lineage
-                    .iter()
-                    .filter(|l| ["remixed", "reworked", "sampled"].iter().any(|w| l.starts_with(w)))
-                    .collect();
-                let told = said.iter().map(|l| format!("\n{l}")).collect::<String>();
-                (bp, if how == Remade::Flip { "remixed" } else { "reworked" }, told)
-            }
-            remixed => {
-                let bp = analysis::song::to_blueprint(&a, &g, seed, &opts, lib, path);
-                let mut told = match remixed {
-                    Some(Err(e)) => format!("\na song on its skeleton, not a remix of it: {e}"),
-                    _ => String::new(),
-                };
-                if bpm.is_none() && bp.bpm != a.bpm.round() {
-                    told.push_str(&format!(
-                        "\nat {:.0} BPM: the recording's {:.0} is outside {genre}'s {:.0}-{:.0}",
-                        bp.bpm, a.bpm, g.bpm.0, g.bpm.1
-                    ));
-                }
-                (bp, "remade", told)
-            }
-        };
+        let ears = self.ears.get().and_then(|e| e.as_ref());
+        let src = listen::Heard { x, path, name: &name, a: &a };
+        let (bp, verb, told) = listen::remake(&src, &g, seed, bpm, how, &listen::With { lib, dir: &dir, ears });
         self.lock().folder = None;
         self.commit(Some(bp), format!("{verb} {path} as {genre}{told}:\n{}", analysis_text(&a)))
     }
@@ -891,55 +805,4 @@ impl App {
             }
         }
     }
-}
-
-pub fn analysis_text(a: &analysis::song::Analysis) -> String {
-    let mut out = format!(
-        "{:.1} BPM (pulse clarity {:.2}), {} (confidence {:.2}), swing {:.2}, {} bars from {:.2} s\n",
-        a.bpm,
-        a.pulse_clarity,
-        a.key.name(),
-        a.key_confidence,
-        a.swing,
-        a.bars,
-        a.first_downbeat
-    );
-    out.push_str(&format!(
-        "progression A: {}  |  B: {}  ({} bar(s) per chord)\n",
-        a.progression_a.join(" "),
-        a.progression_b.join(" "),
-        a.bars_per_chord
-    ));
-    for s in &a.sections {
-        let mut l = Vec::new();
-        for (on, n) in [(s.kick, "kick"), (s.bass, "bass"), (s.hats, "hats")] {
-            if on {
-                l.push(n);
-            }
-        }
-        out.push_str(&format!(
-            "bar {:3} +{:2}  {:7} energy {:.2}  {}\n",
-            s.start_bar,
-            s.bars,
-            s.kind.name(),
-            s.energy,
-            l.join(" ")
-        ));
-    }
-    let grid = claudius::analysis::song::grid;
-    out.push_str(&format!(
-        "kick  {}\nsnare {}\nhats  {}\nbass style: {}\n",
-        grid(&a.kick_steps),
-        grid(&a.snare_steps),
-        grid(&a.hat_steps),
-        a.bass_style
-    ));
-    out
-}
-
-/// a groove's name from the file it was heard in: its stem, in letters, digits, - and _
-pub(super) fn groove_name(path: &str) -> String {
-    let stem = Path::new(path).file_stem().map_or("groove".into(), |s| s.to_string_lossy().to_lowercase());
-    let name: String = stem.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '_' }).collect();
-    if name.is_empty() { "groove".into() } else { name }
 }

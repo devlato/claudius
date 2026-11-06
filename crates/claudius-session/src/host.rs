@@ -176,6 +176,69 @@ impl Host {
         Ok(p)
     }
 
+    /// A recording the person chose on the page (`bytes`, the file itself), listened to as the app listens to one the
+    /// studio sends (`listen`): analyzed, remade in a genre (a new song, as a new song replaces the old), its vocals
+    /// sampled into the song, or its groove taken for the song's drums. What a remake or the sampler keeps of it is kept
+    /// in memory (`take::IN_MEMORY`), and goes in the project the page saves.
+    pub fn listen(&mut self, l: &crate::listen::Listen, bytes: Vec<u8>) -> Reply {
+        use crate::listen::{self, Listen};
+        let name = l.name().to_string();
+        let x = match listen::decode(bytes, &name) {
+            Ok(x) => x,
+            Err(e) => return self.no(e),
+        };
+        let dir = std::path::Path::new(take::IN_MEMORY);
+        match l {
+            Listen::Analyze { .. } => {
+                let text = listen::analysis_text(&claudius::analysis::song::analyze(&x, None));
+                self.say(format!("analyzed {name}"));
+                self.version += 1;
+                self.ok(&text)
+            }
+            Listen::Remake { genre, seed, flip, .. } => {
+                let genre = genre.clone().or_else(|| self.bp.as_ref().map(|b| b.genre.clone()));
+                let genre = genre.unwrap_or_else(|| "house".into());
+                let g = match genres::get(&genre) {
+                    Ok(g) => g,
+                    Err(e) => return self.no(e.to_string()),
+                };
+                let a = claudius::analysis::song::analyze(&x, None);
+                let seed = seed.unwrap_or_else(|| self.seed());
+                let lib = self.lib.clone();
+                let with = listen::With { lib: lib.as_deref().map(|l| l as &dyn compose::Library), dir, ears: None };
+                let how = listen::Remade::of(None, Some(*flip));
+                let src = listen::Heard { x: &x, path: &name, name: &name, a: &a };
+                let (bp, verb, told) = listen::remake(&src, &g, seed, None, how, &with);
+                self.forget_render();
+                self.commit(Some(bp), format!("{verb} {name} as {genre}{told}:\n{}", listen::analysis_text(&a)))
+            }
+            Listen::SampleSong { .. } => {
+                let Some(mut bp) = self.bp.clone() else {
+                    return self.no("no song yet: start one with a new song, then sample a recording into it");
+                };
+                let opt = listen::sampling(None, None, None, Vec::new());
+                match claudius::sampler::sample(&mut bp, &x, &name, None, &opt, dir) {
+                    Ok(s) => self.commit(Some(bp), s.lines.join("\n")),
+                    Err(e) => self.no(e),
+                }
+            }
+            Listen::ExtractGroove { .. } => {
+                let Some(mut bp) = self.bp.clone() else {
+                    return self.no("no song yet: start one with a new song, then take a recording's groove");
+                };
+                let heard = match claudius::analysis::groove::hear(&x, claudius::analysis::groove::tempo_in_name(&name))
+                {
+                    Ok(h) => h,
+                    Err(e) => return self.no(format!("{name}: {e}")),
+                };
+                match listen::groove(&mut bp, &heard, &name, &listen::groove_name(&name), &[]) {
+                    Ok(msg) => self.commit(Some(bp), msg),
+                    Err(e) => self.no(e),
+                }
+            }
+        }
+    }
+
     /// The song as a project to open in claudius (`song::pack_project`), a zip: the files it plays, which only this
     /// session holds, go in it (`project_path`), a drum hit as the 32-bit WAV it was cut as and the rest as 24-bit
     /// FLAC, each with the recording it was cut from (its page, creator and licence) in a `.json` beside it, and
@@ -828,7 +891,9 @@ fn name(c: &Command) -> String {
 fn project_path(path: &str, float: bool) -> String {
     let ext = if float { "wav" } else { "flac" };
     match path.strip_prefix("demo:") {
-        Some(rest) => format!("{}.{ext}", rest.strip_suffix(".wav").unwrap_or(rest)),
+        Some(rest) => {
+            format!("{}.{ext}", rest.strip_suffix(".wav").or_else(|| rest.strip_suffix(".flac")).unwrap_or(rest))
+        }
         None => format!("takes/{}.{ext}", claudius::song::slug(path)),
     }
 }
@@ -1186,5 +1251,110 @@ mod tests {
         let credits = claudius::song::credits(&claudius::compose::arrange(&opened));
         assert!(credits.contains("\"Keys\" by someone"), "{credits}");
         let _ = std::fs::remove_dir_all(&songs);
+    }
+
+    /// a file as a page hands one over: `x` as a WAV's bytes
+    fn wav(x: &Stereo) -> Vec<u8> {
+        claudius::export::encode(x, &"wav".parse().unwrap(), &claudius::export::tags("recording")).unwrap()
+    }
+
+    /// sixteen bars at 96 BPM in A minor, `i VI III VII` a bar each as sine triads, a kick on one and three and a noise
+    /// snare on two and four, quiet for eight bars and loud for eight more
+    fn a_song() -> Stereo {
+        let bar = 2.5;
+        let n = (16.0 * bar * claudius::config::SRF) as usize;
+        let mut x = Stereo::zeros(n);
+        let roots = [57.0, 53.0, 48.0, 55.0];
+        let thirds = [3.0, 4.0, 4.0, 4.0];
+        let mut noise = Rng::new(9);
+        for i in 0..n {
+            let t = i as f64 / claudius::config::SRF;
+            let b = (t / bar) as usize;
+            let (root, third) = (roots[b % 4], thirds[b % 4]);
+            let loud = if b >= 8 { 1.0 } else { 0.45 };
+            let tone = |m: f64| (std::f64::consts::TAU * 440.0 * 2f64.powf((m - 69.0) / 12.0) * t).sin();
+            let mut v = 0.12 * loud * (tone(root) + tone(root + third) + tone(root + 7.0));
+            let beat = t / (bar / 4.0);
+            let (k, into) = (beat as usize % 4, beat.fract() * bar / 4.0);
+            if (k == 0 || k == 2) && into < 0.12 {
+                v += 0.6 * (std::f64::consts::TAU * 55.0 * into).sin() * (1.0 - into / 0.12);
+            }
+            if (k == 1 || k == 3) && into < 0.08 {
+                v += 0.3 * loud * noise.range(-1.0, 1.0) * (1.0 - into / 0.08);
+            }
+            x.l[i] = v as f32;
+            x.r[i] = v as f32;
+        }
+        x
+    }
+
+    #[test]
+    fn a_recording_chosen_on_the_page_is_heard_reworked_flipped_and_grooved_in_memory() {
+        use crate::listen::Listen;
+        let mut h = Host::new(1);
+        let bytes = wav(&a_song());
+        let name = || "my song.wav".to_string();
+        let r = h.listen(&Listen::Analyze { name: name() }, bytes.clone());
+        assert!(r.ok && r.message.contains(" BPM (pulse clarity"), "{}", r.message);
+        // reworked: the recording plays all through, kept in memory, and goes in the project the page saves
+        let remake = |flip| Listen::Remake { name: name(), genre: Some("boom_bap".into()), seed: Some(3), flip };
+        let r = h.listen(&remake(false), bytes.clone());
+        assert!(r.ok && r.message.starts_with("reworked my song.wav as boom_bap"), "{}", r.message);
+        let bp = h.blueprint().unwrap().clone();
+        let original = bp.loops.iter().find(|l| l.name == "original").expect("the recording plays");
+        let model::Sound::Loop { path, .. } = &original.sound else { panic!("a loop") };
+        assert!(path.starts_with("demo:takes/my-song/") && audio::remembered_audio(path).is_some(), "{path}");
+        assert!(h.render().is_some_and(|r| r.is_ok()), "it renders");
+        let songs = std::env::temp_dir().join(format!("claudius-session-rework-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&songs);
+        let dir = claudius::song::unpack_project(&h.project().unwrap(), "song.zip", &songs).unwrap();
+        let kept = std::fs::read_dir(dir.join("takes/my-song")).unwrap().count();
+        assert_eq!(kept, 1, "the recording, in the project");
+        let _ = std::fs::remove_dir_all(&songs);
+        // flipped, when asked
+        let r = h.listen(&remake(true), bytes.clone());
+        assert!(r.ok && r.message.starts_with("remixed my song.wav as boom_bap"), "{}", r.message);
+        assert!(h.blueprint().unwrap().loops.iter().any(|l| l.name == "flip"));
+        // its groove, for the song's drums
+        let r = h.listen(&Listen::ExtractGroove { name: name() }, bytes);
+        assert!(r.ok && r.message.starts_with("groove my_song, heard in my song.wav"), "{}", r.message);
+        // and a file that is no recording says so
+        let r = h.listen(&Listen::Analyze { name: "notes".into() }, b"hello".to_vec());
+        assert!(!r.ok && r.message.starts_with("send the recording as the file itself"), "{}", r.message);
+    }
+
+    #[test]
+    fn a_recordings_vocals_chosen_on_the_page_are_sampled_into_the_song_in_memory() {
+        use crate::listen::Listen;
+        let mut h = Host::new(1);
+        assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 5})).ok);
+        let short =
+            r#"form([sec("intro", 4, "*"), sec("drop", 8, "*"), sec("break", 4, "pad"), sec("drop", 8, "*")]);"#;
+        assert!(command(&mut h, json!({"cmd": "run_script", "code": short})).ok);
+        // sixteen seconds: a sung A3 from the fourth second to the twelfth, a hat to the left all through
+        let (sr, n) = (claudius::config::SR as usize, 16 * claudius::config::SR as usize);
+        let mut x = Stereo::zeros(n);
+        let mut phase = 0f64;
+        for i in 0..n {
+            if i % (sr / 4) < sr / 50 {
+                x.l[i] += if i % 2 == 0 { 0.2 } else { -0.2 };
+            }
+            if (4 * sr..12 * sr).contains(&i) {
+                let t = i as f64 / sr as f64;
+                phase +=
+                    std::f64::consts::TAU * 220.0 * (1.0 + 0.01 * (t * 5.0 * std::f64::consts::TAU).sin()) / sr as f64;
+                let v = (phase.sin() * 0.4 + (2.0 * phase).sin() * 0.15) as f32;
+                x.l[i] += v;
+                x.r[i] += v;
+            }
+        }
+        let r = h.listen(&Listen::SampleSong { name: "vocal.wav".into() }, wav(&x));
+        assert!(r.ok && r.message.starts_with("vox1: bars ") && r.message.contains("% sung"), "{}", r.message);
+        let bp = h.blueprint().unwrap();
+        let vox = bp.loops.iter().find(|l| l.name == "vox1").expect("the phrase plays");
+        let (model::Sound::Loop { path, .. } | model::Sound::Sample { path, .. }) = &vox.sound else {
+            panic!("a recording: {:?}", vox.sound)
+        };
+        assert!(path.starts_with("demo:takes/") && audio::remembered_audio(path).is_some(), "{path}");
     }
 }

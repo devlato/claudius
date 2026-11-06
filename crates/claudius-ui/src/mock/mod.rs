@@ -36,18 +36,6 @@ impl Rng {
         self.0
     }
 
-    pub fn f64(&mut self) -> f64 {
-        (self.next() >> 11) as f64 / (1u64 << 53) as f64
-    }
-
-    pub fn f32(&mut self) -> f32 {
-        self.f64() as f32
-    }
-
-    pub fn range(&mut self, lo: f32, hi: f32) -> f32 {
-        lo + (hi - lo) * self.f32()
-    }
-
     pub fn below(&mut self, n: usize) -> usize {
         (self.next() % n.max(1) as u64) as usize
     }
@@ -60,7 +48,6 @@ const FIRST: (&str, u64) = ("deep_house", 3);
 const OPENING: &str = "demo:first";
 /// how long a new song waits for its samples before it is made with what has come
 const SAMPLE_WAIT: f64 = 60.0;
-const AUDIO: [&str; 7] = [".wav", ".mp3", ".flac", ".aif", ".aiff", ".m4a", ".ogg"];
 
 /// a new song of a genre built on samples, waiting for them: its gathering, when it began, and the command that makes
 /// the song once they are here
@@ -87,7 +74,6 @@ pub struct Mock {
     /// commands sent to the engine and not answered yet
     waiting: usize,
     /// a remake's made-up analysis, which goes before the engine's answer to it
-    remade: Option<String>,
     sampler: sample::Sampler,
     sampling: Option<Sampling>,
     rng: Rng,
@@ -158,7 +144,6 @@ impl Mock {
             events: Vec::new(),
             audio: None,
             waiting: 1,
-            remade: None,
             sampler: sample::Sampler::new(ctx.clone()),
             sampling: None,
             rng: Rng::new(42),
@@ -219,9 +204,24 @@ impl Mock {
         self.engine.playhead(secs);
     }
 
+    /// A recording the person chose, the file itself, for the engine to listen to as the app listens to one the
+    /// studio sends: analyzed, remade, its vocals sampled into the song, its groove taken. The answer comes as the
+    /// reply to `l.what()`.
+    pub fn listen(&mut self, l: claudius_api::Listen, bytes: &[u8]) {
+        let what = l.what().to_string();
+        // the song remade now is the one the person wants, once the engine has made it
+        if matches!(l, claudius_api::Listen::Remake { .. })
+            && let Some(s) = self.sampling.as_mut()
+        {
+            s.superseded = Some(what);
+        }
+        self.engine.listen(&l, bytes);
+        self.waiting += 1;
+    }
+
     pub fn send(&mut self, cmd: Command) {
         let what = command_name(&cmd);
-        let replaces = matches!(cmd, Command::NewSong { .. } | Command::Remake { .. } | Command::OpenText { .. });
+        let replaces = matches!(cmd, Command::NewSong { .. } | Command::OpenText { .. });
         let here: Option<Result<String, String>> = match &cmd {
             Command::NewSong { genre, sampled, sample_search, .. }
                 if self.sampler.on()
@@ -232,34 +232,13 @@ impl Mock {
                 let search = sample_search.clone();
                 Some(Ok(self.gather(genre, search.as_deref(), cmd.clone())))
             }
-            Command::Remake { path, genre, seed, .. } => match audio_file(path) {
-                Ok(()) => {
-                    let genre = genre
-                        .clone()
-                        .or_else(|| self.state.song.as_ref().map(|s| s.genre.clone()))
-                        .unwrap_or_else(|| FIRST.0.into());
-                    self.remade = Some(format!("remade {path} as {genre}:\n{}", self.fake_analysis(path)));
-                    let song = Command::NewSong {
-                        genre,
-                        seed: *seed,
-                        bpm: None,
-                        key: None,
-                        loops: false,
-                        sampled: None,
-                        sample_search: None,
-                        complexity: None,
-                    };
-                    self.engine.command(&what, &song);
-                    self.waiting += 1;
-                    None
-                }
-                Err(e) => Some(Err(e)),
-            },
-            Command::Analyze { path } => Some(audio_file(path).map(|()| {
-                let said = self.fake_analysis(path);
-                self.say(format!("analyzed {path}"));
-                said
-            })),
+            // a recording comes as the file itself (`listen`): the page reads no paths
+            Command::Remake { path, .. }
+            | Command::Analyze { path }
+            | Command::SampleSong { path, .. }
+            | Command::ExtractGroove { path, .. } => {
+                Some(Err(format!("the demo opens no paths ({path}): choose the file, and the studio hands it over")))
+            }
             Command::RequestPitchCheck { note, .. } => Some(Ok(self.pitch_check(note))),
             Command::CancelPitchCheck { id } => Some(match self.pitch_check.as_mut() {
                 Some(c) if c.id == *id && c.status == TakeStatus::Waiting => {
@@ -289,14 +268,8 @@ impl Mock {
             Command::RequestTake { .. } | Command::CancelTakeRequest { .. } => {
                 Some(Err("the demo records nothing: start `claudius serve` to ask for takes".into()))
             }
-            Command::SampleSong { .. } => {
-                Some(Err("the demo samples no recordings: start `claudius serve` to sample one".into()))
-            }
             Command::TranscribeDrums { .. } => {
                 Some(Err("the demo hears no drums: start `claudius serve` to turn a beat into lanes".into()))
-            }
-            Command::ExtractGroove { .. } => {
-                Some(Err("the demo hears no grooves: start `claudius serve` to take a recording's groove".into()))
             }
             Command::AssessVoice { .. } => {
                 Some(Err("the demo hears no singing: start `claudius serve` to hear how a take is sung".into()))
@@ -318,10 +291,8 @@ impl Mock {
                 self.events.push(Event::Reply { what, result: Ok(reply) });
             }
             None => {
-                if !matches!(cmd, Command::Remake { .. }) {
-                    self.engine.command(&what, &cmd);
-                    self.waiting += 1;
-                }
+                self.engine.command(&what, &cmd);
+                self.waiting += 1;
                 // the song asked for now is the one the person wants, once the engine has made it
                 if replaces && let Some(s) = self.sampling.as_mut() {
                     s.superseded = Some(what);
@@ -396,13 +367,6 @@ impl Mock {
         format!("asked the person for a pitch check (check {id}): six phrases of four notes to sing back")
     }
 
-    fn fake_analysis(&mut self, path: &str) -> String {
-        let bpm = 118.0 + self.rng.range(0.0, 10.0).round();
-        format!(
-            "{path} (demo: made up, the file was not read)\ntempo {bpm:.1} BPM, key A minor (confidence 0.71)\nprogression A: i VI III VII  |  B: iv i VII v  (1 bar(s) per chord)\nsections: intro 16, groove 16, break 8, drop 32, outro 16\nkick on every beat, offbeat hats, swing 0.53"
-        )
-    }
-
     fn say(&mut self, line: String) {
         self.said.push(line);
         let n = self.said.len();
@@ -433,7 +397,7 @@ impl Mock {
         self.now = now;
         for heard in self.engine.take() {
             match heard {
-                Heard::Answer { what, mut reply, state } => {
+                Heard::Answer { what, reply, state } => {
                     self.waiting = self.waiting.saturating_sub(1);
                     if let Some(s) = self.sampling.as_mut()
                         && s.superseded.as_deref() == Some(what.as_str())
@@ -448,11 +412,6 @@ impl Mock {
                     }
                     self.state = *state;
                     self.publish();
-                    if what == "remake"
-                        && let Some(said) = self.remade.take()
-                    {
-                        reply.message = format!("{said}\n{}", reply.message);
-                    }
                     // a take from a phone answers the phone, and is news to the person rather than an answer
                     if what != OPENING && !self.took(&what, &reply) {
                         self.events.push(Event::Reply { what, result: Ok(reply) });
@@ -526,17 +485,6 @@ impl Mock {
             }
         }
         std::mem::take(&mut self.events)
-    }
-}
-
-fn audio_file(path: &str) -> Result<(), String> {
-    let p = path.trim().to_lowercase();
-    if p.is_empty() {
-        Err("no file".into())
-    } else if AUDIO.iter().any(|ext| p.ends_with(ext)) {
-        Ok(())
-    } else {
-        Err(format!("cannot read {path}: not an audio file the demo knows (wav, mp3, flac, aiff, m4a, ogg)"))
     }
 }
 
@@ -757,7 +705,7 @@ mod tests {
 
     fn noise(secs: f64, seed: u64) -> Vec<f32> {
         let mut rng = Rng::new(seed);
-        (0..(secs * 48_000.0) as usize).map(|_| rng.range(-0.2, 0.2)).collect()
+        (0..(secs * 48_000.0) as usize).map(|_| (rng.next() >> 40) as f32 / (1u64 << 24) as f32 * 0.4 - 0.2).collect()
     }
 
     /// answers what the sampler asks for, as the site would: a phrase in A minor at 90 BPM, a break and some crackle,
