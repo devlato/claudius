@@ -327,6 +327,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
             }
         }
         tracks.push(Track {
+            late_ms: lane.late_ms,
             name: lane.name.clone(),
             role: role.clone(),
             sound: lane.sound.clone(),
@@ -362,6 +363,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
             notes.extend(tile(&cyc, period, a, b));
         }
         tracks.push(Track {
+            late_ms: part.late_ms,
             name: part.name.clone(),
             role: part.role.name().to_string(),
             sound: part.sound.clone(),
@@ -404,6 +406,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
             }
         }
         tracks.push(Track {
+            late_ms: 0.0,
             name: lp.name.clone(),
             role: lp.role.clone(),
             sound: lp.sound.clone(),
@@ -444,6 +447,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
             ps.sort();
             let median = ps.get(ps.len() / 2).copied().unwrap_or(60) as f64;
             tracks.push(Track {
+                late_ms: 0.0,
                 name: if many { format!("{}.{label}", pt.name) } else { pt.name.clone() },
                 role: if pt.role.is_empty() {
                     crate::script::role_of(&label, pat.kind, median)
@@ -502,6 +506,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
     let mut push_fx = |name: &str, sound: Sound, notes: Vec<Note>, role: &str| {
         if !notes.is_empty() {
             tracks.push(Track {
+                late_ms: 0.0,
                 name: name.into(),
                 role: role.into(),
                 sound,

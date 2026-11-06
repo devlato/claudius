@@ -190,11 +190,15 @@ pub(super) fn lines(lane: &str, variant: &str, hits: &[Hit]) -> Vec<String> {
 }
 
 /// what `lane()`'s map may hold
-pub(super) const LANE_KEYS: &[&str] = &["length", "speed", "swing", "groove", "groove_amount"];
+pub(super) const LANE_KEYS: &[&str] = &["length", "speed", "swing", "groove", "groove_amount", "late"];
+
+/// the most a lane or a part plays behind (or ahead of) the beat, in milliseconds
+pub const MOST_LATE: f32 = 80.0;
 
 /// Sets drum lane `lane`'s own time and feel from `m`: its `length` in sixteenths (0: its pattern's bars), its
 /// `speed`, its `swing` (0: the song's), its `groove` (a name from `rhythm::GROOVES` or the song's grooves; "" none)
-/// and how much of it, `groove_amount`. Returns what it did, in words.
+/// and how much of it, `groove_amount`, and how `late` it plays, in milliseconds (ahead, below zero). Returns what it
+/// did, in words.
 pub(super) fn set_lane(bp: &mut Blueprint, lane: &str, m: &Map) -> R<String> {
     use crate::theory::rhythm::GROOVES;
     check_keys(m, "lane()", LANE_KEYS)?;
@@ -243,6 +247,9 @@ pub(super) fn set_lane(bp: &mut Blueprint, lane: &str, m: &Map) -> R<String> {
     if let Some(v) = range("groove_amount", 0.0, 1.0)? {
         l.groove_amount = v;
     }
+    if let Some(v) = range("late", -MOST_LATE, MOST_LATE)? {
+        l.late_ms = v;
+    }
     Ok(format!("{lane}: {}", lane_words(l)))
 }
 
@@ -263,7 +270,16 @@ pub fn lane_words(l: &crate::model::DrumLane) -> String {
         let amount = if l.groove_amount < 1.0 { format!(" ({:.0}%)", l.groove_amount * 100.0) } else { String::new() };
         w.push(format!("in the {g} groove{amount}"));
     }
+    if l.late_ms != 0.0 {
+        w.push(late_words(l.late_ms));
+    }
     if w.is_empty() { "on the song's time and feel".into() } else { w.join(", ") }
+}
+
+/// how far off the beat a lane or part plays, in words: "20 ms behind the beat", "5 ms ahead of it"
+pub fn late_words(ms: f32) -> String {
+    let n = super::print::number(ms.abs() as f64);
+    if ms > 0.0 { format!("{n} ms behind the beat") } else { format!("{n} ms ahead of the beat") }
 }
 
 /// a groove as a script writes it: `#{ timing: [16 beats], accent: [16 factors] }`
@@ -326,6 +342,9 @@ pub(super) fn lane_line(l: &crate::model::DrumLane) -> Option<String> {
     }
     if l.groove_amount != 1.0 {
         parts.push(format!("groove_amount: {}", n(l.groove_amount)));
+    }
+    if l.late_ms != 0.0 {
+        parts.push(format!("late: {}", n(l.late_ms)));
     }
     (!parts.is_empty()).then(|| format!("lane({}, #{{ {} }});", quote(&l.name), parts.join(", ")))
 }

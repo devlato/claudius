@@ -669,6 +669,7 @@ fn parts_from_notes(
         let name = names.by_ref().find(|n| !taken.contains(n)).unwrap_or_default();
         let seed = hash_str(&name) ^ bp.seed;
         bp.parts.push(Part {
+            late_ms: 0.0,
             name: name.clone(),
             role,
             sound: compose::part_sound(sound, &mut Rng::new(seed)),

@@ -33,8 +33,11 @@ pub fn script(cmd: &Command, bp: Option<&Blueprint>, seed: u64) -> Option<Result
             format!("drum({}, {}, {})", quote(lane), quote(variant), quote(steps)),
             format!("{lane} ({variant}) pattern"),
         ),
-        Command::SetPart { name, style, preset, register, density, reseed } => {
+        Command::SetPart { name, style, preset, register, density, reseed, late_ms } => {
             let mut fields = Vec::new();
+            if let Some(ms) = late_ms {
+                fields.push(format!("late: {ms:?}"));
+            }
             if let Some(s) = style {
                 fields.push(format!("style: {}", quote(s)));
             }
@@ -102,12 +105,12 @@ pub fn script(cmd: &Command, bp: Option<&Blueprint>, seed: u64) -> Option<Result
                 format!("mix {track}: {}", fields.join(", ")),
             )
         }
-        Command::SetLane { lane, length, speed, swing, groove, groove_amount } => {
+        Command::SetLane { lane, length, speed, swing, groove, groove_amount, late_ms } => {
             let mut set = Vec::new();
             if let Some(v) = length {
                 set.push(format!("length: {v}"));
             }
-            for (k, v) in [("speed", speed), ("swing", swing), ("groove_amount", groove_amount)] {
+            for (k, v) in [("speed", speed), ("swing", swing), ("groove_amount", groove_amount), ("late", late_ms)] {
                 if let Some(v) = v {
                     set.push(format!("{k}: {v:?}"));
                 }

@@ -353,8 +353,9 @@ pub fn to_script(bp: &Blueprint) -> String {
             Some(d) => format!(", doubles: {}", quote(d)),
             None => String::new(),
         };
+        let late = if p.late_ms != 0.0 { format!(", late: {}", f32s(p.late_ms)) } else { String::new() };
         s.push_str(&format!(
-            "part({}, #{{ {role}style: {}{preset}, register: [{}, {}], density: {}{rate}, seed: {}{doubles} }});\n",
+            "part({}, #{{ {role}style: {}{preset}, register: [{}, {}], density: {}{rate}, seed: {}{doubles}{late} }});\n",
             quote(&p.name),
             quote(&p.style),
             p.register.0,

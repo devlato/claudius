@@ -139,9 +139,15 @@ Swing applies when the song renders, to drums, parts and pattern tracks alike.
 humanize(amount)   // number, clamped to 0..1
 ```
 
-Random timing and velocity, applied at render. The timing offset has a standard deviation of 4 ms × *amount* on drum
-roles and 60 % of that on other tracks (synth tracks use 3 ms instead of 4); velocity varies by 5 % × *amount*. The
-offsets are seeded by the song and the track name, so they are the same on every render.
+How loosely the song is played, applied at render: each hit drifts off the grid as a player's does, and its velocity
+varies by 5 % × *amount*. A player's hits are not off at random: they leave the grid by 10 to 20 ms, drifting with the
+hits around them, ahead for a while and behind for a while, over tens of seconds (a 1/f noise, as Hennig et al. found
+in "The nature and perception of fluctuations in human musical rhythms", PLOS ONE, 2011, where listeners preferred
+it to a humaniser's independent jitter). So a hit drifts by about 15 ms × *amount* (one standard deviation, three at
+most): the kick by half of that, the snare and clap by 80 %, the hats by all of it, the rest of the percussion by
+120 %, and a part by 60 %. The drum lanes share part of their drift, as one drummer's limbs, and each part has its
+own. The drift is drawn from the song's seed, so it is the same on every render. For a lane or part that plays behind
+or ahead of the beat on purpose, every hit alike, see `late` in [`lane()`](#lane) and [`part()`](#part).
 
 ## Harmony
 
@@ -286,6 +292,7 @@ Gives a drum lane a time and feel of its own, apart from the song's:
 | `swing` | 0.5 to 0.8, or 0 | its own swing, as [`swing()`](#swing) sets the song's; 0 gives it the song's again |
 | `groove` | a groove's name, or `""` | the groove it plays in: one of claudius' own (below) or one of the song's from [`groove()`](#groove); `""` none |
 | `groove_amount` | 0 to 1 | how much of the groove: 0.5 moves each stroke half as far and accents it half as much |
+| `late` | -80 to 80 ms | how far behind the beat every hit plays, alike, as a drum machine's shift timing moves a pad; below zero, ahead. A snare 20 late lays the backbeat back, a kick 5 early pushes it: the drunk feel J Dilla made on an MPC has the kick early and the snare late, the hats on the grid. Unlike a groove it is in milliseconds, the same at any tempo |
 
 A groove moves each sixteenth of the bar by its own amount and accents it by its own factor, as a drum machine's groove
 template does. Only strokes exactly on the song's sixteenths take it: a 32nd, a triplet or a ratchet's inner strokes
@@ -440,6 +447,7 @@ part the genre does not have, so it builds again.
 | `rate` | number, clamped to 1/32..4 | arpeggio step in beats (0.25 is sixteenths) |
 | `doubles` | string | another part whose notes this one plays, on its own sound: a double; `""` makes it play its own again |
 | `octave` | integer, -2 to 2 | how many octaves from that part's notes a double plays them |
+| `late` | number, -80 to 80 | how far behind the beat it plays, in milliseconds (ahead, below zero): a bass pulled 15 behind the drums, as a neo-soul bassist plays |
 
 | role | styles |
 |---|---|

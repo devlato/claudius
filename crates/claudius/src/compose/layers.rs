@@ -140,6 +140,8 @@ fn spec_for(g: &GenreProfile, name: &str, role: Role, fallback: &str) -> PartSpe
         mix: own.map(|p| p.mix.clone()).unwrap_or_default(),
         doubles: None,
         octave: 0,
+        // a layer of a role plays with the feel of the genre's part of it
+        late_ms: own.and_then(|p| p.late_ms),
     }
 }
 
@@ -365,6 +367,7 @@ fn lane(
         .and_then(|l| l.one_shot(name, &default_hints(name), g, r))
         .unwrap_or(Sound::Drum { voice, params });
     DrumLane {
+        late_ms: 0.0,
         length: None,
         speed: 1.0,
         swing: None,

@@ -5,6 +5,9 @@ use claudius_api::{Command, DrumView, PartView, SectionView, SongView, TrackView
 
 use crate::music::Key;
 
+/// the most a lane or a part plays behind (or ahead of) the beat, in milliseconds, as the server's scripts take it
+pub(crate) const MOST_LATE: f32 = 80.0;
+
 pub const SECTION_KINDS: [&str; 8] = ["intro", "verse", "groove", "build", "drop", "break", "hook", "outro"];
 
 /// step notation of one velocity: x hit, X accent, o ghost, . rest
@@ -222,7 +225,7 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             ))
         }
         // a lane's own time and feel, as the server keeps them
-        Command::SetLane { lane, length, speed, swing, groove, groove_amount } => {
+        Command::SetLane { lane, length, speed, swing, groove, groove_amount, late_ms } => {
             let Some(d) = song.drums.iter_mut().find(|d| &d.lane == lane) else {
                 return Some(Err(format!("no drum lane '{lane}'")));
             };
@@ -240,6 +243,9 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             }
             if let Some(v) = groove_amount {
                 d.groove_amount = v.clamp(0.0, 1.0);
+            }
+            if let Some(v) = late_ms {
+                d.late_ms = v.clamp(-MOST_LATE, MOST_LATE);
             }
             Ok(format!("{lane}: its own time"))
         }
@@ -289,11 +295,15 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
                 steps_to_string(&d.variants.iter().find(|(n, _)| n == variant)?.1[..16.min(len)])
             ))
         }
-        Command::SetPart { name, style, preset, register, density, reseed } => {
+        Command::SetPart { name, style, preset, register, density, reseed, late_ms } => {
             let Some(p) = song.parts.iter_mut().find(|p| &p.name == name) else {
                 return Some(Err(format!("no part '{name}'")));
             };
             let mut what = Vec::new();
+            if let Some(v) = late_ms {
+                p.late_ms = v.clamp(-MOST_LATE, MOST_LATE);
+                what.push(format!("{} ms late", p.late_ms));
+            }
             if let Some(v) = style {
                 p.style = v.clone();
                 what.push(format!("style {v}"));
@@ -371,6 +381,7 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
                         register,
                         density: 0.55,
                         cycles: Vec::new(),
+                        late_ms: 0.0,
                     });
                     let bus = if role == "bass" { "bass" } else { "music" };
                     (TrackView { kind: "part".into(), role, sound: preset, ..Default::default() }, bus)

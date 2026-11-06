@@ -33,12 +33,14 @@
     },
     {
       "name": "clap",
+      "late_ms": [2, 8],
       "voice": "clap",
       "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.7, 0.9]},
       "mix": {"bus": "drums", "reverb": 0.2}
     },
     {
       "name": "shaker",
+      "late_ms": [-6, -1],
       "voice": "shaker",
       "template": {
         "steps": [0.7, 0.4, 0.8, 0.4, 0.7, 0.4, 0.8, 0.4, 0.7, 0.4, 0.8, 0.4, 0.7, 0.4, 0.8, 0.6],
@@ -56,6 +58,7 @@
     },
     {
       "name": "rim",
+      "late_ms": [2, 10],
       "voice": "rim",
       "template": {"steps": [0, 0, 0, 1, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0.6, 0], "vel": [0.4, 0.65], "vary": 0.3},
       "mix": {"bus": "drums", "pan": 0.35, "reverb": 0.15}

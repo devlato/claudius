@@ -52,8 +52,15 @@ Details that make it sound played rather than printed:
 
 - **Swing** moves every off-beat sixteenth late when notes are turned into sample positions, so the blueprint stays
   on the grid and one number changes the feel of every part.
-- **Humanisation** adds timing jitter with a standard deviation of `humanize` × 4 ms (× 0.6 for parts, so drums
-  carry the looseness) and velocity jitter of ±5 % × `humanize`, from a generator seeded by the track's name.
+- **Feel** moves each note by its track's `late_ms` (a lane's or part's, every hit alike) and, with `humanize`, by a
+  drift (`Timing::feel`). The drift is a 1/f noise over the song's sixteenths (Voss and McCartney's: ten octaves of
+  Gaussian draws, each held twice as long as the one before, summed and scaled to unit variance), so a hit moves with
+  the ones around it and wanders over up to 32 bars. It is what Hennig et al. measured in players (PLOS ONE, 2011) and
+  what their listeners preferred to independent jitter. Its standard deviation is 15 ms × `humanize` × a role's share
+  (kick 0.5, snare and clap 0.8, hats 1, other percussion 1.2, parts 0.6), capped at three. The drum lanes take 60 % of
+  theirs from a stream they share (one player) and the rest from their own. Every draw comes from the song's seed and
+  the track's name at that sixteenth, so a render, a choke's cut and the kick's duck all see the same onset. Velocity
+  varies by ±5 % × `humanize`.
 - **Velocity** of a one-shot scales its level by `velocity^1.6`.
 - **Choke groups** stop a ringing hit at the next onset of any track in the same group, with a 4 ms fade (the open
   hat stops when the closed hat plays). Pack instruments get the same cut times.

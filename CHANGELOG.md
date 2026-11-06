@@ -25,6 +25,16 @@ on one credits it in the song's `credits.txt`. **● mic** records a record off 
 where the browser lets the page use one (the demo's page, or the page opened on the computer running claudius); a
 scratch on it is a take like any other (`add_scratch` has a `recording`).
 
+Songs play with a feel. `humanize` no longer jitters each hit on its own by a few milliseconds, too little to hear:
+each hit now drifts with the ones around it, behind the beat for a while and ahead for a while, as a player's does
+(a 1/f drift, which listeners prefer in Hennig et al.'s study), by about 15 ms at 1, the kick less and the hats
+more. The drum lanes share part of the drift, as one drummer's limbs. A lane or a part can also play every hit
+behind or ahead of the beat on purpose (`lane("snare", #{ late: 25 })`, `part("bass", #{ late: 15 })`,
+`set_lane`'s and `set_part`'s `late_ms`, a **feel** slider in the sequencer's lane settings), as an MPC's shift
+timing moves a pad: J Dilla's snare late and kick early. The genres that play that way do it from the start: a
+neo-soul snare 18 to 38 ms behind and its bass 12 to 30, a boom bap or lo-fi backbeat laid back, reggae's rim and
+bass behind, a funk drummer's hats pushed. Songs made before sound a little looser than they did.
+
 ## [0.4.0] - 2026-11-06
 
 The phone plays the song in the studio as well as following it: **▶** plays it and **■** stops it, so a take needs no

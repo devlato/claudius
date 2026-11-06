@@ -20,8 +20,15 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         check_keys(
             &m,
             "part()",
-            &["role", "style", "preset", "register", "density", "seed", "rate", "doubles", "octave"],
+            &["role", "style", "preset", "register", "density", "seed", "rate", "doubles", "octave", "late"],
         )?;
+        let late = match map_f32(&m, "late") {
+            Some(v) if !(-super::trigs::MOST_LATE..=super::trigs::MOST_LATE).contains(&v) => {
+                let most = super::trigs::MOST_LATE;
+                return fail(format!("part()'s late is -{most} (ahead) to {most} ms (behind), not {v}"));
+            }
+            v => v,
+        };
         with_bp(&c, |bp, _| {
             // "" leaves it playing its own notes
             let doubles = map_str(&m, "doubles").map(|d| Some(d).filter(|d| !d.is_empty()));
@@ -108,6 +115,9 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
             if let Some(o) = octave {
                 part.octave = o;
             }
+            if let Some(ms) = late {
+                part.late_ms = ms;
+            }
             Ok(())
         })
     });
@@ -156,6 +166,7 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                         return fail(format!("'{label}' is not a drum sound (a drum name, a kit sound, or a sample)"));
                     }
                     bp.drums.push(DrumLane {
+                        late_ms: 0.0,
                         length: None,
                         speed: 1.0,
                         swing: None,
@@ -407,6 +418,7 @@ fn default_spec(name: &str, role: Role) -> crate::genres::PartSpec {
         mix: crate::model::TrackMix::default(),
         doubles: None,
         octave: 0,
+        late_ms: None,
     }
 }
 

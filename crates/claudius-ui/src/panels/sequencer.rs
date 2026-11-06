@@ -611,17 +611,32 @@ fn lane_time(d: &claudius_api::DrumView) -> String {
     if let Some(g) = &d.groove {
         w.push(g.clone());
     }
+    if d.late_ms != 0.0 {
+        w.push(late_text(d.late_ms));
+    }
     w.join(" · ")
 }
 
+/// how far off the beat a lane plays, for its label and its slider: "20 ms late", "5 ms early", "on the beat"
+fn late_text(ms: f32) -> String {
+    match ms {
+        ms if ms.abs() < 0.5 => "on the beat".into(),
+        ms if ms > 0.0 => format!("{ms:.0} ms late"),
+        ms => format!("{:.0} ms early", -ms),
+    }
+}
+
 /// A lane's own time and feel as controls: its length in steps (the pattern's, or its own), its speed, its swing
-/// (the song's, or its own), its groove (one of the song's or a template) and how much of it. Each sends `set_lane`
-/// when let go.
+/// (the song's, or its own), its groove (one of the song's or a template) and how much of it, and how far behind or
+/// ahead of the beat it plays. Each sends `set_lane` when let go.
 fn lane_menu(ui: &mut Ui, d: &claudius_api::DrumView, song: &claudius_api::SongView, out: &mut Vec<Command>) {
-    let set =
-        |length: Option<u32>, speed: Option<f32>, swing: Option<f32>, groove: Option<String>, amount: Option<f32>| {
-            Command::SetLane { lane: d.lane.clone(), length, speed, swing, groove, groove_amount: amount }
-        };
+    let set = |length: Option<u32>,
+               speed: Option<f32>,
+               swing: Option<f32>,
+               groove: Option<String>,
+               amount: Option<f32>| {
+        Command::SetLane { lane: d.lane.clone(), length, speed, swing, groove, groove_amount: amount, late_ms: None }
+    };
     ui.label(RichText::new(format!("{}'s time", d.lane)).strong());
     egui::Grid::new(("lane-time", &d.lane)).num_columns(2).spacing([10.0, 5.0]).show(ui, |ui| {
         ui.label(small("length"));
@@ -684,6 +699,27 @@ fn lane_menu(ui: &mut Ui, d: &claudius_api::DrumView, song: &claudius_api::SongV
             }
             ui.end_row();
         }
+        ui.label(small("feel"));
+        let most = crate::edits::MOST_LATE;
+        let mut late = d.late_ms;
+        let r = ui
+            .add(egui::Slider::new(&mut late, -most..=most).step_by(1.0).custom_formatter(|v, _| late_text(v as f32)))
+            .on_hover_text(
+                "every hit behind the beat (laid back, as a snare dragged 20 ms) or ahead of it (pushed), alike, as a \
+                 drum machine's shift timing; the song's humanize drifts it besides",
+            );
+        if let_go(&r) {
+            out.push(Command::SetLane {
+                lane: d.lane.clone(),
+                length: None,
+                speed: None,
+                swing: None,
+                groove: None,
+                groove_amount: None,
+                late_ms: Some(late),
+            });
+        }
+        ui.end_row();
     });
 }
 
