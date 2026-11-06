@@ -254,9 +254,10 @@ impl Timing {
         (drift + t.late_ms as f64 / 1000.0) * SRF / self.spb
     }
 
-    /// where track `t`'s note `n` starts: swung, moved by its feel, then by its step's nudge
+    /// where track `t`'s note `n` starts: swung, moved by its feel, then by its step's nudge, and never before the song
+    /// does (a hit ahead of the first beat plays on it, whole)
     fn onset(&self, t: &Track, n: &Note) -> i64 {
-        self.sample(n.t, self.feel(t, n.t) + n.lock.map_or(0.0, |l| l.nudge))
+        self.sample(n.t, self.feel(t, n.t) + n.lock.map_or(0.0, |l| l.nudge)).max(0)
     }
 }
 
@@ -464,7 +465,7 @@ fn duck_curve(p: &Project, tm: &Timing, len: usize) -> Option<Vec<f32>> {
     let mut env = vec![1.0f32; len];
     let tm = tm.of(kick);
     for n in &kick.notes {
-        let pos = tm.onset(kick, n).max(0) as usize;
+        let pos = tm.onset(kick, n) as usize;
         let start = pos.saturating_sub(att);
         for i in start..(pos + rel).min(len) {
             let v = if i < pos {
@@ -1297,6 +1298,7 @@ mod tests {
         }
         let pushed = ticks("kick", 1, -5.0);
         assert_eq!(tm.onset(&pushed, &pushed.notes[4]) - tm.sample(1.0, 0.0), -(0.005 * SRF).round() as i64);
+        assert_eq!(tm.onset(&pushed, &pushed.notes[0]), 0, "ahead of the song's first beat, it plays on it");
         // and in a render: the song's snare, alone and late, sounds that much later
         let g = crate::genres::get("house").unwrap();
         let o = crate::compose::Options { short: true, samples: 0.0, loops: false, ..Default::default() };
@@ -1314,6 +1316,14 @@ mod tests {
         };
         let moved = first(20.0) - first(0.0);
         assert!((moved - 960).abs() <= 2, "20 ms is 960 samples, not {moved}");
+        // a hit on the song's first beat, pushed ahead of it, keeps its attack: it sounds as it would on the beat
+        p.tracks[0].notes[0].t = 0.0;
+        let opening = |late: f32| {
+            let mut q = p.slice(0, 2);
+            q.tracks[0].late_ms = late;
+            render(&q, &Options { stems: false, tail_secs: 0.0 }).unwrap().master.l[..4_800].to_vec()
+        };
+        assert_eq!(opening(-20.0), opening(0.0));
     }
 
     #[test]
