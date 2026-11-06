@@ -560,8 +560,9 @@ impl Backend {
             Backend::Remote(r) => r.upload_take(wav, &query),
             // the demo's engine keeps it in memory, as the app keeps it with the song
             Backend::Mock(m) => {
+                // no extension: the engine reads what kind of file it is from its bytes, as claudius does
                 let take = claudius_api::Listen::Take {
-                    name: "take.wav".into(),
+                    name: "the take".into(),
                     from: from.to_string(),
                     track: name.map(String::from),
                     role: role.to_string(),

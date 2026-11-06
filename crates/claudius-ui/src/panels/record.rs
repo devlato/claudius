@@ -14,7 +14,7 @@ use crate::theme::{self, TEXT, TEXT_DIM, WELL};
 use crate::widgets::{self, Icon};
 
 /// what a take can be in the mix (`claudius::take::ROLES`)
-const ROLES: &[&str] = &["vocal", "lead", "chords", "keys", "bass", "drums", "texture"];
+pub(crate) const ROLES: &[&str] = &["vocal", "lead", "chords", "keys", "bass", "drums", "texture"];
 
 /// how the window was set up last time
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

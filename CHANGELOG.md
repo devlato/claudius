@@ -76,6 +76,14 @@ analyzes the file, **Remake** reworks it and **Flip into** flips it, **Sample it
 (it said "the demo hears no grooves"). It all runs in the page, and what a song keeps of a recording goes in the
 project you save.
 
+Your own recordings go into a song from the studio: drop a song or a sound anywhere on it, or press the new **+**
+after the record button and choose one, and **Add a recording** adds it whole as a track from the section you pick,
+or samples its vocals into the song. A take's menu in the arrangement has **Trim...**, which keeps part of its
+recording, from a start to an end, so a whole song added as a track starts later in itself or stops sooner; effects go
+on it in the mixer as on any track. Undo brings a trimmed take back whole. Assistants trim takes with the new
+`trim_take` tool (and command), and the state gives each take's length (`seconds`). It works the same in the online
+demo.
+
 The demo records takes too: the record button, which only the app and a claudius' own page had, records a voice or
 an instrument over the song in the browser, and the take joins the song and the project you save. A take's menu in
 the arrangement works there as in claudius: **How is it sung?** hears how it is sung, **Turn it into drums** turns a

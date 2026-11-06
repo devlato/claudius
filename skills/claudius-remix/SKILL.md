@@ -159,6 +159,10 @@ not looped or chopped. Ask what they did not say:
   `texture`.
 - **A name**, if they want one ("vox", "guitar"). Otherwise it is take1, take2, ...
 
+A whole song or a long recording goes in the same way; `trim_take` then keeps part of it (`track`, `start` and `end`
+in seconds into its recording), so that it starts later in itself or stops sooner, and undo brings it back whole.
+Effects go on it as on any track.
+
 claudius keeps a copy with the song, in `takes/` in its folder once it is saved. Then listen and read the verdict: a
 take mostly needs its level and a little reverb (`set_mix`). It is the person's own recording, so it may be released
 when they made it.

@@ -87,6 +87,7 @@ fn track(
         loudness: loudness.get(name).copied(),
         fx: chain(&m.fx),
         bus: m.bus.clone(),
+        seconds: None,
     }
 }
 
@@ -134,7 +135,11 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
             Some(words) => ("take", words),
             None => ("loop", l.sound.describe()),
         };
-        tracks.push(track(&l.name, kind, &l.role, sound, &l.mix, loudness));
+        let mut t = track(&l.name, kind, &l.role, sound, &l.mix, loudness);
+        if let (Some(_), Sound::Loop { beats, bpm, .. }) = (&l.from, &l.sound) {
+            t.seconds = Some(beats * 60.0 / bpm.max(1.0));
+        }
+        tracks.push(t);
     }
     for p in &bp.patterns {
         let sounds = p.sounds.iter().map(|(k, s)| format!("{k}: {}", s.describe())).collect::<Vec<_>>().join(", ");

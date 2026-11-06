@@ -529,6 +529,23 @@ impl Host {
                 let voice = self.voice.clone();
                 self.edit_take(|bp| edit::tune(bp, &track, &asked, voice.as_ref()))
             }
+            Command::TrimTake { track, start, end } => {
+                let path = |bp: Option<&Blueprint>| {
+                    let l = bp?.loops.iter().find(|l| l.name == track)?;
+                    match &l.sound {
+                        model::Sound::Loop { path, .. } => Some(path.clone()),
+                        _ => None,
+                    }
+                };
+                let old = path(self.bp.as_ref());
+                let r = self.edit_take(|bp| take::trim(bp, &track, start, end, std::path::Path::new(take::IN_MEMORY)));
+                // the cut credits what the take did
+                if let (true, Some(old), Some(new)) = (r.ok, old, path(self.bp.as_ref())) {
+                    let credits = self.credited(std::path::Path::new(&old));
+                    self.takes.insert(new, credits);
+                }
+                r
+            }
             Command::TranscribeDrums { take: None, path: None, .. } => {
                 self.no("transcribe_drums wants a take, or the path of a recording")
             }
@@ -1486,6 +1503,15 @@ mod tests {
         assert!(r.ok, "{}", r.message);
         let r = command(&mut h, json!({"cmd": "tune", "track": "take1", "speed_ms": 15}));
         assert!(r.ok && !r.message.contains("pitch check"), "no check yet, so no voice: {}", r.message);
+        // trimmed to its middle two seconds, kept in memory as the take was
+        let r = command(&mut h, json!({"cmd": "trim_take", "track": "take1", "start": 1.0, "end": 3.0}));
+        assert!(r.ok && r.message.starts_with("take1: 1.00 to 3.00 s of its recording"), "{}", r.message);
+        let bp = h.blueprint().unwrap().clone();
+        let model::Sound::Loop { path, .. } = &bp.loops.iter().find(|l| l.name == "take1").unwrap().sound else {
+            panic!("a loop")
+        };
+        let cut = audio::remembered_audio(path).expect("the cut is kept in memory");
+        assert!(path.starts_with("demo:takes/") && (cut.secs() - 2.0).abs() < 1e-3, "{path}");
         // played: a beat at the song's tempo, whose kicks and snares become lanes
         let bpm = h.blueprint().unwrap().bpm;
         let r = h.listen(&take(&from, "drums"), wav(&a_beat(bpm)));

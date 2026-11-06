@@ -145,6 +145,12 @@ pub fn top_row(ui: &mut Ui, cx: &mut Cx) {
                 cx.view.record.show();
             }
         }
+        let tip =
+            "add a recording of your own, whole as a track or with its vocals sampled (or drop one on the studio)";
+        let open = cx.view.import.open;
+        if widgets::icon_button(ui, Icon::Plus, 30.0, open, cx.state.song.is_some(), tip).clicked() {
+            cx.view.import.open = !open;
+        }
         // the demo in a browser plays along with a phone through the site's relay
         if cx.server.is_some() || cfg!(target_arch = "wasm32") {
             let served = cx.state.phone.is_some();

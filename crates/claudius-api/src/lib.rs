@@ -542,6 +542,9 @@ pub struct TrackView {
     /// the bus it plays into (drums, bass, music, fx, or one of the song's own)
     #[serde(default)]
     pub bus: String,
+    /// a take's length, in seconds of its recording (what `trim_take` cuts from)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seconds: Option<f64>,
 }
 
 /// the mix around the tracks: each bus's chain of effects, the master's, and the effects the sends feed (effects as
@@ -1536,6 +1539,15 @@ pub enum Command {
         /// vocal, lead, chords, keys, bass, drums or texture: how loud the mix makes it (default lead)
         #[serde(default)]
         role: Option<String>,
+    },
+    /// take `track` cut down to its recording from `start` to `end` seconds in (to its end without one): the cut plays
+    /// from the start of the same section, the recording stays for undo
+    TrimTake {
+        track: String,
+        #[serde(default)]
+        start: f64,
+        #[serde(default)]
+        end: Option<f64>,
     },
     /// notes played (a MIDI keyboard's take) or written note by note, in beats from the start of section `from`, chords
     /// and all, as new parts, one per sound, on in the sections the notes reach

@@ -115,7 +115,9 @@ the demo it also offers the song itself, as a project to carry on with in claudi
 
 **Record**, the red button after the loop button, records a [take](../guide/samples.md#takes) from a microphone or
 an audio interface, in the studio app, in the browser studio that `claudius serve` serves and in the demo, which
-keeps it in the page with the song (and in the project it saves).
+keeps it in the page with the song (and in the project it saves). The **+** after it opens **Add a recording**: a song
+or a sound of your own, chosen or dropped anywhere on the studio, added whole as a track that you trim and put effects
+on, or with its vocals sampled into the song ([Takes](../guide/samples.md#takes)).
 
 The phone button after it opens **Play from a phone**: a QR code for a phone on the same Wi-Fi, which opens drum pads,
 keys and a turntable with the song's sounds there, and sends the takes played on them into the song
