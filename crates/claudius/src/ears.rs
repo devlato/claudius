@@ -81,6 +81,19 @@ mod listening {
             refs: Option<&[Vec<f32>]>,
             realness: bool,
         ) -> Result<EarsReport> {
+            let t = crate::clock::Instant::now();
+            let report = self.listen(x, genre, refs, realness);
+            crate::metrics::observe(crate::metrics::Metric::Ears, x.secs(), t.elapsed().as_secs_f64());
+            report
+        }
+
+        fn listen(
+            &self,
+            x: &Stereo,
+            genre: Option<&GenreProfile>,
+            refs: Option<&[Vec<f32>]>,
+            realness: bool,
+        ) -> Result<EarsReport> {
             let mono = Self::mono(x);
             let emb = self.inner.embed(&mono)?;
             let (genre_query, genre_z, best_alt, best_alt_z, stock, stock_z) = match genre {

@@ -39,27 +39,31 @@ claudius telemetry on
 claudius telemetry off
 ```
 
-When they are on, claudius sends three kinds of events, each at most once a day:
+When they are on, claudius sends four kinds of events, each at most once a day:
 
 | event | when | detail |
 |---|---|---|
 | `started` | a command starts: `studio`, `serve`, `mcp`, `make` and the rest | none |
 | `setup` | `claudius setup`, or the studio's pack download, ends | `ok`, `models` (the models did not download), or `packs:<name>` (the first pack that did not install) |
 | `panic` | claudius stops on a panic, a bug | the file and line, such as `claudius/src/render.rs:123`, never the message |
+| `perf` | claudius renders a song, listens to one with the ears, or decodes a recording | `render`, `ears` or `decode`, and in `value` how fast: seconds of audio a second, to two figures (`38`: it rendered a minute of song in about a second and a half) |
 
-An event is these seven fields and nothing else:
+An event is these eight fields and nothing else (`value` is 1, but for a `perf` event's speed):
 
 ```json
 {
-  "v": 1,
+  "v": 2,
   "event": "started",
   "command": "studio",
-  "version": "0.2.0",
+  "version": "0.5.0",
   "os": "macos",
   "arch": "aarch64",
-  "detail": ""
+  "detail": "",
+  "value": 1
 }
 ```
+
+claudius 0.4 and before send the same without `value` (`"v": 1`), and the endpoint still takes those.
 
 It never holds a file name, a path, a song or any part of one, your name, or an identifier: nothing tells one person's
 events from another's. It is sent in the background with a 3-second timeout and never sent again, so a computer
@@ -68,8 +72,8 @@ without a network notices nothing.
 ## Where they go
 
 To `https://claudius-telemetry.devlato.workers.dev/v1/event`, a Cloudflare Worker whose source is `telemetry/` in this
-repository. It refuses anything that is not an event of the shape above, and writes the seven fields to Workers
-Analytics Engine, which keeps them for three months. It writes no IP address and nothing else from the request.
+repository. It refuses anything that is not an event of the shape above, and writes its fields to Workers Analytics
+Engine, which keeps them for three months. It writes no IP address and nothing else from the request.
 Cloudflare, which runs it, sees each request the way any web server sees one.
 
 ## Keeping them off

@@ -10,6 +10,7 @@ this API, so anything it does you can do with `curl`. The types are plain serde 
 | route | answer |
 |---|---|
 | `GET /api/hello` | `{"name":"claudius","version":"0.1.0","state":1,"ears":false}`: is this claudius, which version, the state version, whether earshot's models are loaded |
+| `GET /api/metrics` | how fast this claudius has run since it started, in Prometheus' text format: for each of rendering, listening with the ears and decoding a recording, how many times (`claudius_render_total`), the seconds of audio (`claudius_render_audio_seconds_total`), the seconds they took (`claudius_render_seconds_total`) and the last one's speed in seconds of audio a second (`claudius_render_speed`); its version (`claudius_build_info`), uptime and the song's changes. A Prometheus server can scrape it; nothing leaves the computer unless something asks |
 | `GET /api/state` | the [state](#the-state) at once |
 | `GET /api/state?since=N` | the state as soon as its version is past `N` ([long polling](#versions-and-long-polling)) |
 | `GET /api/state?settled=1` | the state once no job runs and the render is of the current song |

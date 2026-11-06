@@ -1,7 +1,8 @@
 //! Anonymous usage statistics, off until the person turns them on: the studio's tour asks once, and `claudius
 //! telemetry on` or `off` changes the answer. When they are on, claudius sends a few counts, each kind at most once a
-//! day: which command started it, the version, the system and its chip, where a setup failed and where a panic
-//! happened. Never a file, a path, a song, a name or an identifier. `claudius telemetry` prints what is sent, and
+//! day: which command started it, the version, the system and its chip, where a setup failed, where a panic happened,
+//! and how fast it renders, listens and decodes (`claudius::metrics`). Never a file, a path, a song, a name or an
+//! identifier. `claudius telemetry` prints what is sent, and
 //! docs/src/guide/privacy.md explains it. `DO_NOT_TRACK`, `CLAUDIUS_TELEMETRY=0` and `CI` keep them off.
 
 use std::path::{Path, PathBuf};
@@ -68,17 +69,28 @@ pub fn set(on: bool) -> Result<()> {
     write(&path, &m)
 }
 
-/// the event as it is sent
-fn payload(event: &str, command: &str, detail: &str) -> Value {
+/// the event as it is sent: `value` is 1, but for a speed (`perf`)
+fn payload(event: &str, command: &str, detail: &str, value: f64) -> Value {
     json!({
-        "v": 1,
+        "v": 2,
         "event": event,
         "command": command,
         "version": env!("CARGO_PKG_VERSION"),
         "os": std::env::consts::OS,
         "arch": std::env::consts::ARCH,
         "detail": detail,
+        "value": value,
     })
+}
+
+/// a speed to two significant figures (38, 3.8, 0.38), which says how fast without telling one machine from another
+fn two_figures(x: f64) -> f64 {
+    if !(x > 0.0 && x.is_finite()) {
+        return 0.0;
+    }
+    let decimals = (1 - x.log10().floor() as i32).max(0) as usize;
+    let step = 10f64.powi(x.log10().floor() as i32 - 1);
+    format!("{:.decimals$}", (x / step).round() * step).parse().unwrap_or(0.0)
 }
 
 /// `CLAUDIUS_TELEMETRY_URL` sends elsewhere (to test the endpoint); a debug build sends nowhere else
@@ -116,6 +128,18 @@ fn send(url: &str, body: &Value, timeout: Duration) {
 
 /// sends an event when statistics are on and this one has not gone out today; it never waits, and never fails
 pub fn record(event: &'static str, command: &str, detail: &str) {
+    send_event(event, command, detail, 1.0);
+}
+
+/// sends how fast `metric` went (seconds of audio a second), as `record` sends an event: once a day for each
+pub fn record_perf(command: &str, metric: &str, speed: f64) {
+    let value = two_figures(speed);
+    if value > 0.0 {
+        send_event("perf", command, metric, value);
+    }
+}
+
+fn send_event(event: &'static str, command: &str, detail: &str, value: f64) {
     if vetoed(|name| std::env::var(name).ok()).is_some() {
         return;
     }
@@ -123,7 +147,7 @@ pub fn record(event: &'static str, command: &str, detail: &str) {
     if !due(&path, &format!("{event}:{command}:{detail}"), today()) {
         return;
     }
-    let body = payload(event, command, detail);
+    let body = payload(event, command, detail, value);
     let handle = std::thread::spawn(move || send(&url, &body, Duration::from_secs(3)));
     if let Ok(mut p) = PENDING.lock() {
         p.push(handle);
@@ -168,10 +192,11 @@ pub fn describe() -> String {
         (Some(false), None) => "Usage statistics are off.".to_string(),
         (None, None) => "Usage statistics are off: nobody has turned them on.".to_string(),
     };
-    let example = serde_json::to_string_pretty(&payload("started", "studio", "")).unwrap_or_default();
+    let example = serde_json::to_string_pretty(&payload("started", "studio", "", 1.0)).unwrap_or_default();
     format!(
         "{state}\n\nWhen they are on, claudius sends each kind of event at most once a day: which command started it, \
-         and where a setup or a panic failed. An event, exactly as it is sent:\n\n{example}\n\nIt goes to {ENDPOINT}, \
+         where a setup or a panic failed, and how fast it renders, listens and decodes (seconds of audio a second, to \
+         two figures). An event, exactly as it is sent:\n\n{example}\n\nIt goes to {ENDPOINT}, \
          which keeps no IP address. `claudius telemetry on` or `off` changes it; DO_NOT_TRACK=1 keeps it off \
          whatever the answer. More: docs/src/guide/privacy.md in github.com/devlato/claudius"
     )
@@ -194,13 +219,24 @@ mod tests {
     }
 
     #[test]
-    fn an_event_holds_the_seven_fields_and_nothing_else() {
-        let e = payload("setup", "setup", "packs:vcsl");
+    fn an_event_holds_the_eight_fields_and_nothing_else() {
+        let e = payload("setup", "setup", "packs:vcsl", 1.0);
         let keys: Vec<&str> = e.as_object().unwrap().keys().map(String::as_str).collect();
-        assert_eq!(keys.len(), 7);
-        for k in ["v", "event", "command", "version", "os", "arch", "detail"] {
+        assert_eq!(keys.len(), 8);
+        for k in ["v", "event", "command", "version", "os", "arch", "detail", "value"] {
             assert!(keys.contains(&k), "{k} is missing from {e}");
         }
+    }
+
+    #[test]
+    fn a_speed_goes_out_to_two_figures() {
+        assert_eq!(two_figures(38.47), 38.0);
+        assert_eq!(two_figures(3.847), 3.8);
+        assert_eq!(two_figures(0.3847), 0.38);
+        assert_eq!(two_figures(1234.5), 1200.0);
+        assert_eq!(two_figures(0.0), 0.0);
+        assert_eq!(two_figures(f64::NAN), 0.0);
+        assert_eq!(payload("perf", "studio", "render", two_figures(41.6))["value"], 42.0);
     }
 
     #[test]

@@ -6,6 +6,12 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+claudius keeps count of how fast it runs: each render, each listening of the ears and each recording decoded, the
+seconds of audio and the seconds they took. `claudius serve` answers `GET /api/metrics` with the totals in Prometheus'
+text format, for a scraper or a look. The usage statistics, for those who turned them on, now also send each kind's
+speed (seconds of audio a second, to two figures) at most once a day, so that a release that renders slower shows; the
+events have a `value` for it (`"v": 2`), and older versions' events still count.
+
 ## [0.4.0] - 2026-11-06
 
 The phone plays the song in the studio as well as following it: **▶** plays it and **■** stops it, so a take needs no
