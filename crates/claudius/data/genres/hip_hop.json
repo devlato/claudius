@@ -58,7 +58,7 @@
   "sampling": {
     "by_default": false,
     "phrase": {
-      "search": ["soul", "70s soul", "soul vocal", "rnb guitar", "dark piano melody", "minor piano", "rhodes", "soul strings", "gospel", "funk guitar"],
+      "search": ["soul", "70s soul", "soul vocal", "rnb guitar", "piano melody", "minor piano", "rhodes", "soul strings", "gospel", "funk guitar"],
       "listen": "a soulful phrase from an old record: a voice, a piano or a guitar",
       "treat": {"as it is": 0.5, "filtered until it lifts": 0.3, "overloaded": 0.2},
       "seconds": [6, 900],
