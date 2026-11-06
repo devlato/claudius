@@ -16,7 +16,7 @@ axum = "0.8.9"
 claudius = { path = "../claudius", default-features = false, features = ["native"] }
 claudius-api = { path = "../claudius-api" }
 claudius-session = { path = "../claudius-session" }
-claudius-packs = { version = "0.3.0", path = "../claudius-packs" }
+claudius-packs = { version = "0.4.0", path = "../claudius-packs" }
 dirs = "7"
 getrandom = "0.4"
 rayon = "1"
@@ -31,7 +31,7 @@ tracing = "0.1.44"
 ureq = { version = "3", features = ["json"] }
 
 [dev-dependencies]
-claudius-decode = { version = "0.3.0", path = "../claudius-decode" }
+claudius-decode = { version = "0.4.0", path = "../claudius-decode" }
 image = { version = "0.25", default-features = false, features = ["png"] }
 tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros"] }
 tower = { version = "0.5", features = ["util"] }

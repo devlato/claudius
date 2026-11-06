@@ -6,6 +6,8 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-06
+
 The phone plays the song in the studio as well as following it: **▶** plays it and **■** stops it, so a take needs no
 trip to the computer. With the song stopped, ● starts it a bar before the section it is at, and the take starts with
 that section.
@@ -225,6 +227,62 @@ Verdicts are stricter about style. Every genre is now measured against stock lib
 music, children's piano music, ukulele music, chiptune), and a song that sounds as much like it as like its genre
 loses up to 40 % of its score, with an issue saying so. Songs that scored 90 while sounding like an advert's background
 music now score in the 60s ([The critic](https://github.com/devlato/claudius/blob/main/docs/src/engineering/critic.md)).
+
+### Added
+
+- samples: Samples from free online libraries, kept only under licences that allow publishing ([#95](https://github.com/devlato/claudius/pull/95))
+- genres: Trip-hop built on samples from free libraries ([#96](https://github.com/devlato/claudius/pull/96))
+- genres: Art rock plays like a band, with power chords ([#99](https://github.com/devlato/claudius/pull/99))
+- genres: Dubstep, future bass, synthwave and amapiano play their signature sounds ([#100](https://github.com/devlato/claudius/pull/100))
+- server: The studio and assistants gather a genre's samples when a song of it is made ([#98](https://github.com/devlato/claudius/pull/98))
+- demo: The web demo samples free loops for trip-hop ([#97](https://github.com/devlato/claudius/pull/97))
+- genres: Boom bap built on samples ([#101](https://github.com/devlato/claudius/pull/101))
+- studio: The download button downloads the song ([#102](https://github.com/devlato/claudius/pull/102))
+- mix: A drive on every track, and an 808 that hits like a subwoofer ([#103](https://github.com/devlato/claudius/pull/103))
+- demo: The studio demo runs claudius itself, in a Web Worker ([#106](https://github.com/devlato/claudius/pull/106))
+- demo: Open with a deep house song ([#107](https://github.com/devlato/claudius/pull/107))
+- api: Add_hits and add_scratch turn pads and a turntable into drums and takes ([#108](https://github.com/devlato/claudius/pull/108))
+- studio: Play along from a phone: pads, keys and a turntable that send takes into the song ([#109](https://github.com/devlato/claudius/pull/109))
+- demo: Play along from a phone with the studio demo, through a relay on the site ([#110](https://github.com/devlato/claudius/pull/110))
+- studio: MIDI drum pads play the song's lanes, and a MIDI controller plays the phone's page ([#111](https://github.com/devlato/claudius/pull/111))
+- sampling: A song of any genre can be built on samples, from the records its producers dig for or words of your own ([#113](https://github.com/devlato/claudius/pull/113))
+- demo: The demo samples every genre as the app does, claudius itself cutting whole recordings in the page ([#114](https://github.com/devlato/claudius/pull/114))
+- studio: The New song dialog builds a song on samples from free libraries, from the genre's own records or words of your own ([#115](https://github.com/devlato/claudius/pull/115))
+- demo: An edit is heard where you listen within a second, the same effects run on the bars at the playhead ([#117](https://github.com/devlato/claudius/pull/117))
+- sampling: A sampled song plays another passage of its record where it lifts ([#118](https://github.com/devlato/claudius/pull/118))
+- sampling: A song treats its phrase with a move its genre's producers make: filtered until it lifts, darkened, a telephone's band, overloaded, crushed ([#121](https://github.com/devlato/claudius/pull/121))
+- sampling: Songs chop vocals from other records, a sung note played on the song's chords where it lifts ([#122](https://github.com/devlato/claudius/pull/122))
+- judge: The critic hears a track out of balance and a sound out of place ([#128](https://github.com/devlato/claudius/pull/128))
+- demo: Download the song as FLAC, or as WAV, AIFF, MP3 or Opus ([#130](https://github.com/devlato/claudius/pull/130))
+- genres: Hip hop, R&B, funk, tech house, ambient, grime, phonk and reggae ([#129](https://github.com/devlato/claudius/pull/129))
+- demo: Save the song as a project that claudius opens ([#132](https://github.com/devlato/claudius/pull/132))
+- sampling: Sample a bass note that the song's bass plays on ([#133](https://github.com/devlato/claudius/pull/133))
+- demo: Mutate and evolve songs in the demo's engine ([#134](https://github.com/devlato/claudius/pull/134))
+- sampling: Chop a sample onto the song's grid at a multiple of its tempo ([#135](https://github.com/devlato/claudius/pull/135))
+- compose: A song as layered as you ask, from its genre's core to instruments on instruments ([#139](https://github.com/devlato/claudius/pull/139))
+- genres: Alternative hip hop, layered as its producers layer it ([#140](https://github.com/devlato/claudius/pull/140))
+- remake: Remix a recording in a genre, built on its hook, its drums and a flip of it ([#141](https://github.com/devlato/claudius/pull/141))
+- phone: Play the song and record a take from the phone ([#138](https://github.com/devlato/claudius/pull/138))
+
+### Changed
+
+- render: An edit renders again only the tracks it changed, and comes out the same to the sample ([#116](https://github.com/devlato/claudius/pull/116))
+- audio: A recording decodes ten times as fast, its rate converted with each position's weights worked out once ([#120](https://github.com/devlato/claudius/pull/120))
+- demo: The demo renders a song's tracks side by side in copies of its engine, and comes out the same ([#119](https://github.com/devlato/claudius/pull/119))
+- render: A kept track leaves out its silent blocks, half a song, so it takes half the memory ([#124](https://github.com/devlato/claudius/pull/124))
+- demo: The demo shares out its heaviest track in parts too, its costs measured, and comes out the same ([#125](https://github.com/devlato/claudius/pull/125))
+
+### Fixed
+
+- site: The hero links every system's download again ([#93](https://github.com/devlato/claudius/pull/93))
+- critic: Songs that sound like stock background music no longer score well ([#94](https://github.com/devlato/claudius/pull/94))
+- demo: A song built on samples renders in the browser instead of panicking for a process id ([#112](https://github.com/devlato/claudius/pull/112))
+- samples: Searches leave out papers' supplementary recordings, which hold a note but are no music ([#123](https://github.com/devlato/claudius/pull/123))
+- compose: Songs play only the sounds their genre has a place for ([#126](https://github.com/devlato/claudius/pull/126))
+- mix: Balance each track on how loud its hits are ([#127](https://github.com/devlato/claudius/pull/127))
+- judge: A track at the level its genre makes it at is no fault ([#131](https://github.com/devlato/claudius/pull/131))
+- scratch: A scratch that sounds like a turntable's ([#137](https://github.com/devlato/claudius/pull/137))
+- phone: Taps play without zooming, on pads and keys drawn on a canvas ([#136](https://github.com/devlato/claudius/pull/136))
 
 ## [0.3.0] - 2026-11-03
 
@@ -486,7 +544,8 @@ The first public release.
   theory checks), Linux on x86_64 and ARM64 with a headless build for machines without sound or a display, and
   Windows as a preview. One-line installers for each, which come with every release and are in its checksums.
 
-[unreleased]: https://github.com/devlato/claudius/compare/v0.3.0...HEAD
+[unreleased]: https://github.com/devlato/claudius/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/devlato/claudius/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/devlato/claudius/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/devlato/claudius/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/devlato/claudius/releases/tag/v0.1.0
