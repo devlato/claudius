@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::theory::Lock;
+use crate::theory::harmonize;
 use crate::theory::rhythm::Groove;
 
 /// chord spans of one cycle of progression `name` starting at beat 0
@@ -81,13 +82,33 @@ fn cycle_period(bp: &Blueprint, part: &Part, prog: &str, notes: &[Note]) -> f64 
     p
 }
 
-/// one cycle of what `part` plays over progression `prog`, and the beats it comes round in: the notes of the part it
-/// doubles, moved by its octaves (`Part::source`), or its own
+/// one cycle of what `part` plays over progression `prog`, and the beats it comes round in: chords under the part it
+/// harmonizes (`harmonized`), the notes of the part it doubles, moved by its octaves (`Part::source`), or its own
 fn sounding(bp: &Blueprint, part: &Part, prog: &str, kick_main: &[Hit], kick_bars: u32) -> (Vec<Note>, f64) {
+    if let Some(melody) = harmonized(bp, part, prog) {
+        let (line, period) = sounding(bp, melody, prog, kick_main, kick_bars);
+        let spans = cycle_spans(bp, prog);
+        let song = harmonize::Song { spans: &spans, cycle: cycle_beats(&spans), key: &bp.key };
+        let play = harmonize::Play {
+            style: &part.style,
+            voicing: part.voicing,
+            register: part.register,
+            voices: part.voices.max(2),
+        };
+        let mut rng = Rng::new(part.seed ^ hash_str(prog));
+        return (harmonize::harmony(&line, period, &song, &play, &mut rng), period);
+    }
     let (source, semis) = part.source(bp);
     let notes = part_cycle(bp, source, prog, kick_main, kick_bars);
     let period = cycle_period(bp, source, prog, &notes);
     (notes.into_iter().map(|n| Note { p: (n.p + semis).clamp(0, 127), ..n }).collect(), period)
+}
+
+/// the part whose melody `part` harmonizes over `prog`: none when it writes its own notes out there, or when that part
+/// is gone or harmonizes another itself
+fn harmonized<'a>(bp: &'a Blueprint, part: &Part, prog: &str) -> Option<&'a Part> {
+    let name = part.harmonizes.as_deref().filter(|_| !part.notes.contains_key(prog))?;
+    bp.parts.iter().find(|p| p.name == name && p.name != part.name && p.harmonizes.is_none())
 }
 
 /// the kick's main pattern and its length in bars, which a bass follows
@@ -352,6 +373,10 @@ pub fn arrange(bp: &Blueprint) -> Project {
         let mut notes = Vec::new();
         for (si, s) in bp.form.iter().enumerate() {
             if !s.layers.contains(&part.name) {
+                continue;
+            }
+            // a harmony plays where its melody does
+            if harmonized(bp, part, &s.prog).is_some_and(|m| !s.layers.contains(&m.name)) {
                 continue;
             }
             let info = &sections[si];

@@ -84,6 +84,50 @@ fn a_part_doubles_another_and_says_why_it_cannot() {
 }
 
 #[test]
+fn a_part_harmonizes_a_melody_under_its_notes_and_says_why_it_cannot() {
+    let run = |code: &str| script::run(code, None, None);
+    let made = r#"song("house", 3); part("lead_chords", #{ role: "keys", harmonizes: "lead", style: "block" });"#;
+    let bp = run(made).unwrap().bp.unwrap();
+    let chords = bp.parts.iter().find(|p| p.name == "lead_chords").unwrap();
+    assert_eq!((chords.harmonizes.as_deref(), chords.style.as_str()), (Some("lead"), "block"));
+    let code = script::to_script(&bp);
+    assert!(code.contains(r#"harmonizes: "lead""#), "{code}");
+    let again = script::run(&code, Some(bp.clone()), None).unwrap().bp.unwrap();
+    assert!(again == bp, "printed and run again, the same");
+    for (code, says) in [
+        (r#"part("lead_chords", #{ harmonizes: "lead_chords" });"#, "part 'lead_chords' cannot harmonize itself"),
+        (r#"part("x", #{ role: "keys", harmonizes: "nope" });"#, "harmonizes 'nope', which is not a part of the song"),
+        (r#"part("low", #{ role: "bass", harmonizes: "lead" });"#, "a part that harmonizes plays chords"),
+        (r#"part("lead_chords", #{ doubles: "chords" });"#, "doubles another's notes or harmonizes them, not both"),
+        (r#"part("y", #{ role: "keys", harmonizes: "lead_chords" });"#, "which harmonizes another part"),
+        (r#"part("lead", #{ harmonizes: "chords" });"#, "part 'lead' is harmonized by 'lead_chords'"),
+        (r#"part("lead_chords", #{ style: "motif" });"#, "has no style 'motif'"),
+    ] {
+        let e = run(&format!("{made} {code}")).err().unwrap_or_else(|| panic!("{code} ran")).to_string();
+        assert!(e.contains(says), "{code}: {e}");
+    }
+    // on in every section, it plays where the lead does, a chord under each of its notes that carries one, the lead
+    // on top
+    let mut on = bp.clone();
+    for s in on.form.iter_mut().filter(|s| !s.layers.iter().any(|l| l == "lead_chords")) {
+        s.layers.push("lead_chords".into());
+    }
+    let arranged = compose::arrange(&on);
+    let notes = |name: &str| arranged.tracks.iter().find(|t| t.name == name).unwrap().notes.clone();
+    let (lead, under) = (notes("lead"), notes("lead_chords"));
+    assert!(!under.is_empty(), "the chords play");
+    for c in &under {
+        let top = lead.iter().filter(|n| (n.t - c.t).abs() < 1e-6).map(|n| n.p).max();
+        assert!(top.is_some_and(|p| c.p < p), "a chord note at {} under a lead note: {top:?} over {}", c.t, c.p);
+    }
+    // with its melody gone, it plays chords of its own in a chord part's rhythm, and so does its script
+    let gone = run(&format!(r#"{made} remove("lead");"#)).unwrap().bp.unwrap();
+    let own = gone.parts.iter().find(|p| p.name == "lead_chords").unwrap();
+    assert_eq!((own.harmonizes.as_deref(), own.style.as_str()), (None, "sustain"));
+    assert!(script::run(&script::to_script(&gone), Some(gone.clone()), None).is_ok());
+}
+
+#[test]
 fn the_mixers_drive_roughens_a_track_at_the_loudness_its_level_gives_it() {
     use claudius::model::Blueprint;
     let g = genres::get("trap").unwrap();

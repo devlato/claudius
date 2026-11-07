@@ -1523,6 +1523,20 @@ pub enum Command {
         #[serde(default)]
         sound: Option<String>,
     },
+    /// Chords under part `part`'s melody, as a new part that harmonizes it (`name`, `<part>_chords` by default): chords
+    /// that fit its notes and the song's own chords, worked out afresh as the melody changes, in `style` (`block`, the
+    /// default, a chord under each of its notes with the melody on top; or a chord part's rhythm: `sustain`, `half`,
+    /// `stabs`, `offbeat`, `pump`, `syncopated`, `charleston`), on `sound` (the melody's own for `block`, else the
+    /// genre's draw for the role), in the sections the melody plays in.
+    Harmonize {
+        part: String,
+        #[serde(default)]
+        style: Option<String>,
+        #[serde(default)]
+        sound: Option<String>,
+        #[serde(default)]
+        name: Option<String>,
+    },
     /// A track out of the song, with every section's mention of it: a drum lane, part, loop, take or pattern track.
     RemoveTrack {
         name: String,

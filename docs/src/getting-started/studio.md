@@ -59,7 +59,9 @@ the song it opens. It also opens a project the demo saved, a `.zip`: claudius un
   that role) or a drum lane to fill in under Steps, its name, and its sound, from the synths made for the role, the
   installed instruments, or the drum voices and kits; a new track plays in the sections with energy 0.6 or more,
   ready for you to move. Right-click a row to mute or solo it, switch it on or off everywhere, or remove it (Undo
-  brings it back). Right-click a [take](../guide/samples.md#takes)'s row
+  brings it back). A part's row also offers **Add chords under it**: chords that fit its melody and the song's
+  chords, a chord on each of its notes, a pad under it, stabs or offbeats, as a new part that
+  [follows the melody](../language/song-functions.md#part) as it changes. Right-click a [take](../guide/samples.md#takes)'s row
   to hear [how it is sung](../guide/voice.md) (**How is it sung?**), to [tune it](../guide/voice.md#tuning-a-voice)
   (**Tune it**: naturally, tightly, hard, or not at all), to turn a beat you played or beatboxed into the song's
   drum lanes ([**Turn it into drums**](../guide/samples.md#turning-a-take-into-drums)), or to turn the melody you

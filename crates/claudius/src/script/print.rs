@@ -337,8 +337,11 @@ pub fn to_script(bp: &Blueprint) -> String {
         s.push_str("\n// parts written by the theory engine: change the style, preset, register, density or seed\n");
     }
     let genre = super::song::genre_of(bp);
-    // a part the script doubles is one it has made by then
-    for p in bp.parts.iter().filter(|p| p.doubles.is_none()).chain(bp.parts.iter().filter(|p| p.doubles.is_some())) {
+    // a part the script doubles or harmonizes is one it has made by then
+    let plain = bp.parts.iter().filter(|p| p.doubles.is_none() && p.harmonizes.is_none());
+    let doubling = bp.parts.iter().filter(|p| p.doubles.is_some());
+    let harmonizing = bp.parts.iter().filter(|p| p.harmonizes.is_some() && p.doubles.is_none());
+    for p in plain.chain(doubling).chain(harmonizing) {
         let preset = match &p.sound {
             Sound::Synth { preset, .. } => format!(", preset: {}", quote(preset)),
             Sound::Instrument { name, .. } => format!(", preset: {}", quote(name)),
@@ -351,7 +354,7 @@ pub fn to_script(bp: &Blueprint) -> String {
         let doubles = match &p.doubles {
             Some(d) if p.octave != 0 => format!(", doubles: {}, octave: {}", quote(d), p.octave),
             Some(d) => format!(", doubles: {}", quote(d)),
-            None => String::new(),
+            None => p.harmonizes.as_ref().map_or_else(String::new, |h| format!(", harmonizes: {}", quote(h))),
         };
         let late = if p.late_ms != 0.0 { format!(", late: {}", f32s(p.late_ms)) } else { String::new() };
         s.push_str(&format!(

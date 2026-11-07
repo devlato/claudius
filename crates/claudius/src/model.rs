@@ -352,6 +352,12 @@ pub struct Part {
     /// gone (or doubles another itself), it plays its own, as any part does.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub doubles: Option<String>,
+    /// The part whose melody this one harmonizes: chords that fit that part's notes and the song's own chords, played
+    /// in its `style` (`theory::harmonize::STYLES`: `block`, a chord under each of its notes, or a chord part's
+    /// rhythm), worked out afresh as that part changes. Notes of its own written out play instead; with that part
+    /// gone, it plays chords of its own, as a chord part does.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub harmonizes: Option<String>,
     #[serde(default, skip_serializing_if = "is_no_octave")]
     pub octave: i32,
     /// how far behind the beat it plays (ahead, below zero), in milliseconds: a bass pulled behind the drums

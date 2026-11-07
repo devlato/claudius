@@ -228,6 +228,7 @@ impl App {
             | Command::SetDrumPattern { .. }
             | Command::SetPart { .. }
             | Command::AddTrack { .. }
+            | Command::Harmonize { .. }
             | Command::RemoveTrack { .. }
             | Command::SetNotes { .. }
             | Command::SetMix { .. }

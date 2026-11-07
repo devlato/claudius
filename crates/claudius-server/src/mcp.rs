@@ -482,6 +482,24 @@ pub struct KeepArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct HarmonizeArgs {
+    /// the part whose melody to harmonize, by name (get_song lists the parts): a lead, or a melody played or sung in
+    /// and turned into notes
+    pub part: String,
+    /// block (the default): a chord under each of its notes, the melody on top; or a chord part's rhythm: sustain (a
+    /// pad held under it), half, stabs, offbeat, pump, syncopated, charleston
+    #[serde(default)]
+    pub style: Option<String>,
+    /// the sound: a synth preset or an installed instrument (default the melody's own for block, the genre's draw
+    /// for the rest)
+    #[serde(default)]
+    pub sound: Option<String>,
+    /// the new part's name (default <part>_chords)
+    #[serde(default)]
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct TrimArgs {
     /// the take, by its track's name (get_song lists the tracks)
     pub track: String,
@@ -1113,6 +1131,13 @@ impl Studio {
     }
 
     #[tool(
+        description = "Add chords under a melody: a new part that harmonizes a part of the song (a lead, or a melody played or sung in and turned into notes) with chords that fit its notes and the song's own harmony. The song's chord stays where the melody's notes are its chord tones or pleasant extensions (a 9th, a 6th, a 7th); a held note it clashes with gets the key's chord that holds it and shares most with the song's. In style block (the default) a chord sits under each of the melody's notes, voiced below it with smooth voice leading, on the melody's own sound, so the melody itself sounds in chords; the other styles play the chords in a chord part's rhythm (sustain makes a pad). The chords follow the melody as it changes, and play where it plays. Then listen, and set_mix the new part like any track."
+    )]
+    async fn harmonize(&self, Parameters(a): Parameters<HarmonizeArgs>) -> Result<String, String> {
+        self.edit(Command::Harmonize { part: a.part, style: a.style, sound: a.sound, name: a.name }, true).await
+    }
+
+    #[tool(
         description = "Trim a take (a recording added with add_take, or recorded, or a whole song added as a track): keep its recording from `start` to `end` seconds in, as it plays now, so that it starts later in itself or stops sooner. It still plays from the start of its section, and the sections past its new end no longer play it. claudius keeps the cut with the song and the recording it came from, so undo brings the take back as it was. Trim again to cut more; effects go on it as on any track (command set_fx with target track:<name>, or run_script with fx())."
     )]
     async fn trim_take(&self, Parameters(a): Parameters<TrimArgs>) -> Result<String, String> {
@@ -1320,7 +1345,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Send one raw claudius API command (JSON tagged by \"cmd\"), for edits scripts do not cover: add_section {after, kind, bars}, remove_section {index}, move_section {from, to}, toggle_layer {section, layer}, set_drum_step {lane, variant, step, velocity}, set_section {index, name?, bars?, energy?, layers?, prog?, variant?, build?, gap?, impact?, fills?, filter_in?}, set_part {name, style?, preset?, register?, density?, reseed?}, add_track {name, kind: \"drum\" | \"part\", role?, sound?}, remove_track {name}, set_notes {part, prog, notes?: [{t, d, p, v}]} (a part's notes over a progression written out; no notes: the theory engine's again), set_mix {track, level_db?, pan?, reverb?, delay?, duck?, drive_db?, muted?, solo?, bus?}, add_take {path, from, name?, role?} (path: a file, or library:<id> from search_recordings), trim_take {track, start?, end?}, transcribe_take {take, sounds, name?, role?, chromatic?, keep_take?, style?}, add_notes {from, notes: [{t, d, p, v}], sounds, name?, role?, style?}, add_hits {from, hits: [{lane, t, v}], bars?, variant?, grid?, start?, beats?} (drums played on pads, t in beats from the section's start), add_scratch {from, track, moves: [{t, at, fader}], bar?, bars?, name?, role?} (a scratch on bars of a track, kept as a take: t seconds into the scratch, at seconds into the record, fader 0 shut to 1 open)."
+        description = "Send one raw claudius API command (JSON tagged by \"cmd\"), for edits scripts do not cover: add_section {after, kind, bars}, remove_section {index}, move_section {from, to}, toggle_layer {section, layer}, set_drum_step {lane, variant, step, velocity}, set_section {index, name?, bars?, energy?, layers?, prog?, variant?, build?, gap?, impact?, fills?, filter_in?}, set_part {name, style?, preset?, register?, density?, reseed?}, add_track {name, kind: \"drum\" | \"part\", role?, sound?}, remove_track {name}, set_notes {part, prog, notes?: [{t, d, p, v}]} (a part's notes over a progression written out; no notes: the theory engine's again), set_mix {track, level_db?, pan?, reverb?, delay?, duck?, drive_db?, muted?, solo?, bus?}, add_take {path, from, name?, role?} (path: a file, or library:<id> from search_recordings), harmonize {part, style?, sound?, name?}, trim_take {track, start?, end?}, transcribe_take {take, sounds, name?, role?, chromatic?, keep_take?, style?}, add_notes {from, notes: [{t, d, p, v}], sounds, name?, role?, style?}, add_hits {from, hits: [{lane, t, v}], bars?, variant?, grid?, start?, beats?} (drums played on pads, t in beats from the section's start), add_scratch {from, track, moves: [{t, at, fader}], bar?, bars?, name?, role?} (a scratch on bars of a track, kept as a take: t seconds into the scratch, at seconds into the record, fader 0 shut to 1 open)."
     )]
     async fn command(&self, Parameters(a): Parameters<CommandArgs>) -> Result<String, String> {
         let c: Command = serde_json::from_value(a.command).map_err(|e| format!("not a claudius command: {e}"))?;

@@ -446,6 +446,7 @@ part the genre does not have, so it builds again.
 | `seed` | integer | a new seed rewrites this part, and only this part |
 | `rate` | number, clamped to 1/32..4 | arpeggio step in beats (0.25 is sixteenths) |
 | `doubles` | string | another part whose notes this one plays, on its own sound: a double; `""` makes it play its own again |
+| `harmonizes` | string | another part whose melody this one plays chords under (a chords, pad or keys part): a harmony; `""` makes it play chords of its own again |
 | `octave` | integer, -2 to 2 | how many octaves from that part's notes a double plays them |
 | `late` | number, -80 to 80 | how far behind the beat it plays, in milliseconds (ahead, below zero): a bass pulled 15 behind the drums, as a neo-soul bassist plays |
 
@@ -453,6 +454,7 @@ part the genre does not have, so it builds again.
 |---|---|
 | bass | `sustain`, `pulse`, `root8`, `offbeat`, `octave`, `rolling`, `syncopated`, `kick_follow` (follows the kick, 808 style), `acid`, `walking`, `reese` |
 | chords, pad, keys | `sustain`, `half`, `stabs`, `offbeat`, `pump`, `syncopated`, `charleston` |
+| a part that harmonizes | `block` (a chord under each of the melody's notes), and the chord styles above |
 | arp | `up`, `down`, `updown`, `random`, `pinky` |
 | lead | `motif`, the only one: leads are motifs with A A′ A B phrasing; `density` and `seed` change them |
 
@@ -470,6 +472,22 @@ song("house", 3);
 part("chords_double", #{ role: "chords", doubles: "chords", octave: 1, preset: "bell" });
 ```
 
+A harmony plays chords under the melody of the part it harmonizes: chords that fit its notes and the song's own. The
+song's chord stays wherever the melody's notes are its chord tones or pleasant extensions of it (a 9th, a 6th, a 7th);
+over a held note it clashes with, the key's chord that holds that note and shares most with the song's chord takes its
+place for that half bar, as a player would reharmonize it. In style `block` a chord sits under each of the melody's
+notes that is long enough or on a beat, voiced below it within its `register`, a whole step at least under the melody
+and with no two voices a semitone apart, voice-led from chord to chord; the short notes between ring over it. The
+chord styles play the chosen chords in their rhythms instead (`sustain` holds a pad under the melody). A harmony
+plays only where its melody does, follows it through edits, mutations and a new seed, and with notes of its own
+written out plays those; with its melody gone it plays chords of its own, as any chord part. A part that harmonizes
+cannot also double one, and a harmony cannot be harmonized.
+
+```js
+song("house", 3);
+part("lead_chords", #{ role: "keys", harmonizes: "lead", style: "block", preset: "pluck" });
+```
+
 Errors: `no part 'keys' (the song has: bass chords pad lead arp; house parts: bass chords pad lead arp); a role makes
 one of your own (part("keys", #{ role: "keys" })), and track() writes your own notes`; `part 'lead' is a lead part;
 remove("lead") first to make it another`; `part(): a role is bass, chords, pad, keys, lead or arp, not 'drums'`; `'kick'
@@ -478,7 +496,10 @@ is a track of the song that is not a part: give the part another name`;
 installed instrument such as piano, rhodes, string_ensemble)`; `part 'lead' doubles 'keys', which is not a part of
 the song`; `part 'keys_double' doubles 'keys', which doubles another part: double that one`; `part 'keys' is doubled
 by 'keys_double', so it cannot double another`; `part(): an octave is a whole number from -2 to 2, not 3`;
-`part() has no option 'styles' (options: role style preset register density seed rate doubles octave)`.
+`part 'lead_chords' harmonizes 'lead_chords2', which harmonizes another part: harmonize the melody itself`; `part
+'low' is a bass part: a part that harmonizes plays chords, as a chords, pad or keys part`; `part 'lead_chords' doubles
+another's notes or harmonizes them, not both`;
+`part() has no option 'styles' (options: role style preset register density seed rate doubles harmonizes octave late)`.
 
 ```js
 part("bass", #{ style: "rolling", preset: "reese" });

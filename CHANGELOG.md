@@ -6,6 +6,16 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+A melody of single notes gets chords under it: **Add chords under it**, in a part's menu in the arrangement (or
+`harmonize` for an assistant, or `part("lead_chords", #{ role: "keys", harmonizes: "lead" })` in a script), adds a part
+that plays chords fitting the melody's notes and the song's own chords. The song's chord stays where the melody's
+notes are its chord tones or pleasant extensions (a 9th, a 6th, a 7th); over a held note that clashes with it, the
+key's chord that holds the note takes its place, as a player would reharmonize it. A chord on each note (`block`, on
+the melody's own sound, voiced under it with smooth voice leading) makes the melody itself sound in chords; a pad,
+stabs or offbeats play the chords in a chord part's rhythm. The chords follow the melody through edits, mutations and
+a new seed, and play only where it does. Removing a part now also lets the parts that doubled or harmonized it play
+their own, so the song's script still runs.
+
 The studio looks sharper and quieter: its text is set in Inter instead of egui's default font, its buttons' icons
 are Lucide's, one line weight throughout, instead of shapes drawn by hand, and its controls are filled, rounded and
 outlined only under the pointer, with a slim slider handle. The status bar's keys and the arrangement's legend of
