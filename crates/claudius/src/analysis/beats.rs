@@ -1,6 +1,7 @@
 //! Tempo and beats: autocorrelation of the onset envelope (with a soft prior around 120 BPM, or a range the caller
 //! knows), dynamic-programming beat tracking (Ellis 2007), and the downbeat as the beat phase where kicks and
-//! harmony changes land.
+//! harmony changes land. Music made in a DAW keeps one tempo, and its beats are a grid of it; a band speeds up and
+//! slows down, and its beats are the ones it plays, followed through the song.
 
 use super::chroma;
 use super::onsets::{self, HOP};
@@ -15,6 +16,82 @@ pub struct Grid {
     pub downbeat: usize,
     /// 0..1: how clearly the music pulses at this tempo
     pub clarity: f64,
+    /// whether it keeps one tempo, its beats a grid of `bpm`; else they follow the beats played, and `bpm` is their
+    /// middle tempo
+    pub steady: bool,
+}
+
+/// Beats that keep each skipped one and lose each one slipped in between two: a gap of about `k` beats gets `k - 1`
+/// beats spread through it, and a beat less than half a beat after the one before is left out.
+fn repaired(tracked: &[f64], median: f64) -> Vec<f64> {
+    let mut out: Vec<f64> = Vec::with_capacity(tracked.len());
+    for &t in tracked {
+        let Some(&last) = out.last() else {
+            out.push(t);
+            continue;
+        };
+        let k = ((t - last) / median).round();
+        if k < 1.0 {
+            continue;
+        }
+        for j in 1..k as usize {
+            out.push(last + (t - last) * j as f64 / k);
+        }
+        out.push(t);
+    }
+    out
+}
+
+/// the seconds a beat of `beats` lasts: the slope of the line through them against their count, by least squares
+fn slope(beats: &[f64]) -> f64 {
+    let m = beats.len() as f64;
+    let (mut sx, mut sy, mut sxx, mut sxy) = (0.0, 0.0, 0.0, 0.0);
+    for (k, &t) in beats.iter().enumerate() {
+        let x = k as f64;
+        (sx, sy, sxx, sxy) = (sx + x, sy + t, sxx + x * x, sxy + x * t);
+    }
+    let d = m * sxx - sx * sx;
+    if d.abs() < 1e-12 { 0.5 } else { (m * sxy - sx * sy) / d }
+}
+
+/// Each beat moved onto the tempo the beats around it keep: the line through it and the `w` on either side, by least
+/// squares, which takes out the tracker's jitter and keeps a band's speeding up and slowing down.
+fn smoothed(beats: &[f64], w: usize) -> Vec<f64> {
+    let n = beats.len();
+    (0..n)
+        .map(|i| {
+            let (a, b) = (i.saturating_sub(w), (i + w + 1).min(n));
+            let m = (b - a) as f64;
+            let (mut sx, mut sy, mut sxx, mut sxy) = (0.0, 0.0, 0.0, 0.0);
+            for (k, &t) in beats.iter().enumerate().take(b).skip(a) {
+                let x = k as f64;
+                (sx, sy, sxx, sxy) = (sx + x, sy + t, sxx + x * x, sxy + x * t);
+            }
+            let d = m * sxx - sx * sx;
+            if d.abs() < 1e-12 {
+                return beats[i];
+            }
+            let slope = (m * sxy - sx * sy) / d;
+            (sy - slope * sx) / m + slope * i as f64
+        })
+        .collect()
+}
+
+/// Whether `played` drifts off the grid of `period` seconds from `first`: somewhere 16 beats running sit off it, the
+/// middle of them more than an eighth of a beat one way.
+fn drifts(played: &[f64], first: f64, period: f64) -> bool {
+    let off: Vec<f64> = played
+        .iter()
+        .map(|&t| {
+            let k = ((t - first) / period).round();
+            (t - first - k * period) / period
+        })
+        .collect();
+    off.windows(16).any(|w| {
+        let mut s = w.to_vec();
+        s.sort_by(f64::total_cmp);
+        s[s.len() / 2].abs() > 0.125
+    })
 }
 
 fn autocorr(env: &[f32], max_lag: usize) -> Vec<f64> {
@@ -86,13 +163,15 @@ pub fn track(mono: &[f32], range: Option<(f64, f64)>) -> Grid {
     }
     frames.reverse();
     let tracked: Vec<f64> = frames.iter().map(|f| (*f * HOP + HOP / 2) as f64 / SRF).collect();
-    let bpm0 = if tracked.len() > 8 {
+    // the beats as the tracker heard them, a skipped one put back and one slipped in left out
+    let heard = (tracked.len() > 8).then(|| {
         let mut ibi: Vec<f64> = tracked.windows(2).map(|w| w[1] - w[0]).collect();
-        ibi.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        60.0 / ibi[ibi.len() / 2]
-    } else {
-        60.0 * fps / p
-    };
+        ibi.sort_by(f64::total_cmp);
+        repaired(&tracked, ibi[ibi.len() / 2])
+    });
+    // their tempo: the slope of a line through them, finer than the frames each falls on (a median of the gaps between
+    // them is a whole number of frames, which at 96 BPM is 117 or 118, nearly 1 % apart)
+    let bpm0 = if let Some(h) = heard.as_ref().filter(|h| h.len() > 8) { 60.0 / slope(h) } else { 60.0 * fps / p };
     // music made in a DAW keeps one tempo: fit the constant grid (tempo within 0.5 %, every phase) that lands on
     // the most onset energy; the dynamic-programming beats drift and insert beats through breakdowns
     let sample = |pos: f64| -> f64 {
@@ -122,11 +201,50 @@ pub fn track(mono: &[f32], range: Option<(f64, f64)>) -> Grid {
         }
         b += 0.005;
     }
-    let (_, bpm, off) = best_grid;
-    let per_s = 60.0 / bpm;
+    let (_, grid_bpm, off) = best_grid;
+    let per_s = 60.0 / grid_bpm;
     let first = (off * HOP as f64 + HOP as f64 / 2.0) / SRF;
-    let beats: Vec<f64> =
-        (0..).map(|k| first + k as f64 * per_s).take_while(|t| *t < mono.len() as f64 / SRF).collect();
+    let secs = mono.len() as f64 / SRF;
+    let grid: Vec<f64> = (0..).map(|k| first + k as f64 * per_s).take_while(|t| *t < secs).collect();
+    // a band's beats drift off any one tempo: where those it plays sit off the grid and land on more of the onsets,
+    // they are the beats
+    let strength = |beats: &[f64]| -> f64 {
+        let at = |t: f64| {
+            let c = (t * fps - 0.5).round() as i64;
+            (c - 2..=c + 2)
+                .filter_map(|i| usize::try_from(i).ok().and_then(|i| env.get(i)))
+                .fold(0.0f32, |m, v| m.max(*v))
+        };
+        beats.iter().map(|&t| at(t) as f64).sum::<f64>() / beats.len().max(1) as f64
+    };
+    let played = heard.as_ref().filter(|h| h.len() >= 16).map(|h| smoothed(h, 8));
+    if std::env::var_os("CLAUDIUS_DEBUG").is_some()
+        && let Some(p) = &played
+    {
+        let off: Vec<String> = p
+            .iter()
+            .step_by(8)
+            .map(|&t| format!("{:.2}", (t - first - ((t - first) / per_s).round() * per_s) / per_s))
+            .collect();
+        eprintln!(
+            "beats: played {} vs grid {}: drifts {} strength {:.3} vs {:.3}; offsets {}",
+            p.len(),
+            grid.len(),
+            drifts(p, first, per_s),
+            strength(p),
+            strength(&grid),
+            off.join(" ")
+        );
+    }
+    let (beats, bpm, steady) = match played {
+        Some(p) if drifts(&p, first, per_s) && strength(&p) > 1.05 * strength(&grid) => {
+            let mut ibi: Vec<f64> = p.windows(2).map(|w| w[1] - w[0]).collect();
+            ibi.sort_by(f64::total_cmp);
+            let bpm = 60.0 / ibi[ibi.len() / 2];
+            (p.into_iter().filter(|t| (0.0..secs).contains(t)).collect::<Vec<_>>(), bpm, false)
+        }
+        _ => (grid, grid_bpm, true),
+    };
     // downbeat: the phase where the harmony changes (mean chroma over the half-beat before vs after the beat,
     // bass included) and the low end hits hardest
     let low = onsets::flux(mono, Some((30.0, 150.0)));
@@ -189,5 +307,5 @@ pub fn track(mono: &[f32], range: Option<(f64, f64)>) -> Grid {
         );
     }
     let downbeat = (0..4).max_by(|a, b| phase_score[*a].partial_cmp(&phase_score[*b]).unwrap()).unwrap_or(0);
-    Grid { bpm: (bpm * 10.0).round() / 10.0, beats, downbeat, clarity }
+    Grid { bpm: (bpm * 10.0).round() / 10.0, beats, downbeat, clarity, steady }
 }

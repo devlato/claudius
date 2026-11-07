@@ -455,19 +455,26 @@ fn cut_hit(x: &Stereo, hits: &[drums::Hit], kind: Kind) -> Option<Stereo> {
 
 fn cut_break(x: &Stereo, f: &Found, g: &GenreProfile, dir: &Path) -> Result<Cut> {
     let secs = x.len() as f64 / SRF;
-    let (bpm, beats, start) = if secs <= 16.0 {
+    let span = |start: f64, beats: f64, bpm: f64| {
+        x.slice((start * SRF) as usize, (((start + beats * 60.0 / bpm) * SRF) as usize).min(x.len()))
+    };
+    let (bpm, beats, mut seg) = if secs <= 16.0 {
         let (bpm, beats) = loop_tempo(secs, said_bpm(f), g.bpm).context("no tempo fits its length")?;
-        (bpm, beats, 0.0)
+        (bpm, beats, span(0.0, beats, bpm))
     } else {
         let a = analysis::analyze(x, Some((60.0, 180.0)));
         if a.bar_secs <= 0.0 {
             bail!("no beat to cut it on");
         }
-        let bars = if a.first_downbeat + 2.0 * a.bar_secs <= secs { 2.0 } else { 1.0 };
-        (said_bpm(f).filter(|s| (s / a.bpm - 1.0).abs() < 0.04).unwrap_or(a.bpm), bars * 4.0, a.first_downbeat)
+        let bars = if a.bar_start(2) <= secs { 2 } else { 1 };
+        let beats = (bars * 4) as f64;
+        match said_bpm(f).filter(|s| a.steady && (s / a.bpm - 1.0).abs() < 0.04) {
+            // a loop made at the tempo it says
+            Some(said) => (said, beats, span(a.first_downbeat, beats, said)),
+            // its own bars, a band's speeding up and slowing down taken out
+            None => (a.cut_bpm(), beats, a.cut(x, 0, bars)),
+        }
     };
-    let (s0, s1) = ((start * SRF) as usize, (((start + beats * 60.0 / bpm) * SRF) as usize).min(x.len()));
-    let mut seg = x.slice(s0, s1);
     let len = seg.len();
     seg.fade(32.min(len), 64.min(len));
     let file = dir.join("break.wav");
@@ -526,10 +533,9 @@ fn cut_phrase(x: &Stereo, n: &SampleNeed, ears: Option<&Ears>, dir: &Path) -> Re
     if starts.len() > STARTS {
         starts = (0..STARTS).map(|i| starts[i * starts.len() / STARTS]).collect();
     }
+    // its bars as it plays them, each made as long as another
     let cut = |b: usize| -> Option<Stereo> {
-        let t0 = a.first_downbeat + b as f64 * bar;
-        let (s0, s1) = ((t0 * SRF) as usize, ((t0 + PHRASE_BARS as f64 * bar) * SRF) as usize);
-        (s1 <= x.len()).then(|| x.slice(s0, s1))
+        (a.bar_start(b + PHRASE_BARS) * SRF <= x.len() as f64).then(|| a.cut(x, b, PHRASE_BARS))
     };
     let power = |s: &Stereo| s.mono().iter().map(|v| (v * v) as f64).sum::<f64>() / s.len().max(1) as f64;
     let mut passages: Vec<Passed> = Vec::new();
@@ -562,7 +568,7 @@ fn cut_phrase(x: &Stereo, n: &SampleNeed, ears: Option<&Ears>, dir: &Path) -> Re
         Ok(seg)
     };
     let file = dir.join("phrase.wav");
-    let mut c = Cut::new(blank(&file, Role::Phrase, a.bpm, (PHRASE_BARS * 4) as f64));
+    let mut c = Cut::new(blank(&file, Role::Phrase, a.cut_bpm(), (PHRASE_BARS * 4) as f64));
     c.prepared.key = Some(a.key.tonic);
     c.prepared.minor = a.key.mode.is_minor();
     c.prepared.chords = chords(first.bar);

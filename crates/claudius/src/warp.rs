@@ -73,6 +73,80 @@ pub fn warp(path: &str, src_bpm: f64, beats: f64, dst_bpm: f64, semis: i32, seam
     Ok(out)
 }
 
+/// `x` with each of its bars stretched to `bar_secs`: bar `i` from `starts[i]` to `starts[i + 1]` seconds into it, so
+/// that a band's speeding up and slowing down comes out and it keeps one tempo, each bar as it was played inside it;
+/// what plays before the first bar and after the last stays as it was. Bars as long as one another within a
+/// millisecond are left as they are, and so is `x`.
+pub fn flatten(x: &Stereo, starts: &[f64], bar_secs: f64) -> Stereo {
+    let even = starts.windows(2).all(|w| ((w[1] - w[0]) - bar_secs).abs() < 0.001);
+    if starts.len() < 2 || even || bar_secs <= 0.0 {
+        return x.clone();
+    }
+    // the stretches: (from, to) in samples of `x`, and how long each comes out
+    let at = |t: f64| ((t * SRF).round().max(0.0) as usize).min(x.len());
+    let (head, tail) = (at(starts[0]), at(starts[starts.len() - 1]));
+    let bar = (bar_secs * SRF).round() as usize;
+    let mut parts: Vec<(usize, usize, usize)> = vec![(0, head, head)];
+    parts.extend(starts.windows(2).map(|w| (at(w[0]), at(w[1]), bar)));
+    parts.push((tail, x.len(), x.len() - tail));
+    parts.retain(|&(a, b, n)| b > a && n > 0);
+    stretched(x, &parts)
+}
+
+/// `x` through `parts`, each `(from, to, out)` a stretch of it from sample `from` to `to` made `out` samples long, which
+/// follow one another from its start to its end, in one stream as Signalsmith's `exact` does a single stretch: seeked
+/// on the input's first `input_latency` samples, fed the rest of it that far ahead (silence after its end), the first
+/// `output_latency` samples of the output folded back and taken off, and the last flushed
+#[cfg(feature = "native")]
+fn stretched(x: &Stereo, parts: &[(usize, usize, usize)]) -> Stereo {
+    let total: usize = parts.iter().map(|p| p.2).sum();
+    let mut st = signalsmith_stretch::Stretch::preset_default(2, crate::config::SR);
+    let (inl, outl) = (st.input_latency(), st.output_latency());
+    if total < 2 * outl {
+        return varispeeded(x, parts);
+    }
+    let input = x.interleaved();
+    let skip = (2 * inl).min(input.len());
+    let mut ahead = vec![0.0f32; input.len()];
+    ahead[..input.len() - skip].copy_from_slice(&input[skip..]);
+    let rate = (parts[0].1 - parts[0].0) as f64 / parts[0].2.max(1) as f64;
+    st.seek(&input[..skip], rate);
+    let mut out = vec![0.0f32; 2 * total];
+    let mut written = 0usize;
+    for &(a, b, n) in parts {
+        st.process(&ahead[2 * a..2 * b], &mut out[2 * written..2 * (written + n)]);
+        written += n;
+    }
+    for i in 0..outl.min(total - outl) {
+        for c in 0..2 {
+            out[2 * (i + outl) + c] -= out[2 * (outl - 1 - i) + c];
+        }
+    }
+    out.copy_within(2 * outl.., 0);
+    st.flush(&mut out[2 * (total - outl)..]);
+    Stereo::from_interleaved(&out)
+}
+
+/// `x` through `parts`, each varispeeded to its length, as a turntable would
+fn varispeeded(x: &Stereo, parts: &[(usize, usize, usize)]) -> Stereo {
+    let mut out = Stereo::zeros(parts.iter().map(|p| p.2).sum());
+    let mut at = 0usize;
+    for &(a, b, n) in parts {
+        let piece = x.slice(a, b);
+        let step = piece.len() as f64 / n.max(1) as f64;
+        let p = Stereo { l: resample_step(&piece.l, step, n), r: resample_step(&piece.r, step, n) };
+        out.add_at(&p, at as i64, 1.0, 1.0);
+        at += n;
+    }
+    out
+}
+
+/// `x` through `parts`, each varispeeded to its length, as a turntable would
+#[cfg(not(feature = "native"))]
+fn stretched(x: &Stereo, parts: &[(usize, usize, usize)]) -> Stereo {
+    varispeeded(x, parts)
+}
+
 /// whether a loop made `ratio` times as long and transposed by `semis` is only resampled: a tempo change under 1.5 %
 /// with no transpose, or one that moves its pitch by just the semitones asked (within 5 cents)
 fn resamples(ratio: f64, semis: i32) -> bool {
@@ -99,6 +173,50 @@ fn stretch(x: &Stereo, len: usize, _semis: i32) -> Stereo {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_band_speeding_up_is_flattened_to_one_tempo_bar_by_bar() {
+        // four bars of a click on each beat, 2.6, 2.5, 2.4 and 2.3 s long, after half a second of silence
+        let lens = [2.6, 2.5, 2.4, 2.3];
+        let mut starts = vec![0.5];
+        for l in lens {
+            starts.push(starts.last().unwrap() + l);
+        }
+        let mut x = Stereo::zeros(((starts[4] + 0.5) * SRF) as usize);
+        for b in 0..4 {
+            for k in 0..4 {
+                let at = ((starts[b] + k as f64 * lens[b] / 4.0) * SRF) as usize;
+                for i in 0..48 {
+                    x.l[at + i] = 0.8;
+                    x.r[at + i] = 0.8;
+                }
+            }
+        }
+        let flat = flatten(&x, &starts, 2.45);
+        let bar = (2.45 * SRF).round() as usize;
+        assert_eq!(flat.len(), (0.5 * SRF) as usize + 4 * bar + x.len() - (starts[4] * SRF).round() as usize);
+        // each click where a grid of 2.45 s bars puts it, within 3 ms
+        let loud: Vec<usize> =
+            (1..flat.len()).filter(|&i| flat.l[i].abs() > 0.3 && flat.l[i - 1].abs() <= 0.3).collect();
+        let mut onsets: Vec<usize> = Vec::new();
+        for i in loud {
+            if onsets.last().is_none_or(|&o| i - o > (0.1 * SRF) as usize) {
+                onsets.push(i);
+            }
+        }
+        assert_eq!(onsets.len(), 16, "{onsets:?}");
+        for (k, &o) in onsets.iter().enumerate() {
+            let want = 0.5 + k as f64 * 2.45 / 4.0;
+            assert!(
+                (o as f64 / SRF - want).abs() < 0.003,
+                "click {k} at {:.4} s, the grid's at {want:.4}",
+                o as f64 / SRF
+            );
+        }
+        // bars as long as one another are left as they were
+        let even = [0.5, 2.95, 5.4];
+        assert_eq!(flatten(&x, &even, 2.45).l, x.l);
+    }
 
     #[test]
     fn a_loop_sped_up_by_as_many_semitones_as_it_is_transposed_is_only_resampled() {

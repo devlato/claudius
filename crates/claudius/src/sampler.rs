@@ -1,5 +1,6 @@
-//! The auto-sampler: the phrases of a recording that sound most like a voice, cut on the recording's own beat grid,
-//! cleaned of its drums and of what plays to the sides, and placed in the song where they fit. Each becomes a loop of
+//! The auto-sampler: the phrases of a recording that sound most like a voice, cut on the bars it plays (each made
+//! as long as another, `Analysis::cut`), cleaned of its drums and of what plays to the sides, and placed in the song
+//! where they fit. Each becomes a loop of
 //! its own (`vox1`, `vox2` ...) that the renderer warps to the song's tempo and moves to its key: the phrase, then
 //! the bars of silence before it comes round again, in the sections that suit it, from the bar on which its notes
 //! agree best with the song's chords, mixed as a vocal.
@@ -43,8 +44,9 @@ impl Default for Options {
 /// a phrase of the recording worth sampling
 #[derive(Clone, Debug, PartialEq)]
 pub struct Phrase {
-    /// where it starts in the recording, in seconds, and how many of its bars it lasts
+    /// where it starts in the recording, in seconds, the bar that is (counting from 0), and how many bars it lasts
     pub start: f64,
+    pub first: usize,
     pub bars: u32,
     /// the ears' z for what they listened for, when they listened
     pub z: Option<f64>,
@@ -107,7 +109,7 @@ fn place(
     dir: &Path,
 ) -> Result<Sampled, String> {
     let groups = groups(bp, &opt.sections)?;
-    let bar = 240.0 / a.bpm.max(1.0);
+    let bar = a.bar_secs;
     let transpose = crate::compose::transpose_into(&bp.key, (a.key.tonic, a.key.mode.is_minor()));
     let project = crate::compose::arrange(bp);
     // each group of sections takes a phrase from its first bar and another from the bar after it ends, answering it
@@ -118,8 +120,7 @@ fn place(
         .filter(|&si| bp.loops.iter().any(|l| l.sampled && bp.form[si].layers.contains(&l.name)))
         .collect();
     for (p, fx) in phrases {
-        let (a0, a1) = ((p.start * SRF) as usize, (((p.start + p.bars as f64 * bar) * SRF) as usize).min(src.len()));
-        let cut = clean(&src.slice(a0, a1));
+        let cut = clean(&a.cut(src, p.first, p.bars as usize));
         let profile = shift(&pitch_profile(&cut), transpose);
         let period = 2 * p.bars;
         let mut best: Option<(f64, usize, usize, f64)> = None;
@@ -146,13 +147,13 @@ fn place(
             .map_err(|e| format!("cannot keep the phrase: {e:#}"))?;
         let names = bp.layer_names();
         let track = (1..).map(|k| format!("vox{k}")).find(|n| !names.contains(n)).unwrap_or_default();
-        let from_bar = ((p.start - a.first_downbeat) / bar).round() as i64 + 1;
+        let from_bar = p.first as i64 + 1;
         bp.loops.push(LoopPart {
             name: track.clone(),
             role: "vocal".into(),
             sound: Sound::Loop {
                 path: file.to_string_lossy().into_owned(),
-                bpm: a.bpm,
+                bpm: a.cut_bpm(),
                 beats: period as f64 * 4.0,
                 key: Some(a.key.tonic),
                 tonal: true,
@@ -225,7 +226,7 @@ pub struct Piece {
     /// the treatment in words, and its effects, which a piece kept treated plays through
     pub treatment: String,
     pub fx: Vec<Effect>,
-    /// the recording's tempo, which its bars are counted at
+    /// the tempo it keeps, cut from the recording
     pub bpm: f64,
 }
 
@@ -233,9 +234,7 @@ impl Piece {
     /// where it is in the recording, in words: "bars 12-13, 0:31"
     pub fn place(&self) -> String {
         let at = self.phrase.start.max(0.0) as u64;
-        let bar = 240.0 / self.bpm.max(1.0);
-        let from = (self.phrase.start / bar).round() as i64 + 1;
-        format!("{}, {}:{:02}", bars_text(from, self.phrase.bars), at / 60, at % 60)
+        format!("{}, {}:{:02}", bars_text(self.phrase.first as i64 + 1, self.phrase.bars), at / 60, at % 60)
     }
 }
 
@@ -306,7 +305,6 @@ pub fn pieces(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, see
         return Err("the recording is too short to sample (4 s at least)".into());
     }
     let a = analysis::analyze(src, None);
-    let bar = 240.0 / a.bpm.max(1.0);
     let count = opt.count.clamp(1, MOST);
     let mut rng = crate::rng::Rng::seed_from(seed, "pieces");
     let bars = opt.bars.or_else(|| (seed > 0).then(|| *rng.pick(&[1, 2, 2, 4])));
@@ -328,14 +326,12 @@ pub fn pieces(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, see
         .into_iter()
         .enumerate()
         .map(|(i, p)| {
-            let (a0, a1) =
-                ((p.start * SRF) as usize, (((p.start + p.bars as f64 * bar) * SRF) as usize).min(src.len()));
-            let raw = clean(&src.slice(a0, a1));
+            let raw = clean(&a.cut(src, p.first, p.bars as usize));
             let (treatment, fx) = treatment(first + i, p.bars as f64 * 4.0);
             let mut treated = raw.clone();
-            let ctx = crate::fx::Ctx::whole(SRF, a.bpm, seed.wrapping_add(i as u64), treated.len());
+            let ctx = crate::fx::Ctx::whole(SRF, a.cut_bpm(), seed.wrapping_add(i as u64), treated.len());
             crate::fx::apply_chain(&fx, &mut treated, &ctx);
-            Piece { phrase: p, raw, treated, treatment, fx, bpm: a.bpm }
+            Piece { phrase: p, raw, treated, treatment, fx, bpm: a.cut_bpm() }
         })
         .collect())
 }
@@ -406,19 +402,25 @@ fn groups(bp: &Blueprint, asked: &[String]) -> Result<Vec<(String, Vec<usize>)>,
         .collect())
 }
 
-/// The best `count` phrases of the recording: spans of whole bars on its beat grid, scored by how much of them holds
-/// a pitch in a voice's range (A2 to C6) in the middle of the stereo picture, and, when the ears listen, by how much
-/// they sound like what they listen for; no two overlapping, the best first.
+/// The best `count` phrases of the recording: spans of whole bars as it plays them, scored by how much of them holds
+/// a pitch in a voice's range (A2 to C6) in the middle of the stereo picture (a longer one a little more), and, when
+/// the ears listen, by how much they sound like what they listen for; no two overlapping, the best first.
 pub fn find(src: &Stereo, a: &Analysis, ears: Option<&crate::ears::Ears>, opt: &Options, count: usize) -> Vec<Phrase> {
-    let bar = 240.0 / a.bpm.max(1.0);
     let secs = src.len() as f64 / SRF;
     let lens: Vec<u32> = opt.bars.map_or_else(|| vec![1, 2], |b| vec![b]);
     let pitches = melody::pitches(src);
     let mut cands: Vec<Phrase> = Vec::new();
     for &bars in &lens {
-        let len = bars as f64 * bar;
-        let mut t = a.first_downbeat.max(0.0);
-        while t + len <= secs {
+        // the phrases start on the bars the recording plays, its own beats and not a grid of one tempo
+        for first in 0.. {
+            let (t, end) = (a.bar_start(first), a.bar_start(first + bars as usize));
+            if end > secs + 1e-6 {
+                break;
+            }
+            if t < 0.0 {
+                continue;
+            }
+            let len = end - t;
             let (f0, f1) = ((t * 100.0) as usize, (((t + len) * 100.0) as usize).min(pitches.len()));
             let sung = if f1 > f0 {
                 pitches[f0..f1].iter().filter(|p| p.is_some_and(|m| (45.0..=84.0).contains(&m))).count() as f64
@@ -435,15 +437,17 @@ pub fn find(src: &Stereo, a: &Analysis, ears: Option<&crate::ears::Ears>, opt: &
             let quiet = mid / (s1 - s0).max(1) as f64 <= 1e-6;
             let centred = if quiet { 0.0 } else { mid.sqrt() / (mid.sqrt() + side.sqrt()) };
             if !quiet {
-                cands.push(Phrase { start: t, bars, z: None, sung, centred, score: 2.0 * sung + centred });
+                // a longer phrase that sounds as sung says more
+                let score = 2.0 * sung + centred + 0.02 * (bars - 1) as f64;
+                cands.push(Phrase { start: t, first, bars, z: None, sung, centred, score });
             }
-            t += bar;
         }
     }
+    let end = |p: &Phrase| a.bar_start(p.first + p.bars as usize);
     // the ears listen to the spans that sound most sung, and their reading leads
     cands.sort_by(|x, y| y.score.total_cmp(&x.score));
     cands.truncate(64);
-    let spans: Vec<(f64, f64)> = cands.iter().map(|p| (p.start, p.start + p.bars as f64 * bar)).collect();
+    let spans: Vec<(f64, f64)> = cands.iter().map(|p| (p.start, end(p))).collect();
     if let Some(z) = heard(ears, src, &spans, opt.find.as_deref().unwrap_or(DEFAULT_FIND)) {
         for (p, z) in cands.iter_mut().zip(z) {
             p.z = Some(z);
@@ -453,8 +457,8 @@ pub fn find(src: &Stereo, a: &Analysis, ears: Option<&crate::ears::Ears>, opt: &
     }
     let mut out: Vec<Phrase> = Vec::new();
     for p in cands {
-        let (a0, a1) = (p.start, p.start + p.bars as f64 * bar);
-        if out.iter().all(|q| a1 <= q.start + 1e-6 || a0 >= q.start + q.bars as f64 * bar - 1e-6) {
+        let (a0, a1) = (p.first, p.first + p.bars as usize);
+        if out.iter().all(|q| a1 <= q.first || a0 >= q.first + q.bars as usize) {
             out.push(p);
         }
         if out.len() == count {
@@ -669,7 +673,13 @@ mod tests {
     fn a_sung_line_in_the_middle_is_found_and_the_drums_to_the_sides_are_not() {
         // a hum in bars 3-4
         let (sr, x) = (SRF as usize, hummed(4, 8));
-        let a = Analysis { bpm: 120.0, first_downbeat: 0.0, ..analysis::analyze(&x, Some((110.0, 130.0))) };
+        let a = Analysis {
+            bpm: 120.0,
+            first_downbeat: 0.0,
+            bar_secs: 2.0,
+            bar_starts: Vec::new(),
+            ..analysis::analyze(&x, Some((110.0, 130.0)))
+        };
         let found = find(&x, &a, None, &Options { bars: Some(2), ..Options::default() }, 1);
         assert_eq!(found.len(), 1);
         assert!((found[0].start - 4.0).abs() < 1e-9, "{:?}", found);

@@ -6,6 +6,16 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+A recording of a band keeps time with the song made from it. Its tempo used to be read as one, a grid fitted to the
+whole recording, and a band that speeds up and slows down drifts off any one tempo: a phrase cut from late in the song
+started half a beat or more off its bar, and a rework's recording drifted against the genre's drums. Now claudius
+follows the beats the band plays when they drift off the grid, cuts every piece (a sampled vocal, a remix's hook, its
+break, a rework's whole recording, a chop) on the bars as they were played, and stretches each of its bars to one
+length, so that the piece keeps one tempo and lands on the song's grid. The chords, the drum habits and the sections
+it hears in a recording are measured over those bars too. The grid of a recording that keeps one tempo is finer than
+it was: its tempo is fitted to all its beats rather than the median gap between two, which was a whole number of 5 ms
+frames and could leave the grid a tenth of a beat off by the end of a song.
+
 Leads are written the way each genre's are, in 20 idioms, instead of one random motif for every genre:
 - G-funk's portamento whine and trap's dark bells;
 - drill's piano bouncing in triplets and afrobeats' flute;

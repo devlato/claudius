@@ -85,7 +85,7 @@ sixteenth, swing and a bass style. It uses no models: everything is signal proce
 | file | what it does |
 |---|---|
 | `onsets.rs` | onset strength as log-compressed spectral flux, optionally in a frequency band; peaks above a moving median; onsets refined to where the energy starts rising: the first millisecond above a tenth of the loudest, from a hop before the peak frame's window to a hop after it (log flux peaks when an attack first comes into the window, at its end) |
-| `beats.rs` | tempo by autocorrelation of the onset envelope, beats by dynamic programming (Ellis 2007), then a constant-tempo grid and the downbeat |
+| `beats.rs` | tempo by autocorrelation of the onset envelope, beats by dynamic programming (Ellis 2007), then a constant-tempo grid, or the beats a band plays when they drift off it, and the downbeat |
 | `chroma.rs` | pitch-class energy, keys by Krumhansl-Kessler profiles, chords by template matching |
 | `melody.rs` | a [take](../guide/samples.md#takes)'s melody as notes, read by `voice/` ([below](#hearing-a-melody)) |
 | `song.rs` | the rest: sections, progressions, drum steps, swing, and `to_blueprint` |
@@ -95,9 +95,24 @@ sixteenth, swing and a bass style. It uses no models: everything is signal proce
 **Tempo.** The onset envelope adds the full-band flux to twice the kick-band flux (30 to 160 Hz), because in dance
 music the kick marks the beat. Its autocorrelation, weighted by a prior centred on 120 BPM (or on the middle of the
 range a genre gives) and helped by the autocorrelation at twice the lag, gives the beat period. Beats tracked by
-dynamic programming drift and insert beats through breakdowns, but music made in a DAW keeps one tempo, so the
-tracker then fits a constant grid, trying every tempo within 0.5 % in steps of 0.005 BPM and every phase, and keeps the
-one that lands on the most onset energy.
+dynamic programming jitter by a frame and insert or skip beats through breakdowns, but music made in a DAW keeps one
+tempo, so the tracker then fits a constant grid around the slope of a line through the tracked beats (finer than
+the median gap between them, which is a whole number of 5.3 ms frames: 117 or 118 at 96 BPM, nearly 1 % apart),
+trying every tempo within 0.5 % in steps of 0.005 BPM and every phase, and keeps the one that lands on the most onset
+energy.
+
+**A band's tempo.** A band speeds up and slows down, and a grid of one tempo drifts off it: a band that goes from 92
+to 98 BPM over 80 bars is several beats away from any one tempo by the end. So the tracker also keeps the beats as it
+played them: the tracked beats with a skipped one put back and one slipped in left out, each moved onto the line
+through it and the eight beats on either side (which takes out the jitter and keeps the drift). When somewhere 16 of
+them in a row sit more than an eighth of a beat off the grid, all one way, and they land on 5 % more onset energy than
+the grid does, those are the beats (`Grid::steady` false) and the tempo is their middle one. The bars
+(`Analysis::bar_starts`) are every fourth beat from the downbeat, back to the start of the recording at the first
+bar's length; everything measured bar by bar (the chords, the loudness, the drum steps, the swing) is measured over
+each bar as the band played it, and every piece cut from a recording is cut on those bars and made one tempo
+(`Analysis::cut`, `warp::flatten`): each of its bars stretched to the recording's mean bar, in one stream through
+Signalsmith Stretch, so that the renderer's warp to the song's tempo lands every bar on the song's. A recording that
+keeps one tempo is cut as it was.
 
 **Downbeat.** Of the four beat phases, the downbeat is the one with the best mix of three cues, each scaled to its
 best phase: a change of harmony across the beat (chroma a bar before against a bar after, weight 1.5), the biggest

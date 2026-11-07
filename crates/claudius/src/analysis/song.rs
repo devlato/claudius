@@ -68,6 +68,74 @@ pub struct Analysis {
     pub snare_steps: Vec<f32>,
     pub hat_steps: Vec<f32>,
     pub bass_style: String,
+    /// whether it keeps one tempo; else its bars follow the beats a band plays, which speed up and slow down
+    pub steady: bool,
+    /// where each of its bars starts, in seconds, and where the last ends (`bars + 1` of them): every fourth beat
+    /// from the first downbeat, on a grid of `bar_secs` for a recording that keeps one tempo
+    #[serde(skip)]
+    pub bar_starts: Vec<f64>,
+}
+
+impl Analysis {
+    /// Where bar `b` starts, in seconds (bar `bars` is where the last ends): the beats played, or the grid of
+    /// `bar_secs` past the last of them and for an analysis that has no bars of its own.
+    pub fn bar_start(&self, b: usize) -> f64 {
+        match (self.bar_starts.get(b), self.bar_starts.last()) {
+            (Some(&t), _) => t,
+            (None, Some(&last)) => last + (b + 1 - self.bar_starts.len()) as f64 * self.bar_secs,
+            (None, None) => self.first_downbeat + b as f64 * self.bar_secs,
+        }
+    }
+
+    /// Bars `first` to `first + count` of `x`, the recording analyzed, each made `bar_secs` long: a band's speeding up
+    /// and slowing down taken out (`warp::flatten`), so that the piece keeps one tempo, `240 / bar_secs`.
+    pub fn cut(&self, x: &Stereo, first: usize, count: usize) -> Stereo {
+        let (t0, t1) = (self.bar_start(first), self.bar_start(first + count));
+        let at = |t: f64| ((t * SRF).round().max(0.0) as usize).min(x.len());
+        let piece = x.slice(at(t0), at(t1));
+        let starts: Vec<f64> = (first..=first + count).map(|b| self.bar_start(b) - t0).collect();
+        crate::warp::flatten(&piece, &starts, self.bar_secs)
+    }
+
+    /// the tempo a piece `cut` from it keeps
+    pub fn cut_bpm(&self) -> f64 {
+        240.0 / self.bar_secs.max(1e-3)
+    }
+
+    /// the bar `t` seconds into the recording falls in, counting from 0 (bars before the first count back from it)
+    pub fn bar_at(&self, t: f64) -> i64 {
+        if self.bar_starts.len() < 2 || t < self.bar_start(0) || t >= self.bar_start(self.bars) {
+            return ((t - self.first_downbeat) / self.bar_secs.max(1e-3)).floor() as i64;
+        }
+        self.bar_starts.partition_point(|&s| s <= t) as i64 - 1
+    }
+}
+
+/// The start of each bar, every fourth beat from the downbeat, and the end of the last whole bar in a recording `secs`
+/// long: one more than its bars, two at least. Bars before the first downbeat the beats were heard from go back, as
+/// long as the first, to the start of the recording (within 60 ms of it).
+fn bars_on(beats: &[f64], downbeat: usize, beat: f64, secs: f64) -> Vec<f64> {
+    let mut out: Vec<f64> = beats.iter().skip(downbeat).step_by(4).copied().collect();
+    if out.is_empty() {
+        out.push(0.0);
+    }
+    let first = if out.len() > 1 { out[1] - out[0] } else { 4.0 * beat };
+    let mut back = Vec::new();
+    let mut t = out[0] - first;
+    while t > -0.06 {
+        back.push(t.max(0.0));
+        t -= first;
+    }
+    back.reverse();
+    back.extend(out);
+    let mut out = back;
+    // the bar after the last downbeat ends where the beats would bring the next, when the recording lasts that long
+    let last = out.len() - 1;
+    let bar = if last > 0 { out[last] - out[last - 1] } else { 4.0 * beat };
+    if out[last] + bar <= secs + 1e-6 || out.len() < 2 {
+        out.push(out[last] + bar);
+    }
+    out
 }
 
 fn band(mono: &[f32], lo: f64, hi: f64) -> Vec<f32> {
@@ -116,16 +184,14 @@ fn template(avg: &[f32; 16]) -> Vec<f32> {
 pub fn analyze(x: &Stereo, bpm_range: Option<(f64, f64)>) -> Analysis {
     let mono = x.mono();
     let grid = beats::track(&mono, bpm_range);
-    let beat = 60.0 / grid.bpm.max(1.0);
-    let bar_len = 4.0 * beat;
-    let first = grid.beats.get(grid.downbeat).copied().unwrap_or(0.0);
-    let mut start = first - (first / bar_len).floor() * bar_len;
-    if start > bar_len - 0.06 {
-        start = (start - bar_len).max(0.0);
-    }
-    let bars = (((mono.len() as f64 / SRF) - start) / bar_len).floor().max(1.0) as usize;
-    let at = |b: usize| ((start + b as f64 * bar_len) * SRF) as usize;
-    let t_bar = |b: usize| start + b as f64 * bar_len;
+    let bar_starts = bars_on(&grid.beats, grid.downbeat, 60.0 / grid.bpm.max(1.0), mono.len() as f64 / SRF);
+    let bars = bar_starts.len() - 1;
+    let start = bar_starts[0];
+    let bar_len = (bar_starts[bars] - start) / bars as f64;
+    let at = |b: usize| (bar_starts[b.min(bars)] * SRF) as usize;
+    let t_bar = |b: usize| bar_starts[b.min(bars)];
+    // a bar as long as the band played it
+    let len_of = |b: usize| bar_starts[(b + 1).min(bars)] - bar_starts[b.min(bars)];
     let (low, high) = (band(&mono, 30.0, 150.0), band(&mono, 5000.0, 0.0));
     let kick_env = onsets::flux(&low, None);
     let snare_env = onsets::flux(&mono, Some((1000.0, 5000.0)));
@@ -159,6 +225,7 @@ pub fn analyze(x: &Stereo, bpm_range: Option<(f64, f64)>) -> Analysis {
         let mut cb = [0.0f32; 12];
         // the bass under the chord: second halves of the first three beats, where the kick has decayed (and a
         // sidechained bass swells back), before any walk-up to the next chord
+        let beat = len_of(b) / 4.0;
         for (fi, f) in bass_ch.iter().enumerate().take(fe.min(bass_ch.len())).skip(fa) {
             let t = (fi * chroma_hop + chroma::NFFT / 2) as f64 / SRF - t_bar(b);
             let in_beat = (t / beat).fract();
@@ -171,10 +238,10 @@ pub fn analyze(x: &Stereo, bpm_range: Option<(f64, f64)>) -> Analysis {
         let sb: f32 = cb.iter().sum::<f32>().max(1e-9);
         cb.iter_mut().for_each(|v| *v /= sb);
         bar_bass.push(cb);
-        let t0 = start + b as f64 * bar_len;
-        kick.push(steps_of(&kick_env, t0, bar_len));
-        snare.push(steps_of(&snare_env, t0, bar_len));
-        hat.push(steps_of(&hat_env, t0, bar_len));
+        let (t0, len) = (t_bar(b), len_of(b));
+        kick.push(steps_of(&kick_env, t0, len));
+        snare.push(steps_of(&snare_env, t0, len));
+        hat.push(steps_of(&hat_env, t0, len));
     }
     // key from the loudness-weighted average chroma
     let mut avg = [0.0f32; 12];
@@ -325,7 +392,7 @@ pub fn analyze(x: &Stereo, bpm_range: Option<(f64, f64)>) -> Analysis {
     let (ks, ss, hs) = (avg_steps(&kick), avg_steps(&snare), avg_steps(&hat));
     let mut swing_votes = Vec::new();
     for b in busy.iter().take(64) {
-        let t0 = start + *b as f64 * bar_len;
+        let (t0, beat) = (t_bar(*b), len_of(*b) / 4.0);
         for pair in 0..8 {
             let p0 = t0 + pair as f64 * beat / 2.0;
             let (fa, fe) =
@@ -377,6 +444,8 @@ pub fn analyze(x: &Stereo, bpm_range: Option<(f64, f64)>) -> Analysis {
         snare_steps: template(&ss),
         hat_steps: template(&hs),
         bass_style: bass_style.to_string(),
+        steady: grid.steady,
+        bar_starts,
     }
 }
 

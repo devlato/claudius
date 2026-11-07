@@ -77,12 +77,11 @@ pub fn chop(path: &Path, bars_per_loop: usize, out: &Path, bpm_range: Option<(f6
     let mut loops = Vec::new();
     for (i, s) in a.sections.iter().enumerate() {
         let n = bars_per_loop.min(s.bars).max(1);
-        let t0 = a.first_downbeat + s.start_bar as f64 * bar;
-        let (s0, s1) = ((t0 * SRF) as usize, ((t0 + n as f64 * bar) * SRF) as usize);
-        if s1 > x.len() {
+        if a.bar_start(s.start_bar + n) * SRF > x.len() as f64 {
             continue;
         }
-        let mut seg = x.slice(s0, s1);
+        // its bars as it plays them, each made as long as another
+        let mut seg = a.cut(&x, s.start_bar, n);
         let len = seg.len();
         seg.fade(32.min(len), 64.min(len));
         let file = dir.join(format!("{:02}-{}-{}bars.wav", i + 1, s.kind.name(), n));
@@ -90,7 +89,7 @@ pub fn chop(path: &Path, bars_per_loop: usize, out: &Path, bpm_range: Option<(f6
         loops.push(LoopInfo {
             path: file.to_string_lossy().into_owned(),
             name: format!("{name} {} {}", s.kind.name(), i + 1),
-            tempo: a.bpm,
+            tempo: a.cut_bpm(),
             beats: (n * 4) as f64,
             secs: n as f64 * bar,
             key: if s.harmony { Some(a.key.tonic) } else { None },
@@ -111,8 +110,8 @@ pub fn chop(path: &Path, bars_per_loop: usize, out: &Path, bpm_range: Option<(f6
             if (lane == "kick" && !s.kick) || (lane == "hat" && !s.hats) {
                 continue;
             }
-            let t0 = a.first_downbeat + s.start_bar as f64 * bar;
-            let (s0, s1) = ((t0 * SRF) as usize, (((t0 + s.bars.min(4) as f64 * bar) * SRF) as usize).min(x.len()));
+            let (t0, t1) = (a.bar_start(s.start_bar), a.bar_start(s.start_bar + s.bars.min(4)));
+            let (s0, s1) = ((t0 * SRF) as usize, ((t1 * SRF) as usize).min(x.len()));
             if let Some(hit) = oneshot::cut(&x.slice(s0, s1), lane, &mut rng) {
                 let file = dir.join(format!("{lane}.wav"));
                 audio::save_wav(&file, &hit, true)?;
