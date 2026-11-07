@@ -1,6 +1,7 @@
 //! The melodic parts: per part its writing style, its sound (a synth preset or a sampled instrument), its register
 //! (drag on the keyboard or edit the notes), its density, and Reseed to write it again.
 
+use claudius_api::Command;
 use eframe::egui::{self, Align2, Color32, Rect, RichText, Sense, Stroke, Ui, pos2, vec2};
 
 use super::{Cx, empty, layer_color, page_frame, small};
@@ -238,10 +239,16 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         });
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             if widgets::tool_button(ui, Icon::Dice, "Reseed", true, false)
-                                .on_hover_text("write this part again with a new seed")
+                                .on_hover_text("write this part again with a new seed: another take")
                                 .clicked()
                             {
                                 out.push(PartEdit { reseed: true, ..Default::default() }.on(&part.name));
+                            }
+                            if widgets::tool_button(ui, Icon::Mutate, "Vary", true, false)
+                                .on_hover_text("the same take, other details: its rhythm stays, its ghosts, octaves and approaches change")
+                                .clicked()
+                            {
+                                out.push(Command::VaryTrack { track: part.name.clone(), take: false });
                             }
                         });
                     });

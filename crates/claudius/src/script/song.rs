@@ -57,7 +57,7 @@ fn rekey(rn: &str, from: &Key, to: &Key, shift: i32) -> String {
 /// a new track, part or drum lane joins the form where the form already names it (a generated form lists the genre's
 /// optional parts in the sections they belong to), or, when no section does, in every section with energy 0.6 or
 /// more (every section when none lists any track yet)
-pub(super) fn place_new(bp: &mut Blueprint, name: &str) {
+pub(crate) fn place_new(bp: &mut Blueprint, name: &str) {
     if bp.form.iter().any(|s| s.layers.iter().any(|l| l == name)) {
         return;
     }

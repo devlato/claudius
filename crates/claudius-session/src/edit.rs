@@ -400,9 +400,15 @@ fn sounding(bp: &Blueprint, p: &Part, name: &str) -> Vec<String> {
     std::iter::once(line(&p.name)).chain(chords.map(|h| line(&h.name))).collect()
 }
 
-/// What command `cmd` changes in the song `bp` itself, and what to say of it; None when `cmd` is no such edit.
-pub fn change(cmd: &Command, bp: &mut Blueprint) -> Option<Result<String, String>> {
+/// What command `cmd` changes in the song `bp` itself, and what to say of it; None when `cmd` is no such edit. `seed`
+/// is the one a track generated or varied takes, when the command names none.
+pub fn change(cmd: &Command, bp: &mut Blueprint, seed: u64) -> Option<Result<String, String>> {
     Some(match cmd {
+        Command::GenerateTrack { what, genre, replace, name, seed: given } => {
+            let genre = genre.clone().filter(|g| !g.trim().is_empty()).unwrap_or_else(|| bp.genre.clone());
+            claudius::generate::track(bp, what, &genre, replace.as_deref(), name.as_deref(), given.unwrap_or(seed))
+        }
+        Command::VaryTrack { track, take } => claudius::generate::vary(bp, track, *take, seed),
         Command::SetSection {
             index,
             name,
@@ -690,6 +696,9 @@ mod tests {
             json!({"cmd": "set_progression", "name": "A", "chords": ["i", "VI"]}),
             json!({"cmd": "set_drum_pattern", "lane": "kick", "variant": "main", "steps": "x..."}),
             json!({"cmd": "set_part", "name": "bass", "density": 0.5, "reseed": true}),
+            json!({"cmd": "swap_sound", "track": "bass"}),
+            json!({"cmd": "generate_track", "what": "bass", "genre": "reggae"}),
+            json!({"cmd": "vary_track", "track": "bass"}),
             json!({"cmd": "add_track", "name": "lead2", "kind": "part", "role": "lead"}),
             json!({"cmd": "remove_track", "name": "arp"}),
             json!({"cmd": "set_notes", "part": "bass", "prog": "A", "notes": [{"t": 0.0, "d": 1.0, "p": 36}]}),
@@ -707,12 +716,12 @@ mod tests {
         ];
         for v in &edits {
             let c = cmd(v);
-            let (by_script, by_change) = (script(&c, Some(&bp), 1).is_some(), change(&c, &mut bp.clone()).is_some());
+            let (by_script, by_change) = (script(&c, Some(&bp), 1).is_some(), change(&c, &mut bp.clone(), 1).is_some());
             assert!(by_script != by_change, "{v}: a script {by_script}, a change {by_change}");
         }
         for v in [json!({"cmd": "new_song", "genre": "house"}), json!({"cmd": "render"}), json!({"cmd": "undo"})] {
             let c = cmd(&v);
-            assert!(script(&c, Some(&bp), 1).is_none() && change(&c, &mut bp.clone()).is_none(), "{v} is no edit");
+            assert!(script(&c, Some(&bp), 1).is_none() && change(&c, &mut bp.clone(), 1).is_none(), "{v} is no edit");
         }
     }
 
@@ -741,9 +750,9 @@ mod tests {
         let bp = song();
         let toggle = cmd(&json!({"cmd": "toggle_layer", "section": 0, "layer": "kick"}));
         let mut b = bp.clone();
-        let first = change(&toggle, &mut b).unwrap().unwrap();
+        let first = change(&toggle, &mut b, 1).unwrap().unwrap();
         assert_ne!(b.form[0].layers, bp.form[0].layers, "{first}");
-        change(&toggle, &mut b).unwrap().unwrap();
+        change(&toggle, &mut b, 1).unwrap().unwrap();
         let (mut was, mut is) = (bp.form[0].layers.clone(), b.form[0].layers.clone());
         was.sort();
         is.sort();

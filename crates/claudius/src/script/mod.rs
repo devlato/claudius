@@ -40,7 +40,7 @@ pub use form::Sec;
 pub use mix::mix_of;
 pub use print::to_script;
 pub use song::{blank, remode};
-pub(crate) use song::{put_drum, put_hits};
+pub(crate) use song::{place_new, put_drum, put_hits};
 pub(crate) use sounds::{drum_label, voice_word};
 pub use sounds::{drum_name, drum_names, drum_role, resolve_sound, role_of};
 pub use steps::{STEP_ACCENT, STEP_GHOST, hits_to_steps, steps_to_hits};

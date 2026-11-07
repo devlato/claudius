@@ -27,6 +27,7 @@ pub mod evolve;
 pub mod export;
 pub mod form;
 pub mod fx;
+pub mod generate;
 pub mod genres;
 pub mod judge;
 pub mod library;

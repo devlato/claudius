@@ -517,6 +517,38 @@ pub struct SwapArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct GenerateArgs {
+    /// what to write: drums, percussion, bass, chords, keys, pad, strings, lead or arp
+    pub what: String,
+    /// the genre whose way of playing it to write it in (find_genre names them); the song's own when left out
+    #[serde(default)]
+    pub genre: Option<String>,
+    /// a part of the song to write again in that genre's way, in place of what it plays (its name, mix and sections
+    /// stay); left out, a new track
+    #[serde(default)]
+    pub replace: Option<String>,
+    /// the new track's name (default <genre>_<what>, or <what> in the song's own genre)
+    #[serde(default)]
+    pub name: Option<String>,
+    /// render and judge after the change (default true)
+    #[serde(default = "yes")]
+    pub listen: bool,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct VaryArgs {
+    /// the part or drum lane to vary
+    pub track: String,
+    /// another take (a part's seed anew; a lane's patterns written again from the genre's template) instead of a
+    /// variation of the take it plays
+    #[serde(default)]
+    pub take: bool,
+    /// render and judge after the change (default true)
+    #[serde(default = "yes")]
+    pub listen: bool,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct TrimArgs {
     /// the take, by its track's name (get_song lists the tracks)
     pub track: String,
@@ -1184,6 +1216,21 @@ impl Studio {
     }
 
     #[tool(
+        description = "Write a track the way a genre plays it, into the open song: drums (the genre's lanes from its templates and kits, in place of the song's lanes of their names and beside the others), percussion (its percussion lanes beside the song's drums), or a part (bass, chords, keys, pad, strings, lead, arp) written as that genre's own part of the role is: its idiom (reggae's one drop, funk's slap, the dembow, a jazz walk ...), a sound from its palette, its register, density, voicing and mix, fitted to the song's key, chords and form. The genre can be any (find_genre names them), so a song gets a reggae bass or trap hats; with replace, a part of the song is written again that way instead of a new track. Each call is another take; then vary_track for variations of it, and listen."
+    )]
+    async fn generate_track(&self, Parameters(a): Parameters<GenerateArgs>) -> Result<String, String> {
+        let c = Command::GenerateTrack { what: a.what, genre: a.genre, replace: a.replace, name: a.name, seed: None };
+        self.edit(c, a.listen).await
+    }
+
+    #[tool(
+        description = "Vary a part or drum lane of the song: a variation of the take it plays (a part keeps its idiom's rhythm, its cells, and draws their details again: its ghosts, octaves, approaches, pushes; a drum lane is varied a step or two, its hits on the strong beats kept), or with take another take altogether (a part's new seed; a lane's patterns written again from its genre's template). Undo brings back the one before."
+    )]
+    async fn vary_track(&self, Parameters(a): Parameters<VaryArgs>) -> Result<String, String> {
+        self.edit(Command::VaryTrack { track: a.track, take: a.take }, a.listen).await
+    }
+
+    #[tool(
         description = "Trim a take (a recording added with add_take, or recorded, or a whole song added as a track): keep its recording from `start` to `end` seconds in, as it plays now, so that it starts later in itself or stops sooner. It still plays from the start of its section, and the sections past its new end no longer play it. claudius keeps the cut with the song and the recording it came from, so undo brings the take back as it was. Trim again to cut more; effects go on it as on any track (command set_fx with target track:<name>, or run_script with fx())."
     )]
     async fn trim_take(&self, Parameters(a): Parameters<TrimArgs>) -> Result<String, String> {
@@ -1391,7 +1438,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Send one raw claudius API command (JSON tagged by \"cmd\"), for edits scripts do not cover: add_section {after, kind, bars}, remove_section {index}, move_section {from, to}, toggle_layer {section, layer}, set_drum_step {lane, variant, step, velocity}, set_section {index, name?, bars?, energy?, layers?, prog?, variant?, build?, gap?, impact?, fills?, filter_in?}, set_part {name, style?, preset?, register?, density?, reseed?}, add_track {name, kind: \"drum\" | \"part\", role?, sound?}, remove_track {name}, set_notes {part, prog, notes?: [{t, d, p, v}]} (a part's notes over a progression written out; no notes: the theory engine's again), set_mix {track, level_db?, pan?, reverb?, delay?, duck?, drive_db?, muted?, solo?, bus?}, add_take {path, from, name?, role?} (path: a file, or library:<id> from search_recordings), harmonize {part, style?, sound?, name?}, swap_sound {track?, to?, only?} (another sound for a part or drum lane, or with no track for the whole song), trim_take {track, start?, end?}, transcribe_take {take, sounds, name?, role?, chromatic?, keep_take?, style?}, add_notes {from, notes: [{t, d, p, v}], sounds, name?, role?, style?}, add_hits {from, hits: [{lane, t, v}], bars?, variant?, grid?, start?, beats?} (drums played on pads, t in beats from the section's start), add_scratch {from, track, moves: [{t, at, fader}], bar?, bars?, name?, role?} (a scratch on bars of a track, kept as a take: t seconds into the scratch, at seconds into the record, fader 0 shut to 1 open)."
+        description = "Send one raw claudius API command (JSON tagged by \"cmd\"), for edits scripts do not cover: add_section {after, kind, bars}, remove_section {index}, move_section {from, to}, toggle_layer {section, layer}, set_drum_step {lane, variant, step, velocity}, set_section {index, name?, bars?, energy?, layers?, prog?, variant?, build?, gap?, impact?, fills?, filter_in?}, set_part {name, style?, preset?, register?, density?, reseed?}, add_track {name, kind: \"drum\" | \"part\", role?, sound?}, remove_track {name}, set_notes {part, prog, notes?: [{t, d, p, v}]} (a part's notes over a progression written out; no notes: the theory engine's again), set_mix {track, level_db?, pan?, reverb?, delay?, duck?, drive_db?, muted?, solo?, bus?}, add_take {path, from, name?, role?} (path: a file, or library:<id> from search_recordings), harmonize {part, style?, sound?, name?}, swap_sound {track?, to?, only?} (another sound for a part or drum lane, or with no track for the whole song), generate_track {what, genre?, replace?, name?, seed?}, vary_track {track, take?}, trim_take {track, start?, end?}, transcribe_take {take, sounds, name?, role?, chromatic?, keep_take?, style?}, add_notes {from, notes: [{t, d, p, v}], sounds, name?, role?, style?}, add_hits {from, hits: [{lane, t, v}], bars?, variant?, grid?, start?, beats?} (drums played on pads, t in beats from the section's start), add_scratch {from, track, moves: [{t, at, fader}], bar?, bars?, name?, role?} (a scratch on bars of a track, kept as a take: t seconds into the scratch, at seconds into the record, fader 0 shut to 1 open)."
     )]
     async fn command(&self, Parameters(a): Parameters<CommandArgs>) -> Result<String, String> {
         let c: Command = serde_json::from_value(a.command).map_err(|e| format!("not a claudius command: {e}"))?;

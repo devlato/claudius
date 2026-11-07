@@ -123,7 +123,7 @@ pub fn layer(bp: &mut Blueprint, g: &GenreProfile, complexity: f64, lib: Option<
 
 /// a part spec for a layer of `role` the genre has no part for: the genre's own part of that role if it has one, else
 /// one sounding as the genre's palette for the role draws
-fn spec_for(g: &GenreProfile, name: &str, role: Role, fallback: &str) -> PartSpec {
+pub(crate) fn spec_for(g: &GenreProfile, name: &str, role: Role, fallback: &str) -> PartSpec {
     let own = g.parts.iter().find(|p| p.role == role);
     PartSpec {
         name: name.into(),

@@ -103,6 +103,10 @@ form([sec("intro", 8, "drums keys"), sec("drop", 16, "*").impact(), sec("break",
   takes the section the notes start with and each note's start and length in beats, its MIDI pitch (60 is middle C)
   and its velocity. They become a new part playing `sounds`. Patterns are for loops; `add_notes` is for a line that
   should be exactly so.
+- **A track in a style.** "Give it a reggae bass", "trap hats", "disco strings": `generate_track` writes the track the
+  way that genre plays it (its idiom, its sounds, its register and mix) into the song as it is, as a new track or
+  `replace`-ing one of its parts; drums rewrite the song's lanes of their names. Each call is another take;
+  `vary_track` keeps a take's rhythm and changes its details, or with `take` writes another.
 - **Another sound.** When the person dislikes a sound ("this bass is weak"), `swap_sound` with the track puts it on
   the next sound that fits, its genre's own first and never one another part plays, and lists what else it could
   play, so the next try can name one (`to`). Without a track it swaps the whole song, every part's sound and the

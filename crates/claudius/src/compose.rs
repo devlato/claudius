@@ -25,6 +25,7 @@ mod arrange;
 mod layers;
 
 pub use arrange::{arrange, cycle_spans, cycles, part_cycle};
+pub(crate) use layers::spec_for;
 pub use layers::{chance_at, left_out_at, reach};
 
 /// a loop family picked for a song: loops produced to play together (one tempo, one key), with the chords of the
@@ -163,7 +164,79 @@ fn drum_params(voice: DrumVoice, ranges: &BTreeMap<String, (f32, f32)>, rng: &mu
     p
 }
 
-fn pick_kit(kits: &[(String, f64)], rng: &mut Rng) -> Option<String> {
+/// Where a drum lane's sound comes from besides its synthesized voice: a one-shot from `lib` some of the time
+/// (`samples`), the song's kit `kit`, and the installed `kits` a lane now and then takes one of its own from.
+pub(crate) struct LaneSounds<'a> {
+    pub samples: f64,
+    pub lib: Option<&'a dyn Library>,
+    pub kit: Option<&'a str>,
+    pub kits: &'a [String],
+}
+
+/// A drum lane as genre `g` plays `spec` in `key`, drawn from `dr`: its patterns from the genre's templates, and its
+/// sound from `sounds`, else its synthesized voice with settings from the genre's ranges (the kick tuned to the key
+/// where the genre tunes it).
+pub(crate) fn write_lane(
+    spec: &crate::genres::LaneSpec,
+    g: &GenreProfile,
+    key: &Key,
+    sounds: &LaneSounds,
+    dr: &mut Rng,
+) -> DrumLane {
+    let hints: Vec<String> = if spec.samples.is_empty() { default_hints(&spec.name) } else { spec.samples.clone() };
+    // the same draws with or without a library, so a seed makes the same patterns on every machine
+    let mut sr = dr.fork(&spec.name);
+    let sampled = sr.chance(sounds.samples);
+    let mut p = drum_params(spec.voice, &spec.params, dr);
+    let one_shot = sounds.lib.filter(|_| !hints.is_empty() && sampled);
+    let sound = one_shot.and_then(|l| l.one_shot(&spec.name, &hints, g, &mut sr)).unwrap_or_else(|| {
+        if spec.tune_to_key && spec.voice == DrumVoice::Kick {
+            let (lo, hi) = spec.params.get("tune").copied().unwrap_or((40.0, 65.0));
+            p.tune = tune_to_key(p.tune, lo, hi, key);
+        }
+        Sound::Drum { voice: spec.voice, params: p }
+    });
+    let pattern_bars = 4;
+    let patterns = lane_patterns(spec, pattern_bars, dr);
+    let sound = sounds.kit.and_then(|k| kit_sound(&spec.name, k)).unwrap_or(sound);
+    let own = lane_kit(&spec.name, g.kit_mix, sounds.kits, &mut dr.fork(&format!("{}-kit", spec.name)));
+    let sound = own.unwrap_or(sound);
+    let feel = &mut dr.fork(&format!("{}-feel", spec.name));
+    DrumLane {
+        late_ms: spec.late_ms.map_or(0.0, |(lo, hi)| feel.range(lo as f64, hi as f64).round() as f32),
+        length: None,
+        speed: 1.0,
+        swing: None,
+        groove: None,
+        groove_amount: 1.0,
+        name: spec.name.clone(),
+        sound,
+        patterns,
+        pattern_bars,
+        pitch: 0,
+        choke: spec.choke.clone(),
+        mix: spec.mix.clone(),
+    }
+}
+
+/// a lane's patterns, `bars` long, from its genre's templates: its euclidean rhythm and a sparser one, or its
+/// template's `main`, and its variants
+pub(crate) fn lane_patterns(spec: &crate::genres::LaneSpec, bars: u32, dr: &mut Rng) -> BTreeMap<String, Vec<Hit>> {
+    let mut patterns = BTreeMap::new();
+    if let Some((k, n)) = spec.euclid {
+        let rot = dr.below(n.max(1));
+        patterns.insert("main".to_string(), rhythm::euclid_hits(k, n, rot, bars, 0.75));
+        patterns.insert("sparse".to_string(), rhythm::euclid_hits((k / 2).max(1), n, rot, bars, 0.65));
+    } else if let Some(t) = &spec.template {
+        patterns.insert("main".to_string(), rhythm::generate(t, bars, dr));
+    }
+    for (name, t) in &spec.variants {
+        patterns.insert(name.clone(), rhythm::generate(t, bars, dr));
+    }
+    patterns
+}
+
+pub(crate) fn pick_kit(kits: &[(String, f64)], rng: &mut Rng) -> Option<String> {
     let mut x = rng.f64();
     for (name, w) in kits {
         if x < *w {
@@ -656,55 +729,8 @@ fn generate_inner(g: &GenreProfile, seed: u64, opts: &Options, lib: Option<&dyn 
     let mut dr = rng.fork("drums");
     let kit = pick_kit(&g.kits, &mut rng.fork("kit"));
     let kits = palette::kits();
-    let mut drums = Vec::new();
-    for spec in &g.drums {
-        let hints: Vec<String> = if spec.samples.is_empty() { default_hints(&spec.name) } else { spec.samples.clone() };
-        // the same draws with or without a library, so a seed makes the same patterns on every machine
-        let mut sr = dr.fork(&spec.name);
-        let sampled = sr.chance(opts.samples);
-        let mut p = drum_params(spec.voice, &spec.params, &mut dr);
-        let sound = lib
-            .filter(|_| !hints.is_empty() && sampled)
-            .and_then(|l| l.one_shot(&spec.name, &hints, g, &mut sr))
-            .unwrap_or_else(|| {
-                if spec.tune_to_key && spec.voice == DrumVoice::Kick {
-                    let (lo, hi) = spec.params.get("tune").copied().unwrap_or((40.0, 65.0));
-                    p.tune = tune_to_key(p.tune, lo, hi, &key);
-                }
-                Sound::Drum { voice: spec.voice, params: p }
-            });
-        let pattern_bars = 4;
-        let mut patterns = BTreeMap::new();
-        if let Some((k, n)) = spec.euclid {
-            let rot = dr.below(n.max(1));
-            patterns.insert("main".to_string(), rhythm::euclid_hits(k, n, rot, pattern_bars, 0.75));
-            patterns.insert("sparse".to_string(), rhythm::euclid_hits((k / 2).max(1), n, rot, pattern_bars, 0.65));
-        } else if let Some(t) = &spec.template {
-            patterns.insert("main".to_string(), rhythm::generate(t, pattern_bars, &mut dr));
-        }
-        for (name, t) in &spec.variants {
-            patterns.insert(name.clone(), rhythm::generate(t, pattern_bars, &mut dr));
-        }
-        let sound = kit.as_deref().and_then(|k| kit_sound(&spec.name, k)).unwrap_or(sound);
-        let sound =
-            lane_kit(&spec.name, g.kit_mix, &kits, &mut dr.fork(&format!("{}-kit", spec.name))).unwrap_or(sound);
-        let feel = &mut dr.fork(&format!("{}-feel", spec.name));
-        drums.push(DrumLane {
-            late_ms: spec.late_ms.map_or(0.0, |(lo, hi)| feel.range(lo as f64, hi as f64).round() as f32),
-            length: None,
-            speed: 1.0,
-            swing: None,
-            groove: None,
-            groove_amount: 1.0,
-            name: spec.name.clone(),
-            sound,
-            patterns,
-            pattern_bars,
-            pitch: 0,
-            choke: spec.choke.clone(),
-            mix: spec.mix.clone(),
-        });
-    }
+    let sounds = LaneSounds { samples: opts.samples, lib, kit: kit.as_deref(), kits: &kits };
+    let drums: Vec<DrumLane> = g.drums.iter().map(|spec| write_lane(spec, g, &key, &sounds, &mut dr)).collect();
 
     // parts: each the genre plays as written drawn (and coloured, below) as it would be, kept or not, so that the
     // others come out the same at any complexity; one only a more layered song plays, after them from its own fork
