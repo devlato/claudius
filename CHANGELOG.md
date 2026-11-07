@@ -6,6 +6,12 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+A sample chopped onto the song's grid keeps time inside each slice too. Each half beat of it used to play whole at the
+record's own speed from the song's half beat, so its second sixteenth landed a quarter of a sixteenth or more off the
+song's: a break at 93 BPM chopped into lofi at 71 put every other hit 50 ms early against the song's hats. Now each
+sixteenth of a slice plays from the song's sixteenth, cut short or followed by a gap as an MPC chops by the hit. The
+critic now hears a boom bap song's chopped phrase and break keep its 93.88 BPM exactly.
+
 Tracks are balanced as a mix engineer stages them.
 - A track whose sound is more than 6 dB from its role's level goes into its effects 6 dB from it. Before, a pad made
   20 dB hot went into its saturator and compressor that hot, distorted, and was only turned down after. Its effects

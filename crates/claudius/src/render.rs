@@ -473,7 +473,10 @@ fn render_source(
         }
         Sound::Loop { path, bpm, beats, .. } if t.retime => {
             // the loop at its own speed (its transpose resamples it, as a sampler's varispeed does), each slice of its
-            // beats from the song's beat for it: cut short where the song is faster, a gap after it where slower
+            // beats from the song's beat for it, a sixteenth at a time from the song's sixteenth for it: cut short
+            // where the song is faster, a gap after it where slower, as an MPC's chops by the hit. Played whole at its
+            // own speed, a slice's second sixteenth would land a quarter of a sixteenth or more off the song's (at
+            // three quarters of its tempo, 50 ms early at 71 BPM), against the song's drums
             let own = bpm * 2f64.powf(t.transpose as f64 / 12.0);
             let w = crate::warp::warp(path, *bpm, *beats, own, t.transpose, true, false)?;
             let wl = w.len().max(1);
@@ -481,9 +484,11 @@ fn render_source(
             // the slices counted from the loop's beats, each from where it starts to the sample: added up as rounded,
             // they may come to more than the loop holds and lose its last
             let per = beats_of * 60.0 / own * SRF;
-            let slice = per.round().max(1.0) as usize;
             let slot = (beats_of * tm.spb).round().max(1.0) as usize;
             let n_slices = ((*beats / beats_of).round() as usize).max(1);
+            let subs = ((beats_of / 0.25).round() as usize).clamp(1, slot);
+            let (sub_per, sub_slot) = (per / subs as f64, slot / subs);
+            let sub_slice = sub_per.round().max(1.0) as usize;
             let (fade_in, fade_out) = ((0.001 * SRF) as usize, (0.003 * SRF) as usize);
             for c in &t.clips {
                 let a = (c.t * tm.spb).round() as usize;
@@ -493,7 +498,10 @@ fn render_source(
                 for i in a..b {
                     let rel = i - a + off;
                     let (k, at) = (rel / slot, rel % slot);
-                    let heard = slice.min(slot);
+                    // the sixteenth of the slice, and where in it; the last takes what the rounding leaves
+                    let j = (at / sub_slot).min(subs - 1);
+                    let (at, room) = (at - j * sub_slot, if j + 1 == subs { slot - j * sub_slot } else { sub_slot });
+                    let heard = sub_slice.min(room);
                     if at >= heard {
                         continue;
                     }
@@ -502,7 +510,7 @@ fn render_source(
                         false => t.chop[k % t.chop.len()].rem_euclid(n_slices as i32) as usize,
                     };
                     let edge = (at as f32 / fade_in as f32).min((heard - at) as f32 / fade_out as f32).min(1.0);
-                    let src = ((idx as f64 * per).round() as usize + at).min(wl - 1);
+                    let src = ((idx as f64 * per + j as f64 * sub_per).round() as usize + at).min(wl - 1);
                     out.l[i] += w.l[src] * g * edge;
                     out.r[i] += w.r[src] * g * edge;
                 }
@@ -1403,6 +1411,17 @@ mod tests {
     /// two bars of house at 120 BPM with a loop track `name` playing `x` (kept in memory as `demo:<name>`), with the
     /// role `role`, through `fx`: the song, and the track's sound before the mix with the level the mix hears in it
     fn looped(x: Stereo, name: &str, role: &str, fx: Vec<Effect>) -> (Project, Stereo, Option<f64>) {
+        looped_as(x, name, role, fx, |_| {})
+    }
+
+    /// `looped`, the loop part as `edit` leaves it
+    fn looped_as(
+        x: Stereo,
+        name: &str,
+        role: &str,
+        fx: Vec<Effect>,
+        edit: impl FnOnce(&mut crate::model::LoopPart),
+    ) -> (Project, Stereo, Option<f64>) {
         audio::remember(&format!("demo:{name}"), x);
         let g = crate::genres::get("house").unwrap();
         let mut bp =
@@ -1428,6 +1447,7 @@ mod tests {
             from: None,
             sampled: false,
         });
+        edit(bp.loops.last_mut().expect("the loop just added"));
         bp.form.iter_mut().for_each(|s| s.layers.push(name.into()));
         let p = crate::compose::arrange(&bp).slice(0, 2);
         let (out, level) = track_sound(&p, &Options::default(), name).unwrap();
@@ -1469,6 +1489,31 @@ mod tests {
         // a pad made at its level goes in as it was made
         let (_, at, _) = looped(tone(0.12), "at", "pad", Vec::new());
         assert!((at.peak() - 0.12).abs() < 0.01, "{}", at.peak());
+    }
+
+    #[test]
+    fn a_loop_chopped_onto_the_songs_grid_keeps_it_inside_each_slice_too() {
+        // eight beats of a hit on each sixteenth of 90 BPM, chopped onto a song at 120 (four thirds of its tempo) at
+        // its own speed, half a beat to a slice
+        let sixteenth = 15.0 / 90.0;
+        let mut x = Stereo::zeros((32.0 * sixteenth * SRF) as usize);
+        let mut noise = crate::rng::Rng::new(6);
+        for k in 0..32 {
+            let at = (k as f64 * sixteenth * SRF) as usize;
+            for j in 0..(0.01 * SRF) as usize {
+                let v = (noise.f32() - 0.5) * (1.0 - j as f32 / (0.01 * SRF) as f32);
+                (x.l[at + j], x.r[at + j]) = (v, v);
+            }
+        }
+        let (_, out, _) = looped_as(x, "chopped", "drums", Vec::new(), |l| {
+            (l.retime, l.slice_beats) = (true, 0.5);
+            if let Sound::Loop { bpm, .. } = &mut l.sound {
+                *bpm = 90.0;
+            }
+        });
+        // every hit on a sixteenth of the song's, the second of each slice as well as its first
+        let k = kept_time(&out, 120.0).unwrap();
+        assert!((k.own_bpm - 120.0).abs() < 0.5 && k.on_grid > 0.8, "{k:?}");
     }
 
     #[test]
