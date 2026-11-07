@@ -27,8 +27,9 @@ impl App {
         request: Option<u64>,
         file: Option<&str>,
     ) -> Reply {
+        // the file's own name says its kind first, as the demo reads it; its bytes, when it has none
         let named = file.and_then(|f| f.rsplit_once('.')).map(|(_, e)| e.to_ascii_lowercase());
-        let Some(ext) = kind(&bytes).map(str::to_string).or(named) else {
+        let Some(ext) = named.or_else(|| kind(&bytes).map(str::to_string)) else {
             return no("send the take as a WAV, FLAC, Ogg, MP3, AAC or AIFF file", self.version());
         };
         let ext = ext.as_str();

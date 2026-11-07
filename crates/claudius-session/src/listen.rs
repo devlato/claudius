@@ -52,6 +52,9 @@ pub fn kind(b: &[u8]) -> Option<&'static str> {
         Some("flac")
     } else if at(0, b"OggS") {
         Some("ogg")
+    } else if b.len() >= 2 && b[0] == 0xFF && b[1] & 0xF6 == 0xF0 {
+        // an ADTS frame: MPEG audio's sync with layer bits 00, which no MP3 frame has
+        Some("aac")
     } else if at(0, b"ID3") || (b.len() >= 2 && b[0] == 0xFF && b[1] & 0xE0 == 0xE0) {
         Some("mp3")
     } else if at(4, b"ftyp") {
@@ -238,6 +241,8 @@ mod tests {
         assert_eq!(kind(b"fLaC\0"), Some("flac"));
         assert_eq!(kind(b"\0\0\0\x20ftypM4A "), Some("m4a"), "an AAC file, as iTunes and phones write one");
         assert_eq!(kind(b"caff\0\x01"), Some("caf"));
+        assert_eq!(kind(&[0xFF, 0xF1, 0x50, 0x80]), Some("aac"), "an ADTS frame, not an MP3 one");
+        assert_eq!(kind(&[0xFF, 0xFB, 0x90, 0x64]), Some("mp3"));
         assert_eq!(kind(b"hello"), None);
         assert!(decode(b"hello".to_vec(), "noise").unwrap_err().starts_with("send the recording as the file itself"));
         assert_eq!(groove_name("/x/My Break (92).wav"), "my_break__92_");
