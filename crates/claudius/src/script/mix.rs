@@ -112,7 +112,7 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
             }
             if let Some(s) = map_str(&m, "style") {
                 let styles = if part.harmonizes.is_some() {
-                    crate::theory::harmonize::STYLES.to_vec()
+                    crate::theory::harmonize::styles()
                 } else {
                     compose::styles_for(part.role)
                 };

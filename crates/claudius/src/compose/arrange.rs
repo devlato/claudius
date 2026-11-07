@@ -102,6 +102,8 @@ fn sounding(bp: &Blueprint, part: &Part, prog: &str, kick_main: &[Hit], kick_bar
             voicing: part.voicing,
             register: part.register,
             voices: part.voices.max(2),
+            seed: part.seed,
+            stream: hash_str(prog),
         };
         let mut rng = Rng::new(part.seed ^ hash_str(prog));
         return (harmonize::harmony(&line, period, &song, &play, &mut rng), period);

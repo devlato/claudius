@@ -238,11 +238,9 @@ fn harmonize(
         return Err(format!("no part '{melody}' to harmonize (parts: {})", parts.join(" ")));
     };
     let style = style.clone().unwrap_or_else(|| "block".into());
-    if !claudius::theory::harmonize::STYLES.contains(&style.as_str()) {
-        return Err(format!(
-            "chords under a melody play in one of {}, not '{style}'",
-            claudius::theory::harmonize::STYLES.join(" ")
-        ));
+    let styles = claudius::theory::harmonize::styles();
+    if !styles.contains(&style.as_str()) {
+        return Err(format!("chords under a melody play in one of {}, not '{style}'", styles.join(" ")));
     }
     let taken = bp.layer_names();
     let name = match name.as_deref().map(str::trim).filter(|n| !n.is_empty()) {

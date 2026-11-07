@@ -339,7 +339,7 @@ pub fn comp(
         };
         let (steps, unit, bar0) = (*steps, 4.0 / *steps as f64, b as f64 * 4.0);
         let here = span_at(bar0);
-        let changes = bar0 + 4.0 >= beats - 1e-9 || span_at(bar0 + 4.0) != here;
+        let changes = bar0 + 4.0 >= beats - 1e-9 || span_at(bar0 + 4.0) != span_at(bar0 + 4.0 - 1e-6);
         let starts = b > 0 && span_at(bar0 - 1e-6) != here;
         let mut hits: Vec<Strike> =
             cell.iter().copied().filter(|h| h.step.is_multiple_of(steps / 4) || !detail.chance(v.drop)).collect();
@@ -381,7 +381,9 @@ pub fn comp(
                 d = (d * idiom.legato).max(0.06);
             }
             let is_slip = slip && h.step == steps - steps / 16 && !ahead;
-            placed.push(Placed { t, d, which: h.which, v: vel.min(1.0), span: here, slip: is_slip, pushed: ahead });
+            // the chord sounding where it is struck, which a harmony may change halfway through a bar
+            let span = span_at(bar0 + h.step as f64 * unit);
+            placed.push(Placed { t, d, which: h.which, v: vel.min(1.0), span, slip: is_slip, pushed: ahead });
         }
     }
     // a hit pushed ahead of its bar takes the place of what the bar before played there

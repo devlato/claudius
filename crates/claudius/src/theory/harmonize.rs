@@ -1,8 +1,8 @@
 //! Chords for a melody: a line of single notes harmonized as a player would under it. The song's own chords stay
 //! where the melody's notes are their chord tones or pleasant extensions of them (a 9th, a 6th, a 7th); a held note
 //! they clash with gets the chord of the key that holds it and shares most with theirs. The chords are then played
-//! `block`, one under each note of the melody with the melody on top, or in one of the chord parts' rhythms
-//! (`melody::CHORD_STYLES`).
+//! `block`, one under each note of the melody with the melody on top, in one of the chord parts' rhythms
+//! (`melody::CHORD_STYLES`), or in one of the genres' comping idioms (`comp::IDIOMS`).
 
 use super::chord::{Chord, Quality, Voicing, voice};
 use super::melody;
@@ -12,6 +12,11 @@ use crate::rng::Rng;
 
 /// the ways a harmony plays under its melody: a chord on each of its notes, or the chord parts' rhythms
 pub const STYLES: &[&str] = &["block", "sustain", "half", "stabs", "offbeat", "pump", "syncopated", "charleston"];
+
+/// every style a harmony plays in: `STYLES`, and the genres' comping idioms
+pub fn styles() -> Vec<&'static str> {
+    STYLES.iter().copied().chain(super::comp::IDIOMS.iter().map(|i| i.name)).collect()
+}
 
 /// how long a stretch of the melody one chord is chosen for, in beats: half a bar
 const SLOT: f64 = 2.0;
@@ -175,12 +180,15 @@ pub struct Song<'a> {
     pub key: &'a Key,
 }
 
-/// how a harmony plays: in `style` (`STYLES`), `voices` notes to a chord voiced `voicing` within `register`
+/// how a harmony plays: in `style` (`styles`), `voices` notes to a chord voiced `voicing` within `register`; in an
+/// idiom, the take `seed` draws, its details from `stream` too (`comp::comp`)
 pub struct Play<'a> {
     pub style: &'a str,
     pub voicing: Voicing,
     pub register: (i32, i32),
     pub voices: usize,
+    pub seed: u64,
+    pub stream: u64,
 }
 
 /// What a harmony plays under `melody` (one cycle of it, `period` beats long) in `song`, as `play` says, below the
@@ -188,6 +196,9 @@ pub struct Play<'a> {
 pub fn harmony(melody: &[Note], period: f64, song: &Song, play: &Play, rng: &mut Rng) -> Vec<Note> {
     let (key, register, voices, voicing) = (song.key, play.register, play.voices, play.voicing);
     let chords = chords(melody, song.spans, song.cycle, key, period);
+    if let Some(idiom) = super::comp::idiom(play.style) {
+        return super::comp::comp(idiom, &chords, voicing, register, voices, play.seed, play.stream);
+    }
     // a pad changes chord as the harmony does, held through each
     if play.style == "sustain" {
         return melody::chord_part(&chords, "sustain", voicing, register, voices, rng);
@@ -280,7 +291,7 @@ mod tests {
         let mut rng = Rng::new(1);
         let (spans, key) = (pop(), c_major());
         let song = Song { spans: &spans, cycle: 16.0, key: &key };
-        let play = |style| Play { style, voicing: Voicing::Close, register: (48, 84), voices: 3 };
+        let play = |style| Play { style, voicing: Voicing::Close, register: (48, 84), voices: 3, seed: 1, stream: 0 };
         let block = harmony(&line, 4.0, &song, &play("block"), &mut rng);
         for n in &line {
             let under: Vec<&Note> = block.iter().filter(|c| (c.t - n.t).abs() < 1e-9).collect();
@@ -304,7 +315,7 @@ mod tests {
         let changed = chords(&line, &f, 4.0, &key, 4.0);
         assert_eq!((changed.len(), changed[1].start), (2, 2.0), "{changed:?}");
         let song = Song { spans: &f, cycle: 4.0, key: &key };
-        let play = Play { style: "stabs", voicing: Voicing::Close, register: (48, 72), voices: 3 };
+        let play = Play { style: "stabs", voicing: Voicing::Close, register: (48, 72), voices: 3, seed: 1, stream: 0 };
         let stabs = harmony(&line, 4.0, &song, &play, &mut Rng::new(1));
         let at = |t: f64| -> Vec<u8> {
             stabs.iter().filter(|n| (n.t - t).abs() < 1e-9).map(|n| n.p.rem_euclid(12) as u8).collect()
@@ -313,6 +324,14 @@ mod tests {
         for (t, chord) in [(0.0, changed[0].chord), (1.5, changed[0].chord), (3.0, changed[1].chord)] {
             let pcs = at(t);
             assert!(!pcs.is_empty() && pcs.iter().all(|&pc| chord.has_pc(pc)), "at {t}: {pcs:?}");
+        }
+        // in a comping idiom too: reggae's skank on the offbeats, each on the chord the harmony has there
+        let skank = harmony(&line, 4.0, &song, &Play { style: "skank", ..play }, &mut Rng::new(1));
+        assert!(!skank.is_empty());
+        for n in &skank {
+            let chord = if n.t < 2.0 { changed[0].chord } else { changed[1].chord };
+            assert!(n.t.rem_euclid(1.0) > 1e-9, "a skank on the beat at {}", n.t);
+            assert!(chord.has_pc(n.p.rem_euclid(12) as u8), "{} at {}: not {chord:?}", n.p, n.t);
         }
     }
 }
