@@ -54,6 +54,10 @@ pub fn kind(b: &[u8]) -> Option<&'static str> {
         Some("ogg")
     } else if at(0, b"ID3") || (b.len() >= 2 && b[0] == 0xFF && b[1] & 0xE0 == 0xE0) {
         Some("mp3")
+    } else if at(4, b"ftyp") {
+        Some("m4a")
+    } else if at(0, b"caff") {
+        Some("caf")
     } else {
         None
     }
@@ -232,6 +236,8 @@ mod tests {
     fn a_file_without_an_extension_is_read_by_its_first_bytes() {
         assert_eq!(kind(b"RIFF\0\0\0\0WAVEfmt "), Some("wav"));
         assert_eq!(kind(b"fLaC\0"), Some("flac"));
+        assert_eq!(kind(b"\0\0\0\x20ftypM4A "), Some("m4a"), "an AAC file, as iTunes and phones write one");
+        assert_eq!(kind(b"caff\0\x01"), Some("caf"));
         assert_eq!(kind(b"hello"), None);
         assert!(decode(b"hello".to_vec(), "noise").unwrap_err().starts_with("send the recording as the file itself"));
         assert_eq!(groove_name("/x/My Break (92).wav"), "my_break__92_");

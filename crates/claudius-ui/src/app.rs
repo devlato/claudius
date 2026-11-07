@@ -221,12 +221,13 @@ impl Studio {
                         Err(e) => (false, e.clone()),
                     });
                 }
-                if what == "take" && self.view.import.waiting() {
+                if what == "add_recording" {
                     match &result {
                         Ok(r) => self.view.import.answered(r.ok, r.message.clone()),
                         Err(e) => self.view.import.answered(false, format!("the recording did not arrive: {e}")),
                     }
-                } else if what == "take" || what == "add_notes" || what == "add_hits" {
+                }
+                if what == "take" || what == "add_notes" || what == "add_hits" {
                     match &result {
                         Ok(r) => self.view.record.answered(r.ok, r.message.clone()),
                         Err(e) => self.view.record.answered(false, format!("the take did not arrive: {e}")),
@@ -1165,10 +1166,15 @@ impl eframe::App for Studio {
             }
             self.backend.listen(&l);
         }
-        if let Some(t) = self.view.record.upload.take().or_else(|| self.view.import.upload.take()) {
+        if let Some(t) = self.view.record.upload.take() {
             self.inflight += 1;
             self.inflight_since = now;
-            self.backend.upload_take(t.wav, &t.from, t.name.as_deref(), &t.role, t.request);
+            self.backend.upload_take(t, false);
+        }
+        if let Some(t) = self.view.import.upload.take() {
+            self.inflight += 1;
+            self.inflight_since = now;
+            self.backend.upload_take(t, true);
         }
         if let Some((id, wav)) = self.view.record.check_upload.take() {
             self.inflight += 1;

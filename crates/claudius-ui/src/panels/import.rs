@@ -21,8 +21,8 @@ pub struct Import {
     name: String,
     /// the recording on its way to claudius, as a take
     pub upload: Option<super::record::Upload>,
-    /// the answer is awaited
-    sending: bool,
+    /// the recording on its way, whose answer is awaited: one chosen meanwhile stays when it is added
+    sending: Option<Arc<Picked>>,
     /// what claudius said of the last one, and whether it was added
     said: Option<(bool, String)>,
     /// a take being trimmed
@@ -51,11 +51,6 @@ impl Import {
         (self.file, self.open, self.said) = (Some(Arc::new(file)), true, None);
     }
 
-    /// whether a take's answer is this window's
-    pub fn waiting(&self) -> bool {
-        self.sending
-    }
-
     /// what claudius said of the last recording, for a scripted run to read
     #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
     pub fn told(&self) -> String {
@@ -64,8 +59,8 @@ impl Import {
 
     /// claudius' answer to the recording sent
     pub fn answered(&mut self, ok: bool, message: String) {
-        self.sending = false;
-        if ok {
+        let sent = self.sending.take();
+        if ok && sent.is_some_and(|s| self.file.as_ref().is_some_and(|f| Arc::ptr_eq(f, &s))) {
             self.file = None;
             self.name.clear();
         }
@@ -152,10 +147,11 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
         });
         ui.add_space(4.0);
         ui.horizontal(|ui| {
+            let free = im.sending.is_none();
             let whole = ui
-                .add_enabled(!im.sending, egui::Button::new("Add it whole as a track"))
+                .add_enabled(free, egui::Button::new("Add it whole as a track"))
                 .on_hover_text("it plays once from the start of the section, on for as long as it lasts");
-            if whole.clicked() || (std::mem::take(&mut im.whole) && !im.sending) {
+            if whole.clicked() || (std::mem::take(&mut im.whole) && free) {
                 let name = Some(im.name.trim().to_string()).filter(|n| !n.is_empty());
                 im.upload = Some(super::record::Upload {
                     wav: file.bytes.clone(),
@@ -163,20 +159,20 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
                     name,
                     role: im.role.clone(),
                     request: None,
+                    file: Some(file.name.clone()),
                 });
-                (im.sending, im.said) = (true, None);
+                (im.sending, im.said) = (Some(file.clone()), None);
             }
-            let sample =
-                ui.add_enabled(!im.sending, egui::Button::new("Sample its vocals into the song")).on_hover_text(
-                    "the auto-sampler: its best sung phrases, cleaned of its drums, in the sections that suit them",
-                );
+            let sample = ui.add_enabled(free, egui::Button::new("Sample its vocals into the song")).on_hover_text(
+                "the auto-sampler: its best sung phrases, cleaned of its drums, in the sections that suit them",
+            );
             if sample.clicked() {
                 cx.view.listen = Some(Listen { file, remake: None, flip: false, sample: true, groove: false });
                 im.open = false;
             }
         });
         let im = &cx.view.import;
-        if im.sending {
+        if im.sending.is_some() {
             ui.weak("adding it ...");
         }
         said(ui, &im.said);

@@ -1470,7 +1470,17 @@ mod tests {
             from: from.into(),
             track: None,
             role: role.into(),
+            recording: false,
         };
+        assert_eq!(take("intro", "vocal").what(), "take");
+        let added = Listen::Take {
+            name: "a song.m4a".into(),
+            from: "intro".into(),
+            track: None,
+            role: "vocal".into(),
+            recording: true,
+        };
+        assert_eq!(added.what(), "add_recording", "the Add a recording window's answer is its own");
         let r = h.listen(&take("intro", "vocal"), wav(&a_song()));
         assert!(!r.ok && r.message.starts_with("no song yet"), "{}", r.message);
         assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
@@ -1562,7 +1572,7 @@ mod tests {
         // a take tuned from now on sings as the check heard the person
         assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
         let from = h.blueprint().unwrap().form[0].name.clone();
-        let take = Listen::Take { name: "take.wav".into(), from, track: None, role: "vocal".into() };
+        let take = Listen::Take { name: "take.wav".into(), from, track: None, role: "vocal".into(), recording: false };
         assert!(h.listen(&take, wav(&sung)).ok);
         let r = command(&mut h, json!({"cmd": "tune", "track": "take1"}));
         assert!(r.ok && r.message.ends_with("as your pitch check heard you sing"), "{}", r.message);

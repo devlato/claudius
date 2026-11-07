@@ -25,10 +25,13 @@ impl App {
         name: Option<&str>,
         role: Option<&str>,
         request: Option<u64>,
+        file: Option<&str>,
     ) -> Reply {
-        let Some(ext) = kind(&bytes) else {
-            return no("send the take as a WAV, FLAC, Ogg, MP3 or AIFF file", self.version());
+        let named = file.and_then(|f| f.rsplit_once('.')).map(|(_, e)| e.to_ascii_lowercase());
+        let Some(ext) = kind(&bytes).map(str::to_string).or(named) else {
+            return no("send the take as a WAV, FLAC, Ogg, MP3, AAC or AIFF file", self.version());
         };
+        let ext = ext.as_str();
         match audio::load_bytes(bytes, ext) {
             Ok(x) => self.answer(request, self.add_take(x, from, name, role, &take::Sources::default())),
             Err(e) => no(format!("cannot read the take: {e:#}"), self.version()),

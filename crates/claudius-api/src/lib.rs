@@ -398,6 +398,9 @@ pub enum Listen {
         from: String,
         track: Option<String>,
         role: String,
+        /// added in the Add a recording window rather than recorded: the answer is that window's (`add_recording`)
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        recording: bool,
     },
     /// the answers to pitch check `id`, sung over its phrases from their first beat, as `/api/pitch-check` hears them
     PitchCheck {
@@ -422,6 +425,7 @@ impl Listen {
             Listen::Remake { .. } => "remake",
             Listen::SampleSong { .. } => "sample_song",
             Listen::ExtractGroove { .. } => "extract_groove",
+            Listen::Take { recording: true, .. } => "add_recording",
             Listen::Take { .. } => "take",
             Listen::PitchCheck { .. } => "pitch_check",
         }
