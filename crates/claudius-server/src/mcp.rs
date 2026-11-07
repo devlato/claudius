@@ -39,6 +39,16 @@ fn remote_get(base: &str, token: &Option<String>, path: &str, timeout: Duration)
     if ok { Ok(body) } else { Err(format!("claudius at {base}: {body}")) }
 }
 
+/// `s` as a URL's query value
+fn url_value(s: &str) -> String {
+    s.bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => (b as char).to_string(),
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
+}
+
 fn remote_json<T: DeserializeOwned>(
     base: &str,
     token: &Option<String>,
@@ -160,6 +170,23 @@ impl Backend {
             Backend::Remote { base, token } => {
                 let (base, token) = (base.clone(), token.clone());
                 tokio::task::spawn_blocking(move || remote_get(&base, &token, "/api/script", Duration::from_secs(30)))
+                    .await
+                    .map_err(|e| e.to_string())?
+            }
+        }
+    }
+
+    /// what the free libraries offer for `q`, at most `limit`
+    pub async fn search_library(&self, q: &str, limit: usize) -> Result<Vec<claudius_api::LibraryHit>, String> {
+        match self {
+            Backend::Local { app, .. } => {
+                let (app, q) = (app.clone(), q.to_string());
+                tokio::task::spawn_blocking(move || app.search_library(&q, limit)).await.map_err(|e| e.to_string())?
+            }
+            Backend::Remote { base, token } => {
+                let (base, token) = (base.clone(), token.clone());
+                let path = format!("/api/library/search?limit={limit}&q={}", url_value(q));
+                tokio::task::spawn_blocking(move || remote_json(&base, &token, &path, Duration::from_secs(60)))
                     .await
                     .map_err(|e| e.to_string())?
             }
@@ -400,6 +427,15 @@ pub struct TakeArgs {
     /// vocal, lead, chords, keys, bass, drums or texture: how loud the mix makes it (default lead)
     #[serde(default)]
     pub role: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct SearchRecordingsArgs {
+    /// what to look for, in a few words: "a soul singer", "jazz drum break", "rain on a window"
+    pub query: String,
+    /// how many at most (default 12)
+    #[serde(default)]
+    pub limit: Option<usize>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -972,6 +1008,25 @@ impl Studio {
     }
 
     #[tool(
+        description = "Search the free online libraries (Openverse, which indexes Freesound, Wikimedia Commons and Jamendo; Wikimedia Commons itself; ccMixter) for recordings anyone may use to make and publish music: CC0, public domain or CC BY. Lists each as library:<id>, with its title, creator, licence, length and page. Give that library:<id> as the `path` of add_take (the whole recording as a track, then trim_take and effects as you like), sample_song (its vocals sampled into the song), analyze or remake: claudius downloads it once and the song credits it. Let the person hear one first: its page plays it.",
+        annotations(read_only_hint = true)
+    )]
+    async fn search_recordings(&self, Parameters(a): Parameters<SearchRecordingsArgs>) -> Result<String, String> {
+        let hits = self.b.search_library(&a.query, a.limit.unwrap_or(12)).await?;
+        if hits.is_empty() {
+            return Ok(format!("nothing for \"{}\" under a licence that lets one publish music made with it", a.query));
+        }
+        let lines: Vec<String> = hits
+            .iter()
+            .map(|h| {
+                let secs = h.seconds.map(|s| format!(", {s:.0} s")).unwrap_or_default();
+                format!("library:{}  \"{}\" by {}, {}{secs} ({})", h.id, h.title, h.creator, h.licence, h.page)
+            })
+            .collect();
+        Ok(lines.join("\n"))
+    }
+
+    #[tool(
         description = "Trim a take (a recording added with add_take, or recorded, or a whole song added as a track): keep its recording from `start` to `end` seconds in, as it plays now, so that it starts later in itself or stops sooner. It still plays from the start of its section, and the sections past its new end no longer play it. claudius keeps the cut with the song and the recording it came from, so undo brings the take back as it was. Trim again to cut more; effects go on it as on any track (command set_fx with target track:<name>, or run_script with fx())."
     )]
     async fn trim_take(&self, Parameters(a): Parameters<TrimArgs>) -> Result<String, String> {
@@ -1179,7 +1234,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Send one raw claudius API command (JSON tagged by \"cmd\"), for edits scripts do not cover: add_section {after, kind, bars}, remove_section {index}, move_section {from, to}, toggle_layer {section, layer}, set_drum_step {lane, variant, step, velocity}, set_section {index, name?, bars?, energy?, layers?, prog?, variant?, build?, gap?, impact?, fills?, filter_in?}, set_part {name, style?, preset?, register?, density?, reseed?}, add_track {name, kind: \"drum\" | \"part\", role?, sound?}, remove_track {name}, set_notes {part, prog, notes?: [{t, d, p, v}]} (a part's notes over a progression written out; no notes: the theory engine's again), set_mix {track, level_db?, pan?, reverb?, delay?, duck?, drive_db?, muted?, solo?, bus?}, add_take {path, from, name?, role?}, trim_take {track, start?, end?}, transcribe_take {take, sounds, name?, role?, chromatic?, keep_take?, style?}, add_notes {from, notes: [{t, d, p, v}], sounds, name?, role?, style?}, add_hits {from, hits: [{lane, t, v}], bars?, variant?, grid?, start?, beats?} (drums played on pads, t in beats from the section's start), add_scratch {from, track, moves: [{t, at, fader}], bar?, bars?, name?, role?} (a scratch on bars of a track, kept as a take: t seconds into the scratch, at seconds into the record, fader 0 shut to 1 open)."
+        description = "Send one raw claudius API command (JSON tagged by \"cmd\"), for edits scripts do not cover: add_section {after, kind, bars}, remove_section {index}, move_section {from, to}, toggle_layer {section, layer}, set_drum_step {lane, variant, step, velocity}, set_section {index, name?, bars?, energy?, layers?, prog?, variant?, build?, gap?, impact?, fills?, filter_in?}, set_part {name, style?, preset?, register?, density?, reseed?}, add_track {name, kind: \"drum\" | \"part\", role?, sound?}, remove_track {name}, set_notes {part, prog, notes?: [{t, d, p, v}]} (a part's notes over a progression written out; no notes: the theory engine's again), set_mix {track, level_db?, pan?, reverb?, delay?, duck?, drive_db?, muted?, solo?, bus?}, add_take {path, from, name?, role?} (path: a file, or library:<id> from search_recordings), trim_take {track, start?, end?}, transcribe_take {take, sounds, name?, role?, chromatic?, keep_take?, style?}, add_notes {from, notes: [{t, d, p, v}], sounds, name?, role?, style?}, add_hits {from, hits: [{lane, t, v}], bars?, variant?, grid?, start?, beats?} (drums played on pads, t in beats from the section's start), add_scratch {from, track, moves: [{t, at, fader}], bar?, bars?, name?, role?} (a scratch on bars of a track, kept as a take: t seconds into the scratch, at seconds into the record, fader 0 shut to 1 open)."
     )]
     async fn command(&self, Parameters(a): Parameters<CommandArgs>) -> Result<String, String> {
         let c: Command = serde_json::from_value(a.command).map_err(|e| format!("not a claudius command: {e}"))?;
@@ -1238,6 +1293,7 @@ mod tests {
                 "get_song",
                 "graph",
                 "script_reference",
+                "search_recordings",
                 "status",
                 "wait_for_pitch_check",
                 "wait_for_take"

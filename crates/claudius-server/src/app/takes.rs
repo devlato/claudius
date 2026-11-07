@@ -132,13 +132,20 @@ impl App {
 
     pub fn sample_bytes(self: &Arc<Self>, bytes: Vec<u8>, name: &str, opt: &claudius::sampler::Options) -> Reply {
         match self.decode(bytes, name) {
-            Ok(x) => self.sample_audio(&x, name, opt),
+            Ok(x) => self.sample_audio(&x, name, opt, &take::Sources::default()),
             Err(e) => no(e, self.version()),
         }
     }
 
     /// the vocals of recording `x`, called `name`, sampled into the song: the phrases kept with its takes
-    pub(super) fn sample_audio(self: &Arc<Self>, x: &Stereo, name: &str, opt: &claudius::sampler::Options) -> Reply {
+    /// (`sources`: what the recording credits, which each phrase cut from it credits too)
+    pub(super) fn sample_audio(
+        self: &Arc<Self>,
+        x: &Stereo,
+        name: &str,
+        opt: &claudius::sampler::Options,
+        sources: &take::Sources,
+    ) -> Reply {
         let v = self.version();
         if self.blueprint().is_none() {
             return no("no song yet: start one with new_song, then sample a recording into it", v);
@@ -148,7 +155,28 @@ impl App {
             return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
         }
         let ears = self.ears.get().and_then(|e| e.as_ref());
-        self.edit_with(|bp| claudius::sampler::sample(bp, x, name, ears, opt, &dir).map(|s| s.lines.join("\n")))
+        let sampled = |bp: Option<&claudius::model::Blueprint>| -> std::collections::BTreeSet<String> {
+            let loops = bp.map(|bp| bp.loops.iter().filter(|l| l.sampled)).into_iter().flatten();
+            loops
+                .filter_map(|l| match &l.sound {
+                    claudius::model::Sound::Loop { path, .. } => Some(path.clone()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let before = sampled(self.blueprint().as_ref());
+        let r =
+            self.edit_with(|bp| claudius::sampler::sample(bp, x, name, ears, opt, &dir).map(|s| s.lines.join("\n")));
+        // the phrases are in the song by now: a credit not kept is said, not taken for a failure
+        let mut r = r;
+        if r.ok && !sources.is_empty() {
+            for file in sampled(self.blueprint().as_ref()).difference(&before) {
+                if let Err(e) = take::keep_sources(Path::new(file), sources) {
+                    r.message.push_str(&format!("\ncannot keep what {file} credits: {e:#}"));
+                }
+            }
+        }
+        r
     }
 
     /// a recording's bytes decoded (`listen::decode`)
@@ -167,8 +195,9 @@ impl App {
         if let Err(e) = self.readable(path) {
             return no(e, self.version());
         }
+        // a recording downloaded from a library credits it (the `.json` beside it)
         match audio::load_once(path) {
-            Ok(x) => self.add_take(x, from, name, role, &take::Sources::default()),
+            Ok(x) => self.add_take(x, from, name, role, &take::credited(path)),
             Err(e) => no(format!("cannot read {}: {e:#}", path.display()), self.version()),
         }
     }

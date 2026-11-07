@@ -26,6 +26,7 @@ to. On the command line, each command reads and writes song folders instead.
 | `remake` | `path`, `genre`, `seed`, `bpm`, `flip` (true: a new song on its hook), `sampled` (false: the skeleton only) | `claudius remake song.mp3 --genre lofi [--bpm 82] [--flip] [--skeleton]` |
 | `add_take` | `path` of a recording, `from` (a section's name), `name`, `role` (`vocal`, `lead`, `chords`, `keys`, `bass`, `drums`, `texture`) | |
 | `trim_take` | `track` (a take), `start` and `end` in seconds into its recording | |
+| `search_recordings` | `query` (a few words), `limit`: the free libraries' recordings as `library:<id>`, a `path` for `add_take`, `sample_song`, `analyze` and `remake` | `claudius samples search WORDS` |
 | `graph` | (the song's signal flow in words: tracks through their effects into buses, the master, out) | |
 | `sample_song` | `path` of a recording, `count` (1-4, default 2), `bars` (1, 2 or 4), `find` ("a person singing"), `sections` | `claudius sample FILE --on SONG --count 2 --in drop` |
 | `transcribe_drums` | `take` (a beat played or beatboxed with the song) or `path` (a drum loop), `bars` (1, 2 or 4), `variant` (main), `bpm`, `keep_take` | a script: `drums_from("FILE", #{ bars: 2 });` |

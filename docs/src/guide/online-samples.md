@@ -62,8 +62,30 @@ sampled phrase, a break, a sample pack's instrument) beside its file, `<take>.fl
 `credits.txt` names them for as long as it plays the scratch, even once it no longer plays the tracks the record was
 cut from.
 
+A take or a phrase cut from a downloaded recording credits it the same way, beside its file: adding one with
+`add_take` or sampling it with `sample_song` keeps its credit with what the song plays.
+
 A claudius shared with others may read the samples folder, as it reads the sample packs
 ([What a shared claudius may read and write](samples.md#what-a-shared-claudius-may-read-and-write)).
+
+## Choosing one in the studio
+
+The studio's **Add a recording** window (the **+** after the record button) searches the same libraries: type a few
+words and press **Search**, press ▶ beside a recording to hear it, and **Use it** to choose it. Then **Add it whole as
+a track** adds it as a [take](samples.md#takes) to trim and put effects on, and **Sample its vocals into the song**
+samples it. Either way claudius downloads it once into the samples folder, and the song credits it. Behind the window
+are `GET /api/library/search?q=WORDS` and `GET /api/library/audio?id=ID` ([HTTP API](http-api.md#routes)).
+
+Wherever a command takes a recording's path (`add_take`, `sample_song`, `analyze` and `remake`), `library:<id>` names
+one a search found: claudius downloads it and uses the file. An assistant searches with `search_recordings`, which
+lists each as `library:<id>`:
+
+```text
+library:freesound:629052  "Rain on a window" by Someone, CC BY 4.0, 64 s (https://freesound.org/s/629052/)
+```
+
+A claudius that may not write its samples folder (one shared with `--files` elsewhere) answers that it keeps no
+recordings from the libraries.
 
 ## Songs built on samples
 

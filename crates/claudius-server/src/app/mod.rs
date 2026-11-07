@@ -18,6 +18,7 @@ use claudius_session::views;
 
 mod commands;
 mod jobs;
+mod library;
 mod phone;
 mod release;
 mod takes;

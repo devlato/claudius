@@ -1803,6 +1803,48 @@ async fn a_whole_recording_added_as_a_take_is_trimmed_and_undone_whole() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_library_recording_a_take_comes_from_is_credited_and_one_no_search_found_is_turned_down() {
+    use claudius::model::Sound;
+    let app = app();
+    let song = Command::NewSong {
+        genre: "house".into(),
+        seed: Some(3),
+        bpm: Some(100.0),
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+        complexity: None,
+    };
+    assert!(app.command(song).ok);
+    let from = app.state().song.unwrap().sections[0].name.clone();
+    let unknown = Command::AddTake { path: "library:freesound:1".into(), from: from.clone(), name: None, role: None };
+    let r = app.command(unknown);
+    assert!(!r.ok && r.message.contains("no recording 'freesound:1' among the searches"), "{}", r.message);
+    // a recording a library offered, downloaded with its credit beside it, as `library:<id>` downloads one
+    let dir = std::env::temp_dir().join(format!("claudius-library-take-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("rain.wav");
+    claudius::audio::save_wav(&file, &beat(2, 100.0, 0.0), true).unwrap();
+    let found = serde_json::json!({
+        "id": "freesound:629052", "source": "openverse", "provider": "freesound", "title": "Rain",
+        "creator": "Someone", "licence": "by", "licence_name": "CC BY 4.0",
+        "licence_url": "https://creativecommons.org/licenses/by/4.0/", "page": "https://freesound.org/s/629052/",
+        "audio": "https://example.org/rain.wav", "filetype": "wav", "seconds": 4.8
+    });
+    std::fs::write(dir.join("rain.wav.json"), found.to_string()).unwrap();
+    let add = Command::AddTake { path: file.display().to_string(), from, name: Some("rain".into()), role: None };
+    assert!(app.command(add).ok);
+    let bp = app.blueprint().unwrap();
+    let Sound::Loop { path, .. } = &bp.loops.iter().find(|l| l.name == "rain").unwrap().sound else {
+        panic!("a recording")
+    };
+    let credited = claudius::take::credited(std::path::Path::new(path));
+    assert_eq!(credited.recordings.iter().map(|f| f.id.as_str()).collect::<Vec<_>>(), ["freesound:629052"]);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_project_the_demo_saved_opens_as_a_song_folder_of_its_own() {
     use claudius::model::Sound;
     let songs = std::env::temp_dir().join(format!("claudius-projects-{}", std::process::id()));

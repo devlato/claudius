@@ -405,7 +405,28 @@ impl Sampler {
         });
     }
 
-    fn search(&mut self, q: &str) {
+    /// what a search for `q` found, once it has arrived
+    pub fn searched(&self, q: &str) -> Option<Result<Vec<Found>, String>> {
+        self.searched.get(q).cloned()
+    }
+
+    /// a recording a search found, as the Add a recording window lists it: its audio on the site, its record for the
+    /// engine to credit it by
+    pub fn hit(&self, f: &Found) -> claudius_api::LibraryHit {
+        claudius_api::LibraryHit {
+            id: f.id.clone(),
+            title: f.title.clone(),
+            creator: f.creator.clone(),
+            licence: f.licence(),
+            seconds: Some(f.seconds).filter(|s| *s > 0.0),
+            page: f.page.clone(),
+            audio: format!("{}/{}", self.base.as_deref().unwrap_or_default(), f.audio),
+            credit: f.credit(),
+            found: Some(f.as_engine_has_it()),
+        }
+    }
+
+    pub fn search(&mut self, q: &str) {
         if !self.asked.insert(format!("search:{q}")) {
             return;
         }

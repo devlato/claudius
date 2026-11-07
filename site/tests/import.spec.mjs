@@ -53,6 +53,57 @@ test.describe("adding a recording", () => {
     }
   });
 
+  test("in the demo, a recording a free library offers is found, used and goes in whole as a track", async () => {
+    test.setTimeout(120_000);
+    const c = await claudius();
+    const b = await chromium.launch();
+    try {
+      const page = await b.newPage();
+      const listed = heard(page, "library");
+      const said = heard(page, "import");
+      // claudius' site, which the demo searches the libraries through, as its Worker answers
+      const rain = {
+        id: "freesound:629052", provider: "freesound", title: "Rain on a window", creator: "Someone",
+        license: "by", license_version: "4.0", license_url: "https://creativecommons.org/licenses/by/4.0/",
+        page: "https://freesound.org/s/629052/", audio: "audio/629/629052_1.ogg", ext: "ogg", seconds: 6, tags: [],
+      };
+      await page.route("**/samples/search?*", (r) => r.fulfill({ json: { results: [rain] } }));
+      await page.route("**/samples/audio/**", (r) => r.fulfill({ body: readFileSync(song), contentType: "audio/wav" }));
+      const plan = "wait:3;import:search:rain;wait:5;import:use:0;wait:5;import:whole;wait:40";
+      await page.goto(`${c.base}/?mock&plan=${encodeURIComponent(plan)}`);
+      await expect.poll(() => listed.join("\n"), { timeout: 30_000 }).toMatch(/^Rain on a window$/m);
+      await expect.poll(() => said.join("\n"), { timeout: 60_000 }).toMatch(/^take1: a take of [\d.]+ bars from the start of /m);
+    } finally {
+      await b.close();
+      c.stop();
+    }
+  });
+
+  test("with a claudius, a recording a search found is added by its id, which claudius downloads", async () => {
+    test.setTimeout(120_000);
+    const c = await claudius();
+    const b = await chromium.launch();
+    try {
+      const page = await b.newPage();
+      const listed = heard(page, "library");
+      const said = heard(page, "import");
+      // the search, as claudius answers it; this claudius has searched nothing itself, so it cannot download it
+      const rain = {
+        id: "freesound:629052", title: "Rain on a window", creator: "Someone", licence: "CC BY 4.0", seconds: 6,
+        page: "https://freesound.org/s/629052/", audio: "/api/library/audio?id=freesound%3A629052",
+        credit: '"Rain on a window" by Someone, CC BY 4.0',
+      };
+      await page.route("**/api/library/search?*", (r) => r.fulfill({ json: [rain] }));
+      const plan = "wait:3;import:search:rain;wait:4;import:use:0;wait:1;import:whole;wait:30";
+      await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
+      await expect.poll(() => listed.join("\n"), { timeout: 30_000 }).toMatch(/^Rain on a window$/m);
+      await expect.poll(() => said.join("\n"), { timeout: 30_000 }).toMatch(/no recording 'freesound:629052' among the searches/);
+    } finally {
+      await b.close();
+      c.stop();
+    }
+  });
+
   test("with a claudius, a song chosen goes in whole as a track, kept with the songs", async () => {
     test.setTimeout(120_000);
     const c = await claudius();

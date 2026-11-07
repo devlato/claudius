@@ -125,6 +125,8 @@ pub enum Event {
     PhoneRefused(String),
     /// a file asked for to download, made since (`Backend::download`), or why there is none
     Delivered(Result<Delivery, String>),
+    /// what the free libraries offered for a search, or why nothing
+    Library(Result<Vec<claudius_api::LibraryHit>, String>),
 }
 
 /// the `"cmd"` tag of a command ("set_tempo")
@@ -160,7 +162,7 @@ fn demo_listen(l: &crate::panels::Listen) -> claudius_api::Listen {
     use claudius_api::Listen;
     let name = l.file.name.clone();
     if l.sample {
-        return Listen::SampleSong { name };
+        return Listen::SampleSong { name, found: l.found.clone() };
     }
     if l.groove {
         return Listen::ExtractGroove { name };
@@ -386,6 +388,20 @@ impl Remote {
         ehttp::fetch(request, |_| {});
     }
 
+    fn search_library(&self, q: &str) {
+        let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
+        let url = self.url(&format!("/api/library/search?q={}", query_value(q)));
+        ehttp::fetch(ehttp::Request::get(url), move |res| {
+            let hits = match res {
+                Ok(r) if r.ok => serde_json::from_slice(&r.bytes).map_err(|e| format!("the search's answer: {e}")),
+                Ok(r) if !r.bytes.is_empty() => Err(String::from_utf8_lossy(&r.bytes).trim().to_string()),
+                Ok(r) => Err(format!("{} {}", r.status, r.status_text)),
+                Err(e) => Err(e),
+            };
+            Self::deliver(&tx, &ctx, Event::Library(hits));
+        });
+    }
+
     fn fetch_preview(&self, version: u64) {
         let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
         let url = self.url(&format!("/api/release/preview.png?v={version}"));
@@ -548,9 +564,10 @@ impl Backend {
 
     /// Sends a take, the file itself, to play from the start of its section, for the take request it answers if one
     /// asked for it. The answer arrives as a reply to "take", or to "add_recording" for one the Add a recording window
-    /// added (`recording`).
+    /// added (`recording`). A recording a free library offered carries its record (`found`), which the demo's engine
+    /// credits it by; a claudius adds those by their id instead.
     pub fn upload_take(&mut self, t: crate::panels::record::Upload, recording: bool) {
-        let crate::panels::record::Upload { wav, from, name, role, request, file } = t;
+        let crate::panels::record::Upload { wav, from, name, role, request, file, found } = t;
         let mut query = format!("from={}&role={}", query_value(&from), query_value(&role));
         if let Some(name) = &name {
             query.push_str(&format!("&name={}", query_value(name)));
@@ -573,9 +590,19 @@ impl Backend {
                     track: name,
                     role,
                     recording,
+                    found,
                 };
                 m.listen(take, &wav)
             }
+        }
+    }
+
+    /// what the free libraries offer for `q` (the answer arrives as `Event::Library`): a claudius searches them, the
+    /// demo asks claudius' site
+    pub fn search_library(&mut self, q: &str) {
+        match self {
+            Backend::Remote(r) => r.search_library(q),
+            Backend::Mock(m) => m.search_library(q),
         }
     }
 
@@ -820,8 +847,14 @@ mod tests {
     fn a_recording_to_listen_to_is_named_in_the_query() {
         let file =
             std::sync::Arc::new(Picked { name: "My Song (live) #2.m4a".into(), bytes: vec![1, 2], folder: None });
-        let analyze =
-            listen_request(&Listen { file: file.clone(), remake: None, flip: false, sample: false, groove: false });
+        let analyze = listen_request(&Listen {
+            file: file.clone(),
+            remake: None,
+            flip: false,
+            sample: false,
+            groove: false,
+            found: None,
+        });
         assert_eq!(analyze, ("analyze", "/api/analyze", "name=My%20Song%20%28live%29%20%232.m4a".into()));
         let remake = listen_request(&Listen {
             file: file.clone(),
@@ -829,6 +862,7 @@ mod tests {
             flip: false,
             sample: false,
             groove: false,
+            found: None,
         });
         assert_eq!(remake.0, "remake");
         assert_eq!(remake.1, "/api/remake");
@@ -839,6 +873,7 @@ mod tests {
             flip: false,
             sample: false,
             groove: false,
+            found: None,
         });
         assert!(unseeded.2.ends_with("&genre=house"), "a random seed is claudius' to pick");
         let flipped = listen_request(&Listen {
@@ -847,12 +882,20 @@ mod tests {
             flip: true,
             sample: false,
             groove: false,
+            found: None,
         });
         assert!(flipped.2.ends_with("&genre=house&flip=true"), "{}", flipped.2);
-        let groove =
-            listen_request(&Listen { file: file.clone(), remake: None, flip: false, sample: false, groove: true });
+        let groove = listen_request(&Listen {
+            file: file.clone(),
+            remake: None,
+            flip: false,
+            sample: false,
+            groove: true,
+            found: None,
+        });
         assert_eq!(groove, ("extract_groove", "/api/groove", "name=My%20Song%20%28live%29%20%232.m4a".into()));
-        let sample = listen_request(&Listen { file, remake: None, flip: false, sample: true, groove: false });
+        let sample =
+            listen_request(&Listen { file, remake: None, flip: false, sample: true, groove: false, found: None });
         assert_eq!(sample, ("sample_song", "/api/sample", "name=My%20Song%20%28live%29%20%232.m4a".into()));
     }
 }
