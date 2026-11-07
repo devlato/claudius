@@ -20,15 +20,35 @@ jobs:
       contents: read
       security-events: write # upload the results to code scanning
       id-token: write # publish the results to the OpenSSF API
+    # Publishing signs the results in Sigstore's transparency log, and an outage of the log fails the step (Rekor
+    # answering 500 to all four of its tries, which took 15 s); GitHub's code-scanning upload fails now and then too.
+    # So each is tried once more when it fails. This job may hold nothing but steps that use a few actions, so no `run`
+    # step can wait in between (https://github.com/ossf/scorecard-action#workflow-restrictions).
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
+      - id: score
+        continue-on-error: true
+        uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
         with:
           results_file: results.sarif
           results_format: sarif
           publish_results: true
-      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+      - if: steps.score.outcome == 'failure'
+        uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+      # the results, which are written before they are published, reach code scanning even when publishing failed
+      - id: upload
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: results.sarif
+      - if: ${{ !cancelled() && steps.upload.outcome == 'failure' }}
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           sarif_file: results.sarif
