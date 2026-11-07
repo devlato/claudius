@@ -122,7 +122,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["reese", "saw_bass", "wobble"],
-      "styles": ["reese", "sustain", "rolling"],
+      "styles": ["two_step", "reese", "two_step"],
       "register": [26, 41],
       "mix": {"bus": "bass", "duck": 0.5}
     },

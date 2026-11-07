@@ -101,7 +101,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["saw_bass", "reese", "growlybass:bass|saw_bass"],
-      "styles": ["root8", "syncopated", "octave"],
+      "styles": ["big_beat", "big_beat", "octave"],
       "register": [31, 48],
       "mix": {
         "bus": "bass",

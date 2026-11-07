@@ -78,7 +78,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["sub_bass", "reese", "deep_bass", "808"],
-      "styles": ["sustain", "reese", "rolling"],
+      "styles": ["jungle_dub", "reese", "jungle_dub"],
       "register": [24, 40],
       "mix": {"bus": "bass", "duck": 0.45}
     },

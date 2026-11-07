@@ -90,7 +90,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["freepats:finger_bass|pluck_bass", "pluck_bass", "saw_bass"],
-      "styles": ["octave", "walking", "syncopated"],
+      "styles": ["disco", "disco", "funk"],
       "register": [33, 52],
       "mix": {
         "bus": "bass",

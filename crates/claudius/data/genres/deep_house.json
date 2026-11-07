@@ -131,7 +131,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["organ_bass", "sub_bass", "pluck_bass"],
-      "styles": ["syncopated", "offbeat"],
+      "styles": ["deep", "deep", "house_organ"],
       "register": [33, 50],
       "mix": {"bus": "bass", "duck": 0.45}
     },

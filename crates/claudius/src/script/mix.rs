@@ -111,8 +111,11 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                 part.harmonizes = h;
             }
             if let Some(s) = map_str(&m, "style") {
-                let styles =
-                    if part.harmonizes.is_some() { crate::theory::harmonize::STYLES } else { compose::styles_for(part.role) };
+                let styles = if part.harmonizes.is_some() {
+                    crate::theory::harmonize::STYLES.to_vec()
+                } else {
+                    compose::styles_for(part.role)
+                };
                 if !styles.contains(&s.as_str()) {
                     let role = part.role.name();
                     let article = if role.starts_with(['a', 'e', 'i', 'o', 'u']) { "an" } else { "a" };
@@ -461,7 +464,12 @@ fn default_spec(name: &str, role: Role) -> crate::genres::PartSpec {
         name: name.into(),
         role,
         presets: presets::drawable(role.name()).into_iter().map(String::from).collect(),
-        styles: compose::styles_for(role).iter().map(|s| s.to_string()).collect(),
+        // a bass of no genre plays the motifs, not another genre's idiom
+        styles: compose::styles_for(role)
+            .into_iter()
+            .filter(|s| crate::theory::bass::idiom(s).is_none())
+            .map(String::from)
+            .collect(),
         register,
         density: (0.4, 0.7),
         voices: if matches!(role, Role::Chords | Role::Pad | Role::Keys) { 4 } else { 0 },

@@ -47,10 +47,13 @@ an option a function does not know is an error, not ignored.
 | `master(#{ lufs: -9, ceiling: -1, fx: [...] })` | loudness target of the master, and its chain of effects (below) |
 | `track("hats", s("[~ hh]*4"))` | a pattern track (below); replaces any track of that name. A new track plays in every section with energy 0.6 or more, or in every section when no section lists any tracks yet |
 
-Part styles, by the part's role: bass `sustain pulse root8 offbeat octave rolling syncopated kick_follow acid walking
-reese` · chords, keys and pads `sustain half stabs offbeat pump syncopated charleston` · arps `up down updown random
-pinky` (with `rate`, the note length in beats: 0.25 is sixteenths) · leads `motif`. A preset is any synth preset or
-sampled instrument (below).
+Part styles, by the part's role: bass `sustain pulse root8 offbeat octave rolling syncopated acid reese`, the 808s
+`kick_follow glide drill`, and the genres' idioms `one_drop steppers slap funk disco garage dembow afro log_drum walking
+neo_soul soul rnb gfunk boom_bap lofi two_step jungle_dub halftime dub house_organ deep tech new_jack grime trip_hop
+big_beat rock drive` (each played as that genre's bassists play, in phrases that end on a turnaround; `seed` gives
+another take) · chords, keys and pads `sustain half stabs offbeat pump syncopated charleston` · arps `up down updown
+random pinky` (with `rate`, the note length in beats: 0.25 is sixteenths) · leads `motif`. A preset is any synth preset
+or sampled instrument (below).
 
 ### Form
 

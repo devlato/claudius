@@ -126,7 +126,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["sub_bass", "808", "saw_bass"],
-      "styles": ["sustain", "kick_follow"],
+      "styles": ["sustain", "glide", "kick_follow"],
       "register": [33, 48],
       "mix": {"bus": "bass", "duck": 0.6}
     },

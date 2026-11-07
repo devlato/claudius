@@ -114,7 +114,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["saw_bass", "moog_bass", "saw_bass"],
-      "styles": ["root8", "octave"],
+      "styles": ["drive", "drive", "root8"],
       "register": [33, 48],
       "mix": {"bus": "bass", "duck": 0.3}
     },

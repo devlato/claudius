@@ -210,7 +210,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["808"],
-      "styles": ["kick_follow"],
+      "styles": ["kick_follow", "glide"],
       "register": [24, 40],
       "mix": {
         "bus": "bass",

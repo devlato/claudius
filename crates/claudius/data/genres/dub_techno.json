@@ -75,7 +75,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["sub_bass", "organ_bass"],
-      "styles": ["sustain", "pulse", "offbeat"],
+      "styles": ["dub", "dub", "sustain"],
       "register": [28, 43],
       "mix": {"bus": "bass", "duck": 0.5}
     },

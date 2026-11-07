@@ -92,7 +92,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["808"],
-      "styles": ["kick_follow"],
+      "styles": ["drill", "drill"],
       "register": [24, 40],
       "mix": {
         "bus": "bass",

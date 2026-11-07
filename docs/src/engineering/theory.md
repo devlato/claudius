@@ -296,11 +296,13 @@ followed by silence on a stronger one scores the difference in metrical level) a
 
 ## Bass lines
 
+A bass part is written in one of the genres' [idioms](#bass-idioms) or in one of the motifs below (`bass::write`).
+
 `bass::bassline` writes a one-bar motif once per part and transposes it onto every chord, which is how a producer
 writes a bass line: one groove, followed through the changes. The motif's intervals are relative to the chord's bass
-note, and some are resolved against the sounding chord (its third, its fifth, chord tones for walking lines, a
-chromatic approach to the next root), so the line fits every chord. The root of each chord is the one nearest the
-previous root, unless that strays more than 7 semitones from the middle of the part's register.
+note, and some are resolved against the sounding chord (its third, its fifth), so the line fits every chord. The root
+of each chord is the one nearest the previous root, unless that strays more than 7 semitones from the middle of the
+part's register.
 
 | style | the motif |
 |---|---|
@@ -312,10 +314,75 @@ previous root, unless that strays more than 7 semitones from the middle of the p
 | `rolling` | the three sixteenths after each beat, around the kick |
 | `syncopated` | one of five sixteenth grooves, with octaves, fifths and thirds |
 | `kick_follow` | a note on every kick of the kick lane's `main` pattern, held to the next, with occasional octave or fifth jumps and slides: the trap 808 |
+| `glide` | the same, long, gliding up an octave or to the fifth into the end of each two-bar phrase: a trap hook's 808 |
+| `drill` | the same, moving through the key's tones over the root (its third, fourth, fifth, seventh, octave), sliding from note to note |
 | `acid` | sixteenths on a pentatonic, with rests, accents and slides, snapped to the key |
-| `walking` | root, two chord tones and a chromatic approach to the next root |
 
 A style the writer does not know plays `sustain`.
+
+### Bass idioms
+
+An idiom (`idiom::Idiom`) is the way a genre's bass players play, as they would: a few bars a player plays over a
+chord (its cells), the bars they end a phrase on (its turns), how much of each step they hold a note for, and how often
+they vary the details from bar to bar. A take plays one of the cells, answers it with another in the second bar of a
+four-bar phrase half the time, and ends every phrase on a turn, so that a line has phrases instead of one bar over and
+over. A cell is a bar of steps, sixteen sixteenths (or 12 or 24, in triplets):
+
+| step | the note |
+|---|---|
+| `.`, `-` | a rest; the note before going on |
+| `R`, `r` | the chord's root, its bass note; softly |
+| `L`, `8` | the root an octave down, an octave up (the other way where that does not fit the register, and the fifth that way where neither does) |
+| `3`, `5`, `7` | the chord's third, fifth and seventh above the root (the key's seventh on a chord with none) |
+| `2`, `4`, `6` | the key's second, fourth and sixth above the root |
+| `A` | an approach: a semitone under the note after it, or over it coming down, or from the other side when that is the note before (an enclosure) |
+| `W` | a walk: the key's step from the note before towards the note after, or the semitone between them |
+| `x` | a dead note: short and soft, on the pitch before |
+| `'`, `~` | before a note, an accent; after one, a slide into the next |
+
+Reggae's one drop, for one, is `.... R-.R -.5- 8-.7`: nothing on the one, the root on beat two and before three, the
+fifth around the drop, the octave on four and the seventh leading down to the next bar. The details a take varies,
+each with a chance of its own: a dead note in an empty step after a note, a root off the downbeat moved an octave, the
+last note before a new chord turned into an approach to it, the new chord's first note pushed an eighth ahead of its
+bar, a note off the beat left out, a slide into the next note. Notes are played harder on the downbeat, the beats and
+the eighths than in between, and one at a time, each ending where the next begins unless it slides into it. Each
+chord's root is the one nearest the note the line comes to it from, low enough in the register to leave room for the
+octave above it (within an octave of the register's bottom at least, so that every root has a place).
+
+A take's cells come from the high half of the part's seed and its details from the low half (and the progression), so
+a variation of a take keeps its rhythm and changes what it plays around it, and a new seed is another take.
+
+| idiom | how it plays | genres |
+|---|---|---|
+| `one_drop` | nothing on the one, roots, fifths and octaves around the drop on three, room between | reggae |
+| `steppers` | a note on every beat, roots, fifths and octaves | reggae |
+| `slap` | the one hit hard, octaves popped on the offbeat sixteenths, dead notes between | funk |
+| `funk` | fingerstyle sixteenths: syncopated roots, fifths and octaves, ghosted, pushed into the changes | funk, G-funk, new jack swing, nu-disco |
+| `disco` | root and octave in eighths, walking up into the next chord | nu-disco, filter house, dance pop |
+| `garage` | skipping: long and short notes off the beat, octave jumps, swung | UK garage |
+| `dembow` | the root on the three-three-two of the tresillo, held under the kick | reggaeton |
+| `afro` | smooth and syncopated, on the tresillo's pushes, gliding into the next chord early | afrobeats |
+| `log_drum` | short pitched hits off the beat, jumping octaves and fifths, bending now and then | amapiano |
+| `walking` | a note on every beat, chord tones and walks, a chromatic approach into each change | jazz rap, lo-fi, boom bap, neo-soul |
+| `neo_soul` | behind the beat and melodic, passing tones and ghosts, sliding into the chords | neo-soul, R&B, alternative R&B |
+| `soul` | eighths through the chord tones, pickups into the changes | chipmunk soul, boom bap |
+| `rnb` | smooth syncopated sixteenths, sevenths and octaves, slides into the next note | 90s R&B |
+| `gfunk` | the Moog bass: laid back and syncopated, sliding up to the octave and back | G-funk, gangsta rap, alternative hip hop |
+| `boom_bap` | the root held from the one, a pickup into beat three, long round notes | boom bap, hip hop, jazz rap, gangsta rap |
+| `lofi` | sparse and behind the beat, a fifth on the and of two, an approach into the change | lo-fi |
+| `two_step` | long notes on the kicks of the two-step, the one and the and of three | drum and bass |
+| `jungle_dub` | a deep sub moving in half notes under the break, reggae's roots and fifths | jungle |
+| `halftime` | long notes and short restarts around the snare on three | dubstep |
+| `dub` | deep and held, with room around it | dub techno |
+| `house_organ` | short syncopated hits, three, three and two, around the four on the floor | house, deep house, electro house, filter house |
+| `deep` | warm and longer, off the beat, the fifth at the end of the bar | deep house |
+| `tech` | rubbery short sixteenths between the kicks, a groove more than a line | tech house |
+| `new_jack` | punchy swung sixteenths, octaves and fifths | new jack swing, 90s R&B |
+| `grime` | sparse square-wave stabs, a lot of room | grime |
+| `trip_hop` | slow and heavy, the root held, a late second note | trip hop |
+| `big_beat` | distorted, syncopated eighths and sixteenths with the octave | big beat |
+| `rock` | eighths on the root, a fill up through the fifth into the next chord | art rock, neo-psychedelia |
+| `drive` | sixteenths on the root, accents on the beats, up to the octave | synthwave |
 
 ## Leads, arpeggios and chord parts
 

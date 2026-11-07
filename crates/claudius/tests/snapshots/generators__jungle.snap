@@ -16,7 +16,7 @@ drum kick main (drum kick): X.X.......XX....|X.X.......X.....|X.X.......XX....|X
 drum snare main (drum snare): ............X.......................X..o..o..X..|............X........X.....X........X.X.x.x.x.x.|............X........X.....X........o.xx.xx.xx.X|.........o..X........X..X.Xx.xx.xx.xX...........
 drum hat main (drum closed_hat): x.x.x.x.x.x.x.xo|x.x.x.x.x.x.x.xo|x.x.x.x.x.x.x.xo|x.x.x.x.x.x.x.xo
 drum ride main (drum ride): ....o.o.o.o.o.o.|....o.o.o.o.o.o.|....o.o.o.o.o.o.|....o.o.o.o.o.o.
-part bass (bass): rolling synth reese, register 24..40, density 0.51
+part bass (bass): jungle_dub synth reese, register 24..40, density 0.51
 part chords (chords): stabs synth stab, register 55..74, density 0.60
 part pad (pad): sustain synth vowel_pad, register 48..74, density 0.59
 part lead (lead): motif synth vox_lead, register 64..86, density 0.30

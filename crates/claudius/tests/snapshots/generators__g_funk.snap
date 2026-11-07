@@ -22,7 +22,7 @@ drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|.
 drum hat main (drum closed_hat): xx..x.x.x.xxx.xx|xx..x.x.x.xxx.xx|xx..x.x.x.xxx.xx|xx..x.x.x.xxx.xx
 drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
 drum shaker main (drum shaker): x.o...o...o.....|x.o...o...o.....|x.o...o...o.....|x.o...o...o.....
-part bass (bass): octave synth moog_bass, register 28..48, density 0.45
+part bass (bass): gfunk synth moog_bass, register 28..48, density 0.45
 part keys (keys): syncopated synth epiano, register 50..74, density 0.48
 part lead (lead): motif synth glide_lead, register 69..90, density 0.22
 part talkbox (lead): motif synth vox_lead, register 55..72, density 0.33

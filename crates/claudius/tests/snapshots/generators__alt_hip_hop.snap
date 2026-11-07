@@ -29,8 +29,8 @@ drum ohat main (drum open_hat): ................|..............x.|..............
 drum rim main (drum rim): ......x.......x.|......x.......x.|......x.......x.|...x..x.......x.
 drum shaker main (drum shaker): .xx...xxx.xxxxx.|.xx...xxx.xxxxx.|.xx...xxx.xxxxx.|.xx...xxx.xxxxx.
 drum perc main (drum perc): ..x...x.....x...|..x...x.....x...|..x...x.....x...|..x...x.....x...
-part bass (bass): sustain synth sub_bass, register 26..43, density 0.59
-part fuzz (bass): syncopated synth rubber_bass, register 38..55, density 0.53
+part bass (bass): glide synth sub_bass, register 26..43, density 0.59
+part fuzz (bass): boom_bap synth rubber_bass, register 38..55, density 0.53
 part keys (keys): syncopated synth house_piano, register 50..76, density 0.53
 part pad (pad): sustain synth pad, register 48..74, density 0.55
 part lead (lead): motif synth soft_lead, register 62..84, density 0.35

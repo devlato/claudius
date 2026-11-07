@@ -22,7 +22,7 @@ drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|.
 drum hat main (drum closed_hat): x.xxx.x.x.xxx.xx|x.xxx.x.x.xxx.xx|x.xxx.x.x.xxx.xx|x.xxx.x.x.xxx.xx
 drum ohat main (drum open_hat): ................|................|................|................
 drum perc main (drum rim): ................|................|................|......o.........
-part bass (bass): octave synth rubber_bass, register 28..48, density 0.47
+part bass (bass): new_jack synth rubber_bass, register 28..48, density 0.47
 part keys (keys): sustain synth tine_piano, register 52..76, density 0.57
 part stabs (chords): stabs synth stab, register 55..76, density 0.52
 part pad (pad): sustain synth warm_pad, register 50..74, density 0.50

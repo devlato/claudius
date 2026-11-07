@@ -21,7 +21,7 @@ drum hat main (drum closed_hat): ..xx..x..ox...x.|..xx..x..ox...x.|..xx..x..ox..
 drum ohat main (drum open_hat): ..x.............|..x.............|..x.............|..x.............
 drum shaker main (drum shaker): o...o..o.o.o.ooo|o...o..o.o.o.ooo|o...o..o.o.o.ooo|o...o..o.o.o.ooo
 drum rim main (drum rim): ...x............|...x............|...x............|...x............
-part bass (bass): pulse synth deep_bass, register 28..46, density 0.51
+part bass (bass): offbeat synth deep_bass, register 28..46, density 0.51
 part chords (chords): syncopated synth epiano, register 55..76, density 0.60
 part pad (pad): sustain synth vowel_pad, register 50..74, density 0.43
 part lead (lead): motif synth vox_lead, register 64..86, density 0.50

@@ -40,7 +40,7 @@
     "lead": {"core": 0.5, "strings": 1.5, "piano": 1, "synth": 1}
   },
   "parts": [
-    {"name": "bass", "role": "bass", "presets": ["808"], "styles": ["kick_follow", "octave"], "register": [24, 43], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 9, "mix": 1.0}, {"fx": "filter", "mode": "lp", "cutoff": 5000, "res": 0.1}]}},
+    {"name": "bass", "role": "bass", "presets": ["808"], "styles": ["drill", "drill"], "register": [24, 43], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 9, "mix": 1.0}, {"fx": "filter", "mode": "lp", "cutoff": 5000, "res": 0.1}]}},
     {"name": "keys", "role": "keys", "presets": ["piano|keys", "string_ensemble|strings"], "styles": ["sustain", "half"], "register": [52, 76], "voices": 3, "voicing": "open", "mix": {"reverb": 0.35, "delay": 0.1, "fx": [{"fx": "width", "width": 1.4, "mono_below_hz": 200}]}},
     {"name": "lead", "role": "lead", "presets": ["bell", "flute|whistle", "violins|strings"], "styles": ["motif"], "register": [64, 86], "density": [0.25, 0.4], "optional": 0.2, "mix": {"level_db": -2, "reverb": 0.3, "delay": 0.25}},
     {"name": "choir", "role": "pad", "presets": ["choir|vowel_pad", "string_ensemble|strings", "choir|warm_pad"], "styles": ["sustain"], "register": [48, 72], "voices": 3, "voicing": "open", "optional": 0.2, "mix": {"level_db": -2, "reverb": 0.45, "fx": [{"fx": "width", "width": 1.5, "mono_below_hz": 200}]}}

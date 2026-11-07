@@ -39,7 +39,7 @@
     "lead": {"core": 0.7, "synth": 1}
   },
   "parts": [
-    {"name": "bass", "role": "bass", "presets": ["808"], "styles": ["kick_follow", "sustain"], "register": [24, 42], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.7}, {"fx": "filter", "mode": "lp", "cutoff": 4000, "res": 0.1}]}},
+    {"name": "bass", "role": "bass", "presets": ["808"], "styles": ["glide", "sustain"], "register": [24, 42], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.7}, {"fx": "filter", "mode": "lp", "cutoff": 4000, "res": 0.1}]}},
     {"name": "keys", "role": "keys", "presets": ["rhodes|epiano", "pad", "epiano"], "styles": ["sustain", "half"], "register": [52, 76], "voices": 4, "voicing": "close", "mix": {"reverb": 0.35, "fx": [{"fx": "chorus", "rate_hz": 0.4, "depth_ms": 2.5, "delay_ms": 12, "mix": 0.3}]}},
     {"name": "pad", "role": "pad", "presets": ["air_pad", "warm_pad", "glass_pad"], "styles": ["sustain"], "register": [52, 76], "voices": 3, "voicing": "open", "optional": 0.3, "mix": {"level_db": -4, "reverb": 0.55}},
     {"name": "lead", "role": "lead", "presets": ["bell", "pluck", "soft_lead"], "styles": ["motif"], "register": [67, 88], "density": [0.3, 0.45], "core": 1.0, "mix": {"level_db": -3, "reverb": 0.4, "delay": 0.3}}

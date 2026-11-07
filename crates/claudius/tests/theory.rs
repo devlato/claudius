@@ -221,12 +221,12 @@ fn basslines_land_on_roots_and_leads_stay_in_key() {
         .map(|(i, c)| ChordSpan { start: i as f64 * 4.0, len: 4.0, chord: c })
         .collect();
     let mut rng = Rng::new(9);
-    for style in bass::STYLES {
-        let notes = bass::bassline(style, &chords, &key, &[0.0, 1.0, 2.0, 3.0], 40, &mut rng);
+    for style in bass::styles() {
+        let notes = bass::write(style, &chords, &key, &[0.0, 1.0, 2.0, 3.0], (28, 52), 9, 0);
         assert!(!notes.is_empty(), "{style}");
         for c in &chords {
-            if let Some(n) = notes.iter().find(|n| (n.t - c.start).abs() < 1e-6)
-                && *style != "acid"
+            if let Some(n) = notes.iter().find(|n| (n.t - c.start).abs() < 1e-6 && n.v > 0.5)
+                && style != "acid"
             {
                 assert_eq!(n.p.rem_euclid(12) as u8, c.chord.bass_pc(), "{style} at {}", c.start);
             }

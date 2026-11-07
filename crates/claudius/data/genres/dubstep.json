@@ -100,7 +100,7 @@
       "name": "wobble",
       "role": "bass",
       "presets": ["wobble", "wobble", "dist_bass"],
-      "styles": ["sustain", "syncopated"],
+      "styles": ["halftime", "halftime", "syncopated"],
       "register": [38, 55],
       "mix": {"bus": "bass", "duck": 0.3, "level_db": 1.5}
     },

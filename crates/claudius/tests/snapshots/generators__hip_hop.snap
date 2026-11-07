@@ -23,7 +23,7 @@ drum hat alt (drum closed_hat): x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.
 drum hat main (drum closed_hat): ooxxxxxxxxXXx.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....
 drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
 drum perc main (drum rim): ...x..x.......x.|...x..x.......x.|...x..x.......x.|...x..x.......x.
-part bass (bass): syncopated synth sub_bass, register 26..43, density 0.59
+part bass (bass): glide synth sub_bass, register 26..43, density 0.59
 part keys (keys): sustain synth keys, register 45..69, density 0.59
 part lead (lead): motif synth epiano, register 60..79, density 0.29
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums

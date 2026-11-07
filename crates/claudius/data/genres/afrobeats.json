@@ -92,7 +92,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["sub_bass", "rubber_bass", "deep_bass", "pluck_bass"],
-      "styles": ["syncopated", "sustain", "offbeat"],
+      "styles": ["afro", "afro", "syncopated"],
       "register": [31, 48],
       "mix": {"bus": "bass", "duck": 0.3}
     },

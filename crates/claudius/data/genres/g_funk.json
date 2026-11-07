@@ -42,7 +42,7 @@
     "pad": {"core": 0.5, "strings": 2, "synth": 1}
   },
   "parts": [
-    {"name": "bass", "late_ms": [4, 12], "role": "bass", "presets": ["moog_bass", "moog_bass", "rubber_bass"], "styles": ["syncopated", "octave", "syncopated"], "register": [28, 48], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tube", "drive_db": 3, "mix": 0.5}]}},
+    {"name": "bass", "late_ms": [4, 12], "role": "bass", "presets": ["moog_bass", "moog_bass", "rubber_bass"], "styles": ["gfunk", "gfunk", "funk"], "register": [28, 48], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tube", "drive_db": 3, "mix": 0.5}]}},
     {"name": "keys", "role": "keys", "presets": ["rhodes|epiano", "wurlitzer|epiano", "rhodes|epiano"], "styles": ["sustain", "syncopated", "half"], "register": [50, 74], "voices": 4, "voicing": "close", "mix": {"reverb": 0.22, "fx": [{"fx": "chorus", "rate_hz": 0.5, "depth_ms": 2.0, "delay_ms": 10, "mix": 0.25}]}},
     {"name": "lead", "role": "lead", "presets": ["glide_lead"], "styles": ["motif"], "register": [69, 90], "density": [0.2, 0.35], "core": 1.0, "mix": {"level_db": -4, "reverb": 0.3, "delay": 0.2}},
     {"name": "talkbox", "role": "lead", "presets": ["vox_lead"], "styles": ["motif"], "register": [55, 72], "density": [0.25, 0.4], "optional": 0.5, "core": 1.0, "mix": {"level_db": -5, "reverb": 0.2, "delay": 0.1}},
