@@ -85,6 +85,10 @@ fn where_to_fix(target: &str) -> String {
     match kind {
         "part" => format!("the {what} part"),
         "time" => format!("the timing of {what}"),
+        "level" if what.ends_with('+') => format!("{} quieter", what.trim_end_matches('+')),
+        "level" if what.ends_with('-') => format!("{} louder", what.trim_end_matches('-')),
+        "level" => format!("{what}'s level"),
+        "sound" => format!("another sound for {what}"),
         "band" if what.ends_with('+') => format!("less {} in the mix", band(what.trim_end_matches('+'))),
         "band" if what.ends_with('-') => format!("more {} in the mix", band(what.trim_end_matches('-'))),
         "band" => format!("the {} in the mix", band(what)),
@@ -296,6 +300,9 @@ mod tests {
         assert_eq!(where_to_fix("width+"), "a wider stereo image");
         assert_eq!(where_to_fix("form"), "the arrangement");
         assert_eq!(where_to_fix("time:vox1"), "the timing of vox1");
+        assert_eq!(where_to_fix("level:kick+"), "kick quieter");
+        assert_eq!(where_to_fix("level:pad-"), "pad louder");
+        assert_eq!(where_to_fix("sound:pad"), "another sound for pad");
         assert_eq!(where_to_fix("something new"), "something new");
         assert_eq!(severity(0.0), "minor");
         assert_eq!(severity(0.45), "worth fixing");
