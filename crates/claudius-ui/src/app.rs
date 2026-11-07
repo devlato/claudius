@@ -862,13 +862,12 @@ impl Studio {
                 }
                 ui.label(RichText::new("volume").size(11.0).color(TEXT_FAINT));
                 let cmd = widgets::cmd_key(ui.ctx());
-                ui.label(
-                    RichText::new(format!(
-                        "Space play · arrows pick a section · L loop · {cmd}+Z undo · Shift+{cmd}+Z redo"
-                    ))
-                    .size(11.0)
-                    .color(TEXT_FAINT),
-                );
+                let keys = format!("Space play · arrows pick a section · L loop · {cmd}+Z undo · Shift+{cmd}+Z redo");
+                // the keys, when there is room for them beside what the bar says on its left
+                let width = ui.painter().layout_no_wrap(keys.clone(), theme::prop(11.0), TEXT_FAINT).size().x;
+                if ui.available_width() > width + 12.0 {
+                    ui.label(RichText::new(keys).size(11.0).color(TEXT_FAINT));
+                }
             });
         });
     }

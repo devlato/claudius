@@ -189,12 +189,15 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             song.layers.len()
         )));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            for kind in SECTION_KINDS.iter().rev() {
-                if song.sections.iter().any(|s| s.kind == *kind) {
-                    ui.label(RichText::new(*kind).size(10.5).color(theme::section_color(kind)));
-                    let (r, _) = ui.allocate_exact_size(vec2(8.0, 8.0), Sense::hover());
-                    ui.painter().rect_filled(r, 2.0, theme::section_color(kind));
+            for kind in SECTION_KINDS.iter().rev().filter(|k| song.sections.iter().any(|s| s.kind == **k)) {
+                // as many of the song's kinds as there is room for beside the heading, the last first
+                let text = ui.painter().layout_no_wrap(kind.to_string(), theme::prop(10.5), TEXT_DIM).size().x;
+                if ui.available_width() < text + 8.0 + 2.0 * ui.spacing().item_spacing.x {
+                    break;
                 }
+                ui.label(RichText::new(*kind).size(10.5).color(theme::section_color(kind)));
+                let (r, _) = ui.allocate_exact_size(vec2(8.0, 8.0), Sense::hover());
+                ui.painter().rect_filled(r, 2.0, theme::section_color(kind));
             }
         });
     });

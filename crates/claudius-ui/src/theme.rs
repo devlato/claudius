@@ -12,6 +12,9 @@ pub const PANEL: Color32 = rgb(23, 26, 32);
 pub const RAISED: Color32 = rgb(32, 36, 44);
 pub const RAISED_HI: Color32 = rgb(42, 47, 57);
 pub const WELL: Color32 = rgb(11, 13, 17);
+/// a control's fill, a step above every panel's (a raised one's too), and under the pointer
+pub const CONTROL: Color32 = rgb(39, 44, 54);
+pub const CONTROL_HI: Color32 = rgb(50, 56, 68);
 pub const LINE: Color32 = rgb(46, 51, 62);
 pub const LINE_SOFT: Color32 = rgb(31, 35, 43);
 pub const TEXT: Color32 = rgb(221, 225, 232);
@@ -132,24 +135,55 @@ pub fn prop(size: f32) -> FontId {
     FontId::new(size, FontFamily::Proportional)
 }
 
+/// the font family of headings and buttons: Inter's medium weight
+pub const MEDIUM: &str = "medium";
+
+/// the font family of the icons (`widgets::Icon`): Lucide's, a glyph each
+pub const ICONS: &str = "icons";
+
+pub fn medium(size: f32) -> FontId {
+    FontId::new(size, FontFamily::Name(MEDIUM.into()))
+}
+
+/// The studio's fonts: Inter for its text, in two weights, with egui's own behind it for what Inter does not draw
+/// (emoji, the arrows and shapes some labels use), and Lucide's icons. Both are cut down to what the studio shows
+/// (assets/fonts, with their licences).
+pub fn fonts() -> egui::FontDefinitions {
+    let mut f = egui::FontDefinitions::default();
+    let data = |bytes: &'static [u8]| std::sync::Arc::new(egui::FontData::from_static(bytes));
+    f.font_data.insert("inter".into(), data(include_bytes!("../assets/fonts/Inter-Regular.ttf")));
+    f.font_data.insert("inter-medium".into(), data(include_bytes!("../assets/fonts/Inter-Medium.ttf")));
+    f.font_data.insert("lucide".into(), data(include_bytes!("../assets/fonts/lucide.ttf")));
+    let behind = f.families.get(&FontFamily::Proportional).cloned().unwrap_or_default();
+    let first = |name: &str| std::iter::once(name.to_string()).chain(behind.iter().cloned()).collect::<Vec<_>>();
+    f.families.insert(FontFamily::Proportional, first("inter"));
+    f.families.insert(FontFamily::Name(MEDIUM.into()), first("inter-medium"));
+    f.families.insert(FontFamily::Name(ICONS.into()), vec!["lucide".into()]);
+    f
+}
+
 pub fn apply(ctx: &egui::Context) {
+    ctx.set_fonts(fonts());
     ctx.set_theme(Theme::Dark);
     ctx.style_mut_of(Theme::Dark, |style| {
         style.text_styles = [
-            (TextStyle::Heading, prop(16.0)),
+            (TextStyle::Heading, medium(15.0)),
             (TextStyle::Body, prop(13.0)),
-            (TextStyle::Button, prop(13.0)),
+            (TextStyle::Button, medium(12.5)),
             (TextStyle::Small, prop(11.0)),
             (TextStyle::Monospace, mono(12.5)),
         ]
         .into();
         let s = &mut style.spacing;
-        s.item_spacing = Vec2::new(6.0, 5.0);
-        s.button_padding = Vec2::new(8.0, 3.0);
-        s.interact_size = Vec2::new(36.0, 22.0);
+        s.item_spacing = Vec2::new(6.0, 6.0);
+        s.button_padding = Vec2::new(10.0, 4.0);
+        s.interact_size = Vec2::new(36.0, 24.0);
         s.slider_width = 120.0;
+        s.slider_rail_height = 4.0;
         s.combo_width = 120.0;
-        s.window_margin = Margin::same(12);
+        s.icon_width = 15.0;
+        s.icon_width_inner = 9.0;
+        s.window_margin = Margin::same(14);
         s.menu_margin = Margin::same(6);
         s.scroll.bar_width = 8.0;
         s.scroll.floating = true;
@@ -160,11 +194,13 @@ pub fn apply(ctx: &egui::Context) {
         v.override_text_color = None;
         v.panel_fill = PANEL;
         v.window_fill = RAISED;
-        v.window_stroke = Stroke::new(1.0, LINE);
-        v.window_corner_radius = CornerRadius::same(10);
-        v.menu_corner_radius = CornerRadius::same(7);
-        v.window_shadow = Shadow { offset: [0, 8], blur: 24, spread: 0, color: Color32::from_black_alpha(140) };
-        v.popup_shadow = Shadow { offset: [0, 4], blur: 14, spread: 0, color: Color32::from_black_alpha(120) };
+        v.window_stroke = Stroke::new(1.0, LINE_SOFT);
+        v.window_corner_radius = CornerRadius::same(12);
+        v.menu_corner_radius = CornerRadius::same(8);
+        v.window_shadow = Shadow { offset: [0, 12], blur: 32, spread: 0, color: Color32::from_black_alpha(150) };
+        v.popup_shadow = Shadow { offset: [0, 6], blur: 18, spread: 0, color: Color32::from_black_alpha(130) };
+        // a slim slider handle, as a fader's cap, rather than a ball
+        v.handle_shape = egui::style::HandleShape::Rect { aspect_ratio: 0.55 };
         v.extreme_bg_color = WELL;
         v.text_edit_bg_color = Some(WELL);
         v.faint_bg_color = rgb(21, 24, 30);
@@ -178,32 +214,33 @@ pub fn apply(ctx: &egui::Context) {
         v.striped = false;
         v.indent_has_left_vline = false;
 
-        let radius = CornerRadius::same(4);
+        // quiet controls: a fill a step above the panel and no outline until the pointer is on them
+        let radius = CornerRadius::same(6);
         let w = &mut v.widgets;
         w.noninteractive.bg_fill = PANEL;
         w.noninteractive.weak_bg_fill = PANEL;
         w.noninteractive.bg_stroke = Stroke::new(1.0, LINE_SOFT);
         w.noninteractive.fg_stroke = Stroke::new(1.0, TEXT_DIM);
         w.noninteractive.corner_radius = radius;
-        w.inactive.bg_fill = RAISED;
-        w.inactive.weak_bg_fill = RAISED;
-        w.inactive.bg_stroke = Stroke::new(1.0, LINE);
+        w.inactive.bg_fill = CONTROL;
+        w.inactive.weak_bg_fill = CONTROL;
+        w.inactive.bg_stroke = Stroke::new(1.0, Color32::TRANSPARENT);
         w.inactive.fg_stroke = Stroke::new(1.0, TEXT);
         w.inactive.corner_radius = radius;
-        w.hovered.bg_fill = RAISED_HI;
-        w.hovered.weak_bg_fill = RAISED_HI;
-        w.hovered.bg_stroke = Stroke::new(1.0, rgb(78, 86, 102));
+        w.hovered.bg_fill = CONTROL_HI;
+        w.hovered.weak_bg_fill = CONTROL_HI;
+        w.hovered.bg_stroke = Stroke::new(1.0, rgb(66, 73, 88));
         w.hovered.fg_stroke = Stroke::new(1.5, Color32::WHITE);
         w.hovered.corner_radius = radius;
         w.hovered.expansion = 0.0;
-        w.active.bg_fill = rgb(56, 62, 75);
-        w.active.weak_bg_fill = rgb(56, 62, 75);
-        w.active.bg_stroke = Stroke::new(1.0, ACCENT);
+        w.active.bg_fill = rgb(60, 67, 81);
+        w.active.weak_bg_fill = rgb(60, 67, 81);
+        w.active.bg_stroke = Stroke::new(1.0, alpha(ACCENT, 0.8));
         w.active.fg_stroke = Stroke::new(1.5, Color32::WHITE);
         w.active.corner_radius = radius;
         w.active.expansion = 0.0;
-        w.open.bg_fill = rgb(48, 54, 66);
-        w.open.weak_bg_fill = rgb(48, 54, 66);
+        w.open.bg_fill = CONTROL_HI;
+        w.open.weak_bg_fill = CONTROL_HI;
         w.open.bg_stroke = Stroke::new(1.0, LINE);
         w.open.fg_stroke = Stroke::new(1.0, TEXT);
         w.open.corner_radius = radius;

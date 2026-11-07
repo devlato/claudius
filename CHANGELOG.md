@@ -6,6 +6,11 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+The studio looks sharper and quieter: its text is set in Inter instead of egui's default font, its buttons' icons
+are Lucide's, one line weight throughout, instead of shapes drawn by hand, and its controls are filled, rounded and
+outlined only under the pointer, with a slim slider handle. The status bar's keys and the arrangement's legend of
+section kinds no longer run over what is beside them in a narrow window.
+
 claudius keeps count of how fast it runs: each render, each listening of the ears and each recording decoded, the
 seconds of audio and the seconds they took. `claudius serve` answers `GET /api/metrics` with the totals in Prometheus'
 text format, for a scraper or a look. The usage statistics, for those who turned them on, now also send each kind's

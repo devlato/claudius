@@ -19,7 +19,7 @@ The studio is still being finished; this page describes its structure, which is 
 | `audio/` | the player: rodio natively, an `HtmlAudioElement` on the web; the take [recorder](#recording): cpal and midir natively, Web Audio in the browser |
 | `mock/` | the built-in demo: the claudius engine in a Web Worker (in the app, on a thread of its own) ([below](#the-demo)) |
 | `music.rs` | the theory needed to label things: keys, numerals as chord names, note names |
-| `theme.rs`, `widgets.rs` | the palette (one colour per role and section kind), knobs, faders, meters, chips |
+| `theme.rs`, `widgets.rs` | the palette (one colour per role and section kind), the fonts (Inter for text, Lucide's icons, in `assets/fonts`, cut down to what the studio shows), the icons, knobs, faders, meters, chips |
 | `mark.rs` | the logo's C, drawn at the size the header shows it, from the numbers `scripts/icons.py` draws the icons with |
 | `pick.rs` | [choosing a file](#choosing-files) on the studio's computer and reading it into memory |
 | `devplan.rs` | scripted runs of the studio, for checking the UI without a person: natively, and in a browser in a build with the `plan` feature |
