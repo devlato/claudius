@@ -912,7 +912,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Render the song and judge it: loudness and true peak, scores (mix, arc, theory, genre, production), issues with where to fix them, and what earshot hears (genre fit against its usual confusions, production quality against typical flaws, what it sounds like). The person hears the render in the claudius studio."
+        description = "Render the song and judge it: loudness and true peak, scores (mix, arc, theory, genre, production, and time when a recording plays on it: whether each keeps the song's tempo and beat, which cuts the total when one does not), issues with where to fix them, and what earshot hears (genre fit against its usual confusions, production quality against typical flaws, what it sounds like). The person hears the render in the claudius studio."
     )]
     async fn listen(&self, Parameters(a): Parameters<ListenArgs>) -> Result<String, String> {
         let st = self.heard(a.stems).await?;

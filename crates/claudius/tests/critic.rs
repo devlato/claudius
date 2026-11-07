@@ -102,3 +102,23 @@ fn a_sound_its_genre_has_no_place_for_is_named_and_costs_the_song() {
     );
     assert!(v.total < base.total - 3.0, "{} from {}", v.total, base.total);
 }
+
+#[test]
+fn a_recording_out_of_the_songs_time_is_named_and_cuts_the_verdict_whatever_else_is_right() {
+    let p = compose::arrange(&song());
+    let slice = p.slice(0, 16);
+    let r = render::render(&slice, &render::Options { stems: false, tail_secs: 0.0 }).unwrap();
+    let base = judge::judge(&slice, &r, None);
+    // the same render with a recording on its first track that keeps the song's time, and then one that is 3 % slow
+    let keeps = |time: render::KeptTime| {
+        let mut r = render::Rendered { tracks: r.tracks.clone(), master: r.master.clone(), stems: Vec::new(), ..r };
+        r.tracks[0].time = Some(time);
+        judge::judge(&slice, &r, None)
+    };
+    let on = keeps(render::KeptTime { on_grid: 0.5, own: 0.5, own_bpm: slice.bpm, drift_ms: 5.0 });
+    assert!((on.total - base.total).abs() < 1e-9 && on.scores["time"] == 1.0, "{}", on.summary);
+    let off = keeps(render::KeptTime { on_grid: 0.02, own: 0.4, own_bpm: slice.bpm * 0.97, drift_ms: 60.0 });
+    let name = &r.tracks[0].name;
+    assert_eq!(off.issues[0].target, format!("time:{name}"), "{}", off.summary);
+    assert!((off.total - judge::OUT_OF_TIME * base.total).abs() < 1e-9, "{} from {}", off.total, base.total);
+}

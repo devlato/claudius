@@ -11,9 +11,11 @@ evidence of three kinds, plus a fourth when earshot's models are loaded:
 | `genre` | the ears: does it read as its genre rather than the genres it is confused with, or stock background music | 0.15 |
 | `production` | the ears: does it read as professionally produced rather than as a typical flaw | 0.15 |
 | `refs` | the ears, with reference tracks: how typical it is of them | 0.15 |
+| `time` | the recordings on its tracks (a remake's pieces, loops, takes): does each keep the song's tempo and beat | cuts the total |
 
 Each component scores 0 to 1. The total is the weighted mean of the components present, times 100, so a verdict
-without ears is out of the same 100. [0006 A critic with ears](../design/0006-critic.md) records why the critic is
+without ears is out of the same 100. Then the total is cut, by stock music (below) and by `time`: a recording out of
+the song's time leaves it as little as 35 % of itself. [0006 A critic with ears](../design/0006-critic.md) records why the critic is
 built this way.
 
 ## The verdict
@@ -56,6 +58,7 @@ vocabulary that people, assistants and the evolution loop all read:
 | `part:<name>` | a part's writing | that part's seed, style, density and register |
 | `genre` | it reads as another genre, or unlike the references | presets, styles, drum patterns and sounds, kits, tempo, progressions |
 | `production` | it reads as one of the flaws | as for the bands |
+| `time:<track>` | the recording on a track keeps a tempo of its own, or wanders off the song's beat | |
 
 ## Mix
 
@@ -132,6 +135,45 @@ The critic reads the project's notes, not the audio, so these checks are exact:
 
 The theory score is the mean of a score per check that applies: a song without a lead or bass is not marked down for
 them. A part whose sound has no place in its genre adds a check it fails outright, a 0 to that mean.
+
+## Time
+
+A recording that plays at another tempo than the song, or drifts off its beat, sounds wrong at once: its drums flam
+against the song's, its chords change off the bars. The mix, the arc and the theory cannot hear it, and neither can
+the ears: CLAP sums up ten seconds at a time as a description, and a house song with a sample a few percent slow
+still reads as house. So the critic measures it, on the audio of each track that plays a recording (a loop or a take:
+a remake's `original`, its hook and passages, a break, a flip), as the renderer makes it, before the mix
+(`render::kept_time`, kept with the track's sound and reported with it as `time`):
+
+- its **onsets**: the spectral flux of the track where it rises over its own mean around it (an eighth of a second each
+  way), each by how much;
+- how tightly they gather at one place on the song's sixteenths, `on_grid`: the length of their mean on a circle one
+  sixteenth round, weighted, from 0 (anywhere) to 1 (all at one place);
+- the same on the sixteenths of every tempo from 0.7 to 1.4 times the song's, a quarter of a percent apart and then a
+  fiftieth around the best: the tempo they gather on most tightly, `own_bpm`, and how tightly, `own`;
+- `drift_ms`: how far each four bars' place on the song's sixteenths lies from the whole's, the most of any whose
+  onsets gather there at least half as tightly as the whole's do (a fill, a riser or a wash gathers at no place, and
+  the place its leftover points to would read as wander).
+
+Onsets rather than beats tracked, because a beat tracker slips by half a beat on a guitar or a voice and would take its
+own slip for the recording's. A recording whose onsets gather on no grid near the song's tempo (`own` under 0.15: a
+pad, a voice alone) is not judged. Nor is a track with the `vocal` role: a few syllables, looped, line up by chance on
+a tempo a whole number of whose sixteenths fit the loop (33 or 28 of them in a two-bar phrase), and a sung phrase
+keeps the time the rest of its recording keeps, which is judged. Then:
+
+| issue | when | severity |
+|---|---|---|
+| `'original' keeps a tempo of its own, about 126 BPM, against the song's 130: the recording on it is off the song's time` | `on_grid` under half of `own`, at a tempo more than 0.5 % from the song's | `(0.7 − on_grid / own) / 0.4` |
+| `'break' drifts off the song's beat, by up to 60 ms` | `drift_ms` over 40 (a band playing live, its bars each made one length, wanders 30) | `(drift_ms − 30) / 40` |
+
+Each severity is scaled by how clearly the recording keeps a grid (`(own − 0.15) / 0.15`, at most 1), and `time` is 1
+less the worst. The total is multiplied by `0.35 + 0.65 × time`, so a recording clearly off the song's tempo leaves a
+song at most 35 of its points, whatever else is right. The measures keep `time_<track>_on_grid`, `_own`, `_own_bpm`
+and `_drift_ms` for each recording judged; a song with none to judge has no `time` score, and its total is as it was.
+
+A remake's recording declared 3 % off its tempo, as a misread tempo would leave it, is found keeping 126.2 BPM in a song
+at 130, its verdict 32 where it was 91; 0.7 % off, 129.1 BPM, the same. The same remake with its tempo read right
+keeps 130.01, its `on_grid` its `own`.
 
 ## The ears
 
@@ -226,7 +268,11 @@ reading, not a good song.
   higher total is a song people prefer.
 - The ears' genre and production readings compare the audio with descriptions (CLAP). Published audits of such
   judges find their scores follow how well the audio matches its description more than how good it is. They tell a
-  song that sounds like its genre from one that does not, but they do not rank good songs.
+  song that sounds like its genre from one that does not, but they do not rank good songs. Nor do they hear time: a
+  song whose sample plays against its drums reads as its genre as well as one whose sample keeps time, which is why
+  `time` measures it on the tracks themselves instead of asking a better-trained CLAP.
+- `time` judges the recordings that keep a grid. A voice, a pad, or a recording too sparse to gather on one is taken
+  at its word, and so are notes, which play where the song puts them.
 
 - earshot was validated for matching sound effects, not music. House, tech house and techno sit close together for
   it, and fully synthesized songs read only marginally "professionally mixed"; songs with sampled instruments read

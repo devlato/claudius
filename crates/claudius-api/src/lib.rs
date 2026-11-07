@@ -1234,7 +1234,7 @@ pub struct VerdictView {
     /// 0..100
     pub total: f64,
     pub summary: String,
-    /// component -> 0..1 (mix, arc, theory, genre, production, refs)
+    /// component -> 0..1 (mix, arc, theory, genre, production, refs, time)
     pub scores: Vec<(String, f64)>,
     /// (severity 0..1, what, where to fix it)
     pub issues: Vec<(f64, String, String)>,

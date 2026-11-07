@@ -6,6 +6,16 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+The critic hears whether a song's recordings keep its time. A remake whose recording played a few percent off the
+song's tempo, its drums flamming against the genre's, could score 90 or more: nothing it measured, and nothing CLAP
+hears, notices time. Now each track that plays a recording (a remake's `original`, its hook, passages and break, a
+loop, a take) has its onsets measured where the renderer makes it: how tightly they gather on the song's sixteenths,
+on those of the tempo near it they keep best, and how far they wander. A recording keeping a tempo of its own, or
+wandering more than 40 ms off the beat, is an issue naming the track (`time:<track>`), and the verdict keeps at most
+35 % of its total. A remake declared 0.7 % off its recording's tempo now scores 32 where it scored 91. Voices are not
+judged: their syllables keep no grid, and they keep the time of the rest of their recording. The verdict's new `time`
+score and the measures `time_<track>_on_grid`, `_own`, `_own_bpm` and `_drift_ms` show it.
+
 A remake plays a recording's voice on tracks of its own, and no longer turns a singer into a chipmunk.
 - A rework plays its voice all through on a track of its own, `vocals`, mixed as a voice, beside the rest of it on
   `original`, so that the voice can be turned up, treated or muted on its own.
