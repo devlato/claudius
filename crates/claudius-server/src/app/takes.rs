@@ -167,10 +167,12 @@ impl App {
         let before = sampled(self.blueprint().as_ref());
         let r =
             self.edit_with(|bp| claudius::sampler::sample(bp, x, name, ears, opt, &dir).map(|s| s.lines.join("\n")));
+        // the phrases are in the song by now: a credit not kept is said, not taken for a failure
+        let mut r = r;
         if r.ok && !sources.is_empty() {
             for file in sampled(self.blueprint().as_ref()).difference(&before) {
                 if let Err(e) = take::keep_sources(Path::new(file), sources) {
-                    return no(format!("cannot keep what {file} credits: {e:#}"), self.version());
+                    r.message.push_str(&format!("\ncannot keep what {file} credits: {e:#}"));
                 }
             }
         }

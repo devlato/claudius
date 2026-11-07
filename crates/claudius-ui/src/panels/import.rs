@@ -50,8 +50,8 @@ pub struct Import {
     /// the library's recording playing to be heard, and the player it plays in
     hearing: Option<String>,
     player: Option<Player>,
-    /// a recording to hear, fetched and decoded in the app, arriving
-    decoding: Option<Receiver<Result<crate::audio::Pcm, String>>>,
+    /// a recording to hear, fetched and decoded in the app, arriving: which one, and the decoding
+    decoding: Option<(String, Receiver<Result<crate::audio::Pcm, String>>)>,
     /// the search's recording to use now, by its place in the list, as its Use it button uses it (a scripted run's
     /// `import:use:<n>`)
     pub use_nth: Option<usize>,
@@ -147,16 +147,18 @@ impl Import {
             }
             self.fetching = None;
         }
-        if let Some(rx) = &self.decoding
+        if let Some((id, rx)) = &self.decoding
             && let Ok(got) = rx.try_recv()
         {
+            // one stopped, or another asked for since, is not played
+            let wanted = self.hearing.as_deref() == Some(id.as_str());
             self.decoding = None;
             match (got, self.player.as_mut()) {
-                (Ok(pcm), Some(player)) => {
+                (Ok(pcm), Some(player)) if wanted => {
                     player.load(Source::Pcm(Arc::new(pcm)), false);
                     player.play();
                 }
-                (Err(e), _) => (self.hearing, self.said) = (None, Some((false, e))),
+                (Err(e), _) if wanted => (self.hearing, self.said) = (None, Some((false, e))),
                 _ => {}
             }
         }
@@ -187,17 +189,18 @@ impl Import {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let (tx, rx) = channel();
-            let (ctx, name) = (ctx.clone(), file_name(hit));
+            let ctx = ctx.clone();
             ehttp::fetch(ehttp::Request::get(&url), move |res| {
                 let pcm = fetched(res).and_then(|bytes| {
-                    let x = claudius_session::listen::decode(bytes, &name)?;
+                    // a name without a kind: its bytes say what it is (a claudius serves it by its id)
+                    let x = claudius_session::listen::decode(bytes, "the recording")?;
                     let samples = x.l.iter().zip(&x.r).flat_map(|(l, r)| [*l, *r]).collect();
                     Ok(crate::audio::Pcm { rate: claudius::config::SR, channels: 2, samples })
                 });
                 let _ = tx.send(pcm);
                 ctx.request_repaint();
             });
-            self.decoding = Some(rx);
+            self.decoding = Some((hit.id.clone(), rx));
         }
     }
 
@@ -228,8 +231,11 @@ fn fetched(res: Result<ehttp::Response, String>) -> Fetched {
 
 /// a library recording's file name, after its title, with the kind of file its audio is
 fn file_name(hit: &LibraryHit) -> String {
-    let ext = hit.audio.rsplit('.').next().filter(|e| e.len() <= 4 && !e.contains('/')).unwrap_or("mp3");
-    format!("{}.{ext}", hit.title)
+    match hit.audio.rsplit('.').next().filter(|e| e.len() <= 4 && !e.contains(['/', '?', '='])) {
+        Some(ext) => format!("{}.{ext}", hit.title),
+        // its bytes say what it is
+        None => hit.title.clone(),
+    }
 }
 
 /// `audio` as a URL to fetch: as it is, or on the claudius the studio talks to
