@@ -905,11 +905,11 @@ impl Studio {
             };
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 2.0;
-                for tab in Tab::MAIN {
+                for tab in Tab::ALL.into_iter().filter(|t| !t.at_the_end()) {
                     tab_button(ui, tab);
                 }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    for tab in Tab::MORE.into_iter().rev() {
+                    for tab in Tab::ALL.into_iter().rev().filter(|t| t.at_the_end()) {
                         tab_button(ui, tab);
                     }
                 });

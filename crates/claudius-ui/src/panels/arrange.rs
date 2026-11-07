@@ -1015,7 +1015,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             }
             if stale {
                 let note = if r.url == claudius_api::PREVIEW_URL {
-                    "the first bars, while the rest renders"
+                    "a quick preview, while the whole song renders"
                 } else {
                     "this is the song before its latest changes"
                 };

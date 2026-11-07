@@ -43,21 +43,23 @@ pub enum Tab {
 }
 
 impl Tab {
+    /// in the dock's order: the tabs for making the song, then the ones at its right end (`at_the_end`)
     pub const ALL: [Tab; 9] = [
         Tab::Sequencer,
-        Tab::Mixer,
         Tab::Parts,
         Tab::Notes,
         Tab::Harmony,
-        Tab::Script,
+        Tab::Mixer,
         Tab::Sounds,
+        Tab::Script,
         Tab::Graph,
         Tab::Log,
     ];
 
-    /// the tabs for making the song, in the dock's order; the rest (`MORE`) sit at its right end
-    pub const MAIN: [Tab; 6] = [Tab::Sequencer, Tab::Parts, Tab::Notes, Tab::Harmony, Tab::Mixer, Tab::Sounds];
-    pub const MORE: [Tab; 3] = [Tab::Script, Tab::Graph, Tab::Log];
+    /// one of the tabs for looking under the song (its script, its signal flow, the log), at the dock's right end
+    pub fn at_the_end(self) -> bool {
+        matches!(self, Tab::Script | Tab::Graph | Tab::Log)
+    }
 
     pub fn label(self) -> &'static str {
         match self {
@@ -679,12 +681,10 @@ mod tests {
     use claudius_api::{GenreSampling, RenderView};
 
     #[test]
-    fn the_dock_shows_every_tab_once() {
-        for tab in Tab::ALL {
-            let shown = Tab::MAIN.iter().chain(&Tab::MORE).filter(|t| **t == tab).count();
-            assert_eq!(shown, 1, "{tab:?}");
-        }
-        assert_eq!(Tab::MAIN.len() + Tab::MORE.len(), Tab::ALL.len());
+    fn the_tabs_at_the_end_of_the_dock_come_last() {
+        let first = Tab::ALL.iter().position(|t| t.at_the_end()).unwrap_or(Tab::ALL.len());
+        assert!(Tab::ALL[first..].iter().all(|t| t.at_the_end()), "{:?}", Tab::ALL);
+        assert_eq!(Tab::ALL.iter().filter(|t| t.at_the_end()).count(), 3);
     }
 
     #[test]
