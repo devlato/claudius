@@ -283,7 +283,7 @@ plays always, a:b (1:2, 3:4 ...: the a-th time round of every b, b up to 16), fi
 lane(lane, settings)   // settings: a map
 ```
 
-Gives a drum lane a time and feel of its own, apart from the song's:
+Gives a drum lane a time and feel of its own, apart from the song's, and the genre it is played as:
 
 | setting | range | what it does |
 |---|---|---|
@@ -293,6 +293,7 @@ Gives a drum lane a time and feel of its own, apart from the song's:
 | `groove` | a groove's name, or `""` | the groove it plays in: one of claudius' own (below) or one of the song's from [`groove()`](#groove); `""` none |
 | `groove_amount` | 0 to 1 | how much of the groove: 0.5 moves each stroke half as far and accents it half as much |
 | `late` | -80 to 80 ms | how far behind the beat every hit plays, alike, as a drum machine's shift timing moves a pad; below zero, ahead. A snare 20 late lays the backbeat back, a kick 5 early pushes it: the drunk feel J Dilla made on an MPC has the kick early and the snare late, the hats on the grid. Unlike a groove it is in milliseconds, the same at any tempo |
+| `genre` | a genre's name, or `""` | the genre whose drummer it plays as, which another take of it is written from (the studio's **Another take**, `vary_track`); a lane generated from another genre's drums has it. `""` is the song's |
 
 A groove moves each sixteenth of the bar by its own amount and accents it by its own factor, as a drum machine's groove
 template does. Only strokes exactly on the song's sixteenths take it: a 32nd, a triplet or a ratchet's inner strokes

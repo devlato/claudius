@@ -170,7 +170,8 @@ of the song's lanes of their names and add the others beside them; percussion ad
 percussion beside the song's drums. Each press is another take.
 
 Right-click a part's or a drum lane's row for **Another take**, written again (a part with a new seed, a lane from
-its genre's template), or **Vary it**: the same take with other details. A part keeps its rhythm, the cells of its
+the template of the genre it was written as: the song's, or the one its drums were generated from), or **Vary it**:
+the same take with other details. A part keeps its rhythm, the cells of its
 idiom, and draws its dead notes, octaves, approaches and pushes again; a lane is varied a step or two, its hits on
 the strong beats kept. The Parts tab has **Vary** beside **Reseed**. Every one is an edit that undoes.
 

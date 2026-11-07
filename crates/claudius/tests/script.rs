@@ -899,6 +899,27 @@ fn a_lane_and_a_part_play_behind_or_ahead_of_the_beat_as_the_script_says_and_rea
 }
 
 #[test]
+fn a_lane_played_as_another_genres_drummer_plays_it_says_so_and_reads_back() {
+    let code = r#"
+        blank("house"); tempo(120);
+        drum("kick", "x...x...x...x...");
+        form([sec("drop", 4, "kick")]);
+        lane("kick", #{ genre: "Reggaeton" });
+    "#;
+    let out = script::run(code, None, None).unwrap();
+    assert!(out.log.iter().any(|l| l == "kick: as reggaeton plays it"), "{:?}", out.log);
+    let bp = out.bp.unwrap();
+    assert_eq!(bp.drums[0].genre.as_deref(), Some("reggaeton"));
+    let again = script::to_script(&bp);
+    assert!(again.contains(r#"lane("kick", #{ genre: "reggaeton" });"#), "{again}");
+    assert_eq!(script::run(&again, None, None).unwrap().bp.unwrap().drums[0].genre.as_deref(), Some("reggaeton"));
+    let cleared = script::run(r#"lane("kick", #{ genre: "" });"#, Some(bp.clone()), None).unwrap().bp.unwrap();
+    assert_eq!(cleared.drums[0].genre, None);
+    let err = script::run(r#"lane("kick", #{ genre: "polka" });"#, Some(bp), None).err().unwrap().to_string();
+    assert!(err.contains("lane(): unknown genre 'polka'"), "{err}");
+}
+
+#[test]
 fn a_lane_keeps_its_own_length_speed_swing_and_groove() {
     let code = r#"
         blank("house"); tempo(120);

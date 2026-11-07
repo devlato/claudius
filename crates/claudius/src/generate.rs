@@ -60,6 +60,9 @@ fn spec(g: &GenreProfile, what: &str, rng: &mut Rng) -> PartSpec {
     let role = if strings { Role::Pad } else { Role::parse(what).unwrap_or(Role::Lead) };
     let stringy = |p: &&PartSpec| p.name.contains("string") || p.presets.iter().any(|e| e.contains("string"));
     let own: Vec<&PartSpec> = g.parts.iter().filter(|p| if strings { stringy(p) } else { p.role == role }).collect();
+    // a part that plays a line of its own, not another part's notes, where the genre has one
+    let lines: Vec<&PartSpec> = own.iter().copied().filter(|p| p.doubles.is_none()).collect();
+    let own = if lines.is_empty() { own } else { lines };
     let mut spec = match own.len() {
         0 => compose::spec_for(g, what, role, if strings { "string_ensemble|strings" } else { "pluck" }),
         n => own[rng.below(n)].clone(),
@@ -111,10 +114,12 @@ fn part(
         crate::theory::bass::idiom(&made.style).map_or(made.style.clone(), |i| format!("{} ({})", i.name, i.about)),
         made.sound.describe()
     );
+    // a line of its own, playing none of another part's notes
+    let made = Part { doubles: None, harmonizes: None, ..made };
     match bp.parts.iter_mut().find(|p| p.name == name) {
-        // the genre's writing in its place; its name, mix and sections stay, and what it played of another part goes
+        // the genre's writing in its place; its name, mix and sections stay
         Some(p) => {
-            *p = Part { name: p.name.clone(), mix: p.mix.clone(), doubles: None, harmonizes: None, ..made };
+            *p = Part { name: p.name.clone(), mix: p.mix.clone(), ..made };
         }
         None => {
             // where the song plays a part of the role, or as a new track goes in
@@ -147,8 +152,10 @@ fn drums(bp: &mut Blueprint, g: &GenreProfile, percussion: bool, seed: u64) -> R
         .filter(|&i| bp.form[i].layers.iter().any(|l| bp.drums.iter().any(|d| &d.name == l)))
         .collect();
     let (mut rewritten, mut added) = (Vec::new(), Vec::new());
+    // another genre's drummer, whom another take of a lane is written as again
+    let genre = (g.name != bp.genre).then(|| g.name.clone());
     for spec in lanes {
-        let lane = compose::write_lane(spec, g, &bp.key, &sounds, &mut dr);
+        let lane = DrumLane { genre: genre.clone(), ..compose::write_lane(spec, g, &bp.key, &sounds, &mut dr) };
         match bp.drums.iter_mut().find(|d| d.name == lane.name) {
             // its patterns, sound and feel in the song's lane of the name; its mix stays
             Some(d) if !percussion => {
@@ -184,9 +191,31 @@ fn drums(bp: &mut Blueprint, g: &GenreProfile, percussion: bool, seed: u64) -> R
 /// the high half of a part's seed: what draws its idiom's cells, which a variation keeps
 const TAKE: u64 = 0xffff_ffff_0000_0000;
 
+/// The genre drum lane `d` is written as (its own, else the song's, `song`) and the lane of that genre it is taken
+/// again from: the one of its name, less the genre's name and a number around it (as a lane generated beside one of
+/// the song's of the name is named), else one that plays what it plays.
+fn lane_spec(song: &str, d: &DrumLane) -> Result<(GenreProfile, LaneSpec), String> {
+    let g = genres::get(d.genre.as_deref().unwrap_or(song)).map_err(|e| e.to_string())?;
+    let bare = d.name.strip_prefix(&format!("{}_", g.name)).unwrap_or(&d.name);
+    let bare = bare.trim_end_matches(|c: char| c.is_ascii_digit());
+    let role = d.role();
+    let plays = |l: &LaneSpec| crate::script::drum_role(&l.name).unwrap_or_else(|| l.voice.role().to_string());
+    let spec = g
+        .drums
+        .iter()
+        .find(|l| l.name == d.name || l.name == bare)
+        .or_else(|| g.drums.iter().find(|l| plays(l) == role))
+        .cloned()
+        .ok_or_else(|| {
+            format!("{} has no lane like '{}' to take again: generate drums in a genre that plays one", g.name, d.name)
+        })?;
+    Ok((g, spec))
+}
+
 /// Another take of track `track` of `bp` (`take`), or a variation of the take it plays, from `seed`: a part's seed
 /// anew, or only its low half, which keeps its idiom's cells and draws their details again; a drum lane's patterns
-/// written again from its genre's template of the lane, or varied a step or two with its strong hits kept.
+/// written again from the template of the lane of the genre it is written as, or varied a step or two with its
+/// strong hits kept.
 pub fn vary(bp: &mut Blueprint, track: &str, take: bool, seed: u64) -> Result<String, String> {
     let mut rng = Rng::new(seed ^ hash_str(track));
     if let Some(p) = bp.parts.iter_mut().find(|p| p.name == track) {
@@ -199,18 +228,15 @@ pub fn vary(bp: &mut Blueprint, track: &str, take: bool, seed: u64) -> Result<St
             format!("{track}: a variation of its take{written}")
         });
     }
-    let genre = genres::get(&bp.genre).ok();
     let Some(d) = bp.drums.iter_mut().find(|d| d.name == track) else {
         let tracks: Vec<String> =
             bp.parts.iter().map(|p| p.name.clone()).chain(bp.drums.iter().map(|d| d.name.clone())).collect();
         return Err(format!("no part or drum lane '{track}' to vary (they are: {})", tracks.join(" ")));
     };
     if take {
-        let spec = genre.as_ref().and_then(|g| g.drums.iter().find(|l| l.name == d.name)).ok_or_else(|| {
-            format!("{} has no lane '{track}' to take again: generate drums in a genre that plays one", bp.genre)
-        })?;
-        d.patterns = compose::lane_patterns(spec, d.pattern_bars, &mut rng);
-        return Ok(format!("{track}: another take, as {} plays it", bp.genre));
+        let (g, spec) = lane_spec(&bp.genre, d)?;
+        d.patterns = compose::lane_patterns(&spec, d.pattern_bars, &mut rng);
+        return Ok(format!("{track}: another take, as {} plays it", g.name));
     }
     let bars = d.pattern_bars;
     for hits in d.patterns.values_mut() {
@@ -291,6 +317,17 @@ mod tests {
     }
 
     #[test]
+    fn a_generated_part_plays_a_line_of_its_own_even_from_a_genre_whose_part_of_the_role_doubles_another() {
+        // alt hip hop's fuzz plays its bass's notes; a bass written as alt hip hop plays one of its own
+        let mut bp = song("lofi", 3);
+        for seed in 1..9 {
+            track(&mut bp, "bass", "alt_hip_hop", None, None, seed).unwrap();
+            let p = bp.parts.last().unwrap();
+            assert!(p.doubles.is_none() && p.harmonizes.is_none(), "{}: {:?} {:?}", p.name, p.doubles, p.harmonizes);
+        }
+    }
+
+    #[test]
     fn strings_are_a_genres_string_part_or_a_pad_on_strings() {
         let mut bp = song("house", 3);
         track(&mut bp, "strings", "g_funk", None, None, 1).unwrap();
@@ -326,9 +363,15 @@ mod tests {
                 && !snared.is_empty()
                 && kicked.len() >= snared.len()
         );
-        // percussion goes in beside them, a lane of a name the song has getting the genre's name
+        // another take of a lane is written as reggaeton's drummer plays it, not as the song's genre does
+        let kick = bp.drums.iter().find(|d| d.name == "kick").unwrap();
+        assert_eq!(kick.genre.as_deref(), Some("reggaeton"));
+        assert!(vary(&mut bp, "kick", true, 7).unwrap().contains("as reggaeton plays it"));
+        // percussion goes in beside them, a lane of a name the song has getting the genre's name, and is taken
+        // again as that genre plays the lane
         let said = track(&mut bp, "percussion", "afrobeats", None, None, 2).unwrap();
-        assert!(said.contains("added:"), "{said}");
+        assert!(said.contains("added:") && said.contains("afrobeats_shaker"), "{said}");
+        assert!(vary(&mut bp, "afrobeats_shaker", true, 3).unwrap().contains("as afrobeats plays it"));
         assert!(
             track(&mut bp, "percussion", "synthwave", None, None, 2)
                 .unwrap_err()

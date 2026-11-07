@@ -10,9 +10,11 @@ A track can be written the way any genre plays it, into the song as it is: **+ T
 (drums, percussion, bass, chords, keys, pad, strings, lead or arp) and the genre. A part is written as that genre's own
 part of the role is, in its idiom, on a sound from its palette, in its register and with its mix, as a new track or in
 place of one of the song's parts; drums write the genre's lanes from its templates and kits in place of the song's
-lanes of their names, and percussion adds its shakers and rims beside them. A row's menu has **Another take** and
-**Vary it**, the same take with other details (a part keeps its rhythm, a drum lane its strong hits), and the Parts tab
-**Vary**. Assistants have `generate_track` and `vary_track`, and the API the commands of those names.
+lanes of their names, and percussion adds its shakers and rims beside them. A row's menu has **Another take**, a lane's
+written again as the genre it came from plays it, and **Vary it**, the same take with other details (a part keeps its
+rhythm, a drum lane its strong hits), and the Parts tab **Vary**. A lane remembers that genre in the script as
+`lane("kick", #{ genre: "reggaeton" })`. Assistants have `generate_track` and `vary_track`, and the API the commands of
+those names.
 
 Bass lines are played the way each genre's bassists play them, in 29 idioms written bar by bar as those players
 would: reggae's one drop, which leaves the one empty and plays around the drop on three; funk's slap, its dead notes

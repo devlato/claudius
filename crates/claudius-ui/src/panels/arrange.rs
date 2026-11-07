@@ -748,7 +748,9 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     let vary = |take: bool| Command::VaryTrack { track: layer.clone(), take };
                     if ui
                         .button("Another take")
-                        .on_hover_text("written again: a part with a new seed, a lane from its genre's template")
+                        .on_hover_text(
+                            "written again: a part with a new seed, a lane as the genre it was written as plays it",
+                        )
                         .clicked()
                     {
                         out.push(vary(true));

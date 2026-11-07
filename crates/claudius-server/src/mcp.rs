@@ -539,8 +539,8 @@ pub struct GenerateArgs {
 pub struct VaryArgs {
     /// the part or drum lane to vary
     pub track: String,
-    /// another take (a part's seed anew; a lane's patterns written again from the genre's template) instead of a
-    /// variation of the take it plays
+    /// another take (a part's seed anew; a lane's patterns written again as the genre it was written as plays the
+    /// lane) instead of a variation of the take it plays
     #[serde(default)]
     pub take: bool,
     /// render and judge after the change (default true)
@@ -1224,7 +1224,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Vary a part or drum lane of the song: a variation of the take it plays (a part keeps its idiom's rhythm, its cells, and draws their details again: its ghosts, octaves, approaches, pushes; a drum lane is varied a step or two, its hits on the strong beats kept), or with take another take altogether (a part's new seed; a lane's patterns written again from its genre's template). Undo brings back the one before."
+        description = "Vary a part or drum lane of the song: a variation of the take it plays (a part keeps its idiom's rhythm, its cells, and draws their details again: its ghosts, octaves, approaches, pushes; a drum lane is varied a step or two, its hits on the strong beats kept), or with take another take altogether (a part's new seed; a lane's patterns written again as the genre it was written as plays the lane: the song's, or the one its drums were generated from). Undo brings back the one before."
     )]
     async fn vary_track(&self, Parameters(a): Parameters<VaryArgs>) -> Result<String, String> {
         self.edit(Command::VaryTrack { track: a.track, take: a.take }, a.listen).await

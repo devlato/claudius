@@ -373,6 +373,7 @@ fn lane(
         swing: None,
         groove: None,
         groove_amount: 1.0,
+        genre: None,
         name: name.into(),
         sound,
         patterns,

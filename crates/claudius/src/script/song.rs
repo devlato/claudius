@@ -372,6 +372,7 @@ pub(crate) fn put_hits(
         swing: None,
         groove: None,
         groove_amount: 1.0,
+        genre: None,
         name: lane.to_string(),
         sound: Sound::Drum { voice, params: DrumParams::default_for(voice) },
         patterns,
