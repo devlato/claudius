@@ -22,7 +22,6 @@ use crate::widgets::{self, Icon};
 struct Prefs {
     tab: Tab,
     volume: f32,
-    stems: bool,
     mutate_count: usize,
     keep_best: bool,
     generations: usize,
@@ -38,7 +37,6 @@ impl Default for Prefs {
         Prefs {
             tab: v.tab,
             volume: v.volume,
-            stems: v.stems,
             mutate_count: v.mutate_count,
             keep_best: v.keep_best,
             generations: v.generations,
@@ -102,7 +100,6 @@ impl Studio {
         let mut view = View {
             tab: prefs.tab,
             volume: prefs.volume,
-            stems: prefs.stems,
             mutate_count: prefs.mutate_count,
             keep_best: prefs.keep_best,
             generations: prefs.generations,
@@ -783,14 +780,17 @@ impl Studio {
     fn status_bar(&mut self, ui: &mut Ui) {
         ui.horizontal_centered(|ui| {
             let (dot, text) = if self.link.mock {
-                (theme::WARN, "demo mode: the built-in demo, which keeps nothing".to_string())
+                (theme::WARN, "Demo: it all runs in this page, and nothing is kept".to_string())
             } else if self.link.online {
                 (theme::GOOD, format!("connected to {}", self.link.label))
             } else {
                 (theme::BAD, format!("offline: {}", self.link.label))
             };
             widgets::dot(ui, dot);
-            ui.label(RichText::new(text).size(11.0).color(TEXT_DIM));
+            let r = ui.label(RichText::new(text).size(11.5).color(TEXT_DIM));
+            if self.has_state {
+                r.on_hover_text(format!("the studio is at the song's state {}", self.state.version));
+            }
             if let Some(server) = self.link.server.as_ref().filter(|_| self.link.online) {
                 let ears = match self.link.ears {
                     _ if self.server.ears_loading => ", ears loading",
@@ -805,9 +805,6 @@ impl Studio {
                 && ui.small_button(format!("connect to {url}")).clicked()
             {
                 self.actions.push(Action::Connect);
-            }
-            if self.has_state {
-                ui.label(RichText::new(format!("· state v{}", self.state.version)).size(11.0).color(TEXT_FAINT));
             }
             if let Some(Update::Downloading { version, progress }) = self.native.as_ref().map(|n| n.update()) {
                 let text = format!("· downloading Claudius {version}, {:.0}%", progress * 100.0);
@@ -877,39 +874,45 @@ impl Studio {
         });
         tabs.show(ui, |ui| {
             ui.set_width(ui.available_width());
+            let chosen = &mut self.view.tab;
+            let mut tab_button = |ui: &mut Ui, tab: Tab| {
+                let active = *chosen == tab;
+                let font = if active { theme::medium(13.0) } else { theme::prop(13.0) };
+                let galley = ui.painter().layout_no_wrap(tab.label().to_string(), font, TEXT);
+                let (rect, r) = ui.allocate_exact_size(vec2(galley.size().x + 28.0, 30.0), Sense::click());
+                let fill = if active {
+                    PANEL
+                } else if r.hovered() {
+                    theme::mix(PANEL, BG, 0.15)
+                } else {
+                    Color32::TRANSPARENT
+                };
+                ui.painter().rect_filled(rect, egui::CornerRadius { nw: 6, ne: 6, sw: 0, se: 0 }, fill);
+                if active {
+                    ui.painter().rect_filled(egui::Rect::from_min_size(rect.min, vec2(rect.width(), 2.0)), 1.0, ACCENT);
+                }
+                let c = if active {
+                    TEXT
+                } else if r.hovered() {
+                    theme::mix(TEXT_DIM, TEXT, 0.5)
+                } else {
+                    TEXT_DIM
+                };
+                ui.painter().galley(rect.center() - galley.size() / 2.0, galley, c);
+                if r.on_hover_text(tab.tip()).clicked() {
+                    *chosen = tab;
+                }
+            };
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 2.0;
-                for tab in Tab::ALL {
-                    let active = self.view.tab == tab;
-                    let galley = ui.painter().layout_no_wrap(tab.label().to_string(), theme::prop(12.5), TEXT);
-                    let (rect, r) = ui.allocate_exact_size(vec2(galley.size().x + 28.0, 30.0), Sense::click());
-                    let fill = if active {
-                        PANEL
-                    } else if r.hovered() {
-                        theme::mix(PANEL, BG, 0.15)
-                    } else {
-                        Color32::TRANSPARENT
-                    };
-                    ui.painter().rect_filled(rect, egui::CornerRadius { nw: 6, ne: 6, sw: 0, se: 0 }, fill);
-                    if active {
-                        ui.painter().rect_filled(
-                            egui::Rect::from_min_size(rect.min, vec2(rect.width(), 2.0)),
-                            1.0,
-                            ACCENT,
-                        );
-                    }
-                    let c = if active {
-                        TEXT
-                    } else if r.hovered() {
-                        theme::mix(TEXT_DIM, TEXT, 0.5)
-                    } else {
-                        TEXT_DIM
-                    };
-                    ui.painter().galley(rect.center() - galley.size() / 2.0, galley, c);
-                    if r.clicked() {
-                        self.view.tab = tab;
-                    }
+                for tab in Tab::ALL.into_iter().filter(|t| !t.at_the_end()) {
+                    tab_button(ui, tab);
                 }
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    for tab in Tab::ALL.into_iter().rev().filter(|t| t.at_the_end()) {
+                        tab_button(ui, tab);
+                    }
+                });
             });
         });
         let mut cx = Cx {
@@ -1281,7 +1284,6 @@ impl eframe::App for Studio {
         let prefs = Prefs {
             tab: v.tab,
             volume: v.volume,
-            stems: v.stems,
             mutate_count: v.mutate_count,
             keep_best: v.keep_best,
             generations: v.generations,

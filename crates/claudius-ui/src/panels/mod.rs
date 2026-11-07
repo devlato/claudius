@@ -43,29 +43,49 @@ pub enum Tab {
 }
 
 impl Tab {
+    /// in the dock's order: the tabs for making the song, then the ones at its right end (`at_the_end`)
     pub const ALL: [Tab; 9] = [
         Tab::Sequencer,
-        Tab::Mixer,
         Tab::Parts,
         Tab::Notes,
         Tab::Harmony,
-        Tab::Script,
+        Tab::Mixer,
         Tab::Sounds,
+        Tab::Script,
         Tab::Graph,
         Tab::Log,
     ];
 
+    /// one of the tabs for looking under the song (its script, its signal flow, the log), at the dock's right end
+    pub fn at_the_end(self) -> bool {
+        matches!(self, Tab::Script | Tab::Graph | Tab::Log)
+    }
+
     pub fn label(self) -> &'static str {
         match self {
-            Tab::Sequencer => "Step sequencer",
+            Tab::Sequencer => "Drums",
             Tab::Mixer => "Mixer",
-            Tab::Parts => "Parts",
-            Tab::Notes => "Piano roll",
-            Tab::Harmony => "Harmony",
+            Tab::Parts => "Instruments",
+            Tab::Notes => "Notes",
+            Tab::Harmony => "Chords",
             Tab::Script => "Script",
             Tab::Sounds => "Sounds",
-            Tab::Graph => "Graph",
+            Tab::Graph => "Signal flow",
             Tab::Log => "Log",
+        }
+    }
+
+    pub fn tip(self) -> &'static str {
+        match self {
+            Tab::Sequencer => "each section's drum pattern, step by step",
+            Tab::Mixer => "every track's level, pan, effects and sends",
+            Tab::Parts => "each instrument's style, sound, range and how busy it plays",
+            Tab::Notes => "an instrument's notes over a chord progression, as a piano roll",
+            Tab::Harmony => "the song's chord progressions, and which section plays which",
+            Tab::Script => "the whole song as a claudius script, to read, change and run",
+            Tab::Sounds => "the sounds and drum kits claudius can use, and packs of more",
+            Tab::Graph => "how every track runs through its effects to the master",
+            Tab::Log => "what claudius did and said, newest last",
         }
     }
 }
@@ -239,7 +259,6 @@ pub struct View {
     pub trig_edit: Option<(String, String, usize, claudius_api::TrigView)>,
     pub script: ScriptEditor,
     pub new_song: NewSongForm,
-    pub stems: bool,
     pub mutate_count: usize,
     pub keep_best: bool,
     pub generations: usize,
@@ -326,7 +345,6 @@ impl Default for View {
                 complexity: None,
                 genre_search: String::new(),
             },
-            stems: false,
             mutate_count: 4,
             keep_best: true,
             generations: 3,
@@ -644,7 +662,7 @@ pub fn melodic_sounds(sounds: Option<&SoundList>) -> (Vec<String>, Vec<String>) 
 }
 
 pub fn small(text: impl Into<String>) -> RichText {
-    RichText::new(text).size(11.0).color(TEXT_DIM)
+    RichText::new(text).size(11.5).color(TEXT_DIM)
 }
 
 pub fn fmt_time(secs: f64) -> String {
@@ -661,6 +679,13 @@ pub fn page_frame() -> egui::Frame {
 mod tests {
     use super::*;
     use claudius_api::{GenreSampling, RenderView};
+
+    #[test]
+    fn the_tabs_at_the_end_of_the_dock_come_last() {
+        let first = Tab::ALL.iter().position(|t| t.at_the_end()).unwrap_or(Tab::ALL.len());
+        assert!(Tab::ALL[first..].iter().all(|t| t.at_the_end()), "{:?}", Tab::ALL);
+        assert_eq!(Tab::ALL.iter().filter(|t| t.at_the_end()).count(), 3);
+    }
 
     #[test]
     fn an_answer_that_changed_the_song_closes_the_window_it_came_from_and_an_analysis_or_a_refusal_keeps_it_open() {

@@ -33,7 +33,6 @@ pub enum Icon {
     Copy,
     Render,
     Mutate,
-    Evolve,
     Cancel,
     New,
     Save,
@@ -41,6 +40,11 @@ pub enum Icon {
     Record,
     Phone,
     Swap,
+    /// the arrow on a button that opens a menu
+    Menu,
+    Improve,
+    Export,
+    Done,
 }
 
 fn arc(center: Pos2, r: f32, from: f32, to: f32) -> Vec<Pos2> {
@@ -50,7 +54,7 @@ fn arc(center: Pos2, r: f32, from: f32, to: f32) -> Vec<Pos2> {
 
 impl Icon {
     #[cfg(test)]
-    pub const ALL: [Icon; 23] = [
+    pub const ALL: [Icon; 26] = [
         Icon::Play,
         Icon::Pause,
         Icon::Stop,
@@ -66,7 +70,6 @@ impl Icon {
         Icon::Copy,
         Icon::Render,
         Icon::Mutate,
-        Icon::Evolve,
         Icon::Cancel,
         Icon::New,
         Icon::Save,
@@ -74,6 +77,10 @@ impl Icon {
         Icon::Record,
         Icon::Phone,
         Icon::Swap,
+        Icon::Menu,
+        Icon::Improve,
+        Icon::Export,
+        Icon::Done,
     ];
 
     /// its glyph in Lucide's icons (`theme::ICONS`), by the name Lucide gives it
@@ -94,7 +101,6 @@ impl Icon {
             Icon::Copy => '\u{e09e}',    // copy
             Icon::Render => '\u{e55b}',  // audio-waveform
             Icon::Mutate => '\u{e15e}',  // shuffle
-            Icon::Evolve => '\u{e393}',  // dna
             Icon::Cancel => '\u{e1b2}',  // x
             Icon::New => '\u{e0c9}',     // file-plus
             Icon::Save => '\u{e0b2}',    // download
@@ -102,6 +108,10 @@ impl Icon {
             Icon::Record => '\u{e076}',  // circle
             Icon::Phone => '\u{e163}',   // smartphone
             Icon::Swap => '\u{e417}',    // arrow-right-left
+            Icon::Menu => '\u{e06d}',    // chevron-down
+            Icon::Improve => '\u{e412}', // sparkles
+            Icon::Export => '\u{e55e}',  // file-music
+            Icon::Done => '\u{e226}',    // circle-check
         }
     }
 }
@@ -155,9 +165,18 @@ pub fn icon_button(ui: &mut Ui, icon: Icon, size: f32, active: bool, enabled: bo
 
 /// a toolbar button: icon + label
 pub fn tool_button(ui: &mut Ui, icon: Icon, label: &str, enabled: bool, accent: bool) -> Response {
-    let font = theme::medium(12.5);
+    labelled(ui, icon, label, enabled, accent, false)
+}
+
+/// a toolbar button that opens a menu: icon, label and the menu's arrow
+pub fn menu_button(ui: &mut Ui, icon: Icon, label: &str, enabled: bool) -> Response {
+    labelled(ui, icon, label, enabled, false, true)
+}
+
+fn labelled(ui: &mut Ui, icon: Icon, label: &str, enabled: bool, accent: bool, menu: bool) -> Response {
+    let font = theme::medium(13.0);
     let galley = ui.painter().layout_no_wrap(label.to_string(), font, TEXT);
-    let size = vec2(galley.size().x + 40.0, 28.0);
+    let size = vec2(galley.size().x + if menu { 54.0 } else { 40.0 }, 28.0);
     let (rect, response) = ui.allocate_exact_size(size, if enabled { Sense::click() } else { Sense::hover() });
     let hovered = enabled && response.hovered();
     let accent = accent && enabled;
@@ -187,6 +206,10 @@ pub fn tool_button(ui: &mut Ui, icon: Icon, label: &str, enabled: bool, accent: 
     let icon_rect = Rect::from_center_size(pos2(rect.left() + 17.0, rect.center().y), Vec2::splat(15.0));
     paint_icon(ui.painter(), icon_rect, icon, color);
     ui.painter().galley(pos2(rect.left() + 30.0, rect.center().y - galley.size().y / 2.0), galley, color);
+    if menu {
+        let arrow = Rect::from_center_size(pos2(rect.right() - 15.0, rect.center().y + 0.5), Vec2::splat(12.0));
+        paint_icon(ui.painter(), arrow, Icon::Menu, if enabled { TEXT_DIM } else { TEXT_FAINT });
+    }
     response
 }
 
