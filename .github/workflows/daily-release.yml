@@ -145,8 +145,9 @@ jobs:
                 exit 1
                 ;;
             esac
+            # none until CI, which release-pr.yml dispatches after it opens the PR, has started
             failed=$(gh pr view "$pr" --json statusCheckRollup --jq \
-              '[.statusCheckRollup[] | select(.name == "ci ok" and (.conclusion == "FAILURE" or .conclusion == "CANCELLED" or .conclusion == "TIMED_OUT"))] | length')
+              '[(.statusCheckRollup // [])[] | select(.name == "ci ok" and (.conclusion == "FAILURE" or .conclusion == "CANCELLED" or .conclusion == "TIMED_OUT"))] | length')
             if [ "$failed" -gt 0 ]; then
               echo "::error title=daily release::ci ok did not pass on $url, so claudius $VERSION is not released."
               exit 1
