@@ -94,6 +94,13 @@ fn a_part_harmonizes_a_melody_under_its_notes_and_says_why_it_cannot() {
     assert!(code.contains(r#"harmonizes: "lead""#), "{code}");
     let again = script::run(&code, Some(bp.clone()), None).unwrap().bp.unwrap();
     assert!(again == bp, "printed and run again, the same");
+    // a double of the harmony is printed after it, so its script runs again
+    let doubled =
+        run(&format!(r#"{made} part("strings", #{{ role: "keys", doubles: "lead_chords" }});"#)).unwrap().bp.unwrap();
+    let code = script::to_script(&doubled);
+    let order = ["\"lead\"", "\"lead_chords\"", "\"strings\""].map(|n| code.find(&format!("part({n}")).unwrap());
+    assert!(order.is_sorted(), "{code}");
+    assert!(script::run(&code, Some(doubled.clone()), None).unwrap().bp.unwrap() == doubled);
     for (code, says) in [
         (r#"part("lead_chords", #{ harmonizes: "lead_chords" });"#, "part 'lead_chords' cannot harmonize itself"),
         (r#"part("x", #{ role: "keys", harmonizes: "nope" });"#, "harmonizes 'nope', which is not a part of the song"),

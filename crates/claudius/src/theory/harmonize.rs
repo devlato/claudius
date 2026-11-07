@@ -118,6 +118,41 @@ pub fn chords(melody: &[Note], spans: &[ChordSpan], cycle: f64, key: &Key, until
     out
 }
 
+/// `chords` (which may change mid-bar) played in a chord rhythm that keeps to the bar: each hit on the chord the
+/// harmony has when it falls, voiced anew only when the chord changes
+fn in_rhythm(chords: &[ChordSpan], period: f64, play: &Play, rng: &mut Rng) -> Vec<Note> {
+    let hits = melody::chord_hits(play.style);
+    let mut out = Vec::new();
+    let mut prev: Option<Vec<i32>> = None;
+    let mut held: Option<usize> = None;
+    for bar in 0..(period / 4.0).ceil().max(1.0) as usize {
+        for &(at, d, v) in &hits {
+            let t = bar as f64 * 4.0 + at;
+            let Some(i) = chords.iter().position(|c| t >= c.start - 1e-9 && t < c.start + c.len - 1e-9) else {
+                continue;
+            };
+            if held != Some(i) {
+                let (low, high) = play.register;
+                prev = Some(voice(
+                    &chords[i].chord,
+                    prev.as_deref(),
+                    low,
+                    high,
+                    play.voices,
+                    play.voicing,
+                    Some(&mut *rng),
+                ));
+                held = Some(i);
+            }
+            let d = d.min(chords[i].start + chords[i].len - t).min(period - t);
+            for &p in prev.iter().flatten() {
+                out.push(Note { t, d, p, v, lock: None });
+            }
+        }
+    }
+    out
+}
+
 /// `v` without a semitone between neighbouring voices, which rubs in a close voicing: of the two, the root goes (the
 /// bass plays it), else the lower; two voices are left at least
 fn unrub(mut v: Vec<i32>, chord: &Chord) -> Vec<i32> {
@@ -153,8 +188,12 @@ pub struct Play<'a> {
 pub fn harmony(melody: &[Note], period: f64, song: &Song, play: &Play, rng: &mut Rng) -> Vec<Note> {
     let (key, register, voices, voicing) = (song.key, play.register, play.voices, play.voicing);
     let chords = chords(melody, song.spans, song.cycle, key, period);
+    // a pad changes chord as the harmony does, held through each
+    if play.style == "sustain" {
+        return melody::chord_part(&chords, "sustain", voicing, register, voices, rng);
+    }
     if play.style != "block" {
-        return melody::chord_part(&chords, play.style, voicing, register, voices, rng);
+        return in_rhythm(&chords, period, play, rng);
     }
     // the melody's top note at each onset, and the notes long enough, or on a beat, to carry a chord
     let mut tops: Vec<Note> = Vec::new();
@@ -254,5 +293,26 @@ mod tests {
         assert!(block.iter().all(|c| c.v < 0.9), "under the melody, softer");
         let pad = harmony(&line, 4.0, &song, &Play { register: (48, 72), ..play("sustain") }, &mut rng);
         assert!(!pad.is_empty() && pad.iter().all(|c| c.t.abs() < 1e-9 || (c.t - 2.0).abs() < 1e-9), "{pad:?}");
+    }
+
+    #[test]
+    fn a_chord_rhythm_keeps_to_the_bar_when_the_harmony_changes_halfway_through() {
+        // C over F, then a B held from beat 3: the chord changes halfway through the bar
+        let f = vec![ChordSpan { start: 0.0, len: 4.0, chord: Chord::parse("F").unwrap() }];
+        let line = [note(0.0, 2.0, 72), note(2.0, 2.0, 71)];
+        let key = c_major();
+        let changed = chords(&line, &f, 4.0, &key, 4.0);
+        assert_eq!((changed.len(), changed[1].start), (2, 2.0), "{changed:?}");
+        let song = Song { spans: &f, cycle: 4.0, key: &key };
+        let play = Play { style: "stabs", voicing: Voicing::Close, register: (48, 72), voices: 3 };
+        let stabs = harmony(&line, 4.0, &song, &play, &mut Rng::new(1));
+        let at = |t: f64| -> Vec<u8> {
+            stabs.iter().filter(|n| (n.t - t).abs() < 1e-9).map(|n| n.p.rem_euclid(12) as u8).collect()
+        };
+        assert!(stabs.iter().all(|n| [0.0, 1.5, 3.0].iter().any(|t| (n.t - t).abs() < 1e-9)), "{stabs:?}");
+        for (t, chord) in [(0.0, changed[0].chord), (1.5, changed[0].chord), (3.0, changed[1].chord)] {
+            let pcs = at(t);
+            assert!(!pcs.is_empty() && pcs.iter().all(|&pc| chord.has_pc(pc)), "at {t}: {pcs:?}");
+        }
     }
 }
