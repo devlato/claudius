@@ -580,13 +580,14 @@ impl App {
         if how != Remade::Skeleton && !config::write_allowed(&dir, self.roots.as_deref()) {
             return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
         }
-        let a = analysis::song::analyze(x, None);
+        let stems = claudius::stems::of(x, &mut |_| {});
+        let a = analysis::song::analyze_with(x, stems.as_deref(), None);
         let seed = seed.unwrap_or_else(now_seed);
         let lib = self.lib.as_deref().map(|l| l as &dyn compose::Library);
         let name = Path::new(path).file_name().map_or_else(|| path.to_string(), |n| n.to_string_lossy().into_owned());
         let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
         let ears = self.ears.get().and_then(|e| e.as_ref());
-        let src = listen::Heard { x, path, name: &name, a: &a };
+        let src = listen::Heard { x, path, name: &name, a: &a, stems: stems.as_deref() };
         let (bp, verb, told) = listen::remake(&src, &g, seed, bpm, how, &listen::With { lib, dir: &dir, ears });
         self.lock().folder = None;
         self.commit(Some(bp), format!("{verb} {path} as {genre}{told}:\n{}", analysis_text(&a)))

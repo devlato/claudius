@@ -26,6 +26,7 @@ pub mod matching;
 pub mod models;
 pub mod realness;
 pub mod search;
+pub mod separate;
 pub mod vocab;
 
 use std::path::{Path, PathBuf};

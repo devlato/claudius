@@ -15,6 +15,7 @@ use crate::dsp::fft;
 use crate::dsp::filter::{self, BiquadKind};
 use crate::fx::{Effect, EqBand};
 use crate::model::*;
+use crate::stems::Stems;
 
 /// how many phrases one call samples at most
 pub const MOST: usize = 4;
@@ -84,30 +85,47 @@ pub fn sample(
     }
     // the sections asked for are checked before the recording is listened to
     groups(bp, &opt.sections)?;
-    let a = analysis::analyze(src, None);
+    let stems = crate::stems::of(src, &mut |_| {});
+    let a = analysis::analyze_with(src, stems.as_deref(), None);
     let count = opt.count.clamp(1, MOST);
-    let phrases = find(src, &a, ears, opt, count);
+    let phrases = find(src, stems.as_deref(), &a, ears, opt, count);
     if phrases.is_empty() {
         return Err(NO_VOICE.into());
     }
     let plain: Vec<(Phrase, Vec<Effect>)> = phrases.into_iter().map(|p| (p, Vec::new())).collect();
-    place(bp, src, &a, name, &plain, opt, dir)
+    place(bp, &Heard { src, stems: stems.as_deref(), a: &a, name }, &plain, opt, dir)
+}
+
+/// Phrase `p` as a sample: from the recording's vocals, when they are apart (`voice`), else from the mix without its
+/// drums (`clean`).
+fn phrase_of(src: &Stereo, stems: Option<&Stems>, a: &Analysis, p: &Phrase) -> Stereo {
+    match stems {
+        Some(s) => voice(&a.cut(&s.vocals, p.first, p.bars as usize)),
+        None => clean(&a.cut(src, p.first, p.bars as usize)),
+    }
 }
 
 /// what the sampler says of a recording it finds no voice in
 const NO_VOICE: &str = "nothing in the recording sounds like a voice: try other words for what to find";
 
-/// `phrases` of `src` (each with the effects it plays through) placed in the song, in the sections `opt` asks for, as
-/// `sample` places them
+/// a recording as the sampler heard it: its sound, its stems when they are apart, its analysis and its name
+struct Heard<'a> {
+    src: &'a Stereo,
+    stems: Option<&'a Stems>,
+    a: &'a Analysis,
+    name: &'a str,
+}
+
+/// `phrases` of the recording `h` (each with the effects it plays through) placed in the song, in the sections `opt`
+/// asks for, as `sample` places them
 fn place(
     bp: &mut Blueprint,
-    src: &Stereo,
-    a: &Analysis,
-    name: &str,
+    h: &Heard,
     phrases: &[(Phrase, Vec<Effect>)],
     opt: &Options,
     dir: &Path,
 ) -> Result<Sampled, String> {
+    let (src, a, name) = (h.src, h.a, h.name);
     let groups = groups(bp, &opt.sections)?;
     let bar = a.bar_secs;
     let transpose = crate::compose::transpose_into(&bp.key, (a.key.tonic, a.key.mode.is_minor()));
@@ -120,7 +138,7 @@ fn place(
         .filter(|&si| bp.loops.iter().any(|l| l.sampled && bp.form[si].layers.contains(&l.name)))
         .collect();
     for (p, fx) in phrases {
-        let cut = clean(&a.cut(src, p.first, p.bars as usize));
+        let cut = phrase_of(src, h.stems, a, p);
         let profile = shift(&pitch_profile(&cut), transpose);
         let period = 2 * p.bars;
         let mut best: Option<(f64, usize, usize, f64)> = None;
@@ -304,12 +322,13 @@ pub fn pieces(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, see
     if (src.len() as f64 / SRF) < 4.0 {
         return Err("the recording is too short to sample (4 s at least)".into());
     }
-    let a = analysis::analyze(src, None);
+    let stems = crate::stems::of(src, &mut |_| {});
+    let a = analysis::analyze_with(src, stems.as_deref(), None);
     let count = opt.count.clamp(1, MOST);
     let mut rng = crate::rng::Rng::seed_from(seed, "pieces");
     let bars = opt.bars.or_else(|| (seed > 0).then(|| *rng.pick(&[1, 2, 2, 4])));
     let wanted = Options { bars, ..opt.clone() };
-    let mut pool = find(src, &a, ears, &wanted, if seed == 0 { count } else { count * 3 });
+    let mut pool = find(src, stems.as_deref(), &a, ears, &wanted, if seed == 0 { count } else { count * 3 });
     if pool.is_empty() {
         return Err(NO_VOICE.into());
     }
@@ -326,7 +345,7 @@ pub fn pieces(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, see
         .into_iter()
         .enumerate()
         .map(|(i, p)| {
-            let raw = clean(&a.cut(src, p.first, p.bars as usize));
+            let raw = phrase_of(src, stems.as_deref(), &a, &p);
             let (treatment, fx) = treatment(first + i, p.bars as f64 * 4.0);
             let mut treated = raw.clone();
             let ctx = crate::fx::Ctx::whole(SRF, a.cut_bpm(), seed.wrapping_add(i as u64), treated.len());
@@ -353,10 +372,11 @@ pub fn keep(
         return Err("keep at least one of the pieces".into());
     }
     groups(bp, &opt.sections)?;
-    let a = analysis::analyze(src, None);
+    let stems = crate::stems::of(src, &mut |_| {});
+    let a = analysis::analyze_with(src, stems.as_deref(), None);
     let chosen: Vec<(Phrase, Vec<Effect>)> =
         kept.iter().map(|(p, treated)| (p.phrase.clone(), if *treated { p.fx.clone() } else { Vec::new() })).collect();
-    place(bp, src, &a, name, &chosen, opt, dir)
+    place(bp, &Heard { src, stems: stems.as_deref(), a: &a, name }, &chosen, opt, dir)
 }
 
 /// where a phrase was in the recording, in its bars counted from 1
@@ -403,12 +423,22 @@ fn groups(bp: &Blueprint, asked: &[String]) -> Result<Vec<(String, Vec<usize>)>,
 }
 
 /// The best `count` phrases of the recording: spans of whole bars as it plays them, scored by how much of them holds
-/// a pitch in a voice's range (A2 to C6) in the middle of the stereo picture (a longer one a little more), and, when
-/// the ears listen, by how much they sound like what they listen for; no two overlapping, the best first.
-pub fn find(src: &Stereo, a: &Analysis, ears: Option<&crate::ears::Ears>, opt: &Options, count: usize) -> Vec<Phrase> {
+/// a pitch in a voice's range (A2 to C6) and how much of their sound is the voice (a longer one a little more), and,
+/// when the ears listen, by how much they sound like what they listen for; no two overlapping, the best first. With
+/// its `stems` apart the pitch and the voice are its vocals', else the mix's, and the voice the middle of its stereo
+/// picture.
+pub fn find(
+    src: &Stereo,
+    stems: Option<&Stems>,
+    a: &Analysis,
+    ears: Option<&crate::ears::Ears>,
+    opt: &Options,
+    count: usize,
+) -> Vec<Phrase> {
     let secs = src.len() as f64 / SRF;
     let lens: Vec<u32> = opt.bars.map_or_else(|| vec![1, 2], |b| vec![b]);
-    let pitches = melody::pitches(src);
+    let sings = stems.map_or(src, |s| &s.vocals);
+    let pitches = melody::pitches(sings);
     let mut cands: Vec<Phrase> = Vec::new();
     for &bars in &lens {
         // the phrases start on the bars the recording plays, its own beats and not a grid of one tempo
@@ -428,14 +458,19 @@ pub fn find(src: &Stereo, a: &Analysis, ears: Option<&crate::ears::Ears>, opt: &
             } else {
                 0.0
             };
-            let (s0, s1) = ((t * SRF) as usize, ((t + len) * SRF) as usize);
-            let (mut mid, mut side) = (0f64, 0f64);
-            for i in s0..s1.min(src.len()) {
+            let (s0, s1) = ((t * SRF) as usize, (((t + len) * SRF) as usize).min(src.len()));
+            let (mut mid, mut side, mut voice) = (0f64, 0f64, 0f64);
+            for i in s0..s1 {
                 mid += ((src.l[i] + src.r[i]) as f64 * 0.5).powi(2);
                 side += ((src.l[i] - src.r[i]) as f64 * 0.5).powi(2);
+                voice += ((sings.l[i] + sings.r[i]) as f64 * 0.5).powi(2);
             }
-            let quiet = mid / (s1 - s0).max(1) as f64 <= 1e-6;
-            let centred = if quiet { 0.0 } else { mid.sqrt() / (mid.sqrt() + side.sqrt()) };
+            let quiet = mid / (s1 - s0).max(1) as f64 <= 1e-6 || voice / (s1 - s0).max(1) as f64 <= 1e-7;
+            let centred = match (quiet, stems) {
+                (true, _) => 0.0,
+                (false, Some(_)) => (voice / (mid + side)).sqrt().min(1.0),
+                (false, None) => mid.sqrt() / (mid.sqrt() + side.sqrt()),
+            };
             if !quiet {
                 // a longer phrase that sounds as sung says more
                 let score = 2.0 * sung + centred + 0.02 * (bars - 1) as f64;
@@ -448,7 +483,7 @@ pub fn find(src: &Stereo, a: &Analysis, ears: Option<&crate::ears::Ears>, opt: &
     cands.sort_by(|x, y| y.score.total_cmp(&x.score));
     cands.truncate(64);
     let spans: Vec<(f64, f64)> = cands.iter().map(|p| (p.start, end(p))).collect();
-    if let Some(z) = heard(ears, src, &spans, opt.find.as_deref().unwrap_or(DEFAULT_FIND)) {
+    if let Some(z) = heard(ears, sings, &spans, opt.find.as_deref().unwrap_or(DEFAULT_FIND)) {
         for (p, z) in cands.iter_mut().zip(z) {
             p.z = Some(z);
             p.score += z;
@@ -499,6 +534,25 @@ pub fn clean(x: &Stereo) -> Stereo {
         v.iter_mut().for_each(|s| *s *= g);
     }
     let mut out = Stereo { l: v.clone(), r: v };
+    let n = out.len();
+    out.fade(((0.005 * SRF) as usize).min(n / 4), ((0.03 * SRF) as usize).min(n / 4));
+    out
+}
+
+/// A phrase of a recording's vocals, apart from the rest (`crate::stems`), as a sample: in stereo as it was sung and
+/// mixed, its rumble under 90 Hz out, its loudest moment at -1 dBFS, faded in and out.
+pub fn voice(x: &Stereo) -> Stereo {
+    let mut out = x.clone();
+    for ch in out.channels_mut() {
+        filter::butter(ch, true, 90.0, SRF, 2);
+    }
+    let peak = out.peak();
+    if peak > 0.0 {
+        let g = 0.891 / peak;
+        for ch in out.channels_mut() {
+            ch.iter_mut().for_each(|s| *s *= g);
+        }
+    }
     let n = out.len();
     out.fade(((0.005 * SRF) as usize).min(n / 4), ((0.03 * SRF) as usize).min(n / 4));
     out
@@ -680,7 +734,7 @@ mod tests {
             bar_starts: Vec::new(),
             ..analysis::analyze(&x, Some((110.0, 130.0)))
         };
-        let found = find(&x, &a, None, &Options { bars: Some(2), ..Options::default() }, 1);
+        let found = find(&x, None, &a, None, &Options { bars: Some(2), ..Options::default() }, 1);
         assert_eq!(found.len(), 1);
         assert!((found[0].start - 4.0).abs() < 1e-9, "{:?}", found);
         assert!(found[0].sung > 0.8 && found[0].centred > 0.6, "{:?}", found);

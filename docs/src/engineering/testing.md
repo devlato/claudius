@@ -162,7 +162,9 @@ earshot's `tests/parity.rs` compares the Rust port with the Python earshot on fi
 made by `parity/make_fixtures.py`): decoding, resampling, the mel front end, CLAP embeddings (1 − cosine within 3e-10),
 calibrated z-scores, AudioSet probabilities, realness, measurements, beat grids and search. The model checks are
 ignored by default because they need the models; inputs that are Apple Loops are skipped where they are not
-installed. [earshot's README](https://github.com/devlato/claudius/blob/main/crates/earshot/README.md#parity-with-the-python-earshot)
+installed. Stem separation (`separate.rs`) runs its front end and back end without the nets: nets that keep the
+bins of a band each (vocals under 1 kHz, bass under 200 Hz, drums above 4 kHz) must give stems that add up to the
+recording within −50 dB, each holding its band, with each channel its own. [earshot's README](https://github.com/devlato/claudius/blob/main/crates/earshot/README.md#parity-with-the-python-earshot)
 lists every tolerance.
 
 ## Fuzzing

@@ -225,12 +225,13 @@ impl Host {
                     Ok(g) => g,
                     Err(e) => return self.no(e.to_string()),
                 };
-                let a = claudius::analysis::song::analyze(&x, None);
+                let stems = claudius::stems::of(&x, &mut |_| {});
+                let a = claudius::analysis::song::analyze_with(&x, stems.as_deref(), None);
                 let seed = seed.unwrap_or_else(|| self.seed());
                 let lib = self.lib.clone();
                 let with = listen::With { lib: lib.as_deref().map(|l| l as &dyn compose::Library), dir, ears: None };
                 let how = listen::Remade::of(None, Some(*flip));
-                let src = listen::Heard { x: &x, path: &name, name: &name, a: &a };
+                let src = listen::Heard { x: &x, path: &name, name: &name, a: &a, stems: stems.as_deref() };
                 let (bp, verb, told) = listen::remake(&src, &g, seed, None, how, &with);
                 self.forget_render();
                 self.commit(Some(bp), format!("{verb} {name} as {genre}{told}:\n{}", listen::analysis_text(&a)))

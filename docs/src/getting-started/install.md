@@ -99,6 +99,7 @@ claudius setup
 |---|---|---|
 | 22 sample packs: pianos, electric pianos, strings, brass, woodwinds, mallets, basses, guitars, voice, real drum machines, electronic one-shots, effects | 3.1 GB to download, 1.5 GB on disk | `~/Library/Application Support/claudius/packs` on macOS, `~/.local/share/claudius/packs` on Linux |
 | earshot's listening models (CLAP) | about 0.8 GB | `~/.cache/earshot-rs` |
+| Spleeter's nets, which separate a recording's vocals, drums, bass and the rest for a remake | about 160 MB | `~/.cache/earshot-rs` |
 
 The studio offers the same download of the packs when they are missing, and downloads the models by itself the
 first time it starts. Each model file is checked against a pinned SHA-256 hash. Without the packs, claudius

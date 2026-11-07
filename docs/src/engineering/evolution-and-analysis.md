@@ -221,12 +221,25 @@ analysed templates, and the bass takes the analysed style when the genre has it.
 genre. `claudius remake --skeleton` and the `remake` command with `sampled: false` do exactly this, and the song's
 history begins with `remade from <file>: <tempo> BPM, <key>, <n> sections, progression <numerals>`.
 
+### Its stems
+
+With the ears, a remake first separates the recording into its vocals, its drums, its bass and the rest
+(`crate::stems`, Spleeter's four nets through `earshot::separate`): about 8 s for a four-minute song, once, kept in
+memory and in the cache folder (`stems/`, the three recordings separated last, as 24-bit FLAC) by what the recording
+is. The nets come down the first time they are needed once the ears have been asked for (`Ears::load`); without them,
+or without the ears, nothing is separated and everything below hears the mix as before. The analysis then hears each
+thing in its own stem (`analyze_with`): the beats and the drum habits in the drums when a kit plays (a recording whose
+drums hold under a twentieth of its power has none, and its sections no kick or hats), the chords in the bass and the
+rest without the voice's melody over them, the bass under each chord in the bass, and where the voice and the kit
+come and go among the cues for its sections.
+
 ### Reworking it
 
-A remake is a rework unless asked otherwise (`remix::rework`), which keeps the recording the song it is. The recording
-is split into what sustains and what strikes (`fft::harmonic`), and what sustains, from its first downbeat to the end
-of its last bar, is one loop track, `original`, that plays once from the first section through all of them (a take's
-`from`): its voice, chords and melodies as they are, through the genre's treatment of a phrase it samples with a
+A remake is a rework unless asked otherwise (`remix::rework`), which keeps the recording the song it is. With its stems
+apart, its voice and the rest above its bass, from its first downbeat to the end of its last bar, is one loop track,
+`original`, that plays once from the first section through all of them (a take's `from`), through the genre's treatment
+of a phrase it samples with a high-pass at 80 Hz; its drums and its bass are left to the genre's. Without the stems
+the recording is split into what sustains and what strikes (`fft::harmonic`), and what sustains is the loop, with the
 high-pass at 150 Hz at least, which leaves the low end to the genre's bass and kick. The song generated in the genre
 at the recording's tempo (`rework_tempo`: from the length of its bars, doubled when that is nearer the genre's range, two bars of the
 song to each of its own, never halved, which would put two of its chords in a bar; so
@@ -238,9 +251,9 @@ the sections do not play are left out. The history says `reworked from '<file>':
 
 ### Flipping it
 
-With `flip`, a remake is a new song on the recording's sound (`remix::remix`): the recording is split into what
-sustains and what strikes (`fft::harmonic`), and cut into the pieces a producer would take from it, on the analysis's
-bar grid. Its hook
+With `flip`, a remake is a new song on the recording's sound (`remix::remix`): the recording without its drums (its
+vocals, bass and the rest, with the stems apart; else what sustains of it, `fft::harmonic`) and its drums (its drum
+stem; else what strikes), cut into the pieces a producer would take from it, on the bars it plays. Its hook
 (four bars from the start of the loudest section with chords, a hook or a drop first) without its drums is offered to
 the sampling pipeline as the phrase a song is built on (`sampling::apply`, through a library that holds only the
 recording's pieces and the libraries' one-shots, loops and textures), with another passage of it as the phrase's second

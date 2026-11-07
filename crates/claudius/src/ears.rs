@@ -59,6 +59,8 @@ mod listening {
         /// load CLAP (and the AudioSet tagger when `ast`); the first run downloads the ONNX models (~1.1 GB)
         pub fn load(ast: bool) -> Result<Ears> {
             let inner = earshot::Ears::load(earshot::EarsOptions { load_ast: ast, ..Default::default() })?;
+            // the ears asked for, the stems' nets may come down the same way
+            crate::stems::may_download();
             Ok(Ears { inner, with_ast: ast })
         }
 

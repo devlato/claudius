@@ -14,6 +14,7 @@ use crate::config::SRF;
 use crate::dsp::filter;
 use crate::genres::GenreProfile;
 use crate::model::{Blueprint, SectionKind, SectionSpec};
+use crate::stems::Stems;
 use crate::theory::chord::{Chord, roman_of};
 use crate::theory::rhythm::{self, LaneTemplate};
 use crate::theory::scale::Key;
@@ -182,8 +183,25 @@ fn template(avg: &[f32; 16]) -> Vec<f32> {
 }
 
 pub fn analyze(x: &Stereo, bpm_range: Option<(f64, f64)>) -> Analysis {
+    analyze_with(x, None, bpm_range)
+}
+
+/// `analyze`, with the recording's `stems` heard apart (`crate::stems`): its beats and its drums in its drums, when a
+/// kit plays (a recording without one has no drum habits, and no kick or hats in its sections); its chords in its
+/// bass and the rest, without the voice's melody over them; its bass in its bass.
+pub fn analyze_with(x: &Stereo, stems: Option<&Stems>, bpm_range: Option<(f64, f64)>) -> Analysis {
     let mono = x.mono();
-    let grid = beats::track(&mono, bpm_range);
+    let drummed = stems.is_none_or(Stems::drummed);
+    let drums = stems.map(|s| s.drums.mono());
+    let harmonic = stems.map(|s| {
+        let mut h = s.bass.clone();
+        h.add_at(&s.other, 0, 1.0, 1.0);
+        h.mono()
+    });
+    let bassline = stems.map(|s| s.bass.mono());
+    let (drum_src, chord_src, bass_src) =
+        (drums.as_deref().unwrap_or(&mono), harmonic.as_deref().unwrap_or(&mono), bassline.as_deref().unwrap_or(&mono));
+    let grid = beats::track_with(if drummed { drum_src } else { &mono }, chord_src, bpm_range);
     let bar_starts = bars_on(&grid.beats, grid.downbeat, 60.0 / grid.bpm.max(1.0), mono.len() as f64 / SRF);
     let bars = bar_starts.len() - 1;
     let start = bar_starts[0];
@@ -193,12 +211,14 @@ pub fn analyze(x: &Stereo, bpm_range: Option<(f64, f64)>) -> Analysis {
     // a bar as long as the band played it
     let len_of = |b: usize| bar_starts[(b + 1).min(bars)] - bar_starts[b.min(bars)];
     let (low, high) = (band(&mono, 30.0, 150.0), band(&mono, 5000.0, 0.0));
-    let kick_env = onsets::flux(&low, None);
-    let snare_env = onsets::flux(&mono, Some((1000.0, 5000.0)));
-    let hat_env = onsets::flux(&mono, Some((6000.0, 16000.0)));
+    let kick_env = onsets::flux(&band(drum_src, 30.0, 150.0), None);
+    let snare_env = onsets::flux(drum_src, Some((1000.0, 5000.0)));
+    let hat_env = onsets::flux(drum_src, Some((6000.0, 16000.0)));
+    // the bass's level, bar by bar: the bass's own, apart, or the mix's low end
+    let bass_low = stems.map(|_| band(bass_src, 30.0, 250.0));
     let chroma_hop = 4096;
-    let ch = chroma::chroma(&mono, chroma_hop);
-    let bass_ch = chroma::chroma_band(&mono, chroma_hop, 40.0, 220.0);
+    let ch = chroma::chroma(chord_src, chroma_hop);
+    let bass_ch = chroma::chroma_band(bass_src, chroma_hop, 40.0, 220.0);
     let mut bar_bass: Vec<[f32; 12]> = Vec::with_capacity(bars);
     let mut rms = Vec::with_capacity(bars);
     let mut lo_db = Vec::with_capacity(bars);
@@ -207,11 +227,20 @@ pub fn analyze(x: &Stereo, bpm_range: Option<(f64, f64)>) -> Analysis {
     let mut kick = Vec::with_capacity(bars);
     let mut snare = Vec::with_capacity(bars);
     let mut hat = Vec::with_capacity(bars);
+    let mut bass_db = Vec::with_capacity(bars);
+    // where the voice and the kit come in and go, bar by bar, when the stems are apart
+    let voice = stems.map(|s| s.vocals.mono());
+    let (mut voice_db, mut kit_db) = (Vec::with_capacity(bars), Vec::with_capacity(bars));
     for b in 0..bars {
         let (a, e) = (at(b), at(b + 1));
         rms.push(rms_db(&mono, a, e));
         lo_db.push(rms_db(&low, a, e));
         hi_db.push(rms_db(&high, a, e));
+        bass_db.push(rms_db(bass_low.as_deref().unwrap_or(&low), a, e));
+        if let Some(v) = &voice {
+            voice_db.push(rms_db(v, a, e));
+            kit_db.push(rms_db(drum_src, a, e));
+        }
         let (fa, fe) = (a / chroma_hop, (e / chroma_hop).min(ch.len()));
         let mut c = [0.0f32; 12];
         for f in ch.iter().take(fe).skip(fa) {
@@ -284,6 +313,10 @@ pub fn analyze(x: &Stereo, bpm_range: Option<(f64, f64)>) -> Analysis {
         for k in 0..12 {
             f.push(r.clone().map(|b| bar_chroma[b][k] as f64).sum::<f64>() / r.len().max(1) as f64 * 8.0);
         }
+        // a verse sings and a solo does not; a breakdown drops the kit
+        if !voice_db.is_empty() {
+            f.extend([m(&voice_db) / 6.0, m(&kit_db) / 6.0]);
+        }
         f
     };
     let feats: Vec<Vec<f64>> = (0..nb).map(feat).collect();
@@ -307,21 +340,23 @@ pub fn analyze(x: &Stereo, bpm_range: Option<(f64, f64)>) -> Analysis {
     };
     let kick_ref = mean_steps(&kick, 0, bars).max(1e-9);
     let hat_ref = mean_steps(&hat, 0, bars).max(1e-9);
-    let lo_ref = lo_db.iter().cloned().fold(f64::MIN, f64::max);
+    let bass_ref = bass_db.iter().cloned().fold(f64::MIN, f64::max);
+    // the stems say whether a bass plays at all: a twentieth of the power at least
+    let bassed = stems.is_none_or(|s| s.share(&s.bass) >= 0.02);
     let mut sections: Vec<SectionGuess> = Vec::new();
     for (i, w) in bounds.windows(2).enumerate() {
         let (a, b) = (w[0], w[1]);
         let e = if rmax - rmin > 1e-6 { ((sec_rms[i] - rmin) / (rmax - rmin)) as f32 } else { 0.8 };
-        let lo_m = (a..b).map(|x| lo_db[x]).sum::<f64>() / (b - a).max(1) as f64;
+        let bass_m = (a..b).map(|x| bass_db[x]).sum::<f64>() / (b - a).max(1) as f64;
         let kick_on = mean_steps(&kick, a, b) > 0.6 * kick_ref;
         sections.push(SectionGuess {
             start_bar: a,
             bars: b - a,
             energy: 0.3 + 0.7 * e,
             kind: SectionKind::Groove,
-            kick: kick_on,
-            bass: lo_m > lo_ref - 9.0,
-            hats: mean_steps(&hat, a, b) > 0.5 * hat_ref,
+            kick: drummed && kick_on,
+            bass: bassed && bass_m > bass_ref - 9.0,
+            hats: drummed && mean_steps(&hat, a, b) > 0.5 * hat_ref,
             harmony: true,
         });
     }
@@ -440,9 +475,10 @@ pub fn analyze(x: &Stereo, bpm_range: Option<(f64, f64)>) -> Analysis {
         bars_per_chord: bpc,
         sections,
         bar_chroma,
-        kick_steps: template(&ks),
-        snare_steps: template(&ss),
-        hat_steps: template(&hs),
+        // a recording no kit plays in has no drum habits
+        kick_steps: if drummed { template(&ks) } else { vec![0.0; 16] },
+        snare_steps: if drummed { template(&ss) } else { vec![0.0; 16] },
+        hat_steps: if drummed { template(&hs) } else { vec![0.0; 16] },
         bass_style: bass_style.to_string(),
         steady: grid.steady,
         bar_starts,

@@ -20,7 +20,8 @@ The tour never blocks the studio. **Skip the tour** or Esc ends it for good, and
 **Take the tour**, starts it again.
 
 The first time it starts, claudius downloads its listening models (about 0.8 GB) in the background; the verdict
-judges with meters and music theory until they are ready, and the log says when they are. If the default sample
+judges with meters and music theory until they are ready, and the log says when they are. The first time it remakes
+or samples a recording, it downloads the nets that separate a recording's vocals, drums and bass (about 160 MB). If the default sample
 packs are not installed, the studio says so and offers **Download the packs** (a 3.1 GB download): until then, the
 sampled instruments are synthesized. The **Sounds** tab lists every pack, with a button for each one that is not
 installed.
@@ -41,7 +42,7 @@ percussion; ticked, it is as the genre writes it ([How layered a song is](../lea
 It can also start from a recording: **Choose a file** under
 "Or start from an audio file", then **Analyze** shows what claudius hears in it, and **Remake** reworks it in the
 genre so that it stays the song it is: all of it plays through, its voice and its chords as they are without its drums
-and its low end, in its own sections and on its chords, with the genre's drums and bass under it. **Flip into**
+and its bass, in its own sections and on its chords, with the genre's drums and bass under it. **Flip into**
 makes a new song of the genre on its sound instead: its hook, another passage of it, its drums, a flip cut from all
 over it and its sung phrases, at a tempo the genre plays. **Sample its vocals into the song** puts its best sung phrases into the song
 that is open ([Sampling a song's vocals](../guide/samples.md#sampling-a-songs-vocals)), and **Take its groove** puts

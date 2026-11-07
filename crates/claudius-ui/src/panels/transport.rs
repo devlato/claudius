@@ -772,7 +772,7 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                     false,
                     format!("Remake as {shown}"),
                     "a rework that stays the song it is: all of it plays through, its voice and its chords as they \
-                     are without its drums and its low end, in its own sections and on its chords, with the genre's \
+                     are without its drums and its bass, in its own sections and on its chords, with the genre's \
                      drums and bass under it (the seed above, if any)",
                 ),
                 (
@@ -799,8 +799,9 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
             if ui
                 .add_enabled(file.is_some() && song, egui::Button::new("Sample its vocals into the song"))
                 .on_hover_text(
-                    "the auto-sampler: claudius finds the recording's best sung phrases, cleans them of its drums, \
-                     fits them to the open song's tempo and key, and places them where they agree with its chords",
+                    "the auto-sampler: claudius takes the recording's voice apart from the rest, finds its best sung \
+                     phrases, fits them to the open song's tempo and key, and places them where they agree with its \
+                     chords",
                 )
                 .on_disabled_hover_text(if song { "choose a recording first" } else { "make or open a song first" })
                 .clicked()

@@ -31,6 +31,10 @@ pub const SHA256: &[(&str, &str, &str)] = &[
     (CLAP_REPO, CLAP_TOKENIZER, "dc239041d98de27ffc3975473a1a23e3db4c937b23c138c38bbc66588bd247e5"),
     (AST_REPO, AST_MODEL, "6ff353b1e809da25f900b54494fd4ac12a6fc7db1e25195e238f21be125bb4bd"),
     (AST_REPO, AST_CONFIG, "49d0dce922da23685787c73a874d9b1ffa97297f8cc4dc0a4e8bef219725e44d"),
+    (crate::separate::REPO, "vocals.wide.onnx", "dc1964f146b3e3293c7c14ddb87032467218af3469a5621e9106a8b21032d8ab"),
+    (crate::separate::REPO, "drums.wide.onnx", "fe76859df85b28f2d0e26c68790957994763db64dc18fd2883550c1a4dab2bac"),
+    (crate::separate::REPO, "bass.wide.onnx", "d5f579b8bb9e0b1d1c758e5c903a6cc2850c0b99189b854b83978b370dbe959b"),
+    (crate::separate::REPO, "other.wide.onnx", "e097cb54e54989fa530cb290a75897888393aa7f41eab8203e357ce6400dd90e"),
 ];
 
 fn expected_sha256(repo: &str, file: &str) -> Option<&'static str> {
@@ -38,8 +42,16 @@ fn expected_sha256(repo: &str, file: &str) -> Option<&'static str> {
 }
 
 /// approximate download sizes (bytes) for messages
-pub const SIZES: &[(&str, u64)] =
-    &[(CLAP_AUDIO, 281_749_092), (CLAP_TEXT, 501_513_769), (AST_MODEL, 346_754_297), (CLAP_TOKENIZER, 2_108_774)];
+pub const SIZES: &[(&str, u64)] = &[
+    (CLAP_AUDIO, 281_749_092),
+    (CLAP_TEXT, 501_513_769),
+    (AST_MODEL, 346_754_297),
+    (CLAP_TOKENIZER, 2_108_774),
+    ("vocals.wide.onnx", 39_318_370),
+    ("drums.wide.onnx", 39_318_369),
+    ("bass.wide.onnx", 39_318_368),
+    ("other.wide.onnx", 39_318_369),
+];
 
 /// progress hook: (file name, bytes done, bytes total or 0)
 pub type Progress = dyn Fn(&str, u64, u64) + Send + Sync;

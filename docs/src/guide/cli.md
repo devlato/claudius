@@ -184,7 +184,8 @@ are rendered in full into numbered folders next to it, with their history printe
 ### `claudius remake`
 
 Analyses an audio file and reworks it in a genre, so that it stays the song it is: all of it plays through, its voice
-and its chords as they are, without its drums and its low end, in its own sections and on its chords, with the genre's
+and its chords as they are, without its drums and its bass (taken apart from the rest with earshot's models; without
+them, its low end), in its own sections and on its chords, with the genre's
 drums, bass and mix under it ([Remaking a song from audio](../cookbook/remake.md)). With `--flip` it makes a new
 song of the genre on the recording's sound instead: its hook without its drums in the hooks, another passage of it in
 the other sections, its drums as the break where the genre plays one, a flip of it cut from all over it, and its sung
@@ -400,7 +401,8 @@ The analysis is printed first, as `analyze` prints it.
 
 ### `claudius sample`
 
-Samples a recording's vocals into a song: its best sung phrases, cut on its beat grid and cleaned of its drums,
+Samples a recording's vocals into a song: its best sung phrases, cut on the bars it plays from its vocals apart (with
+earshot's models; else cleaned of its drums),
 fitted to the song's tempo and key, placed where they agree with its chords and mixed as vocals
 ([Sampling a song's vocals](samples.md#sampling-a-songs-vocals)). The song is written to a new folder, with the
 phrases in its `takes/`, and rendered and judged.
@@ -591,8 +593,9 @@ terminal it asks before each download; elsewhere (and with `--yes`) it does not 
 | `--tags` | also downloads the AudioSet tagger, 347 MB more, used by `--tags` |
 
 The prompt shows what is missing and how much it downloads: about 3.1 GB for the default packs, which take 1.5 GB on
-disk because several arrive as WAV and are converted to FLAC, and 785 MB for the models (the prompt says about
-0.8 GB, or 1.1 GB with `--tags`). An interrupted pack download resumes where it stopped; a model file that was cut off
+disk because several arrive as WAV and are converted to FLAC, and 942 MB for the models: 785 MB of listening models
+and 157 MB of Spleeter's nets, which separate a recording's vocals, drums and bass (the prompt says about 1 GB, or
+1.3 GB with `--tags`). An interrupted pack download resumes where it stopped; a model file that was cut off
 downloads again from its start, and the files that finished are kept. After the models arrive, the first load spends
 about 30 s embedding earshot's vocabulary once.
 

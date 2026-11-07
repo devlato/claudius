@@ -99,9 +99,9 @@ fn click_track(bpm: f64, secs: f64) -> Stereo {
 }
 
 /// A band whose tempo rises from `from` to `to` BPM over `bars` bars of 4/4: a kick on one and three, a snare on two
-/// and four, hats on the eighths, and a bass on the root of each bar's chord (A, F, C, G round and round); and when
-/// each of its beats falls, the first a second in.
-fn band(from: f64, to: f64, bars: usize) -> (Stereo, Vec<f64>) {
+/// and four, hats on the eighths, and a bass on the root of each bar's chord (A, F, C, G round and round); when each
+/// of its beats falls, the first a second in; and its drums and its bass apart.
+fn band(from: f64, to: f64, bars: usize) -> (Stereo, Vec<f64>, Stereo, Stereo) {
     let beats = bars * 4;
     let mut at = vec![1.0];
     for k in 0..beats {
@@ -139,22 +139,26 @@ fn band(from: f64, to: f64, bars: usize) -> (Stereo, Vec<f64>) {
         }
     }
     // the bass, a bar a note, which changes on each downbeat
+    let mut bass = vec![0.0f32; n];
     for b in 0..bars {
         let (t0, t1) = (at[4 * b], at[4 * b + 4]);
         let f = [55.0, 43.65, 65.41, 49.0][b % 4];
         let s = (t0 * SRF) as usize;
         for i in 0..(((t1 - t0) * SRF) as usize).min(n - s) {
             let tt = i as f64 / SRF;
-            x[s + i] += ((std::f64::consts::TAU * f * tt).sin() * 0.25) as f32 * (1.0 - (-tt / 0.01).exp()) as f32;
+            bass[s + i] += ((std::f64::consts::TAU * f * tt).sin() * 0.25) as f32 * (1.0 - (-tt / 0.01).exp()) as f32;
         }
     }
-    (Stereo::from_mono(&x), at)
+    let (drums, bass) = (Stereo::from_mono(&x), Stereo::from_mono(&bass));
+    let mut mix = drums.clone();
+    mix.add_at(&bass, 0, 1.0, 1.0);
+    (mix, at, drums, bass)
 }
 
 #[test]
 fn a_band_that_speeds_up_is_followed_beat_for_beat_and_one_that_keeps_time_is_on_its_grid() {
     // 92 to 100 BPM over 48 bars: a grid of one tempo would be more than two beats off at one end or the other
-    let (x, at) = band(92.0, 100.0, 48);
+    let (x, at, _, _) = band(92.0, 100.0, 48);
     let g = analysis::beats::track(&x.mono(), None);
     assert!(!g.steady, "it speeds up: {} BPM", g.bpm);
     let near = |t: f64, beats: &[f64]| beats.iter().map(|b| (b - t).abs()).fold(f64::MAX, f64::min);
@@ -170,10 +174,29 @@ fn a_band_that_speeds_up_is_followed_beat_for_beat_and_one_that_keeps_time_is_on
         assert!((heard - played).abs() < 0.03, "bar {b}: {heard:.3} s, played at {played:.3} s");
     }
     // the same band in time keeps its grid
-    let (x, at) = band(96.0, 96.0, 24);
+    let (x, at, _, _) = band(96.0, 96.0, 24);
     let g = analysis::beats::track(&x.mono(), None);
     assert!(g.steady && (g.bpm - 96.0).abs() < 0.2, "{} BPM", g.bpm);
     assert!(at[8..at.len() - 8].iter().all(|&t| near(t, &g.beats) < 0.015));
+}
+
+#[test]
+fn with_its_stems_apart_the_kit_is_heard_in_its_drums_and_a_recording_with_none_has_no_drum_habits() {
+    use claudius::stems::Stems;
+    let (x, _, drums, bass) = band(96.0, 96.0, 16);
+    let silent = Stereo::zeros(x.len());
+    let apart = Stems { vocals: silent.clone(), drums, bass: bass.clone(), other: silent.clone() };
+    let a = analysis::song::analyze_with(&x, Some(&apart), None);
+    assert!((a.bpm - 96.0).abs() < 0.5 && a.steady, "{} BPM", a.bpm);
+    // the kick on one and three, the snare on two and four
+    assert!(a.kick_steps[0] > 0.8 && a.kick_steps[8] > 0.8 && a.kick_steps[4] < 0.5, "{:?}", a.kick_steps);
+    assert!(a.snare_steps[4] > 0.8 && a.snare_steps[12] > 0.8, "{:?}", a.snare_steps);
+    assert!(a.sections.iter().all(|s| s.kick && s.bass), "{:?}", a.sections);
+    // the bass alone, with its stems saying so: no kit, so no drum habits, and no kick or hats anywhere
+    let alone = Stems { vocals: silent.clone(), drums: silent.clone(), bass: bass.clone(), other: silent };
+    let a = analysis::song::analyze_with(&bass, Some(&alone), None);
+    assert!(a.kick_steps.iter().chain(&a.snare_steps).chain(&a.hat_steps).all(|v| *v == 0.0));
+    assert!(a.sections.iter().all(|s| !s.kick && !s.hats && s.bass), "{:?}", a.sections);
 }
 
 #[test]

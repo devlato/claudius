@@ -109,6 +109,12 @@ fn standardise(v: &[f32]) -> Vec<f32> {
 }
 
 pub fn track(mono: &[f32], range: Option<(f64, f64)>) -> Grid {
+    track_with(mono, mono, range)
+}
+
+/// The beats heard in `mono`'s onsets (a recording's drums, apart from it, are the clearest) and its downbeat in
+/// `harmony` as well (where its chords change and its level jumps), the two as long as each other.
+pub fn track_with(mono: &[f32], harmony: &[f32], range: Option<(f64, f64)>) -> Grid {
     // in beat-driven music the kick marks the beat: the low band counts twice as much as the full-band flux
     let full = standardise(&onsets::flux(mono, None));
     let kick = standardise(&onsets::flux(mono, Some((30.0, 160.0))));
@@ -250,7 +256,7 @@ pub fn track(mono: &[f32], range: Option<(f64, f64)>) -> Grid {
     let low = onsets::flux(mono, Some((30.0, 150.0)));
     let low_sd = (low.iter().map(|v| (*v as f64).powi(2)).sum::<f64>() / low.len().max(1) as f64).sqrt().max(1e-9);
     let chop = HOP * 4;
-    let ch = chroma::chroma_band(mono, chop, 110.0, 2000.0);
+    let ch = chroma::chroma_band(harmony, chop, 110.0, 2000.0);
     let beat_s = 60.0 / bpm.max(1.0);
     let mean_chroma = |a: f64, b: f64| -> [f64; 12] {
         let (fa, fb) = (((a * SRF) / chop as f64).max(0.0) as usize, ((b * SRF) / chop as f64) as usize);
@@ -268,11 +274,11 @@ pub fn track(mono: &[f32], range: Option<(f64, f64)>) -> Grid {
         if n > 1e-12 { 1.0 - d / n } else { 0.0 }
     };
     let rms_at = |a: f64, b: f64| -> f64 {
-        let (sa, sb) = (((a * SRF) as usize).min(mono.len()), ((b * SRF) as usize).min(mono.len()));
+        let (sa, sb) = (((a * SRF) as usize).min(harmony.len()), ((b * SRF) as usize).min(harmony.len()));
         if sb <= sa {
             return -120.0;
         }
-        10.0 * (mono[sa..sb].iter().map(|v| (*v as f64).powi(2)).sum::<f64>() / (sb - sa) as f64).max(1e-14).log10()
+        10.0 * (harmony[sa..sb].iter().map(|v| (*v as f64).powi(2)).sum::<f64>() / (sb - sa) as f64).max(1e-14).log10()
     };
     // three cues per beat phase, each scaled to its best phase: kick strength, harmony change (a bar of chroma
     // before vs after), and votes from the biggest level jumps (sections start on downbeats)
