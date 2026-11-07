@@ -46,7 +46,15 @@ and its bass, in its own sections and on its chords, with the genre's drums and 
 makes a new song of the genre on its sound instead: its hook, another passage of it, its drums, a flip cut from all
 over it and its sung phrases, at a tempo the genre plays. **Sample its vocals into the song** puts its best sung phrases into the song
 that is open ([Sampling a song's vocals](../guide/samples.md#sampling-a-songs-vocals)), and **Take its groove** puts
-the open song's drum lanes in the feel of the recording's drums ([Grooves](../cookbook/drum-machine.md#a-groove-from-a-record)). **Open** opens a song you saved: choose the `blueprint.json` in its folder,
+the open song's drum lanes in the feel of the recording's drums ([Grooves](../cookbook/drum-machine.md#a-groove-from-a-record)).
+While claudius works on the file, the dialog says what it is doing (taking it apart into its voice, drums, bass and
+the rest, listening to it, sampling its voice, remaking it), with how far it has got when it knows, and so does the
+line at the top right. What changed the song closes the dialog when it is done: the song shows with its new tracks
+(`vox1`, `vox2` ... for sampled phrases), the toast says what came of it in a line ("sampled 2 phrases of song.mp3
+into the song: vox1, vox2"), the render it starts is on the line at the top, and the dialog keeps the whole answer
+for when you open it again, as the **Log** tab does. **Analyze**, and a file claudius could not use, leave the dialog
+open with the answer in it.
+**Open** opens a song you saved: choose the `blueprint.json` in its folder,
 or a `.rhai` script. The studio reads the file on its own computer, in a browser too, and nothing of it is kept but
 the song it opens. It also opens a project the demo saved, a `.zip`: claudius unpacks it into a song folder of its own
 ([Carrying on in claudius](#carrying-on-in-claudius)).

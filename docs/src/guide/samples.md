@@ -149,9 +149,11 @@ or **Sample its vocals into the song** in the studio's New song dialog, after ch
   it is.
 
 The phrases are kept with the song, in `takes/` in its folder, and go with it when it is saved elsewhere or its folder
-moves, as takes do. The reply says where each came from and went:
+moves, as takes do. The reply says what came of it in its first line (which the studio's toast shows, and undo
+names), then where each phrase came from and went:
 
 ```text
+sampled 2 phrases of Many Miracles Vocal Melody.caf into the song: vox1, vox2
 vox1: bar 6 of Many Miracles Vocal Melody.caf (the ears +2.0 for 'a person singing', 60% sung), in its own key at 122 BPM, every 2 bars from the first bar in the drops and hooks (drop), on chords it agrees with 74%
 vox2: bars 11-12 of Many Miracles Vocal Melody.caf (the ears +1.9 for 'a person singing', 54% sung), in its own key at 122 BPM, every 4 bars from the first bar in the breaks (break), on chords it agrees with 83%
 ```

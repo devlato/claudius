@@ -365,6 +365,7 @@ impl App {
             verdict: s.verdict.clone(),
             busy: s.busy.clone(),
             progress: s.progress,
+            cancellable: s.job,
             ears_loading: self.ears.get().is_none(),
             song_version: s.song_version,
             can_undo: !s.undo.is_empty(),
@@ -708,5 +709,34 @@ mod tests {
         assert!(!ended.exists(), "a session whose lock is free");
         assert!(unlocked.join("1.wav").exists(), "an older claudius's, changed within twelve hours");
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn work_on_a_recording_shows_on_the_busy_line_while_it_lasts_and_leaves_a_jobs_line_as_it_is() {
+        let app = app(None, false);
+        let line = |app: &App| {
+            let s = app.state();
+            assert_eq!(s.cancellable, app.lock().job, "only a job is offered to be cancelled");
+            (s.busy, s.progress)
+        };
+        let seen = app.listening("taking song.mp3 apart", |done| {
+            let before = line(&app);
+            done(0.5);
+            (before, line(&app))
+        });
+        assert_eq!(
+            seen,
+            ((Some("taking song.mp3 apart".into()), None), (Some("taking song.mp3 apart".into()), Some(0.5)))
+        );
+        assert_eq!(line(&app), (None, None), "done, the line is clear");
+        // a job's line stays its own, before the work and after it
+        app.take_slot("rendering").unwrap();
+        let seen = app.listening("listening to song.mp3", |done| {
+            done(0.9);
+            line(&app)
+        });
+        assert_eq!(seen, (Some("rendering".into()), Some(0.0)));
+        assert_eq!(line(&app), (Some("rendering".into()), Some(0.0)));
+        assert!(app.state().cancellable, "the job is");
     }
 }

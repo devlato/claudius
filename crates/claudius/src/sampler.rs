@@ -64,6 +64,16 @@ pub struct Sampled {
     pub lines: Vec<String>,
 }
 
+impl Sampled {
+    /// what came of sampling the recording `name`, in a line, then its lines: "sampled 2 phrases of song.mp3 into the
+    /// song: vox1, vox2", so that whoever reads only the first knows what changed
+    pub fn said(&self, name: &str) -> String {
+        let n = self.tracks.len();
+        let what = format!("sampled {n} phrase{} of {name} into the song", if n == 1 { "" } else { "s" });
+        format!("{what}: {}\n{}", self.tracks.join(", "), self.lines.join("\n"))
+    }
+}
+
 /// Samples the best vocal phrases of `src`, a recording called `name`, into the song: cut, cleaned, stored in `dir`
 /// with the song's takes, placed and mixed. The ears, when given, listen for `opt.find`.
 pub fn sample(

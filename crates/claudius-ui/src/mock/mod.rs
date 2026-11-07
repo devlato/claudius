@@ -354,9 +354,11 @@ impl Mock {
         s.release = Some(self.release.clone());
         s.phone = self.phone_view();
         s.log.extend(self.said.iter().cloned());
+        // the gathering is the page's own job, which `Cancel` stops
         if let Some(g) = &self.sampling {
             s.busy = Some(g.gathering.doing());
             s.progress = Some(g.gathering.progress());
+            s.cancellable = true;
         }
         self.events.push(Event::State(Box::new(s)));
     }
@@ -737,8 +739,13 @@ mod tests {
             complexity: None,
         });
         let shown = mock.update(now);
-        let busy = shown.iter().find_map(|e| if let Event::State(s) = e { s.busy.clone() } else { None });
-        assert!(busy.is_some_and(|b| b.starts_with("sampling")), "it says it is sampling");
+        let busy = shown
+            .iter()
+            .find_map(|e| if let Event::State(s) = e { s.busy.clone().map(|b| (b, s.cancellable)) } else { None });
+        assert!(
+            busy.is_some_and(|(b, can)| b.starts_with("sampling") && can),
+            "it says it is sampling, which may stop"
+        );
         feed_samples(&mut mock, &mut now);
         until(&mut mock, &mut now, rendered);
         let song = mock.state.song.as_ref().unwrap();

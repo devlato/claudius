@@ -139,7 +139,7 @@ impl App {
         let opt = sampler::Options { sections, ..o.opt.clone() };
         let before = sampled(self.blueprint().as_ref());
         let mut r =
-            self.edit_with(|bp| sampler::keep(bp, &o.src, &o.name, &chosen, &opt, &dir).map(|s| s.lines.join("\n")));
+            self.edit_with(|bp| sampler::keep(bp, &o.src, &o.name, &chosen, &opt, &dir).map(|s| s.said(&o.name)));
         if r.ok {
             // the pieces are in the song by now: a credit not kept is said, not taken for a failure
             if !o.sources.is_empty() {

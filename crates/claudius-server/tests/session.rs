@@ -1170,7 +1170,9 @@ async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
     assert!(!r.ok && r.message.contains("no section or kind 'nowhere'"), "{}", r.message);
     let r = app.command(ask(Vec::new()));
     assert!(r.ok, "{}", r.message);
-    assert!(r.message.starts_with("vox1: bars ") && r.message.contains("% sung"), "{}", r.message);
+    let said: Vec<&str> = r.message.lines().collect();
+    assert!(said[0].starts_with("sampled ") && said[0].contains(" into the song: vox1"), "{said:?}");
+    assert!(said[1].starts_with("vox1: bars ") && said[1].contains("% sung"), "{said:?}");
     assert!(r.message.contains("in the drops and hooks (drop, drop2)"), "{}", r.message);
     let st = app.state();
     let song = st.song.unwrap();
@@ -1903,7 +1905,12 @@ async fn pieces_are_offered_to_hear_drawn_again_and_kept_treated() {
         keep: vec![claudius_api::KeptPiece { id: 1, treated: true }],
         sections: vec![],
     });
-    assert!(r.ok && r.message.starts_with("vox1:"), "{}", r.message);
+    let said: Vec<&str> = r.message.lines().collect();
+    assert!(
+        r.ok && said[0].starts_with("sampled 1 phrase of ") && said[0].ends_with(" into the song: vox1"),
+        "{said:?}"
+    );
+    assert!(said[1].starts_with("vox1:"), "{said:?}");
     assert!(app.state().pieces.is_none(), "kept, the offer goes");
     let bp = app.blueprint().unwrap();
     let vox = bp.loops.iter().find(|l| l.name == "vox1").expect("the piece plays in the song");

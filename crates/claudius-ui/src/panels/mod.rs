@@ -374,6 +374,20 @@ impl Default for View {
     }
 }
 
+impl View {
+    /// The answer to a recording sent to be listened to (`what`: "analyze", "remake", "sample_song" or
+    /// "extract_groove"), shown under the buttons it was sent with. One that changed the song (or made one) closes the
+    /// window too, so that the song shows with what changed in it: the toast every answer gets says what in its first
+    /// line, and the render the change starts is on the busy line.
+    pub fn listened(&mut self, what: &str, ok: bool, message: String) {
+        self.analyzing = false;
+        if ok && what != "analyze" {
+            self.new_song.open = false;
+        }
+        self.analysis = Some((ok, message));
+    }
+}
+
 /// what every panel gets for a frame
 pub struct Cx<'a> {
     pub state: &'a mut State,
@@ -647,6 +661,24 @@ pub fn page_frame() -> egui::Frame {
 mod tests {
     use super::*;
     use claudius_api::{GenreSampling, RenderView};
+
+    #[test]
+    fn an_answer_that_changed_the_song_closes_the_window_it_came_from_and_an_analysis_or_a_refusal_keeps_it_open() {
+        let mut v = View::default();
+        let answers = [
+            ("analyze", true, true),
+            ("sample_song", false, true),
+            ("sample_song", true, false),
+            ("extract_groove", true, false),
+            ("remake", true, false),
+        ];
+        for (what, ok, open) in answers {
+            (v.new_song.open, v.analyzing) = (true, true);
+            v.listened(what, ok, format!("{what}: what came of it\nwhere each piece went"));
+            assert_eq!((v.new_song.open, v.analyzing), (open, false), "{what} {ok}");
+            assert_eq!(v.analysis, Some((ok, format!("{what}: what came of it\nwhere each piece went"))));
+        }
+    }
 
     #[test]
     fn every_synth_made_for_a_line_is_offered_to_play_a_melody() {

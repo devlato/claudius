@@ -197,15 +197,11 @@ impl Studio {
                 self.inflight = self.inflight.saturating_sub(1);
                 let script = what == "run_script";
                 if matches!(what.as_str(), "analyze" | "remake" | "sample_song" | "extract_groove") {
-                    self.view.analyzing = false;
                     let (ok, message) = match &result {
                         Ok(r) => (r.ok, r.message.clone()),
                         Err(e) => (false, e.clone()),
                     };
-                    if ok && what == "remake" {
-                        self.view.new_song.open = false;
-                    }
-                    self.view.analysis = Some((ok, message));
+                    self.view.listened(&what, ok, message);
                 }
                 if what == "pitch_check" {
                     let (ok, message) = match &result {
