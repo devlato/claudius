@@ -35,6 +35,7 @@ use crate::library::prepared::{Passage, Prepared, Role};
 use crate::model::*;
 use crate::rng::Rng;
 use crate::sampling::{BREAK, PHRASE, SECOND};
+use crate::stems::Stems;
 use crate::theory::scale::Key;
 
 /// the track a remix's flip plays on
@@ -239,6 +240,17 @@ pub struct Source<'a> {
     pub x: &'a Stereo,
     pub name: &'a str,
     pub a: &'a Analysis,
+    /// its vocals, drums, bass and the rest apart, when the ears separated them (`crate::stems`)
+    pub stems: Option<&'a Stems>,
+}
+
+/// the recording without its drums, and its drums: apart in its stems when it has them, else its sustained part and
+/// its strikes (`split`)
+fn drums_apart(src: &Source) -> (Stereo, Stereo) {
+    match src.stems {
+        Some(s) => (s.music(), s.drums.clone()),
+        None => split(src.x),
+    }
 }
 
 /// A remix of the recording `src` as a song of genre `g` (the module's doc says how), its pieces stored in `dir` with
@@ -255,7 +267,7 @@ pub fn remix(
 ) -> Result<Blueprint, String> {
     let (x, name, a) = (src.x, src.name, src.a);
     let hook = hook_bars(a).ok_or("the recording has no section with chords long enough to build a remix on")?;
-    let (sustained, struck) = split(x);
+    let (sustained, struck) = drums_apart(src);
     let slug = crate::song::slug(Path::new(name).file_stem().map_or(name.into(), |s| s.to_string_lossy()).as_ref());
     let folder = dir.join(&slug);
     let store = |audio: &Stereo| -> Result<String, String> {
@@ -340,7 +352,7 @@ pub fn remix(
     }
     // its sung phrases, when it sings: a voice the ears hear, or a pitch followed through a third of a phrase
     let voiced = crate::sampler::Options::default();
-    let sings = crate::sampler::find(x, a, ears, &voiced, 1)
+    let sings = crate::sampler::find(x, src.stems, a, ears, &voiced, 1)
         .first()
         .is_some_and(|p| p.sung >= 0.35 || p.z.is_some_and(|z| z >= 1.5));
     if sings && let Ok(sung) = crate::sampler::sample(&mut bp, x, name, ears, &voiced, dir) {
@@ -505,9 +517,13 @@ pub fn rework(
     let used: Vec<String> = bp.form.iter().flat_map(|s| s.layers.iter().cloned()).collect();
     bp.parts.retain(|p| used.contains(&p.name));
     bp.loops.retain(|l| used.contains(&l.name));
-    // the recording, all of it, without its drums, and under the genre's bass and kick without its own low end: the
-    // genre's treatment of a phrase it samples, high-passed at 150 Hz at least
-    let (sustained, _) = split(x);
+    // the recording, all of it, without its drums, and under the genre's bass and kick without its own: apart in its
+    // stems, its voice and the rest above its bass (cut at 80 Hz, under the kick); else its sustained part, the
+    // genre's treatment of a phrase it samples high-passed at 150 Hz at least
+    let (sustained, low_cut, without) = match src.stems {
+        Some(s) => (s.upper(), 80.0, "its drums and its bass"),
+        None => (split(x).0, 150.0, "its drums and its low end"),
+    };
     let slug = crate::song::slug(Path::new(name).file_stem().map_or(name.into(), |s| s.to_string_lossy()).as_ref());
     let body = cut(&sustained, a, Bars { first: 0, count: a.bars });
     let path = crate::take::store(&body, &dir.join(&slug)).map_err(|e| format!("{e:#}"))?;
@@ -515,7 +531,7 @@ pub fn rework(
     mix.fx.retain(|e| !matches!(e, crate::fx::Effect::Filter { mode: crate::dsp::filter::FilterMode::Hp, .. }));
     let hp = crate::fx::Effect::Filter {
         mode: crate::dsp::filter::FilterMode::Hp,
-        cutoff: crate::dsp::env::Param::Const(150.0),
+        cutoff: crate::dsp::env::Param::Const(low_cut),
         res: crate::dsp::env::Param::Const(0.05),
         drive: 1.0,
         mix: crate::dsp::env::Param::Const(1.0),
@@ -549,8 +565,8 @@ pub fn rework(
     let kept: Vec<&str> =
         bp.parts.iter().map(|p| p.name.as_str()).chain(bp.drums.iter().map(|d| d.name.as_str())).collect();
     let line = format!(
-        "reworked from '{name}': all {} bars of it, its voice and its chords as they are, without its drums and its \
-         low end, in its own {} sections and on its chords; {}'s {} under it",
+        "reworked from '{name}': all {} bars of it, its voice and its chords as they are, without {without}, in its \
+         own {} sections and on its chords; {}'s {} under it",
         a.bars,
         bp.form.len(),
         g.name.replace('_', " "),
@@ -663,7 +679,7 @@ mod tests {
         let a = crate::analysis::song::analyze(&x, None);
         let dir = std::env::temp_dir().join(format!("claudius-remix-{}", std::process::id()));
         let g = crate::genres::get("boom_bap").unwrap();
-        let src = Source { x: &x, name: "my song.wav", a: &a };
+        let src = Source { x: &x, name: "my song.wav", a: &a, stems: None };
         let bp = remix(&src, &g, 3, &Options::default(), None, &dir, None).unwrap();
         let phrase = bp.loops.iter().find(|l| l.name == PHRASE).expect("the hook plays");
         let Sound::Loop { path, label, .. } = &phrase.sound else { panic!("a loop") };
@@ -684,7 +700,7 @@ mod tests {
         let a = crate::analysis::song::analyze(&x, None);
         let dir = std::env::temp_dir().join(format!("claudius-rework-{}", std::process::id()));
         let g = crate::genres::get("boom_bap").unwrap();
-        let src = Source { x: &x, name: "my song.wav", a: &a };
+        let src = Source { x: &x, name: "my song.wav", a: &a, stems: None };
         let bp = rework(&src, &g, 3, &Options::default(), None, &dir).unwrap();
         // at its own tempo, which boom bap plays: the recording at its own speed and pitch
         assert!((bp.bpm - 240.0 / a.bar_secs).abs() < 1e-9 && (bp.bpm - 96.0).abs() < 0.5, "{}", bp.bpm);
@@ -743,7 +759,7 @@ mod tests {
         let x = recording();
         let a = crate::analysis::song::analyze(&x, None);
         let dir = std::env::temp_dir().join(format!("claudius-rework-tempo-{}", std::process::id()));
-        let src = Source { x: &x, name: "my song.wav", a: &a };
+        let src = Source { x: &x, name: "my song.wav", a: &a, stems: None };
         let own = 240.0 / a.bar_secs;
         // drum and bass plays twice the recording's 96: two of its bars to each of the recording's, a chord each
         let dnb = crate::genres::get("dnb").unwrap();
@@ -796,7 +812,7 @@ mod tests {
         let g = crate::genres::get("boom_bap").unwrap();
         let built = compose::generate(&g, 3, &Options { sampled: Some(true), ..Options::default() }, Some(&lib));
         assert_eq!(built.key.tonic, 1, "a song of the genre would take the phrase's key");
-        let src = Source { x: &x, name: "my song.wav", a: &a };
+        let src = Source { x: &x, name: "my song.wav", a: &a, stems: None };
         let bp = rework(&src, &g, 3, &Options::default(), Some(&lib), &dir).unwrap();
         assert_eq!(bp.key, a.key);
         assert!(bp.loops.iter().all(|l| l.name != PHRASE && l.name != SECOND), "{:?}", bp.loops);

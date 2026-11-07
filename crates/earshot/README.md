@@ -131,6 +131,7 @@ Text output reproduces earshot's plain-language summaries (`measure`, `match`, `
 |---|---|---|---|
 | CLAP (laion/larger_clap_general, fp32 ONNX) | `Xenova/larger_clap_general` @ `d78c3994912c441f0151a5cc44d86f6b7bf4c861` | `onnx/audio_model.onnx`, `onnx/text_model.onnx`, `tokenizer.json` | 282 + 502 + 2 MB |
 | AudioSet AST (MIT/ast-finetuned-audioset-10-10-0.4593, fp32 ONNX) | `Xenova/ast-finetuned-audioset-10-10-0.4593` @ `249a1fbf0286b40e7f1ed687a8ae396997bf7dc6` | `onnx/model.onnx`, `config.json` | 347 MB |
+| Spleeter 4 stems (Deezer, fp32 ONNX, the 16 kHz bin axis) | `Best-Practice/spleeter-4stems-onnx` @ `486643021f18a4d057d282fff1d11b89a30e9887` | `vocals.wide.onnx`, `drums.wide.onnx`, `bass.wide.onnx`, `other.wide.onnx` | 4 × 39 MB |
 
 Files are downloaded on first use from `https://huggingface.co/{repo}/resolve/{revision}/{file}` into
 `$EARSHOT_HOME` (default `~/.cache/earshot-rs`), under `models/<repo with / as -->/<revision>/<file>`.
@@ -142,6 +143,11 @@ download and fails with a clear message. The ONNX I/O, inspected with `ort`:
 - CLAP text: `input_ids [B, T] i64` → `text_embeds [B, 512]`. There is **no attention mask**, so texts are
   batched by equal token length instead of being padded.
 - AST: `input_values [B, 1024, 128] f32` → `logits [B, 527]`.
+- Spleeter, each stem: `x [2, S, 512, 1536] f32` (channels, splits of 512 frames, the first 1536 bins of a
+  4096-point frame at 44.1 kHz with a hop of 1024 under a periodic Hann window, magnitudes) → `y`, the stem's
+  magnitudes of the same shape. Not a port of earshot: `separate` does the STFT, the ratio mask over the four
+  (squares, which sum to one, so the stems add up to the recording within float error), the per-frame mean mask above
+  16 kHz, and the inverse with a weighted overlap-add; the frames start a frame less a hop before the recording.
 
 Text embeddings (raw, per prompt) are cached in `$EARSHOT_HOME/text/clap-d78c3994912c.bin`. The cache is
 merged with what other processes wrote and replaced atomically. The 322 terms × 5 templates are computed once.
@@ -276,6 +282,11 @@ provider, and rustc does not link that runtime. The directive propagates to any 
   `data/vocab.json`, `data/vocab_stats.json` and `data/realness_model.json` are copied from earshot.
 - CLAP model weights: LAION `larger_clap_general`, **Apache-2.0**. ONNX export by Xenova (same licence).
 - AST model weights: MIT CSAIL `ast-finetuned-audioset-10-10-0.4593`, **BSD-3-Clause**. ONNX export by Xenova.
+- Spleeter 4-stem weights: Deezer, **MIT**, as the paper that released them says ("Spleeter source code and
+  pre-trained models are available on github and distributed under a MIT license", Hennequin et al., JOSS 5(50):2154,
+  2020), trained on Deezer's own licensed catalogue. Deezer's README licenses the code by name, and an issue asking
+  about the weights (deezer/spleeter#898) has no answer. ONNX export by Best-Practice through sherpa-onnx's PyTorch
+  port of the U-Net, **Apache-2.0**.
 - Libraries: ONNX Runtime (MIT, statically linked via `ort`, MIT/Apache-2.0), `tokenizers` (Apache-2.0),
   `realfft` / RustFFT (MIT/Apache-2.0), `ureq` with rustls (MIT/Apache-2.0), serde (MIT/Apache-2.0).
 - No LGPL code is used: the soxr-equivalent filter is an independent Kaiser-sinc design whose parameters were

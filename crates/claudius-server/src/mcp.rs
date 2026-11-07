@@ -408,7 +408,7 @@ pub struct RemakeArgs {
     #[serde(default)]
     pub sampled: Option<bool>,
     /// false (default): a rework, which keeps the recording the song it is: all of it plays through, its voice and
-    /// its chords as they are, without its drums and its low end, in its own sections and on its chords, with the
+    /// its chords as they are, without its drums and its bass, in its own sections and on its chords, with the
     /// genre's drums and bass under it. true: a flip, a new song of the genre on its hook without its drums, a
     /// verse passage, its drums as the break, a flip of it in pieces from all over it and its sung phrases
     #[serde(default)]
@@ -1117,7 +1117,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Make a song in a genre from an audio file, which stays recognizable: claudius analyzes it (tempo, key, chords, sections, groove) and reworks it, playing all of it through, its voice and chords as they are without its drums and low end, in its own sections and on its chords, with the genre's drums, bass and mix under it. flip: true makes a new song of the genre on its hook and pieces of it instead; sampled: false a new song on its skeleton only."
+        description = "Make a song in a genre from an audio file, which stays recognizable: claudius analyzes it (tempo, key, chords, sections, groove) and reworks it, playing all of it through, its voice and chords as they are without its drums and its bass (with the ears, the recording is separated into its vocals, drums, bass and the rest first), in its own sections and on its chords, with the genre's drums, bass and mix under it. A band that speeds up and slows down is followed beat for beat. flip: true makes a new song of the genre on its hook and pieces of it instead; sampled: false a new song on its skeleton only."
     )]
     async fn remake(&self, Parameters(a): Parameters<RemakeArgs>) -> Result<String, String> {
         let cmd = Command::Remake {
@@ -1248,7 +1248,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Sample a recording's vocals into the song: claudius finds the phrases of the recording that most sound like a voice singing (or `find`), cuts them on the recording's beat grid, cleans them of its drums and of what plays to the sides, fits them to the song's tempo and key, places each in the sections that suit it (the drops and hooks, then the breaks ...) from the bar where its notes agree best with the song's chords, every so many bars, and mixes them as vocals (vox1, vox2 ...; a lead playing with them steps back 1.5 dB). Says where each phrase came from and went, then listens. The phrases are kept with the song; undo takes them out."
+        description = "Sample a recording's vocals into the song: claudius finds the phrases of the recording that most sound like a voice singing (or `find`), cuts them on the bars the recording plays from its vocals apart (with the ears; else cleaned of its drums and of what plays to the sides), fits them to the song's tempo and key, places each in the sections that suit it (the drops and hooks, then the breaks ...) from the bar where its notes agree best with the song's chords, every so many bars, and mixes them as vocals (vox1, vox2 ...; a lead playing with them steps back 1.5 dB). Says where each phrase came from and went, then listens. The phrases are kept with the song; undo takes them out."
     )]
     async fn sample_song(&self, Parameters(a): Parameters<SampleArgs>) -> Result<String, String> {
         let c = Command::SampleSong { path: a.path, count: a.count, bars: a.bars, find: a.find, sections: a.sections };

@@ -135,6 +135,8 @@ pub struct Heard<'a> {
     pub path: &'a str,
     pub name: &'a str,
     pub a: &'a Analysis,
+    /// its vocals, drums, bass and the rest apart, when the ears separated them
+    pub stems: Option<&'a claudius::stems::Stems>,
 }
 
 /// what a remake draws on: the library's sounds and samples, where it keeps what it takes of the recording, and the
@@ -157,7 +159,7 @@ pub fn remake(
     with: &With,
 ) -> (Blueprint, &'static str, String) {
     let opts = Options { bpm, ..Options::default() };
-    let s = claudius::remix::Source { x: src.x, name: src.name, a: src.a };
+    let s = claudius::remix::Source { x: src.x, name: src.name, a: src.a, stems: src.stems };
     let built = match how {
         Remade::Rework => Some(claudius::remix::rework(&s, g, seed, &opts, with.lib, with.dir)),
         Remade::Flip => Some(claudius::remix::remix(&s, g, seed, &opts, with.lib, with.dir, with.ears)),

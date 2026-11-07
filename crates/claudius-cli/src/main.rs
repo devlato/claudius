@@ -445,14 +445,19 @@ fn run(cli: Cli) -> Result<()> {
             let seed = seed.unwrap_or_else(seed_now);
             let listening = listen(&ears);
             let x = claudius::audio::load(&file)?;
-            let a = claudius::analysis::song::analyze(&x, None);
+            // its vocals, drums, bass and the rest apart, with the ears
+            let stems = claudius::stems::of(&x, &mut |_| {});
+            if stems.is_some() {
+                eprintln!("separated its vocals, drums, bass and the rest");
+            }
+            let a = claudius::analysis::song::analyze_with(&x, stems.as_deref(), None);
             print_analysis(&a);
             let lib = open_library()?;
             let lib_ref = lib.as_ref().map(|l| l as &dyn compose::Library);
             let opts = Options { bpm, ..Options::default() };
             let name = file.file_name().map_or_else(|| file.to_string_lossy(), |n| n.to_string_lossy()).into_owned();
             let remixed = (!skeleton).then(|| {
-                let src = claudius::remix::Source { x: &x, name: &name, a: &a };
+                let src = claudius::remix::Source { x: &x, name: &name, a: &a, stems: stems.as_deref() };
                 // the recording, or its pieces, go with the songs written under --out
                 let takes = out.join("takes");
                 match flip {

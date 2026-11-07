@@ -6,6 +6,21 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+A recording is taken apart into its vocals, its drums, its bass and the rest before a remake or the auto-sampler uses
+it, with Deezer's Spleeter (its four nets, MIT, about 160 MB, downloaded with the ears' models by `claudius setup` or
+the first time they are needed; separating a four-minute song takes about 8 s, and the stems of the last three
+recordings are kept). Until now "without its drums" meant without what strikes, by harmonic-percussive filtering, which
+left the rest of the recording's sound in the "vocal" and a smear of its drums in everything, playing against the
+genre's.
+- A sampled vocal is the voice, on its own, in stereo.
+- A rework plays the recording's voice and the rest without its drums or its bass, under the genre's.
+- A flip's hook is everything but the drums, and its break the drums alone.
+- The analysis hears the beats and drum habits in the drums, the chords without the voice's melody over them, and
+  where the voice and the kit come and go.
+
+A recording with no kit, which used to be read as a kick on every sixteenth, now has no drum habits. Without the ears
+(Intel Macs, Windows) a recording is heard in its mix as before. `claudius doctor` says whether the nets are there.
+
 A recording of a band keeps time with the song made from it. Its tempo used to be read as one, a grid fitted to the
 whole recording, and a band that speeds up and slows down drifts off any one tempo: a phrase cut from late in the song
 started half a beat or more off its bar, and a rework's recording drifted against the genre's drums. Now claudius

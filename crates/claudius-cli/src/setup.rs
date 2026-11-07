@@ -73,10 +73,10 @@ pub fn run(yes: bool, packs: bool, models: bool, tags: bool) -> Result<()> {
 #[cfg(feature = "ears")]
 fn download_models(ask: bool, tags: bool) -> Result<()> {
     let cache = earshot::models::default_cache_dir();
-    if earshot::models::cached(&cache, tags) {
+    if earshot::models::cached(&cache, tags) && earshot::separate::Separator::cached(&cache) {
         eprintln!("ears: the models are in {}", cache.display());
     } else {
-        let size = if tags { "about 1.1 GB" } else { "about 0.8 GB" };
+        let size = if tags { "about 1.3 GB" } else { "about 1 GB" };
         if !ask || confirm(&format!("Download earshot's listening models ({size}) into {}?", cache.display()))? {
             let last = std::sync::Mutex::new((String::new(), -1));
             earshot::models::set_progress(Box::new(move |label, done, total| {
@@ -88,6 +88,8 @@ fn download_models(ask: bool, tags: bool) -> Result<()> {
             }));
             eprintln!("ears: downloading, then reading the vocabulary once (about 30 s)");
             claudius::ears::Ears::load(tags)?;
+            // Spleeter's nets, which separate a recording's vocals, drums and bass for a remake
+            earshot::separate::Separator::load(&cache, false, 1)?;
             eprintln!("ears: ready");
         }
     }

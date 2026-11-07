@@ -26,7 +26,7 @@ Everything claudius needs is here.
 
 Two things matter for this page: the **sample packs** (recorded instruments and drum machines) and the **ears** (the
 listening models the critic uses). If either is missing, `claudius setup` downloads them: about 3.1 GB of packs (1.5 GB
-once unpacked) and 0.8 GB of models, once. Apple Loops are optional (claudius uses them when GarageBand or Logic
+once unpacked) and 1 GB of models, once. Apple Loops are optional (claudius uses them when GarageBand or Logic
 content is installed), and so is ffmpeg, which reads the few audio formats claudius cannot read itself.
 
 ## Make a song

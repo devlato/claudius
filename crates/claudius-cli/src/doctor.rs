@@ -63,6 +63,16 @@ pub fn run(port: u16, web: Option<std::path::PathBuf>) {
                 "models not downloaded: run `claudius setup` (verdicts use meters and theory until then)",
             );
         }
+        if earshot::separate::Separator::cached(&cache) {
+            r.line(true, "stems", format!("Spleeter's nets in {}", tilde(&cache)));
+        } else {
+            r.line(
+                false,
+                "stems",
+                "Spleeter's nets not downloaded: run `claudius setup` (a remake hears a recording's vocals and drums in \
+                 its mix until then)",
+            );
+        }
     }
     #[cfg(not(feature = "ears"))]
     println!("  ..  {:<15} not in this build (verdicts use meters and theory)", "ears");

@@ -67,8 +67,9 @@ generated parts in the new key.
 recording in the genre, so that it stays the song it is:
 
 - all of it plays through, from its first downbeat to its end, at its own speed and pitch: its voice, its chords and
-  its melodies as they are, without its drums (what strikes) and its low end (under 150 Hz), through the genre's
-  treatment of a phrase it samples (boom bap's tape and 12 bits, say);
+  its melodies as they are, without its drums and its bass (taken apart from the rest with the ears' models; without
+  them, what strikes and what is under 150 Hz), through the genre's treatment of a phrase it samples (boom bap's tape
+  and 12 bits, say); a band that speeds up and slows down is followed beat for beat;
 - the song is its form bar for bar: its own sections, their kinds, lengths and energies;
 - on its chords bar by bar, a progression for each run of them, and in its swing;
 - the genre plays under it: its drums, its bass on those chords' roots (in place of the recording's), its break
@@ -87,7 +88,7 @@ on samples is built:
 - its hook (four bars of its loudest section with chords) without its drums plays in the song's hooks or drops, and
   the song takes its key and chords;
 - another passage of it as long plays in the other sections;
-- its own drums are the break, in a genre that plays one;
+- its own drums (its drum stem, with the ears) are the break, in a genre that plays one;
 - a flip of it, half beats cut from all over it on the hook's chords, plays in the intro, the breaks and the outro;
 - its sung phrases, when it has any, come in where they agree with the chords.
 

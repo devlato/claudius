@@ -111,16 +111,33 @@ pub fn store(audio: &Stereo, dir: &Path) -> Result<PathBuf> {
     if path.is_file() {
         return Ok(path);
     }
-    std::fs::create_dir_all(dir).with_context(|| format!("cannot write {}", dir.display()))?;
+    write_flac(&samples, mono, &path)?;
+    Ok(path)
+}
+
+/// `audio` into `dir` as `<name>.flac`, 24-bit, under that name whatever it holds
+pub fn store_as(audio: &Stereo, dir: &Path, name: &str) -> Result<PathBuf> {
+    let mono = audio.l == audio.r;
+    let samples = if mono { audio.l.clone() } else { audio.interleaved() };
+    let path = dir.join(format!("{name}.flac"));
+    write_flac(&samples, mono, &path)?;
+    Ok(path)
+}
+
+/// `samples` (one channel, or two interleaved) into `path` as 24-bit FLAC, by way of a file beside it
+fn write_flac(samples: &[f32], mono: bool, path: &Path) -> Result<()> {
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).with_context(|| format!("cannot write {}", dir.display()))?;
+    }
     let spec = claudius_encode::Spec { format: claudius_encode::Format::Flac(claudius_encode::Depth::I24), rate: None };
-    let pcm = claudius_encode::Pcm { samples: &samples, channels: if mono { 1 } else { 2 }, rate: config::SR };
+    let pcm = claudius_encode::Pcm { samples, channels: if mono { 1 } else { 2 }, rate: config::SR };
     let tags =
         claudius_encode::Tags { software: format!("claudius {}", env!("CARGO_PKG_VERSION")), ..Default::default() };
     let flac = claudius_encode::encode(&spec, pcm, &tags)?;
     let tmp = path.with_extension(format!("{}.tmp", config::process_id()));
     std::fs::write(&tmp, flac).with_context(|| format!("cannot write {}", tmp.display()))?;
-    std::fs::rename(&tmp, &path).with_context(|| format!("cannot write {}", path.display()))?;
-    Ok(path)
+    std::fs::rename(&tmp, path).with_context(|| format!("cannot write {}", path.display()))?;
+    Ok(())
 }
 
 /// Adds the recording at `path`, `secs` long, as a take that starts with section `from` and goes on through the

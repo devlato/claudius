@@ -46,6 +46,7 @@ pub mod sampling;
 pub mod scratch;
 pub mod script;
 pub mod song;
+pub mod stems;
 pub mod swap;
 pub mod synth;
 pub mod take;

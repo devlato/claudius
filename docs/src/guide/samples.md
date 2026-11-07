@@ -119,13 +119,19 @@ The auto-sampler takes the best sung phrases of a recording (a song, an a cappel
 the open song, as a producer samples a vocal: `claudius sample song.mp3 --on SONG`, `sample_song` for an assistant,
 or **Sample its vocals into the song** in the studio's New song dialog, after choosing the file.
 
-- **Finding the phrases.** claudius finds the recording's tempo, key and beat grid, and scores every one- and two-bar
-  span on that grid (`--bars` asks for 1, 2 or 4): how much of it holds a pitch in a voice's range, A2 to C6, and how
-  much of its sound sits in the middle of the stereo picture, where a voice is mixed. With earshot's models, the ears
-  also listen to the best of them for "a person singing" (or what `--find` says, such as "a rap verse"), and their
-  reading leads. It keeps the best two (`--count`, up to four), no two overlapping.
-- **Cleaning them.** Each phrase keeps the middle of the stereo picture and its sustained part, without what strikes
-  (the drums, by harmonic-percussive separation), above 160 Hz and below 11 kHz, at −1 dBFS, faded in and out.
+- **Separating the voice.** With earshot's models, claudius first takes the recording apart into its vocals, drums,
+  bass and the rest (Spleeter's nets, about 8 s for a four-minute song, kept for the next time), and hears the voice
+  on its own from then on.
+- **Finding the phrases.** claudius finds the recording's tempo, key and bars (the beats a band plays, when it speeds
+  up and slows down), and scores every one- and two-bar span (`--bars` asks for 1, 2 or 4): how much of it holds a
+  pitch in a voice's range, A2 to C6, and how much of its sound is the voice (with the voice apart, its share of the
+  span; else how much sits in the middle of the stereo picture, where a voice is mixed). With the ears, it also listens
+  to the best of them for "a person singing" (or what `--find` says, such as "a rap verse"), and their reading leads.
+  It keeps the best two (`--count`, up to four), no two overlapping.
+- **Cleaning them.** With the voice apart, each phrase is the voice as it was sung and mixed, in stereo, its rumble
+  under 90 Hz out. Without it, each keeps the middle of the stereo picture and its sustained part, without what
+  strikes (the drums, by harmonic-percussive separation), above 160 Hz and below 11 kHz. Either way, at −1 dBFS,
+  faded in and out, and as long as its bars were played, each made one tempo.
 - **Fitting them.** Each becomes a loop of its own, `vox1`, `vox2` ...: the phrase, then as many bars of silence,
   warped to the song's tempo and moved to its key by the shortest way, as a flipped sample is. A change of the
   song's tempo or key moves it too.

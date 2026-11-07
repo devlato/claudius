@@ -1667,7 +1667,7 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         sampled: Option<bool>,
         /// built on its sound, how: a rework (none or false) plays all of the recording through, its voice and its
-        /// chords as they are, without its drums and its low end, in its own sections and on its chords, with the
+        /// chords as they are, without its drums and its bass, in its own sections and on its chords, with the
         /// genre's drums and bass under it; a flip (true) makes a new song of the genre on its hook, a passage of
         /// its verses, its drums, a flip of it and its sung phrases
         #[serde(default, skip_serializing_if = "Option::is_none")]
