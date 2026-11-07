@@ -5,7 +5,10 @@
 //!   theory   the score itself: melody in key (or in its chord), chord tones on strong beats, singable range and
 //!            leaps, bass on the roots, smooth voice leading, form
 //!   ears     (when earshot's models are available) genre fit against named confusions, production quality
-//! The total is a weighted mean (0..100). Held-out evidence (AudioSet tags) is reported, never optimised.
+//!   time     (when recordings play on its tracks: loops, takes, a remake's pieces) each keeps the song's tempo and
+//!            beat, as its own beats say
+//! The total is a weighted mean (0..100), cut to as little as `OUT_OF_TIME` of it when a recording plays out of the
+//! song's time, which no mix or genre makes up for. Held-out evidence (AudioSet tags) is reported, never optimised.
 
 use std::collections::BTreeMap;
 
@@ -496,6 +499,51 @@ pub fn stock_share(e: &EarsReport) -> f64 {
 /// the share of the verdict a song that reads as much like stock music as like its genre loses
 pub const STOCK_CUT: f64 = 0.4;
 
+/// how tightly a recording's onsets must gather on some grid near the song's tempo for them to say how it keeps time
+/// (`render::KeptTime::own`): a voice or a pad alone gathers on none, and is not judged on it
+const PULSE: f64 = 0.15;
+
+/// the share of its verdict a song keeps at most whose recording plays clearly out of its time: a sample at another
+/// tempo, or drifting off the beat, against the song's drums, sounds wrong whatever its mix and its genre
+pub const OUT_OF_TIME: f64 = 0.35;
+
+/// Whether the recordings on the song's tracks keep its time (`render::KeptTime`): each whose onsets keep a grid keeps
+/// the song's, gathering on its sixteenths half as tightly at least as on those of the tempo they keep best, and
+/// does not wander off it by more than 40 ms (a band playing live, its bars each made one length, wanders 30). A
+/// voice is not judged: its syllables keep no grid (a few of them, looped, line up by chance on a tempo whose
+/// sixteenths fit the loop), and a sung phrase keeps the time the rest of its recording keeps, which is. 1 when all
+/// do, less the further the worst is out; none when no recording keeps a grid clearly enough to tell.
+fn time_checks(r: &Rendered, p: &Project, m: &mut BTreeMap<String, f64>, issues: &mut Vec<Issue>) -> Option<f64> {
+    let mut score: Option<f64> = None;
+    for t in r.tracks.iter().filter(|t| t.role != "vocal") {
+        let Some(k) = t.time.as_ref().filter(|k| k.own >= PULSE) else { continue };
+        m.insert(format!("time_{}_on_grid", t.name), k.on_grid);
+        m.insert(format!("time_{}_own", t.name), k.own);
+        m.insert(format!("time_{}_own_bpm", t.name), k.own_bpm);
+        m.insert(format!("time_{}_drift_ms", t.name), k.drift_ms);
+        // a clear grid of its own says it all, a faint one less
+        let sure = clamp01((k.own - PULSE) / PULSE);
+        let kept = k.on_grid / k.own.max(1e-9);
+        let (severity, what) = if kept < 0.5 && (k.own_bpm / p.bpm).ln().abs() > 0.005 {
+            let what = format!(
+                "'{}' keeps a tempo of its own, about {:.0} BPM, against the song's {:.0}: the recording on it is off \
+                 the song's time",
+                t.name, k.own_bpm, p.bpm
+            );
+            (sure * clamp01((0.7 - kept) / 0.4), what)
+        } else if k.drift_ms > 40.0 {
+            let what = format!("'{}' drifts off the song's beat, by up to {:.0} ms", t.name, k.drift_ms);
+            (sure * clamp01((k.drift_ms - 30.0) / 40.0), what)
+        } else {
+            score = Some(score.unwrap_or(1.0));
+            continue;
+        };
+        score = Some(score.unwrap_or(1.0).min(1.0 - severity));
+        issues.push(Issue { severity, what, target: format!("time:{}", t.name) });
+    }
+    score
+}
+
 fn ears_score(e: &EarsReport, issues: &mut Vec<Issue>) -> (f64, f64) {
     let margin = e.genre_z - e.best_alt_z;
     let genre = clamp01(0.5 * clamp01((e.genre_z - 1.0) / 2.5) + 0.5 * clamp01((margin + 1.0) / 2.0));
@@ -575,6 +623,10 @@ pub fn judge(p: &Project, r: &Rendered, ears: Option<EarsReport>) -> Verdict {
         let stock = stock_share(e);
         measures.insert("stock_share".to_string(), stock);
         total *= 1.0 - STOCK_CUT * stock;
+    }
+    if let Some(time) = time_checks(r, p, &mut measures, &mut issues) {
+        scores.insert("time".to_string(), time);
+        total *= OUT_OF_TIME + (1.0 - OUT_OF_TIME) * time;
     }
     issues.sort_by(|a, b| b.severity.partial_cmp(&a.severity).unwrap());
     let summary = format!(
@@ -699,6 +751,68 @@ mod tests {
         assert!(both[0].what.starts_with("sounds more like 'inspirational corporate background music'"));
         // and it weighs as much as the cut it brings, not as a 0.2 z lead would
         assert_eq!(both[0].severity, 1.0);
+    }
+
+    #[test]
+    fn a_recording_off_the_songs_tempo_or_wandering_off_its_beat_is_named_and_a_voice_is_not_judged() {
+        use crate::render::{KeptTime, TrackReport};
+        let g = crate::genres::get("house").unwrap();
+        let p = crate::compose::arrange(&crate::compose::generate(&g, 1, &Default::default(), None));
+        let at = |on_grid, own, own_bpm, drift_ms| KeptTime { on_grid, own, own_bpm, drift_ms };
+        let check = |kept: Vec<(&str, &str, KeptTime)>| {
+            let tracks = kept
+                .into_iter()
+                .map(|(name, role, k)| TrackReport {
+                    name: name.into(),
+                    role: role.into(),
+                    sound: String::new(),
+                    bus: "music".into(),
+                    notes: 0,
+                    clips: 1,
+                    level_lufs: None,
+                    gain_db: 0.0,
+                    time: Some(k),
+                })
+                .collect();
+            let r = Rendered {
+                master: Stereo::zeros(1),
+                stems: Vec::new(),
+                tracks,
+                lufs: -10.0,
+                true_peak_db: -1.0,
+                premaster_lufs: -10.0,
+                settled: None,
+            };
+            let mut issues = Vec::new();
+            (time_checks(&r, &p, &mut BTreeMap::new(), &mut issues), issues)
+        };
+        // on the song's grid: nothing to say
+        let (s, issues) = check(vec![("original", "sample", at(0.4, 0.4, p.bpm, 10.0))]);
+        assert_eq!((s, issues.len()), (Some(1.0), 0));
+        // 3 % slow: its own tempo said, and as far out as can be
+        let slow = p.bpm * 0.97;
+        let (s, issues) = check(vec![("original", "sample", at(0.02, 0.35, slow, 50.0))]);
+        assert_eq!(s, Some(0.0));
+        assert_eq!(
+            (issues[0].what.as_str(), issues[0].target.as_str()),
+            (
+                format!(
+                    "'original' keeps a tempo of its own, about {slow:.0} BPM, against the song's {:.0}: the \
+                     recording on it is off the song's time",
+                    p.bpm
+                )
+                .as_str(),
+                "time:original"
+            )
+        );
+        // at the song's tempo, wandering 60 ms off its place
+        let (s, issues) = check(vec![("break", "drums", at(0.3, 0.3, p.bpm, 60.0))]);
+        assert_eq!(issues[0].what, "'break' drifts off the song's beat, by up to 60 ms");
+        assert!((s.unwrap() - 0.25).abs() < 1e-9, "{s:?}");
+        // a voice is not judged, nor a recording whose onsets keep no grid
+        let none = vec![("vox1", "vocal", at(0.02, 0.4, slow, 50.0)), ("pad", "texture", at(0.01, 0.1, slow, 0.0))];
+        let (s, issues) = check(none);
+        assert!(s.is_none() && issues.is_empty(), "{s:?} {issues:?}");
     }
 
     #[test]

@@ -14,7 +14,8 @@ command line it is `verdict.json` in the song's folder, and `claudius judge song
 | genre | whether it sounds like its genre more than the genres it is confused with, and more than stock background music (needs the models) | 0.15 |
 | production | whether it sounds professionally produced more than like a typical flaw (needs the models) | 0.15 |
 
-Without the listening models (`--no-ears`, Intel Macs) the total is out of the first three.
+Without the listening models (`--no-ears`, Intel Macs) the total is out of the first three. A recording out of the
+song's time cuts it ([below](#a-recording-out-of-time-timetrack)).
 
 ## Every issue, and a change that answers it
 
@@ -107,6 +108,21 @@ moves them a little; leave them when that dusty sound is what the person asked f
   spectrum or too much reverb, and try sampled instruments in place of synth patches, which read as more
   professional. "About as much" is a near tie and a faint reading; don't chase it. Lofi is not marked down for hiss
   or a phone-like sound, which are its style.
+
+### A recording out of time (`time:<track>`)
+
+The recordings on a song's tracks (a remake's `original`, its `sample`, `sample2`, `flip` and `break`, a loop, a take)
+are judged on whether they keep the song's time, as their onsets say. Voices are not: they keep the time the rest of
+their recording keeps. The verdict has a `time` score when one is judged, and a recording clearly out of time cuts the
+total to as little as 35 % of itself, whatever else is right, since it sounds wrong at once.
+
+- `'original' keeps a tempo of its own, about 126 BPM, against the song's 130: the recording on it is off the song's
+  time`: the recording's tempo was misread when it was analysed (`analyze` shows what claudius heard in it). Tell the
+  person first: it is the fault they would hear before any other. Mute the track, or turn it well down, where the
+  song's drums play against it; a flip (`flip: true`) cuts short pieces of it, which stray less than all of it does.
+- `'break' drifts off the song's beat, by up to 60 ms`: at the song's tempo, but wandering off it, as a band that
+  speeds up and slows down does where its beats were not followed. Mute the track where it wanders, or remake with
+  another seed or genre; a loop that drifts within itself was cut from bars that were misread.
 
 ## When to stop
 

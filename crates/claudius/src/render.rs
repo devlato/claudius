@@ -163,6 +163,86 @@ pub struct TrackReport {
     pub clips: usize,
     pub level_lufs: Option<f64>,
     pub gain_db: f32,
+    /// how a recording on it keeps the song's time (a loop's or a take's; none for notes, or for under 8 beats of
+    /// sound)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub time: Option<KeptTime>,
+}
+
+/// How a track of recorded audio keeps the song's time, as its onsets say: how tightly they gather on the song's
+/// sixteenths, against how tightly they gather on those of the tempo near it they keep best, and how far from their
+/// place they wander. Its onsets, and not beats tracked in it, so that a tracker's slip by half a beat is not taken
+/// for the recording's.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct KeptTime {
+    /// how tightly its onsets gather on the song's sixteenths, 0 (anywhere) to 1 (all on one place of them)
+    pub on_grid: f64,
+    /// the tempo, from 0.7 to 1.4 times the song's, on whose sixteenths they gather most tightly, and how tightly
+    pub own_bpm: f64,
+    pub own: f64,
+    /// how far, on the song's sixteenths, they wander from where they gather over all of it: the most over any four
+    /// bars, in milliseconds
+    pub drift_ms: f64,
+}
+
+/// How `x`'s onsets keep the time of a song at `bpm` (`KeptTime`); none for under 32 of them, too few to tell.
+pub fn kept_time(x: &Stereo, bpm: f64) -> Option<KeptTime> {
+    let fps = SRF / crate::analysis::onsets::HOP as f64;
+    let flux = crate::analysis::onsets::flux(&x.mono(), None);
+    // its onsets: where the flux rises over its own mean around it (an eighth of a second each way), by how much
+    let half = (0.125 * fps) as usize;
+    let mut sums = vec![0.0f64; flux.len() + 1];
+    for (i, v) in flux.iter().enumerate() {
+        sums[i + 1] = sums[i] + *v as f64;
+    }
+    let onsets: Vec<(f64, f64)> = (0..flux.len())
+        .filter_map(|i| {
+            let (a, b) = (i.saturating_sub(half), (i + half + 1).min(flux.len()));
+            let over = flux[i] as f64 - (sums[b] - sums[a]) / (b - a) as f64;
+            (over > 0.0).then(|| (i as f64 / fps, over))
+        })
+        .collect();
+    if onsets.len() < 32 {
+        return None;
+    }
+    // how tightly onsets gather at one place on a grid of `period` seconds, and where on it (radians)
+    let gather = |of: &[(f64, f64)], period: f64| {
+        let (mut s, mut c, mut n) = (0.0, 0.0, 0.0);
+        for (t, w) in of {
+            let th = std::f64::consts::TAU * t / period;
+            s += w * th.sin();
+            c += w * th.cos();
+            n += w;
+        }
+        ((s * s + c * c).sqrt() / f64::max(n, 1e-12), f64::atan2(s, c))
+    };
+    let sixteenth = |tempo: f64| 15.0 / tempo;
+    let (on_grid, place) = gather(&onsets, sixteenth(bpm));
+    // the tempo they keep best near the song's: a quarter of a percent at a time, then a fiftieth around the best
+    let search = |best: (f64, f64), from: f64, to: f64, steps: usize| {
+        (0..=steps)
+            .map(|k| from * (to / from).powf(k as f64 / steps as f64))
+            .map(|tempo| (tempo, gather(&onsets, sixteenth(tempo)).0))
+            .fold(best, |b, c| if c.1 > b.1 { c } else { b })
+    };
+    let best = search((bpm, on_grid), 0.7 * bpm, 1.4 * bpm, 280);
+    let best = search(best, best.0 * 0.9975, best.0 * 1.0025, 25);
+    // each four bars' place against the whole's, where they hold onsets enough to have one
+    let span = 16.0 * 60.0 / bpm;
+    let windows = (onsets.last().map_or(0.0, |o| o.0) / span) as usize + 1;
+    let weight: f64 = onsets.iter().map(|o| o.1).sum();
+    let mut drift = 0.0f64;
+    for w in 0..windows {
+        let (from, to) = (w as f64 * span, (w + 1) as f64 * span);
+        let these: Vec<(f64, f64)> = onsets.iter().copied().filter(|o| o.0 >= from && o.0 < to).collect();
+        if these.iter().map(|o| o.1).sum::<f64>() < 0.25 * weight / windows as f64 {
+            continue;
+        }
+        let d = gather(&these, sixteenth(bpm)).1 - place;
+        let d = d - std::f64::consts::TAU * (d / std::f64::consts::TAU).round();
+        drift = drift.max(d.abs() / std::f64::consts::TAU * sixteenth(bpm) * 1000.0);
+    }
+    Some(KeptTime { on_grid, own_bpm: best.0, own: best.1, drift_ms: drift })
 }
 
 pub struct Rendered {
@@ -493,6 +573,13 @@ struct KeptTrack {
     key: blake3::Hash,
     sound: Arc<Blocks>,
     level: Option<f64>,
+    /// how it keeps the song's time (`timed`), once measured: a sound made elsewhere (`Kept::keep`) is measured here
+    time: Option<Option<KeptTime>>,
+}
+
+/// how track `t` keeps a song at `bpm`'s time, from its sound (`kept_time`): a recording's only, a loop's or a take's
+fn timed<S: std::borrow::Borrow<Stereo>>(t: &Track, sound: impl FnOnce() -> S, bpm: f64) -> Option<KeptTime> {
+    matches!(t.sound, Sound::Loop { .. }).then(|| kept_time(sound().borrow(), bpm)).flatten()
 }
 
 /// A track's sound as a render keeps it: its samples in blocks of `BLOCK`, without the blocks that are silent all
@@ -595,7 +682,8 @@ impl Kept {
     /// keeps `sound` and `level`, the track `name`'s as `track_sound` made them elsewhere, under `key`, for the renders
     /// after
     pub fn keep(&mut self, name: &str, key: TrackKey, sound: Stereo, level: Option<f64>) {
-        self.tracks.insert(name.to_string(), KeptTrack { key: key.0, sound: Arc::new(Blocks::of(&sound)), level });
+        let sound = Arc::new(Blocks::of(&sound));
+        self.tracks.insert(name.to_string(), KeptTrack { key: key.0, sound, level, time: None });
     }
 }
 
@@ -921,7 +1009,7 @@ struct Mixed {
     tracks: Vec<TrackReport>,
 }
 
-type Made = (blake3::Hash, Arc<Blocks>, Option<f64>);
+type Made = (blake3::Hash, Arc<Blocks>, Option<f64>, Option<KeptTime>);
 
 impl<'a> Song<'a> {
     fn of(p: &'a Project, opts: &Options) -> Result<Song<'a>> {
@@ -976,18 +1064,21 @@ impl<'a> Song<'a> {
             .map(|t| -> Result<Made> {
                 let key = track_key(p, t, self.len, &self.chokes);
                 if let Some(k) = kept.tracks.get(&t.name).filter(|k| k.key == key) {
-                    return Ok((key, k.sound.clone(), k.level));
+                    let time = k.time.clone().unwrap_or_else(|| timed(t, || k.sound.stereo(), p.bpm));
+                    return Ok((key, k.sound.clone(), k.level, time));
                 }
                 let (x, level) = self.sound(t)?;
-                Ok((key, Arc::new(Blocks::of(&x)), level))
+                let time = timed(t, || &x, p.bpm);
+                Ok((key, Arc::new(Blocks::of(&x)), level, time))
             })
             .collect::<Result<Vec<_>>>()?;
         kept.tracks = p
             .tracks
             .iter()
             .zip(&sounds)
-            .map(|(t, (key, sound, level))| {
-                (t.name.clone(), KeptTrack { key: *key, sound: sound.clone(), level: *level })
+            .map(|(t, (key, sound, level, time))| {
+                let k = KeptTrack { key: *key, sound: sound.clone(), level: *level, time: Some(time.clone()) };
+                (t.name.clone(), k)
             })
             .collect();
         Ok(sounds)
@@ -1004,7 +1095,7 @@ impl<'a> Song<'a> {
         let mut del_send = Stereo::zeros(n);
         let mut stems = Vec::new();
         let mut tracks = Vec::new();
-        for (t, (_, sound, level)) in p.tracks.iter().zip(sounds) {
+        for (t, (_, sound, level, time)) in p.tracks.iter().zip(sounds) {
             let target = target_level(&t.role) + p.mix.levels.get(&t.role).copied().unwrap_or(0.0) + t.mix.level_db;
             let gain_db = level.map_or(0.0, |l| (target as f64 - l) as f32).clamp(-40.0, 30.0);
             let gain = db_to_gain(gain_db);
@@ -1074,6 +1165,7 @@ impl<'a> Song<'a> {
                 clips: t.clips.len(),
                 level_lufs: level.map(|l| (l * 10.0).round() / 10.0),
                 gain_db: (gain_db * 10.0).round() / 10.0,
+                time: time.clone(),
             });
         }
         let mut sum = Stereo::zeros(n);
@@ -1257,6 +1349,37 @@ mod tests {
     fn sd(x: &[f64]) -> f64 {
         let m = x.iter().sum::<f64>() / x.len() as f64;
         (x.iter().map(|v| (v - m).powi(2)).sum::<f64>() / x.len() as f64).sqrt()
+    }
+
+    /// a minute of clicks on the eighths of `bpm`, each `late(k)` seconds after its place, `k` the four bars it is in
+    fn clicks(bpm: f64, late: impl Fn(usize) -> f64) -> Stereo {
+        let mut x = Stereo::zeros((60.0 * SRF) as usize);
+        let eighth = 30.0 / bpm;
+        let mut noise = crate::rng::Rng::new(3);
+        for i in 0..(59.5 / eighth) as usize {
+            let at = ((i as f64 * eighth + late(i / 32)) * SRF) as usize;
+            for j in 0..(0.01 * SRF) as usize {
+                let v = (noise.f32() - 0.5) * (1.0 - j as f32 / (0.01 * SRF) as f32);
+                x.l[at + j] += v;
+                x.r[at + j] += v;
+            }
+        }
+        x
+    }
+
+    #[test]
+    fn a_recording_on_the_songs_grid_keeps_its_time_and_one_off_it_keeps_a_tempo_of_its_own() {
+        let on = kept_time(&clicks(120.0, |_| 0.0), 120.0).unwrap();
+        assert!(on.on_grid > 0.8 && on.on_grid > 0.98 * on.own && on.drift_ms < 3.0, "{on:?}");
+        assert!((on.own_bpm - 120.0).abs() < 0.1, "{on:?}");
+        // played 3 % slow, as a recording whose tempo was misread plays: its own tempo, and off the song's sixteenths
+        let off = kept_time(&clicks(116.4, |_| 0.0), 120.0).unwrap();
+        assert!((off.own_bpm - 116.4).abs() < 0.3 && off.on_grid < 0.2 * off.own, "{off:?}");
+        // at the song's tempo, but settling 40 ms late after its first 32 s: about 20 ms off its place either way
+        let wanders = kept_time(&clicks(120.0, |k| if k < 4 { 0.0 } else { 0.04 }), 120.0).unwrap();
+        assert!((wanders.own_bpm - 120.0).abs() < 0.3 && (wanders.drift_ms - 20.0).abs() < 5.0, "{wanders:?}");
+        // silence has no onsets to tell by
+        assert!(kept_time(&Stereo::zeros((10.0 * SRF) as usize), 120.0).is_none());
     }
 
     fn corr(a: &[f64], b: &[f64]) -> f64 {
