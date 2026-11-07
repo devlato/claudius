@@ -10,7 +10,7 @@ use super::{Cx, Gesture, empty, layer_color, page_frame, small};
 use crate::cmds::MixEdit;
 use crate::edits::steps_to_string;
 use crate::theme::{self, ACCENT, LINE, PLAYHEAD, RAISED, TEXT, TEXT_DIM, TEXT_FAINT, WELL};
-use crate::widgets;
+use crate::widgets::{self, Icon};
 
 const LABEL_W: f32 = 168.0;
 
@@ -156,13 +156,29 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 } else {
                     format!("{} bar{}", d.pattern_bars, if d.pattern_bars == 1 { "" } else { "s" })
                 };
-                p.text(
-                    label.right_center() - vec2(54.0, 0.0),
-                    Align2::RIGHT_CENTER,
-                    note,
-                    theme::prop(9.5),
-                    if has { TEXT_FAINT } else { theme::WARN },
-                );
+                // on the label, a button that swaps its sound for the next, where its length is written
+                let swap = Rect::from_center_size(label.right_center() - vec2(64.0, 0.0), vec2(20.0, 16.0));
+                let next = track.and_then(super::next_label);
+                let pointer = resp.hover_pos();
+                if next.is_some() && pointer.is_some_and(|h| label.contains(h)) {
+                    let over = pointer.is_some_and(|h| swap.contains(h));
+                    if over {
+                        p.rect_filled(swap, 3.0, theme::CONTROL_HI);
+                    }
+                    let icon = Rect::from_center_size(swap.center(), vec2(12.0, 12.0));
+                    widgets::paint_icon(p, icon, Icon::Swap, if over { TEXT } else { TEXT_DIM });
+                    if let Some(next) = next.as_ref().filter(|_| over) {
+                        resp.clone().on_hover_text(format!("another sound for {}: {next}", d.lane));
+                    }
+                } else {
+                    p.text(
+                        label.right_center() - vec2(54.0, 0.0),
+                        Align2::RIGHT_CENTER,
+                        note,
+                        theme::prop(9.5),
+                        if has { TEXT_FAINT } else { theme::WARN },
+                    );
+                }
                 // mute and solo buttons
                 let is_muted = track.is_some_and(|t| t.muted);
                 let m = Rect::from_center_size(label.right_center() - vec2(14.0, 0.0), vec2(20.0, 16.0));
@@ -196,6 +212,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         out.push(MixEdit { muted: Some(!is_muted), ..Default::default() }.on(&d.lane));
                     } else if sb.contains(pos) {
                         out.push(MixEdit { solo: Some(!soloed), ..Default::default() }.on(&d.lane));
+                    } else if next.is_some() && swap.contains(pos) {
+                        out.push(super::swap(&d.lane, None));
                     }
                 }
                 for s in 0..max_steps {

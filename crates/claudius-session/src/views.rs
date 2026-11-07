@@ -87,8 +87,17 @@ fn track(
         loudness: loudness.get(name).copied(),
         fx: chain(&m.fx),
         bus: m.bus.clone(),
-        seconds: None,
+        ..Default::default()
     }
+}
+
+/// `t` with the sounds its track of `bp` may swap to, the one it plays, and the next
+fn with_swaps(mut t: TrackView, bp: &Blueprint) -> TrackView {
+    let choice = |c: claudius::swap::Choice| SoundChoice { name: c.name, kind: c.kind, group: c.group.to_string() };
+    t.swaps = claudius::swap::choices(bp, &t.name).unwrap_or_default().into_iter().map(choice).collect();
+    t.playing = claudius::swap::playing(bp, &t.name);
+    t.next_swap = claudius::swap::next(bp, &t.name, &Default::default()).map(|c| c.name);
+    t
 }
 
 pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
@@ -119,10 +128,10 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
         .collect();
     let mut tracks = Vec::new();
     for d in &bp.drums {
-        tracks.push(track(&d.name, "drum", &d.name, d.sound.describe(), &d.mix, loudness));
+        tracks.push(with_swaps(track(&d.name, "drum", &d.name, d.sound.describe(), &d.mix, loudness), bp));
     }
     for p in &bp.parts {
-        tracks.push(track(&p.name, "part", p.role.name(), p.sound.describe(), &p.mix, loudness));
+        tracks.push(with_swaps(track(&p.name, "part", p.role.name(), p.sound.describe(), &p.mix, loudness), bp));
     }
     for l in &bp.loops {
         let take = match (&l.from, &l.sound) {
@@ -275,6 +284,9 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
         drums,
         grooves: bp.grooves.keys().cloned().collect(),
         parts,
+        kits: if bp.drums.is_empty() { Vec::new() } else { claudius::swap::kits(bp) },
+        kit: claudius::swap::kit_of(bp),
+        next_kit: claudius::swap::next_kit(bp),
         mix: claudius_api::MixView {
             buses: bp.mix.buses.iter().map(|(name, fx)| (name.clone(), chain(fx))).collect(),
             master: chain(&bp.mix.master.fx),

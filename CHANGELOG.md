@@ -6,6 +6,15 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+A sound you do not like is a click from another. Hover a part's or a drum lane's name in the arrangement (or a lane's
+in Steps, or a part's sound in Parts) and click the swap button: the track plays the next sound that fits it, its
+genre's own first, then what the genre draws for that role, then further afield, never one another part plays; a
+drum lane goes through the installed kits and its synthesized voice. Right-click the row for every sound it could
+play. **Sounds**, after Mutate, swaps the whole song's at once: every part's sound and the drums' kit, or just one of
+the two. The notes, patterns and mix stay, and Undo swaps back. Assistants swap with the new `swap_sound` tool, and
+the API's `swap_sound` command; a track's view lists its `swaps`, the one it is `playing` and its `next_swap`, and
+the song's lists the `kits`.
+
 FLAC files come out smaller and in a fraction of the time: claudius encodes them frame by frame, each frame in the
 smaller of the encoder's two ways of choosing predictors, and a frame both misjudge (4,096 samples, half silence and
 half noise, came to 1.3 GB either way) holds its samples verbatim instead of being written out first. A three-minute

@@ -103,6 +103,10 @@ form([sec("intro", 8, "drums keys"), sec("drop", 16, "*").impact(), sec("break",
   takes the section the notes start with and each note's start and length in beats, its MIDI pitch (60 is middle C)
   and its velocity. They become a new part playing `sounds`. Patterns are for loops; `add_notes` is for a line that
   should be exactly so.
+- **Another sound.** When the person dislikes a sound ("this bass is weak"), `swap_sound` with the track puts it on
+  the next sound that fits, its genre's own first and never one another part plays, and lists what else it could
+  play, so the next try can name one (`to`). Without a track it swaps the whole song, every part's sound and the
+  drums' kit (`only: "drums"` or `"parts"` for just those); the notes, patterns and mix stay.
 
 ## Reading the verdict
 
@@ -118,7 +122,7 @@ says where the fix lives:
 | `level:<track>+` / `level:<track>-` | that track's level, back toward the one its genre made it at |
 | `form` | section energies and layers, section lengths, the song's length |
 | `part:<name>` | how that part is written: its style, seed, density or register, or its pattern |
-| `sound:<part>` | that part's sound: one of the sounds its genre plays |
+| `sound:<part>` | that part's sound: one of the sounds its genre plays (`swap_sound`) |
 | `genre`, `production` | sounds, patterns and tempo typical of the genre; fix band issues first |
 
 [references/verdict.md](references/verdict.md) has every issue the critic raises and a change that answers it.

@@ -229,6 +229,7 @@ impl App {
             | Command::SetPart { .. }
             | Command::AddTrack { .. }
             | Command::Harmonize { .. }
+            | Command::SwapSound { .. }
             | Command::RemoveTrack { .. }
             | Command::SetNotes { .. }
             | Command::SetMix { .. }

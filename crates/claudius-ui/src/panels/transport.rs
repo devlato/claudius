@@ -280,6 +280,50 @@ fn song_params(ui: &mut Ui, cx: &mut Cx) {
 }
 
 /// row 2: the engine's actions and the busy indicator
+/// the toolbar's swaps of the whole song's sounds: every part's and the drums' kit, the parts', or the kit
+fn swap_menu(ui: &mut Ui, song: Option<&claudius_api::SongView>, out: &mut Vec<Command>) {
+    let Some(song) = song else { return };
+    let whole = |only: &str, to: Option<&str>| Command::SwapSound {
+        track: None,
+        to: to.map(str::to_string),
+        only: (!only.is_empty()).then(|| only.to_string()),
+    };
+    ui.label(small("every note, pattern and mix setting stays; undo swaps back"));
+    if ui
+        .button("Swap every sound")
+        .on_hover_text("each part onto its next sound, the drums onto the next kit")
+        .clicked()
+    {
+        out.push(whole("", None));
+        ui.close();
+    }
+    if !song.parts.is_empty()
+        && ui.button("Swap the parts' sounds").on_hover_text("each part onto the next sound that fits it").clicked()
+    {
+        out.push(whole("parts", None));
+        ui.close();
+    }
+    if song.kits.is_empty() {
+        return;
+    }
+    ui.separator();
+    if let Some(next) = &song.next_kit
+        && ui.button(format!("Another drum kit: {next}")).clicked()
+    {
+        out.push(whole("drums", None));
+        ui.close();
+    }
+    ui.menu_button("Put the drums on", |ui| {
+        for k in &song.kits {
+            let on = song.kit.as_ref() == Some(k);
+            if ui.selectable_label(on, k).clicked() && !on {
+                out.push(whole("drums", Some(k)));
+                ui.close();
+            }
+        }
+    });
+}
+
 pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
     let busy = cx.state.busy.is_some();
     let has_song = cx.state.song.is_some();
@@ -401,6 +445,10 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
         }
         ui.add(egui::DragValue::new(&mut cx.view.mutate_count).range(1..=32).prefix("×")).on_hover_text("candidates");
         ui.checkbox(&mut cx.view.keep_best, small("keep best"));
+        ui.separator();
+        let sounds = widgets::tool_button(ui, Icon::Swap, "Sounds", has_song, false)
+            .on_hover_text("swap the song's sounds for others that fit: every part's, the drums' kit, or both");
+        egui::Popup::menu(&sounds).show(|ui| swap_menu(ui, cx.state.song.as_ref(), cx.out));
         ui.separator();
         if widgets::tool_button(ui, Icon::Evolve, "Evolve", has_song && !busy, false)
             .on_hover_text("several generations of mutation + listening")

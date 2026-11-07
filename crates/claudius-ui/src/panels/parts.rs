@@ -92,6 +92,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         .iter()
         .map(|p| song.tracks.iter().find(|t| t.name == p.name).map(|t| t.sound.clone()).unwrap_or_default())
         .collect();
+    let nexts: Vec<Option<String>> =
+        song.parts.iter().map(|p| song.tracks.iter().find(|t| t.name == p.name).and_then(super::next_label)).collect();
     let mut out = Vec::new();
     let library = cx.sounds;
     page_frame().show(ui, |ui| {
@@ -128,29 +130,48 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         ui.vertical(|ui| {
                             let sampled = super::is_sampled(&part.preset, library);
                             ui.label(small(if sampled { "Sound (sampled)" } else { "Sound (synth)" }));
-                            egui::ComboBox::from_id_salt(("preset", i))
-                                .selected_text(&part.preset)
-                                .width(140.0)
-                                .show_ui(ui, |ui| {
-                                    let (samples, synths): (Vec<String>, Vec<String>) =
-                                        part.presets.iter().cloned().partition(|s| super::is_sampled(s, library));
-                                    for (title, names) in [("synth presets", synths), ("sampled instruments", samples)]
-                                    {
-                                        if names.is_empty() {
-                                            continue;
-                                        }
-                                        ui.label(small(title));
-                                        for s in names {
-                                            if ui.selectable_label(part.preset == s, &s).clicked() && part.preset != s {
-                                                part.preset = s.clone();
-                                                out.push(
-                                                    PartEdit { preset: Some(s), ..Default::default() }.on(&part.name),
-                                                );
+                            ui.horizontal(|ui| {
+                                egui::ComboBox::from_id_salt(("preset", i))
+                                    .selected_text(&part.preset)
+                                    .width(140.0)
+                                    .show_ui(ui, |ui| {
+                                        let (samples, synths): (Vec<String>, Vec<String>) =
+                                            part.presets.iter().cloned().partition(|s| super::is_sampled(s, library));
+                                        for (title, names) in
+                                            [("synth presets", synths), ("sampled instruments", samples)]
+                                        {
+                                            if names.is_empty() {
+                                                continue;
+                                            }
+                                            ui.label(small(title));
+                                            for s in names {
+                                                if ui.selectable_label(part.preset == s, &s).clicked()
+                                                    && part.preset != s
+                                                {
+                                                    part.preset = s.clone();
+                                                    out.push(
+                                                        PartEdit { preset: Some(s), ..Default::default() }
+                                                            .on(&part.name),
+                                                    );
+                                                }
                                             }
                                         }
-                                    }
-                                    ui.label(small("more in the Sounds tab"));
-                                });
+                                        ui.label(small("more in the Sounds tab"));
+                                    });
+                                if let Some(next) = &nexts[i]
+                                    && widgets::icon_button(
+                                        ui,
+                                        Icon::Swap,
+                                        22.0,
+                                        false,
+                                        true,
+                                        &format!("another sound: {next}"),
+                                    )
+                                    .clicked()
+                                {
+                                    out.push(super::swap(&part.name, None));
+                                }
+                            });
                         });
                         ui.vertical(|ui| {
                             ui.horizontal(|ui| {

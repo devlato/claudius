@@ -114,6 +114,7 @@ pub fn script(cmd: &Command, bp: Option<&Blueprint>, seed: u64) -> Option<Result
         Command::AddTrack { name, kind, role, sound } => Some(add_track(name, kind, role, sound, bp)),
         Command::RemoveTrack { name } => run(format!("remove({})", quote(name)), format!("removed {name}")),
         Command::Harmonize { part, style, sound, name } => Some(harmonize(part, style, sound, name, bp)),
+        Command::SwapSound { track, to, only } => Some(swap(track, to, only, bp)),
         Command::SetNotes { part, prog, notes } => Some(Ok(match notes {
             Some(notes) => {
                 // as the script reads them back exactly: whole numbers whole, the rest as Rust prints them
@@ -288,6 +289,115 @@ fn harmonize(
         if plays.is_empty() { "no section yet".into() } else { plays.join(", ") }
     );
     Ok(Script { code, label: Some(label) })
+}
+
+/// Another sound for `track`, or for every part and drum lane (`only`: "drums" or "parts"), as the script says it:
+/// a part's `preset` and a lane's `drum_sound`, for each track it changes.
+fn swap(
+    track: &Option<String>,
+    to: &Option<String>,
+    only: &Option<String>,
+    bp: Option<&Blueprint>,
+) -> Result<Script, String> {
+    use claudius::swap;
+    let Some(bp) = bp else { return Err("no song yet: start one with a new song".into()) };
+    let to = to.as_deref().map(str::trim).filter(|t| !t.is_empty());
+    if let Some(t) = track.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
+        return swap_track(bp, t, to);
+    }
+    let (drums, parts) = match only.as_deref().map(str::trim) {
+        None | Some("") => (true, true),
+        Some("drums") => (true, false),
+        Some("parts") => (false, true),
+        Some(other) => {
+            return Err(format!("a swap of the whole song swaps the \"drums\" or the \"parts\", not '{other}'"));
+        }
+    };
+    if to.is_some() && parts {
+        return Err("to names a kit when only the drums swap (only \"drums\"), or a sound for one track".into());
+    }
+    let (mut code, mut said) = (Vec::new(), Vec::new());
+    if drums && !bp.drums.is_empty() {
+        let kits = swap::kits(bp);
+        let kit = match to {
+            Some(k) if kits.iter().any(|x| x == k) => Some(k.to_string()),
+            Some(k) => return Err(format!("no kit '{k}' (kits: {})", kits.join(" "))),
+            None => swap::next_kit(bp),
+        };
+        if let Some(kit) = kit {
+            for (lane, name) in swap::on_kit(bp, &kit) {
+                code.push(format!("drum_sound({}, {});", quote(&lane), quote(&name)));
+            }
+            said.push(if kit == swap::SYNTHESIZED {
+                "the drums synthesized".to_string()
+            } else {
+                format!("the drums on {kit}")
+            });
+        }
+    }
+    if parts {
+        let mut taken = std::collections::BTreeSet::new();
+        for p in bp.parts.iter().filter(|p| !follows(bp, p)) {
+            let Some(c) = swap::next(bp, &p.name, &taken) else { continue };
+            taken.insert(swap::identity(&c.name));
+            code.extend(sounding(bp, p, &c.name));
+            said.push(format!("{} on {}", p.name, c.name));
+        }
+    }
+    if code.is_empty() {
+        return Err("nothing in the song has another sound to swap to".into());
+    }
+    Ok(Script { code: code.join("\n"), label: Some(format!("new sounds: {}", said.join(", "))) })
+}
+
+fn swap_track(bp: &Blueprint, t: &str, to: Option<&str>) -> Result<Script, String> {
+    use claudius::swap;
+    let next = || {
+        swap::next(bp, t, &Default::default())
+            .map(|c| c.name)
+            .ok_or_else(|| format!("{t} has no other sound to swap to"))
+    };
+    if let Some(p) = bp.parts.iter().find(|p| p.name == t) {
+        let from = swap::playing(bp, t).unwrap_or_else(|| p.sound.describe());
+        let to = match to {
+            Some(x) => x.to_string(),
+            None => next()?,
+        };
+        return Ok(Script { code: sounding(bp, p, &to).join("\n"), label: Some(format!("{t}: {from} → {to}")) });
+    }
+    if let Some(d) = bp.drums.iter().find(|d| d.name == t) {
+        let from = swap::playing(bp, t).unwrap_or_else(|| d.sound.describe());
+        let to = match to {
+            Some(x) => x.to_string(),
+            None => next()?,
+        };
+        let code = format!("drum_sound({}, {});", quote(t), quote(&to));
+        return Ok(Script { code, label: Some(format!("{t}: {from} → {to}")) });
+    }
+    if let Some(l) = bp.loops.iter().find(|l| l.name == t) {
+        let what = if l.from.is_some() { "a take, a recording" } else { "a loop from the library" };
+        return Err(format!("{t} is {what}, with no other sound to swap to: swap a part or a drum lane"));
+    }
+    if bp.patterns.iter().any(|p| p.name == t) {
+        return Err(format!("{t} is a pattern track, whose sounds its pattern names (.s(\"...\")): edit its pattern"));
+    }
+    let tracks: Vec<&str> =
+        bp.parts.iter().map(|p| p.name.as_str()).chain(bp.drums.iter().map(|d| d.name.as_str())).collect();
+    Err(format!("no part or drum lane '{t}' to swap the sound of (they are: {})", tracks.join(" ")))
+}
+
+/// whether part `p` plays block chords under its melody on the melody's own sound, which it keeps as the melody swaps
+fn follows(bp: &Blueprint, p: &Part) -> bool {
+    let melody = p.harmonizes.as_deref().and_then(|m| bp.parts.iter().find(|q| q.name == m));
+    p.style == "block"
+        && melody.is_some_and(|m| claudius::palette::identity(&m.sound) == claudius::palette::identity(&p.sound))
+}
+
+/// the script that puts part `p` on sound `name`, and the block chords that follow it with it
+fn sounding(bp: &Blueprint, p: &Part, name: &str) -> Vec<String> {
+    let line = |part: &str| format!("part({}, #{{ preset: {} }});", quote(part), quote(name));
+    let chords = bp.parts.iter().filter(|h| h.harmonizes.as_deref() == Some(p.name.as_str()) && follows(bp, h));
+    std::iter::once(line(&p.name)).chain(chords.map(|h| line(&h.name))).collect()
 }
 
 /// What command `cmd` changes in the song `bp` itself, and what to say of it; None when `cmd` is no such edit.
