@@ -421,6 +421,9 @@ struct TakeQuery {
     /// the take request (`request_take`) it was recorded for
     #[serde(default)]
     request: Option<u64>,
+    /// the name of the file it is, which says its kind when its bytes do not
+    #[serde(default)]
+    file: Option<String>,
 }
 
 /// a body sent as a file itself: an audio type, or bytes, which a cross-site form cannot send
@@ -443,7 +446,7 @@ async fn add_take(State(c): State<Ctx>, Query(q): Query<TakeQuery>, headers: Hea
     }
     let app = c.app.clone();
     let reply = tokio::task::spawn_blocking(move || {
-        app.add_take_bytes(body.to_vec(), &q.from, q.name.as_deref(), q.role.as_deref(), q.request)
+        app.add_take_bytes(body.to_vec(), &q.from, q.name.as_deref(), q.role.as_deref(), q.request, q.file.as_deref())
     })
     .await
     .unwrap_or_else(|e| claudius_api::Reply { ok: false, message: format!("internal error: {e}"), version: 0 });

@@ -251,6 +251,13 @@ impl App {
             Command::AddTake { path, from, name, role } => {
                 self.add_take_file(Path::new(&path), &from, name.as_deref(), role.as_deref())
             }
+            Command::TrimTake { track, start, end } => {
+                let dir = claudius::take::dir(self.lock().folder.as_deref());
+                if !claudius::config::write_allowed(&dir, self.roots.as_deref()) {
+                    return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
+                }
+                self.edit_with(|bp| claudius::take::trim(bp, &track, start, end, &dir))
+            }
             Command::AddScratch { from, track, bar, bars, moves, name, role, recording } => {
                 match edit::scratch(track, bar, bars, &moves, recording.as_deref()) {
                     Ok(s) => self.add_scratch(&from, &s, name.as_deref(), role.as_deref()),

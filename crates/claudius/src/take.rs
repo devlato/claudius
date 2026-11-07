@@ -189,6 +189,62 @@ pub fn add(
     Ok(format!("{name}: a take of {bars:.1} bars from the start of {from}, on in {}", reached.join(", ")))
 }
 
+/// Take `take` cut down to its recording from `start` to `end` seconds in (to its end when None): the cut is kept in
+/// `dir` (`store`) with what the recording credits, beside the recording, which stays for undo, and plays from the
+/// start of the same section, in the sections it still reaches. What it did, or why not.
+pub fn trim(bp: &mut Blueprint, take: &str, start: f64, end: Option<f64>, dir: &Path) -> Result<String, String> {
+    let Some(i) = bp.loops.iter().position(|l| l.name == take && l.from.is_some()) else {
+        let names: Vec<&str> = bp.loops.iter().filter(|l| l.from.is_some()).map(|l| l.name.as_str()).collect();
+        return Err(if names.is_empty() {
+            "the song has no takes: record or add one first".to_string()
+        } else {
+            format!("no take called '{take}' (takes: {})", names.join(" "))
+        });
+    };
+    let Sound::Loop { path, bpm, .. } = &bp.loops[i].sound else { return Err(format!("{take} is not a recording")) };
+    let (old, bpm) = (PathBuf::from(path), *bpm);
+    let audio = crate::audio::load_once(&old).map_err(|e| format!("cannot read {take}: {e:#}"))?;
+    let secs = audio.secs();
+    let end = end.unwrap_or(secs).min(secs);
+    if !(start >= 0.0 && end - start >= 0.1) {
+        return Err(format!(
+            "{take} is {secs:.2} s long: keep at least a tenth of a second of it, from a start of 0 s or more to an \
+             end after it"
+        ));
+    }
+    let cut = audio.slice(crate::audio::secs_to_samples(start), crate::audio::secs_to_samples(end));
+    let file = store(&cut, dir).map_err(|e| format!("cannot keep the trimmed take: {e:#}"))?;
+    if !dir.starts_with(IN_MEMORY) {
+        keep_sources(&file, &credited(&old)).map_err(|e| format!("cannot keep what {take} credits: {e:#}"))?;
+    }
+    let beats = cut.secs() * bpm / 60.0;
+    let l = &mut bp.loops[i];
+    if let Sound::Loop { path, beats: b, .. } = &mut l.sound {
+        (*path, *b) = (file.display().to_string(), beats);
+    }
+    let from = l.from.clone().unwrap_or_default();
+    // shorter, it reaches fewer of the sections after its own; those it still reaches stay as they were
+    let first = bp.form.iter().position(|s| s.name == from).unwrap_or(bp.form.len());
+    let mut at = 0.0;
+    let mut reached = Vec::new();
+    for s in bp.form.iter_mut().skip(first) {
+        if at < beats - 1e-6 {
+            if s.layers.iter().any(|n| n == take) {
+                reached.push(s.name.clone());
+            }
+        } else {
+            s.layers.retain(|n| n != take);
+        }
+        at += s.bars as f64 * 4.0;
+    }
+    bp.lineage.push(format!("trimmed {take} to {start:.2}-{end:.2} s of its recording"));
+    Ok(format!(
+        "{take}: {start:.2} to {end:.2} s of its recording, {:.1} bars from the start of {from}, on in {}",
+        beats / 4.0,
+        reached.join(", ")
+    ))
+}
+
 /// what a take's melody becomes
 #[derive(Clone, Debug, Default)]
 pub struct Melody {
@@ -830,6 +886,43 @@ mod tests {
     fn song() -> Blueprint {
         let g = genres::get("house").unwrap();
         compose::generate(&g, 3, &Options { short: true, samples: 0.0, loops: false, ..Default::default() }, None)
+    }
+
+    #[test]
+    fn a_take_trimmed_keeps_that_much_of_its_recording_and_what_it_credits_and_reaches_fewer_sections() {
+        let dir = std::env::temp_dir().join(format!("claudius-trim-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let mut bp = song();
+        // as long as the whole song, a second of it a tone and the rest quiet
+        let secs = bp.form.iter().map(|s| s.bars as f64).sum::<f64>() * 4.0 * 60.0 / bp.bpm;
+        let mut x = Stereo::zeros(crate::audio::secs_to_samples(secs));
+        for i in 0..crate::config::SR as usize {
+            x.l[i] = 0.5;
+        }
+        let file = store(&x, &dir).unwrap();
+        let credit = Sources { instruments: vec!["salamander:piano".into()], ..Default::default() };
+        keep_sources(&file, &credit).unwrap();
+        let from = bp.form[0].name.clone();
+        add(&mut bp, &file, secs, &from, None, Some("vocal")).unwrap();
+        let reaches = |bp: &Blueprint| bp.form.iter().filter(|s| s.layers.iter().any(|n| n == "take1")).count();
+        assert_eq!(reaches(&bp), bp.form.len());
+
+        let said = trim(&mut bp, "take1", 0.5, Some(2.5), &dir).unwrap();
+        assert!(said.starts_with("take1: 0.50 to 2.50 s of its recording"), "{said}");
+        let Sound::Loop { path, beats, .. } = &bp.loops.iter().find(|l| l.name == "take1").unwrap().sound else {
+            panic!("a recording")
+        };
+        assert!((beats - 2.0 * bp.bpm / 60.0).abs() < 1e-3, "{beats}");
+        let cut = crate::audio::load_once(Path::new(path)).unwrap();
+        assert!((cut.secs() - 2.0).abs() < 1e-3 && cut.l[0] == 0.5 && cut.l[cut.len() - 1] == 0.0);
+        assert_eq!(credited(Path::new(path)).instruments, credit.instruments, "the cut credits what the take did");
+        assert!(file.exists(), "the recording stays, for undo");
+        assert_eq!(reaches(&bp), 1, "two seconds reach only its own section");
+
+        let e = trim(&mut bp, "take1", 1.0, Some(1.05), &dir).unwrap_err();
+        assert!(e.starts_with("take1 is 2.00 s long"), "{e}");
+        assert!(trim(&mut bp, "take2", 0.0, None, &dir).unwrap_err().starts_with("no take called 'take2'"));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     fn struck(lane: &str, t: f64, v: f32) -> Struck {

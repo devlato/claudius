@@ -1,7 +1,8 @@
 //! A scripted run for checking the studio without a person at the screen: env `CLAUDIUS_UI_PLAN` is a `;`-separated
 //! list of steps, e.g. `wait:4;shot:/tmp/a.png;tab:mixer;play;wait:2;shot:/tmp/b.png;exit`. A web build with the
 //! `plan` feature (for tests only) takes the page's `?plan=` instead, and leaves out screenshots and pointer input.
-//! What the Record window says goes to stderr (the browser's console), as `record: ...`, what it offers for MIDI
+//! What the Record window says goes to stderr (the browser's console), as `record: ...`, what claudius said of the
+//! recording the Add a recording window sent as `import: ...`, what it offers for MIDI
 //! keyboards as `midi: ...`, the last analysis as `analysis: ...`, each toast as `toast: ...`, the graph's node
 //! chosen as `graph: ...`, and the page a phone plays along on as `phone: ...`, with how many have it open as
 //! `phones: ...`.
@@ -10,9 +11,10 @@
 //! (the Play from a phone window, which has claudius serve the phone's page),
 //! `rec:<start|stop|measure>` (a take, or the latency), `rec:<play|keep|not-now>` (the take back, kept or sent; the
 //! take an assistant asked for turned down), `rec:allow-midi`, `rec:midi:<input>` (a MIDI input chosen),
-//! `rec:grid:<beats>` (its notes' grid, 0 as played), `rec:part:<role|drums>` (what its notes play), `pick:<song|audio|cover>` (a file dialog, as its button opens
+//! `rec:grid:<beats>` (its notes' grid, 0 as played), `rec:part:<role|drums>` (what its notes play), `pick:<song|audio|cover|recording>` (a file dialog, as its button opens
 //! one), `listen:<analyze|remake>` (as the New song dialog's buttons), `audiopath:<file>` (a recording read as if
-//! chosen for Analyze, in the app), `cmd:<command json>`, `size:<w>,<h>`, `script:<code; \n for a newline, %3B for ;>`
+//! chosen for Analyze, in the app), `recordingpath:<file>` (one read as if chosen in the Add a recording window, in
+//! the app), `import:whole` (the recording it holds added whole as a track), `cmd:<command json>`, `size:<w>,<h>`, `script:<code; \n for a newline, %3B for ;>`
 //! (into the editor), `run`, `reference`, `shot:<file.png>` (the window as rendered), `exit`, and synthetic pointer
 //! input in points: `move:x,y`, `click:x,y`, `rclick:x,y`, `drag:x1,y1,x2,y2`, `sdrag:x1,y1,x2,y2` (with shift).
 
@@ -35,6 +37,9 @@ pub enum Step {
     Size(f32, f32),
     Script(String),
     AudioPath(String),
+    RecordingPath(String),
+    /// the Add a recording window's recording added whole as a track, as its button adds it
+    ImportWhole,
     /// a file dialog, as the button for what it is for opens one
     Pick(crate::pick::Want),
     /// the chosen recording sent to be listened to (false) or remade (true), as the New song dialog's buttons do
@@ -271,12 +276,15 @@ impl Plan {
             "script" => Some(Step::Script(arg.replace("\\n", "\n").replace("%3B", ";"))),
             "run" => Some(Step::Run),
             "audiopath" => Some(Step::AudioPath(arg.to_string())),
+            "recordingpath" => Some(Step::RecordingPath(arg.to_string())),
+            "import" if arg == "whole" => Some(Step::ImportWhole),
             "pick" => match arg {
                 "song" => Some(Step::Pick(crate::pick::Want::Song)),
                 "audio" => Some(Step::Pick(crate::pick::Want::Audio)),
                 "cover" => Some(Step::Pick(crate::pick::Want::Cover)),
+                "recording" => Some(Step::Pick(crate::pick::Want::Recording)),
                 _ => {
-                    say(&format!("a plan's pick is pick:song, pick:audio or pick:cover, not '{step}'"));
+                    say(&format!("a plan's pick is pick:song, pick:audio, pick:cover or pick:recording, not '{step}'"));
                     None
                 }
             },

@@ -309,7 +309,7 @@ impl Remote {
         });
     }
 
-    fn upload_take(&mut self, wav: Vec<u8>, query: &str) {
+    fn upload_take(&mut self, wav: Vec<u8>, query: &str, what: &'static str) {
         let mut request = ehttp::Request::post(self.url(&format!("/api/takes?{query}")), wav);
         request.headers = ehttp::Headers::new(&[("Accept", "application/json"), ("Content-Type", "audio/wav")]);
         request.timeout = Some(Duration::from_secs(300));
@@ -321,7 +321,7 @@ impl Remote {
                 }
                 Err(e) => Err(e),
             };
-            Self::deliver(&tx, &ctx, Event::Reply { what: "take".into(), result });
+            Self::deliver(&tx, &ctx, Event::Reply { what: what.into(), result });
         });
     }
 
@@ -546,25 +546,33 @@ impl Backend {
         }
     }
 
-    /// send a take, the WAV file itself, to play from the start of section `from`, for take request `request` if
-    /// one asked for it (the answer arrives as a reply to "take")
-    pub fn upload_take(&mut self, wav: Vec<u8>, from: &str, name: Option<&str>, role: &str, request: Option<u64>) {
-        let mut query = format!("from={}&role={}", query_value(from), query_value(role));
-        if let Some(name) = name {
+    /// Sends a take, the file itself, to play from the start of its section, for the take request it answers if one
+    /// asked for it. The answer arrives as a reply to "take", or to "add_recording" for one the Add a recording window
+    /// added (`recording`).
+    pub fn upload_take(&mut self, t: crate::panels::record::Upload, recording: bool) {
+        let crate::panels::record::Upload { wav, from, name, role, request, file } = t;
+        let mut query = format!("from={}&role={}", query_value(&from), query_value(&role));
+        if let Some(name) = &name {
             query.push_str(&format!("&name={}", query_value(name)));
         }
         if let Some(id) = request {
             query.push_str(&format!("&request={id}"));
         }
+        if let Some(file) = &file {
+            query.push_str(&format!("&file={}", query_value(file)));
+        }
+        let what = if recording { "add_recording" } else { "take" };
         match self {
-            Backend::Remote(r) => r.upload_take(wav, &query),
+            Backend::Remote(r) => r.upload_take(wav, &query, what),
             // the demo's engine keeps it in memory, as the app keeps it with the song
             Backend::Mock(m) => {
+                // the file's own name says its kind; without one, its bytes do, as claudius reads them
                 let take = claudius_api::Listen::Take {
-                    name: "take.wav".into(),
-                    from: from.to_string(),
-                    track: name.map(String::from),
-                    role: role.to_string(),
+                    name: file.unwrap_or_else(|| "the take".into()),
+                    from,
+                    track: name,
+                    role,
+                    recording,
                 };
                 m.listen(take, &wav)
             }

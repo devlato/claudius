@@ -1772,6 +1772,37 @@ async fn a_beat_played_or_beatboxed_becomes_the_drum_lanes() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_whole_recording_added_as_a_take_is_trimmed_and_undone_whole() {
+    let app = app();
+    let song = Command::NewSong {
+        genre: "house".into(),
+        seed: Some(3),
+        bpm: Some(100.0),
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+        complexity: None,
+    };
+    assert!(app.command(song).ok);
+    let from = app.state().song.unwrap().sections[0].name.clone();
+    let file = std::env::temp_dir().join(format!("claudius-whole-song-{}.wav", std::process::id()));
+    claudius::audio::save_wav(&file, &beat(8, 100.0, 0.0), true).unwrap();
+    let add = Command::AddTake { path: file.display().to_string(), from, name: Some("song".into()), role: None };
+    assert!(app.command(add).ok);
+    let seconds = || app.state().song.unwrap().tracks.iter().find(|t| t.name == "song").and_then(|t| t.seconds);
+    let whole = seconds().expect("a take says how long it is");
+    let r = app.command(Command::TrimTake { track: "song".into(), start: 1.2, end: Some(5.2) });
+    assert!(r.ok && r.message.starts_with("song: 1.20 to 5.20 s of its recording"), "{}", r.message);
+    assert!((seconds().unwrap() - 4.0).abs() < 1e-3, "{:?}", seconds());
+    assert!(app.command(Command::Undo).ok);
+    assert!((seconds().unwrap() - whole).abs() < 1e-3, "undone, the whole of it is back");
+    let r = app.command(Command::TrimTake { track: "vox".into(), start: 0.0, end: None });
+    assert!(!r.ok && r.message.contains("no take called 'vox' (takes: song)"), "{}", r.message);
+    std::fs::remove_file(&file).unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_project_the_demo_saved_opens_as_a_song_folder_of_its_own() {
     use claudius::model::Sound;
     let songs = std::env::temp_dir().join(format!("claudius-projects-{}", std::process::id()));

@@ -221,6 +221,12 @@ impl Studio {
                         Err(e) => (false, e.clone()),
                     });
                 }
+                if what == "add_recording" {
+                    match &result {
+                        Ok(r) => self.view.import.answered(r.ok, r.message.clone()),
+                        Err(e) => self.view.import.answered(false, format!("the recording did not arrive: {e}")),
+                    }
+                }
                 if what == "take" || what == "add_notes" || what == "add_hits" {
                     match &result {
                         Ok(r) => self.view.record.answered(r.ok, r.message.clone()),
@@ -570,6 +576,15 @@ impl Studio {
                 Step::AudioPath(p) => crate::pick::take_path(crate::pick::Want::Audio, std::path::Path::new(&p)),
                 #[cfg(target_arch = "wasm32")]
                 Step::AudioPath(p) => crate::devplan::say(&format!("audiopath:{p} reads a file in the app only")),
+                #[cfg(not(target_arch = "wasm32"))]
+                Step::RecordingPath(p) => {
+                    crate::pick::take_path(crate::pick::Want::Recording, std::path::Path::new(&p))
+                }
+                #[cfg(target_arch = "wasm32")]
+                Step::RecordingPath(p) => {
+                    crate::devplan::say(&format!("recordingpath:{p} reads a file in the app only"))
+                }
+                Step::ImportWhole => self.view.import.whole = true,
                 Step::Pick(want) => crate::pick::choose(ctx, want),
                 Step::Listen(remake) => {
                     let f = &self.view.new_song;
@@ -587,6 +602,7 @@ impl Studio {
         }
         // what the Record window says, and offers for MIDI keyboards, for whoever runs the plan to read
         plan.tell("record", &self.view.record.said());
+        plan.tell("import", &self.view.import.told());
         plan.tell("midi", &crate::audio::record::midi_offer().map(|(what, _)| what).unwrap_or_default());
         plan.tell("analysis", &self.view.analysis.as_ref().map(|(_, text)| text.clone()).unwrap_or_default());
         plan.tell("heard", &self.view.heard.as_ref().map(|(_, text)| text.clone()).unwrap_or_default());
@@ -1118,6 +1134,7 @@ impl eframe::App for Studio {
             panels::transport::new_song_dialog(&ctx, &mut cx);
             panels::publish::dialog(&ctx, &mut cx);
             panels::record::dialog(&ctx, &mut cx);
+            panels::import::dialog(&ctx, &mut cx);
             panels::phone::dialog(&ctx, &mut cx);
         }
         if let Some(on) = self.view.phone.ask.take() {
@@ -1130,6 +1147,13 @@ impl eframe::App for Studio {
             self.inflight += 1;
             self.inflight_since = now;
             self.backend.upload_artwork(bytes);
+        }
+        // a recording dropped on the studio goes to the Add a recording window (a picture dropped while Publish is
+        // open is the release's artwork)
+        if !self.view.publish.open
+            && let Some(file) = ctx.input(|i| i.raw.dropped_files.first().cloned())
+        {
+            crate::pick::read_dropped(&ctx, crate::pick::Want::Recording, file);
         }
         self.take_picks(now);
         if let Some(l) = self.view.listen.take() {
@@ -1145,7 +1169,12 @@ impl eframe::App for Studio {
         if let Some(t) = self.view.record.upload.take() {
             self.inflight += 1;
             self.inflight_since = now;
-            self.backend.upload_take(t.wav, &t.from, t.name.as_deref(), &t.role, t.request);
+            self.backend.upload_take(t, false);
+        }
+        if let Some(t) = self.view.import.upload.take() {
+            self.inflight += 1;
+            self.inflight_since = now;
+            self.backend.upload_take(t, true);
         }
         if let Some((id, wav)) = self.view.record.check_upload.take() {
             self.inflight += 1;

@@ -158,8 +158,11 @@ every section it is in; a take plays once, from the start of the section it was 
 sections after it for as long as it lasts. Record one with the studio's [Record](../getting-started/studio.md#the-panels)
 button. When you stop, the take waits for you: **Play it back** plays the song from a bar before it with the take in it,
 **Record again** records it over, **Keep it** adds it to the song, and **Throw it away** forgets it. Or bring an audio
-file, recorded at the song's tempo and starting on that section's first downbeat: send it to the
-[HTTP API](http-api.md#routes), or give it to an assistant, which adds it with `add_take`:
+file: drop it on the studio, or press the **+** button after Record and choose it, and **Add it whole as a track** in
+the window that opens adds it as a take from the section you pick (**Sample its vocals into the song** samples it
+instead, as [below](#sampling-a-songs-vocals) describes). A whole song works too, to trim and put effects on as you
+like. You can also send the file to the [HTTP API](http-api.md#routes), or give it to an assistant, which adds it with
+`add_take`:
 
 ```sh
 curl -X POST 'http://127.0.0.1:7878/api/takes?from=drop&name=vox&role=vocal' \
@@ -176,6 +179,11 @@ curl -X POST 'http://127.0.0.1:7878/api/takes?from=drop&name=vox&role=vocal' \
   wrapped around as a loop is. It does not follow a change of key.
 - **The arrangement.** The take is a track of kind `take`, on in the sections it reaches. `toggle_layer` turns it off
   in a section, which silences that stretch of it. In a section before the one it starts with, it plays nothing.
+- **Trimming it.** **Trim...** in its track's menu in the arrangement (right-click its name) keeps part of the
+  recording, from a start to an end in seconds, so that it starts later in itself or stops sooner (`trim_take`, with
+  `track`, `start` and `end`). It still plays from the start of its section, and the sections past its new end drop
+  it. claudius keeps the cut beside the recording it came from, so undo brings the take back whole. Effects go on it in
+  the [mixer](../getting-started/studio.md#the-panels), as on any track.
 - **Releasing it.** [Publishing](publish.md) lists takes with your own recordings: release them only if you made them or
   have cleared their rights.
 

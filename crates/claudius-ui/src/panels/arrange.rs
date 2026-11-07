@@ -166,6 +166,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     };
     let render = cx.state.render.as_ref();
     let mut out: Vec<Command> = Vec::new();
+    // a take whose Trim window opens
+    let mut trim = None;
     let full = ui.available_rect_before_wrap();
     let render_bars = render.map_or(0.0, |r| r.seconds * r.bpm.max(1.0) / 240.0);
     let tl = Timeline {
@@ -625,6 +627,15 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         out.push(Command::AssessVoice { take: Some(layer.clone()), path: None, key: None });
                         ui.close();
                     }
+                    if let Some(seconds) = t.seconds
+                        && ui
+                            .button("Trim...")
+                            .on_hover_text("keep part of its recording: start it later in itself, or stop it sooner")
+                            .clicked()
+                    {
+                        trim = Some(super::import::Trim::of(layer, seconds));
+                        ui.close();
+                    }
                     ui.menu_button("Tune it", |ui| {
                         ui.label(small("each note moved onto the note it means, as the song's chords read it"));
                         let tuned = t.fx.iter().any(|e| e.get("fx").and_then(|f| f.as_str()) == Some("tune"));
@@ -894,6 +905,9 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     ui.advance_cursor_after_rect(full);
     cx.view.melody_style = style;
     cx.view.row_menu = row_menu;
+    if trim.is_some() {
+        cx.view.import.trim = trim;
+    }
     cx.view.add_track = add_form;
     cx.out.extend(out);
 }

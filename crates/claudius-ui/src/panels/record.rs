@@ -14,7 +14,7 @@ use crate::theme::{self, TEXT, TEXT_DIM, WELL};
 use crate::widgets::{self, Icon};
 
 /// what a take can be in the mix (`claudius::take::ROLES`)
-const ROLES: &[&str] = &["vocal", "lead", "chords", "keys", "bass", "drums", "texture"];
+pub(crate) const ROLES: &[&str] = &["vocal", "lead", "chords", "keys", "bass", "drums", "texture"];
 
 /// how the window was set up last time
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -317,6 +317,8 @@ pub struct Upload {
     pub role: String,
     /// the take request (`request_take`) it answers
     pub request: Option<u64>,
+    /// the name of the file it is, which says its kind when its bytes do not (an AAC file's)
+    pub file: Option<String>,
 }
 
 /// a take recorded and not kept yet
@@ -1407,7 +1409,14 @@ fn keep(cx: &mut Cx) {
     r.preview = None;
     r.status = Some((true, format!("sending {:.1} s to claudius ...{}", held.secs, r.note)));
     (r.sending, r.answers) = (true, asked);
-    r.upload = Some(Upload { wav: held.wav, from: held.from, name, role: r.settings.role.clone(), request: asked });
+    r.upload = Some(Upload {
+        wav: held.wav,
+        from: held.from,
+        name,
+        role: r.settings.role.clone(),
+        request: asked,
+        file: None,
+    });
 }
 
 /// tells the assistant waiting for a take that the person will not record it now

@@ -130,6 +130,13 @@ sends the one they keep to `POST /api/takes`, in the app and in a browser alike.
 (`claudius_api::Listen::Take` with the WAV), recorded over the render the player holds, and is kept in memory like
 the recordings below.
 
+**Add a recording** (`panels/import.rs`, the **+** after the record button) holds a recording of the person's own,
+chosen (`pick::Want::Recording`) or dropped anywhere on the studio (`pick::read_dropped`, unless Publish is open and
+waiting for artwork), and sends it as a take, to `POST /api/takes` like the Record window's (the demo's engine sniffs
+its kind from its bytes), or hands it to the auto-sampler (`Listen` with `sample`). A take's **Trim...**, in its
+track's menu in the arrangement, opens a window of the same file that sends `trim_take` with the track's `seconds`
+for its range.
+
 A take an assistant asks for (`request_take`) is the state's `take_request`. A new one that waits opens the window
 set up for it (`Record::asked`), and the take kept for it, or the notes played, carry its id (`request` in the take's
 query, in `add_notes`), so that claudius marks it taken with its answer, which `wait_for_take` returns to the

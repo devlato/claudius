@@ -5,6 +5,7 @@ pub mod arrange;
 pub mod assistants;
 pub mod graph;
 pub mod harmony;
+pub mod import;
 pub mod inspector;
 pub mod library;
 pub mod log;
@@ -267,6 +268,8 @@ pub struct View {
     pub assistants: assistants::Assistants,
     pub publish: publish::Publish,
     pub record: record::Record,
+    /// the Add a recording window, and a take being trimmed
+    pub import: import::Import,
     pub phone: phone::Phone,
     /// the graph tab: the node chosen, and where its canvas looks
     pub graph: graph::GraphView,
@@ -344,6 +347,7 @@ impl Default for View {
             assistants: assistants::Assistants::default(),
             publish: publish::Publish::default(),
             record: record::Record::default(),
+            import: import::Import::default(),
             phone: phone::Phone::default(),
             graph: graph::GraphView::default(),
             melody_style: "line".into(),

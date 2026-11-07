@@ -13,6 +13,8 @@ pub enum Want {
     Song,
     /// a recording to listen to, or to make a song of
     Audio,
+    /// a recording to add to the song (the Add a recording window's)
+    Recording,
     /// a release's cover
     Cover,
 }
@@ -22,7 +24,9 @@ impl Want {
     pub fn kinds(self) -> (&'static str, &'static [&'static str]) {
         match self {
             Want::Song => ("a claudius song", &["json", "rhai", "zip"]),
-            Want::Audio => ("audio", &["wav", "mp3", "flac", "m4a", "aac", "aif", "aiff", "ogg", "opus", "caf"]),
+            Want::Audio | Want::Recording => {
+                ("audio", &["wav", "mp3", "flac", "m4a", "aac", "aif", "aiff", "ogg", "opus", "caf"])
+            }
             Want::Cover => ("an image", &["png", "jpg", "jpeg"]),
         }
     }
@@ -111,6 +115,24 @@ pub fn chosen(want: Want) -> Option<Result<Picked, String>> {
 #[cfg(any(target_arch = "wasm32", test))]
 fn arrived(want: Want, name: String, bytes: Result<Vec<u8>, String>) {
     arrived_from(want, name, bytes, None);
+}
+
+/// Reads a file dropped on the studio as if it had been chosen for `want`: it arrives through `chosen` (in a browser,
+/// once read, after the frame it was dropped in).
+pub fn read_dropped(ctx: &egui::Context, want: Want, file: egui::DroppedFileHandle) {
+    wake(ctx);
+    let path = file.path();
+    let name = path.file_name().map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().into_owned());
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let bytes = file.bytes().map_err(|e| format!("cannot read {name}: {e}"));
+        arrived_from(want, name, bytes, path.parent().map(PathBuf::from));
+    }
+    #[cfg(target_arch = "wasm32")]
+    wasm_bindgen_futures::spawn_local(async move {
+        let bytes = file.bytes_async().await.map_err(|e| format!("cannot read {name}: {e}"));
+        arrived(want, name, bytes);
+    });
 }
 
 /// what was read of a file named `name` in `folder`

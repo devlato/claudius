@@ -529,6 +529,23 @@ impl Host {
                 let voice = self.voice.clone();
                 self.edit_take(|bp| edit::tune(bp, &track, &asked, voice.as_ref()))
             }
+            Command::TrimTake { track, start, end } => {
+                let path = |bp: Option<&Blueprint>| {
+                    let l = bp?.loops.iter().find(|l| l.name == track)?;
+                    match &l.sound {
+                        model::Sound::Loop { path, .. } => Some(path.clone()),
+                        _ => None,
+                    }
+                };
+                let old = path(self.bp.as_ref());
+                let r = self.edit_take(|bp| take::trim(bp, &track, start, end, std::path::Path::new(take::IN_MEMORY)));
+                // the cut credits what the take did
+                if let (true, Some(old), Some(new)) = (r.ok, old, path(self.bp.as_ref())) {
+                    let credits = self.credited(std::path::Path::new(&old));
+                    self.takes.insert(new, credits);
+                }
+                r
+            }
             Command::TranscribeDrums { take: None, path: None, .. } => {
                 self.no("transcribe_drums wants a take, or the path of a recording")
             }
@@ -1453,7 +1470,17 @@ mod tests {
             from: from.into(),
             track: None,
             role: role.into(),
+            recording: false,
         };
+        assert_eq!(take("intro", "vocal").what(), "take");
+        let added = Listen::Take {
+            name: "a song.m4a".into(),
+            from: "intro".into(),
+            track: None,
+            role: "vocal".into(),
+            recording: true,
+        };
+        assert_eq!(added.what(), "add_recording", "the Add a recording window's answer is its own");
         let r = h.listen(&take("intro", "vocal"), wav(&a_song()));
         assert!(!r.ok && r.message.starts_with("no song yet"), "{}", r.message);
         assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
@@ -1486,6 +1513,15 @@ mod tests {
         assert!(r.ok, "{}", r.message);
         let r = command(&mut h, json!({"cmd": "tune", "track": "take1", "speed_ms": 15}));
         assert!(r.ok && !r.message.contains("pitch check"), "no check yet, so no voice: {}", r.message);
+        // trimmed to its middle two seconds, kept in memory as the take was
+        let r = command(&mut h, json!({"cmd": "trim_take", "track": "take1", "start": 1.0, "end": 3.0}));
+        assert!(r.ok && r.message.starts_with("take1: 1.00 to 3.00 s of its recording"), "{}", r.message);
+        let bp = h.blueprint().unwrap().clone();
+        let model::Sound::Loop { path, .. } = &bp.loops.iter().find(|l| l.name == "take1").unwrap().sound else {
+            panic!("a loop")
+        };
+        let cut = audio::remembered_audio(path).expect("the cut is kept in memory");
+        assert!(path.starts_with("demo:takes/") && (cut.secs() - 2.0).abs() < 1e-3, "{path}");
         // played: a beat at the song's tempo, whose kicks and snares become lanes
         let bpm = h.blueprint().unwrap().bpm;
         let r = h.listen(&take(&from, "drums"), wav(&a_beat(bpm)));
@@ -1536,7 +1572,7 @@ mod tests {
         // a take tuned from now on sings as the check heard the person
         assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
         let from = h.blueprint().unwrap().form[0].name.clone();
-        let take = Listen::Take { name: "take.wav".into(), from, track: None, role: "vocal".into() };
+        let take = Listen::Take { name: "take.wav".into(), from, track: None, role: "vocal".into(), recording: false };
         assert!(h.listen(&take, wav(&sung)).ok);
         let r = command(&mut h, json!({"cmd": "tune", "track": "take1"}));
         assert!(r.ok && r.message.ends_with("as your pitch check heard you sing"), "{}", r.message);
