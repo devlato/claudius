@@ -184,6 +184,10 @@ first, then the breaks ...) and mixes them as vocals, `vox1`, `vox2` ...
   went. Listen, and set its level, reverb and delay with `set_mix` like any track; undo takes the phrases out.
 - **Whose voice it is.** A sample of someone else's recording needs their permission before the song is released:
   say so when the person samples a song they did not make.
+- **To choose the pieces first.** `sample_pieces` offers them before any goes in: each phrase as it was cut and
+  through a treatment (dusty tape, a washed echo, lo-fi, a phaser, a telephone band, a stutter, a reversed tail), with
+  where to hear each. Describe them, let the person pick, then `keep_pieces` with `[{id, treated}]`;
+  `redraw_pieces` draws another take when none suits.
 
 ## Ask the person to record a take
 

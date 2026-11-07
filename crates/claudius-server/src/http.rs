@@ -63,6 +63,8 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
         .route("/api/genres", get(genres))
         .route("/api/library/search", get(library_search))
         .route("/api/library/audio", get(library_audio))
+        .route("/api/pieces/{file}", get(piece_audio))
+        .route("/api/sample/pieces", post(sample_pieces).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/audio/{file}", get(audio))
         .route("/api/stems/{version}/{file}", get(stem))
         .route("/api/export/{version}/{file}", get(export_file))
@@ -354,6 +356,53 @@ async fn library_audio(State(c): State<Ctx>, Query(q): Query<LibraryAudioQuery>,
     match tokio::task::spawn_blocking(move || app.library_file(&q.id)).await {
         Ok(Ok(path)) => serve_file(path, req).await,
         Ok(Err(e)) => (StatusCode::NOT_FOUND, e).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+/// a piece the auto-sampler offers, to hear (`App::pieces_file`)
+async fn piece_audio(State(c): State<Ctx>, Path(file): Path<String>, req: Request) -> Response {
+    match c.app.pieces_file(&file) {
+        Some(p) => serve_file(p, req).await,
+        None => (StatusCode::NOT_FOUND, format!("no piece {file}: the pieces offered last are the ones to hear"))
+            .into_response(),
+    }
+}
+
+#[derive(Deserialize)]
+struct PiecesQuery {
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    seed: Option<u64>,
+    #[serde(default)]
+    count: Option<u32>,
+    #[serde(default)]
+    bars: Option<u32>,
+    #[serde(default)]
+    find: Option<String>,
+}
+
+/// the auto-sampler's pieces of a recording sent as the file itself, as `sample_pieces` offers a path's
+async fn sample_pieces(
+    State(c): State<Ctx>,
+    Query(q): Query<PiecesQuery>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    if !sent_as_file(&headers) {
+        return (
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            "send the recording as the file itself, with Content-Type audio/mpeg, audio/wav or application/octet-stream",
+        )
+            .into_response();
+    }
+    let app = c.app.clone();
+    let name = q.name.filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "the recording".into());
+    let opt = crate::app::sampling(q.count, q.bars, q.find, Vec::new());
+    let seed = q.seed.unwrap_or(0);
+    match tokio::task::spawn_blocking(move || app.pieces_bytes(body.to_vec(), &name, opt, seed)).await {
+        Ok(r) => Json(r).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }
 }

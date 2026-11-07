@@ -105,6 +105,44 @@ pub struct State {
     /// the page a phone plays along on, while it is served (`POST /api/phone`)
     #[serde(default)]
     pub phone: Option<PhoneView>,
+    /// the pieces the auto-sampler offers from a recording, until some are kept or another offer replaces them
+    #[serde(default)]
+    pub pieces: Option<PiecesView>,
+}
+
+/// The pieces the auto-sampler offers from a recording before any goes into the song (`sample_pieces`), each as it was
+/// cut and as treated, to hear side by side: what the Sample window shows.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct PiecesView {
+    /// the recording, as it was named
+    pub recording: String,
+    /// the take: 0 for the best phrases, any other for another draw of them (`redraw_pieces`)
+    pub seed: u64,
+    pub pieces: Vec<PieceView>,
+}
+
+/// a piece the auto-sampler offers
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct PieceView {
+    /// what `keep_pieces` names it by: 1, 2 ...
+    pub id: u32,
+    /// where it is in the recording, in words ("bars 12-13, 0:31"), how many bars it lasts, and how much of it is sung
+    pub place: String,
+    pub bars: u32,
+    pub sung: f64,
+    /// where to hear it, as it was cut and as treated: paths on the claudius that offers it
+    pub raw: String,
+    pub treated: String,
+    /// the treatment, in words
+    pub treatment: String,
+}
+
+/// a piece to keep (`keep_pieces`): as it was cut, or `treated`
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct KeptPiece {
+    pub id: u32,
+    #[serde(default)]
+    pub treated: bool,
 }
 
 /// The studio's transport, as it tells the server (`POST /api/transport`) so that a phone playing along knows where the
@@ -431,6 +469,18 @@ pub enum Listen {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         found: Option<serde_json::Value>,
     },
+    /// the auto-sampler's pieces of a recording, offered before any goes into the song, as `/api/sample/pieces`
+    /// offers them (`seed`, `count`: as for `sample_pieces`)
+    SamplePieces {
+        name: String,
+        #[serde(default)]
+        seed: Option<u64>,
+        #[serde(default)]
+        count: Option<u32>,
+        /// the library's record of it, when a free library offered it (`LibraryHit::found`): the pieces kept credit it
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        found: Option<serde_json::Value>,
+    },
     /// the answers to pitch check `id`, sung over its phrases from their first beat, as `/api/pitch-check` hears them
     PitchCheck {
         id: u64,
@@ -442,7 +492,7 @@ impl Listen {
     pub fn name(&self) -> &str {
         match self {
             Listen::Analyze { name } | Listen::SampleSong { name, .. } | Listen::ExtractGroove { name } => name,
-            Listen::Remake { name, .. } | Listen::Take { name, .. } => name,
+            Listen::Remake { name, .. } | Listen::Take { name, .. } | Listen::SamplePieces { name, .. } => name,
             Listen::PitchCheck { .. } => "the pitch check",
         }
     }
@@ -454,6 +504,7 @@ impl Listen {
             Listen::Remake { .. } => "remake",
             Listen::SampleSong { .. } => "sample_song",
             Listen::ExtractGroove { .. } => "extract_groove",
+            Listen::SamplePieces { .. } => "sample_pieces",
             Listen::Take { recording: true, .. } => "add_recording",
             Listen::Take { .. } => "take",
             Listen::PitchCheck { .. } => "pitch_check",
@@ -1693,6 +1744,33 @@ pub enum Command {
         high: Option<i32>,
         #[serde(default)]
         note: String,
+    },
+    /// the auto-sampler's pieces of a recording (an audio file, or `library:<id>`), offered before any goes into the
+    /// song: `count` phrases (1 to 4, default 2) of `bars` bars (1, 2 or 4; whichever sounds best by default), each as
+    /// it was cut and through a treatment, for take `seed` (0, the default: the best phrases; any other: another draw)
+    SamplePieces {
+        path: String,
+        #[serde(default)]
+        seed: Option<u64>,
+        #[serde(default)]
+        count: Option<u32>,
+        #[serde(default)]
+        bars: Option<u32>,
+        /// what the ears listen for ("a person singing" by default)
+        #[serde(default)]
+        find: Option<String>,
+    },
+    /// the recording the auto-sampler offered pieces of, drawn again for take `seed` (the next one by default)
+    RedrawPieces {
+        #[serde(default)]
+        seed: Option<u64>,
+    },
+    /// the pieces offered that `keep` names, each as it was cut or treated, sampled into the song in `sections` (by
+    /// name or kind; those that suit each by default)
+    KeepPieces {
+        keep: Vec<KeptPiece>,
+        #[serde(default)]
+        sections: Vec<String>,
     },
     /// the person will not do pitch check `id` now
     CancelPitchCheck {

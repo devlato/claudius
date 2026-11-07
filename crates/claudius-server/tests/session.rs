@@ -1845,6 +1845,73 @@ async fn a_library_recording_a_take_comes_from_is_credited_and_one_no_search_fou
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn pieces_are_offered_to_hear_drawn_again_and_kept_treated() {
+    let app = app();
+    let song = Command::NewSong {
+        genre: "trip_hop".into(),
+        seed: Some(1),
+        bpm: None,
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+        complexity: None,
+    };
+    assert!(app.command(song).ok);
+    // sixteen seconds at 120 BPM: a hat to the left all through, and a sung A3 in the middle from 4 s to 12 s
+    let sr = claudius::config::SR as usize;
+    let mut x = claudius::audio::Stereo::zeros(16 * sr);
+    let mut phase = 0f64;
+    for i in 0..x.len() {
+        if i % (sr / 4) < sr / 50 {
+            x.l[i] += if i % 7 < 3 { 0.3 } else { -0.3 };
+        }
+        if (4 * sr..12 * sr).contains(&i) {
+            phase += std::f64::consts::TAU * 220.0 / claudius::config::SRF;
+            let v = (phase.sin() * 0.4 + (2.0 * phase).sin() * 0.15) as f32;
+            (x.l[i], x.r[i]) = (x.l[i] + v, x.r[i] + v);
+        }
+    }
+    let file = std::env::temp_dir().join(format!("claudius-pieces-{}.wav", std::process::id()));
+    claudius::audio::save_wav(&file, &x, true).unwrap();
+    let offer = Command::SamplePieces {
+        path: file.display().to_string(),
+        seed: None,
+        count: Some(1),
+        bars: Some(2),
+        find: None,
+    };
+    let r = app.command(offer);
+    assert!(r.ok && r.message.starts_with("1 piece of claudius-pieces-"), "{}", r.message);
+    let pieces = app.state().pieces.expect("the studio shows the pieces");
+    assert_eq!((pieces.seed, pieces.pieces.len()), (0, 1));
+    let p = &pieces.pieces[0];
+    for url in [&p.raw, &p.treated] {
+        let name = url.strip_prefix("/api/pieces/").expect("a piece's file on this claudius");
+        assert!(app.pieces_file(name).is_some(), "{url} is there to hear");
+    }
+    assert!(app.pieces_file("../secret.wav").is_none());
+    let r = app.command(Command::RedrawPieces { seed: None });
+    assert!(r.ok && r.message.contains("take 1"), "{}", r.message);
+    assert_eq!(app.state().pieces.unwrap().seed, 1);
+    let r = app.command(Command::KeepPieces {
+        keep: vec![claudius_api::KeptPiece { id: 2, treated: false }],
+        sections: vec![],
+    });
+    assert!(!r.ok && r.message.contains("no piece 2 (pieces 1 to 1)"), "{}", r.message);
+    let r = app.command(Command::KeepPieces {
+        keep: vec![claudius_api::KeptPiece { id: 1, treated: true }],
+        sections: vec![],
+    });
+    assert!(r.ok && r.message.starts_with("vox1:"), "{}", r.message);
+    assert!(app.state().pieces.is_none(), "kept, the offer goes");
+    let bp = app.blueprint().unwrap();
+    let vox = bp.loops.iter().find(|l| l.name == "vox1").expect("the piece plays in the song");
+    assert!(vox.sampled && vox.mix.fx.len() > 1, "with its treatment: {:?}", vox.mix.fx);
+    std::fs::remove_file(&file).unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_project_the_demo_saved_opens_as_a_song_folder_of_its_own() {
     use claudius::model::Sound;
     let songs = std::env::temp_dir().join(format!("claudius-projects-{}", std::process::id()));

@@ -255,6 +255,23 @@ impl App {
             Command::AddTake { path, from, name, role } => {
                 self.add_take_file(Path::new(&path), &from, name.as_deref(), role.as_deref())
             }
+            Command::SamplePieces { path, seed, count, bars, find } => {
+                let opt = sampling(count, bars, find, Vec::new());
+                if let Err(e) = self.readable(Path::new(&path)) {
+                    return no(e, v);
+                }
+                match audio::load(Path::new(&path)) {
+                    Ok(x) => {
+                        let name =
+                            Path::new(&path).file_name().map_or(path.clone(), |n| n.to_string_lossy().into_owned());
+                        let credits = claudius::take::credited(Path::new(&path));
+                        self.offer_pieces(std::sync::Arc::new(x), &name, credits, opt, seed.unwrap_or(0))
+                    }
+                    Err(e) => no(format!("cannot read {path}: {e}"), v),
+                }
+            }
+            Command::RedrawPieces { seed } => self.redraw_pieces(seed),
+            Command::KeepPieces { keep, sections } => self.keep_pieces(&keep, sections),
             Command::TrimTake { track, start, end } => {
                 let dir = claudius::take::dir(self.lock().folder.as_deref());
                 if !claudius::config::write_allowed(&dir, self.roots.as_deref()) {

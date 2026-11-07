@@ -147,6 +147,22 @@ vox1: bar 6 of Many Miracles Vocal Melody.caf (the ears +2.0 for 'a person singi
 vox2: bars 11-12 of Many Miracles Vocal Melody.caf (the ears +1.9 for 'a person singing', 54% sung), in its own key at 122 BPM, every 4 bars from the first bar in the breaks (break), on chords it agrees with 83%
 ```
 
+### Choosing the pieces first
+
+In the studio's **Add a recording** window, **Sample it...** opens the **Sample** window instead of sampling straight
+away: up to four pieces the auto-sampler found, each to hear as it was cut (cleaned of the recording's drums) and
+through a treatment, side by side. The treatments are a producer's: dusty tape over vinyl crackle, an echo into a long
+hall, lo-fi crushing, a slow phaser over a chorus, a telephone's band, a stutter on the last beat, a reversed tail.
+Choose for each piece whether to leave it, keep it as it was cut, or keep it treated, then **Keep** them: they go into
+the song as above, a treated one through its treatment. **Regenerate** draws another take: other phrases among the
+good ones, of other lengths, with other treatments.
+
+An assistant does the same with `sample_pieces` (the recording's `path`, or `library:<id>`; `seed`, `count`, `bars`,
+`find`), which lists the pieces and where to hear each, `redraw_pieces` for another take, and `keep_pieces` with the
+pieces to keep and whether treated. Behind the window are `POST /api/sample/pieces` (the recording itself), the
+state's `pieces`, and `GET /api/pieces/<file>` for each piece to hear ([HTTP API](http-api.md#routes)). The online demo
+offers pieces the same way, in the page.
+
 Without earshot's models, it goes by the pitch and the stereo picture alone: in a full mix, a lead synth held in the
 middle can then pass for a voice. Sample only what you may use: a recording of someone else's song needs their
 permission before you release what you made with it.

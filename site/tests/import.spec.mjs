@@ -104,6 +104,50 @@ test.describe("adding a recording", () => {
     }
   });
 
+  test("in the demo, the Sample window offers pieces of a recording dropped, and one kept treated plays in the song", async () => {
+    test.setTimeout(150_000);
+    const c = await claudius();
+    const b = await chromium.launch();
+    try {
+      const page = await b.newPage();
+      const offered = heard(page, "pieces");
+      const toasts = heard(page, "toast");
+      const keep = JSON.stringify({ cmd: "keep_pieces", keep: [{ id: 1, treated: true }] });
+      await page.goto(`${c.base}/?mock&plan=${encodeURIComponent(`wait:3;import:sample;wait:45;cmd:${keep};wait:30`)}`);
+      await page.waitForTimeout(8_000);
+      await drop(page, song);
+      await expect.poll(() => offered.join("\n"), { timeout: 45_000 }).toMatch(/^take 0: 1\. bars? [\d-]+, 0:\d\d \(dusty/m);
+      await expect.poll(() => toasts.join("\n"), { timeout: 60_000 }).toMatch(/^vox1:/m);
+    } finally {
+      await b.close();
+      c.stop();
+    }
+  });
+
+  test("with a claudius, the Sample window offers pieces of a recording, and one kept treated plays in the song", async () => {
+    test.setTimeout(150_000);
+    const c = await claudius();
+    const b = await chromium.launch();
+    try {
+      const page = await b.newPage();
+      const offered = heard(page, "pieces");
+      const keep = JSON.stringify({ cmd: "keep_pieces", keep: [{ id: 1, treated: true }] });
+      const plan = `wait:3;pick:recording;import:sample;wait:40;cmd:${keep};wait:30`;
+      await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
+      const input = page.locator('input[data-claudius-pick="recording"]');
+      await input.waitFor({ state: "attached", timeout: 30_000 });
+      await input.setInputFiles(song);
+      await expect.poll(() => offered.join("\n"), { timeout: 40_000 }).toMatch(/^take 0: 1\. bars? [\d-]+, 0:\d\d \(dusty/m);
+      await expect
+        .poll(async () => (await (await c.api("/api/state")).json()).song.tracks.map((t) => t.name), { timeout: 60_000 })
+        .toContain("vox1");
+      expect((await (await c.api("/api/state")).json()).pieces ?? null, "kept, the offer goes").toBeNull();
+    } finally {
+      await b.close();
+      c.stop();
+    }
+  });
+
   test("with a claudius, a song chosen goes in whole as a track, kept with the songs", async () => {
     test.setTimeout(120_000);
     const c = await claudius();

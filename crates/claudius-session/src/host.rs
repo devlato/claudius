@@ -103,6 +103,19 @@ pub struct Host {
     asked: u64,
     /// the person's voice as their last pitch check heard it
     voice: Option<claudius::voice::singer::Voice>,
+    /// the auto-sampler's last offer, and the pieces as the studio sees them
+    pieces: Option<(Offer, PiecesView)>,
+}
+
+/// what the auto-sampler offered last: the recording, the library's record of it (what the pieces kept credit), how
+/// it was asked, and the pieces
+struct Offer {
+    name: String,
+    src: Arc<Stereo>,
+    found: Option<serde_json::Value>,
+    opt: claudius::sampler::Options,
+    seed: u64,
+    pieces: Vec<claudius::sampler::Piece>,
 }
 
 /// A mutation or an evolution under way: its candidates, judged one a `step`, from the song as it was at `from` (an
@@ -141,6 +154,7 @@ impl Host {
             pitch_check: None,
             asked: 0,
             voice: None,
+            pieces: None,
         }
     }
 
@@ -241,6 +255,10 @@ impl Host {
                 }
             }
             Listen::PitchCheck { id } => self.hear_pitch_check(*id, &x),
+            Listen::SamplePieces { seed, count, found, .. } => {
+                let opt = listen::sampling(*count, None, None, Vec::new());
+                self.offer_pieces(Arc::new(x), &name, found.clone(), opt, seed.unwrap_or(0))
+            }
             Listen::Take { from, track, role, found, .. } => {
                 let Some(mut bp) = self.bp.clone() else {
                     return self.no("no song yet: start one with a new song, then record a take for it");
@@ -358,6 +376,7 @@ impl Host {
             genres: views::genre_infos(),
             exports: views::export_formats(),
             pitch_check: self.pitch_check.as_ref().map(|(_, view)| view.clone()),
+            pieces: self.pieces.as_ref().map(|(_, view)| view.clone()),
             voice: self.voice.as_ref().map(|v| v.describe()),
             ..Default::default()
         }
@@ -528,6 +547,15 @@ impl Host {
                 }
             }
             Command::RequestPitchCheck { low, high, note } => self.request_pitch_check(low, high, note),
+            Command::RedrawPieces { seed } => match &self.pieces {
+                Some((o, _)) => {
+                    let (src, name, found, opt, last) =
+                        (o.src.clone(), o.name.clone(), o.found.clone(), o.opt.clone(), o.seed);
+                    self.offer_pieces(src, &name, found, opt, seed.unwrap_or(last + 1))
+                }
+                None => self.no("no pieces to draw again: sample a recording first"),
+            },
+            Command::KeepPieces { keep, sections } => self.keep_pieces(&keep, sections),
             Command::CancelPitchCheck { id } => match &mut self.pitch_check {
                 Some((_, view)) if view.id == id && view.status == TakeStatus::Waiting => {
                     view.status = TakeStatus::Cancelled;
@@ -757,6 +785,92 @@ impl Host {
         self.say(format!("heard the pitch check: {said}"));
         self.version += 1;
         self.ok(&said)
+    }
+
+    /// The pieces of recording `x`, called `name`, the auto-sampler offers for take `seed`, each to hear as it was cut
+    /// and treated (small MP3 files in the state, which the page plays as they are), held until another offer
+    /// replaces them.
+    fn offer_pieces(
+        &mut self,
+        x: Arc<Stereo>,
+        name: &str,
+        found: Option<serde_json::Value>,
+        opt: claudius::sampler::Options,
+        seed: u64,
+    ) -> Reply {
+        if self.bp.is_none() {
+            return self.no("no song yet: start one with a new song, then sample a recording into it");
+        }
+        let pieces = match claudius::sampler::pieces(&x, None, &opt, seed) {
+            Ok(p) => p,
+            Err(e) => return self.no(e),
+        };
+        let spec: claudius::export::Spec = "mp3:64".parse().expect("a preview's format");
+        let heard = |sound: &Stereo| -> Result<String, String> {
+            let bytes =
+                claudius::export::encode(sound, &spec, &claudius::export::tags(name)).map_err(|e| format!("{e:#}"))?;
+            Ok(crate::listen::mp3_url(&bytes))
+        };
+        let mut views = Vec::new();
+        for (i, p) in pieces.iter().enumerate() {
+            let (raw, treated) = match (heard(&p.raw), heard(&p.treated)) {
+                (Ok(r), Ok(t)) => (r, t),
+                (Err(e), _) | (_, Err(e)) => return self.no(format!("cannot make the pieces to hear: {e}")),
+            };
+            views.push(PieceView {
+                id: i as u32 + 1,
+                place: p.place(),
+                bars: p.phrase.bars,
+                sung: p.phrase.sung,
+                raw,
+                treated,
+                treatment: p.treatment.clone(),
+            });
+        }
+        let lines: Vec<String> = views
+            .iter()
+            .map(|p| format!("{}: {}, {:.0}% sung; treated, {}", p.id, p.place, p.sung * 100.0, p.treatment))
+            .collect();
+        let n = views.len();
+        let said = format!("{n} piece{} of {name}, take {seed}:\n{}", if n == 1 { "" } else { "s" }, lines.join("\n"));
+        let view = PiecesView { recording: name.to_string(), seed, pieces: views };
+        self.pieces = Some((Offer { name: name.to_string(), src: x, found, opt, seed, pieces }, view));
+        self.say(format!("offered {n} pieces of {name} (take {seed})"));
+        self.version += 1;
+        self.ok(&said)
+    }
+
+    /// the pieces offered that `keep` names, each as it was cut or treated, sampled into the song in `sections`,
+    /// crediting the library's recording they came from; the offer goes once they are in
+    fn keep_pieces(&mut self, keep: &[KeptPiece], sections: Vec<String>) -> Reply {
+        let Some((o, _)) = &self.pieces else {
+            return self.no("no pieces to keep: sample a recording first");
+        };
+        if let Some(k) = keep.iter().find(|k| o.pieces.get((k.id as usize).wrapping_sub(1)).is_none()) {
+            let n = o.pieces.len();
+            return self.no(format!("no piece {} (pieces 1 to {n})", k.id));
+        }
+        let Some(mut bp) = self.bp.clone() else { return self.no("no song yet: start one with a new song") };
+        let (o, view) = self.pieces.take().expect("an offer, as above");
+        let chosen: Vec<_> = keep.iter().map(|k| (&o.pieces[k.id as usize - 1], k.treated)).collect();
+        let opt = claudius::sampler::Options { sections, ..o.opt.clone() };
+        let before = sampled(&bp);
+        let dir = std::path::Path::new(take::IN_MEMORY);
+        match claudius::sampler::keep(&mut bp, &o.src, &o.name, &chosen, &opt, dir) {
+            Ok(s) => {
+                if let Some(credit) = credit(&o.found) {
+                    for path in sampled(&bp).difference(&before) {
+                        self.takes.insert(path.clone(), credit.clone());
+                    }
+                }
+                self.commit(Some(bp), s.lines.join("\n"))
+            }
+            // not kept, they are still on offer
+            Err(e) => {
+                self.pieces = Some((o, view));
+                self.no(e)
+            }
+        }
     }
 
     /// the song changed by `f`, from a take it holds
@@ -1573,6 +1687,61 @@ mod tests {
         let none =
             Command::TranscribeDrums { take: None, path: None, bars: None, variant: None, bpm: None, keep_take: false };
         assert!(!h.command(none).ok);
+    }
+
+    #[test]
+    fn pieces_of_a_recording_chosen_on_the_page_are_offered_to_hear_drawn_again_and_kept() {
+        use crate::listen::Listen;
+        let mut h = Host::new(1);
+        assert!(command(&mut h, json!({"cmd": "new_song", "genre": "trip_hop", "seed": 1})).ok);
+        // sixteen seconds at 120 BPM: a hat to the left, and a sung A3 in the middle from 4 s to 12 s
+        let sr = claudius::config::SR as usize;
+        let mut x = Stereo::zeros(16 * sr);
+        let mut phase = 0f64;
+        for i in 0..x.len() {
+            if i % (sr / 4) < sr / 50 {
+                x.l[i] += if i % 7 < 3 { 0.3 } else { -0.3 };
+            }
+            if (4 * sr..12 * sr).contains(&i) {
+                phase += std::f64::consts::TAU * 220.0 / claudius::config::SRF;
+                let v = (phase.sin() * 0.4 + (2.0 * phase).sin() * 0.15) as f32;
+                (x.l[i], x.r[i]) = (x.l[i] + v, x.r[i] + v);
+            }
+        }
+        let found = json!({
+            "id": "ccmixter:71182", "source": "ccmixter", "provider": "ccmixter", "title": "Hum",
+            "creator": "Someone", "licence": "by", "licence_name": "CC BY 4.0",
+            "licence_url": "https://creativecommons.org/licenses/by/4.0/", "page": "https://ccmixter.org/files/a/71182",
+            "audio": "https://example.org/hum.mp3", "filetype": "mp3", "seconds": 16.0
+        });
+        let offer = Listen::SamplePieces { name: "hum.wav".into(), seed: None, count: Some(1), found: Some(found) };
+        assert_eq!(offer.what(), "sample_pieces");
+        let r = h.listen(&offer, wav(&x));
+        assert!(r.ok && r.message.starts_with("1 piece of hum.wav, take 0"), "{}", r.message);
+        let pieces = h.state().pieces.expect("the studio shows the pieces");
+        let p = &pieces.pieces[0];
+        for url in [&p.raw, &p.treated] {
+            let bytes = crate::listen::mp3_of(url).expect("a file to hear, in its URL").unwrap();
+            // a bar at least, two seconds at 120 BPM
+            assert!(crate::listen::decode(bytes, "piece.mp3").unwrap().secs() > 1.5);
+        }
+        assert!(command(&mut h, json!({"cmd": "redraw_pieces"})).ok);
+        assert_eq!(h.state().pieces.unwrap().seed, 1);
+        let r = command(&mut h, json!({"cmd": "keep_pieces", "keep": [{"id": 9}]}));
+        assert!(
+            !r.ok && r.message.contains("no piece 9 (pieces 1 to 1)") && h.state().pieces.is_some(),
+            "{}",
+            r.message
+        );
+        let r = command(&mut h, json!({"cmd": "keep_pieces", "keep": [{"id": 1, "treated": true}]}));
+        assert!(r.ok && r.message.starts_with("vox1:"), "{}", r.message);
+        assert!(h.state().pieces.is_none(), "kept, the offer goes");
+        let bp = h.blueprint().unwrap().clone();
+        let vox = bp.loops.iter().find(|l| l.name == "vox1").unwrap();
+        let model::Sound::Loop { path, .. } = &vox.sound else { panic!("a recording") };
+        assert!(vox.mix.fx.len() > 1, "with its treatment");
+        let credited = h.credited(std::path::Path::new(path));
+        assert_eq!(credited.recordings.iter().map(|f| f.id.as_str()).collect::<Vec<_>>(), ["ccmixter:71182"]);
     }
 
     #[test]

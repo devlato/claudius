@@ -221,6 +221,15 @@ impl Studio {
                         Err(e) => (false, e.clone()),
                     });
                 }
+                if self.view.import.sampling
+                    && matches!(what.as_str(), "sample_pieces" | "redraw_pieces" | "keep_pieces")
+                {
+                    let kept = what == "keep_pieces";
+                    match &result {
+                        Ok(r) => self.view.import.pieces_answered(r.ok, r.message.clone(), kept),
+                        Err(e) => self.view.import.pieces_answered(false, e.clone(), kept),
+                    }
+                }
                 if what == "add_recording" || (what == "add_take" && self.view.import.waiting()) {
                     match &result {
                         Ok(r) => self.view.import.answered(r.ok, r.message.clone()),
@@ -588,6 +597,7 @@ impl Studio {
                 Step::ImportWhole => self.view.import.whole = true,
                 Step::ImportSearch(words) => self.view.import.ask(&words),
                 Step::ImportUse(n) => self.view.import.use_nth = Some(n),
+                Step::ImportSample => self.view.import.sample_now = true,
                 Step::Pick(want) => crate::pick::choose(ctx, want),
                 Step::Listen(remake) => {
                     let f = &self.view.new_song;
@@ -608,6 +618,12 @@ impl Studio {
         plan.tell("record", &self.view.record.said());
         plan.tell("import", &self.view.import.told());
         plan.tell("library", &self.view.import.listed());
+        let offered = self.state.pieces.as_ref().map(|p| {
+            let each: Vec<String> =
+                p.pieces.iter().map(|x| format!("{}. {} ({})", x.id, x.place, x.treatment)).collect();
+            format!("take {}: {}", p.seed, each.join(" | "))
+        });
+        plan.tell("pieces", &offered.unwrap_or_default());
         plan.tell("midi", &crate::audio::record::midi_offer().map(|(what, _)| what).unwrap_or_default());
         plan.tell("analysis", &self.view.analysis.as_ref().map(|(_, text)| text.clone()).unwrap_or_default());
         plan.tell("heard", &self.view.heard.as_ref().map(|(_, text)| text.clone()).unwrap_or_default());
@@ -1140,6 +1156,7 @@ impl eframe::App for Studio {
             panels::publish::dialog(&ctx, &mut cx);
             panels::record::dialog(&ctx, &mut cx);
             panels::import::dialog(&ctx, &mut cx);
+            panels::import::pieces(&ctx, &mut cx);
             panels::phone::dialog(&ctx, &mut cx);
         }
         if let Some(on) = self.view.phone.ask.take() {
@@ -1163,6 +1180,11 @@ impl eframe::App for Studio {
         self.take_picks(now);
         if let Some(q) = self.view.import.search.take() {
             self.backend.search_library(&q);
+        }
+        if let Some((file, found)) = self.view.import.offer.take() {
+            self.inflight += 1;
+            self.inflight_since = now;
+            self.backend.offer_pieces(file.bytes.clone(), &file.name, found);
         }
         if let Some(l) = self.view.listen.take() {
             self.inflight += 1;

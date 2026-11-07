@@ -95,6 +95,9 @@ impl App {
                 Command::SampleSong { path: file(path)?, count, bars, find, sections }
             }
             Command::Analyze { path } => Command::Analyze { path: file(path)? },
+            Command::SamplePieces { path, seed, count, bars, find } => {
+                Command::SamplePieces { path: file(path)?, seed, count, bars, find }
+            }
             Command::Remake { path, genre, seed, bpm, sampled, flip } => {
                 Command::Remake { path: file(path)?, genre, seed, bpm, sampled, flip }
             }

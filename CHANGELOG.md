@@ -91,6 +91,13 @@ which claudius downloads; assistants search with the new `search_recordings` too
 `/api/library/search` and `/api/library/audio`. A take added from a downloaded recording, and each phrase sampled from
 one, now credits it too, as a song that plays the file did.
 
+**Sample it...**, in the same window, opens the new **Sample** window: up to four pieces the auto-sampler found in the
+recording, each to hear as it was cut and through a treatment side by side (dusty tape, an echo into a hall, lo-fi
+crushing, a phaser, a telephone's band, a stutter, a reversed tail). Keep each as it was or treated, or leave it, and
+**Regenerate** draws another take: other phrases, other lengths, other treatments. Assistants have `sample_pieces`,
+`redraw_pieces` and `keep_pieces`; the HTTP API has `POST /api/sample/pieces` and `GET /api/pieces/FILE`, and the
+state the `pieces`. It works in the online demo too.
+
 The demo records takes too: the record button, which only the app and a claudius' own page had, records a voice or
 an instrument over the song in the browser, and the take joins the song and the project you save. A take's menu in
 the arrangement works there as in claudius: **How is it sung?** hears how it is sung, **Turn it into drums** turns a
