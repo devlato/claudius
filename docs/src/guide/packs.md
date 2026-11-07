@@ -5,7 +5,7 @@ any velocity with them. Every pack in the default set is under a licence that le
 it. Without packs claudius synthesizes every sound; with them, every new song draws its parts from all the installed
 instruments that suit its genre (a flute or a vibraphone for a lofi lead, a string section or a choir for a trap pad,
 a Rhodes or an organ for house chords) and its drums from all the installed kits, so two songs of one genre rarely
-sound alike. The studio's Parts tab offers every instrument that can play a part.
+sound alike. The studio's Instruments tab offers every instrument that can play a part.
 
 Packs live in `~/Library/Application Support/claudius/packs` on macOS and `~/.local/share/claudius/packs` on Linux,
 or in `$CLAUDIUS_PACKS`. Each pack is a folder with an `index.json` (its licence, attribution, files and how every

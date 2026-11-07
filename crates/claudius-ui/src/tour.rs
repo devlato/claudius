@@ -35,8 +35,8 @@ const STEPS: [Step; 5] = [
     },
     Step {
         title: "Listen",
-        body: "Space plays and stops. Every change is rendered again by itself, and the waveform under the arrangement \
-               says when a newer render is on its way.",
+        body: "Space plays and stops. Every change is rendered again by itself, and the right end of the toolbar says \
+               when a newer render is on its way.",
     },
     Step {
         title: "Read the verdict",
@@ -45,8 +45,8 @@ const STEPS: [Step; 5] = [
     },
     Step {
         title: "Change anything",
-        body: "Click a section to edit it, toggle steps in the sequencer, mix in the Mixer, or change the whole song as \
-               a script. {cmd}+Z undoes anything.",
+        body: "Click a section to edit it, toggle steps under Drums, mix in the Mixer, or change the whole song as a \
+               script. {cmd}+Z undoes anything.",
     },
     Step {
         title: "Bring an assistant",

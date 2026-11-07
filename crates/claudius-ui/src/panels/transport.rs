@@ -1,5 +1,5 @@
 //! The top of the studio: transport and the LCD, the song's tempo / key / swing, the score, and the engine's
-//! actions (new song, render, mutate, evolve, undo / redo, save, cancel) with the busy indicator.
+//! actions (new song, open, save, variations, improve, sounds, export, undo / redo) with what claudius is doing.
 
 use claudius_api::{Command, GenreInfo, GenreSampling, State};
 use eframe::egui::{self, Align, Align2, Layout, Rect, RichText, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
@@ -177,7 +177,7 @@ pub fn top_row(ui: &mut Ui, cx: &mut Cx) {
             } else {
                 tip
             });
-            ui.label(small(if stale { "score (old)" } else { "score" }));
+            ui.label(small(if stale { "Previous score" } else { "Score" }));
         });
     });
 }
@@ -190,22 +190,18 @@ fn song_params(ui: &mut Ui, cx: &mut Cx) {
     ui.vertical(|ui| {
         ui.spacing_mut().item_spacing.y = 1.0;
         ui.add_space(3.0);
-        ui.label(RichText::new(&song.title).size(15.0).strong().color(TEXT));
+        ui.label(RichText::new(&song.title).size(15.5).strong().color(TEXT));
         ui.horizontal(|ui| {
-            widgets::pill(ui, &song.genre.replace('_', " "), theme::section_color("drop"));
-            ui.label(small(format!(
-                "seed {} · {} bars · {}",
-                song.seed,
-                song.bars,
-                crate::mock::fmt_time(song.seconds)
-            )));
+            widgets::pill(ui, &song.genre.replace('_', " "), LCD_TEXT);
+            ui.label(small(format!("{} bars · {}", song.bars, crate::mock::fmt_time(song.seconds))))
+                .on_hover_text(format!("seed {}: the same genre and seed make the same song", song.seed));
         });
     });
     ui.add_space(10.0);
     ui.separator();
     ui.vertical(|ui| {
         ui.spacing_mut().item_spacing.y = 2.0;
-        ui.label(small("BPM"));
+        ui.label(small("Tempo"));
         let r = ui
             .add(
                 egui::DragValue::new(&mut song.bpm)
@@ -213,16 +209,17 @@ fn song_params(ui: &mut Ui, cx: &mut Cx) {
                     .clamp_existing_to_range(false)
                     .speed(0.2)
                     .fixed_decimals(1)
+                    .suffix(" BPM")
                     .update_while_editing(false),
             )
-            .on_hover_text("tempo (drag or type)");
+            .on_hover_text("beats a minute (drag or type)");
         if commit(&r) {
             cx.out.push(Command::SetTempo { bpm: song.bpm });
         }
     });
     ui.vertical(|ui| {
         ui.spacing_mut().item_spacing.y = 2.0;
-        ui.label(small("KEY"));
+        ui.label(small("Key"));
         let key = Key::parse(&song.key).unwrap_or(Key { tonic: 9, mode: 1 });
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
@@ -254,7 +251,7 @@ fn song_params(ui: &mut Ui, cx: &mut Cx) {
     });
     ui.vertical(|ui| {
         ui.spacing_mut().item_spacing.y = 2.0;
-        ui.label(small("SWING"));
+        ui.label(small("Swing"));
         let r = ui
             .add(
                 egui::DragValue::new(&mut song.swing)
@@ -325,12 +322,12 @@ fn swap_menu(ui: &mut Ui, song: Option<&claudius_api::SongView>, out: &mut Vec<C
 }
 
 pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
-    let busy = cx.state.busy.is_some();
     let has_song = cx.state.song.is_some();
+    let demo = cx.server.is_none();
     ui.horizontal_centered(|ui| {
         ui.spacing_mut().item_spacing.x = 6.0;
         let new_song = widgets::tool_button(ui, Icon::New, "New song", true, false)
-            .on_hover_text("generate a new song from a genre");
+            .on_hover_text("make a new song from a genre, or from a recording");
         cx.view.anchors.new_song = Some(new_song.rect);
         if new_song.clicked() {
             cx.view.new_song.open = true;
@@ -338,8 +335,8 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
                 cx.view.new_song.set_genre(&song.genre);
             }
         }
-        let open =
-            widgets::icon_button(ui, Icon::Open, 28.0, false, true, "open a song: a blueprint.json or a script file");
+        let open = widgets::tool_button(ui, Icon::Open, "Open", true, false)
+            .on_hover_text("open a song: a blueprint.json or a script file");
         egui::Popup::from_toggle_button_response(&open)
             .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
             .show(|ui| {
@@ -352,44 +349,207 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
                     ui.close();
                 }
             });
-        ui.separator();
-        let busy_tip = format!("busy: {}", cx.state.busy.clone().unwrap_or_default());
-        let r = widgets::tool_button(ui, Icon::Render, "Render", has_song, !busy).on_hover_text(if busy {
-            "render (again) when the current job is done; with stems: one file per track too"
+        let page = cfg!(target_arch = "wasm32");
+        let (save, save_tip) = if demo {
+            (
+                "Download",
+                "download the song as a FLAC file, lossless at about half a WAV's size (Export has MP3, Opus and WAV)",
+            )
+        } else if page {
+            (
+                "Save",
+                "download the song, and save it in a folder of its own on the computer claudius runs on: blueprint, \
+                 script, audio, stems and verdict",
+            )
         } else {
-            "render, mix and master the song, then judge it (claudius also renders after every change)"
+            (
+                "Save",
+                "save the song in a folder of its own under ~/Music/claudius (blueprint, script, audio, stems and \
+                 verdict), and show the folder",
+            )
+        };
+        if widgets::tool_button(ui, Icon::Save, save, has_song, false).on_hover_text(save_tip).clicked() {
+            ask_download(cx.state, cx.view, cx.out, demo, cx.now, None);
+        }
+        ui.separator();
+        let tries = widgets::menu_button(ui, Icon::Mutate, "Variations", has_song)
+            .on_hover_text("try versions of the song with a change or two each, and keep the one that sounds best");
+        egui::Popup::from_toggle_button_response(&tries)
+            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+            .show(|ui| variations_menu(ui, cx));
+        let improve = widgets::menu_button(ui, Icon::Improve, "Improve", has_song)
+            .on_hover_text("let claudius improve the song by itself, over rounds of variations");
+        egui::Popup::from_toggle_button_response(&improve)
+            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+            .show(|ui| improve_menu(ui, cx));
+        let sounds = widgets::menu_button(ui, Icon::Swap, "Sounds", has_song)
+            .on_hover_text("swap the song's sounds for others that fit: every part's, the drums' kit, or both");
+        egui::Popup::menu(&sounds).show(|ui| swap_menu(ui, cx.state.song.as_ref(), cx.out));
+        ui.separator();
+        let export = widgets::menu_button(ui, Icon::Export, "Export", has_song).on_hover_text(
+            "the song as a file (WAV, FLAC, MP3 and more), each track on its own, or ready for the stores",
+        );
+        egui::Popup::from_toggle_button_response(&export)
+            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+            .show(|ui| export_menu(ui, cx));
+        ui.separator();
+        let cmd = widgets::cmd_key(ui.ctx());
+        let undo_tip = match &cx.state.undo_label {
+            Some(l) => format!("undo: {l} ({cmd}+Z)"),
+            None => format!("nothing to undo ({cmd}+Z)"),
+        };
+        if widgets::icon_button(ui, Icon::Undo, 28.0, false, cx.state.can_undo, &undo_tip).clicked() {
+            cx.out.push(Command::Undo);
+        }
+        let redo_tip = match &cx.state.redo_label {
+            Some(l) => format!("redo: {l} (Shift+{cmd}+Z)"),
+            None => format!("nothing to redo (Shift+{cmd}+Z)"),
+        };
+        if widgets::icon_button(ui, Icon::Redo, 28.0, false, cx.state.can_redo, &redo_tip).clicked() {
+            cx.out.push(Command::Redo);
+        }
+
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            status(ui, cx);
+            if let Some(t) = &cx.view.toast
+                && cx.now - t.at < 6.0
+            {
+                let color = if t.ok { TEXT_DIM } else { theme::BAD };
+                // what came of it is its first line ("sampled 2 phrases of ..."); the rest is on hover and in the log
+                let text: String = t.text.lines().next().unwrap_or_default().chars().take(120).collect();
+                // what the label leaves for the dot and the gap to the buttons on the left
+                let room = ui.available_width() - 10.0 - 2.0 * ui.spacing().item_spacing.x;
+                ui.allocate_ui(vec2(room.max(0.0), ui.available_height()), |ui| {
+                    ui.add(egui::Label::new(RichText::new(text).color(color)).truncate()).on_hover_text(&t.text);
+                });
+                widgets::dot(ui, if t.ok { theme::GOOD } else { theme::BAD });
+            }
         });
+    });
+}
+
+/// what a job in progress says of itself, as a sentence starts ("Rendering", "Mutating: judging 4 variations")
+fn sentence(job: &str) -> String {
+    let mut c = job.chars();
+    c.next().map_or_else(String::new, |first| first.to_uppercase().chain(c).collect())
+}
+
+/// the toolbar's right end: what claudius is doing, or whether what plays is the song as it is now
+fn status(ui: &mut Ui, cx: &mut Cx) {
+    if let Some(job) = cx.state.busy.clone() {
+        // a step of listening to a recording runs to its end: only a job is offered to be cancelled
+        if cx.state.cancellable
+            && widgets::icon_button(ui, Icon::Cancel, 26.0, false, true, "cancel the running job").clicked()
+        {
+            cx.out.push(Command::Cancel);
+        }
+        if let Some(p) = cx.state.progress {
+            ui.add(
+                egui::ProgressBar::new(p.clamp(0.0, 1.0))
+                    .desired_width(140.0)
+                    .desired_height(12.0)
+                    .fill(ACCENT)
+                    .text(RichText::new(format!("{:.0}%", p * 100.0)).size(10.5)),
+            );
+        }
+        ui.label(RichText::new(sentence(&job)).color(TEXT));
+        ui.add(egui::Spinner::new().size(16.0).color(ACCENT));
+    } else if cx.state.song.is_some() && (cx.state.render.is_none() || cx.render_stale()) {
+        let r = widgets::tool_button(ui, Icon::Render, "Render", true, true)
+            .on_hover_text("render, mix and master the song as it is now, then judge it");
         if r.clicked() {
-            cx.out.push(Command::Render { stems: cx.view.stems });
+            cx.out.push(Command::Render { stems: false });
         }
-        ui.checkbox(&mut cx.view.stems, small("stems")).on_hover_text("also write one file per track");
-        if let Some(r) = cx.state.render.as_ref().filter(|r| !r.stems.is_empty()) {
-            let version = r.version;
-            ui.menu_button(small(format!("{} stems", r.stems.len())), |ui| {
-                ui.label(small(format!("the tracks of render {version}, as 24-bit WAV")));
-                for stem in &r.stems {
-                    let url = cx.server.map_or_else(
-                        || format!("/api/stems/{version}/{stem}.wav"),
-                        |base| format!("{base}/api/stems/{version}/{stem}.wav"),
-                    );
-                    ui.hyperlink_to(stem, url);
-                }
-            })
-            .response
-            .on_hover_text("download one file per track");
+        let what = if cx.state.render.is_none() { "Not rendered yet" } else { "Changes not rendered yet" };
+        ui.label(RichText::new(what).color(theme::WARN))
+            .on_hover_text("what plays is from before the latest changes, and so is the score");
+    } else if cx.state.song.is_some() {
+        ui.label(RichText::new("Up to date").color(TEXT_DIM))
+            .on_hover_text("what plays, and the score, are of the song as it is now");
+        let (rect, _) = ui.allocate_exact_size(vec2(16.0, 16.0), Sense::hover());
+        widgets::paint_icon(ui.painter(), rect, Icon::Done, theme::GOOD);
+    }
+    ui.add_space(12.0);
+}
+
+/// the Variations menu: how many versions of the song to try, and whether the best is kept
+fn variations_menu(ui: &mut Ui, cx: &mut Cx) {
+    ui.set_width(320.0);
+    ui.label(RichText::new("Try variations").strong());
+    ui.label(small(
+        "claudius makes versions of the song with a change or two each (a part written again, another sound, a \
+         section reworked), and listens to every one",
+    ));
+    ui.add_space(6.0);
+    ui.horizontal(|ui| {
+        ui.label("How many");
+        ui.add(egui::DragValue::new(&mut cx.view.mutate_count).range(1..=32));
+    });
+    ui.checkbox(&mut cx.view.keep_best, "Keep the best, if it beats the song")
+        .on_hover_text("otherwise each one's score goes to the Log, and the song stays as it is");
+    ui.add_space(6.0);
+    let busy = cx.state.busy.is_some();
+    let label = format!("Try {}", cx.view.mutate_count);
+    let go = widgets::tool_button(ui, Icon::Mutate, &label, !busy, true);
+    if busy {
+        go.on_hover_text("wait for what claudius is doing to finish");
+    } else if go.clicked() {
+        cx.out.push(Command::Mutate { count: cx.view.mutate_count, keep_best: cx.view.keep_best });
+        ui.close();
+    }
+}
+
+/// the Improve menu: rounds of variations, each from the best so far
+fn improve_menu(ui: &mut Ui, cx: &mut Cx) {
+    ui.set_width(320.0);
+    ui.label(RichText::new("Improve the song").strong());
+    ui.label(small(
+        "round after round, claudius tries variations of the best version so far, steered by what the critic \
+         hears, and keeps whichever sounds best. Undo goes back to the song before.",
+    ));
+    ui.add_space(6.0);
+    egui::Grid::new("improve").num_columns(2).spacing(vec2(10.0, 6.0)).show(ui, |ui| {
+        ui.label("Rounds");
+        ui.add(egui::DragValue::new(&mut cx.view.generations).range(1..=20));
+        ui.end_row();
+        ui.label("Variations a round");
+        ui.add(egui::DragValue::new(&mut cx.view.children).range(2..=32));
+        ui.end_row();
+    });
+    ui.add_space(6.0);
+    let busy = cx.state.busy.is_some();
+    let go = widgets::tool_button(ui, Icon::Improve, "Improve", !busy, true);
+    if busy {
+        go.on_hover_text("wait for what claudius is doing to finish");
+    } else if go.clicked() {
+        cx.out.push(Command::Evolve { generations: cx.view.generations, children: cx.view.children });
+        ui.close();
+    }
+}
+
+/// the Export menu: the song in a format, its tracks one file each, and the files a distributor takes
+fn export_menu(ui: &mut Ui, cx: &mut Cx) {
+    ui.set_width(380.0);
+    // the demo has no server to fetch a file from: its engine makes the one asked for
+    let demo = cx.server.is_none();
+    let name = cx.state.song.as_ref().map_or_else(|| "song".to_string(), |s| file_name(&s.title));
+    let mut asked = None;
+    ui.label(RichText::new("The song").strong());
+    match cx.state.render.as_ref() {
+        None => {
+            ui.label(small("render the song first"));
         }
-        if let Some(r) = cx.state.render.as_ref().filter(|_| !cx.state.exports.is_empty()) {
+        Some(r) => {
             let version = r.version;
-            let name = cx.state.song.as_ref().map_or_else(|| "song".to_string(), |s| file_name(&s.title));
-            // the demo has no server to fetch a file from: its engine makes the one asked for
-            let demo = cx.server.is_none();
-            let mut asked = None;
-            ui.menu_button(small("export"), |ui| {
-                if version < cx.state.song_version && !demo {
-                    ui.label(small(format!("render {version}, from before the latest change")));
+            if version < cx.state.song_version && !demo {
+                ui.label(small(format!("render {version}, from before the latest change")));
+            }
+            for (lossless, heading) in [(true, "lossless"), (false, "compressed")] {
+                if !cx.state.exports.iter().any(|f| f.lossless == lossless) {
+                    continue;
                 }
-                for (lossless, heading) in [(true, "lossless"), (false, "compressed")] {
-                    ui.label(small(heading).weak());
+                ui.label(small(heading));
+                ui.horizontal_wrapped(|ui| {
                     for f in cx.state.exports.iter().filter(|f| f.lossless == lossless) {
                         let path = format!("/api/export/{version}/{name}.{}?format={}", f.extension, f.spec);
                         let url = cx.server.map_or_else(|| path.clone(), |base| format!("{base}{path}"));
@@ -408,126 +568,61 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
                             }
                         }
                     }
-                }
-                if demo {
-                    ui.label(small("project").weak());
-                    let project = ui.button("claudius project (.zip)").on_hover_text(
-                        "the song itself, the samples it plays and where each came from: open it in claudius to \
-                         carry on with it",
-                    );
-                    if project.clicked() {
-                        asked = Some(crate::mock::PROJECT.to_string());
-                        ui.close();
-                    }
-                }
-            })
-            .response
-            .on_hover_text("download the song as WAV, AIFF, FLAC, Apple Lossless, MP3, AAC, Opus or Ogg Vorbis");
-            if asked.is_some() {
-                ask_download(cx.state, cx.view, cx.out, demo, cx.now, asked);
-            }
-        }
-        if has_song
-            && ui
-                .button(small("publish"))
-                .on_hover_text("check the song as stores do, and write the files and answers a distributor takes")
-                .clicked()
-        {
-            cx.view.publish.show();
-        }
-        ui.separator();
-        if widgets::tool_button(ui, Icon::Mutate, "Mutate", has_song && !busy, false)
-            .on_hover_text("try random mutations, listen to each, keep the best")
-            .on_disabled_hover_text(&busy_tip)
-            .clicked()
-        {
-            cx.out.push(Command::Mutate { count: cx.view.mutate_count, keep_best: cx.view.keep_best });
-        }
-        ui.add(egui::DragValue::new(&mut cx.view.mutate_count).range(1..=32).prefix("×")).on_hover_text("candidates");
-        ui.checkbox(&mut cx.view.keep_best, small("keep best"));
-        ui.separator();
-        let sounds = widgets::tool_button(ui, Icon::Swap, "Sounds", has_song, false)
-            .on_hover_text("swap the song's sounds for others that fit: every part's, the drums' kit, or both");
-        egui::Popup::menu(&sounds).show(|ui| swap_menu(ui, cx.state.song.as_ref(), cx.out));
-        ui.separator();
-        if widgets::tool_button(ui, Icon::Evolve, "Evolve", has_song && !busy, false)
-            .on_hover_text("several generations of mutation + listening")
-            .on_disabled_hover_text(&busy_tip)
-            .clicked()
-        {
-            cx.out.push(Command::Evolve { generations: cx.view.generations, children: cx.view.children });
-        }
-        ui.add(egui::DragValue::new(&mut cx.view.generations).range(1..=50).suffix(" gen"))
-            .on_hover_text("generations");
-        ui.add(egui::DragValue::new(&mut cx.view.children).range(1..=32).suffix(" kids"))
-            .on_hover_text("children per generation");
-        ui.separator();
-        let cmd = widgets::cmd_key(ui.ctx());
-        let undo_tip = match &cx.state.undo_label {
-            Some(l) => format!("undo: {l} ({cmd}+Z)"),
-            None => format!("nothing to undo ({cmd}+Z)"),
-        };
-        if widgets::icon_button(ui, Icon::Undo, 28.0, false, cx.state.can_undo, &undo_tip).clicked() {
-            cx.out.push(Command::Undo);
-        }
-        let redo_tip = match &cx.state.redo_label {
-            Some(l) => format!("redo: {l} (Shift+{cmd}+Z)"),
-            None => format!("nothing to redo (Shift+{cmd}+Z)"),
-        };
-        if widgets::icon_button(ui, Icon::Redo, 28.0, false, cx.state.can_redo, &redo_tip).clicked() {
-            cx.out.push(Command::Redo);
-        }
-        let demo = cx.server.is_none();
-        let page = cfg!(target_arch = "wasm32");
-        let save_tip = if demo {
-            "download the song as a FLAC file, lossless at about half a WAV's size (export has MP3, Opus and WAV)"
-        } else if page {
-            "download the song, and save it in a folder of its own on the computer claudius runs on: blueprint, \
-             script, audio, stems and verdict"
-        } else {
-            "save the song in a folder of its own under ~/Music/claudius (blueprint, script, audio, stems and \
-             verdict), and show the folder"
-        };
-        if widgets::icon_button(ui, Icon::Save, 28.0, false, has_song, save_tip).clicked() {
-            ask_download(cx.state, cx.view, cx.out, demo, cx.now, None);
-        }
-
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if let Some(job) = cx.state.busy.clone() {
-                // a step of listening to a recording runs to its end: only a job is offered to be cancelled
-                if cx.state.cancellable
-                    && widgets::icon_button(ui, Icon::Cancel, 26.0, false, true, "cancel the running job").clicked()
-                {
-                    cx.out.push(Command::Cancel);
-                }
-                if let Some(p) = cx.state.progress {
-                    ui.add(
-                        egui::ProgressBar::new(p.clamp(0.0, 1.0))
-                            .desired_width(150.0)
-                            .desired_height(10.0)
-                            .fill(ACCENT)
-                            .text(RichText::new(format!("{:.0}%", p * 100.0)).size(10.0)),
-                    );
-                }
-                ui.label(RichText::new(job).color(theme::mix(ACCENT, TEXT, 0.4)));
-                ui.add(egui::Spinner::new().size(16.0).color(ACCENT));
-                ui.add_space(12.0);
-            }
-            if let Some(t) = &cx.view.toast
-                && cx.now - t.at < 6.0
-            {
-                let color = if t.ok { TEXT_DIM } else { theme::BAD };
-                // what came of it is its first line ("sampled 2 phrases of ..."); the rest is on hover and in the log
-                let text: String = t.text.lines().next().unwrap_or_default().chars().take(120).collect();
-                // what the label leaves for the dot and the gap to the buttons on the left
-                let room = ui.available_width() - 10.0 - 2.0 * ui.spacing().item_spacing.x;
-                ui.allocate_ui(vec2(room.max(0.0), ui.available_height()), |ui| {
-                    ui.add(egui::Label::new(RichText::new(text).color(color)).truncate()).on_hover_text(&t.text);
                 });
-                widgets::dot(ui, if t.ok { theme::GOOD } else { theme::BAD });
             }
-        });
-    });
+        }
+    }
+    ui.add_space(4.0);
+    ui.separator();
+    ui.label(RichText::new("Each track on its own").strong());
+    match cx.state.render.as_ref().filter(|r| !r.stems.is_empty()) {
+        Some(r) => {
+            let version = r.version;
+            ui.label(small(format!("the tracks of render {version}, as 24-bit WAV")));
+            ui.horizontal_wrapped(|ui| {
+                for stem in &r.stems {
+                    let url = cx.server.map_or_else(
+                        || format!("/api/stems/{version}/{stem}.wav"),
+                        |base| format!("{base}/api/stems/{version}/{stem}.wav"),
+                    );
+                    ui.hyperlink_to(stem, url);
+                }
+            });
+        }
+        None => {
+            ui.label(small("one 24-bit WAV a track (stems), for mixing the song in another studio"));
+            let busy = cx.state.busy.is_some();
+            if ui.add_enabled(!busy, egui::Button::new("Render the tracks")).clicked() {
+                cx.out.push(Command::Render { stems: true });
+                ui.close();
+            }
+        }
+    }
+    if demo {
+        ui.add_space(4.0);
+        ui.separator();
+        ui.label(RichText::new("The project").strong());
+        let project = ui.button("claudius project (.zip)").on_hover_text(
+            "the song itself, the samples it plays and where each came from: open it in claudius to carry on with it",
+        );
+        if project.clicked() {
+            asked = Some(crate::mock::PROJECT.to_string());
+            ui.close();
+        }
+    }
+    ui.add_space(4.0);
+    ui.separator();
+    if ui
+        .button("Publish…")
+        .on_hover_text("check the song as stores do, and write the files and answers a distributor takes")
+        .clicked()
+    {
+        cx.view.publish.show();
+        ui.close();
+    }
+    if asked.is_some() {
+        ask_download(cx.state, cx.view, cx.out, demo, cx.now, asked);
+    }
 }
 
 /// the "New song" dialog

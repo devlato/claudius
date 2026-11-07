@@ -55,17 +55,35 @@ impl Tab {
         Tab::Log,
     ];
 
+    /// the tabs for making the song, in the dock's order; the rest (`MORE`) sit at its right end
+    pub const MAIN: [Tab; 6] = [Tab::Sequencer, Tab::Parts, Tab::Notes, Tab::Harmony, Tab::Mixer, Tab::Sounds];
+    pub const MORE: [Tab; 3] = [Tab::Script, Tab::Graph, Tab::Log];
+
     pub fn label(self) -> &'static str {
         match self {
-            Tab::Sequencer => "Step sequencer",
+            Tab::Sequencer => "Drums",
             Tab::Mixer => "Mixer",
-            Tab::Parts => "Parts",
-            Tab::Notes => "Piano roll",
-            Tab::Harmony => "Harmony",
+            Tab::Parts => "Instruments",
+            Tab::Notes => "Notes",
+            Tab::Harmony => "Chords",
             Tab::Script => "Script",
             Tab::Sounds => "Sounds",
-            Tab::Graph => "Graph",
+            Tab::Graph => "Signal flow",
             Tab::Log => "Log",
+        }
+    }
+
+    pub fn tip(self) -> &'static str {
+        match self {
+            Tab::Sequencer => "each section's drum pattern, step by step",
+            Tab::Mixer => "every track's level, pan, effects and sends",
+            Tab::Parts => "each instrument's style, sound, range and how busy it plays",
+            Tab::Notes => "an instrument's notes over a chord progression, as a piano roll",
+            Tab::Harmony => "the song's chord progressions, and which section plays which",
+            Tab::Script => "the whole song as a claudius script, to read, change and run",
+            Tab::Sounds => "the sounds and drum kits claudius can use, and packs of more",
+            Tab::Graph => "how every track runs through its effects to the master",
+            Tab::Log => "what claudius did and said, newest last",
         }
     }
 }
@@ -239,7 +257,6 @@ pub struct View {
     pub trig_edit: Option<(String, String, usize, claudius_api::TrigView)>,
     pub script: ScriptEditor,
     pub new_song: NewSongForm,
-    pub stems: bool,
     pub mutate_count: usize,
     pub keep_best: bool,
     pub generations: usize,
@@ -326,7 +343,6 @@ impl Default for View {
                 complexity: None,
                 genre_search: String::new(),
             },
-            stems: false,
             mutate_count: 4,
             keep_best: true,
             generations: 3,
@@ -644,7 +660,7 @@ pub fn melodic_sounds(sounds: Option<&SoundList>) -> (Vec<String>, Vec<String>) 
 }
 
 pub fn small(text: impl Into<String>) -> RichText {
-    RichText::new(text).size(11.0).color(TEXT_DIM)
+    RichText::new(text).size(11.5).color(TEXT_DIM)
 }
 
 pub fn fmt_time(secs: f64) -> String {
@@ -661,6 +677,15 @@ pub fn page_frame() -> egui::Frame {
 mod tests {
     use super::*;
     use claudius_api::{GenreSampling, RenderView};
+
+    #[test]
+    fn the_dock_shows_every_tab_once() {
+        for tab in Tab::ALL {
+            let shown = Tab::MAIN.iter().chain(&Tab::MORE).filter(|t| **t == tab).count();
+            assert_eq!(shown, 1, "{tab:?}");
+        }
+        assert_eq!(Tab::MAIN.len() + Tab::MORE.len(), Tab::ALL.len());
+    }
 
     #[test]
     fn an_answer_that_changed_the_song_closes_the_window_it_came_from_and_an_analysis_or_a_refusal_keeps_it_open() {

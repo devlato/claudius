@@ -72,7 +72,7 @@ Each candidate records its id (`g2-1`: generation 2, child 1), its parent, what 
 writes them all to `evolution.json` and renders the best in full; the session keeps the best only if it beats the
 song it started from.
 
-The studio's **Mutate** (the `mutate` command and MCP tool) is a single generation without crossover: `count`
+The studio's **Variations** (the `mutate` command and MCP tool) is a single generation without crossover: `count`
 children of the current song, one or two mutations each, steered by the current song's issues, judged on the same
 32-bar previews, and the best kept if it beats the current song's preview score.
 

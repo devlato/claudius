@@ -535,7 +535,7 @@ length, pitch, velocity]`: beats from the start of the progression's cycle, beat
 part comes round after the last note it reaches. An empty list rests over that progression. `clear_notes()` lets
 the theory engine write the progression again.
 
-The studio's **Piano roll** writes these. A song printed as a script writes a `notes()` line for every progression a
+The studio's piano roll, its **Notes** tab, writes these. A song printed as a script writes a `notes()` line for every progression a
 part has written out, by hand, from a take or from a keyboard, so the script plays the same notes.
 
 Errors: `notes(): no part 'nope' (parts: bass chords pad lead arp)`; `notes(): no progression 'Z' (progressions: A

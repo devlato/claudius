@@ -31,15 +31,17 @@ The studio is still being finished; this page describes its structure, which is 
 ```text
 ┌───────────────────────────────────────────────────────────────────────────────┐
 │ transport: play, position, tempo / key / swing, score                          │
-│ toolbar: new song, render, mutate, evolve, undo / redo, save, cancel, busy     │
+│ toolbar: new song, open, save · variations ▾ · improve ▾ · sounds ▾ · export ▾ │
+│          undo / redo · status: the job, its progress and cancel, or up to date │
 ├───────────────────────────────────────────────────────┬───────────────────────┤
 │ arrangement: section blocks, one row per layer with    │ inspector: the        │
 │ a cell per section, the waveform and playhead          │ selected section      │
 ├───────────────────────────────────────────────────────┤                       │
-│ dock: step sequencer │ mixer │ parts │ harmony │ script │ verdict: scores,     │
-│       │ sounds │ graph │ log                           │ issues, ears, bands   │
+│ dock: drums · instruments · notes · chords · mixer ·  │ verdict: scores,       │
+│       sounds · and at the right: script · signal flow │ issues, ears, bands    │
+│       · log                                           │                        │
 ├───────────────────────────────────────────────────────┴───────────────────────┤
-│ status: connection, server, state version, audio errors, volume, shortcuts     │
+│ status: connection, server, audio errors, volume, shortcuts                    │
 └───────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -47,15 +49,15 @@ The studio is still being finished; this page describes its structure, which is 
 |---|---|---|
 | arrangement | section order; which layers play in which section (click or drag across cells); seeking; **+ Track**: a part of a role or a drum lane, named, its sound from `SoundList` (the role's synths first by `synth_roles`, the instruments, or a lane's drum voices and `kit`); a row's menu: mute, solo, on or off everywhere, removing the track, and a take's: how it is sung (shown in a window until closed), tuning it, its melody as notes | `move_section`, `toggle_layer`, `add_track`, `remove_track`, `assess_voice`, `tune`, `transcribe_take` |
 | inspector | the selected section's name, bars, energy, variant and flags; adding, duplicating, removing | `set_section`, `add_section`, `remove_section`, `move_section` |
-| step sequencer | one row per drum lane, one cell per sixteenth, one variant at a time; click toggles (velocity 0.8), drag paints, shift sets velocity, right-click offers presets; an accent dot and the "(accent)" and "(ghost)" labels follow `claudius_api::{ACCENT, GHOST}`, the thresholds of the engine's step strings | `set_drum_step`, `set_drum_pattern` |
+| step sequencer (the Drums tab) | one row per drum lane, one cell per sixteenth, one variant at a time; click toggles (velocity 0.8), drag paints, shift sets velocity, right-click offers presets; an accent dot and the "(accent)" and "(ghost)" labels follow `claudius_api::{ACCENT, GHOST}`, the thresholds of the engine's step strings | `set_drum_step`, `set_drum_pattern` |
 | record | a take recorded over the song from a count-in, played back, kept; latency measured; a take an assistant asks for; a pitch check: its phrases synthesised from `State.pitch_check` and played as the song a take records over, the answers sent to `/api/pitch-check` when the phrases end | `add_notes`, `cancel_take_request`, `request_pitch_check`, `cancel_pitch_check` |
 | mixer | a strip per track: pan, sends, duck, drive, fader, mute, solo, with its loudness from the latest render | `set_mix` |
-| parts | style, sound, register (drag on a keyboard), density, reseed | `set_part` |
-| piano roll | a part's cycle over a progression from `PartView::cycles`, on a grid of beats and pitches: click adds a note at the grid (1/16 to 1/2), a drag moves a note or, by its right edge, makes it longer, right-click takes it out; a drag edits a draft sent when let go, and a cycle the theory engine writes is written out by the first edit. The demo writes its cycles with the same code it plays them with (`mock::synth::write_cycles`) and plays a cycle written out | `set_notes` |
-| harmony | which progression each section plays; progressions as chord chips, from the key's diatonic chords or as text | `set_section`, `set_progression` |
+| parts (Instruments) | style, sound, register (drag on a keyboard), density, reseed | `set_part` |
+| piano roll (Notes) | a part's cycle over a progression from `PartView::cycles`, on a grid of beats and pitches: click adds a note at the grid (1/16 to 1/2), a drag moves a note or, by its right edge, makes it longer, right-click takes it out; a drag edits a draft sent when let go, and a cycle the theory engine writes is written out by the first edit. The demo writes its cycles with the same code it plays them with (`mock::synth::write_cycles`) and plays a cycle written out | `set_notes` |
+| harmony (Chords) | which progression each section plays; progressions as chord chips, from the key's diatonic chords or as text | `set_section`, `set_progression` |
 | script | the song as a script, highlighted, Run with Cmd or Ctrl+Enter, errors marking their line, sounds to insert, the reference | `run_script` |
 | sounds | the packs and every sound name; click one to put it on a part | `set_part` |
-| graph | the song's signal as nodes and edges (`SongView::graph`, laid out in columns from the tracks to the finished song) in an `egui::Scene` to pan and zoom; the inspector beside it edits the node chosen: a track's mix, bus, sections and sound, an effect's settings (each JSON field by its type, the rest as JSON text), a chain's effects added from `EFFECT_TEMPLATES`, moved or taken out, the master's loudness | `set_mix`, `toggle_layer`, `set_part`, `set_fx`, `run_script` (the master's loudness) |
+| graph (Signal flow) | the song's signal as nodes and edges (`SongView::graph`, laid out in columns from the tracks to the finished song) in an `egui::Scene` to pan and zoom; the inspector beside it edits the node chosen: a track's mix, bus, sections and sound, an effect's settings (each JSON field by its type, the rest as JSON text), a chain's effects added from `EFFECT_TEMPLATES`, moved or taken out, the master's loudness | `set_mix`, `toggle_layer`, `set_part`, `set_fx`, `run_script` (the master's loudness) |
 | verdict | read only: the total, a bar per score, issues with their targets, the ears, the tonal balance | |
 | log | read only: `State.log`, filterable | |
 
@@ -434,5 +436,5 @@ cargo xtask web                       # trunk build --release, with relative ass
 `Trunk.toml` builds `index.html` with relative URLs (`public_url = "./"`), so the same `dist` works at `/` of any
 claudius and from a static file server, and hashes file names so a browser never runs a stale build. CI runs clippy
 for `wasm32-unknown-unknown` separately, because the native clippy run never sees the code behind
-`cfg(target_arch = "wasm32")`. Preferences (the open tab, volume, mutate and evolve settings) persist through eframe:
+`cfg(target_arch = "wasm32")`. Preferences (the open tab, volume, the Variations and Improve settings) persist through eframe:
 natively in `claudius-studio/app.ron` under the platform's data folder, on the web in local storage.

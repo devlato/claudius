@@ -19,7 +19,8 @@ pub const LINE: Color32 = rgb(46, 51, 62);
 pub const LINE_SOFT: Color32 = rgb(31, 35, 43);
 pub const TEXT: Color32 = rgb(221, 225, 232);
 pub const TEXT_DIM: Color32 = rgb(143, 151, 164);
-pub const TEXT_FAINT: Color32 = rgb(94, 101, 114);
+/// the quietest text: still 4.5:1 against a panel, as small text needs to be read
+pub const TEXT_FAINT: Color32 = rgb(124, 131, 145);
 pub const ACCENT: Color32 = rgb(255, 163, 72);
 pub const GOOD: Color32 = rgb(84, 212, 134);
 pub const WARN: Color32 = rgb(246, 192, 74);
@@ -167,10 +168,10 @@ pub fn apply(ctx: &egui::Context) {
     ctx.set_theme(Theme::Dark);
     ctx.style_mut_of(Theme::Dark, |style| {
         style.text_styles = [
-            (TextStyle::Heading, medium(15.0)),
-            (TextStyle::Body, prop(13.0)),
-            (TextStyle::Button, medium(12.5)),
-            (TextStyle::Small, prop(11.0)),
+            (TextStyle::Heading, medium(16.0)),
+            (TextStyle::Body, prop(13.5)),
+            (TextStyle::Button, medium(13.0)),
+            (TextStyle::Small, prop(11.5)),
             (TextStyle::Monospace, mono(12.5)),
         ]
         .into();

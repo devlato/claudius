@@ -1014,19 +1014,19 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 painter.line_segment([lr.left_top(), lr.right_top()], Stroke::new(2.0, theme::alpha(ACCENT, 0.8)));
             }
             if stale {
-                let note = if cx.state.busy.is_some() {
-                    "older than the song: the new render is on its way"
+                let note = if r.url == claudius_api::PREVIEW_URL {
+                    "the first bars, while the rest renders"
                 } else {
-                    "older than the song: press Render"
+                    "this is the song before its latest changes"
                 };
-                let galley = painter.layout_no_wrap(note.to_string(), theme::prop(10.5), theme::WARN);
+                let galley = painter.layout_no_wrap(note.to_string(), theme::prop(11.5), TEXT_DIM);
                 let at = wave.right_top() + vec2(-8.0 - galley.size().x, 4.0);
                 painter.rect_filled(
                     egui::Rect::from_min_size(at, galley.size()).expand(3.0),
                     3.0,
                     theme::alpha(WELL, 0.85),
                 );
-                painter.galley(at, galley, theme::WARN);
+                painter.galley(at, galley, TEXT_DIM);
             }
             let resp = ui.interact(wave, ui.scope_id().with("wave"), Sense::click_and_drag());
             if (resp.clicked() || resp.dragged())
