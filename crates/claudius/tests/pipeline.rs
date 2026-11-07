@@ -98,6 +98,84 @@ fn click_track(bpm: f64, secs: f64) -> Stereo {
     Stereo::from_mono(&x)
 }
 
+/// A band whose tempo rises from `from` to `to` BPM over `bars` bars of 4/4: a kick on one and three, a snare on two
+/// and four, hats on the eighths, and a bass on the root of each bar's chord (A, F, C, G round and round); and when
+/// each of its beats falls, the first a second in.
+fn band(from: f64, to: f64, bars: usize) -> (Stereo, Vec<f64>) {
+    let beats = bars * 4;
+    let mut at = vec![1.0];
+    for k in 0..beats {
+        let bpm = from + (to - from) * k as f64 / beats as f64;
+        at.push(at[k] + 60.0 / bpm);
+    }
+    let n = ((at[beats] + 1.0) * SRF) as usize;
+    let mut x = vec![0.0f32; n];
+    let mut rng = claudius::rng::Rng::new(11);
+    let hit = |x: &mut Vec<f32>, t: f64, secs: f64, f: &dyn Fn(f64) -> f32| {
+        let s = (t * SRF) as usize;
+        for i in 0..((secs * SRF) as usize).min(n - s) {
+            x[s + i] += f(i as f64 / SRF);
+        }
+    };
+    for k in 0..beats {
+        let (t, beat) = (at[k], at[k + 1] - at[k]);
+        if k % 2 == 0 {
+            let mut o = Osc::new(Wave::Sine, 0.0);
+            let s = (t * SRF) as usize;
+            for i in 0..((0.15 * SRF) as usize).min(n - s) {
+                let tt = i as f64 / SRF;
+                x[s + i] += o.tick(50.0 + 120.0 * (-tt / 0.02).exp(), SRF) * (-tt / 0.06).exp() as f32 * 0.9;
+            }
+        } else {
+            let noise: Vec<f32> = (0..(0.12 * SRF) as usize).map(|_| rng.f32() - 0.5).collect();
+            hit(&mut x, t, 0.12, &|tt| noise[(tt * SRF) as usize] * (-tt / 0.04).exp() as f32 * 0.6);
+        }
+        for h in [t, t + beat / 2.0] {
+            let noise: Vec<f32> = (0..(0.03 * SRF) as usize + 1).map(|_| rng.f32() - 0.5).collect();
+            hit(&mut x, h, 0.03, &|tt| {
+                let i = (tt * SRF) as usize;
+                (noise[i + 1] - noise[i]) * (-tt / 0.008).exp() as f32 * 0.3
+            });
+        }
+    }
+    // the bass, a bar a note, which changes on each downbeat
+    for b in 0..bars {
+        let (t0, t1) = (at[4 * b], at[4 * b + 4]);
+        let f = [55.0, 43.65, 65.41, 49.0][b % 4];
+        let s = (t0 * SRF) as usize;
+        for i in 0..(((t1 - t0) * SRF) as usize).min(n - s) {
+            let tt = i as f64 / SRF;
+            x[s + i] += ((std::f64::consts::TAU * f * tt).sin() * 0.25) as f32 * (1.0 - (-tt / 0.01).exp()) as f32;
+        }
+    }
+    (Stereo::from_mono(&x), at)
+}
+
+#[test]
+fn a_band_that_speeds_up_is_followed_beat_for_beat_and_one_that_keeps_time_is_on_its_grid() {
+    // 92 to 100 BPM over 48 bars: a grid of one tempo would be more than two beats off at one end or the other
+    let (x, at) = band(92.0, 100.0, 48);
+    let g = analysis::beats::track(&x.mono(), None);
+    assert!(!g.steady, "it speeds up: {} BPM", g.bpm);
+    let near = |t: f64, beats: &[f64]| beats.iter().map(|b| (b - t).abs()).fold(f64::MAX, f64::min);
+    let inner = &at[8..at.len() - 8];
+    let close = inner.iter().filter(|&&t| near(t, &g.beats) < 0.025).count();
+    assert!(close as f64 >= 0.95 * inner.len() as f64, "{close} of {} beats within 25 ms", inner.len());
+    // the bars start where the band's do, at the start, in the middle and at the end
+    let a = analysis::song::analyze(&x, None);
+    assert!(!a.steady && a.bars >= 46, "{} bars", a.bars);
+    let bar = a.bar_at(at[4] + 0.01) as usize;
+    for b in [2, 24, 44] {
+        let (heard, played) = (a.bar_start(bar + b - 1), at[4 * b]);
+        assert!((heard - played).abs() < 0.03, "bar {b}: {heard:.3} s, played at {played:.3} s");
+    }
+    // the same band in time keeps its grid
+    let (x, at) = band(96.0, 96.0, 24);
+    let g = analysis::beats::track(&x.mono(), None);
+    assert!(g.steady && (g.bpm - 96.0).abs() < 0.2, "{} BPM", g.bpm);
+    assert!(at[8..at.len() - 8].iter().all(|&t| near(t, &g.beats) < 0.015));
+}
+
 #[test]
 fn the_beat_tracker_finds_the_tempo() {
     for bpm in [92.0, 124.0, 140.0, 174.0] {

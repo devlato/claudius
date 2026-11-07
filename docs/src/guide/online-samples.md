@@ -118,7 +118,9 @@ break and the texture still come from the genre's.
 
 ### How a sample is cut and played
 
-Gathering downloads recordings of a fitting length and cuts each on its beat grid:
+Gathering downloads recordings of a fitting length and cuts each on its bars: the grid of its tempo, or, for a band
+that speeds up and slows down, the beats it plays, each bar of a piece then stretched to one length so that the piece
+keeps one tempo:
 
 | role | what is cut | how a song plays it |
 |---|---|---|

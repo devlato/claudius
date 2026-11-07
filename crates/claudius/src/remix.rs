@@ -117,14 +117,10 @@ fn split(x: &Stereo) -> (Stereo, Stereo) {
     (sustained, struck)
 }
 
-/// where bar `bar` of the recording starts in it, in samples
-fn bar_at(a: &Analysis, bar: usize) -> usize {
-    ((a.first_downbeat + bar as f64 * a.bar_secs) * SRF).round().max(0.0) as usize
-}
-
-/// bars `b` of `x`, faded in and out over a few milliseconds so that they loop without a click
+/// bars `b` of `x` on the beats the recording plays, each as long as another (`Analysis::cut`), faded in and out over
+/// a few milliseconds so that they loop without a click
 fn cut(x: &Stereo, a: &Analysis, b: Bars) -> Stereo {
-    let mut out = x.slice(bar_at(a, b.first), bar_at(a, b.first + b.count));
+    let mut out = a.cut(x, b.first, b.count);
     let n = out.len();
     out.fade(((0.002 * SRF) as usize).min(n / 4), ((0.004 * SRF) as usize).min(n / 4));
     out
@@ -157,7 +153,9 @@ pub fn flip(a: &Analysis, sustained: &Stereo, hook: Bars, rng: &mut Rng) -> (Ste
         let k = if same.is_empty() { hook.first + b } else { same[rng.below(same.len())] };
         let j = if rng.chance(0.25) { rng.below(8) } else { j };
         from.push(k);
-        let src = ((a.first_downbeat + k as f64 * a.bar_secs + j as f64 * half) * SRF).round() as usize;
+        // the half beat where it falls in that bar as it was played
+        let (b0, b1) = (a.bar_start(k), a.bar_start(k + 1));
+        let src = ((b0 + j as f64 * (b1 - b0) / 8.0) * SRF).round().max(0.0) as usize;
         let dst = (i as f64 * half * SRF).round() as usize;
         for t in 0..slot {
             let (s, d) = (src + t, dst + t);
@@ -594,6 +592,8 @@ mod tests {
             snare_steps: Vec::new(),
             hat_steps: Vec::new(),
             bass_style: "sustain".into(),
+            steady: true,
+            bar_starts: Vec::new(),
         }
     }
 
