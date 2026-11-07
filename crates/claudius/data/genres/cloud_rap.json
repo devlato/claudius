@@ -16,11 +16,11 @@
   "forms": [
     [
       {"name": "intro", "kind": "intro", "bars": 8, "energy": 0.3, "layers": ["pad", "keys"], "filter_in": true},
-      {"name": "hook", "kind": "hook", "bars": 16, "energy": 0.8, "layers": ["kick", "snare", "hat", "bass", "pad", "keys", "lead"]},
-      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.6, "layers": ["kick", "snare", "hat", "bass", "pad", "keys"], "variant": "alt"},
-      {"name": "hook2", "kind": "hook", "bars": 16, "energy": 0.85, "layers": ["kick", "snare", "hat", "ohat", "bass", "pad", "keys", "lead"]},
+      {"name": "hook", "kind": "hook", "bars": 16, "energy": 0.8, "layers": ["kick", "snare", "hat", "bass", "pad", "keys", "lead"], "fills": true},
+      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.6, "layers": ["kick", "snare", "hat", "bass", "pad", "keys"], "variant": "alt", "fills": true},
+      {"name": "hook2", "kind": "hook", "bars": 16, "energy": 0.85, "layers": ["kick", "snare", "hat", "ohat", "bass", "pad", "keys", "lead"], "fills": true},
       {"name": "drift", "kind": "break", "bars": 8, "energy": 0.35, "layers": ["pad", "lead"], "gap": true},
-      {"name": "hook3", "kind": "hook", "bars": 16, "energy": 0.9, "layers": ["kick", "snare", "hat", "ohat", "bass", "pad", "keys", "lead"]},
+      {"name": "hook3", "kind": "hook", "bars": 16, "energy": 0.9, "layers": ["kick", "snare", "hat", "ohat", "bass", "pad", "keys", "lead"], "fills": true},
       {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.3, "layers": ["pad", "keys"]}
     ]
   ],

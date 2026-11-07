@@ -167,6 +167,7 @@ fn drums(bp: &mut Blueprint, g: &GenreProfile, percussion: bool, seed: u64) -> R
         .filter(|&i| bp.form[i].layers.iter().any(|l| bp.drums.iter().any(|d| &d.name == l)))
         .collect();
     let (mut rewritten, mut added) = (Vec::new(), Vec::new());
+    let before = compose::drummer(bp).name;
     // another genre's drummer, whom another take of a lane is written as again
     let genre = (g.name != bp.genre).then(|| g.name.clone());
     for spec in lanes {
@@ -199,6 +200,10 @@ fn drums(bp: &mut Blueprint, g: &GenreProfile, percussion: bool, seed: u64) -> R
     }
     if !added.is_empty() {
         said.push(format!("added: {}", added.join(" ")));
+    }
+    let drummer = compose::drummer(bp);
+    if drummer.name != before {
+        said.push(format!("its phrases end as {}", drummer.about));
     }
     Ok(said.join("; "))
 }
@@ -367,8 +372,11 @@ mod tests {
         let mut bp = song("house", 3);
         let reggaeton = genres::get("reggaeton").unwrap();
         let kick_mix = bp.drums.iter().find(|d| d.name == "kick").unwrap().mix.clone();
+        assert_eq!(compose::drummer(&bp).name, "house");
         let said = track(&mut bp, "drums", "reggaeton", None, None, 2).unwrap();
         assert!(said.starts_with("reggaeton's drums") && said.contains("written again: kick"), "{said}");
+        assert_eq!(compose::drummer(&bp).name, "dembow", "its phrases end as reggaeton's drummers end them");
+        assert!(said.contains("its phrases end as reggaeton's: the timbal run"), "{said}");
         let snare = bp.drums.iter().find(|d| d.name == "snare").expect("house has no snare: reggaeton's is added");
         assert!(!snare.patterns["main"].is_empty());
         // the dembow's snare: on the tresillo's offbeats, as reggaeton's template has it

@@ -30,6 +30,40 @@ fn every_genre_composes_and_arranges() {
 }
 
 #[test]
+fn the_drums_end_their_phrases_as_the_genres_drummers_do_and_only_where_a_section_fills() {
+    for (genre, seed) in [("boom_bap", 4), ("trap", 2), ("reggae", 5), ("dnb", 1), ("art_rock", 2)] {
+        let bp = compose::generate(&genres::get(genre).unwrap(), seed, &Options::default(), None);
+        assert_eq!(compose::drummer(&bp).name, claudius::theory::drummer::of(genre).name);
+        let mut plain = bp.clone();
+        plain.form.iter_mut().for_each(|s| s.fills = false);
+        let (filled, plain) = (compose::arrange(&bp), compose::arrange(&plain));
+        // the last bar of each four-bar phrase of a section that fills, and the beat before a gap
+        let mut ends = Vec::new();
+        let mut bar = 0;
+        for s in bp.form.iter() {
+            if s.fills {
+                ends.extend(
+                    (1..=s.bars).filter(|k| k.is_multiple_of(4) || *k == s.bars).map(|k| (bar + k) as f64 * 4.0),
+                );
+            }
+            bar += s.bars;
+        }
+        let ending = |t: f64| ends.iter().any(|&e| t >= e - 5.0 - 1e-9 && t < e);
+        let mut played = 0;
+        for d in &bp.drums {
+            let notes = |p: &claudius::model::Project| -> Vec<(f64, i32, f32)> {
+                p.tracks.iter().find(|t| t.name == d.name).unwrap().notes.iter().map(|n| (n.t, n.p, n.v)).collect()
+            };
+            let (with, without) = (notes(&filled), notes(&plain));
+            let away = |v: &[(f64, i32, f32)]| v.iter().filter(|n| !ending(n.0)).copied().collect::<Vec<_>>();
+            assert_eq!(away(&with), away(&without), "{genre}: {} plays its loop away from the phrases' ends", d.name);
+            played += usize::from(with != without);
+        }
+        assert!(played > 0, "{genre}: its drummer played nothing");
+    }
+}
+
+#[test]
 fn a_short_song_renders_to_target() {
     let g = genres::get("house").unwrap();
     let bp = compose::generate(&g, 2, &Options { short: true, ..Default::default() }, None);

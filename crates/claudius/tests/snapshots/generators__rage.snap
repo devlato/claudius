@@ -9,11 +9,11 @@ prog C: VI iv III i
 bars per chord: 2
 section intro (intro) 8 bars, energy 0.44, prog A, main [filter_in]: lead arp
 section lift (build) 4 bars, energy 0.45, prog A, main [build]: lead arp
-section hook (hook) 16 bars, energy 0.95, prog C, main [impact]: kick snare hat ohat bass lead arp pad
-section verse (verse) 8 bars, energy 0.71, prog A, alt []: kick snare hat bass lead
-section hook2 (hook) 16 bars, energy 1.00, prog C, main [impact]: kick snare hat ohat bass lead arp pad
+section hook (hook) 16 bars, energy 0.95, prog C, main [impact fills]: kick snare hat ohat bass lead arp pad
+section verse (verse) 8 bars, energy 0.71, prog A, alt [fills]: kick snare hat bass lead
+section hook2 (hook) 16 bars, energy 1.00, prog C, main [impact fills]: kick snare hat ohat bass lead arp pad
 section switch (break) 8 bars, energy 0.53, prog A, main []: arp pad
-section hook3 (hook) 8 bars, energy 1.00, prog C, main [impact]: kick snare hat ohat bass lead arp pad
+section hook3 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick snare hat ohat bass lead arp pad
 section outro (outro) 16 bars, energy 0.41, prog A, main []: lead arp
 drum kick alt (drum kick): X.........X.....|X...............|X.........X.....|X...............
 drum kick main (drum kick): X.........X.....|X..X......X.....|X.........X.....|X..X......X.....

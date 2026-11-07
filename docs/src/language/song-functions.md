@@ -223,8 +223,11 @@ Sections choose a variant by name with [`.variant()`](form.md#section-methods); 
 others `main`, and a lane without the requested variant plays `main`.
 
 A lane's [mixing role](mixing.md#roles) comes from its name when the name is a drum name (`bd` and `kick` are kicks,
-`sd` and `snare` snares), else from the sound it plays. The arranger finds lanes by role: snare rolls and fills go on
-the snare lane, else the clap; the kick drops out at the end of a build, and the other tracks duck against it.
+`sd` and `snare` snares), else from the sound it plays. The arranger finds lanes by role: a build's snare roll goes on
+the snare lane, else the clap; the kick drops out at the end of a build, and the other tracks duck against it. In a
+section with `fills`, the genre's drummer ends the phrases on the lanes that play what each turn or fill names (a
+snare fill on the clap or the rim when there is no snare, toms on the congas or the percussion, or pitched on the
+snare); the drummer is the genre's the backbeat lane plays as (its `lane()` `genre`), else the song's.
 
 Errors: `no drum lane 'bongo', and drum() makes lanes only for drum names (bd kick sd ...); the song's lanes: kick clap
 hat ohat shaker perc. drum_sound("bongo", "tr909:lt") makes a lane of any name with its sound, and track("bongo",

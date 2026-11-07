@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::theory::Lock;
+use crate::theory::drummer;
 use crate::theory::harmonize;
 use crate::theory::rhythm::Groove;
 
@@ -267,6 +268,17 @@ fn resolve_sections(tracks: &mut [Track], mix: &mut MixPlan, sections: &[Section
     resolve(&mut mix.delay);
 }
 
+/// the lane that plays the song's backbeat, and its rolls and fills: its snare, else its clap
+fn backbeat<'a>(bp: &'a Blueprint, roles: &[String]) -> Option<&'a DrumLane> {
+    ["snare", "clap"].iter().find_map(|n| bp.drums.iter().zip(roles).find(|(_, r)| *r == n)).map(|(d, _)| d)
+}
+
+/// The drummer who ends the song's phrases: the one of the genre its backbeat was written as, else the song's.
+pub fn drummer(bp: &Blueprint) -> &'static drummer::Drummer {
+    let roles: Vec<String> = bp.drums.iter().map(|d| d.role()).collect();
+    drummer::of(backbeat(bp, &roles).and_then(|d| d.genre.as_deref()).unwrap_or(&bp.genre))
+}
+
 pub fn arrange(bp: &Blueprint) -> Project {
     let mut sections = Vec::new();
     let mut chords = Vec::new();
@@ -297,14 +309,35 @@ pub fn arrange(bp: &Blueprint) -> Project {
     let total_bars = bar;
     let roles: Vec<String> = bp.drums.iter().map(|d| d.role()).collect();
     let (kick_main, kick_bars) = kick_of(bp);
-    let fill_lane = ["snare", "clap"]
+    let fill_lane = backbeat(bp, &roles).map(|d| d.name.clone());
+    // each section's phrases end the same way on every lane that plays in it
+    let drummer = drummer(bp);
+    let endings: Vec<Vec<drummer::Ending>> = bp
+        .form
         .iter()
-        .find_map(|n| bp.drums.iter().zip(&roles).find(|(_, r)| *r == n))
-        .map(|(d, _)| d.name.clone());
+        .enumerate()
+        .map(|(si, s)| {
+            if !s.fills {
+                return Vec::new();
+            }
+            let lanes: Vec<(String, String)> = bp
+                .drums
+                .iter()
+                .zip(&roles)
+                .map(|(d, r)| if s.layers.contains(&d.name) { (d.name.clone(), r.clone()) } else { Default::default() })
+                .collect();
+            let mut r = Rng::new(bp.seed ^ hash_str("drummer") ^ si as u64);
+            let (start, bars) = (sections[si].start_bar as f64 * 4.0, sections[si].bars);
+            // the section's drums stop at its end, or at the gap before the next; a build's roll ends it
+            let end = start + bars as f64 * 4.0;
+            let last = (!s.build).then_some(if s.gap { end - 1.0 } else { end });
+            drummer::endings(drummer, &lanes, start, bars, last, &mut r)
+        })
+        .collect();
 
     let mut tracks: Vec<Track> = Vec::new();
     // drum lanes
-    for (lane, role) in bp.drums.iter().zip(&roles) {
+    for (li, (lane, role)) in bp.drums.iter().zip(&roles).enumerate() {
         let is_kick = role == "kick";
         let groove = lane.groove.as_deref().and_then(|g| bp.grooves.get(g).cloned().or_else(|| rhythm::groove(g)));
         let mut notes = Vec::new();
@@ -325,29 +358,24 @@ pub fn arrange(bp: &Blueprint) -> Project {
                     if s.build && is_kick {
                         seg.retain(|n| n.t < b - 4.0);
                     }
-                    if s.fills {
-                        let mut r = Rng::new(bp.seed ^ hash_str(&lane.name) ^ si as u64);
-                        let mut phrase = a + 32.0;
-                        while phrase <= b + 1e-9 {
-                            let fill_at = phrase - if r.chance(0.5) { 1.0 } else { 2.0 };
-                            if is_fill_lane {
-                                seg.retain(|n| n.t < fill_at || n.t >= phrase);
-                                let kind = *r.pick(&["roll", "groove", "triplets", "groove"]);
-                                for h in rhythm::fill(kind, phrase - fill_at, &mut r) {
-                                    seg.push(Note {
-                                        t: fill_at + h.t,
-                                        d: 0.25,
-                                        p: 60 + lane.pitch,
-                                        v: h.v * 0.85,
-                                        lock: None,
-                                    });
-                                }
-                            } else if is_kick && r.chance(0.35) {
-                                seg.retain(|n| n.t < phrase - 0.5 || n.t >= phrase);
+                    // each phrase's ending: what the drummer plays on this lane there, or the lane left out
+                    for e in &endings[si] {
+                        let mine: Vec<&drummer::Play> = e.plays.iter().filter(|p| p.lane == li).collect();
+                        for p in &mine {
+                            seg.retain(|n| n.t < p.from - 1e-9 || n.t >= e.at - 1e-9);
+                        }
+                        if e.stops.contains(&li) {
+                            seg.retain(|n| n.t < e.at - e.span - 1e-9 || n.t >= e.at - 1e-9);
+                        }
+                        for p in mine {
+                            for st in &p.strokes {
+                                let (t, v) =
+                                    groove.as_ref().map_or((st.t, st.v), |g| g.apply(st.t, st.v, lane.groove_amount));
+                                seg.push(Note { t, d: p.grid, p: 60 + lane.pitch + st.pitch, v: v * 0.9, lock: None });
                             }
-                            phrase += 32.0;
                         }
                     }
+                    seg.sort_by(|x, y| x.t.total_cmp(&y.t));
                     notes.extend(seg);
                 }
             }

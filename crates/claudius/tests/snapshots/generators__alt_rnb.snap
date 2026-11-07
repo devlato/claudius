@@ -8,12 +8,12 @@ prog B: i7 IVsus4 IIImaj7 VImaj7
 prog C: VImaj7 iv7 IIImaj7 i7
 bars per chord: 1
 section intro (intro) 4 bars, energy 0.29, prog A, main [filter_in]: pad keys
-section verse (verse) 16 bars, energy 0.55, prog A, main []: kick snare hat bass keys pad
-section hook (hook) 8 bars, energy 0.80, prog C, main []: kick snare clap hat ohat bass keys pad lead
-section verse2 (verse) 16 bars, energy 0.61, prog A, alt [gap]: kick snare hat bass keys pad lead
-section hook2 (hook) 16 bars, energy 0.89, prog C, main []: kick snare clap hat ohat bass keys pad lead
+section verse (verse) 16 bars, energy 0.55, prog A, main [fills]: kick snare hat bass keys pad
+section hook (hook) 8 bars, energy 0.80, prog C, main [fills]: kick snare clap hat ohat bass keys pad lead
+section verse2 (verse) 16 bars, energy 0.61, prog A, alt [gap fills]: kick snare hat bass keys pad lead
+section hook2 (hook) 16 bars, energy 0.89, prog C, main [fills]: kick snare clap hat ohat bass keys pad lead
 section bridge (break) 16 bars, energy 0.43, prog B, main [gap]: pad keys lead
-section hook3 (hook) 8 bars, energy 0.95, prog C, main []: kick snare clap hat ohat bass keys pad lead
+section hook3 (hook) 8 bars, energy 0.95, prog C, main [fills]: kick snare clap hat ohat bass keys pad lead
 section outro (outro) 8 bars, energy 0.31, prog A, main []: pad keys
 drum kick alt (drum kick): X...............|..X.............|X...............|..X.............
 drum kick main (drum kick): X.........X.....|..X.............|X...............|..X.............

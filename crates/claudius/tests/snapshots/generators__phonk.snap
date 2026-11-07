@@ -8,11 +8,11 @@ prog B: i IVsus4 III VI
 prog C: VI iv III i
 bars per chord: 1
 section intro (intro) 8 bars, energy 0.44, prog A, main [filter_in]: cowbell hat
-section hook (hook) 16 bars, energy 0.95, prog C, main [impact]: kick snare clap hat ohat bass cowbell pad
-section verse (verse) 8 bars, energy 0.70, prog A, alt [gap]: kick snare hat bass cowbell
-section hook2 (hook) 16 bars, energy 0.96, prog C, main [impact]: kick snare clap hat ohat bass cowbell pad
+section hook (hook) 16 bars, energy 0.95, prog C, main [impact fills]: kick snare clap hat ohat bass cowbell pad
+section verse (verse) 8 bars, energy 0.70, prog A, alt [gap fills]: kick snare hat bass cowbell
+section hook2 (hook) 16 bars, energy 0.96, prog C, main [impact fills]: kick snare clap hat ohat bass cowbell pad
 section break (break) 8 bars, energy 0.49, prog B, main []: cowbell pad
-section hook3 (hook) 8 bars, energy 1.00, prog C, main [impact]: kick snare clap hat ohat bass cowbell pad
+section hook3 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick snare clap hat ohat bass cowbell pad
 section outro (outro) 16 bars, energy 0.25, prog A, main []: cowbell
 drum kick main (drum kick): X.........X.....|X.........X.....|X.........X.....|X.........X.....
 drum snare main (drum snare): ........X.......|........X.......|........X.......|........X.......

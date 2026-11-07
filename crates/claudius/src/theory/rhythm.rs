@@ -458,30 +458,6 @@ pub fn snare_roll(len_beats: f64) -> Vec<Hit> {
     out
 }
 
-/// a fill for the last `len_beats` of a phrase
-pub fn fill(kind: &str, len_beats: f64, rng: &mut Rng) -> Vec<Hit> {
-    match kind {
-        "roll" => {
-            let n = (len_beats * 4.0) as usize;
-            (0..n).map(|i| Hit::new(i as f64 * 0.25, 0.5 + 0.5 * i as f32 / n as f32)).collect()
-        }
-        "triplets" => {
-            let n = (len_beats * 3.0) as usize;
-            (0..n).map(|i| Hit::new(i as f64 / 3.0, 0.6 + 0.4 * i as f32 / n as f32)).collect()
-        }
-        _ => {
-            let mut out = Vec::new();
-            let n = (len_beats * 4.0) as usize;
-            for i in 0..n {
-                if i % 2 == 1 && rng.chance(0.5) || rng.chance(0.55) {
-                    out.push(Hit::new(i as f64 * 0.25, 0.55 + 0.45 * rng.f32()));
-                }
-            }
-            out
-        }
-    }
-}
-
 /// swung position of a beat time: off-beat 1/16ths move later (swing 0.5 = straight, 0.66 = triplet feel)
 pub fn swing(t: f64, amount: f32) -> f64 {
     if amount <= 0.501 {

@@ -29,7 +29,8 @@
         "bars": 16,
         "energy": 0.9,
         "layers": ["kick", "snare", "clap", "hat", "ohat", "perc", "bass", "keys", "lead", "pad"],
-        "impact": true
+        "impact": true,
+        "fills": true
       },
       {
         "name": "verse",
@@ -37,7 +38,8 @@
         "bars": 16,
         "energy": 0.65,
         "layers": ["kick", "snare", "hat", "perc", "bass", "keys"],
-        "variant": "alt"
+        "variant": "alt",
+        "fills": true
       },
       {
         "name": "hook2",
@@ -45,7 +47,8 @@
         "bars": 16,
         "energy": 0.95,
         "layers": ["kick", "snare", "clap", "hat", "ohat", "perc", "bass", "keys", "lead", "pad"],
-        "impact": true
+        "impact": true,
+        "fills": true
       },
       {
         "name": "verse2",
@@ -54,7 +57,8 @@
         "energy": 0.6,
         "layers": ["kick", "snare", "hat", "bass", "keys", "pad"],
         "variant": "alt",
-        "gap": true
+        "gap": true,
+        "fills": true
       },
       {
         "name": "hook3",
@@ -62,7 +66,8 @@
         "bars": 16,
         "energy": 1.0,
         "layers": ["kick", "snare", "clap", "hat", "ohat", "perc", "bass", "keys", "lead", "pad"],
-        "impact": true
+        "impact": true,
+        "fills": true
       },
       {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.35, "layers": ["keys", "pad", "lead"]}
     ]
