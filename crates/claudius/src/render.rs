@@ -1057,7 +1057,8 @@ impl<'a> Song<'a> {
     }
 
     /// A track's source (`render_source`) through its effects and its drive, and the level the mix hears in it. Into
-    /// its effects it goes within `STAGED_DB` of its role's level (at most 30 dB up), as an engineer stages the gain
+    /// its effects it goes within `STAGED_DB` of its role's level (at most 30 dB up, and a recording's residue not up
+    /// at all), as an engineer stages the gain
     /// into a chain: a compressor's threshold and a saturator's drive then work on it as they were set to, so that a
     /// pad made 20 dB hot is not driven into distortion, nor a quiet recording left under its compressor. A sound made
     /// within it goes in as it was made, and the mix sets the level after, as before.
@@ -1066,7 +1067,10 @@ impl<'a> Song<'a> {
             && let Some(l) = loudness::active_level(&x)
         {
             let off = target_level(&t.role) as f64 - l;
-            let trim = (off - off.clamp(-STAGED_DB, STAGED_DB)).min(30.0);
+            // a recording's residue (`RESIDUE_LUFS`) goes in as quiet as it is, for the mix to raise no further than
+            // `RESIDUE_BOOST_DB`: staged up, the mix would hear it as a sound to raise
+            let residue = matches!(t.sound, Sound::Loop { .. }) && l < RESIDUE_LUFS;
+            let trim = (off - off.clamp(-STAGED_DB, STAGED_DB)).min(if residue { 0.0 } else { 30.0 });
             if trim != 0.0 {
                 x.scale(db_to_gain(trim as f32));
             }
@@ -1476,11 +1480,22 @@ mod tests {
         let mut noise = Stereo { l: l.clone(), r: l };
         let made_at = loudness::active_level(&noise).unwrap();
         noise.scale(db_to_gain((-47.5 - made_at) as f32));
-        let (p, _, level) = looped(noise, "residue", "sample", Vec::new());
-        assert!(level.is_some_and(|l| l > -50.0 && l < RESIDUE_LUFS), "{level:?}");
-        let made = render(&p, &Options::default()).unwrap();
-        let t = made.tracks.iter().find(|t| t.name == "residue").unwrap();
-        assert_eq!(t.gain_db, RESIDUE_BOOST_DB, "raised {} dB", t.gain_db);
+        // as it is, and through a high-pass, as a rework's pieces are: staged up to its role first, the mix would
+        // hear it as a sound to raise
+        let hp = Effect::Filter {
+            mode: crate::dsp::filter::FilterMode::Hp,
+            cutoff: crate::dsp::env::Param::Const(80.0),
+            res: crate::dsp::env::Param::Const(0.05),
+            drive: 1.0,
+            mix: crate::dsp::env::Param::Const(1.0),
+        };
+        for (name, fx) in [("residue", Vec::new()), ("residue-hp", vec![hp])] {
+            let (p, _, level) = looped(noise.clone(), name, "sample", fx);
+            assert!(level.is_some_and(|l| l > -50.0 && l < RESIDUE_LUFS), "{name}: {level:?}");
+            let made = render(&p, &Options::default()).unwrap();
+            let t = made.tracks.iter().find(|t| t.name == name).unwrap();
+            assert_eq!(t.gain_db, RESIDUE_BOOST_DB, "{name}: raised {} dB", t.gain_db);
+        }
     }
 
     #[test]

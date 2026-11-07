@@ -72,7 +72,8 @@ Details that make it sound played rather than printed:
 A producer balances by ear: the kick here, the bass a little under it, the pad well back. claudius does the same with a
 meter. First the gain is staged, as an engineer stages it into a chain of plug-ins: a track with inserts or a drive
 whose sound is more than 6 dB from its role's target (below) is brought to 6 dB from it before them (`Song::finish`;
-at most 30 dB up). A compressor's threshold and a saturator's drive then work on it as they were set to: a pad made
+at most 30 dB up, and a recording's residue, under −45 LUFS, not up at all, so that the mix still hears it as residue
+and raises it no more than 12 dB). A compressor's threshold and a saturator's drive then work on it as they were set to: a pad made
 20 dB hot is not driven into distortion, nor a quiet recording left under its compressor. A sound made within 6 dB of
 its role's target goes in as it was made. After its inserts and its drive (a tanh saturator `drive_db` hard, when it
 has one), each track's **active level** is measured: the 80th percentile of its momentary loudness (0.4 s blocks every 0.1 s) over the blocks where it
