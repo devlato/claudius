@@ -30,7 +30,9 @@ installed.
 
 ## Starting a song
 
-**New song** asks for a genre and, if you like, a seed, tempo and key. The same genre and seed always give the same
+**New song** starts a song **From a genre** or **From a recording**. From a genre, it asks for the genre, from cards
+you can search ("rap", "90s", "west coast"), and under **More options**, which says what of it is set, a seed, tempo
+and key and the rest below. The same genre and seed always give the same
 song, so a seed is a way to come back to one you liked. **Fused with** fuses a second genre into it: the first leads
 the song, and the second plays the drums and lends its sounds ([Fusions](../cookbook/fusions.md)). **Samples**,
 **auto-sample from free libraries**, builds the song on recordings from free libraries, as records built on samples
@@ -41,21 +43,23 @@ genre's producers dig for, and the song picks among them, and the dice puts one 
 ([Songs built on samples](../guide/online-samples.md#songs-built-on-samples)). **Layers** says how layered the song
 is, from the genre's core to its harmony and lead doubled on second instruments, a counter-melody, a pad and more
 percussion; ticked, it is as the genre writes it ([How layered a song is](../learn/producers/genres-and-evolution.md#how-layered-a-song-is)).
-It can also start from a recording: **Choose a file** under
-"Or start from an audio file", then **Analyze** shows what claudius hears in it, and **Remake** reworks it in the
-genre so that it stays the song it is: all of it plays through, its voice and its chords as they are without its drums
-and its bass, in its own sections and on its chords, with the genre's drums and bass under it. **Flip into**
-makes a new song of the genre on its sound instead: its hook, another passage of it, its drums, a flip cut from all
-over it and its sung phrases, at a tempo the genre plays. **Sample its vocals into the song** puts its best sung phrases into the song
-that is open ([Sampling a song's vocals](../guide/samples.md#sampling-a-songs-vocals)), and **Take its groove** puts
-the open song's drum lanes in the feel of the recording's drums ([Grooves](../cookbook/drum-machine.md#a-groove-from-a-record)).
+**From a recording**: **Choose a file**, then what to do with it, and the button under the choices does it. **Remake
+it as** the genre (chosen beside it) reworks it so that it stays the song it is: all of it plays through, its voice
+and its chords as they are without its drums and its bass, in its own sections and on its chords, with the genre's
+drums and bass under it. **Flip it into** a song of the genre makes a new one on its sound instead: its hook, another
+passage of it, its drums, a flip cut from all over it and its sung phrases, at a tempo the genre plays. **Sample its
+vocals into the song** puts its best sung phrases into the song that is open
+([Sampling a song's vocals](../guide/samples.md#sampling-a-songs-vocals)), **Put the song's drums in its groove**
+puts the open song's drum lanes in the feel of the recording's drums
+([Grooves](../cookbook/drum-machine.md#a-groove-from-a-record)), and **Only say what claudius hears** shows its
+tempo, key, chords, form and groove and changes nothing. A choice that needs an open song, or one with drums, says so.
 While claudius works on the file, the dialog says what it is doing (taking it apart into its voice, drums, bass and
 the rest, listening to it, sampling its voice, remaking it), with how far it has got when it knows, and so does the
 line at the top right. What changed the song closes the dialog when it is done: the song shows with its new tracks
 (`vox1`, `vox2` ... for sampled phrases), the toast says what came of it in a line ("sampled 2 phrases of song.mp3
 into the song: vox1, vox2"), the render it starts is on the line at the top, and the dialog keeps the whole answer
-for when you open it again, as the **Log** tab does. **Analyze**, and a file claudius could not use, leave the dialog
-open with the answer in it.
+for when you open it again, as the **Log** tab does. **Only say what claudius hears**, and a file claudius could not
+use, leave the dialog open with the answer in it.
 **Open** opens a song you saved: choose the `blueprint.json` in its folder,
 or a `.rhai` script. The studio reads the file on its own computer, in a browser too, and nothing of it is kept but
 the song it opens. It also opens a project the demo saved, a `.zip`: claudius unpacks it into a song folder of its own

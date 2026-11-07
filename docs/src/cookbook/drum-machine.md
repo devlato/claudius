@@ -165,7 +165,8 @@ ahead for a while, as a drummer's does (see [`humanize()`](../language/song-func
 A break, a loop or a whole song has a feel of its own: how late its off-beats come, whether its backbeat sits behind
 the beat, which sixteenths are hit hardest. [`groove()`](../language/song-functions.md#groove) measures that in a
 recording's drums and keeps it with the song, and the lanes play in it as in one of claudius' own. In the studio,
-choose the file under **New song** and press **Take its groove**. An assistant calls `extract_groove`.
+choose the file under **New song**, **From a recording**, then **Put the song's drums in its groove** and **Take
+its groove**. An assistant calls `extract_groove`.
 
 ```js no-run
 song("lofi", 2);

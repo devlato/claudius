@@ -277,7 +277,8 @@ reads each frame:
 
 - **A song** goes as its text in `open_text`, which opens a blueprint.json (by the file's name) or runs a script; a
   file that is not text is no song, and a toast says so.
-- **A recording** waits in the New song dialog for **Analyze**, **Remake** or **Flip into**, which send it, the file
+- **A recording** waits in the New song dialog, **From a recording**, for what to do with it (`WithRecording`): its
+  button sends it, the file
   itself (a flip with `flip=true`), to
   `POST /api/analyze` or `POST /api/remake`, named so that its extension says its format. claudius decodes it in
   memory and keeps nothing of it.
@@ -345,9 +346,9 @@ name no file of its own (`find_moved`) are read in its folder, so the samples pl
 app's dialog chose beside the files it plays, as an unpacked project's is, goes as a project too (`Picked::as_project`):
 the studio reads those files, which claudius on another computer could not. A recording chosen to listen to goes to
 the engine as the file itself (`claudius_api::Listen` with its bytes, the worker's `listen` message), which does with
-it what the app does with one the studio sends (`claudius_session::listen`, shared with the server): **Analyze** hears
-it, **Remake** reworks it and **Flip into** flips it, **Sample its vocals into the song** samples them, and **Take its
-groove** puts the song's drums in its groove. Until the answer comes, the dialog shows what the server's busy line
+it what the app does with one the studio sends (`claudius_session::listen`, shared with the server): **Only say what
+claudius hears** hears it, **Remake it as** reworks it and **Flip it into** flips it, **Sample its vocals into the
+song** samples them, and **Put the song's drums in its groove** does that. Until the answer comes, the dialog shows what the server's busy line
 says (`State::busy`, with `progress`): the server's `App::listening` puts each step there (taking the recording apart
 with the stems' progress, listening to it, sampling it, remaking it) while no job holds the line, and clears it after
 unless a job has taken it since, as the render a change starts does. The busy line offers to cancel only a job
