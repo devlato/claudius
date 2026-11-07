@@ -365,6 +365,7 @@ impl App {
             verdict: s.verdict.clone(),
             busy: s.busy.clone(),
             progress: s.progress,
+            cancellable: s.job,
             ears_loading: self.ears.get().is_none(),
             song_version: s.song_version,
             can_undo: !s.undo.is_empty(),
@@ -715,6 +716,7 @@ mod tests {
         let app = app(None, false);
         let line = |app: &App| {
             let s = app.state();
+            assert_eq!(s.cancellable, app.lock().job, "only a job is offered to be cancelled");
             (s.busy, s.progress)
         };
         let seen = app.listening("taking song.mp3 apart", |done| {
@@ -735,5 +737,6 @@ mod tests {
         });
         assert_eq!(seen, (Some("rendering".into()), Some(0.0)));
         assert_eq!(line(&app), (Some("rendering".into()), Some(0.0)));
+        assert!(app.state().cancellable, "the job is");
     }
 }

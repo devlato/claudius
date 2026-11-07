@@ -348,7 +348,8 @@ it, **Remake** reworks it and **Flip into** flips it, **Sample its vocals into t
 groove** puts the song's drums in its groove. Until the answer comes, the dialog shows what the server's busy line
 says (`State::busy`, with `progress`): the server's `App::listening` puts each step there (taking the recording apart
 with the stems' progress, listening to it, sampling it, remaking it) while no job holds the line, and clears it after
-unless a job has taken it since, as the render a change starts does. An answer that changed the song closes the
+unless a job has taken it since, as the render a change starts does. The busy line offers to cancel only a job
+(`State::cancellable`), since a step of listening runs to its end. An answer that changed the song closes the
 dialog (`View::listened`), and the toast every answer gets shows its first line. A take recorded in the Record window goes the same way and joins
 the song, where `assess_voice` hears how it is sung, `transcribe_drums` turns it into the drum lanes,
 `transcribe_take` into a part's notes, and `tune` tunes it. A pitch check is the engine's as well: it makes the check

@@ -369,6 +369,7 @@ impl Host {
                 let (done, all) = b.run.progress();
                 done as f32 / all.max(1) as f32
             }),
+            cancellable: self.breeding.is_some(),
             can_undo: !self.undo.is_empty(),
             can_redo: !self.redo.is_empty(),
             undo_label: self.undo.last().map(|(_, l)| l.clone()),

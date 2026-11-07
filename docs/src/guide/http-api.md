@@ -84,7 +84,7 @@ The MCP tools wait the same way after every edit.
 
 ```json
 {
-  "version": 7, "song_version": 2, "busy": null, "progress": null, "ears_loading": false,
+  "version": 7, "song_version": 2, "busy": null, "progress": null, "cancellable": false, "ears_loading": false,
   "can_undo": true, "can_redo": false,
   "undo_label": "new song: Crimson Tide — house at 126 BPM in G dorian (seed 9)", "redo_label": null,
   "log": ["sample library: Apple Loops and your folders",
@@ -141,8 +141,9 @@ The MCP tools wait the same way after every edit.
 | `song` | `SongView` or null | the open song, null before the first one |
 | `render` | `RenderView` or null | the latest finished render; it may be of an older song version while a new render runs |
 | `verdict` | `VerdictView` or null | the verdict of that render |
-| `busy` | string or null | the running job: `"rendering"`, `"listening"`, `"mutating: judging 4 variations"`, `"evolving: generation 2 of 3 done"`, `"saving"` |
+| `busy` | string or null | the running job: `"rendering"`, `"listening"`, `"mutating: judging 4 variations"`, `"evolving: generation 2 of 3 done"`, `"saving"`, or a step of listening to a recording sent with `/api/sample`, `/api/groove`, `/api/remake` or `/api/analyze`: `"taking song.mp3 apart into its voice, drums, bass and the rest"`, `"sampling the voice of song.mp3"` |
 | `progress` | number or null | 0 to 1, when the job knows it |
+| `cancellable` | bool | whether `busy` is a job that `cancel` stops; a step of listening to a recording runs to its end |
 | `ears_loading` | boolean | earshot's models are still loading; until they are, verdicts come from the meters and music theory only |
 | `can_undo`, `can_redo` | boolean | |
 | `undo_label`, `redo_label` | string or null | what undo would take back, what redo would bring back |

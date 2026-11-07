@@ -494,7 +494,10 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
 
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             if let Some(job) = cx.state.busy.clone() {
-                if widgets::icon_button(ui, Icon::Cancel, 26.0, false, true, "cancel the running job").clicked() {
+                // a step of listening to a recording runs to its end: only a job is offered to be cancelled
+                if cx.state.cancellable
+                    && widgets::icon_button(ui, Icon::Cancel, 26.0, false, true, "cancel the running job").clicked()
+                {
                     cx.out.push(Command::Cancel);
                 }
                 if let Some(p) = cx.state.progress {
