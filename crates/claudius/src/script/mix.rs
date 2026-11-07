@@ -217,6 +217,7 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                         swing: None,
                         groove: None,
                         groove_amount: 1.0,
+                        genre: None,
                         name: lane.to_string(),
                         sound,
                         patterns: [("main".to_string(), Vec::new())].into(),

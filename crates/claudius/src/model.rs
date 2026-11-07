@@ -251,6 +251,10 @@ pub struct DrumLane {
     /// shift timing moves a pad: a snare laid back 20, a kick pushed 5.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub late_ms: f32,
+    /// The genre whose drummer it plays as, when that is not the song's (a lane written from another genre's drums),
+    /// whose template another take of it is written from.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub genre: Option<String>,
 }
 
 fn one() -> f32 {

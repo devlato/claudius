@@ -211,6 +211,13 @@ pub enum Gesture {
 /// a new track, as the arrangement's "+ Track" menu is filling it in
 #[derive(Default)]
 pub struct AddTrackForm {
+    /// written the way a genre plays it (`Command::GenerateTrack`); otherwise a part or a drum lane of your own
+    pub generate: bool,
+    /// what a generated track is (drums, bass, strings ...), and the genre it is written in (empty: the song's)
+    pub what: String,
+    pub genre: String,
+    /// a generated part in place of the song's part of its role
+    pub replace: bool,
     /// a drum lane; otherwise a part
     pub drum: bool,
     /// a part's role: bass, chords, pad, keys, lead or arp
@@ -355,7 +362,7 @@ impl Default for View {
             graph: graph::GraphView::default(),
             melody_style: "line".into(),
             row_menu: None,
-            add_track: AddTrackForm { role: "lead".into(), ..Default::default() },
+            add_track: AddTrackForm { generate: true, what: "bass".into(), role: "lead".into(), ..Default::default() },
             roll: roll::RollView::default(),
             tour: None,
             tour_done: false,

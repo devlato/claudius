@@ -54,7 +54,8 @@ the song it opens. It also opens a project the demo saved, a `.zip`: claudius un
 
 - **Arrangement.** The sections of the song from left to right (intro, build, drop and so on), and below them one row
   per track. Click a cell, or drag across cells, to switch a track on or off in those sections. Drag a section to
-  move it; right-click it to duplicate, insert or remove one. **+ Track** adds a track: a part (a bass, chords, a
+  move it; right-click it to duplicate, insert or remove one. **+ Track** adds a track: one
+  [written the way a genre plays it](#writing-a-track-in-a-style) (**In a style**), a part (a bass, chords, a
   pad, keys, a lead or an arpeggio the theory engine writes over the song's chords, written the way the genre writes
   that role) or a drum lane to fill in under Steps, its name, and its sound, from the synths made for the role, the
   installed instruments, or the drum voices and kits; a new track plays in the sections with energy 0.6 or more,
@@ -155,6 +156,24 @@ keys and a turntable with the song's sounds there, and sends the takes played on
   melody. While you record, a soft
   guide tone plays what you play, for a keyboard with no sound of its own. When you stop, the notes become a new part
   ([Notes played on a keyboard](../guide/samples.md#notes-played-on-a-keyboard)).
+
+## Writing a track in a style
+
+**+ Track**, then **In a style**, writes a track the way a genre plays it, into the song as it is: its key, its
+chords and its form. Choose what (drums, percussion, bass, chords, keys, pad, strings, lead or arp) and the genre,
+the song's own or any other, and press **Generate**. A part is written as that genre's own part of the role is: in its
+idiom (reggae's one drop, funk's slap, the dembow, a jazz walk, a trap 808 ...), on a sound from its palette, in its
+register and with its mix; strings play the genre's strings, or a pad on strings. It goes in as a new track,
+`<genre>_<what>`, where the song plays its part of that role, or with **in place of** ticked, it writes the song's
+part again, keeping its name, mix and sections. Drums write the genre's lanes from its templates and kits in place
+of the song's lanes of their names and add the others beside them; percussion adds the genre's shakers, rims and
+percussion beside the song's drums. Each press is another take.
+
+Right-click a part's or a drum lane's row for **Another take**, written again (a part with a new seed, a lane from
+the template of the genre it was written as: the song's, or the one its drums were generated from), or **Vary it**:
+the same take with other details. A part keeps its rhythm, the cells of its
+idiom, and draws its dead notes, octaves, approaches and pushes again; a lane is varied a step or two, its hits on
+the strong beats kept. The Parts tab has **Vary** beside **Reseed**. Every one is an edit that undoes.
 
 ## Swapping a sound
 

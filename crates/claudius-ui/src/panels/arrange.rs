@@ -41,19 +41,37 @@ fn unique_track_name(song: &SongView, base: &str) -> String {
         .unwrap_or(base)
 }
 
-/// The "+ Track" menu: a drum lane or a part of a role, its name, and its sound from those installed. The command
-/// once Add is pressed.
+/// The "+ Track" menu: a track written the way a genre plays it, or a drum lane or a part of a role of your own, its
+/// name, and its sound from those installed. The command once Generate or Add is pressed.
 fn add_track_menu(
     ui: &mut Ui,
     f: &mut super::AddTrackForm,
     song: &SongView,
+    genres: &[claudius_api::GenreInfo],
     sounds: Option<&claudius_api::SoundList>,
 ) -> Option<Command> {
     ui.set_min_width(320.0);
     ui.horizontal(|ui| {
-        ui.selectable_value(&mut f.drum, false, "Part").on_hover_text("notes the theory engine writes, in a role");
-        ui.selectable_value(&mut f.drum, true, "Drum lane").on_hover_text("steps you write in the step sequencer");
+        ui.selectable_value(&mut f.generate, true, "In a style")
+            .on_hover_text("written the way a genre plays it: its drums, or a part in its idiom, on its sounds");
+        if ui
+            .selectable_label(!f.generate && !f.drum, "Part")
+            .on_hover_text("notes the theory engine writes, in a role")
+            .clicked()
+        {
+            (f.generate, f.drum) = (false, false);
+        }
+        if ui
+            .selectable_label(!f.generate && f.drum, "Drum lane")
+            .on_hover_text("steps you write in the step sequencer")
+            .clicked()
+        {
+            (f.generate, f.drum) = (false, true);
+        }
     });
+    if f.generate {
+        return generate_menu(ui, f, song, genres);
+    }
     if !f.drum {
         ui.horizontal_wrapped(|ui| {
             for r in ["bass", "chords", "pad", "keys", "lead", "arp"] {
@@ -135,6 +153,74 @@ fn add_track_menu(
     .inner
 }
 
+/// The "+ Track" menu's track in a style: what it is, the genre whose way of playing it to write it in, and for a part,
+/// whether it takes the place of the song's part of its role. The command once Generate is pressed.
+fn generate_menu(
+    ui: &mut Ui,
+    f: &mut super::AddTrackForm,
+    song: &SongView,
+    genres: &[claudius_api::GenreInfo],
+) -> Option<Command> {
+    ui.horizontal_wrapped(|ui| {
+        for w in ["drums", "percussion", "bass", "chords", "keys", "pad", "strings", "lead", "arp"] {
+            ui.selectable_value(&mut f.what, w.to_string(), w);
+        }
+    });
+    let genre = if f.genre.is_empty() { song.genre.clone() } else { f.genre.clone() };
+    // the styles in the menu itself: a list opened over it would close it
+    ui.add(
+        egui::TextEdit::singleline(&mut f.filter)
+            .hint_text("search styles: a genre, a scene, an era")
+            .desired_width(f32::INFINITY),
+    );
+    let words = f.filter.to_lowercase();
+    let hit = |g: &&claudius_api::GenreInfo| {
+        words.is_empty()
+            || [&g.name, &g.family, &g.description].iter().any(|s| s.to_lowercase().contains(&words))
+            || g.aliases.iter().any(|a| a.to_lowercase().contains(&words))
+    };
+    egui::ScrollArea::vertical().id_salt("generate-styles").max_height(150.0).show(ui, |ui| {
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
+            for g in genres.iter().filter(hit) {
+                if ui.selectable_label(genre == g.name, &g.name).on_hover_text(&g.description).clicked() {
+                    f.genre = g.name.clone();
+                }
+            }
+        });
+    });
+    // the song's part it may be written in place of
+    let target = match f.what.as_str() {
+        "drums" | "percussion" => None,
+        "strings" => song.parts.iter().find(|p| p.name.contains("string")),
+        w => song.parts.iter().find(|p| p.role == w),
+    };
+    if let Some(t) = target {
+        ui.checkbox(&mut f.replace, format!("in place of {}", t.name))
+            .on_hover_text("written again in this style: its name, mix and sections stay");
+    }
+    let hint = match f.what.as_str() {
+        "drums" => "its lanes in place of the song's of their names, and beside the others",
+        "percussion" => "its percussion lanes beside the song's drums",
+        _ if target.is_some() && f.replace => "",
+        _ => "a new track, where the song plays its part of the role",
+    };
+    if !hint.is_empty() {
+        ui.label(small(hint));
+    }
+    if ui.button(format!("Generate {genre} {}", f.what)).on_hover_text("another take each time").clicked() {
+        ui.close();
+        return Some(Command::GenerateTrack {
+            what: f.what.clone(),
+            genre: Some(genre),
+            replace: target.filter(|_| f.replace).map(|t| t.name.clone()),
+            name: None,
+            seed: None,
+        });
+    }
+    None
+}
+
 /// hits per bar of a drum lane's pattern for a section (0..1 density)
 fn density(song: &SongView, lane: &str, variant: &str, bar: u32) -> Option<f32> {
     let d = song.drums.iter().find(|d| d.lane == lane)?;
@@ -158,6 +244,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let mut row_menu = cx.view.row_menu;
     let mut add_form = std::mem::take(&mut cx.view.add_track);
     let sounds = cx.sounds;
+    let genres = &cx.state.genres;
     let Some(song) = cx.state.song.as_ref() else {
         cx.view.add_track = add_form;
         empty(ui, "No song yet: make one with New song.");
@@ -656,6 +743,28 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     }
                     ui.menu_button("Swap the sound to", |ui| out.extend(super::swap_list(ui, t)));
                 }
+                if matches!(t.kind.as_str(), "part" | "drum") {
+                    ui.separator();
+                    let vary = |take: bool| Command::VaryTrack { track: layer.clone(), take };
+                    if ui
+                        .button("Another take")
+                        .on_hover_text(
+                            "written again: a part with a new seed, a lane as the genre it was written as plays it",
+                        )
+                        .clicked()
+                    {
+                        out.push(vary(true));
+                        ui.close();
+                    }
+                    if ui
+                        .button("Vary it")
+                        .on_hover_text("the same take, other details: a part keeps its rhythm, a lane its strong hits")
+                        .clicked()
+                    {
+                        out.push(vary(false));
+                        ui.close();
+                    }
+                }
                 if t.kind == "part" {
                     ui.separator();
                     ui.menu_button("Add chords under it", |ui| {
@@ -828,7 +937,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             egui::Popup::from_toggle_button_response(&add)
                 .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                 .show(|ui| {
-                    if let Some(c) = add_track_menu(ui, &mut add_form, song, sounds) {
+                    if let Some(c) = add_track_menu(ui, &mut add_form, song, genres, sounds) {
                         out.push(c);
                     }
                 });

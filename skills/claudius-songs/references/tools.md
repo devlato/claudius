@@ -25,6 +25,8 @@ to. On the command line, each command reads and writes song folders instead.
 | `assess_voice` | `take`, or `path` (and `key`) of a recording of one voice | `claudius voice vocal.wav --key "A minor"` |
 | `remake` | `path`, `genre`, `seed`, `bpm`, `flip` (true: a new song on its hook), `sampled` (false: the skeleton only) | `claudius remake song.mp3 --genre lofi [--bpm 82] [--flip] [--skeleton]` |
 | `harmonize` | `part` (a melody), `style` (`block`: a chord under each note; `sustain`: a pad; or another chord style), `sound`, `name` | `part("lead_chords", #{ role: "keys", harmonizes: "lead", style: "block" })` |
+| `generate_track` | `what` (`drums`, `percussion`, `bass`, `chords`, `keys`, `pad`, `strings`, `lead`, `arp`), `genre` (any; the song's when left out), `replace` (a part to write again that way), `name`, `listen` | `part("reggae_bass", #{ role: "bass", style: "one_drop" })`, then `vary_track` |
+| `vary_track` | `track`, `take` (another take instead of a variation), `listen` | `part("bass", #{ seed: 123 })` |
 | `swap_sound` | `track` (a part or drum lane; none: the whole song), `to` (one the reply lists, or any preset, instrument or drum sound; with `only: "drums"`, a kit), `only` (`drums` or `parts`), `listen` | `part("bass", #{ preset: "moog_bass" })`, `drum_sound("kick", "tr808:bd")` |
 | `add_take` | `path` of a recording, `from` (a section's name), `name`, `role` (`vocal`, `lead`, `chords`, `keys`, `bass`, `drums`, `texture`) | |
 | `trim_take` | `track` (a take), `start` and `end` in seconds into its recording | |

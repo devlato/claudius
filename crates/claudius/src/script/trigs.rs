@@ -190,15 +190,15 @@ pub(super) fn lines(lane: &str, variant: &str, hits: &[Hit]) -> Vec<String> {
 }
 
 /// what `lane()`'s map may hold
-pub(super) const LANE_KEYS: &[&str] = &["length", "speed", "swing", "groove", "groove_amount", "late"];
+pub(super) const LANE_KEYS: &[&str] = &["length", "speed", "swing", "groove", "groove_amount", "late", "genre"];
 
 /// the most a lane or a part plays behind (or ahead of) the beat, in milliseconds
 pub const MOST_LATE: f32 = 80.0;
 
 /// Sets drum lane `lane`'s own time and feel from `m`: its `length` in sixteenths (0: its pattern's bars), its
 /// `speed`, its `swing` (0: the song's), its `groove` (a name from `rhythm::GROOVES` or the song's grooves; "" none)
-/// and how much of it, `groove_amount`, and how `late` it plays, in milliseconds (ahead, below zero). Returns what it
-/// did, in words.
+/// and how much of it, `groove_amount`, how `late` it plays, in milliseconds (ahead, below zero), and the `genre`
+/// whose drummer it plays as ("" the song's). Returns what it did, in words.
 pub(super) fn set_lane(bp: &mut Blueprint, lane: &str, m: &Map) -> R<String> {
     use crate::theory::rhythm::GROOVES;
     check_keys(m, "lane()", LANE_KEYS)?;
@@ -250,6 +250,16 @@ pub(super) fn set_lane(bp: &mut Blueprint, lane: &str, m: &Map) -> R<String> {
     if let Some(v) = range("late", -MOST_LATE, MOST_LATE)? {
         l.late_ms = v;
     }
+    if let Some(g) = map_str(m, "genre") {
+        let g = g.trim();
+        l.genre = match g {
+            "" | "none" => None,
+            _ => match crate::genres::get(g) {
+                Ok(p) => Some(p.name),
+                Err(e) => return fail(format!("lane(): {e}")),
+            },
+        };
+    }
     Ok(format!("{lane}: {}", lane_words(l)))
 }
 
@@ -272,6 +282,9 @@ pub fn lane_words(l: &crate::model::DrumLane) -> String {
     }
     if l.late_ms != 0.0 {
         w.push(late_words(l.late_ms));
+    }
+    if let Some(g) = &l.genre {
+        w.push(format!("as {g} plays it"));
     }
     if w.is_empty() { "on the song's time and feel".into() } else { w.join(", ") }
 }
@@ -345,6 +358,9 @@ pub(super) fn lane_line(l: &crate::model::DrumLane) -> Option<String> {
     }
     if l.late_ms != 0.0 {
         parts.push(format!("late: {}", n(l.late_ms)));
+    }
+    if let Some(g) = &l.genre {
+        parts.push(format!("genre: {}", quote(g)));
     }
     (!parts.is_empty()).then(|| format!("lane({}, #{{ {} }});", quote(&l.name), parts.join(", ")))
 }

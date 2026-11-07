@@ -959,7 +959,7 @@ impl Host {
         let Some(mut bp) = self.bp.clone() else {
             return self.no("no song yet: start one with a new song");
         };
-        match edit::change(c, &mut bp) {
+        match edit::change(c, &mut bp, seed) {
             None => {
                 self.no(format!("the demo does not {}: start `claudius serve` for that", name(c).replace('_', " ")))
             }
@@ -1774,6 +1774,37 @@ mod tests {
         assert!(!r.ok && r.message.contains("no part 'nope' to harmonize"), "{}", r.message);
         let r = command(&mut h, json!({"cmd": "harmonize", "part": "lead", "style": "motif"}));
         assert!(!r.ok && r.message.contains("chords under a melody play in one of block"), "{}", r.message);
+    }
+
+    #[test]
+    fn a_track_is_written_in_another_genres_way_and_varied_and_each_undoes() {
+        let mut h = Host::new(1);
+        assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
+        let r = command(&mut h, json!({"cmd": "generate_track", "what": "bass", "genre": "reggae"}));
+        assert!(r.ok && r.message.starts_with("reggae_bass: reggae's bass, "), "{}", r.message);
+        let style = |h: &Host, name: &str| {
+            h.blueprint().unwrap().parts.iter().find(|p| p.name == name).map(|p| p.style.clone())
+        };
+        let reggae = genres::get("reggae").unwrap();
+        assert!(
+            reggae
+                .parts
+                .iter()
+                .any(|p| p.role == model::Role::Bass && p.styles.contains(&style(&h, "reggae_bass").unwrap()))
+        );
+        // another take of the same, and a variation of it, each undone
+        let seed = |h: &Host| h.blueprint().unwrap().parts.iter().find(|p| p.name == "reggae_bass").unwrap().seed;
+        let was = seed(&h);
+        assert!(command(&mut h, json!({"cmd": "vary_track", "track": "reggae_bass"})).ok);
+        assert!(seed(&h) != was && seed(&h) >> 32 == was >> 32, "the same take's rhythm");
+        assert!(command(&mut h, json!({"cmd": "undo"})).ok);
+        assert_eq!(seed(&h), was);
+        // reggaeton's drums in place of the song's lanes of their names
+        let r = command(&mut h, json!({"cmd": "generate_track", "what": "drums", "genre": "reggaeton"}));
+        assert!(r.ok && r.message.starts_with("reggaeton's drums"), "{}", r.message);
+        assert!(h.blueprint().unwrap().drums.iter().any(|d| d.name == "snare"));
+        let r = command(&mut h, json!({"cmd": "generate_track", "what": "tuba"}));
+        assert!(!r.ok && r.message.contains("not 'tuba'"), "{}", r.message);
     }
 
     #[test]

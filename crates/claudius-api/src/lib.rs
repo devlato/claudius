@@ -1578,6 +1578,30 @@ pub enum Command {
         #[serde(default)]
         only: Option<String>,
     },
+    /// A track written the way genre `genre` (the song's, when left out) plays it. `what` is `drums` (the genre's lanes
+    /// in place of the song's of their names, and beside the others), `percussion` (its percussion lanes beside the
+    /// song's drums), or a part: `bass`, `chords`, `keys`, `pad`, `strings`, `lead` or `arp`, written as the genre's
+    /// own part of the role is (its idiom, a sound from its palette, its register, density, voicing and mix), added
+    /// as `name` (`<genre>_<what>` by default) or in place of the song's part `replace`. Each one is another take;
+    /// `seed` gives one again.
+    GenerateTrack {
+        what: String,
+        #[serde(default)]
+        genre: Option<String>,
+        #[serde(default)]
+        replace: Option<String>,
+        #[serde(default)]
+        name: Option<String>,
+        #[serde(default)]
+        seed: Option<u64>,
+    },
+    /// Another take of part or drum lane `track` (`take`), or a variation of the take it plays: a part keeps its
+    /// idiom's cells and draws their details again; a drum lane is varied a step or two, its strong hits kept.
+    VaryTrack {
+        track: String,
+        #[serde(default)]
+        take: bool,
+    },
     /// A track out of the song, with every section's mention of it: a drum lane, part, loop, take or pattern track.
     RemoveTrack {
         name: String,

@@ -69,12 +69,12 @@ impl App {
 
     /// an edit of the song, as `claudius_session::edit` makes it: a script run on it, or a change in place
     fn edit(self: &Arc<Self>, c: &Command) -> Reply {
-        match edit::script(c, self.blueprint().as_ref(), now_seed()) {
+        let seed = now_seed();
+        match edit::script(c, self.blueprint().as_ref(), seed) {
             Some(Ok(s)) => self.run_script(&s.code, s.label),
             Some(Err(e)) => no(e, self.version()),
-            None => {
-                self.edit_with(|bp| edit::change(c, bp).unwrap_or_else(|| Err("that is no edit of the song".into())))
-            }
+            None => self
+                .edit_with(|bp| edit::change(c, bp, seed).unwrap_or_else(|| Err("that is no edit of the song".into()))),
         }
     }
 
@@ -230,6 +230,8 @@ impl App {
             | Command::AddTrack { .. }
             | Command::Harmonize { .. }
             | Command::SwapSound { .. }
+            | Command::GenerateTrack { .. }
+            | Command::VaryTrack { .. }
             | Command::RemoveTrack { .. }
             | Command::SetNotes { .. }
             | Command::SetMix { .. }
