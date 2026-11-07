@@ -70,8 +70,12 @@ Details that make it sound played rather than printed:
 ## The auto-mixer
 
 A producer balances by ear: the kick here, the bass a little under it, the pad well back. claudius does the same with a
-meter. After its inserts and its drive (a tanh saturator `drive_db` hard, when it has one), each track's **active
-level** is measured: the 80th percentile of its momentary loudness (0.4 s blocks every 0.1 s) over the blocks where it
+meter. First the gain is staged, as an engineer stages it into a chain of plug-ins: a track with inserts or a drive
+whose sound is more than 6 dB from its role's target (below) is brought to 6 dB from it before them (`Song::finish`;
+at most 30 dB up). A compressor's threshold and a saturator's drive then work on it as they were set to: a pad made
+20 dB hot is not driven into distortion, nor a quiet recording left under its compressor. A sound made within 6 dB of
+its role's target goes in as it was made. After its inserts and its drive (a tanh saturator `drive_db` hard, when it
+has one), each track's **active level** is measured: the 80th percentile of its momentary loudness (0.4 s blocks every 0.1 s) over the blocks where it
 is audible (above −50 LUFS). Momentary blocks hear each hit about as the ear does. A 3 s window would hear a clap on
 two and four with the silence between its hits, 3 to 4 dB under how loud its hits are, and an impact or a reverse
 crash 5 to 8 dB under, so a mix balanced on it played every sparse track louder than its target. The track is then
@@ -81,7 +85,9 @@ scaled to:
 target = role target + genre's offset for the role (mix.levels) + the track's level_db
 ```
 
-with the gain clamped to −40..+30 dB. The role targets, in LUFS while the track plays:
+with the gain clamped to −40..+30 dB, and to +12 dB for a recording that plays under −45 LUFS: what a stem or a filter
+left of what it took out (a hiss, a smear of drums), which raised to its role's level would only be heard as that. The
+critic then says it is quieter than its level. The role targets, in LUFS while the track plays:
 
 | role | target | role | target | role | target |
 |---|---|---|---|---|---|

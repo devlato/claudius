@@ -6,6 +6,16 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+Tracks are balanced as a mix engineer stages them.
+- A track whose sound is more than 6 dB from its role's level goes into its effects 6 dB from it. Before, a pad made
+  20 dB hot went into its saturator and compressor that hot, distorted, and was only turned down after. Its effects
+  now work on it as they were set to; a sound made near its role's level is unchanged.
+- A recording that plays under −45 LUFS, what a stem leaves of what it took out, is raised 12 dB at most, not the
+  30 dB that put a near-silent hook's hiss on top of a song.
+- A rework's voice sits 2 dB higher, where it is heard over the genre's drums and bass. It was 3.5 dB under the kick.
+- A recording kept in memory (a page's file, a test's) is told from another kept under the same name by what it
+  holds. Before, a loop warped from one could be reused for the other from the disk cache.
+
 The studio says what it is doing with a recording, and shows what came of it. **Sample its vocals into the song**
 and **Take its groove** used to print where each phrase went inside the New song dialog, and nothing else: the
 dialog stayed open over the song they had changed, and nothing said whether claudius was still working, waiting for

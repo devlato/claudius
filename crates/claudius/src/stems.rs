@@ -116,12 +116,7 @@ mod separating {
     }
 
     fn key(x: &Stereo) -> String {
-        let mut h = blake3::Hasher::new();
-        for (l, r) in x.l.iter().zip(&x.r) {
-            h.update(&l.to_le_bytes());
-            h.update(&r.to_le_bytes());
-        }
-        h.finalize().to_hex()[..20].to_string()
+        audio::fingerprint(x).to_hex()[..20].to_string()
     }
 
     fn folder(key: &str) -> PathBuf {

@@ -241,7 +241,7 @@ that plays once from the first section through all of them (a take's `from`), th
 phrase it samples with a high-pass at 80 Hz; its drums and its bass are left to the genre's. When it sings (its vocals
 hold a twentieth of its power, `Stems::sung`), its voice is another such track beside it, `vocals`, with the `vocal`
 role and a vocal's mix (`remix::voice_mix`: high-passed at 100 Hz, compressed, with less reverb, delay and ducking than
-a sampled phrase, since its own room is in it), and `original` holds its voice only when it does not sing (and is left
+a sampled phrase, since its own room is in it, and 2 dB louder, the song's own singer on the genre's drums and bass), and `original` holds its voice only when it does not sing (and is left
 out when the rest holds under a fiftieth of its power, a voice over a beat). Without the stems
 the recording is split into what sustains and what strikes (`fft::harmonic`), and what sustains is the loop, with the
 high-pass at 150 Hz at least, which leaves the low end to the genre's bass and kick. The song generated in the genre

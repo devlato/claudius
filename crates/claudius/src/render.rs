@@ -24,6 +24,15 @@ use crate::synth::{drums, fxsounds};
 use crate::theory::rhythm::swing;
 use crate::theory::{Lock, Note};
 
+/// how far from its role's level (`target_level`) a track's sound may go into its effects: further, and it is brought
+/// to that far (`Song::finish`)
+const STAGED_DB: f64 = 6.0;
+
+/// a recording's level, playing, under which it is what a stem or a filter left of what it took out (a hiss, a
+/// smear), which the mix does not raise to its role's level: by `RESIDUE_BOOST_DB` at most
+const RESIDUE_LUFS: f64 = -45.0;
+const RESIDUE_BOOST_DB: f32 = 12.0;
+
 /// target loudness (LUFS while playing) of each role before the master stage
 pub fn target_level(role: &str) -> f32 {
     match role {
@@ -1047,8 +1056,21 @@ impl<'a> Song<'a> {
         Ok(made)
     }
 
-    /// a track's source (`render_source`) through its effects and its drive, and the level the mix hears in it
+    /// A track's source (`render_source`) through its effects and its drive, and the level the mix hears in it. Into
+    /// its effects it goes within `STAGED_DB` of its role's level (at most 30 dB up), as an engineer stages the gain
+    /// into a chain: a compressor's threshold and a saturator's drive then work on it as they were set to, so that a
+    /// pad made 20 dB hot is not driven into distortion, nor a quiet recording left under its compressor. A sound made
+    /// within it goes in as it was made, and the mix sets the level after, as before.
     fn finish(&self, t: &Track, mut x: Stereo) -> (Stereo, Option<f64>) {
+        if (!t.mix.fx.is_empty() || t.mix.drive_db > 0.0)
+            && let Some(l) = loudness::active_level(&x)
+        {
+            let off = target_level(&t.role) as f64 - l;
+            let trim = (off - off.clamp(-STAGED_DB, STAGED_DB)).min(30.0);
+            if trim != 0.0 {
+                x.scale(db_to_gain(trim as f32));
+            }
+        }
         fx::apply_chain(&t.mix.fx, &mut x, &self.ctx(&t.name, 0));
         if t.mix.drive_db > 0.0 {
             let drive_db = t.mix.drive_db.min(crate::model::MAX_DRIVE_DB).into();
@@ -1102,7 +1124,9 @@ impl<'a> Song<'a> {
         let mut tracks = Vec::new();
         for (t, (_, sound, level, time)) in p.tracks.iter().zip(sounds) {
             let target = target_level(&t.role) + p.mix.levels.get(&t.role).copied().unwrap_or(0.0) + t.mix.level_db;
-            let gain_db = level.map_or(0.0, |l| (target as f64 - l) as f32).clamp(-40.0, 30.0);
+            let residue = matches!(t.sound, Sound::Loop { .. }) && level.is_some_and(|l| l < RESIDUE_LUFS);
+            let most = if residue { RESIDUE_BOOST_DB } else { 30.0 };
+            let gain_db = level.map_or(0.0, |l| (target as f64 - l) as f32).clamp(-40.0, most);
             let gain = db_to_gain(gain_db);
             let duck = self.duck.as_ref().filter(|_| t.mix.duck > 0.0 && t.role != "kick");
             let depth = t.mix.duck.clamp(0.0, 1.0);
@@ -1370,6 +1394,93 @@ mod tests {
             }
         }
         x
+    }
+
+    /// two bars of house at 120 BPM with a loop track `name` playing `x` (kept in memory as `demo:<name>`), with the
+    /// role `role`, through `fx`: the song, and the track's sound before the mix with the level the mix hears in it
+    fn looped(x: Stereo, name: &str, role: &str, fx: Vec<Effect>) -> (Project, Stereo, Option<f64>) {
+        audio::remember(&format!("demo:{name}"), x);
+        let g = crate::genres::get("house").unwrap();
+        let mut bp =
+            crate::compose::generate(&g, 3, &crate::compose::Options { short: true, ..Default::default() }, None);
+        bp.bpm = 120.0;
+        let sound = Sound::Loop {
+            path: format!("demo:{name}"),
+            bpm: 120.0,
+            beats: 8.0,
+            key: None,
+            tonal: false,
+            label: name.into(),
+        };
+        bp.loops.push(crate::model::LoopPart {
+            name: name.into(),
+            role: role.into(),
+            sound,
+            transpose: 0,
+            chop: Vec::new(),
+            slice_beats: 0.0,
+            retime: false,
+            mix: crate::model::TrackMix { fx, ..Default::default() },
+            from: None,
+            sampled: false,
+        });
+        bp.form.iter_mut().for_each(|s| s.layers.push(name.into()));
+        let p = crate::compose::arrange(&bp).slice(0, 2);
+        let (out, level) = track_sound(&p, &Options::default(), name).unwrap();
+        (p, out, level)
+    }
+
+    /// four seconds of a held A at 440 Hz, `amp` its peak
+    fn tone(amp: f64) -> Stereo {
+        let n = (4.0 * SRF) as usize;
+        let l: Vec<f32> =
+            (0..n).map(|i| (amp * (std::f64::consts::TAU * 440.0 * i as f64 / SRF).sin()) as f32).collect();
+        Stereo { l: l.clone(), r: l }
+    }
+
+    /// the power of `x` at `hz`, over all of it (Goertzel)
+    fn power_at(x: &[f32], hz: f64) -> f64 {
+        let k = 2.0 * (std::f64::consts::TAU * hz / SRF).cos();
+        let (mut s1, mut s2) = (0.0f64, 0.0f64);
+        for v in x {
+            (s1, s2) = (*v as f64 + k * s1 - s2, s1);
+        }
+        s1 * s1 + s2 * s2 - k * s1 * s2
+    }
+
+    #[test]
+    fn a_sound_made_far_hotter_than_its_role_goes_into_its_effects_near_its_level_and_is_not_driven_into_distortion() {
+        let drive = vec![Effect::Saturate { kind: fx::SatKind::Tanh, drive_db: 12.0.into(), mix: 1.0.into() }];
+        // a pad made about 20 and 30 dB over its level: both go into the saturator 6 dB over it, the same
+        let (_, hot, _) = looped(tone(1.2), "hot", "pad", drive.clone());
+        let (_, hotter, _) = looped(tone(4.0), "hotter", "pad", drive.clone());
+        let apart = hot.l.iter().zip(&hotter.l).map(|(a, b)| (a - b).abs()).fold(0f32, f32::max);
+        assert!(apart < 1e-3, "{apart}");
+        // its third harmonic far under what the saturator makes of it as it was made
+        let third = |x: &Stereo| 10.0 * (power_at(&x.l, 1320.0) / power_at(&x.l, 440.0)).log10();
+        let mut raw = tone(1.2);
+        let ctx = fx::Ctx::whole(SRF, 120.0, 0, raw.len());
+        fx::apply_chain(&drive, &mut raw, &ctx);
+        assert!(third(&hot) < third(&raw) - 10.0, "{:.1} dB against {:.1} dB", third(&hot), third(&raw));
+        // a pad made at its level goes in as it was made
+        let (_, at, _) = looped(tone(0.12), "at", "pad", Vec::new());
+        assert!((at.peak() - 0.12).abs() < 0.01, "{}", at.peak());
+    }
+
+    #[test]
+    fn a_recording_all_but_silent_is_not_raised_to_its_roles_level() {
+        // noise about 47 dB down, what a stem leaves of a kit it took out: loud enough to be heard as playing (from
+        // -50 LUFS), and raised to a sample's -18 it would be 29 dB up
+        let mut r = crate::rng::Rng::new(4);
+        let l: Vec<f32> = (0..(4.0 * SRF) as usize).map(|_| r.f32() - 0.5).collect();
+        let mut noise = Stereo { l: l.clone(), r: l };
+        let made_at = loudness::active_level(&noise).unwrap();
+        noise.scale(db_to_gain((-47.5 - made_at) as f32));
+        let (p, _, level) = looped(noise, "residue", "sample", Vec::new());
+        assert!(level.is_some_and(|l| l > -50.0 && l < RESIDUE_LUFS), "{level:?}");
+        let made = render(&p, &Options::default()).unwrap();
+        let t = made.tracks.iter().find(|t| t.name == "residue").unwrap();
+        assert_eq!(t.gain_db, RESIDUE_BOOST_DB, "raised {} dB", t.gain_db);
     }
 
     #[test]
