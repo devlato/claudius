@@ -138,13 +138,14 @@ impl App {
         }
         let opt = sampler::Options { sections, ..o.opt.clone() };
         let before = sampled(self.blueprint().as_ref());
-        let r =
+        let mut r =
             self.edit_with(|bp| sampler::keep(bp, &o.src, &o.name, &chosen, &opt, &dir).map(|s| s.lines.join("\n")));
         if r.ok {
+            // the pieces are in the song by now: a credit not kept is said, not taken for a failure
             if !o.sources.is_empty() {
                 for file in sampled(self.blueprint().as_ref()).difference(&before) {
                     if let Err(e) = take::keep_sources(Path::new(file), &o.sources) {
-                        return no(format!("cannot keep what {file} credits: {e:#}"), self.version());
+                        r.message.push_str(&format!("\ncannot keep what {file} credits: {e:#}"));
                     }
                 }
             }
