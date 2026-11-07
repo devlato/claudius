@@ -224,9 +224,10 @@ impl Studio {
                 if self.view.import.sampling
                     && matches!(what.as_str(), "sample_pieces" | "redraw_pieces" | "keep_pieces")
                 {
+                    let kept = what == "keep_pieces";
                     match &result {
-                        Ok(r) => self.view.import.pieces_answered(r.ok, r.message.clone()),
-                        Err(e) => self.view.import.pieces_answered(false, e.clone()),
+                        Ok(r) => self.view.import.pieces_answered(r.ok, r.message.clone(), kept),
+                        Err(e) => self.view.import.pieces_answered(false, e.clone(), kept),
                     }
                 }
                 if what == "add_recording" || (what == "add_take" && self.view.import.waiting()) {

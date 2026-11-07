@@ -66,6 +66,8 @@ pub struct Import {
     pub sampling: bool,
     pub sample_said: Option<(bool, String)>,
     choices: (u64, Vec<u8>),
+    /// the pieces chosen are in the song: the window closes
+    kept: bool,
 }
 
 /// what the window sent: a recording it holds, or a library's, by its id
@@ -119,8 +121,15 @@ impl Import {
     }
 
     /// claudius' answer to the pieces asked for, drawn again or kept
-    pub fn pieces_answered(&mut self, ok: bool, message: String) {
+    /// (`kept`: the answer to the pieces kept, which closes the window when they went in)
+    pub fn pieces_answered(&mut self, ok: bool, message: String, kept: bool) {
+        self.kept |= ok && kept;
         self.sample_said = Some((ok, message));
+    }
+
+    /// the Sample window opened anew, or closed: nothing chosen, nothing said
+    fn sample_afresh(&mut self, open: bool) {
+        (self.sampling, self.sample_said, self.choices, self.kept) = (open, None, (u64::MAX, Vec::new()), false);
     }
 
     /// whether an answer from claudius is awaited
@@ -430,7 +439,7 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
                     (None, Some(file)) => im.offer = Some((file.clone(), found.clone())),
                     (None, None) => {}
                 }
-                (im.sampling, im.sample_said) = (true, None);
+                im.sample_afresh(true);
             }
         });
         let im = &cx.view.import;
@@ -541,8 +550,8 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
     );
     let im = &mut cx.view.import;
     // kept, the offer goes, and so does the window
-    if !open || (im.sample_said.as_ref().is_some_and(|(ok, _)| *ok) && cx.state.pieces.is_none()) {
-        im.sampling = false;
+    if !open || im.kept {
+        im.sample_afresh(false);
         if let Some(player) = im.player.as_mut() {
             player.stop();
         }

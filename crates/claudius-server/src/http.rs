@@ -64,7 +64,7 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
         .route("/api/library/search", get(library_search))
         .route("/api/library/audio", get(library_audio))
         .route("/api/pieces/{file}", get(piece_audio))
-        .route("/api/sample/pieces", post(sample_pieces))
+        .route("/api/sample/pieces", post(sample_pieces).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/audio/{file}", get(audio))
         .route("/api/stems/{version}/{file}", get(stem))
         .route("/api/export/{version}/{file}", get(export_file))
