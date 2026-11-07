@@ -2,6 +2,7 @@
 
 pub mod bass;
 pub mod chord;
+pub mod harmonize;
 pub mod melody;
 pub mod progression;
 pub mod rhythm;

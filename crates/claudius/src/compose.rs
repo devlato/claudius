@@ -857,6 +857,7 @@ pub fn new_part(
         notes: BTreeMap::new(),
         mix,
         doubles: spec.doubles.clone(),
+        harmonizes: None,
         octave: spec.octave,
     }
 }

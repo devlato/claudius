@@ -223,6 +223,19 @@ pub const ARP_STYLES: &[&str] = &["up", "down", "updown", "random", "pinky"];
 /// leads have one style: motifs developed over the chords
 pub const LEAD_STYLES: &[&str] = &["motif"];
 
+/// a chord rhythm's hits in a bar: when (beats from the bar's start), how long, how hard
+pub fn chord_hits(rhythm_name: &str) -> Vec<(f64, f64, f32)> {
+    match rhythm_name {
+        "half" => vec![(0.0, 1.9, 0.9), (2.0, 1.9, 0.85)],
+        "stabs" => vec![(0.0, 0.3, 0.95), (1.5, 0.3, 0.8), (3.0, 0.3, 0.85)],
+        "offbeat" => (0..4).map(|b| (b as f64 + 0.5, 0.35, 0.85)).collect(),
+        "pump" => (0..8).map(|k| (k as f64 * 0.5, 0.42, if k % 2 == 0 { 0.9 } else { 0.75 })).collect(),
+        "syncopated" => vec![(0.0, 0.4, 0.95), (0.75, 0.4, 0.8), (1.5, 0.4, 0.85), (2.5, 0.4, 0.8), (3.25, 0.5, 0.85)],
+        "charleston" => vec![(0.0, 0.6, 0.95), (1.5, 1.2, 0.85)],
+        _ => vec![(0.0, 4.0, 0.85)],
+    }
+}
+
 pub fn chord_part(
     chords: &[ChordSpan],
     rhythm_name: &str,
@@ -233,15 +246,7 @@ pub fn chord_part(
 ) -> Vec<Note> {
     let mut out = Vec::new();
     let mut prev: Option<Vec<i32>> = None;
-    let hits: Vec<(f64, f64, f32)> = match rhythm_name {
-        "half" => vec![(0.0, 1.9, 0.9), (2.0, 1.9, 0.85)],
-        "stabs" => vec![(0.0, 0.3, 0.95), (1.5, 0.3, 0.8), (3.0, 0.3, 0.85)],
-        "offbeat" => (0..4).map(|b| (b as f64 + 0.5, 0.35, 0.85)).collect(),
-        "pump" => (0..8).map(|k| (k as f64 * 0.5, 0.42, if k % 2 == 0 { 0.9 } else { 0.75 })).collect(),
-        "syncopated" => vec![(0.0, 0.4, 0.95), (0.75, 0.4, 0.8), (1.5, 0.4, 0.85), (2.5, 0.4, 0.8), (3.25, 0.5, 0.85)],
-        "charleston" => vec![(0.0, 0.6, 0.95), (1.5, 1.2, 0.85)],
-        _ => vec![(0.0, 4.0, 0.85)],
-    };
+    let hits = chord_hits(rhythm_name);
     for span in chords {
         let pitches = voice(&span.chord, prev.as_deref(), register.0, register.1, voices, voicing, Some(rng));
         let bars = (span.len / 4.0).ceil().max(1.0) as usize;

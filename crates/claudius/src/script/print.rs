@@ -337,8 +337,25 @@ pub fn to_script(bp: &Blueprint) -> String {
         s.push_str("\n// parts written by the theory engine: change the style, preset, register, density or seed\n");
     }
     let genre = super::song::genre_of(bp);
-    // a part the script doubles is one it has made by then
-    for p in bp.parts.iter().filter(|p| p.doubles.is_none()).chain(bp.parts.iter().filter(|p| p.doubles.is_some())) {
+    // a part the script doubles or harmonizes is one it has made by then: each after the part it follows
+    let mut order: Vec<&Part> = Vec::new();
+    let mut left: Vec<&Part> = bp.parts.iter().collect();
+    while !left.is_empty() {
+        let made = |name: &str| order.iter().any(|q| q.name == name) || !bp.parts.iter().any(|q| q.name == name);
+        let ready: Vec<&Part> = left
+            .iter()
+            .copied()
+            .filter(|p| p.doubles.as_deref().or(p.harmonizes.as_deref()).is_none_or(made))
+            .collect();
+        // parts that follow each other round, which part() refuses, as they are
+        if ready.is_empty() {
+            order.append(&mut left);
+            break;
+        }
+        left.retain(|p| !ready.iter().any(|r| r.name == p.name));
+        order.extend(ready);
+    }
+    for p in order {
         let preset = match &p.sound {
             Sound::Synth { preset, .. } => format!(", preset: {}", quote(preset)),
             Sound::Instrument { name, .. } => format!(", preset: {}", quote(name)),
@@ -351,7 +368,7 @@ pub fn to_script(bp: &Blueprint) -> String {
         let doubles = match &p.doubles {
             Some(d) if p.octave != 0 => format!(", doubles: {}, octave: {}", quote(d), p.octave),
             Some(d) => format!(", doubles: {}", quote(d)),
-            None => String::new(),
+            None => p.harmonizes.as_ref().map_or_else(String::new, |h| format!(", harmonizes: {}", quote(h))),
         };
         let late = if p.late_ms != 0.0 { format!(", late: {}", f32s(p.late_ms)) } else { String::new() };
         s.push_str(&format!(

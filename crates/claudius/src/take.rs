@@ -751,6 +751,7 @@ fn parts_from_notes(
             notes: by_prog.clone(),
             mix: TrackMix { reverb: 0.15, bus: "music".into(), ..Default::default() },
             doubles: None,
+            harmonizes: None,
             octave: 0,
         });
         for &i in &sections {

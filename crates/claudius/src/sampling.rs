@@ -1550,6 +1550,7 @@ fn vocal(
         notes: std::collections::BTreeMap::new(),
         mix,
         doubles: None,
+        harmonizes: None,
         octave: 0,
     });
     for &i in &at {

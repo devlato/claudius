@@ -20,7 +20,7 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         check_keys(
             &m,
             "part()",
-            &["role", "style", "preset", "register", "density", "seed", "rate", "doubles", "octave", "late"],
+            &["role", "style", "preset", "register", "density", "seed", "rate", "doubles", "harmonizes", "octave", "late"],
         )?;
         let late = match map_f32(&m, "late") {
             Some(v) if !(-super::trigs::MOST_LATE..=super::trigs::MOST_LATE).contains(&v) => {
@@ -44,6 +44,34 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                 if let Some(by) = bp.parts.iter().find(|p| p.doubles.as_deref() == Some(name)) {
                     return fail(format!("part '{name}' is doubled by '{}', so it cannot double another", by.name));
                 }
+            }
+            // "" leaves it playing chords of its own
+            let harmonizes = map_str(&m, "harmonizes").map(|h| Some(h).filter(|h| !h.is_empty()));
+            if let Some(Some(h)) = &harmonizes {
+                match bp.parts.iter().find(|p| p.name == *h) {
+                    _ if h == name => return fail(format!("part '{name}' cannot harmonize itself")),
+                    None => return fail(format!("part '{name}' harmonizes '{h}', which is not a part of the song")),
+                    Some(p) if p.harmonizes.is_some() => {
+                        return fail(format!(
+                            "part '{name}' harmonizes '{h}', which harmonizes another part: harmonize the melody itself"
+                        ));
+                    }
+                    Some(_) => {}
+                }
+                if let Some(by) = bp.parts.iter().find(|p| p.harmonizes.as_deref() == Some(name)) {
+                    return fail(format!("part '{name}' is harmonized by '{}', so it cannot harmonize another", by.name));
+                }
+            }
+            let doubling = match &doubles {
+                Some(d) => d.is_some(),
+                None => bp.parts.iter().any(|p| p.name == name && p.doubles.is_some()),
+            };
+            let harmonizing = match &harmonizes {
+                Some(h) => h.is_some(),
+                None => bp.parts.iter().any(|p| p.name == name && p.harmonizes.is_some()),
+            };
+            if doubling && harmonizing {
+                return fail(format!("part '{name}' doubles another's notes or harmonizes them, not both"));
             }
             let octave = match m.get("octave") {
                 None => None,
@@ -69,8 +97,22 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                 Some(_) => {}
             }
             let part = bp.parts.iter_mut().find(|p| p.name == name).expect("added above");
+            if let Some(h) = harmonizes {
+                if h.is_some() && !matches!(part.role, Role::Chords | Role::Pad | Role::Keys) {
+                    return fail(format!(
+                        "part '{name}' is a {} part: a part that harmonizes plays chords, as a chords, pad or keys part",
+                        part.role.name()
+                    ));
+                }
+                // chords of its own play in a chord part's rhythm, not under a melody's notes
+                if h.is_none() && part.style == "block" {
+                    part.style = "sustain".into();
+                }
+                part.harmonizes = h;
+            }
             if let Some(s) = map_str(&m, "style") {
-                let styles = compose::styles_for(part.role);
+                let styles =
+                    if part.harmonizes.is_some() { crate::theory::harmonize::STYLES } else { compose::styles_for(part.role) };
                 if !styles.contains(&s.as_str()) {
                     let role = part.role.name();
                     let article = if role.starts_with(['a', 'e', 'i', 'o', 'u']) { "an" } else { "a" };
@@ -275,6 +317,18 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
             }
             for s in bp.form.iter_mut() {
                 s.layers.retain(|l| l != track);
+            }
+            // a part that doubled or harmonized it plays its own from now on
+            for p in bp.parts.iter_mut() {
+                if p.doubles.as_deref() == Some(track) {
+                    p.doubles = None;
+                }
+                if p.harmonizes.as_deref() == Some(track) {
+                    p.harmonizes = None;
+                    if p.style == "block" {
+                        p.style = "sustain".into();
+                    }
+                }
             }
             Ok(())
         })

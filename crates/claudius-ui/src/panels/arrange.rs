@@ -620,6 +620,28 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     out.push(MixEdit { solo: Some(!t.solo), ..Default::default() }.on(layer));
                     ui.close();
                 }
+                if t.kind == "part" {
+                    ui.separator();
+                    ui.menu_button("Add chords under it", |ui| {
+                        ui.label(small("chords that fit its notes and the song's, worked out again as it changes"));
+                        for (label, style, hint) in [
+                            ("A chord on each note", "block", "block chords under the melody, on its own sound"),
+                            ("A pad under it", "sustain", "chords held under it, as a pad"),
+                            ("Stabs", "stabs", "short chords on the beat and between"),
+                            ("Offbeat", "offbeat", "a chord on each offbeat"),
+                        ] {
+                            if ui.button(label).on_hover_text(hint).clicked() {
+                                out.push(Command::Harmonize {
+                                    part: layer.clone(),
+                                    style: Some(style.into()),
+                                    sound: None,
+                                    name: None,
+                                });
+                                ui.close();
+                            }
+                        }
+                    });
+                }
                 if t.kind == "take" {
                     ui.separator();
                     if ui

@@ -1745,6 +1745,38 @@ mod tests {
     }
 
     #[test]
+    fn chords_under_a_melody_go_in_where_it_plays_on_its_own_sound() {
+        let mut h = Host::new(1);
+        assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
+        let r = command(&mut h, json!({"cmd": "harmonize", "part": "lead"}));
+        assert!(
+            r.ok && r.message.contains("lead_chords: a chord under each of its notes under lead, in "),
+            "{}",
+            r.message
+        );
+        let bp = h.blueprint().unwrap().clone();
+        let part = |name: &str| bp.parts.iter().find(|p| p.name == name).unwrap();
+        let (chords, lead) = (part("lead_chords"), part("lead"));
+        assert_eq!((chords.harmonizes.as_deref(), chords.style.as_str()), (Some("lead"), "block"));
+        let preset = |s: &model::Sound| match s {
+            model::Sound::Synth { preset, .. } => preset.clone(),
+            model::Sound::Instrument { name, .. } => name.clone(),
+            other => format!("{other:?}"),
+        };
+        assert_eq!(preset(&chords.sound), preset(&lead.sound), "block chords sound as the melody does");
+        for s in &bp.form {
+            let on = |name: &str| s.layers.iter().any(|l| l == name);
+            assert_eq!(on("lead_chords"), on("lead"), "{} plays the chords where it plays the lead", s.name);
+        }
+        let r = command(&mut h, json!({"cmd": "harmonize", "part": "lead", "style": "sustain"}));
+        assert!(r.ok && r.message.contains("lead_chords2: sustain chords under lead"), "{}", r.message);
+        let r = command(&mut h, json!({"cmd": "harmonize", "part": "nope"}));
+        assert!(!r.ok && r.message.contains("no part 'nope' to harmonize"), "{}", r.message);
+        let r = command(&mut h, json!({"cmd": "harmonize", "part": "lead", "style": "motif"}));
+        assert!(!r.ok && r.message.contains("chords under a melody play in one of block"), "{}", r.message);
+    }
+
+    #[test]
     fn a_take_a_free_library_offered_credits_it() {
         use crate::listen::Listen;
         let mut h = Host::new(1);

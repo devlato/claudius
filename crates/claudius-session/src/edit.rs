@@ -113,6 +113,7 @@ pub fn script(cmd: &Command, bp: Option<&Blueprint>, seed: u64) -> Option<Result
         }
         Command::AddTrack { name, kind, role, sound } => Some(add_track(name, kind, role, sound, bp)),
         Command::RemoveTrack { name } => run(format!("remove({})", quote(name)), format!("removed {name}")),
+        Command::Harmonize { part, style, sound, name } => Some(harmonize(part, style, sound, name, bp)),
         Command::SetNotes { part, prog, notes } => Some(Ok(match notes {
             Some(notes) => {
                 // as the script reads them back exactly: whole numbers whole, the rest as Rust prints them
@@ -220,6 +221,73 @@ fn add_track(
         other => return Err(format!("a track is a drum lane (kind \"drum\") or a part (\"part\"), not '{other}'")),
     };
     Ok(Script { code, label: Some(format!("new track {name}")) })
+}
+
+/// Chords under part `melody` as the script says them: a part that harmonizes it, on in the sections it plays in.
+fn harmonize(
+    melody: &str,
+    style: &Option<String>,
+    sound: &Option<String>,
+    name: &Option<String>,
+    bp: Option<&Blueprint>,
+) -> Result<Script, String> {
+    let Some(bp) = bp else { return Err("no song yet: start one with a new song".into()) };
+    let Some(m) = bp.parts.iter().find(|p| p.name == melody) else {
+        let parts: Vec<&str> = bp.parts.iter().map(|p| p.name.as_str()).collect();
+        return Err(format!("no part '{melody}' to harmonize (parts: {})", parts.join(" ")));
+    };
+    let style = style.clone().unwrap_or_else(|| "block".into());
+    if !claudius::theory::harmonize::STYLES.contains(&style.as_str()) {
+        return Err(format!(
+            "chords under a melody play in one of {}, not '{style}'",
+            claudius::theory::harmonize::STYLES.join(" ")
+        ));
+    }
+    let taken = bp.layer_names();
+    let name = match name.as_deref().map(str::trim).filter(|n| !n.is_empty()) {
+        Some(n) if taken.iter().any(|t| t == n) => {
+            return Err(format!("the song already has a track '{n}': give the chords another name"));
+        }
+        Some(n) => n.to_string(),
+        None => std::iter::once(format!("{melody}_chords"))
+            .chain((2..).map(|k| format!("{melody}_chords{k}")))
+            .find(|n| !taken.contains(n))
+            .unwrap_or_default(),
+    };
+    // block chords sound as the melody does, a chord under each note; the rhythms keep under its range
+    let block = style == "block";
+    let role = if style == "sustain" { "pad" } else { "keys" };
+    let sound = sound.clone().or_else(|| match &m.sound {
+        Sound::Synth { preset, .. } if block => Some(preset.clone()),
+        Sound::Instrument { name, .. } if block => Some(name.clone()),
+        _ => None,
+    });
+    let (lo, hi) = m.register;
+    let register = if block { ((lo - 14).max(36), (hi - 1).max(lo)) } else { ((lo - 12).max(36), (lo + 7).max(48)) };
+    let preset = sound.map(|s| format!(", preset: {}", quote(&s))).unwrap_or_default();
+    let mut code = format!(
+        "part({}, #{{ role: {}, harmonizes: {}, style: {}{preset}, register: [{}, {}] }});",
+        quote(&name),
+        quote(role),
+        quote(melody),
+        quote(&style),
+        register.0,
+        register.1
+    );
+    let mut plays = Vec::new();
+    for (i, s) in bp.form.iter().enumerate() {
+        let on = s.layers.iter().any(|l| l == melody);
+        code.push_str(&format!("\nlayer({i}, {}, {on});", quote(&name)));
+        if on {
+            plays.push(s.name.as_str());
+        }
+    }
+    let how = if block { "a chord under each of its notes".to_string() } else { format!("{style} chords") };
+    let label = format!(
+        "{name}: {how} under {melody}, in {}",
+        if plays.is_empty() { "no section yet".into() } else { plays.join(", ") }
+    );
+    Ok(Script { code, label: Some(label) })
 }
 
 /// What command `cmd` changes in the song `bp` itself, and what to say of it; None when `cmd` is no such edit.
