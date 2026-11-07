@@ -74,8 +74,9 @@ them; Core Audio writes none.
 ## How each format is written
 
 WAV, AIFF, FLAC, MP3 and Opus are written by claudius itself, in Rust, and Ogg Vorbis by libvorbis (aoTuV), which is
-built in: none needs another program. Every FLAC is decoded again before it is kept, and stored verbatim if it does
-not come back exactly. AAC and Apple Lossless come from the system's encoder: Core Audio on macOS, which is Apple's own
+built in: none needs another program. FLAC is encoded frame by frame, each frame in the smaller of two ways of
+choosing its predictors, or holding its samples verbatim where both would take more; every FLAC is decoded again
+before it is kept, and stored verbatim throughout if it does not come back exactly. AAC and Apple Lossless come from the system's encoder: Core Audio on macOS, which is Apple's own
 AAC encoder, and ffmpeg on Windows and Linux. Where neither is there, those two formats are unavailable, `--list` says
 so, and exporting them fails with `AAC needs Core Audio (macOS) or ffmpeg, and this machine has neither`.
 

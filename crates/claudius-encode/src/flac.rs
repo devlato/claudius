@@ -1,13 +1,19 @@
-//! FLAC through flacenc, each encoding read back before it is kept. flacenc 0.5 picks a subframe's predictor by an
-//! estimate of its cost, which misjudges some 24-bit audio: a song's master shrinks to 97 % of its samples instead of
-//! 82 %, and a harmonica note of 600 KB became 438 MB that no decoder reads back. Counting the bits instead fixes
-//! both, and fails on other audio (a tone of 40 harmonics grows 1,300 times). So both are tried and the smaller
-//! that reads back is kept; when neither does, the samples are stored verbatim, which FLAC can always hold.
+//! FLAC through flacenc, frame by frame, each encoding read back before it is kept. flacenc 0.5 picks a subframe's
+//! predictor by an estimate of its cost, which misjudges some 24-bit audio: a song's master shrinks to 97 % of its
+//! samples instead of 82 %, and a harmonica note of 600 KB became 438 MB that no decoder reads back. Counting the
+//! bits instead fixes both, and fails on other audio (a tone of 40 harmonics grows 1,300 times). Some frames both
+//! misjudge: 4,096 samples, half silence and half noise, take 1.3 GB either way. So each frame is encoded both ways
+//! and the smaller kept, or the frame's samples verbatim when both are larger than that, before anything is written:
+//! written whole, twenty seconds of drums came to 6.7 GB. A stream that does not read back is stored verbatim
+//! throughout, which FLAC can always hold.
 
 use std::io::Read;
 use std::path::Path;
 
 use anyhow::{Result, anyhow, bail};
+use flacenc::component::{BitRepr, Frame, Stream, StreamInfo};
+use flacenc::error::{Verified, Verify};
+use flacenc::source::{Context, Fill, FrameBuf};
 
 use crate::Tags;
 
@@ -21,23 +27,18 @@ enum Predict {
     Verbatim,
 }
 
-/// Lossless FLAC of `samples` (interleaved integers `bits` deep), checked by decoding it: the smaller of the
-/// encoder's two ways of choosing predictors that is no larger than the samples and reads back exactly, or the
-/// samples stored verbatim.
+/// Lossless FLAC of `samples` (interleaved integers `bits` deep), checked by decoding it: each frame in the
+/// smaller of the encoder's two ways of choosing predictors, or verbatim when both take more than its samples; or,
+/// when that does not read back exactly, the samples stored verbatim.
 pub fn encode(samples: &[i32], channels: usize, bits: usize, rate: u32, tags: &Tags) -> Result<Vec<u8>> {
     let limit = bound(samples.len(), bits) + comment_size(tags);
-    let mut best: Option<Vec<u8>> = None;
-    for predict in [Predict::Count, Predict::Estimate] {
-        let Ok(s) = stream(samples, channels, bits, rate, predict) else { continue };
+    if let Ok(s) = stream(samples, channels, bits, rate, &[Predict::Count, Predict::Estimate]) {
         let s = with_tags(s, tags);
-        if s.len() <= limit && best.as_ref().is_none_or(|b| s.len() < b.len()) && reads_back(&s, samples, bits) {
-            best = Some(s);
+        if s.len() <= limit && reads_back(&s, samples, bits) {
+            return Ok(s);
         }
     }
-    if let Some(b) = best {
-        return Ok(b);
-    }
-    let verbatim = with_tags(stream(samples, channels, bits, rate, Predict::Verbatim)?, tags);
+    let verbatim = with_tags(stream(samples, channels, bits, rate, &[])?, tags);
     if !reads_back(&verbatim, samples, bits) {
         bail!("the audio does not read back from FLAC, even stored verbatim");
     }
@@ -68,12 +69,8 @@ pub fn bloated(path: &Path) -> bool {
     len as usize > bound(frames as usize * channels, bits) + 64 * 1024
 }
 
-fn stream(samples: &[i32], channels: usize, bits: usize, rate: u32, predict: Predict) -> Result<Vec<u8>> {
-    use flacenc::component::BitRepr;
-    use flacenc::error::Verify;
+fn config(predict: Predict) -> Result<Verified<flacenc::config::Encoder>> {
     let mut config = flacenc::config::Encoder::default();
-    // a browser's WebAssembly starts no threads: one there would panic, and take the demo's engine with it
-    config.multithread &= !cfg!(target_arch = "wasm32");
     match predict {
         Predict::Estimate => {}
         Predict::Count => config.subframe_coding.fixed.order_sel = flacenc::config::OrderSel::BitCount,
@@ -85,10 +82,43 @@ fn stream(samples: &[i32], channels: usize, bits: usize, rate: u32, predict: Pre
             config.stereo_coding.use_midside = false;
         }
     }
-    let config = config.into_verified().map_err(|e| anyhow!("FLAC encoder settings: {e:?}"))?;
-    let source = flacenc::source::MemSource::from_samples(samples, channels, bits, rate as usize);
-    let stream = flacenc::encode_with_fixed_block_size(&config, source, config.block_size)
-        .map_err(|e| anyhow!("cannot encode FLAC: {e:?}"))?;
+    config.into_verified().map_err(|e| anyhow!("FLAC encoder settings: {e:?}"))
+}
+
+/// The FLAC of `samples` (interleaved, `bits` deep), each frame in whichever of `ways` takes the fewest bits, unless
+/// that is more than the frame's samples, when it holds them verbatim; with no `ways`, every frame does.
+fn stream(samples: &[i32], channels: usize, bits: usize, rate: u32, ways: &[Predict]) -> Result<Vec<u8>> {
+    let ways = ways.iter().map(|&w| config(w)).collect::<Result<Vec<_>>>()?;
+    let verbatim = config(Predict::Verbatim)?;
+    let block = verbatim.block_size;
+    let info = StreamInfo::new(rate as usize, channels, bits).map_err(|e| anyhow!("FLAC stream: {e:?}"))?;
+    let chunks: Vec<&[i32]> = samples.chunks(block * channels).collect();
+    let frames = each(&chunks, |n, chunk| {
+        let mut buf = FrameBuf::with_size(channels, block).map_err(|e| anyhow!("FLAC frame: {e:?}"))?;
+        buf.fill_interleaved(chunk).map_err(|e| anyhow!("FLAC frame: {e:?}"))?;
+        let frame = |config| {
+            flacenc::encode_fixed_size_frame(config, &buf, n, &info).map_err(|e| anyhow!("cannot encode FLAC: {e:?}"))
+        };
+        // the samples, a frame header and its checksum, which verbatim takes
+        let plain = chunk.len() * bits + 8 * (16 + channels + 2);
+        let mut best: Option<Frame> = None;
+        for config in &ways {
+            let f = frame(config)?;
+            if f.count_bits() <= plain && best.as_ref().is_none_or(|b| f.count_bits() < b.count_bits()) {
+                best = Some(f);
+            }
+        }
+        best.map_or_else(|| frame(&verbatim), Ok)
+    })?;
+    let mut stream = Stream::new(rate as usize, channels, bits).map_err(|e| anyhow!("FLAC stream: {e:?}"))?;
+    stream.stream_info_mut().set_block_sizes(block, block).map_err(|e| anyhow!("FLAC stream: {e:?}"))?;
+    let mut context = Context::new(bits, channels);
+    for (chunk, frame) in chunks.iter().zip(frames) {
+        context.fill_interleaved(chunk).map_err(|e| anyhow!("FLAC stream: {e:?}"))?;
+        stream.add_frame(frame);
+    }
+    stream.stream_info_mut().set_md5_digest(&context.md5_digest());
+    stream.stream_info_mut().set_total_samples(context.total_samples());
     let mut sink = flacenc::bitsink::ByteSink::new();
     stream.write(&mut sink).map_err(|e| anyhow!("cannot write FLAC: {e:?}"))?;
     let mut bytes = sink.as_slice().to_vec();
@@ -99,6 +129,31 @@ fn stream(samples: &[i32], channels: usize, bits: usize, rate: u32, predict: Pre
         bytes[8..10].copy_from_slice(&max);
     }
     Ok(bytes)
+}
+
+/// `f` of each of `items` and its place, in order, on as many threads as the computer runs at once; in a browser,
+/// whose WebAssembly starts none (one would panic, and take the demo's engine with it), on this one
+fn each<T: Sync, R: Send>(items: &[T], f: impl Fn(usize, &T) -> Result<R> + Sync) -> Result<Vec<R>> {
+    let threads =
+        if cfg!(target_arch = "wasm32") { 1 } else { std::thread::available_parallelism().map_or(1, |n| n.get()) };
+    let per = items.len().div_ceil(threads).max(1);
+    if per >= items.len() {
+        return items.iter().enumerate().map(|(n, x)| f(n, x)).collect();
+    }
+    std::thread::scope(|s| {
+        let f = &f;
+        let parts: Vec<_> = items
+            .chunks(per)
+            .enumerate()
+            .map(|(k, part)| s.spawn(move || part.iter().enumerate().map(|(i, x)| f(k * per + i, x)).collect()))
+            .collect();
+        let mut out = Vec::with_capacity(items.len());
+        for part in parts {
+            let part: Result<Vec<R>> = part.join().map_err(|_| anyhow!("a FLAC encoding thread stopped"))?;
+            out.extend(part?);
+        }
+        Ok(out)
+    })
 }
 
 /// whether the FLAC `bytes` decode to exactly `samples` (interleaved, `bits` deep)
@@ -181,6 +236,29 @@ mod tests {
         let bytes = encode(&samples, 1, 24, 44_100, &Tags::default()).unwrap();
         assert!(
             bytes.len() <= bound(samples.len(), 24),
+            "{} bytes for {} bytes of samples",
+            bytes.len(),
+            samples.len() * 3
+        );
+        assert_eq!(decoded(bytes, 24), samples, "lossless");
+    }
+
+    #[test]
+    fn a_frame_both_ways_misjudge_is_kept_verbatim_and_the_rest_compressed() {
+        // a second of a quiet tone, then a frame half silence and half noise, which flacenc makes 1.3 GB of either way
+        let mut state = 0x9E37_79B9_7F4A_7C15u64;
+        let mut noise = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            ((state >> 40) as f64 / (1u64 << 24) as f64 * 2.0 - 1.0) * 5_000_000.0
+        };
+        let tone = (0..48_000).map(|i| ((i as f64 * 0.02).sin() * 300_000.0) as i32);
+        let silence_then_noise = (0..4096).map(|i| if i < 2048 { 0 } else { noise() as i32 });
+        let samples: Vec<i32> = tone.chain(silence_then_noise).collect();
+        let bytes = encode(&samples, 1, 24, 48_000, &Tags::default()).unwrap();
+        assert!(
+            bytes.len() < samples.len() * 3 / 2,
             "{} bytes for {} bytes of samples",
             bytes.len(),
             samples.len() * 3

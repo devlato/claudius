@@ -6,6 +6,12 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+FLAC files come out smaller and in a fraction of the time: claudius encodes them frame by frame, each frame in the
+smaller of the encoder's two ways of choosing predictors, and a frame both misjudge (4,096 samples, half silence and
+half noise, came to 1.3 GB either way) holds its samples verbatim instead of being written out first. A three-minute
+song's FLAC took 6 seconds and 12.7 GB of memory and came out as large as its samples; it now takes under a second
+and 82 % of them. Keeping a recording as a take no longer takes gigabytes, or stops claudius on Windows.
+
 A melody of single notes gets chords under it: **Add chords under it**, in a part's menu in the arrangement (or
 `harmonize` for an assistant, or `part("lead_chords", #{ role: "keys", harmonizes: "lead" })` in a script), adds a part
 that plays chords fitting the melody's notes and the song's own chords. The song's chord stays where the melody's
