@@ -258,13 +258,27 @@ fn remembered() -> &'static Remembered {
     R.get_or_init(Default::default)
 }
 
+/// what `x` holds, to the sample: its samples, left and right in turn, hashed
+pub fn fingerprint(x: &Stereo) -> blake3::Hash {
+    let mut h = blake3::Hasher::new();
+    let mut bytes = Vec::with_capacity(8 * 4096);
+    for (l, r) in x.l.chunks(4096).zip(x.r.chunks(4096)) {
+        bytes.clear();
+        for (a, b) in l.iter().zip(r) {
+            bytes.extend_from_slice(&a.to_le_bytes());
+            bytes.extend_from_slice(&b.to_le_bytes());
+        }
+        h.update(&bytes);
+    }
+    h.finalize()
+}
+
 /// Keeps `x` (48 kHz stereo) as the audio at `path`, which `load` then hands out without a file: what a browser's page
 /// fetched for the engine to play, where there are no files to read.
 pub fn remember(path: &str, x: Stereo) {
+    let version = u64::from_le_bytes(fingerprint(&x).as_bytes()[..8].try_into().unwrap_or_default());
     remembered().lock().unwrap_or_else(|e| e.into_inner()).insert(path.to_string(), std::sync::Arc::new(x));
-    let mut v = versions().lock().unwrap_or_else(|e| e.into_inner());
-    let next = v.values().max().copied().unwrap_or(0) + 1;
-    v.insert(path.to_string(), next);
+    versions().lock().unwrap_or_else(|e| e.into_inner()).insert(path.to_string(), version);
 }
 
 fn versions() -> &'static std::sync::Mutex<std::collections::HashMap<String, u64>> {
@@ -278,8 +292,9 @@ pub fn remembered_audio(path: &str) -> Option<std::sync::Arc<Stereo>> {
     remembered().lock().unwrap_or_else(|e| e.into_inner()).get(path).cloned()
 }
 
-/// which of the audio `remember` has kept at `path` this is: a number that changes each time the path is given audio
-/// anew (none: nothing kept there)
+/// which audio `remember` keeps at `path`: its fingerprint, the same for the same audio in any run of claudius, so that
+/// what is made of it and kept on disk (a loop warped to a tempo) is never taken for what was made of other audio kept
+/// at that path before (none: nothing kept there)
 pub fn remembered_version(path: &str) -> Option<u64> {
     versions().lock().unwrap_or_else(|e| e.into_inner()).get(path).copied()
 }

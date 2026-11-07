@@ -574,8 +574,9 @@ fn wholes(src: &Source) -> (Vec<(&'static str, Stereo)>, f32, &'static str) {
 }
 
 /// the recording's voice as a rework mixes it: as a sampled phrase is (`sampler::vocal_mix`), but its body kept down
-/// to 100 Hz, where a voice sung low still has it, and less of the song's reverb, delay and ducking, for a singer's
-/// whole line that its own room already holds
+/// to 100 Hz, where a voice sung low still has it, less of the song's reverb, delay and ducking, for a singer's whole
+/// line that its own room already holds, and 2 dB louder: the song's own singer, on the genre's drums and bass, not
+/// under them
 fn voice_mix() -> TrackMix {
     let mut mix = crate::sampler::vocal_mix();
     for fx in &mut mix.fx {
@@ -585,7 +586,7 @@ fn voice_mix() -> TrackMix {
             }
         }
     }
-    TrackMix { reverb: 0.12, delay: 0.08, duck: 0.2, ..mix }
+    TrackMix { level_db: mix.level_db + 2.0, reverb: 0.12, delay: 0.08, duck: 0.2, ..mix }
 }
 
 /// A rework of the recording `src` as a song of genre `g` (the module's doc says how), the recording kept in `dir`
