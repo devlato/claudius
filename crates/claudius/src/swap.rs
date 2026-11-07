@@ -196,19 +196,23 @@ fn no_general_midi(list: Vec<&palette::Instrument>) -> Vec<&palette::Instrument>
     list.iter().copied().filter(|i| !palette::general_midi(&i.name) || !better(&i.category)).collect()
 }
 
-/// the voice a drum lane plays, or would on a kit: its synthesized voice's, its name's, or its instrument's
-fn lane_voice(d: &DrumLane) -> Option<DrumVoice> {
+/// The voice a drum lane plays, or would synthesized: its synthesized voice's; its genre's for a lane of its name, as
+/// it was made (house's perc is a rim); the drum its instrument is (a kit's rim is a rim, whatever its lane is
+/// called); or the one its name says.
+fn lane_voice(g: Option<&GenreProfile>, d: &DrumLane) -> Option<DrumVoice> {
     if let Sound::Drum { voice, .. } = &d.sound {
         return Some(*voice);
     }
-    if let Some((voice, _)) = drum_name(&d.name) {
-        return Some(voice);
+    if let Some(spec) = g.and_then(|g| g.drums.iter().find(|s| s.name == d.name)) {
+        return Some(spec.voice);
     }
-    let label = match &d.sound {
-        Sound::Instrument { name, .. } => name.as_str(),
-        _ => return None,
-    };
-    drum_role(label).and_then(|role| drum_name(&role)).map(|(voice, _)| voice)
+    if let Sound::Instrument { name, .. } = &d.sound {
+        let drum = name.split(':').nth(1).and_then(drum_name);
+        if let Some((voice, _)) = drum.or_else(|| drum_role(name).and_then(|role| drum_name(&role))) {
+            return Some(voice);
+        }
+    }
+    drum_name(&d.name).map(|(voice, _)| voice)
 }
 
 /// what a kit calls a voice's sound; a percussion lane plays a kit's rim, as `compose::kit_sound` plays it
@@ -250,7 +254,7 @@ pub fn kits(bp: &Blueprint) -> Vec<String> {
 }
 
 fn lane_choices(g: Option<&GenreProfile>, d: &DrumLane) -> Vec<Choice> {
-    let Some(voice) = lane_voice(d) else { return Vec::new() };
+    let Some(voice) = lane_voice(g, d) else { return Vec::new() };
     let installed = palette::kits();
     let own: Vec<&String> = g.map_or_else(Vec::new, |g| {
         let mut k: Vec<&(String, f64)> = g.kits.iter().collect();
@@ -298,10 +302,11 @@ pub fn kit_of(bp: &Blueprint) -> Option<String> {
 /// What each drum lane plays on `kit` (`SYNTHESIZED`: its synthesized voice as it is), by lane: those it has a sound
 /// for, and that do not play it already.
 pub fn on_kit(bp: &Blueprint, kit: &str) -> Vec<(String, String)> {
+    let g = genres::get(&bp.genre).ok();
     bp.drums
         .iter()
         .filter_map(|d| {
-            let voice = lane_voice(d)?;
+            let voice = lane_voice(g.as_ref(), d)?;
             let name = if kit == SYNTHESIZED { format!("{}:0", voice_word(voice)) } else { on(kit, voice)? };
             (lane_playing(d).as_deref() != Some(name.as_str())).then(|| (d.name.clone(), name))
         })
@@ -418,5 +423,13 @@ mod tests {
         let lanes = on_kit(&bp, SYNTHESIZED);
         assert!(lanes.iter().any(|(l, n)| l == "kick" && n == "bd:0"), "{lanes:?}");
         assert!(choices(&bp, "nope").is_none());
+        // a lane on a kit goes back to the voice its genre made it with: house's perc is a rim, not a perc
+        let made = genres::get("house").unwrap().drums.iter().find(|s| s.name == "perc").unwrap().voice;
+        assert_eq!(made, DrumVoice::Rim);
+        let perc = bp.drums.iter_mut().find(|d| d.name == "perc").unwrap();
+        perc.sound = Sound::Instrument { name: "tr909:rim".into(), label: "rim".into() };
+        let names: Vec<String> = choices(&bp, "perc").unwrap().into_iter().map(|c| c.name).collect();
+        assert!(names.contains(&"rim:0".to_string()) && !names.iter().any(|n| n.starts_with("perc:")), "{names:?}");
+        assert!(on_kit(&bp, SYNTHESIZED).contains(&("perc".to_string(), "rim:0".to_string())));
     }
 }
