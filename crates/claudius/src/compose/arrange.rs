@@ -50,14 +50,27 @@ pub fn part_cycle(bp: &Blueprint, part: &Part, prog: &str, kick_main: &[Hit], ki
             ),
             None => melody::chord_part(&spans, &part.style, part.voicing, part.register, part.voices.max(2), &mut rng),
         },
-        Role::Lead => {
-            let bars = (beats / 4.0).round() as u32;
-            let sync = rng.chance(0.5);
-            melody::lead(&spans, &bp.key, 0.0, bars.clamp(4, 8), part.density, sync, part.register, &mut rng)
-                .into_iter()
-                .filter(|n| n.t < beats.max(16.0))
-                .collect()
-        }
+        Role::Lead => match crate::theory::lead::idiom(&part.style) {
+            Some(i) => {
+                // a lead's phrase is four bars at least: the progression again until it lasts that long
+                let mut chords = spans.clone();
+                while cycle_beats(&chords) < 16.0 - 1e-9 {
+                    let off = cycle_beats(&chords);
+                    let again: Vec<ChordSpan> =
+                        chords.iter().map(|c| ChordSpan { start: c.start + off, ..*c }).collect();
+                    chords.extend(again);
+                }
+                crate::theory::idiom::line(i, &chords, &bp.key, part.register, part.seed, hash_str(prog))
+            }
+            None => {
+                let bars = (beats / 4.0).round() as u32;
+                let sync = rng.chance(0.5);
+                melody::lead(&spans, &bp.key, 0.0, bars.clamp(4, 8), part.density, sync, part.register, &mut rng)
+                    .into_iter()
+                    .filter(|n| n.t < beats.max(16.0))
+                    .collect()
+            }
+        },
         Role::Arp => melody::arp(
             &spans,
             0.0,

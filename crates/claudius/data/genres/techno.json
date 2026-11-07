@@ -168,7 +168,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["acid", "pluck", "fm_lead", "pwm_lead"],
-      "styles": ["motif"],
+      "styles": ["techno_stab"],
       "register": [62, 82],
       "density": [0.15, 0.3],
       "optional": 0.6,

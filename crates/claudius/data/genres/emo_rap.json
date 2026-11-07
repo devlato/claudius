@@ -43,7 +43,7 @@
     {"name": "bass", "role": "bass", "presets": ["808"], "styles": ["glide", "kick_follow"], "register": [24, 40], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 9, "mix": 1.0}, {"fx": "filter", "mode": "lp", "cutoff": 4500, "res": 0.1}]}},
     {"name": "guitar", "role": "keys", "presets": ["freepats:clean_guitar|harp_pluck", "guitar|harp_pluck", "freepats:classical_guitar|pluck"], "styles": ["arpeggio", "strum", "arpeggio"], "register": [52, 76], "voices": 3, "voicing": "open", "mix": {"reverb": 0.35, "delay": 0.15, "fx": [{"fx": "chorus", "rate_hz": 0.6, "depth_ms": 2.0, "delay_ms": 10, "mix": 0.3}]}},
     {"name": "pad", "role": "pad", "presets": ["warm_pad", "air_pad", "string_ensemble|strings"], "styles": ["sustain"], "register": [48, 72], "voices": 3, "voicing": "open", "optional": 0.3, "mix": {"level_db": -4, "reverb": 0.5}},
-    {"name": "lead", "role": "lead", "presets": ["pluck", "soft_lead", "piano|keys"], "styles": ["motif"], "register": [64, 84], "density": [0.2, 0.35], "optional": 0.4, "mix": {"level_db": -5, "reverb": 0.35, "delay": 0.25}}
+    {"name": "lead", "role": "lead", "presets": ["pluck", "soft_lead", "piano|keys"], "styles": ["rock_lead", "ambient_line"], "register": [64, 84], "density": [0.2, 0.35], "optional": 0.4, "mix": {"level_db": -5, "reverb": 0.35, "delay": 0.25}}
   ],
   "sampling": {
     "by_default": true,

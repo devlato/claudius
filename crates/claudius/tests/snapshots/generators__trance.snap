@@ -19,7 +19,7 @@ drum ohat main (drum open_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...
 part bass (bass): pulse synth saw_bass, register 33..50, density 0.51
 part chords (chords): pump synth pwm_pad, register 55..79, density 0.60
 part pad (pad): sustain synth vowel_pad, register 48..76, density 0.59
-part lead (lead): motif synth pwm_lead, register 64..88, density 0.48
+part lead (lead): synth_lead synth pwm_lead, register 64..88, density 0.48
 part arp (arp): updown synth pluck, register 60..86, density 0.58
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix clap: +0.0 dB, pan +0.00, reverb 0.20, delay 0.00, duck 0.00, bus drums

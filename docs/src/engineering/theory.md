@@ -15,8 +15,11 @@ blueprint is all it takes to get the same notes back.
 | `theory/progression.rs` | the progression library, the Markov generator, substitutions |
 | `theory/rhythm.rs` | drum hits, lane templates, euclidean rhythms, rolls, swing, syncopation |
 | `theory/drummer.rs` | how each genre's drummers end their phrases: turns and fills |
-| `theory/bass.rs` | bass lines in eleven styles |
-| `theory/melody.rs` | leads, arpeggios and chord parts |
+| `theory/idiom.rs` | idioms: cells, turns and phrases, written in notes over the chords, varied by take |
+| `theory/bass.rs` | bass lines in the genres' idioms and twelve styles |
+| `theory/comp.rs` | chord parts in the genres' comping idioms |
+| `theory/lead.rs` | the genres' lead idioms |
+| `theory/melody.rs` | leads' motifs, arpeggios and chord parts' rhythms |
 
 ## Genres are data
 
@@ -439,7 +442,8 @@ a variation of a take keeps its rhythm and changes what it plays around it, and 
 
 ## Leads, arpeggios and chord parts
 
-**Leads** (`melody::lead`) are built like a hook: a one-bar motif played in an A A' A B phrase every four bars.
+**Leads** play one of the genres' [lead idioms](#lead-idioms), or `motif` (`melody::lead`), which is built like a
+hook: a one-bar motif played in an A A' A B phrase every four bars.
 
 1. The rhythm: 2 to 9 onsets in a bar, depending on density, drawn with weights that favour the strong sixteenths (or,
    for a syncopated lead, the off-beat ones), the first always on the downbeat.
@@ -497,6 +501,37 @@ into it, as gospel and funk players slide into their changes.
 | `disco_strings` | stabs off the beat, and a run up through the chord into the next phrase | nu-disco, chipmunk soul |
 | `tremolo` | strings: the chord bowed in fast soft sixteenths, for tension | ambient, trip hop |
 | `brass_stabs` | a horn section's stabs: short, hard and syncopated | big beat, crunk, new jack swing, Chicago drill |
+
+### Lead idioms
+
+A lead plays its genre's way of writing a top line, in the same notes as the [bass idioms](#bass-idioms)
+(`idiom::line`) in the lead's register: its tones are each chord's root, third, fifth, seventh and octave and the key's
+steps above the root, so a riff follows the changes as a producer's does, and its phrases end on a turn. A cycle of a
+lead is four bars at least, the progression played again until it is. A new seed is another take; a variation keeps
+its cells and draws its octaves, slides, approaches and pushes again.
+
+| idiom | how it goes | genres |
+|---|---|---|
+| `gfunk_whine` | a high portamento synth gliding between long notes, from the fifth up to the octave | G-funk, gangsta rap |
+| `trap_bells` | a dark motif in eighths, the fifth and the third round the root, an octave now and then | trap, plugg, cloud rap, rage, hip hop |
+| `drill_melody` | a piano or a flute bouncing in triplets, dark and sliding | UK, NY and Chicago drill |
+| `afro_flute` | a bright call pushed ahead of the beat and answered, room between | afrobeats, amapiano |
+| `dembow_hook` | the melody on the dembow's tresillo, three, three and two | reggaeton |
+| `synth_lead` | long notes leaping an octave, falling home at the phrase's end | synthwave, trance, neo-psychedelia, dance pop, drum and bass |
+| `trance_lead` | gated eighths up the chord to the octave and back, a falling run to end the phrase | trance, electro house |
+| `organ_riff` | short notes off the beat, syncopated round the kick | house, deep house, nu-disco, UK garage, amapiano |
+| `disco_hook` | bright octaves and chord tones in eighths, a run down to end it | nu-disco, dance pop, future bass |
+| `horn_riff` | short and punchy, the root and the fifth with rests between, answered | boom bap, funk, jazz rap, reggae, big beat, crunk, new jack swing |
+| `reggae_horns` | a long, lazy line answering the singer, from the fifth down to the root | reggae, jungle |
+| `riff` | eighths and sixteenths round the root, leaping an octave | grime, electro house, rage, dubstep, big beat, crunk |
+| `garage_chop` | a chopped vocal: short stabs skipping off the beat | UK garage, house, deep house, future bass |
+| `lofi_melody` | lazy and sparse, on the sevenths and ninths, slipping into the next chord | lo-fi, jazz rap, neo-soul, trip hop, 90s R&B, alt hip hop |
+| `rnb_runs` | long smooth notes, and a run down the scale at the phrase's end | R&B, 90s R&B, alt R&B, neo-soul, new jack swing, G-funk |
+| `rock_lead` | a guitar's eighths up the chord and back, a bend into the root | art rock, neo-psychedelia, emo rap |
+| `ambient_line` | a note now and then, held long, an octave away | ambient, cloud rap, plugg, alt R&B, art rock, emo rap, trip hop, drum and bass, jungle, IDM |
+| `techno_stab` | one note, hypnotic, off the beat or every three sixteenths against it, a fifth now and then | techno |
+| `phonk_cowbell` | a Memphis melody in sixteenths on a pitched cowbell | phonk |
+| `piano_riff` | the 90s' dark piano: the fifth hammered, falling to the third and the root | gangsta rap, hip hop, trap, Chicago drill, boom bap, alt hip hop |
 
 ## Sounds for parts and drums
 

@@ -21,7 +21,7 @@ drum rim main (drum rim): ...x.....x......|...x.....x......|...x.....x......|...
 part logdrum (bass): log_drum synth log_drum, register 33..52, density 0.47
 part keys (keys): house_piano synth tine_piano, register 52..76, density 0.57
 part pad (pad): sustain synth vowel_pad, register 50..76, density 0.59
-part lead (lead): motif synth fm_marimba, register 64..86, density 0.36
+part lead (lead): organ_riff synth fm_marimba, register 64..86, density 0.36
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix clap: +0.0 dB, pan +0.00, reverb 0.20, delay 0.00, duck 0.00, bus drums
 mix shaker: +0.0 dB, pan -0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums

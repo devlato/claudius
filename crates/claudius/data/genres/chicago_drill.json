@@ -44,7 +44,7 @@
     {"name": "bass", "role": "bass", "presets": ["808"], "styles": ["drill", "drill", "kick_follow"], "register": [24, 40], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 7, "mix": 1.0}, {"fx": "filter", "mode": "lp", "cutoff": 5000, "res": 0.1}]}},
     {"name": "keys", "role": "keys", "presets": ["piano|keys", "bells|bell"], "styles": ["trap_keys", "ostinato"], "register": [55, 79], "voices": 2, "voicing": "open", "mix": {"reverb": 0.35, "delay": 0.1}},
     {"name": "brass", "role": "chords", "presets": ["brass|brass_stab", "brass_stab", "brass|brass_lead"], "styles": ["brass_stabs", "sustain"], "register": [48, 70], "voices": 3, "voicing": "close", "core": 1.0, "mix": {"level_db": -2, "reverb": 0.3}},
-    {"name": "lead", "role": "lead", "presets": ["bell", "piano|keys"], "styles": ["motif"], "register": [67, 88], "density": [0.25, 0.4], "optional": 0.3, "mix": {"level_db": -4, "reverb": 0.35, "delay": 0.25}},
+    {"name": "lead", "role": "lead", "presets": ["bell", "piano|keys"], "styles": ["drill_melody", "piano_riff"], "register": [67, 88], "density": [0.25, 0.4], "optional": 0.3, "mix": {"level_db": -4, "reverb": 0.35, "delay": 0.25}},
     {"name": "strings", "role": "pad", "presets": ["string_ensemble|strings", "choir|warm_pad"], "styles": ["ostinato", "legato"], "register": [48, 72], "voices": 3, "voicing": "open", "optional": 0.3, "mix": {"level_db": -3, "reverb": 0.4}}
   ],
   "sampling": {

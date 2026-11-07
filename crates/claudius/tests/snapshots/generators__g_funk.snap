@@ -24,8 +24,8 @@ drum ohat main (drum open_hat): ..............x.|..............x.|..............
 drum shaker main (drum shaker): x.o...o...o.....|x.o...o...o.....|x.o...o...o.....|x.o...o...o.....
 part bass (bass): gfunk synth moog_bass, register 28..48, density 0.45
 part keys (keys): gospel synth epiano, register 50..74, density 0.48
-part lead (lead): motif synth glide_lead, register 69..90, density 0.22
-part talkbox (lead): motif synth vox_lead, register 55..72, density 0.33
+part lead (lead): gfunk_whine synth glide_lead, register 69..90, density 0.22
+part talkbox (lead): gfunk_whine synth vox_lead, register 55..72, density 0.33
 part strings (pad): legato synth glass_pad, register 52..76, density 0.53
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums

@@ -145,7 +145,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["saw_lead", "square_lead"],
-      "styles": ["motif"],
+      "styles": ["synth_lead"],
       "register": [64, 86],
       "density": [0.35, 0.55],
       "mix": {

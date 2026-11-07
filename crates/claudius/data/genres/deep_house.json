@@ -159,7 +159,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["rhodes|epiano", "vibes|mallet", "pluck"],
-      "styles": ["motif"],
+      "styles": ["organ_riff", "garage_chop"],
       "register": [62, 84],
       "density": [0.25, 0.45],
       "optional": 0.2,

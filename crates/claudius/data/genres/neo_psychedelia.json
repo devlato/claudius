@@ -145,7 +145,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["flute|fm_lead", "violins|strings", "soft_lead"],
-      "styles": ["motif"],
+      "styles": ["rock_lead", "synth_lead"],
       "register": [62, 81],
       "density": [0.3, 0.5],
       "mix": {

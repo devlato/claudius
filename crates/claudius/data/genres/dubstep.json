@@ -118,7 +118,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["square_lead", "saw_lead"],
-      "styles": ["motif"],
+      "styles": ["riff"],
       "register": [62, 86],
       "optional": 0.5,
       "density": [0.25, 0.5],

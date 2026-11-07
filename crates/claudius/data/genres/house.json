@@ -228,7 +228,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["pluck", "piano|epiano", "supersaw"],
-      "styles": ["motif"],
+      "styles": ["organ_riff", "garage_chop"],
       "register": [64, 86],
       "density": [0.35, 0.6],
       "mix": {"reverb": 0.25, "delay": 0.2, "duck": 0.2}

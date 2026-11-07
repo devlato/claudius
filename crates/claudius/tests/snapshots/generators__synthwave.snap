@@ -24,7 +24,7 @@ drum hat main (drum closed_hat): x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x
 part bass (bass): root8 synth saw_bass, register 33..48, density 0.51
 part arp (arp): updown synth pluck, register 60..84, density 0.60
 part pad (pad): sustain synth solina, register 50..76, density 0.43
-part lead (lead): motif synth saw_lead, register 64..86, density 0.51
+part lead (lead): synth_lead synth saw_lead, register 64..86, density 0.51
 part chords (chords): sustain synth supersaw, register 55..76, density 0.52
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.50, delay 0.00, duck 0.00, bus drums

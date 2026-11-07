@@ -6,6 +6,7 @@ pub mod comp;
 pub mod drummer;
 pub mod harmonize;
 pub mod idiom;
+pub mod lead;
 pub mod melody;
 pub mod progression;
 pub mod rhythm;

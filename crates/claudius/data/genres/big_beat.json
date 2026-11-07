@@ -149,7 +149,7 @@
       "name": "riff",
       "role": "lead",
       "presets": ["square_lead", "supersaw", "reese"],
-      "styles": ["motif"],
+      "styles": ["riff", "horn_riff"],
       "register": [55, 76],
       "density": [0.5, 0.75],
       "mix": {

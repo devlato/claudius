@@ -6,6 +6,20 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+Leads are written the way each genre's are, in 20 idioms, instead of one random motif for every genre:
+- G-funk's portamento whine and trap's dark bells;
+- drill's piano bouncing in triplets and afrobeats' flute;
+- reggaeton's hook on the tresillo;
+- synthwave's octave leaps and trance's gated riff;
+- house's organ riff and disco's octaves;
+- horn riffs and reggae's lazy horn lines;
+- the synth riff of grime and rage, and garage's chopped vocal;
+- lo-fi's sevenths, R&B's runs down the scale and a rock lead;
+- ambient's long notes, techno's hypnotic stab, phonk's cowbell and the 90s' dark piano riff.
+
+They follow the chords and end their phrases on a turn. The genres' leads play them (`part("lead", #{ style:
+"trap_bells" })` in a script); `motif` is still there.
+
 Drums end their phrases the way each genre's drummers do, instead of the same snare roll in every genre. Twenty
 drummers play turns at the end of four bars and fills at the end of eight and of a section, the same across the
 lanes:

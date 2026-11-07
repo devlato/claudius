@@ -117,7 +117,7 @@
       "name": "horns",
       "role": "lead",
       "presets": ["brass|brass_lead", "trumpet|brass_lead", "flute|fm_lead", "sax|brass_lead"],
-      "styles": ["motif"],
+      "styles": ["horn_riff", "piano_riff"],
       "register": [60, 82],
       "density": [0.25, 0.45],
       "mix": {"reverb": 0.25, "delay": 0.1}

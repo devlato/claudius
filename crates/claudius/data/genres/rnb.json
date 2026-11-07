@@ -45,7 +45,7 @@
     {"name": "bass", "role": "bass", "presets": ["808", "sub_bass", "deep_bass"], "styles": ["glide", "neo_soul", "sustain"], "register": [26, 43], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.6}]}, "late_ms": [2, 10]},
     {"name": "keys", "role": "keys", "presets": ["rhodes|epiano", "piano|keys", "wurlitzer|epiano"], "styles": ["rnb_keys", "rnb_keys", "sustain"], "register": [50, 76], "voices": 4, "voicing": "close", "mix": {"reverb": 0.3, "fx": [{"fx": "chorus", "rate_hz": 0.5, "depth_ms": 2.0, "delay_ms": 10, "mix": 0.25}, {"fx": "width", "width": 1.3, "mono_below_hz": 200}]}},
     {"name": "pad", "role": "pad", "presets": ["warm_pad", "air_pad", "string_ensemble|strings"], "styles": ["sustain"], "register": [48, 74], "voices": 3, "voicing": "open", "optional": 0.3, "mix": {"reverb": 0.45}},
-    {"name": "lead", "role": "lead", "presets": ["soft_lead", "freepats:clean_guitar|pluck", "vox_lead"], "styles": ["motif"], "register": [60, 82], "density": [0.25, 0.45], "mix": {"reverb": 0.3, "delay": 0.25}}
+    {"name": "lead", "role": "lead", "presets": ["soft_lead", "freepats:clean_guitar|pluck", "vox_lead"], "styles": ["rnb_runs"], "register": [60, 82], "density": [0.25, 0.45], "mix": {"reverb": 0.3, "delay": 0.25}}
   ],
   "sampling": {
     "by_default": false,

@@ -24,7 +24,7 @@ drum ohat main (drum open_hat): ..............x.|..............x.|..............
 part bass (bass): glide synth 808, register 24..40, density 0.47
 part guitar (keys): strum synth harp_pluck, register 52..76, density 0.60
 part pad (pad): sustain synth strings, register 48..72, density 0.59
-part lead (lead): motif synth keys, register 64..84, density 0.32
+part lead (lead): rock_lead synth keys, register 64..84, density 0.32
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.20, delay 0.00, duck 0.00, bus drums
 mix clap: -4.0 dB, pan +0.00, reverb 0.25, delay 0.00, duck 0.00, bus drums

@@ -124,9 +124,7 @@ fn part(
     let said = format!(
         "{name}: {}'s {what}, {} on {}",
         g.name,
-        crate::theory::bass::idiom(&made.style)
-            .or_else(|| crate::theory::comp::idiom(&made.style))
-            .map_or(made.style.clone(), |i| format!("{} ({})", i.name, i.about)),
+        crate::theory::idiom::named(&made.style).map_or(made.style.clone(), |i| format!("{} ({})", i.name, i.about)),
         made.sound.describe()
     );
     // a line of its own, playing none of another part's notes

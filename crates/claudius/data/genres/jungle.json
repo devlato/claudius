@@ -106,7 +106,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["rhodes|epiano", "pluck", "string_ensemble|strings"],
-      "styles": ["motif"],
+      "styles": ["ambient_line", "reggae_horns"],
       "register": [64, 86],
       "density": [0.2, 0.4],
       "optional": 0.3,

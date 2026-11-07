@@ -94,7 +94,7 @@ A `Part` stores how to write notes, not the notes:
 | field | meaning |
 |---|---|
 | `role` | `bass`, `chords`, `pad`, `lead`, `arp` or `keys`: which writer runs, and its target level |
-| `style` | the writer's style: a bass style (`offbeat`, `rolling`, `kick_follow`, ...), a chord rhythm (`stabs`, `pump`, `charleston`, ...), an arpeggio pattern, or `motif` for leads |
+| `style` | the writer's style: a bass style (`offbeat`, `rolling`, `kick_follow`, ...) or idiom (`one_drop`, `slap`, ...), a chord rhythm (`stabs`, `pump`, `charleston`, ...) or comping idiom (`skank`, `gospel`, ...), an arpeggio pattern, or for a lead `motif` or a lead idiom (`trap_bells`, `gfunk_whine`, ...) |
 | `register` | the lowest and highest MIDI note it may use |
 | `density` | how busy a lead is (0 to 1) |
 | `voices`, `voicing` | how many notes a chord has and how it spreads (`close`, `open`, `spread`, or `power`: root, fifth and octave) |

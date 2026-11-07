@@ -27,7 +27,7 @@ drum perc sparse (drum snap): x...............|x...............|x...............
 part bass (bass): kick_follow synth 808, register 24..40, density 0.47
 part keys (keys): trap_keys synth keys, register 55..76, density 0.53
 part pad (pad): sustain synth strings, register 48..72, density 0.53
-part lead (lead): motif synth soft_lead, register 67..88, density 0.45
+part lead (lead): trap_bells synth soft_lead, register 67..88, density 0.45
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.12, delay 0.00, duck 0.00, bus drums
 mix clap: -4.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums

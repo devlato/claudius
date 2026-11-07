@@ -152,7 +152,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["soft_lead", "vibraphone|mallet", "rhodes|epiano"],
-      "styles": ["motif"],
+      "styles": ["lofi_melody", "ambient_line"],
       "register": [62, 79],
       "density": [0.2, 0.4],
       "mix": {

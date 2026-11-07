@@ -468,7 +468,7 @@ fn default_spec(name: &str, role: Role) -> crate::genres::PartSpec {
         // a part of no genre plays the motifs and rhythms, not another genre's idiom
         styles: compose::styles_for(role)
             .into_iter()
-            .filter(|s| crate::theory::bass::idiom(s).is_none() && crate::theory::comp::idiom(s).is_none())
+            .filter(|s| crate::theory::idiom::named(s).is_none())
             .map(String::from)
             .collect(),
         register,

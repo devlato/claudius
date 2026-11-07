@@ -45,7 +45,7 @@
     {"name": "bass", "late_ms": [2, 10], "role": "bass", "presets": ["moog_bass", "fm_bass", "deep_bass"], "styles": ["rnb", "rnb", "new_jack"], "register": [28, 46], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 2, "mix": 0.4}]}},
     {"name": "keys", "role": "keys", "presets": ["tine_piano", "rhodes|epiano", "tine_piano", "piano|keys"], "styles": ["rnb_keys", "gospel", "sustain"], "register": [50, 76], "voices": 4, "voicing": "close", "mix": {"reverb": 0.3, "fx": [{"fx": "chorus", "rate_hz": 0.6, "depth_ms": 2.5, "delay_ms": 10, "mix": 0.35}]}},
     {"name": "pad", "role": "pad", "presets": ["string_ensemble|strings", "warm_pad", "strings"], "styles": ["sustain"], "register": [50, 76], "voices": 3, "voicing": "open", "optional": 0.3, "mix": {"level_db": -3, "reverb": 0.45}},
-    {"name": "lead", "role": "lead", "presets": ["sax|brass_lead", "vox_lead", "soft_lead"], "styles": ["motif"], "register": [60, 82], "density": [0.25, 0.4], "optional": 0.3, "mix": {"level_db": -2, "reverb": 0.35, "delay": 0.2}}
+    {"name": "lead", "role": "lead", "presets": ["sax|brass_lead", "vox_lead", "soft_lead"], "styles": ["rnb_runs", "lofi_melody"], "register": [60, 82], "density": [0.25, 0.4], "optional": 0.3, "mix": {"level_db": -2, "reverb": 0.35, "delay": 0.2}}
   ],
   "sampling": {
     "by_default": false,

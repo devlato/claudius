@@ -33,7 +33,7 @@ part bass (bass): glide synth sub_bass, register 26..43, density 0.59
 part fuzz (bass): boom_bap synth rubber_bass, register 38..55, density 0.53
 part keys (keys): half synth house_piano, register 50..76, density 0.53
 part pad (pad): sustain synth pad, register 48..74, density 0.55
-part lead (lead): motif synth soft_lead, register 62..84, density 0.35
+part lead (lead): lofi_melody synth soft_lead, register 62..84, density 0.35
 part strings (pad): pizzicato synth strings, register 55..81, density 0.55
 part sparkle (arp): random synth harp_pluck, register 72..96, density 0.37
 part keys_double (keys): half synth epiano, register 62..88, density 0.53

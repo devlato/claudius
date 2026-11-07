@@ -109,7 +109,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["vox_lead", "pluck", "saw_lead", "nylon_guitar|pluck", "flute|fm_lead"],
-      "styles": ["motif"],
+      "styles": ["dembow_hook"],
       "register": [62, 86],
       "density": [0.3, 0.55],
       "mix": {"reverb": 0.3, "delay": 0.25, "duck": 0.2}

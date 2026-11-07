@@ -108,7 +108,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["flute|fm_marimba", "sax|vox_lead", "vox_lead", "fm_marimba"],
-      "styles": ["motif"],
+      "styles": ["afro_flute", "organ_riff"],
       "register": [64, 86],
       "density": [0.2, 0.4],
       "mix": {"reverb": 0.35, "delay": 0.3}

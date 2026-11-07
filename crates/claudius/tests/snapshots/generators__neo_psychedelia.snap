@@ -26,7 +26,7 @@ part bass (bass): rock synth saw_bass, register 31..50, density 0.51
 part guitar (chords): arpeggio synth pluck, register 52..76, density 0.60
 part organ (keys): half synth organ, register 50..74, density 0.53
 part synth (pad): sustain synth strings, register 52..79, density 0.51
-part lead (lead): motif synth soft_lead, register 62..81, density 0.42
+part lead (lead): synth_lead synth soft_lead, register 62..81, density 0.42
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.25, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.25, reverb 0.00, delay 0.00, duck 0.00, bus drums
