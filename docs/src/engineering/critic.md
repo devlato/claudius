@@ -151,7 +151,9 @@ a remake's `original`, its hook and passages, a break, a flip), as the renderer 
   sixteenth round, weighted, from 0 (anywhere) to 1 (all at one place);
 - the same on the sixteenths of every tempo from 0.7 to 1.4 times the song's, a quarter of a percent apart and then a
   fiftieth around the best: the tempo they gather on most tightly, `own_bpm`, and how tightly, `own`;
-- `drift_ms`: how far each four bars' place on the song's sixteenths lies from the whole's, the most of any.
+- `drift_ms`: how far each four bars' place on the song's sixteenths lies from the whole's, the most of any whose
+  onsets gather there at least half as tightly as the whole's do (a fill, a riser or a wash gathers at no place, and
+  the place its leftover points to would read as wander).
 
 Onsets rather than beats tracked, because a beat tracker slips by half a beat on a guitar or a voice and would take its
 own slip for the recording's. A recording whose onsets gather on no grid near the song's tempo (`own` under 0.15: a

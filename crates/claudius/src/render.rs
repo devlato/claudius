@@ -181,7 +181,7 @@ pub struct KeptTime {
     pub own_bpm: f64,
     pub own: f64,
     /// how far, on the song's sixteenths, they wander from where they gather over all of it: the most over any four
-    /// bars, in milliseconds
+    /// bars of it that gather at a place of their own, in milliseconds
     pub drift_ms: f64,
 }
 
@@ -227,7 +227,8 @@ pub fn kept_time(x: &Stereo, bpm: f64) -> Option<KeptTime> {
     };
     let best = search((bpm, on_grid), 0.7 * bpm, 1.4 * bpm, 280);
     let best = search(best, best.0 * 0.9975, best.0 * 1.0025, 25);
-    // each four bars' place against the whole's, where they hold onsets enough to have one
+    // each four bars' place against the whole's, where they hold onsets enough to have one, gathered at one place: a
+    // fill, a riser or a wash gathers at none, and the place its leftover points to says nothing
     let span = 16.0 * 60.0 / bpm;
     let windows = (onsets.last().map_or(0.0, |o| o.0) / span) as usize + 1;
     let weight: f64 = onsets.iter().map(|o| o.1).sum();
@@ -238,7 +239,11 @@ pub fn kept_time(x: &Stereo, bpm: f64) -> Option<KeptTime> {
         if these.iter().map(|o| o.1).sum::<f64>() < 0.25 * weight / windows as f64 {
             continue;
         }
-        let d = gather(&these, sixteenth(bpm)).1 - place;
+        let (gathered, at) = gather(&these, sixteenth(bpm));
+        if gathered < 0.5 * on_grid.max(0.15) {
+            continue;
+        }
+        let d = at - place;
         let d = d - std::f64::consts::TAU * (d / std::f64::consts::TAU).round();
         drift = drift.max(d.abs() / std::f64::consts::TAU * sixteenth(bpm) * 1000.0);
     }
@@ -1378,6 +1383,23 @@ mod tests {
         // at the song's tempo, but settling 40 ms late after its first 32 s: about 20 ms off its place either way
         let wanders = kept_time(&clicks(120.0, |k| if k < 4 { 0.0 } else { 0.04 }), 120.0).unwrap();
         assert!((wanders.own_bpm - 120.0).abs() < 0.3 && (wanders.drift_ms - 20.0).abs() < 5.0, "{wanders:?}");
+        // a fill on no grid for four bars, its hits anywhere: no place of its own to wander to
+        let mut fill = clicks(120.0, |_| 0.0);
+        let (from, to) = ((16.0 * SRF) as usize, (24.0 * SRF) as usize);
+        let mut r = crate::rng::Rng::new(11);
+        for i in from..to {
+            (fill.l[i], fill.r[i]) = (0.0, 0.0);
+        }
+        for _ in 0..32 {
+            let at = from + (r.f64() * (to - from - 1000) as f64) as usize;
+            for j in 0..480 {
+                let v = (r.f32() - 0.5) * (1.0 - j as f32 / 480.0);
+                fill.l[at + j] += v;
+                fill.r[at + j] += v;
+            }
+        }
+        let filled = kept_time(&fill, 120.0).unwrap();
+        assert!((filled.own_bpm - 120.0).abs() < 0.1 && filled.drift_ms < 5.0, "{filled:?}");
         // silence has no onsets to tell by
         assert!(kept_time(&Stereo::zeros((10.0 * SRF) as usize), 120.0).is_none());
     }
