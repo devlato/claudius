@@ -100,7 +100,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["sub_bass", "organ_bass", "deep_bass", "fm_bass", "reese"],
-      "styles": ["syncopated", "offbeat", "pulse"],
+      "styles": ["garage", "garage", "offbeat"],
       "register": [28, 46],
       "mix": {"bus": "bass", "duck": 0.4}
     },

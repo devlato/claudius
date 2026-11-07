@@ -42,7 +42,7 @@
     "pad": {"core": 0.6, "strings": 1}
   },
   "parts": [
-    {"name": "bass", "late_ms": [4, 14], "role": "bass", "presets": ["upright_bass|deep_bass", "upright_bass|deep_bass", "electric_bass|deep_bass"], "styles": ["walking", "syncopated", "walking"], "register": [31, 50], "mix": {"bus": "bass"}},
+    {"name": "bass", "late_ms": [4, 14], "role": "bass", "presets": ["upright_bass|deep_bass", "upright_bass|deep_bass", "electric_bass|deep_bass"], "styles": ["walking", "walking", "boom_bap"], "register": [31, 50], "mix": {"bus": "bass"}},
     {"name": "keys", "role": "keys", "presets": ["rhodes|epiano", "piano|keys", "wurlitzer|epiano"], "styles": ["charleston", "sustain", "half"], "register": [50, 74], "voices": 4, "voicing": "close", "mix": {"reverb": 0.2, "fx": [{"fx": "tape", "wow": 0.2, "flutter": 0.15, "drive_db": 2, "lowpass_hz": 11000}]}},
     {"name": "vibes", "role": "lead", "presets": ["vibes|mallet"], "styles": ["motif"], "register": [62, 84], "density": [0.15, 0.3], "optional": 0.6, "core": 1.0, "mix": {"level_db": -6, "reverb": 0.3, "delay": 0.1}},
     {"name": "horns", "role": "lead", "presets": ["trumpet|brass_lead", "sax|brass_lead", "flute|whistle"], "styles": ["motif"], "register": [60, 82], "density": [0.25, 0.4], "mix": {"level_db": -2, "reverb": 0.25, "delay": 0.1}}

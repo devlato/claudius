@@ -19,7 +19,7 @@ drum kick main (drum kick): ........X.......|........X.......|........X.......|.
 drum rim main (drum rim): o.......X.......|o.......X.......|o.......X.......|o.......X.......
 drum hat main (drum closed_hat): x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.xx
 drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
-part bass (bass): syncopated synth deep_bass, register 28..46, density 0.51
+part bass (bass): steppers synth deep_bass, register 28..46, density 0.51
 part guitar (chords): offbeat synth clav, register 55..76, density 0.60
 part organ (keys): syncopated synth organ, register 50..72, density 0.53
 part horns (lead): motif synth brass_lead, register 58..80, density 0.26

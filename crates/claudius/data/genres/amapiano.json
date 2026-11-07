@@ -79,7 +79,7 @@
       "name": "logdrum",
       "role": "bass",
       "presets": ["log_drum"],
-      "styles": ["syncopated", "kick_follow", "offbeat"],
+      "styles": ["log_drum", "log_drum", "kick_follow"],
       "register": [33, 52],
       "mix": {"bus": "bass", "duck": 0.2}
     },

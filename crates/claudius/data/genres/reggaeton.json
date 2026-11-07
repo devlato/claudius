@@ -80,7 +80,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["sub_bass", "808", "deep_bass"],
-      "styles": ["sustain", "kick_follow", "root8"],
+      "styles": ["dembow", "dembow", "kick_follow"],
       "register": [28, 45],
       "mix": {"bus": "bass", "duck": 0.3}
     },

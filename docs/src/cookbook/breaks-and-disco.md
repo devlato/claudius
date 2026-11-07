@@ -182,7 +182,7 @@ it; jazz, house, synthwave and corporate pop are the confusions that count.
 
 Try:
 
-- `part("bass", #{ style: "walking" })` for a busier, more seventies bass.
+- `part("bass", #{ style: "funk" })` for a busier, more seventies bass: fingerstyle sixteenths with ghost notes.
 - `key("D major")` and `prog("A", "Imaj7 vi7 ii7 V7")` for a sunnier hook.
 
 ## Filter house: "Velours"

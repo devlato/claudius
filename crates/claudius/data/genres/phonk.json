@@ -40,7 +40,7 @@
     "pad": {"core": 0.5, "synth": 1, "choir": 1, "strings": 0.5}
   },
   "parts": [
-    {"name": "bass", "role": "bass", "presets": ["808"], "styles": ["kick_follow"], "register": [24, 40], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 9, "mix": 1.0}, {"fx": "filter", "mode": "lp", "cutoff": 4500, "res": 0.1}]}},
+    {"name": "bass", "role": "bass", "presets": ["808"], "styles": ["kick_follow", "glide"], "register": [24, 40], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 9, "mix": 1.0}, {"fx": "filter", "mode": "lp", "cutoff": 4500, "res": 0.1}]}},
     {"name": "cowbell", "role": "lead", "presets": ["cowbell_lead"], "styles": ["motif"], "register": [62, 82], "density": [0.45, 0.65], "mix": {"reverb": 0.15, "delay": 0.1}},
     {"name": "pad", "role": "pad", "presets": ["warm_pad", "choir|vowel_pad", "pad"], "styles": ["sustain"], "register": [48, 72], "voices": 3, "voicing": "open", "optional": 0.4, "mix": {"reverb": 0.35}}
   ],

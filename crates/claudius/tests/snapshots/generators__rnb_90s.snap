@@ -21,7 +21,7 @@ drum snap main (drum snap): ....x.......x...|....x.......x...|....x.......x...|.
 drum hat main (drum closed_hat): x..xxoxoxoxxxxxx|x..xxoxoxoxxxxxx|x..xxoxoxoxxxxxx|x..xxoxoxoxxxxxx
 drum ohat main (drum open_hat): ................|................|................|................
 drum shaker main (drum shaker): ..o.......o...o.|..o.......o...o.|..o.......o...o.|o.....o...o...o.
-part bass (bass): sustain synth moog_bass, register 28..46, density 0.45
+part bass (bass): rnb synth moog_bass, register 28..46, density 0.45
 part keys (keys): half synth keys, register 50..76, density 0.48
 part pad (pad): sustain synth strings, register 50..76, density 0.43
 part lead (lead): motif synth vox_lead, register 60..82, density 0.33

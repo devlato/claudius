@@ -40,7 +40,7 @@
     "pad": {"core": 0.5, "synth": 1, "strings": 1, "choir": 0.5}
   },
   "parts": [
-    {"name": "bass", "role": "bass", "presets": ["pluck_bass", "sub_bass", "fm_bass", "808"], "styles": ["syncopated", "pulse", "kick_follow"], "register": [26, 45], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 4, "mix": 0.6}]}},
+    {"name": "bass", "role": "bass", "presets": ["pluck_bass", "sub_bass", "fm_bass", "808"], "styles": ["grime", "grime", "kick_follow"], "register": [26, 45], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 4, "mix": 0.6}]}},
     {"name": "lead", "role": "lead", "presets": ["square_lead", "pwm_lead", "pizzicato|pluck"], "styles": ["motif"], "register": [60, 84], "density": [0.3, 0.55], "mix": {"reverb": 0.15, "delay": 0.15}},
     {"name": "stabs", "role": "chords", "presets": ["string_ensemble|strings", "brass_stab", "stab"], "styles": ["stabs"], "register": [50, 74], "voices": 3, "voicing": "close", "optional": 0.4, "mix": {"reverb": 0.2}},
     {"name": "pad", "role": "pad", "presets": ["glass_pad", "warm_pad", "choir|vowel_pad"], "styles": ["sustain"], "register": [48, 72], "voices": 3, "voicing": "open", "optional": 0.5, "mix": {"reverb": 0.4}}

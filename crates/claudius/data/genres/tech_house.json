@@ -41,7 +41,7 @@
     "pad": {"core": 0.5, "synth": 2, "pad": 1, "strings": 0.3}
   },
   "parts": [
-    {"name": "bass", "role": "bass", "presets": ["saw_bass", "rubber_bass", "moog_bass", "sub_bass"], "styles": ["offbeat", "rolling", "syncopated"], "register": [28, 45], "mix": {"bus": "bass", "duck": 0.5}},
+    {"name": "bass", "role": "bass", "presets": ["saw_bass", "rubber_bass", "moog_bass", "sub_bass"], "styles": ["tech", "tech", "rolling"], "register": [28, 45], "mix": {"bus": "bass", "duck": 0.5}},
     {"name": "stabs", "role": "chords", "presets": ["stab", "organ", "pluck"], "styles": ["stabs", "offbeat"], "register": [52, 72], "voices": 3, "voicing": "close", "optional": 0.35, "mix": {"reverb": 0.2, "delay": 0.2, "duck": 0.4}},
     {"name": "pad", "role": "pad", "presets": ["warm_pad", "pad"], "styles": ["sustain"], "register": [48, 72], "voices": 3, "voicing": "open", "optional": 0.5, "mix": {"reverb": 0.4, "duck": 0.5, "fx": [{"fx": "filter", "mode": "lp", "cutoff": 2400, "res": 0.1}]}}
   ],

@@ -82,7 +82,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["saw_bass", "wobble", "reese"],
-      "styles": ["syncopated", "offbeat"],
+      "styles": ["offbeat", "syncopated", "house_organ"],
       "register": [38, 57],
       "mix": {
         "bus": "bass",

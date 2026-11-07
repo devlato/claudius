@@ -19,7 +19,7 @@ drum kick main (drum kick): X.........X.....|X.........X.....|X.........X.....|X
 drum snare main (drum snare): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
 drum hat main (drum closed_hat): x.x.x...x.x.x.x.|x.x.x...x.x.x.x.|x.x.x...x.x.x.x.|x.x.x...x.x.x.x.
 drum ohat main (drum open_hat): ................|..............x.|................|..............x.
-part bass (bass): root8 synth sub_bass, register 28..43, density 0.59
+part bass (bass): kick_follow synth sub_bass, register 28..43, density 0.59
 part keys (keys): sustain synth keys, register 45..70, density 0.59
 part lead (lead): motif synth house_piano, register 72..88, density 0.20
 part strings (pad): sustain synth strings, register 40..64, density 0.55

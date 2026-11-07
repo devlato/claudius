@@ -41,7 +41,7 @@
     "chords": {"core": 0.8, "brass": 2}
   },
   "parts": [
-    {"name": "bass", "late_ms": [2, 10], "role": "bass", "presets": ["deep_bass", "sub_bass", "electric_bass|deep_bass"], "styles": ["kick_follow", "sustain", "syncopated"], "register": [28, 45], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.5}]}},
+    {"name": "bass", "late_ms": [2, 10], "role": "bass", "presets": ["deep_bass", "sub_bass", "electric_bass|deep_bass"], "styles": ["soul", "boom_bap", "kick_follow"], "register": [28, 45], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.5}]}},
     {"name": "keys", "role": "keys", "presets": ["rhodes|epiano", "piano|keys", "rhodes|epiano"], "styles": ["sustain", "half", "stabs"], "register": [50, 74], "voices": 4, "voicing": "close", "mix": {"reverb": 0.2}},
     {"name": "horns", "role": "chords", "presets": ["brass|brass_stab", "brass_stab"], "styles": ["stabs"], "register": [55, 76], "voices": 3, "voicing": "close", "optional": 0.3, "mix": {"level_db": -3, "reverb": 0.25}},
     {"name": "strings", "role": "pad", "presets": ["string_ensemble|strings", "strings"], "styles": ["sustain"], "register": [52, 79], "voices": 3, "voicing": "open", "optional": 0.3, "mix": {"level_db": -3, "reverb": 0.35}}

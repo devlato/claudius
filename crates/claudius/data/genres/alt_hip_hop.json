@@ -102,7 +102,7 @@
       "late_ms": [4, 14],
       "role": "bass",
       "presets": ["808", "sub_bass"],
-      "styles": ["kick_follow", "syncopated", "sustain"],
+      "styles": ["kick_follow", "boom_bap", "glide"],
       "register": [26, 43],
       "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 6, "mix": 0.8}, {"fx": "filter", "mode": "lp", "cutoff": 4500, "res": 0.1}]}
     },
@@ -110,7 +110,7 @@
       "name": "fuzz",
       "role": "bass",
       "presets": ["moog_bass", "rubber_bass", "acid_bass|moog_bass"],
-      "styles": ["kick_follow", "syncopated", "sustain"],
+      "styles": ["gfunk", "boom_bap", "syncopated"],
       "register": [38, 55],
       "doubles": "bass",
       "octave": 1,

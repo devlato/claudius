@@ -106,7 +106,7 @@
       "late_ms": [6, 16],
       "role": "bass",
       "presets": ["sub_bass", "upright_bass|organ_bass", "growlybass:bass|saw_bass"],
-      "styles": ["sustain", "pulse", "syncopated"],
+      "styles": ["trip_hop", "trip_hop", "sustain"],
       "register": [28, 46],
       "mix": {
         "bus": "bass",

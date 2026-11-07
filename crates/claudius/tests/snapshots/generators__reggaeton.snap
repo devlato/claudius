@@ -21,7 +21,7 @@ drum snare main (drum snare): ...X..X....X..X.|...X..X....X..X.|...X..X....X..X.
 drum hat main (drum closed_hat): x.....x.....x.....x.....XXXxxxxxxxxxx.....x..x..|x.....x.....x.....x.....x.....x.....X.Xx.xx.xx.x|x.....x.....x.....x.....x.....x.....x.....x..x..|x.....x.....x.....x.....x.....x.....x.....x..x..
 drum rim main (drum rim): ..x.......x....x|..x.......x....x|..x.......x....x|..x.......x....x
 drum shaker main (drum shaker): ooooo.o.oo..o.o.|ooooo.o.oo..o.o.|ooooo.o.oo..o.o.|ooooo.o.oo..o.o.
-part bass (bass): root8 synth sub_bass, register 28..45, density 0.59
+part bass (bass): kick_follow synth sub_bass, register 28..45, density 0.59
 part chords (chords): stabs synth keys, register 55..76, density 0.59
 part pad (pad): sustain synth warm_pad, register 48..72, density 0.52
 part lead (lead): motif synth saw_lead, register 62..86, density 0.50

@@ -111,7 +111,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["organ_bass", "saw_bass", "pluck_bass"],
-      "styles": ["octave", "offbeat", "syncopated"],
+      "styles": ["disco", "disco", "house_organ"],
       "register": [33, 50],
       "mix": {
         "bus": "bass",

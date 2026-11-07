@@ -86,7 +86,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["growlybass:bass|saw_bass", "freepats:pick_bass|pluck_bass", "saw_bass"],
-      "styles": ["root8", "sustain", "pulse"],
+      "styles": ["rock", "sustain", "rock"],
       "register": [31, 50],
       "mix": {
         "bus": "bass",

@@ -6,6 +6,16 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+Bass lines are played the way each genre's bassists play them, in 29 idioms written bar by bar as those players
+would: reggae's one drop, which leaves the one empty and plays around the drop on three; funk's slap, its dead notes
+between octaves popped on the offbeats; disco's octaves walking up into the next chord; UK garage's skipping line;
+reggaeton's dembow on the tresillo; afrobeats' pushes; amapiano's log drum; a jazz walk with chromatic approaches and
+enclosures; neo-soul's ghosts and slides; G-funk's Moog; boom bap's held roots and pickups; drum and bass's two-step;
+and more, with 808s that glide up into a trap hook's phrase ends (`glide`) or slide from note to note as drill's do
+(`drill`). A line plays in phrases that end on a turnaround, and varies its details from bar to bar (a dead note, an
+octave, an approach into the next chord, a note pushed ahead of the bar), instead of one bar over and over. The
+genres' bass parts play these now (`part("bass", #{ style: "one_drop" })` in a script), and a new seed is another take.
+
 A sound you do not like is a click from another. Hover a part's or a drum lane's name in the arrangement (or a lane's
 in Steps, or a part's sound in Parts) and click the swap button: the track plays the next sound that fits it, its
 genre's own first, then what the genre draws for that role, then further afield, never one another part plays; a

@@ -86,7 +86,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["pluck_bass", "saw_bass", "sub_bass"],
-      "styles": ["offbeat", "pulse", "syncopated"],
+      "styles": ["offbeat", "disco", "pulse"],
       "register": [33, 52],
       "mix": {"bus": "bass", "duck": 0.6}
     },

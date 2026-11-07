@@ -118,7 +118,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["freepats:pick_bass|saw_bass", "freepats:finger_bass|saw_bass", "growlybass:bass|saw_bass"],
-      "styles": ["sustain", "root8", "syncopated"],
+      "styles": ["rock", "rock", "sustain"],
       "register": [28, 47],
       "mix": {
         "bus": "bass",

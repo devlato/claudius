@@ -863,12 +863,12 @@ pub fn new_part(
 }
 
 /// the styles a part with this role can play
-pub fn styles_for(role: Role) -> &'static [&'static str] {
+pub fn styles_for(role: Role) -> Vec<&'static str> {
     match role {
-        Role::Bass => bass::STYLES,
-        Role::Chords | Role::Pad | Role::Keys => melody::CHORD_STYLES,
-        Role::Arp => melody::ARP_STYLES,
-        Role::Lead => melody::LEAD_STYLES,
+        Role::Bass => bass::styles(),
+        Role::Chords | Role::Pad | Role::Keys => melody::CHORD_STYLES.to_vec(),
+        Role::Arp => melody::ARP_STYLES.to_vec(),
+        Role::Lead => melody::LEAD_STYLES.to_vec(),
     }
 }
 

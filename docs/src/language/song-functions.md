@@ -452,7 +452,7 @@ part the genre does not have, so it builds again.
 
 | role | styles |
 |---|---|
-| bass | `sustain`, `pulse`, `root8`, `offbeat`, `octave`, `rolling`, `syncopated`, `kick_follow` (follows the kick, 808 style), `acid`, `walking`, `reese` |
+| bass | the motifs `sustain`, `pulse`, `root8`, `offbeat`, `octave`, `rolling`, `syncopated`, `acid`, `reese`; the 808s that follow the kick, `kick_follow`, `glide` (trap's, sliding up into its phrase ends) and `drill` (sliding from note to note); and the genres' [bass idioms](../engineering/theory.md#bass-idioms): `one_drop`, `steppers`, `slap`, `funk`, `disco`, `garage`, `dembow`, `afro`, `log_drum`, `walking`, `neo_soul`, `soul`, `rnb`, `gfunk`, `boom_bap`, `lofi`, `two_step`, `jungle_dub`, `halftime`, `dub`, `house_organ`, `deep`, `tech`, `new_jack`, `grime`, `trip_hop`, `big_beat`, `rock`, `drive` |
 | chords, pad, keys | `sustain`, `half`, `stabs`, `offbeat`, `pump`, `syncopated`, `charleston` |
 | a part that harmonizes | `block` (a chord under each of the melody's notes), and the chord styles above |
 | arp | `up`, `down`, `updown`, `random`, `pinky` |

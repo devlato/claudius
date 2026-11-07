@@ -82,7 +82,7 @@
       "late_ms": [12, 30],
       "role": "bass",
       "presets": ["freepats:finger_bass|pluck_bass", "upright_bass|sub_bass", "rubber_bass", "moog_bass"],
-      "styles": ["syncopated", "walking", "sustain"],
+      "styles": ["neo_soul", "neo_soul", "walking"],
       "register": [28, 48],
       "mix": {"bus": "bass"}
     },

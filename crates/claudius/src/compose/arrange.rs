@@ -35,8 +35,7 @@ pub fn part_cycle(bp: &Blueprint, part: &Part, prog: &str, kick_main: &[Hit], ki
                 kicks.extend(kick_main.iter().map(|h| h.t + off).filter(|t| *t < beats));
                 off += period;
             }
-            let centre = (part.register.0 + part.register.1) / 2;
-            bass::bassline(&part.style, &spans, &bp.key, &kicks, centre, &mut rng)
+            bass::write(&part.style, &spans, &bp.key, &kicks, part.register, part.seed, hash_str(prog))
         }
         Role::Chords | Role::Pad | Role::Keys => {
             melody::chord_part(&spans, &part.style, part.voicing, part.register, part.voices.max(2), &mut rng)

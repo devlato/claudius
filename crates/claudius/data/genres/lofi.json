@@ -106,7 +106,7 @@
       "late_ms": [8, 22],
       "role": "bass",
       "presets": ["upright_bass|sub_bass", "sub_bass", "organ_bass"],
-      "styles": ["walking", "sustain", "syncopated"],
+      "styles": ["lofi", "lofi", "walking"],
       "register": [33, 50],
       "mix": {"bus": "bass"}
     },
