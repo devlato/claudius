@@ -22,10 +22,10 @@ drum hat main (drum closed_hat): xoo.x..ox...x.x.|xoo.x..ox...x.x.|xoo.x..ox...x
 drum hat sparse (drum closed_hat): o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.
 drum ride main (drum ride): o...o...o...o.o.|o...o...o...o.o.|o...o...o...o.o.|o...o...o...o.o.
 drum tom main (drum tom): .............xxx|.............xxx|.............xxx|.............xxx
-part piano (keys): half synth keys, register 48..76, density 0.51
+part piano (keys): sustain synth keys, register 48..76, density 0.51
 part arp (arp): random synth pluck, register 60..84, density 0.60
 part bass (bass): sustain synth rubber_bass, register 28..47, density 0.43
-part strings (pad): sustain synth strings, register 45..81, density 0.50
+part strings (pad): ostinato synth strings, register 45..81, density 0.50
 part guitar (arp): updown synth harp_pluck, register 52..76, density 0.58
 part dist (chords): pump synth saw_bass, register 40..64, density 0.59
 part dist2 (chords): sustain synth supersaw, register 40..64, density 0.60

@@ -19,7 +19,7 @@ drum shaker main (drum shaker): o.o...o.o.oooooo|o.o...o.o.oooooo|o.o...o.o.oooo
 drum ohat main (drum open_hat): ..x...o...x...o.|..x...o...x...o.|..x...o...x...o.|..x...o...x...o.
 drum rim main (drum rim): ...x.....x......|...x.....x......|...x.....x......|...x............
 part logdrum (bass): log_drum synth log_drum, register 33..52, density 0.47
-part keys (keys): sustain synth tine_piano, register 52..76, density 0.57
+part keys (keys): house_piano synth tine_piano, register 52..76, density 0.57
 part pad (pad): sustain synth vowel_pad, register 50..76, density 0.59
 part lead (lead): motif synth fm_marimba, register 64..86, density 0.36
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums

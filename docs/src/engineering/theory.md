@@ -403,7 +403,47 @@ octaves, and walk it `up`, `down`, `updown`, `random` or `pinky` (the top note a
 every `rate` beats.
 
 **Chord parts** (`melody::chord_part`) voice every chord with voice leading and play it in a rhythm: `sustain`,
-`half`, `stabs`, `offbeat`, `pump` (eighths), `syncopated` or `charleston`.
+`half`, `stabs`, `offbeat`, `pump` (eighths), `syncopated` or `charleston`; or in one of the genres' comping idioms.
+
+### Comping idioms
+
+The chord parts of a genre comp as its players do (`comp::comp`): idioms built as the [bass idioms](#bass-idioms)
+are, cells and turns in phrases, a take's cells from the high half of its seed and its details from the low half, but
+written in chords. Each chord is voiced once, leading from the one before, and a step plays it:
+
+| step | what sounds |
+|---|---|
+| `C`, `c` | the chord, every voice (softly) |
+| `T`, `B` | its top voice; its bottom voice |
+| `1` to `6` | one voice, counted from the bottom (the top one, of a chord with fewer) |
+| `U`, `D` | the chord strummed up from its bottom voice, down from its top, a few hundredths of a beat apart |
+| `x` | a muted strum: short and soft |
+| `.`, `-`, `'` | a rest; what sounds before going on; an accent on the next step |
+
+A take varies a soft chord into an empty step after a hit, leaves a hit off the beat out, pushes a new chord's first
+hit an eighth ahead of its bar, and on the last sixteenth before a new chord plays that chord a semitone up, slipping
+into it, as gospel and funk players slide into their changes.
+
+| idiom | how it plays | genres |
+|---|---|---|
+| `house_piano` | short stabs off the beat, three, three and two around the kick | house, deep house, tech house, UK garage, amapiano, dance pop |
+| `gospel` | chords pushed ahead of the beat, short and long, slipped into | neo-soul, jazz rap, funk, nu-disco, afrobeats, amapiano |
+| `lofi_comp` | one chord on the one, another late in the bar, room between | lo-fi, jazz rap, boom bap, trip hop |
+| `trap_keys` | the chord held from the one, its top voice picked out above it | trap, the drill genres, hip hop, cloud rap, plugg |
+| `rnb_keys` | smooth extended chords, pushed into the next, a passing chord slipped in | R&B, 90s R&B, G-funk |
+| `ballad` | the chord broken from its bottom voice to its top and back, let ring | art rock |
+| `bubble` | reggae's organ: soft chords on the eighths, the offbeats pressed | reggae |
+| `skank` | a short chord chopped on every offbeat | reggae, afrobeats |
+| `scratch` | funk's chicken scratch: muted sixteenths, a chord hit hard on the backbeat | funk, nu-disco |
+| `strum` | down on the beats, up on the offbeats, in eighths | neo-psychedelia, emo rap |
+| `highlife` | a bright picked pattern through the chord's upper voices | afrobeats |
+| `arpeggio` | the chord's voices one at a time, up and back | emo rap, neo-psychedelia |
+| `legato` | strings: each chord held, bowed again in a phrase's last bar | neo-soul, G-funk, trip hop, ambient |
+| `ostinato` | strings: one voice after another in short driving eighths | the drill genres, art rock, gangsta rap |
+| `pizzicato` | plucked strings: short notes through the chord, room between | grime, UK drill |
+| `disco_strings` | stabs off the beat, and a run up through the chord into the next phrase | nu-disco, chipmunk soul |
+| `tremolo` | strings: the chord bowed in fast soft sixteenths, for tension | ambient, trip hop |
+| `brass_stabs` | a horn section's stabs: short, hard and syncopated | big beat, crunk, new jack swing, Chicago drill |
 
 ## Sounds for parts and drums
 

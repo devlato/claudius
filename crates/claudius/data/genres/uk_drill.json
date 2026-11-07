@@ -106,7 +106,7 @@
       "name": "keys",
       "role": "keys",
       "presets": ["piano|keys", "string_ensemble|strings", "bells|bell", "choir|pad"],
-      "styles": ["sustain", "half"],
+      "styles": ["trap_keys", "ostinato", "pizzicato"],
       "register": [52, 76],
       "voices": 3,
       "voicing": "open",

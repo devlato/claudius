@@ -23,9 +23,9 @@ drum shaker main (drum shaker): ooo.oo....ooooo.|ooo.oo....ooooo.|ooo.oo....oooo
 drum perc main (drum rim): x.....x...x.....|x.....x...x.....|x.....x...x.....|x.....x...x.....
 drum perc sparse (drum rim): ..........x.....|..........x.....|..........x.....|..........x.....
 part bass (bass): funk synth pluck_bass, register 33..52, density 0.43
-part guitar (chords): stabs synth pluck, register 52..76, density 0.53
-part keys (keys): syncopated synth rock_organ, register 52..74, density 0.56
-part strings (pad): half synth strings, register 55..82, density 0.49
+part guitar (chords): house_piano synth pluck, register 52..76, density 0.53
+part keys (keys): offbeat synth rock_organ, register 52..74, density 0.56
+part strings (pad): disco_strings synth strings, register 55..82, density 0.49
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix clap: +0.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums

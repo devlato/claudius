@@ -22,7 +22,7 @@ drum ride main (drum ride): o...o.......o...|o...o.......o...|o...o.......o...|o
 drum perc main (drum tom): ..............xx|..............xx|..............xx|..............xx
 part bass (bass): octave synth saw_bass, register 31..48, density 0.51
 part acid (bass): acid synth acid, register 36..55, density 0.57
-part stabs (chords): stabs synth brass_stab, register 52..72, density 0.43
+part stabs (chords): offbeat synth brass_stab, register 52..72, density 0.43
 part riff (lead): motif synth reese, register 55..76, density 0.70
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.12, delay 0.00, duck 0.00, bus drums

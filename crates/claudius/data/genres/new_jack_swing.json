@@ -44,8 +44,8 @@
   },
   "parts": [
     {"name": "bass", "role": "bass", "presets": ["rubber_bass", "fm_bass", "moog_bass"], "styles": ["new_jack", "new_jack", "funk"], "register": [28, 48], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.5}]}},
-    {"name": "keys", "role": "keys", "presets": ["tine_piano", "epiano", "organ"], "styles": ["syncopated", "sustain", "half"], "register": [52, 76], "voices": 4, "voicing": "close", "mix": {"reverb": 0.25, "fx": [{"fx": "chorus", "rate_hz": 0.7, "depth_ms": 2.5, "delay_ms": 10, "mix": 0.3}]}},
-    {"name": "stabs", "role": "chords", "presets": ["brass_stab", "stab", "tine_piano"], "styles": ["stabs", "pump"], "register": [55, 76], "voices": 4, "voicing": "close", "core": 1.0, "mix": {"level_db": -2, "reverb": 0.25}},
+    {"name": "keys", "role": "keys", "presets": ["tine_piano", "epiano", "organ"], "styles": ["gospel", "syncopated"], "register": [52, 76], "voices": 4, "voicing": "close", "mix": {"reverb": 0.25, "fx": [{"fx": "chorus", "rate_hz": 0.7, "depth_ms": 2.5, "delay_ms": 10, "mix": 0.3}]}},
+    {"name": "stabs", "role": "chords", "presets": ["brass_stab", "stab", "tine_piano"], "styles": ["brass_stabs", "stabs"], "register": [55, 76], "voices": 4, "voicing": "close", "core": 1.0, "mix": {"level_db": -2, "reverb": 0.25}},
     {"name": "lead", "role": "lead", "presets": ["brass_lead", "soft_lead"], "styles": ["motif"], "register": [60, 80], "density": [0.3, 0.45], "optional": 0.4, "mix": {"level_db": -3, "reverb": 0.3, "delay": 0.15}},
     {"name": "pad", "role": "pad", "presets": ["strings", "warm_pad"], "styles": ["sustain"], "register": [50, 74], "voices": 3, "voicing": "open", "optional": 0.5, "mix": {"level_db": -5, "reverb": 0.4}}
   ],

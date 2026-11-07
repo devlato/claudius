@@ -16,6 +16,9 @@ use crate::theory::rhythm::Hit;
 /// what a track may be generated as
 pub const WHAT: &[&str] = &["drums", "percussion", "bass", "chords", "keys", "pad", "strings", "lead", "arp"];
 
+/// the ways a string section plays (`theory::comp`)
+const STRINGS: &[&str] = &["legato", "ostinato", "pizzicato", "disco_strings", "tremolo"];
+
 /// a lane a percussion track plays: none of the kit's kick, snare, clap or hats
 fn percussive(lane: &LaneSpec) -> bool {
     matches!(
@@ -67,13 +70,23 @@ fn spec(g: &GenreProfile, what: &str, rng: &mut Rng) -> PartSpec {
         0 => compose::spec_for(g, what, role, if strings { "string_ensemble|strings" } else { "pluck" }),
         n => own[rng.below(n)].clone(),
     };
-    // strings play strings: the genre's own, or the string ensemble
+    // strings play strings: the genre's own, or the string ensemble, as its family's arrangers write them
     if strings {
         spec.presets.retain(|e| e.contains("string"));
         if spec.presets.is_empty() {
             spec.presets = vec!["string_ensemble|strings".into()];
         }
         spec.core = Some(1.0);
+        if !spec.styles.iter().any(|s| STRINGS.contains(&s.as_str())) {
+            let family: &[&str] = match g.family.as_str() {
+                "hip hop" => &["ostinato", "pizzicato", "legato"],
+                "house" | "pop and disco" => &["disco_strings", "legato"],
+                "r&b, soul and funk" => &["legato", "disco_strings"],
+                "bass music" | "drum and bass" => &["legato", "ostinato"],
+                _ => &["legato", "tremolo"],
+            };
+            spec.styles = family.iter().map(|s| s.to_string()).collect();
+        }
     }
     spec
 }
@@ -111,7 +124,9 @@ fn part(
     let said = format!(
         "{name}: {}'s {what}, {} on {}",
         g.name,
-        crate::theory::bass::idiom(&made.style).map_or(made.style.clone(), |i| format!("{} ({})", i.name, i.about)),
+        crate::theory::bass::idiom(&made.style)
+            .or_else(|| crate::theory::comp::idiom(&made.style))
+            .map_or(made.style.clone(), |i| format!("{} ({})", i.name, i.about)),
         made.sound.describe()
     );
     // a line of its own, playing none of another part's notes
@@ -336,6 +351,15 @@ mod tests {
         track(&mut bp, "strings", "techno", None, None, 1).unwrap();
         let t = bp.parts.iter().find(|p| p.name == "techno_strings").unwrap();
         assert!(t.sound.describe().contains("string"), "{}", t.sound.describe());
+        // played as a string section plays in the genre's family: drill's ostinato or pizzicato, disco's runs
+        for (genre, ways) in
+            [("trap", &["ostinato", "pizzicato", "legato"][..]), ("house", &["disco_strings", "legato"][..])]
+        {
+            let said = track(&mut bp, "strings", genre, None, None, 2).unwrap();
+            let s = bp.parts.last().unwrap();
+            assert!(ways.contains(&s.style.as_str()), "{genre}: {} plays {}", s.name, s.style);
+            assert!(said.contains(crate::theory::comp::idiom(&s.style).unwrap().about), "{said}");
+        }
     }
 
     #[test]

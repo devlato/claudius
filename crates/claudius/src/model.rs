@@ -357,8 +357,8 @@ pub struct Part {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub doubles: Option<String>,
     /// The part whose melody this one harmonizes: chords that fit that part's notes and the song's own chords, played
-    /// in its `style` (`theory::harmonize::STYLES`: `block`, a chord under each of its notes, or a chord part's
-    /// rhythm), worked out afresh as that part changes. Notes of its own written out play instead; with that part
+    /// in its `style` (`theory::harmonize::styles`: `block`, a chord under each of its notes, a chord part's rhythm,
+    /// or a comping idiom), worked out afresh as that part changes. Notes of its own written out play instead; with that part
     /// gone, it plays chords of its own, as a chord part does.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub harmonizes: Option<String>,

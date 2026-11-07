@@ -107,7 +107,7 @@
       "name": "keys",
       "role": "keys",
       "presets": ["piano|keys", "rhodes|epiano", "wurlitzer|epiano", "vibes|mallet"],
-      "styles": ["charleston", "sustain", "half", "stabs"],
+      "styles": ["lofi_comp", "charleston", "stabs"],
       "register": [50, 74],
       "voices": 4,
       "voicing": "close",

@@ -16,6 +16,13 @@ rhythm, a drum lane its strong hits), and the Parts tab **Vary**. A lane remembe
 `lane("kick", #{ genre: "reggaeton" })`. Assistants have `generate_track` and `vary_track`, and the API the commands of
 those names.
 
+Chord parts comp the way each genre's players do, in 18 idioms written in chords: house's stabbed piano, gospel and
+neo-soul's pushes and slips into the changes, lo-fi's lazy jazz chords, trap's held keys with the top voice picked
+out, reggae's skank and organ bubble, funk's chicken scratch, a strummed guitar, highlife's picking, a ballad's
+arpeggio, and for strings and horns a held legato, a driving ostinato, pizzicato, disco's stabs and runs, tremolo and
+horn stabs. The genres' keys, guitar, string and horn parts play these, and a strings track generated in a genre plays
+as its family's arrangers write them.
+
 Bass lines are played the way each genre's bassists play them, in 29 idioms written bar by bar as those players
 would: reggae's one drop, which leaves the one empty and plays around the drop on three; funk's slap, its dead notes
 between octaves popped on the offbeats; disco's octaves walking up into the next chord; UK garage's skipping line;

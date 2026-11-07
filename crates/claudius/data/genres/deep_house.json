@@ -139,7 +139,7 @@
       "name": "chords",
       "role": "chords",
       "presets": ["rhodes|epiano", "keys", "hammond|organ", "stab", "wurlitzer|epiano"],
-      "styles": ["charleston", "syncopated", "stabs", "half"],
+      "styles": ["house_piano", "gospel", "charleston"],
       "register": [53, 74],
       "voices": 4,
       "voicing": "close",

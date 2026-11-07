@@ -108,7 +108,7 @@
       "name": "chords",
       "role": "chords",
       "presets": ["organ", "rhodes|epiano", "stab", "house_piano"],
-      "styles": ["stabs", "syncopated", "offbeat"],
+      "styles": ["house_piano", "stabs", "syncopated"],
       "register": [55, 76],
       "voices": 4,
       "voicing": "close",

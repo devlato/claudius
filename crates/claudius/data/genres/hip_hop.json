@@ -53,7 +53,7 @@
   },
   "parts": [
     {"name": "bass", "role": "bass", "presets": ["808", "sub_bass"], "styles": ["boom_bap", "kick_follow", "glide"], "register": [26, 43], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.6}, {"fx": "filter", "mode": "lp", "cutoff": 4500, "res": 0.1}]}},
-    {"name": "keys", "role": "keys", "presets": ["piano|keys", "rhodes|epiano"], "styles": ["sustain", "half"], "register": [45, 69], "voices": 3, "voicing": "open", "mix": {"reverb": 0.22, "fx": [{"fx": "saturate", "kind": "tape", "drive_db": 3, "mix": 0.5}, {"fx": "filter", "mode": "lp", "cutoff": 6000, "res": 0.05}, {"fx": "width", "width": 1.2, "mono_below_hz": 200}]}},
+    {"name": "keys", "role": "keys", "presets": ["piano|keys", "rhodes|epiano"], "styles": ["trap_keys", "lofi_comp", "sustain"], "register": [45, 69], "voices": 3, "voicing": "open", "mix": {"reverb": 0.22, "fx": [{"fx": "saturate", "kind": "tape", "drive_db": 3, "mix": 0.5}, {"fx": "filter", "mode": "lp", "cutoff": 6000, "res": 0.05}, {"fx": "width", "width": 1.2, "mono_below_hz": 200}]}},
     {"name": "lead", "role": "lead", "presets": ["piano|keys", "rhodes|epiano"], "styles": ["motif"], "register": [60, 79], "density": [0.2, 0.35], "optional": 0.3, "mix": {"reverb": 0.3, "delay": 0.25, "level_db": -2}},
     {"name": "pad", "role": "pad", "presets": ["string_ensemble|strings", "warm_pad"], "styles": ["sustain"], "register": [48, 72], "voices": 3, "voicing": "open", "optional": 0.6, "mix": {"reverb": 0.45, "level_db": -3}}
   ],

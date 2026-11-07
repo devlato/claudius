@@ -37,9 +37,18 @@ pub fn part_cycle(bp: &Blueprint, part: &Part, prog: &str, kick_main: &[Hit], ki
             }
             bass::write(&part.style, &spans, &bp.key, &kicks, part.register, part.seed, hash_str(prog))
         }
-        Role::Chords | Role::Pad | Role::Keys => {
-            melody::chord_part(&spans, &part.style, part.voicing, part.register, part.voices.max(2), &mut rng)
-        }
+        Role::Chords | Role::Pad | Role::Keys => match crate::theory::comp::idiom(&part.style) {
+            Some(i) => crate::theory::comp::comp(
+                i,
+                &spans,
+                part.voicing,
+                part.register,
+                part.voices.max(2),
+                part.seed,
+                hash_str(prog),
+            ),
+            None => melody::chord_part(&spans, &part.style, part.voicing, part.register, part.voices.max(2), &mut rng),
+        },
         Role::Lead => {
             let bars = (beats / 4.0).round() as u32;
             let sync = rng.chance(0.5);
@@ -93,6 +102,8 @@ fn sounding(bp: &Blueprint, part: &Part, prog: &str, kick_main: &[Hit], kick_bar
             voicing: part.voicing,
             register: part.register,
             voices: part.voices.max(2),
+            seed: part.seed,
+            stream: hash_str(prog),
         };
         let mut rng = Rng::new(part.seed ^ hash_str(prog));
         return (harmonize::harmony(&line, period, &song, &play, &mut rng), period);

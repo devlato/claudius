@@ -99,7 +99,7 @@
       "name": "guitar",
       "role": "chords",
       "presets": ["freepats:clean_guitar|pluck", "freepats:jazz_guitar|pluck", "pluck"],
-      "styles": ["half", "syncopated", "sustain"],
+      "styles": ["strum", "arpeggio", "half"],
       "register": [52, 76],
       "voices": 3,
       "voicing": "open",

@@ -94,7 +94,7 @@
       "name": "chords",
       "role": "chords",
       "presets": ["pluck", "piano|keys", "stab"],
-      "styles": ["offbeat", "syncopated", "stabs"],
+      "styles": ["house_piano", "offbeat", "syncopated"],
       "register": [55, 76],
       "voices": 3,
       "voicing": "close",

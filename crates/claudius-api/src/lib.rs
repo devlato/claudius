@@ -1553,9 +1553,9 @@ pub enum Command {
     },
     /// Chords under part `part`'s melody, as a new part that harmonizes it (`name`, `<part>_chords` by default): chords
     /// that fit its notes and the song's own chords, worked out afresh as the melody changes, in `style` (`block`, the
-    /// default, a chord under each of its notes with the melody on top; or a chord part's rhythm: `sustain`, `half`,
-    /// `stabs`, `offbeat`, `pump`, `syncopated`, `charleston`), on `sound` (the melody's own for `block`, else the
-    /// genre's draw for the role), in the sections the melody plays in.
+    /// default, a chord under each of its notes with the melody on top; a chord part's rhythm: `sustain`, `half`,
+    /// `stabs`, `offbeat`, `pump`, `syncopated`, `charleston`; or a comping idiom, `skank`, `gospel` ...), on `sound`
+    /// (the melody's own for `block`, else the genre's draw for the role), in the sections the melody plays in.
     Harmonize {
         part: String,
         #[serde(default)]

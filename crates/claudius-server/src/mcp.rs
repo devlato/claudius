@@ -486,8 +486,9 @@ pub struct HarmonizeArgs {
     /// the part whose melody to harmonize, by name (get_song lists the parts): a lead, or a melody played or sung in
     /// and turned into notes
     pub part: String,
-    /// block (the default): a chord under each of its notes, the melody on top; or a chord part's rhythm: sustain (a
-    /// pad held under it), half, stabs, offbeat, pump, syncopated, charleston
+    /// block (the default): a chord under each of its notes, the melody on top; a chord part's rhythm: sustain (a pad
+    /// held under it), half, stabs, offbeat, pump, syncopated, charleston; or a genre's comping idiom: skank, gospel,
+    /// house_piano, scratch, strum, legato ...
     #[serde(default)]
     pub style: Option<String>,
     /// the sound: a synth preset or an installed instrument (default the melody's own for block, the genre's draw
@@ -1180,7 +1181,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Add chords under a melody: a new part that harmonizes a part of the song (a lead, or a melody played or sung in and turned into notes) with chords that fit its notes and the song's own harmony. The song's chord stays where the melody's notes are its chord tones or pleasant extensions (a 9th, a 6th, a 7th); a held note it clashes with gets the key's chord that holds it and shares most with the song's. In style block (the default) a chord sits under each of the melody's notes, voiced below it with smooth voice leading, on the melody's own sound, so the melody itself sounds in chords; the other styles play the chords in a chord part's rhythm (sustain makes a pad). The chords follow the melody as it changes, and play where it plays. Then listen, and set_mix the new part like any track."
+        description = "Add chords under a melody: a new part that harmonizes a part of the song (a lead, or a melody played or sung in and turned into notes) with chords that fit its notes and the song's own harmony. The song's chord stays where the melody's notes are its chord tones or pleasant extensions (a 9th, a 6th, a 7th); a held note it clashes with gets the key's chord that holds it and shares most with the song's. In style block (the default) a chord sits under each of the melody's notes, voiced below it with smooth voice leading, on the melody's own sound, so the melody itself sounds in chords; the other styles play the chords in a chord part's rhythm (sustain makes a pad) or as a genre's players comp (skank, gospel, house_piano, scratch ...). The chords follow the melody as it changes, and play where it plays. Then listen, and set_mix the new part like any track."
     )]
     async fn harmonize(&self, Parameters(a): Parameters<HarmonizeArgs>) -> Result<String, String> {
         self.edit(Command::Harmonize { part: a.part, style: a.style, sound: a.sound, name: a.name }, true).await

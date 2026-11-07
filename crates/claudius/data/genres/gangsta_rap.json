@@ -42,9 +42,9 @@
   },
   "parts": [
     {"name": "bass", "late_ms": [2, 10], "role": "bass", "presets": ["sub_bass", "deep_bass", "sub_bass"], "styles": ["gfunk", "boom_bap", "kick_follow"], "register": [28, 43], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.5}]}},
-    {"name": "keys", "role": "keys", "presets": ["piano|keys"], "styles": ["stabs", "sustain", "half"], "register": [45, 70], "voices": 2, "voicing": "open", "mix": {"reverb": 0.2, "fx": [{"fx": "tape", "wow": 0.25, "flutter": 0.15, "drive_db": 3, "lowpass_hz": 9000}, {"fx": "bitcrush", "bits": 12, "downsample": 2}]}},
+    {"name": "keys", "role": "keys", "presets": ["piano|keys"], "styles": ["stabs", "trap_keys", "sustain"], "register": [45, 70], "voices": 2, "voicing": "open", "mix": {"reverb": 0.2, "fx": [{"fx": "tape", "wow": 0.25, "flutter": 0.15, "drive_db": 3, "lowpass_hz": 9000}, {"fx": "bitcrush", "bits": 12, "downsample": 2}]}},
     {"name": "lead", "role": "lead", "presets": ["piano|keys", "bells|bell"], "styles": ["motif"], "register": [72, 88], "density": [0.12, 0.25], "optional": 0.3, "mix": {"level_db": -5, "reverb": 0.4, "delay": 0.15}},
-    {"name": "strings", "role": "pad", "presets": ["cellos|strings", "string_ensemble|strings"], "styles": ["sustain"], "register": [40, 64], "voices": 2, "voicing": "open", "optional": 0.4, "mix": {"level_db": -4, "reverb": 0.3}}
+    {"name": "strings", "role": "pad", "presets": ["cellos|strings", "string_ensemble|strings"], "styles": ["legato", "ostinato"], "register": [40, 64], "voices": 2, "voicing": "open", "optional": 0.4, "mix": {"level_db": -4, "reverb": 0.3}}
   ],
   "sampling": {
     "by_default": true,
