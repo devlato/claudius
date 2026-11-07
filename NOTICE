@@ -12,6 +12,13 @@ Copyright (c) 2026 Leon Lin, MIT License. Its licence is in
 crates/earshot/LICENSE-earshot. The vocabulary statistics in crates/earshot/data
 are derived from earshot.
 
+The studio draws its text in Inter (https://github.com/rsms/inter), Copyright (c)
+2016 The Inter Project Authors, SIL Open Font License 1.1, and its icons from
+Lucide (https://lucide.dev), Copyright (c) 2026 Lucide Icons and Contributors,
+ISC License, with icons from Feather, Copyright (c) 2013-present Cole Bemis, MIT
+License. Both are cut down to what the studio shows, in crates/claudius-ui/assets/fonts,
+with their licences beside them (LICENSE-Inter.txt, LICENSE-lucide.txt).
+
 Rust crates the binaries link are listed with their licences in Cargo.lock and
 checked by cargo-deny (deny.toml). Every one of them is under a permissive or
 weak-copyleft licence (MIT, Apache-2.0, BSD, ISC, Zlib, Unicode, MPL-2.0 for

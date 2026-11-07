@@ -26,7 +26,6 @@ pub enum Icon {
     Undo,
     Redo,
     Plus,
-    Minus,
     Dice,
     Left,
     Right,
@@ -48,203 +47,72 @@ fn arc(center: Pos2, r: f32, from: f32, to: f32) -> Vec<Pos2> {
     (0..=n).map(|i| from + (to - from) * i as f32 / n as f32).map(|a| center + r * vec2(a.sin(), -a.cos())).collect()
 }
 
-pub fn paint_icon(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32) {
-    let c = rect.center();
-    let s = rect.width().min(rect.height()) * 0.5;
-    let stroke = Stroke::new((s * 0.16).max(1.4), color);
-    let tri = |pts: Vec<Pos2>| painter.add(Shape::convex_polygon(pts, color, Stroke::NONE));
-    match icon {
-        Icon::Play => {
-            tri(vec![c + vec2(-0.45 * s, -0.6 * s), c + vec2(0.62 * s, 0.0), c + vec2(-0.45 * s, 0.6 * s)]);
-        }
-        Icon::Pause => {
-            for dx in [-0.32, 0.32] {
-                painter.rect_filled(Rect::from_center_size(c + vec2(dx * s, 0.0), vec2(0.3 * s, 1.15 * s)), 1.0, color);
-            }
-        }
-        Icon::Stop => {
-            painter.rect_filled(Rect::from_center_size(c, vec2(1.05 * s, 1.05 * s)), 2.0, color);
-        }
-        Icon::ToStart => {
-            painter.rect_filled(Rect::from_center_size(c + vec2(-0.5 * s, 0.0), vec2(0.2 * s, 1.1 * s)), 1.0, color);
-            tri(vec![c + vec2(0.55 * s, -0.55 * s), c + vec2(-0.35 * s, 0.0), c + vec2(0.55 * s, 0.55 * s)]);
-        }
-        Icon::Loop => {
-            let r = 0.55 * s;
-            painter.add(Shape::line(arc(c, r, 0.35, 2.0 * PI - 0.6), stroke));
-            let tip = c + r * vec2((-0.6f32).sin(), -(-0.6f32).cos());
-            tri(vec![tip + vec2(-0.05 * s, -0.38 * s), tip + vec2(0.38 * s, 0.02 * s), tip + vec2(-0.08 * s, 0.3 * s)]);
-        }
-        Icon::Undo | Icon::Redo => {
-            let flip = if icon == Icon::Undo { -1.0 } else { 1.0 };
-            let r = 0.5 * s;
-            let center = c + vec2(0.0, 0.12 * s);
-            let pts: Vec<Pos2> = arc(center, r, -PI * 0.55, PI * 0.75)
-                .into_iter()
-                .map(|p| pos2(c.x + (p.x - c.x) * -flip, p.y))
-                .collect();
-            let start = pts[0];
-            painter.add(Shape::line(pts, stroke));
-            tri(vec![
-                start + vec2(0.3 * s * flip, -0.32 * s),
-                start + vec2(-0.32 * s * flip, -0.02 * s),
-                start + vec2(0.24 * s * flip, 0.3 * s),
-            ]);
-        }
-        Icon::Plus | Icon::Minus | Icon::New => {
-            if icon == Icon::New {
-                painter.rect_stroke(Rect::from_center_size(c, vec2(1.3 * s, 1.5 * s)), 2.0, stroke, StrokeKind::Middle);
-            }
-            let k = if icon == Icon::New { 0.4 } else { 0.62 };
-            painter.line_segment([c - vec2(k * s, 0.0), c + vec2(k * s, 0.0)], stroke);
-            if icon != Icon::Minus {
-                painter.line_segment([c - vec2(0.0, k * s), c + vec2(0.0, k * s)], stroke);
-            }
-        }
-        Icon::Dice => {
-            let r = Rect::from_center_size(c, vec2(1.3 * s, 1.3 * s));
-            painter.rect_stroke(r, 3.0, stroke, StrokeKind::Middle);
-            for (dx, dy) in [(-0.32, -0.32), (0.32, 0.32), (0.0, 0.0), (0.32, -0.32), (-0.32, 0.32)] {
-                painter.circle_filled(c + vec2(dx * s, dy * s), 0.11 * s, color);
-            }
-        }
-        Icon::Left | Icon::Right => {
-            let f = if icon == Icon::Left { 1.0 } else { -1.0 };
-            painter.add(Shape::line(
-                vec![c + vec2(0.25 * s * f, -0.55 * s), c + vec2(-0.3 * s * f, 0.0), c + vec2(0.25 * s * f, 0.55 * s)],
-                stroke,
-            ));
-        }
-        Icon::Trash => {
-            painter.line_segment([c + vec2(-0.6 * s, -0.45 * s), c + vec2(0.6 * s, -0.45 * s)], stroke);
-            painter.line_segment([c + vec2(-0.2 * s, -0.65 * s), c + vec2(0.2 * s, -0.65 * s)], stroke);
-            painter.add(Shape::line(
-                vec![
-                    c + vec2(-0.45 * s, -0.4 * s),
-                    c + vec2(-0.35 * s, 0.65 * s),
-                    c + vec2(0.35 * s, 0.65 * s),
-                    c + vec2(0.45 * s, -0.4 * s),
-                ],
-                stroke,
-            ));
-        }
-        Icon::Copy => {
-            painter.rect_stroke(
-                Rect::from_center_size(c + vec2(0.15 * s, 0.15 * s), vec2(0.9 * s, 0.9 * s)),
-                2.0,
-                stroke,
-                StrokeKind::Middle,
-            );
-            painter.add(Shape::line(
-                vec![c + vec2(-0.6 * s, 0.25 * s), c + vec2(-0.6 * s, -0.6 * s), c + vec2(0.25 * s, -0.6 * s)],
-                stroke,
-            ));
-        }
-        Icon::Render => {
-            // a waveform into a tray: bounce
-            let pts: Vec<Pos2> = (0..=12)
-                .map(|i| {
-                    let x = -0.7 + 1.4 * i as f32 / 12.0;
-                    let amp = [0.15, 0.45, 0.25, 0.6, 0.35, 0.7, 0.3, 0.55, 0.2, 0.4, 0.15, 0.3, 0.1][i];
-                    c + vec2(x * s, if i % 2 == 0 { -amp * s * 0.8 } else { amp * s * 0.8 } - 0.15 * s)
-                })
-                .collect();
-            painter.add(Shape::line(pts, Stroke::new(stroke.width * 0.8, color)));
-            painter.line_segment([c + vec2(-0.7 * s, 0.7 * s), c + vec2(0.7 * s, 0.7 * s)], stroke);
-        }
-        Icon::Mutate => {
-            // shuffle arrows
-            let a = Stroke::new(stroke.width, color);
-            painter.add(Shape::line(
-                vec![
-                    c + vec2(-0.7 * s, -0.4 * s),
-                    c + vec2(-0.2 * s, -0.4 * s),
-                    c + vec2(0.25 * s, 0.4 * s),
-                    c + vec2(0.6 * s, 0.4 * s),
-                ],
-                a,
-            ));
-            painter.add(Shape::line(
-                vec![
-                    c + vec2(-0.7 * s, 0.4 * s),
-                    c + vec2(-0.2 * s, 0.4 * s),
-                    c + vec2(0.25 * s, -0.4 * s),
-                    c + vec2(0.6 * s, -0.4 * s),
-                ],
-                a,
-            ));
-            for y in [-0.4, 0.4] {
-                tri(vec![
-                    c + vec2(0.5 * s, (y - 0.22) * s),
-                    c + vec2(0.82 * s, y * s),
-                    c + vec2(0.5 * s, (y + 0.22) * s),
-                ]);
-            }
-        }
-        Icon::Evolve => {
-            // a double helix
-            let w = |phase: f32| -> Vec<Pos2> {
-                (0..=16)
-                    .map(|i| {
-                        let t = i as f32 / 16.0;
-                        c + vec2((t * 2.0 * PI + phase).sin() * 0.45 * s, (t - 0.5) * 1.5 * s)
-                    })
-                    .collect()
-            };
-            painter.add(Shape::line(w(0.0), Stroke::new(stroke.width * 0.85, color)));
-            painter.add(Shape::line(w(PI), Stroke::new(stroke.width * 0.85, theme::alpha(color, 0.7))));
-            for i in 1..4 {
-                let y = (i as f32 / 4.0 - 0.5) * 1.5 * s;
-                let x = ((i as f32 / 4.0) * 2.0 * PI).sin() * 0.45 * s;
-                painter.line_segment([c + vec2(-x, y), c + vec2(x, y)], Stroke::new(1.0, theme::alpha(color, 0.6)));
-            }
-        }
-        Icon::Cancel => {
-            let k = 0.5 * s;
-            painter.line_segment([c + vec2(-k, -k), c + vec2(k, k)], stroke);
-            painter.line_segment([c + vec2(-k, k), c + vec2(k, -k)], stroke);
-        }
-        Icon::Open => {
-            let body = Rect::from_min_max(c + vec2(-0.75 * s, -0.35 * s), c + vec2(0.75 * s, 0.6 * s));
-            painter.add(Shape::line(
-                vec![
-                    c + vec2(-0.75 * s, -0.35 * s),
-                    c + vec2(-0.75 * s, -0.62 * s),
-                    c + vec2(-0.2 * s, -0.62 * s),
-                    c + vec2(-0.05 * s, -0.42 * s),
-                    c + vec2(0.75 * s, -0.42 * s),
-                    c + vec2(0.75 * s, -0.3 * s),
-                ],
-                stroke,
-            ));
-            painter.rect_stroke(body, 2.0, stroke, StrokeKind::Middle);
-        }
-        Icon::Save => {
-            painter.add(Shape::line(vec![c + vec2(0.0, -0.7 * s), c + vec2(0.0, 0.25 * s)], stroke));
-            painter.add(Shape::line(
-                vec![c + vec2(-0.35 * s, -0.1 * s), c + vec2(0.0, 0.28 * s), c + vec2(0.35 * s, -0.1 * s)],
-                stroke,
-            ));
-            painter.add(Shape::line(
-                vec![
-                    c + vec2(-0.65 * s, 0.25 * s),
-                    c + vec2(-0.65 * s, 0.7 * s),
-                    c + vec2(0.65 * s, 0.7 * s),
-                    c + vec2(0.65 * s, 0.25 * s),
-                ],
-                stroke,
-            ));
-        }
-        // red, as a recorder's button is, unless it cannot be pressed
-        Icon::Record => {
-            painter.circle_filled(c, 0.58 * s, if color == TEXT_FAINT { color } else { theme::BAD });
-        }
-        Icon::Phone => {
-            let body = Rect::from_center_size(c, vec2(0.78 * s, 1.3 * s));
-            painter.rect_stroke(body, 0.18 * s, stroke, egui::StrokeKind::Middle);
-            painter.circle_filled(c + vec2(0.0, 0.43 * s), 0.09 * s, color);
+impl Icon {
+    #[cfg(test)]
+    pub const ALL: [Icon; 22] = [
+        Icon::Play,
+        Icon::Pause,
+        Icon::Stop,
+        Icon::ToStart,
+        Icon::Loop,
+        Icon::Undo,
+        Icon::Redo,
+        Icon::Plus,
+        Icon::Dice,
+        Icon::Left,
+        Icon::Right,
+        Icon::Trash,
+        Icon::Copy,
+        Icon::Render,
+        Icon::Mutate,
+        Icon::Evolve,
+        Icon::Cancel,
+        Icon::New,
+        Icon::Save,
+        Icon::Open,
+        Icon::Record,
+        Icon::Phone,
+    ];
+
+    /// its glyph in Lucide's icons (`theme::ICONS`), by the name Lucide gives it
+    pub fn glyph(self) -> char {
+        match self {
+            Icon::Play => '\u{e13c}',    // play
+            Icon::Pause => '\u{e12e}',   // pause
+            Icon::Stop => '\u{e167}',    // square
+            Icon::ToStart => '\u{e15f}', // skip-back
+            Icon::Loop => '\u{e146}',    // repeat
+            Icon::Undo => '\u{e2a1}',    // undo-2
+            Icon::Redo => '\u{e2a0}',    // redo-2
+            Icon::Plus => '\u{e13d}',    // plus
+            Icon::Dice => '\u{e2c5}',    // dices
+            Icon::Left => '\u{e06e}',    // chevron-left
+            Icon::Right => '\u{e06f}',   // chevron-right
+            Icon::Trash => '\u{e18e}',   // trash-2
+            Icon::Copy => '\u{e09e}',    // copy
+            Icon::Render => '\u{e55b}',  // audio-waveform
+            Icon::Mutate => '\u{e15e}',  // shuffle
+            Icon::Evolve => '\u{e393}',  // dna
+            Icon::Cancel => '\u{e1b2}',  // x
+            Icon::New => '\u{e0c9}',     // file-plus
+            Icon::Save => '\u{e0b2}',    // download
+            Icon::Open => '\u{e247}',    // folder-open
+            Icon::Record => '\u{e076}',  // circle
+            Icon::Phone => '\u{e163}',   // smartphone
         }
     }
+}
+
+/// `icon` drawn to fill `rect`: its glyph, or for Record a red dot, as a recorder's button is, unless it cannot be
+/// pressed
+pub fn paint_icon(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32) {
+    let size = rect.width().min(rect.height());
+    if icon == Icon::Record {
+        painter.circle_filled(rect.center(), 0.36 * size, if color == TEXT_FAINT { color } else { theme::BAD });
+        return;
+    }
+    let font = egui::FontId::new(size, egui::FontFamily::Name(theme::ICONS.into()));
+    painter.text(rect.center(), Align2::CENTER_CENTER, icon.glyph(), font, color);
 }
 
 /// a square button with a painted icon; `active` lights it in the accent colour
@@ -261,8 +129,14 @@ pub fn icon_button(ui: &mut Ui, icon: Icon, size: f32, active: bool, enabled: bo
     } else {
         RAISED
     };
-    let stroke = if active { Stroke::new(1.0, theme::alpha(ACCENT, 0.8)) } else { Stroke::new(1.0, LINE) };
-    ui.painter().rect(rect, 5.0, fill, stroke, StrokeKind::Inside);
+    let stroke = if active {
+        Stroke::new(1.0, theme::alpha(ACCENT, 0.8))
+    } else if hovered {
+        Stroke::new(1.0, LINE)
+    } else {
+        Stroke::NONE
+    };
+    ui.painter().rect(rect, 7.0, fill, stroke, StrokeKind::Inside);
     let color = if !enabled {
         TEXT_FAINT
     } else if active {
@@ -278,9 +152,9 @@ pub fn icon_button(ui: &mut Ui, icon: Icon, size: f32, active: bool, enabled: bo
 
 /// a toolbar button: icon + label
 pub fn tool_button(ui: &mut Ui, icon: Icon, label: &str, enabled: bool, accent: bool) -> Response {
-    let font = theme::prop(13.0);
+    let font = theme::medium(12.5);
     let galley = ui.painter().layout_no_wrap(label.to_string(), font, TEXT);
-    let size = vec2(galley.size().x + 36.0, 28.0);
+    let size = vec2(galley.size().x + 40.0, 28.0);
     let (rect, response) = ui.allocate_exact_size(size, if enabled { Sense::click() } else { Sense::hover() });
     let hovered = enabled && response.hovered();
     let accent = accent && enabled;
@@ -292,8 +166,14 @@ pub fn tool_button(ui: &mut Ui, icon: Icon, label: &str, enabled: bool, accent: 
     } else {
         base
     };
-    let stroke = if accent { Stroke::new(1.0, theme::alpha(ACCENT, 0.7)) } else { Stroke::new(1.0, LINE) };
-    ui.painter().rect(rect, 5.0, fill, stroke, StrokeKind::Inside);
+    let stroke = if accent {
+        Stroke::new(1.0, theme::alpha(ACCENT, 0.7))
+    } else if hovered {
+        Stroke::new(1.0, LINE)
+    } else {
+        Stroke::NONE
+    };
+    ui.painter().rect(rect, 7.0, fill, stroke, StrokeKind::Inside);
     let color = if !enabled {
         TEXT_FAINT
     } else if accent {
@@ -301,9 +181,9 @@ pub fn tool_button(ui: &mut Ui, icon: Icon, label: &str, enabled: bool, accent: 
     } else {
         TEXT
     };
-    let icon_rect = Rect::from_center_size(pos2(rect.left() + 16.0, rect.center().y), Vec2::splat(14.0));
+    let icon_rect = Rect::from_center_size(pos2(rect.left() + 17.0, rect.center().y), Vec2::splat(15.0));
     paint_icon(ui.painter(), icon_rect, icon, color);
-    ui.painter().galley(pos2(rect.left() + 28.0, rect.center().y - galley.size().y / 2.0), galley, color);
+    ui.painter().galley(pos2(rect.left() + 30.0, rect.center().y - galley.size().y / 2.0), galley, color);
     response
 }
 
@@ -551,4 +431,24 @@ pub fn bar(ui: &mut Ui, width: f32, value: f64, color: Color32) -> Response {
     let fill = Rect::from_min_size(rect.min, vec2(rect.width() * value.clamp(0.0, 1.0) as f32, rect.height()));
     ui.painter().rect_filled(fill, 4.0, color);
     response
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_icon_is_a_glyph_of_the_icon_font_and_the_text_font_draws_the_studios_punctuation() {
+        let ctx = egui::Context::default();
+        ctx.set_fonts(theme::fonts());
+        // the fonts are loaded with the first frame, whose textures nothing draws
+        ctx.run_ui(Default::default(), |_| {}).textures_delta.clear();
+        let icons = egui::FontId::new(16.0, egui::FontFamily::Name(theme::ICONS.into()));
+        for icon in Icon::ALL {
+            assert!(ctx.fonts_mut(|f| f.has_glyph(&icons, icon.glyph())), "no glyph {:?}", icon.glyph());
+        }
+        for c in "Aé·–—…→×÷±°ЖΩ".chars() {
+            assert!(ctx.fonts_mut(|f| f.has_glyph(&theme::prop(13.0), c)), "no glyph {c}");
+        }
+    }
 }
