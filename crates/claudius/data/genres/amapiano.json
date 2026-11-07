@@ -87,7 +87,7 @@
       "name": "keys",
       "role": "keys",
       "presets": ["piano|keys", "rhodes|epiano", "house_piano", "tine_piano"],
-      "styles": ["sustain", "charleston", "half", "stabs"],
+      "styles": ["gospel", "house_piano", "lofi_comp"],
       "register": [52, 76],
       "voices": 4,
       "voicing": "close",

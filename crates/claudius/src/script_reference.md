@@ -51,8 +51,9 @@ Part styles, by the part's role: bass `sustain pulse root8 offbeat octave rollin
 `kick_follow glide drill`, and the genres' idioms `one_drop steppers slap funk disco garage dembow afro log_drum walking
 neo_soul soul rnb gfunk boom_bap lofi two_step jungle_dub halftime dub house_organ deep tech new_jack grime trip_hop
 big_beat rock drive` (each played as that genre's bassists play, in phrases that end on a turnaround; `seed` gives
-another take) · chords, keys and pads `sustain half stabs offbeat pump syncopated charleston` · arps `up down updown
-random pinky` (with `rate`, the note length in beats: 0.25 is sixteenths) · leads `motif`. A preset is any synth preset
+another take) · chords, keys and pads `sustain half stabs offbeat pump syncopated charleston`, and the genres' comping
+idioms `house_piano gospel lofi_comp trap_keys rnb_keys ballad bubble skank scratch strum highlife arpeggio legato
+ostinato pizzicato disco_strings tremolo brass_stabs` · arps `up down updown random pinky` (with `rate`, the note length in beats: 0.25 is sixteenths) · leads `motif`. A preset is any synth preset
 or sampled instrument (below).
 
 ### Form

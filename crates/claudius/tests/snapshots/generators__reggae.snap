@@ -20,8 +20,8 @@ drum rim main (drum rim): o.......X.......|o.......X.......|o.......X.......|o..
 drum hat main (drum closed_hat): x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.x.|x.x.x.x.x.x.x.xx
 drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
 part bass (bass): steppers synth deep_bass, register 28..46, density 0.51
-part guitar (chords): offbeat synth clav, register 55..76, density 0.60
-part organ (keys): syncopated synth organ, register 50..72, density 0.53
+part guitar (chords): skank synth clav, register 55..76, density 0.60
+part organ (keys): bubble synth organ, register 50..72, density 0.53
 part horns (lead): motif synth brass_lead, register 58..80, density 0.26
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix rim: +0.0 dB, pan +0.00, reverb 0.30, delay 0.15, duck 0.00, bus drums

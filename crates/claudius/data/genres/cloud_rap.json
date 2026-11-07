@@ -41,7 +41,7 @@
   "parts": [
     {"name": "bass", "role": "bass", "presets": ["808", "sub_bass"], "styles": ["glide", "sustain"], "register": [24, 40], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.6}, {"fx": "filter", "mode": "lp", "cutoff": 3500, "res": 0.1}]}},
     {"name": "pad", "role": "pad", "presets": ["air_pad", "vowel_pad", "glass_pad", "warm_pad"], "styles": ["sustain"], "register": [50, 76], "voices": 4, "voicing": "open", "mix": {"reverb": 0.7, "fx": [{"fx": "chorus", "rate_hz": 0.3, "depth_ms": 3.0, "delay_ms": 14, "mix": 0.35}, {"fx": "tape", "wow": 0.35, "flutter": 0.1, "drive_db": 1.5, "lowpass_hz": 9000}]}},
-    {"name": "keys", "role": "keys", "presets": ["rhodes|epiano", "pad", "piano|keys"], "styles": ["sustain", "half"], "register": [55, 79], "voices": 3, "voicing": "open", "optional": 0.3, "mix": {"level_db": -3, "reverb": 0.55, "delay": 0.2}},
+    {"name": "keys", "role": "keys", "presets": ["rhodes|epiano", "pad", "piano|keys"], "styles": ["trap_keys", "sustain"], "register": [55, 79], "voices": 3, "voicing": "open", "optional": 0.3, "mix": {"level_db": -3, "reverb": 0.55, "delay": 0.2}},
     {"name": "lead", "role": "lead", "presets": ["vox_lead", "soft_lead", "choir|vowel_pad"], "styles": ["motif"], "register": [62, 84], "density": [0.15, 0.3], "optional": 0.2, "mix": {"level_db": -4, "reverb": 0.65, "delay": 0.3}}
   ],
   "sampling": {

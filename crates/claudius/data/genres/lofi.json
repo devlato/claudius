@@ -114,7 +114,7 @@
       "name": "keys",
       "role": "keys",
       "presets": ["rhodes|epiano", "upright|keys", "wurlitzer|epiano", "piano|keys"],
-      "styles": ["sustain", "charleston", "half"],
+      "styles": ["lofi_comp", "lofi_comp", "charleston"],
       "register": [52, 74],
       "voices": 4,
       "voicing": "close",

@@ -21,7 +21,7 @@ drum shaker main (drum shaker): ooooo.o.ooo.ooo.|ooooo.o.ooo.ooo.|ooooo.o.ooo.oo
 drum perc main (drum rim): x..x.x.x..x.x.x.|x..x.x.x..x.x.x.|x..x.x.x..x.x.x.|x..x.x.x..x.x.x.
 drum perc sparse (drum rim): x....x....x.....|x....x....x.....|x....x....x.....|x....x....x.....
 part bass (bass): deep synth organ_bass, register 33..50, density 0.45
-part chords (chords): syncopated synth house_piano, register 53..74, density 0.48
+part chords (chords): gospel synth house_piano, register 53..74, density 0.48
 part pad (pad): sustain synth vowel_pad, register 50..76, density 0.59
 part lead (lead): motif synth pluck, register 62..84, density 0.41
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums

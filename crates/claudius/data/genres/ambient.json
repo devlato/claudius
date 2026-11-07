@@ -39,7 +39,7 @@
   },
   "parts": [
     {"name": "pad", "role": "pad", "presets": ["warm_pad", "air_pad", "swell_pad", "string_ensemble|strings"], "styles": ["sustain"], "register": [45, 76], "voices": 4, "voicing": "spread", "mix": {"reverb": 0.6, "delay": 0.15}},
-    {"name": "strings", "role": "pad", "presets": ["string_ensemble|strings", "solina", "choir|vowel_pad"], "styles": ["sustain"], "register": [55, 84], "voices": 3, "voicing": "open", "optional": 0.4, "mix": {"reverb": 0.55}},
+    {"name": "strings", "role": "pad", "presets": ["string_ensemble|strings", "solina", "choir|vowel_pad"], "styles": ["legato", "tremolo"], "register": [55, 84], "voices": 3, "voicing": "open", "optional": 0.4, "mix": {"reverb": 0.55}},
     {"name": "keys", "role": "keys", "presets": ["piano|keys", "rhodes|epiano", "vibes|mallet"], "styles": ["half", "sustain"], "register": [55, 80], "voices": 3, "voicing": "open", "mix": {"reverb": 0.5, "delay": 0.3}},
     {"name": "lead", "role": "lead", "presets": ["soft_lead", "mallet", "kalimba|fm_kalimba"], "styles": ["motif"], "register": [62, 86], "density": [0.12, 0.28], "optional": 0.3, "mix": {"reverb": 0.55, "delay": 0.4}},
     {"name": "arp", "role": "arp", "presets": ["harp|harp_pluck", "mallet", "pluck"], "styles": ["up", "updown", "random"], "rates": [0.5, 1.0], "register": [60, 86], "optional": 0.5, "mix": {"reverb": 0.5, "delay": 0.35, "pan": 0.2}},

@@ -22,7 +22,7 @@ drum hat main (drum closed_hat): x..xxoxoxoxxxxxx|x..xxoxoxoxxxxxx|x..xxoxoxoxxx
 drum ohat main (drum open_hat): ................|................|................|................
 drum shaker main (drum shaker): ..o.......o...o.|..o.......o...o.|..o.......o...o.|o.....o...o...o.
 part bass (bass): rnb synth moog_bass, register 28..46, density 0.45
-part keys (keys): half synth keys, register 50..76, density 0.48
+part keys (keys): gospel synth keys, register 50..76, density 0.48
 part pad (pad): sustain synth strings, register 50..76, density 0.43
 part lead (lead): motif synth vox_lead, register 60..82, density 0.33
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums

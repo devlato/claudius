@@ -454,7 +454,7 @@ part the genre does not have, so it builds again.
 | role | styles |
 |---|---|
 | bass | the motifs `sustain`, `pulse`, `root8`, `offbeat`, `octave`, `rolling`, `syncopated`, `acid`, `reese`; the 808s that follow the kick, `kick_follow`, `glide` (trap's, sliding up into its phrase ends) and `drill` (sliding from note to note); and the genres' [bass idioms](../engineering/theory.md#bass-idioms): `one_drop`, `steppers`, `slap`, `funk`, `disco`, `garage`, `dembow`, `afro`, `log_drum`, `walking`, `neo_soul`, `soul`, `rnb`, `gfunk`, `boom_bap`, `lofi`, `two_step`, `jungle_dub`, `halftime`, `dub`, `house_organ`, `deep`, `tech`, `new_jack`, `grime`, `trip_hop`, `big_beat`, `rock`, `drive` |
-| chords, pad, keys | `sustain`, `half`, `stabs`, `offbeat`, `pump`, `syncopated`, `charleston` |
+| chords, pad, keys | the rhythms `sustain`, `half`, `stabs`, `offbeat`, `pump`, `syncopated`, `charleston`; and the genres' [comping idioms](../engineering/theory.md#comping-idioms): `house_piano`, `gospel`, `lofi_comp`, `trap_keys`, `rnb_keys`, `ballad`, `bubble`, `skank`, `scratch`, `strum`, `highlife`, `arpeggio`, and for strings and horns `legato`, `ostinato`, `pizzicato`, `disco_strings`, `tremolo`, `brass_stabs` |
 | a part that harmonizes | `block` (a chord under each of the melody's notes), and the chord styles above |
 | arp | `up`, `down`, `updown`, `random`, `pinky` |
 | lead | `motif`, the only one: leads are motifs with A A′ A B phrasing; `density` and `seed` change them |

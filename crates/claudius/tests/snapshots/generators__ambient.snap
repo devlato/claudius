@@ -17,7 +17,7 @@ drum kick main (drum kick): x...............|........x.......|x...............|.
 drum shaker main (drum shaker): o.o..oo...o.o.o.|o.o..oo...o.o.o.|o.o..oo...o.o.o.|o.o..oo...o.o.o.
 drum perc main (drum rim): ................|................|................|................
 part pad (pad): sustain synth air_pad, register 45..76, density 0.51
-part strings (pad): sustain synth glass_pad, register 55..84, density 0.48
+part strings (pad): tremolo synth glass_pad, register 55..84, density 0.48
 part keys (keys): half synth epiano, register 55..80, density 0.43
 part lead (lead): motif synth fm_kalimba, register 62..86, density 0.25
 part bass (bass): sustain synth deep_bass, register 28..45, density 0.53

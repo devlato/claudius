@@ -465,10 +465,10 @@ fn default_spec(name: &str, role: Role) -> crate::genres::PartSpec {
         name: name.into(),
         role,
         presets: presets::drawable(role.name()).into_iter().map(String::from).collect(),
-        // a bass of no genre plays the motifs, not another genre's idiom
+        // a part of no genre plays the motifs and rhythms, not another genre's idiom
         styles: compose::styles_for(role)
             .into_iter()
-            .filter(|s| crate::theory::bass::idiom(s).is_none())
+            .filter(|s| crate::theory::bass::idiom(s).is_none() && crate::theory::comp::idiom(s).is_none())
             .map(String::from)
             .collect(),
         register,

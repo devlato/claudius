@@ -22,7 +22,7 @@ drum hat main (drum closed_hat): x...........x...........x...........x.....x....
 drum ohat main (drum open_hat): ................|................|................|................
 part bass (bass): sustain synth sub_bass, register 24..40, density 0.59
 part pad (pad): sustain synth vowel_pad, register 50..76, density 0.59
-part keys (keys): sustain synth pad, register 55..79, density 0.52
+part keys (keys): trap_keys synth pad, register 55..79, density 0.52
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.40, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.15, reverb 0.15, delay 0.00, duck 0.00, bus drums

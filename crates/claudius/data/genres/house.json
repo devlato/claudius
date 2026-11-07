@@ -208,7 +208,7 @@
       "name": "chords",
       "role": "chords",
       "presets": ["stab", "organ", "piano|epiano", "rhodes|keys", "pluck"],
-      "styles": ["stabs", "offbeat", "syncopated", "charleston"],
+      "styles": ["house_piano", "house_piano", "stabs", "offbeat"],
       "register": [55, 76],
       "voices": 4,
       "voicing": "close",

@@ -21,7 +21,7 @@ drum ohat main (drum open_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...
 drum shaker main (drum shaker): o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.|o.o.o.o.o.o.o.o.
 drum perc main (drum rim): ....x...x.....x.|....x...x.....x.|....x...x.....x.|....x...x.....x.
 drum perc sparse (drum rim): ........x.......|........x.......|........x.......|........x.......
-part loop (chords): pump synth organ, register 52..74, density 0.52
+part loop (chords): house_piano synth organ, register 52..74, density 0.52
 part bass (bass): disco synth organ_bass, register 33..50, density 0.58
 part keys (keys): offbeat synth rock_organ, register 55..76, density 0.45
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums

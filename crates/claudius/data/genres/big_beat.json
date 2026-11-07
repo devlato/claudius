@@ -130,7 +130,7 @@
       "name": "stabs",
       "role": "chords",
       "presets": ["stab", "organ", "brass_stac|stab"],
-      "styles": ["stabs", "offbeat"],
+      "styles": ["brass_stabs", "stabs", "offbeat"],
       "register": [52, 72],
       "voices": 3,
       "voicing": "close",
