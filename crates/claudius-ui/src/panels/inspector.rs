@@ -1,5 +1,5 @@
-//! The section inspector: name, bars, energy, drum variant and the transition flags of the selected section, plus
-//! adding, moving, duplicating and removing sections.
+//! The section inspector: name, length, intensity, chords, drum pattern, transitions and the tracks playing in the
+//! selected section, plus adding, moving, duplicating and removing sections.
 
 use claudius_api::Command;
 use eframe::egui::{self, RichText, Ui, vec2};
@@ -7,8 +7,17 @@ use eframe::egui::{self, RichText, Ui, vec2};
 use super::{Cx, small};
 use crate::cmds::SectionEdit;
 use crate::edits::SECTION_KINDS;
-use crate::theme::{self, TEXT, TEXT_DIM};
+use crate::theme::{self, TEXT_DIM};
 use crate::widgets::{self, Icon, commit};
+
+/// a section's moves, in plain words, with what each does: its filter in, build, gap, impact and fills, in that order
+pub const MOVES: [(&str, &str); 5] = [
+    ("Filter sweep", "a lowpass filter opens across the section"),
+    ("Build-up", "a riser, a snare roll and a highpass sweep into the next section"),
+    ("Pause at the end", "a beat of silence before the next section"),
+    ("Impact", "a crash and an impact on its first beat"),
+    ("Drum fills", "a drum fill at the end of every 8 bars"),
+];
 
 pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let Some(song) = cx.state.song.as_mut() else { return };
@@ -29,6 +38,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         v
     };
     let layers_all = song.layers.clone();
+    let colors: Vec<egui::Color32> = layers_all.iter().map(|l| super::layer_color(song, l)).collect();
     let bpm = song.bpm.max(1.0);
     let progressions = song.progressions.clone();
     let key = crate::music::Key::parse(&song.key);
@@ -101,13 +111,14 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 });
                 ui.end_row();
 
-                ui.label(small("Bars"));
+                ui.label(small("Length"));
                 ui.horizontal(|ui| {
                     let r = ui.add(
                         egui::DragValue::new(&mut s.bars)
                             .range(1..=256)
                             .clamp_existing_to_range(false)
                             .speed(0.1)
+                            .suffix(" bars")
                             .update_while_editing(false),
                     );
                     if commit(&r) {
@@ -133,19 +144,25 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 );
                 ui.end_row();
 
-                ui.label(small("Energy"));
-                let r = ui.add(
-                    egui::Slider::new(&mut s.energy, 0.0..=1.0)
-                        .clamping(egui::SliderClamping::Edits)
-                        .fixed_decimals(2)
-                        .trailing_fill(true),
-                );
+                ui.label(small("Intensity"));
+                let r = ui
+                    .add(
+                        egui::Slider::new(&mut s.energy, 0.0..=1.0)
+                            .clamping(egui::SliderClamping::Edits)
+                            .custom_formatter(|v, _| format!("{:.0}%", v * 100.0))
+                            .custom_parser(|t| {
+                                let v = t.trim().trim_end_matches('%').trim().parse::<f64>().ok()?;
+                                Some(if v > 1.0 { v / 100.0 } else { v })
+                            })
+                            .trailing_fill(true),
+                    )
+                    .on_hover_text("how full and loud it plays: low for an intro or a break, high for a drop");
                 if commit(&r) {
                     cx.out.push(SectionEdit { energy: Some(s.energy), ..Default::default() }.at(i));
                 }
                 ui.end_row();
 
-                ui.label(small("Harmony"));
+                ui.label(small("Chords"));
                 ui.horizontal(|ui| {
                     let label = |name: &str| -> String {
                         let chords =
@@ -182,31 +199,27 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 });
                 ui.end_row();
 
-                ui.label(small("Drums"));
-                egui::ComboBox::from_id_salt("section_variant").selected_text(&s.variant).width(110.0).show_ui(
-                    ui,
-                    |ui| {
+                ui.label(small("Drum pattern"));
+                egui::ComboBox::from_id_salt("section_variant")
+                    .selected_text(&s.variant)
+                    .width(110.0)
+                    .show_ui(ui, |ui| {
                         for v in &variants {
                             if ui.selectable_label(&s.variant == v, v).clicked() && &s.variant != v {
                                 s.variant = v.clone();
                                 cx.out.push(SectionEdit { variant: Some(v.clone()), ..Default::default() }.at(i));
                             }
                         }
-                    },
-                );
+                    })
+                    .response
+                    .on_hover_text("which of the drums' patterns this section plays (Drums shows each)");
                 ui.end_row();
 
-                ui.label(small("Moves"));
+                ui.label(small("Transitions"));
                 ui.horizontal_wrapped(|ui| {
                     ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
-                    let flags: [(&str, &str, bool); 5] = [
-                        ("filter in", "open a lowpass across the section", s.filter_in),
-                        ("build", "riser, snare roll and highpass sweep into the next section", s.build),
-                        ("gap", "a beat of silence before the next section", s.gap),
-                        ("impact", "crash + impact on the downbeat", s.impact),
-                        ("fills", "drum fills at the end of every 8 bars", s.fills),
-                    ];
-                    for (k, (label, tip, on)) in flags.into_iter().enumerate() {
+                    let on = [s.filter_in, s.build, s.gap, s.impact, s.fills];
+                    for (k, ((label, tip), on)) in MOVES.into_iter().zip(on).enumerate() {
                         if widgets::chip(ui, on, label, color).on_hover_text(tip).clicked() {
                             let v = Some(!on);
                             let mut e = SectionEdit::default();
@@ -223,13 +236,22 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 });
                 ui.end_row();
 
-                ui.label(small("Layers"));
-                ui.horizontal(|ui| {
-                    ui.label(RichText::new(format!("{} of {}", s.layers.len(), layers_all.len())).color(TEXT));
-                    if ui.small_button("all").on_hover_text("every layer plays here").clicked() {
+                ui.label(small("Playing"));
+                ui.horizontal_wrapped(|ui| {
+                    ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
+                    for (layer, c) in layers_all.iter().zip(&colors) {
+                        let on = s.layers.contains(layer);
+                        let tip = if on { "plays here: click to leave it out" } else { "click to have it play here" };
+                        if widgets::chip(ui, on, layer, *c).on_hover_text(tip).clicked() {
+                            cx.out.push(Command::ToggleLayer { section: i, layer: layer.clone() });
+                        }
+                    }
+                    let all = ui.add(egui::Button::new(small("all on")).frame(false));
+                    if all.on_hover_text("every track plays here").clicked() {
                         cx.out.push(SectionEdit { layers: Some(layers_all.clone()), ..Default::default() }.at(i));
                     }
-                    if ui.small_button("none").clicked() {
+                    let none = ui.add(egui::Button::new(small("all off")).frame(false));
+                    if none.on_hover_text("nothing plays here").clicked() {
                         cx.out.push(SectionEdit { layers: Some(Vec::new()), ..Default::default() }.at(i));
                     }
                 });
@@ -239,7 +261,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     ui.add_space(4.0);
     ui.horizontal(|ui| {
         let looping = cx.view.looping && cx.view.loop_section;
-        if widgets::chip(ui, looping, "loop this section", theme::ACCENT)
+        if widgets::chip(ui, looping, "Loop this section", theme::ACCENT)
             .on_hover_text("loop playback over the selected section (L toggles looping)")
             .clicked()
         {
@@ -253,7 +275,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     });
     ui.add_space(4.0);
     ui.horizontal(|ui| {
-        ui.label(small("Add after"));
+        ui.label(small("Add a section after it"));
         egui::ComboBox::from_id_salt("add_kind").selected_text(&cx.view.add_kind).width(80.0).show_ui(ui, |ui| {
             for k in SECTION_KINDS {
                 ui.selectable_value(&mut cx.view.add_kind, k.to_string(), k);

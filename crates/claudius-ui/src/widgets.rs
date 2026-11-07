@@ -45,6 +45,16 @@ pub enum Icon {
     Improve,
     Export,
     Done,
+    Drum,
+    Keys,
+    Bass,
+    Voice,
+    Pad,
+    Melody,
+    Sample,
+    Effect,
+    Muted,
+    Solo,
 }
 
 fn arc(center: Pos2, r: f32, from: f32, to: f32) -> Vec<Pos2> {
@@ -54,7 +64,7 @@ fn arc(center: Pos2, r: f32, from: f32, to: f32) -> Vec<Pos2> {
 
 impl Icon {
     #[cfg(test)]
-    pub const ALL: [Icon; 26] = [
+    pub const ALL: [Icon; 36] = [
         Icon::Play,
         Icon::Pause,
         Icon::Stop,
@@ -81,7 +91,39 @@ impl Icon {
         Icon::Improve,
         Icon::Export,
         Icon::Done,
+        Icon::Drum,
+        Icon::Keys,
+        Icon::Bass,
+        Icon::Voice,
+        Icon::Pad,
+        Icon::Melody,
+        Icon::Sample,
+        Icon::Effect,
+        Icon::Muted,
+        Icon::Solo,
     ];
+
+    /// what a track is, as an icon: a drum, keys, a bass, a voice, a pad, a line, a sample or an effect
+    pub fn of_track(kind: &str, role: &str) -> Icon {
+        let r = role.to_ascii_lowercase();
+        let has = |k: &str| r.contains(k);
+        match kind {
+            "drum" | "pattern" => Icon::Drum,
+            "take" if has("vocal") || has("vox") || r.is_empty() => Icon::Voice,
+            "fx" => Icon::Effect,
+            _ if has("vocal") || has("vox") || has("voice") => Icon::Voice,
+            _ if has("bass") || has("sub") || has("808") => Icon::Bass,
+            _ if has("chord") || has("keys") || has("piano") || has("organ") || has("stab") => Icon::Keys,
+            _ if has("pad") || has("string") || has("atmo") || has("drone") || has("choir") => Icon::Pad,
+            _ if has("lead") || has("arp") || has("melod") || has("pluck") || has("bell") || has("hook") => {
+                Icon::Melody
+            }
+            _ if has("fx") || has("riser") || has("impact") || has("sweep") => Icon::Effect,
+            _ if has("kick") || has("snare") || has("clap") || has("hat") || has("perc") || has("top") => Icon::Drum,
+            "loop" | "take" => Icon::Sample,
+            _ => Icon::Melody,
+        }
+    }
 
     /// its glyph in Lucide's icons (`theme::ICONS`), by the name Lucide gives it
     pub fn glyph(self) -> char {
@@ -112,6 +154,16 @@ impl Icon {
             Icon::Improve => '\u{e412}', // sparkles
             Icon::Export => '\u{e55e}',  // file-music
             Icon::Done => '\u{e226}',    // circle-check
+            Icon::Drum => '\u{e55d}',    // drum
+            Icon::Keys => '\u{e561}',    // piano
+            Icon::Bass => '\u{e55f}',    // guitar
+            Icon::Voice => '\u{e349}',   // mic-vocal
+            Icon::Pad => '\u{e283}',     // waves
+            Icon::Melody => '\u{e122}',  // music
+            Icon::Sample => '\u{e55a}',  // audio-lines
+            Icon::Effect => '\u{e1b4}',  // zap
+            Icon::Muted => '\u{e1ac}',   // volume-x
+            Icon::Solo => '\u{e0f1}',    // headphones
         }
     }
 }

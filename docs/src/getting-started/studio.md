@@ -63,8 +63,11 @@ the song it opens. It also opens a project the demo saved, a `.zip`: claudius un
 
 ## The panels
 
-- **Arrangement.** The sections of the song from left to right (intro, build, drop and so on), and below them one row
-  per track. Click a cell, or drag across cells, to switch a track on or off in those sections. Drag a section to
+- **Arrangement.** The sections of the song from left to right (intro, build, drop and so on), each with its length
+  and a meter of how intense it is, and below them one row per track, with an icon for what it is (drums, keys, a
+  bass, a pad, a line, a voice, a sample, an effect) or that it is muted or soloed. A track plays where it has a
+  clip, one for each run of sections it plays in, shaded by how intense each is; a drum lane's shows how busy each
+  bar is. Click a cell, or drag across cells, to switch a track on or off in those sections. Drag a section to
   move it; right-click it to duplicate, insert or remove one. **+ Track** adds a track: one
   [written the way a genre plays it](#writing-a-track-in-a-style) (**In a style**), a part (a bass, chords, a
   pad, keys, a lead or an arpeggio the theory engine writes over the song's chords, written the way the genre writes
@@ -79,10 +82,12 @@ the song it opens. It also opens a project the demo saved, a `.zip`: claudius un
   drum lanes ([**Turn it into drums**](../guide/samples.md#turning-a-take-into-drums)), or to turn the melody you
   sang into notes an instrument plays, as you sang it or as harmony, octaves, chords, a bass line, an arpeggio or a
   pad. The waveform of the latest render is underneath; click it to jump.
-- **Section.** The selected section's length, energy, drum variant, which chord progression it plays, and the
-  switches for a build, a gap before the next section, an impact, drum fills, and a filter that opens over the
-  section.
-- **Verdict.** The score and its parts, the issues with what to change, and what earshot hears.
+- **Section.** The selected section's length, its intensity (how full and loud it plays), which chord progression
+  it plays, its drum pattern, its transitions (a filter sweep, a build-up, a pause at the end, an impact, drum
+  fills), and a switch for each track playing in it.
+- **Verdict.** The score and its parts (Mix, Shape, Harmony, and with the ears Genre, Production and Records), the
+  things to fix, each with how much it costs and where to fix it, and, folded under **What it measured**, what
+  earshot hears and the meters.
 
 Under them, the tabs hold the editors: **Drums**, **Instruments**, **Notes**, **Chords**, **Mixer** and **Sounds**, and
 at the right end **Script**, **Signal flow** and **Log**.
