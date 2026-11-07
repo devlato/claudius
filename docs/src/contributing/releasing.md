@@ -46,6 +46,35 @@ Anything worth more than a line (what a release is about, how to update scripts 
 `## [Unreleased]` in `CHANGELOG.md`, in the pull request that makes the change. The release keeps it at the top of
 its section and adds the generated entries under the headings of the same name.
 
+## Every day
+
+claudius releases itself every day that `main` has something to release. At 16:17 UTC (03:17 in Sydney in summer),
+`daily-release.yml` asks `cargo xtask release next` what the commits since the last release tag call for, from their
+titles, by the rules of [Versions](#versions):
+
+| since the last release | releases |
+|---|---|
+| a breaking change (`type!:`, or a `BREAKING CHANGE:` footer) | the next minor version before 1.0, the next major from 1.0 |
+| a feature (`feat`) | the next minor version |
+| a fix or a change of performance (`fix`, `perf`) | the next patch |
+| only docs, refactors, tests, builds, CI and chores | nothing: no release that day |
+
+When it is a version, the workflow starts `release-pr.yml` with it (step 1 below), turns on auto-merge for the release
+PR, waits until GitHub has merged it once *ci ok* passes (about half an hour), and starts `release.yml`, which
+publishes the release (step 4). It does all of that with its own `GITHUB_TOKEN`. GitHub starts no workflow for what that
+token does, except a dispatch, so the merge alone would not start `release.yml`, and the workflow starts it itself.
+
+- `gh workflow run daily-release.yml -f dry_run=true` says what it would release, and releases nothing.
+- A release PR an earlier day left open (its checks failed, or `main` moved on before it could merge, since *ci ok*
+  has to have passed on a branch up to date with `main`) is closed, and the day's release starts from `main` as it is.
+  One opened in the last 20 hours may be someone's release by hand, so the day's release waits for it instead.
+- When the version on `main` has its section in `CHANGELOG.md` but no release (its `release.yml` failed), the day's
+  run starts `release.yml` again, and nothing new goes out until that version has.
+- A failed day says why in its run, and GitHub emails it, as any failed workflow.
+
+`gh workflow disable daily-release.yml` stops the daily releases, and `gh workflow enable daily-release.yml` starts
+them again. Releasing by hand, below, works the same with or without them.
+
 ## Making a release
 
 1. **Start it.** From the command line:
@@ -268,7 +297,8 @@ window on macOS (Apple silicon and Intel) and Linux; on Intel Macs its caveats s
 
 **A build failed.** Nothing was published and no tag exists. Fix the cause in a normal pull request, then start
 the release again by hand: `gh workflow run release.yml`. It builds `main` as it is then, so the release includes
-the fix. (The workflow starts by itself only for changes to `Cargo.toml` or `CHANGELOG.md`.)
+the fix. (The workflow starts by itself only for changes to `Cargo.toml` or `CHANGELOG.md`, and the
+[daily release](#every-day) starts it again the next day.)
 
 **Publishing failed halfway.** A draft release may be left over; the next run of `release.yml` deletes it and
 publishes again.

@@ -6,6 +6,10 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+claudius is now released every day that it has a new feature, a fix or a change of performance, rather than whenever
+someone starts a release, so what is fixed on `main` reaches `claudius update`, the studio's own update check,
+Homebrew and the install scripts by the next morning in Sydney.
+
 A sample chopped onto the song's grid keeps time inside each slice too. Each half beat of it used to play whole at the
 record's own speed from the song's half beat, so its second sixteenth landed a quarter of a sixteenth or more off the
 song's: a break at 93 BPM chopped into lofi at 71 put every other hit 50 ms early against the song's hats. Now each

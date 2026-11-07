@@ -42,6 +42,8 @@ usage: cargo xtask <command>
   release prepare <patch|minor|major|X.Y.Z>
                           bump the workspace version, Cargo.lock and CHANGELOG.md, then print the new version
   release notes <X.Y.Z>   print that version's section of CHANGELOG.md
+  release next            print the version the commits since the last release tag call for, or nothing when none
+                          of them is a feature, a fix, a change of performance or a breaking change
 
 Paths are relative to the root of the repository.
 ";
@@ -113,7 +115,13 @@ fn main() -> Result<()> {
                 args.finish()?;
                 release::notes(&sh, &version)
             }
-            _ => bail!("usage: cargo xtask release prepare <patch|minor|major|X.Y.Z>, or release notes <X.Y.Z>"),
+            Some("next") => {
+                args.finish()?;
+                release::next(&sh)
+            }
+            _ => bail!(
+                "usage: cargo xtask release prepare <patch|minor|major|X.Y.Z>, release notes <X.Y.Z>, or release next"
+            ),
         },
         None | Some("help" | "-h" | "--help") => {
             print!("{HELP}");
