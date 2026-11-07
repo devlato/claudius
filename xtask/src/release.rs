@@ -125,6 +125,46 @@ fn bump_path_dependencies(manifest: &str, crates: &[String], old: &str, new: &st
         .collect()
 }
 
+/// `cargo xtask release next`: the version the commits since the last release tag call for (`bump_for`), printed, or
+/// nothing when none of them is anything to release; what the daily release (daily-release.yml) starts
+pub fn next(sh: &Shell) -> Result<()> {
+    let manifest = sh.read_file("Cargo.toml")?;
+    let (_, current) = crate::workspace_version_line(&manifest).context("no version in [workspace.package]")?;
+    let last = cmd!(sh, "git describe --tags --abbrev=0 --match v[0-9]*").ignore_stderr().read().ok();
+    let range = last.map_or_else(|| "HEAD".to_string(), |tag| format!("{tag}..HEAD"));
+    // each commit's subject and body, each ended by a NUL: a body spans lines
+    let log = cmd!(sh, "git log --format=%s%x00%b%x00 {range}").read()?;
+    let fields: Vec<&str> = log.split('\0').map(str::trim).collect();
+    let commits: Vec<(&str, &str)> = fields.chunks_exact(2).map(|c| (c[0], c[1])).collect();
+    if let Some(bump) = bump_for(&current, &commits)? {
+        println!("{}", next_version(&current, bump)?);
+    }
+    Ok(())
+}
+
+/// The bump the commits call for, each its Conventional Commit subject and its body: a breaking change (`type!:`, or a
+/// `BREAKING CHANGE:` footer) calls for the next major from 1.0, and for the next minor before it, as a feature does;
+/// a fix or a change of performance calls for the next patch (docs/src/contributing/releasing.md#versions). None when
+/// no commit is anything to release: the docs, refactors, tests, builds, CI, chores and releases are not.
+fn bump_for(current: &str, commits: &[(&str, &str)]) -> Result<Option<&'static str>> {
+    let [major, ..] = numbers(current)?;
+    let (mut breaking, mut feature, mut fix) = (false, false, false);
+    for (subject, body) in commits {
+        let Some((head, _)) = subject.split_once(':') else { continue };
+        let kind = head.split(['(', '!']).next().unwrap_or_default();
+        let footer = body.lines().any(|l| l.starts_with("BREAKING CHANGE:") || l.starts_with("BREAKING-CHANGE:"));
+        breaking |= (head.ends_with('!') || footer) && kind != "release";
+        feature |= kind == "feat";
+        fix |= kind == "fix" || kind == "perf";
+    }
+    Ok(match (breaking, feature, fix) {
+        (true, ..) if major > 0 => Some("major"),
+        (true, ..) | (_, true, _) => Some("minor"),
+        (.., true) => Some("patch"),
+        _ => None,
+    })
+}
+
 pub fn notes(sh: &Shell, version: &str) -> Result<()> {
     let version = version.trim_start_matches('v');
     let changelog = sh.read_file(CHANGELOG)?;
@@ -279,6 +319,25 @@ mod tests {
         assert_eq!(next_version("0.1.0", "0.1.0").unwrap(), "0.1.0");
         assert!(next_version("0.3.7", "0.3.6").is_err());
         assert!(next_version("0.3.7", "next").is_err());
+    }
+
+    #[test]
+    fn the_commits_since_a_release_call_for_a_minor_or_a_patch_before_1_0_and_nothing_without_a_change() {
+        let titles = |subjects: &[&'static str]| subjects.iter().map(|s| (*s, "")).collect::<Vec<_>>();
+        let bump = |version: &str, subjects: &[&'static str]| bump_for(version, &titles(subjects)).unwrap();
+        assert_eq!(bump("0.4.0", &["feat(script): add euclid()", "fix: keep the session"]), Some("minor"));
+        assert_eq!(bump("0.4.0", &["fix(render): a click", "docs: a chapter"]), Some("patch"));
+        assert_eq!(bump("0.4.0", &["perf(render): mix the stems in parallel (#12)"]), Some("patch"));
+        assert_eq!(bump("0.4.0", &["refactor(api)!: rename /api/state"]), Some("minor"));
+        let quiet =
+            ["docs: swing", "ci: retry", "chore(deps): bump", "test: more", "release: v0.4.0 (#142)", "Merge x"];
+        assert_eq!(bump("0.4.0", &quiet), None);
+        assert_eq!(bump("0.4.0", &[]), None);
+        // from 1.0, a breaking change makes a major version, in the title or in a footer
+        assert_eq!(bump("1.2.3", &["feat(api)!: rename /api/state"]), Some("major"));
+        assert_eq!(bump("1.2.3", &["feat: euclid()"]), Some("minor"));
+        let footer = [("fix: the song format", "Saved songs move.\n\nBREAKING CHANGE: songs before 1.2 do not open")];
+        assert_eq!(bump_for("1.2.3", &footer).unwrap(), Some("major"));
     }
 
     #[test]

@@ -54,7 +54,9 @@ gh pr merge --auto --squash
 If a check fails, read its log (`gh run view <run id> --log-failed`), fix the cause on the same branch, and push
 again.
 
-Release, only when the person you work for asks for it:
+A release goes out by itself every day that `main` has a feature, a fix or a breaking change since the last one
+(`daily-release.yml`; "Every day" in `docs/src/contributing/releasing.md`), so there is rarely a need to start one.
+Release by hand only when the person you work for asks for it:
 
 ```sh
 gh workflow run release-pr.yml -f bump=minor      # or patch, major, or an exact version such as 0.4.0

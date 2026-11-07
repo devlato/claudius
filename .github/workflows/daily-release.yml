@@ -1,0 +1,161 @@
+# Releases claudius every day that main has something to release. At 16:17 UTC each day (03:17 in Sydney in summer)
+# it asks `cargo xtask release next` what the commits since the last release call for. When that is a version, it
+# starts release-pr.yml with it, lets GitHub merge the release PR once its checks pass, and then starts release.yml,
+# which publishes it. When nothing since the last release is a feature, a fix, a change of performance or a breaking
+# change, it does nothing (docs/src/contributing/releasing.md#every-day).
+#
+#   gh workflow run daily-release.yml -f dry_run=true   # say what would be released, and release nothing
+#   gh workflow disable daily-release.yml               # stop the daily releases; `enable` starts them again
+#
+# A release PR an earlier day left open (its checks failed, or main moved on before it could merge) is closed first,
+# and today's starts from main as it is; one opened in the last 20 hours may be someone's release by hand, so today's
+# waits for it. When the version on main has its changelog but no release (its release.yml failed), this starts
+# release.yml again instead of anything new.
+#
+# All of it is done with the workflow's own GITHUB_TOKEN, and GitHub starts no workflow for what that token does but
+# a dispatch. So this dispatches release-pr.yml, which dispatches CI on the release branch, and, once GitHub has merged
+# the PR (a merge that by itself starts no workflow), dispatches release.yml.
+name: daily release
+
+on:
+  schedule:
+    - cron: "17 16 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "only say what would be released"
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: daily-release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  plan:
+    name: what is there to release
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      retry: ${{ steps.plan.outputs.retry }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # the commits and the tags since the last release
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/rust
+        with:
+          cache: "false"
+          linux-packages: "false"
+      - name: What do the commits since the last release call for?
+        id: plan
+        run: |
+          current=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
+          if [ -z "$(git tag --list "v$current")" ] && grep -qF "## [$current]" CHANGELOG.md; then
+            echo "::notice title=daily release::claudius $current has its changelog but no release yet, so release.yml runs again."
+            echo "retry=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          version=$(cargo xtask release next)
+          if [ -n "$version" ]; then
+            echo "::notice title=daily release::claudius $version is next."
+          else
+            echo "::notice title=daily release::Nothing since the last release is a feature, a fix, a change of performance or a breaking change."
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  release:
+    name: release
+    needs: plan
+    if: ${{ !inputs.dry_run && (needs.plan.outputs.version != '' || needs.plan.outputs.retry == 'true') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    permissions:
+      actions: write # start release-pr.yml, and release.yml once the release PR is merged
+      contents: write # let GitHub merge the release PR, and delete the branch of one left open
+      pull-requests: write # the same, and close a release PR left open
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ needs.plan.outputs.version }}
+      RETRY: ${{ needs.plan.outputs.retry }}
+    steps:
+      - name: Release the version on main again
+        if: env.RETRY == 'true'
+        run: gh workflow run release.yml --ref main
+
+      - name: Close a release PR an earlier day left open
+        if: env.RETRY != 'true'
+        id: open
+        run: |
+          open=$(gh pr list --state open --json number,headRefName,createdAt \
+            --jq '.[] | select(.headRefName | startswith("release/v")) | "\(.number) \(.createdAt)"')
+          while read -r number created; do
+            [ -n "$number" ] || continue
+            if [ $(( $(date -u +%s) - $(date -u -d "$created" +%s) )) -lt 72000 ]; then
+              echo "::notice title=daily release::#$number is a release PR opened less than 20 hours ago, maybe someone's: today's release waits for it."
+              echo "wait=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            gh pr close "$number" --delete-branch \
+              --comment "The daily release closes this release PR, which an earlier day left open, and starts again from main as it is now."
+          done <<< "$open"
+
+      - name: Open the release PR, let it merge and start the release
+        if: env.RETRY != 'true' && steps.open.outputs.wait != 'true'
+        run: |
+          gh workflow run release-pr.yml --ref main -f bump="$VERSION"
+          branch="release/v$VERSION"
+          pr=
+          # release-pr.yml takes a few minutes
+          for _ in $(seq 60); do
+            sleep 20
+            pr=$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')
+            [ -z "$pr" ] || break
+          done
+          if [ -z "$pr" ]; then
+            echo "::error title=daily release::release-pr.yml opened no release PR for $VERSION in 20 minutes: see its run."
+            exit 1
+          fi
+          url=$(gh pr view "$pr" --json url --jq .url)
+          gh pr merge "$pr" --auto --squash
+          # its checks take about half an hour, and GitHub merges it once `ci ok` passes
+          state=OPEN
+          for _ in $(seq 360); do
+            sleep 20
+            state=$(gh pr view "$pr" --json state --jq .state)
+            case $state in
+              MERGED) break ;;
+              CLOSED)
+                echo "::error title=daily release::$url was closed without being merged."
+                exit 1
+                ;;
+            esac
+            # none until CI, which release-pr.yml dispatches after it opens the PR, has started
+            failed=$(gh pr view "$pr" --json statusCheckRollup --jq \
+              '[(.statusCheckRollup // [])[] | select(.name == "ci ok" and (.conclusion == "FAILURE" or .conclusion == "CANCELLED" or .conclusion == "TIMED_OUT"))] | length')
+            if [ "$failed" -gt 0 ]; then
+              echo "::error title=daily release::ci ok did not pass on $url, so claudius $VERSION is not released."
+              exit 1
+            fi
+          done
+          if [ "$state" != MERGED ]; then
+            echo "::error title=daily release::$url did not merge within two hours: is main ahead of it, or a review thread open?"
+            exit 1
+          fi
+          gh workflow run release.yml --ref main
+          echo "::notice title=daily release::$url is merged, and release.yml publishes claudius $VERSION."
