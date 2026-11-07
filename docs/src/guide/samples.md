@@ -134,7 +134,10 @@ or **Sample its vocals into the song** in the studio's New song dialog, after ch
   faded in and out, and as long as its bars were played, each made one tempo.
 - **Fitting them.** Each becomes a loop of its own, `vox1`, `vox2` ...: the phrase, then as many bars of silence,
   warped to the song's tempo and moved to its key by the shortest way, as a flipped sample is. A change of the
-  song's tempo or key moves it too.
+  song's tempo or key moves it too. A voice is always stretched, never sped up or slowed down, and moved to the key
+  with its formants (the resonances of the singer's throat) kept where they were, so that three semitones down it
+  still sounds like the same singer, not a giant, and three up not a chipmunk. Any track with the `vocal` role is
+  warped this way, a take you sang as well.
 - **Placing them.** The phrases go where a vocal suits the song: the drops and hooks first, then the breaks, the
   verses and grooves, the builds (`--in` names the sections or kinds). In each place, a phrase plays from the
   section's first bar or answers from the bar after, whichever its notes agree with better: its pitch profile against

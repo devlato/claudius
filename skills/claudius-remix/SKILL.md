@@ -79,23 +79,26 @@ recording in the genre, so that it stays the song it is:
 Its tempo is the recording's, or double it (two bars of the song to each of the recording's) when that is nearer the genre's range, so that nothing is stretched;
 `bpm` sets another (and stretches it). The reply and the song's history say so (`reworked from '<file>': all 96 bars
 of it, ...`). The recording is the `original` track: turn it down, filter it or mute it in sections like any loop, and
-edit the genre's parts around it. A recording too short or without sections (under 8 bars) is remade on its skeleton,
+edit the genre's parts around it. With the ears, when it sings, its voice is apart on a track of its own, `vocals`
+(the history says "its voice on a track of its own (vocals)"), and `original` is the rest of it: level, treat or mute
+the voice on its own, as a singer's track. A recording too short or without sections (under 8 bars) is remade on its skeleton,
 and the reply says so.
 
 With `flip: true` (`--flip`), `remake` makes a new song of the genre on the recording's sound instead, as a song built
 on samples is built:
 
 - its hook (four bars of its loudest section with chords) without its drums plays in the song's hooks or drops, and
-  the song takes its key and chords;
+  the song takes its key and chords; with the ears, without its voice too;
 - another passage of it as long plays in the other sections;
 - its own drums (its drum stem, with the ears) are the break, in a genre that plays one;
 - a flip of it, half beats cut from all over it on the hook's chords, plays in the intro, the breaks and the outro;
-- its sung phrases, when it has any, come in where they agree with the chords.
+- its sung phrases, when it has any, come in on tracks of their own (`vox1` ...) where they agree with the chords.
 
 A flip plays at the recording's own tempo when the genre does, else at a multiple of it, faster or slower by whole
-semitones or chopped onto the song's grid. Its history says what came from where (`remixed from '<file>': its hook
-(bars 33-36) without its drums; ...`), so tell the person which part of their song plays where. Everything else is
-the genre's.
+semitones or chopped onto the song's grid; a hook a voice sings in plays in its own key, never sped up into a
+chipmunk (except in chipmunk soul, whose sound that is). Its history says what came from where (`remixed from
+'<file>': its hook (bars 33-36) without its drums and its voice; ...`), so tell the person which part of their song
+plays where. Everything else is the genre's. A sung phrase moved into the song's key keeps its singer's formants.
 
 With `sampled: false` (`--skeleton`), `remake` composes a new song at the analysed tempo and key instead, with its
 progressions, swing, form, section energies and drum habits, in the genre's sounds and production, and none of its

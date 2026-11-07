@@ -80,14 +80,16 @@ Its history says what it kept:
 reworked from 'song.mp3': all 64 bars of it, its voice and its chords as they are, without its drums and its bass, in its own 3 sections and on its chords; trap's bass, kick, snare, clap, hat, ohat, perc under it
 ```
 
-- **All of it**, from its first downbeat to its end, plays as one track, `original`, at its own speed and pitch: the
+- **All of it**, from its first downbeat to its end, plays through as `original`, at its own speed and pitch: the
   piano, the pad, the voice and the lead as they are. With earshot's models, claudius takes the recording apart into
-  its vocals, drums, bass and the rest (Spleeter's nets, about 8 s for a four-minute song, kept for the next time), and
-  `original` is its vocals and the rest, cut under 80 Hz, which leaves the drums and the low end to trap's kick and
-  808. Without the models, what strikes is taken out of it (`fft::harmonic` keeps what sustains), and so is what is
-  under 150 Hz, and the history says "its low end" instead. It goes through the genre's treatment of a phrase it
-  samples: boom bap's tape and 12 bits, lo-fi's dust. A band that speeds up and slows down is followed beat for beat,
-  and its bars are each stretched to one length, so that it stays on the song's grid.
+  its vocals, drums, bass and the rest (Spleeter's nets, about 8 s for a four-minute song, kept for the next time).
+  `original` is then the rest, cut under 80 Hz, which leaves the drums and the low end to trap's kick and 808. When the
+  recording sings, its voice plays all through on a track of its own, `vocals`, mixed as a voice, so that you can
+  turn it up, give it effects of its own or mute it, and the history says "its voice on a track of its own (vocals)".
+  Without the models, what strikes is taken out of it (`fft::harmonic` keeps what sustains), and so is what is under
+  150 Hz, voice and all, and the history says "its low end" instead. What is not its voice goes through the genre's
+  treatment of a phrase it samples: boom bap's tape and 12 bits, lo-fi's dust. A band that speeds up and slows down
+  is followed beat for beat, and its bars are each stretched to one length, so that it stays on the song's grid.
 - **Its own sections**, as the analysis heard them, bar for bar: the song is as long as the recording and changes
   where it changes.
 - **Its chords**, a bar each, a progression for each run of them (`A`, `B`, `C`), which the bass plays the roots of.
@@ -128,11 +130,15 @@ remixed from 'song.mp3': its hook (bars 33-36) without its drums; another passag
 sampled: phrase 'song', filtered until it lifts (another passage of it in groove, break, build)
 ```
 
-- **Its hook**, four bars from the start of the loudest section with chords (the drop, bars 33 to 36), without its
-  drums (its vocals, bass and the rest with the stems apart; without the models, what sustains of it), is the phrase
-  the song is built on, as a
+- **Its hook**, four bars from the start of the loudest section with chords (the drop, bars 33 to 36; four bars later
+  in it, where they are a decibel louder than its opening), without its drums, is the phrase the song is built on, as a
   [song built on samples](../guide/online-samples.md#songs-built-on-samples) is: the song takes its key and chords
-  (progression `A`) and plays it, as `sample`, in both drops.
+  (progression `A`) and plays it, as `sample`, in both drops. With the stems apart it is without its voice too, its
+  bass and the rest, and the voice comes in on tracks of its own (below), so the history says "without its drums and
+  its voice"; without the models, it is what sustains of it. A hook a voice sings in (without the models, or when the
+  voice is most of what it holds) plays in its own key, at its own tempo or stretched, rather than sped up or slowed
+  down, which would make its singer a chipmunk or a giant, and the history says "in its own key for the voice in it".
+  Chipmunk soul, whose sound is just that, speeds it up anyway.
 - **Another passage of it**, the four bars of its break with the pad and the chords, plays as `sample2` in the groove,
   the break and the build, on its own chords (progression `A2`).
 - **Its drums** are the break in a genre that plays one (deep house does not; boom bap and trip-hop do), cut from its
@@ -140,7 +146,7 @@ sampled: phrase 'song', filtered until it lifts (another passage of it in groove
 - **A flip of it** plays in the intro and the outro: four bars of half beats, each from another bar of the recording
   that plays the hook's chord there, at the same place in its bar (now and then another), here 17 of its bars, so
   the song is heard in pieces from all over it, still on the hook's chords.
-- **Its sung phrases** come in where they agree with the chords, as
+- **Its sung phrases** come in on tracks of their own (`vox1`, `vox2` ...) where they agree with the chords, as
   [Sample its vocals into the song](../guide/samples.md#sampling-a-songs-vocals) places them, when the recording
   sings: when the ears hear a voice, or a pitch in a voice's range carries a third of a phrase. This one's `vox` track
   is chops too sparse for that, some below a voice's range, so none come in here; it plays in the hook it was part
