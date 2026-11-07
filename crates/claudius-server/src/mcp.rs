@@ -439,6 +439,49 @@ pub struct SearchRecordingsArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct PiecesArgs {
+    /// the recording: an audio file (WAV, FLAC, MP3, AAC, Ogg, AIFF), or library:<id> from search_recordings
+    pub path: String,
+    /// the take: 0 (the default) for the best phrases, any other number for another draw of them
+    #[serde(default)]
+    pub seed: Option<u64>,
+    /// how many pieces, 1 to 4 (default 2)
+    #[serde(default)]
+    pub count: Option<u32>,
+    /// how long each is, in bars: 1, 2 or 4 (whichever sounds best by default)
+    #[serde(default)]
+    pub bars: Option<u32>,
+    /// what the ears listen for (default "a person singing")
+    #[serde(default)]
+    pub find: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct RedrawArgs {
+    /// the take to draw (default the one after the last)
+    #[serde(default)]
+    pub seed: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct KeepPieceArg {
+    /// the piece, by the number sample_pieces gave it
+    pub id: u32,
+    /// kept with its treatment rather than as it was cut (default false)
+    #[serde(default)]
+    pub treated: bool,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct KeepArgs {
+    /// the pieces to keep
+    pub keep: Vec<KeepPieceArg>,
+    /// the sections to put them in, by name or kind (those that suit each by default)
+    #[serde(default)]
+    pub sections: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct TrimArgs {
     /// the take, by its track's name (get_song lists the tracks)
     pub track: String,
@@ -715,6 +758,26 @@ impl Studio {
         }
         let st = self.heard(false).await?;
         Ok(format!("{}\n\n{}", r.message, self.describe(&st)))
+    }
+
+    /// pieces offered, with where to hear each, as the claudius serving them names its files
+    async fn pieces(&self, c: Command) -> Result<String, String> {
+        let r = self.b.command(c).await?;
+        if !r.ok {
+            return Err(r.message);
+        }
+        let st = self.b.state().await?;
+        let base = self.b.base_url().trim_end_matches('/').to_string();
+        let files: Vec<String> = st
+            .pieces
+            .map(|p| {
+                p.pieces
+                    .iter()
+                    .map(|x| format!("{}: {base}{} (as cut), {base}{} (treated)", x.id, x.raw, x.treated))
+                    .collect()
+            })
+            .unwrap_or_default();
+        Ok(format!("{}\nto hear:\n{}", r.message, files.join("\n")))
     }
 
     async fn job(&self, c: Command, timeout: u64) -> Result<String, String> {
@@ -1024,6 +1087,29 @@ impl Studio {
             })
             .collect();
         Ok(lines.join("\n"))
+    }
+
+    #[tool(
+        description = "Offer the auto-sampler's pieces of a recording before any goes into the song: `count` phrases that sound most like a voice (or like `find`), cut on its own beat grid and cleaned of its drums, each as it was cut and through a treatment (dusty tape, a washed echo, lo-fi crushing, a phaser, a telephone band, a stutter, a reversed tail). Lists each piece with its number, where it is in the recording, how sung it is, its treatment, and the two files to hear (the studio's Sample window shows them side by side). Then redraw_pieces for another take, or keep_pieces to sample the chosen ones into the song, each as it was or treated. path: a file, or library:<id> from search_recordings."
+    )]
+    async fn sample_pieces(&self, Parameters(a): Parameters<PiecesArgs>) -> Result<String, String> {
+        let c = Command::SamplePieces { path: a.path, seed: a.seed, count: a.count, bars: a.bars, find: a.find };
+        self.pieces(c).await
+    }
+
+    #[tool(
+        description = "Draw the pieces of the recording sample_pieces offered again, for another take (`seed`, the next one by default): other phrases among the good ones, of other lengths unless `bars` was given, with other treatments."
+    )]
+    async fn redraw_pieces(&self, Parameters(a): Parameters<RedrawArgs>) -> Result<String, String> {
+        self.pieces(Command::RedrawPieces { seed: a.seed }).await
+    }
+
+    #[tool(
+        description = "Sample the pieces sample_pieces offered that the person chose into the song, each as it was cut or with its treatment (`treated`), placed as the auto-sampler places phrases: in `sections` when given, else in those that suit each, from the bar where its notes agree best with the chords, moved to the song's key and tempo. The song credits the recording. Then listen."
+    )]
+    async fn keep_pieces(&self, Parameters(a): Parameters<KeepArgs>) -> Result<String, String> {
+        let keep = a.keep.into_iter().map(|k| claudius_api::KeptPiece { id: k.id, treated: k.treated }).collect();
+        self.edit(Command::KeepPieces { keep, sections: a.sections }, true).await
     }
 
     #[tool(

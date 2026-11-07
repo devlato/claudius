@@ -20,6 +20,7 @@ mod commands;
 mod jobs;
 mod library;
 mod phone;
+mod pieces;
 mod release;
 mod takes;
 
@@ -102,6 +103,8 @@ struct Session {
     pitch_check: Option<(claudius::voice::check::Check, claudius_api::PitchCheck)>,
     /// the person's voice, as their last pitch check heard it
     voice: Option<claudius::voice::singer::Voice>,
+    /// the auto-sampler's last offer, and the pieces as the studio sees them
+    pieces: Option<(pieces::Offer, claudius_api::PiecesView)>,
 }
 
 impl Session {
@@ -376,6 +379,7 @@ impl App {
             pitch_check: s.pitch_check.as_ref().map(|(_, v)| v.clone()),
             voice: s.voice.as_ref().map(|v| v.describe()),
             phone,
+            pieces: s.pieces.as_ref().map(|(_, v)| v.clone()),
         }
     }
 

@@ -138,7 +138,10 @@ its kind from its bytes), or hands it to the auto-sampler (`Listen` with `sample
 lists `LibraryHit`s, each heard in a player of the window's own (a browser plays its URL; the app fetches it and
 decodes it as claudius does). With a claudius, one chosen is added by its id (`add_take` or `sample_song` with
 `library:<id>`, which claudius downloads and credits); the demo fetches its audio and hands the engine its record
-(`found`) with it, which credits it. A take's **Trim...**, in its
+(`found`) with it, which credits it. With a claudius, **Sample it...** asks for the auto-sampler's pieces instead
+(`sample_pieces` by id, or `/api/sample/pieces` with the file) and opens the Sample window (`import::pieces`), which
+shows the state's `pieces`: each heard as it was cut and treated from `/api/pieces/`, chosen, drawn again
+(`redraw_pieces`) and kept (`keep_pieces`). A take's **Trim...**, in its
 track's menu in the arrangement, opens a window of the same file that sends `trim_take` with the track's `seconds`
 for its range.
 

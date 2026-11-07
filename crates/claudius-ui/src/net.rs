@@ -597,6 +597,19 @@ impl Backend {
         }
     }
 
+    /// Sends a recording held, the file itself, for the auto-sampler's pieces of it (the answer arrives as a reply to
+    /// "sample_pieces", the pieces in the state).
+    pub fn offer_pieces(&mut self, bytes: Vec<u8>, name: &str) {
+        match self {
+            Backend::Remote(r) => {
+                r.listen(bytes, "/api/sample/pieces", &format!("name={}&count=4", query_value(name)), "sample_pieces")
+            }
+            Backend::Mock(m) => {
+                m.refuse("sample_pieces", "the demo samples a recording's vocals straight into the song")
+            }
+        }
+    }
+
     /// what the free libraries offer for `q` (the answer arrives as `Event::Library`): a claudius searches them, the
     /// demo asks claudius' site
     pub fn search_library(&mut self, q: &str) {

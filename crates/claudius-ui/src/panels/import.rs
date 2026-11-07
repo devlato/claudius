@@ -55,6 +55,16 @@ pub struct Import {
     /// the search's recording to use now, by its place in the list, as its Use it button uses it (a scripted run's
     /// `import:use:<n>`)
     pub use_nth: Option<usize>,
+    /// a recording held, to send for the auto-sampler's pieces (`/api/sample/pieces`)
+    pub offer: Option<Arc<Picked>>,
+    /// the recording held is to be sampled now, as its Sample it button samples it (a scripted run's
+    /// `import:sample`)
+    pub sample_now: bool,
+    /// the Sample window, which shows the pieces offered: whether it is open, what claudius said, and what to do
+    /// with each piece (0 leave it, 1 keep it as it was cut, 2 keep it treated), for the take it shows
+    pub sampling: bool,
+    pub sample_said: Option<(bool, String)>,
+    choices: (u64, Vec<u8>),
 }
 
 /// what the window sent: a recording it holds, or a library's, by its id
@@ -105,6 +115,11 @@ impl Import {
     /// what the libraries offered for the search sent, or why nothing
     pub fn found(&mut self, hits: Result<Vec<LibraryHit>, String>) {
         (self.searching, self.hits) = (false, Some(hits));
+    }
+
+    /// claudius' answer to the pieces asked for, drawn again or kept
+    pub fn pieces_answered(&mut self, ok: bool, message: String) {
+        self.sample_said = Some((ok, message));
     }
 
     /// whether an answer from claudius is awaited
@@ -376,6 +391,27 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
                 }
                 im.said = None;
             }
+            // with a claudius, the Sample window offers the pieces first, to hear and choose
+            if !demo {
+                let sample = ui.add_enabled(free, egui::Button::new("Sample it...")).on_hover_text(
+                    "the auto-sampler's pieces of it, each as it was cut and treated, to hear and choose",
+                );
+                if sample.clicked() || (std::mem::take(&mut im.sample_now) && free) {
+                    match (&by_id, &im.file) {
+                        (Some(path), _) => cx.out.push(Command::SamplePieces {
+                            path: path.clone(),
+                            seed: None,
+                            count: Some(4),
+                            bars: None,
+                            find: None,
+                        }),
+                        (None, Some(file)) => im.offer = Some(file.clone()),
+                        (None, None) => {}
+                    }
+                    (im.sampling, im.sample_said) = (true, None);
+                }
+                return;
+            }
             let sample = ui.add_enabled(free, egui::Button::new("Sample its vocals into the song")).on_hover_text(
                 "the auto-sampler: its best sung phrases, cleaned of its drums, in the sections that suit them",
             );
@@ -413,6 +449,102 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
     if !open {
         let im = &mut cx.view.import;
         im.open = false;
+        if let Some(player) = im.player.as_mut() {
+            player.stop();
+        }
+        im.hearing = None;
+    }
+}
+
+/// The Sample window, while it is open: the pieces the auto-sampler offers, each to hear as it was cut and treated
+/// and to keep either way or leave, another take of them, and the chosen kept.
+pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
+    if !cx.view.import.sampling {
+        return;
+    }
+    let offered = cx.state.pieces.clone();
+    let server = cx.server.map(str::to_string);
+    let mut open = true;
+    let title = offered.as_ref().map_or_else(|| "Sample".to_string(), |p| format!("Sample {}", p.recording));
+    egui::Window::new(title).id(egui::Id::unique("pieces")).open(&mut open).resizable(false).collapsible(false).show(
+        ctx,
+        |ui| {
+            let im = &mut cx.view.import;
+            let Some(offered) = offered else {
+                ui.weak("the auto-sampler is listening for the best phrases ...");
+                said(ui, &im.sample_said);
+                return;
+            };
+            if im.choices.0 != offered.seed || im.choices.1.len() != offered.pieces.len() {
+                im.choices = (offered.seed, vec![0; offered.pieces.len()]);
+            }
+            ui.weak(format!("take {}: each piece as it was cut, and treated; choose what to keep", offered.seed));
+            egui::Grid::new("pieces-grid").num_columns(4).spacing([10.0, 6.0]).show(ui, |ui| {
+                for (i, p) in offered.pieces.iter().enumerate() {
+                    ui.label(egui::RichText::new(format!("{}. {}", p.id, p.place)).strong()).on_hover_text(format!(
+                        "{} bars, {:.0}% sung",
+                        p.bars,
+                        p.sung * 100.0
+                    ));
+                    for (label, url, tip) in [
+                        ("▶ as cut", &p.raw, "as it was cut, cleaned of the recording's drums"),
+                        ("▶ treated", &p.treated, p.treatment.as_str()),
+                    ] {
+                        let playing = im.hearing.as_deref() == Some(url.as_str());
+                        if ui.small_button(if playing { "■ stop" } else { label }).on_hover_text(tip).clicked() {
+                            let player = im.player.get_or_insert_with(|| Player::new(ui.ctx()));
+                            player.stop();
+                            if playing {
+                                im.hearing = None;
+                            } else {
+                                player.load(Source::Url(absolute(url, server.as_deref())), false);
+                                player.play();
+                                im.hearing = Some(url.clone());
+                            }
+                        }
+                    }
+                    let choice = &mut im.choices.1[i];
+                    egui::ComboBox::from_id_salt(("piece-keep", p.id))
+                        .selected_text(["leave it", "keep as cut", "keep treated"][*choice as usize])
+                        .show_ui(ui, |ui| {
+                            for (k, text) in ["leave it", "keep as cut", "keep treated"].iter().enumerate() {
+                                ui.selectable_value(choice, k as u8, *text);
+                            }
+                        });
+                    ui.end_row();
+                }
+            });
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                if ui
+                    .button("Regenerate")
+                    .on_hover_text("another take: other phrases, other lengths, other treatments")
+                    .clicked()
+                {
+                    cx.out.push(Command::RedrawPieces { seed: None });
+                    im.sample_said = None;
+                }
+                let keep: Vec<claudius_api::KeptPiece> = offered
+                    .pieces
+                    .iter()
+                    .zip(&im.choices.1)
+                    .filter(|(_, c)| **c > 0)
+                    .map(|(p, c)| claudius_api::KeptPiece { id: p.id, treated: *c == 2 })
+                    .collect();
+                let n = keep.len();
+                let label = if n == 0 { "Keep the chosen".to_string() } else { format!("Keep {n} in the song") };
+                if ui.add_enabled(n > 0, egui::Button::new(label)).clicked() {
+                    cx.out.push(Command::KeepPieces { keep, sections: Vec::new() });
+                    im.sample_said = None;
+                }
+            });
+            said(ui, &im.sample_said);
+        },
+    );
+    let im = &mut cx.view.import;
+    // kept, the offer goes, and so does the window
+    if !open || (im.sample_said.as_ref().is_some_and(|(ok, _)| *ok) && cx.state.pieces.is_none()) {
+        im.sampling = false;
         if let Some(player) = im.player.as_mut() {
             player.stop();
         }

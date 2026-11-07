@@ -39,6 +39,20 @@ impl App {
         }
     }
 
+    /// the auto-sampler's pieces of a recording sent as the file itself, as `sample_pieces` offers a path's
+    pub fn pieces_bytes(
+        self: &Arc<Self>,
+        bytes: Vec<u8>,
+        name: &str,
+        opt: claudius::sampler::Options,
+        seed: u64,
+    ) -> Reply {
+        match self.decode(bytes, name) {
+            Ok(x) => self.offer_pieces(Arc::new(x), name, take::Sources::default(), opt, seed),
+            Err(e) => no(e, self.version()),
+        }
+    }
+
     /// what claudius hears in a recording sent as a file's bytes, named `name` (whose extension says its format, if it
     /// has one); nothing of it is kept
     pub fn analyze_bytes(self: &Arc<Self>, bytes: Vec<u8>, name: &str) -> Reply {
@@ -155,15 +169,7 @@ impl App {
             return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
         }
         let ears = self.ears.get().and_then(|e| e.as_ref());
-        let sampled = |bp: Option<&claudius::model::Blueprint>| -> std::collections::BTreeSet<String> {
-            let loops = bp.map(|bp| bp.loops.iter().filter(|l| l.sampled)).into_iter().flatten();
-            loops
-                .filter_map(|l| match &l.sound {
-                    claudius::model::Sound::Loop { path, .. } => Some(path.clone()),
-                    _ => None,
-                })
-                .collect()
-        };
+        let sampled = super::pieces::sampled;
         let before = sampled(self.blueprint().as_ref());
         let r =
             self.edit_with(|bp| claudius::sampler::sample(bp, x, name, ears, opt, &dir).map(|s| s.lines.join("\n")));
