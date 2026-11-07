@@ -141,7 +141,9 @@ decodes it as claudius does). With a claudius, one chosen is added by its id (`a
 (`found`) with it, which credits it. With a claudius, **Sample it...** asks for the auto-sampler's pieces instead
 (`sample_pieces` by id, or `/api/sample/pieces` with the file) and opens the Sample window (`import::pieces`), which
 shows the state's `pieces`: each heard as it was cut and treated from `/api/pieces/`, chosen, drawn again
-(`redraw_pieces`) and kept (`keep_pieces`). A take's **Trim...**, in its
+(`redraw_pieces`) and kept (`keep_pieces`). In the demo the engine offers them (`claudius_api::Listen::SamplePieces`
+with the file), each piece in the state as a small MP3 in its URL (`listen::mp3_url`), which a browser plays as it
+is and the app decodes. A take's **Trim...**, in its
 track's menu in the arrangement, opens a window of the same file that sends `trim_take` with the track's `seconds`
 for its range.
 

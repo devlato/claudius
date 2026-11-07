@@ -1180,10 +1180,10 @@ impl eframe::App for Studio {
         if let Some(q) = self.view.import.search.take() {
             self.backend.search_library(&q);
         }
-        if let Some(file) = self.view.import.offer.take() {
+        if let Some((file, found)) = self.view.import.offer.take() {
             self.inflight += 1;
             self.inflight_since = now;
-            self.backend.offer_pieces(file.bytes.clone(), &file.name);
+            self.backend.offer_pieces(file.bytes.clone(), &file.name, found);
         }
         if let Some(l) = self.view.listen.take() {
             self.inflight += 1;

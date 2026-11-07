@@ -469,6 +469,18 @@ pub enum Listen {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         found: Option<serde_json::Value>,
     },
+    /// the auto-sampler's pieces of a recording, offered before any goes into the song, as `/api/sample/pieces`
+    /// offers them (`seed`, `count`: as for `sample_pieces`)
+    SamplePieces {
+        name: String,
+        #[serde(default)]
+        seed: Option<u64>,
+        #[serde(default)]
+        count: Option<u32>,
+        /// the library's record of it, when a free library offered it (`LibraryHit::found`): the pieces kept credit it
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        found: Option<serde_json::Value>,
+    },
     /// the answers to pitch check `id`, sung over its phrases from their first beat, as `/api/pitch-check` hears them
     PitchCheck {
         id: u64,
@@ -480,7 +492,7 @@ impl Listen {
     pub fn name(&self) -> &str {
         match self {
             Listen::Analyze { name } | Listen::SampleSong { name, .. } | Listen::ExtractGroove { name } => name,
-            Listen::Remake { name, .. } | Listen::Take { name, .. } => name,
+            Listen::Remake { name, .. } | Listen::Take { name, .. } | Listen::SamplePieces { name, .. } => name,
             Listen::PitchCheck { .. } => "the pitch check",
         }
     }
@@ -492,6 +504,7 @@ impl Listen {
             Listen::Remake { .. } => "remake",
             Listen::SampleSong { .. } => "sample_song",
             Listen::ExtractGroove { .. } => "extract_groove",
+            Listen::SamplePieces { .. } => "sample_pieces",
             Listen::Take { recording: true, .. } => "add_recording",
             Listen::Take { .. } => "take",
             Listen::PitchCheck { .. } => "pitch_check",

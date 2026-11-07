@@ -161,7 +161,7 @@ An assistant does the same with `sample_pieces` (the recording's `path`, or `lib
 `find`), which lists the pieces and where to hear each, `redraw_pieces` for another take, and `keep_pieces` with the
 pieces to keep and whether treated. Behind the window are `POST /api/sample/pieces` (the recording itself), the
 state's `pieces`, and `GET /api/pieces/<file>` for each piece to hear ([HTTP API](http-api.md#routes)). The online demo
-samples a recording's vocals straight into the song.
+offers pieces the same way, in the page.
 
 Without earshot's models, it goes by the pitch and the stereo picture alone: in a full mix, a lead synth held in the
 middle can then pass for a voice. Sample only what you may use: a recording of someone else's song needs their

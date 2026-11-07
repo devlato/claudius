@@ -41,6 +41,23 @@ pub fn decode(bytes: Vec<u8>, name: &str) -> Result<Stereo, String> {
     audio::load_bytes(bytes, &ext).map_err(|e| format!("cannot read {name}: {e:#}"))
 }
 
+/// an MP3 file as a URL that holds it, which a page plays as it is (what the demo's engine hands over to hear)
+pub fn mp3_url(bytes: &[u8]) -> String {
+    use base64::Engine;
+    format!("data:audio/mpeg;base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes))
+}
+
+/// the MP3 file a URL from `mp3_url` holds; none for any other URL
+pub fn mp3_of(url: &str) -> Option<Result<Vec<u8>, String>> {
+    use base64::Engine;
+    let data = url.strip_prefix("data:audio/mpeg;base64,")?;
+    Some(
+        base64::engine::general_purpose::STANDARD
+            .decode(data)
+            .map_err(|e| format!("the file did not arrive whole: {e}")),
+    )
+}
+
 /// the format a file's first bytes show
 pub fn kind(b: &[u8]) -> Option<&'static str> {
     let at = |i: usize, s: &[u8]| b.get(i..i + s.len()) == Some(s);

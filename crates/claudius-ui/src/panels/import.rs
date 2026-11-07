@@ -9,8 +9,8 @@ use std::sync::mpsc::{Receiver, channel};
 use claudius_api::{Command, LibraryHit};
 use eframe::egui;
 
+use super::Cx;
 use super::record::ROLES;
-use super::{Cx, Listen};
 use crate::audio::{Player, Source};
 use crate::pick::{self, Picked, Want};
 
@@ -55,8 +55,9 @@ pub struct Import {
     /// the search's recording to use now, by its place in the list, as its Use it button uses it (a scripted run's
     /// `import:use:<n>`)
     pub use_nth: Option<usize>,
-    /// a recording held, to send for the auto-sampler's pieces (`/api/sample/pieces`)
-    pub offer: Option<Arc<Picked>>,
+    /// a recording held, to send for the auto-sampler's pieces (`/api/sample/pieces`), with the library's record of
+    /// it when a free library offered it (which the demo's engine credits it by)
+    pub offer: Option<(Arc<Picked>, Option<serde_json::Value>)>,
     /// the recording held is to be sampled now, as its Sample it button samples it (a scripted run's
     /// `import:sample`)
     pub sample_now: bool,
@@ -235,6 +236,28 @@ impl Import {
     }
 }
 
+/// a piece the demo's engine hands over as a file in its URL, decoded as claudius decodes one, in the app (a browser
+/// plays the URL as it is); none for one to fetch
+fn decoded(url: &str) -> Option<Result<crate::audio::Pcm, String>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        Some(
+            claudius_session::listen::mp3_of(url)?
+                .and_then(|bytes| claudius_session::listen::decode(bytes, "piece.mp3"))
+                .map(|x| crate::audio::Pcm {
+                    rate: claudius::config::SR,
+                    channels: 2,
+                    samples: x.l.iter().zip(&x.r).flat_map(|(l, r)| [*l, *r]).collect(),
+                }),
+        )
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = url;
+        None
+    }
+}
+
 /// what a fetch brought: the file, or why not
 fn fetched(res: Result<ehttp::Response, String>) -> Fetched {
     match res {
@@ -391,52 +414,23 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
                 }
                 im.said = None;
             }
-            // with a claudius, the Sample window offers the pieces first, to hear and choose
-            if !demo {
-                let sample = ui.add_enabled(free, egui::Button::new("Sample it...")).on_hover_text(
-                    "the auto-sampler's pieces of it, each as it was cut and treated, to hear and choose",
-                );
-                if sample.clicked() || (std::mem::take(&mut im.sample_now) && free) {
-                    match (&by_id, &im.file) {
-                        (Some(path), _) => cx.out.push(Command::SamplePieces {
-                            path: path.clone(),
-                            seed: None,
-                            count: Some(4),
-                            bars: None,
-                            find: None,
-                        }),
-                        (None, Some(file)) => im.offer = Some(file.clone()),
-                        (None, None) => {}
-                    }
-                    (im.sampling, im.sample_said) = (true, None);
-                }
-                return;
-            }
-            let sample = ui.add_enabled(free, egui::Button::new("Sample its vocals into the song")).on_hover_text(
-                "the auto-sampler: its best sung phrases, cleaned of its drums, in the sections that suit them",
-            );
-            if sample.clicked() {
+            // the Sample window offers the pieces first, to hear and choose
+            let sample = ui
+                .add_enabled(free, egui::Button::new("Sample it..."))
+                .on_hover_text("the auto-sampler's pieces of it, each as it was cut and treated, to hear and choose");
+            if sample.clicked() || (std::mem::take(&mut im.sample_now) && free) {
                 match (&by_id, &im.file) {
-                    (Some(path), _) => cx.out.push(Command::SampleSong {
+                    (Some(path), _) => cx.out.push(Command::SamplePieces {
                         path: path.clone(),
-                        count: None,
+                        seed: None,
+                        count: Some(4),
                         bars: None,
                         find: None,
-                        sections: Vec::new(),
                     }),
-                    (None, Some(file)) => {
-                        cx.view.listen = Some(Listen {
-                            file: file.clone(),
-                            remake: None,
-                            flip: false,
-                            sample: true,
-                            groove: false,
-                            found: found.clone(),
-                        })
-                    }
+                    (None, Some(file)) => im.offer = Some((file.clone(), found.clone())),
                     (None, None) => {}
                 }
-                im.open = false;
+                (im.sampling, im.sample_said) = (true, None);
             }
         });
         let im = &cx.view.import;
@@ -497,7 +491,11 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
                             if playing {
                                 im.hearing = None;
                             } else {
-                                player.load(Source::Url(absolute(url, server.as_deref())), false);
+                                match decoded(url) {
+                                    Some(Ok(pcm)) => player.load(Source::Pcm(Arc::new(pcm)), false),
+                                    Some(Err(e)) => im.sample_said = Some((false, e)),
+                                    None => player.load(Source::Url(absolute(url, server.as_deref())), false),
+                                }
                                 player.play();
                                 im.hearing = Some(url.clone());
                             }

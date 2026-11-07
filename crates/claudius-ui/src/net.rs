@@ -599,13 +599,17 @@ impl Backend {
 
     /// Sends a recording held, the file itself, for the auto-sampler's pieces of it (the answer arrives as a reply to
     /// "sample_pieces", the pieces in the state).
-    pub fn offer_pieces(&mut self, bytes: Vec<u8>, name: &str) {
+    /// (`found`: the library's record of it, when a free library offered it, which the demo's engine credits the
+    /// pieces kept by; a claudius samples those by their id)
+    pub fn offer_pieces(&mut self, bytes: Vec<u8>, name: &str, found: Option<serde_json::Value>) {
         match self {
             Backend::Remote(r) => {
                 r.listen(bytes, "/api/sample/pieces", &format!("name={}&count=4", query_value(name)), "sample_pieces")
             }
             Backend::Mock(m) => {
-                m.refuse("sample_pieces", "the demo samples a recording's vocals straight into the song")
+                let offer =
+                    claudius_api::Listen::SamplePieces { name: name.to_string(), seed: None, count: Some(4), found };
+                m.listen(offer, &bytes)
             }
         }
     }

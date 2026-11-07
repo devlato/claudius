@@ -96,7 +96,7 @@ recording, each to hear as it was cut and through a treatment side by side (dust
 crushing, a phaser, a telephone's band, a stutter, a reversed tail). Keep each as it was or treated, or leave it, and
 **Regenerate** draws another take: other phrases, other lengths, other treatments. Assistants have `sample_pieces`,
 `redraw_pieces` and `keep_pieces`; the HTTP API has `POST /api/sample/pieces` and `GET /api/pieces/FILE`, and the
-state the `pieces`. The online demo still samples a recording's vocals straight into the song.
+state the `pieces`. It works in the online demo too.
 
 The demo records takes too: the record button, which only the app and a claudius' own page had, records a voice or
 an instrument over the song in the browser, and the take joins the song and the project you save. A take's menu in
