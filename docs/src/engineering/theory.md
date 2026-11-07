@@ -332,7 +332,7 @@ over. A cell is a bar of steps, sixteen sixteenths (or 12 or 24, in triplets):
 |---|---|
 | `.`, `-` | a rest; the note before going on |
 | `R`, `r` | the chord's root, its bass note; softly |
-| `L`, `8` | the root an octave down, an octave up (the other way where that does not fit the register) |
+| `L`, `8` | the root an octave down, an octave up (the other way where that does not fit the register, and the fifth that way where neither does) |
 | `3`, `5`, `7` | the chord's third, fifth and seventh above the root (the key's seventh on a chord with none) |
 | `2`, `4`, `6` | the key's second, fourth and sixth above the root |
 | `A` | an approach: a semitone under the note after it, or over it coming down, or from the other side when that is the note before (an enclosure) |
@@ -347,7 +347,7 @@ last note before a new chord turned into an approach to it, the new chord's firs
 bar, a note off the beat left out, a slide into the next note. Notes are played harder on the downbeat, the beats and
 the eighths than in between, and one at a time, each ending where the next begins unless it slides into it. Each
 chord's root is the one nearest the note the line comes to it from, low enough in the register to leave room for the
-octave above it.
+octave above it (within an octave of the register's bottom at least, so that every root has a place).
 
 A take's cells come from the high half of the part's seed and its details from the low half (and the progression), so
 a variation of a take keeps its rhythm and changes what it plays around it, and a new seed is another take.

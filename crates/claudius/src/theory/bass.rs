@@ -286,7 +286,7 @@ pub fn styles() -> Vec<&'static str> {
 }
 
 /// A bassline in `style` over `chords` (one cycle of a progression from beat 0) in `key`, within `register`: an
-/// idiom's take from `seed` (with `salt` for its details), or a motif; `kicks` are the kick's beats over the cycle,
+/// idiom's take from `seed` (with `stream` for its details), or a motif; `kicks` are the kick's beats over the cycle,
 /// which the 808s follow.
 pub fn write(
     style: &str,
@@ -295,11 +295,11 @@ pub fn write(
     kicks: &[f64],
     register: (i32, i32),
     seed: u64,
-    salt: u64,
+    stream: u64,
 ) -> Vec<Note> {
     match idiom(style) {
-        Some(i) => idiom::line(i, chords, key, register, seed, salt),
-        None => bassline(style, chords, key, kicks, (register.0 + register.1) / 2, &mut Rng::new(seed ^ salt)),
+        Some(i) => idiom::line(i, chords, key, register, seed, stream),
+        None => bassline(style, chords, key, kicks, (register.0 + register.1) / 2, &mut Rng::new(seed ^ stream)),
     }
 }
 
@@ -477,9 +477,14 @@ pub fn bassline(style: &str, chords: &[ChordSpan], key: &Key, kicks: &[f64], cen
         }
         prev = root;
     }
-    // kick-locked 808s also hit on every kick, not just the first bar's pattern
+    // kick-locked 808s also hit on every kick, not just the first bar's pattern; with no kick to follow, trap's and
+    // drill's hit on the one and the and of three, as the motif above plays `kick_follow`
     if matches!(style, "kick_follow" | "glide" | "drill") && !kicks.is_empty() {
         out = follow(style, chords, key, kicks, center, rng);
+    } else if matches!(style, "glide" | "drill") {
+        let bars = (chords.last().map_or(16.0, |c| c.start + c.len) / 4.0).ceil() as usize;
+        let ks: Vec<f64> = (0..bars).flat_map(|b| [b as f64 * 4.0, b as f64 * 4.0 + 2.5]).collect();
+        out = follow(style, chords, key, &ks, center, rng);
     }
     out
 }
@@ -660,5 +665,11 @@ mod tests {
         let glide = write("glide", &chords, &a_minor(), &kicks, (24, 40), 5, 0);
         let jumps = glide.windows(2).filter(|w| w[1].p - w[0].p >= 7 && w[0].t + w[0].d > w[1].t).count();
         assert!(jumps >= 1, "a glide up into a phrase's end: {glide:?}");
+        // with no kick to follow, on the one and the and of three of every bar, not one note held under each chord
+        for style in ["glide", "drill"] {
+            let notes = write(style, &chords, &a_minor(), &[], (24, 40), 5, 0);
+            let onsets: Vec<f64> = notes.iter().map(|n| n.t).collect();
+            assert_eq!(onsets, [0.0, 2.5, 4.0, 6.5, 8.0, 10.5, 12.0, 14.5], "{style}");
+        }
     }
 }

@@ -12,7 +12,7 @@
 //! | step | the note |
 //! |---|---|
 //! | `R` | the chord's root, its bass note (`r` softly) |
-//! | `L`, `8` | the root an octave down, an octave up |
+//! | `L`, `8` | the root an octave down, an octave up (the other way, or the fifth, where it does not fit) |
 //! | `3`, `5`, `7` | the chord's third, fifth and seventh above the root (the key's seventh on a chord with none) |
 //! | `2`, `4`, `6` | the key's second, fourth and sixth above the root |
 //! | `A` | an approach: a semitone under the note after it (over it, coming down) |
@@ -179,15 +179,21 @@ fn above(pc: u8, from: i32) -> i32 {
 /// what a tone plays over `chord` from `root` in `key`, within `register`; None for those that depend on the notes
 /// either side (an approach, a walk, a dead note)
 fn pitch(tone: Tone, chord: &Chord, key: &Key, root: i32, register: (i32, i32)) -> Option<i32> {
-    // an octave goes the other way where its own does not fit the register
-    let (down, up) = (root - 12 >= register.0 - 3, root + 12 <= register.1 + 3);
+    // an octave goes the other way where its own does not fit the register, and is the fifth that way where neither
+    // does: a move, not the root again
+    let fits = |p: i32| p >= register.0 - 3 && p <= register.1 + 3;
+    let (down, up) = (fits(root - 12), fits(root + 12));
+    let fifth = above(chord.fifth_pc(), root + 1);
     Some(match tone {
         Tone::Root => root,
-        Tone::Low | Tone::High if !down && !up => root,
         Tone::Low if down => root - 12,
         Tone::High if up => root + 12,
-        Tone::Low => root + 12,
-        Tone::High => root - 12,
+        Tone::Low if up => root + 12,
+        Tone::High if down => root - 12,
+        Tone::Low if fits(fifth - 12) => fifth - 12,
+        Tone::High if fits(fifth) => fifth,
+        Tone::Low => fifth,
+        Tone::High => fifth - 12,
         Tone::Third => above(chord.third_pc(), root + 1),
         Tone::Fifth => above(chord.fifth_pc(), root + 1),
         Tone::Seventh => match chord.tones().iter().find(|i| matches!(i.rem_euclid(12), 10 | 11)) {
@@ -216,8 +222,9 @@ struct Placed {
 }
 
 /// The line `idiom` plays over `chords` (a cycle of a progression from beat 0) in `key`, within `register`: the take
-/// `seed` draws, its cells from the seed's high half and its details from its low half and `salt`.
-pub fn line(idiom: &Idiom, chords: &[ChordSpan], key: &Key, register: (i32, i32), seed: u64, salt: u64) -> Vec<Note> {
+/// `seed` draws, its cells from the seed's high half and its details from its low half and `stream` (one for each
+/// progression the part plays).
+pub fn line(idiom: &Idiom, chords: &[ChordSpan], key: &Key, register: (i32, i32), seed: u64, stream: u64) -> Vec<Note> {
     let read = |cells: &[&str]| -> Vec<(Vec<Event>, usize)> { cells.iter().filter_map(|c| parse(c).ok()).collect() };
     let (cells, turns) = (read(idiom.cells), read(idiom.turns));
     if cells.is_empty() || chords.is_empty() {
@@ -228,7 +235,7 @@ pub fn line(idiom: &Idiom, chords: &[ChordSpan], key: &Key, register: (i32, i32)
     let answer =
         if cells.len() > 1 && take.chance(0.5) { (main + 1 + take.below(cells.len() - 1)) % cells.len() } else { main };
     let turn = (!turns.is_empty()).then(|| take.below(turns.len()));
-    let mut detail = Rng::new((seed & 0xffff_ffff) ^ salt ^ hash_str(idiom.name));
+    let mut detail = Rng::new((seed & 0xffff_ffff) ^ stream ^ hash_str(idiom.name));
     let v = idiom.vary;
     let beats = chords.last().map_or(16.0, |c| c.start + c.len);
     let bars = (beats / 4.0).ceil().max(1.0) as usize;
@@ -317,10 +324,11 @@ pub fn line(idiom: &Idiom, chords: &[ChordSpan], key: &Key, register: (i32, i32)
 }
 
 /// The notes of `placed`, each tone resolved over its chord: each chord's root the one nearest the note the line comes
-/// to it from, low enough in the register to leave an octave above it, approaches and walks from the notes either
-/// side, and every note sounding until the next starts at most, or sliding into it.
+/// to it from, low in the register to leave an octave above it (within an octave of its bottom at least, where every
+/// root has a place), approaches and walks from the notes either side, and every note sounding until the next starts
+/// at most, or sliding into it.
 fn pitched(placed: &[Placed], chords: &[ChordSpan], key: &Key, register: (i32, i32)) -> Vec<Note> {
-    let (low, high) = (register.0, if register.1 - 9 >= register.0 + 5 { register.1 - 9 } else { register.1 });
+    let (low, high) = (register.0, (register.1 - 9).max(register.0 + 11).min(register.1));
     let center = (low + high) / 2;
     let root_from = |span: usize, from: i32| {
         let pc = chords[span].chord.bass_pc();
@@ -437,6 +445,18 @@ mod tests {
         assert!(notes.iter().all(|n| (25..=55).contains(&n.p)), "{notes:?}");
         // the same take, the same line; another seed's low half varies only the details
         assert_eq!(line(&TEST, &chords, &key, (28, 52), 7, 0), notes);
+    }
+
+    #[test]
+    fn an_octave_with_no_room_either_way_moves_to_the_fifth_that_way() {
+        let key = Key::new(9, Mode::Minor);
+        let am = Chord::parse("Am").unwrap();
+        // drum and bass's register: its only A has no octave within it either way
+        assert_eq!(pitch(Tone::High, &am, &key, 33, (26, 41)), Some(40));
+        assert_eq!(pitch(Tone::Low, &am, &key, 33, (26, 41)), Some(28));
+        // where one fits, the octave
+        assert_eq!(pitch(Tone::High, &am, &key, 33, (28, 52)), Some(45));
+        assert_eq!(pitch(Tone::Low, &am, &key, 45, (28, 52)), Some(33));
     }
 
     #[test]
