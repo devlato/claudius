@@ -320,6 +320,40 @@ impl App {
         });
     }
 
+    /// `work`, with its words `what` on the busy line and the share of it done as `work` says it (`done`), while no job
+    /// holds the line: what the studio shows of a recording being taken apart, listened to or sampled, which is no job
+    /// of its own; the line cleared after, unless a job has taken it since (the render the change starts)
+    pub(super) fn listening<T>(&self, what: &str, work: impl FnOnce(&mut dyn FnMut(f64)) -> T) -> T {
+        let shown = self
+            .try_update(|s| {
+                if s.job {
+                    return Err(());
+                }
+                (s.busy, s.progress) = (Some(what.to_string()), None);
+                Ok(())
+            })
+            .is_ok();
+        let ours = |s: &super::Session| !s.job && s.busy.as_deref() == Some(what);
+        let mut done = |p: f64| {
+            if shown {
+                self.update(|s| {
+                    if ours(s) {
+                        s.progress = Some(p.clamp(0.0, 1.0) as f32);
+                    }
+                });
+            }
+        };
+        let out = work(&mut done);
+        if shown {
+            self.update(|s| {
+                if ours(s) {
+                    (s.busy, s.progress) = (None, None);
+                }
+            });
+        }
+        out
+    }
+
     fn ears_fn<'a>(
         &'a self,
         genre: &'a Option<genres::GenreProfile>,

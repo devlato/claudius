@@ -178,9 +178,11 @@ when they made it.
 ## Sample a song's vocals
 
 When the person wants a vocal from a recording in their song ("sample the vocals from this", "put that hook in my
-drop"), call `sample_song` with the recording's `path`. claudius finds its best sung phrases, cleans them of its drums,
-fits them to the song's tempo and key, places each where its notes agree with the song's chords (the drops and hooks
-first, then the breaks ...) and mixes them as vocals, `vox1`, `vox2` ...
+drop"), call `sample_song` with the recording's `path`. claudius takes the recording's voice apart from the rest
+(with the ears), finds its best sung phrases, fits them to the song's tempo and key (stretched, never sped up, its
+formants kept), places each where its notes agree with the song's chords (the drops and hooks first, then the breaks
+...) and mixes them as vocals, `vox1`, `vox2` ... The reply's first line says what came of it ("sampled 2 phrases of
+song.mp3 into the song: vox1, vox2"), the lines after it where each phrase came from and went.
 
 - **What to ask for.** `count` phrases (2), `bars` long (1, 2 or 4), `sections` to put them in by name or kind
   ("the break only"), and `find` when the voice is something else ("a rap verse", "a choir").

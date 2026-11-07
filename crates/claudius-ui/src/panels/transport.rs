@@ -514,7 +514,8 @@ pub fn toolbar(ui: &mut Ui, cx: &mut Cx) {
                 && cx.now - t.at < 6.0
             {
                 let color = if t.ok { TEXT_DIM } else { theme::BAD };
-                let text: String = t.text.chars().take(120).collect();
+                // what came of it is its first line ("sampled 2 phrases of ..."); the rest is on hover and in the log
+                let text: String = t.text.lines().next().unwrap_or_default().chars().take(120).collect();
                 // what the label leaves for the dot and the gap to the buttons on the left
                 let room = ui.available_width() - 10.0 - 2.0 * ui.spacing().item_spacing.x;
                 ui.allocate_ui(vec2(room.max(0.0), ui.available_height()), |ui| {
@@ -836,11 +837,24 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                     found: None,
                 });
             }
-            if cx.view.analyzing {
-                ui.add(egui::Spinner::new().color(ACCENT));
-                ui.label(small("listening to the file..."));
-            }
         });
+        if cx.view.analyzing {
+            ui.horizontal(|ui| {
+                ui.add(egui::Spinner::new().color(ACCENT));
+                // what claudius says it is doing with the file: taking it apart, listening to it, sampling it ...
+                let doing = cx.state.busy.clone().unwrap_or_else(|| "listening to the file".into());
+                ui.label(small(format!("{doing}...")).color(theme::mix(ACCENT, TEXT, 0.4)));
+                if let Some(p) = cx.state.progress.filter(|_| cx.state.busy.is_some()) {
+                    ui.add(
+                        egui::ProgressBar::new(p.clamp(0.0, 1.0))
+                            .desired_width(120.0)
+                            .desired_height(8.0)
+                            .fill(ACCENT)
+                            .text(RichText::new(format!("{:.0}%", p * 100.0)).size(9.0)),
+                    );
+                }
+            });
+        }
         if let Some((ok, text)) = &cx.view.analysis {
             let c = if *ok { theme::GOOD } else { theme::BAD };
             egui::Frame::new()

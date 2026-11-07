@@ -250,7 +250,7 @@ impl Host {
                                 self.takes.insert(path.clone(), credit.clone());
                             }
                         }
-                        self.commit(Some(bp), s.lines.join("\n"))
+                        self.commit(Some(bp), s.said(&name))
                     }
                     Err(e) => self.no(e),
                 }
@@ -864,7 +864,7 @@ impl Host {
                         self.takes.insert(path.clone(), credit.clone());
                     }
                 }
-                self.commit(Some(bp), s.lines.join("\n"))
+                self.commit(Some(bp), s.said(&o.name))
             }
             // not kept, they are still on offer
             Err(e) => {
@@ -1735,7 +1735,12 @@ mod tests {
             r.message
         );
         let r = command(&mut h, json!({"cmd": "keep_pieces", "keep": [{"id": 1, "treated": true}]}));
-        assert!(r.ok && r.message.starts_with("vox1:"), "{}", r.message);
+        let said: Vec<&str> = r.message.lines().collect();
+        assert!(
+            r.ok && said[0].starts_with("sampled 1 phrase of ") && said[0].ends_with(" into the song: vox1"),
+            "{said:?}"
+        );
+        assert!(said[1].starts_with("vox1:"), "{said:?}");
         assert!(h.state().pieces.is_none(), "kept, the offer goes");
         let bp = h.blueprint().unwrap().clone();
         let vox = bp.loops.iter().find(|l| l.name == "vox1").unwrap();
@@ -2003,7 +2008,12 @@ mod tests {
             }
         }
         let r = h.listen(&Listen::SampleSong { name: "vocal.wav".into(), found: None }, wav(&x));
-        assert!(r.ok && r.message.starts_with("vox1: bars ") && r.message.contains("% sung"), "{}", r.message);
+        let said: Vec<&str> = r.message.lines().collect();
+        assert!(
+            r.ok && said[0].starts_with("sampled ") && said[0].contains(" of vocal.wav into the song: vox1"),
+            "{said:?}"
+        );
+        assert!(said[1].starts_with("vox1: bars ") && said[1].contains("% sung"), "{said:?}");
         let bp = h.blueprint().unwrap();
         let vox = bp.loops.iter().find(|l| l.name == "vox1").expect("the phrase plays");
         let (model::Sound::Loop { path, .. } | model::Sound::Sample { path, .. }) = &vox.sound else {

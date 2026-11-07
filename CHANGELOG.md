@@ -6,6 +6,19 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+The studio says what it is doing with a recording, and shows what came of it. **Sample its vocals into the song**
+and **Take its groove** used to print where each phrase went inside the New song dialog, and nothing else: the
+dialog stayed open over the song they had changed, and nothing said whether claudius was still working, waiting for
+a click, or had failed.
+- While claudius works on a file, the dialog and the busy line at the top say what it is doing: taking it apart into
+  its voice, drums, bass and the rest (with how far it has got), listening to it, sampling its voice, taking its
+  groove, remaking it.
+- When the song has changed, the dialog closes, so that the song shows with its new tracks. The toast says what came
+  of it in a line ("sampled 2 phrases of song.mp3 into the song: vox3, vox4"), and the render starts on the busy line.
+- The whole answer stays in the dialog and the Log.
+- A sample's answer (and its undo) now starts with that line.
+- **Analyze** hears a recording with its stems apart, as a remake does.
+
 The critic hears whether a song's recordings keep its time. A remake whose recording played a few percent off the
 song's tempo, its drums flamming against the genre's, could score 90 or more: nothing it measured, and nothing CLAP
 hears, notices time. Now each track that plays a recording (a remake's `original`, its hook, passages and break, a

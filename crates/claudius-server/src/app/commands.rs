@@ -509,7 +509,10 @@ impl App {
             (l.tempo > 0.0).then_some(l.tempo)
         });
         let named = file.file_name().and_then(|f| claudius::analysis::groove::tempo_in_name(&f.to_string_lossy()));
-        let heard = match claudius::analysis::groove::hear(x, bpm.or(apple).or(named)) {
+        let heard = self.listening(&format!("taking the groove of {from}"), |_| {
+            claudius::analysis::groove::hear(x, bpm.or(apple).or(named))
+        });
+        let heard = match heard {
             Ok(h) => h,
             Err(e) => return no(format!("{from}: {e}"), self.version()),
         };
@@ -548,9 +551,24 @@ impl App {
         }
     }
 
+    /// a recording's stems and what claudius hears in it with them apart (`name`: what the busy line calls it),
+    /// as a remake or the sampler hears it
+    fn listen_to(
+        &self,
+        x: &audio::Stereo,
+        name: &str,
+    ) -> (Option<Arc<claudius::stems::Stems>>, analysis::song::Analysis) {
+        let stems = self.listening(&format!("taking {name} apart into its voice, drums, bass and the rest"), |done| {
+            claudius::stems::of(x, done)
+        });
+        let a = self
+            .listening(&format!("listening to {name}"), |_| analysis::song::analyze_with(x, stems.as_deref(), None));
+        (stems, a)
+    }
+
     /// what claudius hears in a recording (`name`: its path, or the name of the file it came in)
     pub(super) fn analyze_audio(self: &Arc<Self>, x: &audio::Stereo, name: &str) -> Reply {
-        let text = analysis_text(&analysis::song::analyze(x, None));
+        let text = analysis_text(&self.listen_to(x, name).1);
         let v = self.update(|s| {
             s.say(format!("analyzed {name}"));
             s.version + 1
@@ -580,15 +598,17 @@ impl App {
         if how != Remade::Skeleton && !config::write_allowed(&dir, self.roots.as_deref()) {
             return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
         }
-        let stems = claudius::stems::of(x, &mut |_| {});
-        let a = analysis::song::analyze_with(x, stems.as_deref(), None);
+        let name = Path::new(path).file_name().map_or_else(|| path.to_string(), |n| n.to_string_lossy().into_owned());
+        let (stems, a) = self.listen_to(x, &name);
         let seed = seed.unwrap_or_else(now_seed);
         let lib = self.lib.as_deref().map(|l| l as &dyn compose::Library);
-        let name = Path::new(path).file_name().map_or_else(|| path.to_string(), |n| n.to_string_lossy().into_owned());
         let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
         let ears = self.ears.get().and_then(|e| e.as_ref());
         let src = listen::Heard { x, path, name: &name, a: &a, stems: stems.as_deref() };
-        let (bp, verb, told) = listen::remake(&src, &g, seed, bpm, how, &listen::With { lib, dir: &dir, ears });
+        let with = listen::With { lib, dir: &dir, ears };
+        let shown = genre.replace('_', " ");
+        let (bp, verb, told) =
+            self.listening(&format!("remaking {name} as {shown}"), |_| listen::remake(&src, &g, seed, bpm, how, &with));
         self.lock().folder = None;
         self.commit(Some(bp), format!("{verb} {path} as {genre}{told}:\n{}", analysis_text(&a)))
     }

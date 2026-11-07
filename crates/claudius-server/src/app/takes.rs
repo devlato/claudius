@@ -169,10 +169,15 @@ impl App {
             return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
         }
         let ears = self.ears.get().and_then(|e| e.as_ref());
+        // taken apart first, so that the studio shows how far that has got: the sampler finds its stems kept
+        self.listening(&format!("taking {name} apart into its voice, drums, bass and the rest"), |done| {
+            claudius::stems::of(x, done)
+        });
         let sampled = super::pieces::sampled;
         let before = sampled(self.blueprint().as_ref());
-        let r =
-            self.edit_with(|bp| claudius::sampler::sample(bp, x, name, ears, opt, &dir).map(|s| s.lines.join("\n")));
+        let r = self.listening(&format!("sampling the voice of {name}"), |_| {
+            self.edit_with(|bp| claudius::sampler::sample(bp, x, name, ears, opt, &dir).map(|s| s.said(name)))
+        });
         // the phrases are in the song by now: a credit not kept is said, not taken for a failure
         let mut r = r;
         if r.ok && !sources.is_empty() {
