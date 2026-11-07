@@ -321,6 +321,11 @@ pub struct SampleNeed {
     /// that come of it
     #[serde(default = "a_little")]
     pub pitch: (i32, i32),
+    /// whether a voice in a phrase is sped up or slowed down with it, as the genre's producers mean it to be (chipmunk
+    /// soul's singers, sped up until they rise); in a genre that does not, a remake's hook that a voice sings in plays
+    /// in its own key (`remix`)
+    #[serde(default)]
+    pub speeds_voices: bool,
     /// the layers that play where the sample would, when the song has none (offline, or nothing gathered yet); in a
     /// genre whose sections do not list the sample, those it plays in place of (under everything, when none)
     #[serde(default)]

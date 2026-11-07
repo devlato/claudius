@@ -236,9 +236,13 @@ come and go among the cues for its sections.
 ### Reworking it
 
 A remake is a rework unless asked otherwise (`remix::rework`), which keeps the recording the song it is. With its stems
-apart, its voice and the rest above its bass, from its first downbeat to the end of its last bar, is one loop track,
-`original`, that plays once from the first section through all of them (a take's `from`), through the genre's treatment
-of a phrase it samples with a high-pass at 80 Hz; its drums and its bass are left to the genre's. Without the stems
+apart, the rest of it above its bass, from its first downbeat to the end of its last bar, is a loop track, `original`,
+that plays once from the first section through all of them (a take's `from`), through the genre's treatment of a
+phrase it samples with a high-pass at 80 Hz; its drums and its bass are left to the genre's. When it sings (its vocals
+hold a twentieth of its power, `Stems::sung`), its voice is another such track beside it, `vocals`, with the `vocal`
+role and a vocal's mix (`remix::voice_mix`: high-passed at 100 Hz, compressed, with less reverb, delay and ducking than
+a sampled phrase, since its own room is in it), and `original` holds its voice only when it does not sing (and is left
+out when the rest holds under a fiftieth of its power, a voice over a beat). Without the stems
 the recording is split into what sustains and what strikes (`fft::harmonic`), and what sustains is the loop, with the
 high-pass at 150 Hz at least, which leaves the low end to the genre's bass and kick. The song generated in the genre
 at the recording's tempo (`rework_tempo`: from the length of its bars, doubled when that is nearer the genre's range, two bars of the
@@ -252,15 +256,20 @@ the sections do not play are left out. The history says `reworked from '<file>':
 ### Flipping it
 
 With `flip`, a remake is a new song on the recording's sound (`remix::remix`): the recording without its drums (its
-vocals, bass and the rest, with the stems apart; else what sustains of it, `fft::harmonic`) and its drums (its drum
-stem; else what strikes), cut into the pieces a producer would take from it, on the bars it plays. Its hook
+bass and the rest, with the stems apart, its voice left to the sampler's phrases, unless the bass and the rest hold
+under 15 % of its power, `remix::BACKING`, when its vocals stay in; else what sustains of it, `fft::harmonic`) and its
+drums (its drum stem; else what strikes), cut into the pieces a producer would take from it, on the bars it plays. A
+hook a voice sings in (the recording sings, and its voice was not taken out) is offered at its own pitch only, and not
+re-chopped (`remix::own_key`: the genre's `pitch` narrowed to none and its `chop` to 0), wherever a way of playing it so
+meets the genre's tempo, unless the genre's producers speed their singers up (`speeds_voices`, chipmunk soul's). Its hook
 (four bars from the start of the loudest section with chords, a hook or a drop first) without its drums is offered to
 the sampling pipeline as the phrase a song is built on (`sampling::apply`, through a library that holds only the
 recording's pieces and the libraries' one-shots, loops and textures), with another passage of it as the phrase's second
 passage and its drums as the break where the genre samples one. So the song takes the hook's key and chords and a tempo
 the genre plays, the recording's own or a multiple of it (`sampling::meets`). A flip of it follows: as many bars as
 the hook of half beats, each from another bar of the recording on the hook's chord at that place, in the intro, the
-breaks and the outro where the other passage does not play. Then `sampler::sample` brings in its sung phrases. A
+breaks and the outro where the other passage does not play. Then the sampler brings in its sung phrases, from the
+recording as the remix heard it (`sampler::sample_from`: its stems and its analysis, not separated or analysed again). A
 recording with no section with chords long enough falls back to the skeleton, and the reply says so. The song's history
 says what came from where: `remixed from '<file>': its hook (bars 33-36) without its drums; ...`.
 

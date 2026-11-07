@@ -35,6 +35,11 @@ impl Stems {
         Self::sum(&[&self.vocals, &self.other])
     }
 
+    /// what plays under the voice besides the drums: the bass and the rest
+    pub fn backing(&self) -> Stereo {
+        Self::sum(&[&self.bass, &self.other])
+    }
+
     /// the share of the recording's power a stem holds, 0 to 1
     pub fn share(&self, stem: &Stereo) -> f64 {
         let power = |x: &Stereo| x.l.iter().chain(&x.r).map(|v| (*v as f64).powi(2)).sum::<f64>();

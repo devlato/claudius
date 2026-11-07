@@ -1117,7 +1117,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Make a song in a genre from an audio file, which stays recognizable: claudius analyzes it (tempo, key, chords, sections, groove) and reworks it, playing all of it through, its voice and chords as they are without its drums and its bass (with the ears, the recording is separated into its vocals, drums, bass and the rest first), in its own sections and on its chords, with the genre's drums, bass and mix under it. A band that speeds up and slows down is followed beat for beat. flip: true makes a new song of the genre on its hook and pieces of it instead; sampled: false a new song on its skeleton only."
+        description = "Make a song in a genre from an audio file, which stays recognizable: claudius analyzes it (tempo, key, chords, sections, groove) and reworks it, playing all of it through, its voice and chords as they are without its drums and its bass (with the ears, the recording is separated into its vocals, drums, bass and the rest first, and its voice plays on a track of its own, vocals), in its own sections and on its chords, with the genre's drums, bass and mix under it. A band that speeds up and slows down is followed beat for beat. flip: true makes a new song of the genre on its hook and pieces of it instead, its sung phrases on tracks of their own and a voice never sped up out of its key; sampled: false a new song on its skeleton only."
     )]
     async fn remake(&self, Parameters(a): Parameters<RemakeArgs>) -> Result<String, String> {
         let cmd = Command::Remake {

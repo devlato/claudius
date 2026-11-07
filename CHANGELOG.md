@@ -6,6 +6,17 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+A remake plays a recording's voice on tracks of its own, and no longer turns a singer into a chipmunk.
+- A rework plays its voice all through on a track of its own, `vocals`, mixed as a voice, beside the rest of it on
+  `original`, so that the voice can be turned up, treated or muted on its own.
+- A flip builds on its hook without its voice, and the voice comes in on its own tracks, `vox1`, `vox2` and so on.
+- A hook that keeps its voice (without the ears, or when the voice is most of it) plays in its own key, stretched or
+  at its own tempo. It used to be sped up as much as five semitones to meet the genre's tempo, its singer's voice
+  with it. Chipmunk soul, whose sound that is, still speeds it up (`speeds_voices` in a genre's profile).
+- Every track with the `vocal` role (a sampled phrase, a take) is stretched rather than resampled, and moved to the
+  song's key with its formants kept where they were, so that a voice three semitones down still sounds like the same
+  singer.
+
 A recording is taken apart into its vocals, its drums, its bass and the rest before a remake or the auto-sampler uses
 it, with Deezer's Spleeter (its four nets, MIT, about 160 MB, downloaded with the ears' models by `claudius setup` or
 the first time they are needed; separating a four-minute song takes about 8 s, and the stems of the last three

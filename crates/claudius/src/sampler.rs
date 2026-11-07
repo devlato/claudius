@@ -74,6 +74,15 @@ pub fn sample(
     opt: &Options,
     dir: &Path,
 ) -> Result<Sampled, String> {
+    checked(bp, src, opt)?;
+    let stems = crate::stems::of(src, &mut |_| {});
+    let a = analysis::analyze_with(src, stems.as_deref(), None);
+    sample_from(bp, &Heard { src, stems: stems.as_deref(), a: &a, name }, ears, opt, dir)
+}
+
+/// whether the song has somewhere to put phrases of the recording `src` as `opt` asks, which is checked before the
+/// recording is listened to
+fn checked(bp: &Blueprint, src: &Stereo, opt: &Options) -> Result<(), String> {
     if bp.form.is_empty() {
         return Err("the song has no sections to put the phrases in".into());
     }
@@ -83,17 +92,25 @@ pub fn sample(
     if (src.len() as f64 / SRF) < 4.0 {
         return Err("the recording is too short to sample (4 s at least)".into());
     }
-    // the sections asked for are checked before the recording is listened to
-    groups(bp, &opt.sections)?;
-    let stems = crate::stems::of(src, &mut |_| {});
-    let a = analysis::analyze_with(src, stems.as_deref(), None);
+    groups(bp, &opt.sections).map(|_| ())
+}
+
+/// `sample`, of a recording already heard: its stems, when they are apart, and its analysis
+pub(crate) fn sample_from(
+    bp: &mut Blueprint,
+    h: &Heard,
+    ears: Option<&crate::ears::Ears>,
+    opt: &Options,
+    dir: &Path,
+) -> Result<Sampled, String> {
+    checked(bp, h.src, opt)?;
     let count = opt.count.clamp(1, MOST);
-    let phrases = find(src, stems.as_deref(), &a, ears, opt, count);
+    let phrases = find(h.src, h.stems, h.a, ears, opt, count);
     if phrases.is_empty() {
         return Err(NO_VOICE.into());
     }
     let plain: Vec<(Phrase, Vec<Effect>)> = phrases.into_iter().map(|p| (p, Vec::new())).collect();
-    place(bp, &Heard { src, stems: stems.as_deref(), a: &a, name }, &plain, opt, dir)
+    place(bp, h, &plain, opt, dir)
 }
 
 /// Phrase `p` as a sample: from the recording's vocals, when they are apart (`voice`), else from the mix without its
@@ -109,11 +126,11 @@ fn phrase_of(src: &Stereo, stems: Option<&Stems>, a: &Analysis, p: &Phrase) -> S
 const NO_VOICE: &str = "nothing in the recording sounds like a voice: try other words for what to find";
 
 /// a recording as the sampler heard it: its sound, its stems when they are apart, its analysis and its name
-struct Heard<'a> {
-    src: &'a Stereo,
-    stems: Option<&'a Stems>,
-    a: &'a Analysis,
-    name: &'a str,
+pub(crate) struct Heard<'a> {
+    pub src: &'a Stereo,
+    pub stems: Option<&'a Stems>,
+    pub a: &'a Analysis,
+    pub name: &'a str,
 }
 
 /// `phrases` of the recording `h` (each with the effects it plays through) placed in the song, in the sections `opt`

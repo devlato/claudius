@@ -137,7 +137,9 @@ ways that cost about the least, so not every song does the same:
   tempo (or half or twice it) falls in the genre's range. A soul record at 98 BPM plays four semitones up in a house
   song at 123.47 BPM, in a key four semitones above its own, and the song takes that tempo and key, so the phrase is
   only resampled and plays in tune with everything else. How far a genre goes is in its profile (`pitch`: trip-hop
-  slows a record by up to five semitones, house speeds one up by up to five).
+  slows a record by up to five semitones, house speeds one up by up to five). A remake's hook that a voice sings in
+  is not sped up or slowed down, unless the genre's profile says its producers mean it to be (`speeds_voices`, as
+  chipmunk soul's does).
 - **Chopped onto the song's grid at its own speed**, at a tempo two thirds, three quarters, four thirds or three halves
   of its own (where you give the song's tempo, any from two thirds of it to three halves, never half or twice it, which
   would count its bars at half or double time). Each half beat of it plays from the song's half beat, so its bars are

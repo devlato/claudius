@@ -57,6 +57,7 @@
       "chance": 0.98,
       "chop": 0.35,
       "pitch": [-1, 6],
+      "speeds_voices": true,
       "instead": ["keys"],
       "mix": {"bus": "music", "level_db": 1.5, "reverb": 0.08, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 130, "res": 0.05}, {"fx": "saturate", "kind": "tape", "drive_db": 2, "mix": 0.4}]}
     },

@@ -381,7 +381,7 @@ fn render_source(
             // the loop at its own speed (its transpose resamples it, as a sampler's varispeed does), each slice of its
             // beats from the song's beat for it: cut short where the song is faster, a gap after it where slower
             let own = bpm * 2f64.powf(t.transpose as f64 / 12.0);
-            let w = crate::warp::warp(path, *bpm, *beats, own, t.transpose, true)?;
+            let w = crate::warp::warp(path, *bpm, *beats, own, t.transpose, true, false)?;
             let wl = w.len().max(1);
             let beats_of = t.slice_beats.max(0.125);
             // the slices counted from the loop's beats, each from where it starts to the sample: added up as rounded,
@@ -421,7 +421,7 @@ fn render_source(
         }
         Sound::Loop { path, bpm, beats, .. } => {
             let once = t.clips.iter().any(|c| c.once);
-            let w = crate::warp::warp(path, *bpm, *beats, p.bpm, t.transpose, !once)?;
+            let w = crate::warp::warp(path, *bpm, *beats, p.bpm, t.transpose, !once, t.role == "vocal")?;
             let wl = w.len().max(1);
             let beats_of = t.slice_beats.max(0.0625);
             let slice = (beats_of * tm.spb).round() as usize;
