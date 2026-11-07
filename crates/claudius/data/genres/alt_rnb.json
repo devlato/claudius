@@ -16,12 +16,12 @@
   "forms": [
     [
       {"name": "intro", "kind": "intro", "bars": 4, "energy": 0.3, "layers": ["pad", "keys"], "filter_in": true},
-      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.55, "layers": ["kick", "snare", "hat", "bass", "keys", "pad"]},
-      {"name": "hook", "kind": "hook", "bars": 16, "energy": 0.8, "layers": ["kick", "snare", "clap", "hat", "ohat", "bass", "keys", "pad", "lead"]},
-      {"name": "verse2", "kind": "verse", "bars": 16, "energy": 0.6, "variant": "alt", "layers": ["kick", "snare", "hat", "bass", "keys", "pad"]},
-      {"name": "hook2", "kind": "hook", "bars": 16, "energy": 0.85, "layers": ["kick", "snare", "clap", "hat", "ohat", "bass", "keys", "pad", "lead"]},
+      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.55, "layers": ["kick", "snare", "hat", "bass", "keys", "pad"], "fills": true},
+      {"name": "hook", "kind": "hook", "bars": 16, "energy": 0.8, "layers": ["kick", "snare", "clap", "hat", "ohat", "bass", "keys", "pad", "lead"], "fills": true},
+      {"name": "verse2", "kind": "verse", "bars": 16, "energy": 0.6, "variant": "alt", "layers": ["kick", "snare", "hat", "bass", "keys", "pad"], "fills": true},
+      {"name": "hook2", "kind": "hook", "bars": 16, "energy": 0.85, "layers": ["kick", "snare", "clap", "hat", "ohat", "bass", "keys", "pad", "lead"], "fills": true},
       {"name": "bridge", "kind": "break", "bars": 8, "energy": 0.4, "prog": "B", "layers": ["pad", "keys", "lead"], "gap": true},
-      {"name": "hook3", "kind": "hook", "bars": 16, "energy": 0.9, "layers": ["kick", "snare", "clap", "hat", "ohat", "bass", "keys", "pad", "lead"]},
+      {"name": "hook3", "kind": "hook", "bars": 16, "energy": 0.9, "layers": ["kick", "snare", "clap", "hat", "ohat", "bass", "keys", "pad", "lead"], "fills": true},
       {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.3, "layers": ["pad", "keys"]}
     ]
   ],

@@ -6,6 +6,25 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+Drums end their phrases the way each genre's drummers do, instead of the same snare roll in every genre. Twenty
+drummers play turns at the end of four bars and fills at the end of eight and of a section, the same across the
+lanes:
+- boom bap's kick pickups and kick and snare trading eighths;
+- trap's hat rolls in thirty-seconds, triplet snares and a beat dropped out for the tag;
+- drill's skipping triplet hats;
+- house's clap rolls and the kick left out;
+- trance's snare roll through the bar;
+- drum and bass's snare rushes and break edits;
+- reggae's rim into the next bar and its triplet roll into the drop;
+- reggaeton's timbal;
+- afrobeats' conga runs;
+- funk's ghost notes and four on the snare;
+- rock's and synthwave's toms down the kit.
+
+A fill goes on the nearest lane the kit has, a snare fill on the clap or a tom run pitched on the snare, and it fills up
+to the beat of silence before the next section. Drums generated from another genre bring its drummer. Trap, cloud
+rap, emo rap, phonk, plugg, rage, Chicago drill and alt R&B now fill in their verses and hooks.
+
 A track can be written the way any genre plays it, into the song as it is: **+ Track**, **In a style**, then what
 (drums, percussion, bass, chords, keys, pad, strings, lead or arp) and the genre. A part is written as that genre's own
 part of the role is, in its idiom, on a sound from its palette, in its register and with its mix, as a new track or in

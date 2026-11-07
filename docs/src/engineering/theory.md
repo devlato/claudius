@@ -13,7 +13,8 @@ blueprint is all it takes to get the same notes back.
 | `theory/scale.rs` | pitch classes, the seven modes, keys, scale degrees |
 | `theory/chord.rs` | chord qualities and symbols, Roman numerals, voicing |
 | `theory/progression.rs` | the progression library, the Markov generator, substitutions |
-| `theory/rhythm.rs` | drum hits, lane templates, euclidean rhythms, rolls, fills, swing, syncopation |
+| `theory/rhythm.rs` | drum hits, lane templates, euclidean rhythms, rolls, swing, syncopation |
+| `theory/drummer.rs` | how each genre's drummers end their phrases: turns and fills |
 | `theory/bass.rs` | bass lines in eleven styles |
 | `theory/melody.rs` | leads, arpeggios and chord parts |
 
@@ -283,9 +284,8 @@ swing doesn't add to the groove's on the sixteenths it leaves where they are.
 `(i * k) % n < k` formula, which gives the same patterns as Bjorklund's algorithm up to rotation). A lane with
 `"euclid": [5, 16]` gets a random rotation and a `sparse` variant with half the onsets.
 
-**Builds and fills.** `snare_roll` plays quarters, then eighths, sixteenths and thirty-seconds, rising in velocity.
-`fill` writes the last one or two beats of a phrase as a `roll` (sixteenths rising), `triplets`, or a `groove` of
-random sixteenths.
+**Builds.** `snare_roll` plays quarters, then eighths, sixteenths and thirty-seconds, rising in velocity, on the
+snare (or the clap) over the last half of a build.
 
 **Swing** delays every off-beat sixteenth: within each eighth, the second sixteenth moves from halfway to
 `swing` of the way through (0.5 is straight, 0.66 a triplet feel). It is applied when notes are rendered, so the
@@ -293,6 +293,59 @@ blueprint stays on the grid.
 
 **Measures** for the critic and analysis: `syncopation` (Longuet-Higgins and Lee: an onset on a weak position
 followed by silence on a stronger one scores the difference in metrical level) and `density` (onsets per beat).
+
+### Drummers
+
+A pattern loops; a drummer ends phrases. Each genre has a drummer (`theory::drummer`), and in a section with `fills`
+it ends the section's phrases as that genre's drummers do. At the end of four bars it plays one of its turns, small
+and on a lane or two, and at the end of eight bars and of the section one of its fills (up to the beat of silence
+before the next section, when there is one; a build ends on its roll instead). Each is a chance, as often as the
+drummer plays them, and it never plays the same one twice running when it knows another. A turn or fill is drawn once
+per phrase from `seed ^ hash("drummer") ^ section index` and played the same on every lane, so the kick and the snare
+of a break trade where they should and the hats stop together.
+
+Turns and fills are written lane by lane, in cells that end where the phrase does:
+
+| step | what sounds |
+|---|---|
+| `X`, `x`, `o` | a hit: accented, played, a ghost note |
+| `h`, `m`, `l`, `f` | a hit pitched high, mid, low, on the floor, as a drummer goes down the toms |
+| `.` | a rest: what the lane played there is left out |
+
+A cell is in sixteenths, unless its steps follow `3:` (eighth-note triplets), `6:` (sixteenth-note triplets) or `8:`
+(thirty-seconds), and a `<` at its start plays them louder and louder: `<8:xxxxxxxx` is a beat of thirty-seconds
+rising, a trap hat roll. A fill names its lanes by what they play, and plays on the song's lane that plays it or the
+nearest it has: a snare fill on the clap, or the rim in reggae's kit; toms on the congas or the percussion, or
+pitched on the snare in synthwave's, as its drum machine's toms are. A fill whose lane the song has nothing like
+isn't played. While it plays, the lanes it leaves alone play on, or the drummer's hands leave the hats and the ride
+(the toms down the kit), or every lane stops (a beat of silence for the tag).
+
+| drummer | genres | turns | fills |
+|---|---|---|---|
+| `boom_bap` | boom bap, alt hip hop, chipmunk soul, gangsta rap, hip hop | a kick pushed onto the last sixteenth, a kick double on three, a ghost dragged into the backbeat | kick and snare trading eighths, the snare three times on four, the beat stopped after the kick on three, a beat of silence |
+| `trap` | trap, cloud rap, emo rap, rage, plugg, phonk, crunk | a hat roll in thirty-seconds, hats in sixteenth triplets, a kick skip | snare triplets over triplet hats, a snare roll in sixteenth triplets, a beat or two dropped out |
+| `drill` | UK, NY and Chicago drill | hats in triplets, hats skipping in sixteenth triplets, a kick slide | snare flams late in the beat, a kick and two triplet snares, a beat dropped out |
+| `house` | house, deep house, tech house, filter house, electro house | a clap on the last sixteenth, the kick out for a beat, the open hat lifted | a clap roll, the kick out for two beats, a conga run |
+| `techno` | techno, dub techno | the kick out for a beat, a percussion skip | the kick out for two beats or a bar, a soft clap rising |
+| `trance` | trance | the kick out for a beat, a clap on the last sixteenth | a snare roll through the bar, eighths into sixteenths, a roll with the kick out |
+| `dnb` | drum and bass, jungle | ghost notes after the backbeat, the kick on the and | a snare rush, a break edit, a thirty-second stutter |
+| `reggae` | reggae | the rim into the next bar, the open hat on the and | a triplet roll into the drop, toms down in triplets |
+| `dembow` | reggaeton | the timbal's sixteenths, the rim pushed ahead | a timbal roll, a stop on the last beat, a snare rush |
+| `afro` | afrobeats, amapiano | a conga pickup, the shaker out for a beat, the rim into the next bar | a conga run, the kick out under the log drum, a talking drum |
+| `garage` | UK garage, grime | a snare skip, a kick skip, a rim skip | a shuffled snare run, a beat of silence |
+| `halftime` | dubstep, future bass | the kick doubled, a ghost snare | snare triplets, a rush, a stutter, a beat of silence before the drop |
+| `rock` | art rock, neo-psychedelia | the snare doubled, the kick pushed | toms down the kit, the snare into the toms, a bar of snare and toms, sixteenths on the snare |
+| `funk` | funk, g-funk, new jack swing | ghost notes around the backbeat, kicks on the and and the a, a drag | sixteenths accented in threes, four on the snare, toms |
+| `disco` | nu-disco, dance pop | the snare on the last sixteenth, the open hat on the and | sixteenths on the snare, four on the snare, toms |
+| `jazzy` | lo-fi, jazz rap, neo-soul | ghost notes, a lazy kick on the and, the hats out for a beat | a soft drag, a soft roll, a beat of silence |
+| `synthwave` | synthwave | the snare doubled, the kick pushed | toms down the kit, the snare into the toms, sixteenths on the snare |
+| `breakbeat` | big beat, trip hop, IDM | ghost notes after the backbeat, the kick pushed | a break edit, a rush, a stutter, a beat of silence |
+| `rnb` | R&B, 90s R&B, alt R&B | hats in sixteenth triplets, a ghost before the one | a drag, snare triplets, a beat of silence |
+| `steady` | ambient, and a genre of your own | the kick out for a beat | a roll, triplets, a rush |
+
+The drummer is the one of the genre the song's backbeat lane (its snare, else its clap) plays as, else the song's: drums
+generated from another genre bring its drummer with them, and `lane("snare", #{ genre: "funk" })` gives a song
+funk's fills. A fusion's drummer is its last genre's, which plays its drums.
 
 ## Bass lines
 

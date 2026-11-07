@@ -8,11 +8,11 @@ prog B: i IVsus4 III VI
 prog C: VI iv III i
 bars per chord: 1
 section intro (intro) 16 bars, energy 0.34, prog A, main [filter_in]: pad guitar
-section hook (hook) 16 bars, energy 0.85, prog C, main [impact]: kick snare clap hat ohat bass pad lead guitar
-section verse (verse) 8 bars, energy 0.65, prog A, alt [gap]: kick snare hat bass guitar
-section hook2 (hook) 16 bars, energy 0.86, prog C, main [impact]: kick snare clap hat ohat bass pad lead guitar
+section hook (hook) 16 bars, energy 0.85, prog C, main [impact fills]: kick snare clap hat ohat bass pad lead guitar
+section verse (verse) 8 bars, energy 0.65, prog A, alt [gap fills]: kick snare hat bass guitar
+section hook2 (hook) 16 bars, energy 0.86, prog C, main [impact fills]: kick snare clap hat ohat bass pad lead guitar
 section bridge (break) 8 bars, energy 0.44, prog A, main [gap]: pad guitar
-section hook3 (hook) 8 bars, energy 0.98, prog C, main [impact]: kick snare clap hat ohat bass pad lead guitar
+section hook3 (hook) 8 bars, energy 0.98, prog C, main [impact fills]: kick snare clap hat ohat bass pad lead guitar
 section outro (outro) 16 bars, energy 0.40, prog A, main []: pad guitar
 drum kick alt (drum kick): X.........X.....|X.........X.....|X.........X.....|X.........X.....
 drum kick main (drum kick): X.........X.....|X.....X.........|X.........X.....|X.....X.........

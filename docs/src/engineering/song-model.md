@@ -70,7 +70,7 @@ Each `SectionSpec` is a block on the arrangement:
 | `build` | a snare roll, a riser and a highpass sweep into the next section, the kick out for its last bar |
 | `gap` | a beat of silence before the next section |
 | `impact` | a crash and an impact on its downbeat |
-| `fills` | drum fills at the end of every 8 bars |
+| `fills` | the genre's drummer ends its phrases: a turn at the end of four bars, a fill at the end of eight and of the section |
 
 Layers are names, not references: a section may list a layer that no track has (a genre's optional `top` loop when
 the library had none), and it plays nothing.
@@ -82,7 +82,10 @@ to hits, each hit a position in beats within the pattern and a velocity. Variant
 length; when a script sets a longer one, the others are repeated up to it. `pitch` transposes the lane, `choke` names
 a group in which a new hit cuts the previous one (the open hat stops when the closed hat plays), `late_ms` is how far
 behind the beat every hit plays (ahead, below zero; left out when 0), and `mix` is the lane's
-[`TrackMix`](#the-mix). A `Part` and an arranged `Track` have a `late_ms` too.
+[`TrackMix`](#the-mix). A `Part` and an arranged `Track` have a `late_ms` too. `genre` is the genre whose drummer
+the lane plays as, when that isn't the song's (a lane generated from another genre's drums; left out when there is
+none): another take of the lane is written from that genre's template, and when the lane plays the backbeat, the
+song's phrases end as that genre's drummer ends them.
 
 ### Parts
 
@@ -195,8 +198,10 @@ For every section, `arrange`:
 
 - **drums**: tiles the lane's pattern for the section's variant (or `main`) across the section. In a build, the snare
   (or clap) lane turns into a roll over the last half of the section (at least one bar, at most four), speeding up
-  from quarters to thirty-seconds, and the kick drops out for the last bar. With `fills`, the end of every 8-bar phrase gets a fill of one or two beats on the snare lane
-  (`roll`, `groove` or `triplets`), and the kick sometimes skips the last half beat.
+  from quarters to thirty-seconds, and the kick drops out for the last bar. With `fills`, the genre's drummer ends
+  the phrases: a turn at the end of four bars now and then, a fill at the end of eight and of the section (up to its
+  gap, when it has one), each played the same way across the lanes, as that genre's drummers end theirs
+  ([Drummers](theory.md#drummers)).
 - **parts**: writes one cycle of each part per progression, once, and tiles it across every section that plays the
   part with that progression, so a hook comes back the same each time. A lead's cycle is at least 16 beats.
 - **loops**: one clip per section the loop plays in.
@@ -213,7 +218,8 @@ the last 60 % of a final outro, and a highpass that sweeps from 10 Hz to 900 Hz 
 three inserts every song gets unless its genre already has them: width 1.25 with mono below 160 Hz on `music`, mono
 below 140 Hz on `bass`, and light tanh saturation on `drums`.
 
-Arranging is deterministic: fills draw from `seed ^ hash(lane) ^ section index`, parts from their own seeds.
+Arranging is deterministic: a section's turns and fills draw from `seed ^ hash("drummer") ^ section index`, parts
+from their own seeds.
 
 ### Slices
 

@@ -8,12 +8,12 @@ prog B: Imaj9 IVsus2 Imaj9 V9
 prog C: V9 IVmaj9 Imaj9 Imaj9
 bars per chord: 1
 section intro (intro) 8 bars, energy 0.34, prog A, main [filter_in]: keys pad lead
-section hook (hook) 16 bars, energy 0.85, prog C, main []: kick clap hat ohat bass keys pad lead
-section verse (verse) 8 bars, energy 0.65, prog A, alt [gap]: kick clap hat bass keys pad
-section hook2 (hook) 16 bars, energy 0.86, prog C, main []: kick clap hat ohat bass keys pad lead
-section verse2 (verse) 16 bars, energy 0.77, prog A, alt [gap]: kick clap hat bass keys lead pad
+section hook (hook) 16 bars, energy 0.85, prog C, main [fills]: kick clap hat ohat bass keys pad lead
+section verse (verse) 8 bars, energy 0.65, prog A, alt [gap fills]: kick clap hat bass keys pad
+section hook2 (hook) 16 bars, energy 0.86, prog C, main [fills]: kick clap hat ohat bass keys pad lead
+section verse2 (verse) 16 bars, energy 0.77, prog A, alt [gap fills]: kick clap hat bass keys lead pad
 section bridge (break) 8 bars, energy 0.28, prog B, sparse []: keys lead
-section hook3 (hook) 8 bars, energy 0.97, prog C, main []: kick clap hat ohat bass keys pad lead
+section hook3 (hook) 8 bars, energy 0.97, prog C, main [fills]: kick clap hat ohat bass keys pad lead
 section outro (outro) 16 bars, energy 0.31, prog A, main []: keys lead
 drum kick alt (drum kick): X...............|X...............|X...............|X...............
 drum kick main (drum kick): X.........X.....|X.....X.........|X.........X.....|X.....X.........
