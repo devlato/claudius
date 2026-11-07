@@ -16,6 +16,8 @@ use serde::de::DeserializeOwned;
 use crate::app::App;
 use claudius_session::views;
 
+mod raw;
+
 #[derive(Clone)]
 pub enum Backend {
     /// the session in this process; `base` is where its HTTP server (audio, web UI) answers
@@ -768,6 +770,16 @@ pub struct CommandArgs {
     /// render and judge after it (default true)
     #[serde(default = "yes")]
     pub listen: bool,
+    /// only say what the command named in `command` takes, and send nothing (default false)
+    #[serde(default)]
+    pub explain: bool,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct PacksArgs {
+    /// the packs to install, by the names `catalog` gives them; none: the default packs that are missing
+    #[serde(default)]
+    pub names: Vec<String>,
 }
 
 #[derive(Clone)]
@@ -1439,11 +1451,31 @@ impl Studio {
     }
 
     #[tool(
-        description = "Send one raw claudius API command (JSON tagged by \"cmd\"), for edits scripts do not cover: add_section {after, kind, bars}, remove_section {index}, move_section {from, to}, toggle_layer {section, layer}, set_drum_step {lane, variant, step, velocity}, set_section {index, name?, bars?, energy?, layers?, prog?, variant?, build?, gap?, impact?, fills?, filter_in?}, set_part {name, style?, preset?, register?, density?, reseed?}, add_track {name, kind: \"drum\" | \"part\", role?, sound?}, remove_track {name}, set_notes {part, prog, notes?: [{t, d, p, v}]} (a part's notes over a progression written out; no notes: the theory engine's again), set_mix {track, level_db?, pan?, reverb?, delay?, duck?, drive_db?, muted?, solo?, bus?}, add_take {path, from, name?, role?} (path: a file, or library:<id> from search_recordings), harmonize {part, style?, sound?, name?}, swap_sound {track?, to?, only?} (another sound for a part or drum lane, or with no track for the whole song), generate_track {what, genre?, replace?, name?, seed?}, vary_track {track, take?}, trim_take {track, start?, end?}, transcribe_take {take, sounds, name?, role?, chromatic?, keep_take?, style?}, add_notes {from, notes: [{t, d, p, v}], sounds, name?, role?, style?}, add_hits {from, hits: [{lane, t, v}], bars?, variant?, grid?, start?, beats?} (drums played on pads, t in beats from the section's start), add_scratch {from, track, moves: [{t, at, fader}], bar?, bars?, name?, role?} (a scratch on bars of a track, kept as a take: t seconds into the scratch, at seconds into the record, fader 0 shut to 1 open)."
+        description = "Send one raw claudius API command (JSON tagged by \"cmd\"): what the studio's own controls send, for an edit a script does not cover or says less directly. It is checked before it goes: a command claudius has no name for, or a field the command does not take, is not sent, and the answer says what it takes and the name nearest the one written; with explain: true, nothing is sent and the answer only says what the command takes. The song: set_tempo {bpm}, set_key {key}, set_swing {swing}, set_progression {name, chords: [\"i\", \"VI\", ...]}, open_text {name, text} (a blueprint.json's or a script's text, opened as the song). Sections: add_section {after, kind, bars}, remove_section {index}, move_section {from, to}, toggle_layer {section, layer}, set_section {index, name?, bars?, energy?, layers?, prog?, variant?, build?, gap?, impact?, fills?, filter_in?}. Drums: set_drum_step {lane, variant, step, velocity}, set_drum_pattern {lane, variant, steps} (a step string such as \"x...x...\"), set_trig {lane, variant, step, trig?: {prob, cond, ratchet, ramp, flam, nudge, pitch, decay, tone, pan}} (no trig: a plain step again), set_lane {lane, length?, speed?, swing?, groove?, groove_amount?, late_ms?}. Tracks: set_part {name, style?, preset?, register?, density?, reseed?}, add_track {name, kind: \"drum\" | \"part\", role?, sound?}, remove_track {name}, set_notes {part, prog, notes?: [{t, d, p, v}]} (a part's notes over a progression written out; no notes: the theory engine's again), set_mix {track, level_db?, pan?, reverb?, delay?, duck?, drive_db?, muted?, solo?, bus?}, set_fx {target, fx: [{\"fx\": \"reverb\", ...}]} (a track's, a bus's or \"master\"'s whole chain). Played on a phone: add_hits {from, hits: [{lane, t, v}], bars?, variant?, grid?, start?, beats?} (drums played on pads, t in beats from the section's start), add_scratch {from, track, moves: [{t, at, fader}], bar?, bars?, name?, role?} (a scratch on bars of a track, kept as a take: t seconds into the scratch, at seconds into the record, fader 0 shut to 1 open). Requests: cancel_take_request {id}, cancel_pitch_check {id} (one you asked for that is no longer wanted). Every other command has a tool of its own."
     )]
     async fn command(&self, Parameters(a): Parameters<CommandArgs>) -> Result<String, String> {
-        let c: Command = serde_json::from_value(a.command).map_err(|e| format!("not a claudius command: {e}"))?;
+        if a.explain {
+            let name = a.command.get("cmd").and_then(serde_json::Value::as_str).unwrap_or_default();
+            return match raw::fields(name) {
+                f if f.is_empty() => {
+                    Err(format!("claudius has no command \"{name}\"; it has: {}", raw::names().join(", ")))
+                }
+                f => Ok(f),
+            };
+        }
+        let c = raw::check(a.command)?;
         self.edit(c, a.listen).await
+    }
+
+    #[tool(
+        description = "Download and install sample packs, so the instruments, drum kits and loops in them play from recordings rather than synthesis (what the studio's Download the packs button does): `names` from catalog's packs, or none for the default packs that are missing (about 3 GB). It runs in the background; status follows it, and the log says when each pack is in. A claudius shared over a network does not download packs."
+    )]
+    async fn install_packs(&self, Parameters(a): Parameters<PacksArgs>) -> Result<String, String> {
+        let r = self.b.command(Command::InstallPacks { names: a.names }).await?;
+        if !r.ok {
+            return Err(r.message);
+        }
+        Ok(format!("{}\nstatus follows the download; the log says when each pack is in.", r.message))
     }
 }
 
@@ -1512,6 +1544,34 @@ mod tests {
         let text = schema["properties"]["genre"]["description"].as_str().unwrap();
         for genre in claudius::genres::builtin_names() {
             assert!(text.contains(genre), "{genre} is missing from: {text}");
+        }
+    }
+
+    /// commands a tool of another name sends
+    const SENT_BY: [(&str, &str); 5] = [
+        ("load", "open"),
+        ("render", "listen"),
+        ("cancel", "stop"),
+        ("set_release", "publish"),
+        ("write_kit", "publish"),
+    ];
+
+    #[test]
+    fn every_command_the_studio_sends_an_assistant_can_send_and_the_skill_says_how() {
+        let tools = Studio::tool_router().list_all();
+        let names: Vec<&str> = tools.iter().map(|t| t.name.as_ref()).collect();
+        let raw = tools.iter().find(|t| t.name == "command").and_then(|t| t.description.as_deref()).unwrap_or_default();
+        let skill = include_str!("../../../skills/claudius-songs/references/tools.md");
+        for cmd in raw::names() {
+            let own = names.contains(&cmd) || SENT_BY.iter().any(|(c, tool)| *c == cmd && names.contains(tool));
+            assert!(
+                own || raw.contains(&format!("{cmd} {{")),
+                "no tool sends {cmd}, and the command tool's description does not name it"
+            );
+            assert!(
+                skill.contains(&format!("`{cmd}`")),
+                "skills/claudius-songs/references/tools.md does not name {cmd}"
+            );
         }
     }
 

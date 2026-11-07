@@ -182,7 +182,8 @@ says the job is still running; `status` follows it from there.
 | `wait_for_take` | `id` (required), `seconds` (50, 1 to 300) | waits for the take asked for: what claudius made of it once the person sends it, or that they will not record it; after `seconds`, says they are still at it |
 | `transcribe_take` | `take`, `sounds` (required), `name`, `role`, `chromatic`, `keep_take`, `style` | turns a take's melody into the notes of a new part for each sound, as it was sung or in a [style](samples.md#turning-a-take-into-notes), and listens |
 | `add_notes` | `from`, `notes` (`[{t, d, p, v}]`), `sounds` (required), `name`, `role`, `style` | writes [notes](samples.md#notes-played-on-a-keyboard), a melody, a bass line or chords, into a new part for each sound, and listens |
-| `command` | `command` (required, an object), `listen` (true) | sends one raw [API command](http-api.md#commands) |
+| `install_packs` | `names` (from `catalog`; none: the default packs that are missing) | downloads and installs [sample packs](packs.md) in the background, as the studio's **Download the packs** does; `status` follows it, and a claudius shared over a network does not download them |
+| `command` | `command` (required, an object), `listen` (true), `explain` (false) | sends one raw [API command](http-api.md#commands), checked first: one claudius has no name for, or with a field it does not take, is not sent, and the answer says what it takes and the name nearest the one written; `explain` only says what the command takes |
 
 Details that matter when you read an assistant's transcript:
 
@@ -197,12 +198,29 @@ Details that matter when you read an assistant's transcript:
   message and `get_song` shows it in the script's first line, so the song can be made again.
 - `save` without a path writes to `~/Music/claudius/<genre>-<title>-<seed>`. Paths are on the computer running
   claudius, and a shared claudius refuses paths outside its folders.
-- `command` covers the edits the studio makes and scripts do not: `add_section`, `remove_section`, `move_section`,
-  `toggle_layer`, `set_drum_step`, `set_section` (including `prog`), `set_part` (including `reseed`), `add_track`
-  and `remove_track` (a drum lane or a part of any role, as the arrangement's **+ Track** adds), `set_notes` (a
-  part's notes over a progression written out, as the studio's **Notes** tab does), `set_mix` (including `solo`),
-  `add_hits` (drums played on pads, folded into the lanes they strike) and `add_scratch` (a scratch on a bar or a few
-  of one of the song's tracks, or of the whole mix, kept as a take).
+- Everything the studio does, an assistant can do: each of the studio's controls sends one command, and each
+  command has a tool of its own or goes through `command` (a test keeps it so). `command` covers the edits the studio
+  makes that have no tool: `set_tempo`, `set_key`, `set_swing`, `set_progression`, `add_section`, `remove_section`,
+  `move_section`, `toggle_layer`, `set_section` (including `prog`), `set_drum_step`, `set_drum_pattern`, `set_trig`,
+  `set_lane`, `set_part` (including `reseed`), `add_track` and `remove_track` (a drum lane or a part of any role, as
+  the arrangement's **+ Track** adds), `set_notes` (a part's notes over a progression written out, as the studio's
+  **Notes** tab does), `set_mix` (including `solo`), `set_fx`, `open_text`, `add_hits` (drums played on pads, folded
+  into the lanes they strike), `add_scratch` (a scratch on a bar or a few of one of the song's tracks, or of the whole
+  mix, kept as a take), and `cancel_take_request` and `cancel_pitch_check` for a request no longer wanted. The
+  [songs skill's tools](https://github.com/devlato/claudius/blob/main/skills/claudius-songs/references/tools.md#everything-the-studio-does)
+  pair each control with its tool and command.
+- A raw command is checked against its schema before it goes, because a field written wrong would otherwise be
+  dropped and the command sent without it:
+
+```text
+set_mix takes no "lvl_db" (did you mean "level_db"?), so nothing was sent.
+set_mix takes:
+  track (string, needed)
+  level_db (number)
+  pan (number)
+  ...
+```
+
 - A failed edit changes nothing and comes back as a tool error (`isError: true`) with claudius' message, the same text
   the studio shows:
 

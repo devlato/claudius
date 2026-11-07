@@ -44,7 +44,44 @@ to. On the command line, each command reads and writes song folders instead.
 | `wait_for_take` | `id` (from `request_take`), `seconds` (50, 1 to 300) | |
 | `transcribe_take` | `take`, `sounds` (presets or instruments, one part each), `name`, `role`, `chromatic`, `keep_take`, `style` (line, harmony, octaves, chords, bass, arp, pad) | |
 | `add_notes` | `from` (a section), `notes` (`[{t, d, p, v}]`: beats from its start, length, MIDI pitch, velocity), `sounds`, `name`, `role`, `style` | |
-| `command` | one raw API command, for edits scripts do not cover | |
+| `install_packs` | `names` (from `catalog`; none: the default packs that are missing, about 3 GB) | `claudius-packs install` (installed next to `claudius`) |
+| `command` | `command`: one raw API command, checked before it goes (a name or a field it does not take is not sent, and the answer says what it takes); `explain`: only say what it takes; `listen` | |
+
+## Everything the studio does
+
+Each control in the studio sends one command, and an assistant can send every one: with the tool named, or with
+`command` and the command's JSON.
+
+| in the studio | tool | command |
+|---|---|---|
+| New song, from a genre | `new_song` | `new_song` |
+| New song, from a recording: remake it, flip it, sample its vocals, take its groove, only listen | `remake` (`flip`), `sample_song`, `extract_groove`, `analyze` | `remake`, `sample_song`, `extract_groove`, `analyze` |
+| Open a song folder, a blueprint or a script; a file's text | `open`; `command` | `load`; `open_text` |
+| Save (Download in the demo), Export, Publish | `save`, `export`, `publish` | `save`, `export`, `set_release`, `write_kit` |
+| Render, and each track on its own | `listen` (`stems`) | `render` |
+| Variations, Improve, Cancel | `mutate`, `evolve`, `stop` | `mutate`, `evolve`, `cancel` |
+| Undo, Redo | `undo`, `redo` | `undo`, `redo` |
+| Sounds, a row's swap button | `swap_sound` | `swap_sound` |
+| Tempo, Key, Swing | `command` | `set_tempo`, `set_key`, `set_swing` |
+| a cell of the arrangement: a track on or off in a section | `command` | `toggle_layer` |
+| a section's settings; Duplicate, Insert after; Remove; dragging it | `command` | `set_section`; `add_section`; `remove_section`; `move_section` |
+| + Track, In a style | `command`, `generate_track` | `add_track`, `generate_track` |
+| a row's Remove, Another take or Vary it, Add chords under it | `command`, `vary_track`, `harmonize` | `remove_track`, `vary_track`, `harmonize` |
+| a take's Trim, How is it sung?, Tune it, Turn it into drums, its melody as notes | `trim_take`, `assess_voice`, `tune`, `transcribe_drums`, `transcribe_take` | `trim_take`, `assess_voice`, `tune`, `transcribe_drums`, `transcribe_take` |
+| Drums: a step, a pattern, a step's Trig, a lane's time and feel | `command` | `set_drum_step`, `set_drum_pattern`, `set_trig`, `set_lane` |
+| Instruments: style, sound, range, density, Reseed | `command` | `set_part` |
+| Notes: a part's notes over a progression | `command` | `set_notes` |
+| Chords: a progression's chords | `command` | `set_progression` |
+| Mixer and Signal flow: level, pan, sends, duck, drive, mute, solo, bus; effects | `command` | `set_mix`; `set_fx` |
+| Script: Run | `run_script` | `run_script` |
+| Sounds: Download the packs | `install_packs` | `install_packs` |
+| Record, and a take the person sends; Not now | `request_take`, `wait_for_take`; `command` | `request_take`; `cancel_take_request` |
+| Add a recording: whole, or its pieces sampled | `add_take`; `sample_pieces`, `redraw_pieces`, `keep_pieces` | `add_take`; `sample_pieces`, `redraw_pieces`, `keep_pieces` |
+| Check my pitch, and turning it down | `request_pitch_check`, `wait_for_pitch_check`; `command` | `request_pitch_check`; `cancel_pitch_check` |
+| Played on a phone: pads, keys, the turntable | `command`, `add_notes`, `command` | `add_hits`, `add_notes`, `add_scratch` |
+
+A script says most of these more readably (`tempo(124)`, `section("drop", #{ energy: 0.9 })`, `mix("bass", #{ level:
+-2 })`), and several at once.
 
 Notes:
 
