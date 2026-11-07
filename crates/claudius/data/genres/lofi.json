@@ -124,7 +124,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["vibes|mallet", "rhodes|epiano", "kalimba|pluck", "nylon_guitar|pluck", "soft_lead"],
-      "styles": ["motif"],
+      "styles": ["lofi_melody"],
       "register": [64, 84],
       "density": [0.2, 0.4],
       "mix": {"reverb": 0.35, "delay": 0.2}

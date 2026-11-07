@@ -897,7 +897,9 @@ pub fn styles_for(role: Role) -> Vec<&'static str> {
             melody::CHORD_STYLES.iter().copied().chain(crate::theory::comp::IDIOMS.iter().map(|i| i.name)).collect()
         }
         Role::Arp => melody::ARP_STYLES.to_vec(),
-        Role::Lead => melody::LEAD_STYLES.to_vec(),
+        Role::Lead => {
+            melody::LEAD_STYLES.iter().copied().chain(crate::theory::lead::IDIOMS.iter().map(|i| i.name)).collect()
+        }
     }
 }
 

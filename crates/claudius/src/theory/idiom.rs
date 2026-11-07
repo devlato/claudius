@@ -137,6 +137,11 @@ fn parse(cell: &str) -> Result<(Vec<Event>, usize), String> {
     Ok((events, step))
 }
 
+/// the idiom of that name, of a bass line, a chord part or a lead
+pub fn named(name: &str) -> Option<&'static Idiom> {
+    super::bass::idiom(name).or_else(|| super::comp::idiom(name)).or_else(|| super::lead::idiom(name))
+}
+
 /// Whether every cell and turn of `idiom` reads, or the first that does not and why.
 pub fn check(idiom: &Idiom) -> Result<(), String> {
     if idiom.cells.is_empty() {

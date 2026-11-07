@@ -140,7 +140,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["pluck", "rhodes|epiano", "piano|keys", "supersaw"],
-      "styles": ["motif"],
+      "styles": ["ambient_line", "synth_lead"],
       "register": [64, 86],
       "density": [0.3, 0.55],
       "mix": {"reverb": 0.3, "delay": 0.25, "duck": 0.25}

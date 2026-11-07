@@ -134,7 +134,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["pluck", "supersaw", "vox_lead"],
-      "styles": ["motif"],
+      "styles": ["disco_hook", "garage_chop"],
       "register": [67, 91],
       "density": [0.45, 0.7],
       "mix": {"reverb": 0.3, "delay": 0.2, "duck": 0.3}

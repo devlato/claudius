@@ -129,7 +129,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["vox_lead", "pluck", "rhodes|epiano", "organ"],
-      "styles": ["motif"],
+      "styles": ["garage_chop", "organ_riff"],
       "register": [64, 86],
       "density": [0.3, 0.55],
       "mix": {"reverb": 0.25, "delay": 0.25, "duck": 0.25}

@@ -98,7 +98,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["supersaw", "saw_lead", "pluck", "pwm_lead"],
-      "styles": ["motif"],
+      "styles": ["trance_lead", "synth_lead"],
       "register": [64, 88],
       "density": [0.35, 0.6],
       "mix": {"reverb": 0.35, "delay": 0.25, "duck": 0.3}

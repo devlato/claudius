@@ -186,7 +186,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["violins|strings", "square_lead"],
-      "styles": ["motif"],
+      "styles": ["rock_lead", "ambient_line"],
       "register": [62, 81],
       "density": [0.3, 0.5],
       "mix": {"reverb": 0.35, "delay": 0.25, "fx": [{"fx": "saturate", "kind": "tape", "drive_db": 6, "mix": 0.5}]}

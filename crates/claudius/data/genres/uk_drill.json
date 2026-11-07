@@ -116,7 +116,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["bell", "flute|fm_lead", "pizzicato|pluck", "violins|strings"],
-      "styles": ["motif"],
+      "styles": ["drill_melody"],
       "register": [64, 88],
       "density": [0.25, 0.45],
       "mix": {"reverb": 0.3, "delay": 0.25}

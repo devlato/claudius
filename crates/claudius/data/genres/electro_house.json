@@ -119,7 +119,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["supersaw", "square_lead"],
-      "styles": ["motif"],
+      "styles": ["riff", "trance_lead"],
       "register": [64, 84],
       "density": [0.4, 0.65],
       "mix": {

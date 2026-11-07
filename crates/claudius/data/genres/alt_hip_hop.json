@@ -141,7 +141,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["vox_lead", "soft_lead"],
-      "styles": ["motif"],
+      "styles": ["piano_riff", "lofi_melody"],
       "register": [62, 84],
       "density": [0.25, 0.45],
       "mix": {"reverb": 0.35, "delay": 0.2}

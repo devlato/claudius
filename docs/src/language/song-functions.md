@@ -460,7 +460,7 @@ part the genre does not have, so it builds again.
 | chords, pad, keys | the rhythms `sustain`, `half`, `stabs`, `offbeat`, `pump`, `syncopated`, `charleston`; and the genres' [comping idioms](../engineering/theory.md#comping-idioms): `house_piano`, `gospel`, `lofi_comp`, `trap_keys`, `rnb_keys`, `ballad`, `bubble`, `skank`, `scratch`, `strum`, `highlife`, `arpeggio`, and for strings and horns `legato`, `ostinato`, `pizzicato`, `disco_strings`, `tremolo`, `brass_stabs` |
 | a part that harmonizes | `block` (a chord under each of the melody's notes), and the chord rhythms and comping idioms above, played on the harmony's chords |
 | arp | `up`, `down`, `updown`, `random`, `pinky` |
-| lead | `motif`, the only one: leads are motifs with A A′ A B phrasing; `density` and `seed` change them |
+| lead | `motif`, a motif with A A′ A B phrasing that `density` and `seed` change; and the genres' [lead idioms](../engineering/theory.md#lead-idioms): `gfunk_whine`, `trap_bells`, `drill_melody`, `afro_flute`, `dembow_hook`, `synth_lead`, `trance_lead`, `organ_riff`, `disco_hook`, `horn_riff`, `reggae_horns`, `riff`, `garage_chop`, `lofi_melody`, `rnb_runs`, `rock_lead`, `ambient_line`, `techno_stab`, `phonk_cowbell`, `piano_riff` |
 
 A style the part's role does not have is an error. A decimal `seed` is ignored.
 

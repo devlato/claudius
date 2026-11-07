@@ -21,7 +21,7 @@ drum hat alt (drum closed_hat): x...........x...........x...........x.....x.....
 drum hat main (drum closed_hat): x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....XXXxxxxxxxxx|x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....
 drum ohat main (drum open_hat): ..............x.|..............x.|..............x.|..............x.
 part bass (bass): kick_follow synth 808, register 24..40, density 0.47
-part cowbell (lead): motif synth cowbell_lead, register 62..82, density 0.62
+part cowbell (lead): phonk_cowbell synth cowbell_lead, register 62..82, density 0.62
 part pad (pad): sustain synth vowel_pad, register 48..72, density 0.59
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix snare: +0.0 dB, pan +0.00, reverb 0.10, delay 0.00, duck 0.00, bus drums

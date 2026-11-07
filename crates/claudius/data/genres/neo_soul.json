@@ -100,7 +100,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["vox_lead", "sax|brass_lead", "soft_lead"],
-      "styles": ["motif"],
+      "styles": ["lofi_melody", "rnb_runs"],
       "register": [62, 84],
       "density": [0.25, 0.45],
       "mix": {"reverb": 0.35, "delay": 0.15}

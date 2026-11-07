@@ -121,7 +121,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["vox_lead", "fm_marimba", "nylon_guitar|pluck", "flute|fm_marimba"],
-      "styles": ["motif"],
+      "styles": ["afro_flute"],
       "register": [62, 84],
       "density": [0.3, 0.5],
       "mix": {"reverb": 0.3, "delay": 0.2}

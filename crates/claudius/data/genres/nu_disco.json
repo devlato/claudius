@@ -145,7 +145,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["brass|stab", "square_lead", "synth_brass|supersaw"],
-      "styles": ["motif"],
+      "styles": ["disco_hook", "organ_riff"],
       "register": [62, 82],
       "density": [0.3, 0.5],
       "optional": 0.3,
