@@ -58,8 +58,8 @@ the song it opens. It also opens a project the demo saved, a `.zip`: claudius un
   pad, keys, a lead or an arpeggio the theory engine writes over the song's chords, written the way the genre writes
   that role) or a drum lane to fill in under Steps, its name, and its sound, from the synths made for the role, the
   installed instruments, or the drum voices and kits; a new track plays in the sections with energy 0.6 or more,
-  ready for you to move. Right-click a row to mute or solo it, switch it on or off everywhere, or remove it (Undo
-  brings it back). A part's row also offers **Add chords under it**: chords that fit its melody and the song's
+  ready for you to move. Right-click a row to mute or solo it, [swap its sound](#swapping-a-sound), switch it on or
+  off everywhere, or remove it (Undo brings it back). A part's row also offers **Add chords under it**: chords that fit its melody and the song's
   chords, a chord on each of its notes, a pad under it, stabs or offbeats, as a new part that
   [follows the melody](../language/song-functions.md#part) as it changes. Right-click a [take](../guide/samples.md#takes)'s row
   to hear [how it is sung](../guide/voice.md) (**How is it sung?**), to [tune it](../guide/voice.md#tuning-a-voice)
@@ -79,7 +79,7 @@ the song it opens. It also opens a project the demo saved, a `.zip`: claudius un
   showing the steps that come round again there), its speed, a swing of its own or the song's, and a groove and how
   much of it. The lane's name shows what it has.
 - **Parts.** The bass, chords, pad, lead and arpeggio parts: their writing style, their sound (a synth or a sampled
-  instrument), their range and how busy they are. **Reseed** rewrites a part.
+  instrument, with the swap button beside it), their range and how busy they are. **Reseed** rewrites a part.
 - **Piano roll.** A part's notes over one of its progressions, on a grid of beats and pitches. Click an empty place
   to add a note, drag a note to move it, drag its right edge to make it longer or shorter, right-click it to take it
   out; the grid (1/16 to 1/2) is what notes snap to. The notes the theory engine writes are shown faint, and the
@@ -155,6 +155,24 @@ keys and a turntable with the song's sounds there, and sends the takes played on
   melody. While you record, a soft
   guide tone plays what you play, for a keyboard with no sound of its own. When you stop, the notes become a new part
   ([Notes played on a keyboard](../guide/samples.md#notes-played-on-a-keyboard)).
+
+## Swapping a sound
+
+A sound you do not like is a click from another. Hover a part's or a drum lane's name in the arrangement, or a lane's
+in Steps, and click the swap button where its kind or its length is written: the track plays the next sound that fits
+it. A part goes through its genre's own sounds first, then what the genre draws for its role (synths, and the
+installed instruments that can play its range), then sounds further afield; a drum lane goes through the installed
+kits, the genre's first, then its synthesized voice in four tunings. It never takes a sound another part plays, and
+block chords under a part change with it. Click again for the next, and Undo to swap back. Right-click the row for
+**Another sound**, and **Swap the sound to**: every sound it could play, by how near its genre each is, with the one it
+plays ticked. The Parts tab has the same button beside each part's sound.
+
+**Sounds**, after Mutate, swaps the whole song's. **Swap every sound** puts each part on its next sound and the drums
+on the next kit, and **Swap the parts' sounds** leaves the drums as they are. **Another drum kit** and **Put the drums
+on** move every drum lane onto a kit, or back to the synthesized voices, and leave the parts. Every note, pattern and
+mix setting stays. A swap is an edit like any other: the song's script says it as `part("bass", #{ preset:
+"moog_bass" })` and `drum_sound("kick", "tr808:bd")`, and an assistant swaps a sound with
+[`swap_sound`](../guide/mcp.md).
 
 ## Carrying on in claudius
 

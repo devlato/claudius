@@ -40,6 +40,7 @@ pub enum Icon {
     Open,
     Record,
     Phone,
+    Swap,
 }
 
 fn arc(center: Pos2, r: f32, from: f32, to: f32) -> Vec<Pos2> {
@@ -49,7 +50,7 @@ fn arc(center: Pos2, r: f32, from: f32, to: f32) -> Vec<Pos2> {
 
 impl Icon {
     #[cfg(test)]
-    pub const ALL: [Icon; 22] = [
+    pub const ALL: [Icon; 23] = [
         Icon::Play,
         Icon::Pause,
         Icon::Stop,
@@ -72,6 +73,7 @@ impl Icon {
         Icon::Open,
         Icon::Record,
         Icon::Phone,
+        Icon::Swap,
     ];
 
     /// its glyph in Lucide's icons (`theme::ICONS`), by the name Lucide gives it
@@ -99,6 +101,7 @@ impl Icon {
             Icon::Open => '\u{e247}',    // folder-open
             Icon::Record => '\u{e076}',  // circle
             Icon::Phone => '\u{e163}',   // smartphone
+            Icon::Swap => '\u{e417}',    // arrow-right-left
         }
     }
 }

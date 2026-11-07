@@ -21,7 +21,7 @@ pub mod sequencer;
 pub mod transport;
 pub mod verdict;
 
-use claudius_api::{Command, GenreInfo, SongView, SoundList, State};
+use claudius_api::{Command, GenreInfo, SongView, SoundChoice, SoundList, State, TrackView};
 use eframe::egui::{self, Color32, RichText, Ui};
 use serde::{Deserialize, Serialize};
 
@@ -494,6 +494,66 @@ pub fn missing_packs(ui: &mut Ui, cx: &mut Cx) {
         }
     });
     ui.add_space(8.0);
+}
+
+/// A sound a track may swap to, as a person reads it: a kit by its name, a synthesized drum by its tuning, an
+/// instrument by its name with its pack's, a synth by its preset.
+pub fn choice_label(c: &SoundChoice) -> String {
+    match c.group.as_str() {
+        "the genre's kits" | "other kits" => c.kind.clone(),
+        "synthesized" => match c.name.rsplit_once(':') {
+            Some((_, "0")) => "synthesized, as it is".into(),
+            Some((_, n)) => format!("synthesized, tuned {n}"),
+            None => c.name.clone(),
+        },
+        _ => match c.name.split_once(':') {
+            Some((pack, instrument)) => format!("{} ({pack})", instrument.replace('_', " ")),
+            None => c.name.replace('_', " "),
+        },
+    }
+}
+
+/// the sound a swap of `t` with none named gives it, as `choice_label` reads it
+pub fn next_label(t: &TrackView) -> Option<String> {
+    let next = t.next_swap.as_ref()?;
+    Some(t.swaps.iter().find(|c| c.name == *next).map_or_else(|| next.clone(), choice_label))
+}
+
+/// The swap for track `t` onto `to`, or onto its next sound.
+pub fn swap(t: &str, to: Option<&str>) -> Command {
+    Command::SwapSound { track: Some(t.to_string()), to: to.map(str::to_string), only: None }
+}
+
+/// The sounds `t` may swap to, under how near its genre each is (those further afield in a menu of their own), the
+/// one it plays ticked; the swap clicked.
+pub fn swap_list(ui: &mut Ui, t: &TrackView) -> Option<Command> {
+    let mut picked = None;
+    let mut item = |ui: &mut Ui, c: &SoundChoice| {
+        let playing = t.playing.as_ref() == Some(&c.name);
+        let r = ui.selectable_label(playing, choice_label(c)).on_hover_text(format!("{} · {}", c.name, c.kind));
+        if r.clicked() && !playing {
+            picked = Some(swap(&t.name, Some(&c.name)));
+            ui.close();
+        }
+    };
+    let mut groups: Vec<&str> = Vec::new();
+    for c in &t.swaps {
+        if !groups.contains(&c.group.as_str()) {
+            groups.push(&c.group);
+        }
+    }
+    for g in groups {
+        let of = t.swaps.iter().filter(|c| c.group == g);
+        if g == "further afield" {
+            ui.menu_button(g, |ui| {
+                egui::ScrollArea::vertical().max_height(320.0).show(ui, |ui| of.for_each(|c| item(ui, c)));
+            });
+        } else {
+            ui.label(small(g));
+            of.for_each(|c| item(ui, c));
+        }
+    }
+    picked
 }
 
 /// a centred hint for empty panels

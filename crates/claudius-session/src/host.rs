@@ -1777,6 +1777,60 @@ mod tests {
     }
 
     #[test]
+    fn a_sound_swaps_for_the_next_that_fits_and_the_whole_song_for_new_ones() {
+        let mut h = Host::new(1);
+        assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
+        let sound = |h: &Host, name: &str| claudius::swap::playing(h.blueprint().unwrap(), name);
+        let view = |h: &Host, name: &str| {
+            let song = crate::views::song(h.blueprint().unwrap(), &Default::default());
+            song.tracks.into_iter().find(|t| t.name == name).unwrap()
+        };
+        // the bass onto the sound its view says comes next, in the song's script, and back with undo
+        let before = view(&h, "bass");
+        let next = before.next_swap.clone().expect("the bass has another sound");
+        assert!(before.swaps.iter().any(|c| c.name == next) && before.playing.as_ref() != Some(&next));
+        let r = command(&mut h, json!({"cmd": "swap_sound", "track": "bass"}));
+        assert!(r.ok && r.message.contains(&format!("→ {next}")), "{}", r.message);
+        assert_eq!(sound(&h, "bass").as_deref(), Some(next.as_str()));
+        assert!(script::to_script(h.blueprint().unwrap()).contains(&format!("preset: \"{next}\"")));
+        assert!(command(&mut h, json!({"cmd": "undo"})).ok);
+        assert_eq!(sound(&h, "bass"), before.playing);
+        // a drum lane onto a sound named
+        assert!(command(&mut h, json!({"cmd": "swap_sound", "track": "kick", "to": "bd:2"})).ok);
+        assert_eq!(sound(&h, "kick").as_deref(), Some("bd:2"));
+        // block chords under the lead keep sounding as it does
+        assert!(command(&mut h, json!({"cmd": "harmonize", "part": "lead"})).ok);
+        assert!(command(&mut h, json!({"cmd": "swap_sound", "track": "lead"})).ok);
+        assert_eq!(sound(&h, "lead_chords"), sound(&h, "lead"));
+        // the whole song: every part another sound, no two the same, and the drums another kit
+        let parts: Vec<String> = h.blueprint().unwrap().parts.iter().map(|p| p.name.clone()).collect();
+        let was: Vec<Option<String>> = parts.iter().map(|p| sound(&h, p)).collect();
+        let r = command(&mut h, json!({"cmd": "swap_sound"}));
+        assert!(r.ok && r.message.contains("new sounds: the drums"), "{}", r.message);
+        let now: Vec<Option<String>> = parts.iter().map(|p| sound(&h, p)).collect();
+        for (i, p) in parts.iter().enumerate().filter(|(_, p)| *p != "lead_chords") {
+            assert_ne!(now[i], was[i], "{p} swapped");
+        }
+        let bp = h.blueprint().unwrap();
+        let own: Vec<String> = bp
+            .parts
+            .iter()
+            .filter(|p| p.name != "lead_chords")
+            .filter_map(|p| claudius::palette::identity(&p.sound))
+            .collect();
+        assert_eq!(own.iter().collect::<std::collections::BTreeSet<_>>().len(), own.len(), "{own:?}");
+        assert_eq!(sound(&h, "lead_chords"), sound(&h, "lead"));
+        assert_eq!(sound(&h, "kick").as_deref(), Some("bd:0"), "without packs, the drums' own voices as they are");
+        // what it cannot swap
+        let r = command(&mut h, json!({"cmd": "swap_sound", "track": "nope"}));
+        assert!(!r.ok && r.message.contains("no part or drum lane 'nope'"), "{}", r.message);
+        let r = command(&mut h, json!({"cmd": "swap_sound", "only": "vocals"}));
+        assert!(!r.ok && r.message.contains("swaps the \"drums\" or the \"parts\", not 'vocals'"), "{}", r.message);
+        let r = command(&mut h, json!({"cmd": "swap_sound", "only": "drums", "to": "nope"}));
+        assert!(!r.ok && r.message.contains("no kit 'nope' (kits: synthesized)"), "{}", r.message);
+    }
+
+    #[test]
     fn a_take_a_free_library_offered_credits_it() {
         use crate::listen::Listen;
         let mut h = Host::new(1);

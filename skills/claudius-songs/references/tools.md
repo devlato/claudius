@@ -25,6 +25,7 @@ to. On the command line, each command reads and writes song folders instead.
 | `assess_voice` | `take`, or `path` (and `key`) of a recording of one voice | `claudius voice vocal.wav --key "A minor"` |
 | `remake` | `path`, `genre`, `seed`, `bpm`, `flip` (true: a new song on its hook), `sampled` (false: the skeleton only) | `claudius remake song.mp3 --genre lofi [--bpm 82] [--flip] [--skeleton]` |
 | `harmonize` | `part` (a melody), `style` (`block`: a chord under each note; `sustain`: a pad; or another chord style), `sound`, `name` | `part("lead_chords", #{ role: "keys", harmonizes: "lead", style: "block" })` |
+| `swap_sound` | `track` (a part or drum lane; none: the whole song), `to` (one the reply lists, or any preset, instrument or drum sound; with `only: "drums"`, a kit), `only` (`drums` or `parts`), `listen` | `part("bass", #{ preset: "moog_bass" })`, `drum_sound("kick", "tr808:bd")` |
 | `add_take` | `path` of a recording, `from` (a section's name), `name`, `role` (`vocal`, `lead`, `chords`, `keys`, `bass`, `drums`, `texture`) | |
 | `trim_take` | `track` (a take), `start` and `end` in seconds into its recording | |
 | `search_recordings` | `query` (a few words), `limit`: the free libraries' recordings as `library:<id>`, a `path` for `add_take`, `sample_song`, `analyze` and `remake` | `claudius samples search WORDS` |

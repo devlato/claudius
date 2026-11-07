@@ -440,6 +440,11 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 song.sections.iter().position(|s| bar >= s.start_bar as f64 && bar < (s.start_bar + s.bars) as f64)?;
             (row < song.layers.len()).then_some((row, sec))
         };
+        // the button on a row's label that swaps its sound for the next, where the kind is written
+        let swap_at = |row: usize| {
+            let y = rect.top() + (row as f32 + 0.5) * row_h;
+            Rect::from_center_size(pos2(rect.left() + GUTTER - 20.0, y), vec2(22.0, (row_h - 4.0).clamp(12.0, 18.0)))
+        };
         for (row, layer) in song.layers.iter().enumerate() {
             let y0 = rect.top() + row as f32 * row_h;
             let row_rect = Rect::from_min_size(pos2(rect.left(), y0), vec2(rect.width(), row_h));
@@ -485,13 +490,24 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             } else {
                 (kind, TEXT_FAINT)
             };
-            p.text(
-                pos2(rect.left() + GUTTER - 10.0, y0 + row_h / 2.0),
-                Align2::RIGHT_CENTER,
-                tag,
-                theme::prop(9.5),
-                tag_color,
-            );
+            let on_label = hover.is_some_and(|h| h.x < tl.x0 && h.y >= y0 && h.y < y0 + row_h);
+            if on_label && track.is_some_and(|t| t.next_swap.is_some()) {
+                let r = swap_at(row);
+                let over = hover.is_some_and(|h| r.contains(h));
+                if over {
+                    p.rect_filled(r, 5.0, theme::CONTROL_HI);
+                }
+                let icon = Rect::from_center_size(r.center(), vec2(13.0, 13.0));
+                widgets::paint_icon(p, icon, Icon::Swap, if over { TEXT } else { TEXT_DIM });
+            } else {
+                p.text(
+                    pos2(rect.left() + GUTTER - 10.0, y0 + row_h / 2.0),
+                    Align2::RIGHT_CENTER,
+                    tag,
+                    theme::prop(9.5),
+                    tag_color,
+                );
+            }
             let is_drum = song.drums.iter().any(|d| &d.lane == layer);
             for s in &song.sections {
                 let on = s.layers.iter().any(|l| l == layer);
@@ -573,7 +589,14 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     let r =
                         Rect::from_min_size(pos2(rect.left(), rect.top() + row as f32 * row_h), vec2(GUTTER, row_h));
                     p.rect_filled(r, 2.0, theme::alpha(Color32::WHITE, 0.04));
-                    if resp.clicked() {
+                    let next = song.tracks.iter().find(|t| &t.name == layer).and_then(super::next_label);
+                    let on_swap = next.is_some() && swap_at(row).contains(pos);
+                    if let Some(next) = next.filter(|_| on_swap) {
+                        resp.clone().on_hover_text(format!("another sound for {layer}: {next}"));
+                    }
+                    if resp.clicked() && on_swap {
+                        out.push(super::swap(layer, None));
+                    } else if resp.clicked() {
                         cx.view.tab = if song.drums.iter().any(|d| &d.lane == layer) {
                             Tab::Sequencer
                         } else if song.parts.iter().any(|x| &x.name == layer) {
@@ -619,6 +642,19 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 {
                     out.push(MixEdit { solo: Some(!t.solo), ..Default::default() }.on(layer));
                     ui.close();
+                }
+                if !t.swaps.is_empty() {
+                    ui.separator();
+                    if let Some(next) = super::next_label(t)
+                        && ui
+                            .button(format!("Another sound: {next}"))
+                            .on_hover_text("the next that fits it and no other part plays; undo swaps back")
+                            .clicked()
+                    {
+                        out.push(super::swap(layer, None));
+                        ui.close();
+                    }
+                    ui.menu_button("Swap the sound to", |ui| out.extend(super::swap_list(ui, t)));
                 }
                 if t.kind == "part" {
                     ui.separator();

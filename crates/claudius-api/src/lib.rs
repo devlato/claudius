@@ -566,6 +566,15 @@ pub struct SongView {
     #[serde(default)]
     pub grooves: Vec<String>,
     pub parts: Vec<PartView>,
+    /// the drum kits the drums swap through (`Command::SwapSound` with `only` "drums"), in order: the genre's, the
+    /// other installed kits, and `synthesized` (each lane's synthesized voice)
+    #[serde(default)]
+    pub kits: Vec<String>,
+    /// the kit most of the drum lanes play now, and the one a swap of the drums puts them on next
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kit: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_kit: Option<String>,
     /// the mix around the tracks: the buses' chains, the master's, and what the sends feed
     #[serde(default)]
     pub mix: MixView,
@@ -629,6 +638,25 @@ pub struct TrackView {
     /// a take's length, in seconds of its recording (what `trim_take` cuts from)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub seconds: Option<f64>,
+    /// the sounds a part or a drum lane may swap to (`Command::SwapSound`), best first; none for other tracks
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub swaps: Vec<SoundChoice>,
+    /// which of `swaps` it plays now, by name, and the one a swap with no sound named gives it
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub playing: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_swap: Option<String>,
+}
+
+/// A sound a track may swap to: its name, as `part(..., #{ preset })` or `drum_sound()` take it; what it is (`synth`,
+/// a kind of instrument such as `bass` or `electric piano`, a kit's name, or `synthesized`); and how near the genre
+/// it is (`the genre's own`, `fits the genre`, `further afield`; for drums `the genre's kits`, `other kits`,
+/// `synthesized`).
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct SoundChoice {
+    pub name: String,
+    pub kind: String,
+    pub group: String,
 }
 
 /// the mix around the tracks: each bus's chain of effects, the master's, and the effects the sends feed (effects as
@@ -1536,6 +1564,19 @@ pub enum Command {
         sound: Option<String>,
         #[serde(default)]
         name: Option<String>,
+    },
+    /// Another sound for a track, as a producer swaps one: `track` (a part or a drum lane) plays `to` (one of its
+    /// `TrackView::swaps`, or any synth preset, installed instrument or drum sound), or without it the next of its
+    /// swaps that no other track plays; block chords under a part change with it. With no `track` every part and
+    /// drum lane swaps: the drums onto the next kit (`SongView::next_kit`, or `to`, one of `SongView::kits`), each
+    /// part to its next sound; `only` "drums" or "parts" swaps just those.
+    SwapSound {
+        #[serde(default)]
+        track: Option<String>,
+        #[serde(default)]
+        to: Option<String>,
+        #[serde(default)]
+        only: Option<String>,
     },
     /// A track out of the song, with every section's mention of it: a drum lane, part, loop, take or pattern track.
     RemoveTrack {

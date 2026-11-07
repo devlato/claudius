@@ -39,7 +39,7 @@ pub struct RolePalette {
 }
 
 /// General MIDI's sounds: a fallback, played only where nothing else of its kind is installed
-fn general_midi(name: &str) -> bool {
+pub fn general_midi(name: &str) -> bool {
     name.starts_with("freepats:")
 }
 
