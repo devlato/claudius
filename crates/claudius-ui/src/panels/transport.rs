@@ -659,7 +659,8 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                 (
                     Start::Example,
                     "From an example",
-                    "an original song in the style of a decade's hits, to hear how the style is made and start from",
+                    "an original song in the style of a decade's hits, or a classic remade, to hear how the style is \
+                     made and start from",
                 ),
             ] {
                 if widgets::chip(ui, f.start == start, label, ACCENT).on_hover_text(tip).clicked() {
@@ -682,8 +683,9 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
 /// the New song dialog from an example: a card for each example song, by decade, and Open it
 fn from_example(ui: &mut Ui, cx: &mut Cx) {
     ui.label(small(
-        "Original songs in the style of the hits of each decade, each written as a script whose notes say how its \
-         style is made: open one, listen, and read it in the Script tab. None copies a record.",
+        "Original songs in the style of the hits of each decade, and classics in the public domain remade, each \
+         written as a script whose notes say how its style is made: open one, listen, and read it in the Script tab. \
+         None copies a record.",
     ));
     ui.add_space(6.0);
     let f = &mut cx.view.new_song;
@@ -716,7 +718,7 @@ fn from_example(ui: &mut Ui, cx: &mut Cx) {
                     p.text(
                         rect.min + vec2(12.0, 47.0),
                         Align2::LEFT_CENTER,
-                        format!("like {}", e.like),
+                        e.like_words(),
                         theme::prop(11.0),
                         TEXT_FAINT,
                     );

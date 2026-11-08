@@ -1,11 +1,13 @@
-//! The example songs: one in the style of the hits of each scene of the 1990s, 2000s, 2010s and 2020s, as scripts
-//! (crates/claudius-api/songs/*.rhai) whose comments say how the style is made. The studio's New song dialog, the
-//! assistants' `examples` and `open_example` tools and `claudius examples` open them. They are here, beside the wire
-//! types, because the web studio holds them without the engine, which runs in a worker of its own.
+//! The example songs: one in the style of the hits of each scene of the 1990s, 2000s, 2010s and 2020s, and a few
+//! melodies in the public domain remade in modern styles, as scripts (crates/claudius-api/songs/*.rhai) whose comments
+//! say how the style is made. The studio's New song dialog, the assistants' `examples` and `open_example` tools and
+//! `claudius examples` open them. They are here, beside the wire types, because the web studio holds them without the
+//! engine, which runs in a worker of its own.
 //!
 //! None of them copies a record. A style is named for the artists it is heard on, but every melody, bass line,
-//! chord voicing and drum pattern is the song's own, and it plays only claudius' synths and drum voices, so that it
-//! sounds the same everywhere: without the sample packs, offline, and in the online demo.
+//! chord voicing and drum pattern is the song's own, or a public-domain composer's, and it plays only claudius'
+//! synths and drum voices, so that it sounds the same everywhere: without the sample packs, offline, and in the
+//! online demo.
 
 /// an example song: what it is like, and the script that makes it
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -13,15 +15,32 @@ pub struct Example {
     /// as it is asked for: `midnight_overdrive`, also its script's file name
     pub name: &'static str,
     pub title: &'static str,
-    /// the decade whose hits it is made like: "1990s", "2000s", "2010s" or "2020s"
+    /// the decade whose hits it is made like, "1990s" to "2020s", or [`CLASSICS`]
     pub era: &'static str,
     /// the style, in words: "synth-pop, the 80s revival"
     pub style: &'static str,
-    /// the artists the style is heard on, for orientation: the song is none of theirs
+    /// the artists the style is heard on, for orientation: the song is none of theirs. Of a classic remade, the piece
     pub like: &'static str,
     /// the genre its script starts from, `blank(genre)`
     pub genre: &'static str,
     pub script: &'static str,
+}
+
+impl Example {
+    /// "like Massive Attack, Portishead, Tricky", or of a classic remade "on Beethoven's Ode to Joy (1824)"
+    pub fn like_words(&self) -> String {
+        if self.era == CLASSICS { format!("on {}", self.like) } else { format!("like {}", self.like) }
+    }
+
+    /// what it is: "Bristol trip hop of the 1990s, like Massive Attack, Portishead, Tricky", or of a classic remade
+    /// "festival EDM on Beethoven's Ode to Joy (1824)"
+    pub fn in_words(&self) -> String {
+        if self.era == CLASSICS {
+            format!("{} {}", self.style, self.like_words())
+        } else {
+            format!("{} of the {}, {}", self.style, self.era, self.like_words())
+        }
+    }
 }
 
 /// every example, by decade and then by style
@@ -117,6 +136,15 @@ pub const ALL: &[Example] = &[
         script: include_str!("../songs/floor_shaker.rhai"),
     },
     Example {
+        name: "satellite_hymn",
+        title: "Satellite Hymn",
+        era: "2000s",
+        style: "art rock",
+        like: "Radiohead, Muse, Coldplay",
+        genre: "art_rock",
+        script: include_str!("../songs/satellite_hymn.rhai"),
+    },
+    Example {
         name: "higher_than_the_lights",
         title: "Higher Than the Lights",
         era: "2010s",
@@ -162,6 +190,15 @@ pub const ALL: &[Example] = &[
         script: include_str!("../songs/ice_avenue.rhai"),
     },
     Example {
+        name: "glass_penthouse",
+        title: "Glass Penthouse",
+        era: "2010s",
+        style: "alternative R&B",
+        like: "The Weeknd, Frank Ocean, PARTYNEXTDOOR",
+        genre: "alt_rnb",
+        script: include_str!("../songs/glass_penthouse.rhai"),
+    },
+    Example {
         name: "midnight_overdrive",
         title: "Midnight Overdrive",
         era: "2020s",
@@ -179,10 +216,76 @@ pub const ALL: &[Example] = &[
         genre: "nu_disco",
         script: include_str!("../songs/satin_signal.rhai"),
     },
+    Example {
+        name: "calm_waters",
+        title: "Calm Waters",
+        era: "2020s",
+        style: "afrobeats",
+        like: "Burna Boy, Wizkid, Rema",
+        genre: "afrobeats",
+        script: include_str!("../songs/calm_waters.rhai"),
+    },
+    Example {
+        name: "luna_callejera",
+        title: "Luna Callejera",
+        era: "2020s",
+        style: "reggaeton",
+        like: "Bad Bunny, Karol G, J Balvin",
+        genre: "reggaeton",
+        script: include_str!("../songs/luna_callejera.rhai"),
+    },
+    Example {
+        name: "midnight_in_jozi",
+        title: "Midnight in Jozi",
+        era: "2020s",
+        style: "amapiano",
+        like: "Kabza De Small, Tyla, DJ Maphorisa",
+        genre: "amapiano",
+        script: include_str!("../songs/midnight_in_jozi.rhai"),
+    },
+    Example {
+        name: "late_checkout",
+        title: "Late Checkout",
+        era: "2020s",
+        style: "tech house",
+        like: "Fisher, Chris Lake, John Summit",
+        genre: "tech_house",
+        script: include_str!("../songs/late_checkout.rhai"),
+    },
+    Example {
+        name: "joy_machine",
+        title: "Joy Machine",
+        era: CLASSICS,
+        style: "festival EDM",
+        like: "Beethoven's Ode to Joy (1824)",
+        genre: "electro_house",
+        script: include_str!("../songs/joy_machine.rhai"),
+    },
+    Example {
+        name: "canon_study",
+        title: "Canon Study",
+        era: CLASSICS,
+        style: "lo-fi hip hop",
+        like: "Pachelbel's Canon in D (around 1700)",
+        genre: "lofi",
+        script: include_str!("../songs/canon_study.rhai"),
+    },
+    Example {
+        name: "mountain_kings",
+        title: "Mountain Kings",
+        era: CLASSICS,
+        style: "drum and bass",
+        like: "Grieg's In the Hall of the Mountain King (1875)",
+        genre: "dnb",
+        script: include_str!("../songs/mountain_kings.rhai"),
+    },
 ];
 
-/// the decades the examples are of, in order
-pub const ERAS: [&str; 4] = ["1990s", "2000s", "2010s", "2020s"];
+/// the era of the melodies in the public domain remade in a modern style
+pub const CLASSICS: &str = "classics remade";
+
+/// the eras the examples are of, in order: the decades, then the classics remade
+pub const ERAS: [&str; 5] = ["1990s", "2000s", "2010s", "2020s", CLASSICS];
 
 /// The example asked for by its name or its title, whatever its case, spaces, hyphens or underscores:
 /// `midnight_overdrive`, "Midnight Overdrive", "midnight-overdrive".
@@ -224,5 +327,13 @@ mod tests {
         assert_eq!(get("Midnight Overdrive").map(|e| e.name), Some("midnight_overdrive"));
         assert_eq!(get("midnight-overdrive").map(|e| e.name), Some("midnight_overdrive"));
         assert_eq!(get("no such song"), None);
+    }
+
+    #[test]
+    fn an_example_says_what_it_is_in_words() {
+        let decade = get("blue_hour_static").map(Example::in_words);
+        assert_eq!(decade.as_deref(), Some("Bristol trip hop of the 1990s, like Massive Attack, Portishead, Tricky"));
+        let classic = get("joy_machine").map(Example::in_words);
+        assert_eq!(classic.as_deref(), Some("festival EDM on Beethoven's Ode to Joy (1824)"));
     }
 }

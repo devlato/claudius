@@ -1184,7 +1184,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "The example songs: original songs in the style of the hits of each scene of the 1990s, 2000s, 2010s and 2020s (trip hop, big beat, French house, electropop, festival EDM, future bass, 80s-revival synth-pop, disco-pop and more), each a script whose comments say how its style is made. With no name, lists them: name, title, decade, style and the artists the style is heard on. With a name, says how that one is made and gives its script. None copies a record. open_example opens one, to show the person how a style is built or to start from.",
+        description = "The example songs: original songs in the style of the hits of each scene of the 1990s, 2000s, 2010s and 2020s (trip hop, big beat, boom bap, G-funk, house, French house, UK garage, trance, art rock, electropop, festival EDM, future bass, dubstep, trap, alternative R&B, 80s-revival synth-pop, disco-pop, afrobeats, reggaeton, amapiano, tech house), and classics in the public domain remade (Ode to Joy as festival EDM, Canon in D as lo-fi, In the Hall of the Mountain King as drum and bass), each a script whose comments say how its style is made. With no name, lists them: name, title, decade, style and the artists the style is heard on. With a name, says how that one is made and gives its script. None copies a record. open_example opens one, to show the person how a style is built or to start from.",
         annotations(read_only_hint = true)
     )]
     async fn examples(&self, Parameters(a): Parameters<ExamplesArgs>) -> Result<String, String> {
@@ -1195,7 +1195,14 @@ impl Studio {
                     let of = claudius_api::examples::ALL.iter().filter(|e| e.era == *era);
                     let lines: Vec<String> = of
                         .map(|e| {
-                            format!("  {}: \"{}\", {} (like {}; genre {})", e.name, e.title, e.style, e.like, e.genre)
+                            format!(
+                                "  {}: \"{}\", {} ({}; genre {})",
+                                e.name,
+                                e.title,
+                                e.style,
+                                e.like_words(),
+                                e.genre
+                            )
                         })
                         .collect();
                     format!("{era}:\n{}", lines.join("\n"))
@@ -1205,12 +1212,10 @@ impl Studio {
         };
         let e = example(&asked)?;
         Ok(format!(
-            "{}: \"{}\", {} of the {} (like {})\n\n{}\n\nscript:\n```js\n{}```",
+            "{}: \"{}\", {}\n\n{}\n\nscript:\n```js\n{}```",
             e.name,
             e.title,
-            e.style,
-            e.era,
-            e.like,
+            e.in_words(),
             claudius_api::examples::notes(e),
             e.script
         ))
@@ -1223,8 +1228,7 @@ impl Studio {
         let e = example(&a.name)?;
         let open = Command::OpenText { name: format!("{}.rhai", e.name), text: e.script.to_string() };
         let out = self.edit(open, true).await?;
-        let about =
-            format!("opened the example \"{}\": {} of the {}, in the style of {}", e.title, e.style, e.era, e.like);
+        let about = format!("opened the example \"{}\": {}", e.title, e.in_words());
         Ok(self.in_words(&format!("{about}\n\n{out}")).await)
     }
 
