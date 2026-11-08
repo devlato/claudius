@@ -16,8 +16,10 @@
 //! chosen for Analyze, in the app), `recordingpath:<file>` (one read as if chosen in the Add a recording window, in
 //! the app), `import:whole` (the recording it holds added whole as a track), `import:search:<words>` (the free
 //! libraries searched, as its Search button searches them; what they offer goes out as `library: ...`),
-//! `import:use:<n>` (the nth of them used, from 0), `import:sample` (the recording held sampled, as its Sample it
-//! button samples it; the pieces offered go out as `pieces: ...`), `cmd:<command json>`, `size:<w>,<h>`, `script:<code; \n for a newline, %3B for ;>`
+//! `import:use:<n>` (the nth of them chosen, from 0), `import:sample` (the recording held sampled, as its Sample its
+//! vocals button samples it; the pieces offered go out as `pieces: ...`), `import:hear:<n>[:treated]` (the Sample
+//! window's piece n played, as its button plays it; that it plays, or why not, goes out as `hearing: ...`),
+//! `cmd:<command json>`, `size:<w>,<h>`, `script:<code; \n for a newline, %3B for ;>`
 //! (into the editor), `run`, `reference`, `shot:<file.png>` (the window as rendered), `exit`, and synthetic pointer
 //! input in points: `move:x,y`, `click:x,y`, `rclick:x,y`, `drag:x1,y1,x2,y2`, `sdrag:x1,y1,x2,y2` (with shift).
 
@@ -45,10 +47,12 @@ pub enum Step {
     ImportWhole,
     /// the free libraries searched for these words, as the Add a recording window's Search button searches them
     ImportSearch(String),
-    /// the search's nth recording used, as its Use it button uses it
+    /// the search's nth recording chosen, as its Choose button chooses it
     ImportUse(usize),
-    /// the recording held sampled, as the Add a recording window's Sample it button samples it
+    /// the recording held sampled, as the Add a recording window's Sample its vocals button samples it
     ImportSample,
+    /// a piece the Sample window offers played to be heard, by its id, treated or as it was cut, as its button plays it
+    ImportHear(u32, bool),
     /// a file dialog, as the button for what it is for opens one
     Pick(crate::pick::Want),
     /// the chosen recording sent to be listened to (false) or remade (true), as the New song dialog's buttons do
@@ -290,6 +294,11 @@ impl Plan {
             "import" if arg == "sample" => Some(Step::ImportSample),
             "import" if arg.starts_with("search:") => Some(Step::ImportSearch(arg["search:".len()..].to_string())),
             "import" if arg.starts_with("use:") => arg["use:".len()..].parse().ok().map(Step::ImportUse),
+            "import" if arg.starts_with("hear:") => {
+                let piece = &arg["hear:".len()..];
+                let (id, treated) = piece.strip_suffix(":treated").map_or((piece, false), |id| (id, true));
+                id.parse().ok().map(|id| Step::ImportHear(id, treated))
+            }
             "pick" => match arg {
                 "song" => Some(Step::Pick(crate::pick::Want::Song)),
                 "audio" => Some(Step::Pick(crate::pick::Want::Audio)),

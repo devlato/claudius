@@ -44,8 +44,17 @@ impl Player {
         let pos = if keep_position { self.position() } else { 0.0 };
         self.pcm = None;
         let url = match source {
+            // the site's policy lets media play from blob: URLs only, so a file handed over in its URL (the demo
+            // engine's pieces) is handed to the browser as one
+            Source::Url(url) if url.starts_with("data:") => match data_object_url(&url) {
+                Ok(url) => url,
+                Err(e) => {
+                    self.error = Some(format!("could not hand the audio to the browser: {e:?}"));
+                    return;
+                }
+            },
             Source::Url(url) => url,
-            Source::Pcm(pcm) => match wav_object_url(&pcm.encode_wav()) {
+            Source::Pcm(pcm) => match object_url(&pcm.encode_wav(), "audio/wav") {
                 Ok(url) => {
                     self.pcm = Some(pcm);
                     url
@@ -89,7 +98,7 @@ impl Player {
     pub fn tick(&mut self) {
         let Some(el) = &self.el else { return };
         if let Some(err) = el.error() {
-            self.error = Some(format!("the browser could not play the render (media error {})", err.code()));
+            self.error = Some(format!("the browser could not play the audio (media error {})", err.code()));
         }
         if el.ready_state() >= HAVE_METADATA {
             if let Some(t) = self.pending_seek.take() {
@@ -184,11 +193,20 @@ impl Player {
     }
 }
 
-fn wav_object_url(bytes: &[u8]) -> Result<String, JsValue> {
+fn object_url(bytes: &[u8], kind: &str) -> Result<String, JsValue> {
     let array = js_sys::Uint8Array::from(bytes);
     let parts = js_sys::Array::of1(&array);
     let props = BlobPropertyBag::new();
-    props.set_type("audio/wav");
+    props.set_type(kind);
     let blob = Blob::new_with_u8_array_sequence_and_options(&parts, &props)?;
     Url::create_object_url_with_blob(&blob)
+}
+
+/// a `data:<kind>;base64,<file>` URL's file, as a blob: URL of the same kind
+fn data_object_url(url: &str) -> Result<String, JsValue> {
+    let (head, file) = url["data:".len()..].split_once(',').ok_or_else(|| JsValue::from_str("not a data URL"))?;
+    let kind = head.strip_suffix(";base64").ok_or_else(|| JsValue::from_str("not a base64 data URL"))?;
+    let window = web_sys::window().ok_or_else(|| JsValue::from_str("no window"))?;
+    let bytes: Vec<u8> = window.atob(file)?.chars().map(|c| c as u8).collect();
+    object_url(&bytes, kind)
 }

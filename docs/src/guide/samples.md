@@ -160,13 +160,15 @@ vox2: bars 11-12 of Many Miracles Vocal Melody.caf (the ears +1.9 for 'a person 
 
 ### Choosing the pieces first
 
-In the studio's **Add a recording** window, **Sample it...** opens the **Sample** window instead of sampling straight
-away: up to four pieces the auto-sampler found, each to hear as it was cut (cleaned of the recording's drums) and
-through a treatment, side by side. The treatments are a producer's: dusty tape over vinyl crackle, an echo into a long
-hall, lo-fi crushing, a slow phaser over a chorus, a telephone's band, a stutter on the last beat, a reversed tail.
-Choose for each piece whether to leave it, keep it as it was cut, or keep it treated, then **Keep** them: they go into
-the song as above, a treated one through its treatment. **Regenerate** draws another take: other phrases among the
-good ones, of other lengths, with other treatments.
+In the studio's **Add a recording** window, **Sample its vocals...** opens the **Sample** window instead of sampling
+straight away: up to four pieces the auto-sampler found, each to hear as it was cut (cleaned of the recording's drums)
+and through a treatment, side by side. The treatments are a producer's: dusty tape over vinyl crackle, an echo into a
+long hall, lo-fi crushing, a slow phaser over a chorus, a telephone's band, a stutter on the last beat, a reversed
+tail. Press **▶ as cut** or **▶ treated** to hear a piece (**…** while it is on its way), tick the pieces you want, and
+choose **as cut** or **treated** for each; the best two start ticked, as they were cut. **Put 2 pieces in the song**
+puts the ticked ones in, as above, a treated one through its treatment, and closes the window; **Cancel** closes it
+with nothing added. **Another take** draws other phrases among the good ones, of other lengths, with other
+treatments. When a piece cannot play, the window says why.
 
 An assistant does the same with `sample_pieces` (the recording's `path`, or `library:<id>`; `seed`, `count`, `bars`,
 `find`), which lists the pieces and where to hear each, `redraw_pieces` for another take, and `keep_pieces` with the
@@ -187,8 +189,8 @@ button. When you stop, the take waits for you: **Play it back** plays the song f
 **Record again** records it over, **Keep it** adds it to the song, and **Throw it away** forgets it. Or bring an audio
 file: drop it on the studio, or press the **+** button after Record and choose it (or [search the free
 libraries](online-samples.md#choosing-one-in-the-studio) there for one), and **Add it whole as a track** in the window
-that opens adds it as a take from the section you pick (**Sample its vocals into the song** samples it
-instead, as [below](#sampling-a-songs-vocals) describes). A whole song works too, to trim and put effects on as you
+that opens adds it as a take from the section you pick (**Sample its vocals...** offers its sung phrases to
+choose from instead, as [above](#choosing-the-pieces-first) describes). A whole song works too, to trim and put effects on as you
 like. You can also send the file to the [HTTP API](http-api.md#routes), or give it to an assistant, which adds it with
 `add_take`:
 

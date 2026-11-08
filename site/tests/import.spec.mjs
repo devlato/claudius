@@ -7,7 +7,7 @@ import { test, expect, chromium } from "@playwright/test";
 import { existsSync, mkdtempSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { claudius, heard, ready, tone, why } from "./claudius.mjs";
+import { claudius, heard, ready, repo, tone, why } from "./claudius.mjs";
 
 const song = join(mkdtempSync(join(tmpdir(), "claudius-import-")), "my song.wav");
 tone(song, 6);
@@ -118,6 +118,36 @@ test.describe("adding a recording", () => {
       await drop(page, song);
       await expect.poll(() => offered.join("\n"), { timeout: 45_000 }).toMatch(/^take 0: 1\. bars? [\d-]+, 0:\d\d \(dusty/m);
       await expect.poll(() => toasts.join("\n"), { timeout: 60_000 }).toMatch(/^vox1:/m);
+    } finally {
+      await b.close();
+      c.stop();
+    }
+  });
+
+  test("in the demo, under the site's policy, the Sample window's pieces play to be heard, as cut and treated", async () => {
+    test.setTimeout(150_000);
+    const c = await claudius();
+    // a page that starts audio without a person's click, as a plan does
+    const b = await chromium.launch({ args: ["--autoplay-policy=no-user-gesture-required"] });
+    try {
+      const page = await b.newPage();
+      // the policy the site serves the studio under (the upgrade to https left out, for a claudius on http)
+      const rules = readFileSync(join(repo, "site", "_headers"), "utf8");
+      const policy = /^\/studio\/\*\n(?: .*\n)*?  Content-Security-Policy: (.+)$/m.exec(rules)[1].replace(/; upgrade-insecure-requests/, "");
+      await page.route((url) => url.pathname === "/", async (route) => {
+        const response = await route.fetch();
+        await route.fulfill({ response, headers: { ...response.headers(), "content-security-policy": policy } });
+      });
+      const offered = heard(page, "pieces");
+      const hearing = heard(page, "hearing");
+      const plan = "wait:3;import:sample;wait:50;import:hear:1;wait:8;import:hear:1:treated;wait:20";
+      await page.goto(`${c.base}/?mock&plan=${encodeURIComponent(plan)}`);
+      await page.waitForTimeout(8_000);
+      await drop(page, song);
+      await expect.poll(() => offered.join("\n"), { timeout: 45_000 }).toMatch(/^take 0: 1\. bars? [\d-]+/m);
+      await expect.poll(() => hearing.join("\n"), { timeout: 60_000 }).toMatch(/^1 as cut plays$/m);
+      await expect.poll(() => hearing.join("\n"), { timeout: 30_000 }).toMatch(/^1 treated plays$/m);
+      expect(hearing.join("\n")).not.toMatch(/did not play/);
     } finally {
       await b.close();
       c.stop();
