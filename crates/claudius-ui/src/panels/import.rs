@@ -73,8 +73,10 @@ pub struct Import {
     pub sampling: bool,
     pub sample_said: Option<(bool, String)>,
     choices: (u64, Vec<Choice>),
-    /// the offer asked for is on its way: the one claudius holds meanwhile is the last one's, which is not shown
+    /// the offer asked for is on its way: the one claudius holds meanwhile is the last one's, which is not shown; and
+    /// the state's version it comes in, which the answer says (the state before it still holds the last one's)
     awaiting: bool,
+    offer_version: u64,
     /// the pieces chosen are in the song: the window closes
     kept: bool,
 }
@@ -136,12 +138,15 @@ impl Import {
         (self.searching, self.hits) = (false, Some(hits));
     }
 
-    /// claudius' answer to the pieces asked for, drawn again or kept
+    /// claudius' answer to the pieces asked for, drawn again or kept, and the state's version after it
     /// (`kept`: the answer to the pieces kept, which closes the window when they went in)
-    pub fn pieces_answered(&mut self, ok: bool, message: String, kept: bool) {
+    pub fn pieces_answered(&mut self, ok: bool, message: String, kept: bool, version: u64) {
         self.kept |= ok && kept;
-        // an offer that did not come leaves the last one's unshown; one that came says itself, in the window
-        self.awaiting &= !ok;
+        // an offer that did not come leaves the last one's unshown; one that came shows from the state it is in, and
+        // says itself, in the window
+        if ok {
+            (self.awaiting, self.offer_version) = (false, version);
+        }
         self.sample_said = (!ok).then_some((ok, message));
     }
 
@@ -508,7 +513,9 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
     if !cx.view.import.sampling {
         return;
     }
-    let offered = cx.state.pieces.clone().filter(|_| !cx.view.import.awaiting);
+    let im = &cx.view.import;
+    let current = !im.awaiting && cx.state.version >= im.offer_version;
+    let offered = cx.state.pieces.clone().filter(|_| current);
     let server = cx.server.map(str::to_string);
     let mut open = true;
     let mut cancel = false;

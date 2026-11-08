@@ -219,8 +219,8 @@ impl Studio {
                 {
                     let kept = what == "keep_pieces";
                     match &result {
-                        Ok(r) => self.view.import.pieces_answered(r.ok, r.message.clone(), kept),
-                        Err(e) => self.view.import.pieces_answered(false, e.clone(), kept),
+                        Ok(r) => self.view.import.pieces_answered(r.ok, r.message.clone(), kept, r.version),
+                        Err(e) => self.view.import.pieces_answered(false, e.clone(), kept, 0),
                     }
                 }
                 if what == "add_recording" || (what == "add_take" && self.view.import.waiting()) {
