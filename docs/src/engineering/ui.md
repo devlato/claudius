@@ -62,7 +62,15 @@ The studio is still being finished; this page describes its structure, which is 
 | log | read only: `State.log`, filterable | |
 
 The shortcuts are Space (play or pause), the arrow keys (pick a section), L (loop the section), Home (to the start),
-Cmd or Ctrl+Z (undo) and Shift+Cmd or Ctrl+Z (redo), active when no text field has focus.
+Cmd or Ctrl+Z (undo) and Shift+Cmd or Ctrl+Z (redo), active when no text field has focus. Cmd or Ctrl+K opens the
+command palette (`panels/palette.rs`) from anywhere, a field being typed in too: `ACTS` lists every action by name,
+with the words it is also found by, where it lives and its key, and `found` ranks them for what is typed (a name
+that starts with it, then a word starting with each word typed, then any that holds it). A test holds the palette
+to every dock tab, so a tab added without its action fails.
+
+The menus are built of `widgets::menu_title` (what the menu acts on, and what that is, faint), `menu_group` (the
+name of a group of items, in small faint capitals) and `menu_item` (an item with the key that does it too, faint on
+the right), so that a long menu reads as a few short ones.
 
 ## State, commands and optimism
 

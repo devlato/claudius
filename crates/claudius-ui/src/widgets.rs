@@ -472,6 +472,29 @@ pub fn heading(ui: &mut Ui, text: &str) {
     ui.label(egui::RichText::new(text.to_uppercase()).size(11.0).strong().color(TEXT_DIM).extra_letter_spacing(0.8));
 }
 
+/// A menu's first line: what it acts on, strong, then what that is in a few faint words ("bass", "a part, reese")
+pub fn menu_title(ui: &mut Ui, name: &str, about: &str) {
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 6.0;
+        ui.label(egui::RichText::new(name).size(13.5).strong().color(TEXT));
+        if !about.is_empty() {
+            ui.label(egui::RichText::new(about).size(11.5).color(TEXT_FAINT));
+        }
+    });
+}
+
+/// The name of a group of a menu's items, in small faint capitals with a little room above it, so that a long menu
+/// reads as a few short ones
+pub fn menu_group(ui: &mut Ui, name: &str) {
+    ui.add_space(5.0);
+    ui.label(egui::RichText::new(name.to_uppercase()).size(9.5).strong().color(TEXT_FAINT).extra_letter_spacing(1.0));
+}
+
+/// A menu item: its words, and on the right, faint, the key that does it too (none when `keys` is empty)
+pub fn menu_item(ui: &mut Ui, label: impl Into<egui::WidgetText>, keys: &str) -> Response {
+    ui.add(egui::Button::new(label).shortcut_text(egui::RichText::new(keys).size(11.0).color(TEXT_FAINT)))
+}
+
 /// claudius' docs on the web, which the help marks link into
 pub const DOCS: &str = "https://claudius.devlato.com/docs/";
 

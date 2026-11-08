@@ -478,7 +478,11 @@ impl Studio {
     }
 
     fn shortcuts(&mut self, ctx: &egui::Context) {
-        if ctx.text_edit_focused() || self.view.new_song.open {
+        // the palette opens from anywhere, a field being typed in too
+        if ctx.input_mut(|i| i.consume_key(Modifiers::COMMAND, Key::K)) {
+            self.view.palette.toggle();
+        }
+        if ctx.text_edit_focused() || self.view.new_song.open || self.view.palette.open {
             return;
         }
         // an open list or menu moves with the arrows: they are left to it
@@ -907,6 +911,14 @@ impl Studio {
                 }
                 ui.label(RichText::new("volume").size(11.0).color(TEXT_FAINT));
                 let cmd = widgets::cmd_key(ui.ctx());
+                let all = egui::Button::new(RichText::new(format!("{cmd}+K all actions")).size(11.0).color(ACCENT));
+                let r = ui
+                    .add(all.frame(false))
+                    .on_hover_text("every action of the studio by name, with where it lives and the key that does it");
+                self.view.palette.link = Some(r.rect);
+                if r.clicked() {
+                    self.view.palette.toggle();
+                }
                 let keys = format!(
                     "Space play · arrows pick a cell · Enter on/off · B paint · L loop · {cmd}+Z undo · Shift+{cmd}+Z redo"
                 );
@@ -1219,6 +1231,11 @@ impl eframe::App for Studio {
             panels::import::dialog(&ctx, &mut cx);
             panels::import::pieces(&ctx, &mut cx);
             panels::phone::dialog(&ctx, &mut cx);
+            match panels::palette::show(&ctx, &mut cx) {
+                Some(panels::palette::Asked::Open) => crate::pick::choose(&ctx, crate::pick::Want::Song),
+                Some(panels::palette::Asked::Tour) => self.start_tour(0),
+                None => {}
+            }
         }
         if let Some(on) = self.view.phone.ask.take() {
             self.backend.phone(on);

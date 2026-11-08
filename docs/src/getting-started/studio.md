@@ -263,10 +263,23 @@ update** ([Updates](../guide/updates.md)). Connect an assistant lists Claude Des
 and connects one with a click, the way `claudius connect` does ([Working with an assistant](assistants.md)). The
 assistant then makes and edits the song open here, and you hear every change.
 
+## Finding an action
+
+**Cmd+K** (Ctrl+K on Windows and Linux), or **Cmd+K all actions** in the bottom right corner, opens the command
+palette: every action of the studio by name, each with where it lives (the transport, the toolbar, a tab) and the key
+that does it too. Type a few letters of what you want to do, or a word for it ("volume" finds the Mixer, "whiteboard"
+the Signal flow, "sample" the window that adds a recording), pick one with the arrows and press Enter, or click it.
+Escape closes the palette.
+
+A track's menu and a section's menu (right-click either in the arrangement) start with what they act on and group
+their items under small headers: a track's under Hear, Sound, Write (Recording, for a take) and Sections, a
+section's under Hear and Arrange, with the item that removes it in red at the end.
+
 ## Keys
 
 | key | |
 |---|---|
+| Cmd+K | the command palette: every action by name (Ctrl+K on Windows and Linux) |
 | Space | play or pause |
 | Home | back to the start |
 | L | loop the song or the selected section |

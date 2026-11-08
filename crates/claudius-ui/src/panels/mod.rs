@@ -11,6 +11,7 @@ pub mod library;
 pub mod log;
 pub mod markdown;
 pub mod mixer;
+pub mod palette;
 pub mod parts;
 pub mod phone;
 pub mod publish;
@@ -351,6 +352,8 @@ pub struct View {
     pub record: record::Record,
     /// the Add a recording window, and a take being trimmed
     pub import: import::Import,
+    /// the command palette (Cmd+K)
+    pub palette: palette::Palette,
     pub phone: phone::Phone,
     /// the graph tab: the node chosen, and where its canvas looks
     pub graph: graph::GraphView,
@@ -435,6 +438,7 @@ impl Default for View {
             publish: publish::Publish::default(),
             record: record::Record::default(),
             import: import::Import::default(),
+            palette: palette::Palette::default(),
             phone: phone::Phone::default(),
             graph: graph::GraphView::default(),
             melody_style: "line".into(),
