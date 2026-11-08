@@ -399,7 +399,13 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
 
                 ui.label(small("Level"));
                 let r = ui
-                    .add(egui::Slider::new(&mut t.level_db, -24.0..=12.0).suffix(" dB").fixed_decimals(1))
+                    // a track the mixer set quieter than the slider goes stays as it is until the slider is moved
+                    .add(
+                        egui::Slider::new(&mut t.level_db, -48.0..=12.0)
+                            .clamping(egui::SliderClamping::Edits)
+                            .suffix(" dB")
+                            .fixed_decimals(1),
+                    )
                     .on_hover_text("how loud it is against the level its role is mixed at (0)");
                 if commit(&r) {
                     cx.out.push(MixEdit { level_db: Some(t.level_db), ..Default::default() }.on(&name));

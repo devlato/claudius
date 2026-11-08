@@ -422,6 +422,8 @@ impl Studio {
                 Command::NewSong { .. } | Command::Remake { .. } | Command::Load { .. } | Command::OpenText { .. }
             ) {
                 self.view.section = 0;
+                // another song's track of the same name is not the one that was selected
+                self.view.track = None;
                 self.view.script.dirty = false;
                 self.view.download = None;
             }
@@ -479,6 +481,8 @@ impl Studio {
         if ctx.text_edit_focused() || self.view.new_song.open {
             return;
         }
+        // an open list or menu moves with the arrows: they are left to it
+        let menu = egui::Popup::is_any_open(ctx);
         let (space, redo, undo, home, l, left, right) = ctx.input_mut(|i| {
             (
                 i.consume_key(Modifiers::NONE, Key::Space),
@@ -486,8 +490,8 @@ impl Studio {
                 i.consume_key(Modifiers::COMMAND, Key::Z),
                 i.consume_key(Modifiers::NONE, Key::Home),
                 i.consume_key(Modifiers::NONE, Key::L),
-                i.consume_key(Modifiers::NONE, Key::ArrowLeft),
-                i.consume_key(Modifiers::NONE, Key::ArrowRight),
+                !menu && i.consume_key(Modifiers::NONE, Key::ArrowLeft),
+                !menu && i.consume_key(Modifiers::NONE, Key::ArrowRight),
             )
         });
         // while a take records, the recorder plays the song: Space ends the take, as a DAW's does
@@ -520,8 +524,8 @@ impl Studio {
         let (b, up, down, enter, delete, escape) = ctx.input_mut(|i| {
             (
                 i.consume_key(Modifiers::NONE, Key::B),
-                i.consume_key(Modifiers::NONE, Key::ArrowUp),
-                i.consume_key(Modifiers::NONE, Key::ArrowDown),
+                !menu && i.consume_key(Modifiers::NONE, Key::ArrowUp),
+                !menu && i.consume_key(Modifiers::NONE, Key::ArrowDown),
                 held && i.consume_key(Modifiers::NONE, Key::Enter),
                 held && (i.consume_key(Modifiers::NONE, Key::Delete) || i.consume_key(Modifiers::NONE, Key::Backspace)),
                 held && i.consume_key(Modifiers::NONE, Key::Escape),
