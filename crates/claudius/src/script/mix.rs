@@ -537,10 +537,13 @@ pub fn sound_of<'a>(bp: &'a mut Blueprint, name: &str) -> Result<&'a mut Sound, 
             Some(l) => {
                 p.sounds.get_mut(l).ok_or_else(|| format!("{track} plays no '{l}' (it plays {})", labels.join(" ")))
             }
-            None if labels.len() == 1 => Ok(p.sounds.values_mut().next().expect("one sound")),
-            None => {
-                Err(format!("{name} plays {} sounds: name one by its label, as {name}.{}", labels.len(), labels[0]))
-            }
+            None => match labels.as_slice() {
+                [_] => Ok(p.sounds.values_mut().next().expect("one sound")),
+                [] => Err(format!("{name} plays no sound yet: its pattern only rests")),
+                [first, ..] => {
+                    Err(format!("{name} plays {} sounds: name one by its label, as {name}.{first}", labels.len()))
+                }
+            },
         };
     }
     if bp.loops.iter().any(|l| l.name == name) {

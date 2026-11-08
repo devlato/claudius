@@ -746,6 +746,13 @@ fn a_rack_plays_a_track_with_several_sounds_each_in_its_band_and_prints_back() {
           #{ sound: "sub_bass", band: [0, 100], duck: 0.8 },
           #{ sound: "saw_lead", band: [2000, 0], level: -3, transpose: 12, fx: [#{ fx: "tremolo", beats: 0.25, depth: 0.6 }] },
         ]);
+        drum_sound("thump", "lt");
+        drum("thump", "x.......x.......");
+        rack("thump", [#{ sound: "sub_bass", band: [0, 120] }, #{ sound: "lt" }]);
+        drum("tom", "x...............");
+        rack("tom", [#{ sound: "sub_bass" }]);
+        track("beat", s("bd*4, [~ cp]*2"));
+        rack("beat.cp", [#{ sound: "cp" }, #{ sound: "hh", band: [6000, 0], level: -9 }]);
     "#;
     let bp = script::run(code, None, None).unwrap().bp.unwrap();
     let bass = bp.parts.iter().find(|p| p.name == "bass").unwrap();
@@ -811,6 +818,8 @@ fn racks_a_script_gets_wrong_say_what_they_are() {
     says(r#"rack("bass", [#{ sound: "sub_bass", wobble: 1 }]);"#, "wobble");
     says(r#"rack("bass", [#{ sound: "sub_bass", transpose: 0.5 }]);"#, "transpose is whole semitones");
     says(r#"rack("nobody", [#{ sound: "sub_bass" }]);"#, "no track 'nobody'");
+    says(r#"track("rests", s("~ ~")); rack("rests", [#{ sound: "cp" }]);"#, "rests plays no sound yet");
+    says(r#"track("beat", s("bd, cp")); rack("beat", [#{ sound: "cp" }]);"#, "beat plays 2 sounds: name one");
 }
 
 #[test]

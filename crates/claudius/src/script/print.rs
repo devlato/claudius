@@ -305,11 +305,19 @@ pub fn to_script(bp: &Blueprint) -> String {
                 Some(format!("// {}: {label}\n", d.name))
             }
             Sound::Sample { path, .. } => Some(format!("drum_sound({}, {});\n", quote(&d.name), quote(path))),
-            // a lane that plays a rack is made by its first layer's sound; rack() at the end gives it the rest
-            Sound::Rack { layers } => layers.first().map(|l| match cached(&l.sound) {
-                true => format!("// {}: {}\n", d.name, d.sound.describe()),
-                false => format!("drum_sound({}, {});\n", quote(&d.name), quote(&sound_word(&l.sound))),
-            }),
+            // a lane that plays a rack is made by a drum sound of it, else a plain one (drum_sound takes no synth); rack()
+            // at the end gives it its layers
+            Sound::Rack { layers } => {
+                let drum = layers
+                    .iter()
+                    .map(|l| &l.sound)
+                    .find(|s| matches!(s, Sound::Drum { .. } | Sound::Sample { .. } | Sound::Instrument { .. }));
+                Some(match drum {
+                    Some(s) if cached(s) => format!("// {}: {}\n", d.name, d.sound.describe()),
+                    Some(s) => format!("drum_sound({}, {});\n", quote(&d.name), quote(&sound_word(s))),
+                    None => format!("drum_sound({}, \"perc\");\n", quote(&d.name)),
+                })
+            }
             _ => None,
         };
         // drum() makes a lane only for a drum's name: a lane of another name is made by its sound, first
