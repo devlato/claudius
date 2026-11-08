@@ -223,7 +223,9 @@ impl Studio {
                         Err(e) => self.view.import.pieces_answered(false, e.clone(), kept, 0),
                     }
                 }
-                if what == "add_recording" || (what == "add_take" && self.view.import.waiting()) {
+                if what == "add_recording"
+                    || (matches!(what.as_str(), "add_take" | "sample_song") && self.view.import.waiting())
+                {
                     match &result {
                         Ok(r) => self.view.import.answered(r.ok, r.message.clone()),
                         Err(e) => self.view.import.answered(false, format!("the recording did not arrive: {e}")),
@@ -602,6 +604,7 @@ impl Studio {
                         remake,
                         flip: false,
                         sample: false,
+                        how: None,
                         groove: false,
                         found: None,
                     });

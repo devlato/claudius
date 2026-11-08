@@ -399,7 +399,7 @@ async fn sample_pieces(
     }
     let app = c.app.clone();
     let name = q.name.filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "the recording".into());
-    let opt = crate::app::sampling(q.count, q.bars, q.find, Vec::new());
+    let opt = crate::app::sampling(q.count, q.bars, q.find, Vec::new(), None).unwrap_or_default();
     let seed = q.seed.unwrap_or(0);
     match tokio::task::spawn_blocking(move || app.pieces_bytes(body.to_vec(), &name, opt, seed)).await {
         Ok(r) => Json(r).into_response(),
@@ -657,6 +657,9 @@ struct SampleQuery {
     /// sections or kinds, comma-separated
     #[serde(default)]
     sections: Option<String>,
+    /// how it goes in: phrases (when none), passage, chops or stabs
+    #[serde(default)]
+    how: Option<String>,
 }
 
 /// a recording whose vocals to sample into the song, as the file itself, as `sample_song` samples a path's
@@ -671,7 +674,10 @@ async fn sample(State(c): State<Ctx>, Query(q): Query<SampleQuery>, headers: Hea
     let app = c.app.clone();
     let name = q.name.filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "the recording".into());
     let sections = q.sections.unwrap_or_default().split(',').map(|s| s.trim().to_string()).collect();
-    let opt = crate::app::sampling(q.count, q.bars, q.find, sections);
+    let opt = match crate::app::sampling(q.count, q.bars, q.find, sections, q.how.as_deref()) {
+        Ok(opt) => opt,
+        Err(e) => return (StatusCode::BAD_REQUEST, e).into_response(),
+    };
     let reply = tokio::task::spawn_blocking(move || app.sample_bytes(body.to_vec(), &name, &opt)).await;
     match reply {
         Ok(r) => Json(r).into_response(),

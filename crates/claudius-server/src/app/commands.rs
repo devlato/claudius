@@ -261,7 +261,7 @@ impl App {
                 self.add_take_file(Path::new(&path), &from, name.as_deref(), role.as_deref())
             }
             Command::SamplePieces { path, seed, count, bars, find } => {
-                let opt = sampling(count, bars, find, Vec::new());
+                let opt = sampling(count, bars, find, Vec::new(), None).unwrap_or_default();
                 if let Err(e) = self.readable(Path::new(&path)) {
                     return no(e, v);
                 }
@@ -339,8 +339,11 @@ impl App {
                     Err(e) => no(format!("cannot read {path}: {e}"), v),
                 }
             }
-            Command::SampleSong { path, count, bars, find, sections } => {
-                let opt = sampling(count, bars, find, sections);
+            Command::SampleSong { path, count, bars, find, sections, how } => {
+                let opt = match sampling(count, bars, find, sections, how.as_deref()) {
+                    Ok(opt) => opt,
+                    Err(e) => return no(e, v),
+                };
                 if let Err(e) = self.readable(Path::new(&path)) {
                     return no(e, v);
                 }

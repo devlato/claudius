@@ -1165,9 +1165,19 @@ async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
         bars: Some(2),
         find: None,
         sections,
+        how: None,
     };
     let r = app.command(ask(vec!["nowhere".into()]));
     assert!(!r.ok && r.message.contains("no section or kind 'nowhere'"), "{}", r.message);
+    let r = app.command(Command::SampleSong {
+        path: file.display().to_string(),
+        count: None,
+        bars: None,
+        find: None,
+        sections: Vec::new(),
+        how: Some("slices".into()),
+    });
+    assert!(!r.ok && r.message.starts_with("no way 'slices' to sample a recording"), "{}", r.message);
     let r = app.command(ask(Vec::new()));
     assert!(r.ok, "{}", r.message);
     let said: Vec<&str> = r.message.lines().collect();

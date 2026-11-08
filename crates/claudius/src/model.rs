@@ -374,6 +374,8 @@ impl DrumLane {
         match &self.sound {
             Sound::Drum { voice, .. } => voice.role().into(),
             Sound::Instrument { label, .. } => crate::script::drum_role(label).unwrap_or_else(|| self.name.clone()),
+            // a recording struck on a lane is a hit of percussion, whatever it was cut from, and plays out whole
+            Sound::Sample { .. } => "perc".into(),
             _ => self.name.clone(),
         }
     }

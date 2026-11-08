@@ -186,6 +186,17 @@ song.mp3 into the song: vox1, vox2"), the lines after it where each phrase came 
 
 - **What to ask for.** `count` phrases (2), `bars` long (1, 2 or 4), `sections` to put them in by name or kind
   ("the break only"), and `find` when the voice is something else ("a rap verse", "a choir").
+- **The way to sample it** (`how`), from what the person describes:
+  - `phrases` (the default): short sung phrases that come round as loops.
+  - `passage`: a whole verse or chorus of the recording (4, 8 or 16 `bars`) played through in the drops and hooks,
+    the song's chords there following it. Use it for "build the song on that chorus" or "use their verse as my hook",
+    as trance and hip-hop producers do.
+  - `chops`: its voice cut in eighths and played in a new rhythm, an instrument of the voice ("chopped vocals",
+    "make the vocal into a lead").
+  - `stabs`: one short syllable struck on a few beats as a drum lane (`vox_stab`), the sample dropped in now and
+    then as a rhythm. Change its steps with `set_drum_pattern` (lane `vox_stab`, variant `main`).
+
+  The reply says where each piece came from and went; read it to the person in those words.
 - **Afterwards.** Read the reply aloud in musical terms: where each phrase came from in the recording and where it
   went. Listen, and set its level, reverb and delay with `set_mix` like any track; undo takes the phrases out.
 - **Whose voice it is.** A sample of someone else's recording needs their permission before the song is released:

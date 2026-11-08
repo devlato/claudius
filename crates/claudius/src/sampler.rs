@@ -23,22 +23,72 @@ pub const MOST: usize = 4;
 /// what the ears listen for when nothing else is asked
 pub const DEFAULT_FIND: &str = "a person singing";
 
+/// How a recording goes into the song, as producers sample one: its phrases as loops that come round, a passage of it
+/// as a verse or a chorus, its voice chopped into an instrument, or a short hit of it struck as a drum is.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum How {
+    /// its best sung phrases, a bar or two each, each a loop of its own that comes round where its notes agree with
+    /// the song's chords (`vox1`, `vox2` ...)
+    #[default]
+    Phrases,
+    /// a passage of its best sung bars, 4 to 16, played through in the drops and hooks (or the sections asked for) as
+    /// their verse or chorus, the song's chords there following it (`passage`)
+    Passage,
+    /// its best phrase cut in eighths, the slices that hold the voice played in a new rhythm as an instrument of their
+    /// own (`chops`)
+    Chops,
+    /// one short hit of it, a syllable or a stab, struck on a few beats as a drum lane of its own (`vox_stab`)
+    Stabs,
+}
+
+impl How {
+    pub const ALL: [How; 4] = [How::Phrases, How::Passage, How::Chops, How::Stabs];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            How::Phrases => "phrases",
+            How::Passage => "passage",
+            How::Chops => "chops",
+            How::Stabs => "stabs",
+        }
+    }
+
+    pub fn parse(s: &str) -> Result<How, String> {
+        let s = s.trim().to_lowercase();
+        How::ALL.into_iter().find(|h| h.name() == s).ok_or_else(|| {
+            let names: Vec<&str> = How::ALL.iter().map(|h| h.name()).collect();
+            format!("no way '{s}' to sample a recording (ways: {})", names.join(", "))
+        })
+    }
+
+    /// the lengths it takes in bars, and what it calls what it cuts
+    fn lengths(self) -> (&'static [u32], &'static str) {
+        match self {
+            How::Passage => (&[4, 8, 16], "a passage is 4, 8 or 16 bars"),
+            _ => (&[1, 2, 4], "a phrase is 1, 2 or 4 bars"),
+        }
+    }
+}
+
 /// what to sample, and where to
 #[derive(Clone, Debug)]
 pub struct Options {
-    /// how many phrases, 1 to `MOST`
+    /// how many phrases, 1 to `MOST` (the other ways take one passage, one phrase to chop or one hit)
     pub count: usize,
-    /// how long each is, in bars (1, 2 or 4); none: whichever of 1 and 2 sounds best
+    /// how long each phrase is, in bars (1, 2 or 4); none: whichever of 1 and 2 sounds best. A passage is 4, 8 or 16
+    /// (none: 8 where a section has room, else 4), a phrase to chop 1, 2 or 4 (none: 2); a stab is a hit, of no bars.
     pub bars: Option<u32>,
     /// what the ears listen for (`DEFAULT_FIND` when not said)
     pub find: Option<String>,
     /// the sections to place the phrases in, by name or kind; empty: the sections that suit each phrase
     pub sections: Vec<String>,
+    /// how it goes into the song
+    pub how: How,
 }
 
 impl Default for Options {
     fn default() -> Self {
-        Options { count: 2, bars: None, find: None, sections: Vec::new() }
+        Options { count: 2, bars: None, find: None, sections: Vec::new(), how: How::Phrases }
     }
 }
 
@@ -62,6 +112,7 @@ pub struct Phrase {
 pub struct Sampled {
     pub tracks: Vec<String>,
     pub lines: Vec<String>,
+    pub how: How,
 }
 
 impl Sampled {
@@ -69,7 +120,12 @@ impl Sampled {
     /// song: vox1, vox2", so that whoever reads only the first knows what changed
     pub fn said(&self, name: &str) -> String {
         let n = self.tracks.len();
-        let what = format!("sampled {n} phrase{} of {name} into the song", if n == 1 { "" } else { "s" });
+        let what = match self.how {
+            How::Phrases => format!("sampled {n} phrase{} of {name} into the song", if n == 1 { "" } else { "s" }),
+            How::Passage => format!("sampled a passage of {name} into the song"),
+            How::Chops => format!("chopped {name} into the song"),
+            How::Stabs => format!("sampled a stab of {name} into the song"),
+        };
         format!("{what}: {}\n{}", self.tracks.join(", "), self.lines.join("\n"))
     }
 }
@@ -96,8 +152,9 @@ fn checked(bp: &Blueprint, src: &Stereo, opt: &Options) -> Result<(), String> {
     if bp.form.is_empty() {
         return Err("the song has no sections to put the phrases in".into());
     }
-    if let Some(b) = opt.bars.filter(|b| ![1, 2, 4].contains(b)) {
-        return Err(format!("a phrase is 1, 2 or 4 bars, not {b}"));
+    let (lengths, said) = opt.how.lengths();
+    if let Some(b) = opt.bars.filter(|b| !lengths.contains(b) && opt.how != How::Stabs) {
+        return Err(format!("{said}, not {b}"));
     }
     if (src.len() as f64 / SRF) < 4.0 {
         return Err("the recording is too short to sample (4 s at least)".into());
@@ -114,6 +171,12 @@ pub(crate) fn sample_from(
     dir: &Path,
 ) -> Result<Sampled, String> {
     checked(bp, h.src, opt)?;
+    match opt.how {
+        How::Phrases => {}
+        How::Passage => return passage(bp, h, ears, opt, dir),
+        How::Chops => return chops(bp, h, ears, opt, dir),
+        How::Stabs => return stabs(bp, h, ears, opt, dir),
+    }
     let count = opt.count.clamp(1, MOST);
     let phrases = find(h.src, h.stems, h.a, ears, opt, count);
     if phrases.is_empty() {
@@ -121,6 +184,470 @@ pub(crate) fn sample_from(
     }
     let plain: Vec<(Phrase, Vec<Effect>)> = phrases.into_iter().map(|p| (p, Vec::new())).collect();
     place(bp, h, &plain, opt, dir)
+}
+
+/// The sections of `groups` a sample `bars` long goes in: those of the first group (the drops and hooks first, or the
+/// sections asked for) with a section of `bars` bars at least, and only those; none when no section has room.
+fn room(bp: &Blueprint, groups: &[(String, Vec<usize>)], bars: u32) -> Option<(String, Vec<usize>)> {
+    groups.iter().find_map(|(label, secs)| {
+        let secs: Vec<usize> = secs.iter().copied().filter(|&si| bp.form[si].bars >= bars).collect();
+        (!secs.is_empty()).then(|| (label.clone(), secs))
+    })
+}
+
+/// a name for a new track of the song: `base`, else `base2`, `base3` ...
+fn fresh(bp: &Blueprint, base: &str) -> String {
+    let names = bp.layer_names();
+    std::iter::once(base.to_string())
+        .chain((2..).map(|k| format!("{base}{k}")))
+        .find(|n| !names.contains(n))
+        .unwrap_or_default()
+}
+
+/// semitones in words: "in its own key", "3 semitones up into A minor"
+fn moved(t: i32, key: &crate::theory::scale::Key) -> String {
+    match t {
+        0 => "in its own key".to_string(),
+        t => format!("{} {} into {}", t.abs(), if t > 0 { "semitones up" } else { "semitones down" }, key.name()),
+    }
+}
+
+/// what the ears made of a span, in words, when they listened
+fn heard_text(z: Option<f64>, opt: &Options) -> String {
+    match z {
+        Some(z) => format!("the ears {z:+.1} for '{}', ", opt.find.as_deref().unwrap_or(DEFAULT_FIND)),
+        None => String::new(),
+    }
+}
+
+/// A passage of the recording `h` as a part of the song: its best sung bars, 4 to 16 (`opt.bars`; 8 where a section
+/// has room for them, else 4), the better where one of its own sections starts, from its vocals when they are apart
+/// and else all of it as it plays (its lows out, for the song's bass and kick). It plays through from the first bar of
+/// the sections it goes in (the drops and hooks, unless asked), where the song's chords follow the passage's.
+fn passage(
+    bp: &mut Blueprint,
+    h: &Heard,
+    ears: Option<&crate::ears::Ears>,
+    opt: &Options,
+    dir: &Path,
+) -> Result<Sampled, String> {
+    let (a, name) = (h.a, h.name);
+    let groups = groups(bp, &opt.sections)?;
+    let long = h.src.len() as f64 / SRF + 1e-6;
+    let held = (1..=64).take_while(|&b| a.bar_start(b) <= long).count() as u32;
+    let short = |b: u32| format!("the recording holds {held} bars, fewer than a passage of {b}");
+    let (len, (label, secs)) = match opt.bars {
+        Some(b) if b > held => return Err(format!("{}: ask for a shorter one", short(b))),
+        Some(b) => (
+            b,
+            room(bp, &groups, b)
+                .ok_or_else(|| format!("no section asked for has room for a passage of {b} bars: try a shorter one"))?,
+        ),
+        None if held < 4 => return Err(format!("{}: sample its phrases instead", short(4))),
+        // the drops and hooks before the rest, 8 bars in them before 4
+        None => groups
+            .iter()
+            .find_map(|g| {
+                [8, 4]
+                    .into_iter()
+                    .filter(|&b| b <= held)
+                    .find_map(|b| room(bp, std::slice::from_ref(g), b).map(|r| (b, r)))
+            })
+            .ok_or("no section asked for has room for a passage of 4 bars")?,
+    };
+    let starts: Vec<usize> = a.sections.iter().map(|s| s.start_bar).collect();
+    let lift = |p: &Phrase| {
+        p.score + if starts.contains(&p.first) { 0.3 } else { 0.1 * p.first.is_multiple_of(4) as u8 as f64 }
+    };
+    let best = candidates(h.src, h.stems, a, ears, &Options { bars: Some(len), ..opt.clone() })
+        .into_iter()
+        .max_by(|x, y| lift(x).total_cmp(&lift(y)))
+        .ok_or(NO_VOICE)?;
+    let (cut, apart) = match h.stems {
+        Some(s) => (voice(&a.cut(&s.vocals, best.first, len as usize)), true),
+        None => (whole(&a.cut(h.src, best.first, len as usize)), false),
+    };
+    let transpose = crate::compose::transpose_into(&bp.key, (a.key.tonic, a.key.mode.is_minor()));
+    let file = crate::take::store(&cut, dir).map_err(|e| format!("cannot keep the passage: {e:#}"))?;
+    let track = fresh(bp, "passage");
+    let from_bar = best.first as i64 + 1;
+    bp.loops.push(LoopPart {
+        name: track.clone(),
+        role: if apart { "vocal" } else { "sample" }.into(),
+        sound: Sound::Loop {
+            path: file.to_string_lossy().into_owned(),
+            bpm: a.cut_bpm(),
+            beats: len as f64 * 4.0,
+            key: Some(a.key.tonic),
+            tonal: true,
+            label: format!("{name}, {}", bars_text(from_bar, len)),
+        },
+        transpose,
+        chop: Vec::new(),
+        slice_beats: 0.0,
+        retime: false,
+        mix: if apart { vocal_mix() } else { record_mix() },
+        from: None,
+        sampled: true,
+    });
+    for &si in &secs {
+        bp.form[si].layers.push(track.clone());
+    }
+    // the chords heard in a voice alone (an a cappella, whose other stems are all but silent) are only a guess at its
+    // harmony: the song keeps its own where the recording plays none
+    let (s0, s1) = ((a.bar_start(best.first) * SRF) as usize, (a.bar_start(best.first + len as usize) * SRF) as usize);
+    let backed = h.stems.is_none_or(|s| rms(&s.backing(), s0, s1 - s0) > 0.25 * rms(&s.vocals, s0, s1 - s0));
+    let played = backed
+        && (best.first..best.first + len as usize)
+            .all(|k| a.sections.iter().any(|s| s.harmony && (s.start_bar..s.start_bar + s.bars).contains(&k)));
+    let chords =
+        played.then(|| passage_chords(a, best.first, len, transpose, &bp.key, bp.harmony.bars_per_chord)).flatten();
+    let chords_said = match chords {
+        Some(chords) => {
+            let names: Vec<&String> = bp.harmony.progressions.keys().collect();
+            let prog = std::iter::once("sampled".to_string())
+                .chain((2..).map(|k| format!("sampled{k}")))
+                .find(|n| !names.contains(&n))
+                .unwrap_or_default();
+            let said = chords.join(" ");
+            bp.harmony.progressions.insert(prog.clone(), chords);
+            for &si in &secs {
+                bp.form[si].prog = prog.clone();
+            }
+            format!("the song's chords there following it ({said})")
+        }
+        None if !played => "on the song's own chords, as the recording plays none there besides the voice".into(),
+        None => "on the song's own chords, as the passage's were not all heard".into(),
+    };
+    let names: Vec<&str> = secs.iter().map(|&si| bp.form[si].name.as_str()).collect();
+    let what = if apart { "its voice" } else { "all of it, its lows out" };
+    let mut out = Sampled { how: How::Passage, ..Sampled::default() };
+    out.lines.push(format!(
+        "{track}: {} of {name}, {what} ({}{:.0}% sung), {} at {:.0} BPM, played through from the first bar of the {label} \
+         ({}), {chords_said}",
+        bars_text(from_bar, len),
+        heard_text(best.z, opt),
+        best.sung * 100.0,
+        moved(transpose, &bp.key),
+        bp.bpm,
+        names.join(", ")
+    ));
+    out.tracks.push(track);
+    step_back(bp, &secs, &mut out);
+    bp.lineage.push(format!("sampled {}: a passage from {name}", out.tracks.join(" and ")));
+    Ok(out)
+}
+
+/// The chords of bars `first` to `first + len` of the recording, moved `transpose` semitones as the passage is and
+/// named as Roman numerals in the song's `key`, one each `per` bars (the song's bars per chord); none unless the
+/// analysis heard the chord of every one of them.
+fn passage_chords(
+    a: &Analysis,
+    first: usize,
+    len: u32,
+    transpose: i32,
+    key: &crate::theory::scale::Key,
+    per: u32,
+) -> Option<Vec<String>> {
+    use crate::theory::chord::{Chord, roman_of};
+    let up = |pc: u8| (pc as i32 + transpose).rem_euclid(12) as u8;
+    (first..first + len as usize)
+        .step_by(per.max(1) as usize)
+        .map(|k| {
+            let c = Chord::parse(a.chords.get(k)?)?;
+            Some(roman_of(&Chord { root: up(c.root), bass: c.bass.map(up), ..c }, key))
+        })
+        .collect()
+}
+
+/// a lead that plays where a sample now sings, in `secs`, steps back a little, once: beside a voice sampled before, it
+/// has already
+fn step_back(bp: &mut Blueprint, secs: &[usize], out: &mut Sampled) {
+    let voiced_before = |p: &Part| {
+        bp.form.iter().any(|s| {
+            s.layers.contains(&p.name)
+                && bp.loops.iter().any(|l| l.sampled && !out.tracks.contains(&l.name) && s.layers.contains(&l.name))
+        })
+    };
+    let leads: Vec<String> = bp
+        .parts
+        .iter()
+        .filter(|p| p.role == Role::Lead && secs.iter().any(|&si| bp.form[si].layers.contains(&p.name)))
+        .filter(|p| !voiced_before(p))
+        .map(|p| p.name.clone())
+        .collect();
+    for p in bp.parts.iter_mut().filter(|p| leads.contains(&p.name)) {
+        p.mix.level_db -= 1.5;
+        out.lines.push(format!("{} 1.5 dB down, to leave room for the voice", p.name));
+    }
+}
+
+/// the rhythms chopped slices are played in, a bar of sixteenths each: syncopated, as chopped vocals are
+const CHOP_RHYTHMS: [&str; 4] = ["x..x..x...x.x...", "x.x..x..x.x..x..", "x..x..x.x..x..x.", "x...x.xx..x.x..."];
+
+/// the order the slices come in, by their place among the voiced ones: a motif that comes back, as a hook does
+const CHOP_MOTIFS: [[usize; 8]; 3] = [[0, 1, 0, 2, 0, 1, 3, 2], [0, 0, 1, 2, 0, 0, 3, 1], [0, 1, 2, 1, 0, 1, 2, 3]];
+
+/// The recording `h` chopped: its best sung phrase (`opt.bars` long, else 2 bars) cut in eighths of its beats, and the
+/// slices that hold the voice (the loudest six, in the order sung) played in a new rhythm, two bars round, the second
+/// moving the motif on and ending in a stutter, from the first bar of each of the sections it goes in (the drops and
+/// hooks, unless asked): the voice as an instrument, as chopped vocals are.
+fn chops(
+    bp: &mut Blueprint,
+    h: &Heard,
+    ears: Option<&crate::ears::Ears>,
+    opt: &Options,
+    dir: &Path,
+) -> Result<Sampled, String> {
+    let (a, name) = (h.a, h.name);
+    let bars = opt.bars.unwrap_or(2);
+    let groups = groups(bp, &opt.sections)?;
+    let (label, secs) = room(bp, &groups, 2).ok_or("no section asked for has room for two bars of chops")?;
+    let p = find(h.src, h.stems, a, ears, &Options { bars: Some(bars), ..opt.clone() }, 1)
+        .into_iter()
+        .next()
+        .ok_or(NO_VOICE)?;
+    let cut = phrase_of(h.src, h.stems, a, &p);
+    let eighth = ((a.bar_secs / 8.0 * SRF).round() as usize).max(1);
+    let loud: Vec<f32> = (0..cut.len() / eighth).map(|k| rms(&cut, k * eighth, eighth)).collect();
+    let top = loud.iter().fold(0f32, |m, v| m.max(*v));
+    let mut voiced: Vec<usize> = (0..loud.len()).filter(|&k| top > 0.0 && loud[k] >= 0.3 * top).collect();
+    voiced.sort_by(|x, y| loud[*y].total_cmp(&loud[*x]));
+    voiced.truncate(6);
+    voiced.sort_unstable();
+    if voiced.len() < 2 {
+        return Err("the phrase holds too little voice to chop: try another recording, or phrases".into());
+    }
+    let mut rng = crate::rng::Rng::seed_from(bp.seed, &format!("chops {name}"));
+    let rhythm = *rng.pick(&CHOP_RHYTHMS);
+    let motif = *rng.pick(&CHOP_MOTIFS);
+    let sixteenth = eighth / 2;
+    let steps: Vec<usize> = rhythm.char_indices().filter(|(_, c)| *c == 'x').map(|(i, _)| i).collect();
+    let mut out_audio = Stereo::zeros(32 * sixteenth);
+    let (fade_in, fade_out) = ((0.002 * SRF) as usize, (0.01 * SRF) as usize);
+    for bar in 0..2 {
+        for (j, &s) in steps.iter().enumerate() {
+            let next = steps.get(j + 1).copied().unwrap_or(16);
+            let slice = voiced[motif[(j + 2 * bar) % motif.len()] % voiced.len()];
+            let len = ((next - s) * sixteenth).min(eighth);
+            let at = (bar * 16 + s) * sixteenth;
+            // the last hit of the second bar stutters: its slice twice, a thirty-second each
+            let strokes: Vec<(usize, usize)> = if bar == 1 && j + 1 == steps.len() && len >= sixteenth {
+                vec![(at, sixteenth / 2), (at + sixteenth / 2, sixteenth / 2)]
+            } else {
+                vec![(at, len)]
+            };
+            for (at, len) in strokes {
+                let mut piece = cut.slice(slice * eighth, (slice * eighth + len).min(cut.len()));
+                let n = piece.len();
+                piece.fade(fade_in.min(n / 4), fade_out.min(n / 2));
+                out_audio.add_at(&piece, at as i64, 1.0, 1.0);
+            }
+        }
+    }
+    let transpose = crate::compose::transpose_into(&bp.key, (a.key.tonic, a.key.mode.is_minor()));
+    let file = crate::take::store(&out_audio, dir).map_err(|e| format!("cannot keep the chops: {e:#}"))?;
+    let track = fresh(bp, "chops");
+    let from_bar = p.first as i64 + 1;
+    bp.loops.push(LoopPart {
+        name: track.clone(),
+        role: "vocal".into(),
+        sound: Sound::Loop {
+            path: file.to_string_lossy().into_owned(),
+            bpm: a.cut_bpm(),
+            beats: 8.0,
+            key: Some(a.key.tonic),
+            tonal: true,
+            label: format!("{name}, {} chopped", bars_text(from_bar, p.bars)),
+        },
+        transpose,
+        chop: Vec::new(),
+        slice_beats: 0.0,
+        retime: false,
+        mix: TrackMix { level_db: -2.0, reverb: 0.18, delay: 0.1, ..vocal_mix() },
+        from: None,
+        sampled: true,
+    });
+    for &si in &secs {
+        bp.form[si].layers.push(track.clone());
+    }
+    let names: Vec<&str> = secs.iter().map(|&si| bp.form[si].name.as_str()).collect();
+    let mut out = Sampled { how: How::Chops, ..Sampled::default() };
+    out.lines.push(format!(
+        "{track}: {} of {name} ({}{:.0}% sung) cut in eighths, {} slices of it played as {rhythm}, {} at {:.0} BPM, \
+         every 2 bars from the first bar in the {label} ({})",
+        bars_text(from_bar, p.bars),
+        heard_text(p.z, opt),
+        p.sung * 100.0,
+        voiced.len(),
+        moved(transpose, &bp.key),
+        bp.bpm,
+        names.join(", ")
+    ));
+    out.tracks.push(track);
+    step_back(bp, &secs, &mut out);
+    bp.lineage.push(format!("sampled {}: chops from {name}", out.tracks.join(" and ")));
+    Ok(out)
+}
+
+/// the rhythms a stab is struck in, two bars of sixteenths each: now and then, as a sample is dropped in for a beat
+const STAB_RHYTHMS: [&str; 4] = [
+    "..............x...............x.",
+    "......x...............x.....x...",
+    "x.........................x.....",
+    "....x...............x.......x.x.",
+];
+
+/// A short hit of the recording `h` struck as a drum is: the sharpest syllable of its best sung phrases (80 to 350
+/// ms, from its vocals when they are apart, else from the middle of the mix), a one-shot on a drum lane of its own
+/// (`vox_stab`) that strikes it on a few beats of every two bars, moved to the song's key, in the drops and hooks and
+/// the verses and grooves (or the sections asked for). Its rhythm is a drum lane's, to change in the Drums tab.
+fn stabs(
+    bp: &mut Blueprint,
+    h: &Heard,
+    ears: Option<&crate::ears::Ears>,
+    opt: &Options,
+    dir: &Path,
+) -> Result<Sampled, String> {
+    use std::collections::BTreeMap;
+    let (a, name) = (h.a, h.name);
+    let groups = groups(bp, &opt.sections)?;
+    let wanted = ["drops and hooks", "verses and grooves"];
+    let mut secs: Vec<usize> = match opt.sections.is_empty() {
+        true => groups.iter().filter(|(l, _)| wanted.contains(&l.as_str())).flat_map(|(_, s)| s.clone()).collect(),
+        false => Vec::new(),
+    };
+    if secs.is_empty() {
+        secs = groups.first().map(|g| g.1.clone()).unwrap_or_default();
+    }
+    secs.sort_unstable();
+    let mut best: Option<(f64, Stereo, Phrase, f64)> = None;
+    for p in find(h.src, h.stems, a, ears, &Options { bars: Some(2), ..opt.clone() }, 3) {
+        let (sound, heard) = match h.stems {
+            Some(s) => {
+                let v = voice(&a.cut(&s.vocals, p.first, 2));
+                (v.clone(), v)
+            }
+            None => {
+                let mid = middle(&a.cut(h.src, p.first, 2));
+                let sustained = fft::harmonic(&mid.l);
+                (mid, Stereo { l: sustained.clone(), r: sustained })
+            }
+        };
+        if let Some((score, at, len)) = hit(&heard)
+            && best.as_ref().is_none_or(|b| score > b.0)
+        {
+            let shot = sound.slice(at, (at + len).min(sound.len()));
+            best = Some((score, shot, p, at as f64 / SRF));
+        }
+    }
+    let (_, mut shot, p, at) = best.ok_or("nothing in the recording strikes like a syllable: try phrases instead")?;
+    let peak = shot.peak();
+    if peak > 0.0 {
+        let g = 0.891 / peak;
+        shot.channels_mut().into_iter().for_each(|ch| ch.iter_mut().for_each(|s| *s *= g));
+    }
+    let n = shot.len();
+    shot.fade(((0.002 * SRF) as usize).min(n / 4), ((0.025 * SRF) as usize).min(n / 2));
+    let file = crate::take::store(&shot, dir).map_err(|e| format!("cannot keep the stab: {e:#}"))?;
+    let lane = fresh(bp, "vox_stab");
+    let transpose = crate::compose::transpose_into(&bp.key, (a.key.tonic, a.key.mode.is_minor()));
+    let mut rng = crate::rng::Rng::seed_from(bp.seed, &format!("stabs {name}"));
+    let steps = *rng.pick(&STAB_RHYTHMS);
+    let (hits, pattern_bars) = crate::script::steps_to_hits(steps, 16);
+    let from = p.start + at;
+    bp.drums.push(DrumLane {
+        name: lane.clone(),
+        sound: Sound::Sample {
+            path: file.to_string_lossy().into_owned(),
+            root: 60,
+            start: 0.0,
+            end: None,
+            label: format!("{name}, a stab at {}:{:04.1}", (from / 60.0) as u64, from % 60.0),
+        },
+        patterns: BTreeMap::from([("main".to_string(), hits)]),
+        pattern_bars,
+        pitch: transpose,
+        choke: None,
+        mix: TrackMix {
+            level_db: 0.0,
+            fx: vec![Effect::Eq {
+                bands: vec![EqBand { kind: BiquadKind::Highpass, freq: 180.0, gain_db: 0.0, q: 0.7 }],
+            }],
+            reverb: 0.3,
+            delay: 0.2,
+            ..TrackMix::default()
+        },
+        length: None,
+        speed: 1.0,
+        swing: None,
+        groove: None,
+        groove_amount: 1.0,
+        late_ms: 0.0,
+        genre: None,
+    });
+    for &si in &secs {
+        bp.form[si].layers.push(lane.clone());
+    }
+    let names: Vec<&str> = secs.iter().map(|&si| bp.form[si].name.as_str()).collect();
+    let mut out = Sampled { how: How::Stabs, ..Sampled::default() };
+    out.lines.push(format!(
+        "{lane}: {:.0} ms of {name} from {}:{:04.1}, struck as {steps}, {}, in {} (a drum lane: its steps change in the \
+         Drums tab)",
+        n as f64 / SRF * 1000.0,
+        (from / 60.0) as u64,
+        from % 60.0,
+        moved(transpose, &bp.key),
+        names.join(", ")
+    ));
+    out.tracks.push(lane);
+    bp.lineage.push(format!("sampled {}: a stab from {name}", out.tracks.join(" and ")));
+    Ok(out)
+}
+
+/// The sharpest short sound of `x`, as (how good a stab it makes, where it starts in samples, how long it is): where
+/// its loudness leaps at least 2.5 times over the 40 ms before, to a third of its loudest at least, until it falls to
+/// a quarter of its peak (80 to 350 ms); the louder, the more sudden and the nearer a fifth of a second long, the
+/// better. None when nothing in it leaps. Its first 40 ms are not looked at: what sounds there may have started
+/// before it was cut.
+fn hit(x: &Stereo) -> Option<(f64, usize, usize)> {
+    let hop = (0.005 * SRF) as usize;
+    let env: Vec<f32> = (0..x.len() / hop).map(|k| rms(x, k * hop, hop)).collect();
+    let top = env.iter().fold(0f32, |m, v| m.max(*v));
+    if top <= 1e-4 {
+        return None;
+    }
+    let (mut best, mut last): (Option<(f64, usize, usize)>, Option<usize>) = (None, None);
+    for i in 8..env.len() {
+        let before = env[i - 8..i].iter().sum::<f32>() / 8.0;
+        if env[i] < 0.33 * top || env[i] < 2.5 * before || last.is_some_and(|l| i - l < 16) {
+            continue;
+        }
+        last = Some(i);
+        let stop = (i + 70).min(env.len());
+        let peak = env[i..(i + 6).min(env.len())].iter().fold(0f32, |m, v| m.max(*v));
+        let end = (i + 16..stop).find(|&j| env[j] < 0.25 * peak).unwrap_or(stop);
+        if end < i + 16 {
+            continue;
+        }
+        let secs = (end - i) as f64 * 0.005;
+        let sudden = (env[i] / before.max(1e-6)).min(10.0) as f64 / 10.0;
+        let score = (peak / top) as f64 + 0.5 * sudden + 0.5 * (1.0 - ((secs - 0.2).abs() / 0.2).min(1.0));
+        if best.is_none_or(|b| score > b.0) {
+            best = Some((score, i.saturating_sub(1) * hop, (end - i + 1) * hop));
+        }
+    }
+    best
+}
+
+/// the loudness (RMS of both sides) of `len` samples of `x` from `at`
+fn rms(x: &Stereo, at: usize, len: usize) -> f32 {
+    let end = (at + len).min(x.len());
+    if end <= at {
+        return 0.0;
+    }
+    let sum: f32 = (at..end).map(|i| 0.5 * (x.l[i] * x.l[i] + x.r[i] * x.r[i])).sum();
+    (sum / (end - at) as f32).sqrt()
 }
 
 /// Phrase `p` as a sample: from the recording's vocals, when they are apart (`voice`), else from the mix without its
@@ -462,6 +989,27 @@ pub fn find(
     opt: &Options,
     count: usize,
 ) -> Vec<Phrase> {
+    let mut out: Vec<Phrase> = Vec::new();
+    for p in candidates(src, stems, a, ears, opt) {
+        let (a0, a1) = (p.first, p.first + p.bars as usize);
+        if out.iter().all(|q| a1 <= q.first || a0 >= q.first + q.bars as usize) {
+            out.push(p);
+        }
+        if out.len() == count {
+            break;
+        }
+    }
+    out
+}
+
+/// Every span `find` scores, the best first (the 64 best, when the ears listen), overlapping as they may.
+fn candidates(
+    src: &Stereo,
+    stems: Option<&Stems>,
+    a: &Analysis,
+    ears: Option<&crate::ears::Ears>,
+    opt: &Options,
+) -> Vec<Phrase> {
     let secs = src.len() as f64 / SRF;
     let lens: Vec<u32> = opt.bars.map_or_else(|| vec![1, 2], |b| vec![b]);
     let sings = stems.map_or(src, |s| &s.vocals);
@@ -517,17 +1065,7 @@ pub fn find(
         }
         cands.sort_by(|x, y| y.score.total_cmp(&x.score));
     }
-    let mut out: Vec<Phrase> = Vec::new();
-    for p in cands {
-        let (a0, a1) = (p.first, p.first + p.bars as usize);
-        if out.iter().all(|q| a1 <= q.first || a0 >= q.first + q.bars as usize) {
-            out.push(p);
-        }
-        if out.len() == count {
-            break;
-        }
-    }
-    out
+    cands
 }
 
 /// the ears' z for `query` over each span, when they listen
@@ -583,6 +1121,52 @@ pub fn voice(x: &Stereo) -> Stereo {
     let n = out.len();
     out.fade(((0.005 * SRF) as usize).min(n / 4), ((0.03 * SRF) as usize).min(n / 4));
     out
+}
+
+/// A passage of a recording as it plays, when its voice is not apart: in stereo, its lows under 150 Hz out (where the
+/// song's bass and kick play), its loudest moment at -1 dBFS, faded in and out.
+pub fn whole(x: &Stereo) -> Stereo {
+    let mut out = x.clone();
+    for ch in out.channels_mut() {
+        filter::butter(ch, true, 150.0, SRF, 4);
+    }
+    let peak = out.peak();
+    if peak > 0.0 {
+        let g = 0.891 / peak;
+        out.channels_mut().into_iter().for_each(|ch| ch.iter_mut().for_each(|s| *s *= g));
+    }
+    let n = out.len();
+    out.fade(((0.005 * SRF) as usize).min(n / 4), ((0.03 * SRF) as usize).min(n / 4));
+    out
+}
+
+/// the middle of a recording's stereo picture, where a voice is mixed, above 200 Hz
+fn middle(x: &Stereo) -> Stereo {
+    let mut mid: Vec<f32> = x.l.iter().zip(&x.r).map(|(l, r)| 0.5 * (l + r)).collect();
+    filter::butter(&mut mid, true, 200.0, SRF, 2);
+    Stereo { l: mid.clone(), r: mid }
+}
+
+/// a passage of a whole record mixed under the song: as a sample, its lows out again in the mix, a little compressed
+fn record_mix() -> TrackMix {
+    TrackMix {
+        level_db: -2.0,
+        fx: vec![
+            Effect::Eq { bands: vec![EqBand { kind: BiquadKind::Highpass, freq: 150.0, gain_db: 0.0, q: 0.7 }] },
+            Effect::Compressor {
+                threshold_db: -18.0,
+                ratio: 2.0,
+                attack_ms: 10.0,
+                release_ms: 120.0,
+                knee_db: 6.0,
+                makeup_db: 1.0,
+                mix: 1.0.into(),
+            },
+        ],
+        reverb: 0.1,
+        duck: 0.3,
+        ..TrackMix::default()
+    }
 }
 
 /// the phrase after `lead` seconds of silence, in `period` seconds: what a loop plays round
@@ -805,6 +1389,206 @@ mod tests {
         let four = Options { bars: Some(4), ..ask("hook2") };
         let err = sample(&mut bp, &src, "song", None, &four, &dir).unwrap_err();
         assert!(err.contains("no section asked for has room for a phrase of 4 bars"), "{err}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// a short trip-hop song of an intro and a drop of 8 bars each
+    fn song() -> Blueprint {
+        let g = crate::genres::get("trip_hop").unwrap();
+        let o = crate::compose::Options { short: true, samples: 0.0, loops: false, ..Default::default() };
+        let mut bp = crate::compose::generate(&g, 1, &o, None);
+        let mut drop = bp.form[0].clone();
+        (drop.name, drop.kind, drop.bars, drop.layers) = ("drop".into(), SectionKind::Drop, 8, bp.layer_names());
+        let intro = SectionSpec { name: "intro".into(), kind: SectionKind::Intro, ..drop.clone() };
+        bp.form = vec![intro, drop];
+        bp
+    }
+
+    /// 120 BPM, eight bars: a noisy hat to the left all through, and from second 4 to 12 a sung "ah" on every beat,
+    /// 0.3 s long, in the middle
+    fn syllables() -> Stereo {
+        let sr = SRF as usize;
+        let mut x = hummed(0, 0);
+        for beat in 8..24 {
+            let at = beat * sr / 2;
+            for i in 0..(0.3 * SRF) as usize {
+                let t = i as f64 / SRF;
+                let v = ((std::f64::consts::TAU * 220.0 * t).sin() * 0.4 * (1.0 - t / 0.3)) as f32;
+                x.l[at + i] += v;
+                x.r[at + i] += v;
+            }
+        }
+        x
+    }
+
+    fn on(bp: &Blueprint, track: &str) -> Vec<String> {
+        bp.form.iter().filter(|s| s.layers.iter().any(|l| l == track)).map(|s| s.name.clone()).collect()
+    }
+
+    #[test]
+    fn each_way_has_a_name_and_the_lengths_it_takes() {
+        for h in How::ALL {
+            assert_eq!(How::parse(h.name()), Ok(h));
+        }
+        assert_eq!(How::parse(" Chops "), Ok(How::Chops));
+        let err = How::parse("slices").unwrap_err();
+        assert!(err.contains("no way 'slices'") && err.contains("phrases, passage, chops, stabs"), "{err}");
+        let (bp, src) = (song(), hummed(4, 12));
+        let ask = |how, bars| Options { how, bars: Some(bars), ..Options::default() };
+        assert_eq!(checked(&bp, &src, &ask(How::Passage, 2)).unwrap_err(), "a passage is 4, 8 or 16 bars, not 2");
+        assert_eq!(checked(&bp, &src, &ask(How::Phrases, 8)).unwrap_err(), "a phrase is 1, 2 or 4 bars, not 8");
+        assert!(checked(&bp, &src, &ask(How::Passage, 16)).is_ok() && checked(&bp, &src, &ask(How::Stabs, 3)).is_ok());
+    }
+
+    #[test]
+    fn a_passage_plays_through_the_drops_on_its_own_chords_in_the_songs_key() {
+        use crate::theory::scale::{Key, Mode};
+        let src = hummed(2, 16);
+        // eight bars of one section, its chords played
+        let section = |harmony| analysis::SectionGuess {
+            start_bar: 0,
+            bars: 8,
+            energy: 1.0,
+            kind: SectionKind::Verse,
+            kick: false,
+            bass: false,
+            hats: false,
+            harmony,
+        };
+        let a = Analysis {
+            bpm: 120.0,
+            first_downbeat: 0.0,
+            bar_secs: 2.0,
+            bar_starts: Vec::new(),
+            key: Key::new(9, Mode::Minor),
+            chords: ["Am", "F", "C", "G", "Am", "F", "C", "G"].map(String::from).to_vec(),
+            sections: vec![section(true)],
+            ..analysis::analyze(&src, Some((110.0, 130.0)))
+        };
+        let dir = std::env::temp_dir().join(format!("claudius-passage-{}", std::process::id()));
+        let opt = Options { how: How::Passage, bars: Some(4), ..Options::default() };
+        // up five semitones, Am F C G is Dm Bb F C: i VI III VII in D minor, vi IV I V in F major, its relative
+        for (key, numerals) in
+            [(Key::new(2, Mode::Minor), ["i", "VI", "III", "VII"]), (Key::new(5, Mode::Major), ["vi", "IV", "I", "V"])]
+        {
+            let mut bp = song();
+            (bp.key, bp.harmony.bars_per_chord) = (key, 1);
+            let out =
+                sample_from(&mut bp, &Heard { src: &src, stems: None, a: &a, name: "song" }, None, &opt, &dir).unwrap();
+            assert_eq!(out.tracks, ["passage"], "{:?}", out.lines);
+            assert!(out.said("song").starts_with("sampled a passage of song into the song: passage"));
+            let lp = bp.loops.iter().find(|l| l.name == "passage").unwrap();
+            assert!(matches!(lp.sound, Sound::Loop { beats: 16.0, .. }) && lp.role == "sample" && lp.transpose == 5);
+            assert_eq!(on(&bp, "passage"), ["drop"], "the drops before the intro");
+            assert_eq!(bp.harmony.progressions[&bp.form[1].prog], numerals, "{:?}", out.lines);
+            assert!(out.lines[0].contains("bars 5-8 of song"), "where 4 bars of it start: {:?}", out.lines);
+            assert!(out.lines[0].contains("following it"), "{:?}", out.lines);
+        }
+        // a chord not heard leaves the song's own, as does a voice with no chords played under it; 16 bars have no
+        // room in the drop of 8
+        let unheard = Analysis { chords: vec!["Am".into(); 3], ..a.clone() };
+        let mut bp = song();
+        let out = sample_from(&mut bp, &Heard { src: &src, stems: None, a: &unheard, name: "song" }, None, &opt, &dir)
+            .unwrap();
+        assert!(out.lines[0].contains("were not all heard") && bp.form[1].prog != "sampled", "{:?}", out.lines);
+        let sung = Analysis { sections: vec![section(false)], ..a.clone() };
+        let mut bp = song();
+        let out =
+            sample_from(&mut bp, &Heard { src: &src, stems: None, a: &sung, name: "song" }, None, &opt, &dir).unwrap();
+        assert!(out.lines[0].contains("plays none there besides the voice") && bp.form[1].prog != "sampled");
+        // a voice apart with nothing under it is an a cappella: its voice, as a vocal, on the song's own chords
+        let silent = Stereo::zeros(src.len());
+        let alone = Stems { vocals: src.clone(), drums: silent.clone(), bass: silent.clone(), other: silent };
+        let mut bp = song();
+        let heard = Heard { src: &src, stems: Some(&alone), a: &a, name: "song" };
+        let out = sample_from(&mut bp, &heard, None, &opt, &dir).unwrap();
+        let lp = bp.loops.iter().find(|l| l.name == "passage").unwrap();
+        assert!(lp.role == "vocal" && out.lines[0].contains("song, its voice"), "{:?}", out.lines);
+        assert!(out.lines[0].contains("plays none there besides the voice") && bp.form[1].prog != "sampled");
+        let long = Options { bars: Some(16), ..opt.clone() };
+        let err = sample_from(&mut bp, &Heard { src: &src, stems: None, a: &a, name: "song" }, None, &long, &dir);
+        assert_eq!(err.unwrap_err(), "the recording holds 8 bars, fewer than a passage of 16: ask for a shorter one");
+        let mut tight = song();
+        tight.form[1].bars = 4;
+        let eight = Options { bars: Some(8), sections: vec!["drop".into()], ..opt.clone() };
+        let r = sample_from(&mut tight, &Heard { src: &src, stems: None, a: &a, name: "song" }, None, &eight, &dir);
+        assert!(r.unwrap_err().contains("no section asked for has room for a passage of 8 bars"));
+        // none asked for: 8 bars where the recording and a section hold them, else 4
+        let six = src.slice(0, 12 * SRF as usize);
+        let unsaid = Options { bars: None, ..opt.clone() };
+        let mut bp = song();
+        let out = sample_from(&mut bp, &Heard { src: &six, stems: None, a: &a, name: "song" }, None, &unsaid, &dir);
+        let lp = bp.loops.iter().find(|l| l.name == "passage").expect("a passage of 4 bars");
+        assert!(matches!(lp.sound, Sound::Loop { beats: 16.0, .. }), "{:?}", out);
+        let mut bp = song();
+        sample_from(&mut bp, &Heard { src: &src, stems: None, a: &a, name: "song" }, None, &unsaid, &dir).unwrap();
+        let lp = bp.loops.iter().find(|l| l.name == "passage").unwrap();
+        assert!(matches!(lp.sound, Sound::Loop { beats: 32.0, .. }), "{:?}", lp.sound);
+        // a drop of 4 bars takes 4 of them before the intro takes 8
+        let mut short_drop = song();
+        short_drop.form[1].bars = 4;
+        let heard = Heard { src: &src, stems: None, a: &a, name: "song" };
+        sample_from(&mut short_drop, &heard, None, &unsaid, &dir).unwrap();
+        let lp = short_drop.loops.iter().find(|l| l.name == "passage").unwrap();
+        assert!(matches!(lp.sound, Sound::Loop { beats: 16.0, .. }), "{:?}", lp.sound);
+        assert_eq!(on(&short_drop, "passage"), ["drop"]);
+        let three = src.slice(0, 6 * SRF as usize);
+        let err = sample_from(&mut bp, &Heard { src: &three, stems: None, a: &a, name: "song" }, None, &unsaid, &dir);
+        assert_eq!(
+            err.unwrap_err(),
+            "the recording holds 3 bars, fewer than a passage of 4: sample its phrases instead"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn chops_play_slices_of_the_voice_in_a_new_rhythm_with_rests() {
+        let (mut bp, src) = (song(), hummed(4, 12));
+        let dir = std::env::temp_dir().join(format!("claudius-chops-{}", std::process::id()));
+        let opt = Options { how: How::Chops, ..Options::default() };
+        let out = sample(&mut bp, &src, "song", None, &opt, &dir).unwrap();
+        assert_eq!(out.tracks, ["chops"], "{:?}", out.lines);
+        assert!(out.said("song").starts_with("chopped song into the song: chops"));
+        let lp = bp.loops.iter().find(|l| l.name == "chops").unwrap();
+        assert!(matches!(lp.sound, Sound::Loop { beats: 8.0, .. }) && lp.role == "vocal");
+        assert_eq!(on(&bp, "chops"), ["drop"]);
+        let Sound::Loop { path, .. } = &lp.sound else { unreachable!() };
+        let audio = crate::audio::load(Path::new(path)).unwrap();
+        let sixteenth = audio.len() / 32;
+        assert!(sixteenth.abs_diff((0.125 * SRF) as usize) < 30, "two bars at about 120 BPM: {}", audio.len());
+        let loud: Vec<f32> = (0..32).map(|k| rms(&audio, k * sixteenth, sixteenth)).collect();
+        let rhythm = CHOP_RHYTHMS.iter().find(|r| out.lines[0].contains(*r)).expect("the line says its rhythm");
+        for (k, c) in rhythm.chars().enumerate() {
+            if c == 'x' {
+                assert!(loud[k] > 0.05 && loud[16 + k] > 0.05, "a slice on step {k}: {loud:?}");
+            }
+        }
+        assert!(loud.iter().filter(|&&v| v < 1e-3).count() >= 4, "rests between the slices: {loud:?}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_stab_is_a_syllable_struck_on_a_few_beats_by_a_drum_lane_of_its_own() {
+        let (mut bp, src) = (song(), syllables());
+        let dir = std::env::temp_dir().join(format!("claudius-stab-{}", std::process::id()));
+        let opt = Options { how: How::Stabs, ..Options::default() };
+        let out = sample(&mut bp, &src, "song", None, &opt, &dir).unwrap();
+        assert_eq!(out.tracks, ["vox_stab"], "{:?}", out.lines);
+        let lane = bp.drums.iter().find(|d| d.name == "vox_stab").unwrap();
+        assert_eq!(lane.role(), "perc", "a percussion's hit, which plays out whole rather than for a sixteenth");
+        let hits = &lane.patterns["main"];
+        assert!(lane.pattern_bars == 2 && (2..=4).contains(&hits.len()), "{hits:?}");
+        assert_eq!(on(&bp, "vox_stab"), ["drop"], "the drops, and the verses had there been any");
+        let Sound::Sample { path, label, .. } = &lane.sound else { panic!("{:?}", lane.sound) };
+        assert!(label.starts_with("song, a stab at 0:"), "{label}");
+        let shot = crate::audio::load(Path::new(path)).unwrap();
+        let secs = shot.len() as f64 / SRF;
+        assert!((0.2..=0.36).contains(&secs), "about the syllable's 0.3 s: {secs}");
+        // a second stab is another lane; a hum held all through has no attack to strike
+        let out = sample(&mut bp, &src, "song", None, &opt, &dir).unwrap();
+        assert_eq!(out.tracks, ["vox_stab2"]);
+        let err = sample(&mut bp, &hummed(0, 16), "song", None, &opt, &dir).unwrap_err();
+        assert!(err.starts_with("nothing in the recording strikes like a syllable"), "{err}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

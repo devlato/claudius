@@ -39,7 +39,7 @@ to. On the command line, each command reads and writes song folders instead.
 | `sample_pieces` | `path` (or `library:<id>`), `seed`, `count`, `bars`, `find`: pieces offered as cut and treated, before any goes in | |
 | `redraw_pieces` | `seed`: the same recording's pieces drawn again | |
 | `keep_pieces` | `keep` (`[{id, treated}]`), `sections` | |
-| `sample_song` | `path` of a recording, `count` (1-4, default 2), `bars` (1, 2 or 4), `find` ("a person singing"), `sections` | `claudius sample FILE --on SONG --count 2 --in drop` |
+| `sample_song` | `path` of a recording, `how` (`phrases`, the default; `passage`, a verse or chorus of it; `chops`, its voice cut into an instrument; `stabs`, a syllable struck as a drum), `count` (1-4, default 2), `bars` (1, 2 or 4; a passage 4, 8 or 16), `find` ("a person singing"), `sections` | `claudius sample FILE --on SONG --count 2 --in drop`, `--how passage` |
 | `transcribe_drums` | `take` (a beat played or beatboxed with the song) or `path` (a drum loop), `bars` (1, 2 or 4), `variant` (main), `bpm`, `keep_take` | a script: `drums_from("FILE", #{ bars: 2 });` |
 | `extract_groove` | `path` of a recording with drums, `name` (default the file's), `lanes` (default all), `bpm` (when known) | a script: `groove("funk", "FILE", 96); lane("hat", #{ groove: "funk" });` |
 | `request_pitch_check` | `low`, `high` (MIDI; default A3 to A4, sung in any octave), `note` (for the person) | |
@@ -60,7 +60,7 @@ Each control in the studio sends one command, and an assistant can send every on
 |---|---|---|
 | New song, from a genre | `new_song` | `new_song` |
 | New song, from an example | `open_example` | `open_text` |
-| New song, from a recording: remake it, flip it, sample its vocals, take its groove, only listen | `remake` (`flip`), `sample_song`, `extract_groove`, `analyze` | `remake`, `sample_song`, `extract_groove`, `analyze` |
+| New song, from a recording: remake it, flip it, sample it (its phrases, a passage, chops or a stab), take its groove, only listen | `remake` (`flip`), `sample_song`, `extract_groove`, `analyze` | `remake`, `sample_song`, `extract_groove`, `analyze` |
 | Open a song folder, a blueprint or a script; a file's text | `open`; `command` | `load`; `open_text` |
 | Save (Download in the demo), Export, Publish | `save`, `export`, `publish` | `save`, `export`, `set_release`, `write_kit` |
 | Render, and each track on its own | `listen` (`stems`) | `render` |
