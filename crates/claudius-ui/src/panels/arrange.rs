@@ -515,8 +515,15 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         ));
         resp.context_menu(|ui| {
             cx.view.section = i;
-            ui.label(RichText::new(&s.name).strong());
-            if ui.button("Duplicate").clicked() {
+            widgets::menu_title(ui, &s.name, &format!("{}, {} bars", s.kind, s.bars));
+            widgets::menu_group(ui, "Hear");
+            if widgets::menu_item(ui, "Loop this section", "").clicked() {
+                cx.view.looping = true;
+                cx.view.loop_section = true;
+                ui.close();
+            }
+            widgets::menu_group(ui, "Arrange");
+            if widgets::menu_item(ui, "Duplicate", "").on_hover_text("a copy of it right after it").clicked() {
                 out.push(Command::AddSection { after: i, kind: s.kind.clone(), bars: s.bars });
                 out.push(Command::SetSection {
                     index: i + 1,
@@ -556,14 +563,10 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     ui.close();
                 }
             });
-            if ui.button("Loop this section").clicked() {
-                cx.view.looping = true;
-                cx.view.loop_section = true;
-                ui.close();
-            }
             ui.separator();
             ui.add_enabled_ui(song.sections.len() > 1, |ui| {
-                if ui.button(RichText::new("Remove").color(theme::BAD)).clicked() {
+                let remove = RichText::new("Remove the section").color(theme::BAD);
+                if ui.button(remove).on_hover_text("out of the song; Undo brings it back").clicked() {
                     out.push(Command::RemoveSection { index: i });
                     ui.close();
                 }
@@ -857,8 +860,23 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         }
         resp.context_menu(|ui| {
             let Some(layer) = row_menu.and_then(|row| song.layers.get(row)) else { return };
-            ui.label(RichText::new(layer).strong());
-            if let Some(t) = song.tracks.iter().find(|t| &t.name == layer) {
+            let track = song.tracks.iter().find(|t| &t.name == layer);
+            let about = track.map_or(String::new(), |t| {
+                let what = match t.kind.as_str() {
+                    "drum" => "a drum lane",
+                    "take" => "a recording",
+                    "loop" => "a loop",
+                    "pattern" => "a pattern",
+                    _ => "a part",
+                };
+                match t.playing.as_deref().unwrap_or(&t.sound) {
+                    "" => what.to_string(),
+                    sound => format!("{what}, {sound}"),
+                }
+            });
+            widgets::menu_title(ui, layer, &about);
+            if let Some(t) = track {
+                widgets::menu_group(ui, "Hear");
                 let tip = if t.muted { "hear it again" } else { "silence it everywhere, keeping it in the song" };
                 if ui.button(if t.muted { "Unmute" } else { "Mute" }).on_hover_text(tip).clicked() {
                     out.push(MixEdit { muted: Some(!t.muted), ..Default::default() }.on(layer));
@@ -873,7 +891,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     ui.close();
                 }
                 if !t.swaps.is_empty() {
-                    ui.separator();
+                    widgets::menu_group(ui, "Sound");
                     if let Some(next) = super::next_label(t)
                         && ui
                             .button(format!("Another sound: {next}"))
@@ -888,7 +906,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         .on_hover_text("choose the sound it plays from those that fit it; its notes stay");
                 }
                 if matches!(t.kind.as_str(), "part" | "drum") {
-                    ui.separator();
+                    widgets::menu_group(ui, "Write");
                     let vary = |take: bool| Command::VaryTrack { track: layer.clone(), take };
                     if ui
                         .button("Another take")
@@ -910,7 +928,6 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     }
                 }
                 if t.kind == "part" {
-                    ui.separator();
                     ui.menu_button("Add chords under it", |ui| {
                         ui.label(small("chords that fit its notes and the song's, worked out again as it changes"));
                         for (label, style, hint) in [
@@ -932,7 +949,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     });
                 }
                 if t.kind == "take" {
-                    ui.separator();
+                    widgets::menu_group(ui, "Recording");
                     if ui
                         .button("How is it sung?")
                         .on_hover_text("the notes it means, how near each came, and how its singer sings")
@@ -1045,6 +1062,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     });
                 }
             }
+            widgets::menu_group(ui, "Sections");
             if ui.button("On in every section").on_hover_text("it plays all through the song").clicked() {
                 for (i, s) in song.sections.iter().enumerate() {
                     if !s.layers.contains(layer) {
