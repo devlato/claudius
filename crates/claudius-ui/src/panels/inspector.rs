@@ -19,11 +19,6 @@ pub const MOVES: [(&str, &str); 5] = [
     ("Drum fills", "a drum fill at the end of every 8 bars"),
 ];
 
-/// a percent typed or shown ("46", "46%", "1%") as the 0..1 it stands for
-fn percent(text: &str) -> Option<f64> {
-    text.trim().trim_end_matches('%').trim().parse::<f64>().ok().map(|v| v / 100.0)
-}
-
 pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let Some(song) = cx.state.song.as_mut() else { return };
     if song.sections.is_empty() {
@@ -155,7 +150,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         egui::Slider::new(&mut s.energy, 0.0..=1.0)
                             .clamping(egui::SliderClamping::Edits)
                             .custom_formatter(|v, _| format!("{:.0}%", v * 100.0))
-                            .custom_parser(percent)
+                            .custom_parser(super::percent)
                             .trailing_fill(true),
                     )
                     .on_hover_text("how full and loud it plays: low for an intro or a break, high for a drop");
@@ -289,18 +284,4 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             cx.view.section = i + 1;
         }
     });
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn an_intensity_reads_as_the_percent_it_shows() {
-        assert_eq!(percent("46"), Some(0.46));
-        assert_eq!(percent("46%"), Some(0.46));
-        assert_eq!(percent(" 1 % "), Some(0.01));
-        assert_eq!(percent("100%"), Some(1.0));
-        assert_eq!(percent("loud"), None);
-    }
 }
