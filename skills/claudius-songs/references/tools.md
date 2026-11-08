@@ -70,6 +70,7 @@ Each control in the studio sends one command, and an assistant can send every on
 | a cell of the arrangement: a track on or off in a section | `command` | `toggle_layer` |
 | a section's settings; Duplicate, Insert after; Remove; dragging it | `command` | `set_section`; `add_section`; `remove_section`; `move_section` |
 | + Track, In a style | `command`, `generate_track` | `add_track`, `generate_track` |
+| + Track, Recording: a file, a search of the free libraries, Record | `add_take`, `search_recordings`, `sample_pieces`; `request_take` | `add_take`, `sample_pieces`; `take` |
 | a row's Remove, Another take or Vary it, Add chords under it | `command`, `vary_track`, `harmonize` | `remove_track`, `vary_track`, `harmonize` |
 | a take's Trim, How is it sung?, Tune it, Turn it into drums, its melody as notes | `trim_take`, `assess_voice`, `tune`, `transcribe_drums`, `transcribe_take` | `trim_take`, `assess_voice`, `tune`, `transcribe_drums`, `transcribe_take` |
 | Drums: a step, a pattern, a step's Trig, a lane's time and feel | `command` | `set_drum_step`, `set_drum_pattern`, `set_trig`, `set_lane` |

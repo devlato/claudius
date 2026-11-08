@@ -41,38 +41,52 @@ fn unique_track_name(song: &SongView, base: &str) -> String {
         .unwrap_or(base)
 }
 
-/// The "+ Track" menu: a track written the way a genre plays it, or a drum lane or a part of a role of your own, its
-/// name, and its sound from those installed. The command once Generate or Add is pressed.
+/// what the "+ Track" menu does once one of its buttons is pressed
+enum Added {
+    /// a command for claudius: a track generated or added
+    Send(Command),
+    /// the Add a recording window, searching the free libraries for these words
+    Search(String),
+    /// the Record window
+    Record,
+}
+
+/// The "+ Track" menu: a track written the way a genre plays it, a drum lane or a part of a role of your own (its
+/// name, and its sound from those installed), or a recording. What it does once a button is pressed.
 fn add_track_menu(
     ui: &mut Ui,
     f: &mut super::AddTrackForm,
     song: &SongView,
     genres: &[claudius_api::GenreInfo],
     sounds: Option<&claudius_api::SoundList>,
-) -> Option<Command> {
+) -> Option<Added> {
+    use super::AddKind;
     ui.set_min_width(320.0);
     ui.horizontal(|ui| {
-        ui.selectable_value(&mut f.generate, true, "In a style")
-            .on_hover_text("written the way a genre plays it: its drums, or a part in its idiom, on its sounds");
-        if ui
-            .selectable_label(!f.generate && !f.drum, "Part")
-            .on_hover_text("notes the theory engine writes, in a role")
-            .clicked()
-        {
-            (f.generate, f.drum) = (false, false);
-        }
-        if ui
-            .selectable_label(!f.generate && f.drum, "Drum lane")
-            .on_hover_text("steps you write in the step sequencer")
-            .clicked()
-        {
-            (f.generate, f.drum) = (false, true);
+        for (kind, label, tip) in [
+            (
+                AddKind::Style,
+                "In a style",
+                "written the way a genre plays it: its drums, or a part in its idiom, on its sounds",
+            ),
+            (AddKind::Part, "Part", "notes the theory engine writes, in a role"),
+            (AddKind::Drum, "Drum lane", "steps you write in the step sequencer"),
+            (
+                AddKind::Recording,
+                "Recording",
+                "a song or a sound: a file of yours, one a free library offers, or one you record",
+            ),
+        ] {
+            ui.selectable_value(&mut f.kind, kind, label).on_hover_text(tip);
         }
     });
-    if f.generate {
-        return generate_menu(ui, f, song, genres);
+    match f.kind {
+        AddKind::Style => return generate_menu(ui, f, song, genres).map(Added::Send),
+        AddKind::Recording => return recording_menu(ui, f),
+        AddKind::Part | AddKind::Drum => {}
     }
-    if !f.drum {
+    let drum = f.kind == AddKind::Drum;
+    if !drum {
         ui.horizontal_wrapped(|ui| {
             for r in ["bass", "chords", "pad", "keys", "lead", "arp"] {
                 ui.selectable_value(&mut f.role, r.to_string(), r);
@@ -80,7 +94,7 @@ fn add_track_menu(
         });
     }
     let short = f.sound.rsplit(':').next().unwrap_or("").to_string();
-    let base = if f.drum { if short.is_empty() { "perc".to_string() } else { short } } else { f.role.clone() };
+    let base = if drum { if short.is_empty() { "perc".to_string() } else { short } } else { f.role.clone() };
     let suggested = unique_track_name(song, &base);
     ui.horizontal(|ui| {
         ui.label(small("name"));
@@ -93,7 +107,7 @@ fn add_track_menu(
         Some(s) => (&s.drums, &s.kit, &s.synths, &s.instruments),
         None => (&empty_list, &empty_kit, &empty_list, &empty_list),
     };
-    let lists: Vec<(String, Vec<String>)> = if f.drum {
+    let lists: Vec<(String, Vec<String>)> = if drum {
         vec![
             ("synthesized".into(), drums.iter().filter(|n| hit(n)).cloned().collect()),
             ("recorded".into(), kit.iter().filter(|n| hit(n)).cloned().collect()),
@@ -126,9 +140,9 @@ fn add_track_menu(
         }
     });
     let name = if f.name.trim().is_empty() { suggested } else { f.name.trim().to_string() };
-    let hint = if f.sound.is_empty() && !f.drum { "the genre draws its sound" } else { "" };
+    let hint = if f.sound.is_empty() && !drum { "the genre draws its sound" } else { "" };
     // a lane needs its sound; a part may take the genre's
-    let ready = !f.drum || !f.sound.is_empty();
+    let ready = !drum || !f.sound.is_empty();
     ui.horizontal(|ui| {
         let add = ui.add_enabled(ready, egui::Button::new(format!("Add {name}")));
         if !hint.is_empty() {
@@ -137,20 +151,59 @@ fn add_track_menu(
         if add.clicked() {
             let cmd = Command::AddTrack {
                 name,
-                kind: if f.drum { "drum" } else { "part" }.into(),
-                role: (!f.drum).then(|| f.role.clone()),
+                kind: if drum { "drum" } else { "part" }.into(),
+                role: (!drum).then(|| f.role.clone()),
                 sound: (!f.sound.is_empty()).then(|| f.sound.clone()),
             };
             f.name.clear();
             f.sound.clear();
             f.filter.clear();
             ui.close();
-            Some(cmd)
+            Some(Added::Send(cmd))
         } else {
             None
         }
     })
     .inner
+}
+
+/// The "+ Track" menu's recording: a file of yours, one the free libraries offer, or one recorded now, each through
+/// the window it goes in by (Add a recording, which also searches the libraries, and Record).
+fn recording_menu(ui: &mut Ui, f: &mut super::AddTrackForm) -> Option<Added> {
+    ui.label(small("a song or a sound: added whole as a take you trim and put effects on, or with its vocals sampled"));
+    ui.add_space(2.0);
+    if ui.button("Choose a file on this computer...").on_hover_text("WAV, MP3, FLAC, AAC, AIFF, Ogg or Opus").clicked()
+    {
+        crate::pick::choose(ui.ctx(), crate::pick::Want::Recording);
+        ui.close();
+    }
+    ui.add_space(4.0);
+    ui.label(small("or search the free libraries (CC0, public domain, CC BY), to hear and choose"));
+    let search = ui
+        .horizontal(|ui| {
+            let words = ui.add(
+                egui::TextEdit::singleline(&mut f.query)
+                    .hint_text("a soul singer, a jazz drum break")
+                    .desired_width(220.0),
+            );
+            let enter = words.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+            let go = ui.add_enabled(!f.query.trim().is_empty(), egui::Button::new("Search"));
+            (go.clicked() || enter) && !f.query.trim().is_empty()
+        })
+        .inner;
+    if search {
+        ui.close();
+        return Some(Added::Search(f.query.trim().to_string()));
+    }
+    ui.add_space(4.0);
+    let record = ui
+        .button("Record one...")
+        .on_hover_text("sing or play it into the microphone, or play it on a MIDI keyboard, over the song");
+    if record.clicked() {
+        ui.close();
+        return Some(Added::Record);
+    }
+    None
 }
 
 /// The "+ Track" menu's track in a style: what it is, the genre whose way of playing it to write it in, and for a part,
@@ -255,6 +308,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let mut out: Vec<Command> = Vec::new();
     // a take whose Trim window opens
     let mut trim = None;
+    // the window the "+ Track" menu opens for a recording
+    let mut opened = None;
     let full = ui.available_rect_before_wrap();
     let render_bars = render.map_or(0.0, |r| r.seconds * r.bpm.max(1.0) / 240.0);
     let tl = Timeline {
@@ -973,16 +1028,16 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         // a track more, under the last
         ui.horizontal(|ui| {
             ui.add_space(6.0);
-            let add = ui
-                .button(RichText::new("+ Track").size(11.5).color(TEXT_DIM))
-                .on_hover_text("add a part the theory engine writes, or a drum lane to fill in the step sequencer");
+            let add = ui.button(RichText::new("+ Track").size(11.5).color(TEXT_DIM)).on_hover_text(
+                "add a track: one written in a style, a part or a drum lane of your own, or a recording",
+            );
             // a form: choosing its role or sound keeps it open
             egui::Popup::from_toggle_button_response(&add)
                 .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-                .show(|ui| {
-                    if let Some(c) = add_track_menu(ui, &mut add_form, song, genres, sounds) {
-                        out.push(c);
-                    }
+                .show(|ui| match add_track_menu(ui, &mut add_form, song, genres, sounds) {
+                    Some(Added::Send(c)) => out.push(c),
+                    Some(a) => opened = Some(a),
+                    None => {}
                 });
         });
     });
@@ -1120,6 +1175,11 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     cx.view.row_menu = row_menu;
     if trim.is_some() {
         cx.view.import.trim = trim;
+    }
+    match opened {
+        Some(Added::Search(words)) => cx.view.import.search_for(&words),
+        Some(Added::Record) => cx.view.record.show(),
+        Some(Added::Send(_)) | None => {}
     }
     cx.view.add_track = add_form;
     cx.out.extend(out);

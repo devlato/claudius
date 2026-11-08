@@ -114,10 +114,9 @@ impl Import {
         (self.file, self.hit, self.open, self.said) = (Some(Arc::new(file)), None, true, None);
     }
 
-    /// the libraries searched for `words`, as the window's Search button searches them (a scripted run's
-    /// `import:search:<words>`)
-    #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
-    pub fn ask(&mut self, words: &str) {
+    /// the window open, searching the libraries for `words`, as its Search button searches them (the "+ Track"
+    /// menu's search, a scripted run's `import:search:<words>`)
+    pub fn search_for(&mut self, words: &str) {
         self.open = true;
         self.query = words.to_string();
         (self.search, self.searching, self.hits) = (Some(self.query.clone()), true, None);

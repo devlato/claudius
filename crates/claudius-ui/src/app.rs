@@ -589,7 +589,7 @@ impl Studio {
                     crate::devplan::say(&format!("recordingpath:{p} reads a file in the app only"))
                 }
                 Step::ImportWhole => self.view.import.whole = true,
-                Step::ImportSearch(words) => self.view.import.ask(&words),
+                Step::ImportSearch(words) => self.view.import.search_for(&words),
                 Step::ImportUse(n) => self.view.import.use_nth = Some(n),
                 Step::ImportSample => self.view.import.sample_now = true,
                 Step::ImportHear(id, treated) => self.view.import.hear_now = Some((id, treated)),
