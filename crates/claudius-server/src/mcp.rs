@@ -777,6 +777,26 @@ pub struct CommandArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct ExamplesArgs {
+    /// one example's name or title, to say how it is made and give its script; none: the list of them all
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct OpenExampleArgs {
+    /// the example's name or title, as examples lists it ("midnight_overdrive", "Midnight Overdrive")
+    pub name: String,
+}
+
+/// the example song asked for, or what there is to ask for
+fn example(asked: &str) -> Result<&'static claudius_api::examples::Example, String> {
+    claudius_api::examples::get(asked).ok_or_else(|| {
+        let names: Vec<&str> = claudius_api::examples::ALL.iter().map(|e| e.name).collect();
+        format!("no example \"{asked}\": the examples are {}", names.join(", "))
+    })
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct MakeSongArgs {
     /// what the person asked for, in their words: "a chill lo-fi beat around 80 bpm in D minor, minimal", "dark
     /// techno at 130", "trip hop with idm drums, lush"
@@ -1161,6 +1181,51 @@ impl Studio {
     )]
     async fn open(&self, Parameters(a): Parameters<PathArgs>) -> Result<String, String> {
         self.edit(Command::Load { path: a.path }, true).await
+    }
+
+    #[tool(
+        description = "The example songs: original songs in the style of the hits of each scene of the 1990s, 2000s, 2010s and 2020s (trip hop, big beat, French house, electropop, festival EDM, future bass, 80s-revival synth-pop, disco-pop and more), each a script whose comments say how its style is made. With no name, lists them: name, title, decade, style and the artists the style is heard on. With a name, says how that one is made and gives its script. None copies a record. open_example opens one, to show the person how a style is built or to start from.",
+        annotations(read_only_hint = true)
+    )]
+    async fn examples(&self, Parameters(a): Parameters<ExamplesArgs>) -> Result<String, String> {
+        let Some(asked) = a.name else {
+            return Ok(claudius_api::examples::ERAS
+                .iter()
+                .map(|era| {
+                    let of = claudius_api::examples::ALL.iter().filter(|e| e.era == *era);
+                    let lines: Vec<String> = of
+                        .map(|e| {
+                            format!("  {}: \"{}\", {} (like {}; genre {})", e.name, e.title, e.style, e.like, e.genre)
+                        })
+                        .collect();
+                    format!("{era}:\n{}", lines.join("\n"))
+                })
+                .collect::<Vec<_>>()
+                .join("\n"));
+        };
+        let e = example(&asked)?;
+        Ok(format!(
+            "{}: \"{}\", {} of the {} (like {})\n\n{}\n\nscript:\n```js\n{}```",
+            e.name,
+            e.title,
+            e.style,
+            e.era,
+            e.like,
+            claudius_api::examples::notes(e),
+            e.script
+        ))
+    }
+
+    #[tool(
+        description = "Open an example song (examples lists them) as the song, rendered and judged: the person hears it in the studio, and its script shows how its style is made. It is a song like any other from then on, to change or build on; the song open before is replaced, and undo brings it back."
+    )]
+    async fn open_example(&self, Parameters(a): Parameters<OpenExampleArgs>) -> Result<String, String> {
+        let e = example(&a.name)?;
+        let open = Command::OpenText { name: format!("{}.rhai", e.name), text: e.script.to_string() };
+        let out = self.edit(open, true).await?;
+        let about =
+            format!("opened the example \"{}\": {} of the {}, in the style of {}", e.title, e.style, e.era, e.like);
+        Ok(self.in_words(&format!("{about}\n\n{out}")).await)
     }
 
     #[tool(
@@ -1576,6 +1641,7 @@ mod tests {
                 "analyze",
                 "assess_voice",
                 "catalog",
+                "examples",
                 "find_genre",
                 "get_song",
                 "graph",

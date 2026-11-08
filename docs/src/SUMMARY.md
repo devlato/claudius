@@ -34,6 +34,7 @@
 
 # Cookbook
 
+- [Example songs, the 1990s to the 2020s](cookbook/examples.md)
 - [House, deep house and techno](cookbook/four-on-the-floor.md)
 - [Trap and lofi](cookbook/hip-hop.md)
 - [Drum and bass, synthwave, future bass](cookbook/more-genres.md)

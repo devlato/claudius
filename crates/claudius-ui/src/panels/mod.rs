@@ -147,10 +147,24 @@ pub struct NewSongForm {
     pub complexity: Option<f64>,
     /// what the genres shown are searched by (`claudius_api::search_genres`); empty: all, by family
     pub genre_search: String,
-    /// the dialog starts the song from a recording rather than from a genre alone
-    pub recording: bool,
-    /// and what it does with the recording
+    /// what the dialog starts the song from
+    pub start: Start,
+    /// what it does with a recording
     pub with_recording: WithRecording,
+    /// the example song chosen, by its name (`claudius_api::examples`)
+    pub example: Option<&'static str>,
+}
+
+/// what the New song dialog starts a song from
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Start {
+    /// a genre, which the generator writes the song in
+    #[default]
+    Genre,
+    /// a recording, remade, flipped, sampled or listened to
+    Recording,
+    /// one of the example songs, as its script makes it
+    Example,
 }
 
 /// what the New song dialog does with a recording
@@ -359,8 +373,9 @@ impl Default for View {
                 sample_search: String::new(),
                 complexity: None,
                 genre_search: String::new(),
-                recording: false,
+                start: Start::default(),
                 with_recording: WithRecording::default(),
+                example: None,
             },
             mutate_count: 4,
             keep_best: true,

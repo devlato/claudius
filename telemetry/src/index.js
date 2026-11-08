@@ -6,7 +6,7 @@
 
 const COMMANDS = new Set([
   "make", "evolve", "mutate", "analyze", "remake", "chop", "sample", "samples", "voice", "tune", "render", "export", "publish", "judge", "genres",
-  "sounds", "script", "reference", "setup", "doctor", "connect", "skills", "studio", "serve", "mcp", "update",
+  "examples", "sounds", "script", "reference", "setup", "doctor", "connect", "skills", "studio", "serve", "mcp", "update",
 ]);
 const VERSION = /^\d{1,3}\.\d{1,3}\.\d{1,3}(-[0-9A-Za-z.]{1,20})?$/;
 const OS = new Set(["macos", "linux", "windows"]);
