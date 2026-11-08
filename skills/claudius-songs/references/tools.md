@@ -68,7 +68,7 @@ Each control in the studio sends one command, and an assistant can send every on
 | Undo, Redo | `undo`, `redo` | `undo`, `redo` |
 | Sounds, a row's swap button | `swap_sound` | `swap_sound` |
 | Tempo, Key, Swing | `command` | `set_tempo`, `set_key`, `set_swing` |
-| a cell of the arrangement: a track on or off in a section | `command` | `toggle_layer` |
+| a cell of the arrangement (a double-click, Enter, or the paint tool): a track on or off in a section; the track inspector's "plays here" | `command` | `toggle_layer` |
 | a section's settings; Duplicate, Insert after; Remove; dragging it | `command` | `set_section`; `add_section`; `remove_section`; `move_section` |
 | + Track, In a style | `command`, `generate_track` | `add_track`, `generate_track` |
 | + Track, Recording: a file, a search of the free libraries, Record | `add_take`, `search_recordings`, `sample_pieces`; `request_take` | `add_take`, `sample_pieces`; `take` |

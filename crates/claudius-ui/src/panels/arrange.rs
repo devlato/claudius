@@ -330,6 +330,11 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             song.bars,
             song.layers.len()
         )));
+        let tip = "Paint (B): a click switches a track on or off in a section, and dragging along its row paints the \
+                   rest the same. Off, a click selects a cell and a double-click switches it.";
+        if widgets::chip(ui, cx.view.paint, "Paint", theme::ACCENT).on_hover_text(tip).clicked() {
+            cx.view.paint = !cx.view.paint;
+        }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             for kind in SECTION_KINDS.iter().rev().filter(|k| song.sections.iter().any(|s| s.kind == **k)) {
                 // as many of the song's kinds as there is room for beside the heading, the last first
@@ -611,6 +616,13 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     theme::alpha(Color32::WHITE, 0.012),
                 );
             }
+            if cx.view.track.as_deref() == Some(layer.as_str()) {
+                p.rect_filled(
+                    Rect::from_min_size(pos2(rect.left(), y0), vec2(GUTTER, row_h)),
+                    2.0,
+                    theme::alpha(theme::ACCENT, 0.14),
+                );
+            }
             p.line_segment(
                 [pos2(rect.left(), row_rect.bottom()), pos2(rect.right(), row_rect.bottom())],
                 Stroke::new(1.0, LINE_SOFT),
@@ -739,19 +751,39 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             let x = tl.x(s.start_bar as f64);
             p.line_segment([pos2(x, rect.top()), pos2(x, rect.bottom())], Stroke::new(1.0, LINE_SOFT));
         }
-        // painting gesture: press toggles a cell, dragging along sets the others in the row to the same state
+        // the cell selected: the selected track's row in the selected section
+        if let Some(row) = cx.view.track.as_ref().and_then(|t| song.layers.iter().position(|l| l == t))
+            && let Some(s) = song.sections.get(cx.view.section)
+        {
+            let y0 = rect.top() + row as f32 * row_h;
+            let cell = Rect::from_min_max(
+                pos2(tl.x(s.start_bar as f64) + 1.0, y0 + 1.0),
+                pos2(tl.x((s.start_bar + s.bars) as f64) - 1.0, y0 + row_h - 1.0),
+            );
+            p.rect_stroke(cell, 3.0, Stroke::new(1.5, theme::ACCENT), StrokeKind::Inside);
+        }
+        // a click selects a cell, its track and its section, and a double-click switches the track on or off there; with
+        // the paint tool, a press switches it and dragging along the row sets the others the same
         let pressed = ui.input(|i| i.pointer.primary_pressed());
         let down = ui.input(|i| i.pointer.primary_down());
+        let paint = cx.view.paint;
         if pressed
             && resp.hovered()
             && let Some((row, sec)) = hover.and_then(cell_at)
         {
             let layer = &song.layers[row];
-            let on = !song.sections[sec].layers.iter().any(|l| l == layer);
-            out.push(Command::ToggleLayer { section: sec, layer: layer.clone() });
-            cx.view.layer_paint = Some((on, row, vec![sec]));
-            cx.view.section = sec;
-        } else if down {
+            (cx.view.section, cx.view.track) = (sec, Some(layer.clone()));
+            if paint {
+                let on = !song.sections[sec].layers.iter().any(|l| l == layer);
+                out.push(Command::ToggleLayer { section: sec, layer: layer.clone() });
+                cx.view.layer_paint = Some((on, row, vec![sec]));
+            }
+        } else if resp.double_clicked()
+            && !paint
+            && let Some((row, sec)) = hover.and_then(cell_at)
+        {
+            out.push(Command::ToggleLayer { section: sec, layer: song.layers[row].clone() });
+        } else if down && paint {
             if let Some((on, row, touched)) = &mut cx.view.layer_paint
                 && let Some(pos) = ui.input(|i| i.pointer.interact_pos())
                 && let Some((_, sec)) = cell_at(pos2(pos.x, rect.top() + *row as f32 * row_h + 1.0))
@@ -782,6 +814,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     if resp.clicked() && on_swap {
                         out.push(super::swap(layer, None));
                     } else if resp.clicked() {
+                        cx.view.track = Some(layer.clone());
                         cx.view.tab = if song.drums.iter().any(|d| &d.lane == layer) {
                             Tab::Sequencer
                         } else if song.parts.iter().any(|x| &x.name == layer) {
@@ -800,12 +833,15 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 p.rect_stroke(cell, 3.0, Stroke::new(1.0, theme::alpha(Color32::WHITE, 0.5)), StrokeKind::Inside);
                 let layer = &song.layers[row];
                 let on = s.layers.iter().any(|l| l == layer);
-                resp.clone().on_hover_text(format!(
-                    "{layer} in {}: {} (click to switch {}, drag along the row to paint)",
-                    s.name,
-                    if on { "on" } else { "off" },
-                    if on { "off" } else { "on" }
-                ));
+                let (now, other) = if on { ("plays", "off") } else { ("is silent", "on") };
+                resp.clone().on_hover_text(if cx.view.paint {
+                    format!("{layer} {now} in {}: click to switch it {other}, drag along the row to paint", s.name)
+                } else {
+                    format!(
+                        "{layer} {now} in {}: click to select it, double-click (or Enter) to switch it {other}",
+                        s.name
+                    )
+                });
             }
         }
         // the mute / solo menu on a row label

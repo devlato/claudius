@@ -316,6 +316,10 @@ pub struct View {
     pub add_kind: String,
     pub add_bars: u32,
     pub drag_section: Option<usize>,
+    /// the track selected, by name, as a click on its row or one of its cells selects it (with `section`, the cell)
+    pub track: Option<String>,
+    /// the arrangement's paint tool: a press switches a cell, and dragging along its row paints the others the same
+    pub paint: bool,
     /// arrangement painting: (switch on?, row, sections touched)
     pub layer_paint: Option<(bool, usize, Vec<usize>)>,
     pub prog_text: Vec<(String, String)>,
@@ -405,6 +409,8 @@ impl Default for View {
             add_kind: "drop".into(),
             add_bars: 8,
             drag_section: None,
+            track: None,
+            paint: false,
             layer_paint: None,
             prog_text: Vec::new(),
             chip_edit: String::new(),

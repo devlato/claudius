@@ -422,6 +422,8 @@ impl Studio {
                 Command::NewSong { .. } | Command::Remake { .. } | Command::Load { .. } | Command::OpenText { .. }
             ) {
                 self.view.section = 0;
+                // another song's track of the same name is not the one that was selected
+                self.view.track = None;
                 self.view.script.dirty = false;
                 self.view.download = None;
             }
@@ -479,6 +481,8 @@ impl Studio {
         if ctx.text_edit_focused() || self.view.new_song.open {
             return;
         }
+        // an open list or menu moves with the arrows: they are left to it
+        let menu = egui::Popup::is_any_open(ctx);
         let (space, redo, undo, home, l, left, right) = ctx.input_mut(|i| {
             (
                 i.consume_key(Modifiers::NONE, Key::Space),
@@ -486,8 +490,8 @@ impl Studio {
                 i.consume_key(Modifiers::COMMAND, Key::Z),
                 i.consume_key(Modifiers::NONE, Key::Home),
                 i.consume_key(Modifiers::NONE, Key::L),
-                i.consume_key(Modifiers::NONE, Key::ArrowLeft),
-                i.consume_key(Modifiers::NONE, Key::ArrowRight),
+                !menu && i.consume_key(Modifiers::NONE, Key::ArrowLeft),
+                !menu && i.consume_key(Modifiers::NONE, Key::ArrowRight),
             )
         });
         // while a take records, the recorder plays the song: Space ends the take, as a DAW's does
@@ -513,6 +517,43 @@ impl Studio {
         }
         if right && self.view.section + 1 < n {
             self.view.section += 1;
+        }
+        // the arrangement's cells: the paint tool, the track selected and the cell it makes with the section (the keys
+        // that act on a cell are left to others while no track is selected, the tour's Escape among them, and to an
+        // open menu or list, whose item Enter picks and which Escape closes)
+        let held = self.view.track.is_some() && !menu;
+        let (b, up, down, enter, delete, escape) = ctx.input_mut(|i| {
+            (
+                i.consume_key(Modifiers::NONE, Key::B),
+                !menu && i.consume_key(Modifiers::NONE, Key::ArrowUp),
+                !menu && i.consume_key(Modifiers::NONE, Key::ArrowDown),
+                held && i.consume_key(Modifiers::NONE, Key::Enter),
+                held && (i.consume_key(Modifiers::NONE, Key::Delete) || i.consume_key(Modifiers::NONE, Key::Backspace)),
+                held && i.consume_key(Modifiers::NONE, Key::Escape),
+            )
+        });
+        if b {
+            self.view.paint = !self.view.paint;
+        }
+        let Some(song) = self.state.song.as_ref() else { return };
+        let row = self.view.track.as_ref().and_then(|t| song.layers.iter().position(|l| l == t));
+        let moved = match (row, up, down) {
+            (Some(r), true, _) => Some(r.saturating_sub(1)),
+            (Some(r), _, true) => Some((r + 1).min(song.layers.len().saturating_sub(1))),
+            (None, true, _) | (None, _, true) => (!song.layers.is_empty()).then_some(0),
+            _ => None,
+        };
+        if let Some(r) = moved {
+            self.view.track = song.layers.get(r).cloned();
+        }
+        if escape {
+            self.view.track = None;
+        }
+        if let (Some(track), Some(s)) = (self.view.track.clone(), song.sections.get(self.view.section)) {
+            let on = s.layers.contains(&track);
+            if enter || (delete && on) {
+                self.out.push(Command::ToggleLayer { section: self.view.section, layer: track });
+            }
         }
     }
 
@@ -861,7 +902,9 @@ impl Studio {
                 }
                 ui.label(RichText::new("volume").size(11.0).color(TEXT_FAINT));
                 let cmd = widgets::cmd_key(ui.ctx());
-                let keys = format!("Space play · arrows pick a section · L loop · {cmd}+Z undo · Shift+{cmd}+Z redo");
+                let keys = format!(
+                    "Space play · arrows pick a cell · Enter on/off · B paint · L loop · {cmd}+Z undo · Shift+{cmd}+Z redo"
+                );
                 // the keys, when there is room for them beside what the bar says on its left
                 let width = ui.painter().layout_no_wrap(keys.clone(), theme::prop(11.0), TEXT_FAINT).size().x;
                 if ui.available_width() > width + 12.0 {
@@ -1095,6 +1138,7 @@ impl eframe::App for Studio {
                             now,
                         };
                         panels::inspector::show(ui, &mut cx);
+                        panels::inspector::track(ui, &mut cx);
                         ui.add_space(8.0);
                         ui.separator();
                         ui.add_space(4.0);
@@ -1196,6 +1240,7 @@ impl eframe::App for Studio {
             self.view.analyzing = true;
             if l.remake.is_some() {
                 self.view.section = 0;
+                self.view.track = None;
                 self.view.script.dirty = false;
             }
             self.backend.listen(&l);
