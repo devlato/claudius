@@ -308,6 +308,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let mut out: Vec<Command> = Vec::new();
     // a take whose Trim window opens
     let mut trim = None;
+    // the signal flow, opened large in the arrangement's place
+    let mut open_flow = false;
     // the window the "+ Track" menu opens for a recording
     let mut opened = None;
     let full = ui.available_rect_before_wrap();
@@ -334,6 +336,11 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                    rest the same. Off, a click selects a cell and a double-click switches it.";
         if widgets::chip(ui, cx.view.paint, "Paint", theme::ACCENT).on_hover_text(tip).clicked() {
             cx.view.paint = !cx.view.paint;
+        }
+        let tip = "the song as its sound flows (G): each track through its effects, its bus and the master, large, in \
+                   the arrangement's place; every node opens to change it";
+        if widgets::chip(ui, false, "Signal flow", theme::ACCENT).on_hover_text(tip).clicked() {
+            open_flow = true;
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             for kind in SECTION_KINDS.iter().rev().filter(|k| song.sections.iter().any(|s| s.kind == **k)) {
@@ -1215,6 +1222,9 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     cx.view.row_menu = row_menu;
     if trim.is_some() {
         cx.view.import.trim = trim;
+    }
+    if open_flow {
+        super::graph::open_large(cx, true);
     }
     match opened {
         Some(Added::Search(words)) => cx.view.import.search_for(&words),
