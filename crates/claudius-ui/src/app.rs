@@ -519,8 +519,9 @@ impl Studio {
             self.view.section += 1;
         }
         // the arrangement's cells: the paint tool, the track selected and the cell it makes with the section (the keys
-        // that act on a cell are left to others, the tour's Escape among them, while no track is selected)
-        let held = self.view.track.is_some();
+        // that act on a cell are left to others while no track is selected, the tour's Escape among them, and to an
+        // open menu or list, whose item Enter picks and which Escape closes)
+        let held = self.view.track.is_some() && !menu;
         let (b, up, down, enter, delete, escape) = ctx.input_mut(|i| {
             (
                 i.consume_key(Modifiers::NONE, Key::B),
