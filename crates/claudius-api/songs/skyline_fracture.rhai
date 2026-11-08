@@ -8,7 +8,8 @@
 //   clean and in the middle, a supersaw above it spread wide across the stereo, and a bright pluck over 2.5 kHz,
 //   quieter, for the shimmer on top. Layered this way, the chords are huge but leave room for the bass.
 // - The bass is a rack too: a sine sub under 100 Hz that ducks under the kick, and a wobble from 100 Hz to 2 kHz,
-//   distorted, its filter opening and closing in triplet eighths: the dubstep wobble, kept out of the sub's way.
+//   distorted, whose own filter an LFO in time with the song opens and closes every eighth note: the dubstep
+//   wobble, kept out of the sub's way, its fizz above 2.5 kHz filtered off.
 // - A singing lead over the drop, on the chords' own notes where it lands on the beat, and a breakdown of the pad and
 //   the lead alone before the drop comes back.
 blank("dubstep");
@@ -35,7 +36,7 @@ rack("bass", [
   #{ sound: "sub_bass", band: [0, 100], duck: 0.7 },
   #{ sound: "wobble", band: [100, 2000], level: -1, fx: [
     #{ fx: "saturate", kind: "hard", drive_db: 10, mix: 0.8 },
-    #{ fx: "filter", mode: "lp", cutoff: [[0, 400], [0.333, 3000], [0.667, 400]], res: 0.3 },
+    #{ fx: "filter", mode: "lp", cutoff: 2500, res: 0.2 },
   ] },
 ]);
 // the lead on the chords' own notes where it lands on the beat: F over Db, Eb and G over Eb, F and Ab over Fm, C over Cm
