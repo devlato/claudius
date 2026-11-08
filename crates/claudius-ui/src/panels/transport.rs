@@ -4,7 +4,7 @@
 use claudius_api::{Command, GenreInfo, GenreSampling, State};
 use eframe::egui::{self, Align, Align2, Layout, Rect, RichText, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
 
-use super::{Cx, View, WithRecording, small};
+use super::{Cx, Start, View, WithRecording, small};
 use crate::music::{self, Key};
 use crate::theme::{self, ACCENT, LCD, LCD_TEXT, LINE, TEXT, TEXT_DIM, TEXT_FAINT};
 use crate::widgets::{self, Icon, commit};
@@ -645,28 +645,112 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
         ui.add_space(4.0);
         ui.horizontal(|ui| {
             let f = &mut cx.view.new_song;
-            for (recording, label, tip) in [
+            for (start, label, tip) in [
                 (
-                    false,
+                    Start::Genre,
                     "From a genre",
                     "claudius writes a whole song in a genre: its form, drums, parts, sounds and mix",
                 ),
-                (true, "From a recording", "claudius listens to a song or a sound of yours, and makes a song of it"),
+                (
+                    Start::Recording,
+                    "From a recording",
+                    "claudius listens to a song or a sound of yours, and makes a song of it",
+                ),
+                (
+                    Start::Example,
+                    "From an example",
+                    "an original song in the style of a decade's hits, to hear how the style is made and start from",
+                ),
             ] {
-                if widgets::chip(ui, f.recording == recording, label, ACCENT).on_hover_text(tip).clicked() {
-                    f.recording = recording;
+                if widgets::chip(ui, f.start == start, label, ACCENT).on_hover_text(tip).clicked() {
+                    f.start = start;
                 }
             }
         });
         ui.add_space(8.0);
-        if cx.view.new_song.recording {
-            from_recording(ui, cx);
-        } else {
-            from_genre(ui, cx);
+        match cx.view.new_song.start {
+            Start::Genre => from_genre(ui, cx),
+            Start::Recording => from_recording(ui, cx),
+            Start::Example => from_example(ui, cx),
         }
     });
     if modal.should_close() {
         cx.view.new_song.open = false;
+    }
+}
+
+/// the New song dialog from an example: a card for each example song, by decade, and Open it
+fn from_example(ui: &mut Ui, cx: &mut Cx) {
+    ui.label(small(
+        "Original songs in the style of the hits of each decade, each written as a script whose notes say how its \
+         style is made: open one, listen, and read it in the Script tab. None copies a record.",
+    ));
+    ui.add_space(6.0);
+    let f = &mut cx.view.new_song;
+    egui::ScrollArea::vertical().id_salt("example_cards").max_height(380.0).show(ui, |ui| {
+        for era in claudius_api::examples::ERAS {
+            ui.add_space(4.0);
+            ui.label(RichText::new(era).strong());
+            egui::Grid::new(("examples", era)).num_columns(2).spacing(vec2(8.0, 8.0)).show(ui, |ui| {
+                for (i, e) in claudius_api::examples::ALL.iter().filter(|e| e.era == era).enumerate() {
+                    let selected = f.example == Some(e.name);
+                    let color = theme::section_color(["drop", "groove", "break", "build"][i % 4]);
+                    let (rect, r) = ui.allocate_exact_size(vec2(300.0, 58.0), Sense::click());
+                    let fill = if selected {
+                        theme::alpha(color, 0.22)
+                    } else if r.hovered() {
+                        theme::RAISED_HI
+                    } else {
+                        theme::RAISED
+                    };
+                    let stroke = if selected { Stroke::new(1.5, color) } else { Stroke::new(1.0, LINE) };
+                    ui.painter().rect(rect, 6.0, fill, stroke, StrokeKind::Inside);
+                    ui.painter().rect_filled(
+                        Rect::from_min_size(rect.min + vec2(0.0, 8.0), vec2(3.0, rect.height() - 16.0)),
+                        1.0,
+                        color,
+                    );
+                    let p = ui.painter().with_clip_rect(rect.shrink(4.0));
+                    p.text(rect.min + vec2(12.0, 14.0), Align2::LEFT_CENTER, e.title, theme::prop(14.0), TEXT);
+                    p.text(rect.min + vec2(12.0, 32.0), Align2::LEFT_CENTER, e.style, theme::prop(11.5), TEXT_DIM);
+                    p.text(
+                        rect.min + vec2(12.0, 47.0),
+                        Align2::LEFT_CENTER,
+                        format!("like {}", e.like),
+                        theme::prop(11.0),
+                        TEXT_FAINT,
+                    );
+                    if r.on_hover_text(claudius_api::examples::notes(e)).clicked() {
+                        f.example = Some(e.name);
+                    }
+                    if i % 2 == 1 {
+                        ui.end_row();
+                    }
+                }
+            });
+        }
+    });
+    ui.add_space(12.0);
+    let chosen = f.example.and_then(claudius_api::examples::get);
+    let mut open = false;
+    ui.horizontal(|ui| {
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let button =
+                egui::Button::new(RichText::new("  Open it  ").strong().color(egui::Color32::BLACK)).fill(ACCENT);
+            let r = ui.add_enabled(chosen.is_some(), button).on_disabled_hover_text("choose an example first");
+            let enter = ui.input(|i| i.key_pressed(egui::Key::Enter)) && !ui.ctx().text_edit_focused();
+            open = r.clicked() || (enter && chosen.is_some());
+            if ui.button("Cancel").clicked() {
+                f.open = false;
+            }
+            if let Some(e) = chosen {
+                ui.label(small(format!("\"{}\" replaces the song open now; undo brings it back", e.title)));
+            }
+        });
+    });
+    if let Some(e) = chosen.filter(|_| open) {
+        cx.out.push(Command::OpenText { name: format!("{}.rhai", e.name), text: e.script.to_string() });
+        f.open = false;
     }
 }
 

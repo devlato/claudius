@@ -7,6 +7,8 @@ to. On the command line, each command reads and writes song folders instead.
 |---|---|---|
 | `new_song` | `genre`, `seed`, `bpm`, `key`, `loops` (build around an Apple Loops family), `sampled` (build it on samples from free libraries; default as the genre is), `sample_search` (a kind of record for its phrase: "70s soul"), `complexity` (0 to 1: 0 the genre's core, 0.5 as written, 1 doubled instruments, a counter-melody, a pad, more percussion; default the genre's own) | `claudius make --genre house --seed 9 --bpm 124 --key "A minor"`, `claudius make --genre house --sample-search "70s soul"` |
 | `make_song` | `brief`: what the person asked for, in their words ("a chill lo-fi beat around 80 bpm in D minor, minimal"), `seed`; answers with what it read, the song in plain words and the song | `claudius make --genre lofi --bpm 80 --key "D minor" --complexity 0.25` |
+| `examples` | `name` (none: the list): original songs in the style of the hits of each decade, each with notes on how its style is made | `claudius examples`, `claudius examples NAME` (the script) |
+| `open_example` | `name`: opens it as the song, rendered and judged | `claudius examples NAME > song.rhai && claudius script song.rhai` |
 | `get_song` | (it begins with the song in plain words, for the person) | `echo \| claudius script - --on SONG --print` (an empty script prints the song) |
 | `run_script` | `code`, `listen` (default true) | `claudius script edit.rhai --on SONG --out DIR` |
 | `script_reference` | | `claudius reference` |
@@ -56,6 +58,7 @@ Each control in the studio sends one command, and an assistant can send every on
 | in the studio | tool | command |
 |---|---|---|
 | New song, from a genre | `new_song` | `new_song` |
+| New song, from an example | `open_example` | `open_text` |
 | New song, from a recording: remake it, flip it, sample its vocals, take its groove, only listen | `remake` (`flip`), `sample_song`, `extract_groove`, `analyze` | `remake`, `sample_song`, `extract_groove`, `analyze` |
 | Open a song folder, a blueprint or a script; a file's text | `open`; `command` | `load`; `open_text` |
 | Save (Download in the demo), Export, Publish | `save`, `export`, `publish` | `save`, `export`, `set_release`, `write_kit` |

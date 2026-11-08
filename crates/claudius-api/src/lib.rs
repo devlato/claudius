@@ -22,6 +22,8 @@
 
 use serde::{Deserialize, Serialize};
 
+pub mod examples;
+
 /// Drum step velocities by name, as step strings write them (`X` accent, `x` hit, `o` ghost) and the studio shows
 /// them: an accent from `ACCENT`, a ghost below `GHOST`. The engine's step strings use the same values.
 pub const ACCENT: f32 = 0.85;

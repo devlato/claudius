@@ -565,6 +565,24 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
+        Cmd::Examples { name } => match name {
+            Some(asked) => {
+                let e = claudius_api::examples::get(&asked)
+                    .ok_or_else(|| anyhow::anyhow!("no example '{asked}' (claudius examples lists them)"))?;
+                print!("{}", e.script);
+            }
+            None => {
+                for era in claudius_api::examples::ERAS {
+                    println!("{era}");
+                    for e in claudius_api::examples::ALL.iter().filter(|e| e.era == era) {
+                        println!("  {:24} \"{}\", {} (like {})", e.name, e.title, e.style, e.like);
+                    }
+                }
+                println!(
+                    "\n`claudius examples NAME > song.rhai` writes one's script; `claudius script song.rhai` renders it"
+                );
+            }
+        },
         Cmd::Genres { query } => {
             let all: Vec<claudius_api::GenreInfo> = genres::all()?
                 .into_iter()

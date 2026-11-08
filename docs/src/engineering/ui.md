@@ -276,7 +276,9 @@ for), which waits in the page until a file is chosen. What was chosen arrives th
 reads each frame:
 
 - **A song** goes as its text in `open_text`, which opens a blueprint.json (by the file's name) or runs a script; a
-  file that is not text is no song, and a toast says so.
+  file that is not text is no song, and a toast says so. An example song, chosen in the New song dialog's **From an
+  example** (`Start::Example`), goes the same way: its script, from `claudius_api::examples`, compiled into the
+  studio.
 - **A recording** waits in the New song dialog, **From a recording**, for what to do with it (`WithRecording`): its
   button sends it, the file
   itself (a flip with `flip=true`), to

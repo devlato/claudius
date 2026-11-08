@@ -30,7 +30,9 @@ installed.
 
 ## Starting a song
 
-**New song** starts a song **From a genre** or **From a recording**. From a genre, it asks for the genre, from cards
+**New song** starts a song **From a genre**, **From a recording** or **From an example**: one of the
+[example songs](../cookbook/examples.md), each in the style of a decade's hits, whose script says how its style is
+made (hover a card for its notes, then **Open it**). From a genre, it asks for the genre, from cards
 you can search ("rap", "90s", "west coast"), and under **More options**, which says what of it is set, a seed, tempo
 and key and the rest below. The same genre and seed always give the same
 song, so a seed is a way to come back to one you liked. **Fused with** fuses a second genre into it: the first leads

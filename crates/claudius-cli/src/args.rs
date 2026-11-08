@@ -314,6 +314,12 @@ pub(crate) enum Cmd {
         /// coast", "r&b", "dusty")
         query: Vec<String>,
     },
+    /// List the example songs, original songs in the style of the hits of each scene of the 1990s to the 2020s, or
+    /// print one's script: `claudius examples flashbulb > flashbulb.rhai`, then `claudius script flashbulb.rhai`
+    Examples {
+        /// an example's name or title
+        name: Option<String>,
+    },
     /// Render every built-in drum voice, synth preset and transition effect to WAVs for auditioning
     Sounds {
         #[arg(short, long, default_value = "out/sounds")]
