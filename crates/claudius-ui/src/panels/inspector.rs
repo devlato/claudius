@@ -363,7 +363,13 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
             egui::Grid::new("track_grid").num_columns(2).spacing(vec2(10.0, 7.0)).show(ui, |ui| {
-                ui.label(small("Sound"));
+                widgets::label_help(
+                    ui,
+                    "Sound",
+                    "The instrument, synth or recording this track plays. Another sound picks the next one that fits \
+                     it and that no other track plays; its notes stay the same, and undo swaps back.",
+                    "getting-started/studio.html#swapping-a-sound",
+                );
                 ui.vertical(|ui| {
                     ui.add(egui::Label::new(RichText::new(&t.sound).color(TEXT_DIM)).wrap());
                     if let Some(next) = super::next_label(t)
@@ -376,6 +382,23 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
                     }
                 });
                 ui.end_row();
+
+                if !t.layers.is_empty() {
+                    widgets::label_help(
+                        ui,
+                        "Layers",
+                        "This track is played by several sounds at once, each in its own range of frequencies: a \
+                         deep one for the low end, another for the body, another for the top, the way modern bass \
+                         and chords are built. Each is levelled on its own, so none covers another.",
+                        "language/sounds.html#layered-sounds",
+                    );
+                    ui.vertical(|ui| {
+                        for layer in &t.layers {
+                            ui.label(RichText::new(layer_words(layer)).size(11.5).color(TEXT_DIM));
+                        }
+                    });
+                    ui.end_row();
+                }
 
                 ui.label(small(format!("In {section}")));
                 let mut on = plays;
@@ -397,7 +420,13 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
                 });
                 ui.end_row();
 
-                ui.label(small("Level"));
+                widgets::label_help(
+                    ui,
+                    "Level",
+                    "How loud this track is. 0 dB is the level claudius mixes a track of its kind at; below it is \
+                     quieter, above it louder.",
+                    "language/mixing.html#level",
+                );
                 let r = ui
                     // a track the mixer set quieter than the slider goes stays as it is until the slider is moved
                     .add(
@@ -412,7 +441,13 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
                 }
                 ui.end_row();
 
-                ui.label(small("Pan"));
+                widgets::label_help(
+                    ui,
+                    "Pan",
+                    "Where this track sits between your speakers: -1 is all the way left, 1 all the way right, 0 the \
+                     middle. Spreading tracks apart makes room for each.",
+                    "language/mixing.html#pan",
+                );
                 let r = ui
                     .add(egui::Slider::new(&mut t.pan, -1.0..=1.0).fixed_decimals(2))
                     .on_hover_text("where it sits from left (-1) to right (1)");
@@ -437,4 +472,49 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
                 ui.end_row();
             });
         });
+}
+
+/// A layer of a layered sound (`TrackView::layers`) in a few words: its sound, the band it plays in, and what else it
+/// does ("reese, 90 Hz to 1.2 kHz, -1 dB").
+fn layer_words(layer: &serde_json::Value) -> String {
+    let hz = |f: f64| if f >= 1000.0 { format!("{} kHz", (f / 100.0).round() / 10.0) } else { format!("{f:.0} Hz") };
+    let mut words = vec![layer.get("sound").and_then(|s| s.as_str()).unwrap_or("a sound").replace('_', " ")];
+    let band: Option<Vec<f64>> =
+        layer.get("band").and_then(|b| b.as_array()).map(|b| b.iter().filter_map(|v| v.as_f64()).collect());
+    if let Some([lo, hi]) = band.as_deref() {
+        match (*lo > 0.0, *hi > 0.0) {
+            (false, true) => words.push(format!("up to {}", hz(*hi))),
+            (true, false) => words.push(format!("from {}", hz(*lo))),
+            (true, true) => words.push(format!("{} to {}", hz(*lo), hz(*hi))),
+            (false, false) => {}
+        }
+    }
+    match layer.get("transpose").and_then(|v| v.as_i64()) {
+        Some(12) => words.push("an octave up".into()),
+        Some(-12) => words.push("an octave down".into()),
+        Some(t) if t != 0 => words.push(format!("{t:+} semitones")),
+        _ => {}
+    }
+    if let Some(db) = layer.get("level").and_then(|v| v.as_f64()).filter(|d| *d != 0.0) {
+        words.push(format!("{db:+} dB"));
+    }
+    words.join(", ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn a_layer_says_its_sound_its_band_and_what_else_it_does() {
+        let w = |j: serde_json::Value| layer_words(&j);
+        assert_eq!(w(json!({"sound": "sub_bass", "band": [0, 90]})), "sub bass, up to 90 Hz");
+        assert_eq!(w(json!({"sound": "reese", "band": [90, 1200], "level": -1})), "reese, 90 Hz to 1.2 kHz, -1 dB");
+        assert_eq!(
+            w(json!({"sound": "saw_lead", "band": [1200, 0], "transpose": 12, "level": -9})),
+            "saw lead, from 1.2 kHz, an octave up, -9 dB"
+        );
+        assert_eq!(w(json!({"sound": "pad"})), "pad");
+    }
 }
