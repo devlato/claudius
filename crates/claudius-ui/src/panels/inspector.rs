@@ -1,11 +1,12 @@
 //! The section inspector: name, length, intensity, chords, drum pattern, transitions and the tracks playing in the
-//! selected section, plus adding, moving, duplicating and removing sections.
+//! selected section, plus adding, moving, duplicating and removing sections; and under it, for the track selected, the
+//! track inspector.
 
 use claudius_api::Command;
 use eframe::egui::{self, RichText, Ui, vec2};
 
-use super::{Cx, small};
-use crate::cmds::SectionEdit;
+use super::{Cx, Tab, small};
+use crate::cmds::{MixEdit, SectionEdit};
 use crate::edits::SECTION_KINDS;
 use crate::theme::{self, TEXT_DIM};
 use crate::widgets::{self, Icon, commit};
@@ -315,4 +316,119 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             cx.view.section = i + 1;
         }
     });
+}
+
+/// The track inspector, for the track selected (a click on its row or one of its cells selects it): what plays it and
+/// another sound, whether it plays in the section selected, whether it is heard, its level and pan, and where it is
+/// edited.
+pub fn track(ui: &mut Ui, cx: &mut Cx) {
+    let Some(name) = cx.view.track.clone() else { return };
+    let Some(song) = cx.state.song.as_mut() else { return };
+    let sec = cx.view.section.min(song.sections.len().saturating_sub(1));
+    let (section, plays) =
+        song.sections.get(sec).map_or((String::new(), false), |s| (s.name.clone(), s.layers.contains(&name)));
+    let editor = if song.drums.iter().any(|d| d.lane == name) {
+        Some((Tab::Sequencer, "Its steps", "its pattern in the step sequencer, under Drums"))
+    } else if song.parts.iter().any(|p| p.name == name) {
+        Some((
+            Tab::Parts,
+            "Its sound and style",
+            "how the theory engine writes it, and what plays it, under Instruments",
+        ))
+    } else {
+        None
+    };
+    let color = super::layer_color(song, &name);
+    // a track removed since it was selected lets go
+    let Some(t) = song.tracks.iter_mut().find(|t| t.name == name) else {
+        cx.view.track = None;
+        return;
+    };
+    ui.add_space(10.0);
+    ui.horizontal(|ui| {
+        widgets::heading(ui, "Track");
+        ui.label(RichText::new(&name).strong().color(color));
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if widgets::icon_button(ui, Icon::Cancel, 24.0, false, true, "let go of the track (Esc)").clicked() {
+                cx.view.track = None;
+            }
+        });
+    });
+    ui.add_space(2.0);
+    egui::Frame::new()
+        .fill(theme::alpha(color, 0.10))
+        .stroke(egui::Stroke::new(1.0, theme::alpha(color, 0.45)))
+        .corner_radius(6)
+        .inner_margin(8)
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            egui::Grid::new("track_grid").num_columns(2).spacing(vec2(10.0, 7.0)).show(ui, |ui| {
+                ui.label(small("Sound"));
+                ui.vertical(|ui| {
+                    ui.add(egui::Label::new(RichText::new(&t.sound).color(TEXT_DIM)).wrap());
+                    if let Some(next) = t.next_swap.clone()
+                        && ui
+                            .button(format!("Another sound: {next}"))
+                            .on_hover_text("the next that fits it and no other part plays; undo swaps back")
+                            .clicked()
+                    {
+                        cx.out.push(super::swap(&name, None));
+                    }
+                });
+                ui.end_row();
+
+                ui.label(small(format!("In {section}")));
+                let mut on = plays;
+                let tip = "whether it plays in the section selected: the same as a double-click on its cell";
+                if ui.checkbox(&mut on, "plays here").on_hover_text(tip).changed() {
+                    cx.out.push(Command::ToggleLayer { section: sec, layer: name.clone() });
+                }
+                ui.end_row();
+
+                ui.label(small("Heard"));
+                ui.horizontal(|ui| {
+                    if ui.selectable_label(t.muted, "Mute").on_hover_text("silence it everywhere").clicked() {
+                        cx.out.push(MixEdit { muted: Some(!t.muted), ..Default::default() }.on(&name));
+                    }
+                    let tip = "only soloed tracks play while any track is soloed";
+                    if ui.selectable_label(t.solo, "Solo").on_hover_text(tip).clicked() {
+                        cx.out.push(MixEdit { solo: Some(!t.solo), ..Default::default() }.on(&name));
+                    }
+                });
+                ui.end_row();
+
+                ui.label(small("Level"));
+                let r = ui
+                    .add(egui::Slider::new(&mut t.level_db, -24.0..=12.0).suffix(" dB").fixed_decimals(1))
+                    .on_hover_text("how loud it is against the level its role is mixed at (0)");
+                if commit(&r) {
+                    cx.out.push(MixEdit { level_db: Some(t.level_db), ..Default::default() }.on(&name));
+                }
+                ui.end_row();
+
+                ui.label(small("Pan"));
+                let r = ui
+                    .add(egui::Slider::new(&mut t.pan, -1.0..=1.0).fixed_decimals(2))
+                    .on_hover_text("where it sits from left (-1) to right (1)");
+                if commit(&r) {
+                    cx.out.push(MixEdit { pan: Some(t.pan), ..Default::default() }.on(&name));
+                }
+                ui.end_row();
+
+                ui.label(small("Edit"));
+                ui.horizontal_wrapped(|ui| {
+                    if let Some((tab, label, tip)) = editor
+                        && ui.button(label).on_hover_text(tip).clicked()
+                    {
+                        cx.view.tab = tab;
+                    }
+                    let tip = "its effects, sends and bus, in the signal flow";
+                    if ui.button("Its effects").on_hover_text(tip).clicked() {
+                        cx.view.tab = Tab::Graph;
+                        cx.view.graph.selected = Some(format!("track:{name}"));
+                    }
+                });
+                ui.end_row();
+            });
+        });
 }

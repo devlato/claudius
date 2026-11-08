@@ -73,8 +73,11 @@ the song it opens. It also opens a project the demo saved, a `.zip`: claudius un
   and a meter of how intense it is, and below them one row per track, with an icon for what it is (drums, keys, a
   bass, a pad, a line, a voice, a sample, an effect) or that it is muted or soloed. A track plays where it has a
   clip, one for each run of sections it plays in, shaded by how intense each is; a drum lane's shows how busy each
-  bar is. Click a cell, or drag across cells, to switch a track on or off in those sections. Drag a section to
-  move it; right-click it to duplicate, insert or remove one. **+ Track** adds a track: one
+  bar is. Click a cell to select it, its track and its section: the right panel shows the section and, under it,
+  the track (its sound and another, whether it plays in the section, mute, solo, level, pan, and where it is
+  edited). Double-click a cell, or press Enter, to switch the track on or off there; Delete switches it off. With
+  **Paint** on (the button over the arrangement, or B), a click switches a cell and dragging along a row paints the
+  rest the same. Drag a section to move it; right-click it to duplicate, insert or remove one. **+ Track** adds a track: one
   [written the way a genre plays it](#writing-a-track-in-a-style) (**In a style**), a part (a bass, chords, a
   pad, keys, a lead or an arpeggio the theory engine writes over the song's chords, written the way the genre writes
   that role) or a drum lane to fill in under Drums, its name, and its sound, from the synths made for the role, the
@@ -266,6 +269,10 @@ assistant then makes and edits the song open here, and you hear every change.
 | Home | back to the start |
 | L | loop the song or the selected section |
 | ← → | select the previous or next section |
+| ↑ ↓ | select the track above or below: with the section, a cell of the arrangement |
+| Enter, Delete | switch the selected cell's track on or off in its section; off |
+| Escape | let go of the selected track |
+| B | the arrangement's paint tool: a click switches a cell, dragging along a row paints the rest |
 | Cmd+Z, Cmd+Shift+Z | undo, redo (Ctrl on Windows and Linux) |
 | Cmd+Enter | run the script, in the script editor |
 

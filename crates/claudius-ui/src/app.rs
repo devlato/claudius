@@ -514,6 +514,42 @@ impl Studio {
         if right && self.view.section + 1 < n {
             self.view.section += 1;
         }
+        // the arrangement's cells: the paint tool, the track selected and the cell it makes with the section (the keys
+        // that act on a cell are left to others, the tour's Escape among them, while no track is selected)
+        let held = self.view.track.is_some();
+        let (b, up, down, enter, delete, escape) = ctx.input_mut(|i| {
+            (
+                i.consume_key(Modifiers::NONE, Key::B),
+                i.consume_key(Modifiers::NONE, Key::ArrowUp),
+                i.consume_key(Modifiers::NONE, Key::ArrowDown),
+                held && i.consume_key(Modifiers::NONE, Key::Enter),
+                held && (i.consume_key(Modifiers::NONE, Key::Delete) || i.consume_key(Modifiers::NONE, Key::Backspace)),
+                held && i.consume_key(Modifiers::NONE, Key::Escape),
+            )
+        });
+        if b {
+            self.view.paint = !self.view.paint;
+        }
+        let Some(song) = self.state.song.as_ref() else { return };
+        let row = self.view.track.as_ref().and_then(|t| song.layers.iter().position(|l| l == t));
+        let moved = match (row, up, down) {
+            (Some(r), true, _) => Some(r.saturating_sub(1)),
+            (Some(r), _, true) => Some((r + 1).min(song.layers.len().saturating_sub(1))),
+            (None, true, _) | (None, _, true) => (!song.layers.is_empty()).then_some(0),
+            _ => None,
+        };
+        if let Some(r) = moved {
+            self.view.track = song.layers.get(r).cloned();
+        }
+        if escape {
+            self.view.track = None;
+        }
+        if let (Some(track), Some(s)) = (self.view.track.clone(), song.sections.get(self.view.section)) {
+            let on = s.layers.contains(&track);
+            if enter || (delete && on) {
+                self.out.push(Command::ToggleLayer { section: self.view.section, layer: track });
+            }
+        }
     }
 
     #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
@@ -861,7 +897,9 @@ impl Studio {
                 }
                 ui.label(RichText::new("volume").size(11.0).color(TEXT_FAINT));
                 let cmd = widgets::cmd_key(ui.ctx());
-                let keys = format!("Space play · arrows pick a section · L loop · {cmd}+Z undo · Shift+{cmd}+Z redo");
+                let keys = format!(
+                    "Space play · arrows pick a cell · Enter on/off · B paint · L loop · {cmd}+Z undo · Shift+{cmd}+Z redo"
+                );
                 // the keys, when there is room for them beside what the bar says on its left
                 let width = ui.painter().layout_no_wrap(keys.clone(), theme::prop(11.0), TEXT_FAINT).size().x;
                 if ui.available_width() > width + 12.0 {
@@ -1095,6 +1133,7 @@ impl eframe::App for Studio {
                             now,
                         };
                         panels::inspector::show(ui, &mut cx);
+                        panels::inspector::track(ui, &mut cx);
                         ui.add_space(8.0);
                         ui.separator();
                         ui.add_space(4.0);
