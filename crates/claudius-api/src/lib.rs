@@ -1322,6 +1322,17 @@ pub struct VerdictView {
     pub ears: Option<EarsView>,
     /// meters: lufs, true_peak_db, band_*_db, stereo_correlation, drop_minus_break_lu, ...
     pub measures: Vec<(String, f64)>,
+    /// the issues one change fixes outright (`Command::QuickFix`), with no variations searched for it
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fixes: Vec<QuickFixView>,
+}
+
+/// A quick fix of one of the verdict's issues: the issue, by where its fix lives (`VerdictView::issues`' third
+/// field), and what the fix does, in words.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct QuickFixView {
+    pub target: String,
+    pub label: String,
 }
 
 /// a part of the verdict's score as a person says it, and what it judges
@@ -2044,6 +2055,13 @@ pub enum Command {
         scale: Option<String>,
         #[serde(default)]
         off: bool,
+    },
+    /// the verdict's quick fix of the issue at `target` (`VerdictView::fixes`), or all its quick fixes when none, as
+    /// one edit: a recording stretched from the tempo it keeps, a track moved to the level its genre mixes it at, a
+    /// band of the master into its range; none while the verdict is older than the song
+    QuickFix {
+        #[serde(default)]
+        target: Option<String>,
     },
     /// try `count` random mutations, keep the best-judged one when `keep_best` (else only report them)
     Mutate {

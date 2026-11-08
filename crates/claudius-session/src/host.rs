@@ -576,6 +576,13 @@ impl Host {
                 let voice = self.voice.clone();
                 self.edit_take(|bp| edit::tune(bp, &track, &asked, voice.as_ref()))
             }
+            Command::QuickFix { target } => {
+                let Some(verdict) = self.verdict.clone() else {
+                    return self.no("no verdict yet: let the song render first");
+                };
+                let stale = self.render.as_ref().is_none_or(|r| r.version < self.song_version || r.url == PREVIEW_URL);
+                self.edit_take(|bp| edit::quick_fix(&verdict, bp, target.as_deref(), stale))
+            }
             Command::TrimTake { track, start, end } => {
                 let path = |bp: Option<&Blueprint>| {
                     let l = bp?.loops.iter().find(|l| l.name == track)?;
@@ -1066,7 +1073,7 @@ impl Host {
                 return Some(Err(e.to_string()));
             }
         };
-        let verdict = views::verdict(&judge::judge(&project, &r, None));
+        let verdict = views::verdict(&judge::judge(&project, &r, None), &bp);
         let spb = 60.0 / bp.bpm;
         let view = RenderView {
             version,

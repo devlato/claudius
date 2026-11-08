@@ -178,6 +178,10 @@ fn mix_checks(
         m.insert(format!("band_{name}_db"), (v * 10.0).round() / 10.0);
         let (a, b) = p.mix.bands.get(*name).map_or(BAND_RANGE[i], |r| (f64::from(r[0]), f64::from(r[1])));
         let (over, under) = (v - b, a - v);
+        // how far out of its range it is, which a quick fix moves it by (`crate::fixes`)
+        if over > 0.0 || under > 0.0 {
+            m.insert(format!("band_{name}_off_db"), if over > 0.0 { over } else { -under });
+        }
         if over > 0.0 {
             let sev = clamp01(over / 6.0);
             score -= 0.12 * sev;
@@ -240,6 +244,7 @@ fn mix_checks(
         }
         let sev = clamp01((off.abs() - 3.0) / 6.0);
         score -= 0.2 * sev;
+        m.insert(format!("level_{}_off_db", t.name), off);
         let (how, so, sign) =
             if off > 0.0 { ("louder", "it covers the rest", '+') } else { ("quieter", "the rest covers it", '-') };
         issues.push(Issue {
