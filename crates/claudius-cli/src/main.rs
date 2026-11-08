@@ -575,7 +575,7 @@ fn run(cli: Cli) -> Result<()> {
                 for era in claudius_api::examples::ERAS {
                     println!("{era}");
                     for e in claudius_api::examples::ALL.iter().filter(|e| e.era == era) {
-                        println!("  {:24} \"{}\", {} (like {})", e.name, e.title, e.style, e.like);
+                        println!("  {:24} \"{}\", {} ({})", e.name, e.title, e.style, e.like_words());
                     }
                 }
                 println!(

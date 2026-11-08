@@ -314,8 +314,9 @@ pub(crate) enum Cmd {
         /// coast", "r&b", "dusty")
         query: Vec<String>,
     },
-    /// List the example songs, original songs in the style of the hits of each scene of the 1990s to the 2020s, or
-    /// print one's script: `claudius examples flashbulb > flashbulb.rhai`, then `claudius script flashbulb.rhai`
+    /// List the example songs, original songs in the style of the hits of each scene of the 1990s to the 2020s and
+    /// classics in the public domain remade, or print one's script: `claudius examples flashbulb > flashbulb.rhai`,
+    /// then `claudius script flashbulb.rhai`
     Examples {
         /// an example's name or title
         name: Option<String>,
