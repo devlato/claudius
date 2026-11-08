@@ -366,7 +366,7 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
                 ui.label(small("Sound"));
                 ui.vertical(|ui| {
                     ui.add(egui::Label::new(RichText::new(&t.sound).color(TEXT_DIM)).wrap());
-                    if let Some(next) = t.next_swap.clone()
+                    if let Some(next) = super::next_label(t)
                         && ui
                             .button(format!("Another sound: {next}"))
                             .on_hover_text("the next that fits it and no other part plays; undo swaps back")
