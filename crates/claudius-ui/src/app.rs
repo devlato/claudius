@@ -362,6 +362,7 @@ impl Studio {
         }
         if let Some(got) = chosen(Want::Audio) {
             self.view.analysis = None;
+            self.view.new_song.recording = true;
             // a file that could not be read leaves none chosen: Analyze must not send the one before it
             match got {
                 Ok(file) => self.view.audio_file = Some(Arc::new(file)),

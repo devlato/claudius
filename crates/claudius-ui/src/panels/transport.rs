@@ -4,7 +4,7 @@
 use claudius_api::{Command, GenreInfo, GenreSampling, State};
 use eframe::egui::{self, Align, Align2, Layout, Rect, RichText, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
 
-use super::{Cx, View, small};
+use super::{Cx, View, WithRecording, small};
 use crate::music::{self, Key};
 use crate::theme::{self, ACCENT, LCD, LCD_TEXT, LINE, TEXT, TEXT_DIM, TEXT_FAINT};
 use crate::widgets::{self, Icon, commit};
@@ -631,7 +631,7 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
         return;
     }
     let modal = egui::Modal::new(egui::Id::unique("new_song")).show(ctx, |ui| {
-        ui.set_width(620.0);
+        ui.set_width(640.0);
         ui.horizontal(|ui| {
             widgets::paint_icon(
                 ui.painter(),
@@ -642,107 +642,141 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
             ui.add_space(24.0);
             ui.heading("New song");
         });
-        ui.label(small(
-            "claudius writes a whole song from the genre's production knowledge: form, drums, parts, sounds and mix.",
-        ));
+        ui.add_space(4.0);
+        ui.horizontal(|ui| {
+            let f = &mut cx.view.new_song;
+            for (recording, label, tip) in [
+                (
+                    false,
+                    "From a genre",
+                    "claudius writes a whole song in a genre: its form, drums, parts, sounds and mix",
+                ),
+                (true, "From a recording", "claudius listens to a song or a sound of yours, and makes a song of it"),
+            ] {
+                if widgets::chip(ui, f.recording == recording, label, ACCENT).on_hover_text(tip).clicked() {
+                    f.recording = recording;
+                }
+            }
+        });
         ui.add_space(8.0);
-        let f = &mut cx.view.new_song;
-        let genres = &cx.state.genres;
-        if genres.is_empty() {
-            ui.horizontal(|ui| {
-                ui.label("Genre");
-                ui.text_edit_singleline(&mut f.genre);
-            });
+        if cx.view.new_song.recording {
+            from_recording(ui, cx);
         } else {
-            let desc =
-                |g: &GenreInfo| g.description.split_once(": ").map_or(g.description.clone(), |(_, d)| d.to_string());
-            // every card as tall as the longest description, up to five lines (the tooltip has all of it)
-            let text_height = genres
-                .iter()
-                .map(|g| ui.painter().layout(desc(g), theme::prop(10.5), TEXT_DIM, 300.0 - 22.0).size().y)
-                .fold(0.0, f32::max)
-                .min(70.0);
-            ui.add(
-                egui::TextEdit::singleline(&mut f.genre_search)
-                    .hint_text("Search genres: rap, 90s, west coast, r&b, dusty …")
-                    .desired_width(f32::INFINITY),
-            );
-            ui.add_space(4.0);
-            let query = f.genre_search.trim().to_string();
-            // all of them by family (a genre of one's own, with none, last), or the search's answers, best first
-            let groups: Vec<(&str, Vec<&GenreInfo>)> = if query.is_empty() {
-                let mut families: Vec<&str> = genres.iter().map(|g| g.family.as_str()).collect();
-                families.sort_by_key(|f| (f.is_empty(), *f));
-                families.dedup();
-                families.into_iter().map(|f| (f, genres.iter().filter(|g| g.family == f).collect())).collect()
-            } else {
-                vec![("", claudius_api::search_genres(genres, &query))]
-            };
-            egui::ScrollArea::vertical().id_salt("genre_cards").max_height(330.0).show(ui, |ui| {
-                if groups.iter().all(|(_, of)| of.is_empty()) {
-                    ui.label(small(format!("No genre answers “{query}”.")));
+            from_genre(ui, cx);
+        }
+    });
+    if modal.should_close() {
+        cx.view.new_song.open = false;
+    }
+}
+
+/// the New song dialog from a genre: the cards to choose it from, what else to ask of the song, and Create song
+fn from_genre(ui: &mut Ui, cx: &mut Cx) {
+    ui.label(small(
+        "claudius writes a whole song from the genre's production knowledge: form, drums, parts, sounds and mix.",
+    ));
+    ui.add_space(6.0);
+    let f = &mut cx.view.new_song;
+    let genres = &cx.state.genres;
+    if genres.is_empty() {
+        ui.horizontal(|ui| {
+            ui.label("Genre");
+            ui.text_edit_singleline(&mut f.genre);
+        });
+    } else {
+        let desc = |g: &GenreInfo| g.description.split_once(": ").map_or(g.description.clone(), |(_, d)| d.to_string());
+        // every card as tall as the longest description
+        let text_height =
+            genres.iter().map(|g| two_lines(ui.painter(), desc(g), 300.0 - 22.0).size().y).fold(0.0, f32::max);
+        ui.add(
+            egui::TextEdit::singleline(&mut f.genre_search)
+                .hint_text("Search genres: rap, 90s, west coast, r&b, dusty …")
+                .desired_width(f32::INFINITY),
+        );
+        ui.add_space(4.0);
+        let query = f.genre_search.trim().to_string();
+        // all of them by family (a genre of one's own, with none, last), or the search's answers, best first
+        let groups: Vec<(&str, Vec<&GenreInfo>)> = if query.is_empty() {
+            let mut families: Vec<&str> = genres.iter().map(|g| g.family.as_str()).collect();
+            families.sort_by_key(|f| (f.is_empty(), *f));
+            families.dedup();
+            families.into_iter().map(|f| (f, genres.iter().filter(|g| g.family == f).collect())).collect()
+        } else {
+            vec![("", claudius_api::search_genres(genres, &query))]
+        };
+        egui::ScrollArea::vertical().id_salt("genre_cards").max_height(330.0).show(ui, |ui| {
+            if groups.iter().all(|(_, of)| of.is_empty()) {
+                ui.label(small(format!("No genre answers “{query}”.")));
+            }
+            for (family, of) in &groups {
+                if query.is_empty() {
+                    ui.add_space(4.0);
+                    ui.label(RichText::new(if family.is_empty() { "your own" } else { family }).strong());
                 }
-                for (family, of) in &groups {
-                    if query.is_empty() {
-                        ui.add_space(4.0);
-                        ui.label(RichText::new(if family.is_empty() { "your own" } else { family }).strong());
-                    }
-                    egui::Grid::new(("genres", *family)).num_columns(2).spacing(vec2(8.0, 8.0)).show(ui, |ui| {
-                        for (i, g) in of.iter().enumerate() {
-                            let selected = f.genre == g.name;
-                            let at = genres.iter().position(|o| o.name == g.name).unwrap_or(i);
-                            let color = theme::section_color(
-                                ["drop", "groove", "break", "build", "intro", "hook", "verse", "outro"][at % 8],
-                            );
-                            let (rect, r) = ui.allocate_exact_size(vec2(300.0, 32.0 + text_height), Sense::click());
-                            let fill = if selected {
-                                theme::alpha(color, 0.22)
-                            } else if r.hovered() {
-                                theme::RAISED_HI
-                            } else {
-                                theme::RAISED
-                            };
-                            let stroke = if selected { Stroke::new(1.5, color) } else { Stroke::new(1.0, LINE) };
-                            ui.painter().rect(rect, 6.0, fill, stroke, StrokeKind::Inside);
-                            ui.painter().rect_filled(
-                                Rect::from_min_size(rect.min + vec2(0.0, 8.0), vec2(3.0, rect.height() - 16.0)),
-                                1.0,
-                                color,
-                            );
-                            ui.painter().text(
-                                rect.min + vec2(12.0, 14.0),
-                                Align2::LEFT_CENTER,
-                                g.name.replace('_', " "),
-                                theme::prop(14.0),
-                                TEXT,
-                            );
-                            ui.painter().text(
-                                rect.right_top() + vec2(-10.0, 14.0),
-                                Align2::RIGHT_CENTER,
-                                format!("{:.0}-{:.0} BPM", g.bpm.0, g.bpm.1),
-                                theme::prop(11.0),
-                                TEXT_DIM,
-                            );
-                            let galley = ui.painter().layout(desc(g), theme::prop(10.5), TEXT_DIM, rect.width() - 22.0);
-                            let clip = Rect::from_min_max(rect.min + vec2(12.0, 26.0), rect.max - vec2(8.0, 4.0));
-                            ui.painter().with_clip_rect(clip).galley(clip.min, galley, TEXT_DIM);
-                            if r.on_hover_text(&g.description).clicked() && f.genre != g.name {
-                                f.genre = g.name.clone();
-                                // each genre samples as it does until asked otherwise
-                                f.sampled = None;
-                            }
-                            if i % 2 == 1 {
-                                ui.end_row();
-                            }
+                egui::Grid::new(("genres", *family)).num_columns(2).spacing(vec2(8.0, 8.0)).show(ui, |ui| {
+                    for (i, g) in of.iter().enumerate() {
+                        let selected = f.genre == g.name;
+                        let at = genres.iter().position(|o| o.name == g.name).unwrap_or(i);
+                        let color = theme::section_color(
+                            ["drop", "groove", "break", "build", "intro", "hook", "verse", "outro"][at % 8],
+                        );
+                        let (rect, r) = ui.allocate_exact_size(vec2(300.0, 32.0 + text_height), Sense::click());
+                        let fill = if selected {
+                            theme::alpha(color, 0.22)
+                        } else if r.hovered() {
+                            theme::RAISED_HI
+                        } else {
+                            theme::RAISED
+                        };
+                        let stroke = if selected { Stroke::new(1.5, color) } else { Stroke::new(1.0, LINE) };
+                        ui.painter().rect(rect, 6.0, fill, stroke, StrokeKind::Inside);
+                        ui.painter().rect_filled(
+                            Rect::from_min_size(rect.min + vec2(0.0, 8.0), vec2(3.0, rect.height() - 16.0)),
+                            1.0,
+                            color,
+                        );
+                        ui.painter().text(
+                            rect.min + vec2(12.0, 14.0),
+                            Align2::LEFT_CENTER,
+                            g.name.replace('_', " "),
+                            theme::prop(14.0),
+                            TEXT,
+                        );
+                        ui.painter().text(
+                            rect.right_top() + vec2(-10.0, 14.0),
+                            Align2::RIGHT_CENTER,
+                            format!("{:.0}-{:.0} BPM", g.bpm.0, g.bpm.1),
+                            theme::prop(11.0),
+                            TEXT_DIM,
+                        );
+                        let text = two_lines(ui.painter(), desc(g), rect.width() - 22.0);
+                        ui.painter().galley(rect.min + vec2(12.0, 26.0), text, TEXT_DIM);
+                        if r.on_hover_text(&g.description).clicked() && f.genre != g.name {
+                            f.genre = g.name.clone();
+                            // each genre samples as it does until asked otherwise
+                            f.sampled = None;
                         }
-                    });
-                }
-            });
-            ui.add_space(6.0);
-            ui.horizontal(|ui| {
-                ui.label("Fused with");
-                let shown = f.with.as_ref().map_or("nothing".to_string(), |w| w.replace('_', " "));
-                egui::ComboBox::from_id_salt("ns_with")
+                        if i % 2 == 1 {
+                            ui.end_row();
+                        }
+                    }
+                });
+            }
+        });
+    }
+    ui.add_space(6.0);
+    let more = match options_set(f) {
+        set if set.is_empty() => "More options".to_string(),
+        set => format!("More options: {set}"),
+    };
+    egui::CollapsingHeader::new(RichText::new(more).strong()).id_salt("new_song_more").default_open(false).show(
+        ui,
+        |ui| {
+            egui::Grid::new("new_song_opts").num_columns(2).spacing(vec2(10.0, 8.0)).show(ui, |ui| {
+                if !genres.is_empty() {
+                    ui.label("Fused with");
+                    let shown = f.with.as_ref().map_or("nothing".to_string(), |w| w.replace('_', " "));
+                    egui::ComboBox::from_id_salt("ns_with")
                     .width(150.0)
                     .selected_text(shown)
                     .show_ui(ui, |ui| {
@@ -754,249 +788,319 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
                     .response
                     .on_hover_text(
                         "a fusion: the genre above leads (tempo, harmony, form, parts and mix), and this one plays the \
-                     drums and lends its sounds and styles to the parts",
+                         drums and lends its sounds and styles to the parts",
                     );
-            });
-        }
-        ui.add_space(10.0);
-        egui::Grid::new("new_song_opts").num_columns(2).spacing(vec2(10.0, 8.0)).show(ui, |ui| {
-            ui.label("Seed");
-            ui.horizontal(|ui| {
-                ui.add(egui::TextEdit::singleline(&mut f.seed).desired_width(110.0).hint_text("random"));
-                if widgets::icon_button(ui, Icon::Dice, 24.0, false, true, "a random seed").clicked() {
-                    let t = (cx.now * 1000.0) as u64;
-                    f.seed = ((t.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407) >> 33) % 10_000)
-                        .to_string();
+                    ui.end_row();
                 }
-                ui.label(small("the same genre + seed makes the same song"));
-            });
-            ui.end_row();
-            ui.label("Tempo");
-            ui.horizontal(|ui| {
-                let mut auto = f.bpm.is_none();
-                if ui.checkbox(&mut auto, "from the genre").changed() {
-                    f.bpm = if auto {
-                        None
-                    } else {
-                        Some(
-                            genres
-                                .iter()
-                                .find(|g| g.name == f.genre)
-                                .map_or(124.0, |g| ((g.bpm.0 + g.bpm.1) / 2.0).round()),
-                        )
-                    };
-                }
-                if let Some(bpm) = &mut f.bpm {
-                    ui.add(egui::DragValue::new(bpm).range(40.0..=240.0).speed(0.5).suffix(" BPM"));
-                }
-            });
-            ui.end_row();
-            ui.label("Key");
-            ui.horizontal(|ui| {
-                let mut auto = f.key.is_none();
-                if ui.checkbox(&mut auto, "from the genre").changed() {
-                    f.key = if auto { None } else { Some("A minor".into()) };
-                }
-                if let Some(key) = &mut f.key {
-                    let k = Key::parse(key).unwrap_or(Key { tonic: 9, mode: 1 });
-                    let (mut tonic, mut mode) = (k.tonic, k.mode);
-                    egui::ComboBox::from_id_salt("ns_tonic").width(46.0).selected_text(k.pc_name(k.tonic)).show_ui(
-                        ui,
-                        |ui| {
-                            for name in music::TONICS {
-                                ui.selectable_value(&mut tonic, music::parse_pc(name).unwrap_or(0), name);
-                            }
-                        },
-                    );
-                    egui::ComboBox::from_id_salt("ns_mode")
-                        .width(110.0)
-                        .selected_text(k.mode_name().replace('_', " "))
-                        .show_ui(ui, |ui| {
-                            for (i, (name, _)) in music::MODES.iter().enumerate() {
-                                ui.selectable_value(&mut mode, i, name.replace('_', " "));
-                            }
-                        });
-                    *key = Key { tonic, mode }.name();
-                }
-            });
-            ui.end_row();
-            ui.label("Layers");
-            ui.horizontal(|ui| layer_options(ui, f, genres));
-            ui.end_row();
-            ui.label("Loops");
-            ui.checkbox(&mut f.loops, "build it around an Apple Loops family (GarageBand style)");
-            ui.end_row();
-            let sampling = genres.iter().find(|g| g.name == f.genre).and_then(|g| g.sampling.clone());
-            ui.label("Samples");
-            ui.vertical(|ui| sample_options(ui, f, sampling.as_ref(), cx.server.is_none(), cx.now));
-            ui.end_row();
-        });
-        ui.add_space(10.0);
-        ui.separator();
-        ui.label(RichText::new("Or start from an audio file").strong());
-        let shown = f.genre_name().replace('_', " ").replace('+', " + ");
-        ui.label(small(format!(
-            "claudius reads its tempo, key, chords, form and groove; Remake reworks all of it as {shown}, with the \
-             genre's drums and bass under it, and Flip into makes a new {shown} song on its hook and pieces of it"
-        )));
-        ui.horizontal(|ui| {
-            let busy = cx.view.analyzing;
-            if widgets::tool_button(ui, Icon::Open, "Choose a file...", !busy, false).clicked() {
-                crate::pick::choose(ui.ctx(), crate::pick::Want::Audio);
-            }
-            match &cx.view.audio_file {
-                Some(file) => ui.label(small(format!("{} ({:.1} MB)", file.name, file.bytes.len() as f64 / 1e6))),
-                None => ui.label(small("no file chosen").color(TEXT_FAINT)),
-            };
-        });
-        ui.horizontal(|ui| {
-            let file = cx.view.audio_file.clone().filter(|_| !cx.view.analyzing);
-            if ui
-                .add_enabled(file.is_some(), egui::Button::new("Analyze"))
-                .on_hover_text("listen to the file and show what claudius hears")
-                .clicked()
-            {
-                cx.view.analysis = None;
-                cx.view.listen = file.clone().map(|file| super::Listen {
-                    file,
-                    remake: None,
-                    flip: false,
-                    sample: false,
-                    groove: false,
-                    found: None,
+                ui.label("Seed");
+                ui.horizontal(|ui| {
+                    ui.add(egui::TextEdit::singleline(&mut f.seed).desired_width(110.0).hint_text("random"));
+                    if widgets::icon_button(ui, Icon::Dice, 24.0, false, true, "a random seed").clicked() {
+                        let t = (cx.now * 1000.0) as u64;
+                        f.seed = ((t.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407) >> 33)
+                            % 10_000)
+                            .to_string();
+                    }
+                    ui.label(small("the same genre + seed makes the same song"));
                 });
-            }
-            for (flip, label, hint) in [
-                (
-                    false,
-                    format!("Remake as {shown}"),
-                    "a rework that stays the song it is: all of it plays through, its voice and its chords as they \
-                     are without its drums and its bass, in its own sections and on its chords, with the genre's \
-                     drums and bass under it (the seed above, if any)",
-                ),
-                (
-                    true,
-                    format!("Flip into {shown}"),
-                    "a new song of the genre built on its sound: its hook without its drums, another passage of it, \
-                     its drums, a flip cut from all over it and its sung phrases (the seed above, if any)",
-                ),
-            ] {
-                if ui.add_enabled(file.is_some(), egui::Button::new(label)).on_hover_text(hint).clicked() {
-                    cx.view.analysis = None;
-                    let remake = Some((f.genre_name(), f.seed.trim().parse().ok()));
-                    cx.view.listen = file.clone().map(|file| super::Listen {
-                        file,
-                        remake,
-                        flip,
-                        sample: false,
-                        groove: false,
-                        found: None,
-                    });
-                }
-            }
-            let song = cx.state.song.is_some();
-            if ui
-                .add_enabled(file.is_some() && song, egui::Button::new("Sample its vocals into the song"))
-                .on_hover_text(
-                    "the auto-sampler: claudius takes the recording's voice apart from the rest, finds its best sung \
-                     phrases, fits them to the open song's tempo and key, and places them where they agree with its \
-                     chords",
-                )
-                .on_disabled_hover_text(if song { "choose a recording first" } else { "make or open a song first" })
-                .clicked()
-            {
-                cx.view.analysis = None;
-                cx.view.listen = file.clone().map(|file| super::Listen {
-                    file,
-                    remake: None,
-                    flip: false,
-                    sample: true,
-                    groove: false,
-                    found: None,
+                ui.end_row();
+                ui.label("Tempo");
+                ui.horizontal(|ui| {
+                    let mut auto = f.bpm.is_none();
+                    if ui.checkbox(&mut auto, "from the genre").changed() {
+                        f.bpm = if auto {
+                            None
+                        } else {
+                            Some(
+                                genres
+                                    .iter()
+                                    .find(|g| g.name == f.genre)
+                                    .map_or(124.0, |g| ((g.bpm.0 + g.bpm.1) / 2.0).round()),
+                            )
+                        };
+                    }
+                    if let Some(bpm) = &mut f.bpm {
+                        ui.add(egui::DragValue::new(bpm).range(40.0..=240.0).speed(0.5).suffix(" BPM"));
+                    }
                 });
-            }
-            let drums = cx.state.song.as_ref().is_some_and(|s| !s.drums.is_empty());
-            if ui
-                .add_enabled(file.is_some() && drums, egui::Button::new("Take its groove"))
-                .on_hover_text(
-                    "claudius measures where each sixteenth of the recording's drums lands and how hard, and puts the \
-                     open song's drum lanes in that groove",
-                )
-                .on_disabled_hover_text(if drums { "choose a recording first" } else { "make a song with drums first" })
-                .clicked()
-            {
-                cx.view.analysis = None;
-                cx.view.listen = file.map(|file| super::Listen {
-                    file,
-                    remake: None,
-                    flip: false,
-                    sample: false,
-                    groove: true,
-                    found: None,
-                });
-            }
-        });
-        if cx.view.analyzing {
-            ui.horizontal(|ui| {
-                ui.add(egui::Spinner::new().color(ACCENT));
-                // what claudius says it is doing with the file: taking it apart, listening to it, sampling it ...
-                let doing = cx.state.busy.clone().unwrap_or_else(|| "listening to the file".into());
-                ui.label(small(format!("{doing}...")).color(theme::mix(ACCENT, TEXT, 0.4)));
-                if let Some(p) = cx.state.progress.filter(|_| cx.state.busy.is_some()) {
-                    ui.add(
-                        egui::ProgressBar::new(p.clamp(0.0, 1.0))
-                            .desired_width(120.0)
-                            .desired_height(8.0)
-                            .fill(ACCENT)
-                            .text(RichText::new(format!("{:.0}%", p * 100.0)).size(9.0)),
-                    );
-                }
-            });
-        }
-        if let Some((ok, text)) = &cx.view.analysis {
-            let c = if *ok { theme::GOOD } else { theme::BAD };
-            egui::Frame::new()
-                .fill(theme::WELL)
-                .stroke(Stroke::new(1.0, theme::alpha(c, 0.5)))
-                .corner_radius(4)
-                .inner_margin(egui::Margin::symmetric(8, 6))
-                .show(ui, |ui| {
-                    ui.set_width(ui.available_width());
-                    egui::ScrollArea::vertical().id_salt("analysis").max_height(190.0).show(ui, |ui| {
-                        ui.add(
-                            egui::Label::new(RichText::new(text).monospace().size(11.5).color(if *ok {
-                                TEXT
-                            } else {
-                                theme::mix(c, TEXT, 0.4)
-                            }))
-                            .wrap(),
+                ui.end_row();
+                ui.label("Key");
+                ui.horizontal(|ui| {
+                    let mut auto = f.key.is_none();
+                    if ui.checkbox(&mut auto, "from the genre").changed() {
+                        f.key = if auto { None } else { Some("A minor".into()) };
+                    }
+                    if let Some(key) = &mut f.key {
+                        let k = Key::parse(key).unwrap_or(Key { tonic: 9, mode: 1 });
+                        let (mut tonic, mut mode) = (k.tonic, k.mode);
+                        egui::ComboBox::from_id_salt("ns_tonic").width(46.0).selected_text(k.pc_name(k.tonic)).show_ui(
+                            ui,
+                            |ui| {
+                                for name in music::TONICS {
+                                    ui.selectable_value(&mut tonic, music::parse_pc(name).unwrap_or(0), name);
+                                }
+                            },
                         );
-                    });
+                        egui::ComboBox::from_id_salt("ns_mode")
+                            .width(110.0)
+                            .selected_text(k.mode_name().replace('_', " "))
+                            .show_ui(ui, |ui| {
+                                for (i, (name, _)) in music::MODES.iter().enumerate() {
+                                    ui.selectable_value(&mut mode, i, name.replace('_', " "));
+                                }
+                            });
+                        *key = Key { tonic, mode }.name();
+                    }
                 });
+                ui.end_row();
+                ui.label("Layers");
+                ui.horizontal(|ui| layer_options(ui, f, genres));
+                ui.end_row();
+                ui.label("Loops");
+                ui.checkbox(&mut f.loops, "build it around an Apple Loops family (GarageBand style)");
+                ui.end_row();
+                let sampling = genres.iter().find(|g| g.name == f.genre).and_then(|g| g.sampling.clone());
+                ui.label("Samples");
+                ui.vertical(|ui| sample_options(ui, f, sampling.as_ref(), cx.server.is_none(), cx.now));
+                ui.end_row();
+            });
+        },
+    );
+    ui.add_space(12.0);
+    let mut create = false;
+    ui.horizontal(|ui| {
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let create_btn =
+                egui::Button::new(RichText::new("  Create song  ").strong().color(egui::Color32::BLACK)).fill(ACCENT);
+            let enter = ui.input(|i| i.key_pressed(egui::Key::Enter)) && !ui.ctx().text_edit_focused();
+            if ui.add(create_btn).clicked() || enter {
+                create = true;
+            }
+            if ui.button("Cancel").clicked() {
+                f.open = false;
+            }
+        });
+    });
+    if create {
+        cx.out.push(f.command(&cx.state.genres));
+        f.open = false;
+    }
+}
+
+/// a genre's description in two lines at most, the rest on hover
+fn two_lines(painter: &egui::Painter, text: String, width: f32) -> std::sync::Arc<egui::Galley> {
+    let mut job = egui::text::LayoutJob::simple(text, theme::prop(11.0), TEXT_DIM, width);
+    job.wrap.max_rows = 2;
+    job.wrap.overflow_character = Some('…');
+    painter.layout_job(job)
+}
+
+/// what of the New song dialog's options is asked for, in a line ("fused with idm, seed 42, 124 BPM"); empty: none
+fn options_set(f: &super::NewSongForm) -> String {
+    let mut set = Vec::new();
+    if let Some(w) = &f.with {
+        set.push(format!("fused with {}", w.replace('_', " ")));
+    }
+    if !f.seed.trim().is_empty() {
+        set.push(format!("seed {}", f.seed.trim()));
+    }
+    if let Some(bpm) = f.bpm {
+        set.push(format!("{bpm:.0} BPM"));
+    }
+    if let Some(key) = &f.key {
+        set.push(key.replace('_', " "));
+    }
+    if f.complexity.is_some() {
+        set.push("layers set".into());
+    }
+    if f.loops {
+        set.push("Apple Loops".into());
+    }
+    match f.sampled {
+        Some(true) => set.push("samples".into()),
+        Some(false) => set.push("no samples".into()),
+        None => {}
+    }
+    set.join(", ")
+}
+
+/// the New song dialog from a recording: the file, what to do with it, and what claudius heard in it
+fn from_recording(ui: &mut Ui, cx: &mut Cx) {
+    ui.label(small(
+        "claudius reads a recording's tempo, key, chords, form and groove, and takes it apart into its voice, \
+             drums, bass and the rest.",
+    ));
+    ui.add_space(6.0);
+    ui.horizontal(|ui| {
+        let busy = cx.view.analyzing;
+        if widgets::tool_button(ui, Icon::Open, "Choose a file...", !busy, false).clicked() {
+            crate::pick::choose(ui.ctx(), crate::pick::Want::Audio);
         }
-        ui.add_space(12.0);
-        let mut create = false;
-        ui.horizontal(|ui| {
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                let create_btn =
-                    egui::Button::new(RichText::new("  Create song  ").strong().color(egui::Color32::BLACK))
-                        .fill(ACCENT);
-                let enter = ui.input(|i| i.key_pressed(egui::Key::Enter)) && !ui.ctx().text_edit_focused();
-                if ui.add(create_btn).clicked() || enter {
-                    create = true;
-                }
-                if ui.button("Cancel").clicked() {
-                    f.open = false;
-                }
+        match &cx.view.audio_file {
+            Some(file) => ui.label(small(format!("{} ({:.1} MB)", file.name, file.bytes.len() as f64 / 1e6))),
+            None => ui.label(small("no file chosen").color(TEXT_FAINT)),
+        };
+    });
+    ui.add_space(8.0);
+    ui.label(RichText::new("What to do with it").strong());
+    let f = &mut cx.view.new_song;
+    let shown = f.genre_name().replace('_', " ").replace('+', " + ");
+    let song = cx.state.song.is_some();
+    let drums = cx.state.song.as_ref().is_some_and(|s| !s.drums.is_empty());
+    let choices = [
+        (
+            WithRecording::Remake,
+            format!("Remake it as {shown}"),
+            "a rework that stays the song it is: all of it plays through, its voice and its chords without its \
+                 drums and its bass, in its own sections, with the genre's drums and bass under it",
+            None,
+        ),
+        (
+            WithRecording::Flip,
+            format!("Flip it into a {shown} song"),
+            "a new song of the genre built on its sound: its hook, another passage of it, its drums, a flip cut \
+                 from all over it and its sung phrases",
+            None,
+        ),
+        (
+            WithRecording::Sample,
+            "Sample its vocals into the song".to_string(),
+            "its best sung phrases, fitted to the open song's tempo and key, where they agree with its chords",
+            (!song).then_some("make or open a song first"),
+        ),
+        (
+            WithRecording::Groove,
+            "Put the song's drums in its groove".to_string(),
+            "where each sixteenth of its drums lands and how hard, given to the open song's drum lanes",
+            (!drums).then_some("make a song with drums first"),
+        ),
+        (
+            WithRecording::Analyze,
+            "Only say what claudius hears".to_string(),
+            "its tempo, key, chords, form and groove, and nothing changed",
+            None,
+        ),
+    ];
+    let mut why_not = None;
+    for (choice, label, what, unavailable) in &choices {
+        ui.add_enabled_ui(unavailable.is_none(), |ui| {
+            if ui.radio(f.with_recording == *choice, label.as_str()).clicked() {
+                f.with_recording = *choice;
+            }
+            ui.horizontal(|ui| {
+                ui.add_space(24.0);
+                ui.add(egui::Label::new(small(unavailable.unwrap_or(what))).wrap());
             });
         });
-        if create {
-            cx.out.push(f.command(&cx.state.genres));
-            f.open = false;
+        if f.with_recording == *choice {
+            why_not = *unavailable;
         }
+    }
+    let genres = &cx.state.genres;
+    if matches!(f.with_recording, WithRecording::Remake | WithRecording::Flip) && !genres.is_empty() {
+        ui.add_space(4.0);
+        ui.horizontal(|ui| {
+            ui.label("In the genre");
+            egui::ComboBox::from_id_salt("ns_recording_genre")
+                .width(180.0)
+                .height(320.0)
+                .selected_text(f.genre_name().replace('_', " ").replace('+', " + "))
+                .show_ui(ui, |ui| {
+                    for g in genres {
+                        if ui.selectable_label(f.genre == g.name, g.name.replace('_', " ")).clicked()
+                            && f.genre != g.name
+                        {
+                            // the genre a remake or a flip is in, whole: not fused with one chosen before
+                            f.genre = g.name.clone();
+                            f.with = None;
+                            f.sampled = None;
+                        }
+                    }
+                });
+            if !f.seed.trim().is_empty() {
+                ui.label(small(format!("seed {}", f.seed.trim())));
+            }
+        });
+    }
+    if cx.view.analyzing {
+        ui.horizontal(|ui| {
+            ui.add(egui::Spinner::new().color(ACCENT));
+            // what claudius says it is doing with the file: taking it apart, listening to it, sampling it ...
+            let doing = cx.state.busy.clone().unwrap_or_else(|| "listening to the file".into());
+            ui.label(small(format!("{doing}...")).color(theme::mix(ACCENT, TEXT, 0.4)));
+            if let Some(p) = cx.state.progress.filter(|_| cx.state.busy.is_some()) {
+                ui.add(
+                    egui::ProgressBar::new(p.clamp(0.0, 1.0))
+                        .desired_width(120.0)
+                        .desired_height(8.0)
+                        .fill(ACCENT)
+                        .text(RichText::new(format!("{:.0}%", p * 100.0)).size(9.0)),
+                );
+            }
+        });
+    }
+    if let Some((ok, text)) = &cx.view.analysis {
+        let c = if *ok { theme::GOOD } else { theme::BAD };
+        egui::Frame::new()
+            .fill(theme::WELL)
+            .stroke(Stroke::new(1.0, theme::alpha(c, 0.5)))
+            .corner_radius(4)
+            .inner_margin(egui::Margin::symmetric(8, 6))
+            .show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                egui::ScrollArea::vertical().id_salt("analysis").max_height(190.0).show(ui, |ui| {
+                    ui.add(
+                        egui::Label::new(RichText::new(text).monospace().size(11.5).color(if *ok {
+                            TEXT
+                        } else {
+                            theme::mix(c, TEXT, 0.4)
+                        }))
+                        .wrap(),
+                    );
+                });
+            });
+    }
+    ui.add_space(12.0);
+    let file = cx.view.audio_file.clone().filter(|_| !cx.view.analyzing);
+    let f = &mut cx.view.new_song;
+    let action = match f.with_recording {
+        WithRecording::Remake => "Remake it",
+        WithRecording::Flip => "Flip it",
+        WithRecording::Sample => "Sample it",
+        WithRecording::Groove => "Take its groove",
+        WithRecording::Analyze => "Listen to it",
+    };
+    let mut go = false;
+    ui.horizontal(|ui| {
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let ready = file.is_some() && why_not.is_none();
+            let button = egui::Button::new(RichText::new(format!("  {action}  ")).strong().color(egui::Color32::BLACK))
+                .fill(ACCENT);
+            let r = ui.add_enabled(ready, button);
+            let r = match (cx.view.analyzing, &cx.view.audio_file, why_not) {
+                (true, _, _) => r.on_disabled_hover_text("claudius is still at the last one"),
+                (_, None, _) => r.on_disabled_hover_text("choose a recording first"),
+                (_, _, Some(why)) => r.on_disabled_hover_text(why),
+                _ => r,
+            };
+            go = r.clicked();
+            if ui.button("Cancel").clicked() {
+                f.open = false;
+            }
+        });
     });
-    if modal.should_close() {
-        cx.view.new_song.open = false;
+    if let Some(file) = file.filter(|_| go) {
+        cx.view.analysis = None;
+        let remake = matches!(f.with_recording, WithRecording::Remake | WithRecording::Flip)
+            .then(|| (f.genre_name(), f.seed.trim().parse().ok()));
+        cx.view.listen = Some(super::Listen {
+            file,
+            remake,
+            flip: f.with_recording == WithRecording::Flip,
+            sample: f.with_recording == WithRecording::Sample,
+            groove: f.with_recording == WithRecording::Groove,
+            found: None,
+        });
     }
 }
 

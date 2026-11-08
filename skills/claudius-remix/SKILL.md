@@ -33,7 +33,7 @@ remake: the song stays recognizable. "Flip this track", "make a new beat out of 
 - **The file has to be on the computer that runs claudius.** Ask for its path. A claudius shared over a network
   only reads its own folders (`~/Music/claudius`, its caches, the sound libraries, and folders given with `--files`),
   so a file elsewhere needs moving there first. The person can also choose a file on their own computer in the
-  studio (New song, "Or start from an audio file"), which reads it and sends claudius what it holds.
+  studio (New song, From a recording), which reads it and sends claudius what it holds.
 - **Rights.** A remake (unless `sampled: false`), a chop and a flip put the original's audio in the song, a rework
   all of it: publishing it needs the right to use that recording. A remake with `sampled: false` uses none of its
   audio. Say so when the person reworks or flips something they did not make. Apple Loops may be used in music the
