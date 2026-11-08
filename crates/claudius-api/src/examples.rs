@@ -295,11 +295,28 @@ pub fn get(asked: &str) -> Option<&'static Example> {
     ALL.iter().find(|e| plain(e.name) == asked || plain(e.title) == asked)
 }
 
-/// What a script's leading comment says of how its song is made: the lines after its first, without the `//`.
+/// What a script's leading comment says of its song and how it is made, without the `//` and the comment's own line
+/// breaks: a paragraph, then "How it is made:" and a line for each point, for a tooltip or an assistant to wrap.
 pub fn notes(e: &Example) -> String {
-    let lines: Vec<&str> =
-        e.script.lines().take_while(|l| l.starts_with("//")).map(|l| l.trim_start_matches("//").trim()).collect();
-    lines.join("\n").trim().to_string()
+    let mut out = String::new();
+    let mut gap = false;
+    for line in e.script.lines().take_while(|l| l.starts_with("//")) {
+        let text = line.trim_start_matches("//").trim();
+        if text.is_empty() {
+            gap = !out.is_empty();
+            continue;
+        }
+        if gap {
+            out.push_str("\n\n");
+        } else if text.starts_with("- ") || out.ends_with(':') {
+            out.push('\n');
+        } else if !out.is_empty() {
+            out.push(' ');
+        }
+        out.push_str(text);
+        gap = false;
+    }
+    out
 }
 
 #[cfg(test)]
@@ -327,6 +344,18 @@ mod tests {
         assert_eq!(get("Midnight Overdrive").map(|e| e.name), Some("midnight_overdrive"));
         assert_eq!(get("midnight-overdrive").map(|e| e.name), Some("midnight_overdrive"));
         assert_eq!(get("no such song"), None);
+    }
+
+    #[test]
+    fn the_notes_are_a_paragraph_then_a_line_for_each_point() {
+        for e in ALL {
+            let notes = notes(e);
+            let (about, how) = notes.split_once("\n\n").unwrap_or((&notes, ""));
+            assert!(about.starts_with(&format!("\"{}\"", e.title)) && !about.contains('\n'), "{}: {about}", e.name);
+            let mut lines = how.lines();
+            assert_eq!(lines.next(), Some("How it is made:"), "{}", e.name);
+            assert!(lines.all(|l| l.starts_with("- ") && !l.contains("  ")), "{}: {how}", e.name);
+        }
     }
 
     #[test]
