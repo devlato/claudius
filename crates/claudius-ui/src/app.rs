@@ -1240,6 +1240,7 @@ impl eframe::App for Studio {
             self.view.analyzing = true;
             if l.remake.is_some() {
                 self.view.section = 0;
+                self.view.track = None;
                 self.view.script.dirty = false;
             }
             self.backend.listen(&l);
