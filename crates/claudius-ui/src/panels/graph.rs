@@ -34,7 +34,40 @@ impl Default for GraphView {
     }
 }
 
+/// The graph in the dock's tab: or, while it is open large in the arrangement's place, where it went
 pub fn show(ui: &mut Ui, cx: &mut Cx) {
+    if cx.view.flow_large {
+        ui.add_space(12.0);
+        ui.vertical_centered(|ui| {
+            ui.label(RichText::new("The signal flow is open large, in the arrangement's place.").color(TEXT_DIM));
+            if ui.button("Back to the arrangement").clicked() {
+                open_large(cx, false);
+            }
+        });
+        return;
+    }
+    flow(ui, cx, false);
+}
+
+/// The graph open large, in the arrangement's place, under a bar that says so and leads back
+pub fn large(ui: &mut Ui, cx: &mut Cx) {
+    ui.add_space(4.0);
+    ui.horizontal(|ui| {
+        ui.add_space(10.0);
+        crate::widgets::heading(ui, "Signal flow");
+        ui.label(small("each track through its effects, its bus and the master, to the finished song"));
+    });
+    ui.add_space(2.0);
+    flow(ui, cx, true);
+}
+
+/// the graph open large in the arrangement's place, or back in the dock (where its view starts afresh, to fit)
+pub fn open_large(cx: &mut Cx, large: bool) {
+    cx.view.flow_large = large;
+    cx.view.graph.scene = Rect::ZERO;
+}
+
+fn flow(ui: &mut Ui, cx: &mut Cx, large: bool) {
     let Some(song) = cx.state.song.clone() else {
         empty(ui, "No song yet.");
         return;
@@ -51,8 +84,20 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         .expand(40.0);
     // the tracks and what follows them, big enough to read; Fit shows all of it
     let fit = ui.horizontal(|ui| {
+        if large {
+            ui.add_space(10.0);
+        }
         ui.label(small("drag to move, scroll or pinch to zoom, right-click a node for its menu"));
-        ui.button(small("Fit")).on_hover_text("the whole graph in view").clicked()
+        let fit = ui.button(small("Fit")).on_hover_text("the whole graph in view").clicked();
+        let (label, tip) = if large {
+            ("Back to the arrangement", "the arrangement in its place again (G)")
+        } else {
+            ("Open it large", "the signal flow in the arrangement's place, as big as the window allows (G)")
+        };
+        if ui.button(small(label)).on_hover_text(tip).clicked() {
+            open_large(cx, !large);
+        }
+        fit
     });
     if cx.view.graph.scene == Rect::ZERO {
         cx.view.graph.scene = Rect::from_min_size(bounds.min, ui.available_size() / 0.85);

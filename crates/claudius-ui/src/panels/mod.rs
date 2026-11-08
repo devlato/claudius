@@ -320,6 +320,8 @@ pub struct View {
     pub track: Option<String>,
     /// the arrangement's paint tool: a press switches a cell, and dragging along its row paints the others the same
     pub paint: bool,
+    /// the signal flow open large, in the arrangement's place, rather than in the dock's tab
+    pub flow_large: bool,
     /// arrangement painting: (switch on?, row, sections touched)
     pub layer_paint: Option<(bool, usize, Vec<usize>)>,
     pub prog_text: Vec<(String, String)>,
@@ -411,6 +413,7 @@ impl Default for View {
             drag_section: None,
             track: None,
             paint: false,
+            flow_large: false,
             layer_paint: None,
             prog_text: Vec::new(),
             chip_edit: String::new(),

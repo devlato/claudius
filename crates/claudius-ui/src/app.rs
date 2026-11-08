@@ -511,6 +511,11 @@ impl Studio {
         if l {
             self.view.looping = !self.view.looping;
         }
+        // the signal flow large, in the arrangement's place, and back
+        if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::G)) && self.state.song.is_some() {
+            self.view.flow_large = !self.view.flow_large;
+            self.view.graph.scene = egui::Rect::ZERO;
+        }
         let n = self.state.song.as_ref().map_or(0, |s| s.sections.len());
         if left && self.view.section > 0 {
             self.view.section -= 1;
@@ -1118,7 +1123,11 @@ impl eframe::App for Studio {
             .stroke(Stroke::new(1.0, LINE_SOFT));
         egui::Panel::bottom("status").frame(status).exact_size(24.0).show(ui, |ui| self.status_bar(ui));
 
-        if self.state.song.is_some() {
+        // the signal flow open large has the window to itself, but for the toolbars: its own inspector beside it
+        if self.view.flow_large {
+            (self.view.anchors.side, self.view.anchors.editors) = (None, None);
+        }
+        if self.state.song.is_some() && !self.view.flow_large {
             let side =
                 egui::Frame::new().fill(PANEL).inner_margin(Margin::same(10)).stroke(Stroke::new(1.0, LINE_SOFT));
             let shown = egui::Panel::right("side")
@@ -1168,7 +1177,11 @@ impl eframe::App for Studio {
                     server: self.server_url.as_deref(),
                     now,
                 };
-                panels::arrange::show(ui, &mut cx);
+                if cx.view.flow_large {
+                    panels::graph::large(ui, &mut cx);
+                } else {
+                    panels::arrange::show(ui, &mut cx);
+                }
             } else if self.has_state {
                 ui.vertical_centered(|ui| {
                     ui.add_space(ui.available_height() * 0.3);

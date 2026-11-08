@@ -127,7 +127,9 @@ at the right end **Script**, **Signal flow** and **Log**.
   on one of the song's parts.
 - **Script.** The whole song as a script. Edit it and press Cmd+Enter (Ctrl+Enter on Windows and Linux) to run it.
   The sound browser lists every drum, synth and instrument name.
-- **Signal flow.** The song as its signal flows, on a canvas to drag around and zoom: each track (its sound, its level,
+- **Signal flow.** **Signal flow** over the arrangement (or **Open it large** in this tab, or G) opens it in the
+  arrangement's place, with the window to itself but for the toolbars; **Back to the arrangement** (or G) returns.
+  The song as its signal flows, on a canvas to drag around and zoom: each track (its sound, its level,
   the sections it plays in) runs through a node for each of its effects into its bus; each bus runs through its
   effects into the master, and the master through its chain out at its loudness. Curves show the sends into the
   reverb and delay returns, and the kick ducking the tracks it ducks. Click a node to change it beside the canvas:
@@ -268,6 +270,7 @@ assistant then makes and edits the song open here, and you hear every change.
 | Space | play or pause |
 | Home | back to the start |
 | L | loop the song or the selected section |
+| G | the signal flow large, in the arrangement's place, and back |
 | ← → | select the previous or next section |
 | ↑ ↓ | select the track above or below: with the section, a cell of the arrangement |
 | Enter, Delete | switch the selected cell's track on or off in its section; off |
