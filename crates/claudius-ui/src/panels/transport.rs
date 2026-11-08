@@ -1004,13 +1004,15 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
             egui::ComboBox::from_id_salt("ns_recording_genre")
                 .width(180.0)
                 .height(320.0)
-                .selected_text(f.genre.replace('_', " "))
+                .selected_text(f.genre_name().replace('_', " ").replace('+', " + "))
                 .show_ui(ui, |ui| {
                     for g in genres {
                         if ui.selectable_label(f.genre == g.name, g.name.replace('_', " ")).clicked()
                             && f.genre != g.name
                         {
+                            // the genre a remake or a flip is in, whole: not fused with one chosen before
                             f.genre = g.name.clone();
+                            f.with = None;
                             f.sampled = None;
                         }
                     }
