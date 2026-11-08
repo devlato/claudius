@@ -12,7 +12,7 @@ use std::sync::{Mutex, OnceLock};
 
 use anyhow::{Context, Result, anyhow, bail};
 use ort::session::Session;
-use ort::session::builder::GraphOptimizationLevel;
+use ort::session::builder::{AutoDevicePolicy, GraphOptimizationLevel};
 
 pub const CLAP_REPO: &str = "Xenova/larger_clap_general";
 pub const CLAP_REV: &str = "d78c3994912c441f0151a5cc44d86f6b7bf4c861";
@@ -202,6 +202,10 @@ fn environment() -> Result<&'static ort::environment::Environment> {
 pub fn session(path: &Path, threads: usize) -> Result<Session> {
     let env = environment()?;
     let b = ox(Session::builder(env))?;
+    // ort otherwise asks ONNX Runtime for the most efficient device, which on Apple silicon is CoreML. It compiles each
+    // model into $TMPDIR at every start, a judgement taking half as long again, and leaves them there when the process
+    // is killed, as assistants end `claudius mcp`
+    let b = ox(b.with_auto_device(AutoDevicePolicy::PreferCPU))?;
     let b = ox(b.with_optimization_level(GraphOptimizationLevel::Disable))?;
     let b = ox(b.with_intra_threads(threads.max(1)))?;
     let mut b = ox(b.with_inter_threads(1))?;
