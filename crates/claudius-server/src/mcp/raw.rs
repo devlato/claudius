@@ -112,7 +112,9 @@ fn nearest<'a>(wrong: &str, among: impl IntoIterator<Item = &'a str>) -> Option<
     among
         .into_iter()
         .map(|n| (distance(wrong, n), n))
-        .filter(|(d, n)| *d <= (n.len() / 3).max(1) || n.contains(wrong) || wrong.contains(n))
+        // near in spelling, or what it begins with ("pitch" p, "dur" d, "probability" prob), or a longer name it is in
+        // ("tempo" set_tempo); not just any name it holds, as "pitch" holds t
+        .filter(|(d, n)| *d <= (n.len() / 3).max(1) || wrong.starts_with(n) || (wrong.len() >= 3 && n.contains(wrong)))
         .min_by_key(|(d, _)| *d)
         .map(|(_, n)| n)
 }
@@ -143,7 +145,9 @@ fn unknown(v: &Value, schema: &Value, at: &str, out: &mut Vec<String>) {
                 match props.get(k) {
                     Some(p) => unknown(x, p, &here, out),
                     None => out.push(match nearest(k, props.keys().map(String::as_str).filter(|p| *p != "cmd")) {
-                        Some(n) => format!("\"{here}\" (did you mean \"{n}\"?)"),
+                        // the field meant where it is: `trig.prob`, not `prob`, which the command itself does not take
+                        Some(n) if at.is_empty() => format!("\"{here}\" (did you mean \"{n}\"?)"),
+                        Some(n) => format!("\"{here}\" (did you mean \"{at}.{n}\"?)"),
                         None => format!("\"{here}\""),
                     }),
                 }
@@ -220,13 +224,13 @@ mod tests {
         let trig =
             json!({"cmd": "set_trig", "lane": "hat", "variant": "main", "step": 2, "trig": {"probability": 0.5}});
         let e = check(trig).unwrap_err();
-        assert!(
-            e.contains("\"trig.probability\" (did you mean \"trig.prob\"?)") || e.contains("\"trig.probability\""),
-            "{e}"
-        );
+        assert!(e.contains("\"trig.probability\" (did you mean \"trig.prob\"?)"), "{e}");
         let notes = json!({"cmd": "set_notes", "part": "lead", "prog": "A", "notes": [{"t": 0, "d": 1, "p": 60}, {"t": 1, "d": 1, "pitch": 62}]});
         let e = check(notes).unwrap_err();
-        assert!(e.contains("\"notes[1].pitch\""), "{e}");
+        assert!(e.contains("\"notes[1].pitch\" (did you mean \"notes[1].p\"?)"), "{e}");
+        let dur = json!({"cmd": "set_notes", "part": "lead", "prog": "A", "notes": [{"t": 0, "dur": 1, "p": 60}]});
+        let e = check(dur).unwrap_err();
+        assert!(e.contains("\"notes[0].dur\" (did you mean \"notes[0].d\"?)"), "{e}");
         let fine = json!({"cmd": "set_trig", "lane": "hat", "variant": "main", "step": 2, "trig": {"prob": 0.5}});
         assert!(check(fine).is_ok());
         // an effect's settings are any JSON: nothing in them is the schema's to refuse
