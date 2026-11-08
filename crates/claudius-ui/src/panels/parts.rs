@@ -174,6 +174,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                                 }
                             });
                         });
+                        // the keyboard takes what the range's notes, the density and the buttons after it leave
+                        let keys = (ui.available_width() - 380.0).clamp(140.0, 300.0);
                         ui.vertical(|ui| {
                             ui.horizontal(|ui| {
                                 ui.label(small("Register"));
@@ -189,7 +191,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                                 ui.label(small(format!("({} semitones)", part.register.1 - part.register.0)));
                             });
                             ui.horizontal(|ui| {
-                                let kb = keyboard(ui, &mut part.register, color, 300.0);
+                                let kb = keyboard(ui, &mut part.register, color, keys);
                                 if kb.drag_stopped() {
                                     out.push(
                                         PartEdit { register: Some(part.register), ..Default::default() }.on(&part.name),
@@ -227,12 +229,16 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                             });
                         });
                         ui.vertical(|ui| {
-                            ui.label(small("Density"));
-                            let r = ui.add(
-                                egui::Slider::new(&mut part.density, 0.0..=1.0)
-                                    .clamping(egui::SliderClamping::Edits)
-                                    .fixed_decimals(2),
-                            );
+                            // its value in its label, so that the rail is all it needs beside the keyboard
+                            ui.label(small(format!("Density {:.0}%", part.density * 100.0)));
+                            ui.spacing_mut().slider_width = 80.0;
+                            let r = ui
+                                .add(
+                                    egui::Slider::new(&mut part.density, 0.0..=1.0)
+                                        .clamping(egui::SliderClamping::Edits)
+                                        .show_value(false),
+                                )
+                                .on_hover_text("how busy it plays: few notes at 0%, many at 100%");
                             if commit(&r) {
                                 out.push(PartEdit { density: Some(part.density), ..Default::default() }.on(&part.name));
                             }

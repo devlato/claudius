@@ -682,6 +682,11 @@ pub fn small(text: impl Into<String>) -> RichText {
     RichText::new(text).size(11.5).color(TEXT_DIM)
 }
 
+/// a percent typed or shown ("46", "46%", "1%") as the 0..1 it stands for, for a 0..1 a slider shows as a percent
+pub fn percent(text: &str) -> Option<f64> {
+    text.trim().trim_end_matches('%').trim().parse::<f64>().ok().map(|v| v / 100.0)
+}
+
 pub fn fmt_time(secs: f64) -> String {
     let s = secs.max(0.0);
     format!("{}:{:04.1}", (s / 60.0) as u64, s % 60.0)
@@ -696,6 +701,15 @@ pub fn page_frame() -> egui::Frame {
 mod tests {
     use super::*;
     use claudius_api::{GenreSampling, RenderView};
+
+    #[test]
+    fn a_percent_reads_as_the_percent_it_shows() {
+        assert_eq!(percent("46"), Some(0.46));
+        assert_eq!(percent("46%"), Some(0.46));
+        assert_eq!(percent(" 1 % "), Some(0.01));
+        assert_eq!(percent("100%"), Some(1.0));
+        assert_eq!(percent("loud"), None);
+    }
 
     #[test]
     fn the_tabs_at_the_end_of_the_dock_come_last() {
