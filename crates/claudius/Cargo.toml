@@ -35,8 +35,8 @@ earshot = { path = "../earshot", optional = true }
 claudius-packs = { path = "../claudius-packs", default-features = false }
 # without its default runtime-seeded hashing, which needs a random source a browser build lacks
 rhai = { version = "1.26", default-features = false, features = ["std"] }
-claudius-decode = { version = "0.4.0", path = "../claudius-decode" }
-claudius-encode = { version = "0.4.0", path = "../claudius-encode", default-features = false }
+claudius-decode = { version = "0.5.0", path = "../claudius-decode" }
+claudius-encode = { version = "0.5.0", path = "../claudius-encode", default-features = false }
 # a project's zip stores its files as they are: its audio is compressed already
 zip = { version = "9", default-features = false }
 
