@@ -816,7 +816,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             let Some(layer) = row_menu.and_then(|row| song.layers.get(row)) else { return };
             ui.label(RichText::new(layer).strong());
             if let Some(t) = song.tracks.iter().find(|t| &t.name == layer) {
-                if ui.button(if t.muted { "Unmute" } else { "Mute" }).clicked() {
+                let tip = if t.muted { "hear it again" } else { "silence it everywhere, keeping it in the song" };
+                if ui.button(if t.muted { "Unmute" } else { "Mute" }).on_hover_text(tip).clicked() {
                     out.push(MixEdit { muted: Some(!t.muted), ..Default::default() }.on(layer));
                     ui.close();
                 }
@@ -839,7 +840,9 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         out.push(super::swap(layer, None));
                         ui.close();
                     }
-                    ui.menu_button("Swap the sound to", |ui| out.extend(super::swap_list(ui, t)));
+                    ui.menu_button("Swap the sound to", |ui| out.extend(super::swap_list(ui, t)))
+                        .response
+                        .on_hover_text("choose the sound it plays from those that fit it; its notes stay");
                 }
                 if matches!(t.kind.as_str(), "part" | "drum") {
                     ui.separator();
@@ -999,7 +1002,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     });
                 }
             }
-            if ui.button("On in every section").clicked() {
+            if ui.button("On in every section").on_hover_text("it plays all through the song").clicked() {
                 for (i, s) in song.sections.iter().enumerate() {
                     if !s.layers.contains(layer) {
                         out.push(Command::ToggleLayer { section: i, layer: layer.clone() });
@@ -1007,7 +1010,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 }
                 ui.close();
             }
-            if ui.button("Off in every section").clicked() {
+            let tip = "silent all through the song, but kept, to switch on again where you like";
+            if ui.button("Off in every section").on_hover_text(tip).clicked() {
                 for (i, s) in song.sections.iter().enumerate() {
                     if s.layers.contains(layer) {
                         out.push(Command::ToggleLayer { section: i, layer: layer.clone() });
@@ -1017,7 +1021,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             }
             ui.separator();
             if ui
-                .button("Remove the track")
+                .button(RichText::new("Remove the track").color(theme::BAD))
                 .on_hover_text("out of the song and every section; Undo brings it back")
                 .clicked()
             {

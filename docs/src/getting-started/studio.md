@@ -247,6 +247,10 @@ folder zipped again, as Finder or Explorer zips one, opens as the demo's zip doe
 
 ## Help and assistants
 
+A small **(?)** beside a setting whose name is not plain (Intensity, Transitions, Swing, Register, a bus, the
+master's loudness) says in plain words what it does when you point at it, and opens the page of these docs that says
+more when you click it. Buttons and menu items say what they do when you point at them too.
+
 **?** in the bottom right corner opens the help menu: **Take the tour**, **Connect an assistant**, **Check for
 updates** and **Update automatically** and the switch for anonymous usage statistics (in the app), the documentation,
 and a form to report a problem. When a new release has been downloaded, a bar under the toolbar offers **Restart to

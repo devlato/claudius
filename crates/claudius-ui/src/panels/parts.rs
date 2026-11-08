@@ -115,7 +115,14 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                             ui.label(small(format!("{} · {}", part.role, sounds[i].replace("synth patch ", ""))));
                         });
                         ui.vertical(|ui| {
-                            ui.label(small("Style"));
+                            widgets::label_help(
+                                ui,
+                                "Style",
+                                "How the theory engine writes the part: a bass that holds each root, rolls in \
+                                 eighths or plays a genre's idiom (one drop, slap, G-funk ...); chords held, stabbed \
+                                 or comped as a genre's keyboard player would.",
+                                "language/song-functions.html#part",
+                            );
                             egui::ComboBox::from_id_salt(("style", i)).selected_text(&part.style).width(110.0).show_ui(
                                 ui,
                                 |ui| {
@@ -178,7 +185,13 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         let keys = (ui.available_width() - 380.0).clamp(140.0, 300.0);
                         ui.vertical(|ui| {
                             ui.horizontal(|ui| {
-                                ui.label(small("Register"));
+                                widgets::label_help(
+                                    ui,
+                                    "Register",
+                                    "The lowest and highest notes the part may play. Drag on the keyboard or the two \
+                                     notes: a bass sits low, a lead high, and parts that keep apart sound clearer.",
+                                    "language/song-functions.html#part",
+                                );
                                 ui.label(
                                     RichText::new(format!(
                                         "{} – {}",
@@ -230,7 +243,12 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         });
                         ui.vertical(|ui| {
                             // its value in its label, so that the rail is all it needs beside the keyboard
-                            ui.label(small(format!("Density {:.0}%", part.density * 100.0)));
+                            widgets::label_help(
+                                ui,
+                                &format!("Density {:.0}%", part.density * 100.0),
+                                "How busy the part is: few notes at 0%, as many as its style plays at 100%.",
+                                "language/song-functions.html#part",
+                            );
                             ui.spacing_mut().slider_width = 80.0;
                             let r = ui
                                 .add(
