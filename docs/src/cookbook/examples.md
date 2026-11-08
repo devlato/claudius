@@ -4,7 +4,8 @@ claudius comes with example songs, each in the style of the hits of one scene of
 beat, boom bap, G-funk and piano house; French house, electropop, UK garage, trance, crunk and art rock; festival
 EDM, future bass, dubstep, tropical house, trap and alternative R&B; the 80s revival in synth-pop, the disco
 revival, afrobeats, reggaeton, amapiano and tech house. Three more remake classics whose music is in the public
-domain: Beethoven, Pachelbel and Grieg. Each is a script whose opening notes say how its style is made: the tempo
+domain: Beethoven, Pachelbel and Grieg, and three are built to show layered sounds: a bass, chords or a snare
+played by several sounds at once. Each is a script whose opening notes say how its style is made: the tempo
 and the groove, the chords, the sounds, the arrangement and the mix. Opening one is a way to hear how a style is
 built, to read how, and to start a song from it.
 
@@ -66,6 +67,17 @@ The scripts are in the repository too, under
 | Joy Machine (`joy_machine`) | festival EDM | Beethoven's Ode to Joy (1824) | the theme alone on a piano, a snare roll and a beat of silence, then the drop playing it on a supersaw over a reharmonization with a minor chord |
 | Canon Study (`canon_study`) | lo-fi hip hop | Pachelbel's Canon in D (around 1700) | the Canon's eight chords and its ground bass under a swung, dusty beat, its descending violin line on a mallet |
 | Mountain Kings (`mountain_kings`) | drum and bass | Grieg's In the Hall of the Mountain King (1875) | the theme's chromatic climb at 172 BPM over the two-step beat and a reese bass, the piano alone in the intro and the breakdown |
+
+### Layered sounds
+
+Three songs built to show [layered sounds](../language/sounds.md#layered-sounds): a bass, chords or a snare played
+by several sounds at once, each in its own band, with its own level, duck and effects, summed into one track.
+
+| song | style | heard on | listen for |
+|---|---|---|---|
+| Neon Rumble (`neon_rumble`) | bass house | Jauz, Joyryde, Habstrakt | one bass line played by three: a sine sub under 90 Hz that alone ducks under the kick, a reese distorted from 90 Hz to 1.2 kHz, and a saw an octave up over it, gated into a sixteenth stutter |
+| Skyline Fracture (`skyline_fracture`) | melodic dubstep | Seven Lions, Illenium, Said the Sky | huge chords of a warm pad under 300 Hz, a supersaw spread wide above it and a pluck shimmering on top; a sub under a wobble kept out of its way |
+| Reese Machine (`reese_machine`) | neurofunk drum and bass | Noisia, Mefjus, Phace | a reese split into three bands, the sub clean, the body phased, the top crushed and gated; a snare of a snare, a clap and a burst of noise |
 
 Each script starts from `blank()` in its genre, so it brings the genre's mix (its buses, master chain and loudness)
 and writes everything else itself. To make one your own, change a line and run it again: the tempo, the

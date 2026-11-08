@@ -35,10 +35,10 @@ impl Example {
     /// what it is: "Bristol trip hop of the 1990s, like Massive Attack, Portishead, Tricky", or of a classic remade
     /// "festival EDM on Beethoven's Ode to Joy (1824)"
     pub fn in_words(&self) -> String {
-        if self.era == CLASSICS {
-            format!("{} {}", self.style, self.like_words())
-        } else {
-            format!("{} of the {}, {}", self.style, self.era, self.like_words())
+        match self.era {
+            CLASSICS => format!("{} {}", self.style, self.like_words()),
+            LAYERED => format!("{} built of layered sounds, {}", self.style, self.like_words()),
+            decade => format!("{} of the {decade}, {}", self.style, self.like_words()),
         }
     }
 }
@@ -279,13 +279,43 @@ pub const ALL: &[Example] = &[
         genre: "dnb",
         script: include_str!("../songs/mountain_kings.rhai"),
     },
+    Example {
+        name: "neon_rumble",
+        title: "Neon Rumble",
+        era: LAYERED,
+        style: "bass house",
+        like: "Jauz, Joyryde, Habstrakt",
+        genre: "tech_house",
+        script: include_str!("../songs/neon_rumble.rhai"),
+    },
+    Example {
+        name: "skyline_fracture",
+        title: "Skyline Fracture",
+        era: LAYERED,
+        style: "melodic dubstep",
+        like: "Seven Lions, Illenium, Said the Sky",
+        genre: "dubstep",
+        script: include_str!("../songs/skyline_fracture.rhai"),
+    },
+    Example {
+        name: "reese_machine",
+        title: "Reese Machine",
+        era: LAYERED,
+        style: "neurofunk drum and bass",
+        like: "Noisia, Mefjus, Phace",
+        genre: "dnb",
+        script: include_str!("../songs/reese_machine.rhai"),
+    },
 ];
 
 /// the era of the melodies in the public domain remade in a modern style
 pub const CLASSICS: &str = "classics remade";
 
+/// the era of the songs built to show layered sounds (`rack()`): a bass, chords or a snare of several sounds at once
+pub const LAYERED: &str = "layered sounds";
+
 /// the eras the examples are of, in order: the decades, then the classics remade
-pub const ERAS: [&str; 5] = ["1990s", "2000s", "2010s", "2020s", CLASSICS];
+pub const ERAS: [&str; 6] = ["1990s", "2000s", "2010s", "2020s", CLASSICS, LAYERED];
 
 /// The example asked for by its name or its title, whatever its case, spaces, hyphens or underscores:
 /// `midnight_overdrive`, "Midnight Overdrive", "midnight-overdrive".
