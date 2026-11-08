@@ -17,12 +17,14 @@ pub struct Palette {
     at: usize,
     /// the field is to take the keys, as it does when the palette opens
     focus: bool,
+    /// where the status bar's link to it is, which opens and closes it itself: a press there is not one outside it
+    pub link: Option<egui::Rect>,
 }
 
 impl Palette {
     /// opened afresh, or closed
     pub fn toggle(&mut self) {
-        *self = Palette { open: !self.open, focus: true, ..Palette::default() };
+        *self = Palette { open: !self.open, focus: true, link: self.link, ..Palette::default() };
     }
 }
 
@@ -292,7 +294,10 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
             );
         });
     // a click outside it closes it, as a menu closes
-    let outside = |at: egui::Pos2| shown.as_ref().is_some_and(|s| !s.response.rect.contains(at));
+    let link = cx.view.palette.link;
+    let outside = |at: egui::Pos2| {
+        shown.as_ref().is_some_and(|s| !s.response.rect.contains(at)) && !link.is_some_and(|l| l.contains(at))
+    };
     if ctx.input(|i| i.pointer.any_pressed() && i.pointer.interact_pos().is_some_and(outside)) {
         cx.view.palette.open = false;
     }

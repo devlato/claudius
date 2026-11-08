@@ -912,11 +912,11 @@ impl Studio {
                 ui.label(RichText::new("volume").size(11.0).color(TEXT_FAINT));
                 let cmd = widgets::cmd_key(ui.ctx());
                 let all = egui::Button::new(RichText::new(format!("{cmd}+K all actions")).size(11.0).color(ACCENT));
-                if ui
+                let r = ui
                     .add(all.frame(false))
-                    .on_hover_text("every action of the studio by name, with where it lives and the key that does it")
-                    .clicked()
-                {
+                    .on_hover_text("every action of the studio by name, with where it lives and the key that does it");
+                self.view.palette.link = Some(r.rect);
+                if r.clicked() {
                     self.view.palette.toggle();
                 }
                 let keys = format!(
