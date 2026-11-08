@@ -201,7 +201,13 @@ fn song_params(ui: &mut Ui, cx: &mut Cx) {
     ui.separator();
     ui.vertical(|ui| {
         ui.spacing_mut().item_spacing.y = 2.0;
-        ui.label(small("Tempo"));
+        widgets::label_help(
+            ui,
+            "Tempo",
+            "How fast the song goes, in beats a minute (BPM): about 70 to 90 for hip hop and lo-fi, 120 to 128 for \
+             house, 140 for dubstep, 170 for drum and bass. Every part follows it.",
+            "language/song-functions.html#tempo",
+        );
         let r = ui
             .add(
                 egui::DragValue::new(&mut song.bpm)
@@ -219,7 +225,13 @@ fn song_params(ui: &mut Ui, cx: &mut Cx) {
     });
     ui.vertical(|ui| {
         ui.spacing_mut().item_spacing.y = 2.0;
-        ui.label(small("Key"));
+        widgets::label_help(
+            ui,
+            "Key",
+            "The note the song feels at home on, and its scale: minor sounds darker, major brighter, and the \
+             modes (dorian, phrygian ...) have colours of their own. Every chord and melody moves with it.",
+            "language/song-functions.html#key",
+        );
         let key = Key::parse(&song.key).unwrap_or(Key { tonic: 9, mode: 1 });
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
@@ -251,7 +263,13 @@ fn song_params(ui: &mut Ui, cx: &mut Cx) {
     });
     ui.vertical(|ui| {
         ui.spacing_mut().item_spacing.y = 2.0;
-        ui.label(small("Swing"));
+        widgets::label_help(
+            ui,
+            "Swing",
+            "How much every other sixteenth note is pushed late: 50% is straight, as in techno; 55% to 62% gives \
+             house and hip hop their bounce, 66% is a triplet shuffle.",
+            "language/song-functions.html#swing",
+        );
         let r = ui
             .add(
                 egui::DragValue::new(&mut song.swing)

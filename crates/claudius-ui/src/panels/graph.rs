@@ -321,7 +321,13 @@ fn track(ui: &mut Ui, cx: &mut Cx, song: &SongView, name: &str) {
             field(ui, "delay send", &mut t.delay, 0.0..=1.0, |v| MixEdit { delay: Some(v), ..Default::default() });
             field(ui, "duck", &mut t.duck, 0.0..=1.0, |v| MixEdit { duck: Some(v), ..Default::default() });
             field(ui, "drive dB", &mut t.drive_db, 0.0..=36.0, |v| MixEdit { drive_db: Some(v), ..Default::default() });
-            ui.label(small("bus"));
+            crate::widgets::label_help(
+                ui,
+                "bus",
+                "The group the track plays into before the master: drums, bass, music or fx, or one of your own. \
+                 A bus's effects (a compressor gluing the drums together) work on everything in it.",
+                "language/mixing.html#buses",
+            );
             let mut bus = t.bus.clone();
             egui::ComboBox::from_id_salt("graph-bus").selected_text(&bus).show_ui(ui, |ui| {
                 for b in &buses {
@@ -437,11 +443,23 @@ fn master(ui: &mut Ui, cx: &mut Cx, song: &SongView) {
     let (mut lufs, mut ceiling) = (song.mix.lufs, song.mix.ceiling_db);
     let mut send = false;
     egui::Grid::new("graph-master").num_columns(2).spacing([10.0, 6.0]).show(ui, |ui| {
-        ui.label(small("loudness LUFS"));
+        crate::widgets::label_help(
+            ui,
+            "loudness LUFS",
+            "How loud the finished song is, as streaming services measure it: about -14 for Spotify and Apple \
+             Music, -9 to -6 for loud club music. Louder squeezes the dynamics.",
+            "language/mixing.html#master",
+        );
         let r = ui.add(egui::Slider::new(&mut lufs, -24.0..=-5.0));
         send |= commit(&r);
         ui.end_row();
-        ui.label(small("ceiling dBTP"));
+        crate::widgets::label_help(
+            ui,
+            "ceiling dBTP",
+            "The highest the song's peaks may reach, in decibels below full scale (true peak): -1 keeps it from \
+             distorting once it is turned into an MP3 or a stream.",
+            "language/mixing.html#master",
+        );
         let r = ui.add(egui::Slider::new(&mut ceiling, -3.0..=-0.1));
         send |= commit(&r);
         ui.end_row();

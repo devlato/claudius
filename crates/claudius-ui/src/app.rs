@@ -82,7 +82,7 @@ pub struct Studio {
 }
 
 /// the docs and the bug report form, for the help menu
-const DOCS: &str = "https://github.com/devlato/claudius/blob/main/docs/src/SUMMARY.md";
+const DOCS: &str = widgets::DOCS;
 const REPORT: &str = "https://github.com/devlato/claudius/issues/new?template=bug_report.yml";
 const RELEASES: &str = "https://github.com/devlato/claudius/releases";
 /// seconds a download waits for its render

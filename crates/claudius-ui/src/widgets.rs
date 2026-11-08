@@ -472,6 +472,40 @@ pub fn heading(ui: &mut Ui, text: &str) {
     ui.label(egui::RichText::new(text.to_uppercase()).size(11.0).strong().color(TEXT_DIM).extra_letter_spacing(0.8));
 }
 
+/// claudius' docs on the web, which the help marks link into
+pub const DOCS: &str = "https://claudius.devlato.com/docs/";
+
+/// A small (?) beside a control that is not obvious: hovered, it says in plain words what the control does; clicked, it
+/// opens the page of the docs that says more (`page` under `DOCS`, such as "language/form.html#energy").
+pub fn help(ui: &mut Ui, text: &str, page: &str) -> Response {
+    let size = 14.0;
+    let (rect, r) = ui.allocate_exact_size(vec2(size, size), Sense::click());
+    let color = if r.hovered() { TEXT } else { TEXT_FAINT };
+    ui.painter().circle_stroke(rect.center(), size / 2.0 - 1.0, Stroke::new(1.0, color));
+    ui.painter().text(rect.center() + vec2(0.0, 0.5), Align2::CENTER_CENTER, "?", theme::prop(9.5), color);
+    let r = r
+        .on_hover_ui(|ui| {
+            ui.set_max_width(300.0);
+            ui.label(text);
+            ui.add_space(3.0);
+            ui.label(egui::RichText::new("Click for more in the docs").size(11.0).color(ACCENT));
+        })
+        .on_hover_cursor(egui::CursorIcon::PointingHand);
+    if r.clicked() {
+        ui.ctx().open_url(egui::OpenUrl::new_tab(format!("{DOCS}{page}")));
+    }
+    r
+}
+
+/// a form's label, small and dim, with its help mark: for the left column of a grid of settings
+pub fn label_help(ui: &mut Ui, label: &str, text: &str, page: &str) {
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 4.0;
+        ui.label(egui::RichText::new(label).size(11.5).color(TEXT_DIM));
+        help(ui, text, page);
+    });
+}
+
 /// the verdict score as a big coloured badge
 pub fn score_badge(ui: &mut Ui, total: Option<f64>, height: f32) -> Response {
     let text = total.map_or("--".to_string(), |t| format!("{t:.0}"));
@@ -528,5 +562,59 @@ mod tests {
         for c in "Aé·–—…→×÷±°ЖΩ".chars() {
             assert!(ctx.fonts_mut(|f| f.has_glyph(&theme::prop(13.0), c)), "no glyph {c}");
         }
+    }
+
+    #[test]
+    fn every_page_a_help_mark_opens_is_in_the_docs_with_its_heading() {
+        use std::path::Path;
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let docs = root.join("../../docs/src");
+        // an anchor as mdBook makes one of a heading
+        let anchor = |heading: &str| -> String {
+            heading
+                .chars()
+                .filter_map(|c| match c {
+                    c if c.is_alphanumeric() || c == '_' || c == '-' => Some(c.to_ascii_lowercase()),
+                    c if c.is_whitespace() => Some('-'),
+                    _ => None,
+                })
+                .collect()
+        };
+        let mut sources = Vec::new();
+        let mut dirs = vec![root.join("src")];
+        while let Some(dir) = dirs.pop() {
+            for e in std::fs::read_dir(&dir).unwrap().flatten() {
+                let p = e.path();
+                if p.is_dir() {
+                    dirs.push(p);
+                } else if p.extension().is_some_and(|x| x == "rs") {
+                    sources.push(std::fs::read_to_string(&p).unwrap());
+                }
+            }
+        }
+        let mut seen = 0;
+        for src in &sources {
+            for (i, _) in src.match_indices(".html#") {
+                let start = src[..i].rfind('"').unwrap() + 1;
+                let end = i + src[i..].find('"').unwrap();
+                let (page, id) = src[start..end].split_once(".html#").unwrap();
+                // a page of the docs is a folder and a name ("language/form"), not this test's own words
+                let path_like =
+                    |s: &str| !s.is_empty() && s.chars().all(|c| c.is_ascii_lowercase() || "-/".contains(c));
+                if !page.contains('/') || !path_like(page) {
+                    continue;
+                }
+                let md = std::fs::read_to_string(docs.join(format!("{page}.md")))
+                    .unwrap_or_else(|_| panic!("no docs/src/{page}.md for a help mark"));
+                let headings: Vec<String> = md
+                    .lines()
+                    .filter_map(|l| l.strip_prefix('#'))
+                    .map(|h| anchor(h.trim_start_matches('#').trim()))
+                    .collect();
+                assert!(headings.iter().any(|h| h == id), "docs/src/{page}.md has no heading for #{id}");
+                seen += 1;
+            }
+        }
+        assert!(seen >= 10, "the studio's help marks link into the docs: {seen} links");
     }
 }

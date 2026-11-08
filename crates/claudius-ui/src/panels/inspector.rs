@@ -144,7 +144,13 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 );
                 ui.end_row();
 
-                ui.label(small("Intensity"));
+                widgets::label_help(
+                    ui,
+                    "Intensity",
+                    "How full and loud the section plays, from almost empty (0%) to everything at once (100%). An \
+                     intro or a break is low, a drop high: it sets how many parts play and how busy the drums are.",
+                    "language/form.html#energy",
+                );
                 let r = ui
                     .add(
                         egui::Slider::new(&mut s.energy, 0.0..=1.0)
@@ -159,7 +165,13 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 }
                 ui.end_row();
 
-                ui.label(small("Chords"));
+                widgets::label_help(
+                    ui,
+                    "Chords",
+                    "The chord progression this section plays: a list of chords that repeats. Sections can share one \
+                     (A) or have their own (B for a break). Change the chords themselves in the Chords tab.",
+                    "language/song-functions.html#prog",
+                );
                 ui.horizontal(|ui| {
                     let label = |name: &str| -> String {
                         let chords =
@@ -196,7 +208,13 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 });
                 ui.end_row();
 
-                ui.label(small("Drum pattern"));
+                widgets::label_help(
+                    ui,
+                    "Drum pattern",
+                    "Which version of the drum patterns plays here: main, or a sparser or busier one. Each drum lane \
+                     has its steps for each version; write them in the Drums tab.",
+                    "language/song-functions.html#drum",
+                );
                 egui::ComboBox::from_id_salt("section_variant")
                     .selected_text(&s.variant)
                     .width(110.0)
@@ -212,7 +230,13 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     .on_hover_text("which of the drums' patterns this section plays (Drums shows each)");
                 ui.end_row();
 
-                ui.label(small("Transitions"));
+                widgets::label_help(
+                    ui,
+                    "Transitions",
+                    "Moves that lead into or out of the section: a filter that opens over it, a build-up of riser \
+                     and snare roll into the next, a beat of silence at its end, a crash on its first beat, drum fills.",
+                    "language/form.html#what-the-flags-do",
+                );
                 ui.horizontal_wrapped(|ui| {
                     ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
                     let on = [s.filter_in, s.build, s.gap, s.impact, s.fills];
@@ -233,7 +257,14 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 });
                 ui.end_row();
 
-                ui.label(small("Playing"));
+                widgets::label_help(
+                    ui,
+                    "Playing",
+                    "The tracks that play in this section, lit when they do. Click one to switch it on or off here; \
+                     all on and all off do every track. A double-click on a track's cell in the arrangement does the \
+                     same.",
+                    "getting-started/studio.html#the-panels",
+                );
                 ui.horizontal_wrapped(|ui| {
                     ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
                     for (layer, c) in layers_all.iter().zip(&colors) {
