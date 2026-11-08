@@ -143,6 +143,8 @@ pub struct Player {
     error: Option<String>,
     duration: f64,
     loading: Option<(Receiver<Result<Pcm, String>>, bool)>,
+    /// played before the first audio arrived: it plays as it arrives
+    play_on_arrival: bool,
     ctx: egui::Context,
 }
 
@@ -167,7 +169,15 @@ impl Player {
             }
             Err(e) => (None, Some(format!("no audio output: {e}"))),
         };
-        Player { shared, _device: device, error, duration: 0.0, loading: None, ctx: ctx.clone() }
+        Player {
+            shared,
+            _device: device,
+            error,
+            duration: 0.0,
+            loading: None,
+            play_on_arrival: false,
+            ctx: ctx.clone(),
+        }
     }
 
     /// why playback is unavailable or the last load failed
@@ -223,6 +233,7 @@ impl Player {
         self.shared.position.store(0f64.to_bits(), Relaxed);
         self.duration = 0.0;
         self.loading = None;
+        self.play_on_arrival = false;
     }
 
     /// call once per frame: picks up finished downloads
@@ -237,8 +248,11 @@ impl Player {
                             self.error = None;
                         }
                         self.install(Arc::new(pcm), keep);
+                        if std::mem::take(&mut self.play_on_arrival) {
+                            self.play();
+                        }
                     }
-                    Err(e) => self.error = Some(e),
+                    Err(e) => (self.error, self.play_on_arrival) = (Some(e), false),
                 }
             }
         }
@@ -256,11 +270,14 @@ impl Player {
     pub fn play(&mut self) {
         if self.has_audio() {
             self.shared.playing.store(true, Relaxed);
+        } else if self.loading.is_some() {
+            self.play_on_arrival = true;
         }
     }
 
     pub fn pause(&mut self) {
         self.shared.playing.store(false, Relaxed);
+        self.play_on_arrival = false;
     }
 
     pub fn stop(&mut self) {

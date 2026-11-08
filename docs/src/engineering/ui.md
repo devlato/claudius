@@ -137,15 +137,18 @@ chosen (`pick::Want::Recording`) or dropped anywhere on the studio (`pick::read_
 waiting for artwork), and sends it as a take, to `POST /api/takes` like the Record window's (the demo's engine sniffs
 its kind from its bytes), or hands it to the auto-sampler (`Listen` with `sample`). Its search of the free libraries
 (`Backend::search_library`: `/api/library/search`, or in the demo claudius' site, as the demo's sampler asks it)
-lists `LibraryHit`s, each heard in a player of the window's own (a browser plays its URL; the app fetches it and
-decodes it as claudius does). With a claudius, one chosen is added by its id (`add_take` or `sample_song` with
+lists `LibraryHit`s, each heard in a player of the window's own (`Import::hear`: a browser plays its URL; the app
+fetches it and decodes it as claudius does before it plays, so nothing heard before plays meanwhile, and the window
+says why one could not play). With a claudius, one chosen is added by its id (`add_take` or `sample_song` with
 `library:<id>`, which claudius downloads and credits); the demo fetches its audio and hands the engine its record
-(`found`) with it, which credits it. With a claudius, **Sample it...** asks for the auto-sampler's pieces instead
-(`sample_pieces` by id, or `/api/sample/pieces` with the file) and opens the Sample window (`import::pieces`), which
-shows the state's `pieces`: each heard as it was cut and treated from `/api/pieces/`, chosen, drawn again
-(`redraw_pieces`) and kept (`keep_pieces`). In the demo the engine offers them (`claudius_api::Listen::SamplePieces`
-with the file), each piece in the state as a small MP3 in its URL (`listen::mp3_url`), which a browser plays as it
-is and the app decodes. A take's **Trim...**, in its
+(`found`) with it, which credits it. With a claudius, **Sample its vocals...** asks for the auto-sampler's pieces
+instead (`sample_pieces` by id, or `/api/sample/pieces` with the file) and opens the Sample window
+(`import::pieces`), which shows the state's `pieces` once the answer to that request has come (the offer claudius held
+before is the last recording's): each heard as it was cut and treated from `/api/pieces/`, ticked, drawn again
+(`redraw_pieces`) and put in the song (`keep_pieces`). In the demo the engine offers them
+(`claudius_api::Listen::SamplePieces` with the file), each piece in the state as a small MP3 in its URL
+(`listen::mp3_url`), which the app decodes, and a browser plays as a `blob:` URL: the site's policy plays media from
+those only (`media-src 'self' blob:`). A take's **Trim...**, in its
 track's menu in the arrangement, opens a window of the same file that sends `trim_take` with the track's `seconds`
 for its range.
 

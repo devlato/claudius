@@ -219,8 +219,8 @@ impl Studio {
                 {
                     let kept = what == "keep_pieces";
                     match &result {
-                        Ok(r) => self.view.import.pieces_answered(r.ok, r.message.clone(), kept),
-                        Err(e) => self.view.import.pieces_answered(false, e.clone(), kept),
+                        Ok(r) => self.view.import.pieces_answered(r.ok, r.message.clone(), kept, r.version),
+                        Err(e) => self.view.import.pieces_answered(false, e.clone(), kept, 0),
                     }
                 }
                 if what == "add_recording" || (what == "add_take" && self.view.import.waiting()) {
@@ -592,6 +592,7 @@ impl Studio {
                 Step::ImportSearch(words) => self.view.import.ask(&words),
                 Step::ImportUse(n) => self.view.import.use_nth = Some(n),
                 Step::ImportSample => self.view.import.sample_now = true,
+                Step::ImportHear(id, treated) => self.view.import.hear_now = Some((id, treated)),
                 Step::Pick(want) => crate::pick::choose(ctx, want),
                 Step::Listen(remake) => {
                     let f = &self.view.new_song;
@@ -618,6 +619,7 @@ impl Studio {
             format!("take {}: {}", p.seed, each.join(" | "))
         });
         plan.tell("pieces", &offered.unwrap_or_default());
+        plan.tell("hearing", &self.view.import.hearing_told());
         plan.tell("midi", &crate::audio::record::midi_offer().map(|(what, _)| what).unwrap_or_default());
         plan.tell("analysis", &self.view.analysis.as_ref().map(|(_, text)| text.clone()).unwrap_or_default());
         plan.tell("heard", &self.view.heard.as_ref().map(|(_, text)| text.clone()).unwrap_or_default());

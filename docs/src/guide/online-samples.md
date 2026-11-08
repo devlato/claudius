@@ -71,9 +71,10 @@ A claudius shared with others may read the samples folder, as it reads the sampl
 ## Choosing one in the studio
 
 The studio's **Add a recording** window (the **+** after the record button) searches the same libraries: type a few
-words and press **Search**, press ▶ beside a recording to hear it, and **Use it** to choose it. Then **Add it whole as
-a track** adds it as a [take](samples.md#takes) to trim and put effects on, and **Sample its vocals into the song**
-samples it. Either way claudius downloads it once into the samples folder, and the song credits it. Behind the window
+words and press **Search**, press ▶ beside a recording to hear it, and **Choose** to hold it. Then **Add it whole as
+a track** adds it as a [take](samples.md#takes) to trim and put effects on, and **Sample its vocals...** offers its
+sung phrases to [hear and choose](samples.md#choosing-the-pieces-first). Either way claudius downloads it once into the
+samples folder, and the song credits it. Behind the window
 are `GET /api/library/search?q=WORDS` and `GET /api/library/audio?id=ID` ([HTTP API](http-api.md#routes)).
 
 Wherever a command takes a recording's path (`add_take`, `sample_song`, `analyze` and `remake`), `library:<id>` names
