@@ -782,6 +782,23 @@ fn a_rack_plays_a_track_with_several_sounds_each_in_its_band_and_prints_back() {
 }
 
 #[test]
+fn a_rack_playing_a_one_shot_from_the_cache_prints_as_said_not_run() {
+    use claudius::model::{Layer, Sound};
+    let mut bp = script::run(r#"song("house", 3);"#, None, None).unwrap().bp.unwrap();
+    let cut = claudius::config::home().join("oneshots").join("rim.wav").to_string_lossy().into_owned();
+    let sample =
+        Sound::Sample { path: cut.clone(), root: 60, start: 0.0, end: None, label: "rim (Apple Loops)".into() };
+    let lane = bp.drums.iter_mut().find(|d| d.name == "clap").unwrap();
+    lane.sound = Sound::Rack { layers: vec![Layer::of(sample), Layer::of(lane.sound.clone())] };
+    let printed = script::to_script(&bp);
+    assert!(printed.contains("// clap: a layer plays a one-shot from claudius' cache"), "{printed}");
+    assert!(printed.contains("// rack(\"clap\", [\n//   #{ sound: "), "{printed}");
+    // the path, only this machine's, is never run
+    let runs = printed.lines().filter(|l| !l.trim_start().starts_with("//")).any(|l| l.contains(&cut));
+    assert!(!runs, "{printed}");
+}
+
+#[test]
 fn racks_a_script_gets_wrong_say_what_they_are() {
     let says = |code: &str, words: &str| {
         let e = script::run(&format!("song(\"house\", 3); {code}"), None, None).err().map(|e| e.to_string());

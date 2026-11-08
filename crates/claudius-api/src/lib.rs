@@ -691,6 +691,10 @@ pub struct TrackView {
     /// "transpose": 12, "duck": 0.8, "fx": [...]}`, what is at its default left out
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub layers: Vec<serde_json::Value>,
+    /// a pattern track of several sounds: those a rack plays, each by its label (`set_layers` names one as
+    /// `beat.kick`) with its layers as `layers` has them
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub label_layers: Vec<(String, Vec<serde_json::Value>)>,
 }
 
 /// A sound a track may swap to: its name, as `part(..., #{ preset })` or `drum_sound()` take it; what it is (`synth`,

@@ -172,9 +172,20 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
                 .map(|(_, v)| *v)
                 .fold(None, |a: Option<f64>, b| Some(a.map_or(b, |a| a.max(b))));
         }
-        // a pattern of one sound shows that sound's layers (one of several shows each sound's under its own label)
+        // a pattern of one sound shows that sound's layers, one of several each racked sound's under its label
         if let [one] = p.sounds.values().collect::<Vec<_>>().as_slice() {
             t = with_layers(t, one);
+        } else {
+            t.label_layers = p
+                .sounds
+                .iter()
+                .filter_map(|(label, s)| match s {
+                    Sound::Rack { layers } => {
+                        Some((label.clone(), layers.iter().map(claudius::script::layer_value).collect()))
+                    }
+                    _ => None,
+                })
+                .collect();
         }
         tracks.push(t);
     }

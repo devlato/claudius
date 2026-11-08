@@ -306,9 +306,10 @@ pub fn to_script(bp: &Blueprint) -> String {
             }
             Sound::Sample { path, .. } => Some(format!("drum_sound({}, {});\n", quote(&d.name), quote(path))),
             // a lane that plays a rack is made by its first layer's sound; rack() at the end gives it the rest
-            Sound::Rack { layers } => {
-                layers.first().map(|l| format!("drum_sound({}, {});\n", quote(&d.name), quote(&sound_word(&l.sound))))
-            }
+            Sound::Rack { layers } => layers.first().map(|l| match cached(&l.sound) {
+                true => format!("// {}: {}\n", d.name, d.sound.describe()),
+                false => format!("drum_sound({}, {});\n", quote(&d.name), quote(&sound_word(&l.sound))),
+            }),
             _ => None,
         };
         // drum() makes a lane only for a drum's name: a lane of another name is made by its sound, first
@@ -483,8 +484,15 @@ fn racks(bp: &Blueprint, out: &mut String) {
     let mut lines = Vec::new();
     for (name, sound) in tracks {
         let Sound::Rack { layers } = sound else { continue };
-        let each: Vec<String> = layers.iter().map(|l| format!("  {},\n", layer_text(l))).collect();
-        lines.push(format!("rack({}, [\n{}]);\n", quote(&name), each.concat()));
+        // a layer playing a one-shot from claudius' cache names a file only this machine has: the rack is said, not run
+        let off = if layers.iter().any(|l| cached(&l.sound)) { "// " } else { "" };
+        let each: Vec<String> = layers.iter().map(|l| format!("{off}  {},\n", layer_text(l))).collect();
+        if !off.is_empty() {
+            lines.push(format!(
+                "// {name}: a layer plays a one-shot from claudius' cache, which only this computer has\n"
+            ));
+        }
+        lines.push(format!("{off}rack({}, [\n{}{off}]);\n", quote(&name), each.concat()));
     }
     if !lines.is_empty() {
         out.push_str("\n// racks: tracks played by several sounds at once, each its band, level, duck and effects\n");
@@ -534,6 +542,11 @@ pub fn layer_value(l: &Layer) -> serde_json::Value {
         m.insert("fx".into(), serde_json::to_value(&l.fx).unwrap_or_default());
     }
     serde_json::Value::Object(m)
+}
+
+/// a one-shot cut from your library, kept in claudius' cache: its path means nothing on another machine
+fn cached(sound: &Sound) -> bool {
+    matches!(sound, Sound::Sample { path, .. } if std::path::Path::new(path).starts_with(crate::config::home()))
 }
 
 /// the word a script names a single sound by, as `drum_sound` and `rack` take it

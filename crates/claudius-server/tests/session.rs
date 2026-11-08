@@ -1232,6 +1232,13 @@ async fn a_track_is_played_by_layers_of_sounds_seen_and_set_as_a_rack() {
     assert!(app.command(Command::Undo).ok);
     let bass = app.state().song.unwrap().tracks.into_iter().find(|t| t.name == "bass").unwrap();
     assert!(bass.layers.is_empty() && !bass.sound.starts_with("a rack"), "{}", bass.sound);
+    // a pattern of several sounds racks one by its label, and shows it under that label
+    assert!(app.command(Command::RunScript { code: r#"track("beat", s("bd*4, [~ cp]*2"));"#.into() }).ok);
+    let clap = vec![json!({"sound": "cp"}), json!({"sound": "hh", "band": [6000, 0], "level": -8})];
+    assert!(app.command(Command::SetLayers { track: "beat.cp".into(), layers: clap }).ok);
+    let beat = app.state().song.unwrap().tracks.into_iter().find(|t| t.name == "beat").unwrap();
+    assert_eq!(beat.label_layers.len(), 1, "{:?}", beat.label_layers);
+    assert_eq!((beat.label_layers[0].0.as_str(), beat.label_layers[0].1.len()), ("cp", 2));
 }
 
 #[tokio::test(flavor = "multi_thread")]

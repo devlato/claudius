@@ -1113,7 +1113,8 @@ impl<'a> Song<'a> {
             let Some(level) = loudness::active_level(&x) else { continue };
             x.scale(db_to_gain((LAYER_LUFS - level) as f32 + layer.level_db));
             fx::apply_chain(&layer.fx, &mut x, &ctx);
-            let duck = self.duck.as_ref().filter(|_| layer.duck > 0.0);
+            // the kick's own layers do not duck under it, as the mix does not duck the kick
+            let duck = self.duck.as_ref().filter(|_| layer.duck > 0.0 && t.role != "kick");
             let depth = layer.duck.clamp(0.0, 1.0);
             let (gl, gr) = if layer.pan.abs() > 1e-3 { audio::balance_gains(layer.pan) } else { (1.0, 1.0) };
             for i in 0..x.len().min(sum.len()) {
