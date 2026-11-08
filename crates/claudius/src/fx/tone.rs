@@ -30,6 +30,27 @@ pub fn eq(x: &mut Stereo, bands: &[EqBand], ctx: &Ctx) {
     }
 }
 
+/// Only the frequencies from `low_hz` to `high_hz` (0, or past half the sample rate: no edge on that side), each
+/// edge a Linkwitz-Riley crossover (a 2nd-order Butterworth twice, 24 dB an octave): a band that ends where another
+/// starts adds up with it to the whole again, without a bump or a dip at the edge.
+pub fn band(x: &mut Stereo, low_hz: f32, high_hz: f32, sr: f64) {
+    let nyquist = sr as f32 / 2.0;
+    // a Linkwitz-Riley edge: the same 2nd-order Butterworth twice over
+    let edge = |ch: &mut [f32], highpass: bool, f: f32| {
+        let (mut a, mut b) =
+            (filter::Butter::<1>::new(highpass, f as f64, sr), filter::Butter::<1>::new(highpass, f as f64, sr));
+        ch.iter_mut().for_each(|v| *v = b.tick(a.tick(*v)));
+    };
+    for ch in x.channels_mut() {
+        if low_hz > 0.0 && low_hz < nyquist {
+            edge(ch, true, low_hz);
+        }
+        if high_hz > 0.0 && high_hz < nyquist {
+            edge(ch, false, high_hz);
+        }
+    }
+}
+
 pub fn filter(x: &mut Stereo, mode: FilterMode, cutoff: &Param, res: &Param, drive: f32, mix: f32, ctx: &Ctx) {
     let dry = if mix < 0.999 { Some(x.clone()) } else { None };
     let (cut, res) = (ctx.values(cutoff, x.len(), true), ctx.values(res, x.len(), false));

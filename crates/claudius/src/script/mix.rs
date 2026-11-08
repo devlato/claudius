@@ -1,4 +1,4 @@
-//! Parts and the mix: `part`, `drum_sound`, `mix`, `mute`, `solo`, `remove` and `master`.
+//! Parts and the mix: `part`, `drum_sound`, `rack`, `mix`, `mute`, `solo`, `remove` and `master`.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -253,6 +253,22 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         }
     }
     let c = ctx.clone();
+    engine.register_fn("rack", move |track: &str, layers: Array| -> R<()> {
+        let (lib, roots) = {
+            let cx = c.borrow();
+            (cx.lib.clone(), cx.roots.clone())
+        };
+        with_bp(&c, |bp, _| {
+            let g = genre_of(bp);
+            let resolve = |label: &str, bank: Option<&str>| {
+                resolve_sound(label, bank, lib.as_deref(), g.as_ref(), bp.seed, roots.as_deref())
+            };
+            let made = layers_of(&layers, &format!("rack(\"{track}\")"), resolve)?;
+            *sound_of(bp, track)? = Sound::Rack { layers: made };
+            Ok(())
+        })
+    });
+    let c = ctx.clone();
     engine.register_fn("mix", move |name: &str, m: Map| -> R<()> {
         check_keys(&m, "mix()", &["level", "pan", "reverb", "room", "delay", "duck", "drive", "mute", "solo", "bus"])?;
         with_bp(&c, |bp, _| {
@@ -502,4 +518,109 @@ pub fn mix_of<'a>(bp: &'a mut Blueprint, name: &str) -> Option<&'a mut TrackMix>
         return Some(&mut bp.transitions.mix);
     }
     None
+}
+
+/// The sound a track plays, to change: a part's, a drum lane's, or a pattern track's, by the track's name when it
+/// plays one sound, by its label when it plays several (`beat.kick`).
+pub fn sound_of<'a>(bp: &'a mut Blueprint, name: &str) -> Result<&'a mut Sound, String> {
+    if let Some(p) = bp.parts.iter_mut().find(|p| p.name == name) {
+        return Ok(&mut p.sound);
+    }
+    if let Some(d) = bp.drums.iter_mut().find(|d| d.name == name) {
+        return Ok(&mut d.sound);
+    }
+    let (track, label) = name.split_once('.').map_or((name, None), |(t, l)| (t, Some(l)));
+    if let Some(i) = bp.patterns.iter().position(|p| p.name == name || p.name == track) {
+        let p = &mut bp.patterns[i];
+        let labels: Vec<String> = p.sounds.keys().cloned().collect();
+        return match label.filter(|_| p.name != name) {
+            Some(l) => {
+                p.sounds.get_mut(l).ok_or_else(|| format!("{track} plays no '{l}' (it plays {})", labels.join(" ")))
+            }
+            None if labels.len() == 1 => Ok(p.sounds.values_mut().next().expect("one sound")),
+            None => {
+                Err(format!("{name} plays {} sounds: name one by its label, as {name}.{}", labels.len(), labels[0]))
+            }
+        };
+    }
+    if bp.loops.iter().any(|l| l.name == name) {
+        return Err(format!("{name} plays a recording as it is, not notes a sound plays"));
+    }
+    Err(format!("no track '{name}'"))
+}
+
+/// what a rack's layer may say
+const LAYER_KEYS: &[&str] = &["sound", "bank", "band", "level", "pan", "transpose", "duck", "fx"];
+
+/// A rack's layers as a script writes them (`what` says where, in a message): each a map naming its sound as
+/// `drum_sound` or a part's `preset` names one (`resolve`), and its band, level, pan, transpose, duck and effects.
+pub(super) fn layers_of(
+    layers: &Array,
+    what: &str,
+    resolve: impl Fn(&str, Option<&str>) -> Result<Sound, String>,
+) -> R<Vec<Layer>> {
+    if layers.is_empty() || layers.len() > MAX_LAYERS {
+        return fail(format!("{what} has 1 to {MAX_LAYERS} layers, not {}", layers.len()));
+    }
+    let mut out = Vec::new();
+    for (i, d) in layers.iter().enumerate() {
+        let what = format!("{what}'s layer {}", i + 1);
+        let Some(m) = d.clone().try_cast::<Map>() else {
+            return fail(format!("{what} is a map such as #{{ sound: \"sub_bass\", band: [0, 100] }}"));
+        };
+        check_keys(&m, &what, LAYER_KEYS)?;
+        let Some(label) = map_str(&m, "sound") else {
+            return fail(format!("{what} names its sound: #{{ sound: \"reese\" }}"));
+        };
+        let sound = resolve(&label, map_str(&m, "bank").as_deref())?;
+        if !matches!(sound, Sound::Drum { .. } | Sound::Synth { .. } | Sound::Sample { .. } | Sound::Instrument { .. })
+        {
+            return fail(format!(
+                "{what}: '{label}' is no sound to play notes with (a synth, a drum, a sample, an instrument)"
+            ));
+        }
+        let number = |k: &str| -> R<Option<f64>> {
+            match m.get(k) {
+                None => Ok(None),
+                Some(v) => num(v).map(Some).ok_or_else(|| format!("{what}'s {k} is a number").into()),
+            }
+        };
+        let band = match m.get("band") {
+            None => None,
+            Some(b) => {
+                let edges: Vec<f64> =
+                    b.clone().try_cast::<Array>().unwrap_or_default().iter().filter_map(num).collect();
+                match edges.as_slice() {
+                    [low, high] if *low >= 0.0 && *high >= 0.0 && (*high == 0.0 || high > low) => {
+                        Some([*low as f32, *high as f32])
+                    }
+                    _ => {
+                        return fail(format!(
+                            "{what}'s band is [low, high] in Hz, 0 for no edge on that side: [0, 100], [100, 1000], \
+                             [1000, 0]"
+                        ));
+                    }
+                }
+            }
+        };
+        let transpose = number("transpose")?.unwrap_or(0.0);
+        if transpose.fract() != 0.0 || transpose.abs() > 24.0 {
+            return fail(format!("{what}'s transpose is whole semitones from -24 to 24, not {transpose}"));
+        }
+        let fx = match m.get("fx").map(|v| v.clone().try_cast::<Array>()) {
+            None => Vec::new(),
+            Some(Some(chain)) => super::effects::chain_of(&chain, &what)?,
+            Some(None) => return fail(format!("{what}'s fx is a list of effects: [#{{ fx: \"saturate\", ... }}]")),
+        };
+        out.push(Layer {
+            sound,
+            band,
+            level_db: number("level")?.unwrap_or(0.0) as f32,
+            pan: number("pan")?.unwrap_or(0.0).clamp(-1.0, 1.0) as f32,
+            transpose: transpose as i32,
+            duck: number("duck")?.unwrap_or(0.0).clamp(0.0, 1.0) as f32,
+            fx,
+        });
+    }
+    Ok(out)
 }

@@ -10,6 +10,14 @@ claudius is now released every day that it has a new feature, a fix or a change 
 someone starts a release, so what is fixed on `main` reaches `claudius update`, the studio's own update check,
 Homebrew and the install scripts by the next morning in Sydney.
 
+A track can be played by several sounds at once, as a modern bass or lead is built: a clean sub for the weight, a
+distorted mid for the growl, a bright top for the edge. `rack()` in a script and `set_layers` for an assistant give a
+part, a drum lane or a pattern track's sound up to eight layers, each playing its notes with its own sound, the band of
+frequencies it keeps (through crossovers that add up to the whole), its level against the others, its pan, transpose,
+duck under the kick and effects; a tremolo or a gate in a layer pulses that band alone. The rack sums them before the
+track's own effects, so the track stays one row and one fader. The new `band` effect keeps one band of a sound, which
+also splits one sound into bands to treat each on its own in a `parallel` effect's chains.
+
 The ears run on the CPU on a Mac, as they do everywhere else. ONNX Runtime had been putting them on CoreML: every
 claudius that listened compiled its models into the temp folder, about 200 files, and one that was killed rather than
 quit, as assistants end `claudius mcp`, left them there, from a few megabytes to a few hundred each time. A judgement

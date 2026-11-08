@@ -30,6 +30,7 @@ Everything on one page. Each name links to its full entry.
 | [`part("bass", #{ ... })`](song-functions.md#part) | `role style preset register density seed rate`; adds the genre's part when the song has none, and with `role` one of your own |
 | [`notes("lead", "A", [[0, 0.5, 69], ...])`, `clear_notes("lead", "A")`](song-functions.md#notes) | a part's notes over a progression written out, `[start, length, pitch, velocity]` in beats; cleared, the theory engine's again |
 | [`track("hats", pattern)`](song-functions.md#track) | a pattern track; new ones join sections with energy ≥ 0.6 |
+| [`rack("bass", [#{ sound: "sub_bass", band: [0, 100] }, ...])`](song-functions.md#rack) | several sounds playing a track at once, each in its band, with its level, duck and effects |
 | [`mix("pad", #{ ... })`](mixing.md#mix) | `level` −40..12, `pan` −1..1, `reverb`/`room`, `delay`, `duck` 0..1, `mute`, `solo` |
 | [`master(#{ lufs: -9, ceiling: -1 })`](mixing.md#master) | −24..−5 LUFS, −3..−0.1 dBTP |
 | [`mute()` `unmute()` `solo()` `unsolo()` `remove()`](song-functions.md#mute-unmute-solo-unsolo-remove) | by track name |

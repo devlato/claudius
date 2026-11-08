@@ -91,6 +91,14 @@ fn track(
     }
 }
 
+/// `t` with the layers of the rack it plays, when `sound` is one
+fn with_layers(mut t: TrackView, sound: &claudius::model::Sound) -> TrackView {
+    if let claudius::model::Sound::Rack { layers } = sound {
+        t.layers = layers.iter().map(claudius::script::layer_value).collect();
+    }
+    t
+}
+
 /// `t` with the sounds its track of `bp` may swap to, the one it plays, and the next
 fn with_swaps(mut t: TrackView, bp: &Blueprint) -> TrackView {
     let choice = |c: claudius::swap::Choice| SoundChoice { name: c.name, kind: c.kind, group: c.group.to_string() };
@@ -128,10 +136,12 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
         .collect();
     let mut tracks = Vec::new();
     for d in &bp.drums {
-        tracks.push(with_swaps(track(&d.name, "drum", &d.name, d.sound.describe(), &d.mix, loudness), bp));
+        let t = track(&d.name, "drum", &d.name, d.sound.describe(), &d.mix, loudness);
+        tracks.push(with_layers(with_swaps(t, bp), &d.sound));
     }
     for p in &bp.parts {
-        tracks.push(with_swaps(track(&p.name, "part", p.role.name(), p.sound.describe(), &p.mix, loudness), bp));
+        let t = track(&p.name, "part", p.role.name(), p.sound.describe(), &p.mix, loudness);
+        tracks.push(with_layers(with_swaps(t, bp), &p.sound));
     }
     for l in &bp.loops {
         let take = match (&l.from, &l.sound) {
@@ -161,6 +171,10 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
                 .filter(|(k, _)| k.starts_with(&format!("{}.", p.name)))
                 .map(|(_, v)| *v)
                 .fold(None, |a: Option<f64>, b| Some(a.map_or(b, |a| a.max(b))));
+        }
+        // a pattern of one sound shows that sound's layers (one of several shows each sound's under its own label)
+        if let [one] = p.sounds.values().collect::<Vec<_>>().as_slice() {
+            t = with_layers(t, one);
         }
         tracks.push(t);
     }

@@ -109,6 +109,15 @@ pub enum Effect {
         #[serde(default = "full")]
         mix: Param,
     },
+    /// only the frequencies from `low_hz` to `high_hz` (0: no edge on that side), through crossovers that let bands
+    /// meeting at an edge add up to the whole again: a rack layer's share of the spectrum, or one band of a sound in a
+    /// parallel effect's chains, to treat on its own
+    Band {
+        #[serde(default)]
+        low_hz: f32,
+        #[serde(default)]
+        high_hz: f32,
+    },
     Compressor {
         threshold_db: f32,
         ratio: f32,
@@ -262,6 +271,7 @@ pub const EFFECT_NAMES: &[&str] = &[
     "gain",
     "eq",
     "filter",
+    "band",
     "compressor",
     "limiter",
     "saturate",
@@ -299,6 +309,7 @@ impl Effect {
             Effect::Gain { .. } => "gain",
             Effect::Eq { .. } => "eq",
             Effect::Filter { .. } => "filter",
+            Effect::Band { .. } => "band",
             Effect::Compressor { .. } => "compressor",
             Effect::Limiter { .. } => "limiter",
             Effect::Saturate { .. } => "saturate",
@@ -444,6 +455,7 @@ fn run(fx: &Effect, x: &mut Stereo, ctx: &Ctx) {
         Effect::Gain { db } => tone::gain(x, db, ctx),
         Effect::Eq { bands } => tone::eq(x, bands, ctx),
         Effect::Filter { mode, cutoff, res, drive, mix } => tone::filter(x, *mode, cutoff, res, *drive, k(mix), ctx),
+        Effect::Band { low_hz, high_hz } => tone::band(x, *low_hz, *high_hz, ctx.sr),
         Effect::Compressor { threshold_db, ratio, attack_ms, release_ms, knee_db, makeup_db, mix } => {
             dynamics::compress(
                 x,
@@ -574,6 +586,42 @@ mod tests {
                 Ok(n) => assert_eq!(n, *name),
                 Err(e) => assert!(e.to_string().contains("missing field"), "{name}: {e}"),
             }
+        }
+    }
+
+    #[test]
+    fn a_band_keeps_its_frequencies_and_two_bands_meeting_at_an_edge_add_up_to_the_whole() {
+        let sr = 48_000.0;
+        let ctx = Ctx { sr, bpm: 120.0, seed: 1, start: 0, total: 0 };
+        let sine = |hz: f64| {
+            let l: Vec<f32> = (0..24_000).map(|i| (std::f64::consts::TAU * hz * i as f64 / sr).sin() as f32).collect();
+            Stereo { l: l.clone(), r: l }
+        };
+        // the level of the second half, once the filters have settled, in dB
+        let db = |x: &Stereo| {
+            let tail = &x.l[12_000..];
+            20.0 * ((tail.iter().map(|v| v * v).sum::<f32>() / tail.len() as f32).sqrt() * 2f32.sqrt()).log10()
+        };
+        let through = |hz: f64, low: f32, high: f32| {
+            let mut x = sine(hz);
+            apply(&Effect::Band { low_hz: low, high_hz: high }, &mut x, &ctx);
+            db(&x)
+        };
+        assert!(through(400.0, 100.0, 1_000.0).abs() < 0.5, "inside the band: {}", through(400.0, 100.0, 1_000.0));
+        for hz in [25.0, 8_000.0] {
+            assert!(through(hz, 100.0, 1_000.0) < -20.0, "{hz} Hz: {}", through(hz, 100.0, 1_000.0));
+        }
+        assert!(through(30.0, 0.0, 0.0).abs() < 0.1, "no edges: the whole");
+        // under 100 Hz and over it, added up: as loud as the signal at the edge and around it
+        for hz in [50.0, 100.0, 200.0] {
+            let (mut low, mut high) = (sine(hz), sine(hz));
+            apply(&Effect::Band { low_hz: 0.0, high_hz: 100.0 }, &mut low, &ctx);
+            apply(&Effect::Band { low_hz: 100.0, high_hz: 0.0 }, &mut high, &ctx);
+            let sum = Stereo {
+                l: low.l.iter().zip(&high.l).map(|(a, b)| a + b).collect(),
+                r: low.r.iter().zip(&high.r).map(|(a, b)| a + b).collect(),
+            };
+            assert!(db(&sum).abs() < 0.3, "{hz} Hz: the two bands add up to {} dB", db(&sum));
         }
     }
 

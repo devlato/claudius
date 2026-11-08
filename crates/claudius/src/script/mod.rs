@@ -38,7 +38,7 @@ use crate::pattern::{Node, Pattern, Value, fmt_num, mini, quote};
 
 pub use form::Sec;
 pub use mix::mix_of;
-pub use print::to_script;
+pub use print::{layer_value, sound_word, to_script, value_text};
 pub use song::{blank, remode};
 pub(crate) use song::{place_new, put_drum, put_hits};
 pub(crate) use sounds::{drum_label, voice_word};

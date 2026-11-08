@@ -686,6 +686,11 @@ pub struct TrackView {
     pub playing: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub next_swap: Option<String>,
+    /// a track several sounds play at once (a rack): its layers, each as a script's `rack()` and
+    /// `Command::SetLayers` take one: `{"sound": "sub_bass", "band": [0, 100], "level": -2, "pan": 0.3,
+    /// "transpose": 12, "duck": 0.8, "fx": [...]}`, what is at its default left out
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub layers: Vec<serde_json::Value>,
 }
 
 /// A sound a track may swap to: its name, as `part(..., #{ preset })` or `drum_sound()` take it; what it is (`synth`,
@@ -1088,6 +1093,7 @@ pub const EFFECT_TEMPLATES: &[(&str, &str)] = &[
         r#"{"fx": "eq", "bands": [{"kind": "highpass", "freq": 120}, {"kind": "peak", "freq": 3000, "gain_db": 2, "q": 1}]}"#,
     ),
     ("filter", r#"{"fx": "filter", "mode": "lp", "cutoff": 2400, "res": 0.2}"#),
+    ("band", r#"{"fx": "band", "low_hz": 120, "high_hz": 2000}"#),
     (
         "compressor",
         r#"{"fx": "compressor", "threshold_db": -18, "ratio": 3, "attack_ms": 10, "release_ms": 100, "knee_db": 4, "makeup_db": 2}"#,
@@ -1744,6 +1750,15 @@ pub enum Command {
     SetFx {
         target: String,
         fx: Vec<serde_json::Value>,
+    },
+    /// Has several sounds play a track's notes at once (a rack), as `rack()` does in a script: `track` a part, a drum
+    /// lane or a pattern track's sound (`beat.kick`), each of `layers` as `TrackView::layers` has them: its `sound`
+    /// (a synth preset, a drum, a sampled instrument or a file, with `bank` as `drum_sound` takes it), the `band`
+    /// it keeps ([low, high] in Hz, 0 for no edge), its `level` in dB against the others, `pan`, `transpose` in
+    /// semitones, `duck` under the kick (0 to 1) and `fx`. 1 to 8 layers.
+    SetLayers {
+        track: String,
+        layers: Vec<serde_json::Value>,
     },
     /// run a claudius script against the current song (see the script reference)
     RunScript {

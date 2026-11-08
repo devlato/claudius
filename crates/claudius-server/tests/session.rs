@@ -1200,6 +1200,41 @@ async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_track_is_played_by_layers_of_sounds_seen_and_set_as_a_rack() {
+    use serde_json::json;
+    let app = app();
+    let new = Command::NewSong {
+        genre: "house".into(),
+        seed: Some(5),
+        bpm: None,
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+        complexity: None,
+    };
+    assert!(app.command(new).ok);
+    let layers = vec![
+        json!({"sound": "sub_bass", "band": [0, 100], "duck": 0.8}),
+        json!({"sound": "reese", "band": [100, 0], "level": -3, "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 9}]}),
+    ];
+    let r = app.command(Command::SetLayers { track: "bass".into(), layers: layers.clone() });
+    assert!(r.ok && r.message.starts_with("bass: 2 layers at once"), "{}", r.message);
+    // the studio sees the layers as the command takes them, and the sound in words
+    let bass = app.state().song.unwrap().tracks.into_iter().find(|t| t.name == "bass").unwrap();
+    assert_eq!(bass.layers[0], json!({"sound": "sub_bass", "band": [0.0, 100.0], "duck": 0.8}));
+    assert_eq!((&bass.layers[1]["level"], &bass.layers[1]["fx"][0]["fx"]), (&json!(-3.0), &json!("saturate")));
+    assert!(bass.sound.starts_with("a rack of synth patch 'sub_bass' under 100 Hz + synth patch 'reese' above 100 Hz"));
+    // what the script refuses is not sent into the song, and says why
+    let wrong = app.command(Command::SetLayers { track: "bass".into(), layers: vec![json!({"sound": "nope"})] });
+    assert!(!wrong.ok && wrong.message.contains("unknown sound 'nope'"), "{}", wrong.message);
+    // undone, the bass plays its one sound again
+    assert!(app.command(Command::Undo).ok);
+    let bass = app.state().song.unwrap().tracks.into_iter().find(|t| t.name == "bass").unwrap();
+    assert!(bass.layers.is_empty() && !bass.sound.starts_with("a rack"), "{}", bass.sound);
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn chains_of_effects_are_seen_and_set_as_the_graph_sets_them() {
     use serde_json::json;
     let app = app();

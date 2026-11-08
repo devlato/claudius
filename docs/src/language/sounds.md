@@ -256,6 +256,55 @@ To use a song or a loop as material, `claudius chop` cuts bar loops and drum one
 library, and `claudius make --sample <file>` flips a recording into a new song. See
 [Remaking a song from audio](../cookbook/remake.md).
 
+## Layered sounds
+
+A bass in a modern track is rarely one sound. It is a rack of several playing the same notes, each doing one job:
+a clean sine underneath for the weight, a distorted mid on top for the growl you hear on a phone, and a bright top
+for the edge. Each is filtered to its own band of frequencies so they do not fight, compressed and distorted on its
+own, and often only the sub ducks under the kick while the rest holds. `rack()` builds a track that way:
+
+```js
+rack("bass", [
+  #{ sound: "sub_bass", band: [0, 100], duck: 0.8 },
+  #{ sound: "reese", band: [100, 1000], level: -2, fx: [#{ fx: "saturate", kind: "hard", drive_db: 12 }] },
+  #{ sound: "saw_lead", band: [1000, 0], level: -9, transpose: 12, fx: [#{ fx: "tremolo", beats: 0.25, depth: 0.7 }] },
+]);
+```
+
+- Each layer plays the track's notes with its `sound`: a synth preset, a drum sound, a sampled instrument or a
+  file, as [`drum_sound()`](song-functions.md#drum_sound) and a part's `preset` name one (with `bank` for a kit).
+- `band: [low, high]` keeps only those frequencies, in Hz, 0 for no edge on that side. The edges are crossovers
+  that let bands meeting at an edge add up to the whole again, without a bump or a dip there.
+- `level` is in dB against the other layers. Each is first made as loud as the rest over its band, so a sound's own
+  loudness does not set the balance: `-9` is a top nine decibels under the sub, as you hear it.
+- `pan` (-1 to 1) and `transpose` (semitones: 12 is an octave up) are the layer's own.
+- `duck` (0 to 1) ducks that layer alone under the kick: the sub makes room for it while the growl holds.
+- `fx` is the layer's own chain, after its band. A `tremolo` or a `gate` there pulses that band alone, as a bass
+  whose top flutters in sixteenths over a steady sub.
+
+The rack sums its layers before the track's own effects ([`fx()`](mixing.md)) and its mix, so the track is still
+one track: one row in the arrangement, one fader. It works on a part, a drum lane (a snare made of a snare, a clap
+and a noise burst) or a pattern track's sound, named by its label when the pattern plays several:
+
+```js
+drum("snare", "....x.......x...");
+rack("snare", [
+  #{ sound: "sd", band: [150, 6000] },
+  #{ sound: "cp", level: -4, pan: 0.2 },
+  #{ sound: "hh", band: [5000, 0], level: -10, fx: [#{ fx: "reverb", decay: 0.8, mix: 0.4 }] },
+]);
+```
+
+One sound treated band by band works too, without layers: the `band` effect in a
+[`parallel`](mixing.md) effect's chains splits a track into bands to process each on its own:
+
+```js
+fx("bass", [#{ fx: "parallel", dry: 0, chains: [
+  #{ amount: 1, fx: [#{ fx: "band", low_hz: 0, high_hz: 120 }] },
+  #{ amount: 1, fx: [#{ fx: "band", low_hz: 120, high_hz: 0 }, #{ fx: "saturate", kind: "fold", drive_db: 15 }] },
+] }]);
+```
+
 ## Sounds you cannot set from a script
 
 A script names sounds; it does not edit them. The synth presets' parameters and the tuning and decay of a generated

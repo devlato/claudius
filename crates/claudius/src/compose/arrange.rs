@@ -251,7 +251,11 @@ fn harmonize(
     chords: &[crate::theory::ChordSpan],
 ) {
     let harmony = |s: &crate::voice::tune::TuneScale| s.harmony(key, chords);
-    let chains = tracks.iter_mut().map(|t| &mut t.mix.fx).chain(mix.buses.values_mut()).chain([&mut mix.master.fx]);
+    let chains = tracks
+        .iter_mut()
+        .flat_map(|t| std::iter::once(&mut t.mix.fx).chain(t.sound.chains_mut()))
+        .chain(mix.buses.values_mut())
+        .chain([&mut mix.master.fx]);
     for chain in chains {
         chain.iter_mut().for_each(|e| e.harmonize(&harmony));
     }
@@ -273,7 +277,11 @@ fn resolve_sections(tracks: &mut [Track], mix: &mut MixPlan, sections: &[Section
         })
         .collect();
     let mut resolve = |e: &mut Effect| e.params_mut(&mut |p| *p = p.resolve(&spans));
-    let chains = tracks.iter_mut().map(|t| &mut t.mix.fx).chain(mix.buses.values_mut()).chain([&mut mix.master.fx]);
+    let chains = tracks
+        .iter_mut()
+        .flat_map(|t| std::iter::once(&mut t.mix.fx).chain(t.sound.chains_mut()))
+        .chain(mix.buses.values_mut())
+        .chain([&mut mix.master.fx]);
     for chain in chains {
         chain.iter_mut().for_each(&mut resolve);
     }

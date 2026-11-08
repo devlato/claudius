@@ -245,6 +245,7 @@ impl App {
             | Command::ToggleLayer { .. }
             | Command::SetDrumStep { .. }
             | Command::SetFx { .. }
+            | Command::SetLayers { .. }
             | Command::AddHits { .. }) => self.edit(&c),
             Command::ExtractGroove { path, name, lanes, bpm } => match self
                 .readable(Path::new(&path))

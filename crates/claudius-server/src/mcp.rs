@@ -10,8 +10,8 @@ use rmcp::handler::server::wrapper::Parameters;
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
 use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, StreamableHttpService};
 use rmcp::{ServerHandler, schemars, tool, tool_handler, tool_router};
-use serde::Deserialize;
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 
 use crate::app::App;
 use claudius_session::views;
@@ -518,6 +518,49 @@ pub struct SwapArgs {
     /// render and judge after the change (default true; set false to swap several before listening)
     #[serde(default = "yes")]
     pub listen: bool,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct SetLayersArgs {
+    /// the track several sounds play: a part or a drum lane by name (get_song lists the tracks), or a pattern track's
+    /// sound by its label (beat.kick)
+    pub track: String,
+    /// its layers, 1 to 8, each playing the track's notes; the first is the one it plays on its own
+    pub layers: Vec<LayerArg>,
+    /// render and judge after the change (default true)
+    #[serde(default = "yes")]
+    pub listen: bool,
+}
+
+/// one of a rack's sounds
+#[derive(Debug, Deserialize, Serialize, schemars::JsonSchema)]
+pub struct LayerArg {
+    /// what plays the notes: a synth preset (sub_bass, reese, supersaw, saw_lead ...), a drum sound (bd:2), an
+    /// installed instrument (pack:instrument) or a file
+    pub sound: String,
+    /// a drum kit or sample pack to find `sound` in, as drum sounds take one (tr909)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bank: Option<String>,
+    /// the frequencies it keeps, [low, high] in Hz, 0 for no edge on that side: [0, 100] a sub, [100, 1000] a mid,
+    /// [1000, 0] a top; bands that meet at an edge add up to the whole
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub band: Option<[f32; 2]>,
+    /// how loud against the other layers, in dB: each is first made as loud as the rest over its band
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub level: Option<f32>,
+    /// -1 left to 1 right
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pan: Option<f32>,
+    /// semitones from the track's notes (12: an octave up)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transpose: Option<i32>,
+    /// how far it ducks under the kick, 0 to 1, on its own: a sub that ducks under a top that holds
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duck: Option<f32>,
+    /// its own effects after its band, each {"fx": "saturate", ...} as set_fx takes them: a tremolo or a gate here
+    /// pulses only this band
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fx: Vec<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -1310,6 +1353,14 @@ impl Studio {
     )]
     async fn harmonize(&self, Parameters(a): Parameters<HarmonizeArgs>) -> Result<String, String> {
         self.edit(Command::Harmonize { part: a.part, style: a.style, sound: a.sound, name: a.name }, true).await
+    }
+
+    #[tool(
+        description = "Play a track with several sounds at once (a rack), as modern producers build a bass or a lead out of layers: a clean sine sub under 100 Hz that ducks under the kick, a distorted reese from 100 Hz to 1 kHz, a bright top above that pulsing in sixteenths. Each layer plays the track's notes with its own sound, keeps its own band of frequencies (crossovers that add up to the whole), and has its own level, pan, transpose, duck and effects; the rack sums them before the track's own effects and mix. Takes the place of the track's sound, keeping its notes, pattern and mix (undo brings the sound back): a part, a drum lane (a snare of three hits at once), or a pattern track's sound. get_song shows a track's layers, as this takes them back to change one."
+    )]
+    async fn set_layers(&self, Parameters(a): Parameters<SetLayersArgs>) -> Result<String, String> {
+        let layers = a.layers.iter().map(|l| serde_json::to_value(l).unwrap_or_default()).collect();
+        self.edit(Command::SetLayers { track: a.track, layers }, a.listen).await
     }
 
     #[tool(

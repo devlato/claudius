@@ -587,6 +587,26 @@ Errors: `track 'x': unknown sound 'bdd' (...)`; `track 'x': cannot read 'h3' as 
 pattern is too dense to play: it makes more than 262144 events` (or `it needs more than 4000000 steps of work`);
 `track 'x' plays 2048 notes per bar; the limit is 1024`. See [Errors and limits](limits.md).
 
+### `rack()`
+
+```js no-run
+rack(track, [#{ sound, bank, band, level, pan, transpose, duck, fx }, ...])
+```
+
+Has several sounds play a track at once, each a layer of its notes with the band of frequencies it keeps, its level
+against the others, its pan, transpose, duck under the kick and its own effects, summed before the track's own
+chain: a bass of a sub, a growl and a top. It takes the place of the track's sound, on a part, a drum lane or a
+pattern track's sound (`"beat.kick"` when the pattern plays several); 1 to 8 layers. See
+[Layered sounds](sounds.md#layered-sounds).
+
+Errors: `rack("bass") has 1 to 8 layers, not 0`; `rack("bass")'s layer 1 names its sound`; `rack("bass")'s layer 1's
+band is [low, high] in Hz, ...`; `rack("bass")'s layer 1's transpose is whole semitones from -24 to 24, ...`;
+`no track 'nope'`.
+
+```js
+rack("bass", [#{ sound: "sub_bass", band: [0, 90], duck: 0.7 }, #{ sound: "moog_bass", band: [90, 0], level: -3 }]);
+```
+
 ### `mute()`, `unmute()`, `solo()`, `unsolo()`, `remove()`
 
 ```js no-run

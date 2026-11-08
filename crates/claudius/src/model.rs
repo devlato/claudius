@@ -61,7 +61,39 @@ pub enum Sound {
         #[serde(default)]
         label: String,
     },
+    /// several sounds playing the same notes at once, each its own share of the spectrum, level, effects and duck,
+    /// summed into one track: a modern bass of a clean sub, a distorted mid and a fizzy top (`Layer`)
+    Rack { layers: Vec<Layer> },
 }
+
+/// One sound of a rack: what plays the track's notes, and what is done to it before the rack sums it with the others.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Layer {
+    /// a drum voice, a synth, a recorded one-shot or an instrument: not a loop, a transition or a rack
+    pub sound: Sound,
+    /// the frequencies it keeps, in Hz, `[low, high]` (0: no edge on that side), through crossovers that let bands
+    /// meeting at an edge add up to the whole (`Effect::Band`)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub band: Option<[f32; 2]>,
+    /// how loud it is against the others, in dB: each is first made as loud as the rest over its band, so a sound's
+    /// own loudness does not set the balance
+    #[serde(default)]
+    pub level_db: f32,
+    #[serde(default)]
+    pub pan: f32,
+    /// semitones from the track's notes (12: an octave up)
+    #[serde(default)]
+    pub transpose: i32,
+    /// how far it ducks under the kick, 0 to 1, whatever the others do: a sub that ducks under a top that holds
+    #[serde(default)]
+    pub duck: f32,
+    /// its own effects, after its band and level
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fx: Vec<Effect>,
+}
+
+/// the layers a rack may have
+pub const MAX_LAYERS: usize = 8;
 
 fn middle_c() -> i32 {
     60
@@ -90,7 +122,63 @@ impl Sound {
             Sound::Loop { path, label, bpm, .. } => {
                 format!("loop {} ({bpm:.0} BPM)", if label.is_empty() { short_path(path) } else { label.clone() })
             }
+            Sound::Rack { layers } => {
+                let each: Vec<String> = layers.iter().map(Layer::describe).collect();
+                format!("a rack of {}", each.join(" + "))
+            }
         }
+    }
+
+    /// the sound itself, or each of a rack's layers' sounds: the single sounds that play
+    pub fn each(&self) -> Vec<&Sound> {
+        match self {
+            Sound::Rack { layers } => layers.iter().map(|l| &l.sound).collect(),
+            s => vec![s],
+        }
+    }
+
+    pub fn each_mut(&mut self) -> Vec<&mut Sound> {
+        match self {
+            Sound::Rack { layers } => layers.iter_mut().map(|l| &mut l.sound).collect(),
+            s => vec![s],
+        }
+    }
+
+    /// a rack's layers' chains of effects, which a section's automation and the song's key reach as they reach a
+    /// track's own; none for any other sound
+    pub fn chains(&self) -> Vec<&Vec<Effect>> {
+        match self {
+            Sound::Rack { layers } => layers.iter().map(|l| &l.fx).collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    pub fn chains_mut(&mut self) -> Vec<&mut Vec<Effect>> {
+        match self {
+            Sound::Rack { layers } => layers.iter_mut().map(|l| &mut l.fx).collect(),
+            _ => Vec::new(),
+        }
+    }
+}
+
+impl Layer {
+    /// a layer of `sound` across the whole spectrum, at the others' level, with no effects
+    pub fn of(sound: Sound) -> Layer {
+        Layer { sound, band: None, level_db: 0.0, pan: 0.0, transpose: 0, duck: 0.0, fx: Vec::new() }
+    }
+
+    /// its sound, and the band it keeps: "synth patch 'sub_bass' under 100 Hz"
+    pub fn describe(&self) -> String {
+        let hz = |f: f32| {
+            if f >= 1000.0 { format!("{:.1} kHz", f / 1000.0).replace(".0 ", " ") } else { format!("{f:.0} Hz") }
+        };
+        let band = match self.band {
+            Some([lo, hi]) if lo > 0.0 && hi > 0.0 => format!(" from {} to {}", hz(lo), hz(hi)),
+            Some([lo, _]) if lo > 0.0 => format!(" above {}", hz(lo)),
+            Some([_, hi]) if hi > 0.0 => format!(" under {}", hz(hi)),
+            _ => String::new(),
+        };
+        format!("{}{band}", self.sound.describe())
     }
 }
 
@@ -599,6 +687,7 @@ impl Blueprint {
                     .flatten(),
             );
         sounds
+            .flat_map(Sound::each)
             .filter_map(|s| match s {
                 Sound::Sample { path, .. } | Sound::Loop { path, .. } => Some(path.as_str()),
                 _ => None,
@@ -618,6 +707,7 @@ impl Blueprint {
             .chain(self.patterns.iter_mut().flat_map(|p| p.sounds.values_mut()))
             .chain([Some(&mut t.crash), t.riser.as_mut(), t.impact.as_mut()].into_iter().flatten());
         sounds
+            .flat_map(Sound::each_mut)
             .filter_map(|s| match s {
                 Sound::Sample { path, .. } | Sound::Loop { path, .. } => Some(path),
                 _ => None,
@@ -752,6 +842,13 @@ impl Project {
             .tracks
             .iter()
             .map(|t| Track {
+                sound: {
+                    let mut sound = t.sound.clone();
+                    for chain in sound.chains_mut() {
+                        *chain = chain.iter().map(shift_fx).collect();
+                    }
+                    sound
+                },
                 notes: t.notes.iter().filter(|n| n.t >= a && n.t < b).map(|n| Note { t: n.t - a, ..*n }).collect(),
                 clips: t
                     .clips
