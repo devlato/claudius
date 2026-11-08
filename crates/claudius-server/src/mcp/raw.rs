@@ -117,8 +117,52 @@ fn nearest<'a>(wrong: &str, among: impl IntoIterator<Item = &'a str>) -> Option<
         .map(|(_, n)| n)
 }
 
+/// the schema `s` stands for: the one its `$ref` names, or for an optional value (`anyOf` with null) the one not null
+fn resolved(s: &Value) -> &Value {
+    if let Some(r) = s.get("$ref").and_then(Value::as_str) {
+        let name = r.rsplit('/').next().unwrap_or(r);
+        return SCHEMA.get("$defs").and_then(|d| d.get(name)).map_or(s, resolved);
+    }
+    let some = s.get("anyOf").or_else(|| s.get("oneOf")).and_then(Value::as_array);
+    match some.and_then(|v| v.iter().find(|x| x.get("type").and_then(Value::as_str) != Some("null"))) {
+        Some(x) => resolved(x),
+        None => s,
+    }
+}
+
+/// the fields written in `v` that its schema has no place for, by where they are (`trig.probability`, `notes[2].pitch`),
+/// each with the one nearest it
+fn unknown(v: &Value, schema: &Value, at: &str, out: &mut Vec<String>) {
+    let s = resolved(schema);
+    match v {
+        Value::Object(obj) => {
+            // a field typed as any JSON (an effect's settings) has no fields of its own to check
+            let Some(props) = s.get("properties").and_then(Value::as_object) else { return };
+            for (k, x) in obj {
+                let here = if at.is_empty() { k.clone() } else { format!("{at}.{k}") };
+                match props.get(k) {
+                    Some(p) => unknown(x, p, &here, out),
+                    None => out.push(match nearest(k, props.keys().map(String::as_str).filter(|p| *p != "cmd")) {
+                        Some(n) => format!("\"{here}\" (did you mean \"{n}\"?)"),
+                        None => format!("\"{here}\""),
+                    }),
+                }
+            }
+        }
+        Value::Array(items) => {
+            if let Some(item) = s.get("items") {
+                for (i, x) in items.iter().enumerate() {
+                    unknown(x, item, &format!("{at}[{i}]"), out);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
 /// The command an agent wrote, as claudius takes it; or why not, with what it takes instead: a name claudius does not
-/// know (and the one nearest it), a field the command does not take, or a value of the wrong kind.
+/// know (and the one nearest it), a field the command does not take, here or in an object inside it, or a value of the
+/// wrong kind.
 pub fn check(v: Value) -> Result<Command, String> {
     let Some(obj) = v.as_object() else {
         return Err("a command is a JSON object such as {\"cmd\": \"set_tempo\", \"bpm\": 124}".into());
@@ -130,18 +174,10 @@ pub fn check(v: Value) -> Result<Command, String> {
         let near = nearest(name, names()).map(|n| format!(" (did you mean {n}?)")).unwrap_or_default();
         return Err(format!("claudius has no command \"{name}\"{near}; it has: {}", names().join(", ")));
     };
-    let props = schema.get("properties").and_then(Value::as_object);
-    let taken = |k: &str| props.is_some_and(|p| p.contains_key(k));
-    let unknown: Vec<String> = obj
-        .keys()
-        .filter(|k| !taken(k))
-        .map(|k| match nearest(k, props.into_iter().flatten().map(|(p, _)| p.as_str()).filter(|p| *p != "cmd")) {
-            Some(n) => format!("\"{k}\" (did you mean \"{n}\"?)"),
-            None => format!("\"{k}\""),
-        })
-        .collect();
-    if !unknown.is_empty() {
-        return Err(format!("{name} takes no {}, so nothing was sent.\n{}", unknown.join(", "), fields(name)));
+    let mut wrong = Vec::new();
+    unknown(&v, &Value::Object(schema.clone()), "", &mut wrong);
+    if !wrong.is_empty() {
+        return Err(format!("{name} takes no {}, so nothing was sent.\n{}", wrong.join(", "), fields(name)));
     }
     let name = name.to_string();
     serde_json::from_value(v).map_err(|e| format!("{name}: {e}, so nothing was sent.\n{}", fields(&name)))
@@ -177,6 +213,25 @@ mod tests {
         assert!(e.contains("level_db"), "{e}");
         let e = check(json!({"cmd": "set_mix", "track": "bass", "lvl_db": -3})).unwrap_err();
         assert!(e.contains("did you mean \"level_db\"?"), "{e}");
+    }
+
+    #[test]
+    fn a_field_written_wrong_inside_an_object_or_a_list_is_found_where_it_is() {
+        let trig =
+            json!({"cmd": "set_trig", "lane": "hat", "variant": "main", "step": 2, "trig": {"probability": 0.5}});
+        let e = check(trig).unwrap_err();
+        assert!(
+            e.contains("\"trig.probability\" (did you mean \"trig.prob\"?)") || e.contains("\"trig.probability\""),
+            "{e}"
+        );
+        let notes = json!({"cmd": "set_notes", "part": "lead", "prog": "A", "notes": [{"t": 0, "d": 1, "p": 60}, {"t": 1, "d": 1, "pitch": 62}]});
+        let e = check(notes).unwrap_err();
+        assert!(e.contains("\"notes[1].pitch\""), "{e}");
+        let fine = json!({"cmd": "set_trig", "lane": "hat", "variant": "main", "step": 2, "trig": {"prob": 0.5}});
+        assert!(check(fine).is_ok());
+        // an effect's settings are any JSON: nothing in them is the schema's to refuse
+        let fx = json!({"cmd": "set_fx", "target": "master", "fx": [{"fx": "reverb", "decay": 2.4, "anything": 1}]});
+        assert!(check(fx).is_ok());
     }
 
     #[test]

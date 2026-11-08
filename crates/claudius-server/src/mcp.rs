@@ -1475,7 +1475,11 @@ impl Studio {
         if !r.ok {
             return Err(r.message);
         }
-        Ok(format!("{}\nstatus follows the download; the log says when each pack is in.", r.message))
+        // packs already in start nothing to follow
+        Ok(match self.b.state().await?.busy {
+            Some(_) => format!("{}\nstatus follows the download; the log says when each pack is in.", r.message),
+            None => r.message,
+        })
     }
 }
 
