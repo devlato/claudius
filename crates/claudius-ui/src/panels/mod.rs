@@ -260,15 +260,12 @@ pub enum Gesture {
 /// a new track, as the arrangement's "+ Track" menu is filling it in
 #[derive(Default)]
 pub struct AddTrackForm {
-    /// written the way a genre plays it (`Command::GenerateTrack`); otherwise a part or a drum lane of your own
-    pub generate: bool,
+    pub kind: AddKind,
     /// what a generated track is (drums, bass, strings ...), and the genre it is written in (empty: the song's)
     pub what: String,
     pub genre: String,
     /// a generated part in place of the song's part of its role
     pub replace: bool,
-    /// a drum lane; otherwise a part
-    pub drum: bool,
     /// a part's role: bass, chords, pad, keys, lead or arp
     pub role: String,
     /// left empty, a name made from the role or the sound
@@ -276,6 +273,22 @@ pub struct AddTrackForm {
     /// left empty, a part plays what its genre draws
     pub sound: String,
     pub filter: String,
+    /// the words to search the free libraries for a recording
+    pub query: String,
+}
+
+/// what the "+ Track" menu adds
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum AddKind {
+    /// a track written the way a genre plays it (`Command::GenerateTrack`)
+    #[default]
+    Style,
+    /// a part of a role of your own, which the theory engine writes
+    Part,
+    /// a drum lane of your own, to fill in the step sequencer
+    Drum,
+    /// a recording: a file of yours, one a free library offers, or one recorded now, each through its window
+    Recording,
 }
 
 pub struct View {
@@ -412,7 +425,7 @@ impl Default for View {
             graph: graph::GraphView::default(),
             melody_style: "line".into(),
             row_menu: None,
-            add_track: AddTrackForm { generate: true, what: "bass".into(), role: "lead".into(), ..Default::default() },
+            add_track: AddTrackForm { what: "bass".into(), role: "lead".into(), ..Default::default() },
             roll: roll::RollView::default(),
             tour: None,
             tour_done: false,

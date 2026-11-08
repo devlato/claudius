@@ -79,7 +79,10 @@ the song it opens. It also opens a project the demo saved, a `.zip`: claudius un
   pad, keys, a lead or an arpeggio the theory engine writes over the song's chords, written the way the genre writes
   that role) or a drum lane to fill in under Drums, its name, and its sound, from the synths made for the role, the
   installed instruments, or the drum voices and kits; a new track plays in the sections with energy 0.6 or more,
-  ready for you to move. Right-click a row to mute or solo it, [swap its sound](#swapping-a-sound), switch it on or
+  ready for you to move. Its **Recording** tab adds a song or a sound instead: **Choose a file on this computer...**,
+  a search of the [free libraries](../guide/online-samples.md#choosing-one-in-the-studio) to hear and choose from, or
+  **Record one...**, each in the window it goes in by (Add a recording, or Record), to add it whole as a take or
+  sample its vocals. Right-click a row to mute or solo it, [swap its sound](#swapping-a-sound), switch it on or
   off everywhere, or remove it (Undo brings it back). A part's row also offers **Add chords under it**: chords that fit its melody and the song's
   chords, a chord on each of its notes, a pad under it, stabs or offbeats, as a new part that
   [follows the melody](../language/song-functions.md#part) as it changes. Right-click a [take](../guide/samples.md#takes)'s row
