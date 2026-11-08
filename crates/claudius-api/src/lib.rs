@@ -423,7 +423,39 @@ pub fn search_genres<'a>(genres: &'a [GenreInfo], query: &str) -> Vec<&'a GenreI
 
 /// the words of `s` as a genre search compares them: lowercase letters and digits, `&` as `n` (R&B is rnb), an
 /// apostrophe dropped (d'angelo is dangelo)
-fn search_words(s: &str) -> Vec<String> {
+/// The genres a person's words name outright, in the order they come, each with where in `search_words(text)` it is
+/// named: a run of up to four words that is a genre's name or one of its other names ("lo-fi", "trip hop", "90s hip
+/// hop"), the longest where runs overlap. "a chill lo-fi beat" names lofi in words 2 and 3; "trip hop with idm drums"
+/// names trip hop, then idm.
+pub fn genres_named<'a>(genres: &'a [GenreInfo], text: &str) -> Vec<(&'a GenreInfo, std::ops::Range<usize>)> {
+    let words = search_words(text);
+    let names: Vec<(String, &GenreInfo)> = genres
+        .iter()
+        .flat_map(|g| std::iter::once(&g.name).chain(&g.aliases).map(move |n| (search_words(n).concat(), g)))
+        .filter(|(n, _)| !n.is_empty())
+        .collect();
+    let mut found: Vec<(&GenreInfo, std::ops::Range<usize>)> = Vec::new();
+    let mut i = 0;
+    while i < words.len() {
+        let hit = (1..=4.min(words.len() - i)).rev().find_map(|n| {
+            let run = words[i..i + n].concat();
+            names.iter().find(|(name, _)| *name == run).map(|(_, g)| (n, *g))
+        });
+        match hit {
+            Some((n, g)) => {
+                if !found.iter().any(|(f, _)| f.name == g.name) {
+                    found.push((g, i..i + n));
+                }
+                i += n;
+            }
+            None => i += 1,
+        }
+    }
+    found
+}
+
+/// the words a genre search reads in `s`: lower case, split at anything not a letter or a digit
+pub fn search_words(s: &str) -> Vec<String> {
     s.to_lowercase()
         .replace('&', "n")
         .replace(['\'', '’'], "")
@@ -1250,6 +1282,62 @@ pub struct VerdictView {
     pub measures: Vec<(String, f64)>,
 }
 
+/// a part of the verdict's score as a person says it, and what it judges
+pub fn score_in_words(key: &str) -> (&str, &str) {
+    match key {
+        "arc" => ("Shape", "how its intensity rises and falls across the sections, as its genre's songs do"),
+        "mix" => ("Mix", "loudness, peaks, the balance of lows and highs, the stereo width and the low end"),
+        "theory" => ("Harmony", "the chords, the key, and how the melody and the bass sit on them"),
+        "genre" => ("Genre", "how much it sounds like its genre to the listening model"),
+        "production" => ("Production", "how well mixed and produced it sounds to the listening model"),
+        "refs" => ("Records", "how close it sounds to records of its genre"),
+        "time" => ("Timing", "whether every track plays in time with the song's tempo"),
+        other => (other, "a part of the score"),
+    }
+}
+
+/// how much an issue of the verdict costs (its severity, 0..1), in words
+pub fn severity_in_words(s: f64) -> &'static str {
+    if s >= 0.6 {
+        "major"
+    } else if s >= 0.3 {
+        "worth fixing"
+    } else {
+        "minor"
+    }
+}
+
+/// Where an issue of the verdict is fixed, in words, from the critic's target: `part:lead` the lead part,
+/// `band:presence-` more presence in the mix, `level:kick+` kick quieter, `width+` a wider stereo image, `form` the
+/// arrangement, and so on.
+pub fn fix_in_words(target: &str) -> String {
+    let (kind, what) = target.split_once(':').unwrap_or((target, ""));
+    let band = |b: &str| match b {
+        "lowmid" => "low mids".to_string(),
+        "mid" => "mids".to_string(),
+        "low" => "lows".to_string(),
+        other => other.to_string(),
+    };
+    match kind {
+        "part" => format!("the {what} part"),
+        "time" => format!("the timing of {what}"),
+        "level" if what.ends_with('+') => format!("{} quieter", what.trim_end_matches('+')),
+        "level" if what.ends_with('-') => format!("{} louder", what.trim_end_matches('-')),
+        "level" => format!("{what}'s level"),
+        "sound" => format!("another sound for {what}"),
+        "band" if what.ends_with('+') => format!("less {} in the mix", band(what.trim_end_matches('+'))),
+        "band" if what.ends_with('-') => format!("more {} in the mix", band(what.trim_end_matches('-'))),
+        "band" => format!("the {} in the mix", band(what)),
+        "width+" => "a wider stereo image".into(),
+        "width-" => "a narrower stereo image, and the low end in mono".into(),
+        "master" => "the master: its loudness and peaks".into(),
+        "form" => "the arrangement".into(),
+        "genre" => "the genre's sounds and parts".into(),
+        "production" => "the production: the sounds and the mix".into(),
+        _ => target.into(),
+    }
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct EarsView {
     pub genre_query: String,
@@ -1986,6 +2074,49 @@ mod tests {
         assert_eq!(names("dusty"), ["boom_bap"], "by its sound");
         assert_eq!(names("gang"), Vec::<&str>::new());
         assert_eq!(names(" ").len(), genres.len());
+    }
+
+    #[test]
+    fn the_genres_a_sentence_names_come_in_its_order_and_a_longer_name_wins() {
+        let g = |name: &str, aliases: &[&str]| GenreInfo {
+            name: name.into(),
+            aliases: aliases.iter().map(|a| a.to_string()).collect(),
+            ..Default::default()
+        };
+        let genres = [
+            g("lofi", &["lo-fi hip hop", "chillhop"]),
+            g("trip_hop", &["bristol"]),
+            g("idm", &["braindance"]),
+            g("house", &[]),
+            g("deep_house", &[]),
+            g("boom_bap", &["90s hip hop"]),
+        ];
+        let named = |s: &str| genres_named(&genres, s).iter().map(|(g, _)| g.name.as_str()).collect::<Vec<_>>();
+        assert_eq!(genres_named(&genres, "a chill lo-fi beat")[0].1, 2..4, "where: a, chill, lo, fi, beat");
+        assert_eq!(named("a chill lo-fi beat for studying"), ["lofi"]);
+        assert_eq!(named("Trip hop with IDM drums"), ["trip_hop", "idm"]);
+        assert_eq!(named("deep house, not house"), ["deep_house", "house"]);
+        assert_eq!(named("something 90s hip hop"), ["boom_bap"], "the longest run names it");
+        assert_eq!(named("house house"), ["house"], "each genre once");
+        assert_eq!(named("dark and moody"), Vec::<&str>::new());
+    }
+
+    #[test]
+    fn the_critics_targets_read_as_where_to_fix_it() {
+        assert_eq!(fix_in_words("part:lead"), "the lead part");
+        assert_eq!(fix_in_words("band:presence-"), "more presence in the mix");
+        assert_eq!(fix_in_words("band:lowmid+"), "less low mids in the mix");
+        assert_eq!(fix_in_words("level:kick+"), "kick quieter");
+        assert_eq!(fix_in_words("level:pad-"), "pad louder");
+        assert_eq!(fix_in_words("sound:pad"), "another sound for pad");
+        assert_eq!(fix_in_words("width+"), "a wider stereo image");
+        assert_eq!(fix_in_words("form"), "the arrangement");
+        assert_eq!(fix_in_words("time:vox1"), "the timing of vox1");
+        assert_eq!(fix_in_words("something new"), "something new");
+        assert_eq!(severity_in_words(0.0), "minor");
+        assert_eq!(severity_in_words(0.45), "worth fixing");
+        assert_eq!(severity_in_words(0.9), "major");
+        assert_eq!(score_in_words("arc").0, "Shape");
     }
 
     #[test]

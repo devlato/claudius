@@ -381,6 +381,105 @@ pub fn sounds() -> SoundList {
 }
 
 /// the song in a few lines, for people and assistants
+/// `items` as a sentence lists them: "a, b and c"
+fn listed(items: &[String]) -> String {
+    match items {
+        [] => String::new(),
+        [one] => one.clone(),
+        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
+    }
+}
+
+/// "a" or "an", as the word after it is said: "an intro", "a UK drill song", "an IDM song", "an R&B song"
+fn a(word: &str) -> &'static str {
+    let first = word.split(' ').next().unwrap_or(word);
+    // a word in capitals is said letter by letter, and the letters said with a vowel first take "an"
+    let letters = first.len() > 1 && first.chars().all(|c| c.is_ascii_uppercase() || c == '&');
+    let an = if letters {
+        first.starts_with(['A', 'E', 'F', 'H', 'I', 'L', 'M', 'N', 'O', 'R', 'S', 'X'])
+    } else {
+        first.starts_with(['a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U'])
+    };
+    if an { "an" } else { "a" }
+}
+
+/// a genre as people write it: "deep house", "UK drill", "IDM", "R&B", "drum and bass", "trip hop fused with IDM"
+fn genre_in_words(genre: &str) -> String {
+    let word = |w: &str| match w {
+        "uk" => "UK".to_string(),
+        "ny" => "NY".to_string(),
+        "idm" => "IDM".to_string(),
+        "rnb" => "R&B".to_string(),
+        "dnb" => "drum and bass".to_string(),
+        "g" => "G".to_string(),
+        other => other.to_string(),
+    };
+    let one = |g: &str| g.split('_').map(word).collect::<Vec<_>>().join(" ");
+    genre.split('+').map(one).collect::<Vec<_>>().join(" fused with ")
+}
+
+/// The song in a few sentences for a person, in the words the studio uses rather than a producer's: what it is, how
+/// it goes, what plays in it, and what the critic makes of it. An assistant can pass it on as it is.
+pub fn in_words(s: &SongView, v: Option<&VerdictView>) -> String {
+    let genre = genre_in_words(&s.genre);
+    // from the whole seconds, so that 3:59.6 is 4:00 rather than 3:60
+    let whole = s.seconds.max(0.0).round() as u32;
+    let (m, sec) = (whole / 60, whole % 60);
+    let mut out = format!(
+        "\"{}\" is {} {genre} song, {m}:{sec:02} long, at {:.0} beats a minute in {}.",
+        s.title,
+        a(&genre),
+        s.bpm,
+        s.key
+    );
+    let mut seen: Vec<&str> = Vec::new();
+    let form: Vec<String> = s
+        .sections
+        .iter()
+        .map(|x| {
+            let kind = x.kind.as_str();
+            let again = seen.contains(&kind);
+            seen.push(kind);
+            if again { format!("another {kind}") } else { format!("{} {kind}", a(kind)) }
+        })
+        .collect();
+    if !form.is_empty() {
+        out.push_str(&format!(" It goes {}.", listed(&form)));
+    }
+    let named = |pick: &dyn Fn(&TrackView) -> bool| -> Vec<String> {
+        s.tracks.iter().filter(|t| !t.muted && pick(t)).map(|t| t.name.replace('_', " ")).collect()
+    };
+    let drums = named(&|t| t.kind == "drum");
+    let rest = named(&|t| t.kind != "drum");
+    match (drums.is_empty(), rest.is_empty()) {
+        (false, false) => {
+            out.push_str(&format!(" The drums are {}; over them play {}.", listed(&drums), listed(&rest)))
+        }
+        (false, true) => out.push_str(&format!(" Only drums play: {}.", listed(&drums))),
+        (true, false) => out.push_str(&format!(" It plays {}, without drums.", listed(&rest))),
+        (true, true) => {}
+    }
+    if let Some(v) = v {
+        out.push_str(&format!(" The critic gives it {:.0} out of 100", v.total));
+        match v.issues.first() {
+            None => out.push_str(", with nothing to fix."),
+            Some((severity, what, target)) => {
+                let more = match v.issues.len() - 1 {
+                    0 => String::new(),
+                    1 => " (and one thing more)".to_string(),
+                    n => format!(" (and {n} things more)"),
+                };
+                out.push_str(&format!(
+                    ". What to fix first, {}: {what}{more}; the fix is {}.",
+                    severity_in_words(*severity),
+                    fix_in_words(target)
+                ));
+            }
+        }
+    }
+    out
+}
+
 pub fn summary(s: &SongView, v: Option<&VerdictView>, r: Option<&RenderView>) -> String {
     let mut out = format!(
         "{} — {} at {:.0} BPM in {}, swing {:.2}, {} bars ({}:{:02})\n",
@@ -481,4 +580,76 @@ pub fn verdict_text(v: &VerdictView) -> String {
         out.push_str(&format!("  issue ({sev:.2}): {what} — fix: {target}\n"));
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_song_in_words_says_what_it_is_how_it_goes_what_plays_and_what_to_fix() {
+        let t = |name: &str, kind: &str, muted: bool| TrackView {
+            name: name.into(),
+            kind: kind.into(),
+            muted,
+            ..Default::default()
+        };
+        let sec = |kind: &str| SectionView { kind: kind.into(), ..Default::default() };
+        let song = SongView {
+            title: "Faded Engine".into(),
+            genre: "deep_house".into(),
+            bpm: 118.0,
+            key: "E major".into(),
+            seconds: 244.0,
+            sections: vec![sec("intro"), sec("groove"), sec("drop"), sec("drop"), sec("outro")],
+            tracks: vec![
+                t("kick", "drum", false),
+                t("hat", "drum", false),
+                t("bass", "part", false),
+                t("lead", "part", true),
+            ],
+            ..Default::default()
+        };
+        let verdict = VerdictView {
+            total: 91.4,
+            issues: vec![(0.1, "dull 4-8 kHz".into(), "band:presence-".into()), (0.05, "x".into(), "form".into())],
+            ..Default::default()
+        };
+        let words = in_words(&song, Some(&verdict));
+        assert!(
+            words.starts_with("\"Faded Engine\" is a deep house song, 4:04 long, at 118 beats a minute in E major."),
+            "{words}"
+        );
+        assert!(words.contains("It goes an intro, a groove, a drop, another drop and an outro."), "{words}");
+        assert!(
+            words.contains("The drums are kick and hat; over them play bass."),
+            "the muted lead is left out: {words}"
+        );
+        assert!(
+            words.contains("gives it 91 out of 100. What to fix first, minor: dull 4-8 kHz (and one thing more)"),
+            "{words}"
+        );
+        assert!(words.ends_with("the fix is more presence in the mix."), "{words}");
+        assert!(!in_words(&song, None).contains("critic"));
+        let long = SongView { seconds: 239.6, ..song.clone() };
+        assert!(in_words(&long, None).contains("4:00 long"), "{}", in_words(&long, None));
+    }
+
+    #[test]
+    fn a_genre_reads_as_people_write_it_with_its_article_as_it_is_said() {
+        let said = |g: &str| {
+            let w = genre_in_words(g);
+            format!("{} {w}", a(&w))
+        };
+        assert_eq!(said("uk_drill"), "a UK drill");
+        assert_eq!(said("idm"), "an IDM");
+        assert_eq!(said("rnb_90s"), "an R&B 90s");
+        assert_eq!(said("ny_drill"), "an NY drill");
+        assert_eq!(said("dnb"), "a drum and bass");
+        assert_eq!(said("ambient"), "an ambient");
+        assert_eq!(said("trip_hop+idm"), "a trip hop fused with IDM");
+        assert_eq!(a("intro"), "an");
+        assert_eq!(a("outro"), "an");
+        assert_eq!(a("drop"), "a");
+    }
 }

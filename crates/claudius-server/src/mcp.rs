@@ -16,6 +16,7 @@ use serde::de::DeserializeOwned;
 use crate::app::App;
 use claudius_session::views;
 
+mod brief;
 mod raw;
 
 #[derive(Clone)]
@@ -776,6 +777,15 @@ pub struct CommandArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct MakeSongArgs {
+    /// what the person asked for, in their words: "a chill lo-fi beat around 80 bpm in D minor, minimal", "dark
+    /// techno at 130", "trip hop with idm drums, lush"
+    pub brief: String,
+    /// random seed: the same brief and seed give the same song (default: a new one)
+    pub seed: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct PacksArgs {
     /// the packs to install, by the names `catalog` gives them; none: the default packs that are missing
     #[serde(default)]
@@ -877,6 +887,17 @@ impl Studio {
         }
         Ok(out)
     }
+
+    /// an answer with the song in plain words before it, for the person, when one is open
+    async fn in_words(&self, out: &str) -> String {
+        match self.b.state().await {
+            Ok(st) if st.song.is_some() => {
+                let words = st.song.as_ref().map(|s| views::in_words(s, st.verdict.as_ref())).unwrap_or_default();
+                format!("in plain words, for the person: {words}\n\n{out}")
+            }
+            _ => out.to_string(),
+        }
+    }
 }
 
 #[tool_router]
@@ -895,17 +916,40 @@ impl Studio {
             sample_search: a.sample_search,
             complexity: a.complexity,
         };
-        self.edit(song, true).await
+        let out = self.edit(song, true).await?;
+        Ok(self.in_words(&out).await)
     }
 
     #[tool(
-        description = "The song that is open: tempo, key, progressions, the sections with the tracks playing in each, every track's sound and mix, the latest verdict, and the whole song as a claudius script (running that script on the song changes nothing; edit a copy of it to change the song).",
+        description = "Make a song from what the person asked for in their own words: \"a chill lo-fi beat around 80 bpm in D minor, minimal\", \"dark techno at 130\", \"trip hop with idm drums, lush\". claudius reads the genre from it (two named are a fusion, the first leading and the second playing the drums; one named none gets the genre nearest what it describes), a tempo, a key, how full or sparse it is and whether it is built on samples, makes the song, renders and judges it, and answers with what it read, the song in plain words to pass on to the person, and the song as get_song gives it. Say what it read, so the person can correct it; new_song takes each of these exactly."
+    )]
+    async fn make_song(&self, Parameters(a): Parameters<MakeSongArgs>) -> Result<String, String> {
+        let st = self.b.state().await?;
+        let b = brief::read(&a.brief, &st.genres)?;
+        let song = Command::NewSong {
+            genre: b.genre,
+            seed: a.seed,
+            bpm: b.bpm,
+            key: b.key,
+            loops: false,
+            sampled: b.sampled,
+            sample_search: None,
+            complexity: b.complexity,
+        };
+        let out = self.edit(song, true).await?;
+        Ok(self.in_words(&format!("read from the brief: {}\n\n{out}", b.read.join("; "))).await)
+    }
+
+    #[tool(
+        description = "The song that is open: first in plain words, to pass on to the person (what it is, how it goes, what plays, what the critic would fix first), then its tempo, key, progressions, the sections with the tracks playing in each, every track's sound and mix, the latest verdict, and the whole song as a claudius script (running that script on the song changes nothing; edit a copy of it to change the song).",
         annotations(read_only_hint = true)
     )]
     async fn get_song(&self) -> Result<String, String> {
         let st = self.b.state().await?;
         let script = self.b.script().await?;
-        Ok(format!("{}\nscript:\n```js\n{script}```", self.describe(&st)))
+        let words = st.song.as_ref().map(|s| views::in_words(s, st.verdict.as_ref()));
+        let words = words.map(|w| format!("in plain words, for the person: {w}\n\n")).unwrap_or_default();
+        Ok(format!("{words}{}\nscript:\n```js\n{script}```", self.describe(&st)))
     }
 
     #[tool(

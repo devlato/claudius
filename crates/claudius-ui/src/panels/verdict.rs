@@ -48,60 +48,6 @@ fn measure(v: &VerdictView, key: &str) -> Option<f64> {
     v.measures.iter().find(|(k, _)| k == key).map(|(_, x)| *x)
 }
 
-/// a score's name as a person says it, and what it judges
-fn score_name(key: &str) -> (&str, &str) {
-    match key {
-        "arc" => ("Shape", "how its intensity rises and falls across the sections, as its genre's songs do"),
-        "mix" => ("Mix", "loudness, peaks, the balance of lows and highs, the stereo width and the low end"),
-        "theory" => ("Harmony", "the chords, the key, and how the melody and the bass sit on them"),
-        "genre" => ("Genre", "how much it sounds like its genre to the listening model"),
-        "production" => ("Production", "how well mixed and produced it sounds to the listening model"),
-        "refs" => ("Records", "how close it sounds to records of its genre"),
-        "time" => ("Timing", "whether every track plays in time with the song's tempo"),
-        other => (other, "a part of the score"),
-    }
-}
-
-/// how much an issue costs, in words
-fn severity(s: f64) -> &'static str {
-    if s >= 0.6 {
-        "major"
-    } else if s >= 0.3 {
-        "worth fixing"
-    } else {
-        "minor"
-    }
-}
-
-/// where an issue is fixed, in words, from the critic's target ("part:lead", "band:presence-", "width+", "form")
-fn where_to_fix(target: &str) -> String {
-    let (kind, what) = target.split_once(':').unwrap_or((target, ""));
-    let band = |b: &str| match b {
-        "lowmid" => "low mids".to_string(),
-        "mid" => "mids".to_string(),
-        "low" => "lows".to_string(),
-        other => other.to_string(),
-    };
-    match kind {
-        "part" => format!("the {what} part"),
-        "time" => format!("the timing of {what}"),
-        "level" if what.ends_with('+') => format!("{} quieter", what.trim_end_matches('+')),
-        "level" if what.ends_with('-') => format!("{} louder", what.trim_end_matches('-')),
-        "level" => format!("{what}'s level"),
-        "sound" => format!("another sound for {what}"),
-        "band" if what.ends_with('+') => format!("less {} in the mix", band(what.trim_end_matches('+'))),
-        "band" if what.ends_with('-') => format!("more {} in the mix", band(what.trim_end_matches('-'))),
-        "band" => format!("the {} in the mix", band(what)),
-        "width+" => "a wider stereo image".into(),
-        "width-" => "a narrower stereo image, and the low end in mono".into(),
-        "master" => "the master: its loudness and peaks".into(),
-        "form" => "the arrangement".into(),
-        "genre" => "the genre's sounds and parts".into(),
-        "production" => "the production: the sounds and the mix".into(),
-        _ => target.into(),
-    }
-}
-
 /// a meter's name in words, with its unit
 fn measure_name(key: &str) -> String {
     match key {
@@ -182,7 +128,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         ui.vertical(|ui| {
             ui.spacing_mut().item_spacing.y = 4.0;
             for (key, score) in &v.scores {
-                let (name, tip) = score_name(key);
+                let (name, tip) = claudius_api::score_in_words(key);
                 ui.horizontal(|ui| {
                     ui.add_sized(vec2(76.0, 14.0), egui::Label::new(RichText::new(name).size(11.5).color(TEXT_DIM)))
                         .on_hover_text(tip);
@@ -223,9 +169,13 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         ui.spacing_mut().item_spacing.y = 1.0;
                         ui.add(egui::Label::new(RichText::new(what).size(12.0).color(TEXT)).wrap());
                         ui.label(
-                            RichText::new(format!("{} · fix: {}", self::severity(*severity), where_to_fix(target)))
-                                .size(11.0)
-                                .color(TEXT_FAINT),
+                            RichText::new(format!(
+                                "{} · fix: {}",
+                                claudius_api::severity_in_words(*severity),
+                                claudius_api::fix_in_words(target)
+                            ))
+                            .size(11.0)
+                            .color(TEXT_FAINT),
                         )
                         .on_hover_text(format!("severity {severity:.2}, at {target}"));
                     });
@@ -286,26 +236,4 @@ fn details(ui: &mut Ui, v: &VerdictView) {
             ui.end_row();
         }
     });
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_critics_targets_read_as_where_to_fix_it() {
-        assert_eq!(where_to_fix("part:lead"), "the lead part");
-        assert_eq!(where_to_fix("band:presence-"), "more presence in the mix");
-        assert_eq!(where_to_fix("band:lowmid+"), "less low mids in the mix");
-        assert_eq!(where_to_fix("width+"), "a wider stereo image");
-        assert_eq!(where_to_fix("form"), "the arrangement");
-        assert_eq!(where_to_fix("time:vox1"), "the timing of vox1");
-        assert_eq!(where_to_fix("level:kick+"), "kick quieter");
-        assert_eq!(where_to_fix("level:pad-"), "pad louder");
-        assert_eq!(where_to_fix("sound:pad"), "another sound for pad");
-        assert_eq!(where_to_fix("something new"), "something new");
-        assert_eq!(severity(0.0), "minor");
-        assert_eq!(severity(0.45), "worth fixing");
-        assert_eq!(severity(0.9), "major");
-    }
 }

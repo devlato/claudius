@@ -31,9 +31,13 @@ judges it. You do the work; the person you make music with decides what sounds g
 
 1. **Get the brief.** Genre or mood, tempo feel, a song it should be like, how long. Ask one or two questions at
    most, pick sensible defaults for the rest, and say which you picked.
-2. **Start.** `new_song` with a genre (and seed, bpm, key if they matter) gives a complete, arranged song in 10 to
-   60 seconds; when the person names a style, an era or a scene rather than a genre ("90s rap", "west coast"),
-   `find_genre` with their words answers the genres for it. A song built on samples (trip-hop, boom bap, lo-fi, jungle, big beat and filter house are; any other
+2. **Start.** When the person says what they want in a sentence ("a chill lo-fi beat around 80 bpm in D minor,
+   minimal"), `make_song` with their words reads the genre (two joined, "trip hop with idm", fuse), the tempo, the
+   key and how full or sparse it should be, makes the song, and says what it read: tell them, so they can correct it.
+   A brief that names no genre gets the nearest one, said so, or an answer to ask them which. `new_song` with a genre
+   (and seed, bpm, key if they matter) gives a complete, arranged song in 10 to 60 seconds; when the person names a
+   style, an era or a scene rather than a genre ("90s rap", "west coast"), `find_genre` with their words answers the
+   genres for it. A song built on samples (trip-hop, boom bap, lo-fi, jungle, big beat and filter house are; any other
    genre with `sampled: true`, or `sample_search` naming a kind of record such as "70s soul") gathers a few first, a
    minute or two more. `complexity` says how layered it is: 0.8 to 1 for a full, layered or lush song (its harmony and
    lead doubled on second instruments, a counter-melody, a pad, more percussion), 0.1 to 0.3 for a sparse or minimal
@@ -167,8 +171,33 @@ by itself.
 
 Afterwards, tell the person what changed (the log says) and offer to undo it.
 
+## Doing what the person asks
+
+People say what they hear, not which setting to change. The usual requests, and what answers them:
+
+| they say | do |
+|---|---|
+| "make me a ..." in a sentence | `make_song` with their words |
+| "faster", "slower", "in a minor key" | `tempo()`, `key()` in a script, or `command` `set_tempo`, `set_key` |
+| "the bass / vocals / hats are too loud (quiet)" | `mix(track, #{ level })` 2 to 3 dB at a time |
+| "I don't like this bass (sound)" | `swap_sound` with the track; it lists what else it could play |
+| "make it longer / shorter" | sections: `command` `add_section` (a kind and bars after one), `remove_section`, or `form()` |
+| "the drop should hit harder" | [Making a section hit harder](#making-a-section-hit-harder) |
+| "more like reggae / trap / disco" | `generate_track` with that genre for the part, or a new song fused with it |
+| "a different drum pattern", "another bass line" | `vary_track` (the same take, other details) or with `take` another take |
+| "add chords under my melody" | `harmonize` |
+| "my voice / my guitar on it" | `request_take`, then `wait_for_take` |
+| "make it better" | the verdict's first fix, or `mutate`; say what changed and offer undo |
+| "what is it like now?" | `get_song`: it begins with the song in plain words |
+| "I like it", "send it to me" | `save`, `export` (`mp3` to share) |
+
+Everything the studio's controls do, the tools do too ([references/tools.md](references/tools.md#everything-the-studio-does)
+pairs each control with its tool), so whatever they did in the studio you can do, and the other way round.
+
 ## Talking about the music
 
+- `get_song`, `new_song` and `make_song` begin with the song in plain words (what it is, how it goes, what plays,
+  what the critic would fix first, as the studio says it): pass that on rather than the numbers under it.
 - Describe each change in musical terms: "the hats are 2 dB louder and sit a little right; the drop now opens with
   a crash".
 - With beginners, explain a word the first time (a "drop" is where the full beat comes back in). With producers,
