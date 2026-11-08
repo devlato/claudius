@@ -1471,14 +1471,14 @@ impl Studio {
         description = "Download and install sample packs, so the instruments, drum kits and loops in them play from recordings rather than synthesis (what the studio's Download the packs button does): `names` from catalog's packs, or none for the default packs that are missing (about 3 GB). It runs in the background; status follows it, and the log says when each pack is in. A claudius shared over a network does not download packs."
     )]
     async fn install_packs(&self, Parameters(a): Parameters<PacksArgs>) -> Result<String, String> {
-        // a download takes the job slot, so one started only when the slot was free before and is taken after; packs
-        // already in start nothing, whatever else is running
-        let free = self.b.state().await?.busy.is_none();
+        // a download takes the job slot (what `cancellable` says is taken; listening to a recording only says it is
+        // busy), so one started only when the slot was free before and is taken after; packs already in start nothing
+        let free = !self.b.state().await?.cancellable;
         let r = self.b.command(Command::InstallPacks { names: a.names }).await?;
         if !r.ok {
             return Err(r.message);
         }
-        Ok(match free && self.b.state().await?.busy.is_some() {
+        Ok(match free && self.b.state().await?.cancellable {
             true => format!("{}\nstatus follows the download; the log says when each pack is in.", r.message),
             false => r.message,
         })
