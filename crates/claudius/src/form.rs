@@ -160,6 +160,8 @@ pub fn vary(template: &[SectionSpec], g: &GenreProfile, bpm: f64, rng: &Rng) -> 
                     variant: "sparse".into(),
                     filter_in: false,
                     build: false,
+                    build_style: Default::default(),
+                    build_amount: 0.5,
                     gap: r.chance(0.4),
                     impact: false,
                     fills: false,

@@ -535,6 +535,9 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     variant: Some(s.variant.clone()),
                     filter_in: Some(s.filter_in),
                     build: Some(s.build),
+                    // a style named turns a build-up on: the copy's is named only when it has one
+                    build_style: s.build.then(|| s.build_style.clone()),
+                    build_amount: Some(s.build_amount),
                     gap: Some(s.gap),
                     impact: Some(s.impact),
                     fills: Some(s.fills),

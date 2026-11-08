@@ -156,8 +156,9 @@ drop that should hit harder is usually 1 to 3 LU above the groove and 3 to 7 abo
   or two for the drop only (`layer("drop", "lead", true)`);
 - drum variants: a `sparse` pattern for the quieter sections (`drum("kick", "sparse", "x.......x.......")`,
   `section("groove", #{ variant: "sparse" })`), velocities in the step string (`X` accents, `1` to `9` for tenths);
-- the moment itself: `.build()` (riser, snare roll, filter sweep) and `.gap()` (a beat of silence) on the section
-  before, `.impact()` (crash and hit) on the drop.
+- the moment itself: `.build()` (riser, snare roll, filter sweep; `.build("roll")`, `.build("sweep")`,
+  `.build("riser")` or `.build("drop_out")` for one way of building, and a second number, 0 to 1, for how hard) and
+  `.gap()` (a beat of silence) on the section before, `.impact()` (crash and hit) on the drop.
 
 A section's `energy` is what the critic expects of it and decides where new tracks go; it does not change the sound
 by itself.

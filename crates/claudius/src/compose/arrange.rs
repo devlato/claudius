@@ -351,7 +351,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
             let (start, bars) = (sections[si].start_bar as f64 * 4.0, sections[si].bars);
             // the section's drums stop at its end, or at the gap before the next; a build's roll ends it
             let end = start + bars as f64 * 4.0;
-            let last = (!s.build).then_some(if s.gap { end - 1.0 } else { end });
+            let last = (!(s.build && s.build_style.parts().roll)).then_some(if s.gap { end - 1.0 } else { end });
             drummer::endings(drummer, &lanes, start, bars, last, &mut r)
         })
         .collect();
@@ -367,17 +367,28 @@ pub fn arrange(bp: &Blueprint) -> Project {
             let (a, b) = (info.start_bar as f64 * 4.0, (info.start_bar + info.bars) as f64 * 4.0);
             let on = s.layers.contains(&lane.name);
             let is_fill_lane = fill_lane.as_deref() == Some(lane.name.as_str());
-            let roll_len = if s.build { (s.bars.min(8) as f64 * 4.0 / 2.0).clamp(4.0, 16.0) } else { 0.0 };
+            let (parts, how) = (s.build_style.parts(), BuildAmount::of(s.build_amount));
+            let rolls = s.build && parts.roll;
+            let roll_len = if rolls {
+                ((s.bars.min(8) as f64 * 4.0 / 2.0).clamp(4.0, 16.0) * how.roll).clamp(2.0, s.bars as f64 * 4.0)
+            } else {
+                0.0
+            };
             if on {
                 let pat = lane.patterns.get(&s.variant).or_else(|| lane.patterns.get("main"));
                 if let Some(p) = pat {
                     let mut seg = lane_notes(bp, lane, p, groove.as_ref(), (a, b), si);
-                    // builds: the fill lane turns into a snare roll; the kick drops out for the last bar
-                    if s.build && is_fill_lane {
+                    // builds: the fill lane turns into a snare roll; the kick drops out for the last bars, or all
+                    // the drums do
+                    if rolls && is_fill_lane {
                         seg.retain(|n| n.t < b - roll_len);
                     }
-                    if s.build && is_kick {
-                        seg.retain(|n| n.t < b - 4.0);
+                    if s.build && parts.kick_out && is_kick {
+                        seg.retain(|n| n.t < b - how.out_bars as f64 * 4.0);
+                    }
+                    if s.build && parts.drums_out {
+                        let out = how.drums_out_bars.min(s.bars) as f64 * 4.0;
+                        seg.retain(|n| n.t < b - out);
                     }
                     // each phrase's ending: what the drummer plays on this lane there, or the lane left out
                     for e in &endings[si] {
@@ -400,9 +411,12 @@ pub fn arrange(bp: &Blueprint) -> Project {
                     notes.extend(seg);
                 }
             }
-            if s.build && is_fill_lane {
+            if rolls && is_fill_lane {
+                // a harder build rolls louder sooner, a gentler one softer
+                let loud = 0.7 + 0.6 * s.build_amount.clamp(0.0, 1.0);
                 for h in rhythm::snare_roll(roll_len) {
-                    notes.push(Note { t: b - roll_len + h.t, d: 0.25, p: 60 + lane.pitch, v: h.v, lock: None });
+                    let v = (h.v * loud).min(1.0);
+                    notes.push(Note { t: b - roll_len + h.t, d: 0.25, p: 60 + lane.pitch, v, lock: None });
                 }
             }
         }
@@ -579,9 +593,10 @@ pub fn arrange(bp: &Blueprint) -> Project {
                 t += 32.0;
             }
         }
-        if s.build && tr.riser.is_some() {
-            let len = (tr.riser_bars.min(s.bars) as f64 * 4.0).max(4.0);
-            riser.push(Note { t: b - len, d: len, p: 60, v: 1.0, lock: None });
+        if s.build && s.build_style.parts().riser && tr.riser.is_some() {
+            let how = BuildAmount::of(s.build_amount);
+            let len = ((tr.riser_bars.min(s.bars) as f64 * 4.0).max(4.0) * how.riser).clamp(4.0, s.bars as f64 * 4.0);
+            riser.push(Note { t: b - len, d: len, p: 60, v: how.riser_v, lock: None });
         }
         if next_impact && tr.use_reverse_crash {
             reverse.push(Note { t: b - 2.0, d: 2.0, p: 60, v: 0.8, lock: None });
@@ -648,8 +663,8 @@ pub fn arrange(bp: &Blueprint) -> Project {
         if s.kind == SectionKind::Outro && si + 1 == bp.form.len() {
             lp.extend([(a + (b - a) * 0.4, 20000.0), (b, 500.0)]);
         }
-        if s.build {
-            hp.extend([(a, 10.0), (b - 0.01, 900.0), (b, 10.0)]);
+        if s.build && s.build_style.parts().sweep {
+            hp.extend([(a, 10.0), (b - 0.01, BuildAmount::of(s.build_amount).sweep_hz), (b, 10.0)]);
         }
     }
     let mut mix = bp.mix.clone();

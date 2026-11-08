@@ -576,6 +576,8 @@ pub fn to_blueprint(
             variant: if s.energy < 0.5 { "sparse".into() } else { "main".into() },
             filter_in: s.kind == SectionKind::Intro,
             build: s.kind == SectionKind::Build || (next_drop && s.kind != SectionKind::Drop),
+            build_style: Default::default(),
+            build_amount: 0.5,
             gap: next_drop && s.kind != SectionKind::Drop,
             impact: s.kind == SectionKind::Drop && i > 0 && a.sections[i - 1].kind != SectionKind::Drop,
             fills: matches!(s.kind, SectionKind::Drop | SectionKind::Groove),

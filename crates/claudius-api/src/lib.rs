@@ -643,10 +643,50 @@ pub struct SectionView {
     pub variant: String,
     pub filter_in: bool,
     pub build: bool,
+    /// how its build-up builds (`BUILD_STYLES`), and how hard, 0 to 1
+    #[serde(default = "classic")]
+    pub build_style: String,
+    #[serde(default = "half")]
+    pub build_amount: f32,
     pub gap: bool,
     pub impact: bool,
     pub fills: bool,
 }
+
+fn classic() -> String {
+    BUILD_STYLES[0].0.to_string()
+}
+
+fn half() -> f32 {
+    0.5
+}
+
+/// The ways a section's build-up builds into the next (`SectionView::build_style`), the first the way when none is
+/// said: each by name, in a few words, and what it plays.
+pub const BUILD_STYLES: [(&str, &str, &str); 5] = [
+    (
+        "classic",
+        "everything",
+        "the snare rolls faster and louder, the kick leaves for the last bars, a riser climbs and the music's lows are \
+         swept away",
+    ),
+    (
+        "roll",
+        "a drum roll",
+        "the snare rolls into the next section and the kick leaves for the last bars, nothing else",
+    ),
+    (
+        "sweep",
+        "a filter sweep",
+        "the music's lows swept away under a riser while the drums play on, as house and techno build",
+    ),
+    ("riser", "a riser", "a riser climbs over the section as it plays, and nothing else changes"),
+    (
+        "drop_out",
+        "the drums drop out",
+        "the drums leave for the last bars and the riser climbs over the music alone, holding its breath",
+    ),
+];
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct TrackView {
@@ -1598,6 +1638,12 @@ pub enum Command {
         filter_in: Option<bool>,
         #[serde(default)]
         build: Option<bool>,
+        /// how the build-up builds (`BUILD_STYLES`: classic, roll, sweep, riser, drop_out); naming one turns it on
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        build_style: Option<String>,
+        /// how hard it builds, 0 (gently) to 1 (as hard as it goes); half by default
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        build_amount: Option<f32>,
         #[serde(default)]
         gap: Option<bool>,
         #[serde(default)]

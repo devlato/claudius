@@ -1218,3 +1218,68 @@ fn a_beat_in_a_recording_becomes_the_drum_lanes() {
     }
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn a_build_up_takes_a_style_and_how_hard_it_builds_prints_them_back_and_plays_them() {
+    use claudius::fx::Effect;
+    use claudius::model::{Blueprint, BuildStyle};
+    let song = |build: &str| {
+        let code = format!(
+            r#"
+            blank("house");
+            tempo(124);
+            prog("A", "i VI III VII");
+            drum("kick", "x...x...x...x...");
+            drum("clap", "....x.......x...");
+            drum("hat", "..x...x...x...x.");
+            part("bass", #{{ style: "pulse" }});
+            form([sec("groove", 8, "kick clap hat bass"), sec("groove", 8, "kick clap hat bass").fills(false){build},
+                  sec("drop", 8, "kick clap hat bass")]);
+            "#
+        );
+        script::run(&code, None, None).unwrap().bp.unwrap()
+    };
+    let bp = song(r#".build("sweep", 0.8)"#);
+    let b = &bp.form[1];
+    assert!(b.build && b.build_style == BuildStyle::Sweep && b.build_amount == 0.8, "{b:?}");
+    let printed = script::to_script(&bp);
+    assert!(printed.contains(r#".build("sweep", 0.8)"#), "{printed}");
+    assert!(script::run(&printed, None, None).unwrap().bp.unwrap() == bp, "it rebuilds exactly");
+    assert!(script::run(r#"blank("house"); form([sec("build", 8).build("swirl")]);"#, None, None).is_err());
+    // what plays in the build's last bars, which end on beat 64; and the top of the music's highpass sweep
+    let end = 64.0;
+    let notes = |bp: &Blueprint, lane: &str, beats: f64| {
+        let p = compose::arrange(bp);
+        let t = p.tracks.iter().find(|t| t.name == lane);
+        t.map_or(0, |t| t.notes.iter().filter(|n| n.t >= end - beats && n.t < end).count())
+    };
+    let sweep_top = |bp: &Blueprint| {
+        let p = compose::arrange(bp);
+        p.mix.buses.get("music").and_then(|c| {
+            c.iter().find_map(|e| match e {
+                Effect::Filter {
+                    mode: claudius::dsp::filter::FilterMode::Hp,
+                    cutoff: claudius::dsp::env::Param::Curve(points),
+                    ..
+                } => points.iter().map(|p| p.1).reduce(f32::max),
+                _ => None,
+            })
+        })
+    };
+    // classic, at half, as builds always were: the clap rolls, the kick leaves the last bar, the lows swept to 900 Hz
+    let classic = song(".build()");
+    assert!(notes(&classic, "clap", 4.0) >= 8 && notes(&classic, "kick", 4.0) == 0);
+    assert_eq!(sweep_top(&classic), Some(900.0));
+    assert_eq!(notes(&classic, "riser", 64.0), notes(&classic, "riser", 32.0), "the riser over its last bars");
+    // a sweep: the drums play on, the lows swept further the harder it builds
+    assert!(notes(&bp, "clap", 4.0) == 2 && notes(&bp, "kick", 4.0) == 4);
+    assert!(sweep_top(&bp).is_some_and(|hz| hz > 1500.0), "{:?}", sweep_top(&bp));
+    // a drummer's, as hard as it goes: a longer roll, the kick out for two bars, no sweep
+    let roll = song(r#".build("roll", 1)"#);
+    assert!(notes(&roll, "clap", 24.0) > notes(&classic, "clap", 24.0), "the roll is longer");
+    assert!(notes(&roll, "kick", 8.0) == 0 && sweep_top(&roll).is_none());
+    // the drums out for the last two bars at half
+    let out = song(r#".build("drop_out")"#);
+    assert!(["kick", "clap", "hat"].iter().all(|l| notes(&out, l, 8.0) == 0), "the drums hold their breath");
+    assert!(notes(&out, "hat", 12.0) > 0, "and play until then");
+}

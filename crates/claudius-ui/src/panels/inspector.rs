@@ -14,7 +14,7 @@ use crate::widgets::{self, Icon, commit};
 /// a section's moves, in plain words, with what each does: its filter in, build, gap, impact and fills, in that order
 pub const MOVES: [(&str, &str); 5] = [
     ("Filter sweep", "a lowpass filter opens across the section"),
-    ("Build-up", "a riser, a snare roll and a highpass sweep into the next section"),
+    ("Build-up", "a build into the next section: a snare roll, a riser, a sweep, or the drums out, as you choose"),
     ("Pause at the end", "a beat of silence before the next section"),
     ("Impact", "a crash and an impact on its first beat"),
     ("Drum fills", "a drum fill at the end of every 8 bars"),
@@ -257,6 +257,45 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     }
                 });
                 ui.end_row();
+
+                if s.build {
+                    widgets::label_help(
+                        ui,
+                        "Build-up",
+                        "How the build-up leads into the next section, and how hard. Everything rolls the snare, \
+                         takes the kick out, raises a riser and sweeps the low end away; the other ways take one or \
+                         two of those. Harder makes the roll longer and louder, the sweep climb higher, the riser \
+                         longer, and the drums leave for longer.",
+                        "language/form.html#build",
+                    );
+                    ui.horizontal(|ui| {
+                        let styles = claudius_api::BUILD_STYLES;
+                        let shown = styles.iter().find(|b| b.0 == s.build_style).map_or(styles[0].1, |b| b.1);
+                        egui::ComboBox::from_id_salt("build_style").width(130.0).selected_text(shown).show_ui(
+                            ui,
+                            |ui| {
+                                for (name, words, about) in styles {
+                                    let r = ui.selectable_label(s.build_style == name, words).on_hover_text(about);
+                                    if r.clicked() && s.build_style != name {
+                                        s.build_style = name.to_string();
+                                        let e = SectionEdit { build_style: Some(name.into()), ..Default::default() };
+                                        cx.out.push(e.at(i));
+                                    }
+                                }
+                            },
+                        );
+                        ui.label(small("gentle"));
+                        let r = ui
+                            .add(egui::Slider::new(&mut s.build_amount, 0.0..=1.0).show_value(false))
+                            .on_hover_text("how hard it builds: half is where every build-up started");
+                        ui.label(small("hard"));
+                        if commit(&r) {
+                            let e = SectionEdit { build_amount: Some(s.build_amount), ..Default::default() };
+                            cx.out.push(e.at(i));
+                        }
+                    });
+                    ui.end_row();
+                }
 
                 widgets::label_help(
                     ui,

@@ -102,6 +102,8 @@ pub fn blank(genre: &str) -> Result<Blueprint, String> {
         variant: "main".into(),
         filter_in: false,
         build: false,
+        build_style: Default::default(),
+        build_amount: 0.5,
         gap: false,
         impact: false,
         fills: false,
