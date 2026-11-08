@@ -69,10 +69,12 @@ pub fn of(targets: &[&str], measures: &BTreeMap<String, f64>, bp: &Blueprint) ->
 }
 
 /// A loop stretched from the tempo it is said to keep to the song's plays at the song's times the tempo its recording
-/// keeps over the one it is said to; heard at `kept`, it keeps `said * kept / song`, which it is then said to keep.
+/// keeps over the one it is said to; heard at `kept`, it keeps `said * kept / song`, which it is then said to keep. A
+/// loop retimed (`LoopPart::retime`) plays its slices at its own speed, stretched from no tempo: it has no such fix.
 fn tempo(track: &str, m: &BTreeMap<String, f64>, bp: &Blueprint) -> Option<(String, Edit)> {
     let kept = *m.get(&format!("time_{track}_own_bpm"))?;
-    let Sound::Loop { bpm: said, .. } = &bp.loops.iter().find(|l| l.name == track)?.sound else { return None };
+    let l = bp.loops.iter().find(|l| l.name == track && !l.retime)?;
+    let Sound::Loop { bpm: said, .. } = &l.sound else { return None };
     let own = said * kept / bp.bpm;
     if !own.is_finite() || !(20.0..=400.0).contains(&own) || (own / said - 1.0).abs() < 0.002 {
         return None;
@@ -215,8 +217,10 @@ mod tests {
         let fixes = of(&["time:sample"], &m, &bp);
         let Edit::Tempo { bpm, .. } = &fixes[0].edit else { unreachable!() };
         assert!((bpm - 120.0 * 140.0 / 145.0).abs() < 1e-9);
-        // heard at the song's own tempo, there is nothing to fix
+        // heard at the song's own tempo, there is nothing to fix; retimed, it plays at its own speed whatever it says
         assert!(of(&["time:sample"], &measures(&[("time_sample_own_bpm", 145.0)]), &bp).is_empty());
+        bp.loops[0].retime = true;
+        assert!(of(&["time:sample"], &m, &bp).is_empty(), "a retimed loop is stretched from no tempo");
     }
 
     #[test]
