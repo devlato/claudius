@@ -216,7 +216,13 @@ pub fn read(text: &str, genres: &[GenreInfo]) -> Result<Brief, String> {
         b.read.push(format!("in {k}"));
         b.key = Some(k);
     }
-    let lower: Vec<String> = w.iter().map(|x| x.to_lowercase()).collect();
+    // the brief's words outside the genres it names: "big" in "big beat" asks for nothing
+    let lower: Vec<String> = claudius_api::search_words(text)
+        .into_iter()
+        .enumerate()
+        .filter(|(i, _)| !named.iter().any(|(_, at)| at.contains(i)))
+        .map(|(_, x)| x)
+        .collect();
     if let Some(s) = lower.iter().find(|x| SPARSE.contains(&x.as_str())) {
         b.complexity = Some(0.25);
         b.read.push(format!("sparse, as \"{s}\" asks"));
@@ -261,6 +267,10 @@ mod tests {
     #[test]
     fn the_real_genres_answer_briefs_as_people_write_them() {
         let real = claudius_session::views::genre_infos();
+        let b = read("big beat for a car chase", &real).unwrap();
+        assert_eq!((b.genre.as_str(), b.complexity), ("big_beat", None), "naming big beat asks for no layers");
+        let b = read("a big, lush big beat track", &real).unwrap();
+        assert_eq!(b.complexity, Some(0.85), "the words around the genre still ask");
         let genre = |brief: &str| read(brief, &real).map(|b| b.genre).unwrap_or_default();
         assert_eq!(genre("a chill lo-fi beat for studying"), "lofi");
         assert_eq!(genre("90s west coast rap"), "g_funk");

@@ -390,16 +390,41 @@ fn listed(items: &[String]) -> String {
     }
 }
 
-/// "a" or "an", as the word after it begins
+/// "a" or "an", as the word after it is said: "an intro", "a UK drill song", "an IDM song", "an R&B song"
 fn a(word: &str) -> &'static str {
-    if word.starts_with(['a', 'e', 'i', 'o', 'u']) { "an" } else { "a" }
+    let first = word.split(' ').next().unwrap_or(word);
+    // a word in capitals is said letter by letter, and the letters said with a vowel first take "an"
+    let letters = first.len() > 1 && first.chars().all(|c| c.is_ascii_uppercase() || c == '&');
+    let an = if letters {
+        first.starts_with(['A', 'E', 'F', 'H', 'I', 'L', 'M', 'N', 'O', 'R', 'S', 'X'])
+    } else {
+        first.starts_with(['a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U'])
+    };
+    if an { "an" } else { "a" }
+}
+
+/// a genre as people write it: "deep house", "UK drill", "IDM", "R&B", "drum and bass", "trip hop fused with IDM"
+fn genre_in_words(genre: &str) -> String {
+    let word = |w: &str| match w {
+        "uk" => "UK".to_string(),
+        "ny" => "NY".to_string(),
+        "idm" => "IDM".to_string(),
+        "rnb" => "R&B".to_string(),
+        "dnb" => "drum and bass".to_string(),
+        "g" => "G".to_string(),
+        other => other.to_string(),
+    };
+    let one = |g: &str| g.split('_').map(word).collect::<Vec<_>>().join(" ");
+    genre.split('+').map(one).collect::<Vec<_>>().join(" fused with ")
 }
 
 /// The song in a few sentences for a person, in the words the studio uses rather than a producer's: what it is, how
 /// it goes, what plays in it, and what the critic makes of it. An assistant can pass it on as it is.
 pub fn in_words(s: &SongView, v: Option<&VerdictView>) -> String {
-    let genre = s.genre.replace('_', " ").replace('+', " fused with ");
-    let (m, sec) = ((s.seconds / 60.0).floor() as u32, (s.seconds % 60.0).round() as u32);
+    let genre = genre_in_words(&s.genre);
+    // from the whole seconds, so that 3:59.6 is 4:00 rather than 3:60
+    let whole = s.seconds.max(0.0).round() as u32;
+    let (m, sec) = (whole / 60, whole % 60);
     let mut out = format!(
         "\"{}\" is {} {genre} song, {m}:{sec:02} long, at {:.0} beats a minute in {}.",
         s.title,
@@ -606,5 +631,25 @@ mod tests {
         );
         assert!(words.ends_with("the fix is more presence in the mix."), "{words}");
         assert!(!in_words(&song, None).contains("critic"));
+        let long = SongView { seconds: 239.6, ..song.clone() };
+        assert!(in_words(&long, None).contains("4:00 long"), "{}", in_words(&long, None));
+    }
+
+    #[test]
+    fn a_genre_reads_as_people_write_it_with_its_article_as_it_is_said() {
+        let said = |g: &str| {
+            let w = genre_in_words(g);
+            format!("{} {w}", a(&w))
+        };
+        assert_eq!(said("uk_drill"), "a UK drill");
+        assert_eq!(said("idm"), "an IDM");
+        assert_eq!(said("rnb_90s"), "an R&B 90s");
+        assert_eq!(said("ny_drill"), "an NY drill");
+        assert_eq!(said("dnb"), "a drum and bass");
+        assert_eq!(said("ambient"), "an ambient");
+        assert_eq!(said("trip_hop+idm"), "a trip hop fused with IDM");
+        assert_eq!(a("intro"), "an");
+        assert_eq!(a("outro"), "an");
+        assert_eq!(a("drop"), "a");
     }
 }
