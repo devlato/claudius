@@ -244,10 +244,15 @@ fn passage(
                 .ok_or_else(|| format!("no section asked for has room for a passage of {b} bars: try a shorter one"))?,
         ),
         None if held < 4 => return Err(format!("{}: sample its phrases instead", short(4))),
-        None => [8, 4]
-            .into_iter()
-            .filter(|&b| b <= held)
-            .find_map(|b| room(bp, &groups, b).map(|r| (b, r)))
+        // the drops and hooks before the rest, 8 bars in them before 4
+        None => groups
+            .iter()
+            .find_map(|g| {
+                [8, 4]
+                    .into_iter()
+                    .filter(|&b| b <= held)
+                    .find_map(|b| room(bp, std::slice::from_ref(g), b).map(|r| (b, r)))
+            })
             .ok_or("no section asked for has room for a passage of 4 bars")?,
     };
     let starts: Vec<usize> = a.sections.iter().map(|s| s.start_bar).collect();
@@ -1519,6 +1524,14 @@ mod tests {
         sample_from(&mut bp, &Heard { src: &src, stems: None, a: &a, name: "song" }, None, &unsaid, &dir).unwrap();
         let lp = bp.loops.iter().find(|l| l.name == "passage").unwrap();
         assert!(matches!(lp.sound, Sound::Loop { beats: 32.0, .. }), "{:?}", lp.sound);
+        // a drop of 4 bars takes 4 of them before the intro takes 8
+        let mut short_drop = song();
+        short_drop.form[1].bars = 4;
+        let heard = Heard { src: &src, stems: None, a: &a, name: "song" };
+        sample_from(&mut short_drop, &heard, None, &unsaid, &dir).unwrap();
+        let lp = short_drop.loops.iter().find(|l| l.name == "passage").unwrap();
+        assert!(matches!(lp.sound, Sound::Loop { beats: 16.0, .. }), "{:?}", lp.sound);
+        assert_eq!(on(&short_drop, "passage"), ["drop"]);
         let three = src.slice(0, 6 * SRF as usize);
         let err = sample_from(&mut bp, &Heard { src: &three, stems: None, a: &a, name: "song" }, None, &unsaid, &dir);
         assert_eq!(
@@ -1562,6 +1575,7 @@ mod tests {
         let out = sample(&mut bp, &src, "song", None, &opt, &dir).unwrap();
         assert_eq!(out.tracks, ["vox_stab"], "{:?}", out.lines);
         let lane = bp.drums.iter().find(|d| d.name == "vox_stab").unwrap();
+        assert_eq!(lane.role(), "perc", "a percussion's hit, which plays out whole rather than for a sixteenth");
         let hits = &lane.patterns["main"];
         assert!(lane.pattern_bars == 2 && (2..=4).contains(&hits.len()), "{hits:?}");
         assert_eq!(on(&bp, "vox_stab"), ["drop"], "the drops, and the verses had there been any");
