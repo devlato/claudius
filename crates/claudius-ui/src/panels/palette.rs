@@ -212,12 +212,15 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
         return None;
     }
     let p = &mut cx.view.palette;
+    // the keys are the palette's, but for a field elsewhere being typed in
+    let field_id = egui::Id::unique("command palette field");
+    let ours = !ctx.text_edit_focused() || ctx.memory(|m| m.has_focus(field_id));
     let (down, up, enter, escape) = ctx.input_mut(|i| {
         (
-            i.consume_key(Modifiers::NONE, Key::ArrowDown),
-            i.consume_key(Modifiers::NONE, Key::ArrowUp),
-            i.consume_key(Modifiers::NONE, Key::Enter),
-            i.consume_key(Modifiers::NONE, Key::Escape),
+            ours && i.consume_key(Modifiers::NONE, Key::ArrowDown),
+            ours && i.consume_key(Modifiers::NONE, Key::ArrowUp),
+            ours && i.consume_key(Modifiers::NONE, Key::Enter),
+            ours && i.consume_key(Modifiers::NONE, Key::Escape),
         )
     });
     if escape {
@@ -235,7 +238,7 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
     };
     let mut picked = enter.then(|| acts.get(p.at).map(|a| a.run)).flatten();
     let cmd = widgets::cmd_key(ctx);
-    egui::Window::new("command palette")
+    let shown = egui::Window::new("command palette")
         .title_bar(false)
         .resizable(false)
         .collapsible(false)
@@ -244,6 +247,7 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
             ui.set_width(520.0);
             let field = ui.add(
                 egui::TextEdit::singleline(&mut p.query)
+                    .id(field_id)
                     .hint_text("Type what you want to do: new song, mixer, loop, sample ...")
                     .desired_width(f32::INFINITY)
                     .font(egui::TextStyle::Heading),
@@ -287,6 +291,11 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
                     .color(TEXT_FAINT),
             );
         });
+    // a click outside it closes it, as a menu closes
+    let outside = |at: egui::Pos2| shown.as_ref().is_some_and(|s| !s.response.rect.contains(at));
+    if ctx.input(|i| i.pointer.any_pressed() && i.pointer.interact_pos().is_some_and(outside)) {
+        cx.view.palette.open = false;
+    }
     let run = picked?;
     cx.view.palette.open = false;
     match run {
@@ -301,6 +310,9 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
         }
         Run::Open => return Some(Asked::Open),
         Run::Save => super::transport::ask_download(cx.state, cx.view, cx.out, cx.server.is_none(), cx.now, None),
+        // as Space does: a take recording ends, and the song plays only once it has its audio
+        Run::Play if cx.view.record.recording() => cx.view.record.stop = true,
+        Run::Play if !cx.player.has_audio() => {}
         Run::Play if cx.player.is_playing() => cx.player.pause(),
         Run::Play => cx.player.play(),
         Run::ToStart => cx.player.seek(0.0),
@@ -313,8 +325,15 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
         Run::AddRecording => cx.view.import.open = true,
         Run::Phone => cx.view.phone.show(cx.state.phone.is_some()),
         Run::Paint => cx.view.paint = !cx.view.paint,
-        Run::Tab(t) => cx.view.tab = t,
-        Run::FlowLarge => cx.view.flow_large = cx.state.song.is_some() && !cx.view.flow_large,
+        // the dock is not drawn while the signal flow is large: a tab picked shows it again
+        Run::Tab(t) => {
+            cx.view.tab = t;
+            super::graph::open_large(cx, false);
+        }
+        Run::FlowLarge => {
+            let large = cx.state.song.is_some() && !cx.view.flow_large;
+            super::graph::open_large(cx, large);
+        }
         Run::Docs => ctx.open_url(egui::OpenUrl::new_tab(widgets::DOCS)),
         Run::Tour => return Some(Asked::Tour),
     }

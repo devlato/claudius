@@ -482,7 +482,7 @@ impl Studio {
         if ctx.input_mut(|i| i.consume_key(Modifiers::COMMAND, Key::K)) {
             self.view.palette.toggle();
         }
-        if ctx.text_edit_focused() || self.view.new_song.open {
+        if ctx.text_edit_focused() || self.view.new_song.open || self.view.palette.open {
             return;
         }
         // an open list or menu moves with the arrows: they are left to it
