@@ -737,6 +737,92 @@ fn effect_chains_with_parallel_branches_and_values_by_section_print_arrange_and_
 }
 
 #[test]
+fn a_rack_plays_a_track_with_several_sounds_each_in_its_band_and_prints_back() {
+    use claudius::fx::Effect;
+    use claudius::model::{SectionKind, Sound};
+    let code = r#"
+        song("house", 3);
+        rack("bass", [
+          #{ sound: "sub_bass", band: [0, 100], duck: 0.8 },
+          #{ sound: "saw_lead", band: [2000, 0], level: -3, transpose: 12, fx: [#{ fx: "tremolo", beats: 0.25, depth: 0.6 }] },
+        ]);
+        drum_sound("thump", "lt");
+        drum("thump", "x.......x.......");
+        rack("thump", [#{ sound: "sub_bass", band: [0, 120] }, #{ sound: "lt" }]);
+        drum("tom", "x...............");
+        rack("tom", [#{ sound: "sub_bass" }]);
+        track("beat", s("bd*4, [~ cp]*2"));
+        rack("beat.cp", [#{ sound: "cp" }, #{ sound: "hh", band: [6000, 0], level: -9 }]);
+    "#;
+    let bp = script::run(code, None, None).unwrap().bp.unwrap();
+    let bass = bp.parts.iter().find(|p| p.name == "bass").unwrap();
+    let Sound::Rack { layers } = &bass.sound else { panic!("{:?}", bass.sound) };
+    assert_eq!(layers.len(), 2);
+    assert!(matches!(&layers[0].sound, Sound::Synth { preset, .. } if preset == "sub_bass"));
+    assert_eq!((layers[0].band, layers[0].duck), (Some([0.0, 100.0]), 0.8));
+    assert_eq!((layers[1].band, layers[1].level_db, layers[1].transpose), (Some([2000.0, 0.0]), -3.0, 12));
+    assert!(matches!(layers[1].fx.as_slice(), [Effect::Tremolo { .. }]));
+    assert!(
+        bass.sound.describe().starts_with("a rack of synth patch 'sub_bass' under 100 Hz + "),
+        "{}",
+        bass.sound.describe()
+    );
+    // the song prints with it, and reads back as the same song
+    let printed = script::to_script(&bp);
+    assert!(printed.contains("rack(\"bass\", [\n  #{ sound: \"sub_bass\", band: [0, 100], duck: 0.8 },"), "{printed}");
+    let again = script::run(&printed, Some(bp.clone()), None).unwrap().bp.unwrap();
+    assert!(again == bp, "the printed script changed the song\n{printed}");
+    // it plays: the bass sounds under 100 Hz and over 2 kHz, from its two layers, and hardly between
+    let p = compose::arrange(&bp);
+    let drop = p.sections.iter().find(|s| s.kind == SectionKind::Drop).unwrap();
+    let opts = render::Options { stems: true, ..Default::default() };
+    let r = render::render(&p.slice(drop.start_bar, drop.start_bar + 2), &opts).unwrap();
+    let (_, x) = r.stems.iter().find(|(n, _)| n == "bass").expect("the bass's stem");
+    let level = |low: f32, high: f32| {
+        let mut y = x.clone();
+        let ctx = claudius::fx::Ctx::whole(48_000.0, p.bpm, 1, y.len());
+        claudius::fx::apply(&Effect::Band { low_hz: low, high_hz: high }, &mut y, &ctx);
+        (y.l.iter().map(|v| v * v).sum::<f32>() / y.len() as f32).sqrt()
+    };
+    let (under, between, over) = (level(0.0, 100.0), level(300.0, 1000.0), level(2000.0, 0.0));
+    assert!(under > 4.0 * between && over > 4.0 * between, "under {under}, between {between}, over {over}");
+}
+
+#[test]
+fn a_rack_playing_a_one_shot_from_the_cache_prints_as_said_not_run() {
+    use claudius::model::{Layer, Sound};
+    let mut bp = script::run(r#"song("house", 3);"#, None, None).unwrap().bp.unwrap();
+    let cut = claudius::config::home().join("oneshots").join("rim.wav").to_string_lossy().into_owned();
+    let sample =
+        Sound::Sample { path: cut.clone(), root: 60, start: 0.0, end: None, label: "rim (Apple Loops)".into() };
+    let lane = bp.drums.iter_mut().find(|d| d.name == "clap").unwrap();
+    lane.sound = Sound::Rack { layers: vec![Layer::of(sample), Layer::of(lane.sound.clone())] };
+    let printed = script::to_script(&bp);
+    assert!(printed.contains("// clap: a layer plays a one-shot from claudius' cache"), "{printed}");
+    assert!(printed.contains("// rack(\"clap\", [\n//   #{ sound: "), "{printed}");
+    // the path, only this machine's, is never run
+    let runs = printed.lines().filter(|l| !l.trim_start().starts_with("//")).any(|l| l.contains(&cut));
+    assert!(!runs, "{printed}");
+}
+
+#[test]
+fn racks_a_script_gets_wrong_say_what_they_are() {
+    let says = |code: &str, words: &str| {
+        let e = script::run(&format!("song(\"house\", 3); {code}"), None, None).err().map(|e| e.to_string());
+        let e = e.unwrap_or_else(|| panic!("{code} ran"));
+        assert!(e.contains(words), "{code}: {e}");
+    };
+    says(r#"rack("bass", []);"#, "rack(\"bass\") has 1 to 8 layers, not 0");
+    says(r#"rack("bass", [#{ band: [0, 100] }]);"#, "layer 1 names its sound");
+    says(r#"rack("bass", [#{ sound: "sub_bass", band: [500, 100] }]);"#, "band is [low, high] in Hz");
+    says(r#"rack("bass", [#{ sound: "sub_bass", wobble: 1 }]);"#, "wobble");
+    says(r#"rack("bass", [#{ sound: "sub_bass", transpose: 0.5 }]);"#, "transpose is whole semitones");
+    says(r#"rack("nobody", [#{ sound: "sub_bass" }]);"#, "no track 'nobody'");
+    says(r#"track("rests", s("~ ~")); rack("rests", [#{ sound: "cp" }]);"#, "rests plays no sound yet");
+    says(r#"track("beat", s("bd, cp")); rack("beat", [#{ sound: "cp" }]);"#, "beat plays 2 sounds: name one");
+}
+
+#[test]
 fn effects_a_script_gets_wrong_say_what_they_are() {
     let fails =
         |code: &str| script::run(&format!("song(\"house\", 3); {code}"), None, None).err().map(|e| e.to_string());

@@ -31,8 +31,9 @@ pub(super) fn used(p: &Project) -> Vec<Used> {
     let packs_dir = claudius_packs::packs_dir();
     let home_loops = dirs::home_dir().map(|h| h.join("Library/Audio/Apple Loops"));
     let mut out: Vec<Used> = Vec::new();
-    for t in &p.tracks {
-        let (origin, sound) = match &t.sound {
+    // each sound a track plays: a rack's every layer
+    for (t, played) in p.tracks.iter().flat_map(|t| t.sound.each().into_iter().map(move |s| (t, s))) {
+        let (origin, sound) = match played {
             Sound::Instrument { name, .. } => (pack(name.split(':').next().unwrap_or(name), &packs), None),
             Sound::Sample { path, label, .. } | Sound::Loop { path, label, .. } => {
                 let file = Path::new(path);

@@ -128,7 +128,7 @@ fn key_text(k: &str) -> String {
 
 /// A value as a script writes it: a number as the shortest text that reads back the same, an effect's `fx` first,
 /// and values by section as the `sections()` that makes them.
-fn value_text(v: &serde_json::Value) -> String {
+pub fn value_text(v: &serde_json::Value) -> String {
     use serde_json::Value;
     match v {
         Value::Null => "()".into(),
@@ -305,6 +305,19 @@ pub fn to_script(bp: &Blueprint) -> String {
                 Some(format!("// {}: {label}\n", d.name))
             }
             Sound::Sample { path, .. } => Some(format!("drum_sound({}, {});\n", quote(&d.name), quote(path))),
+            // a lane that plays a rack is made by a drum sound of it, else a plain one (drum_sound takes no synth); rack()
+            // at the end gives it its layers
+            Sound::Rack { layers } => {
+                let drum = layers
+                    .iter()
+                    .map(|l| &l.sound)
+                    .find(|s| matches!(s, Sound::Drum { .. } | Sound::Sample { .. } | Sound::Instrument { .. }));
+                Some(match drum {
+                    Some(s) if cached(s) => format!("// {}: {}\n", d.name, d.sound.describe()),
+                    Some(s) => format!("drum_sound({}, {});\n", quote(&d.name), quote(&sound_word(s))),
+                    None => format!("drum_sound({}, \"perc\");\n", quote(&d.name)),
+                })
+            }
             _ => None,
         };
         // drum() makes a lane only for a drum's name: a lane of another name is made by its sound, first
@@ -457,5 +470,101 @@ pub fn to_script(bp: &Blueprint) -> String {
     }
     mix_line("fx", &bp.transitions.mix, &on(g.as_ref().map(|g| &g.transitions.mix), "fx"), &mut s);
     effects(bp, &mut s);
+    racks(bp, &mut s);
     s
+}
+
+/// The racks: each track that plays one, its layers as `rack()` writes them, last, as they take the place of the
+/// sound the track's own line gives it. A pattern track's sound goes by its label when it plays several.
+fn racks(bp: &Blueprint, out: &mut String) {
+    let patterns = bp.patterns.iter().flat_map(|p| {
+        let one = p.sounds.len() == 1;
+        p.sounds
+            .iter()
+            .map(move |(label, sound)| (if one { p.name.clone() } else { format!("{}.{label}", p.name) }, sound))
+    });
+    let tracks = bp
+        .drums
+        .iter()
+        .map(|d| (d.name.clone(), &d.sound))
+        .chain(bp.parts.iter().map(|p| (p.name.clone(), &p.sound)))
+        .chain(patterns);
+    let mut lines = Vec::new();
+    for (name, sound) in tracks {
+        let Sound::Rack { layers } = sound else { continue };
+        // a layer playing a one-shot from claudius' cache names a file only this machine has: the rack is said, not run
+        let off = if layers.iter().any(|l| cached(&l.sound)) { "// " } else { "" };
+        let each: Vec<String> = layers.iter().map(|l| format!("{off}  {},\n", layer_text(l))).collect();
+        if !off.is_empty() {
+            lines.push(format!(
+                "// {name}: a layer plays a one-shot from claudius' cache, which only this computer has\n"
+            ));
+        }
+        lines.push(format!("{off}rack({}, [\n{}{off}]);\n", quote(&name), each.concat()));
+    }
+    if !lines.is_empty() {
+        out.push_str("\n// racks: tracks played by several sounds at once, each its band, level, duck and effects\n");
+        lines.iter().for_each(|l| out.push_str(l));
+    }
+}
+
+/// a rack's layer as `rack()` takes it
+fn layer_text(l: &Layer) -> String {
+    let mut parts = vec![format!("sound: {}", quote(&sound_word(&l.sound)))];
+    if let Some([low, high]) = l.band {
+        parts.push(format!("band: [{}, {}]", f32s(low), f32s(high)));
+    }
+    for (k, v) in [("level", l.level_db), ("pan", l.pan), ("duck", l.duck)] {
+        if v != 0.0 {
+            parts.push(format!("{k}: {}", f32s(v)));
+        }
+    }
+    if l.transpose != 0 {
+        parts.push(format!("transpose: {}", l.transpose));
+    }
+    if !l.fx.is_empty() {
+        parts.push(format!("fx: {}", chain_text(&l.fx)));
+    }
+    format!("#{{ {} }}", parts.join(", "))
+}
+
+/// a rack's layer as a map, as `rack()` and `Command::SetLayers` take it: `{"sound": "sub_bass", "band": [0, 100],
+/// "level": -2, ...}`, the settings left at their defaults left out
+pub fn layer_value(l: &Layer) -> serde_json::Value {
+    // as the script writes it: 0.8, not the 0.800000011920929 an f32 widens to
+    let n = |v: f32| serde_json::json!(f32s(v).parse::<f64>().unwrap_or(v as f64));
+    let mut m = serde_json::Map::new();
+    m.insert("sound".into(), sound_word(&l.sound).into());
+    if let Some([low, high]) = l.band {
+        m.insert("band".into(), serde_json::Value::Array(vec![n(low), n(high)]));
+    }
+    for (k, v) in [("level", l.level_db), ("pan", l.pan), ("duck", l.duck)] {
+        if v != 0.0 {
+            m.insert(k.into(), n(v));
+        }
+    }
+    if l.transpose != 0 {
+        m.insert("transpose".into(), l.transpose.into());
+    }
+    if !l.fx.is_empty() {
+        m.insert("fx".into(), serde_json::to_value(&l.fx).unwrap_or_default());
+    }
+    serde_json::Value::Object(m)
+}
+
+/// a one-shot cut from your library, kept in claudius' cache: its path means nothing on another machine
+fn cached(sound: &Sound) -> bool {
+    matches!(sound, Sound::Sample { path, .. } if std::path::Path::new(path).starts_with(crate::config::home()))
+}
+
+/// the word a script names a single sound by, as `drum_sound` and `rack` take it
+pub fn sound_word(sound: &Sound) -> String {
+    match sound {
+        Sound::Drum { voice, params } => drum_label(*voice, params).unwrap_or_else(|| voice_word(*voice).to_string()),
+        Sound::Synth { preset, .. } => preset.clone(),
+        Sound::Instrument { name, .. } => name.clone(),
+        Sound::Sample { path, .. } | Sound::Loop { path, .. } => path.clone(),
+        Sound::Fx { fx } => fx.clone(),
+        Sound::Rack { .. } => String::new(),
+    }
 }

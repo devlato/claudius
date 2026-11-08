@@ -54,12 +54,15 @@ pub fn sources(p: &Project, credited: impl Fn(&Path) -> crate::take::Sources) ->
     use crate::model::Sound;
     let mut s = crate::take::Sources::default();
     for t in p.tracks.iter().filter(|t| !t.notes.is_empty() || !t.clips.is_empty()) {
-        match &t.sound {
-            Sound::Instrument { name, .. } => {
-                s.add(crate::take::Sources { instruments: vec![name.clone()], ..Default::default() })
+        // a rack's every layer
+        for sound in t.sound.each() {
+            match sound {
+                Sound::Instrument { name, .. } => {
+                    s.add(crate::take::Sources { instruments: vec![name.clone()], ..Default::default() })
+                }
+                Sound::Sample { path, .. } | Sound::Loop { path, .. } => s.add(credited(Path::new(path.as_str()))),
+                _ => {}
             }
-            Sound::Sample { path, .. } | Sound::Loop { path, .. } => s.add(credited(Path::new(path.as_str()))),
-            _ => {}
         }
     }
     s

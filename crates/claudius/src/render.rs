@@ -17,7 +17,7 @@ use crate::audio::{self, Stereo, db_to_gain, midi_to_hz, repitch};
 use crate::config::SRF;
 use crate::fx::{self, Ctx, Effect};
 use crate::loudness;
-use crate::model::{Project, Sound, Track};
+use crate::model::{Layer, Project, Sound, Track, TrackMix};
 use crate::rng::{Rng, hash_str};
 use crate::synth::voice::{self, NoteEv};
 use crate::synth::{drums, fxsounds};
@@ -32,6 +32,10 @@ const STAGED_DB: f64 = 6.0;
 /// smear), which the mix does not raise to its role's level: by `RESIDUE_BOOST_DB` at most
 const RESIDUE_LUFS: f64 = -45.0;
 const RESIDUE_BOOST_DB: f32 = 12.0;
+
+/// how loud each layer of a rack is made over its band before its own level: they meet as equals, whatever their
+/// sounds' own loudness, and the mix sets the level of their sum as of any track
+const LAYER_LUFS: f64 = -18.0;
 
 /// target loudness (LUFS while playing) of each role before the master stage
 pub fn target_level(role: &str) -> f32 {
@@ -398,6 +402,8 @@ fn render_source(
     let mut out = Stereo::zeros(len);
     let seed = p.seed ^ hash_str(&t.name);
     match &t.sound {
+        // a rack plays layer by layer (`Song::rack`), and a layer is one sound
+        Sound::Rack { .. } => anyhow::bail!("{}: a rack's layer is a sound of its own, not another rack", t.name),
         Sound::Drum { .. } | Sound::Sample { .. } => {
             let root = if let Sound::Sample { root, .. } = &t.sound { *root } else { 60 };
             let group = t.choke.as_ref().and_then(|g| chokes.get(g));
@@ -823,8 +829,20 @@ pub fn track_joined(p: &Project, opts: &Options, name: &str, parts: &[Stereo]) -
 /// a second of its patch takes around their pitch (`voice::cost_of`, measured); anything else's, the seconds its notes
 /// and clips last times a little (a drum's hits, a recording's notes and a loop's clips cost little).
 pub fn track_cost(t: &Track, bpm: f64, secs: f64) -> f64 {
+    source_cost(t, bpm, secs) + secs * chain_cost(&t.mix.fx, t.mix.drive_db, bpm)
+}
+
+/// `track_cost`'s source: a rack's, each layer's source and its effects
+fn source_cost(t: &Track, bpm: f64, secs: f64) -> f64 {
     let beat = 60.0 / bpm.max(1.0);
-    let source = match &t.sound {
+    match &t.sound {
+        Sound::Rack { layers } => layers
+            .iter()
+            .map(|l| {
+                let one = Track { sound: l.sound.clone(), transpose: t.transpose + l.transpose, ..t.clone() };
+                source_cost(&one, bpm, secs) + secs * chain_cost(&l.fx, 0.0, bpm)
+            })
+            .sum(),
         Sound::Synth { patch, .. } => {
             let release = patch.aenv.release_samples(SRF) as f64 / SRF;
             let voiced = if patch.mono {
@@ -845,8 +863,7 @@ pub fn track_cost(t: &Track, bpm: f64, secs: f64) -> f64 {
                 + t.clips.iter().map(|c| c.d.max(0.0) + 1.0).sum::<f64>();
             beats * beat * 1e-3
         }
-    };
-    source + secs * chain_cost(&t.mix.fx, t.mix.drive_db, bpm)
+    }
 }
 
 /// how long a second of sound takes to go through `chain` and a drive of `drive_db` here, in seconds: measured once for
@@ -891,13 +908,22 @@ fn track_key(p: &Project, t: &Track, len: usize, chokes: &BTreeMap<String, Vec<i
     if let Some(onsets) = t.choke.as_ref().and_then(|g| chokes.get(g)) {
         h.update(&serde_json::to_vec(onsets).unwrap_or_default());
     }
-    if let Sound::Sample { path, .. } | Sound::Loop { path, .. } = &t.sound {
-        h.update(format!("{:?}", audio::remembered_version(path)).as_bytes());
-        if crate::config::FILES
-            && let Ok(md) = std::fs::metadata(path)
-        {
-            let mtime = md.modified().ok().and_then(|m| m.duration_since(std::time::UNIX_EPOCH).ok());
-            h.update(format!("{}|{:?}", md.len(), mtime).as_bytes());
+    // a rack's layer that ducks bakes the kick's duck into the sound: what that comes from
+    if let Sound::Rack { layers } = &t.sound
+        && layers.iter().any(|l| l.duck > 0.0)
+    {
+        let kick = p.tracks.iter().find(|k| k.role == "kick").map(|k| Track { mix: TrackMix::default(), ..k.clone() });
+        h.update(&serde_json::to_vec(&(kick, p.mix.duck_release)).unwrap_or_default());
+    }
+    for s in t.sound.each() {
+        if let Sound::Sample { path, .. } | Sound::Loop { path, .. } = s {
+            h.update(format!("{:?}", audio::remembered_version(path)).as_bytes());
+            if crate::config::FILES
+                && let Ok(md) = std::fs::metadata(path)
+            {
+                let mtime = md.modified().ok().and_then(|m| m.duration_since(std::time::UNIX_EPOCH).ok());
+                h.update(format!("{}|{:?}", md.len(), mtime).as_bytes());
+            }
         }
     }
     h.finalize()
@@ -1041,8 +1067,11 @@ impl<'a> Song<'a> {
         // a pattern with several sounds plays as a track for each, so the arranged song can have more than its blueprint
         crate::model::check_tracks(p.tracks.len(), p.secs()).map_err(anyhow::Error::msg)?;
         let tm = Timing { spb: SRF * 60.0 / p.bpm, swing: p.swing, humanize: p.humanize, seed: p.seed };
-        let tail = opts.tail_secs.max(0.0)
-            + p.tracks.iter().map(|t| fx::chain_tail_secs(&t.mix.fx, p.bpm)).fold(0.0, f64::max).min(6.0);
+        let rings = |t: &Track| {
+            let layers = t.sound.chains().into_iter().map(|c| fx::chain_tail_secs(c, p.bpm)).fold(0.0, f64::max);
+            fx::chain_tail_secs(&t.mix.fx, p.bpm) + layers
+        };
+        let tail = opts.tail_secs.max(0.0) + p.tracks.iter().map(rings).fold(0.0, f64::max).min(6.0);
         let len = (p.beats() * tm.spb) as usize + (tail * SRF) as usize;
         let chokes = choke_onsets(p, &tm);
         let duck = duck_curve(p, &tm, len);
@@ -1057,11 +1086,44 @@ impl<'a> Song<'a> {
     /// a track's sound before the mix, through its effects and its drive, and the level the mix hears in it
     fn sound(&self, t: &Track) -> Result<(Stereo, Option<f64>)> {
         let ts = crate::clock::Instant::now();
-        let made = self.finish(t, render_source(t, self.p, &self.tm, self.len, &self.chokes)?);
+        let source = match &t.sound {
+            Sound::Rack { layers } => self.rack(t, layers)?,
+            _ => render_source(t, self.p, &self.tm, self.len, &self.chokes)?,
+        };
+        let made = self.finish(t, source);
         if debug() {
             eprintln!("render: track {} in {:.2} s", t.name, ts.elapsed().as_secs_f64());
         }
         Ok(made)
+    }
+
+    /// A rack's layers, summed: each its sound playing the track's notes (`render_source`, with the track's name, so
+    /// that every layer's timing is the same), through its band, made as loud as the others there (`LAYER_LUFS`) and
+    /// then its own level, through its effects, ducked under the kick and panned as it says. A layer silent where
+    /// the track plays adds nothing.
+    fn rack(&self, t: &Track, layers: &[Layer]) -> Result<Stereo> {
+        let mut sum = Stereo::zeros(self.len);
+        for (k, layer) in layers.iter().enumerate() {
+            let one = Track { sound: layer.sound.clone(), transpose: t.transpose + layer.transpose, ..t.clone() };
+            let mut x = render_source(&one, self.p, &self.tm, self.len, &self.chokes)?;
+            let ctx = self.ctx(&format!("{}/{k}", t.name), 0);
+            if let Some([low_hz, high_hz]) = layer.band {
+                fx::apply(&Effect::Band { low_hz, high_hz }, &mut x, &ctx);
+            }
+            let Some(level) = loudness::active_level(&x) else { continue };
+            x.scale(db_to_gain((LAYER_LUFS - level) as f32 + layer.level_db));
+            fx::apply_chain(&layer.fx, &mut x, &ctx);
+            // the kick's own layers do not duck under it, as the mix does not duck the kick
+            let duck = self.duck.as_ref().filter(|_| layer.duck > 0.0 && t.role != "kick");
+            let depth = layer.duck.clamp(0.0, 1.0);
+            let (gl, gr) = if layer.pan.abs() > 1e-3 { audio::balance_gains(layer.pan) } else { (1.0, 1.0) };
+            for i in 0..x.len().min(sum.len()) {
+                let g = duck.and_then(|d| d.get(i)).map_or(1.0, |d| 1.0 - depth * (1.0 - d));
+                sum.l[i] += x.l[i] * g * gl;
+                sum.r[i] += x.r[i] * g * gr;
+            }
+        }
+        Ok(sum)
     }
 
     /// A track's source (`render_source`) through its effects and its drive, and the level the mix hears in it. Into

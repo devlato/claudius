@@ -111,6 +111,15 @@ pub fn script(cmd: &Command, bp: Option<&Blueprint>, seed: u64) -> Option<Result
                 format!("{name}: {}", fields.join(", ")),
             )
         }
+        Command::SetLayers { track, layers } => {
+            // as rack() reads them: the script checks each layer and finds its sound as for one written by hand
+            let each: Vec<String> = layers.iter().map(claudius::script::value_text).collect();
+            let n = layers.len();
+            run(
+                format!("rack({}, [{}])", quote(track), each.join(", ")),
+                format!("{track}: {n} layer{} at once", if n == 1 { "" } else { "s" }),
+            )
+        }
         Command::AddTrack { name, kind, role, sound } => Some(add_track(name, kind, role, sound, bp)),
         Command::RemoveTrack { name } => run(format!("remove({})", quote(name)), format!("removed {name}")),
         Command::Harmonize { part, style, sound, name } => Some(harmonize(part, style, sound, name, bp)),
