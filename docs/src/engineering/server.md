@@ -12,6 +12,7 @@ records why there is exactly one.
 | `app/jobs.rs` | the long jobs: render and judge, mutate, evolve, save, install packs |
 | `http.rs` | the routes, the guard (host names, token), CORS, security headers |
 | `mcp.rs` | the MCP tools, the backends they run on, the stdio and HTTP transports |
+| `mcp/raw.rs` | the `command` tool's check: a raw command against `Command`'s JSON schema (`claudius-api`'s `schema` feature), so that a field written wrong is answered with what the command takes rather than dropped |
 
 ## The session
 

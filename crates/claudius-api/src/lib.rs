@@ -143,6 +143,7 @@ pub struct PieceView {
 
 /// a piece to keep (`keep_pieces`): as it was cut, or `treated`
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct KeptPiece {
     pub id: u32,
     #[serde(default)]
@@ -238,6 +239,7 @@ pub enum TakeStatus {
 
 /// What stores and distributors ask about a release, as a song's release.json keeps it.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct ReleaseDetails {
     /// the song's title when empty
@@ -1119,6 +1121,7 @@ pub const GROOVES: &[&str] =
 /// swelling); a flam this many ms before; a nudge off the grid in sixteenths (-0.5 to 0.5); and what it locks in the
 /// sound: semitones, decay (times the lane's, 0.1 to 4), tone (-1 darker to 1 brighter), pan (-1 to 1).
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 pub struct TrigView {
     pub prob: f32,
@@ -1300,6 +1303,7 @@ pub const NOTE_STYLES: &[&str] = &["line", "harmony", "octaves", "chords", "bass
 
 /// a note: start and length in beats, MIDI pitch (60 is middle C), velocity 0..1 (0.8 when left out)
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct NoteView {
     pub t: f64,
     pub d: f64,
@@ -1315,6 +1319,7 @@ fn played_velocity() -> f32 {
 /// a drum hit played on a pad: the lane it strikes, when (in beats from the start of the take's section) and how hard
 /// (0..1, 0.8 when left out)
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct HitView {
     pub lane: String,
     pub t: f64,
@@ -1325,6 +1330,7 @@ pub struct HitView {
 /// where a scratched record was `t` seconds into the scratch: `at` seconds into the record, with the crossfader `fader`
 /// open (0 shut, 1 open, the default)
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct ScratchMove {
     pub t: f64,
     pub at: f64,
@@ -1338,6 +1344,7 @@ fn open_fader() -> f32 {
 
 /// an edit or action; JSON `{"cmd": "set_tempo", "bpm": 124}`
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(tag = "cmd", rename_all = "snake_case")]
 pub enum Command {
     /// generate a new song from a genre (seed random when absent)
