@@ -228,24 +228,42 @@ pub fn groove(
     ))
 }
 
-/// how the vocals of a recording are sampled into the song, from what the request says (`Command::SampleSong`)
+/// how a recording is sampled into the song, from what the request says (`Command::SampleSong`): its phrases unless
+/// `how` names another of the ways
 pub fn sampling(
     count: Option<u32>,
     bars: Option<u32>,
     find: Option<String>,
     sections: Vec<String>,
-) -> claudius::sampler::Options {
-    claudius::sampler::Options {
+    how: Option<&str>,
+) -> Result<claudius::sampler::Options, String> {
+    let how = how.filter(|h| !h.trim().is_empty()).map(claudius::sampler::How::parse).transpose()?;
+    Ok(claudius::sampler::Options {
         count: count.map_or(2, |c| c as usize),
         bars,
         find: find.filter(|f| !f.trim().is_empty()),
         sections: sections.into_iter().filter(|s| !s.trim().is_empty()).collect(),
-    }
+        how: how.unwrap_or_default(),
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_ways_to_sample_offered_are_the_samplers_own() {
+        use claudius::sampler::How;
+        let offered: Vec<&str> = claudius_api::SAMPLING_WAYS.iter().map(|w| w.0).collect();
+        let own: Vec<&str> = How::ALL.iter().map(|h| h.name()).collect();
+        assert_eq!(offered, own);
+        let way = |how| sampling(None, None, None, Vec::new(), how).map(|o| o.how);
+        assert_eq!(
+            (way(None), way(Some(" ")), way(Some("stabs"))),
+            (Ok(How::Phrases), Ok(How::Phrases), Ok(How::Stabs))
+        );
+        assert!(way(Some("slices")).unwrap_err().starts_with("no way 'slices' to sample a recording"));
+    }
 
     #[test]
     fn a_remake_is_a_rework_unless_asked_for_a_flip_or_a_skeleton() {

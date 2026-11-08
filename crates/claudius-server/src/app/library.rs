@@ -91,8 +91,8 @@ impl App {
         };
         Ok(match c {
             Command::AddTake { path, from, name, role } => Command::AddTake { path: file(path)?, from, name, role },
-            Command::SampleSong { path, count, bars, find, sections } => {
-                Command::SampleSong { path: file(path)?, count, bars, find, sections }
+            Command::SampleSong { path, count, bars, find, sections, how } => {
+                Command::SampleSong { path: file(path)?, count, bars, find, sections, how }
             }
             Command::Analyze { path } => Command::Analyze { path: file(path)? },
             Command::SamplePieces { path, seed, count, bars, find } => {

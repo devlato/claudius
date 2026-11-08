@@ -142,7 +142,8 @@ pub fn command_name(cmd: &Command) -> String {
 fn listen_request(l: &crate::panels::Listen) -> (&'static str, &'static str, String) {
     let name = format!("name={}", query_value(&l.file.name));
     if l.sample {
-        return ("sample_song", "/api/sample", name);
+        let how = l.how.as_deref().map_or_else(String::new, |h| format!("&how={}", query_value(h)));
+        return ("sample_song", "/api/sample", format!("{name}{how}"));
     }
     if l.groove {
         return ("extract_groove", "/api/groove", name);
@@ -162,7 +163,7 @@ fn demo_listen(l: &crate::panels::Listen) -> claudius_api::Listen {
     use claudius_api::Listen;
     let name = l.file.name.clone();
     if l.sample {
-        return Listen::SampleSong { name, found: l.found.clone() };
+        return Listen::SampleSong { name, found: l.found.clone(), how: l.how.clone() };
     }
     if l.groove {
         return Listen::ExtractGroove { name };
@@ -864,55 +865,29 @@ mod tests {
     fn a_recording_to_listen_to_is_named_in_the_query() {
         let file =
             std::sync::Arc::new(Picked { name: "My Song (live) #2.m4a".into(), bytes: vec![1, 2], folder: None });
-        let analyze = listen_request(&Listen {
+        let base = || Listen {
             file: file.clone(),
             remake: None,
             flip: false,
             sample: false,
+            how: None,
             groove: false,
             found: None,
-        });
-        assert_eq!(analyze, ("analyze", "/api/analyze", "name=My%20Song%20%28live%29%20%232.m4a".into()));
-        let remake = listen_request(&Listen {
-            file: file.clone(),
-            remake: Some(("drum_and_bass".into(), Some(42))),
-            flip: false,
-            sample: false,
-            groove: false,
-            found: None,
-        });
+        };
+        let name = "name=My%20Song%20%28live%29%20%232.m4a";
+        assert_eq!(listen_request(&base()), ("analyze", "/api/analyze", name.into()));
+        let remake = listen_request(&Listen { remake: Some(("drum_and_bass".into(), Some(42))), ..base() });
         assert_eq!(remake.0, "remake");
         assert_eq!(remake.1, "/api/remake");
         assert!(remake.2.ends_with("&genre=drum_and_bass&seed=42"), "{}", remake.2);
-        let unseeded = listen_request(&Listen {
-            file: file.clone(),
-            remake: Some(("house".into(), None)),
-            flip: false,
-            sample: false,
-            groove: false,
-            found: None,
-        });
+        let unseeded = listen_request(&Listen { remake: Some(("house".into(), None)), ..base() });
         assert!(unseeded.2.ends_with("&genre=house"), "a random seed is claudius' to pick");
-        let flipped = listen_request(&Listen {
-            file: file.clone(),
-            remake: Some(("house".into(), None)),
-            flip: true,
-            sample: false,
-            groove: false,
-            found: None,
-        });
+        let flipped = listen_request(&Listen { remake: Some(("house".into(), None)), flip: true, ..base() });
         assert!(flipped.2.ends_with("&genre=house&flip=true"), "{}", flipped.2);
-        let groove = listen_request(&Listen {
-            file: file.clone(),
-            remake: None,
-            flip: false,
-            sample: false,
-            groove: true,
-            found: None,
-        });
-        assert_eq!(groove, ("extract_groove", "/api/groove", "name=My%20Song%20%28live%29%20%232.m4a".into()));
-        let sample =
-            listen_request(&Listen { file, remake: None, flip: false, sample: true, groove: false, found: None });
-        assert_eq!(sample, ("sample_song", "/api/sample", "name=My%20Song%20%28live%29%20%232.m4a".into()));
+        let groove = listen_request(&Listen { groove: true, ..base() });
+        assert_eq!(groove, ("extract_groove", "/api/groove", name.into()));
+        assert_eq!(listen_request(&Listen { sample: true, ..base() }), ("sample_song", "/api/sample", name.into()));
+        let chopped = listen_request(&Listen { sample: true, how: Some("chops".into()), ..base() });
+        assert_eq!(chopped.2, format!("{name}&how=chops"));
     }
 }

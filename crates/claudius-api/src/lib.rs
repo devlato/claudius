@@ -491,6 +491,9 @@ pub enum Listen {
         /// the library's record of it, when a free library offered it (`LibraryHit::found`): the phrases credit it
         #[serde(default, skip_serializing_if = "Option::is_none")]
         found: Option<serde_json::Value>,
+        /// how it goes in (`SAMPLING_WAYS`; its phrases when none)
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        how: Option<String>,
     },
     ExtractGroove {
         name: String,
@@ -1087,6 +1090,33 @@ impl SongView {
         out.join("\n")
     }
 }
+
+/// The ways the auto-sampler takes a recording into a song (`Command::SampleSong`'s `how`), the first when none is
+/// said: each by name, in a few words, and what it does, as the studio and an assistant offer them.
+pub const SAMPLING_WAYS: [(&str, &str, &str); 4] = [
+    (
+        "phrases",
+        "its sung phrases",
+        "its best sung phrases, a bar or two each, each a loop that comes round where its notes agree with the song's \
+         chords",
+    ),
+    (
+        "passage",
+        "a passage, as a verse or chorus",
+        "4 to 16 bars of its best sung part played through in the drops and hooks, as their verse or chorus, the \
+         song's chords there following it",
+    ),
+    (
+        "chops",
+        "chopped into an instrument",
+        "its best phrase cut in eighths, the slices with the voice played in a new rhythm as an instrument of their own",
+    ),
+    (
+        "stabs",
+        "a stab, struck as a drum",
+        "one short hit of it, a syllable, struck on a few beats as a drum lane of its own, whose steps you can change",
+    ),
+];
 
 /// An effect of each kind with settings that sound like something, to add to a chain (`Command::SetFx`): its name
 /// (`fx`) and the effect as JSON.
@@ -1793,15 +1823,16 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         flip: Option<bool>,
     },
-    /// samples a recording's vocals into the song (the auto-sampler): its best sung phrases, cut on its beat grid and
-    /// cleaned of its drums, fitted to the song's tempo and key, placed where they agree with its chords, mixed as
-    /// vocals; claudius keeps the phrases with the song
+    /// samples a recording into the song (the auto-sampler), in one of `SAMPLING_WAYS`: by default its best sung
+    /// phrases, cut on its beat grid and cleaned of its drums, fitted to the song's tempo and key, placed where they
+    /// agree with its chords, mixed as vocals; or a passage of it as a verse or chorus, its voice chopped into an
+    /// instrument, or a short hit of it struck as a drum. claudius keeps what it cut with the song.
     SampleSong {
         path: String,
         /// how many phrases, 1 to 4 (2)
         #[serde(default)]
         count: Option<u32>,
-        /// how long each is, in bars: 1, 2 or 4 (whichever of 1 and 2 sounds best)
+        /// how long each is, in bars: 1, 2 or 4 (whichever of 1 and 2 sounds best); a passage 4, 8 or 16
         #[serde(default)]
         bars: Option<u32>,
         /// what to listen for ("a person singing")
@@ -1810,6 +1841,9 @@ pub enum Command {
         /// the sections to put them in, by name or kind (those that suit each phrase)
         #[serde(default)]
         sections: Vec<String>,
+        /// how it goes in: "phrases" (the default), "passage", "chops" or "stabs" (`SAMPLING_WAYS`)
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        how: Option<String>,
     },
     /// a recording (an audio file) as a take: it plays once from the start of section `from`, on through the sections
     /// after it as long as it lasts, at the song's tempo; claudius keeps a copy with the song

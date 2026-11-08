@@ -1068,8 +1068,9 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
         ),
         (
             WithRecording::Sample,
-            "Sample its vocals into the song".to_string(),
-            "its best sung phrases, fitted to the open song's tempo and key, where they agree with its chords",
+            "Sample it into the song".to_string(),
+            "its sung phrases, a passage of it, its voice chopped or a stab of it, fitted to the open song's tempo and \
+             key",
             (!song).then_some("make or open a song first"),
         ),
         (
@@ -1098,6 +1099,20 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
         });
         if f.with_recording == *choice {
             why_not = *unavailable;
+        }
+        if *choice == WithRecording::Sample && f.with_recording == WithRecording::Sample && song {
+            ui.horizontal(|ui| {
+                ui.add_space(24.0);
+                ui.label("as");
+                super::import::way_menu(ui, "ns_sample_how", &mut f.sample_how, &claudius_api::SAMPLING_WAYS);
+                widgets::help(
+                    ui,
+                    "How the recording goes in. Its sung phrases come round as loops where they fit your chords. A \
+                     passage plays a whole verse or chorus of it, and your chords follow it. Chops play slices of its \
+                     voice in a new rhythm. A stab strikes one syllable on a few beats, like a drum.",
+                    "guide/samples.html#other-ways-to-sample",
+                );
+            });
         }
     }
     let genres = &cx.state.genres;
@@ -1197,11 +1212,13 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
         cx.view.analysis = None;
         let remake = matches!(f.with_recording, WithRecording::Remake | WithRecording::Flip)
             .then(|| (f.genre_name(), f.seed.trim().parse().ok()));
+        let sample = f.with_recording == WithRecording::Sample;
         cx.view.listen = Some(super::Listen {
             file,
             remake,
             flip: f.with_recording == WithRecording::Flip,
-            sample: f.with_recording == WithRecording::Sample,
+            sample,
+            how: (sample && f.sample_how != claudius_api::SAMPLING_WAYS[0].0).then(|| f.sample_how.to_string()),
             groove: f.with_recording == WithRecording::Groove,
             found: None,
         });

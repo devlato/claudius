@@ -68,6 +68,8 @@ pub struct Import {
     /// the recording held is to be sampled now, as its Sample it button samples it (a scripted run's
     /// `import:sample`)
     pub sample_now: bool,
+    /// the other way to sample it, by its name in `claudius_api::SAMPLING_WAYS`
+    how: &'static str,
     /// the Sample window, which shows the pieces offered: whether it is open, what claudius said, and for each piece
     /// of the take it shows whether it goes into the song and whether treated
     pub sampling: bool,
@@ -86,6 +88,25 @@ pub struct Import {
 struct Choice {
     used: bool,
     treated: bool,
+}
+
+/// A menu of the ways to sample a recording (`claudius_api::SAMPLING_WAYS`, or some of them), each in a few words and
+/// what it does on hover; `how` holds the name of the one chosen, the first offered when it is none of them.
+pub(super) fn way_menu(ui: &mut egui::Ui, id: &str, how: &mut &'static str, ways: &[(&'static str, &str, &str)]) {
+    if !ways.iter().any(|w| w.0 == *how) {
+        *how = ways[0].0;
+    }
+    let (words, about) = ways.iter().find(|w| w.0 == *how).map_or(("", ""), |w| (w.1, w.2));
+    egui::ComboBox::from_id_salt(id)
+        .selected_text(words)
+        .width(210.0)
+        .show_ui(ui, |ui| {
+            for (name, words, about) in ways {
+                ui.selectable_value(how, *name, *words).on_hover_text(*about);
+            }
+        })
+        .response
+        .on_hover_text(about);
 }
 
 /// what the window sent: a recording it holds, or a library's, by its id
@@ -376,6 +397,7 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
     let sections: Vec<String> =
         cx.state.song.as_ref().map(|s| s.sections.iter().map(|s| s.name.clone()).collect()).unwrap_or_default();
     let mut open = true;
+    let mut listen = None;
     egui::Window::new("Add a recording").open(&mut open).resizable(false).collapsible(false).show(ctx, |ui| {
         let im = &mut cx.view.import;
         ui.horizontal(|ui| {
@@ -489,13 +511,59 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
                 im.sample_afresh(true);
             }
         });
+        ui.horizontal(|ui| {
+            ui.label("or sample it as");
+            way_menu(ui, "import-how", &mut im.how, &claudius_api::SAMPLING_WAYS[1..]);
+            let about = claudius_api::SAMPLING_WAYS.iter().find(|w| w.0 == im.how).map_or("", |w| w.2);
+            if ui.add_enabled(im.sending.is_none(), egui::Button::new("Sample it")).on_hover_text(about).clicked() {
+                let how = Some(im.how.to_string());
+                match (&by_id, &im.file) {
+                    (Some(path), _) => {
+                        cx.out.push(Command::SampleSong {
+                            path: path.clone(),
+                            count: None,
+                            bars: None,
+                            find: None,
+                            sections: Vec::new(),
+                            how,
+                        });
+                        im.sending = im.hit.as_ref().map(|h| Sent::Hit(h.id.clone()));
+                    }
+                    (None, Some(file)) => {
+                        listen = Some(super::Listen {
+                            file: file.clone(),
+                            remake: None,
+                            flip: false,
+                            sample: true,
+                            how,
+                            groove: false,
+                            found: found.clone(),
+                        });
+                        im.sending = Some(Sent::File(file.clone()));
+                    }
+                    (None, None) => {}
+                }
+                im.said = None;
+            }
+            crate::widgets::help(
+                ui,
+                "Producers sample a recording in more ways than looping its phrases. A passage plays a whole verse or \
+                 chorus of it in your drops and hooks, and your chords there follow it. Chops cut its voice into \
+                 slices and play them in a new rhythm, like an instrument. A stab takes one short syllable and \
+                 strikes it on a few beats, like a drum, which you can move in the Drums tab.",
+                "guide/samples.html#other-ways-to-sample",
+            );
+        });
         let im = &cx.view.import;
         if im.sending.is_some() {
-            ui.weak("adding it ...");
+            ui.weak("claudius is at it ...");
         }
         said(ui, &im.said);
         ui.weak("Trim it from its track's menu in the arrangement; effects go on it in the mixer, as on any track.");
     });
+    if let Some(l) = listen {
+        cx.view.listen = Some(l);
+    }
     if !open {
         let im = &mut cx.view.import;
         im.open = false;

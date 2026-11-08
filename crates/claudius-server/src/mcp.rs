@@ -614,7 +614,8 @@ pub struct SampleArgs {
     /// how many phrases, 1 to 4 (default 2)
     #[serde(default)]
     pub count: Option<u32>,
-    /// how long each phrase is, in bars: 1, 2 or 4 (default: whichever of 1 and 2 sounds best)
+    /// how long each phrase is, in bars: 1, 2 or 4 (default: whichever of 1 and 2 sounds best); a passage 4, 8 or 16
+    /// (default 8 where a section has room, else 4), a phrase to chop 1, 2 or 4 (default 2)
     #[serde(default)]
     pub bars: Option<u32>,
     /// what to listen for (default "a person singing"; "a rap verse", "a choir" ...)
@@ -623,6 +624,10 @@ pub struct SampleArgs {
     /// the sections to put the phrases in, by name or kind (default: those that suit each phrase)
     #[serde(default)]
     pub sections: Vec<String>,
+    /// how it goes in: "phrases" (default), "passage" (a verse or chorus of it), "chops" (its voice chopped into an
+    /// instrument) or "stabs" (a syllable struck as a drum)
+    #[serde(default)]
+    pub how: Option<String>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -1424,10 +1429,17 @@ impl Studio {
     }
 
     #[tool(
-        description = "Sample a recording's vocals into the song: claudius finds the phrases of the recording that most sound like a voice singing (or `find`), cuts them on the bars the recording plays from its vocals apart (with the ears; else cleaned of its drums and of what plays to the sides), fits them to the song's tempo and key, places each in the sections that suit it (the drops and hooks, then the breaks ...) from the bar where its notes agree best with the song's chords, every so many bars, and mixes them as vocals (vox1, vox2 ...; a lead playing with them steps back 1.5 dB). Says what came of it in its first line (sampled 2 phrases of song.mp3 into the song: vox1, vox2), then where each phrase came from and went, then listens. The phrases are kept with the song; undo takes them out."
+        description = "Sample a recording into the song, in one of four ways (`how`). phrases (the default): claudius finds the phrases of the recording that most sound like a voice singing (or `find`), cuts them on the bars the recording plays from its vocals apart (with the ears; else cleaned of its drums and of what plays to the sides), fits them to the song's tempo and key, places each in the sections that suit it (the drops and hooks, then the breaks ...) from the bar where its notes agree best with the song's chords, every so many bars, and mixes them as vocals (vox1, vox2 ...; a lead playing with them steps back 1.5 dB). passage: 4 to 16 bars (`bars`) of its best sung part played through as the verse or chorus of the drops and hooks (or `sections`), the song's chords there following the passage's; its voice when the ears take it apart, else the record as it plays with its lows out (`passage`): for a song built on a vocal, as trance and hip-hop producers do. chops: its best phrase cut in eighths, the slices with the voice played in a new syncopated rhythm, an instrument of the voice (`chops`). stabs: one short syllable of it struck on a few beats of every two bars, a drum lane of its own (`vox_stab`) whose steps set_drum_pattern changes. Says what came of it in its first line (sampled 2 phrases of song.mp3 into the song: vox1, vox2), then where each piece came from and went, then listens. What it cut is kept with the song; undo takes it out."
     )]
     async fn sample_song(&self, Parameters(a): Parameters<SampleArgs>) -> Result<String, String> {
-        let c = Command::SampleSong { path: a.path, count: a.count, bars: a.bars, find: a.find, sections: a.sections };
+        let c = Command::SampleSong {
+            path: a.path,
+            count: a.count,
+            bars: a.bars,
+            find: a.find,
+            sections: a.sections,
+            how: a.how,
+        };
         self.edit(c, true).await
     }
 

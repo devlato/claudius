@@ -104,8 +104,10 @@ pub struct Listen {
     pub remake: Option<(String, Option<u64>)>,
     /// the remake a flip of it, a new song on its hook and pieces of it, rather than a rework of all of it
     pub flip: bool,
-    /// its vocals are to be sampled into the open song instead (the auto-sampler)
+    /// its vocals are to be sampled into the open song instead (the auto-sampler), in one of
+    /// `claudius_api::SAMPLING_WAYS` (its phrases when none)
     pub sample: bool,
+    pub how: Option<String>,
     /// its groove is to be taken for the open song's drum lanes instead
     pub groove: bool,
     /// the library's record of it, when a free library offered it (`LibraryHit::found`): what the demo's engine
@@ -151,6 +153,8 @@ pub struct NewSongForm {
     pub start: Start,
     /// what it does with a recording
     pub with_recording: WithRecording,
+    /// how a recording is sampled into the song, by its name in `claudius_api::SAMPLING_WAYS`
+    pub sample_how: &'static str,
     /// the example song chosen, by its name (`claudius_api::examples`)
     pub example: Option<&'static str>,
 }
@@ -388,6 +392,7 @@ impl Default for View {
                 genre_search: String::new(),
                 start: Start::default(),
                 with_recording: WithRecording::default(),
+                sample_how: claudius_api::SAMPLING_WAYS[0].0,
                 example: None,
             },
             mutate_count: 4,

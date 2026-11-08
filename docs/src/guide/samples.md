@@ -158,6 +158,36 @@ vox1: bar 6 of Many Miracles Vocal Melody.caf (the ears +2.0 for 'a person singi
 vox2: bars 11-12 of Many Miracles Vocal Melody.caf (the ears +1.9 for 'a person singing', 54% sung), in its own key at 122 BPM, every 4 bars from the first bar in the breaks (break), on chords it agrees with 83%
 ```
 
+### Other ways to sample
+
+Phrases that come round are one way producers sample a recording. The auto-sampler knows three more, which
+`--how` asks for (`how` for an assistant); phrases are the way when none is said:
+
+- **A passage** (`--how passage`): a whole stretch of the recording, 4, 8 or 16 bars of its best sung part (`--bars`;
+  8 where a section has room for them, else 4), the better where one of its own sections starts, played through as
+  the verse or chorus of the sections it goes in: the drops and hooks, unless `--in` says. It is the voice alone when
+  claudius can take it apart, else the record as it plays with its lows out, so that the song's bass and kick play
+  under it. The song's chords in those sections follow the passage's, moved into the song's key as the passage is,
+  when the recording plays chords there and the analysis heard the chord of every bar of it; the reply names them.
+  An a cappella plays none (with its voice apart, what is left under it is all but silent), and the song keeps its
+  own. A trance record is built on a vocal this way, and a hip-hop beat on a soul record's chorus.
+- **Chops** (`--how chops`): the best sung phrase (`--bars` 1, 2 or 4; 2 when none is said) cut in eighths of its
+  beats, and the six slices that hold the most voice played in a new syncopated rhythm, two bars round, the second
+  moving the motif on and ending in a stutter. It is a track of its own, `chops`, in the drops and hooks: the voice as
+  an instrument.
+- **A stab** (`--how stabs`): one short hit of it, the sharpest syllable of its best phrases (80 to 350 ms), on a
+  drum lane of its own, `vox_stab`, struck on a few beats of every two bars and moved to the song's key, in the drops
+  and hooks and the verses. Its rhythm is a drum lane's: change its steps in the Drums tab, or with
+  `set_drum_pattern`.
+
+```text
+sampled a passage of Many Miracles Vocal Melody.caf into the song: passage
+passage: bars 1-8 of Many Miracles Vocal Melody.caf, its voice (the ears +2.7 for 'a person singing', 35% sung), 5 semitones up into F minor at 126 BPM, played through from the first bar of the drops and hooks (drop, drop2), the song's chords there following it (i i7 III iv7 i7 v7 i i7)
+```
+
+In the studio, the **Add a recording** window offers them under **Sample its vocals...**: choose a way in **or sample
+it as** and press **Sample it**. In the New song dialog, **Sample it into the song** takes a way too.
+
 ### Choosing the pieces first
 
 In the studio's **Add a recording** window, **Sample its vocals...** opens the **Sample** window instead of sampling
