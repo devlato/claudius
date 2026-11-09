@@ -5,10 +5,11 @@ A Rust port of **[earshot](https://github.com/Leonxlnx/earshot)** by Leon Lin (M
 CLAP text matching, AudioSet tags, a real-vs-synthesized judgement, objective measurements and a beat grid,
 with **no Python at runtime**. The two neural models run as fp32 ONNX exports on ONNX Runtime (via `ort`, linked
 statically). All the DSP (mel front ends, resampling, loudness, onsets, tempo, key, ...) is reimplemented.
-ffmpeg is used for decoding, exactly as earshot does.
+ffmpeg is used for decoding, exactly as earshot does. Beyond earshot, it separates a recording into stems with
+Deezer's Spleeter and hears the notes one instrument plays with Spotify's Basic Pitch.
 
-earshot's copyright notice is kept in [LICENSE-earshot](LICENSE-earshot). The models keep their own licences; see
-[Licensing](#licensing).
+earshot's copyright notice is kept in [LICENSE-earshot](LICENSE-earshot), and Basic Pitch's in
+[LICENSE-basic-pitch](LICENSE-basic-pitch). The models keep their own licences; see [Licensing](#licensing).
 
 ## What is ported
 
@@ -25,6 +26,7 @@ earshot's copyright notice is kept in [LICENSE-earshot](LICENSE-earshot). The mo
 | `timeline.music_grid` | `grid` | `_pulse_envs`, `_period`, `_downbeat_phase`, the DP beat tracker, `tempo_alt`, and confidence, including earshot's float32 storage points. |
 | `describe.py` | `describe` | Full describe (tags, hints, per-category, AudioSet, character, measurements, distinct windows) and its summary text. |
 | `doctor.py` | CLI `doctor` | ffmpeg / ffprobe, cache, models; `--load` times the models. |
+| Basic Pitch's `inference.py` and `note_creation.py` (not earshot's) | `notes` | Notes, chords and all, of one instrument: 22.05 kHz mono in windows of 43,844 samples that overlap by 30 frames, each keeping all but its 15 frames at either end; then `output_to_notes_polyphonic` with its defaults (onsets inferred from jumps, Melodia's trick, an 11-frame tolerance, notes of 127.7 ms at least). The leftover likelihood is taken strongest first from a heap rather than by an argmax over the whole matrix each time, in the same order. Times are each frame's own (window × 36,164 samples + frame × 256), which Basic Pitch approximates with a correction per 172 frames and a 1.8 ms constant, within 10 ms of them. |
 
 **Not ported** (out of scope): video, sheet, critique / profile (launch-film scorecards), llm, forge,
 mcp_server, the rest of timeline (events, sections, sync), and earshot's on-disk decode / embedding caches.
@@ -127,14 +129,16 @@ Text output reproduces earshot's plain-language summaries (`measure`, `match`, `
 
 ## Models
 
-| model | Hugging Face repo @ pinned revision | files | size |
+| model | repository @ pinned revision | files | size |
 |---|---|---|---|
 | CLAP (laion/larger_clap_general, fp32 ONNX) | `Xenova/larger_clap_general` @ `d78c3994912c441f0151a5cc44d86f6b7bf4c861` | `onnx/audio_model.onnx`, `onnx/text_model.onnx`, `tokenizer.json` | 282 + 502 + 2 MB |
 | AudioSet AST (MIT/ast-finetuned-audioset-10-10-0.4593, fp32 ONNX) | `Xenova/ast-finetuned-audioset-10-10-0.4593` @ `249a1fbf0286b40e7f1ed687a8ae396997bf7dc6` | `onnx/model.onnx`, `config.json` | 347 MB |
 | Spleeter 4 stems (Deezer, fp32 ONNX, the 16 kHz bin axis) | `Best-Practice/spleeter-4stems-onnx` @ `486643021f18a4d057d282fff1d11b89a30e9887` | `vocals.wide.onnx`, `drums.wide.onnx`, `bass.wide.onnx`, `other.wide.onnx` | 4 × 39 MB |
+| Basic Pitch (Spotify, ICASSP 2022, the ONNX export it ships) | GitHub `spotify/basic-pitch` @ `fa5997af0a8210982619003269994a1be25eddf3` | `basic_pitch/saved_models/icassp_2022/nmp.onnx` | 0.23 MB |
 
-Files are downloaded on first use from `https://huggingface.co/{repo}/resolve/{revision}/{file}` into
-`$EARSHOT_HOME` (default `~/.cache/earshot-rs`), under `models/<repo with / as -->/<revision>/<file>`.
+Files are downloaded on first use from `https://huggingface.co/{repo}/resolve/{revision}/{file}` (Basic Pitch's from
+`https://raw.githubusercontent.com/{repo}/{revision}/{file}`) into `$EARSHOT_HOME` (default `~/.cache/earshot-rs`),
+under `models/<repo with / as -->/<revision>/<file>`.
 Each download goes to `<file>.<pid>.part`, is length-checked, fsynced and renamed into place, so an
 interrupted download never leaves a corrupt model. `EARSHOT_OFFLINE=1` (or `EarsOptions::offline`) refuses to
 download and fails with a clear message. The ONNX I/O, inspected with `ort`:
@@ -148,6 +152,9 @@ download and fails with a clear message. The ONNX I/O, inspected with `ort`:
   magnitudes of the same shape. Not a port of earshot: `separate` does the STFT, the ratio mask over the four
   (squares, which sum to one, so the stems add up to the recording within float error), the per-frame mean mask above
   16 kHz, and the inverse with a weighted overlap-add; the frames start a frame less a hop before the recording.
+- Basic Pitch: `serving_default_input_2:0 [B, 43844, 1] f32` (22.05 kHz mono) → `StatefulPartitionedCall:1`, the note
+  likelihoods `[B, 172, 88]`; `StatefulPartitionedCall:2`, the onsets, the same; `StatefulPartitionedCall:0`, the
+  contour `[B, 172, 264]`, three bins to a semitone from A0.
 
 Text embeddings (raw, per prompt) are cached in `$EARSHOT_HOME/text/clap-d78c3994912c.bin`. The cache is
 merged with what other processes wrote and replaced atomically. The 322 terms × 5 templates are computed once.
@@ -287,6 +294,9 @@ provider, and rustc does not link that runtime. The directive propagates to any 
   2020), trained on Deezer's own licensed catalogue. Deezer's README licenses the code by name, and an issue asking
   about the weights (deezer/spleeter#898) has no answer. ONNX export by Best-Practice through sherpa-onnx's PyTorch
   port of the U-Net, **Apache-2.0**.
+- Basic Pitch: Spotify, code and model **Apache-2.0**, the model's ONNX export as Spotify ships it in its repository.
+  `notes` is a port of its windowing and note creation, with its licence and notice in
+  [LICENSE-basic-pitch](LICENSE-basic-pitch).
 - Libraries: ONNX Runtime (MIT, statically linked via `ort`, MIT/Apache-2.0), `tokenizers` (Apache-2.0),
   `realfft` / RustFFT (MIT/Apache-2.0), `ureq` with rustls (MIT/Apache-2.0), serde (MIT/Apache-2.0).
 - No LGPL code is used: the soxr-equivalent filter is an independent Kaiser-sinc design whose parameters were

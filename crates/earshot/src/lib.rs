@@ -24,6 +24,7 @@ pub mod grid;
 pub mod librosa;
 pub mod matching;
 pub mod models;
+pub mod notes;
 pub mod realness;
 pub mod search;
 pub mod separate;
