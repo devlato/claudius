@@ -253,11 +253,12 @@ impl ScriptEditor {
         }
     }
 
-    /// the run of the text as it is, awaited
+    /// the run of the text as it is, awaited, which runs any number nudged before it too
     pub fn run(&mut self) -> Command {
         self.awaiting = true;
         self.result = None;
         self.sent = Some(self.text.clone());
+        self.nudged = None;
         Command::RunScript { code: self.text.clone() }
     }
 
@@ -810,6 +811,10 @@ mod tests {
         ed.run();
         ed.ran(Err("offline".into()));
         assert!(ed.dirty && ed.result == Some((false, "offline".into())) && !ed.awaiting);
+        // a run made by hand after a nudge runs it, and the nudge waits to run no more
+        ed.nudged = Some(1.0);
+        ed.run();
+        assert_eq!(ed.nudged, None);
     }
 
     #[test]

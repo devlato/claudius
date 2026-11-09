@@ -428,6 +428,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 ed.base = song.script.clone();
                 ed.dirty = false;
                 ed.result = None;
+                ed.nudged = None;
             }
             if widgets::icon_button(ui, Icon::Copy, 28.0, false, true, "copy the script").clicked() {
                 ui.ctx().copy_text(ed.text.clone());
@@ -576,6 +577,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     }
                     if output.response.response.changed() {
                         ed.dirty = ed.text != song.script;
+                        // typing after a nudge: a line half written is not run
+                        ed.nudged = None;
                     }
                     if !ed.no_hints {
                         let found = hints(&ed.text);
