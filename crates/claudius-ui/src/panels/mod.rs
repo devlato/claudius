@@ -22,7 +22,7 @@ pub mod sequencer;
 pub mod transport;
 pub mod verdict;
 
-use claudius_api::{Command, GenreInfo, SongView, SoundChoice, SoundList, State, TrackView};
+use claudius_api::{Command, GenreInfo, SongView, SoundChoice, SoundList, State, TrackView, words};
 use eframe::egui::{self, Color32, RichText, Ui};
 use serde::{Deserialize, Serialize};
 
@@ -639,11 +639,64 @@ pub fn choice_label(c: &SoundChoice) -> String {
             Some((_, n)) => format!("synthesized, tuned {n}"),
             None => c.name.clone(),
         },
-        _ => match c.name.split_once(':') {
-            Some((pack, instrument)) => format!("{} ({pack})", instrument.replace('_', " ")),
-            None => c.name.replace('_', " "),
-        },
+        _ => words::name_in_words(&c.name),
     }
+}
+
+/// What the sound named `name` (a part's `preset`, a name a script writes) is, in a few words: a synth preset or a
+/// drum voice as the engine says it, a recording by its pack.
+pub fn sound_about(name: &str, sounds: Option<&SoundList>) -> Option<String> {
+    if let Some(about) = sounds.and_then(|s| s.sound_about(name)) {
+        return Some(about.to_string());
+    }
+    match name.split_once(':') {
+        Some((pack, _)) => Some(format!("a recording from the {pack} pack")),
+        None if sounds.is_some() && is_sampled(name, sounds) => Some("a recording from the installed packs".into()),
+        None => None,
+    }
+}
+
+/// Whether a search (in lower case; empty finds everything) finds the sound named `name`: by that name, by its name
+/// in words as the studio shows it, or by what the engine says it is ("string ensemble" finds string_ensemble, "piano"
+/// epiano, "hi-hat" hh).
+pub fn finds_sound(query: &str, name: &str, sounds: Option<&SoundList>) -> bool {
+    query.is_empty()
+        || name.to_lowercase().contains(query)
+        || words::name_in_words(name).to_lowercase().contains(query)
+        || sounds.and_then(|s| s.sound_about(name)).is_some_and(|a| a.to_lowercase().contains(query))
+}
+
+/// A tooltip for something a script names: what it is, then the name a script writes for it.
+pub fn named(about: Option<&str>, name: &str) -> String {
+    match about.filter(|a| !a.is_empty()) {
+        Some(about) => format!("{about}\nin a script: \"{name}\""),
+        None => format!("in a script: \"{name}\""),
+    }
+}
+
+/// a genre, or genres fused (`trip_hop+idm`), as a person reads it
+pub fn genre_words(genre: &str) -> String {
+    genre.split('+').map(words::name_in_words).collect::<Vec<_>>().join(" + ")
+}
+
+/// a pan typed or shown ("30% left", "L30", "centre", "-0.3") as the -1 (left) to 1 (right) it stands for
+pub fn parse_pan(text: &str) -> Option<f64> {
+    let t = text.trim().to_lowercase();
+    if matches!(t.as_str(), "c" | "centre" | "center" | "middle") {
+        return Some(0.0);
+    }
+    let amount = |s: &str| s.trim().trim_end_matches('%').trim().parse::<f64>().ok().map(|v| (v / 100.0).min(1.0));
+    for (side, sign) in [("left", -1.0), ("right", 1.0)] {
+        if let Some(how_far) = t.strip_suffix(side) {
+            return if how_far.contains("all the way") { Some(sign) } else { amount(how_far).map(|v| sign * v) };
+        }
+    }
+    for (side, sign) in [('l', -1.0), ('r', 1.0)] {
+        if let Some(v) = t.strip_prefix(side).and_then(amount) {
+            return Some(sign * v);
+        }
+    }
+    t.parse::<f64>().ok().map(|v| v.clamp(-1.0, 1.0))
 }
 
 /// the sound a swap of `t` with none named gives it, as `choice_label` reads it
@@ -778,6 +831,60 @@ pub fn page_frame() -> egui::Frame {
 mod tests {
     use super::*;
     use claudius_api::{GenreSampling, RenderView};
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn a_tracks_sound_reads_in_words_as_the_engine_describes_it() {
+        use claudius::model::{Layer, Sound};
+        use claudius::synth::drums::{DrumParams, DrumVoice};
+        let synth = |p: &str| Sound::Synth { preset: p.into(), patch: claudius::synth::presets::get(p).unwrap() };
+        let words = |s: Sound| words::sound_in_words(&s.describe());
+        assert_eq!(words(synth("deep_bass")), "deep bass");
+        assert_eq!(words(Sound::Instrument { name: "tr909:bd".into(), label: "bd".into() }), "kick (TR-909)");
+        assert_eq!(
+            words(Sound::Instrument { name: "salamander:piano".into(), label: String::new() }),
+            "piano (salamander)"
+        );
+        let hat = DrumVoice::ClosedHat;
+        assert_eq!(words(Sound::Drum { voice: hat, params: DrumParams::default_for(hat) }), "synthesized closed hat");
+        let rack = Sound::Rack {
+            layers: vec![
+                Layer { band: Some([0.0, 90.0]), ..Layer::of(synth("sub_bass")) },
+                Layer { band: Some([90.0, 1200.0]), ..Layer::of(synth("reese")) },
+            ],
+        };
+        assert_eq!(words(rack), "layers: sub bass under 90 Hz + reese from 90 Hz to 1.2 kHz");
+    }
+
+    #[test]
+    fn a_sound_is_found_by_its_name_by_its_words_or_by_what_it_is() {
+        let list = SoundList {
+            synths: vec!["epiano".into()],
+            drums: vec!["hh".into()],
+            about: vec![("epiano".into(), "FM tine electric piano".into()), ("hh".into(), "closed hi-hat".into())],
+            ..Default::default()
+        };
+        let finds = |query: &str, name: &str| finds_sound(query, name, Some(&list));
+        assert!(finds("", "anything"));
+        assert!(finds("string_ens", "string_ensemble"), "by its name");
+        assert!(finds("string ensemble", "string_ensemble"), "by its words");
+        assert!(finds("ensemble (vsco", "vsco2:string_ensemble"), "a pack's with its pack");
+        assert!(finds("tine", "epiano"), "by what it is");
+        assert!(finds("hi-hat", "hh"));
+        assert!(!finds("bass", "epiano"));
+    }
+
+    #[test]
+    fn a_pan_reads_back_from_its_words_and_numbers() {
+        for (typed, pan) in
+            [("centre", 0.0), ("30% left", -0.3), ("25% right", 0.25), ("all the way left", -1.0), ("L40", -0.4)]
+        {
+            assert_eq!(parse_pan(typed), Some(pan), "{typed}");
+        }
+        assert_eq!(parse_pan("-0.5"), Some(-0.5));
+        assert_eq!(parse_pan(&words::pan_in_words(0.7)), Some(0.7));
+        assert_eq!(parse_pan("somewhere"), None);
+    }
 
     #[test]
     fn a_percent_reads_as_the_percent_it_shows() {

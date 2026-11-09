@@ -1,7 +1,7 @@
 //! The melodic parts: per part its writing style, its sound (a synth preset or a sampled instrument), its register
 //! (drag on the keyboard or edit the notes), its density, and Reseed to write it again.
 
-use claudius_api::{Command, PartView};
+use claudius_api::{Command, PartView, words};
 use eframe::egui::{self, Align2, Color32, Rect, RichText, Sense, Stroke, Ui, pos2, vec2};
 
 use super::{Cx, empty, layer_color, page_frame, small};
@@ -120,7 +120,9 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         ui.vertical(|ui| {
                             ui.set_width(130.0);
                             ui.label(RichText::new(&part.name).size(14.0).strong().color(TEXT));
-                            ui.label(small(format!("{} · {}", part.role, sounds[i].replace("synth patch ", ""))));
+                            let plays = words::sound_in_words(&sounds[i]);
+                            ui.add(egui::Label::new(small(format!("{} · {plays}", part.role))).truncate())
+                                .on_hover_text(format!("a {} part, played by {plays}", part.role));
                         });
                         ui.vertical(|ui| {
                             widgets::label_help(
@@ -131,25 +133,36 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                                  or comped as a genre's keyboard player would.",
                                 "language/song-functions.html#part",
                             );
-                            egui::ComboBox::from_id_salt(("style", i)).selected_text(&part.style).width(110.0).show_ui(
-                                ui,
-                                |ui| {
+                            let about =
+                                |s: &str| library.and_then(|l| l.style_about(&part.role, s)).map(str::to_string);
+                            let tip = super::named(about(&part.style).as_deref(), &part.style);
+                            egui::ComboBox::from_id_salt(("style", i))
+                                .selected_text(words::name_in_words(&part.style))
+                                .width(110.0)
+                                .truncate()
+                                .show_ui(ui, |ui| {
                                     for s in part.styles.clone() {
-                                        if ui.selectable_label(part.style == s, &s).clicked() && part.style != s {
+                                        let r = ui
+                                            .selectable_label(part.style == s, words::name_in_words(&s))
+                                            .on_hover_text(super::named(about(&s).as_deref(), &s));
+                                        if r.clicked() && part.style != s {
                                             part.style = s.clone();
                                             out.push(PartEdit { style: Some(s), ..Default::default() }.on(&part.name));
                                         }
                                     }
-                                },
-                            );
+                                })
+                                .response
+                                .on_hover_text(tip);
                         });
                         ui.vertical(|ui| {
                             let sampled = super::is_sampled(&part.preset, library);
                             ui.label(small(if sampled { "Sound (sampled)" } else { "Sound (synth)" }));
                             ui.horizontal(|ui| {
+                                let tip = |s: &str| super::named(super::sound_about(s, library).as_deref(), s);
                                 egui::ComboBox::from_id_salt(("preset", i))
-                                    .selected_text(&part.preset)
+                                    .selected_text(words::name_in_words(&part.preset))
                                     .width(140.0)
+                                    .truncate()
                                     .show_ui(ui, |ui| {
                                         let (samples, synths): (Vec<String>, Vec<String>) =
                                             part.presets.iter().cloned().partition(|s| super::is_sampled(s, library));
@@ -161,9 +174,10 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                                             }
                                             ui.label(small(title));
                                             for s in names {
-                                                if ui.selectable_label(part.preset == s, &s).clicked()
-                                                    && part.preset != s
-                                                {
+                                                let r = ui
+                                                    .selectable_label(part.preset == s, words::name_in_words(&s))
+                                                    .on_hover_text(tip(&s));
+                                                if r.clicked() && part.preset != s {
                                                     part.preset = s.clone();
                                                     out.push(
                                                         PartEdit { preset: Some(s), ..Default::default() }
@@ -173,7 +187,9 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                                             }
                                         }
                                         ui.label(small("more in the Sounds tab"));
-                                    });
+                                    })
+                                    .response
+                                    .on_hover_text(tip(&part.preset));
                                 if let Some(next) = &nexts[i]
                                     && widgets::icon_button(
                                         ui,

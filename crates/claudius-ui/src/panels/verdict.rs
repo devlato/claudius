@@ -26,9 +26,9 @@ fn ring(ui: &mut Ui, total: f64) {
 }
 
 /// two z-scores on one axis: what it is vs what it might be mistaken for
-fn versus(ui: &mut Ui, a_label: &str, a: f64, b_label: &str, b: f64, good_is_a: bool) {
+fn versus(ui: &mut Ui, a_label: &str, a: f64, b_label: &str, b: f64, good_is_a: bool) -> egui::Response {
     let width = ui.available_width().min(300.0);
-    let (rect, _) = ui.allocate_exact_size(vec2(width, 34.0), Sense::hover());
+    let (rect, response) = ui.allocate_exact_size(vec2(width, 34.0), Sense::hover());
     let p = ui.painter();
     let (lo, hi) = (-2.0f64, 4.0f64);
     let x = |z: f64| rect.left() + ((z - lo) / (hi - lo)).clamp(0.0, 1.0) as f32 * rect.width();
@@ -42,24 +42,11 @@ fn versus(ui: &mut Ui, a_label: &str, a: f64, b_label: &str, b: f64, good_is_a: 
     }
     p.text(pos2(x(a), axis_y + 13.0), Align2::CENTER_CENTER, format!("{a_label} {a:+.1}"), theme::prop(10.0), ca);
     p.text(pos2(x(b), axis_y - 11.0), Align2::CENTER_CENTER, format!("{b_label} {b:+.1}"), theme::prop(10.0), cb);
+    response
 }
 
 fn measure(v: &VerdictView, key: &str) -> Option<f64> {
     v.measures.iter().find(|(k, _)| k == key).map(|(_, x)| *x)
-}
-
-/// a meter's name in words, with its unit
-fn measure_name(key: &str) -> String {
-    match key {
-        "lufs" => "loudness (LUFS)".into(),
-        "true_peak_db" => "true peak (dBTP)".into(),
-        "lra_lu" => "loudness range (LU)".into(),
-        "stereo_correlation" => "stereo correlation (1 is mono)".into(),
-        "low_end_correlation" => "low end correlation (1 is mono)".into(),
-        "drop_minus_break_lu" => "drop over the break (LU)".into(),
-        "arc_correlation" => "loudness following the energy".into(),
-        other => other.replace('_', " "),
-    }
 }
 
 fn tonal_balance(ui: &mut Ui, v: &VerdictView) {
@@ -77,7 +64,18 @@ fn tonal_balance(ui: &mut Ui, v: &VerdictView) {
     }
     ui.label(small("tonal balance (dB)"));
     let width = ui.available_width().min(300.0);
-    let (rect, _) = ui.allocate_exact_size(vec2(width, 70.0), Sense::hover());
+    let (rect, response) = ui.allocate_exact_size(vec2(width, 70.0), Sense::hover());
+    let shares: Vec<String> = values
+        .iter()
+        .map(|(name, db)| {
+            let (band, hz) = claudius_api::words::band_in_words(name);
+            format!("{band}, {hz}: {db:.1} dB")
+        })
+        .collect();
+    response.on_hover_text(format!(
+        "the share of the song's energy in each band of frequencies, in dB:\n{}",
+        shares.join("\n")
+    ));
     let p = ui.painter();
     p.rect_filled(rect, 4.0, WELL);
     let (lo, hi) = (-30.0, 0.0);
@@ -226,9 +224,18 @@ fn details(ui: &mut Ui, v: &VerdictView) {
     if let Some(e) = &v.ears {
         ui.label(RichText::new("Ears").strong().size(12.5).color(TEXT));
         ui.label(small(format!("genre: \"{}\" vs its closest confusion \"{}\"", e.genre_query, e.best_alt)));
-        versus(ui, "genre", e.genre_z, "alt", e.best_alt_z, true);
+        versus(ui, "genre", e.genre_z, "alt", e.best_alt_z, true).on_hover_text(format!(
+            "how clearly the listening model hears \"{}\" in it ({:+.1}) against \"{}\", the genre it is most often \
+             taken for ({:+.1}): how much better each describes it than the ears' vocabulary does on average, 2.5 \
+             plausible and 3 strong",
+            e.genre_query, e.genre_z, e.best_alt, e.best_alt_z
+        ));
         ui.label(small(format!("production: \"professionally mixed\" vs worst flaw \"{}\"", e.worst_flaw)));
-        versus(ui, "pro", e.production_z, "flaw", e.worst_flaw_z, true);
+        versus(ui, "pro", e.production_z, "flaw", e.worst_flaw_z, true).on_hover_text(format!(
+            "how professionally mixed it sounds to the listening model ({:+.1}) against its worst flaw, \"{}\" \
+             ({:+.1}): the flaw should score lower",
+            e.production_z, e.worst_flaw, e.worst_flaw_z
+        ));
         if !e.sounds_like.is_empty() {
             ui.horizontal_wrapped(|ui| {
                 ui.label(small("sounds like"));
@@ -238,7 +245,10 @@ fn details(ui: &mut Ui, v: &VerdictView) {
             });
         }
         if let Some(p) = e.p_real {
-            ui.label(small(format!("realness p = {p:.2} (held out, never optimised)")));
+            ui.label(small(format!("realness p = {p:.2} (held out, never optimised)"))).on_hover_text(
+                "how likely a model kept out of the judging takes it for a real recording, from 0 to 1: no song is \
+                 ever made to please it, so it stays an honest second opinion",
+            );
         }
         ui.add_space(6.0);
     }
@@ -262,8 +272,19 @@ fn details(ui: &mut Ui, v: &VerdictView) {
             }
             let Some(x) = measure(v, k) else { continue };
             shown.push(k);
-            ui.label(RichText::new(measure_name(k)).size(11.0).color(TEXT_DIM));
-            ui.label(RichText::new(format!("{x:.2}")).monospace().size(11.0).color(TEXT));
+            let (name, value, about) = claudius_api::words::measure_in_words(k, x);
+            // cut short rather than wrapped: a grid's column takes the width of its narrowest text
+            let name = ui
+                .scope(|ui| {
+                    ui.set_max_width(210.0);
+                    ui.add(egui::Label::new(RichText::new(name).size(11.0).color(TEXT_DIM)).truncate())
+                })
+                .inner;
+            let value = ui.label(RichText::new(value).monospace().size(11.0).color(TEXT));
+            if !about.is_empty() {
+                name.on_hover_text(&about);
+                value.on_hover_text(&about);
+            }
             ui.end_row();
         }
     });

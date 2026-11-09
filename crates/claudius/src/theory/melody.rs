@@ -223,6 +223,26 @@ pub const ARP_STYLES: &[&str] = &["up", "down", "updown", "random", "pinky"];
 /// leads have one style: motifs developed over the chords
 pub const LEAD_STYLES: &[&str] = &["motif"];
 
+/// what a style of `CHORD_STYLES`, `ARP_STYLES` or `LEAD_STYLES` plays, in a few words
+pub fn style_about(style: &str) -> Option<&'static str> {
+    Some(match style {
+        "sustain" => "each chord held for as long as it lasts",
+        "half" => "two long chords a bar, on one and three",
+        "stabs" => "three short stabs a bar: on one, the and of two, and four",
+        "offbeat" => "short chords on the off-beat eighths",
+        "pump" => "chords in eighths, the beats harder",
+        "syncopated" => "five short hits a bar, pushed off the beats",
+        "charleston" => "the charleston: a short chord on one, a long one on the and of two",
+        "up" => "the chord's notes one at a time, from the bottom up",
+        "down" => "the chord's notes one at a time, from the top down",
+        "updown" => "the chord's notes up and back down",
+        "random" => "the chord's notes in an order of chance",
+        "pinky" => "the top note alternating with the others, as a pianist's little finger plays it",
+        "motif" => "a one-bar hook, played as a phrase of A, A higher, A and an answer every four bars",
+        _ => return None,
+    })
+}
+
 /// a chord rhythm's hits in a bar: when (beats from the bar's start), how long, how hard
 pub fn chord_hits(rhythm_name: &str) -> Vec<(f64, f64, f32)> {
     match rhythm_name {

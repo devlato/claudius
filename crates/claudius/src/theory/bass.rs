@@ -340,6 +340,33 @@ pub const STYLES: &[&str] = &[
     "reese",
 ];
 
+/// what a motif of `STYLES` plays, in a few words (the table of bass lines in the docs' theory chapter)
+pub fn motif_about(style: &str) -> Option<&'static str> {
+    Some(match style {
+        "sustain" | "reese" => "the root held for the whole chord",
+        "pulse" => "quarter notes",
+        "root8" => "eighths on the root, sometimes an octave jump at the end",
+        "octave" => "eighths alternating root and octave",
+        "offbeat" => "the off-beat eighths of house, sometimes a pickup on the last sixteenth",
+        "rolling" => "the three sixteenths after each beat, around the kick",
+        "syncopated" => "one of five sixteenth grooves, with octaves, fifths and thirds",
+        "kick_follow" => {
+            "a note on every kick of the kick lane's main pattern, held to the next, with occasional octave or fifth \
+             jumps and slides: the trap 808"
+        }
+        "glide" => {
+            "a note on every kick, long, gliding up an octave or to the fifth into the end of each two-bar phrase: a \
+             trap hook's 808"
+        }
+        "drill" => {
+            "a note on every kick, moving through the key's tones over the root (its third, fourth, fifth, seventh, \
+             octave), sliding from note to note"
+        }
+        "acid" => "sixteenths on a pentatonic, with rests, accents and slides, snapped to the key",
+        _ => return None,
+    })
+}
+
 fn motif(style: &str, kicks_in_bar: &[f64], minor: bool, rng: &mut Rng) -> Vec<Step> {
     let s = |t: f64, d: f64, iv: i32, v: f32| Step { t, d, iv, v, slide: false };
     match style {

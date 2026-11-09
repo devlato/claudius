@@ -659,19 +659,28 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
                 }
                 let drums = midi && r.settings.part_role == DRUMS;
                 if midi && !drums {
-                    egui::ComboBox::from_id_salt("record-sound").selected_text(&r.settings.sound).width(100.0).show_ui(
-                        ui,
-                        |ui| {
+                    let tip = |s: &str| super::named(super::sound_about(s, cx.sounds).as_deref(), s);
+                    egui::ComboBox::from_id_salt("record-sound")
+                        .selected_text(claudius_api::words::name_in_words(&r.settings.sound))
+                        .width(100.0)
+                        .truncate()
+                        .show_ui(ui, |ui| {
                             for (heading, names) in [("instruments", &instruments), ("synths", &synths)] {
                                 if !names.is_empty() {
                                     ui.label(small(heading).weak());
                                 }
                                 for s in names {
-                                    ui.selectable_value(&mut r.settings.sound, s.clone(), s);
+                                    ui.selectable_value(
+                                        &mut r.settings.sound,
+                                        s.clone(),
+                                        claudius_api::words::name_in_words(s),
+                                    )
+                                    .on_hover_text(tip(s));
                                 }
                             }
-                        },
-                    );
+                        })
+                        .response
+                        .on_hover_text(tip(&r.settings.sound));
                 }
                 if midi {
                     let grid = |g: f64| match g {

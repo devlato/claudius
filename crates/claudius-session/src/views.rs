@@ -411,6 +411,22 @@ pub fn sounds() -> SoundList {
             .iter()
             .map(|(name, roles)| (name.to_string(), roles.iter().map(|r| r.to_string()).collect()))
             .collect(),
+        about: presets::names()
+            .into_iter()
+            .filter_map(|n| presets::about(n).map(|a| (n, a)))
+            .chain(script::drum_names().into_iter().filter_map(|n| script::drum_about(n).map(|a| (n, a))))
+            .map(|(n, a)| (n.to_string(), a.to_string()))
+            .collect(),
+        styles: claudius::model::Role::ALL
+            .into_iter()
+            .map(|role| {
+                let styles = compose::styles_for(role)
+                    .into_iter()
+                    .filter_map(|s| compose::style_about(role, s).map(|a| (s.to_string(), a.to_string())))
+                    .collect();
+                (role.name().to_string(), styles)
+            })
+            .collect(),
     }
 }
 
@@ -439,17 +455,7 @@ fn a(word: &str) -> &'static str {
 
 /// a genre as people write it: "deep house", "UK drill", "IDM", "R&B", "drum and bass", "trip hop fused with IDM"
 fn genre_in_words(genre: &str) -> String {
-    let word = |w: &str| match w {
-        "uk" => "UK".to_string(),
-        "ny" => "NY".to_string(),
-        "idm" => "IDM".to_string(),
-        "rnb" => "R&B".to_string(),
-        "dnb" => "drum and bass".to_string(),
-        "g" => "G".to_string(),
-        other => other.to_string(),
-    };
-    let one = |g: &str| g.split('_').map(word).collect::<Vec<_>>().join(" ");
-    genre.split('+').map(one).collect::<Vec<_>>().join(" fused with ")
+    genre.split('+').map(claudius_api::words::name_in_words).collect::<Vec<_>>().join(" fused with ")
 }
 
 /// The song in a few sentences for a person, in the words the studio uses rather than a producer's: what it is, how
@@ -688,5 +694,21 @@ mod tests {
         assert_eq!(a("intro"), "an");
         assert_eq!(a("outro"), "an");
         assert_eq!(a("drop"), "a");
+    }
+
+    #[test]
+    fn every_sound_and_style_a_part_may_take_says_what_it_is() {
+        let list = sounds();
+        for name in list.synths.iter().chain(&list.drums) {
+            assert!(list.sound_about(name).is_some_and(|a| !a.is_empty()), "{name} says nothing of itself");
+        }
+        assert_eq!(list.sound_about("tr909:bd"), Some("kick"), "a kit's drum is its voice");
+        assert_eq!(list.sound_about("vsco2:strings"), None, "an instrument is not the preset of its name");
+        for role in claudius::model::Role::ALL {
+            for style in compose::styles_for(role) {
+                assert!(list.style_about(role.name(), style).is_some(), "{}: {style} says nothing", role.name());
+            }
+        }
+        assert_ne!(list.style_about("bass", "sustain"), list.style_about("chords", "sustain"), "by role");
     }
 }

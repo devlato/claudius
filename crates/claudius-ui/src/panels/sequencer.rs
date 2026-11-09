@@ -49,11 +49,16 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             for v in &variants {
                 let used: Vec<&str> =
                     song.sections.iter().filter(|s| &s.variant == v).map(|s| s.name.as_str()).collect();
-                let r = widgets::chip(ui, v == &variant, v, ACCENT).on_hover_text(if used.is_empty() {
-                    "no section uses this variant".to_string()
-                } else {
-                    format!("used by {}", used.join(", "))
-                });
+                let (shown, about) = claudius_api::words::variant_in_words(v);
+                let r = widgets::chip(ui, v == &variant, &shown, ACCENT).on_hover_text(format!(
+                    "{}\n{}",
+                    super::named(Some(about), v),
+                    if used.is_empty() {
+                        "no section uses this variant".to_string()
+                    } else {
+                        format!("used by {}", used.join(", "))
+                    }
+                ));
                 if r.clicked() {
                     cx.view.variant = v.clone();
                 }

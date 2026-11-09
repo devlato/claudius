@@ -95,6 +95,71 @@ pub fn names() -> Vec<&'static str> {
     ROLES.iter().map(|(n, _)| *n).collect()
 }
 
+/// what a preset is made of and sounds like, in a few words (the table of presets in the docs' Sounds chapter)
+pub fn about(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "sub_bass" => "a sine sub with a little drive",
+        "808" => "a sine with a pitch drop, long decay and heavy drive; glides",
+        "reese" => "two detuned saws and a saw an octave down, a slowly moving ladder filter; glides",
+        "acid" => "one saw into a resonant ladder filter with a snappy envelope; velocity opens it; glides",
+        "saw_bass" => "detuned saws and a square an octave down, filter envelope",
+        "pluck_bass" => "square and saw with a short filter pluck",
+        "organ_bass" => "three sine drawbars (fundamental, octave, two octaves)",
+        "wobble" => "detuned saws and a square, ladder filter swept by a tempo-synced LFO",
+        "log_drum" => "a sine knocked into its note, a pitch drop and a woody FM click, dying away; glides a little",
+        "pluck" => "three detuned saws and a square an octave up, fast filter decay",
+        "supersaw" => "seven detuned saws plus three an octave down, delayed vibrato",
+        "pad" => "five saws and a triangle, slow attack, long release, slow filter drift",
+        "warm_pad" => "triangles and a pulse, slower and darker than pad",
+        "stab" => "detuned saws and a square, short with a filter snap",
+        "epiano" => "FM tine electric piano",
+        "keys" => "brighter FM keys with a shorter decay",
+        "bell" => "FM bell, long decay",
+        "organ" => "five sine drawbars, sustained",
+        "strings" => "five detuned saws, slow attack, delayed vibrato",
+        "square_lead" => "square and saw an octave up, vibrato; glides",
+        "chip" => "a 25 % pulse, short",
+        "fm_bass" => "a sine whose FM brightness falls away fast, over a sub",
+        "rubber_bass" => "a square and a sub through a resonant low-pass; glides",
+        "moog_bass" => "two saws and a square an octave down into a ladder filter; glides",
+        "dist_bass" => "detuned saws and a square, driven hard",
+        "deep_bass" => "a triangle with a quiet octave and a sub, soft and round",
+        "saw_lead" => "three detuned saws and one an octave down, delayed vibrato; glides",
+        "pwm_lead" => "two pulses of different widths, beating; glides",
+        "whistle" => "a sine with a breath of noise and a wide vibrato; glides",
+        "soft_lead" => {
+            "a sine and a quiet triangle an octave up through a soft low-pass, slow to speak, a late vibrato; glides"
+        }
+        "glide_lead" => {
+            "the whine of G-funk: a sine and a quiet saw through a ladder filter, gliding a long way from note to \
+             note, a slow vibrato"
+        }
+        "brass_lead" => "saws whose filter swells open, as brass does",
+        "fm_lead" => "an FM lead that keeps some brightness as it holds; glides",
+        "vox_lead" => "saws through a drifting band-pass, like a vowel; glides",
+        "solina" => "a string machine: six saws and three an octave up, slow attack",
+        "glass_pad" => "FM with a slow attack and a long release, bright and glassy",
+        "pwm_pad" => "detuned pulses with a slow filter drift",
+        "air_pad" => "triangles and noise, very slow, breathy",
+        "vowel_pad" => "soft waves through a resonant low-pass, an \"ah\"",
+        "swell_pad" => "saws under a filter that sweeps slowly up and down",
+        "tine_piano" => "the bright FM electric piano of the 80s",
+        "clav" => "a narrow pulse through a band-pass, short and funky",
+        "house_piano" => "a bright FM piano with a short decay",
+        "brass_stab" => "detuned saws with a quick filter snap, short",
+        "rock_organ" => "drawbars through an overdriven amp, with a speaker's wobble",
+        "fm_marimba" => "an FM bar, quick decay",
+        "fm_kalimba" => "an FM tine, plucked",
+        "harp_pluck" => "a triangle and a little saw, plucked with a filter decay",
+        "mallet" => "soft sines, a struck bar ringing out",
+        "cowbell_lead" => {
+            "the 808's cowbell made to play a tune: two squares a little under a fifth apart through a band-pass, \
+             struck and dying fast"
+        }
+        _ => return None,
+    })
+}
+
 pub fn for_role(role: &str) -> Vec<&'static str> {
     ROLES.iter().filter(|(_, r)| r.contains(&role)).map(|(n, _)| *n).collect()
 }
@@ -775,6 +840,22 @@ mod tests {
     fn every_role_has_presets_to_draw_from() {
         for role in ["bass", "chords", "keys", "pad", "lead", "arp"] {
             assert!(for_role(role).len() >= 6, "{role}: {:?}", for_role(role));
+        }
+    }
+
+    #[test]
+    fn every_preset_says_what_it_is_in_the_words_of_the_docs_table() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/src/language/sounds.md");
+        let docs = std::fs::read_to_string(path).unwrap();
+        let (_, table) = docs.split_once("## Synth presets").expect("the docs' table of presets");
+        for name in names() {
+            let about = about(name).unwrap_or_else(|| panic!("{name} says nothing of itself"));
+            let row = table
+                .lines()
+                .find(|l| l.starts_with(&format!("| `{name}` | ")))
+                .unwrap_or_else(|| panic!("{name} has no row in the docs' table of presets"));
+            let docs_says = row.split(" | ").nth(1).unwrap_or_default().replace('`', "");
+            assert_eq!(about, docs_says, "{name}");
         }
     }
 }

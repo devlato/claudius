@@ -335,15 +335,15 @@ fn insert(ed: &mut super::ScriptEditor, what: &str) {
 /// the sound browser: drums, synth presets, sampled instruments by pack, and the short names
 fn sounds(ui: &mut Ui, ed: &mut super::ScriptEditor, list: &SoundList) {
     let f = ed.filter.to_lowercase();
-    let hit = |n: &str| f.is_empty() || n.to_lowercase().contains(&f);
     let filtering = !f.is_empty();
     let chips = |ui: &mut Ui, ed: &mut super::ScriptEditor, names: &[(String, String)], tip: &str| {
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
             for (label, insert_as) in names {
+                let about = list.sound_about(insert_as).map_or(String::new(), |a| format!("{a}\n"));
                 if ui
                     .small_button(label.as_str())
-                    .on_hover_text(format!("{tip}: inserts \"{insert_as}\" at the cursor"))
+                    .on_hover_text(format!("{about}{tip}: inserts \"{insert_as}\" at the cursor"))
                     .clicked()
                 {
                     insert(ed, &format!("\"{insert_as}\""));
@@ -351,10 +351,11 @@ fn sounds(ui: &mut Ui, ed: &mut super::ScriptEditor, list: &SoundList) {
             }
         });
     };
-    let drums: Vec<(String, String)> = list.drums.iter().filter(|n| hit(n)).map(|n| (n.clone(), n.clone())).collect();
-    let synths: Vec<(String, String)> = list.synths.iter().filter(|n| hit(n)).map(|n| (n.clone(), n.clone())).collect();
+    let found = |n: &&String| super::finds_sound(&f, n, Some(list));
+    let drums: Vec<(String, String)> = list.drums.iter().filter(found).map(|n| (n.clone(), n.clone())).collect();
+    let synths: Vec<(String, String)> = list.synths.iter().filter(found).map(|n| (n.clone(), n.clone())).collect();
     let mut packs: Vec<(&str, Vec<(String, String)>)> = Vec::new();
-    for full in list.instruments.iter().filter(|n| n.contains(':') && hit(n)) {
+    for full in list.instruments.iter().filter(|n| n.contains(':') && found(n)) {
         let (pack, name) = full.split_once(':').unwrap_or(("", full));
         match packs.iter_mut().find(|(p, _)| *p == pack) {
             Some((_, v)) => v.push((name.to_string(), full.clone())),
@@ -362,7 +363,7 @@ fn sounds(ui: &mut Ui, ed: &mut super::ScriptEditor, list: &SoundList) {
         }
     }
     let aliases: Vec<(String, String)> =
-        list.instruments.iter().filter(|n| !n.contains(':') && hit(n)).map(|n| (n.clone(), n.clone())).collect();
+        list.instruments.iter().filter(|n| !n.contains(':') && found(n)).map(|n| (n.clone(), n.clone())).collect();
     let sampled: usize = packs.iter().map(|(_, v)| v.len()).sum();
     let group = |title: String, open: bool| {
         egui::CollapsingHeader::new(RichText::new(title).size(12.0).strong())
