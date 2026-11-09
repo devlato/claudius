@@ -124,6 +124,157 @@ fn tokens(src: &str) -> Vec<(std::ops::Range<usize>, Tok)> {
     out
 }
 
+/// The number in `src` the byte `at` is in or just after (a cursor in it, after typing it, or past the bracket or comma
+/// after it): its bytes, by the tokens `tokens` reads, so that none in a string or a comment counts.
+fn number_at(src: &str, at: usize) -> Option<std::ops::Range<usize>> {
+    let numbers: Vec<std::ops::Range<usize>> =
+        tokens(src).into_iter().filter(|(_, t)| *t == Tok::Num).map(|(r, _)| r).collect();
+    let within = numbers.iter().find(|r| r.start <= at && at <= r.end);
+    within.or_else(|| numbers.iter().find(|r| r.end < at && at == r.end + 1)).cloned()
+}
+
+/// `number` moved `by` steps of its last digit (1 for 120, 0.1 for 0.5, 0.01 for 0.56) and written as it was, with as
+/// many decimals; none for a number written otherwise (hex, an exponent, digits apart)
+fn nudged(number: &str, by: i32) -> Option<String> {
+    if !number.bytes().all(|c| c.is_ascii_digit() || c == b'.' || c == b'-') {
+        return None;
+    }
+    let v: f64 = number.parse().ok()?;
+    let decimals = number.split_once('.').map_or(0, |(_, d)| d.len());
+    let step = 10f64.powi(-(decimals as i32));
+    let x = v + f64::from(by) * step;
+    // no "-0.0" for a number nudged to nothing
+    let x = if x.abs() < step / 2.0 { 0.0 } else { x };
+    Some(format!("{x:.decimals$}"))
+}
+
+/// a frequency in words: "120 Hz", "4.5 kHz"
+fn hz(v: f64) -> String {
+    if v >= 1000.0 { format!("{} kHz", (v / 100.0).round() / 10.0) } else { format!("{v:.0} Hz") }
+}
+
+/// a share in words: "56%"
+fn share(v: f64) -> String {
+    format!("{:.0}%", v * 100.0)
+}
+
+/// where a pan puts a sound, in words
+fn pan_words(v: f64) -> String {
+    match v {
+        v if v.abs() < 0.005 => "in the middle".into(),
+        v if v < 0.0 => format!("{} left", share(-v)),
+        v => format!("{} right", share(v)),
+    }
+}
+
+/// a number as the script writes it: whole numbers without a point
+fn plain(v: f64) -> String {
+    if v == v.trunc() && v.abs() < 1e9 { format!("{}", v as i64) } else { format!("{v}") }
+}
+
+/// What a number given to call `name`, as its argument `arg` (from 0), sets, in a few words: "118 BPM", "16 bars"
+fn call_hint(name: &str, arg: usize, v: f64) -> Option<String> {
+    Some(match (name, arg) {
+        ("tempo" | "bpm", 0) => format!("{} BPM", plain(v)),
+        ("swing", 0) => format!("swing {}", share(v)),
+        ("humanize", 0) => format!("humanized {}", share(v)),
+        ("bars_per_chord", 0) => format!("{} bar{} a chord", plain(v), if v == 1.0 { "" } else { "s" }),
+        ("sec", 1) => format!("{} bars", plain(v)),
+        ("energy", 0) => format!("energy {}", share(v)),
+        ("build", 1) => format!("builds {} hard", share(v)),
+        ("octave", 0) => format!("octave {}", plain(v)),
+        ("lpf" | "hpf" | "cutoff", 0) => hz(v),
+        ("room", 0) => format!("{} reverb", share(v)),
+        ("delay", 0) => format!("{} delay", share(v)),
+        ("level" | "gain", 0) => format!("{} dB", signed(v)),
+        ("legato", 0) => format!("{} of each step", share(v)),
+        ("pan", 0) => pan_words(v),
+        ("duck", 0) => format!("{} ducked under the kick", share(v)),
+        ("transpose", 0) => format!("{} semitones", signed(v)),
+        ("voicing", 0) => format!("from {}", crate::music::note_name(v as i32)),
+        ("voicing", 1) => format!("up to {}", crate::music::note_name(v as i32)),
+        _ => return None,
+    })
+}
+
+/// a number with its sign: "+2", "-4.5"
+fn signed(v: f64) -> String {
+    if v > 0.0 { format!("+{}", plain(v)) } else { plain(v) }
+}
+
+/// What a number given as a map's field `key` sets, in a few words: "-4 dB", "30% left"
+fn key_hint(key: &str, v: f64) -> Option<String> {
+    Some(match key {
+        "level" | "gain_db" | "threshold_db" | "makeup_db" | "drive_db" | "drive" | "hiss_db" => {
+            format!("{} dB", signed(v))
+        }
+        "ceiling" => format!("{} dBTP", plain(v)),
+        "lufs" => format!("{} LUFS", plain(v)),
+        "pan" => pan_words(v),
+        "reverb" | "delay" | "duck" | "mix" | "density" | "amount" | "prob" | "depth" | "crackle" => share(v),
+        "cutoff" | "freq" | "rate_hz" | "mono_below_hz" | "lowpass_hz" | "highpass_hz" => hz(v),
+        "bars" => format!("{} bars", plain(v)),
+        "beats" => format!("{} beats", plain(v)),
+        "transpose" => format!("{} semitones", signed(v)),
+        "width" => format!("{} wide", share(v)),
+        "decay" => format!("{} s", plain(v)),
+        "attack_ms" | "release_ms" | "delay_ms" | "depth_ms" | "predelay_ms" | "late_ms" => format!("{} ms", plain(v)),
+        "ratio" => format!("{}:1", plain(v)),
+        "res" => format!("resonance {}", share(v)),
+        _ => return None,
+    })
+}
+
+/// What each number of `src` sets, in a few words, by the call it is given to or the map field it fills: each by its
+/// bytes in `src`, for the hints the editor shows at the end of its line and over it.
+fn hints(src: &str) -> Vec<(std::ops::Range<usize>, String)> {
+    enum Frame {
+        Call(String, usize),
+        Map,
+        List,
+    }
+    let mut out = Vec::new();
+    let mut frames: Vec<Frame> = Vec::new();
+    let (mut word, mut key): (Option<String>, Option<String>) = (None, None);
+    for (r, t) in tokens(src) {
+        let s = &src[r.clone()];
+        match t {
+            Tok::Func | Tok::Method => word = Some(s.to_string()),
+            Tok::Plain if !s.trim().is_empty() && !s.starts_with('#') => word = Some(s.trim().to_string()),
+            Tok::Punct => match s {
+                "(" => frames.push(Frame::Call(word.take().unwrap_or_default(), 0)),
+                "{" => frames.push(Frame::Map),
+                "[" => frames.push(Frame::List),
+                ")" | "}" | "]" => {
+                    frames.pop();
+                }
+                "," => {
+                    if let Some(Frame::Call(_, arg)) = frames.last_mut() {
+                        *arg += 1;
+                    }
+                    key = None;
+                }
+                ":" if matches!(frames.last(), Some(Frame::Map)) => key = word.take(),
+                _ => {}
+            },
+            Tok::Num => {
+                let Ok(v) = s.replace('_', "").parse::<f64>() else { continue };
+                let hint = match (&key, frames.last()) {
+                    (Some(k), Some(Frame::Map)) => key_hint(k, v),
+                    (_, Some(Frame::Call(name, arg))) => call_hint(name, *arg, v),
+                    _ => None,
+                };
+                if let Some(h) = hint {
+                    out.push((r, h));
+                }
+                key = None;
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
 /// the script coloured; `error_line` (1-based) gets a red background
 pub(crate) fn highlight(src: &str, font: FontId, error_line: Option<usize>) -> LayoutJob {
     let mut job = LayoutJob::default();
@@ -254,6 +405,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         super::empty(ui, "No song yet.");
         return;
     };
+    let now = cx.now;
     let ed = &mut cx.view.script;
     let reference_open = &mut cx.view.reference_open;
     let mut run = false;
@@ -285,6 +437,11 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 .clicked()
             {
                 *reference_open = !*reference_open;
+            }
+            let tip = "what each number sets, at the end of its line and over it. Alt+↑ ↓ change the number at the \
+                       cursor (Shift: ten times as much), and the song plays the change";
+            if widgets::chip(ui, !ed.no_hints, "Hints", ACCENT).on_hover_text(tip).clicked() {
+                ed.no_hints = !ed.no_hints;
             }
             if ed.dirty {
                 widgets::pill(ui, "edited", ACCENT);
@@ -377,6 +534,22 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         ui.fonts_mut(|f| f.layout_job(job))
                     };
                     let id = ui.scope_id().with("script_text");
+                    // the keys that nudge the number at the cursor, before the text takes them
+                    if ui.memory(|m| m.has_focus(id))
+                        && let Some(at) = ed.cursor
+                    {
+                        let by = ui.input_mut(|i| {
+                            let (alt, more) = (egui::Modifiers::ALT, egui::Modifiers::ALT | egui::Modifiers::SHIFT);
+                            [(more, egui::Key::ArrowUp, 10), (more, egui::Key::ArrowDown, -10)]
+                                .into_iter()
+                                .chain([(alt, egui::Key::ArrowUp, 1), (alt, egui::Key::ArrowDown, -1)])
+                                .find(|(m, k, _)| i.consume_key(*m, *k))
+                                .map_or(0, |(_, _, by)| by)
+                        });
+                        if by != 0 && nudge(ed, at, by, now) {
+                            ed.dirty = ed.text != song.script;
+                        }
+                    }
                     if let Some(at) = ed.move_cursor.take() {
                         let mut state = egui::TextEdit::load_state(ui.ctx(), id).unwrap_or_default();
                         state.cursor.set_char_range(Some(egui::text::CCursorRange::one(egui::text::CCursor::new(at))));
@@ -404,6 +577,36 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     if output.response.response.changed() {
                         ed.dirty = ed.text != song.script;
                     }
+                    if !ed.no_hints {
+                        let found = hints(&ed.text);
+                        let mut lines: std::collections::BTreeMap<usize, Vec<&str>> = Default::default();
+                        for (r, h) in &found {
+                            lines.entry(ed.text[..r.start].matches('\n').count()).or_default().push(h);
+                        }
+                        let painter = ui.painter_at(output.text_clip_rect);
+                        for (line, words) in &lines {
+                            let Some(row) = output.galley.rows.get(*line) else { continue };
+                            let r = row.rect().translate(output.galley_pos.to_vec2());
+                            painter.text(
+                                egui::pos2(r.right() + 18.0, r.center().y),
+                                egui::Align2::LEFT_CENTER,
+                                words.join(" · "),
+                                theme::prop(11.0),
+                                TEXT_FAINT,
+                            );
+                        }
+                        // over a number: what it sets, and the keys that change it
+                        if let Some(pos) = output.response.response.hover_pos() {
+                            let c = output.galley.cursor_from_pos(pos - output.galley_pos);
+                            let byte = ed.text.char_indices().nth(c.index.0).map_or(ed.text.len(), |(b, _)| b);
+                            if let Some((_, h)) = found.iter().find(|(r, _)| r.start <= byte && byte < r.end) {
+                                output.response.response.clone().on_hover_text_at_pointer(format!(
+                                    "{h}. With the cursor on it, Alt+↑ ↓ change it (Shift: ten times as much), and \
+                                     the song plays the change"
+                                ));
+                            }
+                        }
+                    }
                     if let Some(r) = output.cursor_range {
                         ed.cursor = Some(r.primary.index.0);
                     }
@@ -416,11 +619,36 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             });
         });
     });
+    // a number nudged runs the script once the keys have rested a moment, as a knob turned plays as it turns
+    match ed.nudged {
+        Some(t) if now - t >= NUDGE_REST && !ed.awaiting => {
+            ed.nudged = None;
+            run = true;
+        }
+        Some(_) => ui.ctx().request_repaint_after(std::time::Duration::from_millis(150)),
+        None => {}
+    }
     if run && !ed.awaiting {
         ed.awaiting = true;
         ed.result = None;
         cx.out.push(Command::RunScript { code: ed.text.clone() });
     }
+}
+
+/// how long the keys rest after a number is nudged before the script runs, in seconds
+const NUDGE_REST: f64 = 0.6;
+
+/// The number at char `at` of the editor's text nudged `by` steps of its last digit (`nudged`), the cursor kept at its
+/// end, and when, so that the script runs once the keys rest; whether there was one.
+fn nudge(ed: &mut super::ScriptEditor, at: usize, by: i32, now: f64) -> bool {
+    let byte = ed.text.char_indices().nth(at).map_or(ed.text.len(), |(b, _)| b);
+    let Some(r) = number_at(&ed.text, byte) else { return false };
+    let Some(new) = nudged(&ed.text[r.clone()], by) else { return false };
+    let end = ed.text[..r.start].chars().count() + new.chars().count();
+    ed.text.replace_range(r, &new);
+    ed.move_cursor = Some(end);
+    ed.nudged = Some(now);
+    true
 }
 
 #[cfg(test)]
@@ -434,6 +662,49 @@ mod tests {
         assert_eq!(error_location("no song yet"), None);
         assert_eq!(char_index("ab\ncdef\ng", 2, 3), 5);
         assert_eq!(char_index("ab\ncdef\ng", 9, 1), 9);
+    }
+
+    #[test]
+    fn the_number_at_the_cursor_moves_by_its_last_digit() {
+        let src = "tempo(118); swing(0.56); // 99\ndrum(\"kick\", \"x.x3\");";
+        let at = |s: &str| src.find(s).unwrap();
+        assert_eq!(number_at(src, at("118") + 1).map(|r| &src[r]), Some("118"));
+        assert_eq!(number_at(src, at("118") + 3).map(|r| &src[r]), Some("118"), "just after it, as after typing it");
+        assert_eq!(number_at(src, at("118") + 4).map(|r| &src[r]), Some("118"), "past the bracket after it");
+        assert_eq!(number_at(src, at("118") + 5), None);
+        assert_eq!(number_at(src, at("99")), None, "none in a comment");
+        assert_eq!(number_at(src, at("x.x3") + 3), None, "none in a string");
+        assert_eq!(nudged("118", 1).as_deref(), Some("119"));
+        assert_eq!(nudged("0.56", -10).as_deref(), Some("0.46"), "by its last digit, ten times with Shift");
+        assert_eq!(nudged("-4", 10).as_deref(), Some("6"));
+        assert_eq!(nudged("0.1", -1).as_deref(), Some("0.0"), "no -0.0");
+        assert_eq!(nudged("0x1f", 1), None);
+    }
+
+    #[test]
+    fn hints_say_what_each_number_sets() {
+        let src = "tempo(118); swing(0.56);\nsec(\"drop\", 16, \"*\").energy(0.9).build(\"sweep\", 0.8),\n\
+                   mix(\"pad\", #{ level: -4, pan: -0.3, reverb: 0.25 });\n\
+                   track(\"x\", n(\"0 2\").lpf(4500).voicing(48, 72).level(2));";
+        let found = hints(src);
+        let words: Vec<&str> = found.iter().map(|(_, h)| h.as_str()).collect();
+        assert_eq!(
+            words,
+            [
+                "118 BPM",
+                "swing 56%",
+                "16 bars",
+                "energy 90%",
+                "builds 80% hard",
+                "-4 dB",
+                "30% left",
+                "25%",
+                "4.5 kHz",
+                "from C3",
+                "up to C5",
+                "+2 dB"
+            ]
+        );
     }
 
     #[test]

@@ -237,6 +237,10 @@ pub struct ScriptEditor {
     pub move_cursor: Option<usize>,
     pub awaiting: bool,
     pub filter: String,
+    /// when a number was last nudged with the keys: the script runs once they rest
+    pub nudged: Option<f64>,
+    /// hide what the numbers set, at the end of each line
+    pub no_hints: bool,
 }
 
 impl ScriptEditor {
