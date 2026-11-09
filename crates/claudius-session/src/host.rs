@@ -357,8 +357,10 @@ impl Host {
             Ok(x) => x,
             Err(e) => return self.no(format!("{e:#}")),
         };
+        // every recording read before any is held, so that a zip that lacks one, or one that does not read, changes
+        // nothing the page holds
         let mut held: BTreeMap<String, String> = BTreeMap::new();
-        let (mut cuts, mut takes) = (Vec::new(), Vec::new());
+        let (mut keep, mut cuts, mut takes): (Vec<(String, Stereo)>, _, _) = (Vec::new(), Vec::new(), Vec::new());
         for path in bp.files_mut() {
             if let Some(to) = held.get(path.as_str()) {
                 *path = to.clone();
@@ -375,8 +377,8 @@ impl Host {
                 Ok(x) => x,
                 Err(e) => return self.no(format!("cannot read {path} in {name}: {e:#}")),
             };
-            let to = format!("demo:{path}");
-            claudius::audio::remember(&to, x);
+            let to = free_name(path, &x, &keep);
+            keep.push((to.clone(), x));
             if let Some(found) =
                 files.get(&format!("{path}.json")).and_then(|f| serde_json::from_slice::<Found>(f).ok())
             {
@@ -388,8 +390,13 @@ impl Host {
             }
             held.insert(std::mem::replace(path, to.clone()), to);
         }
+        for (to, x) in keep {
+            claudius::audio::remember(&to, x);
+        }
         self.cuts.extend(cuts);
         self.takes.extend(takes);
+        // the song before, its render and verdict with it, is not the one opened
+        self.forget_render();
         let message = format!("opened {name}: {}", bp.title);
         self.commit(Some(bp), message)
     }
@@ -1246,6 +1253,21 @@ fn name(c: &Command) -> String {
 /// where a file a session holds goes in a project, which the blueprint names it by: a sample cut from a recording at
 /// the session's own name for it (`demo:samples/break/house/...` at `samples/break/house/...`), anything else (a
 /// scratch take) in `takes/`; a `.wav` when it keeps floats, else a `.flac`
+/// The name the page holds a recording `x` of a project by, from its `path` in the project: `demo:<path>`, unless the
+/// page holds another recording by that name (another song's, which undo may bring back) or `keep` takes it for
+/// another of the project's; then the first of `demo:<path>-2`, `-3` ... before its extension that is free, or holds
+/// this very recording.
+fn free_name(path: &str, x: &Stereo, keep: &[(String, Stereo)]) -> String {
+    let (stem, ext) = path.rsplit_once('.').map_or((path, String::new()), |(s, e)| (s, format!(".{e}")));
+    std::iter::once(format!("demo:{path}"))
+        .chain((2..).map(|k| format!("demo:{stem}-{k}{ext}")))
+        .find(|to| {
+            let other = audio::remembered_audio(to).is_some_and(|held| held.l != x.l || held.r != x.r);
+            !other && !keep.iter().any(|(k, _)| k == to)
+        })
+        .unwrap_or_default()
+}
+
 fn project_path(path: &str, float: bool) -> String {
     let ext = if float { "wav" } else { "flac" };
     match path.strip_prefix("demo:") {
@@ -1528,7 +1550,8 @@ mod tests {
     fn a_project_the_page_saved_opens_in_the_page_with_its_recordings_and_their_credits() {
         let mut h = Host::new(1);
         assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
-        let (hit, phrase) = ("demo:samples/break/house/amen/kick.wav", "demo:samples/phrase/house/vox/phrase.wav");
+        // names of this test's own: the page's recordings are held once for every test
+        let (hit, phrase) = ("demo:samples/break/house/opened/hit.wav", "demo:samples/phrase/house/opened/vox.wav");
         let x: Vec<f32> = (0..4800).map(|i| (i as f32 * 0.05).sin()).collect();
         audio::remember(hit, Stereo::from_mono(&x.iter().map(|v| v * 1.5).collect::<Vec<_>>()));
         audio::remember(phrase, Stereo::from_mono(&x));
@@ -1539,6 +1562,8 @@ mod tests {
         let bp = h.bp.as_mut().unwrap();
         (bp.drums[0].sound, bp.parts[0].sound) = (sample(hit), sample(phrase));
         let zip = h.project().unwrap();
+        // another song's recording held by the hit's name since, as one undo brings back would be
+        audio::remember(hit, Stereo::from_mono(&[0.25; 480]));
 
         let mut page = Host::new(2);
         let r = page.listen(&Listen::OpenProject { name: "Faded Engine.zip".into() }, zip.clone());
@@ -1548,12 +1573,25 @@ mod tests {
             model::Sound::Sample { path, .. } => path.clone(),
             _ => panic!("a sample"),
         };
-        // the phrase, kept as FLAC, is held by the name the project gave it, and plays as it did
-        let flac = "demo:samples/phrase/house/vox/phrase.flac";
-        assert_eq!((at(&opened.drums[0].sound), at(&opened.parts[0].sound)), (hit.to_string(), flac.to_string()));
+        // the hit takes a name of its own beside the other song's, which plays on; the phrase, kept as FLAC, is held
+        // by the name the project gave it, and plays as it did
+        let (hit2, flac) = ("demo:samples/break/house/opened/hit-2.wav", "demo:samples/phrase/house/opened/vox.flac");
+        assert_eq!((at(&opened.drums[0].sound), at(&opened.parts[0].sound)), (hit2.to_string(), flac.to_string()));
         let peak = |p: &str| audio::remembered_audio(p).unwrap().l.iter().fold(0.0f32, |m, v| m.max(v.abs()));
-        assert!((peak(flac) - 1.0).abs() < 0.01 && (peak(hit) - 1.5).abs() < 0.01, "{} {}", peak(flac), peak(hit));
+        assert!((peak(flac) - 1.0).abs() < 0.01 && (peak(hit2) - 1.5).abs() < 0.01, "{} {}", peak(flac), peak(hit2));
+        assert_eq!(peak(hit), 0.25, "the other song's hit is as it was");
         assert_eq!(page.cuts.get(flac).map(|c| c.0.title.as_str()), Some("Vox"), "what it was cut from comes with it");
+        // a project that plays a file it does not hold opens nothing, and holds none of the others
+        let (_, files) = claudius::song::read_project(&zip, "song.zip").unwrap();
+        let mut lacking = opened.clone();
+        (lacking.drums[0].sound, lacking.parts[0].sound) =
+            (sample("samples/lacking/hit.wav"), sample("samples/lacking/gone.wav"));
+        let bytes = files["samples/break/house/opened/hit.wav"].clone();
+        let bad = claudius::song::pack_project(&lacking, &[("samples/lacking/hit.wav".into(), bytes)]).unwrap();
+        let r = page.listen(&Listen::OpenProject { name: "lacking.zip".into() }, bad);
+        assert!(!r.ok && r.message.contains("plays samples/lacking/gone.wav, which it does not hold"), "{}", r.message);
+        assert!(audio::remembered_audio("demo:samples/lacking/hit.wav").is_none(), "nothing of it held");
+        assert_eq!(page.blueprint().unwrap(), &opened, "the song open stays");
         // and it saves again as a project that credits both
         let again = page.project().unwrap();
         let (_, files) = claudius::song::read_project(&again, "again.zip").unwrap();
