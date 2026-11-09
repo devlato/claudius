@@ -372,9 +372,11 @@ the song, where `assess_voice` hears how it is sung, `transcribe_drums` turns it
 (`request_pitch_check`) and hears the answers (`claudius_api::Listen::PitchCheck`), and the voice it hears tunes the
 takes after it (`claudius_session::edit::tune`, shared with the server). What it
 keeps of a recording (the rework's whole recording, a flip's pieces, the sampled phrases, a take) is kept in memory
-under `demo:takes/` (`take::IN_MEMORY`), and goes in the project the page saves under `takes/`. A command that names
-a path is answered that the demo opens no paths. Scripts, opened songs
-and every edit are the engine's, as in the studio.
+under `demo:takes/` (`take::IN_MEMORY`), and goes in the project the page saves under `takes/`. A project it saved
+opens in it again (`claudius_api::Listen::OpenProject`, `Host::open_project`): `claudius::song::read_project` reads
+the zip into memory as `unpack_project` would unpack it, and each recording the song plays is held again as
+`demo:<its path in the zip>`, with what it was cut from and what a take credits. A command that names a path is
+answered that the demo opens no paths. Scripts, opened songs and every edit are the engine's, as in the studio.
 
 ```sh
 cargo run -p claudius-ui -- --mock          # the native studio on the demo song

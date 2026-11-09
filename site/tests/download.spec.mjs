@@ -90,6 +90,29 @@ test.describe("the download button", () => {
     }
   });
 
+  test("the demo opens the project it saved, with the recordings it plays", async () => {
+    test.setTimeout(300_000);
+    const c = await claudius();
+    const { page, close } = await browser();
+    try {
+      const download = page.waitForEvent("download", { timeout: 150_000 });
+      await page.goto(`${c.base}/?mock&plan=${encodeURIComponent("wait:2;download:project;wait:120")}`);
+      const file = await download;
+      const zip = join(c.home, file.suggestedFilename());
+      await file.saveAs(zip);
+      // the demo afresh, which keeps nothing, as a person comes back another day and chooses the zip in Open's dialog
+      const toasts = heard(page, "toast");
+      await page.goto(`${c.base}/?mock&plan=${encodeURIComponent("wait:3;pick:song;wait:120")}`);
+      const input = page.locator('input[data-claudius-pick="song"]');
+      await input.waitFor({ state: "attached", timeout: 60_000 });
+      await input.setInputFiles(zip);
+      await expect.poll(() => toasts.join("\n"), { timeout: 120_000 }).toMatch(/opened [a-z0-9-]+\.zip: /);
+    } finally {
+      await close();
+      c.stop();
+    }
+  });
+
   test("a claudius saves the song's folder and hands over its MP3", async () => {
     test.setTimeout(180_000);
     const c = await claudius();

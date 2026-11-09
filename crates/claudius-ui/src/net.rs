@@ -551,7 +551,7 @@ impl Backend {
     pub fn open_project(&mut self, name: &str, zip: Vec<u8>) {
         match self {
             Backend::Remote(r) => r.upload_project(name, zip),
-            Backend::Mock(m) => m.refuse("open", "the demo opens no projects: open it in claudius, which keeps it"),
+            Backend::Mock(m) => m.listen(claudius_api::Listen::OpenProject { name: name.to_string() }, &zip),
         }
     }
 
