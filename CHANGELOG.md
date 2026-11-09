@@ -6,6 +6,8 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-09
+
 A recording can be rebuilt as a song of its own parts, every note of them yours to change: `claudius remake
 --rebuild`, **Rebuild it** in the studio's New song dialog, or `remake` with `rebuild: true` for an assistant. Its
 drums are struck as it strikes them, each section on a pattern of its own; its bass and the rest of it are the notes
@@ -305,6 +307,79 @@ the demo turned down before (it said "the demo hears no singing" and "the demo h
 take there too, and **Check my pitch** hears the phrases you sing back (it said "the demo hears no singing: start
 `claudius serve` for a pitch check"); the voice it hears tunes your takes from then on, as in claudius, for as long as
 the page is open.
+
+### Added
+
+- telemetry: Count how fast claudius renders, listens and decodes ([#144](https://github.com/devlato/claudius/pull/144))
+- phone: Spin the song's records in time on the turntable, and brake, scratch or fling them with a finger ([#145](https://github.com/devlato/claudius/pull/145))
+- phone: Put a sample from the library on the turntable, spinning in time with the song ([#147](https://github.com/devlato/claudius/pull/147))
+- phone: Record a record off the microphone, and scratch it into a take ([#148](https://github.com/devlato/claudius/pull/148))
+- render: Play with a feel: a player's 1/f drift, and lanes and parts behind or ahead of the beat ([#149](https://github.com/devlato/claudius/pull/149))
+- genres: Hip hop that sounds like hip hop, and the 80s sounds only in the genres of that era ([#150](https://github.com/devlato/claudius/pull/150))
+- genres: Search the genres by name, other names, era, scene and sound, grouped by family ([#151](https://github.com/devlato/claudius/pull/151))
+- genres: Fourteen hip hop and r&b genres, from g-funk and jazz rap to rage, plugg, drill and 90s r&b ([#153](https://github.com/devlato/claudius/pull/153))
+- remake: Rework a recording so it stays the song it is, with the genre under it; the old remix is the flip ([#152](https://github.com/devlato/claudius/pull/152))
+- demo: The demo listens to the recordings you choose: analyze, rework, flip, sample their vocals, take their groove ([#154](https://github.com/devlato/claudius/pull/154))
+- demo: Record takes in the online demo, and hear and transcribe them there ([#156](https://github.com/devlato/claudius/pull/156))
+- demo: Pitch checks and tuning in the online demo ([#157](https://github.com/devlato/claudius/pull/157))
+- studio: Add a recording of your own whole as a track, and trim takes ([#158](https://github.com/devlato/claudius/pull/158))
+- studio: Search the free libraries for a recording, hear it and add it ([#159](https://github.com/devlato/claudius/pull/159))
+- studio: The Sample window offers the auto-sampler's pieces, raw and treated, to hear, regenerate and keep ([#160](https://github.com/devlato/claudius/pull/160))
+- studio: A sharper, quieter look: Inter for text, Lucide's icons, filled controls ([#161](https://github.com/devlato/claudius/pull/161))
+- theory: Chords under a melody: harmonize a part with chords that fit its notes and the song's ([#162](https://github.com/devlato/claudius/pull/162))
+- studio: Swap a track's sound for the next that fits, or the whole song's at once ([#164](https://github.com/devlato/claudius/pull/164))
+- theory: Bass lines played the way each genre's bassists play them, in idioms with phrases and turnarounds ([#165](https://github.com/devlato/claudius/pull/165))
+- studio: Write a track the way any genre plays it, as a new track or in place of one, and vary it ([#166](https://github.com/devlato/claudius/pull/166))
+- theory: Chord parts comp the way each genre's players do ([#167](https://github.com/devlato/claudius/pull/167))
+- theory: Drums end their phrases the way each genre's drummers do ([#168](https://github.com/devlato/claudius/pull/168))
+- theory: Leads written the way each genre's are, in 20 idioms that follow the chords ([#169](https://github.com/devlato/claudius/pull/169))
+- remake: Separate a recording's vocals, drums, bass and the rest with Spleeter, and hear and sample them apart ([#171](https://github.com/devlato/claudius/pull/171))
+- studio: A toolbar in plain words, with menus and the render's state at its right end ([#179](https://github.com/devlato/claudius/pull/179))
+- studio: An arrangement, a section and a verdict easier to read ([#180](https://github.com/devlato/claudius/pull/180))
+- studio: A New song dialog in two halves, from a genre or from a recording ([#182](https://github.com/devlato/claudius/pull/182))
+- mcp: Every studio command checked and named for assistants, and install_packs ([#181](https://github.com/devlato/claudius/pull/181))
+- mcp: Make_song from a person's words, and the song in plain words for them ([#185](https://github.com/devlato/claudius/pull/185))
+- Example songs in the style of each decade's hits, to open from the studio, an assistant or the command line ([#186](https://github.com/devlato/claudius/pull/186))
+- Eighteen more example songs, from boom bap to amapiano, and three classics remade ([#187](https://github.com/devlato/claudius/pull/187))
+- studio: + Track adds a recording: a file, a search of the free libraries, or a take recorded ([#191](https://github.com/devlato/claudius/pull/191))
+- studio: A (?) beside every setting that is not plain, in plain words, with a link to the docs ([#193](https://github.com/devlato/claudius/pull/193))
+- engine: Layered sounds: a track played by several sounds at once, each in its band ([#190](https://github.com/devlato/claudius/pull/190))
+- examples: Three songs built of layered sounds ([#195](https://github.com/devlato/claudius/pull/195))
+- sampler: Four ways to sample a recording: its phrases, a passage, chops or a stab ([#196](https://github.com/devlato/claudius/pull/196))
+- studio: A click selects a cell of the arrangement, and a track inspector shows the track ([#192](https://github.com/devlato/claudius/pull/192))
+- studio: The signal flow opens large, in the arrangement's place ([#194](https://github.com/devlato/claudius/pull/194))
+- studio: A command palette, and menus grouped under what they act on ([#198](https://github.com/devlato/claudius/pull/198))
+- studio: The track card explains its settings and shows a layered sound's layers ([#199](https://github.com/devlato/claudius/pull/199))
+- critic: Quick fixes for what one change fixes, at a click ([#200](https://github.com/devlato/claudius/pull/200))
+- form: A build-up's style and how hard it builds ([#201](https://github.com/devlato/claudius/pull/201))
+- studio: The script says what its numbers set, and Alt+arrows turn a number ([#203](https://github.com/devlato/claudius/pull/203))
+- genres: Bass-heavy genres stack their bass for headphones and subwoofers ([#204](https://github.com/devlato/claudius/pull/204))
+- examples: Studies of seven famous songs, from In the End to bad guy ([#205](https://github.com/devlato/claudius/pull/205))
+- demo: The demo opens the projects it saved ([#202](https://github.com/devlato/claudius/pull/202))
+- studio: Say in words what the studio's names and numbers are ([#207](https://github.com/devlato/claudius/pull/207))
+- genres: Twelve more genres, from big room and hardstyle to hyperpop, Jersey club and afro house ([#211](https://github.com/devlato/claudius/pull/211))
+- earshot: Hear the notes one instrument plays, chords and all, with Spotify's Basic Pitch ([#213](https://github.com/devlato/claudius/pull/213))
+- remake: Rebuild a recording as a song of its own parts, every note of it editable ([#216](https://github.com/devlato/claudius/pull/216))
+
+### Fixed
+
+- takes: Credit what a scratch's record was cut from, even once the song no longer plays it ([#146](https://github.com/devlato/claudius/pull/146))
+- studio: The New song dialog says what Remake and Flip into do ([#155](https://github.com/devlato/claudius/pull/155))
+- encode: Encode FLAC frame by frame, a frame the encoder misjudges kept verbatim instead of written out in gigabytes ([#163](https://github.com/devlato/claudius/pull/163))
+- analysis: Follow a band's beats when they drift off one tempo, and cut pieces on its bars ([#170](https://github.com/devlato/claudius/pull/170))
+- remake: A recording's voice on tracks of its own, its pieces from where it plays, and no chipmunk vocals ([#172](https://github.com/devlato/claudius/pull/172))
+- judge: A recording out of the song's time is named and cuts the verdict ([#173](https://github.com/devlato/claudius/pull/173))
+- studio: Say what is being done with a recording, and show what came of it ([#174](https://github.com/devlato/claudius/pull/174))
+- mix: Stage each track's gain into its effects, and leave what a stem left out quiet ([#175](https://github.com/devlato/claudius/pull/175))
+- sampling: A loop chopped onto the song's grid keeps it inside each slice too ([#176](https://github.com/devlato/claudius/pull/176))
+- studio: An Instruments row that fits, with its density as a percent ([#183](https://github.com/devlato/claudius/pull/183))
+- ears: Run the models on the CPU, so they stop leaving CoreML copies in the temp folder ([#188](https://github.com/devlato/claudius/pull/188))
+- studio: The Sample window plays its pieces, and says how to put them in the song ([#189](https://github.com/devlato/claudius/pull/189))
+- studio: Rows wrap instead of overlapping in narrow windows, and the dock keeps its height ([#206](https://github.com/devlato/claudius/pull/206))
+- deps: Update rusqlite to 0.41 and rmcp to 3.9 for RUSTSEC-2026-0457, 0459, 0461 and 0462 ([#209](https://github.com/devlato/claudius/pull/209))
+- studio: Rows never widen the panel that holds them, so the Sounds tab keeps room for its sounds ([#208](https://github.com/devlato/claudius/pull/208))
+- analysis: A clap struck with the kick is heard, and an open hat is no snare ([#215](https://github.com/devlato/claudius/pull/215))
+- analysis: A steady track whose beats slip onto its offbeats keeps its grid and its first bar ([#214](https://github.com/devlato/claudius/pull/214))
 
 ## [0.4.0] - 2026-11-06
 
@@ -844,7 +919,8 @@ The first public release.
   theory checks), Linux on x86_64 and ARM64 with a headless build for machines without sound or a display, and
   Windows as a preview. One-line installers for each, which come with every release and are in its checksums.
 
-[unreleased]: https://github.com/devlato/claudius/compare/v0.4.0...HEAD
+[unreleased]: https://github.com/devlato/claudius/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/devlato/claudius/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/devlato/claudius/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/devlato/claudius/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/devlato/claudius/compare/v0.1.0...v0.2.0
