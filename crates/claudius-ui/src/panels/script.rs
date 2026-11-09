@@ -335,7 +335,6 @@ fn insert(ed: &mut super::ScriptEditor, what: &str) {
 /// the sound browser: drums, synth presets, sampled instruments by pack, and the short names
 fn sounds(ui: &mut Ui, ed: &mut super::ScriptEditor, list: &SoundList) {
     let f = ed.filter.to_lowercase();
-    let hit = |n: &str| f.is_empty() || n.to_lowercase().contains(&f);
     let filtering = !f.is_empty();
     let chips = |ui: &mut Ui, ed: &mut super::ScriptEditor, names: &[(String, String)], tip: &str| {
         ui.horizontal_wrapped(|ui| {
@@ -352,12 +351,11 @@ fn sounds(ui: &mut Ui, ed: &mut super::ScriptEditor, list: &SoundList) {
             }
         });
     };
-    // a sound is found by its name or by what it is ("piano" finds epiano)
-    let found = |n: &&String| hit(n) || list.sound_about(n).is_some_and(hit);
+    let found = |n: &&String| super::finds_sound(&f, n, Some(list));
     let drums: Vec<(String, String)> = list.drums.iter().filter(found).map(|n| (n.clone(), n.clone())).collect();
     let synths: Vec<(String, String)> = list.synths.iter().filter(found).map(|n| (n.clone(), n.clone())).collect();
     let mut packs: Vec<(&str, Vec<(String, String)>)> = Vec::new();
-    for full in list.instruments.iter().filter(|n| n.contains(':') && hit(n)) {
+    for full in list.instruments.iter().filter(|n| n.contains(':') && found(n)) {
         let (pack, name) = full.split_once(':').unwrap_or(("", full));
         match packs.iter_mut().find(|(p, _)| *p == pack) {
             Some((_, v)) => v.push((name.to_string(), full.clone())),
@@ -365,7 +363,7 @@ fn sounds(ui: &mut Ui, ed: &mut super::ScriptEditor, list: &SoundList) {
         }
     }
     let aliases: Vec<(String, String)> =
-        list.instruments.iter().filter(|n| !n.contains(':') && hit(n)).map(|n| (n.clone(), n.clone())).collect();
+        list.instruments.iter().filter(|n| !n.contains(':') && found(n)).map(|n| (n.clone(), n.clone())).collect();
     let sampled: usize = packs.iter().map(|(_, v)| v.len()).sum();
     let group = |title: String, open: bool| {
         egui::CollapsingHeader::new(RichText::new(title).size(12.0).strong())

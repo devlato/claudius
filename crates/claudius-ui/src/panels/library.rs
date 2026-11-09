@@ -148,6 +148,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         ui.add_space(4.0);
         let f = cx.view.library_filter.to_lowercase();
         let hit = |n: &str| f.is_empty() || n.to_lowercase().contains(&f);
+        let found = |n: &&String| super::finds_sound(&f, n, Some(list));
         egui::Panel::left("packs")
             .resizable(true)
             .default_size(380.0)
@@ -175,7 +176,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             widgets::heading(ui, "Sampled instruments");
             ui.label(small("multi-sampled recordings from the installed packs; click one to put it on a part"));
             for (pack, names) in &by_pack {
-                let names: Vec<&String> = names.iter().filter(|n| hit(n)).collect();
+                let names: Vec<&String> = names.iter().filter(found).collect();
                 if names.is_empty() {
                     continue;
                 }
@@ -193,7 +194,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         });
                     });
             }
-            let aliases: Vec<&String> = list.instruments.iter().filter(|n| !n.contains(':') && hit(n)).collect();
+            let aliases: Vec<&String> = list.instruments.iter().filter(|n| !n.contains(':') && found(n)).collect();
             if !aliases.is_empty() {
                 egui::CollapsingHeader::new(RichText::new(format!("Short names · {}", aliases.len())).size(12.0))
                     .id_salt("lib_aliases")
@@ -213,7 +214,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             widgets::heading(ui, "Synth presets");
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
-                for n in list.synths.iter().filter(|n| hit(n) || hit(&words::name_in_words(n))) {
+                for n in list.synths.iter().filter(found) {
                     assignable(ui, &words::name_in_words(n), n, list, song, &mut out);
                 }
             });
@@ -222,7 +223,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             ui.label(small("procedural drums for patterns: s(\"bd*4\"), or a real kit with .bank(\"tr909\")"));
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
-                for n in list.drums.iter().filter(|n| hit(n) || list.sound_about(n).is_some_and(hit)) {
+                for n in list.drums.iter().filter(found) {
                     let voice = list.sound_about(n).unwrap_or("a drum voice");
                     ui.label(RichText::new(n).monospace().size(11.5).color(theme::role_color(n)))
                         .on_hover_text(format!("{voice}, synthesized\nin a pattern: s(\"{n}\")"));

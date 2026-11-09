@@ -101,7 +101,8 @@ fn add_track_menu(
         ui.add(egui::TextEdit::singleline(&mut f.name).hint_text(suggested.as_str()).desired_width(150.0));
     });
     ui.add(egui::TextEdit::singleline(&mut f.filter).hint_text("search sounds").desired_width(f32::INFINITY));
-    let hit = |n: &String| f.filter.is_empty() || n.to_lowercase().contains(&f.filter.to_lowercase());
+    let query = f.filter.to_lowercase();
+    let hit = |n: &String| super::finds_sound(&query, n, sounds);
     let (empty_list, empty_kit) = (Vec::new(), Vec::new());
     let (drums, kit, synths, instruments) = match sounds {
         Some(s) => (&s.drums, &s.kit, &s.synths, &s.instruments),
@@ -237,6 +238,7 @@ fn generate_menu(
     let hit = |g: &&claudius_api::GenreInfo| {
         words.is_empty()
             || [&g.name, &g.family, &g.description].iter().any(|s| s.to_lowercase().contains(&words))
+            || super::genre_words(&g.name).to_lowercase().contains(&words)
             || g.aliases.iter().any(|a| a.to_lowercase().contains(&words))
     };
     egui::ScrollArea::vertical().id_salt("generate-styles").max_height(150.0).show(ui, |ui| {

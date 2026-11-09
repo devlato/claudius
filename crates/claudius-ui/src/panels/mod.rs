@@ -656,6 +656,16 @@ pub fn sound_about(name: &str, sounds: Option<&SoundList>) -> Option<String> {
     }
 }
 
+/// Whether a search (in lower case; empty finds everything) finds the sound named `name`: by that name, by its name
+/// in words as the studio shows it, or by what the engine says it is ("string ensemble" finds string_ensemble, "piano"
+/// epiano, "hi-hat" hh).
+pub fn finds_sound(query: &str, name: &str, sounds: Option<&SoundList>) -> bool {
+    query.is_empty()
+        || name.to_lowercase().contains(query)
+        || words::name_in_words(name).to_lowercase().contains(query)
+        || sounds.and_then(|s| s.sound_about(name)).is_some_and(|a| a.to_lowercase().contains(query))
+}
+
 /// A tooltip for something a script names: what it is, then the name a script writes for it.
 pub fn named(about: Option<&str>, name: &str) -> String {
     match about.filter(|a| !a.is_empty()) {
@@ -844,6 +854,24 @@ mod tests {
             ],
         };
         assert_eq!(words(rack), "layers: sub bass under 90 Hz + reese from 90 Hz to 1.2 kHz");
+    }
+
+    #[test]
+    fn a_sound_is_found_by_its_name_by_its_words_or_by_what_it_is() {
+        let list = SoundList {
+            synths: vec!["epiano".into()],
+            drums: vec!["hh".into()],
+            about: vec![("epiano".into(), "FM tine electric piano".into()), ("hh".into(), "closed hi-hat".into())],
+            ..Default::default()
+        };
+        let finds = |query: &str, name: &str| finds_sound(query, name, Some(&list));
+        assert!(finds("", "anything"));
+        assert!(finds("string_ens", "string_ensemble"), "by its name");
+        assert!(finds("string ensemble", "string_ensemble"), "by its words");
+        assert!(finds("ensemble (vsco", "vsco2:string_ensemble"), "a pack's with its pack");
+        assert!(finds("tine", "epiano"), "by what it is");
+        assert!(finds("hi-hat", "hh"));
+        assert!(!finds("bass", "epiano"));
     }
 
     #[test]
