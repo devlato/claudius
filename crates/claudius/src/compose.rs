@@ -502,18 +502,20 @@ pub fn draw_sound(
             Sound::Instrument { name, label }
         }
     };
-    stacked(spec, drawn)
+    stacked(spec, drawn, used)
 }
 
 /// The sound `drawn` stacked as the genre stacks its part `spec` (`PartSpec::layers`): a rack of its layers, `"$"`
-/// the sound drawn and any other a synth preset by name; as drawn when the genre stacks none.
-fn stacked(spec: &PartSpec, drawn: Sound) -> Sound {
+/// the sound drawn and any other a synth preset by name, but none another part plays (`used`: a second bass stacks no
+/// second sub); as drawn when the genre stacks none.
+fn stacked(spec: &PartSpec, drawn: Sound, used: &BTreeSet<String>) -> Sound {
     let layers: Vec<Layer> = spec
         .layers
         .iter()
         .filter_map(|l| {
             let sound = match l.sound.as_str() {
                 "$" => drawn.clone(),
+                name if used.contains(&format!("synth:{name}")) => return None,
                 name => Sound::Synth { preset: name.to_string(), patch: presets::get(name)? },
             };
             Some(Layer {

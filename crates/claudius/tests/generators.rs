@@ -241,6 +241,20 @@ fn a_genre_that_stacks_its_bass_plays_it_as_a_rack_of_its_layers_and_doubles_it_
 }
 
 #[test]
+fn a_second_bass_of_a_genre_that_stacks_stacks_no_sound_another_part_plays() {
+    without_installed_packs();
+    let g = genres::get("future_bass").unwrap();
+    for seed in 0..4 {
+        let mut bp = compose::generate(&g, seed, &Options::default(), None);
+        claudius::generate::track(&mut bp, "bass", "future_bass", None, Some("bass2"), 7).unwrap();
+        let ids = |name: &str| palette::identities(&bp.parts.iter().find(|p| p.name == name).unwrap().sound);
+        let (first, second) = (ids("bass"), ids("bass2"));
+        assert!(first.contains(&"synth:sub_bass".to_string()), "{seed}: {first:?}");
+        assert!(second.iter().all(|i| !first.contains(i)), "{seed}: {first:?} and {second:?}");
+    }
+}
+
+#[test]
 fn some_songs_answer_their_loop_and_some_choruses_play_their_own_progression() {
     use claudius::model::SectionKind;
     without_installed_packs();
