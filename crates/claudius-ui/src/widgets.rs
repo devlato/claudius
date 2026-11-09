@@ -455,10 +455,19 @@ pub fn chip(ui: &mut Ui, on: bool, text: &str, color: Color32) -> Response {
 }
 
 /// a small rounded label
+/// a small rounded label; one wider than a whole line of its `Ui` is cut short with its full text on hover, so that it
+/// never widens what holds it
 pub fn pill(ui: &mut Ui, text: &str, color: Color32) -> Response {
-    let galley = ui.painter().layout_no_wrap(text.to_string(), theme::prop(11.0), color);
+    let mut job = egui::text::LayoutJob::simple_singleline(text.to_string(), theme::prop(11.0), color);
+    job.wrap.max_width = (ui.max_rect().width() - 12.0).max(24.0);
+    job.wrap.max_rows = 1;
+    job.wrap.break_anywhere = true;
+    job.wrap.overflow_character = Some('…');
+    let galley = ui.painter().layout_job(job);
+    let cut = galley.elided;
     let size = vec2(galley.size().x + 12.0, 18.0);
     let (rect, response) = ui.allocate_exact_size(size, Sense::hover());
+    let response = if cut { response.on_hover_text(text) } else { response };
     ui.painter().rect(
         rect,
         CornerRadius::same(9),
@@ -573,24 +582,32 @@ pub fn row(ui: &mut Ui, id_salt: impl egui::AsIdSalt, mut add: impl FnMut(&mut U
     let sides = if one_line {
         ui.horizontal(|ui| {
             let left = ui.scope(|ui| add(ui, Side::Left)).response.rect.width();
-            ui.add_space((ui.available_width() - right_was).max(0.0));
-            (left, ui.scope(|ui| add(ui, Side::Right)).response.rect.width())
+            (left, right_end(ui, right_was, &mut add))
         })
         .inner
     } else {
         let left = ui.horizontal(|ui| ui.scope(|ui| add(ui, Side::Left)).response.rect.width()).inner;
-        let right = ui
-            .horizontal(|ui| {
-                ui.add_space((ui.available_width() - right_was).max(0.0));
-                ui.scope(|ui| add(ui, Side::Right)).response.rect.width()
-            })
-            .inner;
-        (left, right)
+        (left, ui.horizontal(|ui| right_end(ui, right_was, &mut add)).inner)
     };
     ui.data_mut(|d| d.insert_temp(id, sides));
     if fits(sides) != one_line || (sides.1 - right_was).abs() > 0.5 {
         ui.ctx().request_discard("a row's sides changed their widths");
     }
+}
+
+/// A [`row`]'s right side at the right end of what is left of the line, as wide as it was the pass before. Only the
+/// width that falls within the line is taken from it (all its height): a side wider than it was runs past the end for
+/// the one pass the row draws again, rather than widening what holds the row, as a resizable panel would keep.
+fn right_end(ui: &mut Ui, right_was: f32, add: &mut impl FnMut(&mut Ui, Side)) -> f32 {
+    let rest = ui.available_rect_before_wrap();
+    let at = Rect::from_min_max(pos2((rest.right() - right_was).max(rest.left()), rest.top()), rest.max);
+    let mut end =
+        ui.new_child(egui::UiBuilder::new().max_rect(at).layout(egui::Layout::left_to_right(egui::Align::Center)));
+    add(&mut end, Side::Right);
+    let used = end.min_rect();
+    let kept = Rect::from_x_y_ranges(used.left().max(at.left())..=used.right().min(at.right()), used.y_range());
+    ui.advance_cursor_after_rect(kept);
+    used.width()
 }
 
 /// Lays out `add` at the fullest of its `levels` of detail (0 the fullest) that fits the width there is: a bar of a
@@ -749,6 +766,26 @@ mod tests {
                 assert!(right.top() >= left.bottom() && right.left() > left.left(), "{i}: {left:?} {right:?}");
             }
         }
+    }
+
+    #[test]
+    fn a_row_never_widens_the_resizable_panel_that_holds_it() {
+        let ctx = egui::Context::default();
+        let mut widths = Vec::new();
+        for _ in 0..6 {
+            ctx.run_ui(window(800.0), |ui| {
+                let panel = egui::Panel::left("packs").resizable(true).default_size(200.0).size_range(100.0..=600.0);
+                let shown = panel.show(ui, |ui| {
+                    row(ui, "card", |ui, side| {
+                        let wide = if side == Side::Left { 60.0 } else { 90.0 };
+                        ui.allocate_exact_size(vec2(wide, 20.0), Sense::hover());
+                    });
+                });
+                widths.push(shown.response.rect.width());
+            })
+            .drop_without_applying_deltas();
+        }
+        assert!(widths.iter().all(|w| (w - 200.0).abs() < 1.0), "the panel kept its width: {widths:?}");
     }
 
     #[test]

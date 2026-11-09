@@ -53,9 +53,7 @@ fn pack_card(ui: &mut Ui, p: &PackInfo, instruments: usize, can_install: bool) -
         ui.add(egui::Label::new(RichText::new(&p.description).size(11.5).color(TEXT_DIM)).wrap());
         ui.horizontal_wrapped(|ui| {
             ui.label(small("licence"));
-            let c = licence_color(&p.license);
-            let short: String = p.license.chars().take(70).collect();
-            widgets::pill(ui, &short, c).on_hover_text(&p.license);
+            widgets::pill(ui, &p.license, licence_color(&p.license));
         });
     });
     ui.add_space(4.0);
@@ -133,26 +131,31 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let by_pack = instruments_by_pack(list);
     let mut out = Vec::new();
     page_frame().show(ui, |ui| {
-        ui.horizontal(|ui| {
+        widgets::row(ui, "sounds_head", |ui, side| {
+            if side == widgets::Side::Right {
+                let installed = list.packs.iter().filter(|p| p.installed).count();
+                ui.label(small(format!(
+                    "{} drum voices · {} synth presets · {} sampled instruments · {installed} of {} packs installed",
+                    list.drums.len(),
+                    list.synths.len(),
+                    by_pack.iter().map(|(_, v)| v.len()).sum::<usize>(),
+                    list.packs.len()
+                )));
+                return;
+            }
             widgets::heading(ui, "Sounds");
             ui.add(egui::TextEdit::singleline(&mut cx.view.library_filter).hint_text("search").desired_width(220.0));
-            let installed = list.packs.iter().filter(|p| p.installed).count();
-            ui.label(small(format!(
-                "{} drum voices · {} synth presets · {} sampled instruments · {installed} of {} packs installed",
-                list.drums.len(),
-                list.synths.len(),
-                by_pack.iter().map(|(_, v)| v.len()).sum::<usize>(),
-                list.packs.len()
-            )));
         });
         ui.add_space(4.0);
         let f = cx.view.library_filter.to_lowercase();
         let hit = |n: &str| f.is_empty() || n.to_lowercase().contains(&f);
         let found = |n: &&String| super::finds_sound(&f, n, Some(list));
+        // the packs take at most a share of the dock, so that the sounds keep room beside them in a narrow window
+        let wide = ui.available_width();
         egui::Panel::left("packs")
             .resizable(true)
-            .default_size(380.0)
-            .size_range(260.0..=620.0)
+            .default_size((wide * 0.42).clamp(220.0, 380.0))
+            .size_range(220.0..=(wide * 0.6).clamp(260.0, 620.0))
             .frame(egui::Frame::new().inner_margin(egui::Margin { left: 0, right: 10, top: 0, bottom: 0 }))
             .show(ui, |ui| {
                 widgets::heading(ui, "Packs");
