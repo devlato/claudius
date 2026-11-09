@@ -244,7 +244,9 @@ under Drums, and click the swap button where its kind or its length is written: 
 it. A part goes through its genre's own sounds first, then what the genre draws for its role (synths, and the
 installed instruments that can play its range), then sounds further afield; a drum lane goes through the installed
 kits, the genre's first, then its synthesized voice in four tunings. It never takes a sound another part plays, and
-block chords under a part change with it. Click again for the next, and Undo to swap back. Right-click the row for
+block chords under a part change with it. A part played by a [rack](../language/sounds.md#layered-sounds), as the
+bass of a bass-heavy genre is, swaps the sound it is heard by and keeps the rest: the sub under it and the grit over
+it stay. Click again for the next, and Undo to swap back. Right-click the row for
 **Another sound**, and **Swap the sound to**: every sound it could play, by how near its genre each is, with the one it
 plays ticked. The Instruments tab has the same button beside each part's sound.
 
@@ -252,7 +254,8 @@ plays ticked. The Instruments tab has the same button beside each part's sound.
 on the next kit, and **Swap the parts' sounds** leaves the drums as they are. **Another drum kit** and **Put the drums
 on** move every drum lane onto a kit, or back to the synthesized voices, and leave the parts. Every note, pattern and
 mix setting stays. A swap is an edit like any other: the song's script says it as `part("bass", #{ preset:
-"moog_bass" })` and `drum_sound("kick", "tr808:bd")`, and an assistant swaps a sound with
+"moog_bass" })` and `drum_sound("kick", "tr808:bd")` (a rack's as its `rack()` with the new sound in it), and an
+assistant swaps a sound with
 [`swap_sound`](../guide/mcp.md).
 
 ## Carrying on in claudius

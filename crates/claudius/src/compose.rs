@@ -379,8 +379,14 @@ pub fn named_instruments(g: &GenreProfile, role: Role) -> Vec<String> {
 
 /// Whether `sound` is one a genre has a place for in a part of `role`, as its draws judge (`palette::draw`): a synth
 /// that fits its parts or that its palette draws, an installed instrument its parts name or of a kind its palette
-/// would draw. Other sounds (recordings, samples, loops) are not judged.
+/// would draw, or a rack of those (`out_of_place`). Other sounds (recordings, samples, loops) are not judged.
 pub fn has_place(g: &GenreProfile, role: Role, sound: &Sound) -> bool {
+    out_of_place(g, role, sound).is_none()
+}
+
+/// The sound in `sound` a genre has no place for in a part of `role` (`has_place`): itself, or of a rack the first of
+/// its layers' that has none and is not one the genre stacks under such a part itself (a sub under its bass).
+pub fn out_of_place<'a>(g: &GenreProfile, role: Role, sound: &'a Sound) -> Option<&'a Sound> {
     let own = fitting_synths(g, role);
     let mut rp = g.palette.get(role.name()).cloned().unwrap_or_else(|| palette::default_for(role));
     if rp.synths.is_empty() {
@@ -389,12 +395,21 @@ pub fn has_place(g: &GenreProfile, role: Role, sound: &Sound) -> bool {
     if rp.instruments.is_empty() {
         rp.instruments = named_instruments(g, role);
     }
-    match sound {
+    let placed = |s: &Sound| match s {
         Sound::Synth { preset, .. } => {
             own.contains(preset) || palette::synths_drawn(role, &rp).contains(&preset.as_str())
         }
         Sound::Instrument { name, .. } => palette::instrument_has_place(role, &rp, name),
         _ => true,
+    };
+    match sound {
+        Sound::Rack { layers } => {
+            let stacked: Vec<&str> =
+                g.parts.iter().filter(|p| p.role == role).flat_map(|p| &p.layers).map(|l| l.sound.as_str()).collect();
+            let named = |s: &Sound| matches!(s, Sound::Synth { preset, .. } if stacked.contains(&preset.as_str()));
+            layers.iter().map(|l| &l.sound).find(|s| !named(s) && !placed(s))
+        }
+        s => (!placed(s)).then_some(s),
     }
 }
 
@@ -491,7 +506,7 @@ pub fn draw_sound(
         taken.extend(own.map(|p| format!("synth:{p}")));
     }
     let mut sr = rng.fork("palette");
-    match palette::draw(spec.role, spec.register, &rp, available, &taken, &mut sr) {
+    let drawn = match palette::draw(spec.role, spec.register, &rp, available, &taken, &mut sr) {
         None => widen(own, 0.5, &mut sr),
         Some(palette::Drawn::Synth(name)) => {
             let patch = presets::get(name).unwrap_or_else(|| presets::get("pluck").unwrap());
@@ -501,7 +516,35 @@ pub fn draw_sound(
             let label = name.rsplit(':').next().unwrap_or(&name).to_string();
             Sound::Instrument { name, label }
         }
-    }
+    };
+    stacked(spec, drawn, used)
+}
+
+/// The sound `drawn` stacked as the genre stacks its part `spec` (`PartSpec::layers`): a rack of its layers, `"$"`
+/// the sound drawn and any other a synth preset by name, but none another part plays (`used`: a second bass stacks no
+/// second sub); as drawn when the genre stacks none.
+fn stacked(spec: &PartSpec, drawn: Sound, used: &BTreeSet<String>) -> Sound {
+    let layers: Vec<Layer> = spec
+        .layers
+        .iter()
+        .filter_map(|l| {
+            let sound = match l.sound.as_str() {
+                "$" => drawn.clone(),
+                name if used.contains(&format!("synth:{name}")) => return None,
+                name => Sound::Synth { preset: name.to_string(), patch: presets::get(name)? },
+            };
+            Some(Layer {
+                sound,
+                band: l.band,
+                level_db: l.level,
+                pan: 0.0,
+                transpose: l.transpose,
+                duck: l.duck,
+                fx: l.fx.clone(),
+            })
+        })
+        .collect();
+    if layers.is_empty() { drawn } else { Sound::Rack { layers } }
 }
 
 fn vary_patch(name: &str, rng: &mut Rng) -> Sound {
@@ -855,7 +898,7 @@ pub fn new_part(
     rng: &mut Rng,
 ) -> Part {
     let sound = draw_sound(spec, g, available, used, rng);
-    used.extend(palette::identity(&sound));
+    used.extend(palette::identities(&sound));
     let mut mix = spec.mix.clone();
     // harmony parts from single-voice patches or mono recordings would sit dead centre: a light chorus spreads them
     let harmony = matches!(spec.role, Role::Chords | Role::Keys | Role::Pad);

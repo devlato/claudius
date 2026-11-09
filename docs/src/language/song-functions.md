@@ -596,7 +596,8 @@ rack(track, [#{ sound, bank, band, level, pan, transpose, duck, fx }, ...])
 Has several sounds play a track at once, each a layer of its notes with the band of frequencies it keeps, its level
 against the others, its pan, transpose, duck under the kick and its own effects, summed before the track's own
 chain: a bass of a sub, a growl and a top. It takes the place of the track's sound, on a part, a drum lane or a
-pattern track's sound (`"beat.kick"` when the pattern plays several); 1 to 8 layers. See
+pattern track's sound (`"beat.kick"` when the pattern plays several); 1 to 8 layers. A layer naming a sound the
+track plays already keeps it as it is, as naming a part's current preset keeps its patch. See
 [Layered sounds](sounds.md#layered-sounds).
 
 Errors: `rack("bass") has 1 to 8 layers, not 0`; `rack("bass")'s layer 1 names its sound`; `rack("bass")'s layer 1's

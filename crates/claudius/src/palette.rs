@@ -209,6 +209,17 @@ pub fn identity(s: &crate::model::Sound) -> Option<String> {
     }
 }
 
+/// every sound a part plays, as `identity` tells them apart, each once: a rack's are its layers'
+pub fn identities(s: &crate::model::Sound) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for id in s.each().into_iter().filter_map(identity) {
+        if !out.contains(&id) {
+            out.push(id);
+        }
+    }
+    out
+}
+
 /// what a part plays when it leaves its genre's own sounds: a synth preset for its role, or an instrument
 #[derive(Clone, Debug, PartialEq)]
 pub enum Drawn {

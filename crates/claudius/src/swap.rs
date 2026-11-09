@@ -12,7 +12,7 @@ use std::collections::{BTreeSet, VecDeque};
 
 use crate::compose;
 use crate::genres::{self, GenreProfile};
-use crate::model::{Blueprint, DrumLane, Part, Sound};
+use crate::model::{Blueprint, DrumLane, Layer, Part, Sound};
 use crate::palette;
 use crate::script::{drum_label, drum_name, drum_role, voice_word};
 use crate::synth::drums::DrumVoice;
@@ -53,16 +53,52 @@ pub fn choices(bp: &Blueprint, track: &str) -> Option<Vec<Choice>> {
     bp.drums.iter().find(|d| d.name == track).map(|d| lane_choices(g.as_ref(), d))
 }
 
-/// the choice `track` plays now, by name, when its sound is one a choice names
+/// the choice `track` plays now, by name, when its sound is one a choice names: a rack's, the one its voice plays
+/// (`voice`)
 pub fn playing(bp: &Blueprint, track: &str) -> Option<String> {
     if let Some(p) = bp.parts.iter().find(|p| p.name == track) {
         return match &p.sound {
-            Sound::Synth { preset, .. } => Some(preset.clone()),
-            Sound::Instrument { name, .. } => Some(name.clone()),
-            _ => None,
+            Sound::Rack { layers } => voice(layers).and_then(named),
+            s => named(s),
         };
     }
     lane_playing(bp.drums.iter().find(|d| d.name == track)?)
+}
+
+fn named(s: &Sound) -> Option<String> {
+    match s {
+        Sound::Synth { preset, .. } => Some(preset.clone()),
+        Sound::Instrument { name, .. } => Some(name.clone()),
+        _ => None,
+    }
+}
+
+/// whether a rack's layer reaches the top of the spectrum, as a sound heard over a sub does
+fn open(l: &Layer) -> bool {
+    l.band.is_none_or(|[_, high]| high <= 0.0)
+}
+
+/// what a rack plays as its own, which a swap changes: its first layer open at the top, not a sub under it
+pub(crate) fn voice(layers: &[Layer]) -> Option<&Sound> {
+    layers.iter().find(|l| open(l)).or(layers.first()).map(|l| &l.sound)
+}
+
+/// The layers of a rack, as `rack()` takes them, with each open at the top that plays its voice (`voice`) on the
+/// choice named `name` and the rest as they are: a stacked bass swaps the sound it is heard by and keeps its sub,
+/// even a sub of the same sound, and its grit.
+pub fn rack_on(layers: &[Layer], name: &str) -> Vec<serde_json::Value> {
+    let was = voice(layers).and_then(named);
+    let any_open = layers.iter().any(open);
+    layers
+        .iter()
+        .map(|l| {
+            let mut v = crate::script::layer_value(l);
+            if was.is_some() && named(&l.sound) == was && (open(l) || !any_open) {
+                v["sound"] = name.into();
+            }
+            v
+        })
+        .collect()
 }
 
 fn lane_playing(d: &DrumLane) -> Option<String> {
@@ -89,8 +125,11 @@ pub fn next(bp: &Blueprint, track: &str, taken: &BTreeSet<String>) -> Option<Cho
     let list = choices(bp, track)?;
     let now = playing(bp, track);
     let mut busy: BTreeSet<String> = taken.clone();
-    if bp.parts.iter().any(|p| p.name == track) {
-        busy.extend(bp.parts.iter().filter(|p| p.name != track).filter_map(|p| palette::identity(&p.sound)));
+    if let Some(part) = bp.parts.iter().find(|p| p.name == track) {
+        busy.extend(bp.parts.iter().filter(|p| p.name != track).flat_map(|p| palette::identities(&p.sound)));
+        // nor what the rest of its rack plays: a bass does not swap its voice to the sub under it
+        let own = now.as_deref().map(identity);
+        busy.extend(palette::identities(&part.sound).into_iter().filter(|i| Some(i) != own.as_ref()));
     } else {
         busy.extend(bp.drums.iter().filter(|d| d.name != track).filter_map(lane_playing));
     }
@@ -378,7 +417,7 @@ mod tests {
         let mut bp = song("house", 3);
         let list = choices(&bp, "bass").unwrap();
         let others: BTreeSet<String> =
-            bp.parts.iter().filter(|p| p.name != "bass").filter_map(|p| palette::identity(&p.sound)).collect();
+            bp.parts.iter().filter(|p| p.name != "bass").flat_map(|p| palette::identities(&p.sound)).collect();
         let mut heard = Vec::new();
         for _ in 0..list.len() + 2 {
             let c = next(&bp, "bass", &BTreeSet::new()).unwrap();
@@ -403,6 +442,41 @@ mod tests {
         let trap = song("trap", 2);
         let c = next(&trap, "bass", &BTreeSet::new()).unwrap();
         assert_eq!((playing(&trap, "bass").as_deref(), c.group), (Some("808"), AFIELD), "{c:?}");
+    }
+
+    #[test]
+    fn a_stacked_bass_swaps_the_sound_it_is_heard_by_and_keeps_the_sub_under_it() {
+        let mut bp = song("future_bass", 1);
+        let Sound::Rack { layers } = bp.parts.iter().find(|p| p.name == "bass").unwrap().sound.clone() else {
+            panic!("future bass stacks its bass")
+        };
+        let voice = playing(&bp, "bass").expect("the sound it is heard by");
+        assert_eq!(Some(identity(&voice)), palette::identity(&layers[1].sound), "its sound over the sub");
+        let c = next(&bp, "bass", &BTreeSet::new()).unwrap();
+        let on = rack_on(&layers, &c.name);
+        let sounds: Vec<&str> = on.iter().map(|l| l["sound"].as_str().unwrap()).collect();
+        assert_eq!(sounds, ["sub_bass", c.name.as_str(), c.name.as_str()]);
+        for (l, v) in layers.iter().zip(&on) {
+            let mut was = crate::script::layer_value(l);
+            was["sound"] = v["sound"].clone();
+            assert_eq!(&was, v, "the rest of each layer as it was");
+        }
+        // swapped again and again, its voice never goes to the sub under it
+        for _ in 0..12 {
+            let c = next(&bp, "bass", &BTreeSet::new()).unwrap();
+            assert_ne!(c.name, "sub_bass");
+            let Sound::Rack { layers } = &mut bp.parts.iter_mut().find(|p| p.name == "bass").unwrap().sound else {
+                unreachable!()
+            };
+            layers.iter_mut().skip(1).for_each(|l| l.sound = sound_of(&c.name));
+            assert_eq!(playing(&bp, "bass"), Some(c.name));
+        }
+        // a sub of the sound it is heard by stays a sub
+        let mut same = layers.clone();
+        same.iter_mut().for_each(|l| l.sound = sound_of("sub_bass"));
+        let on: Vec<String> =
+            rack_on(&same, "reese").iter().map(|l| l["sound"].as_str().unwrap().to_string()).collect();
+        assert_eq!(on, ["sub_bass", "reese", "reese"]);
     }
 
     #[test]

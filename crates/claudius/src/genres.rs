@@ -154,6 +154,29 @@ pub struct PartSpec {
     /// how far behind the beat the part plays, in milliseconds, drawn from this range (`Part::late_ms`)
     #[serde(default)]
     pub late_ms: Option<(f32, f32)>,
+    /// the sounds it plays at once, each in its band, as a producer stacks a bass (`Sound::Rack`); none: the one
+    /// sound it draws
+    #[serde(default)]
+    pub layers: Vec<LayerSpec>,
+}
+
+/// A layer of a part a genre stacks (`PartSpec::layers`), as `rack()` takes one: its sound, `"$"` for the one the part
+/// draws, else a synth preset by name; the frequencies it keeps; its level against the others; how far it ducks under
+/// the kick; the semitones it plays from the part's notes; its own effects, after its band (a parallel distortion has
+/// no band, and filters what it adds).
+#[derive(Clone, Debug, Deserialize)]
+pub struct LayerSpec {
+    pub sound: String,
+    #[serde(default)]
+    pub band: Option<[f32; 2]>,
+    #[serde(default)]
+    pub level: f32,
+    #[serde(default)]
+    pub duck: f32,
+    #[serde(default)]
+    pub transpose: i32,
+    #[serde(default)]
+    pub fx: Vec<crate::fx::Effect>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

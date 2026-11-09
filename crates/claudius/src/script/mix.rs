@@ -264,7 +264,8 @@ pub(super) fn register_mix(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                 resolve_sound(label, bank, lib.as_deref(), g.as_ref(), bp.seed, roots.as_deref())
             };
             let made = layers_of(&layers, &format!("rack(\"{track}\")"), resolve)?;
-            *sound_of(bp, track)? = Sound::Rack { layers: made };
+            let sound = sound_of(bp, track)?;
+            *sound = Sound::Rack { layers: kept(made, sound) };
             Ok(())
         })
     });
@@ -463,7 +464,7 @@ fn add_part(bp: &mut Blueprint, name: &str, role: Option<Role>) -> R<()> {
         }
     };
     let mut rng = crate::rng::Rng::new(bp.seed ^ crate::rng::hash_str(name));
-    let mut used = bp.parts.iter().filter_map(|p| crate::palette::identity(&p.sound)).collect();
+    let mut used = bp.parts.iter().flat_map(|p| crate::palette::identities(&p.sound)).collect();
     bp.parts.push(compose::new_part(&spec, genre, &crate::palette::instruments(), &mut used, &mut rng));
     super::song::place_new(bp, name);
     Ok(())
@@ -498,6 +499,7 @@ fn default_spec(name: &str, role: Role) -> crate::genres::PartSpec {
         doubles: None,
         octave: 0,
         late_ms: None,
+        layers: Vec::new(),
     }
 }
 
@@ -557,6 +559,25 @@ const LAYER_KEYS: &[&str] = &["sound", "bank", "band", "level", "pan", "transpos
 
 /// A rack's layers as a script writes them (`what` says where, in a message): each a map naming its sound as
 /// `drum_sound` or a part's `preset` names one (`resolve`), and its band, level, pan, transpose, duck and effects.
+/// a rack's layers as written, each that names a sound the track plays already keeping it as it is (a varied patch, a
+/// kit's tuning), as `part()` keeps its preset's: the layer's at the same place first, so that a sub and the sound
+/// over it, of one preset but two patches, keep theirs
+fn kept(mut made: Vec<Layer>, was: &Sound) -> Vec<Layer> {
+    let playing = was.each();
+    for (i, l) in made.iter_mut().enumerate() {
+        let word = super::print::sound_word(&l.sound);
+        let named = |s: &Sound| super::print::sound_word(s) == word;
+        let found = match playing.get(i) {
+            Some(s) if named(s) => Some(*s),
+            _ => playing.iter().copied().find(|s| named(s)),
+        };
+        if let Some(s) = found {
+            l.sound = s.clone();
+        }
+    }
+    made
+}
+
 pub(super) fn layers_of(
     layers: &Array,
     what: &str,
