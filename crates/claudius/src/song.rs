@@ -1,5 +1,6 @@
 //! One song end to end: blueprint -> project -> render, and the files a run leaves behind.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
@@ -134,6 +135,65 @@ const MOST_FILES: usize = 10_000;
 /// 2 GB or 10,000 files.
 pub fn unpack_project(bytes: &[u8], name: &str, songs: &Path) -> Result<PathBuf> {
     let mut zip = zip::ZipArchive::new(std::io::Cursor::new(bytes)).with_context(|| format!("{name} is not a zip"))?;
+    let files = project_entries(&mut zip, name)?;
+    let stem = slug(Path::new(name).file_stem().map_or(name.into(), |s| s.to_string_lossy()).as_ref());
+    let stem = if stem.is_empty() { "project".to_string() } else { stem };
+    let dir = (1..)
+        .map(|n| songs.join(if n == 1 { stem.clone() } else { format!("{stem}-{n}") }))
+        .find(|d| !d.exists())
+        .expect("a name no folder has");
+    let unpacked = files.into_iter().try_for_each(|(i, rel, is_dir, size)| -> Result<()> {
+        let to = dir.join(rel);
+        let folder = if is_dir { Some(to.as_path()) } else { to.parent() };
+        if let Some(folder) = folder {
+            std::fs::create_dir_all(folder).with_context(|| format!("cannot write {}", folder.display()))?;
+        }
+        if !is_dir {
+            use std::io::Read;
+            let mut out = std::fs::File::create(&to).with_context(|| format!("cannot write {}", to.display()))?;
+            // no more than the zip says the file holds, whatever its compressed bytes would make
+            let mut entry = zip.by_index(i)?.take(size);
+            std::io::copy(&mut entry, &mut out).with_context(|| format!("cannot write {}", to.display()))?;
+        }
+        Ok(())
+    });
+    if let Err(e) = unpacked {
+        let _ = std::fs::remove_dir_all(&dir);
+        return Err(e);
+    }
+    Ok(dir)
+}
+
+/// A project (`pack_project`) read as `unpack_project` reads one, into memory, for a page that keeps no files: its
+/// song, and each file it holds by its path in it ("takes/vox.flac"), the blueprint's and the script's among them.
+pub fn read_project(bytes: &[u8], name: &str) -> Result<(Blueprint, BTreeMap<String, Vec<u8>>)> {
+    use std::io::Read;
+    let mut zip = zip::ZipArchive::new(std::io::Cursor::new(bytes)).with_context(|| format!("{name} is not a zip"))?;
+    let mut files = BTreeMap::new();
+    for (i, rel, is_dir, size) in project_entries(&mut zip, name)? {
+        if is_dir {
+            continue;
+        }
+        let mut held = Vec::with_capacity(size.min(MOST_UNPACKED) as usize);
+        zip.by_index(i)?.take(size).read_to_end(&mut held)?;
+        let path: Vec<String> = rel.components().map(|c| c.as_os_str().to_string_lossy().into_owned()).collect();
+        files.insert(path.join("/"), held);
+    }
+    let text = files.get("blueprint.json").context("a project holds its blueprint.json")?;
+    let text = std::str::from_utf8(text).with_context(|| format!("{name}'s blueprint.json is no text"))?;
+    let bp = Blueprint::from_json(text).map_err(|e| anyhow::anyhow!("cannot open {name}: {e}"))?;
+    bp.check_size().map_err(anyhow::Error::msg)?;
+    crate::script::check_patterns(&bp).map_err(anyhow::Error::msg)?;
+    Ok((bp, files))
+}
+
+/// The files of a project zip as `unpack_project` and `read_project` take them, checked as `unpack_project` says: each
+/// one's place in the zip, its path in the project (without the folder a project zipped as a folder is in), whether it
+/// is a folder, and how big it says it is.
+fn project_entries(
+    zip: &mut zip::ZipArchive<std::io::Cursor<&[u8]>>,
+    name: &str,
+) -> Result<Vec<(usize, PathBuf, bool, u64)>> {
     if zip.len() > MOST_FILES {
         anyhow::bail!("{name} holds {} files, more than a project does ({MOST_FILES}): it is not opened", zip.len());
     }
@@ -175,32 +235,7 @@ pub fn unpack_project(bytes: &[u8], name: &str, songs: &Path) -> Result<PathBuf>
     if total > MOST_UNPACKED {
         anyhow::bail!("{name} unpacks to {} MB, more than a project does: it is not opened", total >> 20);
     }
-    let stem = slug(Path::new(name).file_stem().map_or(name.into(), |s| s.to_string_lossy()).as_ref());
-    let stem = if stem.is_empty() { "project".to_string() } else { stem };
-    let dir = (1..)
-        .map(|n| songs.join(if n == 1 { stem.clone() } else { format!("{stem}-{n}") }))
-        .find(|d| !d.exists())
-        .expect("a name no folder has");
-    let unpacked = files.into_iter().try_for_each(|(i, rel, is_dir, size)| -> Result<()> {
-        use std::io::Read;
-        let to = dir.join(rel);
-        let folder = if is_dir { Some(to.as_path()) } else { to.parent() };
-        if let Some(folder) = folder {
-            std::fs::create_dir_all(folder).with_context(|| format!("cannot write {}", folder.display()))?;
-        }
-        if !is_dir {
-            let mut out = std::fs::File::create(&to).with_context(|| format!("cannot write {}", to.display()))?;
-            // no more than the zip says the file holds, whatever its compressed bytes would make
-            let mut entry = zip.by_index(i)?.take(size);
-            std::io::copy(&mut entry, &mut out).with_context(|| format!("cannot write {}", to.display()))?;
-        }
-        Ok(())
-    });
-    if let Err(e) = unpacked {
-        let _ = std::fs::remove_dir_all(&dir);
-        return Err(e);
-    }
-    Ok(dir)
+    Ok(files)
 }
 
 /// a song from its blueprint.json, checked: its size, and that its pattern tracks still read; takes that moved with the

@@ -207,8 +207,8 @@ impl Mock {
     /// The answer comes as the reply to `l.what()`.
     pub fn listen(&mut self, l: claudius_api::Listen, bytes: &[u8]) {
         let what = l.what().to_string();
-        // the song remade now is the one the person wants, once the engine has made it
-        if matches!(l, claudius_api::Listen::Remake { .. })
+        // the song remade or opened now is the one the person wants, once the engine has made it
+        if matches!(l, claudius_api::Listen::Remake { .. } | claudius_api::Listen::OpenProject { .. })
             && let Some(s) = self.sampling.as_mut()
         {
             s.superseded = Some(what);

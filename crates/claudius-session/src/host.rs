@@ -206,6 +206,10 @@ impl Host {
     pub fn listen(&mut self, l: &crate::listen::Listen, bytes: Vec<u8>) -> Reply {
         use crate::listen::{self, Listen};
         let name = l.name().to_string();
+        // a project is a zip, opened before anything is decoded as a recording
+        if matches!(l, Listen::OpenProject { .. }) {
+            return self.open_project(&name, &bytes);
+        }
         let x = match listen::decode(bytes, &name) {
             Ok(x) => x,
             Err(e) => return self.no(e),
@@ -259,6 +263,7 @@ impl Host {
                 }
             }
             Listen::PitchCheck { id } => self.hear_pitch_check(*id, &x),
+            Listen::OpenProject { .. } => self.no("a project is opened, not listened to"),
             Listen::SamplePieces { seed, count, found, .. } => {
                 let opt = claudius::sampler::Options { count: count.map_or(2, |c| c as usize), ..Default::default() };
                 self.offer_pieces(Arc::new(x), &name, found.clone(), opt, seed.unwrap_or(0))
@@ -342,6 +347,51 @@ impl Host {
             files.push(("credits.txt".into(), credits.into_bytes()));
         }
         claudius::song::pack_project(&bp, &files).map_err(|e| format!("{e:#}"))
+    }
+
+    /// A project a page saved (`project`), the zip itself, called `name`, opened as the song: its blueprint, the
+    /// recordings it plays held in memory again under the names a page holds them by (`demo:takes/...`), each with what
+    /// it was cut from and the recordings a take credits, which a project it saves again keeps.
+    pub fn open_project(&mut self, name: &str, bytes: &[u8]) -> Reply {
+        let (mut bp, files) = match claudius::song::read_project(bytes, name) {
+            Ok(x) => x,
+            Err(e) => return self.no(format!("{e:#}")),
+        };
+        let mut held: BTreeMap<String, String> = BTreeMap::new();
+        let (mut cuts, mut takes) = (Vec::new(), Vec::new());
+        for path in bp.files_mut() {
+            if let Some(to) = held.get(path.as_str()) {
+                *path = to.clone();
+                continue;
+            }
+            let Some(audio) = files.get(path.as_str()) else {
+                return self
+                    .no(format!("{name} plays {path}, which it does not hold: it is not a project this page saved"));
+            };
+            let ext = std::path::Path::new(path.as_str())
+                .extension()
+                .map_or(String::new(), |e| e.to_string_lossy().into_owned());
+            let x = match claudius::audio::load_bytes(audio.clone(), &ext) {
+                Ok(x) => x,
+                Err(e) => return self.no(format!("cannot read {path} in {name}: {e:#}")),
+            };
+            let to = format!("demo:{path}");
+            claudius::audio::remember(&to, x);
+            if let Some(found) =
+                files.get(&format!("{path}.json")).and_then(|f| serde_json::from_slice::<Found>(f).ok())
+            {
+                cuts.push((to.clone(), (found, ext == "wav")));
+            }
+            let beside = take::sources_path(std::path::Path::new(path.as_str())).to_string_lossy().into_owned();
+            if let Some(s) = files.get(&beside).and_then(|f| serde_json::from_slice::<take::Sources>(f).ok()) {
+                takes.push((to.clone(), s));
+            }
+            held.insert(std::mem::replace(path, to.clone()), to);
+        }
+        self.cuts.extend(cuts);
+        self.takes.extend(takes);
+        let message = format!("opened {name}: {}", bp.title);
+        self.commit(Some(bp), message)
     }
 
     /// the script language's reference, as the studio shows it
@@ -1472,6 +1522,45 @@ mod tests {
         let lines: Vec<&str> = credits.lines().collect();
         assert!(lines[1].starts_with("\"Amen\" by someone") && lines[2].starts_with("\"Keys\""), "{credits}");
         let _ = std::fs::remove_dir_all(&songs);
+    }
+
+    #[test]
+    fn a_project_the_page_saved_opens_in_the_page_with_its_recordings_and_their_credits() {
+        let mut h = Host::new(1);
+        assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
+        let (hit, phrase) = ("demo:samples/break/house/amen/kick.wav", "demo:samples/phrase/house/vox/phrase.wav");
+        let x: Vec<f32> = (0..4800).map(|i| (i as f32 * 0.05).sin()).collect();
+        audio::remember(hit, Stereo::from_mono(&x.iter().map(|v| v * 1.5).collect::<Vec<_>>()));
+        audio::remember(phrase, Stereo::from_mono(&x));
+        h.cuts.insert(hit.into(), (found("1", "Amen", "by"), true));
+        h.cuts.insert(phrase.into(), (found("2", "Vox", "cc0"), false));
+        let sample =
+            |path: &str| model::Sound::Sample { path: path.into(), root: 60, start: 0.0, end: None, label: "x".into() };
+        let bp = h.bp.as_mut().unwrap();
+        (bp.drums[0].sound, bp.parts[0].sound) = (sample(hit), sample(phrase));
+        let zip = h.project().unwrap();
+
+        let mut page = Host::new(2);
+        let r = page.listen(&Listen::OpenProject { name: "Faded Engine.zip".into() }, zip.clone());
+        assert!(r.ok && r.message.starts_with("opened Faded Engine.zip"), "{}", r.message);
+        let opened = page.blueprint().unwrap().clone();
+        let at = |s: &model::Sound| match s {
+            model::Sound::Sample { path, .. } => path.clone(),
+            _ => panic!("a sample"),
+        };
+        // the phrase, kept as FLAC, is held by the name the project gave it, and plays as it did
+        let flac = "demo:samples/phrase/house/vox/phrase.flac";
+        assert_eq!((at(&opened.drums[0].sound), at(&opened.parts[0].sound)), (hit.to_string(), flac.to_string()));
+        let peak = |p: &str| audio::remembered_audio(p).unwrap().l.iter().fold(0.0f32, |m, v| m.max(v.abs()));
+        assert!((peak(flac) - 1.0).abs() < 0.01 && (peak(hit) - 1.5).abs() < 0.01, "{} {}", peak(flac), peak(hit));
+        assert_eq!(page.cuts.get(flac).map(|c| c.0.title.as_str()), Some("Vox"), "what it was cut from comes with it");
+        // and it saves again as a project that credits both
+        let again = page.project().unwrap();
+        let (_, files) = claudius::song::read_project(&again, "again.zip").unwrap();
+        let credits = String::from_utf8(files["credits.txt"].clone()).unwrap();
+        assert!(credits.contains("\"Amen\"") && credits.contains("\"Vox\""), "{credits}");
+        let not = page.listen(&Listen::OpenProject { name: "x.zip".into() }, b"not a zip".to_vec());
+        assert!(!not.ok && not.message.contains("x.zip is not a zip"), "{}", not.message);
     }
 
     /// a recording an online library credits, as the page found it

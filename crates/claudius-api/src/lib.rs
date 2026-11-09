@@ -528,6 +528,11 @@ pub enum Listen {
     PitchCheck {
         id: u64,
     },
+    /// a project a page saved, the zip itself (its blueprint, the recordings it plays and what each was cut from),
+    /// opened as the song, as `/api/project` opens one in claudius
+    OpenProject {
+        name: String,
+    },
 }
 
 impl Listen {
@@ -536,6 +541,7 @@ impl Listen {
         match self {
             Listen::Analyze { name } | Listen::SampleSong { name, .. } | Listen::ExtractGroove { name } => name,
             Listen::Remake { name, .. } | Listen::Take { name, .. } | Listen::SamplePieces { name, .. } => name,
+            Listen::OpenProject { name } => name,
             Listen::PitchCheck { .. } => "the pitch check",
         }
     }
@@ -551,6 +557,7 @@ impl Listen {
             Listen::Take { recording: true, .. } => "add_recording",
             Listen::Take { .. } => "take",
             Listen::PitchCheck { .. } => "pitch_check",
+            Listen::OpenProject { .. } => "open",
         }
     }
 }

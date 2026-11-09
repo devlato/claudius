@@ -277,6 +277,11 @@ Safari unpacks a zip it downloads into a folder. Choose the `blueprint.json` in 
 samples beside it along, as the zip would have, and the song opens in a folder of its own all the same. A project's
 folder zipped again, as Finder or Explorer zips one, opens as the demo's zip does.
 
+The demo opens its projects too: **Open**, then **Choose a file...** and the zip, and the song is open in the page
+again with the samples and takes it plays, each crediting the recording it came from, so that you can carry on where
+you left off without installing anything. The page keeps nothing once it is closed, so download the project again
+when you have changed the song. A zip that holds no `blueprint.json`, or plays a file it does not hold, is not opened.
+
 ## Help and assistants
 
 A small **(?)** beside a setting whose name is not plain (Intensity, Transitions, Swing, Register, a bus, the
