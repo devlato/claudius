@@ -200,6 +200,38 @@ fn with_its_stems_apart_the_kit_is_heard_in_its_drums_and_a_recording_with_none_
 }
 
 #[test]
+fn a_house_track_keeps_its_grid_and_its_first_bar_with_its_bass_and_hats_on_the_offbeats() {
+    // a kick on every beat and the bass and the hats between them: the beats the tracker follows slip onto the offbeats
+    // and their slope reads more than 1 % fast, which a grid fitted within half a percent of it cannot reach
+    let bp = compose::generate(&genres::get("house").unwrap(), 5, &Options::default(), None);
+    let p = compose::arrange(&bp).slice(0, 32);
+    let r = render::render(&p, &render::Options { stems: true, ..Default::default() }).unwrap();
+    let sum = |of: &dyn Fn(&str) -> bool| {
+        let mut x = Stereo::zeros(r.master.len());
+        for (_, s) in r.stems.iter().filter(|(name, _)| of(name)) {
+            x.add_at(s, 0, 1.0, 1.0);
+        }
+        x
+    };
+    let drum = |name: &str| {
+        bp.drums.iter().any(|d| d.name == name) || p.tracks.iter().any(|t| t.name == name && t.role == "fx")
+    };
+    // the drums apart as Spleeter leaves them, with some of the bass in them
+    let mut drums = sum(&drum);
+    drums.add_at(&sum(&|n| n == "bass"), 0, 0.6, 0.6);
+    let apart = claudius::stems::Stems {
+        vocals: Stereo::zeros(r.master.len()),
+        drums,
+        bass: sum(&|n| n == "bass"),
+        other: sum(&|n| !drum(n) && n != "bass"),
+    };
+    let a = analysis::song::analyze_with(&r.master, Some(&apart), None);
+    assert!(a.steady && (a.bpm - bp.bpm).abs() < 0.3, "{} BPM, steady {}", a.bpm, a.steady);
+    assert!(a.bar_start(0) < 0.05, "its first bar starts at {:.3} s", a.bar_start(0));
+    assert!((a.bar_secs - 240.0 / bp.bpm).abs() < 0.01, "bars of {:.3} s", a.bar_secs);
+}
+
+#[test]
 fn the_beat_tracker_finds_the_tempo() {
     for bpm in [92.0, 124.0, 140.0, 174.0] {
         let x = click_track(bpm, 30.0);

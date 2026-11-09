@@ -188,24 +188,33 @@ pub fn track_with(mono: &[f32], harmony: &[f32], range: Option<(f64, f64)>) -> G
         let f = pos - i as f64;
         env[i] as f64 * (1.0 - f) + env[i + 1] as f64 * f
     };
+    // around each tempo the beats were heard at: their slope (which beats slipping onto the offbeats bend), the median
+    // gap between them, and the onsets' own period
+    let median_gap = heard.as_ref().filter(|h| h.len() > 8).map(|h| {
+        let mut ibi: Vec<f64> = h.windows(2).map(|w| w[1] - w[0]).collect();
+        ibi.sort_by(f64::total_cmp);
+        60.0 / ibi[ibi.len() / 2]
+    });
     let mut best_grid = (f64::MIN, bpm0, 0.0f64);
-    let mut b = bpm0 * 0.995;
-    while b <= bpm0 * 1.005 {
-        let per = fps * 60.0 / b;
-        let mut off = 0.0;
-        while off < per {
-            let mut s = 0.0;
-            let mut pos = off;
-            while pos < env.len() as f64 - 1.0 {
-                s += sample(pos);
-                pos += per;
+    for centre in [Some(bpm0), median_gap, Some(60.0 * fps / p)].into_iter().flatten() {
+        let mut b = centre * 0.995;
+        while b <= centre * 1.005 {
+            let per = fps * 60.0 / b;
+            let mut off = 0.0;
+            while off < per {
+                let mut s = 0.0;
+                let mut pos = off;
+                while pos < env.len() as f64 - 1.0 {
+                    s += sample(pos);
+                    pos += per;
+                }
+                if s > best_grid.0 {
+                    best_grid = (s, b, off);
+                }
+                off += 1.0;
             }
-            if s > best_grid.0 {
-                best_grid = (s, b, off);
-            }
-            off += 1.0;
+            b += 0.005;
         }
-        b += 0.005;
     }
     let (_, grid_bpm, off) = best_grid;
     let per_s = 60.0 / grid_bpm;
@@ -233,7 +242,8 @@ pub fn track_with(mono: &[f32], harmony: &[f32], range: Option<(f64, f64)>) -> G
             .map(|&t| format!("{:.2}", (t - first - ((t - first) / per_s).round() * per_s) / per_s))
             .collect();
         eprintln!(
-            "beats: played {} vs grid {}: drifts {} strength {:.3} vs {:.3}; offsets {}",
+            "beats: bpm0 {bpm0:.3} autocorr {:.3} grid {grid_bpm:.3} first {first:.3}; played {} vs grid {}: drifts {} strength {:.3} vs {:.3}; offsets {}",
+            60.0 * fps / period,
             p.len(),
             grid.len(),
             drifts(p, first, per_s),
