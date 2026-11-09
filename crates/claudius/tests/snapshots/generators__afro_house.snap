@@ -1,0 +1,36 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+afro_house at 123.0 BPM in G minor, swing 0.53
+prog A: i7 iv7 IIImaj7 VImaj7
+prog B: i7 IVsus4 IIImaj7 VImaj7
+bars per chord: 2
+section intro (intro) 16 bars, energy 0.39, prog A, sparse [filter_in]: kick shaker conga tom
+section groove (groove) 32 bars, energy 0.70, prog A, main [fills]: kick clap hat shaker conga tom bass chords
+section break (break) 8 bars, energy 0.35, prog B, main []: pad chords lead shaker
+section build (build) 8 bars, energy 0.56, prog B, main [build]: clap hat shaker conga chords lead pad
+section drop (drop) 32 bars, energy 0.99, prog A, main [impact fills]: kick clap hat shaker conga tom bass chords lead pad
+section outro (outro) 4 bars, energy 0.23, prog A, sparse []: shaker conga bass
+drum kick main (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
+drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
+drum hat main (drum closed_hat): ..x...x..xx..xx.|..x...x..xx..xx.|..x...x..xx..xx.|.xx...x...x...xx
+drum hat sparse (drum closed_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
+drum shaker main (drum shaker): ooooo.o.ooooo.oo|ooooo.o.ooooo.oo|ooooo.o.ooooo.oo|ooooo.o.ooooo.oo
+drum conga main (drum perc): ....x....x..x...|....x....x..x...|....x....x..x...|....x....x..x...
+drum tom main (drum tom): ..x...x.....x...|..x...x.....x...|..x...x.....x...|..x...x.....x...
+drum tom sparse (drum tom): ......x.........|......x.........|......x.........|......x.........
+part bass (bass): deep synth deep_bass, register 31..48, density 0.51
+part chords (chords): stabs synth fm_marimba, register 55..76, density 0.57
+part lead (lead): ambient_line synth mallet, register 64..81, density 0.39
+part pad (pad): sustain synth swell_pad, register 48..74, density 0.50
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix clap: +0.0 dB, pan +0.00, reverb 0.25, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.18, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix shaker: +0.0 dB, pan -0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix conga: +0.0 dB, pan -0.35, reverb 0.15, delay 0.00, duck 0.00, bus drums
+mix tom: +0.0 dB, pan +0.30, reverb 0.20, delay 0.00, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.45, bus bass
+mix chords: +0.0 dB, pan +0.00, reverb 0.40, delay 0.16, duck 0.35, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.33, delay 0.25, duck 0.00, bus music
+mix pad: +0.0 dB, pan +0.00, reverb 0.41, delay 0.00, duck 0.35, bus music

@@ -1,0 +1,153 @@
+{
+  "name": "baile_funk",
+  "family": "afro and latin",
+  "aliases": ["funk carioca", "brazilian funk", "funk brasileiro", "favela funk"],
+  "description": "Baile funk (funk carioca): the sound of the bailes in Rio's favelas at 126 to 136 BPM on the tamborzão: a booming low drum in five uneven hits, rim slaps answering in its gaps, a higher hand drum crossing both and claps on two and four, an 808 following the kick, chopped vocal shouts and horn stabs over a minimal minor vamp, loud, dry and clipped",
+  "query": "baile funk beat with booming 808 kicks and congas",
+  "alts": ["reggaeton music", "trap beat", "hip hop beat with heavy bass", "dancehall music"],
+  "accepted_flaws": ["a distorted clipped recording"],
+  "bpm": [126, 136],
+  "swing": [0.5, 0.53],
+  "humanize": 0.06,
+  "modes": [["minor", 0.6], ["phrygian", 0.25], ["harmonic_minor", 0.15]],
+  "harmony": [["minimal", 0.5], ["minor_dark", 0.3], ["phrygian", 0.2]],
+  "markov": 0.1,
+  "ext": 0,
+  "bars_per_chord": [[2, 0.5], [4, 0.5]],
+  "forms": [
+    [
+      {"name": "intro", "kind": "intro", "bars": 8, "energy": 0.45, "layers": ["chords", "lead", "conga"], "filter_in": true},
+      {"name": "hook", "kind": "hook", "bars": 16, "energy": 0.95, "layers": ["kick", "clap", "rim", "conga", "timbal", "bass", "chords", "lead"], "impact": true, "fills": true},
+      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.75, "layers": ["kick", "clap", "rim", "conga", "timbal", "bass", "chords"], "variant": "alt", "fills": true},
+      {"name": "hook2", "kind": "hook", "bars": 16, "energy": 1.0, "layers": ["kick", "clap", "rim", "conga", "timbal", "bass", "chords", "lead"], "impact": true, "fills": true},
+      {"name": "break", "kind": "break", "bars": 8, "energy": 0.45, "prog": "B", "layers": ["chords", "lead", "conga"], "gap": true},
+      {"name": "hook3", "kind": "hook", "bars": 16, "energy": 1.0, "layers": ["kick", "clap", "rim", "conga", "timbal", "bass", "chords", "lead"], "impact": true, "fills": true},
+      {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.4, "layers": ["chords", "conga", "rim"]}
+    ]
+  ],
+  "drums": [
+    {
+      "name": "kick",
+      "voice": "kick",
+      "template": {"steps": [1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0], "vel": [0.88, 1.0]},
+      "variants": {"alt": {"steps": [1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0], "vel": [0.88, 1.0]}},
+      "params": {"decay": [0.35, 0.6], "tune": [44, 54], "tone": [0.3, 0.6], "punch": [0.5, 0.8], "drive": [4, 8]},
+      "samples": ["Kick"],
+      "tune_to_key": true,
+      "mix": {"bus": "drums"}
+    },
+    {
+      "name": "clap",
+      "voice": "clap",
+      "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.85, 1.0]},
+      "params": {"decay": [0.15, 0.25]},
+      "mix": {"bus": "drums", "reverb": 0.1}
+    },
+    {
+      "name": "rim",
+      "voice": "rim",
+      "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0], "vel": [0.55, 0.85], "vary": 0.3},
+      "mix": {"bus": "drums", "pan": 0.25}
+    },
+    {
+      "name": "conga",
+      "voice": "perc",
+      "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0.5, 1, 0, 0, 0, 0, 0, 0, 0.5], "vel": [0.55, 0.9], "vary": 0.3},
+      "params": {"tune": [200, 300], "decay": [0.12, 0.2], "pitch_env": [2, 6]},
+      "mix": {"bus": "drums", "pan": -0.3}
+    },
+    {
+      "name": "timbal",
+      "voice": "perc",
+      "template": {"steps": [0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0], "vel": [0.45, 0.8], "vary": 0.35},
+      "params": {"tune": [420, 650], "decay": [0.06, 0.12], "pitch_env": [2, 6]},
+      "mix": {"bus": "drums", "pan": 0.3}
+    }
+  ],
+  "kits": [["tr808", 0.6]],
+  "kit_mix": 0.15,
+  "palette": {
+    "bass": {"core": 1.0, "synth": 1},
+    "chords": {"core": 0.55, "synth": 2, "brass": 1.5, "organ": 0.8},
+    "lead": {"core": 0.5, "voice": 1.5, "brass": 1.5, "woodwinds": 1, "synth": 1}
+  },
+  "parts": [
+    {
+      "name": "bass",
+      "role": "bass",
+      "presets": ["808"],
+      "styles": ["kick_follow"],
+      "register": [24, 40],
+      "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 8, "mix": 0.9}]}
+    },
+    {
+      "name": "chords",
+      "role": "chords",
+      "presets": ["stab", "brass_stab", "pluck", "organ"],
+      "styles": ["stabs", "syncopated", "brass_stabs"],
+      "register": [52, 74],
+      "voices": 3,
+      "voicing": "close",
+      "mix": {"reverb": 0.2, "delay": 0.1}
+    },
+    {
+      "name": "lead",
+      "role": "lead",
+      "presets": ["vox_lead", "brass_lead", "flute|fm_lead", "whistle"],
+      "styles": ["horn_riff", "dembow_hook", "riff"],
+      "register": [62, 79],
+      "density": [0.3, 0.5],
+      "mix": {"reverb": 0.2, "delay": 0.15}
+    }
+  ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["samba", "bossa nova", "brazilian percussion", "brass stab", "latin horn", "berimbau", "forro", "favela"],
+      "listen": "a raw samba or horn phrase",
+      "seconds": [4, 900],
+      "keep": 6,
+      "chance": 0.9,
+      "chop": 0.4,
+      "pitch": [-3, 3],
+      "instead": ["chords"],
+      "mix": {"bus": "music", "fx": [{"fx": "filter", "mode": "hp", "cutoff": 180, "res": 0.05}, {"fx": "saturate", "kind": "hard", "drive_db": 3, "mix": 0.3}]}
+    },
+    "vocal": {
+      "search": ["portuguese vocal", "brazilian vocal", "mc vocal", "crowd chant", "vocal shout", "a cappella"],
+      "listen": "a shouted chant in portuguese",
+      "seconds": [1, 400],
+      "keep": 4,
+      "chance": 0.7
+    },
+    "bass": {
+      "search": ["808 bass", "808 sub bass", "distorted 808"],
+      "listen": "a booming 808",
+      "seconds": [0.3, 30],
+      "keep": 3,
+      "chance": 0.3
+    }
+  },
+  "transitions": {"riser": false, "impact": true, "downlifter": false, "reverse_crash": true, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.15, "level_db": -3}},
+  "mix": {
+    "lufs": -7.5,
+    "reverb": {"fx": "reverb", "decay": 1.2, "damping": 0.55, "predelay_ms": 10, "width": 1.1, "mix": 1.0, "lowcut": 350},
+    "delay": {"fx": "delay", "beats": 0.75, "feedback": 0.25, "damping": 0.55, "pingpong": true, "mix": 1.0},
+    "buses": {
+      "drums": [
+        {"fx": "saturate", "kind": "hard", "drive_db": 4, "mix": 0.5},
+        {"fx": "compressor", "threshold_db": -10, "ratio": 2.5, "attack_ms": 5, "release_ms": 70, "knee_db": 4, "makeup_db": 1.5}
+      ],
+      "bass": [{"fx": "saturate", "kind": "tanh", "drive_db": 4, "mix": 0.6}],
+      "music": [{"fx": "eq", "bands": [{"kind": "highpass", "freq": 160, "q": 0.7}]}]
+    },
+    "master": [
+      {"fx": "eq", "bands": [{"kind": "highpass", "freq": 30, "q": 0.7}]},
+      {"fx": "compressor", "threshold_db": -9, "ratio": 2.2, "attack_ms": 10, "release_ms": 100, "knee_db": 6},
+      {"fx": "saturate", "kind": "hard", "drive_db": 2, "mix": 0.35}
+    ],
+    "duck_release": 0.2,
+    "levels": {"bass": 2.5, "kick": 1.0, "perc": -1.0},
+    "bands": {"sub": [-13, -1], "low": [-9, -1]}
+  }
+}

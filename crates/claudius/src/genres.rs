@@ -66,6 +66,18 @@ const BUILTIN: &[(&str, &str)] = &[
     ("rnb_90s", include_str!("../data/genres/rnb_90s.json")),
     ("new_jack_swing", include_str!("../data/genres/new_jack_swing.json")),
     ("alt_rnb", include_str!("../data/genres/alt_rnb.json")),
+    ("big_room", include_str!("../data/genres/big_room.json")),
+    ("progressive_house", include_str!("../data/genres/progressive_house.json")),
+    ("slap_house", include_str!("../data/genres/slap_house.json")),
+    ("hardstyle", include_str!("../data/genres/hardstyle.json")),
+    ("hard_techno", include_str!("../data/genres/hard_techno.json")),
+    ("gabber", include_str!("../data/genres/gabber.json")),
+    ("hyperpop", include_str!("../data/genres/hyperpop.json")),
+    ("jersey_club", include_str!("../data/genres/jersey_club.json")),
+    ("afro_house", include_str!("../data/genres/afro_house.json")),
+    ("melodic_techno", include_str!("../data/genres/melodic_techno.json")),
+    ("baile_funk", include_str!("../data/genres/baile_funk.json")),
+    ("breakcore", include_str!("../data/genres/breakcore.json")),
 ];
 
 fn straight() -> (f32, f32) {

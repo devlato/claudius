@@ -1,0 +1,171 @@
+{
+  "name": "melodic_techno",
+  "family": "techno and trance",
+  "aliases": ["melodic house", "melodic house and techno", "afterlife", "progressive techno"],
+  "description": "Melodic techno: 120 to 126 BPM, a deep, rolling four-on-the-floor and a pulsing sixteenth-note bass, emotional minor arpeggios whose filters slowly open, wide pads and evolving textures, a long breakdown of strings and a soaring lead that returns with the kick",
+  "query": "melodic techno with arpeggiated synths",
+  "alts": ["techno music", "trance music", "house music", "minimal electronic music"],
+  "bpm": [120, 126],
+  "swing": [0.5, 0.52],
+  "humanize": 0.05,
+  "modes": [["minor", 0.7], ["dorian", 0.15], ["phrygian", 0.15]],
+  "harmony": [["minor_epic", 0.4], ["minor_dark", 0.4], ["minimal", 0.2]],
+  "markov": 0.1,
+  "ext": 0,
+  "bars_per_chord": [[2, 0.5], [4, 0.5]],
+  "forms": [
+    [
+      {"name": "intro", "kind": "intro", "bars": 16, "energy": 0.4, "layers": ["kick", "hat", "shaker", "bass"], "filter_in": true, "variant": "sparse"},
+      {"name": "groove", "kind": "groove", "bars": 32, "energy": 0.7, "layers": ["kick", "clap", "hat", "shaker", "perc", "bass", "arp"], "fills": true},
+      {"name": "break", "kind": "break", "bars": 32, "energy": 0.35, "prog": "B", "layers": ["pad", "arp", "lead"]},
+      {"name": "build", "kind": "build", "bars": 8, "energy": 0.65, "prog": "B", "layers": ["clap", "hat", "shaker", "pad", "arp", "lead"], "build": true, "gap": true},
+      {"name": "drop", "kind": "drop", "bars": 32, "energy": 1.0, "layers": ["kick", "clap", "hat", "ohat", "shaker", "perc", "bass", "arp", "lead", "pad"], "impact": true, "fills": true},
+      {"name": "outro", "kind": "outro", "bars": 16, "energy": 0.4, "layers": ["kick", "hat", "shaker", "arp"], "variant": "sparse"}
+    ]
+  ],
+  "drums": [
+    {
+      "name": "kick",
+      "voice": "kick",
+      "template": {"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], "vel": [0.92, 1.0]},
+      "params": {"decay": [0.35, 0.6], "tune": [42, 50], "tone": [0.2, 0.45], "punch": [0.35, 0.6], "drive": [4, 8]},
+      "samples": ["Kick"],
+      "tune_to_key": true,
+      "mix": {"bus": "drums"}
+    },
+    {
+      "name": "clap",
+      "voice": "clap",
+      "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.7, 0.9], "vary": 0.3},
+      "params": {"decay": [0.2, 0.35], "tone": [0.3, 0.6]},
+      "mix": {"bus": "drums", "reverb": 0.35}
+    },
+    {
+      "name": "hat",
+      "voice": "closed_hat",
+      "template": {"steps": [0.15, 0.15, 1, 0.15, 0.15, 0.15, 1, 0.15, 0.15, 0.15, 1, 0.15, 0.15, 0.15, 1, 0.3], "vel": [0.4, 0.8]},
+      "variants": {"sparse": {"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.45, 0.7]}},
+      "params": {"decay": [0.03, 0.07]},
+      "samples": ["Hi-hat"],
+      "choke": "hats",
+      "mix": {"bus": "drums", "pan": 0.12}
+    },
+    {
+      "name": "ohat",
+      "voice": "open_hat",
+      "template": {"steps": [0, 0, 0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0], "vel": [0.35, 0.55]},
+      "params": {"decay": [0.15, 0.28]},
+      "choke": "hats",
+      "mix": {"bus": "drums", "pan": -0.15}
+    },
+    {
+      "name": "shaker",
+      "voice": "shaker",
+      "template": {"steps": [0.6, 0.4, 0.8, 0.4, 0.6, 0.4, 0.8, 0.4, 0.6, 0.4, 0.8, 0.4, 0.6, 0.4, 0.8, 0.5], "vel": [0.15, 0.35]},
+      "samples": ["Shaker"],
+      "mix": {"bus": "drums", "pan": -0.3}
+    },
+    {
+      "name": "perc",
+      "voice": "rim",
+      "euclid": [5, 16],
+      "params": {"decay": [0.03, 0.06]},
+      "mix": {"bus": "drums", "pan": 0.35, "delay": 0.3, "reverb": 0.2}
+    }
+  ],
+  "kits": [["tr909", 0.4]],
+  "kit_mix": 0.25,
+  "palette": {
+    "bass": {"core": 0.85, "synth": 3},
+    "arp": {"core": 0.6, "synth": 3, "mallets": 0.8},
+    "lead": {"core": 0.55, "synth": 3, "strings": 0.8},
+    "pad": {"core": 0.5, "synth": 2, "strings": 2, "choir": 1, "pad": 1}
+  },
+  "parts": [
+    {
+      "name": "bass",
+      "role": "bass",
+      "presets": ["saw_bass", "fm_bass", "sub_bass"],
+      "styles": ["rolling", "pulse", "rolling"],
+      "register": [30, 45],
+      "mix": {
+        "bus": "bass",
+        "duck": 0.7,
+        "fx": [{"fx": "filter", "mode": "lp", "cutoff": {"rest": 900, "sections": {"build": [900, 1800], "drop": [1800]}}, "res": 0.2}]
+      }
+    },
+    {
+      "name": "arp",
+      "role": "arp",
+      "presets": ["pluck", "fm_lead", "bell"],
+      "styles": ["up", "updown", "random"],
+      "rates": [0.25],
+      "register": [57, 81],
+      "mix": {
+        "delay": 0.35,
+        "reverb": 0.4,
+        "duck": 0.3,
+        "fx": [{"fx": "filter", "mode": "lp", "cutoff": {"rest": 1800, "sections": {"build": [1800, 6000], "drop": [6000]}}, "res": 0.3}]
+      }
+    },
+    {
+      "name": "lead",
+      "role": "lead",
+      "presets": ["supersaw", "saw_lead", "pwm_lead"],
+      "styles": ["synth_lead", "ambient_line"],
+      "register": [64, 81],
+      "density": [0.25, 0.45],
+      "mix": {"reverb": 0.45, "delay": 0.3, "duck": 0.3, "fx": [{"fx": "width", "width": 1.4, "mono_below_hz": 200}]}
+    },
+    {
+      "name": "pad",
+      "role": "pad",
+      "presets": ["glass_pad", "air_pad", "pwm_pad", "string_ensemble|strings"],
+      "styles": ["sustain"],
+      "register": [45, 74],
+      "voices": 4,
+      "voicing": "open",
+      "mix": {"reverb": 0.55, "duck": 0.4, "fx": [{"fx": "width", "width": 1.5, "mono_below_hz": 200}]}
+    }
+  ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["orchestral strings", "cello", "piano", "choir", "ethnic vocal", "string section", "synth pad", "film score"],
+      "listen": "a slow, emotional cello and string phrase",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.9,
+      "chop": 0.2,
+      "pitch": [-3, 3],
+      "instead": ["pad"],
+      "mix": {"bus": "music", "reverb": 0.35, "duck": 0.35, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 180, "res": 0.05}]}
+    },
+    "texture": {
+      "search": ["rain", "wind", "ocean waves", "field recording", "drone"],
+      "listen": "wind over a wide open space",
+      "seconds": [5, 600],
+      "keep": 3,
+      "chance": 0.5,
+      "mix": {"bus": "music", "level_db": -2}
+    }
+  },
+  "transitions": {"riser": true, "impact": true, "downlifter": true, "reverse_crash": true, "riser_bars": 8, "mix": {"bus": "fx", "reverb": 0.4, "level_db": -2}},
+  "mix": {
+    "lufs": -9.0,
+    "reverb": {"fx": "reverb", "decay": 4.0, "damping": 0.45, "predelay_ms": 30, "width": 1.4, "mix": 1.0, "lowcut": 350},
+    "delay": {"fx": "delay", "beats": 0.75, "feedback": 0.45, "damping": 0.5, "pingpong": true, "mix": 1.0},
+    "buses": {
+      "drums": [{"fx": "compressor", "threshold_db": -12, "ratio": 2.5, "attack_ms": 10, "release_ms": 100, "knee_db": 6, "makeup_db": 1.5}],
+      "bass": [{"fx": "saturate", "kind": "tube", "drive_db": 2, "mix": 0.3}],
+      "music": [{"fx": "eq", "bands": [{"kind": "highpass", "freq": 150, "q": 0.7}]}]
+    },
+    "master": [
+      {"fx": "eq", "bands": [{"kind": "highpass", "freq": 26, "q": 0.7}]},
+      {"fx": "compressor", "threshold_db": -10, "ratio": 2.0, "attack_ms": 20, "release_ms": 150, "knee_db": 6},
+      {"fx": "saturate", "kind": "tanh", "drive_db": 1.5, "mix": 0.25}
+    ],
+    "duck_release": 0.3,
+    "levels": {"kick": 1.0, "arp": 1.0, "shaker": -5.0, "perc": -3.0}
+  }
+}

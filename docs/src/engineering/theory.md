@@ -326,15 +326,17 @@ isn't played. While it plays, the lanes it leaves alone play on, or the drummer'
 | drummer | genres | turns | fills |
 |---|---|---|---|
 | `boom_bap` | boom bap, alt hip hop, chipmunk soul, gangsta rap, hip hop | a kick pushed onto the last sixteenth, a kick double on three, a ghost dragged into the backbeat | kick and snare trading eighths, the snare three times on four, the beat stopped after the kick on three, a beat of silence |
-| `trap` | trap, cloud rap, emo rap, rage, plugg, phonk, crunk | a hat roll in thirty-seconds, hats in sixteenth triplets, a kick skip | snare triplets over triplet hats, a snare roll in sixteenth triplets, a beat or two dropped out |
+| `trap` | trap, cloud rap, emo rap, rage, plugg, phonk, crunk, hyperpop | a hat roll in thirty-seconds, hats in sixteenth triplets, a kick skip | snare triplets over triplet hats, a snare roll in sixteenth triplets, a beat or two dropped out |
 | `drill` | UK, NY and Chicago drill | hats in triplets, hats skipping in sixteenth triplets, a kick slide | snare flams late in the beat, a kick and two triplet snares, a beat dropped out |
-| `house` | house, deep house, tech house, filter house, electro house | a clap on the last sixteenth, the kick out for a beat, the open hat lifted | a clap roll, the kick out for two beats, a conga run |
-| `techno` | techno, dub techno | the kick out for a beat, a percussion skip | the kick out for two beats or a bar, a soft clap rising |
-| `trance` | trance | the kick out for a beat, a clap on the last sixteenth | a snare roll through the bar, eighths into sixteenths, a roll with the kick out |
-| `dnb` | drum and bass, jungle | ghost notes after the backbeat, the kick on the and | a snare rush, a break edit, a thirty-second stutter |
+| `house` | house, deep house, tech house, filter house, electro house, progressive house, slap house | a clap on the last sixteenth, the kick out for a beat, the open hat lifted | a clap roll, the kick out for two beats, a conga run |
+| `techno` | techno, dub techno, hard techno, melodic techno | the kick out for a beat, a percussion skip | the kick out for two beats or a bar, a soft clap rising |
+| `trance` | trance, big room | the kick out for a beat, a clap on the last sixteenth | a snare roll through the bar, eighths into sixteenths, a roll with the kick out |
+| `hard` | hardstyle, gabber | the kick out for a beat, the kick doubled on the last beat | the kick rolled in sixteenths, the kick in triplets, a snare roll through the bar, the kick out for two beats |
+| `club` | Jersey club | the kick in triplets on the last beat, the snare doubled | the kick in triplets for two beats, a snare roll in sixteenth triplets, a beat of silence |
+| `dnb` | drum and bass, jungle, breakcore | ghost notes after the backbeat, the kick on the and | a snare rush, a break edit, a thirty-second stutter |
 | `reggae` | reggae | the rim into the next bar, the open hat on the and | a triplet roll into the drop, toms down in triplets |
-| `dembow` | reggaeton | the timbal's sixteenths, the rim pushed ahead | a timbal roll, a stop on the last beat, a snare rush |
-| `afro` | afrobeats, amapiano | a conga pickup, the shaker out for a beat, the rim into the next bar | a conga run, the kick out under the log drum, a talking drum |
+| `dembow` | reggaeton, baile funk | the timbal's sixteenths, the rim pushed ahead | a timbal roll, a stop on the last beat, a snare rush |
+| `afro` | afrobeats, amapiano, afro house | a conga pickup, the shaker out for a beat, the rim into the next bar | a conga run, the kick out under the log drum, a talking drum |
 | `garage` | UK garage, grime | a snare skip, a kick skip, a rim skip | a shuffled snare run, a beat of silence |
 | `halftime` | dubstep, future bass | the kick doubled, a ghost snare | snare triplets, a rush, a stutter, a beat of silence before the drop |
 | `rock` | art rock, neo-psychedelia | the snare doubled, the kick pushed | toms down the kit, the snare into the toms, a bar of snare and toms, sixteenths on the snare |
@@ -417,7 +419,7 @@ a variation of a take keeps its rhythm and changes what it plays around it, and 
 | `disco` | root and octave in eighths, walking up into the next chord | nu-disco, filter house, dance pop |
 | `garage` | skipping: long and short notes off the beat, octave jumps, swung | UK garage |
 | `dembow` | the root on the three-three-two of the tresillo, held under the kick | reggaeton |
-| `afro` | smooth and syncopated, on the tresillo's pushes, gliding into the next chord early | afrobeats |
+| `afro` | smooth and syncopated, on the tresillo's pushes, gliding into the next chord early | afrobeats, afro house |
 | `log_drum` | short pitched hits off the beat, jumping octaves and fifths, bending now and then | amapiano |
 | `walking` | a note on every beat, chord tones and walks, a chromatic approach into each change | jazz rap, lo-fi, boom bap, neo-soul |
 | `neo_soul` | behind the beat and melodic, passing tones and ghosts, sliding into the chords | neo-soul, R&B, alternative R&B |
@@ -427,11 +429,11 @@ a variation of a take keeps its rhythm and changes what it plays around it, and 
 | `boom_bap` | the root held from the one, a pickup into beat three, long round notes | boom bap, hip hop, jazz rap, gangsta rap |
 | `lofi` | sparse and behind the beat, a fifth on the and of two, an approach into the change | lo-fi |
 | `two_step` | long notes on the kicks of the two-step, the one and the and of three | drum and bass |
-| `jungle_dub` | a deep sub moving in half notes under the break, reggae's roots and fifths | jungle |
+| `jungle_dub` | a deep sub moving in half notes under the break, reggae's roots and fifths | jungle, breakcore |
 | `halftime` | long notes and short restarts around the snare on three | dubstep |
 | `dub` | deep and held, with room around it | dub techno |
 | `house_organ` | short syncopated hits, three, three and two, around the four on the floor | house, deep house, electro house, filter house |
-| `deep` | warm and longer, off the beat, the fifth at the end of the bar | deep house |
+| `deep` | warm and longer, off the beat, the fifth at the end of the bar | deep house, afro house |
 | `tech` | rubbery short sixteenths between the kicks, a groove more than a line | tech house |
 | `new_jack` | punchy swung sixteenths, octaves and fifths | new jack swing, 90s R&B |
 | `grime` | sparse square-wave stabs, a lot of room | grime |
@@ -483,7 +485,7 @@ into it, as gospel and funk players slide into their changes.
 
 | idiom | how it plays | genres |
 |---|---|---|
-| `house_piano` | short stabs off the beat, three, three and two around the kick | house, deep house, tech house, UK garage, amapiano, dance pop |
+| `house_piano` | short stabs off the beat, three, three and two around the kick | house, deep house, tech house, UK garage, amapiano, dance pop, progressive house |
 | `gospel` | chords pushed ahead of the beat, short and long, slipped into | neo-soul, jazz rap, funk, nu-disco, afrobeats, amapiano |
 | `lofi_comp` | one chord on the one, another late in the bar, room between | lo-fi, jazz rap, boom bap, trip hop |
 | `trap_keys` | the chord held from the one, its top voice picked out above it | trap, the drill genres, hip hop, cloud rap, plugg |
@@ -493,14 +495,14 @@ into it, as gospel and funk players slide into their changes.
 | `skank` | a short chord chopped on every offbeat | reggae, afrobeats |
 | `scratch` | funk's chicken scratch: muted sixteenths, a chord hit hard on the backbeat | funk, nu-disco |
 | `strum` | down on the beats, up on the offbeats, in eighths | neo-psychedelia, emo rap |
-| `highlife` | a bright picked pattern through the chord's upper voices | afrobeats |
+| `highlife` | a bright picked pattern through the chord's upper voices | afrobeats, afro house |
 | `arpeggio` | the chord's voices one at a time, up and back | emo rap, neo-psychedelia |
 | `legato` | strings: each chord held, bowed again in a phrase's last bar | neo-soul, G-funk, trip hop, ambient |
 | `ostinato` | strings: one voice after another in short driving eighths | the drill genres, art rock, gangsta rap |
 | `pizzicato` | plucked strings: short notes through the chord, room between | grime, UK drill |
 | `disco_strings` | stabs off the beat, and a run up through the chord into the next phrase | nu-disco, chipmunk soul |
 | `tremolo` | strings: the chord bowed in fast soft sixteenths, for tension | ambient, trip hop |
-| `brass_stabs` | a horn section's stabs: short, hard and syncopated | big beat, crunk, new jack swing, Chicago drill |
+| `brass_stabs` | a horn section's stabs: short, hard and syncopated | big beat, crunk, new jack swing, Chicago drill, baile funk |
 
 ### Lead idioms
 
@@ -513,25 +515,25 @@ its cells and draws its octaves, slides, approaches and pushes again.
 | idiom | how it goes | genres |
 |---|---|---|
 | `gfunk_whine` | a high portamento synth gliding between long notes, from the fifth up to the octave | G-funk, gangsta rap |
-| `trap_bells` | a dark motif in eighths, the fifth and the third round the root, an octave now and then | trap, plugg, cloud rap, rage, hip hop |
+| `trap_bells` | a dark motif in eighths, the fifth and the third round the root, an octave now and then | trap, plugg, cloud rap, rage, hip hop, hyperpop |
 | `drill_melody` | a piano or a flute bouncing in triplets, dark and sliding | UK, NY and Chicago drill |
-| `afro_flute` | a bright call pushed ahead of the beat and answered, room between | afrobeats, amapiano |
-| `dembow_hook` | the melody on the dembow's tresillo, three, three and two | reggaeton |
-| `synth_lead` | long notes leaping an octave, falling home at the phrase's end | synthwave, trance, neo-psychedelia, dance pop, drum and bass |
-| `trance_lead` | gated eighths up the chord to the octave and back, a falling run to end the phrase | trance, electro house |
+| `afro_flute` | a bright call pushed ahead of the beat and answered, room between | afrobeats, amapiano, afro house |
+| `dembow_hook` | the melody on the dembow's tresillo, three, three and two | reggaeton, baile funk |
+| `synth_lead` | long notes leaping an octave, falling home at the phrase's end | synthwave, trance, neo-psychedelia, dance pop, drum and bass, progressive house, slap house, hardstyle, melodic techno |
+| `trance_lead` | gated eighths up the chord to the octave and back, a falling run to end the phrase | trance, electro house, big room, progressive house, hardstyle |
 | `organ_riff` | short notes off the beat, syncopated round the kick | house, deep house, nu-disco, UK garage, amapiano |
-| `disco_hook` | bright octaves and chord tones in eighths, a run down to end it | nu-disco, dance pop, future bass |
-| `horn_riff` | short and punchy, the root and the fifth with rests between, answered | boom bap, funk, jazz rap, reggae, big beat, crunk, new jack swing |
+| `disco_hook` | bright octaves and chord tones in eighths, a run down to end it | nu-disco, dance pop, future bass, hyperpop |
+| `horn_riff` | short and punchy, the root and the fifth with rests between, answered | boom bap, funk, jazz rap, reggae, big beat, crunk, new jack swing, baile funk |
 | `reggae_horns` | a long, lazy line answering the singer, from the fifth down to the root | reggae, jungle |
-| `riff` | eighths and sixteenths round the root, leaping an octave | grime, electro house, rage, dubstep, big beat, crunk |
-| `garage_chop` | a chopped vocal: short stabs skipping off the beat | UK garage, house, deep house, future bass |
-| `lofi_melody` | lazy and sparse, on the sevenths and ninths, slipping into the next chord | lo-fi, jazz rap, neo-soul, trip hop, 90s R&B, alt hip hop |
+| `riff` | eighths and sixteenths round the root, leaping an octave | grime, electro house, rage, dubstep, big beat, crunk, big room, progressive house, slap house, hardstyle, hard techno, gabber, hyperpop, jersey club, baile funk |
+| `garage_chop` | a chopped vocal: short stabs skipping off the beat | UK garage, house, deep house, future bass, slap house, jersey club |
+| `lofi_melody` | lazy and sparse, on the sevenths and ninths, slipping into the next chord | lo-fi, jazz rap, neo-soul, trip hop, 90s R&B, alt hip hop, breakcore |
 | `rnb_runs` | long smooth notes, and a run down the scale at the phrase's end | R&B, 90s R&B, alt R&B, neo-soul, new jack swing, G-funk |
 | `rock_lead` | a guitar's eighths up the chord and back, a bend into the root | art rock, neo-psychedelia, emo rap |
-| `ambient_line` | a note now and then, held long, an octave away | ambient, cloud rap, plugg, alt R&B, art rock, emo rap, trip hop, drum and bass, jungle, IDM |
-| `techno_stab` | one note, hypnotic, off the beat or every three sixteenths against it, a fifth now and then | techno |
+| `ambient_line` | a note now and then, held long, an octave away | ambient, cloud rap, plugg, alt R&B, art rock, emo rap, trip hop, drum and bass, jungle, IDM, afro house, melodic techno, breakcore |
+| `techno_stab` | one note, hypnotic, off the beat or every three sixteenths against it, a fifth now and then | techno, hard techno, gabber |
 | `phonk_cowbell` | a Memphis melody in sixteenths on a pitched cowbell | phonk |
-| `piano_riff` | the 90s' dark piano: the fifth hammered, falling to the third and the root | gangsta rap, hip hop, trap, Chicago drill, boom bap, alt hip hop |
+| `piano_riff` | the 90s' dark piano: the fifth hammered, falling to the third and the root | gangsta rap, hip hop, trap, Chicago drill, boom bap, alt hip hop, breakcore |
 
 ## Sounds for parts and drums
 

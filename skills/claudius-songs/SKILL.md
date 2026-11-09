@@ -241,5 +241,5 @@ The person can do the same in the studio's Publish dialog. Before you call it:
 
 - [references/script.md](references/script.md): the language, sounds, recipes and the mistakes to avoid
 - [references/verdict.md](references/verdict.md): every issue the critic raises, and what to change
-- [references/genres.md](references/genres.md): a starting point for each of the fifty-one genres
+- [references/genres.md](references/genres.md): a starting point for each of the sixty-three genres
 - [references/tools.md](references/tools.md): the MCP tools and the commands, side by side

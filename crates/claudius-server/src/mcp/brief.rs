@@ -145,9 +145,11 @@ pub fn read(text: &str, genres: &[GenreInfo]) -> Result<Brief, String> {
                 .collect();
             // each word searched on its own, as the search wants every word it is given: the genre they find most,
             // a word of its name or another name of it counting for more than one that only begins one ("hard" of
-            // "hardcore"), and that for more than any word its description has
-            let mut found: Vec<(&GenreInfo, usize)> = Vec::new();
-            for word in &plain {
+            // "hardcore"), and that for more than any word its description has; of genres found as much, the one a
+            // later word finds, as a phrase ends on what it is ("hard hitting drill beat" is drill, and "hard" only
+            // how it hits)
+            let mut found: Vec<(&GenreInfo, usize, usize)> = Vec::new();
+            for (at, word) in plain.iter().enumerate() {
                 let of = claudius_api::search_genres(genres, word);
                 if of.len() == genres.len() {
                     continue;
@@ -164,14 +166,15 @@ pub fn read(text: &str, genres: &[GenreInfo]) -> Result<Brief, String> {
                     } else {
                         1
                     };
-                    match found.iter_mut().find(|(f, _)| f.name == g.name) {
-                        Some((_, n)) => *n += weight,
-                        None => found.push((g, weight)),
+                    match found.iter_mut().find(|(f, _, _)| f.name == g.name) {
+                        Some((_, n, last)) => (*n, *last) = (*n + weight, at),
+                        None => found.push((g, weight, at)),
                     }
                 }
             }
-            let most = found.iter().map(|(_, n)| *n).max().unwrap_or(0);
-            let Some((g, _)) = found.iter().find(|(_, n)| *n == most && most > 0) else {
+            let most = found.iter().map(|(_, n, _)| *n).max().unwrap_or(0);
+            let latest = found.iter().filter(|(_, n, _)| *n == most).map(|(_, _, at)| *at).max().unwrap_or(0);
+            let Some((g, _, _)) = found.iter().find(|(_, n, at)| *n == most && *at == latest && most > 0) else {
                 return Err(format!(
                     "the brief names no genre, and none is near it: ask the person which, or find_genre with their \
                      words (\"{text}\")"
@@ -277,6 +280,9 @@ mod tests {
         assert_eq!(genre("trip hop with idm drums"), "trip_hop+idm");
         assert_eq!(genre("drum and bass, liquid, 174 bpm"), "dnb");
         assert!(genre("hard hitting drill beat").ends_with("drill"), "{}", genre("hard hitting drill beat"));
+        assert_eq!(genre("a hard techno track at 150"), "hard_techno");
+        assert_eq!(genre("a festival edm banger"), "big_room");
+        assert_eq!(genre("baile funk with shouted vocals"), "baile_funk");
         assert!(read("something for a summer beach party", &real).is_err(), "nothing near: ask the person");
     }
 
