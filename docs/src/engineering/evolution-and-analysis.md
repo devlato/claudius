@@ -192,10 +192,14 @@ pattern of 1, 2 or 4 bars.
   near its kind: a kick's 0.12 under 150 Hz, a hat's 0.2 over 5 kHz with next to nothing in the body, a snare's 40 %
   between. Otherwise the recording lacks that kind (a loop of kicks alone still makes three clusters), and its hits
   are named alone: a quarter under 150 Hz is a kick, a half over 5 kHz (or a fifth, with nothing in the body) a hat,
-  the rest a snare. Those thresholds come from the shares of about 2,400 hits in GarageBand's single-drum loops.
+  the rest a snare. Those thresholds come from the shares of about 2,400 hits in GarageBand's single-drum loops. A
+  snare whose noise lies over 5 kHz more than from 800 Hz to 5 kHz is a hat: an open hat, which a snare's and a clap's
+  noise lies the other way round from.
 - **A second sound.** A hit that adds to another kind's band far more than hits of its own kind do there (a quarter
   of them add less) is that kind too: half what that kind's own hits add, or, when every one of them lies under
-  other hits (open hats on the kicks), three times what its own kind adds.
+  other hits (open hats on the kicks), three times what its own kind adds. A kick that adds from 800 Hz to 5 kHz half
+  what the louder snares (the loudest quarter) add there, beyond what kicks usually do, has a snare or a clap on it,
+  as house claps on the kick's two and four; a rim on the kick adds about a third of that.
 - **Folding.** A step hit in at least three quarters of the times round is a hit; one hit in a quarter to three
   quarters plays with that chance (a trig's `prob`). Its velocity is its median level against the loudest of its kind,
   to the power 0.6.
