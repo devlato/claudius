@@ -471,7 +471,7 @@ synth presets playing a phrase in `synth/`, and five transition effects in `fx/`
 |---|---|
 | `claudius genres` | every genre by family, with its tempo range and description, including your own genre files (under "your own" when they name no family) |
 | `claudius genres WORDS` | the genres that answer a search, best first: a name or another name, an era, a scene, an artist or a sound (`claudius genres west coast`, `claudius genres 90s`) |
-| `claudius examples` | the [example songs](../cookbook/examples.md) by decade and then the classics remade: each one's name, title, style and the artists the style is heard on (of a classic, the piece) |
+| `claudius examples` | the [example songs](../cookbook/examples.md) by decade, then the classics remade, the songs built of layered sounds and the studies of famous records: each one's name, title, style and the artists the style is heard on (of a classic, the piece; of a study, the record) |
 | `claudius examples NAME` | that example's script, with the notes on how its style is made: `claudius examples flashbulb > flashbulb.rhai`, then `claudius script flashbulb.rhai` renders it |
 | `claudius reference` | the script language reference, the same text `/api/reference` and the MCP tool `script_reference` return |
 | `claudius --version` | the version |

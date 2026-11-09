@@ -728,9 +728,10 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
 /// the New song dialog from an example: a card for each example song, by decade, and Open it
 fn from_example(ui: &mut Ui, cx: &mut Cx) {
     ui.label(small(
-        "Original songs in the style of the hits of each decade, classics in the public domain remade, and songs \
-         built of layered sounds, each written as a script whose notes say how its style is made: open one, listen, \
-         and read it in the Script tab. None copies a record.",
+        "Original songs in the style of the hits of each decade, classics in the public domain remade, songs built \
+         of layered sounds, and studies of famous records, each written as a script whose notes say how its style is \
+         made: open one, listen, and read it in the Script tab. None copies a record: a study takes its record's \
+         tempo, key, chords, groove and sound, with melodies of its own.",
     ));
     ui.add_space(6.0);
     let f = &mut cx.view.new_song;
