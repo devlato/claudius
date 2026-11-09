@@ -1,13 +1,14 @@
-//! The example songs: one in the style of the hits of each scene of the 1990s, 2000s, 2010s and 2020s, and a few
-//! melodies in the public domain remade in modern styles, as scripts (crates/claudius-api/songs/*.rhai) whose comments
-//! say how the style is made. The studio's New song dialog, the assistants' `examples` and `open_example` tools and
-//! `claudius examples` open them. They are here, beside the wire types, because the web studio holds them without the
-//! engine, which runs in a worker of its own.
+//! The example songs: one in the style of the hits of each scene of the 1990s, 2000s, 2010s and 2020s, a few melodies
+//! in the public domain remade in modern styles, songs built of layered sounds, and studies of famous records, as
+//! scripts (crates/claudius-api/songs/*.rhai) whose comments say how the style is made. The studio's New song dialog,
+//! the assistants' `examples` and `open_example` tools and `claudius examples` open them. They are here, beside the
+//! wire types, because the web studio holds them without the engine, which runs in a worker of its own.
 //!
-//! None of them copies a record. A style is named for the artists it is heard on, but every melody, bass line,
-//! chord voicing and drum pattern is the song's own, or a public-domain composer's, and it plays only claudius'
-//! synths and drum voices, so that it sounds the same everywhere: without the sample packs, offline, and in the
-//! online demo.
+//! None of them copies a record. A style is named for the artists it is heard on, and a study for the record it
+//! studies, but every melody, bass line, chord voicing and drum pattern is the song's own, or a public-domain
+//! composer's: a study takes what a producer may take from a record, its tempo, key, chords, groove, sounds and form.
+//! Each plays only claudius' synths and drum voices, so that it sounds the same everywhere: without the sample packs,
+//! offline, and in the online demo.
 
 /// an example song: what it is like, and the script that makes it
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -19,7 +20,8 @@ pub struct Example {
     pub era: &'static str,
     /// the style, in words: "synth-pop, the 80s revival"
     pub style: &'static str,
-    /// the artists the style is heard on, for orientation: the song is none of theirs. Of a classic remade, the piece
+    /// the artists the style is heard on, for orientation: the song is none of theirs. Of a classic remade, the piece;
+    /// of a study, the record
     pub like: &'static str,
     /// the genre its script starts from, `blank(genre)`
     pub genre: &'static str,
@@ -27,17 +29,23 @@ pub struct Example {
 }
 
 impl Example {
-    /// "like Massive Attack, Portishead, Tricky", or of a classic remade "on Beethoven's Ode to Joy (1824)"
+    /// "like Massive Attack, Portishead, Tricky", of a classic remade "on Beethoven's Ode to Joy (1824)", or of a study
+    /// "a study of 50 Cent's In Da Club (2003)"
     pub fn like_words(&self) -> String {
-        if self.era == CLASSICS { format!("on {}", self.like) } else { format!("like {}", self.like) }
+        match self.era {
+            CLASSICS => format!("on {}", self.like),
+            STUDIES => format!("a study of {}", self.like),
+            _ => format!("like {}", self.like),
+        }
     }
 
-    /// what it is: "Bristol trip hop of the 1990s, like Massive Attack, Portishead, Tricky", or of a classic remade
-    /// "festival EDM on Beethoven's Ode to Joy (1824)"
+    /// what it is: "Bristol trip hop of the 1990s, like Massive Attack, Portishead, Tricky", of a classic remade
+    /// "festival EDM on Beethoven's Ode to Joy (1824)", or of a study "club rap, a study of 50 Cent's In Da Club (2003)"
     pub fn in_words(&self) -> String {
         match self.era {
             CLASSICS => format!("{} {}", self.style, self.like_words()),
             LAYERED => format!("{} built of layered sounds, {}", self.style, self.like_words()),
+            STUDIES => format!("{}, {}", self.style, self.like_words()),
             decade => format!("{} of the {decade}, {}", self.style, self.like_words()),
         }
     }
@@ -306,6 +314,69 @@ pub const ALL: &[Example] = &[
         genre: "dnb",
         script: include_str!("../songs/reese_machine.rhai"),
     },
+    Example {
+        name: "in_the_end_study",
+        title: "In the End Study",
+        era: STUDIES,
+        style: "rap rock",
+        like: "Linkin Park's In the End (2000)",
+        genre: "art_rock",
+        script: include_str!("../songs/in_the_end_study.rhai"),
+    },
+    Example {
+        name: "in_da_club_study",
+        title: "In Da Club Study",
+        era: STUDIES,
+        style: "club rap",
+        like: "50 Cent's In Da Club (2003)",
+        genre: "hip_hop",
+        script: include_str!("../songs/in_da_club_study.rhai"),
+    },
+    Example {
+        name: "yonkers_study",
+        title: "Yonkers Study",
+        era: STUDIES,
+        style: "dark, minimal hip hop",
+        like: "Tyler, the Creator's Yonkers (2011)",
+        genre: "hip_hop",
+        script: include_str!("../songs/yonkers_study.rhai"),
+    },
+    Example {
+        name: "bad_guy_study",
+        title: "Bad Guy Study",
+        era: STUDIES,
+        style: "minimal electropop",
+        like: "Billie Eilish's bad guy (2019)",
+        genre: "hip_hop",
+        script: include_str!("../songs/bad_guy_study.rhai"),
+    },
+    Example {
+        name: "anti_hero_study",
+        title: "Anti-Hero Study",
+        era: STUDIES,
+        style: "synth-pop",
+        like: "Taylor Swift's Anti-Hero (2022)",
+        genre: "synthwave",
+        script: include_str!("../songs/anti_hero_study.rhai"),
+    },
+    Example {
+        name: "chihiro_study",
+        title: "Chihiro Study",
+        era: STUDIES,
+        style: "slow-building electronic pop",
+        like: "Billie Eilish's CHIHIRO (2024)",
+        genre: "deep_house",
+        script: include_str!("../songs/chihiro_study.rhai"),
+    },
+    Example {
+        name: "big_poe_study",
+        title: "Big Poe Study",
+        era: STUDIES,
+        style: "synth-funk rap",
+        like: "Tyler, the Creator and Pharrell Williams' BIG POE (2025)",
+        genre: "boom_bap",
+        script: include_str!("../songs/big_poe_study.rhai"),
+    },
 ];
 
 /// the era of the melodies in the public domain remade in a modern style
@@ -314,8 +385,12 @@ pub const CLASSICS: &str = "classics remade";
 /// the era of the songs built to show layered sounds (`rack()`): a bass, chords or a snare of several sounds at once
 pub const LAYERED: &str = "layered sounds";
 
-/// the eras the examples are of, in order: the decades, then the classics remade
-pub const ERAS: [&str; 6] = ["1990s", "2000s", "2010s", "2020s", CLASSICS, LAYERED];
+/// the era of the studies of famous records: each one's tempo, key, chords, groove, sounds and form, with melodies of
+/// its own
+pub const STUDIES: &str = "famous songs, studied";
+
+/// the eras the examples are of, in order: the decades, the classics remade, the layered sounds, then the studies
+pub const ERAS: [&str; 7] = ["1990s", "2000s", "2010s", "2020s", CLASSICS, LAYERED, STUDIES];
 
 /// The example asked for by its name or its title, whatever its case, spaces, hyphens or underscores:
 /// `midnight_overdrive`, "Midnight Overdrive", "midnight-overdrive".
@@ -394,5 +469,18 @@ mod tests {
         assert_eq!(decade.as_deref(), Some("Bristol trip hop of the 1990s, like Massive Attack, Portishead, Tricky"));
         let classic = get("joy_machine").map(Example::in_words);
         assert_eq!(classic.as_deref(), Some("festival EDM on Beethoven's Ode to Joy (1824)"));
+        let study = get("in_da_club_study").map(Example::in_words);
+        assert_eq!(study.as_deref(), Some("club rap, a study of 50 Cent's In Da Club (2003)"));
+    }
+
+    #[test]
+    fn a_study_names_the_record_it_studies_and_says_its_melodies_are_its_own() {
+        for e in ALL.iter().filter(|e| e.era == STUDIES) {
+            let about = notes(e);
+            let about = about.split_once("\n\n").map_or(about.as_str(), |(a, _)| a);
+            assert!(about.contains("a production study of") && about.contains("no note of the record's"), "{about}");
+            let whose = e.like.contains("'s ") || e.like.contains("s' ");
+            assert!(whose && e.like.ends_with(')'), "{}: {}", e.name, e.like);
+        }
     }
 }

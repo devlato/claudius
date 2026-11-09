@@ -4,8 +4,9 @@ claudius comes with example songs, each in the style of the hits of one scene of
 beat, boom bap, G-funk and piano house; French house, electropop, UK garage, trance, crunk and art rock; festival
 EDM, future bass, dubstep, tropical house, trap and alternative R&B; the 80s revival in synth-pop, the disco
 revival, afrobeats, reggaeton, amapiano and tech house. Three more remake classics whose music is in the public
-domain: Beethoven, Pachelbel and Grieg, and three are built to show layered sounds: a bass, chords or a snare
-played by several sounds at once. Each is a script whose opening notes say how its style is made: the tempo
+domain: Beethoven, Pachelbel and Grieg, three are built to show layered sounds: a bass, chords or a snare
+played by several sounds at once, and seven study famous records, from Linkin Park's In the End to Billie Eilish's
+bad guy. Each is a script whose opening notes say how its style is made: the tempo
 and the groove, the chords, the sounds, the arrangement and the mix. Opening one is a way to hear how a style is
 built, to read how, and to start a song from it.
 
@@ -78,6 +79,25 @@ by several sounds at once, each in its own band, with its own level, duck and ef
 | Neon Rumble (`neon_rumble`) | bass house | Jauz, Joyryde, Habstrakt | one bass line played by three: a sine sub under 90 Hz that alone ducks under the kick, a reese distorted from 90 Hz to 1.2 kHz, and a saw an octave up over it, gated into a sixteenth stutter |
 | Skyline Fracture (`skyline_fracture`) | melodic dubstep | Seven Lions, Illenium, Said the Sky | huge chords of a warm pad under 300 Hz, a supersaw spread wide above it and a pluck shimmering on top; a sub under a wobble kept out of its way |
 | Reese Machine (`reese_machine`) | neurofunk drum and bass | Noisia, Mefjus, Phace | a reese split into three bands, the sub clean, the body phased, the top crushed and gated; a snare of a snare, a clap and a burst of noise |
+
+### Famous songs, studied
+
+Seven studies of famous records, to hear how near claudius comes to the sound of a hit, and what it takes. Each
+takes from its record what a producer may take: the tempo and key, the chords, the groove and drum programming, the
+kinds of sound, the form and the mix. A record's melodies, hooks, riffs and words belong to the people who wrote
+them, so every melody, riff and bass line here is the study's own, and its notes say which part of the record each
+one stands in for. They play claudius' synths, so a guitar is a supersaw driven through a tube and a voice is a
+lead line: what is left of the difference is what claudius cannot do yet.
+
+| song | style | studies | listen for |
+|---|---|---|---|
+| In the End Study (`in_the_end_study`) | rap rock | Linkin Park's In the End (2000) | a piano alone with chords held under a plain line, i VI VII under the verses and the lift to the relative major in the chorus, a wall of power-chord guitars over a picked bass |
+| In Da Club Study (`in_da_club_study`) | club rap | 50 Cent's In Da Club (2003) | a kick that lands off the beat as often as on it, a clap on 2 and 4, staccato strings in the gaps the kick leaves, a deep round bass and almost no reverb |
+| Yonkers Study (`yonkers_study`) | dark, minimal hip hop | Tyler, the Creator's Yonkers (2011) | 79 BPM and dry, a booming kick and a cracked snare, a loop that slips a semitone down and back, a bass of a clean sub and a driven synth, an eerie lead and a cold bell |
+| Bad Guy Study (`bad_guy_study`) | minimal electropop | Billie Eilish's bad guy (2019) | a kick on every beat and finger snaps, a buzzing bass riff on the root and its octave, a cartoonish hook after each chorus, a half-time bridge with a distorted kick and a sliding 808 |
+| Anti-Hero Study (`anti_hero_study`) | synth-pop | Taylor Swift's Anti-Hero (2022) | IV I V vi starting on the four, a gated snare and eighth-note hats, a synth bass on eighths, a soft hook between the lines and an arpeggio in the chorus |
+| Chihiro Study (`chihiro_study`) | slow-building electronic pop | Billie Eilish's CHIHIRO (2024) | a kick on every beat and snaps, a palm-muted funky bass from the first bar to the last, a pad pumping with the kick, an arpeggio whose filter opens across each chorus |
+| Big Poe Study (`big_poe_study`) | synth-funk rap | Tyler, the Creator and Pharrell Williams' BIG POE (2025) | a boom bap beat at dance speed, a rubbery bass jumping octaves, brass stabs on the offbeats, a chant-like pad over claps in the intro and the break |
 
 Each script starts from `blank()` in its genre, so it brings the genre's mix (its buses, master chain and loudness)
 and writes everything else itself. To make one your own, change a line and run it again: the tempo, the

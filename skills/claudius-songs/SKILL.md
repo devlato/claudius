@@ -185,6 +185,7 @@ People say what they hear, not which setting to change. The usual requests, and 
 |---|---|
 | "make me a ..." in a sentence | `make_song` with their words |
 | "how is a ... song made?", "show me 90s trip hop" | `examples`, then `open_example`: an original song in that style, with notes on how it is made |
+| "make In the End", "a song like bad guy" | `examples` lists the studies of famous records; `open_example` opens one (`in_the_end_study`, `bad_guy_study` ...): the record's tempo, key, chords, groove and sound with melodies of its own, since a record's melody, hook and words are its writers' |
 | "faster", "slower", "in a minor key" | `tempo()`, `key()` in a script, or `command` `set_tempo`, `set_key` |
 | "the bass / vocals / hats are too loud (quiet)" | `mix(track, #{ level })` 2 to 3 dB at a time |
 | "I don't like this bass (sound)" | `swap_sound` with the track; it lists what else it could play |
