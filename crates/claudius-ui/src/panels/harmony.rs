@@ -64,7 +64,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         if song.progressions.is_empty() {
             ui.label(RichText::new("This song has no progressions.").color(TEXT_FAINT));
         }
-        egui::ScrollArea::vertical().id_salt("harmony").auto_shrink([false, false]).show(ui, |ui| {
+        // the dock scrolls the tab as one page, progressions and all
+        ui.vertical(|ui| {
             for (name, chords) in &song.progressions {
                 let color = theme::prog_color(name);
                 egui::Frame::new()
