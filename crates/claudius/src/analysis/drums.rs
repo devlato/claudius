@@ -61,12 +61,19 @@ struct Sound {
     body: f32,
     high: f32,
     rise: [f32; 3],
+    /// what it adds from 800 Hz to 5 kHz, where a snare's and a clap's noise lies and a kick's next to nothing
+    upper: f32,
 }
 
 impl Sound {
     /// the share of what it adds between the low and the high band
     fn middle(&self) -> f32 {
         (1.0 - self.low - self.high).max(0.0)
+    }
+
+    /// the share of what it adds from 800 Hz to 5 kHz
+    fn upper_share(&self) -> f32 {
+        self.upper / self.rise.iter().sum::<f32>().max(1e-12)
     }
 }
 
@@ -139,6 +146,7 @@ fn sounds(x: &Stereo) -> Vec<Sound> {
                 body: bd / all,
                 high: hi / all,
                 rise: [lo, bd + up, hi],
+                upper: up,
             }
         })
         .filter(|s| s.level > 1e-4)
@@ -150,8 +158,15 @@ fn sounds(x: &Stereo) -> Vec<Sound> {
 
 /// what each of `sounds` is (two kinds, where a second sound lies under one)
 fn classify(sounds: &[Sound]) -> Vec<Hit> {
-    // a snare adds most of its energy in the middle: a hit that adds little there is a kick or a hat
-    let kinds: Vec<Kind> = name(sounds)
+    // a snare adds most of its energy in the middle: a hit that adds little there is a kick or a hat. And where a
+    // quarter of the recording's snares at least have their noise from 800 Hz to 5 kHz more than over it, as claps
+    // and most snares do, one with its noise over 5 kHz more is a hat (an open hat, which a drum stem's bleed gives a
+    // body); a recording whose snares are all bright keeps them
+    let named = name(sounds);
+    let under = |s: &Sound| s.upper_share() >= s.high;
+    let snares: Vec<&Sound> = sounds.iter().zip(&named).filter(|(_, k)| **k == Kind::Snare).map(|(s, _)| s).collect();
+    let split = snares.iter().filter(|s| under(s)).count() * 4 >= snares.len() && snares.iter().any(|s| !under(s));
+    let kinds: Vec<Kind> = named
         .into_iter()
         .zip(sounds)
         .map(|(k, s)| match k {
@@ -162,6 +177,7 @@ fn classify(sounds: &[Sound]) -> Vec<Hit> {
                     Kind::Hat
                 }
             }
+            Kind::Snare if split && !under(s) => Kind::Hat,
             k => k,
         })
         .collect();
@@ -187,6 +203,21 @@ fn classify(sounds: &[Sound]) -> Vec<Hit> {
             if k != kind && s.rise[band] - own >= need {
                 let part = ((s.rise[band] - own) / s.rise.iter().sum::<f32>().max(1e-12)).sqrt();
                 out.push(Hit { t: s.t, kind, level: s.level * part });
+            }
+        }
+    }
+    // a snare or a clap struck with a kick (house's claps on two and four): a kick that adds from 800 Hz to 5 kHz half
+    // what the louder snares heard alone add there, beyond what kicks usually do (a rim on the kick adds less)
+    let upper = |kind: Kind, at: f32| {
+        let mut r: Vec<f32> = sounds.iter().zip(&kinds).filter(|(_, k)| **k == kind).map(|(s, _)| s.upper).collect();
+        r.sort_by(f32::total_cmp);
+        r.get(((r.len() as f32 * at) as usize).min(r.len().saturating_sub(1))).copied()
+    };
+    if let (Some(snares), Some(own)) = (upper(Kind::Snare, 0.75), upper(Kind::Kick, 0.25)) {
+        for (s, _) in sounds.iter().zip(&kinds).filter(|(_, k)| **k == Kind::Kick) {
+            if s.upper - own >= 0.5 * snares && snares > 0.0 {
+                let part = ((s.upper - own) / s.rise.iter().sum::<f32>().max(1e-12)).sqrt();
+                out.push(Hit { t: s.t, kind: Kind::Snare, level: s.level * part });
             }
         }
     }
@@ -348,6 +379,58 @@ impl Steps {
 mod tests {
     use super::*;
     use crate::rng::Rng;
+
+    /// house at 100 BPM for `bars` bars: a kick on every beat, a clap on two and four (on the kick), an open hat on
+    /// every offbeat, and a clap alone at the end of every bar
+    fn house(bars: usize) -> Stereo {
+        let spb = 0.6;
+        let n = (bars as f64 * 4.0 * spb * SRF) as usize + 9_600;
+        let mut l = vec![0f32; n];
+        let mut rng = Rng::new(3);
+        let sr = SRF as f32;
+        let fade = |i: usize, len: f32| ((len * sr - i as f32) / (0.01 * sr)).min(1.0);
+        let mut add = |at: f64, x: Vec<f32>| {
+            let a = (0.1 * SRF + at * spb * SRF) as usize;
+            for (o, v) in l[a..].iter_mut().zip(x) {
+                *o += v;
+            }
+        };
+        let kick = || -> Vec<f32> {
+            let mut ph = 0f32;
+            (0..(0.4 * sr) as usize)
+                .map(|i| {
+                    let t = i as f32 / sr;
+                    ph += std::f32::consts::TAU * (50.0 + 100.0 * (-t / 0.03).exp()) / sr;
+                    0.9 * ph.sin() * (-t / 0.15).exp() * fade(i, 0.4)
+                })
+                .collect()
+        };
+        let mut noise = |lo: f64, hi: f64, decay: f32, gain: f32, len: f32| -> Vec<f32> {
+            let mut x: Vec<f32> = (0..(len * sr) as usize).map(|_| rng.f32() * 2.0 - 1.0).collect();
+            filter::butter(&mut x, true, lo, SRF, 4);
+            filter::butter(&mut x, false, hi, SRF, 4);
+            x.iter().enumerate().map(|(i, v)| gain * v * (-(i as f32 / sr) / decay).exp() * fade(i, len)).collect()
+        };
+        for b in 0..bars {
+            let bar = b as f64 * 4.0;
+            for k in 0..4 {
+                add(bar + k as f64, kick());
+                add(bar + k as f64 + 0.5, noise(6000.0, 16_000.0, 0.12, 0.3, 0.3));
+            }
+            for c in [1.0, 3.0, 3.75] {
+                add(bar + c, noise(900.0, 4500.0, 0.05, 0.7, 0.2));
+            }
+        }
+        Stereo { l: l.clone(), r: l }
+    }
+
+    #[test]
+    fn a_clap_struck_with_the_kick_is_both_and_an_open_hat_is_no_snare() {
+        let steps = fold(&hear(&house(4)), 100.0, 0.1, 1);
+        assert_eq!(of(&steps, Kind::Kick), [0, 4, 8, 12]);
+        assert_eq!(of(&steps, Kind::Snare), [4, 12, 15], "the claps on two and four, and the one alone");
+        assert_eq!(of(&steps, Kind::Hat), [2, 6, 10, 14]);
+    }
 
     /// a kit (or a mouth, `mouth`) playing `bars` bars at 100 BPM: kick on 1, 3 and the "and" of 3, snare on 2 and
     /// 4, hats on the eighths between, and a kick with a hat on top of it on 1
