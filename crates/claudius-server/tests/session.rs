@@ -63,6 +63,8 @@ async fn a_session_edits_renders_and_undoes() {
         variant: None,
         filter_in: None,
         build: None,
+        build_style: None,
+        build_amount: None,
         gap: None,
         impact: None,
         fills: None,

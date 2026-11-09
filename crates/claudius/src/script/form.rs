@@ -91,6 +91,8 @@ pub(super) fn register_form(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                 },
                 filter_in: false,
                 build: k == SectionKind::Build,
+                build_style: Default::default(),
+                build_amount: 0.5,
                 gap: false,
                 impact: false,
                 fills: matches!(k, SectionKind::Drop | SectionKind::Groove | SectionKind::Hook),
@@ -118,6 +120,19 @@ pub(super) fn register_form(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         };
     }
     flag!("build", build);
+    // a build-up of a style (`BuildStyle`), and how hard it builds, from 0 to 1
+    let styled = |s: &mut Sec, style: &str, amount: Option<f64>| -> R<Sec> {
+        let mut t = s.clone();
+        t.spec.build = true;
+        t.spec.build_style = BuildStyle::parse(style).or_else(fail)?;
+        if let Some(a) = amount {
+            t.spec.build_amount = a.clamp(0.0, 1.0) as f32;
+        }
+        Ok(t)
+    };
+    engine.register_fn("build", move |s: &mut Sec, style: &str| styled(s, style, None));
+    engine.register_fn("build", move |s: &mut Sec, style: &str, amount: rhai::FLOAT| styled(s, style, Some(amount)));
+    engine.register_fn("build", move |s: &mut Sec, style: &str, amount: INT| styled(s, style, Some(amount as f64)));
     flag!("gap", gap);
     flag!("impact", impact);
     flag!("fills", fills);
@@ -178,7 +193,21 @@ pub(super) fn register_form(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
         check_keys(
             &m,
             "section()",
-            &["bars", "energy", "prog", "variant", "name", "layers", "build", "gap", "impact", "fills", "filter_in"],
+            &[
+                "bars",
+                "energy",
+                "prog",
+                "variant",
+                "name",
+                "layers",
+                "build",
+                "build_style",
+                "build_amount",
+                "gap",
+                "impact",
+                "fills",
+                "filter_in",
+            ],
         )?;
         with_bp(&c, |bp, _| {
             let all = bp.layer_names();
@@ -219,6 +248,14 @@ pub(super) fn register_form(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                 if let Some(v) = m.get(k).and_then(|d| d.as_bool().ok()) {
                     *field = v;
                 }
+            }
+            // a style named turns the build-up on, as `.build(style)` does, unless the map turns it off
+            if let Some(v) = map_str(&m, "build_style") {
+                s.build_style = BuildStyle::parse(&v)?;
+                s.build |= !m.contains_key("build");
+            }
+            if let Some(v) = map_f32(&m, "build_amount") {
+                s.build_amount = v.clamp(0.0, 1.0);
             }
             let s = s.clone();
             check_section(bp, &s, &optional)

@@ -126,6 +126,8 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
                 variant: s.variant.clone(),
                 filter_in: s.filter_in,
                 build: s.build,
+                build_style: s.build_style.name().to_string(),
+                build_amount: s.build_amount,
                 gap: s.gap,
                 impact: s.impact,
                 fills: s.fills,

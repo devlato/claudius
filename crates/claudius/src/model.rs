@@ -297,6 +297,12 @@ pub struct SectionSpec {
     /// riser, snare roll and highpass sweep into the next section
     #[serde(default)]
     pub build: bool,
+    /// how the build-up builds, when the section has one
+    #[serde(default, skip_serializing_if = "BuildStyle::is_classic")]
+    pub build_style: BuildStyle,
+    /// how hard it builds, from 0 (gently) to 1 (as hard as it goes); half, as builds always did, by default
+    #[serde(default = "half", skip_serializing_if = "is_half")]
+    pub build_amount: f32,
     /// a beat of silence before the next section
     #[serde(default)]
     pub gap: bool,
@@ -351,6 +357,114 @@ fn one() -> f32 {
 
 fn is_one(v: &f32) -> bool {
     *v == 1.0
+}
+
+fn half() -> f32 {
+    0.5
+}
+
+fn is_half(v: &f32) -> bool {
+    *v == 0.5
+}
+
+/// How a build-up builds into the next section (`SectionSpec::build`), as producers take one there.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BuildStyle {
+    /// all of it: the snare rolling faster and louder, the kick out for the last bars, a riser, and a highpass sweeping
+    /// the lows out of the music
+    #[default]
+    Classic,
+    /// a drummer's: the snare rolls into the next section, the kick out for the last bars, nothing else
+    Roll,
+    /// a filter's: the music's lows swept out under a riser, the drums playing on, as house and techno build
+    Sweep,
+    /// a riser over the section as it plays, and nothing else
+    Riser,
+    /// the drums out for the last bars, the riser over the music alone, as a pop or EDM song holds its breath
+    DropOut,
+}
+
+/// what a build-up of a style plays
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BuildParts {
+    pub roll: bool,
+    pub kick_out: bool,
+    pub riser: bool,
+    pub sweep: bool,
+    pub drums_out: bool,
+}
+
+impl BuildStyle {
+    pub const ALL: [BuildStyle; 5] =
+        [BuildStyle::Classic, BuildStyle::Roll, BuildStyle::Sweep, BuildStyle::Riser, BuildStyle::DropOut];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            BuildStyle::Classic => "classic",
+            BuildStyle::Roll => "roll",
+            BuildStyle::Sweep => "sweep",
+            BuildStyle::Riser => "riser",
+            BuildStyle::DropOut => "drop_out",
+        }
+    }
+
+    pub fn parse(s: &str) -> Result<BuildStyle, String> {
+        let s = s.trim().to_lowercase().replace([' ', '-'], "_");
+        BuildStyle::ALL.into_iter().find(|b| b.name() == s).ok_or_else(|| {
+            let names: Vec<&str> = BuildStyle::ALL.iter().map(|b| b.name()).collect();
+            format!("no build-up '{s}' (build-ups: {})", names.join(", "))
+        })
+    }
+
+    fn is_classic(&self) -> bool {
+        *self == BuildStyle::Classic
+    }
+
+    pub fn parts(self) -> BuildParts {
+        let p = |roll, kick_out, riser, sweep, drums_out| BuildParts { roll, kick_out, riser, sweep, drums_out };
+        match self {
+            BuildStyle::Classic => p(true, true, true, true, false),
+            BuildStyle::Roll => p(true, true, false, false, false),
+            BuildStyle::Sweep => p(false, false, true, true, false),
+            BuildStyle::Riser => p(false, false, true, false, false),
+            BuildStyle::DropOut => p(false, false, true, false, true),
+        }
+    }
+}
+
+/// How far a build-up of `amount` (0 to 1, half as builds always were) goes: the snare roll's length as a share of
+/// the one it always had, the bars the kick (or the drums) leave, the top of the highpass's sweep, the riser's length
+/// as a share of its genre's and its loudness.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BuildAmount {
+    pub roll: f64,
+    pub out_bars: u32,
+    pub drums_out_bars: u32,
+    pub sweep_hz: f32,
+    pub riser: f64,
+    pub riser_v: f32,
+}
+
+impl BuildAmount {
+    pub fn of(amount: f32) -> BuildAmount {
+        let k = amount.clamp(0.0, 1.0);
+        BuildAmount {
+            roll: 0.5 + f64::from(k),
+            out_bars: if k < 0.25 {
+                0
+            } else if k < 0.75 {
+                1
+            } else {
+                2
+            },
+            drums_out_bars: 1 + (2.0 * k).round() as u32,
+            // 300 Hz gently, 900 at half (where builds always swept to), 2.7 kHz at the most
+            sweep_hz: 300.0 * 9f32.powf(k),
+            riser: 0.5 + f64::from(k),
+            riser_v: (0.6 + 0.8 * k).min(1.0),
+        }
+    }
 }
 
 impl DrumLane {

@@ -546,6 +546,8 @@ fn rework_form(
             variant: t.map_or_else(|| "main".into(), |t| t.variant.clone()),
             filter_in: false,
             build: false,
+            build_style: Default::default(),
+            build_amount: 0.5,
             gap: false,
             impact: t.is_some_and(|t| t.impact),
             fills: t.is_some_and(|t| t.fills),

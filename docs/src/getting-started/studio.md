@@ -96,7 +96,9 @@ the song it opens. It also opens a project the demo saved, a `.zip`: claudius un
   pad. The waveform of the latest render is underneath; click it to jump.
 - **Section.** The selected section's length, its intensity (how full and loud it plays), which chord progression
   it plays, its drum pattern, its transitions (a filter sweep, a build-up, a pause at the end, an impact, drum
-  fills), and a switch for each track playing in it.
+  fills), and a switch for each track playing in it. A build-up has a row of its own: how it builds (everything, a
+  drum roll, a filter sweep, a riser, or the drums dropping out) and how hard, from gentle to hard
+  ([what each plays](../language/form.md#build)).
 - **Verdict.** The score and its parts (Mix, Shape, Harmony, and with the ears Genre, Production and Records), the
   things to fix, each with how much it costs and where to fix it, and, folded under **What it measured**, what
   earshot hears and the meters. A thing one change fixes has a **Quick fix** button ([below](#quick-fixes)).

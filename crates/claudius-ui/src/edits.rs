@@ -103,6 +103,8 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             variant,
             filter_in,
             build,
+            build_style,
+            build_amount,
             gap,
             impact,
             fills,
@@ -110,6 +112,13 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             let Some(s) = song.sections.get_mut(*index) else {
                 return Some(Err(format!("no section {index}")));
             };
+            // as the server: a build-up of a style named is on
+            if let Some(v) = build_style {
+                (s.build_style, s.build) = (v.clone(), true);
+            }
+            if let Some(v) = build_amount {
+                s.build_amount = v.clamp(0.0, 1.0);
+            }
             if let Some(v) = name {
                 s.name = v.clone();
             }

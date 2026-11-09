@@ -46,7 +46,8 @@ Integers and decimals are different types: counts (`ply(2)`, `octave(4)`, the ba
 | `section("drop", #{ energy: 1.0, layers: "kick bass lead", prog: "B" })`, `layer("break", "lead", true)` | edit one section |
 
 Section kinds are `intro verse build drop break hook groove outro`, and sections take `.energy(0..1)`, `.prog("B")`,
-`.variant("sparse")`, `.build()` (riser, snare roll, highpass sweep), `.impact()` (crash on the downbeat), `.gap()`
+`.variant("sparse")`, `.build()` (riser, snare roll, highpass sweep; `.build("sweep", 0.8)` chooses how and how hard:
+`classic`, `roll`, `sweep`, `riser`, `drop_out`, 0 to 1), `.impact()` (crash on the downbeat), `.gap()`
 (a beat of silence before the next section), `.fills()` (the genre's drummer ends the phrases: turns every four
 bars, fills every eight and at the section's end, as the genre's drummers play them; `lane("snare", #{ genre:
 "funk" })` brings another genre's drummer) and `.filter_in()`. `"*"` means every track.

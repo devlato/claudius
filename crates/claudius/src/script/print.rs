@@ -430,7 +430,10 @@ pub fn to_script(bp: &Blueprint) -> String {
             sec.kind == SectionKind::Build,
             matches!(sec.kind, SectionKind::Drop | SectionKind::Groove | SectionKind::Hook),
         );
-        if sec.build != defaults.0 {
+        if sec.build && (sec.build_style != BuildStyle::Classic || sec.build_amount != 0.5) {
+            let amount = if sec.build_amount == 0.5 { String::new() } else { format!(", {}", f32s(sec.build_amount)) };
+            line.push_str(&format!(".build({}{amount})", quote(sec.build_style.name())));
+        } else if sec.build != defaults.0 {
             line.push_str(&format!(".build({})", sec.build));
         }
         if sec.fills != defaults.1 {

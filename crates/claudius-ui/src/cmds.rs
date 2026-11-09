@@ -11,6 +11,8 @@ pub struct SectionEdit {
     pub variant: Option<String>,
     pub filter_in: Option<bool>,
     pub build: Option<bool>,
+    pub build_style: Option<String>,
+    pub build_amount: Option<f32>,
     pub gap: Option<bool>,
     pub impact: Option<bool>,
     pub fills: Option<bool>,
@@ -19,8 +21,37 @@ pub struct SectionEdit {
 
 impl SectionEdit {
     pub fn at(self, index: usize) -> Command {
-        let SectionEdit { name, bars, energy, layers, variant, filter_in, build, gap, impact, fills, prog } = self;
-        Command::SetSection { index, name, bars, energy, layers, prog, variant, filter_in, build, gap, impact, fills }
+        let SectionEdit {
+            name,
+            bars,
+            energy,
+            layers,
+            variant,
+            filter_in,
+            build,
+            build_style,
+            build_amount,
+            gap,
+            impact,
+            fills,
+            prog,
+        } = self;
+        Command::SetSection {
+            index,
+            name,
+            bars,
+            energy,
+            layers,
+            prog,
+            variant,
+            filter_in,
+            build,
+            build_style,
+            build_amount,
+            gap,
+            impact,
+            fills,
+        }
     }
 }
 

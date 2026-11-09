@@ -453,6 +453,8 @@ pub fn change(cmd: &Command, bp: &mut Blueprint, seed: u64) -> Option<Result<Str
             variant,
             filter_in,
             build,
+            build_style,
+            build_amount,
             gap,
             impact,
             fills,
@@ -497,6 +499,16 @@ pub fn change(cmd: &Command, bp: &mut Blueprint, seed: u64) -> Option<Result<Str
                 if let Some(x) = src {
                     *dst = *x;
                 }
+            }
+            // a build-up of a style named is on
+            if let Some(style) = build_style {
+                match BuildStyle::parse(style) {
+                    Ok(b) => (s.build_style, s.build) = (b, true),
+                    Err(e) => return Some(Err(e)),
+                }
+            }
+            if let Some(x) = build_amount {
+                s.build_amount = x.clamp(0.0, 1.0);
             }
             Ok(format!("section {index} ({})", s.name))
         }
@@ -594,6 +606,8 @@ fn add_section(bp: &mut Blueprint, after: usize, kind: &str, bars: u32) -> Resul
         variant: "main".into(),
         filter_in: false,
         build: false,
+        build_style: BuildStyle::Classic,
+        build_amount: 0.5,
         gap: false,
         impact: false,
         fills: false,

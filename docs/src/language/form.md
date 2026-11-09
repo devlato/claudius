@@ -72,7 +72,7 @@ Each method returns a new section, so they chain: `sec("drop", 16, "*").energy(1
 | `.energy(x)` | the section's energy | number, clamped to 0..1 |
 | `.prog(name)` | which progression it plays | any progression name |
 | `.variant(name)` | which drum-lane variant it plays | `main`, `sparse`, `alt`, `half` ... |
-| `.build()` | a build into the next section | also `.build(true)`, `.build(false)` |
+| `.build()` | a build into the next section | also `.build(true)`, `.build(false)`; `.build(style)` and `.build(style, amount)` choose [how it builds](#build) |
 | `.gap()` | a beat of silence at the end | also takes `true` / `false` |
 | `.impact()` | a crash and an impact on the first beat | also takes `true` / `false` |
 | `.fills()` | drum fills at 8-bar phrase ends | also takes `true` / `false` |
@@ -93,15 +93,40 @@ first lane whose role is `kick`.
 
 ### `build`
 
-- The fill lane stops its pattern for the last part of the section and plays a snare roll instead: quarter notes,
-  then eighths, sixteenths and thirty-seconds, with velocity rising from 0.4 to 1.0. The roll lasts half of the
-  section's first 8 bars, between 1 and 4 bars: 4 bars in an 8-bar build, 2 in a 4-bar one. It is added even when the
-  fill lane is not a layer of the section.
-- The kick lane stops for the last bar.
-- A riser plays over the last bars of the section: the genre's riser length (8 bars in house, techno, dnb and future
-  bass; 4 in deep house and synthwave), or the whole section if it is shorter. Trap and lofi have no riser.
-- A highpass filter on the `music` and `bass` buses sweeps from 10 Hz to 900 Hz across the section and snaps back at
-  the next one.
+A build-up leads into the next section. How it builds is its style, `.build(style)`, and how hard is its amount,
+`.build(style, amount)`, from 0 (gently) to 1 (as hard as it goes). `.build()` is `classic` at half, as every build
+was before builds had styles.
+
+| style | plays |
+|---|---|
+| `classic` | the roll, the kick out, the riser and the sweep below |
+| `roll` | the roll and the kick out: a drummer's build |
+| `sweep` | the riser and the sweep, the drums playing on: a house or techno build |
+| `riser` | the riser alone |
+| `drop_out` | the riser, and every drum lane silent for the last bars: a pop or EDM song holding its breath |
+
+- **The roll.** The fill lane stops its pattern for the last part of the section and plays a snare roll instead:
+  quarter notes, then eighths, sixteenths and thirty-seconds, with velocity rising from 0.4 to 1.0. At half, the roll
+  lasts half of the section's first 8 bars, between 1 and 4 bars: 4 bars in an 8-bar build, 2 in a 4-bar one. The
+  amount makes it 0.5 to 1.5 times that long (half a bar at least, the section at most), and its hits 0.7 to 1.3
+  times as loud (full at most). It is added even when the fill lane is not a layer of the section. A build that rolls
+  has no [fill](#fills) at its end; one of another style keeps its fills.
+- **The kick out.** The kick lane stops for the last bar; for none below an amount of 0.25, for two bars from 0.75.
+- **The riser.** A riser plays over the last bars of the section: the genre's riser length (8 bars in house, techno,
+  dnb and future bass; 4 in deep house and synthwave), or the whole section if it is shorter, 0.5 to 1.5 times that
+  by the amount, at a velocity from 0.6 (none) to 1.0 (half and more). Trap and lofi have no riser.
+- **The sweep.** A highpass filter on the `music` and `bass` buses sweeps from 10 Hz across the section and snaps
+  back at the next one: to 900 Hz at half, 300 Hz at none, 2.7 kHz at the most.
+- **The drums out.** Every drum lane stops for the last bar at none, the last two at half, the last three at the
+  most.
+
+```js
+form([
+  sec("groove", 16, "*"),
+  sec("build", 8, "kick hat chords").build("sweep", 0.8),   // a house build: the lows swept away, the drums on
+  sec("drop", 16, "*").impact(),
+]);
+```
 
 ### `gap`
 
@@ -163,14 +188,16 @@ Edits one section. A name picks the first section with that name.
 | `prog`, `variant`, `name` | string | as the methods above |
 | `layers` | string, array or `"*"` | replaces the layers |
 | `build`, `gap`, `impact`, `fills`, `filter_in` | bool | the flags |
+| `build_style`, `build_amount` | string, number | [how the build-up builds](#build), and how hard, 0 to 1; a style named turns the build-up on, unless `build: false` |
 
 The section is checked as `form()` checks it: its layers must be tracks (or the genre's optional parts and loops) and
 its progression must exist. The map takes only the fields above.
 
 Errors: `no section 'nope'`; `no section 12`; `section() takes a name or an index`; `section 'drop' uses 'leed',
 which is not a track (tracks: ...)`; `section 'break' plays progression 'Z', which the song does not have
-(progressions: A B; prog() adds one)`; `section() has no option 'bar' (options: bars energy prog variant name layers
-build gap impact fills filter_in)`.
+(progressions: A B; prog() adds one)`; `no build-up 'swirl' (build-ups: classic, roll, sweep, riser, drop_out)`;
+`section() has no option 'bar' (options: bars energy prog variant name layers build build_style build_amount gap
+impact fills filter_in)`.
 
 ```js
 section("drop", #{ energy: 1.0, layers: "kick clap hat bass chords lead" });
