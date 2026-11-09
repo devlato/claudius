@@ -128,7 +128,11 @@ at the right end **Script**, **Signal flow** and **Log**.
   can play: the sampled instruments by pack, the synths and the drum voices. Click an instrument or a synth to put it
   on one of the song's parts.
 - **Script.** The whole song as a script. Edit it and press Cmd+Enter (Ctrl+Enter on Windows and Linux) to run it.
-  The sound browser lists every drum, synth and instrument name.
+  The sound browser lists every drum, synth and instrument name. At the end of each line, faint words say what its
+  numbers set ("118 BPM · swing 56%", "16 bars", "-4 dB", "4.5 kHz"), and pointing at a number says it too (**Hints**
+  hides them). With the cursor on a number, Alt+↑ and Alt+↓ change it by its last digit (1 for 118, 0.01 for 0.56;
+  with Shift, ten times as much), and the script runs by itself a moment after the keys rest, so that you hear the
+  change as you would turning a knob.
 - **Signal flow.** **Signal flow** over the arrangement (or **Open it large** in this tab, or G) opens it in the
   arrangement's place, with the window to itself but for the toolbars; **Back to the arrangement** (or G) returns.
   The song as its signal flows, on a canvas to drag around and zoom: each track (its sound, its level,
@@ -311,6 +315,7 @@ section's under Hear and Arrange, with the item that removes it in red at the en
 | B | the arrangement's paint tool: a click switches a cell, dragging along a row paints the rest |
 | Cmd+Z, Cmd+Shift+Z | undo, redo (Ctrl on Windows and Linux) |
 | Cmd+Enter | run the script, in the script editor |
+| Alt+↑ Alt+↓ | in the script editor: the number at the cursor up or down by its last digit (Shift: ten times as much), and the script runs |
 
 ## When something does not work
 
