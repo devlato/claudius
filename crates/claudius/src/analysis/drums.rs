@@ -164,7 +164,9 @@ fn classify(sounds: &[Sound]) -> Vec<Hit> {
     // body); a recording whose snares are all bright keeps them
     let named = name(sounds);
     let under = |s: &Sound| s.upper_share() >= s.high;
-    let snares: Vec<&Sound> = sounds.iter().zip(&named).filter(|(_, k)| **k == Kind::Snare).map(|(s, _)| s).collect();
+    // the snares that stay snares: not those adding too little in the middle, which are a kick or a hat
+    let snares: Vec<&Sound> =
+        sounds.iter().zip(&named).filter(|(s, k)| **k == Kind::Snare && s.middle() >= 0.35).map(|(s, _)| s).collect();
     let split = snares.iter().filter(|s| under(s)).count() * 4 >= snares.len() && snares.iter().any(|s| !under(s));
     let kinds: Vec<Kind> = named
         .into_iter()
