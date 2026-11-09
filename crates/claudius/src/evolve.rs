@@ -331,7 +331,7 @@ fn apply_op(
                 }
                 "part_preset" => {
                     let others = b.parts.iter().enumerate().filter(|(i, _)| *i != pi);
-                    let used = others.filter_map(|(_, p)| crate::palette::identity(&p.sound)).collect();
+                    let used = others.flat_map(|(_, p)| crate::palette::identities(&p.sound)).collect();
                     let part = b.parts.get_mut(pi)?;
                     let sound = crate::compose::draw_sound(spec?, g, &crate::palette::instruments(), &used, rng);
                     if sound == part.sound {

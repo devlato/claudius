@@ -463,7 +463,7 @@ fn add_part(bp: &mut Blueprint, name: &str, role: Option<Role>) -> R<()> {
         }
     };
     let mut rng = crate::rng::Rng::new(bp.seed ^ crate::rng::hash_str(name));
-    let mut used = bp.parts.iter().filter_map(|p| crate::palette::identity(&p.sound)).collect();
+    let mut used = bp.parts.iter().flat_map(|p| crate::palette::identities(&p.sound)).collect();
     bp.parts.push(compose::new_part(&spec, genre, &crate::palette::instruments(), &mut used, &mut rng));
     super::song::place_new(bp, name);
     Ok(())
@@ -498,6 +498,7 @@ fn default_spec(name: &str, role: Role) -> crate::genres::PartSpec {
         doubles: None,
         octave: 0,
         late_ms: None,
+        layers: Vec::new(),
     }
 }
 

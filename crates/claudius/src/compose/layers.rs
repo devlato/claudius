@@ -95,7 +95,7 @@ pub fn layer(bp: &mut Blueprint, g: &GenreProfile, complexity: f64, lib: Option<
     let mut said: Vec<String> = Vec::new();
     if more > 0.0 {
         let available = palette::instruments();
-        let mut used: BTreeSet<String> = bp.parts.iter().filter_map(|p| palette::identity(&p.sound)).collect();
+        let mut used: BTreeSet<String> = bp.parts.iter().flat_map(|p| palette::identities(&p.sound)).collect();
         let mut draw = |bp: &mut Blueprint, spec: PartSpec, rng: &mut Rng| -> Part {
             let part = new_part(&spec, g, &available, &mut used, rng);
             bp.parts.push(part.clone());
@@ -142,6 +142,8 @@ pub(crate) fn spec_for(g: &GenreProfile, name: &str, role: Role, fallback: &str)
         octave: 0,
         // a layer of a role plays with the feel of the genre's part of it
         late_ms: own.and_then(|p| p.late_ms),
+        // and doubles it as one sound: stacked as the part is, it would stack a second sub under it
+        layers: Vec::new(),
     }
 }
 
@@ -270,7 +272,9 @@ fn doubles(
     draw: &mut impl FnMut(&mut Blueprint, PartSpec, &mut Rng) -> Part,
     r: &mut Rng,
 ) -> Vec<String> {
-    let playable = |s: &Sound| matches!(s, Sound::Synth { .. } | Sound::Instrument { .. });
+    let one = |s: &Sound| matches!(s, Sound::Synth { .. } | Sound::Instrument { .. });
+    // a rack of them too, as a genre stacks its bass
+    let playable = |s: &Sound| s.each().into_iter().all(one);
     let sources: Vec<Part> = bp
         .parts
         .iter()
@@ -324,6 +328,8 @@ fn doubles(
             name: name.clone(),
             register,
             mix,
+            // one sound: stacked as its part is, a bass's double would stack a second sub
+            layers: Vec::new(),
             ..own.unwrap_or_else(|| spec_for(g, &name, src.role, "pluck"))
         };
         let drawn = draw(bp, spec, &mut r);

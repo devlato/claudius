@@ -214,6 +214,7 @@
     {
       "name": "bass",
       "role": "bass",
+      "layers": [{"sound": "$"}, {"sound": "$", "fx": [{"fx": "saturate", "kind": "tape", "drive_db": 24}, {"fx": "filter", "mode": "hp", "cutoff": 300, "res": 0.1}, {"fx": "filter", "mode": "lp", "cutoff": 4500, "res": 0.1}, {"fx": "chorus", "rate_hz": 0.7, "depth_ms": 4, "delay_ms": 14, "mix": 0.6}, {"fx": "gain", "db": -6}]}],
       "presets": ["808"],
       "styles": ["kick_follow", "glide"],
       "register": [24, 40],

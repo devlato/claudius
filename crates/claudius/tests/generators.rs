@@ -127,10 +127,15 @@ fn the_same_seed_gives_the_same_song() {
 fn every_part_plays_a_synth_its_genre_has_a_place_for() {
     without_installed_packs();
     for g in genres::all().unwrap() {
+        // what a genre stacks under a part by name (a sub under its bass) is its own
+        let stacked: Vec<&str> = g.parts.iter().flat_map(|s| &s.layers).map(|l| l.sound.as_str()).collect();
         for seed in 0..12 {
             let bp = compose::generate(&g, seed, &Options::default(), None);
-            for p in &bp.parts {
-                let Sound::Synth { preset, .. } = &p.sound else { continue };
+            for (p, one) in bp.parts.iter().flat_map(|p| p.sound.each().into_iter().map(move |s| (p, s))) {
+                let Sound::Synth { preset, .. } = one else { continue };
+                if matches!(p.sound, Sound::Rack { .. }) && stacked.contains(&preset.as_str()) {
+                    continue;
+                }
                 let own = compose::fitting_synths(&g, p.role);
                 let mut rp = g.palette.get(p.role.name()).cloned().unwrap_or_else(|| palette::default_for(p.role));
                 if rp.synths.is_empty() {
@@ -177,7 +182,7 @@ fn songs_of_one_genre_draw_many_sounds_and_no_song_plays_one_twice() {
                 e.0.insert(p.sound.describe());
                 e.1 += 1;
             }
-            let ids: Vec<String> = bp.parts.iter().filter_map(|p| claudius::palette::identity(&p.sound)).collect();
+            let ids: Vec<String> = bp.parts.iter().flat_map(|p| claudius::palette::identities(&p.sound)).collect();
             assert_eq!(ids.iter().collect::<BTreeSet<_>>().len(), ids.len(), "{name} seed {seed}: {ids:?}");
         }
         for (role, (sounds, songs)) in &by_role {
@@ -189,6 +194,50 @@ fn songs_of_one_genre_draw_many_sounds_and_no_song_plays_one_twice() {
         let most = by_role.values().map(|(s, _)| s.len()).max().unwrap_or(0);
         assert!(most >= 8, "{name}: {by_role:?}");
     }
+}
+
+#[test]
+fn a_genre_that_stacks_its_bass_plays_it_as_a_rack_of_its_layers_and_doubles_it_as_one_sound() {
+    use claudius::model::Role;
+    use std::collections::BTreeSet;
+    without_installed_packs();
+    let mut doubled = 0;
+    for name in ["trap", "dnb", "future_bass"] {
+        let g = genres::get(name).unwrap();
+        let spec = g.parts.iter().find(|p| p.role == Role::Bass).unwrap();
+        assert!(!spec.layers.is_empty(), "{name} stacks its bass");
+        for seed in 0..8 {
+            let bp = compose::generate(&g, seed, &Options { complexity: Some(1.0), ..Default::default() }, None);
+            let bass = bp.parts.iter().find(|p| p.name == spec.name).unwrap();
+            let Sound::Rack { layers } = &bass.sound else { panic!("{name} {seed}: {}", bass.sound.describe()) };
+            assert_eq!(layers.len(), spec.layers.len(), "{name} {seed}");
+            for (s, l) in spec.layers.iter().zip(layers) {
+                assert_eq!(
+                    (l.band, l.level_db, l.duck, l.transpose, &l.fx),
+                    (s.band, s.level, s.duck, s.transpose, &s.fx)
+                );
+                if s.sound != "$" {
+                    assert_eq!(palette::identity(&l.sound), Some(format!("synth:{}", s.sound)), "{name} {seed}");
+                }
+            }
+            // "$": the one sound it drew, in each layer that plays it
+            let drawn: Vec<&Sound> =
+                spec.layers.iter().zip(layers).filter(|(s, _)| s.sound == "$").map(|(_, l)| &l.sound).collect();
+            assert!(drawn.windows(2).all(|w| w[0] == w[1]), "{name} {seed}");
+            for d in bp.parts.iter().filter(|p| p.doubles.as_deref() == Some(bass.name.as_str())) {
+                assert!(!matches!(d.sound, Sound::Rack { .. }), "{name} {seed}: {} stacks a second sub", d.name);
+                doubled += 1;
+            }
+            // nor does another part play a sound the rack plays (its double may, where the genre has no other)
+            let rack: BTreeSet<String> = palette::identities(&bass.sound).into_iter().collect();
+            for p in bp.parts.iter().filter(|p| p.name != bass.name && p.doubles.as_deref() != Some(&bass.name)) {
+                let shared: Vec<String> =
+                    palette::identities(&p.sound).into_iter().filter(|i| rack.contains(i)).collect();
+                assert!(shared.is_empty(), "{name} {seed}: {} plays {shared:?}, as the bass does", p.name);
+            }
+        }
+    }
+    assert!(doubled > 0, "of 24 songs, none doubled its bass");
 }
 
 #[test]

@@ -491,7 +491,7 @@ pub fn draw_sound(
         taken.extend(own.map(|p| format!("synth:{p}")));
     }
     let mut sr = rng.fork("palette");
-    match palette::draw(spec.role, spec.register, &rp, available, &taken, &mut sr) {
+    let drawn = match palette::draw(spec.role, spec.register, &rp, available, &taken, &mut sr) {
         None => widen(own, 0.5, &mut sr),
         Some(palette::Drawn::Synth(name)) => {
             let patch = presets::get(name).unwrap_or_else(|| presets::get("pluck").unwrap());
@@ -501,7 +501,33 @@ pub fn draw_sound(
             let label = name.rsplit(':').next().unwrap_or(&name).to_string();
             Sound::Instrument { name, label }
         }
-    }
+    };
+    stacked(spec, drawn)
+}
+
+/// The sound `drawn` stacked as the genre stacks its part `spec` (`PartSpec::layers`): a rack of its layers, `"$"`
+/// the sound drawn and any other a synth preset by name; as drawn when the genre stacks none.
+fn stacked(spec: &PartSpec, drawn: Sound) -> Sound {
+    let layers: Vec<Layer> = spec
+        .layers
+        .iter()
+        .filter_map(|l| {
+            let sound = match l.sound.as_str() {
+                "$" => drawn.clone(),
+                name => Sound::Synth { preset: name.to_string(), patch: presets::get(name)? },
+            };
+            Some(Layer {
+                sound,
+                band: l.band,
+                level_db: l.level,
+                pan: 0.0,
+                transpose: l.transpose,
+                duck: l.duck,
+                fx: l.fx.clone(),
+            })
+        })
+        .collect();
+    if layers.is_empty() { drawn } else { Sound::Rack { layers } }
 }
 
 fn vary_patch(name: &str, rng: &mut Rng) -> Sound {
@@ -855,7 +881,7 @@ pub fn new_part(
     rng: &mut Rng,
 ) -> Part {
     let sound = draw_sound(spec, g, available, used, rng);
-    used.extend(palette::identity(&sound));
+    used.extend(palette::identities(&sound));
     let mut mix = spec.mix.clone();
     // harmony parts from single-voice patches or mono recordings would sit dead centre: a light chorus spreads them
     let harmony = matches!(spec.role, Role::Chords | Role::Keys | Role::Pad);

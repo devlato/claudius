@@ -119,7 +119,7 @@ fn part(
     };
     spec.name = name.clone();
     let mut used: BTreeSet<String> =
-        bp.parts.iter().filter(|p| p.name != name).filter_map(|p| palette::identity(&p.sound)).collect();
+        bp.parts.iter().filter(|p| p.name != name).flat_map(|p| palette::identities(&p.sound)).collect();
     let made = compose::new_part(&spec, g, &palette::instruments(), &mut used, &mut rng);
     let said = format!(
         "{name}: {}'s {what}, {} on {}",

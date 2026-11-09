@@ -114,7 +114,8 @@ form([sec("intro", 8, "drums keys"), sec("drop", 16, "*").impact(), sec("break",
 - **Another sound.** When the person dislikes a sound ("this bass is weak"), `swap_sound` with the track puts it on
   the next sound that fits, its genre's own first and never one another part plays, and lists what else it could
   play, so the next try can name one (`to`). Without a track it swaps the whole song, every part's sound and the
-  drums' kit (`only: "drums"` or `"parts"` for just those); the notes, patterns and mix stay.
+  drums' kit (`only: "drums"` or `"parts"` for just those); the notes, patterns and mix stay. A bass a bass-heavy
+  genre stacked (a rack: a sub under it, grit over it) swaps the sound it is heard by and keeps the rest of its rack.
 
 ## Reading the verdict
 

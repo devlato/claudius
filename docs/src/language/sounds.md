@@ -282,6 +282,13 @@ rack("bass", [
 - `fx` is the layer's own chain, after its band. A `tremolo` or a `gate` there pulses that band alone, as a bass
   whose top flutters in sixteenths over a steady sub.
 
+The bass-heavy genres stack their bass this way themselves. A trap, UK drill, phonk or hip hop song plays its 808
+twice: once clean, and once through tape saturation kept to 300 Hz to 4.5 kHz, under a chorus that spreads it wide.
+That grit is what headphones and a phone hear of a bass, and the clean 808 under it keeps its weight on a subwoofer.
+Jungle, UK garage and grime give their bass the same grit from a tube saturator, and drum and bass a quieter one,
+since its reese is gritty already. Future bass puts a clean sine sub under its bass, an octave down because that
+bass sits high, ducking under the kick. The song's script shows the rack, to change like any other.
+
 The rack sums its layers before the track's own effects ([`fx()`](mixing.md)) and its mix, so the track is still
 one track: one row in the arrangement, one fader. It works on a part, a drum lane (a snare made of a snare, a clap
 and a noise burst) or a pattern track's sound, named by its label when the pattern plays several:

@@ -400,11 +400,18 @@ fn follows(bp: &Blueprint, p: &Part) -> bool {
         && melody.is_some_and(|m| claudius::palette::identity(&m.sound) == claudius::palette::identity(&p.sound))
 }
 
-/// the script that puts part `p` on sound `name`, and the block chords that follow it with it
+/// the script that puts part `p` on sound `name`, and the block chords that follow it with it: a part playing a rack
+/// keeps it, its voice on the sound (`swap::rack_on`)
 fn sounding(bp: &Blueprint, p: &Part, name: &str) -> Vec<String> {
-    let line = |part: &str| format!("part({}, #{{ preset: {} }});", quote(part), quote(name));
+    let line = |part: &Part| match &part.sound {
+        Sound::Rack { layers } => {
+            let each: Vec<String> = claudius::swap::rack_on(layers, name).iter().map(script::value_text).collect();
+            format!("rack({}, [{}]);", quote(&part.name), each.join(", "))
+        }
+        _ => format!("part({}, #{{ preset: {} }});", quote(&part.name), quote(name)),
+    };
     let chords = bp.parts.iter().filter(|h| h.harmonizes.as_deref() == Some(p.name.as_str()) && follows(bp, h));
-    std::iter::once(line(&p.name)).chain(chords.map(|h| line(&h.name))).collect()
+    std::iter::once(line(p)).chain(chords.map(line)).collect()
 }
 
 /// The verdict `v`'s quick fix of the issue at `target` (`Command::QuickFix`), or all its quick fixes when none, made
@@ -817,6 +824,33 @@ mod tests {
         let mut out = claudius::script::run(&s.code, Some(bp), None).unwrap().bp.unwrap();
         let m = script::mix_of(&mut out, "bass").unwrap();
         assert_eq!((m.level_db, m.drive_db, m.mute), (2.0, 12.0, true));
+    }
+
+    #[test]
+    fn a_stacked_bass_swaps_the_sound_it_is_heard_by_and_keeps_its_sub_and_its_grit() {
+        let g = claudius::genres::get("future_bass").unwrap();
+        let bp = claudius::compose::generate(&g, 1, &claudius::compose::Options::default(), None);
+        let layers = |bp: &Blueprint| match &bp.parts.iter().find(|p| p.name == "bass").unwrap().sound {
+            Sound::Rack { layers } => layers.clone(),
+            s => panic!("future bass stacks its bass, not {}", s.describe()),
+        };
+        let from = claudius::swap::playing(&bp, "bass").unwrap();
+        let s = script(&cmd(&json!({"cmd": "swap_sound", "track": "bass"})), Some(&bp), 1).unwrap().unwrap();
+        assert!(s.code.starts_with(r#"rack("bass", ["#), "{}", s.code);
+        let out = claudius::script::run(&s.code, Some(bp.clone()), None).unwrap().bp.unwrap();
+        let to = claudius::swap::playing(&out, "bass").unwrap();
+        assert_eq!(s.label, Some(format!("bass: {from} → {to}")));
+        let (was, now) = (layers(&bp), layers(&out));
+        assert_eq!(now.len(), was.len());
+        for (a, b) in was.iter().zip(&now) {
+            assert_eq!(
+                (a.band, a.level_db, a.duck, a.transpose, &a.fx),
+                (b.band, b.level_db, b.duck, b.transpose, &b.fx)
+            );
+        }
+        let ids: Vec<Option<String>> = now.iter().map(|l| claudius::palette::identity(&l.sound)).collect();
+        let on = Some(claudius::swap::identity(&to));
+        assert_eq!(ids, [Some("synth:sub_bass".to_string()), on.clone(), on]);
     }
 
     #[test]

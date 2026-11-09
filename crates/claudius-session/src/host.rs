@@ -1864,7 +1864,7 @@ mod tests {
             .parts
             .iter()
             .filter(|p| p.name != "lead_chords")
-            .filter_map(|p| claudius::palette::identity(&p.sound))
+            .flat_map(|p| claudius::palette::identities(&p.sound))
             .collect();
         assert_eq!(own.iter().collect::<std::collections::BTreeSet<_>>().len(), own.len(), "{own:?}");
         assert_eq!(sound(&h, "lead_chords"), sound(&h, "lead"));
