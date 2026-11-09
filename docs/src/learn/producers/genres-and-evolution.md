@@ -61,6 +61,27 @@ the critic judges against it, and evolution mutates songs within it. This page c
 | `rnb_90s` | 66–100 | 0.54–0.60 | major, minor, dorian | −10.5 | 808 (30 %), acoustic (20 %) | 90s r&b slow jam with electric piano and finger snaps (r&b, neo soul, funk, boom bap) |
 | `new_jack_swing` | 100–118 | 0.58–0.64 | minor, dorian, mixolydian | −10 | 808 (35 %), 707 (25 %) | new jack swing with a swung drum machine and synth stabs (funk, r&b, synthwave, dance pop) |
 | `alt_rnb` | 60–90 | 0.50–0.56 | minor, dorian, phrygian | −10.5 | 808 (50 %) | dark alternative r&b with atmospheric reverb and 808s (r&b, trap, ambient pad, neo soul) |
+| `big_room` | 126–130 | 0.50–0.51 | minor, phrygian, harmonic minor | −7.5 | 909 (40 %) | big room house music (electro house, trance, house, corporate pop) |
+| `progressive_house` | 124–128 | 0.50–0.52 | minor, major, dorian | −8.5 | 909 (50 %) | progressive house music with euphoric piano chords and big synths (trance, house, electro house, corporate pop) |
+| `slap_house` | 120–126 | 0.50–0.52 | minor, dorian, phrygian | −8 | 909 (35 %), 808 (20 %) | slap house music with a bouncy metallic bassline (house, tech house, electro house, future bass) |
+| `hardstyle` | 150–155 | straight | minor, harmonic minor, phrygian | −7 | none: synthesized | hardstyle music with a distorted kick and euphoric synths (trance, techno, electro house, dubstep) |
+| `hard_techno` | 145–155 | 0.50–0.51 | phrygian, minor, dorian | −7.5 | none: synthesized | hard techno music with a distorted pounding kick (techno, drum and bass, trance, dubstep) |
+| `gabber` | 170–190 | straight | minor, phrygian, harmonic minor | −7 | none: synthesized | gabber hardcore techno music with a heavily distorted kick (techno, drum and bass, hardstyle, trance) |
+| `hyperpop` | 140–170 | 0.50–0.52 | major, minor, mixolydian | −7 | 808 (40 %) | hyperpop music with distorted 808s and bright glitchy synths (trap, future bass, chiptune, corporate pop) |
+| `jersey_club` | 135–145 | 0.50–0.52 | minor, major, dorian | −8 | 808 (40 %) | jersey club music with bouncing triplet kick drums and vocal chops (trap, house, uk garage, future bass) |
+| `afro_house` | 120–124 | 0.52–0.56 | minor, dorian, phrygian | −9.5 | 909 (25 %), 808 (15 %) | afro house music with tribal percussion and a deep groove (house, afrobeats, tech house, minimal) |
+| `melodic_techno` | 120–126 | 0.50–0.52 | minor, dorian, phrygian | −9 | 909 (40 %) | melodic techno with arpeggiated synths (techno, trance, house, minimal) |
+| `baile_funk` | 126–136 | 0.50–0.53 | minor, phrygian, harmonic minor | −7.5 | 808 (60 %) | baile funk beat with booming 808 kicks and congas (reggaeton, trap, heavy-bass hip hop, dancehall) |
+| `breakcore` | 165–190 | 0.50–0.52 | minor, dorian, phrygian | −8.5 | acoustic (50 %) | breakcore music with frantic chopped amen breakbeats (drum and bass, glitch hop, jungle, dubstep) |
+
+The last twelve are the festival's, the hard styles' and the scenes of the last few years. Big room, progressive house
+and slap house are the `edm` family, with "edm" one of big room's other names (and electro house's, future bass's
+and trance's: `song("edm")` asks which). Hardstyle, hard techno and gabber are the `hard dance` family: their kicks
+are always synthesized, never a kit's, and distorted in their own lanes, folded for hardstyle's ringing tail and
+clipped square for gabber's, with a drummer of their own who rolls the kick into the next phrase. Jersey club's kick
+plays its five-kick bounce (two quarters, two dotted eighths and an eighth) and bursts into triplets at a phrase's
+end; baile funk's drums play the tamborzão, its low drum in five uneven hits under rim slaps and a higher hand drum;
+breakcore chops a sampled break harder and faster than jungle does.
 
 The ten after synthwave lean on [effect chains](../../language/mixing.md#effect-chains) in their profiles:
 trip-hop's drums go through parallel compression and a crushed copy, and its delay feeds back harder in the breaks;

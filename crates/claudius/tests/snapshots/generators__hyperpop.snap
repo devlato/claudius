@@ -1,0 +1,39 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+hyperpop at 164.0 BPM in G major, swing 0.51
+prog A: I IV I V
+prog B: I IVsus2 I V
+prog C: V IV I I
+bars per chord: 1
+section intro (intro) 8 bars, energy 0.44, prog A, main [filter_in]: lead arp
+section verse (verse) 16 bars, energy 0.70, prog A, alt [fills]: kick snare hat bass chords lead
+section lift (build) 4 bars, energy 0.70, prog A, alt [build]: snare hat bass chords lead
+section hook (hook) 8 bars, energy 0.91, prog C, main [impact fills]: kick snare hat ohat perc bass chords lead arp
+section verse2 (verse) 16 bars, energy 0.79, prog B, alt [fills]: kick snare hat bass chords lead arp
+section hook2 (hook) 16 bars, energy 1.00, prog C, main [impact fills]: kick snare hat ohat perc bass chords lead arp
+section switch (break) 16 bars, energy 0.55, prog B, main []: arp pad chords
+section hook3 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick snare hat ohat perc bass chords lead arp pad
+section outro (outro) 8 bars, energy 0.45, prog A, main []: lead arp
+drum kick alt (drum kick): X.........X.....|X...............|X.........X.....|X...............
+drum kick main (drum kick): X.........X.....|X..X......X..X..|X.........X.....|X..X.........X..
+drum snare main (drum snare): ........X.......|........X.......|........X.......|........X.......
+drum hat alt (drum closed_hat): x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....x.....x.....|x.....x.....x.....x.....x.....x.....X.X.x.x.x.x.|x.....x.....x.....x.....x.....x.....x.....x.....
+drum hat main (drum closed_hat): x.x.x.......oxxxx.x.x.x.oxxxxxxX|x.x.x...x...x...x.x.x.x.x.x.x...|x.x.x...x...x...XXxxxxxxx.x.x...|x.x.x.......oxxxx.x.x.x.x.x.x...
+drum ohat main (drum open_hat): ................|................|................|................
+drum perc main (drum perc): ...x..x..x..x..x|...x..x..x..x..x|...x..x..x..x..x|...x..x..x..x..x
+drum perc sparse (drum perc): ...x.......x....|...x.......x....|...x.......x....|...x.......x....
+part bass (bass): kick_follow synth 808, register 24..40, density 0.47
+part chords (chords): stabs synth supersaw, register 55..79, density 0.57
+part lead (lead): trap_bells synth chip, register 69..88, density 0.56
+part arp (arp): up synth bell, register 60..86, density 0.53
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix snare: +0.0 dB, pan +0.00, reverb 0.15, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.12, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix ohat: +0.0 dB, pan -0.15, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix perc: +0.0 dB, pan +0.30, reverb 0.00, delay 0.20, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
+mix chords: +0.0 dB, pan +0.00, reverb 0.40, delay 0.00, duck 0.50, bus music
+mix lead: +1.0 dB, pan +0.00, reverb 0.21, delay 0.17, duck 0.00, bus music
+mix arp: -4.0 dB, pan +0.00, reverb 0.23, delay 0.28, duck 0.00, bus music

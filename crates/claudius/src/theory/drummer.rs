@@ -149,7 +149,7 @@ pub const DRUMMERS: &[Drummer] = &[
     },
     Drummer {
         name: "trance",
-        about: "trance's: a snare rolled up through the phrase's last bar, in eighths and then sixteenths, the kick dropped out under it",
+        about: "trance's and big room's: a snare rolled up through the phrase's last bar, in eighths and then sixteenths, the kick dropped out under it",
         turns: &[KICK_OUT, fill("clap pickup", &[("clap", "X..x")], Rest::None)],
         fills: &[
             fill("snare roll", &[("snare", "<xxxxxxxxxxxxxxxx")], Rest::None),
@@ -160,8 +160,36 @@ pub const DRUMMERS: &[Drummer] = &[
         fill: 0.7,
     },
     Drummer {
+        name: "hard",
+        about: "hardstyle's and gabber's: the kick rolled in sixteenths or triplets into the next phrase, doubled on the last beat or left out for two, a snare rolled up through the last bar",
+        turns: &[KICK_OUT, fill("kick double", &[("kick", "x.xx")], Rest::None)],
+        fills: &[
+            fill("kick roll", &[("kick", "<xxxxxxxx")], Rest::None),
+            fill("kick triplets", &[("kick", "3:xxxxxx")], Rest::None),
+            fill("snare roll", &[("snare", "<xxxxxxxxxxxxxxxx")], Rest::None),
+            KICK_DROP,
+        ],
+        turn: 0.4,
+        fill: 0.75,
+    },
+    Drummer {
+        name: "club",
+        about: "Jersey club's: the kick bursting into triplets on the last beat or two, the snare doubled and rolled in triplets, a beat stopped",
+        turns: &[
+            fill("kick triplets", &[("kick", "3:xxx")], Rest::None),
+            fill("snare double", &[("snare", "X.xx")], Rest::None),
+        ],
+        fills: &[
+            fill("triplet kicks", &[("kick", "3:xxxxxx")], Rest::None),
+            fill("snare triplets", &[("snare", "<6:xxxxxx")], Rest::None),
+            TAG,
+        ],
+        turn: 0.6,
+        fill: 0.75,
+    },
+    Drummer {
         name: "dnb",
-        about: "drum and bass's and jungle's: a break edited; snare rushes, ghost notes after the backbeat, the kick pushed onto the and, the last beat stuttered",
+        about: "drum and bass's, jungle's and breakcore's: a break edited; snare rushes, ghost notes after the backbeat, the kick pushed onto the and, the last beat stuttered",
         turns: &[fill("ghosts", &[("snare", "X.oo")], Rest::None), fill("kick push", &[("kick", "..x.")], Rest::None)],
         fills: &[RUSH, EDIT, STUTTER],
         turn: 0.6,
@@ -180,7 +208,7 @@ pub const DRUMMERS: &[Drummer] = &[
     },
     Drummer {
         name: "dembow",
-        about: "reggaeton's: the timbal run into the next bar, the rim pushing ahead, a stop on the last beat",
+        about: "reggaeton's and baile funk's: the timbal run into the next bar, the rim pushing ahead, a stop on the last beat",
         turns: &[fill("timbal", &[("snare", "xxxx")], Rest::None), fill("rim push", &[("rim", "...x")], Rest::None)],
         fills: &[
             fill("timbal roll", &[("tom", "hhmmhhll")], Rest::None),
@@ -192,7 +220,7 @@ pub const DRUMMERS: &[Drummer] = &[
     },
     Drummer {
         name: "afro",
-        about: "afrobeats' and amapiano's: the congas and talking drum running into the next bar, the shaker left out for a beat, the kick dropped under the log drum",
+        about: "afrobeats', amapiano's and afro house's: the congas and talking drum running into the next bar, the shaker left out for a beat, the kick dropped under the log drum",
         turns: &[
             fill("conga pickup", &[("perc", "..hm")], Rest::None),
             fill("shaker out", &[("shaker", "....")], Rest::None),
@@ -326,15 +354,18 @@ pub fn get(name: &str) -> Option<&'static Drummer> {
 pub fn of(genre: &str) -> &'static Drummer {
     let name = match genre.rsplit('+').next().unwrap_or(genre).trim() {
         "boom_bap" | "alt_hip_hop" | "chipmunk_soul" | "gangsta_rap" | "hip_hop" => "boom_bap",
-        "trap" | "cloud_rap" | "emo_rap" | "rage" | "plugg" | "phonk" | "crunk" => "trap",
+        "trap" | "cloud_rap" | "emo_rap" | "rage" | "plugg" | "phonk" | "crunk" | "hyperpop" => "trap",
         "uk_drill" | "ny_drill" | "chicago_drill" => "drill",
-        "house" | "deep_house" | "tech_house" | "filter_house" | "electro_house" => "house",
-        "techno" | "dub_techno" => "techno",
-        "trance" => "trance",
-        "dnb" | "jungle" => "dnb",
+        "house" | "deep_house" | "tech_house" | "filter_house" | "electro_house" | "progressive_house"
+        | "slap_house" => "house",
+        "techno" | "dub_techno" | "hard_techno" | "melodic_techno" => "techno",
+        "trance" | "big_room" => "trance",
+        "hardstyle" | "gabber" => "hard",
+        "jersey_club" => "club",
+        "dnb" | "jungle" | "breakcore" => "dnb",
         "reggae" => "reggae",
-        "reggaeton" => "dembow",
-        "afrobeats" | "amapiano" => "afro",
+        "reggaeton" | "baile_funk" => "dembow",
+        "afrobeats" | "amapiano" | "afro_house" => "afro",
         "uk_garage" | "grime" => "garage",
         "dubstep" | "future_bass" => "halftime",
         "art_rock" | "neo_psychedelia" => "rock",

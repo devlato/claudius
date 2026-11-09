@@ -1,0 +1,174 @@
+{
+  "name": "afro_house",
+  "family": "house",
+  "aliases": ["afro tech", "tribal house", "afro deep", "keinemusik"],
+  "description": "Afro house: 120 to 124 BPM, a rolling four-on-the-floor under layers of congas, shakers and tribal toms, a deep, melodic bass, minor chords on plucks, marimbas and pads, a haunting flute or vocal-like lead, long hypnotic grooves that build and release",
+  "query": "afro house music with tribal percussion and a deep groove",
+  "alts": ["house music", "afrobeats music", "tech house music", "minimal electronic music"],
+  "bpm": [120, 124],
+  "swing": [0.52, 0.56],
+  "humanize": 0.2,
+  "modes": [["minor", 0.6], ["dorian", 0.3], ["phrygian", 0.1]],
+  "harmony": [["minor_soul", 0.4], ["dorian_vamp", 0.3], ["minimal", 0.3]],
+  "markov": 0.15,
+  "ext": 1,
+  "bars_per_chord": [[1, 0.3], [2, 0.7]],
+  "forms": [
+    [
+      {"name": "intro", "kind": "intro", "bars": 16, "energy": 0.4, "layers": ["kick", "shaker", "conga", "tom"], "filter_in": true, "variant": "sparse"},
+      {"name": "groove", "kind": "groove", "bars": 32, "energy": 0.7, "layers": ["kick", "clap", "hat", "shaker", "conga", "tom", "bass", "chords"], "fills": true},
+      {"name": "break", "kind": "break", "bars": 16, "energy": 0.35, "prog": "B", "layers": ["pad", "chords", "lead", "shaker"]},
+      {"name": "build", "kind": "build", "bars": 8, "energy": 0.6, "prog": "B", "layers": ["clap", "hat", "shaker", "conga", "chords", "lead", "pad"], "build": true},
+      {"name": "drop", "kind": "drop", "bars": 32, "energy": 0.95, "layers": ["kick", "clap", "hat", "shaker", "conga", "tom", "bass", "chords", "lead", "pad"], "impact": true, "fills": true},
+      {"name": "outro", "kind": "outro", "bars": 16, "energy": 0.4, "layers": ["kick", "shaker", "conga", "tom", "bass"], "variant": "sparse"}
+    ]
+  ],
+  "drums": [
+    {
+      "name": "kick",
+      "voice": "kick",
+      "template": {"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], "vel": [0.85, 0.98]},
+      "params": {"decay": [0.3, 0.45], "tune": [44, 52], "tone": [0.2, 0.45], "punch": [0.3, 0.55], "drive": [2, 5]},
+      "samples": ["Kick"],
+      "tune_to_key": true,
+      "mix": {"bus": "drums"}
+    },
+    {
+      "name": "clap",
+      "late_ms": [2, 8],
+      "voice": "clap",
+      "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.7, 0.9], "vary": 0.2},
+      "params": {"decay": [0.18, 0.3], "tone": [0.3, 0.6]},
+      "mix": {"bus": "drums", "reverb": 0.25}
+    },
+    {
+      "name": "hat",
+      "voice": "closed_hat",
+      "template": {"steps": [0, 0.3, 1, 0.3, 0, 0.3, 1, 0.3, 0, 0.3, 1, 0.3, 0, 0.3, 1, 0.5], "vel": [0.3, 0.65], "vary": 0.25},
+      "variants": {"sparse": {"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.35, 0.6]}},
+      "samples": ["Hi-hat"],
+      "mix": {"bus": "drums", "pan": 0.18}
+    },
+    {
+      "name": "shaker",
+      "late_ms": [-4, 0],
+      "voice": "shaker",
+      "template": {"steps": [0.8, 0.5, 0.9, 0.5, 0.8, 0.5, 0.9, 0.5, 0.8, 0.5, 0.9, 0.5, 0.8, 0.5, 0.9, 0.6], "vel": [0.2, 0.45]},
+      "samples": ["Shaker"],
+      "mix": {"bus": "drums", "pan": -0.3}
+    },
+    {
+      "name": "conga",
+      "late_ms": [0, 6],
+      "voice": "perc",
+      "template": {"steps": [0, 0, 0.6, 0, 1, 0, 0, 0.5, 0, 0.6, 0, 0, 1, 0, 0.5, 0], "vel": [0.45, 0.8], "vary": 0.35},
+      "params": {"tune": [180, 380], "decay": [0.12, 0.22], "pitch_env": [2, 8]},
+      "mix": {"bus": "drums", "pan": -0.35, "reverb": 0.15}
+    },
+    {
+      "name": "tom",
+      "voice": "tom",
+      "euclid": [3, 8],
+      "params": {"tune": [90, 160], "decay": [0.18, 0.3]},
+      "mix": {"bus": "drums", "pan": 0.3, "reverb": 0.2}
+    }
+  ],
+  "kits": [["tr909", 0.25], ["tr808", 0.15]],
+  "kit_mix": 0.3,
+  "palette": {
+    "bass": {"core": 0.75, "synth": 2, "bass": 1},
+    "chords": {"core": 0.45, "synth": 2, "mallets": 2.5, "harp": 1, "electric piano": 1, "guitar": 1},
+    "lead": {"core": 0.4, "woodwinds": 2.5, "voice": 1.5, "mallets": 1.5, "synth": 1},
+    "pad": {"core": 0.5, "strings": 1.5, "pad": 1.5, "synth": 1, "choir": 1}
+  },
+  "parts": [
+    {
+      "name": "bass",
+      "role": "bass",
+      "presets": ["deep_bass", "sub_bass", "organ_bass"],
+      "styles": ["deep", "afro", "deep"],
+      "register": [31, 48],
+      "mix": {"bus": "bass", "duck": 0.45}
+    },
+    {
+      "name": "chords",
+      "role": "chords",
+      "presets": ["pluck", "marimba|fm_marimba", "keys", "harp_pluck"],
+      "styles": ["highlife", "stabs", "offbeat"],
+      "register": [55, 76],
+      "voices": 3,
+      "voicing": "close",
+      "mix": {"reverb": 0.3, "delay": 0.2, "duck": 0.35}
+    },
+    {
+      "name": "lead",
+      "role": "lead",
+      "presets": ["flute|fm_lead", "vox_lead", "kalimba|fm_kalimba"],
+      "styles": ["afro_flute", "ambient_line"],
+      "register": [64, 81],
+      "density": [0.2, 0.4],
+      "optional": 0.2,
+      "mix": {"reverb": 0.4, "delay": 0.3}
+    },
+    {
+      "name": "pad",
+      "role": "pad",
+      "presets": ["warm_pad", "air_pad", "string_ensemble|strings"],
+      "styles": ["sustain"],
+      "register": [48, 74],
+      "voices": 3,
+      "voicing": "open",
+      "mix": {"reverb": 0.45, "duck": 0.35, "fx": [{"fx": "width", "width": 1.4, "mono_below_hz": 200}]}
+    }
+  ],
+  "loops": [
+    {
+      "name": "top",
+      "role": "top",
+      "instrument": ["Percussion"],
+      "subtype": ["Conga", "Bongo", "Shaker", "Percussion"],
+      "genres": ["World/Ethnic", "Deep House", "House"],
+      "optional": 0.4,
+      "mix": {"bus": "drums", "level_db": -4}
+    }
+  ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["african chant", "kora", "african percussion", "marimba", "flute", "african vocal", "djembe", "mbira"],
+      "listen": "a haunting african vocal chant",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.9,
+      "chop": 0.2,
+      "pitch": [-2, 3],
+      "instead": ["lead"],
+      "mix": {"bus": "music", "reverb": 0.25, "delay": 0.15, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 160, "res": 0.05}]}
+    },
+    "vocal": {
+      "search": ["african chant", "chant", "female vocal", "tribal vocal", "a cappella"],
+      "listen": "a voice chanting a short phrase",
+      "seconds": [1, 400],
+      "keep": 4,
+      "chance": 0.5
+    }
+  },
+  "transitions": {"riser": true, "impact": false, "downlifter": true, "reverse_crash": true, "riser_bars": 8, "mix": {"bus": "fx", "reverb": 0.3, "level_db": -4}},
+  "mix": {
+    "lufs": -9.5,
+    "reverb": {"fx": "reverb", "decay": 2.6, "damping": 0.5, "predelay_ms": 20, "width": 1.3, "mix": 1.0, "lowcut": 300},
+    "delay": {"fx": "delay", "beats": 0.75, "feedback": 0.35, "damping": 0.55, "pingpong": true, "mix": 1.0},
+    "buses": {
+      "drums": [{"fx": "compressor", "threshold_db": -12, "ratio": 2.0, "attack_ms": 10, "release_ms": 110, "knee_db": 6, "makeup_db": 1}],
+      "bass": [{"fx": "saturate", "kind": "tube", "drive_db": 2, "mix": 0.35}],
+      "music": [{"fx": "eq", "bands": [{"kind": "highpass", "freq": 120, "q": 0.7}]}]
+    },
+    "master": [
+      {"fx": "eq", "bands": [{"kind": "highpass", "freq": 26, "q": 0.7}]},
+      {"fx": "compressor", "threshold_db": -11, "ratio": 1.8, "attack_ms": 25, "release_ms": 180, "knee_db": 6},
+      {"fx": "saturate", "kind": "tape", "drive_db": 2, "mix": 0.35}
+    ],
+    "duck_release": 0.3,
+    "levels": {"shaker": -4.0, "perc": -2.0, "tom": -2.0}
+  }
+}

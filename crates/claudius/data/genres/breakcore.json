@@ -1,0 +1,170 @@
+{
+  "name": "breakcore",
+  "family": "drum and bass",
+  "aliases": ["amen breakcore"],
+  "description": "Breakcore: 165 to 190 BPM of breakbeats chopped, rolled and stuttered to pieces: breaks edited every beat, snare rushes and thirty-second stutters, distorted kicks, a deep reese and sub bass, wistful pads, piano or bell melodies and harsh glitches set against sweet, aching chords",
+  "query": "breakcore music with frantic chopped amen breakbeats",
+  "alts": ["drum and bass music", "glitch hop music", "jungle music", "dubstep music"],
+  "accepted_flaws": ["a distorted clipped recording"],
+  "bpm": [165, 190],
+  "swing": [0.5, 0.52],
+  "humanize": 0.15,
+  "modes": [["minor", 0.65], ["dorian", 0.2], ["phrygian", 0.15]],
+  "harmony": [["minor_epic", 0.35], ["minor_soul", 0.35], ["minor_dark", 0.3]],
+  "markov": 0.15,
+  "ext": 1,
+  "bars_per_chord": [[1, 0.4], [2, 0.6]],
+  "forms": [
+    [
+      {"name": "intro", "kind": "intro", "bars": 16, "energy": 0.35, "layers": ["pad", "lead"], "filter_in": true},
+      {"name": "drop", "kind": "drop", "bars": 32, "energy": 0.95, "layers": ["kick", "snare", "hat", "ride", "bass", "pad", "lead"], "impact": true, "fills": true},
+      {"name": "break", "kind": "break", "bars": 16, "energy": 0.35, "prog": "B", "layers": ["pad", "lead", "chords"], "build": true, "gap": true},
+      {"name": "drop2", "kind": "drop", "bars": 32, "energy": 1.0, "layers": ["kick", "snare", "hat", "ride", "bass", "pad", "lead", "chords"], "impact": true, "fills": true},
+      {"name": "break2", "kind": "break", "bars": 8, "energy": 0.4, "layers": ["lead", "pad"], "gap": true},
+      {"name": "drop3", "kind": "drop", "bars": 32, "energy": 1.0, "layers": ["kick", "snare", "hat", "ride", "bass", "pad", "lead", "chords"], "impact": true, "fills": true},
+      {"name": "outro", "kind": "outro", "bars": 16, "energy": 0.35, "layers": ["pad", "lead"]}
+    ]
+  ],
+  "drums": [
+    {
+      "name": "kick",
+      "voice": "kick",
+      "template": {
+        "steps": [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0.6, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.7, 0, 0, 0.5, 0, 0],
+        "vel": [0.8, 1.0],
+        "vary": 0.6
+      },
+      "params": {"decay": [0.18, 0.3], "tune": [50, 60], "punch": [0.4, 0.7], "drive": [6, 12]},
+      "samples": ["Kick"],
+      "mix": {"bus": "drums", "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 6, "mix": 0.4}]}
+    },
+    {
+      "name": "snare",
+      "voice": "snare",
+      "template": {
+        "steps": [0, 0, 0, 0, 1, 0, 0, 0.6, 0, 0.5, 0, 0, 1, 0, 0, 0.5, 0, 0, 0, 0, 1, 0, 0, 0.6, 0, 0.5, 0, 0, 1, 0, 0.6, 0.5],
+        "vel": [0.8, 1.0],
+        "ghost": 0.25,
+        "rolls": 0.2,
+        "vary": 0.6
+      },
+      "params": {"decay": [0.14, 0.22], "tune": [200, 260], "snap": [0.6, 0.9], "room": [0.3, 0.5]},
+      "samples": ["Snare"],
+      "mix": {"bus": "drums", "reverb": 0.12}
+    },
+    {
+      "name": "hat",
+      "voice": "closed_hat",
+      "template": {"steps": [1, 0.3, 1, 0.3, 1, 0.3, 1, 0.3, 1, 0.3, 1, 0.3, 1, 0.3, 1, 0.3], "vel": [0.3, 0.6], "ghost": 0.2, "vary": 0.4},
+      "samples": ["Hi-hat"],
+      "mix": {"bus": "drums", "pan": 0.2}
+    },
+    {
+      "name": "ride",
+      "voice": "ride",
+      "template": {"steps": [0.7, 0, 0.7, 0, 0.7, 0, 0.7, 0, 0.7, 0, 0.7, 0, 0.7, 0, 0.7, 0], "vel": [0.2, 0.4]},
+      "mix": {"bus": "drums", "pan": -0.25, "reverb": 0.15}
+    }
+  ],
+  "kits": [["muldjord", 0.5]],
+  "kit_mix": 0.25,
+  "palette": {
+    "bass": {"core": 0.95, "synth": 1},
+    "chords": {"core": 0.45, "electric piano": 1.5, "piano": 1.5, "synth": 1.5, "strings": 1},
+    "pad": {"core": 0.5, "strings": 2, "choir": 1.5, "pad": 1, "synth": 1},
+    "lead": {"core": 0.4, "mallets": 2, "piano": 1.5, "synth": 1.5, "voice": 0.8}
+  },
+  "parts": [
+    {
+      "name": "bass",
+      "role": "bass",
+      "presets": ["reese", "sub_bass", "dist_bass"],
+      "styles": ["jungle_dub", "reese", "rolling"],
+      "register": [24, 40],
+      "mix": {"bus": "bass", "duck": 0.4, "fx": [{"fx": "saturate", "kind": "tube", "drive_db": 6, "mix": 0.5}]}
+    },
+    {
+      "name": "pad",
+      "role": "pad",
+      "presets": ["pad", "air_pad", "glass_pad", "string_ensemble|strings"],
+      "styles": ["sustain"],
+      "register": [48, 76],
+      "voices": 4,
+      "voicing": "open",
+      "mix": {"reverb": 0.5, "duck": 0.3}
+    },
+    {
+      "name": "lead",
+      "role": "lead",
+      "presets": ["bell", "piano|keys", "fm_kalimba"],
+      "styles": ["ambient_line", "piano_riff", "lofi_melody"],
+      "register": [67, 86],
+      "density": [0.3, 0.5],
+      "mix": {"reverb": 0.4, "delay": 0.3, "duck": 0.2}
+    },
+    {
+      "name": "chords",
+      "role": "chords",
+      "presets": ["keys", "pwm_pad", "rhodes|epiano"],
+      "styles": ["sustain", "stabs"],
+      "register": [52, 74],
+      "voices": 3,
+      "voicing": "close",
+      "optional": 0.3,
+      "mix": {"reverb": 0.4, "delay": 0.3, "duck": 0.3}
+    }
+  ],
+  "sampling": {
+    "by_default": true,
+    "break": {
+      "search": ["amen break", "funk drum break", "breakbeat", "drum solo", "jazz drum break", "soul drum break", "70s drums"],
+      "listen": "a frantic chopped funk breakbeat",
+      "seconds": [2, 60],
+      "keep": 6,
+      "chance": 0.95,
+      "chop": 0.95,
+      "instead": ["snare", "hat", "ride"],
+      "mix": {"bus": "drums", "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 4, "mix": 0.4}]}
+    },
+    "phrase": {
+      "search": ["piano", "music box", "anime soundtrack", "video game soundtrack", "strings", "choir", "j-pop", "toy piano"],
+      "listen": "a tender piano or music box melody",
+      "treat": {"as it is": 0.4, "crushed": 0.3, "overloaded": 0.3},
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.9,
+      "chop": 0.4,
+      "pitch": [-3, 4],
+      "instead": ["lead"],
+      "mix": {"bus": "music", "reverb": 0.3, "delay": 0.2, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 180, "res": 0.05}]}
+    },
+    "vocal": {
+      "search": ["anime vocal", "female vocal", "j-pop vocal", "pitched vocal", "a cappella"],
+      "listen": "a high voice holding a note",
+      "seconds": [1, 400],
+      "keep": 4,
+      "chance": 0.5
+    }
+  },
+  "transitions": {"riser": true, "impact": true, "downlifter": true, "reverse_crash": true, "riser_bars": 4, "mix": {"bus": "fx", "reverb": 0.3, "level_db": -2}},
+  "mix": {
+    "lufs": -8.5,
+    "reverb": {"fx": "reverb", "decay": 2.6, "damping": 0.5, "predelay_ms": 20, "width": 1.3, "mix": 1.0, "lowcut": 350},
+    "delay": {"fx": "delay", "beats": 0.75, "feedback": 0.4, "damping": 0.55, "pingpong": true, "mix": 1.0},
+    "buses": {
+      "drums": [
+        {"fx": "saturate", "kind": "hard", "drive_db": 4, "mix": 0.4},
+        {"fx": "compressor", "threshold_db": -12, "ratio": 3.0, "attack_ms": 5, "release_ms": 70, "knee_db": 6, "makeup_db": 2}
+      ],
+      "bass": [{"fx": "saturate", "kind": "tube", "drive_db": 3, "mix": 0.4}],
+      "music": [{"fx": "eq", "bands": [{"kind": "highpass", "freq": 150, "q": 0.7}]}]
+    },
+    "master": [
+      {"fx": "eq", "bands": [{"kind": "highpass", "freq": 26, "q": 0.7}]},
+      {"fx": "compressor", "threshold_db": -9, "ratio": 2.0, "attack_ms": 15, "release_ms": 120, "knee_db": 6},
+      {"fx": "saturate", "kind": "hard", "drive_db": 2, "mix": 0.3}
+    ],
+    "duck_release": 0.22,
+    "levels": {"bass": -1.0}
+  }
+}

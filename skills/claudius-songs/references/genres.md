@@ -1,4 +1,4 @@
-# Starting points for the fifty-one genres
+# Starting points for the sixty-three genres
 
 Two or three genres fuse with `+`: `song("trip_hop+idm", 3)` (or `new_song` with genre `trip_hop+idm`) is trip-hop's
 song, harmony, parts and mix with IDM's drums, and IDM's sounds lent to the parts. The first genre leads, the last
@@ -900,4 +900,210 @@ track("drums", s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~, ~ sd ~ sd, hh*8").gain("0.8
 track("808", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ ~ ~").s("808").legato(1).level(4));
 track("keys", chord("prog").voicing(48, 74).s("epiano").room(0.45));
 track("pad", chord("prog").voicing(48, 74).s("glass_pad").room(0.7).level(-2));
+```
+
+## big_room (126-130 BPM)
+
+Festival EDM: a booming four-on-the-floor kick with a long tail, claps and offbeat hats, tribal toms, builds that
+strip to almost nothing, and a drop of the kick and one huge, simple riff in a hall of reverb. Keep the drop sparse:
+the kick, the bass on the offbeats and the riff. "edm" also names electro house, future bass and trance: ask which
+the person means, or start with big room for the festival sound.
+
+```js
+blank("big_room");
+tempo(128);
+key("F minor");
+prog("A", "i i VI VII");
+track("drums", s("bd*4, [~ cp]*2, [~ hh]*4, ~ ~ ~ lt ~ ~ lt ~ ~ ~ ~ lt ~ lt lt ~").gain("1 0.85"));
+mix("drums", #{ reverb: 0.1 });
+track("bass", chord("prog").root().octave(2).struct("[~ x]*4").s("saw_bass").duck(0.85));
+track("riff", n("<[0 ~ 0 3 ~ 0 5 ~] [0 ~ 0 3 ~ 7 5 ~]>").scale("F:minor").octave(4).s("supersaw").distort(4).room(0.5));
+```
+
+## progressive_house (124-128 BPM)
+
+Euphoric and melodic: four on the floor, a clap and offbeat hats, piano chords pumping off the beat, a supersaw hook
+and plucked arpeggios over warm minor and major progressions, long breakdowns that bloom into the drop.
+
+```js
+blank("progressive_house");
+tempo(126);
+key("A minor");
+prog("A", "VI VII i v");
+track("drums", s("bd*4, [~ cp]*2, [~ hh]*4, sh*16").gain("1 0.8"));
+track("bass", chord("prog").root().octave(2).struct("[~ x]*4").s("saw_bass").duck(0.7));
+track("piano", chord("prog").struct("~ x ~ x ~ x ~ x").voicing(52, 76).s("house_piano").role("keys").room(0.3).duck(0.35));
+track("hook", n("<[4 ~ 4 2 ~ 4 5 ~] [7 ~ 5 4 ~ 2 0 ~]>").scale("A:minor").octave(5).s("supersaw").room(0.35).delay(0.25));
+track("arp", chord("prog").struct("x*16").arp("up").voicing(60, 84).s("pluck").delay(0.3).level(-4));
+```
+
+## slap_house (120-126 BPM)
+
+The 2020s' pop house: a punchy four-on-the-floor kick and a snappy clap, a metallic plucked bass bouncing between
+octaves and pumped hard by the sidechain, sparse minor chords, a deep vocal-like lead. The bass is the hook: give it
+the octave jumps and the sidechain.
+
+```js
+blank("slap_house");
+tempo(124);
+key("G minor");
+prog("A", "i VI III VII");
+track("drums", s("bd*4, [~ cp]*2, [~ hh]*4").gain("1 0.85"));
+track("bass", n("<[0 ~ 7 0 ~ 7 ~ 0] [0 ~ 7 0 ~ 5 7 ~]>").scale("G:minor").octave(2).s("fm_bass").duck(0.9).distort(3));
+track("chords", chord("prog").struct("x ~ ~ ~ x ~ ~ ~").voicing(55, 74).s("stab").room(0.3).duck(0.6));
+track("lead", n("<[2 ~ 0 ~] [4 ~ 2 0]>").scale("G:minor").octave(4).s("vox_lead").room(0.3).delay(0.2));
+```
+
+## hardstyle (150-155 BPM)
+
+A distorted, pitched kick with a long ringing tail carries the low end, a reverse bass bounces on every offbeat, a
+euphoric supersaw lead soars over strings and choirs in long breakdowns, and the kick rolls into the drops. The kick
+is the genre: drive it hard and let it ring, and keep everything else out from under it with the sidechain.
+
+```js
+blank("hardstyle");
+tempo(150);
+key("A minor");
+prog("A", "i VI III VII");
+track("kick", s("bd*4").distort(12).level(3));
+track("hats", s("~ cp ~ cp, [~ hh]*4").gain(0.8));
+track("bass", chord("prog").root().octave(2).struct("[~ x]*4").s("dist_bass").duck(0.95));
+track("lead", n("<[0 2 4 7 4 2 4 ~] [5 4 2 0 2 ~ 0 ~]>").scale("A:minor").octave(5).s("supersaw").room(0.35).delay(0.2));
+track("strings", chord("prog").voicing(48, 76).s("strings").role("pad").room(0.5));
+```
+
+## hard_techno (145-155 BPM)
+
+A heavily distorted kick pounding every beat with a rumbling bass rolling under it, relentless offbeat hats and
+rides, metallic percussion, industrial stabs, an acid or saw lead; short breaks that slam back in.
+
+```js
+blank("hard_techno");
+tempo(150);
+key("F minor");
+prog("A", "i i i bII");
+track("kick", s("bd*4").distort(12).level(2));
+track("hats", s("[~ hh]*4, rd*8, ~ perc ~ ~ perc ~ ~ perc ~ ~ perc ~ ~ perc ~ ~").gain(0.6));
+track("bass", chord("prog").root().octave(1).struct("[~ x x x]*4").s("sub_bass").duck(0.85).distort(3));
+track("stab", chord("prog").struct("~ ~ x ~").s("stab").distort(4).delay(0.3));
+```
+
+## gabber (170-190 BPM)
+
+Rotterdam hardcore: a kick distorted until it booms and buzzes like a square wave hammers every beat, offbeat hats
+and a clap on 2 and 4, minor riffs on hoover-like saws, screeching stabs. Drive the kick into the clipper and leave
+the low end to it alone.
+
+```js
+blank("gabber");
+tempo(180);
+key("E minor");
+prog("A", "i i VI VII");
+track("kick", s("bd*4").distort(14).level(3));
+track("hats", s("~ cp ~ cp, [~ hh]*4").gain(0.8));
+track("riff", n("<[0 ~ 0 ~ 3 ~ 2 ~] [0 ~ 0 ~ 5 ~ 3 2]>").scale("E:minor").octave(4).s("saw_lead").distort(6).room(0.25));
+track("stabs", chord("prog").struct("~ x ~ x").voicing(52, 72).s("stab").distort(4));
+```
+
+## hyperpop (140-170 BPM)
+
+Maximal, glitchy internet pop in half time: blown-out 808s, trap hats in rolls, bright supersaw chords, bubbly bell
+and chip leads up high, sugary major-key hooks, everything overdriven and crushed.
+
+```js
+blank("hyperpop");
+tempo(158);
+key("E major");
+prog("A", "I V vi IV");
+track("drums", s("bd ~ ~ ~ ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~, ~ ~ sd ~, hh*16").gain("1 0.8"));
+track("808", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ x ~").s("808").legato(1).level(4));
+mix("808", #{ drive: 20 });
+track("chords", chord("prog").struct("x ~ x ~ x ~ x ~").voicing(55, 79).s("supersaw").distort(3));
+track("lead", n("<[4 ~ 4 5 4 ~ 2 ~] [7 ~ 6 4 ~ 2 4 ~]>").scale("E:major").octave(6).s("bell").crush(10));
+```
+
+## jersey_club (135-145 BPM)
+
+Five kicks to a bar that run into a bounce of threes (steps 1, 5, 9, 12 and 15 of sixteen) and burst into triplets
+at a phrase's end, a snare doubling the end of the run, bed-squeak stabs between the kicks, an 808 following the
+kick, vocal-chop stabs and bright chords chopped short.
+
+```js
+blank("jersey_club");
+tempo(140);
+key("C minor");
+prog("A", "i VI III VII");
+track("drums", s("bd ~ ~ ~ bd ~ ~ ~ bd ~ ~ bd ~ ~ bd ~, ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ sd ~ ~ ~ ~, ~ hh ~ hh").gain("1 0.85"));
+track("squeak", s("~ ~ perc ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ perc ~ ~").gain(0.6));
+track("808", chord("prog").root().octave(1).struct("x ~ ~ ~ x ~ ~ ~ x ~ ~ x ~ ~ x ~").s("808").legato(0.5).level(3));
+track("chop", n("<[4 ~ 4 ~ ~ 2 ~ ~] [4 ~ 5 4 ~ 2 ~ 0]>").scale("C:minor").octave(5).s("vox_lead").delay(0.2));
+track("chords", chord("prog").struct("x ~ ~ x ~ ~ x ~").voicing(55, 76).s("stab").room(0.25));
+```
+
+## afro_house (120-124 BPM)
+
+A rolling four-on-the-floor under congas, shakers and tribal toms, a deep melodic bass, minor chords on plucks and
+marimbas, a haunting flute line; long, hypnotic grooves.
+
+```js
+blank("afro_house");
+tempo(122);
+swing(0.54);
+key("A minor");
+prog("A", "i7 iv7");
+track("drums", s("bd*4, [~ cp]*2, [~ hh]*4, sh*16").gain("1 0.8"));
+track("perc", s("~ ~ perc ~ perc ~ ~ perc ~ perc ~ ~ perc ~ perc ~, ~ ~ ~ lt ~ ~ lt ~").gain(0.6));
+track("bass", chord("prog").root().octave(2).struct("~ ~ x ~ ~ x ~ x").s("deep_bass").legato(0.8));
+track("chords", chord("prog").struct("~ x ~ x ~ ~ x ~").voicing(55, 76).s("fm_marimba").delay(0.2));
+track("flute", n("<[4 ~ ~ 2 ~ ~ 0 ~] [~ ~ 4 ~ 5 4 ~ ~]>").scale("A:minor").octave(5).s("fm_lead").room(0.4).delay(0.3));
+```
+
+## melodic_techno (120-126 BPM)
+
+A deep, rolling four-on-the-floor and a pulsing sixteenth bass, minor arpeggios whose filters slowly open, wide pads,
+a long breakdown and a soaring lead that comes back with the kick. Let the arpeggio carry the track and open its
+filter across the build.
+
+```js
+blank("melodic_techno");
+tempo(123);
+key("D minor");
+prog("A", "i VI III VII");
+track("drums", s("bd*4, [~ cp]*2, [~ hh]*4, sh*16").gain("1 0.7"));
+track("bass", chord("prog").root().octave(1).struct("[~ x x x]*4").s("saw_bass").lpf(900).duck(0.7));
+track("arp", chord("prog").struct("x*16").arp("up").voicing(57, 81).s("pluck").lpf(2500).delay(0.35).room(0.4));
+track("pad", chord("prog").voicing(45, 74).s("glass_pad").role("pad").room(0.6));
+```
+
+## baile_funk (126-136 BPM)
+
+Rio's funk carioca on the tamborzão: a booming low drum in five uneven hits (beat 1, the a of 1, the and of 2, the and
+of 3, beat 4), rim slaps answering in its gaps, claps on 2 and 4, an 808 following the kick, chopped shouts and horn
+stabs over one or two minor chords. Clip the drums rather than compress them.
+
+```js
+blank("baile_funk");
+tempo(130);
+key("F minor");
+prog("A", "i i i VI");
+track("drums", s("bd ~ ~ bd ~ ~ bd ~ ~ ~ bd ~ bd ~ ~ ~, ~ cp ~ cp, ~ ~ ~ ~ rim ~ ~ rim ~ ~ ~ rim ~ ~ rim ~").gain("1 0.85").distort(4));
+track("808", chord("prog").root().octave(1).struct("x ~ ~ x ~ ~ x ~ ~ ~ x ~ x ~ ~ ~").s("808").legato(0.6).level(4));
+track("horns", chord("prog").struct("~ ~ x ~ ~ ~ ~ ~").voicing(52, 74).s("brass_stab"));
+```
+
+## breakcore (165-190 BPM)
+
+Breakbeats chopped, rolled and stuttered to pieces, distorted kicks, a deep reese and sub, wistful pads and a piano or
+bell melody against the chaos. A `new_song` of breakcore gathers a few sampled breaks before it composes, as jungle's
+does; without them its drum lanes play the synthesized kit.
+
+```js
+blank("breakcore");
+tempo(178);
+key("E minor");
+prog("A", "i VI III VII");
+track("drums", s("bd ~ bd ~ sd ~ ~ sd ~ sd bd sd sd ~ sd sd, hh*16, rd*8").gain("1 0.8").distort(4));
+track("bass", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ ~ ~").s("reese").legato(1));
+track("pad", chord("prog").voicing(48, 76).s("air_pad").role("pad").room(0.5));
+track("bells", n("<[4 ~ 2 ~ 0 ~ 2 ~] [5 ~ 4 ~ 2 ~ ~ ~]>").scale("E:minor").octave(6).s("bell").room(0.4).delay(0.3));
 ```

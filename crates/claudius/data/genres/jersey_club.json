@@ -1,0 +1,162 @@
+{
+  "name": "jersey_club",
+  "family": "bass music",
+  "aliases": ["jersey", "baltimore club", "philly club"],
+  "description": "Jersey club: 135 to 145 BPM, five kicks to a bar that run into a bounce of threes and burst into triplet rolls, a snare doubling the end of the run, bed-squeak and vocal-chop stabs answering between the kicks, an 808 following the kick, bright chords chopped short, built to dance to in short, punchy sections",
+  "query": "jersey club music with bouncing triplet kick drums and vocal chops",
+  "alts": ["trap beat", "house music", "uk garage music", "future bass music"],
+  "bpm": [135, 145],
+  "swing": [0.5, 0.52],
+  "humanize": 0.04,
+  "modes": [["minor", 0.6], ["major", 0.25], ["dorian", 0.15]],
+  "harmony": [["minor_dark", 0.35], ["minor_epic", 0.35], ["major_pop", 0.3]],
+  "markov": 0.1,
+  "ext": 1,
+  "bars_per_chord": [[1, 0.5], [2, 0.5]],
+  "forms": [
+    [
+      {"name": "intro", "kind": "intro", "bars": 8, "energy": 0.45, "layers": ["chords", "chop", "hat"], "filter_in": true},
+      {"name": "hook", "kind": "hook", "bars": 16, "energy": 0.95, "layers": ["kick", "snare", "hat", "squeak", "bass", "chords", "chop"], "impact": true, "fills": true},
+      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.75, "layers": ["kick", "snare", "hat", "squeak", "bass", "chords"], "variant": "alt", "fills": true},
+      {"name": "hook2", "kind": "hook", "bars": 16, "energy": 1.0, "layers": ["kick", "snare", "hat", "squeak", "bass", "chords", "chop", "pad"], "impact": true, "fills": true},
+      {"name": "break", "kind": "break", "bars": 8, "energy": 0.45, "prog": "B", "layers": ["chords", "chop", "pad"], "gap": true},
+      {"name": "hook3", "kind": "hook", "bars": 16, "energy": 1.0, "layers": ["kick", "snare", "hat", "squeak", "bass", "chords", "chop", "pad"], "impact": true, "fills": true},
+      {"name": "outro", "kind": "outro", "bars": 8, "energy": 0.4, "layers": ["chords", "chop", "hat"]}
+    ]
+  ],
+  "drums": [
+    {
+      "name": "kick",
+      "voice": "kick",
+      "template": {"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0], "vel": [0.95, 1.0]},
+      "variants": {"alt": {"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0.5, 0], "vel": [0.95, 1.0]}},
+      "params": {"decay": [0.2, 0.32], "tune": [46, 56], "tone": [0.4, 0.7], "punch": [0.5, 0.8], "drive": [4, 8]},
+      "samples": ["Kick"],
+      "mix": {"bus": "drums"}
+    },
+    {
+      "name": "snare",
+      "voice": "snare",
+      "template": {
+        "steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0.6, 1, 0, 0, 0, 0],
+        "vel": [0.85, 1.0]
+      },
+      "params": {"decay": [0.12, 0.2], "tune": [200, 250], "snap": [0.7, 0.95], "tone": [0.55, 0.85]},
+      "samples": ["Snare"],
+      "mix": {"bus": "drums", "reverb": 0.12}
+    },
+    {
+      "name": "hat",
+      "voice": "closed_hat",
+      "template": {"steps": [0, 0, 0.4, 0, 1, 0, 0.4, 0, 0, 0, 0.4, 0, 1, 0, 0.4, 0], "vel": [0.35, 0.65], "rolls": 0.1},
+      "params": {"decay": [0.025, 0.05]},
+      "samples": ["Hi-hat"],
+      "mix": {"bus": "drums", "pan": 0.15}
+    },
+    {
+      "name": "squeak",
+      "voice": "perc",
+      "template": {"steps": [0, 0, 1, 0, 0, 0, 0.4, 0, 0, 0, 0.4, 0, 0, 1, 0, 0], "vel": [0.5, 0.8], "vary": 0.4},
+      "params": {"tune": [900, 1400], "decay": [0.05, 0.1], "pitch_env": [12, 24]},
+      "mix": {"bus": "drums", "pan": 0.25, "delay": 0.1}
+    }
+  ],
+  "kits": [["tr808", 0.4]],
+  "kit_mix": 0.15,
+  "palette": {
+    "bass": {"core": 1.0, "synth": 1},
+    "chords": {"core": 0.55, "synth": 2.5, "piano": 1.5, "electric piano": 0.8},
+    "lead": {"core": 0.8, "voice": 1.5, "synth": 1},
+    "pad": {"core": 0.5, "synth": 1.5, "pad": 1}
+  },
+  "parts": [
+    {
+      "name": "bass",
+      "role": "bass",
+      "presets": ["808", "sub_bass"],
+      "styles": ["kick_follow", "kick_follow", "glide"],
+      "register": [24, 40],
+      "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 6, "mix": 0.8}]}
+    },
+    {
+      "name": "chords",
+      "role": "chords",
+      "presets": ["stab", "pluck", "piano|keys", "supersaw"],
+      "styles": ["stabs", "syncopated", "offbeat"],
+      "register": [55, 76],
+      "voices": 3,
+      "voicing": "close",
+      "mix": {"reverb": 0.25, "delay": 0.15, "duck": 0.3}
+    },
+    {
+      "name": "chop",
+      "role": "lead",
+      "presets": ["vox_lead", "vox_lead", "pluck"],
+      "styles": ["garage_chop", "garage_chop", "riff"],
+      "register": [62, 79],
+      "density": [0.4, 0.6],
+      "mix": {"reverb": 0.2, "delay": 0.2}
+    },
+    {
+      "name": "pad",
+      "role": "pad",
+      "presets": ["pad", "warm_pad"],
+      "styles": ["sustain"],
+      "register": [48, 72],
+      "voices": 3,
+      "voicing": "open",
+      "optional": 0.5,
+      "mix": {"level_db": -4, "reverb": 0.4}
+    }
+  ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["r&b vocal", "soul vocal", "pop vocal", "female vocal", "rap vocal", "dance vocal", "chopped vocal", "2000s r&b"],
+      "listen": "a catchy r&b vocal line",
+      "seconds": [4, 900],
+      "keep": 6,
+      "chance": 0.9,
+      "chop": 0.6,
+      "pitch": [-3, 3],
+      "instead": ["chop"],
+      "mix": {"bus": "music", "delay": 0.15, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 180, "res": 0.05}]}
+    },
+    "vocal": {
+      "search": ["vocal chop", "female vocal", "rap vocal", "hey shout", "a cappella"],
+      "listen": "a short vocal shout",
+      "seconds": [1, 400],
+      "keep": 4,
+      "chance": 0.7
+    },
+    "bass": {
+      "search": ["808 bass", "808 sub bass", "distorted 808"],
+      "listen": "a short, punchy 808",
+      "seconds": [0.3, 30],
+      "keep": 3,
+      "chance": 0.3
+    }
+  },
+  "transitions": {"riser": true, "impact": true, "downlifter": false, "reverse_crash": true, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.2, "level_db": -3}},
+  "mix": {
+    "lufs": -8.0,
+    "reverb": {"fx": "reverb", "decay": 1.4, "damping": 0.5, "predelay_ms": 10, "width": 1.2, "mix": 1.0, "lowcut": 300},
+    "delay": {"fx": "delay", "beats": 0.75, "feedback": 0.3, "damping": 0.5, "pingpong": true, "mix": 1.0},
+    "buses": {
+      "drums": [
+        {"fx": "compressor", "threshold_db": -10, "ratio": 3, "attack_ms": 5, "release_ms": 70, "knee_db": 4, "makeup_db": 1.5},
+        {"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.3}
+      ],
+      "bass": [{"fx": "saturate", "kind": "tanh", "drive_db": 4, "mix": 0.5}],
+      "music": [{"fx": "eq", "bands": [{"kind": "highpass", "freq": 150, "q": 0.7}]}]
+    },
+    "master": [
+      {"fx": "eq", "bands": [{"kind": "highpass", "freq": 25, "q": 0.7}]},
+      {"fx": "compressor", "threshold_db": -9, "ratio": 2.2, "attack_ms": 10, "release_ms": 100, "knee_db": 6},
+      {"fx": "saturate", "kind": "tanh", "drive_db": 1.5, "mix": 0.3}
+    ],
+    "duck_release": 0.2,
+    "levels": {"kick": 1.5, "bass": 2.0, "perc": -3.0},
+    "bands": {"sub": [-13, -1], "low": [-9, -1]}
+  }
+}

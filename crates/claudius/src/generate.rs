@@ -374,7 +374,7 @@ mod tests {
         let said = track(&mut bp, "drums", "reggaeton", None, None, 2).unwrap();
         assert!(said.starts_with("reggaeton's drums") && said.contains("written again: kick"), "{said}");
         assert_eq!(compose::drummer(&bp).name, "dembow", "its phrases end as reggaeton's drummers end them");
-        assert!(said.contains("its phrases end as reggaeton's: the timbal run"), "{said}");
+        assert!(said.contains(&format!("its phrases end as {}", compose::drummer(&bp).about)), "{said}");
         let snare = bp.drums.iter().find(|d| d.name == "snare").expect("house has no snare: reggaeton's is added");
         assert!(!snare.patterns["main"].is_empty());
         // the dembow's snare: on the tresillo's offbeats, as reggaeton's template has it

@@ -1,0 +1,33 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+baile_funk at 134.0 BPM in G minor, swing 0.51
+prog A: i iv III VI
+prog B: i IVsus4 III VI
+prog C: VI iv III i
+bars per chord: 2
+section intro (intro) 8 bars, energy 0.44, prog A, main [filter_in]: chords lead conga
+section hook (hook) 16 bars, energy 0.95, prog C, main [impact fills]: kick clap rim conga timbal bass chords lead
+section verse (verse) 8 bars, energy 0.75, prog A, alt [gap fills]: kick clap rim conga timbal bass chords
+section hook2 (hook) 16 bars, energy 0.96, prog C, main [impact fills]: kick clap rim conga timbal bass chords lead
+section break (break) 8 bars, energy 0.49, prog B, main [gap]: chords lead conga
+section hook3 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick clap rim conga timbal bass chords lead
+section outro (outro) 16 bars, energy 0.40, prog A, main []: chords rim
+drum kick alt (drum kick): X..X....X..X....|X..X....X..X....|X..X....X..X....|X..X....X..X....
+drum kick main (drum kick): X..X..X...X.X...|X..X..X...X.X...|X..X..X...X.X...|X..X..X...X.X...
+drum clap main (drum clap): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
+drum rim main (drum rim): ....x..x...x..x.|....x..x...x..x.|....x..x...x..x.|....x..x...x..x.
+drum conga main (drum perc): ........x.......|........x.......|........x.......|........x.......
+drum timbal main (drum perc): .x.......x.x..x.|.x.......x.x..x.|.x.......x.x..x.|.x.......x.x..x.
+part bass (bass): kick_follow synth 808, register 24..40, density 0.47
+part chords (chords): syncopated synth rock_organ, register 52..74, density 0.48
+part lead (lead): riff synth brass_lead, register 62..79, density 0.33
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix clap: +0.0 dB, pan +0.00, reverb 0.10, delay 0.00, duck 0.00, bus drums
+mix rim: +0.0 dB, pan +0.25, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix conga: +0.0 dB, pan -0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix timbal: +0.0 dB, pan +0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
+mix chords: +0.0 dB, pan +0.00, reverb 0.27, delay 0.08, duck 0.00, bus music
+mix lead: +0.0 dB, pan +0.00, reverb 0.17, delay 0.13, duck 0.00, bus music

@@ -1,0 +1,170 @@
+{
+  "name": "hard_techno",
+  "family": "hard dance",
+  "aliases": ["schranz", "industrial hard techno"],
+  "description": "Hard techno: 145 to 155 BPM, a heavily distorted kick pounding every beat with a rumbling bass rolling under it, relentless offbeat hats and rides, metallic percussion and industrial stabs, an acid or saw lead, short breaks that slam back in",
+  "query": "hard techno music with a distorted pounding kick",
+  "alts": ["techno music", "drum and bass music", "trance music", "dubstep music"],
+  "accepted_flaws": ["a distorted clipped recording"],
+  "bpm": [145, 155],
+  "swing": [0.5, 0.51],
+  "humanize": 0.05,
+  "modes": [["phrygian", 0.5], ["minor", 0.4], ["dorian", 0.1]],
+  "harmony": [["minimal", 0.6], ["phrygian", 0.3], ["minor_dark", 0.1]],
+  "markov": 0.0,
+  "ext": 0,
+  "bars_per_chord": [[2, 0.3], [4, 0.7]],
+  "forms": [
+    [
+      {"name": "intro", "kind": "intro", "bars": 16, "energy": 0.5, "layers": ["kick", "hat", "perc"], "filter_in": true, "variant": "sparse"},
+      {"name": "groove", "kind": "groove", "bars": 32, "energy": 0.8, "layers": ["kick", "hat", "ohat", "clap", "perc", "ride", "bass"], "fills": true},
+      {"name": "break", "kind": "break", "bars": 8, "energy": 0.4, "layers": ["chords", "lead", "ride"]},
+      {"name": "build", "kind": "build", "bars": 8, "energy": 0.7, "layers": ["clap", "hat", "ride", "chords", "lead"], "build": true, "gap": true},
+      {"name": "peak", "kind": "drop", "bars": 32, "energy": 1.0, "layers": ["kick", "hat", "ohat", "clap", "perc", "ride", "bass", "lead", "chords"], "impact": true, "fills": true},
+      {"name": "break2", "kind": "break", "bars": 8, "energy": 0.4, "prog": "B", "layers": ["pad", "lead", "ride"]},
+      {"name": "build2", "kind": "build", "bars": 8, "energy": 0.7, "prog": "B", "layers": ["clap", "hat", "ride", "pad", "lead"], "build": true, "gap": true},
+      {"name": "peak2", "kind": "drop", "bars": 32, "energy": 1.0, "layers": ["kick", "hat", "ohat", "clap", "perc", "ride", "bass", "lead", "chords"], "impact": true, "fills": true},
+      {"name": "outro", "kind": "outro", "bars": 16, "energy": 0.5, "layers": ["kick", "hat", "perc"], "variant": "sparse"}
+    ]
+  ],
+  "drums": [
+    {
+      "name": "kick",
+      "voice": "kick",
+      "template": {"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], "vel": [0.98, 1.0]},
+      "params": {"decay": [0.3, 0.5], "tune": [44, 52], "tone": [0.4, 0.7], "punch": [0.4, 0.7], "drive": [12, 14]},
+      "tune_to_key": true,
+      "mix": {"bus": "drums", "reverb": 0.1, "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 8, "mix": 0.5}]}
+    },
+    {
+      "name": "hat",
+      "voice": "closed_hat",
+      "template": {"steps": [0.2, 0.2, 1, 0.2, 0.2, 0.2, 1, 0.2, 0.2, 0.2, 1, 0.2, 0.2, 0.2, 1, 0.4], "vel": [0.5, 0.9]},
+      "variants": {"sparse": {"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.6, 0.85]}},
+      "params": {"decay": [0.03, 0.07], "tone": [0.6, 0.9]},
+      "samples": ["Hi-hat"],
+      "choke": "hats",
+      "mix": {"bus": "drums", "pan": 0.1}
+    },
+    {
+      "name": "ohat",
+      "voice": "open_hat",
+      "template": {"steps": [0, 0, 0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0], "vel": [0.55, 0.8]},
+      "params": {"decay": [0.15, 0.28]},
+      "choke": "hats",
+      "mix": {"bus": "drums", "pan": -0.15}
+    },
+    {
+      "name": "clap",
+      "voice": "clap",
+      "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.8, 0.95], "vary": 0.4},
+      "mix": {"bus": "drums", "reverb": 0.25}
+    },
+    {
+      "name": "ride",
+      "voice": "ride",
+      "template": {"steps": [0.9, 0.4, 1, 0.4, 0.9, 0.4, 1, 0.4, 0.9, 0.4, 1, 0.4, 0.9, 0.4, 1, 0.4], "vel": [0.25, 0.5]},
+      "params": {"decay": [1.2, 2.0]},
+      "mix": {"bus": "drums", "pan": 0.3}
+    },
+    {
+      "name": "perc",
+      "voice": "perc",
+      "euclid": [5, 16],
+      "params": {"tune": [400, 900], "decay": [0.06, 0.14], "drive": [3, 7]},
+      "mix": {"bus": "drums", "pan": -0.35, "delay": 0.2, "reverb": 0.15}
+    }
+  ],
+  "kits": [],
+  "kit_mix": 0.0,
+  "palette": {
+    "bass": {"core": 0.85, "synth": 3},
+    "chords": {"core": 0.6, "synth": 3, "organ": 0.6, "brass": 0.3},
+    "pad": {"core": 0.5, "synth": 2, "strings": 0.8, "choir": 0.5},
+    "lead": {"core": 0.6, "synth": 3}
+  },
+  "parts": [
+    {
+      "name": "bass",
+      "role": "bass",
+      "presets": ["sub_bass", "reese", "dist_bass"],
+      "styles": ["rolling", "offbeat", "rolling"],
+      "register": [28, 43],
+      "mix": {"bus": "bass", "duck": 0.85, "fx": [{"fx": "saturate", "kind": "tube", "drive_db": 6, "mix": 0.5}]}
+    },
+    {
+      "name": "lead",
+      "role": "lead",
+      "presets": ["acid", "saw_lead", "square_lead"],
+      "styles": ["techno_stab", "riff"],
+      "register": [57, 74],
+      "density": [0.25, 0.45],
+      "mix": {"reverb": 0.3, "delay": 0.3, "duck": 0.3, "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 6, "mix": 0.4}]}
+    },
+    {
+      "name": "chords",
+      "role": "chords",
+      "presets": ["stab", "brass_stab", "rock_organ"],
+      "styles": ["stabs", "offbeat"],
+      "register": [50, 70],
+      "voices": 3,
+      "voicing": "close",
+      "mix": {"reverb": 0.35, "delay": 0.3, "duck": 0.5, "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 4, "mix": 0.4}]}
+    },
+    {
+      "name": "pad",
+      "role": "pad",
+      "presets": ["warm_pad", "pad"],
+      "styles": ["sustain"],
+      "register": [45, 70],
+      "voices": 3,
+      "voicing": "open",
+      "optional": 0.5,
+      "mix": {"reverb": 0.5, "duck": 0.5}
+    }
+  ],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["industrial noise", "metal clang", "spoken word", "synth stab", "rave stab", "air raid siren", "factory machine", "hoover synth"],
+      "listen": "a harsh industrial rave stab",
+      "seconds": [4, 900],
+      "keep": 6,
+      "chance": 0.7,
+      "chop": 0.4,
+      "pitch": [-3, 3],
+      "instead": ["chords"],
+      "mix": {"bus": "music", "delay": 0.2, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 250, "res": 0.05}, {"fx": "saturate", "kind": "hard", "drive_db": 4, "mix": 0.4}]}
+    },
+    "texture": {
+      "search": ["factory", "industrial noise", "machine hum", "metal scrape", "warehouse", "generator hum"],
+      "listen": "an industrial machine drone",
+      "seconds": [5, 600],
+      "keep": 4,
+      "chance": 0.8,
+      "mix": {"bus": "music", "level_db": -1, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 100, "res": 0.05}]}
+    }
+  },
+  "transitions": {"riser": true, "impact": true, "downlifter": true, "reverse_crash": false, "riser_bars": 8, "mix": {"bus": "fx", "reverb": 0.3}},
+  "mix": {
+    "lufs": -7.5,
+    "reverb": {"fx": "reverb", "decay": 3.5, "damping": 0.55, "predelay_ms": 20, "width": 1.2, "mix": 1.0, "lowcut": 200},
+    "delay": {"fx": "delay", "beats": 0.5, "feedback": 0.45, "damping": 0.55, "pingpong": true, "mix": 1.0},
+    "buses": {
+      "drums": [
+        {"fx": "saturate", "kind": "hard", "drive_db": 4, "mix": 0.4},
+        {"fx": "compressor", "threshold_db": -11, "ratio": 3, "attack_ms": 8, "release_ms": 90, "knee_db": 4, "makeup_db": 1.5}
+      ],
+      "bass": [{"fx": "saturate", "kind": "tube", "drive_db": 3, "mix": 0.4}],
+      "music": [{"fx": "eq", "bands": [{"kind": "highpass", "freq": 140, "q": 0.7}]}]
+    },
+    "master": [
+      {"fx": "eq", "bands": [{"kind": "highpass", "freq": 28, "q": 0.7}]},
+      {"fx": "compressor", "threshold_db": -9, "ratio": 2.2, "attack_ms": 15, "release_ms": 120, "knee_db": 6},
+      {"fx": "saturate", "kind": "hard", "drive_db": 2.5, "mix": 0.4}
+    ],
+    "duck_release": 0.25,
+    "levels": {"kick": 2.5, "ride": -2.0, "perc": -2.0},
+    "bands": {"sub": [-14, -2], "low": [-8, -0.5]}
+  }
+}

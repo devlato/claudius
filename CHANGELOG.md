@@ -6,6 +6,13 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+Twelve more genres, sixty-three in all. Festival EDM: big room (which "edm" now names along with electro house, future
+bass and trance), progressive house and slap house. The hard styles: hardstyle, hard techno and gabber, their kicks
+always synthesized and distorted in their own lanes, with a drummer of their own who rolls the kick into the next
+phrase. And the scenes of the last few years: hyperpop, Jersey club (its five-kick bounce, and a drummer whose kick
+bursts into triplets), afro house, melodic techno, baile funk on the tamborzão, and breakcore. Each has its forms,
+drums, parts, mix and what the ears listen for, and a starting point in the skill.
+
 claudius is now released every day that it has a new feature, a fix or a change of performance, rather than whenever
 someone starts a release, so what is fixed on `main` reaches `claudius update`, the studio's own update check,
 Homebrew and the install scripts by the next morning in Sydney.

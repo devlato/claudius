@@ -26,7 +26,7 @@ crates/
     src/library/             Apple Loops, chops, one-shot cutting
     src/config.rs            constants, folders, the shared-mode file policy
     src/song.rs              one song end to end, and write_folder, which writes every song folder
-    data/genres/             the fifty-one genres, as data
+    data/genres/             the sixty-three genres, as data
     tests/ benches/          the engine's tests and benchmarks
   claudius-packs/          sample packs: registry, installer, SFZ and Strudel maps, the player
   claudius-decode/         audio files to samples (symphonia, ffmpeg as fallback)

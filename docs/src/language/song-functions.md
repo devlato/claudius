@@ -33,9 +33,9 @@ any machine. The recordings installed (sample packs, Apple Loops) change only wh
 A script downloads nothing: `sampled` and `sample_search` play what `new_song`, `claudius make` or
 `claudius samples gather` gathered before, and a song with none at hand plays the genre's own sounds in their place.
 
-The genre is one of `house deep_house techno trap lofi dnb future_bass synthwave trip_hop big_beat electro_house
-nu_disco filter_house dance_pop neo_psychedelia art_rock idm dub_techno boom_bap uk_drill dubstep uk_garage jungle
-afrobeats amapiano reggaeton trance neo_soul hip_hop alt_hip_hop rnb funk tech_house ambient grime phonk reggae`, two or three of them fused (`trip_hop+idm`:
+The genre is one of the sixty-three that [The genres](../learn/producers/genres-and-evolution.md#the-genres)
+lists (`claudius genres` prints them, from `house` and `trap` to `hardstyle`, `jersey_club` and `afro_house`), or
+another name of one's (`"gabber"`, `"funk carioca"`, `"melodic house"`), two or three of them fused (`trip_hop+idm`:
 the first leads, the last plays the drums; see [Fusing genres](../learn/producers/genres-and-evolution.md#fusing-genres)),
 or one of your own (see
 [Genres](../learn/producers/genres-and-evolution.md)); case, spaces and hyphens do not matter (`"deep house"`). A
@@ -45,7 +45,8 @@ into that mode, as [`key()`](#key) does. The options are checked like [`tempo()`
 [`key()`](#key) check their arguments, and an option the map should not have is an error rather than ignored (so is a
 misspelt one).
 
-Errors: `unknown genre 'polka' (try: afrobeats, alt_hip_hop, amapiano, ambient, art_rock, big_beat, boom_bap, dance_pop, deep_house, dnb, dub_techno, dubstep, electro_house, filter_house, funk, future_bass, grime, hip_hop, house, idm, jungle, lofi, neo_psychedelia, neo_soul, nu_disco, phonk, reggae, reggaeton, rnb, synthwave, tech_house, techno, trance, trap, trip_hop, uk_drill, uk_garage)`;
+Errors: `unknown genre 'polka' (try: afro_house, afrobeats, alt_hip_hop, …)`, which names every genre;
+`'edm' is what big_room and electro_house and future_bass and trance are called: say which`;
 `tempo between 40 and 240 BPM`; `cannot read key 'H minor' (try "A minor", "F#m", "Eb", "D dorian")`;
 `complexity from 0 (sparse) to 1 (layered)`;
 `song() has no option 'tempo' (options: seed bpm key loops short samples sampled sample_search complexity)`.
