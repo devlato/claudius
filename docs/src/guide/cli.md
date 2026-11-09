@@ -189,8 +189,10 @@ them, its low end), in its own sections and on its chords, with the genre's
 drums, bass and mix under it ([Remaking a song from audio](../cookbook/remake.md)). With `--flip` it makes a new
 song of the genre on the recording's sound instead: its hook without its drums in the hooks, another passage of it in
 the other sections, its drums as the break where the genre plays one, a flip of it cut from all over it, and its sung
-phrases. The recording, or its pieces, go into `takes/` in `--out`. It prints the analysis (as `analyze` does) and the
-new song.
+phrases. With `--rebuild` it makes the song itself again on claudius's sounds, every note of it editable: its drums,
+its bass and the rest as the hits and notes it plays (heard with earshot's models), in its own sections and on its
+chords, its voice kept on a track of its own. The recording, its pieces or its voice, go into `takes/` in `--out`. It
+prints the analysis (as `analyze` does) and the new song.
 
 | flag | default | what it does |
 |---|---|---|
@@ -199,6 +201,7 @@ new song.
 | `-s`, `--seed` | the clock | the new song's own choices |
 | `--bpm` | as above | the new song's tempo |
 | `--flip` | off | a new song of the genre on the recording's hook and pieces of it, rather than a rework of all of it |
+| `--rebuild` | off | the song itself, every part of it played on claudius's sounds: its drums struck as it strikes them, its bass and the rest as the notes the ears hear them play, its voice kept on a track of its own and its melody written out ([Rebuild it](../cookbook/remake.md#rebuild-it-every-note-yours-to-change)) |
 | `--skeleton` | off | a new song on the recording's skeleton only (tempo, key, swing, form, progressions, drum habits, bass style), none of its sound; a skeleton remake out of the genre's range plays at half or double the tempo when that falls in it, else at its nearest end |
 | `--no-ears`, `--refs`, `--tags` | | as for `make` |
 | `-o`, `--out` | `out` | the folder is `remake-<genre>-<title>-<seed>` |

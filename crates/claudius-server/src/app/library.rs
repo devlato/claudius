@@ -98,8 +98,8 @@ impl App {
             Command::SamplePieces { path, seed, count, bars, find } => {
                 Command::SamplePieces { path: file(path)?, seed, count, bars, find }
             }
-            Command::Remake { path, genre, seed, bpm, sampled, flip } => {
-                Command::Remake { path: file(path)?, genre, seed, bpm, sampled, flip }
+            Command::Remake { path, genre, seed, bpm, sampled, flip, rebuild } => {
+                Command::Remake { path: file(path)?, genre, seed, bpm, sampled, flip, rebuild }
             }
             c => c,
         })

@@ -179,8 +179,8 @@ pub(crate) enum Cmd {
     },
     /// Rework a recording in a genre: all of it plays through, its voice and chords as they are without its drums
     /// and low end, in its own sections and on its chords, with the genre's drums and bass under it (--flip: a
-    /// new song on its hook and pieces of it; --skeleton: a new song on its skeleton only, its tempo, key, form and
-    /// chords)
+    /// new song on its hook and pieces of it; --rebuild: the song itself, every part played on claudius's sounds;
+    /// --skeleton: a new song on its skeleton only, its tempo, key, form and chords)
     Remake {
         file: PathBuf,
         #[arg(short, long, default_value = "house")]
@@ -199,6 +199,11 @@ pub(crate) enum Cmd {
         /// flip of it in pieces from all over it and its sung phrases
         #[arg(long)]
         flip: bool,
+        /// rebuild it: the song itself, every part played on claudius's sounds, so that each note can be changed: its
+        /// drums struck as it strikes them, its bass and the rest as the notes the ears hear them play, in its own
+        /// sections and on its chords, its voice kept on a track of its own and its melody written out
+        #[arg(long, conflicts_with_all = ["flip", "skeleton"])]
+        rebuild: bool,
         #[command(flatten)]
         ears: EarsArgs,
         #[arg(short, long, default_value = "out")]

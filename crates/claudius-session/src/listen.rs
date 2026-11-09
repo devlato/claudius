@@ -11,23 +11,26 @@ use claudius::genres::GenreProfile;
 use claudius::model::Blueprint;
 pub use claudius_api::Listen;
 
-/// how a remake is built on its recording (`Command::Remake`'s `sampled` and `flip`)
+/// how a remake is built on its recording (`Command::Remake`'s `sampled`, `flip` and `rebuild`)
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Remade {
     /// all of it, through, with the genre under it (`remix::rework`)
     Rework,
     /// a new song of the genre on its hook and pieces of it (`remix::remix`)
     Flip,
+    /// the song itself, every part of it played on claudius's sounds (`rebuild::rebuild`)
+    Rebuild,
     /// a new song on its skeleton only, none of its sound
     Skeleton,
 }
 
 impl Remade {
-    pub fn of(sampled: Option<bool>, flip: Option<bool>) -> Remade {
-        match (sampled.unwrap_or(true), flip.unwrap_or(false)) {
-            (false, _) => Remade::Skeleton,
-            (true, true) => Remade::Flip,
-            (true, false) => Remade::Rework,
+    pub fn of(sampled: Option<bool>, flip: Option<bool>, rebuild: Option<bool>) -> Remade {
+        match (rebuild.unwrap_or(false), sampled.unwrap_or(true), flip.unwrap_or(false)) {
+            (true, ..) => Remade::Rebuild,
+            (false, false, _) => Remade::Skeleton,
+            (false, true, true) => Remade::Flip,
+            (false, true, false) => Remade::Rework,
         }
     }
 }
@@ -148,8 +151,8 @@ pub struct With<'a> {
 }
 
 /// The song a remake makes of `src` in genre `g`, built on it as `how` says (a song on its skeleton when it has
-/// nothing a rework or a flip can be built on), and what to say of it: the verb ("reworked", "remixed" or "remade")
-/// and how it came about, each line after a newline
+/// nothing a rework, a flip or a rebuild can be built on), and what to say of it: the verb ("reworked", "remixed",
+/// "rebuilt" or "remade") and how it came about, each line after a newline
 pub fn remake(
     src: &Heard,
     g: &GenreProfile,
@@ -163,6 +166,7 @@ pub fn remake(
     let built = match how {
         Remade::Rework => Some(claudius::remix::rework(&s, g, seed, &opts, with.lib, with.dir)),
         Remade::Flip => Some(claudius::remix::remix(&s, g, seed, &opts, with.lib, with.dir, with.ears)),
+        Remade::Rebuild => Some(claudius::rebuild::rebuild(&s, g, seed, &opts, with.lib, with.dir)),
         Remade::Skeleton => None,
     };
     match built {
@@ -170,10 +174,15 @@ pub fn remake(
             let said: Vec<&String> = bp
                 .lineage
                 .iter()
-                .filter(|l| ["remixed", "reworked", "sampled"].iter().any(|w| l.starts_with(w)))
+                .filter(|l| ["remixed", "reworked", "rebuilt", "sampled"].iter().any(|w| l.starts_with(w)))
                 .collect();
             let told = said.iter().map(|l| format!("\n{l}")).collect::<String>();
-            (bp, if how == Remade::Flip { "remixed" } else { "reworked" }, told)
+            let verb = match how {
+                Remade::Flip => "remixed",
+                Remade::Rebuild => "rebuilt",
+                _ => "reworked",
+            };
+            (bp, verb, told)
         }
         built => {
             let bp = analysis::song::to_blueprint(src.a, g, seed, &opts, with.lib, src.path);
@@ -266,10 +275,11 @@ mod tests {
     }
 
     #[test]
-    fn a_remake_is_a_rework_unless_asked_for_a_flip_or_a_skeleton() {
-        assert_eq!(Remade::of(None, None), Remade::Rework);
-        assert_eq!(Remade::of(Some(true), Some(true)), Remade::Flip);
-        assert_eq!(Remade::of(Some(false), Some(true)), Remade::Skeleton);
+    fn a_remake_is_a_rework_unless_asked_for_a_flip_a_rebuild_or_a_skeleton() {
+        assert_eq!(Remade::of(None, None, None), Remade::Rework);
+        assert_eq!(Remade::of(Some(true), Some(true), None), Remade::Flip);
+        assert_eq!(Remade::of(Some(false), Some(true), Some(false)), Remade::Skeleton);
+        assert_eq!(Remade::of(Some(false), Some(true), Some(true)), Remade::Rebuild);
     }
 
     #[test]
@@ -290,7 +300,16 @@ mod tests {
         let l: Listen = serde_json::from_value(serde_json::json!({"what": "remake", "name": "a.mp3", "genre": "trap",
             "seed": 3, "flip": true}))
         .unwrap();
-        assert_eq!(l, Listen::Remake { name: "a.mp3".into(), genre: Some("trap".into()), seed: Some(3), flip: true });
+        assert_eq!(
+            l,
+            Listen::Remake {
+                name: "a.mp3".into(),
+                genre: Some("trap".into()),
+                seed: Some(3),
+                flip: true,
+                rebuild: false
+            }
+        );
         assert_eq!((l.name(), l.what()), ("a.mp3", "remake"));
     }
 }

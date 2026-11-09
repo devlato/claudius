@@ -2,7 +2,8 @@
 name: claudius-remix
 description: >-
   Works from existing audio with claudius: analyzes a song's tempo, key, chords, sections and groove, reworks a
-  track in another genre so that it stays recognizable (or flips its hook into a new song, or remakes its skeleton),
+  track in another genre so that it stays recognizable (or flips its hook into a new song, rebuilds it as a project
+  of editable parts, or remakes its skeleton),
   chops recordings into bar loops and drum one-shots, plays
   recordings as samples in a song, and adds recordings made for a song (a vocal, a guitar) as takes. Use it when
   someone shares an audio file or a reference track, asks for a song like one they love or a version of a song in
@@ -19,13 +20,16 @@ claudius can work from a recording in four ways, which differ in how much of the
 | **analyze** | tempo, key, chords, sections, drum habits, bass style, as a report | none |
 | **remake** | all of it, its voice and chords as they are, reworked: its own sections and chords with a genre's drums, bass and mix under it | yes, all through |
 | **remake**, `flip: true` | its hook, another passage, its drums, a flip of it and its sung phrases, in a new song of a genre | yes, in pieces |
+| **remake**, `rebuild: true` | the song itself: its drums, its bass and the rest as the notes and hits it plays, on claudius's sounds, every note editable | its voice only, when it sings |
 | **remake**, `sampled: false` | that skeleton, rebuilt as a new song with a genre's sounds and production | none |
 | **chop and flip** | loops and one-shots cut from it, played in a song | yes |
 | **take** | all of it, played once from a section, as recorded for the song | yes |
 
 Choose by what the person wants. "A remix of this song", "this song as house" or "a boom bap version of it" is a
 remake: the song stays recognizable. "Flip this track", "make a new beat out of its hook" is a remake with
-`flip: true`. "Something like this song" without its sound is a remake with `sampled: false`. "Use this vocal" or
+`flip: true`. "Turn this song into a project", "transcribe it", "reverse engineer it", "give me its parts as MIDI" or
+"I want to change its bass line" is a remake with `rebuild: true`. "Something like this song" without its sound is a
+remake with `sampled: false`. "Use this vocal" or
 "sample this break" is a flip of a chop. "I sang the chorus" or "here's my guitar for the drop" is a take.
 
 ## Before you start
@@ -35,8 +39,9 @@ remake: the song stays recognizable. "Flip this track", "make a new beat out of 
   so a file elsewhere needs moving there first. The person can also choose a file on their own computer in the
   studio (New song, From a recording), which reads it and sends claudius what it holds.
 - **Rights.** A remake (unless `sampled: false`), a chop and a flip put the original's audio in the song, a rework
-  all of it: publishing it needs the right to use that recording. A remake with `sampled: false` uses none of its
-  audio. Say so when the person reworks or flips something they did not make. Apple Loops may be used in music the
+  all of it: publishing it needs the right to use that recording. A rebuild plays the original's composition note
+  for note, and its voice when it sings: releasing it is a cover at least, which needs the song's licence, and with
+  the voice the recording's too. A remake with `sampled: false` uses none of its audio. Say so when the person reworks or flips something they did not make. Apple Loops may be used in music the
   person makes, under Apple's licence.
 
 ## Analyze
@@ -99,6 +104,27 @@ semitones or chopped onto the song's grid; a hook a voice sings in plays in its 
 chipmunk (except in chipmunk soul, whose sound that is). Its history says what came from where (`remixed from
 '<file>': its hook (bars 33-36) without its drums and its voice; ...`), so tell the person which part of their song
 plays where. Everything else is the genre's. A sung phrase moved into the song's key keeps its singer's formants.
+
+With `rebuild: true` (`--rebuild`), `remake` makes the song itself again, every part of it played on claudius's
+sounds, so that each note can be changed:
+
+- its form bar for bar, each section on a progression of its own bars' chords (`A`, `B` ... one to a section), so
+  that each plays its own notes;
+- its drums from its drum stem: kicks, snares or claps and hats struck where it strikes them, each section's folded
+  into a pattern of its own (the section's drum variant), a step struck only some of the times round played with that
+  chance, each lane as late or early as the recording's;
+- its bass on `bass`, one note at a time, and the rest of it but its voice (keys, guitars, synths, pads together) on
+  `keys`, chords and all: the notes Spotify's Basic Pitch hears in their stems, on the sixteenths;
+- its voice, when it sings, on a track of its own (`vocals`), and the melody it sings written out on `melody`, which
+  plays in no section until it is put in one (`toggle_layer`).
+
+The genre and the seed choose the sounds, the mix and the master. Its history says what it heard (`rebuilt from
+'<file>': its 4 sections bar for bar, on its chords; its drums struck as it strikes them ...; its bass as 214 notes on
+bass; the rest of it as 866 notes on keys`): tell the person in those words, and that it is their song to edit now.
+The notes are good, not perfect: about nine in ten of a bass line's and two in three of the rest's are right on a
+clean electronic mix, fewer on a dense band recording, and the sections are the analysis's. Without the ears' models
+(no stems, no notes), it plays the drum habits of the busiest sections and the genre's bass and chords on its chords,
+and its history says "its notes not heard": `claudius setup` downloads the models.
 
 With `sampled: false` (`--skeleton`), `remake` composes a new song at the analysed tempo and key instead, with its
 progressions, swing, form, section energies and drum habits, in the genre's sounds and production, and none of its

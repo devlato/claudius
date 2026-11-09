@@ -293,7 +293,7 @@ reads each frame:
   studio.
 - **A recording** waits in the New song dialog, **From a recording**, for what to do with it (`WithRecording`): its
   button sends it, the file
-  itself (a flip with `flip=true`), to
+  itself (a flip with `flip=true`, a rebuild with `rebuild=true`), to
   `POST /api/analyze` or `POST /api/remake`, named so that its extension says its format. claudius decodes it in
   memory and keeps nothing of it.
 - **A cover** goes to `POST /api/release/artwork`, as a dropped one does.
@@ -361,7 +361,8 @@ app's dialog chose beside the files it plays, as an unpacked project's is, goes 
 the studio reads those files, which claudius on another computer could not. A recording chosen to listen to goes to
 the engine as the file itself (`claudius_api::Listen` with its bytes, the worker's `listen` message), which does with
 it what the app does with one the studio sends (`claudius_session::listen`, shared with the server): **Only say what
-claudius hears** hears it, **Remake it as** reworks it and **Flip it into** flips it, **Sample its vocals into the
+claudius hears** hears it, **Remake it as** reworks it, **Flip it into** flips it and **Rebuild it on** rebuilds it
+(without the ears, on its drum habits and its chords), **Sample its vocals into the
 song** samples them, and **Put the song's drums in its groove** does that. Until the answer comes, the dialog shows what the server's busy line
 says (`State::busy`, with `progress`): the server's `App::listening` puts each step there (taking the recording apart
 with the stems' progress, listening to it, sampling it, remaking it) while no job holds the line, and clears it after

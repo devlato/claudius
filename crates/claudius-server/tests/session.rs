@@ -1090,16 +1090,17 @@ async fn a_recording_is_reworked_all_through_or_flipped_on_its_hook_and_kept_wit
     let file = std::env::temp_dir().join(format!("claudius-remix-{}.wav", std::process::id()));
     claudius::audio::save_wav(&file, &a_recording(), true).unwrap();
     let path = file.display().to_string();
-    let remake = |sampled, flip| Command::Remake {
+    let remake = |sampled, flip, rebuild| Command::Remake {
         path: path.clone(),
         genre: Some("boom_bap".into()),
         seed: Some(3),
         bpm: None,
         sampled,
         flip,
+        rebuild,
     };
     // reworked: all of it, through
-    let r = app.command(remake(None, None));
+    let r = app.command(remake(None, None, None));
     assert!(r.ok && r.message.starts_with(&format!("reworked {path} as boom_bap")), "{}", r.message);
     assert!(r.message.contains("reworked from 'claudius-remix-"), "{}", r.message);
     let song = app.blueprint().unwrap();
@@ -1108,16 +1109,21 @@ async fn a_recording_is_reworked_all_through_or_flipped_on_its_hook_and_kept_wit
     let kept = songs.join("takes").join(format!("claudius-remix-{}", std::process::id()));
     assert_eq!(std::fs::read_dir(&kept).unwrap().count(), 1, "the recording, kept in {kept:?}");
     // flipped: a new song on its hook and pieces of it
-    let r = app.command(remake(None, Some(true)));
+    let r = app.command(remake(None, Some(true), None));
     assert!(r.ok && r.message.starts_with(&format!("remixed {path} as boom_bap")), "{}", r.message);
     assert!(r.message.contains("remixed from 'claudius-remix-"), "{}", r.message);
     let song = app.blueprint().unwrap();
     assert!(["sample", "flip"].iter().all(|n| song.loops.iter().any(|l| l.name == *n)), "{:?}", song.loops);
     assert!(std::fs::read_dir(&kept).unwrap().count() >= 4, "its hook, a verse passage and a flip of it in {kept:?}");
     // on its skeleton only, when asked: none of its sound
-    let r = app.command(remake(Some(false), None));
+    let r = app.command(remake(Some(false), None, None));
     assert!(r.ok && r.message.starts_with(&format!("remade {path} as boom_bap")), "{}", r.message);
     assert!(!app.blueprint().unwrap().loops.iter().any(|l| l.name == "flip"));
+    // rebuilt: every part of it on claudius's sounds, none of its audio but its voice
+    let r = app.command(remake(None, None, Some(true)));
+    assert!(r.ok && r.message.starts_with(&format!("rebuilt {path} as boom_bap")), "{}", r.message);
+    assert!(r.message.contains("rebuilt from 'claudius-remix-"), "{}", r.message);
+    assert!(app.blueprint().unwrap().loops.iter().all(|l| l.name == "vocals"));
     std::fs::remove_file(&file).unwrap();
     std::fs::remove_dir_all(&songs).unwrap();
 }

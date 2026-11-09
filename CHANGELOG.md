@@ -6,6 +6,15 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+A recording can be rebuilt as a song of its own parts, every note of them yours to change: `claudius remake
+--rebuild`, **Rebuild it** in the studio's New song dialog, or `remake` with `rebuild: true` for an assistant. Its
+drums are struck as it strikes them, each section on a pattern of its own; its bass and the rest of it are the notes
+Spotify's Basic Pitch hears in their stems, on the genre's sounds; its voice stays on a track of its own and the melody
+it sings is written out. On the cookbook's house song nearly every kick and hat is right, nine bass notes in ten and
+two in three of the rest. Basic Pitch (Apache-2.0) is ported to Rust in earshot, and `claudius setup` downloads its
+model (0.2 MB) with the others; until it is there, a rebuild plays the genre's bass and chords on the recording's
+chords.
+
 Twelve more genres, sixty-three in all. Festival EDM: big room (which "edm" now names along with electro house, future
 bass and trance), progressive house and slap house. The hard styles: hardstyle, hard techno and gabber, their kicks
 always synthesized and distorted in their own lanes, with a drummer of their own who rolls the kick into the next

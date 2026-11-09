@@ -647,6 +647,7 @@ impl Studio {
                         file,
                         remake,
                         flip: false,
+                        rebuild: false,
                         sample: false,
                         how: None,
                         groove: false,

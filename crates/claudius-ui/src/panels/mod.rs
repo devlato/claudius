@@ -105,6 +105,8 @@ pub struct Listen {
     pub remake: Option<(String, Option<u64>)>,
     /// the remake a flip of it, a new song on its hook and pieces of it, rather than a rework of all of it
     pub flip: bool,
+    /// the remake a rebuild of it, the song itself on claudius's sounds, rather than a rework or a flip
+    pub rebuild: bool,
     /// its vocals are to be sampled into the open song instead (the auto-sampler), in one of
     /// `claudius_api::SAMPLING_WAYS` (its phrases when none)
     pub sample: bool,
@@ -178,6 +180,7 @@ pub enum WithRecording {
     #[default]
     Remake,
     Flip,
+    Rebuild,
     Sample,
     Groove,
     Analyze,

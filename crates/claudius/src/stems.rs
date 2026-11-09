@@ -67,11 +67,16 @@ pub fn of(x: &Stereo, progress: &mut dyn FnMut(f64)) -> Option<Arc<Stems>> {
 
 static MAY_DOWNLOAD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-/// Lets `of` download Spleeter's nets (about 160 MB) when they are not in the cache: the ears were asked for
-/// (`Ears::load`), whose models are downloaded the same way. Until then only nets already there separate, so that
-/// nothing a song does downloads anything unasked.
+/// Lets `of` download Spleeter's nets (about 160 MB) when they are not in the cache, and `transcribe::notes` Basic
+/// Pitch's model (0.2 MB): the ears were asked for (`Ears::load`), whose models are downloaded the same way. Until then
+/// only models already there listen, so that nothing a song does downloads anything unasked.
 pub fn may_download() {
     MAY_DOWNLOAD.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// whether `may_download` has let the stems' and the notes' models be downloaded
+pub fn downloads() -> bool {
+    MAY_DOWNLOAD.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 #[cfg(feature = "ears")]
