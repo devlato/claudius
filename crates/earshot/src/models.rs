@@ -1,5 +1,5 @@
-//! Model files (fp32 ONNX exports on the Hugging Face Hub, pinned revisions), the cache directory, downloads and
-//! ONNX Runtime sessions.
+//! Model files (fp32 ONNX exports on the Hugging Face Hub, and Basic Pitch's on GitHub, pinned revisions), the cache
+//! directory, downloads and ONNX Runtime sessions.
 //!
 //! Cache: `$EARSHOT_HOME` if set, else `~/.cache/earshot-rs`; files land in `models/<repo with / as -->/<revision>/`.
 //! Downloads write `<file>.<pid>.part` and rename it into place, so an interrupted download never leaves a
@@ -35,6 +35,7 @@ pub const SHA256: &[(&str, &str, &str)] = &[
     (crate::separate::REPO, "drums.wide.onnx", "fe76859df85b28f2d0e26c68790957994763db64dc18fd2883550c1a4dab2bac"),
     (crate::separate::REPO, "bass.wide.onnx", "d5f579b8bb9e0b1d1c758e5c903a6cc2850c0b99189b854b83978b370dbe959b"),
     (crate::separate::REPO, "other.wide.onnx", "e097cb54e54989fa530cb290a75897888393aa7f41eab8203e357ce6400dd90e"),
+    (crate::notes::REPO, crate::notes::FILE, "2c3c1d144bfa61ad236e92e169c13535c880469a12a047d4e73451f2c059a0ec"),
 ];
 
 fn expected_sha256(repo: &str, file: &str) -> Option<&'static str> {
@@ -51,6 +52,7 @@ pub const SIZES: &[(&str, u64)] = &[
     ("drums.wide.onnx", 39_318_369),
     ("bass.wide.onnx", 39_318_368),
     ("other.wide.onnx", 39_318_369),
+    (crate::notes::FILE, 230_444),
 ];
 
 /// progress hook: (file name, bytes done, bytes total or 0)
@@ -91,8 +93,17 @@ pub fn model_path(cache: &Path, repo: &str, rev: &str, file: &str) -> PathBuf {
     cache.join("models").join(repo.replace('/', "--")).join(rev).join(file)
 }
 
-/// the local path of a pinned model file, downloading it first unless offline
+/// the local path of a pinned model file on the Hugging Face Hub, downloading it first unless offline
 pub fn fetch(cache: &Path, repo: &str, rev: &str, file: &str, offline: bool) -> Result<PathBuf> {
+    fetch_from(cache, repo, rev, file, offline, &format!("https://huggingface.co/{repo}/resolve/{rev}/{file}"))
+}
+
+/// the local path of a pinned file of a repository on GitHub, downloading it first unless offline
+pub fn fetch_github(cache: &Path, repo: &str, rev: &str, file: &str, offline: bool) -> Result<PathBuf> {
+    fetch_from(cache, repo, rev, file, offline, &format!("https://raw.githubusercontent.com/{repo}/{rev}/{file}"))
+}
+
+fn fetch_from(cache: &Path, repo: &str, rev: &str, file: &str, offline: bool, url: &str) -> Result<PathBuf> {
     let dst = model_path(cache, repo, rev, file);
     if dst.is_file() {
         return Ok(dst);
@@ -104,7 +115,7 @@ pub fn fetch(cache: &Path, repo: &str, rev: &str, file: &str, offline: bool) -> 
             dst.display()
         );
     }
-    download(&format!("https://huggingface.co/{repo}/resolve/{rev}/{file}"), &dst, file, expected_sha256(repo, file))?;
+    download(url, &dst, file, expected_sha256(repo, file))?;
     Ok(dst)
 }
 

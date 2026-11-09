@@ -12,6 +12,12 @@ Copyright (c) 2026 Leon Lin, MIT License. Its licence is in
 crates/earshot/LICENSE-earshot. The vocabulary statistics in crates/earshot/data
 are derived from earshot.
 
+crates/earshot/src/notes.rs ports the windowing and the note creation of Basic
+Pitch (https://github.com/spotify/basic-pitch), Copyright 2022 Spotify AB, Apache
+License 2.0. This product includes software developed at Spotify AB
+(http://www.spotify.com/). The licence and Basic Pitch's notice are in
+crates/earshot/LICENSE-basic-pitch.
+
 The studio draws its text in Inter (https://github.com/rsms/inter), Copyright (c)
 2016 The Inter Project Authors, SIL Open Font License 1.1, and its icons from
 Lucide (https://lucide.dev), Copyright (c) 2026 Lucide Icons and Contributors,
@@ -28,8 +34,9 @@ symphonia). ONNX Runtime (MIT, Microsoft) is linked statically.
 Downloaded on first use, not distributed with claudius
 ------------------------------------------------------
 
-The listening models, fetched from the Hugging Face Hub by `claudius setup` or
-the first verdict, checked against pinned SHA-256 hashes:
+The listening models, fetched from the Hugging Face Hub (Basic Pitch's from
+GitHub) by `claudius setup` or the first verdict, checked against pinned
+SHA-256 hashes:
 
   - CLAP "larger_clap_general" by LAION, Apache-2.0
     (https://huggingface.co/laion/larger_clap_general), in the ONNX export by
@@ -37,6 +44,11 @@ the first verdict, checked against pinned SHA-256 hashes:
   - The Audio Spectrogram Transformer fine-tuned on AudioSet by MIT CSAIL,
     BSD-3-Clause (https://huggingface.co/MIT/ast-finetuned-audioset-10-10-0.4593),
     in the ONNX export by Xenova. Only used with `--tags`.
+  - Spleeter's four stems by Deezer, MIT (https://github.com/deezer/spleeter), in
+    the ONNX export by Best-Practice, Apache-2.0
+    (https://huggingface.co/Best-Practice/spleeter-4stems-onnx).
+  - Basic Pitch's model by Spotify, Apache-2.0, in the ONNX export Spotify ships
+    with it (https://github.com/spotify/basic-pitch).
 
 The sample packs, fetched by `claudius setup` or `claudius-packs install`. Each
 pack's licence and attribution are recorded in crates/claudius-packs/src/registry.json
