@@ -188,7 +188,7 @@ Edits one section. A name picks the first section with that name.
 | `prog`, `variant`, `name` | string | as the methods above |
 | `layers` | string, array or `"*"` | replaces the layers |
 | `build`, `gap`, `impact`, `fills`, `filter_in` | bool | the flags |
-| `build_style`, `build_amount` | string, number | [how the build-up builds](#build), and how hard, 0 to 1 |
+| `build_style`, `build_amount` | string, number | [how the build-up builds](#build), and how hard, 0 to 1; a style named turns the build-up on, unless `build: false` |
 
 The section is checked as `form()` checks it: its layers must be tracks (or the genre's optional parts and loops) and
 its progression must exist. The map takes only the fields above.

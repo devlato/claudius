@@ -1246,6 +1246,14 @@ fn a_build_up_takes_a_style_and_how_hard_it_builds_prints_them_back_and_plays_th
     assert!(printed.contains(r#".build("sweep", 0.8)"#), "{printed}");
     assert!(script::run(&printed, None, None).unwrap().bp.unwrap() == bp, "it rebuilds exactly");
     assert!(script::run(r#"blank("house"); form([sec("build", 8).build("swirl")]);"#, None, None).is_err());
+    // section() turns a build-up on with its style, as .build(style) does, unless it says otherwise
+    let with = |map: &str| {
+        let code = format!(r#"section(0, #{{ {map} }});"#);
+        script::run(&code, Some(song("")), None).unwrap().bp.unwrap().form[0].clone()
+    };
+    let named = with(r#"build_style: "riser", build_amount: 0.3"#);
+    assert!(named.build && named.build_style == BuildStyle::Riser && named.build_amount == 0.3, "{named:?}");
+    assert!(!with(r#"build_style: "riser", build: false"#).build, "a build-up turned off stays off");
     // what plays in the build's last bars, which end on beat 64; and the top of the music's highpass sweep
     let end = 64.0;
     let notes = |bp: &Blueprint, lane: &str, beats: f64| {

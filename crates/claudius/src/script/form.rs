@@ -249,8 +249,10 @@ pub(super) fn register_form(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                     *field = v;
                 }
             }
+            // a style named turns the build-up on, as `.build(style)` does, unless the map turns it off
             if let Some(v) = map_str(&m, "build_style") {
                 s.build_style = BuildStyle::parse(&v)?;
+                s.build |= !m.contains_key("build");
             }
             if let Some(v) = map_f32(&m, "build_amount") {
                 s.build_amount = v.clamp(0.0, 1.0);
