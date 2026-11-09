@@ -256,11 +256,7 @@ impl Studio {
                     Ok(reply) => {
                         self.confirmed = self.confirmed.max(reply.version);
                         if script {
-                            self.view.script.awaiting = false;
-                            self.view.script.result = Some((reply.ok, reply.message.clone()));
-                            if reply.ok {
-                                self.view.script.dirty = false;
-                            }
+                            self.view.script.ran(Ok((reply.ok, reply.message.clone())));
                         }
                         let text = if reply.message.is_empty() { what.replace('_', " ") } else { reply.message };
                         // the Publish dialog shows what the checks say, field after field
@@ -270,8 +266,7 @@ impl Studio {
                     }
                     Err(e) => {
                         if script {
-                            self.view.script.awaiting = false;
-                            self.view.script.result = Some((false, e.clone()));
+                            self.view.script.ran(Err(e.clone()));
                         }
                         self.toast(format!("could not send {}: {e}", what.replace('_', " ")), false, now);
                     }
@@ -590,9 +585,8 @@ impl Studio {
                     self.view.script.dirty = true;
                 }
                 Step::Run => {
-                    self.view.script.awaiting = true;
-                    self.view.script.result = None;
-                    self.out.push(Command::RunScript { code: self.view.script.text.clone() });
+                    let run = self.view.script.run();
+                    self.out.push(run);
                 }
                 Step::Reference => self.view.reference_open = true,
                 Step::Tour(i) => {

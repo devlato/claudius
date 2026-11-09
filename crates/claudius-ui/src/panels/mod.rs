@@ -236,6 +236,8 @@ pub struct ScriptEditor {
     /// put the text cursor here next frame (after inserting a sound name)
     pub move_cursor: Option<usize>,
     pub awaiting: bool,
+    /// the text the run awaited was sent with
+    sent: Option<String>,
     pub filter: String,
     /// when a number was last nudged with the keys: the script runs once they rest
     pub nudged: Option<f64>,
@@ -249,6 +251,30 @@ impl ScriptEditor {
             self.text = script.to_string();
             self.base = script.to_string();
         }
+    }
+
+    /// the run of the text as it is, awaited
+    pub fn run(&mut self) -> Command {
+        self.awaiting = true;
+        self.result = None;
+        self.sent = Some(self.text.clone());
+        Command::RunScript { code: self.text.clone() }
+    }
+
+    /// what the run it awaited answered (none for a run that could not be sent): the text it ran is the song's now,
+    /// and what was typed or nudged while it ran stays, for the next run
+    pub fn ran(&mut self, answer: Result<(bool, String), String>) {
+        self.awaiting = false;
+        let sent = self.sent.take();
+        self.result = Some(match answer {
+            Ok((ok, message)) => {
+                if ok && sent.is_none_or(|s| s == self.text) {
+                    self.dirty = false;
+                }
+                (ok, message)
+            }
+            Err(e) => (false, e),
+        });
     }
 }
 
@@ -759,6 +785,31 @@ mod tests {
         assert_eq!(percent(" 1 % "), Some(0.01));
         assert_eq!(percent("100%"), Some(1.0));
         assert_eq!(percent("loud"), None);
+    }
+
+    #[test]
+    fn a_number_nudged_while_the_script_runs_stays_for_the_next_run() {
+        let mut ed = ScriptEditor { text: "tempo(120);".into(), dirty: true, ..Default::default() };
+        assert!(matches!(ed.run(), Command::RunScript { code } if code == "tempo(120);"));
+        ed.text = "tempo(121);".into();
+        ed.ran(Ok((true, "ran".into())));
+        assert!(ed.dirty && !ed.awaiting);
+        ed.sync("tempo(120);");
+        assert_eq!(ed.text, "tempo(121);", "the song the earlier run made does not take the nudge back");
+        ed.run();
+        ed.ran(Ok((true, "ran".into())));
+        assert!(!ed.dirty);
+        ed.sync("tempo(121);");
+        assert_eq!(ed.text, "tempo(121);");
+        // one refused, or not sent, leaves the text to fix
+        ed.text = "nope(".into();
+        ed.dirty = true;
+        ed.run();
+        ed.ran(Ok((false, "nope is not a function".into())));
+        assert!(ed.dirty && ed.result == Some((false, "nope is not a function".into())));
+        ed.run();
+        ed.ran(Err("offline".into()));
+        assert!(ed.dirty && ed.result == Some((false, "offline".into())) && !ed.awaiting);
     }
 
     #[test]

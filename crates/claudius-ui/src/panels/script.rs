@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use claudius_api::{Command, SoundList};
+use claudius_api::SoundList;
 use eframe::egui::{
     self, Color32, FontId, RichText, Ui,
     text::{LayoutJob, TextFormat},
@@ -629,9 +629,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         None => {}
     }
     if run && !ed.awaiting {
-        ed.awaiting = true;
-        ed.result = None;
-        cx.out.push(Command::RunScript { code: ed.text.clone() });
+        cx.out.push(ed.run());
     }
 }
 
