@@ -427,7 +427,7 @@ impl App {
             saves.iter().map(|dir| (dir, song::write_folder(dir, &bp, &project, &r, &verdict))).collect();
         // encode the browser's copy now, so the first request for it does not wait
         let _ = self.audio_path(version, "mp3");
-        let vv = views::verdict(&verdict);
+        let vv = views::verdict(&verdict, &bp);
         let secs = t.elapsed().as_secs_f64();
         self.update(|s| {
             // a newer render may have landed while this one ran

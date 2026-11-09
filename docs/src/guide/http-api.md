@@ -196,6 +196,7 @@ with `mix("fx", ...)`.
 | `issues` | `[severity 0..1, what, where to fix it]`, worst first |
 | `ears` | `EarsView` or null: `genre_query`, `genre_z`, `best_alt`, `best_alt_z`, `production_z`, `worst_flaw`, `worst_flaw_z`, `sounds_like`, `p_real` |
 | `measures` | `[name, value]` meters: `lufs`, `true_peak_db`, `band_*_db`, `stereo_correlation`, `drop_minus_break_lu`, ... |
+| `fixes` | `{target, label}` for each issue one change fixes (the `quick_fix` command makes it), absent when none |
 
 [The critic and the ears](../engineering/critic.md) explains every score, measure and issue target.
 
@@ -257,6 +258,7 @@ fields marked optional may be left out.
 | `cancel_take_request` | `id` | the person will not record the take asked for, as the Record window's Not now says |
 | `request_pitch_check` | optional `low` and `high` (MIDI, default 57 and 69), `note` | asks the person for a [pitch check](voice.md#checking-your-pitch): the Record window opens with its phrases; it goes in `pitch_check`, waiting, and replaces one asked before |
 | `cancel_pitch_check` | `id` | the person will not do the pitch check now |
+| `quick_fix` | optional `target` (one of the verdict's `fixes`; none: all of them) | makes the verdict's [quick fixes](../getting-started/studio.md#quick-fixes) as one edit; refused while the verdict is of the song before its last change |
 | `mutate` | optional `count` (4, 1 to 32), `keep_best` (true) | a job: tries variations and keeps the best if it beats the song |
 | `evolve` | optional `generations` (3, 1 to 20), `children` (6, 2 to 32) | a job: an evolutionary search from the song |
 | `install_packs` | optional `names` (the missing default packs when left out) | a job: downloads sample packs, as `claudius setup` does; not the opt-in packs, whose licence is unclear, and not on a shared claudius |

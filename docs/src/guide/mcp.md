@@ -150,6 +150,7 @@ says the job is still running; `status` follows it from there.
 | `run_script` | `code` (required), `listen` (true) | edits the song with a [script](../language/overview.md) |
 | `script_reference` | | the script language reference (markdown) |
 | `listen` | `stems` (false) | renders the song if it changed and returns the verdict |
+| `quick_fix` | `target` (an issue's, as the verdict's `quick fix (<target>)` lines name it; none: all) | makes the verdict's [quick fixes](../getting-started/studio.md#quick-fixes), the issues one change fixes, as one edit |
 | `mutate` | `count` (4, 1 to 32), `keep_best` (true) | tries variations steered by the critic's issues and keeps the best if it beats the song |
 | `evolve` | `generations` (3, 1 to 20), `children` (6, 2 to 32) | runs an evolutionary search from the song and keeps the best candidate if it beats the song |
 | `status` | | idle or busy (with progress), the last 25 log lines, the latest verdict |

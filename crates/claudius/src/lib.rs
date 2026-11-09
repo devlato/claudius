@@ -25,6 +25,7 @@ pub mod dsp;
 pub mod ears;
 pub mod evolve;
 pub mod export;
+pub mod fixes;
 pub mod form;
 pub mod fx;
 pub mod generate;

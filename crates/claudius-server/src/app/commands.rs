@@ -276,6 +276,15 @@ impl App {
                 }
             }
             Command::RedrawPieces { seed } => self.redraw_pieces(seed),
+            // the verdict read under the edit's lock, so that no edit lands between it and the fix of its song
+            Command::QuickFix { target } => self.edit_with(|bp| {
+                let (verdict, stale) = {
+                    let s = self.lock();
+                    (s.verdict.clone(), s.render.as_ref().is_none_or(|r| r.view.version < s.song_version))
+                };
+                let verdict = verdict.ok_or("no verdict yet: let the song render first")?;
+                edit::quick_fix(&verdict, bp, target.as_deref(), stale)
+            }),
             Command::KeepPieces { keep, sections } => self.keep_pieces(&keep, sections),
             Command::TrimTake { track, start, end } => {
                 let dir = claudius::take::dir(self.lock().folder.as_deref());

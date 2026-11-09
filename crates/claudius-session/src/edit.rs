@@ -407,6 +407,33 @@ fn sounding(bp: &Blueprint, p: &Part, name: &str) -> Vec<String> {
     std::iter::once(line(&p.name)).chain(chords.map(|h| line(&h.name))).collect()
 }
 
+/// The verdict `v`'s quick fix of the issue at `target` (`Command::QuickFix`), or all its quick fixes when none, made
+/// to the song `bp` it judged; what was done, in words. `stale` when the verdict is of the song before its last change,
+/// whose measures may not hold for it.
+pub fn quick_fix(
+    v: &claudius_api::VerdictView,
+    bp: &mut Blueprint,
+    target: Option<&str>,
+    stale: bool,
+) -> Result<String, String> {
+    if stale {
+        return Err("the verdict is of the song before its last change: let it render, then fix what it says".into());
+    }
+    if let Some(t) = target.filter(|t| !v.fixes.iter().any(|f| f.target == *t)) {
+        let has: Vec<&str> = v.fixes.iter().map(|f| f.target.as_str()).collect();
+        return Err(if has.is_empty() {
+            "the verdict has no quick fixes: its issues need a change of the song (Improve, or edits of your own)"
+                .into()
+        } else {
+            format!("no quick fix for '{t}' (the verdict's quick fixes: {})", has.join(", "))
+        });
+    }
+    let targets: Vec<&str> =
+        v.fixes.iter().map(|f| f.target.as_str()).filter(|t| target.is_none_or(|w| w == *t)).collect();
+    let measures: std::collections::BTreeMap<String, f64> = v.measures.iter().cloned().collect();
+    claudius::fixes::apply(bp, &claudius::fixes::of(&targets, &measures, bp))
+}
+
 /// What command `cmd` changes in the song `bp` itself, and what to say of it; None when `cmd` is no such edit. `seed`
 /// is the one a track generated or varied takes, when the command names none.
 pub fn change(cmd: &Command, bp: &mut Blueprint, seed: u64) -> Option<Result<String, String>> {
@@ -730,6 +757,41 @@ mod tests {
             let c = cmd(&v);
             assert!(script(&c, Some(&bp), 1).is_none() && change(&c, &mut bp.clone(), 1).is_none(), "{v} is no edit");
         }
+    }
+
+    #[test]
+    fn a_quick_fix_is_made_of_the_verdict_as_it_stands_and_one_it_has_not_is_refused() {
+        use claudius_api::{QuickFixView, VerdictView};
+        let mut bp = song();
+        let part = bp.parts[0].name.clone();
+        let before = script::mix_of(&mut bp, &part).unwrap().level_db;
+        let level = format!("level:{part}-");
+        let v = VerdictView {
+            issues: vec![
+                (0.4, format!("{part} is 4.0 dB quieter than its level"), level.clone()),
+                (0.3, "dull 4-8 kHz".into(), "band:presence-".into()),
+                (0.2, "a drop too quiet".into(), "form".into()),
+            ],
+            measures: vec![(format!("level_{part}_off_db"), -4.0), ("band_presence_off_db".into(), -2.0)],
+            fixes: vec![
+                QuickFixView { target: level.clone(), label: String::new() },
+                QuickFixView { target: "band:presence-".into(), label: String::new() },
+            ],
+            ..Default::default()
+        };
+        let said = quick_fix(&v, &mut bp, Some(&level), false).unwrap();
+        assert!(said.starts_with(&format!("quick fix: '{part}' 4.0 dB up")), "{said}");
+        assert_eq!(script::mix_of(&mut bp, &part).unwrap().level_db, before + 4.0);
+        let err = quick_fix(&v, &mut bp, Some("form"), false).unwrap_err();
+        assert!(err.contains("no quick fix for 'form'") && err.contains("band:presence-"), "{err}");
+        let stale = quick_fix(&v, &mut bp, None, true).unwrap_err();
+        assert!(stale.starts_with("the verdict is of the song before its last change"), "{stale}");
+        let all = quick_fix(&v, &mut bp, None, false).unwrap();
+        assert!(all.starts_with("quick fixes:") && all.contains("presence"), "{all}");
+        let none = VerdictView { fixes: Vec::new(), ..v };
+        assert!(
+            quick_fix(&none, &mut bp, Some("form"), false).unwrap_err().starts_with("the verdict has no quick fixes")
+        );
     }
 
     #[test]

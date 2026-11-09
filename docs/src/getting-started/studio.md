@@ -99,7 +99,7 @@ the song it opens. It also opens a project the demo saved, a `.zip`: claudius un
   fills), and a switch for each track playing in it.
 - **Verdict.** The score and its parts (Mix, Shape, Harmony, and with the ears Genre, Production and Records), the
   things to fix, each with how much it costs and where to fix it, and, folded under **What it measured**, what
-  earshot hears and the meters.
+  earshot hears and the meters. A thing one change fixes has a **Quick fix** button ([below](#quick-fixes)).
 
 Under them, the tabs hold the editors: **Drums**, **Instruments**, **Notes**, **Chords**, **Mixer** and **Sounds**, and
 at the right end **Script**, **Signal flow** and **Log**.
@@ -194,6 +194,24 @@ keys and a turntable with the song's sounds there, and sends the takes played on
   melody. While you record, a soft
   guide tone plays what you play, for a keyboard with no sound of its own. When you stop, the notes become a new part
   ([Notes played on a keyboard](../guide/samples.md#notes-played-on-a-keyboard)).
+
+### Quick fixes
+
+Some of what the critic hears needs one change, not a search for it, and the verdict offers that change as a
+**Quick fix** beside it, and first in the **Improve** menu:
+
+- **A recording off the song's time.** "'sample' keeps a tempo of its own, about 140 BPM, against the song's 145":
+  claudius stretches a loop from the tempo it was said to keep to the song's, and this one keeps another. The fix
+  says it keeps that one (here 140), so that it is stretched from there to 145, and keeps its length in bars.
+- **A track mixed far from its level.** "pad is 4.0 dB quieter than the pad level: the rest covers it": the fix moves
+  it to where its genre mixes it, 6 dB at most at once.
+- **A band of the master out of its range.** "dull 4-8 kHz: hats, claps and snare lack bite": the fix moves the band
+  into its range with an equalizer at the end of the master's chain, a bell in the middle of the spectrum and a shelf
+  for the sub and the air, the same equalizer each time.
+
+**Fix all** (in the Improve menu, **Fix them all**) makes every quick fix as one change. Every fix undoes, and none is
+offered while the verdict is of the song before its latest change: it renders again by itself, and the fixes come
+with its new verdict. An assistant has them as `quick_fix`.
 
 ## Writing a track in a style
 

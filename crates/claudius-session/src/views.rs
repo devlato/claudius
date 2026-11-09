@@ -339,7 +339,13 @@ pub fn ears(e: &EarsReport) -> EarsView {
     }
 }
 
-pub fn verdict(v: &Verdict) -> VerdictView {
+/// the verdict `v` of the song `bp`, with the quick fixes its issues have
+pub fn verdict(v: &Verdict, bp: &Blueprint) -> VerdictView {
+    let targets: Vec<&str> = v.issues.iter().map(|i| i.target.as_str()).collect();
+    let fixes = claudius::fixes::of(&targets, &v.measures, bp)
+        .into_iter()
+        .map(|f| claudius_api::QuickFixView { target: f.target, label: f.label })
+        .collect();
     VerdictView {
         total: v.total,
         summary: v.summary.clone(),
@@ -347,6 +353,7 @@ pub fn verdict(v: &Verdict) -> VerdictView {
         issues: v.issues.iter().map(|i| (i.severity, i.what.clone(), i.target.clone())).collect(),
         ears: v.ears.as_ref().map(ears),
         measures: v.measures.iter().map(|(k, x)| (k.clone(), *x)).collect(),
+        fixes,
     }
 }
 
@@ -603,6 +610,9 @@ pub fn verdict_text(v: &VerdictView) -> String {
     }
     for (sev, what, target) in v.issues.iter().take(8) {
         out.push_str(&format!("  issue ({sev:.2}): {what} — fix: {target}\n"));
+    }
+    for f in &v.fixes {
+        out.push_str(&format!("  quick fix ({}): {}\n", f.target, f.label));
     }
     out
 }

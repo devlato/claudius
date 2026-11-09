@@ -150,11 +150,26 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         1 => "One thing to fix".to_string(),
         n => format!("{n} things to fix"),
     };
-    ui.label(RichText::new(heading).strong().size(13.0).color(TEXT));
+    // a fix asked for: of one issue, by its target, or of all of them
+    let mut fix: Option<Option<String>> = None;
+    let fix_tip = if stale { "the verdict is of the song before its latest changes: let it render first" } else { "" };
+    ui.horizontal(|ui| {
+        ui.label(RichText::new(heading).strong().size(13.0).color(TEXT));
+        if v.fixes.len() > 1 {
+            let all = ui
+                .add_enabled(!stale, egui::Button::new(format!("Fix all {}", v.fixes.len())).small())
+                .on_hover_text("the quick fixes of all the issues below that have one, as one change undo takes back")
+                .on_disabled_hover_text(fix_tip);
+            if all.clicked() {
+                fix = Some(None);
+            }
+        }
+    });
     if v.issues.is_empty() {
         ui.label(RichText::new("the critic measures nothing wrong").size(11.5).color(theme::GOOD));
     }
     for (severity, what, target) in &v.issues {
+        let quick = v.fixes.iter().find(|f| f.target == *target);
         egui::Frame::new()
             .fill(theme::alpha(theme::score_color(1.0 - severity), 0.07))
             .corner_radius(4)
@@ -168,19 +183,35 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     ui.vertical(|ui| {
                         ui.spacing_mut().item_spacing.y = 1.0;
                         ui.add(egui::Label::new(RichText::new(what).size(12.0).color(TEXT)).wrap());
-                        ui.label(
-                            RichText::new(format!(
-                                "{} · fix: {}",
-                                claudius_api::severity_in_words(*severity),
-                                claudius_api::fix_in_words(target)
-                            ))
-                            .size(11.0)
-                            .color(TEXT_FAINT),
-                        )
-                        .on_hover_text(format!("severity {severity:.2}, at {target}"));
+                        ui.horizontal_wrapped(|ui| {
+                            ui.label(
+                                RichText::new(format!(
+                                    "{} · fix: {}",
+                                    claudius_api::severity_in_words(*severity),
+                                    claudius_api::fix_in_words(target)
+                                ))
+                                .size(11.0)
+                                .color(TEXT_FAINT),
+                            )
+                            .on_hover_text(format!("severity {severity:.2}, at {target}"));
+                            if let Some(q) = quick {
+                                let b = egui::Button::new(RichText::new("Quick fix").size(11.0).color(theme::ACCENT))
+                                    .small();
+                                let r = ui
+                                    .add_enabled(!stale, b)
+                                    .on_hover_text(format!("{}: one change, which undo takes back", q.label))
+                                    .on_disabled_hover_text(fix_tip);
+                                if r.clicked() {
+                                    fix = Some(Some(q.target.clone()));
+                                }
+                            }
+                        });
                     });
                 });
             });
+    }
+    if let Some(target) = fix {
+        cx.out.push(claudius_api::Command::QuickFix { target });
     }
     ui.add_space(6.0);
 

@@ -164,6 +164,10 @@ by itself.
 
 ## Letting claudius try things
 
+- `quick_fix` first, when the verdict lists `quick fix (<target>): ...` lines: each is one change that fixes its
+  issue outright, such as a sample stretched from the tempo its recording keeps, a track moved to the level its
+  genre mixes it at, or a band of the master equalized into its range. With no `target` it makes all of them as one
+  edit. Say what it changed (its reply does) and offer undo.
 - `mutate` (count, keep_best) tries a few variations a producer would try, biased toward the issues, and keeps the
   best one if it beats the song. Good for ideas or when the score is stuck.
 - `evolve` (generations, children) searches longer, 10 to 40 seconds per generation. When it outlasts the call,
@@ -188,7 +192,7 @@ People say what they hear, not which setting to change. The usual requests, and 
 | "a different drum pattern", "another bass line" | `vary_track` (the same take, other details) or with `take` another take |
 | "add chords under my melody" | `harmonize` |
 | "my voice / my guitar on it" | `request_take`, then `wait_for_take` |
-| "make it better" | the verdict's first fix, or `mutate`; say what changed and offer undo |
+| "make it better" | `quick_fix` when the verdict has quick fixes, else its first fix, or `mutate`; say what changed and offer undo |
 | "what is it like now?" | `get_song`: it begins with the song in plain words |
 | "I like it", "send it to me" | `save`, `export` (`mp3` to share) |
 

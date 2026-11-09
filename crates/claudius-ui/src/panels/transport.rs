@@ -520,6 +520,33 @@ fn variations_menu(ui: &mut Ui, cx: &mut Cx) {
 /// the Improve menu: rounds of variations, each from the best so far
 fn improve_menu(ui: &mut Ui, cx: &mut Cx) {
     ui.set_width(320.0);
+    let fixes = cx.state.verdict.as_ref().map(|v| v.fixes.clone()).unwrap_or_default();
+    if !fixes.is_empty() {
+        let stale = cx.render_stale();
+        let tip = "the verdict is of the song before its latest changes: let it render first";
+        widgets::menu_group(ui, "Quick fixes");
+        ui.label(small("what the critic heard that one change fixes, at once: no rounds of variations"));
+        for f in &fixes {
+            let b = egui::Button::new(RichText::new(&f.label).size(12.0)).wrap();
+            let r = ui
+                .add_enabled(!stale, b)
+                .on_hover_text("one change, which undo takes back")
+                .on_disabled_hover_text(tip);
+            if r.clicked() {
+                cx.out.push(Command::QuickFix { target: Some(f.target.clone()) });
+                ui.close();
+            }
+        }
+        if fixes.len() > 1 {
+            let all = ui.add_enabled(!stale, egui::Button::new("Fix them all")).on_disabled_hover_text(tip);
+            if all.on_hover_text("every quick fix above, as one change").clicked() {
+                cx.out.push(Command::QuickFix { target: None });
+                ui.close();
+            }
+        }
+        ui.separator();
+        widgets::menu_group(ui, "Rounds of variations");
+    }
     ui.label(RichText::new("Improve the song").strong());
     ui.label(small(
         "round after round, claudius tries variations of the best version so far, steered by what the critic \

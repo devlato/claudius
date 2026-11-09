@@ -293,6 +293,14 @@ pub struct ListenArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct QuickFixArgs {
+    /// the issue to fix, by the target the verdict's quick fix names (time:sample, level:pad-, band:presence-);
+    /// none: all of them
+    #[serde(default)]
+    pub target: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct MutateArgs {
     /// how many variations to try (1 to 32)
     #[serde(default = "four")]
@@ -1041,6 +1049,13 @@ impl Studio {
     async fn listen(&self, Parameters(a): Parameters<ListenArgs>) -> Result<String, String> {
         let st = self.heard(a.stems).await?;
         Ok(self.describe(&st))
+    }
+
+    #[tool(
+        description = "Fix the verdict's issues that one change fixes outright, with no variations searched: the verdict lists them as 'quick fix (<target>): <what it does>'. A recording that keeps a tempo of its own is stretched from the tempo it keeps to the song's; a track mixed far from where its genre has it moves there (6 dB at once at most); a band of the master out of its range moves into it on an equalizer at the end of the master's chain. `target` fixes one (as the verdict names it, such as time:sample or band:presence-); none fixes all of them, as one edit that undo takes back. Then listens. Only while the verdict is of the song as it is: after an edit, let it render first. Try these before mutate and evolve."
+    )]
+    async fn quick_fix(&self, Parameters(a): Parameters<QuickFixArgs>) -> Result<String, String> {
+        self.edit(Command::QuickFix { target: a.target }, true).await
     }
 
     #[tool(

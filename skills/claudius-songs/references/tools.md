@@ -13,6 +13,7 @@ to. On the command line, each command reads and writes song folders instead.
 | `run_script` | `code`, `listen` (default true) | `claudius script edit.rhai --on SONG --out DIR` |
 | `script_reference` | | `claudius reference` |
 | `listen` | `stems` | `claudius render SONG/blueprint.json --stems` |
+| `quick_fix` | `target` (an issue's, as the verdict's `quick fix (<target>)` lines name it; none: all of them): the fixes that need no search, a recording's tempo, a track's level, a band of the master, as one edit | |
 | `mutate` | `count` (1-32, default 4), `keep_best` | `claudius mutate SONG/blueprint.json --n 4` |
 | `evolve` | `generations` (1-20, default 3), `children` (2-32, default 6) | `claudius evolve --genre house --generations 4` |
 | `status` | | |
