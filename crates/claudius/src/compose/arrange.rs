@@ -378,18 +378,6 @@ pub fn arrange(bp: &Blueprint) -> Project {
                 let pat = lane.patterns.get(&s.variant).or_else(|| lane.patterns.get("main"));
                 if let Some(p) = pat {
                     let mut seg = lane_notes(bp, lane, p, groove.as_ref(), (a, b), si);
-                    // builds: the fill lane turns into a snare roll; the kick drops out for the last bars, or all
-                    // the drums do
-                    if rolls && is_fill_lane {
-                        seg.retain(|n| n.t < b - roll_len);
-                    }
-                    if s.build && parts.kick_out && is_kick {
-                        seg.retain(|n| n.t < b - how.out_bars as f64 * 4.0);
-                    }
-                    if s.build && parts.drums_out {
-                        let out = how.drums_out_bars.min(s.bars) as f64 * 4.0;
-                        seg.retain(|n| n.t < b - out);
-                    }
                     // each phrase's ending: what the drummer plays on this lane there, or the lane left out
                     for e in &endings[si] {
                         let mine: Vec<&drummer::Play> = e.plays.iter().filter(|p| p.lane == li).collect();
@@ -406,6 +394,18 @@ pub fn arrange(bp: &Blueprint) -> Project {
                                 seg.push(Note { t, d: p.grid, p: 60 + lane.pitch + st.pitch, v: v * 0.9, lock: None });
                             }
                         }
+                    }
+                    // builds, after the endings, so that no turn of the drummer's plays into them: the fill lane turns
+                    // into a snare roll; the kick drops out for the last bars, or all the drums do
+                    if rolls && is_fill_lane {
+                        seg.retain(|n| n.t < b - roll_len);
+                    }
+                    if s.build && parts.kick_out && is_kick {
+                        seg.retain(|n| n.t < b - how.out_bars as f64 * 4.0);
+                    }
+                    if s.build && parts.drums_out {
+                        let out = how.drums_out_bars.min(s.bars) as f64 * 4.0;
+                        seg.retain(|n| n.t < b - out);
                     }
                     seg.sort_by(|x, y| x.t.total_cmp(&y.t));
                     notes.extend(seg);

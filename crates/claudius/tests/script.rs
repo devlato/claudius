@@ -1282,4 +1282,15 @@ fn a_build_up_takes_a_style_and_how_hard_it_builds_prints_them_back_and_plays_th
     let out = song(r#".build("drop_out")"#);
     assert!(["kick", "clap", "hat"].iter().all(|l| notes(&out, l, 8.0) == 0), "the drums hold their breath");
     assert!(notes(&out, "hat", 12.0) > 0, "and play until then");
+    // with the drummer's fills on, none of them plays where the drums drop out, nor through a long roll
+    let filled = |build: &str| {
+        let mut bp = song(build);
+        bp.form[1].fills = true;
+        bp
+    };
+    let out = filled(r#".build("drop_out")"#);
+    assert!(["kick", "clap", "hat"].iter().all(|l| notes(&out, l, 8.0) == 0), "no fill where the drums drop out");
+    let roll = filled(r#".build("roll", 1)"#);
+    let rolled = claudius::theory::rhythm::snare_roll(24.0).len();
+    assert_eq!(notes(&roll, "clap", 24.0), rolled, "the roll alone, with no turn of the drummer's through it");
 }
