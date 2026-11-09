@@ -40,7 +40,11 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let mut out: Vec<Command> = Vec::new();
 
     page_frame().show(ui, |ui| {
-        ui.horizontal(|ui| {
+        widgets::row(ui, "variants", |ui, side| {
+            if side == widgets::Side::Right {
+                ui.label(small("click toggles · drag paints · shift-drag sets velocity · right-click for more"));
+                return;
+            }
             widgets::heading(ui, "Variant");
             for v in &variants {
                 let used: Vec<&str> =
@@ -62,9 +66,6 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             } else {
                 format!("plays in {}", used.join(", "))
             }));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.label(small("click toggles · drag paints · shift-drag sets velocity · right-click for more"));
-            });
         });
         ui.add_space(6.0);
 

@@ -9,16 +9,19 @@ use crate::music::{self, Key};
 use crate::theme::{self, ACCENT, LCD, LCD_TEXT, LINE, TEXT, TEXT_DIM, TEXT_FAINT};
 use crate::widgets::{self, Icon, commit};
 
-fn logo(ui: &mut Ui) {
-    let (rect, _) = ui.allocate_exact_size(vec2(122.0, 36.0), Sense::hover());
+/// the mark, and its name when the bar has the room
+fn logo(ui: &mut Ui, named: bool) {
+    let (rect, _) = ui.allocate_exact_size(vec2(if named { 122.0 } else { 30.0 }, 36.0), Sense::hover());
     let mark = Rect::from_min_size(pos2(rect.left() + 2.0, rect.center().y - 12.0), crate::mark::size(24.0));
     crate::mark::paint(ui, mark);
-    let name = pos2(mark.right() + 9.0, rect.center().y - 1.0);
-    ui.painter().text(name, Align2::LEFT_CENTER, "Claudius", theme::prop(19.0), TEXT);
+    if named {
+        let name = pos2(mark.right() + 9.0, rect.center().y - 1.0);
+        ui.painter().text(name, Align2::LEFT_CENTER, "Claudius", theme::prop(19.0), TEXT);
+    }
 }
 
-fn lcd(ui: &mut Ui, cx: &mut Cx) {
-    let (rect, response) = ui.allocate_exact_size(vec2(268.0, 42.0), Sense::click());
+fn lcd(ui: &mut Ui, cx: &mut Cx, width: f32) {
+    let (rect, response) = ui.allocate_exact_size(vec2(width, 42.0), Sense::click());
     let p = ui.painter();
     p.rect(rect, 6.0, LCD, Stroke::new(1.0, theme::alpha(LCD_TEXT, 0.18)), StrokeKind::Inside);
     let has_audio = cx.player.has_audio();
@@ -80,11 +83,21 @@ fn lcd(ui: &mut Ui, cx: &mut Cx) {
     response.on_hover_text("position / length of the latest render, bar.beat and section at the playhead");
 }
 
+/// how many levels of detail the top bar has (`widgets::fitting`): as the window narrows it drops the score's label,
+/// then the song's bars and length, then the logo's name, then shortens the title and the LCD and drops the genre
+const TOP_LEVELS: usize = 5;
+
 /// row 1: logo, transport, LCD, song parameters, score
 pub fn top_row(ui: &mut Ui, cx: &mut Cx) {
+    widgets::fitting(ui, "top_row", TOP_LEVELS, |ui, level| ((), top_row_at(ui, cx, level)));
+}
+
+/// the top bar at a level of detail (`TOP_LEVELS`), and the width it needed
+fn top_row_at(ui: &mut Ui, cx: &mut Cx, level: usize) -> f32 {
     ui.horizontal_centered(|ui| {
         ui.spacing_mut().item_spacing.x = 6.0;
-        logo(ui);
+        let start = ui.cursor().min.x;
+        logo(ui, level < 3);
         ui.add_space(6.0);
         // while a take records, the recorder plays the song: the player waits
         let has_audio = cx.player.has_audio() && !cx.view.record.recording();
@@ -164,25 +177,38 @@ pub fn top_row(ui: &mut Ui, cx: &mut Cx) {
             }
         }
         ui.add_space(4.0);
-        lcd(ui, cx);
+        lcd(ui, cx, if level < 4 { 268.0 } else { 214.0 });
         ui.add_space(8.0);
-        song_params(ui, cx);
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            let total = cx.state.verdict.as_ref().map(|v| v.total);
-            let stale = cx.render_stale();
-            let tip =
-                cx.state.verdict.as_ref().map_or("no verdict yet: render the song".to_string(), |v| v.summary.clone());
-            widgets::score_badge(ui, total, 36.0).on_hover_text(if stale {
-                format!("{tip}\n\n(the song changed since this render)")
-            } else {
-                tip
-            });
-            ui.label(small(if stale { "Previous score" } else { "Score" }));
-        });
-    });
+        song_params(ui, cx, level);
+        let left = ui.cursor().min.x - start;
+        let right = ui
+            .with_layout(Layout::right_to_left(Align::Center), |ui| {
+                let total = cx.state.verdict.as_ref().map(|v| v.total);
+                let stale = cx.render_stale();
+                let tip = cx
+                    .state
+                    .verdict
+                    .as_ref()
+                    .map_or("no verdict yet: render the song".to_string(), |v| v.summary.clone());
+                let label = if stale { "Previous score" } else { "Score" };
+                widgets::score_badge(ui, total, 36.0).on_hover_text(if stale {
+                    format!("{label}: {tip}\n\n(the song changed since this render)")
+                } else {
+                    format!("{label}: {tip}")
+                });
+                if level == 0 {
+                    ui.label(small(label));
+                }
+            })
+            .response
+            .rect
+            .width();
+        left + 12.0 + right
+    })
+    .inner
 }
 
-fn song_params(ui: &mut Ui, cx: &mut Cx) {
+fn song_params(ui: &mut Ui, cx: &mut Cx, level: usize) {
     let Some(song) = cx.state.song.as_mut() else {
         ui.label(RichText::new("no song yet").color(TEXT_FAINT));
         return;
@@ -190,11 +216,27 @@ fn song_params(ui: &mut Ui, cx: &mut Cx) {
     ui.vertical(|ui| {
         ui.spacing_mut().item_spacing.y = 1.0;
         ui.add_space(3.0);
-        ui.label(RichText::new(&song.title).size(15.5).strong().color(TEXT));
+        // a long title ends in an ellipsis, all of it in its tooltip
+        ui.scope(|ui| {
+            ui.set_max_width(if level < 4 { 240.0 } else { 120.0 });
+            let title = RichText::new(&song.title).size(15.5).strong().color(TEXT);
+            ui.add(egui::Label::new(title).truncate()).on_hover_text(format!(
+                "{}: {} at {:.0} BPM, {} bars, {}",
+                song.title,
+                song.genre.replace('_', " "),
+                song.bpm,
+                song.bars,
+                crate::mock::fmt_time(song.seconds)
+            ));
+        });
         ui.horizontal(|ui| {
-            widgets::pill(ui, &song.genre.replace('_', " "), LCD_TEXT);
-            ui.label(small(format!("{} bars · {}", song.bars, crate::mock::fmt_time(song.seconds))))
-                .on_hover_text(format!("seed {}: the same genre and seed make the same song", song.seed));
+            if level < 4 {
+                widgets::pill(ui, &song.genre.replace('_', " "), LCD_TEXT);
+            }
+            if level < 2 {
+                ui.label(small(format!("{} bars · {}", song.bars, crate::mock::fmt_time(song.seconds))))
+                    .on_hover_text(format!("seed {}: the same genre and seed make the same song", song.seed));
+            }
         });
     });
     ui.add_space(10.0);
@@ -470,7 +512,13 @@ fn status(ui: &mut Ui, cx: &mut Cx) {
                     .text(RichText::new(format!("{:.0}%", p * 100.0)).size(10.5)),
             );
         }
-        ui.label(RichText::new(sentence(&job)).color(TEXT));
+        // as much of what it says as leaves room for the spinner and a gap to the buttons on the left, all of it on
+        // hover
+        let said = sentence(&job);
+        let room = ui.available_width() - 16.0 - 10.0 - 2.0 * ui.spacing().item_spacing.x;
+        ui.allocate_ui(vec2(room.max(0.0), ui.available_height()), |ui| {
+            ui.add(egui::Label::new(RichText::new(&said).color(TEXT)).truncate()).on_hover_text(&said);
+        });
         ui.add(egui::Spinner::new().size(16.0).color(ACCENT));
     } else if cx.state.song.is_some() && (cx.state.render.is_none() || cx.render_stale()) {
         let r = widgets::tool_button(ui, Icon::Render, "Render", true, true)

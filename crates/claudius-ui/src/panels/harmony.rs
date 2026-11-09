@@ -44,15 +44,19 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let palette = music::diatonic(&key, cx.view.sevenths);
     let mut out: Vec<Command> = Vec::new();
     page_frame().show(ui, |ui| {
-        ui.horizontal(|ui| {
+        widgets::row(ui, "harmony_head", |ui, side| {
+            if side == widgets::Side::Right {
+                ui.checkbox(&mut cx.view.sevenths, small("palette with 7ths"));
+                return;
+            }
             widgets::heading(ui, "Harmony");
             ui.label(RichText::new(format!("in {}", song.key)).color(TEXT));
-            ui.label(small(
-                "degrees count in the key's own mode: VI in a minor key is the major chord on its 6th degree",
-            ));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.checkbox(&mut cx.view.sevenths, small("palette with 7ths"));
-            });
+            widgets::help(
+                ui,
+                "Each chord is a degree of the key, counted in the key's own mode: VI in a minor key is the major \
+                 chord on its 6th degree, ii in a major key the minor chord on its 2nd.",
+                "language/song-functions.html#prog",
+            );
         });
         ui.add_space(4.0);
         form_strip(ui, song, &mut out);
@@ -70,12 +74,17 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     .inner_margin(10)
                     .show(ui, |ui| {
                         ui.set_width(ui.available_width());
-                        ui.horizontal(|ui| {
-                            ui.label(RichText::new(format!("Progression {name}")).strong().size(14.0).color(TEXT));
-                            let names: Vec<String> =
-                                chords.iter().map(|c| music::chord(c, &key).map_or("?".into(), |x| x.name)).collect();
-                            ui.label(small(names.join("  ·  ")));
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        widgets::row(ui, ("prog_head", name), |ui, side| {
+                            if side == widgets::Side::Left {
+                                let title =
+                                    RichText::new(format!("Progression {name}")).strong().size(14.0).color(TEXT);
+                                ui.label(title);
+                                let names: Vec<String> = chords
+                                    .iter()
+                                    .map(|c| music::chord(c, &key).map_or("?".into(), |x| x.name))
+                                    .collect();
+                                ui.label(small(names.join("  ·  ")));
+                            } else {
                                 let playing: Vec<&claudius_api::SectionView> =
                                     song.sections.iter().filter(|s| prog_of(s) == name.as_str()).collect();
                                 if playing.is_empty() {
@@ -89,7 +98,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                                             .color(theme::mix(color, TEXT, 0.4)),
                                     );
                                 }
-                            });
+                            }
                         });
                         ui.add_space(4.0);
                         ui.horizontal_wrapped(|ui| {

@@ -1,7 +1,7 @@
 //! The melodic parts: per part its writing style, its sound (a synth preset or a sampled instrument), its register
 //! (drag on the keyboard or edit the notes), its density, and Reseed to write it again.
 
-use claudius_api::Command;
+use claudius_api::{Command, PartView};
 use eframe::egui::{self, Align2, Color32, Rect, RichText, Sense, Stroke, Ui, pos2, vec2};
 
 use super::{Cx, empty, layer_color, page_frame, small};
@@ -108,9 +108,17 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     .stroke(Stroke::new(1.0, theme::LINE_SOFT));
                 let r = frame.show(ui, |ui| {
                     ui.set_width(ui.available_width());
-                    ui.horizontal(|ui| {
+                    // the keyboard takes what the name, the style, the sound, the range's notes, the density and the
+                    // buttons leave of the row
+                    let keys = (ui.available_width() - 800.0).clamp(120.0, 300.0);
+                    // the range, the density and the buttons go under the rest when the row is narrow
+                    widgets::row(ui, ("part", i), |ui, side| {
+                        if side == widgets::Side::Right {
+                            range_density_buttons(ui, part, color, keys, &mut out);
+                            return;
+                        }
                         ui.vertical(|ui| {
-                            ui.set_width(150.0);
+                            ui.set_width(130.0);
                             ui.label(RichText::new(&part.name).size(14.0).strong().color(TEXT));
                             ui.label(small(format!("{} · {}", part.role, sounds[i].replace("synth patch ", ""))));
                         });
@@ -181,100 +189,6 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                                 }
                             });
                         });
-                        // the keyboard takes what the range's notes, the density and the buttons after it leave
-                        let keys = (ui.available_width() - 380.0).clamp(140.0, 300.0);
-                        ui.vertical(|ui| {
-                            ui.horizontal(|ui| {
-                                widgets::label_help(
-                                    ui,
-                                    "Register",
-                                    "The lowest and highest notes the part may play. Drag on the keyboard or the two \
-                                     notes: a bass sits low, a lead high, and parts that keep apart sound clearer.",
-                                    "language/song-functions.html#part",
-                                );
-                                ui.label(
-                                    RichText::new(format!(
-                                        "{} – {}",
-                                        note_name(part.register.0),
-                                        note_name(part.register.1)
-                                    ))
-                                    .size(11.0)
-                                    .color(TEXT),
-                                );
-                                ui.label(small(format!("({} semitones)", part.register.1 - part.register.0)));
-                            });
-                            ui.horizontal(|ui| {
-                                let kb = keyboard(ui, &mut part.register, color, keys);
-                                if kb.drag_stopped() {
-                                    out.push(
-                                        PartEdit { register: Some(part.register), ..Default::default() }.on(&part.name),
-                                    );
-                                }
-                                let (mut lo, mut hi) = part.register;
-                                let fmt = |v: f64, _: std::ops::RangeInclusive<usize>| note_name(v as i32);
-                                let parse = |s: &str| crate::music::parse_note(s).map(|n| n as f64);
-                                let r1 = ui.add(
-                                    egui::DragValue::new(&mut lo)
-                                        .range(LOW..=HIGH - 1)
-                                        .clamp_existing_to_range(false)
-                                        .speed(0.15)
-                                        .custom_formatter(fmt)
-                                        .custom_parser(parse)
-                                        .update_while_editing(false),
-                                );
-                                let r2 = ui.add(
-                                    egui::DragValue::new(&mut hi)
-                                        .range(LOW + 1..=HIGH)
-                                        .clamp_existing_to_range(false)
-                                        .speed(0.15)
-                                        .custom_formatter(fmt)
-                                        .custom_parser(parse)
-                                        .update_while_editing(false),
-                                );
-                                if (lo, hi) != part.register {
-                                    part.register = (lo.min(hi - 1), hi.max(lo + 1));
-                                }
-                                if commit(&r1) || commit(&r2) {
-                                    out.push(
-                                        PartEdit { register: Some(part.register), ..Default::default() }.on(&part.name),
-                                    );
-                                }
-                            });
-                        });
-                        ui.vertical(|ui| {
-                            // its value in its label, so that the rail is all it needs beside the keyboard
-                            widgets::label_help(
-                                ui,
-                                &format!("Density {:.0}%", part.density * 100.0),
-                                "How busy the part is: few notes at 0%, as many as its style plays at 100%.",
-                                "language/song-functions.html#part",
-                            );
-                            ui.spacing_mut().slider_width = 80.0;
-                            let r = ui
-                                .add(
-                                    egui::Slider::new(&mut part.density, 0.0..=1.0)
-                                        .clamping(egui::SliderClamping::Edits)
-                                        .show_value(false),
-                                )
-                                .on_hover_text("how busy it plays: few notes at 0%, many at 100%");
-                            if commit(&r) {
-                                out.push(PartEdit { density: Some(part.density), ..Default::default() }.on(&part.name));
-                            }
-                        });
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if widgets::tool_button(ui, Icon::Dice, "Reseed", true, false)
-                                .on_hover_text("write this part again with a new seed: another take")
-                                .clicked()
-                            {
-                                out.push(PartEdit { reseed: true, ..Default::default() }.on(&part.name));
-                            }
-                            if widgets::tool_button(ui, Icon::Mutate, "Vary", true, false)
-                                .on_hover_text("the same take, other details: its rhythm stays, its ghosts, octaves and approaches change")
-                                .clicked()
-                            {
-                                out.push(Command::VaryTrack { track: part.name.clone(), take: false });
-                            }
-                        });
                     });
                 });
                 let rect = r.response.rect;
@@ -289,4 +203,85 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         });
     });
     cx.out.extend(out);
+}
+
+/// a part's range on its keyboard, its density and its Vary and Reseed buttons: the right of its row
+fn range_density_buttons(ui: &mut Ui, part: &mut PartView, color: Color32, keys: f32, out: &mut Vec<Command>) {
+    ui.vertical(|ui| {
+        ui.horizontal(|ui| {
+            widgets::label_help(
+                ui,
+                "Register",
+                "The lowest and highest notes the part may play. Drag on the keyboard or the two notes: a bass sits \
+                 low, a lead high, and parts that keep apart sound clearer.",
+                "language/song-functions.html#part",
+            );
+            let range = format!("{} – {}", note_name(part.register.0), note_name(part.register.1));
+            ui.label(RichText::new(range).size(11.0).color(TEXT));
+            ui.label(small(format!("({} semitones)", part.register.1 - part.register.0)));
+        });
+        ui.horizontal(|ui| {
+            let kb = keyboard(ui, &mut part.register, color, keys);
+            if kb.drag_stopped() {
+                out.push(PartEdit { register: Some(part.register), ..Default::default() }.on(&part.name));
+            }
+            let (mut lo, mut hi) = part.register;
+            let fmt = |v: f64, _: std::ops::RangeInclusive<usize>| note_name(v as i32);
+            let parse = |s: &str| crate::music::parse_note(s).map(|n| n as f64);
+            let r1 = ui.add(
+                egui::DragValue::new(&mut lo)
+                    .range(LOW..=HIGH - 1)
+                    .clamp_existing_to_range(false)
+                    .speed(0.15)
+                    .custom_formatter(fmt)
+                    .custom_parser(parse)
+                    .update_while_editing(false),
+            );
+            let r2 = ui.add(
+                egui::DragValue::new(&mut hi)
+                    .range(LOW + 1..=HIGH)
+                    .clamp_existing_to_range(false)
+                    .speed(0.15)
+                    .custom_formatter(fmt)
+                    .custom_parser(parse)
+                    .update_while_editing(false),
+            );
+            if (lo, hi) != part.register {
+                part.register = (lo.min(hi - 1), hi.max(lo + 1));
+            }
+            if commit(&r1) || commit(&r2) {
+                out.push(PartEdit { register: Some(part.register), ..Default::default() }.on(&part.name));
+            }
+        });
+    });
+    ui.vertical(|ui| {
+        // its value in its label, so that the rail is all it needs beside the keyboard
+        widgets::label_help(
+            ui,
+            &format!("Density {:.0}%", part.density * 100.0),
+            "How busy the part is: few notes at 0%, as many as its style plays at 100%.",
+            "language/song-functions.html#part",
+        );
+        ui.spacing_mut().slider_width = 70.0;
+        let r = ui
+            .add(
+                egui::Slider::new(&mut part.density, 0.0..=1.0).clamping(egui::SliderClamping::Edits).show_value(false),
+            )
+            .on_hover_text("how busy it plays: few notes at 0%, many at 100%");
+        if commit(&r) {
+            out.push(PartEdit { density: Some(part.density), ..Default::default() }.on(&part.name));
+        }
+    });
+    if widgets::tool_button(ui, Icon::Mutate, "Vary", true, false)
+        .on_hover_text("the same take, other details: its rhythm stays, its ghosts, octaves and approaches change")
+        .clicked()
+    {
+        out.push(Command::VaryTrack { track: part.name.clone(), take: false });
+    }
+    if widgets::tool_button(ui, Icon::Dice, "Reseed", true, false)
+        .on_hover_text("write this part again with a new seed: another take")
+        .clicked()
+    {
+        out.push(PartEdit { reseed: true, ..Default::default() }.on(&part.name));
+    }
 }

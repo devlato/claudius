@@ -724,7 +724,16 @@ impl Studio {
             .inner_margin(Margin::symmetric(14, 6))
             .stroke(Stroke::new(1.0, theme::alpha(theme::BAD, 0.6)));
         egui::Panel::top("offline").frame(frame).show(ui, |ui| {
-            ui.horizontal(|ui| {
+            widgets::row(ui, "offline", |ui, side| {
+                if side == widgets::Side::Right {
+                    if ui.button("Retry now").clicked() {
+                        self.actions.push(Action::Retry);
+                    }
+                    if ui.button("Use the demo").on_hover_text("play with the built-in demo instead").clicked() {
+                        self.actions.push(Action::UseDemo);
+                    }
+                    return;
+                }
                 widgets::dot(ui, theme::BAD);
                 let what = if self.link.ever { "Lost the connection to" } else { "Cannot reach" };
                 ui.label(RichText::new(format!("{what} claudius at {}", self.link.label)).strong().color(TEXT));
@@ -732,14 +741,6 @@ impl Studio {
                 if let Some(t) = retry {
                     ui.label(RichText::new(format!("retrying in {:.0} s", t.ceil())).color(TEXT_FAINT));
                 }
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if ui.button("Use the demo").on_hover_text("play with the built-in demo instead").clicked() {
-                        self.actions.push(Action::UseDemo);
-                    }
-                    if ui.button("Retry now").clicked() {
-                        self.actions.push(Action::Retry);
-                    }
-                });
             });
         });
     }
@@ -963,16 +964,12 @@ impl Studio {
                     *chosen = tab;
                 }
             };
-            ui.horizontal(|ui| {
+            widgets::row(ui, "dock_tabs", |ui, side| {
                 ui.spacing_mut().item_spacing.x = 2.0;
-                for tab in Tab::ALL.into_iter().filter(|t| !t.at_the_end()) {
+                let end = side == widgets::Side::Right;
+                for tab in Tab::ALL.into_iter().filter(|t| t.at_the_end() == end) {
                     tab_button(ui, tab);
                 }
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    for tab in Tab::ALL.into_iter().rev().filter(|t| t.at_the_end()) {
-                        tab_button(ui, tab);
-                    }
-                });
             });
         });
         let mut cx = Cx {
@@ -988,8 +985,17 @@ impl Studio {
             Tab::Sequencer => panels::sequencer::show(ui, &mut cx),
             Tab::Mixer => panels::mixer::show(ui, &mut cx),
             Tab::Parts => panels::parts::show(ui, &mut cx),
-            Tab::Notes => panels::roll::show(ui, &mut cx),
-            Tab::Harmony => panels::harmony::show(ui, &mut cx),
+            // a part's range taller than the dock scrolls, rather than pushing the dock up over the arrangement
+            Tab::Notes => {
+                egui::ScrollArea::vertical().id_salt("roll_scroll").auto_shrink([false, false]).show(ui, |ui| {
+                    panels::roll::show(ui, &mut cx);
+                });
+            }
+            Tab::Harmony => {
+                egui::ScrollArea::vertical().id_salt("harmony_scroll").auto_shrink([false, false]).show(ui, |ui| {
+                    panels::harmony::show(ui, &mut cx);
+                });
+            }
             Tab::Script => panels::script::show(ui, &mut cx),
             Tab::Sounds => panels::library::show(ui, &mut cx),
             Tab::Graph => panels::graph::show(ui, &mut cx),

@@ -411,7 +411,11 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let mut run = false;
     let error = ed.result.as_ref().filter(|(ok, _)| !ok).and_then(|(_, m)| error_location(m));
     page_frame().show(ui, |ui| {
-        ui.horizontal(|ui| {
+        widgets::row(ui, "script_tools", |ui, side| {
+            if side == widgets::Side::Right {
+                ui.label(small(format!("{} lines", ed.text.lines().count())));
+                return;
+            }
             widgets::heading(ui, "Script");
             let cmd = widgets::cmd_key(ui.ctx());
             if widgets::tool_button(ui, Icon::Play, "Run", !ed.awaiting, true)
@@ -452,9 +456,6 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             } else {
                 widgets::pill(ui, "in sync with the song", TEXT_DIM);
             }
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.label(small(format!("{} lines", ed.text.lines().count())));
-            });
         });
         if let Some((ok, msg)) = ed.result.clone() {
             let c = if ok { theme::GOOD } else { theme::BAD };
