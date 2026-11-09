@@ -151,7 +151,7 @@ fn split(x: &Stereo) -> (Stereo, Stereo) {
 
 /// bars `b` of `x` on the beats the recording plays, each as long as another (`Analysis::cut`), faded in and out over
 /// a few milliseconds so that they loop without a click
-fn cut(x: &Stereo, a: &Analysis, b: Bars) -> Stereo {
+pub(crate) fn cut(x: &Stereo, a: &Analysis, b: Bars) -> Stereo {
     let mut out = a.cut(x, b.first, b.count);
     let n = out.len();
     out.fade(((0.002 * SRF) as usize).min(n / 4), ((0.004 * SRF) as usize).min(n / 4));
@@ -480,7 +480,7 @@ impl Library for Under<'_> {
 }
 
 /// the `i`th progression's name, counting from 0: `A` to `Z`, then `AA`, `AB` ..., as a spreadsheet's columns go
-fn progression_name(i: usize) -> String {
+pub(crate) fn progression_name(i: usize) -> String {
     let mut n = i + 1;
     let mut out = Vec::new();
     while n > 0 {
@@ -558,7 +558,7 @@ fn rework_form(
 
 /// the share of a recording's power the rest of it (not its voice, its drums or its bass) holds at least for a rework
 /// to play it beside its voice
-const REST: f64 = 0.02;
+pub(crate) const REST: f64 = 0.02;
 
 /// The recording's tracks in a rework, each the whole of it, the cut under what is not its voice, and what they leave
 /// out, in words. Apart in its stems: the rest of it above its bass (`ORIGINAL`, its voice in it when it does not
@@ -579,7 +579,7 @@ fn wholes(src: &Source) -> (Vec<(&'static str, Stereo)>, f32, &'static str) {
 /// to 100 Hz, where a voice sung low still has it, less of the song's reverb, delay and ducking, for a singer's whole
 /// line that its own room already holds, and 2 dB louder: the song's own singer, on the genre's drums and bass, not
 /// under them
-fn voice_mix() -> TrackMix {
+pub(crate) fn voice_mix() -> TrackMix {
     let mut mix = crate::sampler::vocal_mix();
     for fx in &mut mix.fx {
         if let crate::fx::Effect::Eq { bands } = fx {
