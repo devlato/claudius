@@ -342,7 +342,13 @@ fn apply_op(
                     Some(what)
                 }
                 "patch_tweak" => {
-                    let Sound::Synth { patch, preset } = &mut part.sound else { return None };
+                    // of a rack, the sound it is heard by, tweaked alike in each layer that plays it
+                    let voice = match &part.sound {
+                        Sound::Rack { layers } => crate::swap::voice(layers),
+                        s => Some(s),
+                    };
+                    let Some(Sound::Synth { patch: was, preset }) = voice.cloned() else { return None };
+                    let mut patch = was.clone();
                     let what = match rng.below(5) {
                         0 => {
                             let f = patch.filter.as_mut()?;
@@ -368,6 +374,14 @@ fn apply_op(
                             format!("detune {:.0} cents", o.detune)
                         }
                     };
+                    for s in part.sound.each_mut() {
+                        if let Sound::Synth { preset: p, patch: q } = s
+                            && *p == preset
+                            && *q == was
+                        {
+                            *q = patch.clone();
+                        }
+                    }
                     Some(format!("{} ({preset}): {what}", part.name))
                 }
                 "part_register" => {
@@ -843,5 +857,28 @@ mod tests {
             }
             assert_eq!(low(&b), low(&bp), "seed {seed}");
         }
+    }
+
+    #[test]
+    fn a_stacked_bass_is_tweaked_in_the_sound_it_is_heard_by_alike_in_each_layer_that_plays_it() {
+        let g = crate::genres::get("trap").unwrap();
+        let bp = compose::generate(&g, 1, &compose::Options::default(), None);
+        let patches = |b: &Blueprint| -> Vec<crate::synth::voice::Patch> {
+            let bass = b.parts.iter().find(|p| p.name == "bass").unwrap();
+            assert!(matches!(bass.sound, Sound::Rack { .. }), "trap stacks its 808");
+            let each = bass.sound.each().into_iter();
+            each.filter_map(|s| if let Sound::Synth { patch, .. } = s { Some(patch.clone()) } else { None }).collect()
+        };
+        let aimed = [Issue { severity: 1.0, what: String::new(), target: "sound:bass".into() }];
+        let tweaked = (0..40)
+            .map(|seed| {
+                let mut b = bp.clone();
+                apply_op(&mut b, "patch_tweak", &g, None, &aimed, &mut Rng::new(seed)).map(|_| b)
+            })
+            .find_map(|b| b.filter(|b| patches(b) != patches(&bp)))
+            .expect("a tweak of the 808");
+        let (was, now) = (patches(&bp), patches(&tweaked));
+        assert_eq!(was.len(), 2);
+        assert!(now[0] == now[1] && now[0] != was[0], "the 808 and its grit layer change together");
     }
 }

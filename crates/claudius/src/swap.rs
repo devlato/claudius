@@ -79,7 +79,7 @@ fn open(l: &Layer) -> bool {
 }
 
 /// what a rack plays as its own, which a swap changes: its first layer open at the top, not a sub under it
-fn voice(layers: &[Layer]) -> Option<&Sound> {
+pub(crate) fn voice(layers: &[Layer]) -> Option<&Sound> {
     layers.iter().find(|l| open(l)).or(layers.first()).map(|l| &l.sound)
 }
 

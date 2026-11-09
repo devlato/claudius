@@ -241,6 +241,26 @@ fn a_genre_that_stacks_its_bass_plays_it_as_a_rack_of_its_layers_and_doubles_it_
 }
 
 #[test]
+fn a_stacked_bass_has_its_place_by_each_sound_in_it() {
+    use claudius::model::Role;
+    without_installed_packs();
+    let synth = |name: &str| Sound::Synth { preset: name.into(), patch: claudius::synth::presets::get(name).unwrap() };
+    for name in ["trap", "future_bass"] {
+        let g = genres::get(name).unwrap();
+        let bass = compose::generate(&g, 1, &Options::default(), None).parts.into_iter().find(|p| p.name == "bass");
+        let sound = bass.unwrap().sound;
+        assert!(matches!(sound, Sound::Rack { .. }) && compose::has_place(&g, Role::Bass, &sound), "{name}");
+    }
+    // trap's 808 swapped for a reese, further afield, is the sound out of place, not the rack around it
+    let g = genres::get("trap").unwrap();
+    let bp = compose::generate(&g, 1, &Options::default(), None);
+    let mut sound = bp.parts.into_iter().find(|p| p.name == "bass").unwrap().sound;
+    sound.each_mut().into_iter().for_each(|s| *s = synth("reese"));
+    let out = compose::out_of_place(&g, Role::Bass, &sound).map(Sound::describe);
+    assert_eq!(out.as_deref(), Some("synth patch 'reese'"));
+}
+
+#[test]
 fn a_second_bass_of_a_genre_that_stacks_stacks_no_sound_another_part_plays() {
     without_installed_packs();
     let g = genres::get("future_bass").unwrap();

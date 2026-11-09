@@ -449,21 +449,19 @@ fn theory_checks(p: &Project, g: Option<&GenreProfile>, m: &mut BTreeMap<String,
         });
     }
     parts.push(form);
-    // each part plays a sound its genre has a place for, as the genre's own draws would (`compose::has_place`): one
-    // that does not is a check failed outright
+    // each part plays a sound its genre has a place for, as the genre's own draws would (`compose::has_place`), each
+    // sound of a rack too: one that does not is a check failed outright
     if let Some(g) = g {
         for t in &p.tracks {
             let Some(role) = crate::model::Role::parse(&t.role) else { continue };
-            if crate::compose::has_place(g, role, &t.sound) {
-                continue;
-            }
+            let Some(out) = crate::compose::out_of_place(g, role, &t.sound) else { continue };
             parts.push(0.0);
             issues.push(Issue {
                 severity: 0.5,
                 what: format!(
                     "{} plays {}, which {} has no place for",
                     t.name,
-                    t.sound.describe(),
+                    out.describe(),
                     g.name.replace('_', " ")
                 ),
                 target: format!("sound:{}", t.name),

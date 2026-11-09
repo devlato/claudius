@@ -379,8 +379,14 @@ pub fn named_instruments(g: &GenreProfile, role: Role) -> Vec<String> {
 
 /// Whether `sound` is one a genre has a place for in a part of `role`, as its draws judge (`palette::draw`): a synth
 /// that fits its parts or that its palette draws, an installed instrument its parts name or of a kind its palette
-/// would draw. Other sounds (recordings, samples, loops) are not judged.
+/// would draw, or a rack of those (`out_of_place`). Other sounds (recordings, samples, loops) are not judged.
 pub fn has_place(g: &GenreProfile, role: Role, sound: &Sound) -> bool {
+    out_of_place(g, role, sound).is_none()
+}
+
+/// The sound in `sound` a genre has no place for in a part of `role` (`has_place`): itself, or of a rack the first of
+/// its layers' that has none and is not one the genre stacks under such a part itself (a sub under its bass).
+pub fn out_of_place<'a>(g: &GenreProfile, role: Role, sound: &'a Sound) -> Option<&'a Sound> {
     let own = fitting_synths(g, role);
     let mut rp = g.palette.get(role.name()).cloned().unwrap_or_else(|| palette::default_for(role));
     if rp.synths.is_empty() {
@@ -389,12 +395,21 @@ pub fn has_place(g: &GenreProfile, role: Role, sound: &Sound) -> bool {
     if rp.instruments.is_empty() {
         rp.instruments = named_instruments(g, role);
     }
-    match sound {
+    let placed = |s: &Sound| match s {
         Sound::Synth { preset, .. } => {
             own.contains(preset) || palette::synths_drawn(role, &rp).contains(&preset.as_str())
         }
         Sound::Instrument { name, .. } => palette::instrument_has_place(role, &rp, name),
         _ => true,
+    };
+    match sound {
+        Sound::Rack { layers } => {
+            let stacked: Vec<&str> =
+                g.parts.iter().filter(|p| p.role == role).flat_map(|p| &p.layers).map(|l| l.sound.as_str()).collect();
+            let named = |s: &Sound| matches!(s, Sound::Synth { preset, .. } if stacked.contains(&preset.as_str()));
+            layers.iter().map(|l| &l.sound).find(|s| !named(s) && !placed(s))
+        }
+        s => (!placed(s)).then_some(s),
     }
 }
 
