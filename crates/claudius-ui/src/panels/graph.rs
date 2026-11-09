@@ -6,7 +6,7 @@
 //! effect's settings, its place in its chain, or the effect itself, as the song keeps it; a chain's new effects; the
 //! master's loudness. Every change is a command, so it undoes, and the graph follows the song.
 
-use claudius_api::{Chain, Command, EFFECT_TEMPLATES, EdgeKind, Graph, NodeKind, SongView};
+use claudius_api::{Chain, Command, EFFECT_TEMPLATES, EdgeKind, Graph, NodeKind, SongView, words};
 use eframe::egui::{self, Align2, Color32, Pos2, Rect, RichText, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
 use serde_json::Value;
 
@@ -240,7 +240,8 @@ fn node_menu(ui: &mut Ui, cx: &mut Cx, song: &SongView, kind: &NodeKind) {
         let fx = chain_of(song, &c);
         ui.menu_button("Add an effect", |ui| {
             for (name, template) in EFFECT_TEMPLATES {
-                if ui.button(name.replace('_', " ")).clicked() {
+                let (shown, about) = words::effect_in_words(name);
+                if ui.button(shown).on_hover_text(super::named(Some(about), name)).clicked() {
                     if let Ok(e) = serde_json::from_str::<Value>(template) {
                         let mut fx = fx.clone();
                         fx.insert(at.map_or(fx.len(), |i| i + 1), e);
@@ -374,27 +375,40 @@ fn track(ui: &mut Ui, cx: &mut Cx, song: &SongView, name: &str) {
     let mut sent = Vec::new();
     if let Some(t) = cx.state.song.as_mut().map(|s| &mut s.tracks[i]) {
         egui::Grid::new("graph-track").num_columns(2).spacing([10.0, 6.0]).show(ui, |ui| {
+            type Look = fn(egui::Slider<'_>) -> egui::Slider<'_>;
             let mut field = |ui: &mut Ui,
                              label: &str,
                              v: &mut f32,
                              range: std::ops::RangeInclusive<f32>,
+                             look: Look,
                              edit: fn(f32) -> MixEdit| {
                 ui.label(small(label));
-                let r = ui.add(egui::Slider::new(v, range));
+                let r = ui.add(look(egui::Slider::new(v, range)));
                 if commit(&r) {
                     sent.push(edit(*v));
                 }
                 ui.end_row();
             };
-            field(ui, "level dB", &mut t.level_db, -36.0..=12.0, |v| MixEdit {
+            // each as the mixer shows it: dB, a pan in words, the sends and the duck in percent
+            let db: Look = |s| s.suffix(" dB").fixed_decimals(1);
+            let pan: Look =
+                |s| s.custom_formatter(|v, _| words::pan_in_words(v as f32)).custom_parser(super::parse_pan);
+            let pct: Look = |s| s.custom_formatter(|v, _| format!("{:.0}%", v * 100.0)).custom_parser(super::percent);
+            field(ui, "level", &mut t.level_db, -36.0..=12.0, db, |v| MixEdit {
                 level_db: Some(v),
                 ..Default::default()
             });
-            field(ui, "pan", &mut t.pan, -1.0..=1.0, |v| MixEdit { pan: Some(v), ..Default::default() });
-            field(ui, "reverb send", &mut t.reverb, 0.0..=1.0, |v| MixEdit { reverb: Some(v), ..Default::default() });
-            field(ui, "delay send", &mut t.delay, 0.0..=1.0, |v| MixEdit { delay: Some(v), ..Default::default() });
-            field(ui, "duck", &mut t.duck, 0.0..=1.0, |v| MixEdit { duck: Some(v), ..Default::default() });
-            field(ui, "drive dB", &mut t.drive_db, 0.0..=36.0, |v| MixEdit { drive_db: Some(v), ..Default::default() });
+            field(ui, "pan", &mut t.pan, -1.0..=1.0, pan, |v| MixEdit { pan: Some(v), ..Default::default() });
+            field(ui, "reverb send", &mut t.reverb, 0.0..=1.0, pct, |v| MixEdit {
+                reverb: Some(v),
+                ..Default::default()
+            });
+            field(ui, "delay send", &mut t.delay, 0.0..=1.0, pct, |v| MixEdit { delay: Some(v), ..Default::default() });
+            field(ui, "duck", &mut t.duck, 0.0..=1.0, pct, |v| MixEdit { duck: Some(v), ..Default::default() });
+            field(ui, "drive", &mut t.drive_db, 0.0..=36.0, db, |v| MixEdit {
+                drive_db: Some(v),
+                ..Default::default()
+            });
             crate::widgets::label_help(
                 ui,
                 "bus",
@@ -441,11 +455,17 @@ fn track(ui: &mut Ui, cx: &mut Cx, song: &SongView, name: &str) {
         ui.horizontal(|ui| {
             ui.label(small("sound"));
             let mut preset = p.preset.clone();
-            egui::ComboBox::from_id_salt("graph-preset").selected_text(&preset).show_ui(ui, |ui| {
-                for x in &p.presets {
-                    ui.selectable_value(&mut preset, x.clone(), x);
-                }
-            });
+            let tip = |s: &str| super::named(super::sound_about(s, cx.sounds).as_deref(), s);
+            egui::ComboBox::from_id_salt("graph-preset")
+                .selected_text(words::name_in_words(&preset))
+                .truncate()
+                .show_ui(ui, |ui| {
+                    for x in &p.presets {
+                        ui.selectable_value(&mut preset, x.clone(), words::name_in_words(x)).on_hover_text(tip(x));
+                    }
+                })
+                .response
+                .on_hover_text(tip(&p.preset));
             if preset != p.preset {
                 cx.out.push(Command::SetPart {
                     name: name.to_string(),
@@ -474,7 +494,9 @@ fn chain_list(ui: &mut Ui, cx: &mut Cx, song: &SongView, c: &Chain) {
     for (i, e) in fx.iter().enumerate() {
         widgets::row(ui, ("graph-fx", c.target(), i), |ui, side| {
             if side == widgets::Side::Left {
-                if ui.selectable_label(false, claudius_api::effect_summary(e)).clicked() {
+                let (_, about) = words::effect_in_words(e.get("fx").and_then(|f| f.as_str()).unwrap_or_default());
+                let r = ui.selectable_label(false, claudius_api::effect_summary(e));
+                if r.on_hover_text(format!("{about}\nclick to change its settings")).clicked() {
                     cx.view.graph.selected = Some(format!("{}#{i}", c.target()));
                     cx.view.graph.json = None;
                 }
@@ -499,7 +521,8 @@ fn chain_list(ui: &mut Ui, cx: &mut Cx, song: &SongView, c: &Chain) {
     }
     egui::ComboBox::from_id_salt(("graph-add", c.target())).selected_text("add an effect").show_ui(ui, |ui| {
         for (name, template) in EFFECT_TEMPLATES {
-            if ui.selectable_label(false, name.replace('_', " ")).clicked()
+            let (shown, about) = words::effect_in_words(name);
+            if ui.selectable_label(false, shown).on_hover_text(super::named(Some(about), name)).clicked()
                 && let Ok(e) = serde_json::from_str::<Value>(template)
             {
                 let mut f = fx.clone();
@@ -561,13 +584,22 @@ fn effect(ui: &mut Ui, cx: &mut Cx, song: &SongView, id: &str, c: &Chain, i: usi
         let keys: Vec<String> = obj.keys().filter(|k| *k != "fx").cloned().collect();
         egui::Grid::new(("graph-fx", id)).num_columns(2).spacing([10.0, 6.0]).show(ui, |ui| {
             for k in keys {
-                ui.label(small(k.replace('_', " ")));
+                let (setting, unit, about) = words::setting_in_words(&k);
+                let tip = super::named(Some(about), &k);
+                ui.label(small(setting)).on_hover_text(&tip);
                 let v = obj.get_mut(&k).expect("a key of its own");
                 match v {
                     Value::Number(n) => {
                         let mut x = n.as_f64().unwrap_or_default();
                         let speed = (x.abs() * 0.01).max(0.001);
-                        let r = ui.add(egui::DragValue::new(&mut x).speed(speed).max_decimals(3));
+                        let unit = match unit {
+                            "" => String::new(),
+                            ":1" => unit.to_string(),
+                            _ => format!(" {unit}"),
+                        };
+                        let r = ui
+                            .add(egui::DragValue::new(&mut x).speed(speed).max_decimals(3).suffix(unit))
+                            .on_hover_text(&tip);
                         if r.changed() {
                             *v = serde_json::json!(x);
                             changed = true;
@@ -585,14 +617,14 @@ fn effect(ui: &mut Ui, cx: &mut Cx, song: &SongView, id: &str, c: &Chain, i: usi
                             _ => &[],
                         };
                         let before = s.clone();
-                        egui::ComboBox::from_id_salt(("graph-opt", id, &k)).selected_text(s.as_str()).show_ui(
-                            ui,
-                            |ui| {
+                        egui::ComboBox::from_id_salt(("graph-opt", id, &k))
+                            .selected_text(words::option_in_words(s))
+                            .show_ui(ui, |ui| {
                                 for o in options {
-                                    ui.selectable_value(s, o.to_string(), *o);
+                                    ui.selectable_value(s, o.to_string(), words::option_in_words(o))
+                                        .on_hover_text(super::named(None, o));
                                 }
-                            },
-                        );
+                            });
                         committed |= *s != before;
                     }
                     other => {

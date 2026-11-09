@@ -223,7 +223,7 @@ fn song_params(ui: &mut Ui, cx: &mut Cx, level: usize) {
             ui.add(egui::Label::new(title).truncate()).on_hover_text(format!(
                 "{}: {} at {:.0} BPM, {} bars, {}",
                 song.title,
-                song.genre.replace('_', " "),
+                super::genre_words(&song.genre),
                 song.bpm,
                 song.bars,
                 crate::mock::fmt_time(song.seconds)
@@ -231,7 +231,7 @@ fn song_params(ui: &mut Ui, cx: &mut Cx, level: usize) {
         });
         ui.horizontal(|ui| {
             if level < 4 {
-                widgets::pill(ui, &song.genre.replace('_', " "), LCD_TEXT);
+                widgets::pill(ui, &super::genre_words(&song.genre), LCD_TEXT);
             }
             if level < 2 {
                 ui.label(small(format!("{} bars · {}", song.bars, crate::mock::fmt_time(song.seconds))))
@@ -918,7 +918,7 @@ fn from_genre(ui: &mut Ui, cx: &mut Cx) {
                         ui.painter().text(
                             rect.min + vec2(12.0, 14.0),
                             Align2::LEFT_CENTER,
-                            g.name.replace('_', " "),
+                            super::genre_words(&g.name),
                             theme::prop(14.0),
                             TEXT,
                         );
@@ -955,14 +955,14 @@ fn from_genre(ui: &mut Ui, cx: &mut Cx) {
             egui::Grid::new("new_song_opts").num_columns(2).spacing(vec2(10.0, 8.0)).show(ui, |ui| {
                 if !genres.is_empty() {
                     ui.label("Fused with");
-                    let shown = f.with.as_ref().map_or("nothing".to_string(), |w| w.replace('_', " "));
+                    let shown = f.with.as_ref().map_or("nothing".to_string(), |w| super::genre_words(w));
                     egui::ComboBox::from_id_salt("ns_with")
                     .width(150.0)
                     .selected_text(shown)
                     .show_ui(ui, |ui| {
                         ui.selectable_value(&mut f.with, None, "nothing");
                         for g in genres.iter().filter(|g| g.name != f.genre) {
-                            ui.selectable_value(&mut f.with, Some(g.name.clone()), g.name.replace('_', " "));
+                            ui.selectable_value(&mut f.with, Some(g.name.clone()), super::genre_words(&g.name));
                         }
                     })
                     .response
@@ -1079,7 +1079,7 @@ fn two_lines(painter: &egui::Painter, text: String, width: f32) -> std::sync::Ar
 fn options_set(f: &super::NewSongForm) -> String {
     let mut set = Vec::new();
     if let Some(w) = &f.with {
-        set.push(format!("fused with {}", w.replace('_', " ")));
+        set.push(format!("fused with {}", super::genre_words(w)));
     }
     if !f.seed.trim().is_empty() {
         set.push(format!("seed {}", f.seed.trim()));
@@ -1124,7 +1124,7 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
     ui.add_space(8.0);
     ui.label(RichText::new("What to do with it").strong());
     let f = &mut cx.view.new_song;
-    let shown = f.genre_name().replace('_', " ").replace('+', " + ");
+    let shown = super::genre_words(&f.genre_name());
     let song = cx.state.song.is_some();
     let drums = cx.state.song.as_ref().is_some_and(|s| !s.drums.is_empty());
     let choices = [
@@ -1199,10 +1199,10 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
             egui::ComboBox::from_id_salt("ns_recording_genre")
                 .width(180.0)
                 .height(320.0)
-                .selected_text(f.genre_name().replace('_', " ").replace('+', " + "))
+                .selected_text(super::genre_words(&f.genre_name()))
                 .show_ui(ui, |ui| {
                     for g in genres {
-                        if ui.selectable_label(f.genre == g.name, g.name.replace('_', " ")).clicked()
+                        if ui.selectable_label(f.genre == g.name, super::genre_words(&g.name)).clicked()
                             && f.genre != g.name
                         {
                             // the genre a remake or a flip is in, whole: not fused with one chosen before

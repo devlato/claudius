@@ -2,7 +2,7 @@
 //! part or a script may use: sampled instruments by pack, their short names, synth presets and drum voices. Click
 //! an instrument or a preset to put it on one of the song's parts.
 
-use claudius_api::{Command, PackInfo, SongView, SoundList};
+use claudius_api::{Command, PackInfo, SongView, SoundList, words};
 use eframe::egui::{self, Color32, RichText, Ui};
 
 use super::{Cx, empty, layer_color, page_frame, small};
@@ -62,23 +62,33 @@ fn pack_card(ui: &mut Ui, p: &PackInfo, instruments: usize, can_install: bool) -
     install
 }
 
-/// a sound chip; clicking it offers the song's parts to put it on
-fn assignable(ui: &mut Ui, label: &str, sound: &str, song: Option<&SongView>, out: &mut Vec<claudius_api::Command>) {
+/// a sound chip, `label` the sound's name as it is shown; clicking it offers the song's parts to put it on
+fn assignable(
+    ui: &mut Ui,
+    label: &str,
+    sound: &str,
+    list: &SoundList,
+    song: Option<&SongView>,
+    out: &mut Vec<claudius_api::Command>,
+) {
+    // a part may name a pack's instrument by its short name
+    let short = sound.split_once(':').map_or(sound, |(_, n)| n);
     let current: Vec<&str> = song
-        .map(|s| s.parts.iter().filter(|p| p.preset == sound || p.preset == label).map(|p| p.name.as_str()).collect())
+        .map(|s| s.parts.iter().filter(|p| p.preset == sound || p.preset == short).map(|p| p.name.as_str()).collect())
         .unwrap_or_default();
     let resp = if current.is_empty() {
         ui.small_button(label)
     } else {
         ui.add(egui::Button::new(RichText::new(label).color(Color32::BLACK)).small().fill(theme::ACCENT))
     };
+    let about = super::named(super::sound_about(sound, Some(list)).as_deref(), sound);
     let resp = resp.on_hover_text(if current.is_empty() {
-        format!("{sound}: click to use it on a part")
+        format!("{about}\nclick to use it on a part")
     } else {
-        format!("{sound}: plays {}", current.join(", "))
+        format!("{about}\nplays {}", current.join(", "))
     });
     egui::Popup::menu(&resp).show(|ui| {
-        ui.label(RichText::new(sound).strong());
+        ui.label(RichText::new(label).strong());
         let Some(song) = song.filter(|s| !s.parts.is_empty()) else {
             ui.label(small("the song has no parts"));
             return;
@@ -86,7 +96,8 @@ fn assignable(ui: &mut Ui, label: &str, sound: &str, song: Option<&SongView>, ou
         ui.label(small("use it as the sound of"));
         for p in &song.parts {
             let on = p.preset == sound;
-            let text = RichText::new(format!("{} · {} (now {})", p.name, p.role, p.preset)).color(if on {
+            let now = words::name_in_words(&p.preset);
+            let text = RichText::new(format!("{} · {} (now {now})", p.name, p.role)).color(if on {
                 theme::ACCENT
             } else {
                 layer_color(song, &p.name)
@@ -176,8 +187,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         ui.horizontal_wrapped(|ui| {
                             ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
                             for full in names {
-                                let label = full.split_once(':').map_or(full.as_str(), |(_, n)| n);
-                                assignable(ui, label, full, song, &mut out);
+                                let name = full.split_once(':').map_or(full.as_str(), |(_, n)| n);
+                                assignable(ui, &words::name_in_words(name), full, list, song, &mut out);
                             }
                         });
                     });
@@ -193,7 +204,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         ui.horizontal_wrapped(|ui| {
                             ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
                             for n in aliases {
-                                assignable(ui, n, n, song, &mut out);
+                                assignable(ui, &words::name_in_words(n), n, list, song, &mut out);
                             }
                         });
                     });
@@ -202,8 +213,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             widgets::heading(ui, "Synth presets");
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
-                for n in list.synths.iter().filter(|n| hit(n)) {
-                    assignable(ui, n, n, song, &mut out);
+                for n in list.synths.iter().filter(|n| hit(n) || hit(&words::name_in_words(n))) {
+                    assignable(ui, &words::name_in_words(n), n, list, song, &mut out);
                 }
             });
             ui.add_space(6.0);
@@ -211,8 +222,10 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             ui.label(small("procedural drums for patterns: s(\"bd*4\"), or a real kit with .bank(\"tr909\")"));
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
-                for n in list.drums.iter().filter(|n| hit(n)) {
-                    ui.label(RichText::new(n).monospace().size(11.5).color(theme::role_color(n)));
+                for n in list.drums.iter().filter(|n| hit(n) || list.sound_about(n).is_some_and(hit)) {
+                    let voice = list.sound_about(n).unwrap_or("a drum voice");
+                    ui.label(RichText::new(n).monospace().size(11.5).color(theme::role_color(n)))
+                        .on_hover_text(format!("{voice}, synthesized\nin a pattern: s(\"{n}\")"));
                 }
             });
         });

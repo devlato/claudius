@@ -341,9 +341,10 @@ fn sounds(ui: &mut Ui, ed: &mut super::ScriptEditor, list: &SoundList) {
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing = egui::vec2(4.0, 4.0);
             for (label, insert_as) in names {
+                let about = list.sound_about(insert_as).map_or(String::new(), |a| format!("{a}\n"));
                 if ui
                     .small_button(label.as_str())
-                    .on_hover_text(format!("{tip}: inserts \"{insert_as}\" at the cursor"))
+                    .on_hover_text(format!("{about}{tip}: inserts \"{insert_as}\" at the cursor"))
                     .clicked()
                 {
                     insert(ed, &format!("\"{insert_as}\""));
@@ -351,8 +352,10 @@ fn sounds(ui: &mut Ui, ed: &mut super::ScriptEditor, list: &SoundList) {
             }
         });
     };
-    let drums: Vec<(String, String)> = list.drums.iter().filter(|n| hit(n)).map(|n| (n.clone(), n.clone())).collect();
-    let synths: Vec<(String, String)> = list.synths.iter().filter(|n| hit(n)).map(|n| (n.clone(), n.clone())).collect();
+    // a sound is found by its name or by what it is ("piano" finds epiano)
+    let found = |n: &&String| hit(n) || list.sound_about(n).is_some_and(hit);
+    let drums: Vec<(String, String)> = list.drums.iter().filter(found).map(|n| (n.clone(), n.clone())).collect();
+    let synths: Vec<(String, String)> = list.synths.iter().filter(found).map(|n| (n.clone(), n.clone())).collect();
     let mut packs: Vec<(&str, Vec<(String, String)>)> = Vec::new();
     for full in list.instruments.iter().filter(|n| n.contains(':') && hit(n)) {
         let (pack, name) = full.split_once(':').unwrap_or(("", full));

@@ -41,8 +41,8 @@ pub use mix::mix_of;
 pub use print::{layer_value, sound_word, to_script, value_text};
 pub use song::{blank, remode};
 pub(crate) use song::{place_new, put_drum, put_hits};
+pub use sounds::{drum_about, drum_name, drum_names, drum_role, resolve_sound, role_of};
 pub(crate) use sounds::{drum_label, voice_word};
-pub use sounds::{drum_name, drum_names, drum_role, resolve_sound, role_of};
 pub use steps::{STEP_ACCENT, STEP_GHOST, hits_to_steps, steps_to_hits};
 
 /// a pattern track may play at most this many notes per bar (averaged over 64 bars)

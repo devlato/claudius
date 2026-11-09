@@ -134,7 +134,14 @@ fn add_track_menu(
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
                 for n in names {
-                    ui.selectable_value(&mut f.sound, n.clone(), n.as_str());
+                    let about = super::sound_about(n, sounds);
+                    // a drum lane's synthesized voices by the names its patterns write (bd and kick are one)
+                    let (shown, tip) = if drums.contains(n) {
+                        (n.clone(), format!("{}, synthesized", about.as_deref().unwrap_or("a drum voice")))
+                    } else {
+                        (claudius_api::words::name_in_words(n), super::named(about.as_deref(), n))
+                    };
+                    ui.selectable_value(&mut f.sound, n.clone(), shown).on_hover_text(tip);
                 }
             });
         }
@@ -236,7 +243,8 @@ fn generate_menu(
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
             for g in genres.iter().filter(hit) {
-                if ui.selectable_label(genre == g.name, &g.name).on_hover_text(&g.description).clicked() {
+                let shown = super::genre_words(&g.name);
+                if ui.selectable_label(genre == g.name, shown).on_hover_text(&g.description).clicked() {
                     f.genre = g.name.clone();
                 }
             }
@@ -1039,7 +1047,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         ui.label(small("as").weak());
                         ui.horizontal_wrapped(|ui| {
                             for s in claudius_api::NOTE_STYLES {
-                                ui.selectable_value(&mut style, s.to_string(), *s);
+                                ui.selectable_value(&mut style, s.to_string(), *s)
+                                    .on_hover_text(claudius_api::words::note_style_in_words(s));
                             }
                         });
                         for (heading, names) in [("instruments", &instruments), ("synths", &synths)] {
@@ -1048,7 +1057,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                             }
                             ui.label(small(heading).weak());
                             for s in names {
-                                if ui.button(s).clicked() {
+                                let about = super::named(super::sound_about(s, sounds).as_deref(), s);
+                                if ui.button(claudius_api::words::name_in_words(s)).on_hover_text(about).clicked() {
                                     out.push(Command::TranscribeTake {
                                         take: layer.clone(),
                                         sounds: vec![s.clone()],
@@ -1131,6 +1141,13 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 theme::mono(10.5),
                 TEXT_DIM,
             );
+            let (_, _, loudness) = claudius_api::words::measure_in_words("lufs", r.lufs);
+            let (_, _, peak) = claudius_api::words::measure_in_words("true_peak_db", f64::from(r.true_peak_db));
+            ui.interact(gutter, ui.scope_id().with("master"), Sense::hover()).on_hover_text(format!(
+                "the mastered song as it renders\n{:.1} LUFS, its loudness: {loudness}\n{:.1} dBTP, its true peak: \
+                 {peak}",
+                r.lufs, r.true_peak_db
+            ));
             let mid = wave.center().y;
             let half = wave.height() / 2.0 - 3.0;
             let secs_x = |t: f64| tl.x(t * r.bpm.max(1.0) / 240.0);

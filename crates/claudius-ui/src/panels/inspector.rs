@@ -2,7 +2,7 @@
 //! selected section, plus adding, moving, duplicating and removing sections; and under it, for the track selected, the
 //! track inspector.
 
-use claudius_api::Command;
+use claudius_api::{Command, words};
 use eframe::egui::{self, RichText, Ui, vec2};
 
 use super::{Cx, Tab, small};
@@ -218,19 +218,25 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                      has its steps for each version; write them in the Drums tab.",
                     "language/song-functions.html#drum",
                 );
+                let (shown, about) = words::variant_in_words(&s.variant);
                 egui::ComboBox::from_id_salt("section_variant")
-                    .selected_text(&s.variant)
+                    .selected_text(shown)
                     .width(110.0)
                     .show_ui(ui, |ui| {
                         for v in &variants {
-                            if ui.selectable_label(&s.variant == v, v).clicked() && &s.variant != v {
+                            let (shown, about) = words::variant_in_words(v);
+                            let r = ui.selectable_label(&s.variant == v, shown).on_hover_text(super::named(Some(about), v));
+                            if r.clicked() && &s.variant != v {
                                 s.variant = v.clone();
                                 cx.out.push(SectionEdit { variant: Some(v.clone()), ..Default::default() }.at(i));
                             }
                         }
                     })
                     .response
-                    .on_hover_text("which of the drums' patterns this section plays (Drums shows each)");
+                    .on_hover_text(format!(
+                        "which of the drums' patterns this section plays (Drums shows each): {}",
+                        super::named(Some(about), &s.variant)
+                    ));
                 ui.end_row();
 
                 widgets::label_help(
@@ -412,7 +418,8 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
                     "getting-started/studio.html#swapping-a-sound",
                 );
                 ui.vertical(|ui| {
-                    ui.add(egui::Label::new(RichText::new(&t.sound).color(TEXT_DIM)).wrap());
+                    ui.add(egui::Label::new(RichText::new(words::sound_in_words(&t.sound)).color(TEXT_DIM)).wrap())
+                        .on_hover_text(&t.sound);
                     if let Some(next) = super::next_label(t)
                         && ui
                             .button(format!("Another sound: {next}"))
@@ -490,8 +497,12 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
                     "language/mixing.html#pan",
                 );
                 let r = ui
-                    .add(egui::Slider::new(&mut t.pan, -1.0..=1.0).fixed_decimals(2))
-                    .on_hover_text("where it sits from left (-1) to right (1)");
+                    .add(
+                        egui::Slider::new(&mut t.pan, -1.0..=1.0)
+                            .custom_formatter(|v, _| words::pan_in_words(v as f32))
+                            .custom_parser(super::parse_pan),
+                    )
+                    .on_hover_text("where it sits from left to right: type 30% left, L30 or -0.3");
                 if commit(&r) {
                     cx.out.push(MixEdit { pan: Some(t.pan), ..Default::default() }.on(&name));
                 }
@@ -519,7 +530,7 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
 /// does ("reese, 90 Hz to 1.2 kHz, -1 dB").
 fn layer_words(layer: &serde_json::Value) -> String {
     let hz = |f: f64| if f >= 1000.0 { format!("{} kHz", (f / 100.0).round() / 10.0) } else { format!("{f:.0} Hz") };
-    let mut words = vec![layer.get("sound").and_then(|s| s.as_str()).unwrap_or("a sound").replace('_', " ")];
+    let mut words = vec![words::name_in_words(layer.get("sound").and_then(|s| s.as_str()).unwrap_or("a sound"))];
     let band: Option<Vec<f64>> =
         layer.get("band").and_then(|b| b.as_array()).map(|b| b.iter().filter_map(|v| v.as_f64()).collect());
     if let Some([lo, hi]) = band.as_deref() {

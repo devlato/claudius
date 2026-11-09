@@ -265,19 +265,22 @@ fn labelled(ui: &mut Ui, icon: Icon, label: &str, enabled: bool, accent: bool, m
     response
 }
 
-/// a rotary knob: drag up / down (shift: fine), double-click resets to 0
+/// a rotary knob: drag up / down (shift: fine), double-click resets to 0. While hovered its face shows its value as
+/// `fmt` writes it, short, and its tooltip as `said` says it, in words. A range either side of 0 lights the arc from
+/// the middle.
 pub fn knob(
     ui: &mut Ui,
     value: &mut f32,
     range: RangeInclusive<f32>,
     label: &str,
     color: Color32,
-    bipolar: bool,
     fmt: impl Fn(f32) -> String,
+    said: impl Fn(f32) -> String,
 ) -> Response {
     let d = 30.0;
     let (rect, mut response) = ui.allocate_exact_size(vec2(d + 8.0, d + 14.0), Sense::click_and_drag());
     let (lo, hi) = (*range.start(), *range.end());
+    let bipolar = lo < 0.0 && hi > 0.0;
     if response.dragged() {
         let fine = if ui.input(|i| i.modifiers.shift) { 0.2 } else { 1.0 };
         let delta = -response.drag_delta().y * (hi - lo) / 140.0 * fine;
@@ -317,7 +320,7 @@ pub fn knob(
         theme::prop(10.5),
         if hovered { TEXT } else { TEXT_DIM },
     );
-    response.on_hover_text(format!("{label}: {}  (drag, shift for fine, double-click resets)", fmt(*value)))
+    response.on_hover_text(format!("{}\n(drag up or down, shift for fine; double-click resets)", said(*value)))
 }
 
 /// the fader's dB to 0..1 travel (finer around 0 dB, like a console)

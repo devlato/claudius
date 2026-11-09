@@ -946,6 +946,21 @@ pub fn styles_for(role: Role) -> Vec<&'static str> {
     }
 }
 
+/// what a part with this role plays in `style` (one of `styles_for`), in a few words
+pub fn style_about(role: Role, style: &str) -> Option<&'static str> {
+    let idioms: &[_] = match role {
+        Role::Bass => bass::IDIOMS,
+        Role::Chords | Role::Pad | Role::Keys => crate::theory::comp::IDIOMS,
+        Role::Arp => &[],
+        Role::Lead => crate::theory::lead::IDIOMS,
+    };
+    match idioms.iter().find(|i| i.name == style) {
+        Some(i) => Some(i.about),
+        None if matches!(role, Role::Bass) => bass::motif_about(style),
+        None => melody::style_about(style),
+    }
+}
+
 /// The semitones that move a recording in `from` (its tonic, and whether it is minor) into `key` by the shortest way:
 /// onto its tonic when both are minor or both major, else onto its relative minor or major.
 pub fn transpose_into(key: &Key, (tonic, minor): (u8, bool)) -> i32 {

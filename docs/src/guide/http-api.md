@@ -17,7 +17,7 @@ this API, so anything it does you can do with `curl`. The types are plain serde 
 | `POST /api/command` | runs one [command](#commands) (JSON body) and answers with a [reply](#replies-and-errors) |
 | `GET /api/script` | the song as a script, `text/plain` (`// no song yet: try song("house")` before the first song) |
 | `GET /api/reference` | the script language reference, `text/markdown` |
-| `GET /api/sounds` | every sound name: drum voices, synth presets, installed instruments, and every pack; also the installed kits' drums (`kit`) and the roles each synth preset is made for (`synth_roles`) |
+| `GET /api/sounds` | every sound name: drum voices, synth presets, installed instruments, and every pack; also the installed kits' drums (`kit`), the roles each synth preset is made for (`synth_roles`), what each synth preset and drum voice is in a few words (`about`), and for each role the styles a part may be written in, each with what it plays (`styles`) |
 | `GET /api/genres?q=WORDS` | the genres as the state lists them, or those that answer the search `q`, best first: a name or another name, an era, a scene, an artist or a sound (`?q=west%20coast`) |
 | `GET /api/audio/{version}.wav` | the master of that render, 48 kHz 24-bit |
 | `GET /api/audio/{version}.mp3` | the same as MP3, encoded on the first request |

@@ -44,6 +44,29 @@ pub fn drum_names() -> Vec<&'static str> {
     DRUM_NAMES.iter().map(|d| d.0).collect()
 }
 
+/// the drum voice a drum name plays, in words (the table of drum names in the docs' Sounds chapter)
+pub fn drum_about(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "bd" | "kick" => "kick",
+        "sd" | "snare" => "snare",
+        "cp" | "clap" => "clap",
+        "hh" | "ch" | "hat" => "closed hi-hat",
+        "oh" | "ohat" => "open hi-hat",
+        "rd" | "ride" => "ride",
+        "cr" | "crash" => "crash",
+        "lt" => "low tom, 90 Hz",
+        "mt" => "mid tom, 130 Hz",
+        "ht" => "high tom, 180 Hz",
+        "tom" => "tom",
+        "rim" | "rs" => "rim shot",
+        "sh" | "shaker" => "shaker",
+        "cb" | "cowbell" => "cowbell",
+        "snap" => "finger snap",
+        "perc" => "a tuned percussion hit",
+        _ => return None,
+    })
+}
+
 pub fn drum_name(name: &str) -> Option<(DrumVoice, &'static str)> {
     DRUM_NAMES.iter().find(|(n, _, _)| *n == name).map(|(_, v, r)| (*v, *r))
 }

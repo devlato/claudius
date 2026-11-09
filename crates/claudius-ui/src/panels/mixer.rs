@@ -3,7 +3,7 @@
 //! the others are dimmed. While playing, the meters follow the render's envelope for the tracks that play in the
 //! section under the playhead.
 
-use claudius_api::{Command, RenderView, TrackView};
+use claudius_api::{Command, RenderView, TrackView, words};
 use eframe::egui::{self, Align2, Color32, Rect, RichText, Sense, Stroke, StrokeKind, Ui, vec2};
 
 use super::{Cx, empty, layer_color, page_frame};
@@ -120,7 +120,12 @@ fn strip(
             let dim = t.muted || silenced;
             ui.vertical_centered(|ui| {
                 ui.label(RichText::new(&t.name).strong().size(12.5).color(if dim { TEXT_FAINT } else { TEXT }))
-                    .on_hover_text(format!("{} ({}, role {})", t.sound, t.kind, t.role));
+                    .on_hover_text(format!(
+                        "plays {}\na {} track, mixed as a {}",
+                        words::sound_in_words(&t.sound),
+                        t.kind,
+                        t.role
+                    ));
                 let what = if silenced {
                     "silent: another track is soloed".to_string()
                 } else {
@@ -128,9 +133,10 @@ fn strip(
                 };
                 ui.label(RichText::new(what).size(9.5).color(if t.solo { theme::SOLO } else { TEXT_FAINT }));
             });
+            let pct = |v: f32| format!("{:.0}%", v * 100.0);
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
-                let r = widgets::knob(ui, &mut t.pan, -1.0..=1.0, "pan", color, true, |v| {
+                let short_pan = |v: f32| {
                     if v.abs() < 0.01 {
                         "C".into()
                     } else if v < 0.0 {
@@ -138,12 +144,15 @@ fn strip(
                     } else {
                         format!("R{:.0}", v * 100.0)
                     }
+                };
+                let r = widgets::knob(ui, &mut t.pan, -1.0..=1.0, "pan", color, short_pan, |v| {
+                    format!("pan: {}, where it sits between the speakers", words::pan_in_words(v))
                 });
                 if commit(&r) {
                     out.push(MixEdit { pan: Some(t.pan), ..Default::default() }.on(&t.name));
                 }
-                let r = widgets::knob(ui, &mut t.reverb, 0.0..=1.0, "reverb", color, false, |v| {
-                    format!("{:.0}%", v * 100.0)
+                let r = widgets::knob(ui, &mut t.reverb, 0.0..=1.0, "reverb", color, pct, |v| {
+                    format!("reverb: {} of it sent to the reverb, a room around it", pct(v))
                 });
                 if commit(&r) {
                     out.push(MixEdit { reverb: Some(t.reverb), ..Default::default() }.on(&t.name));
@@ -151,23 +160,29 @@ fn strip(
             });
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
-                let r =
-                    widgets::knob(ui, &mut t.delay, 0.0..=1.0, "delay", color, false, |v| format!("{:.0}%", v * 100.0));
+                let r = widgets::knob(ui, &mut t.delay, 0.0..=1.0, "delay", color, pct, |v| {
+                    format!("delay: {} of it sent to the delay, echoes in time with the song", pct(v))
+                });
                 if commit(&r) {
                     out.push(MixEdit { delay: Some(t.delay), ..Default::default() }.on(&t.name));
                 }
-                let r =
-                    widgets::knob(ui, &mut t.duck, 0.0..=1.0, "duck", color, false, |v| format!("{:.0}%", v * 100.0));
+                let r = widgets::knob(ui, &mut t.duck, 0.0..=1.0, "duck", color, pct, |v| {
+                    format!("duck: {}, how far it dips each time the kick hits, so that the kick comes through", pct(v))
+                });
                 if commit(&r) {
                     out.push(MixEdit { duck: Some(t.duck), ..Default::default() }.on(&t.name));
                 }
             });
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 0.0;
-                let r = widgets::knob(ui, &mut t.drive_db, 0.0..=36.0, "drive", color, false, |v| {
-                    if v < 0.5 { "off".into() } else { format!("{v:.0} dB") }
-                })
-                .on_hover_text("saturation after its effects: it thickens and roughens the track at the same loudness");
+                let drive = |v: f32| if v < 0.5 { "off".to_string() } else { format!("{v:.0} dB") };
+                let r = widgets::knob(ui, &mut t.drive_db, 0.0..=36.0, "drive", color, drive, |v| {
+                    format!(
+                        "drive: {}, saturation after its effects: it thickens and roughens the track at the same \
+                         loudness",
+                        drive(v)
+                    )
+                });
                 if commit(&r) {
                     out.push(MixEdit { drive_db: Some(t.drive_db), ..Default::default() }.on(&t.name));
                 }
@@ -192,11 +207,15 @@ fn strip(
                     TEXT_FAINT
                 } else {
                     TEXT
-                }));
+                }))
+                .on_hover_text("its level: how much louder or quieter it is than tracks of its role are mixed at");
                 ui.label(
                     RichText::new(t.loudness.map_or("— LUFS".into(), |l| format!("{l:.1} LUFS")))
                         .size(9.5)
                         .color(TEXT_DIM),
+                )
+                .on_hover_text(
+                    "how loud it plays in the latest render, in LUFS, as streaming services measure loudness",
                 );
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 4.0;
@@ -259,13 +278,17 @@ fn master(ui: &mut Ui, render: Option<&RenderView>, height: f32, live: Option<f3
             ui.add_space(4.0);
             ui.vertical_centered(|ui| match render {
                 Some(r) => {
-                    ui.label(RichText::new(format!("{:.1} LUFS", r.lufs)).monospace().size(12.0).color(TEXT));
+                    let (_, _, loudness) = words::measure_in_words("lufs", r.lufs);
+                    let (_, _, peak) = words::measure_in_words("true_peak_db", r.true_peak_db as f64);
+                    ui.label(RichText::new(format!("{:.1} LUFS", r.lufs)).monospace().size(12.0).color(TEXT))
+                        .on_hover_text(format!("loudness: {loudness}"));
                     ui.label(
                         RichText::new(format!("{:.1} dBTP", r.true_peak_db))
                             .monospace()
                             .size(10.5)
                             .color(if r.true_peak_db > -1.0 { theme::WARN } else { TEXT_DIM }),
-                    );
+                    )
+                    .on_hover_text(format!("true peak: {peak}"));
                     ui.label(
                         RichText::new(format!("{:.0} BPM · {}", r.bpm, super::fmt_time(r.seconds)))
                             .size(9.5)

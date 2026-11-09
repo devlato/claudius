@@ -23,6 +23,7 @@
 use serde::{Deserialize, Serialize};
 
 pub mod examples;
+pub mod words;
 
 /// Drum step velocities by name, as step strings write them (`X` accent, `x` hit, `o` ghost) and the studio shows
 /// them: an accent from `ACCENT`, a ghost below `GHOST`. The engine's step strings use the same values.
@@ -938,8 +939,13 @@ impl SongView {
         for (row, t) in self.tracks.iter().enumerate() {
             let row = row as f32;
             let mut detail = vec![
-                format!("{} {}: {}", t.kind, t.role, t.sound),
-                format!("{:+.1} dB, pan {:+.2}{}", t.level_db, t.pan, if t.muted { ", muted" } else { "" }),
+                format!("{} {}: {}", t.kind, t.role, words::sound_in_words(&t.sound)),
+                format!(
+                    "{:+.1} dB, pan {}{}",
+                    t.level_db,
+                    words::pan_in_words(t.pan),
+                    if t.muted { ", muted" } else { "" }
+                ),
             ];
             let plays = sections(&t.name);
             if !plays.is_empty() {
@@ -1467,6 +1473,28 @@ pub struct SoundList {
     /// the roles each synth preset is made for (bass, chords, pad, keys, lead, arp)
     #[serde(default)]
     pub synth_roles: Vec<(String, Vec<String>)>,
+    /// what each synth preset and drum voice is, in a few words, by name
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub about: Vec<(String, String)>,
+    /// for each role (bass, chords, pad, keys, lead, arp), the styles a part of it may be written in, each with what
+    /// it plays in a few words
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub styles: Vec<(String, Vec<(String, String)>)>,
+}
+
+impl SoundList {
+    /// what the synth preset or drum voice `name` is, in a few words; of a drum of a kit (`tr909:bd`), its voice's
+    pub fn sound_about(&self, name: &str) -> Option<&str> {
+        let find = |n: &str| self.about.iter().find(|(k, _)| k == n).map(|(_, a)| a.as_str());
+        let drum = name.split_once(':').map(|(_, n)| n).filter(|n| self.drums.iter().any(|d| d == n));
+        find(name).or_else(|| drum.and_then(find))
+    }
+
+    /// what a part of `role` plays in `style`, in a few words
+    pub fn style_about(&self, role: &str, style: &str) -> Option<&str> {
+        let (_, styles) = self.styles.iter().find(|(r, _)| r == role)?;
+        styles.iter().find(|(s, _)| s == style).map(|(_, a)| a.as_str())
+    }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
