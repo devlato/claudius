@@ -1143,6 +1143,14 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
             None,
         ),
         (
+            WithRecording::Rebuild,
+            format!("Rebuild it on {shown} sounds"),
+            "the song itself, every note of it yours to change: its drums struck as it strikes them, its bass and \
+             the rest as the notes claudius hears them play, in its own sections, its voice kept on a track of its \
+             own and its melody written out",
+            None,
+        ),
+        (
             WithRecording::Sample,
             "Sample it into the song".to_string(),
             "its sung phrases, a passage of it, its voice chopped or a stab of it, fitted to the open song's tempo and \
@@ -1192,7 +1200,9 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
         }
     }
     let genres = &cx.state.genres;
-    if matches!(f.with_recording, WithRecording::Remake | WithRecording::Flip) && !genres.is_empty() {
+    if matches!(f.with_recording, WithRecording::Remake | WithRecording::Flip | WithRecording::Rebuild)
+        && !genres.is_empty()
+    {
         ui.add_space(4.0);
         ui.horizontal(|ui| {
             ui.label("In the genre");
@@ -1261,6 +1271,7 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
     let action = match f.with_recording {
         WithRecording::Remake => "Remake it",
         WithRecording::Flip => "Flip it",
+        WithRecording::Rebuild => "Rebuild it",
         WithRecording::Sample => "Sample it",
         WithRecording::Groove => "Take its groove",
         WithRecording::Analyze => "Listen to it",
@@ -1286,13 +1297,14 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
     });
     if let Some(file) = file.filter(|_| go) {
         cx.view.analysis = None;
-        let remake = matches!(f.with_recording, WithRecording::Remake | WithRecording::Flip)
+        let remake = matches!(f.with_recording, WithRecording::Remake | WithRecording::Flip | WithRecording::Rebuild)
             .then(|| (f.genre_name(), f.seed.trim().parse().ok()));
         let sample = f.with_recording == WithRecording::Sample;
         cx.view.listen = Some(super::Listen {
             file,
             remake,
             flip: f.with_recording == WithRecording::Flip,
+            rebuild: f.with_recording == WithRecording::Rebuild,
             sample,
             how: (sample && f.sample_how != claudius_api::SAMPLING_WAYS[0].0).then(|| f.sample_how.to_string()),
             groove: f.with_recording == WithRecording::Groove,

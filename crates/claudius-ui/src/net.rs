@@ -153,7 +153,8 @@ fn listen_request(l: &crate::panels::Listen) -> (&'static str, &'static str, Str
         Some((genre, seed)) => {
             let seed = seed.map_or_else(String::new, |s| format!("&seed={s}"));
             let flip = if l.flip { "&flip=true" } else { "" };
-            ("remake", "/api/remake", format!("{name}&genre={}{seed}{flip}", query_value(genre)))
+            let rebuild = if l.rebuild { "&rebuild=true" } else { "" };
+            ("remake", "/api/remake", format!("{name}&genre={}{seed}{flip}{rebuild}", query_value(genre)))
         }
     }
 }
@@ -170,7 +171,9 @@ fn demo_listen(l: &crate::panels::Listen) -> claudius_api::Listen {
     }
     match &l.remake {
         None => Listen::Analyze { name },
-        Some((genre, seed)) => Listen::Remake { name, genre: Some(genre.clone()), seed: *seed, flip: l.flip },
+        Some((genre, seed)) => {
+            Listen::Remake { name, genre: Some(genre.clone()), seed: *seed, flip: l.flip, rebuild: l.rebuild }
+        }
     }
 }
 
@@ -869,6 +872,7 @@ mod tests {
             file: file.clone(),
             remake: None,
             flip: false,
+            rebuild: false,
             sample: false,
             how: None,
             groove: false,
@@ -884,6 +888,8 @@ mod tests {
         assert!(unseeded.2.ends_with("&genre=house"), "a random seed is claudius' to pick");
         let flipped = listen_request(&Listen { remake: Some(("house".into(), None)), flip: true, ..base() });
         assert!(flipped.2.ends_with("&genre=house&flip=true"), "{}", flipped.2);
+        let rebuilt = listen_request(&Listen { remake: Some(("house".into(), None)), rebuild: true, ..base() });
+        assert!(rebuilt.2.ends_with("&genre=house&rebuild=true"), "{}", rebuilt.2);
         let groove = listen_request(&Listen { groove: true, ..base() });
         assert_eq!(groove, ("extract_groove", "/api/groove", name.into()));
         assert_eq!(listen_request(&Listen { sample: true, ..base() }), ("sample_song", "/api/sample", name.into()));

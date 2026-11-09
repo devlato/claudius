@@ -222,7 +222,7 @@ impl Host {
                 self.version += 1;
                 self.ok(&text)
             }
-            Listen::Remake { genre, seed, flip, .. } => {
+            Listen::Remake { genre, seed, flip, rebuild, .. } => {
                 let genre = genre.clone().or_else(|| self.bp.as_ref().map(|b| b.genre.clone()));
                 let genre = genre.unwrap_or_else(|| "house".into());
                 let g = match genres::get(&genre) {
@@ -234,7 +234,7 @@ impl Host {
                 let seed = seed.unwrap_or_else(|| self.seed());
                 let lib = self.lib.clone();
                 let with = listen::With { lib: lib.as_deref().map(|l| l as &dyn compose::Library), dir, ears: None };
-                let how = listen::Remade::of(None, Some(*flip));
+                let how = listen::Remade::of(None, Some(*flip), Some(*rebuild));
                 let src = listen::Heard { x: &x, path: &name, name: &name, a: &a, stems: stems.as_deref() };
                 let (bp, verb, told) = listen::remake(&src, &g, seed, None, how, &with);
                 self.forget_render();
@@ -2094,8 +2094,14 @@ mod tests {
         let r = h.listen(&Listen::Analyze { name: name() }, bytes.clone());
         assert!(r.ok && r.message.contains(" BPM (pulse clarity"), "{}", r.message);
         // reworked: the recording plays all through, kept in memory, and goes in the project the page saves
-        let remake = |flip| Listen::Remake { name: name(), genre: Some("boom_bap".into()), seed: Some(3), flip };
-        let r = h.listen(&remake(false), bytes.clone());
+        let remake = |flip, rebuild| Listen::Remake {
+            name: name(),
+            genre: Some("boom_bap".into()),
+            seed: Some(3),
+            flip,
+            rebuild,
+        };
+        let r = h.listen(&remake(false, false), bytes.clone());
         assert!(r.ok && r.message.starts_with("reworked my song.wav as boom_bap"), "{}", r.message);
         let bp = h.blueprint().unwrap().clone();
         let original = bp.loops.iter().find(|l| l.name == "original").expect("the recording plays");
@@ -2109,9 +2115,14 @@ mod tests {
         assert_eq!(kept, 1, "the recording, in the project");
         let _ = std::fs::remove_dir_all(&songs);
         // flipped, when asked
-        let r = h.listen(&remake(true), bytes.clone());
+        let r = h.listen(&remake(true, false), bytes.clone());
         assert!(r.ok && r.message.starts_with("remixed my song.wav as boom_bap"), "{}", r.message);
         assert!(h.blueprint().unwrap().loops.iter().any(|l| l.name == "flip"));
+        // rebuilt, when asked: without the ears, its drums' habits and the genre's bass and chords on its chords
+        let r = h.listen(&remake(false, true), bytes.clone());
+        assert!(r.ok && r.message.starts_with("rebuilt my song.wav as boom_bap"), "{}", r.message);
+        assert!(r.message.contains("rebuilt from 'my song.wav': its "), "{}", r.message);
+        assert!(h.blueprint().unwrap().loops.is_empty() && h.render().is_some_and(|r| r.is_ok()));
         // its groove, for the song's drums
         let r = h.listen(&Listen::ExtractGroove { name: name() }, bytes);
         assert!(r.ok && r.message.starts_with("groove my_song, heard in my song.wav"), "{}", r.message);

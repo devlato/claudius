@@ -486,6 +486,9 @@ pub enum Listen {
         genre: Option<String>,
         seed: Option<u64>,
         flip: bool,
+        /// the song itself rebuilt, every part on claudius's sounds (`Command::Remake`'s `rebuild`)
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        rebuild: bool,
     },
     SampleSong {
         name: String,
@@ -1914,6 +1917,12 @@ pub enum Command {
         /// its verses, its drums, a flip of it and its sung phrases
         #[serde(default, skip_serializing_if = "Option::is_none")]
         flip: Option<bool>,
+        /// rebuilt (true): the song itself, every part of it played on claudius's sounds so that each note can be
+        /// changed, its drums struck as it strikes them and its bass and the rest as the notes the ears hear them
+        /// play, in its own sections and on its chords, its voice kept on a track of its own and its melody written
+        /// out; before `sampled` and `flip`
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        rebuild: Option<bool>,
     },
     /// samples a recording into the song (the auto-sampler), in one of `SAMPLING_WAYS`: by default its best sung
     /// phrases, cut on its beat grid and cleaned of its drums, fitted to the song's tempo and key, placed where they

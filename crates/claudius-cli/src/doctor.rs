@@ -73,6 +73,16 @@ pub fn run(port: u16, web: Option<std::path::PathBuf>) {
                  its mix until then)",
             );
         }
+        if earshot::notes::Transcriber::cached(&cache) {
+            r.line(true, "notes", format!("Basic Pitch's model in {}", tilde(&cache)));
+        } else {
+            r.line(
+                false,
+                "notes",
+                "Basic Pitch's model not downloaded: run `claudius setup` (a rebuild plays the genre's bass and chords \
+                 on a recording's chords until then)",
+            );
+        }
     }
     #[cfg(not(feature = "ears"))]
     println!("  ..  {:<15} not in this build (verdicts use meters and theory)", "ears");

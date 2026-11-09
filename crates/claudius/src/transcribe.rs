@@ -15,9 +15,10 @@ pub struct Heard {
     pub sure: f32,
 }
 
-/// The notes in `x` between `lo` and `hi` Hz, by the start: none without the ears, or while their model is not there.
-pub fn notes(x: &Stereo, lo: f64, hi: f64) -> Option<Vec<Heard>> {
-    hearing::notes(x, lo, hi)
+/// The notes in `x` between `lo` and `hi` Hz, `shortest` ms long at least, by the start: none without the ears, or
+/// while their model is not there.
+pub fn notes(x: &Stereo, lo: f64, hi: f64, shortest: f64) -> Option<Vec<Heard>> {
+    hearing::notes(x, lo, hi, shortest)
 }
 
 /// whether `notes` hears any: the ears, and their model in the cache or allowed to be downloaded
@@ -56,13 +57,14 @@ mod hearing {
         crate::stems::downloads() || earshot::notes::Transcriber::cached(&earshot::models::default_cache_dir())
     }
 
-    pub fn notes(x: &Stereo, lo: f64, hi: f64) -> Option<Vec<Heard>> {
+    pub fn notes(x: &Stereo, lo: f64, hi: f64, shortest: f64) -> Option<Vec<Heard>> {
         if x.is_empty() {
             return Some(Vec::new());
         }
         let mut guard = transcriber()?.lock().unwrap_or_else(|e| e.into_inner());
         let t = guard.as_mut()?;
-        let o = earshot::notes::Options { min_hz: Some(lo), max_hz: Some(hi), ..Default::default() };
+        let o =
+            earshot::notes::Options { min_hz: Some(lo), max_hz: Some(hi), min_note_ms: shortest, ..Default::default() };
         let heard = t.notes(&x.mono(), config::SR, &o).ok()?;
         Some(
             heard
@@ -78,7 +80,7 @@ mod hearing {
     use super::Heard;
     use crate::audio::Stereo;
 
-    pub fn notes(_: &Stereo, _: f64, _: f64) -> Option<Vec<Heard>> {
+    pub fn notes(_: &Stereo, _: f64, _: f64, _: f64) -> Option<Vec<Heard>> {
         None
     }
 

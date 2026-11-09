@@ -339,12 +339,12 @@ impl App {
                 Ok(x) => self.analyze_audio(&x, &path),
                 Err(e) => no(format!("cannot read {path}: {e}"), v),
             },
-            Command::Remake { path, genre, seed, bpm, sampled, flip } => {
+            Command::Remake { path, genre, seed, bpm, sampled, flip, rebuild } => {
                 if let Err(e) = self.readable(Path::new(&path)) {
                     return no(e, v);
                 }
                 match audio::load(Path::new(&path)) {
-                    Ok(x) => self.remake_audio(&x, &path, genre, seed, bpm, Remade::of(sampled, flip)),
+                    Ok(x) => self.remake_audio(&x, &path, genre, seed, bpm, Remade::of(sampled, flip, rebuild)),
                     Err(e) => no(format!("cannot read {path}: {e}"), v),
                 }
             }

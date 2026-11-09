@@ -277,6 +277,45 @@ recording as the remix heard it (`sampler::sample_from`: its stems and its analy
 recording with no section with chords long enough falls back to the skeleton, and the reply says so. The song's history
 says what came from where: `remixed from '<file>': its hook (bars 33-36) without its drums; ...`.
 
+### Rebuilding it
+
+With `rebuild`, a remake is the song itself made again on claudius's sounds (`rebuild::rebuild`), so that each note
+can be changed. What it heard comes first (`rebuild::played`), and the song is written from that alone
+(`rebuild_with`, which the tests feed with what they say was heard):
+
+- **The form** is the recording's sections, each its own kind, length and energy, its drum variant named after it, and
+  on a progression of its own (`A`, `B` ... one to a section, unlike a rework's one to each run of chords), its bars'
+  chords at one a bar. A part's written notes are kept per progression and tiled from a section's start
+  (`arrange::tile`), so a progression to each section is what lets every section play its own notes. The tempo is the
+  recording's own (`Analysis::cut_bpm`), its band's speeding up and slowing down taken out: a time in it is a beat of
+  the song through its bars (`Analysis::bar_at`, `bar_start`).
+- **The drums** are the hits `analysis::drums::hear` finds in its drum stem. Each section's are folded into a pattern
+  of its own (`fold`, four bars or as many as the section has), written into the genre's kick, snare (or clap) and
+  hat lanes as the section's variant (`script::put_hits`), with a trig's chance where a step plays only some of the
+  times round, at sixteenths and in the recording's swing (the genre lane's own speed, length, swing and groove
+  undone). Each lane is as late or early as its hits on the eighths are on average (`late_ms`, within 3 ms none, 40 ms
+  at most). Without a drum stem, the drum habits of the busiest sections (`kick_steps` ...) play wherever the kick is
+  heard.
+- **The bass and the rest** are the notes of their stems as Basic Pitch hears them (`transcribe::notes`, through
+  `earshot::notes`), the bass from 30 to 500 Hz with notes of 80 ms and more (a pickup a sixteenth long is under
+  Basic Pitch's own 128 ms at 120 BPM), the rest from 55 Hz to 4.2 kHz with 100 ms. A stem's notes 18 dB under its
+  loud ones (the tenth loudest) are another instrument's bleeding into it, which the model hears as surely as the
+  stem's own (`rebuild::own`). A note an octave, a twelfth, two octaves or two and a third or a fifth over one it
+  starts with, which the model is half as sure of again, is that note's overtone. The bass plays one note at a time
+  (of notes struck together the surest, or the lower of two nearly as sure, each cut where the next starts); the rest
+  plays chords and all. Both are set on the sixteenths, their velocity from how sure the model is, and each section's
+  are written for its progression, the part in the sections it plays in, on the genre's bass and keys (or chords)
+  part's sound and mix. Without the ears, the genre's bass and chord parts write their own on the recording's chords,
+  where its bass and harmony are heard.
+- **The voice**, when it sings (`Stems::sung`), stays on `vocals` as a rework's does, and its melody (`analysis::
+  melody::transcribe`, in its key on the sixteenths) is written out on a lead, `melody`, that plays in no section.
+
+Its history says what it heard: `rebuilt from '<file>': its 4 sections bar for bar, on its chords; its drums struck
+as it strikes them, each section's folded into a pattern of its own (113 on clap, 232 on hat, 243 on kick); its bass
+as 214 notes on bass; the rest of it as 866 notes on keys`. Against a render whose notes are known (the cookbook's
+house song), 99 % of the rebuilt kicks and 98 % of its hats land on sixteenths it strikes, missing none, and two
+thirds of its claps; the bass notes are 87 % right (pitch and sixteenth) and 93 % found, the rest's 67 % and 71 %.
+
 ### Where it goes wrong
 
 Analysis is best on steady electronic music with a clear kick, and approximate everywhere. Reading claudius' own D

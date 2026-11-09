@@ -5,10 +5,12 @@ plays through, its voice and its chords as they are, without its drums and its b
 earshot's models; without them, its low end), in its own sections and on its chords, with the genre's drums, bass and
 mix under it. With `--flip` it makes a new song of the genre on the
 recording's own sound instead: its hook, another passage of it, its drums, a flip cut from all over it and its sung
-phrases, under the genre's drums, bass, parts and mix. With `--skeleton` it writes a new song on the recording's
-skeleton only (tempo, key, chords, sections, drum habits, the style of its bass), with none of its audio. This recipe
-remakes a song whose answers we know, so you can see what the analysis gets right and what it gets wrong, reworks it,
-flips it, remakes its skeleton, then edits and evolves the result.
+phrases, under the genre's drums, bass, parts and mix. With `--rebuild` it makes the song itself again, every part of
+it played on claudius's sounds: its drums, its bass and the rest as the notes and hits it plays, so that each can be
+changed. With `--skeleton` it writes a new song on the recording's skeleton only (tempo, key, chords, sections, drum
+habits, the style of its bass), with none of its audio. This recipe remakes a song whose answers we know, so you can
+see what the analysis gets right and what it gets wrong, reworks it, flips it, rebuilds it, remakes its skeleton, then
+edits and evolves the result.
 
 ## A song to remake
 
@@ -158,6 +160,59 @@ of it, faster or slower by whole semitones as a sampler plays a record, or chopp
 halves of it (as boom bap, this one plays at 92, three quarters of it, chopped onto the grid at its own pitch, and its own drums are the break). The pieces are kept in
 `out/takes/song/`, beside the song.
 
+## Rebuild it, every note yours to change
+
+```sh
+claudius remake out/house-glass-avenue-1/song.mp3 --genre house --seed 3 --rebuild
+```
+
+A rebuild makes the song itself again, with every part played on claudius's sounds rather than the recording's: its
+drums, its bass and the rest of it become notes and hits you can edit, in its own sections and on its chords. It
+prints the analysis again, then the rebuilt song:
+
+```text
+Faded Engine — house at 122 BPM in A minor, 64 bars (2:06)
+  progression A: i7 VImaj7 iv7 v7 III VImaj7 iv7 v7 i7 VImaj7 iv7 v i7 VImaj7 iv7 v7 i VImaj7 iv7 v i VImaj7 iv7 v
+  progression B: VImaj7 VII v7 i7 VImaj7 VII v7 i7
+  progression C: III VImaj7 iv7 v7 III VImaj7 iv7 v i7 VImaj7 iv7 v7 i7 VImaj7 iv7 v7 i VImaj7 iv v7 i VImaj7 iv7 v
+  progression D: bIImaj7 VI iv v bIImaj7 VI iv v
+  form: drop 24 | break 8 | drop2 24 | drop3 8
+  tracks: kick (sampled bd (tr909:bd)), clap (sampled cp (tr909:cp)), hat (sampled hh (tr909:hh)), bass (synth patch 'deep_bass'), keys (sampled wurlitzer (epianos:wurlitzer)), crash (synth crash)
+  master: -10.0 LUFS, true peak -1.1 dBTP (pre-master -11.2 LUFS); done in 7.0 s
+  wrote out/remake-house-faded-engine-3/song.mp3
+```
+
+Its history says what it heard:
+
+```text
+rebuilt from 'song.mp3': its 4 sections bar for bar, on its chords; its drums struck as it strikes them, each section's folded into a pattern of its own (113 on clap, 232 on hat, 243 on kick); its bass as 214 notes on bass; the rest of it as 866 notes on keys
+```
+
+- **Its form** is its sections bar for bar, each on a progression of its own, its bars' chords: `A` to `D`, one to
+  a section, so that every section plays its own notes rather than the first section's again.
+- **Its drums** come from its drum stem (with the ears; see below): every kick, snare or clap and hat struck where it
+  strikes them, each section's hits folded into a pattern of its own (the section's drum variant, `drop`, `break`
+  ...), a step struck only some of the times round played with that chance, and each lane as far behind or ahead of
+  the beat as the recording's hits on the eighths are. A clap struck with the kick, as house claps on two and four,
+  is heard as both.
+- **Its bass and the rest of it** are the notes Spotify's Basic Pitch hears in their stems, on the sixteenth-note
+  grid: the bass one note at a time on `bass`, the rest (keys, guitars, synths, pads together) chords and all on
+  `keys`, without the faint copies an instrument's overtones leave over its notes, or the notes another instrument
+  leaves in a stem 18 dB under its own.
+- **Its voice**, when it sings, stays on a track of its own, `vocals`, as a rework keeps it, and the melody it sings
+  is written out on `melody`, which plays in no section until you put it in one (`toggle_layer`, or `layers` in a
+  script). This song's vowel line is too quiet to count as a voice.
+
+Against what this song is: 99% of the rebuilt kicks and 98% of its hats land on sixteenths the song strikes, and
+they miss none of them; about two thirds of its claps are there. Nine of ten bass notes are its own (the pitch on the
+same sixteenth), and about two thirds of the piano's, the pad's and the Rhodes' notes. The sections are the analysis's, merged where the energy is close, as for
+every remake. The genre and the seed choose the sounds (a 909 kick, a Wurlitzer for the keys): change them with
+`set_part` or a script like any song's.
+
+Without the ears' models there are no stems or notes to hear: a rebuild then plays the drum habits of its busiest
+sections wherever its kick is heard, and the genre's bass and chord parts on its chords, as a song on its skeleton
+does, and its history says so.
+
 ## On its skeleton only
 
 ```sh
@@ -233,7 +288,7 @@ songs. The lead, a pattern track, keeps its notes; the drums, parts, mix, form a
 
 ## Other ways to use its audio
 
-Besides a rework and a flip, two commands put the recording's sound in a song:
+Besides a rework, a flip and a rebuild, two commands put the recording's sound in a song:
 
 - `claudius chop song.mp3` cuts the recording into bar loops (2 bars by default, `--bars`) and drum one-shots, writes
   them into `out/chops/`, and adds them to your user library, where generated songs can pick them up as drum
@@ -245,7 +300,10 @@ Besides a rework and a flip, two commands put the recording's sound in a song:
 
 Only use recordings you have the right to use this way. `analyze` and `remake --skeleton` take nothing but
 measurements from a recording; a rework puts all of its audio in your song, and a flip, `chop` and `make --sample`
-pieces of it.
+pieces of it. A rebuild plays its composition note for note (its melodies, its chords, its bass line), and its voice
+when it sings: releasing it is a cover at least, which needs the song's licence, and with the voice the recording's
+too.
 
 From an assistant, the MCP tools `analyze` and `remake` take a file path and do the same as the commands (`remake`
-with `flip: true` for a flip, `sampled: false` for the skeleton only); a remake becomes the song open in the studio.
+with `flip: true` for a flip, `rebuild: true` for a rebuild, `sampled: false` for the skeleton only); a remake becomes
+the song open in the studio.

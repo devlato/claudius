@@ -642,6 +642,9 @@ struct ListenQuery {
     /// true: a flip of it, a new song on its hook and pieces of it, rather than a rework of all of it
     #[serde(default)]
     flip: Option<bool>,
+    /// true: the song itself rebuilt, every part on claudius's sounds, rather than a rework or a flip
+    #[serde(default)]
+    rebuild: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -706,9 +709,14 @@ async fn listen(c: Ctx, q: ListenQuery, headers: &HeaderMap, body: Bytes, remake
     let app = c.app.clone();
     let name = q.name.filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "the recording".into());
     let reply = tokio::task::spawn_blocking(move || match remake {
-        true => {
-            app.remake_bytes(body.to_vec(), &name, q.genre, q.seed, q.bpm, crate::app::Remade::of(q.sampled, q.flip))
-        }
+        true => app.remake_bytes(
+            body.to_vec(),
+            &name,
+            q.genre,
+            q.seed,
+            q.bpm,
+            crate::app::Remade::of(q.sampled, q.flip, q.rebuild),
+        ),
         false => app.analyze_bytes(body.to_vec(), &name),
     })
     .await

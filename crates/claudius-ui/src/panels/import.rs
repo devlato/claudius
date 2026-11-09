@@ -534,6 +534,7 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
                             file: file.clone(),
                             remake: None,
                             flip: false,
+                            rebuild: false,
                             sample: true,
                             how,
                             groove: false,

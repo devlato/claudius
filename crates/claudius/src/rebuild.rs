@@ -47,13 +47,34 @@ pub struct Played {
     pub melody: Option<Vec<Note>>,
 }
 
+/// The notes of `heard` that are `x`'s own: within 18 dB of its loud ones (the tenth loudest). The rest is what other
+/// instruments leave in a stem, which the ears hear as notes as surely as the stem's own, however quiet they are.
+fn own(x: &crate::audio::Stereo, heard: Vec<Heard>) -> Vec<Heard> {
+    let mono = x.mono();
+    let db = |n: &Heard| {
+        let at = |t: f64| ((t * crate::config::SRF) as usize).min(mono.len());
+        let (a, b) = (at(n.start), at(n.end.min(n.start + 0.2)));
+        let power = mono[a..b.max(a)].iter().map(|v| v * v).sum::<f32>() / (b - a).max(1) as f32;
+        10.0 * power.max(1e-12).log10()
+    };
+    let levels: Vec<f32> = heard.iter().map(db).collect();
+    let mut sorted = levels.clone();
+    sorted.sort_by(|a, b| b.total_cmp(a));
+    let Some(&loud) = sorted.get(sorted.len() / 10) else { return heard };
+    heard.into_iter().zip(levels).filter(|(_, l)| *l >= loud - 18.0).map(|(n, _)| n).collect()
+}
+
 /// What can be heard in `src`'s stems: none of it without them, and no notes of its bass or the rest without the ears.
 /// A stem that holds next to nothing plays nothing.
 pub fn played(src: &Source) -> Played {
     let Some(s) = src.stems else { return Played::default() };
     let a = src.a;
-    let notes = |x: &crate::audio::Stereo, lo, hi| {
-        if s.share(x) < remix::REST { Some(Vec::new()) } else { crate::transcribe::notes(x, lo, hi) }
+    let notes = |x: &crate::audio::Stereo, lo, hi, shortest| {
+        if s.share(x) < remix::REST {
+            Some(Vec::new())
+        } else {
+            crate::transcribe::notes(x, lo, hi, shortest).map(|n| own(x, n))
+        }
     };
     let melody = s.sung().then(|| {
         let flat = remix::cut(&s.vocals, a, Bars { first: 0, count: a.bars });
@@ -61,8 +82,9 @@ pub fn played(src: &Source) -> Played {
     });
     Played {
         drums: s.drummed().then(|| drums::hear(&s.drums)),
-        bass: notes(&s.bass, 30.0, 500.0),
-        rest: notes(&s.other, 55.0, 4200.0),
+        // a bass's pickups, a sixteenth or less, are shorter than Basic Pitch's 128 ms at 120 BPM and faster
+        bass: notes(&s.bass, 30.0, 500.0, 80.0),
+        rest: notes(&s.other, 55.0, 4200.0, 100.0),
         melody,
     }
 }
@@ -669,6 +691,19 @@ mod tests {
         assert!(bass.iter().any(|n| n.t < 16.0) && bass.iter().any(|n| n.t >= 16.0), "{bass:?}");
         assert!(bp.loops.is_empty());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_note_far_under_its_stems_loud_ones_is_another_instruments_left_in_it() {
+        let n = (2.0 * SRF) as usize;
+        let x: Vec<f32> = (0..n)
+            .map(|i| {
+                let gain = if i < n / 2 { 0.5 } else { 0.01 };
+                gain * (std::f64::consts::TAU * 110.0 * i as f64 / SRF).sin() as f32
+            })
+            .collect();
+        let kept = own(&Stereo::from_mono(&x), vec![note(0.0, 1.0, 45, 0.8), note(1.0, 1.0, 45, 0.8)]);
+        assert_eq!(kept.iter().map(|n| n.start).collect::<Vec<_>>(), [0.0]);
     }
 
     #[test]
