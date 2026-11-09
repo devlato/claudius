@@ -23,7 +23,8 @@ fn closures_keep_their_source() {
 
 #[test]
 fn songs_print_as_scripts_that_change_nothing() {
-    for (genre, seed) in [("house", 3), ("trap", 5), ("techno", 11), ("lofi", 2), ("dnb", 4)] {
+    // future bass 0 stacks its sub_bass over a sub_bass of its own: two patches of one preset
+    for (genre, seed) in [("house", 3), ("trap", 5), ("techno", 11), ("lofi", 2), ("dnb", 4), ("future_bass", 0)] {
         let g = genres::get(genre).unwrap();
         let bp = compose::generate(&g, seed, &Options::default(), None);
         let code = script::to_script(&bp);
@@ -138,7 +139,9 @@ fn a_part_harmonizes_a_melody_under_its_notes_and_says_why_it_cannot() {
 fn the_mixers_drive_roughens_a_track_at_the_loudness_its_level_gives_it() {
     use claudius::model::Blueprint;
     let g = genres::get("trap").unwrap();
-    let clean = compose::generate(&g, 1, &Options::default(), None);
+    // its 808 alone, without the grit trap stacks over it
+    let stacked = compose::generate(&g, 1, &Options::default(), None);
+    let clean = script::run(r#"part("bass", #{ preset: "808" });"#, Some(stacked), None).unwrap().bp.unwrap();
     let driven = script::run(r#"mix("bass", #{ drive: 24 });"#, Some(clean.clone()), None).unwrap().bp.unwrap();
     let drive = |bp: &Blueprint| bp.parts.iter().find(|p| p.name == "bass").unwrap().mix.drive_db;
     assert_eq!((drive(&clean), drive(&driven)), (0.0, 24.0));
