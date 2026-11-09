@@ -5,7 +5,7 @@
 //!
 //! - Its drums, apart in its stems, are its kicks, snares and hats (`analysis::drums`), struck where it strikes them:
 //!   each section's folded into a pattern of its own (the section's variant), a step struck only some of the times
-//!   round played with that chance, and each lane as far behind or ahead of the beat as its hits on the eighths are.
+//!   round played with that chance, and each lane as far behind or ahead of the beat as its hits on the beats are.
 //!   Without its stems, the drum habits heard in its busiest sections play wherever its kick is heard.
 //! - Its bass, and the rest of it but its voice (its keys, guitars, synths), are the notes the ears hear them play
 //!   (`transcribe`), on the sixteenths: the bass one note at a time, the rest chords and all, without the faint copies
@@ -262,14 +262,15 @@ fn hits_of(steps: &drums::Steps) -> Vec<Hit> {
         .collect()
 }
 
-/// how far behind the beat (ahead, below zero) the hits on the eighths land, on average, in ms at `bpm`: none within
-/// 3 ms, and 40 at most either way
+/// how far behind the beat (ahead, below zero) the hits on the beats land, on average, in ms at `bpm`: none within 3 ms,
+/// and 40 at most either way. Only the beats themselves, which no swing moves: a shuffle's offbeats sit late by its
+/// swing, which the song plays as its own
 fn lateness(beats: &[f64], bpm: f64) -> f32 {
-    let off: Vec<f64> = beats.iter().map(|b| b * 2.0 - (b * 2.0).round()).filter(|d| d.abs() < 0.25).collect();
+    let off: Vec<f64> = beats.iter().map(|b| b - b.round()).filter(|d| d.abs() < 0.125).collect();
     if off.is_empty() {
         return 0.0;
     }
-    let ms = off.iter().sum::<f64>() / off.len() as f64 / 2.0 * 60_000.0 / bpm;
+    let ms = off.iter().sum::<f64>() / off.len() as f64 * 60_000.0 / bpm;
     if ms.abs() < 3.0 { 0.0 } else { ms.clamp(-40.0, 40.0) as f32 }
 }
 
@@ -386,6 +387,18 @@ fn one_at_a_time(notes: &[Heard]) -> Vec<Heard> {
     out
 }
 
+/// One note to a sixteenth, as a bass plays once its notes are on the grid: of those it puts on one step the loudest
+/// (the lower of two as loud), each held until the next starts.
+fn monophonic(mut notes: Vec<Note>) -> Vec<Note> {
+    notes.sort_by(|a, b| a.t.total_cmp(&b.t).then(b.v.total_cmp(&a.v)).then(a.p.cmp(&b.p)));
+    notes.dedup_by(|later, kept| (later.t - kept.t).abs() < 1e-9);
+    for i in 1..notes.len() {
+        let gap = notes[i].t - notes[i - 1].t;
+        notes[i - 1].d = notes[i - 1].d.min(gap);
+    }
+    notes
+}
+
 /// notes heard as notes on the song's sixteenths, in beats from its first bar, as loud as the ears are sure of them
 fn on_grid(a: &Analysis, heard: &[Heard]) -> Vec<Note> {
     let q = |b: f64| (b * 4.0).round() / 4.0;
@@ -471,7 +484,7 @@ fn bass_part(bp: &mut Blueprint, a: &Analysis, genre: Option<Part>, heard: Optio
         bp.parts.push(p);
         return Some(format!("{}'s bass on its chords, its notes not heard", bp.genre.replace('_', " ")));
     };
-    let notes = on_grid(a, &one_at_a_time(heard));
+    let notes = monophonic(on_grid(a, &one_at_a_time(heard)));
     if notes.is_empty() {
         return None;
     }
@@ -716,5 +729,10 @@ mod tests {
         assert_eq!(without_overtones(&louder).len(), 2, "an octave louder than the note under it is played");
         assert_eq!(lateness(&[0.016, 2.016, 4.0 + 0.016], 96.0).round(), 10.0);
         assert_eq!(lateness(&[0.002, 2.0], 96.0), 0.0);
+        assert_eq!(lateness(&[0.0, 0.6, 1.0, 1.6, 2.0], 96.0), 0.0, "a shuffle's late offbeats are its swing");
+        // two notes 60 ms apart land on one sixteenth: the louder plays, held until the next
+        let grid = |t: f64, d: f64, p: i32, v: f32| Note { t, d, p, v, lock: None };
+        let one = monophonic(vec![grid(0.0, 0.5, 45, 0.6), grid(0.0, 0.25, 52, 0.9), grid(0.25, 0.5, 47, 0.8)]);
+        assert_eq!(one, [grid(0.0, 0.25, 52, 0.9), grid(0.25, 0.5, 47, 0.8)]);
     }
 }

@@ -293,7 +293,8 @@ can be changed. What it heard comes first (`rebuild::played`), and the song is w
   of its own (`fold`, four bars or as many as the section has), written into the genre's kick, snare (or clap) and
   hat lanes as the section's variant (`script::put_hits`), with a trig's chance where a step plays only some of the
   times round, at sixteenths and in the recording's swing (the genre lane's own speed, length, swing and groove
-  undone). Each lane is as late or early as its hits on the eighths are on average (`late_ms`, within 3 ms none, 40 ms
+  undone). Each lane is as late or early as its hits on the beats are on average, which no swing moves (`late_ms`,
+  within 3 ms none, 40 ms
   at most). Without a drum stem, the drum habits of the busiest sections (`kick_steps` ...) play wherever the kick is
   heard.
 - **The bass and the rest** are the notes of their stems as Basic Pitch hears them (`transcribe::notes`, through

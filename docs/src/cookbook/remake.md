@@ -193,7 +193,7 @@ rebuilt from 'song.mp3': its 4 sections bar for bar, on its chords; its drums st
 - **Its drums** come from its drum stem (with the ears; see below): every kick, snare or clap and hat struck where it
   strikes them, each section's hits folded into a pattern of its own (the section's drum variant, `drop`, `break`
   ...), a step struck only some of the times round played with that chance, and each lane as far behind or ahead of
-  the beat as the recording's hits on the eighths are. A clap struck with the kick, as house claps on two and four,
+  the beat as the recording's hits on the beats are. A clap struck with the kick, as house claps on two and four,
   is heard as both.
 - **Its bass and the rest of it** are the notes Spotify's Basic Pitch hears in their stems, on the sixteenth-note
   grid: the bass one note at a time on `bass`, the rest (keys, guitars, synths, pads together) chords and all on
