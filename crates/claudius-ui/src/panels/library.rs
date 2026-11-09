@@ -32,22 +32,23 @@ fn pack_card(ui: &mut Ui, p: &PackInfo, instruments: usize, can_install: bool) -
         .stroke(egui::Stroke::new(1.0, LINE_SOFT));
     frame.show(ui, |ui| {
         ui.set_width(ui.available_width());
-        ui.horizontal(|ui| {
+        widgets::row(ui, ("pack", &p.name), |ui, side| {
+            if side == widgets::Side::Right {
+                if instruments > 0 {
+                    ui.label(small(format!("{instruments} sounds ·")));
+                }
+                ui.label(small(format!("{:.0} MB", p.size_mb)));
+                if !p.installed && !p.opt_in {
+                    install = ui.add_enabled(can_install, egui::Button::new("install").small()).clicked();
+                }
+                return;
+            }
             ui.label(RichText::new(&p.name).strong().size(13.0).color(if p.installed { TEXT } else { TEXT_DIM }));
             if p.installed {
                 widgets::pill(ui, "installed", theme::GOOD);
             } else {
                 widgets::pill(ui, "not installed", TEXT_FAINT);
             }
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if !p.installed && !p.opt_in {
-                    install = ui.add_enabled(can_install, egui::Button::new("install").small()).clicked();
-                }
-                ui.label(small(format!("{:.0} MB", p.size_mb)));
-                if instruments > 0 {
-                    ui.label(small(format!("{instruments} sounds ·")));
-                }
-            });
         });
         ui.add(egui::Label::new(RichText::new(&p.description).size(11.5).color(TEXT_DIM)).wrap());
         ui.horizontal_wrapped(|ui| {

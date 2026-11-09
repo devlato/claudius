@@ -186,9 +186,11 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     let current = if s.prog.is_empty() { "A".to_string() } else { s.prog.clone() };
                     let (rect, _) = ui.allocate_exact_size(vec2(10.0, 10.0), egui::Sense::hover());
                     ui.painter().rect_filled(rect, 2.0, theme::prog_color(&current));
+                    // its chords cut short to the column's width, rather than widening the inspector beyond the window
                     egui::ComboBox::from_id_salt("section_prog")
                         .selected_text(label(&current))
                         .width(170.0)
+                        .truncate()
                         .show_ui(ui, |ui| {
                             for (name, _) in &progressions {
                                 if ui
@@ -205,7 +207,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                             }
                         })
                         .response
-                        .on_hover_text("the chord progression this section plays");
+                        .on_hover_text(format!("the chord progression this section plays: {}", label(&current)));
                 });
                 ui.end_row();
 

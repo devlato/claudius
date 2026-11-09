@@ -547,6 +547,73 @@ pub fn score_badge(ui: &mut Ui, total: Option<f64>, height: f32) -> Response {
     response
 }
 
+/// Which side of a [`row`] its closure lays out.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Side {
+    Left,
+    Right,
+}
+
+/// A row of widgets at its left and others at its right end, as a flex row with its ends apart that wraps: on one line
+/// when both fit, else the right ones on a line of their own under the left, still at the right. `add` lays out one
+/// side at a time, the left first, each left to right. The widths the sides took the frame before place them, and a
+/// frame laid out on a stale guess is drawn again at once (`Context::request_discard`), so that a narrowing window
+/// never draws one side over the other. Its input goes to the first pass only, so nothing is clicked twice.
+pub fn row(ui: &mut Ui, id_salt: impl egui::AsIdSalt, mut add: impl FnMut(&mut Ui, Side)) {
+    let id = ui.make_persistent_id(("row", id_salt));
+    let was: Option<(f32, f32)> = ui.data(|d| d.get_temp(id));
+    let width = ui.available_width();
+    let gap = 2.0 * ui.spacing().item_spacing.x;
+    let fits = |(left, right): (f32, f32)| left + gap + right <= width + 0.5;
+    let one_line = was.is_none_or(fits);
+    let right_was = was.map_or(0.0, |(_, right)| right);
+    let sides = if one_line {
+        ui.horizontal(|ui| {
+            let left = ui.scope(|ui| add(ui, Side::Left)).response.rect.width();
+            ui.add_space((ui.available_width() - right_was).max(0.0));
+            (left, ui.scope(|ui| add(ui, Side::Right)).response.rect.width())
+        })
+        .inner
+    } else {
+        let left = ui.horizontal(|ui| ui.scope(|ui| add(ui, Side::Left)).response.rect.width()).inner;
+        let right = ui
+            .horizontal(|ui| {
+                ui.add_space((ui.available_width() - right_was).max(0.0));
+                ui.scope(|ui| add(ui, Side::Right)).response.rect.width()
+            })
+            .inner;
+        (left, right)
+    };
+    ui.data_mut(|d| d.insert_temp(id, sides));
+    if fits(sides) != one_line || (sides.1 - right_was).abs() > 0.5 {
+        ui.ctx().request_discard("a row's sides changed their widths");
+    }
+}
+
+/// Lays out `add` at the fullest of its `levels` of detail (0 the fullest) that fits the width there is: a bar of a
+/// fixed height drops its labels one after another as the window narrows, where it cannot wrap. `add` draws a level
+/// and says how wide it was; the width each level took when it was last drawn decides, a level not drawn yet is
+/// tried, and a frame that did not fit is drawn again at once at the next level (`Context::request_discard`).
+pub fn fitting<R>(
+    ui: &mut Ui,
+    id_salt: impl egui::AsIdSalt,
+    levels: usize,
+    add: impl FnOnce(&mut Ui, usize) -> (R, f32),
+) -> R {
+    let id = ui.make_persistent_id(("fitting", id_salt));
+    let width = ui.available_width();
+    let mut needs: Vec<f32> = ui.data(|d| d.get_temp(id)).unwrap_or_default();
+    needs.resize(levels, 0.0);
+    let level = (0..levels).find(|&l| needs[l] == 0.0 || needs[l] <= width + 0.5).unwrap_or(levels - 1);
+    let (out, needed) = add(ui, level);
+    needs[level] = needed;
+    ui.data_mut(|d| d.insert_temp(id, needs));
+    if needed > width + 0.5 && level + 1 < levels {
+        ui.ctx().request_discard("a bar dropped a label to fit");
+    }
+    out
+}
+
 /// a small status dot
 pub fn dot(ui: &mut Ui, color: Color32) -> Response {
     let (rect, response) = ui.allocate_exact_size(vec2(10.0, 14.0), Sense::hover());
@@ -639,5 +706,63 @@ mod tests {
             }
         }
         assert!(seen >= 10, "the studio's help marks link into the docs: {seen} links");
+    }
+
+    fn window(width: f32) -> egui::RawInput {
+        egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(width, 300.0))), ..Default::default() }
+    }
+
+    /// a row of a side `left` wide and one `right` wide in a window as wide as each of `widths` in turn, two frames
+    /// at each: where its sides were after each
+    fn rows_at(widths: &[f32], left: f32, right: f32) -> Vec<(Rect, Rect)> {
+        let ctx = egui::Context::default();
+        let mut out = Vec::new();
+        for &width in widths {
+            let mut sides = (Rect::NOTHING, Rect::NOTHING);
+            for _ in 0..2 {
+                ctx.run_ui(window(width), |ui| {
+                    row(ui, "row", |ui, side| {
+                        let wide = if side == Side::Left { left } else { right };
+                        let rect = ui.allocate_exact_size(vec2(wide, 20.0), Sense::hover()).0;
+                        if side == Side::Left { sides.0 = rect } else { sides.1 = rect }
+                    });
+                })
+                .drop_without_applying_deltas();
+            }
+            out.push(sides);
+        }
+        out
+    }
+
+    #[test]
+    fn a_row_keeps_its_sides_on_one_line_when_they_fit_and_puts_the_right_one_under_the_left_when_not() {
+        let seen = rows_at(&[600.0, 250.0, 600.0], 200.0, 100.0);
+        for (i, (left, right)) in seen.iter().enumerate() {
+            let width = [600.0, 250.0, 600.0][i];
+            assert!((right.right() - width).abs() < 1.0, "{i}: the right side at the right end: {right:?}");
+            if width == 600.0 {
+                assert_eq!(left.top(), right.top(), "{i}: one line");
+            } else {
+                assert!(right.top() >= left.bottom() && right.left() > left.left(), "{i}: {left:?} {right:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_bar_draws_the_fullest_of_its_levels_that_fits_its_width() {
+        let ctx = egui::Context::default();
+        let needs = [500.0, 300.0, 100.0];
+        let levels: Vec<usize> = [400.0, 600.0, 50.0, 400.0]
+            .iter()
+            .map(|&width| {
+                let mut level = usize::MAX;
+                for _ in 0..2 {
+                    ctx.run_ui(window(width), |ui| level = fitting(ui, "bar", 3, |_, l| (l, needs[l])))
+                        .drop_without_applying_deltas();
+                }
+                level
+            })
+            .collect();
+        assert_eq!(levels, [1, 0, 2, 1], "the fullest that fits; the last when none does");
     }
 }

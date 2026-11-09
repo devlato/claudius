@@ -7,13 +7,13 @@
 //! master's loudness. Every change is a command, so it undoes, and the graph follows the song.
 
 use claudius_api::{Chain, Command, EFFECT_TEMPLATES, EdgeKind, Graph, NodeKind, SongView};
-use eframe::egui::{self, Align2, Color32, Pos2, Rect, RichText, Sense, Stroke, StrokeKind, Ui, vec2};
+use eframe::egui::{self, Align2, Color32, Pos2, Rect, RichText, Sense, Stroke, StrokeKind, Ui, pos2, vec2};
 use serde_json::Value;
 
 use super::{Cx, empty, layer_color, small};
 use crate::cmds::MixEdit;
 use crate::theme::{self, ACCENT, LINE, RAISED, TEXT, TEXT_DIM, TEXT_FAINT, WELL};
-use crate::widgets::commit;
+use crate::widgets::{self, commit};
 
 const NODE_W: f32 = 196.0;
 const COLUMN: f32 = 252.0;
@@ -73,9 +73,23 @@ fn flow(ui: &mut Ui, cx: &mut Cx, large: bool) {
         return;
     };
     let graph = song.graph();
-    egui::Panel::right("graph-inspector").resizable(true).default_size(320.0).show(ui, |ui| {
-        egui::ScrollArea::vertical().show(ui, |ui| inspector(ui, cx, &song, &graph));
-    });
+    let side =
+        egui::Frame::new().fill(theme::PANEL).inner_margin(egui::Margin { left: 12, right: 6, top: 4, bottom: 4 });
+    let panel = egui::Panel::right("graph-inspector")
+        .frame(side)
+        .resizable(true)
+        .default_size(320.0)
+        .size_range(220.0..=480.0)
+        .show(ui, |ui| {
+            egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| inspector(ui, cx, &song, &graph));
+        });
+    // the graph has what the panel leaves of the width: a panel inside a Ui moves its cursor's end only
+    let rest = Rect::from_min_max(ui.cursor().min, pos2(panel.response.rect.left(), ui.max_rect().bottom()));
+    ui.scope_builder(egui::UiBuilder::new().max_rect(rest), |ui| graph_view(ui, cx, &song, &graph, large));
+}
+
+/// the graph beside its inspector: the bar over it, and the canvas
+fn graph_view(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph, large: bool) {
     let bounds = graph
         .nodes
         .iter()
@@ -83,12 +97,28 @@ fn flow(ui: &mut Ui, cx: &mut Cx, large: bool) {
         .fold(Rect::NOTHING, |a, b| a.union(b))
         .expand(40.0);
     // the tracks and what follows them, big enough to read; Fit shows all of it
-    let fit = ui.horizontal(|ui| {
-        if large {
-            ui.add_space(10.0);
+    let mut fit = false;
+    let hint = "drag to move, scroll or pinch to zoom, right-click a node for its menu";
+    // the hint in words where the graph is wide enough for it, else behind a help mark
+    let spelt = ui.painter().layout_no_wrap(hint.to_string(), theme::prop(11.5), TEXT_DIM).size().x;
+    let spelt_out = spelt + 180.0 <= ui.available_width();
+    widgets::row(ui, "graph_head", |ui, side| {
+        if side == widgets::Side::Left {
+            if large {
+                ui.add_space(10.0);
+            }
+            if spelt_out {
+                ui.label(small(hint));
+            } else {
+                widgets::help(
+                    ui,
+                    "Drag to move the graph, scroll or pinch to zoom, right-click a node for its menu.",
+                    "getting-started/studio.html#the-panels",
+                );
+            }
+            return;
         }
-        ui.label(small("drag to move, scroll or pinch to zoom, right-click a node for its menu"));
-        let fit = ui.button(small("Fit")).on_hover_text("the whole graph in view").clicked();
+        fit = ui.button(small("Fit")).on_hover_text("the whole graph in view").clicked();
         let (label, tip) = if large {
             ("Back to the arrangement", "the arrangement in its place again (G)")
         } else {
@@ -97,19 +127,18 @@ fn flow(ui: &mut Ui, cx: &mut Cx, large: bool) {
         if ui.button(small(label)).on_hover_text(tip).clicked() {
             open_large(cx, !large);
         }
-        fit
     });
     if cx.view.graph.scene == Rect::ZERO {
         cx.view.graph.scene = Rect::from_min_size(bounds.min, ui.available_size() / 0.85);
     }
-    if fit.inner {
+    if fit {
         cx.view.graph.scene = bounds;
     }
     let mut scene = cx.view.graph.scene;
     let mut chosen = None;
     egui::Scene::new().zoom_range(0.15..=2.0).show(ui, &mut scene, |ui| {
         ui.allocate_rect(bounds, Sense::hover());
-        chosen = canvas(ui, cx, &song, &graph);
+        chosen = canvas(ui, cx, song, graph);
     });
     cx.view.graph.scene = scene;
     if let Some(id) = chosen {
@@ -443,28 +472,29 @@ fn chain_list(ui: &mut Ui, cx: &mut Cx, song: &SongView, c: &Chain) {
     }
     let mut change: Option<Vec<Value>> = None;
     for (i, e) in fx.iter().enumerate() {
-        ui.horizontal(|ui| {
-            if ui.selectable_label(false, claudius_api::effect_summary(e)).clicked() {
-                cx.view.graph.selected = Some(format!("{}#{i}", c.target()));
-                cx.view.graph.json = None;
+        widgets::row(ui, ("graph-fx", c.target(), i), |ui, side| {
+            if side == widgets::Side::Left {
+                if ui.selectable_label(false, claudius_api::effect_summary(e)).clicked() {
+                    cx.view.graph.selected = Some(format!("{}#{i}", c.target()));
+                    cx.view.graph.json = None;
+                }
+                return;
             }
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.small_button("x").on_hover_text("take it out").clicked() {
-                    let mut f = fx.clone();
-                    f.remove(i);
-                    change = Some(f);
-                }
-                if ui.add_enabled(i + 1 < fx.len(), egui::Button::new("v").small()).on_hover_text("later").clicked() {
-                    let mut f = fx.clone();
-                    f.swap(i, i + 1);
-                    change = Some(f);
-                }
-                if ui.add_enabled(i > 0, egui::Button::new("^").small()).on_hover_text("earlier").clicked() {
-                    let mut f = fx.clone();
-                    f.swap(i, i - 1);
-                    change = Some(f);
-                }
-            });
+            if ui.add_enabled(i > 0, egui::Button::new("^").small()).on_hover_text("earlier").clicked() {
+                let mut f = fx.clone();
+                f.swap(i, i - 1);
+                change = Some(f);
+            }
+            if ui.add_enabled(i + 1 < fx.len(), egui::Button::new("v").small()).on_hover_text("later").clicked() {
+                let mut f = fx.clone();
+                f.swap(i, i + 1);
+                change = Some(f);
+            }
+            if ui.small_button("x").on_hover_text("take it out").clicked() {
+                let mut f = fx.clone();
+                f.remove(i);
+                change = Some(f);
+            }
         });
     }
     egui::ComboBox::from_id_salt(("graph-add", c.target())).selected_text("add an effect").show_ui(ui, |ui| {

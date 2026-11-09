@@ -12,6 +12,8 @@ use crate::theme::{self, LINE, LINE_SOFT, RAISED, TEXT, TEXT_DIM, TEXT_FAINT, WE
 use crate::widgets::{self, commit};
 
 const STRIP_W: f32 = 86.0;
+/// the height a strip needs for its name, knobs, a short fader and its buttons
+const STRIP_MIN_H: f32 = 330.0;
 
 /// the render's peak envelope at `t` in dB, and its average
 fn envelope_db(render: &RenderView, t: f64) -> Option<(f32, f32)> {
@@ -49,8 +51,9 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let solo = super::any_solo(song);
     let mut out = Vec::new();
     page_frame().show(ui, |ui| {
-        let h = ui.available_height();
-        egui::ScrollArea::horizontal().id_salt("mixer").auto_shrink([false, false]).show(ui, |ui| {
+        // strips shorter than they can be drawn scroll, rather than push the dock up over the arrangement
+        let h = ui.available_height().max(STRIP_MIN_H);
+        egui::ScrollArea::both().id_salt("mixer").auto_shrink([false, false]).show(ui, |ui| {
             ui.horizontal_top(|ui| {
                 ui.spacing_mut().item_spacing.x = 6.0;
                 for (i, t) in song.tracks.iter_mut().enumerate() {
