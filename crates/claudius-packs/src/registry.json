@@ -325,7 +325,7 @@
     {
       "name": "freepats",
       "title": "FreePats selection",
-      "description": "CC0 instruments from the FreePats project: Upright Piano KW (Kawai upright, 2 layers, looped bass), FM electric piano, drawbar organ (setBfree), finger and picked bass guitar (Yamaha RBX), Spanish classical guitar, Fender electric guitar (clean and jazz, small editions), synths (strings, brass, basses, square lead, sweep / new-age / bowed / choir pads), glasses of water tuned from A4 to G6, and a hang in D minor.",
+      "description": "CC0 instruments from the FreePats project: Upright Piano KW (Kawai upright, 2 layers, looped bass), FM electric piano, drawbar organ (setBfree), finger and picked bass guitar (Yamaha RBX), Spanish classical guitar, Fender electric guitar (clean and jazz, small editions, and through a distortion), synths (strings, brass, basses, square lead, sweep / new-age / bowed / choir pads), glasses of water tuned from A4 to G6, and a hang in D minor.",
       "categories": ["piano", "organ", "bass", "guitar", "synth", "mallets"],
       "licence": "CC0-1.0",
       "licence_url": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -334,7 +334,7 @@
       "licence_note": "Each FreePats page: 'Published under the terms of the Creative Commons CC0 1.0 public domain dedication.'; every freepats/* repository used here has a CC0-1.0 LICENSE. Bass Guitar YR: 'sent for inclusion in FreePats on September 2019, under the terms of the Creative Commons CC0 1.0 public domain dedication.'",
       "source": "https://freepats.zenvoid.org/",
       "default": true,
-      "size_mb": 162,
+      "size_mb": 230,
       "version": "2026-10",
       "instruments": [
         {"name": "upright_piano", "category": "piano", "description": "Kawai upright piano, 2 velocity layers", "fetch": {"github": "freepats/upright-piano-KW", "rev": "570f6c60ed2eff67accad3b85d5b452e57a3ad28"}, "sfz": "UprightPianoKW-20220221.sfz", "release": 0.35, "veltrack": 0.8, "retrigger": true, "aliases": ["upright", "honky_piano"]},
@@ -345,6 +345,7 @@
         {"name": "classical_guitar", "category": "guitar", "description": "Spanish classical (nylon) guitar", "fetch": {"github": "freepats/spanish-classical-guitar", "rev": "6f4eb1b092acc88f5448cea1a0001bd07b971af8"}, "sfz": "SpanishClassicalGuitar-20190618.sfz", "one_shot": true, "release": 0.3, "veltrack": 0.7, "aliases": ["guitar", "acoustic_guitar", "nylon_guitar", "spanish_guitar"]},
         {"name": "clean_guitar", "category": "guitar", "description": "Fender electric guitar, clean, bridge pickup (small edition)", "fetch": {"github": "freepats/electric-guitar-FSBS-clean", "rev": "192cf0d9bf2c4ba6ead8e3524ba3f78818e4fe91"}, "sfz": "EGuitarFSBS-clean bridge small 20260807.sfz", "release": 0.25, "veltrack": 0.7, "aliases": ["electric_guitar", "guitar_clean"]},
         {"name": "jazz_guitar", "category": "guitar", "description": "Fender electric guitar, jazz tone (small edition)", "fetch": {"github": "freepats/electric-guitar-FSBS-jazz", "rev": "9a5430a220725ee26f272f62de1381de8da982ed"}, "sfz": "EGuitarFSBS-jazz bridge small 20260807.sfz", "release": 0.25, "veltrack": 0.7},
+        {"name": "dist_guitar", "category": "guitar", "description": "Fender electric guitar through an overdrive and a distortion (variant 2), bridge pickup, from a low B: two of its four takes of each note, in a soft and a hard layer", "fetch": {"github": "freepats/electric-guitar-FSBS-dist2", "rev": "21261b8bcb02d1cbf52dc02f1b1636df52d4a947"}, "sfz": "EGuitarFSBS-dist2 bridge 20220911.sfz", "exclude": "_0[34]\\.flac$", "release": 0.2, "veltrack": 0.6, "aliases": ["distorted_guitar", "overdrive_guitar", "rock_guitar", "guitar_distorted", "metal_guitar"]},
         {"name": "synth_strings", "category": "synth", "fetch": {"github": "freepats/synth-strings-1", "rev": "c0ecbfd69cc242703c6342fcb3a7ffe8cd493ec7"}, "sfz": "SynthStrings1 20200528.sfz", "release": 0.6, "veltrack": 0.4, "aliases": ["string_machine"]},
         {"name": "synth_strings_2", "category": "synth", "fetch": {"github": "freepats/synth-strings-2", "rev": "1f4f3ba29bcbbb182fa9843f3e3acb463155e9aa"}, "sfz": "SynthStrings2 20200528.sfz", "release": 0.6, "veltrack": 0.4},
         {"name": "synth_brass", "category": "synth", "fetch": {"github": "freepats/synth-brass-1", "rev": "a2d2111daae3e45761c5cabd480f4c60258bd645"}, "sfz": "SynthBrass1 20210426.sfz", "release": 0.25, "veltrack": 0.5},

@@ -355,7 +355,7 @@ pub(crate) enum Cmd {
     },
     /// Print the script language reference
     Reference,
-    /// Download the default sample packs (about 3.1 GB) and earshot's listening and stem models (about 1 GB)
+    /// Download the default sample packs (about 3.2 GB) and earshot's listening and stem models (about 1 GB)
     Setup {
         /// do not ask before downloading
         #[arg(short, long)]
