@@ -33,7 +33,7 @@ any machine. The recordings installed (sample packs, Apple Loops) change only wh
 A script downloads nothing: `sampled` and `sample_search` play what `new_song`, `claudius make` or
 `claudius samples gather` gathered before, and a song with none at hand plays the genre's own sounds in their place.
 
-The genre is one of the sixty-three that [The genres](../learn/producers/genres-and-evolution.md#the-genres)
+The genre is one of the sixty-six that [The genres](../learn/producers/genres-and-evolution.md#the-genres)
 lists (`claudius genres` prints them, from `house` and `trap` to `hardstyle`, `jersey_club` and `afro_house`), or
 another name of one's (`"gabber"`, `"funk carioca"`, `"melodic house"`), two or three of them fused (`trip_hop+idm`:
 the first leads, the last plays the drums; see [Fusing genres](../learn/producers/genres-and-evolution.md#fusing-genres)),
@@ -458,7 +458,7 @@ part the genre does not have, so it builds again.
 | role | styles |
 |---|---|
 | bass | the motifs `sustain`, `pulse`, `root8`, `offbeat`, `octave`, `rolling`, `syncopated`, `acid`, `reese`; the 808s that follow the kick, `kick_follow`, `glide` (trap's, sliding up into its phrase ends) and `drill` (sliding from note to note); and the genres' [bass idioms](../engineering/theory.md#bass-idioms): `one_drop`, `steppers`, `slap`, `funk`, `disco`, `garage`, `dembow`, `afro`, `log_drum`, `walking`, `neo_soul`, `soul`, `rnb`, `gfunk`, `boom_bap`, `lofi`, `two_step`, `jungle_dub`, `halftime`, `dub`, `house_organ`, `deep`, `tech`, `new_jack`, `grime`, `trip_hop`, `big_beat`, `rock`, `drive` |
-| chords, pad, keys | the rhythms `sustain`, `half`, `stabs`, `offbeat`, `pump`, `syncopated`, `charleston`; and the genres' [comping idioms](../engineering/theory.md#comping-idioms): `house_piano`, `gospel`, `lofi_comp`, `trap_keys`, `rnb_keys`, `ballad`, `bubble`, `skank`, `scratch`, `strum`, `highlife`, `arpeggio`, and for strings and horns `legato`, `ostinato`, `pizzicato`, `disco_strings`, `tremolo`, `brass_stabs` |
+| chords, pad, keys | the rhythms `sustain`, `half`, `stabs`, `offbeat`, `pump`, `syncopated`, `charleston`; and the genres' [comping idioms](../engineering/theory.md#comping-idioms): `house_piano`, `gospel`, `lofi_comp`, `trap_keys`, `rnb_keys`, `ballad`, `bubble`, `skank`, `scratch`, `strum`, `palm`, `chug`, `highlife`, `arpeggio`, and for strings and horns `legato`, `ostinato`, `pizzicato`, `disco_strings`, `tremolo`, `brass_stabs` |
 | a part that harmonizes | `block` (a chord under each of the melody's notes), and the chord rhythms and comping idioms above, played on the harmony's chords |
 | arp | `up`, `down`, `updown`, `random`, `pinky` |
 | lead | `motif`, a motif with A A′ A B phrasing that `density` and `seed` change; and the genres' [lead idioms](../engineering/theory.md#lead-idioms): `gfunk_whine`, `trap_bells`, `drill_melody`, `afro_flute`, `dembow_hook`, `synth_lead`, `trance_lead`, `organ_riff`, `disco_hook`, `horn_riff`, `reggae_horns`, `riff`, `garage_chop`, `lofi_melody`, `rnb_runs`, `rock_lead`, `ambient_line`, `techno_stab`, `phonk_cowbell`, `piano_riff` |

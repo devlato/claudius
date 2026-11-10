@@ -13,7 +13,7 @@ instrument maps onto them) and a `files/` folder.
 
 ## The packs
 
-`claudius-packs list` shows every pack with its state and licence. The 22 default packs hold 253 instruments:
+`claudius-packs list` shows every pack with its state and licence. The 22 default packs hold 254 instruments:
 
 | pack | what | instruments | licence | credit required | on disk |
 |---|---|---|---|---|---|
@@ -27,7 +27,7 @@ instrument maps onto them) and a `files/` folder.
 | `tr707` | Roland TR-707, all 15 sounds | 13 | public domain | no | 0.5 MB |
 | `uzu` | the uzu drum kit made for Strudel | 15 | Unlicense | no | 2.4 MB |
 | `muldjord` | MuldjordKit, an acoustic rock kit (bank `acoustic`) | 11 | CC BY 4.0 | yes | 135 MB |
-| `freepats` | upright piano, FM piano, drawbar organ, basses, guitars, synth pads, strings and leads, glasses of water, a hang | 21 | CC0 | no | 157 MB |
+| `freepats` | upright piano, FM piano, drawbar organ, basses, guitars (clean, jazz and distorted), synth pads, strings and leads, glasses of water, a hang | 22 | CC0 | no | 225 MB |
 | `doublebass` | double bass pizzicato with round robins | 1 | CC0 | no | 30 MB |
 | `growlybass` | Squier Jazz Bass, fingered | 1 | CC0 | no | 67 MB |
 | `voice` | a low male "ah", and a 5-voice choir made from it | 2 | CC0 | no | 27 MB |
@@ -40,7 +40,7 @@ instrument maps onto them) and a `files/` folder.
 | `zamenhof` | two kits of electronic glitches | 2 | CC0 | no | 56 MB |
 | `miscellania` | sound effects: aliens, zaps, sirens, metal, breaking glass, chains, bells, glockenspiel glissandi | 19 | CC0 | no | 41 MB |
 
-The download is about 3.1 GB, larger than the 1.5 GB on disk, because `vsco2`, `vcsl`, `tr909`, `doublebass`,
+The download is about 3.2 GB, larger than the 1.6 GB on disk, because `vsco2`, `vcsl`, `tr909`, `doublebass`,
 `growlybass`, `voice`, `solocello`, `erhu`, `body`, `zamenhof` and `miscellania` arrive as WAV and are converted to
 lossless FLAC as they install; each conversion is read back and compared with the WAV. Where a pack was cut for size
 (the piano keeps 5 of its 16 velocity layers, VSCO leaves out the tremolo and muted brass), the pack's description in

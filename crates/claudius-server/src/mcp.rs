@@ -244,7 +244,7 @@ pub struct NewSongArgs {
     /// rnb, funk, tech_house, ambient, grime, phonk, reggae, g_funk, gangsta_rap, jazz_rap, chipmunk_soul, crunk,
     /// cloud_rap, emo_rap, rage, plugg, ny_drill, chicago_drill, rnb_90s, new_jack_swing, alt_rnb, big_room,
     /// progressive_house, slap_house, hardstyle, hard_techno, gabber, hyperpop, jersey_club, afro_house,
-    /// melodic_techno, baile_funk or breakcore (catalog lists
+    /// melodic_techno, baile_funk, breakcore, alt_rock, pop_punk or nu_metal (catalog lists
     /// them with their tempo ranges, and any genres of the person's own; find_genre finds them by an era, a scene or a
     /// sound), or another name of one's ("90s hip hop" is boom_bap); or two or three fused, such as trip_hop+idm: the
     /// first leads (tempo, harmony, form, parts, mix), the last plays the drums and lends its sounds

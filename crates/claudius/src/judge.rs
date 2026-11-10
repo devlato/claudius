@@ -447,6 +447,12 @@ fn theory_checks(p: &Project, g: Option<&GenreProfile>, m: &mut BTreeMap<String,
                 g
             })
             .collect();
+        // power chords move as one shape under a guitarist's hand, their voices in parallel rather than led
+        let power = |g: &[i32]| g.iter().all(|p| matches!(p - g[0], 0 | 7 | 12 | 19 | 24));
+        let chords: Vec<&Vec<i32>> = v.iter().filter(|g| g.len() >= 2).collect();
+        if !chords.is_empty() && chords.iter().all(|g| power(g)) {
+            continue;
+        }
         let moves: Vec<f64> = v
             .windows(2)
             .filter(|w| w[0].len() == w[1].len() && w[0] != w[1])
@@ -1018,6 +1024,28 @@ mod tests {
         p.tracks.iter_mut().find(|t| t.role == "lead").unwrap().notes.push(note(6.0, 66));
         theory_checks(&p, None, &mut m, &mut Vec::new());
         assert_eq!(m["lead_in_key"], 0.8);
+    }
+
+    #[test]
+    fn chords_that_leap_are_heard_but_power_chords_move_as_one_shape() {
+        use crate::theory::Note;
+        let g = crate::genres::get("house").unwrap();
+        let mut p = crate::compose::arrange(&crate::compose::generate(&g, 1, &Default::default(), None));
+        let at = |t: f64, ps: &[i32]| ps.iter().map(|&p| Note { t, d: 0.5, p, v: 0.8, lock: None }).collect::<Vec<_>>();
+        let chords = p.tracks.iter_mut().find(|t| t.name == "chords").unwrap();
+        // triads leaping a sixth at every change
+        chords.notes = [at(0.0, &[57, 60, 64]), at(4.0, &[65, 69, 72]), at(8.0, &[57, 60, 64])].concat();
+        let mut m = BTreeMap::new();
+        theory_checks(&p, None, &mut m, &mut Vec::new());
+        assert!(m["voice_leading_chords"] > 4.5, "{m:?}");
+        // power chords a fourth apart, their roots palm-muted between them
+        let chords = p.tracks.iter_mut().find(|t| t.name == "chords").unwrap();
+        chords.notes =
+            [at(0.0, &[40, 47, 52]), at(0.5, &[40]), at(4.0, &[45, 52, 57]), at(4.5, &[45]), at(8.0, &[40, 47, 52])]
+                .concat();
+        let mut m = BTreeMap::new();
+        theory_checks(&p, None, &mut m, &mut Vec::new());
+        assert!(!m.contains_key("voice_leading_chords"), "{m:?}");
     }
 
     fn heard(genre_z: f64, alt_z: f64, production_z: f64, flaw_z: f64) -> EarsReport {

@@ -29,6 +29,18 @@ genre's; a genre whose sound is a dusty or distorted recording is held to its en
 readings are reported, not scored. The ears download its model (133 MB) with their first verdict, or with
 `claudius setup`, and score without it until then.
 
+Three rock genres, played on a distorted guitar. `alt_rock` is alternative rock and grunge, loud, quiet, loud: a clean
+guitar picking its chords in the verses, two distorted guitars hard left and right in the choruses, a solo in the
+last. `pop_punk` drives power chords in eighths over a punk beat, with the skate beat in the last chorus and a guitar
+hook. `nu_metal` is rap metal: low power chords chugged off a hip hop groove, a bass locked to the kick, an eerie clean
+guitar in the verses and a half-time breakdown. Two comping idioms play their guitars: `palm`, the power chord
+palm-muted in eighths, and `chug`, the root palm-muted in sixteenths with the whole chord hit off the beat. The
+guitars are FreePats' distorted electric guitar, a new instrument of the `freepats` pack (`freepats:dist_guitar`, CC0),
+which grows to 225 MB installed: run `claudius-packs install freepats` again to add it to a pack installed before; the
+web demo plays it too. No other genre draws it unless it names it. The critic no longer holds a part of power chords alone to voice leading: a
+guitarist moves a power chord as one shape. "rock" and "alternative rock" now find `alt_rock`, where they found
+`art_rock`.
+
 Basses go deeper and are no longer the loudest thing in a song. A synth bass with nothing under its note gets a sine sub
 under it in the sub octave, below 90 Hz (a rack layer's new `fold: [28, 40]` keeps it there), so it is felt on a
 subwoofer and heard on a phone. The mix holds its low end to its genre's: where the bass and the kick together would

@@ -1,0 +1,42 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+alt_rock at 133.0 BPM in G minor, swing 0.51
+prog A: i iv III VI
+prog B: i IVsus4 III VI
+prog C: VI iv III i
+bars per chord: 1
+section intro (intro) 8 bars, energy 0.59, prog A, main [fills]: kick snare hat bass gtr_l gtr_r
+section verse (verse) 16 bars, energy 0.45, prog A, verse [fills]: kick snare hat bass clean
+section chorus (hook) 8 bars, energy 0.95, prog C, main [impact fills]: kick snare ride crash bass gtr_l gtr_r
+section verse2 (verse) 16 bars, energy 0.51, prog A, verse [gap fills]: kick snare hat bass clean gtr_r
+section chorus2 (hook) 16 bars, energy 1.00, prog C, main [impact fills]: kick snare ride crash bass gtr_l gtr_r
+section break (break) 16 bars, energy 0.38, prog B, main []: bass clean
+section chorus3 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick snare ride crash bass gtr_l gtr_r solo
+section outro (outro) 8 bars, energy 0.36, prog A, main []: kick snare bass
+drum kick main (drum kick): X.......X.X.....|X.......X.X.....|X.......X.X.....|X.......X.X.....
+drum kick verse (drum kick): X.......X.......|X.......X.......|X.......X.......|X.......X.......
+drum snare main (drum snare): ....X......oX..X|....X......oX..X|....X......oX..X|....X......oX..X
+drum snare verse (drum snare): ....X....o..X..o|....X....o..X..o|....X....o..X..o|....X....o..X..o
+drum hat main (drum closed_hat): x.x.xox.x.x.x.x.|x.x.xox.x.x.x.x.|x.x.xox.x.x.x.x.|x.x.xox.x.x.x.x.
+drum hat verse (drum closed_hat): o...o...o.o.o...|o...o...o.o.o...|o...o...o.o.o...|o...o...o.o.o...
+drum ride main (drum ride): x.x.x.x.x.x.x...|x.x.x.x.x.x.x...|x.x.x.x.x.x.x...|x.x.x.x.x.x.x...
+drum crash main (drum crash): X...............|................|................|................
+drum tom main (drum tom): ..............XX|..............XX|..............XX|..............XX
+part clean (arp): pinky synth pluck, register 50..74, density 0.51
+part gtr_l (chords): pump synth supersaw, register 40..62, density 0.48
+part gtr_r (chords): half synth supersaw, register 40..62, density 0.43
+part bass (bass): root8 synth saw_bass, register 28..47, density 0.56
+part solo (lead): rock_lead synth square_lead, register 57..81, density 0.52
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix snare: +0.0 dB, pan +0.00, reverb 0.30, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.25, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix ride: +0.0 dB, pan -0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix crash: +0.0 dB, pan +0.35, reverb 0.20, delay 0.00, duck 0.00, bus drums
+mix tom: +0.0 dB, pan -0.20, reverb 0.30, delay 0.00, duck 0.00, bus drums
+mix clean: +0.0 dB, pan +0.30, reverb 0.22, delay 0.22, duck 0.00, bus music
+mix gtr_l: +1.0 dB, pan -0.85, reverb 0.13, delay 0.00, duck 0.00, bus music
+mix gtr_r: +1.0 dB, pan +0.85, reverb 0.08, delay 0.00, duck 0.00, bus music
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
+mix solo: -1.0 dB, pan +0.10, reverb 0.41, delay 0.16, duck 0.00, bus music

@@ -368,7 +368,7 @@ pub fn of(genre: &str) -> &'static Drummer {
         "afrobeats" | "amapiano" | "afro_house" => "afro",
         "uk_garage" | "grime" => "garage",
         "dubstep" | "future_bass" => "halftime",
-        "art_rock" | "neo_psychedelia" => "rock",
+        "art_rock" | "neo_psychedelia" | "alt_rock" | "pop_punk" | "nu_metal" => "rock",
         "funk" | "g_funk" | "new_jack_swing" => "funk",
         "nu_disco" | "dance_pop" => "disco",
         "lofi" | "jazz_rap" | "neo_soul" => "jazzy",

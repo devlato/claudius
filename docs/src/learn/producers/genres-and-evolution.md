@@ -73,6 +73,9 @@ the critic judges against it, and evolution mutates songs within it. This page c
 | `melodic_techno` | 120–126 | 0.50–0.52 | minor, dorian, phrygian | −9 | 909 (40 %) | melodic techno with arpeggiated synths (techno, trance, house, minimal) |
 | `baile_funk` | 126–136 | 0.50–0.53 | minor, phrygian, harmonic minor | −7.5 | 808 (60 %) | baile funk beat with booming 808 kicks and congas (reggaeton, trap, heavy-bass hip hop, dancehall) |
 | `breakcore` | 165–190 | 0.50–0.52 | minor, dorian, phrygian | −8.5 | acoustic (50 %) | breakcore music with frantic chopped amen breakbeats (drum and bass, glitch hop, jungle, dubstep) |
+| `alt_rock` | 100–140 | 0.50–0.52 | minor, dorian, mixolydian, major | −9.5 | acoustic (100 %) | alternative rock music with distorted electric guitars (grunge rock, punk rock, indie rock, heavy metal, pop rock) |
+| `pop_punk` | 150–190 | 0.50–0.51 | major, minor, mixolydian | −9 | acoustic (100 %) | pop punk rock music with fast drums and distorted guitars (punk rock, alternative rock, emo rock, pop rock, heavy metal) |
+| `nu_metal` | 88–108 | 0.50–0.54 | minor, phrygian, harmonic minor | −8.5 | acoustic (100 %) | nu metal rap rock music with heavy distorted guitars (heavy metal, alternative rock, heavy-bass hip hop, punk rock, industrial rock) |
 
 The last twelve are the festival's, the hard styles' and the scenes of the last few years. Big room, progressive house
 and slap house are the `edm` family, with "edm" one of big room's other names (and electro house's, future bass's

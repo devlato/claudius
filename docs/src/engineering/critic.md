@@ -134,7 +134,7 @@ The critic reads the project's notes, not the audio, so these checks are exact:
 | the lead is singable | `lead_range_semitones` | over 19 semitones |
 | the lead moves by steps | `lead_stepwise`, and the share of leaps over a fifth | more than 20 % leaps |
 | the bass plays the roots | `bass_roots_on_changes`, the share of chord changes where the bass hits the chord's bass note | under 70 % |
-| chords move smoothly | `voice_leading_<track>`, the average movement per voice per chord change, for every chords, pad and keys track | over 4.5 semitones |
+| chords move smoothly | `voice_leading_<track>`, the average movement per voice per chord change, for every chords, pad and keys track but one of power chords alone, which move as one shape | over 4.5 semitones |
 | the form holds a listener | `length_s`, `intro_s`, `sections_alike`, `peaks` | as [Form](#form) says |
 | every part plays a sound its genre has a place for | the rules the genre's own draws follow (`compose::has_place`, [Sounds for parts and drums](theory.md#sounds-for-parts-and-drums)) | a part that does not: `chords plays synth patch 'whistle', which house has no place for`, target `sound:chords` |
 

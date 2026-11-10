@@ -78,6 +78,9 @@ const BUILTIN: &[(&str, &str)] = &[
     ("melodic_techno", include_str!("../data/genres/melodic_techno.json")),
     ("baile_funk", include_str!("../data/genres/baile_funk.json")),
     ("breakcore", include_str!("../data/genres/breakcore.json")),
+    ("alt_rock", include_str!("../data/genres/alt_rock.json")),
+    ("pop_punk", include_str!("../data/genres/pop_punk.json")),
+    ("nu_metal", include_str!("../data/genres/nu_metal.json")),
 ];
 
 fn straight() -> (f32, f32) {
