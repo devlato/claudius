@@ -242,15 +242,19 @@ on the master, with or without the ears (`body_flatness`): the spectral flatness
 spectrum over its arithmetic mean: 0 for a pure tone, 1 for white noise) from 300 Hz to 3 kHz, where a song's notes are
 and where hats and cymbals, noise themselves, mostly are not, frame by frame, its median over the frames within 20 dB
 of the loudest (`body_flatness` in the measures). Notes stand out of that range as peaks; noise, a bitcrusher or a hard
-clipper fills it in.
+clipper fills it in. It takes one 4096-point frame in each run of four (`dsp::fft::spectrogram_drawn`), which one drawn
+from the run's number, so that no tempo lines the frames up with its beats; their median is the median of all the
+frames to a hundredth, at a quarter of the work. A frame whose range holds less than a ten-thousandth of its power (a
+kick, a sub or a bass alone) is left out: it has no notes there to bury, though an empty range reads as flat as noise.
 
-Claudius's songs read 0.01 to 0.1 in every genre whose sound is clean, up to 0.19 in those whose sound is distorted (pop
-punk, nu metal, hard techno), the lowest lofi's 0.03 with its vinyl crackle. A song bitcrushed to three bits and clipped
-30 dB reads 0.32, lofi crushed to two bits 0.25, a song under a loud hiss 0.57. The flatness counts as noise from 0.15
-(0.22 in a genre whose accepted flaws hold the clipped recording, 0.29 for a file judged with no genre, whose own may be
-a wall of distorted guitars), all of it 0.15 above that, and the total is multiplied by `1 − 0.75 × noise`, with the
-issue `noisy: the notes are buried in noise ...`, target `production`. The crushed song scores 38 without the ears and
-15 with them, where it scored 96 and 37.
+Over 123 of claudius's songs across the 66 genres (four of each genre near the line), a genre whose sound is clean
+reads 0.01 to 0.19: techno the highest, with its hats and rides, then tech house, IDM and lofi with its vinyl crackle.
+A genre whose sound is distorted reads up to 0.24 (pop punk, then nu metal). Lofi crushed to two bits reads 0.28, a
+song bitcrushed to three bits and clipped 30 dB 0.35, a song under a loud hiss 0.57. The flatness counts as noise from
+0.22 (0.28 in a genre whose accepted flaws hold the clipped recording, 0.34 for a file judged with no genre, whose own
+may be a wall of distorted guitars), all of it 0.14 above that, and the total is multiplied by `1 − 0.75 × noise`, with
+the issue `noisy: the notes are buried in noise ...`, target `production`. The crushed song scores 29 without the ears
+and 11 with them, where it scored 96 and 37.
 
 ## The ears
 

@@ -139,7 +139,7 @@ is not judged.
   and others) is not held to it. The `aes_*` measures show all four of the model's readings; usefulness and
   complexity are not scored.
 - `noisy: the notes are buried in noise, as noise layers, bitcrushing or heavy clipping bury them (the music's body
-  0.32 flat, where clean songs read under 0.15): ...` (`production`): measured on the master without the models, so
+  0.35 flat, where clean songs read under 0.22): ...` (`production`): measured on the master without the models, so
   it holds in the web demo too, and it cuts the total to as little as a quarter of itself. Find what fills the
   spectrum: a `bitcrush` or a hard `saturate` on the master or a bus (`get_song` lists the chains), heavy `distort` or
   `crush` on the parts that carry the chords and the bass, a noise layer or a `vinyl` hiss turned up. Take those off or
