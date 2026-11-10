@@ -102,7 +102,7 @@ that songs of a genre rarely share a form (24 songs of house, lofi, trap, dance-
 | a lift, a 4-bar build without the kick at the energy of the section before it, into a first hook that has no build, in a genre with risers | 0.35 |
 | no intro (a cold start); an intro of only its drums (when they have the kick) or only its melodic parts | 0.15; 0.25 |
 | no outro (the song ends on its last section); an outro of half its tracks | 0.15; 0.25 |
-| the first verse without one melodic part; a later verse with one more track from the next hook; the first hook without one of its melodic parts | 0.3; 0.35; 0.25 |
+| the first verse without one melodic part (never the bass); a later verse with one more track from the next hook; the first hook without one of its melodic parts (never the bass) | 0.3; 0.35; 0.25 |
 | fills switched in a verse, groove or drop; a gap switched before a hook or drop; the intro's filter sweep switched | 0.25; 0.3; 0.4 |
 | each section's energy moved | up to ±0.05 |
 

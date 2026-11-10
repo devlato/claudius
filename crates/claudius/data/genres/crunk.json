@@ -83,7 +83,7 @@
       {"fx": "saturate", "kind": "tanh", "drive_db": 2.5, "mix": 0.35}
     ],
     "duck_release": 0.25,
-    "levels": {"bass": 5.0, "kick": 0.0, "snare": 1.5, "clap": 1.0},
+    "levels": {"bass": 3.5, "kick": 0.0, "snare": 1.5, "clap": 1.0},
     "bands": {"sub": [-13, -1], "low": [-9, -1], "mid": [-22, -8], "presence": [-31, -15], "air": [-35, -17]}
   }
 }

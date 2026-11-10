@@ -84,12 +84,33 @@ pub struct Layer {
     /// semitones from the track's notes (12: an octave up)
     #[serde(default)]
     pub transpose: i32,
+    /// The MIDI notes it plays every note within, `[lowest, highest]` an octave apart at least: each note the track
+    /// plays (moved by `transpose`) moved by whole octaves into them. A sub stays in the sub octave whatever the line
+    /// above it does.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fold: Option<[i32; 2]>,
     /// how far it ducks under the kick, 0 to 1, whatever the others do: a sub that ducks under a top that holds
     #[serde(default)]
     pub duck: f32,
     /// its own effects, after its band and level
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fx: Vec<Effect>,
+}
+
+/// the sub octave a bass's sub layer plays in (`Layer::fold`), E1 to E2, 41 to 82 Hz
+pub const SUB_OCTAVE: [i32; 2] = [28, 40];
+
+/// `pitch` moved by whole octaves into `[lowest, highest]` (an octave apart at least; a narrower range keeps it
+/// within an octave of them)
+pub fn fold_into(pitch: i32, [lowest, highest]: [i32; 2]) -> i32 {
+    let mut p = pitch;
+    while p > highest && p - 12 >= lowest.min(highest - 11) {
+        p -= 12;
+    }
+    while p < lowest {
+        p += 12;
+    }
+    p
 }
 
 /// the layers a rack may have
@@ -164,7 +185,7 @@ impl Sound {
 impl Layer {
     /// a layer of `sound` across the whole spectrum, at the others' level, with no effects
     pub fn of(sound: Sound) -> Layer {
-        Layer { sound, band: None, level_db: 0.0, pan: 0.0, transpose: 0, duck: 0.0, fx: Vec::new() }
+        Layer { sound, band: None, level_db: 0.0, pan: 0.0, transpose: 0, fold: None, duck: 0.0, fx: Vec::new() }
     }
 
     /// its sound, and the band it keeps: "synth patch 'sub_bass' under 100 Hz"

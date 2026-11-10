@@ -29,6 +29,14 @@ genre's; a genre whose sound is a dusty or distorted recording is held to its en
 readings are reported, not scored. The ears download its model (133 MB) with their first verdict, or with
 `claudius setup`, and score without it until then.
 
+Basses go deeper and are no longer the loudest thing in a song. A synth bass with nothing under its note gets a sine sub
+under it in the sub octave, below 90 Hz (a rack layer's new `fold: [28, 40]` keeps it there), so it is felt on a
+subwoofer and heard on a phone. The mix holds its low end to its genre's: where the bass and the kick together would
+fill more of the sub or the low band than the genre's masters do, the louder of the two in that band comes down
+(`low_end_db` in the report), so the bass no longer buries a song's sampled phrase or its chords. Trap, the drills,
+phonk, rage, hip hop and the genres near them lift their bass 1.5 to 2 dB less than they did. And a song's first verse
+or hook no longer drops its bass to thin itself out; it leaves out another part.
+
 ## [0.5.0] - 2026-11-09
 
 A recording can be rebuilt as a song of its own parts, every note of them yours to change: `claudius remake

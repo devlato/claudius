@@ -82,7 +82,7 @@
       {"fx": "compressor", "threshold_db": -11, "ratio": 1.8, "attack_ms": 25, "release_ms": 180, "knee_db": 6}
     ],
     "duck_release": 0.3,
-    "levels": {"bass": 4.0, "pad": 1.5, "hat": -1.0},
+    "levels": {"bass": 2.5, "pad": 1.5, "hat": -1.0},
     "bands": {"sub": [-14, -1], "low": [-9, -1], "mid": [-22, -8], "presence": [-32, -16], "air": [-35, -18]}
   }
 }

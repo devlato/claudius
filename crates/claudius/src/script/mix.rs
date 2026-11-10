@@ -555,7 +555,7 @@ pub fn sound_of<'a>(bp: &'a mut Blueprint, name: &str) -> Result<&'a mut Sound, 
 }
 
 /// what a rack's layer may say
-const LAYER_KEYS: &[&str] = &["sound", "bank", "band", "level", "pan", "transpose", "duck", "fx"];
+const LAYER_KEYS: &[&str] = &["sound", "bank", "band", "level", "pan", "transpose", "fold", "duck", "fx"];
 
 /// A rack's layers as a script writes them (`what` says where, in a message): each a map naming its sound as
 /// `drum_sound` or a part's `preset` names one (`resolve`), and its band, level, pan, transpose, duck and effects.
@@ -631,6 +631,30 @@ pub(super) fn layers_of(
         if transpose.fract() != 0.0 || transpose.abs() > 24.0 {
             return fail(format!("{what}'s transpose is whole semitones from -24 to 24, not {transpose}"));
         }
+        let fold = match m.get("fold") {
+            None => None,
+            Some(f) => {
+                let notes: Vec<f64> =
+                    f.clone().try_cast::<Array>().unwrap_or_default().iter().filter_map(num).collect();
+                match notes.as_slice() {
+                    [lowest, highest]
+                        if lowest.fract() == 0.0
+                            && highest.fract() == 0.0
+                            && (0.0..=127.0).contains(lowest)
+                            && *highest <= 127.0
+                            && highest - lowest >= 11.0 =>
+                    {
+                        Some([*lowest as i32, *highest as i32])
+                    }
+                    _ => {
+                        return fail(format!(
+                            "{what}'s fold is [lowest, highest], MIDI notes an octave apart at least, such as [28, \
+                             40] for the sub octave"
+                        ));
+                    }
+                }
+            }
+        };
         let fx = match m.get("fx").map(|v| v.clone().try_cast::<Array>()) {
             None => Vec::new(),
             Some(Some(chain)) => super::effects::chain_of(&chain, &what)?,
@@ -642,6 +666,7 @@ pub(super) fn layers_of(
             level_db: number("level")?.unwrap_or(0.0) as f32,
             pan: number("pan")?.unwrap_or(0.0).clamp(-1.0, 1.0) as f32,
             transpose: transpose as i32,
+            fold,
             duck: number("duck")?.unwrap_or(0.0).clamp(0.0, 1.0) as f32,
             fx,
         });

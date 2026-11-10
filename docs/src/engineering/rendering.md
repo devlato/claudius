@@ -103,9 +103,22 @@ critic then says it is quieter than its level. The role targets, in LUFS while t
 | tom | −18 | | | anything else | −19 |
 
 So `level_db` is a level relative to where the role belongs, not a fader position, and `mix("pad", #{ level: -3 })`
-means "3 dB quieter than a pad usually sits". Genres shift roles with `levels`: trap pushes the bass up 1.5 dB and
-pulls the kick and hats down 1 dB, lofi lifts the keys 2 dB. The report and the studio's mixer show each track's
+means "3 dB quieter than a pad usually sits". Genres shift roles with `levels`: trap pushes the bass up 4 dB and
+the hats 2.5 and pulls the kick down 1 dB, lofi lifts the keys 2 dB. The report and the studio's mixer show each track's
 measured level and the gain it got.
+
+**The low end.** Loudness is K-weighted, which hears the lows little: a sub at a bass's target carries far more
+energy than a lead at a lead's, and two of them, a bass and a kick, can be most of a mix's energy and all of what its
+limiter fights, the rest buried under them. So the mix then weighs its low end as the critic does: each track's
+energy under 60 Hz (the sub) and from 60 to 250 Hz (the low band) at the gain it got, measured once with its sound
+(`render::energies`). Where the mix's share of either band comes nearer the most its genre's masters have
+([`mix.bands`](critic.md#mix), the critic's range) than 3.5 dB for the sub and 1.5 dB for the low band (the master's
+compressor and limiter lift them a little), the louder in that band of the bass and the kick comes down a dB at a
+time (`render::low_end`), the bass by 9 dB at most and the kick by 4, until it is within it. A track that carries less
+than a third of the band is left alone, since what else booms there (a pad, an impact) is no reason to take the bass
+away. So the kick gives way in house and techno, whose kick carries the sub, and the 808 in trap. The report gives what
+was taken off as `low_end_db` (in `gain_db` already), and the critic's balance check leaves it out: it is the bands'
+to judge.
 
 ## Sidechain
 

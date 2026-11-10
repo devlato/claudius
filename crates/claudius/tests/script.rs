@@ -792,6 +792,27 @@ fn a_rack_plays_a_track_with_several_sounds_each_in_its_band_and_prints_back() {
 }
 
 #[test]
+fn a_racks_sub_plays_every_note_in_the_sub_octave_and_prints_back() {
+    use claudius::model::Sound;
+    let code = r#"
+        song("house", 3);
+        rack("bass", [#{ sound: "sub_bass", band: [0, 90], fold: [28, 40] }, #{ sound: "saw_bass", band: [90, 0] }]);
+    "#;
+    let bp = script::run(code, None, None).unwrap().bp.unwrap();
+    let bass = bp.parts.iter().find(|p| p.name == "bass").unwrap();
+    let Sound::Rack { layers } = &bass.sound else { panic!("{:?}", bass.sound) };
+    assert_eq!((layers[0].fold, layers[1].fold), (Some([28, 40]), None));
+    let printed = script::to_script(&bp);
+    assert!(printed.contains("#{ sound: \"sub_bass\", band: [0, 90], fold: [28, 40] }"), "{printed}");
+    let again = script::run(&printed, Some(bp.clone()), None).unwrap().bp.unwrap();
+    assert!(again == bp, "the printed script changed the song\n{printed}");
+    // whatever the line plays, the sub sounds under E2
+    for (pitch, at) in [(52, 40), (41, 29), (28, 28), (64, 40), (35, 35)] {
+        assert_eq!(claudius::model::fold_into(pitch, [28, 40]), at, "{pitch}");
+    }
+}
+
+#[test]
 fn a_rack_playing_a_one_shot_from_the_cache_prints_as_said_not_run() {
     use claudius::model::{Layer, Sound};
     let mut bp = script::run(r#"song("house", 3);"#, None, None).unwrap().bp.unwrap();
@@ -820,6 +841,10 @@ fn racks_a_script_gets_wrong_say_what_they_are() {
     says(r#"rack("bass", [#{ sound: "sub_bass", band: [500, 100] }]);"#, "band is [low, high] in Hz");
     says(r#"rack("bass", [#{ sound: "sub_bass", wobble: 1 }]);"#, "wobble");
     says(r#"rack("bass", [#{ sound: "sub_bass", transpose: 0.5 }]);"#, "transpose is whole semitones");
+    says(
+        r#"rack("bass", [#{ sound: "sub_bass", fold: [28, 34] }]);"#,
+        "fold is [lowest, highest], MIDI notes an octave",
+    );
     says(r#"rack("nobody", [#{ sound: "sub_bass" }]);"#, "no track 'nobody'");
     says(r#"track("rests", s("~ ~")); rack("rests", [#{ sound: "cp" }]);"#, "rests plays no sound yet");
     says(r#"track("beat", s("bd, cp")); rack("beat", [#{ sound: "cp" }]);"#, "beat plays 2 sounds: name one");

@@ -21,7 +21,7 @@ drum ohat main (drum open_hat): ..x...o...x...x.|..x...o...x...x.|..x...o...x...
 part lead (lead): riff synth saw_lead, register 55..74, density 0.46
 part chords (chords): offbeat synth supersaw, register 52..72, density 0.60
 part pad (pad): sustain synth vowel_pad, register 48..74, density 0.43
-part bass (bass): offbeat synth dist_bass, register 36..50, density 0.51
+part bass (bass): offbeat a rack of synth patch 'sub_bass' under 90 Hz + synth patch 'dist_bass' above 90 Hz, register 36..50, density 0.51
 mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
 mix clap: +0.0 dB, pan +0.00, reverb 0.20, delay 0.00, duck 0.00, bus drums
 mix hat: +0.0 dB, pan +0.10, reverb 0.00, delay 0.00, duck 0.00, bus drums

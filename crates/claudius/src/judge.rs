@@ -120,6 +120,11 @@ pub const BANDS: [(&str, f64, f64); 6] = [
 const BAND_RANGE: [(f64, f64); 6] =
     [(-14.0, -4.0), (-7.0, -1.0), (-12.0, -4.0), (-18.0, -8.0), (-26.0, -15.0), (-30.0, -17.0)];
 
+/// the healthy range of band `i`'s energy share (`BANDS`), dB: the genre's own (`MixPlan::bands`), or the usual one
+pub fn band_range(i: usize, bands: &BTreeMap<String, [f32; 2]>) -> (f64, f64) {
+    bands.get(BANDS[i].0).map_or(BAND_RANGE[i], |r| (f64::from(r[0]), f64::from(r[1])))
+}
+
 /// energy share (dB) of each band in the averaged power spectrum (Welch, 8192-point frames)
 pub fn band_shares(x: &Stereo) -> Vec<f64> {
     let n_fft = 8192;
@@ -206,7 +211,7 @@ fn mix_checks(
     for (i, (name, _, _)) in BANDS.iter().enumerate() {
         let v = shares[i];
         m.insert(format!("band_{name}_db"), (v * 10.0).round() / 10.0);
-        let (a, b) = p.mix.bands.get(*name).map_or(BAND_RANGE[i], |r| (f64::from(r[0]), f64::from(r[1])));
+        let (a, b) = band_range(i, &p.mix.bands);
         let (over, under) = (v - b, a - v);
         // how far out of its range it is, which a quick fix moves it by (`crate::fixes`)
         if over > 0.0 || under > 0.0 {
@@ -263,12 +268,13 @@ fn mix_checks(
     }
     // each track at the level its genre makes it at (its role's target, the genre's offset for the role, and its
     // own, as a clap under the snare): engineers set a lead about 1.5 dB apart from one mix to another, so 3 dB
-    // either way is a choice, more a fault
+    // either way is a choice, more a fault. What the mix took off a bass or a kick to hold the low end (`low_end_db`)
+    // is the bands' to judge, not the balance's
     for t in &r.tracks {
         let Some(level) = t.level_lufs else { continue };
         let made = g.map_or(0.0, |g| crate::compose::made_level(g, &t.name));
         let meant = crate::render::target_level(&t.role) + p.mix.levels.get(&t.role).copied().unwrap_or(0.0) + made;
-        let off = level + f64::from(t.gain_db) - f64::from(meant);
+        let off = level + f64::from(t.gain_db - t.low_end_db) - f64::from(meant);
         if off.abs() <= 3.0 {
             continue;
         }
@@ -1138,6 +1144,7 @@ mod tests {
                     clips: 1,
                     level_lufs: None,
                     gain_db: 0.0,
+                    low_end_db: 0.0,
                     time: Some(k),
                 })
                 .collect();

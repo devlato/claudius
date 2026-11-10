@@ -1232,6 +1232,7 @@ async fn a_track_is_played_by_layers_of_sounds_seen_and_set_as_a_rack() {
         complexity: None,
     };
     assert!(app.command(new).ok);
+    let before = app.state().song.unwrap().tracks.into_iter().find(|t| t.name == "bass").unwrap();
     let layers = vec![
         json!({"sound": "sub_bass", "band": [0, 100], "duck": 0.8}),
         json!({"sound": "reese", "band": [100, 0], "level": -3, "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 9}]}),
@@ -1246,10 +1247,10 @@ async fn a_track_is_played_by_layers_of_sounds_seen_and_set_as_a_rack() {
     // what the script refuses is not sent into the song, and says why
     let wrong = app.command(Command::SetLayers { track: "bass".into(), layers: vec![json!({"sound": "nope"})] });
     assert!(!wrong.ok && wrong.message.contains("unknown sound 'nope'"), "{}", wrong.message);
-    // undone, the bass plays its one sound again
+    // undone, the bass plays the sound it had again
     assert!(app.command(Command::Undo).ok);
     let bass = app.state().song.unwrap().tracks.into_iter().find(|t| t.name == "bass").unwrap();
-    assert!(bass.layers.is_empty() && !bass.sound.starts_with("a rack"), "{}", bass.sound);
+    assert_eq!((&bass.sound, &bass.layers), (&before.sound, &before.layers));
     // a pattern of several sounds racks one by its label, and shows it under that label
     assert!(app.command(Command::RunScript { code: r#"track("beat", s("bd*4, [~ cp]*2"));"#.into() }).ok);
     let clap = vec![json!({"sound": "cp"}), json!({"sound": "hh", "band": [6000, 0], "level": -8})];
