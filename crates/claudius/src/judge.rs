@@ -8,7 +8,9 @@
 //!   time     (when recordings play on its tracks: loops, takes, a remake's pieces) each keeps the song's tempo and
 //!            beat, as its own beats say
 //! The total is a weighted mean (0..100), cut to as little as `OUT_OF_TIME` of it when a recording plays out of the
-//! song's time, which no mix or genre makes up for. Held-out evidence (AudioSet tags) is reported, never optimised.
+//! song's time, and by as much as `NOISE_CUT` of it when its music is buried in noise (`body_flatness`), which no
+//! mix, arc or genre makes up for, with the ears or without them. Held-out evidence (AudioSet tags) is reported, never
+//! optimised.
 
 use std::collections::BTreeMap;
 
@@ -144,6 +146,83 @@ pub fn band_shares(x: &Stereo) -> Vec<f64> {
             10.0 * (e / total).max(1e-12).log10()
         })
         .collect()
+}
+
+/// the part of the spectrum where a song's notes are, from its bass's overtones to its lead: what noise, a bitcrusher
+/// or a clipper fills in, and what hats and cymbals, noise themselves, mostly leave alone
+const BODY: (f64, f64) = (300.0, 3000.0);
+
+/// How much like noise the music's body (`BODY`) is: the median, over the frames within 20 dB of the loudest, of its
+/// spectral flatness (the power spectrum's geometric mean over its arithmetic mean, 0 for a pure tone, 1 for white
+/// noise). A song's notes stand out of it as peaks; noise, a bitcrusher or a hard clipper over the music fills it in.
+/// None for a recording shorter than a frame, or a silent one.
+pub fn body_flatness(x: &Stereo) -> Option<f64> {
+    let n_fft = 4096;
+    let spec = spectrogram(&x.mono(), n_fft, n_fft);
+    let bin = |hz: f64| (hz * n_fft as f64 / SRF).round() as usize;
+    let power: Vec<f64> = spec.iter().map(|f| f.iter().map(|m| f64::from(*m).powi(2)).sum()).collect();
+    let loudest = power.iter().copied().fold(0.0, f64::max);
+    if loudest <= 0.0 {
+        return None;
+    }
+    let mut flat: Vec<f64> = spec
+        .iter()
+        .zip(&power)
+        .filter(|(_, p)| **p > 0.01 * loudest)
+        .map(|(f, _)| {
+            let body = &f[bin(BODY.0)..bin(BODY.1).min(f.len())];
+            let (mut log, mut sum) = (0.0, 0.0);
+            for m in body {
+                let p = f64::from(*m).powi(2) + 1e-20;
+                log += p.ln();
+                sum += p;
+            }
+            let n = body.len().max(1) as f64;
+            (log / n).exp() / (sum / n)
+        })
+        .collect();
+    flat.sort_by(f64::total_cmp);
+    flat.get(flat.len() / 2).copied()
+}
+
+/// The body flatness (`body_flatness`) from which a song is heard as noisy, and at which it is noise. Claudius's own
+/// songs read 0.01 to 0.11 in it across the genres, those whose sound is distorted up to 0.19; a song bitcrushed to
+/// three bits or hard-clipped by 30 dB reads 0.3, one under a loud hiss 0.55.
+const NOISY: (f64, f64) = (0.15, 0.3);
+
+/// how much further a genre whose sound is distorted (whose accepted flaws hold the ears' clipped recording) is heard
+/// as clean; twice as far for a recording of no genre (a file judged as it is), whose own genre may be a wall of
+/// distorted guitars
+const DISTORTED: f64 = 0.07;
+
+/// the share of its verdict a song loses at most when its music is buried in noise, which no mix, arc or harmony
+/// makes up for
+pub const NOISE_CUT: f64 = 0.75;
+
+/// How far the master's music is buried in noise (`body_flatness` against `NOISY`), 0 for none to 1, with the issue
+/// that says so.
+fn noise_checks(r: &Rendered, g: Option<&GenreProfile>, m: &mut BTreeMap<String, f64>, issues: &mut Vec<Issue>) -> f64 {
+    let Some(flat) = body_flatness(&r.master) else { return 0.0 };
+    m.insert("body_flatness".into(), (flat * 1000.0).round() / 1000.0);
+    let allowance = match g {
+        None => 2.0 * DISTORTED,
+        Some(g) if g.accepted_flaws.iter().any(|f| f == "a distorted clipped recording") => DISTORTED,
+        Some(_) => 0.0,
+    };
+    let from = NOISY.0 + allowance;
+    let noise = clamp01((flat - from) / (NOISY.1 - NOISY.0));
+    if noise > 0.0 {
+        issues.push(Issue {
+            severity: noise,
+            what: format!(
+                "noisy: the notes are buried in noise, as noise layers, bitcrushing or heavy clipping bury them (the \
+                 music's body {flat:.2} flat, where clean songs read under {from:.2}): take the crushing and the drive \
+                 off the master and the parts, or turn the noise down"
+            ),
+            target: "production".into(),
+        });
+    }
+    noise
 }
 
 fn correlation(a: &[f32], b: &[f32]) -> f64 {
@@ -907,6 +986,7 @@ pub fn judge_whole(heard: &Project, whole: &Project, r: &Rendered, ears: Option<
         scores.insert("time".to_string(), time);
         total *= OUT_OF_TIME + (1.0 - OUT_OF_TIME) * time;
     }
+    total *= 1.0 - NOISE_CUT * noise_checks(r, g.as_ref(), &mut measures, &mut issues);
     issues.sort_by(|a, b| b.severity.partial_cmp(&a.severity).unwrap());
     let summary = format!(
         "{:.0}/100 ({}){}",
@@ -934,6 +1014,33 @@ mod tests {
 
     fn form_targets(p: &Project) -> Vec<String> {
         form_issues(p).into_iter().map(|i| i.target).collect()
+    }
+
+    #[test]
+    fn a_chord_reads_clean_and_the_same_chord_under_noise_reads_as_noise() {
+        // four seconds of a chord whose notes have overtones, as instruments' do
+        let n = (4.0 * SRF) as usize;
+        let chord: Vec<f32> = (0..n)
+            .map(|i| {
+                let t = i as f64 / SRF;
+                let note = |hz: f64| {
+                    (1..=6).map(|h| (std::f64::consts::TAU * hz * h as f64 * t).sin() / h as f64).sum::<f64>()
+                };
+                (0.08 * (note(220.0) + note(277.18) + note(329.63) + note(440.0))) as f32
+            })
+            .collect();
+        let stereo = |x: Vec<f32>| Stereo { l: x.clone(), r: x };
+        let mut seed = 1u64;
+        let mut noise = || {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            ((seed >> 33) as f32 / (1u64 << 31) as f32) - 0.5
+        };
+        // the chord under a noise louder than it (a song bitcrushed or clipped hard: `tests/pipeline.rs`)
+        let noisy: Vec<f32> = chord.iter().map(|v| v + 2.0 * noise()).collect();
+        let clean = body_flatness(&stereo(chord)).unwrap();
+        let noisy = body_flatness(&stereo(noisy)).unwrap();
+        assert!(clean < NOISY.0 && noisy > NOISY.1, "a chord {clean}, under noise {noisy}");
+        assert_eq!(body_flatness(&stereo(vec![0.0; n])), None, "silence is not judged");
     }
 
     #[test]

@@ -1,7 +1,9 @@
 use claudius::audio::Stereo;
 use claudius::compose::{self, Options};
 use claudius::config::SRF;
+use claudius::dsp::env::Param;
 use claudius::dsp::osc::{Osc, Wave};
+use claudius::fx::{Effect, SatKind};
 use claudius::theory::scale::{Key, Mode};
 use claudius::{analysis, genres, judge, loudness, render};
 
@@ -74,6 +76,22 @@ fn a_short_song_renders_to_target() {
     assert!((r.lufs - p.mix.master.lufs as f64).abs() < 1.0, "lufs {} vs {}", r.lufs, p.mix.master.lufs);
     let v = judge::judge(&p, &r, None);
     assert!(v.total > 50.0, "{}", v.summary);
+    // the same song crushed to three bits and clipped hard is noise, which no meter on the master hears as a fault
+    let mut crushed = p.clone();
+    crushed
+        .mix
+        .master
+        .fx
+        .insert(0, Effect::Bitcrush { bits: Param::Const(3.0), downsample: 6.0, mix: Param::Const(1.0) });
+    crushed
+        .mix
+        .master
+        .fx
+        .insert(1, Effect::Saturate { kind: SatKind::Hard, drive_db: Param::Const(30.0), mix: Param::Const(1.0) });
+    let r = render::render(&crushed, &render::Options::default()).unwrap();
+    let noisy = judge::judge(&crushed, &r, None);
+    assert!(noisy.total < 0.6 * v.total, "{} after {}", noisy.summary, v.summary);
+    assert!(noisy.issues.iter().any(|i| i.what.starts_with("noisy") && i.target == "production"), "{}", noisy.summary);
 }
 
 fn click_track(bpm: f64, secs: f64) -> Stereo {
