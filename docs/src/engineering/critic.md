@@ -13,10 +13,11 @@ evidence of three kinds, plus a fourth when earshot's models are loaded:
 | `aesthetics` | the ears, with Audiobox Aesthetics: how much listeners would enjoy it, and how well it is produced, as a model of their ratings hears it | 0.15 |
 | `refs` | the ears, with reference tracks: how typical it is of them | 0.15 |
 | `time` | the recordings on its tracks (a remake's pieces, loops, takes): does each keep the song's tempo and beat | cuts the total |
+| noise | the master: are its notes buried in noise, bitcrushing or heavy clipping | cuts the total |
 
 Each component scores 0 to 1. The total is the weighted mean of the components present, times 100, so a verdict
-without ears is out of the same 100. Then the total is cut, by stock music (below) and by `time`: a recording out of
-the song's time leaves it as little as 35 % of itself. [0006 A critic with ears](../design/0006-critic.md) records why the critic is
+without ears is out of the same 100. Then the total is cut, by stock music (below), by `time`, a recording out of the
+song's time leaving it as little as 35 % of itself, and by noise, music buried in it leaving it as little as 25 %. [0006 A critic with ears](../design/0006-critic.md) records why the critic is
 built this way.
 
 ## The verdict
@@ -231,6 +232,29 @@ and `_drift_ms` for each recording judged; a song with none to judge has no `tim
 A remake's recording declared 3 % off its tempo, as a misread tempo would leave it, is found keeping 126.2 BPM in a song
 at 130, its verdict 32 where it was 91; 0.7 % off, 129.1 BPM, the same. The same remake with its tempo read right
 keeps 130.01, its `on_grid` its `own`.
+
+## Noise
+
+The meters on the master cannot hear noise: a song bitcrushed to three bits and clipped 30 dB keeps its loudness, its
+bands (broadband noise fills them all evenly, which reads as balanced) and its arc, and the arc and the theory do not
+listen at all. Without the ears, as in the web demo, such a song scored 96, as it did clean. So the critic measures it
+on the master, with or without the ears (`body_flatness`): the spectral flatness (the geometric mean of the power
+spectrum over its arithmetic mean: 0 for a pure tone, 1 for white noise) from 300 Hz to 3 kHz, where a song's notes are
+and where hats and cymbals, noise themselves, mostly are not, frame by frame, its median over the frames within 20 dB
+of the loudest (`body_flatness` in the measures). Notes stand out of that range as peaks; noise, a bitcrusher or a hard
+clipper fills it in. It takes one 4096-point frame in each run of four (`dsp::fft::spectrogram_drawn`), which one drawn
+from the run's number, so that no tempo lines the frames up with its beats; their median is the median of all the
+frames to a hundredth, at a quarter of the work. A frame whose range holds less than a ten-thousandth of its power (a
+kick, a sub or a bass alone) is left out: it has no notes there to bury, though an empty range reads as flat as noise.
+
+Over 123 of claudius's songs across the 66 genres (four of each genre near the line), a genre whose sound is clean
+reads 0.01 to 0.19: techno the highest, with its hats and rides, then tech house, IDM and lofi with its vinyl crackle.
+A genre whose sound is distorted reads up to 0.24 (pop punk, then nu metal). Lofi crushed to two bits reads 0.28, a
+song bitcrushed to three bits and clipped 30 dB 0.35, a song under a loud hiss 0.57. The flatness counts as noise from
+0.22 (0.28 in a genre whose accepted flaws hold the clipped recording, 0.34 for a file judged with no genre, whose own
+may be a wall of distorted guitars), all of it 0.14 above that, and the total is multiplied by `1 − 0.75 × noise`, with
+the issue `noisy: the notes are buried in noise ...`, target `production`. The crushed song scores 29 without the ears
+and 11 with them, where it scored 96 and 37.
 
 ## The ears
 

@@ -107,23 +107,42 @@ pub fn spectrogram(x: &[f32], n_fft: usize, hop: usize) -> Vec<Vec<f32>> {
     if x.len() < n_fft {
         return Vec::new();
     }
+    spectra(x, n_fft, (0..1 + (x.len() - n_fft) / hop).map(|f| f * hop))
+}
+
+/// `spectrogram`'s frames without overlap, but one in each run of `every` of them, which one drawn from the run's
+/// number, so that no tempo lines the frames up with its beats: an `every`th of the work, for a statistic over the
+/// frames (a median) rather than a picture of them. A partial run at the end is left out.
+pub fn spectrogram_drawn(x: &[f32], n_fft: usize, every: usize) -> Vec<Vec<f32>> {
+    let every = every.max(1);
+    let runs = x.len() / n_fft / every;
+    spectra(
+        x,
+        n_fft,
+        (0..runs).map(|r| {
+            let k = ((u64::from((r as u32).wrapping_mul(2_654_435_761)) * every as u64) >> 32) as usize;
+            (r * every + k) * n_fft
+        }),
+    )
+}
+
+/// the magnitude spectra of the Hann-windowed frames of `x` starting at `starts`
+fn spectra(x: &[f32], n_fft: usize, starts: impl Iterator<Item = usize>) -> Vec<Vec<f32>> {
     let win: Vec<f32> =
         (0..n_fft).map(|i| (0.5 - 0.5 * (2.0 * std::f64::consts::PI * i as f64 / n_fft as f64).cos()) as f32).collect();
     let mut planner = RealFftPlanner::<f32>::new();
     let fwd = planner.plan_fft_forward(n_fft);
     let mut buf = vec![0.0f32; n_fft];
     let mut spec = fwd.make_output_vec();
-    let frames = 1 + (x.len() - n_fft) / hop;
-    let mut out = Vec::with_capacity(frames);
-    for f in 0..frames {
-        let a = f * hop;
-        for i in 0..n_fft {
-            buf[i] = x[a + i] * win[i];
-        }
-        let _ = fwd.process(&mut buf, &mut spec);
-        out.push(spec.iter().map(|c| c.norm()).collect());
-    }
-    out
+    starts
+        .map(|a| {
+            for i in 0..n_fft {
+                buf[i] = x[a + i] * win[i];
+            }
+            let _ = fwd.process(&mut buf, &mut spec);
+            spec.iter().map(|c| c.norm()).collect()
+        })
+        .collect()
 }
 
 #[cfg(test)]

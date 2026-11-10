@@ -15,8 +15,9 @@ command line it is `verdict.json` in the song's folder, and `claudius judge song
 | production | whether it sounds professionally produced more than like a typical flaw (needs the models) | 0.15 |
 | aesthetics | how much listeners would enjoy it and how well it is produced, as Audiobox Aesthetics, a model of trained listeners' ratings, hears three of its ten-second windows (needs the models) | 0.15 |
 
-Without the listening models (`--no-ears`, Intel Macs) the total is out of the first three. A recording out of the
-song's time cuts it ([below](#a-recording-out-of-time-timetrack)).
+Without the listening models (`--no-ears`, Intel Macs, the web demo) the total is out of the first three. A recording
+out of the song's time cuts it ([below](#a-recording-out-of-time-timetrack)), and so does music buried in noise, with
+the models or without them ([`noisy`](#what-the-models-hear-genre-production)).
 
 ## Every issue, and a change that answers it
 
@@ -137,6 +138,12 @@ is not judged.
   and less drive. A genre whose sound is a dusty or distorted recording (lofi, boom bap, trip hop, gabber, hyperpop
   and others) is not held to it. The `aes_*` measures show all four of the model's readings; usefulness and
   complexity are not scored.
+- `noisy: the notes are buried in noise, as noise layers, bitcrushing or heavy clipping bury them (the music's body
+  0.35 flat, where clean songs read under 0.22): ...` (`production`): measured on the master without the models, so
+  it holds in the web demo too, and it cuts the total to as little as a quarter of itself. Find what fills the
+  spectrum: a `bitcrush` or a hard `saturate` on the master or a bus (`get_song` lists the chains), heavy `distort` or
+  `crush` on the parts that carry the chords and the bass, a noise layer or a `vinyl` hiss turned up. Take those off or
+  well down, one at a time, and render; `body_flatness` in the measures falls as the notes come back out.
 
 ### A recording out of time (`time:<track>`)
 
