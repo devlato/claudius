@@ -112,6 +112,13 @@ class Engine {
       return;
     }
     const r = v.state.render;
+    const rendered = r && r.version === v.state.song_version && r.url !== "preview:";
+    // a render that failed comes without audio and with nothing more to come until the song changes
+    if (!data.audio && v.state.song && !v.state.busy && !rendered) {
+      this.waiting = null;
+      w.reject(new Error((v.state.log || []).at(-1) || "the song could not be rendered"));
+      return;
+    }
     if (!data.audio || !r || !v.state.song || r.version !== v.state.song_version) return;
     if (r.url === "preview:") {
       if (w.preview) w.preview(v.state, data.audio);
@@ -354,6 +361,8 @@ function show(id, text) {
 }
 
 async function queue() {
+  // a station that failed to start, and was let go of, has nothing to follow
+  if (!onAir) return;
   const spec = plan(onAir);
   planned = spec;
   remember(spec.genre);
@@ -405,12 +414,13 @@ function tick() {
 async function tuneIn() {
   const button = $("tune");
   if (ctx) {
-    if (ctx.state === "running") {
-      await ctx.suspend();
-      button.textContent = "Play";
-    } else {
-      await ctx.resume();
-      button.textContent = "Pause";
+    // a station on air pauses and plays; one the browser will not pause or play again stays as it was
+    const playing = ctx.state === "running";
+    try {
+      await (playing ? ctx.suspend() : ctx.resume());
+      button.textContent = playing ? "Play" : "Pause";
+    } catch (e) {
+      status(`The radio could not ${playing ? "pause" : "play"}: ${e.message}`);
     }
     return;
   }
