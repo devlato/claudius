@@ -7,7 +7,7 @@ song from audio, so that a new one can be written on its skeleton.
 ## Mutation
 
 `evolve::mutate(blueprint, genre, library, issues, rng)` returns a changed copy and a sentence saying what changed.
-It picks one of 25 operators, applies it, and keeps the result if the blueprint actually changed; otherwise it tries
+It picks one of 27 operators, applies it, and keeps the result if the blueprint actually changed; otherwise it tries
 another, up to 12 times, and as a last resort writes every part again with new seeds (`rewrote every part`).
 
 | level | operators | what one does, in the words it logs |
@@ -16,7 +16,7 @@ another, up to 12 times, and as a last resort writes every part again with new s
 | drums | `drum_edit`, `drum_regen`, `drum_sound`, `drum_kit` | `drums (main): added a hat hit at beat 2.75`, removed, nudged by a sixteenth, or re-accented; a new pattern from the lane's template; a one-shot from the library or a nudge of one synth parameter; every lane onto another kit |
 | parts | `part_seed`, `part_style`, `part_preset`, `patch_tweak`, `part_register`, `part_density` | `bass: rewrote the part`; `chords: style stabs -> charleston`; a preset from the genre's list; cutoff, resonance, release, drive or detune of a synth patch; the register moved by 3, 5 or 12 semitones; a lead's density |
 | mix | `mix_level`, `mix_send`, `mix_duck`, `mix_pan`, `space` | `mix: bass -1.3 dB (now -1.3)`; a reverb or delay send; a part's sidechain depth; the pan of anything but kick, bass, snare and clap; the reverb's decay or the delay's time |
-| form | `form_layer`, `form_bars`, `form_flags`, `form_variant` | `form: lead out of break`; a section 4 or 8 bars longer or shorter (4 to 48); a fill, gap, impact or filter sweep switched; a section's drum variant |
+| form | `form_layer`, `form_bars`, `form_flags`, `form_variant`, `form_change`, `form_build` | `form: lead out of break`; a section 4 or 8 bars longer or shorter (4 to 48); a fill, gap, impact or filter sweep switched; a section's drum variant; `form: verse2 and chorus2 again after chorus2`, `form: intro left out`, `form: drop2 on progression B, unlike drop` (below); `form: build builds classic -> drop_out`, or harder or gentler |
 | feel | `tempo`, `key`, `swing` | `tempo 128 -> 126 BPM` within the genre's range; `key A minor -> C minor` (tonal loops follow); swing nudged |
 | library | `loop_swap` | another Apple Loop for a loop part |
 
@@ -33,6 +33,23 @@ operators that address its target are multiplied by `1 + 4 × severity`: a `band
 level, drum sound, kit, patch, space and pan operators three times as likely. `mix_level` goes further and, three
 times in four, turns the track the band issue points at the right way (too much sub turns the kick or bass down);
 the part operators pick a part an issue names seven times in ten.
+
+**The form is revised toward its issue.** `form_change` makes one change of `form::change`, aimed at the verdict's
+worst issue with the form, or at anything when it has none ([the critic's form checks](critic.md#form) say what each
+issue means):
+
+| issue | changes tried |
+|---|---|
+| `form:short` | a section to the next length its kind takes; the last verse and its hook played again where a third would go, or in a drop genre the last drop with the break and build into it; the last peak twice; a bridge |
+| `form:long` | a section to the next shorter length; the intro or the outro shorter or left out; a section heard earlier left out again, with the build into it |
+| `form:intro` | the intro shorter, or left out |
+| `form:same` | of two neighbours alike, the second without one of its parts, with one of the next peak's, or on the other progression; a bridge, or a lift into a hook |
+| `form:section` | the longest section shorter |
+| `form:peaks-`, `form:peaks+` | the peak and its way in again, or the last peak twice; a later peak left out |
+
+A revised form keeps three sections at least, a peak, builds that lead into peaks, sections that rest on a track
+sure to play, names of their own (a second `verse2` becomes `verse3`) and the section a take starts from. A length
+issue also turns `form_bars` the way the song should go.
 
 Every mutation appends its sentence to the blueprint's `lineage`, so a song carries its own history.
 
@@ -60,10 +77,12 @@ initial songs ──judge──▶ pool
                      every candidate, best first
 ```
 
-- **Previews.** A candidate is judged on its build-up and first drop, not the whole song: `preview_window` takes the
+- **Previews.** A candidate is heard on its build-up and first drop, not the whole song: `preview_window` takes the
   first drop or hook and up to 16 bars before it, `preview_bars` (32) in all, and the rest of the song is cut away with
   `Project::slice`. A whole song takes seconds to render; a preview a fraction of that, so a generation of eight
-  children takes 10 to 40 s with the ears.
+  children takes 10 to 40 s with the ears. The mix, the arc, the time and the ears are the preview's, and the notes
+  and the form the whole song's (`judge::judge_whole`), so a section added, left out or lengthened outside the
+  preview counts all the same.
 - **Duplicates** are skipped by hashing each blueprint's JSON, so the search never judges the same song twice.
 - **Parents** are drawn with `min(random(n), random(n))`, which favours the better half without ignoring the rest.
 - **Stopping.** A cancel flag is checked before each generation.

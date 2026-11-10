@@ -70,7 +70,7 @@ pub fn target_level(role: &str) -> f32 {
     }
 }
 
-fn is_drum_role(role: &str) -> bool {
+pub(crate) fn is_drum_role(role: &str) -> bool {
     matches!(role, "kick" | "snare" | "clap" | "hat" | "ohat" | "shaker" | "perc" | "ride" | "tom" | "crash")
 }
 

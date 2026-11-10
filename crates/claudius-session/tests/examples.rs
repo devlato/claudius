@@ -1,6 +1,7 @@
 //! Every example song makes its song from its script alone, without the sample packs, as the studio, the assistants
-//! and the online demo open it: in its genre, under its title, two and a half to five minutes long, in whole phrases.
-//! The packs are switched off for the whole process, which is why this is a test binary of its own.
+//! and the online demo open it: in its genre, under its title, two and a half to five minutes long, in whole phrases,
+//! in a form the critic finds nothing wrong with. The packs are switched off for the whole process, which is why this
+//! is a test binary of its own.
 
 use claudius::{compose, genres, script};
 use claudius_api::examples;
@@ -14,6 +15,7 @@ fn every_example_makes_its_song_without_the_packs() {
             let bp = out.bp.ok_or("no song")?;
             let p = compose::arrange(&bp);
             let secs = p.secs();
+            let form: Vec<String> = claudius::judge::form_issues(&p).into_iter().map(|i| i.what).collect();
             let checks = [
                 (genres::get(e.genre).is_ok(), format!("there is no genre {}", e.genre)),
                 (bp.genre == e.genre, format!("the genre is {}, not {}", bp.genre, e.genre)),
@@ -21,6 +23,7 @@ fn every_example_makes_its_song_without_the_packs() {
                 (!p.tracks.is_empty(), "nothing plays".to_string()),
                 ((150.0..=300.0).contains(&secs), format!("{secs:.0} s long")),
                 (p.sections.iter().all(|s| s.bars % 4 == 0), "a section is not whole 4-bar phrases".into()),
+                (form.is_empty(), format!("the critic hears in its form: {}", form.join("; "))),
             ];
             match checks.into_iter().find(|(ok, _)| !ok) {
                 Some((_, why)) => Err(why),
