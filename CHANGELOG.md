@@ -6,6 +6,15 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+Evolution and the studio's Variations now revise a song's form as a producer would: a verse and hook or a drop played
+again, a section left out, a bridge or a lift, a shorter intro or outro, two sections that sound as one set apart, a
+build-up of another style or strength. The critic judges the whole song's form, even where evolution renders only a
+preview of it, against its genre's own forms and on what listeners have been found to hear of a form: how long it
+runs, how soon it gets going, whether its sections can be told apart, and whether its hook comes back. The order of
+its sections, which listeners hardly hear, is left alone. Its form issues have targets of their own (`form:short`,
+`form:long`, `form:intro`, `form:same`, `form:section`, `form:peaks-` and `form:peaks+`), where a song's length had
+`form`; the arc and a section out of its 4-bar phrases keep `form`.
+
 ## [0.5.0] - 2026-11-09
 
 A recording can be rebuilt as a song of its own parts, every note of them yours to change: `claudius remake

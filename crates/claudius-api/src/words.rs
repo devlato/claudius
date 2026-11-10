@@ -201,13 +201,24 @@ pub fn measure_in_words(key: &str, value: f64) -> (String, String, String) {
                 "the lead's moves of a tone or less: a melody that is easy to sing moves mostly by steps",
             );
         }
-        "length_s" => {
+        "length_s" | "intro_s" => {
             let whole = value.max(0.0).round() as u64;
+            let (name, about) = if key == "length_s" {
+                ("length", "how long the song runs: within half again of how long its genre's songs run is fine")
+            } else {
+                ("way in", "how long the song takes to get under way, to the first section that is not an intro")
+            };
+            return said(name, format!("{}:{:02}", whole / 60, whole % 60), about);
+        }
+        "sections_alike" => {
             return said(
-                "length",
-                format!("{}:{:02}", whole / 60, whole % 60),
-                "how long the song runs: most tracks run two to five minutes",
+                "sections alike",
+                format!("{value:.0}"),
+                "neighbouring sections that play the same tracks, drums and chords, which a listener hears as one",
             );
+        }
+        "peaks" => {
+            return said("hooks and drops", format!("{value:.0}"), "how many times the song's hook or drop comes");
         }
         "stock_share" => {
             return said(

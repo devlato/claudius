@@ -1418,7 +1418,7 @@ pub fn severity_in_words(s: f64) -> &'static str {
 
 /// Where an issue of the verdict is fixed, in words, from the critic's target: `part:lead` the lead part,
 /// `band:presence-` more presence in the mix, `level:kick+` kick quieter, `width+` a wider stereo image, `form` the
-/// arrangement, and so on.
+/// arrangement, `form:intro` a shorter intro, and so on.
 pub fn fix_in_words(target: &str) -> String {
     let (kind, what) = target.split_once(':').unwrap_or((target, ""));
     let band = |b: &str| match b {
@@ -1440,7 +1440,16 @@ pub fn fix_in_words(target: &str) -> String {
         "width+" => "a wider stereo image".into(),
         "width-" => "a narrower stereo image, and the low end in mono".into(),
         "master" => "the master: its loudness and peaks".into(),
-        "form" => "the arrangement".into(),
+        "form" => match what {
+            "short" => "a longer song: a section again, or longer ones".into(),
+            "long" => "a shorter song: a repeat left out, or shorter sections".into(),
+            "intro" => "a shorter intro".into(),
+            "same" => "sections told apart: a part, the drums or the chords changing between them".into(),
+            "section" => "a long section shorter".into(),
+            "peaks-" => "the hook or the drop again".into(),
+            "peaks+" => "fewer hooks or drops".into(),
+            _ => "the arrangement".into(),
+        },
         "genre" => "the genre's sounds and parts".into(),
         "production" => "the production: the sounds and the mix".into(),
         _ => target.into(),
@@ -2274,6 +2283,8 @@ mod tests {
         assert_eq!(fix_in_words("sound:pad"), "another sound for pad");
         assert_eq!(fix_in_words("width+"), "a wider stereo image");
         assert_eq!(fix_in_words("form"), "the arrangement");
+        assert_eq!(fix_in_words("form:intro"), "a shorter intro");
+        assert_eq!(fix_in_words("form:peaks-"), "the hook or the drop again");
         assert_eq!(fix_in_words("time:vox1"), "the timing of vox1");
         assert_eq!(fix_in_words("something new"), "something new");
         assert_eq!(severity_in_words(0.0), "minor");

@@ -54,7 +54,11 @@ vocabulary that people, assistants and the evolution loop all read:
 | `width+`, `width-` | too narrow, too wide or phasey, or a low end that is not mono | the same |
 | `level:<track>+`, `level:<track>-` | a track louder or quieter than its genre makes it | that track's level, turned the way back |
 | `sound:<part>` | a part plays a sound its genre has no place for | that part's preset and patch |
-| `form` | the arc or the length | layers, section flags, drum variants, section lengths |
+| `form` | the arc, or a section out of its phrases | layers, section flags, drum variants, section lengths, build-ups |
+| `form:short`, `form:long` | short or long for its genre | a section played again or left out, a section longer or shorter (`form::change`), section lengths the way the song should go |
+| `form:intro` | slow to get under way | the intro shorter, or left out |
+| `form:same`, `form:section` | a stretch heard as one section, too long | of neighbours alike, the second with a part more or less or on the other progression; the longest section shorter |
+| `form:peaks-`, `form:peaks+` | the hook never comes back, a drop genre's song never drops, or the peak comes far too often | the peak and its way in again; a later one left out |
 | `part:<name>` | a part's writing | that part's seed, style, density and register |
 | `genre` | it reads as another genre, or unlike the references | presets, styles, drum patterns and sounds, kits, tempo, progressions |
 | `production` | it reads as one of the flaws | as for the bands |
@@ -130,11 +134,63 @@ The critic reads the project's notes, not the audio, so these checks are exact:
 | the lead moves by steps | `lead_stepwise`, and the share of leaps over a fifth | more than 20 % leaps |
 | the bass plays the roots | `bass_roots_on_changes`, the share of chord changes where the bass hits the chord's bass note | under 70 % |
 | chords move smoothly | `voice_leading_<track>`, the average movement per voice per chord change, for every chords, pad and keys track | over 4.5 semitones |
-| the form is sound | `length_s`; every section a multiple of 4 bars | under 90 s or over 330 s; any other section length |
+| the form holds a listener | `length_s`, `intro_s`, `sections_alike`, `peaks` | as [Form](#form) says |
 | every part plays a sound its genre has a place for | the rules the genre's own draws follow (`compose::has_place`, [Sounds for parts and drums](theory.md#sounds-for-parts-and-drums)) | a part that does not: `chords plays synth patch 'whistle', which house has no place for`, target `sound:chords` |
 
 The theory score is the mean of a score per check that applies: a song without a lead or bass is not marked down for
 them. A part whose sound has no place in its genre adds a check it fails outright, a 0 to that mean.
+
+## Form
+
+The form checks are one of the theory checks, and like them read the whole song, even when the evolution loop renders
+only a preview of it (`judge::judge_whole`). They hold a song to its genre's own forms (`GenreProfile::forms`, at the
+genre's tempos), loosely. Liking music follows an inverted U over how familiar and how complex it is
+([Chmiel & Schubert 2017](https://doi.org/10.1177/0305735617697507)), and the songs that rose highest in the Billboard
+charts were neither the most typical of their peers nor the least ([Askin & Mauskapf
+2017](https://doi.org/10.1177/0003122417728662)): a song is held to its genre's ways, with room around them. And the
+checks look only at what listeners have been found to hear of a form, which is less than its order. Reordering the
+sections of unfamiliar pop songs left how predictable and how likeable people found them largely as it was: they
+listen section by section ([Rolison & Edworthy 2012](https://doi.org/10.1525/mp.2012.29.3.269)), as they do to a
+Mozart symphony ([Karno & Konečni 1992](https://doi.org/10.2307/40285538)). What they hear is each section as it
+comes, and where it gives way to the next, by a change of timbre, loudness or register
+([Deliège 1987](https://doi.org/10.2307/40285378)).
+
+| check | measure | issue when | target |
+|---|---|---|---|
+| its length | `length_s` | under the genre's shortest form over 1.5, or over 1.5 times its longest and over 5:30: `2:00 long, where trance's forms run 3:26-3:35` | `form:short`, `form:long` |
+| its way in | `intro_s`, where the first section that is not an intro starts | after twice the genre's longest intro (16 bars at least): `the song takes 1:09 (32 bars) to get under way, where ambient's intros run 8 bars at most` | `form:intro` |
+| its phrases | every section a multiple of 4 bars | any other length | `form` |
+| what is heard as one section | `sections_alike`: neighbours with the same texture, the tracks that play, where in the bar each drum strikes and the chords (the transitions mark a boundary, and are left out) | neighbours alike, or one section, longer together than 1.5 times the genre's longest section and 32 bars: `drop and drop2 play alike, 64 bars heard as one section where trance's longest is 32` | `form:same`, `form:section` |
+| its peaks | `peaks`, its hooks and drops | a hook that comes once where the genre's forms bring theirs at least twice; a song of a drop genre that never drops; more than two over the most the genre's forms have | `form:peaks-`, `form:peaks+` |
+
+An issue costs the form's score 0.1 to 0.3, the more the further off the song is, and a song without a genre is held
+to 90 s to 5:30 and its phrases. Why each check is as it is:
+
+- **Its length.** A genre's forms are its shapes at its tempos, and its records run shorter and longer than they do,
+  so the critic allows half again either way, and finds 5:30 long for none of them. The check catches a song cut to a
+  sketch or run on far past its genre; inside that the length is a matter of taste.
+- **Its way in.** A quarter of the songs streamed on Spotify are skipped within their first five seconds, and skips
+  rise again just after a section changes ([Montecchio, Roy & Pachet 2020](https://doi.org/10.1371/journal.pone.0239418)).
+  The intros of the US top ten shortened from about 20 seconds in the mid-1980s to about 5 by 2015, though an
+  artist's more popular songs did not have the shorter ones ([Léveillé Gauvin
+  2018](https://doi.org/10.1177/1029864917698010)). So the check catches only a way in far longer than the genre's:
+  genres differ, a DJ track or an ambient one taking its time, and the bound is twice the genre's own longest intro.
+  A quiet first verse is the song begun.
+- **What is heard as one section.** Dance music adds, changes or removes a layer after 2, 4, 8, 16 or 32 bars
+  ([Solberg & Jensenius 2016](https://doi.org/10.18061/emr.v11i3-4.5023)). Neighbours that change none of what marks
+  a boundary sound as one section, so they are measured as one: 32 bars of a chorus played twice is a chorus, 64 bars
+  of a drop played twice is a long time with nothing new. Notes are not compared: the arranger writes each section's
+  afresh, and a new melody over the same texture does not make a new section.
+- **Its peaks.** Repetition is what makes a hook: a song repeated within itself is easier to take in, and songs whose
+  lyrics repeat more reached the top of the charts sooner ([Nunes, Ordanini & Valsesia
+  2015](https://doi.org/10.1016/j.jcps.2014.12.004)). In a drop genre the drop is what the break routine builds to,
+  and the part listeners respond to most, in their skin conductance and in their own words
+  ([Solberg & Dibben 2019](https://doi.org/10.1525/mp.2019.36.4.371)). A song of verses alone, in a hook genre, is a
+  form of its own and is not marked down.
+
+Not checked: the order of the sections, which listeners hardly hear, and how surprising the music is against how
+predictable, which is what pleasure in it follows ([Cheung et al. 2019](https://doi.org/10.1016/j.cub.2019.09.067)),
+but chord by chord rather than section by section.
 
 ## Time
 
@@ -281,7 +337,10 @@ reading, not a good song.
   meant to be darker than they allow, so it gets `no air` issues that are style, not fault.
 - `judge` on an arbitrary file without its `project.json` has no sections and no notes: the arc scores 1, the theory
   checks only the length, and the length is estimated at 120 BPM.
-- The evolution loop judges 32-bar previews, so a preview's length issue (`30 s long`) is in every candidate's
-  verdict; it shifts every score by the same amount and does not change which candidate wins.
+- The evolution loop renders a preview of each candidate, 32 bars around its first drop or hook, so its mix, arc, time
+  and ears are the preview's, and a change outside it is judged by its notes and its form alone.
+- The form checks hold a song to its genre's forms, which are claudius' templates of the genre rather than
+  measurements of its records. They count the sections named hooks and drops, so a song whose hook is a riff running
+  through its verses has none to count.
 
 Judge finished songs by ear too.

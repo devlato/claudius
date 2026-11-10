@@ -68,13 +68,32 @@ moves them a little; leave them when that dusty sound is what the person asked f
   from there. Bring it back within 3 dB: `get_song` shows each track's level, so undo the change that moved it. The
   master's meters can't hear one track drowning the others, so this issue may be the only sign of it.
 
-### The arrangement (`form`)
+### The arrangement (`form`, `form:<what>`)
+
+The form is judged against the genre's own forms, loosely, and on what a listener hears of it: how long it runs, how
+soon it gets going, whether its sections can be told apart, and whether its hook comes back. The order of the sections
+is not judged.
 
 - `the drop is only 1.8 LU louder than the breakdown (aim for 3-7)`: thin the break (fewer layers:
   `section("break", #{ layers: "pad chords" })`) or fill the drop (`layer("drop", "lead", true)`, `energy: 1.0`).
 - `loudness does not follow the arrangement's energy`: section energies that disagree with what plays in them. Give
   intros, breaks and outros fewer tracks, and drops the most.
-- `45 s long (most tracks run 2-5 minutes)`: add sections or lengthen them in `form()`.
+- `2:00 long, where trance's forms run 3:26-3:35` (`form:short`, or `form:long` for a long one): far shorter or
+  longer than the genre's songs run. Play a verse and hook again, or in a drop genre a break, a build and a second
+  drop (`add_section`, or `form()`), or lengthen sections (`section("drop", #{ bars: 32 })`); to shorten, leave a
+  repeat out (`remove_section`) or shorten the intro and outro. A short song the person asked for stays short.
+- `the song takes 1:09 (32 bars) to get under way, where ambient's intros run 8 bars at most` (`form:intro`):
+  shorten the intro (`section("intro", #{ bars: 8 })`) or start on the first verse.
+- `drop and drop2 play alike, 64 bars heard as one section where trance's longest is 32` (`form:same`): the two play
+  the same tracks, drums and chords, so nothing marks where one ends. Change the second: a part out or in
+  (`layer("drop2", "lead", false)`), another drum variant (`section("drop2", #{ variant: "alt" })`) or the other
+  progression (`prog: "B"`).
+- `drop plays 64 bars, where trance's longest section is 32` (`form:section`): shorten it, or split it in two with
+  something changing in the second.
+- `the hook comes once, where dance pop's forms bring it 3 times` (`form:peaks-`): bring the hook back later, after
+  another verse. `the song never drops, where trance's forms do`: give it a build and a drop
+  (`sec("drop", 32, "*").impact()`). `the hook comes 7 times` (`form:peaks+`): leave a repeat out. A song of verses
+  alone is fine in a hook genre.
 - `a section is not a whole number of 4-bar phrases`: make every section 4, 8, 16 or 32 bars.
 
 ### The notes (`part:lead`, `part:bass`, `part:<name>`)

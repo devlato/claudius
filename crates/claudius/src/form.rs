@@ -17,6 +17,10 @@
 //! A section that gains or loses tracks moves its energy with them.
 //!
 //! The song then keeps to two to five and a half minutes at its tempo, and every section has a name of its own.
+//!
+//! Evolution revises a song's form afterwards, one change at a time and toward what the critic asks of it ([`change`]):
+//! a section longer or shorter, a verse and hook or a drop again, a section left out, a bridge or a lift, a shorter way
+//! in or out, two neighbours set apart.
 
 use crate::genres::GenreProfile;
 use crate::model::{Role, SectionKind, SectionSpec};
@@ -128,46 +132,11 @@ pub fn vary(template: &[SectionSpec], g: &GenreProfile, bpm: f64, rng: &Rng) -> 
     // a bridge before the last peak (and the build into it), when the song has two peaks and nothing breaks it between
     // them; after a song's only peak, when more than its outro follows
     let mut r = rng.fork("bridge");
-    let (first, last) = (form.iter().position(is_peak), form.iter().rposition(is_peak));
-    let at = match (first, last) {
-        (Some(a), Some(b)) if a < b && !form[a..b].iter().any(|s| s.kind == SectionKind::Break) => {
-            Some(if form[b - 1].kind == SectionKind::Build { b - 1 } else { b })
-        }
-        (Some(a), Some(b)) if a == b && form.get(a + 1).is_some_and(|s| s.kind != SectionKind::Outro) => Some(a + 1),
-        _ => None,
-    };
-    if let (Some(at), Some(last)) = (at, last)
+    if let Some(at) = bridge_at(&form)
         && r.chance(0.35)
+        && let Some(b) = bridge(&form, g, r.chance(0.4))
     {
-        // a breakdown: the bass leaves with the drums (a trap 808 alone is as loud as the hook)
-        let layers: Vec<String> = melodic(&form[last], g)
-            .into_iter()
-            .filter(|l| {
-                l.as_str() == crate::sampling::PHRASE || g.parts.iter().any(|q| q.name == **l && q.role != Role::Bass)
-            })
-            .cloned()
-            .collect();
-        if layers.len() >= 2 {
-            form.insert(
-                at,
-                SectionSpec {
-                    name: "bridge".into(),
-                    kind: SectionKind::Break,
-                    bars: 8,
-                    energy: 0.25,
-                    prog: "B".into(),
-                    layers,
-                    variant: "sparse".into(),
-                    filter_in: false,
-                    build: false,
-                    build_style: Default::default(),
-                    build_amount: 0.5,
-                    gap: r.chance(0.4),
-                    impact: false,
-                    fills: false,
-                },
-            );
-        }
+        form.insert(at, b);
     }
     // the last peak twice
     if let Some(p) = form.iter().rposition(is_peak)
@@ -183,21 +152,7 @@ pub fn vary(template: &[SectionSpec], g: &GenreProfile, bpm: f64, rng: &Rng) -> 
         && g.transitions.riser
         && rng.fork("lift").chance(0.35)
     {
-        // as loud as what came before: the riser and the roll make up for the kick
-        let before = &form[h - 1];
-        let layers: Vec<String> = before.layers.iter().filter(|l| l.as_str() != "kick").cloned().collect();
-        let lift = SectionSpec {
-            name: "lift".into(),
-            kind: SectionKind::Build,
-            bars: 4,
-            layers,
-            filter_in: false,
-            build: true,
-            gap: false,
-            impact: false,
-            fills: false,
-            ..before.clone()
-        };
+        let lift = lift(&form[h - 1]);
         form.insert(h, lift);
     }
     // the intro: left out, or stripped to its drums or its melodic parts
@@ -342,6 +297,294 @@ fn name_apart(form: &mut [SectionSpec]) {
     }
 }
 
+/// where a bridge goes: before the last peak (and the build into it), when the song has two peaks and nothing breaks
+/// it between them; after a song's only peak, when more than its outro follows
+fn bridge_at(form: &[SectionSpec]) -> Option<usize> {
+    match (form.iter().position(is_peak), form.iter().rposition(is_peak)) {
+        (Some(a), Some(b)) if a < b && !form[a..b].iter().any(|s| s.kind == SectionKind::Break) => {
+            Some(if form[b - 1].kind == SectionKind::Build { b - 1 } else { b })
+        }
+        (Some(a), Some(b)) if a == b && form.get(a + 1).is_some_and(|s| s.kind != SectionKind::Outro) => Some(a + 1),
+        _ => None,
+    }
+}
+
+/// a bridge, eight bars on the second progression of the last peak's melodic parts without its drums and its bass (a
+/// trap 808 alone is as loud as the hook); none when fewer than two of them play
+fn bridge(form: &[SectionSpec], g: &GenreProfile, gap: bool) -> Option<SectionSpec> {
+    let last = form.iter().rfind(|s| is_peak(s))?;
+    let layers: Vec<String> = melodic(last, g)
+        .into_iter()
+        .filter(|l| {
+            l.as_str() == crate::sampling::PHRASE || g.parts.iter().any(|q| q.name == **l && q.role != Role::Bass)
+        })
+        .cloned()
+        .collect();
+    (layers.len() >= 2).then(|| SectionSpec {
+        name: "bridge".into(),
+        kind: SectionKind::Break,
+        bars: 8,
+        energy: 0.25,
+        prog: "B".into(),
+        layers,
+        variant: "sparse".into(),
+        filter_in: false,
+        build: false,
+        build_style: Default::default(),
+        build_amount: 0.5,
+        gap,
+        impact: false,
+        fills: false,
+    })
+}
+
+/// a four-bar build out of `before` into a hook, as loud as what came before: the riser and the roll make up for the
+/// kick
+fn lift(before: &SectionSpec) -> SectionSpec {
+    let layers: Vec<String> = before.layers.iter().filter(|l| l.as_str() != "kick").cloned().collect();
+    SectionSpec {
+        name: "lift".into(),
+        kind: SectionKind::Build,
+        bars: 4,
+        layers,
+        filter_in: false,
+        build: true,
+        gap: false,
+        impact: false,
+        fills: false,
+        ..before.clone()
+    }
+}
+
+/// What a revision of a song's form is for, as the critic's issue with it asks (`judge::Issue::target`): the song
+/// longer or shorter, its way in shorter, two neighbours that sound as one set apart, its longest section shorter, its
+/// hook or drop heard more often or less, or any of these.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Aim {
+    Longer,
+    Shorter,
+    Intro,
+    Apart,
+    Section,
+    MorePeaks,
+    FewerPeaks,
+    Any,
+}
+
+impl Aim {
+    /// what the critic's issue with `target` asks of the form, when it asks something of it
+    pub fn of(target: &str) -> Option<Aim> {
+        Some(match target {
+            "form:short" => Aim::Longer,
+            "form:long" => Aim::Shorter,
+            "form:intro" => Aim::Intro,
+            "form:same" => Aim::Apart,
+            "form:section" => Aim::Section,
+            "form:peaks-" => Aim::MorePeaks,
+            "form:peaks+" => Aim::FewerPeaks,
+            _ => return None,
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Change {
+    Lengthen,
+    Shorten,
+    Again,
+    Twice,
+    Bridge,
+    Lift,
+    Intro,
+    Outro,
+    LeaveOut,
+    Apart,
+    Energy,
+}
+
+/// A song's form revised the way a producer revises one, by one change toward `aim`:
+///
+/// - a section lengthened or shortened to the next bar count its kind takes (for [`Aim::Section`], the longest);
+/// - the last peak's way in and the peak played again after it (a verse and the hook, or a build and the drop);
+/// - the last peak played twice;
+/// - a bridge, or a lift into a hook without a build, as [`vary`] makes them;
+/// - the intro or the outro shortened, or left out;
+/// - a section heard earlier in the song left out again (with the build into it), never the last peak;
+/// - of two neighbours that play the same layers, drums and progression, the second thinner by a part, fuller by one
+///   of the next peak's, or on the other progression;
+/// - a section's energy nudged.
+///
+/// The form changed and what changed, or None when no change toward `aim` fits it. The song keeps three sections, a
+/// peak (or a groove), builds that lead into peaks, sections that rest on something sure to play, names of their
+/// own, and [`crate::model::MAX_BARS`] at most.
+pub fn change(form: &[SectionSpec], g: &GenreProfile, aim: Aim, rng: &mut Rng) -> Option<(Vec<SectionSpec>, String)> {
+    use Change::*;
+    let all = [Lengthen, Shorten, Again, Twice, Bridge, Lift, Intro, Outro, LeaveOut, Apart, Energy];
+    let options: &[Change] = match aim {
+        Aim::Longer => &[Lengthen, Again, Twice, Bridge],
+        Aim::Shorter => &[Shorten, Intro, Outro, LeaveOut],
+        Aim::Intro => &[Intro],
+        Aim::Apart => &[Apart, Apart, Bridge, Lift],
+        Aim::Section => &[Shorten],
+        Aim::MorePeaks => &[Again, Twice],
+        Aim::FewerPeaks => &[LeaveOut],
+        Aim::Any => &all,
+    };
+    for _ in 0..8 {
+        let mut f = form.to_vec();
+        let Some(what) = apply(&mut f, g, *rng.pick(options), aim, rng) else { continue };
+        name_apart(&mut f);
+        if f != form && sound(&f, g) {
+            return Some((f, what));
+        }
+    }
+    None
+}
+
+/// whether a revised form is still one a song plays
+fn sound(f: &[SectionSpec], g: &GenreProfile) -> bool {
+    f.len() >= 3
+        && f.iter().map(|s| s.bars).sum::<u32>() <= crate::model::MAX_BARS
+        && (f.iter().any(is_peak) || f.iter().any(|s| s.kind == SectionKind::Groove))
+        && f.iter().enumerate().all(|(i, s)| s.kind != SectionKind::Build || f.get(i + 1).is_some_and(is_peak))
+        && f.iter().all(|s| s.layers.iter().any(|l| sure(l, g)))
+}
+
+fn apply(f: &mut Vec<SectionSpec>, g: &GenreProfile, c: Change, aim: Aim, rng: &mut Rng) -> Option<String> {
+    let next = |s: &SectionSpec, up: bool| {
+        let ls = lengths(s.kind).iter().copied();
+        if up { ls.filter(|&b| b > s.bars).min() } else { ls.filter(|&b| b < s.bars).max() }
+    };
+    match c {
+        Change::Lengthen | Change::Shorten => {
+            let up = c == Change::Lengthen;
+            let can: Vec<usize> = (0..f.len()).filter(|&i| next(&f[i], up).is_some()).collect();
+            let i = if aim == Aim::Section {
+                *can.iter().max_by_key(|&&i| f[i].bars)?
+            } else {
+                *can.get(rng.below(can.len()))?
+            };
+            f[i].bars = next(&f[i], up)?;
+            Some(format!("{} now {} bars", f[i].name, f[i].bars))
+        }
+        Change::Again => {
+            // a verse and its hook again where `vary` plays a third: after the last hook before the song's first
+            // break after one, or after its last hook
+            let first = f.iter().position(|s| s.kind == SectionKind::Hook);
+            let brk = first.and_then(|h| (h..f.len()).find(|&i| f[i].kind == SectionKind::Break));
+            let hook = match brk {
+                Some(b) => f[..b].iter().rposition(|s| s.kind == SectionKind::Hook),
+                None => f.iter().rposition(|s| s.kind == SectionKind::Hook),
+            };
+            let verse = hook.and_then(|h| f[..h].iter().rposition(|s| s.kind == SectionKind::Verse));
+            let (at, again) = match (hook, verse) {
+                (Some(h), Some(v)) => (h + 1, vec![f[v].clone(), f[h].clone()]),
+                // else the last peak and its way in (a break, a build) after it, as a drop comes back
+                _ => {
+                    let p = f.iter().rposition(is_peak)?;
+                    let way_in = |s: &SectionSpec| matches!(s.kind, SectionKind::Break | SectionKind::Build);
+                    let from = (p.saturating_sub(2)..p).find(|&i| f[i..p].iter().all(way_in)).unwrap_or(p);
+                    (p + 1, f[from..=p].to_vec())
+                }
+            };
+            let what = format!(
+                "{} again after {}",
+                again.iter().map(|s| s.name.as_str()).collect::<Vec<_>>().join(" and "),
+                f[at - 1].name
+            );
+            f.splice(at..at, again);
+            Some(what)
+        }
+        Change::Twice => {
+            let p = f.iter().rposition(is_peak)?;
+            let again = SectionSpec { energy: 1.0, impact: false, ..f[p].clone() };
+            let what = format!("{} twice", f[p].name);
+            f.insert(p + 1, again);
+            Some(what)
+        }
+        Change::Bridge => {
+            let at = bridge_at(f)?;
+            let b = bridge(f, g, rng.chance(0.4))?;
+            let what = match f.get(at) {
+                Some(s) => format!("a bridge before {}", s.name),
+                None => "a bridge at the end".to_string(),
+            };
+            f.insert(at, b);
+            Some(what)
+        }
+        Change::Lift => {
+            let h = (1..f.len()).find(|&i| f[i].kind == SectionKind::Hook && f[i - 1].kind != SectionKind::Build)?;
+            let what = format!("a lift into {}", f[h].name);
+            let lift = lift(&f[h - 1]);
+            f.insert(h, lift);
+            Some(what)
+        }
+        Change::Intro | Change::Outro => {
+            let i = if c == Change::Intro { 0 } else { f.len().checked_sub(1)? };
+            let kind = if c == Change::Intro { SectionKind::Intro } else { SectionKind::Outro };
+            if f.get(i)?.kind != kind {
+                return None;
+            }
+            match next(&f[i], false) {
+                Some(b) if f.len() <= 4 || rng.chance(0.7) => {
+                    f[i].bars = b;
+                    Some(format!("{} now {b} bars", f[i].name))
+                }
+                _ if f.len() > 4 => Some(format!("{} left out", f.remove(i).name)),
+                _ => None,
+            }
+        }
+        Change::LeaveOut => {
+            let last = f.iter().rposition(is_peak)?;
+            let heard = |i: usize| f[..i].iter().any(|s| s.kind == f[i].kind);
+            let can: Vec<usize> = (1..f.len())
+                .filter(|&i| i != last && heard(i) && !matches!(f[i].kind, SectionKind::Build | SectionKind::Outro))
+                .filter(|&i| aim != Aim::FewerPeaks || is_peak(&f[i]))
+                .collect();
+            let i = *can.get(rng.below(can.len()))?;
+            let from = if is_peak(&f[i]) && f[i - 1].kind == SectionKind::Build { i - 1 } else { i };
+            let gone: Vec<String> = f.drain(from..=i).map(|s| s.name).collect();
+            Some(format!("{} left out", gone.join(" and ")))
+        }
+        Change::Apart => {
+            let alike =
+                |a: &SectionSpec, b: &SectionSpec| (&a.layers, &a.variant, &a.prog) == (&b.layers, &b.variant, &b.prog);
+            let pairs: Vec<usize> = (1..f.len()).filter(|&i| alike(&f[i - 1], &f[i])).collect();
+            let i = *pairs.get(rng.below(pairs.len()))?;
+            let before = f[i].layers.clone();
+            let thinner: Vec<String> = melodic(&f[i], g).into_iter().cloned().collect();
+            let fuller: Vec<String> = (i..f.len())
+                .find(|&j| is_peak(&f[j]))
+                .map(|j| f[j].layers.iter().filter(|l| !before.contains(l)).cloned().collect())
+                .unwrap_or_default();
+            let what = match rng.below(3) {
+                0 if thinner.len() >= 2 => {
+                    let out = rng.pick(&thinner).clone();
+                    f[i].layers.retain(|l| *l != out);
+                    format!("{} without {out}, unlike {}", f[i].name, f[i - 1].name)
+                }
+                1 if !fuller.is_empty() => {
+                    let add = rng.pick(&fuller).clone();
+                    f[i].layers.push(add.clone());
+                    format!("{} with {add}, unlike {}", f[i].name, f[i - 1].name)
+                }
+                _ => {
+                    f[i].prog = if f[i].prog == "A" { "B" } else { "A" }.into();
+                    return Some(format!("{} on progression {}, unlike {}", f[i].name, f[i].prog, f[i - 1].name));
+                }
+            };
+            retune(&mut f[i], &before, g);
+            Some(what)
+        }
+        Change::Energy => {
+            let i = rng.below(f.len());
+            let e = f[i].energy;
+            f[i].energy = (e + rng.range(-0.1, 0.1) as f32).clamp(0.1, 1.0);
+            Some(format!("{} energy {e:.2} -> {:.2}", f[i].name, f[i].energy))
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -395,6 +638,71 @@ mod tests {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn a_revised_form_is_still_one_a_song_plays_and_goes_the_way_it_was_aimed() {
+        let bars = |f: &[SectionSpec]| f.iter().map(|s| s.bars).sum::<u32>();
+        let peaks = |f: &[SectionSpec]| f.iter().filter(|s| is_peak(s)).count();
+        let aims = [
+            Aim::Longer,
+            Aim::Shorter,
+            Aim::Intro,
+            Aim::Apart,
+            Aim::Section,
+            Aim::MorePeaks,
+            Aim::FewerPeaks,
+            Aim::Any,
+        ];
+        let mut found = std::collections::BTreeMap::<String, usize>::new();
+        for g in crate::genres::all().unwrap() {
+            for (fi, template) in g.forms.iter().enumerate() {
+                let mut rng = Rng::new(fi as u64);
+                let start = vary(template, &g, 120.0, &Rng::new(fi as u64));
+                for aim in aims {
+                    let mut f = start.clone();
+                    for _ in 0..4 {
+                        let Some((next, what)) = change(&f, &g, aim, &mut rng) else { break };
+                        let at = format!("{} form {fi} {aim:?}: {what}", g.name);
+                        *found.entry(format!("{aim:?}")).or_default() += 1;
+                        assert!(sound(&next, &g), "{at}");
+                        let names: std::collections::BTreeSet<&str> = next.iter().map(|s| s.name.as_str()).collect();
+                        assert_eq!(names.len(), next.len(), "{at}: names apart");
+                        let (b, nb, p, np) = (bars(&f), bars(&next), peaks(&f), peaks(&next));
+                        match aim {
+                            Aim::Longer => assert!(nb > b, "{at}"),
+                            Aim::Shorter | Aim::Intro | Aim::Section => assert!(nb < b, "{at}"),
+                            Aim::MorePeaks => assert!(np > p && nb > b, "{at}"),
+                            Aim::FewerPeaks => assert!(np < p && nb < b, "{at}"),
+                            Aim::Apart | Aim::Any => {}
+                        }
+                        f = next;
+                    }
+                }
+            }
+        }
+        // every aim finds a change in most forms, but setting apart (which needs two neighbours alike) and fewer peaks
+        // (which needs two); a form's intro runs out of changes once it is left out
+        let forms: usize = crate::genres::all().unwrap().iter().map(|g| g.forms.len()).sum();
+        for aim in aims.iter().filter(|a| !matches!(a, Aim::Apart | Aim::FewerPeaks)) {
+            assert!(found.get(&format!("{aim:?}")).copied().unwrap_or(0) >= forms, "{aim:?}: {found:?}");
+        }
+    }
+
+    #[test]
+    fn neighbours_that_play_alike_are_set_apart() {
+        let g = crate::genres::get("synthwave").unwrap();
+        let mut form = g.forms[0].clone();
+        let at = form.iter().position(|s| s.kind == SectionKind::Verse).unwrap();
+        form.insert(at + 1, SectionSpec { name: "verse again".into(), ..form[at].clone() });
+        let mut rng = Rng::new(3);
+        for _ in 0..12 {
+            let (f, what) = change(&form, &g, Aim::Apart, &mut rng).unwrap();
+            if what.contains("unlike") {
+                let (a, b) = (&f[at], &f[at + 1]);
+                assert!(a.layers != b.layers || a.prog != b.prog, "{what}");
             }
         }
     }

@@ -3,8 +3,10 @@
 //! Mutation operators work on every level of the blueprint: harmony (theory-aware substitutions, new progressions),
 //! drums (hit edits, regenerated patterns, sounds swapped between synthesis and recordings), parts (a new writing
 //! seed, style, preset, patch tweaks, register, density), mix (levels, sends, sidechain, pan, space), form (layers per
-//! section, lengths, fills / gaps / builds, variants) and the global feel (tempo, key, swing). The critic's issues
-//! bias which operators are tried, crossover recombines parents, and every child records what changed.
+//! section, lengths, fills / gaps / builds, variants, build-ups, and sections played again, left out or set apart, as
+//! `form::change` revises a form) and the global feel (tempo, key, swing). The critic's issues bias which operators
+//! are tried, and a form's revision aims at its issue with the form; crossover recombines parents, and every child
+//! records what changed.
 
 use std::collections::BTreeMap;
 
@@ -75,6 +77,8 @@ const OPS: &[&str] = &[
     "form_bars",
     "form_flags",
     "form_variant",
+    "form_change",
+    "form_build",
     "tempo",
     "key",
     "swing",
@@ -90,7 +94,11 @@ fn weights(issues: &[Issue]) -> Vec<f64> {
         let hit: &[&str] = if t.starts_with("band:") || t.starts_with("width") || t == "production" {
             &["mix_level", "drum_sound", "drum_kit", "patch_tweak", "space", "mix_pan"]
         } else if t == "form" {
-            &["form_layer", "form_flags", "form_variant", "form_bars"]
+            &["form_layer", "form_flags", "form_variant", "form_bars", "form_build"]
+        } else if t == "form:short" || t == "form:long" {
+            &["form_change", "form_bars"]
+        } else if t.starts_with("form:") {
+            &["form_change"]
         } else if t.starts_with("part:") {
             &["part_seed", "part_style", "part_density", "part_register"]
         } else if t.starts_with("level:") {
@@ -479,7 +487,13 @@ fn apply_op(
         "form_bars" => {
             let si = rng.below(b.form.len());
             let s = &mut b.form[si];
-            let d: i32 = *rng.pick(&[-8, -4, 4, 8]);
+            // the way the critic would have the song's length go, when it says
+            let ds: &[i32] = match issues.iter().find(|i| i.target == "form:short" || i.target == "form:long") {
+                Some(i) if i.target == "form:short" => &[4, 8],
+                Some(_) => &[-8, -4],
+                None => &[-8, -4, 4, 8],
+            };
+            let d = *rng.pick(ds);
             let nb = s.bars as i32 + d;
             if !(4..=48).contains(&nb) {
                 return None;
@@ -516,6 +530,34 @@ fn apply_op(
             let what = format!("form: {} drums {} -> {v}", s.name, s.variant);
             s.variant = v;
             Some(what)
+        }
+        "form_change" => {
+            let aim = issues.iter().find_map(|i| crate::form::Aim::of(&i.target)).unwrap_or(crate::form::Aim::Any);
+            let (form, what) = crate::form::change(&b.form, g, aim, rng)?;
+            // a take plays from its section, which stays
+            if b.loops.iter().filter_map(|l| l.from.as_ref()).any(|n| !form.iter().any(|s| s.name == *n)) {
+                return None;
+            }
+            b.form = form;
+            Some(format!("form: {what}"))
+        }
+        "form_build" => {
+            let builds: Vec<usize> = (0..b.form.len()).filter(|&i| b.form[i].build).collect();
+            let s = &mut b.form[*builds.get(rng.below(builds.len()))?];
+            if rng.chance(0.5) {
+                let style = *rng.pick(&BuildStyle::ALL);
+                if style == s.build_style {
+                    return None;
+                }
+                let what = format!("form: {} builds {} -> {}", s.name, s.build_style.name(), style.name());
+                s.build_style = style;
+                Some(what)
+            } else {
+                let amount = (s.build_amount + (rng.f32() - 0.5) * 0.6).clamp(0.0, 1.0);
+                let what = format!("form: {} builds {:.2} -> {amount:.2} hard", s.name, s.build_amount);
+                s.build_amount = amount;
+                Some(what)
+            }
         }
         "tempo" => {
             let d = (rng.int(1, 4) * if rng.chance(0.5) { 1 } else { -1 }) as f64;
@@ -620,13 +662,16 @@ pub struct Candidate {
 
 pub type Ears<'a> = &'a (dyn Fn(&Project, &Rendered) -> Option<EarsReport> + Sync);
 
+/// the critic's verdict on `bp`: its mix, its arc and its time as its preview plays them (`preview_window`), its notes
+/// and its form as the whole song has them
 pub fn evaluate(bp: &Blueprint, preview_bars: u32, ears: Option<Ears>) -> Result<Verdict> {
-    let full = compose::arrange(bp);
+    let whole = compose::arrange(bp);
     let (a, b) = preview_window(bp, preview_bars);
-    let p = if a == 0 && b >= full.bars { full } else { full.slice(a, b) };
-    let r = render::render(&p, &render::Options { stems: false, tail_secs: 1.0 })?;
-    let e = ears.and_then(|f| f(&p, &r));
-    Ok(judge::judge(&p, &r, e))
+    let window = (a > 0 || b < whole.bars).then(|| whole.slice(a, b));
+    let p = window.as_ref().unwrap_or(&whole);
+    let r = render::render(p, &render::Options { stems: false, tail_secs: 1.0 })?;
+    let e = ears.and_then(|f| f(p, &r));
+    Ok(judge::judge_whole(p, &whole, &r, e))
 }
 
 #[derive(Clone, Debug)]
@@ -880,5 +925,51 @@ mod tests {
         let (was, now) = (patches(&bp), patches(&tweaked));
         assert_eq!(was.len(), 2);
         assert!(now[0] == now[1] && now[0] != was[0], "the 808 and its grit layer change together");
+    }
+
+    #[test]
+    fn a_preview_is_judged_with_the_whole_songs_form() {
+        let g = crate::genres::get("techno").unwrap();
+        let mut bp = compose::generate(&g, 1, &compose::Options::default(), None);
+        let whole = compose::arrange(&bp);
+        let v = evaluate(&bp, 32, None).unwrap();
+        assert!(preview_window(&bp, 32).1 - preview_window(&bp, 32).0 < whole.bars, "the preview is part of the song");
+        assert_eq!(v.measures["length_s"], whole.secs().round());
+        // its first three sections alone are a short song, whatever its preview plays
+        bp.form.truncate(3);
+        let v = evaluate(&bp, 32, None).unwrap();
+        assert!(v.issues.iter().any(|i| i.target == "form:short"), "{:?}", v.issues);
+    }
+
+    #[test]
+    fn a_song_the_critic_finds_short_is_lengthened_and_never_shortened() {
+        let g = crate::genres::get("techno").unwrap();
+        let mut bp = compose::generate(&g, 1, &compose::Options::default(), None);
+        bp.form.truncate(3);
+        let bars = |b: &Blueprint| b.form.iter().map(|s| s.bars).sum::<u32>();
+        let short = [Issue { severity: 0.6, what: String::new(), target: "form:short".into() }];
+        let mut rng = Rng::new(5);
+        let mut longer = 0;
+        for _ in 0..60 {
+            let (child, what) = mutate(&bp, &g, None, &short, &mut rng);
+            assert!(bars(&child) >= bars(&bp), "{what}");
+            longer += usize::from(bars(&child) > bars(&bp));
+        }
+        assert!(longer >= 8, "{longer} of 60 mutations lengthen it");
+    }
+
+    #[test]
+    fn a_build_up_changes_its_style_or_how_hard_it_builds() {
+        let g = crate::genres::get("trance").unwrap();
+        let bp = compose::generate(&g, 1, &compose::Options::default(), None);
+        let builds = |b: &Blueprint| -> Vec<(BuildStyle, f32)> {
+            b.form.iter().filter(|s| s.build).map(|s| (s.build_style, s.build_amount)).collect()
+        };
+        assert!(!builds(&bp).is_empty(), "trance builds");
+        let changed = (0..20).filter(|&seed| {
+            let mut b = bp.clone();
+            apply_op(&mut b, "form_build", &g, None, &[], &mut Rng::new(seed)).is_some() && builds(&b) != builds(&bp)
+        });
+        assert!(changed.count() >= 8);
     }
 }
