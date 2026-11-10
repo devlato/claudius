@@ -496,19 +496,21 @@ fn mmss(secs: f64) -> String {
     format!("{}:{:02}", s / 60, s % 60)
 }
 
-/// What a listener hears a section change by (docs/src/engineering/critic.md): the tracks that play in it, where in the
-/// bar each drum strikes, and its chords; not the transitions, which mark where one ends. Two neighbours with the same
-/// sound as one section, whatever their notes.
+/// What a listener hears a section change by (docs/src/engineering/critic.md): the tracks that play in it (that start
+/// a note or a clip in it, or sound through half of it, as a take does through the sections after its own), where in
+/// the bar each drum strikes, and its chords; not the transitions, which mark where one ends. Two neighbours with the
+/// same sound as one section, whatever their notes.
 type Texture = (Vec<usize>, Vec<(usize, i64)>, Vec<(i64, crate::theory::chord::Chord)>);
 
 fn texture(p: &Project, s: &crate::model::SectionInfo) -> Texture {
     let (from, to) = (s.start_bar as f64 * 4.0, (s.start_bar + s.bars) as f64 * 4.0);
     let within = |t: f64| t >= from - 1e-9 && t < to - 1e-9;
+    let sounds = |t: f64, d: f64| within(t) || (t + d.max(0.0)).min(to) - t.max(from) >= 0.5 * (to - from);
     let sixteenth = |t: f64| ((t - from) * 4.0).round() as i64;
     let (mut playing, mut strikes) = (Vec::new(), std::collections::BTreeSet::new());
     for (i, t) in p.tracks.iter().enumerate() {
         let transition = matches!(t.role.as_str(), "crash" | "riser" | "impact" | "downlifter" | "reverse");
-        if transition || (!t.notes.iter().any(|n| within(n.t)) && !t.clips.iter().any(|c| within(c.t))) {
+        if transition || (!t.notes.iter().any(|n| sounds(n.t, n.d)) && !t.clips.iter().any(|c| sounds(c.t, c.d))) {
             continue;
         }
         playing.push(i);
@@ -857,6 +859,24 @@ mod tests {
             }
         }
         assert!(found.is_empty(), "{}", found.join("\n"));
+    }
+
+    #[test]
+    fn a_take_plays_in_every_section_it_sounds_through() {
+        let g = crate::genres::get("synthwave").unwrap();
+        let mut p = in_form(&g, &g.forms[0]);
+        let i = p.tracks.iter().position(|t| t.role == "pad").unwrap();
+        let take = crate::model::Clip {
+            t: 0.0,
+            d: p.beats(),
+            offset: 0.0,
+            gain_db: 0.0,
+            fade_in: 0.0,
+            fade_out: 0.0,
+            once: true,
+        };
+        (p.tracks[i].notes, p.tracks[i].clips) = (Vec::new(), vec![take]);
+        assert!(p.sections.iter().all(|s| texture(&p, s).0.contains(&i)));
     }
 
     #[test]

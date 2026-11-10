@@ -297,6 +297,16 @@ fn name_apart(form: &mut [SectionSpec]) {
     }
 }
 
+/// A name for a section new to `form`, like `name`: its word alone, then numbered from 2, the first that no section of
+/// `form` has, so that no section it has is renamed (a take starts from its section by name).
+fn fresh(form: &[SectionSpec], name: &str) -> String {
+    let base = name.trim_end_matches(|c: char| c.is_ascii_digit());
+    std::iter::once(base.to_string())
+        .chain((2..).map(|n| format!("{base}{n}")))
+        .find(|n| !form.iter().any(|s| s.name == *n))
+        .unwrap_or_else(|| name.to_string())
+}
+
 /// where a bridge goes: before the last peak (and the build into it), when the song has two peaks and nothing breaks
 /// it between them; after a song's only peak, when more than its outro follows
 fn bridge_at(form: &[SectionSpec]) -> Option<usize> {
@@ -415,8 +425,8 @@ enum Change {
 /// - a section's energy nudged.
 ///
 /// The form changed and what changed, or None when no change toward `aim` fits it. The song keeps three sections, a
-/// peak (or a groove), builds that lead into peaks, sections that rest on something sure to play, names of their
-/// own, and [`crate::model::MAX_BARS`] at most.
+/// peak (or a groove), builds that lead into peaks, sections that rest on something sure to play, and
+/// [`crate::model::MAX_BARS`] at most; a section new to it has a name no other has, and every other keeps its own.
 pub fn change(form: &[SectionSpec], g: &GenreProfile, aim: Aim, rng: &mut Rng) -> Option<(Vec<SectionSpec>, String)> {
     use Change::*;
     let all = [Lengthen, Shorten, Again, Twice, Bridge, Lift, Intro, Outro, LeaveOut, Apart, Energy];
@@ -433,7 +443,6 @@ pub fn change(form: &[SectionSpec], g: &GenreProfile, aim: Aim, rng: &mut Rng) -
     for _ in 0..8 {
         let mut f = form.to_vec();
         let Some(what) = apply(&mut f, g, *rng.pick(options), aim, rng) else { continue };
-        name_apart(&mut f);
         if f != form && sound(&f, g) {
             return Some((f, what));
         }
@@ -492,19 +501,22 @@ fn apply(f: &mut Vec<SectionSpec>, g: &GenreProfile, c: Change, aim: Aim, rng: &
                 again.iter().map(|s| s.name.as_str()).collect::<Vec<_>>().join(" and "),
                 f[at - 1].name
             );
-            f.splice(at..at, again);
+            for (k, mut s) in again.into_iter().enumerate() {
+                s.name = fresh(f, &s.name);
+                f.insert(at + k, s);
+            }
             Some(what)
         }
         Change::Twice => {
             let p = f.iter().rposition(is_peak)?;
-            let again = SectionSpec { energy: 1.0, impact: false, ..f[p].clone() };
+            let again = SectionSpec { name: fresh(f, &f[p].name), energy: 1.0, impact: false, ..f[p].clone() };
             let what = format!("{} twice", f[p].name);
             f.insert(p + 1, again);
             Some(what)
         }
         Change::Bridge => {
             let at = bridge_at(f)?;
-            let b = bridge(f, g, rng.chance(0.4))?;
+            let b = SectionSpec { name: fresh(f, "bridge"), ..bridge(f, g, rng.chance(0.4))? };
             let what = match f.get(at) {
                 Some(s) => format!("a bridge before {}", s.name),
                 None => "a bridge at the end".to_string(),
@@ -512,13 +524,15 @@ fn apply(f: &mut Vec<SectionSpec>, g: &GenreProfile, c: Change, aim: Aim, rng: &
             f.insert(at, b);
             Some(what)
         }
-        Change::Lift => {
+        // in a genre that rises into its peaks, as `vary` lifts one
+        Change::Lift if g.transitions.riser => {
             let h = (1..f.len()).find(|&i| f[i].kind == SectionKind::Hook && f[i - 1].kind != SectionKind::Build)?;
             let what = format!("a lift into {}", f[h].name);
-            let lift = lift(&f[h - 1]);
+            let lift = SectionSpec { name: fresh(f, "lift"), ..lift(&f[h - 1]) };
             f.insert(h, lift);
             Some(what)
         }
+        Change::Lift => None,
         Change::Intro | Change::Outro => {
             let i = if c == Change::Intro { 0 } else { f.len().checked_sub(1)? };
             let kind = if c == Change::Intro { SectionKind::Intro } else { SectionKind::Outro };
@@ -670,6 +684,20 @@ mod tests {
                         assert!(sound(&next, &g), "{at}");
                         let names: std::collections::BTreeSet<&str> = next.iter().map(|s| s.name.as_str()).collect();
                         assert_eq!(names.len(), next.len(), "{at}: names apart");
+                        // what it kept keeps its name: the same kind, in the same order
+                        let kept: Vec<(&str, SectionKind)> = f
+                            .iter()
+                            .filter_map(|s| next.iter().find(|n| n.name == s.name).map(|n| (n.name.as_str(), n.kind)))
+                            .collect();
+                        let was: Vec<(&str, SectionKind)> = f
+                            .iter()
+                            .filter(|s| next.iter().any(|n| n.name == s.name))
+                            .map(|s| (s.name.as_str(), s.kind))
+                            .collect();
+                        assert_eq!(kept, was, "{at}");
+                        let order: Vec<&str> =
+                            next.iter().map(|n| n.name.as_str()).filter(|n| was.iter().any(|w| w.0 == *n)).collect();
+                        assert_eq!(order, was.iter().map(|w| w.0).collect::<Vec<_>>(), "{at}: in its order");
                         let (b, nb, p, np) = (bars(&f), bars(&next), peaks(&f), peaks(&next));
                         match aim {
                             Aim::Longer => assert!(nb > b, "{at}"),
@@ -689,6 +717,23 @@ mod tests {
         for aim in aims.iter().filter(|a| !matches!(a, Aim::Apart | Aim::FewerPeaks)) {
             assert!(found.get(&format!("{aim:?}")).copied().unwrap_or(0) >= forms, "{aim:?}: {found:?}");
         }
+    }
+
+    #[test]
+    fn a_section_added_takes_a_name_of_its_own_and_leaves_the_others_theirs() {
+        // a bridge goes before the last hook, and this song already plays one after it
+        let g = crate::genres::get("synthwave").unwrap();
+        let mut form: Vec<SectionSpec> = g.forms[0].iter().filter(|s| s.kind != SectionKind::Break).cloned().collect();
+        let last = form.iter().rposition(is_peak).unwrap();
+        let after = SectionSpec { name: "bridge".into(), kind: SectionKind::Break, ..form[last].clone() };
+        form.insert(last + 1, after);
+        let mut rng = Rng::new(1);
+        let (f, what) = (0..64)
+            .find_map(|_| change(&form, &g, Aim::Longer, &mut rng).filter(|(_, w)| w.starts_with("a bridge")))
+            .expect("a bridge");
+        let named = |f: &[SectionSpec], n: &str| f.iter().position(|s| s.name == n).unwrap();
+        assert!(named(&f, "bridge") > named(&f, "chorus3"), "{what}: the song's own bridge is where it was");
+        assert!(named(&f, "bridge2") < named(&f, "chorus3"), "{what}: the new one before the last chorus");
     }
 
     #[test]
