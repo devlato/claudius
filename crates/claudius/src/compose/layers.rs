@@ -130,12 +130,6 @@ pub fn one_more(bp: &mut Blueprint, g: &GenreProfile, lib: Option<&dyn Library>,
     const MORE: f64 = 0.6;
     let before: Vec<Vec<String>> = bp.form.iter().map(|s| s.layers.clone()).collect();
     let available = palette::instruments();
-    let mut used: BTreeSet<String> = bp.parts.iter().flat_map(|p| palette::identities(&p.sound)).collect();
-    let mut draw = |bp: &mut Blueprint, spec: PartSpec, rng: &mut Rng| -> Part {
-        let part = new_part(&spec, g, &available, &mut used, rng);
-        bp.parts.push(part.clone());
-        part
-    };
     let mut kinds = ["pad", "counter", "arpeggio", "double", "clap", "shaker", "perc"];
     rng.shuffle(&mut kinds);
     let tracks = |bp: &Blueprint| -> Vec<String> {
@@ -143,6 +137,13 @@ pub fn one_more(bp: &mut Blueprint, g: &GenreProfile, lib: Option<&dyn Library>,
     };
     let said = kinds.into_iter().find_map(|k| {
         let was = bp.clone();
+        // the sounds the song plays as it is, a layer tried and taken back taking none of them
+        let mut used: BTreeSet<String> = bp.parts.iter().flat_map(|p| palette::identities(&p.sound)).collect();
+        let mut draw = |bp: &mut Blueprint, spec: PartSpec, rng: &mut Rng| -> Part {
+            let part = new_part(&spec, g, &available, &mut used, rng);
+            bp.parts.push(part.clone());
+            part
+        };
         let mut r = rng.fork(k);
         let said = match k {
             "pad" => pad(bp, g, MORE, &mut draw, &mut r),

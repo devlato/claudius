@@ -948,12 +948,18 @@ fn apply_op(
                 return compose::one_more(b, g, lib, rng);
             }
             let spec = *rng.pick(&missing);
+            let peak = |s: &SectionSpec| matches!(s.kind, SectionKind::Hook | SectionKind::Drop);
+            let listed = b.form.iter().any(|s| s.layers.contains(&spec.name));
+            // a part no section would play is no part
+            if !listed && !b.form.iter().any(peak) {
+                return None;
+            }
             let mut used = b.parts.iter().flat_map(|p| crate::palette::identities(&p.sound)).collect();
             let mut part = compose::new_part(spec, g, &crate::palette::instruments(), &mut used, rng);
             crate::colour::vary_part(&mut part, &rng.fork(&spec.name));
             let what = format!("{} in, on {}", spec.name, part.sound.describe());
-            if !b.form.iter().any(|s| s.layers.contains(&spec.name)) {
-                for s in b.form.iter_mut().filter(|s| matches!(s.kind, SectionKind::Hook | SectionKind::Drop)) {
+            if !listed {
+                for s in b.form.iter_mut().filter(|s| peak(s)) {
                     let was = s.layers.clone();
                     s.layers.push(spec.name.clone());
                     crate::form::retune(s, &was, g);
@@ -1425,6 +1431,30 @@ mod tests {
                     assert!(!crate::form::sure(&gone[0], &g), "{genre} {seed}: {what}, which every {genre} song has");
                     assert!(b.form.iter().all(|s| !s.layers.contains(&gone[0])), "{genre} {seed}: {what}");
                     assert!(b.form.iter().all(|s| s.layers.iter().any(|l| crate::form::sure(l, &g))));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_part_comes_in_only_where_a_section_plays_it() {
+        // no hook or drop, and no section naming the parts the song left out
+        for genre in ["house", "lofi", "neo_soul"] {
+            let g = crate::genres::get(genre).unwrap();
+            let mut bp = compose::generate(&g, 2, &compose::Options::default(), None);
+            let names = tracks(&bp);
+            for s in bp.form.iter_mut() {
+                if matches!(s.kind, SectionKind::Hook | SectionKind::Drop) {
+                    s.kind = SectionKind::Groove;
+                }
+                s.layers.retain(|l| names.contains(l) || bp.loops.iter().any(|lp| lp.name == *l));
+            }
+            for seed in 0..24 {
+                let mut b = bp.clone();
+                if let Some(what) = apply_op(&mut b, "track_add", &g, None, &[], &mut Rng::new(seed)) {
+                    for t in tracks(&b).into_iter().filter(|t| !names.contains(t)) {
+                        assert!(b.form.iter().any(|s| s.layers.contains(&t)), "{genre} {seed}: {what}");
+                    }
                 }
             }
         }
