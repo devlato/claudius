@@ -40,8 +40,9 @@ claudius analyze out/house-glass-avenue-1/song.mp3
 
 Against what we know:
 
-- **Tempo, key, length, bar grid**: right. The tempo comes from onset autocorrelation and a grid fitted to the kicks;
-  the key from the chroma of the whole song.
+- **Tempo, key, length, bar grid**: right. The tempo comes from onset autocorrelation, the tempo whose grid lies on
+  the onsets best and the kit's backbeat ([how](../engineering/evolution-and-analysis.md#reading-a-song)), and a grid
+  fitted to the kicks; the key from the chroma of the whole song.
 - **Swing**: missed (0.50 for 0.58). Swing is measured from the hi-hats on the off-beat sixteenths, and this song's
   hats play eighths.
 - **Progression**: three chords out of four right. The first chord, Am7 (A C E G), was heard as C (`III`): it
@@ -101,7 +102,11 @@ reworked from 'song.mp3': all 64 bars of it, its voice and its chords as they ar
 
 The tempo is the recording's own, or double it when that is nearer the genre's range (two bars of the song to each
 of the recording's, a chord each), so that nothing is stretched: 122 BPM is under trap's 130 to 150, and 244 further
-from it. It is never halved, which would put two of the recording's chords in a bar of the song's. `--bpm` sets another tempo, and
+from it. It is halved (one bar of the song to two of the recording's) when that is nearer and the recording holds
+each chord through two bars, three pairs of bars in four, since a bar of the song plays one chord: a recording of
+170 BPM reworked as hip hop plays at 85, its beat in half time, where at 170 hip hop's drums would play as fast as
+drum and bass. A slow song heard at twice its tempo, whose bars are each half of one, always holds its chords so, and
+plays at its own again. The reply says when the song is in double or half time. `--bpm` sets another tempo, and
 stretches the recording to it. The recording is kept in `out/takes/song/`, beside the song. To hear more of the genre,
 add its parts back over the recording in a script, or turn the recording down where they play.
 

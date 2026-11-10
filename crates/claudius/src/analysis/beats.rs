@@ -4,7 +4,9 @@
 //! slows down, and its beats are the ones it plays, followed through the song.
 
 use super::chroma;
+use super::drums::{self, Hit, Kind};
 use super::onsets::{self, HOP};
+use crate::audio::Stereo;
 use crate::config::SRF;
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -102,6 +104,98 @@ fn autocorr(env: &[f32], max_lag: usize) -> Vec<f64> {
     (0..max_lag.min(n)).map(|l| x[..n - l].iter().zip(&x[l..]).map(|(a, b)| a * b).sum::<f64>() / r0).collect()
 }
 
+/// The strongest of `env` within `w` frames of each frame: a swung sixteenth or a laid-back snare still lands on a
+/// grid that has it a few milliseconds away.
+fn widened(env: &[f32], w: usize) -> Vec<f32> {
+    (0..env.len())
+        .map(|i| env[i.saturating_sub(w)..(i + w + 1).min(env.len())].iter().fold(0f32, |m, v| m.max(*v)))
+        .collect()
+}
+
+/// How well a beat of `p` frames lays a grid on the onsets `env`: in each stretch of 16 beats (all of a shorter sound),
+/// at the phase that suits the stretch, the onset strength on its beats, half as much on its eighths and a quarter on
+/// its sixteenths, against that of the envelope as a whole. A tempo four thirds or two thirds of the beat, which a syncopated kick or a dotted
+/// rhythm repeats at as often as at the beat, puts most of its grid between the onsets, and scores near 1.
+fn salience(env: &[f32], p: f64) -> f64 {
+    let near = widened(env, (0.06 * p).round().clamp(1.0, 8.0) as usize);
+    let mean = near.iter().map(|v| *v as f64).sum::<f64>() / near.len().max(1) as f64;
+    let at = |t: f64| near.get(t.round() as usize).copied().unwrap_or(0.0) as f64;
+    // a stretch of 16 beats, or of as many as a shorter sound holds (a loop of four bars is 16 beats at its own tempo,
+    // and 32 at twice it: both must be heard on it)
+    let beats = ((near.len() as f64 / p).floor() as usize).saturating_sub(1).min(16);
+    if beats < 4 {
+        return 0.0;
+    }
+    let span = beats as f64 * p;
+    let (mut total, mut stretches) = (0.0, 0usize);
+    let mut start = 0.0;
+    while start + span + p <= near.len() as f64 {
+        let mut best = 0.0f64;
+        let mut phase = 0.0;
+        while phase < p {
+            let s: f64 = (0..beats)
+                .map(|k| {
+                    let b = start + phase + k as f64 * p;
+                    at(b) + 0.5 * at(b + p / 2.0) + 0.25 * (at(b + p / 4.0) + at(b + 0.75 * p))
+                })
+                .sum();
+            best = best.max(s);
+            phase += 1.0;
+        }
+        total += best / (2.0 * beats as f64);
+        stretches += 1;
+        start += span;
+    }
+    if stretches == 0 || mean <= 1e-12 { 0.0 } else { total / stretches as f64 / mean }
+}
+
+/// How much the kit (`hits`) plays a backbeat at a beat of `beat` seconds: in a cycle of two beats, laid where it
+/// suits them best, the snares on its second beat and the kicks on its first, less the snares on the first and the
+/// kicks on the second, against all of both, each counted within a 32nd note of the beat, as hard as it is struck. A
+/// kick on one and a snare on two and four give most; at twice the tempo the snare falls on the kick's beat, at half
+/// of it between the beats, and both give less. Each stretch of eight bars is laid on its own, as a beat a little off
+/// the music's drifts off it over a song.
+fn backbeat(hits: &[Hit], beat: f64) -> f64 {
+    let span = 32.0 * beat;
+    let mut stretches: Vec<Vec<(f64, f64, bool)>> = Vec::new();
+    for h in hits.iter().filter(|h| h.kind != Kind::Hat) {
+        let i = (h.t / span) as usize;
+        if stretches.len() <= i {
+            stretches.resize(i + 1, Vec::new());
+        }
+        stretches[i].push(((h.t / beat).rem_euclid(2.0), h.level as f64, h.kind == Kind::Snare));
+    }
+    let near = |at: f64, to: f64| {
+        let d = (at - to).rem_euclid(2.0);
+        d.min(2.0 - d) <= 0.125
+    };
+    let (mut got, mut all) = (0.0, 0.0);
+    for s in &stretches {
+        let best = (0..64)
+            .map(|k| {
+                let one = k as f64 / 32.0;
+                s.iter()
+                    .map(|&(at, w, snare)| match (near(at, one), near(at, one + 1.0), snare) {
+                        (_, true, true) | (true, _, false) => w,
+                        (true, _, true) | (_, true, false) => -w,
+                        _ => 0.0,
+                    })
+                    .sum::<f64>()
+            })
+            .fold(0.0, f64::max);
+        got += best;
+        all += s.iter().map(|h| h.1).sum::<f64>();
+    }
+    if all <= 1e-12 { 0.0 } else { got / all }
+}
+
+/// the lag of a peak of `ac` at `l`, between frames: the vertex of the parabola through it and its neighbours
+fn peak_lag(ac: &[f64], l: usize) -> f64 {
+    let (a, b, c) = (ac[l - 1], ac[l], ac[l + 1]);
+    let d = a - 2.0 * b + c;
+    if d.abs() < 1e-12 { l as f64 } else { l as f64 + (0.5 * (a - c) / d).clamp(-0.5, 0.5) }
+}
+
 fn standardise(v: &[f32]) -> Vec<f32> {
     let mean = v.iter().map(|x| *x as f64).sum::<f64>() / v.len().max(1) as f64;
     let sd = (v.iter().map(|x| (*x as f64 - mean).powi(2)).sum::<f64>() / v.len().max(1) as f64).sqrt().max(1e-9);
@@ -109,34 +203,64 @@ fn standardise(v: &[f32]) -> Vec<f32> {
 }
 
 pub fn track(mono: &[f32], range: Option<(f64, f64)>) -> Grid {
-    track_with(mono, mono, range)
+    track_with(mono, mono, range, false)
 }
 
-/// The beats heard in `mono`'s onsets (a recording's drums, apart from it, are the clearest) and its downbeat in
-/// `harmony` as well (where its chords change and its level jumps), the two as long as each other.
-pub fn track_with(mono: &[f32], harmony: &[f32], range: Option<(f64, f64)>) -> Grid {
+/// The beats heard in `mono`'s onsets (a recording's drums, apart from it, are the clearest; `kit` when `mono` is
+/// them alone) and its downbeat in `harmony` as well (where its chords change and its level jumps), the two as long
+/// as each other.
+pub fn track_with(mono: &[f32], harmony: &[f32], range: Option<(f64, f64)>, kit: bool) -> Grid {
     // in beat-driven music the kick marks the beat: the low band counts twice as much as the full-band flux
     let full = standardise(&onsets::flux(mono, None));
     let kick = standardise(&onsets::flux(mono, Some((30.0, 160.0))));
     let env: Vec<f32> = full.iter().zip(&kick).map(|(a, b)| a + 2.0 * b).collect();
+    let hits = drums::hear(&Stereo::from_mono(mono));
     let fps = SRF / HOP as f64;
-    let (lo, hi) = range.unwrap_or((70.0, 180.0));
+    let (lo, hi) = range.unwrap_or((55.0, 200.0));
     let max_lag = (fps * 60.0 / lo * 2.2) as usize + 2;
     let ac = autocorr(&env, max_lag);
-    let mut best = (0.0f64, fps * 0.5);
-    let centre = range.map_or(120.0, |(a, b)| (a * b).sqrt());
+    let centre = range.map_or(110.0, |(a, b)| (a * b).sqrt());
+    let prior = |p: f64| (-0.5 * ((60.0 * fps / p / centre).log2() / 0.6).powi(2)).exp();
     let lag_lo = (fps * 60.0 / hi).floor().max(2.0) as usize;
     let lag_hi = ((fps * 60.0 / lo).ceil() as usize).min(ac.len().saturating_sub(1) / 2);
-    for l in lag_lo..=lag_hi.max(lag_lo) {
-        let bpm = 60.0 * fps / l as f64;
-        let prior = (-0.5 * ((bpm / centre).log2() / 0.9).powi(2)).exp();
-        let s = (ac[l] + 0.5 * ac.get(2 * l).copied().unwrap_or(0.0)) * prior;
-        if s > best.0 {
-            best = (s, l as f64);
+    // the beats the onsets repeat at most (the autocorrelation's peaks), each at that, at twice and at half its tempo;
+    // of those whose grid lands on the onsets nearly as well as the best one's (a tempo at twice or half the music's
+    // does, one a third or a quarter off it does not), the one nearest the tempos songs are played at (about 110 BPM)
+    // whose kit plays a backbeat. The kit apart from the rest is heard well enough to let its backbeat outweigh that
+    // tempo; in a whole mix, where a chord or a bass note is heard as a hit as often as a drum is, hardly at all.
+    let (near_best, backbeat_weight) = if kit { (0.75, 3.0) } else { (0.95, 0.5) };
+    let mut peaks: Vec<(f64, usize)> = (lag_lo.max(1)..=lag_hi.max(lag_lo))
+        .filter(|&l| l + 1 < ac.len() && ac[l] >= ac[l - 1] && ac[l] >= ac[l + 1])
+        .map(|l| (ac[l] + 0.5 * ac.get(2 * l).copied().unwrap_or(0.0), l))
+        .collect();
+    peaks.sort_by(|a, b| b.0.total_cmp(&a.0));
+    let (lag_min, lag_max) = (lag_lo as f64, lag_hi.max(lag_lo) as f64 + 0.5);
+    let mut candidates: Vec<f64> = Vec::new();
+    for p in peaks.iter().take(6).map(|&(_, l)| peak_lag(&ac, l)) {
+        for q in [p, p / 2.0, p * 2.0] {
+            if (lag_min..=lag_max).contains(&q) && !candidates.iter().any(|c| (c / q - 1.0).abs() < 0.02) {
+                candidates.push(q);
+            }
         }
     }
-    let period = best.1;
-    let clarity = ac.get(period as usize).copied().unwrap_or(0.0).clamp(0.0, 1.0);
+    let heard: Vec<(f64, f64, f64)> =
+        candidates.iter().map(|&p| (p, salience(&env, p), backbeat(&hits, p / fps))).collect();
+    let most = heard.iter().map(|h| h.1).fold(0.0, f64::max);
+    let period = heard
+        .iter()
+        .filter(|h| h.1 >= near_best * most)
+        .map(|&(p, _, b)| (prior(p) * (backbeat_weight * b).exp(), p))
+        .max_by(|a, b| a.0.total_cmp(&b.0))
+        .map_or(fps * 0.5, |(_, p)| p);
+    if std::env::var_os("CLAUDIUS_DEBUG").is_some() {
+        let mut seen: Vec<String> = heard
+            .iter()
+            .map(|&(p, s, b)| format!("{:.1}: salience {s:.2} prior {:.2} backbeat {b:+.2}", 60.0 * fps / p, prior(p)))
+            .collect();
+        seen.sort();
+        eprintln!("beats: candidates {}", seen.join("; "));
+    }
+    let clarity = ac.get(period.round() as usize).copied().unwrap_or(0.0).clamp(0.0, 1.0);
     // dynamic programming: each beat rewards onset strength and penalises deviating from the period
     let n = env.len();
     let mut score: Vec<f64> = env.iter().map(|v| *v as f64).collect();
@@ -324,4 +448,23 @@ pub fn track_with(mono: &[f32], harmony: &[f32], range: Option<(f64, f64)>) -> G
     }
     let downbeat = (0..4).max_by(|a, b| phase_score[*a].partial_cmp(&phase_score[*b]).unwrap()).unwrap_or(0);
     Grid { bpm: (bpm * 10.0).round() / 10.0, beats, downbeat, clarity, steady }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_grid_is_heard_on_a_loop_of_four_bars_at_its_own_tempo_as_at_twice_it() {
+        // 16 beats of 120 frames, struck on each beat and more softly on each eighth, and nothing after
+        let p = 120.0;
+        let mut env = vec![0.0f32; 16 * 120 + 30];
+        for k in 0..32 {
+            env[k * 60] = if k % 2 == 0 { 1.0 } else { 0.5 };
+        }
+        let (own, twice) = (salience(&env, p), salience(&env, p / 2.0));
+        assert!(own > 3.0 && own > 0.8 * twice, "at its tempo {own:.2}, at twice it {twice:.2}");
+        // a grid a third off the beat lies between the strikes
+        assert!(salience(&env, 0.75 * p) < 0.6 * own);
+    }
 }

@@ -116,7 +116,7 @@ sixteenth, swing and a bass style. It uses no models: everything is signal proce
 | file | what it does |
 |---|---|
 | `onsets.rs` | onset strength as log-compressed spectral flux, optionally in a frequency band; peaks above a moving median; onsets refined to where the energy starts rising: the first millisecond above a tenth of the loudest, from a hop before the peak frame's window to a hop after it (log flux peaks when an attack first comes into the window, at its end) |
-| `beats.rs` | tempo by autocorrelation of the onset envelope, beats by dynamic programming (Ellis 2007), then a constant-tempo grid, or the beats a band plays when they drift off it, and the downbeat |
+| `beats.rs` | tempo from the onset envelope's autocorrelation, its grid's fit to the onsets and the kit's backbeat, beats by dynamic programming (Ellis 2007), then a constant-tempo grid, or the beats a band plays when they drift off it, and the downbeat |
 | `chroma.rs` | pitch-class energy, keys by Krumhansl-Kessler profiles, chords by template matching |
 | `melody.rs` | a [take](../guide/samples.md#takes)'s melody as notes, read by `voice/` ([below](#hearing-a-melody)) |
 | `song.rs` | the rest: sections, progressions, drum steps, swing, and `to_blueprint` |
@@ -124,8 +124,25 @@ sixteenth, swing and a bass style. It uses no models: everything is signal proce
 | `drums.rs` | a beat's hits, played or beatboxed, named kick, snare or hat and folded into lanes ([below](#hearing-drums)) |
 
 **Tempo.** The onset envelope adds the full-band flux to twice the kick-band flux (30 to 160 Hz), because in dance
-music the kick marks the beat. Its autocorrelation, weighted by a prior centred on 120 BPM (or on the middle of the
-range a genre gives) and helped by the autocorrelation at twice the lag, gives the beat period. Beats tracked by
+music the kick marks the beat. The peaks of its autocorrelation (helped by the autocorrelation at twice the lag),
+from 55 to 200 BPM, are the tempos it might be, each also at twice and half its tempo. A syncopated kick or a dotted
+rhythm repeats at four thirds or two thirds of the beat about as strongly as at the beat, so a peak alone is no
+answer: of each tempo the tracker asks how well its grid lies on the onsets, its beats, eighths and sixteenths at the
+phase that suits each stretch of 16 beats, weighted 1, ½ and ¼, against the envelope's mean (`salience`). A tempo a
+third or a quarter off the music's puts most of its grid between the onsets; one at twice or half of it lies on them
+nearly as well as the music's own. Of the tempos whose grid lies within 5 % of the best one's (25 % when the drums are
+heard apart from the rest), it keeps the one nearest the tempos songs are played at, a prior centred on 110 BPM (or
+on the middle of the range a genre gives) with a spread of 0.6 octave, whose kit plays a backbeat (`backbeat`): in a
+cycle of two beats, the snares on the second and the kicks on the first, less the snares on the first and the kicks
+on the second, from the drum hits heard ([below](#hearing-drums)). A kick on one and a snare on two and four give most;
+at twice the tempo the snare falls with the kick, at half of it between the beats. With the drums apart (the ears'
+stems), the backbeat counts for much (`e^(3·backbeat)`), and it is what keeps a slow song from being heard at twice its
+tempo; in a whole mix, where a chord or a bass note is heard as a hit as often as a drum, for little (`e^(0.5·backbeat)`).
+On claudius's own renders of 14 genres from R&B at 62 BPM to drum and bass at 175, three songs each, the whole mix is
+heard at its tempo 34 times in 42 where it was 21, and the drums apart 38 times; on 20 other genres, two songs each,
+31 in 40 against 26 for the mix, with three tempos a third or more off rather than seven, and 31 for the drums apart
+as before. What it still hears at twice or half are the songs listeners differ on too: R&B and reggae under 80 BPM at
+twice, the trap and drill family at 70, where their snare on the third beat is a backbeat. Beats tracked by
 dynamic programming jitter by a frame and insert or skip beats through breakdowns, but music made in a DAW keeps one
 tempo, so the tracker then fits a constant grid around the slope of a line through the tracked beats (finer than
 the median gap between them, which is a whole number of 5.3 ms frames: 117 or 118 at 96 BPM, nearly 1 % apart),

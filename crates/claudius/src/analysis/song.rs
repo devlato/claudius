@@ -201,7 +201,8 @@ pub fn analyze_with(x: &Stereo, stems: Option<&Stems>, bpm_range: Option<(f64, f
     let bassline = stems.map(|s| s.bass.mono());
     let (drum_src, chord_src, bass_src) =
         (drums.as_deref().unwrap_or(&mono), harmonic.as_deref().unwrap_or(&mono), bassline.as_deref().unwrap_or(&mono));
-    let grid = beats::track_with(if drummed { drum_src } else { &mono }, chord_src, bpm_range);
+    let kit = drummed && drums.is_some();
+    let grid = beats::track_with(if drummed { drum_src } else { &mono }, chord_src, bpm_range, kit);
     let bar_starts = bars_on(&grid.beats, grid.downbeat, 60.0 / grid.bpm.max(1.0), mono.len() as f64 / SRF);
     let bars = bar_starts.len() - 1;
     let start = bar_starts[0];
