@@ -213,6 +213,7 @@ fn base_def(spec: &InstSpec, name: &str, kind: Kind, variants: Vec<Variant>) -> 
         vel_curve: Vec::new(),
         mono: spec.mono.unwrap_or(false),
         retrigger: spec.retrigger.unwrap_or(false),
+        recorded_mono: None,
         unison: spec.unison.clone(),
         aliases: spec.aliases.clone(),
         variants,

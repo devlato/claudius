@@ -70,8 +70,11 @@ pub fn edition(ix: &PackIndex, dir: &Path, picks: &[Pick], base: &str, out: &Pat
             .with_context(|| format!("no instrument {} in {}", pick.instrument, ix.name))?;
         let limits = Limits::of(&def.category, def.kind);
         let mut variants = Vec::new();
-        for v in def.variants.iter().take(limits.variants) {
+        // what the files will tell once they come, which a song asks before: whether it was recorded in mono
+        let mut recorded_mono = None;
+        for (n, v) in def.variants.iter().take(limits.variants).enumerate() {
             let mut zones = Vec::new();
+            let mut mono = Vec::new();
             for z in kept(&v.zones, def.kind, &limits) {
                 let entry =
                     ix.files.get(z.file as usize).with_context(|| format!("{}: no file {}", def.name, z.file))?;
@@ -102,12 +105,16 @@ pub fn edition(ix: &PackIndex, dir: &Path, picks: &[Pick], base: &str, out: &Pat
                     flac: false,
                 });
                 zones.push(Zone { file: files.len() as u32 - 1, ..zone });
+                mono.push(sample.r.is_none());
+            }
+            if n == 0 {
+                recorded_mono = crate::player::reference(&zones).map(|i| mono[i]);
             }
             variants.push(Variant { name: v.name.clone(), zones });
         }
         let mut aliases = def.aliases.clone();
         aliases.extend(pick.aliases.iter().filter(|a| !def.aliases.contains(a)).cloned());
-        instruments.push(InstrumentDef { aliases, variants, ..def.clone() });
+        instruments.push(InstrumentDef { aliases, variants, recorded_mono, ..def.clone() });
     }
     let index = PackIndex {
         files,
@@ -289,6 +296,7 @@ mod tests {
             vel_curve: Vec::new(),
             mono: false,
             retrigger: false,
+            recorded_mono: None,
             unison: None,
             aliases: vec![format!("{name}_too")],
             variants: vec![Variant { name: String::new(), zones }],
@@ -338,6 +346,7 @@ mod tests {
         let web = edition(&ix, src.path(), &picks, "/studio/packs/webtest", out.path()).unwrap();
         let tone = &web.instruments[0];
         assert_eq!(tone.aliases, ["webtest_tone_too", "webtest_other"]);
+        assert_eq!(tone.recorded_mono, Some(true), "said before its files come");
         let zones = &tone.variants[0].zones;
         // roots 48, 51, 54, 57, 60 in each layer: the keys from 48 to 60 each played by one zone of each layer
         let roots: Vec<f32> = zones.iter().filter(|z| z.hivel == 127).map(|z| z.root).collect();
@@ -365,6 +374,7 @@ mod tests {
         // handed over as a browser hands it: an instrument once its index is, playing once its files are
         crate::provide(web.clone());
         let r = crate::resolve("webtest_other", None).expect("resolves by the alias its edition gave it");
+        assert!(crate::instrument_ref(&r).unwrap().recorded_mono(), "known with none of its files");
         let wanted = crate::wanted(std::slice::from_ref(&r));
         assert_eq!(wanted.len(), zones.len());
         for (pack, path, _) in &wanted {

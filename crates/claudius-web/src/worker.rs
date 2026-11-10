@@ -28,6 +28,8 @@ struct Engine {
     /// the files that could not be fetched, which are not asked for again: each pack's and its path in it (every kit
     /// has a `bd/0.ogg`)
     missing: std::collections::BTreeSet<(String, String)>,
+    /// a phone's asks for sounds of the song that came while its files were being fetched, answered once they are in
+    asks: Vec<serde_json::Value>,
 }
 
 type Shared = Rc<RefCell<Engine>>;
@@ -47,6 +49,7 @@ pub fn start() {
         crew_size: crew::size(&scope),
         fetching: false,
         missing: Default::default(),
+        asks: Vec::new(),
     }));
     let e = engine.clone();
     let onmessage = Closure::<dyn FnMut(MessageEvent)>::new(move |m: MessageEvent| receive(&e, &m));
@@ -83,8 +86,20 @@ async fn body(fetch: js_sys::Promise, url: &str) -> Result<Vec<u8>, String> {
 async fn packs(scope: &DedicatedWorkerGlobalScope) {
     let Ok(list) = fetched(scope, "packs/index.json").await else { return };
     let v: serde_json::Value = serde_json::from_slice(&list).unwrap_or_default();
-    for name in v["packs"].as_array().into_iter().flatten().filter_map(|p| p.as_str()) {
-        let index = fetched(scope, &format!("packs/{name}/index.json"))
+    // the browser fetches the indexes side by side, each from when it is asked for
+    let pending: Vec<(&str, String, js_sys::Promise)> = v["packs"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|p| p.as_str())
+        .map(|name| {
+            let url = format!("packs/{name}/index.json");
+            let fetch = scope.fetch_with_str(&url);
+            (name, url, fetch)
+        })
+        .collect();
+    for (name, url, fetch) in pending {
+        let index = body(fetch, &url)
             .await
             .and_then(|b| serde_json::from_slice::<claudius_packs::PackIndex>(&b).map_err(|e| e.to_string()));
         match index {
@@ -126,7 +141,11 @@ fn fetch_files(engine: &Shared) -> bool {
         let mut e = later.borrow_mut();
         e.fetching = false;
         e.missing.extend(missing);
+        let asks = std::mem::take(&mut e.asks);
         drop(e);
+        for ask in &asks {
+            sound(&later.borrow(), ask);
+        }
         schedule(&later);
     });
     true
@@ -154,7 +173,12 @@ fn receive(engine: &Shared, m: &MessageEvent) {
         return;
     }
     if let Some(ask) = v.get("sound") {
-        sound(&engine.borrow(), ask);
+        // played before the song's files are in, an instrument would sound nothing
+        if fetch_files(engine) {
+            engine.borrow_mut().asks.push(ask.clone());
+        } else {
+            sound(&engine.borrow(), ask);
+        }
         return;
     }
     if let Some(ask) = v.get("encode") {

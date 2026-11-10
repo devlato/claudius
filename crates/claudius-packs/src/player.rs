@@ -75,6 +75,18 @@ fn db(g: f32) -> f32 {
     10f32.powf(g / 20.0)
 }
 
+/// which of `zones` stands for an instrument's level and channels: the loudest nearest middle C
+pub(crate) fn reference(zones: &[Zone]) -> Option<usize> {
+    let near = |z: &Zone| (z.root - 60.0).abs();
+    zones
+        .iter()
+        .enumerate()
+        .filter(|(_, z)| z.plays_vel(127))
+        .min_by(|(_, a), (_, b)| near(a).partial_cmp(&near(b)).unwrap_or(std::cmp::Ordering::Equal))
+        .map(|(i, _)| i)
+        .or((!zones.is_empty()).then_some(0))
+}
+
 impl Instrument {
     pub(crate) fn new(
         pack: &str,
@@ -184,35 +196,31 @@ impl Instrument {
         (v as f32 / 127.0).powf(2.0 * self.def.veltrack.clamp(0.0, 1.0))
     }
 
-    /// the loudest zone nearest middle C, which stands for the instrument's level and channels
     fn reference(&self) -> Option<&Zone> {
         let zones = self.zones();
-        zones
-            .iter()
-            .filter(|z| z.plays_vel(127))
-            .min_by(|a, b| {
-                (a.root - 60.0).abs().partial_cmp(&(b.root - 60.0).abs()).unwrap_or(std::cmp::Ordering::Equal)
-            })
-            .or_else(|| zones.first())
+        reference(zones).map(|i| &zones[i])
     }
 
     /// Whether the instrument was recorded in mono (its zone nearest middle C has one channel, or two the same), so
-    /// that its notes all sit in the centre. Decodes that one sample, and for a lazy pack downloads it.
+    /// that its notes all sit in the centre: as its index says where its files come later (a web edition's), or
+    /// from that one sample, which this decodes, and for a lazy pack downloads.
     pub fn recorded_mono(&self) -> bool {
-        self.reference().and_then(|z| self.sample(z.file)).is_some_and(|s| s.r.is_none())
+        self.def
+            .recorded_mono
+            .unwrap_or_else(|| self.reference().and_then(|z| self.sample(z.file)).is_some_and(|s| s.r.is_none()))
     }
 
-    /// level so the loudest zone nearest middle C peaks at NORM_DB at full velocity
+    /// level so the loudest zone nearest middle C peaks at NORM_DB at full velocity, found once its file is at hand:
+    /// a web edition's comes only as a song needs it
     fn norm(&self) -> f32 {
-        *self.norm.get_or_init(|| {
-            let Some(z) = self.reference() else { return 1.0 };
-            let Some(s) = self.sample(z.file) else { return 1.0 };
-            let level = s.peak * db(z.gain_db) * z.xf_gain(127).max(1e-3);
-            if level < 1e-6 {
-                return 1.0;
-            }
-            (db(NORM_DB) / level).clamp(db(-30.0), db(48.0))
-        })
+        if let Some(&n) = self.norm.get() {
+            return n;
+        }
+        let Some(z) = self.reference() else { return 1.0 };
+        let Some(s) = self.sample(z.file) else { return 1.0 };
+        let level = s.peak * db(z.gain_db) * z.xf_gain(127).max(1e-3);
+        let n = if level < 1e-6 { 1.0 } else { (db(NORM_DB) / level).clamp(db(-30.0), db(48.0)) };
+        *self.norm.get_or_init(|| n)
     }
 
     /// Render notes into a new 48 kHz stereo buffer of `len` samples.
@@ -639,6 +647,7 @@ mod tests {
             vel_curve: Vec::new(),
             mono,
             retrigger: false,
+            recorded_mono: None,
             unison: None,
             aliases: Vec::new(),
             variants: vec![Variant { name: String::new(), zones: vec![zone(0, 69.0, 0, 127, 0, 127)] }],
@@ -729,6 +738,21 @@ mod tests {
         w.finalize().unwrap();
         inst.files = vec![p];
         assert!(!inst.recorded_mono());
+    }
+
+    #[test]
+    fn a_level_waits_for_its_file_and_an_index_can_say_how_it_was_recorded() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut inst = test_instrument(dir.path(), false, 0.05, false);
+        let found = test_instrument(dir.path(), false, 0.05, false).norm();
+        assert!((found - 1.0).abs() > 0.01, "{found}");
+        // its file not at hand yet, as a web edition's is before a song fetches it
+        let file = std::mem::replace(&mut inst.files, vec![dir.path().join("later.wav")]);
+        assert_eq!(inst.norm(), 1.0);
+        inst.files = file;
+        assert_eq!(inst.norm(), found, "found once the file comes, not held at what it was without it");
+        inst.def.recorded_mono = Some(false);
+        assert!(!inst.recorded_mono(), "as its index says, its file mono");
     }
 
     #[test]
