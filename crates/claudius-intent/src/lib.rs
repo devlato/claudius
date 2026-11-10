@@ -12,5 +12,5 @@ pub mod index;
 pub mod model;
 pub mod pieces;
 
-pub use find::{Answer, By, Finder, Found};
+pub use find::{Answer, By, DONE, Finder, Found, Item, find_among};
 pub use model::Model;

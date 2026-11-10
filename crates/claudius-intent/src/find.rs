@@ -29,13 +29,112 @@ pub struct Found {
     pub by: By,
 }
 
-/// What words found, as the engine answers the studio: the words, the actions they found, the best first, and whether
-/// they were found by meaning as well as by name (by name only until the embedding model is there).
+/// What words found, as the engine answers the studio: the words, the actions they found, the best first, the
+/// changes made to the song they found, which the song can go back to before (`done`: each change's id, what undo calls
+/// it as its `name`, and what it changed as its `place`), and whether they were found by meaning as well as by name (by
+/// name only until the embedding model is there).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Answer {
     pub query: String,
     pub found: Vec<Found>,
+    #[serde(default)]
+    pub done: Vec<Found>,
     pub by_meaning: bool,
+}
+
+/// A change made to the song, as words may find it again: its id, what it is called and what it did.
+pub struct Item<'a> {
+    pub id: &'a str,
+    pub name: &'a str,
+    pub words: &'a str,
+}
+
+/// how many changes made to the song an answer offers at most
+pub const DONE: usize = 5;
+
+/// the words a request to go back to before a change has, which tell nothing of which change it was ("go back to
+/// before we added the whistles")
+const BACK: &[&str] = &[
+    "go",
+    "going",
+    "back",
+    "before",
+    "undo",
+    "revert",
+    "return",
+    "rewind",
+    "when",
+    "where",
+    "did",
+    "had",
+    "was",
+    "were",
+    "again",
+    "earlier",
+    "point",
+    "state",
+    "version",
+    "time",
+    "ago",
+    "came",
+    "come",
+    "got",
+    "get",
+    "went",
+    "still",
+    "there",
+    "made",
+    "everything",
+    "since",
+];
+
+/// Of `items`, those `query` finds, the best first, at most `limit`, each as an answer offers it: by name and by
+/// meaning, as the actions are found, once the words that only ask to go back are taken out of it. Nothing when no
+/// word is left ("go back" alone is Undo, an action).
+pub fn find_among(query: &str, items: &[Item], model: Option<&Model>, limit: usize) -> Vec<Found> {
+    let q = query.trim().to_lowercase();
+    let told: Vec<&str> = telling(&q).into_iter().filter(|w| !BACK.contains(w)).collect();
+    if told.is_empty() {
+        return Vec::new();
+    }
+    let alike = |t: &str, w: &str| t == w || (t.len().min(w.len()) >= 5 && (w.starts_with(t) || t.starts_with(w)));
+    let meant = model.and_then(|m| m.embed(&told.join(" ")));
+    let mut scored: Vec<(usize, f32, By)> = items
+        .iter()
+        .enumerate()
+        .filter_map(|(i, it)| {
+            let text = format!("{} {}", it.name, it.words).to_lowercase();
+            let words: Vec<&str> = text.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).collect();
+            let matched = told.iter().filter(|t| words.iter().any(|w| alike(t, w))).count();
+            let name = if matched == 0 { 0.0 } else { 0.5 + 0.4 * matched as f32 / told.len() as f32 };
+            // the nearest of its name, each thing it did, and all of it: a long description dilutes each thing in it
+            let meaning = match (&meant, model) {
+                (Some(v), Some(m)) => {
+                    let all = format!("{}: {}", it.name, it.words);
+                    let parts = [it.name, all.as_str()].into_iter().chain(it.words.split("; "));
+                    let cos = parts
+                        .filter_map(|p| m.embed(p))
+                        .map(|w| v.iter().zip(&w).map(|(a, b)| a * b).sum::<f32>())
+                        .fold(0.0f32, f32::max);
+                    MEANT * ((cos - MEANING.0) / (MEANING.1 - MEANING.0)).clamp(0.0, 1.0)
+                }
+                _ => 0.0,
+            };
+            let (strong, by) = if meaning > name { (meaning, By::Meaning) } else { (name, By::Name) };
+            let score = strong + 0.1 * meaning.min(name);
+            (score > 0.0).then_some((i, score, by))
+        })
+        .collect();
+    scored.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
+    let found = |(i, score, by): (usize, f32, By)| Found {
+        id: items[i].id.into(),
+        name: items[i].name.into(),
+        place: items[i].words.into(),
+        keys: String::new(),
+        score,
+        by,
+    };
+    scored.into_iter().take(limit).map(found).collect()
 }
 
 /// the cosine from which an action's meaning is near enough the words' to show it, and from which it counts in full:
@@ -199,5 +298,30 @@ mod tests {
         assert_eq!(f.find("rec", Some(&m), 5)[0].name, "Record a take...");
         assert_eq!(f.find("mix", Some(&m), 5)[0].name, "Mixer");
         assert!(f.find("quantum", Some(&m), 5).is_empty(), "a word the model does not know finds nothing by meaning");
+    }
+
+    #[test]
+    fn a_change_made_is_found_by_its_words_once_those_asking_to_go_back_are_taken_out() {
+        let items = [
+            Item { id: "4@a", name: "vocals louder", words: "vocals: mix level db -6 to -3" },
+            Item { id: "3@a", name: "tempo 128", words: "bpm 124 to 128" },
+            Item {
+                id: "2@a",
+                name: "track whistle",
+                words: "added the whistle track (lead), playing the synth whistle",
+            },
+            Item { id: "1@a", name: "new house song", words: "a new song: house at 124 BPM" },
+        ];
+        let ids =
+            |q: &str, m: Option<&Model>| find_among(q, &items, m, 5).into_iter().map(|f| f.id).collect::<Vec<_>>();
+        assert_eq!(ids("go back to before we added the whistles", None)[0], "2@a");
+        assert_eq!(ids("before the tempo change", None)[0], "3@a");
+        assert!(ids("go back", None).is_empty(), "going back alone is Undo, an action");
+        assert!(ids("quantum", None).is_empty());
+        // words in no change's, found by what they mean
+        let m = model();
+        let boost = find_among("back to before the boost", &items, Some(&m), 5);
+        assert_eq!((boost[0].id.as_str(), boost[0].by), ("4@a", By::Meaning), "{boost:?}");
+        assert_eq!(boost[0].place, "vocals: mix level db -6 to -3", "what it changed, to show");
     }
 }

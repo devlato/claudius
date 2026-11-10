@@ -76,7 +76,10 @@ the studio's own thread (`mock::meaning`), since a search takes microseconds and
 seconds: in the app with the session's model, in a page with the site's copy (`studio/models/`, which
 `cargo xtask site --sounds` makes), which the page fetches the first time. Words found by name before the model came
 are answered again once it has: the demo answers them again itself, and the palette asks a server again, a second
-apart, for up to a minute after they were typed. Enter does the action highlighted as the palette was last drawn, and
+apart, for up to a minute after they were typed. The answer also holds the changes made to the song that the words
+find (`Answer::done`, `claudius_intent::find_among` over the state's `history`, the edits `go_back` can reach). They
+are found by name and by meaning like the actions, once the words that only ask to go back are taken out, and the
+palette lists them after the actions as Go back to before rows, which send `go_back`. Enter does the action highlighted as the palette was last drawn, and
 an action picked with the arrows stays picked as an answer by meaning ranks the list anew.
 
 The menus are built of `widgets::menu_title` (what the menu acts on, and what that is, faint), `menu_group` (the

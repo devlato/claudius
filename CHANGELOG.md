@@ -21,6 +21,10 @@ undo can still reach, undoing it and everything since in one step, and redo brin
 Assistants get the `history` and `go_back` tools for "go back to before we added the whistles". The state lists the
 last 200 changes (`history`).
 
+The palette finds what you did, too: "go back to before we added the whistles" offers to take the song back to before
+the change that added them, found by what each change did, by name and by meaning, on your computer. Each change is
+described in the words people use for it ("faster", "louder", "transposed", "a middle eight").
+
 [claudius radio](https://claudius.devlato.com/radio/): a station of songs claudius writes as it plays them, one genre
 after another, each mixed into the next as a DJ would. Three songs in four mix in beat for beat, written at exactly the
 playing song's tempo (or twice or half of it) and in a key of its notes, coming in on a bar line of its outro with their

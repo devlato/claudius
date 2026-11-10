@@ -306,6 +306,12 @@ the key that does it too. Type a few letters of its name, or say what you want i
 Mixer, "whiteboard" the Signal flow, "make it sound better" Improve the song, "sing over it" Record a take, "go back"
 Undo. Pick one with the arrows and press Enter, or click it. Escape closes the palette.
 
+The palette also finds what you did to the song. "Go back to before we added the whistles" offers **Go back to
+before** the change that added them, under the actions, with what that change did. Picking it takes the song back to
+how it was before it, which undoes it and everything since. Redo brings them back one at a time. It finds the changes
+Undo can still take back, by what they changed: tracks added or taken out and what they play, a tempo made faster, a
+track made louder, a key change, a section added.
+
 Names are found at once. What your words mean is found by a small model that runs on your computer, on any processor
 and without a graphics card, in a fraction of a millisecond: Model2Vec's potion-base-8M, 8 MB as claudius keeps it,
 which claudius downloads from Hugging Face the first time you type in the palette (the demo fetches it from the site).

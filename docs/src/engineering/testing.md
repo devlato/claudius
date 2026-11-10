@@ -29,7 +29,7 @@ One kind at a time:
 | `cargo test -p claudius-packs` | the packs' unit tests and the offline pack test |
 | `cargo test -p claudius-packs -- --ignored` | the network test: real downloads |
 | `cargo test -p claudius-decode` | the decoder |
-| `CLAUDIUS_INTENT_MODEL=PATH cargo test -p claudius-intent -- --nocapture` | the command palette's search: word pieces, the model's file, the index, the ranking; and, with `PATH` the model (claudius's own file of it, `potion-base-8M.clde` in claudius' cache once the palette has been used, or a folder holding Model2Vec's `model.safetensors` and `vocab.txt`), the evals: the phrasings people use for each action, one set the ranking was tuned on and two held out, each phrasing missed said |
+| `CLAUDIUS_INTENT_MODEL=PATH cargo test -p claudius-intent -- --nocapture` | the command palette's search: word pieces, the model's file, the index, the ranking; and, with `PATH` the model (claudius's own file of it, `potion-base-8M.clde` in claudius' cache once the palette has been used, or a folder holding Model2Vec's `model.safetensors` and `vocab.txt`), the evals: the phrasings people use for each action, one set the ranking was tuned on and two held out, and the ways people ask to go back to a change among a song's history (`tests/history.rs`), with phrasings held out that share few words with it; each phrasing missed said |
 | `cargo test -p claudius-ui` | the studio's tests: the native player, the mock, the script editor's highlighting and error lines, numeral labels |
 | `cargo test -p earshot` | earshot's fast parity checks, no models |
 | `cargo test -p earshot --release -- --ignored --nocapture` | earshot's model parity checks (downloads the models) |
