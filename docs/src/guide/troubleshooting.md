@@ -191,11 +191,14 @@ If the window shows `Cannot reach claudius at http://127.0.0.1:7878`, the claudi
 
 ## A take records nothing
 
-When the Record window says `nothing is coming in`, or a take arrives silent:
+When the Record window says `nothing is coming in`, or a take arrives silent (the window says it as soon as the meter
+has heard nothing at all for a few seconds, and on macOS and Windows offers **Open the system's microphone settings**):
 
 - **macOS has not allowed the microphone.** Open System Settings → Privacy & Security → Microphone and turn on
   Claudius, or the terminal you started `claudius studio` from. macOS asks the first time; a take recorded after a
   "Don't Allow" is silent.
+- **Windows has not allowed the microphone.** Windows never asks a desktop app: open Settings → Privacy & security →
+  Microphone and turn on **Microphone access** and **Let desktop apps access your microphone**.
 - **The wrong input or channel.** An interface's guitar socket is often input 2. The meter in the Record window
   moves with whatever the chosen input hears, before and during a take.
 - **The input is turned down.** Check the gain knob on the interface, or the input level in the system's sound
