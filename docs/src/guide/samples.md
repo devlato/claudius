@@ -23,7 +23,8 @@ quietly falls back to synthesis or the packs.
 
 **Drum one-shots.** When `make`, `song()` in a script, or `new_song` writes a drum lane, it may cut the lane's sound
 from a loop instead of synthesizing it: a kick from a loop whose subtype is Kick, a hat from a Hi-hat loop, a clap
-from a loop with "Clap" in its name, percussion from Clave, Conga, Bongo or Cowbell loops. Loops tagged with a
+from a loop with "Clap" in its name, percussion from Conga, Bongo or Clave loops (a cowbell only where a genre
+writes one). Loops tagged with a
 GarageBand genre that suits the song's genre (Deep House and Tech House for house, Hip Hop for trap and lofi) are four
 times as likely. The chance is `--samples`, or `samples` in `song()`; it is 0.75 unless you change it, for `make`,
 scripts and `new_song` alike, so the same seed makes the same song everywhere. When the genre puts

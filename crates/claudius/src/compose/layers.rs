@@ -533,6 +533,12 @@ fn shaker(bp: &mut Blueprint, g: &GenreProfile, more: f64, lib: Option<&dyn Libr
     Some("a shaker".to_string())
 }
 
+/// A percussion line's drum when the library gives it none: a conga, as the genres that write one tune theirs, low and
+/// round with its pitch falling a few semitones (`DrumVoice::Perc` left to itself rings from 400 to 800 Hz through a
+/// strong FM attack, and a line of it is heard as a cowbell)
+const CONGA: [(&str, (f32, f32)); 4] =
+    [("tune", (180.0, 380.0)), ("decay", (0.12, 0.22)), ("pitch_env", (2.0, 8.0)), ("tone", (0.05, 0.25))];
+
 /// a percussion line of a euclidean rhythm in the peaks, as `percussion` adds one
 fn perc(bp: &mut Blueprint, g: &GenreProfile, more: f64, lib: Option<&dyn Library>, pr: &mut Rng) -> Option<String> {
     if more < 0.4
@@ -549,7 +555,12 @@ fn perc(bp: &mut Blueprint, g: &GenreProfile, more: f64, lib: Option<&dyn Librar
         crate::theory::rhythm::euclid_hits(k, n, rot, 4, pr.range(0.55, 0.75) as f32),
     )]);
     let mix = TrackMix { level_db: PERC_DB, pan: -0.35, reverb: 0.15, bus: "drums".into(), ..Default::default() };
-    bp.drums.push(lane("perc", DrumVoice::Perc, patterns, mix, lib, g, pr));
+    let mut line = lane("perc", DrumVoice::Perc, patterns, mix, lib, g, pr);
+    if let Sound::Drum { params, .. } = &mut line.sound {
+        let conga = CONGA.iter().map(|(k, v)| (k.to_string(), *v)).collect();
+        *params = drum_params(DrumVoice::Perc, &conga, pr);
+    }
+    bp.drums.push(line);
     for s in bp.form.iter_mut().filter(|s| peak(s) && !s.layers.is_empty()) {
         s.layers.push("perc".into());
     }

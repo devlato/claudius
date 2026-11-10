@@ -242,6 +242,35 @@ fn songs_of_one_genre_draw_many_sounds_and_no_song_plays_one_twice() {
 }
 
 #[test]
+fn a_percussion_line_a_layered_song_adds_is_a_conga_and_never_a_cowbell() {
+    use claudius::synth::drums::DrumVoice;
+    without_installed_packs();
+    let mut lines = 0;
+    for g in genres::all().unwrap() {
+        for seed in 0..6 {
+            let bp = compose::generate(&g, seed, &Options { complexity: Some(1.0), ..Default::default() }, None);
+            // the genre's own lanes are as it writes them; the line the layers add is the one it has no spec for
+            for d in bp.drums.iter().filter(|d| d.name == "perc" && !g.drums.iter().any(|l| l.name == "perc")) {
+                let Sound::Drum { voice, params } = &d.sound else {
+                    panic!("{} {seed}: {}", g.name, d.sound.describe())
+                };
+                assert_eq!(*voice, DrumVoice::Perc, "{} {seed}", g.name);
+                assert!(
+                    (180.0..=380.0).contains(&params.tune) && params.tone <= 0.25,
+                    "{} {seed}: a perc at {} Hz, tone {}",
+                    g.name,
+                    params.tune,
+                    params.tone
+                );
+                lines += 1;
+            }
+        }
+    }
+    assert!(lines >= 20, "{lines} percussion lines");
+    assert!(!compose::default_hints("perc").iter().any(|h| h.contains("Cowbell")));
+}
+
+#[test]
 fn a_genre_that_stacks_its_bass_plays_it_as_a_rack_of_its_layers_and_doubles_it_as_one_sound() {
     use claudius::model::Role;
     use std::collections::BTreeSet;

@@ -286,7 +286,7 @@ pub fn default_hints(lane: &str) -> Vec<String> {
         "clap" => &["name:Clap"],
         "hat" | "ohat" => &["Hi-hat"],
         "shaker" => &["Shaker", "Tambourine"],
-        "perc" => &["Clave", "Conga", "Bongo", "Cowbell"],
+        "perc" => &["Conga", "Bongo", "Clave"],
         "rim" => &["Clave", "name:Rim"],
         "ride" | "crash" => &["Cymbal"],
         "tom" => &["Tom"],
