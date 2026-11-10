@@ -25,6 +25,7 @@ mod arrange;
 mod layers;
 
 pub use arrange::{arrange, cycle_spans, cycles, drummer, part_cycle};
+pub(crate) use layers::one_more;
 pub(crate) use layers::spec_for;
 pub use layers::{chance_at, left_out_at, reach};
 

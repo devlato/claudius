@@ -170,8 +170,9 @@ by itself.
   issue outright, such as a sample stretched from the tempo its recording keeps, a track moved to the level its
   genre mixes it at, or a band of the master equalized into its range. With no `target` it makes all of them as one
   edit. Say what it changed (its reply does) and offer undo.
-- `mutate` (count, keep_best) tries a few variations a producer would try, biased toward the issues, and keeps the
-  best one if it beats the song. Good for ideas or when the score is stuck.
+- `mutate` (count, keep_best) tries a few variations a producer would try (a section again or left out, a part or a
+  layer more or fewer, another sound, an effect, an equalizer move, a drum step's feel, a sample re-chopped), biased
+  toward the issues, and keeps the best one if it beats the song. Good for ideas or when the score is stuck.
 - `evolve` (generations, children) searches longer, 10 to 40 seconds per generation. When it outlasts the call,
   follow it with `status`.
 

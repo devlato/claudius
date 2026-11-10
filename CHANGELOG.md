@@ -15,6 +15,13 @@ its sections, which listeners hardly hear, is left alone. Its form issues have t
 `form:long`, `form:intro`, `form:same`, `form:section`, `form:peaks-` and `form:peaks+`), where a song's length had
 `form`; the arc and a section out of its 4-bar phrases keep `form`.
 
+They revise its instruments too: a part its genre writes that the song left out, or a layer a more layered song of its
+genre plays (a pad, a counter-melody, an arpeggio, a double, a clap, a shaker, a percussion line), or one that only
+colours the song taken out; a stacked sound's layers rebalanced; a drum step programmed as a drum machine's trig (by
+chance, rolled where the genre rolls its hats, flammed, laid back, tuned); an effect's setting moved, an insert
+effect added or taken off as the track's role takes one, and an equalizer move on the band the critic finds too loud
+or too quiet; and a sampled break or phrase re-chopped, in the genres that chop them.
+
 ## [0.5.0] - 2026-11-09
 
 A recording can be rebuilt as a song of its own parts, every note of them yours to change: `claudius remake
