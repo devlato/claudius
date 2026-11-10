@@ -36,8 +36,8 @@ hook. `nu_metal` is rap metal: low power chords chugged off a hip hop groove, a 
 guitar in the verses and a half-time breakdown. Two comping idioms play their guitars: `palm`, the power chord
 palm-muted in eighths, and `chug`, the root palm-muted in sixteenths with the whole chord hit off the beat. The
 guitars are FreePats' distorted electric guitar, a new instrument of the `freepats` pack (`freepats:dist_guitar`, CC0),
-which grows to 225 MB installed: run `claudius-packs install freepats` again to add it to a pack installed before. No
-other genre draws it unless it names it. The critic no longer holds a part of power chords alone to voice leading: a
+which grows to 225 MB installed: run `claudius-packs install freepats` again to add it to a pack installed before; the
+web demo plays it too. No other genre draws it unless it names it. The critic no longer holds a part of power chords alone to voice leading: a
 guitarist moves a power chord as one shape. "rock" and "alternative rock" now find `alt_rock`, where they found
 `art_rock`.
 
