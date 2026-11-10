@@ -76,10 +76,11 @@ fn download_models(ask: bool, tags: bool) -> Result<()> {
     if earshot::models::cached(&cache, tags)
         && earshot::separate::Separator::cached(&cache)
         && earshot::notes::Transcriber::cached(&cache)
+        && earshot::aesthetics::Aesthetics::cached(&cache)
     {
         eprintln!("ears: the models are in {}", cache.display());
     } else {
-        let size = if tags { "about 1.3 GB" } else { "about 1 GB" };
+        let size = if tags { "about 1.4 GB" } else { "about 1.1 GB" };
         if !ask || confirm(&format!("Download earshot's listening models ({size}) into {}?", cache.display()))? {
             let last = std::sync::Mutex::new((String::new(), -1));
             earshot::models::set_progress(Box::new(move |label, done, total| {
@@ -90,6 +91,7 @@ fn download_models(ask: bool, tags: bool) -> Result<()> {
                 progress(label, if total > 0 { done as f32 / total as f32 } else { 0.0 }, &mut l.1);
             }));
             eprintln!("ears: downloading, then reading the vocabulary once (about 30 s)");
+            // CLAP, and Audiobox Aesthetics, which rates how much listeners would enjoy a song and how well it is made
             claudius::ears::Ears::load(tags)?;
             // Spleeter's nets, which separate a recording's vocals, drums and bass for a remake, and Basic Pitch's, which
             // hears the notes its bass and the rest play for a rebuild

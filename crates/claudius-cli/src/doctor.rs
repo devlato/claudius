@@ -83,6 +83,16 @@ pub fn run(port: u16, web: Option<std::path::PathBuf>) {
                  on a recording's chords until then)",
             );
         }
+        if earshot::aesthetics::Aesthetics::cached(&cache) {
+            r.line(true, "aesthetics", format!("Audiobox Aesthetics in {}", tilde(&cache)));
+        } else {
+            r.line(
+                false,
+                "aesthetics",
+                "Audiobox Aesthetics not downloaded: run `claudius setup` (the ears fetch it with their first verdict, \
+                 which scores without it until then)",
+            );
+        }
     }
     #[cfg(not(feature = "ears"))]
     println!("  ..  {:<15} not in this build (verdicts use meters and theory)", "ears");

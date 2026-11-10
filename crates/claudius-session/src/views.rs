@@ -611,6 +611,13 @@ pub fn verdict_text(v: &VerdictView) -> String {
         ));
     }
     let measures: std::collections::BTreeMap<String, f64> = v.measures.iter().cloned().collect();
+    if let [Some(ce), Some(cu), Some(pc), Some(pq)] = ["aes_ce", "aes_cu", "aes_pc", "aes_pq"].map(|k| measures.get(k))
+    {
+        out.push_str(&format!(
+            "  aesthetics (of 10): enjoyment {ce:.1}, production quality {pq:.1}; held out: usefulness {cu:.1}, \
+             complexity {pc:.1}\n"
+        ));
+    }
     let sections = claudius::judge::section_loudness(&measures);
     if !sections.is_empty() {
         let line: Vec<String> = sections.iter().map(|(name, lufs)| format!("{name} {lufs:.1}")).collect();

@@ -53,7 +53,36 @@ pub struct EarsReport {
     pub audioset: Vec<(String, f32)>,
     /// typicality vs reference tracks (z, >= -1 fits the set), when references were given
     pub ref_typicality_z: Option<f64>,
+    /// how Audiobox Aesthetics rates it, when its model is at hand: its enjoyment and production quality are scored,
+    /// its usefulness and complexity held out
+    pub aesthetics: Option<Aesthetics>,
 }
+
+/// How Audiobox Aesthetics rates a recording (`earshot::aesthetics`), each score from 1 to 10: how much listeners
+/// would enjoy it, how useful it would be to make something of, how many things it is made of, and how well it is
+/// recorded and mixed.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize)]
+pub struct Aesthetics {
+    pub ce: f64,
+    pub cu: f64,
+    pub pc: f64,
+    pub pq: f64,
+}
+
+/// What Audiobox Aesthetics' enjoyment and production quality are worth, from 0 at the model's average recording (the
+/// means it was trained to) to 1 a little above what professionally produced records rate (a chart hit's enjoyment
+/// 7.3, GarageBand's produced beats' production 8.0 to 8.25)
+pub const ENJOYMENT: (f64, f64) = (5.07, 7.5);
+pub const PRODUCTION_QUALITY: (f64, f64) = (6.58, 8.3);
+
+/// the ears' flaws (`ears::FLAWS`) of a recording, not of its sounds: a genre whose sound one of them is (lofi's hiss,
+/// gabber's clipping) is not held to the model's production quality
+const RECORDING_FLAWS: &[&str] = &[
+    "a low quality recording with hiss",
+    "a distorted clipped recording",
+    "a low bitrate mp3 with artifacts",
+    "a recording made on a phone",
+];
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Verdict {
@@ -729,6 +758,47 @@ fn time_checks(r: &Rendered, p: &Project, m: &mut BTreeMap<String, f64>, issues:
     score
 }
 
+/// The aesthetics score: Audiobox Aesthetics' enjoyment and production quality (`ENJOYMENT`, `PRODUCTION_QUALITY`),
+/// the mean of the two, or the enjoyment alone in a genre whose sound is a flawed recording's; an issue for each under
+/// half. All four of its readings go into the measures.
+fn aesthetics_score(
+    a: &Aesthetics,
+    g: Option<&GenreProfile>,
+    m: &mut BTreeMap<String, f64>,
+    issues: &mut Vec<Issue>,
+) -> f64 {
+    let at = |x: f64, (lo, hi): (f64, f64)| clamp01((x - lo) / (hi - lo));
+    for (k, v) in [("aes_ce", a.ce), ("aes_cu", a.cu), ("aes_pc", a.pc), ("aes_pq", a.pq)] {
+        m.insert(k.into(), (v * 100.0).round() / 100.0);
+    }
+    let enjoyment = at(a.ce, ENJOYMENT);
+    let recorded = !g.is_some_and(|g| g.accepted_flaws.iter().any(|f| RECORDING_FLAWS.contains(&f.as_str())));
+    let quality = recorded.then(|| at(a.pq, PRODUCTION_QUALITY));
+    if enjoyment < 0.5 {
+        issues.push(Issue {
+            severity: 0.8 * (0.5 - enjoyment),
+            what: format!(
+                "the listening model expects listeners to enjoy it {:.1} of 10, where records they like rate about {}: \
+                 a stronger hook or groove, and its genre's own sounds, usually lift it",
+                a.ce, ENJOYMENT.1
+            ),
+            target: "genre".into(),
+        });
+    }
+    if let Some(q) = quality.filter(|q| *q < 0.5) {
+        issues.push(Issue {
+            severity: 0.8 * (0.5 - q),
+            what: format!(
+                "the listening model rates its production {:.1} of 10, where professional records rate about {}: a \
+                 clearer, more balanced mix and recorded instruments usually lift it",
+                a.pq, PRODUCTION_QUALITY.1
+            ),
+            target: "production".into(),
+        });
+    }
+    quality.map_or(enjoyment, |q| (enjoyment + q) / 2.0)
+}
+
 fn ears_score(e: &EarsReport, issues: &mut Vec<Issue>) -> (f64, f64) {
     let margin = e.genre_z - e.best_alt_z;
     let genre = clamp01(0.5 * clamp01((e.genre_z - 1.0) / 2.5) + 0.5 * clamp01((margin + 1.0) / 2.0));
@@ -794,10 +864,14 @@ pub fn judge_whole(heard: &Project, whole: &Project, r: &Rendered, ears: Option<
     scores.insert("theory".to_string(), theory_checks(whole, g.as_ref(), &mut measures, &mut issues));
     let mut weights: Vec<(&str, f64)> = vec![("mix", 0.3), ("arc", 0.2), ("theory", 0.2)];
     if let Some(e) = &ears {
-        let (g, pq) = ears_score(e, &mut issues);
-        scores.insert("genre".to_string(), g);
+        let (heard_as, pq) = ears_score(e, &mut issues);
+        scores.insert("genre".to_string(), heard_as);
         scores.insert("production".to_string(), pq);
         weights.extend([("genre", 0.15), ("production", 0.15)]);
+        if let Some(a) = &e.aesthetics {
+            scores.insert("aesthetics".to_string(), aesthetics_score(a, g.as_ref(), &mut measures, &mut issues));
+            weights.push(("aesthetics", 0.15));
+        }
         if let Some(z) = e.ref_typicality_z {
             scores.insert("refs".to_string(), clamp01((z + 3.0) / 4.0));
             weights.push(("refs", 0.15));
@@ -957,6 +1031,30 @@ mod tests {
         let mut out = Vec::new();
         ears_score(e, &mut out);
         out
+    }
+
+    #[test]
+    fn a_recording_rated_as_records_are_scores_full_and_one_rated_as_the_average_recording_none() {
+        let house = crate::genres::get("house").unwrap();
+        let rate = |ce: f64, pq: f64, g: &GenreProfile| {
+            let (mut m, mut issues) = (BTreeMap::new(), Vec::new());
+            let a = Aesthetics { ce, cu: 7.0, pc: 5.0, pq };
+            (aesthetics_score(&a, Some(g), &mut m, &mut issues), issues, m)
+        };
+        let (pro, issues, m) = rate(7.6, 8.4, &house);
+        assert_eq!((pro, issues.len()), (1.0, 0));
+        assert_eq!((m["aes_ce"], m["aes_cu"], m["aes_pc"], m["aes_pq"]), (7.6, 7.0, 5.0, 8.4));
+        let (average, issues, _) = rate(5.07, 6.58, &house);
+        assert_eq!(average, 0.0);
+        let targets: Vec<&str> = issues.iter().map(|i| i.target.as_str()).collect();
+        assert_eq!(targets, ["genre", "production"], "{issues:?}");
+        assert!(issues[1].what.contains("production 6.6 of 10"), "{}", issues[1].what);
+        // between them, the mean of the two; lofi's dust is its sound, and only its enjoyment counts
+        let (mid, _, _) = rate(6.285, 7.44, &house);
+        assert!((mid - 0.5).abs() < 0.01, "{mid}");
+        let lofi = crate::genres::get("lofi").unwrap();
+        let (dusty, issues, _) = rate(7.5, 6.0, &lofi);
+        assert_eq!((dusty, issues.len()), (1.0, 0));
     }
 
     #[test]

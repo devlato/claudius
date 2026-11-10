@@ -13,6 +13,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod aesthetics;
 pub mod ast;
 pub mod audio;
 pub mod clap;

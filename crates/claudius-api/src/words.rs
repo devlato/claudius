@@ -220,6 +220,17 @@ pub fn measure_in_words(key: &str, value: f64) -> (String, String, String) {
         "peaks" => {
             return said("hooks and drops", format!("{value:.0}"), "how many times the song's hook or drop comes");
         }
+        "aes_ce" | "aes_cu" | "aes_pc" | "aes_pq" => {
+            let (name, about) = match key {
+                "aes_ce" => ("enjoyment", "how much listeners would enjoy it, as a model of their ratings hears it"),
+                "aes_cu" => ("usefulness", "how useful it would be to make something of (not scored)"),
+                "aes_pc" => ("complexity", "how many things it is made of, how dense it is (not scored)"),
+                _ => {
+                    ("production quality", "how clear, full and well balanced it is, as a model of engineers hears it")
+                }
+            };
+            return said(name, format!("{value:.1} of 10"), about);
+        }
         "stock_share" => {
             return said(
                 "stock music",

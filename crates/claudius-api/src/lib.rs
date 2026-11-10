@@ -1399,6 +1399,10 @@ pub fn score_in_words(key: &str) -> (&str, &str) {
         "theory" => ("Harmony", "the chords, the key, and how the melody and the bass sit on them"),
         "genre" => ("Genre", "how much it sounds like its genre to the listening model"),
         "production" => ("Production", "how well mixed and produced it sounds to the listening model"),
+        "aesthetics" => (
+            "Appeal",
+            "how much listeners would enjoy it, and how well it is made, as a model of their ratings hears it",
+        ),
         "refs" => ("Records", "how close it sounds to records of its genre"),
         "time" => ("Timing", "whether every track plays in time with the song's tempo"),
         other => (other, "a part of the score"),

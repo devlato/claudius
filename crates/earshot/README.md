@@ -6,7 +6,8 @@ CLAP text matching, AudioSet tags, a real-vs-synthesized judgement, objective me
 with **no Python at runtime**. The two neural models run as fp32 ONNX exports on ONNX Runtime (via `ort`, linked
 statically). All the DSP (mel front ends, resampling, loudness, onsets, tempo, key, ...) is reimplemented.
 ffmpeg is used for decoding, exactly as earshot does. Beyond earshot, it separates a recording into stems with
-Deezer's Spleeter and hears the notes one instrument plays with Spotify's Basic Pitch.
+Deezer's Spleeter, hears the notes one instrument plays with Spotify's Basic Pitch, and rates how much listeners would
+enjoy a recording and how well it is produced with Meta's Audiobox Aesthetics.
 
 earshot's copyright notice is kept in [LICENSE-earshot](LICENSE-earshot), and Basic Pitch's in
 [LICENSE-basic-pitch](LICENSE-basic-pitch). The models keep their own licences; see [Licensing](#licensing).
@@ -135,6 +136,7 @@ Text output reproduces earshot's plain-language summaries (`measure`, `match`, `
 | AudioSet AST (MIT/ast-finetuned-audioset-10-10-0.4593, fp32 ONNX) | `Xenova/ast-finetuned-audioset-10-10-0.4593` @ `249a1fbf0286b40e7f1ed687a8ae396997bf7dc6` | `onnx/model.onnx`, `config.json` | 347 MB |
 | Spleeter 4 stems (Deezer, fp32 ONNX, the 16 kHz bin axis) | `Best-Practice/spleeter-4stems-onnx` @ `486643021f18a4d057d282fff1d11b89a30e9887` | `vocals.wide.onnx`, `drums.wide.onnx`, `bass.wide.onnx`, `other.wide.onnx` | 4 × 39 MB |
 | Basic Pitch (Spotify, ICASSP 2022, the ONNX export it ships) | GitHub `spotify/basic-pitch` @ `fa5997af0a8210982619003269994a1be25eddf3` | `basic_pitch/saved_models/icassp_2022/nmp.onnx` | 0.23 MB |
+| Audiobox Aesthetics (Meta, 2025, int8 ONNX: its MatMul weights quantized per channel) | `Microck/audiobox-aesthetics-onnx` @ `5daff8012a45bf6fbfee30503666f7ba85e61c50` | `aes.int8.onnx` | 133 MB |
 
 Files are downloaded on first use from `https://huggingface.co/{repo}/resolve/{revision}/{file}` (Basic Pitch's from
 `https://raw.githubusercontent.com/{repo}/{revision}/{file}`) into `$EARSHOT_HOME` (default `~/.cache/earshot-rs`),
@@ -155,6 +157,11 @@ download and fails with a clear message. The ONNX I/O, inspected with `ort`:
 - Basic Pitch: `serving_default_input_2:0 [B, 43844, 1] f32` (22.05 kHz mono) → `StatefulPartitionedCall:1`, the note
   likelihoods `[B, 172, 88]`; `StatefulPartitionedCall:2`, the onsets, the same; `StatefulPartitionedCall:0`, the
   contour `[B, 172, 264]`, three bins to a semitone from A0.
+- Audiobox Aesthetics: `wav [1, 1, T] f32` (16 kHz mono, T ≤ 160,000) → `out [1, 4]`, content enjoyment, content
+  usefulness, production complexity and production quality, each normalized; `aesthetics::STATS` undoes it (the
+  export's `config.json`, `target_transform`). `aesthetics` rates a recording in back-to-back 10 s windows, the last
+  unpadded (left out when under a second and others come before it), averaged by their length, as the paper's
+  Algorithm 1 does; or a few of them spread across it. On a whole song the export rates within 0.02 of the original.
 
 Text embeddings (raw, per prompt) are cached in `$EARSHOT_HOME/text/clap-d78c3994912c.bin`. The cache is
 merged with what other processes wrote and replaced atomically. The 322 terms × 5 templates are computed once.
@@ -297,6 +304,10 @@ provider, and rustc does not link that runtime. The directive propagates to any 
 - Basic Pitch: Spotify, code and model **Apache-2.0**, the model's ONNX export as Spotify ships it in its repository.
   `notes` is a port of its windowing and note creation, with its licence and notice in
   [LICENSE-basic-pitch](LICENSE-basic-pitch).
+- Audiobox Aesthetics: Meta, model and weights **CC-BY 4.0** (https://huggingface.co/facebook/audiobox-aesthetics,
+  paper arXiv:2502.05139), part of its code from Microsoft's WavLM, **MIT**. The ONNX export is by Microck, under the
+  same CC-BY 4.0, changed from Meta's weights by quantizing its MatMul weights to int8 per channel; earshot downloads it
+  at runtime and does not distribute it.
 - Libraries: ONNX Runtime (MIT, statically linked via `ort`, MIT/Apache-2.0), `tokenizers` (Apache-2.0),
   `realfft` / RustFFT (MIT/Apache-2.0), `ureq` with rustls (MIT/Apache-2.0), serde (MIT/Apache-2.0).
 - No LGPL code is used: the soxr-equivalent filter is an independent Kaiser-sinc design whose parameters were

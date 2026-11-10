@@ -1,9 +1,11 @@
 //! The ears: earshot (ported to Rust in crates/earshot) listening to what claudius renders. One CLAP embedding of the
 //! master (earshot's windowing: at most six 10 s windows) answers every question the critic asks: does it read as
 //! the genre rather than its named confusions or stock background music, does it read as professionally produced
-//! rather than as one of the usual flaws, what does it sound like, how typical is it of reference tracks. AudioSet
-//! tags of a few excerpts are reported as held-out evidence and never optimised (earshot's own advice against
-//! Goodhart).
+//! rather than as one of the usual flaws, what does it sound like, how typical is it of reference tracks. Audiobox
+//! Aesthetics rates three of its ten-second windows, spread across it, for how much listeners would enjoy it and how
+//! well it is produced, as listeners asked to rate those rated recordings. AudioSet tags of a few excerpts, and
+//! Aesthetics' other two readings, are reported as held-out evidence and never optimised (earshot's own advice
+//! against Goodhart).
 //!
 //! Built without the `ears` feature (for platforms ONNX Runtime has no build for, such as Intel Macs), `Ears::load`
 //! says so and the critic judges with meters and theory only.
@@ -41,12 +43,17 @@ mod listening {
     use super::{FLAWS, PRO, STOCK};
     use crate::audio::{self, Stereo};
     use crate::genres::GenreProfile;
-    use crate::judge::EarsReport;
+    use crate::judge::{Aesthetics, EarsReport};
 
     pub struct Ears {
         pub inner: earshot::Ears,
         with_ast: bool,
+        /// Audiobox Aesthetics, when its model is at hand (one session, which rates a window at a time)
+        aesthetics: Option<std::sync::Mutex<earshot::aesthetics::Aesthetics>>,
     }
+
+    /// the windows Audiobox Aesthetics hears of a master, spread across it: about two seconds of judging
+    const RATED: usize = 3;
 
     fn best(scores: &[earshot::Score]) -> (String, f64) {
         scores
@@ -56,12 +63,22 @@ mod listening {
     }
 
     impl Ears {
-        /// load CLAP (and the AudioSet tagger when `ast`); the first run downloads the ONNX models (~1.1 GB)
+        /// load CLAP (and the AudioSet tagger when `ast`) and Audiobox Aesthetics; the first run downloads the ONNX
+        /// models (~0.9 GB). The ears hear without Aesthetics when its model cannot be had.
         pub fn load(ast: bool) -> Result<Ears> {
             let inner = earshot::Ears::load(earshot::EarsOptions { load_ast: ast, ..Default::default() })?;
             // the ears asked for, the stems' nets may come down the same way
             crate::stems::may_download();
-            Ok(Ears { inner, with_ast: ast })
+            let cache = earshot::models::default_cache_dir();
+            let threads = earshot::models::default_threads();
+            let aesthetics = match earshot::aesthetics::Aesthetics::load(&cache, false, threads) {
+                Ok(a) => Some(std::sync::Mutex::new(a)),
+                Err(e) => {
+                    eprintln!("ears: hearing without Audiobox Aesthetics: {e:#}");
+                    None
+                }
+            };
+            Ok(Ears { inner, with_ast: ast, aesthetics })
         }
 
         pub fn mono(x: &Stereo) -> Vec<f32> {
@@ -145,6 +162,10 @@ mod listening {
                 self.inner.top_terms(&emb, 4, &["quality", "production"]).into_iter().map(|t| t.term).collect();
             let p_real = if realness { self.p_real(&mono, &emb).map(|p| (p * 1000.0).round() / 1000.0) } else { None };
             let audioset = if self.with_ast { self.held_out_tags(&mono).unwrap_or_default() } else { Vec::new() };
+            let aesthetics = self.aesthetics.as_ref().and_then(|a| {
+                let s = a.lock().unwrap_or_else(|e| e.into_inner()).rate(&mono, earshot::SR, Some(RATED)).ok()?;
+                Some(Aesthetics { ce: s.ce, cu: s.cu, pc: s.pc, pq: s.pq })
+            });
             Ok(EarsReport {
                 genre_query,
                 genre_z,
@@ -159,6 +180,7 @@ mod listening {
                 p_real,
                 audioset,
                 ref_typicality_z: refs.filter(|r| r.len() >= 2).map(|r| earshot::typicality(&emb, r, 5).z),
+                aesthetics,
             })
         }
 

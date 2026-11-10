@@ -18,6 +18,12 @@ pub(crate) fn print_ears(e: &EarsReport) {
         e.p_real.map(|p| format!("; p_real {p:.2}")).unwrap_or_default()
     );
     println!("        sounds like: {}", e.sounds_like.join(", "));
+    if let Some(a) = &e.aesthetics {
+        println!(
+            "        aesthetics (of 10): enjoyment {:.1}, production quality {:.1}; held out: usefulness {:.1}, complexity {:.1}",
+            a.ce, a.pq, a.cu, a.pc
+        );
+    }
     if let Some(z) = e.ref_typicality_z {
         println!("        typicality vs the reference tracks: z {z:+.1}");
     }
