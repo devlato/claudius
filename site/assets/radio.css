@@ -1,0 +1,108 @@
+/* claudius radio: the station's page, on the site's palette and type (site.css) */
+
+.radio {
+  max-width: 760px;
+  padding-top: 48px;
+  padding-bottom: 64px;
+}
+
+.radio h1 {
+  margin: 0 0 12px;
+}
+
+.radio-label {
+  margin: 0 0 6px;
+  color: var(--text-faint);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.radio-deck {
+  margin: 32px 0 16px;
+  padding: 20px 22px;
+  background: var(--lcd);
+  border: 1px solid var(--lcd-edge);
+  border-radius: 10px;
+}
+
+.radio-deck h2 {
+  margin: 0 0 6px;
+  color: var(--lcd-text);
+  font-family: "Hack", ui-monospace, monospace;
+  font-size: 22px;
+}
+
+.radio-meta {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+.radio-deck .radio-meta {
+  color: var(--lcd-mid);
+  font-family: "Hack", ui-monospace, monospace;
+}
+
+.radio-progress {
+  height: 4px;
+  margin: 16px 0 8px;
+  background: var(--line-soft);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.radio-progress div {
+  width: 0;
+  height: 100%;
+  background: var(--accent);
+}
+
+.radio-time {
+  margin: 0;
+  color: var(--lcd-low);
+  font-family: "Hack", ui-monospace, monospace;
+  font-size: 13px;
+}
+
+.radio-next {
+  margin: 0 0 24px;
+  padding: 14px 22px;
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+}
+
+.radio-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  align-items: center;
+}
+
+.radio-volume {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--text-dim);
+}
+
+.radio-status {
+  min-height: 1.5em;
+  margin: 12px 0 28px;
+  color: var(--text-dim);
+}
+
+.radio-played {
+  margin: 0 0 32px;
+  padding-left: 22px;
+  color: var(--text-dim);
+}
+
+.radio-played li {
+  margin: 4px 0;
+}
+
+.radio-small {
+  color: var(--text-faint);
+  font-size: 14px;
+}

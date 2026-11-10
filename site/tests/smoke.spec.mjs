@@ -217,6 +217,7 @@ test.describe("landing page", () => {
     expect(await to("/changelog")).toBe("/docs/changelog.html");
     expect(await to("/docs")).toBe("/docs/");
     expect(await to("/studio")).toBe("/studio/?mock");
+    expect(await to("/radio")).toBe("/radio/");
     expect(await to("/install")).toBe("/#install");
   });
 

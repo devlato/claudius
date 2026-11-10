@@ -42,6 +42,9 @@ a comment in `_headers`.
 
 - `index.html` and `404.html`. No inline scripts or styles, so the page runs under `script-src 'self'` and
   `style-src 'self'`.
+- `radio/index.html`, `assets/radio.js` and `assets/radio.css`: the radio, songs the studio demo's engine writes as
+  they play, mixed into each other as a DJ would ([The radio](../docs/src/getting-started/radio.md)). It starts the
+  engine (`/studio/claudius-engine_loader.js`, so it needs the assembled site) through its own Trusted Types policy.
 - `assets/`: `site.css`, `site.js` (players, the hero's step grid, install tabs, copy buttons, code colours),
   `noscript.css` (native audio controls and every panel open when JavaScript is off), the logo and the mark, and the
   studio screenshots in `img/`.
