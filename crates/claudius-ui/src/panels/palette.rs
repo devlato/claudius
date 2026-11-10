@@ -30,12 +30,49 @@ pub struct Palette {
     pub ask: Option<String>,
     /// what the engine found for the words asked about last
     answer: Option<Answer>,
+    /// when the words last changed, and when the engine was last asked about them (`Cx::now`)
+    typed_at: f64,
+    asked_at: f64,
+    /// the action highlighted as the palette was last drawn, which Enter does, and whether the arrows picked it
+    lit: Option<String>,
+    moved: bool,
 }
+
+/// how often the palette asks again about words an engine found by name only, as its model may have come since, and
+/// for how long after they were typed (seconds)
+const AGAIN: (f64, f64) = (1.0, 60.0);
 
 impl Palette {
     /// opened afresh, or closed
     pub fn toggle(&mut self) {
         *self = Palette { open: !self.open, focus: true, link: self.link, ..Palette::default() };
+    }
+
+    /// The words again, to the engine, while what it found for them it found by name only: a server answers so until
+    /// its model has downloaded, and the demo once it has fetched its own.
+    fn ask_again(&mut self, now: f64) -> bool {
+        let words = self.query.trim();
+        let by_name = self.answer.as_ref().is_some_and(|a| a.query == words && !a.by_meaning);
+        let waiting = by_name && !words.is_empty() && now - self.typed_at < AGAIN.1;
+        if waiting && now - self.asked_at >= AGAIN.0 {
+            self.ask = Some(words.to_string());
+            self.asked_at = now;
+        }
+        waiting
+    }
+
+    /// Which of `acts` is highlighted after the arrows: the one picked with them stays picked as the list is ranked
+    /// anew (an answer by meaning replacing one by name), and without them the best is.
+    fn follow(&mut self, acts: &[Found], down: bool, up: bool) {
+        let held = self.lit.as_ref().and_then(|id| acts.iter().position(|a| &a.id == id));
+        let last = acts.len().saturating_sub(1);
+        self.at = match (down, up) {
+            (true, _) => held.map_or(0, |i| (i + 1).min(last)),
+            (_, true) => held.map_or(0, |i| i.saturating_sub(1)),
+            _ if self.moved => held.unwrap_or(0),
+            _ => 0,
+        };
+        self.moved |= down || up;
     }
 
     /// what the engine found for some words: kept while they are what is typed
@@ -160,16 +197,12 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
         p.open = false;
         return None;
     }
+    let now = cx.now;
     let acts = p.shown();
-    let last = acts.len().saturating_sub(1);
-    p.at = if down {
-        (p.at + 1).min(last)
-    } else if up {
-        p.at.saturating_sub(1)
-    } else {
-        p.at.min(last)
-    };
-    let mut picked = enter.then(|| acts.get(p.at).and_then(|a| run_of(&a.id))).flatten();
+    // Enter does what was highlighted as the palette was drawn, whatever the list has been ranked as since
+    let lit = p.lit.clone().or_else(|| acts.get(p.at).map(|a| a.id.clone()));
+    let mut picked = enter.then(|| lit.as_deref().and_then(run_of)).flatten();
+    p.follow(&acts, down, up);
     let cmd = widgets::cmd_key(ctx);
     let shown = egui::Window::new("command palette")
         .title_bar(false)
@@ -189,7 +222,7 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
                 field.request_focus();
             }
             if field.changed() {
-                p.at = 0;
+                (p.at, p.moved, p.typed_at, p.asked_at) = (0, false, now, now);
                 let words = p.query.trim();
                 p.ask = (!words.is_empty()).then(|| words.to_string());
             }
@@ -234,6 +267,10 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
                 .color(TEXT_FAINT),
             );
         });
+    p.lit = acts.get(p.at).map(|a| a.id.clone());
+    if p.ask_again(now) {
+        ctx.request_repaint_after(std::time::Duration::from_secs_f64(AGAIN.0));
+    }
     // a click outside it closes it, as a menu closes
     let link = cx.view.palette.link;
     let outside = |at: egui::Pos2| {
@@ -328,5 +365,39 @@ mod tests {
         assert_eq!(p.shown()[0].name, "Sounds", "the engine's answer, by meaning too");
         p.query = "mixer".into();
         assert_eq!(p.shown()[0].name, "Mixer", "words typed since are found by name until it answers for them");
+    }
+
+    fn act(id: &str) -> Found {
+        Found { id: id.into(), name: id.into(), place: String::new(), keys: String::new(), score: 0.5, by: By::Name }
+    }
+
+    #[test]
+    fn an_action_picked_with_the_arrows_stays_picked_as_the_list_is_ranked_anew_and_else_the_best_is() {
+        let mut p = Palette::default();
+        let by_name = [act("new_song"), act("tab:mixer"), act("improve")];
+        let by_meaning = [act("tab:mixer"), act("improve"), act("new_song")];
+        p.follow(&by_name, false, false);
+        p.lit = Some(by_name[p.at].id.clone());
+        p.follow(&by_meaning, false, false);
+        assert_eq!(by_meaning[p.at].id, "tab:mixer", "nothing picked: the best of the new ranking");
+        p.lit = Some(by_meaning[p.at].id.clone());
+        p.follow(&by_meaning, true, false);
+        assert_eq!(by_meaning[p.at].id, "improve");
+        p.lit = Some(by_meaning[p.at].id.clone());
+        p.follow(&by_name, false, false);
+        assert_eq!(by_name[p.at].id, "improve", "picked with the arrows: it stays picked where the list moved it");
+    }
+
+    #[test]
+    fn words_found_by_name_only_are_asked_about_again_a_second_apart_for_a_minute() {
+        let mut p = Palette { query: "make it louder".into(), ..Palette::default() };
+        let answer = |by_meaning| Answer { query: "make it louder".into(), found: vec![act("tab:mixer")], by_meaning };
+        p.heard(answer(false));
+        assert!(p.ask_again(0.5) && p.ask.is_none(), "not within a second of asking");
+        assert!(p.ask_again(1.0) && p.ask.take().as_deref() == Some("make it louder"));
+        assert!(p.ask_again(1.5) && p.ask.is_none());
+        assert!(!p.ask_again(61.0) && p.ask.is_none(), "a minute after the words were typed, no more");
+        p.heard(answer(true));
+        assert!(!p.ask_again(2.0) && p.ask.is_none(), "found by meaning: nothing more to ask");
     }
 }

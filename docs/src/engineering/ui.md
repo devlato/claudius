@@ -75,7 +75,9 @@ holding the model (`claudius_session::meaning`, which downloads it the first tim
 the studio's own thread (`mock::meaning`), since a search takes microseconds and its engine may be rendering for
 seconds: in the app with the session's model, in a page with the site's copy (`studio/models/`, which
 `cargo xtask site --sounds` makes), which the page fetches the first time. Words found by name before the model came
-are answered again once it has.
+are answered again once it has: the demo answers them again itself, and the palette asks a server again, a second
+apart, for up to a minute after they were typed. Enter does the action highlighted as the palette was last drawn, and
+an action picked with the arrows stays picked as an answer by meaning ranks the list anew.
 
 The menus are built of `widgets::menu_title` (what the menu acts on, and what that is, faint), `menu_group` (the
 name of a group of items, in small faint capitals) and `menu_item` (an item with the key that does it too, faint on
