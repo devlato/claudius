@@ -49,6 +49,11 @@ SHA-256 hashes:
     (https://huggingface.co/Best-Practice/spleeter-4stems-onnx).
   - Basic Pitch's model by Spotify, Apache-2.0, in the ONNX export Spotify ships
     with it (https://github.com/spotify/basic-pitch).
+  - Audiobox Aesthetics by Meta, CC BY 4.0
+    (https://huggingface.co/facebook/audiobox-aesthetics), part of its code from
+    Microsoft's WavLM (MIT), in the ONNX export by Microck, CC BY 4.0
+    (https://huggingface.co/Microck/audiobox-aesthetics-onnx), its MatMul
+    weights quantized to int8.
 
 The sample packs, fetched by `claudius setup` or `claudius-packs install`. Each
 pack's licence and attribution are recorded in crates/claudius-packs/src/registry.json

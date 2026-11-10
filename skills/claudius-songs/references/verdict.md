@@ -13,6 +13,7 @@ command line it is `verdict.json` in the song's folder, and `claudius judge song
 | theory | the lead and bass against the key and chords, voice leading, the form | 0.20 |
 | genre | whether it sounds like its genre more than the genres it is confused with, and more than stock background music (needs the models) | 0.15 |
 | production | whether it sounds professionally produced more than like a typical flaw (needs the models) | 0.15 |
+| aesthetics | how much listeners would enjoy it and how well it is produced, as Audiobox Aesthetics, a model of trained listeners' ratings, hears three of its ten-second windows (needs the models) | 0.15 |
 
 Without the listening models (`--no-ears`, Intel Macs) the total is out of the first three. A recording out of the
 song's time cuts it ([below](#a-recording-out-of-time-timetrack)).
@@ -127,6 +128,15 @@ is not judged.
   spectrum or too much reverb, and try sampled instruments in place of synth patches, which read as more
   professional. "About as much" is a near tie and a faint reading; don't chase it. Lofi is not marked down for hiss
   or a phone-like sound, which are its style.
+- `the listening model expects listeners to enjoy it 5.3 of 10, where records they like rate about 7.5: ...`
+  (`genre`): the material itself, more than the mix. A clearer hook (a lead with a motif that comes back), a stronger
+  groove (the genre's own drums and swing) and the genre's own sounds lift it most; it rates ten-second windows, so a
+  song that takes a long time to get going rates low at its start.
+- `the listening model rates its production 6.6 of 10, where professional records rate about 8.3: ...`
+  (`production`): fix the band, width and level issues first, then try recorded instruments for the synth patches
+  and less drive. A genre whose sound is a dusty or distorted recording (lofi, boom bap, trip hop, gabber, hyperpop
+  and others) is not held to it. The `aes_*` measures show all four of the model's readings; usefulness and
+  complexity are not scored.
 
 ### A recording out of time (`time:<track>`)
 

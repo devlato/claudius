@@ -598,9 +598,9 @@ terminal it asks before each download; elsewhere (and with `--yes`) it does not 
 | `--tags` | also downloads the AudioSet tagger, 347 MB more, used by `--tags` |
 
 The prompt shows what is missing and how much it downloads: about 3.1 GB for the default packs, which take 1.5 GB on
-disk because several arrive as WAV and are converted to FLAC, and 942 MB for the models: 785 MB of listening models
-and 157 MB of Spleeter's nets, which separate a recording's vocals, drums and bass (the prompt says about 1 GB, or
-1.3 GB with `--tags`). An interrupted pack download resumes where it stopped; a model file that was cut off
+disk because several arrive as WAV and are converted to FLAC, and 1.1 GB for the models: 918 MB of listening models
+(CLAP, and the 133 MB of Audiobox Aesthetics) and 157 MB of Spleeter's nets, which separate a recording's vocals,
+drums and bass (the prompt says about 1.1 GB, or 1.4 GB with `--tags`). An interrupted pack download resumes where it stopped; a model file that was cut off
 downloads again from its start, and the files that finished are kept. After the models arrive, the first load spends
 about 30 s embedding earshot's vocabulary once.
 

@@ -10,6 +10,7 @@ evidence of three kinds, plus a fourth when earshot's models are loaded:
 | `theory` | the score itself: the lead, the bass, voice leading, the form | 0.20 |
 | `genre` | the ears: does it read as its genre rather than the genres it is confused with, or stock background music | 0.15 |
 | `production` | the ears: does it read as professionally produced rather than as a typical flaw | 0.15 |
+| `aesthetics` | the ears, with Audiobox Aesthetics: how much listeners would enjoy it, and how well it is produced, as a model of their ratings hears it | 0.15 |
 | `refs` | the ears, with reference tracks: how typical it is of them | 0.15 |
 | `time` | the recordings on its tracks (a remake's pieces, loops, takes): does each keep the song's tempo and beat | cuts the total |
 
@@ -297,6 +298,32 @@ come before it, and a flaw that leads by 1.5 reaches 0.8.
 A genre can list flaws that are its sound in `accepted_flaws`, and its production reading leaves them out: lofi
 accepts the hiss and the phone recording, since vinyl crackle, tape hiss and a lowpassed drum bus are the style.
 
+**Aesthetics.** Meta's Audiobox Aesthetics ([Tjandra et al. 2025](https://arxiv.org/abs/2502.05139)) learnt from
+listeners trained to rate recordings of speech, sound and music on four axes, each from 1 to 10: how much they enjoy
+it (content enjoyment, CE), how useful it would be to make something of (content usefulness, CU), how many things it is
+made of (production complexity, PC) and how well it is recorded and mixed (production quality, PQ). On natural music
+its ratings correlate with theirs, recording by recording, 0.89 for production quality and 0.75 for enjoyment (the
+paper's Table 7); on a set four fifths of it made by music generators, 0.59 and 0.66 (Table 4), since it learnt from no
+generated audio. earshot runs it on three ten-second windows of the master spread across it, which takes about two
+seconds. The critic scores two of its axes, enjoyment and production quality, each from 0 at the model's average
+recording (the means it was trained to, CE 5.07 and PQ 6.58) to 1 a little above what professionally produced records
+rate (a chart hit's enjoyment 7.3, the production of GarageBand's own produced beats 8.0 to 8.25):
+
+```text
+aesthetics = mean of clamp((CE − 5.07) / (7.5 − 5.07)) and clamp((PQ − 6.58) / (8.3 − 6.58))
+```
+
+A genre whose sound is a flawed recording's (its `accepted_flaws` hold the hiss, the clipping, the low bitrate or the
+phone: lofi, boom bap, trip hop, big beat, gabber, hyperpop and others) is held to its enjoyment alone, since its dust
+or its distortion is what the production quality marks down. Each axis under half raises an issue of severity
+`0.8 × (0.5 − score)`: `the listening model expects listeners to enjoy it 5.3 of 10, where records they like rate about
+7.5: a stronger hook or groove, and its genre's own sounds, usually lift it` (target `genre`), and `the listening model
+rates its production 6.6 of 10, where professional records rate about 8.3: a clearer, more balanced mix and recorded
+instruments usually lift it` (target `production`). All four readings are among the measures (`aes_ce`, `aes_cu`,
+`aes_pc`, `aes_pq`). Of 24 of claudius' 32-bar previews in 12 genres, the model rated the enjoyment 5.3 to 7.4 and the
+production 6.5 to 8.3, drum and bass the lowest on both and afrobeats, house and trance the highest; GarageBand's
+produced beats rate 6.7 to 7.1 and 8.0 to 8.25.
+
 **References.** With `--refs` and at least two reference tracks, the song's typicality among them (the mean cosine to
 its five nearest references, as a `z` against the references' own spread) scores `clamp((z + 3) / 4)`, and an issue
 is raised under −1.
@@ -306,10 +333,10 @@ quality and production categories, for people to read.
 
 ### Held-out evidence
 
-Two readings are reported and never scored: `p_real`, earshot's estimate that the audio is a real, produced recording
+Some readings are reported and never scored: `p_real`, earshot's estimate that the audio is a real, produced recording
 rather than something synthesized in code (in the command line's verdicts, the mean over eight 4-second windows spread
-across the song, where earshot would read all of them), and the AudioSet tagger's top six labels over three
-10-second excerpts (with `--tags`). Optimising against a model can please the model without making the
+across the song, where earshot would read all of them), the AudioSet tagger's top six labels over three
+10-second excerpts (with `--tags`), and Audiobox Aesthetics' content usefulness and production complexity. Optimising against a model can please the model without making the
 music better, which is earshot's own warning. Keeping some evidence out of the score leaves a way to notice when
 evolution is gaming the scored parts: the scores rise and the held-out readings do not.
 
@@ -329,6 +356,9 @@ reading, not a good song.
   `time` measures it on the tracks themselves instead of asking a better-trained CLAP.
 - `time` judges the recordings that keep a grid. A voice, a pad, or a recording too sparse to gather on one is taken
   at its word, and so are notes, which play where the song puts them.
+- Audiobox Aesthetics is the one reading trained on what listeners said, and it agrees with them less on generated
+  music than on recorded music. Its 1 is set by a handful of professional records, and evolution, which optimises it
+  with the rest, could find what pleases the model and not listeners; the axes it holds out are there to show that.
 
 - earshot was validated for matching sound effects, not music. House, tech house and techno sit close together for
   it, and fully synthesized songs read only marginally "professionally mixed"; songs with sampled instruments read

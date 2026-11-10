@@ -1,5 +1,5 @@
-//! Model files (fp32 ONNX exports on the Hugging Face Hub, and Basic Pitch's on GitHub, pinned revisions), the cache
-//! directory, downloads and ONNX Runtime sessions.
+//! Model files (ONNX exports on the Hugging Face Hub, fp32 but for Audiobox Aesthetics' int8, and Basic Pitch's on
+//! GitHub, pinned revisions), the cache directory, downloads and ONNX Runtime sessions.
 //!
 //! Cache: `$EARSHOT_HOME` if set, else `~/.cache/earshot-rs`; files land in `models/<repo with / as -->/<revision>/`.
 //! Downloads write `<file>.<pid>.part` and rename it into place, so an interrupted download never leaves a
@@ -36,6 +36,11 @@ pub const SHA256: &[(&str, &str, &str)] = &[
     (crate::separate::REPO, "bass.wide.onnx", "d5f579b8bb9e0b1d1c758e5c903a6cc2850c0b99189b854b83978b370dbe959b"),
     (crate::separate::REPO, "other.wide.onnx", "e097cb54e54989fa530cb290a75897888393aa7f41eab8203e357ce6400dd90e"),
     (crate::notes::REPO, crate::notes::FILE, "2c3c1d144bfa61ad236e92e169c13535c880469a12a047d4e73451f2c059a0ec"),
+    (
+        crate::aesthetics::REPO,
+        crate::aesthetics::FILE,
+        "902acb8eaa2aefc87285e74a10a7a898d703df76eea97d58356a7da2428939ef",
+    ),
 ];
 
 fn expected_sha256(repo: &str, file: &str) -> Option<&'static str> {
@@ -53,6 +58,7 @@ pub const SIZES: &[(&str, u64)] = &[
     ("bass.wide.onnx", 39_318_368),
     ("other.wide.onnx", 39_318_369),
     (crate::notes::FILE, 230_444),
+    (crate::aesthetics::FILE, 132_591_987),
 ];
 
 /// progress hook: (file name, bytes done, bytes total or 0)

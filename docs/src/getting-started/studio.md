@@ -21,7 +21,7 @@ once whether to send anonymous usage statistics, which stay off unless you say y
 The tour never blocks the studio. **Skip the tour** or Esc ends it for good, and **?** in the bottom right corner,
 **Take the tour**, starts it again.
 
-The first time it starts, claudius downloads its listening models (about 0.8 GB) in the background; the verdict
+The first time it starts, claudius downloads its listening models (about 0.9 GB) in the background; the verdict
 judges with meters and music theory until they are ready, and the log says when they are. The first time it remakes
 or samples a recording, it downloads the nets that separate a recording's vocals, drums and bass (about 160 MB). If the default sample
 packs are not installed, the studio says so and offers **Download the packs** (a 3.1 GB download): until then, the
