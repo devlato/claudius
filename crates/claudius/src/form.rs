@@ -65,7 +65,7 @@ fn melodic<'a>(s: &'a SectionSpec, g: &GenreProfile) -> Vec<&'a String> {
 }
 
 /// whether a layer is sure to play in every song of the genre: a drum lane, or a part never left out
-fn sure(layer: &str, g: &GenreProfile) -> bool {
+pub(crate) fn sure(layer: &str, g: &GenreProfile) -> bool {
     let plays =
         |l: &str| g.drums.iter().any(|d| d.name == l) || g.parts.iter().any(|p| p.name == l && p.optional <= 0.0);
     // a sample, or the layers the genre plays instead of it when it has none

@@ -7,21 +7,30 @@ song from audio, so that a new one can be written on its skeleton.
 ## Mutation
 
 `evolve::mutate(blueprint, genre, library, issues, rng)` returns a changed copy and a sentence saying what changed.
-It picks one of 27 operators, applies it, and keeps the result if the blueprint actually changed; otherwise it tries
+It picks one of 36 operators, applies it, and keeps the result if the blueprint actually changed; otherwise it tries
 another, up to 12 times, and as a last resort writes every part again with new seeds (`rewrote every part`).
 
 | level | operators | what one does, in the words it logs |
 |---|---|---|
 | harmony | `harmony_sub`, `harmony_new` | `harmony A: chord 2: VI -> iv (third relation)`; a new progression from a style of the key's family |
-| drums | `drum_edit`, `drum_regen`, `drum_sound`, `drum_kit` | `drums (main): added a hat hit at beat 2.75`, removed, nudged by a sixteenth, or re-accented; a new pattern from the lane's template; a one-shot from the library or a nudge of one synth parameter; every lane onto another kit |
-| parts | `part_seed`, `part_style`, `part_preset`, `patch_tweak`, `part_register`, `part_density` | `bass: rewrote the part`; `chords: style stabs -> charleston`; a preset from the genre's list; cutoff, resonance, release, drive or detune of a synth patch; the register moved by 3, 5 or 12 semitones; a lead's density |
+| drums | `drum_edit`, `drum_regen`, `drum_sound`, `drum_kit`, `drum_trig` | `drums (main): added a hat hit at beat 2.75`, removed, nudged by a sixteenth, or re-accented; a new pattern from the lane's template; a one-shot from the library or a nudge of one synth parameter; every lane onto another kit; a step's trig (below) |
+| parts | `part_seed`, `part_style`, `part_preset`, `patch_tweak`, `part_register`, `part_density`, `rack_layer` | `bass: rewrote the part`; `chords: style stabs -> charleston`; a preset from the genre's list; cutoff, resonance, release, drive or detune of a synth patch; the register moved by 3, 5 or 12 semitones; a lead's density; a stacked sound's layer 2.5 dB louder or quieter at most, or a crossover between its layers moved a third of an octave, both layers that meet there with it |
+| instruments | `track_add`, `track_remove` | `pad in, on synth patch 'warm_pad'`: a part its genre writes that the song left out, playing where the genre's forms play it, or one layer of those a more layered song plays (`compose/layers.rs`: a pad, a counter-melody, an arpeggio, a double of a part, a clap, a shaker or a percussion line), kept only if a section plays it; `shaker out of the song`: a part or drum lane that only colours it, never one every song of its genre has |
 | mix | `mix_level`, `mix_send`, `mix_duck`, `mix_pan`, `space` | `mix: bass -1.3 dB (now -1.3)`; a reverb or delay send; a part's sidechain depth; the pan of anything but kick, bass, snare and clap; the reverb's decay or the delay's time |
+| effects | `fx_tweak`, `fx_add`, `fx_remove`, `fx_eq` | `keys: filter cutoff 2400 Hz`, one setting of an insert effect moved a little (a cutoff, a rate or a decay by up to a third, a mix or a feedback by a tenth); an insert effect the track takes, set as the genres set theirs (drive on the kick and bass, drive or a sharper attack on the other drums, a chorus, phaser, tremolo or tape on harmony, a delay, chorus or drive on a lead); one of those taken off again; `pad: -2.1 dB at 400 Hz`, the band a band issue names, cut or lifted on a track that lives in it |
 | form | `form_layer`, `form_bars`, `form_flags`, `form_variant`, `form_change`, `form_build` | `form: lead out of break`; a section 4 or 8 bars longer or shorter (4 to 48); a fill, gap, impact or filter sweep switched; a section's drum variant; `form: verse2 and chorus2 again after chorus2`, `form: intro left out`, `form: drop2 on progression B, unlike drop` (below); `form: build builds classic -> drop_out`, or harder or gentler |
 | feel | `tempo`, `key`, `swing` | `tempo 128 -> 126 BPM` within the genre's range; `key A minor -> C minor` (tonal loops follow); swing nudged |
-| library | `loop_swap` | another Apple Loop for a loop part |
+| samples | `loop_swap`, `loop_chop` | another Apple Loop for a loop part; `break: slice 6 plays slice 3`, a sampled break or phrase re-chopped as the sampler chops one (half-beat slices, every fourth where it was), in a genre that chops them, or a slice back in its own place |
 
 Every operator stays inside what the genre allows: styles and presets from the genre's lists, tempo within its
-range, levels within −12 to +9 dB, pans within ±0.7.
+range, levels within −12 to +9 dB, pans within ±0.7. Nothing widens the low end: the kick and the bass take drive,
+never a chorus, a widener or a delay.
+
+**`drum_trig`** programs one step of a lane as a drum machine's trig, never the kick's: a hat, shaker, ride or
+percussion hit that is not an accent plays by chance (50 to 90 % of the time), a hat rolls in two to four strokes only
+in a genre whose hats roll, a snare or clap is flammed (12 to 30 ms) or laid back (by up to 0.15 of a sixteenth), a
+percussion hit is tuned, and any hit is made brighter, darker, shorter or longer; a quarter of the time a step that
+has a trig plays plainly again.
 
 **`drum_kit`** moves every drum lane onto another installed kit: the genre's kits first, then `tr909`, `tr808`,
 `tr707`, `muldjord` and `uzu`, never the kit the song is already on. When the song is on a kit, one time in four it
@@ -30,9 +39,12 @@ goes back to the synthesized voices instead. It logs `drums: played on the tr808
 
 **Issues steer the choice.** All operators start with weight 1. For each of the verdict's four worst issues, the
 operators that address its target are multiplied by `1 + 4 × severity`: a `band:sub+` issue of severity 0.5 makes the
-level, drum sound, kit, patch, space and pan operators three times as likely. `mix_level` goes further and, three
-times in four, turns the track the band issue points at the right way (too much sub turns the kick or bass down);
-the part operators pick a part an issue names seven times in ten.
+level, drum sound, kit, patch, space, pan, equalizer and effect-setting operators three times as likely. `mix_level`
+goes further and, three times in four, turns the track the band issue points at the right way (too much sub turns the
+kick or bass down), and `fx_eq` works only on a band issue; the part operators pick a part an issue names seven times
+in ten. A `width-` issue has `fx_add` widen harmony (a chorus, an auto-pan or a widener), a `width+` one has
+`fx_remove` take a widening effect off, a `sound:<part>` issue brings in the rack and effect operators too, and a
+`genre` issue the instrument and trig operators.
 
 **The form is revised toward its issue.** `form_change` makes one change of `form::change`, aimed at the verdict's
 worst issue with the form, or at anything when it has none ([the critic's form checks](critic.md#form) say what each

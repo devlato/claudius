@@ -50,18 +50,18 @@ vocabulary that people, assistants and the evolution loop all read:
 | target | meaning | what evolution tries more often |
 |---|---|---|
 | `master` | loudness or true peak of the master | |
-| `band:<band>+`, `band:<band>-` | too much or too little energy in a band | levels of the tracks that live in that band, drum sounds and kits, patches, space, pan |
-| `width+`, `width-` | too narrow, too wide or phasey, or a low end that is not mono | the same |
+| `band:<band>+`, `band:<band>-` | too much or too little energy in a band | levels of the tracks that live in that band, drum sounds and kits, patches, space, pan, an equalizer on one of them, effect settings |
+| `width+`, `width-` | too narrow, too wide or phasey, or a low end that is not mono | the same, without the equalizer: a widening effect on harmony, or one taken off |
 | `level:<track>+`, `level:<track>-` | a track louder or quieter than its genre makes it | that track's level, turned the way back |
-| `sound:<part>` | a part plays a sound its genre has no place for | that part's preset and patch |
-| `form` | the arc, or a section out of its phrases | layers, section flags, drum variants, section lengths, build-ups |
+| `sound:<part>` | a part plays a sound its genre has no place for | that part's preset and patch, a stacked sound's layers, effect settings |
+| `form` | the arc, or a section out of its phrases | layers, section flags, drum variants, section lengths, build-ups, a track more |
 | `form:short`, `form:long` | short or long for its genre | a section played again or left out, a section longer or shorter (`form::change`), section lengths the way the song should go |
 | `form:intro` | slow to get under way | the intro shorter, or left out |
 | `form:same`, `form:section` | a stretch heard as one section, too long | of neighbours alike, the second with a part more or less or on the other progression; the longest section shorter |
 | `form:peaks-`, `form:peaks+` | the hook never comes back, a drop genre's song never drops, or the peak comes far too often | the peak and its way in again; a later one left out |
 | `part:<name>` | a part's writing | that part's seed, style, density and register |
-| `genre` | it reads as another genre, or unlike the references | presets, styles, drum patterns and sounds, kits, tempo, progressions |
-| `production` | it reads as one of the flaws | as for the bands |
+| `genre` | it reads as another genre, or unlike the references | presets, styles, drum patterns and sounds, kits, tempo, progressions, a track more or fewer, drum trigs |
+| `production` | it reads as one of the flaws | as for the bands, with effects moved or taken off in place of the equalizer |
 | `time:<track>` | the recording on a track keeps a tempo of its own, or wanders off the song's beat | |
 
 ## Mix

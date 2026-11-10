@@ -121,6 +121,57 @@ pub fn layer(bp: &mut Blueprint, g: &GenreProfile, complexity: f64, lib: Option<
     }
 }
 
+/// One layer more, of those a more layered song plays (the module's doc), for evolution to try: of a pad, a
+/// counter-melody, an arpeggio, a double of one of its parts, a clap, a shaker and a percussion line, in an order drawn
+/// from `rng`, the first the song has room for, where a song a little more layered than its genre would bring it in.
+/// What it added, or None.
+pub fn one_more(bp: &mut Blueprint, g: &GenreProfile, lib: Option<&dyn Library>, rng: &mut Rng) -> Option<String> {
+    // as layered as a song of complexity 0.8: a pad in the quiet sections and the peaks, not in every one
+    const MORE: f64 = 0.6;
+    let before: Vec<Vec<String>> = bp.form.iter().map(|s| s.layers.clone()).collect();
+    let available = palette::instruments();
+    let mut kinds = ["pad", "counter", "arpeggio", "double", "clap", "shaker", "perc"];
+    rng.shuffle(&mut kinds);
+    let tracks = |bp: &Blueprint| -> Vec<String> {
+        bp.parts.iter().map(|p| p.name.clone()).chain(bp.drums.iter().map(|d| d.name.clone())).collect()
+    };
+    let said = kinds.into_iter().find_map(|k| {
+        let was = bp.clone();
+        // the sounds the song plays as it is, a layer tried and taken back taking none of them
+        let mut used: BTreeSet<String> = bp.parts.iter().flat_map(|p| palette::identities(&p.sound)).collect();
+        let mut draw = |bp: &mut Blueprint, spec: PartSpec, rng: &mut Rng| -> Part {
+            let part = new_part(&spec, g, &available, &mut used, rng);
+            bp.parts.push(part.clone());
+            part
+        };
+        let mut r = rng.fork(k);
+        let said = match k {
+            "pad" => pad(bp, g, MORE, &mut draw, &mut r),
+            "counter" => counter(bp, g, MORE, &mut draw, &mut r),
+            "arpeggio" => sparkle(bp, g, MORE, &mut draw, &mut r),
+            "double" => {
+                let sources = doubled(bp, g);
+                let src = sources.get(r.below(sources.len()))?.clone();
+                double(bp, g, &src, MORE, &mut draw, &mut r)
+            }
+            "clap" => clap(bp, g, MORE, lib, &mut r),
+            "shaker" => shaker(bp, g, MORE, lib, &mut r),
+            _ => perc(bp, g, MORE, lib, &mut r),
+        };
+        // a layer no section plays is no layer: the song as it was, and the next
+        let new: Vec<String> = tracks(bp).into_iter().filter(|t| !tracks(&was).contains(t)).collect();
+        if said.is_none() || !new.iter().all(|t| bp.form.iter().any(|s| s.layers.contains(t))) {
+            *bp = was;
+            return None;
+        }
+        said
+    })?;
+    for (s, was) in bp.form.iter_mut().zip(&before).filter(|(s, was)| s.layers != **was) {
+        crate::form::retune(s, was, g);
+    }
+    Some(said)
+}
+
 /// a part spec for a layer of `role` the genre has no part for: the genre's own part of that role if it has one, else
 /// one sounding as the genre's palette for the role draws
 pub(crate) fn spec_for(g: &GenreProfile, name: &str, role: Role, fallback: &str) -> PartSpec {
@@ -272,88 +323,100 @@ fn doubles(
     draw: &mut impl FnMut(&mut Blueprint, PartSpec, &mut Rng) -> Part,
     r: &mut Rng,
 ) -> Vec<String> {
+    let sources = doubled(bp, g);
+    sources.iter().filter_map(|src| double(bp, g, src, more, draw, &mut r.fork(&src.name))).collect()
+}
+
+/// the parts `doubles` may double: a harmony, lead or bass part of the genre's own, of synths or instruments, that
+/// nothing doubles yet
+fn doubled(bp: &Blueprint, g: &GenreProfile) -> Vec<Part> {
     let one = |s: &Sound| matches!(s, Sound::Synth { .. } | Sound::Instrument { .. });
     // a rack of them too, as a genre stacks its bass
     let playable = |s: &Sound| s.each().into_iter().all(one);
-    let sources: Vec<Part> = bp
-        .parts
+    bp.parts
         .iter()
         .filter(|p| p.doubles.is_none() && playable(&p.sound) && g.parts.iter().any(|q| q.name == p.name))
         .filter(|p| matches!(p.role, Role::Keys | Role::Chords | Role::Lead | Role::Bass))
         .filter(|p| !bp.parts.iter().any(|q| q.doubles.as_deref() == Some(&p.name)))
         .cloned()
-        .collect();
+        .collect()
+}
+
+/// `src` doubled, as `doubles` doubles each part, with the chance `more` gives it: what it says of it, or None
+fn double(
+    bp: &mut Blueprint,
+    g: &GenreProfile,
+    src: &Part,
+    more: f64,
+    draw: &mut impl FnMut(&mut Blueprint, PartSpec, &mut Rng) -> Part,
+    r: &mut Rng,
+) -> Option<String> {
     let from = if more >= 0.8 { 0.45 } else { 0.6 };
-    let mut said = Vec::new();
-    for src in sources {
-        let mut r = r.fork(&src.name);
-        let name = format!("{}_double", src.name);
-        let chance = if src.role == Role::Bass { 0.45 } else { 0.8 };
-        if bp.layer_names().contains(&name) || !r.chance(chance * more) {
-            continue;
-        }
-        let octave = match src.role {
-            Role::Bass => 1,
-            Role::Lead if src.register.0 >= 60 && r.chance(0.5) => -1,
-            _ if src.register.1 + 12 <= 100 && r.chance(0.6) => 1,
-            _ => 0,
-        };
-        let register = (src.register.0 + 12 * octave, src.register.1 + 12 * octave);
-        let mut mix = src.mix.clone();
-        mix.mute = false;
-        mix.solo = false;
-        if src.role == Role::Bass {
-            mix.level_db += BASS_DOUBLE_DB;
-            mix.fx.push(Effect::Filter {
-                mode: crate::dsp::filter::FilterMode::Hp,
-                cutoff: 150.0.into(),
-                res: 0.0.into(),
-                drive: 1.0,
-                mix: 1.0.into(),
-            });
-            mix.fx.push(Effect::Saturate { kind: crate::fx::SatKind::Tube, drive_db: 6.0.into(), mix: 0.5.into() });
-        } else {
-            mix.level_db += DOUBLE_DB;
-            mix.pan = if src.mix.pan.abs() > 0.1 {
-                -src.mix.pan
-            } else if r.chance(0.5) {
-                0.3
-            } else {
-                -0.3
-            };
-            mix.reverb = (mix.reverb + 0.1).min(1.0);
-        }
-        let own = g.parts.iter().find(|p| p.name == src.name && p.role == src.role).cloned();
-        let spec = PartSpec {
-            name: name.clone(),
-            register,
-            mix,
-            // one sound: stacked as its part is, a bass's double would stack a second sub
-            layers: Vec::new(),
-            ..own.unwrap_or_else(|| spec_for(g, &name, src.role, "pluck"))
-        };
-        let drawn = draw(bp, spec, &mut r);
-        // it plays its part's notes, and were that part gone, notes of the same kind
-        let part = bp.parts.iter_mut().find(|p| p.name == drawn.name).expect("drawn above");
-        part.doubles = Some(src.name.clone());
-        part.octave = octave;
-        part.style = src.style.clone();
-        part.voices = src.voices;
-        part.voicing = src.voicing;
-        part.density = src.density;
-        part.rate = src.rate;
-        part.seed = src.seed;
-        for s in bp.form.iter_mut().filter(|s| s.layers.contains(&src.name) && lifts(s, from)) {
-            s.layers.push(name.clone());
-        }
-        let way = match octave {
-            1 => "an octave up",
-            -1 => "an octave down",
-            _ => "in unison",
-        };
-        said.push(format!("{} doubled {way} on {}", src.name, called(&drawn.sound)));
+    let name = format!("{}_double", src.name);
+    let chance = if src.role == Role::Bass { 0.45 } else { 0.8 };
+    if bp.layer_names().contains(&name) || !r.chance(chance * more) {
+        return None;
     }
-    said
+    let octave = match src.role {
+        Role::Bass => 1,
+        Role::Lead if src.register.0 >= 60 && r.chance(0.5) => -1,
+        _ if src.register.1 + 12 <= 100 && r.chance(0.6) => 1,
+        _ => 0,
+    };
+    let register = (src.register.0 + 12 * octave, src.register.1 + 12 * octave);
+    let mut mix = src.mix.clone();
+    mix.mute = false;
+    mix.solo = false;
+    if src.role == Role::Bass {
+        mix.level_db += BASS_DOUBLE_DB;
+        mix.fx.push(Effect::Filter {
+            mode: crate::dsp::filter::FilterMode::Hp,
+            cutoff: 150.0.into(),
+            res: 0.0.into(),
+            drive: 1.0,
+            mix: 1.0.into(),
+        });
+        mix.fx.push(Effect::Saturate { kind: crate::fx::SatKind::Tube, drive_db: 6.0.into(), mix: 0.5.into() });
+    } else {
+        mix.level_db += DOUBLE_DB;
+        mix.pan = if src.mix.pan.abs() > 0.1 {
+            -src.mix.pan
+        } else if r.chance(0.5) {
+            0.3
+        } else {
+            -0.3
+        };
+        mix.reverb = (mix.reverb + 0.1).min(1.0);
+    }
+    let own = g.parts.iter().find(|p| p.name == src.name && p.role == src.role).cloned();
+    let spec = PartSpec {
+        name: name.clone(),
+        register,
+        mix,
+        // one sound: stacked as its part is, a bass's double would stack a second sub
+        layers: Vec::new(),
+        ..own.unwrap_or_else(|| spec_for(g, &name, src.role, "pluck"))
+    };
+    let drawn = draw(bp, spec, r);
+    // it plays its part's notes, and were that part gone, notes of the same kind
+    let part = bp.parts.iter_mut().find(|p| p.name == drawn.name)?;
+    part.doubles = Some(src.name.clone());
+    part.octave = octave;
+    part.style = src.style.clone();
+    part.voices = src.voices;
+    part.voicing = src.voicing;
+    part.density = src.density;
+    part.rate = src.rate;
+    part.seed = src.seed;
+    for s in bp.form.iter_mut().filter(|s| s.layers.contains(&src.name) && lifts(s, from)) {
+        s.layers.push(name.clone());
+    }
+    let way = match octave {
+        1 => "an octave up",
+        -1 => "an octave down",
+        _ => "in unison",
+    };
+    Some(format!("{} doubled {way} on {}", src.name, called(&drawn.sound)))
 }
 
 /// a drum lane of the song's own, as a genre's are made: on a one-shot from the library now and then, else drawn
@@ -402,81 +465,95 @@ fn voice_of(g: &GenreProfile, lane: &DrumLane) -> Option<DrumVoice> {
 /// and a percussion line, each in a song without one, with the chance `more` gives it: the clap where the snare plays
 /// and the song lifts, the shaker where the hats play, the percussion in the peaks.
 fn percussion(bp: &mut Blueprint, g: &GenreProfile, more: f64, lib: Option<&dyn Library>, r: &Rng) -> Vec<String> {
-    let has = |bp: &Blueprint, v: &[DrumVoice]| bp.drums.iter().any(|d| voice_of(g, d).is_some_and(|x| v.contains(&x)));
-    let mut said = Vec::new();
-    let mut cr = r.fork("clap");
-    let snare = bp.drums.iter().find(|d| voice_of(g, d) == Some(DrumVoice::Snare)).cloned();
-    if let Some(snare) = snare
-        && !has(bp, &[DrumVoice::Clap])
-        && !bp.layer_names().contains(&"clap".to_string())
-        && cr.chance(0.7 * more)
-    {
-        let patterns = snare
-            .patterns
-            .iter()
-            .map(|(k, hits)| {
-                let backbeats = hits.iter().filter(|h| h.v >= 0.6).map(|h| Hit { v: h.v * 0.9, ..*h });
-                (k.clone(), backbeats.collect())
-            })
-            .collect();
-        let mix = TrackMix { level_db: CLAP_DB, reverb: 0.2, bus: snare.mix.bus.clone(), ..Default::default() };
-        bp.drums.push(DrumLane {
-            pattern_bars: snare.pattern_bars,
-            ..lane("clap", DrumVoice::Clap, patterns, mix, lib, g, &mut cr)
-        });
-        for s in bp.form.iter_mut().filter(|s| s.layers.contains(&snare.name) && lifts(s, 0.6)) {
-            s.layers.push("clap".into());
-        }
-        said.push("a clap on the snare".to_string());
+    let clap = clap(bp, g, more, lib, &mut r.fork("clap"));
+    let shaker = shaker(bp, g, more, lib, &mut r.fork("shaker"));
+    let perc = perc(bp, g, more, lib, &mut r.fork("perc"));
+    [clap, shaker, perc].into_iter().flatten().collect()
+}
+
+/// whether the song has a drum lane of one of `voices`
+fn has(bp: &Blueprint, g: &GenreProfile, voices: &[DrumVoice]) -> bool {
+    bp.drums.iter().any(|d| voice_of(g, d).is_some_and(|x| voices.contains(&x)))
+}
+
+/// a clap on the snare's backbeats, as `percussion` adds one
+fn clap(bp: &mut Blueprint, g: &GenreProfile, more: f64, lib: Option<&dyn Library>, cr: &mut Rng) -> Option<String> {
+    let snare = bp.drums.iter().find(|d| voice_of(g, d) == Some(DrumVoice::Snare)).cloned()?;
+    if has(bp, g, &[DrumVoice::Clap]) || bp.layer_names().contains(&"clap".to_string()) || !cr.chance(0.7 * more) {
+        return None;
     }
-    let mut sr = r.fork("shaker");
+    let patterns = snare
+        .patterns
+        .iter()
+        .map(|(k, hits)| {
+            let backbeats = hits.iter().filter(|h| h.v >= 0.6).map(|h| Hit { v: h.v * 0.9, ..*h });
+            (k.clone(), backbeats.collect())
+        })
+        .collect();
+    let mix = TrackMix { level_db: CLAP_DB, reverb: 0.2, bus: snare.mix.bus.clone(), ..Default::default() };
+    bp.drums.push(DrumLane {
+        pattern_bars: snare.pattern_bars,
+        ..lane("clap", DrumVoice::Clap, patterns, mix, lib, g, cr)
+    });
+    for s in bp.form.iter_mut().filter(|s| s.layers.contains(&snare.name) && lifts(s, 0.6)) {
+        s.layers.push("clap".into());
+    }
+    Some("a clap on the snare".to_string())
+}
+
+/// a shaker on the sixteenths where the hats play, as `percussion` adds one
+fn shaker(bp: &mut Blueprint, g: &GenreProfile, more: f64, lib: Option<&dyn Library>, sr: &mut Rng) -> Option<String> {
     let hats: Vec<String> = bp
         .drums
         .iter()
         .filter(|d| matches!(voice_of(g, d), Some(DrumVoice::ClosedHat | DrumVoice::OpenHat | DrumVoice::Ride)))
         .map(|d| d.name.clone())
         .collect();
-    if more >= 0.2
-        && !hats.is_empty()
-        && !has(bp, &[DrumVoice::Shaker])
-        && !bp.layer_names().contains(&"shaker".to_string())
-        && sr.chance(0.7 * more)
+    if more < 0.2
+        || hats.is_empty()
+        || has(bp, g, &[DrumVoice::Shaker])
+        || bp.layer_names().contains(&"shaker".to_string())
+        || !sr.chance(0.7 * more)
     {
-        let t = crate::theory::rhythm::LaneTemplate {
-            steps: [0.55, 0.25, 1.0, 0.3].repeat(4),
-            vel: (0.35, 0.6),
-            ghost: 0.15,
-            rolls: 0.0,
-            vary: 0.25,
-        };
-        let patterns = BTreeMap::from([("main".to_string(), crate::theory::rhythm::generate(&t, 4, &mut sr))]);
-        let mix = TrackMix { level_db: SHAKER_DB, pan: 0.3, bus: "drums".into(), ..Default::default() };
-        bp.drums.push(lane("shaker", DrumVoice::Shaker, patterns, mix, lib, g, &mut sr));
-        for s in bp.form.iter_mut().filter(|s| s.layers.iter().any(|l| hats.contains(l)) && s.energy >= 0.5) {
-            s.layers.push("shaker".into());
-        }
-        said.push("a shaker".to_string());
+        return None;
     }
-    let mut pr = r.fork("perc");
-    if more >= 0.4
-        && !has(bp, &[DrumVoice::Perc, DrumVoice::Tom, DrumVoice::Cowbell])
-        && !bp.layer_names().contains(&"perc".to_string())
-        && pr.chance(0.55 * more)
+    let t = crate::theory::rhythm::LaneTemplate {
+        steps: [0.55, 0.25, 1.0, 0.3].repeat(4),
+        vel: (0.35, 0.6),
+        ghost: 0.15,
+        rolls: 0.0,
+        vary: 0.25,
+    };
+    let patterns = BTreeMap::from([("main".to_string(), crate::theory::rhythm::generate(&t, 4, sr))]);
+    let mix = TrackMix { level_db: SHAKER_DB, pan: 0.3, bus: "drums".into(), ..Default::default() };
+    bp.drums.push(lane("shaker", DrumVoice::Shaker, patterns, mix, lib, g, sr));
+    for s in bp.form.iter_mut().filter(|s| s.layers.iter().any(|l| hats.contains(l)) && s.energy >= 0.5) {
+        s.layers.push("shaker".into());
+    }
+    Some("a shaker".to_string())
+}
+
+/// a percussion line of a euclidean rhythm in the peaks, as `percussion` adds one
+fn perc(bp: &mut Blueprint, g: &GenreProfile, more: f64, lib: Option<&dyn Library>, pr: &mut Rng) -> Option<String> {
+    if more < 0.4
+        || has(bp, g, &[DrumVoice::Perc, DrumVoice::Tom, DrumVoice::Cowbell])
+        || bp.layer_names().contains(&"perc".to_string())
+        || !pr.chance(0.55 * more)
     {
-        let (k, n) = *pr.pick(&[(5, 16), (3, 8), (7, 16), (5, 12)]);
-        let rot = pr.below(n);
-        let patterns = BTreeMap::from([(
-            "main".to_string(),
-            crate::theory::rhythm::euclid_hits(k, n, rot, 4, pr.range(0.55, 0.75) as f32),
-        )]);
-        let mix = TrackMix { level_db: PERC_DB, pan: -0.35, reverb: 0.15, bus: "drums".into(), ..Default::default() };
-        bp.drums.push(lane("perc", DrumVoice::Perc, patterns, mix, lib, g, &mut pr));
-        for s in bp.form.iter_mut().filter(|s| peak(s) && !s.layers.is_empty()) {
-            s.layers.push("perc".into());
-        }
-        said.push(format!("a percussion line of {k} in {n}"));
+        return None;
     }
-    said
+    let (k, n) = *pr.pick(&[(5, 16), (3, 8), (7, 16), (5, 12)]);
+    let rot = pr.below(n);
+    let patterns = BTreeMap::from([(
+        "main".to_string(),
+        crate::theory::rhythm::euclid_hits(k, n, rot, 4, pr.range(0.55, 0.75) as f32),
+    )]);
+    let mix = TrackMix { level_db: PERC_DB, pan: -0.35, reverb: 0.15, bus: "drums".into(), ..Default::default() };
+    bp.drums.push(lane("perc", DrumVoice::Perc, patterns, mix, lib, g, pr));
+    for s in bp.form.iter_mut().filter(|s| peak(s) && !s.layers.is_empty()) {
+        s.layers.push("perc".into());
+    }
+    Some(format!("a percussion line of {k} in {n}"))
 }
 
 /// the drum lanes a sampled break plays instead of, played over it in the peaks, with the chance `more` gives it
