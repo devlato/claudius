@@ -5,6 +5,7 @@
   "description": "Alternative rock and grunge of the 1990s at 100 to 140 BPM, loud, quiet, loud: a verse of a clean guitar picking its chords over a bass and a light kit, a chorus of two distorted guitars hard left and right playing power chords in eighths, a picked bass on the roots in eighths, live drums with the ride and crash in the chorus, minor, dorian and mixolydian chords, a quiet bridge, a guitar solo in the last chorus",
   "query": "alternative rock music with distorted electric guitars",
   "alts": ["grunge rock music", "punk rock music", "indie rock music", "heavy metal music", "pop rock music"],
+  "accepted_flaws": ["a distorted clipped recording"],
   "bpm": [100, 140],
   "swing": [0.5, 0.52],
   "humanize": 0.45,

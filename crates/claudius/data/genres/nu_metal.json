@@ -5,6 +5,7 @@
   "description": "Nu metal and rap metal of the late 1990s and 2000s at 88 to 108 BPM: two distorted guitars tuned down to C or D, hard left and right, chugging the low root palm-muted in the verses and the breakdown with power chords hit off the beat, holding the chords wide in the choruses, a bass locked to the kick under them, a hip hop groove on a live kit (a syncopated kick, the snare on two and four, eighth hats), an eerie clean guitar line in the verses, a dark string pad in the choruses, a half-time breakdown, phrygian and minor chords",
   "query": "nu metal rap rock music with heavy distorted guitars",
   "alts": ["heavy metal music", "alternative rock music", "hip hop beat with heavy bass", "punk rock music", "industrial rock music"],
+  "accepted_flaws": ["a distorted clipped recording"],
   "bpm": [88, 108],
   "swing": [0.5, 0.54],
   "humanize": 0.3,

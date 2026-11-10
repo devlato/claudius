@@ -5,6 +5,7 @@
   "description": "Pop punk of the late 1990s and 2000s at 150 to 190 BPM: two distorted guitars hard left and right, palm-muting power chords in eighths in the verses and driving them open in the choruses, a bass on the roots in eighths under them, a fast punk beat (the snare on two and four, the hats or ride in eighths, a skate beat with the snare on every off-beat in the last chorus), mostly major chords, a guitar hook in the choruses, a half-time bridge, short and loud",
   "query": "pop punk rock music with fast drums and distorted guitars",
   "alts": ["punk rock music", "alternative rock music", "emo rock music", "pop rock music", "heavy metal music"],
+  "accepted_flaws": ["a distorted clipped recording"],
   "bpm": [150, 190],
   "swing": [0.5, 0.51],
   "humanize": 0.35,
