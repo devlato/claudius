@@ -159,6 +159,17 @@ pub fn midi_offer() -> Option<(String, bool)> {
     }
 }
 
+/// The page of the system's settings that lets apps use the microphone: none a page can open, since a browser asks
+/// the person itself and keeps its answer in the address bar's site settings.
+pub fn privacy_page() -> Option<&'static str> {
+    None
+}
+
+/// No page of the system's settings opens from a browser (`privacy_page`).
+pub fn open_privacy_page() -> Result<(), String> {
+    Err("a browser keeps the microphone's permission in the address bar's site settings".into())
+}
+
 /// The MIDI inputs listed are all there are: the page may use them, or it never will. While the browser is looked
 /// into, or has yet to say yes, a keyboard chosen before may still be there.
 pub fn midi_settled() -> bool {

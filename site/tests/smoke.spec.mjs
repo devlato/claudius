@@ -284,6 +284,22 @@ test.describe("assembled site", () => {
     expect(messages).toEqual([]);
   });
 
+  test("the studio and the phone page may ask for the microphone and MIDI, and no other page may", async ({ page }) => {
+    // what the page's Permissions-Policy lets it ask the person for: a feature the policy forbids is refused without
+    // asking, whatever the person would allow
+    const allows = (feature) => page.evaluate((f) => document.featurePolicy.allowsFeature(f), feature);
+    for (const path of ["/studio/?mock", "/phone/"]) {
+      await page.goto(path);
+      expect(await allows("microphone"), `${path} microphone`).toBe(true);
+      expect(await allows("midi"), `${path} midi`).toBe(true);
+      expect(await allows("camera"), `${path} camera`).toBe(false);
+    }
+    for (const path of ["/", "/docs/", "/radio/"]) {
+      await page.goto(path);
+      expect(await allows("microphone"), `${path} microphone`).toBe(false);
+    }
+  });
+
   test("the studio demo plays sampled instruments, fetched from the site as its song needs them", async ({ page }) => {
     test.skip(!fs.existsSync(path.join(site.dir, "studio/packs/index.json")), "needs cargo xtask site --sounds");
     test.setTimeout(120_000);

@@ -204,6 +204,23 @@ mod tests {
     }
 
     #[test]
+    fn an_input_that_hears_nothing_at_all_says_how_to_let_claudius_use_the_microphone() {
+        let mut r = Record::default();
+        assert_eq!(what_now(&r).1, "");
+        r.quiet = true;
+        let (good, said) = what_now(&r);
+        assert!(!good && said.starts_with("nothing is coming in") && hears_nothing(&r), "{said}");
+        #[cfg(target_os = "macos")]
+        assert!(said.contains("Privacy & Security, Microphone") && crate::audio::record::privacy_page().is_some());
+        #[cfg(windows)]
+        assert!(
+            said.contains("Let desktop apps access your microphone") && crate::audio::record::privacy_page().is_some()
+        );
+        r.deaf_why = Some("no microphone or audio input".into());
+        assert_eq!(what_now(&r).1, "no microphone or audio input", "why it cannot listen at all comes first");
+    }
+
+    #[test]
     fn a_take_asked_for_sets_the_window_up_once_and_says_when_the_assistant_has_it() {
         let ask = |id, status, role: &str| TakeRequest {
             id,
@@ -374,6 +391,10 @@ pub struct Record {
     note: String,
     /// why the meter cannot hear the input, while that is so
     deaf_why: Option<String>,
+    /// since when (the window's clock) the audio input the meter listens to has heard nothing at all, to the bit; and
+    /// whether that has gone on long enough to be the system keeping the microphone from claudius
+    quiet_since: Option<f64>,
+    quiet: bool,
     sending: bool,
     level: f32,
     inputs: Vec<crate::audio::record::Input>,
@@ -809,12 +830,7 @@ fn body(ui: &mut Ui, cx: &mut Cx) {
             throw = ui.button(small("Throw it away")).clicked();
         }
     });
-    let (good, text) = what_now(r);
-    if !text.is_empty() {
-        ui.add_space(6.0);
-        let color = if good { TEXT_DIM } else { theme::BAD };
-        ui.add(egui::Label::new(small(text).color(color)).wrap());
-    }
+    say_now(ui, r);
     if throw {
         (r.held, r.preview, r.status) = (None, None, Some((true, "thrown away".into())));
     }
@@ -884,12 +900,7 @@ fn check_body(ui: &mut Ui, cx: &mut Cx) -> bool {
         ui.add_space(6.0);
         ui.label(RichText::new(say).color(TEXT));
     }
-    let (good, text) = what_now(r);
-    if !text.is_empty() {
-        ui.add_space(6.0);
-        let color = if good { TEXT_DIM } else { theme::BAD };
-        ui.add(egui::Label::new(small(text).color(color)).wrap());
-    }
+    say_now(ui, r);
     r.check |= start;
     if stop {
         finish(cx);
@@ -1111,7 +1122,33 @@ fn what_now(r: &Record) -> (bool, String) {
     }
     match &r.deaf_why {
         Some(why) => (false, why.clone()),
+        None if r.quiet => (false, NOTHING_IN.into()),
         None => r.status.clone().unwrap_or_default(),
+    }
+}
+
+/// whether the input heard nothing at all for a while, in a take or on the meter: the system may be keeping the
+/// microphone from claudius
+fn hears_nothing(r: &Record) -> bool {
+    r.quiet || r.live.as_ref().is_some_and(|l| l.silent)
+}
+
+/// What the window says (`what_now`), and, while the input hears nothing at all, a way to the system's settings that
+/// let claudius use the microphone, where the system has them.
+fn say_now(ui: &mut Ui, r: &mut Record) {
+    let (good, text) = what_now(r);
+    if text.is_empty() {
+        return;
+    }
+    ui.add_space(6.0);
+    let color = if good { TEXT_DIM } else { theme::BAD };
+    ui.add(egui::Label::new(small(text).color(color)).wrap());
+    if hears_nothing(r)
+        && crate::audio::record::privacy_page().is_some()
+        && ui.small_button("Open the system's microphone settings").clicked()
+        && let Err(e) = crate::audio::record::open_privacy_page()
+    {
+        r.status = Some((false, e));
     }
 }
 
@@ -1256,10 +1293,18 @@ fn measured(ms: f32, route: &str) -> String {
     )
 }
 
-/// what to say when the input hears nothing at all while a take records
-#[cfg(not(target_arch = "wasm32"))]
-const NOTHING_IN: &str = "nothing is coming in: check the input and its channel; on a Mac, allow the microphone for \
-                          Claudius (or your terminal) in System Settings, Privacy & Security, Microphone";
+/// what to say when the input hears nothing at all, in a take or on the meter: where the system keeps the microphone
+/// from apps, how to let claudius use it
+#[cfg(all(not(target_arch = "wasm32"), target_os = "macos"))]
+const NOTHING_IN: &str = "nothing is coming in: check the input and its channel, and allow the microphone for Claudius \
+                          (or for your terminal, when you started claudius from one) in System Settings, Privacy & \
+                          Security, Microphone";
+#[cfg(all(not(target_arch = "wasm32"), windows))]
+const NOTHING_IN: &str = "nothing is coming in: check the input and its channel, and turn on Microphone access and Let \
+                          desktop apps access your microphone in Settings, Privacy & security, Microphone";
+#[cfg(all(not(target_arch = "wasm32"), not(target_os = "macos"), not(windows)))]
+const NOTHING_IN: &str = "nothing is coming in: check the input and its channel, and that the input is not muted in \
+                          the system's sound settings";
 #[cfg(target_arch = "wasm32")]
 const NOTHING_IN: &str = "nothing is coming in: check the input and its channel, and that the browser may use the \
                           microphone (the site settings in the address bar); on a Mac, the system has to allow the \
@@ -1534,6 +1579,7 @@ fn keep_up(ctx: &egui::Context, cx: &mut Cx) {
 fn listen(ctx: &egui::Context, r: &mut Record) {
     if !r.open {
         (r.listener, r.deaf, r.deaf_why, r.level) = (None, None, None, 0.0);
+        (r.quiet_since, r.quiet) = (None, false);
         return;
     }
     // a browser lists its inputs when it gets round to it, names them once the page may use the microphone, and
@@ -1565,7 +1611,7 @@ fn listen(ctx: &egui::Context, r: &mut Record) {
             Err(e) => (r.deaf, r.deaf_why) = (Some(want), Some(e)),
         }
     }
-    let Some((l, _)) = &r.listener else {
+    let Some((l, on)) = &r.listener else {
         r.level = 0.0;
         return;
     };
@@ -1574,6 +1620,16 @@ fn listen(ctx: &egui::Context, r: &mut Record) {
         r.deaf_why = Some(e);
         return;
     }
-    r.level = (r.level * 0.85).max(l.level());
+    let heard = l.level();
+    r.level = (r.level * 0.85).max(heard);
+    // a keyboard is quiet between notes; an audio input that hears nothing at all is one the system keeps from claudius
+    // (or one muted or unplugged), as a quiet room still hisses
+    let now = ctx.input(|i| i.time);
+    if on.3.is_none() && heard == 0.0 {
+        let since = *r.quiet_since.get_or_insert(now);
+        r.quiet = now - since > 2.5;
+    } else {
+        (r.quiet_since, r.quiet) = (None, false);
+    }
     ctx.request_repaint_after(std::time::Duration::from_millis(40));
 }

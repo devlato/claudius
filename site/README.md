@@ -75,7 +75,8 @@ Cloudflare joins two values of the same header with a comma and a browser then e
   an inline module script that names the hashed files of each build; `blob:` audio for the demo's previews.
 
 It also sets `nosniff`, `frame-ancestors 'none'` and `X-Frame-Options: DENY`, a strict referrer policy, a
-Permissions-Policy that turns off sensors, camera, microphone and the rest, HSTS, and cache lifetimes: a year for
+Permissions-Policy that turns off sensors, camera, microphone and the rest (but for the studio and the phone page,
+which may ask for the microphone and MIDI, since they record takes and play keyboards), HSTS, and cache lifetimes: a year for
 the files trunk and mdBook name by content hash and for the font, a month for screenshots and audio, a day for this
 folder's CSS and JS (their URLs carry `?v={{version}}`). Rename an image or a song to replace it.
 

@@ -21,10 +21,13 @@
 # The web studio (trunk + wasm-bindgen + egui): 'wasm-unsafe-eval' compiles the WebAssembly (it allows no JavaScript
 # eval); trunk's index.html starts the app from an inline module script that names the hashed files of each build,
 # and carries an inline <style>; the demo plays its rendered previews from blob: URLs, and runs the engine in a Web
-# Worker of the site's own (claudius-engine_loader.js), which gets this policy too.
+# Worker of the site's own (claudius-engine_loader.js), which gets this policy too. It records takes off the
+# microphone and plays MIDI keyboards, so it may ask for both; the browser still asks the person first.
 /studio/*
   ! Content-Security-Policy
   Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'self'; worker-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+  ! Permissions-Policy
+  Permissions-Policy: accelerometer=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(self), midi=(self), payment=(), serial=(), usb=(), xr-spatial-tracking=(), browsing-topics=()
 
 # The radio: the site's policy, but it starts the studio demo's engine as its Web Worker (claudius-engine_loader.js
 # under /studio/, whose own policy compiles the WebAssembly), its URL made by the page's one Trusted Types policy
@@ -33,10 +36,11 @@
   Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; media-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests; require-trusted-types-for 'script'; trusted-types claudius-radio
 
 # The page a phone plays along with the demo on: a MIDI controller plugged into what opens it (a drum pad, a jog wheel)
-# plays its pads, keys and turntable, so it may use MIDI, and only it
+# plays its pads, keys and turntable, and its turntable plays a record recorded off the microphone, so it may ask for
+# MIDI and the microphone, and nothing else
 /phone/*
   ! Permissions-Policy
-  Permissions-Policy: accelerometer=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(self), payment=(), serial=(), usb=(), xr-spatial-tracking=(), browsing-topics=()
+  Permissions-Policy: accelerometer=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(self), midi=(self), payment=(), serial=(), usb=(), xr-spatial-tracking=(), browsing-topics=()
 
 # caching: trunk and mdBook (0.5 and later) put a content hash in these file names
 /studio/*.wasm

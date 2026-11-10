@@ -44,6 +44,30 @@ pub fn inputs() -> Vec<Input> {
     out
 }
 
+/// The page of the system's settings that lets apps use the microphone, where an input that hears nothing at all sends
+/// the person: macOS and Windows keep the microphone from an app until it is allowed there (macOS asks once, Windows
+/// not at all, and both then give an app silence). None where the system keeps nothing from it.
+pub fn privacy_page() -> Option<&'static str> {
+    if cfg!(target_os = "macos") {
+        Some("x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
+    } else if cfg!(windows) {
+        Some("ms-settings:privacy-microphone")
+    } else {
+        None
+    }
+}
+
+/// Opens `privacy_page` in the system's settings.
+pub fn open_privacy_page() -> Result<(), String> {
+    let page = privacy_page().ok_or("this system keeps the microphone from no app")?;
+    let opener = if cfg!(target_os = "macos") { "open" } else { "explorer" };
+    std::process::Command::new(opener)
+        .arg(page)
+        .spawn()
+        .map(drop)
+        .map_err(|e| format!("cannot open the system's microphone settings: {e}"))
+}
+
 /// what a MIDI input played: seconds since the recorder began, pitch, velocity (0: the note ended)
 type Heard = Arc<Mutex<Vec<(f64, u8, f32)>>>;
 
