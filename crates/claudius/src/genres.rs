@@ -187,6 +187,9 @@ pub struct LayerSpec {
     pub duck: f32,
     #[serde(default)]
     pub transpose: i32,
+    /// the notes it plays every note within (`Layer::fold`)
+    #[serde(default)]
+    pub fold: Option<[i32; 2]>,
     #[serde(default)]
     pub fx: Vec<crate::fx::Effect>,
 }

@@ -525,6 +525,9 @@ fn layer_text(l: &Layer) -> String {
     if l.transpose != 0 {
         parts.push(format!("transpose: {}", l.transpose));
     }
+    if let Some([lowest, highest]) = l.fold {
+        parts.push(format!("fold: [{lowest}, {highest}]"));
+    }
     if !l.fx.is_empty() {
         parts.push(format!("fx: {}", chain_text(&l.fx)));
     }
@@ -548,6 +551,9 @@ pub fn layer_value(l: &Layer) -> serde_json::Value {
     }
     if l.transpose != 0 {
         m.insert("transpose".into(), l.transpose.into());
+    }
+    if let Some(range) = l.fold {
+        m.insert("fold".into(), serde_json::json!(range));
     }
     if !l.fx.is_empty() {
         m.insert("fx".into(), serde_json::to_value(&l.fx).unwrap_or_default());

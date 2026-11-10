@@ -278,6 +278,8 @@ rack("bass", [
 - `level` is in dB against the other layers. Each is first made as loud as the rest over its band, so a sound's own
   loudness does not set the balance: `-9` is a top nine decibels under the sub, as you hear it.
 - `pan` (-1 to 1) and `transpose` (semitones: 12 is an octave up) are the layer's own.
+- `fold: [lowest, highest]` (MIDI notes, an octave apart at least) plays each of the track's notes moved by whole
+  octaves into them: `fold: [28, 40]` keeps a sub between E1 and E2, 41 to 82 Hz, wherever the line above it goes.
 - `duck` (0 to 1) ducks that layer alone under the kick: the sub makes room for it while the growl holds.
 - `fx` is the layer's own chain, after its band. A `tremolo` or a `gate` there pulses that band alone, as a bass
   whose top flutters in sixteenths over a steady sub.
@@ -287,7 +289,12 @@ twice: once clean, and once through tape saturation kept to 300 Hz to 4.5 kHz, u
 That grit is what headphones and a phone hear of a bass, and the clean 808 under it keeps its weight on a subwoofer.
 Jungle, UK garage and grime give their bass the same grit from a tube saturator, and drum and bass a quieter one,
 since its reese is gritty already. Future bass puts a clean sine sub under its bass, an octave down because that
-bass sits high, ducking under the kick. The song's script shows the rack, to change like any other.
+bass sits high, ducking under the kick. Any other genre's synth bass that has nothing under its note (an organ bass,
+a pluck bass, a distorted bass, a wobble) and plays above E2 gets a sine sub under it, folded into the sub octave
+(`fold: [28, 40]`) below 90 Hz and the bass above, the sub ducking half again as much as the bass: so the bass is felt
+on a subwoofer and heard on a phone. A sine bass played that high is folded down itself. A bass with a sub of its own
+(a deep bass, an FM, rubber or Moog bass, a reese), a recorded one and an 808 in the sub octave already play as they
+are. The song's script shows the rack, to change like any other.
 
 The rack sums its layers before the track's own effects ([`fx()`](mixing.md)) and its mix, so the track is still
 one track: one row in the arrangement, one fader. It works on a part, a drum lane (a snare made of a snare, a clap

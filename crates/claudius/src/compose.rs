@@ -408,7 +408,7 @@ pub fn out_of_place<'a>(g: &GenreProfile, role: Role, sound: &'a Sound) -> Optio
             let stacked: Vec<&str> =
                 g.parts.iter().filter(|p| p.role == role).flat_map(|p| &p.layers).map(|l| l.sound.as_str()).collect();
             let named = |s: &Sound| matches!(s, Sound::Synth { preset, .. } if stacked.contains(&preset.as_str()));
-            layers.iter().map(|l| &l.sound).find(|s| !named(s) && !placed(s))
+            layers.iter().filter(|l| !is_sub(l)).map(|l| &l.sound).find(|s| !named(s) && !placed(s))
         }
         s => (!placed(s)).then_some(s),
     }
@@ -518,13 +518,15 @@ pub fn draw_sound(
             Sound::Instrument { name, label }
         }
     };
-    stacked(spec, drawn, used)
+    let own = g.parts.iter().any(|p| p.name == spec.name);
+    stacked(spec, drawn, used, own)
 }
 
 /// The sound `drawn` stacked as the genre stacks its part `spec` (`PartSpec::layers`): a rack of its layers, `"$"`
 /// the sound drawn and any other a synth preset by name, but none another part plays (`used`: a second bass stacks no
-/// second sub); as drawn when the genre stacks none.
-fn stacked(spec: &PartSpec, drawn: Sound, used: &BTreeSet<String>) -> Sound {
+/// second sub); when the genre stacks none, as drawn, or of one of the genre's `own` basses, with a sub under it
+/// (`with_sub`). A layer laid over the song (a double) stays one sound.
+fn stacked(spec: &PartSpec, drawn: Sound, used: &BTreeSet<String>, own: bool) -> Sound {
     let layers: Vec<Layer> = spec
         .layers
         .iter()
@@ -540,12 +542,64 @@ fn stacked(spec: &PartSpec, drawn: Sound, used: &BTreeSet<String>) -> Sound {
                 level_db: l.level,
                 pan: 0.0,
                 transpose: l.transpose,
+                fold: l.fold,
                 duck: l.duck,
                 fx: l.fx.clone(),
             })
         })
         .collect();
-    if layers.is_empty() { drawn } else { Sound::Rack { layers } }
+    if !layers.is_empty() {
+        return Sound::Rack { layers };
+    }
+    if !own {
+        return drawn;
+    }
+    with_sub(spec, &drawn, used).unwrap_or(drawn)
+}
+
+/// the frequency a bass's sub hands over to the sound above it, Hz
+const SUB_CROSSOVER: f32 = 90.0;
+/// how far under the sound above it a bass's sub is made, dB, each first as loud as the other over its band
+const SUB_DB: f32 = -3.0;
+/// the sines that are a sub themselves, played in the sub octave
+const SINES: &[&str] = &["sub_bass", "808"];
+/// the bass presets with nothing under their note (`synth::presets`): no sub and no oscillator an octave down
+const NO_SUB: &[&str] = &["organ_bass", "pluck_bass", "dist_bass", "wobble"];
+
+/// whether a rack's layer is a sub under its bass (`with_sub`): a sine playing every note in the sub octave, which no
+/// genre's palette names and every genre's bass may have
+pub fn is_sub(l: &Layer) -> bool {
+    l.fold.is_some() && matches!(&l.sound, Sound::Synth { preset, .. } if SINES.contains(&preset.as_str()))
+}
+
+/// A synth bass whose line reaches above the sub octave (`SUB_OCTAVE`) with a sub under it, as producers stack a bass
+/// that is felt as well as heard: under a preset with nothing below its note (`NO_SUB`), a sine (`sub_bass`) playing
+/// each of its notes in the sub octave under `SUB_CROSSOVER`, ducking under the kick half again as much as the part
+/// does, and the sound drawn above it; a sine itself played in the sub octave. None for a bass that plays there
+/// already, one with a sub or an octave down of its own (`deep_bass`, `reese`, ...), a recorded one, which keeps its
+/// own low end, an acid line or a log drum, whose sound is its own, and the second bass of a song whose first has the
+/// sub.
+fn with_sub(spec: &PartSpec, drawn: &Sound, used: &BTreeSet<String>) -> Option<Sound> {
+    let Sound::Synth { preset, .. } = drawn else { return None };
+    if spec.role != Role::Bass || spec.register.1 <= SUB_OCTAVE[1] + 4 || used.contains("synth:sub_bass") {
+        return None;
+    }
+    if SINES.contains(&preset.as_str()) {
+        return Some(Sound::Rack { layers: vec![Layer { fold: Some(SUB_OCTAVE), ..Layer::of(drawn.clone()) }] });
+    }
+    if !NO_SUB.contains(&preset.as_str()) {
+        return None;
+    }
+    let sine = Sound::Synth { preset: "sub_bass".into(), patch: presets::get("sub_bass")? };
+    let sub = Layer {
+        band: Some([0.0, SUB_CROSSOVER]),
+        level_db: SUB_DB,
+        fold: Some(SUB_OCTAVE),
+        duck: 0.5 * spec.mix.duck,
+        ..Layer::of(sine)
+    };
+    let above = Layer { band: Some([SUB_CROSSOVER, 0.0]), ..Layer::of(drawn.clone()) };
+    Some(Sound::Rack { layers: vec![sub, above] })
 }
 
 fn vary_patch(name: &str, rng: &mut Rng) -> Sound {

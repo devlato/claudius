@@ -124,14 +124,59 @@ fn the_same_seed_gives_the_same_song() {
 }
 
 #[test]
+fn a_synth_bass_with_nothing_under_its_note_plays_a_sub_in_the_sub_octave() {
+    use claudius::model::{Layer, Role, SUB_OCTAVE};
+    let sine = |l: &Layer| matches!(&l.sound, Sound::Synth { preset, .. } if preset == "sub_bass" || preset == "808");
+    let mut subs = 0;
+    for genre in ["house", "deep_house", "dance_pop", "techno", "trance", "electro_house", "afro_house"] {
+        let g = genres::get(genre).unwrap();
+        for seed in 0..16 {
+            let bp = compose::generate(&g, seed, &Options::default(), None);
+            let bass =
+                bp.parts.iter().find(|p| p.role == Role::Bass && g.parts.iter().any(|s| s.name == p.name)).unwrap();
+            match &bass.sound {
+                // those with nothing under their note always get one; the rest have their own
+                Sound::Synth { preset, .. } => assert!(
+                    !["organ_bass", "pluck_bass", "dist_bass", "wobble", "sub_bass"].contains(&preset.as_str()),
+                    "{genre} {seed}: {preset} with no sub"
+                ),
+                Sound::Rack { layers } if layers.iter().any(compose::is_sub) => {
+                    let sub = layers.iter().find(|l| compose::is_sub(l)).unwrap();
+                    assert!(sine(sub) && sub.fold == Some(SUB_OCTAVE), "{genre} {seed}: {}", bass.sound.describe());
+                    if let [under, over] = layers.as_slice() {
+                        assert_eq!((under.band, over.band), (Some([0.0, 90.0]), Some([90.0, 0.0])), "{genre} {seed}");
+                    }
+                    subs += 1;
+                }
+                _ => {}
+            }
+        }
+    }
+    assert!(subs >= 20, "{subs}");
+    // an 808 played in the sub octave already, and a recorded bass, stay as they are
+    let trap = genres::get("trap").unwrap();
+    let bp = compose::generate(&trap, 1, &Options::default(), None);
+    let bass = bp.parts.iter().find(|p| p.role == Role::Bass).unwrap();
+    let Sound::Rack { layers } = &bass.sound else { panic!("trap stacks its 808") };
+    assert!(layers.iter().all(|l| !compose::is_sub(l)), "{}", bass.sound.describe());
+}
+
+#[test]
 fn every_part_plays_a_synth_its_genre_has_a_place_for() {
     without_installed_packs();
     for g in genres::all().unwrap() {
         // what a genre stacks under a part by name (a sub under its bass) is its own
         let stacked: Vec<&str> = g.parts.iter().flat_map(|s| &s.layers).map(|l| l.sound.as_str()).collect();
+        // and so is the sub claudius stacks under a bass (`compose::is_sub`)
+        fn heard(s: &Sound) -> Vec<&Sound> {
+            match s {
+                Sound::Rack { layers } => layers.iter().filter(|l| !compose::is_sub(l)).map(|l| &l.sound).collect(),
+                s => vec![s],
+            }
+        }
         for seed in 0..12 {
             let bp = compose::generate(&g, seed, &Options::default(), None);
-            for (p, one) in bp.parts.iter().flat_map(|p| p.sound.each().into_iter().map(move |s| (p, s))) {
+            for (p, one) in bp.parts.iter().flat_map(|p| heard(&p.sound).into_iter().map(move |s| (p, s))) {
                 let Sound::Synth { preset, .. } = one else { continue };
                 if matches!(p.sound, Sound::Rack { .. }) && stacked.contains(&preset.as_str()) {
                     continue;

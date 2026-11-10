@@ -50,8 +50,10 @@ track("arp",   n("0 2 4 7").scale("A:minor").octave(4).fast(2).s("pluck").role("
 track("conga", s("~ conga ~ [conga conga]"));   // perc without being told
 ```
 
-Genres shift some targets: techno's kick +1 dB; trap's bass +1.5, kick −1, hat −1; lofi's kick −1.5, snare −0.5,
-keys +2.
+Genres shift some targets: techno's kick +1 dB; trap's bass +4, kick −1, hat +2.5; lofi's kick −1.5, snare −0.5,
+keys +2. A bass or a kick that would fill more of the mix's sub or low band than its genre's masters do comes down
+until it does not ([the low end](../engineering/rendering.md#the-auto-mixer)), so a genre that lifts its bass gets it
+deep, not loud.
 
 ## Level
 

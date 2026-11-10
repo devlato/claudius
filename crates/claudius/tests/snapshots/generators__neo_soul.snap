@@ -20,7 +20,7 @@ drum snare main (drum snare): ....X.......X...|....X.......X...|....X.......X...
 drum hat main (drum closed_hat): x...x.x.x.x.x.xx|x...x.x.x.x.x.xx|x...x.x.x.x.x.xx|x...x.x.x.x.x.xx
 drum rim main (drum rim): ..............x.|..............x.|..............x.|..............x.
 drum ride main (drum ride): o.o.o.o.o.......|o.o.o.o.o.......|o.o.o.o.o.......|o.o.o.o.o.......
-part bass (bass): walking synth sub_bass, register 28..48, density 0.59
+part bass (bass): walking a rack of synth patch 'sub_bass', register 28..48, density 0.59
 part keys (keys): gospel synth keys, register 50..76, density 0.59
 part lead (lead): lofi_melody synth vox_lead, register 62..84, density 0.41
 part strings (pad): legato synth warm_pad, register 52..79, density 0.56

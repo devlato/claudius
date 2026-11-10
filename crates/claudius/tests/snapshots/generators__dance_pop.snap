@@ -25,7 +25,7 @@ drum hat pop (drum closed_hat): x.x.x.x.x.x.x.xx|x.x.x.x.x.x.x.xx|x.x.x.x.x.x.x.
 drum hat sparse (drum closed_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
 drum ohat main (drum open_hat): ..x...x...x...x.|..x...x...x...x.|..x...x...x...x.|..x...x...x...x.
 drum shaker main (drum shaker): ....o....oo.....|....o....oo.....|....o....oo.....|....o....oo.....
-part bass (bass): pulse synth pluck_bass, register 33..52, density 0.51
+part bass (bass): pulse a rack of synth patch 'sub_bass' under 90 Hz + synth patch 'pluck_bass' above 90 Hz, register 33..52, density 0.51
 part chords (chords): offbeat synth keys, register 55..76, density 0.60
 part pad (pad): sustain synth vowel_pad, register 50..76, density 0.59
 part hook (lead): disco_hook synth vox_lead, register 60..77, density 0.45

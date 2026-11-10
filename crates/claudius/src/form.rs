@@ -11,7 +11,7 @@
 //! - the intro left out (a cold start) or stripped to its drums (when they have the kick) or to its melodic parts;
 //! - the outro left out (a cold ending) or thinned to half its parts;
 //! - a first verse without one of its parts, a later verse with one more from the hook, a first hook without one part
-//!   the later ones play;
+//!   the later ones play (never the bass, which carries the low end from the first verse on);
 //! - fills, gaps before a drop and the intro's filter toggled now and then, and each section's energy nudged.
 //!
 //! A section that gains or loses tracks moves its energy with them.
@@ -62,6 +62,12 @@ fn melodic<'a>(s: &'a SectionSpec, g: &GenreProfile) -> Vec<&'a String> {
                 || (phrase && l.as_str() == crate::sampling::PHRASE)
         })
         .collect()
+}
+
+/// the melodic parts a section can do without for a while: not its bass, which carries its low end
+fn thinnable<'a>(s: &'a SectionSpec, g: &GenreProfile) -> Vec<&'a String> {
+    let bass = |l: &str| l == crate::sampling::BASS || g.parts.iter().any(|p| p.name == l && p.role == Role::Bass);
+    melodic(s, g).into_iter().filter(|l| !bass(l)).collect()
 }
 
 /// whether a layer is sure to play in every song of the genre: a drum lane, or a part never left out
@@ -198,7 +204,7 @@ pub fn vary(template: &[SectionSpec], g: &GenreProfile, bpm: f64, rng: &Rng) -> 
     let verses: Vec<usize> = (0..form.len()).filter(|&i| form[i].kind == SectionKind::Verse).collect();
     let mut r = rng.fork("first verse");
     if let Some(&first) = verses.first() {
-        let m: Vec<String> = melodic(&form[first], g).into_iter().cloned().collect();
+        let m: Vec<String> = thinnable(&form[first], g).into_iter().cloned().collect();
         if m.len() >= 2 && r.chance(0.3) {
             let drop = &m[r.below(m.len())];
             let before = form[first].layers.clone();
@@ -221,7 +227,7 @@ pub fn vary(template: &[SectionSpec], g: &GenreProfile, bpm: f64, rng: &Rng) -> 
     let hooks: Vec<usize> = (0..form.len()).filter(|&i| form[i].kind == SectionKind::Hook).collect();
     let mut r = rng.fork("first hook");
     if hooks.len() >= 2 && r.chance(0.25) {
-        let m: Vec<String> = melodic(&form[hooks[0]], g).into_iter().cloned().collect();
+        let m: Vec<String> = thinnable(&form[hooks[0]], g).into_iter().cloned().collect();
         if m.len() >= 3 {
             let drop = &m[r.below(m.len())];
             let before = form[hooks[0]].layers.clone();
@@ -566,7 +572,7 @@ fn apply(f: &mut Vec<SectionSpec>, g: &GenreProfile, c: Change, aim: Aim, rng: &
             let pairs: Vec<usize> = (1..f.len()).filter(|&i| alike(&f[i - 1], &f[i])).collect();
             let i = *pairs.get(rng.below(pairs.len()))?;
             let before = f[i].layers.clone();
-            let thinner: Vec<String> = melodic(&f[i], g).into_iter().cloned().collect();
+            let thinner: Vec<String> = thinnable(&f[i], g).into_iter().cloned().collect();
             let fuller: Vec<String> = (i..f.len())
                 .find(|&j| is_peak(&f[j]))
                 .map(|j| f[j].layers.iter().filter(|l| !before.contains(l)).cloned().collect())
@@ -650,6 +656,26 @@ mod tests {
                                 s.name
                             );
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn the_first_verse_and_hook_keep_the_bass_their_genre_gives_them() {
+        for g in crate::genres::all().unwrap() {
+            let bass: Vec<&str> = g.parts.iter().filter(|p| p.role == Role::Bass).map(|p| p.name.as_str()).collect();
+            let plays = |s: &SectionSpec| s.layers.iter().any(|l| bass.contains(&l.as_str()));
+            for (fi, template) in g.forms.iter().enumerate() {
+                for kind in [SectionKind::Verse, SectionKind::Hook] {
+                    if !template.iter().find(|s| s.kind == kind).is_some_and(plays) {
+                        continue;
+                    }
+                    for seed in 0..24 {
+                        let f = vary(template, &g, 120.0, &Rng::new(seed));
+                        let first = f.iter().find(|s| s.kind == kind);
+                        assert!(first.is_none_or(plays), "{} form {fi} seed {seed}: the first {kind:?}", g.name);
                     }
                 }
             }

@@ -100,7 +100,7 @@
       {"fx": "compressor", "threshold_db": -9, "ratio": 2.5, "attack_ms": 10, "release_ms": 100, "knee_db": 6}
     ],
     "duck_release": 0.2,
-    "levels": {"bass": 5.0, "hat": 1.5, "kick": -1.0},
+    "levels": {"bass": 3.5, "hat": 1.5, "kick": -1.0},
     "bands": {"sub": [-14, -1], "low": [-9, -1], "mid": [-22, -8], "presence": [-31, -15], "air": [-35, -17]}
   }
 }

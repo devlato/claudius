@@ -176,6 +176,10 @@ pub struct TrackReport {
     pub clips: usize,
     pub level_lufs: Option<f64>,
     pub gain_db: f32,
+    /// what of `gain_db` turns it down to hold the song's low end within its genre's (`low_end`): a bass or a kick
+    /// the mix pulled back because the two together boom, not one mixed off its level
+    #[serde(skip_serializing_if = "no_trim")]
+    pub low_end_db: f32,
     /// how a recording on it keeps the song's time (a loop's or a take's; none for notes, or for under 8 beats of
     /// sound)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -603,6 +607,8 @@ struct KeptTrack {
     level: Option<f64>,
     /// how it keeps the song's time (`timed`), once measured: a sound made elsewhere (`Kept::keep`) is measured here
     time: Option<Option<KeptTime>>,
+    /// its energies (`energies`), once measured, as its time is
+    energies: Option<Energies>,
 }
 
 /// how track `t` keeps a song at `bpm`'s time, from its sound (`kept_time`): a recording's only, a loop's or a take's
@@ -711,7 +717,7 @@ impl Kept {
     /// after
     pub fn keep(&mut self, name: &str, key: TrackKey, sound: Stereo, level: Option<f64>) {
         let sound = Arc::new(Blocks::of(&sound));
-        self.tracks.insert(name.to_string(), KeptTrack { key: key.0, sound, level, time: None });
+        self.tracks.insert(name.to_string(), KeptTrack { key: key.0, sound, level, time: None, energies: None });
     }
 }
 
@@ -1057,7 +1063,109 @@ struct Mixed {
     tracks: Vec<TrackReport>,
 }
 
-type Made = (blake3::Hash, Arc<Blocks>, Option<f64>, Option<KeptTime>);
+type Made = (blake3::Hash, Arc<Blocks>, Option<f64>, Option<KeptTime>, Energies);
+
+fn no_trim(db: &f32) -> bool {
+    *db == 0.0
+}
+
+/// whether a track carries the low end, whose sub and low band the mix weighs (`energies`)
+fn carries_low_end(t: &Track) -> bool {
+    matches!(t.role.as_str(), "bass" | "kick" | "tom" | "drums") || matches!(t.sound, Sound::Loop { .. })
+}
+
+/// how far under the most its genre's mixes have (`judge::band_range`) the mix's sub and its low band are held, dB:
+/// room for the master, whose compressor and limiter, holding back the hits more than a held bass, lift the sub by
+/// about a dB and a half and the low band by less
+const LOW_END_MARGIN: [f64; 2] = [3.5, 1.5];
+/// the most the mix takes off a bass, and off a kick, to hold its low end
+const BASS_TRIM_DB: f64 = -9.0;
+const KICK_TRIM_DB: f64 = -4.0;
+
+/// A sound's mean-square energy over the song: all of it, and, for one that `low` says carries the low end, its
+/// sub (under 60 Hz) and its low band (60 to 250 Hz), the bands the critic weighs a mix's low end in
+/// (`judge::BANDS`); the rest's are taken as none.
+#[derive(Clone, Copy, Debug, Default)]
+struct Energies {
+    all: f64,
+    sub: f64,
+    low: f64,
+}
+
+fn energies(sound: &Blocks, low: bool) -> Energies {
+    use crate::dsp::filter::{Biquad, BiquadKind};
+    let (n, mut e) = (sound.len(), Energies::default());
+    let mut sub = Biquad::new(BiquadKind::Lowpass, 60.0, SRF, 0.707, 0.0);
+    let (mut above, mut below) = (
+        Biquad::new(BiquadKind::Highpass, 60.0, SRF, 0.707, 0.0),
+        Biquad::new(BiquadKind::Lowpass, 250.0, SRF, 0.707, 0.0),
+    );
+    let (mut l, mut r) = (vec![0.0f32; BLOCK], vec![0.0f32; BLOCK]);
+    for from in (0..n).step_by(BLOCK) {
+        let k = BLOCK.min(n - from);
+        if !sound.read(from, k, &mut l[..k], &mut r[..k]) {
+            continue;
+        }
+        for (x, y) in l[..k].iter().zip(&r[..k]) {
+            let m = 0.5 * (x + y);
+            e.all += f64::from(m * m);
+            if low {
+                let s = sub.tick(m);
+                let b = below.tick(above.tick(m));
+                e.sub += f64::from(s * s);
+                e.low += f64::from(b * b);
+            }
+        }
+    }
+    let n = n.max(1) as f64;
+    Energies { all: e.all / n, sub: e.sub / n, low: e.low / n }
+}
+
+/// The dB each track is turned down by (or not) so that the mix's sub and its low band, as its tracks' energies at
+/// their `gains` add up to them, come no nearer the most its genre's mixes have than `LOW_END_MARGIN`: a dB at a
+/// time off whichever of the bass and the kick has more of the band, as an engineer pulls back what is booming, the
+/// bass by `BASS_TRIM_DB` at most and the kick by `KICK_TRIM_DB`. So the kick gives way in a genre whose kick
+/// carries the sub, and the bass in one whose 808 does. A mix whose low end is within it is left as it is.
+fn low_end(p: &Project, sounds: &[Made], gains: &[f32]) -> Vec<f32> {
+    let e: Vec<Energies> = sounds.iter().map(|m| m.4).collect();
+    let mut trims = vec![0.0f64; p.tracks.len()];
+    let roles = [("bass", BASS_TRIM_DB), ("kick", KICK_TRIM_DB)];
+    // the sub, then the low band (`judge::BANDS`' first two)
+    for band in 0..2 {
+        let of = |x: &Energies| if band == 0 { x.sub } else { x.low };
+        let most = 10f64.powf((crate::judge::band_range(band, &p.mix.bands).1 - LOW_END_MARGIN[band]) / 10.0);
+        for _ in 0..(-(BASS_TRIM_DB + KICK_TRIM_DB)) as usize {
+            let at = |k: usize| 10f64.powf((f64::from(gains[k]) + trims[k]) / 10.0);
+            let (mut part, mut whole) = (0.0, 0.0);
+            let mut by_role = [0.0f64; 2];
+            for (k, t) in p.tracks.iter().enumerate() {
+                let x = of(&e[k]) * at(k);
+                (part, whole) = (part + x, whole + e[k].all * at(k));
+                if let Some(i) = roles.iter().position(|(role, _)| t.role == *role) {
+                    by_role[i] += x;
+                }
+            }
+            if whole <= 0.0 || part / whole <= most {
+                break;
+            }
+            // the louder in the band of those that can still give way, and carry a third of it at least: what booms
+            // in it besides them (a pad, an impact) is no reason to take the bass away
+            let room = |i: usize| p.tracks.iter().zip(&trims).any(|(t, d)| t.role == roles[i].0 && *d > roles[i].1);
+            let Some(i) = (0..2)
+                .filter(|&i| by_role[i] >= part / 3.0 && room(i))
+                .max_by(|&x, &y| by_role[x].total_cmp(&by_role[y]))
+            else {
+                break;
+            };
+            for (k, t) in p.tracks.iter().enumerate() {
+                if t.role == roles[i].0 {
+                    trims[k] = (trims[k] - 1.0).max(roles[i].1);
+                }
+            }
+        }
+    }
+    trims.into_iter().map(|t| t as f32).collect()
+}
 
 impl<'a> Song<'a> {
     fn of(p: &'a Project, opts: &Options) -> Result<Song<'a>> {
@@ -1104,7 +1212,12 @@ impl<'a> Song<'a> {
     fn rack(&self, t: &Track, layers: &[Layer]) -> Result<Stereo> {
         let mut sum = Stereo::zeros(self.len);
         for (k, layer) in layers.iter().enumerate() {
-            let one = Track { sound: layer.sound.clone(), transpose: t.transpose + layer.transpose, ..t.clone() };
+            let mut one = Track { sound: layer.sound.clone(), transpose: t.transpose + layer.transpose, ..t.clone() };
+            if let Some(range) = layer.fold {
+                for n in one.notes.iter_mut() {
+                    n.p = crate::model::fold_into(n.p + one.transpose, range) - one.transpose;
+                }
+            }
             let mut x = render_source(&one, self.p, &self.tm, self.len, &self.chokes)?;
             let ctx = self.ctx(&format!("{}/{k}", t.name), 0);
             if let Some([low_hz, high_hz]) = layer.band {
@@ -1166,28 +1279,38 @@ impl<'a> Song<'a> {
                 let key = track_key(p, t, self.len, &self.chokes);
                 if let Some(k) = kept.tracks.get(&t.name).filter(|k| k.key == key) {
                     let time = k.time.clone().unwrap_or_else(|| timed(t, || k.sound.stereo(), p.bpm));
-                    return Ok((key, k.sound.clone(), k.level, time));
+                    let e = k.energies.unwrap_or_else(|| energies(&k.sound, carries_low_end(t)));
+                    return Ok((key, k.sound.clone(), k.level, time, e));
                 }
                 let (x, level) = self.sound(t)?;
                 let time = timed(t, || &x, p.bpm);
-                Ok((key, Arc::new(Blocks::of(&x)), level, time))
+                let sound = Arc::new(Blocks::of(&x));
+                let e = energies(&sound, carries_low_end(t));
+                Ok((key, sound, level, time, e))
             })
             .collect::<Result<Vec<_>>>()?;
         kept.tracks = p
             .tracks
             .iter()
             .zip(&sounds)
-            .map(|(t, (key, sound, level, time))| {
-                let k = KeptTrack { key: *key, sound: sound.clone(), level: *level, time: Some(time.clone()) };
+            .map(|(t, (key, sound, level, time, e))| {
+                let k = KeptTrack {
+                    key: *key,
+                    sound: sound.clone(),
+                    level: *level,
+                    time: Some(time.clone()),
+                    energies: Some(*e),
+                };
                 (t.name.clone(), k)
             })
             .collect();
         Ok(sounds)
     }
 
-    /// The tracks' samples in `range` into their buses and the sends, levelled to their roles' targets, ducked under
-    /// the kick and panned, as the sum of each one's own copy scaled in that order would be; the buses through their
-    /// chains and the returns through theirs, added up.
+    /// The tracks' samples in `range` into their buses and the sends, levelled to their roles' targets (and the bass
+    /// and kick to the low end their genre's mixes have, `low_end`), ducked under the kick and panned, as the sum of
+    /// each one's own copy scaled in that order would be; the buses through their chains and the returns through
+    /// theirs, added up.
     fn mix(&self, sounds: &[Made], range: std::ops::Range<usize>, want_stems: bool) -> Mixed {
         let p = self.p;
         let (a, n) = (range.start, range.len());
@@ -1196,11 +1319,20 @@ impl<'a> Song<'a> {
         let mut del_send = Stereo::zeros(n);
         let mut stems = Vec::new();
         let mut tracks = Vec::new();
-        for (t, (_, sound, level, time)) in p.tracks.iter().zip(sounds) {
-            let target = target_level(&t.role) + p.mix.levels.get(&t.role).copied().unwrap_or(0.0) + t.mix.level_db;
-            let residue = matches!(t.sound, Sound::Loop { .. }) && level.is_some_and(|l| l < RESIDUE_LUFS);
-            let most = if residue { RESIDUE_BOOST_DB } else { 30.0 };
-            let gain_db = level.map_or(0.0, |l| (target as f64 - l) as f32).clamp(-40.0, most);
+        let levelled: Vec<f32> = p
+            .tracks
+            .iter()
+            .zip(sounds)
+            .map(|(t, (_, _, level, _, _))| {
+                let target = target_level(&t.role) + p.mix.levels.get(&t.role).copied().unwrap_or(0.0) + t.mix.level_db;
+                let residue = matches!(t.sound, Sound::Loop { .. }) && level.is_some_and(|l| l < RESIDUE_LUFS);
+                let most = if residue { RESIDUE_BOOST_DB } else { 30.0 };
+                level.map_or(0.0, |l| (target as f64 - l) as f32).clamp(-40.0, most)
+            })
+            .collect();
+        let trims = low_end(p, sounds, &levelled);
+        for (k, (t, (_, sound, level, time, _))) in p.tracks.iter().zip(sounds).enumerate() {
+            let gain_db = levelled[k] + trims[k];
             let gain = db_to_gain(gain_db);
             let duck = self.duck.as_ref().filter(|_| t.mix.duck > 0.0 && t.role != "kick");
             let depth = t.mix.duck.clamp(0.0, 1.0);
@@ -1268,6 +1400,7 @@ impl<'a> Song<'a> {
                 clips: t.clips.len(),
                 level_lufs: level.map(|l| (l * 10.0).round() / 10.0),
                 gain_db: (gain_db * 10.0).round() / 10.0,
+                low_end_db: trims[k],
                 time: time.clone(),
             });
         }
@@ -1426,6 +1559,30 @@ pub fn finalize(x: &mut Stereo, target: f32, ceiling: f32) -> Mastered {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_mix_holds_its_low_end_within_its_genres_turning_down_only_the_bass_and_the_kick() {
+        for (genre, seed) in [("hip_hop", 2), ("trap", 2), ("house", 1), ("techno", 1)] {
+            let g = crate::genres::get(genre).unwrap();
+            let bp = crate::compose::generate(&g, seed, &Default::default(), None);
+            let (a, b) = crate::evolve::preview_window(&bp, 32);
+            let p = crate::compose::arrange(&bp).slice(a, b);
+            let r = render(&p, &Options { stems: false, tail_secs: 1.0 }).unwrap();
+            let shares = crate::judge::band_shares(&r.master);
+            for (band, share) in shares.iter().take(2).enumerate() {
+                let (_, most) = crate::judge::band_range(band, &p.mix.bands);
+                assert!(
+                    *share <= most,
+                    "{genre} {seed}: {} {share:.1} dB, the most {most}",
+                    crate::judge::BANDS[band].0
+                );
+            }
+            for t in r.tracks.iter().filter(|t| t.low_end_db != 0.0) {
+                assert!(matches!(t.role.as_str(), "bass" | "kick"), "{genre} {seed}: {} turned down", t.name);
+                assert!(t.low_end_db >= BASS_TRIM_DB as f32, "{genre} {seed}: {} {}", t.name, t.low_end_db);
+            }
+        }
+    }
 
     /// a track of `role` striking every sixteenth over `bars` bars, `late_ms` behind the beat
     fn ticks(role: &str, bars: u32, late_ms: f32) -> Track {
