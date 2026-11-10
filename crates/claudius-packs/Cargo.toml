@@ -41,4 +41,6 @@ ureq = { version = "3", default-features = false, features = ["rustls"], optiona
 web-time = "1"
 
 [dev-dependencies]
+# the web editions are Ogg Vorbis, which a build of this crate alone leaves out
+claudius-encode = { version = "0.5.0", path = "../claudius-encode", features = ["vorbis"] }
 tempfile = "3"

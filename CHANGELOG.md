@@ -51,6 +51,12 @@ brought to its hook's level, so a piece of a quiet verse no longer drops away be
 brings the recording's sections halfway to one level, so a quiet verse is not lost under the genre's drums, which keep
 one level all through.
 
+The web studio demo plays real instruments: a song there draws on web editions of the sample packs, as the app draws on
+the packs (the Salamander piano, a Wurlitzer, strings, brass, flute, harp, mallets and sax from VSCO 2 and VCSL,
+guitars, basses, a choir, an acoustic kit, the TR-808 and TR-707; some 70 instruments in 24 MB, each song fetching its
+own), where every part played on a synth. A song asks for a Rhodes most of all, and no Rhodes recording may be passed
+on freely, so the Wurlitzer plays it there. `claudius-packs web` makes such editions of any installed instrument.
+
 ## [0.5.0] - 2026-11-09
 
 A recording can be rebuilt as a song of its own parts, every note of them yours to change: `claudius remake

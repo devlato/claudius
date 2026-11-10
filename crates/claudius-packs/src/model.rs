@@ -134,6 +134,10 @@ pub struct InstrumentDef {
     /// a repeated key fades the previous voice on that key (pianos)
     #[serde(default)]
     pub retrigger: bool,
+    /// whether it was recorded in mono, said where its files come only as a song plays them (a web edition), so that
+    /// a song can know it before they do; else its files tell
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recorded_mono: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unison: Option<Unison>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

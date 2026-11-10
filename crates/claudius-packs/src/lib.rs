@@ -29,6 +29,7 @@ mod resample;
 mod resolve;
 mod sfz;
 mod strudel;
+pub mod web;
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
@@ -105,6 +106,47 @@ pub fn cache_dir() -> PathBuf {
 
 static INDEXES: Mutex<Option<Vec<Arc<PackIndex>>>> = Mutex::new(None);
 static INSTRUMENTS: Mutex<Option<HashMap<InstrumentRef, Arc<Instrument>>>> = Mutex::new(None);
+/// the packs handed to the process rather than installed on its disk (`provide`)
+static PROVIDED: Mutex<Vec<Arc<PackIndex>>> = Mutex::new(Vec::new());
+
+/// A pack handed to the process rather than installed on its disk, as a browser, which has none, is handed the web
+/// studio's: from now on it is installed as far as `resolve`, `instrument` and `installed` go (in place of one of its
+/// name on the disk), and each of its files plays once it is handed over too (`provide_file`).
+pub fn provide(index: PackIndex) {
+    let mut p = PROVIDED.lock().unwrap_or_else(|e| e.into_inner());
+    p.retain(|x| x.name != index.name);
+    p.push(Arc::new(index));
+    drop(p);
+    refresh();
+}
+
+/// The file `file` (its path in the pack's index) of the pack `pack` handed over (`provide`), as its bytes, which are
+/// decoded and kept for as long as the process runs.
+pub fn provide_file(pack: &str, file: &str, bytes: Vec<u8>) -> Result<()> {
+    decode::provide(&packs_dir().join(pack).join(file), bytes)
+}
+
+/// The files the instruments `refs` play that are not decoded yet, each once: its pack, its path in the pack and the URL
+/// it comes from (what to fetch and hand over with `provide_file` before a pack handed over plays them).
+pub fn wanted(refs: &[InstrumentRef]) -> Vec<(String, String, String)> {
+    let packs = installed();
+    let mut out: Vec<(String, String, String)> = Vec::new();
+    for r in refs {
+        let Some(ix) = packs.iter().find(|p| p.name == r.pack) else { continue };
+        let Some(v) = ix.instruments.iter().find(|d| d.name == r.instrument).and_then(|d| d.variants.get(r.variant))
+        else {
+            continue;
+        };
+        for z in &v.zones {
+            let Some(f) = ix.files.get(z.file as usize) else { continue };
+            let known = out.iter().any(|(p, path, _)| *p == ix.name && *path == f.path);
+            if !known && !decode::decoded(&packs_dir().join(&ix.name).join(&f.path)) {
+                out.push((ix.name.clone(), f.path.clone(), f.url.clone()));
+            }
+        }
+    }
+    out
+}
 
 /// Forget cached indexes and instruments (after packs changed on disk, e.g. from another process).
 pub fn refresh() {
@@ -130,6 +172,9 @@ fn load_indexes() -> Vec<Arc<PackIndex>> {
             }
         }
     }
+    let provided = PROVIDED.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    out.retain(|ix| !provided.iter().any(|p| p.name == ix.name));
+    out.extend(provided);
     // curated packs in registry order, then user packs by name
     let pos = |n: &str| catalog::REGISTRY.packs.iter().position(|p| p.name == n).unwrap_or(usize::MAX);
     out.sort_by(|a, b| pos(&a.name).cmp(&pos(&b.name)).then(a.name.cmp(&b.name)));

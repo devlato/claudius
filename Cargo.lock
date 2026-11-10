@@ -986,10 +986,12 @@ version = "0.5.0"
 dependencies = [
  "claudius",
  "claudius-api",
+ "claudius-packs",
  "claudius-session",
  "js-sys",
  "serde_json",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
  "web-sys",
 ]
 

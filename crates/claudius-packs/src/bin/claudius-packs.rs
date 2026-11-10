@@ -12,6 +12,7 @@
 //! claudius-packs audition [out_dir] [--pack P]
 //! claudius-packs render <name> <out.wav> [--bank B] [--notes 60,64,67] [--secs S]
 //! claudius-packs bench [name] [seconds] [--bank B]
+//! claudius-packs web <out dir> <base url> <pack>:<instrument>[=alias,alias]...
 //! ```
 
 #![forbid(unsafe_code)]
@@ -518,12 +519,62 @@ fn main() -> Result<()> {
             write_wav(&out, &l, &r)?;
             println!("{} -> {}", inst.info().name, out.display());
         }
+        "web" => {
+            let p = positional(rest);
+            let (out, base) = match (p.first(), p.get(1)) {
+                (Some(o), Some(b)) => (PathBuf::from(o), b.trim_end_matches('/').to_string()),
+                _ => bail!("web <out dir> <base url> <pack>:<instrument>[=alias,alias]..."),
+            };
+            web(&out, &base, &p[2..])?;
+        }
         "help" | "--help" | "-h" => println!("{}", usage()),
         other => {
             eprintln!("unknown command '{other}'\n\n{}", usage());
             std::process::exit(2);
         }
     }
+    Ok(())
+}
+
+/// The web editions of the instruments `picks` (`pack:instrument`, `=` and the names it also answers to), each pack's
+/// in `out/<pack>` with its index, its files' URLs under `base/<pack>`, `out/index.json` naming the packs, which a
+/// browser fetches first, and `out/CREDITS.txt`, whom each pack is by and under what licence.
+fn web(out: &Path, base: &str, picks: &[&str]) -> Result<()> {
+    let mut by_pack: BTreeMap<&str, Vec<claudius_packs::web::Pick>> = BTreeMap::new();
+    for p in picks {
+        let (what, aliases) = p.split_once('=').map_or((*p, ""), |(w, a)| (w, a));
+        let (pack, instrument) = what.split_once(':').with_context(|| format!("{p}: pack:instrument"))?;
+        let aliases = aliases.split(',').filter(|a| !a.is_empty()).map(String::from).collect();
+        by_pack.entry(pack).or_default().push(claudius_packs::web::Pick { instrument: instrument.into(), aliases });
+    }
+    let (mut packs, mut credits) = (Vec::new(), String::new());
+    for (pack, picks) in &by_pack {
+        let ix = claudius_packs::pack_index(pack)?;
+        credits.push_str(&format!(
+            "{}: {}. {} ({}). From {}\n",
+            ix.title,
+            if ix.attribution.is_empty() { &ix.title } else { &ix.attribution },
+            ix.licence,
+            ix.licence_url,
+            ix.source
+        ));
+        let (dir, to) = (claudius_packs::packs_dir().join(pack), out.join(pack));
+        let t0 = Instant::now();
+        let web = claudius_packs::web::edition(&ix, &dir, picks, &format!("{base}/{pack}"), &to)?;
+        let bytes: u64 = web.files.iter().map(|f| f.size).sum();
+        eprintln!(
+            "{pack}: {} instruments, {} files, {:.1} MB in {:.1} s",
+            web.instruments.len(),
+            web.files.len(),
+            bytes as f64 / 1e6,
+            t0.elapsed().as_secs_f64()
+        );
+        packs.push(pack.to_string());
+    }
+    std::fs::create_dir_all(out)?;
+    std::fs::write(out.join("index.json"), serde_json::to_vec(&serde_json::json!({ "packs": packs }))?)?;
+    let head = "The instruments the claudius studio demo plays, cut down from these sample packs for a browser:\n\n";
+    std::fs::write(out.join("CREDITS.txt"), format!("{head}{credits}"))?;
     Ok(())
 }
 

@@ -25,8 +25,9 @@ usage: cargo xtask <command>
   site [--out DIR] [--site-url URL] [--sounds]
                           assemble the website in DIR (target/site): site/ with its placeholders filled in,
                           the book at /docs/, the studio at /studio/, and /install.sh and /install.ps1;
-                          --sounds renders the demo's sounds into /studio/sounds (claudius' synth presets and
-                          the TR-707 and TR-808, whose packs it downloads into target/demo-sounds)
+                          --sounds makes the instruments the demo plays into /studio/packs (web editions of
+                          the packs' pianos, strings, guitars, drum machines..., downloading the notes they
+                          keep into target/demo-sounds)
   dist [--target TRIPLE] [--headless] [--no-ears] [--web DIR]
                           build the release binaries for TRIPLE (default: this machine) and package them with
                           the web studio into target/dist. --headless leaves out the studio window (no ALSA,

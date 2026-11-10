@@ -19,6 +19,11 @@ cargo xtask site
 node site/tests/serve.mjs --port 8000   # serves target/site when it exists
 ```
 
+`cargo xtask site --sounds`, as the deploy builds it, also makes the instruments the studio demo plays into
+`/studio/packs/`: web editions of the sample packs' pianos, strings, guitars, basses and drum machines, some 70 in
+24 MB, with their credits in `/studio/packs/CREDITS.txt` ([how](../docs/src/engineering/ui.md#the-demos-instruments)).
+Without them the demo plays synthesized sounds.
+
 The players fetch `audio/*.json`, so open the page through a server, not as a file.
 
 ## Placeholders

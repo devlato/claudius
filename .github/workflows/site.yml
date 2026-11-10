@@ -1,8 +1,9 @@
 # Builds the website with `cargo xtask site` (the landing page, the book at /docs/, the studio at /studio/ and the
 # install scripts) and deploys main's to Cloudflare, as the static assets of the Worker in site/wrangler.toml.
 #
-# The build renders the studio demo's sounds with claudius, downloading the two drum machines' packs from GitHub with
-# the run's own read-only token for its API. It runs without a cache and without secrets, and hands the site to the
+# The build makes the instruments the studio demo plays (`claudius-packs web`), downloading the notes they keep from
+# the packs' sources on GitHub with the run's own read-only token for its API. It runs without a cache and without
+# secrets, and hands the site to the
 # deploy job as an artifact. Deploying needs the site's address in the repository variable SITE_URL (https://...),
 # and the secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the environment "site", which only main may use.
 # Pull requests and forks build the site and deploy nothing.
@@ -17,11 +18,13 @@ on:
       - CHANGELOG.md
       - scripts/install.sh
       - scripts/install.ps1
-      # the studio at /studio/, and the sounds its demo plays
+      # the studio at /studio/, its demo's engine, and the instruments it plays
       - crates/claudius-ui/**
       - crates/claudius-api/**
+      - crates/claudius-web/**
       - crates/claudius/src/synth/**
-      - crates/claudius/examples/demo_sounds.rs
+      - crates/claudius-packs/src/web.rs
+      - crates/claudius-packs/src/registry.json
       - xtask/src/site.rs
   pull_request:
     paths: *paths
@@ -75,7 +78,7 @@ jobs:
           if [ -n "$SITE_URL" ]; then set -- --site-url "$SITE_URL"; fi
           cargo xtask site --out target/site --sounds "$@"
         env:
-          # the demo's drum machines are installed from GitHub, whose API takes the run's own read-only token
+          # the demo's instruments are installed from GitHub, whose API takes the run's own read-only token
           GITHUB_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

@@ -153,6 +153,20 @@ require attribution first, then the rest as courtesy credits, then a warning for
 credit line is the pack's `attribution`, its licence when the attribution does not already name it, and the licence
 URL. The engine calls it with the instruments of a project's tracks, so a song credits what it used and nothing else.
 
+## Web editions
+
+A browser has no folder to install a pack in. `claudius-packs web <out> <base url> <pack>:<instrument>[=alias]...`
+makes a web edition of installed instruments (`web::edition`): of each, its first variants, one velocity layer (two
+for a keyboard and a drum), its first round robin, a root every three semitones with its keys reaching halfway to the
+next, and a few seconds of each note (`web::Limits`), as Ogg Vorbis, with an index that is a pack's like any other and
+URLs under `<base url>/<pack>`; and `out/index.json` naming the packs, and `out/CREDITS.txt`. Its index also says
+whether each instrument was recorded in mono (`recorded_mono`), which a song asks as it draws its sounds, before their
+files come. A process without the files on disk is handed the index (`provide`), so its instruments resolve as
+installed ones do, and then each file as its bytes (`provide_file`), decoded into the cache and kept there, since there
+is nothing to decode again; `wanted` says which files a set of instruments still needs. An instrument's level is found
+from its file once that comes, so a sound asked for before it does is not held at a guess. The web studio's demo plays the site's editions so
+([The demo's instruments](ui.md#the-demos-instruments)).
+
 ## Checking a pack
 
 `claudius-packs audition` renders every instrument (an arpeggio and a held chord for pitched instruments, a few hits

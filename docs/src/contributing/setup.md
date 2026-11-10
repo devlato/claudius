@@ -105,7 +105,7 @@ push to `main`, which changes only through pull requests.
 | `cargo xtask web` | the web studio, with trunk | `crates/claudius-ui/dist` |
 | `cargo xtask web --plan` | a web studio that runs the scripted plan in its page's `?plan=`, for the site's end-to-end tests only (`record.spec.mjs`, `files.spec.mjs`; a link could otherwise drive it, the microphone included) | `target/studio-plan` |
 | `cargo xtask docs` | this book | `target/book` |
-| `cargo xtask site` | the website: the landing page, the book at `/docs/`, the studio at `/studio/` and the install scripts; `--sounds` also renders the sounds the studio's demo plays into `/studio/sounds/`, as the deploy does, downloading the TR-707 and TR-808 packs (14 MB) into `target/demo-sounds` | `target/site` |
+| `cargo xtask site` | the website: the landing page, the book at `/docs/`, the studio at `/studio/` and the install scripts; `--sounds` also makes the instruments the studio's demo plays into `/studio/packs/`, as the deploy does (web editions of the packs' pianos, strings, guitars, basses and drum machines, `claudius-packs web`), downloading the notes they keep into `target/demo-sounds` | `target/site` |
 | `cargo xtask dist` | a release archive for this machine, as the release workflow builds it (`--headless` for the Linux server build, `--no-ears` without the ears) | `target/dist` |
 
 The first build downloads ONNX Runtime (about 120 MB) for earshot, into `~/Library/Caches/ort.pyke.io` on macOS and

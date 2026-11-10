@@ -326,6 +326,7 @@ mod tests {
             vel_curve: Vec::new(),
             mono: false,
             retrigger: false,
+            recorded_mono: None,
             unison: None,
             aliases: aliases.iter().map(|s| s.to_string()).collect(),
             variants: (0..variants).map(|_| Variant { name: String::new(), zones: vec![Zone::default()] }).collect(),

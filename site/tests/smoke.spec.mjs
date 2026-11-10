@@ -1,6 +1,8 @@
 // Smoke test for the website: npm ci && npx playwright test (in site/).
 // It serves target/site when `cargo xtask site` has built it, otherwise site/ itself (see tests/serve.mjs).
 import { test, expect } from "@playwright/test";
+import fs from "node:fs";
+import path from "node:path";
 import { gzipSync } from "node:zlib";
 import { siteRoot, BUILD_PATHS } from "./serve.mjs";
 
@@ -279,6 +281,21 @@ test.describe("assembled site", () => {
     await page.waitForFunction(() => !document.getElementById("loading"), null, { timeout: 30_000 });
     expect(await violations(), "studio").toEqual([]);
     expect(messages).toEqual([]);
+  });
+
+  test("the studio demo plays sampled instruments, fetched from the site as its song needs them", async ({ page }) => {
+    test.skip(!fs.existsSync(path.join(site.dir, "studio/packs/index.json")), "needs cargo xtask site --sounds");
+    test.setTimeout(120_000);
+    const notes = [];
+    page.on("response", (r) => {
+      if (/\/studio\/packs\/.+\.ogg$/.test(new URL(r.url()).pathname)) notes.push(r.status());
+    });
+    await page.goto("/studio/?mock");
+    await page.waitForFunction(() => !document.getElementById("loading"), null, { timeout: 30_000 });
+    // the demo's first song (deep house, on synths and a TR-707) plays a sampled kick: its notes come before it
+    // renders, each one found
+    await expect.poll(() => notes.length, { timeout: 90_000 }).toBeGreaterThan(0);
+    expect(notes.every((s) => s === 200), `${notes}`).toBe(true);
   });
 
   test("the installers are served as text", async ({ request }) => {

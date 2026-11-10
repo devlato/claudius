@@ -1202,6 +1202,23 @@ impl Host {
         Some(ToMake { project, tracks, audio })
     }
 
+    /// the sampled instruments the song plays, each once (what a browser fetches the files of before it renders)
+    pub fn instruments(&self) -> Vec<claudius_packs::InstrumentRef> {
+        let Some(bp) = self.bp.as_ref() else { return Vec::new() };
+        let mut refs: Vec<claudius_packs::InstrumentRef> = Vec::new();
+        for t in &compose::arrange(bp).tracks {
+            for s in t.sound.each() {
+                if let model::Sound::Instrument { name, .. } = s
+                    && let Some(r) = claudius_packs::resolve(name, None)
+                    && !refs.contains(&r)
+                {
+                    refs.push(r);
+                }
+            }
+        }
+        refs
+    }
+
     /// keeps a track `to_make` listed as another worker made it, for the next render
     pub fn made(&mut self, name: &str, key: render::TrackKey, sound: audio::Stereo, level: Option<f64>) {
         self.kept.keep(name, key, sound, level);
