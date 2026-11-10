@@ -112,22 +112,28 @@ fn widened(env: &[f32], w: usize) -> Vec<f32> {
         .collect()
 }
 
-/// How well a beat of `p` frames lays a grid on the onsets `env`: in each stretch of 16 beats, at the phase that suits
-/// the stretch, the onset strength on its beats, half as much on its eighths and a quarter on its sixteenths, against
-/// that of the envelope as a whole. A tempo four thirds or two thirds of the beat, which a syncopated kick or a dotted
+/// How well a beat of `p` frames lays a grid on the onsets `env`: in each stretch of 16 beats (all of a shorter sound),
+/// at the phase that suits the stretch, the onset strength on its beats, half as much on its eighths and a quarter on
+/// its sixteenths, against that of the envelope as a whole. A tempo four thirds or two thirds of the beat, which a syncopated kick or a dotted
 /// rhythm repeats at as often as at the beat, puts most of its grid between the onsets, and scores near 1.
 fn salience(env: &[f32], p: f64) -> f64 {
     let near = widened(env, (0.06 * p).round().clamp(1.0, 8.0) as usize);
     let mean = near.iter().map(|v| *v as f64).sum::<f64>() / near.len().max(1) as f64;
     let at = |t: f64| near.get(t.round() as usize).copied().unwrap_or(0.0) as f64;
-    let span = 16.0 * p;
+    // a stretch of 16 beats, or of as many as a shorter sound holds (a loop of four bars is 16 beats at its own tempo,
+    // and 32 at twice it: both must be heard on it)
+    let beats = ((near.len() as f64 / p).floor() as usize).saturating_sub(1).min(16);
+    if beats < 4 {
+        return 0.0;
+    }
+    let span = beats as f64 * p;
     let (mut total, mut stretches) = (0.0, 0usize);
     let mut start = 0.0;
     while start + span + p <= near.len() as f64 {
         let mut best = 0.0f64;
         let mut phase = 0.0;
         while phase < p {
-            let s: f64 = (0..16)
+            let s: f64 = (0..beats)
                 .map(|k| {
                     let b = start + phase + k as f64 * p;
                     at(b) + 0.5 * at(b + p / 2.0) + 0.25 * (at(b + p / 4.0) + at(b + 0.75 * p))
@@ -136,7 +142,7 @@ fn salience(env: &[f32], p: f64) -> f64 {
             best = best.max(s);
             phase += 1.0;
         }
-        total += best / 32.0;
+        total += best / (2.0 * beats as f64);
         stretches += 1;
         start += span;
     }
@@ -442,4 +448,23 @@ pub fn track_with(mono: &[f32], harmony: &[f32], range: Option<(f64, f64)>, kit:
     }
     let downbeat = (0..4).max_by(|a, b| phase_score[*a].partial_cmp(&phase_score[*b]).unwrap()).unwrap_or(0);
     Grid { bpm: (bpm * 10.0).round() / 10.0, beats, downbeat, clarity, steady }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_grid_is_heard_on_a_loop_of_four_bars_at_its_own_tempo_as_at_twice_it() {
+        // 16 beats of 120 frames, struck on each beat and more softly on each eighth, and nothing after
+        let p = 120.0;
+        let mut env = vec![0.0f32; 16 * 120 + 30];
+        for k in 0..32 {
+            env[k * 60] = if k % 2 == 0 { 1.0 } else { 0.5 };
+        }
+        let (own, twice) = (salience(&env, p), salience(&env, p / 2.0));
+        assert!(own > 3.0 && own > 0.8 * twice, "at its tempo {own:.2}, at twice it {twice:.2}");
+        // a grid a third off the beat lies between the strikes
+        assert!(salience(&env, 0.75 * p) < 0.6 * own);
+    }
 }

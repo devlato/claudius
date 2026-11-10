@@ -557,7 +557,10 @@ fn rework_form(
     let mut named: Vec<(Vec<String>, String)> = Vec::new();
     let mut last = a.numerals.iter().find(|c| !c.is_empty()).cloned().unwrap_or_else(|| "i".into());
     for (i, s) in a.sections.iter().enumerate() {
-        let (from, to) = (per.song_bar(s.start_bar), per.song_bar(s.start_bar + s.bars));
+        let end = s.start_bar + s.bars;
+        // in half time the last section takes the half of a bar an odd count leaves over, so none of it is cut
+        let to = if per == Per::Half && i + 1 == a.sections.len() { end.div_ceil(2) } else { per.song_bar(end) };
+        let from = per.song_bar(s.start_bar);
         if to <= from {
             continue;
         }
@@ -1116,6 +1119,18 @@ mod tests {
         let (bpm, beats) = original(&bp);
         assert!((bpm - 85.0).abs() < 1e-9 && (beats - bars * 4.0).abs() < 1e-6, "unstretched: {bpm} {beats}");
         assert!(bp.lineage.iter().any(|l| l.contains("in half time, at 85 BPM to its 170")), "{:?}", bp.lineage);
+        // an odd count of bars: the last section takes the half bar left over, and the song is as long as all of it
+        let mut odd = a.clone();
+        odd.bars = 17;
+        odd.numerals.push("i".into());
+        odd.sections[1].bars = 9;
+        let x = Stereo::zeros((17.0 * a.bar_secs * SRF) as usize);
+        let src = Source { x: &x, name: "odd.wav", a: &odd, stems: None };
+        let bp = rework(&src, &hip_hop, 3, &Options::default(), None, &dir).unwrap();
+        let bars: f64 = bp.form.iter().map(|s| s.bars as f64).sum();
+        assert_eq!((bp.form[0].bars, bp.form[1].bars), (4, 5));
+        let (_, beats) = original(&bp);
+        assert!(bars * 4.0 >= beats && beats == 34.0, "{bars} bars for {beats} beats of the recording");
         let _ = std::fs::remove_dir_all(&dir);
     }
 
