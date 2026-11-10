@@ -84,7 +84,9 @@ reworked from 'song.mp3': all 64 bars of it, its voice and its chords as they ar
 ```
 
 - **All of it**, from its first downbeat to its end, plays through as `original`, at its own speed and pitch: the
-  piano, the pad, the voice and the lead as they are. With earshot's models, claudius takes the recording apart into
+  piano, the pad, the voice and the lead as they are, each section brought halfway to the middle of their levels (by
+  9 dB at most, the gain moving over the last beat before a section), since the genre's drums keep one level: a
+  quiet verse would all but go under them, and a loud hook over them. The song keeps its shape, at half its range. With earshot's models, claudius takes the recording apart into
   its vocals, drums, bass and the rest (Spleeter's nets, about 8 s for a four-minute song, kept for the next time).
   `original` is then the rest, cut under 80 Hz, which leaves the drums and the low end to trap's kick and 808. When the
   recording sings, its voice plays all through on a track of its own, `vocals`, mixed as a voice, so that you can
@@ -152,7 +154,9 @@ sampled: phrase 'song', filtered until it lifts (another passage of it in groove
   busiest bars without the rest: its drum stem, apart, with the models.
 - **A flip of it** plays in the intro and the outro: four bars of half beats, each from another bar of the recording
   that plays the hook's chord there, at the same place in its bar (now and then another), here 17 of its bars, so
-  the song is heard in pieces from all over it, still on the hook's chords.
+  the song is heard in pieces from all over it, still on the hook's chords. Each piece is as loud as the hook (its
+  bar brought to the hook's level, by 18 dB at most), so a piece of a quiet verse does not drop away beside one of
+  the chorus.
 - **Its sung phrases** come in on tracks of their own (`vox1`, `vox2` ...) where they agree with the chords, as
   [Sample its vocals into the song](../guide/samples.md#sampling-a-songs-vocals) places them, when the recording
   sings: when the ears hear a voice, or a pitch in a voice's range carries a third of a phrase. This one's `vox` track

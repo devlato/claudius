@@ -46,6 +46,11 @@ where it heard from 70 to 180. On claudius's own songs the whole mix is heard at
 recording's, where the recording holds its chords two bars), as it doubled it: a 170 BPM song reworked as hip hop
 plays at 85, no longer at drum and bass's speed.
 
+A remake hears that a recording is louder in some places than in others. A flip's pieces, cut from all over it, are each
+brought to its hook's level, so a piece of a quiet verse no longer drops away beside one of the chorus; and a rework
+brings the recording's sections halfway to one level, so a quiet verse is not lost under the genre's drums, which keep
+one level all through.
+
 ## [0.5.0] - 2026-11-09
 
 A recording can be rebuilt as a song of its own parts, every note of them yours to change: `claudius remake
