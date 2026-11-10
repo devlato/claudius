@@ -475,16 +475,23 @@ impl History {
         self.log.iter().rev().take(SHOWN).map(done).collect()
     }
 
-    /// The song's own log, one operation a line, as a song's folder keeps it (`history.jsonl`): from where the song
-    /// began (its first operation, or the last that put another song in its place).
+    /// The song's own log, one operation a line, as a song's folder keeps it (`history.jsonl`): from the edit that put
+    /// the song as it is in its place (the latest that did which undo can still take back), so that its undos, redos
+    /// and goings back replay with the steps they took; the whole log when that edit is no longer among undo's steps.
     pub fn to_jsonl(&self) -> String {
-        let began = self.log.iter().rposition(|o| o.changes.iter().any(|c| c.path.is_empty())).unwrap_or(0);
+        let live: BTreeSet<&OpId> = self.undo.iter().map(|s| &s.op).collect();
+        let began = self
+            .log
+            .iter()
+            .rposition(|o| matches!(o.kind, Kind::Edit { .. }) && o.whole() && live.contains(&o.id))
+            .unwrap_or(0);
         self.log[began..].iter().filter_map(|o| serde_json::to_string(o).ok()).map(|line| line + "\n").collect()
     }
 
     /// The history of `now`, a song opened with its log (`to_jsonl`): its undo and redo steps as the log left them,
     /// and the song the log comes to checked against `now`. Where `now` was changed outside claudius since, that is an
-    /// edit of its own; a log that does not read, or does not apply, is a history begun anew with the song as it is.
+    /// edit of its own. An undo, redo or going back of an edit the log begins after takes the steps the log holds, and
+    /// keeps the rest of it; a log that does not read, or does not apply, is a history begun anew with the song as it is.
     pub fn open(text: &str, now: &Option<Blueprint>) -> History {
         let log: Result<Vec<Op>, _> = text.lines().filter(|l| !l.trim().is_empty()).map(serde_json::from_str).collect();
         let mut h = History::default();
@@ -502,20 +509,22 @@ impl History {
                     undo.push((before, op.label.clone(), op.id.clone()));
                     redo.clear();
                 }
-                Kind::Undo { .. } => {
-                    if let Some((_, label, id)) = undo.pop() {
-                        redo.push((before, label, id));
-                    }
+                // the edit undone, to redo with the song as it was after it (`before`), whether or not its own step is
+                // in the log
+                Kind::Undo { of } => {
+                    undo.pop_if(|s| s.2 == *of);
+                    redo.push((before, op.label.clone(), of.clone()));
                 }
-                Kind::Redo { .. } => {
-                    if let Some((_, label, id)) = redo.pop() {
-                        undo.push((before, label, id));
-                    }
+                Kind::Redo { of } => {
+                    redo.pop_if(|s| s.2 == *of);
+                    undo.push((before, op.label.clone(), of.clone()));
                 }
-                Kind::Back { to, .. } => {
-                    let Some(k) = undo.iter().position(|(_, _, id)| id == to) else { return History::default() };
+                // each edit undone, the latest first, to redo with the song as it was after it, as far back as the log
+                // holds their steps
+                Kind::Back { undid, .. } => {
                     let mut after = before;
-                    for (was, label, id) in undo.drain(k..).rev().collect::<Vec<_>>() {
+                    for id in undid {
+                        let Some((was, label, id)) = undo.pop_if(|s| s.2 == *id) else { break };
                         redo.push((after, label, id));
                         after = was;
                     }
@@ -824,11 +833,34 @@ mod tests {
         let opened = History::open(&text, &Some(moved.clone()));
         assert_eq!(opened.log().len(), 4, "the song as the log has it is the song: nothing added");
         assert_eq!(steps(&opened), steps(&h));
-        // undoing the techno song puts the house song back, whole
+        // undoing the techno song puts the house song back, whole; a save then keeps the house song's own edits, with
+        // the techno song to redo
         let mut now = Some(moved);
         assert_eq!(h.undo(&mut now).as_deref(), Some("new techno song"));
         assert!(h.log().last().unwrap().changes.iter().any(|c| c.path.is_empty()));
-        assert_eq!(now.unwrap().bpm, edited.bpm);
+        assert_eq!(now.as_ref().unwrap().bpm, edited.bpm);
+        let text = h.to_jsonl();
+        assert_eq!(text.lines().count(), 7, "from the house song on: {text}");
+        let opened = History::open(&text, &now);
+        assert_eq!(opened.log().len(), 7);
+        assert_eq!(steps(&opened), (Some("tempo".into()), Some("new techno song".into())));
+        assert_eq!(steps(&opened), steps(&h));
+        // back to before an edit of the song before the techno one: the steps replay as they were
+        let mut h = History::default();
+        h.commit_song(None, &Some(first.clone()), "new house song");
+        let tempo = h.commit(Some(first.clone()), &Some(edited.clone()), "tempo");
+        h.commit_song(Some(edited), &Some(second.clone()), "new techno song");
+        let mut now = Some(second);
+        h.back(&mut now, &tempo).unwrap();
+        let text = h.to_jsonl();
+        let opened = History::open(&text, &now);
+        assert_eq!((opened.log().len(), steps(&opened)), (4, steps(&h)));
+        assert_eq!(steps(&h), (Some("new house song".into()), Some("tempo".into())));
+        // a log that begins after the edits it goes back over keeps what it holds, rather than being thrown away
+        let tail: String = text.lines().skip(2).map(|l| format!("{l}\n")).collect();
+        let opened = History::open(&tail, &now);
+        assert_eq!((opened.log().len(), opened.redo_label().as_deref()), (2, Some("new techno song")));
+        assert_eq!(now.unwrap().bpm, first.bpm);
     }
 
     #[test]

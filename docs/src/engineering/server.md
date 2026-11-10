@@ -78,14 +78,16 @@ says which track it was, whatever happens to the others. The changes of every op
 at all, make the song as it is (`apply`), and taken back in reverse they make it as it was.
 
 Another song in the song's place (a new song, one opened, a recording remade: `commit_song`) is one change of the
-whole song, at the empty path, and so is its undo or redo. That is where a song's own log begins. A save that copies
+whole song, at the empty path, and so is its undo or redo. A song's own log begins at the edit that put the song as it
+is in its place: the latest such edit undo can still take back, so that every undo, redo and going back since
+replays with the steps it took, or the whole log when that edit is past undo's reach. A save that copies
 the song's takes into its folder repoints them, and records that as a `moved` operation, which changes neither undo
 nor redo.
 
 Undo, redo and going back are operations of their own, whose changes take the song back or forward; nothing in the
 log is ever taken out or rewritten. The state lists the last 200 (`State::history`, the latest first), each with
 whether `go_back` can still take the song to before it: an edit among the undo steps. Saving writes the song's own log
-into its folder, from the operation that began the song (`history.jsonl`, one operation a line). Loading the folder
+into its folder (`history.jsonl`, one operation a line). Loading the folder
 replays it (`History::open`), so undo and redo carry on as they were. When `blueprint.json` was edited by hand since,
 the difference is an edit of its own ("changed outside claudius"), and a log that does not read or apply is a
 history begun anew.

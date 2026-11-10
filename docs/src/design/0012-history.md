@@ -33,7 +33,8 @@ undo and redo stacks, in both the server's session and the browser's demo:
   change to one track names that track, whatever happens to the others. Another list changes by place, appended to or
   cut short, or whole.
 - **Another song in the song's place** (a new song, one opened, a recording remade) is one change of the whole song,
-  and so is undoing it. The song's own history begins at the last such change.
+  and so is undoing it. The song's own history begins at the edit that put the song as it is in its place, the latest
+  one undo can still take back, so the undos and goings back since replay with the steps they took.
 - **Undo, redo and going back are operations too**, whose changes take the song back or forward. Nothing in the log
   is ever taken out or rewritten. Files the song plays that moved (a save copies its takes into its folder) are an
   operation of their own, which changes neither undo nor redo.
