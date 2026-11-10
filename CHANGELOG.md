@@ -6,6 +6,12 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+[claudius radio](https://claudius.devlato.com/radio/): a station of songs claudius writes as it plays them, one genre
+after another, each mixed into the next as a DJ would. Three songs in four mix in beat for beat, written at exactly the
+playing song's tempo (or twice or half of it) and in a key of its notes, coming in on a bar line of its outro with their
+bass swapped halfway; a song in another tempo comes in after an echo out or a record stop. It all runs in the page, on
+the studio demo's engine.
+
 Evolution and the studio's Variations now revise a song's form as a producer would: a verse and hook or a drop played
 again, a section left out, a bridge or a lift, a shorter intro or outro, two sections that sound as one set apart, a
 build-up of another style or strength. The critic judges the whole song's form, even where evolution renders only a

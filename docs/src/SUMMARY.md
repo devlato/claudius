@@ -7,6 +7,7 @@
 - [Install](getting-started/install.md)
 - [Your first song](getting-started/first-song.md)
 - [The studio](getting-started/studio.md)
+- [The radio](getting-started/radio.md)
 - [Working with an assistant](getting-started/assistants.md)
 
 # Learn to make music
