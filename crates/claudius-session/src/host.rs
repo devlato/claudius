@@ -236,7 +236,7 @@ impl Host {
                 let src = listen::Heard { x: &x, path: &name, name: &name, a: &a, stems: stems.as_deref() };
                 let (bp, verb, told) = listen::remake(&src, &g, seed, None, how, &with);
                 self.forget_render();
-                self.commit(Some(bp), format!("{verb} {name} as {genre}{told}:\n{}", listen::analysis_text(&a)))
+                self.commit_song(Some(bp), format!("{verb} {name} as {genre}{told}:\n{}", listen::analysis_text(&a)))
             }
             Listen::SampleSong { found, how, .. } => {
                 let Some(mut bp) = self.bp.clone() else {
@@ -396,7 +396,7 @@ impl Host {
         // the song before, its render and verdict with it, is not the one opened
         self.forget_render();
         let message = format!("opened {name}: {}", bp.title);
-        self.commit(Some(bp), message)
+        self.commit_song(Some(bp), message)
     }
 
     /// the script language's reference, as the studio shows it
@@ -1014,7 +1014,7 @@ impl Host {
         let msg =
             format!("new song: {} — {} at {:.0} BPM in {} (seed {seed})", bp.title, bp.genre, bp.bpm, bp.key.name());
         self.forget_render();
-        self.commit(Some(bp), msg)
+        self.commit_song(Some(bp), msg)
     }
 
     /// a blueprint (`.json`) opened, or a script run as a new song
@@ -1024,6 +1024,7 @@ impl Host {
             let r = self.run_script(text, Some(format!("opened {name}")));
             if self.song_version != before {
                 self.forget_render();
+                self.history.began(&self.bp);
             }
             return r;
         }
@@ -1031,7 +1032,7 @@ impl Host {
         match bp.and_then(|bp| bp.check_size().and_then(|_| script::check_patterns(&bp)).map(|_| bp)) {
             Ok(bp) => {
                 self.forget_render();
-                self.commit(Some(bp), format!("opened {name}"))
+                self.commit_song(Some(bp), format!("opened {name}"))
             }
             Err(e) => self.no(format!("cannot open {name}: {e}")),
         }
@@ -1106,6 +1107,14 @@ impl Host {
     fn commit_as(&mut self, bp: Option<Blueprint>, msg: String, label: String) -> Reply {
         let old = std::mem::replace(&mut self.bp, bp);
         self.history.commit(old, &self.bp, &label);
+        self.changed(msg)
+    }
+
+    /// another song in the song's place, committed as `commit` does, the whole song its change (`History::commit_song`)
+    fn commit_song(&mut self, bp: Option<Blueprint>, msg: String) -> Reply {
+        let label = msg.lines().next().unwrap_or("").to_string();
+        let old = std::mem::replace(&mut self.bp, bp);
+        self.history.commit_song(old, &self.bp, &label);
         self.changed(msg)
     }
 

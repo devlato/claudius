@@ -310,7 +310,7 @@ impl App {
         let msg =
             format!("new song: {} — {} at {:.0} BPM in {} (seed {seed})", bp.title, bp.genre, bp.bpm, bp.key.name());
         self.lock().folder = None;
-        self.commit(Some(bp), msg);
+        self.commit_song(Some(bp), msg);
     }
 
     fn progress(&self, what: &str, p: f32) {

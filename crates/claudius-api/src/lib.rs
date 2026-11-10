@@ -348,7 +348,8 @@ pub struct LibraryHit {
 pub struct Done {
     /// what `Command::GoBack` names it by: the replica that made it and its time there (`12@4f2a9c81d0e3b7a6`)
     pub id: String,
-    /// `edit`, `undo`, `redo` or `back` (a going back to before a change)
+    /// `edit`, `undo`, `redo`, `back` (a going back to before a change), or `moved` (files the song plays moved, as a
+    /// save copies its takes into its folder)
     pub kind: String,
     /// what undo calls it ("tempo 124"), or the change undone or redone
     pub label: String,

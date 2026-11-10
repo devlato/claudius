@@ -77,6 +77,11 @@ whose value changed, with the value before and after (`diff`). A path names the 
 says which track it was, whatever happens to the others. The changes of every operation, applied in order to no song
 at all, make the song as it is (`apply`), and taken back in reverse they make it as it was.
 
+Another song in the song's place (a new song, one opened, a recording remade: `commit_song`) is one change of the
+whole song, at the empty path, and so is its undo or redo. That is where a song's own log begins. A save that copies
+the song's takes into its folder repoints them, and records that as a `moved` operation, which changes neither undo
+nor redo.
+
 Undo, redo and going back are operations of their own, whose changes take the song back or forward; nothing in the
 log is ever taken out or rewritten. The state lists the last 200 (`State::history`, the latest first), each with
 whether `go_back` can still take the song to before it: an edit among the undo steps. Saving writes the song's own log

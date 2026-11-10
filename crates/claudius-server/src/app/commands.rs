@@ -30,9 +30,24 @@ impl App {
 
     /// commit a new song; `label` is what undo will say it takes back
     pub(super) fn commit_as(self: &Arc<Self>, bp: Option<Blueprint>, msg: String, label: String) -> Reply {
+        self.commit_with(bp, msg, label, false)
+    }
+
+    /// commit another song in the song's place (a new one, one opened, a recording remade), the whole song the change
+    /// the history records (`History::commit_song`)
+    pub(super) fn commit_song(self: &Arc<Self>, bp: Option<Blueprint>, msg: String) -> Reply {
+        let label = msg.lines().next().unwrap_or("").to_string();
+        self.commit_with(bp, msg, label, true)
+    }
+
+    fn commit_with(self: &Arc<Self>, bp: Option<Blueprint>, msg: String, label: String, whole: bool) -> Reply {
         let v = self.update(|s| {
             let old = std::mem::replace(&mut s.bp, bp);
-            s.history.commit(old, &s.bp, &label);
+            if whole {
+                s.history.commit_song(old, &s.bp, &label);
+            } else {
+                s.history.commit(old, &s.bp, &label);
+            }
             // the meters keep the last render's readings until the next render lands (the UI marks them stale)
             s.view = s.bp.as_ref().map(|b| views::song(b, &s.loudness));
             s.say(msg.clone());
@@ -207,7 +222,7 @@ impl App {
                     bp.key.name()
                 );
                 self.lock().folder = None;
-                self.commit(Some(bp), msg)
+                self.commit_song(Some(bp), msg)
             }
             Command::RequestTake { from, role, name, note } => self.request_take(from, role, name, note),
             Command::RequestPitchCheck { low, high, note } => self.request_pitch_check(low, high, note),
@@ -646,7 +661,7 @@ impl App {
         let (bp, verb, told) =
             self.listening(&format!("remaking {name} as {shown}"), |_| listen::remake(&src, &g, seed, bpm, how, &with));
         self.lock().folder = None;
-        self.commit(Some(bp), format!("{verb} {path} as {genre}{told}:\n{}", analysis_text(&a)))
+        self.commit_song(Some(bp), format!("{verb} {path} as {genre}{told}:\n{}", analysis_text(&a)))
     }
 
     fn load(self: &Arc<Self>, path: &Path) -> Reply {
@@ -715,18 +730,24 @@ impl App {
                     self.lock().folder = folder.map(Path::to_path_buf);
                     match folder.and_then(|d| std::fs::read_to_string(d.join("history.jsonl")).ok()) {
                         Some(log) => self.reopen(bp, &log, format!("{said} {name}, with its history")),
-                        None => self.commit(Some(bp), format!("{said} {name}")),
+                        None => self.commit_song(Some(bp), format!("{said} {name}")),
                     }
                 }
                 Err(e) => no(format!("cannot open {name}: {e}"), v),
             }
         } else {
             let opened = format!("{said} {name}");
+            let ops = self.lock().history.log().len();
             let mut r = self.run_script(text, Some(opened.clone()));
             if r.ok {
                 // a song folder's song.rhai opens that song; a script elsewhere makes a new one
                 let folder = folder.filter(|d| d.join("blueprint.json").is_file()).map(Path::to_path_buf);
-                self.update(|s| s.folder = folder);
+                self.update(|s| {
+                    s.folder = folder;
+                    if s.history.log().len() > ops {
+                        s.history.began(&s.bp);
+                    }
+                });
                 // what was opened, before what its script says it did (a lane laid back, a groove taken)
                 if !r.message.starts_with(&opened) {
                     r.message = format!("{opened}\n{}", r.message);
@@ -806,9 +827,11 @@ impl App {
         // the recordings go with the song: its takes are copied into the folder, and from now on it plays the copies
         match claudius::take::gather(&mut bp, &dir) {
             Ok(moves) if !moves.is_empty() => self.update(|s| {
+                let before = s.bp.clone();
                 if let Some(b) = s.bp.as_mut() {
                     claudius::take::repoint(b, &moves);
                 }
+                s.history.moved(&before, &s.bp, &format!("kept the takes in {}", dir.display()));
             }),
             Ok(_) => {}
             Err(e) => return no(format!("{e:#}"), v),

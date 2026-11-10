@@ -57,6 +57,8 @@ pub enum Kind {
     Redo { of: OpId },
     /// the song went back to before an edit, which undid it and every edit since (`undid`, the latest first)
     Back { to: OpId, undid: Vec<OpId> },
+    /// files the song plays moved (a save copied its takes into the song's folder): no edit, and nothing undo takes back
+    Moved,
 }
 
 impl Kind {
@@ -66,6 +68,7 @@ impl Kind {
             Kind::Undo { .. } => "undo",
             Kind::Redo { .. } => "redo",
             Kind::Back { .. } => "back",
+            Kind::Moved => "moved",
         }
     }
 }
@@ -86,7 +89,8 @@ fn present<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Value>, D::E
     Value::deserialize(d).map(Some)
 }
 
-/// One change to the song, as the log keeps it.
+/// One change to the song, as the log keeps it. A change of the whole song (another song in its place, or its own back)
+/// is a single change at the empty path.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Op {
     pub id: OpId,
@@ -101,6 +105,13 @@ pub struct Op {
     /// what it changed, in words, to find it again by
     pub said: String,
     pub changes: Vec<Change>,
+}
+
+impl Op {
+    /// whether it put another song in the song's place, or the one before back
+    fn whole(&self) -> bool {
+        self.changes.iter().any(|c| c.path.is_empty())
+    }
 }
 
 /// The changes that make `a` into `b`: each path where they differ, as deep as they do.
@@ -307,9 +318,19 @@ impl History {
 
     /// The song changed from `before` to `after` by an edit undo calls `label`.
     pub fn commit(&mut self, before: Option<Blueprint>, after: &Option<Blueprint>, label: &str) -> OpId {
+        self.edit(before, after, label, false)
+    }
+
+    /// Another song in the song's place (a new one, one opened, a recording remade): an edit as `commit` records one,
+    /// whose change is the whole song, where the song's own history begins (`to_jsonl`).
+    pub fn commit_song(&mut self, before: Option<Blueprint>, after: &Option<Blueprint>, label: &str) -> OpId {
+        self.edit(before, after, label, true)
+    }
+
+    fn edit(&mut self, before: Option<Blueprint>, after: &Option<Blueprint>, label: &str, whole: bool) -> OpId {
         let label: String = label.chars().take(120).collect();
         let kind = Kind::Edit { cmd: self.doing.clone() };
-        let id = self.record(kind, label.clone(), "", &before, after);
+        let id = self.record(kind, label.clone(), "", &before, after, whole);
         self.undo.push(Step { song: before, label, op: id.clone() });
         if self.undo.len() > STEPS {
             self.undo.remove(0);
@@ -318,11 +339,33 @@ impl History {
         id
     }
 
+    /// The edit made last put another song in the song's place (a script that opened one): it is recorded as
+    /// `commit_song` records one.
+    pub fn began(&mut self, now: &Option<Blueprint>) {
+        let (Some(op), Some(step)) = (self.log.last_mut(), self.undo.last()) else { return };
+        if op.id == step.op {
+            op.changes = vec![Change { path: String::new(), before: Some(json(&step.song)), after: Some(json(now)) }];
+            op.said = describe(&op.changes);
+        }
+    }
+
+    /// Files the song plays moved, from `before` to `after` (a save copied its takes into its folder), which no undo
+    /// takes back: the song as the log has it stays the song, and undo and redo stay as they are.
+    pub fn moved(&mut self, before: &Option<Blueprint>, after: &Option<Blueprint>, label: &str) {
+        self.record(Kind::Moved, label.to_string(), "", before, after, false);
+    }
+
+    /// whether the edit `op` put another song in the song's place, or the one before back
+    fn whole(&self, op: &OpId) -> bool {
+        self.log.iter().rev().find(|o| &o.id == op).is_some_and(Op::whole)
+    }
+
     /// Undo: `song` goes back to what it was before the last edit undo can take back, and what that edit was comes
     /// back; none when there is none, and `song` is left as it is.
     pub fn undo(&mut self, song: &mut Option<Blueprint>) -> Option<String> {
         let step = self.undo.pop()?;
-        self.record(Kind::Undo { of: step.op.clone() }, step.label.clone(), "undid ", song, &step.song);
+        let whole = self.whole(&step.op);
+        self.record(Kind::Undo { of: step.op.clone() }, step.label.clone(), "undid ", song, &step.song, whole);
         let now = std::mem::replace(song, step.song);
         self.redo.push(Step { song: now, label: step.label.clone(), op: step.op });
         Some(step.label)
@@ -331,7 +374,8 @@ impl History {
     /// Redo: `song` goes forward to what the last edit undone made of it, and what that edit was comes back.
     pub fn redo(&mut self, song: &mut Option<Blueprint>) -> Option<String> {
         let step = self.redo.pop()?;
-        self.record(Kind::Redo { of: step.op.clone() }, step.label.clone(), "redid ", song, &step.song);
+        let whole = self.whole(&step.op);
+        self.record(Kind::Redo { of: step.op.clone() }, step.label.clone(), "redid ", song, &step.song, whole);
         let now = std::mem::replace(song, step.song);
         self.undo.push(Step { song: now, label: step.label.clone(), op: step.op });
         Some(step.label)
@@ -353,7 +397,8 @@ impl History {
         let target = self.undo[k].song.clone();
         let n = self.undo.len() - k;
         let undid: Vec<OpId> = self.undo[k..].iter().rev().map(|s| s.op.clone()).collect();
-        self.record(Kind::Back { to: to.clone(), undid }, label.clone(), "", song, &target);
+        let whole = undid.iter().any(|op| self.whole(op));
+        self.record(Kind::Back { to: to.clone(), undid }, label.clone(), "", song, &target, whole);
         // each edit undone to redo, the latest first, with the song as it was after it
         let mut after = std::mem::replace(song, target);
         for s in self.undo.drain(k..).rev().collect::<Vec<_>>() {
@@ -364,6 +409,7 @@ impl History {
         Ok(format!("went {label}: undid it{since}"))
     }
 
+    /// an operation of `kind` from `before` to `after`, its change the whole song's when it is `whole`
     fn record(
         &mut self,
         kind: Kind,
@@ -371,8 +417,11 @@ impl History {
         verb: &str,
         before: &Option<Blueprint>,
         after: &Option<Blueprint>,
+        whole: bool,
     ) -> OpId {
-        let changes = diff(&json(before), &json(after));
+        let (a, b) = (json(before), json(after));
+        let changes =
+            if whole { vec![Change { path: String::new(), before: Some(a), after: Some(b) }] } else { diff(&a, &b) };
         let said = match describe(&changes) {
             s if s.is_empty() => format!("{verb}{label}"),
             s if verb.is_empty() => s,
@@ -471,6 +520,7 @@ impl History {
                         after = was;
                     }
                 }
+                Kind::Moved => {}
             }
             h.time = h.time.max(op.id.time);
         }
@@ -745,6 +795,40 @@ mod tests {
             apply(&mut from_log, &op.changes, true).unwrap();
         }
         assert_eq!(from_log, json(&same));
+    }
+
+    #[test]
+    fn a_saved_log_begins_with_its_song_and_files_moved_change_neither_undo_nor_redo() {
+        let mut h = History::default();
+        let (first, second) = (made("house", 1), made("techno", 2));
+        h.commit_song(None, &Some(first.clone()), "new house song");
+        let mut edited = first.clone();
+        edited.bpm += 1.0;
+        h.commit(Some(first.clone()), &Some(edited.clone()), "tempo");
+        // another song in its place: the log a save keeps is that song's own
+        h.commit_song(Some(edited.clone()), &Some(second.clone()), "new techno song");
+        assert!(h.log().last().unwrap().said.starts_with("another song"), "{}", h.log().last().unwrap().said);
+        let mut song = second.clone();
+        song.bpm += 2.0;
+        h.commit(Some(second.clone()), &Some(song.clone()), "tempo 2");
+        let mut now = Some(song);
+        h.undo(&mut now).unwrap();
+        // a file it plays moved (a title stands in for a take's path): no undo step, and redo is still there
+        let mut moved = now.clone().unwrap();
+        moved.title = "moved".into();
+        h.moved(&now, &Some(moved.clone()), "kept the takes");
+        let steps = |h: &History| (h.undo_label(), h.redo_label());
+        assert_eq!(steps(&h), (Some("new techno song".into()), Some("tempo 2".into())));
+        let text = h.to_jsonl();
+        assert_eq!(text.lines().count(), 4, "from the techno song on: {text}");
+        let opened = History::open(&text, &Some(moved.clone()));
+        assert_eq!(opened.log().len(), 4, "the song as the log has it is the song: nothing added");
+        assert_eq!(steps(&opened), steps(&h));
+        // undoing the techno song puts the house song back, whole
+        let mut now = Some(moved);
+        assert_eq!(h.undo(&mut now).as_deref(), Some("new techno song"));
+        assert!(h.log().last().unwrap().changes.iter().any(|c| c.path.is_empty()));
+        assert_eq!(now.unwrap().bpm, edited.bpm);
     }
 
     #[test]

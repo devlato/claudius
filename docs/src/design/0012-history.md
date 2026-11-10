@@ -32,8 +32,11 @@ undo and redo stacks, in both the server's session and the browser's demo:
   A list of named things (tracks, drum lanes, sections) is keyed by name, with its order as a value of its own, so a
   change to one track names that track, whatever happens to the others. Another list changes by place, appended to or
   cut short, or whole.
+- **Another song in the song's place** (a new song, one opened, a recording remade) is one change of the whole song,
+  and so is undoing it. The song's own history begins at the last such change.
 - **Undo, redo and going back are operations too**, whose changes take the song back or forward. Nothing in the log
-  is ever taken out or rewritten.
+  is ever taken out or rewritten. Files the song plays that moved (a save copies its takes into its folder) are an
+  operation of their own, which changes neither undo nor redo.
 - **The song follows from the log**: the changes of every operation, applied in order to no song at all, make it.
   Saving writes the song's own log into its folder (`history.jsonl`), and opening the folder replays it, which brings
   the undo and redo steps back as they were. A song edited by hand since then has the difference recorded as an edit
