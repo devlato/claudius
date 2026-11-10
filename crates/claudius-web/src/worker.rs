@@ -25,8 +25,9 @@ struct Engine {
     crew_size: usize,
     /// the files of the song's instruments are being fetched, and the render waits for them
     fetching: bool,
-    /// the files that could not be fetched, which are not asked for again
-    missing: std::collections::BTreeSet<String>,
+    /// the files that could not be fetched, which are not asked for again: each pack's and its path in it (every kit
+    /// has a `bd/0.ogg`)
+    missing: std::collections::BTreeSet<(String, String)>,
 }
 
 type Shared = Rc<RefCell<Engine>>;
@@ -102,7 +103,7 @@ fn fetch_files(engine: &Shared) -> bool {
     }
     let wanted: Vec<(String, String, String)> = claudius_packs::wanted(&e.host.instruments())
         .into_iter()
-        .filter(|(_, path, _)| !e.missing.contains(path))
+        .filter(|(pack, path, _)| !e.missing.contains(&(pack.clone(), path.clone())))
         .collect();
     if wanted.is_empty() {
         return false;
@@ -119,7 +120,7 @@ fn fetch_files(engine: &Shared) -> bool {
                 .and_then(|b| claudius_packs::provide_file(&pack, &path, b).map_err(|e| format!("{e:#}")));
             if let Err(why) = got {
                 web_sys::console::warn_1(&format!("claudius engine: {why}").into());
-                missing.push(path);
+                missing.push((pack, path));
             }
         }
         let mut e = later.borrow_mut();
