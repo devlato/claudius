@@ -1104,7 +1104,12 @@ fn energies(sound: &Blocks, low: bool) -> Energies {
     for from in (0..n).step_by(BLOCK) {
         let k = BLOCK.min(n - from);
         if !sound.read(from, k, &mut l[..k], &mut r[..k]) {
-            continue;
+            // a silent block still carries the filters' ringing on, and leaves them at rest for the next hit
+            l[..k].fill(0.0);
+            r[..k].fill(0.0);
+            if !low {
+                continue;
+            }
         }
         for (x, y) in l[..k].iter().zip(&r[..k]) {
             let m = 0.5 * (x + y);
@@ -1559,6 +1564,32 @@ pub fn finalize(x: &mut Stereo, target: f32, ceiling: f32) -> Mastered {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_sounds_low_end_energy_counts_the_ringing_through_its_silent_blocks() {
+        use crate::dsp::filter::{Biquad, BiquadKind};
+        // a block of a 40 Hz tone, three silent blocks and another block of it, cut off mid-cycle each time
+        let mut x = Stereo::zeros(5 * BLOCK);
+        for i in (0..BLOCK).chain(4 * BLOCK..5 * BLOCK) {
+            let v = (std::f64::consts::TAU * 40.0 * i as f64 / SRF).sin() as f32;
+            (x.l[i], x.r[i]) = (v, v);
+        }
+        let blocks = Blocks::of(&x);
+        assert!(blocks.blocks[1..4].iter().all(Option::is_none));
+        let e = energies(&blocks, true);
+        let mut sub = Biquad::new(BiquadKind::Lowpass, 60.0, SRF, 0.707, 0.0);
+        let (mut above, mut below) = (
+            Biquad::new(BiquadKind::Highpass, 60.0, SRF, 0.707, 0.0),
+            Biquad::new(BiquadKind::Lowpass, 250.0, SRF, 0.707, 0.0),
+        );
+        let (mut s, mut b) = (0.0, 0.0);
+        for v in &x.l {
+            s += f64::from(sub.tick(*v).powi(2));
+            b += f64::from(below.tick(above.tick(*v)).powi(2));
+        }
+        let n = x.len() as f64;
+        assert!((e.sub - s / n).abs() < 1e-9 * s / n && (e.low - b / n).abs() < 1e-9 * b / n, "{e:?}");
+    }
 
     #[test]
     fn a_mix_holds_its_low_end_within_its_genres_turning_down_only_the_bass_and_the_kick() {
