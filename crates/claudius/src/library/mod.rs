@@ -65,6 +65,9 @@ pub fn apple_genres(genre: &str) -> &'static [&'static str] {
         "grime" => &["Urban", "Dubstep", "Hip Hop", "Bass House"],
         "phonk" => &["Hip Hop", "Urban", "Hip Hop/RnB", "Dubstep"],
         "reggae" => &["World/Ethnic", "Reggaeton Pop", "Funk", "Hip Hop"],
+        "alt_rock" => &["Rock/Blues", "Indie", "Vintage Breaks", "Experimental"],
+        "pop_punk" => &["Rock/Blues", "Indie", "Electronic Pop", "Vintage Breaks"],
+        "nu_metal" => &["Rock/Blues", "Hip Hop", "Urban", "Experimental"],
         _ => &[],
     }
 }

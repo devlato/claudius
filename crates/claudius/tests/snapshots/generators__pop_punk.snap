@@ -1,0 +1,49 @@
+---
+source: crates/claudius/tests/generators.rs
+expression: summary(&bp)
+---
+pop_punk at 183.0 BPM in G major, swing 0.50
+prog A: I IV I V
+prog B: I IVsus2 I V
+prog C: V IV I I
+bars per chord: 1
+section intro (intro) 8 bars, energy 0.84, prog A, main [fills]: kick snare hat crash bass gtr_l gtr_r
+section verse (verse) 16 bars, energy 0.65, prog A, verse [fills]: kick snare hat bass mute_l mute_r
+section pre (build) 4 bars, energy 0.80, prog B, main [build fills]: kick snare hat tom bass gtr_l gtr_r
+section chorus (hook) 16 bars, energy 0.96, prog C, main [impact fills]: kick snare ride crash bass gtr_l gtr_r hook
+section verse2 (verse) 16 bars, energy 0.79, prog A, verse [fills]: kick snare hat bass mute_l mute_r ride
+section chorus2 (hook) 8 bars, energy 1.00, prog C, main [impact fills]: kick snare ride crash bass gtr_l gtr_r hook
+section bridge (break) 16 bars, energy 0.60, prog B, half [gap]: kick snare hat bass gtr_l
+section chorus3 (hook) 16 bars, energy 1.00, prog C, skate [impact fills]: kick snare ride crash bass gtr_l gtr_r hook
+section outro (outro) 8 bars, energy 0.80, prog A, main []: kick snare bass
+drum kick half (drum kick): X...............|X...............|X...............|X...............
+drum kick main (drum kick): X.......X.X.....|X.......X.X.....|X.......X.X.....|X.......X.X.....
+drum kick skate (drum kick): X...X...X...X...|X...X...X...X...|X...X...X...X...|X...X...X...X...
+drum kick verse (drum kick): X.......X.......|X.......X.......|X.......X.......|X.......X.......
+drum snare half (drum snare): ........X.......|........X.......|........X.......|........X.......
+drum snare main (drum snare): ....X.......X..X|....X.......X..X|....X.......X..X|....X...o...X...
+drum snare skate (drum snare): ..X...X...X...X.|..X...X...X...X.|..X...X...X...X.|..X...X...X...X.
+drum snare verse (drum snare): ....X.......X...|....X.......X...|....X.......X...|....X.......X...
+drum hat half (drum closed_hat): x...x...x...x...|x...x...x...x...|x...x...x...x...|x...x...x...x...
+drum hat main (drum closed_hat): x...x.x.x.x.x.x.|x...x.x.x.x.x.x.|x...x.x.x.x.x.x.|x...x.x.x.x.x.x.
+drum ride main (drum ride): x.x.x...x.x.x.x.|x.x.x...x.x.x.x.|x.x.x...x.x.x.x.|x.x.x...x.x.x.x.
+drum crash main (drum crash): X...............|................|X...............|................
+drum tom main (drum tom): .........X..XXXX|.........X..XXXX|.........X..XXXX|.........X..XXXX
+part mute_l (chords): palm synth supersaw, register 40..59, density 0.51
+part mute_r (chords): palm synth supersaw, register 40..59, density 0.60
+part gtr_l (chords): pump synth supersaw, register 40..64, density 0.59
+part gtr_r (chords): pump synth supersaw, register 40..64, density 0.50
+part bass (bass): root8 synth saw_bass, register 28..47, density 0.58
+part hook (lead): rock_lead synth square_lead, register 62..79, density 0.42
+mix kick: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix snare: +0.0 dB, pan +0.00, reverb 0.20, delay 0.00, duck 0.00, bus drums
+mix hat: +0.0 dB, pan +0.25, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix ride: +0.0 dB, pan -0.30, reverb 0.00, delay 0.00, duck 0.00, bus drums
+mix crash: +0.0 dB, pan +0.35, reverb 0.15, delay 0.00, duck 0.00, bus drums
+mix tom: +0.0 dB, pan -0.20, reverb 0.25, delay 0.00, duck 0.00, bus drums
+mix mute_l: +0.0 dB, pan -0.80, reverb 0.04, delay 0.00, duck 0.00, bus music
+mix mute_r: +0.0 dB, pan +0.80, reverb 0.07, delay 0.00, duck 0.00, bus music
+mix gtr_l: +1.0 dB, pan -0.85, reverb 0.07, delay 0.00, duck 0.00, bus music
+mix gtr_r: +1.0 dB, pan +0.85, reverb 0.07, delay 0.00, duck 0.00, bus music
+mix bass: +0.0 dB, pan +0.00, reverb 0.00, delay 0.00, duck 0.00, bus bass
+mix hook: -2.0 dB, pan +0.10, reverb 0.24, delay 0.15, duck 0.00, bus music

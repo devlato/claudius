@@ -1,4 +1,4 @@
-# Starting points for the sixty-three genres
+# Starting points for the sixty-six genres
 
 Two or three genres fuse with `+`: `song("trip_hop+idm", 3)` (or `new_song` with genre `trip_hop+idm`) is trip-hop's
 song, harmony, parts and mix with IDM's drums, and IDM's sounds lent to the parts. The first genre leads, the last
@@ -1106,4 +1106,61 @@ track("drums", s("bd ~ bd ~ sd ~ ~ sd ~ sd bd sd sd ~ sd sd, hh*16, rd*8").gain(
 track("bass", chord("prog").root().octave(1).struct("x ~ ~ ~ ~ ~ ~ ~").s("reese").legato(1));
 track("pad", chord("prog").voicing(48, 76).s("air_pad").role("pad").room(0.5));
 track("bells", n("<[4 ~ 2 ~ 0 ~ 2 ~] [5 ~ 4 ~ 2 ~ ~ ~]>").scale("E:minor").octave(6).s("bell").room(0.4).delay(0.3));
+```
+
+## alt_rock (100-140 BPM)
+
+Alternative rock and grunge, loud, quiet, loud: the verse a clean guitar picking its chords over a picked bass and a
+light acoustic kit, the chorus two distorted guitars hard left and right playing power chords in eighths (one doubling
+the other a few milliseconds late, as two takes are), the bass on the roots in eighths, the ride and a crash every four
+bars. Minor, dorian and mixolydian chords, a quiet bridge, a guitar solo in the last chorus, no EDM risers or impacts.
+With packs installed the guitars are FreePats' sampled clean and distorted electric guitars (`freepats:dist_guitar`);
+without them a pluck and a distorted supersaw stand in, as in the sketch.
+
+```js
+blank("alt_rock");
+tempo(120);
+key("E minor");
+prog("A", "i VI III VII");
+track("clean", chord("prog").struct("x*8").arp("updown").voicing(52, 74).s("pluck").role("arp"));
+track("gtr", chord("prog").struct("x*8").voicing(40, 62).s("supersaw").role("chords").distort(18));
+track("drums", s("bd ~ ~ ~ sd ~ ~ ~, bd ~ ~ bd sd ~ ~ ~, hh*8").gain("1 0.7"));
+form([sec("verse", 16, "clean drums"), sec("chorus", 16, "*")]);
+```
+
+## pop_punk (150-190 BPM)
+
+Pop punk, fast and loud from the first bar: two distorted guitars hard left and right, palm-muting power chords in
+eighths in the verses (the `palm` style) and driving them open in the choruses, a bass on the roots in eighths under
+them, a punk beat on an acoustic kit (the snare on two and four, the hats or the
+ride in eighths), the skate beat in the last chorus (a kick on every beat and the snare on every off-beat), mostly
+major chords, a guitar hook over the choruses and a half-time bridge.
+
+```js
+blank("pop_punk");
+tempo(172);
+key("D major");
+prog("A", "I V vi IV");
+track("gtr", chord("prog").struct("x*8").voicing(40, 64).s("supersaw").role("chords").distort(18));
+track("bass", chord("prog").struct("x*8").voicing(28, 40).s("saw_bass").role("bass"));
+track("drums", s("bd ~ bd ~ sd ~ ~ ~, bd ~ bd bd sd ~ ~ ~, hh*8"));
+form([sec("verse", 16, "bass drums"), sec("chorus", 16, "*")]);
+```
+
+## nu_metal (88-108 BPM)
+
+Nu metal and rap metal: two distorted guitars tuned down to C or D, hard left and right, chugging the low root
+palm-muted in the verses and the breakdown (the `chug` style) with power chords hit off the beat, and holding the
+chords in the choruses; a bass locked to the kick under them, a hip hop groove on an acoustic kit (a syncopated kick,
+the snare on two and four, eighth hats), an eerie clean guitar line in the verses, a dark string pad in the choruses
+and a half-time breakdown. Phrygian and minor chords.
+
+```js
+blank("nu_metal");
+tempo(98);
+key("D minor");
+prog("A", "i bII i bVII");
+track("gtr", chord("prog").struct("x ~ ~ x ~ ~ x ~ ~ x x ~ ~ ~ x ~").voicing(38, 52).s("supersaw").role("chords").distort(20));
+track("drums", s("bd ~ ~ bd ~ ~ bd ~, ~ ~ sd ~ ~ ~ sd ~, hh*8").gain("1 0.6"));
+form([sec("verse", 16, "*")]);
 ```

@@ -2,7 +2,8 @@
 //! the time, its genre's `core` chance for the role; otherwise it draws a kind from the genre's `palette` for the
 //! role, by weight: `synth`, a synth preset that fits the genre's parts of the role, varied so that no two songs play
 //! quite the same patch, or a category of the installed sample packs' instruments (`strings`, `brass`, `mallets` ...),
-//! one whose sound pierces a mix only where the genre plays one of its kind itself. An
+//! one whose sound pierces a mix only where the genre plays one of its kind itself, and a distorted guitar only where
+//! the genre names it. An
 //! instrument is drawn only when its range holds the part's register, it suits the role (a pad sustains: no
 //! pizzicato, no piano), and its pack's licence lets music made with it be published freely: packs without a
 //! licence, and share-alike or non-commercial ones, are left to be chosen by hand.
@@ -271,14 +272,22 @@ fn named(palette: &RolePalette) -> Vec<String> {
         .collect()
 }
 
+/// an instrument whose sound is a style's own, which a guitar's distortion makes it: one heard in a song of another
+/// style is a mistake rather than a colour
+fn styled(instrument: &str) -> bool {
+    let name = instrument.rsplit(':').next().unwrap_or(instrument);
+    ["dist_", "distorted", "overdrive"].iter().any(|w| name.contains(w))
+}
+
 /// whether `i` may play for its kind where the palette's synths are `pool`: an instrument with the character of a
 /// synth where that synth is the palette's, one of a kind that pierces a mix where one of them stands in for it, and
-/// any other
+/// any other but a distorted guitar (`styled`), which plays only where the palette names it
 fn admitted(i: &Instrument, role: Role, pool: &[&'static str]) -> bool {
-    character(&i.name).map_or_else(
-        || !PIERCING.contains(&i.category.as_str()) || !players(&i.category, role, pool).is_empty(),
-        |s| pool.contains(&s),
-    )
+    !styled(&i.name)
+        && character(&i.name).map_or_else(
+            || !PIERCING.contains(&i.category.as_str()) || !players(&i.category, role, pool).is_empty(),
+            |s| pool.contains(&s),
+        )
 }
 
 /// Whether the installed instrument `name` is one a genre whose palette for `role` is `palette` has a place for: one
@@ -638,5 +647,22 @@ mod tests {
         );
         let named = RolePalette { instruments: vec![upright.name.clone()], ..palette };
         assert!(drawn(Role::Keys, (50, 72), &named, &both).contains(&upright.name), "one the genre names plays");
+    }
+
+    #[test]
+    fn a_distorted_guitar_plays_only_where_its_genre_names_it() {
+        let clean = inst("freepats:clean_guitar", "guitar", 40, 86);
+        let dist = inst("freepats:dist_guitar", "guitar", 35, 86);
+        let palette = RolePalette {
+            core: 0.0,
+            synths: vec!["pluck".into()],
+            instruments: Vec::new(),
+            retro: false,
+            kinds: [("guitar".to_string(), 1.0)].into(),
+        };
+        let both = [clean.clone(), dist.clone()];
+        assert_eq!(drawn(Role::Chords, (48, 72), &palette, &both), [clean.name.clone()].into());
+        let named = RolePalette { instruments: vec![dist.name.clone()], ..palette };
+        assert!(drawn(Role::Chords, (48, 72), &named, &both).contains(&dist.name), "a rock genre's own");
     }
 }

@@ -53,8 +53,8 @@ Part styles, by the part's role: bass `sustain pulse root8 offbeat octave rollin
 neo_soul soul rnb gfunk boom_bap lofi two_step jungle_dub halftime dub house_organ deep tech new_jack grime trip_hop
 big_beat rock drive` (each played as that genre's bassists play, in phrases that end on a turnaround; `seed` gives
 another take) · chords, keys and pads `sustain half stabs offbeat pump syncopated charleston`, and the genres' comping
-idioms `house_piano gospel lofi_comp trap_keys rnb_keys ballad bubble skank scratch strum highlife arpeggio legato
-ostinato pizzicato disco_strings tremolo brass_stabs` · arps `up down updown random pinky` (with `rate`, the note length in beats: 0.25 is sixteenths) · leads `motif`, and the genres' lead idioms `gfunk_whine trap_bells drill_melody afro_flute dembow_hook synth_lead trance_lead organ_riff disco_hook horn_riff reggae_horns riff garage_chop lofi_melody rnb_runs rock_lead ambient_line techno_stab phonk_cowbell piano_riff`. A preset is any synth preset
+idioms `house_piano gospel lofi_comp trap_keys rnb_keys ballad bubble skank scratch strum palm chug highlife arpeggio
+legato ostinato pizzicato disco_strings tremolo brass_stabs` · arps `up down updown random pinky` (with `rate`, the note length in beats: 0.25 is sixteenths) · leads `motif`, and the genres' lead idioms `gfunk_whine trap_bells drill_melody afro_flute dembow_hook synth_lead trance_lead organ_riff disco_hook horn_riff reggae_horns riff garage_chop lofi_melody rnb_runs rock_lead ambient_line techno_stab phonk_cowbell piano_riff`. A preset is any synth preset
 or sampled instrument (below).
 
 ### Form

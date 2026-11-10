@@ -1,0 +1,231 @@
+{
+  "name": "nu_metal",
+  "family": "rock",
+  "aliases": ["metal", "rap metal", "rap rock", "alternative metal", "rage against the machine", "linkin park", "korn", "deftones", "limp bizkit", "funk metal"],
+  "description": "Nu metal and rap metal of the late 1990s and 2000s at 88 to 108 BPM: two distorted guitars tuned down to C or D, hard left and right, chugging the low root palm-muted in the verses and the breakdown with power chords hit off the beat, holding the chords wide in the choruses, a bass locked to the kick under them, a hip hop groove on a live kit (a syncopated kick, the snare on two and four, eighth hats), an eerie clean guitar line in the verses, a dark string pad in the choruses, a half-time breakdown, phrygian and minor chords",
+  "query": "nu metal rap rock music with heavy distorted guitars",
+  "alts": ["heavy metal music", "alternative rock music", "hip hop beat with heavy bass", "punk rock music", "industrial rock music"],
+  "bpm": [88, 108],
+  "swing": [0.5, 0.54],
+  "humanize": 0.3,
+  "modes": [["phrygian", 0.35], ["minor", 0.45], ["harmonic_minor", 0.2]],
+  "harmony": [["phrygian", 0.35], ["minor_dark", 0.35], ["minimal", 0.2], ["harmonic", 0.1]],
+  "markov": 0.15,
+  "ext": 0,
+  "bars_per_chord": [[1, 0.4], [2, 0.6]],
+  "forms": [
+    [
+      {"name": "intro", "kind": "intro", "bars": 4, "energy": 0.55, "layers": ["clean", "chug_l"], "filter_in": true},
+      {"name": "verse", "kind": "verse", "bars": 16, "energy": 0.7, "layers": ["kick", "snare", "hat", "bass", "chug_l", "chug_r", "clean"], "variant": "verse", "fills": true},
+      {"name": "chorus", "kind": "hook", "bars": 8, "energy": 1.0, "layers": ["kick", "snare", "hat", "crash", "bass", "gtr_l", "gtr_r", "pad"], "impact": true, "fills": true},
+      {"name": "verse2", "kind": "verse", "bars": 16, "energy": 0.75, "layers": ["kick", "snare", "hat", "bass", "chug_l", "chug_r", "clean"], "variant": "verse", "fills": true},
+      {"name": "chorus2", "kind": "hook", "bars": 8, "energy": 1.0, "layers": ["kick", "snare", "hat", "crash", "bass", "gtr_l", "gtr_r", "pad"], "impact": true, "fills": true},
+      {"name": "break", "kind": "break", "bars": 8, "energy": 0.4, "prog": "B", "layers": ["clean", "pad", "hat"], "gap": true},
+      {"name": "breakdown", "kind": "hook", "bars": 8, "energy": 0.95, "prog": "B", "layers": ["kick", "snare", "hat", "crash", "bass", "chug_l", "chug_r"], "variant": "half", "impact": true},
+      {"name": "chorus3", "kind": "hook", "bars": 8, "energy": 1.0, "layers": ["kick", "snare", "hat", "crash", "bass", "gtr_l", "gtr_r", "chug_l", "chug_r", "pad"], "impact": true, "fills": true},
+      {"name": "outro", "kind": "outro", "bars": 4, "energy": 0.5, "layers": ["clean", "pad"]}
+    ]
+  ],
+  "drums": [
+    {
+      "name": "kick",
+      "late_ms": [-3, 1],
+      "voice": "kick",
+      "template": {"steps": [1, 0, 0, 0.6, 0, 0, 1, 0, 0, 0.5, 1, 0, 0, 0, 0.4, 0, 1, 0, 0, 0.6, 0, 0, 0.8, 0, 1, 0, 0.6, 0, 0, 0.4, 0, 0], "vel": [0.9, 1.0], "vary": 0.3},
+      "variants": {
+        "verse": {"steps": [1, 0, 0, 0.5, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0.5, 0, 0, 0.7, 0, 0, 0, 1, 0, 0, 0, 0, 0], "vel": [0.85, 1.0]},
+        "half": {"steps": [1, 0, 0, 0, 0, 0, 0.8, 0, 0, 0, 0, 0, 0, 0, 0.6, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.7, 0, 0.6, 0, 0, 0, 0, 0], "vel": [0.9, 1.0]}
+      },
+      "params": {"decay": [0.3, 0.45], "tune": [46, 56], "tone": [0.35, 0.6], "punch": [0.55, 0.8], "drive": [4, 8]},
+      "samples": ["Kick"],
+      "mix": {"bus": "drums"}
+    },
+    {
+      "name": "snare",
+      "late_ms": [0, 8],
+      "voice": "snare",
+      "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.92, 1.0], "ghost": 0.06, "vary": 0.25},
+      "variants": {"half": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0], "vel": [0.95, 1.0]}},
+      "params": {"decay": [0.2, 0.3], "tune": [170, 210], "snap": [0.55, 0.85], "tone": [0.45, 0.75], "room": [0.3, 0.55]},
+      "samples": ["Snare"],
+      "mix": {"bus": "drums", "reverb": 0.25}
+    },
+    {
+      "name": "hat",
+      "late_ms": [-2, 2],
+      "voice": "closed_hat",
+      "template": {"steps": [1, 0, 0.8, 0, 1, 0, 0.8, 0.3, 1, 0, 0.8, 0, 1, 0, 0.8, 0.4], "vel": [0.35, 0.65]},
+      "variants": {"half": {"steps": [1, 0, 0.7, 0, 1, 0, 0.7, 0, 1, 0, 0.7, 0, 1, 0, 0.7, 0], "vel": [0.35, 0.6]}},
+      "params": {"tone": [0.45, 0.7]},
+      "samples": ["Hi-hat"],
+      "choke": "hats",
+      "mix": {"bus": "drums", "pan": 0.25}
+    },
+    {
+      "name": "crash",
+      "voice": "crash",
+      "template": {"steps": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "vel": [0.7, 0.9]},
+      "params": {"decay": [2.0, 3.0]},
+      "mix": {"bus": "drums", "pan": -0.35, "reverb": 0.15}
+    }
+  ],
+  "kits": [["muldjord", 1.0]],
+  "kit_mix": 0.9,
+  "palette": {
+    "chords": {"core": 1.0},
+    "arp": {"core": 1.0},
+    "bass": {"core": 0.85, "bass": 2},
+    "pad": {"core": 0.8, "strings": 2}
+  },
+  "parts": [
+    {
+      "name": "chug_l",
+      "role": "chords",
+      "presets": ["freepats:dist_guitar|supersaw"],
+      "styles": ["chug"],
+      "register": [33, 52],
+      "voices": 3,
+      "voicing": "power",
+      "mix": {
+        "pan": -0.85,
+        "reverb": 0.04,
+        "level_db": 1.5,
+        "fx": [
+          {"fx": "eq", "bands": [{"kind": "highpass", "freq": 70, "q": 0.7}, {"kind": "peak", "freq": 120, "gain_db": 2.0, "q": 1.0}, {"kind": "peak", "freq": 550, "gain_db": -3.0, "q": 1.0}, {"kind": "peak", "freq": 2400, "gain_db": 2.0, "q": 0.8}, {"kind": "lowpass", "freq": 6500, "q": 0.7}]},
+          {"fx": "saturate", "kind": "hard", "drive_db": 9, "mix": 0.5}
+        ]
+      }
+    },
+    {
+      "name": "chug_r",
+      "role": "chords",
+      "doubles": "chug_l",
+      "presets": ["freepats:dist_guitar|supersaw"],
+      "styles": ["chug"],
+      "register": [33, 52],
+      "voices": 3,
+      "voicing": "power",
+      "late_ms": [3, 9],
+      "mix": {
+        "pan": 0.85,
+        "reverb": 0.04,
+        "level_db": 1.5,
+        "fx": [
+          {"fx": "eq", "bands": [{"kind": "highpass", "freq": 70, "q": 0.7}, {"kind": "peak", "freq": 120, "gain_db": 2.0, "q": 1.0}, {"kind": "peak", "freq": 500, "gain_db": -3.0, "q": 1.0}, {"kind": "peak", "freq": 2100, "gain_db": 2.0, "q": 0.8}, {"kind": "lowpass", "freq": 6000, "q": 0.7}]},
+          {"fx": "saturate", "kind": "hard", "drive_db": 10, "mix": 0.5}
+        ]
+      }
+    },
+    {
+      "name": "gtr_l",
+      "role": "chords",
+      "presets": ["freepats:dist_guitar|supersaw"],
+      "styles": ["half", "half", "sustain", "stabs"],
+      "register": [36, 57],
+      "voices": 3,
+      "voicing": "power",
+      "mix": {
+        "pan": -0.85,
+        "reverb": 0.06,
+        "level_db": 1.5,
+        "fx": [
+          {"fx": "eq", "bands": [{"kind": "highpass", "freq": 70, "q": 0.7}, {"kind": "peak", "freq": 550, "gain_db": -2.5, "q": 1.0}, {"kind": "peak", "freq": 2200, "gain_db": 2.5, "q": 0.8}, {"kind": "lowpass", "freq": 7000, "q": 0.7}]},
+          {"fx": "saturate", "kind": "hard", "drive_db": 8, "mix": 0.5}
+        ]
+      }
+    },
+    {
+      "name": "gtr_r",
+      "role": "chords",
+      "doubles": "gtr_l",
+      "presets": ["freepats:dist_guitar|supersaw"],
+      "styles": ["half", "half", "sustain", "stabs"],
+      "register": [36, 57],
+      "voices": 3,
+      "voicing": "power",
+      "late_ms": [3, 9],
+      "mix": {
+        "pan": 0.85,
+        "reverb": 0.06,
+        "level_db": 1.5,
+        "fx": [
+          {"fx": "eq", "bands": [{"kind": "highpass", "freq": 70, "q": 0.7}, {"kind": "peak", "freq": 500, "gain_db": -2.5, "q": 1.0}, {"kind": "peak", "freq": 1900, "gain_db": 2.5, "q": 0.8}, {"kind": "lowpass", "freq": 6500, "q": 0.7}]},
+          {"fx": "saturate", "kind": "hard", "drive_db": 9, "mix": 0.5}
+        ]
+      }
+    },
+    {
+      "name": "bass",
+      "role": "bass",
+      "presets": ["freepats:pick_bass|dist_bass", "growlybass:bass|dist_bass"],
+      "styles": ["kick_follow", "kick_follow", "root8"],
+      "register": [26, 40],
+      "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tube", "drive_db": 8, "mix": 0.6}]}
+    },
+    {
+      "name": "clean",
+      "role": "arp",
+      "presets": ["freepats:clean_guitar|pluck"],
+      "styles": ["up", "random"],
+      "rates": [0.5],
+      "register": [62, 81],
+      "mix": {"pan": 0.4, "delay": 0.35, "reverb": 0.4, "level_db": -3, "fx": [{"fx": "chorus", "rate_hz": 0.3, "depth_ms": 4, "delay_ms": 14, "mix": 0.5}]}
+    },
+    {
+      "name": "pad",
+      "role": "pad",
+      "presets": ["string_ensemble|strings", "warm_pad"],
+      "styles": ["sustain"],
+      "register": [48, 72],
+      "voices": 3,
+      "voicing": "spread",
+      "mix": {"reverb": 0.45, "level_db": -4}
+    }
+  ],
+  "loops": [],
+  "sampling": {
+    "by_default": false,
+    "phrase": {
+      "search": ["clean guitar arpeggio", "music box", "string quartet", "church organ", "choir", "eastern strings", "detuned guitar", "industrial noise", "piano", "synth pad", "horror film score", "sitar"],
+      "listen": "an eerie clean guitar line or a string figure",
+      "seconds": [6, 900],
+      "keep": 6,
+      "chance": 0.9,
+      "chop": 0.3,
+      "pitch": [-3, 2],
+      "instead": ["clean"],
+      "mix": {"bus": "music", "reverb": 0.2, "fx": [{"fx": "filter", "mode": "hp", "cutoff": 140, "res": 0.05}, {"fx": "tape", "wow": 0.3, "flutter": 0.2, "drive_db": 3, "lowpass_hz": 10000}]}
+    },
+    "texture": {
+      "search": ["industrial noise", "machine hum", "factory ambience", "radio static", "guitar amp hum", "tape hiss"],
+      "listen": "the hum and clank of a machine room",
+      "seconds": [5, 600],
+      "keep": 3,
+      "chance": 0.45,
+      "mix": {"bus": "music", "level_db": -5}
+    }
+  },
+  "transitions": {"riser": false, "impact": false, "downlifter": false, "reverse_crash": true, "riser_bars": 2, "mix": {"bus": "fx", "reverb": 0.3}},
+  "mix": {
+    "lufs": -8.5,
+    "reverb": {"fx": "reverb", "decay": 1.5, "damping": 0.6, "predelay_ms": 12, "width": 1.1, "mix": 1.0, "lowcut": 300},
+    "delay": {"fx": "delay", "beats": 0.75, "feedback": 0.35, "damping": 0.55, "pingpong": true, "mix": 1.0},
+    "buses": {
+      "drums": [
+        {"fx": "width", "width": 1.0, "mono_below_hz": 150},
+        {"fx": "parallel", "dry": 1, "chains": [{"amount": 0.4, "fx": [{"fx": "compressor", "threshold_db": -30, "ratio": 10, "attack_ms": 1, "release_ms": 60, "knee_db": 2}, {"fx": "saturate", "kind": "tape", "drive_db": 6}]}]},
+        {"fx": "compressor", "threshold_db": -14, "ratio": 2.8, "attack_ms": 10, "release_ms": 90, "knee_db": 6, "makeup_db": 1}
+      ],
+      "bass": [{"fx": "width", "width": 1.0, "mono_below_hz": 150}, {"fx": "compressor", "threshold_db": -16, "ratio": 4, "attack_ms": 6, "release_ms": 70, "knee_db": 6}],
+      "music": [{"fx": "width", "width": 1.0, "mono_below_hz": 150}]
+    },
+    "master": [
+      {"fx": "eq", "bands": [{"kind": "highpass", "freq": 28, "q": 0.7}]},
+      {"fx": "compressor", "threshold_db": -10, "ratio": 2.3, "attack_ms": 15, "release_ms": 140, "knee_db": 6},
+      {"fx": "saturate", "kind": "tape", "drive_db": 3, "mix": 0.5}
+    ],
+    "duck_release": 0.3,
+    "levels": {"chords": 2.0, "bass": 1.0, "snare": 1.0},
+    "bands": {"sub": [-17, -6], "low": [-8, -2], "lowmid": [-11, -3], "mid": [-15, -6], "presence": [-24, -13], "air": [-31, -17]}
+  }
+}

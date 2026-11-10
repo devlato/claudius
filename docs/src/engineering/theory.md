@@ -182,7 +182,8 @@ voices and room, the octave. It has no third, so a distorted guitar stays clear.
 the last one's.
 
 The critic checks the result: `voice_leading_<track>` is the average movement per voice per chord change, and above
-4.5 semitones it raises an issue.
+4.5 semitones it raises an issue. A part of power chords alone is not checked: a guitarist moves a power chord as one
+shape, its voices in parallel.
 
 ## Progressions
 
@@ -495,6 +496,8 @@ into it, as gospel and funk players slide into their changes.
 | `skank` | a short chord chopped on every offbeat | reggae, afrobeats |
 | `scratch` | funk's chicken scratch: muted sixteenths, a chord hit hard on the backbeat | funk, nu-disco |
 | `strum` | down on the beats, up on the offbeats, in eighths | neo-psychedelia, emo rap |
+| `palm` | the power chord palm-muted in eighths, let ring to end a phrase | pop punk |
+| `chug` | the power chord's root palm-muted in sixteenths, the whole chord hit hard off the beat | nu metal |
 | `highlife` | a bright picked pattern through the chord's upper voices | afrobeats, afro house |
 | `arpeggio` | the chord's voices one at a time, up and back | emo rap, neo-psychedelia |
 | `legato` | strings: each chord held, bowed again in a phrase's last bar | neo-soul, G-funk, trip hop, ambient |

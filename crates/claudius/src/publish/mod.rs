@@ -237,6 +237,9 @@ pub fn store_genre(genre: &str) -> (&'static str, &'static str) {
         "grime" => ("Hip-Hop/Rap", "Grime"),
         "phonk" => ("Hip-Hop/Rap", "Phonk"),
         "reggae" => ("Reggae", "Roots Reggae"),
+        "alt_rock" => ("Alternative", "Alternative Rock"),
+        "pop_punk" => ("Alternative", "Punk"),
+        "nu_metal" => ("Rock", "Metal"),
         _ => ("Electronic", ""),
     }
 }

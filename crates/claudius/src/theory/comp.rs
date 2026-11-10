@@ -118,6 +118,24 @@ pub const IDIOMS: &[Idiom] = &[
         vary: Vary { push: 0.15, drop: 0.05, ..STILL },
     },
     Idiom {
+        name: "palm",
+        about: "punk's and grunge's verse guitar: the power chord palm-muted in eighths, let ring to end a phrase",
+        cells: &["'C-C-C-C-'C-C-C-C-", "'C-C-C-CC'C-C-C-C-", "'C-C-C-C-'C-C-'C---"],
+        turns: &["'C-C-C-C-'C---'C---"],
+        phrase: 4,
+        legato: 0.55,
+        vary: Vary { push: 0.1, ..STILL },
+    },
+    Idiom {
+        name: "chug",
+        about: "metal's chug: the power chord's root palm-muted in sixteenths, the whole chord hit hard off the beat",
+        cells: &["'C.BB .B'C. BB.B 'C-..", "'C-.B B.'C- .BB. 'C.BB", "'C.B. B'C.B .B'C- B.B."],
+        turns: &["'C.BB 'C.BB 'C'C'C. 'C---"],
+        phrase: 4,
+        legato: 0.55,
+        vary: Vary { push: 0.05, drop: 0.1, ..STILL },
+    },
+    Idiom {
         name: "highlife",
         about: "highlife's and afrobeats' guitar: a bright picked pattern through the chord's upper voices, running on",
         cells: &["T.3.2.3.T.3.2.3.", "2.T.3.T.2.T.3.2."],
@@ -506,6 +524,24 @@ mod tests {
             assert!(w[1].t > w[0].t + 1e-9, "one voice at a time");
         }
         assert!(ostinato.iter().all(|n| n.d < 0.25), "short");
+    }
+
+    #[test]
+    fn a_chug_mutes_the_root_between_the_chords_it_hits_and_palm_mutes_strike_the_whole_chord_short() {
+        let at = |notes: &[Note], t: f64| notes.iter().filter(|m| (m.t - t).abs() < 1e-9).count();
+        for seed in TAKES {
+            let chug = comp(idiom("chug").unwrap(), &spans(&["Em", "Em"]), Voicing::Power, (38, 52), 3, seed, 0);
+            let bottom = chug.iter().map(|n| n.p).min().unwrap();
+            let roots: Vec<&Note> = chug.iter().filter(|n| at(&chug, n.t) == 1).collect();
+            assert!(roots.len() > 4 && at(&chug, 0.0) == 3, "roots alone, and chords: {chug:?}");
+            for n in roots {
+                assert!(n.p == bottom && n.d < 0.15, "a short root at {}: {n:?}", n.t);
+            }
+            let palm = comp(idiom("palm").unwrap(), &spans(&["D", "A"]), Voicing::Power, (40, 64), 3, seed, 0);
+            assert!(palm.iter().all(|n| at(&palm, n.t) == 3), "the whole power chord every time");
+            let short = palm.iter().filter(|n| n.d < 0.3).count();
+            assert!(short * 3 > palm.len() * 2, "{short} of {} shorter than an eighth", palm.len());
+        }
     }
 
     #[test]
