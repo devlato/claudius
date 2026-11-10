@@ -176,7 +176,8 @@ Above that, more of it layers up, each layer with a chance that grows to sure at
 - the harmony and the lead doubled on second instruments: the same notes, an octave up or in unison on another
   sound, 6 dB under and to the other side, and the bass an octave up through a high-pass and some drive, so that its
   harmonics carry it;
-- a clap on the snare's backbeats, a shaker on the sixteenths, and a percussion line;
+- a clap on the snare's backbeats, a shaker on the sixteenths, and a percussion line, a conga (or a conga, bongo or
+  clave from the library) in a euclidean rhythm, never a cowbell;
 - in a song built on samples, the sampled break, texture, vocal chop and bass note it may play, and the drums a break
   stands in for, played over the break in the hooks.
 
