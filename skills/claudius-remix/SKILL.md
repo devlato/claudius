@@ -71,7 +71,8 @@ generated parts in the new key.
 `remake` with `path`, `genre` and `seed` (MCP), or `claudius remake song.mp3 --genre lofi [--seed 3]`, reworks the
 recording in the genre, so that it stays the song it is:
 
-- all of it plays through, from its first downbeat to its end, at its own speed and pitch: its voice, its chords and
+- all of it plays through, from its first downbeat to its end, at its own speed and pitch (its sections brought
+  halfway to one level, so a quiet verse is not lost under the genre's drums): its voice, its chords and
   its melodies as they are, without its drums and its bass (taken apart from the rest with the ears' models; without
   them, what strikes and what is under 150 Hz), through the genre's treatment of a phrase it samples (boom bap's tape
   and 12 bits, say); a band that speeds up and slows down is followed beat for beat;
@@ -98,7 +99,8 @@ on samples is built:
   the song takes its key and chords; with the ears, without its voice too;
 - another passage of it as long plays in the other sections;
 - its own drums (its drum stem, with the ears) are the break, in a genre that plays one;
-- a flip of it, half beats cut from all over it on the hook's chords, plays in the intro, the breaks and the outro;
+- a flip of it, half beats cut from all over it on the hook's chords, each brought to the hook's level, plays in the
+  intro, the breaks and the outro;
 - its sung phrases, when it has any, come in on tracks of their own (`vox1` ...) where they agree with the chords.
 
 A flip plays at the recording's own tempo when the genre does, else at a multiple of it, faster or slower by whole

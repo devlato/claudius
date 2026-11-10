@@ -123,11 +123,7 @@ pub fn drum_bars(a: &Analysis, hook: Bars) -> Option<Bars> {
 /// long intro, or bars where only what `x` leaves out plays (a voice alone, with `x` the rest).
 fn loudest(a: &Analysis, x: &Stereo, b: Bars) -> Bars {
     let Some(s) = a.sections.iter().find(|s| s.start_bar == b.first) else { return b };
-    let power = |first: usize| {
-        let at = |bar: usize| ((a.bar_start(bar) * SRF).max(0.0) as usize).min(x.len());
-        let (i0, i1) = (at(first), at(first + b.count));
-        x.l[i0..i1].iter().chain(&x.r[i0..i1]).map(|v| (*v as f64).powi(2)).sum::<f64>() / (i1 - i0).max(1) as f64
-    };
+    let power = |first: usize| power_of(a, x, first, b.count);
     let end = (s.start_bar + s.bars).min(a.bars);
     let mut best = (b.first, power(b.first));
     for first in (b.first..).step_by(b.count.max(1)).skip(1).take_while(|f| f + b.count <= end) {
@@ -137,6 +133,78 @@ fn loudest(a: &Analysis, x: &Stereo, b: Bars) -> Bars {
         }
     }
     Bars { first: best.0, count: b.count }
+}
+
+/// the mean square of `x` over the recording's bars `first` to `first + count`, as `a` heard them
+fn power_of(a: &Analysis, x: &Stereo, first: usize, count: usize) -> f64 {
+    let at = |bar: usize| ((a.bar_start(bar) * SRF).max(0.0) as usize).min(x.len());
+    let (i0, i1) = (at(first), at(first + count));
+    x.l[i0..i1].iter().chain(&x.r[i0..i1]).map(|v| (*v as f64).powi(2)).sum::<f64>() / (2 * (i1 - i0)).max(1) as f64
+}
+
+fn db(power: f64) -> f64 {
+    10.0 * power.max(1e-12).log10()
+}
+
+/// how far under a recording's loudest bar one is a rest, which no levelling raises
+const REST_DB: f64 = 30.0;
+/// the most a flip raises or lowers a piece to bring it to its hook's level
+const FLIP_MOST_DB: f64 = 18.0;
+/// how much of the way a rework brings each of the recording's sections to their middle level, and the most it moves one
+const REWORK_LEVEL: f64 = 0.5;
+const REWORK_MOST_DB: f64 = 9.0;
+
+/// The gain that brings each of the recording's bars in `x` to `to` dB (mean square), `share` of the way and at most
+/// `most` dB either way; 1 for a bar that is a rest.
+fn bar_gains(a: &Analysis, x: &Stereo, to: f64, share: f64, most: f64) -> Vec<f32> {
+    let levels: Vec<f64> = (0..a.bars).map(|k| db(power_of(a, x, k, 1))).collect();
+    let top = levels.iter().copied().fold(f64::MIN, f64::max);
+    levels
+        .iter()
+        .map(|&d| if d < top - REST_DB { 1.0 } else { 10f64.powf((share * (to - d)).clamp(-most, most) / 20.0) as f32 })
+        .collect()
+}
+
+/// `x` with each of the recording's sections brought `REWORK_LEVEL` of the way to the middle of their levels (at most
+/// `REWORK_MOST_DB`), the gain gliding to the next section's over the last beat before it, as a fader moves ahead of a
+/// change: a song's quiet verse, against the genre's drums, which keep one level, would all but go under them, and a
+/// loud hook over them. The song keeps its shape, at half its range.
+fn sections_levelled(x: &Stereo, a: &Analysis) -> Stereo {
+    let levels: Vec<f64> = a.sections.iter().map(|s| db(power_of(a, x, s.start_bar, s.bars))).collect();
+    let top = levels.iter().copied().fold(f64::MIN, f64::max);
+    let mut heard: Vec<f64> = levels.iter().copied().filter(|&d| d >= top - REST_DB).collect();
+    if heard.len() < 2 {
+        return x.clone();
+    }
+    heard.sort_by(f64::total_cmp);
+    let middle = heard[heard.len() / 2];
+    let gains: Vec<f32> = levels
+        .iter()
+        .map(|&d| {
+            let g = if d < top - REST_DB {
+                0.0
+            } else {
+                (REWORK_LEVEL * (middle - d)).clamp(-REWORK_MOST_DB, REWORK_MOST_DB)
+            };
+            10f64.powf(g / 20.0) as f32
+        })
+        .collect();
+    let mut out = x.clone();
+    let glide = ((a.bar_secs / 4.0) * SRF) as usize;
+    for (i, s) in a.sections.iter().enumerate() {
+        let at = |bar: usize| ((a.bar_start(bar) * SRF).max(0.0) as usize).min(x.len());
+        let last = i + 1 == a.sections.len();
+        let (from, to) =
+            (if i == 0 { 0 } else { at(s.start_bar) }, if last { x.len() } else { at(s.start_bar + s.bars) });
+        let (now, then) = (gains[i], if last { gains[i] } else { gains[i + 1] });
+        let turn = to.saturating_sub(glide).max(from);
+        for t in from..to {
+            let g = if t >= turn { now + (then - now) * (t - turn) as f32 / (to - turn).max(1) as f32 } else { now };
+            out.l[t] *= g;
+            out.r[t] *= g;
+        }
+    }
+    out
 }
 
 /// `x`'s sustained part and its strikes (`fft::harmonic`), which add up to it
@@ -166,8 +234,11 @@ fn chords_of(a: &Analysis, b: Bars) -> Vec<String> {
 
 /// The flip: as many bars as the hook of half beats, each from another bar of the recording that plays the hook's
 /// chord at that place (one of a section with chords; the hook's own bar when no other does), at the same place in its
-/// bar, now and then another place in it. The audio, and the bar each half beat came from.
+/// bar, now and then another place in it, and each as loud as the hook (its bar brought to the hook's level, at most
+/// `FLIP_MOST_DB` either way: a piece of a quiet verse beside one of a loud chorus would jump). The audio, and the bar
+/// each half beat came from.
 pub fn flip(a: &Analysis, sustained: &Stereo, hook: Bars, rng: &mut Rng) -> (Stereo, Vec<usize>) {
+    let gains = bar_gains(a, sustained, db(power_of(a, sustained, hook.first, hook.count)), 1.0, FLIP_MOST_DB);
     let half = a.bar_secs / 8.0;
     let mut out = Stereo::zeros((hook.count as f64 * a.bar_secs * SRF).round() as usize);
     let with_chords: Vec<usize> = (0..a.bars.min(a.numerals.len()))
@@ -189,12 +260,13 @@ pub fn flip(a: &Analysis, sustained: &Stereo, hook: Bars, rng: &mut Rng) -> (Ste
         let (b0, b1) = (a.bar_start(k), a.bar_start(k + 1));
         let src = ((b0 + j as f64 * (b1 - b0) / 8.0) * SRF).round().max(0.0) as usize;
         let dst = (i as f64 * half * SRF).round() as usize;
+        let gain = gains.get(k).copied().unwrap_or(1.0);
         for t in 0..slot {
             let (s, d) = (src + t, dst + t);
             if s >= sustained.len() || d >= out.len() {
                 break;
             }
-            let edge = (t as f32 / fade_in as f32).min((slot - t) as f32 / fade_out as f32).min(1.0);
+            let edge = gain * (t as f32 / fade_in as f32).min((slot - t) as f32 / fade_out as f32).min(1.0);
             out.l[d] += sustained.l[s] * edge;
             out.r[d] += sustained.r[s] * edge;
         }
@@ -703,7 +775,7 @@ pub fn rework(
     let own = 240.0 / a.bar_secs.max(1e-3) * per.factor();
     let voice_apart = tracks.contains(&VOICE);
     for (track, audio) in &wholes {
-        let body = cut(audio, a, Bars { first: 0, count: a.bars });
+        let body = cut(&sections_levelled(audio, a), a, Bars { first: 0, count: a.bars });
         let path = crate::take::store(&body, &dir.join(&slug)).map_err(|e| format!("{e:#}"))?;
         let (role, mix, label) = match *track {
             VOICE => ("vocal", voice_mix(), format!("{slug}, its voice")),
@@ -834,6 +906,46 @@ mod tests {
         bars.sort_unstable();
         bars.dedup();
         assert!(bars.len() >= 4, "from {bars:?}: pieces from all over the recording");
+    }
+
+    /// a tone, as loud as `amp` gives each bar of `heard()` (2.5 s each)
+    fn tone_in_bars(amp: impl Fn(usize) -> f32) -> Stereo {
+        let mut x = Stereo::zeros((40.0 * SRF) as usize);
+        for i in 0..x.len() {
+            let t = i as f64 / SRF;
+            let v = amp((t / 2.5) as usize) * (std::f64::consts::TAU * 220.0 * t).sin() as f32;
+            (x.l[i], x.r[i]) = (v, v);
+        }
+        x
+    }
+
+    #[test]
+    fn a_flips_pieces_from_a_quiet_verse_play_as_loud_as_its_hook() {
+        let a = heard();
+        let hook = hook_bars(&a).unwrap();
+        // the verse 15 dB under the hook
+        let x = tone_in_bars(|b| if b < 8 { 0.089 } else { 0.5 });
+        let (out, from) = flip(&a, &x, hook, &mut Rng::new(5));
+        assert!(from.iter().any(|&k| k < 8), "a piece of the verse among {from:?}");
+        let slot = (2.5 / 8.0 * SRF) as usize;
+        for (i, &k) in from.iter().enumerate() {
+            // the middle of each half beat, past its fades
+            let p = &out.l[i * slot + slot / 4..i * slot + 3 * slot / 4];
+            let rms = (p.iter().map(|v| (*v as f64).powi(2)).sum::<f64>() / p.len() as f64).sqrt();
+            let at = 20.0 * (rms / (0.5 / 2f64.sqrt())).log10();
+            assert!(at.abs() < 1.0, "half beat {i} from bar {k}: {at:+.1} dB against the hook");
+        }
+    }
+
+    #[test]
+    fn a_reworks_quiet_section_comes_halfway_up_to_its_loud_one() {
+        let a = heard();
+        // the verse 12 dB under the hook
+        let x = tone_in_bars(|b| if b < 8 { 0.1 } else { 0.4 });
+        let out = sections_levelled(&x, &a);
+        let (verse, hook) = (db(power_of(&a, &out, 0, 8)), db(power_of(&a, &out, 8, 8)));
+        assert!((hook - verse - 6.0).abs() < 0.5, "the verse {:.1} dB under the hook", hook - verse);
+        assert!((hook - db(power_of(&a, &x, 8, 8))).abs() < 0.01, "the loudest stays where it was");
     }
 
     /// a recording: `i VI III VII` in A minor at 96 BPM, a bar each, its chords as sine triads, a kick on one and three

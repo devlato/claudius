@@ -298,12 +298,16 @@ out when the rest holds under a fiftieth of its power, a voice over a beat). Wit
 the recording is split into what sustains and what strikes (`fft::harmonic`), and what sustains is the loop, with the
 high-pass at 150 Hz at least, which leaves the low end to the genre's bass and kick. The song generated in the genre
 at the recording's tempo (`rework_tempo`: from the length of its bars, doubled when that is nearer the genre's range, two bars of the
-song to each of its own, never halved, which would put two of its chords in a bar; so
+song to each of its own, or halved, one to two of its own, when that is nearer and the recording holds each chord two
+bars, three pairs in four, since a bar of the song plays one chord; so
 that the loop is not stretched) and in its key then takes the recording's skeleton exactly: one section per analysed
 section, as long as it was heard, its kind and energy, the layers of the genre's section most like it (of its kind, else
 the nearest in energy) that play under a recording (drum lanes, the bass, the break and the textures, not chords,
 keys, pads or leads, which would play against its own and against it where a chord was heard wrong), a progression per run of its bars' chords at one chord a bar, and the recording's swing. Parts
-the sections do not play are left out. The history says `reworked from '<file>': all <n> bars of it, ...`.
+the sections do not play are left out. The recording's sections are brought halfway to the middle of their levels
+(`sections_levelled`: by 9 dB at most, the gain moving over the last beat before a section; a section 30 dB under the
+loudest is a rest and is left as it is), since the genre's drums keep one level. The history says `reworked from
+'<file>': all <n> bars of it, ...`.
 
 ### Flipping it
 
@@ -319,8 +323,9 @@ the sampling pipeline as the phrase a song is built on (`sampling::apply`, throu
 recording's pieces and the libraries' one-shots, loops and textures), with another passage of it as the phrase's second
 passage and its drums as the break where the genre samples one. So the song takes the hook's key and chords and a tempo
 the genre plays, the recording's own or a multiple of it (`sampling::meets`). A flip of it follows: as many bars as
-the hook of half beats, each from another bar of the recording on the hook's chord at that place, in the intro, the
-breaks and the outro where the other passage does not play. Then the sampler brings in its sung phrases, from the
+the hook of half beats, each from another bar of the recording on the hook's chord at that place, each bar brought to
+the hook's level (`bar_gains`, by 18 dB at most, a rest left as it is), in the intro, the breaks and the outro where
+the other passage does not play. Then the sampler brings in its sung phrases, from the
 recording as the remix heard it (`sampler::sample_from`: its stems and its analysis, not separated or analysed again). A
 recording with no section with chords long enough falls back to the skeleton, and the reply says so. The song's history
 says what came from where: `remixed from '<file>': its hook (bars 33-36) without its drums; ...`.
