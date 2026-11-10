@@ -32,6 +32,7 @@ crates/
   claudius-decode/         audio files to samples (symphonia, ffmpeg as fallback)
   earshot/                 the ears: earshot ported to Rust, CLAP and AudioSet on ONNX Runtime
   claudius-api/            the HTTP API's types, shared with the web studio
+  claudius-intent/         the command palette's actions, found by name and by meaning (static word embeddings)
   claudius-server/         the session, HTTP routes, MCP tools
   claudius-ui/             the studio, native and WebAssembly
   claudius-cli/            the claudius program: main.rs (the commands), args.rs (flags), report.rs (printing)

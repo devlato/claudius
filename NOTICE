@@ -55,6 +55,17 @@ SHA-256 hashes:
     (https://huggingface.co/Microck/audiobox-aesthetics-onnx), its MatMul
     weights quantized to int8.
 
+The command palette's embedding model, fetched from the Hugging Face Hub the
+first time the palette is typed in, checked against pinned SHA-256 hashes, and
+kept as claudius's own smaller file of it (its numbers a byte each), which the
+website also serves to its demo:
+
+  - Model2Vec's potion-base-8M by Minish Lab, MIT
+    (https://huggingface.co/minishlab/potion-base-8M), distilled from BAAI's
+    bge-base-en-v1.5 (MIT) and trained with Tokenlearn. Its licence is in
+    crates/claudius-intent/LICENSE-potion-base-8M, and the website serves it
+    beside its copy.
+
 The sample packs, fetched by `claudius setup` or `claudius-packs install`. Each
 pack's licence and attribution are recorded in crates/claudius-packs/src/registry.json
 and in the pack's index.json once installed; `claudius-packs list` prints them.

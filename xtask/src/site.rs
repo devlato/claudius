@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow, ensure};
 use xshell::{Shell, cmd};
 
 use crate::{copy_tree, fresh_dir, root};
@@ -73,8 +73,11 @@ pub fn build(sh: &Shell, out: &Path, site_url: &str, sounds: bool) -> Result<()>
     copy_tree(&root().join("crates/claudius-server/src/phone"), &out.join("phone"), &|_| false, &|bytes| bytes)?;
     if sounds {
         web_packs(sh, &out.join("studio").join("packs"))?;
+        web_model(sh, &out.join("studio").join("models"))?;
     } else {
-        eprintln!("note: no instruments for the demo (--sounds makes them)");
+        eprintln!(
+            "note: no instruments for the demo, and its palette finds actions by name only (--sounds makes them)"
+        );
     }
 
     for script in ["install.sh", "install.ps1"] {
@@ -184,6 +187,38 @@ fn web_packs(sh: &Shell, out: &Path) -> Result<()> {
         .run()?;
     cmd!(sh, "cargo run --locked --release -p claudius-packs --features {features} -- web {out} /studio/packs {WEB_INSTRUMENTS...}")
         .run()?;
+    Ok(())
+}
+
+/// The embedding model the demo's palette finds actions by meaning with, as claudius keeps it (`<name>.clde`), in
+/// `out`: downloaded once beside the demo's packs, from the revision claudius was checked with, each file checked
+/// against its hash.
+fn web_model(sh: &Shell, out: &Path) -> Result<()> {
+    use sha2::{Digest, Sha256};
+    let source = claudius_intent::model::POTION;
+    let downloads = root().join("target/demo-sounds/models").join(source.name);
+    sh.create_dir(&downloads)?;
+    for (file, size, sha) in source.files {
+        let dest = downloads.join(file);
+        let checked = |path: &Path| {
+            std::fs::read(path).is_ok_and(|bytes| {
+                bytes.len() as u64 == size
+                    && Sha256::digest(&bytes).iter().map(|b| format!("{b:02x}")).collect::<String>() == sha
+            })
+        };
+        if !checked(&dest) {
+            let url = source.url(file);
+            cmd!(sh, "curl -fsSL --retry 3 -o {dest} {url}").run()?;
+            ensure!(checked(&dest), "{file} from {url} is not the file claudius was checked with");
+        }
+    }
+    let tensors = std::fs::read(downloads.join("model.safetensors"))?;
+    let model = claudius_intent::Model::from_model2vec(&tensors, &sh.read_file(downloads.join("vocab.txt"))?)
+        .map_err(|why| anyhow!("{}: {why}", source.name))?;
+    sh.create_dir(out)?;
+    sh.write_file(out.join(format!("{}.clde", source.name)), model.to_bytes())?;
+    let licence = format!("LICENSE-{}", source.name);
+    sh.copy_file(root().join("crates/claudius-intent").join(&licence), out.join(format!("{licence}.txt")))?;
     Ok(())
 }
 

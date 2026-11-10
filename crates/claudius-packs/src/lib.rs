@@ -39,6 +39,7 @@ use std::sync::{Arc, Mutex};
 use anyhow::{Context, Result, anyhow, bail};
 use serde::{Deserialize, Serialize};
 
+pub use fetch::download_file;
 pub use install::InstallOptions;
 pub use model::{Kind, PackIndex};
 pub use player::{Instrument, InstrumentInfo, NoteOn, SR};

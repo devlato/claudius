@@ -898,6 +898,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "claudius-intent"
+version = "0.5.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "claudius-packs"
 version = "0.5.0"
 dependencies = [
@@ -925,6 +933,7 @@ dependencies = [
  "claudius",
  "claudius-api",
  "claudius-decode",
+ "claudius-intent",
  "claudius-packs",
  "claudius-session",
  "dirs",
@@ -949,9 +958,11 @@ dependencies = [
  "base64 0.23.1",
  "claudius",
  "claudius-api",
+ "claudius-intent",
  "claudius-packs",
  "serde",
  "serde_json",
+ "sha2",
 ]
 
 [[package]]
@@ -960,6 +971,7 @@ version = "0.5.0"
 dependencies = [
  "claudius",
  "claudius-api",
+ "claudius-intent",
  "claudius-session",
  "cpal",
  "eframe",
@@ -7159,6 +7171,7 @@ name = "xtask"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "claudius-intent",
  "sha2",
  "xshell",
 ]

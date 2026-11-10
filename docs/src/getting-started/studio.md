@@ -301,10 +301,17 @@ assistant then makes and edits the song open here, and you hear every change.
 ## Finding an action
 
 **Cmd+K** (Ctrl+K on Windows and Linux), or **Cmd+K all actions** in the bottom right corner, opens the command
-palette: every action of the studio by name, each with where it lives (the transport, the toolbar, a tab) and the key
-that does it too. Type a few letters of what you want to do, or a word for it ("volume" finds the Mixer, "whiteboard"
-the Signal flow, "sample" the window that adds a recording), pick one with the arrows and press Enter, or click it.
-Escape closes the palette.
+palette: every action of the studio, each with where it lives (the transport, the toolbar, a tab, the status bar) and
+the key that does it too. Type a few letters of its name, or say what you want in your own words: "volume" finds the
+Mixer, "whiteboard" the Signal flow, "make it sound better" Improve the song, "sing over it" Record a take, "go back"
+Undo. Pick one with the arrows and press Enter, or click it. Escape closes the palette.
+
+Names are found at once. What your words mean is found by a small model that runs on your computer, on any processor
+and without a graphics card, in a fraction of a millisecond: Model2Vec's potion-base-8M, 8 MB as claudius keeps it,
+which claudius downloads from Hugging Face the first time you type in the palette (the demo fetches it from the site).
+Until it is there, and without a network, the palette finds actions by name, and says so in its last line. An action
+found by what your words mean, rather than by its name, says so when you point at it. What you type in the palette
+stays on your computer.
 
 A track's menu and a section's menu (right-click either in the arrangement) start with what they act on and group
 their items under small headers: a track's under Hear, Sound, Write (Recording, for a take) and Sections, a
@@ -314,7 +321,7 @@ section's under Hear and Arrange, with the item that removes it in red at the en
 
 | key | |
 |---|---|
-| Cmd+K | the command palette: every action by name (Ctrl+K on Windows and Linux) |
+| Cmd+K | the command palette: every action, by its name or in your own words (Ctrl+K on Windows and Linux) |
 | Space | play or pause |
 | Home | back to the start |
 | L | loop the song or the selected section |

@@ -5,6 +5,7 @@
 //! the page finds for it first (`sample`), which the engine cuts as the app does.
 
 mod engine;
+mod meaning;
 mod phone;
 mod sample;
 
@@ -88,6 +89,8 @@ pub struct Mock {
     /// the renders the engine makes files of for downloads: what each is answered as, and the file's name
     encodes: Vec<(u64, String)>,
     encode_id: u64,
+    /// what the palette's words find
+    finding: meaning::Finding,
 }
 
 /// what a download is, unless another format is asked for: FLAC, lossless at about half a WAV's size
@@ -153,6 +156,7 @@ impl Mock {
             phone_asks: 0,
             encodes: Vec::new(),
             encode_id: 0,
+            finding: meaning::Finding::default(),
         }
     }
 
@@ -189,6 +193,12 @@ impl Mock {
     /// the script reference, which arrives as an event
     pub fn reference(&mut self) {
         self.engine.reference();
+    }
+
+    /// the studio's actions `q` finds, at once, as `Event::Found` (`meaning`)
+    pub fn find(&mut self, q: &str, limit: usize) {
+        let answer = self.finding.find(q, limit, self.now, self.ctx.as_ref());
+        self.events.push(Event::Found(answer));
     }
 
     /// a reply that turns down what the demo cannot do
@@ -366,6 +376,9 @@ impl Mock {
     /// what the engine and the sampler have done since; `now` in seconds
     pub fn update(&mut self, now: f64) -> Vec<Event> {
         self.now = now;
+        if let Some(answer) = self.finding.again(now, self.ctx.as_ref()) {
+            self.events.push(Event::Found(answer));
+        }
         for heard in self.engine.take() {
             match heard {
                 Heard::Answer { what, reply, state } => {

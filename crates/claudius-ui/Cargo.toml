@@ -21,6 +21,7 @@ plan = []
 
 [dependencies]
 claudius-api = { path = "../claudius-api" }
+claudius-intent = { path = "../claudius-intent" }
 eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "clipboard", "links", "persistence", "wayland", "x11"] }
 ehttp = "0.7"
 # WAV in and out: the song a take is recorded over, and the take itself

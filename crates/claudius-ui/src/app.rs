@@ -284,6 +284,7 @@ impl Studio {
             }
             Event::Preview { version, image } => self.view.publish.arrived = Some((version, image)),
             Event::Library(hits) => self.view.import.found(hits),
+            Event::Found(answer) => self.view.palette.heard(answer),
             Event::Said { text, ok } => self.toast(text, ok, now),
             Event::PhoneRefused(why) => {
                 self.view.phone.refused();
@@ -1259,6 +1260,9 @@ impl eframe::App for Studio {
         self.take_picks(now);
         if let Some(q) = self.view.import.search.take() {
             self.backend.search_library(&q);
+        }
+        if let Some(q) = self.view.palette.ask.take() {
+            self.backend.find(&q, crate::panels::palette::SHOWN);
         }
         if let Some((file, found)) = self.view.import.offer.take() {
             self.inflight += 1;

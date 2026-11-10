@@ -6,6 +6,14 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+The command palette (Cmd+K) finds actions by what your words mean as well as by their names: "make it sound better"
+finds Improve the song, "sing over it" Record a take, "go back" Undo. A small model finds them on your computer, on
+any processor and without a graphics card: Model2Vec's potion-base-8M, 8 MB, which claudius downloads from Hugging
+Face the first time you type in the palette (the web demo fetches it from the site). Until then, names find
+everything. The palette now does more as well: Try variations, Improve the song, Fix what the critic found, Stop what
+claudius is doing, Render the tracks, Download the sample packs, Release the song, Connect an assistant and the
+Script reference. `GET /api/find?q=` answers with what the palette finds.
+
 [claudius radio](https://claudius.devlato.com/radio/): a station of songs claudius writes as it plays them, one genre
 after another, each mixed into the next as a DJ would. Three songs in four mix in beat for beat, written at exactly the
 playing song's tempo (or twice or half of it) and in a key of its notes, coming in on a bar line of its outro with their
