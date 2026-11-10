@@ -37,6 +37,15 @@ fill more of the sub or the low band than the genre's masters do, the louder of 
 phonk, rage, hip hop and the genres near them lift their bass 1.5 to 2 dB less than they did. And a song's first verse
 or hook no longer drops its bass to thin itself out; it leaves out another part.
 
+A recording's tempo is heard better. Where the tracker took the tempo its onsets repeated at most, near 120 BPM, it
+now also asks how well each tempo's grid lies on the onsets, so a syncopated kick or a dotted rhythm no longer makes it
+hear a song a third or a quarter off its tempo (a hip hop song at 85 heard at 141, drum and bass at 117), and whether
+the kit plays a backbeat at it, so a slow song is less often heard at twice its tempo; it hears from 55 to 200 BPM,
+where it heard from 70 to 180. On claudius's own songs the whole mix is heard at its tempo 65 times in 82 where it was
+47. A rework halves the recording's tempo when that is nearer the genre's (one bar of the song to two of the
+recording's, where the recording holds its chords two bars), as it doubled it: a 170 BPM song reworked as hip hop
+plays at 85, no longer at drum and bass's speed.
+
 ## [0.5.0] - 2026-11-09
 
 A recording can be rebuilt as a song of its own parts, every note of them yours to change: `claudius remake

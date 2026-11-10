@@ -434,15 +434,56 @@ pub fn remix(
     Ok(bp)
 }
 
-/// The tempo a rework plays at, and the song's bars to each of the recording's: its own tempo (from the length of its
-/// bars), or double it (two bars to each of its own) when that is nearer the genre's range, so that it plays at its
-/// own speed and pitch on the song's grid. Never half: two of its bars to one of the song's would put two of its chords
-/// in a bar of the song's, which plays one chord a bar at most.
-pub fn rework_tempo(a: &Analysis, g: &GenreProfile) -> (f64, usize) {
+/// how a rework's bars lie on the recording's
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Per {
+    /// a bar of the song's to each of the recording's
+    One,
+    /// two of the song's to each of the recording's: double time
+    Two,
+    /// one of the song's to two of the recording's: half time
+    Half,
+}
+
+impl Per {
+    /// the song's bars to each of the recording's
+    pub fn factor(self) -> f64 {
+        match self {
+            Per::One => 1.0,
+            Per::Two => 2.0,
+            Per::Half => 0.5,
+        }
+    }
+
+    /// the song's bar that the recording's bar `b` starts in
+    fn song_bar(self, b: usize) -> usize {
+        match self {
+            Per::One => b,
+            Per::Two => 2 * b,
+            Per::Half => b / 2,
+        }
+    }
+}
+
+/// The tempo a rework plays at, and how the song's bars lie on the recording's: its own tempo (from the length of its
+/// bars), double it (two bars to each of its own) or half it (one to two of its own) when that is nearer the genre's
+/// range, so that it plays at its own speed and pitch on the song's grid, and the genre's drums at a tempo the genre
+/// plays (a hip hop beat under a song of 170 BPM plays at 85, not as fast as drum and bass). Half only where the
+/// recording keeps its chord through two bars at a time, three pairs in four at least, since the song plays one chord a
+/// bar at most: a recording heard at twice its tempo, whose bars are each half of one, always does.
+pub fn rework_tempo(a: &Analysis, g: &GenreProfile) -> (f64, Per) {
     let own = 240.0 / a.bar_secs.max(1e-3);
     let (lo, hi) = g.bpm;
     let outside = |b: f64| (lo - b).max(b - hi).max(0.0);
-    if outside(own * 2.0) < outside(own) { (own * 2.0, 2) } else { (own, 1) }
+    let pairs = a.numerals.chunks_exact(2).filter(|p| !p[0].is_empty() || !p[1].is_empty()).collect::<Vec<_>>();
+    let held = pairs.iter().filter(|p| p[0] == p[1] || p[1].is_empty()).count();
+    let halves = !pairs.is_empty() && 4 * held >= 3 * pairs.len();
+    [Per::One, Per::Two, Per::Half]
+        .into_iter()
+        .filter(|p| *p != Per::Half || halves)
+        .map(|p| (own * p.factor(), p))
+        .min_by(|x, y| outside(x.0).total_cmp(&outside(y.0)))
+        .unwrap_or((own, Per::One))
 }
 
 /// The library a rework draws on: the libraries' one-shots, loops, breaks and textures; no other record's phrase, voice
@@ -498,13 +539,15 @@ fn like<'a>(form: &'a [SectionSpec], s: &SectionGuess) -> Option<&'a SectionSpec
         .or_else(|| form.iter().min_by(|x, y| (x.energy - s.energy).abs().total_cmp(&(y.energy - s.energy).abs())))
 }
 
-/// The recording's sections as the song's, `per` bars of the song's to each of its own: each its own kind, length and
-/// energy, on a progression of its own bars' chords (a chord to each of its bars; one name for each run of chords, `A`
-/// the first), with the layers the genre plays in a section like it that `keep` takes and the recording's own
-/// `tracks`, and the progressions
+/// The recording's sections as the song's, its bars lying on the song's as `per` says: each its own kind, length and
+/// energy, on a progression of its own bars' chords (a chord to each of its bars, or in half time to each pair of them,
+/// the first's; one name for each run of chords, `A` the first), with the layers the genre plays in a section like it
+/// that `keep` takes and the recording's own `tracks`, and the progressions. In half time a section starts in the
+/// song's bar its first bar falls in, and one of a single bar that shares the song's bar with the one before is left
+/// to it.
 fn rework_form(
     a: &Analysis,
-    per: usize,
+    per: Per,
     genre: &[SectionSpec],
     keep: impl Fn(&str) -> bool,
     tracks: &[&str],
@@ -514,9 +557,15 @@ fn rework_form(
     let mut named: Vec<(Vec<String>, String)> = Vec::new();
     let mut last = a.numerals.iter().find(|c| !c.is_empty()).cloned().unwrap_or_else(|| "i".into());
     for (i, s) in a.sections.iter().enumerate() {
-        let chords: Vec<String> = (s.start_bar..s.start_bar + s.bars)
+        let (from, to) = (per.song_bar(s.start_bar), per.song_bar(s.start_bar + s.bars));
+        if to <= from {
+            continue;
+        }
+        // the recording's bars a chord each is taken from: each of them, or the first of each pair in half time
+        let (first, count, step) = if per == Per::Half { (from, to - from, 2) } else { (s.start_bar, s.bars, 1) };
+        let chords: Vec<String> = (first..first + count)
             .map(|b| {
-                if let Some(c) = a.numerals.get(b).filter(|c| !c.is_empty()) {
+                if let Some(c) = a.numerals.get(b * step).filter(|c| !c.is_empty()) {
                     last = c.clone();
                 }
                 last.clone()
@@ -539,7 +588,7 @@ fn rework_form(
         form.push(SectionSpec {
             name,
             kind: s.kind,
-            bars: (s.bars * per) as u32,
+            bars: (to - from) as u32,
             energy: s.energy,
             prog,
             layers,
@@ -607,7 +656,7 @@ pub fn rework(
         return Err("the recording is too short, or its sections too unclear, to rework".into());
     }
     // a tempo asked for stretches the recording to it, bar for bar
-    let (bpm, per) = opts.bpm.map_or_else(|| rework_tempo(a, g), |b| (b, 1));
+    let (bpm, per) = opts.bpm.map_or_else(|| rework_tempo(a, g), |b| (b, Per::One));
     let o = Options { bpm: Some(bpm), key: Some(a.key), sample_search: None, family: false, ..opts.clone() };
     let mut bp = compose::generate(g, seed, &o, Some(&Under { inner: lib }));
     bp.key = a.key;
@@ -625,7 +674,7 @@ pub fn rework(
     let (form, progressions) = rework_form(a, per, &bp.form, keep, &tracks);
     bp.form = form;
     bp.harmony.progressions = progressions;
-    bp.harmony.bars_per_chord = per as u32;
+    bp.harmony.bars_per_chord = if per == Per::Two { 2 } else { 1 };
     bp.swing = a.swing;
     let used: Vec<String> = bp.form.iter().flat_map(|s| s.layers.iter().cloned()).collect();
     bp.parts.retain(|p| used.contains(&p.name));
@@ -646,9 +695,9 @@ pub fn rework(
     if mix.bus.is_empty() {
         mix.bus = "music".into();
     }
-    // at its own tempo on the song's grid, `per` beats of the song's to each of its own: as long as the song's bars, or
-    // stretched to a tempo asked for
-    let own = 240.0 / a.bar_secs.max(1e-3) * per as f64;
+    // at its own tempo on the song's grid, its beats as long as the song's bars lay them (two of the song's to each of
+    // its own in double time, one to two in half time), or stretched to a tempo asked for
+    let own = 240.0 / a.bar_secs.max(1e-3) * per.factor();
     let voice_apart = tracks.contains(&VOICE);
     for (track, audio) in &wholes {
         let body = cut(audio, a, Bars { first: 0, count: a.bars });
@@ -664,7 +713,7 @@ pub fn rework(
             sound: Sound::Loop {
                 path: path.to_string_lossy().into_owned(),
                 bpm: own,
-                beats: (a.bars * 4 * per) as f64,
+                beats: a.bars as f64 * 4.0 * per.factor(),
                 key: None,
                 tonal: false,
                 label,
@@ -681,9 +730,14 @@ pub fn rework(
     let kept: Vec<&str> =
         bp.parts.iter().map(|p| p.name.as_str()).chain(bp.drums.iter().map(|d| d.name.as_str())).collect();
     let apart = if voice_apart { format!(", its voice on a track of its own ({VOICE})") } else { String::new() };
+    let time = match per {
+        Per::One => String::new(),
+        Per::Two => format!(" in double time, at {bpm:.0} BPM to its {:.0}", 240.0 / a.bar_secs.max(1e-3)),
+        Per::Half => format!(" in half time, at {bpm:.0} BPM to its {:.0}", 240.0 / a.bar_secs.max(1e-3)),
+    };
     let line = format!(
         "reworked from '{name}': all {} bars of it, its voice and its chords as they are{apart}, without {without}, in \
-         its own {} sections and on its chords; {}'s {} under it",
+         its own {} sections and on its chords; {}'s {} under it{time}",
         a.bars,
         bp.form.len(),
         g.name.replace('_', " "),
@@ -1027,6 +1081,41 @@ mod tests {
         let bars: f64 = bp.form.iter().map(|s| s.bars as f64).sum();
         let (bpm, beats) = original(&bp);
         assert!((bpm - own).abs() < 1e-9 && (beats - bars * 4.0).abs() < 1e-6, "at its own {own}: {bpm} {beats}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_rework_of_a_fast_recording_that_holds_its_chords_two_bars_plays_in_half_time() {
+        // sixteen bars at 170 BPM, each chord held two bars
+        let mut a = heard();
+        (a.bpm, a.bar_secs) = (170.0, 240.0 / 170.0);
+        a.numerals =
+            ["i", "i", "VI", "VI", "III", "III", "VII", "VII"].iter().cycle().take(16).map(|s| s.to_string()).collect();
+        let hip_hop = crate::genres::get("hip_hop").unwrap();
+        let (bpm, per) = rework_tempo(&a, &hip_hop);
+        assert!((bpm - 85.0).abs() < 1e-9 && per == Per::Half, "{bpm} {per:?}");
+        // a chord to each bar: the song keeps the recording's tempo, since it plays one chord a bar at most
+        let every = Analysis { numerals: heard().numerals, ..a.clone() };
+        assert_eq!(rework_tempo(&every, &hip_hop).1, Per::One);
+        // one bar of the song's to two of the recording's, a chord each, the first of the two, and the recording as it is
+        let x = Stereo::zeros((16.0 * a.bar_secs * SRF) as usize);
+        let dir = std::env::temp_dir().join(format!("claudius-rework-half-{}", std::process::id()));
+        let src = Source { x: &x, name: "fast.wav", a: &a, stems: None };
+        let bp = rework(&src, &hip_hop, 3, &Options::default(), None, &dir).unwrap();
+        assert!(
+            (bp.bpm - 85.0).abs() < 1e-9 && bp.harmony.bars_per_chord == 1,
+            "{} {}",
+            bp.bpm,
+            bp.harmony.bars_per_chord
+        );
+        for (s, heard) in bp.form.iter().zip(&a.sections) {
+            assert_eq!(s.bars as usize, heard.bars / 2, "{}", s.name);
+            assert_eq!(bp.harmony.progressions[&s.prog], ["i", "VI", "III", "VII"], "{}", s.name);
+        }
+        let bars: f64 = bp.form.iter().map(|s| s.bars as f64).sum();
+        let (bpm, beats) = original(&bp);
+        assert!((bpm - 85.0).abs() < 1e-9 && (beats - bars * 4.0).abs() < 1e-6, "unstretched: {bpm} {beats}");
+        assert!(bp.lineage.iter().any(|l| l.contains("in half time, at 85 BPM to its 170")), "{:?}", bp.lineage);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

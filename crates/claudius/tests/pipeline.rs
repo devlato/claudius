@@ -243,6 +243,20 @@ fn the_beat_tracker_finds_the_tempo() {
 }
 
 #[test]
+fn a_songs_tempo_is_heard_at_its_own_and_neither_a_third_off_it_nor_at_twice_a_slow_one() {
+    // the tempos these were heard at before: hip hop's syncopated kick at five thirds of it, drum and bass at half,
+    // a slow lofi song at twice, house as it is
+    for (genre, seed) in [("hip_hop", 3), ("dnb", 3), ("lofi", 3), ("house", 1)] {
+        let bp = compose::generate(&genres::get(genre).unwrap(), seed, &Options::default(), None);
+        let (a, b) = claudius::evolve::preview_window(&bp, 48);
+        let p = compose::arrange(&bp).slice(a, b);
+        let r = render::render(&p, &render::Options { stems: false, tail_secs: 1.0 }).unwrap();
+        let heard = analysis::song::analyze(&r.master, None);
+        assert!((heard.bpm / bp.bpm - 1.0).abs() < 0.01, "{genre} at {} BPM heard at {}", bp.bpm, heard.bpm);
+    }
+}
+
+#[test]
 fn chroma_finds_the_key_of_a_cadence() {
     // I IV V I in G major as sustained sine triads
     let key = Key::new(7, Mode::Major);

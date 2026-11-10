@@ -197,7 +197,7 @@ prints the analysis (as `analyze` does) and the new song.
 | flag | default | what it does |
 |---|---|---|
 | `<file>` | | any audio file claudius can decode |
-| `-g`, `--genre` | `house` | the genre of the new song. A rework plays at the recording's own tempo, or double it when that is nearer the genre's range; `--bpm` stretches it. A flip plays it at its own tempo when the genre does, else at a multiple of it, faster or slower by whole semitones as a sampler plays a record, or chopped onto the song's grid at two thirds to three halves of it |
+| `-g`, `--genre` | `house` | the genre of the new song. A rework plays at the recording's own tempo, or double or half it when that is nearer the genre's range (half only where the recording holds its chords two bars); `--bpm` stretches it. A flip plays it at its own tempo when the genre does, else at a multiple of it, faster or slower by whole semitones as a sampler plays a record, or chopped onto the song's grid at two thirds to three halves of it |
 | `-s`, `--seed` | the clock | the new song's own choices |
 | `--bpm` | as above | the new song's tempo |
 | `--flip` | off | a new song of the genre on the recording's hook and pieces of it, rather than a rework of all of it |
