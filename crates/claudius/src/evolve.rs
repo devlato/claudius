@@ -463,7 +463,7 @@ fn apply_op(
             let spec = drum_lane_spec(g, &name)?;
             let lane = &mut b.drums[li];
             if let (Some(l), true) = (lib, rng.chance(0.5)) {
-                let hints = if spec.samples.is_empty() { compose::default_hints(&name) } else { spec.samples.clone() };
+                let hints = compose::lane_hints(spec);
                 let s = l.one_shot(&name, &hints, g, rng)?;
                 let what = format!("{name}: {} -> {}", lane.sound.describe(), s.describe());
                 lane.sound = s;

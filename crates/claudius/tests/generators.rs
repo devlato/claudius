@@ -268,6 +268,12 @@ fn a_percussion_line_a_layered_song_adds_is_a_conga_and_never_a_cowbell() {
     }
     assert!(lines >= 20, "{lines} percussion lines");
     assert!(!compose::default_hints("perc").iter().any(|h| h.contains("Cowbell")));
+    // a genre's cowbell lane still draws cowbells, though it is called perc
+    for name in ["funk", "nu_disco"] {
+        let g = genres::get(name).unwrap();
+        let lane = g.drums.iter().find(|d| d.voice == DrumVoice::Cowbell).expect("a cowbell lane");
+        assert_eq!(compose::lane_hints(lane), ["Cowbell"], "{name}'s {}", lane.name);
+    }
 }
 
 #[test]

@@ -184,7 +184,7 @@ pub(crate) fn write_lane(
     sounds: &LaneSounds,
     dr: &mut Rng,
 ) -> DrumLane {
-    let hints: Vec<String> = if spec.samples.is_empty() { default_hints(&spec.name) } else { spec.samples.clone() };
+    let hints = lane_hints(spec);
     // the same draws with or without a library, so a seed makes the same patterns on every machine
     let mut sr = dr.fork(&spec.name);
     let sampled = sr.chance(sounds.samples);
@@ -275,6 +275,16 @@ pub fn kit_sound(lane: &str, kit: &str) -> Option<Sound> {
         _ => return None,
     };
     claudius_packs::resolve(name, Some(kit)).map(|r| Sound::Instrument { name: r.to_string(), label: name.to_string() })
+}
+
+/// which recordings the genre's lane `spec` cuts its one-shots from: those it names, else those of its voice where that
+/// is one sound (a cowbell lane draws cowbells, whatever it is called), else those of its name (`default_hints`)
+pub fn lane_hints(spec: &crate::genres::LaneSpec) -> Vec<String> {
+    match spec.voice {
+        _ if !spec.samples.is_empty() => spec.samples.clone(),
+        DrumVoice::Cowbell => vec!["Cowbell".to_string()],
+        _ => default_hints(&spec.name),
+    }
 }
 
 /// which recordings a drum lane's one-shots may be cut from (Apple Loops subtypes, or "name:" + a word in the
