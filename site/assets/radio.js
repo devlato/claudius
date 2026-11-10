@@ -430,6 +430,7 @@ async function tuneIn() {
     early = deck(state, audio);
     start(early, ctx.currentTime + 0.1);
     onAir = early;
+    tick();
     status("On air while the rest of it renders");
   });
   const whole = deck(song.state, song.audio);
@@ -447,6 +448,8 @@ async function tuneIn() {
     start(whole, ctx.currentTime + 0.1, SOON ? Math.max(0, leaving(whole).at - 20) : 0);
   }
   onAir = whole;
+  // the deck shows the song as it goes on air, not at the clock's next tick
+  tick();
   status("On air");
   button.disabled = false;
   button.textContent = "Pause";
