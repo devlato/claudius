@@ -197,6 +197,7 @@ People say what they hear, not which setting to change. The usual requests, and 
 | "add chords under my melody" | `harmonize` |
 | "my voice / my guitar on it" | `request_take`, then `wait_for_take` |
 | "make it better" | `quick_fix` when the verdict has quick fixes, else its first fix, or `mutate`; say what changed and offer undo |
+| "go back to before we added the whistles", "undo the last five changes" | `history` to find the change (its words say what each did: "added the whistle track ..."), then `go_back` to its id; say which change the song went back to before and how many were undone, and that `redo` brings them back |
 | "what is it like now?" | `get_song`: it begins with the song in plain words |
 | "I like it", "send it to me" | `save`, `export` (`mp3` to share) |
 

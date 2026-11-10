@@ -23,7 +23,7 @@ An `App` holds one `Session` behind a mutex:
 | `version` | bumped by every change to anything below |
 | `song_version` | the `version` at which the song last changed |
 | `bp`, `view` | the blueprint, and its `SongView` (built once per change, not per request) |
-| `undo`, `redo` | stacks of whole blueprints with labels, at most 200 |
+| `history` | every change made to the song, as a log that only grows, and the undo and redo steps: whole blueprints with labels, at most 200 (`claudius_session::history`) |
 | `render` | the latest finished render's `RenderView` and the paths of its stems |
 | `verdict`, `loudness` | its verdict, and each track's loudness in the master |
 | `busy`, `progress`, `job`, `rerender` | the running job, and whether a render was asked for meanwhile |
@@ -59,10 +59,31 @@ Every edit works on a copy and commits only on success:
   `set_fx`) change the blueprint in place (`edit::change`), in `edit_with`, which also checks the song's size and
   commits only when something changed.
 
-`commit` pushes the old blueprint and the label onto `undo`, clears `redo`, rebuilds the view, logs the message, and
-then `after_change` sets `song_version` to the new version and, unless the session runs with `--no-auto-render`,
-starts a render. Undo and redo swap whole blueprints between the stacks; a blueprint is tens of kilobytes, so 200 of
-them cost a few megabytes, and undo can never fail to restore exactly what was there.
+`commit` records the edit in the history (`History::commit`: an operation in the log, the old blueprint and the label
+as an undo step, and no redo left), rebuilds the view, logs the message, and then `after_change` sets `song_version`
+to the new version and, unless the session runs with `--no-auto-render`, starts a render. Undo and redo swap whole
+blueprints between the stacks; a blueprint is tens of kilobytes, so 200 of them cost a few megabytes, and undo can
+never fail to restore exactly what was there.
+
+### The history
+
+`claudius_session::history`, which the browser's demo shares, keeps every change made to the song as an operation in
+a log that only grows ([0012](../design/0012-history.md)): its id (the session's own random id and its Lamport time),
+the operation it was made on, when, what kind it is (an edit with the command that made it, an undo or a redo of an
+edit, or going back to before one, `go_back`), what undo calls it, what it changed in words (`describe`: "added the
+whistle track (lead), playing the synth whistle"), and what it changed in the song: each path of the blueprint's JSON
+whose value changed, with the value before and after (`diff`). A path names the elements of a list of named things
+(`/parts/@bass/mix/level_db`) and keeps the list's order as a value of its own (`/parts/#`), so a change to one track
+says which track it was, whatever happens to the others. The changes of every operation, applied in order to no song
+at all, make the song as it is (`apply`), and taken back in reverse they make it as it was.
+
+Undo, redo and going back are operations of their own, whose changes take the song back or forward; nothing in the
+log is ever taken out or rewritten. The state lists the last 200 (`State::history`, the latest first), each with
+whether `go_back` can still take the song to before it: an edit among the undo steps. Saving writes the song's own log
+into its folder, from the operation that began the song (`history.jsonl`, one operation a line). Loading the folder
+replays it (`History::open`), so undo and redo carry on as they were. When `blueprint.json` was edited by hand since,
+the difference is an edit of its own ("changed outside claudius"), and a log that does not read or apply is a
+history begun anew.
 
 ### Versions and waiting
 

@@ -12,6 +12,7 @@ use claudius::{analysis, audio, config, export, genres, script, song, take};
 use claudius_api::*;
 
 use super::{App, no, now_seed, ok};
+use claudius_session::history::{History, OpId};
 pub use claudius_session::listen::{Remade, analysis_text, groove_name, sampling};
 use claudius_session::{edit, listen, views};
 
@@ -31,12 +32,23 @@ impl App {
     pub(super) fn commit_as(self: &Arc<Self>, bp: Option<Blueprint>, msg: String, label: String) -> Reply {
         let v = self.update(|s| {
             let old = std::mem::replace(&mut s.bp, bp);
-            s.undo.push((old, label.chars().take(120).collect()));
-            if s.undo.len() > 200 {
-                s.undo.remove(0);
-            }
-            s.redo.clear();
+            s.history.commit(old, &s.bp, &label);
             // the meters keep the last render's readings until the next render lands (the UI marks them stale)
+            s.view = s.bp.as_ref().map(|b| views::song(b, &s.loudness));
+            s.say(msg.clone());
+            s.version + 1
+        });
+        self.after_change();
+        ok(msg, v)
+    }
+
+    /// A song opened with its history (`history.jsonl` beside it): the history it was saved with takes the place of
+    /// the session's, undo and redo as they were, and opening it is no change of its own.
+    fn reopen(self: &Arc<Self>, bp: Blueprint, log: &str, msg: String) -> Reply {
+        let v = self.update(|s| {
+            let bp = Some(bp);
+            s.history = History::open(log, &bp);
+            s.bp = bp;
             s.view = s.bp.as_ref().map(|b| views::song(b, &s.loudness));
             s.say(msg.clone());
             s.version + 1
@@ -122,6 +134,15 @@ impl App {
     }
 
     pub fn command(self: &Arc<Self>, c: Command) -> Reply {
+        // an edit it makes is recorded as it (a job's, which comes after it is answered, is not)
+        let name = serde_json::to_value(&c).ok().and_then(|v| v["cmd"].as_str().map(str::to_string));
+        self.lock().history.doing(name);
+        let reply = self.run(c);
+        self.lock().history.doing(None);
+        reply
+    }
+
+    fn run(self: &Arc<Self>, c: Command) -> Reply {
         let v = self.version();
         let c = match self.from_library(c) {
             Ok(c) => c,
@@ -390,8 +411,18 @@ impl App {
                 self.start_render(stems, Duration::ZERO);
                 ok("rendering", self.version())
             }
-            Command::Undo => self.history(true),
-            Command::Redo => self.history(false),
+            Command::Undo => self.history(|s| {
+                let label = s.history.undo(&mut s.bp).ok_or_else(|| "nothing to undo".to_string())?;
+                Ok(format!("undid: {label}"))
+            }),
+            Command::Redo => self.history(|s| {
+                let label = s.history.redo(&mut s.bp).ok_or_else(|| "nothing to redo".to_string())?;
+                Ok(format!("redid: {label}"))
+            }),
+            Command::GoBack { to } => match OpId::parse(&to) {
+                Some(id) => self.history(|s| s.history.back(&mut s.bp, &id)),
+                None => no(format!("'{to}' names no change: use an id from the state's history"), v),
+            },
             Command::Cancel => {
                 self.cancel.store(true, Ordering::Relaxed);
                 ok("stopping after the current step", v)
@@ -399,20 +430,12 @@ impl App {
         }
     }
 
-    fn history(self: &Arc<Self>, undo: bool) -> Reply {
+    /// undo, redo or going back: `step` moves the song through its history and says what it did, or why it cannot
+    fn history(self: &Arc<Self>, step: impl FnOnce(&mut super::Session) -> Result<String, String>) -> Reply {
         let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
-        let r = self.try_update(|s| {
-            let Some((prev, label)) = (if undo { s.undo.pop() } else { s.redo.pop() }) else {
-                return Err(if undo { "nothing to undo" } else { "nothing to redo" });
-            };
-            let cur = std::mem::replace(&mut s.bp, prev);
-            if undo {
-                s.redo.push((cur, label.clone()));
-            } else {
-                s.undo.push((cur, label.clone()));
-            }
+        let r = self.try_update(|s| -> Result<(String, u64), String> {
+            let msg = step(s)?;
             s.view = s.bp.as_ref().map(|b| views::song(b, &s.loudness));
-            let msg = format!("{}: {label}", if undo { "undid" } else { "redid" });
             s.say(msg.clone());
             Ok((msg, s.version + 1))
         });
@@ -690,7 +713,10 @@ impl App {
             match checked {
                 Ok(()) => {
                     self.lock().folder = folder.map(Path::to_path_buf);
-                    self.commit(Some(bp), format!("{said} {name}"))
+                    match folder.and_then(|d| std::fs::read_to_string(d.join("history.jsonl")).ok()) {
+                        Some(log) => self.reopen(bp, &log, format!("{said} {name}, with its history")),
+                        None => self.commit(Some(bp), format!("{said} {name}")),
+                    }
                 }
                 Err(e) => no(format!("cannot open {name}: {e}"), v),
             }
@@ -787,8 +813,11 @@ impl App {
             Ok(_) => {}
             Err(e) => return no(format!("{e:#}"), v),
         }
-        // the score now; the audio, stems and verdict once it is rendered
-        for (file, text) in [("blueprint.json", bp.to_json()), ("song.rhai", script::to_script(&bp))] {
+        // the score and its history now; the audio, stems and verdict once it is rendered
+        let history = self.lock().history.to_jsonl();
+        for (file, text) in
+            [("blueprint.json", bp.to_json()), ("song.rhai", script::to_script(&bp)), ("history.jsonl", history)]
+        {
             if let Err(e) = std::fs::write(dir.join(file), text) {
                 return no(format!("cannot write {}: {e}", dir.join(file).display()), v);
             }

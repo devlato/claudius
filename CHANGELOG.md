@@ -14,6 +14,13 @@ everything. The palette now does more as well: Try variations, Improve the song,
 claudius is doing, Render the tracks, Download the sample packs, Release the song, Connect an assistant and the
 Script reference. `GET /api/find?q=` answers with what the palette finds.
 
+A song keeps its history: every change made to it, as a log that only grows, saved with the song (`history.jsonl`).
+Opening the folder again brings undo and redo back as they were. Each change says what it did in words ("added the
+whistle track (lead), playing the synth whistle"). The new `go_back` command takes the song back to before any change
+undo can still reach, undoing it and everything since in one step, and redo brings them back one at a time.
+Assistants get the `history` and `go_back` tools for "go back to before we added the whistles". The state lists the
+last 200 changes (`history`).
+
 [claudius radio](https://claudius.devlato.com/radio/): a station of songs claudius writes as it plays them, one genre
 after another, each mixed into the next as a DJ would. Three songs in four mix in beat for beat, written at exactly the
 playing song's tempo (or twice or half of it) and in a key of its notes, coming in on a bar line of its outro with their

@@ -20,6 +20,7 @@ earth is it done this way?", and the answer is a trade-off rather than a mistake
 | [0009 Releases through pull requests](0009-releases.md) | a release is a reviewed pull request; merging it builds and publishes |
 | [0010 Samples from online libraries](0010-online-samples.md) | samples come from libraries made to be used (Openverse, Commons, ccMixter), never from YouTube or the streaming services, and only under licences that allow publishing |
 | [0011 Finding by meaning, on the device](0011-meaning-on-device.md) | static word embeddings and a flat index in plain Rust, in the engine, find actions by what the words mean on any computer, the browser too |
+| [0012 A history that only grows](0012-history.md) | every change is an operation in a log, with an id, what it was made on, and what it changed path by path; undo and going back are operations too, ready for a CRDT |
 
 ## The format
 

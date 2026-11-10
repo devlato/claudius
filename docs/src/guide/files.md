@@ -45,6 +45,7 @@ MCP made it, so they hold the same files:
 | `release.json` | what you gave `claudius publish`: the artist, the songwriters, the artwork, how the song was made |
 | `release/` | the release kit `claudius publish` writes ([Publishing](publish.md)) |
 | `takes/` | the song's [takes](samples.md#takes), 24-bit FLAC: recordings made for it, which a save copies in |
+| `history.jsonl` | every change made to the song since it began, one a line, from a `save` in the studio or over MCP: what it changed, when, and what undo calls it; opening the folder again brings undo and redo back as they were |
 
 Stems are floating point because a track can peak above full scale before the master's limiter brings the mix down.
 `claudius judge` runs its arrangement and theory checks when `project.json` sits next to the audio, so any song

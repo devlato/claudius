@@ -7,6 +7,7 @@
 #![forbid(unsafe_code)]
 
 pub mod edit;
+pub mod history;
 pub mod host;
 pub mod listen;
 pub mod meaning;

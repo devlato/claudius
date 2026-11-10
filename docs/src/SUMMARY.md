@@ -109,6 +109,7 @@
 - [0009 Releases through pull requests](design/0009-releases.md)
 - [0010 Samples from online libraries](design/0010-online-samples.md)
 - [0011 Finding by meaning, on the device](design/0011-meaning-on-device.md)
+- [0012 A history that only grows](design/0012-history.md)
 
 # Contributing
 
