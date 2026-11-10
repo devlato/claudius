@@ -72,9 +72,9 @@ pub fn build(sh: &Shell, out: &Path, site_url: &str, sounds: bool) -> Result<()>
     // the page a phone plays along with the demo on: the one `claudius serve` serves, reaching the demo by the relay
     copy_tree(&root().join("crates/claudius-server/src/phone"), &out.join("phone"), &|_| false, &|bytes| bytes)?;
     if sounds {
-        demo_sounds(sh, &out.join("studio").join("sounds"))?;
+        web_packs(sh, &out.join("studio").join("packs"))?;
     } else {
-        eprintln!("note: no demo sounds (--sounds renders them)");
+        eprintln!("note: no instruments for the demo (--sounds makes them)");
     }
 
     for script in ["install.sh", "install.ps1"] {
@@ -94,13 +94,93 @@ pub fn build(sh: &Shell, out: &Path, site_url: &str, sounds: bool) -> Result<()>
     Ok(())
 }
 
-/// the demo's sounds, as claudius renders them (`crates/claudius/examples/demo_sounds.rs`), with the drum machines'
-/// packs installed into a folder of its own
-fn demo_sounds(sh: &Shell, out: &Path) -> Result<()> {
-    let work = root().join("target/demo-sounds");
-    let _packs = sh.push_env("CLAUDIUS_PACKS", work.join("packs"));
-    let _home = sh.push_env("CLAUDIUS_HOME", work.join("home"));
-    cmd!(sh, "cargo run --locked -p claudius --no-default-features --features native --example demo_sounds -- {out}")
+/// The instruments the web studio's demo plays (`pack:instrument`, and `=` the names it also answers to), from packs
+/// the site may pass on (CC0, public domain, CC BY). A song asks for a Rhodes most of all, and jRhodes' samples may not
+/// be passed on for others to use as they like, so the Wurlitzer answers for it.
+const WEB_INSTRUMENTS: &[&str] = &[
+    "salamander:piano",
+    "epianos:wurlitzer=rhodes",
+    "epianos:cp80",
+    "freepats:upright_piano",
+    "freepats:drawbar_organ",
+    "vsco2:strings",
+    "vsco2:strings_pizz",
+    "vsco2:violins",
+    "vsco2:cellos",
+    "vsco2:brass",
+    "vsco2:trumpet",
+    "vsco2:horn",
+    "vsco2:flute",
+    "vsco2:harp",
+    "vcsl:tenor_sax",
+    "vcsl:vibraphone",
+    "vcsl:marimba",
+    "vcsl:kalimba",
+    "vcsl:glockenspiel",
+    "vcsl:tubular_bells",
+    "vcsl:congas",
+    "vcsl:bongos",
+    "vcsl:shaker",
+    "vcsl:tambourine",
+    "vcsl:claves",
+    "freepats:classical_guitar",
+    "freepats:clean_guitar",
+    "freepats:jazz_guitar",
+    "freepats:finger_bass",
+    "doublebass:upright_bass",
+    "growlybass:bass",
+    "voice:voice_ah",
+    "voice:choir",
+    "muldjord:bd",
+    "muldjord:sd",
+    "muldjord:hh",
+    "muldjord:oh",
+    "muldjord:lt",
+    "muldjord:mt",
+    "muldjord:ht",
+    "muldjord:cr",
+    "muldjord:rd",
+    "tr808:bd",
+    "tr808:sd",
+    "tr808:lt",
+    "tr808:mt",
+    "tr808:ht",
+    "tr808:lc",
+    "tr808:mc",
+    "tr808:hc",
+    "tr808:rim",
+    "tr808:cl",
+    "tr808:cp",
+    "tr808:sh",
+    "tr808:cb",
+    "tr808:cr",
+    "tr808:oh",
+    "tr808:hh",
+    "tr707:bd",
+    "tr707:sd",
+    "tr707:lt",
+    "tr707:mt",
+    "tr707:ht",
+    "tr707:hh",
+    "tr707:oh",
+    "tr707:cr",
+    "tr707:rd",
+    "tr707:cb",
+    "tr707:cp",
+    "tr707:rim",
+    "tr707:tb",
+];
+
+/// The demo's instruments, as `claudius-packs web` keeps them for a browser (a few seconds of a note every few
+/// semitones, as Ogg Vorbis), in `out`: their packs are installed into a folder of their own, lazily, so that only the
+/// notes kept are downloaded.
+fn web_packs(sh: &Shell, out: &Path) -> Result<()> {
+    let _packs = sh.push_env("CLAUDIUS_PACKS", root().join("target/demo-sounds/packs"));
+    let packs: std::collections::BTreeSet<&str> = WEB_INSTRUMENTS.iter().filter_map(|p| p.split(':').next()).collect();
+    let features = "claudius-encode/vorbis";
+    cmd!(sh, "cargo run --locked --release -p claudius-packs --features {features} -- install --lazy {packs...}")
+        .run()?;
+    cmd!(sh, "cargo run --locked --release -p claudius-packs --features {features} -- web {out} /studio/packs {WEB_INSTRUMENTS...}")
         .run()?;
     Ok(())
 }

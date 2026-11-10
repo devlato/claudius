@@ -41,6 +41,10 @@
 /studio/claudius-engine*
   ! Cache-Control
   Cache-Control: no-cache
+# the instruments the demo plays (`cargo xtask site --sounds`), which change only when a pack's source does
+/studio/packs/*
+  ! Cache-Control
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 /docs/*.js
   Cache-Control: public, max-age=31536000, immutable
 /docs/*.css

@@ -328,6 +328,8 @@ Where the browser has cores to spare, the engine makes a render's tracks side by
   page's and its own.
 - It shares out the tracks the render would make anew (`Host::to_make`), the costliest first to the copy with the
   least to make, with the audio they play. Each copy speaks first, as the engine does, before it is handed its share.
+  A track that plays a sampled instrument (below) it makes itself: its files are the engine's alone, and playing
+  samples costs little next to a synth.
   What a track costs is measured, not guessed (`render::track_cost`): half a second of a note of its patch at the
   octave it plays around, and half a second of noise through its effects, each once.
 - The costliest track, when it is more than an even share of the work and a synth that plays its notes apart, is made
@@ -343,7 +345,8 @@ workers in the memory it gives the page, and when started as `claudius-engine_lo
 a four-minute deep-house song renders whole in about 19 s where the engine alone takes 29, synthwave in 20 where it
 takes 30, and trap in 12 where it takes 16, each the same to the sample.
 
-What needs a computer of one's own the demo turns down, and says so: takes, folders, files written, packs. Mutation
+What needs a computer of one's own the demo turns down, and says so: takes, folders, files written, installing packs
+(it plays [web editions](#the-demos-instruments) of them). Mutation
 and evolution run in its engine as the server's do, without the ears: a worker has no threads, so the engine judges
 one candidate a turn (`evolve::Stepwise`, `Host::step`), with the messages that came meanwhile between them, and the
 state's `busy` says how many it has judged. A stop keeps the best judged so far; an edit meanwhile ends it. The
@@ -424,6 +427,27 @@ page. The site's Worker answers those (see [Privacy](../guide/privacy.md#the-web
 cd site && node tests/serve.mjs &          # its /studio/samples/ asks Openverse and the libraries live
 CLAUDIUS_DEMO_SAMPLES=http://127.0.0.1:4321/studio/samples cargo run -p claudius-ui -- --mock
 ```
+
+### The demo's instruments
+
+A browser has no folder to install packs in, so the demo plays web editions of them, which the site serves from
+`/studio/packs/` (`cargo xtask site --sounds`, `claudius-packs web`, `crates/claudius-packs/src/web.rs`): the
+Salamander piano, a Wurlitzer and a CP-80, the upright piano, the organ, the strings, brass, flute, harp, mallets, sax
+and hand percussion of VSCO 2 and VCSL, the guitars and basses, the choir, the acoustic kit and the TR-808 and TR-707,
+some 70 instruments in 24 MB, from packs the site may pass on (CC0, public domain, CC BY; their credits in
+`/studio/packs/CREDITS.txt`). A song asks for a Rhodes most of all, and jRhodes' samples may not be passed on for
+others to use, so the Wurlitzer answers for it. Of each instrument an edition keeps what a browser can fetch and hold
+for a song: one velocity layer (two of a keyboard and of a drum), the first round robin, a root every three semitones
+with its keys reaching halfway to the next, and four to six seconds of each note (two of a drum hit; a note that loops
+keeps its loop), as Ogg Vorbis. Its index is a pack's like any other.
+
+The engine fetches `packs/index.json` and each pack's index before it first speaks, so the first song already draws
+their instruments, and hands each to `claudius_packs::provide`: from then on they resolve as installed ones do. Before
+it renders, it asks which files the song's instruments play that it has not got (`Host::instruments`,
+`claudius_packs::wanted`), fetches them all at once, decodes each into the packs' cache, where it stays
+(`claudius_packs::provide_file`), and renders once they are in; the browser keeps them for the next visit. A song of
+a few instruments fetches 1 to 4 MB. A page served without them (`cargo xtask site` without `--sounds`, or
+`trunk serve`) plays the synthesized sounds, as the demo did before.
 
 ## Scripted runs
 

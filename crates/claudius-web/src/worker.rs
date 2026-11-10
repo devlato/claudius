@@ -23,6 +23,10 @@ struct Engine {
     crew: Option<Crew>,
     /// how many workers a crew has (none after one failed: the engine makes the tracks itself)
     crew_size: usize,
+    /// the files of the song's instruments are being fetched, and the render waits for them
+    fetching: bool,
+    /// the files that could not be fetched, which are not asked for again
+    missing: std::collections::BTreeSet<String>,
 }
 
 type Shared = Rc<RefCell<Engine>>;
@@ -40,13 +44,100 @@ pub fn start() {
         scheduled: false,
         crew: None,
         crew_size: crew::size(&scope),
+        fetching: false,
+        missing: Default::default(),
     }));
     let e = engine.clone();
     let onmessage = Closure::<dyn FnMut(MessageEvent)>::new(move |m: MessageEvent| receive(&e, &m));
     scope.set_onmessage(Some(onmessage.as_ref().unchecked_ref()));
     onmessage.forget();
-    let state = engine.borrow().host.state();
-    post(&scope, &serde_json::json!({ "state": state, "sounds": Host::sounds() }), None);
+    // the page holds what it sends until the engine says something, so the first song draws on the packs
+    wasm_bindgen_futures::spawn_local(async move {
+        packs(&scope).await;
+        let state = engine.borrow().host.state();
+        post(&scope, &serde_json::json!({ "state": state, "sounds": Host::sounds() }), None);
+    });
+}
+
+/// The bytes at `url` (relative to the engine's own script), or why there are none.
+async fn fetched(scope: &DedicatedWorkerGlobalScope, url: &str) -> Result<Vec<u8>, String> {
+    body(scope.fetch_with_str(url), url).await
+}
+
+/// the bytes of the response `fetch` promises for `url`, or why there are none
+async fn body(fetch: js_sys::Promise, url: &str) -> Result<Vec<u8>, String> {
+    let why = |e: JsValue| format!("{url}: {}", e.as_string().unwrap_or_else(|| format!("{e:?}")));
+    let response: web_sys::Response =
+        wasm_bindgen_futures::JsFuture::from(fetch).await.map_err(why)?.dyn_into().map_err(why)?;
+    if !response.ok() {
+        return Err(format!("{url}: {} {}", response.status(), response.status_text()));
+    }
+    let buffer = wasm_bindgen_futures::JsFuture::from(response.array_buffer().map_err(why)?).await.map_err(why)?;
+    Ok(js_sys::Uint8Array::new(&buffer).to_vec())
+}
+
+/// The web studio's sample packs beside the engine (`packs/index.json` names them, each with an index of its own),
+/// handed to it as installed: songs then draw their instruments, whose files are fetched as a song needs them
+/// (`fetch_files`). Without them (a page served without its packs), every sound is synthesized.
+async fn packs(scope: &DedicatedWorkerGlobalScope) {
+    let Ok(list) = fetched(scope, "packs/index.json").await else { return };
+    let v: serde_json::Value = serde_json::from_slice(&list).unwrap_or_default();
+    for name in v["packs"].as_array().into_iter().flatten().filter_map(|p| p.as_str()) {
+        let index = fetched(scope, &format!("packs/{name}/index.json"))
+            .await
+            .and_then(|b| serde_json::from_slice::<claudius_packs::PackIndex>(&b).map_err(|e| e.to_string()));
+        match index {
+            Ok(ix) => claudius_packs::provide(ix),
+            Err(why) => web_sys::console::warn_1(&format!("claudius engine: no pack {name}: {why}").into()),
+        }
+    }
+}
+
+/// Whether the song's instruments play files it has not fetched yet: if so they are fetched, all at once, and handed to
+/// the engine, and the render comes once they are in (one that cannot be fetched is not asked for again).
+fn fetch_files(engine: &Shared) -> bool {
+    let mut e = engine.borrow_mut();
+    if e.fetching {
+        return true;
+    }
+    let wanted: Vec<(String, String, String)> = claudius_packs::wanted(&e.host.instruments())
+        .into_iter()
+        .filter(|(_, path, _)| !e.missing.contains(path))
+        .collect();
+    if wanted.is_empty() {
+        return false;
+    }
+    e.fetching = true;
+    let (later, scope) = (engine.clone(), e.scope.clone());
+    wasm_bindgen_futures::spawn_local(async move {
+        // the browser fetches them side by side, each from when it is asked for; each is handed over as it comes
+        let pending: Vec<_> = wanted.into_iter().map(|w| (scope.fetch_with_str(&w.2), w)).collect();
+        let mut missing = Vec::new();
+        for (fetch, (pack, path, url)) in pending {
+            let got = body(fetch, &url)
+                .await
+                .and_then(|b| claudius_packs::provide_file(&pack, &path, b).map_err(|e| format!("{e:#}")));
+            if let Err(why) = got {
+                web_sys::console::warn_1(&format!("claudius engine: {why}").into());
+                missing.push(path);
+            }
+        }
+        let mut e = later.borrow_mut();
+        e.fetching = false;
+        e.missing.extend(missing);
+        drop(e);
+        schedule(&later);
+    });
+    true
+}
+
+/// whether track `name` of `project` plays a sampled instrument, whose files only the engine holds
+fn sampled(project: &claudius::model::Project, name: &str) -> bool {
+    project
+        .tracks
+        .iter()
+        .find(|t| t.name == name)
+        .is_some_and(|t| t.sound.each().iter().any(|s| matches!(s, claudius::model::Sound::Instrument { .. })))
 }
 
 fn receive(engine: &Shared, m: &MessageEvent) {
@@ -188,8 +279,12 @@ fn schedule(engine: &Shared) {
 }
 
 fn render(engine: &Shared) {
+    engine.borrow_mut().scheduled = false;
+    // nothing plays an instrument before its files are in: the render comes once they are
+    if fetch_files(engine) {
+        return;
+    }
     let mut e = engine.borrow_mut();
-    e.scheduled = false;
     // a candidate a turn, with the messages that came meanwhile (a stop, an edit) between them, once the song is heard
     if !e.host.stale() && e.host.breeding() {
         let what = e.host.breeding_command().unwrap_or_default();
@@ -210,8 +305,13 @@ fn render(engine: &Shared) {
         schedule(engine);
         return;
     }
-    // the render waits for a crew making its tracks; one making none the song still needs stops
-    let make = e.host.to_make();
+    // the render waits for a crew making its tracks; one making none the song still needs stops. The crew makes the
+    // tracks of synths and drums: the instruments' files are the engine's alone, and it plays them itself
+    let make = e.host.to_make().map(|mut m| {
+        let project = m.project.clone();
+        m.tracks.retain(|(name, _, _)| !sampled(&project, name));
+        m
+    });
     if let Some(crew) = e.crew.take() {
         if make.as_ref().is_some_and(|m| crew.makes_any_of(m)) {
             e.crew = Some(crew);

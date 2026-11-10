@@ -162,6 +162,8 @@ struct Slot {
     cell: OnceLock<Arc<Sample>>,
     init: Mutex<()>,
     last: AtomicU64,
+    /// handed over as its bytes (`provide`): there is no file to decode it from again, so it is never dropped
+    pinned: bool,
 }
 
 struct Cache {
@@ -190,7 +192,9 @@ pub fn load(path: &Path, remote: Option<&Remote>) -> Result<Arc<Sample>> {
     let slot = {
         let mut m = CACHE.map.lock().unwrap_or_else(|e| e.into_inner());
         m.entry(path.to_path_buf())
-            .or_insert_with(|| Arc::new(Slot { cell: OnceLock::new(), init: Mutex::new(()), last: AtomicU64::new(0) }))
+            .or_insert_with(|| {
+                Arc::new(Slot { cell: OnceLock::new(), init: Mutex::new(()), last: AtomicU64::new(0), pinned: false })
+            })
             .clone()
     };
     slot.last.store(CACHE.clock.fetch_add(1, Ordering::Relaxed), Ordering::Relaxed);
@@ -227,8 +231,8 @@ fn evict() {
         .iter()
         .filter_map(|(p, s)| {
             let smp = s.cell.get()?;
-            // only the cache holds it
-            (Arc::strong_count(smp) == 1).then(|| (s.last.load(Ordering::Relaxed), p.clone(), smp.bytes()))
+            // only the cache holds it, and it can be decoded again
+            (Arc::strong_count(smp) == 1 && !s.pinned).then(|| (s.last.load(Ordering::Relaxed), p.clone(), smp.bytes()))
         })
         .collect();
     entries.sort_by_key(|e| e.0);
@@ -253,6 +257,32 @@ pub fn forget_dir(dir: &Path) {
             CACHE.used.fetch_sub(smp.bytes(), Ordering::Relaxed);
         }
     }
+}
+
+/// The file `path` handed over as its `bytes` rather than read from a disk (a browser's, which has none): decoded into
+/// the cache, where `load` finds it, and kept there. Its extension says what it is.
+pub fn provide(path: &Path, bytes: Vec<u8>) -> Result<()> {
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+    let d = claudius_decode::decode_bytes(bytes, &ext).with_context(|| format!("decoding {}", path.display()))?;
+    let s = if d.channels > 2 {
+        let st: Vec<f32> = d.samples.chunks_exact(d.channels).flat_map(|f| [f[0], f[1]]).collect();
+        finish(d.rate, st, 2)
+    } else {
+        finish(d.rate, d.samples, d.channels)
+    };
+    let s = Arc::new(s);
+    let bytes = s.bytes();
+    let slot = Slot { cell: OnceLock::from(s), init: Mutex::new(()), last: AtomicU64::new(0), pinned: true };
+    let old = CACHE.map.lock().unwrap_or_else(|e| e.into_inner()).insert(path.to_path_buf(), Arc::new(slot));
+    let freed = old.and_then(|o| o.cell.get().map(|s| s.bytes())).unwrap_or(0);
+    CACHE.used.fetch_add(bytes, Ordering::Relaxed);
+    CACHE.used.fetch_sub(freed, Ordering::Relaxed);
+    Ok(())
+}
+
+/// whether `path` is decoded and in the cache
+pub fn decoded(path: &Path) -> bool {
+    CACHE.map.lock().unwrap_or_else(|e| e.into_inner()).get(path).is_some_and(|s| s.cell.get().is_some())
 }
 
 /// bytes of decoded audio held in memory
