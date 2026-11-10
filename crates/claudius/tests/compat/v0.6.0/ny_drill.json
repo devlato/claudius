@@ -1,0 +1,1299 @@
+{
+  "version": 1,
+  "title": "Glass Garden",
+  "genre": "ny_drill",
+  "seed": 7,
+  "bpm": 138.0,
+  "key": {
+    "tonic": 2,
+    "mode": "minor"
+  },
+  "swing": 0.5051635,
+  "humanize": 0.1,
+  "harmony": {
+    "progressions": {
+      "A": [
+        "i",
+        "iv",
+        "V7",
+        "i"
+      ],
+      "B": [
+        "i",
+        "VI",
+        "iv",
+        "V"
+      ]
+    },
+    "bars_per_chord": 2
+  },
+  "form": [
+    {
+      "name": "intro",
+      "kind": "intro",
+      "bars": 8,
+      "energy": 0.4903019,
+      "prog": "A",
+      "layers": [
+        "keys",
+        "choir"
+      ],
+      "variant": "main",
+      "filter_in": false,
+      "build": false,
+      "gap": false,
+      "impact": false,
+      "fills": false
+    },
+    {
+      "name": "hook",
+      "kind": "hook",
+      "bars": 8,
+      "energy": 0.883739,
+      "prog": "A",
+      "layers": [
+        "kick",
+        "snare",
+        "hat",
+        "ohat",
+        "perc",
+        "bass",
+        "keys",
+        "lead",
+        "choir"
+      ],
+      "variant": "main",
+      "filter_in": false,
+      "build": false,
+      "gap": false,
+      "impact": true,
+      "fills": true
+    },
+    {
+      "name": "verse",
+      "kind": "verse",
+      "bars": 8,
+      "energy": 0.71078664,
+      "prog": "A",
+      "layers": [
+        "kick",
+        "snare",
+        "hat",
+        "perc",
+        "bass",
+        "keys"
+      ],
+      "variant": "main",
+      "filter_in": false,
+      "build": false,
+      "gap": true,
+      "impact": false,
+      "fills": false
+    },
+    {
+      "name": "hook2",
+      "kind": "hook",
+      "bars": 8,
+      "energy": 0.9211304,
+      "prog": "A",
+      "layers": [
+        "kick",
+        "snare",
+        "hat",
+        "ohat",
+        "perc",
+        "bass",
+        "keys",
+        "lead",
+        "choir"
+      ],
+      "variant": "main",
+      "filter_in": false,
+      "build": false,
+      "gap": false,
+      "impact": true,
+      "fills": true
+    },
+    {
+      "name": "verse2",
+      "kind": "verse",
+      "bars": 8,
+      "energy": 0.7266603,
+      "prog": "A",
+      "layers": [
+        "kick",
+        "snare",
+        "hat",
+        "perc",
+        "bass",
+        "keys",
+        "choir"
+      ],
+      "variant": "main",
+      "filter_in": false,
+      "build": false,
+      "gap": true,
+      "impact": false,
+      "fills": true
+    },
+    {
+      "name": "hook3",
+      "kind": "hook",
+      "bars": 8,
+      "energy": 0.98874223,
+      "prog": "A",
+      "layers": [
+        "kick",
+        "snare",
+        "hat",
+        "ohat",
+        "perc",
+        "bass",
+        "keys",
+        "lead",
+        "choir"
+      ],
+      "variant": "main",
+      "filter_in": false,
+      "build": false,
+      "gap": true,
+      "impact": true,
+      "fills": true
+    },
+    {
+      "name": "hook4",
+      "kind": "hook",
+      "bars": 8,
+      "energy": 0.98664886,
+      "prog": "A",
+      "layers": [
+        "kick",
+        "snare",
+        "hat",
+        "ohat",
+        "perc",
+        "bass",
+        "keys",
+        "lead",
+        "choir"
+      ],
+      "variant": "main",
+      "filter_in": false,
+      "build": false,
+      "gap": false,
+      "impact": false,
+      "fills": true
+    },
+    {
+      "name": "outro",
+      "kind": "outro",
+      "bars": 4,
+      "energy": 0.3576398,
+      "prog": "A",
+      "layers": [
+        "keys",
+        "choir"
+      ],
+      "variant": "main",
+      "filter_in": false,
+      "build": false,
+      "gap": false,
+      "impact": false,
+      "fills": false
+    }
+  ],
+  "drums": [
+    {
+      "name": "kick",
+      "sound": {
+        "kind": "drum",
+        "voice": "kick",
+        "params": {
+          "tune": 51.214474,
+          "decay": 0.37687883,
+          "tone": 0.52322423,
+          "punch": 0.7908329,
+          "snap": 0.29266775,
+          "drive": 5.711892,
+          "pitch_env": 37.377064,
+          "pitch_time": 0.03754797,
+          "room": 0.0017247325
+        }
+      },
+      "patterns": {
+        "main": [
+          {
+            "t": 0.0,
+            "v": 0.9904402
+          },
+          {
+            "t": 2.5,
+            "v": 0.9604827
+          },
+          {
+            "t": 5.5,
+            "v": 0.9545139
+          },
+          {
+            "t": 8.0,
+            "v": 0.986257
+          },
+          {
+            "t": 10.5,
+            "v": 0.9643914
+          },
+          {
+            "t": 13.5,
+            "v": 0.9648446
+          },
+          {
+            "t": 14.75,
+            "v": 0.9550653
+          }
+        ]
+      },
+      "pattern_bars": 4,
+      "pitch": 0,
+      "choke": null,
+      "mix": {
+        "level_db": 0.0,
+        "pan": 0.0,
+        "fx": [],
+        "reverb": 0.0,
+        "delay": 0.0,
+        "duck": 0.0,
+        "bus": "drums"
+      }
+    },
+    {
+      "name": "snare",
+      "sound": {
+        "kind": "drum",
+        "voice": "snare",
+        "params": {
+          "tune": 208.86005,
+          "decay": 0.15948881,
+          "tone": 0.74153286,
+          "punch": 0.22650743,
+          "snap": 0.98719114,
+          "drive": 4.8312097,
+          "pitch_env": 5.5352054,
+          "pitch_time": 0.016798608,
+          "room": 0.2865862
+        }
+      },
+      "patterns": {
+        "main": [
+          {
+            "t": 2.0,
+            "v": 0.98716843
+          },
+          {
+            "t": 6.0,
+            "v": 0.9810605
+          },
+          {
+            "t": 7.25,
+            "v": 0.40499997
+          },
+          {
+            "t": 10.0,
+            "v": 0.98716843
+          },
+          {
+            "t": 14.0,
+            "v": 0.9810605
+          },
+          {
+            "t": 15.25,
+            "v": 0.40499997
+          }
+        ]
+      },
+      "pattern_bars": 4,
+      "pitch": 0,
+      "choke": null,
+      "mix": {
+        "level_db": 0.0,
+        "pan": 0.0,
+        "fx": [],
+        "reverb": 0.1,
+        "delay": 0.0,
+        "duck": 0.0,
+        "bus": "drums"
+      }
+    },
+    {
+      "name": "hat",
+      "sound": {
+        "kind": "drum",
+        "voice": "closed_hat",
+        "params": {
+          "tune": 1.0665977,
+          "decay": 0.037852816,
+          "tone": 0.78206766,
+          "punch": 0.042297054,
+          "snap": 0.44689038,
+          "drive": 2.247141,
+          "pitch_env": 0.0,
+          "pitch_time": 0.012258986,
+          "room": 0.06552729
+        }
+      },
+      "patterns": {
+        "main": [
+          {
+            "t": 0.0,
+            "v": 0.7472718
+          },
+          {
+            "t": 0.75,
+            "v": 0.653431
+          },
+          {
+            "t": 1.5,
+            "v": 0.7208768
+          },
+          {
+            "t": 3.0,
+            "v": 0.95
+          },
+          {
+            "t": 3.0833333333333335,
+            "v": 0.91249996
+          },
+          {
+            "t": 3.1666666666666665,
+            "v": 0.875
+          },
+          {
+            "t": 3.25,
+            "v": 0.8375
+          },
+          {
+            "t": 3.3333333333333335,
+            "v": 0.79999995
+          },
+          {
+            "t": 3.4166666666666665,
+            "v": 0.7625
+          },
+          {
+            "t": 3.5,
+            "v": 0.725
+          },
+          {
+            "t": 3.5833333333333335,
+            "v": 0.6875
+          },
+          {
+            "t": 3.6666666666666665,
+            "v": 0.65
+          },
+          {
+            "t": 3.75,
+            "v": 0.6125
+          },
+          {
+            "t": 3.8333333333333335,
+            "v": 0.57500005
+          },
+          {
+            "t": 3.9166666666666665,
+            "v": 0.5375
+          },
+          {
+            "t": 4.0,
+            "v": 0.7472718
+          },
+          {
+            "t": 4.75,
+            "v": 0.653431
+          },
+          {
+            "t": 5.0,
+            "v": 0.45
+          },
+          {
+            "t": 5.125,
+            "v": 0.5125
+          },
+          {
+            "t": 5.25,
+            "v": 0.575
+          },
+          {
+            "t": 5.375,
+            "v": 0.6375
+          },
+          {
+            "t": 5.5,
+            "v": 0.7
+          },
+          {
+            "t": 5.625,
+            "v": 0.7625
+          },
+          {
+            "t": 5.75,
+            "v": 0.825
+          },
+          {
+            "t": 5.875,
+            "v": 0.8875
+          },
+          {
+            "t": 6.0,
+            "v": 0.95
+          },
+          {
+            "t": 6.166666666666667,
+            "v": 0.875
+          },
+          {
+            "t": 6.333333333333333,
+            "v": 0.79999995
+          },
+          {
+            "t": 6.5,
+            "v": 0.725
+          },
+          {
+            "t": 6.666666666666667,
+            "v": 0.65
+          },
+          {
+            "t": 6.833333333333333,
+            "v": 0.57500005
+          },
+          {
+            "t": 7.0,
+            "v": 0.95
+          },
+          {
+            "t": 7.083333333333333,
+            "v": 0.91249996
+          },
+          {
+            "t": 7.166666666666667,
+            "v": 0.875
+          },
+          {
+            "t": 7.25,
+            "v": 0.8375
+          },
+          {
+            "t": 7.333333333333333,
+            "v": 0.79999995
+          },
+          {
+            "t": 7.416666666666667,
+            "v": 0.7625
+          },
+          {
+            "t": 7.5,
+            "v": 0.725
+          },
+          {
+            "t": 7.583333333333333,
+            "v": 0.6875
+          },
+          {
+            "t": 7.666666666666667,
+            "v": 0.65
+          },
+          {
+            "t": 7.75,
+            "v": 0.6125
+          },
+          {
+            "t": 7.833333333333333,
+            "v": 0.57500005
+          },
+          {
+            "t": 7.916666666666667,
+            "v": 0.5375
+          },
+          {
+            "t": 8.0,
+            "v": 0.7472718
+          },
+          {
+            "t": 8.75,
+            "v": 0.653431
+          },
+          {
+            "t": 9.5,
+            "v": 0.7208768
+          },
+          {
+            "t": 11.0,
+            "v": 0.45
+          },
+          {
+            "t": 11.083333333333334,
+            "v": 0.49166664
+          },
+          {
+            "t": 11.166666666666666,
+            "v": 0.5333333
+          },
+          {
+            "t": 11.25,
+            "v": 0.575
+          },
+          {
+            "t": 11.333333333333334,
+            "v": 0.6166667
+          },
+          {
+            "t": 11.416666666666666,
+            "v": 0.6583333
+          },
+          {
+            "t": 11.5,
+            "v": 0.7
+          },
+          {
+            "t": 11.583333333333334,
+            "v": 0.7416667
+          },
+          {
+            "t": 11.666666666666666,
+            "v": 0.7833333
+          },
+          {
+            "t": 11.75,
+            "v": 0.825
+          },
+          {
+            "t": 11.833333333333334,
+            "v": 0.8666667
+          },
+          {
+            "t": 11.916666666666666,
+            "v": 0.9083333
+          },
+          {
+            "t": 12.0,
+            "v": 0.7472718
+          },
+          {
+            "t": 12.75,
+            "v": 0.653431
+          },
+          {
+            "t": 13.5,
+            "v": 0.7208768
+          },
+          {
+            "t": 14.0,
+            "v": 0.45
+          },
+          {
+            "t": 14.125,
+            "v": 0.5125
+          },
+          {
+            "t": 14.25,
+            "v": 0.575
+          },
+          {
+            "t": 14.375,
+            "v": 0.6375
+          },
+          {
+            "t": 14.5,
+            "v": 0.7
+          },
+          {
+            "t": 14.625,
+            "v": 0.7625
+          },
+          {
+            "t": 14.75,
+            "v": 0.825
+          },
+          {
+            "t": 14.875,
+            "v": 0.8875
+          },
+          {
+            "t": 15.0,
+            "v": 0.7340168
+          },
+          {
+            "t": 15.5,
+            "v": 0.70021605
+          }
+        ]
+      },
+      "pattern_bars": 4,
+      "pitch": 0,
+      "choke": "hats",
+      "mix": {
+        "level_db": 0.0,
+        "pan": 0.15,
+        "fx": [],
+        "reverb": 0.0,
+        "delay": 0.0,
+        "duck": 0.0,
+        "bus": "drums"
+      }
+    },
+    {
+      "name": "ohat",
+      "sound": {
+        "kind": "drum",
+        "voice": "open_hat",
+        "params": {
+          "tune": 0.9631915,
+          "decay": 0.18572539,
+          "tone": 0.7227056,
+          "punch": 0.042535823,
+          "snap": 0.44526953,
+          "drive": 1.2756455,
+          "pitch_env": 0.0,
+          "pitch_time": 0.009154781,
+          "room": 0.12280231
+        }
+      },
+      "patterns": {
+        "main": [
+          {
+            "t": 7.0,
+            "v": 0.60646325
+          },
+          {
+            "t": 15.0,
+            "v": 0.60646325
+          }
+        ]
+      },
+      "pattern_bars": 4,
+      "pitch": 0,
+      "choke": "hats",
+      "mix": {
+        "level_db": 0.0,
+        "pan": -0.15,
+        "fx": [],
+        "reverb": 0.0,
+        "delay": 0.0,
+        "duck": 0.0,
+        "bus": "drums"
+      }
+    },
+    {
+      "name": "perc",
+      "sound": {
+        "kind": "drum",
+        "voice": "rim",
+        "params": {
+          "tune": 1641.4752,
+          "decay": 0.040384024,
+          "tone": 0.6195697,
+          "punch": 0.045711756,
+          "snap": 0.6175505,
+          "drive": 2.7341993,
+          "pitch_env": 0.0,
+          "pitch_time": 0.011515824,
+          "room": 0.10361152
+        }
+      },
+      "patterns": {
+        "main": [
+          {
+            "t": 1.5,
+            "v": 0.6340314
+          },
+          {
+            "t": 3.25,
+            "v": 0.61753446
+          },
+          {
+            "t": 5.5,
+            "v": 0.6340314
+          },
+          {
+            "t": 7.25,
+            "v": 0.61753446
+          },
+          {
+            "t": 9.5,
+            "v": 0.6340314
+          },
+          {
+            "t": 11.25,
+            "v": 0.61753446
+          },
+          {
+            "t": 13.5,
+            "v": 0.6340314
+          },
+          {
+            "t": 15.25,
+            "v": 0.61753446
+          }
+        ]
+      },
+      "pattern_bars": 4,
+      "pitch": 0,
+      "choke": null,
+      "mix": {
+        "level_db": 0.0,
+        "pan": -0.25,
+        "fx": [],
+        "reverb": 0.15,
+        "delay": 0.0,
+        "duck": 0.0,
+        "bus": "drums"
+      }
+    }
+  ],
+  "parts": [
+    {
+      "name": "bass",
+      "role": "bass",
+      "sound": {
+        "kind": "synth",
+        "preset": "808",
+        "patch": {
+          "osc": [
+            {
+              "wave": "sine",
+              "level": 1.0,
+              "octave": 0,
+              "semi": 0.0,
+              "voices": 1,
+              "detune": 0.0,
+              "width": 0.5,
+              "pw": 0.5
+            }
+          ],
+          "sub": 0.0,
+          "noise": 0.0,
+          "fm": null,
+          "filter": {
+            "mode": "lp",
+            "cutoff": 1679.6937,
+            "res": 0.0,
+            "env": 0.0,
+            "keytrack": 0.0,
+            "drive": 1.0,
+            "velocity": 0.3
+          },
+          "fenv": {
+            "a": 0.001,
+            "d": 0.2017,
+            "s": 0.0,
+            "r": 0.1733
+          },
+          "aenv": {
+            "a": 0.0025,
+            "d": 1.2091,
+            "s": 0.55,
+            "r": 0.1182
+          },
+          "pitch_env": 5.0,
+          "pitch_time": 0.035,
+          "lfo": null,
+          "glide": 0.061065383,
+          "mono": true,
+          "legato": true,
+          "drive": 8.0045395,
+          "analog": 0.0,
+          "velocity": 0.2
+        }
+      },
+      "style": "drill",
+      "register": [
+        24,
+        43
+      ],
+      "density": 0.5726087,
+      "voices": 4,
+      "voicing": "close",
+      "rate": 0.25,
+      "seed": 2642474102756894640,
+      "notes": {},
+      "mix": {
+        "level_db": 0.0,
+        "pan": 0.0,
+        "fx": [
+          {
+            "fx": "saturate",
+            "kind": "tanh",
+            "drive_db": 9.0,
+            "mix": 1.0
+          },
+          {
+            "fx": "filter",
+            "mode": "lp",
+            "cutoff": 5000.0,
+            "res": 0.1,
+            "drive": 1.0,
+            "mix": 1.0
+          },
+          {
+            "fx": "tape",
+            "wow": 0.32499444,
+            "flutter": 0.15757337,
+            "drive_db": 3.364756,
+            "lowpass_hz": 9135.193
+          }
+        ],
+        "reverb": 0.0,
+        "delay": 0.0,
+        "duck": 0.0,
+        "bus": "bass"
+      }
+    },
+    {
+      "name": "keys",
+      "role": "keys",
+      "sound": {
+        "kind": "synth",
+        "preset": "keys",
+        "patch": {
+          "osc": [
+            {
+              "wave": "sine",
+              "level": 1.0,
+              "octave": 0,
+              "semi": 0.0,
+              "voices": 1,
+              "detune": 0.0,
+              "width": 0.5,
+              "pw": 0.5
+            },
+            {
+              "wave": "tri",
+              "level": 0.2,
+              "octave": 1,
+              "semi": 0.0,
+              "voices": 1,
+              "detune": 0.0,
+              "width": 0.5,
+              "pw": 0.5
+            }
+          ],
+          "sub": 0.0,
+          "noise": 0.0,
+          "fm": {
+            "ratio": 2.0,
+            "index": 1.2401023,
+            "decay": 0.21499665,
+            "sustain": 0.05,
+            "tine": 0.4
+          },
+          "filter": {
+            "mode": "lp",
+            "cutoff": 2574.0996,
+            "res": 0.0,
+            "env": 0.6068881,
+            "keytrack": 0.6,
+            "drive": 1.0,
+            "velocity": 0.3
+          },
+          "fenv": {
+            "a": 0.001,
+            "d": 0.5212,
+            "s": 0.0,
+            "r": 0.2928
+          },
+          "aenv": {
+            "a": 0.0024,
+            "d": 1.6552,
+            "s": 0.0,
+            "r": 0.453
+          },
+          "pitch_env": 0.0,
+          "pitch_time": 0.03,
+          "lfo": null,
+          "glide": 0.0,
+          "mono": false,
+          "legato": false,
+          "drive": 0.0,
+          "analog": 1.5,
+          "velocity": 0.7
+        }
+      },
+      "style": "ostinato",
+      "register": [
+        52,
+        76
+      ],
+      "density": 0.4710492,
+      "voices": 3,
+      "voicing": "open",
+      "rate": 0.25,
+      "seed": 11736247887401011602,
+      "notes": {},
+      "mix": {
+        "level_db": 0.0,
+        "pan": 0.0,
+        "fx": [
+          {
+            "fx": "width",
+            "width": 1.4,
+            "mono_below_hz": 200.0
+          },
+          {
+            "fx": "chorus",
+            "rate_hz": 0.45,
+            "depth_ms": 2.5,
+            "delay_ms": 11.0,
+            "mix": 0.4
+          }
+        ],
+        "reverb": 0.5127861,
+        "delay": 0.122124426,
+        "duck": 0.0,
+        "bus": "music"
+      }
+    },
+    {
+      "name": "lead",
+      "role": "lead",
+      "sound": {
+        "kind": "synth",
+        "preset": "strings",
+        "patch": {
+          "osc": [
+            {
+              "wave": "saw",
+              "level": 1.0,
+              "octave": 0,
+              "semi": 0.0,
+              "voices": 5,
+              "detune": 12.172529,
+              "width": 0.8,
+              "pw": 0.5
+            }
+          ],
+          "sub": 0.0,
+          "noise": 0.0,
+          "fm": null,
+          "filter": {
+            "mode": "lp",
+            "cutoff": 2590.5586,
+            "res": 0.05,
+            "env": 0.25616744,
+            "keytrack": 0.2,
+            "drive": 1.0,
+            "velocity": 0.3
+          },
+          "fenv": {
+            "a": 0.4589,
+            "d": 1.0315,
+            "s": 0.8,
+            "r": 0.9728
+          },
+          "aenv": {
+            "a": 0.2839,
+            "d": 0.5579,
+            "s": 0.9,
+            "r": 0.9471
+          },
+          "pitch_env": 0.0,
+          "pitch_time": 0.03,
+          "lfo": {
+            "rate": 5.829977,
+            "sync": false,
+            "vibrato": 0.07246225,
+            "filter": 0.0,
+            "amp": 0.0,
+            "delay": 0.5
+          },
+          "glide": 0.0,
+          "mono": false,
+          "legato": false,
+          "drive": 0.0,
+          "analog": 2.0,
+          "velocity": 0.3
+        }
+      },
+      "style": "drill_melody",
+      "register": [
+        64,
+        86
+      ],
+      "density": 0.36182877,
+      "voices": 4,
+      "voicing": "close",
+      "rate": 0.25,
+      "seed": 14764842329049873795,
+      "notes": {},
+      "mix": {
+        "level_db": -2.0,
+        "pan": 0.0,
+        "fx": [
+          {
+            "fx": "saturate",
+            "kind": "tube",
+            "drive_db": 5.1466026,
+            "mix": 0.32567206
+          }
+        ],
+        "reverb": 0.24518426,
+        "delay": 0.38817757,
+        "duck": 0.0,
+        "bus": "music"
+      }
+    },
+    {
+      "name": "choir",
+      "role": "pad",
+      "sound": {
+        "kind": "synth",
+        "preset": "vowel_pad",
+        "patch": {
+          "osc": [
+            {
+              "wave": "tri",
+              "level": 1.0,
+              "octave": 0,
+              "semi": 0.0,
+              "voices": 4,
+              "detune": 9.936734,
+              "width": 0.8,
+              "pw": 0.5
+            },
+            {
+              "wave": "saw",
+              "level": 0.25,
+              "octave": 0,
+              "semi": 0.0,
+              "voices": 2,
+              "detune": 5.018364,
+              "width": 0.5,
+              "pw": 0.5
+            }
+          ],
+          "sub": 0.0,
+          "noise": 0.0,
+          "fm": null,
+          "filter": {
+            "mode": "lp",
+            "cutoff": 1192.5782,
+            "res": 0.32,
+            "env": 0.21931931,
+            "keytrack": 0.3,
+            "drive": 1.0,
+            "velocity": 0.3
+          },
+          "fenv": {
+            "a": 0.5483,
+            "d": 0.9943,
+            "s": 0.8,
+            "r": 1.4169
+          },
+          "aenv": {
+            "a": 0.6206,
+            "d": 0.6951,
+            "s": 0.9,
+            "r": 1.8216
+          },
+          "pitch_env": 0.0,
+          "pitch_time": 0.03,
+          "lfo": {
+            "rate": 3.7468364,
+            "sync": false,
+            "vibrato": 0.05853072,
+            "filter": 0.05,
+            "amp": 0.0,
+            "delay": 0.4
+          },
+          "glide": 0.0,
+          "mono": false,
+          "legato": false,
+          "drive": 0.0,
+          "analog": 2.5,
+          "velocity": 0.2
+        }
+      },
+      "style": "sustain",
+      "register": [
+        48,
+        72
+      ],
+      "density": 0.47421524,
+      "voices": 3,
+      "voicing": "open",
+      "rate": 0.25,
+      "seed": 805921219908132358,
+      "notes": {},
+      "mix": {
+        "level_db": -2.0,
+        "pan": 0.0,
+        "fx": [
+          {
+            "fx": "width",
+            "width": 1.5,
+            "mono_below_hz": 200.0
+          }
+        ],
+        "reverb": 0.54785424,
+        "delay": 0.0,
+        "duck": 0.0,
+        "bus": "music"
+      }
+    }
+  ],
+  "loops": [],
+  "patterns": [],
+  "transitions": {
+    "crash": {
+      "kind": "drum",
+      "voice": "crash",
+      "params": {
+        "tune": 0.967315,
+        "decay": 2.677707,
+        "tone": 0.600015,
+        "punch": 0.0016392977,
+        "snap": 0.5923774,
+        "drive": 1.1777707,
+        "pitch_env": 0.0,
+        "pitch_time": 0.011368822,
+        "room": 0.1711966
+      }
+    },
+    "riser": null,
+    "impact": {
+      "kind": "fx",
+      "fx": "impact"
+    },
+    "use_impact": true,
+    "use_downlifter": false,
+    "use_reverse_crash": true,
+    "riser_bars": 2,
+    "mix": {
+      "level_db": -2.0,
+      "pan": 0.0,
+      "fx": [],
+      "reverb": 0.2,
+      "delay": 0.0,
+      "duck": 0.0,
+      "bus": "fx"
+    }
+  },
+  "mix": {
+    "reverb": {
+      "fx": "reverb",
+      "decay": 2.373905,
+      "damping": 0.4176444,
+      "predelay_ms": 20.852709,
+      "width": 1.5,
+      "mix": 1.0,
+      "lowcut": 281.2672
+    },
+    "delay": {
+      "fx": "delay",
+      "beats": 0.75,
+      "feedback": 0.25210696,
+      "damping": 0.5,
+      "pingpong": true,
+      "mix": 1.0
+    },
+    "buses": {
+      "bass": [
+        {
+          "fx": "saturate",
+          "kind": "tanh",
+          "drive_db": 5.0,
+          "mix": 0.6
+        }
+      ],
+      "drums": [
+        {
+          "fx": "compressor",
+          "threshold_db": -10.0,
+          "ratio": 2.5,
+          "attack_ms": 6.0,
+          "release_ms": 80.0,
+          "knee_db": 6.0,
+          "makeup_db": 1.0,
+          "mix": 1.0
+        }
+      ],
+      "music": [
+        {
+          "fx": "eq",
+          "bands": [
+            {
+              "kind": "highpass",
+              "freq": 150.0,
+              "gain_db": 0.0,
+              "q": 0.7
+            }
+          ]
+        }
+      ]
+    },
+    "duck_release": 0.25,
+    "levels": {
+      "bass": 4.5,
+      "hat": 2.0,
+      "kick": -1.0,
+      "snare": 1.5
+    },
+    "bands": {
+      "air": [
+        -35.0,
+        -17.0
+      ],
+      "low": [
+        -9.0,
+        -1.0
+      ],
+      "mid": [
+        -22.0,
+        -8.0
+      ],
+      "presence": [
+        -31.0,
+        -15.0
+      ],
+      "sub": [
+        -13.0,
+        -1.0
+      ]
+    },
+    "master": {
+      "fx": [
+        {
+          "fx": "eq",
+          "bands": [
+            {
+              "kind": "highpass",
+              "freq": 24.0,
+              "gain_db": 0.0,
+              "q": 0.7
+            }
+          ]
+        },
+        {
+          "fx": "compressor",
+          "threshold_db": -9.0,
+          "ratio": 2.0,
+          "attack_ms": 20.0,
+          "release_ms": 140.0,
+          "knee_db": 6.0,
+          "makeup_db": 0.0,
+          "mix": 1.0
+        },
+        {
+          "fx": "saturate",
+          "kind": "tanh",
+          "drive_db": 2.0,
+          "mix": 0.3
+        }
+      ],
+      "lufs": -8.5,
+      "ceiling_db": -1.0
+    }
+  },
+  "lineage": [
+    "generated: ny_drill seed 7"
+  ]
+}

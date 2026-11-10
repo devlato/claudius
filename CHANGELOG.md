@@ -6,6 +6,8 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-10
+
 The command palette (Cmd+K) finds actions by what your words mean as well as by their names: "make it sound better"
 finds Improve the song, "sing over it" Record a take, "go back" Undo. A small model finds them on your computer, on
 any processor and without a graphics card: Model2Vec's potion-base-8M, 8 MB, which claudius downloads from Hugging
@@ -82,6 +84,25 @@ the packs (the Salamander piano, a Wurlitzer, strings, brass, flute, harp, malle
 guitars, basses, a choir, an acoustic kit, the TR-808 and TR-707; some 70 instruments in 24 MB, each song fetching its
 own), where every part played on a synth. A song asks for a Rhodes most of all, and no Rhodes recording may be passed
 on freely, so the Wurlitzer plays it there. `claudius-packs web` makes such editions of any installed instrument.
+
+### Added
+
+- evolve: Revise sections and length, judged on the whole song's form ([#218](https://github.com/devlato/claudius/pull/218))
+- evolve: Change instruments, drum trigs, effects and sample chops ([#219](https://github.com/devlato/claudius/pull/219))
+- ears: Rate how much listeners would enjoy a song and how well it is produced ([#220](https://github.com/devlato/claudius/pull/220))
+- web: The studio demo plays real sampled instruments ([#224](https://github.com/devlato/claudius/pull/224))
+- genres: Alternative rock, pop punk and nu metal, on a distorted guitar ([#227](https://github.com/devlato/claudius/pull/227))
+- site: A radio of songs written as they play, mixed like a DJ set ([#225](https://github.com/devlato/claudius/pull/225))
+- studio: Find the palette's actions by what the words mean, on the device ([#230](https://github.com/devlato/claudius/pull/230))
+
+### Fixed
+
+- mix: Basses go deeper and no louder than their genre's low end ([#221](https://github.com/devlato/claudius/pull/221))
+- drums: A song's added percussion line plays a conga, not a cowbell ([#222](https://github.com/devlato/claudius/pull/222))
+- analysis: A recording's tempo is heard better, and a rework can play it in half time ([#223](https://github.com/devlato/claudius/pull/223))
+- remix: A flip's pieces and a rework's sections play at one loudness ([#226](https://github.com/devlato/claudius/pull/226))
+- studio: The web studio may use the microphone, and the app says how to allow one that hears nothing ([#228](https://github.com/devlato/claudius/pull/228))
+- critic: A song buried in noise no longer scores high, with the listening models or without them ([#229](https://github.com/devlato/claudius/pull/229))
 
 ## [0.5.0] - 2026-11-09
 
@@ -996,7 +1017,8 @@ The first public release.
   theory checks), Linux on x86_64 and ARM64 with a headless build for machines without sound or a display, and
   Windows as a preview. One-line installers for each, which come with every release and are in its checksums.
 
-[unreleased]: https://github.com/devlato/claudius/compare/v0.5.0...HEAD
+[unreleased]: https://github.com/devlato/claudius/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/devlato/claudius/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/devlato/claudius/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/devlato/claudius/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/devlato/claudius/compare/v0.2.0...v0.3.0
