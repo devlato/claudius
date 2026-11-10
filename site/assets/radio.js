@@ -37,7 +37,9 @@ function parseKey(text) {
   if (!m) return null;
   const base = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]];
   const tonic = (base + (m[2] === "#" ? 1 : m[2] === "b" ? 11 : 0)) % 12;
-  return { tonic, minor: /^(m|min|minor|aeolian|dorian|phrygian)/i.test(m[3]) };
+  // the modes with a minor third, by the engine's names for them (`harmonic_minor`), or the `m` of a chord's
+  const mode = m[3].trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return { tonic, minor: /^(m|min|minor|aeolian|dorian|phrygian|locrian|harmonic_minor|melodic_minor)$/.test(mode) };
 }
 
 const keyName = (k) => `${NOTES[k.tonic]} ${k.minor ? "minor" : "major"}`;
@@ -206,6 +208,16 @@ function deck(state, audio) {
 
 const bar = (d) => 240 / d.bpm;
 
+/** stops a song's source at `at`: one that has already played out (a song over before the next was made, a first
+ *  song's opening bars before the rest of it) throws in some browsers when stopped, and is left as it is */
+function halt(d, at) {
+  try {
+    d.src.stop(at);
+  } catch {
+    // it has ended
+  }
+}
+
 function start(d, at, offset = 0) {
   d.t0 = at - offset;
   d.src.start(at, offset);
@@ -262,7 +274,7 @@ function mix(a, b, how) {
     fade(a.fader.gain, 1, 0, at + half, span - half);
     a.thin.frequency.setValueAtTime(10, at + half);
     a.thin.frequency.exponentialRampToValueAtTime(500, at + span);
-    a.src.stop(at + span + 0.05);
+    halt(a, at + span + 0.05);
     return { at, label: `mixed in beat for beat over ${bars} bars, in key`, blend: true };
   }
   if (how === "brake") {
@@ -271,7 +283,7 @@ function mix(a, b, how) {
     a.src.playbackRate.linearRampToValueAtTime(0.05, at + 0.9);
     a.fader.gain.setValueAtTime(1, at + 0.5);
     a.fader.gain.linearRampToValueAtTime(0, at + 0.9);
-    a.src.stop(at + 1);
+    halt(a, at + 1);
     start(b, at + 1);
     return { at: at + 1, label: "dropped in as the last record stopped" };
   }
@@ -283,7 +295,7 @@ function mix(a, b, how) {
   a.send.gain.linearRampToValueAtTime(1, at);
   a.fader.gain.setValueAtTime(1, at);
   a.fader.gain.linearRampToValueAtTime(0, at + 0.05);
-  a.src.stop(at + 0.1);
+  halt(a, at + 0.1);
   const next = at + bar(a);
   start(b, next);
   b.fader.gain.setValueAtTime(0, next);
@@ -419,7 +431,7 @@ async function tuneIn() {
     whole.fader.gain.linearRampToValueAtTime(1, at + 0.05);
     early.fader.gain.setValueAtTime(1, at);
     early.fader.gain.linearRampToValueAtTime(0, at + 0.05);
-    early.src.stop(at + 0.1);
+    halt(early, at + 0.1);
   } else {
     start(whole, ctx.currentTime + 0.1, SOON ? Math.max(0, leaving(whole).at - 20) : 0);
   }
