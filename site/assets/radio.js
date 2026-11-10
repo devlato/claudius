@@ -67,9 +67,13 @@ class Engine {
     this.held = [];
     this.waiting = null;
     this.genres = [];
-    this.ready = new Promise((resolve) => (this.onReady = resolve));
+    this.ready = new Promise((resolve, reject) => {
+      this.onReady = resolve;
+      this.onFailed = reject;
+    });
     this.worker.onmessage = (m) => this.heard(m.data);
     this.worker.onerror = () => {
+      if (!this.genres.length) this.onFailed(new Error("the engine did not start"));
       const w = this.waiting;
       this.waiting = null;
       if (w) w.reject(new Error("the engine stopped"));
@@ -342,6 +346,13 @@ function status(text) {
   $("status").textContent = text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+/** `text` in the element `id`, set only when it changes, so that the song's title is announced when a new one is on
+ *  and the clock never is */
+function show(id, text) {
+  const el = $(id);
+  if (el.textContent !== text) el.textContent = text;
+}
+
 async function queue() {
   const spec = plan(onAir);
   planned = spec;
@@ -378,16 +389,16 @@ function tick() {
   }
   if (!onAir) return;
   const at = t - onAir.t0;
-  $("now-title").textContent = onAir.title;
-  $("now-meta").textContent = `${said(onAir.genre)} · ${Math.round(onAir.bpm * 10) / 10} BPM · ${onAir.keyText}`;
+  show("now-title", onAir.title);
+  show("now-meta", `${said(onAir.genre)} · ${Math.round(onAir.bpm * 10) / 10} BPM · ${onAir.keyText}`);
   $("now-bar").style.width = `${Math.min(100, (100 * at) / onAir.seconds)}%`;
-  $("now-time").textContent = `${clock(at)} / ${clock(onAir.seconds)}`;
+  show("now-time", `${clock(at)} / ${clock(onAir.seconds)}`);
   if (next) {
     const d = next.deck;
     const how = next.blend ? "mixes in" : "comes in";
-    $("next").textContent = `${d.title}: ${said(d.genre)}, ${Math.round(d.bpm)} BPM, ${d.keyText}; ${how} ${clock(next.at - t)} from now`;
+    show("next", `${d.title}: ${said(d.genre)}, ${Math.round(d.bpm)} BPM, ${d.keyText}; ${how} ${clock(next.at - t)} from now`);
   } else if (planned) {
-    $("next").textContent = `writing a ${said(planned.genre)} song at ${planned.bpm} BPM in ${keyName(planned.key)}…`;
+    show("next", `writing a ${said(planned.genre)} song at ${planned.bpm} BPM in ${keyName(planned.key)}…`);
   }
 }
 
@@ -442,10 +453,20 @@ async function tuneIn() {
   queue();
 }
 
+/** what a start that failed set up, let go of, so that Tune in starts the station afresh rather than pausing silence */
+function reset() {
+  if (engine) engine.worker.terminate();
+  if (ctx) ctx.close();
+  engine = ctx = master = echo = null;
+  onAir = next = planned = null;
+}
+
 $("tune").addEventListener("click", () => {
   tuneIn().catch((e) => {
+    reset();
     status(`The radio could not start: ${e.message}`);
     $("tune").disabled = false;
+    $("tune").textContent = "Tune in";
   });
 });
 $("volume").addEventListener("input", (e) => {

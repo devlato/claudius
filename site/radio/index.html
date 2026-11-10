@@ -42,10 +42,12 @@
     mixes records: in time, in key and on the phrase. Nothing is recorded: every song is written and rendered here, in
     this page, a few minutes before you hear it.</p>
 
-  <section class="radio-deck" aria-labelledby="now-title" aria-live="polite">
+  <section class="radio-deck" aria-labelledby="now-title">
     <p class="radio-label">On air</p>
-    <h2 id="now-title">Not tuned in</h2>
-    <p id="now-meta" class="radio-meta">Press Tune in to start the station.</p>
+    <div aria-live="polite">
+      <h2 id="now-title">Not tuned in</h2>
+      <p id="now-meta" class="radio-meta">Press Tune in to start the station.</p>
+    </div>
     <div class="radio-progress" aria-hidden="true"><div id="now-bar"></div></div>
     <p id="now-time" class="radio-time"></p>
   </section>
