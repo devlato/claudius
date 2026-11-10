@@ -6,13 +6,6 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
-The critic hears how much listeners would enjoy a song and how well it is produced, as Meta's Audiobox Aesthetics
-rates them: a model trained on what listeners said of recordings, whose ratings of natural music follow theirs closely
-(0.89 for production quality, 0.75 for enjoyment). It is a new part of the score, `aesthetics`, worth as much as the
-genre's; a genre whose sound is a dusty or distorted recording is held to its enjoyment alone, and the model's two other
-readings are reported, not scored. The ears download its model (133 MB) with their first verdict, or with
-`claudius setup`, and score without it until then.
-
 Evolution and the studio's Variations now revise a song's form as a producer would: a verse and hook or a drop played
 again, a section left out, a bridge or a lift, a shorter intro or outro, two sections that sound as one set apart, a
 build-up of another style or strength. The critic judges the whole song's form, even where evolution renders only a
@@ -28,6 +21,13 @@ colours the song taken out; a stacked sound's layers rebalanced; a drum step pro
 chance, rolled where the genre rolls its hats, flammed, laid back, tuned); an effect's setting moved, an insert
 effect added or taken off as the track's role takes one, and an equalizer move on the band the critic finds too loud
 or too quiet; and a sampled break or phrase re-chopped, in the genres that chop them.
+
+The critic hears how much listeners would enjoy a song and how well it is produced, as Meta's Audiobox Aesthetics
+rates them: a model trained on what listeners said of recordings, whose ratings of natural music follow theirs closely
+(0.89 for production quality, 0.75 for enjoyment). It is a new part of the score, `aesthetics`, worth as much as the
+genre's; a genre whose sound is a dusty or distorted recording is held to its enjoyment alone, and the model's two other
+readings are reported, not scored. The ears download its model (133 MB) with their first verdict, or with
+`claudius setup`, and score without it until then.
 
 ## [0.5.0] - 2026-11-09
 
