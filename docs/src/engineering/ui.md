@@ -64,10 +64,18 @@ The studio is still being finished; this page describes its structure, which is 
 
 The shortcuts are Space (play or pause), the arrow keys (pick a section), L (loop the section), Home (to the start),
 Cmd or Ctrl+Z (undo) and Shift+Cmd or Ctrl+Z (redo), active when no text field has focus. Cmd or Ctrl+K opens the
-command palette (`panels/palette.rs`) from anywhere, a field being typed in too: `ACTS` lists every action by name,
-with the words it is also found by, where it lives and its key, and `found` ranks them for what is typed (a name
-that starts with it, then a word starting with each word typed, then any that holds it). A test holds the palette
-to every dock tab, so a tab added without its action fails.
+command palette (`panels/palette.rs`) from anywhere, a field being typed in too. Its actions are `claudius-intent`'s
+catalogue (`catalogue::ENTRIES`: each action's id, its name, the words it is also found by, where it lives and its
+key), and the palette maps each id to what it does (`run_of`); a test holds it to every entry and every dock tab, so
+an action or a tab added without the other fails. As the words change, the palette asks which actions they find
+(`Backend::find`), and until the answer for those words comes, shows what they find by name (`Finder::find` without
+a model). The answer ranks by name and by meaning, with the embedding model once it is there
+([0011](../design/0011-meaning-on-device.md)). A server answers it (`GET /api/find`, `Host::find`), its session
+holding the model (`claudius_session::meaning`, which downloads it the first time it is asked). The demo answers on
+the studio's own thread (`mock::meaning`), since a search takes microseconds and its engine may be rendering for
+seconds: in the app with the session's model, in a page with the site's copy (`studio/models/`, which
+`cargo xtask site --sounds` makes), which the page fetches the first time. Words found by name before the model came
+are answered again once it has.
 
 The menus are built of `widgets::menu_title` (what the menu acts on, and what that is, faint), `menu_group` (the
 name of a group of items, in small faint capitals) and `menu_item` (an item with the key that does it too, faint on

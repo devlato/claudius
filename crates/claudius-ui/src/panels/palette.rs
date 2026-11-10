@@ -1,13 +1,20 @@
-//! The command palette (Cmd+K, Ctrl+K elsewhere): the studio's actions by name, found by typing a few letters of them,
-//! each with where it lives in the studio and the key that does it too, as editors' palettes are. The arrows pick one,
+//! The command palette (Cmd+K, Ctrl+K elsewhere): the studio's actions (`claudius_intent::catalogue`), found from a few
+//! words, each with where it lives in the studio and the key that does it too, as editors' palettes are. The words find
+//! actions by name at once, here; the engine finds them by meaning too, as the person would say it ("make it louder",
+//! "sing over it"), once its embedding model is there, and its answer replaces what the name found. The arrows pick one,
 //! Enter or a click does it, Escape closes the palette.
 
 use claudius_api::Command;
+use claudius_intent::catalogue::ENTRIES;
+use claudius_intent::{Answer, By, Finder, Found};
 use eframe::egui::{self, Align2, Key, Modifiers, RichText, text::LayoutJob, vec2};
 
 use super::{Cx, Tab};
 use crate::theme::{self, TEXT, TEXT_FAINT};
 use crate::widgets;
+
+/// how many actions the palette shows at most
+pub const SHOWN: usize = 12;
 
 /// the palette while it is open: the words typed, and the action picked among those they find
 #[derive(Default)]
@@ -19,12 +26,32 @@ pub struct Palette {
     focus: bool,
     /// where the status bar's link to it is, which opens and closes it itself: a press there is not one outside it
     pub link: Option<egui::Rect>,
+    /// the words to ask the engine about, which the app sends it (`Backend::find`)
+    pub ask: Option<String>,
+    /// what the engine found for the words asked about last
+    answer: Option<Answer>,
 }
 
 impl Palette {
     /// opened afresh, or closed
     pub fn toggle(&mut self) {
         *self = Palette { open: !self.open, focus: true, link: self.link, ..Palette::default() };
+    }
+
+    /// what the engine found for some words: kept while they are what is typed
+    pub fn heard(&mut self, answer: Answer) {
+        if answer.query == self.query.trim() {
+            self.answer = Some(answer);
+        }
+    }
+
+    /// the actions shown for what is typed: what the engine found for it, by name and by meaning, or until it answers,
+    /// what the words find by name here
+    fn shown(&self) -> Vec<Found> {
+        match &self.answer {
+            Some(a) if a.query == self.query.trim() => a.found.clone(),
+            _ => Finder::new(ENTRIES, None).find(&self.query, None, SHOWN),
+        }
     }
 }
 
@@ -48,164 +75,68 @@ enum Run {
     Paint,
     Tab(Tab),
     FlowLarge,
+    Variations,
+    Improve,
+    FixAll,
+    Cancel,
+    Stems,
+    Packs,
+    Publish,
+    Assistants,
+    Reference,
     Docs,
     Tour,
+}
+
+/// the action of the catalogue's id
+fn run_of(id: &str) -> Option<Run> {
+    Some(match id {
+        "play" => Run::Play,
+        "to_start" => Run::ToStart,
+        "stop" => Run::Stop,
+        "loop" => Run::Loop,
+        "undo" => Run::Undo,
+        "redo" => Run::Redo,
+        "new_song" => Run::NewSong,
+        "example" => Run::Example,
+        "open" => Run::Open,
+        "save" => Run::Save,
+        "render" => Run::Render,
+        "record" => Run::Record,
+        "add_recording" => Run::AddRecording,
+        "phone" => Run::Phone,
+        "paint" => Run::Paint,
+        "flow_large" => Run::FlowLarge,
+        "variations" => Run::Variations,
+        "improve" => Run::Improve,
+        "fix_all" => Run::FixAll,
+        "cancel" => Run::Cancel,
+        "stems" => Run::Stems,
+        "packs" => Run::Packs,
+        "publish" => Run::Publish,
+        "assistants" => Run::Assistants,
+        "reference" => Run::Reference,
+        "docs" => Run::Docs,
+        "tour" => Run::Tour,
+        other => Run::Tab(match other.strip_prefix("tab:")? {
+            "drums" => Tab::Sequencer,
+            "instruments" => Tab::Parts,
+            "notes" => Tab::Notes,
+            "chords" => Tab::Harmony,
+            "mixer" => Tab::Mixer,
+            "sounds" => Tab::Sounds,
+            "script" => Tab::Script,
+            "flow" => Tab::Graph,
+            "log" => Tab::Log,
+            _ => return None,
+        }),
+    })
 }
 
 /// what the app does itself for an action the palette picked
 pub enum Asked {
     Open,
     Tour,
-}
-
-/// An action: its name, the words it is also found by, where it lives in the studio, the key that does it too, and
-/// what it does.
-struct Act {
-    name: &'static str,
-    words: &'static str,
-    place: &'static str,
-    keys: &'static str,
-    run: Run,
-}
-
-/// every action, in the order the palette lists them before anything is typed
-const ACTS: &[Act] = &[
-    Act { name: "Play or pause", words: "start listen hear", place: "transport", keys: "Space", run: Run::Play },
-    Act {
-        name: "Back to the start",
-        words: "rewind beginning home",
-        place: "transport",
-        keys: "Home",
-        run: Run::ToStart,
-    },
-    Act { name: "Stop", words: "halt rewind", place: "transport", keys: "", run: Run::Stop },
-    Act { name: "Loop", words: "repeat cycle section", place: "transport", keys: "L", run: Run::Loop },
-    Act { name: "Undo", words: "back revert", place: "toolbar", keys: "Cmd+Z", run: Run::Undo },
-    Act { name: "Redo", words: "again forward", place: "toolbar", keys: "Shift+Cmd+Z", run: Run::Redo },
-    Act {
-        name: "New song...",
-        words: "create genre generate make start",
-        place: "toolbar",
-        keys: "",
-        run: Run::NewSong,
-    },
-    Act {
-        name: "Open an example song...",
-        words: "examples library demo pop rock house learn",
-        place: "New song, From an example",
-        keys: "",
-        run: Run::Example,
-    },
-    Act { name: "Open a song...", words: "load file blueprint script", place: "toolbar", keys: "", run: Run::Open },
-    Act {
-        name: "Save or download",
-        words: "download export file keep flac",
-        place: "toolbar",
-        keys: "",
-        run: Run::Save,
-    },
-    Act { name: "Render", words: "listen judge verdict score bounce", place: "status bar", keys: "", run: Run::Render },
-    Act {
-        name: "Record a take...",
-        words: "microphone mic sing voice instrument",
-        place: "transport, the red button",
-        keys: "",
-        run: Run::Record,
-    },
-    Act {
-        name: "Add a recording or sample one...",
-        words: "import file sample vocals search free libraries freesound jamendo track chops passage stab",
-        place: "transport, the + button",
-        keys: "",
-        run: Run::AddRecording,
-    },
-    Act {
-        name: "Play from a phone...",
-        words: "mobile pads keys turntable controller",
-        place: "transport, the phone button",
-        keys: "",
-        run: Run::Phone,
-    },
-    Act {
-        name: "Paint tool",
-        words: "draw cells arrangement switch on off",
-        place: "arrangement",
-        keys: "B",
-        run: Run::Paint,
-    },
-    Act {
-        name: "Drums",
-        words: "beat steps sequencer kick snare hat",
-        place: "tab",
-        keys: "",
-        run: Run::Tab(Tab::Sequencer),
-    },
-    Act {
-        name: "Instruments",
-        words: "parts sounds synth bass lead pad layers",
-        place: "tab",
-        keys: "",
-        run: Run::Tab(Tab::Parts),
-    },
-    Act { name: "Notes", words: "piano roll melody midi", place: "tab", keys: "", run: Run::Tab(Tab::Notes) },
-    Act { name: "Chords", words: "harmony progression key", place: "tab", keys: "", run: Run::Tab(Tab::Harmony) },
-    Act {
-        name: "Mixer",
-        words: "levels volume pan faders effects fx mix",
-        place: "tab",
-        keys: "",
-        run: Run::Tab(Tab::Mixer),
-    },
-    Act { name: "Sounds", words: "samples swap kit browse", place: "tab", keys: "", run: Run::Tab(Tab::Sounds) },
-    Act { name: "Script", words: "code rhai text edit", place: "tab", keys: "", run: Run::Tab(Tab::Script) },
-    Act {
-        name: "Signal flow, large",
-        words: "graph whiteboard routing buses chain big",
-        place: "arrangement, its Signal flow chip",
-        keys: "G",
-        run: Run::FlowLarge,
-    },
-    Act {
-        name: "Signal flow",
-        words: "graph whiteboard routing buses chain",
-        place: "tab",
-        keys: "",
-        run: Run::Tab(Tab::Graph),
-    },
-    Act { name: "Log", words: "history messages what happened", place: "tab", keys: "", run: Run::Tab(Tab::Log) },
-    Act { name: "Take the tour", words: "help guide learn start", place: "", keys: "", run: Run::Tour },
-    Act { name: "Read the docs", words: "help manual guide tutorial", place: "on the web", keys: "", run: Run::Docs },
-];
-
-/// The actions `query` finds, the best first: those whose name starts with it, then those with a word starting with
-/// each word typed (in their name, the words they are found by, or where they live), then those that hold it; all of
-/// them, in their order, when nothing is typed.
-fn found(query: &str) -> Vec<&'static Act> {
-    let q = query.trim().to_lowercase();
-    if q.is_empty() {
-        return ACTS.iter().collect();
-    }
-    let mut scored: Vec<(u8, usize, &Act)> = ACTS
-        .iter()
-        .enumerate()
-        .filter_map(|(i, a)| {
-            let name = a.name.to_lowercase();
-            let all = format!("{name} {} {}", a.words, a.place.to_lowercase());
-            let words: Vec<&str> = all.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).collect();
-            let score = if name.starts_with(&q) {
-                0
-            } else if q.split_whitespace().all(|t| words.iter().any(|w| w.starts_with(t))) {
-                1
-            } else if all.contains(&q) {
-                2
-            } else {
-                return None;
-            };
-            Some((score, i, a))
-        })
-        .collect();
-    scored.sort_by_key(|(score, i, _)| (*score, *i));
-    scored.into_iter().map(|(_, _, a)| a).collect()
 }
 
 /// The palette, while it is open: a field to type in and the actions it finds. What the app does itself comes back.
@@ -229,7 +160,7 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
         p.open = false;
         return None;
     }
-    let acts = found(&p.query);
+    let acts = p.shown();
     let last = acts.len().saturating_sub(1);
     p.at = if down {
         (p.at + 1).min(last)
@@ -238,7 +169,7 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
     } else {
         p.at.min(last)
     };
-    let mut picked = enter.then(|| acts.get(p.at).map(|a| a.run)).flatten();
+    let mut picked = enter.then(|| acts.get(p.at).and_then(|a| run_of(&a.id))).flatten();
     let cmd = widgets::cmd_key(ctx);
     let shown = egui::Window::new("command palette")
         .title_bar(false)
@@ -250,7 +181,7 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
             let field = ui.add(
                 egui::TextEdit::singleline(&mut p.query)
                     .id(field_id)
-                    .hint_text("Type what you want to do: new song, mixer, loop, sample ...")
+                    .hint_text("Type what you want to do: new song, make it louder, sing over it ...")
                     .desired_width(f32::INFINITY)
                     .font(egui::TextStyle::Heading),
             );
@@ -259,6 +190,8 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
             }
             if field.changed() {
                 p.at = 0;
+                let words = p.query.trim();
+                p.ask = (!words.is_empty()).then(|| words.to_string());
             }
             ui.add_space(4.0);
             if acts.is_empty() {
@@ -267,9 +200,9 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
             egui::ScrollArea::vertical().max_height(360.0).auto_shrink([false, true]).show(ui, |ui| {
                 for (i, a) in acts.iter().enumerate() {
                     let mut job = LayoutJob::default();
-                    job.append(a.name, 0.0, egui::TextFormat::simple(theme::prop(13.5), TEXT));
+                    job.append(&a.name, 0.0, egui::TextFormat::simple(theme::prop(13.5), TEXT));
                     if !a.place.is_empty() {
-                        job.append(a.place, 10.0, egui::TextFormat::simple(theme::prop(11.0), TEXT_FAINT));
+                        job.append(&a.place, 10.0, egui::TextFormat::simple(theme::prop(11.0), TEXT_FAINT));
                     }
                     let keys = a.keys.replace("Cmd", cmd);
                     let r = ui.add_sized(
@@ -278,19 +211,27 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
                             .selected(i == p.at)
                             .shortcut_text(RichText::new(keys).size(11.0).color(TEXT_FAINT)),
                     );
+                    let r = if a.by == By::Meaning { r.on_hover_text("found by what your words mean") } else { r };
                     if i == p.at && (down || up) {
                         r.scroll_to_me(None);
                     }
                     if r.clicked() {
-                        picked = Some(a.run);
+                        picked = run_of(&a.id);
                     }
                 }
             });
             ui.add_space(2.0);
+            let by = if p.answer.as_ref().is_some_and(|a| a.by_meaning) {
+                "finds what you mean, on this computer"
+            } else {
+                "finds actions by name"
+            };
             ui.label(
-                RichText::new(format!("{cmd}+K opens this from anywhere · arrows pick · Enter does it · Esc closes"))
-                    .size(10.5)
-                    .color(TEXT_FAINT),
+                RichText::new(format!(
+                    "{cmd}+K opens this from anywhere · {by} · arrows pick · Enter does it · Esc closes"
+                ))
+                .size(10.5)
+                .color(TEXT_FAINT),
             );
         });
     // a click outside it closes it, as a menu closes
@@ -339,6 +280,16 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
             let large = cx.state.song.is_some() && !cx.view.flow_large;
             super::graph::open_large(cx, large);
         }
+        // as the status bar's buttons do
+        Run::Variations => cx.out.push(Command::Mutate { count: cx.view.mutate_count, keep_best: cx.view.keep_best }),
+        Run::Improve => cx.out.push(Command::Evolve { generations: cx.view.generations, children: cx.view.children }),
+        Run::FixAll => cx.out.push(Command::QuickFix { target: None }),
+        Run::Cancel => cx.out.push(Command::Cancel),
+        Run::Stems => cx.out.push(Command::Render { stems: true }),
+        Run::Packs => cx.out.push(Command::InstallPacks { names: Vec::new() }),
+        Run::Publish => cx.view.publish.show(),
+        Run::Assistants => cx.view.assistants.show(),
+        Run::Reference => cx.view.reference_open = true,
         Run::Docs => ctx.open_url(egui::OpenUrl::new_tab(widgets::DOCS)),
         Run::Tour => return Some(Asked::Tour),
     }
@@ -350,24 +301,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn typing_finds_actions_by_their_name_then_by_their_words() {
-        let names = |q: &str| found(q).iter().map(|a| a.name).collect::<Vec<_>>();
-        assert_eq!(names("").len(), ACTS.len(), "everything before anything is typed");
-        assert_eq!(names("mix")[0], "Mixer");
-        assert_eq!(names("loop")[0], "Loop");
-        assert_eq!(names("volume")[0], "Mixer", "found by a word it goes by");
-        assert_eq!(names("whiteboard")[0], "Signal flow, large");
-        assert_eq!(names("sample vocals")[0], "Add a recording or sample one...");
-        assert_eq!(names("free lib")[0], "Add a recording or sample one...");
-        assert!(names("zzzz").is_empty());
+    fn every_action_of_the_catalogue_is_one_the_palette_does_and_every_tab_is_there() {
+        for e in ENTRIES {
+            assert!(run_of(e.id).is_some(), "{}: the palette does nothing for it", e.id);
+        }
+        for t in Tab::ALL {
+            assert!(ENTRIES.iter().any(|e| run_of(e.id) == Some(Run::Tab(t)) && e.name == t.label()), "{}", t.label());
+        }
     }
 
     #[test]
-    fn every_tab_and_every_kind_of_action_is_in_the_palette() {
-        for t in Tab::ALL {
-            assert!(ACTS.iter().any(|a| a.run == Run::Tab(t) && a.name == t.label()), "{}", t.label());
-        }
-        let names: std::collections::HashSet<&str> = ACTS.iter().map(|a| a.name).collect();
-        assert_eq!(names.len(), ACTS.len(), "no two actions by one name");
+    fn what_is_typed_is_found_by_name_until_the_engine_answers_for_it() {
+        let mut p = Palette { query: "mix".into(), ..Palette::default() };
+        assert_eq!(p.shown()[0].name, "Mixer");
+        let found = |name: &str| Found {
+            id: "tab:sounds".into(),
+            name: name.into(),
+            place: "tab".into(),
+            keys: String::new(),
+            score: 0.8,
+            by: By::Meaning,
+        };
+        p.heard(Answer { query: "mi".into(), found: vec![found("an old answer")], by_meaning: true });
+        assert_eq!(p.shown()[0].name, "Mixer", "an answer for other words is not shown");
+        p.heard(Answer { query: "mix".into(), found: vec![found("Sounds")], by_meaning: true });
+        assert_eq!(p.shown()[0].name, "Sounds", "the engine's answer, by meaning too");
+        p.query = "mixer".into();
+        assert_eq!(p.shown()[0].name, "Mixer", "words typed since are found by name until it answers for them");
     }
 }

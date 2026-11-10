@@ -9,6 +9,7 @@
 //! | `POST /api/command` | body: a `Command` (JSON, tagged by `"cmd"`), answer: `Reply`. Long jobs (render, mutate, evolve) answer at once and report through `State.busy` / `State.log` |
 //! | `GET  /api/script` | the current song as a script (text/plain) |
 //! | `GET  /api/sounds` | `SoundList`: every sound name a script or the UI may use |
+//! | `GET  /api/find?q=&limit=` | `claudius_intent::Answer`: the studio's actions the words find, by name and by meaning |
 //! | `GET  /api/audio/{version}.wav` / `.mp3` | the render of that state version (`RenderView.url` points here) |
 //! | `GET  /api/stems/{version}/{track}.wav` | one track of that render, when it was rendered with stems |
 //! | `GET  /api/export/{version}/{name}.{ext}?format=SPEC` | that render in another format (`ExportFormat.spec`), as a download named `{name}.{ext}` |

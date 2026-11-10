@@ -411,6 +411,17 @@ impl Host {
         views::sounds()
     }
 
+    /// The studio's actions `query` finds, at most `limit`, the best first: by name, and by meaning once the embedding
+    /// model is there (`meaning`).
+    pub fn find(query: &str, limit: usize) -> claudius_intent::Answer {
+        let (model, finder) = crate::meaning::held();
+        claudius_intent::Answer {
+            query: query.to_string(),
+            found: finder.find(query, model.as_deref(), limit),
+            by_meaning: finder.by_meaning(),
+        }
+    }
+
     pub fn state(&self) -> State {
         State {
             version: self.version,

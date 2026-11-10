@@ -55,6 +55,10 @@
 /studio/packs/*
   ! Cache-Control
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+# the palette's embedding model (`cargo xtask site --sounds`), from a pinned revision: it changes only with claudius
+/studio/models/*
+  ! Cache-Control
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 /docs/*.js
   Cache-Control: public, max-age=31536000, immutable
 /docs/*.css

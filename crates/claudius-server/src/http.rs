@@ -54,6 +54,7 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
     let ctx = Ctx { app: app.clone() };
     let api = Router::new()
         .route("/api/hello", get(hello))
+        .route("/api/find", get(find))
         .route("/api/metrics", get(metrics))
         .route("/api/state", get(state))
         .route("/api/command", post(command).layer(DefaultBodyLimit::max(1 << 20)))
@@ -325,6 +326,21 @@ struct GenreQuery {
 /// the genres, or those that answer `q` best first (`claudius_api::search_genres`)
 async fn genres(State(c): State<Ctx>, Query(q): Query<GenreQuery>) -> Json<Vec<claudius_api::GenreInfo>> {
     Json(claudius_api::search_genres(c.app.genres(), q.q.as_deref().unwrap_or("")).into_iter().cloned().collect())
+}
+
+#[derive(Deserialize)]
+struct FindQuery {
+    #[serde(default)]
+    q: String,
+    #[serde(default)]
+    limit: Option<usize>,
+}
+
+/// The studio's actions `q` finds, the best first, by name and by meaning (`claudius_session::host::Host::find`). The
+/// model that finds them by meaning downloads once the palette is first asked.
+async fn find(Query(q): Query<FindQuery>) -> Json<claudius_intent::Answer> {
+    claudius_session::meaning::fetch_in_background();
+    Json(claudius_session::host::Host::find(&q.q, q.limit.unwrap_or(12).min(40)))
 }
 
 #[derive(Deserialize)]

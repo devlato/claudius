@@ -127,6 +127,8 @@ pub enum Event {
     Delivered(Result<Delivery, String>),
     /// what the free libraries offered for a search, or why nothing
     Library(Result<Vec<claudius_api::LibraryHit>, String>),
+    /// the studio's actions the palette's words found
+    Found(claudius_intent::Answer),
 }
 
 /// the `"cmd"` tag of a command ("set_tempo")
@@ -392,6 +394,21 @@ impl Remote {
         ehttp::fetch(request, |_| {});
     }
 
+    /// the studio's actions `q` finds, by name and by meaning (an old claudius without `/api/find` answers nothing,
+    /// and the palette keeps finding them by name itself)
+    fn find(&self, q: &str, limit: usize) {
+        let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
+        let url = self.url(&format!("/api/find?q={}&limit={limit}", query_value(q)));
+        ehttp::fetch(ehttp::Request::get(url), move |res| {
+            if let Ok(r) = res
+                && r.ok
+                && let Ok(answer) = serde_json::from_slice::<claudius_intent::Answer>(&r.bytes)
+            {
+                Self::deliver(&tx, &ctx, Event::Found(answer));
+            }
+        });
+    }
+
     fn search_library(&self, q: &str) {
         let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
         let url = self.url(&format!("/api/library/search?q={}", query_value(q)));
@@ -624,6 +641,14 @@ impl Backend {
         match self {
             Backend::Remote(r) => r.search_library(q),
             Backend::Mock(m) => m.search_library(q),
+        }
+    }
+
+    /// Asks which of the studio's actions `q` finds, by name and by meaning (the answer arrives as `Event::Found`).
+    pub fn find(&mut self, q: &str, limit: usize) {
+        match self {
+            Backend::Remote(r) => r.find(q, limit),
+            Backend::Mock(m) => m.find(q, limit),
         }
     }
 

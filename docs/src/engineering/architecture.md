@@ -1,7 +1,8 @@
 # Architecture
 
-claudius is a Cargo workspace of eleven crates. One of them, `claudius`, is the engine and does all the music; the
-others decode and encode audio, manage sample packs, listen, edit, serve, draw and parse command lines around it.
+claudius is a Cargo workspace of twelve crates. One of them, `claudius`, is the engine and does all the music; the
+others decode and encode audio, manage sample packs, listen, find the studio's actions, edit, serve, draw and parse
+command lines around it.
 
 ## The crates
 
@@ -30,9 +31,10 @@ others decode and encode audio, manage sample packs, listen, edit, serve, draw a
 | `claudius-packs` | the sample packs: registry, installer, SFZ and Strudel-map readers, name resolution, the multi-sample player, credits; also the `claudius-packs` binary | `claudius-decode` |
 | `earshot` | a Rust port of the Python earshot: CLAP and the AudioSet tagger through ONNX Runtime, the calibrated vocabulary, realness, measurements | `claudius-decode`, `ort` |
 | `claudius-api` | the wire types of the HTTP API: plain serde structs, so they build for WebAssembly | serde |
-| `claudius-session` | what a session does to a song: the edits the API's commands make (as scripts, or in place), and the views of the song, its render and its verdict as API types | `claudius`, `claudius-api`, `claudius-packs` |
-| `claudius-server` | the session (`App`), the HTTP routes, the MCP tools | `claudius`, `claudius-api`, `claudius-packs`, `claudius-session` |
-| `claudius-ui` | the studio, in egui: a native window and a WebAssembly app, both clients of the HTTP API, with a demo that runs the engine itself | `claudius-api`; in the app, `claudius-session` for the demo |
+| `claudius-intent` | the command palette's catalogue of the studio's actions, found by name and by meaning: static word embeddings (Model2Vec's, each number a byte), a flat vector index, the ranking ([0011](../design/0011-meaning-on-device.md)) | serde |
+| `claudius-session` | what a session does to a song: the edits the API's commands make (as scripts, or in place), and the views of the song, its render and its verdict as API types; the palette's model, held once | `claudius`, `claudius-api`, `claudius-packs`, `claudius-intent` |
+| `claudius-server` | the session (`App`), the HTTP routes, the MCP tools | `claudius`, `claudius-api`, `claudius-packs`, `claudius-session`, `claudius-intent` |
+| `claudius-ui` | the studio, in egui: a native window and a WebAssembly app, both clients of the HTTP API, with a demo that runs the engine itself | `claudius-api`, `claudius-intent`; in the app, `claudius-session` for the demo |
 | `claudius-web` | the demo's engine in a browser's Web Worker (`claudius-engine`, which trunk builds beside the web studio) | `claudius-session` |
 | `claudius-cli` | the `claudius` binary: one subcommand per task, `setup`, `doctor`, `connect` | all of the above |
 
