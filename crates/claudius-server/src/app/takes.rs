@@ -107,7 +107,7 @@ impl App {
             let kept = path
                 .parent()
                 .map_or(Ok(()), std::fs::create_dir_all)
-                .and_then(|_| std::fs::write(path, heard.voice.to_settings(&earlier)));
+                .and_then(|_| std::fs::write(path, super::voice::written(&heard.voice, &earlier)));
             if let Err(e) = kept {
                 self.update(|s| s.say(format!("cannot keep the voice in {}: {e}", path.display())));
             }

@@ -1,10 +1,10 @@
 //! The studio's settings, kept between runs in eframe's storage (a file in the app, the page's local storage in a
-//! browser), as any studio wrote them and any later one reads them (`claudius::settings`): JSON under `KEY`, with its
+//! browser), as any studio wrote them and any later one reads them (`claudius_api::settings`): JSON under `KEY`, with its
 //! version, each field read on its own, and the fields a later studio wrote kept. A studio before claudius 0.6 kept
 //! them as RON under eframe's own key, without a version: they are read as version 0 until the settings are first
 //! kept again.
 
-use claudius::settings::Fields;
+use claudius_api::settings::Fields;
 use serde::Serialize;
 use serde_json::{Map, Value};
 

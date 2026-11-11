@@ -12,7 +12,8 @@ whole file unreadable, and every setting in it went back to its default.
 
 ## Decision
 
-Every settings file is versioned and read field by field (`claudius::settings::Fields`).
+Every settings file is versioned and read field by field (`claudius_api::settings::Fields`, which the browser's
+studio has too).
 
 - **A version in every file**: a JSON object with `"version"`, the version of its kind that wrote it. A file without
   one is version 0, as every claudius before 0.6 wrote them.

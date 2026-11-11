@@ -36,7 +36,7 @@ fn read(path: &Path) -> Map<String, Value> {
         .unwrap_or_default()
 }
 
-/// the version of the file claudius writes (`claudius::settings`): 1, the first with one; before 0.6, 0, its fields
+/// the version of the file claudius writes (`claudius_api::settings`): 1, the first with one; before 0.6, 0, its fields
 /// read by name as they are now, and those a later claudius writes kept as they are
 const VERSION: u64 = 1;
 
@@ -44,7 +44,7 @@ fn write(path: &Path, m: &Map<String, Value>) -> Result<()> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    let text = claudius::settings::Fields::of(m.clone()).at(VERSION).to_text();
+    let text = claudius_api::settings::Fields::of(m.clone()).at(VERSION).to_text();
     std::fs::write(path, text).with_context(|| format!("cannot write {}", path.display()))
 }
 

@@ -78,10 +78,13 @@ impl Fields {
 
     /// the file's text: its version first, then its fields
     pub fn to_text(&self) -> String {
-        let mut out = Map::new();
-        out.insert("version".into(), self.version.into());
-        out.extend(self.map.clone());
-        serde_json::to_string_pretty(&Value::Object(out)).unwrap_or_default() + "\n"
+        #[derive(Serialize)]
+        struct File<'a> {
+            version: u64,
+            #[serde(flatten)]
+            fields: &'a Map<String, Value>,
+        }
+        serde_json::to_string_pretty(&File { version: self.version, fields: &self.map }).unwrap_or_default() + "\n"
     }
 }
 
