@@ -25,8 +25,8 @@ net = ["dep:ureq"]
 
 [dependencies]
 anyhow = "1"
-claudius-decode = { version = "0.5.0", path = "../claudius-decode" }
-claudius-encode = { version = "0.5.0", path = "../claudius-encode", default-features = false }
+claudius-decode = { version = "0.6.0", path = "../claudius-decode" }
+claudius-encode = { version = "0.6.0", path = "../claudius-encode", default-features = false }
 dirs = "7"
 hound = "3"
 rayon = "1"
@@ -42,5 +42,5 @@ web-time = "1"
 
 [dev-dependencies]
 # the web editions are Ogg Vorbis, which a build of this crate alone leaves out
-claudius-encode = { version = "0.5.0", path = "../claudius-encode", features = ["vorbis"] }
+claudius-encode = { version = "0.6.0", path = "../claudius-encode", features = ["vorbis"] }
 tempfile = "3"

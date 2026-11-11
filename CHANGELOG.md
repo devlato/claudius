@@ -6,6 +6,8 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-11
+
 The examples' studies of famous records are gone. They were named after the records but played melodies of their
 own, so they didn't sound like the songs they were named for, and a record's melodies belong to its writers. In their
 place are seven famous pieces in the public domain, each played as it was written and named for itself, in the styles
@@ -146,6 +148,33 @@ the packs (the Salamander piano, a Wurlitzer, strings, brass, flute, harp, malle
 guitars, basses, a choir, an acoustic kit, the TR-808 and TR-707; some 70 instruments in 24 MB, each song fetching its
 own), where every part played on a synth. A song asks for a Rhodes most of all, and no Rhodes recording may be passed
 on freely, so the Wurlitzer plays it there. `claudius-packs web` makes such editions of any installed instrument.
+
+### Added
+
+- evolve: Revise sections and length, judged on the whole song's form ([#218](https://github.com/devlato/claudius/pull/218))
+- evolve: Change instruments, drum trigs, effects and sample chops ([#219](https://github.com/devlato/claudius/pull/219))
+- ears: Rate how much listeners would enjoy a song and how well it is produced ([#220](https://github.com/devlato/claudius/pull/220))
+- web: The studio demo plays real sampled instruments ([#224](https://github.com/devlato/claudius/pull/224))
+- genres: Alternative rock, pop punk and nu metal, on a distorted guitar ([#227](https://github.com/devlato/claudius/pull/227))
+- site: A radio of songs written as they play, mixed like a DJ set ([#225](https://github.com/devlato/claudius/pull/225))
+- studio: Find the palette's actions by what the words mean, on the device ([#230](https://github.com/devlato/claudius/pull/230))
+- session: A song keeps its history, a log that only grows, and goes back to before any change ([#232](https://github.com/devlato/claudius/pull/232))
+- studio: The palette finds what was done to the song and goes back to before it ([#233](https://github.com/devlato/claudius/pull/233))
+- **Breaking:** examples: Famous public-domain pieces played as written, in place of the studies named after copyrighted records ([#234](https://github.com/devlato/claudius/pull/234))
+- studio: The palette does what you ask of the song in plain words, once you confirm it ([#235](https://github.com/devlato/claudius/pull/235))
+- palette: Read the requests the rules miss with Needle 3, taught in Rust ([#238](https://github.com/devlato/claudius/pull/238))
+- settings: Settings any later claudius reads, a field at a time ([#241](https://github.com/devlato/claudius/pull/241))
+- palette: Say what to do, heard on the device by Whistle in Rust ([#239](https://github.com/devlato/claudius/pull/239))
+- studio: A light look, and the system's, beside the dark one ([#242](https://github.com/devlato/claudius/pull/242))
+
+### Fixed
+
+- mix: Basses go deeper and no louder than their genre's low end ([#221](https://github.com/devlato/claudius/pull/221))
+- drums: A song's added percussion line plays a conga, not a cowbell ([#222](https://github.com/devlato/claudius/pull/222))
+- analysis: A recording's tempo is heard better, and a rework can play it in half time ([#223](https://github.com/devlato/claudius/pull/223))
+- remix: A flip's pieces and a rework's sections play at one loudness ([#226](https://github.com/devlato/claudius/pull/226))
+- studio: The web studio may use the microphone, and the app says how to allow one that hears nothing ([#228](https://github.com/devlato/claudius/pull/228))
+- critic: A song buried in noise no longer scores high, with the listening models or without them ([#229](https://github.com/devlato/claudius/pull/229))
 
 ## [0.5.0] - 2026-11-09
 
@@ -1060,7 +1089,8 @@ The first public release.
   theory checks), Linux on x86_64 and ARM64 with a headless build for machines without sound or a display, and
   Windows as a preview. One-line installers for each, which come with every release and are in its checksums.
 
-[unreleased]: https://github.com/devlato/claudius/compare/v0.5.0...HEAD
+[unreleased]: https://github.com/devlato/claudius/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/devlato/claudius/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/devlato/claudius/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/devlato/claudius/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/devlato/claudius/compare/v0.2.0...v0.3.0
