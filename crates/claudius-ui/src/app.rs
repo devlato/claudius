@@ -159,6 +159,10 @@ impl Studio {
                 self.link.error = Some(e);
                 self.confirmed = 0;
             }
+            Event::Listened(heard) => {
+                let genre = self.view.new_song.genre_name();
+                self.view.hears.show(heard, self.view.audio_file.clone(), &genre);
+            }
             Event::Reply { what, result } => {
                 self.inflight = self.inflight.saturating_sub(1);
                 let script = what == "run_script";
@@ -385,7 +389,11 @@ impl Studio {
             }
             if matches!(
                 cmd,
-                Command::NewSong { .. } | Command::Remake { .. } | Command::Load { .. } | Command::OpenText { .. }
+                Command::NewSong { .. }
+                    | Command::Remake { .. }
+                    | Command::SongLike { .. }
+                    | Command::Load { .. }
+                    | Command::OpenText { .. }
             ) {
                 self.view.section = 0;
                 // another song's track of the same name is not the one that was selected
@@ -560,6 +568,7 @@ impl Studio {
                     self.out.push(run);
                 }
                 Step::Reference => self.view.reference_open = true,
+                Step::Hears(play) => self.view.hears.asked = Some(play),
                 Step::Tour(i) => {
                     self.view.tour = Some(i);
                     self.view.tour_asks = self.native.as_ref().is_some_and(|n| n.statistics().is_none());
@@ -643,7 +652,9 @@ impl Studio {
         plan.tell("pieces", &offered.unwrap_or_default());
         plan.tell("hearing", &self.view.import.hearing_told());
         plan.tell("midi", &crate::audio::record::midi_offer().map(|(what, _)| what).unwrap_or_default());
-        plan.tell("analysis", &self.view.analysis.as_ref().map(|(_, text)| text.clone()).unwrap_or_default());
+        let analysis = self.view.analysis.as_ref().map(|(_, text)| text.as_str()).or(self.view.hears.words());
+        plan.tell("analysis", analysis.unwrap_or_default());
+        plan.tell("hears", &self.view.hears.told());
         plan.tell("heard", &self.view.heard.as_ref().map(|(_, text)| text.clone()).unwrap_or_default());
         plan.tell("toast", &self.view.toast.as_ref().map(|t| t.text.clone()).unwrap_or_default());
         plan.tell("busy", &self.state.busy.clone().unwrap_or_default());
@@ -1219,6 +1230,7 @@ impl eframe::App for Studio {
             panels::transport::new_song_dialog(&ctx, &mut cx);
             panels::publish::dialog(&ctx, &mut cx);
             panels::record::dialog(&ctx, &mut cx);
+            panels::hears::dialog(&ctx, &mut cx);
             panels::import::dialog(&ctx, &mut cx);
             panels::import::pieces(&ctx, &mut cx);
             panels::phone::dialog(&ctx, &mut cx);

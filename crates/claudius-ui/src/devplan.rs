@@ -3,10 +3,11 @@
 //! `plan` feature (for tests only) takes the page's `?plan=` instead, and leaves out screenshots and pointer input.
 //! What the Record window says goes to stderr (the browser's console), as `record: ...`, what claudius said of the
 //! recording the Add a recording window sent as `import: ...`, what it offers for MIDI
-//! keyboards as `midi: ...`, the last analysis as `analysis: ...`, each toast as `toast: ...`, the graph's node
-//! chosen as `graph: ...`, the page a phone plays along on as `phone: ...`, with how many have it open as
-//! `phones: ...`, and what the command palette shows as `palette: ...` (that it listens, that it hears what was said,
-//! or the words in its field and the first row they find).
+//! keyboards as `midi: ...`, the last analysis as `analysis: ...`, what the What claudius hears window shows (its
+//! tempo, key and bars, and what plays where) as `hears: ...`, each toast as `toast: ...`, the graph's node chosen as
+//! `graph: ...`, the page a phone plays along on as `phone: ...`, with how many have it open as `phones: ...`, and what
+//! the command palette shows as `palette: ...` (that it listens, that it hears what was said, or the words in its field
+//! and the first row they find).
 //! Steps: `wait:<s>`, `tab:<sequencer|mixer|parts|harmony|script|sounds|graph|log>`, `section:<i>`, `play`, `pause`, `seek:<s>`,
 //! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `download[:<format>]`, `record` (the Record window), `phone`
 //! (the Play from a phone window, which has claudius serve the phone's page), `palette` (the command palette),
@@ -14,7 +15,8 @@
 //! `rec:<start|stop|measure>` (a take, or the latency), `rec:<play|keep|not-now>` (the take back, kept or sent; the
 //! take an assistant asked for turned down), `rec:allow-midi`, `rec:midi:<input>` (a MIDI input chosen),
 //! `rec:grid:<beats>` (its notes' grid, 0 as played), `rec:part:<role|drums>` (what its notes play), `pick:<song|audio|cover|recording>` (a file dialog, as its button opens
-//! one), `listen:<analyze|remake>` (as the New song dialog's buttons), `audiopath:<file>` (a recording read as if
+//! one), `listen:<analyze|remake>` (as the New song dialog's buttons), `hears:<play|pause>` (the What claudius hears
+//! window's button), `audiopath:<file>` (a recording read as if
 //! chosen for Analyze, in the app), `recordingpath:<file>` (one read as if chosen in the Add a recording window, in
 //! the app), `import:whole` (the recording it holds added whole as a track), `import:search:<words>` (the free
 //! libraries searched, as its Search button searches them; what they offer goes out as `library: ...`),
@@ -59,6 +61,8 @@ pub enum Step {
     Pick(crate::pick::Want),
     /// the chosen recording sent to be listened to (false) or remade (true), as the New song dialog's buttons do
     Listen(bool),
+    /// the What claudius hears window's play (true) or pause (false), as its button does
+    Hears(bool),
     Run,
     Reference,
     /// the tour, at this step
@@ -321,6 +325,7 @@ impl Plan {
                 }
             },
             "listen" => Some(Step::Listen(arg == "remake")),
+            "hears" => Some(Step::Hears(arg == "play")),
             "reference" => Some(Step::Reference),
             "move" => {
                 let n: Vec<f32> = arg.split(',').filter_map(|v| v.trim().parse().ok()).collect();

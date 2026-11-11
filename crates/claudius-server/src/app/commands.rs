@@ -397,9 +397,10 @@ impl App {
                 .readable(Path::new(&path))
                 .and_then(|_| audio::load(Path::new(&path)).map_err(|e| e.to_string()))
             {
-                Ok(x) => self.analyze_audio(&x, &path),
+                Ok(x) => self.analyze_audio(&x, &path).reply,
                 Err(e) => no(format!("cannot read {path}: {e}"), v),
             },
+            Command::SongLike { genre, seed } => self.song_like(genre, seed),
             Command::Remake { path, genre, seed, bpm, sampled, flip, rebuild } => {
                 if let Err(e) = self.readable(Path::new(&path)) {
                     return no(e, v);
@@ -642,14 +643,56 @@ impl App {
         (stems, a)
     }
 
-    /// what claudius hears in a recording (`name`: its path, or the name of the file it came in)
-    pub(super) fn analyze_audio(self: &Arc<Self>, x: &audio::Stereo, name: &str) -> Reply {
-        let text = analysis_text(&self.listen_to(x, name).1);
+    /// What claudius hears in a recording (`name`: its path, or the name of the file it came in), in words and as the
+    /// studio shows it; kept, with the recording and the parts it was taken apart into, until another is analyzed.
+    pub(super) fn analyze_audio(self: &Arc<Self>, x: &audio::Stereo, name: &str) -> Analyzed {
+        let (stems, a) = self.listen_to(x, name);
+        let text = analysis_text(&a);
+        let mut heard = listen::listened(&a, x, name);
+        let mut tracks: Vec<(&str, &audio::Stereo)> = vec![("recording", x)];
+        if let Some(s) = stems.as_deref() {
+            tracks.extend([("vocals", &s.vocals), ("drums", &s.drums), ("bass", &s.bass), ("other", &s.other)]);
+        }
+        let dir = self.cache.join("heard");
+        let _ = std::fs::remove_dir_all(&dir);
+        let kept = std::fs::create_dir_all(&dir).is_ok();
+        let files: Vec<(String, PathBuf)> = tracks
+            .iter()
+            .filter(|_| kept)
+            .filter_map(|(track, x)| {
+                let file = dir.join(format!("{track}.wav"));
+                std::fs::write(&file, audio::wav_bytes(x)).ok().map(|_| (track.to_string(), file))
+            })
+            .collect();
         let v = self.update(|s| {
             s.say(format!("analyzed {name}"));
             s.version + 1
         });
-        ok(text, v)
+        if !files.is_empty() {
+            heard.audio = Some(ListenedAudio { id: v, tracks: files.iter().map(|(t, _)| t.clone()).collect() });
+        }
+        self.lock().heard = Some(super::HeardLast { id: v, name: name.to_string(), a: Arc::new(a), files });
+        Analyzed { reply: ok(text, v), heard: Some(heard) }
+    }
+
+    /// a new song like the recording analyzed last, in `genre` (the song's, when none)
+    fn song_like(self: &Arc<Self>, genre: Option<String>, seed: Option<u64>) -> Reply {
+        let v = self.version();
+        let Some((name, a)) = self.lock().heard.as_ref().map(|h| (h.name.clone(), h.a.clone())) else {
+            return no(
+                "analyze a recording first: a song like it takes that recording's tempo, key, chords and form",
+                v,
+            );
+        };
+        let genre = genre.or_else(|| self.blueprint().map(|b| b.genre)).unwrap_or_else(|| "house".into());
+        let g = match genres::get(&genre) {
+            Ok(g) => g,
+            Err(e) => return no(e.to_string(), v),
+        };
+        let lib = self.lib.as_deref().map(|l| l as &dyn compose::Library);
+        let (bp, said) = listen::song_like(&a, &name, &g, seed.unwrap_or_else(now_seed), lib);
+        self.lock().folder = None;
+        self.commit_song(Some(bp), said)
     }
 
     /// A new song from a recording (`name`: its path, or the name of the file it came in), built on it as `how`

@@ -106,6 +106,18 @@ struct Session {
     voice: Option<claudius::voice::singer::Voice>,
     /// the auto-sampler's last offer, and the pieces as the studio sees them
     pieces: Option<(pieces::Offer, claudius_api::PiecesView)>,
+    /// the recording analyzed last, until another is: a song like it is made from it (`Command::SongLike`), and its
+    /// audio plays while the studio shows it (`/api/listened`)
+    heard: Option<HeardLast>,
+}
+
+/// a recording analyzed: what its version of the state was (`ListenedAudio::id`), the name of its file, what was
+/// heard in it, and its tracks kept to play (the recording and its parts), each a WAV file in the session's folder
+struct HeardLast {
+    id: u64,
+    name: String,
+    a: Arc<claudius::analysis::song::Analysis>,
+    files: Vec<(String, PathBuf)>,
 }
 
 impl Session {
@@ -483,6 +495,15 @@ impl App {
         let s = self.lock();
         let r = s.render.as_ref().filter(|r| r.view.version == version)?;
         r.stems.get(track).cloned().or_else(|| r.stems.get(&song::slug(track)).cloned())
+    }
+
+    /// the WAV file of track `track` of the recording analyzed as `id` ("recording", "vocals", "drums", "bass" or
+    /// "other"), while it is the last analyzed
+    pub fn listened_path(&self, id: u64, track: &str) -> Option<PathBuf> {
+        let s = self.lock();
+        let h = s.heard.as_ref().filter(|h| h.id == id)?;
+        let track = track.strip_suffix(".wav").unwrap_or(track);
+        h.files.iter().find(|(t, _)| t == track).map(|(_, f)| f.clone())
     }
 
     /// wait (blocking) until no job runs, at most `timeout`; true when idle

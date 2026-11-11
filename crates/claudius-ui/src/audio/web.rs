@@ -54,6 +54,13 @@ impl Player {
                 }
             },
             Source::Url(url) => url,
+            Source::File(file) => match object_url(&file.bytes, media_type(&file.name)) {
+                Ok(url) => url,
+                Err(e) => {
+                    self.error = Some(format!("could not hand the audio to the browser: {e:?}"));
+                    return;
+                }
+            },
             Source::Pcm(pcm) => match object_url(&pcm.encode_wav(), "audio/wav") {
                 Ok(url) => {
                     self.pcm = Some(pcm);
@@ -190,6 +197,19 @@ impl Player {
         if let Some(el) = &self.el {
             el.set_volume(volume.clamp(0.0, 1.0) as f64);
         }
+    }
+}
+
+/// the media type of an audio file by its name's extension, as the browser is told it
+fn media_type(name: &str) -> &'static str {
+    let ext = name.rsplit_once('.').map(|(_, e)| e.to_ascii_lowercase()).unwrap_or_default();
+    match ext.as_str() {
+        "mp3" => "audio/mpeg",
+        "m4a" | "aac" | "mp4" => "audio/mp4",
+        "ogg" | "oga" => "audio/ogg",
+        "flac" => "audio/flac",
+        "aif" | "aiff" => "audio/aiff",
+        _ => "audio/wav",
     }
 }
 

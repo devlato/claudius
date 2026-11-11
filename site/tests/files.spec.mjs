@@ -85,6 +85,26 @@ test.describe("files chosen in the browser", () => {
     }
   });
 
+  test("what claudius hears in a recording shows in its window, which plays the recording claudius kept", async () => {
+    test.setTimeout(180_000);
+    const c = await claudius();
+    const { page, close } = await browser();
+    try {
+      const hears = heard(page, "hears");
+      const plan = "wait:3;newsong;wait:1;pick:audio;wait:4;listen:analyze;wait:12;hears:play;wait:4;hears:pause;wait:2";
+      await page.goto(`${c.base}/?plan=${encodeURIComponent(plan)}`);
+      await choose(page, "audio", recording);
+      await expect.poll(() => hears.join("\n"), { timeout: 60_000 }).toMatch(/^\d+ BPM in \S+ \S+, \d+ bars, paused on recording at 0\.0 s$/m);
+      // the window's play button plays the recording from claudius, and its pause stops it where it got to
+      const played = () => hears.map((h) => Number(/playing recording at (\d+\.\d) s/.exec(h)?.[1] ?? 0));
+      await expect.poll(() => Math.max(0, ...played()), { timeout: 60_000 }).toBeGreaterThan(1.5);
+      await expect.poll(() => hears.at(-1), { timeout: 30_000 }).toMatch(/paused on recording at [1-9]\.\d s$/);
+    } finally {
+      await close();
+      c.stop();
+    }
+  });
+
   test("a song chosen opens, and a file that is no song says so", async () => {
     test.setTimeout(180_000);
     const c = await claudius();

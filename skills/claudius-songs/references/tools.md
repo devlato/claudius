@@ -30,6 +30,7 @@ to. On the command line, each command reads and writes song folders instead.
 | `tune` | `track`; `strength`, `speed_ms` (40 natural, 15 tight, 0 hard), `humanize`, `vibrato`, `scale`, `off` | `claudius tune vocal.wav --key "A minor"` |
 | `assess_voice` | `take`, or `path` (and `key`) of a recording of one voice | `claudius voice vocal.wav --key "A minor"` |
 | `remake` | `path`, `genre`, `seed`, `bpm`, `flip` (true: a new song on its hook), `rebuild` (true: the song itself as editable parts), `sampled` (false: the skeleton only) | `claudius remake song.mp3 --genre lofi [--bpm 82] [--flip] [--rebuild] [--skeleton]` |
+| `song_like` | `genre`, `seed`: a new song like the recording `analyze` heard last (its tempo, key, chords, form and swing, none of its sound), without listening to it again | `claudius remake song.mp3 --genre lofi --skeleton` |
 | `harmonize` | `part` (a melody), `style` (`block`: a chord under each note; `sustain`: a pad; or another chord style, or a comping idiom such as `skank` or `gospel`), `sound`, `name` | `part("lead_chords", #{ role: "keys", harmonizes: "lead", style: "block" })` |
 | `generate_track` | `what` (`drums`, `percussion`, `bass`, `chords`, `keys`, `pad`, `strings`, `lead`, `arp`), `genre` (any; the song's when left out), `replace` (a part to write again that way), `name`, `listen` | `part("reggae_bass", #{ role: "bass", style: "one_drop" })`, then `vary_track` |
 | `vary_track` | `track`, `take` (another take instead of a variation), `listen` | `part("bass", #{ seed: 123 })` |
@@ -63,7 +64,7 @@ Each control in the studio sends one command, and an assistant can send every on
 |---|---|---|
 | New song, from a genre | `new_song` | `new_song` |
 | New song, from an example | `open_example` | `open_text` |
-| New song, from a recording: remake it, flip it, rebuild it, sample it (its phrases, a passage, chops or a stab), take its groove, only listen | `remake` (`flip`, `rebuild`), `sample_song`, `extract_groove`, `analyze` | `remake`, `sample_song`, `extract_groove`, `analyze` |
+| New song, from a recording: remake it, flip it, rebuild it, sample it (its phrases, a passage, chops or a stab), take its groove, see what is in it; in that window, a song like it, its tempo, its key and chords | `remake` (`flip`, `rebuild`), `sample_song`, `extract_groove`, `analyze`; `song_like`, `run_script` (`tempo(...)`, `key(...)`, `prog(...)`) | `remake`, `sample_song`, `extract_groove`, `analyze`; `song_like`, `run_script` |
 | Open a song folder, a blueprint or a script; a file's text | `open`; `command` | `load`; `open_text` |
 | Save (Download in the demo), Export, Publish | `save`, `export`, `publish` | `save`, `export`, `set_release`, `write_kit` |
 | Render, and each track on its own | `listen` (`stems`) | `render` |

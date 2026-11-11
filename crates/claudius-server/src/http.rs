@@ -80,6 +80,7 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
         .route("/api/hear", post(hear).layer(DefaultBodyLimit::max(MAX_HEARD)))
         .route("/api/groove", post(groove).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/analyze", post(analyze).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
+        .route("/api/listened/{id}/{track}", get(listened))
         .route("/api/remake", post(remake).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/sample", post(sample).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/phone", post(phone_start).delete(phone_stop))
@@ -750,19 +751,38 @@ async fn listen(c: Ctx, q: ListenQuery, headers: &HeaderMap, body: Bytes, remake
     let app = c.app.clone();
     let name = q.name.filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "the recording".into());
     let reply = tokio::task::spawn_blocking(move || match remake {
-        true => app.remake_bytes(
-            body.to_vec(),
-            &name,
-            q.genre,
-            q.seed,
-            q.bpm,
-            crate::app::Remade::of(q.sampled, q.flip, q.rebuild),
-        ),
+        true => claudius_api::Analyzed {
+            reply: app.remake_bytes(
+                body.to_vec(),
+                &name,
+                q.genre,
+                q.seed,
+                q.bpm,
+                crate::app::Remade::of(q.sampled, q.flip, q.rebuild),
+            ),
+            heard: None,
+        },
         false => app.analyze_bytes(body.to_vec(), &name),
     })
     .await
-    .unwrap_or_else(|e| claudius_api::Reply { ok: false, message: format!("internal error: {e}"), version: 0 });
+    .unwrap_or_else(|e| claudius_api::Analyzed {
+        reply: claudius_api::Reply { ok: false, message: format!("internal error: {e}"), version: 0 },
+        heard: None,
+    });
     Json(reply).into_response()
+}
+
+/// a track of the recording analyzed last, `id` its `ListenedAudio::id`, as a WAV file: the recording, or a part it
+/// was taken apart into
+async fn listened(State(c): State<Ctx>, Path((id, track)): Path<(u64, String)>, req: Request) -> Response {
+    match c.app.listened_path(id, &track) {
+        Some(p) => serve_file(p, req).await,
+        None => (
+            StatusCode::NOT_FOUND,
+            format!("no track '{track}' of recording {id}: it is kept until another is analyzed"),
+        )
+            .into_response(),
+    }
 }
 
 async fn artwork(State(c): State<Ctx>) -> Response {

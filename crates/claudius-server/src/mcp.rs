@@ -423,6 +423,15 @@ pub struct PublishArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct SongLikeArgs {
+    /// the genre for the sounds and production, one of those new_song takes (default: the open song's)
+    #[serde(default)]
+    pub genre: Option<String>,
+    #[serde(default)]
+    pub seed: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct RemakeArgs {
     /// the audio file to learn from
     pub path: String,
@@ -1368,6 +1377,13 @@ impl Studio {
             rebuild: a.rebuild,
         };
         self.edit(cmd, true).await
+    }
+
+    #[tool(
+        description = "Make a new song like the recording analyzed last (with analyze, or in the studio): its tempo (halved or doubled into the genre's range when it is outside), key, chord progressions, form and swing, in a genre, and none of its sound. It works from what analyze heard, so it is quicker than remake with sampled: false, which listens to the file again."
+    )]
+    async fn song_like(&self, Parameters(a): Parameters<SongLikeArgs>) -> Result<String, String> {
+        self.edit(Command::SongLike { genre: a.genre, seed: a.seed }, true).await
     }
 
     #[tool(

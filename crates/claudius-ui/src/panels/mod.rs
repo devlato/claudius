@@ -5,6 +5,7 @@ pub mod arrange;
 pub mod assistants;
 pub mod graph;
 pub mod harmony;
+pub mod hears;
 pub mod import;
 pub mod inspector;
 pub mod library;
@@ -375,6 +376,8 @@ pub struct View {
     pub analysis: Option<(bool, String)>,
     /// how a take is sung, as the server heard it, until the window showing it is closed
     pub heard: Option<(bool, String)>,
+    /// what claudius heard in the recording analyzed last, in its window while it plays
+    pub hears: hears::Hears,
     pub analyzing: bool,
     pub library_filter: String,
     /// the section name being typed (section index, text), so incoming states do not overwrite it
@@ -465,6 +468,7 @@ impl Default for View {
             listen: None,
             analysis: None,
             heard: None,
+            hears: hears::Hears::default(),
             analyzing: false,
             library_filter: String::new(),
             name_edit: None,
@@ -496,9 +500,15 @@ impl View {
     /// The answer to a recording sent to be listened to (`what`: "analyze", "remake", "sample_song" or
     /// "extract_groove"), shown under the buttons it was sent with. One that changed the song (or made one) closes the
     /// window too, so that the song shows with what changed in it: the toast every answer gets says what in its first
-    /// line, and the render the change starts is on the busy line.
+    /// line, and the render the change starts is on the busy line. What was heard in a recording analyzed shows in a
+    /// window of its own (`hears`), which the words of the answer go with.
     pub fn listened(&mut self, what: &str, ok: bool, message: String) {
         self.analyzing = false;
+        if ok && what == "analyze" && self.hears.is_open() {
+            self.hears.said(&message);
+            self.new_song.open = false;
+            return;
+        }
         if ok && what != "analyze" {
             self.new_song.open = false;
         }

@@ -83,4 +83,6 @@ pub enum Source {
     Pcm(Arc<Pcm>),
     /// a render on the server (native: the .wav master, web: the .mp3)
     Url(String),
+    /// a file chosen on this computer, as it is: a page plays any the browser does, the app a WAV file
+    File(Arc<crate::pick::Picked>),
 }

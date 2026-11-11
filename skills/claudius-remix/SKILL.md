@@ -66,6 +66,11 @@ Report it with that in mind ("about 118 BPM, probably D minor"). When the person
 wins: `key("F minor")` on the remake keeps every chord as it sounds (a borrowed `bIII` becomes `III`) and rewrites the
 generated parts in the new key.
 
+After `analyze`, `song_like` with a `genre` makes a new song on what it heard (its tempo, key, progressions, form and
+swing, none of its sound) without listening to the file again, as the studio's **Make a song like it** does. To give
+the open song only its tempo, or its key and chords, run a script: `tempo(118);`, or `key("D minor");` with
+`prog("A", ...)`, `prog("B", ...)` and `bars_per_chord(...)` from the progressions it reported.
+
 ## Remake
 
 `remake` with `path`, `genre` and `seed` (MCP), or `claudius remake song.mp3 --genre lofi [--seed 3]`, reworks the

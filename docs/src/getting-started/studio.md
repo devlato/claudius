@@ -56,15 +56,29 @@ as the hits and notes it plays, in its own sections, its voice kept on a track o
 vocals into the song** puts its best sung phrases into the song that is open
 ([Sampling a song's vocals](../guide/samples.md#sampling-a-songs-vocals)), **Put the song's drums in its groove**
 puts the open song's drum lanes in the feel of the recording's drums
-([Grooves](../cookbook/drum-machine.md#a-groove-from-a-record)), and **Only say what claudius hears** shows its
-tempo, key, chords, form and groove and changes nothing. A choice that needs an open song, or one with drums, says so.
+([Grooves](../cookbook/drum-machine.md#a-groove-from-a-record)), and **See what is in it, as it plays** opens a window
+of what claudius hears in it and changes nothing. A choice that needs an open song, or one with drums, says so.
 While claudius works on the file, the dialog says what it is doing (taking it apart into its voice, drums, bass and
 the rest, listening to it, sampling its voice, remaking it), with how far it has got when it knows, and so does the
 line at the top right. What changed the song closes the dialog when it is done: the song shows with its new tracks
 (`vox1`, `vox2` ... for sampled phrases), the toast says what came of it in a line ("sampled 2 phrases of song.mp3
 into the song: vox1, vox2"), the render it starts is on the line at the top, and the dialog keeps the whole answer
-for when you open it again, as the **Log** tab does. **Only say what claudius hears**, and a file claudius could not
-use, leave the dialog open with the answer in it.
+for when you open it again, as the **Log** tab does. A file claudius could not use leaves the dialog open with the
+answer in it.
+
+**What claudius hears** in a recording, the window **See what is in it** opens, shows its tempo (and whether it keeps
+one, or moves with the band), its key and how sure claudius is of it, its feel (straight or swung), its length and its
+loudness. Under them is its form: each section a block as long as it plays, in its kind's colour, brighter the more
+energy it has, with the chord of each bar under it as long as the chord lasts. Play plays the recording, and the
+playhead goes through the form, the section and the chord playing are written large above it, and the chord after it
+beside them; a press or a drag on the form plays from there. With the ears, **Voice**, **Drums**, **Bass** and **The
+rest** play the parts claudius took it apart into alone, so that you hear what it heard in each, and **All of it**
+plays it whole again; the song pauses while the recording plays. **Its beat** is how often its kick, snare and hats
+strike each sixteenth of a bar, **Its bass** how its bass plays, and **Its chords** its progressions in its key.
+**Make a song like it** makes a new song in the genre beside it on its tempo, key, chords, form and swing, and none
+of its sound; **Its tempo** gives the open song its tempo, and **Its key and chords** its key and progressions;
+**Copy it as text** copies what claudius heard in words, for a note or an assistant. claudius keeps the recording, and
+its parts, to play until it listens to another. The demo plays the file you chose, as it is, without its parts.
 **Open** opens a song you saved: choose the `blueprint.json` in its folder,
 or a `.rhai` script. The studio reads the file on its own computer, in a browser too, and nothing of it is kept but
 the song it opens. It also opens a project the demo saved, a `.zip`: claudius unpacks it into a song folder of its own
