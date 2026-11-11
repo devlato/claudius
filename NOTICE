@@ -18,6 +18,12 @@ License 2.0. This product includes software developed at Spotify AB
 (http://www.spotify.com/). The licence and Basic Pitch's notice are in
 crates/earshot/LICENSE-basic-pitch.
 
+crates/claudius-intent/data/needle-adapters.safetensors holds adapters claudius
+taught (crates/claudius-tune) on Needle 3 by Cactus Compute
+(https://huggingface.co/Cactus-Compute/needle3), Apache License 2.0: they are
+added to the model's own weights, which are downloaded, as it reads a request.
+Its licence is in crates/claudius-intent/LICENSE-needle3.
+
 The studio draws its text in Inter (https://github.com/rsms/inter), Copyright (c)
 2016 The Inter Project Authors, SIL Open Font License 1.1, and its icons from
 Lucide (https://lucide.dev), Copyright (c) 2026 Lucide Icons and Contributors,
@@ -65,6 +71,14 @@ website also serves to its demo:
     bge-base-en-v1.5 (MIT) and trained with Tokenlearn. Its licence is in
     crates/claudius-intent/LICENSE-potion-base-8M, and the website serves it
     beside its copy.
+
+The command palette's request model, fetched from the Hugging Face Hub the first
+time the palette cannot read a request, checked against its pinned size and
+SHA-256 hash:
+
+  - Needle 3 by Cactus Compute, Apache-2.0
+    (https://huggingface.co/Cactus-Compute/needle3), run by needle-core and
+    needle-infer (MIT, https://github.com/geekgineer/needle-rs).
 
 The sample packs, fetched by `claudius setup` or `claudius-packs install`. Each
 pack's licence and attribution are recorded in crates/claudius-packs/src/registry.json
