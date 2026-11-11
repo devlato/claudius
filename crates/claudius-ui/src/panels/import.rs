@@ -667,8 +667,9 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
                         1 => "Put 1 piece in the song".to_string(),
                         n => format!("Put {n} pieces in the song"),
                     };
-                    let put = egui::Button::new(egui::RichText::new(label).strong().color(egui::Color32::BLACK))
-                        .fill(crate::theme::ACCENT);
+                    let ink = crate::theme::ink_on(crate::theme::ACCENT);
+                    let put =
+                        egui::Button::new(egui::RichText::new(label).strong().color(ink)).fill(crate::theme::ACCENT);
                     let put = ui.add_enabled(!keep.is_empty(), put).on_disabled_hover_text("tick a piece first");
                     if put.clicked() {
                         cx.out.push(Command::KeepPieces { keep: keep.clone(), sections: Vec::new() });

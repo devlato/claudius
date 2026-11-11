@@ -190,7 +190,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 Align2::LEFT_CENTER,
                 format!("{}", (t / 4.0) as u32 + 1),
                 theme::prop(8.5),
-                TEXT_FAINT,
+                TEXT_FAINT.into(),
             );
         }
         t += grid;
@@ -275,7 +275,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             Align2::CENTER_CENTER,
             "the theory engine rests here: click to write a note",
             theme::prop(11.0),
-            TEXT_DIM,
+            TEXT_DIM.into(),
         );
     }
     cx.out.extend(out);

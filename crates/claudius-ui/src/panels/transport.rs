@@ -16,7 +16,7 @@ fn logo(ui: &mut Ui, named: bool) {
     crate::mark::paint(ui, mark);
     if named {
         let name = pos2(mark.right() + 9.0, rect.center().y - 1.0);
-        ui.painter().text(name, Align2::LEFT_CENTER, "Claudius", theme::prop(19.0), TEXT);
+        ui.painter().text(name, Align2::LEFT_CENTER, "Claudius", theme::prop(19.0), TEXT.into());
     }
 }
 
@@ -28,7 +28,7 @@ fn lcd(ui: &mut Ui, cx: &mut Cx, width: f32) {
     let pos = cx.player.position();
     let dur = if has_audio { cx.player.duration() } else { cx.state.song.as_ref().map_or(0.0, |s| s.seconds) };
     let time = super::fmt_time(pos);
-    p.text(pos2(rect.left() + 12.0, rect.top() + 15.0), Align2::LEFT_CENTER, &time, theme::mono(19.0), LCD_TEXT);
+    p.text(pos2(rect.left() + 12.0, rect.top() + 15.0), Align2::LEFT_CENTER, &time, theme::mono(19.0), LCD_TEXT.into());
     p.text(
         pos2(rect.left() + 112.0, rect.top() + 17.0),
         Align2::LEFT_CENTER,
@@ -77,7 +77,7 @@ fn lcd(ui: &mut Ui, cx: &mut Cx, width: f32) {
             Align2::RIGHT_CENTER,
             if cx.view.loop_section { "LOOP SEC" } else { "LOOP" },
             theme::mono(9.5),
-            ACCENT,
+            ACCENT.into(),
         );
     }
     response.on_hover_text("position / length of the latest render, bar.beat and section at the playhead");
@@ -231,7 +231,7 @@ fn song_params(ui: &mut Ui, cx: &mut Cx, level: usize) {
         });
         ui.horizontal(|ui| {
             if level < 4 {
-                widgets::pill(ui, &super::genre_words(&song.genre), LCD_TEXT);
+                widgets::pill(ui, &super::genre_words(&song.genre), theme::INFO);
             }
             if level < 2 {
                 ui.label(small(format!("{} bars · {}", song.bars, crate::mock::fmt_time(song.seconds))))
@@ -508,7 +508,7 @@ fn status(ui: &mut Ui, cx: &mut Cx) {
                 egui::ProgressBar::new(p.clamp(0.0, 1.0))
                     .desired_width(140.0)
                     .desired_height(12.0)
-                    .fill(ACCENT)
+                    .fill(ACCENT.into())
                     .text(RichText::new(format!("{:.0}%", p * 100.0)).size(10.5)),
             );
         }
@@ -795,9 +795,9 @@ fn from_example(ui: &mut Ui, cx: &mut Cx) {
                     let fill = if selected {
                         theme::alpha(color, 0.22)
                     } else if r.hovered() {
-                        theme::RAISED_HI
+                        theme::RAISED_HI.into()
                     } else {
-                        theme::RAISED
+                        theme::RAISED.into()
                     };
                     let stroke = if selected { Stroke::new(1.5, color) } else { Stroke::new(1.0, LINE) };
                     ui.painter().rect(rect, 6.0, fill, stroke, StrokeKind::Inside);
@@ -807,14 +807,15 @@ fn from_example(ui: &mut Ui, cx: &mut Cx) {
                         color,
                     );
                     let p = ui.painter().with_clip_rect(rect.shrink(4.0));
-                    p.text(rect.min + vec2(12.0, 14.0), Align2::LEFT_CENTER, e.title, theme::prop(14.0), TEXT);
-                    p.text(rect.min + vec2(12.0, 32.0), Align2::LEFT_CENTER, e.style, theme::prop(11.5), TEXT_DIM);
+                    p.text(rect.min + vec2(12.0, 14.0), Align2::LEFT_CENTER, e.title, theme::prop(14.0), TEXT.into());
+                    let style = theme::prop(11.5);
+                    p.text(rect.min + vec2(12.0, 32.0), Align2::LEFT_CENTER, e.style, style, TEXT_DIM.into());
                     p.text(
                         rect.min + vec2(12.0, 47.0),
                         Align2::LEFT_CENTER,
                         e.like_words(),
                         theme::prop(11.0),
-                        TEXT_FAINT,
+                        TEXT_FAINT.into(),
                     );
                     if r.on_hover_text(claudius_api::examples::notes(e)).clicked() {
                         f.example = Some(e.name);
@@ -832,7 +833,7 @@ fn from_example(ui: &mut Ui, cx: &mut Cx) {
     ui.horizontal(|ui| {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let button =
-                egui::Button::new(RichText::new("  Open it  ").strong().color(egui::Color32::BLACK)).fill(ACCENT);
+                egui::Button::new(RichText::new("  Open it  ").strong().color(theme::ink_on(ACCENT))).fill(ACCENT);
             let r = ui.add_enabled(chosen.is_some(), button).on_disabled_hover_text("choose an example first");
             let enter = ui.input(|i| i.key_pressed(egui::Key::Enter)) && !ui.ctx().text_edit_focused();
             open = r.clicked() || (enter && chosen.is_some());
@@ -904,9 +905,9 @@ fn from_genre(ui: &mut Ui, cx: &mut Cx) {
                         let fill = if selected {
                             theme::alpha(color, 0.22)
                         } else if r.hovered() {
-                            theme::RAISED_HI
+                            theme::RAISED_HI.into()
                         } else {
-                            theme::RAISED
+                            theme::RAISED.into()
                         };
                         let stroke = if selected { Stroke::new(1.5, color) } else { Stroke::new(1.0, LINE) };
                         ui.painter().rect(rect, 6.0, fill, stroke, StrokeKind::Inside);
@@ -920,17 +921,17 @@ fn from_genre(ui: &mut Ui, cx: &mut Cx) {
                             Align2::LEFT_CENTER,
                             super::genre_words(&g.name),
                             theme::prop(14.0),
-                            TEXT,
+                            TEXT.into(),
                         );
                         ui.painter().text(
                             rect.right_top() + vec2(-10.0, 14.0),
                             Align2::RIGHT_CENTER,
                             format!("{:.0}-{:.0} BPM", g.bpm.0, g.bpm.1),
                             theme::prop(11.0),
-                            TEXT_DIM,
+                            TEXT_DIM.into(),
                         );
                         let text = two_lines(ui.painter(), desc(g), rect.width() - 22.0);
-                        ui.painter().galley(rect.min + vec2(12.0, 26.0), text, TEXT_DIM);
+                        ui.painter().galley(rect.min + vec2(12.0, 26.0), text, TEXT_DIM.into());
                         if r.on_hover_text(&g.description).clicked() && f.genre != g.name {
                             f.genre = g.name.clone();
                             // each genre samples as it does until asked otherwise
@@ -1051,7 +1052,7 @@ fn from_genre(ui: &mut Ui, cx: &mut Cx) {
     ui.horizontal(|ui| {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let create_btn =
-                egui::Button::new(RichText::new("  Create song  ").strong().color(egui::Color32::BLACK)).fill(ACCENT);
+                egui::Button::new(RichText::new("  Create song  ").strong().color(theme::ink_on(ACCENT))).fill(ACCENT);
             let enter = ui.input(|i| i.key_pressed(egui::Key::Enter)) && !ui.ctx().text_edit_focused();
             if ui.add(create_btn).clicked() || enter {
                 create = true;
@@ -1069,7 +1070,7 @@ fn from_genre(ui: &mut Ui, cx: &mut Cx) {
 
 /// a genre's description in two lines at most, the rest on hover
 fn two_lines(painter: &egui::Painter, text: String, width: f32) -> std::sync::Arc<egui::Galley> {
-    let mut job = egui::text::LayoutJob::simple(text, theme::prop(11.0), TEXT_DIM, width);
+    let mut job = egui::text::LayoutJob::simple(text, theme::prop(11.0), TEXT_DIM.into(), width);
     job.wrap.max_rows = 2;
     job.wrap.overflow_character = Some('…');
     painter.layout_job(job)
@@ -1238,7 +1239,7 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
                     egui::ProgressBar::new(p.clamp(0.0, 1.0))
                         .desired_width(120.0)
                         .desired_height(8.0)
-                        .fill(ACCENT)
+                        .fill(ACCENT.into())
                         .text(RichText::new(format!("{:.0}%", p * 100.0)).size(9.0)),
                 );
             }
@@ -1247,7 +1248,7 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
     if let Some((ok, text)) = &cx.view.analysis {
         let c = if *ok { theme::GOOD } else { theme::BAD };
         egui::Frame::new()
-            .fill(theme::WELL)
+            .fill(theme::WELL.into())
             .stroke(Stroke::new(1.0, theme::alpha(c, 0.5)))
             .corner_radius(4)
             .inner_margin(egui::Margin::symmetric(8, 6))
@@ -1256,7 +1257,7 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
                 egui::ScrollArea::vertical().id_salt("analysis").max_height(190.0).show(ui, |ui| {
                     ui.add(
                         egui::Label::new(RichText::new(text).monospace().size(11.5).color(if *ok {
-                            TEXT
+                            TEXT.into()
                         } else {
                             theme::mix(c, TEXT, 0.4)
                         }))
@@ -1280,8 +1281,9 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
     ui.horizontal(|ui| {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let ready = file.is_some() && why_not.is_none();
-            let button = egui::Button::new(RichText::new(format!("  {action}  ")).strong().color(egui::Color32::BLACK))
-                .fill(ACCENT);
+            let button =
+                egui::Button::new(RichText::new(format!("  {action}  ")).strong().color(theme::ink_on(ACCENT)))
+                    .fill(ACCENT);
             let r = ui.add_enabled(ready, button);
             let r = match (cx.view.analyzing, &cx.view.audio_file, why_not) {
                 (true, _, _) => r.on_disabled_hover_text("claudius is still at the last one"),

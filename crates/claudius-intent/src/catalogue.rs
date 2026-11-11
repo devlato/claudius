@@ -175,6 +175,21 @@ pub const ENTRIES: &[Entry] = &[
         "",
     ),
     e("docs", "Read the docs", "help, the manual, a guide, a tutorial, documentation, how to", "on the web", ""),
+    e("look:dark", "Dark look", "dark mode, a dark theme, night, darker colours", "? menu, Look", ""),
+    e(
+        "look:light",
+        "Light look",
+        "light mode, a light theme, day, bright colours, a white background",
+        "? menu, Look",
+        "",
+    ),
+    e(
+        "look:system",
+        "Look as the system is",
+        "an automatic theme, follow the system, dark mode at night, match the computer's appearance",
+        "? menu, Look",
+        "",
+    ),
 ];
 
 /// the entry of that id

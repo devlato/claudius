@@ -102,7 +102,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             for (i, part) in song.parts.iter_mut().enumerate() {
                 let color = colors[i];
                 let frame = egui::Frame::new()
-                    .fill(RAISED)
+                    .fill(RAISED.into())
                     .corner_radius(6)
                     .inner_margin(egui::Margin { left: 14, right: 10, top: 8, bottom: 8 })
                     .stroke(Stroke::new(1.0, theme::LINE_SOFT));

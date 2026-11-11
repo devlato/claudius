@@ -170,10 +170,12 @@ impl Icon {
 
 /// `icon` drawn to fill `rect`: its glyph, or for Record a red dot, as a recorder's button is, unless it cannot be
 /// pressed
-pub fn paint_icon(painter: &egui::Painter, rect: Rect, icon: Icon, color: Color32) {
+pub fn paint_icon(painter: &egui::Painter, rect: Rect, icon: Icon, color: impl Into<Color32>) {
+    let color: Color32 = color.into();
     let size = rect.width().min(rect.height());
     if icon == Icon::Record {
-        painter.circle_filled(rect.center(), 0.36 * size, if color == TEXT_FAINT { color } else { theme::BAD });
+        let off = color == Color32::from(TEXT_FAINT);
+        painter.circle_filled(rect.center(), 0.36 * size, if off { color } else { theme::BAD.into() });
         return;
     }
     let font = egui::FontId::new(size, egui::FontFamily::Name(theme::ICONS.into()));
@@ -188,11 +190,11 @@ pub fn icon_button(ui: &mut Ui, icon: Icon, size: f32, active: bool, enabled: bo
     let fill = if active {
         theme::alpha(ACCENT, if hovered { 0.32 } else { 0.22 })
     } else if response.is_pointer_button_down_on() && enabled {
-        theme::mix(RAISED_HI, Color32::WHITE, 0.08)
+        theme::lit(RAISED_HI, 0.08)
     } else if hovered {
-        RAISED_HI
+        RAISED_HI.into()
     } else {
-        RAISED
+        RAISED.into()
     };
     let stroke = if active {
         Stroke::new(1.0, theme::alpha(ACCENT, 0.8))
@@ -207,7 +209,7 @@ pub fn icon_button(ui: &mut Ui, icon: Icon, size: f32, active: bool, enabled: bo
     } else if active {
         ACCENT
     } else if hovered {
-        Color32::WHITE
+        theme::STRONG
     } else {
         TEXT
     };
@@ -227,16 +229,16 @@ pub fn menu_button(ui: &mut Ui, icon: Icon, label: &str, enabled: bool) -> Respo
 
 fn labelled(ui: &mut Ui, icon: Icon, label: &str, enabled: bool, accent: bool, menu: bool) -> Response {
     let font = theme::medium(13.0);
-    let galley = ui.painter().layout_no_wrap(label.to_string(), font, TEXT);
+    let galley = ui.painter().layout_no_wrap(label.to_string(), font, TEXT.into());
     let size = vec2(galley.size().x + if menu { 54.0 } else { 40.0 }, 28.0);
     let (rect, response) = ui.allocate_exact_size(size, if enabled { Sense::click() } else { Sense::hover() });
     let hovered = enabled && response.hovered();
     let accent = accent && enabled;
-    let base = if accent { theme::mix(RAISED, ACCENT, 0.22) } else { RAISED };
+    let base = if accent { theme::mix(RAISED, ACCENT, 0.22) } else { RAISED.into() };
     let fill = if response.is_pointer_button_down_on() && enabled {
-        theme::mix(base, Color32::WHITE, 0.12)
+        theme::lit(base, 0.12)
     } else if hovered {
-        theme::mix(base, Color32::WHITE, 0.06)
+        theme::lit(base, 0.06)
     } else {
         base
     };
@@ -249,11 +251,11 @@ fn labelled(ui: &mut Ui, icon: Icon, label: &str, enabled: bool, accent: bool, m
     };
     ui.painter().rect(rect, 7.0, fill, stroke, StrokeKind::Inside);
     let color = if !enabled {
-        TEXT_FAINT
+        TEXT_FAINT.into()
     } else if accent {
-        theme::mix(ACCENT, Color32::WHITE, 0.25)
+        theme::lit(ACCENT, 0.25)
     } else {
-        TEXT
+        TEXT.into()
     };
     let icon_rect = Rect::from_center_size(pos2(rect.left() + 17.0, rect.center().y), Vec2::splat(15.0));
     paint_icon(ui.painter(), icon_rect, icon, color);
@@ -305,12 +307,13 @@ pub fn knob(
         painter.add(Shape::line(arc(center, d / 2.0 - 1.5, x, y), Stroke::new(3.0, color)));
     }
     let hovered = response.hovered() || response.dragged();
-    painter.circle_filled(center, d / 2.0 - 5.0, if hovered { RAISED_HI } else { theme::mix(RAISED, RAISED_HI, 0.5) });
+    let face = if hovered { RAISED_HI.into() } else { theme::mix(RAISED, RAISED_HI, 0.5) };
+    painter.circle_filled(center, d / 2.0 - 5.0, face);
     painter.circle_stroke(center, d / 2.0 - 5.0, Stroke::new(1.0, LINE));
     let tip = center + (d / 2.0 - 7.0) * vec2(a.sin(), -a.cos());
     painter.line_segment(
         [center + (d / 2.0 - 14.0) * vec2(a.sin(), -a.cos()), tip],
-        Stroke::new(2.0, if hovered { Color32::WHITE } else { TEXT }),
+        Stroke::new(2.0, if hovered { theme::STRONG } else { TEXT }),
     );
     let text = if hovered { fmt(*value) } else { label.to_string() };
     painter.text(
@@ -318,7 +321,7 @@ pub fn knob(
         Align2::CENTER_CENTER,
         text,
         theme::prop(10.5),
-        if hovered { TEXT } else { TEXT_DIM },
+        if hovered { TEXT } else { TEXT_DIM }.into(),
     );
     response.on_hover_text(format!("{}\n(drag up or down, shift for fine; double-click resets)", said(*value)))
 }
@@ -376,7 +379,7 @@ pub fn fader(
             Align2::RIGHT_CENTER,
             format!("{}", mark.abs() as i32),
             theme::prop(8.5),
-            if zero { TEXT_DIM } else { TEXT_FAINT },
+            if zero { TEXT_DIM } else { TEXT_FAINT }.into(),
         );
     }
     painter.rect_filled(track, 2.0, WELL);
@@ -388,13 +391,13 @@ pub fn fader(
     painter.rect(
         cap,
         3.0,
-        if hovered { theme::mix(RAISED_HI, Color32::WHITE, 0.15) } else { RAISED_HI },
-        Stroke::new(1.0, theme::mix(LINE, Color32::WHITE, 0.2)),
+        if hovered { theme::lit(RAISED_HI, 0.15) } else { RAISED_HI.into() },
+        Stroke::new(1.0, theme::lit(LINE, 0.2)),
         StrokeKind::Inside,
     );
     painter.line_segment(
         [pos2(cap.left() + 4.0, cap.center().y), pos2(cap.right() - 4.0, cap.center().y)],
-        Stroke::new(1.5, if enabled { color } else { TEXT_FAINT }),
+        Stroke::new(1.5, if enabled { color } else { TEXT_FAINT.into() }),
     );
     response.on_hover_text(format!(
         "level {:+.1} dB relative to the role's target (drag, shift for fine, double-click: 0 dB)",
@@ -411,10 +414,10 @@ pub fn meter(ui: &mut Ui, size: Vec2, level: Option<f32>, floor: f32, peak: Opti
     if let Some(l) = level {
         let top = to_y(l);
         let segments: [(f32, f32, Color32); 4] = [
-            (floor, -18.0, theme::GOOD),
+            (floor, -18.0, theme::GOOD.into()),
             (-18.0, -9.0, theme::mix(theme::GOOD, theme::WARN, 0.6)),
-            (-9.0, -3.0, theme::WARN),
-            (-3.0, 0.0, theme::BAD),
+            (-9.0, -3.0, theme::WARN.into()),
+            (-3.0, 0.0, theme::BAD.into()),
         ];
         for (a, b, c) in segments {
             let (ya, yb) = (to_y(a), to_y(b.min(l)));
@@ -435,21 +438,22 @@ pub fn meter(ui: &mut Ui, size: Vec2, level: Option<f32>, floor: f32, peak: Opti
 }
 
 /// a toggle chip; returns the response (clicked = toggle)
-pub fn chip(ui: &mut Ui, on: bool, text: &str, color: Color32) -> Response {
-    let galley = ui.painter().layout_no_wrap(text.to_string(), theme::prop(12.0), TEXT);
+pub fn chip(ui: &mut Ui, on: bool, text: &str, color: impl Into<Color32>) -> Response {
+    let color: Color32 = color.into();
+    let galley = ui.painter().layout_no_wrap(text.to_string(), theme::prop(12.0), TEXT.into());
     let size = vec2(galley.size().x + 18.0, 22.0);
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
     let hovered = response.hovered();
     let fill = if on {
         theme::alpha(color, if hovered { 0.42 } else { 0.3 })
     } else if hovered {
-        RAISED_HI
+        RAISED_HI.into()
     } else {
-        RAISED
+        RAISED.into()
     };
-    let stroke = Stroke::new(1.0, if on { theme::alpha(color, 0.9) } else { LINE });
+    let stroke = Stroke::new(1.0, if on { theme::alpha(color, 0.9) } else { LINE.into() });
     ui.painter().rect(rect, CornerRadius::same(11), fill, stroke, StrokeKind::Inside);
-    let tc = if on { theme::mix(color, Color32::WHITE, 0.55) } else { TEXT_DIM };
+    let tc = if on { theme::lit(color, 0.55) } else { TEXT_DIM.into() };
     ui.painter().galley(rect.center() - galley.size() / 2.0, galley, tc);
     response
 }
@@ -457,7 +461,8 @@ pub fn chip(ui: &mut Ui, on: bool, text: &str, color: Color32) -> Response {
 /// a small rounded label
 /// a small rounded label; one wider than a whole line of its `Ui` is cut short with its full text on hover, so that it
 /// never widens what holds it
-pub fn pill(ui: &mut Ui, text: &str, color: Color32) -> Response {
+pub fn pill(ui: &mut Ui, text: &str, color: impl Into<Color32>) -> Response {
+    let color: Color32 = color.into();
     let mut job = egui::text::LayoutJob::simple_singleline(text.to_string(), theme::prop(11.0), color);
     job.wrap.max_width = (ui.max_rect().width() - 12.0).max(24.0);
     job.wrap.max_rows = 1;
@@ -515,7 +520,7 @@ pub const DOCS: &str = "https://claudius.devlato.com/docs/";
 pub fn help(ui: &mut Ui, text: &str, page: &str) -> Response {
     let size = 14.0;
     let (rect, r) = ui.allocate_exact_size(vec2(size, size), Sense::click());
-    let color = if r.hovered() { TEXT } else { TEXT_FAINT };
+    let color: Color32 = if r.hovered() { TEXT } else { TEXT_FAINT }.into();
     ui.painter().circle_stroke(rect.center(), size / 2.0 - 1.0, Stroke::new(1.0, color));
     ui.painter().text(rect.center() + vec2(0.0, 0.5), Align2::CENTER_CENTER, "?", theme::prop(9.5), color);
     let r = r
@@ -544,7 +549,7 @@ pub fn label_help(ui: &mut Ui, label: &str, text: &str, page: &str) {
 /// the verdict score as a big coloured badge
 pub fn score_badge(ui: &mut Ui, total: Option<f64>, height: f32) -> Response {
     let text = total.map_or("--".to_string(), |t| format!("{t:.0}"));
-    let color = total.map_or(TEXT_FAINT, |t| theme::score_color(t / 100.0));
+    let color = total.map_or(TEXT_FAINT.into(), |t| theme::score_color(t / 100.0));
     let galley = ui.painter().layout_no_wrap(text, theme::prop(height * 0.55), color);
     let size = vec2((galley.size().x + 22.0).max(height * 1.3), height);
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
@@ -635,7 +640,7 @@ pub fn fitting<R>(
 }
 
 /// a small status dot
-pub fn dot(ui: &mut Ui, color: Color32) -> Response {
+pub fn dot(ui: &mut Ui, color: impl Into<Color32>) -> Response {
     let (rect, response) = ui.allocate_exact_size(vec2(10.0, 14.0), Sense::hover());
     ui.painter().circle_filled(rect.center(), 3.5, color);
     response
@@ -647,7 +652,7 @@ pub fn cmd_key(ctx: &egui::Context) -> &'static str {
 }
 
 /// a horizontal bar for a 0..1 value
-pub fn bar(ui: &mut Ui, width: f32, value: f64, color: Color32) -> Response {
+pub fn bar(ui: &mut Ui, width: f32, value: f64, color: impl Into<Color32>) -> Response {
     let (rect, response) = ui.allocate_exact_size(vec2(width, 8.0), Sense::hover());
     ui.painter().rect_filled(rect, 4.0, WELL);
     let fill = Rect::from_min_size(rect.min, vec2(rect.width() * value.clamp(0.0, 1.0) as f32, rect.height()));

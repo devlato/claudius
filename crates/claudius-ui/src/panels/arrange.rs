@@ -355,7 +355,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             for kind in SECTION_KINDS.iter().rev().filter(|k| song.sections.iter().any(|s| s.kind == **k)) {
                 // as many of the song's kinds as there is room for beside the heading, the last first
-                let text = ui.painter().layout_no_wrap(kind.to_string(), theme::prop(10.5), TEXT_DIM).size().x;
+                let text = ui.painter().layout_no_wrap(kind.to_string(), theme::prop(10.5), TEXT_DIM.into()).size().x;
                 if ui.available_width() < text + 8.0 + 2.0 * ui.spacing().item_spacing.x {
                     break;
                 }
@@ -385,13 +385,14 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 Align2::LEFT_CENTER,
                 format!("{}", bar + 1),
                 theme::prop(10.0),
-                TEXT_DIM,
+                TEXT_DIM.into(),
             );
         } else if px_bar >= 4.0 {
             painter.line_segment([pos2(x, ruler.bottom() - 3.0), pos2(x, ruler.bottom())], Stroke::new(1.0, LINE));
         }
     }
-    painter.text(pos2(full.left() + 10.0, ruler.center().y), Align2::LEFT_CENTER, "Bar", theme::prop(11.0), TEXT_FAINT);
+    let faint = TEXT_FAINT.into();
+    painter.text(pos2(full.left() + 10.0, ruler.center().y), Align2::LEFT_CENTER, "Bar", theme::prop(11.0), faint);
     let ruler_resp = ui.interact(ruler, ui.scope_id().with("ruler"), Sense::click_and_drag());
     if has_audio
         && (ruler_resp.clicked() || ruler_resp.dragged())
@@ -407,7 +408,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         Align2::LEFT_CENTER,
         "Sections",
         theme::prop(11.0),
-        TEXT_FAINT,
+        faint,
     );
     let mut drop_slot: Option<usize> = None;
     for (i, s) in song.sections.iter().enumerate() {
@@ -459,7 +460,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         if selected {
             painter.rect_stroke(rect, 4.0, Stroke::new(1.5, Color32::WHITE), StrokeKind::Inside);
         }
-        let text_color = if selected { Color32::BLACK } else { theme::mix(color, Color32::WHITE, 0.75) };
+        let text_color = if selected { theme::ink_on(color) } else { theme::lit(color, 0.75) };
         let clip = painter.with_clip_rect(rect.shrink(2.0));
         clip.text(rect.left_top() + vec2(6.0, 10.0), Align2::LEFT_CENTER, &s.name, theme::medium(12.5), text_color);
         let length = clip.text(
@@ -611,7 +612,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 pos2(tl.x(s.start_bar as f64), rect.top()),
                 pos2(tl.x((s.start_bar + s.bars) as f64), rect.bottom()),
             );
-            p.rect_filled(r, 0.0, theme::alpha(Color32::WHITE, 0.035));
+            p.rect_filled(r, 0.0, theme::alpha(theme::STRONG, 0.035));
         }
         let hover = resp.hover_pos();
         let cell_at = |pos: egui::Pos2| -> Option<(usize, usize)> {
@@ -636,7 +637,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 p.rect_filled(
                     Rect::from_min_max(pos2(tl.x0, y0), pos2(tl.x1, y0 + row_h)),
                     0.0,
-                    theme::alpha(Color32::WHITE, 0.012),
+                    theme::alpha(theme::STRONG, 0.012),
                 );
             }
             if cx.view.track.as_deref() == Some(layer.as_str()) {
@@ -658,7 +659,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             p.rect_filled(
                 Rect::from_min_size(pos2(rect.left() + 8.0, y0 + 4.0), vec2(3.0, row_h - 8.0)),
                 1.0,
-                if muted { TEXT_FAINT } else { color },
+                if muted { TEXT_FAINT.into() } else { color },
             );
             let is_drum = song.drums.iter().any(|d| &d.lane == layer);
             let kind = track.map(|t| t.kind.as_str()).unwrap_or(if is_drum { "drum" } else { "part" });
@@ -673,9 +674,10 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             let icon_rect = Rect::from_center_size(pos2(rect.left() + 23.0, y0 + row_h / 2.0), vec2(14.0, 14.0));
             widgets::paint_icon(p, icon_rect, icon, icon_color);
             let name_room = GUTTER - 36.0 - 26.0;
-            let name = p.layout(layer.clone(), theme::prop(13.0), if muted { TEXT_FAINT } else { TEXT }, f32::INFINITY);
+            let ink = if muted { TEXT_FAINT } else { TEXT }.into();
+            let name = p.layout(layer.clone(), theme::prop(13.0), ink, f32::INFINITY);
             let name_at = pos2(rect.left() + 36.0, y0 + (row_h - name.size().y) / 2.0);
-            p.with_clip_rect(Rect::from_min_size(name_at, vec2(name_room, row_h))).galley(name_at, name, TEXT);
+            p.with_clip_rect(Rect::from_min_size(name_at, vec2(name_room, row_h))).galley(name_at, name, ink);
             let state = if soloed {
                 "soloed: while any track is, only soloed tracks play"
             } else if silenced {
@@ -702,7 +704,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             }
             // a clip for each run of sections the track plays in: one name, its sections' energy as its shade, and
             // a drum lane's hits a bar as the height of what fills it
-            let base = if muted { TEXT_FAINT } else { color };
+            let base = if muted { TEXT_FAINT.into() } else { color };
             let plays = |s: &claudius_api::SectionView| s.layers.iter().any(|l| l == layer);
             let mut k = 0;
             while k < song.sections.len() {
@@ -765,7 +767,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         Align2::LEFT_CENTER,
                         layer,
                         theme::prop(11.0),
-                        theme::mix(base, Color32::WHITE, 0.65),
+                        theme::lit(base, 0.65),
                     );
                 }
             }
@@ -828,7 +830,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 if let Some(layer) = song.layers.get(row) {
                     let r =
                         Rect::from_min_size(pos2(rect.left(), rect.top() + row as f32 * row_h), vec2(GUTTER, row_h));
-                    p.rect_filled(r, 2.0, theme::alpha(Color32::WHITE, 0.04));
+                    p.rect_filled(r, 2.0, theme::alpha(theme::STRONG, 0.04));
                     let next = song.tracks.iter().find(|t| &t.name == layer).and_then(super::next_label);
                     let on_swap = next.is_some() && swap_at(row).contains(pos);
                     if let Some(next) = next.filter(|_| on_swap) {
@@ -853,7 +855,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     pos2(tl.x(s.start_bar as f64) + 1.0, rect.top() + row as f32 * row_h + 2.0),
                     pos2(tl.x((s.start_bar + s.bars) as f64) - 1.0, rect.top() + (row + 1) as f32 * row_h - 2.0),
                 );
-                p.rect_stroke(cell, 3.0, Stroke::new(1.0, theme::alpha(Color32::WHITE, 0.5)), StrokeKind::Inside);
+                p.rect_stroke(cell, 3.0, Stroke::new(1.0, theme::alpha(theme::STRONG, 0.5)), StrokeKind::Inside);
                 let layer = &song.layers[row];
                 let on = s.layers.iter().any(|l| l == layer);
                 let (now, other) = if on { ("plays", "off") } else { ("is silent", "on") };
@@ -1126,7 +1128,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let wave = Rect::from_min_max(pos2(tl.x0, full.bottom() - wave_h - 14.0), pos2(tl.x1, full.bottom() - 10.0));
     let gutter = Rect::from_min_max(pos2(full.left() + 8.0, wave.top()), pos2(tl.x0 - 8.0, wave.bottom()));
     painter.rect_filled(wave.expand2(vec2(0.0, 2.0)), 4.0, WELL);
-    painter.text(gutter.left_top() + vec2(2.0, 10.0), Align2::LEFT_CENTER, "MASTER", theme::prop(10.0), TEXT_DIM);
+    let dim = TEXT_DIM.into();
+    painter.text(gutter.left_top() + vec2(2.0, 10.0), Align2::LEFT_CENTER, "MASTER", theme::prop(10.0), dim);
     match render {
         Some(r) if !r.waveform.is_empty() => {
             painter.text(
@@ -1134,14 +1137,14 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 Align2::LEFT_CENTER,
                 format!("{:.1} LUFS", r.lufs),
                 theme::mono(10.5),
-                TEXT,
+                TEXT.into(),
             );
             painter.text(
                 gutter.left_top() + vec2(2.0, 40.0),
                 Align2::LEFT_CENTER,
                 format!("{:.1} dBTP", r.true_peak_db),
                 theme::mono(10.5),
-                TEXT_DIM,
+                dim,
             );
             let (_, _, loudness) = claudius_api::words::measure_in_words("lufs", r.lufs);
             let (_, _, peak) = claudius_api::words::measure_in_words("true_peak_db", f64::from(r.true_peak_db));
@@ -1170,7 +1173,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 let h = (peak.clamp(0.0, 1.0) * half).max(0.5);
                 let c = color_at(t0);
                 let played = has_audio && t0 < position;
-                let c = if played { theme::mix(c, Color32::WHITE, 0.25) } else { theme::alpha(c, 0.62) };
+                let c = if played { theme::lit(c, 0.25) } else { theme::alpha(c, 0.62) };
                 painter.line_segment([pos2(x + 0.5, mid - h), pos2(x + 0.5, mid + h)], Stroke::new(1.0, c));
                 x += 1.0;
             }
@@ -1182,7 +1185,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 let x = secs_x(*a);
                 painter.line_segment(
                     [pos2(x, wave.top()), pos2(x, wave.bottom())],
-                    Stroke::new(1.0, theme::alpha(Color32::WHITE, 0.08)),
+                    Stroke::new(1.0, theme::alpha(theme::STRONG, 0.08)),
                 );
             }
             if loop_region {
@@ -1204,14 +1207,14 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 } else {
                     "this is the song before its latest changes"
                 };
-                let galley = painter.layout_no_wrap(note.to_string(), theme::prop(11.5), TEXT_DIM);
+                let galley = painter.layout_no_wrap(note.to_string(), theme::prop(11.5), TEXT_DIM.into());
                 let at = wave.right_top() + vec2(-8.0 - galley.size().x, 4.0);
                 painter.rect_filled(
                     egui::Rect::from_min_size(at, galley.size()).expand(3.0),
                     3.0,
                     theme::alpha(WELL, 0.85),
                 );
-                painter.galley(at, galley, TEXT_DIM);
+                painter.galley(at, galley, TEXT_DIM.into());
             }
             let resp = ui.interact(wave, ui.scope_id().with("wave"), Sense::click_and_drag());
             if (resp.clicked() || resp.dragged())
@@ -1222,7 +1225,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             if let Some(p) = resp.hover_pos() {
                 painter.line_segment(
                     [pos2(p.x, wave.top()), pos2(p.x, wave.bottom())],
-                    Stroke::new(1.0, theme::alpha(Color32::WHITE, 0.35)),
+                    Stroke::new(1.0, theme::alpha(theme::STRONG, 0.35)),
                 );
                 let t = tl.bar(p.x) * 240.0 / r.bpm.max(1.0);
                 resp.on_hover_text(format!("{}  (bar {:.1}), click to seek", super::fmt_time(t), tl.bar(p.x) + 1.0));

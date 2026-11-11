@@ -6,21 +6,27 @@ use eframe::egui::{self, Color32, FontId, RichText, Ui, text::LayoutJob, text::T
 use crate::theme::{self, ACCENT, TEXT, TEXT_DIM, WELL};
 
 const CODE: Color32 = Color32::from_rgb(232, 196, 128);
+const CODE_LIGHT: Color32 = Color32::from_rgb(140, 84, 0);
 
 /// inline markdown as a layout job
-fn inline(text: &str, size: f32, color: Color32, width: f32) -> LayoutJob {
+fn inline(text: &str, size: f32, color: impl Into<Color32>, width: f32) -> LayoutJob {
     let mut job = LayoutJob::default();
     job.wrap.max_width = width;
-    let plain = TextFormat { font_id: theme::prop(size), color, ..Default::default() };
+    let plain = TextFormat { font_id: theme::prop(size), color: color.into(), ..Default::default() };
+    // code in amber on a shade: a dark amber on a faint one in the light look
+    let (code_ink, shade) = if theme::light() { (CODE_LIGHT, 0.06) } else { (CODE, 0.35) };
     let code = TextFormat {
         font_id: theme::mono(size - 1.0),
-        color: CODE,
-        background: theme::alpha(Color32::BLACK, 0.35),
+        color: code_ink,
+        background: theme::alpha(Color32::BLACK, shade),
         ..Default::default()
     };
-    let bold = TextFormat { color: Color32::WHITE, ..plain.clone() };
-    let link =
-        TextFormat { color: ACCENT, underline: egui::Stroke::new(1.0, theme::alpha(ACCENT, 0.6)), ..plain.clone() };
+    let bold = TextFormat { color: theme::STRONG.into(), ..plain.clone() };
+    let link = TextFormat {
+        color: ACCENT.into(),
+        underline: egui::Stroke::new(1.0, theme::alpha(ACCENT, 0.6)),
+        ..plain.clone()
+    };
     let text = text.replace("\\|", "|");
     let mut rest = text.as_str();
     while !rest.is_empty() {
@@ -122,7 +128,7 @@ fn table(ui: &mut Ui, rows: &[&str]) {
 }
 
 fn code_block(ui: &mut Ui, code: &str) {
-    egui::Frame::new().fill(WELL).corner_radius(6).inner_margin(egui::Margin::symmetric(10, 8)).show(ui, |ui| {
+    egui::Frame::new().fill(WELL.into()).corner_radius(6).inner_margin(egui::Margin::symmetric(10, 8)).show(ui, |ui| {
         ui.set_width(ui.available_width());
         egui::ScrollArea::horizontal().id_salt(("md_code", code.len(), code.lines().next().unwrap_or(""))).show(
             ui,
@@ -174,7 +180,7 @@ pub fn show(ui: &mut Ui, text: &str) {
         {
             flush(ui, &mut para);
             ui.add_space(if level > 15.0 { 10.0 } else { 6.0 });
-            ui.label(RichText::new(title).size(level).strong().color(Color32::WHITE));
+            ui.label(RichText::new(title).size(level).strong().color(theme::STRONG));
             ui.add_space(3.0);
         } else if let Some(item) = t.strip_prefix("- ").or_else(|| t.strip_prefix("* ")) {
             flush(ui, &mut para);

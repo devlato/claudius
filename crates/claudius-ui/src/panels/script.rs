@@ -515,114 +515,119 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             });
         let font = theme::mono(13.0);
         let lines = ed.text.lines().count().max(1) + usize::from(ed.text.ends_with('\n'));
-        egui::Frame::new().fill(WELL).corner_radius(6).inner_margin(egui::Margin::symmetric(6, 6)).show(ui, |ui| {
-            egui::ScrollArea::both().id_salt("script_scroll").auto_shrink([false, false]).show(ui, |ui| {
-                ui.horizontal_top(|ui| {
-                    ui.spacing_mut().item_spacing.x = 8.0;
-                    let mut numbers = LayoutJob::default();
-                    for n in 1..=lines {
-                        let bad = error.is_some_and(|(l, _)| l == n);
-                        let fmt = TextFormat {
-                            font_id: font.clone(),
-                            color: if bad { theme::BAD } else { TEXT_FAINT },
-                            ..Default::default()
+        egui::Frame::new().fill(WELL.into()).corner_radius(6).inner_margin(egui::Margin::symmetric(6, 6)).show(
+            ui,
+            |ui| {
+                egui::ScrollArea::both().id_salt("script_scroll").auto_shrink([false, false]).show(ui, |ui| {
+                    ui.horizontal_top(|ui| {
+                        ui.spacing_mut().item_spacing.x = 8.0;
+                        let mut numbers = LayoutJob::default();
+                        for n in 1..=lines {
+                            let bad = error.is_some_and(|(l, _)| l == n);
+                            let fmt = TextFormat {
+                                font_id: font.clone(),
+                                color: if bad { theme::BAD } else { TEXT_FAINT }.into(),
+                                ..Default::default()
+                            };
+                            numbers.append(&format!("{n:>3}{}", if n < lines { "\n" } else { "" }), 0.0, fmt);
+                        }
+                        ui.label(numbers);
+                        let error_line = error.map(|(l, _)| l);
+                        let mut layouter = |ui: &Ui, text: &dyn egui::TextBuffer, _wrap: f32| -> Arc<egui::Galley> {
+                            let mut job = highlight(text.as_str(), font.clone(), error_line);
+                            job.wrap.max_width = f32::INFINITY;
+                            ui.fonts_mut(|f| f.layout_job(job))
                         };
-                        numbers.append(&format!("{n:>3}{}", if n < lines { "\n" } else { "" }), 0.0, fmt);
-                    }
-                    ui.label(numbers);
-                    let error_line = error.map(|(l, _)| l);
-                    let mut layouter = |ui: &Ui, text: &dyn egui::TextBuffer, _wrap: f32| -> Arc<egui::Galley> {
-                        let mut job = highlight(text.as_str(), font.clone(), error_line);
-                        job.wrap.max_width = f32::INFINITY;
-                        ui.fonts_mut(|f| f.layout_job(job))
-                    };
-                    let id = ui.scope_id().with("script_text");
-                    // the keys that nudge the number at the cursor, before the text takes them
-                    if ui.memory(|m| m.has_focus(id))
-                        && let Some(at) = ed.cursor
-                    {
-                        let by = ui.input_mut(|i| {
-                            let (alt, more) = (egui::Modifiers::ALT, egui::Modifiers::ALT | egui::Modifiers::SHIFT);
-                            [(more, egui::Key::ArrowUp, 10), (more, egui::Key::ArrowDown, -10)]
-                                .into_iter()
-                                .chain([(alt, egui::Key::ArrowUp, 1), (alt, egui::Key::ArrowDown, -1)])
-                                .find(|(m, k, _)| i.consume_key(*m, *k))
-                                .map_or(0, |(_, _, by)| by)
-                        });
-                        if by != 0 && nudge(ed, at, by, now) {
-                            ed.dirty = ed.text != song.script;
-                        }
-                    }
-                    if let Some(at) = ed.move_cursor.take() {
-                        let mut state = egui::TextEdit::load_state(ui.ctx(), id).unwrap_or_default();
-                        state.cursor.set_char_range(Some(egui::text::CCursorRange::one(egui::text::CCursor::new(at))));
-                        state.store(ui.ctx(), id);
-                        ui.memory_mut(|m| m.request_focus(id));
-                    }
-                    let output = egui::TextEdit::multiline(&mut ed.text)
-                        .id(id)
-                        .font(font.clone())
-                        .code_editor()
-                        .frame(egui::Frame::NONE)
-                        .desired_width(f32::INFINITY)
-                        .desired_rows(24)
-                        .lock_focus(true)
-                        .layouter(&mut layouter)
-                        .show(ui);
-                    if let Some(row) = error_line.and_then(|l| output.galley.rows.get(l - 1)) {
-                        let r = row.rect().translate(output.galley_pos.to_vec2());
-                        let band = egui::Rect::from_min_max(
-                            egui::pos2(output.text_clip_rect.left(), r.top()),
-                            egui::pos2(output.text_clip_rect.right(), r.bottom()),
-                        );
-                        ui.painter().rect_filled(band, 2.0, theme::alpha(theme::BAD, 0.1));
-                    }
-                    if output.response.response.changed() {
-                        ed.dirty = ed.text != song.script;
-                        // typing after a nudge: a line half written is not run
-                        ed.nudged = None;
-                    }
-                    if !ed.no_hints {
-                        let found = hints(&ed.text);
-                        let mut lines: std::collections::BTreeMap<usize, Vec<&str>> = Default::default();
-                        for (r, h) in &found {
-                            lines.entry(ed.text[..r.start].matches('\n').count()).or_default().push(h);
-                        }
-                        let painter = ui.painter_at(output.text_clip_rect);
-                        for (line, words) in &lines {
-                            let Some(row) = output.galley.rows.get(*line) else { continue };
-                            let r = row.rect().translate(output.galley_pos.to_vec2());
-                            painter.text(
-                                egui::pos2(r.right() + 18.0, r.center().y),
-                                egui::Align2::LEFT_CENTER,
-                                words.join(" · "),
-                                theme::prop(11.0),
-                                TEXT_FAINT,
-                            );
-                        }
-                        // over a number: what it sets, and the keys that change it
-                        if let Some(pos) = output.response.response.hover_pos() {
-                            let c = output.galley.cursor_from_pos(pos - output.galley_pos);
-                            let byte = ed.text.char_indices().nth(c.index.0).map_or(ed.text.len(), |(b, _)| b);
-                            if let Some((_, h)) = found.iter().find(|(r, _)| r.start <= byte && byte < r.end) {
-                                output.response.response.clone().on_hover_text_at_pointer(format!(
-                                    "{h}. With the cursor on it, Alt+↑ ↓ change it (Shift: ten times as much), and \
-                                     the song plays the change"
-                                ));
+                        let id = ui.scope_id().with("script_text");
+                        // the keys that nudge the number at the cursor, before the text takes them
+                        if ui.memory(|m| m.has_focus(id))
+                            && let Some(at) = ed.cursor
+                        {
+                            let by = ui.input_mut(|i| {
+                                let (alt, more) = (egui::Modifiers::ALT, egui::Modifiers::ALT | egui::Modifiers::SHIFT);
+                                [(more, egui::Key::ArrowUp, 10), (more, egui::Key::ArrowDown, -10)]
+                                    .into_iter()
+                                    .chain([(alt, egui::Key::ArrowUp, 1), (alt, egui::Key::ArrowDown, -1)])
+                                    .find(|(m, k, _)| i.consume_key(*m, *k))
+                                    .map_or(0, |(_, _, by)| by)
+                            });
+                            if by != 0 && nudge(ed, at, by, now) {
+                                ed.dirty = ed.text != song.script;
                             }
                         }
-                    }
-                    if let Some(r) = output.cursor_range {
-                        ed.cursor = Some(r.primary.index.0);
-                    }
-                    if output.response.response.has_focus()
-                        && ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Enter))
-                    {
-                        run = true;
-                    }
+                        if let Some(at) = ed.move_cursor.take() {
+                            let mut state = egui::TextEdit::load_state(ui.ctx(), id).unwrap_or_default();
+                            state
+                                .cursor
+                                .set_char_range(Some(egui::text::CCursorRange::one(egui::text::CCursor::new(at))));
+                            state.store(ui.ctx(), id);
+                            ui.memory_mut(|m| m.request_focus(id));
+                        }
+                        let output = egui::TextEdit::multiline(&mut ed.text)
+                            .id(id)
+                            .font(font.clone())
+                            .code_editor()
+                            .frame(egui::Frame::NONE)
+                            .desired_width(f32::INFINITY)
+                            .desired_rows(24)
+                            .lock_focus(true)
+                            .layouter(&mut layouter)
+                            .show(ui);
+                        if let Some(row) = error_line.and_then(|l| output.galley.rows.get(l - 1)) {
+                            let r = row.rect().translate(output.galley_pos.to_vec2());
+                            let band = egui::Rect::from_min_max(
+                                egui::pos2(output.text_clip_rect.left(), r.top()),
+                                egui::pos2(output.text_clip_rect.right(), r.bottom()),
+                            );
+                            ui.painter().rect_filled(band, 2.0, theme::alpha(theme::BAD, 0.1));
+                        }
+                        if output.response.response.changed() {
+                            ed.dirty = ed.text != song.script;
+                            // typing after a nudge: a line half written is not run
+                            ed.nudged = None;
+                        }
+                        if !ed.no_hints {
+                            let found = hints(&ed.text);
+                            let mut lines: std::collections::BTreeMap<usize, Vec<&str>> = Default::default();
+                            for (r, h) in &found {
+                                lines.entry(ed.text[..r.start].matches('\n').count()).or_default().push(h);
+                            }
+                            let painter = ui.painter_at(output.text_clip_rect);
+                            for (line, words) in &lines {
+                                let Some(row) = output.galley.rows.get(*line) else { continue };
+                                let r = row.rect().translate(output.galley_pos.to_vec2());
+                                painter.text(
+                                    egui::pos2(r.right() + 18.0, r.center().y),
+                                    egui::Align2::LEFT_CENTER,
+                                    words.join(" · "),
+                                    theme::prop(11.0),
+                                    TEXT_FAINT.into(),
+                                );
+                            }
+                            // over a number: what it sets, and the keys that change it
+                            if let Some(pos) = output.response.response.hover_pos() {
+                                let c = output.galley.cursor_from_pos(pos - output.galley_pos);
+                                let byte = ed.text.char_indices().nth(c.index.0).map_or(ed.text.len(), |(b, _)| b);
+                                if let Some((_, h)) = found.iter().find(|(r, _)| r.start <= byte && byte < r.end) {
+                                    output.response.response.clone().on_hover_text_at_pointer(format!(
+                                        "{h}. With the cursor on it, Alt+↑ ↓ change it (Shift: ten times as much), and \
+                                     the song plays the change"
+                                    ));
+                                }
+                            }
+                        }
+                        if let Some(r) = output.cursor_range {
+                            ed.cursor = Some(r.primary.index.0);
+                        }
+                        if output.response.response.has_focus()
+                            && ui.input_mut(|i| i.consume_key(egui::Modifiers::COMMAND, egui::Key::Enter))
+                        {
+                            run = true;
+                        }
+                    });
                 });
-            });
-        });
+            },
+        );
     });
     // a number nudged runs the script once the keys have rested a moment, as a knob turned plays as it turns
     match ed.nudged {

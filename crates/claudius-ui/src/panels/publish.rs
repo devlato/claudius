@@ -281,10 +281,17 @@ fn artwork(ui: &mut Ui, p: &mut Publish, release: &ReleaseView, hovering: bool) 
             _ => {
                 let text = if hovering { "drop it here" } else { "drop the cover here" };
                 let font = egui::FontId::proportional(14.0);
-                ui.painter().text(rect.center() - vec2(0.0, 9.0), egui::Align2::CENTER_CENTER, text, font, TEXT_DIM);
+                ui.painter().text(
+                    rect.center() - vec2(0.0, 9.0),
+                    egui::Align2::CENTER_CENTER,
+                    text,
+                    font,
+                    TEXT_DIM.into(),
+                );
                 let note = "a square JPEG or PNG, 3000 × 3000";
                 let font = egui::FontId::proportional(11.0);
-                ui.painter().text(rect.center() + vec2(0.0, 11.0), egui::Align2::CENTER_CENTER, note, font, TEXT_FAINT);
+                let faint = TEXT_FAINT.into();
+                ui.painter().text(rect.center() + vec2(0.0, 11.0), egui::Align2::CENTER_CENTER, note, font, faint);
             }
         }
         ui.add_space(4.0);

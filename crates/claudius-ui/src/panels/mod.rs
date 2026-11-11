@@ -404,6 +404,8 @@ pub struct View {
     pub tour_done: bool,
     /// the tour ends with the question about usage statistics (the app, when it has not been answered)
     pub tour_asks: bool,
+    /// the look the studio wears (kept between runs)
+    pub look: crate::theme::Look,
     pub anchors: crate::tour::Anchors,
     /// the update whose banner was put off with Later (until the next start)
     pub update_dismissed: Option<String>,
@@ -481,6 +483,7 @@ impl Default for View {
             roll: roll::RollView::default(),
             tour: None,
             tour_done: false,
+            look: crate::theme::Look::default(),
             tour_asks: false,
             anchors: crate::tour::Anchors::default(),
             update_dismissed: None,

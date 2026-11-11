@@ -13,7 +13,7 @@ use eframe::egui::{self, Align2, Key, Modifiers, RichText, text::LayoutJob, vec2
 
 use super::{Cx, Tab};
 use crate::audio::record::Hearing;
-use crate::theme::{self, TEXT, TEXT_FAINT};
+use crate::theme::{self, Look, TEXT, TEXT_FAINT};
 use crate::widgets::{self, Icon};
 
 /// how many actions the palette shows at most
@@ -323,6 +323,7 @@ enum Run {
     Reference,
     Docs,
     Tour,
+    Look(Look),
     /// back to before a change made to the song: its id in the history
     GoBack(String),
     /// what a request asked, as the person confirmed it: what the button said, and the commands
@@ -375,6 +376,9 @@ fn run_of(id: &str) -> Option<Run> {
         "reference" => Run::Reference,
         "docs" => Run::Docs,
         "tour" => Run::Tour,
+        "look:dark" => Run::Look(Look::Dark),
+        "look:light" => Run::Look(Look::Light),
+        "look:system" => Run::Look(Look::System),
         other => Run::Tab(match other.strip_prefix("tab:")? {
             "drums" => Tab::Sequencer,
             "instruments" => Tab::Parts,
@@ -498,15 +502,12 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
                     }
                     let under = (asked || back) && !a.place.is_empty();
                     let mut job = LayoutJob::default();
-                    job.append(&a.name, 0.0, egui::TextFormat::simple(theme::prop(13.5), TEXT));
+                    job.append(&a.name, 0.0, egui::TextFormat::simple(theme::prop(13.5), TEXT.into()));
+                    let place = egui::TextFormat::simple(theme::prop(11.0), TEXT_FAINT.into());
                     if under {
-                        job.append(
-                            &format!("\n{}", a.place),
-                            0.0,
-                            egui::TextFormat::simple(theme::prop(11.0), TEXT_FAINT),
-                        );
+                        job.append(&format!("\n{}", a.place), 0.0, place);
                     } else if !a.place.is_empty() {
-                        job.append(&a.place, 10.0, egui::TextFormat::simple(theme::prop(11.0), TEXT_FAINT));
+                        job.append(&a.place, 10.0, place);
                     }
                     let keys = a.keys.replace("Cmd", cmd);
                     let r = ui.add_sized(
@@ -617,6 +618,10 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
         Run::Reference => cx.view.reference_open = true,
         Run::Docs => ctx.open_url(egui::OpenUrl::new_tab(widgets::DOCS)),
         Run::Tour => return Some(Asked::Tour),
+        Run::Look(look) => {
+            cx.view.look = look;
+            theme::set_look(ctx, look);
+        }
         Run::GoBack(to) => cx.out.push(Command::GoBack { to }),
         Run::Do { said, commands } => cx.out.extend(commands_of(said, commands)),
     }

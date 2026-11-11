@@ -291,9 +291,14 @@ A small **(?)** beside a setting whose name is not plain (Intensity, Transitions
 master's loudness) says in plain words what it does when you point at it, and opens the page of these docs that says
 more when you click it. Buttons and menu items say what they do when you point at them too.
 
-**?** in the bottom right corner opens the help menu: **Take the tour**, **Connect an assistant**, **Check for
-updates** and **Update automatically** and the switch for anonymous usage statistics (in the app), the documentation,
-and a form to report a problem. When a new release has been downloaded, a bar under the toolbar offers **Restart to
+**?** in the bottom right corner opens the help menu: **Take the tour**, **Connect an assistant**, **Look**, **Check
+for updates** and **Update automatically** and the switch for anonymous usage statistics (in the app), the
+documentation, and a form to report a problem.
+
+**Look** picks how the studio looks: **Dark**, **Light**, or **As the system is**, which follows your computer's
+appearance (in a browser, the browser's) and changes with it, at night for one. That is the studio's look until you
+pick another, and the command palette has all three too ("light mode", "dark theme"). Both looks keep text readable
+on every panel, at least 4.5:1, and every track and section keeps its colour in both. When a new release has been downloaded, a bar under the toolbar offers **Restart to
 update** ([Updates](../guide/updates.md)). Connect an assistant lists Claude Desktop, Claude Code, Cursor and Codex, says which are connected,
 and connects one with a click, the way `claudius connect` does ([Working with an assistant](assistants.md)). The
 assistant then makes and edits the song open here, and you hear every change.

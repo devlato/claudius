@@ -20,13 +20,14 @@ fn licence_color(licence: &str) -> Color32 {
     } else {
         TEXT_DIM
     }
+    .into()
 }
 
 /// a pack's card; true when its install button was clicked (only packs that are not installed, nor opt-in, have one)
 fn pack_card(ui: &mut Ui, p: &PackInfo, instruments: usize, can_install: bool) -> bool {
     let mut install = false;
     let frame = egui::Frame::new()
-        .fill(if p.installed { RAISED } else { theme::mix(RAISED, theme::BG, 0.5) })
+        .fill(if p.installed { RAISED.into() } else { theme::mix(RAISED, theme::BG, 0.5) })
         .corner_radius(6)
         .inner_margin(egui::Margin::symmetric(10, 7))
         .stroke(egui::Stroke::new(1.0, LINE_SOFT));
@@ -77,7 +78,7 @@ fn assignable(
     let resp = if current.is_empty() {
         ui.small_button(label)
     } else {
-        ui.add(egui::Button::new(RichText::new(label).color(Color32::BLACK)).small().fill(theme::ACCENT))
+        ui.add(egui::Button::new(RichText::new(label).color(theme::ink_on(theme::ACCENT))).small().fill(theme::ACCENT))
     };
     let about = super::named(super::sound_about(sound, Some(list)).as_deref(), sound);
     let resp = resp.on_hover_text(if current.is_empty() {
@@ -96,7 +97,7 @@ fn assignable(
             let on = p.preset == sound;
             let now = words::name_in_words(&p.preset);
             let text = RichText::new(format!("{} · {} (now {now})", p.name, p.role)).color(if on {
-                theme::ACCENT
+                theme::ACCENT.into()
             } else {
                 layer_color(song, &p.name)
             });
