@@ -251,6 +251,14 @@ fails it, naming the file and the field. The folders of 0.1.0 and 0.2.0 came fro
 release PR adds its version's (`cargo xtask release prepare` runs `examples/compat_fixtures.rs`), so each release is
 held to every one before it.
 
+Each release's `folder/` is a song's folder, with what is read back of one: `blueprint.json`, the `project.json` that
+`claudius judge` and `claudius publish` read beside it, `song.rhai`, and, from the release after 0.5.0, the
+`history.jsonl` the studio keeps. The folders of 0.1.0 to 0.5.0 are what each release's own `claudius make --genre
+house --seed 7 --short` wrote. `tests/compat.rs` opens each song, reads its project and runs its script, and the
+session's `tests/compat.rs` replays each history to the song in its folder with its steps to undo and redo: a log that
+no longer read would open as a history begun anew, and nothing else would say so. The release PR writes its history
+with `examples/compat_history.rs` in `claudius-session`.
+
 A change the songs cannot take as they are (a field that changes meaning or goes away) raises `BLUEPRINT_FORMAT`, and
 `from_json` gets the step that upgrades the JSON of the format before it; the fixtures of the earlier formats then
 test that step.
