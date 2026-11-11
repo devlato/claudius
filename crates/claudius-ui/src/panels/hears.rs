@@ -41,7 +41,7 @@ pub struct Hears {
 impl Hears {
     /// shows what was heard in `file`, a song like it to be made in `genre`
     pub fn show(&mut self, heard: Box<Listened>, file: Option<Arc<Picked>>, genre: &str) {
-        self.player = None;
+        self.let_go();
         self.loaded = None;
         self.track = TRACKS[0].0.to_string();
         self.genre = genre.to_string();
@@ -57,6 +57,13 @@ impl Hears {
 
     pub fn is_open(&self) -> bool {
         self.heard.is_some()
+    }
+
+    /// the player stopped and gone: a page's audio element plays on after the player is dropped, unless told
+    fn let_go(&mut self) {
+        if let Some(mut p) = self.player.take() {
+            p.clear();
+        }
     }
 
     /// the words what was heard was said in, while the window shows it
@@ -109,6 +116,8 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
     }
     if open {
         cx.view.hears = h;
+    } else {
+        h.let_go();
     }
 }
 
@@ -122,7 +131,9 @@ fn body(ui: &mut Ui, cx: &mut Cx, h: &mut Hears) {
     now(ui, &heard, at);
     ui.add_space(4.0);
     let shown = h.loaded.is_some();
-    if let Some(t) = form(ui, &heard, at, shown).or_else(|| bars_near(ui, &heard, at, shown)) {
+    // both are drawn every frame, whichever is pressed
+    let (on_form, on_bars) = (form(ui, &heard, at, shown), bars_near(ui, &heard, at, shown));
+    if let Some(t) = on_form.or(on_bars) {
         seek(ui.ctx(), cx, h, &heard, t);
     }
     ui.add_space(10.0);

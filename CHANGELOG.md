@@ -6,6 +6,15 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+What claudius hears in a recording is a window to use rather than a block of text. **See what is in it, as it plays**
+(it was **Only say what claudius hears**) shows its tempo, key, feel and loudness; its form, with the chord of each bar
+under it and the playhead going through both as it plays; its beat as a step grid; and its bass. Its voice, drums, bass
+and the rest play alone, as claudius took them apart, so you hear what it heard in each. **Make a song like it** makes
+a new song in any genre on its tempo, key, chords, form and swing, and **Its tempo** and **Its key and chords** give
+them to the open song. Assistants get the same with the new `song_like` tool, after `analyze`. `POST /api/analyze`
+answers with what was heard as data (`heard`) beside the words, and `GET /api/listened/{id}/{track}` plays the
+recording and its parts until claudius analyzes another.
+
 ## [0.6.0] - 2026-11-11
 
 The examples' studies of famous records are gone. They were named after the records but played melodies of their
@@ -79,15 +88,6 @@ The studio has a light look as well as its dark one, and follows your computer's
 **?** > **Look** (Dark, Light, As the system is), or "light mode" in the command palette. Text reads at 4.5:1 or more
 on every panel of both looks, and so does a label on a filled button or a lit cell (white on the light look's orange);
 the dark look's faintest text is a little brighter for it, where it stood on a raised panel.
-
-What claudius hears in a recording is a window to use rather than a block of text. **See what is in it, as it plays**
-(it was **Only say what claudius hears**) shows its tempo, key, feel and loudness; its form, with the chord of each bar
-under it and the playhead going through both as it plays; its beat as a step grid; and its bass. Its voice, drums, bass
-and the rest play alone, as claudius took them apart, so you hear what it heard in each. **Make a song like it** makes
-a new song in any genre on its tempo, key, chords, form and swing, and **Its tempo** and **Its key and chords** give
-them to the open song. Assistants get the same with the new `song_like` tool, after `analyze`. `POST /api/analyze`
-answers with what was heard as data (`heard`) beside the words, and `GET /api/listened/{id}/{track}` plays the
-recording and its parts until claudius analyzes another.
 
 What you set survives any update, from any version: the studio's settings, the voice a pitch check heard, the answer
 about usage statistics and whether to update by itself. Each settings file now says which version of it claudius
