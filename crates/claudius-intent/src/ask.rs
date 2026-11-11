@@ -1027,11 +1027,13 @@ fn numbers(q: &str) -> Vec<Number> {
         }
         let (digits, rest) =
             t.split_at(t.find(|c: char| !(c.is_ascii_digit() || c == '.' || c == '-' || c == '+')).unwrap_or(t.len()));
-        let Some((value, used)) = digits.parse::<f64>().ok().map(|v| (v, 1)).or_else(|| said_number(&tokens[i..]))
-        else {
+        let in_digits = digits.parse::<f64>().ok();
+        let Some((value, used)) = in_digits.map(|v| (v, 1)).or_else(|| said_number(&tokens[i..])) else {
             i += 1;
             continue;
         };
+        // a number said in words has nothing written after it ("one", not "1db")
+        let rest = if in_digits.is_some() { rest } else { "" };
         let next = word(i + used);
         if rest.is_empty() && ["minute", "minutes", "min", "mins"].contains(&next) {
             // and the seconds after the minutes, if they are said ("and", or a "to" a speech model hears, between)
@@ -1286,5 +1288,25 @@ fn list<'a>(names: impl Iterator<Item = &'a str>) -> String {
         [] => String::new(),
         [one] => one.to_string(),
         [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn times(q: &str) -> Vec<f64> {
+        numbers(q).into_iter().filter(|n| n.unit == Unit::Time).map(|n| n.value).collect()
+    }
+
+    #[test]
+    fn a_time_reads_as_it_is_said_in_digits_or_in_words() {
+        assert_eq!(times("cut the guitar from one minute two seconds"), [62.0]);
+        assert_eq!(times("cut the guitar from one minute to two seconds."), [62.0]);
+        assert_eq!(times("cut the piano from 2 minutes and 10 seconds"), [130.0]);
+        assert_eq!(times("start at twenty five seconds"), [25.0]);
+        assert_eq!(times("start at three minutes"), [180.0]);
+        assert_eq!(times("at 1:02"), [62.0]);
+        assert_eq!(numbers("one minute two seconds").len(), 1, "its minutes and seconds are one time");
     }
 }
