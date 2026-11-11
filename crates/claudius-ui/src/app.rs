@@ -863,6 +863,7 @@ impl Studio {
             if let Some(e) = self.player.error() {
                 ui.label(RichText::new(format!("· audio: {e}")).size(11.0).color(theme::WARN));
             }
+            panels::chat::status(ui, &self.state, &mut self.view, panels::chat::now_ms());
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 ui.menu_button(RichText::new(" ? ").size(12.0).color(TEXT_DIM), |ui| {
                     if ui.button("Take the tour").clicked() {
@@ -1264,6 +1265,8 @@ impl eframe::App for Studio {
             panels::import::pieces(&ctx, &mut cx);
             panels::phone::dialog(&ctx, &mut cx);
             panels::keys::dialog(&ctx, &mut cx);
+            cx.view.chat.follow(cx.state);
+            panels::chat::dialog(&ctx, &mut cx, panels::chat::now_ms());
             cx.view.palette.can_hear = can_hear;
             // an action of the palette's, picked there or by its key
             let keyed = panels::keys::answer(&ctx, &mut cx);

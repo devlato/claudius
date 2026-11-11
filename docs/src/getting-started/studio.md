@@ -318,6 +318,19 @@ update** ([Updates](../guide/updates.md)). Connect an assistant lists Claude Des
 and connects one with a click, the way `claudius connect` does ([Working with an assistant](assistants.md)). The
 assistant then makes and edits the song open here, and you hear every change.
 
+### Talking to your assistant from the studio
+
+An assistant connected to claudius can listen for what you write in the studio: ask it to ("wait for my messages in
+the claudius chat"). While it listens, the status bar says so ("● Claude Code is listening"), and a click there
+opens the **Chat** window: write, Enter sends (Shift+Enter starts a new line), and its answers come in below, each
+saying which of your messages it answers. The window opens by itself when the assistant writes, and the app notifies
+you when its window is not in front. With no assistant listening, the field says how to have one listen. The chat is
+kept between runs in claudius's settings folder (`chat.jsonl`, beside your voice) until **Clear the chat** clears it.
+
+The assistant listens with the `wait_for_message` tool, which waits until you write (or a minute passes, when it
+calls it again), and answers with `send_message`; each message has an id one more than the one before, so neither of
+you misses one or reads them out of order ([the MCP tools](../guide/mcp.md#the-tools)).
+
 ## Finding an action
 
 **Cmd+K** (Ctrl+K on Windows and Linux), or **Cmd+K all actions** in the bottom right corner, opens the command

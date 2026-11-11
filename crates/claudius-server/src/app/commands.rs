@@ -275,6 +275,33 @@ impl App {
                 Ok(()) => ok(format!("request {id}: no take, then"), self.version()),
                 Err(e) => no(e, v),
             },
+            Command::ChatSay { text } => match self.try_update(|s| s.chat.say(None, &text, None)) {
+                Ok(id) => ok(format!("said as message {id}"), self.version()),
+                Err(e) => no(e, v),
+            },
+            Command::ChatAnswer { text, from, reply_to } => {
+                let from = from.filter(|f| !f.trim().is_empty()).unwrap_or_else(|| "an assistant".into());
+                match self.try_update(|s| s.chat.say(Some(from), &text, reply_to)) {
+                    Ok(id) => ok(format!("said as message {id}"), self.version()),
+                    Err(e) => no(e, v),
+                }
+            }
+            Command::ChatListen { from, seconds } => {
+                let from = from.filter(|f| !f.trim().is_empty()).unwrap_or_else(|| "an assistant".into());
+                let wait = Duration::from_secs(seconds.unwrap_or(50).clamp(1, 300));
+                let v = self.update(|s| {
+                    s.chat.listen(from.clone(), wait);
+                    s.version + 1
+                });
+                ok(format!("{from} listens for {} s", wait.as_secs()), v)
+            }
+            Command::ClearChat => {
+                let v = self.update(|s| {
+                    s.chat.clear();
+                    s.version + 1
+                });
+                ok("the chat is cleared", v)
+            }
             Command::Load { path } => self.load(Path::new(&path)),
             Command::OpenText { name, text } => self.open_text(&name, &text, None),
             Command::Save { path } => self.save(path.map(PathBuf::from)),

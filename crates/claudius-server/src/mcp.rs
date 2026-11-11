@@ -5,7 +5,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use claudius_api::{Command, Reply, SoundList, State, TakeStatus};
+use claudius_api::{ChatMessage, Command, Reply, SoundList, State, TakeStatus};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
 use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, StreamableHttpService};
@@ -769,6 +769,26 @@ pub struct RequestTakeArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct WaitMessageArgs {
+    /// the id of the last message you saw (from the last wait_for_message or send_message): what the person writes
+    /// after it comes back; none: what they write from now on
+    #[serde(default)]
+    pub after: Option<u64>,
+    /// how long to wait at most, in seconds (default 50, at most 300)
+    #[serde(default)]
+    pub seconds: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct SendMessageArgs {
+    /// what to say to the person, in a few sentences
+    pub text: String,
+    /// the id of the message of theirs it answers
+    #[serde(default)]
+    pub reply_to: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct WaitTakeArgs {
     /// the request's id, as request_take gave it
     pub id: u64,
@@ -908,6 +928,20 @@ pub struct PacksArgs {
 #[derive(Clone)]
 pub struct Studio {
     b: Backend,
+}
+
+/// what the assistant's client calls itself, as it said when it connected: its title, else its name
+fn client_name(peer: &rmcp::Peer<rmcp::RoleServer>) -> String {
+    let info = peer.peer_info();
+    let named = info.as_ref().map(|i| i.client_info.title.clone().unwrap_or_else(|| i.client_info.name.clone()));
+    named.filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "an assistant".into())
+}
+
+/// a message of the chat as a line of a tool's answer: its id, who said it and what
+fn said(m: &ChatMessage) -> String {
+    let who = m.from.as_deref().unwrap_or("the person");
+    let to = m.reply_to.map(|r| format!(", answering {r}")).unwrap_or_default();
+    format!("{} ({who}{to}): {}\n", m.id, m.text)
 }
 
 fn new_lines(before: &[String], after: &[String]) -> Vec<String> {
@@ -1661,6 +1695,70 @@ impl Studio {
     }
 
     #[tool(
+        description = "Listen for what the person writes to you in the claudius studio's chat: returns what they wrote after message `after` (the last id you saw; none: from now on) as soon as they write, with the chat's last few messages before it, or after `seconds` (default 50) that they have written nothing yet. While you wait, and for a little after, the studio's chat says you are listening and lets the person write: call it again at once to stay there. Answer with send_message.",
+        annotations(read_only_hint = true)
+    )]
+    async fn wait_for_message(
+        &self,
+        peer: rmcp::Peer<rmcp::RoleServer>,
+        Parameters(a): Parameters<WaitMessageArgs>,
+    ) -> Result<String, String> {
+        self.listen_for(client_name(&peer), a).await
+    }
+
+    /// `wait_for_message`, for the assistant called `who`
+    async fn listen_for(&self, who: String, a: WaitMessageArgs) -> Result<String, String> {
+        let seconds = a.seconds.unwrap_or(50).clamp(1, 300);
+        let deadline = std::time::Instant::now() + Duration::from_secs(seconds);
+        self.b.command(Command::ChatListen { from: Some(who), seconds: Some(seconds) }).await?;
+        let mut st = self.b.state().await?;
+        let after = a.after.unwrap_or_else(|| st.chat.messages.last().map_or(0, |m| m.id));
+        loop {
+            let chat = &st.chat.messages;
+            let new: Vec<&ChatMessage> = chat.iter().filter(|m| m.id > after && m.from.is_none()).collect();
+            if !new.is_empty() {
+                let first = new[0].id;
+                let earlier: Vec<&ChatMessage> = chat.iter().filter(|m| m.id < first).collect();
+                let before = &earlier[earlier.len().saturating_sub(6)..];
+                let mut out = String::new();
+                if !before.is_empty() {
+                    out.push_str("before it:\n");
+                    out.extend(before.iter().map(|m| said(m)));
+                    out.push('\n');
+                }
+                out.push_str("the person wrote:\n");
+                out.extend(new.iter().map(|m| said(m)));
+                let last = chat.last().map_or(after, |m| m.id);
+                out.push_str(&format!(
+                    "\nanswer with send_message (reply_to the id); then wait_for_message with after: {last}"
+                ));
+                return Ok(out);
+            }
+            let left = deadline.saturating_duration_since(std::time::Instant::now());
+            if left.is_zero() {
+                let last = chat.last().map_or(after, |m| m.id);
+                return Ok(format!("nothing yet: call wait_for_message with after: {last} to keep listening"));
+            }
+            // the studio says it listens for the whole wait, as the first chat_listen said: another would change the
+            // state, which would end the next wait at once
+            st = self.b.state_after(st.version, left.min(Duration::from_secs(20))).await?;
+        }
+    }
+
+    #[tool(
+        description = "Write to the person in the claudius studio's chat: `text`, in answer to their message `reply_to` (from wait_for_message). They read it in the studio, and the app notifies them when its window is not in front. Returns the message's id; then wait_for_message with after: that id for their answer."
+    )]
+    async fn send_message(
+        &self,
+        peer: rmcp::Peer<rmcp::RoleServer>,
+        Parameters(a): Parameters<SendMessageArgs>,
+    ) -> Result<String, String> {
+        let c = Command::ChatAnswer { text: a.text, from: Some(client_name(&peer)), reply_to: a.reply_to };
+        let r = self.b.command(c).await?;
+        if r.ok { Ok(r.message) } else { Err(r.message) }
+    }
+
+    #[tool(
         description = "Write notes into the song: a melody, a bass line or chords, note by note, in beats from the start of section `from` (t start, d length, p MIDI pitch with 60 middle C, v velocity 0..1; notes at the same t make a chord). They become the notes of new parts, one playing each of `sounds` (synth presets or installed instruments), on in the sections the notes reach; a section keeps the notes over it by its progression, and other sections with that progression play the same. The parts are ordinary parts afterwards: set_part changes their sound."
     )]
     async fn add_notes(&self, Parameters(a): Parameters<NotesArgs>) -> Result<String, String> {
@@ -1710,7 +1808,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Send one raw claudius API command (JSON tagged by \"cmd\"): what the studio's own controls send, for an edit a script does not cover or says less directly. It is checked before it goes: a command claudius has no name for, or a field the command does not take, is not sent, and the answer says what it takes and the name nearest the one written; with explain: true, nothing is sent and the answer only says what the command takes. The song: set_tempo {bpm}, set_key {key}, set_swing {swing}, set_progression {name, chords: [\"i\", \"VI\", ...]}, open_text {name, text} (a blueprint.json's or a script's text, opened as the song). Sections: add_section {after, kind, bars}, remove_section {index}, move_section {from, to}, toggle_layer {section, layer}, set_section {index, name?, bars?, energy?, layers?, prog?, variant?, build?, build_style? (classic, roll, sweep, riser or drop_out; naming one turns the build-up on), build_amount? (0 to 1, how hard it builds), gap?, impact?, fills?, filter_in?}. Drums: set_drum_step {lane, variant, step, velocity}, set_drum_pattern {lane, variant, steps} (a step string such as \"x...x...\"), set_trig {lane, variant, step, trig?: {prob, cond, ratchet, ramp, flam, nudge, pitch, decay, tone, pan}} (no trig: a plain step again), set_lane {lane, length?, speed?, swing?, groove?, groove_amount?, late_ms?}. Tracks: set_part {name, style?, preset?, register?, density?, reseed?}, add_track {name, kind: \"drum\" | \"part\", role?, sound?}, remove_track {name}, set_notes {part, prog, notes?: [{t, d, p, v}]} (a part's notes over a progression written out; no notes: the theory engine's again), set_mix {track, level_db?, pan?, reverb?, delay?, duck?, drive_db?, muted?, solo?, bus?}, set_fx {target, fx: [{\"fx\": \"reverb\", ...}]} (a track's, a bus's or \"master\"'s whole chain). Played on a phone: add_hits {from, hits: [{lane, t, v}], bars?, variant?, grid?, start?, beats?} (drums played on pads, t in beats from the section's start), add_scratch {from, track, moves: [{t, at, fader}], bar?, bars?, name?, role?} (a scratch on bars of a track, kept as a take: t seconds into the scratch, at seconds into the record, fader 0 shut to 1 open). Requests: cancel_take_request {id}, cancel_pitch_check {id} (one you asked for that is no longer wanted). As one change: together {said, commands: [{\"cmd\": \"set_mix\", ...}, ...]} (edits made as one, which the history records as one and undo takes back at once, calling it said; when one fails, none is made). Every other command has a tool of its own."
+        description = "Send one raw claudius API command (JSON tagged by \"cmd\"): what the studio's own controls send, for an edit a script does not cover or says less directly. It is checked before it goes: a command claudius has no name for, or a field the command does not take, is not sent, and the answer says what it takes and the name nearest the one written; with explain: true, nothing is sent and the answer only says what the command takes. The song: set_tempo {bpm}, set_key {key}, set_swing {swing}, set_progression {name, chords: [\"i\", \"VI\", ...]}, open_text {name, text} (a blueprint.json's or a script's text, opened as the song). Sections: add_section {after, kind, bars}, remove_section {index}, move_section {from, to}, toggle_layer {section, layer}, set_section {index, name?, bars?, energy?, layers?, prog?, variant?, build?, build_style? (classic, roll, sweep, riser or drop_out; naming one turns the build-up on), build_amount? (0 to 1, how hard it builds), gap?, impact?, fills?, filter_in?}. Drums: set_drum_step {lane, variant, step, velocity}, set_drum_pattern {lane, variant, steps} (a step string such as \"x...x...\"), set_trig {lane, variant, step, trig?: {prob, cond, ratchet, ramp, flam, nudge, pitch, decay, tone, pan}} (no trig: a plain step again), set_lane {lane, length?, speed?, swing?, groove?, groove_amount?, late_ms?}. Tracks: set_part {name, style?, preset?, register?, density?, reseed?}, add_track {name, kind: \"drum\" | \"part\", role?, sound?}, remove_track {name}, set_notes {part, prog, notes?: [{t, d, p, v}]} (a part's notes over a progression written out; no notes: the theory engine's again), set_mix {track, level_db?, pan?, reverb?, delay?, duck?, drive_db?, muted?, solo?, bus?}, set_fx {target, fx: [{\"fx\": \"reverb\", ...}]} (a track's, a bus's or \"master\"'s whole chain). Played on a phone: add_hits {from, hits: [{lane, t, v}], bars?, variant?, grid?, start?, beats?} (drums played on pads, t in beats from the section's start), add_scratch {from, track, moves: [{t, at, fader}], bar?, bars?, name?, role?} (a scratch on bars of a track, kept as a take: t seconds into the scratch, at seconds into the record, fader 0 shut to 1 open). Requests: cancel_take_request {id}, cancel_pitch_check {id} (one you asked for that is no longer wanted). The chat (wait_for_message and send_message are its tools): chat_say {text} (what the studio sends when the person writes), clear_chat {} (its history goes, when the person asks). As one change: together {said, commands: [{\"cmd\": \"set_mix\", ...}, ...]} (edits made as one, which the history records as one and undo takes back at once, calling it said; when one fails, none is made). Every other command has a tool of its own."
     )]
     async fn command(&self, Parameters(a): Parameters<CommandArgs>) -> Result<String, String> {
         if a.explain {
@@ -1746,7 +1844,7 @@ impl Studio {
 
 #[tool_handler(
     name = "claudius",
-    instructions = "claudius is a beatmaker that composes like a producer in a DAW: synthesized and recorded sounds (never General MIDI), music theory, effects, mixing and mastering, and a critic with ears (earshot, a CLAP model). Typical session: get_song (see what is open) or new_song; read the verdict; edit with run_script (read script_reference once) or try mutate/evolve; listen again; undo a change that made it worse; save. The person you work with hears every change live in the claudius studio, so describe what you changed in musical terms. When the song wants their own voice or playing, ask them to record it with request_take, then wait_for_take. The scores guide; the person's taste decides."
+    instructions = "claudius is a beatmaker that composes like a producer in a DAW: synthesized and recorded sounds (never General MIDI), music theory, effects, mixing and mastering, and a critic with ears (earshot, a CLAP model). Typical session: get_song (see what is open) or new_song; read the verdict; edit with run_script (read script_reference once) or try mutate/evolve; listen again; undo a change that made it worse; save. The person you work with hears every change live in the claudius studio, so describe what you changed in musical terms. When the song wants their own voice or playing, ask them to record it with request_take, then wait_for_take. When the person wants to talk to you from the studio, listen with wait_for_message, calling it again whenever it returns, and answer with send_message. The scores guide; the person's taste decides."
 )]
 impl ServerHandler for Studio {}
 
@@ -1799,10 +1897,48 @@ mod tests {
                 "script_reference",
                 "search_recordings",
                 "status",
+                "wait_for_message",
                 "wait_for_pitch_check",
                 "wait_for_take"
             ]
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn an_assistant_waiting_is_said_to_listen_and_hears_what_the_person_writes() {
+        let app = App::new(crate::Settings { library: false, ears: false, auto_render: false, ..Default::default() });
+        let studio = Studio::new(Backend::Local { app: app.clone(), base: "http://127.0.0.1:0".into() });
+        let args = WaitMessageArgs { after: None, seconds: Some(30) };
+        let waiting = tokio::spawn(async move { studio.listen_for("Claude Code".into(), args).await });
+        for _ in 0..200 {
+            if app.state().chat.listening.is_some() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        assert_eq!(app.state().chat.listening.as_deref(), Some("Claude Code"), "the studio says it listens");
+        // another assistant writes meanwhile: the wait goes on, without changing the state itself
+        let other =
+            Command::ChatAnswer { text: "and a riser before it".into(), from: Some("Codex".into()), reply_to: None };
+        assert!(app.command(other).ok);
+        let v = app.version();
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        assert!(app.version() <= v + 1, "the wait spins: version {} after {v}", app.version());
+        assert!(app.command(Command::ChatSay { text: "make the drop hit harder".into() }).ok);
+        let heard = waiting.await.unwrap().unwrap();
+        assert!(heard.contains("2 (the person): make the drop hit harder") && heard.contains("after: 2"), "{heard}");
+        let answer = Command::ChatAnswer {
+            text: "a crash on the one".into(),
+            from: Some("Claude Code".into()),
+            reply_to: Some(2),
+        };
+        assert!(app.command(answer).ok);
+        let said: Vec<(u64, Option<String>, Option<u64>)> =
+            app.state().chat.messages.iter().map(|m| (m.id, m.from.clone(), m.reply_to)).collect();
+        let (codex, claude) = (Some("Codex".to_string()), Some("Claude Code".to_string()));
+        assert_eq!(said, [(1, codex, None), (2, None, None), (3, claude, Some(2))]);
+        assert!(app.command(Command::ClearChat).ok);
+        assert!(app.state().chat.messages.is_empty());
     }
 
     #[test]
@@ -1815,12 +1951,14 @@ mod tests {
     }
 
     /// commands a tool of another name sends
-    const SENT_BY: [(&str, &str); 5] = [
+    const SENT_BY: [(&str, &str); 7] = [
         ("load", "open"),
         ("render", "listen"),
         ("cancel", "stop"),
         ("set_release", "publish"),
         ("write_kit", "publish"),
+        ("chat_listen", "wait_for_message"),
+        ("chat_answer", "send_message"),
     ];
 
     #[test]

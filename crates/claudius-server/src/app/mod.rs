@@ -17,6 +17,7 @@ use claudius_api::*;
 use claudius_session::history::History;
 use claudius_session::views;
 
+mod chat;
 mod commands;
 mod jobs;
 mod library;
@@ -109,6 +110,8 @@ struct Session {
     /// the recording analyzed last, until another is: a song like it is made from it (`Command::SongLike`), and its
     /// audio plays while the studio shows it (`/api/listened`)
     heard: Option<HeardLast>,
+    /// the chat with the assistants
+    chat: chat::Chat,
 }
 
 /// a recording analyzed: what its version of the state was (`ListenedAudio::id`), the name of its file, what was
@@ -242,6 +245,8 @@ impl App {
             let mut s = app.lock();
             s.voice =
                 settings.voice.as_ref().and_then(|p| std::fs::read_to_string(p).ok()).and_then(|t| voice::read(&t));
+            // the chat is kept where the voice is, for as long
+            s.chat = chat::Chat::open(settings.voice.as_ref().and_then(|v| v.parent()).map(|d| d.join("chat.jsonl")));
             s.say(match (&app.lib, claudius_packs::installed().len()) {
                 (Some(_), _) => "sample library: Apple Loops and your folders".to_string(),
                 (None, 0) => "no sample packs, Apple Loops or sample folders found: every sound is synthesized".to_string(),
@@ -390,6 +395,7 @@ impl App {
             exports: self.exports.clone(),
             release,
             take_request: s.take_request.clone(),
+            chat: s.chat.view(),
             pitch_check: s.pitch_check.as_ref().map(|(_, v)| v.clone()),
             voice: s.voice.as_ref().map(|v| v.describe()),
             phone,
