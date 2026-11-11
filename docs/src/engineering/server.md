@@ -86,9 +86,9 @@ nor redo.
 
 Undo, redo and going back are operations of their own, whose changes take the song back or forward; nothing in the
 log is ever taken out or rewritten. Edits made together (`together`, which the palette sends for a request a person
-confirmed) are one operation: the history holds while they are made (`History::hold`) and records them as one edit
-from the song before the first to the song after the last (`History::as_one`). When one of them fails, the song is put
-back and nothing is recorded. The state lists the last 200 (`State::history`, the latest first), each with
+confirmed) are one operation. They are made one after another on a copy of the song (`edit::together`), under the
+edit lock so that no other edit comes between them, and the song they make is committed once. When one of them fails,
+none is made and nothing is recorded. The state lists the last 200 (`State::history`, the latest first), each with
 whether `go_back` can still take the song to before it: an edit among the undo steps. Saving writes the song's own log
 into its folder (`history.jsonl`, one operation a line). Loading the folder
 replays it (`History::open`), so undo and redo carry on as they were. When `blueprint.json` was edited by hand since,

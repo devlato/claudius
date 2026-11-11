@@ -87,6 +87,11 @@ pub struct State {
     pub ears_loading: bool,
     pub can_undo: bool,
     pub can_redo: bool,
+    /// how many edits undo can take back, one at a time, and redo can bring back
+    #[serde(default)]
+    pub undo_steps: usize,
+    #[serde(default)]
+    pub redo_steps: usize,
     /// what undo / redo would take back or bring back ("tempo 124", "mutated: lead: rewrote the part")
     #[serde(default)]
     pub undo_label: Option<String>,

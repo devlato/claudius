@@ -370,6 +370,8 @@ impl App {
             song_version: s.song_version,
             can_undo: s.history.can_undo(),
             can_redo: s.history.can_redo(),
+            undo_steps: s.history.steps().0,
+            redo_steps: s.history.steps().1,
             undo_label: s.history.undo_label(),
             redo_label: s.history.redo_label(),
             history: s.history.done(),

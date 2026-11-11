@@ -441,6 +441,30 @@ pub fn quick_fix(
     claudius::fixes::apply(bp, &claudius::fixes::of(&targets, &measures, bp))
 }
 
+/// The edits `commands` make of `bp`, one after another (`Command::Together`): each as it is made alone, a script run
+/// by `run` (the session's script engine: the song, and the song it makes), the rest in place. Why one of them cannot be
+/// made, when one cannot, and `bp` is then as far as they got: the caller keeps the song from before them.
+pub fn together(
+    commands: &[Command],
+    bp: &mut Blueprint,
+    seed: u64,
+    mut run: impl FnMut(&str, Blueprint) -> Result<Blueprint, String>,
+) -> Result<(), String> {
+    for c in commands {
+        if !c.is_edit() {
+            let name = serde_json::to_value(c).ok().and_then(|v| v["cmd"].as_str().map(str::to_string));
+            return Err(format!("{} is no edit to make together with others", name.unwrap_or_default()));
+        }
+        match script(c, Some(bp), seed) {
+            Some(Ok(s)) => *bp = run(&s.code, bp.clone())?,
+            Some(Err(e)) => return Err(e),
+            None => change(c, bp, seed).unwrap_or_else(|| Err("that is no edit of the song".into())).map(|_| ())?,
+        }
+        bp.check_size()?;
+    }
+    Ok(())
+}
+
 /// What command `cmd` changes in the song `bp` itself, and what to say of it; None when `cmd` is no such edit. `seed`
 /// is the one a track generated or varied takes, when the command names none.
 pub fn change(cmd: &Command, bp: &mut Blueprint, seed: u64) -> Option<Result<String, String>> {

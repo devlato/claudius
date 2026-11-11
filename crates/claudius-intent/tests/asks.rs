@@ -98,6 +98,11 @@ fn song() -> State {
             ),
             done("2@x", "new song: Night Bus — house at 120 BPM in A minor (seed 3)", "a new song: Night Bus house"),
         ],
+        // enough to undo and redo as many as the examples ask
+        can_undo: true,
+        can_redo: true,
+        undo_steps: 12,
+        redo_steps: 5,
         ..State::default()
     }
 }
@@ -244,6 +249,20 @@ const NOTHING: &[&str] = &[
     "new song",
     "what key is it in",
 ];
+
+#[test]
+fn a_request_to_undo_more_than_there_is_undoes_what_there_is_and_none_proposes_nothing() {
+    let asker = Asker::new(None);
+    let state = State { undo_steps: 2, redo_steps: 0, can_undo: true, can_redo: false, ..song() };
+    let undo = propose("undo the last 5 changes", &state, &asker, None);
+    let first = undo.first().expect("a proposal");
+    assert_eq!((first.said.as_str(), first.commands.len()), ("Undo the last 2 changes", 2));
+    assert!(first.detail.starts_with("all there are, of the 5 asked: tempo 124"), "{}", first.detail);
+    assert!(propose("redo that", &state, &asker, None).is_empty(), "nothing to redo");
+    // an older claudius says only whether there is anything to undo
+    let older = State { undo_steps: 0, can_undo: true, ..song() };
+    assert_eq!(propose("undo the last 3", &older, &asker, None)[0].commands.len(), 3);
+}
 
 #[test]
 fn what_claudius_cannot_do_on_the_song_proposes_nothing() {

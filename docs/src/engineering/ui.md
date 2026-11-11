@@ -85,8 +85,9 @@ ask of the song, too (`Answer::proposed`, `claudius_intent::ask::propose` on the
 95%"), what it does to each track, and its commands ([0013](../design/0013-requests.md)). The palette lists them first,
 under What your words ask, and a history row a reading already goes back to before is left out. A proposal's row is
 known by what it says (`do:` and its words), and does its commands only while the answer is for the words typed
-(`Palette::run`). Edits go as one `together`, which the history records as one change named for what the row said.
-Undo, redo and going back go as they are, each its own step (`commands_of`). Enter does the action highlighted as the
+(`Palette::run`). Edits go as one `together`, which the history records as one change named for what the row said,
+and which the studio shows at once, each edit as it shows it alone (`edits::apply`). Undo, redo and going back go as
+they are, each its own step (`commands_of`), as many as the state says there are (`undo_steps`, `redo_steps`). Enter does the action highlighted as the
 palette was last drawn, and an action picked with the arrows stays picked as an answer by meaning ranks the list anew.
 
 The menus are built of `widgets::menu_title` (what the menu acts on, and what that is, faint), `menu_group` (the

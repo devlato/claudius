@@ -438,6 +438,8 @@ impl Host {
             cancellable: self.breeding.is_some(),
             can_undo: self.history.can_undo(),
             can_redo: self.history.can_redo(),
+            undo_steps: self.history.steps().0,
+            redo_steps: self.history.steps().1,
             undo_label: self.history.undo_label(),
             redo_label: self.history.redo_label(),
             history: self.history.done(),
@@ -1116,26 +1118,23 @@ impl Host {
         self.changed(msg)
     }
 
-    /// Edits made as one (`Command::Together`): each as it is made alone, and the history records them as one change
-    /// undo calls `said`; when one fails, the song is as it was before them.
+    /// Edits made as one (`Command::Together`), as the server makes them: each as it is made alone, on the song as the
+    /// ones before left it, and committed once, as one change undo calls `said`; when one fails, none is made.
     fn together(&mut self, said: String, commands: Vec<Command>) -> Reply {
-        if let Some(c) = commands.iter().find(|c| !c.is_edit()) {
-            return self.no(format!("{} is no edit to make together with others", name(c)));
-        }
-        let before = self.bp.clone();
-        self.history.hold();
-        for c in commands {
-            let r = self.run(c);
-            if !r.ok {
-                self.history.as_one(before.clone(), &before, &said);
-                self.bp = before;
-                let mut r = self.changed(format!("{said}: none of it made, as {}", r.message));
-                r.ok = false;
-                return r;
+        let Some(mut bp) = self.bp.clone() else { return self.no("no song yet: start one with a new song") };
+        let before = bp.clone();
+        let lib = self.lib.clone();
+        let run = |code: &str, bp: Blueprint| {
+            script::run(code, Some(bp), lib.clone())?.bp.ok_or_else(|| "the script left no song".to_string())
+        };
+        match edit::together(&commands, &mut bp, self.seed(), run) {
+            Err(e) => self.no(format!("{said}: none of it made, as {e}")),
+            Ok(()) if bp == before => self.ok("nothing changed"),
+            Ok(()) => {
+                bp.lineage.push(said.clone());
+                self.commit_as(Some(bp), said.clone(), said)
             }
         }
-        self.history.as_one(before, &self.bp, &said);
-        self.changed(said)
     }
 
     fn history(&mut self, undo: bool) -> Reply {

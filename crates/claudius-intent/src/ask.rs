@@ -346,7 +346,7 @@ fn read(kind: Kind, q: &str, state: &State, model: Option<&Model>) -> Vec<Propos
         Kind::Undo | Kind::Redo if !cued(kind) => Vec::new(),
         Kind::Undo | Kind::Redo => {
             r.count = Some(count(q).unwrap_or(1));
-            vec![steps(kind, r, state)]
+            steps(kind, r, state).into_iter().collect()
         }
         // back to a change only when asked in words of going back: "new song" names a change too
         Kind::Back if !BACK.iter().any(|w| contains_word(q, w)) => Vec::new(),
@@ -363,10 +363,19 @@ fn read(kind: Kind, q: &str, state: &State, model: Option<&Model>) -> Vec<Propos
 /// the words a request to go back to before a change is asked in
 const BACK: &[&str] = &["before", "back", "rewind", "restore", "revert", "reset", "since", "earlier", "how it was"];
 
-/// undo or redo, as many times as asked
-fn steps(kind: Kind, mut r: Reading, state: &State) -> Proposal {
-    let n = r.count.unwrap_or(1).max(1);
-    let (verb, command) = if kind == Kind::Undo { ("Undo", Command::Undo) } else { ("Redo", Command::Redo) };
+/// undo or redo, as many times as asked or as there are to undo or redo; none when there are none
+fn steps(kind: Kind, mut r: Reading, state: &State) -> Option<Proposal> {
+    let asked = r.count.unwrap_or(1).max(1);
+    let (verb, command, can, there) = match kind {
+        Kind::Undo => ("Undo", Command::Undo, state.can_undo, state.undo_steps),
+        _ => ("Redo", Command::Redo, state.can_redo, state.redo_steps),
+    };
+    // an older claudius says only whether there are any
+    let there = if there == 0 && can { asked } else { there };
+    let n = asked.min(there);
+    if n == 0 {
+        return None;
+    }
     let labels: Vec<&str> = state
         .history
         .iter()
@@ -378,8 +387,13 @@ fn steps(kind: Kind, mut r: Reading, state: &State) -> Proposal {
         1 => (format!("{verb} the last change"), labels.first().map(|l| l.to_string()).unwrap_or_default()),
         n => (format!("{verb} the last {n} changes"), labels.join(", ")),
     };
+    let detail = match (n < asked, detail.is_empty()) {
+        (false, _) => detail,
+        (true, true) => format!("all there are, of the {asked} asked"),
+        (true, false) => format!("all there are, of the {asked} asked: {detail}"),
+    };
     r.count = Some(n);
-    Proposal { said, detail, commands: vec![command; n], reading: r, score: 1.0 }
+    Some(Proposal { said, detail, commands: vec![command; n], reading: r, score: 1.0 })
 }
 
 /// back to before the changes the request describes, one proposal each
