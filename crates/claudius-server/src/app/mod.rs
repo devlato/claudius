@@ -231,7 +231,7 @@ impl App {
                 .voice
                 .as_ref()
                 .and_then(|p| std::fs::read_to_string(p).ok())
-                .and_then(|t| serde_json::from_str(&t).ok());
+                .and_then(|t| claudius::voice::singer::Voice::from_settings(&t));
             s.say(match (&app.lib, claudius_packs::installed().len()) {
                 (Some(_), _) => "sample library: Apple Loops and your folders".to_string(),
                 (None, 0) => "no sample packs, Apple Loops or sample folders found: every sound is synthesized".to_string(),

@@ -59,6 +59,36 @@ impl Default for Voice {
     }
 }
 
+/// the version of the voice file claudius writes (`settings`): 1, the first with one; claudius before 0.6 wrote 0
+pub const VOICE_VERSION: u64 = 1;
+
+impl Voice {
+    /// The voice a settings file holds, as any claudius wrote it (`settings::Fields`): each field read on its own, and
+    /// anyone's where it does not read; none when the file holds no voice, or none heard in any notes.
+    pub fn from_settings(text: &str) -> Option<Voice> {
+        let f = crate::settings::Fields::parse(text);
+        let d = Voice::default();
+        let notes = f.get::<usize>("notes")?;
+        Some(Voice {
+            low: f.or("low", d.low),
+            high: f.or("high", d.high),
+            bias: f.or("bias", d.bias),
+            spread: f.or("spread", d.spread),
+            settle_ms: f.or("settle_ms", d.settle_ms),
+            vibrato_hz: f.or("vibrato_hz", d.vibrato_hz),
+            vibrato_st: f.or("vibrato_st", d.vibrato_st),
+            notes,
+            missed: f.or("missed", d.missed),
+            long: f.or("long", d.long),
+        })
+    }
+
+    /// the settings file of the voice, keeping what the file as it was (`earlier`) holds that this claudius does not
+    pub fn to_settings(&self, earlier: &str) -> String {
+        crate::settings::Fields::parse(earlier).with(self, VOICE_VERSION).to_text()
+    }
+}
+
 /// a note heard against the note meant: where it was sung (the median of its held part), how long it took to settle,
 /// whether it was held long enough to hear a vibrato in, and its vibrato (Hz, semitones either way) where it has one
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -261,6 +291,26 @@ fn erf(x: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_voice_file_any_claudius_wrote_is_read() {
+        // as claudius 0.4 wrote it, before it heard long notes; and 0.5, with them; neither with a version
+        let v04 = r#"{"low": 50.0, "high": 74.0, "bias": [-0.2, -0.1, 0.0], "spread": [0.3, 0.25, 0.3],
+            "settle_ms": 80.0, "vibrato_hz": 5.5, "vibrato_st": 0.2, "notes": 24, "missed": 1}"#;
+        let v04 = Voice::from_settings(v04).unwrap();
+        assert_eq!((v04.low, v04.bias[0], v04.notes, v04.long), (50.0, -0.2, 24, 0));
+        let v05 = Voice::from_settings(&serde_json::to_string(&Voice { long: 6, ..v04.clone() }).unwrap()).unwrap();
+        assert_eq!(v05.long, 6);
+        // a later one's, with a field changed and one this claudius does not know: kept when written again
+        let later = r#"{"version": 4, "low": "C3", "high": 76.0, "notes": 30, "timbre": {"bright": 0.4}}"#;
+        let v = Voice::from_settings(later).unwrap();
+        assert_eq!((v.low, v.high, v.notes), (Voice::default().low, 76.0, 30));
+        let written = v.to_settings(later);
+        assert!(written.contains("\"timbre\"") && written.contains(&format!("\"version\": {VOICE_VERSION}")));
+        assert_eq!(Voice::from_settings(&written), Some(v));
+        assert_eq!(Voice::from_settings("{}"), None, "no voice heard");
+        assert_eq!(Voice::from_settings("not a voice"), None);
+    }
 
     fn heard(meant: f32, sung: f32) -> Heard {
         Heard { meant, sung, settle_ms: 80.0, long: false, vibrato: None }

@@ -103,9 +103,11 @@ impl App {
             return no(said, v);
         }
         if let Some(path) = &self.voice_file {
-            let kept = path.parent().map_or(Ok(()), std::fs::create_dir_all).and_then(|_| {
-                std::fs::write(path, serde_json::to_string_pretty(&heard.voice).unwrap_or_default() + "\n")
-            });
+            let earlier = std::fs::read_to_string(path).unwrap_or_default();
+            let kept = path
+                .parent()
+                .map_or(Ok(()), std::fs::create_dir_all)
+                .and_then(|_| std::fs::write(path, heard.voice.to_settings(&earlier)));
             if let Err(e) = kept {
                 self.update(|s| s.say(format!("cannot keep the voice in {}: {e}", path.display())));
             }

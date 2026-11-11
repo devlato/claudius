@@ -294,13 +294,17 @@ fn settings() -> Map<String, Value> {
         .unwrap_or_default()
 }
 
+/// the version of the file claudius writes (`claudius::settings`): 1, the first with one; before 0.6, 0, its fields
+/// read by name as they are now, and those a later claudius writes kept as they are
+const VERSION: u64 = 1;
+
 fn save(m: &Map<String, Value>) -> Result<()> {
     let path = settings_file().context("no configuration folder to keep the setting in")?;
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    std::fs::write(&path, serde_json::to_string_pretty(m)? + "\n")
-        .with_context(|| format!("cannot write {}", path.display()))
+    let text = claudius::settings::Fields::of(m.clone()).at(VERSION).to_text();
+    std::fs::write(&path, text).with_context(|| format!("cannot write {}", path.display()))
 }
 
 /// what in the environment keeps automatic updates off
