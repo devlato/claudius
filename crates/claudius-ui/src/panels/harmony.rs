@@ -15,7 +15,7 @@ fn chip(ui: &mut Ui, numeral: &str, chord: Option<&str>, color: Color32) -> egui
     let (rect, resp) = ui.allocate_exact_size(vec2(86.0, 50.0), Sense::click());
     let hovered = resp.hovered();
     let valid = chord.is_some();
-    let base = if valid { color } else { theme::BAD };
+    let base = if valid { color } else { theme::BAD.into() };
     ui.painter().rect(
         rect,
         8.0,
@@ -24,13 +24,13 @@ fn chip(ui: &mut Ui, numeral: &str, chord: Option<&str>, color: Color32) -> egui
         StrokeKind::Inside,
     );
     ui.painter().rect_filled(Rect::from_min_size(rect.min + vec2(8.0, 0.0), vec2(rect.width() - 16.0, 3.0)), 1.5, base);
-    ui.painter().text(rect.center() - vec2(0.0, 7.0), Align2::CENTER_CENTER, numeral, theme::prop(17.0), TEXT);
+    ui.painter().text(rect.center() - vec2(0.0, 7.0), Align2::CENTER_CENTER, numeral, theme::prop(17.0), TEXT.into());
     ui.painter().text(
         rect.center() + vec2(0.0, 13.0),
         Align2::CENTER_CENTER,
         chord.unwrap_or("?"),
         theme::prop(11.0),
-        if valid { TEXT_DIM } else { theme::BAD },
+        if valid { TEXT_DIM } else { theme::BAD }.into(),
     );
     resp
 }
@@ -208,7 +208,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                                 Align2::CENTER_CENTER,
                                 "+",
                                 theme::prop(22.0),
-                                if add.hovered() { ACCENT } else { TEXT_FAINT },
+                                if add.hovered() { ACCENT } else { TEXT_FAINT }.into(),
                             );
                             let add = add.on_hover_text("add a chord");
                             egui::Popup::from_toggle_button_response(&add)
@@ -317,7 +317,7 @@ fn form_strip(ui: &mut Ui, song: &claudius_api::SongView, out: &mut Vec<Command>
         let fill = if resp.hovered() { theme::alpha(color, 0.55) } else { theme::alpha(color, 0.34) };
         ui.painter().rect(r, 4.0, fill, Stroke::new(1.0, theme::alpha(color, 0.9)), StrokeKind::Inside);
         let clip = ui.painter().with_clip_rect(r.shrink(2.0));
-        clip.text(r.left_top() + vec2(5.0, 9.0), Align2::LEFT_CENTER, &s.name, theme::prop(10.5), TEXT);
+        clip.text(r.left_top() + vec2(5.0, 9.0), Align2::LEFT_CENTER, &s.name, theme::prop(10.5), TEXT.into());
         clip.text(r.left_bottom() + vec2(5.0, -10.0), Align2::LEFT_CENTER, prog, theme::prop(13.0), Color32::WHITE);
         let resp =
             resp.on_hover_text(format!("{} ({} bars) plays progression {prog}: click to switch", s.name, s.bars));
@@ -328,7 +328,7 @@ fn form_strip(ui: &mut Ui, song: &claudius_api::SongView, out: &mut Vec<Command>
                 let text = RichText::new(format!("{name}  {}", chords.join(" "))).color(if on {
                     theme::prog_color(name)
                 } else {
-                    TEXT
+                    TEXT.into()
                 });
                 if ui.add_enabled(!on, egui::Button::new(text)).clicked() {
                     out.push(SectionEdit { prog: Some(name.clone()), ..Default::default() }.at(i));

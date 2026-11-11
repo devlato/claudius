@@ -98,7 +98,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     Align2::LEFT_CENTER,
                     label,
                     theme::prop(if bar_start { 11.0 } else { 9.5 }),
-                    if bar_start { TEXT } else { TEXT_FAINT },
+                    if bar_start { TEXT } else { TEXT_FAINT }.into(),
                 );
             }
             // the playhead column (when the section under it plays this variant)
@@ -146,14 +146,14 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 p.rect_filled(
                     Rect::from_min_size(label.min, vec2(4.0, label.height())),
                     2.0,
-                    if muted { TEXT_FAINT } else { color },
+                    if muted { TEXT_FAINT.into() } else { color },
                 );
                 p.text(
                     label.left_center() + vec2(12.0, 0.0),
                     Align2::LEFT_CENTER,
                     &d.lane,
                     theme::prop(12.5),
-                    if muted { TEXT_FAINT } else { TEXT },
+                    if muted { TEXT_FAINT } else { TEXT }.into(),
                 );
                 let note = if !has {
                     "uses main".to_string()
@@ -182,7 +182,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         Align2::RIGHT_CENTER,
                         note,
                         theme::prop(9.5),
-                        if has { TEXT_FAINT } else { theme::WARN },
+                        if has { TEXT_FAINT } else { theme::WARN }.into(),
                     );
                 }
                 // mute and solo buttons
@@ -192,7 +192,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 p.rect(
                     m,
                     3.0,
-                    if is_muted { theme::alpha(theme::BAD, 0.75) } else { WELL },
+                    if is_muted { theme::alpha(theme::BAD, 0.75) } else { WELL.into() },
                     Stroke::new(1.0, LINE),
                     StrokeKind::Inside,
                 );
@@ -201,7 +201,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     Align2::CENTER_CENTER,
                     "M",
                     theme::prop(10.0),
-                    if is_muted { Color32::WHITE } else { TEXT_DIM },
+                    if is_muted { Color32::WHITE } else { TEXT_DIM.into() },
                 );
                 p.rect(sb, 3.0, if soloed { theme::SOLO } else { WELL }, Stroke::new(1.0, LINE), StrokeKind::Inside);
                 p.text(
@@ -209,7 +209,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     Align2::CENTER_CENTER,
                     "S",
                     theme::prop(10.0),
-                    if soloed { Color32::BLACK } else { TEXT_DIM },
+                    if soloed { Color32::BLACK } else { TEXT_DIM.into() },
                 );
                 if resp.clicked()
                     && let Some(pos) = resp.interact_pointer_pos()

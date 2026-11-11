@@ -9,6 +9,7 @@ use serde::Serialize;
 use serde_json::{Map, Value};
 
 use crate::panels::{self, Tab, View};
+use crate::theme::Look;
 
 /// where the settings are kept
 pub const KEY: &str = "settings";
@@ -28,6 +29,8 @@ pub struct Prefs {
     pub sevenths: bool,
     pub tour_done: bool,
     pub record: panels::record::Settings,
+    /// dark, light, or as the system is: since version 1
+    pub look: Look,
 }
 
 impl Default for Prefs {
@@ -49,6 +52,7 @@ impl Prefs {
             sevenths: v.sevenths,
             tour_done: v.tour_done,
             record: v.record.settings.clone(),
+            look: v.look,
         }
     }
 
@@ -86,6 +90,7 @@ impl Prefs {
                 grid: record.or("grid", r.grid),
                 style: record.or("style", r.style),
             },
+            look: f.or("look", d.look),
         }
     }
 
@@ -144,6 +149,7 @@ mod tests {
 
     use super::{KEY, Prefs, VERSION};
     use crate::panels::Tab;
+    use crate::theme::Look;
 
     #[derive(Default)]
     struct Kept(HashMap<String, String>);
@@ -180,6 +186,11 @@ mod tests {
         assert_eq!(Prefs::load(Some(&storage)), p, "kept again as JSON, and read as they were");
         assert!(storage.get_string(KEY).is_some_and(|t| t.contains(&format!("\"version\": {VERSION}"))));
         assert_eq!(Prefs::load(None), Prefs::default(), "nothing kept: the defaults");
+        assert_eq!(p.look, Look::System, "settings from before the looks wear the system's");
+        let light = Prefs::load(Some(&kept(KEY, r#"{"version": 1, "look": "light"}"#)));
+        assert_eq!(light.look, Look::Light);
+        let unknown = Prefs::load(Some(&kept(KEY, r#"{"version": 1, "look": "sepia"}"#)));
+        assert_eq!(unknown.look, Look::System, "a look this studio has not");
     }
 
     #[test]

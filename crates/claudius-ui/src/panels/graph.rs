@@ -73,8 +73,12 @@ fn flow(ui: &mut Ui, cx: &mut Cx, large: bool) {
         return;
     };
     let graph = song.graph();
-    let side =
-        egui::Frame::new().fill(theme::PANEL).inner_margin(egui::Margin { left: 12, right: 6, top: 4, bottom: 4 });
+    let side = egui::Frame::new().fill(theme::PANEL.into()).inner_margin(egui::Margin {
+        left: 12,
+        right: 6,
+        top: 4,
+        bottom: 4,
+    });
     let panel = egui::Panel::right("graph-inspector")
         .frame(side)
         .resizable(true)
@@ -100,7 +104,7 @@ fn graph_view(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph, large: b
     let mut fit = false;
     let hint = "drag to move, scroll or pinch to zoom, right-click a node for its menu";
     // the hint in words where the graph is wide enough for it, else behind a help mark
-    let spelt = ui.painter().layout_no_wrap(hint.to_string(), theme::prop(11.5), TEXT_DIM).size().x;
+    let spelt = ui.painter().layout_no_wrap(hint.to_string(), theme::prop(11.5), TEXT_DIM.into()).size().x;
     let spelt_out = spelt + 180.0 <= ui.available_width();
     widgets::row(ui, "graph_head", |ui, side| {
         if side == widgets::Side::Left {
@@ -162,7 +166,7 @@ fn canvas(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph) -> Option<St
     for e in &graph.edges {
         let (Some(a), Some(b)) = (rect_of(&e.from), rect_of(&e.to)) else { continue };
         let (color, width, label) = match e.kind {
-            EdgeKind::Signal => (LINE, 1.6, None),
+            EdgeKind::Signal => (LINE.into(), 1.6, None),
             EdgeKind::Send(x) => (theme::alpha(ACCENT, 0.55), 1.0, Some(format!("send {:.0}%", x * 100.0))),
             EdgeKind::Sidechain(x) => (theme::alpha(theme::BAD, 0.5), 1.0, Some(format!("duck {:.0}%", x * 100.0))),
         };
@@ -192,11 +196,11 @@ fn canvas(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph) -> Option<St
         let rect = node_rect(n.column, n.row, n.detail.len());
         let r = ui.interact(rect, ui.scope_id().with(("graph-node", &n.id)), Sense::click());
         let selected = cx.view.graph.selected.as_ref() == Some(&n.id);
-        let (fill, mark) = match &n.kind {
-            NodeKind::Track(name) => (RAISED, layer_color(song, name)),
-            NodeKind::Effect(..) => (WELL, TEXT_FAINT),
-            NodeKind::Bus(_) | NodeKind::Return(_) => (theme::mix(RAISED, ACCENT, 0.08), ACCENT),
-            NodeKind::Master | NodeKind::Out => (theme::mix(RAISED, ACCENT, 0.2), ACCENT),
+        let (fill, mark): (Color32, Color32) = match &n.kind {
+            NodeKind::Track(name) => (RAISED.into(), layer_color(song, name)),
+            NodeKind::Effect(..) => (WELL.into(), TEXT_FAINT.into()),
+            NodeKind::Bus(_) | NodeKind::Return(_) => (theme::mix(RAISED, ACCENT, 0.08), ACCENT.into()),
+            NodeKind::Master | NodeKind::Out => (theme::mix(RAISED, ACCENT, 0.2), ACCENT.into()),
         };
         let stroke = if selected {
             Stroke::new(2.0, ACCENT)
@@ -207,16 +211,16 @@ fn canvas(ui: &mut Ui, cx: &mut Cx, song: &SongView, graph: &Graph) -> Option<St
         };
         painter.rect(rect, 6.0, fill, stroke, StrokeKind::Inside);
         painter.rect_filled(Rect::from_min_size(rect.min + vec2(0.0, 6.0), vec2(3.0, rect.height() - 12.0)), 1.0, mark);
-        let title = egui::text::LayoutJob::simple_singleline(n.title.clone(), theme::prop(12.5), TEXT);
+        let title = egui::text::LayoutJob::simple_singleline(n.title.clone(), theme::prop(12.5), TEXT.into());
         let galley = ui.fonts_mut(|f| f.layout_job(title));
-        painter.with_clip_rect(rect.shrink(4.0)).galley(rect.min + vec2(10.0, 7.0), galley, TEXT);
+        painter.with_clip_rect(rect.shrink(4.0)).galley(rect.min + vec2(10.0, 7.0), galley, TEXT.into());
         for (k, line) in n.detail.iter().enumerate() {
             painter.with_clip_rect(rect.shrink(4.0)).text(
                 rect.min + vec2(10.0, 26.0 + 14.0 * k as f32),
                 Align2::LEFT_TOP,
                 line,
                 theme::prop(10.0),
-                TEXT_DIM,
+                TEXT_DIM.into(),
             );
         }
         if r.clicked() {

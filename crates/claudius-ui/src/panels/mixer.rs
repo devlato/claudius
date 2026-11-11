@@ -76,14 +76,14 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
 }
 
 /// a small toggle button on the strip (mute, solo)
-fn toggle(ui: &mut Ui, on: bool, label: &str, color: Color32, width: f32, tip: &str) -> egui::Response {
+fn toggle(ui: &mut Ui, on: bool, label: &str, color: impl Into<Color32>, width: f32, tip: &str) -> egui::Response {
     let (rect, r) = ui.allocate_exact_size(vec2(width, 20.0), Sense::click());
     let fill = if on {
-        color
+        color.into()
     } else if r.hovered() {
-        theme::RAISED_HI
+        theme::RAISED_HI.into()
     } else {
-        WELL
+        WELL.into()
     };
     ui.painter().rect(rect, 4.0, fill, Stroke::new(1.0, LINE), StrokeKind::Inside);
     ui.painter().text(
@@ -91,7 +91,7 @@ fn toggle(ui: &mut Ui, on: bool, label: &str, color: Color32, width: f32, tip: &
         Align2::CENTER_CENTER,
         label,
         theme::prop(10.5),
-        if on { Color32::BLACK } else { TEXT_DIM },
+        if on { Color32::BLACK } else { TEXT_DIM.into() },
     );
     r.on_hover_text(tip)
 }
@@ -106,8 +106,11 @@ fn strip(
     out: &mut Vec<Command>,
 ) {
     let stroke = if t.solo { Stroke::new(1.5, theme::SOLO) } else { Stroke::new(1.0, LINE_SOFT) };
-    let frame =
-        egui::Frame::new().fill(RAISED).corner_radius(6).inner_margin(egui::Margin::symmetric(4, 6)).stroke(stroke);
+    let frame = egui::Frame::new()
+        .fill(RAISED.into())
+        .corner_radius(6)
+        .inner_margin(egui::Margin::symmetric(4, 6))
+        .stroke(stroke);
     let silenced = solo && !t.solo;
     let resp = frame.show(ui, |ui| {
         ui.vertical(|ui| {
@@ -243,9 +246,9 @@ fn strip(
     });
     let rect = resp.response.rect;
     let top = if t.solo {
-        theme::SOLO
+        theme::SOLO.into()
     } else if t.muted || silenced {
-        TEXT_FAINT
+        TEXT_FAINT.into()
     } else {
         color
     };

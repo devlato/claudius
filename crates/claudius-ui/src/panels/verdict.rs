@@ -22,7 +22,7 @@ fn ring(ui: &mut Ui, total: f64) {
     ui.painter().add(Shape::line(pts(0.0, tau), Stroke::new(7.0, WELL)));
     ui.painter().add(Shape::line(pts(0.0, tau * (total / 100.0).clamp(0.0, 1.0) as f32), Stroke::new(7.0, color)));
     ui.painter().text(c - vec2(0.0, 4.0), Align2::CENTER_CENTER, format!("{total:.0}"), theme::prop(26.0), color);
-    ui.painter().text(c + vec2(0.0, 17.0), Align2::CENTER_CENTER, "/ 100", theme::prop(10.0), TEXT_FAINT);
+    ui.painter().text(c + vec2(0.0, 17.0), Align2::CENTER_CENTER, "/ 100", theme::prop(10.0), TEXT_FAINT.into());
 }
 
 /// two z-scores on one axis: what it is vs what it might be mistaken for
@@ -35,8 +35,8 @@ fn versus(ui: &mut Ui, a_label: &str, a: f64, b_label: &str, b: f64, good_is_a: 
     let axis_y = rect.top() + 12.0;
     p.line_segment([pos2(rect.left(), axis_y), pos2(rect.right(), axis_y)], Stroke::new(2.0, WELL));
     p.line_segment([pos2(x(0.0), axis_y - 4.0), pos2(x(0.0), axis_y + 4.0)], Stroke::new(1.0, TEXT_FAINT));
-    let ca = if good_is_a { theme::GOOD } else { theme::BAD };
-    let cb = if good_is_a { theme::WARN } else { theme::GOOD };
+    let ca: Color32 = if good_is_a { theme::GOOD } else { theme::BAD }.into();
+    let cb: Color32 = if good_is_a { theme::WARN } else { theme::GOOD }.into();
     for (z, c) in [(a, ca), (b, cb)] {
         p.circle_filled(pos2(x(z), axis_y), 5.0, c);
     }
@@ -98,9 +98,10 @@ fn tonal_balance(ui: &mut Ui, v: &VerdictView) {
             Align2::CENTER_CENTER,
             format!("{db:.0}"),
             theme::prop(9.0),
-            TEXT_DIM,
+            TEXT_DIM.into(),
         );
-        p.text(pos2(bar.center().x, rect.bottom() - 7.0), Align2::CENTER_CENTER, *name, theme::prop(9.0), TEXT_FAINT);
+        let faint = TEXT_FAINT.into();
+        p.text(pos2(bar.center().x, rect.bottom() - 7.0), Align2::CENTER_CENTER, *name, theme::prop(9.0), faint);
     }
 }
 
@@ -240,7 +241,7 @@ fn details(ui: &mut Ui, v: &VerdictView) {
             ui.horizontal_wrapped(|ui| {
                 ui.label(small("sounds like"));
                 for s in &e.sounds_like {
-                    widgets::pill(ui, s, theme::mix(theme::LCD_TEXT, TEXT, 0.3));
+                    widgets::pill(ui, s, theme::mix(theme::INFO, TEXT, 0.3));
                 }
             });
         }

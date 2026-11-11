@@ -47,7 +47,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         });
                 });
         }
-        egui::Frame::new().fill(theme::WELL).corner_radius(6).inner_margin(8).show(ui, |ui| {
+        egui::Frame::new().fill(theme::WELL.into()).corner_radius(6).inner_margin(8).show(ui, |ui| {
             egui::ScrollArea::vertical().id_salt("log").auto_shrink([false, false]).stick_to_bottom(true).show(
                 ui,
                 |ui| {

@@ -63,8 +63,8 @@ const STATISTICS_TIP: &str = "a few anonymous counts, each at most once a day: t
 
 impl Studio {
     pub fn new(cc: &eframe::CreationContext<'_>, connection: Connection) -> Studio {
-        theme::apply(&cc.egui_ctx);
         let prefs = crate::settings::Prefs::load(cc.storage);
+        theme::apply(&cc.egui_ctx, prefs.look);
         let mut view = View {
             tab: prefs.tab,
             volume: prefs.volume,
@@ -74,6 +74,7 @@ impl Studio {
             children: prefs.children,
             sevenths: prefs.sevenths,
             tour_done: prefs.tour_done,
+            look: prefs.look,
             ..View::default()
         };
         view.record.settings = prefs.record;
@@ -849,6 +850,15 @@ impl Studio {
                         self.view.assistants.show();
                         ui.close();
                     }
+                    ui.menu_button("Look", |ui| {
+                        for look in theme::Look::ALL {
+                            if ui.radio(self.view.look == look, look.name()).clicked() {
+                                self.view.look = look;
+                                theme::set_look(ui.ctx(), look);
+                                ui.close();
+                            }
+                        }
+                    });
                     if let Some(native) = &self.native {
                         if ui.button("Check for updates").clicked() {
                             native.check_for_updates();
@@ -893,7 +903,7 @@ impl Studio {
                     "Space play · arrows pick a cell · Enter on/off · B paint · L loop · {cmd}+Z undo · Shift+{cmd}+Z redo"
                 );
                 // the keys, when there is room for them beside what the bar says on its left
-                let width = ui.painter().layout_no_wrap(keys.clone(), theme::prop(11.0), TEXT_FAINT).size().x;
+                let width = ui.painter().layout_no_wrap(keys.clone(), theme::prop(11.0), TEXT_FAINT.into()).size().x;
                 if ui.available_width() > width + 12.0 {
                     ui.label(RichText::new(keys).size(11.0).color(TEXT_FAINT));
                 }
@@ -914,10 +924,10 @@ impl Studio {
             let mut tab_button = |ui: &mut Ui, tab: Tab| {
                 let active = *chosen == tab;
                 let font = if active { theme::medium(13.0) } else { theme::prop(13.0) };
-                let galley = ui.painter().layout_no_wrap(tab.label().to_string(), font, TEXT);
+                let galley = ui.painter().layout_no_wrap(tab.label().to_string(), font, TEXT.into());
                 let (rect, r) = ui.allocate_exact_size(vec2(galley.size().x + 28.0, 30.0), Sense::click());
                 let fill = if active {
-                    PANEL
+                    PANEL.into()
                 } else if r.hovered() {
                     theme::mix(PANEL, BG, 0.15)
                 } else {
@@ -928,11 +938,11 @@ impl Studio {
                     ui.painter().rect_filled(egui::Rect::from_min_size(rect.min, vec2(rect.width(), 2.0)), 1.0, ACCENT);
                 }
                 let c = if active {
-                    TEXT
+                    TEXT.into()
                 } else if r.hovered() {
                     theme::mix(TEXT_DIM, TEXT, 0.5)
                 } else {
-                    TEXT_DIM
+                    TEXT_DIM.into()
                 };
                 ui.painter().galley(rect.center() - galley.size() / 2.0, galley, c);
                 if r.on_hover_text(tab.tip()).clicked() {
@@ -1065,13 +1075,15 @@ impl eframe::App for Studio {
 
     fn ui(&mut self, ui: &mut Ui, frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+        // the look this frame is drawn in: the person's, or the system's as it is now
+        theme::follow(&ctx);
         let now = ctx.input(|i| i.time);
         self.view.anchors = Default::default();
         self.shortcuts(&ctx);
         #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
         self.run_plan(&ctx, now);
 
-        let bar = egui::Frame::new().fill(PANEL).inner_margin(Margin::symmetric(12, 0));
+        let bar = egui::Frame::new().fill(PANEL.into()).inner_margin(Margin::symmetric(12, 0));
         {
             let mut cx = Cx {
                 state: &mut self.state,
@@ -1116,8 +1128,10 @@ impl eframe::App for Studio {
             (self.view.anchors.side, self.view.anchors.editors) = (None, None);
         }
         if self.state.song.is_some() && !self.view.flow_large {
-            let side =
-                egui::Frame::new().fill(PANEL).inner_margin(Margin::same(10)).stroke(Stroke::new(1.0, LINE_SOFT));
+            let side = egui::Frame::new()
+                .fill(PANEL.into())
+                .inner_margin(Margin::same(10))
+                .stroke(Stroke::new(1.0, LINE_SOFT));
             let shown = egui::Panel::right("side")
                 .frame(side)
                 .resizable(true)
@@ -1143,7 +1157,7 @@ impl eframe::App for Studio {
                     });
                 });
             self.view.anchors.side = Some(shown.response.rect);
-            let dock = egui::Frame::new().fill(PANEL).stroke(Stroke::new(1.0, LINE));
+            let dock = egui::Frame::new().fill(PANEL.into()).stroke(Stroke::new(1.0, LINE));
             let dock_size = (ui.available_height() * 0.38).clamp(200.0, 360.0);
             let shown = egui::Panel::bottom("dock")
                 .frame(dock)
@@ -1154,7 +1168,7 @@ impl eframe::App for Studio {
             self.view.anchors.editors = Some(shown.response.rect);
         }
 
-        egui::CentralPanel::default().frame(egui::Frame::new().fill(BG)).show(ui, |ui| {
+        egui::CentralPanel::default().frame(egui::Frame::new().fill(BG.into())).show(ui, |ui| {
             if self.state.song.is_some() {
                 let mut cx = Cx {
                     state: &mut self.state,
@@ -1356,7 +1370,7 @@ impl eframe::App for Studio {
     }
 
     fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
-        BG.to_normalized_gamma_f32()
+        Color32::from(BG).to_normalized_gamma_f32()
     }
 
     #[cfg(target_arch = "wasm32")]

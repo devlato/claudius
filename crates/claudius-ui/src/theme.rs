@@ -1,48 +1,285 @@
-//! The studio look: a dark, slightly blue-grey palette, an amber accent, and one colour per track role and section
-//! kind so the same instrument reads the same everywhere (arrangement, sequencer, mixer, parts).
+//! The studio's looks: a dark one, slightly blue-grey, and a light one, both with an amber accent, and one colour per
+//! track role and section kind so the same instrument reads the same everywhere (arrangement, sequencer, mixer, parts).
+//! The person picks dark, light or as the system is (`Look`), which egui follows, in a browser too. Each colour the
+//! studio draws with is a `Swatch`, named for what it is for, which turns into the look's own wherever it is drawn.
 
-use eframe::egui::{self, Color32, CornerRadius, FontFamily, FontId, Margin, Shadow, Stroke, TextStyle, Theme, Vec2};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use eframe::egui::{
+    self, Color32, CornerRadius, FontFamily, FontId, Margin, Shadow, Stroke, TextStyle, Theme, ThemePreference, Vec2,
+};
+use serde::{Deserialize, Serialize};
 
 const fn rgb(r: u8, g: u8, b: u8) -> Color32 {
     Color32::from_rgb(r, g, b)
 }
 
-pub const BG: Color32 = rgb(16, 18, 23);
-pub const PANEL: Color32 = rgb(23, 26, 32);
-pub const RAISED: Color32 = rgb(32, 36, 44);
-pub const RAISED_HI: Color32 = rgb(42, 47, 57);
-pub const WELL: Color32 = rgb(11, 13, 17);
-/// a control's fill, a step above every panel's (a raised one's too), and under the pointer
-pub const CONTROL: Color32 = rgb(39, 44, 54);
-pub const CONTROL_HI: Color32 = rgb(50, 56, 68);
-pub const LINE: Color32 = rgb(46, 51, 62);
-pub const LINE_SOFT: Color32 = rgb(31, 35, 43);
-pub const TEXT: Color32 = rgb(221, 225, 232);
-pub const TEXT_DIM: Color32 = rgb(143, 151, 164);
-/// the quietest text: still 4.5:1 against a panel, as small text needs to be read
-pub const TEXT_FAINT: Color32 = rgb(124, 131, 145);
-pub const ACCENT: Color32 = rgb(255, 163, 72);
-pub const GOOD: Color32 = rgb(84, 212, 134);
-pub const WARN: Color32 = rgb(246, 192, 74);
-pub const BAD: Color32 = rgb(240, 94, 86);
-pub const LCD: Color32 = rgb(9, 15, 17);
-pub const LCD_TEXT: Color32 = rgb(132, 232, 255);
-pub const PLAYHEAD: Color32 = rgb(255, 236, 214);
+/// The colours of a look, one for each thing drawn: what the swatches turn into.
+pub struct Palette {
+    pub bg: Color32,
+    pub panel: Color32,
+    pub raised: Color32,
+    pub raised_hi: Color32,
+    pub well: Color32,
+    pub control: Color32,
+    pub control_hi: Color32,
+    pub line: Color32,
+    pub line_soft: Color32,
+    pub text: Color32,
+    pub text_dim: Color32,
+    pub text_faint: Color32,
+    pub accent: Color32,
+    pub good: Color32,
+    pub warn: Color32,
+    pub bad: Color32,
+    pub lcd: Color32,
+    pub lcd_text: Color32,
+    /// the LCD's cyan off the LCD, as the song's genre and the verdict's notes are drawn
+    pub info: Color32,
+    pub playhead: Color32,
+    pub solo: Color32,
+    /// the strongest ink, which the text and icons of a control under the pointer are drawn in: white on the dark
+    /// look, black on the light one
+    pub strong: Color32,
+    /// what egui draws with itself: the faintest fill, the outline under the pointer, a pressed control's fill, and
+    /// how dark the shadows are
+    faint_bg: Color32,
+    hover_line: Color32,
+    pressed: Color32,
+    shadow: u8,
+}
+
+/// the dark look
+pub const DARK: Palette = Palette {
+    bg: rgb(16, 18, 23),
+    panel: rgb(23, 26, 32),
+    raised: rgb(32, 36, 44),
+    raised_hi: rgb(42, 47, 57),
+    well: rgb(11, 13, 17),
+    control: rgb(39, 44, 54),
+    control_hi: rgb(50, 56, 68),
+    line: rgb(46, 51, 62),
+    line_soft: rgb(31, 35, 43),
+    text: rgb(221, 225, 232),
+    text_dim: rgb(143, 151, 164),
+    text_faint: rgb(134, 141, 155),
+    accent: rgb(255, 163, 72),
+    good: rgb(84, 212, 134),
+    warn: rgb(246, 192, 74),
+    bad: rgb(240, 94, 86),
+    lcd: rgb(9, 15, 17),
+    lcd_text: rgb(132, 232, 255),
+    info: rgb(132, 232, 255),
+    playhead: rgb(255, 236, 214),
+    solo: rgb(255, 212, 64),
+    faint_bg: rgb(21, 24, 30),
+    hover_line: rgb(66, 73, 88),
+    pressed: rgb(60, 67, 81),
+    strong: Color32::WHITE,
+    shadow: 150,
+};
+
+/// The light look: the same parts, light, with text dark enough to read on every panel (the faintest at 4.5:1, as
+/// small text needs), and the accent and the verdict's colours darkened to read on white. The LCD stays a display.
+pub const LIGHT: Palette = Palette {
+    bg: rgb(229, 232, 238),
+    panel: rgb(241, 243, 246),
+    raised: rgb(252, 252, 253),
+    raised_hi: rgb(234, 237, 242),
+    well: rgb(255, 255, 255),
+    control: rgb(226, 230, 236),
+    control_hi: rgb(214, 219, 227),
+    line: rgb(196, 202, 212),
+    line_soft: rgb(218, 223, 230),
+    text: rgb(24, 28, 36),
+    text_dim: rgb(76, 84, 98),
+    text_faint: rgb(92, 100, 114),
+    accent: rgb(180, 86, 0),
+    good: rgb(16, 120, 58),
+    warn: rgb(140, 92, 0),
+    bad: rgb(196, 40, 34),
+    lcd: rgb(9, 15, 17),
+    lcd_text: rgb(132, 232, 255),
+    info: rgb(0, 112, 140),
+    playhead: rgb(196, 80, 0),
+    solo: rgb(176, 128, 0),
+    faint_bg: rgb(235, 238, 242),
+    hover_line: rgb(170, 178, 190),
+    pressed: rgb(200, 206, 216),
+    strong: Color32::BLACK,
+    shadow: 40,
+};
+
+/// A colour of the looks, by what it is for: the look's own wherever it is drawn (`Color32::from`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Swatch {
+    Bg,
+    Panel,
+    Raised,
+    RaisedHi,
+    Well,
+    ControlHi,
+    Line,
+    LineSoft,
+    Text,
+    TextDim,
+    TextFaint,
+    Accent,
+    Good,
+    Warn,
+    Bad,
+    Lcd,
+    LcdText,
+    Info,
+    Playhead,
+    Solo,
+    Strong,
+}
+
+impl Swatch {
+    /// its colour in `p`
+    pub fn of(self, p: &Palette) -> Color32 {
+        match self {
+            Swatch::Bg => p.bg,
+            Swatch::Panel => p.panel,
+            Swatch::Raised => p.raised,
+            Swatch::RaisedHi => p.raised_hi,
+            Swatch::Well => p.well,
+            Swatch::ControlHi => p.control_hi,
+            Swatch::Line => p.line,
+            Swatch::LineSoft => p.line_soft,
+            Swatch::Text => p.text,
+            Swatch::TextDim => p.text_dim,
+            Swatch::TextFaint => p.text_faint,
+            Swatch::Accent => p.accent,
+            Swatch::Good => p.good,
+            Swatch::Warn => p.warn,
+            Swatch::Bad => p.bad,
+            Swatch::Lcd => p.lcd,
+            Swatch::LcdText => p.lcd_text,
+            Swatch::Info => p.info,
+            Swatch::Playhead => p.playhead,
+            Swatch::Solo => p.solo,
+            Swatch::Strong => p.strong,
+        }
+    }
+}
+
+impl From<Swatch> for Color32 {
+    fn from(s: Swatch) -> Color32 {
+        s.of(palette())
+    }
+}
+
+pub const BG: Swatch = Swatch::Bg;
+pub const PANEL: Swatch = Swatch::Panel;
+pub const RAISED: Swatch = Swatch::Raised;
+pub const RAISED_HI: Swatch = Swatch::RaisedHi;
+pub const WELL: Swatch = Swatch::Well;
+/// a control's fill under the pointer, a step above every panel's (a raised one's too)
+pub const CONTROL_HI: Swatch = Swatch::ControlHi;
+pub const LINE: Swatch = Swatch::Line;
+pub const LINE_SOFT: Swatch = Swatch::LineSoft;
+pub const TEXT: Swatch = Swatch::Text;
+pub const TEXT_DIM: Swatch = Swatch::TextDim;
+/// the quietest text: still 4.5:1 against every panel, a raised one's too, as small text needs to be read
+pub const TEXT_FAINT: Swatch = Swatch::TextFaint;
+pub const ACCENT: Swatch = Swatch::Accent;
+pub const GOOD: Swatch = Swatch::Good;
+pub const WARN: Swatch = Swatch::Warn;
+pub const BAD: Swatch = Swatch::Bad;
+pub const LCD: Swatch = Swatch::Lcd;
+pub const LCD_TEXT: Swatch = Swatch::LcdText;
+/// the LCD's cyan off the LCD: dark teal on the light look
+pub const INFO: Swatch = Swatch::Info;
+pub const PLAYHEAD: Swatch = Swatch::Playhead;
+/// the solo colour
+pub const SOLO: Swatch = Swatch::Solo;
+/// the strongest ink: white on the dark look, black on the light one
+pub const STRONG: Swatch = Swatch::Strong;
+
+/// which look the studio wears: dark, light, or as the system is
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Look {
+    Dark,
+    Light,
+    #[default]
+    System,
+}
+
+impl Look {
+    pub const ALL: [Look; 3] = [Look::Dark, Look::Light, Look::System];
+
+    /// what egui follows
+    pub fn preference(self) -> ThemePreference {
+        match self {
+            Look::Dark => ThemePreference::Dark,
+            Look::Light => ThemePreference::Light,
+            Look::System => ThemePreference::System,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Look::Dark => "Dark",
+            Look::Light => "Light",
+            Look::System => "As the system is",
+        }
+    }
+}
+
+/// the light look is the one drawn with (`follow`)
+static LIGHT_IN_USE: AtomicBool = AtomicBool::new(false);
+
+/// the look drawn with
+pub fn palette() -> &'static Palette {
+    if light() { &LIGHT } else { &DARK }
+}
+
+/// whether the light look is the one drawn with
+pub fn light() -> bool {
+    LIGHT_IN_USE.load(Ordering::Relaxed)
+}
+
+/// Takes the look egui draws with this frame, which follows the person's (and the system's), for the swatches to turn
+/// into: at the start of every frame.
+pub fn follow(ctx: &egui::Context) {
+    LIGHT_IN_USE.store(ctx.theme() == Theme::Light, Ordering::Relaxed);
+}
 
 /// `a` moved towards `b` by `t` (0..1)
-pub fn mix(a: Color32, b: Color32, t: f32) -> Color32 {
+pub fn mix(a: impl Into<Color32>, b: impl Into<Color32>, t: f32) -> Color32 {
+    let (a, b): (Color32, Color32) = (a.into(), b.into());
     let t = t.clamp(0.0, 1.0);
     let l = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * t).round() as u8;
     Color32::from_rgba_unmultiplied(l(a.r(), b.r()), l(a.g(), b.g()), l(a.b(), b.b()), l(a.a(), b.a()))
 }
 
+/// `c` moved by `t` (0..1) towards the look's strongest ink, as a control under the pointer or pressed is: lighter on
+/// the dark look, darker on the light one
+pub fn lit(c: impl Into<Color32>, t: f32) -> Color32 {
+    mix(c, STRONG, t)
+}
+
 /// the colour with an alpha of `a` (0..1)
-pub fn alpha(c: Color32, a: f32) -> Color32 {
+pub fn alpha(c: impl Into<Color32>, a: f32) -> Color32 {
+    let c: Color32 = c.into();
     Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), (a.clamp(0.0, 1.0) * 255.0) as u8)
+}
+
+/// a role's, a section's or a progression's colour as the look draws it: a shade darker on the light one, where the
+/// colours stand on light panels
+fn ink(c: Color32) -> Color32 {
+    if light() { mix(c, Color32::BLACK, 0.22) } else { c }
 }
 
 /// a colour for a track role or a layer / lane / track name
 pub fn role_color(name: &str) -> Color32 {
+    ink(role_hue(name))
+}
+
+fn role_hue(name: &str) -> Color32 {
     let n = name.to_ascii_lowercase();
     let has = |k: &str| n.contains(k);
     if has("kick") || n == "bd" {
@@ -85,7 +322,7 @@ pub fn role_color(name: &str) -> Color32 {
 
 /// a colour for a section kind (intro, verse, build, drop, break, hook, groove, outro)
 pub fn section_color(kind: &str) -> Color32 {
-    match kind {
+    ink(match kind {
         "intro" => rgb(74, 122, 186),
         "verse" => rgb(84, 162, 112),
         "groove" => rgb(46, 166, 160),
@@ -95,7 +332,7 @@ pub fn section_color(kind: &str) -> Color32 {
         "break" => rgb(138, 104, 204),
         "outro" => rgb(98, 110, 136),
         _ => rgb(122, 132, 152),
-    }
+    })
 }
 
 /// a colour per progression name (A, B, C ...)
@@ -109,22 +346,19 @@ pub fn prog_color(name: &str) -> Color32 {
         rgb(150, 210, 100),
     ];
     let i = name.bytes().next().map_or(0, |b| b.to_ascii_uppercase().wrapping_sub(b'A') as usize);
-    PALETTE[i % PALETTE.len()]
+    ink(PALETTE[i % PALETTE.len()])
 }
-
-/// the solo colour
-pub const SOLO: Color32 = rgb(255, 212, 64);
 
 /// red .. amber .. green for a 0..1 quality
 pub fn score_color(q: f64) -> Color32 {
     if q >= 0.8 {
-        GOOD
+        GOOD.into()
     } else if q >= 0.6 {
         mix(WARN, GOOD, ((q - 0.6) / 0.2) as f32)
     } else if q >= 0.4 {
         mix(BAD, WARN, ((q - 0.4) / 0.2) as f32)
     } else {
-        BAD
+        BAD.into()
     }
 }
 
@@ -163,87 +397,138 @@ pub fn fonts() -> egui::FontDefinitions {
     f
 }
 
-pub fn apply(ctx: &egui::Context) {
+/// The studio's fonts and both looks' styles, and the look the person picked (`set_look` changes it after).
+pub fn apply(ctx: &egui::Context, look: Look) {
     ctx.set_fonts(fonts());
-    ctx.set_theme(Theme::Dark);
-    ctx.style_mut_of(Theme::Dark, |style| {
-        style.text_styles = [
-            (TextStyle::Heading, medium(16.0)),
-            (TextStyle::Body, prop(13.5)),
-            (TextStyle::Button, medium(13.0)),
-            (TextStyle::Small, prop(11.5)),
-            (TextStyle::Monospace, mono(12.5)),
-        ]
-        .into();
-        let s = &mut style.spacing;
-        s.item_spacing = Vec2::new(6.0, 6.0);
-        s.button_padding = Vec2::new(10.0, 4.0);
-        s.interact_size = Vec2::new(36.0, 24.0);
-        s.slider_width = 120.0;
-        s.slider_rail_height = 4.0;
-        s.combo_width = 120.0;
-        s.icon_width = 15.0;
-        s.icon_width_inner = 9.0;
-        s.window_margin = Margin::same(14);
-        s.menu_margin = Margin::same(6);
-        s.scroll.bar_width = 8.0;
-        s.scroll.floating = true;
-        style.interaction.tooltip_delay = 0.35;
+    ctx.style_mut_of(Theme::Dark, |style| styled(style, &DARK, true));
+    ctx.style_mut_of(Theme::Light, |style| styled(style, &LIGHT, false));
+    set_look(ctx, look);
+}
 
-        let v = &mut style.visuals;
-        v.dark_mode = true;
-        v.override_text_color = None;
-        v.panel_fill = PANEL;
-        v.window_fill = RAISED;
-        v.window_stroke = Stroke::new(1.0, LINE_SOFT);
-        v.window_corner_radius = CornerRadius::same(12);
-        v.menu_corner_radius = CornerRadius::same(8);
-        v.window_shadow = Shadow { offset: [0, 12], blur: 32, spread: 0, color: Color32::from_black_alpha(150) };
-        v.popup_shadow = Shadow { offset: [0, 6], blur: 18, spread: 0, color: Color32::from_black_alpha(130) };
-        // a slim slider handle, as a fader's cap, rather than a ball
-        v.handle_shape = egui::style::HandleShape::Rect { aspect_ratio: 0.55 };
-        v.extreme_bg_color = WELL;
-        v.text_edit_bg_color = Some(WELL);
-        v.faint_bg_color = rgb(21, 24, 30);
-        v.code_bg_color = WELL;
-        v.hyperlink_color = ACCENT;
-        v.warn_fg_color = WARN;
-        v.error_fg_color = BAD;
-        v.selection.bg_fill = alpha(ACCENT, 0.32);
-        v.selection.stroke = Stroke::new(1.0, ACCENT);
-        v.slider_trailing_fill = true;
-        v.striped = false;
-        v.indent_has_left_vline = false;
+/// the look the studio wears from now on
+pub fn set_look(ctx: &egui::Context, look: Look) {
+    ctx.set_theme(look.preference());
+    follow(ctx);
+}
 
-        // quiet controls: a fill a step above the panel and no outline until the pointer is on them
-        let radius = CornerRadius::same(6);
-        let w = &mut v.widgets;
-        w.noninteractive.bg_fill = PANEL;
-        w.noninteractive.weak_bg_fill = PANEL;
-        w.noninteractive.bg_stroke = Stroke::new(1.0, LINE_SOFT);
-        w.noninteractive.fg_stroke = Stroke::new(1.0, TEXT_DIM);
-        w.noninteractive.corner_radius = radius;
-        w.inactive.bg_fill = CONTROL;
-        w.inactive.weak_bg_fill = CONTROL;
-        w.inactive.bg_stroke = Stroke::new(1.0, Color32::TRANSPARENT);
-        w.inactive.fg_stroke = Stroke::new(1.0, TEXT);
-        w.inactive.corner_radius = radius;
-        w.hovered.bg_fill = CONTROL_HI;
-        w.hovered.weak_bg_fill = CONTROL_HI;
-        w.hovered.bg_stroke = Stroke::new(1.0, rgb(66, 73, 88));
-        w.hovered.fg_stroke = Stroke::new(1.5, Color32::WHITE);
-        w.hovered.corner_radius = radius;
-        w.hovered.expansion = 0.0;
-        w.active.bg_fill = rgb(60, 67, 81);
-        w.active.weak_bg_fill = rgb(60, 67, 81);
-        w.active.bg_stroke = Stroke::new(1.0, alpha(ACCENT, 0.8));
-        w.active.fg_stroke = Stroke::new(1.5, Color32::WHITE);
-        w.active.corner_radius = radius;
-        w.active.expansion = 0.0;
-        w.open.bg_fill = CONTROL_HI;
-        w.open.weak_bg_fill = CONTROL_HI;
-        w.open.bg_stroke = Stroke::new(1.0, LINE);
-        w.open.fg_stroke = Stroke::new(1.0, TEXT);
-        w.open.corner_radius = radius;
-    });
+/// a look's style: the studio's sizes and spacing, and its colours
+fn styled(style: &mut egui::Style, p: &Palette, dark: bool) {
+    style.text_styles = [
+        (TextStyle::Heading, medium(16.0)),
+        (TextStyle::Body, prop(13.5)),
+        (TextStyle::Button, medium(13.0)),
+        (TextStyle::Small, prop(11.5)),
+        (TextStyle::Monospace, mono(12.5)),
+    ]
+    .into();
+    let s = &mut style.spacing;
+    s.item_spacing = Vec2::new(6.0, 6.0);
+    s.button_padding = Vec2::new(10.0, 4.0);
+    s.interact_size = Vec2::new(36.0, 24.0);
+    s.slider_width = 120.0;
+    s.slider_rail_height = 4.0;
+    s.combo_width = 120.0;
+    s.icon_width = 15.0;
+    s.icon_width_inner = 9.0;
+    s.window_margin = Margin::same(14);
+    s.menu_margin = Margin::same(6);
+    s.scroll.bar_width = 8.0;
+    s.scroll.floating = true;
+    style.interaction.tooltip_delay = 0.35;
+
+    let v = &mut style.visuals;
+    v.dark_mode = dark;
+    v.override_text_color = None;
+    v.panel_fill = p.panel;
+    v.window_fill = p.raised;
+    v.window_stroke = Stroke::new(1.0, p.line_soft);
+    v.window_corner_radius = CornerRadius::same(12);
+    v.menu_corner_radius = CornerRadius::same(8);
+    v.window_shadow = Shadow { offset: [0, 12], blur: 32, spread: 0, color: Color32::from_black_alpha(p.shadow) };
+    let popup = Color32::from_black_alpha(p.shadow.saturating_sub(20));
+    v.popup_shadow = Shadow { offset: [0, 6], blur: 18, spread: 0, color: popup };
+    // a slim slider handle, as a fader's cap, rather than a ball
+    v.handle_shape = egui::style::HandleShape::Rect { aspect_ratio: 0.55 };
+    v.extreme_bg_color = p.well;
+    v.text_edit_bg_color = Some(p.well);
+    v.faint_bg_color = p.faint_bg;
+    v.code_bg_color = p.well;
+    v.hyperlink_color = p.accent;
+    v.warn_fg_color = p.warn;
+    v.error_fg_color = p.bad;
+    v.selection.bg_fill = alpha(p.accent, 0.32);
+    v.selection.stroke = Stroke::new(1.0, p.accent);
+    v.slider_trailing_fill = true;
+    v.striped = false;
+    v.indent_has_left_vline = false;
+
+    // quiet controls: a fill a step above the panel and no outline until the pointer is on them
+    let radius = CornerRadius::same(6);
+    let w = &mut v.widgets;
+    w.noninteractive.bg_fill = p.panel;
+    w.noninteractive.weak_bg_fill = p.panel;
+    w.noninteractive.bg_stroke = Stroke::new(1.0, p.line_soft);
+    w.noninteractive.fg_stroke = Stroke::new(1.0, p.text_dim);
+    w.noninteractive.corner_radius = radius;
+    w.inactive.bg_fill = p.control;
+    w.inactive.weak_bg_fill = p.control;
+    w.inactive.bg_stroke = Stroke::new(1.0, Color32::TRANSPARENT);
+    w.inactive.fg_stroke = Stroke::new(1.0, p.text);
+    w.inactive.corner_radius = radius;
+    w.hovered.bg_fill = p.control_hi;
+    w.hovered.weak_bg_fill = p.control_hi;
+    w.hovered.bg_stroke = Stroke::new(1.0, p.hover_line);
+    w.hovered.fg_stroke = Stroke::new(1.5, p.strong);
+    w.hovered.corner_radius = radius;
+    w.hovered.expansion = 0.0;
+    w.active.bg_fill = p.pressed;
+    w.active.weak_bg_fill = p.pressed;
+    w.active.bg_stroke = Stroke::new(1.0, alpha(p.accent, 0.8));
+    w.active.fg_stroke = Stroke::new(1.5, p.strong);
+    w.active.corner_radius = radius;
+    w.active.expansion = 0.0;
+    w.open.bg_fill = p.control_hi;
+    w.open.weak_bg_fill = p.control_hi;
+    w.open.bg_stroke = Stroke::new(1.0, p.line);
+    w.open.fg_stroke = Stroke::new(1.0, p.text);
+    w.open.corner_radius = radius;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{DARK, LIGHT, Palette};
+    use eframe::egui::Color32;
+
+    /// WCAG's contrast of two colours, 1 to 21
+    fn contrast(a: Color32, b: Color32) -> f32 {
+        let lum = |c: Color32| {
+            let ch = |x: u8| {
+                let x = f32::from(x) / 255.0;
+                if x <= 0.039_28 { x / 12.92 } else { ((x + 0.055) / 1.055).powf(2.4) }
+            };
+            0.2126 * ch(c.r()) + 0.7152 * ch(c.g()) + 0.0722 * ch(c.b())
+        };
+        let (x, y) = (lum(a), lum(b));
+        (x.max(y) + 0.05) / (x.min(y) + 0.05)
+    }
+
+    #[test]
+    fn text_reads_on_every_panel_of_both_looks() {
+        for (name, p) in [("dark", &DARK), ("light", &LIGHT)] {
+            let p: &Palette = p;
+            for (under, bg) in [("bg", p.bg), ("panel", p.panel), ("raised", p.raised), ("well", p.well)] {
+                for (what, fg, least) in
+                    [("text", p.text, 7.0), ("text_dim", p.text_dim, 4.5), ("faint", p.text_faint, 4.5)]
+                {
+                    let c = contrast(fg, bg);
+                    assert!(c >= least, "{name}: {what} on {under} is {c:.1}:1, below {least}:1");
+                }
+            }
+            let marks = [("accent", p.accent), ("good", p.good), ("warn", p.warn), ("bad", p.bad), ("info", p.info)];
+            for (what, fg) in marks {
+                let c = contrast(fg, p.panel);
+                assert!(c >= 3.0, "{name}: {what} on a panel is {c:.1}:1, below the 3:1 a control needs");
+            }
+        }
+    }
 }
