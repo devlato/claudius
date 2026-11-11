@@ -312,10 +312,28 @@ how it was before it, which undoes it and everything since. Redo brings them bac
 Undo can still take back, by what they changed: tracks added or taken out and what they play, a tempo made faster, a
 track made louder, a key change, a section added.
 
+### Asking in your own words
+
+The palette also does what you ask of the song, in plain words: "more reverb on the snare", "lets increase overload
+for guitar track to 95%", "swap all toms for snares", "cut the guitar from 1:02", "undo the last 5 changes", "mute
+everything except the vocals", "make it 128", "put it in D minor". What claudius read your words to ask comes first,
+under **What your words ask**, as a button that says what it changes from what to what: "Increase guitar's drive from
+20% to 95%". Nothing changes until you pick one. When your words could mean more than one thing (two toms for "the
+tom"), each reading is a button of its own. Pick one with the arrows and Enter, or click it, and undo takes it back in
+one step, however many tracks it changed. Words that ask nothing claudius can do, or name nothing in the song, find
+actions as before.
+
+It reads requests to change a track's volume, drive, reverb, delay or pan, by an amount ("by 3 dB"), to a value ("to
+-6 dB", "to 60%"), or by your feel ("the bass is a bit loud", "the vocals sound too dry"). It changes the tempo or the
+key, swaps a track's sound ("make the bass a reese"), cuts tracks from a time to the end, mutes, unmutes, solos or
+removes them, and undoes, redoes or goes back to before a change ("go back to before we added the whistles"). A
+request that asks two things at once ("louder, with more reverb") is read as one of them. Ask for the other next.
+
 Names are found at once. What your words mean is found by a small model that runs on your computer, on any processor
 and without a graphics card, in a fraction of a millisecond: Model2Vec's potion-base-8M, 8 MB as claudius keeps it,
 which claudius downloads from Hugging Face the first time you type in the palette (the demo fetches it from the site).
-Until it is there, and without a network, the palette finds actions by name, and says so in its last line. An action
+Until it is there, and without a network, the palette finds actions by name and reads requests by their words, and says
+so in its last line. An action
 found by what your words mean, rather than by its name, says so when you point at it. What you type in the palette
 stays on your computer.
 
@@ -327,7 +345,7 @@ section's under Hear and Arrange, with the item that removes it in red at the en
 
 | key | |
 |---|---|
-| Cmd+K | the command palette: every action, by its name or in your own words (Ctrl+K on Windows and Linux) |
+| Cmd+K | the command palette: every action, by its name or in your own words, and what you ask of the song (Ctrl+K on Windows and Linux) |
 | Space | play or pause |
 | Home | back to the start |
 | L | loop the song or the selected section |

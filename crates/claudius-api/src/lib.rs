@@ -2221,8 +2221,51 @@ pub enum Command {
     GoBack {
         to: String,
     },
+    /// Edits of the song made as one change, which the history records as one and undo takes back together, `said`
+    /// what undo calls it: what a request in plain words asked, as the palette read it and the person confirmed it
+    /// ("Mute kick, snare and hat"). Edits only (`Command::is_edit`), none of undo, redo, go_back or another
+    /// `together`; when one of them fails, the song stays as it was.
+    Together {
+        said: String,
+        commands: Vec<Command>,
+    },
     /// stop a running render / mutate / evolve job
     Cancel,
+}
+
+impl Command {
+    /// whether it is an edit of the song, made at once and recorded as one change: what `together` makes as one
+    pub fn is_edit(&self) -> bool {
+        matches!(
+            self,
+            Command::SetTempo { .. }
+                | Command::SetKey { .. }
+                | Command::SetSwing { .. }
+                | Command::SetProgression { .. }
+                | Command::SetDrumPattern { .. }
+                | Command::SetPart { .. }
+                | Command::AddTrack { .. }
+                | Command::Harmonize { .. }
+                | Command::SwapSound { .. }
+                | Command::GenerateTrack { .. }
+                | Command::VaryTrack { .. }
+                | Command::RemoveTrack { .. }
+                | Command::SetNotes { .. }
+                | Command::SetMix { .. }
+                | Command::SetLane { .. }
+                | Command::SetTrig { .. }
+                | Command::RunScript { .. }
+                | Command::SetSection { .. }
+                | Command::AddSection { .. }
+                | Command::RemoveSection { .. }
+                | Command::MoveSection { .. }
+                | Command::ToggleLayer { .. }
+                | Command::SetDrumStep { .. }
+                | Command::SetFx { .. }
+                | Command::SetLayers { .. }
+                | Command::AddHits { .. }
+        )
+    }
 }
 
 fn four() -> usize {

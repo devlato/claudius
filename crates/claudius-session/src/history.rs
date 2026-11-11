@@ -293,6 +293,8 @@ pub struct History {
     redo: Vec<Step>,
     /// the command being run, which an edit it makes is recorded as
     doing: Option<String>,
+    /// edits are being made as one (`hold`), which `as_one` records
+    held: bool,
 }
 
 struct Step {
@@ -306,7 +308,15 @@ type Replayed = (Value, String, OpId);
 
 impl Default for History {
     fn default() -> History {
-        History { replica: replica(), time: 0, log: Vec::new(), undo: Vec::new(), redo: Vec::new(), doing: None }
+        History {
+            replica: replica(),
+            time: 0,
+            log: Vec::new(),
+            undo: Vec::new(),
+            redo: Vec::new(),
+            doing: None,
+            held: false,
+        }
     }
 }
 
@@ -327,7 +337,25 @@ impl History {
         self.edit(before, after, label, true)
     }
 
+    /// Edits made from now are one change (`Command::Together`): none is recorded until `as_one` records them all.
+    pub fn hold(&mut self) {
+        self.held = true;
+    }
+
+    /// The edits made since `hold`, which changed the song from `before` to `after`, as one edit undo calls `label`;
+    /// none when they changed nothing (or were taken back).
+    pub fn as_one(&mut self, before: Option<Blueprint>, after: &Option<Blueprint>, label: &str) {
+        self.held = false;
+        if before != *after {
+            self.edit(before, after, label, false);
+        }
+    }
+
     fn edit(&mut self, before: Option<Blueprint>, after: &Option<Blueprint>, label: &str, whole: bool) -> OpId {
+        // made as one with others: `as_one` records it
+        if self.held {
+            return OpId { time: self.time, replica: self.replica.clone() };
+        }
         let label: String = label.chars().take(120).collect();
         let kind = Kind::Edit { cmd: self.doing.clone() };
         let id = self.record(kind, label.clone(), "", &before, after, whole);
@@ -342,6 +370,9 @@ impl History {
     /// The edit made last put another song in the song's place (a script that opened one): it is recorded as
     /// `commit_song` records one.
     pub fn began(&mut self, now: &Option<Blueprint>) {
+        if self.held {
+            return;
+        }
         let (Some(op), Some(step)) = (self.log.last_mut(), self.undo.last()) else { return };
         if op.id == step.op {
             op.changes = vec![Change { path: String::new(), before: Some(json(&step.song)), after: Some(json(now)) }];

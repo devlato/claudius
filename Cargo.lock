@@ -901,6 +901,7 @@ dependencies = [
 name = "claudius-intent"
 version = "0.5.0"
 dependencies = [
+ "claudius-api",
  "serde",
  "serde_json",
 ]

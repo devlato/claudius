@@ -571,6 +571,42 @@ async fn a_song_goes_back_to_before_a_change_and_opens_again_with_its_history() 
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+#[test]
+fn edits_made_together_are_one_change_undo_takes_back_at_once_and_none_is_made_when_one_fails() {
+    let app = quiet();
+    let new = Command::NewSong {
+        genre: "house".into(),
+        seed: Some(3),
+        bpm: None,
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+        complexity: None,
+    };
+    assert!(app.command(new).ok);
+    let song = |app: &App| app.state().song.map(|s| (s.bpm, s.key)).unwrap();
+    let was = song(&app);
+    let said = "Change the tempo to 131 BPM and the key to D minor";
+    let both = vec![Command::SetTempo { bpm: 131.0 }, Command::SetKey { key: "D minor".into() }];
+    let r = app.command(Command::Together { said: said.into(), commands: both });
+    assert!(r.ok, "{}", r.message);
+    assert_eq!(song(&app), (131.0, "D minor".to_string()));
+    let st = app.state();
+    assert_eq!((st.history.len(), st.history[0].label.as_str()), (2, said), "one change: {:?}", st.history);
+    assert_eq!(st.undo_label.as_deref(), Some(said));
+    assert!(app.command(Command::Undo).ok);
+    assert_eq!(song(&app), was, "undo takes both back");
+    // a key no song is in: the tempo before it is not made either, and redo still brings back what was undone
+    let wrong = vec![Command::SetTempo { bpm: 140.0 }, Command::SetKey { key: "the key of H".into() }];
+    let r = app.command(Command::Together { said: "faster, in H".into(), commands: wrong });
+    assert!(!r.ok && r.message.contains("none of it made"), "{}", r.message);
+    assert_eq!(song(&app), was);
+    assert_eq!(app.state().redo_label.as_deref(), Some(said));
+    let r = app.command(Command::Together { said: "undo".into(), commands: vec![Command::Undo] });
+    assert!(!r.ok && r.message.contains("no edit"), "{}", r.message);
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn a_render_exports_by_command_and_as_a_download() {
     let app = app();

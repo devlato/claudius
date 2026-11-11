@@ -4,8 +4,10 @@
 //! its name with the words it goes by: "make it louder" finds the mixer and "sing over it" the Record window, though
 //! they share no word with either's name.
 
+use claudius_api::State;
 use serde::{Deserialize, Serialize};
 
+use crate::ask::{Asker, Proposal, propose};
 use crate::catalogue::Entry;
 use crate::index::Index;
 use crate::model::Model;
@@ -31,7 +33,8 @@ pub struct Found {
 
 /// What words found, as the engine answers the studio: the words, the actions they found, the best first, the
 /// changes made to the song they found, which the song can go back to before (`done`: each change's id, what undo calls
-/// it as its `name`, and what it changed as its `place`), and whether they were found by meaning as well as by name (by
+/// it as its `name`, and what it changed as its `place`), what they ask of the song read as what claudius would do for
+/// it, for the person to confirm (`proposed`, `ask`), and whether they were found by meaning as well as by name (by
 /// name only until the embedding model is there).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Answer {
@@ -39,7 +42,34 @@ pub struct Answer {
     pub found: Vec<Found>,
     #[serde(default)]
     pub done: Vec<Found>,
+    #[serde(default)]
+    pub proposed: Vec<Proposal>,
     pub by_meaning: bool,
+}
+
+/// What `query` finds on the song of `state`, as the palette shows it: at most `limit` of the actions, the changes
+/// made to the song it could go back to before, and what it asks of the song.
+pub fn answer(
+    query: &str,
+    limit: usize,
+    state: &State,
+    finder: &Finder,
+    asker: &Asker,
+    model: Option<&Model>,
+) -> Answer {
+    let reachable: Vec<Item> = state
+        .history
+        .iter()
+        .filter(|d| d.can_go_back)
+        .map(|d| Item { id: &d.id, name: &d.label, words: &d.said })
+        .collect();
+    Answer {
+        query: query.to_string(),
+        found: finder.find(query, model, limit),
+        done: find_among(query, &reachable, model, DONE),
+        proposed: propose(query, state, asker, model),
+        by_meaning: finder.by_meaning(),
+    }
 }
 
 /// A change made to the song, as words may find it again: its id, what it is called and what it did.

@@ -42,6 +42,14 @@ The palette finds what you did, too: "go back to before we added the whistles" o
 the change that added them, found by what each change did, by name and by meaning, on your computer. Each change is
 described in the words people use for it ("faster", "louder", "transposed", "a middle eight").
 
+The palette does what you ask of the song in plain words: "more reverb on the snare", "lets increase overload for
+guitar track to 95%", "swap all toms for snares", "cut the guitar from 1:02", "undo the last 5 changes", "mute
+everything except the vocals". It shows a button for each reading of your words, saying what it changes from what to
+what ("Increase guitar's drive from 20% to 95%"), and nothing changes until you pick one. Undo takes it back in one
+step. It reads requests on your computer in a fraction of a millisecond, by their words and by the examples nearest
+them in meaning, and it is measured on 330 example requests, phrased in many ways. The new `together` command makes
+several edits one change, and `GET /api/find` answers with what the words ask (`proposed`).
+
 [claudius radio](https://claudius.devlato.com/radio/): a station of songs claudius writes as it plays them, one genre
 after another, each mixed into the next as a DJ would. Three songs in four mix in beat for beat, written at exactly the
 playing song's tempo (or twice or half of it) and in a key of its notes, coming in on a bar line of its outro with their

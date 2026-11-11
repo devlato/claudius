@@ -94,6 +94,37 @@ impl App {
         }
     }
 
+    /// Edits made as one (`Command::Together`): each as it is made alone, and the history records them as one change
+    /// undo calls `said`; when one fails, the song is as it was before them.
+    fn together(self: &Arc<Self>, said: String, commands: Vec<Command>) -> Reply {
+        if let Some(c) = commands.iter().find(|c| !c.is_edit()) {
+            let name = serde_json::to_value(c).ok().and_then(|v| v["cmd"].as_str().map(str::to_string));
+            return no(format!("{} is no edit to make together with others", name.unwrap_or_default()), self.version());
+        }
+        let before = self.blueprint();
+        self.lock().history.hold();
+        for c in &commands {
+            let r = self.edit(c);
+            if !r.ok {
+                let v = self.update(|s| {
+                    s.history.as_one(before.clone(), &before, &said);
+                    s.bp = before.clone();
+                    s.view = s.bp.as_ref().map(|b| views::song(b, &s.loudness));
+                    s.say(format!("{said}: none of it made, as {}", r.message));
+                    s.version + 1
+                });
+                self.after_change();
+                return no(format!("{said}: none of it made, as {}", r.message), v);
+            }
+        }
+        let v = self.update(|s| {
+            s.history.as_one(before, &s.bp, &said);
+            s.say(said.clone());
+            s.version + 1
+        });
+        ok(said, v)
+    }
+
     /// an edit of the song, as `claudius_session::edit` makes it: a script run on it, or a change in place
     fn edit(self: &Arc<Self>, c: &Command) -> Reply {
         let seed = now_seed();
@@ -283,6 +314,7 @@ impl App {
             | Command::SetFx { .. }
             | Command::SetLayers { .. }
             | Command::AddHits { .. }) => self.edit(&c),
+            Command::Together { said, commands } => self.together(said, commands),
             Command::ExtractGroove { path, name, lanes, bpm } => match self
                 .readable(Path::new(&path))
                 .and_then(|_| audio::load(Path::new(&path)).map_err(|e| format!("cannot read {path}: {e}")))

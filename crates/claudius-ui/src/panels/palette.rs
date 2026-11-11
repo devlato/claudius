@@ -1,8 +1,10 @@
 //! The command palette (Cmd+K, Ctrl+K elsewhere): the studio's actions (`claudius_intent::catalogue`), found from a few
 //! words, each with where it lives in the studio and the key that does it too, as editors' palettes are. The words find
 //! actions by name at once, here; the engine finds them by meaning too, as the person would say it ("make it louder",
-//! "sing over it"), once its embedding model is there, and its answer replaces what the name found. The arrows pick one,
-//! Enter or a click does it, Escape closes the palette.
+//! "sing over it"), once its embedding model is there, and its answer replaces what the name found. A request of the
+//! song in plain words ("more reverb on the snare", "undo the last 3 changes") is read too (`claudius_intent::ask`),
+//! and what claudius would do for it comes first, a button for each reading, which says what it changes from what to
+//! what: nothing is done until one is picked. The arrows pick one, Enter or a click does it, Escape closes the palette.
 
 use claudius_api::Command;
 use claudius_intent::catalogue::ENTRIES;
@@ -47,6 +49,9 @@ const AGAIN: (f64, f64) = (1.0, 60.0);
 /// what a row's id starts with when it goes back to before a change made to the song (`Answer::done`), the change's
 /// id after it
 const BACK: &str = "back:";
+
+/// what a row's id starts with when it does what a request asked (`Answer::proposed`), what it says it does after it
+const DO: &str = "do:";
 
 /// `text`, cut to `most` characters with an ellipsis
 fn brief(text: &str, most: usize) -> String {
@@ -108,23 +113,43 @@ impl Palette {
         }
     }
 
-    /// the actions shown for what is typed: what the engine found for it, by name and by meaning, then the changes
-    /// made to the song it found, to go back to before; or until it answers, what the words find by name here
+    /// the engine's answer, while it is for what is typed
+    fn answered(&self) -> Option<&Answer> {
+        self.answer.as_ref().filter(|a| a.query == self.query.trim())
+    }
+
+    /// the rows shown for what is typed: what the engine read it to ask of the song, then the actions it found, by
+    /// name and by meaning, then the changes made to the song it found, to go back to before (but those a reading goes
+    /// back to before already); or until it answers, what the words find by name here
     fn shown(&self) -> Vec<Found> {
-        match &self.answer {
-            Some(a) if a.query == self.query.trim() => {
-                let back = a.done.iter().map(|d| Found {
-                    id: format!("{BACK}{}", d.id),
-                    name: format!("Go back to before {}", d.name),
-                    place: brief(&d.place, 72),
-                    keys: String::new(),
-                    score: d.score,
-                    by: d.by,
-                });
-                a.found.iter().cloned().chain(back).collect()
-            }
-            _ => Finder::new(ENTRIES, None).find(&self.query, None, SHOWN),
-        }
+        let Some(a) = self.answered() else { return Finder::new(ENTRIES, None).find(&self.query, None, SHOWN) };
+        let asked = a.proposed.iter().map(|p| Found {
+            id: format!("{DO}{}", p.said),
+            name: p.said.clone(),
+            place: brief(&p.detail, 72),
+            keys: String::new(),
+            score: p.score,
+            by: By::Meaning,
+        });
+        let proposed_back = |id: &str| {
+            a.proposed.iter().any(|p| p.commands.iter().any(|c| matches!(c, Command::GoBack { to } if to == id)))
+        };
+        let back = a.done.iter().filter(|d| !proposed_back(&d.id)).map(|d| Found {
+            id: format!("{BACK}{}", d.id),
+            name: format!("Go back to before {}", d.name),
+            place: brief(&d.place, 72),
+            keys: String::new(),
+            score: d.score,
+            by: d.by,
+        });
+        asked.chain(a.found.iter().cloned()).chain(back).collect()
+    }
+
+    /// what the row `id` does: a reading's commands, while it is the engine's for what is typed, or an action's
+    fn run(&self, id: &str) -> Option<Run> {
+        let Some(said) = id.strip_prefix(DO) else { return run_of(id) };
+        let p = self.answered()?.proposed.iter().find(|p| p.said == said)?;
+        Some(Run::Do { said: p.said.clone(), commands: p.commands.clone() })
     }
 }
 
@@ -161,6 +186,21 @@ enum Run {
     Tour,
     /// back to before a change made to the song: its id in the history
     GoBack(String),
+    /// what a request asked, as the person confirmed it: what the button said, and the commands
+    Do {
+        said: String,
+        commands: Vec<Command>,
+    },
+}
+
+/// The commands that do what a request asked: its edits as one change, which undo takes back at once and calls what
+/// the button said; undo, redo and going back as they are, each a step.
+fn commands_of(said: String, commands: Vec<Command>) -> Vec<Command> {
+    if !commands.is_empty() && commands.iter().all(Command::is_edit) {
+        vec![Command::Together { said, commands }]
+    } else {
+        commands
+    }
 }
 
 /// the action of the catalogue's id, or of a row going back to before a change (`BACK`)
@@ -243,7 +283,7 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
     let acts = p.shown();
     // Enter does what was highlighted as the palette was drawn, whatever the list has been ranked as since
     let lit = p.lit.clone().or_else(|| acts.get(p.at).map(|a| a.id.clone()));
-    let mut picked = enter.then(|| lit.as_deref().and_then(run_of)).flatten();
+    let mut picked = enter.then(|| lit.as_deref().and_then(|id| p.run(id))).flatten();
     p.follow(&acts, down, up);
     let cmd = widgets::cmd_key(ctx);
     let shown = egui::Window::new("command palette")
@@ -256,7 +296,7 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
             let field = ui.add(
                 egui::TextEdit::singleline(&mut p.query)
                     .id(field_id)
-                    .hint_text("Type what you want to do: new song, make it louder, sing over it ...")
+                    .hint_text("Type what to do: new song, more reverb on the snare, undo the last 3 changes ...")
                     .desired_width(f32::INFINITY)
                     .font(egui::TextStyle::Heading),
             );
@@ -274,15 +314,24 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
             }
             egui::ScrollArea::vertical().max_height(360.0).auto_shrink([false, true]).show(ui, |ui| {
                 for (i, a) in acts.iter().enumerate() {
-                    // the changes made to the song come after the actions, each with what it changed under it
-                    let back = a.id.starts_with(BACK);
+                    // what the words asked comes first, then the actions, then the changes made to the song, each of
+                    // those with what it changes or changed under it
+                    let (asked, back) = (a.id.starts_with(DO), a.id.starts_with(BACK));
+                    if asked && i == 0 {
+                        ui.label(RichText::new("What your words ask").size(10.5).color(TEXT_FAINT));
+                    }
+                    if !asked && !back && i > 0 && acts[i - 1].id.starts_with(DO) {
+                        ui.add_space(4.0);
+                        ui.label(RichText::new("Actions").size(10.5).color(TEXT_FAINT));
+                    }
                     if back && !acts[..i].iter().any(|b| b.id.starts_with(BACK)) {
                         ui.add_space(4.0);
                         ui.label(RichText::new("In the song's history").size(10.5).color(TEXT_FAINT));
                     }
+                    let under = (asked || back) && !a.place.is_empty();
                     let mut job = LayoutJob::default();
                     job.append(&a.name, 0.0, egui::TextFormat::simple(theme::prop(13.5), TEXT));
-                    if back {
+                    if under {
                         job.append(
                             &format!("\n{}", a.place),
                             0.0,
@@ -293,17 +342,23 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
                     }
                     let keys = a.keys.replace("Cmd", cmd);
                     let r = ui.add_sized(
-                        vec2(ui.available_width(), if back { 40.0 } else { 26.0 }),
+                        vec2(ui.available_width(), if under { 40.0 } else { 26.0 }),
                         egui::Button::new(job)
                             .selected(i == p.at)
                             .shortcut_text(RichText::new(keys).size(11.0).color(TEXT_FAINT)),
                     );
-                    let r = if a.by == By::Meaning { r.on_hover_text("found by what your words mean") } else { r };
+                    let r = match (asked, a.by) {
+                        (true, _) => {
+                            r.on_hover_text("what claudius read your words to ask: nothing changes until you pick it")
+                        }
+                        (_, By::Meaning) => r.on_hover_text("found by what your words mean"),
+                        _ => r,
+                    };
                     if i == p.at && (down || up) {
                         r.scroll_to_me(None);
                     }
                     if r.clicked() {
-                        picked = run_of(&a.id);
+                        picked = p.run(&a.id);
                     }
                 }
             });
@@ -385,6 +440,7 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
         Run::Docs => ctx.open_url(egui::OpenUrl::new_tab(widgets::DOCS)),
         Run::Tour => return Some(Asked::Tour),
         Run::GoBack(to) => cx.out.push(Command::GoBack { to }),
+        Run::Do { said, commands } => cx.out.extend(commands_of(said, commands)),
     }
     None
 }
@@ -415,9 +471,14 @@ mod tests {
             score: 0.8,
             by: By::Meaning,
         };
-        p.heard(Answer { query: "mi".into(), found: vec![found("an old answer")], done: vec![], by_meaning: true });
+        p.heard(Answer {
+            query: "mi".into(),
+            found: vec![found("an old answer")],
+            by_meaning: true,
+            ..Answer::default()
+        });
         assert_eq!(p.shown()[0].name, "Mixer", "an answer for other words is not shown");
-        p.heard(Answer { query: "mix".into(), found: vec![found("Sounds")], done: vec![], by_meaning: true });
+        p.heard(Answer { query: "mix".into(), found: vec![found("Sounds")], by_meaning: true, ..Answer::default() });
         assert_eq!(p.shown()[0].name, "Sounds", "the engine's answer, by meaning too");
         p.query = "mixer".into();
         assert_eq!(p.shown()[0].name, "Mixer", "words typed since are found by name until it answers for them");
@@ -455,7 +516,13 @@ mod tests {
             score: 0.7,
             by: By::Meaning,
         };
-        p.heard(Answer { query: p.query.clone(), found: vec![act("undo")], done: vec![change], by_meaning: true });
+        p.heard(Answer {
+            query: p.query.clone(),
+            found: vec![act("undo")],
+            done: vec![change],
+            by_meaning: true,
+            ..Answer::default()
+        });
         let rows = p.shown();
         assert_eq!(
             rows.iter().map(|r| r.name.as_str()).collect::<Vec<_>>(),
@@ -485,8 +552,8 @@ mod tests {
         let answer = |by_meaning| Answer {
             query: "make it louder".into(),
             found: vec![act("tab:mixer")],
-            done: vec![],
             by_meaning,
+            ..Answer::default()
         };
         p.heard(answer(false));
         assert!(p.ask_again(0.5) && p.ask.is_none(), "not within a second of asking");
@@ -495,5 +562,89 @@ mod tests {
         assert!(!p.ask_again(61.0) && p.ask.is_none(), "a minute after the words were typed, no more");
         p.heard(answer(true));
         assert!(!p.ask_again(2.0) && p.ask.is_none(), "found by meaning: nothing more to ask");
+    }
+
+    fn proposal(said: &str, commands: Vec<Command>) -> claudius_intent::Proposal {
+        claudius_intent::Proposal {
+            said: said.into(),
+            detail: String::new(),
+            commands,
+            reading: claudius_intent::ask::Reading::default(),
+            score: 0.9,
+        }
+    }
+
+    fn muted(track: &str) -> Command {
+        Command::SetMix {
+            track: track.into(),
+            level_db: None,
+            pan: None,
+            reverb: None,
+            delay: None,
+            duck: None,
+            drive_db: None,
+            muted: Some(true),
+            solo: None,
+            bus: None,
+        }
+    }
+
+    #[test]
+    fn what_a_request_asks_comes_first_each_reading_a_row_that_does_its_edits_as_one_change() {
+        let mut p = Palette { query: "mute the drums".into(), ..Palette::default() };
+        let mute = proposal("Mute kick and snare", vec![muted("kick"), muted("snare")]);
+        p.heard(Answer {
+            query: p.query.clone(),
+            found: vec![act("tab:mixer")],
+            proposed: vec![mute],
+            by_meaning: true,
+            ..Answer::default()
+        });
+        let rows = p.shown();
+        assert_eq!(rows.iter().map(|r| r.name.as_str()).collect::<Vec<_>>(), ["Mute kick and snare", "tab:mixer"]);
+        let Some(Run::Do { said, commands }) = p.run(&rows[0].id) else { panic!("{:?}", p.run(&rows[0].id)) };
+        let sent = commands_of(said, commands);
+        assert_eq!(
+            sent,
+            [Command::Together { said: "Mute kick and snare".into(), commands: vec![muted("kick"), muted("snare")] }],
+            "one change, which undo calls what the button said"
+        );
+        p.query = "mute the drum".into();
+        assert!(p.run(&rows[0].id).is_none(), "words typed since: what it read for others is done no more");
+        assert_eq!(
+            commands_of("Undo the last 2 changes".into(), vec![Command::Undo, Command::Undo]),
+            [Command::Undo, Command::Undo],
+            "undo is steps of its own"
+        );
+    }
+
+    #[test]
+    fn a_change_a_reading_goes_back_to_before_is_not_offered_again_in_the_history() {
+        let mut p = Palette { query: "go back to before the whistles".into(), ..Palette::default() };
+        let change = Found {
+            id: "7@4f2a".into(),
+            name: "track whistle".into(),
+            place: "added the whistle track".into(),
+            keys: String::new(),
+            score: 0.7,
+            by: By::Meaning,
+        };
+        let back = proposal("Go back to before track whistle", vec![Command::GoBack { to: "7@4f2a".into() }]);
+        p.heard(Answer {
+            query: p.query.clone(),
+            done: vec![change],
+            proposed: vec![back],
+            by_meaning: true,
+            ..Answer::default()
+        });
+        let rows = p.shown();
+        assert_eq!(rows.iter().map(|r| r.name.as_str()).collect::<Vec<_>>(), ["Go back to before track whistle"]);
+        assert_eq!(
+            p.run(&rows[0].id),
+            Some(Run::Do {
+                said: "Go back to before track whistle".into(),
+                commands: vec![Command::GoBack { to: "7@4f2a".into() }]
+            })
+        );
     }
 }
