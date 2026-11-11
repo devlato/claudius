@@ -1,14 +1,14 @@
-//! The example songs: one in the style of the hits of each scene of the 1990s, 2000s, 2010s and 2020s, a few melodies
-//! in the public domain remade in modern styles, songs built of layered sounds, and studies of famous records, as
-//! scripts (crates/claudius-api/songs/*.rhai) whose comments say how the style is made. The studio's New song dialog,
-//! the assistants' `examples` and `open_example` tools and `claudius examples` open them. They are here, beside the
-//! wire types, because the web studio holds them without the engine, which runs in a worker of its own.
+//! The example songs: one in the style of the hits of each scene of the 1990s, 2000s, 2010s and 2020s, famous music in
+//! the public domain remade in modern styles, and songs built of layered sounds, as scripts
+//! (crates/claudius-api/songs/*.rhai) whose comments say how the style is made. The studio's New song dialog, the
+//! assistants' `examples` and `open_example` tools and `claudius examples` open them. They are here, beside the wire
+//! types, because the web studio holds them without the engine, which runs in a worker of its own.
 //!
-//! None of them copies a record. A style is named for the artists it is heard on, and a study for the record it
-//! studies, but every melody, bass line, chord voicing and drum pattern is the song's own, or a public-domain
-//! composer's: a study takes what a producer may take from a record, its tempo, key, chords, groove, sounds and form.
-//! Each plays only claudius' synths and drum voices, so that it sounds the same everywhere: without the sample packs,
-//! offline, and in the online demo.
+//! None of them copies a record or a song anyone still owns. A style is named for the artists it is heard on, but
+//! every melody, bass line, chord voicing and drum pattern of a song in a style is its own. A classic remade is named
+//! for the piece, and plays the composer's music as it was written, note for note, in an arrangement of its own: only
+//! music long in the public domain, whose composers died more than a century ago. Each plays only claudius' synths and
+//! drum voices, so that it sounds the same everywhere: without the sample packs, offline, and in the online demo.
 
 /// an example song: what it is like, and the script that makes it
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -20,8 +20,7 @@ pub struct Example {
     pub era: &'static str,
     /// the style, in words: "synth-pop, the 80s revival"
     pub style: &'static str,
-    /// the artists the style is heard on, for orientation: the song is none of theirs. Of a classic remade, the piece;
-    /// of a study, the record
+    /// the artists the style is heard on, for orientation: the song is none of theirs. Of a classic remade, the piece
     pub like: &'static str,
     /// the genre its script starts from, `blank(genre)`
     pub genre: &'static str,
@@ -29,23 +28,20 @@ pub struct Example {
 }
 
 impl Example {
-    /// "like Massive Attack, Portishead, Tricky", of a classic remade "on Beethoven's Ode to Joy (1824)", or of a study
-    /// "a study of 50 Cent's In Da Club (2003)"
+    /// "like Massive Attack, Portishead, Tricky", or of a classic remade "on Beethoven's Ode to Joy (1824)"
     pub fn like_words(&self) -> String {
         match self.era {
             CLASSICS => format!("on {}", self.like),
-            STUDIES => format!("a study of {}", self.like),
             _ => format!("like {}", self.like),
         }
     }
 
-    /// what it is: "Bristol trip hop of the 1990s, like Massive Attack, Portishead, Tricky", of a classic remade
-    /// "festival EDM on Beethoven's Ode to Joy (1824)", or of a study "club rap, a study of 50 Cent's In Da Club (2003)"
+    /// what it is: "Bristol trip hop of the 1990s, like Massive Attack, Portishead, Tricky", or of a classic remade
+    /// "festival EDM on Beethoven's Ode to Joy (1824)"
     pub fn in_words(&self) -> String {
         match self.era {
             CLASSICS => format!("{} {}", self.style, self.like_words()),
             LAYERED => format!("{} built of layered sounds, {}", self.style, self.like_words()),
-            STUDIES => format!("{}, {}", self.style, self.like_words()),
             decade => format!("{} of the {decade}, {}", self.style, self.like_words()),
         }
     }
@@ -288,6 +284,69 @@ pub const ALL: &[Example] = &[
         script: include_str!("../songs/mountain_kings.rhai"),
     },
     Example {
+        name: "toccata_and_fugue",
+        title: "Toccata and Fugue in D Minor",
+        era: CLASSICS,
+        style: "rap rock",
+        like: "Bach's Toccata and Fugue in D minor (around 1704)",
+        genre: "art_rock",
+        script: include_str!("../songs/toccata_and_fugue.rhai"),
+    },
+    Example {
+        name: "rondo_alla_turca",
+        title: "Rondo alla Turca",
+        era: CLASSICS,
+        style: "club rap",
+        like: "Mozart's Rondo alla Turca (1783)",
+        genre: "hip_hop",
+        script: include_str!("../songs/rondo_alla_turca.rhai"),
+    },
+    Example {
+        name: "moonlight_sonata",
+        title: "Moonlight Sonata",
+        era: CLASSICS,
+        style: "dark, minimal hip hop",
+        like: "Beethoven's Moonlight Sonata (1801)",
+        genre: "hip_hop",
+        script: include_str!("../songs/moonlight_sonata.rhai"),
+    },
+    Example {
+        name: "fur_elise",
+        title: "Für Elise",
+        era: CLASSICS,
+        style: "minimal electropop",
+        like: "Beethoven's Für Elise (1810)",
+        genre: "hip_hop",
+        script: include_str!("../songs/fur_elise.rhai"),
+    },
+    Example {
+        name: "eine_kleine_nachtmusik",
+        title: "Eine kleine Nachtmusik",
+        era: CLASSICS,
+        style: "synth-pop",
+        like: "Mozart's Eine kleine Nachtmusik (1787)",
+        genre: "synthwave",
+        script: include_str!("../songs/eine_kleine_nachtmusik.rhai"),
+    },
+    Example {
+        name: "morning_mood",
+        title: "Morning Mood",
+        era: CLASSICS,
+        style: "slow-building electronic pop",
+        like: "Grieg's Morning Mood (1875)",
+        genre: "deep_house",
+        script: include_str!("../songs/morning_mood.rhai"),
+    },
+    Example {
+        name: "habanera",
+        title: "Habanera",
+        era: CLASSICS,
+        style: "synth-funk rap",
+        like: "the Habanera from Bizet's Carmen (1875)",
+        genre: "boom_bap",
+        script: include_str!("../songs/habanera.rhai"),
+    },
+    Example {
         name: "neon_rumble",
         title: "Neon Rumble",
         era: LAYERED,
@@ -314,83 +373,16 @@ pub const ALL: &[Example] = &[
         genre: "dnb",
         script: include_str!("../songs/reese_machine.rhai"),
     },
-    Example {
-        name: "in_the_end_study",
-        title: "In the End Study",
-        era: STUDIES,
-        style: "rap rock",
-        like: "Linkin Park's In the End (2000)",
-        genre: "art_rock",
-        script: include_str!("../songs/in_the_end_study.rhai"),
-    },
-    Example {
-        name: "in_da_club_study",
-        title: "In Da Club Study",
-        era: STUDIES,
-        style: "club rap",
-        like: "50 Cent's In Da Club (2003)",
-        genre: "hip_hop",
-        script: include_str!("../songs/in_da_club_study.rhai"),
-    },
-    Example {
-        name: "yonkers_study",
-        title: "Yonkers Study",
-        era: STUDIES,
-        style: "dark, minimal hip hop",
-        like: "Tyler, the Creator's Yonkers (2011)",
-        genre: "hip_hop",
-        script: include_str!("../songs/yonkers_study.rhai"),
-    },
-    Example {
-        name: "bad_guy_study",
-        title: "Bad Guy Study",
-        era: STUDIES,
-        style: "minimal electropop",
-        like: "Billie Eilish's bad guy (2019)",
-        genre: "hip_hop",
-        script: include_str!("../songs/bad_guy_study.rhai"),
-    },
-    Example {
-        name: "anti_hero_study",
-        title: "Anti-Hero Study",
-        era: STUDIES,
-        style: "synth-pop",
-        like: "Taylor Swift's Anti-Hero (2022)",
-        genre: "synthwave",
-        script: include_str!("../songs/anti_hero_study.rhai"),
-    },
-    Example {
-        name: "chihiro_study",
-        title: "Chihiro Study",
-        era: STUDIES,
-        style: "slow-building electronic pop",
-        like: "Billie Eilish's CHIHIRO (2024)",
-        genre: "deep_house",
-        script: include_str!("../songs/chihiro_study.rhai"),
-    },
-    Example {
-        name: "big_poe_study",
-        title: "Big Poe Study",
-        era: STUDIES,
-        style: "synth-funk rap",
-        like: "Tyler, the Creator and Pharrell Williams' BIG POE (2025)",
-        genre: "boom_bap",
-        script: include_str!("../songs/big_poe_study.rhai"),
-    },
 ];
 
-/// the era of the melodies in the public domain remade in a modern style
+/// the era of the famous music in the public domain remade in a modern style, played as it was written
 pub const CLASSICS: &str = "classics remade";
 
 /// the era of the songs built to show layered sounds (`rack()`): a bass, chords or a snare of several sounds at once
 pub const LAYERED: &str = "layered sounds";
 
-/// the era of the studies of famous records: each one's tempo, key, chords, groove, sounds and form, with melodies of
-/// its own
-pub const STUDIES: &str = "famous songs, studied";
-
-/// the eras the examples are of, in order: the decades, the classics remade, the layered sounds, then the studies
-pub const ERAS: [&str; 7] = ["1990s", "2000s", "2010s", "2020s", CLASSICS, LAYERED, STUDIES];
+/// the eras the examples are of, in order: the decades, the classics remade, then the layered sounds
+pub const ERAS: [&str; 6] = ["1990s", "2000s", "2010s", "2020s", CLASSICS, LAYERED];
 
 /// The example asked for by its name or its title, whatever its case, spaces, hyphens or underscores:
 /// `midnight_overdrive`, "Midnight Overdrive", "midnight-overdrive".
@@ -469,18 +461,19 @@ mod tests {
         assert_eq!(decade.as_deref(), Some("Bristol trip hop of the 1990s, like Massive Attack, Portishead, Tricky"));
         let classic = get("joy_machine").map(Example::in_words);
         assert_eq!(classic.as_deref(), Some("festival EDM on Beethoven's Ode to Joy (1824)"));
-        let study = get("in_da_club_study").map(Example::in_words);
-        assert_eq!(study.as_deref(), Some("club rap, a study of 50 Cent's In Da Club (2003)"));
+        let piece = get("Für Elise").map(Example::in_words);
+        assert_eq!(piece.as_deref(), Some("minimal electropop on Beethoven's Für Elise (1810)"));
     }
 
     #[test]
-    fn a_study_names_the_record_it_studies_and_says_its_melodies_are_its_own() {
-        for e in ALL.iter().filter(|e| e.era == STUDIES) {
+    fn a_classic_names_its_composer_and_year_and_says_its_music_is_in_the_public_domain() {
+        for e in ALL.iter().filter(|e| e.era == CLASSICS) {
             let about = notes(e);
             let about = about.split_once("\n\n").map_or(about.as_str(), |(a, _)| a);
-            assert!(about.contains("a production study of") && about.contains("no note of the record's"), "{about}");
-            let whose = e.like.contains("'s ") || e.like.contains("s' ");
-            assert!(whose && e.like.ends_with(')'), "{}: {}", e.name, e.like);
+            assert!(about.contains("in the public domain") && about.contains("original arrangement"), "{about}");
+            let last = e.like.trim_end_matches(')').rsplit(' ').next().unwrap_or_default();
+            let year = last.trim_start_matches('(').parse::<u32>().ok();
+            assert!(e.like.contains("'s ") && year.is_some_and(|y| y < 1900), "{}: {}", e.name, e.like);
         }
     }
 }
