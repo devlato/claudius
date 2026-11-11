@@ -3,8 +3,8 @@
 //! CHANGELOG.md follows Keep a Changelog: `## [Unreleased]` on top, then `## [X.Y.Z] - YYYY-MM-DD` sections, then
 //! the link definitions. Preparing a release turns the commits since the last tag into notes with git-cliff
 //! (cliff.toml), puts them under a new version heading together with anything written under Unreleased by hand, and
-//! leaves Unreleased empty. It also writes the songs the version saves into crates/claudius/tests/compat, which every
-//! later version has to open.
+//! leaves Unreleased empty. It also writes the songs the version saves, with a song's folder and its history, into
+//! crates/claudius/tests/compat, which every later version has to open.
 
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -82,6 +82,10 @@ pub fn prepare(sh: &Shell, bump: &str) -> Result<()> {
     cmd!(sh, "cargo run --quiet --offline -p claudius --no-default-features --features native --example compat_fixtures -- {songs}")
         .run()
         .context("could not write the songs of this version for tests/compat")?;
+    // and the history its song folder keeps (crates/claudius-session/tests/compat.rs)
+    cmd!(sh, "cargo run --quiet --offline -p claudius-session --example compat_history -- {songs}/folder")
+        .run()
+        .context("could not write the history of this version for tests/compat")?;
     let root = crate::root();
     let manifests: Vec<String> = changed
         .iter()

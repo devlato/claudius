@@ -65,9 +65,9 @@ Every pull request is read for these. Pre-empting them in the description saves 
    the engine's main steps against the base; a slowdown the description accepts (`perf: render +20%`) needs its
    reason there.
 9. **Compatibility.** The HTTP API's types and the blueprint format stay readable by older clients and files: every
-   song a release saved still opens (`tests/compat.rs` holds a change to it), and a new field has a serde default. A
-   change songs cannot take as they are raises `BLUEPRINT_FORMAT` with an upgrade step; a breaking change is marked
-   `!` in the title and explained.
+   song a release saved still opens, and so do its song folder and history (the two `tests/compat.rs` hold a change
+   to them), and a new field has a serde default. A change songs cannot take as they are raises `BLUEPRINT_FORMAT`
+   with an upgrade step; a breaking change is marked `!` in the title and explained.
 10. **Dependencies.** A new crate needs a reason, a licence on `deny.toml`'s list (permissive, plus MPL-2.0), and
     preferably no C. Sample data needs a licence that fits [0007](../design/0007-sample-licensing.md).
 11. **The title.** A Conventional Commit that makes sense as a changelog line to someone who uses claudius.

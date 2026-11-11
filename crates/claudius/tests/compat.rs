@@ -53,6 +53,31 @@ fn every_script_an_earlier_release_printed_still_runs_on_its_song() {
     }
 }
 
+/// What every release wrote of a song's folder that claudius reads back (`tests/compat/v<version>/folder/`): from 0.1.0
+/// to 0.5.0, the folder each release's own `claudius make --genre house --seed 7 --short` wrote; after, the folder
+/// `compat_fixtures` writes as the release is prepared.
+#[test]
+fn every_song_folder_an_earlier_release_wrote_still_opens() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/compat");
+    let mut folders: Vec<PathBuf> =
+        std::fs::read_dir(&root).unwrap().flatten().map(|r| r.path().join("folder")).filter(|f| f.is_dir()).collect();
+    folders.sort();
+    assert!(folders.len() >= 5, "the folders of 0.1.0 to 0.5.0 at least: {folders:?}");
+    for folder in folders {
+        let bp = claudius::song::read_blueprint(&folder.join("blueprint.json"))
+            .unwrap_or_else(|e| panic!("{}: the song no longer opens: {e:#}", folder.display()));
+        // as `claudius judge` and `claudius publish` read the session beside the song
+        let text = std::fs::read_to_string(folder.join("project.json")).unwrap();
+        let project: claudius::model::Project = serde_json::from_str(&text)
+            .unwrap_or_else(|e| panic!("{}: project.json no longer reads: {e}", folder.display()));
+        assert_eq!(project.genre, "house", "{}", folder.display());
+        assert!(project.bars >= 16 && project.tracks.iter().any(|t| !t.notes.is_empty()), "{}", folder.display());
+        let code = std::fs::read_to_string(folder.join("song.rhai")).unwrap();
+        claudius::script::run(&code, Some(bp), None)
+            .unwrap_or_else(|e| panic!("{}: song.rhai no longer runs: {e}", folder.display()));
+    }
+}
+
 #[test]
 fn a_saved_song_opens_with_every_time_exactly_as_it_was() {
     let mut bp =

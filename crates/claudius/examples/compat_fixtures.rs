@@ -3,7 +3,9 @@
 //!   cargo run -p claudius --no-default-features --example compat_fixtures -- crates/claudius/tests/compat/v<version>
 //!
 //! A song in each built-in genre, and one edited by a script, as blueprint.json has them (`<name>.json`), with the
-//! script each prints as song.rhai (`<name>.rhai`). `cargo xtask release prepare` runs it for the version it releases.
+//! script each prints as song.rhai (`<name>.rhai`); and the house song's folder as a song folder holds what is read
+//! back of it (`folder/`: blueprint.json, project.json, song.rhai). `cargo xtask release prepare` runs it for the version
+//! it releases.
 
 use std::path::Path;
 
@@ -43,6 +45,12 @@ fn main() -> Result<()> {
         let bp = compose::generate(&genres::get(name)?, 7, &opts, None);
         write(dir, name, &bp)?;
         if name == "house" {
+            // the song as its folder holds what is read back of it: the song, the session as arranged, the script
+            let folder = dir.join("folder");
+            std::fs::create_dir_all(&folder)?;
+            std::fs::write(folder.join("blueprint.json"), bp.to_json())?;
+            std::fs::write(folder.join("project.json"), serde_json::to_string_pretty(&compose::arrange(&bp))?)?;
+            std::fs::write(folder.join("song.rhai"), script::to_script(&bp))?;
             let edited = script::run(EDITS, Some(bp), None).map_err(anyhow::Error::msg)?;
             write(dir, "edits", &edited.bp.context("the edits left no song")?)?;
         }

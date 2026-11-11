@@ -88,7 +88,8 @@ them again. Releasing by hand, below, works the same with or without them.
    the `version = "..."` of path dependencies between workspace crates, which `cargo add --path` writes), the
    workspace entries in `Cargo.lock`, `CHANGELOG.md`, where Unreleased becomes `## [0.5.0] - <today>` with the notes
    from git-cliff, the version of the Claude Code plugin in `skills/.claude-plugin/plugin.json`, and the songs 0.5.0
-   saves, in `crates/claudius/tests/compat/v0.5.0/`, which every later release has to open
+   saves with a song's folder and its history, in `crates/claudius/tests/compat/v0.5.0/`, which every later release
+   has to open
    ([saved songs keep opening](../engineering/song-model.md#saved-songs-keep-opening)). It commits that to the branch
    `release/v0.5.0` through GitHub's API, so that GitHub signs the commit (`main` accepts only signed commits), and
    opens the PR **release: v0.5.0**, with the notes in its description.
