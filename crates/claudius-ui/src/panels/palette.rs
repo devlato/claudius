@@ -46,6 +46,10 @@ pub struct Palette {
 /// for how long after they were typed (seconds)
 const AGAIN: (f64, f64) = (1.0, 60.0);
 
+/// how often it asks again while the small model on the device reads the words, and for how long (seconds): the first
+/// words it reads wait for it to download
+const READING: (f64, f64) = (0.3, 60.0);
+
 /// what a row's id starts with when it goes back to before a change made to the song (`Answer::done`), the change's
 /// id after it
 const BACK: &str = "back:";
@@ -69,15 +73,28 @@ impl Palette {
 
     /// The words again, to the engine, while what it found for them it found by name only: a server answers so until
     /// its model has downloaded, and the demo once it has fetched its own.
-    fn ask_again(&mut self, now: f64) -> bool {
+    /// While the small model reads words the readings read nothing of, they are asked about again more often. The
+    /// interval it waits for, while it does.
+    fn ask_again(&mut self, now: f64) -> Option<f64> {
         let words = self.query.trim();
-        let by_name = self.answer.as_ref().is_some_and(|a| a.query == words && !a.by_meaning);
-        let waiting = by_name && !words.is_empty() && now - self.typed_at < AGAIN.1;
-        if waiting && now - self.asked_at >= AGAIN.0 {
+        let (every, waiting) = match self.answer.as_ref().filter(|a| a.query == words) {
+            Some(a) if a.reading => (READING.0, now - self.typed_at < READING.1),
+            Some(a) if !a.by_meaning => (AGAIN.0, now - self.typed_at < AGAIN.1),
+            _ => return None,
+        };
+        if !waiting || words.is_empty() {
+            return None;
+        }
+        if now - self.asked_at >= every {
             self.ask = Some(words.to_string());
             self.asked_at = now;
         }
-        waiting
+        Some(every)
+    }
+
+    /// the small model is reading what is typed, and the palette still waits for what it reads
+    fn reading(&self, now: f64) -> bool {
+        self.answered().is_some_and(|a| a.reading) && now - self.typed_at < READING.1
     }
 
     /// The latest change made to the song (the state's `history`): one made since the palette last looked (a command
@@ -309,7 +326,9 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
                 p.ask = (!words.is_empty()).then(|| words.to_string());
             }
             ui.add_space(4.0);
-            if acts.is_empty() {
+            if p.reading(now) {
+                ui.label(RichText::new("Reading your words…").size(11.0).color(TEXT_FAINT));
+            } else if acts.is_empty() {
                 ui.label(RichText::new("Nothing by that name. Try other words, or read the docs.").color(TEXT_FAINT));
             }
             egui::ScrollArea::vertical().max_height(360.0).auto_shrink([false, true]).show(ui, |ui| {
@@ -347,7 +366,14 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
                             .selected(i == p.at)
                             .shortcut_text(RichText::new(keys).size(11.0).color(TEXT_FAINT)),
                     );
+                    let by_model = asked
+                        && p.answered().is_some_and(|ans| {
+                            ans.proposed.iter().any(|x| x.reading.by_model && a.id.strip_prefix(DO) == Some(x.said.as_str()))
+                        });
                     let r = match (asked, a.by) {
+                        (true, _) if by_model => r.on_hover_text(
+                            "what the small model on this computer read your words to ask: nothing changes until you pick it",
+                        ),
                         (true, _) => {
                             r.on_hover_text("what claudius read your words to ask: nothing changes until you pick it")
                         }
@@ -377,8 +403,8 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
             );
         });
     p.lit = acts.get(p.at).map(|a| a.id.clone());
-    if p.ask_again(now) {
-        ctx.request_repaint_after(std::time::Duration::from_secs_f64(AGAIN.0));
+    if let Some(every) = p.ask_again(now) {
+        ctx.request_repaint_after(std::time::Duration::from_secs_f64(every));
     }
     // a click outside it closes it, as a menu closes
     let link = cx.view.palette.link;
@@ -556,12 +582,30 @@ mod tests {
             ..Answer::default()
         };
         p.heard(answer(false));
-        assert!(p.ask_again(0.5) && p.ask.is_none(), "not within a second of asking");
-        assert!(p.ask_again(1.0) && p.ask.take().as_deref() == Some("make it louder"));
-        assert!(p.ask_again(1.5) && p.ask.is_none());
-        assert!(!p.ask_again(61.0) && p.ask.is_none(), "a minute after the words were typed, no more");
+        assert!(p.ask_again(0.5).is_some() && p.ask.is_none(), "not within a second of asking");
+        assert!(p.ask_again(1.0).is_some() && p.ask.take().as_deref() == Some("make it louder"));
+        assert!(p.ask_again(1.5).is_some() && p.ask.is_none());
+        assert!(p.ask_again(61.0).is_none() && p.ask.is_none(), "a minute after the words were typed, no more");
         p.heard(answer(true));
-        assert!(!p.ask_again(2.0) && p.ask.is_none(), "found by meaning: nothing more to ask");
+        assert!(p.ask_again(2.0).is_none() && p.ask.is_none(), "found by meaning: nothing more to ask");
+    }
+
+    #[test]
+    fn words_the_small_model_is_reading_are_asked_about_again_until_it_has_read_them() {
+        let mut p = Palette { query: "can the kick be a bit softer".into(), ..Palette::default() };
+        let query = p.query.clone();
+        let answer = |reading| Answer { query: query.clone(), by_meaning: true, reading, ..Answer::default() };
+        p.heard(answer(true));
+        assert!(p.reading(0.1));
+        assert_eq!(p.ask_again(0.1), Some(READING.0), "not within its interval of asking");
+        assert!(p.ask.is_none());
+        assert_eq!(p.ask_again(0.3), Some(READING.0));
+        assert_eq!(p.ask.take().as_deref(), Some("can the kick be a bit softer"));
+        assert!(p.ask_again(30.0).is_some(), "the first words wait for the model to download");
+        assert!(p.ask_again(61.0).is_none(), "long after the words were typed, it stops asking");
+        assert!(!p.reading(61.0), "and says no more that it is reading");
+        p.heard(answer(false));
+        assert!(!p.reading(0.6) && p.ask_again(0.6).is_none(), "read: nothing more to ask");
     }
 
     fn proposal(said: &str, commands: Vec<Command>) -> claudius_intent::Proposal {

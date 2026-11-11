@@ -328,3 +328,42 @@
 {"ask": "just vocals", "kind": "solo", "track": "vocals", "set": "held"}
 {"ask": "get rid of the guitar", "kind": "remove", "track": "guitar", "set": "held"}
 {"ask": "delete the hats and the toms", "kind": "remove", "tracks": ["hat", "tom_hi", "tom_lo"], "set": "held"}
+{"ask": "go back like three steps", "kind": "undo", "count": 3, "set": "later"}
+{"ask": "undo the last couple", "kind": "undo", "count": 2, "set": "later"}
+{"ask": "redo whatever i just undid", "kind": "redo", "count": 1, "set": "later"}
+{"ask": "take it back to before the strings came in", "kind": "back", "about": "add track strings (pad)", "set": "later"}
+{"ask": "revert to the point before the whistle", "kind": "back", "about": "add track whistle (lead)", "set": "later"}
+{"ask": "the hats are way too quiet", "kind": "level", "track": "hat", "way": "up", "set": "later"}
+{"ask": "nudge the snare up a little", "kind": "level", "track": "snare", "way": "up", "set": "later"}
+{"ask": "bring the guitar level down 2 db", "kind": "level", "track": "guitar", "by": -2, "set": "later"}
+{"ask": "vocals at -4 db", "kind": "level", "track": "vocals", "to": -4, "set": "later"}
+{"ask": "can the kick be a bit softer", "kind": "level", "track": "kick", "way": "down", "set": "later"}
+{"ask": "kick louder by 3db", "kind": "level", "track": "kick", "by": 3, "set": "later"}
+{"ask": "dirty up the bass", "kind": "drive", "track": "bass", "way": "up", "set": "later"}
+{"ask": "less grit on the guitar", "kind": "drive", "track": "guitar", "way": "down", "set": "later"}
+{"ask": "bass drive to 80 percent", "kind": "drive", "track": "bass", "to": 80, "set": "later"}
+{"ask": "wash the pad in reverb", "kind": "reverb", "track": "pad", "way": "up", "set": "later"}
+{"ask": "dry the snare out", "kind": "reverb", "track": "snare", "way": "down", "set": "later"}
+{"ask": "reverb on the piano at 30%", "kind": "reverb", "track": "piano", "to": 30, "set": "later"}
+{"ask": "throw some delay on the lead", "kind": "delay", "track": "lead", "way": "up", "set": "later"}
+{"ask": "no echo on the vocals please", "kind": "delay", "track": "vocals", "to": 0, "set": "later"}
+{"ask": "pan the organ right", "kind": "pan", "track": "organ", "side": "right", "set": "later"}
+{"ask": "put the hats in the centre", "kind": "pan", "track": "hat", "side": "center", "set": "later"}
+{"ask": "can we do 140 bpm", "kind": "tempo", "to": 140, "set": "later"}
+{"ask": "faster, like 10 bpm faster", "kind": "tempo", "by": 10, "set": "later"}
+{"ask": "it's dragging, speed up", "kind": "tempo", "way": "up", "set": "later"}
+{"ask": "slow the tempo a touch", "kind": "tempo", "way": "down", "set": "later"}
+{"ask": "switch to G major", "kind": "key", "to": "G major", "set": "later"}
+{"ask": "e flat minor please", "kind": "key", "to": "Eb minor", "set": "later"}
+{"ask": "replace the snare with a clap", "kind": "swap", "track": "snare", "sound": "clap", "set": "later"}
+{"ask": "give the bass a reese sound", "kind": "swap", "track": "bass", "sound": "reese", "set": "later"}
+{"ask": "the lead should be a pluck", "kind": "swap", "track": "lead", "sound": "pluck", "set": "later"}
+{"ask": "cut the piano after 1:15", "kind": "cut", "track": "piano", "from": 75, "set": "later"}
+{"ask": "drop the strings out at 0:40", "kind": "cut", "track": "pad", "from": 40, "set": "later"}
+{"ask": "mute the hats and the kick", "kind": "mute", "tracks": ["hat", "kick"], "set": "later"}
+{"ask": "silence everything but the vocals", "kind": "mute", "tracks": ["kick", "snare", "hat", "tom_hi", "tom_lo", "bass", "guitar", "piano", "lead", "pad"], "set": "later"}
+{"ask": "bring the choir in again", "kind": "unmute", "track": "choir", "set": "later"}
+{"ask": "solo the bass and the kick", "kind": "solo", "tracks": ["bass", "kick"], "set": "later"}
+{"ask": "just the piano please", "kind": "solo", "track": "piano", "set": "later"}
+{"ask": "lose the toms entirely", "kind": "remove", "tracks": ["tom_hi", "tom_lo"], "set": "later"}
+{"ask": "delete the guitar track", "kind": "remove", "track": "guitar", "set": "later"}

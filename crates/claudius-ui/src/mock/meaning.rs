@@ -34,7 +34,15 @@ impl Finding {
     pub fn find(&mut self, query: &str, limit: usize, state: &State, now: f64, ctx: Option<&egui::Context>) -> Answer {
         let held = held(ctx);
         self.last = Some((query.to_string(), limit, now, held.model.is_some()));
-        answer(query, limit, state, &held.finder, &held.asker, held.model.as_deref())
+        let found = answer(query, limit, state, &held.finder, &held.asker, held.model.as_deref());
+        // the app has the small model for what the readings read nothing of; a page has none yet
+        #[cfg(not(target_arch = "wasm32"))]
+        let found = {
+            let mut found = found;
+            claudius_session::meaning::ask_model(&mut found, state, &held.asker);
+            found
+        };
+        found
     }
 
     /// the words asked about last again, once the model has come since they were found by name

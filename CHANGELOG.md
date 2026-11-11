@@ -50,6 +50,14 @@ step. It reads requests on your computer in a fraction of a millisecond, by thei
 them in meaning, and it is measured on 330 example requests, phrased in many ways. The new `together` command makes
 several edits one change, and `GET /api/find` answers with what the words ask (`proposed`).
 
+Requests the palette cannot make out go to a second small model on your computer: Cactus's Needle 3, which claudius
+teaches to read its requests, in Rust (`claudius-tune`), with no Python anywhere. While it reads, about half a second,
+the palette says Reading your words…, and what it reads is a button like the others, which says it is the model's
+reading when you point at it. When it cannot tell what you ask, it offers nothing. So far it reads a few of the
+requests the palette misses ("bring the choir in again"); teaching it on more of the ways people ask comes next. It is
+35 MB, downloaded from Hugging Face the first time it is needed, and reads in the app, not yet in the web demo.
+`GET /api/find` says when it is still reading (`reading`), and which proposals it read (`by_model`).
+
 [claudius radio](https://claudius.devlato.com/radio/): a station of songs claudius writes as it plays them, one genre
 after another, each mixed into the next as a DJ would. Three songs in four mix in beat for beat, written at exactly the
 playing song's tempo (or twice or half of it) and in a key of its notes, coming in on a bar line of its outro with their

@@ -414,7 +414,9 @@ impl Host {
     /// by name and by words, and by meaning too once the embedding model is there (`meaning`).
     pub fn find(query: &str, limit: usize, state: &State) -> claudius_intent::Answer {
         let held = crate::meaning::held();
-        claudius_intent::answer(query, limit, state, &held.finder, &held.asker, held.model.as_deref())
+        let mut answer = claudius_intent::answer(query, limit, state, &held.finder, &held.asker, held.model.as_deref());
+        crate::meaning::ask_model(&mut answer, state, &held.asker);
+        answer
     }
 
     pub fn state(&self) -> State {

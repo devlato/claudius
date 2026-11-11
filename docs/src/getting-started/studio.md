@@ -329,6 +329,13 @@ key, swaps a track's sound ("make the bass a reese"), cuts tracks from a time to
 removes them, and undoes, redoes or goes back to before a change ("go back to before we added the whistles"). A
 request that asks two things at once ("louder, with more reverb") is read as one of them. Ask for the other next.
 
+Words claudius cannot make out ("bring the choir in again") go to a second small model on your computer, Cactus's
+Needle 3, which claudius has taught to read requests. While it reads, about half a second,
+the palette says **Reading your words…**. What it reads is a button like any other, which says it was the small model's
+reading when you point at it, and nothing changes until you pick it. When it cannot tell what you ask, it offers
+nothing. It is 35 MB, which claudius downloads from Hugging Face the first time it is needed. It reads in the app, and
+not yet in the demo in the browser.
+
 Names are found at once. What your words mean is found by a small model that runs on your computer, on any processor
 and without a graphics card, in a fraction of a millisecond: Model2Vec's potion-base-8M, 8 MB as claudius keeps it,
 which claudius downloads from Hugging Face the first time you type in the palette (the demo fetches it from the site).

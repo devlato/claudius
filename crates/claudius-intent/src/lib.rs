@@ -12,7 +12,9 @@ pub mod catalogue;
 pub mod find;
 pub mod index;
 pub mod model;
+pub mod needle;
 pub mod pieces;
+pub mod teach;
 
 pub use ask::{Asker, Proposal};
 pub use find::{Answer, By, DONE, Finder, Found, Item, answer, find_among};

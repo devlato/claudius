@@ -12,7 +12,7 @@ pub struct Source {
     pub repo: &'static str,
     pub revision: &'static str,
     /// each file: its name, its size in bytes and its SHA-256
-    pub files: [(&'static str, u64, &'static str); 2],
+    pub files: &'static [(&'static str, u64, &'static str)],
 }
 
 impl Source {
@@ -27,7 +27,7 @@ pub const POTION: Source = Source {
     name: "potion-base-8M",
     repo: "minishlab/potion-base-8M",
     revision: "bf8b056651a2c21b8d2565580b8569da283cab23",
-    files: [
+    files: &[
         ("model.safetensors", 30_236_760, "f65d0f325faadc1e121c319e2faa41170d3fa07d8c89abd48ca5358d9a223de2"),
         ("vocab.txt", 219_690, "1394523a67ddd404a825428018c0582a6998bcfa044ecbcbf1f4d71adb94c61c"),
     ],

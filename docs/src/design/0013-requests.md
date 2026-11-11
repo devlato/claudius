@@ -69,7 +69,6 @@ its misses was a mistake in the example itself. After the fourth round, all 330 
   A request people phrase in a new way goes in as `later`, is scored, and is then fixed.
 - A request for two things at once is read as one of them. A request for taste rather than a setting ("make it
   groovier") finds actions, Improve the song among them, rather than edits.
-- A small model that turns requests into tool calls on the device would read what the rules cannot. Cactus's Needle
-  is one: its weights are open, and a runtime for it in plain Rust (`needle-infer`) runs in the browser too. The
-  examples, each with what it should do, are the start of the set it would be tuned and measured on. The rules would
-  stay, to check its calls against the song and to answer until it has downloaded.
+- A small model that turns requests into tool calls on the device reads what the rules cannot: claudius teaches
+  Cactus's Needle 3 to, and asks it what the readings read nothing of ([0014](0014-request-model.md)). The rules stay,
+  to ground its calls in the song and to answer until it has downloaded, and the examples measure both.
