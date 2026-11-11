@@ -25,6 +25,7 @@ The studio is still being finished; this page describes its structure, which is 
 | `pick.rs` | [choosing a file](#choosing-files) on the studio's computer and reading it into memory |
 | `devplan.rs` | scripted runs of the studio, for checking the UI without a person: natively, and in a browser in a build with the `plan` feature |
 | `native.rs` | `Native`, what the native window may do on its computer beyond the server (connect assistants) |
+| `desktop.rs` | the native window as the system's apps are there: its title (the song's), the media keys and Now Playing through souvlaki (play, pause, next and previous by section, seek, the song's title and genre), and a notification (notify-rust) with the Dock or the taskbar asking for attention when a job of `desktop::LONG` (20 s) or more ends, or an assistant asks for a take, while another window is in front |
 | `tour.rs` | the first-run tour: its cards, the parts of the studio they point at, and when it is done |
 
 ## Layout

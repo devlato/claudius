@@ -417,6 +417,16 @@ The app's window speaks to your system's screen reader (VoiceOver, Narrator, Orc
 what it is called and its state, a knob or a fader its value. In a browser, **?** > **Speak what has the keyboard**
 has the page say aloud the control Tab moves to, and is kept for the next time.
 
+## The app on your computer
+
+The app's window is there as your other apps are. Its title is the song's. The keyboard's media keys, and the
+system's Now Playing (Control Center on a Mac, the media overlay on Windows, a Linux desktop's media controls), play
+and pause the song, Next and Previous go to the section after or the start of this one (or the one before, in its
+first two seconds), and they show its title and genre. When something takes the studio a while (Improve, a remake,
+listening to a recording) and it is done while another window is in front, a notification says so, with what the log
+said of it, and the Dock or the taskbar asks for your attention; so does an assistant that asks for a take. A render
+after an edit, a few seconds, says nothing.
+
 ## When something does not work
 
 `claudius doctor` checks the installation. If the studio window opens but stays empty, the engine may not have

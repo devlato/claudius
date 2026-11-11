@@ -10,6 +10,8 @@
 mod app;
 mod audio;
 mod cmds;
+#[cfg(not(target_arch = "wasm32"))]
+mod desktop;
 #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
 mod devplan;
 mod edits;
