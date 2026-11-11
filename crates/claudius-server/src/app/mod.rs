@@ -14,6 +14,7 @@ use claudius::model::*;
 use claudius::{audio, config, export, song};
 use claudius_api::*;
 
+use claudius_session::history::History;
 use claudius_session::views;
 
 mod commands;
@@ -78,9 +79,8 @@ struct Session {
     song_version: u64,
     bp: Option<Blueprint>,
     view: Option<SongView>,
-    /// earlier songs, with what the change after each was
-    undo: Vec<(Option<Blueprint>, String)>,
-    redo: Vec<(Option<Blueprint>, String)>,
+    /// every change made to the song, and the undo and redo steps
+    history: History,
     render: Option<RenderOut>,
     loudness: BTreeMap<String, f64>,
     verdict: Option<VerdictView>,
@@ -368,10 +368,11 @@ impl App {
             cancellable: s.job,
             ears_loading: self.ears.get().is_none(),
             song_version: s.song_version,
-            can_undo: !s.undo.is_empty(),
-            can_redo: !s.redo.is_empty(),
-            undo_label: s.undo.last().map(|u| u.1.clone()),
-            redo_label: s.redo.last().map(|r| r.1.clone()),
+            can_undo: s.history.can_undo(),
+            can_redo: s.history.can_redo(),
+            undo_label: s.history.undo_label(),
+            redo_label: s.history.redo_label(),
+            history: s.history.done(),
             log: s.log.iter().cloned().collect(),
             genres: self.genres.clone(),
             exports: self.exports.clone(),

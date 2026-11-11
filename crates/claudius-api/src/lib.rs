@@ -92,6 +92,10 @@ pub struct State {
     pub undo_label: Option<String>,
     #[serde(default)]
     pub redo_label: Option<String>,
+    /// the changes made to the song, the latest first (at most 200): edits, undos, redos and goings back, as its
+    /// history keeps them
+    #[serde(default)]
+    pub history: Vec<Done>,
     /// recent messages, oldest first (at most ~200)
     pub log: Vec<String>,
     pub genres: Vec<GenreInfo>,
@@ -337,6 +341,25 @@ pub struct LibraryHit {
     /// the library's whole record of it, which the demo's engine credits it by (a claudius recalls it by its id)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub found: Option<serde_json::Value>,
+}
+
+/// A change in the song's history (`State::history`), as its log keeps it.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct Done {
+    /// what `Command::GoBack` names it by: the replica that made it and its time there (`12@4f2a9c81d0e3b7a6`)
+    pub id: String,
+    /// `edit`, `undo`, `redo`, `back` (a going back to before a change), or `moved` (files the song plays moved, as a
+    /// save copies its takes into its folder)
+    pub kind: String,
+    /// what undo calls it ("tempo 124"), or the change undone or redone
+    pub label: String,
+    /// what it changed, in words ("added the whistle track, playing the synth whistle")
+    pub said: String,
+    /// when, in milliseconds since 1970
+    pub at: u64,
+    /// whether `Command::GoBack` can take the song back to before it: an edit undo can still take back
+    #[serde(default)]
+    pub can_go_back: bool,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -2193,6 +2216,11 @@ pub enum Command {
     },
     Undo,
     Redo,
+    /// go back to the song as it was before a change the state's `history` lists (`to`, its `id`): that change and
+    /// every one since are undone, and redo brings them back one at a time
+    GoBack {
+        to: String,
+    },
     /// stop a running render / mutate / evolve job
     Cancel,
 }

@@ -314,6 +314,24 @@ pub struct MutateArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct HistoryArgs {
+    /// how many changes, the latest first (1 to 200)
+    #[serde(default = "twenty")]
+    #[schemars(range(min = 1, max = 200))]
+    pub limit: usize,
+}
+
+fn twenty() -> usize {
+    20
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct GoBackArgs {
+    /// the change to go back to before: its id, as history lists it (`12@4f2a9c81d0e3b7a6`)
+    pub to: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct EvolveArgs {
     /// generations (1 to 20)
     #[serde(default = "three")]
@@ -1112,6 +1130,29 @@ impl Studio {
     }
 
     #[tool(
+        description = "The changes made to the song, the latest first: each one's id, its kind (an edit, an undo or redo of one, or a going back), what undo calls it and what it changed, and whether go_back can still take the song back to before it.",
+        annotations(read_only_hint = true)
+    )]
+    async fn history(&self, Parameters(a): Parameters<HistoryArgs>) -> Result<String, String> {
+        let st = self.b.state().await?;
+        if st.history.is_empty() {
+            return Ok("no changes yet".into());
+        }
+        let line = |d: &claudius_api::Done| {
+            let reach = if d.kind == "edit" && !d.can_go_back { " (go_back cannot reach it)" } else { "" };
+            format!("{} {}: {} ({}){reach}", d.id, d.kind, d.label, d.said)
+        };
+        Ok(st.history.iter().take(a.limit).map(line).collect::<Vec<_>>().join("\n"))
+    }
+
+    #[tool(
+        description = "Go back to the song as it was before a change that history lists (its id): that change and every one since are undone, as that many undos would, and redo brings them back one at a time. Tell the person which change the song went back to before, and how many were undone."
+    )]
+    async fn go_back(&self, Parameters(a): Parameters<GoBackArgs>) -> Result<String, String> {
+        self.edit(Command::GoBack { to: a.to }, true).await
+    }
+
+    #[tool(
         description = "Stop the running job after its current step: a mutation after the candidate in progress, an evolution after its generation, a pack download after the pack in progress. A render always finishes."
     )]
     async fn stop(&self) -> Result<String, String> {
@@ -1737,6 +1778,7 @@ mod tests {
                 "find_genre",
                 "get_song",
                 "graph",
+                "history",
                 "script_reference",
                 "search_recordings",
                 "status",

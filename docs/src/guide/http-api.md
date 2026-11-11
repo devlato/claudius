@@ -148,6 +148,7 @@ The MCP tools wait the same way after every edit.
 | `ears_loading` | boolean | earshot's models are still loading; until they are, verdicts come from the meters and music theory only |
 | `can_undo`, `can_redo` | boolean | |
 | `undo_label`, `redo_label` | string or null | what undo would take back, what redo would bring back |
+| `history` | `Done` list | the last 200 changes made to the song, the latest first, as its [history](../engineering/server.md#the-history) keeps them: each change's `id` (what `go_back` takes), its `kind` (`edit`, `undo`, `redo`, `back` for a going back, or `moved` when a save copied the song's takes into its folder), its `label` (what undo calls it), what it changed in words (`said`: "added the whistle track (lead), playing the synth whistle; tempo 124 to 128"), when (`at`, milliseconds since 1970), and whether `go_back` can still take the song back to before it (`can_go_back`) |
 | `log` | strings | the last 200 lines of the session log, oldest first |
 | `genres` | `GenreInfo` list | every genre: `name`, `description`, `bpm` range |
 | `release` | `ReleaseView` or null | the release in the making for the song: its `details` (as `set_release` takes them), `song_title`, what the `artwork` is and its `artwork_version`, the `checks` (each a `level`, `problem`, `warning` or `note`, what it is `about` and its `message`) of the render `checked`, whether it is `ready`, where the last `kit` went, and the `made_options` |
@@ -265,6 +266,7 @@ fields marked optional may be left out.
 | `install_packs` | optional `names` (the missing default packs when left out) | a job: downloads sample packs, as `claudius setup` does; not the opt-in packs, whose licence is unclear, and not on a shared claudius |
 | `render` | optional `stems` (false) | a job: renders and judges the song |
 | `undo`, `redo` | | |
+| `go_back` | `to` (a change's `id` in the state's `history`) | the song as it was before that change: it and every change since are undone, as that many undos would, and redo brings them back one at a time; refused for a change undo can no longer take back (`can_go_back` false) |
 | `cancel` | | stops a mutation or evolution after its current candidate or generation |
 
 ```json

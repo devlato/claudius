@@ -20,6 +20,20 @@ fn app() -> Arc<App> {
     })
 }
 
+/// a session that renders only when asked, for a test of edits alone
+fn quiet() -> Arc<App> {
+    App::new(Settings {
+        library: false,
+        ears: false,
+        auto_render: false,
+        file_roots: None,
+        voice: None,
+        samples: false,
+        gather: false,
+        songs: None,
+    })
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn a_session_edits_renders_and_undoes() {
     let app = app();
@@ -505,6 +519,56 @@ async fn saves_during_a_render_wait_for_it_and_write_everything() {
         assert!(std::fs::read_dir(dir.join("stems")).is_ok_and(|d| d.count() > 3));
     }
     std::fs::remove_dir_all(&base).unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_song_goes_back_to_before_a_change_and_opens_again_with_its_history() {
+    let app = quiet();
+    let dir = std::env::temp_dir().join(format!("claudius-history-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let new = Command::NewSong {
+        genre: "house".into(),
+        seed: Some(3),
+        bpm: None,
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+        complexity: None,
+    };
+    assert!(app.command(new).ok);
+    let bpm = app.state().song.unwrap().bpm;
+    for b in [100.0, 101.0, 102.0] {
+        assert!(app.command(Command::SetTempo { bpm: b }).ok);
+    }
+    let st = app.state();
+    let kinds: Vec<&str> = st.history.iter().map(|d| d.kind.as_str()).collect();
+    assert_eq!(kinds, ["edit"; 4], "the latest first: {:?}", st.history);
+    assert_eq!(st.history[3].said.split(':').next(), Some("a new song"), "{}", st.history[3].said);
+    let first = st.history.iter().find(|d| d.label == "tempo 100").unwrap().id.clone();
+    // back to before the first tempo: it and the two since undone, each for redo to bring back
+    let r = app.command(Command::GoBack { to: first.clone() });
+    assert!(r.ok && r.message.contains("back to before tempo 100"), "{}", r.message);
+    let st = app.state();
+    assert_eq!((st.song.unwrap().bpm, st.redo_label.as_deref()), (bpm, Some("tempo 100")));
+    assert!(!st.history.iter().find(|d| d.id == first).unwrap().can_go_back, "undone, so redo's to bring back");
+    assert!(!app.command(Command::GoBack { to: first.clone() }).ok);
+    assert!(!app.command(Command::GoBack { to: "a change".into() }).ok);
+    assert!(app.command(Command::Redo).ok);
+    // saved with its history, and opened in another session: undo goes on from where it was
+    assert!(app.command(Command::Save { path: Some(dir.display().to_string()) }).ok);
+    assert!(std::fs::read_to_string(dir.join("history.jsonl")).unwrap().lines().count() >= 6);
+    let other = quiet();
+    let r = other.command(Command::Load { path: dir.display().to_string() });
+    assert!(r.ok && r.message.contains("with its history"), "{}", r.message);
+    let st = other.state();
+    assert_eq!((st.song.as_ref().unwrap().bpm, st.undo_label.as_deref()), (100.0, Some("tempo 100")));
+    assert_eq!(st.redo_label.as_deref(), Some("tempo 101"));
+    assert!(other.command(Command::Undo).ok);
+    assert_eq!(other.state().song.unwrap().bpm, bpm);
+    // the save's render, which writes its audio into the folder, before the folder goes
+    app.settled(Duration::from_secs(240)).await;
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[tokio::test(flavor = "multi_thread")]

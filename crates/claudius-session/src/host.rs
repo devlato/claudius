@@ -20,10 +20,9 @@ use claudius::{audio, genres, judge, pads, render, sampling, scratch, script, ta
 use claudius_api::*;
 use claudius_packs::online::Found;
 
+use crate::history::{History, OpId};
 use crate::{edit, views};
 
-/// the undo steps a session keeps
-const UNDO: usize = 200;
 /// the lines of the log a state carries
 const LOG: usize = 200;
 /// the bars a preview renders
@@ -70,8 +69,8 @@ pub struct ToMake {
 
 pub struct Host {
     bp: Option<Blueprint>,
-    undo: Vec<(Option<Blueprint>, String)>,
-    redo: Vec<(Option<Blueprint>, String)>,
+    /// every change made to the song, and the undo and redo steps
+    history: History,
     version: u64,
     song_version: u64,
     log: Vec<String>,
@@ -133,8 +132,7 @@ impl Host {
     pub fn new(seed: u64) -> Host {
         Host {
             bp: None,
-            undo: Vec::new(),
-            redo: Vec::new(),
+            history: History::default(),
             version: 0,
             song_version: 0,
             log: Vec::new(),
@@ -238,7 +236,7 @@ impl Host {
                 let src = listen::Heard { x: &x, path: &name, name: &name, a: &a, stems: stems.as_deref() };
                 let (bp, verb, told) = listen::remake(&src, &g, seed, None, how, &with);
                 self.forget_render();
-                self.commit(Some(bp), format!("{verb} {name} as {genre}{told}:\n{}", listen::analysis_text(&a)))
+                self.commit_song(Some(bp), format!("{verb} {name} as {genre}{told}:\n{}", listen::analysis_text(&a)))
             }
             Listen::SampleSong { found, how, .. } => {
                 let Some(mut bp) = self.bp.clone() else {
@@ -398,7 +396,7 @@ impl Host {
         // the song before, its render and verdict with it, is not the one opened
         self.forget_render();
         let message = format!("opened {name}: {}", bp.title);
-        self.commit(Some(bp), message)
+        self.commit_song(Some(bp), message)
     }
 
     /// the script language's reference, as the studio shows it
@@ -441,10 +439,11 @@ impl Host {
                 done as f32 / all.max(1) as f32
             }),
             cancellable: self.breeding.is_some(),
-            can_undo: !self.undo.is_empty(),
-            can_redo: !self.redo.is_empty(),
-            undo_label: self.undo.last().map(|(_, l)| l.clone()),
-            redo_label: self.redo.last().map(|(_, l)| l.clone()),
+            can_undo: self.history.can_undo(),
+            can_redo: self.history.can_redo(),
+            undo_label: self.history.undo_label(),
+            redo_label: self.history.redo_label(),
+            history: self.history.done(),
             log: self.log.clone(),
             genres: views::genre_infos(),
             exports: views::export_formats(),
@@ -582,6 +581,14 @@ impl Host {
     }
 
     pub fn command(&mut self, c: Command) -> Reply {
+        // an edit it makes is recorded as it
+        self.history.doing(serde_json::to_value(&c).ok().and_then(|v| v["cmd"].as_str().map(str::to_string)));
+        let reply = self.run(c);
+        self.history.doing(None);
+        reply
+    }
+
+    fn run(&mut self, c: Command) -> Reply {
         match c {
             Command::NewSong { genre, seed, bpm, key, sampled, sample_search, complexity, .. } => {
                 if let Some(c) = complexity.filter(|c| !(0.0..=1.0).contains(c)) {
@@ -594,6 +601,7 @@ impl Host {
             Command::OpenText { name, text } => self.open_text(&name, &text),
             Command::Undo => self.history(true),
             Command::Redo => self.history(false),
+            Command::GoBack { to } => self.go_back(&to),
             Command::Render { .. } if self.stale() => self.ok("rendering"),
             Command::Render { .. } => self.ok("the render is up to date"),
             // a take's drums and singing, which the page holds in memory
@@ -1006,7 +1014,7 @@ impl Host {
         let msg =
             format!("new song: {} — {} at {:.0} BPM in {} (seed {seed})", bp.title, bp.genre, bp.bpm, bp.key.name());
         self.forget_render();
-        self.commit(Some(bp), msg)
+        self.commit_song(Some(bp), msg)
     }
 
     /// a blueprint (`.json`) opened, or a script run as a new song
@@ -1016,6 +1024,7 @@ impl Host {
             let r = self.run_script(text, Some(format!("opened {name}")));
             if self.song_version != before {
                 self.forget_render();
+                self.history.began(&self.bp);
             }
             return r;
         }
@@ -1023,7 +1032,7 @@ impl Host {
         match bp.and_then(|bp| bp.check_size().and_then(|_| script::check_patterns(&bp)).map(|_| bp)) {
             Ok(bp) => {
                 self.forget_render();
-                self.commit(Some(bp), format!("opened {name}"))
+                self.commit_song(Some(bp), format!("opened {name}"))
             }
             Err(e) => self.no(format!("cannot open {name}: {e}")),
         }
@@ -1097,25 +1106,35 @@ impl Host {
 
     fn commit_as(&mut self, bp: Option<Blueprint>, msg: String, label: String) -> Reply {
         let old = std::mem::replace(&mut self.bp, bp);
-        self.undo.push((old, label.chars().take(120).collect()));
-        if self.undo.len() > UNDO {
-            self.undo.remove(0);
-        }
-        self.redo.clear();
+        self.history.commit(old, &self.bp, &label);
+        self.changed(msg)
+    }
+
+    /// another song in the song's place, committed as `commit` does, the whole song its change (`History::commit_song`)
+    fn commit_song(&mut self, bp: Option<Blueprint>, msg: String) -> Reply {
+        let label = msg.lines().next().unwrap_or("").to_string();
+        let old = std::mem::replace(&mut self.bp, bp);
+        self.history.commit_song(old, &self.bp, &label);
         self.changed(msg)
     }
 
     fn history(&mut self, undo: bool) -> Reply {
-        let Some((prev, label)) = (if undo { self.undo.pop() } else { self.redo.pop() }) else {
+        let label = if undo { self.history.undo(&mut self.bp) } else { self.history.redo(&mut self.bp) };
+        let Some(label) = label else {
             return self.no(if undo { "nothing to undo" } else { "nothing to redo" });
         };
-        let cur = std::mem::replace(&mut self.bp, prev);
-        if undo {
-            self.redo.push((cur, label.clone()));
-        } else {
-            self.undo.push((cur, label.clone()));
-        }
         self.changed(format!("{}: {label}", if undo { "undid" } else { "redid" }))
+    }
+
+    /// back to the song as it was before the change `to` (`State::history`'s id for it)
+    fn go_back(&mut self, to: &str) -> Reply {
+        let Some(id) = OpId::parse(to) else {
+            return self.no(format!("'{to}' names no change: use an id from the state's history"));
+        };
+        match self.history.back(&mut self.bp, &id) {
+            Ok(msg) => self.changed(msg),
+            Err(why) => self.no(why),
+        }
     }
 
     /// the song changed: a new version, and a render to come
