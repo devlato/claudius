@@ -6,6 +6,23 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+The examples' studies of famous records are gone. They were named after the records but played melodies of their
+own, so they didn't sound like the songs they were named for, and a record's melodies belong to its writers. In their
+place are seven famous pieces in the public domain, each played as it was written and named for itself, in the styles
+the studies were in:
+
+- Bach's Toccata and Fugue in D minor as rap rock;
+- Mozart's Rondo alla Turca as club rap;
+- the Moonlight Sonata as dark, minimal hip hop;
+- Für Elise as minimal electropop;
+- Eine kleine Nachtmusik as synth-pop;
+- Grieg's Morning Mood as slow-building electronic pop;
+- the Habanera from Carmen as synth-funk rap.
+
+`in_the_end_study`, `in_da_club_study`, `yonkers_study`, `bad_guy_study`, `anti_hero_study`, `chihiro_study` and
+`big_poe_study` no longer open. Their replacements are `toccata_and_fugue`, `rondo_alla_turca`, `moonlight_sonata`,
+`fur_elise`, `eine_kleine_nachtmusik`, `morning_mood` and `habanera`.
+
 The command palette (Cmd+K) finds actions by what your words mean as well as by their names: "make it sound better"
 finds Improve the song, "sing over it" Record a take, "go back" Undo. A small model finds them on your computer, on
 any processor and without a graphics card: Model2Vec's potion-base-8M, 8 MB, which claudius downloads from Hugging
