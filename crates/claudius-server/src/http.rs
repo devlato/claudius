@@ -77,6 +77,7 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
         .route("/api/takes", post(add_take).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/project", post(open_project).layer(DefaultBodyLimit::max(crate::app::MAX_PROJECT)))
         .route("/api/pitch-check", post(pitch_check).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
+        .route("/api/hear", post(hear).layer(DefaultBodyLimit::max(MAX_HEARD)))
         .route("/api/groove", post(groove).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/analyze", post(analyze).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/remake", post(remake).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
@@ -642,6 +643,27 @@ async fn pitch_check(State(c): State<Ctx>, Query(q): Query<CheckQuery>, headers:
         .await
         .unwrap_or_else(|e| claudius_api::Reply { ok: false, message: format!("internal error: {e}"), version: 0 });
     Json(reply).into_response()
+}
+
+/// the most a recording said to the palette may be: 30 seconds of 48 kHz stereo in 32-bit floats, and more
+const MAX_HEARD: usize = 16 << 20;
+
+/// What was said to the palette, heard (`claudius_session::hearing`), from the WAV file itself; the speech model
+/// downloads the first time.
+async fn hear(State(c): State<Ctx>, headers: HeaderMap, body: Bytes) -> Response {
+    if !sent_as_file(&headers) {
+        return (
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            "send what was said as the file itself, with Content-Type audio/wav or application/octet-stream",
+        )
+            .into_response();
+    }
+    let state = c.app.state();
+    match tokio::task::spawn_blocking(move || claudius_session::hearing::hear(body.to_vec(), &state)).await {
+        Ok(Ok(heard)) => Json(heard).into_response(),
+        Ok(Err(why)) => (StatusCode::UNPROCESSABLE_ENTITY, why).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("internal error: {e}")).into_response(),
+    }
 }
 
 #[derive(Deserialize)]

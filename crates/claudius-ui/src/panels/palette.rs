@@ -6,14 +6,15 @@
 //! and what claudius would do for it comes first, a button for each reading, which says what it changes from what to
 //! what: nothing is done until one is picked. The arrows pick one, Enter or a click does it, Escape closes the palette.
 
-use claudius_api::Command;
+use claudius_api::{Command, Heard};
 use claudius_intent::catalogue::ENTRIES;
 use claudius_intent::{Answer, By, Finder, Found};
 use eframe::egui::{self, Align2, Key, Modifiers, RichText, text::LayoutJob, vec2};
 
 use super::{Cx, Tab};
+use crate::audio::record::Hearing;
 use crate::theme::{self, TEXT, TEXT_FAINT};
-use crate::widgets;
+use crate::widgets::{self, Icon};
 
 /// how many actions the palette shows at most
 pub const SHOWN: usize = 12;
@@ -40,6 +41,38 @@ pub struct Palette {
     moved: bool,
     /// the latest change made to the song when the palette last looked (the state's `history`)
     seen: Option<String>,
+    /// whether what is said to the palette can be heard, which the app sets (`Backend::can_hear`)
+    pub can_hear: bool,
+    /// the microphone while it listens for what is said: whether it was told to stop, when it was asked to listen or,
+    /// once it opened, when it began to hear, and when it last heard speech
+    hearing: Option<Hearing>,
+    stopping: bool,
+    opened: bool,
+    listened_at: f64,
+    spoke_at: Option<f64>,
+    /// what was said, a WAV file, which the app sends to be heard (`Backend::hear`); and that its words are not back
+    pub say: Option<Vec<u8>>,
+    waiting_words: bool,
+    /// the words heard were typed in since the palette was last drawn
+    retyped: bool,
+    /// why what was said was not heard
+    unheard: Option<String>,
+}
+
+/// how long a pause after speech ends listening, the longest the palette listens, and the longest it waits for the
+/// microphone to open, which a browser asks the person about first (seconds); how loud speech is
+const PAUSE: f64 = 1.2;
+const LONGEST: f64 = 15.0;
+const OPENING: f64 = 30.0;
+const SPEECH: f32 = 0.02;
+
+/// what the palette says when the microphone heard nothing at all
+const NOTHING_HEARD: &str =
+    "Nothing was heard. If claudius may not use the microphone, allow it in the system's privacy settings.";
+
+/// whether listening is to stop: a pause after speech, or the longest it listens
+fn said_enough(spoke_at: Option<f64>, listened_at: f64, now: f64) -> bool {
+    spoke_at.is_some_and(|at| now - at >= PAUSE) || now - listened_at >= LONGEST
 }
 
 /// how often the palette asks again about words an engine found by name only, as its model may have come since, and
@@ -127,6 +160,95 @@ impl Palette {
     pub fn heard(&mut self, answer: Answer) {
         if answer.query == self.query.trim() {
             self.answer = Some(answer);
+        }
+    }
+
+    /// what the palette shows, for a scripted run to read: that it listens, that it hears what was said, why nothing
+    /// was heard, or the words in its field and the first row they find
+    #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
+    pub fn told(&self) -> String {
+        if let Some(h) = &self.hearing {
+            return if h.open() { "listening" } else { "opening the microphone" }.into();
+        }
+        if self.waiting_words {
+            return "hearing what was said".into();
+        }
+        if let Some(why) = &self.unheard {
+            return format!("not heard: {why}");
+        }
+        match (self.query.trim(), self.shown().first()) {
+            ("", _) => String::new(),
+            (words, Some(row)) => format!("{words} -> {}", row.name),
+            (words, None) => words.to_string(),
+        }
+    }
+
+    /// Starts listening for what is said, or while it listens, stops: what it heard goes to be heard.
+    pub(crate) fn listen_or_stop(&mut self, now: f64) {
+        if let Some(h) = self.hearing.as_mut() {
+            h.stop();
+            self.stopping = true;
+            return;
+        }
+        match Hearing::start() {
+            Ok(h) => {
+                (self.hearing, self.stopping, self.opened) = (Some(h), false, false);
+                (self.listened_at, self.spoke_at, self.unheard) = (now, None, None);
+            }
+            Err(why) => self.unheard = Some(why),
+        }
+    }
+
+    /// While it listens: what the microphone heard taken in, and listening stopped after a pause once something was
+    /// said, or at the longest; once all of it is in, it goes to be heard. The interval to look again in, while it
+    /// listens.
+    fn listening(&mut self, now: f64) -> Option<f64> {
+        let h = self.hearing.as_mut()?;
+        if let Some(why) = h.error() {
+            self.hearing = None;
+            self.unheard = Some(why);
+            return None;
+        }
+        if h.level() > SPEECH {
+            self.spoke_at = Some(now);
+        }
+        if !self.opened && h.open() {
+            (self.opened, self.listened_at) = (true, now);
+        }
+        if !self.opened && now - self.listened_at >= OPENING {
+            self.hearing = None;
+            self.unheard = Some("The microphone did not open. Allow claudius to use it, and try again.".into());
+            return None;
+        }
+        if self.opened && !self.stopping && said_enough(self.spoke_at, self.listened_at, now) {
+            h.stop();
+            self.stopping = true;
+        }
+        if self.stopping
+            && let Some(wav) = h.finish()
+        {
+            self.hearing = None;
+            match self.spoke_at {
+                Some(_) => (self.say, self.waiting_words) = (Some(wav), true),
+                None => self.unheard = Some(NOTHING_HEARD.into()),
+            }
+            return None;
+        }
+        Some(0.05)
+    }
+
+    /// The words what was said holds (`Event::Heard`), typed in as if they were typed and asked about; or why there
+    /// are none.
+    pub fn said(&mut self, heard: Result<Heard, String>) {
+        self.waiting_words = false;
+        match heard {
+            Ok(h) if !h.text.trim().is_empty() => {
+                self.query = h.text;
+                self.ask = Some(self.query.trim().to_string());
+                (self.retyped, self.focus) = (true, true);
+            }
+            Ok(_) => self.unheard = Some("No words were heard. Say it again, nearer the microphone.".into()),
+            Err(why) => self.unheard = Some(why),
         }
     }
 
@@ -297,6 +419,9 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
         return None;
     }
     let now = cx.now;
+    if std::mem::take(&mut p.retyped) {
+        (p.at, p.moved, p.typed_at, p.asked_at) = (0, false, now, now);
+    }
     let acts = p.shown();
     // Enter does what was highlighted as the palette was drawn, whatever the list has been ranked as since
     let lit = p.lit.clone().or_else(|| acts.get(p.at).map(|a| a.id.clone()));
@@ -310,13 +435,25 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
         .anchor(Align2::CENTER_TOP, vec2(0.0, 72.0))
         .show(ctx, |ui| {
             ui.set_width(520.0);
-            let field = ui.add(
-                egui::TextEdit::singleline(&mut p.query)
-                    .id(field_id)
-                    .hint_text("Type what to do: new song, more reverb on the snare, undo the last 3 changes ...")
-                    .desired_width(f32::INFINITY)
-                    .font(egui::TextStyle::Heading),
-            );
+            let mut listen = false;
+            let field = ui
+                .horizontal(|ui| {
+                    let mic = if p.can_hear { 30.0 } else { 0.0 };
+                    let field = ui.add(
+                        egui::TextEdit::singleline(&mut p.query)
+                            .id(field_id)
+                            .hint_text("Type what to do: new song, more reverb on the snare, undo the last 3 changes ...")
+                            .desired_width(ui.available_width() - mic)
+                            .font(egui::TextStyle::Heading),
+                    );
+                    if p.can_hear {
+                        let listening = p.hearing.is_some();
+                        let tip = if listening { "Stop listening, and read what you said" } else { "Say what to do" };
+                        listen = widgets::icon_button(ui, Icon::Voice, 18.0, listening, !p.waiting_words, tip).clicked();
+                    }
+                    field
+                })
+                .inner;
             if std::mem::take(&mut p.focus) {
                 field.request_focus();
             }
@@ -324,9 +461,21 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
                 (p.at, p.moved, p.typed_at, p.asked_at) = (0, false, now, now);
                 let words = p.query.trim();
                 p.ask = (!words.is_empty()).then(|| words.to_string());
+                p.unheard = None;
+            }
+            if listen {
+                p.listen_or_stop(now);
             }
             ui.add_space(4.0);
-            if p.reading(now) {
+            if let Some(h) = &p.hearing {
+                // what is said before the input opens is lost: the person is told when it hears
+                let said = if h.open() { "Listening… say what to do, then pause" } else { "Opening the microphone…" };
+                ui.label(RichText::new(said).size(11.0).color(TEXT_FAINT));
+            } else if p.waiting_words {
+                ui.label(RichText::new("Hearing your words…").size(11.0).color(TEXT_FAINT));
+            } else if let Some(why) = &p.unheard {
+                ui.label(RichText::new(why).size(11.0).color(theme::WARN));
+            } else if p.reading(now) {
                 ui.label(RichText::new("Reading your words…").size(11.0).color(TEXT_FAINT));
             } else if acts.is_empty() {
                 ui.label(RichText::new("Nothing by that name. Try other words, or read the docs.").color(TEXT_FAINT));
@@ -404,6 +553,9 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
         });
     p.lit = acts.get(p.at).map(|a| a.id.clone());
     if let Some(every) = p.ask_again(now) {
+        ctx.request_repaint_after(std::time::Duration::from_secs_f64(every));
+    }
+    if let Some(every) = p.listening(now) {
         ctx.request_repaint_after(std::time::Duration::from_secs_f64(every));
     }
     // a click outside it closes it, as a menu closes
@@ -606,6 +758,29 @@ mod tests {
         assert!(!p.reading(61.0), "and says no more that it is reading");
         p.heard(answer(false));
         assert!(!p.reading(0.6) && p.ask_again(0.6).is_none(), "read: nothing more to ask");
+    }
+
+    #[test]
+    fn listening_stops_after_a_pause_once_something_was_said_or_at_the_longest() {
+        assert!(!said_enough(None, 0.0, 5.0), "nothing said yet: it listens on");
+        assert!(!said_enough(Some(4.5), 0.0, 5.0), "a breath is no pause");
+        assert!(said_enough(Some(3.0), 0.0, 3.0 + PAUSE));
+        assert!(said_enough(None, 0.0, LONGEST), "so long at most");
+    }
+
+    #[test]
+    fn the_words_heard_are_typed_in_and_asked_about() {
+        let mut p = Palette { waiting_words: true, ..Palette::default() };
+        p.said(Ok(Heard { heard: "Undu the last two changes.".into(), text: "undo the last two changes".into() }));
+        assert_eq!(
+            (p.query.as_str(), p.ask.as_deref()),
+            ("undo the last two changes", Some("undo the last two changes"))
+        );
+        assert!(p.retyped && p.focus && !p.waiting_words);
+        p.said(Ok(Heard::default()));
+        assert!(p.unheard.as_deref().is_some_and(|w| w.starts_with("No words were heard")), "{:?}", p.unheard);
+        p.said(Err("this claudius cannot hear what is said: update it".into()));
+        assert_eq!(p.unheard.as_deref(), Some("this claudius cannot hear what is said: update it"));
     }
 
     fn proposal(said: &str, commands: Vec<Command>) -> claudius_intent::Proposal {

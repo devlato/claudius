@@ -1,0 +1,21 @@
+[package]
+name = "whistle"
+description = "Cactus Compute's Whistle speech model in Rust, on needle-core: speech to text on the device"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[dependencies]
+# the kernels and quantized weights Whistle's layers are built of, and the reader of its .cact archive (MIT)
+needle-core = "0.3.1"
+needle-infer = "0.3.1"
+# the front end's short-time Fourier transform
+realfft = "3.5"
+
+[dev-dependencies]
+hound = "3"

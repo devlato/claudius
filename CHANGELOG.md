@@ -58,6 +58,15 @@ requests the palette misses ("bring the choir in again"); teaching it on more of
 35 MB, downloaded from Hugging Face the first time it is needed, and reads in the app, not yet in the web demo.
 `GET /api/find` says when it is still reading (`reading`), and which proposals it read (`by_model`).
 
+You can say what you want to the palette: click the microphone at the end of its field, say "mute the drums" or
+"undo the last two changes", and pause. Your words go into the field, read as if you had typed them, and nothing
+changes until you pick a button. claudius hears English on your computer with Cactus's Whistle, ported to Rust (17
+MB, downloaded the first time you speak), and keeps nothing of what you say. A word heard near one claudius knows is
+taken as it ("undu" as undo, "the base" as the bass). The palette also reads times and numbers as they are said, typed
+or spoken: "cut the guitar from one minute two seconds", "set the tempo to ninety five". `POST /api/hear` hears a WAV
+file of what was said. The microphone is in the app and in the web studio a claudius serves, not in the demo on the
+website.
+
 [claudius radio](https://claudius.devlato.com/radio/): a station of songs claudius writes as it plays them, one genre
 after another, each mixed into the next as a DJ would. Three songs in four mix in beat for beat, written at exactly the
 playing song's tempo (or twice or half of it) and in a key of its notes, coming in on a bar line of its outro with their

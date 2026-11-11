@@ -307,6 +307,50 @@ impl Listener {
     }
 }
 
+/// What is said to the palette, heard from the default input until it stops: the first channel, at the input's rate.
+pub struct Hearing {
+    _stream: cpal::Stream,
+    shared: Arc<Shared>,
+    rx: Receiver<Chunk>,
+    heard: Vec<f32>,
+    rate: u32,
+}
+
+impl Hearing {
+    pub fn start() -> Result<Hearing, String> {
+        let device = input_device(None)?;
+        let shared = Shared::new();
+        let (tx, rx) = channel();
+        let (stream, rate, _) = open_input(&device, 0, false, tx, shared.clone(), Instant::now())?;
+        stream.play().map_err(|e| format!("cannot listen to {device}: {e}"))?;
+        Ok(Hearing { _stream: stream, shared, rx, heard: Vec::new(), rate: rate as u32 })
+    }
+
+    /// what it has heard so far, taken in, and the loudest of it since the last call, 0..1
+    pub fn level(&mut self) -> f32 {
+        self.heard.extend(self.rx.try_iter().flat_map(|c| c.samples));
+        f32::from_bits(self.shared.level.swap(0, Relaxed))
+    }
+
+    /// whether the input hears yet: it takes a moment to open
+    pub fn open(&self) -> bool {
+        !self.heard.is_empty()
+    }
+
+    pub fn error(&self) -> Option<String> {
+        self.shared.failed.lock().ok().and_then(|f| f.clone())
+    }
+
+    /// stops hearing: the input has handed over all it heard at once, in the app
+    pub fn stop(&mut self) {}
+
+    /// what it heard, as a WAV file, once it has stopped and handed over all of it
+    pub fn finish(&mut self) -> Option<Vec<u8>> {
+        self.level();
+        Some(wav(&self.heard, 1, self.rate))
+    }
+}
+
 /// a MIDI input, by name, handing every message it receives to `f`
 fn connect_midi(
     name: &str,

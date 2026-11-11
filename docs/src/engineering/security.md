@@ -207,7 +207,7 @@ functions.
 | what | from | checked |
 |---|---|---|
 | CLAP and AudioSet models | huggingface.co, at pinned revisions | SHA-256 of every file, pinned in `earshot/src/models.rs`; a mismatch is deleted and never used |
-| the command palette's models (potion-base-8M, Needle 3) | huggingface.co, at pinned revisions | the size and SHA-256 of every file, pinned in `claudius-intent`'s `model.rs` and `needle.rs`; a mismatch is deleted and never used. Needle's adapters are built into claudius, and are refused if they were taught with other tools than claudius gives the model |
+| the command palette's models (potion-base-8M, Needle 3, Whistle) | huggingface.co, at pinned revisions | the size and SHA-256 of every file, pinned in `claudius-intent`'s `model.rs` and `needle.rs` and `claudius-session`'s `hearing.rs`; a mismatch is deleted and never used. Needle's adapters are built into claudius, and are refused if they were taught with other tools than claudius gives the model |
 | curated packs from GitHub | raw.githubusercontent.com at pinned commits | the commit pins the content; sizes against GitHub's listing when there is one |
 | curated Strudel maps | the map and every file it names on raw.githubusercontent.com at pinned commits | the commit; a map whose `_base` names a branch is pinned to the map's commit, or by the registry's `map_base`, and an install refuses a file that is not at a commit |
 | `tr909`, the FreePats organ | audiorealism.se, freepats.zenvoid.org (archives) | the size and SHA-256 in the registry; a mismatch, in a download or in the cache, is deleted |

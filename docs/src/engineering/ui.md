@@ -89,7 +89,15 @@ was asked about, and keeps what it read. Until it has read them, the answer says
 shows Reading your words… and asks again (`Palette::ask_again`, every 0.3 s for up to 20 s). What it read is proposed
 as a request is, each proposal marked `by_model`. The demo asks it in the app, and has none in a page. The palette
 lists the proposals first, under What your words ask, and a history row a reading already goes back to before is left
-out. A proposal's row is
+out. Its microphone (`Palette::listen_or_stop`, `Palette::listening`) records the default input
+(`audio::record::Hearing`: cpal in the app, the recorder's worklet in a page) until a pause of 1.2 s after speech, a
+level above 0.02, or for 15 s at most, and sends the WAV file of it to be heard (`Backend::hear`: `POST /api/hear` to a
+server, `claudius_session::hearing` on a thread of its own in the app's demo; a page's demo has no microphone,
+`Backend::can_hear`). The words come back as `Event::Heard`, put right where claudius knows better, and are typed in as
+if they were typed (`Palette::said`) ([0015](../design/0015-spoken-requests.md)). Until the input opens, the palette
+says Opening the microphone… rather than Listening…, since what is said before it hears is lost, and its 15 s begin
+when it opens. `site/tests/palette.spec.mjs` says a clip to it in Chromium through the plan's `palette` and
+`palette:say` steps, and reads what it shows (`palette: ...`). A proposal's row is
 known by what it says (`do:` and its words), and does its commands only while the answer is for the words typed
 (`Palette::run`). Edits go as one `together`, which the history records as one change named for what the row said,
 and which the studio shows at once, each edit as it shows it alone (`edits::apply`). Undo, redo and going back go as

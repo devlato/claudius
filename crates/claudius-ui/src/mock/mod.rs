@@ -91,6 +91,8 @@ pub struct Mock {
     encode_id: u64,
     /// what the palette's words find
     finding: meaning::Finding,
+    /// what was said to the palette, being heard on a thread of its own, in the app
+    hearing: Option<std::sync::mpsc::Receiver<Result<claudius_api::Heard, String>>>,
 }
 
 /// what a download is, unless another format is asked for: FLAC, lossless at about half a WAV's size
@@ -157,6 +159,7 @@ impl Mock {
             encodes: Vec::new(),
             encode_id: 0,
             finding: meaning::Finding::default(),
+            hearing: None,
         }
     }
 
@@ -199,6 +202,28 @@ impl Mock {
     pub fn find(&mut self, q: &str, limit: usize) {
         let answer = self.finding.find(q, limit, &self.state, self.now, self.ctx.as_ref());
         self.events.push(Event::Found(answer));
+    }
+
+    /// What was said to the palette, the WAV file of it, heard as `Event::Heard`: in the app by the session's speech
+    /// model, on a thread of its own as it takes a moment (and downloads the first time); a page has none.
+    pub fn hear(&mut self, wav: Vec<u8>) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let (tx, rx) = std::sync::mpsc::channel();
+            let (state, ctx) = (self.state.clone(), self.ctx.clone());
+            std::thread::spawn(move || {
+                let _ = tx.send(claudius_session::hearing::hear(wav, &state));
+                if let Some(ctx) = ctx {
+                    ctx.request_repaint();
+                }
+            });
+            self.hearing = Some(rx);
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = wav;
+            self.events.push(Event::Heard(Err("the demo in a page cannot hear what is said".into())));
+        }
     }
 
     /// a reply that turns down what the demo cannot do
@@ -474,6 +499,15 @@ impl Mock {
             if moved {
                 self.publish();
             }
+        }
+        let heard = match self.hearing.as_ref().map(std::sync::mpsc::Receiver::try_recv) {
+            Some(Ok(heard)) => Some(heard),
+            Some(Err(std::sync::mpsc::TryRecvError::Disconnected)) => Some(Err("the speech model stopped".into())),
+            Some(Err(std::sync::mpsc::TryRecvError::Empty)) | None => None,
+        };
+        if let Some(heard) = heard {
+            self.events.push(Event::Heard(heard));
+            self.hearing = None;
         }
         std::mem::take(&mut self.events)
     }

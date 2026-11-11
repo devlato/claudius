@@ -277,6 +277,48 @@ fn packs_install_only_on_the_computer_claudius_runs_on() {
     assert!(local.state().busy.is_none());
 }
 
+/// a mono 16-bit WAV file of `samples` at `rate`
+fn wav_of(samples: &[i16], rate: u32) -> Vec<u8> {
+    let data = (samples.len() * 2) as u32;
+    let mut w = Vec::with_capacity(44 + data as usize);
+    w.extend(b"RIFF");
+    w.extend((36 + data).to_le_bytes());
+    w.extend(b"WAVEfmt ");
+    w.extend(16u32.to_le_bytes());
+    w.extend(1u16.to_le_bytes());
+    w.extend(1u16.to_le_bytes());
+    w.extend(rate.to_le_bytes());
+    w.extend((rate * 2).to_le_bytes());
+    w.extend(2u16.to_le_bytes());
+    w.extend(16u16.to_le_bytes());
+    w.extend(b"data");
+    w.extend(data.to_le_bytes());
+    w.extend(samples.iter().flat_map(|s| s.to_le_bytes()));
+    w
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn what_is_said_to_the_palette_is_heard_from_a_wav_file_alone() {
+    let router = http::router(quiet(), &Options::default());
+    let post = |content_type: &str, body: Vec<u8>| {
+        Request::post("/api/hear")
+            .header(header::HOST, "localhost")
+            .header(header::CONTENT_TYPE, content_type)
+            .body(Body::from(body))
+            .unwrap()
+    };
+    let (s, _, _) = call(&router, post("text/plain", b"mute the drums".to_vec())).await;
+    assert_eq!(s, StatusCode::UNSUPPORTED_MEDIA_TYPE, "a cross-site form cannot send one");
+    let (s, _, b) = call(&router, post("audio/wav", b"mute the drums".to_vec())).await;
+    assert!(s == StatusCode::UNPROCESSABLE_ENTITY && b.contains("no WAV file"), "{s} {b}");
+    let (s, _, b) = call(&router, post("audio/wav", wav_of(&vec![0; 48_000 * 31], 48_000))).await;
+    assert!(s == StatusCode::UNPROCESSABLE_ENTITY && b.contains("30 s at most"), "{s} {b}");
+    // silence, as a microphone the system keeps from claudius gives: nothing heard, and no model fetched for it
+    let (s, _, b) = call(&router, post("audio/wav", wav_of(&vec![0; 24_000], 48_000))).await;
+    let heard: claudius_api::Heard = serde_json::from_str(&b).unwrap();
+    assert!(s == StatusCode::OK && heard == claudius_api::Heard::default(), "{s} {b}");
+}
+
 async fn call(router: &axum::Router, req: Request<Body>) -> (StatusCode, axum::http::HeaderMap, String) {
     let res = router.clone().oneshot(req).await.unwrap();
     let status = res.status();

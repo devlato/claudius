@@ -336,6 +336,19 @@ reading when you point at it, and nothing changes until you pick it. When it can
 nothing. It is 35 MB, which claudius downloads from Hugging Face the first time it is needed. It reads in the app, and
 not yet in the demo in the browser.
 
+### Saying it
+
+Click the microphone at the end of the palette's field and say what you want: "mute the drums", "undo the last two
+changes", "turn the bass down by three decibels". The palette listens until you pause, then puts your words in the
+field, read as if you had typed them, with the buttons they find. Nothing changes until you pick one. Click the
+microphone again to stop it sooner, and if it heard you wrong, type over what it heard.
+
+claudius hears English, on your computer, with Cactus's Whistle, 17 MB, which it downloads from Hugging Face the first
+time you speak. What you say is heard there and kept nowhere. A word it hears near one claudius knows is taken as that
+one: "undu" as undo, "the base" as the bass when the song has one. The first time, the system asks whether claudius may
+use the microphone, and if the palette hears nothing at all, allow it in the system's privacy settings. The microphone
+is there in the app and in the web studio a claudius serves, not in the demo on the website.
+
 Names are found at once. What your words mean is found by a small model that runs on your computer, on any processor
 and without a graphics card, in a fraction of a millisecond: Model2Vec's potion-base-8M, 8 MB as claudius keeps it,
 which claudius downloads from Hugging Face the first time you type in the palette (the demo fetches it from the site).

@@ -11,6 +11,7 @@
 //! | `GET  /api/script` | the current song as a script (text/plain) |
 //! | `GET  /api/sounds` | `SoundList`: every sound name a script or the UI may use |
 //! | `GET  /api/find?q=&limit=` | `claudius_intent::Answer`: the studio's actions the words find, by name and by meaning |
+//! | `POST /api/hear` | body: what was said to the palette, a WAV file (`Content-Type: audio/wav`), at most 30 s; answer: `Heard` |
 //! | `GET  /api/audio/{version}.wav` / `.mp3` | the render of that state version (`RenderView.url` points here) |
 //! | `GET  /api/stems/{version}/{track}.wav` | one track of that render, when it was rendered with stems |
 //! | `GET  /api/export/{version}/{name}.{ext}?format=SPEC` | that render in another format (`ExportFormat.spec`), as a download named `{name}.{ext}` |
@@ -2294,6 +2295,14 @@ pub struct Reply {
     pub message: String,
     /// the state version after the command (or when a long job was started)
     pub version: u64,
+}
+
+/// What was said to the palette (`POST /api/hear`): the words as the speech model heard them, and as the palette is to
+/// read them, the words claudius knows put right; both empty when nothing was said.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct Heard {
+    pub heard: String,
+    pub text: String,
 }
 
 #[cfg(test)]
