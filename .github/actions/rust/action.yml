@@ -66,14 +66,7 @@ runs:
     - name: Linux packages
       if: runner.os == 'Linux' && inputs.linux-packages == 'true'
       shell: bash
+      # with time limits on every fetch, and other mirrors when Azure's fails (scripts/ci/apt-get.sh)
       run: |
-        # The runners fetch Ubuntu's packages from Azure's mirror of it, whose name stops resolving at times: then
-        # they come from Ubuntu's own archive or kernel.org's mirror of it. apt checks Ubuntu's signatures on them
-        # whichever serves them.
-        if ! getent hosts azure.archive.ubuntu.com > /dev/null; then
-          echo "::warning title=Ubuntu packages::azure.archive.ubuntu.com does not resolve; fetching from archive.ubuntu.com or mirrors.edge.kernel.org"
-          printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttp://mirrors.edge.kernel.org/ubuntu/\tpriority:2\n' \
-            | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
-        fi
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq --no-install-recommends pkg-config libssl-dev libasound2-dev libclang-dev
+        sh scripts/ci/apt-get.sh update
+        sh scripts/ci/apt-get.sh install pkg-config libssl-dev libasound2-dev libclang-dev

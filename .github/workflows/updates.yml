@@ -50,7 +50,7 @@ jobs:
       - run: cargo xtask dist --target x86_64-unknown-linux-gnu --web crates/claudius-ui/dist
       - name: The AppImage
         run: |
-          sudo apt-get install -y -qq --no-install-recommends rpm desktop-file-utils
+          sh scripts/ci/apt-get.sh install rpm desktop-file-utils
           version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
           echo "VERSION=$version" >> "$GITHUB_ENV"
           sh scripts/package/linux.sh "target/dist/claudius-$version-x86_64-unknown-linux-gnu.tar.gz" target/packages
