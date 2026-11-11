@@ -96,6 +96,14 @@ The studio has a light look as well as its dark one, and follows your computer's
 on every panel of both looks, and so does a label on a filled button or a lit cell (white on the light look's orange);
 the dark look's faintest text is a little brighter for it, where it stood on a raised panel.
 
+The studio can be worked from the keyboard alone, and with a screen reader. **?** lists every key. New are N (a new
+song), R (record a take), 1 to 9 (the tabs), Cmd+O and Cmd+S (open, save) and Cmd+P (the palette, beside Cmd+K).
+Tab moves through the controls with an orange ring on the one that has the keyboard, which Space or Enter presses
+and whose knob or fader the arrows move; Escape lets go of it, then closes the window on top. A key now does exactly
+what its action in the palette does. The app's window speaks to the system's screen reader (VoiceOver, Narrator,
+Orca), each control saying what it is, its name and its state; in a browser, **?** > **Speak what has the keyboard**
+has the page say aloud the control Tab moves to.
+
 What you set survives any update, from any version: the studio's settings, the voice a pitch check heard, the answer
 about usage statistics and whether to update by itself. Each settings file now says which version of it claudius
 wrote, and is read a setting at a time, so one a later claudius changed costs only itself, and one an earlier claudius

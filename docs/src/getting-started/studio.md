@@ -383,21 +383,39 @@ section's under Hear and Arrange, with the item that removes it in red at the en
 
 ## Keys
 
+The studio can be worked from the keyboard alone. **?** opens the list of every key (also **?** > **Keyboard
+shortcuts**), and every action is in the command palette, with its key. Cmd is Ctrl on Windows and Linux.
+
 | key | |
 |---|---|
-| Cmd+K | the command palette: every action, by its name or in your own words, and what you ask of the song (Ctrl+K on Windows and Linux) |
+| Cmd+K, Cmd+P | the command palette: every action, by its name or in your own words, and what you ask of the song |
+| ? | the keys, in a window |
 | Space | play or pause |
 | Home | back to the start |
 | L | loop the song or the selected section |
+| N | a new song |
+| Cmd+O, Cmd+S | open a song; save it (download it in the demo) |
+| R | record a take |
+| 1 to 9 | the tabs, in order: Drums, Instruments, Notes, Chords, Mixer, Sounds, Script, Signal flow, Log |
 | G | the signal flow large, in the arrangement's place, and back |
+| B | the arrangement's paint tool: a click switches a cell, dragging along a row paints the rest |
+| Cmd+Z, Shift+Cmd+Z | undo, redo |
+| Tab, Shift+Tab | the next control, or the one before |
+| Space, Enter | press the control that has the keyboard |
+| arrows | a knob or a fader that has the keyboard up or down (Shift: finer) |
 | ← → | select the previous or next section |
 | ↑ ↓ | select the track above or below: with the section, a cell of the arrangement |
 | Enter, Delete | switch the selected cell's track on or off in its section; off |
-| Escape | let go of the selected track |
-| B | the arrangement's paint tool: a click switches a cell, dragging along a row paints the rest |
-| Cmd+Z, Cmd+Shift+Z | undo, redo (Ctrl on Windows and Linux) |
+| Escape | let go of the control that has the keyboard; then close the window on top; then let go of the selected track |
 | Cmd+Enter | run the script, in the script editor |
 | Alt+↑ Alt+↓ | in the script editor: the number at the cursor up or down by its last digit (Shift: ten times as much), and the script runs |
+
+A control that has the keyboard has an orange ring, and keeps Space, Enter and the arrows for itself: the keys of the
+studio's actions work again once Escape lets go of it. The keys work while no field is being typed in.
+
+The app's window speaks to your system's screen reader (VoiceOver, Narrator, Orca): each control says what it is,
+what it is called and its state, a knob or a fader its value. In a browser, **?** > **Speak what has the keyboard**
+has the page say aloud the control Tab moves to, and is kept for the next time.
 
 ## When something does not work
 

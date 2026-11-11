@@ -4,10 +4,39 @@ use std::f32::consts::PI;
 use std::ops::RangeInclusive;
 
 use eframe::egui::{
-    self, Align2, Color32, CornerRadius, Pos2, Rect, Response, Sense, Shape, Stroke, StrokeKind, Ui, Vec2, pos2, vec2,
+    self, Align2, Color32, CornerRadius, Key, Modifiers, Pos2, Rect, Response, Role, Sense, Shape, Stroke, StrokeKind,
+    Ui, Vec2, WidgetInfo, pos2, vec2,
 };
 
 use crate::theme::{self, ACCENT, LINE, RAISED, RAISED_HI, TEXT, TEXT_DIM, TEXT_FAINT, WELL};
+
+/// A control drawn with the painter as a screen reader reads it (`info`: what it is, its name and state), and, while it
+/// has the keyboard, the ring that shows where the keyboard is.
+fn accessible(ui: &Ui, response: &Response, radius: impl Into<CornerRadius>, info: impl Fn() -> WidgetInfo) {
+    response.widget_info(info);
+    if response.has_focus() {
+        ui.painter().rect_stroke(response.rect.expand(2.0), radius, Stroke::new(2.0, ACCENT), StrokeKind::Outside);
+    }
+}
+
+/// How far the arrow keys move a value that has the keyboard: `step` a press up or right, down or left the other way,
+/// a fifth of it with Shift held; none when nothing was pressed or it does not have the keyboard.
+fn arrowed(ui: &Ui, response: &Response, step: f32) -> f32 {
+    if !response.has_focus() {
+        return 0.0;
+    }
+    ui.input_mut(|i| {
+        let fine = if i.modifiers.shift { 0.2 } else { 1.0 };
+        let mut by = 0.0;
+        for (key, sign) in [(Key::ArrowUp, 1.0), (Key::ArrowRight, 1.0), (Key::ArrowDown, -1.0), (Key::ArrowLeft, -1.0)]
+        {
+            while i.consume_key(Modifiers::NONE, key) {
+                by += sign * step * fine;
+            }
+        }
+        by
+    })
+}
 
 /// a slider-like edit by the user is done: released after a drag, or changed by a click or the keyboard. egui also
 /// marks a widget changed when it clamps or rounds a value it was handed; that is not an edit and must not be sent
@@ -214,6 +243,10 @@ pub fn icon_button(ui: &mut Ui, icon: Icon, size: f32, active: bool, enabled: bo
         TEXT
     };
     paint_icon(ui.painter(), rect.shrink(size * 0.24), icon, color);
+    accessible(ui, &response, 9, || match active {
+        true => WidgetInfo::selected(Role::Button, enabled, true, tooltip),
+        false => WidgetInfo::labeled(Role::Button, enabled, tooltip),
+    });
     if tooltip.is_empty() { response } else { response.on_hover_text(tooltip) }
 }
 
@@ -264,6 +297,8 @@ fn labelled(ui: &mut Ui, icon: Icon, label: &str, enabled: bool, accent: bool, m
         let arrow = Rect::from_center_size(pos2(rect.right() - 15.0, rect.center().y + 0.5), Vec2::splat(12.0));
         paint_icon(ui.painter(), arrow, Icon::Menu, if enabled { TEXT_DIM } else { TEXT_FAINT });
     }
+    let kind = if menu { Role::ComboBox } else { Role::Button };
+    accessible(ui, &response, 9, || WidgetInfo::labeled(kind, enabled, label));
     response
 }
 
@@ -295,6 +330,11 @@ pub fn knob(
         *value = 0f32.clamp(lo, hi);
         response.mark_changed();
     }
+    let by = arrowed(ui, &response, (hi - lo) / 100.0);
+    if by != 0.0 {
+        *value = (*value + by).clamp(lo, hi);
+        response.mark_changed();
+    }
     let center = pos2(rect.center().x, rect.top() + d / 2.0 + 1.0);
     let painter = ui.painter();
     let (a0, a1) = (-0.75 * PI, 0.75 * PI);
@@ -323,7 +363,9 @@ pub fn knob(
         theme::prop(10.5),
         if hovered { TEXT } else { TEXT_DIM }.into(),
     );
-    response.on_hover_text(format!("{}\n(drag up or down, shift for fine; double-click resets)", said(*value)))
+    accessible(ui, &response, 15, || WidgetInfo::slider(true, *value as f64, format!("{label}: {}", said(*value))));
+    let keys = "drag up or down or use the arrow keys, shift for fine; double-click resets";
+    response.on_hover_text(format!("{}\n({keys})", said(*value)))
 }
 
 /// the fader's dB to 0..1 travel (finer around 0 dB, like a console)
@@ -363,6 +405,13 @@ pub fn fader(
         *db = 0.0;
         response.mark_changed();
     }
+    let by = arrowed(ui, &response, 0.5);
+    if by != 0.0 {
+        *db = ((*db + by) * 10.0).round() / 10.0;
+        *db = db.clamp(lo, hi);
+        response.mark_changed();
+    }
+    accessible(ui, &response, 6, || WidgetInfo::slider(enabled, *db as f64, format!("level {:+.1} dB", *db)));
     let painter = ui.painter();
     for mark in [12.0, 6.0, 0.0, -6.0, -12.0, -24.0, -48.0] {
         if mark < lo || mark > hi {
@@ -455,6 +504,7 @@ pub fn chip(ui: &mut Ui, on: bool, text: &str, color: impl Into<Color32>) -> Res
     ui.painter().rect(rect, CornerRadius::same(11), fill, stroke, StrokeKind::Inside);
     let tc = if on { theme::lit(color, 0.55) } else { TEXT_DIM.into() };
     ui.painter().galley(rect.center() - galley.size() / 2.0, galley, tc);
+    accessible(ui, &response, 13, || WidgetInfo::selected(Role::CheckBox, true, on, text));
     response
 }
 
@@ -481,6 +531,7 @@ pub fn pill(ui: &mut Ui, text: &str, color: impl Into<Color32>) -> Response {
         StrokeKind::Inside,
     );
     ui.painter().galley(rect.center() - galley.size() / 2.0, galley, color);
+    response.widget_info(|| WidgetInfo::labeled(Role::Label, true, text));
     response
 }
 

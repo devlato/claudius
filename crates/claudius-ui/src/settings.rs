@@ -31,6 +31,8 @@ pub struct Prefs {
     pub record: panels::record::Settings,
     /// dark, light, or as the system is: since version 1
     pub look: Look,
+    /// whether a page speaks what has the keyboard: since version 1
+    pub speak: bool,
 }
 
 impl Default for Prefs {
@@ -53,6 +55,7 @@ impl Prefs {
             tour_done: v.tour_done,
             record: v.record.settings.clone(),
             look: v.look,
+            speak: v.speak,
         }
     }
 
@@ -91,6 +94,7 @@ impl Prefs {
                 style: record.or("style", r.style),
             },
             look: f.or("look", d.look),
+            speak: f.or("speak", d.speak),
         }
     }
 

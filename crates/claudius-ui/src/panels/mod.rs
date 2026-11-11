@@ -8,6 +8,7 @@ pub mod harmony;
 pub mod hears;
 pub mod import;
 pub mod inspector;
+pub mod keys;
 pub mod library;
 pub mod log;
 pub mod markdown;
@@ -391,6 +392,8 @@ pub struct View {
     pub import: import::Import,
     /// the command palette (Cmd+K)
     pub palette: palette::Palette,
+    /// the window of the keys the studio answers to
+    pub keys: keys::Keys,
     pub phone: phone::Phone,
     /// the graph tab: the node chosen, and where its canvas looks
     pub graph: graph::GraphView,
@@ -409,6 +412,8 @@ pub struct View {
     pub tour_asks: bool,
     /// the look the studio wears (kept between runs)
     pub look: crate::theme::Look,
+    /// whether a page speaks what has the keyboard (kept between runs; the app's window has the system's screen reader)
+    pub speak: bool,
     pub anchors: crate::tour::Anchors,
     /// the update whose banner was put off with Later (until the next start)
     pub update_dismissed: Option<String>,
@@ -479,6 +484,7 @@ impl Default for View {
             record: record::Record::default(),
             import: import::Import::default(),
             palette: palette::Palette::default(),
+            keys: keys::Keys::default(),
             phone: phone::Phone::default(),
             graph: graph::GraphView::default(),
             melody_style: "line".into(),
@@ -488,6 +494,7 @@ impl Default for View {
             tour: None,
             tour_done: false,
             look: crate::theme::Look::default(),
+            speak: false,
             tour_asks: false,
             anchors: crate::tour::Anchors::default(),
             update_dismissed: None,
@@ -513,6 +520,20 @@ impl View {
             self.new_song.open = false;
         }
         self.analysis = Some((ok, message));
+    }
+
+    /// Closes the window on top, as Escape does, the small ones first; one that records a take stays. Whether one was
+    /// open.
+    pub fn close_top(&mut self) -> bool {
+        let shut = |open: &mut bool| std::mem::replace(open, false);
+        shut(&mut self.keys.open)
+            || shut(&mut self.reference_open)
+            || shut(&mut self.assistants.open)
+            || shut(&mut self.phone.open)
+            || shut(&mut self.publish.open)
+            || shut(&mut self.import.open)
+            || (!self.record.recording() && shut(&mut self.record.open))
+            || shut(&mut self.new_song.open)
     }
 }
 
