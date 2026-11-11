@@ -509,15 +509,17 @@ impl History {
                     undo.push((before, op.label.clone(), op.id.clone()));
                     redo.clear();
                 }
-                // the edit undone, to redo with the song as it was after it (`before`), whether or not its own step is
-                // in the log
+                // the edit undone, to redo with the song as it was after it (`before`), when the log holds its step: one
+                // it begins after has no song the log knows to go back to
                 Kind::Undo { of } => {
-                    undo.pop_if(|s| s.2 == *of);
-                    redo.push((before, op.label.clone(), of.clone()));
+                    if let Some((_, label, id)) = undo.pop_if(|s| s.2 == *of) {
+                        redo.push((before, label, id));
+                    }
                 }
                 Kind::Redo { of } => {
-                    redo.pop_if(|s| s.2 == *of);
-                    undo.push((before, op.label.clone(), of.clone()));
+                    if let Some((_, label, id)) = redo.pop_if(|s| s.2 == *of) {
+                        undo.push((before, label, id));
+                    }
                 }
                 // each edit undone, the latest first, to redo with the song as it was after it, as far back as the log
                 // holds their steps
@@ -850,7 +852,7 @@ mod tests {
         h.commit_song(None, &Some(first.clone()), "new house song");
         let tempo = h.commit(Some(first.clone()), &Some(edited.clone()), "tempo");
         h.commit_song(Some(edited), &Some(second.clone()), "new techno song");
-        let mut now = Some(second);
+        let mut now = Some(second.clone());
         h.back(&mut now, &tempo).unwrap();
         let text = h.to_jsonl();
         let opened = History::open(&text, &now);
@@ -860,7 +862,16 @@ mod tests {
         let tail: String = text.lines().skip(2).map(|l| format!("{l}\n")).collect();
         let opened = History::open(&tail, &now);
         assert_eq!((opened.log().len(), opened.redo_label().as_deref()), (2, Some("new techno song")));
-        assert_eq!(now.unwrap().bpm, first.bpm);
+        assert_eq!(now.as_ref().unwrap().bpm, first.bpm);
+        // and one that begins with an undo of an edit before it has nothing to redo, where no song it knows is
+        let mut h = History::default();
+        h.commit_song(None, &Some(first.clone()), "new house song");
+        h.commit_song(Some(first.clone()), &Some(second.clone()), "new techno song");
+        let mut now = Some(second);
+        h.undo(&mut now).unwrap();
+        let last: String = h.to_jsonl().lines().last().map(|l| format!("{l}\n")).unwrap_or_default();
+        let opened = History::open(&last, &now);
+        assert_eq!((opened.log().len(), opened.can_redo(), opened.can_undo()), (1, false, false));
     }
 
     #[test]
