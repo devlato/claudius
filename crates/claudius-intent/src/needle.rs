@@ -19,12 +19,33 @@ use needle_core::v3::mhc::{Gates, LaneSite, MhcLayer, mix_down, scatter_up};
 use needle_core::v3::model::V3Model;
 use needle_infer::cact::CactV3;
 use needle_infer::constrained::{ConstrainedDecoder, ToolDef, byte_table};
-use needle_infer::prompt::{IM_END, TOOL_CALL_END, TOOL_CALL_START, build_prompt};
+use needle_infer::prompt::{IM_END, THINK_END, TOOL_CALL_END, TOOL_CALL_START, build_prompt};
 use needle_infer::sp_tokenizer::SpTokenizer;
 
 /// the sequence's first token, and the end of a completion
 const BOS: u32 = 2;
 const EOS: u32 = 1;
+
+/// Needle 3 as claudius runs it: Cactus Compute's `needle3.cact` at its pinned revision (Apache-2.0).
+pub const NEEDLE3: crate::model::Source = crate::model::Source {
+    name: "needle3",
+    repo: "Cactus-Compute/needle3",
+    revision: "c95d25b4efa1e9601e785d92438e4ade0dbddbf8",
+    files: &[("needle3.cact", 35_335_380, "c9d915eca282ed42d1a09b143b592adb4cc6744ffe2d294adf5cfc5548170c38")],
+};
+
+/// the depth of its ladder the adapters were taught at, which the app runs
+pub const DEPTH: usize = 8;
+
+/// claudius's adapters, taught on `teach`'s lessons with its tools by `claudius-tune`
+#[cfg(not(target_arch = "wasm32"))]
+pub const ADAPTERS: &[u8] = include_bytes!("../data/needle-adapters.safetensors");
+
+/// The fingerprint of a set of tools: adapters are taught with one set, and read only with it.
+pub fn fingerprint(tools: &str) -> String {
+    let h = tools.bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x0000_0100_0000_01b3));
+    format!("{h:016x}")
+}
 
 /// One adapter: `y += scale · B·(A·x)`, `A` rank × in, `B` out × rank, both row-major.
 #[derive(Clone, Debug, Default)]
@@ -61,21 +82,24 @@ pub struct Block {
     pub out: Pair,
 }
 
-/// What claudius was taught with: the adapters of each block of the depth they were taught at, and their scale.
+/// What claudius was taught with: the adapters of each block of the depth they were taught at, their scale, and the
+/// fingerprint of the tools they were taught with (`fingerprint`).
 #[derive(Clone, Debug, Default)]
 pub struct Adapters {
     pub depth: usize,
     pub scale: f32,
+    pub tools: String,
     pub blocks: Vec<Block>,
 }
 
 impl Adapters {
     /// The adapters in a safetensors file as the trainer writes them: `b{block}.{proj}.a` and `.b` for each of the
-    /// five projections, and `depth`, `rank` and `scale` in its metadata.
+    /// five projections, and `depth`, `rank`, `scale` and `tools` in its metadata.
     pub fn from_safetensors(bytes: Vec<u8>) -> Result<Adapters, String> {
         let st = needle_infer::safetensors::SafeTensors::from_bytes(bytes).map_err(|e| e.to_string())?;
         let meta = |k: &str| st.get_metadata(k).and_then(|v| v.parse::<f32>().ok()).ok_or(format!("no {k}"));
         let (depth, rank, scale) = (meta("depth")? as usize, meta("rank")? as usize, meta("scale")?);
+        let tools = st.get_metadata("tools").unwrap_or_default().to_string();
         let pair = |b: usize, p: &str| -> Result<Pair, String> {
             let get = |m: &str| st.get_f32(&format!("b{b}.{p}.{m}")).ok_or(format!("no b{b}.{p}.{m}"));
             Ok(Pair { a: get("a")?, b: get("b")?, rank })
@@ -91,7 +115,7 @@ impl Adapters {
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
-        Ok(Adapters { depth, scale, blocks })
+        Ok(Adapters { depth, scale, tools, blocks })
     }
 }
 
@@ -237,20 +261,28 @@ impl Needle {
         }
     }
 
-    /// greedy decoding from `logits`, the call held to `tools` by the grammar, until the turn ends or `most` tokens
+    /// Greedy decoding from `logits`, the call held to `tools` by the grammar, until the turn ends or `most` tokens. A
+    /// line of reasoning that runs past `THINKING` tokens, as one caught in a loop does, ends the reading with no call:
+    /// the model does not know what the request asks.
     fn generate(&mut self, mut logits: Vec<f32>, tools: &str, most: usize) -> String {
+        const THINKING: usize = 48;
         let defs = ToolDef::from_json(tools);
         let mut grammar = ConstrainedDecoder::new(&defs, byte_table(&self.tok)).with_unique_arg_keys();
         let (start, end, im_end) = self.marks;
+        let think_end = self.tok.id_of(THINK_END);
         let rows = self.model.cfg.logit_rows();
-        let (mut out, mut inside) = (Vec::new(), false);
+        let (mut out, mut inside, mut thought) = (Vec::new(), false, false);
         for _ in 0..most {
             if inside {
                 for (l, m) in logits.iter_mut().zip(grammar.logit_mask(rows)) {
                     *l += m;
                 }
             }
+            if !thought && !inside && out.len() >= THINKING {
+                break;
+            }
             let next = logits.iter().enumerate().max_by(|a, b| a.1.total_cmp(b.1)).map_or(EOS, |(i, _)| i as u32);
+            thought |= Some(next) == think_end;
             if next == EOS || Some(next) == im_end {
                 break;
             }
@@ -445,6 +477,20 @@ impl Needle {
         m.embedding.matvec_prepared(&prep, &mut full);
         full.truncate(cfg.logit_rows());
         full
+    }
+
+    /// the logits after the prompt for `query`, the request read with the adapters after the tools: for comparing with
+    /// the trainer's
+    pub fn logits_after(&mut self, query: &str, tools: &str) -> Vec<f32> {
+        let ids = self.prompt_ids(query, tools);
+        self.read_tools(&ids, tools);
+        let from = self.tools.as_ref().map_or(0, |t| t.ids.len());
+        self.rewind();
+        let mut logits = Vec::new();
+        for &id in &ids[from..] {
+            logits = self.step(id, true, None);
+        }
+        logits
     }
 
     /// the logits after each of `ids`, from an empty cache and without the adapters: for comparing with needle-core

@@ -54,10 +54,12 @@ pub fn provide(bytes: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
-/// Reads the model from claudius's cache, or downloads it there, in the background; once a process.
+/// Reads the model from claudius's cache, or downloads it there, in the background; once a process. The palette asks
+/// for it, which lets the request model download too, once the readings first read nothing of a request.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn fetch_in_background() {
     static STARTED: std::sync::Once = std::sync::Once::new();
+    model::ALLOWED.store(true, std::sync::atomic::Ordering::Relaxed);
     STARTED.call_once(|| {
         std::thread::spawn(|| {
             if let Err(why) = load_or_fetch() {
@@ -80,7 +82,7 @@ fn load_or_fetch() -> Result<(), String> {
     }
     let downloads = dir.join(NAME);
     std::fs::create_dir_all(&downloads).map_err(|e| format!("cannot make {}: {e}", downloads.display()))?;
-    for (file, size, sha) in POTION.files {
+    for &(file, size, sha) in POTION.files {
         let dest = downloads.join(file);
         claudius_packs::download_file(&POTION.url(file), &dest, size, false).map_err(|e| format!("{file}: {e:#}"))?;
         let bytes = std::fs::read(&dest).map_err(|e| format!("{file}: {e}"))?;
@@ -97,6 +99,170 @@ fn load_or_fetch() -> Result<(), String> {
     let _ = std::fs::remove_dir_all(&downloads);
     hold(model);
     Ok(())
+}
+
+/// What the small model on the device read of a request: what it calls, or that it calls nothing; that it is
+/// reading it still; or that there is no model to read it (it has not downloaded, or this build has none).
+#[derive(Clone, Debug, PartialEq)]
+pub enum Read {
+    Done(Option<claudius_intent::teach::Call>),
+    Reading,
+    NoModel,
+}
+
+/// Needle 3 with claudius's adapters (`claudius_intent::needle`), on a thread of its own: it downloads once (35 MB,
+/// its pinned revision, checked against its hash) into claudius's cache, then reads the latest request it is asked
+/// about, one at a time, keeping what it read.
+#[cfg(not(target_arch = "wasm32"))]
+mod model {
+    use std::collections::HashMap;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Condvar, Mutex};
+
+    use claudius_intent::needle::{ADAPTERS, Adapters, DEPTH, NEEDLE3, Needle, fingerprint};
+    use claudius_intent::teach::{Call, TOOLS, read};
+
+    use super::Read;
+
+    #[derive(Default)]
+    struct Shared {
+        /// the model could not be had (it did not download, or would not load), and is not tried again
+        gone: bool,
+        /// the latest request asked about, which it reads next, once it is there the first time
+        wanted: Option<String>,
+        /// what it read, request by request
+        read: HashMap<String, Option<Call>>,
+    }
+
+    static SHARED: Mutex<Option<Shared>> = Mutex::new(None);
+    static WAKE: Condvar = Condvar::new();
+
+    /// whether the palette has been asked (`fetch_in_background`), without which the model is never downloaded
+    pub static ALLOWED: AtomicBool = AtomicBool::new(false);
+
+    /// What the model read of `query`, asking it to when it has not; it downloads the first time it is asked.
+    pub fn read_of(query: &str) -> Read {
+        if !ALLOWED.load(Ordering::Relaxed) {
+            return Read::NoModel;
+        }
+        let mut guard = SHARED.lock().unwrap_or_else(|e| e.into_inner());
+        if guard.is_none() {
+            *guard = Some(Shared::default());
+            std::thread::spawn(run);
+        }
+        let shared = guard.as_mut().expect("just made");
+        if let Some(call) = shared.read.get(query) {
+            return Read::Done(call.clone());
+        }
+        if shared.gone {
+            return Read::NoModel;
+        }
+        shared.wanted = Some(query.to_string());
+        WAKE.notify_one();
+        Read::Reading
+    }
+
+    fn run() {
+        let mut needle = match load() {
+            Ok(n) => n,
+            Err(why) => {
+                eprintln!("claudius: requests the readings cannot read stay unread for now: {why}");
+                if let Some(s) = SHARED.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
+                    s.gone = true;
+                }
+                return;
+            }
+        };
+        // the tools are read once, before the first request is
+        needle.complete("hello", TOOLS, 1);
+        loop {
+            let query = {
+                let mut guard = SHARED.lock().unwrap_or_else(|e| e.into_inner());
+                loop {
+                    if let Some(q) = guard.as_mut().and_then(|s| s.wanted.take()) {
+                        break q;
+                    }
+                    guard = WAKE.wait(guard).unwrap_or_else(|e| e.into_inner());
+                }
+            };
+            let call = read(&query, &needle.complete(&query, TOOLS, 120));
+            if let Some(s) = SHARED.lock().unwrap_or_else(|e| e.into_inner()).as_mut() {
+                if s.read.len() > 512 {
+                    s.read.clear();
+                }
+                s.read.insert(query, call);
+            }
+        }
+    }
+
+    /// the model from the cache, or downloaded and kept there, with the adapters
+    fn load() -> Result<Needle, String> {
+        use sha2::{Digest, Sha256};
+        let &(file, size, sha) = NEEDLE3.files.first().ok_or("no file")?;
+        let dest = claudius::config::cache_dir("models").join(file);
+        let good = |bytes: &[u8]| {
+            bytes.len() as u64 == size
+                && Sha256::digest(bytes).iter().map(|b| format!("{b:02x}")).collect::<String>() == sha
+        };
+        let bytes = match std::fs::read(&dest) {
+            Ok(b) if good(&b) => b,
+            _ => {
+                if let Some(dir) = dest.parent() {
+                    std::fs::create_dir_all(dir).map_err(|e| format!("cannot make {}: {e}", dir.display()))?;
+                }
+                claudius_packs::download_file(&NEEDLE3.url(file), &dest, size, false)
+                    .map_err(|e| format!("{file}: {e:#}"))?;
+                let b = std::fs::read(&dest).map_err(|e| format!("{file}: {e}"))?;
+                if !good(&b) {
+                    let _ = std::fs::remove_file(&dest);
+                    return Err(format!("{file} is not the file claudius was checked with"));
+                }
+                b
+            }
+        };
+        let adapters = Adapters::from_safetensors(ADAPTERS.to_vec())?;
+        if adapters.tools != fingerprint(TOOLS) {
+            return Err("the adapters were taught with other tools".into());
+        }
+        let mut needle = Needle::from_bytes(bytes, DEPTH)?;
+        needle.adapt(adapters)?;
+        Ok(needle)
+    }
+}
+
+/// What the small model read of a request the readings read nothing of, as `answer`'s proposals, each marked as the
+/// model's; or that it is reading it still, for the palette to ask again. A word alone is an action's name, not a
+/// request, and is left to the actions.
+pub fn ask_model(answer: &mut claudius_intent::Answer, state: &claudius_api::State, asker: &Asker) {
+    let q = answer.query.trim().to_string();
+    if !answer.proposed.is_empty() || q.split_whitespace().count() < 2 {
+        return;
+    }
+    match model_read(&q) {
+        Read::Done(Some(call)) => {
+            let Some(words) = claudius_intent::teach::said(&call) else { return };
+            answer.proposed = claudius_intent::ask::propose(&words, state, asker, None)
+                .into_iter()
+                .map(|mut p| {
+                    p.reading.by_model = true;
+                    p
+                })
+                .collect();
+        }
+        Read::Reading => answer.reading = true,
+        Read::Done(None) | Read::NoModel => {}
+    }
+}
+
+/// What the small model on the device read of `query`, asking it to when it has not (see `Read`).
+pub fn model_read(query: &str) -> Read {
+    #[cfg(not(target_arch = "wasm32"))]
+    return model::read_of(query);
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = query;
+        Read::NoModel
+    }
 }
 
 #[cfg(test)]

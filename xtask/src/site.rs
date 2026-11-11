@@ -198,7 +198,7 @@ fn web_model(sh: &Shell, out: &Path) -> Result<()> {
     let source = claudius_intent::model::POTION;
     let downloads = root().join("target/demo-sounds/models").join(source.name);
     sh.create_dir(&downloads)?;
-    for (file, size, sha) in source.files {
+    for &(file, size, sha) in source.files {
         let dest = downloads.join(file);
         let checked = |path: &Path| {
             std::fs::read(path).is_ok_and(|bytes| {

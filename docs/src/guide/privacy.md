@@ -5,16 +5,17 @@ while the studio's Record window is open (its meter shows what the input hears),
 the page to use it, and keeps the takes you record with your song, on your computer. What a
 [pitch check](voice.md#checking-your-pitch) learns of your voice stays there too, in its settings folder. It goes on
 the network for five things only: the downloads you ask for (the sample packs, from GitHub and their authors' sites,
-the listening models, from Hugging Face, the command palette's small model, from Hugging Face too, the first time you
-type in the palette, and the recordings `claudius samples` finds); the samples a
+the listening models, from Hugging Face, the command palette's two small models, from Hugging Face too, the first time
+you type in the palette and the first time it cannot make out a request, and the recordings `claudius samples` finds);
+the samples a
 [song built on samples](online-samples.md#songs-built-on-samples) gathers as it is made, from Openverse,
 Wikimedia Commons and ccMixter (`--offline` keeps it from asking); the [update](updates.md) check, once a day, to
 GitHub; an assistant you connect from outside your computer if you set that up; and anonymous usage statistics, which
 are off until you turn them on.
 
 What you type in the [command palette](../getting-started/studio.md#finding-an-action) stays on your computer: the
-model that finds what your words mean runs in claudius's engine there (or in the claudius you connected the studio
-to), and the demo's runs in your browser, on the copy the site serves.
+models that find what your words mean and read your requests run in claudius's engine there (or in the claudius you
+connected the studio to), and the demo's runs in your browser, on the copy the site serves.
 
 ## The website
 

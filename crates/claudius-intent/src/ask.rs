@@ -90,6 +90,9 @@ pub struct Reading {
     pub pan: Option<f64>,
     /// of a going back, the change it goes back to before: what undo calls it
     pub about: Option<String>,
+    /// read by the small model on the device (`needle`), where the words alone read nothing
+    #[serde(default)]
+    pub by_model: bool,
 }
 
 /// A reading of a request: what claudius would do, in words, and the commands that do it.

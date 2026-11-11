@@ -6,7 +6,8 @@
 use claudius_api::{Done, SectionView, SongView, State, TrackView};
 use claudius_intent::Model;
 use claudius_intent::ask::{Asker, Example, Kind, Proposal, Way, examples, propose};
-use claudius_intent::teach::{Call, TOOLS, lessons, said};
+use claudius_intent::needle::{Adapters, Needle};
+use claudius_intent::teach::{self, Call, TOOLS, lessons, said};
 use serde_json::Value;
 
 /// a track of the song: its name, kind, role, sound, level, drive, reverb, delay and pan
@@ -361,10 +362,18 @@ fn every_lesson_said_again_reads_as_the_tool_it_calls() {
     assert!(all.len() > 400, "{} lessons", all.len());
     let mut wrong = Vec::new();
     for l in &all {
-        let Some(call) = l.answers.first() else { continue };
+        let (_, answer) = l.rendered();
+        let Some(call) = l.answers.first() else {
+            assert_eq!(teach::read(&l.query, &answer), None, "{}", l.query);
+            continue;
+        };
         let tool = tools.iter().find(|t| t["name"] == call.name.as_str()).unwrap_or_else(|| panic!("{}", call.name));
         for key in call.arguments.keys() {
             assert!(tool["parameters"]["properties"].get(key).is_some(), "{}: {} takes no {key}", l.query, call.name);
+        }
+        if teach::read(&l.query, &answer).as_ref() != Some(call) {
+            wrong.push(format!("'{}': its own answer does not read, the reasoning '{}'", l.query, l.reasoning));
+            continue;
         }
         let Some(words) = said(call) else {
             wrong.push(format!("'{}': {:?} says nothing", l.query, call));
@@ -496,6 +505,139 @@ fn a_perfect_models_call_for_every_example_reads_as_the_example_expects() {
         }
     }
     assert!(missed.is_empty(), "{} missed: {missed:#?}", missed.len());
+}
+
+/// The taught model, run as the palette runs it (`needle`), on every example, none of which it was taught on: its
+/// call, said again and read on the song, reads as the example expects. Needs the model (`CLAUDIUS_NEEDLE_MODEL`, a
+/// `needle3.cact`) and the adapters (`CLAUDIUS_NEEDLE_ADAPTERS`), and says how the model alone, the readings alone,
+/// and the two together read the examples: the readings first, the model where they read nothing.
+#[test]
+fn the_taught_model_reads_the_examples_it_was_not_taught() {
+    let file = |var: &str| std::fs::read(std::env::var_os(var)?).ok();
+    let (Some(model), Some(adapters)) = (file("CLAUDIUS_NEEDLE_MODEL"), file("CLAUDIUS_NEEDLE_ADAPTERS")) else {
+        eprintln!("CLAUDIUS_NEEDLE_MODEL and CLAUDIUS_NEEDLE_ADAPTERS name no model and adapters: skipped");
+        return;
+    };
+    let adapters = Adapters::from_safetensors(adapters).unwrap();
+    let mut needle = Needle::from_bytes(model, adapters.depth).unwrap();
+    needle.adapt(adapters).unwrap();
+    let (state, asker) = (song(), Asker::new(None));
+    let only = std::env::var("CLAUDIUS_NEEDLE_SET").ok();
+    let all: Vec<Example> = examples().into_iter().filter(|e| only.is_none() || e.set == only).collect();
+    let (mut alone, mut readings, mut together, mut misled) = (0, 0, 0, 0);
+    let (mut refused, mut refused_right, mut misled_unchecked, mut rescued_unchecked) = (0, 0, 0, 0);
+    let started = std::time::Instant::now();
+    for e in &all {
+        let text = needle.complete(&e.ask, TOOLS, 120);
+        let call = teach::read(&e.ask, &text);
+        let read = call.as_ref().and_then(said).map(|w| propose(&w, &state, &asker, None)).unwrap_or_default();
+        let ruled = propose(&e.ask, &state, &asker, None);
+        let (m, r) = (wrong(read.first(), e), wrong(ruled.first(), e));
+        if m.is_some() {
+            eprintln!("'{}': {} <- {text:?}", e.ask, m.as_deref().unwrap_or_default());
+        } else if ruled.is_empty() {
+            eprintln!("'{}': the model alone reads it, as '{}'", e.ask, read[0].said);
+        }
+        if call.is_none()
+            && let Some(unchecked) = unchecked(&text)
+        {
+            refused += 1;
+            let p = said(&unchecked).map(|w| propose(&w, &state, &asker, None)).unwrap_or_default();
+            let right = wrong(p.first(), e).is_none();
+            eprintln!("'{}': refused, {} <- {text:?}", e.ask, if right { "right" } else { "wrong" });
+            refused_right += usize::from(right);
+            misled_unchecked += usize::from(ruled.is_empty() && !p.is_empty() && !right);
+            rescued_unchecked += usize::from(ruled.is_empty() && right);
+        }
+        alone += usize::from(m.is_none());
+        readings += usize::from(r.is_none());
+        together += usize::from(if ruled.is_empty() { m.is_none() } else { r.is_none() });
+        misled += usize::from(ruled.is_empty() && !read.is_empty() && m.is_some());
+    }
+    let each = started.elapsed() / all.len() as u32;
+    eprintln!(
+        "of {}: the model alone reads {alone}, the readings {readings}, the readings and the model together {together}, \
+         and the model offers {misled} wrong where the readings offer nothing; its checks refuse {refused} calls, \
+         {refused_right} of them right: without them, together {} and {} wrong; a request in {each:?}",
+        all.len(),
+        together + rescued_unchecked,
+        misled + misled_unchecked,
+    );
+    assert!(together >= readings, "the model makes the readings worse");
+}
+
+/// the first call in a completion, unchecked
+fn unchecked(text: &str) -> Option<Call> {
+    let payload = needle_infer::v3_engine::extract_tool_call(text)?;
+    serde_json::from_str::<Vec<Call>>(&payload).ok()?.into_iter().next()
+}
+
+/// Requests that ask for no change to the song, none of them taught: what the rules read nothing for, the model is
+/// asked about, and it should offer nothing either.
+const NO_CHANGE: &[&str] = &[
+    "what's the weather like",
+    "who wrote this song",
+    "tell me a joke",
+    "is this song any good",
+    "thanks, that's great",
+    "what key is this in",
+    "how loud is the kick right now",
+    "what tempo is it at",
+    "how many tracks are there",
+    "what does reverb actually do",
+    "who are you",
+    "write me some lyrics about rain",
+    "make me a sandwich",
+    "good morning",
+    "the drums sound amazing",
+    "i love this part",
+    "where are my files saved",
+    "what genre is this",
+    "can you hear me",
+    "what time is it",
+    "is the mix balanced",
+    "which track is the loudest",
+    "describe the song to me",
+    "what instruments are playing",
+    "why does it sound so muddy",
+    "show me the mixer",
+    "open the settings",
+    "share this with a friend",
+    "close the window",
+    "help",
+];
+
+#[test]
+fn the_taught_model_offers_no_change_for_a_request_that_asks_for_none() {
+    let file = |var: &str| std::fs::read(std::env::var_os(var)?).ok();
+    let (Some(model), Some(adapters)) = (file("CLAUDIUS_NEEDLE_MODEL"), file("CLAUDIUS_NEEDLE_ADAPTERS")) else {
+        eprintln!("CLAUDIUS_NEEDLE_MODEL and CLAUDIUS_NEEDLE_ADAPTERS name no model and adapters: skipped");
+        return;
+    };
+    let adapters = Adapters::from_safetensors(adapters).unwrap();
+    let mut needle = Needle::from_bytes(model, adapters.depth).unwrap();
+    needle.adapt(adapters).unwrap();
+    let (state, asker) = (song(), Asker::new(None));
+    let (mut offered, mut unchecked_offered) = (Vec::new(), 0);
+    for ask in NO_CHANGE {
+        if !propose(ask, &state, &asker, None).is_empty() {
+            continue;
+        }
+        let text = needle.complete(ask, TOOLS, 120);
+        let offers = |call: Option<Call>| {
+            call.as_ref().and_then(said).map(|w| propose(&w, &state, &asker, None)).unwrap_or_default()
+        };
+        unchecked_offered += usize::from(!offers(unchecked(&text)).is_empty());
+        if let Some(p) = offers(teach::read(ask, &text)).first() {
+            eprintln!("'{ask}': {} <- {text:?}", p.said);
+            offered.push(*ask);
+        }
+    }
+    eprintln!(
+        "of {}: the model offers a change for {}, and would for {unchecked_offered} unchecked",
+        NO_CHANGE.len(),
+        offered.len()
+    );
 }
 
 #[test]

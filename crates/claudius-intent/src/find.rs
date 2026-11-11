@@ -45,6 +45,9 @@ pub struct Answer {
     #[serde(default)]
     pub proposed: Vec<Proposal>,
     pub by_meaning: bool,
+    /// the small model on the device is still reading the words, which the readings read nothing of: ask again
+    #[serde(default)]
+    pub reading: bool,
 }
 
 /// What `query` finds on the song of `state`, as the palette shows it: at most `limit` of the actions, the changes
@@ -69,6 +72,7 @@ pub fn answer(
         done: find_among(query, &reachable, model, DONE),
         proposed: propose(query, state, asker, model),
         by_meaning: finder.by_meaning(),
+        reading: false,
     }
 }
 

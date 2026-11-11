@@ -82,8 +82,14 @@ are found by name and by meaning like the actions, once the words that only ask 
 palette lists them after the actions as Go back to before rows, which send `go_back`. The answer holds what the words
 ask of the song, too (`Answer::proposed`, `claudius_intent::ask::propose` on the state the engine has, built for both by
 `claudius_intent::answer`): each reading a proposal with what it says it does ("Increase guitar's drive from 20% to
-95%"), what it does to each track, and its commands ([0013](../design/0013-requests.md)). The palette lists them first,
-under What your words ask, and a history row a reading already goes back to before is left out. A proposal's row is
+95%"), what it does to each track, and its commands ([0013](../design/0013-requests.md)). Where the readings propose
+nothing for two words or more, the request model reads them (`claudius_session::meaning::ask_model`,
+[0014](../design/0014-request-model.md)): a thread of its own downloads it the first time, reads the latest words it
+was asked about, and keeps what it read. Until it has read them, the answer says it is `reading`, and the palette
+shows Reading your words… and asks again (`Palette::ask_again`, every 0.3 s for up to 20 s). What it read is proposed
+as a request is, each proposal marked `by_model`. The demo asks it in the app, and has none in a page. The palette
+lists the proposals first, under What your words ask, and a history row a reading already goes back to before is left
+out. A proposal's row is
 known by what it says (`do:` and its words), and does its commands only while the answer is for the words typed
 (`Palette::run`). Edits go as one `together`, which the history records as one change named for what the row said,
 and which the studio shows at once, each edit as it shows it alone (`edits::apply`). Undo, redo and going back go as
