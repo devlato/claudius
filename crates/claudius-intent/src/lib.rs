@@ -12,6 +12,7 @@ pub mod catalogue;
 pub mod find;
 pub mod index;
 pub mod model;
+pub mod needle;
 pub mod pieces;
 pub mod teach;
 

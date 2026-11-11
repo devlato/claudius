@@ -9,24 +9,25 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 
 /// The tools the model is given, one for each thing a request can ask. Tracks are given as said ("the toms",
-/// "everything but the vocals"), and the readings find them in the song.
+/// "everything but the vocals"), and the readings find them in the song. Short, so that the tools, a request and its
+/// answer fit the model's window of 1024 positions together, the tools read once.
 pub const TOOLS: &str = concat!(
-    r#"[{"name":"undo","description":"Undo the last changes to the song, one or more","parameters":{"type":"object","properties":{"count":{"type":"integer","minimum":1,"maximum":200,"description":"how many changes"}}}},"#,
-    r#"{"name":"redo","description":"Redo changes that were undone","parameters":{"type":"object","properties":{"count":{"type":"integer","minimum":1,"maximum":200,"description":"how many changes"}}}},"#,
-    r#"{"name":"go_back","description":"Go back to how the song was before an earlier change, undoing it and everything since","parameters":{"type":"object","properties":{"change":{"type":"string","description":"the change, as said"}},"required":["change"]}},"#,
-    r#"{"name":"set_volume","description":"Make tracks louder or quieter, or set their volume in dB","parameters":{"type":"object","properties":{"tracks":{"type":"string","description":"the tracks, as said"},"way":{"type":"string","enum":["louder","quieter"]},"by_db":{"type":"number"},"to_db":{"type":"number"}},"required":["tracks"]}},"#,
-    r#"{"name":"set_drive","description":"More or less drive, distortion or grit on tracks, or set it in percent","parameters":{"type":"object","properties":{"tracks":{"type":"string","description":"the tracks, as said"},"way":{"type":"string","enum":["more","less"]},"to_percent":{"type":"number","minimum":0,"maximum":100}},"required":["tracks"]}},"#,
-    r#"{"name":"set_reverb","description":"More or less reverb, room or space on tracks, or set it in percent","parameters":{"type":"object","properties":{"tracks":{"type":"string","description":"the tracks, as said"},"way":{"type":"string","enum":["more","less"]},"to_percent":{"type":"number","minimum":0,"maximum":100}},"required":["tracks"]}},"#,
-    r#"{"name":"set_delay","description":"More or less delay or echo on tracks, or set it in percent","parameters":{"type":"object","properties":{"tracks":{"type":"string","description":"the tracks, as said"},"way":{"type":"string","enum":["more","less"]},"to_percent":{"type":"number","minimum":0,"maximum":100}},"required":["tracks"]}},"#,
-    r#"{"name":"pan","description":"Pan tracks left, right or to the center","parameters":{"type":"object","properties":{"tracks":{"type":"string","description":"the tracks, as said"},"side":{"type":"string","enum":["left","right","center"]},"amount":{"type":"string","enum":["a bit","hard"]}},"required":["tracks","side"]}},"#,
-    r#"{"name":"set_tempo","description":"Make the song faster or slower, or set its tempo in BPM","parameters":{"type":"object","properties":{"way":{"type":"string","enum":["faster","slower"]},"by_bpm":{"type":"number"},"bpm":{"type":"number","minimum":30,"maximum":300}}}},"#,
-    r#"{"name":"set_key","description":"Move the song to another key","parameters":{"type":"object","properties":{"key":{"type":"string","description":"the key, as said, such as A minor or E flat major"}},"required":["key"]}},"#,
-    r#"{"name":"swap_sound","description":"Give tracks another sound or instrument","parameters":{"type":"object","properties":{"tracks":{"type":"string","description":"the tracks, as said"},"sound":{"type":"string","description":"the sound, as said"}},"required":["tracks"]}},"#,
-    r#"{"name":"cut_track","description":"Take tracks out of the song from a time to its end","parameters":{"type":"object","properties":{"tracks":{"type":"string","description":"the tracks, as said"},"from":{"type":"string","description":"the time, as m:ss"}},"required":["tracks","from"]}},"#,
-    r#"{"name":"mute","description":"Mute tracks, silence them for now","parameters":{"type":"object","properties":{"tracks":{"type":"string","description":"the tracks, as said"}},"required":["tracks"]}},"#,
-    r#"{"name":"unmute","description":"Unmute tracks, bring them back in","parameters":{"type":"object","properties":{"tracks":{"type":"string","description":"the tracks, as said"}},"required":["tracks"]}},"#,
-    r#"{"name":"solo","description":"Solo tracks, play only them","parameters":{"type":"object","properties":{"tracks":{"type":"string","description":"the tracks, as said"}},"required":["tracks"]}},"#,
-    r#"{"name":"remove_track","description":"Remove tracks from the song for good","parameters":{"type":"object","properties":{"tracks":{"type":"string","description":"the tracks, as said"}},"required":["tracks"]}}]"#,
+    r#"[{"name":"undo","description":"Undo the last changes","parameters":{"type":"object","properties":{"count":{"type":"integer","minimum":1}}}},"#,
+    r#"{"name":"redo","description":"Redo undone changes","parameters":{"type":"object","properties":{"count":{"type":"integer","minimum":1}}}},"#,
+    r#"{"name":"go_back","description":"Go back to before an earlier change","parameters":{"type":"object","properties":{"change":{"type":"string"}},"required":["change"]}},"#,
+    r#"{"name":"set_volume","description":"Make tracks louder or quieter, or set them in dB","parameters":{"type":"object","properties":{"tracks":{"type":"string"},"way":{"type":"string","enum":["louder","quieter"]},"by_db":{"type":"number"},"to_db":{"type":"number"}},"required":["tracks"]}},"#,
+    r#"{"name":"set_drive","description":"More or less drive or distortion on tracks","parameters":{"type":"object","properties":{"tracks":{"type":"string"},"way":{"type":"string","enum":["more","less"]},"to_percent":{"type":"number"}},"required":["tracks"]}},"#,
+    r#"{"name":"set_reverb","description":"More or less reverb on tracks","parameters":{"type":"object","properties":{"tracks":{"type":"string"},"way":{"type":"string","enum":["more","less"]},"to_percent":{"type":"number"}},"required":["tracks"]}},"#,
+    r#"{"name":"set_delay","description":"More or less delay or echo on tracks","parameters":{"type":"object","properties":{"tracks":{"type":"string"},"way":{"type":"string","enum":["more","less"]},"to_percent":{"type":"number"}},"required":["tracks"]}},"#,
+    r#"{"name":"pan","description":"Pan tracks","parameters":{"type":"object","properties":{"tracks":{"type":"string"},"side":{"type":"string","enum":["left","right","center"]},"amount":{"type":"string","enum":["a bit","hard"]}},"required":["tracks","side"]}},"#,
+    r#"{"name":"set_tempo","description":"Make the song faster or slower, or set its BPM","parameters":{"type":"object","properties":{"way":{"type":"string","enum":["faster","slower"]},"by_bpm":{"type":"number"},"bpm":{"type":"number"}}}},"#,
+    r#"{"name":"set_key","description":"Move the song to another key","parameters":{"type":"object","properties":{"key":{"type":"string"}},"required":["key"]}},"#,
+    r#"{"name":"swap_sound","description":"Give tracks another sound","parameters":{"type":"object","properties":{"tracks":{"type":"string"},"sound":{"type":"string"}},"required":["tracks"]}},"#,
+    r#"{"name":"cut_track","description":"Take tracks out from a time on","parameters":{"type":"object","properties":{"tracks":{"type":"string"},"from":{"type":"string","description":"m:ss"}},"required":["tracks","from"]}},"#,
+    r#"{"name":"mute","description":"Mute tracks","parameters":{"type":"object","properties":{"tracks":{"type":"string"}},"required":["tracks"]}},"#,
+    r#"{"name":"unmute","description":"Unmute tracks","parameters":{"type":"object","properties":{"tracks":{"type":"string"}},"required":["tracks"]}},"#,
+    r#"{"name":"solo","description":"Solo tracks","parameters":{"type":"object","properties":{"tracks":{"type":"string"}},"required":["tracks"]}},"#,
+    r#"{"name":"remove_track","description":"Remove tracks from the song","parameters":{"type":"object","properties":{"tracks":{"type":"string"}},"required":["tracks"]}}]"#,
 );
 
 /// A tool call, as the model writes one.
