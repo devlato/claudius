@@ -21,6 +21,7 @@ mod native;
 mod net;
 mod panels;
 mod pick;
+mod settings;
 mod theme;
 mod tour;
 mod widgets;

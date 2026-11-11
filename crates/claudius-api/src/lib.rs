@@ -1,5 +1,6 @@
-//! The wire contract between the claudius server and its clients (the egui UI, native and web, and the MCP tools).
-//! Plain serde types only, so this crate builds for wasm32 too.
+//! The wire contract between the claudius server and its clients (the egui UI, native and web, and the MCP tools),
+//! and the reader of the settings files any claudius wrote (`settings`). Plain serde types only, so this crate builds
+//! for wasm32 too.
 //!
 //! HTTP routes served by the app (default `http://127.0.0.1:7878`):
 //!
@@ -24,6 +25,7 @@
 use serde::{Deserialize, Serialize};
 
 pub mod examples;
+pub mod settings;
 pub mod words;
 
 /// Drum step velocities by name, as step strings write them (`X` accent, `x` hit, `o` ghost) and the studio shows

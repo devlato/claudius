@@ -36,12 +36,16 @@ fn read(path: &Path) -> Map<String, Value> {
         .unwrap_or_default()
 }
 
+/// the version of the file claudius writes (`claudius_api::settings`): 1, the first with one; before 0.6, 0, its fields
+/// read by name as they are now, and those a later claudius writes kept as they are
+const VERSION: u64 = 1;
+
 fn write(path: &Path, m: &Map<String, Value>) -> Result<()> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    std::fs::write(path, serde_json::to_string_pretty(m)? + "\n")
-        .with_context(|| format!("cannot write {}", path.display()))
+    let text = claudius_api::settings::Fields::of(m.clone()).at(VERSION).to_text();
+    std::fs::write(path, text).with_context(|| format!("cannot write {}", path.display()))
 }
 
 /// why the environment keeps statistics off whatever the answer
@@ -269,6 +273,19 @@ mod tests {
         m.insert("enabled".into(), Value::Bool(false));
         write(&path, &m).unwrap();
         assert!(!due(&path, "started:serve:", 102));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn the_answer_any_claudius_kept_is_read_and_kept_with_its_version() {
+        let dir = std::env::temp_dir().join(format!("claudius-telemetry-versions-{}", std::process::id()));
+        let path = dir.join("telemetry.json");
+        std::fs::create_dir_all(&dir).unwrap();
+        // as claudius 0.5 kept it, without a version, and with what a later one might add
+        std::fs::write(&path, r#"{"enabled": true, "started:studio:": 99, "later": "kept"}"#).unwrap();
+        assert!(due(&path, "started:studio:", 100), "the answer of an earlier claudius holds");
+        let kept = std::fs::read_to_string(&path).unwrap();
+        assert!(kept.contains(&format!("\"version\": {VERSION}")) && kept.contains("\"later\": \"kept\""), "{kept}");
         std::fs::remove_dir_all(&dir).ok();
     }
 

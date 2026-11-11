@@ -7,7 +7,6 @@ use std::time::Duration;
 
 use claudius_api::{Command, SoundList, State};
 use eframe::egui::{self, Align, Color32, Key, Layout, Margin, Modifiers, RichText, Sense, Stroke, Ui, vec2};
-use serde::{Deserialize, Serialize};
 
 use crate::audio::Player;
 use crate::edits;
@@ -16,37 +15,6 @@ use crate::net::{Backend, Connection, Event};
 use crate::panels::{self, Action, Cx, Due, Link, Tab, Toast, View};
 use crate::theme::{self, ACCENT, BG, LINE, LINE_SOFT, PANEL, TEXT, TEXT_DIM, TEXT_FAINT};
 use crate::widgets::{self, Icon};
-
-#[derive(Serialize, Deserialize)]
-#[serde(default)]
-struct Prefs {
-    tab: Tab,
-    volume: f32,
-    mutate_count: usize,
-    keep_best: bool,
-    generations: usize,
-    children: usize,
-    sevenths: bool,
-    tour_done: bool,
-    record: panels::record::Settings,
-}
-
-impl Default for Prefs {
-    fn default() -> Self {
-        let v = View::default();
-        Prefs {
-            tab: v.tab,
-            volume: v.volume,
-            mutate_count: v.mutate_count,
-            keep_best: v.keep_best,
-            generations: v.generations,
-            children: v.children,
-            sevenths: v.sevenths,
-            tour_done: v.tour_done,
-            record: v.record.settings,
-        }
-    }
-}
 
 /// the claudius studio (an `eframe::App`)
 pub struct Studio {
@@ -96,7 +64,7 @@ const STATISTICS_TIP: &str = "a few anonymous counts, each at most once a day: t
 impl Studio {
     pub fn new(cc: &eframe::CreationContext<'_>, connection: Connection) -> Studio {
         theme::apply(&cc.egui_ctx);
-        let prefs: Prefs = cc.storage.and_then(|s| eframe::get_value(s, eframe::APP_KEY)).unwrap_or_default();
+        let prefs = crate::settings::Prefs::load(cc.storage);
         let mut view = View {
             tab: prefs.tab,
             volume: prefs.volume,
@@ -1367,19 +1335,7 @@ impl eframe::App for Studio {
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        let v = &self.view;
-        let prefs = Prefs {
-            tab: v.tab,
-            volume: v.volume,
-            mutate_count: v.mutate_count,
-            keep_best: v.keep_best,
-            generations: v.generations,
-            children: v.children,
-            sevenths: v.sevenths,
-            tour_done: v.tour_done,
-            record: v.record.settings.clone(),
-        };
-        eframe::set_value(storage, eframe::APP_KEY, &prefs);
+        crate::settings::Prefs::of(&self.view).save(storage);
     }
 
     #[cfg(not(target_arch = "wasm32"))]

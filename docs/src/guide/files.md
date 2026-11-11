@@ -18,12 +18,16 @@ on its own. The paths below are for macOS and Linux; where an environment variab
 | your voice, as a [pitch check](voice.md#checking-your-pitch) heard it | `~/Library/Application Support/claudius/voice.json` | `~/.config/claudius/voice.json` | `CLAUDIUS_HOME` |
 | the answer about [usage statistics](privacy.md) | `~/Library/Application Support/claudius/telemetry.json` | `~/.config/claudius/telemetry.json` | |
 | whether to [update](updates.md) automatically, and the day it last looked | `~/Library/Application Support/claudius/updates.json` | `~/.config/claudius/updates.json` | |
-| studio window preferences | `~/Library/Application Support/claudius-studio/app.ron` | `~/.local/share/claudius-studio/app.ron` | |
+| studio window preferences, under `settings` | `~/Library/Application Support/claudius-studio/app.ron` | `~/.local/share/claudius-studio/app.ron` | |
 | Apple Loops (read only) | `/Library/Audio/Apple Loops`, `~/Library/Audio/Apple Loops` | | |
 | programs and web studio (install script) | `~/.local/bin`, `~/.local/share/claudius/web` | the same | `CLAUDIUS_INSTALL_DIR` |
 
 On Linux, `$XDG_MUSIC_DIR` comes from `~/.config/user-dirs.dirs`; without it, the studio saves under `out` in the
 folder it was started from. The web studio keeps its preferences in the browser's local storage.
+
+Every settings file says which version of it claudius wrote, and any later claudius reads it, a setting at a time:
+one it cannot read is its default alone, and one a later claudius added is kept when an earlier one writes the file
+([0016](../design/0016-settings-any-later-claudius-reads.md)). Updating from any version keeps what you set.
 
 ## Song folders
 
