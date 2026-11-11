@@ -189,19 +189,13 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 let is_muted = track.is_some_and(|t| t.muted);
                 let m = Rect::from_center_size(label.right_center() - vec2(14.0, 0.0), vec2(20.0, 16.0));
                 let sb = Rect::from_center_size(label.right_center() - vec2(38.0, 0.0), vec2(20.0, 16.0));
-                p.rect(
-                    m,
-                    3.0,
-                    if is_muted { theme::alpha(theme::BAD, 0.75) } else { WELL.into() },
-                    Stroke::new(1.0, LINE),
-                    StrokeKind::Inside,
-                );
+                p.rect(m, 3.0, if is_muted { theme::BAD } else { WELL }, Stroke::new(1.0, LINE), StrokeKind::Inside);
                 p.text(
                     m.center(),
                     Align2::CENTER_CENTER,
                     "M",
                     theme::prop(10.0),
-                    if is_muted { Color32::WHITE } else { TEXT_DIM.into() },
+                    if is_muted { theme::ink_on(theme::BAD) } else { TEXT_DIM.into() },
                 );
                 p.rect(sb, 3.0, if soloed { theme::SOLO } else { WELL }, Stroke::new(1.0, LINE), StrokeKind::Inside);
                 p.text(
@@ -267,7 +261,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         p.rect_stroke(
                             cell,
                             3.0,
-                            Stroke::new(1.0, theme::alpha(Color32::WHITE, 0.6)),
+                            Stroke::new(1.0, theme::alpha(theme::STRONG, 0.6)),
                             StrokeKind::Inside,
                         );
                     }

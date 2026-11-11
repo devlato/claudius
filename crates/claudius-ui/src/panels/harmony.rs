@@ -318,7 +318,7 @@ fn form_strip(ui: &mut Ui, song: &claudius_api::SongView, out: &mut Vec<Command>
         ui.painter().rect(r, 4.0, fill, Stroke::new(1.0, theme::alpha(color, 0.9)), StrokeKind::Inside);
         let clip = ui.painter().with_clip_rect(r.shrink(2.0));
         clip.text(r.left_top() + vec2(5.0, 9.0), Align2::LEFT_CENTER, &s.name, theme::prop(10.5), TEXT.into());
-        clip.text(r.left_bottom() + vec2(5.0, -10.0), Align2::LEFT_CENTER, prog, theme::prop(13.0), Color32::WHITE);
+        clip.text(r.left_bottom() + vec2(5.0, -10.0), Align2::LEFT_CENTER, prog, theme::prop(13.0), TEXT.into());
         let resp =
             resp.on_hover_text(format!("{} ({} bars) plays progression {prog}: click to switch", s.name, s.bars));
         egui::Popup::menu(&resp).show(|ui| {
