@@ -460,7 +460,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         if selected {
             painter.rect_stroke(rect, 4.0, Stroke::new(1.5, Color32::WHITE), StrokeKind::Inside);
         }
-        let text_color = if selected { Color32::BLACK } else { theme::lit(color, 0.75) };
+        let text_color = if selected { theme::ink_on(color) } else { theme::lit(color, 0.75) };
         let clip = painter.with_clip_rect(rect.shrink(2.0));
         clip.text(rect.left_top() + vec2(6.0, 10.0), Align2::LEFT_CENTER, &s.name, theme::medium(12.5), text_color);
         let length = clip.text(

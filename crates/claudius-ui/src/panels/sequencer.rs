@@ -209,7 +209,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     Align2::CENTER_CENTER,
                     "S",
                     theme::prop(10.0),
-                    if soloed { Color32::BLACK } else { TEXT_DIM.into() },
+                    if soloed { theme::ink_on(theme::SOLO) } else { TEXT_DIM.into() },
                 );
                 if resp.clicked()
                     && let Some(pos) = resp.interact_pointer_pos()

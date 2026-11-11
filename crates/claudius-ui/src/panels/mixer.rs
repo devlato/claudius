@@ -91,7 +91,7 @@ fn toggle(ui: &mut Ui, on: bool, label: &str, color: impl Into<Color32>, width: 
         Align2::CENTER_CENTER,
         label,
         theme::prop(10.5),
-        if on { Color32::BLACK } else { TEXT_DIM.into() },
+        if on { theme::ink_on(fill) } else { TEXT_DIM.into() },
     );
     r.on_hover_text(tip)
 }

@@ -833,7 +833,7 @@ fn from_example(ui: &mut Ui, cx: &mut Cx) {
     ui.horizontal(|ui| {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let button =
-                egui::Button::new(RichText::new("  Open it  ").strong().color(egui::Color32::BLACK)).fill(ACCENT);
+                egui::Button::new(RichText::new("  Open it  ").strong().color(theme::ink_on(ACCENT))).fill(ACCENT);
             let r = ui.add_enabled(chosen.is_some(), button).on_disabled_hover_text("choose an example first");
             let enter = ui.input(|i| i.key_pressed(egui::Key::Enter)) && !ui.ctx().text_edit_focused();
             open = r.clicked() || (enter && chosen.is_some());
@@ -1052,7 +1052,7 @@ fn from_genre(ui: &mut Ui, cx: &mut Cx) {
     ui.horizontal(|ui| {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let create_btn =
-                egui::Button::new(RichText::new("  Create song  ").strong().color(egui::Color32::BLACK)).fill(ACCENT);
+                egui::Button::new(RichText::new("  Create song  ").strong().color(theme::ink_on(ACCENT))).fill(ACCENT);
             let enter = ui.input(|i| i.key_pressed(egui::Key::Enter)) && !ui.ctx().text_edit_focused();
             if ui.add(create_btn).clicked() || enter {
                 create = true;
@@ -1281,8 +1281,9 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
     ui.horizontal(|ui| {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let ready = file.is_some() && why_not.is_none();
-            let button = egui::Button::new(RichText::new(format!("  {action}  ")).strong().color(egui::Color32::BLACK))
-                .fill(ACCENT);
+            let button =
+                egui::Button::new(RichText::new(format!("  {action}  ")).strong().color(theme::ink_on(ACCENT)))
+                    .fill(ACCENT);
             let r = ui.add_enabled(ready, button);
             let r = match (cx.view.analyzing, &cx.view.audio_file, why_not) {
                 (true, _, _) => r.on_disabled_hover_text("claudius is still at the last one"),

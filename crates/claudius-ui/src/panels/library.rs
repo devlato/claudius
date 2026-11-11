@@ -78,7 +78,7 @@ fn assignable(
     let resp = if current.is_empty() {
         ui.small_button(label)
     } else {
-        ui.add(egui::Button::new(RichText::new(label).color(Color32::BLACK)).small().fill(theme::ACCENT))
+        ui.add(egui::Button::new(RichText::new(label).color(theme::ink_on(theme::ACCENT))).small().fill(theme::ACCENT))
     };
     let about = super::named(super::sound_about(sound, Some(list)).as_deref(), sound);
     let resp = resp.on_hover_text(if current.is_empty() {

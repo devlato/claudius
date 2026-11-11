@@ -262,6 +262,22 @@ pub fn lit(c: impl Into<Color32>, t: f32) -> Color32 {
     mix(c, STRONG, t)
 }
 
+/// how bright a colour is to the eye, as WCAG measures it: 0 for black, 1 for white
+pub fn luminance(c: Color32) -> f32 {
+    let ch = |x: u8| {
+        let x = f32::from(x) / 255.0;
+        if x <= 0.039_28 { x / 12.92 } else { ((x + 0.055) / 1.055).powf(2.4) }
+    };
+    0.2126 * ch(c.r()) + 0.7152 * ch(c.g()) + 0.0722 * ch(c.b())
+}
+
+/// The ink that reads on a fill of `c`, as a filled button's label or a lit cell's is: black on a bright fill, white on
+/// a dark one. Either reads at 4.5:1 or more on any fill, as they read alike at the brightness where one gives way to
+/// the other.
+pub fn ink_on(c: impl Into<Color32>) -> Color32 {
+    if luminance(c.into()) > 0.179 { Color32::BLACK } else { Color32::WHITE }
+}
+
 /// the colour with an alpha of `a` (0..1)
 pub fn alpha(c: impl Into<Color32>, a: f32) -> Color32 {
     let c: Color32 = c.into();
@@ -496,19 +512,12 @@ fn styled(style: &mut egui::Style, p: &Palette, dark: bool) {
 
 #[cfg(test)]
 mod tests {
-    use super::{DARK, LIGHT, Palette};
+    use super::{DARK, LIGHT, Palette, ink_on, luminance};
     use eframe::egui::Color32;
 
     /// WCAG's contrast of two colours, 1 to 21
     fn contrast(a: Color32, b: Color32) -> f32 {
-        let lum = |c: Color32| {
-            let ch = |x: u8| {
-                let x = f32::from(x) / 255.0;
-                if x <= 0.039_28 { x / 12.92 } else { ((x + 0.055) / 1.055).powf(2.4) }
-            };
-            0.2126 * ch(c.r()) + 0.7152 * ch(c.g()) + 0.0722 * ch(c.b())
-        };
-        let (x, y) = (lum(a), lum(b));
+        let (x, y) = (luminance(a), luminance(b));
         (x.max(y) + 0.05) / (x.min(y) + 0.05)
     }
 
@@ -529,6 +538,21 @@ mod tests {
                 let c = contrast(fg, p.panel);
                 assert!(c >= 3.0, "{name}: {what} on a panel is {c:.1}:1, below the 3:1 a control needs");
             }
+            // a filled button's label, a solo and a lit cell, written on their fills
+            for (what, fill) in marks.into_iter().chain([("solo", p.solo), ("playhead", p.playhead)]) {
+                let c = contrast(ink_on(fill), fill);
+                assert!(c >= 4.5, "{name}: the ink on {what} is {c:.1}:1, below 4.5:1");
+            }
         }
+    }
+
+    #[test]
+    fn the_ink_on_any_fill_reads() {
+        let steps = || (0..=255u8).step_by(15);
+        let worst = steps()
+            .flat_map(|r| steps().flat_map(move |g| steps().map(move |b| Color32::from_rgb(r, g, b))))
+            .map(|fill| contrast(ink_on(fill), fill))
+            .fold(f32::MAX, f32::min);
+        assert!(worst >= 4.5, "the ink reads at {worst:.2}:1 on some fill");
     }
 }

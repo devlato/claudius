@@ -75,8 +75,8 @@ the studio demo's engine.
 
 The studio has a light look as well as its dark one, and follows your computer's appearance unless you pick one:
 **?** > **Look** (Dark, Light, As the system is), or "light mode" in the command palette. Text reads at 4.5:1 or more
-on every panel of both looks; the dark look's faintest text is a little brighter for it, where it stood on a raised
-panel.
+on every panel of both looks, and so does a label on a filled button or a lit cell (white on the light look's orange);
+the dark look's faintest text is a little brighter for it, where it stood on a raised panel.
 
 What you set survives any update, from any version: the studio's settings, the voice a pitch check heard, the answer
 about usage statistics and whether to update by itself. Each settings file now says which version of it claudius
