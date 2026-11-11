@@ -336,11 +336,13 @@ struct FindQuery {
     limit: Option<usize>,
 }
 
-/// The studio's actions `q` finds, the best first, by name and by meaning (`claudius_session::host::Host::find`). The
-/// model that finds them by meaning downloads once the palette is first asked.
-async fn find(Query(q): Query<FindQuery>) -> Json<claudius_intent::Answer> {
+/// The studio's actions `q` finds, the best first, and the changes made to the song it finds, which the song can go
+/// back to before: by name and by meaning (`claudius_session::host::Host::find`). The model that finds them by meaning
+/// downloads once the palette is first asked.
+async fn find(State(c): State<Ctx>, Query(q): Query<FindQuery>) -> Json<claudius_intent::Answer> {
     claudius_session::meaning::fetch_in_background();
-    Json(claudius_session::host::Host::find(&q.q, q.limit.unwrap_or(12).min(40)))
+    let history = c.app.changes();
+    Json(claudius_session::host::Host::find(&q.q, q.limit.unwrap_or(12).min(40), &history))
 }
 
 #[derive(Deserialize)]

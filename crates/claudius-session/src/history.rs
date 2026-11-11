@@ -607,10 +607,16 @@ pub fn describe(changes: &[Change]) -> String {
                 if rest.first().is_some_and(|f| f == "sound") && rest.len() <= 2 {
                     format!("{n} plays {}", c.after.as_ref().map(sound).unwrap_or_else(|| "nothing".into()))
                 } else {
-                    format!("{n}: {}{}", words(rest), from_to(c))
+                    format!("{n}: {}{}", words(rest), from_to(c, rest))
                 }
             }
-            rest => format!("{}{}", words(rest), from_to(c)),
+            [key, part] if key == "key" && part == "tonic" => {
+                let note =
+                    |v: &Option<Value>| v.as_ref().and_then(Value::as_u64).map_or("", |t| NOTES[(t % 12) as usize]);
+                format!("the key's tonic {} to {}; another key, transposed", note(&c.before), note(&c.after))
+            }
+            [key, part] if key == "key" => format!("the key's {part}{}; another mode", from_to(c, &segs)),
+            rest => format!("{}{}", words(rest), from_to(c, rest)),
         };
         if !said.contains(&line) {
             said.push(line);
@@ -635,16 +641,66 @@ fn words(segs: &[String]) -> String {
     segs.iter().map(|s| s.trim_start_matches('@').replace('_', " ")).collect::<Vec<_>>().join(" ")
 }
 
-fn from_to(c: &Change) -> String {
+/// " 124 to 128, faster": a setting from what to what, and a number's way in the words people use for it
+fn from_to(c: &Change, segs: &[String]) -> String {
     match (&c.before, &c.after) {
         (Some(b), Some(a)) if brief(b).is_some() && brief(a).is_some() => {
-            format!(" {} to {}", brief(b).unwrap_or_default(), brief(a).unwrap_or_default())
+            let way = match (b.as_f64(), a.as_f64(), segs.last()) {
+                (Some(b), Some(a), Some(field)) if a != b => format!(", {}", way(field, a > b)),
+                _ => String::new(),
+            };
+            format!(" {} to {}{way}", brief(b).unwrap_or_default(), brief(a).unwrap_or_default())
         }
         (None, Some(a)) => brief(a).map(|a| format!(" set to {a}")).unwrap_or_else(|| " set".into()),
         (Some(_), None) => " taken out".into(),
         _ => " changed".into(),
     }
 }
+
+/// what a setting going up (or down) does to a song, as people say it
+fn way(field: &str, up: bool) -> &'static str {
+    let f = field.to_lowercase();
+    let pick = |yes: &'static str, no: &'static str| if up { yes } else { no };
+    match f.as_str() {
+        "bpm" => pick("faster", "slower"),
+        "swing" => pick("more swing", "straighter"),
+        "pan" => pick("further right", "further left"),
+        "bars" => pick("longer", "shorter"),
+        f if f.contains("level") || f.contains("gain") || f.contains("volume") => pick("louder", "quieter"),
+        f if ["drive", "distort", "crush", "saturat"].iter().any(|d| f.contains(d)) => {
+            pick("more distortion", "cleaner")
+        }
+        f if f.contains("reverb") => pick("wetter", "drier"),
+        f if f.contains("delay") => pick("more echo", "less echo"),
+        f if f.contains("cutoff") => pick("brighter", "darker"),
+        f if f.contains("energy") || f.contains("intensity") => pick("more intense", "calmer"),
+        _ => pick("up", "down"),
+    }
+}
+
+/// the names people give a section, by its kind and by its name ("bridge" is a name, not a kind)
+fn section_words(kind: &str, name: &str) -> String {
+    let by_kind = match kind {
+        "intro" => "the opening",
+        "verse" => "a verse",
+        "hook" => "the hook, the chorus",
+        "build" => "a build-up, a riser",
+        "drop" => "the drop, where the full beat comes in",
+        "break" => "a breakdown, a quiet break in the middle",
+        "groove" => "the groove, the main beat",
+        "outro" => "the ending",
+        _ => "",
+    };
+    let by_name = match name {
+        n if n.contains("bridge") => "a bridge, a middle eight",
+        n if n.contains("chorus") => "the chorus",
+        _ => "",
+    };
+    [by_kind, by_name].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(", ")
+}
+
+/// a key's tonic as its note
+const NOTES: [&str; 12] = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
 
 /// a short value in words: a number to two places, a string, a boolean; none for a longer value
 fn brief(v: &Value) -> Option<String> {
@@ -660,20 +716,28 @@ fn brief(v: &Value) -> Option<String> {
     }
 }
 
-/// ", playing the synth whistle" for a track or lane, nothing for a section
+/// ", playing the synth whistle" for a track or lane; " of 8 bars, a middle eight" for a section
 fn playing(v: &Value) -> String {
     let role = v.get("role").and_then(Value::as_str).map(|r| format!(" ({r})")).unwrap_or_default();
     match v.get("sound") {
         Some(s) => format!("{role}, playing {}", sound(s)),
-        None => match v.get("bars").and_then(Value::as_u64) {
-            Some(bars) => format!(" of {bars} bars"),
-            None => role,
-        },
+        None => section(v).unwrap_or(role),
     }
 }
 
 fn played(v: &Value) -> String {
-    v.get("sound").map(|s| format!(" (it played {})", sound(s))).unwrap_or_default()
+    match v.get("sound") {
+        Some(s) => format!(" (it played {})", sound(s)),
+        None => section(v).unwrap_or_default(),
+    }
+}
+
+/// a section's length, and what people call it
+fn section(v: &Value) -> Option<String> {
+    let bars = v.get("bars").and_then(Value::as_u64)?;
+    let text = |k: &str| v.get(k).and_then(Value::as_str).unwrap_or_default();
+    let called = section_words(text("kind"), text("name"));
+    Some(if called.is_empty() { format!(" of {bars} bars") } else { format!(" of {bars} bars, {called}") })
 }
 
 /// a sound in a few words: "the synth whistle", "the sample vox_ah.wav", "the drum kick"
@@ -691,10 +755,7 @@ fn sound(s: &Value) -> String {
 /// a song in a few words: its genre, tempo, key and tracks
 fn brief_song(song: &Value) -> String {
     let get = |k: &str| song.get(k).and_then(brief).unwrap_or_default();
-    let key = song.get("key").map(|k| {
-        let part = |f: &str| k.get(f).and_then(brief).unwrap_or_default();
-        format!("{} {}", part("root"), part("mode")).trim().to_string()
-    });
+    let key = song.get("key").and_then(|k| serde_json::from_value::<claudius::theory::scale::Key>(k.clone()).ok());
     let mut tracks: Vec<String> = Vec::new();
     for list in ["drums", "parts", "loops", "patterns"] {
         if let Some(Value::Array(l)) = song.get(list) {
@@ -706,7 +767,7 @@ fn brief_song(song: &Value) -> String {
         get("title"),
         get("genre").replace('_', " "),
         get("bpm"),
-        key.unwrap_or_default(),
+        key.map(|k| k.name()).unwrap_or_default(),
         tracks.join(", ")
     )
     .trim()
@@ -749,6 +810,9 @@ mod tests {
         edited.parts.remove(1);
         edited.parts.swap(0, 1);
         edited.lineage.push("tempo 124".into());
+        let new = describe(&diff(&Value::Null, &a));
+        let key = format!("in {}", house.key.name());
+        assert!(new.starts_with("a new song: ") && new.contains(&key) && new.contains("playing "), "{new}, {key}");
         let changes = round_trip(&a, &json(&Some(edited.clone())));
         let paths: Vec<&str> = changes.iter().map(|c| c.path.as_str()).collect();
         let level = format!("/parts/@{}/mix/level_db", house.parts[0].name);
@@ -757,6 +821,19 @@ mod tests {
         let said = describe(&changes);
         assert!(said.contains("added the whistle track") && said.contains("took out the"), "{said}");
         assert!(said.contains("put the tracks in another order") && !said.contains("tempo 124"), "{said}");
+        // in the words people use for what changed
+        let mut moved = house.clone();
+        moved.bpm += 4.0;
+        moved.swing += 0.1;
+        moved.parts[0].mix.level_db += 3.0;
+        moved.key.tonic = (moved.key.tonic + 5) % 12;
+        let mut bridge = moved.form[0].clone();
+        bridge.name = "bridge".into();
+        moved.form.push(bridge);
+        let said = describe(&round_trip(&a, &json(&Some(moved))));
+        for words in ["faster", "more swing", "louder", "another key, transposed", "a middle eight"] {
+            assert!(said.contains(words), "{words}: {said}");
+        }
         // a list of things without names, by place: grown, shrunk, and changed whole
         round_trip(&json!({"l": [1, 2]}), &json!({"l": [1, 2, 3, 4]}));
         round_trip(&json!({"l": [1, 2, 3]}), &json!({"l": [1]}));

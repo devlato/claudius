@@ -69,6 +69,7 @@ Each control in the studio sends one command, and an assistant can send every on
 | Render, and each track on its own | `listen` (`stems`) | `render` |
 | Variations, Improve, Cancel | `mutate`, `evolve`, `stop` | `mutate`, `evolve`, `cancel` |
 | Undo, Redo | `undo`, `redo` | `undo`, `redo` |
+| the palette's Go back to before a change | `history`, then `go_back` | `go_back` |
 | Sounds, a row's swap button | `swap_sound` | `swap_sound` |
 | Tempo, Key, Swing | `command` | `set_tempo`, `set_key`, `set_swing` |
 | a cell of the arrangement (a double-click, Enter, or the paint tool): a track on or off in a section; the track inspector's "plays here" | `command` | `toggle_layer` |

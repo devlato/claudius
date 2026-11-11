@@ -409,13 +409,20 @@ impl Host {
         views::sounds()
     }
 
-    /// The studio's actions `query` finds, at most `limit`, the best first: by name, and by meaning once the embedding
-    /// model is there (`meaning`).
-    pub fn find(query: &str, limit: usize) -> claudius_intent::Answer {
+    /// The studio's actions `query` finds, at most `limit`, the best first, and the changes in `history` (the state's)
+    /// it finds that the song can go back to before: by name, and by meaning once the embedding model is there
+    /// (`meaning`).
+    pub fn find(query: &str, limit: usize, history: &[Done]) -> claudius_intent::Answer {
         let (model, finder) = crate::meaning::held();
+        let reachable: Vec<claudius_intent::Item> = history
+            .iter()
+            .filter(|d| d.can_go_back)
+            .map(|d| claudius_intent::Item { id: &d.id, name: &d.label, words: &d.said })
+            .collect();
         claudius_intent::Answer {
             query: query.to_string(),
             found: finder.find(query, model.as_deref(), limit),
+            done: claudius_intent::find_among(query, &reachable, model.as_deref(), claudius_intent::DONE),
             by_meaning: finder.by_meaning(),
         }
     }
@@ -1347,6 +1354,9 @@ mod tests {
         assert!(r.ok, "{}", r.message);
         let s = h.state();
         assert_eq!((s.song.unwrap().bpm, s.undo_label.as_deref()), (100.0, Some("tempo 100")));
+        // the change, in the words the palette finds it by
+        let said = &s.history[0].said;
+        assert!(said.contains(if song.bpm > 100.0 { "slower" } else { "faster" }), "{said}");
         assert!(command(&mut h, json!({"cmd": "undo"})).ok);
         assert_eq!(h.state().song.unwrap().bpm, song.bpm);
         let audio = h.render().unwrap().unwrap();

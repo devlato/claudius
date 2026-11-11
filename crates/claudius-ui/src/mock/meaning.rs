@@ -6,7 +6,8 @@
 
 use std::sync::Arc;
 
-use claudius_intent::{Answer, Finder, Model};
+use claudius_api::Done;
+use claudius_intent::{Answer, DONE, Finder, Item, Model, find_among};
 use eframe::egui;
 
 /// for how long after the last words the demo looks for the model to come, to answer them again (seconds)
@@ -19,19 +20,33 @@ pub struct Finding {
 }
 
 impl Finding {
-    /// what the words find, by name, and by meaning once the model is there (it is asked for the first time)
-    pub fn find(&mut self, query: &str, limit: usize, now: f64, ctx: Option<&egui::Context>) -> Answer {
+    /// What the words find, by name, and by meaning once the model is there (it is asked for the first time): the
+    /// actions, and the changes in `history` (the state's) that the song can go back to before.
+    pub fn find(
+        &mut self,
+        query: &str,
+        limit: usize,
+        history: &[Done],
+        now: f64,
+        ctx: Option<&egui::Context>,
+    ) -> Answer {
         let (model, finder) = held(ctx);
         self.last = Some((query.to_string(), limit, now, model.is_some()));
+        let reachable: Vec<Item> = history
+            .iter()
+            .filter(|d| d.can_go_back)
+            .map(|d| Item { id: &d.id, name: &d.label, words: &d.said })
+            .collect();
         Answer {
             query: query.to_string(),
             found: finder.find(query, model.as_deref(), limit),
+            done: find_among(query, &reachable, model.as_deref(), DONE),
             by_meaning: finder.by_meaning(),
         }
     }
 
     /// the words asked about last again, once the model has come since they were found by name
-    pub fn again(&mut self, now: f64, ctx: Option<&egui::Context>) -> Option<Answer> {
+    pub fn again(&mut self, history: &[Done], now: f64, ctx: Option<&egui::Context>) -> Option<Answer> {
         let (query, limit, at, false) = self.last.clone()? else { return None };
         if !ready() {
             if now - at < WAITS
@@ -41,7 +56,7 @@ impl Finding {
             }
             return None;
         }
-        Some(self.find(&query, limit, now, ctx))
+        Some(self.find(&query, limit, history, now, ctx))
     }
 }
 

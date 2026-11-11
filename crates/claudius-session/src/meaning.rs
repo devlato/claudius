@@ -87,21 +87,44 @@ fn load_or_fetch() -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    use claudius_api::Done;
+
     use crate::host::Host;
 
     #[test]
     fn until_the_model_is_there_actions_are_found_by_name_and_a_broken_one_is_refused() {
-        let answer = Host::find("mixer", 3);
+        let answer = Host::find("mixer", 3, &[]);
         assert_eq!(
             (answer.query.as_str(), answer.found[0].id.as_str(), answer.by_meaning),
             ("mixer", "tab:mixer", false)
         );
         assert_eq!(
-            Host::find("", 40).found.len(),
+            Host::find("", 40, &[]).found.len(),
             claudius_intent::catalogue::ENTRIES.len(),
             "nothing typed: all of them"
         );
         assert!(super::provide(b"CLDE but not a model").is_err());
-        assert!(!Host::find("mixer", 3).by_meaning);
+        assert!(!Host::find("mixer", 3, &[]).by_meaning);
+    }
+
+    #[test]
+    fn the_changes_the_song_can_go_back_to_before_are_found_too() {
+        let done = |id: &str, label: &str, said: &str, can_go_back| Done {
+            id: id.into(),
+            kind: "edit".into(),
+            label: label.into(),
+            said: said.into(),
+            at: 0,
+            can_go_back,
+        };
+        let history = [
+            done("3@a", "tempo 128", "bpm 124 to 128", true),
+            done("2@a", "track whistle", "added the whistle track (lead), playing the synth whistle", true),
+            done("1@a", "track whistles", "added the whistles track", false),
+        ];
+        let answer = Host::find("go back to before we added the whistles", 12, &history);
+        let ids: Vec<&str> = answer.done.iter().map(|d| d.id.as_str()).collect();
+        assert_eq!(ids, ["2@a"], "only what go_back can reach: {:?}", answer.done);
+        assert_eq!(answer.done[0].name, "track whistle");
     }
 }

@@ -36,11 +36,25 @@ pub struct Palette {
     /// the action highlighted as the palette was last drawn, which Enter does, and whether the arrows picked it
     lit: Option<String>,
     moved: bool,
+    /// the latest change made to the song when the palette last looked (the state's `history`)
+    seen: Option<String>,
 }
 
 /// how often the palette asks again about words an engine found by name only, as its model may have come since, and
 /// for how long after they were typed (seconds)
 const AGAIN: (f64, f64) = (1.0, 60.0);
+
+/// what a row's id starts with when it goes back to before a change made to the song (`Answer::done`), the change's
+/// id after it
+const BACK: &str = "back:";
+
+/// `text`, cut to `most` characters with an ellipsis
+fn brief(text: &str, most: usize) -> String {
+    if text.chars().count() <= most {
+        return text.to_string();
+    }
+    format!("{}…", text.chars().take(most - 1).collect::<String>().trim_end())
+}
 
 impl Palette {
     /// opened afresh, or closed
@@ -59,6 +73,18 @@ impl Palette {
             self.asked_at = now;
         }
         waiting
+    }
+
+    /// The latest change made to the song (the state's `history`): one made since the palette last looked (a command
+    /// the engine was busy for, a job's result) has the words asked about again, as the changes they find have changed.
+    fn follow_history(&mut self, latest: Option<&str>) {
+        if self.seen.as_deref() != latest {
+            self.seen = latest.map(str::to_string);
+            let words = self.query.trim();
+            if !words.is_empty() {
+                self.ask = Some(words.to_string());
+            }
+        }
     }
 
     /// Which of `acts` is highlighted after the arrows: the one picked with them stays picked as the list is ranked
@@ -82,18 +108,28 @@ impl Palette {
         }
     }
 
-    /// the actions shown for what is typed: what the engine found for it, by name and by meaning, or until it answers,
-    /// what the words find by name here
+    /// the actions shown for what is typed: what the engine found for it, by name and by meaning, then the changes
+    /// made to the song it found, to go back to before; or until it answers, what the words find by name here
     fn shown(&self) -> Vec<Found> {
         match &self.answer {
-            Some(a) if a.query == self.query.trim() => a.found.clone(),
+            Some(a) if a.query == self.query.trim() => {
+                let back = a.done.iter().map(|d| Found {
+                    id: format!("{BACK}{}", d.id),
+                    name: format!("Go back to before {}", d.name),
+                    place: brief(&d.place, 72),
+                    keys: String::new(),
+                    score: d.score,
+                    by: d.by,
+                });
+                a.found.iter().cloned().chain(back).collect()
+            }
             _ => Finder::new(ENTRIES, None).find(&self.query, None, SHOWN),
         }
     }
 }
 
 /// what an action does
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 enum Run {
     NewSong,
     Example,
@@ -123,10 +159,15 @@ enum Run {
     Reference,
     Docs,
     Tour,
+    /// back to before a change made to the song: its id in the history
+    GoBack(String),
 }
 
-/// the action of the catalogue's id
+/// the action of the catalogue's id, or of a row going back to before a change (`BACK`)
 fn run_of(id: &str) -> Option<Run> {
+    if let Some(change) = id.strip_prefix(BACK) {
+        return Some(Run::GoBack(change.to_string()));
+    }
     Some(match id {
         "play" => Run::Play,
         "to_start" => Run::ToStart,
@@ -182,6 +223,7 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
         return None;
     }
     let p = &mut cx.view.palette;
+    p.follow_history(cx.state.history.first().map(|d| d.id.as_str()));
     // the keys are the palette's, but for a field elsewhere being typed in
     let field_id = egui::Id::unique("command palette field");
     let ours = !ctx.text_edit_focused() || ctx.memory(|m| m.has_focus(field_id));
@@ -232,14 +274,26 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
             }
             egui::ScrollArea::vertical().max_height(360.0).auto_shrink([false, true]).show(ui, |ui| {
                 for (i, a) in acts.iter().enumerate() {
+                    // the changes made to the song come after the actions, each with what it changed under it
+                    let back = a.id.starts_with(BACK);
+                    if back && !acts[..i].iter().any(|b| b.id.starts_with(BACK)) {
+                        ui.add_space(4.0);
+                        ui.label(RichText::new("In the song's history").size(10.5).color(TEXT_FAINT));
+                    }
                     let mut job = LayoutJob::default();
                     job.append(&a.name, 0.0, egui::TextFormat::simple(theme::prop(13.5), TEXT));
-                    if !a.place.is_empty() {
+                    if back {
+                        job.append(
+                            &format!("\n{}", a.place),
+                            0.0,
+                            egui::TextFormat::simple(theme::prop(11.0), TEXT_FAINT),
+                        );
+                    } else if !a.place.is_empty() {
                         job.append(&a.place, 10.0, egui::TextFormat::simple(theme::prop(11.0), TEXT_FAINT));
                     }
                     let keys = a.keys.replace("Cmd", cmd);
                     let r = ui.add_sized(
-                        vec2(ui.available_width(), 26.0),
+                        vec2(ui.available_width(), if back { 40.0 } else { 26.0 }),
                         egui::Button::new(job)
                             .selected(i == p.at)
                             .shortcut_text(RichText::new(keys).size(11.0).color(TEXT_FAINT)),
@@ -281,13 +335,14 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
     }
     let run = picked?;
     cx.view.palette.open = false;
+    let example = run == Run::Example;
     match run {
         Run::NewSong | Run::Example => {
             cx.view.new_song.open = true;
             if let Some(song) = &cx.state.song {
                 cx.view.new_song.set_genre(&song.genre);
             }
-            if run == Run::Example {
+            if example {
                 cx.view.new_song.start = super::Start::Example;
             }
         }
@@ -329,6 +384,7 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
         Run::Reference => cx.view.reference_open = true,
         Run::Docs => ctx.open_url(egui::OpenUrl::new_tab(widgets::DOCS)),
         Run::Tour => return Some(Asked::Tour),
+        Run::GoBack(to) => cx.out.push(Command::GoBack { to }),
     }
     None
 }
@@ -359,9 +415,9 @@ mod tests {
             score: 0.8,
             by: By::Meaning,
         };
-        p.heard(Answer { query: "mi".into(), found: vec![found("an old answer")], by_meaning: true });
+        p.heard(Answer { query: "mi".into(), found: vec![found("an old answer")], done: vec![], by_meaning: true });
         assert_eq!(p.shown()[0].name, "Mixer", "an answer for other words is not shown");
-        p.heard(Answer { query: "mix".into(), found: vec![found("Sounds")], by_meaning: true });
+        p.heard(Answer { query: "mix".into(), found: vec![found("Sounds")], done: vec![], by_meaning: true });
         assert_eq!(p.shown()[0].name, "Sounds", "the engine's answer, by meaning too");
         p.query = "mixer".into();
         assert_eq!(p.shown()[0].name, "Mixer", "words typed since are found by name until it answers for them");
@@ -389,9 +445,49 @@ mod tests {
     }
 
     #[test]
+    fn a_change_the_words_found_is_a_row_after_the_actions_that_goes_back_to_before_it() {
+        let mut p = Palette { query: "before the whistles".into(), ..Palette::default() };
+        let change = Found {
+            id: "7@4f2a".into(),
+            name: "track whistle".into(),
+            place: "added the whistle track (lead), playing the synth whistle, and a long while more of it".into(),
+            keys: String::new(),
+            score: 0.7,
+            by: By::Meaning,
+        };
+        p.heard(Answer { query: p.query.clone(), found: vec![act("undo")], done: vec![change], by_meaning: true });
+        let rows = p.shown();
+        assert_eq!(
+            rows.iter().map(|r| r.name.as_str()).collect::<Vec<_>>(),
+            ["undo", "Go back to before track whistle"]
+        );
+        assert!(rows[1].place.ends_with('…') && rows[1].place.chars().count() == 72, "{}", rows[1].place);
+        assert_eq!(run_of(&rows[1].id), Some(Run::GoBack("7@4f2a".into())));
+    }
+
+    #[test]
+    fn a_change_made_while_the_palette_is_open_has_its_words_asked_about_again() {
+        let mut p = Palette::default();
+        p.follow_history(Some("1@a"));
+        assert!(p.ask.is_none(), "nothing typed, nothing to ask");
+        p.query = "faster".into();
+        p.follow_history(Some("1@a"));
+        assert!(p.ask.is_none(), "no change since it last looked");
+        p.follow_history(Some("2@a"));
+        assert_eq!(p.ask.take().as_deref(), Some("faster"), "a change the engine was busy for, made since");
+        p.follow_history(Some("2@a"));
+        assert!(p.ask.is_none());
+    }
+
+    #[test]
     fn words_found_by_name_only_are_asked_about_again_a_second_apart_for_a_minute() {
         let mut p = Palette { query: "make it louder".into(), ..Palette::default() };
-        let answer = |by_meaning| Answer { query: "make it louder".into(), found: vec![act("tab:mixer")], by_meaning };
+        let answer = |by_meaning| Answer {
+            query: "make it louder".into(),
+            found: vec![act("tab:mixer")],
+            done: vec![],
+            by_meaning,
+        };
         p.heard(answer(false));
         assert!(p.ask_again(0.5) && p.ask.is_none(), "not within a second of asking");
         assert!(p.ask_again(1.0) && p.ask.take().as_deref() == Some("make it louder"));
