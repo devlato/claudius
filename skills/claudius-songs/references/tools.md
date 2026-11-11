@@ -48,7 +48,7 @@ to. On the command line, each command reads and writes song folders instead.
 | `extract_groove` | `path` of a recording with drums, `name` (default the file's), `lanes` (default all), `bpm` (when known) | a script: `groove("funk", "FILE", 96); lane("hat", #{ groove: "funk" });` |
 | `request_pitch_check` | `low`, `high` (MIDI; default A3 to A4, sung in any octave), `note` (for the person) | |
 | `wait_for_pitch_check` | `id` (from `request_pitch_check`), `seconds` (50, 1 to 300) | |
-| `wait_for_message` | `after` (the last message's id you saw; none: from now on), `seconds` (50, 1 to 300): what the person writes to you in the studio's chat, with the messages before it; while you wait the studio says you listen (`chat_listen`) and lets them write, so call it again at once to stay | |
+| `wait_for_message` | `after` (the last message's id you saw; none: from now on), `seconds` (50, 1 to 300): what the person writes to you in the studio's chat, with the messages before it; while you wait the studio says you listen (`chat_listen`) and lets them write, so call it again at once to stay. When claudius started you itself for its chat (over the Agent Client Protocol), what the person writes is your prompt and your answer goes to the chat as you write it: wait for nothing, and send nothing | |
 | `send_message` | `text`, `reply_to` (the id of their message): you, in the studio's chat (`chat_answer`); they are notified when the app is in the background | |
 | `request_take` | `from` (a section's name), `role`, `name`, `note` (what to record, for the person) | |
 | `wait_for_take` | `id` (from `request_take`), `seconds` (50, 1 to 300) | |

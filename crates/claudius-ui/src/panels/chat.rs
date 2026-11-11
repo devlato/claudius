@@ -1,19 +1,22 @@
 //! The chat with the assistants connected to claudius over MCP, in a window of its own: what each side said, in order,
 //! and a field to write in while an assistant listens (`wait_for_message`). It opens by itself when an assistant writes,
-//! and from the status bar, which says who listens; with no assistant listening, the field says how to have one listen.
+//! and from the status bar, which says who listens; with no assistant listening, the field says how to have one listen,
+//! and the window offers to start one (`CHAT_AGENTS`) that claudius talks to itself, over the Agent Client Protocol.
 
-use claudius_api::{ChatMessage, Command, State};
+use claudius_api::{CHAT_AGENTS, ChatMessage, Command, State};
 use eframe::egui::{self, Key, Modifiers, RichText};
 
 use super::{Cx, small};
 use crate::theme::{self, ACCENT, TEXT, TEXT_DIM, TEXT_FAINT};
 
-/// the window, what is being written in it, and the last message seen (none yet in this run)
+/// the window, what is being written in it, the last message seen (none yet in this run), and an agent to start
+/// (`Some`) or stop (`None`)
 #[derive(Default)]
 pub struct Chat {
     pub open: bool,
     draft: String,
     seen: Option<u64>,
+    pub ask: Option<Option<String>>,
 }
 
 impl Chat {
@@ -52,16 +55,20 @@ pub fn now_ms() -> u64 {
     now
 }
 
-/// who listens now, at `now_ms` (ms since 1970)
+/// who listens now, at `now_ms` (ms since 1970): an agent claudius started, for as long as it runs
 pub fn listening(state: &State, now_ms: u64) -> Option<&str> {
+    if let Some(agent) = state.chat.agent.as_deref() {
+        return Some(agent);
+    }
     let until = state.chat.listening_until?;
     state.chat.listening.as_deref().filter(|_| until > now_ms)
 }
 
-/// the status bar's word on the chat: who listens, or that there is one to read; nothing when there is neither
+/// the status bar's word on the chat: who listens, or that there is one to read or an agent to start there; nothing
+/// when there is none of these
 pub fn status(ui: &mut egui::Ui, state: &State, view: &mut super::View, now_ms: u64) {
     let who = listening(state, now_ms);
-    let text = match (who, state.chat.messages.is_empty()) {
+    let text = match (who, state.chat.messages.is_empty() && !state.chat.starts_agents) {
         (Some(who), _) => format!("· ● {who} is listening"),
         (None, false) => "· chat".to_string(),
         (None, true) => return,
@@ -88,8 +95,31 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx, now_ms: u64) {
         .default_height(420.0)
         .show(ctx, |ui| {
             match &who {
-                Some(w) => ui.label(small(format!("{w} is listening")).color(theme::GOOD)),
-                None => ui.label(small(NOBODY).color(TEXT_FAINT)),
+                Some(w) => {
+                    ui.horizontal(|ui| {
+                        ui.label(small(format!("{w} is listening")).color(theme::GOOD));
+                        let Some(agent) = cx.state.chat.agent.clone() else { return };
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let stop = egui::Button::new(small(format!("Stop {agent}"))).frame(false);
+                            if ui.add(stop).on_hover_text("claudius started it, and stops it").clicked() {
+                                cx.view.chat.ask = Some(None);
+                            }
+                        });
+                    });
+                }
+                None => {
+                    ui.label(small(NOBODY).color(TEXT_FAINT));
+                    if cx.state.chat.starts_agents {
+                        ui.horizontal_wrapped(|ui| {
+                            ui.label(small("Or have claudius start one, to talk to here:").color(TEXT_FAINT));
+                            for (id, name) in CHAT_AGENTS {
+                                if ui.button(small(name)).on_hover_text(STARTS).clicked() {
+                                    cx.view.chat.ask = Some(Some(id.to_string()));
+                                }
+                            }
+                        });
+                    }
+                }
             };
             ui.add_space(4.0);
             let messages = cx.state.chat.messages.clone();
@@ -139,12 +169,22 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx, now_ms: u64) {
 const NOBODY: &str = "No assistant is listening. Ask yours, connected to claudius over MCP, to wait for your messages \
                       (its wait_for_message tool): then write here.";
 
-/// a message: who said it and when, what it answers, and what it says
+/// what starting an agent from the chat does
+const STARTS: &str = "claudius starts it on this computer, through npx (which needs Node.js), and talks to it here; \
+                      it has to be signed in, as it is once you have used it on its own. It works in your songs \
+                      folder with claudius's tools, and may use nothing else.";
+
+/// a message: who said it and when, what it answers, and what it says; a note, what an agent does, in a line
 fn message(ui: &mut egui::Ui, m: &ChatMessage) {
     let (who, color) = match &m.from {
         Some(w) => (w.as_str(), ACCENT),
         None => ("you", theme::INFO),
     };
+    if m.note {
+        ui.label(small(format!("{} · {who} {}", clock(m.at), m.text)).color(TEXT_FAINT));
+        ui.add_space(4.0);
+        return;
+    }
     ui.horizontal(|ui| {
         ui.label(RichText::new(who).strong().size(12.0).color(color));
         ui.label(small(clock(m.at)).color(TEXT_FAINT));
@@ -172,12 +212,13 @@ mod tests {
             messages,
             listening: listening.map(|(w, _)| w.to_string()),
             listening_until: listening.map(|(_, u)| u),
+            ..ChatView::default()
         };
         State { chat, version: 1, ..Default::default() }
     }
 
     fn said(id: u64, from: Option<&str>) -> ChatMessage {
-        ChatMessage { id, from: from.map(str::to_string), text: "hi".into(), at: 0, reply_to: None }
+        ChatMessage { id, from: from.map(str::to_string), text: "hi".into(), at: 0, reply_to: None, note: false }
     }
 
     #[test]
@@ -205,5 +246,12 @@ mod tests {
         let s = state(Vec::new(), Some(("Claude Code", 1_000)));
         assert_eq!((listening(&s, 999), listening(&s, 1_000)), (Some("Claude Code"), None));
         assert_eq!(clock(13 * 3_600_000 + 5 * 60_000), "13:05");
+    }
+
+    #[test]
+    fn an_agent_claudius_started_listens_for_as_long_as_it_runs() {
+        let mut s = state(Vec::new(), None);
+        s.chat.agent = Some("Gemini CLI".into());
+        assert_eq!(listening(&s, u64::MAX - 1), Some("Gemini CLI"));
     }
 }

@@ -41,4 +41,27 @@ test.describe("the keyboard", () => {
       c.stop();
     }
   });
+
+  test("the palette opens the chat, and Escape closes it", async () => {
+    test.setTimeout(120_000);
+    const c = await claudius();
+    const b = await chromium.launch();
+    const page = await b.newPage();
+    try {
+      const tab = heard(page, "tab");
+      const windows = heard(page, "windows");
+      await page.goto(`${c.base}/?plan=${encodeURIComponent("wait:600")}`);
+      await expect.poll(() => tab.at(-1), { timeout: 60_000 }).toBeTruthy();
+      await page.locator("canvas").first().focus();
+      await page.keyboard.press("ControlOrMeta+k");
+      await page.keyboard.type("chat with");
+      await page.keyboard.press("Enter");
+      await expect.poll(() => windows.at(-1), { timeout: 10_000 }).toBe("chat");
+      await page.keyboard.press("Escape");
+      await expect.poll(() => windows.at(-1), { timeout: 10_000 }).toBe("none");
+    } finally {
+      await b.close();
+      c.stop();
+    }
+  });
 });

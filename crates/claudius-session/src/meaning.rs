@@ -289,11 +289,8 @@ mod tests {
             (answer.query.as_str(), answer.found[0].id.as_str(), answer.by_meaning),
             ("mixer", "tab:mixer", false)
         );
-        assert_eq!(
-            Host::find("", 40, &none).found.len(),
-            claudius_intent::catalogue::ENTRIES.len(),
-            "nothing typed: all of them"
-        );
+        let all = claudius_intent::catalogue::ENTRIES.len();
+        assert_eq!(Host::find("", all, &none).found.len(), all, "nothing typed: all of them");
         assert!(super::provide(b"CLDE but not a model").is_err());
         assert!(!Host::find("mixer", 3, &none).by_meaning);
     }

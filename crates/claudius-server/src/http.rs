@@ -51,6 +51,7 @@ struct Ctx {
 
 pub fn router(app: Arc<App>, o: &Options) -> Router {
     STARTED.get_or_init(std::time::Instant::now);
+    app.set_shared(o.public || o.token.is_some());
     let ctx = Ctx { app: app.clone() };
     let api = Router::new()
         .route("/api/hello", get(hello))
@@ -84,6 +85,7 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
         .route("/api/remake", post(remake).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/sample", post(sample).layer(DefaultBodyLimit::max(crate::app::MAX_TAKE)))
         .route("/api/phone", post(phone_start).delete(phone_stop))
+        .route("/api/chat/agent", post(agent_start).delete(agent_stop))
         .route("/api/transport", post(transport))
         .with_state(ctx);
     let mut r = api.nest_service("/mcp", crate::mcp::http_service(app, o.public));
@@ -238,6 +240,15 @@ async fn phone_start(State(c): State<Ctx>) -> Response {
 async fn phone_stop(State(c): State<Ctx>) -> StatusCode {
     c.app.set_phone(None);
     StatusCode::NO_CONTENT
+}
+
+/// starts an agent for the chat: claudius runs it, so only where it runs for the person alone (`App::start_agent`)
+async fn agent_start(State(c): State<Ctx>, Json(a): Json<claudius_api::StartAgent>) -> Json<claudius_api::Reply> {
+    Json(c.app.start_agent(&a.agent))
+}
+
+async fn agent_stop(State(c): State<Ctx>) -> Json<claudius_api::Reply> {
+    Json(c.app.stop_agent())
 }
 
 async fn transport(State(c): State<Ctx>, Json(t): Json<claudius_api::Transport>) -> StatusCode {

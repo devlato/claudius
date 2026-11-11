@@ -232,10 +232,28 @@ pub struct ChatView {
     pub listening: Option<String>,
     #[serde(default)]
     pub listening_until: Option<u64>,
+    /// the agent claudius started itself (one of `CHAT_AGENTS`), while it runs
+    #[serde(default)]
+    pub agent: Option<String>,
+    /// the message it is still writing (the last), which grows until it is whole
+    #[serde(default)]
+    pub writing: Option<u64>,
+    /// whether this claudius starts agents (`POST /api/chat/agent`): one serving others' files does not
+    #[serde(default)]
+    pub starts_agents: bool,
 }
 
 /// the most messages of the chat a state holds, the latest
 pub const CHAT_SHOWN: usize = 200;
+
+/// the agents claudius starts itself over the Agent Client Protocol, for the chat: an id, and what the chat calls it
+pub const CHAT_AGENTS: [(&str, &str); 3] = [("claude", "Claude Code"), ("gemini", "Gemini CLI"), ("codex", "Codex")];
+
+/// `POST /api/chat/agent`: start the agent `agent` (an id of `CHAT_AGENTS`) for the chat
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct StartAgent {
+    pub agent: String,
+}
 
 /// a message of the chat: its id (each one more than the one before it), who said it (none for the person), what,
 /// when (in ms since 1970), and the message it answers
@@ -248,6 +266,9 @@ pub struct ChatMessage {
     pub at: u64,
     #[serde(default)]
     pub reply_to: Option<u64>,
+    /// a line about what an agent claudius started does (a tool it uses, that it stopped), not something it says
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub note: bool,
 }
 
 /// A pitch check (`request_pitch_check`): phrases the studio plays for the person to sing back, each followed by a gap

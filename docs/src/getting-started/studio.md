@@ -328,8 +328,17 @@ you when its window is not in front. With no assistant listening, the field says
 kept between runs in claudius's settings folder (`chat.jsonl`, beside your voice) until **Clear the chat** clears it.
 
 The assistant listens with the `wait_for_message` tool, which waits until you write (or a minute passes, when it
-calls it again), and answers with `send_message`; each message has an id one more than the one before, so neither of
-you misses one or reads them out of order ([the MCP tools](../guide/mcp.md#the-tools)).
+calls it again), and answers with `send_message`; each message has a higher id than the one before, a cleared chat's
+too, so neither of you misses one or reads them out of order ([the MCP tools](../guide/mcp.md#the-tools)).
+
+Or have claudius start one: **chat** in the status bar, or **Chat with an assistant** in the command palette, opens
+the window, which offers **Claude Code**, **Gemini CLI** and **Codex** while no assistant listens. claudius runs the one you pick on this computer and talks to it over the
+[Agent Client Protocol](https://agentclientprotocol.com). It comes through `npx`, which needs Node.js, and has to be
+signed in, as it is once you have used it on its own. What you write is its prompt, and its answer comes in
+as it writes it, with a line for each tool it uses. It works in your songs folder with claudius's tools and may use
+nothing else: a permission it asks for anything else is refused, and the chat says so. **Stop** at the top of the
+window stops it. A claudius others reach, with `--public` or a token, starts none
+([security](../engineering/security.md#the-chats-agents)).
 
 ## Finding an action
 

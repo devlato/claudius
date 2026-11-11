@@ -155,8 +155,11 @@ impl Desktop {
         }
         // none until the first state has come from claudius: the studio starts with an empty one
         if state.version > 0 {
-            let last = state.chat.messages.last().map_or(0, |m| m.id);
-            for m in state.chat.messages.iter().filter(|m| m.id > unread(self.read, last)) {
+            // an agent's answer is said once it is whole, and what it does (a note) not at all
+            let chat = &state.chat;
+            let last = chat.messages.iter().rev().map(|m| m.id).find(|id| Some(*id) != chat.writing).unwrap_or(0);
+            let after = unread(self.read, last);
+            for m in chat.messages.iter().filter(|m| m.id > after && m.id <= last && !m.note) {
                 if let Some(who) = m.from.as_deref().filter(|_| away) {
                     tell(ctx, &format!("{who} writes"), &m.text);
                 }

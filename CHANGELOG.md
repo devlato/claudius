@@ -42,6 +42,10 @@ window takes what you write, and its answers come in there, each saying which me
 notification when the app is in the background). The chat is kept between runs until you clear it. The commands are
 `chat_say`, `chat_answer`, `chat_listen` and `clear_chat`, and the state's `chat`.
 
+Or have claudius start an agent for the chat itself: the **Chat** window offers Claude Code, Gemini CLI and Codex,
+which claudius runs on your computer and talks to over the Agent Client Protocol, with its own tools and nothing else.
+What you write is its prompt, and its answer comes in as it writes it (`POST /api/chat/agent`).
+
 ## [0.6.0] - 2026-11-11
 
 The examples' studies of famous records are gone. They were named after the records but played melodies of their

@@ -98,6 +98,18 @@ address holds the key), `Content-Security-Policy: default-src 'self'` with no in
 key and play into the song until the page stops, which `DELETE /api/phone`, the window's **Stop serving the page** or
 quitting does.
 
+### The chat's agents
+
+Starting an agent from the [chat](../getting-started/studio.md#talking-to-your-assistant-from-the-studio)
+(`POST /api/chat/agent`) runs a program on the computer claudius runs on, so a claudius others reach (`--public`, a
+token, or `--files`) refuses it, and a page on another site cannot send it (the API's guard and CORS). The programs
+are claudius's own, fixed: `npx -y @agentclientprotocol/claude-agent-acp`, `npx -y @google/gemini-cli --acp` and
+`npx -y @agentclientprotocol/codex-acp`, as the [ACP registry](https://github.com/agentclientprotocol/registry) runs
+them, never one a request names. The agent works in the songs folder with claudius's MCP
+tools (`claudius mcp --url` of this claudius), and a permission it asks for anything else is refused, and the chat
+says so: for a tool not named for claudius, or one that edits, deletes or moves a file, runs a command, fetches from
+the web or names a file it works on, whatever it is called. When it stops, or claudius quits, its whole process group goes with it.
+
 The demo pairs with a phone through a room of the site's relay instead (`site/worker/room.js`, a Durable Object). A
 room is named with 128 random bits that only the demo's QR code carries, takes one tab as its host (the same tab again
 after a reload, which keeps the name) and four phones, and only pages of the site's own origin may join it. It passes a
