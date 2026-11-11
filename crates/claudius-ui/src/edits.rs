@@ -64,15 +64,19 @@ fn energy_for(kind: &str) -> f32 {
 /// Applies a song edit. `None` when `cmd` is not a plain song edit (jobs, undo, new song, scripts ...).
 pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String>> {
     Some(match cmd {
-        // edits made as one: each shown as it is alone, and the song put back when the server turns them down
+        // edits made as one: each shown as it is alone, all of them or, when one cannot be, none
         Command::Together { said, commands } => {
+            let mut after = song.clone();
             let mut shown = false;
             for c in commands {
-                match apply(song, c) {
+                match apply(&mut after, c) {
                     Some(Ok(_)) => shown = true,
                     Some(Err(e)) => return Some(Err(e)),
                     None => {}
                 }
+            }
+            if shown {
+                *song = after;
             }
             return shown.then(|| Ok(said.clone()));
         }

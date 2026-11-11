@@ -1459,12 +1459,11 @@ mod tests {
         .unwrap();
         assert_eq!(edits::apply(&mut song, &together), Some(Ok("Mute the kick, at 125 BPM".into())));
         assert!(song.bpm == 125.0 && song.tracks.iter().any(|t| t.name == "kick" && t.muted));
-        let wrong: Command = serde_json::from_value(json!({"cmd": "together", "said": "a tempo no song plays",
-            "commands": [{"cmd": "set_tempo", "bpm": 900}]}))
-        .unwrap();
-        assert!(
-            matches!(edits::apply(&mut song, &wrong), Some(Err(_))),
-            "the server turns it down, and it is put back"
-        );
+        let wrong: Command =
+            serde_json::from_value(json!({"cmd": "together", "said": "unmuted, at a tempo no song plays",
+            "commands": [{"cmd": "set_mix", "track": "kick", "muted": false}, {"cmd": "set_tempo", "bpm": 900}]}))
+            .unwrap();
+        assert!(matches!(edits::apply(&mut song, &wrong), Some(Err(_))));
+        assert!(song.bpm == 125.0 && song.tracks.iter().any(|t| t.name == "kick" && t.muted), "none of it is shown");
     }
 }
