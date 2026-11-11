@@ -64,6 +64,12 @@ playing song's tempo (or twice or half of it) and in a key of its notes, coming 
 bass swapped halfway; a song in another tempo comes in after an echo out or a record stop. It all runs in the page, on
 the studio demo's engine.
 
+What you set survives any update, from any version: the studio's settings, the voice a pitch check heard, the answer
+about usage statistics and whether to update by itself. Each settings file now says which version of it claudius
+wrote, and is read a setting at a time, so one a later claudius changed costs only itself, and one an earlier claudius
+does not know is kept when it writes the file. The studio's settings move from RON under eframe's key to JSON under
+`settings`; the old ones are read the first time and kept as JSON from then on.
+
 Evolution and the studio's Variations now revise a song's form as a producer would: a verse and hook or a drop played
 again, a section left out, a bridge or a lift, a shorter intro or outro, two sections that sound as one set apart, a
 build-up of another style or strength. The critic judges the whole song's form, even where evolution renders only a
