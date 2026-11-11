@@ -179,7 +179,11 @@ mod model {
             let query = {
                 let mut guard = SHARED.lock().unwrap_or_else(|e| e.into_inner());
                 loop {
-                    if let Some(q) = guard.as_mut().and_then(|s| s.wanted.take()) {
+                    // the palette asks again about the request being read until it has been: one read is enough
+                    if let Some(s) = guard.as_mut()
+                        && let Some(q) = s.wanted.take()
+                        && !s.read.contains_key(&q)
+                    {
                         break q;
                     }
                     guard = WAKE.wait(guard).unwrap_or_else(|e| e.into_inner());
