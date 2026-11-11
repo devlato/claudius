@@ -253,6 +253,7 @@ impl Studio {
             Event::Preview { version, image } => self.view.publish.arrived = Some((version, image)),
             Event::Library(hits) => self.view.import.found(hits),
             Event::Found(answer) => self.view.palette.heard(answer),
+            Event::Heard(heard) => self.view.palette.said(heard),
             Event::Said { text, ok } => self.toast(text, ok, now),
             Event::PhoneRefused(why) => {
                 self.view.phone.refused();
@@ -1186,6 +1187,7 @@ impl eframe::App for Studio {
                 self.welcome(ui);
             }
         });
+        let can_hear = self.backend.can_hear();
         {
             let mut cx = Cx {
                 state: &mut self.state,
@@ -1202,6 +1204,7 @@ impl eframe::App for Studio {
             panels::import::dialog(&ctx, &mut cx);
             panels::import::pieces(&ctx, &mut cx);
             panels::phone::dialog(&ctx, &mut cx);
+            cx.view.palette.can_hear = can_hear;
             match panels::palette::show(&ctx, &mut cx) {
                 Some(panels::palette::Asked::Open) => crate::pick::choose(&ctx, crate::pick::Want::Song),
                 Some(panels::palette::Asked::Tour) => self.start_tour(0),
@@ -1232,6 +1235,9 @@ impl eframe::App for Studio {
         }
         if let Some(q) = self.view.palette.ask.take() {
             self.backend.find(&q, crate::panels::palette::SHOWN);
+        }
+        if let Some(wav) = self.view.palette.say.take() {
+            self.backend.hear(wav);
         }
         if let Some((file, found)) = self.view.import.offer.take() {
             self.inflight += 1;

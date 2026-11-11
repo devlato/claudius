@@ -1008,47 +1008,96 @@ struct Number {
     by: bool,
 }
 
-/// the numbers of a request, in digits or in words, with their units: "95%", "-6 db", "128 bpm", "1:02", "by 3"
+/// the numbers of a request, in digits or in words, with their units: "95%", "-6 db", "128 bpm", "1:02", "by 3",
+/// "twenty five", and a time as it is said ("one minute two seconds", "2 minutes and 10 seconds")
 fn numbers(q: &str) -> Vec<Number> {
-    let q = q.replace("per cent", "percent");
-    let tokens: Vec<&str> = q.split_whitespace().collect();
+    let q = q.replace("per cent", "percent").to_lowercase();
+    let tokens: Vec<&str> = q.split_whitespace().map(|t| t.trim_matches(|c: char| ",.!?".contains(c))).collect();
+    let word = |i: usize| tokens.get(i).copied().unwrap_or("");
     let mut out = Vec::new();
-    for (i, raw) in tokens.iter().enumerate() {
-        let t = raw.trim_matches(|c: char| ",.!?".contains(c));
-        let next = tokens.get(i + 1).map(|n| n.trim_matches(|c: char| ",.!?".contains(c))).unwrap_or("");
-        let before = if i > 0 { tokens[i - 1] } else { "" };
-        let by = before == "by" || (["up", "down"].contains(&before) && !["to"].contains(&next));
+    let mut i = 0;
+    while i < tokens.len() {
+        let (t, before) = (tokens[i], if i > 0 { tokens[i - 1] } else { "" });
         if let Some((m, s)) = t.split_once(':')
             && let (Ok(m), Ok(s)) = (m.parse::<f64>(), s.parse::<f64>())
         {
             out.push(Number { value: m * 60.0 + s, unit: Unit::Time, by: false });
+            i += 1;
             continue;
         }
         let (digits, rest) =
             t.split_at(t.find(|c: char| !(c.is_ascii_digit() || c == '.' || c == '-' || c == '+')).unwrap_or(t.len()));
-        let value = match digits.parse::<f64>() {
-            Ok(v) => v,
-            Err(_) => match word_number(t) {
-                Some(v) => v,
-                None => continue,
-            },
+        let Some((value, used)) = digits.parse::<f64>().ok().map(|v| (v, 1)).or_else(|| said_number(&tokens[i..]))
+        else {
+            i += 1;
+            continue;
         };
-        let unit = match (rest.to_lowercase().as_str(), next.to_lowercase().as_str()) {
+        let next = word(i + used);
+        if rest.is_empty() && ["minute", "minutes", "min", "mins"].contains(&next) {
+            // and the seconds after the minutes, if they are said ("and", or a "to" a speech model hears, between)
+            let from = i + used + 1 + usize::from(["and", "to"].contains(&word(i + used + 1)));
+            let secs = tokens
+                .get(from..)
+                .and_then(number_at)
+                .filter(|&(_, n)| ["second", "seconds", "sec", "secs"].contains(&word(from + n)));
+            let (s, end) = secs.map_or((0.0, i + used + 1), |(s, n)| (s, from + n + 1));
+            out.push(Number { value: value * 60.0 + s, unit: Unit::Time, by: false });
+            i = end;
+            continue;
+        }
+        let by = before == "by" || (["up", "down"].contains(&before) && next != "to");
+        let unit = match (rest, next) {
             ("%", _) | (_, "percent") | (_, "%") => Unit::Percent,
             ("db", _) | (_, "db") | (_, "decibels") | (_, "decibel") => Unit::Db,
             ("bpm", _) | (_, "bpm") => Unit::Bpm,
-            ("s", _) | (_, "seconds") | (_, "secs") => Unit::Time,
+            ("s", _) | (_, "second") | (_, "seconds") | (_, "secs") => Unit::Time,
             _ => Unit::None,
         };
         // decibels with a way and nothing setting them ("lower the lead 3 db") are by how much; "to -6 db" is where
         let set = ["to", "at", "is", "be", "=", "like", "around", "about"].contains(&before);
         let by = by || (unit == Unit::Db && !set && way(&q).is_some());
         out.push(Number { value, unit, by });
+        i += used;
     }
     out
 }
 
-/// a small number in words, as requests say them
+/// the number the words start with, in digits or in words, and how many words it takes
+fn number_at(words: &[&str]) -> Option<(f64, usize)> {
+    words.first()?.parse::<f64>().ok().map(|v| (v, 1)).or_else(|| said_number(words))
+}
+
+/// a number in words, as requests say them, up to 99, and how many words it takes: "seven", "a couple", "twenty",
+/// "twenty five", "twenty-five"
+fn said_number(words: &[&str]) -> Option<(f64, usize)> {
+    let first = *words.first()?;
+    if let Some((tens, ones)) = first.split_once('-') {
+        return Some((tens_of(tens)? + word_number(ones).filter(|&n| n < 10.0)?, 1));
+    }
+    match (tens_of(first), words.get(1).and_then(|w| word_number(w)).filter(|&n| n < 10.0)) {
+        (Some(tens), Some(ones)) => Some((tens + ones, 2)),
+        (Some(tens), None) => Some((tens, 1)),
+        (None, _) => word_number(first).map(|n| (n, 1)),
+    }
+}
+
+/// a number of tens in words
+fn tens_of(w: &str) -> Option<f64> {
+    let n = match w {
+        "twenty" => 20,
+        "thirty" => 30,
+        "forty" => 40,
+        "fifty" => 50,
+        "sixty" => 60,
+        "seventy" => 70,
+        "eighty" => 80,
+        "ninety" => 90,
+        _ => return None,
+    };
+    Some(f64::from(n))
+}
+
+/// a number below twenty in words, as requests say them
 fn word_number(w: &str) -> Option<f64> {
     let n = match w {
         "one" | "once" => 1,
@@ -1063,6 +1112,13 @@ fn word_number(w: &str) -> Option<f64> {
         "ten" => 10,
         "eleven" => 11,
         "twelve" => 12,
+        "thirteen" => 13,
+        "fourteen" => 14,
+        "fifteen" => 15,
+        "sixteen" => 16,
+        "seventeen" => 17,
+        "eighteen" => 18,
+        "nineteen" => 19,
         _ => return None,
     };
     Some(f64::from(n))

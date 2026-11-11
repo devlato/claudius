@@ -72,7 +72,7 @@ Everything in the cache folder can be deleted while claudius is not running; it 
 | `stretched/` | Apple Loops and samples warped to a tempo and key | one file per loop, tempo and key |
 | `samples/` | drum one-shots cut from Apple Loops | a few hundred KB each |
 | `user/library.json` | the user library: chops and found sounds from `claudius chop` | |
-| `models/` | the command palette's models: `potion-base-8M.clde`, which finds what your words mean, and `needle3.cact`, which reads requests the palette cannot make out otherwise | 8 MB and 35 MB, once each |
+| `models/` | the command palette's models: `potion-base-8M.clde`, which finds what your words mean, `needle3.cact`, which reads requests the palette cannot make out otherwise, and `whistle.cact`, which hears what you say to it | 8 MB, 35 MB and 17 MB, once each |
 | `renders/<process id>-<session>/` | a running session's renders: `<version>.wav`, `.mp3`, and `<version>/` with stems | about 70 MB per four-minute render, and a WAV per track more for a render with stems, which every save makes: a new two-minute lofi song and one save left 433 MB |
 
 A session keeps its last ten renders and deletes older ones as it goes. It holds a lock on `.in-use` in its folder

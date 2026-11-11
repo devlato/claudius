@@ -14,6 +14,7 @@ pub mod index;
 pub mod model;
 pub mod needle;
 pub mod pieces;
+pub mod spoken;
 pub mod teach;
 
 pub use ask::{Asker, Proposal};

@@ -140,6 +140,11 @@
 {"ask": "lets cut the guitar from 1:02 where drums start", "kind": "cut", "track": "guitar", "from": 62}
 {"ask": "cut the piano from 0:48", "kind": "cut", "track": "piano", "from": 48}
 {"ask": "drop the pad out after 1:30", "kind": "cut", "track": "pad", "from": 90}
+{"ask": "cut the guitar from one minute two seconds", "kind": "cut", "track": "guitar", "from": 62}
+{"ask": "cut the piano from 2 minutes and 10 seconds", "kind": "cut", "track": "piano", "from": 130}
+{"ask": "cut the guitar from one minute to two seconds.", "kind": "cut", "track": "guitar", "from": 62}
+{"ask": "Turn the bass down by three decibels", "kind": "level", "track": "bass", "by": -3}
+{"ask": "set the tempo to ninety five", "kind": "tempo", "to": 95}
 {"ask": "take the lead out from 2:00", "kind": "cut", "track": "lead", "from": 120}
 {"ask": "stop the vocals at 1:10", "kind": "cut", "track": "vocals", "from": 70}
 {"ask": "no guitar after 0:40", "kind": "cut", "track": "guitar", "from": 40}

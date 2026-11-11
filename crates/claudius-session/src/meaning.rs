@@ -101,6 +101,34 @@ fn load_or_fetch() -> Result<(), String> {
     Ok(())
 }
 
+/// The file of a model of one file, from claudius's cache, or downloaded there from its pinned revision: checked
+/// against its size and SHA-256 either way, and a download that is not the file claudius was checked with deleted.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn cached(source: &claudius_intent::model::Source) -> Result<Vec<u8>, String> {
+    use sha2::{Digest, Sha256};
+    let &(file, size, sha) = source.files.first().ok_or("no file")?;
+    let dest = claudius::config::cache_dir("models").join(file);
+    let good = |bytes: &[u8]| {
+        bytes.len() as u64 == size
+            && Sha256::digest(bytes).iter().map(|b| format!("{b:02x}")).collect::<String>() == sha
+    };
+    if let Ok(b) = std::fs::read(&dest)
+        && good(&b)
+    {
+        return Ok(b);
+    }
+    if let Some(dir) = dest.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| format!("cannot make {}: {e}", dir.display()))?;
+    }
+    claudius_packs::download_file(&source.url(file), &dest, size, false).map_err(|e| format!("{file}: {e:#}"))?;
+    let b = std::fs::read(&dest).map_err(|e| format!("{file}: {e}"))?;
+    if !good(&b) {
+        let _ = std::fs::remove_file(&dest);
+        return Err(format!("{file} is not the file claudius was checked with"));
+    }
+    Ok(b)
+}
+
 /// What the small model on the device read of a request: what it calls, or that it calls nothing; that it is
 /// reading it still; or that there is no model to read it (it has not downloaded, or this build has none).
 #[derive(Clone, Debug, PartialEq)]
@@ -201,29 +229,7 @@ mod model {
 
     /// the model from the cache, or downloaded and kept there, with the adapters
     fn load() -> Result<Needle, String> {
-        use sha2::{Digest, Sha256};
-        let &(file, size, sha) = NEEDLE3.files.first().ok_or("no file")?;
-        let dest = claudius::config::cache_dir("models").join(file);
-        let good = |bytes: &[u8]| {
-            bytes.len() as u64 == size
-                && Sha256::digest(bytes).iter().map(|b| format!("{b:02x}")).collect::<String>() == sha
-        };
-        let bytes = match std::fs::read(&dest) {
-            Ok(b) if good(&b) => b,
-            _ => {
-                if let Some(dir) = dest.parent() {
-                    std::fs::create_dir_all(dir).map_err(|e| format!("cannot make {}: {e}", dir.display()))?;
-                }
-                claudius_packs::download_file(&NEEDLE3.url(file), &dest, size, false)
-                    .map_err(|e| format!("{file}: {e:#}"))?;
-                let b = std::fs::read(&dest).map_err(|e| format!("{file}: {e}"))?;
-                if !good(&b) {
-                    let _ = std::fs::remove_file(&dest);
-                    return Err(format!("{file} is not the file claudius was checked with"));
-                }
-                b
-            }
-        };
+        let bytes = super::cached(&NEEDLE3)?;
         let adapters = Adapters::from_safetensors(ADAPTERS.to_vec())?;
         if adapters.tools != fingerprint(TOOLS) {
             return Err("the adapters were taught with other tools".into());

@@ -7,6 +7,8 @@
 #![forbid(unsafe_code)]
 
 pub mod edit;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod hearing;
 pub mod history;
 pub mod host;
 pub mod listen;

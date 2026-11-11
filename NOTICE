@@ -24,6 +24,10 @@ taught (crates/claudius-tune) on Needle 3 by Cactus Compute
 added to the model's own weights, which are downloaded, as it reads a request.
 Its licence is in crates/claudius-intent/LICENSE-needle3.
 
+crates/whistle is a Rust port of Whistle by Cactus Compute
+(https://github.com/cactus-compute/cactus, at commit bafcf73), Apache License 2.0.
+Its licence is in crates/whistle/LICENSE-whistle.
+
 The studio draws its text in Inter (https://github.com/rsms/inter), Copyright (c)
 2016 The Inter Project Authors, SIL Open Font License 1.1, and its icons from
 Lucide (https://lucide.dev), Copyright (c) 2026 Lucide Icons and Contributors,
@@ -79,6 +83,13 @@ SHA-256 hash:
   - Needle 3 by Cactus Compute, Apache-2.0
     (https://huggingface.co/Cactus-Compute/needle3), run by needle-core and
     needle-infer (MIT, https://github.com/geekgineer/needle-rs).
+
+The command palette's speech model, fetched from the Hugging Face Hub the first
+time something is said to the palette, checked against its pinned size and
+SHA-256 hash:
+
+  - Whistle by Cactus Compute, Apache-2.0
+    (https://huggingface.co/Cactus-Compute/whistle), run by crates/whistle.
 
 The sample packs, fetched by `claudius setup` or `claudius-packs install`. Each
 pack's licence and attribution are recorded in crates/claudius-packs/src/registry.json

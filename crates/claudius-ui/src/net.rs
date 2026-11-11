@@ -129,6 +129,8 @@ pub enum Event {
     Library(Result<Vec<claudius_api::LibraryHit>, String>),
     /// the studio's actions the palette's words found
     Found(claudius_intent::Answer),
+    /// what was said to the palette, heard (`Backend::hear`), or why it was not
+    Heard(Result<claudius_api::Heard, String>),
 }
 
 /// the `"cmd"` tag of a command ("set_tempo")
@@ -409,6 +411,26 @@ impl Remote {
         });
     }
 
+    /// what was said to the palette, the WAV file of it, for the server to hear (an old claudius without `/api/hear`
+    /// cannot)
+    fn hear(&self, wav: Vec<u8>) {
+        let mut request = ehttp::Request::post(self.url("/api/hear"), wav);
+        request.headers = ehttp::Headers::new(&[("Accept", "application/json"), ("Content-Type", "audio/wav")]);
+        // the first time, the speech model downloads
+        request.timeout = Some(Duration::from_secs(120));
+        let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
+        ehttp::fetch(request, move |res| {
+            let heard = match res {
+                Ok(r) if r.ok => serde_json::from_slice(&r.bytes).map_err(|e| format!("what claudius heard: {e}")),
+                Ok(r) if r.status == 404 => Err("this claudius cannot hear what is said: update it".into()),
+                Ok(r) if !r.bytes.is_empty() => Err(String::from_utf8_lossy(&r.bytes).trim().to_string()),
+                Ok(r) => Err(format!("{} {}", r.status, r.status_text)),
+                Err(e) => Err(e),
+            };
+            Self::deliver(&tx, &ctx, Event::Heard(heard));
+        });
+    }
+
     fn search_library(&self, q: &str) {
         let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
         let url = self.url(&format!("/api/library/search?q={}", query_value(q)));
@@ -649,6 +671,19 @@ impl Backend {
         match self {
             Backend::Remote(r) => r.find(q, limit),
             Backend::Mock(m) => m.find(q, limit),
+        }
+    }
+
+    /// whether what is said to the palette can be heard: by a server, and by the demo in the app, not in a page
+    pub fn can_hear(&self) -> bool {
+        matches!(self, Backend::Remote(_)) || cfg!(not(target_arch = "wasm32"))
+    }
+
+    /// Sends what was said to the palette, the WAV file of it, to be heard (the answer arrives as `Event::Heard`).
+    pub fn hear(&mut self, wav: Vec<u8>) {
+        match self {
+            Backend::Remote(r) => r.hear(wav),
+            Backend::Mock(m) => m.hear(wav),
         }
     }
 

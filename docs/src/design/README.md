@@ -23,6 +23,7 @@ earth is it done this way?", and the answer is a trade-off rather than a mistake
 | [0012 A history that only grows](0012-history.md) | every change is an operation in a log, with an id, what it was made on, and what it changed path by path; undo and going back are operations too, ready for a CRDT |
 | [0013 Requests in plain words, read on the device](0013-requests.md) | a request is read by its words, the examples nearest it in meaning and rules on the song into what claudius would do, a button for each reading, scored on rounds of new requests before tuning to them |
 | [0014 A small model taught to read requests](0014-request-model.md) | Cactus's Needle 3, taught in Rust on claudius's tools with low-rank adapters, reads on the device what the readings read nothing of; its calls are checked, said again in the readings' words and grounded in the song |
+| [0015 Requests said aloud, heard on the device](0015-spoken-requests.md) | Cactus's Whistle, ported to Rust on needle-core, hears what is said to the palette; silence is heard as nothing, words heard near ones claudius knows are put right, and the words go into the field as if typed |
 | [0016 Settings any later claudius reads](0016-settings-any-later-claudius-reads.md) | every settings file has a version and is read field by field, a field that does not read costing only itself; earlier versions migrate as they are read, and what a later version wrote is kept |
 
 ## The format

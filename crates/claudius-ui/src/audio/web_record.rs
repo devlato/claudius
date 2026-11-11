@@ -691,6 +691,49 @@ impl Drop for Listener {
     }
 }
 
+/// What is said to the palette, heard from the default input until it stops: its first channel, at the context's rate.
+pub struct Hearing {
+    s: Rc<RefCell<Session>>,
+}
+
+impl Hearing {
+    pub fn start() -> Result<Hearing, String> {
+        let s = Session::new(true, 0, 1)?;
+        open(&s, None, None);
+        Ok(Hearing { s })
+    }
+
+    /// the loudest of what it heard since the last call, 0..1
+    pub fn level(&mut self) -> f32 {
+        std::mem::take(&mut self.s.borrow_mut().level)
+    }
+
+    pub fn error(&self) -> Option<String> {
+        self.s.borrow().error.clone()
+    }
+
+    /// stops hearing: the worklet hands over what it still holds, a moment later
+    pub fn stop(&mut self) {
+        self.s.borrow_mut().stop_soon();
+    }
+
+    /// what it heard, as a WAV file, once it has stopped and handed over all of it
+    pub fn finish(&mut self) -> Option<Vec<u8>> {
+        let s = self.s.borrow();
+        if !s.drained {
+            return None;
+        }
+        let samples = s.captured.as_ref().map(|c| c.samples().to_vec()).unwrap_or_default();
+        Some(wav(&samples, 1, s.ctx.sample_rate() as u32))
+    }
+}
+
+impl Drop for Hearing {
+    fn drop(&mut self) {
+        self.s.borrow_mut().close();
+    }
+}
+
 pub struct Recorder {
     s: Rc<RefCell<Session>>,
     /// where in the song the output starts (the count-in's start), the count-in, and the Latency setting, in seconds

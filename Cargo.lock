@@ -1010,12 +1010,14 @@ dependencies = [
  "base64 0.23.1",
  "claudius",
  "claudius-api",
+ "claudius-decode",
  "claudius-intent",
  "claudius-packs",
  "serde",
  "serde_json",
  "sha2",
  "web-time",
+ "whistle",
 ]
 
 [[package]]
@@ -7052,6 +7054,16 @@ dependencies = [
  "raw-window-handle",
  "static_assertions",
  "web-sys",
+]
+
+[[package]]
+name = "whistle"
+version = "0.5.0"
+dependencies = [
+ "hound",
+ "needle-core",
+ "needle-infer",
+ "realfft",
 ]
 
 [[package]]

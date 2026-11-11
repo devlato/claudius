@@ -24,3 +24,6 @@ web-time = "1"
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 # checking the palette's model as it downloads (`meaning`)
 sha2 = "0.11"
+# what is said to the palette, heard (`hearing`)
+whistle = { path = "../whistle" }
+claudius-decode = { path = "../claudius-decode" }

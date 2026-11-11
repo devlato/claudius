@@ -1,12 +1,15 @@
 # Privacy and usage statistics
 
 claudius runs on your computer and sends nothing about you or your music anywhere. It listens to the microphone only
-while the studio's Record window is open (its meter shows what the input hears), in a browser once you have allowed
-the page to use it, and keeps the takes you record with your song, on your computer. What a
+while the studio's Record window is open (its meter shows what the input hears), or while the command palette listens
+for what you say to it, after you click its microphone, in a browser once you have allowed the page to use it. It
+keeps the takes you record with your song, on your computer, and what you say to the palette nowhere: it is heard on
+your computer and let go. What a
 [pitch check](voice.md#checking-your-pitch) learns of your voice stays there too, in its settings folder. It goes on
 the network for five things only: the downloads you ask for (the sample packs, from GitHub and their authors' sites,
-the listening models, from Hugging Face, the command palette's two small models, from Hugging Face too, the first time
-you type in the palette and the first time it cannot make out a request, and the recordings `claudius samples` finds);
+the listening models, from Hugging Face, the command palette's three small models, from Hugging Face too, the first
+time you type in the palette, the first time it cannot make out a request and the first time you say something to it,
+and the recordings `claudius samples` finds);
 the samples a
 [song built on samples](online-samples.md#songs-built-on-samples) gathers as it is made, from Openverse,
 Wikimedia Commons and ccMixter (`--offline` keeps it from asking); the [update](updates.md) check, once a day, to
