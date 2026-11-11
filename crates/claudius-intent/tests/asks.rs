@@ -5,7 +5,8 @@
 
 use claudius_api::{Done, SectionView, SongView, State, TrackView};
 use claudius_intent::Model;
-use claudius_intent::ask::{Asker, Example, Proposal, Way, examples, propose};
+use claudius_intent::ask::{Asker, Example, Kind, Proposal, Way, examples, propose};
+use claudius_intent::teach::{Call, TOOLS, lessons, said};
 use serde_json::Value;
 
 /// a track of the song: its name, kind, role, sound, level, drive, reverb, delay and pan
@@ -299,6 +300,202 @@ fn an_actions_name_or_the_words_it_goes_by_ask_nothing_of_the_song() {
         }
     }
     assert!(asked.is_empty(), "{asked:#?}");
+}
+
+/// the kind of request a tool's call asks
+fn kind_of(tool: &str) -> Option<Kind> {
+    Some(match tool {
+        "undo" => Kind::Undo,
+        "redo" => Kind::Redo,
+        "go_back" => Kind::Back,
+        "set_volume" => Kind::Level,
+        "set_drive" => Kind::Drive,
+        "set_reverb" => Kind::Reverb,
+        "set_delay" => Kind::Delay,
+        "pan" => Kind::Pan,
+        "set_tempo" => Kind::Tempo,
+        "set_key" => Kind::Key,
+        "swap_sound" => Kind::Swap,
+        "cut_track" => Kind::Cut,
+        "mute" => Kind::Mute,
+        "unmute" => Kind::Unmute,
+        "solo" => Kind::Solo,
+        "remove_track" => Kind::Remove,
+        _ => return None,
+    })
+}
+
+/// The song the lessons are read on: the evals' song with a clap too, long enough for every time a lesson names, each
+/// track's mix where no value a lesson asks for already is, and steps enough to undo and redo.
+fn lesson_song() -> State {
+    let mut s = song();
+    let song = s.song.as_mut().unwrap();
+    song.tracks.insert(5, track("clap", "drum", "clap", "drum voice 'clap'", [0.0; 5]));
+    for t in &mut song.tracks {
+        (t.level_db, t.drive_db, t.reverb, t.delay, t.pan, t.muted) = (-1.5, 9.5, 0.33, 0.33, 0.3, false);
+    }
+    let names: Vec<String> = song.tracks.iter().map(|t| t.name.clone()).collect();
+    for section in &mut song.sections {
+        section.layers = names.clone();
+    }
+    song.sections.last_mut().unwrap().bars = 72;
+    (song.bpm, song.key, song.bars, song.seconds) = (121.0, "F minor".into(), 136, 270.0);
+    (s.undo_steps, s.redo_steps) = (12, 12);
+    s
+}
+
+/// A model's call is said again in the words the readings read, for the song to ground: every lesson's call, so said,
+/// reads as the tool it calls.
+#[test]
+fn every_lesson_said_again_reads_as_the_tool_it_calls() {
+    let tools: Value = serde_json::from_str(TOOLS).unwrap();
+    let tools = tools.as_array().unwrap();
+    let asker = Asker::new(None);
+    let state = lesson_song();
+    let muted = {
+        let mut m = lesson_song();
+        m.song.as_mut().unwrap().tracks.iter_mut().for_each(|t| t.muted = true);
+        m
+    };
+    let all = lessons(7, 6);
+    assert!(all.len() > 400, "{} lessons", all.len());
+    let mut wrong = Vec::new();
+    for l in &all {
+        let Some(call) = l.answers.first() else { continue };
+        let tool = tools.iter().find(|t| t["name"] == call.name.as_str()).unwrap_or_else(|| panic!("{}", call.name));
+        for key in call.arguments.keys() {
+            assert!(tool["parameters"]["properties"].get(key).is_some(), "{}: {} takes no {key}", l.query, call.name);
+        }
+        let Some(words) = said(call) else {
+            wrong.push(format!("'{}': {:?} says nothing", l.query, call));
+            continue;
+        };
+        let on = if call.name == "unmute" { &muted } else { &state };
+        let read = propose(&words, on, &asker, None).into_iter().next().and_then(|p| p.reading.kind);
+        if read != kind_of(&call.name) {
+            wrong.push(format!("'{}' said as '{words}': read as {read:?}", l.query));
+        }
+    }
+    assert!(wrong.is_empty(), "{} of {}: {wrong:#?}", wrong.len(), all.len());
+}
+
+/// the tracks a reading named, as a person would say them: the drums, the toms, everything but those it left out
+fn said_tracks(names: &[&str], state: &State) -> String {
+    let tracks = &state.song.as_ref().unwrap().tracks;
+    let drums: Vec<&str> = tracks.iter().filter(|t| t.kind == "drum").map(|t| t.name.as_str()).collect();
+    let mut names: Vec<&str> = names.to_vec();
+    names.sort();
+    let mut sorted = drums.clone();
+    sorted.sort();
+    if names == sorted {
+        return "the drums".into();
+    }
+    if names.len() > tracks.len() / 2 {
+        let left: Vec<String> =
+            tracks.iter().filter(|t| !names.contains(&t.name.as_str())).map(|t| format!("the {}", t.name)).collect();
+        return format!("everything except {}", left.join(" and "));
+    }
+    let mut said: Vec<String> = Vec::new();
+    if names.contains(&"tom_hi") && names.contains(&"tom_lo") {
+        said.push("the toms".into());
+        names.retain(|n| !n.starts_with("tom_"));
+    }
+    said.extend(names.iter().map(|n| format!("the {n}")));
+    said.join(" and ")
+}
+
+/// The most the readings can make of a model: every example's call, as a model that read it perfectly would write it,
+/// said again and read on the song, reads as the example expects.
+#[test]
+fn a_perfect_models_call_for_every_example_reads_as_the_example_expects() {
+    let state = song();
+    let asker = Asker::new(None);
+    let mut missed = Vec::new();
+    for e in examples() {
+        let x = &e.expect;
+        let num = |k: &str| x.get(k).and_then(Value::as_f64);
+        let names: Vec<&str> = match (x.get("track").and_then(Value::as_str), x.get("tracks")) {
+            (Some(t), _) => vec![t],
+            (_, Some(Value::Array(ts))) => ts.iter().filter_map(Value::as_str).collect(),
+            _ => vec![],
+        };
+        let mut a = serde_json::Map::new();
+        if !names.is_empty() {
+            a.insert("tracks".into(), said_tracks(&names, &state).into());
+        }
+        let up = x.get("way").and_then(Value::as_str) == Some("up");
+        let (name, pairs): (&str, Vec<(&str, Value)>) = match e.kind {
+            Kind::Undo => ("undo", vec![("count", num("count").unwrap_or(1.0).into())]),
+            Kind::Redo => ("redo", vec![("count", num("count").unwrap_or(1.0).into())]),
+            Kind::Back => ("go_back", vec![("change", x["about"].clone())]),
+            Kind::Level => (
+                "set_volume",
+                vec![
+                    ("to_db", x.get("to").cloned().unwrap_or(Value::Null)),
+                    ("by_db", x.get("by").cloned().unwrap_or(Value::Null)),
+                    (
+                        "way",
+                        if x.get("way").is_some() {
+                            (if up { "louder" } else { "quieter" }).into()
+                        } else {
+                            Value::Null
+                        },
+                    ),
+                ],
+            ),
+            Kind::Drive | Kind::Reverb | Kind::Delay => (
+                match e.kind {
+                    Kind::Drive => "set_drive",
+                    Kind::Reverb => "set_reverb",
+                    _ => "set_delay",
+                },
+                vec![
+                    ("to_percent", x.get("to").cloned().unwrap_or(Value::Null)),
+                    (
+                        "way",
+                        if x.get("way").is_some() { (if up { "more" } else { "less" }).into() } else { Value::Null },
+                    ),
+                ],
+            ),
+            Kind::Pan => ("pan", vec![("side", x["side"].clone())]),
+            Kind::Tempo => (
+                "set_tempo",
+                vec![
+                    ("bpm", x.get("to").cloned().unwrap_or(Value::Null)),
+                    ("by_bpm", x.get("by").cloned().unwrap_or(Value::Null)),
+                    (
+                        "way",
+                        if x.get("way").is_some() {
+                            (if up { "faster" } else { "slower" }).into()
+                        } else {
+                            Value::Null
+                        },
+                    ),
+                ],
+            ),
+            Kind::Key => ("set_key", vec![("key", x["to"].clone())]),
+            Kind::Swap => ("swap_sound", vec![("sound", x.get("sound").cloned().unwrap_or(Value::Null))]),
+            Kind::Cut => {
+                let s = num("from").unwrap_or(0.0) as u32;
+                ("cut_track", vec![("from", format!("{}:{:02}", s / 60, s % 60).into())])
+            }
+            Kind::Mute => ("mute", vec![]),
+            Kind::Unmute => ("unmute", vec![]),
+            Kind::Solo => ("solo", vec![]),
+            Kind::Remove => ("remove_track", vec![]),
+        };
+        for (k, v) in pairs {
+            if !v.is_null() {
+                a.insert(k.into(), v);
+            }
+        }
+        let call = Call { name: name.into(), arguments: a };
+        let words = said(&call).unwrap_or_default();
+        if let Some(why) = wrong(propose(&words, &state, &asker, None).first(), &e) {
+            missed.push(format!("'{}' said as '{words}': {why}", e.ask));
+        }
+    }
+    assert!(missed.is_empty(), "{} missed: {missed:#?}", missed.len());
 }
 
 #[test]
