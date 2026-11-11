@@ -1139,8 +1139,8 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
         (
             WithRecording::Flip,
             format!("Flip it into a {shown} song"),
-            "a new song of the genre built on its sound: its hook, another passage of it, its drums, a flip cut \
-                 from all over it and its sung phrases",
+            "a new song of the genre built on its sound: its hook and passage after passage of it, its voice in \
+                 them, its drums and a flip cut from all over it",
             None,
         ),
         (

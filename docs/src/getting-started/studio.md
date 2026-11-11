@@ -48,8 +48,9 @@ percussion; ticked, it is as the genre writes it ([How layered a song is](../lea
 **From a recording**: **Choose a file**, then what to do with it, and the button under the choices does it. **Remake
 it as** the genre (chosen beside it) reworks it so that it stays the song it is: all of it plays through, its voice
 and its chords as they are without its drums and its bass, in its own sections and on its chords, with the genre's
-drums and bass under it. **Flip it into** a song of the genre makes a new one on its sound instead: its hook, another
-passage of it, its drums, a flip cut from all over it and its sung phrases, at a tempo the genre plays. **Rebuild it
+drums and bass under it. **Flip it into** a song of the genre makes a new one on its sound instead: its hook and passage
+after passage of it, each section on as many of its bars on end as it has, its voice in them, its drums and a flip cut
+from all over it, at a tempo the genre plays. **Rebuild it
 on** the genre's sounds makes the song itself again with every note yours to change: its drums, its bass and the rest
 as the hits and notes it plays, in its own sections, its voice kept on a track of its own
 ([Rebuild it](../cookbook/remake.md#rebuild-it-every-note-yours-to-change)). **Sample its

@@ -450,8 +450,9 @@ pub struct RemakeArgs {
     pub sampled: Option<bool>,
     /// false (default): a rework, which keeps the recording the song it is: all of it plays through, its voice and
     /// its chords as they are, without its drums and its bass, in its own sections and on its chords, with the
-    /// genre's drums and bass under it. true: a flip, a new song of the genre on its hook without its drums, a
-    /// verse passage, its drums as the break, a flip of it in pieces from all over it and its sung phrases
+    /// genre's drums and bass under it. true: a flip, a new song of the genre on its hook and passage after passage of
+    /// it without its drums, each section on as many of its bars on end as it has, its voice singing in them, its
+    /// drums as the break and a flip of it in pieces from all over it
     #[serde(default)]
     pub flip: Option<bool>,
     /// true: a rebuild, the song itself with every part of it played on claudius's sounds, so that each note can be
@@ -1364,7 +1365,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Make a song in a genre from an audio file, which stays recognizable: claudius analyzes it (tempo, key, chords, sections, groove) and reworks it, playing all of it through, its voice and chords as they are without its drums and its bass (with the ears, the recording is separated into its vocals, drums, bass and the rest first, and its voice plays on a track of its own, vocals), in its own sections and on its chords, with the genre's drums, bass and mix under it. A band that speeds up and slows down is followed beat for beat. flip: true makes a new song of the genre on its hook and pieces of it instead, its sung phrases on tracks of their own and a voice never sped up out of its key; rebuild: true the song itself, every part of it played on claudius's sounds so that each note can be changed (its drums struck as it strikes them, its bass on bass and the rest on keys as the notes the ears hear them play, in its own sections and on its chords, its voice kept on vocals and the melody it sings written out on melody, which plays in no section until put in one); sampled: false a new song on its skeleton only."
+        description = "Make a song in a genre from an audio file, which stays recognizable: claudius analyzes it (tempo, key, chords, sections, groove) and reworks it, playing all of it through, its voice and chords as they are without its drums and its bass (with the ears, the recording is separated into its vocals, drums, bass and the rest first, and its voice plays on a track of its own, vocals), in its own sections and on its chords, with the genre's drums, bass and mix under it. A band that speeds up and slows down is followed beat for beat. flip: true makes a new song of the genre on its hook and passage after passage of it instead, each section on as many of its bars on end as it has, so that the song goes through the recording, its voice singing in them and never sped up out of its key; rebuild: true the song itself, every part of it played on claudius's sounds so that each note can be changed (its drums struck as it strikes them, its bass on bass and the rest on keys as the notes the ears hear them play, in its own sections and on its chords, its voice kept on vocals and the melody it sings written out on melody, which plays in no section until put in one); sampled: false a new song on its skeleton only."
     )]
     async fn remake(&self, Parameters(a): Parameters<RemakeArgs>) -> Result<String, String> {
         let cmd = Command::Remake {

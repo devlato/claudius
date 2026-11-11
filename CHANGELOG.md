@@ -15,6 +15,13 @@ them to the open song. Assistants get the same with the new `song_like` tool, af
 answers with what was heard as data (`heard`) beside the words, and `GET /api/listened/{id}/{track}` plays the
 recording and its parts until claudius analyzes another.
 
+A flip (**Flip it into a song**, `remake` with `flip: true`) keeps much more of the recording. It played its hook and
+one other passage, four bars each, round and round, and its voice in a phrase or two of a bar or two. Now each section
+plays as many of the recording's bars on end as it has itself (up to 32), of its kind, from where the recording has
+the most no section played before, each on its own bars' chords, and its voice sings on in them, never sped up out of
+its key. Flipped into deep house, the cookbook's house song plays all 64 of its bars somewhere, where it played 8. The
+history says which section plays which bars.
+
 ## [0.6.0] - 2026-11-11
 
 The examples' studies of famous records are gone. They were named after the records but played melodies of their
