@@ -52,6 +52,7 @@ pub fn hear(wav: Vec<u8>, state: &State) -> Result<Heard, String> {
             claudius::audio::resample_rate(&mono, rate, RATE, n)
         }
     };
+    let pcm = spoken(&pcm);
     let mut held = HELD.lock().unwrap_or_else(|e| e.into_inner());
     if held.is_none() {
         let file = crate::meaning::cached(&WHISTLE)?;
@@ -62,4 +63,39 @@ pub fn hear(wav: Vec<u8>, state: &State) -> Result<Heard, String> {
     let heard = whistle.transcribe(&pcm, &options)?.text;
     let text = claudius_intent::spoken::heard(&heard, state);
     Ok(Heard { heard, text })
+}
+
+/// What was said in a recording at `RATE`, without the silence before and after it: from a tenth of a second before
+/// the first 10 ms as loud as a twentieth of its loudest, to a quarter after the last. A person pauses before they
+/// speak, and Whistle hears a word at the start worse after a pause ("mute the drums" as "Mew the drums").
+fn spoken(pcm: &[f32]) -> Vec<f32> {
+    const FRAME: usize = RATE as usize / 100;
+    let loudest = pcm.iter().fold(0f32, |m, s| m.max(s.abs()));
+    let loud: Vec<usize> = pcm
+        .chunks(FRAME)
+        .enumerate()
+        .filter(|(_, f)| f.iter().any(|s| s.abs() >= loudest / 20.0))
+        .map(|(i, _)| i * FRAME)
+        .collect();
+    let (Some(&first), Some(&last)) = (loud.first(), loud.last()) else { return pcm.to_vec() };
+    let from = first.saturating_sub(RATE as usize / 10);
+    let to = (last + FRAME + RATE as usize / 4).min(pcm.len());
+    pcm[from..to].to_vec()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{RATE, spoken};
+
+    #[test]
+    fn what_was_said_is_heard_without_the_silence_around_it() {
+        let rate = RATE as usize;
+        let mut pcm = vec![0.0001f32; 3 * rate];
+        for (i, s) in pcm[rate..2 * rate].iter_mut().enumerate() {
+            *s = 0.3 * (i as f32 * 0.07).sin();
+        }
+        let said = spoken(&pcm);
+        assert_eq!(said.len(), rate + rate / 10 + rate / 4, "a tenth of a second before, a quarter after");
+        assert_eq!(spoken(&[0.0; 100]), vec![0.0; 100], "silence is left as it is");
+    }
 }

@@ -24,7 +24,9 @@ transcripts.
   at most, and sends the WAV file of it to be heard (`POST /api/hear`).
 - **Hearing** (`claudius_session::hearing`): the recording is decoded, mixed to mono and resampled to 16 kHz.
   Nothing as loud as speech at its loudest (-40 dBFS) is heard as nothing, before the model sees it: a speech model
-  raises the level of what it hears, and hears words in the hiss of a quiet room ("Thank you."). Whistle hears English,
+  raises the level of what it hears, and hears words in the hiss of a quiet room ("Thank you."). What is said is cut
+  out of the silence around it, from a tenth of a second before it to a quarter after: a person pauses after clicking,
+  and after a pause of a fifth of a second Whistle heard "mute the drums" as "Mew the drums". Whistle hears English,
   the language the readings read, with a beam search of five. It downloads the first time (from Hugging Face, at a
   pinned revision, checked by its size and SHA-256).
 - **Putting it right** (`claudius_intent::spoken`): a word heard that claudius does not know, one letter from one word
@@ -36,8 +38,11 @@ transcripts.
 
 **The evals** (`tests/hearing.rs`, with a folder of clips) hear each clip as the palette would and count the words
 missed against the words said. On nine requests said by two of macOS's voices, and three clips of silence, hiss and
-noise, 4 of 51 words were missed, and nothing was heard in the silence. The worst was "more reverb on the piano", heard
-as "Moreiver bone the piano". A 3-second request is heard in about half a second on one core, in about 50 MB.
+noise, 3 of 51 words were missed, and nothing was heard in the silence; with a second of silence before each request,
+as after a click, 2 of 51. The worst was "more reverb on the piano", heard as "Moreiver bone the piano". A 3-second
+request is heard in about half a second on one core, in about 50 MB. In the browser (`site/tests/palette.spec.mjs`,
+with a clip and the model), the palette's microphone opens, listens until the pause, and puts what was said in its
+field with the row it finds.
 
 ## Consequences
 

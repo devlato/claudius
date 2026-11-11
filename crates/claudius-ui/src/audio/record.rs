@@ -332,6 +332,11 @@ impl Hearing {
         f32::from_bits(self.shared.level.swap(0, Relaxed))
     }
 
+    /// whether the input hears yet: it takes a moment to open
+    pub fn open(&self) -> bool {
+        !self.heard.is_empty()
+    }
+
     pub fn error(&self) -> Option<String> {
         self.shared.failed.lock().ok().and_then(|f| f.clone())
     }

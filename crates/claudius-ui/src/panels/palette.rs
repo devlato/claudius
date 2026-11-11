@@ -43,10 +43,11 @@ pub struct Palette {
     seen: Option<String>,
     /// whether what is said to the palette can be heard, which the app sets (`Backend::can_hear`)
     pub can_hear: bool,
-    /// the microphone while it listens for what is said: whether it was told to stop, when it began, and when it last
-    /// heard speech
+    /// the microphone while it listens for what is said: whether it was told to stop, when it was asked to listen or,
+    /// once it opened, when it began to hear, and when it last heard speech
     hearing: Option<Hearing>,
     stopping: bool,
+    opened: bool,
     listened_at: f64,
     spoke_at: Option<f64>,
     /// what was said, a WAV file, which the app sends to be heard (`Backend::hear`); and that its words are not back
@@ -58,9 +59,11 @@ pub struct Palette {
     unheard: Option<String>,
 }
 
-/// how long a pause after speech ends listening, and the longest the palette listens (seconds); how loud speech is
+/// how long a pause after speech ends listening, the longest the palette listens, and the longest it waits for the
+/// microphone to open, which a browser asks the person about first (seconds); how loud speech is
 const PAUSE: f64 = 1.2;
 const LONGEST: f64 = 15.0;
+const OPENING: f64 = 30.0;
 const SPEECH: f32 = 0.02;
 
 /// what the palette says when the microphone heard nothing at all
@@ -160,8 +163,28 @@ impl Palette {
         }
     }
 
+    /// what the palette shows, for a scripted run to read: that it listens, that it hears what was said, why nothing
+    /// was heard, or the words in its field and the first row they find
+    #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
+    pub fn told(&self) -> String {
+        if let Some(h) = &self.hearing {
+            return if h.open() { "listening" } else { "opening the microphone" }.into();
+        }
+        if self.waiting_words {
+            return "hearing what was said".into();
+        }
+        if let Some(why) = &self.unheard {
+            return format!("not heard: {why}");
+        }
+        match (self.query.trim(), self.shown().first()) {
+            ("", _) => String::new(),
+            (words, Some(row)) => format!("{words} -> {}", row.name),
+            (words, None) => words.to_string(),
+        }
+    }
+
     /// Starts listening for what is said, or while it listens, stops: what it heard goes to be heard.
-    fn listen_or_stop(&mut self, now: f64) {
+    pub(crate) fn listen_or_stop(&mut self, now: f64) {
         if let Some(h) = self.hearing.as_mut() {
             h.stop();
             self.stopping = true;
@@ -169,8 +192,8 @@ impl Palette {
         }
         match Hearing::start() {
             Ok(h) => {
-                (self.hearing, self.stopping, self.listened_at, self.spoke_at) = (Some(h), false, now, None);
-                self.unheard = None;
+                (self.hearing, self.stopping, self.opened) = (Some(h), false, false);
+                (self.listened_at, self.spoke_at, self.unheard) = (now, None, None);
             }
             Err(why) => self.unheard = Some(why),
         }
@@ -189,7 +212,15 @@ impl Palette {
         if h.level() > SPEECH {
             self.spoke_at = Some(now);
         }
-        if !self.stopping && said_enough(self.spoke_at, self.listened_at, now) {
+        if !self.opened && h.open() {
+            (self.opened, self.listened_at) = (true, now);
+        }
+        if !self.opened && now - self.listened_at >= OPENING {
+            self.hearing = None;
+            self.unheard = Some("The microphone did not open. Allow claudius to use it, and try again.".into());
+            return None;
+        }
+        if self.opened && !self.stopping && said_enough(self.spoke_at, self.listened_at, now) {
             h.stop();
             self.stopping = true;
         }
@@ -436,8 +467,10 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
                 p.listen_or_stop(now);
             }
             ui.add_space(4.0);
-            if p.hearing.is_some() {
-                ui.label(RichText::new("Listening… say what to do, then pause").size(11.0).color(TEXT_FAINT));
+            if let Some(h) = &p.hearing {
+                // what is said before the input opens is lost: the person is told when it hears
+                let said = if h.open() { "Listening… say what to do, then pause" } else { "Opening the microphone…" };
+                ui.label(RichText::new(said).size(11.0).color(TEXT_FAINT));
             } else if p.waiting_words {
                 ui.label(RichText::new("Hearing your words…").size(11.0).color(TEXT_FAINT));
             } else if let Some(why) = &p.unheard {

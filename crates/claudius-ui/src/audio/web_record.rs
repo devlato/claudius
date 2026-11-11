@@ -708,6 +708,11 @@ impl Hearing {
         std::mem::take(&mut self.s.borrow_mut().level)
     }
 
+    /// whether the input hears yet: the browser takes a moment to open it, and the recorder to load
+    pub fn open(&self) -> bool {
+        self.s.borrow().captured.as_ref().is_some_and(|c| c.frames() > 0)
+    }
+
     pub fn error(&self) -> Option<String> {
         self.s.borrow().error.clone()
     }

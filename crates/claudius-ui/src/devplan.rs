@@ -4,11 +4,13 @@
 //! What the Record window says goes to stderr (the browser's console), as `record: ...`, what claudius said of the
 //! recording the Add a recording window sent as `import: ...`, what it offers for MIDI
 //! keyboards as `midi: ...`, the last analysis as `analysis: ...`, each toast as `toast: ...`, the graph's node
-//! chosen as `graph: ...`, and the page a phone plays along on as `phone: ...`, with how many have it open as
-//! `phones: ...`.
+//! chosen as `graph: ...`, the page a phone plays along on as `phone: ...`, with how many have it open as
+//! `phones: ...`, and what the command palette shows as `palette: ...` (that it listens, that it hears what was said,
+//! or the words in its field and the first row they find).
 //! Steps: `wait:<s>`, `tab:<sequencer|mixer|parts|harmony|script|sounds|graph|log>`, `section:<i>`, `play`, `pause`, `seek:<s>`,
 //! `newsong`, `close`, `tour[:<step>]`, `assistants`, `publish`, `download[:<format>]`, `record` (the Record window), `phone`
-//! (the Play from a phone window, which has claudius serve the phone's page),
+//! (the Play from a phone window, which has claudius serve the phone's page), `palette` (the command palette),
+//! `palette:say` (its microphone clicked: it listens, or stops and sends what it heard),
 //! `rec:<start|stop|measure>` (a take, or the latency), `rec:<play|keep|not-now>` (the take back, kept or sent; the
 //! take an assistant asked for turned down), `rec:allow-midi`, `rec:midi:<input>` (a MIDI input chosen),
 //! `rec:grid:<beats>` (its notes' grid, 0 as played), `rec:part:<role|drums>` (what its notes play), `pick:<song|audio|cover|recording>` (a file dialog, as its button opens
@@ -72,6 +74,10 @@ pub enum Step {
     Record,
     /// the Play from a phone window, which has claudius serve the phone's page
     Phone,
+    /// the command palette, opened
+    Palette,
+    /// its microphone, clicked: it listens, or stops listening and sends what it heard
+    PaletteSay,
     /// what the Record window's buttons do
     Rec(Rec),
     Exit,
@@ -236,6 +242,11 @@ impl Plan {
             "download" => Some(Step::Download((!arg.is_empty()).then(|| arg.to_string()))),
             "record" => Some(Step::Record),
             "phone" => Some(Step::Phone),
+            "palette" => match arg {
+                "" => Some(Step::Palette),
+                "say" => Some(Step::PaletteSay),
+                _ => None,
+            },
             "rec" => match arg {
                 "start" => Some(Step::Rec(Rec::Start)),
                 "stop" => Some(Step::Rec(Rec::Stop)),

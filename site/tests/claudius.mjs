@@ -84,7 +84,7 @@ export async function claudius({ samples = [] } = {}) {
     child.kill();
     rmSync(home, { recursive: true, force: true });
   };
-  return { base, home, api, stop };
+  return { base, home, api, stop, log: () => log };
 }
 
 /** what a scripted plan reports of `thing` ("record", "midi", "analysis", "toast"), and when (ms since 1970) each */

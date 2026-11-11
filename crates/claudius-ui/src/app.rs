@@ -581,6 +581,9 @@ impl Studio {
                 }
                 Step::Record => self.view.record.show(),
                 Step::Phone => self.view.phone.show(self.state.phone.is_some()),
+                Step::Palette if !self.view.palette.open => self.view.palette.toggle(),
+                Step::Palette => {}
+                Step::PaletteSay => self.view.palette.listen_or_stop(now),
                 Step::Rec(Rec::Start) => self.view.record.start = true,
                 Step::Rec(Rec::Stop) => self.view.record.stop = true,
                 Step::Rec(Rec::Measure) => self.view.record.measure = true,
@@ -645,6 +648,7 @@ impl Studio {
         plan.tell("busy", &self.state.busy.clone().unwrap_or_default());
         plan.tell("log", &self.state.log.last().cloned().unwrap_or_default());
         plan.tell("graph", &self.view.graph.selected.clone().unwrap_or_default());
+        plan.tell("palette", &self.view.palette.told());
         plan.tell("phone", &self.state.phone.as_ref().map(|p| p.url.clone()).unwrap_or_default());
         plan.tell("phones", &self.state.phone.as_ref().map(|p| p.phones.to_string()).unwrap_or_default());
     }
