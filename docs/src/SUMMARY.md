@@ -112,6 +112,7 @@
 - [0012 A history that only grows](design/0012-history.md)
 - [0013 Requests in plain words, read on the device](design/0013-requests.md)
 - [0014 A small model taught to read requests](design/0014-request-model.md)
+- [0016 Settings any later claudius reads](design/0016-settings-any-later-claudius-reads.md)
 
 # Contributing
 

@@ -277,6 +277,19 @@ mod tests {
     }
 
     #[test]
+    fn the_answer_any_claudius_kept_is_read_and_kept_with_its_version() {
+        let dir = std::env::temp_dir().join(format!("claudius-telemetry-versions-{}", std::process::id()));
+        let path = dir.join("telemetry.json");
+        std::fs::create_dir_all(&dir).unwrap();
+        // as claudius 0.5 kept it, without a version, and with what a later one might add
+        std::fs::write(&path, r#"{"enabled": true, "started:studio:": 99, "later": "kept"}"#).unwrap();
+        assert!(due(&path, "started:studio:", 100), "the answer of an earlier claudius holds");
+        let kept = std::fs::read_to_string(&path).unwrap();
+        assert!(kept.contains(&format!("\"version\": {VERSION}")) && kept.contains("\"later\": \"kept\""), "{kept}");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn work_on_many_threads_sends_a_kind_once() {
         let dir = std::env::temp_dir().join(format!("claudius-telemetry-threads-{}", std::process::id()));
         let path = dir.join("telemetry.json");
