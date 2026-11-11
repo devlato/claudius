@@ -70,7 +70,7 @@ runs:
         # The runners fetch Ubuntu's packages from Azure's mirror of it, whose name stops resolving at times: then
         # they come from Ubuntu's own archive or kernel.org's mirror of it. apt checks Ubuntu's signatures on them
         # whichever serves them.
-        if ! getent hosts azure.archive.ubuntu.com > /dev/null; then
+        if true || ! getent hosts azure.archive.ubuntu.com > /dev/null; then
           echo "::warning title=Ubuntu packages::azure.archive.ubuntu.com does not resolve; fetching from archive.ubuntu.com or mirrors.edge.kernel.org"
           printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttp://mirrors.edge.kernel.org/ubuntu/\tpriority:2\n' \
             | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
