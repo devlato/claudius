@@ -79,8 +79,16 @@ are answered again once it has: the demo answers them again itself, and the pale
 apart, for up to a minute after they were typed. The answer also holds the changes made to the song that the words
 find (`Answer::done`, `claudius_intent::find_among` over the state's `history`, the edits `go_back` can reach). They
 are found by name and by meaning like the actions, once the words that only ask to go back are taken out, and the
-palette lists them after the actions as Go back to before rows, which send `go_back`. Enter does the action highlighted as the palette was last drawn, and
-an action picked with the arrows stays picked as an answer by meaning ranks the list anew.
+palette lists them after the actions as Go back to before rows, which send `go_back`. The answer holds what the words
+ask of the song, too (`Answer::proposed`, `claudius_intent::ask::propose` on the state the engine has, built for both by
+`claudius_intent::answer`): each reading a proposal with what it says it does ("Increase guitar's drive from 20% to
+95%"), what it does to each track, and its commands ([0013](../design/0013-requests.md)). The palette lists them first,
+under What your words ask, and a history row a reading already goes back to before is left out. A proposal's row is
+known by what it says (`do:` and its words), and does its commands only while the answer is for the words typed
+(`Palette::run`). Edits go as one `together`, which the history records as one change named for what the row said,
+and which the studio shows at once, each edit as it shows it alone (`edits::apply`). Undo, redo and going back go as
+they are, each its own step (`commands_of`), as many as the state says there are (`undo_steps`, `redo_steps`). Enter does the action highlighted as the
+palette was last drawn, and an action picked with the arrows stays picked as an answer by meaning ranks the list anew.
 
 The menus are built of `widgets::menu_title` (what the menu acts on, and what that is, faint), `menu_group` (the
 name of a group of items, in small faint capitals) and `menu_item` (an item with the key that does it too, faint on

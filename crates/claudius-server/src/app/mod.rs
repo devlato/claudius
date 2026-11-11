@@ -354,11 +354,6 @@ impl App {
         !s.job && fresh
     }
 
-    /// the changes made to the song, as the state lists them (`State::history`), without the rest of the state
-    pub fn changes(&self) -> Vec<Done> {
-        self.lock().history.done()
-    }
-
     pub fn state(&self) -> State {
         let phone = self.phone_view();
         let mut s = self.lock();
@@ -375,6 +370,8 @@ impl App {
             song_version: s.song_version,
             can_undo: s.history.can_undo(),
             can_redo: s.history.can_redo(),
+            undo_steps: s.history.steps().0,
+            redo_steps: s.history.steps().1,
             undo_label: s.history.undo_label(),
             redo_label: s.history.redo_label(),
             history: s.history.done(),

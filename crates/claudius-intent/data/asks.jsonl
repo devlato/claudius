@@ -1,0 +1,330 @@
+{"ask": "undo", "kind": "undo", "count": 1}
+{"ask": "undo that", "kind": "undo", "count": 1}
+{"ask": "undo the last change", "kind": "undo", "count": 1}
+{"ask": "lets undo last 5 commands", "kind": "undo", "count": 5}
+{"ask": "undo the last three changes", "kind": "undo", "count": 3}
+{"ask": "take back the last two edits", "kind": "undo", "count": 2}
+{"ask": "revert the last 4 changes", "kind": "undo", "count": 4}
+{"ask": "undo the last ten things I did", "kind": "undo", "count": 10}
+{"ask": "go back 3 steps", "kind": "undo", "count": 3}
+{"ask": "step back twice", "kind": "undo", "count": 2}
+{"ask": "cancel my last change", "kind": "undo", "count": 1}
+{"ask": "i didn't like that, undo it", "kind": "undo", "count": 1}
+{"ask": "roll back the last 6 edits", "kind": "undo", "count": 6}
+{"ask": "undo the previous seven changes", "kind": "undo", "count": 7, "set": "held"}
+{"ask": "can you undo the last couple of changes", "kind": "undo", "count": 2, "set": "held"}
+{"ask": "scrap the last 3 things", "kind": "undo", "count": 3, "set": "held"}
+{"ask": "take that back", "kind": "undo", "count": 1, "set": "held"}
+{"ask": "undo the last eight steps please", "kind": "undo", "count": 8, "set": "held"}
+{"ask": "redo", "kind": "redo", "count": 1}
+{"ask": "redo that", "kind": "redo", "count": 1}
+{"ask": "redo the last two", "kind": "redo", "count": 2}
+{"ask": "bring back what i undid", "kind": "redo", "count": 1}
+{"ask": "redo the last 3 undone changes", "kind": "redo", "count": 3}
+{"ask": "put that change back", "kind": "redo", "count": 1, "set": "held"}
+{"ask": "redo four times", "kind": "redo", "count": 4, "set": "held"}
+{"ask": "undo my undo", "kind": "redo", "count": 1, "set": "held"}
+{"ask": "lets go back to before we added whistles", "kind": "back", "about": "add track whistle (lead)"}
+{"ask": "go back to before the whistle", "kind": "back", "about": "add track whistle (lead)"}
+{"ask": "back to before the tempo change", "kind": "back", "about": "tempo 124"}
+{"ask": "revert to before i made it faster", "kind": "back", "about": "tempo 124"}
+{"ask": "go back to how it was before the bass got quieter", "kind": "back", "about": "mix bass: level -3"}
+{"ask": "return to before we changed the bass level", "kind": "back", "about": "mix bass: level -3"}
+{"ask": "take the song back to before the strings", "kind": "back", "about": "add track strings (pad)"}
+{"ask": "go back to the version before the strings came in", "kind": "back", "about": "add track strings (pad)"}
+{"ask": "undo everything since we added the whistles", "kind": "back", "about": "add track whistle (lead)"}
+{"ask": "revert everything after the tempo change", "kind": "back", "about": "tempo 124"}
+{"ask": "rewind to before the whistles", "kind": "back", "about": "add track whistle (lead)", "set": "held"}
+{"ask": "can we go back to before it got faster", "kind": "back", "about": "tempo 124", "set": "held"}
+{"ask": "restore the song from before the string pad", "kind": "back", "about": "add track strings (pad)", "set": "held"}
+{"ask": "back to before i turned the bass down", "kind": "back", "about": "mix bass: level -3", "set": "held"}
+{"ask": "go back to before the whistling lead", "kind": "back", "about": "add track whistle (lead)", "set": "held"}
+{"ask": "lets increase overload for guitar track to 95%", "kind": "drive", "track": "guitar", "to": 95}
+{"ask": "set the guitar overdrive to 95 percent", "kind": "drive", "track": "guitar", "to": 95}
+{"ask": "more distortion on the guitar", "kind": "drive", "track": "guitar", "way": "up"}
+{"ask": "make the guitar dirtier", "kind": "drive", "track": "guitar", "way": "up"}
+{"ask": "add some grit to the bass", "kind": "drive", "track": "bass", "way": "up"}
+{"ask": "less drive on the bass", "kind": "drive", "track": "bass", "way": "down"}
+{"ask": "clean up the guitar distortion", "kind": "drive", "track": "guitar", "way": "down"}
+{"ask": "saturate the drums more", "kind": "drive", "tracks": ["kick", "snare", "hat", "tom_hi", "tom_lo"], "way": "up"}
+{"ask": "drive the bass to 50%", "kind": "drive", "track": "bass", "to": 50}
+{"ask": "crank the overdrive on the guitars", "kind": "drive", "track": "guitar", "way": "up"}
+{"ask": "turn the guitar crunch down to 30%", "kind": "drive", "track": "guitar", "to": 30}
+{"ask": "push the guitar overdrive up to 80 percent", "kind": "drive", "track": "guitar", "to": 80, "set": "held"}
+{"ask": "make the bass grittier", "kind": "drive", "track": "bass", "way": "up", "set": "held"}
+{"ask": "the guitar needs more distortion, like 90%", "kind": "drive", "track": "guitar", "to": 90, "set": "held"}
+{"ask": "remove the distortion from the guitar", "kind": "drive", "track": "guitar", "to": 0, "set": "held"}
+{"ask": "a bit less saturation on the bass", "kind": "drive", "track": "bass", "way": "down", "set": "held"}
+{"ask": "make the bass louder", "kind": "level", "track": "bass", "way": "up"}
+{"ask": "turn up the vocals", "kind": "level", "track": "vocals", "way": "up"}
+{"ask": "the kick is too quiet", "kind": "level", "track": "kick", "way": "up"}
+{"ask": "the hats are too loud", "kind": "level", "track": "hat", "way": "down"}
+{"ask": "turn the piano down", "kind": "level", "track": "piano", "way": "down"}
+{"ask": "lower the pad by 3 db", "kind": "level", "track": "pad", "by": -3}
+{"ask": "raise the lead by 2 dB", "kind": "level", "track": "lead", "by": 2}
+{"ask": "set the snare to -6 db", "kind": "level", "track": "snare", "to": -6}
+{"ask": "make the drums quieter", "kind": "level", "tracks": ["kick", "snare", "hat", "tom_hi", "tom_lo"], "way": "down"}
+{"ask": "boost the bass a little", "kind": "level", "track": "bass", "way": "up"}
+{"ask": "i can barely hear the guitar", "kind": "level", "track": "guitar", "way": "up"}
+{"ask": "more volume on the vocals", "kind": "level", "track": "vocals", "way": "up"}
+{"ask": "bring the piano up 4 db", "kind": "level", "track": "piano", "by": 4}
+{"ask": "the lead is way too loud", "kind": "level", "track": "lead", "way": "down"}
+{"ask": "pull the pad back", "kind": "level", "track": "pad", "way": "down"}
+{"ask": "can you make the vocals louder", "kind": "level", "track": "vocals", "way": "up", "set": "held"}
+{"ask": "turn down the kick by 2 db", "kind": "level", "track": "kick", "by": -2, "set": "held"}
+{"ask": "the bass is too loud", "kind": "level", "track": "bass", "way": "down", "set": "held"}
+{"ask": "put the snare at -4 dB", "kind": "level", "track": "snare", "to": -4, "set": "held"}
+{"ask": "quieter hats please", "kind": "level", "track": "hat", "way": "down", "set": "held"}
+{"ask": "i want to hear more of the piano", "kind": "level", "track": "piano", "way": "up", "set": "held"}
+{"ask": "more reverb on the snare", "kind": "reverb", "track": "snare", "way": "up"}
+{"ask": "less reverb on the vocals", "kind": "reverb", "track": "vocals", "way": "down"}
+{"ask": "make the piano sound bigger, more space", "kind": "reverb", "track": "piano", "way": "up"}
+{"ask": "dry up the vocals", "kind": "reverb", "track": "vocals", "way": "down"}
+{"ask": "set the pad reverb to 60%", "kind": "reverb", "track": "pad", "to": 60}
+{"ask": "put the lead in a big hall", "kind": "reverb", "track": "lead", "way": "up"}
+{"ask": "take the reverb off the kick", "kind": "reverb", "track": "kick", "to": 0}
+{"ask": "the snare needs more room", "kind": "reverb", "track": "snare", "way": "up"}
+{"ask": "make the vocals wetter", "kind": "reverb", "track": "vocals", "way": "up", "set": "held"}
+{"ask": "reverb on the guitar to 40 percent", "kind": "reverb", "track": "guitar", "to": 40, "set": "held"}
+{"ask": "the piano is drowning in reverb", "kind": "reverb", "track": "piano", "way": "down", "set": "held"}
+{"ask": "add a little ambience to the lead", "kind": "reverb", "track": "lead", "way": "up", "set": "held"}
+{"ask": "more delay on the lead", "kind": "delay", "track": "lead", "way": "up"}
+{"ask": "add echo to the vocals", "kind": "delay", "track": "vocals", "way": "up"}
+{"ask": "less echo on the guitar", "kind": "delay", "track": "guitar", "way": "down"}
+{"ask": "set the piano delay to 30%", "kind": "delay", "track": "piano", "to": 30}
+{"ask": "remove the delay from the lead", "kind": "delay", "track": "lead", "to": 0}
+{"ask": "make the vocals echo more", "kind": "delay", "track": "vocals", "way": "up", "set": "held"}
+{"ask": "turn the lead delay down a bit", "kind": "delay", "track": "lead", "way": "down", "set": "held"}
+{"ask": "echo on the guitar at 50 percent", "kind": "delay", "track": "guitar", "to": 50, "set": "held"}
+{"ask": "pan the hats left", "kind": "pan", "track": "hat", "side": "left"}
+{"ask": "move the guitar to the right", "kind": "pan", "track": "guitar", "side": "right"}
+{"ask": "put the piano in the center", "kind": "pan", "track": "piano", "side": "center"}
+{"ask": "pan the lead hard right", "kind": "pan", "track": "lead", "side": "right"}
+{"ask": "center the vocals", "kind": "pan", "track": "vocals", "side": "center"}
+{"ask": "push the pad over to the left", "kind": "pan", "track": "pad", "side": "left", "set": "held"}
+{"ask": "the guitar should sit on the right side", "kind": "pan", "track": "guitar", "side": "right", "set": "held"}
+{"ask": "set the tempo to 128", "kind": "tempo", "to": 128}
+{"ask": "make it faster", "kind": "tempo", "way": "up"}
+{"ask": "slow it down", "kind": "tempo", "way": "down"}
+{"ask": "change the bpm to 90", "kind": "tempo", "to": 90}
+{"ask": "speed it up by 10 bpm", "kind": "tempo", "by": 10}
+{"ask": "a bit slower please", "kind": "tempo", "way": "down"}
+{"ask": "140 bpm", "kind": "tempo", "to": 140}
+{"ask": "drop the tempo by 5", "kind": "tempo", "by": -5}
+{"ask": "make the song quicker", "kind": "tempo", "way": "up"}
+{"ask": "can it be 100 bpm", "kind": "tempo", "to": 100, "set": "held"}
+{"ask": "it's too slow", "kind": "tempo", "way": "up", "set": "held"}
+{"ask": "take the tempo down to 85", "kind": "tempo", "to": 85, "set": "held"}
+{"ask": "speed up the song", "kind": "tempo", "way": "up", "set": "held"}
+{"ask": "change the key to A minor", "kind": "key", "to": "A minor"}
+{"ask": "put it in C major", "kind": "key", "to": "C major"}
+{"ask": "transpose to D minor", "kind": "key", "to": "D minor"}
+{"ask": "make it E flat major", "kind": "key", "to": "Eb major"}
+{"ask": "move the song to F sharp minor", "kind": "key", "to": "F# minor"}
+{"ask": "switch the key to G", "kind": "key", "to": "G major", "set": "held"}
+{"ask": "can we hear it in B minor", "kind": "key", "to": "B minor", "set": "held"}
+{"ask": "lets swap all toms for snares", "kind": "swap", "tracks": ["tom_hi", "tom_lo"], "sound": "snare"}
+{"ask": "swap the bass for a reese", "kind": "swap", "track": "bass", "sound": "reese"}
+{"ask": "replace the piano with an organ", "kind": "swap", "track": "piano", "sound": "organ"}
+{"ask": "use a pluck for the lead", "kind": "swap", "track": "lead", "sound": "pluck"}
+{"ask": "change the pad sound to a warm pad", "kind": "swap", "track": "pad", "sound": "warm_pad"}
+{"ask": "make the guitar a supersaw", "kind": "swap", "track": "guitar", "sound": "supersaw"}
+{"ask": "play the bass on an 808", "kind": "swap", "track": "bass", "sound": "808"}
+{"ask": "swap the hats for shakers", "kind": "swap", "track": "hat", "sound": "shaker"}
+{"ask": "try a different sound for the piano", "kind": "swap", "track": "piano"}
+{"ask": "give the lead another sound", "kind": "swap", "track": "lead"}
+{"ask": "replace the toms with the snare", "kind": "swap", "tracks": ["tom_hi", "tom_lo"], "sound": "snare", "set": "held"}
+{"ask": "i want the bass to be an 808", "kind": "swap", "track": "bass", "sound": "808", "set": "held"}
+{"ask": "put the lead on an organ instead", "kind": "swap", "track": "lead", "sound": "organ", "set": "held"}
+{"ask": "a new sound for the pad", "kind": "swap", "track": "pad", "set": "held"}
+{"ask": "lets cut the guitar from 1:02 where drums start", "kind": "cut", "track": "guitar", "from": 62}
+{"ask": "cut the piano from 0:48", "kind": "cut", "track": "piano", "from": 48}
+{"ask": "drop the pad out after 1:30", "kind": "cut", "track": "pad", "from": 90}
+{"ask": "take the lead out from 2:00", "kind": "cut", "track": "lead", "from": 120}
+{"ask": "stop the vocals at 1:10", "kind": "cut", "track": "vocals", "from": 70}
+{"ask": "no guitar after 0:40", "kind": "cut", "track": "guitar", "from": 40}
+{"ask": "the bass should stop at 1:20", "kind": "cut", "track": "bass", "from": 80}
+{"ask": "kill the hats from 1:00 on", "kind": "cut", "track": "hat", "from": 60}
+{"ask": "cut out the strings after 0:32", "kind": "cut", "track": "pad", "from": 32, "set": "held"}
+{"ask": "take the piano out of everything after 1:12", "kind": "cut", "track": "piano", "from": 72, "set": "held"}
+{"ask": "lose the lead from 1:40", "kind": "cut", "track": "lead", "from": 100, "set": "held"}
+{"ask": "end the guitar part at 1:05", "kind": "cut", "track": "guitar", "from": 65, "set": "held"}
+{"ask": "mute the hats", "kind": "mute", "track": "hat"}
+{"ask": "silence the piano", "kind": "mute", "track": "piano"}
+{"ask": "mute the drums", "kind": "mute", "tracks": ["kick", "snare", "hat", "tom_hi", "tom_lo"]}
+{"ask": "turn off the lead", "kind": "mute", "track": "lead"}
+{"ask": "shut the vocals off for now", "kind": "mute", "track": "vocals", "set": "held"}
+{"ask": "can you mute the guitar", "kind": "mute", "track": "guitar", "set": "held"}
+{"ask": "unmute the organ", "kind": "unmute", "track": "organ"}
+{"ask": "bring the choir back in", "kind": "unmute", "track": "choir"}
+{"ask": "turn the organ back on", "kind": "unmute", "track": "organ"}
+{"ask": "unmute the choir please", "kind": "unmute", "track": "choir", "set": "held"}
+{"ask": "solo the bass", "kind": "solo", "track": "bass"}
+{"ask": "just the drums", "kind": "solo", "tracks": ["kick", "snare", "hat", "tom_hi", "tom_lo"]}
+{"ask": "let me hear only the vocals", "kind": "solo", "track": "vocals"}
+{"ask": "only the piano", "kind": "solo", "track": "piano"}
+{"ask": "solo the lead for a second", "kind": "solo", "track": "lead", "set": "held"}
+{"ask": "play the guitar on its own", "kind": "solo", "track": "guitar", "set": "held"}
+{"ask": "remove the whistles", "kind": "remove", "track": "lead"}
+{"ask": "delete the pad", "kind": "remove", "track": "pad"}
+{"ask": "get rid of the toms", "kind": "remove", "tracks": ["tom_hi", "tom_lo"]}
+{"ask": "take the piano out of the song", "kind": "remove", "track": "piano"}
+{"ask": "lose the guitar completely", "kind": "remove", "track": "guitar"}
+{"ask": "i don't want the strings at all", "kind": "remove", "track": "pad", "set": "held"}
+{"ask": "remove the vocals entirely", "kind": "remove", "track": "vocals", "set": "held"}
+{"ask": "delete the whistle track", "kind": "remove", "track": "lead", "set": "held"}
+{"ask": "oops undo that", "kind": "undo", "count": 1, "set": "held"}
+{"ask": "go back two steps", "kind": "undo", "count": 2, "set": "held"}
+{"ask": "nah revert that last change", "kind": "undo", "count": 1, "set": "held"}
+{"ask": "undo the last three things i did", "kind": "undo", "count": 3, "set": "held"}
+{"ask": "actually redo it", "kind": "redo", "count": 1, "set": "held"}
+{"ask": "put back what i just undid", "kind": "redo", "count": 1, "set": "held"}
+{"ask": "take me back to before the whistle track was added", "kind": "back", "about": "add track whistle (lead)", "set": "held"}
+{"ask": "i liked it better before we sped it up", "kind": "back", "about": "tempo 124", "set": "held"}
+{"ask": "revert to before the strings went in", "kind": "back", "about": "add track strings (pad)", "set": "held"}
+{"ask": "gimme more kick", "kind": "level", "track": "kick", "way": "up", "set": "held"}
+{"ask": "the vocals are buried", "kind": "level", "track": "vocals", "way": "up", "set": "held"}
+{"ask": "lower the guitar a touch", "kind": "level", "track": "guitar", "way": "down", "set": "held"}
+{"ask": "pad down 2db", "kind": "level", "track": "pad", "by": -2, "set": "held"}
+{"ask": "the snare is too much", "kind": "level", "track": "snare", "way": "down", "set": "held"}
+{"ask": "more crunch on the guitar pls", "kind": "drive", "track": "guitar", "way": "up", "set": "held"}
+{"ask": "distort the bass to 70%", "kind": "drive", "track": "bass", "to": 70, "set": "held"}
+{"ask": "the guitar is too fuzzy", "kind": "drive", "track": "guitar", "way": "down", "set": "held"}
+{"ask": "drench the lead in reverb", "kind": "reverb", "track": "lead", "way": "up", "set": "held"}
+{"ask": "the snare is too roomy", "kind": "reverb", "track": "snare", "way": "down", "set": "held"}
+{"ask": "pad reverb at 20%", "kind": "reverb", "track": "pad", "to": 20, "set": "held"}
+{"ask": "give the vocals a slapback echo", "kind": "delay", "track": "vocals", "way": "up", "set": "held"}
+{"ask": "kill the echo on the lead", "kind": "delay", "track": "lead", "to": 0, "set": "held"}
+{"ask": "hats a little to the right", "kind": "pan", "track": "hat", "side": "right", "set": "held"}
+{"ask": "put the guitar on the left", "kind": "pan", "track": "guitar", "side": "left", "set": "held"}
+{"ask": "bump the tempo to 126", "kind": "tempo", "to": 126, "set": "held"}
+{"ask": "it drags, make it quicker", "kind": "tempo", "way": "up", "set": "held"}
+{"ask": "a notch slower", "kind": "tempo", "way": "down", "set": "held"}
+{"ask": "lets try it in d major", "kind": "key", "to": "D major", "set": "held"}
+{"ask": "transpose it to g minor", "kind": "key", "to": "G minor", "set": "held"}
+{"ask": "swap the snare for a clap", "kind": "swap", "track": "snare", "sound": "clap", "set": "held"}
+{"ask": "make the pad an organ", "kind": "swap", "track": "pad", "sound": "organ", "set": "held"}
+{"ask": "change the lead to a pluck", "kind": "swap", "track": "lead", "sound": "pluck", "set": "held"}
+{"ask": "cut the drums at 1:04", "kind": "cut", "tracks": ["kick", "snare", "hat", "tom_hi", "tom_lo"], "from": 64, "set": "held"}
+{"ask": "the strings should stop at 0:50", "kind": "cut", "track": "pad", "from": 50, "set": "held"}
+{"ask": "mute the toms", "kind": "mute", "tracks": ["tom_hi", "tom_lo"], "set": "held"}
+{"ask": "kill the whistle for now", "kind": "mute", "track": "lead", "set": "held"}
+{"ask": "bring back the organ", "kind": "unmute", "track": "organ", "set": "held"}
+{"ask": "solo the vocals", "kind": "solo", "track": "vocals", "set": "held"}
+{"ask": "i only want to hear the bass", "kind": "solo", "track": "bass", "set": "held"}
+{"ask": "scrap the choir track", "kind": "remove", "track": "choir", "set": "held"}
+{"ask": "throw out the hats", "kind": "remove", "track": "hat", "set": "held"}
+{"ask": "ctrl z that", "kind": "undo", "count": 1, "set": "held"}
+{"ask": "can we undo the last 4", "kind": "undo", "count": 4, "set": "held"}
+{"ask": "undo twice", "kind": "undo", "count": 2, "set": "held"}
+{"ask": "redo please", "kind": "redo", "count": 1, "set": "held"}
+{"ask": "reapply what i undid", "kind": "redo", "count": 1, "set": "held"}
+{"ask": "go back to before the bass was turned down", "kind": "back", "about": "mix bass: level -3", "set": "held"}
+{"ask": "reset to how it was before the whistle", "kind": "back", "about": "add track whistle (lead)", "set": "held"}
+{"ask": "can you revert to before i added the strings", "kind": "back", "about": "add track strings (pad)", "set": "held"}
+{"ask": "the bass is a bit loud", "kind": "level", "track": "bass", "way": "down", "set": "held"}
+{"ask": "vocals up 3db", "kind": "level", "track": "vocals", "by": 3, "set": "held"}
+{"ask": "can you bring the guitar down a bit", "kind": "level", "track": "guitar", "way": "down", "set": "held"}
+{"ask": "the hats need to be quieter", "kind": "level", "track": "hat", "way": "down", "set": "held"}
+{"ask": "give the bass some distortion", "kind": "drive", "track": "bass", "way": "up", "set": "held"}
+{"ask": "take the drive off the guitar", "kind": "drive", "track": "guitar", "to": 0, "set": "held"}
+{"ask": "overdrive the lead to 40%", "kind": "drive", "track": "lead", "to": 40, "set": "held"}
+{"ask": "too much reverb on the pad", "kind": "reverb", "track": "pad", "way": "down", "set": "held"}
+{"ask": "add reverb to the snare", "kind": "reverb", "track": "snare", "way": "up", "set": "held"}
+{"ask": "the vocals sound too dry", "kind": "reverb", "track": "vocals", "way": "up", "set": "held"}
+{"ask": "add a bit of delay to the piano", "kind": "delay", "track": "piano", "way": "up", "set": "held"}
+{"ask": "less delay on the vocals", "kind": "delay", "track": "vocals", "way": "down", "set": "held"}
+{"ask": "pan the piano a bit left", "kind": "pan", "track": "piano", "side": "left", "set": "held"}
+{"ask": "move the hats to the middle", "kind": "pan", "track": "hat", "side": "center", "set": "held"}
+{"ask": "make it 95 bpm", "kind": "tempo", "to": 95, "set": "held"}
+{"ask": "slow the whole thing down a little", "kind": "tempo", "way": "down", "set": "held"}
+{"ask": "speed it up a bit", "kind": "tempo", "way": "up", "set": "held"}
+{"ask": "the tempo should be 132", "kind": "tempo", "to": 132, "set": "held"}
+{"ask": "change key to c minor", "kind": "key", "to": "C minor", "set": "held"}
+{"ask": "put it in a major", "kind": "key", "to": "A major", "set": "held"}
+{"ask": "replace the hats with a shaker", "kind": "swap", "track": "hat", "sound": "shaker", "set": "held"}
+{"ask": "make the bass a reese", "kind": "swap", "track": "bass", "sound": "reese", "set": "held"}
+{"ask": "try the lead as a pluck", "kind": "swap", "track": "lead", "sound": "pluck", "set": "held"}
+{"ask": "cut the vocals out at 1:30", "kind": "cut", "track": "vocals", "from": 90, "set": "held"}
+{"ask": "stop the piano at 0:56", "kind": "cut", "track": "piano", "from": 56, "set": "held"}
+{"ask": "the guitar should drop out at 1:20", "kind": "cut", "track": "guitar", "from": 80, "set": "held"}
+{"ask": "mute the bass for a bit", "kind": "mute", "track": "bass", "set": "held"}
+{"ask": "silence the drums", "kind": "mute", "tracks": ["kick", "snare", "hat", "tom_hi", "tom_lo"], "set": "held"}
+{"ask": "unmute everything", "kind": "unmute", "tracks": ["organ", "choir"], "set": "held"}
+{"ask": "just the bass and drums", "kind": "solo", "tracks": ["bass", "kick", "snare", "hat", "tom_hi", "tom_lo"], "set": "held"}
+{"ask": "only the vocals and the piano please", "kind": "solo", "tracks": ["vocals", "piano"], "set": "held"}
+{"ask": "remove the toms completely", "kind": "remove", "tracks": ["tom_hi", "tom_lo"], "set": "held"}
+{"ask": "get rid of the choir", "kind": "remove", "track": "choir", "set": "held"}
+{"ask": "hey can you undo that last thing", "kind": "undo", "count": 1, "set": "held"}
+{"ask": "undo x3", "kind": "undo", "count": 3, "set": "held"}
+{"ask": "redo the last undo", "kind": "redo", "count": 1, "set": "held"}
+{"ask": "back to the version before the tempo went up", "kind": "back", "about": "tempo 124", "set": "held"}
+{"ask": "i want the song how it was before the strings", "kind": "back", "about": "add track strings (pad)", "set": "held"}
+{"ask": "make the snare a bit quieter please", "kind": "level", "track": "snare", "way": "down", "set": "held"}
+{"ask": "turn the bass up by 2 db", "kind": "level", "track": "bass", "by": 2, "set": "held"}
+{"ask": "the vocals could be louder", "kind": "level", "track": "vocals", "way": "up", "set": "held"}
+{"ask": "boost the hats", "kind": "level", "track": "hat", "way": "up", "set": "held"}
+{"ask": "make the guitar less loud", "kind": "level", "track": "guitar", "way": "down", "set": "held"}
+{"ask": "pull the vocals back a bit", "kind": "level", "track": "vocals", "way": "down", "set": "held"}
+{"ask": "reduce the guitar distortion", "kind": "drive", "track": "guitar", "way": "down", "set": "held"}
+{"ask": "make the bass sound more distorted", "kind": "drive", "track": "bass", "way": "up", "set": "held"}
+{"ask": "set guitar drive to 60", "kind": "drive", "track": "guitar", "to": 60, "set": "held"}
+{"ask": "add some room to the vocals", "kind": "reverb", "track": "vocals", "way": "up", "set": "held"}
+{"ask": "less reverb on the drums", "kind": "reverb", "tracks": ["kick", "snare", "hat", "tom_hi", "tom_lo"], "way": "down", "set": "held"}
+{"ask": "a little more reverb on the piano", "kind": "reverb", "track": "piano", "way": "up", "set": "held"}
+{"ask": "echo on the lead please", "kind": "delay", "track": "lead", "way": "up", "set": "held"}
+{"ask": "no delay on the guitar", "kind": "delay", "track": "guitar", "to": 0, "set": "held"}
+{"ask": "pan the vocals slightly right", "kind": "pan", "track": "vocals", "side": "right", "set": "held"}
+{"ask": "hard left for the guitar", "kind": "pan", "track": "guitar", "side": "left", "set": "held"}
+{"ask": "bpm 110", "kind": "tempo", "to": 110, "set": "held"}
+{"ask": "faster please", "kind": "tempo", "way": "up", "set": "held"}
+{"ask": "knock the tempo down by 4", "kind": "tempo", "by": -4, "set": "held"}
+{"ask": "key of f minor", "kind": "key", "to": "F minor", "set": "held"}
+{"ask": "transpose up to a minor", "kind": "key", "to": "A minor", "set": "held"}
+{"ask": "swap the kick for an 808", "kind": "swap", "track": "kick", "sound": "808", "set": "held"}
+{"ask": "put a reese on the bass", "kind": "swap", "track": "bass", "sound": "reese", "set": "held"}
+{"ask": "cut the drums from 1:36", "kind": "cut", "tracks": ["kick", "snare", "hat", "tom_hi", "tom_lo"], "from": 96, "set": "held"}
+{"ask": "the pad should end at 1:04", "kind": "cut", "track": "pad", "from": 64, "set": "held"}
+{"ask": "after 0:20 no more piano", "kind": "cut", "track": "piano", "from": 20, "set": "held"}
+{"ask": "mute vocals", "kind": "mute", "track": "vocals", "set": "held"}
+{"ask": "turn the hats off", "kind": "mute", "track": "hat", "set": "held"}
+{"ask": "mute everything except the vocals", "kind": "mute", "tracks": ["kick", "snare", "hat", "tom_hi", "tom_lo", "bass", "guitar", "piano", "lead", "pad"], "set": "held"}
+{"ask": "unmute the choir and the organ", "kind": "unmute", "tracks": ["choir", "organ"], "set": "held"}
+{"ask": "solo drums", "kind": "solo", "tracks": ["kick", "snare", "hat", "tom_hi", "tom_lo"], "set": "held"}
+{"ask": "can i hear just the guitar", "kind": "solo", "track": "guitar", "set": "held"}
+{"ask": "delete the organ track", "kind": "remove", "track": "organ", "set": "held"}
+{"ask": "remove the kick and snare", "kind": "remove", "tracks": ["kick", "snare"], "set": "held"}
+{"ask": "undo pls", "kind": "undo", "count": 1, "set": "held"}
+{"ask": "revert last 2", "kind": "undo", "count": 2, "set": "held"}
+{"ask": "lemme redo that", "kind": "redo", "count": 1, "set": "held"}
+{"ask": "go back to before the bass level change", "kind": "back", "about": "mix bass: level -3", "set": "held"}
+{"ask": "back to before the whistle came in", "kind": "back", "about": "add track whistle (lead)", "set": "held"}
+{"ask": "vocals louder", "kind": "level", "track": "vocals", "way": "up", "set": "held"}
+{"ask": "kick down a bit", "kind": "level", "track": "kick", "way": "down", "set": "held"}
+{"ask": "the guitar's too quiet", "kind": "level", "track": "guitar", "way": "up", "set": "held"}
+{"ask": "lower the lead 3db", "kind": "level", "track": "lead", "by": -3, "set": "held"}
+{"ask": "turn the piano up to -2 db", "kind": "level", "track": "piano", "to": -2, "set": "held"}
+{"ask": "more grit on the guitar pls", "kind": "drive", "track": "guitar", "way": "up", "set": "held"}
+{"ask": "the bass is too distorted", "kind": "drive", "track": "bass", "way": "down", "set": "held"}
+{"ask": "drive on the lead 20%", "kind": "drive", "track": "lead", "to": 20, "set": "held"}
+{"ask": "wetter snare pls", "kind": "reverb", "track": "snare", "way": "up", "set": "held"}
+{"ask": "the pad is drowning", "kind": "reverb", "track": "pad", "way": "down", "set": "held"}
+{"ask": "no reverb on the hats", "kind": "reverb", "track": "hat", "to": 0, "set": "held"}
+{"ask": "a touch more delay on the vocals", "kind": "delay", "track": "vocals", "way": "up", "set": "held"}
+{"ask": "turn off the echo on the guitar", "kind": "delay", "track": "guitar", "to": 0, "set": "held"}
+{"ask": "centre the hats", "kind": "pan", "track": "hat", "side": "center", "set": "held"}
+{"ask": "pan the piano right a little", "kind": "pan", "track": "piano", "side": "right", "set": "held"}
+{"ask": "make it 128", "kind": "tempo", "to": 128, "set": "held"}
+{"ask": "too fast, slow it down", "kind": "tempo", "way": "down", "set": "held"}
+{"ask": "up the tempo by 6", "kind": "tempo", "by": 6, "set": "held"}
+{"ask": "in e major please", "kind": "key", "to": "E major", "set": "held"}
+{"ask": "swap the guitar for an organ", "kind": "swap", "track": "guitar", "sound": "organ", "set": "held"}
+{"ask": "change the snare sound to a clap", "kind": "swap", "track": "snare", "sound": "clap", "set": "held"}
+{"ask": "the drums should stop at 2:00", "kind": "cut", "tracks": ["kick", "snare", "hat", "tom_hi", "tom_lo"], "from": 120, "set": "held"}
+{"ask": "cut the lead at 0:40", "kind": "cut", "track": "lead", "from": 40, "set": "held"}
+{"ask": "mute the kick and the hats", "kind": "mute", "tracks": ["kick", "hat"], "set": "held"}
+{"ask": "bring the organ back", "kind": "unmute", "track": "organ", "set": "held"}
+{"ask": "solo the pad", "kind": "solo", "track": "pad", "set": "held"}
+{"ask": "just vocals", "kind": "solo", "track": "vocals", "set": "held"}
+{"ask": "get rid of the guitar", "kind": "remove", "track": "guitar", "set": "held"}
+{"ask": "delete the hats and the toms", "kind": "remove", "tracks": ["hat", "tom_hi", "tom_lo"], "set": "held"}

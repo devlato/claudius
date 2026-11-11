@@ -446,6 +446,11 @@ impl History {
         !self.redo.is_empty()
     }
 
+    /// how many edits undo can take back, one at a time, and redo bring back
+    pub fn steps(&self) -> (usize, usize) {
+        (self.undo.len(), self.redo.len())
+    }
+
     /// what undo would take back
     pub fn undo_label(&self) -> Option<String> {
         self.undo.last().map(|s| s.label.clone())

@@ -1,13 +1,13 @@
 //! What the palette's words find in the demo, on the studio's own thread rather than the engine's: a search takes
 //! microseconds, where the engine may be rendering a song for seconds. In the app, the session holds the model
 //! (`claudius_session::meaning`, which downloads it once); in a page, the page fetches the site's copy (`studio/models/`,
-//! which `cargo xtask site --sounds` makes) once and holds it. Until it is there, actions are found by name, and the
-//! words asked about last are answered again once it has come.
+//! which `cargo xtask site --sounds` makes) once and holds it. Until it is there, actions are found by name and requests
+//! read by their words, and the words asked about last are answered again once it has come.
 
 use std::sync::Arc;
 
-use claudius_api::Done;
-use claudius_intent::{Answer, DONE, Finder, Item, Model, find_among};
+use claudius_api::State;
+use claudius_intent::{Answer, Asker, Finder, Model, answer};
 use eframe::egui;
 
 /// for how long after the last words the demo looks for the model to come, to answer them again (seconds)
@@ -19,34 +19,26 @@ pub struct Finding {
     last: Option<(String, usize, f64, bool)>,
 }
 
+/// the model once it is there, and what finds actions and reads requests with it, or without it until it is
+#[derive(Clone)]
+struct Held {
+    model: Option<Arc<Model>>,
+    finder: Arc<Finder>,
+    asker: Arc<Asker>,
+}
+
 impl Finding {
-    /// What the words find, by name, and by meaning once the model is there (it is asked for the first time): the
-    /// actions, and the changes in `history` (the state's) that the song can go back to before.
-    pub fn find(
-        &mut self,
-        query: &str,
-        limit: usize,
-        history: &[Done],
-        now: f64,
-        ctx: Option<&egui::Context>,
-    ) -> Answer {
-        let (model, finder) = held(ctx);
-        self.last = Some((query.to_string(), limit, now, model.is_some()));
-        let reachable: Vec<Item> = history
-            .iter()
-            .filter(|d| d.can_go_back)
-            .map(|d| Item { id: &d.id, name: &d.label, words: &d.said })
-            .collect();
-        Answer {
-            query: query.to_string(),
-            found: finder.find(query, model.as_deref(), limit),
-            done: find_among(query, &reachable, model.as_deref(), DONE),
-            by_meaning: finder.by_meaning(),
-        }
+    /// What the words find on the song of `state`, by name and by their words, and by meaning once the model is there
+    /// (it is asked for the first time): the actions, the changes in its history the song can go back to before, and
+    /// what they ask of the song.
+    pub fn find(&mut self, query: &str, limit: usize, state: &State, now: f64, ctx: Option<&egui::Context>) -> Answer {
+        let held = held(ctx);
+        self.last = Some((query.to_string(), limit, now, held.model.is_some()));
+        answer(query, limit, state, &held.finder, &held.asker, held.model.as_deref())
     }
 
     /// the words asked about last again, once the model has come since they were found by name
-    pub fn again(&mut self, history: &[Done], now: f64, ctx: Option<&egui::Context>) -> Option<Answer> {
+    pub fn again(&mut self, state: &State, now: f64, ctx: Option<&egui::Context>) -> Option<Answer> {
         let (query, limit, at, false) = self.last.clone()? else { return None };
         if !ready() {
             if now - at < WAITS
@@ -56,14 +48,15 @@ impl Finding {
             }
             return None;
         }
-        Some(self.find(&query, limit, history, now, ctx))
+        Some(self.find(&query, limit, state, now, ctx))
     }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn held(_: Option<&egui::Context>) -> (Option<Arc<Model>>, Arc<Finder>) {
+fn held(_: Option<&egui::Context>) -> Held {
     claudius_session::meaning::fetch_in_background();
-    claudius_session::meaning::held()
+    let h = claudius_session::meaning::held();
+    Held { model: h.model, finder: h.finder, asker: h.asker }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -73,12 +66,17 @@ fn ready() -> bool {
 
 #[cfg(target_arch = "wasm32")]
 thread_local! {
-    static HELD: std::cell::RefCell<Option<(Arc<Model>, Arc<Finder>)>> = const { std::cell::RefCell::new(None) };
+    static HELD: std::cell::RefCell<Option<Held>> = const { std::cell::RefCell::new(None) };
+    static BY_WORDS: Held = Held {
+        model: None,
+        finder: Arc::new(Finder::new(claudius_intent::catalogue::ENTRIES, None)),
+        asker: Arc::new(Asker::new(None)),
+    };
     static ASKED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
 #[cfg(target_arch = "wasm32")]
-fn held(ctx: Option<&egui::Context>) -> (Option<Arc<Model>>, Arc<Finder>) {
+fn held(ctx: Option<&egui::Context>) -> Held {
     use claudius_intent::catalogue::ENTRIES;
     if !ASKED.replace(true) {
         let url = format!("models/{}.clde", claudius_intent::model::POTION.name);
@@ -89,8 +87,12 @@ fn held(ctx: Option<&egui::Context>) -> (Option<Arc<Model>>, Arc<Finder>) {
                 .and_then(|bytes| Model::from_bytes(&bytes));
             match model {
                 Ok(model) => {
-                    let finder = Finder::new(ENTRIES, Some(&model));
-                    HELD.set(Some((Arc::new(model), Arc::new(finder))));
+                    let (finder, asker) = (Finder::new(ENTRIES, Some(&model)), Asker::new(Some(&model)));
+                    HELD.set(Some(Held {
+                        model: Some(Arc::new(model)),
+                        finder: Arc::new(finder),
+                        asker: Arc::new(asker),
+                    }));
                     if let Some(ctx) = ctx {
                         ctx.request_repaint();
                     }
@@ -99,10 +101,7 @@ fn held(ctx: Option<&egui::Context>) -> (Option<Arc<Model>>, Arc<Finder>) {
             }
         });
     }
-    match HELD.with_borrow(|h| h.clone()) {
-        Some((model, finder)) => (Some(model), finder),
-        None => (None, Arc::new(Finder::new(ENTRIES, None))),
-    }
+    HELD.with_borrow(|h| h.clone()).unwrap_or_else(|| BY_WORDS.with(Held::clone))
 }
 
 #[cfg(target_arch = "wasm32")]

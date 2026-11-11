@@ -94,6 +94,30 @@ impl App {
         }
     }
 
+    /// Edits made as one (`Command::Together`): each as it is made alone, on the song as the ones before left it, and
+    /// committed once, as one change undo calls `said`. No other edit comes between them, and when one fails, none is
+    /// made.
+    fn together(self: &Arc<Self>, said: String, commands: Vec<Command>) -> Reply {
+        let _g = self.edit.lock().unwrap_or_else(|e| e.into_inner());
+        let Some(mut bp) = self.blueprint() else { return no("no song yet: start one with new_song", self.version()) };
+        let before = bp.clone();
+        let (lib, roots) = (self.lib.clone(), self.roots.clone());
+        let run = |code: &str, bp: Blueprint| {
+            script::run_with(code, Some(bp), lib.clone(), roots.clone())
+                .map_err(|e| e.to_string())?
+                .bp
+                .ok_or_else(|| "the script left no song".to_string())
+        };
+        match edit::together(&commands, &mut bp, now_seed(), run) {
+            Err(e) => no(format!("{said}: none of it made, as {e}"), self.version()),
+            Ok(()) if bp == before => ok("nothing changed", self.version()),
+            Ok(()) => {
+                bp.lineage.push(said.clone());
+                self.commit_as(Some(bp), said.clone(), said)
+            }
+        }
+    }
+
     /// an edit of the song, as `claudius_session::edit` makes it: a script run on it, or a change in place
     fn edit(self: &Arc<Self>, c: &Command) -> Reply {
         let seed = now_seed();
@@ -283,6 +307,7 @@ impl App {
             | Command::SetFx { .. }
             | Command::SetLayers { .. }
             | Command::AddHits { .. }) => self.edit(&c),
+            Command::Together { said, commands } => self.together(said, commands),
             Command::ExtractGroove { path, name, lanes, bpm } => match self
                 .readable(Path::new(&path))
                 .and_then(|_| audio::load(Path::new(&path)).map_err(|e| format!("cannot read {path}: {e}")))

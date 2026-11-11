@@ -409,22 +409,12 @@ impl Host {
         views::sounds()
     }
 
-    /// The studio's actions `query` finds, at most `limit`, the best first, and the changes in `history` (the state's)
-    /// it finds that the song can go back to before: by name, and by meaning once the embedding model is there
-    /// (`meaning`).
-    pub fn find(query: &str, limit: usize, history: &[Done]) -> claudius_intent::Answer {
-        let (model, finder) = crate::meaning::held();
-        let reachable: Vec<claudius_intent::Item> = history
-            .iter()
-            .filter(|d| d.can_go_back)
-            .map(|d| claudius_intent::Item { id: &d.id, name: &d.label, words: &d.said })
-            .collect();
-        claudius_intent::Answer {
-            query: query.to_string(),
-            found: finder.find(query, model.as_deref(), limit),
-            done: claudius_intent::find_among(query, &reachable, model.as_deref(), claudius_intent::DONE),
-            by_meaning: finder.by_meaning(),
-        }
+    /// The studio's actions `query` finds, at most `limit`, the best first, the changes in the history of `state` it
+    /// finds that the song can go back to before, and what it asks of the song, read as what claudius would do for it:
+    /// by name and by words, and by meaning too once the embedding model is there (`meaning`).
+    pub fn find(query: &str, limit: usize, state: &State) -> claudius_intent::Answer {
+        let held = crate::meaning::held();
+        claudius_intent::answer(query, limit, state, &held.finder, &held.asker, held.model.as_deref())
     }
 
     pub fn state(&self) -> State {
@@ -448,6 +438,8 @@ impl Host {
             cancellable: self.breeding.is_some(),
             can_undo: self.history.can_undo(),
             can_redo: self.history.can_redo(),
+            undo_steps: self.history.steps().0,
+            redo_steps: self.history.steps().1,
             undo_label: self.history.undo_label(),
             redo_label: self.history.redo_label(),
             history: self.history.done(),
@@ -609,6 +601,7 @@ impl Host {
             Command::Undo => self.history(true),
             Command::Redo => self.history(false),
             Command::GoBack { to } => self.go_back(&to),
+            Command::Together { said, commands } => self.together(said, commands),
             Command::Render { .. } if self.stale() => self.ok("rendering"),
             Command::Render { .. } => self.ok("the render is up to date"),
             // a take's drums and singing, which the page holds in memory
@@ -1125,6 +1118,25 @@ impl Host {
         self.changed(msg)
     }
 
+    /// Edits made as one (`Command::Together`), as the server makes them: each as it is made alone, on the song as the
+    /// ones before left it, and committed once, as one change undo calls `said`; when one fails, none is made.
+    fn together(&mut self, said: String, commands: Vec<Command>) -> Reply {
+        let Some(mut bp) = self.bp.clone() else { return self.no("no song yet: start one with a new song") };
+        let before = bp.clone();
+        let lib = self.lib.clone();
+        let run = |code: &str, bp: Blueprint| {
+            script::run(code, Some(bp), lib.clone())?.bp.ok_or_else(|| "the script left no song".to_string())
+        };
+        match edit::together(&commands, &mut bp, self.seed(), run) {
+            Err(e) => self.no(format!("{said}: none of it made, as {e}")),
+            Ok(()) if bp == before => self.ok("nothing changed"),
+            Ok(()) => {
+                bp.lineage.push(said.clone());
+                self.commit_as(Some(bp), said.clone(), said)
+            }
+        }
+    }
+
     fn history(&mut self, undo: bool) -> Reply {
         let label = if undo { self.history.undo(&mut self.bp) } else { self.history.redo(&mut self.bp) };
         let Some(label) = label else {
@@ -1368,6 +1380,36 @@ mod tests {
         assert!((audio.view.lufs + 10.0).abs() < 2.5, "a mastered house song, not {:.1} LUFS", audio.view.lufs);
         assert!(s.verdict.is_some_and(|v| v.total > 0.0));
         assert!(s.song.unwrap().tracks.iter().any(|t| t.loudness.is_some()), "the meters read the render");
+    }
+
+    #[test]
+    fn edits_made_together_are_one_change_as_the_server_makes_them() {
+        let mut h = Host::new(1);
+        command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3}));
+        let song = h.state().song.unwrap();
+        let track = song.tracks[0].name.clone();
+        let said = "Mute the first track and change the tempo to 131 BPM";
+        let together = json!({"cmd": "together", "said": said, "commands": [
+            {"cmd": "set_mix", "track": track, "muted": true},
+            {"cmd": "set_tempo", "bpm": 131},
+        ]});
+        let r = command(&mut h, together);
+        assert!(r.ok, "{}", r.message);
+        let s = h.state();
+        let now = s.song.as_ref().unwrap();
+        assert!(now.bpm == 131.0 && now.tracks[0].muted);
+        assert_eq!((s.history.len(), s.undo_label.as_deref()), (2, Some(said)), "one change: {:?}", s.history);
+        assert!(command(&mut h, json!({"cmd": "undo"})).ok);
+        let back = h.state().song.unwrap();
+        assert!(back.bpm == song.bpm && !back.tracks[0].muted, "undo takes both back");
+        let wrong = json!({"cmd": "together", "said": "faster, and a track that is not there", "commands": [
+            {"cmd": "set_tempo", "bpm": 140},
+            {"cmd": "remove_track", "name": "no such track"},
+        ]});
+        let r = command(&mut h, wrong);
+        assert!(!r.ok && r.message.contains("none of it made"), "{}", r.message);
+        assert_eq!(h.state().song.unwrap().bpm, song.bpm);
+        assert_eq!(h.state().redo_label.as_deref(), Some(said), "redo still brings back what was undone");
     }
 
     #[test]

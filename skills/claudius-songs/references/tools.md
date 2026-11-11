@@ -70,6 +70,7 @@ Each control in the studio sends one command, and an assistant can send every on
 | Variations, Improve, Cancel | `mutate`, `evolve`, `stop` | `mutate`, `evolve`, `cancel` |
 | Undo, Redo | `undo`, `redo` | `undo`, `redo` |
 | the palette's Go back to before a change | `history`, then `go_back` | `go_back` |
+| the palette's What your words ask: a request in plain words, confirmed, made as one change undo takes back | `command` | `together` |
 | Sounds, a row's swap button | `swap_sound` | `swap_sound` |
 | Tempo, Key, Swing | `command` | `set_tempo`, `set_key`, `set_swing` |
 | a cell of the arrangement (a double-click, Enter, or the paint tool): a track on or off in a section; the track inspector's "plays here" | `command` | `toggle_layer` |
@@ -113,6 +114,11 @@ Notes:
   `moves`: `t` seconds into the scratch, `at` seconds into the record, `fader` 0 shut to 1 open. A baby scratch
   goes forward and back over the record's start, `[{"t": 0, "at": 0}, {"t": 0.12, "at": 0.15}, {"t": 0.24, "at": 0}]`
   and so on; a chirp closes the fader as the record comes back.
+- `command` takes `together` for several edits that are one change: `{"cmd": "together", "said": "Mute kick and
+  snare", "commands": [{"cmd": "set_mix", "track": "kick", "muted": true}, {"cmd": "set_mix", "track": "snare",
+  "muted": true}]}`. The history records them as one, and `undo` takes them all back at once and calls it `said`. If
+  one fails, none is made. Edits only: no `undo`, `redo`, `go_back` or `together` inside it. A script run is one
+  change too.
 - `SONG` is a song folder. `make`, `script` and `remake` write theirs as `<genre>-<title>-<seed>/` inside `--out`,
   which is `out/` in the current folder unless given; `render` writes into the blueprint's own folder, or straight
   into `--out`. Each prints the path at the end. When the person needs to find the song, give a folder they know:

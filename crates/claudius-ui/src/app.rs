@@ -1032,6 +1032,7 @@ fn is_edit(what: &str) -> bool {
             | "set_fx"
             | "tune"
             | "run_script"
+            | "together"
     )
 }
 
@@ -1429,6 +1430,10 @@ mod tests {
             json!({"cmd": "tune", "track": "kick", "speed_ms": 0}),
             json!({"cmd": "set_trig", "lane": "kick", "variant": "main", "step": 0, "trig": {"prob": 0.5}}),
             json!({"cmd": "set_lane", "lane": "kick", "length": 12}),
+            json!({"cmd": "together", "said": "Mute the kick and change the tempo to 125 BPM", "commands": [
+                {"cmd": "set_mix", "track": "kick", "muted": true},
+                {"cmd": "set_tempo", "bpm": 125},
+            ]}),
             json!({"cmd": "render"}),
             json!({"cmd": "undo"}),
         ];
@@ -1440,7 +1445,25 @@ mod tests {
                 assert!(is_edit(&crate::net::command_name(&cmd)), "{c} is shown at once but not put back");
             }
         }
-        assert_eq!(shown, 20, "every edit above but render and undo is shown at once");
+        assert_eq!(shown, 21, "every edit above but render and undo is shown at once");
         assert!(is_edit("run_script"), "the graph shows the master's loudness at once");
+    }
+
+    #[test]
+    fn edits_made_together_are_each_shown_at_once() {
+        let g = claudius::genres::get("house").unwrap();
+        let bp = claudius::compose::generate(&g, 1, &claudius::compose::Options::default(), None);
+        let mut song = claudius_session::views::song(&bp, &Default::default());
+        let together: Command = serde_json::from_value(json!({"cmd": "together", "said": "Mute the kick, at 125 BPM",
+            "commands": [{"cmd": "set_mix", "track": "kick", "muted": true}, {"cmd": "set_tempo", "bpm": 125}]}))
+        .unwrap();
+        assert_eq!(edits::apply(&mut song, &together), Some(Ok("Mute the kick, at 125 BPM".into())));
+        assert!(song.bpm == 125.0 && song.tracks.iter().any(|t| t.name == "kick" && t.muted));
+        let wrong: Command =
+            serde_json::from_value(json!({"cmd": "together", "said": "unmuted, at a tempo no song plays",
+            "commands": [{"cmd": "set_mix", "track": "kick", "muted": false}, {"cmd": "set_tempo", "bpm": 900}]}))
+            .unwrap();
+        assert!(matches!(edits::apply(&mut song, &wrong), Some(Err(_))));
+        assert!(song.bpm == 125.0 && song.tracks.iter().any(|t| t.name == "kick" && t.muted), "none of it is shown");
     }
 }

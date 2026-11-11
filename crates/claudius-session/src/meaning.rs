@@ -1,25 +1,39 @@
 //! The embedding model the command palette finds actions by meaning with (`claudius_intent`), held once for the process
-//! with the actions embedded. It is read from claudius's cache, and when it is not there yet, downloaded there once in
-//! the background (its pinned revision on Hugging Face, each file checked against its hash) and kept as claudius's own
-//! smaller file. Until it is there, actions are found by name.
+//! with the actions and the example requests embedded. It is read from claudius's cache, and when it is not there yet,
+//! downloaded there once in the background (its pinned revision on Hugging Face, each file checked against its hash)
+//! and kept as claudius's own smaller file. Until it is there, actions are found by name, and requests read by their
+//! words.
 
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
 use claudius_intent::model::POTION;
-use claudius_intent::{Finder, Model, catalogue::ENTRIES};
+use claudius_intent::{Asker, Finder, Model, catalogue::ENTRIES};
 
 /// what claudius's own file of the model is named after (`<name>.clde`)
 pub const NAME: &str = POTION.name;
 
-/// the model, and the palette's actions embedded with it once, as it came
-static HELD: RwLock<Option<(Arc<Model>, Arc<Finder>)>> = RwLock::new(None);
+/// The model once it is there, the palette's actions, found by meaning once it is, and requests, read by meaning too
+/// once it is.
+#[derive(Clone)]
+pub struct Held {
+    pub model: Option<Arc<Model>>,
+    pub finder: Arc<Finder>,
+    pub asker: Arc<Asker>,
+}
 
-/// the model once it is there, and the palette's actions, found by meaning once it is
-pub fn held() -> (Option<Arc<Model>>, Arc<Finder>) {
-    match HELD.read().ok().and_then(|h| h.clone()) {
-        Some((model, finder)) => (Some(model), finder),
-        None => (None, Arc::new(Finder::new(ENTRIES, None))),
-    }
+/// the model, and the palette's actions and example requests embedded with it once, as it came
+static HELD: RwLock<Option<Held>> = RwLock::new(None);
+
+/// the actions and the requests as they are found and read without the model
+static BY_WORDS: LazyLock<Held> = LazyLock::new(|| Held {
+    model: None,
+    finder: Arc::new(Finder::new(ENTRIES, None)),
+    asker: Arc::new(Asker::new(None)),
+});
+
+/// what finds actions and reads requests: by meaning once the model is there, by their words until it is
+pub fn held() -> Held {
+    HELD.read().ok().and_then(|h| h.clone()).unwrap_or_else(|| BY_WORDS.clone())
 }
 
 /// whether the model is there
@@ -28,9 +42,9 @@ pub fn ready() -> bool {
 }
 
 fn hold(model: Model) {
-    let finder = Finder::new(ENTRIES, Some(&model));
+    let (finder, asker) = (Finder::new(ENTRIES, Some(&model)), Asker::new(Some(&model)));
     if let Ok(mut h) = HELD.write() {
-        *h = Some((Arc::new(model), Arc::new(finder)));
+        *h = Some(Held { model: Some(Arc::new(model)), finder: Arc::new(finder), asker: Arc::new(asker) });
     }
 }
 
@@ -87,24 +101,25 @@ fn load_or_fetch() -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use claudius_api::Done;
+    use claudius_api::{Done, State};
 
     use crate::host::Host;
 
     #[test]
     fn until_the_model_is_there_actions_are_found_by_name_and_a_broken_one_is_refused() {
-        let answer = Host::find("mixer", 3, &[]);
+        let none = State::default();
+        let answer = Host::find("mixer", 3, &none);
         assert_eq!(
             (answer.query.as_str(), answer.found[0].id.as_str(), answer.by_meaning),
             ("mixer", "tab:mixer", false)
         );
         assert_eq!(
-            Host::find("", 40, &[]).found.len(),
+            Host::find("", 40, &none).found.len(),
             claudius_intent::catalogue::ENTRIES.len(),
             "nothing typed: all of them"
         );
         assert!(super::provide(b"CLDE but not a model").is_err());
-        assert!(!Host::find("mixer", 3, &[]).by_meaning);
+        assert!(!Host::find("mixer", 3, &none).by_meaning);
     }
 
     #[test]
@@ -117,14 +132,17 @@ mod tests {
             at: 0,
             can_go_back,
         };
-        let history = [
+        let history = vec![
             done("3@a", "tempo 128", "bpm 124 to 128", true),
             done("2@a", "track whistle", "added the whistle track (lead), playing the synth whistle", true),
             done("1@a", "track whistles", "added the whistles track", false),
         ];
-        let answer = Host::find("go back to before we added the whistles", 12, &history);
+        let state = State { history, ..State::default() };
+        let answer = Host::find("go back to before we added the whistles", 12, &state);
         let ids: Vec<&str> = answer.done.iter().map(|d| d.id.as_str()).collect();
         assert_eq!(ids, ["2@a"], "only what go_back can reach: {:?}", answer.done);
         assert_eq!(answer.done[0].name, "track whistle");
+        let back: Vec<&str> = answer.proposed.iter().map(|p| p.said.as_str()).collect();
+        assert_eq!(back, ["Go back to before track whistle"], "and asked to: a proposal to: {:?}", answer.proposed);
     }
 }

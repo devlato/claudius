@@ -2,15 +2,18 @@
 //! way they would say them as well as by name (`find`), by static word embeddings (`model`: a vector learned for each
 //! piece of a word, a phrase the mean of its pieces', no network and no graphics card to run them) in a vector index
 //! held in memory (`index`). A phrase is embedded in microseconds, and the model is 7.6 MB, small enough for a laptop
-//! of ten years ago and for a browser.
+//! of ten years ago and for a browser. Requests in plain words ("undo the last five changes", "more reverb on the
+//! snare") are read into what claudius would do for them, for the person to confirm (`ask`).
 
 #![forbid(unsafe_code)]
 
+pub mod ask;
 pub mod catalogue;
 pub mod find;
 pub mod index;
 pub mod model;
 pub mod pieces;
 
-pub use find::{Answer, By, DONE, Finder, Found, Item, find_among};
+pub use ask::{Asker, Proposal};
+pub use find::{Answer, By, DONE, Finder, Found, Item, answer, find_among};
 pub use model::Model;

@@ -197,7 +197,7 @@ impl Mock {
 
     /// the studio's actions `q` finds, at once, as `Event::Found` (`meaning`)
     pub fn find(&mut self, q: &str, limit: usize) {
-        let answer = self.finding.find(q, limit, &self.state.history, self.now, self.ctx.as_ref());
+        let answer = self.finding.find(q, limit, &self.state, self.now, self.ctx.as_ref());
         self.events.push(Event::Found(answer));
     }
 
@@ -376,7 +376,7 @@ impl Mock {
     /// what the engine and the sampler have done since; `now` in seconds
     pub fn update(&mut self, now: f64) -> Vec<Event> {
         self.now = now;
-        if let Some(answer) = self.finding.again(&self.state.history, now, self.ctx.as_ref()) {
+        if let Some(answer) = self.finding.again(&self.state, now, self.ctx.as_ref()) {
             self.events.push(Event::Found(answer));
         }
         for heard in self.engine.take() {
