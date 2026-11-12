@@ -40,8 +40,9 @@ others() {
   mirrors "$UBUNTU" "$KERNEL"
 }
 
+# apt reads its settings in the order of their files' names, the runner's own `zz-retries` too: these go after it
 printf 'Acquire::http::Timeout "20";\nAcquire::https::Timeout "20";\nAcquire::Retries "2";\n' \
-  | sudo tee /etc/apt/apt.conf.d/99claudius-ci > /dev/null
+  | sudo tee /etc/apt/apt.conf.d/zzz-claudius-ci > /dev/null
 
 # An update that could not fetch Ubuntu's lists fails, which apt does not do by itself; one of the runner's other
 # sources (Microsoft's, Google's) failing is only warned of, as apt does.
