@@ -17,6 +17,7 @@ use claudius_api::*;
 use claudius_session::history::History;
 use claudius_session::views;
 
+mod acp;
 mod chat;
 mod commands;
 mod jobs;
@@ -112,6 +113,8 @@ struct Session {
     heard: Option<HeardLast>,
     /// the chat with the assistants
     chat: chat::Chat,
+    /// the agent claudius started for the chat, while it runs, and which one it was of those started
+    agent: Option<(u64, acp::Running)>,
 }
 
 /// a recording analyzed: what its version of the state was (`ListenedAudio::id`), the name of its file, what was
@@ -178,6 +181,10 @@ pub struct App {
     phone: Mutex<Option<phone::Running>>,
     /// each track as the last render made it, so that the next renders only the tracks an edit changed
     kept: Mutex<claudius::render::Kept>,
+    /// whether others reach this claudius (`--public`, a token): one they reach starts no agents
+    shared: AtomicBool,
+    /// how many agents have been started for the chat
+    agents: AtomicU64,
 }
 
 /// how many sessions this process has started
@@ -240,6 +247,8 @@ impl App {
             transport: Mutex::new((Transport::default(), Instant::now())),
             phone: Mutex::new(None),
             kept: Mutex::new(Default::default()),
+            shared: AtomicBool::new(false),
+            agents: AtomicU64::new(0),
         });
         {
             let mut s = app.lock();
@@ -395,7 +404,11 @@ impl App {
             exports: self.exports.clone(),
             release,
             take_request: s.take_request.clone(),
-            chat: s.chat.view(),
+            chat: claudius_api::ChatView {
+                agent: s.agent.as_ref().map(|(_, a)| a.name.clone()),
+                starts_agents: self.starts_agents(),
+                ..s.chat.view()
+            },
             pitch_check: s.pitch_check.as_ref().map(|(_, v)| v.clone()),
             voice: s.voice.as_ref().map(|v| v.describe()),
             phone,

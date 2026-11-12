@@ -20,6 +20,8 @@ claudius-session = { path = "../claudius-session" }
 claudius-packs = { version = "0.6.0", path = "../claudius-packs" }
 dirs = "7"
 getrandom = "0.4"
+# the agents claudius starts itself and talks to in the studio's chat (Claude Code, Gemini CLI, Codex)
+agent-client-protocol = { version = "5.2", features = ["process"] }
 rayon = "1"
 rmcp = { version = "3.9", features = ["server", "macros", "transport-io", "transport-streamable-http-server", "schemars"] }
 schemars = "1"

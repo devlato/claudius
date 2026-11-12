@@ -275,7 +275,13 @@ impl App {
                 Ok(()) => ok(format!("request {id}: no take, then"), self.version()),
                 Err(e) => no(e, v),
             },
-            Command::ChatSay { text } => match self.try_update(|s| s.chat.say(None, &text, None)) {
+            Command::ChatSay { text } => match self.try_update(|s| {
+                let id = s.chat.say(None, &text, None)?;
+                if let Some((_, a)) = &s.agent {
+                    a.prompt(text.trim());
+                }
+                Ok::<_, String>(id)
+            }) {
                 Ok(id) => ok(format!("said as message {id}"), self.version()),
                 Err(e) => no(e, v),
             },

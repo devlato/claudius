@@ -668,6 +668,7 @@ impl Studio {
             ("publish", v.publish.open),
             ("phone", v.phone.open),
             ("assistants", v.assistants.open),
+            ("chat", v.chat.open),
             ("reference", v.reference_open),
         ];
         let open: Vec<&str> = windows.iter().filter(|(_, o)| *o).map(|(w, _)| *w).collect();
@@ -1278,6 +1279,12 @@ impl eframe::App for Studio {
         }
         if let Some(on) = self.view.phone.ask.take() {
             self.backend.phone(on);
+        }
+        if let Some(agent) = self.view.chat.ask.take()
+            && self.backend.chat_agent(agent)
+        {
+            self.inflight += 1;
+            self.inflight_since = now;
         }
         if let Some(t) = self.view.phone.report.take() {
             self.backend.transport(t);

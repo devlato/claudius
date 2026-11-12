@@ -379,6 +379,29 @@ impl Remote {
         });
     }
 
+    /// starts the agent `agent` (of `CHAT_AGENTS`) for the chat, or stops the one running
+    fn chat_agent(&self, agent: Option<String>) {
+        let url = self.url("/api/chat/agent");
+        let mut request = match agent {
+            Some(agent) => {
+                let body = serde_json::to_vec(&claudius_api::StartAgent { agent }).unwrap_or_default();
+                ehttp::Request::post(url, body)
+            }
+            None => ehttp::Request::delete(&url),
+        };
+        request.headers = ehttp::Headers::new(&[("Accept", "application/json"), ("Content-Type", "application/json")]);
+        let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
+        ehttp::fetch(request, move |res| {
+            let result = match res {
+                Ok(r) => {
+                    serde_json::from_slice::<Reply>(&r.bytes).map_err(|_| format!("{} {}", r.status, r.status_text))
+                }
+                Err(e) => Err(e),
+            };
+            Self::deliver(&tx, &ctx, Event::Reply { what: "chat_agent".into(), result });
+        });
+    }
+
     /// the page a phone plays along on: served (`on`), or stopped; the page itself comes with the state
     fn phone(&self, on: bool) {
         let url = self.url("/api/phone");
@@ -717,6 +740,18 @@ impl Backend {
     }
 
     /// ask for the artwork as a picture to show (arrives as `Event::Preview`)
+    /// starts an agent for the chat (`Some`, of `CHAT_AGENTS`) or stops it: claudius runs it, and the demo has none
+    /// to offer (its state says it starts none); whether it was asked
+    pub fn chat_agent(&mut self, agent: Option<String>) -> bool {
+        match self {
+            Backend::Remote(r) => {
+                r.chat_agent(agent);
+                true
+            }
+            Backend::Mock(_) => false,
+        }
+    }
+
     /// the page a phone plays along on, served or stopped
     pub fn phone(&mut self, on: bool) {
         match self {

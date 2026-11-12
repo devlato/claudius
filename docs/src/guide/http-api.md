@@ -43,6 +43,8 @@ this API, so anything it does you can do with `curl`. The types are plain serde 
 | `/mcp` | the [MCP endpoint](mcp.md#mcp-over-http) |
 | `POST /api/phone` | serves the [page a phone plays along on](phone.md), with a new key (or answers with the one being served): `{"url": "http://192.168.1.23:7879/?key=…", "phones": 0}`, also in the state as `phone`; 503 when the computer is on no network |
 | `DELETE /api/phone` | stops serving it |
+| `POST /api/chat/agent` | `{"agent": "claude"}` (`claude`, `gemini` or `codex`): starts that agent for the [chat](../getting-started/studio.md#talking-to-your-assistant-from-the-studio), which claudius runs on this computer and talks to over the Agent Client Protocol, in place of one running; the state's `chat.agent` names it while it runs. A claudius others reach (`--public`, a token, `--files`) says no, as `chat.starts_agents` does ([security](../engineering/security.md#the-chats-agents)) |
+| `DELETE /api/chat/agent` | stops it |
 | `POST /api/transport` | where the studio's song is, `{"playing": true, "at": 12.5}` (seconds from its start), for the phone's page to follow; the studio sends it as it plays while the page is served |
 | `GET /` and anything else | the web studio; when it is not built, a page that says how to build it |
 
@@ -158,7 +160,7 @@ The MCP tools wait the same way after every edit.
 | `pitch_check` | `PitchCheck` or null | the last [pitch check](voice.md#checking-your-pitch) asked of the person: its `id`, `bpm`, the `notes` to play (`t` and `d` in beats, `p` MIDI), where each phrase's answer goes (`answers`, beats), how long it lasts (`beats`), the asker's `note`, its `status` (`waiting`, `taken` or `cancelled`), and, once sung, claudius' `answer` |
 | `voice` | string or null | the person's voice as their last pitch check heard it, in words |
 | `pieces` | `PiecesView` or null | the auto-sampler's last [offer](samples.md#choosing-the-pieces-first): the `recording`, the take's `seed`, and its `pieces`, each with its `id`, `place` in the recording, `bars`, how `sung` it is, where to hear it as it was cut (`raw`) and `treated`, and its `treatment` in words |
-| `chat` | `ChatView` | the chat with the assistants: its `messages` (the last 200, the oldest first; each with its `id`, one more than the one before, `from` (null for the person, else who wrote it), `text`, `at` in ms since 1970, and `reply_to`), and the assistant `listening` now with `listening_until` (ms since 1970), or null |
+| `chat` | `ChatView` | the chat with the assistants: its `messages` (the last 200, the oldest first; each with its `id`, higher than the one before, after a clear too, `from` (null for the person, else who wrote it), `text`, `at` in ms since 1970, and `reply_to`), and the assistant `listening` now with `listening_until` (ms since 1970), or null |
 | `take_request` | `TakeRequest` or null | the last [take someone asked the person to record](samples.md#a-take-an-assistant-asks-for): its `id`, `from`, `role`, `name` and `note` as `request_take` gave them, its `status` (`waiting`, `taken` or `cancelled`), and, once taken, claudius' `answer` to the take |
 
 ### `SongView`

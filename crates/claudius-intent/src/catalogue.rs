@@ -161,6 +161,13 @@ pub const ENTRIES: &[Entry] = &[
         "",
     ),
     e(
+        "chat",
+        "Chat with an assistant",
+        "write to the agent, talk to it, messages, a conversation, start an agent to talk to, what it answers",
+        "status bar",
+        "",
+    ),
+    e(
         "reference",
         "Script reference",
         "the language, functions, patterns, how to write a script, syntax help",
