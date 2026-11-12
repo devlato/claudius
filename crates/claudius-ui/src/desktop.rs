@@ -4,7 +4,7 @@
 //! an assistant asks for a take, the system says so (a notification, and the Dock or the taskbar asking for attention).
 
 use std::sync::mpsc::{Receiver, channel};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use claudius_api::{State, TakeStatus};
 use eframe::egui;
@@ -31,6 +31,9 @@ pub struct Desktop {
     busy: Option<Job>,
     /// the take request said last
     asked: Option<u64>,
+    /// when the app started: the clock its jobs are timed on, which goes on while the window is hidden, as the
+    /// studio's input time does not
+    born: Instant,
 }
 
 /// the song as Now Playing was told it: its title and length, whether it played, and where, at `when` on the studio's
@@ -77,12 +80,14 @@ impl Desktop {
         });
         #[cfg(target_os = "macos")]
         let _ = notify_rust::set_application("io.github.devlato.claudius");
-        Desktop { media, events, title: String::new(), told: None, busy: None, asked: None }
+        Desktop { media, events, title: String::new(), told: None, busy: None, asked: None, born: Instant::now() }
     }
 
     /// What the system asked of the song since the last frame, done; the song as the system shows it, told; and what
-    /// was done in the background while the window was not in front, said. `now` is the studio's clock.
-    pub fn tick(&mut self, ctx: &egui::Context, state: &State, player: &mut Player, now: f64) {
+    /// was done in the background while the window was not in front, said. The app calls it from its logic, which
+    /// eframe runs while the window is hidden too, and its `ui` not.
+    pub fn tick(&mut self, ctx: &egui::Context, state: &State, player: &mut Player) {
+        let now = self.born.elapsed().as_secs_f64();
         let bpm = state.render.as_ref().map(|r| r.bpm).filter(|b| *b > 0.0).or(state.song.as_ref().map(|s| s.bpm));
         let starts: Vec<f64> = match (&state.song, bpm) {
             (Some(s), Some(bpm)) => s.sections.iter().map(|x| x.start_bar as f64 * 240.0 / bpm).collect(),
@@ -134,7 +139,10 @@ impl Desktop {
                 self.told = Some(Told { song, length, playing, at, when: now });
             }
         }
-        let away = !ctx.input(|i| i.viewport().focused.unwrap_or(true));
+        let away = ctx.input(|i| {
+            let v = i.viewport();
+            !v.focused.unwrap_or(true) || v.minimized == Some(true) || v.occluded == Some(true)
+        });
         let said = state.log.last().map(String::as_str);
         let (busy, done) = step(self.busy.take(), state.busy.as_deref(), away, now, said);
         self.busy = busy;

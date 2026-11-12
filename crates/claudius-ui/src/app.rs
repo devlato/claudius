@@ -1093,6 +1093,9 @@ impl eframe::App for Studio {
         self.link.retry_in = self.backend.retry_in(now);
         self.player.tick();
         self.apply_pending(ctx, now);
+        // the media keys, Now Playing and the notifications, while the window is hidden too
+        #[cfg(not(target_arch = "wasm32"))]
+        self.desktop.tick(ctx, &self.state, &mut self.player);
         self.deliver(now);
         if self.view.download.is_some() {
             ctx.request_repaint_after(Duration::from_millis(100));
@@ -1117,8 +1120,6 @@ impl eframe::App for Studio {
         let now = ctx.input(|i| i.time);
         self.view.anchors = Default::default();
         self.shortcuts(&ctx);
-        #[cfg(not(target_arch = "wasm32"))]
-        self.desktop.tick(&ctx, &self.state, &mut self.player, now);
         #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
         self.run_plan(&ctx, now);
 
