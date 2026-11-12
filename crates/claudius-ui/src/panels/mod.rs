@@ -8,6 +8,7 @@ pub mod harmony;
 pub mod hears;
 pub mod import;
 pub mod inspector;
+pub mod keys;
 pub mod library;
 pub mod log;
 pub mod markdown;
@@ -391,6 +392,8 @@ pub struct View {
     pub import: import::Import,
     /// the command palette (Cmd+K)
     pub palette: palette::Palette,
+    /// the window of the keys the studio answers to
+    pub keys: keys::Keys,
     pub phone: phone::Phone,
     /// the graph tab: the node chosen, and where its canvas looks
     pub graph: graph::GraphView,
@@ -409,11 +412,15 @@ pub struct View {
     pub tour_asks: bool,
     /// the look the studio wears (kept between runs)
     pub look: crate::theme::Look,
+    /// whether a page speaks what has the keyboard (kept between runs; the app's window has the system's screen reader)
+    pub speak: bool,
     pub anchors: crate::tour::Anchors,
     /// the update whose banner was put off with Later (until the next start)
     pub update_dismissed: Option<String>,
     /// "Check for updates" was asked for: say what it found
     pub update_asked: bool,
+    /// the windows open, by the names `closable` gives them, the one opened last at the end
+    pub opened: Vec<&'static str>,
 }
 
 impl Default for View {
@@ -479,6 +486,7 @@ impl Default for View {
             record: record::Record::default(),
             import: import::Import::default(),
             palette: palette::Palette::default(),
+            keys: keys::Keys::default(),
             phone: phone::Phone::default(),
             graph: graph::GraphView::default(),
             melody_style: "line".into(),
@@ -488,8 +496,10 @@ impl Default for View {
             tour: None,
             tour_done: false,
             look: crate::theme::Look::default(),
+            speak: false,
             tour_asks: false,
             anchors: crate::tour::Anchors::default(),
+            opened: Vec::new(),
             update_dismissed: None,
             update_asked: false,
         }
@@ -513,6 +523,48 @@ impl View {
             self.new_song.open = false;
         }
         self.analysis = Some((ok, message));
+    }
+
+    /// the windows Escape closes, each by a name, and whether it is open
+    fn closable(&mut self) -> [(&'static str, &mut bool); 8] {
+        [
+            ("keys", &mut self.keys.open),
+            ("reference", &mut self.reference_open),
+            ("assistants", &mut self.assistants.open),
+            ("phone", &mut self.phone.open),
+            ("publish", &mut self.publish.open),
+            ("import", &mut self.import.open),
+            ("record", &mut self.record.open),
+            ("new song", &mut self.new_song.open),
+        ]
+    }
+
+    /// Keeps the order the windows were opened in (`opened`): once a frame, so that Escape knows the one in front.
+    pub fn note_opened(&mut self) {
+        let open: Vec<&'static str> = self.closable().into_iter().filter(|(_, o)| **o).map(|(w, _)| w).collect();
+        self.opened.retain(|w| open.contains(w));
+        for w in open {
+            if !self.opened.contains(&w) {
+                self.opened.push(w);
+            }
+        }
+    }
+
+    /// Closes the window on top, as Escape does: the one opened last; one that records a take stays. Whether one was
+    /// open.
+    pub fn close_top(&mut self) -> bool {
+        self.note_opened();
+        let recording = self.record.recording();
+        let Some(top) = self.opened.iter().rev().copied().find(|w| !(*w == "record" && recording)) else {
+            return false;
+        };
+        for (w, open) in self.closable() {
+            if w == top {
+                *open = false;
+            }
+        }
+        self.opened.retain(|w| *w != top);
+        true
     }
 }
 
@@ -847,6 +899,20 @@ pub fn page_frame() -> egui::Frame {
 mod tests {
     use super::*;
     use claudius_api::{GenreSampling, RenderView};
+
+    #[test]
+    fn escape_closes_the_window_opened_last_first() {
+        let mut v = View::default();
+        v.new_song.open = true;
+        v.note_opened();
+        v.keys.open = true;
+        v.note_opened();
+        v.assistants.open = true;
+        assert!(v.close_top() && !v.assistants.open && v.keys.open, "the one in front, opened since a frame");
+        assert!(v.close_top() && !v.keys.open && v.new_song.open);
+        assert!(v.close_top() && !v.new_song.open);
+        assert!(!v.close_top(), "none open");
+    }
 
     #[cfg(not(target_arch = "wasm32"))]
     #[test]

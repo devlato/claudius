@@ -294,7 +294,7 @@ impl Palette {
 
 /// what an action does
 #[derive(Clone, Debug, PartialEq)]
-enum Run {
+pub(crate) enum Run {
     NewSong,
     Example,
     Open,
@@ -323,6 +323,8 @@ enum Run {
     Reference,
     Docs,
     Tour,
+    /// the window of the keys the studio answers to
+    Keys,
     Look(Look),
     /// back to before a change made to the song: its id in the history
     GoBack(String),
@@ -344,7 +346,7 @@ fn commands_of(said: String, commands: Vec<Command>) -> Vec<Command> {
 }
 
 /// the action of the catalogue's id, or of a row going back to before a change (`BACK`)
-fn run_of(id: &str) -> Option<Run> {
+pub(crate) fn run_of(id: &str) -> Option<Run> {
     if let Some(change) = id.strip_prefix(BACK) {
         return Some(Run::GoBack(change.to_string()));
     }
@@ -376,6 +378,7 @@ fn run_of(id: &str) -> Option<Run> {
         "reference" => Run::Reference,
         "docs" => Run::Docs,
         "tour" => Run::Tour,
+        "keys" => Run::Keys,
         "look:dark" => Run::Look(Look::Dark),
         "look:light" => Run::Look(Look::Light),
         "look:system" => Run::Look(Look::System),
@@ -569,6 +572,12 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
     }
     let run = picked?;
     cx.view.palette.open = false;
+    act(ctx, cx, run)
+}
+
+/// Does what an action of the catalogue does, picked in the palette or by its key (`keys::answer`); what the app does
+/// itself for it, if anything.
+pub(crate) fn act(ctx: &egui::Context, cx: &mut Cx, run: Run) -> Option<Asked> {
     let example = run == Run::Example;
     match run {
         Run::NewSong | Run::Example => {
@@ -590,8 +599,9 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
         Run::ToStart => cx.player.seek(0.0),
         Run::Stop => cx.player.stop(),
         Run::Loop => cx.view.looping = !cx.view.looping,
-        Run::Undo => cx.out.push(Command::Undo),
-        Run::Redo => cx.out.push(Command::Redo),
+        Run::Undo if cx.state.can_undo => cx.out.push(Command::Undo),
+        Run::Redo if cx.state.can_redo => cx.out.push(Command::Redo),
+        Run::Undo | Run::Redo => {}
         Run::Render => cx.out.push(Command::Render { stems: false }),
         Run::Record => cx.view.record.show(),
         Run::AddRecording => cx.view.import.open = true,
@@ -618,6 +628,7 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
         Run::Reference => cx.view.reference_open = true,
         Run::Docs => ctx.open_url(egui::OpenUrl::new_tab(widgets::DOCS)),
         Run::Tour => return Some(Asked::Tour),
+        Run::Keys => cx.view.keys.open = !cx.view.keys.open,
         Run::Look(look) => {
             cx.view.look = look;
             theme::set_look(ctx, look);

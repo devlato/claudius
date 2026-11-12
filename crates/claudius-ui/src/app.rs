@@ -32,6 +32,9 @@ pub struct Studio {
     /// where the studio was pointed at start (to come back from the demo)
     home: Connection,
     link: Link,
+    /// what had the keyboard as the last frame's ui ended: egui lets go of it on Escape before the studio hears the
+    /// key, and that press is the one that lets go of it, not the one that closes the window on top
+    had_focus: Option<egui::Id>,
     sounds: Option<SoundList>,
     player: Player,
     view: View,
@@ -60,11 +63,15 @@ const UPDATES_TIP: &str = "look for a new release on GitHub once a day and downl
 const STATISTICS_TIP: &str = "a few anonymous counts, each at most once a day: the version, the system, which part you \
                               use, and where a setup or a crash failed; never your songs, files or name (`claudius \
                               telemetry` shows exactly what)";
+#[cfg(target_arch = "wasm32")]
+const SPEAK_TIP: &str = "the page says aloud the control Tab moves to and what it holds, for those who listen rather than \
+                         look; the app's window speaks through the system's screen reader instead";
 
 impl Studio {
     pub fn new(cc: &eframe::CreationContext<'_>, connection: Connection) -> Studio {
         let prefs = crate::settings::Prefs::load(cc.storage);
         theme::apply(&cc.egui_ctx, prefs.look);
+        cc.egui_ctx.options_mut(|o| o.screen_reader = prefs.speak);
         let mut view = View {
             tab: prefs.tab,
             volume: prefs.volume,
@@ -75,6 +82,7 @@ impl Studio {
             sevenths: prefs.sevenths,
             tour_done: prefs.tour_done,
             look: prefs.look,
+            speak: prefs.speak,
             ..View::default()
         };
         view.record.settings = prefs.record;
@@ -102,6 +110,7 @@ impl Studio {
             },
             home: connection,
             link,
+            had_focus: None,
             sounds: None,
             player,
             view,
@@ -451,49 +460,43 @@ impl Studio {
         }
     }
 
+    /// The keys that move about the studio, and the palette's; the keys of its actions are `keys::answer`'s.
     fn shortcuts(&mut self, ctx: &egui::Context) {
-        // the palette opens from anywhere, a field being typed in too
-        if ctx.input_mut(|i| i.consume_key(Modifiers::COMMAND, Key::K)) {
+        self.view.note_opened();
+        // the palette opens from anywhere, a field being typed in too, with Cmd+K or Cmd+P as editors' palettes do
+        if ctx.input_mut(|i| i.consume_key(Modifiers::COMMAND, Key::K) || i.consume_key(Modifiers::COMMAND, Key::P)) {
             self.view.palette.toggle();
         }
-        if ctx.text_edit_focused() || self.view.new_song.open || self.view.palette.open {
+        if ctx.text_edit_focused() || self.view.palette.open {
             return;
         }
-        // an open list or menu moves with the arrows: they are left to it
+        // an open list or menu moves with the arrows, picks with Enter and closes with Escape, and a control that has
+        // the keyboard answers to Enter: they are left to them, and Escape to the tour while it shows
         let menu = egui::Popup::is_any_open(ctx);
-        let (space, redo, undo, home, l, left, right) = ctx.input_mut(|i| {
+        // what had the keyboard as this frame began, before egui let go of it for an Escape: the control the last
+        // frame's ui left focused, unless egui let go of it as that frame ended (one not drawn, a tab changed)
+        let had = self.had_focus.filter(|id| ctx.memory(|m| m.had_focus_last_frame(*id)));
+        let focused = ctx.memory(|m| m.focused()).or(had);
+        if !menu && self.view.tour.is_none() && ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape)) {
+            // the control lets go of the keyboard first; then the window on top closes, else the track selected goes
+            match focused {
+                Some(id) => ctx.memory_mut(|m| m.surrender_focus(id)),
+                None if self.view.close_top() => {}
+                None => self.view.track = None,
+            }
+        }
+        if self.view.new_song.open {
+            return;
+        }
+        let free = !menu && focused.is_none();
+        let (left, right, up, down) = ctx.input_mut(|i| {
             (
-                i.consume_key(Modifiers::NONE, Key::Space),
-                i.consume_key(Modifiers::COMMAND | Modifiers::SHIFT, Key::Z),
-                i.consume_key(Modifiers::COMMAND, Key::Z),
-                i.consume_key(Modifiers::NONE, Key::Home),
-                i.consume_key(Modifiers::NONE, Key::L),
-                !menu && i.consume_key(Modifiers::NONE, Key::ArrowLeft),
-                !menu && i.consume_key(Modifiers::NONE, Key::ArrowRight),
+                free && i.consume_key(Modifiers::NONE, Key::ArrowLeft),
+                free && i.consume_key(Modifiers::NONE, Key::ArrowRight),
+                free && i.consume_key(Modifiers::NONE, Key::ArrowUp),
+                free && i.consume_key(Modifiers::NONE, Key::ArrowDown),
             )
         });
-        // while a take records, the recorder plays the song: Space ends the take, as a DAW's does
-        if space && self.view.record.recording() {
-            self.view.record.stop = true;
-        } else if space && self.player.has_audio() {
-            if self.player.is_playing() { self.player.pause() } else { self.player.play() }
-        }
-        if redo && self.state.can_redo {
-            self.out.push(Command::Redo);
-        } else if undo && self.state.can_undo {
-            self.out.push(Command::Undo);
-        }
-        if home {
-            self.player.seek(0.0);
-        }
-        if l {
-            self.view.looping = !self.view.looping;
-        }
-        // the signal flow large, in the arrangement's place, and back
-        if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::G)) && self.state.song.is_some() {
-            self.view.flow_large = !self.view.flow_large;
-            self.view.graph.scene = egui::Rect::ZERO;
-        }
         let n = self.state.song.as_ref().map_or(0, |s| s.sections.len());
         if left && self.view.section > 0 {
             self.view.section -= 1;
@@ -501,23 +504,15 @@ impl Studio {
         if right && self.view.section + 1 < n {
             self.view.section += 1;
         }
-        // the arrangement's cells: the paint tool, the track selected and the cell it makes with the section (the keys
-        // that act on a cell are left to others while no track is selected, the tour's Escape among them, and to an
-        // open menu or list, whose item Enter picks and which Escape closes)
-        let held = self.view.track.is_some() && !menu;
-        let (b, up, down, enter, delete, escape) = ctx.input_mut(|i| {
+        // the arrangement's cells: the track selected and the cell it makes with the section (the keys that act on a
+        // cell are left to others while no track is selected)
+        let held = self.view.track.is_some() && free;
+        let (enter, delete) = ctx.input_mut(|i| {
             (
-                i.consume_key(Modifiers::NONE, Key::B),
-                !menu && i.consume_key(Modifiers::NONE, Key::ArrowUp),
-                !menu && i.consume_key(Modifiers::NONE, Key::ArrowDown),
                 held && i.consume_key(Modifiers::NONE, Key::Enter),
                 held && (i.consume_key(Modifiers::NONE, Key::Delete) || i.consume_key(Modifiers::NONE, Key::Backspace)),
-                held && i.consume_key(Modifiers::NONE, Key::Escape),
             )
         });
-        if b {
-            self.view.paint = !self.view.paint;
-        }
         let Some(song) = self.state.song.as_ref() else { return };
         let row = self.view.track.as_ref().and_then(|t| song.layers.iter().position(|l| l == t));
         let moved = match (row, up, down) {
@@ -528,9 +523,6 @@ impl Studio {
         };
         if let Some(r) = moved {
             self.view.track = song.layers.get(r).cloned();
-        }
-        if escape {
-            self.view.track = None;
         }
         if let (Some(track), Some(s)) = (self.view.track.clone(), song.sections.get(self.view.section)) {
             let on = s.layers.contains(&track);
@@ -661,6 +653,21 @@ impl Studio {
         plan.tell("log", &self.state.log.last().cloned().unwrap_or_default());
         plan.tell("graph", &self.view.graph.selected.clone().unwrap_or_default());
         plan.tell("palette", &self.view.palette.told());
+        plan.tell("tab", &format!("{:?}", self.view.tab));
+        let v = &self.view;
+        let windows = [
+            ("keys", v.keys.open),
+            ("new song", v.new_song.open),
+            ("record", v.record.open),
+            ("import", v.import.open),
+            ("publish", v.publish.open),
+            ("phone", v.phone.open),
+            ("assistants", v.assistants.open),
+            ("reference", v.reference_open),
+        ];
+        let open: Vec<&str> = windows.iter().filter(|(_, o)| *o).map(|(w, _)| *w).collect();
+        let open = if open.is_empty() { "none".to_string() } else { open.join(", ") };
+        plan.tell("windows", &open);
         plan.tell("phone", &self.state.phone.as_ref().map(|p| p.url.clone()).unwrap_or_default());
         plan.tell("phones", &self.state.phone.as_ref().map(|p| p.phones.to_string()).unwrap_or_default());
     }
@@ -861,6 +868,20 @@ impl Studio {
                         self.view.assistants.show();
                         ui.close();
                     }
+                    if ui.button("Keyboard shortcuts  ?").clicked() {
+                        self.view.keys.open = true;
+                        ui.close();
+                    }
+                    // a page speaks what has the keyboard as it moves; the app's window is the screen reader's
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        let mut speak = ui.ctx().options(|o| o.screen_reader);
+                        let r = ui.checkbox(&mut speak, "Speak what has the keyboard");
+                        if r.on_hover_text(SPEAK_TIP).changed() {
+                            ui.ctx().options_mut(|o| o.screen_reader = speak);
+                            self.view.speak = speak;
+                        }
+                    }
                     ui.menu_button("Look", |ui| {
                         for look in theme::Look::ALL {
                             if ui.radio(self.view.look == look, look.name()).clicked() {
@@ -911,7 +932,7 @@ impl Studio {
                     self.view.palette.toggle();
                 }
                 let keys = format!(
-                    "Space play · arrows pick a cell · Enter on/off · B paint · L loop · {cmd}+Z undo · Shift+{cmd}+Z redo"
+                    "Space play · arrows pick a cell · Enter on/off · B paint · L loop · {cmd}+Z undo · ? every key"
                 );
                 // the keys, when there is room for them beside what the bar says on its left
                 let width = ui.painter().layout_no_wrap(keys.clone(), theme::prop(11.0), TEXT_FAINT.into()).size().x;
@@ -1234,8 +1255,11 @@ impl eframe::App for Studio {
             panels::import::dialog(&ctx, &mut cx);
             panels::import::pieces(&ctx, &mut cx);
             panels::phone::dialog(&ctx, &mut cx);
+            panels::keys::dialog(&ctx, &mut cx);
             cx.view.palette.can_hear = can_hear;
-            match panels::palette::show(&ctx, &mut cx) {
+            // an action of the palette's, picked there or by its key
+            let keyed = panels::keys::answer(&ctx, &mut cx);
+            match panels::palette::show(&ctx, &mut cx).or(keyed) {
                 Some(panels::palette::Asked::Open) => crate::pick::choose(&ctx, crate::pick::Want::Song),
                 Some(panels::palette::Asked::Tour) => self.start_tour(0),
                 None => {}
@@ -1369,6 +1393,7 @@ impl eframe::App for Studio {
         if let Some(w) = wake {
             ctx.request_repaint_after(Duration::from_secs_f64(w));
         }
+        self.had_focus = ctx.memory(|m| m.focused());
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {

@@ -8,3 +8,15 @@ reason = "paste is unmaintained (no known vulnerability): a compile-time macro t
 [[IgnoredVulns]]
 id = "RUSTSEC-2026-0249"
 reason = "smartstring is unmaintained (no known vulnerability): Rhai's string type, which claudius' scripts run on"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0370"
+reason = "zvariant is unmaintained (no known vulnerability): zbus 6 took it in, and AccessKit's Linux backend, which the studio speaks to screen readers through, is on zbus 5"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0371"
+reason = "zbus_names is unmaintained (no known vulnerability): zbus 6 took it in, and AccessKit's Linux backend is on zbus 5"
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0372"
+reason = "zvariant_derive is unmaintained (no known vulnerability): zbus 6 took it in, and AccessKit's Linux backend is on zbus 5"

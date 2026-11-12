@@ -38,7 +38,7 @@ pub const ENTRIES: &[Entry] = &[
         "New song...",
         "make or create a song, generate, compose, write a track in a genre, start over",
         "toolbar",
-        "",
+        "N",
     ),
     e(
         "example",
@@ -47,8 +47,8 @@ pub const ENTRIES: &[Entry] = &[
         "New song, From an example",
         "",
     ),
-    e("open", "Open a song...", "load a file, a blueprint, a script, a project", "toolbar", ""),
-    e("save", "Save or download", "download, export, keep the song as a file, wav mp3 flac audio", "toolbar", ""),
+    e("open", "Open a song...", "load a file, a blueprint, a script, a project", "toolbar", "Cmd+O"),
+    e("save", "Save or download", "download, export, keep the song as a file, wav mp3 flac audio", "toolbar", "Cmd+S"),
     e(
         "render",
         "Render",
@@ -63,7 +63,7 @@ pub const ENTRIES: &[Entry] = &[
         "microphone mic, sing, a voice, track vocals, lay down a part, play a guitar or an instrument, a MIDI \
          keyboard, record over the song",
         "transport, the red button",
-        "",
+        "R",
     ),
     e(
         "add_recording",
@@ -81,20 +81,20 @@ pub const ENTRIES: &[Entry] = &[
         "",
     ),
     e("paint", "Paint tool", "draw cells in the arrangement, switch parts on and off", "arrangement", "B"),
-    e("tab:drums", "Drums", "the beat, steps, the sequencer, kick snare hat, drum pattern", "tab", ""),
-    e("tab:instruments", "Instruments", "parts, sounds, synths, bass lead pad, layers", "tab", ""),
-    e("tab:notes", "Notes", "the piano roll, a melody, MIDI notes", "tab", ""),
-    e("tab:chords", "Chords", "harmony, the progression, change the key, the scale, the mode", "tab", ""),
+    e("tab:drums", "Drums", "the beat, steps, the sequencer, kick snare hat, drum pattern", "tab", "1"),
+    e("tab:instruments", "Instruments", "parts, sounds, synths, bass lead pad, layers", "tab", "2"),
+    e("tab:notes", "Notes", "the piano roll, a melody, MIDI notes", "tab", "3"),
+    e("tab:chords", "Chords", "harmony, the progression, change the key, the scale, the mode", "tab", "4"),
     e(
         "tab:mixer",
         "Mixer",
         "levels, volume, louder or quieter, turn it up or down, mute, solo, pan left or right, faders, effects, fx, \
          the mix, reverb, echo, delay, distortion, eq, compression",
         "tab",
-        "",
+        "5",
     ),
-    e("tab:sounds", "Sounds", "samples, swap a sound, kits, browse the library", "tab", ""),
-    e("tab:script", "Script", "code, rhai, edit the song as text", "tab", ""),
+    e("tab:sounds", "Sounds", "samples, swap a sound, kits, browse the library", "tab", "6"),
+    e("tab:script", "Script", "code, rhai, edit the song as text", "tab", "7"),
     e(
         "flow_large",
         "Signal flow, large",
@@ -102,8 +102,8 @@ pub const ENTRIES: &[Entry] = &[
         "arrangement, its Signal flow chip",
         "G",
     ),
-    e("tab:flow", "Signal flow", "the graph, a whiteboard, routing, buses, the effects chain", "tab", ""),
-    e("tab:log", "Log", "history, messages, what happened, what claudius did, the changes made", "tab", ""),
+    e("tab:flow", "Signal flow", "the graph, a whiteboard, routing, buses, the effects chain", "tab", "8"),
+    e("tab:log", "Log", "history, messages, what happened, what claudius did, the changes made", "tab", "9"),
     e(
         "variations",
         "Try variations",
@@ -175,6 +175,13 @@ pub const ENTRIES: &[Entry] = &[
         "",
     ),
     e("docs", "Read the docs", "help, the manual, a guide, a tutorial, documentation, how to", "on the web", ""),
+    e(
+        "keys",
+        "Keyboard shortcuts",
+        "keys, hotkeys, the keyboard, what each key does, without a mouse, accessibility, a screen reader",
+        "? menu",
+        "?",
+    ),
     e("look:dark", "Dark look", "dark mode, a dark theme, night, darker colours", "? menu, Look", ""),
     e(
         "look:light",
@@ -208,5 +215,12 @@ mod tests {
         assert_eq!((ids.len(), names.len()), (ENTRIES.len(), ENTRIES.len()));
         assert!(ENTRIES.iter().all(|e| !e.words.is_empty()));
         assert_eq!(entry("tab:mixer").map(|e| e.name), Some("Mixer"));
+    }
+
+    #[test]
+    fn no_two_actions_answer_to_the_same_key() {
+        let keyed: Vec<&str> = ENTRIES.iter().map(|e| e.keys).filter(|k| !k.is_empty()).collect();
+        let keys: std::collections::HashSet<&str> = keyed.iter().copied().collect();
+        assert_eq!(keys.len(), keyed.len(), "{keyed:?}");
     }
 }

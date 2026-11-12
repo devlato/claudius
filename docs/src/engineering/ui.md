@@ -62,8 +62,18 @@ The studio is still being finished; this page describes its structure, which is 
 | verdict | read only: the total, a bar per score, issues with their targets, the ears, the tonal balance | |
 | log | read only: `State.log`, filterable | |
 
-The shortcuts are Space (play or pause), the arrow keys (pick a section), L (loop the section), Home (to the start),
-Cmd or Ctrl+Z (undo) and Shift+Cmd or Ctrl+Z (redo), active when no text field has focus. Cmd or Ctrl+K opens the
+The keys of the studio's actions are the catalogue's (`catalogue::ENTRIES`' `keys`: Space, Home, L, N, R, B, G, 1 to
+9 for the tabs, Cmd+O, Cmd+S, Cmd+Z, Shift+Cmd+Z, ?), which `panels/keys.rs` answers by doing what the palette does
+for the entry (`palette::act`), so a key, the palette and its button never do different things; a test holds every
+key to one egui reads, and no two entries to the same. `keys::dialog` lists them with the keys that move about
+(`MOVING`). The keys that move about are `app.rs`'s: the arrows (a section, a track), Enter and Delete (a cell), and
+Escape, which lets go of the control that has the keyboard, then closes the window on top (`View::close_top`: the one
+opened last, as `View::note_opened` keeps them in the order they opened, once a frame), then lets go of the track. None of them is taken while a field is typed in, and Space, Enter and the arrows are left to a
+control that has the keyboard (egui presses a focused control on Space or Enter, and the knob and the fader move on
+the arrows). The painted controls say what they are to AccessKit (`widgets::accessible`: a button, a toggle, a slider
+with its value) and draw a ring while they have the keyboard; eframe's `accesskit` gives them to the system's screen
+reader, and its `web_screen_reader` has a page speak what has the keyboard when **Speak what has the keyboard** is on
+(`View::speak`, kept in the settings). Cmd or Ctrl+K, or Cmd+P, opens the
 command palette (`panels/palette.rs`) from anywhere, a field being typed in too. Its actions are `claudius-intent`'s
 catalogue (`catalogue::ENTRIES`: each action's id, its name, the words it is also found by, where it lives and its
 key), and the palette maps each id to what it does (`run_of`); a test holds it to every entry and every dock tab, so
