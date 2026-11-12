@@ -151,7 +151,7 @@ jobs:
       - name: Linux packages
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get install -y -qq --no-install-recommends rpm desktop-file-utils
+          sh scripts/ci/apt-get.sh install rpm desktop-file-utils
           sh scripts/package/linux.sh "target/dist/claudius-$VERSION-$TARGET.tar.gz" target/dist
       - name: Windows installer
         if: runner.os == 'Windows'
