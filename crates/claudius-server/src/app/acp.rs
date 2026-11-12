@@ -12,13 +12,14 @@ use std::sync::{Arc, Weak};
 use agent_client_protocol::schema::ProtocolVersion;
 use agent_client_protocol::v1::ConnectionTo;
 use agent_client_protocol::v1::schema::{
-    ContentBlock, InitializeRequest, McpServer, McpServerStdio, NewSessionRequest, PermissionOptionKind, PromptRequest,
-    RequestPermissionOutcome, RequestPermissionRequest, RequestPermissionResponse, SelectedPermissionOutcome,
-    SessionNotification, SessionUpdate, TextContent, ToolCallUpdateFields, ToolKind,
+    CancelNotification, ContentBlock, InitializeRequest, McpServer, McpServerStdio, NewSessionRequest,
+    PermissionOptionKind, PromptRequest, RequestPermissionOutcome, RequestPermissionRequest, RequestPermissionResponse,
+    SelectedPermissionOutcome, SessionNotification, SessionUpdate, TextContent, ToolCallUpdateFields, ToolKind,
 };
 use agent_client_protocol::{AcpAgent, Agent, ConnectTo};
 use claudius_api::{CHAT_AGENTS, Reply};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
+use tokio::sync::oneshot;
 
 use super::{App, no, ok};
 
@@ -39,10 +40,12 @@ pub trait Chatting: Send + Sync + 'static {
     fn gone(&self, from: &str, why: Option<String>);
 }
 
-/// an agent running: the person's messages go to it through this, and it stops when this goes
+/// an agent running: the person's messages go to it through this, and it stops when this goes, an answer it is in the
+/// middle of too
 pub struct Running {
     pub name: String,
     prompts: UnboundedSender<String>,
+    stop: Option<oneshot::Sender<()>>,
 }
 
 impl Running {
@@ -50,6 +53,33 @@ impl Running {
     pub fn prompt(&self, text: &str) -> bool {
         self.prompts.send(text.to_string()).is_ok()
     }
+}
+
+impl Drop for Running {
+    fn drop(&mut self) {
+        if let Some(stop) = self.stop.take() {
+            let _ = stop.send(());
+        }
+    }
+}
+
+/// The answer to an agent's asking to use a tool: one of claudius's own is allowed; anything else is refused with the
+/// refusal it offers, which lets it go on without the tool (a cancel would end its turn), and the chat says so
+/// (`Some`, what it asked for).
+fn permission(r: &RequestPermissionRequest) -> (RequestPermissionOutcome, Option<String>) {
+    let offered = |kinds: [PermissionOptionKind; 2]| {
+        kinds
+            .iter()
+            .find_map(|kind| r.options.iter().find(|o| o.kind == *kind))
+            .map(|o| RequestPermissionOutcome::Selected(SelectedPermissionOutcome::new(o.option_id.clone())))
+    };
+    if claudius_own(&r.tool_call.fields)
+        && let Some(allow) = offered([PermissionOptionKind::AllowOnce, PermissionOptionKind::AllowAlways])
+    {
+        return (allow, None);
+    }
+    let refused = offered([PermissionOptionKind::RejectOnce, PermissionOptionKind::RejectAlways]);
+    (refused.unwrap_or(RequestPermissionOutcome::Cancelled), Some(r.tool_call.fields.title.clone().unwrap_or_default()))
 }
 
 /// Whether a tool an agent asks to use is one of claudius's own: named for claudius, as the agent names its MCP tools
@@ -80,15 +110,19 @@ pub fn start(
     chat: Arc<dyn Chatting>,
 ) -> Running {
     let (tx, rx) = unbounded_channel();
+    let (stop, stopped) = oneshot::channel();
     let who = name.clone();
     std::thread::spawn(move || {
         let why = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
-            Ok(rt) => rt.block_on(session(&who, transport, mcp, cwd, chat.clone(), rx)).err().map(|e| e.to_string()),
+            Ok(rt) => {
+                let ran = rt.block_on(session(&who, transport, mcp, cwd, chat.clone(), rx, stopped));
+                ran.err().map(|e| e.to_string())
+            }
             Err(e) => Some(e.to_string()),
         };
         chat.gone(&who, why);
     });
-    Running { name, prompts: tx }
+    Running { name, prompts: tx, stop: Some(stop) }
 }
 
 async fn session(
@@ -98,6 +132,7 @@ async fn session(
     cwd: PathBuf,
     chat: Arc<dyn Chatting>,
     mut prompts: UnboundedReceiver<String>,
+    mut stop: oneshot::Receiver<()>,
 ) -> Result<(), agent_client_protocol::Error> {
     let (heard, asked, answered) = (chat.clone(), chat.clone(), chat);
     let (n1, n2, n3) = (name.to_string(), name.to_string(), name.to_string());
@@ -111,7 +146,17 @@ async fn session(
                             heard.stream(&n1, &t.text);
                         }
                     }
-                    SessionUpdate::ToolCall(t) => heard.note(&n1, &format!("uses {}", tool(&t.title))),
+                    // claudius's own tools, as it uses them; another is said when it asks for it and is refused
+                    SessionUpdate::ToolCall(t) => {
+                        let fields = ToolCallUpdateFields::new()
+                            .title(t.title.clone())
+                            .name(t.name.clone())
+                            .kind(t.kind)
+                            .locations(t.locations.clone());
+                        if claudius_own(&fields) {
+                            heard.note(&n1, &format!("uses {}", tool(&t.title)));
+                        }
+                    }
                     _ => {}
                 }
                 Ok(())
@@ -120,23 +165,11 @@ async fn session(
         )
         .on_receive_request(
             async move |r: RequestPermissionRequest, responder, _cx| {
-                let title = r.tool_call.fields.title.clone().unwrap_or_default();
-                let allow = [PermissionOptionKind::AllowOnce, PermissionOptionKind::AllowAlways]
-                    .iter()
-                    .find_map(|kind| r.options.iter().find(|o| o.kind == *kind))
-                    .filter(|_| claudius_own(&r.tool_call.fields));
-                match allow {
-                    Some(o) => responder.respond(RequestPermissionResponse::new(RequestPermissionOutcome::Selected(
-                        SelectedPermissionOutcome::new(o.option_id.clone()),
-                    ))),
-                    None => {
-                        asked.note(
-                            &n2,
-                            &format!("asked to {title}: here it may use claudius's tools, and nothing else"),
-                        );
-                        responder.respond(RequestPermissionResponse::new(RequestPermissionOutcome::Cancelled))
-                    }
+                let (outcome, refused) = permission(&r);
+                if let Some(title) = refused {
+                    asked.note(&n2, &format!("asked to {title}: here it may use claudius's tools, and nothing else"));
                 }
+                responder.respond(RequestPermissionResponse::new(outcome))
             },
             agent_client_protocol::on_receive_request!(),
         )
@@ -147,11 +180,26 @@ async fn session(
                 new = new.mcp_servers(vec![McpServer::Stdio(McpServerStdio::new("claudius", command).args(args))]);
             }
             let s = conn.send_request(new).block_task().await?;
-            while let Some(text) = prompts.recv().await {
+            loop {
+                let text = tokio::select! {
+                    text = prompts.recv() => match text {
+                        Some(text) => text,
+                        None => break,
+                    },
+                    _ = &mut stop => break,
+                };
                 let prompt = PromptRequest::new(s.session_id.clone(), vec![ContentBlock::Text(TextContent::new(text))]);
-                let done = conn.send_request(prompt).block_task().await;
-                answered.done(&n3);
-                done?;
+                tokio::select! {
+                    done = conn.send_request(prompt).block_task() => {
+                        answered.done(&n3);
+                        done?;
+                    }
+                    // stopped in the middle of an answer: the agent is told, and the connection ends with its process
+                    _ = &mut stop => {
+                        let _ = conn.send_notification(CancelNotification::new(s.session_id.clone()));
+                        break;
+                    }
+                }
             }
             Ok(())
         })
@@ -165,34 +213,42 @@ struct ToChat {
     n: u64,
 }
 
+impl ToChat {
+    /// whether it is still the agent running: one the person stopped, or started another in place of, writes nothing
+    /// more but that it is gone
+    fn current(&self, s: &super::Session) -> bool {
+        s.agent.as_ref().is_some_and(|(n, _)| *n == self.n)
+    }
+}
+
 impl Chatting for ToChat {
     fn stream(&self, from: &str, text: &str) {
         if let Some(app) = self.app.upgrade() {
-            app.update(|s| s.chat.stream(from, text));
+            app.update(|s| self.current(s).then(|| s.chat.stream(from, text)));
         }
     }
 
     fn done(&self, _: &str) {
         if let Some(app) = self.app.upgrade() {
-            app.update(|s| s.chat.finish());
+            app.update(|s| self.current(s).then(|| s.chat.finish()));
         }
     }
 
     fn note(&self, from: &str, text: &str) {
         if let Some(app) = self.app.upgrade() {
-            app.update(|s| s.chat.note(from, text));
+            app.update(|s| self.current(s).then(|| s.chat.note(from, text)));
         }
     }
 
     fn gone(&self, from: &str, why: Option<String>) {
         let Some(app) = self.app.upgrade() else { return };
         app.update(|s| {
-            // gone of itself: one the person stopped, or started another in place of, is not the one running
-            if s.agent.as_ref().is_some_and(|(n, _)| *n == self.n) {
+            // gone of itself; one stopped, or replaced, had what it was writing kept as it went
+            if self.current(s) {
                 s.agent = None;
                 s.chat.unhold(from);
+                s.chat.finish();
             }
-            s.chat.finish();
             s.chat.note(from, &why.map_or_else(|| "stopped".to_string(), |e| format!("stopped: {e}")));
         });
     }
@@ -246,6 +302,8 @@ impl App {
         let chat = Arc::new(ToChat { app: Arc::downgrade(self), n });
         let running = start(name.to_string(), transport, mcp, self.songs.clone(), chat);
         self.update(|s| {
+            // what the one it replaces was writing is kept as far as it went
+            s.chat.finish();
             s.agent = Some((n, running));
             s.chat.hold(name);
             s.version + 1
@@ -255,9 +313,10 @@ impl App {
     /// stops the agent claudius started for the chat
     pub fn stop_agent(&self) -> Reply {
         let (gone, v) = self.update(|s| {
-            let gone = s.agent.take().map(|(_, a)| a.name);
+            let gone = s.agent.take().map(|(_, a)| a.name.clone());
             if let Some(name) = &gone {
                 s.chat.unhold(name);
+                s.chat.finish();
             }
             (gone, s.version + 1)
         });
@@ -296,6 +355,89 @@ mod tests {
         fn gone(&self, from: &str, _: Option<String>) {
             self.0.lock().unwrap().push(format!("{from} is gone"));
         }
+    }
+
+    /// an agent that starts to answer, and takes its time over the rest
+    async fn slow(peer: Channel) -> Result<(), agent_client_protocol::Error> {
+        Agent
+            .v1()
+            .on_receive_request(
+                async move |r: InitializeRequest, responder, _cx| {
+                    responder.respond(InitializeResponse::new(r.protocol_version))
+                },
+                agent_client_protocol::on_receive_request!(),
+            )
+            .on_receive_request(
+                async move |_: NewSessionRequest, responder, _cx| {
+                    responder.respond(NewSessionResponse::new(SessionId::new("s")))
+                },
+                agent_client_protocol::on_receive_request!(),
+            )
+            .on_receive_request(
+                async move |r: PromptRequest, responder, cx| {
+                    let chunk = ContentChunk::new(ContentBlock::Text(TextContent::new("let me think")));
+                    let update = SessionUpdate::AgentMessageChunk(chunk);
+                    cx.send_notification(SessionNotification::new(r.session_id.clone(), update))?;
+                    tokio::time::sleep(Duration::from_secs(30)).await;
+                    responder.respond(PromptResponse::new(StopReason::EndTurn))
+                },
+                agent_client_protocol::on_receive_request!(),
+            )
+            .connect_to(peer)
+            .await
+    }
+
+    /// what `told` holds once it has `seen`, or after two seconds
+    fn once(told: &Told, seen: &str) -> Vec<String> {
+        for _ in 0..200 {
+            if told.0.lock().unwrap().iter().any(|t| t == seen) {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        told.0.lock().unwrap().clone()
+    }
+
+    #[test]
+    fn an_agent_stopped_in_the_middle_of_an_answer_goes_and_writes_no_more() {
+        let (ours, theirs) = Channel::duplex();
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+            let _ = rt.block_on(slow(theirs));
+        });
+        let told = Arc::new(Told::default());
+        let running = start("Slow".into(), ours, None, std::env::temp_dir(), told.clone());
+        assert!(running.prompt("what next?"));
+        once(&told, "Slow writes \"let me think\"");
+        drop(running);
+        let said = once(&told, "Slow is gone");
+        assert!(said.iter().any(|t| t == "Slow is gone"), "it goes at once, not when its answer would end: {said:?}");
+        assert!(!said.iter().any(|t| t == "Slow is done"), "{said:?}");
+    }
+
+    #[test]
+    fn a_tool_refused_is_refused_as_the_agent_offers_so_that_its_turn_goes_on() {
+        use agent_client_protocol::v1::schema::{PermissionOption, ToolCallUpdate};
+        let both = || {
+            vec![
+                PermissionOption::new("yes", "Allow", PermissionOptionKind::AllowOnce),
+                PermissionOption::new("no", "Reject", PermissionOptionKind::RejectOnce),
+            ]
+        };
+        let asked = |title: &str, options: Vec<PermissionOption>| {
+            let call = ToolCallUpdate::new("t", ToolCallUpdateFields::new().title(title.to_string()));
+            RequestPermissionRequest::new(SessionId::new("s"), call, options)
+        };
+        let chosen = |o: RequestPermissionOutcome| match o {
+            RequestPermissionOutcome::Selected(s) => s.option_id.to_string(),
+            _ => "cancelled".to_string(),
+        };
+        let (allowed, refused) = permission(&asked("mcp__claudius__get_song", both()));
+        assert_eq!((chosen(allowed), refused), ("yes".to_string(), None));
+        let (outcome, refused) = permission(&asked("Bash: ls", both()));
+        assert_eq!((chosen(outcome), refused.as_deref()), ("no".to_string(), Some("Bash: ls")));
+        let only = vec![PermissionOption::new("yes", "Allow", PermissionOptionKind::AllowOnce)];
+        assert_eq!(chosen(permission(&asked("Bash: ls", only)).0), "cancelled", "none offered to refuse with");
     }
 
     /// an agent that answers each prompt with what it heard, in two pieces
