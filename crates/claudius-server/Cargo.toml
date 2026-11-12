@@ -17,7 +17,7 @@ claudius = { path = "../claudius", default-features = false, features = ["native
 claudius-api = { path = "../claudius-api", features = ["schema"] }
 claudius-intent = { path = "../claudius-intent" }
 claudius-session = { path = "../claudius-session" }
-claudius-packs = { version = "0.6.0", path = "../claudius-packs" }
+claudius-packs = { version = "0.7.0", path = "../claudius-packs" }
 dirs = "7"
 getrandom = "0.4"
 # the agents claudius starts itself and talks to in the studio's chat (Claude Code, Gemini CLI, Codex)
@@ -34,7 +34,7 @@ tracing = "0.1.44"
 ureq = { version = "3", features = ["json"] }
 
 [dev-dependencies]
-claudius-decode = { version = "0.6.0", path = "../claudius-decode" }
+claudius-decode = { version = "0.7.0", path = "../claudius-decode" }
 image = { version = "0.25", default-features = false, features = ["png"] }
 tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros"] }
 tower = { version = "0.5", features = ["util"] }
