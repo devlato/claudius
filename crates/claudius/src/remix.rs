@@ -397,8 +397,9 @@ const LONGEST: usize = 32;
 /// The song going on through the recording, a section at a time. Each of its sections that plays the hook (`PHRASE`)
 /// or the other passage (`SECOND`), but its intro, breaks and outro, plays bars of the recording on end, cut by `store`
 /// and played as the hook is, on a loop track of its own (`sample3`, `sample4` ...) and on those bars' chords (`A3`,
-/// `A4` ...): from where it has the most of them, up to as many as the section has (`LONGEST` at most, a whole number
-/// of the hook's), while they are of the same kind (a hook's or a drop's, or the rest's) and no section has played them.
+/// `A4` ...): from where it has the most of them, up to as many as the section holds (half as many as its bars in
+/// double time, twice as many in half time; `LONGEST` at most, a whole number of the hook's), while they are of the
+/// same kind (a hook's or a drop's, or the rest's) and no section has played them.
 /// Where it may start: the first of the hook's sections from the hook, the first of the other passage's from it, and
 /// each from any of `lifts`, or of `rest`, not played yet (the other's, once its own are all played); so that the song
 /// goes on through the recording rather than round a passage. A section whose bars would be the hook or the other
@@ -416,6 +417,12 @@ fn go_through(
     let Some(phrase) = template(PHRASE) else { return Ok(Vec::new()) };
     let second = template(SECOND).unwrap_or_else(|| phrase.clone());
     let semis = phrase.transpose;
+    // the song's bars to each of the recording's, as the hook's loop spans them: two in double time, half of one in
+    // half time
+    let per = match &phrase.sound {
+        Sound::Loop { beats, .. } if *beats > 0.0 => beats / (hook.count as f64 * 4.0),
+        _ => 1.0,
+    };
     // each lane: the track its sections play, as which a passage plays, and where its first section starts
     let base = [Some(hook.first), verse.map(|v| v.first)];
     let mut lanes = [(PHRASE, phrase, base[0]), (SECOND, second, base[1])];
@@ -434,7 +441,7 @@ fn go_through(
             continue;
         }
         let Some(lane) = lanes.iter().position(|(name, ..)| s.layers.iter().any(|l| l == *name)) else { continue };
-        let most = (s.bars as usize).min(LONGEST);
+        let most = ((s.bars as f64 / per + 1e-6) as usize).min(LONGEST);
         let length = |first: usize| {
             let on = (first..end).take(most).take_while(|&b| !played.contains(&b) && kind(b) == kind(first)).count();
             on / hook.count * hook.count
@@ -1171,9 +1178,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn a_flip_goes_on_through_the_recording_rather_than_round_its_hook_and_one_passage() {
-        let a = heard_through();
+    /// a hundred seconds of `heard_through`, its hooks louder than the rest
+    fn played_through() -> Stereo {
         let mut x = Stereo::zeros((100.0 * SRF) as usize);
         for i in 0..x.len() {
             let t = i as f64 / SRF;
@@ -1181,6 +1187,65 @@ mod tests {
             let v = loud * (std::f64::consts::TAU * 220.0 * t).sin() as f32;
             (x.l[i], x.r[i]) = (v, v);
         }
+        x
+    }
+
+    #[test]
+    fn a_flip_in_double_time_plays_as_many_of_the_recordings_bars_as_its_sections_hold() {
+        // verses of sixteen bars on end, half of which a section of sixteen of the song's bars holds in double time
+        let kinds = [(0.5, SectionKind::Verse, 16), (0.9, SectionKind::Hook, 8), (0.55, SectionKind::Verse, 16)];
+        let kinds = kinds.into_iter().chain([(0.85, SectionKind::Hook, 8), (0.3, SectionKind::Outro, 8)]);
+        let mut start = 0;
+        let sections = kinds
+            .map(|(e, k, n)| {
+                start += n;
+                section(start - n, n, e, k)
+            })
+            .collect();
+        let progs = [["i", "VI", "III", "VII"], ["iv", "v", "i", "i"]];
+        let numerals = (0..56).map(|b| progs[b / 8 % 2][b % 4].to_string()).collect();
+        let a = Analysis { bars: 56, numerals, sections, ..heard() };
+        let mut x = Stereo::zeros((56.0 * a.bar_secs * SRF) as usize);
+        for i in 0..x.len() {
+            let t = i as f64 / SRF;
+            let bar = (t / a.bar_secs) as usize;
+            let loud = if (16..24).contains(&bar) || (40..48).contains(&bar) { 0.5 } else { 0.3 };
+            let v = loud * (std::f64::consts::TAU * 220.0 * t).sin() as f32;
+            (x.l[i], x.r[i]) = (v, v);
+        }
+        let dir = std::env::temp_dir().join(format!("claudius-flip-double-{}", std::process::id()));
+        let src = Source { x: &x, name: "my song.wav", a: &a, stems: None };
+        // drum and bass counts the recording's 96 in double time: two of the song's bars to each of its own
+        let bp = remix(&src, &crate::genres::get("dnb").unwrap(), 3, &Options::default(), None, &dir, None).unwrap();
+        let hook = hook_bars(&a).unwrap();
+        let counted = bp.loops.iter().find(|l| l.name == PHRASE).map(|l| match &l.sound {
+            Sound::Loop { beats, .. } => *beats / (hook.count as f64 * 4.0),
+            _ => 0.0,
+        });
+        assert_eq!(counted, Some(2.0), "the hook in double time");
+        // the tracks the sections that go on through it play: sample3, sample4 ...
+        let on = |name: &str| name.strip_prefix(PHRASE).and_then(|n| n.parse::<usize>().ok()).is_some_and(|n| n >= 3);
+        let mut went = 0;
+        for s in &bp.form {
+            for l in bp.loops.iter().filter(|l| s.layers.contains(&l.name) && on(&l.name)) {
+                let Sound::Loop { beats, .. } = &l.sound else { continue };
+                assert!(
+                    *beats <= s.bars as f64 * 4.0 + 1e-6,
+                    "{} plays {beats} beats in {} bars of {}",
+                    l.name,
+                    s.bars,
+                    s.name
+                );
+                went += 1;
+            }
+        }
+        assert!(went > 0, "{:?}", bp.loops.iter().map(|l| &l.name).collect::<Vec<_>>());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_flip_goes_on_through_the_recording_rather_than_round_its_hook_and_one_passage() {
+        let (a, x) = (heard_through(), played_through());
         let dir = std::env::temp_dir().join(format!("claudius-flip-through-{}", std::process::id()));
         let src = Source { x: &x, name: "my song.wav", a: &a, stems: None };
         let bp =
