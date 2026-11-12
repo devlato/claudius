@@ -19,6 +19,15 @@ pub struct Chat {
     file: Option<PathBuf>,
     /// who listens, and until when (ms since 1970)
     listening: Option<(String, u64)>,
+    /// the last id a message was given, cleared or not: ids go on from it, so that an assistant waiting after one
+    /// hears what is said after a clear
+    last_id: u64,
+}
+
+/// what a cleared chat's file holds: the last id given, which a claudius before 0.7 passes over as a line it cannot read
+#[derive(serde::Serialize, serde::Deserialize)]
+struct Cleared {
+    cleared: u64,
 }
 
 fn now_ms() -> u64 {
@@ -29,8 +38,16 @@ impl Chat {
     /// the chat kept in `file`, as any claudius wrote it: a line that does not read is passed over
     pub fn open(file: Option<PathBuf>) -> Chat {
         let text = file.as_ref().and_then(|f| std::fs::read_to_string(f).ok()).unwrap_or_default();
-        let messages = text.lines().filter_map(|l| serde_json::from_str(l).ok()).collect();
-        Chat { messages, file, listening: None }
+        let (mut messages, mut last_id) = (Vec::new(), 0);
+        for line in text.lines() {
+            if let Ok(m) = serde_json::from_str::<ChatMessage>(line) {
+                last_id = last_id.max(m.id);
+                messages.push(m);
+            } else if let Ok(c) = serde_json::from_str::<Cleared>(line) {
+                last_id = last_id.max(c.cleared);
+            }
+        }
+        Chat { messages, file, listening: None, last_id }
     }
 
     /// Adds what `from` (none: the person) says, in answer to `reply_to`, and keeps it; its id, or why it is not said.
@@ -45,7 +62,8 @@ impl Chat {
         if let Some(r) = reply_to.filter(|r| !self.messages.iter().any(|m| m.id == *r)) {
             return Err(format!("there is no message {r} to answer"));
         }
-        let id = self.messages.last().map_or(1, |m| m.id + 1);
+        self.last_id += 1;
+        let id = self.last_id;
         let m = ChatMessage { id, from, text: text.to_string(), at: now_ms(), reply_to };
         if let Some(f) = &self.file
             && let Ok(line) = serde_json::to_string(&m)
@@ -65,11 +83,15 @@ impl Chat {
         self.listening = Some((who, now_ms() + (for_ + LINGER).as_millis() as u64));
     }
 
-    /// the chat's history goes, here and in its file
+    /// the chat's history goes, here and in its file, which keeps only the last id given (`Cleared`), so that ids go on
+    /// from it after a restart too
     pub fn clear(&mut self) {
         self.messages.clear();
-        if let Some(f) = &self.file {
-            let _ = std::fs::remove_file(f);
+        if let Some(f) = &self.file
+            && let Ok(line) = serde_json::to_string(&Cleared { cleared: self.last_id })
+            && let Err(e) = std::fs::write(f, format!("{line}\n"))
+        {
+            tracing::warn!("could not clear the chat in {}: {e}", f.display());
         }
     }
 
@@ -109,7 +131,11 @@ mod tests {
             ]
         );
         chat.clear();
-        assert!(Chat::open(Some(file.clone())).view().messages.is_empty() && !file.exists());
+        let mut again = Chat::open(Some(file.clone()));
+        assert!(again.view().messages.is_empty(), "its history goes");
+        // ids go on after a clear, after a restart too: an assistant waiting after message 2 hears message 3
+        assert_eq!((chat.say(None, "and now?", None), again.say(None, "and now?", None)), (Ok(3), Ok(3)));
+        let _ = std::fs::remove_file(&file);
     }
 
     #[test]
