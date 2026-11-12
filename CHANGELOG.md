@@ -6,6 +6,8 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-12
+
 What claudius hears in a recording is a window to use rather than a block of text. **See what is in it, as it plays**
 (it was **Only say what claudius hears**) shows its tempo, key, feel and loudness; its form, with the chord of each bar
 under it and the playhead going through both as it plays; its beat as a step grid; and its bass. Its voice, drums, bass
@@ -45,6 +47,19 @@ notification when the app is in the background). The chat is kept between runs u
 Or have claudius start an agent for the chat itself: the **Chat** window offers Claude Code, Gemini CLI and Codex,
 which claudius runs on your computer and talks to over the Agent Client Protocol, with its own tools and nothing else.
 What you write is its prompt, and its answer comes in as it writes it (`POST /api/chat/agent`).
+
+### Added
+
+- studio: See and hear what claudius hears in a recording, and make a song like it ([#244](https://github.com/devlato/claudius/pull/244))
+- remix: A flip goes on through the recording, its voice singing in it, rather than round two short pieces ([#245](https://github.com/devlato/claudius/pull/245))
+- studio: Work the studio from the keyboard alone, and with a screen reader ([#246](https://github.com/devlato/claudius/pull/246))
+- studio: The app's window with the system: its title, the media keys, Now Playing and notifications ([#247](https://github.com/devlato/claudius/pull/247))
+- studio: Talk to your assistant from the studio, as it listens over MCP ([#248](https://github.com/devlato/claudius/pull/248))
+- studio: Have claudius start Claude Code, Gemini CLI or Codex for the chat, over ACP ([#251](https://github.com/devlato/claudius/pull/251))
+
+### Documentation
+
+- design: 0017 a rebuild that sounds like the recording ([#252](https://github.com/devlato/claudius/pull/252))
 
 ## [0.6.0] - 2026-11-11
 
@@ -1129,7 +1144,8 @@ The first public release.
   theory checks), Linux on x86_64 and ARM64 with a headless build for machines without sound or a display, and
   Windows as a preview. One-line installers for each, which come with every release and are in its checksums.
 
-[unreleased]: https://github.com/devlato/claudius/compare/v0.6.0...HEAD
+[unreleased]: https://github.com/devlato/claudius/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/devlato/claudius/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/devlato/claudius/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/devlato/claudius/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/devlato/claudius/compare/v0.3.0...v0.4.0
