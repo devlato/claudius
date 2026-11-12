@@ -32,8 +32,8 @@ pub struct Studio {
     /// where the studio was pointed at start (to come back from the demo)
     home: Connection,
     link: Link,
-    /// what had the keyboard as the last frame ended: egui lets go of it on Escape before the studio hears the key,
-    /// and that press is the one that lets go of it, not the one that closes the window on top
+    /// what had the keyboard as the last frame's ui ended: egui lets go of it on Escape before the studio hears the
+    /// key, and that press is the one that lets go of it, not the one that closes the window on top
     had_focus: Option<egui::Id>,
     sounds: Option<SoundList>,
     player: Player,
@@ -473,7 +473,10 @@ impl Studio {
         // an open list or menu moves with the arrows, picks with Enter and closes with Escape, and a control that has
         // the keyboard answers to Enter: they are left to them, and Escape to the tour while it shows
         let menu = egui::Popup::is_any_open(ctx);
-        let focused = ctx.memory(|m| m.focused()).or(self.had_focus);
+        // what had the keyboard as this frame began, before egui let go of it for an Escape: the control the last
+        // frame's ui left focused, unless egui let go of it as that frame ended (one not drawn, a tab changed)
+        let had = self.had_focus.filter(|id| ctx.memory(|m| m.had_focus_last_frame(*id)));
+        let focused = ctx.memory(|m| m.focused()).or(had);
         if !menu && self.view.tour.is_none() && ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape)) {
             // the control lets go of the keyboard first; then the window on top closes, else the track selected goes
             match focused {
