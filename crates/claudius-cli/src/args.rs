@@ -195,8 +195,8 @@ pub(crate) enum Cmd {
         /// sound
         #[arg(long, conflicts_with = "flip")]
         skeleton: bool,
-        /// flip it: a new song of the genre on its hook without its drums, a verse passage, its drums as the break, a
-        /// flip of it in pieces from all over it and its sung phrases
+        /// flip it: a new song of the genre on its hook and passage after passage of it without its drums, its voice
+        /// singing in them, its drums as the break and a flip of it in pieces from all over it
         #[arg(long)]
         flip: bool,
         /// rebuild it: the song itself, every part played on claudius's sounds, so that each note can be changed: its

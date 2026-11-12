@@ -19,7 +19,7 @@ claudius can work from a recording in four ways, which differ in how much of the
 |---|---|---|
 | **analyze** | tempo, key, chords, sections, drum habits, bass style, as a report | none |
 | **remake** | all of it, its voice and chords as they are, reworked: its own sections and chords with a genre's drums, bass and mix under it | yes, all through |
-| **remake**, `flip: true` | its hook, another passage, its drums, a flip of it and its sung phrases, in a new song of a genre | yes, in pieces |
+| **remake**, `flip: true` | its hook and passage after passage of it with its voice, its drums and a flip of it, in a new song of a genre | yes, in passages |
 | **remake**, `rebuild: true` | the song itself: its drums, its bass and the rest as the notes and hits it plays, on claudius's sounds, every note editable | its voice only, when it sings |
 | **remake**, `sampled: false` | that skeleton, rebuilt as a new song with a genre's sounds and production | none |
 | **chop and flip** | loops and one-shots cut from it, played in a song | yes |
@@ -100,18 +100,25 @@ and the reply says so.
 With `flip: true` (`--flip`), `remake` makes a new song of the genre on the recording's sound instead, as a song built
 on samples is built:
 
-- its hook (four bars of its loudest section with chords) without its drums plays in the song's hooks or drops, and
-  the song takes its key and chords; with the ears, without its voice too;
-- another passage of it as long plays in the other sections;
+- its hook (eight bars of its loudest section with chords) without its drums is what the song takes its key, its
+  chords and its tempo from;
+- the song goes on through it: each section but the intro, the breaks and the outro plays as many of its bars on end
+  as it has itself (32 at most), of the kind it plays (a hook's or a drop's, or the rest's), from the hook, from
+  another passage of it (of its verses when it has any) or from bars no section before it played, each on its own
+  track and its own bars' chords (`sample3`, `sample4` ... on `A3`, `A4` ...), so a three-minute flip is not two
+  loops;
+- when it sings, its voice sings on in those passages as it sang there (with the ears, they are all of it but its
+  drums); without a voice, with the ears, they are its bass and the rest;
 - its own drums (its drum stem, with the ears) are the break, in a genre that plays one;
 - a flip of it, half beats cut from all over it on the hook's chords, each brought to the hook's level, plays in the
-  intro, the breaks and the outro;
-- its sung phrases, when it has any, come in on tracks of their own (`vox1` ...) where they agree with the chords.
+  intro, the breaks and the outro.
 
 A flip plays at the recording's own tempo when the genre does, else at a multiple of it, faster or slower by whole
 semitones or chopped onto the song's grid; a hook a voice sings in plays in its own key, never sped up into a
 chipmunk (except in chipmunk soul, whose sound that is). Its history says what came from where (`remixed from
-'<file>': its hook (bars 33-36) without its drums and its voice; ...`), so tell the person which part of their song
+'<file>': its hook (bars 57-64) without its drums, in its own key for the voice in it; another passage of it
+(bars 25-32); ...; on through it as the song goes (build bars 1-8, drop bars 33-64, drop2 bars 9-24)`), so tell the
+person which part of their song
 plays where. Everything else is the genre's. A sung phrase moved into the song's key keeps its singer's formants.
 
 With `rebuild: true` (`--rebuild`), `remake` makes the song itself again, every part of it played on claudius's

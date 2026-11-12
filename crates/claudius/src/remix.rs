@@ -2,20 +2,21 @@
 //! the pieces a producer would take from it, and a song of the genre built on them, as a song built on samples is
 //! (`crate::sampling`).
 //!
-//! - Its hook, four bars of the loudest section with chords (a hook or a drop when it has one; the loudest four of it,
-//!   `loudest`), without its drums
-//!   (and without its voice, when its stems are apart), is the phrase the song is built on: the song takes its key,
-//!   its chords and a tempo it plays at, the recording's own or a multiple of it, faster or slower by whole semitones
-//!   or chopped onto the song's grid (`sampling::meets`), and plays it in its hooks. A hook a voice sings in plays in
-//!   its own key, unless the genre speeds its singers up (`SampleNeed::speeds_voices`).
-//! - Another passage of it as long (of its verses, when it has any), also without its drums, plays in the song's
-//!   other sections.
+//! - Its hook, eight bars of the loudest section with chords (a hook or a drop when it has one; the loudest eight of it,
+//!   `loudest`), without its drums (and, when its stems are apart and it does not sing, without its voice), is the
+//!   phrase the song is built on: the song takes its key, its chords and a tempo it plays at, the recording's own or a
+//!   multiple of it, faster or slower by whole semitones or chopped onto the song's grid (`sampling::meets`). A hook a
+//!   voice sings in plays in its own key, unless the genre speeds its singers up (`SampleNeed::speeds_voices`).
+//! - Another passage of it as long (of its verses, when it has any) is where the song's other sections start.
+//! - The song goes on through the recording: each of its sections, but its intro, breaks and outro, plays as many bars
+//!   of it on end as it has itself, of the kind it plays (its hooks' and drops', or the rest's), from the hook, from the
+//!   other passage, or from bars no section before it played, each on its own bars' chords (`go_through`). When it
+//!   sings (the ears hear a voice, or a pitch in a voice's range carries a third of a phrase), its voice sings on in
+//!   them as it sang there.
 //! - Its own drums, the busiest bars of them without the rest, are the break, in a genre that plays one.
 //! - A flip of it plays in the intro, the breaks and the outro: as many bars as the hook of half beats, each from
 //!   another bar of the recording that plays the hook's chord there, at the same place in its bar (now and then
 //!   another), so that the song is heard in pieces from all over it, still on the hook's chords.
-//! - Its sung phrases, when it sings (the ears hear a voice, or a pitch in a voice's range carries a third of a phrase),
-//!   come in on tracks of their own where they agree with the song's chords (`crate::sampler`).
 //!
 //! Everything else is the genre's: its drums and bass, its parts, its form and its mix. That is the flip (`remix`).
 //!
@@ -66,6 +67,10 @@ impl Bars {
         (self.first..self.first + self.count).contains(&bar)
     }
 
+    fn overlaps(&self, o: Bars) -> bool {
+        self.first < o.first + o.count && o.first < self.first + self.count
+    }
+
     fn meets(&self, s: &SectionGuess) -> bool {
         self.first < s.start_bar + s.bars && s.start_bar < self.first + self.count
     }
@@ -81,15 +86,16 @@ fn hookness(s: &SectionGuess) -> f64 {
     s.energy as f64 + if matches!(s.kind, SectionKind::Hook | SectionKind::Drop) { 0.25 } else { 0.0 }
 }
 
-/// the hook: four bars from the start of the section with chords that pulls most toward being one (two of a short
-/// one)
+/// the hook: eight bars from the start of the section with chords that pulls most toward being one (four, or two, of a
+/// shorter one)
 pub fn hook_bars(a: &Analysis) -> Option<Bars> {
     let s = a
         .sections
         .iter()
         .filter(|s| s.harmony && s.bars >= 2 && s.start_bar + 2 <= a.bars)
         .max_by(|x, y| hookness(x).total_cmp(&hookness(y)))?;
-    Some(Bars { first: s.start_bar, count: if s.bars >= 4 && s.start_bar + 4 <= a.bars { 4 } else { 2 } })
+    let count = [8, 4, 2].into_iter().find(|&n| s.bars >= n && s.start_bar + n <= a.bars).unwrap_or(2);
+    Some(Bars { first: s.start_bar, count })
 }
 
 /// a passage of the verses as long as the hook, from a section with chords elsewhere (a verse when there is one, else
@@ -338,6 +344,160 @@ fn place_flip(bp: &mut Blueprint, path: &str, label: &str) -> Vec<String> {
     at
 }
 
+/// The passages of the recording a flip goes on through, besides its hook and its other passage: each run of as many
+/// bars as the hook in a section with chords that is not its intro or its outro, from the section's start, none of it
+/// the hook's or the other passage's, and none so quiet it would drop out of the song (`FLIP_MOST_DB` under the hook);
+/// those of its hooks and drops, and those of the rest, each in the recording's order.
+fn passages(a: &Analysis, x: &Stereo, hook: Bars, verse: Option<Bars>) -> (Vec<Bars>, Vec<Bars>) {
+    let loud = db(power_of(a, x, hook.first, hook.count));
+    let (mut lifts, mut rest) = (Vec::new(), Vec::new());
+    let inner = |s: &&SectionGuess| s.harmony && !matches!(s.kind, SectionKind::Intro | SectionKind::Outro);
+    for s in a.sections.iter().filter(inner) {
+        let end = (s.start_bar + s.bars).min(a.bars).min(a.numerals.len());
+        for first in (s.start_bar..).step_by(hook.count).take_while(|f| f + hook.count <= end) {
+            let b = Bars { first, count: hook.count };
+            if b.overlaps(hook) || verse.is_some_and(|v| b.overlaps(v)) {
+                continue;
+            }
+            if loud - db(power_of(a, x, b.first, b.count)) > FLIP_MOST_DB {
+                continue;
+            }
+            match s.kind {
+                SectionKind::Hook | SectionKind::Drop => lifts.push(b),
+                _ => rest.push(b),
+            }
+        }
+    }
+    (lifts, rest)
+}
+
+/// The chords of bars `b` as the song counts its hook's (`A`, from `chords_of` the hook): moved as the hook was by
+/// `semis` into the song's key, and a chord of the song to each of their bars, or to two of them where the song counts
+/// the hook at half its tempo. None where they do not read.
+fn counted_as_hook(bp: &Blueprint, a: &Analysis, hook: Bars, b: Bars, semis: i32) -> Vec<String> {
+    let (theirs, numerals) = (chords_of(a, hook), chords_of(a, b));
+    let Some(ours) = bp.harmony.progressions.get("A").filter(|_| !theirs.is_empty() && !numerals.is_empty()) else {
+        return Vec::new();
+    };
+    let heard = Key::new((a.key.tonic as i32 + semis).rem_euclid(12) as u8, a.key.mode);
+    let chords = crate::theory::progression::chords(&numerals, &heard);
+    if chords.len() != numerals.len() {
+        return Vec::new();
+    }
+    let chords: Vec<String> = chords.iter().map(|c| crate::theory::chord::roman_of(c, &bp.key)).collect();
+    match ours.len() * 2 == theirs.len() {
+        true => chords.into_iter().step_by(2).collect(),
+        false => chords,
+    }
+}
+
+/// the most bars of the recording a section of a flip plays in one go
+const LONGEST: usize = 32;
+
+/// The song going on through the recording, a section at a time. Each of its sections that plays the hook (`PHRASE`)
+/// or the other passage (`SECOND`), but its intro, breaks and outro, plays bars of the recording on end, cut by `store`
+/// and played as the hook is, on a loop track of its own (`sample3`, `sample4` ...) and on those bars' chords (`A3`,
+/// `A4` ...): from where it has the most of them, up to as many as the section holds (half as many as its bars in
+/// double time, twice as many in half time; `LONGEST` at most, a whole number of the hook's), while they are of the
+/// same kind (a hook's or a drop's, or the rest's) and no section has played them.
+/// Where it may start: the first of the hook's sections from the hook, the first of the other passage's from it, and
+/// each from any of `lifts`, or of `rest`, not played yet (the other's, once its own are all played); so that the song
+/// goes on through the recording rather than round a passage. A section whose bars would be the hook or the other
+/// passage plays it, one the recording has nothing left for plays what it did, and the hook's and the other passage's
+/// tracks go when no section plays them. Each section that plays on, and its bars.
+fn go_through(
+    bp: &mut Blueprint,
+    a: &Analysis,
+    hook: Bars,
+    verse: Option<Bars>,
+    runs: [Vec<Bars>; 2],
+    store: &mut dyn FnMut(Bars) -> Result<(String, String), String>,
+) -> Result<Vec<(String, Bars)>, String> {
+    let template = |name: &str| bp.loops.iter().find(|l| l.name == name).cloned();
+    let Some(phrase) = template(PHRASE) else { return Ok(Vec::new()) };
+    let second = template(SECOND).unwrap_or_else(|| phrase.clone());
+    let semis = phrase.transpose;
+    // the song's bars to each of the recording's, as the hook's loop spans them: two in double time, half of one in
+    // half time
+    let per = match &phrase.sound {
+        Sound::Loop { beats, .. } if *beats > 0.0 => beats / (hook.count as f64 * 4.0),
+        _ => 1.0,
+    };
+    // each lane: the track its sections play, as which a passage plays, and where its first section starts
+    let base = [Some(hook.first), verse.map(|v| v.first)];
+    let mut lanes = [(PHRASE, phrase, base[0]), (SECOND, second, base[1])];
+    // the kind of bars each is: a hook's or a drop's (0), the rest's (1), or neither
+    let kind = |bar: usize| {
+        let s = a.sections.iter().find(|s| (s.start_bar..s.start_bar + s.bars).contains(&bar))?;
+        let inner = s.harmony && !matches!(s.kind, SectionKind::Intro | SectionKind::Outro);
+        inner.then(|| usize::from(!matches!(s.kind, SectionKind::Hook | SectionKind::Drop)))
+    };
+    let end = a.bars.min(a.numerals.len());
+    let mut played: std::collections::BTreeSet<usize> = std::collections::BTreeSet::new();
+    let mut went = Vec::new();
+    for i in 0..bp.form.len() {
+        let s = &bp.form[i];
+        if matches!(s.kind, SectionKind::Intro | SectionKind::Break | SectionKind::Outro) {
+            continue;
+        }
+        let Some(lane) = lanes.iter().position(|(name, ..)| s.layers.iter().any(|l| l == *name)) else { continue };
+        let most = ((s.bars as f64 / per + 1e-6) as usize).min(LONGEST);
+        let length = |first: usize| {
+            let on = (first..end).take(most).take_while(|&b| !played.contains(&b) && kind(b) == kind(first)).count();
+            on / hook.count * hook.count
+        };
+        let fresh = |runs: &[Bars]| runs.iter().map(|r| r.first).filter(|f| !played.contains(f)).collect::<Vec<_>>();
+        let mut starts: Vec<usize> = lanes[lane].2.take().into_iter().collect();
+        starts.extend(fresh(&runs[lane]));
+        if starts.is_empty() {
+            starts = fresh(&runs[1 - lane]);
+        }
+        let Some((first, count)) = starts
+            .into_iter()
+            .map(|f| (f, length(f)))
+            .filter(|&(_, n)| n > 0)
+            .min_by_key(|&(_, n)| std::cmp::Reverse(n))
+        else {
+            continue;
+        };
+        played.extend(first..first + count);
+        if count == hook.count && Some(first) == base[lane] {
+            continue;
+        }
+        let b = Bars { first, count };
+        let (name, template, _) = &lanes[lane];
+        let mut on = template.clone();
+        on.name = format!("{PHRASE}{}", 3 + went.len());
+        let (path, label) = store(b)?;
+        let times = (count / hook.count) as f64;
+        if let Sound::Loop { path: p, label: l, beats, .. } = &mut on.sound {
+            (*p, *l, *beats) = (path, label, *beats * times);
+        }
+        // a chopped hook's slices, again for each run of it the passage holds
+        let slices = template.chop.len() as i32;
+        on.chop =
+            (0..count / hook.count).flat_map(|r| template.chop.iter().map(move |c| c + r as i32 * slices)).collect();
+        let chords = counted_as_hook(bp, a, hook, b, semis);
+        let sec = &mut bp.form[i];
+        for l in sec.layers.iter_mut().filter(|l| *l == *name) {
+            *l = on.name.clone();
+        }
+        if !chords.is_empty() {
+            sec.prog = format!("A{}", 3 + went.len());
+            bp.harmony.progressions.insert(sec.prog.clone(), chords);
+        }
+        went.push((sec.name.clone(), b));
+        bp.loops.push(on);
+    }
+    let heard = |name: &str| bp.form.iter().any(|s| s.layers.iter().any(|l| l == name));
+    let gone: Vec<&str> = [PHRASE, SECOND].into_iter().filter(|n| !heard(n)).collect();
+    bp.loops.retain(|l| !gone.contains(&l.name.as_str()));
+    if !bp.form.iter().any(|s| s.prog == crate::sampling::SECOND_PROG) {
+        bp.harmony.progressions.remove(crate::sampling::SECOND_PROG);
+    }
+    Ok(went)
+}
+
 /// the recording a remix is made of: its audio, what it is called, and what its analysis heard in it
 pub struct Source<'a> {
     pub x: &'a Stereo,
@@ -356,11 +516,13 @@ struct Apart {
     voiced: bool,
 }
 
-/// The recording apart. With its stems apart, its bass and the rest, its voice left to the phrases the sampler places on
-/// tracks of their own, unless they hold too little of it to carry a hook (`BACKING`); else its sustained part and its
-/// strikes (`split`), voice and all.
-fn apart(src: &Source) -> Apart {
+/// The recording apart. With its stems apart: all but its drums when it sings (`sings`), so that its voice sings on in
+/// the passages it sings in rather than in a phrase or two of it coming round; else its bass and the rest, unless they
+/// hold too little of it to carry a hook (`BACKING`). Without them, its sustained part and its strikes (`split`), voice
+/// and all.
+fn apart(src: &Source, sings: bool) -> Apart {
     match src.stems {
+        Some(s) if sings => Apart { music: s.music(), drums: s.drums.clone(), voiced: true },
         Some(s) if s.share(&s.bass) + s.share(&s.other) >= BACKING => {
             Apart { music: s.backing(), drums: s.drums.clone(), voiced: false }
         }
@@ -401,7 +563,7 @@ pub fn remix(
     let sings = crate::sampler::find(x, src.stems, a, ears, &voiced, 1)
         .first()
         .is_some_and(|p| p.sung >= 0.35 || p.z.is_some_and(|z| z >= 1.5));
-    let Apart { music: sustained, drums: struck, voiced: voice_in_it } = apart(src);
+    let Apart { music: sustained, drums: struck, voiced: voice_in_it } = apart(src, sings);
     let hook = loudest(a, &sustained, hook);
     let slug = crate::song::slug(Path::new(name).file_stem().map_or(name.into(), |s| s.to_string_lossy()).as_ref());
     let folder = dir.join(&slug);
@@ -496,10 +658,15 @@ pub fn remix(
         bars.dedup();
         said.push(format!("a flip of {} half beats from {} of its bars in {}", from.len(), bars.len(), at.join(", ")));
     }
-    // its sung phrases, when it sings, on tracks of their own
-    let heard = crate::sampler::Heard { src: x, stems: src.stems, a, name };
-    if sings && let Ok(sung) = crate::sampler::sample_from(&mut bp, &heard, ears, &voiced, dir) {
-        said.push(format!("its sung phrases ({})", sung.tracks.join(", ")));
+    // and on through the rest of it, a passage after another, rather than round the same two
+    let mut cut_it = |b: Bars| -> Result<(String, String), String> {
+        Ok((piece(b, &sustained)?.0, format!("{slug}, {}", b.said())))
+    };
+    let (lifts, rest) = passages(a, &sustained, hook, verse);
+    let went = go_through(&mut bp, a, hook, verse, [lifts, rest], &mut cut_it)?;
+    if !went.is_empty() {
+        let each: Vec<String> = went.iter().map(|(s, b)| format!("{s} {}", b.said())).collect();
+        said.push(format!("on through it as the song goes ({})", each.join(", ")));
     }
     let line = format!("remixed from '{name}': {}", said.join("; "));
     bp.lineage.insert(1.min(bp.lineage.len()), line);
@@ -863,9 +1030,9 @@ mod tests {
     fn the_hook_is_the_loudest_section_with_chords_and_the_verse_another() {
         let a = heard();
         let hook = hook_bars(&a).unwrap();
-        assert_eq!(hook, Bars { first: 8, count: 4 });
-        assert_eq!(verse_bars(&a, hook), Some(Bars { first: 0, count: 4 }));
-        assert_eq!(drum_bars(&a, hook), Some(Bars { first: 8, count: 4 }));
+        assert_eq!(hook, Bars { first: 8, count: 8 });
+        assert_eq!(verse_bars(&a, hook), Some(Bars { first: 0, count: 8 }));
+        assert_eq!(drum_bars(&a, hook), Some(Bars { first: 8, count: 8 }));
     }
 
     #[test]
@@ -896,8 +1063,8 @@ mod tests {
         let hook = hook_bars(&a).unwrap();
         let x = Stereo::zeros((40.0 * SRF) as usize);
         let (out, from) = flip(&a, &x, hook, &mut Rng::new(5));
-        assert_eq!(out.len(), (4.0 * 2.5 * SRF) as usize);
-        assert_eq!(from.len(), 32);
+        assert_eq!(out.len(), (8.0 * 2.5 * SRF) as usize);
+        assert_eq!(from.len(), 64);
         for (i, &k) in from.iter().enumerate() {
             assert_eq!(a.numerals[k], a.numerals[hook.first + i / 8], "half beat {i} from bar {k}");
             assert!(!hook.holds(k), "half beat {i} from the hook's own bar {k}");
@@ -992,6 +1159,121 @@ mod tests {
             }
         }
         Stems { vocals: melody, drums, bass: Stereo::zeros(n), other: chords }
+    }
+
+    /// forty bars at 96 BPM in A minor: a verse, a hook, another verse and another hook, and an outro, eight bars each,
+    /// each on a progression of its own
+    fn heard_through() -> Analysis {
+        let progs =
+            [["i", "VI", "III", "VII"], ["iv", "v", "i", "i"], ["VI", "VII", "i", "v"], ["iv", "VI", "VII", "i"]];
+        let numerals: Vec<String> =
+            progs.iter().chain([&["i"; 4]]).flat_map(|p| p.iter().cycle().take(8)).map(|s| s.to_string()).collect();
+        let kinds = [(0.5, SectionKind::Verse), (0.9, SectionKind::Hook), (0.55, SectionKind::Verse)];
+        let kinds = kinds.into_iter().chain([(0.85, SectionKind::Hook), (0.3, SectionKind::Outro)]);
+        Analysis {
+            bars: 40,
+            numerals,
+            sections: kinds.enumerate().map(|(i, (e, k))| section(i * 8, 8, e, k)).collect(),
+            ..heard()
+        }
+    }
+
+    /// a hundred seconds of `heard_through`, its hooks louder than the rest
+    fn played_through() -> Stereo {
+        let mut x = Stereo::zeros((100.0 * SRF) as usize);
+        for i in 0..x.len() {
+            let t = i as f64 / SRF;
+            let loud = if matches!((t / 2.5) as usize / 8, 1 | 3) { 0.5 } else { 0.3 };
+            let v = loud * (std::f64::consts::TAU * 220.0 * t).sin() as f32;
+            (x.l[i], x.r[i]) = (v, v);
+        }
+        x
+    }
+
+    #[test]
+    fn a_flip_in_double_time_plays_as_many_of_the_recordings_bars_as_its_sections_hold() {
+        // verses of sixteen bars on end, half of which a section of sixteen of the song's bars holds in double time
+        let kinds = [(0.5, SectionKind::Verse, 16), (0.9, SectionKind::Hook, 8), (0.55, SectionKind::Verse, 16)];
+        let kinds = kinds.into_iter().chain([(0.85, SectionKind::Hook, 8), (0.3, SectionKind::Outro, 8)]);
+        let mut start = 0;
+        let sections = kinds
+            .map(|(e, k, n)| {
+                start += n;
+                section(start - n, n, e, k)
+            })
+            .collect();
+        let progs = [["i", "VI", "III", "VII"], ["iv", "v", "i", "i"]];
+        let numerals = (0..56).map(|b| progs[b / 8 % 2][b % 4].to_string()).collect();
+        let a = Analysis { bars: 56, numerals, sections, ..heard() };
+        let mut x = Stereo::zeros((56.0 * a.bar_secs * SRF) as usize);
+        for i in 0..x.len() {
+            let t = i as f64 / SRF;
+            let bar = (t / a.bar_secs) as usize;
+            let loud = if (16..24).contains(&bar) || (40..48).contains(&bar) { 0.5 } else { 0.3 };
+            let v = loud * (std::f64::consts::TAU * 220.0 * t).sin() as f32;
+            (x.l[i], x.r[i]) = (v, v);
+        }
+        let dir = std::env::temp_dir().join(format!("claudius-flip-double-{}", std::process::id()));
+        let src = Source { x: &x, name: "my song.wav", a: &a, stems: None };
+        // drum and bass counts the recording's 96 in double time: two of the song's bars to each of its own
+        let bp = remix(&src, &crate::genres::get("dnb").unwrap(), 3, &Options::default(), None, &dir, None).unwrap();
+        let hook = hook_bars(&a).unwrap();
+        let counted = bp.loops.iter().find(|l| l.name == PHRASE).map(|l| match &l.sound {
+            Sound::Loop { beats, .. } => *beats / (hook.count as f64 * 4.0),
+            _ => 0.0,
+        });
+        assert_eq!(counted, Some(2.0), "the hook in double time");
+        // the tracks the sections that go on through it play: sample3, sample4 ...
+        let on = |name: &str| name.strip_prefix(PHRASE).and_then(|n| n.parse::<usize>().ok()).is_some_and(|n| n >= 3);
+        let mut went = 0;
+        for s in &bp.form {
+            for l in bp.loops.iter().filter(|l| s.layers.contains(&l.name) && on(&l.name)) {
+                let Sound::Loop { beats, .. } = &l.sound else { continue };
+                assert!(
+                    *beats <= s.bars as f64 * 4.0 + 1e-6,
+                    "{} plays {beats} beats in {} bars of {}",
+                    l.name,
+                    s.bars,
+                    s.name
+                );
+                went += 1;
+            }
+        }
+        assert!(went > 0, "{:?}", bp.loops.iter().map(|l| &l.name).collect::<Vec<_>>());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_flip_goes_on_through_the_recording_rather_than_round_its_hook_and_one_passage() {
+        let (a, x) = (heard_through(), played_through());
+        let dir = std::env::temp_dir().join(format!("claudius-flip-through-{}", std::process::id()));
+        let src = Source { x: &x, name: "my song.wav", a: &a, stems: None };
+        let bp =
+            remix(&src, &crate::genres::get("boom_bap").unwrap(), 3, &Options::default(), None, &dir, None).unwrap();
+        // the hook and the first verse, eight bars each; then the second verse in the song's second verse, and the
+        // second hook in its second hook, each on its own chords; then round again
+        let label = |name: &str| match bp.loops.iter().find(|l| l.name == name).map(|l| &l.sound) {
+            Some(Sound::Loop { label, .. }) => label.clone(),
+            _ => panic!("no {name} in {:?}", bp.loops.iter().map(|l| &l.name).collect::<Vec<_>>()),
+        };
+        assert_eq!((label("sample3"), label("sample4")), ("my-song, bars 17-24".into(), "my-song, bars 25-32".into()));
+        let plays = |name: &str| bp.form.iter().find(|s| s.name == name).map(|s| (s.layers.clone(), s.prog.clone()));
+        let (verse, hook) = (plays("verse2").unwrap(), plays("hook2").unwrap());
+        assert!(verse.0.contains(&"sample3".to_string()) && verse.1 == "A3", "{verse:?}");
+        assert!(hook.0.contains(&"sample4".to_string()) && hook.1 == "A4", "{hook:?}");
+        let counted = |first: usize| -> Vec<String> {
+            let own = &a.numerals[first..first + 8];
+            match bp.harmony.progressions["A"].len() {
+                4 => own.iter().step_by(2).cloned().collect(),
+                _ => own.to_vec(),
+            }
+        };
+        assert_eq!((&bp.harmony.progressions["A3"], &bp.harmony.progressions["A4"]), (&counted(16), &counted(24)));
+        let again = plays("hook3").unwrap();
+        assert!(again.0.contains(&PHRASE.to_string()) && again.1 == "A", "{again:?}");
+        let said = "on through it as the song goes (verse2 bars 17-24, hook2 bars 25-32)";
+        assert!(bp.lineage.iter().any(|l| l.contains(said)), "{:?}", bp.lineage);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -1094,25 +1376,25 @@ mod tests {
     }
 
     #[test]
-    fn a_flip_with_its_stems_apart_is_built_on_all_but_its_drums_and_its_voice_and_samples_its_voice_apart() {
+    fn a_flip_with_its_stems_apart_is_built_on_all_but_its_drums_and_its_voice_sings_on_in_it() {
         let (x, s) = (recording(), recording_apart());
         let a = crate::analysis::song::analyze_with(&x, Some(&s), None);
         let dir = std::env::temp_dir().join(format!("claudius-flip-stems-{}", std::process::id()));
         let src = Source { x: &x, name: "my song.wav", a: &a, stems: Some(&s) };
         let bp =
             remix(&src, &crate::genres::get("boom_bap").unwrap(), 3, &Options::default(), None, &dir, None).unwrap();
-        // the hook as its chords alone, which are its stems without the drums and the voice
-        let hook = loudest(&a, &s.backing(), hook_bars(&a).unwrap());
+        // the hook as its stems without the drums, its melody, which sings, with its chords
+        let hook = loudest(&a, &s.music(), hook_bars(&a).unwrap());
         let phrase = bp.loops.iter().find(|l| l.name == PHRASE).expect("the hook plays");
         let Sound::Loop { path, .. } = &phrase.sound else { panic!("a loop") };
         let got = crate::audio::load(Path::new(path)).unwrap();
         let off = |x: &Stereo| got.l.iter().zip(&x.l).map(|(a, b)| ((a - b) as f64).powi(2)).sum::<f64>();
-        let (backing, with_voice) = (off(&cut(&s.backing(), &a, hook)), off(&cut(&s.music(), &a, hook)));
-        assert!(backing < 1e-4 * with_voice, "{backing} against {with_voice}");
-        let said = format!("its hook ({}) without its drums and its voice", hook.said());
+        let (with_voice, backing) = (off(&cut(&s.music(), &a, hook)), off(&cut(&s.backing(), &a, hook)));
+        assert!(with_voice < 1e-4 * backing, "{with_voice} against {backing}");
+        let said = format!("its hook ({}) without its drums, in its own key for the voice in it", hook.said());
         assert!(bp.lineage.iter().any(|l| l.contains(&said)), "{:?}", bp.lineage);
-        // and its voice comes in on tracks of its own
-        assert!(bp.loops.iter().any(|l| l.name.starts_with("vox") && l.role == "vocal"), "{:?}", bp.loops);
+        // its voice sings on where it sang, rather than in a phrase or two of it on tracks of their own
+        assert!(!bp.loops.iter().any(|l| l.role == "vocal"), "{:?}", bp.loops);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

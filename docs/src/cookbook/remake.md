@@ -4,8 +4,8 @@
 plays through, its voice and its chords as they are, without its drums and its bass (taken apart from the rest with
 earshot's models; without them, its low end), in its own sections and on its chords, with the genre's drums, bass and
 mix under it. With `--flip` it makes a new song of the genre on the
-recording's own sound instead: its hook, another passage of it, its drums, a flip cut from all over it and its sung
-phrases, under the genre's drums, bass, parts and mix. With `--rebuild` it makes the song itself again, every part of
+recording's own sound instead: its hook and passage after passage of it, its voice in them, its drums and a flip cut
+from all over it, under the genre's drums, bass, parts and mix. With `--rebuild` it makes the song itself again, every part of
 it played on claudius's sounds: its drums, its bass and the rest as the notes and hits it plays, so that each can be
 changed. With `--skeleton` it writes a new song on the recording's skeleton only (tempo, key, chords, sections, drum
 habits, the style of its bass), with none of its audio. This recipe remakes a song whose answers we know, so you can
@@ -122,46 +122,58 @@ It prints the analysis again, then the flip:
 
 ```text
 Faded Engine — deep_house at 122 BPM in A minor, 120 bars (3:56)
-  progression A: III VImaj7 iv7 v7
-  progression A2: i VII v7 i7
+  progression A: bIImaj7 VI iv v bIImaj7 VI iv v7
+  progression A2: VImaj7 VII v7 i7 i VII v7 i7
+  progression A3: i7 VImaj7 iv7 v7 III VImaj7 iv7 v7
+  progression A4: III VImaj7 iv7 v7 III VImaj7 iv7 v III VImaj7 iv7 v7 i7 VImaj7 iv7 v7 i VImaj7 iv7 v7 i VImaj7 iv7 v bIImaj7 VI iv v bIImaj7 VI iv v7
+  progression A5: i7 VImaj7 iv7 v i7 VImaj7 iv7 v i VImaj7 iv7 v i VI iv7 v
   progression B: iiø7 v7 i7 i7 iiø7 v7 i7 VI7
   form: intro 16 | groove 16 | break 8 | build 8 | drop 32 | drop2 32 | outro 8
-  tracks: kick (sampled bd (tr909:bd)), clap (sampled cp (tr909:cp)), hat (sampled hh (tr909:hh)), shaker (synth shaker), perc (sampled rim (tr909:rim)), bass (synth patch 'deep_bass'), chords (synth patch 'keys'), pad (synth patch 'vowel_pad'), lead (synth patch 'tine_piano'), sample (loop song (122 BPM)), sample2 (loop song, another passage (122 BPM)), flip (loop song, a flip of it (122 BPM)), crash (synth crash), riser (synth riser)
-  master: -11.1 LUFS, true peak -1.1 dBTP (pre-master -10.4 LUFS); done in 10.5 s
-  verdict: 95/100 (arc 0.86, mix 0.98, theory 1.00). Fix first: dull 4-8 kHz: hats, claps and snare lack bite (presence -27.1 dB, healthy from -26)
+  tracks: kick (sampled bd (tr909:bd)), clap (sampled cp (tr909:cp)), hat (sampled hh (tr909:hh)), shaker (synth shaker), perc (sampled rim (tr909:rim)), bass (synth patch 'deep_bass'), chords (synth patch 'keys'), pad (synth patch 'vowel_pad'), lead (synth patch 'epiano'), sample2 (loop song, another passage (122 BPM)), flip (loop song, a flip of it (122 BPM)), sample3 (loop song, bars 1-8 (122 BPM)), sample4 (loop song, bars 33-64 (122 BPM)), sample5 (loop song, bars 9-24 (122 BPM)), crash (synth crash), riser (synth riser)
+  master: -11.1 LUFS, true peak -1.0 dBTP (pre-master -12.1 LUFS); done in 14.6 s
+  ears: 'house music' z +3.5 (closest confusion 'techno music' +3.3); production z +1.7 vs 'a low quality recording with hiss' +1.5; p_real 0.68
+        sounds like: drum and bass music, house music, techno music, tech house music
+        aesthetics (of 10): enjoyment 7.2, production quality 8.1; held out: usefulness 8.1, complexity 5.5
+  verdict: 89/100 (aesthetics 0.88, arc 0.94, genre 0.80, mix 1.00, production 0.55, theory 1.00, time 1.00). Fix first: sounds about as much like a hissy recording as a professional mix: noise-built sounds (hats, shakers, risers) and long reverbs are the usual cause
   wrote out/remake-deep_house-faded-engine-3/song.mp3
 ```
 
 Its history says what came from where:
 
 ```text
-remixed from 'song.mp3': its hook (bars 33-36) without its drums; another passage of it (bars 25-28); a flip of 32 half beats from 17 of its bars in intro, outro
+remixed from 'song.mp3': its hook (bars 57-64) without its drums, in its own key for the voice in it; another passage of it (bars 25-32); a flip of 64 half beats from 14 of its bars in intro, outro; on through it as the song goes (build bars 1-8, drop bars 33-64, drop2 bars 9-24)
 sampled: phrase 'song', filtered until it lifts (another passage of it in groove, break, build)
 ```
 
-- **Its hook**, four bars from the start of the loudest section with chords (the drop, bars 33 to 36; four bars later
-  in it, where they are a decibel louder than its opening), without its drums, is the phrase the song is built on, as a
-  [song built on samples](../guide/online-samples.md#songs-built-on-samples) is: the song takes its key and chords
-  (progression `A`) and plays it, as `sample`, in both drops. With the stems apart it is without its voice too, its
-  bass and the rest, and the voice comes in on tracks of its own (below), so the history says "without its drums and
-  its voice"; without the models, it is what sustains of it. A hook a voice sings in (without the models, or when the
-  voice is most of what it holds) plays in its own key, at its own tempo or stretched, rather than sped up or slowed
-  down, which would make its singer a chipmunk or a giant, and the history says "in its own key for the voice in it".
-  Chipmunk soul, whose sound is just that, speeds it up anyway.
-- **Another passage of it**, the four bars of its break with the pad and the chords, plays as `sample2` in the groove,
-  the break and the build, on its own chords (progression `A2`).
+All 64 of its bars play somewhere in the song: the groove and the break 25 to 32, the build 1 to 8, the first drop
+33 to 64 on end and the second 9 to 24.
+
+- **Its hook**, eight bars from the start of the loudest section with chords (the drop the analysis hears in its
+  last eight bars, 57 to 64), without its drums, is the phrase the song is built on, as a
+  [song built on samples](../guide/online-samples.md#songs-built-on-samples) is: the song takes its key, its chords
+  (progression `A`) and a tempo it plays at from it. A hook a voice sings in plays in its own key, at its own tempo or
+  stretched, rather than sped up or slowed down, which would make its singer a chipmunk or a giant, and the history
+  says "in its own key for the voice in it". Chipmunk soul, whose sound is just that, speeds it up anyway. Without
+  the models, it is what sustains of the recording.
+- **Another passage of it**, the eight bars of its break with the pad and the chords, plays as `sample2` in the
+  groove and the break, on its own chords (progression `A2`).
+- **On through it**: every other section but the intro, the breaks and the outro plays as many of the recording's
+  bars on end as it has itself (32 at most), of the kind it plays (a drop's or a hook's, or the rest's), from where
+  the recording has the most of them that no section played before it, each on its own track and its own bars'
+  chords: the build plays bars 1 to 8 as `sample3` (`A3`), the first drop the whole second half, 33 to 64, as
+  `sample4` (`A4`), and the second drop 9 to 24 as `sample5` (`A5`). So a flip goes through the recording rather
+  than coming round to the same two passages for minutes. The hook's own track goes, since no section plays it
+  alone any more.
+- **Its voice**, when it sings (the ears hear a voice, or a pitch in a voice's range carries a third of a phrase),
+  sings on in those passages as it sang there: with the stems apart they are all of it but its drums. Without a voice,
+  with the stems apart, they are its bass and the rest.
 - **Its drums** are the break in a genre that plays one (deep house does not; boom bap and trip-hop do), cut from its
   busiest bars without the rest: its drum stem, apart, with the models.
-- **A flip of it** plays in the intro and the outro: four bars of half beats, each from another bar of the recording
-  that plays the hook's chord there, at the same place in its bar (now and then another), here 17 of its bars, so
+- **A flip of it** plays in the intro and the outro: eight bars of half beats, each from another bar of the recording
+  that plays the hook's chord there, at the same place in its bar (now and then another), here 14 of its bars, so
   the song is heard in pieces from all over it, still on the hook's chords. Each piece is as loud as the hook (its
   bar brought to the hook's level, by 18 dB at most), so a piece of a quiet verse does not drop away beside one of
   the chorus.
-- **Its sung phrases** come in on tracks of their own (`vox1`, `vox2` ...) where they agree with the chords, as
-  [Sample its vocals into the song](../guide/samples.md#sampling-a-songs-vocals) places them, when the recording
-  sings: when the ears hear a voice, or a pitch in a voice's range carries a third of a phrase. This one's `vox` track
-  is chops too sparse for that, some below a voice's range, so none come in here; it plays in the hook it was part
-  of.
 
 Everything else is the genre's: the drums, the bass, the chords and the pad written on the hook's chords, the form and
 the mix. The tempo here is the recording's own, 122 BPM, which deep house plays; another genre plays it at a multiple
