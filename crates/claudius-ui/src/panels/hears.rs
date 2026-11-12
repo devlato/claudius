@@ -125,6 +125,8 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
         cx.view.hears = h;
     } else {
         h.let_go();
+        // a file sent to be heard again is still being heard
+        cx.view.hears.sent = h.sent.take();
     }
 }
 
