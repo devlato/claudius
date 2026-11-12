@@ -861,7 +861,7 @@ checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 
 [[package]]
 name = "claudius"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "blake3",
@@ -889,7 +889,7 @@ dependencies = [
 
 [[package]]
 name = "claudius-api"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "schemars",
  "serde",
@@ -898,7 +898,7 @@ dependencies = [
 
 [[package]]
 name = "claudius-cli"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -925,7 +925,7 @@ dependencies = [
 
 [[package]]
 name = "claudius-decode"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "hound",
@@ -934,7 +934,7 @@ dependencies = [
 
 [[package]]
 name = "claudius-encode"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "claudius-decode",
@@ -948,7 +948,7 @@ dependencies = [
 
 [[package]]
 name = "claudius-intent"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "claudius-api",
  "needle-core",
@@ -959,7 +959,7 @@ dependencies = [
 
 [[package]]
 name = "claudius-packs"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "claudius-decode",
@@ -978,7 +978,7 @@ dependencies = [
 
 [[package]]
 name = "claudius-server"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -1005,7 +1005,7 @@ dependencies = [
 
 [[package]]
 name = "claudius-session"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "base64 0.23.1",
  "claudius",
@@ -1022,7 +1022,7 @@ dependencies = [
 
 [[package]]
 name = "claudius-tune"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "candle-core",
@@ -1040,7 +1040,7 @@ dependencies = [
 
 [[package]]
 name = "claudius-ui"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "claudius",
  "claudius-api",
@@ -1068,7 +1068,7 @@ dependencies = [
 
 [[package]]
 name = "claudius-web"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "claudius",
  "claudius-api",
@@ -1914,7 +1914,7 @@ checksum = "e1d926b4d407d372f141f93bb444696142c29d32962ccbd3531117cf3aa0bfa9"
 
 [[package]]
 name = "earshot"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "claudius-decode",
@@ -7058,7 +7058,7 @@ dependencies = [
 
 [[package]]
 name = "whistle"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "hound",
  "needle-core",

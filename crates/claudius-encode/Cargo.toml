@@ -17,7 +17,7 @@ vorbis = ["dep:vorbis_rs"]
 
 [dependencies]
 anyhow = "1"
-claudius-decode = { version = "0.5.0", path = "../claudius-decode" }
+claudius-decode = { version = "0.6.0", path = "../claudius-decode" }
 flacenc = "0.5"
 hound = "3"
 opus-pure = "0.2"
