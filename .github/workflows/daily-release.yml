@@ -14,7 +14,9 @@
 #
 # All of it is done with the workflow's own GITHUB_TOKEN, and GitHub starts no workflow for what that token does but
 # a dispatch. So this dispatches release-pr.yml, which dispatches CI on the release branch, and, once GitHub has merged
-# the PR (a merge that by itself starts no workflow), dispatches release.yml.
+# the PR (a merge that by itself starts no workflow), dispatches release.yml. The runs the release PR starts itself
+# wait for approval, as an outside contributor's do (the bot is one), and a waiting run of CI hides the `ci ok` of the
+# one dispatched from the PR's checks, so this approves them.
 name: daily release
 
 on:
@@ -135,8 +137,18 @@ jobs:
           gh pr merge "$pr" --auto --squash
           # its checks take about half an hour, and GitHub merges it once `ci ok` passes
           state=OPEN
+          tried=
           for _ in $(seq 360); do
             sleep 20
+            # the runs the PR starts wait for approval, and a waiting run of CI hides the `ci ok` of the one dispatched
+            held=$(gh run list --branch "$branch" --event pull_request --status action_required \
+              --json databaseId --jq '.[].databaseId')
+            for run in $held; do
+              case " $tried " in *" $run "*) continue ;; esac
+              tried="$tried $run"
+              gh api -X POST "repos/$GH_REPO/actions/runs/$run/approve" > /dev/null \
+                || echo "::warning title=daily release::run $run of $url waits for a maintainer to approve it: Actions, the run, Approve and run."
+            done
             state=$(gh pr view "$pr" --json state --jq .state)
             case $state in
               MERGED) break ;;
