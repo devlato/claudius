@@ -25,6 +25,11 @@ test.describe("the keyboard", () => {
       await expect.poll(() => tab.at(-1), { timeout: 10_000 }).toBe("Parts");
       await page.keyboard.press("Shift+Slash");
       await expect.poll(() => windows.at(-1), { timeout: 10_000 }).toBe("keys");
+      // a control Tab gives the keyboard to lets go of it on the first Escape, and the window closes on the next
+      await page.keyboard.press("Tab");
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(500);
+      expect(windows.at(-1)).toBe("keys");
       await page.keyboard.press("Escape");
       await expect.poll(() => windows.at(-1), { timeout: 10_000 }).toBe("none");
       await page.keyboard.press("n");
