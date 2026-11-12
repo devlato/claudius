@@ -103,6 +103,8 @@ pub enum Event {
         what: String,
         result: Result<Reply, String>,
     },
+    /// what was heard in a recording analyzed, as the studio shows it, which comes before the answer to `analyze`
+    Listened(Box<claudius_api::Listened>),
     Sounds(SoundList),
     /// what `/api/hello` says about the server: its name and version ("claudius 0.1.0") and whether it has ears
     Hello {
@@ -361,12 +363,18 @@ impl Remote {
         request.timeout = Some(Duration::from_secs(300));
         let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
         ehttp::fetch(request, move |res| {
+            // an answer to `analyze` says what was heard besides; the others are replies alone
             let result = match res {
-                Ok(r) => {
-                    serde_json::from_slice::<Reply>(&r.bytes).map_err(|_| format!("{} {}", r.status, r.status_text))
-                }
+                Ok(r) => serde_json::from_slice::<claudius_api::Analyzed>(&r.bytes)
+                    .map_err(|_| format!("{} {}", r.status, r.status_text)),
                 Err(e) => Err(e),
             };
+            let result = result.map(|a| {
+                if let Some(heard) = a.heard {
+                    Self::deliver(&tx, &ctx, Event::Listened(Box::new(heard)));
+                }
+                a.reply
+            });
             Self::deliver(&tx, &ctx, Event::Reply { what: what.into(), result });
         });
     }
@@ -780,7 +788,6 @@ impl Backend {
             Backend::Mock(m) => m.audio(render.version).map(Source::Pcm),
         }
     }
-
     /// What downloading the song as rendered in `render` hands over, named `name` and its extension, in `format` (a
     /// spec of `exports`) when one is asked for: a server's file, else its MP3, else its WAV, else the audio the player
     /// plays. The demo makes the file in its engine, which hands it over later as `Event::Delivered`: None.

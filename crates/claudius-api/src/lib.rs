@@ -1969,6 +1969,14 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         rebuild: Option<bool>,
     },
+    /// a new song like the recording claudius heard last (`analyze`), in `genre`: its tempo (halved or doubled into
+    /// the genre's range when it is outside), key, progressions, form and swing, and none of its sound
+    SongLike {
+        #[serde(default)]
+        genre: Option<String>,
+        #[serde(default)]
+        seed: Option<u64>,
+    },
     /// samples a recording into the song (the auto-sampler), in one of `SAMPLING_WAYS`: by default its best sung
     /// phrases, cut on its beat grid and cleaned of its drums, fitted to the song's tempo and key, placed where they
     /// agree with its chords, mixed as vocals; or a passage of it as a verse or chorus, its voice chopped into an
@@ -2303,6 +2311,89 @@ pub struct Reply {
 pub struct Heard {
     pub heard: String,
     pub text: String,
+}
+
+/// The answer to `analyze` (`POST /api/analyze`): the reply, whose message says what was heard in words, and what was
+/// heard as the studio shows it, when the recording was heard
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct Analyzed {
+    #[serde(flatten)]
+    pub reply: Reply,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub heard: Option<Listened>,
+}
+
+/// What claudius heard in a recording, as the studio shows it while the recording plays: its tempo, key, form, the
+/// chord of each bar and its beat, and the recording and its parts to play
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct Listened {
+    /// the file it came in
+    pub name: String,
+    /// how long it is, in seconds
+    pub secs: f64,
+    pub bpm: f64,
+    /// whether it keeps one tempo; else its bars follow a band that speeds up and slows down
+    pub steady: bool,
+    /// how clearly a beat is heard in it, 0 to 1
+    pub pulse: f64,
+    /// its key, "D minor", and how sure claudius is of it, 0 to 1
+    pub key: String,
+    pub key_confidence: f64,
+    /// where its offbeat sixteenths fall: 0.5 straight, 0.66 a triplet's swing
+    pub swing: f32,
+    /// how loud it is, integrated, in LUFS
+    pub lufs: f64,
+    /// its bars in order
+    pub bars: Vec<BarHeard>,
+    /// where the last bar ends, in seconds
+    pub end: f64,
+    pub sections: Vec<SectionHeard>,
+    /// its two progressions, as Roman numerals in its key, and the bars each chord lasts: what `prog` and
+    /// `bars_per_chord` take
+    pub progression_a: Vec<String>,
+    pub progression_b: Vec<String>,
+    pub bars_per_chord: u32,
+    /// how often each lane strikes each sixteenth of a bar in its busiest sections, 0 to 1
+    pub kick: Vec<f32>,
+    pub snare: Vec<f32>,
+    pub hats: Vec<f32>,
+    /// how its bass plays, in words
+    pub bass: String,
+    /// the recording and the parts claudius took it apart into, kept to play while it is shown; none when nothing of it
+    /// is kept (the demo's page plays the file it has)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub audio: Option<ListenedAudio>,
+}
+
+/// the audio of a recording claudius heard, until it hears another: `GET /api/listened/{id}/{track}` is each of
+/// `tracks` as a WAV file ("recording", then the parts it was taken apart into: "vocals", "drums", "bass", "other")
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct ListenedAudio {
+    pub id: u64,
+    pub tracks: Vec<String>,
+}
+
+/// a bar of a recording: where it starts, in seconds, and the chord heard in it, by name and as a Roman numeral in the
+/// recording's key
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct BarHeard {
+    pub start: f64,
+    pub chord: String,
+    pub numeral: String,
+}
+
+/// a section of a recording: its first bar (counting from 0), how many bars, what kind ("intro", "verse", "drop" ...),
+/// how much energy it has, 0 to 1, and what plays in it
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct SectionHeard {
+    pub start_bar: usize,
+    pub bars: usize,
+    pub kind: String,
+    pub energy: f32,
+    pub kick: bool,
+    pub bass: bool,
+    pub hats: bool,
+    pub harmony: bool,
 }
 
 #[cfg(test)]

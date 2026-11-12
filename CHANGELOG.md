@@ -6,6 +6,15 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+What claudius hears in a recording is a window to use rather than a block of text. **See what is in it, as it plays**
+(it was **Only say what claudius hears**) shows its tempo, key, feel and loudness; its form, with the chord of each bar
+under it and the playhead going through both as it plays; its beat as a step grid; and its bass. Its voice, drums, bass
+and the rest play alone, as claudius took them apart, so you hear what it heard in each. **Make a song like it** makes
+a new song in any genre on its tempo, key, chords, form and swing, and **Its tempo** and **Its key and chords** give
+them to the open song. Assistants get the same with the new `song_like` tool, after `analyze`. `POST /api/analyze`
+answers with what was heard as data (`heard`) beside the words, and `GET /api/listened/{id}/{track}` plays the
+recording and its parts until claudius analyzes another.
+
 ## [0.6.0] - 2026-11-11
 
 The examples' studies of famous records are gone. They were named after the records but played melodies of their

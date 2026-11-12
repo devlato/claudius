@@ -1,6 +1,6 @@
 //! Takes: recordings for the song, sent by the studio as a file's bytes or named by path, kept with the song
-//! (`claudius::take`). And recordings the studio sends to be listened to (`analyze_bytes`, `remake_bytes`), which
-//! claudius keeps nothing of.
+//! (`claudius::take`). And recordings the studio sends to be listened to (`analyze_bytes`, `remake_bytes`): what a
+//! remake makes of one is kept with its song, and the last analyzed is kept only until another is.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -54,11 +54,11 @@ impl App {
     }
 
     /// what claudius hears in a recording sent as a file's bytes, named `name` (whose extension says its format, if it
-    /// has one); nothing of it is kept
-    pub fn analyze_bytes(self: &Arc<Self>, bytes: Vec<u8>, name: &str) -> Reply {
+    /// has one), kept with its audio until another is analyzed
+    pub fn analyze_bytes(self: &Arc<Self>, bytes: Vec<u8>, name: &str) -> claudius_api::Analyzed {
         match self.decode(bytes, name) {
             Ok(x) => self.analyze_audio(&x, name),
-            Err(e) => no(e, self.version()),
+            Err(e) => claudius_api::Analyzed { reply: no(e, self.version()), heard: None },
         }
     }
 

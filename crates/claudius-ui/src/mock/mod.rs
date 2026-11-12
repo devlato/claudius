@@ -447,6 +447,7 @@ impl Mock {
                     self.events.push(Event::Sounds(list));
                 }
                 Heard::Reference(text) => self.events.push(Event::Reference(Ok(text))),
+                Heard::Listened(heard) => self.events.push(Event::Listened(heard)),
                 Heard::Sound { id, sounds } => self.rendered(id, sounds),
                 Heard::Encoded { id, file } => {
                     let Some(at) = self.encodes.iter().position(|(i, _)| *i == id) else { continue };

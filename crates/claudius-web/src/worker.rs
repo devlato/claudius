@@ -234,8 +234,10 @@ fn receive(engine: &Shared, m: &MessageEvent) {
                 ("listen".to_string(), Reply { ok: false, message: why, version: 0 })
             }
         };
+        let heard = engine.borrow_mut().host.take_listened();
         let e = engine.borrow();
-        post(&e.scope, &serde_json::json!({ "what": what, "reply": reply, "state": e.host.state() }), None);
+        let answer = serde_json::json!({ "what": what, "reply": reply, "heard": heard, "state": e.host.state() });
+        post(&e.scope, &answer, None);
         drop(e);
         schedule(engine);
         return;

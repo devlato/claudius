@@ -104,6 +104,10 @@ pub struct Host {
     voice: Option<claudius::voice::singer::Voice>,
     /// the auto-sampler's last offer, and the pieces as the studio sees them
     pieces: Option<(Offer, PiecesView)>,
+    /// the recording analyzed last, by the name of its file, which a song like it is made from (`Command::SongLike`)
+    heard: Option<(String, Box<claudius::analysis::song::Analysis>)>,
+    /// what was heard in it as the studio shows it, until the page takes it with the answer (`take_listened`)
+    listened: Option<claudius_api::Listened>,
 }
 
 /// what the auto-sampler offered last: the recording, the library's record of it (what the pieces kept credit), how
@@ -153,7 +157,34 @@ impl Host {
             asked: 0,
             voice: None,
             pieces: None,
+            heard: None,
+            listened: None,
         }
+    }
+
+    /// what the recording analyzed last was heard to hold, as the studio shows it, once: the page sends it with the
+    /// answer to `analyze`
+    pub fn take_listened(&mut self) -> Option<claudius_api::Listened> {
+        self.listened.take()
+    }
+
+    /// a new song like the recording analyzed last, in `genre` (the song's, when none)
+    fn song_like(&mut self, genre: Option<String>, seed: Option<u64>) -> Reply {
+        let Some((name, a)) = self.heard.clone() else {
+            return self
+                .no("analyze a recording first: a song like it takes that recording's tempo, key, chords and form");
+        };
+        let genre = genre.or_else(|| self.bp.as_ref().map(|b| b.genre.clone())).unwrap_or_else(|| "house".into());
+        let g = match genres::get(&genre) {
+            Ok(g) => g,
+            Err(e) => return self.no(e.to_string()),
+        };
+        let seed = seed.unwrap_or_else(|| self.seed());
+        let lib = self.lib.clone();
+        let (bp, said) =
+            crate::listen::song_like(&a, &name, &g, seed, lib.as_deref().map(|l| l as &dyn compose::Library));
+        self.forget_render();
+        self.commit_song(Some(bp), said)
     }
 
     /// Cuts a recording the page fetched (`bytes`, a file of its `ext`) as claudius cuts one (`sampling::cut`), keeps
@@ -215,7 +246,10 @@ impl Host {
         let dir = std::path::Path::new(take::IN_MEMORY);
         match l {
             Listen::Analyze { .. } => {
-                let text = listen::analysis_text(&claudius::analysis::song::analyze(&x, None));
+                let a = claudius::analysis::song::analyze(&x, None);
+                let text = listen::analysis_text(&a);
+                self.listened = Some(listen::listened(&a, &x, &name));
+                self.heard = Some((name.clone(), Box::new(a)));
                 self.say(format!("analyzed {name}"));
                 self.version += 1;
                 self.ok(&text)
@@ -604,6 +638,7 @@ impl Host {
             Command::Redo => self.history(false),
             Command::GoBack { to } => self.go_back(&to),
             Command::Together { said, commands } => self.together(said, commands),
+            Command::SongLike { genre, seed } => self.song_like(genre, seed),
             Command::Render { .. } if self.stale() => self.ok("rendering"),
             Command::Render { .. } => self.ok("the render is up to date"),
             // a take's drums and singing, which the page holds in memory
@@ -2187,6 +2222,14 @@ mod tests {
     }
 
     #[test]
+    fn a_song_like_a_recording_waits_for_one_to_be_analyzed() {
+        let mut h = Host::new(1);
+        let r = command(&mut h, json!({"cmd": "song_like", "genre": "house"}));
+        assert!(!r.ok && r.message.starts_with("analyze a recording first"), "{}", r.message);
+        assert!(h.blueprint().is_none());
+    }
+
+    #[test]
     fn a_recording_chosen_on_the_page_is_heard_reworked_flipped_and_grooved_in_memory() {
         use crate::listen::Listen;
         let mut h = Host::new(1);
@@ -2194,6 +2237,17 @@ mod tests {
         let name = || "my song.wav".to_string();
         let r = h.listen(&Listen::Analyze { name: name() }, bytes.clone());
         assert!(r.ok && r.message.contains(" BPM (pulse clarity"), "{}", r.message);
+        // what was heard goes to the page with the answer, once, with nothing of the recording kept: the page plays
+        // the file it has
+        let heard = h.take_listened().expect("what was heard, as the studio shows it");
+        assert!(h.take_listened().is_none(), "it goes once");
+        assert_eq!((heard.name.as_str(), heard.audio.as_ref()), ("my song.wav", None));
+        assert!(heard.bars.len() >= 8 && !heard.sections.is_empty() && heard.kick.len() == 16, "{heard:?}");
+        assert!(heard.bars.windows(2).all(|w| w[0].start < w[1].start) && heard.end > heard.bars[0].start);
+        let r = command(&mut h, json!({"cmd": "song_like", "genre": "techno", "seed": 5}));
+        assert!(r.ok && r.message.starts_with("a techno song like my song.wav: at "), "{}", r.message);
+        let like = h.blueprint().unwrap();
+        assert_eq!((like.genre.as_str(), like.key.name()), ("techno", heard.key.clone()));
         // reworked: the recording plays all through, kept in memory, and goes in the project the page saves
         let remake = |flip, rebuild| Listen::Remake {
             name: name(),

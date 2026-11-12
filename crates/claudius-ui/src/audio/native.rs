@@ -191,8 +191,16 @@ impl Player {
 
     /// load audio; `keep_position` continues from the current position (clamped) instead of the start
     pub fn load(&mut self, source: Source, keep_position: bool) {
+        // a load forgets why the one before failed; that there is no output stays
+        if self._device.is_some() {
+            self.error = None;
+        }
         match source {
             Source::Pcm(pcm) => self.install(pcm, keep_position),
+            Source::File(file) => match Pcm::decode_wav(&file.bytes) {
+                Ok(pcm) => self.install(Arc::new(pcm), keep_position),
+                Err(e) => self.error = Some(format!("{}: {e}", file.name)),
+            },
             Source::Url(url) => {
                 let (tx, rx) = channel();
                 let ctx = self.ctx.clone();

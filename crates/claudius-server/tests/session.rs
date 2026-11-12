@@ -1015,8 +1015,8 @@ async fn files_a_studio_read_open_and_are_listened_to_by_their_contents() {
     assert!(!r.ok && r.message.starts_with("cannot open notes.JSON"), "{}", r.message);
     let _ = std::fs::remove_dir_all(&dir);
 
-    // eight seconds of a beat at 120 BPM, sent as the file itself: listened to and remade on its skeleton, nothing of it
-    // kept
+    // eight seconds of a beat at 120 BPM, sent as the file itself: listened to, kept to play until another is, and
+    // remade on its skeleton
     let sr = claudius::config::SR as usize;
     let l: Vec<f32> = (0..8 * sr)
         .map(|i| {
@@ -1041,6 +1041,21 @@ async fn files_a_studio_read_open_and_are_listened_to_by_their_contents() {
     let (s, _, b) = call(&router, post("/api/analyze?name=beat.wav", "audio/wav", &wav)).await;
     let reply: claudius_api::Reply = serde_json::from_str(&b).unwrap();
     assert!(s == StatusCode::OK && reply.ok && reply.message.contains(" BPM (pulse clarity"), "{s} {b}");
+    // what was heard, as the studio shows it while the recording plays, which it fetches by the answer's id
+    let heard = serde_json::from_str::<claudius_api::Analyzed>(&b).unwrap().heard.expect("what was heard");
+    // a lone kick every half second is 120 BPM, or half or twice that: without the ears' stems, either
+    let tempo = [60.0, 120.0, 240.0].iter().any(|t| (heard.bpm - t).abs() < 1.0);
+    assert!(tempo && heard.name == "beat.wav" && !heard.bars.is_empty(), "{heard:?}");
+    let audio = heard.audio.clone().expect("the recording, kept to play");
+    assert_eq!(audio.tracks.first().map(String::as_str), Some("recording"));
+    let get = |path: String| Request::get(path).header(header::HOST, "localhost").body(Body::empty()).unwrap();
+    let (s, _, b) = call(&router, get(format!("/api/listened/{}/recording", audio.id))).await;
+    assert!(s == StatusCode::OK && b.starts_with("RIFF"), "{s}");
+    let (s, _, _) = call(&router, get(format!("/api/listened/{}/recording", audio.id + 1))).await;
+    assert_eq!(s, StatusCode::NOT_FOUND, "only the recording analyzed last plays");
+    let r = app.command(Command::SongLike { genre: Some("techno".into()), seed: Some(4) });
+    assert!(r.ok && r.message.starts_with("a techno song like beat.wav: at "), "{}", r.message);
+    assert_eq!(app.state().song.map(|s| (s.genre, s.seed)), Some(("techno".into(), 4)));
     // a file without a name says its format by its first bytes; one that is not audio says what is wanted
     let (_, _, b) = call(&router, post("/api/analyze", "application/octet-stream", &wav)).await;
     assert!(serde_json::from_str::<claudius_api::Reply>(&b).unwrap().ok, "{b}");

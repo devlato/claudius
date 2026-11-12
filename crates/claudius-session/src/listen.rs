@@ -131,6 +131,70 @@ pub fn analysis_text(a: &Analysis) -> String {
     out
 }
 
+/// What the analysis `a` heard in recording `x`, which came in a file named `name`, as the studio shows it while the
+/// recording plays; with none of its audio, which whoever keeps it adds (`Listened::audio`).
+pub fn listened(a: &Analysis, x: &Stereo, name: &str) -> claudius_api::Listened {
+    use claudius_api::{BarHeard, SectionHeard};
+    let at = |v: &[String], b: usize| v.get(b).cloned().unwrap_or_default();
+    claudius_api::Listened {
+        name: name.to_string(),
+        secs: x.len() as f64 / claudius::config::SRF,
+        bpm: a.bpm,
+        steady: a.steady,
+        pulse: a.pulse_clarity,
+        key: a.key.name(),
+        key_confidence: a.key_confidence,
+        swing: a.swing,
+        lufs: claudius::loudness::integrated(x),
+        bars: (0..a.bars)
+            .map(|b| BarHeard { start: a.bar_start(b), chord: at(&a.chords, b), numeral: at(&a.numerals, b) })
+            .collect(),
+        end: a.bar_start(a.bars),
+        sections: a
+            .sections
+            .iter()
+            .map(|s| SectionHeard {
+                start_bar: s.start_bar,
+                bars: s.bars,
+                kind: s.kind.name().to_string(),
+                energy: s.energy,
+                kick: s.kick,
+                bass: s.bass,
+                hats: s.hats,
+                harmony: s.harmony,
+            })
+            .collect(),
+        progression_a: a.progression_a.clone(),
+        progression_b: a.progression_b.clone(),
+        bars_per_chord: a.bars_per_chord,
+        kick: a.kick_steps.clone(),
+        snare: a.snare_steps.clone(),
+        hats: a.hat_steps.clone(),
+        bass: a.bass_style.clone(),
+        audio: None,
+    }
+}
+
+/// A new song like the recording analysis `a` heard, named `name`, in genre `g`: its tempo (halved or doubled into the
+/// genre's range when it is outside), key, progressions, form and swing, none of its sound (`Command::SongLike`); and
+/// what to say of it.
+pub fn song_like(
+    a: &Analysis,
+    name: &str,
+    g: &GenreProfile,
+    seed: u64,
+    lib: Option<&dyn Library>,
+) -> (Blueprint, String) {
+    let bp = analysis::song::to_blueprint(a, g, seed, &Options::default(), lib, name);
+    let said = format!(
+        "a {} song like {name}: at {:.0} BPM in {}, in its form, on its chords",
+        g.name.replace('_', " "),
+        bp.bpm,
+        a.key.name()
+    );
+    (bp, said)
+}
+
 /// a recording to remake: its audio, its path or the name of the file it came in, the name it goes by, and what was
 /// heard in it
 pub struct Heard<'a> {

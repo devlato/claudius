@@ -43,6 +43,8 @@ pub enum Heard {
         id: u64,
         file: Result<Encoded, String>,
     },
+    /// what was heard in a recording analyzed, as the studio shows it, which comes before the answer to `analyze`
+    Listened(Box<claudius_api::Listened>),
 }
 
 /// a render as a file: its bytes, the extension of its name and its media type
@@ -121,6 +123,9 @@ fn heard(json: &str, audio: Option<Vec<f32>>, bytes: Option<Vec<u8>>) -> Vec<Hea
         return out;
     }
     let Ok(state) = serde_json::from_value::<State>(v["state"].clone()).map(Box::new) else { return out };
+    if let Ok(l) = serde_json::from_value::<claudius_api::Listened>(v["heard"].clone()) {
+        out.push(Heard::Listened(Box::new(l)));
+    }
     out.push(match (v["what"].as_str(), serde_json::from_value::<Reply>(v["reply"].clone()), audio) {
         (_, Ok(reply), _) if let Some(what) = v["bred"].as_str() => {
             Heard::Bred { what: what.to_string(), reply, state }
@@ -342,6 +347,9 @@ mod native {
                         }
                         Some(Ask::Listen(l, bytes)) => {
                             let reply = host.listen(&l, bytes);
+                            if let Some(heard) = host.take_listened() {
+                                say(Heard::Listened(Box::new(heard)));
+                            }
                             say(Heard::Answer { what: l.what().into(), reply, state: Box::new(host.state()) });
                         }
                         Some(Ask::Recording(id, r, bytes)) => {

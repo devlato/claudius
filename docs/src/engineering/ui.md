@@ -330,11 +330,16 @@ reads each frame:
   button sends it, the file
   itself (a flip with `flip=true`, a rebuild with `rebuild=true`), to
   `POST /api/analyze` or `POST /api/remake`, named so that its extension says its format. claudius decodes it in
-  memory and keeps nothing of it.
+  memory. What an analysis heard comes back as data beside the words (`Analyzed::heard`, which `Event::Listened`
+  hands to the What claudius hears window, `panels::hears`); claudius keeps that recording, and the parts it took it
+  apart into, in the session's folder until it analyzes another, and the window's second player plays them from
+  `/api/listened/{id}/{track}`. The demo's engine sends what it heard with its answer too, and the window plays the
+  file chosen (`Source::File`).
 - **A cover** goes to `POST /api/release/artwork`, as a dropped one does.
 
 So nothing the studio asks for is a path on the computer claudius runs on, and a studio on another computer works
-the same. Scripted runs open the dialogs (`pick:<song|audio|cover>`) and press the buttons (`listen:<analyze|remake>`);
+the same. Scripted runs open the dialogs (`pick:<song|audio|cover>`) and press the buttons (`listen:<analyze|remake>`,
+and the What claudius hears window's `hears:<play|pause>`);
 `site/tests/files.spec.mjs` fills the page's file input as a person choosing a file would.
 
 ## The demo

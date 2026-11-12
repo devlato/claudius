@@ -1166,8 +1166,9 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
         ),
         (
             WithRecording::Analyze,
-            "Only say what claudius hears".to_string(),
-            "its tempo, key, chords, form and groove, and nothing changed",
+            "See what is in it, as it plays".to_string(),
+            "its tempo, key and feel, its form with the chord of each bar as it plays, its beat, and its voice, \
+             drums and bass to hear apart; then a song like it, or its tempo, key and chords for the open song",
             None,
         ),
     ];
