@@ -63,6 +63,9 @@ When it is a version, the workflow starts `release-pr.yml` with it (step 1 below
 PR, waits until GitHub has merged it once *ci ok* passes (about half an hour), and starts `release.yml`, which
 publishes the release (step 4). It does all of that with its own `GITHUB_TOKEN`. GitHub starts no workflow for what that
 token does, except a dispatch, so the merge alone would not start `release.yml`, and the workflow starts it itself.
+The runs the release PR does start wait for someone to approve them, as an outside contributor's do (the bot is one
+to the repository's approval of workflows), and a waiting run of CI hides the *ci ok* of the one dispatched from the
+PR's checks, so that the PR would never merge: the workflow approves them as they come.
 
 - `gh workflow run daily-release.yml -f dry_run=true` says what it would release, and releases nothing.
 - A release PR an earlier day left open (its checks failed, or `main` moved on before it could merge, since *ci ok*
@@ -96,7 +99,9 @@ them again. Releasing by hand, below, works the same with or without them.
 
 2. **Let CI run.** GitHub starts no workflows for a pull request opened with a workflow's own `GITHUB_TOKEN`, so the
    workflow starts CI on the release branch itself (`gh workflow run ci.yml --ref release/v0.5.0`); the checks show
-   on the PR as usual. If they are missing, run that command yourself. With the optional `RELEASE_TOKEN` secret (see
+   on the PR as usual. If they are missing, run that command yourself. Runs on the PR that wait for approval
+   (*Approve and run* on their page, or `gh api -X POST repos/devlato/claudius/actions/runs/<id>/approve`) hide its
+   checks until they are approved, which the daily release does itself. With the optional `RELEASE_TOKEN` secret (see
    below) the PR is opened with that token instead and starts its checks like any other.
 
 3. **Read the notes, then merge.** To reword them, edit `CHANGELOG.md` on the release branch. Merge the PR once
