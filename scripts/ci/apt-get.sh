@@ -43,8 +43,16 @@ others() {
 printf 'Acquire::http::Timeout "20";\nAcquire::https::Timeout "20";\nAcquire::Retries "2";\n' \
   | sudo tee /etc/apt/apt.conf.d/99claudius-ci > /dev/null
 
+# An update that could not fetch Ubuntu's lists fails, which apt does not do by itself; one of the runner's other
+# sources (Microsoft's, Google's) failing is only warned of, as apt does.
 update() {
-  sudo apt-get update -qq --error-on=any
+  status=0
+  said=$(sudo apt-get update -qq 2>&1) || status=$?
+  printf '%s\n' "$said"
+  if printf '%s\n' "$said" | grep -Eq "Failed to fetch (mirror\+file:/etc/apt/apt-mirrors\.txt|$AZURE|$UBUNTU|$KERNEL)"; then
+    status=1
+  fi
+  return "$status"
 }
 
 install() {
