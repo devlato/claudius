@@ -140,9 +140,10 @@ jobs:
           tried=
           for _ in $(seq 360); do
             sleep 20
-            # the runs the PR starts wait for approval, and a waiting run of CI hides the `ci ok` of the one dispatched
-            held=$(gh run list --branch "$branch" --event pull_request --status action_required \
-              --json databaseId --jq '.[].databaseId')
+            # the runs the PR starts wait for approval, and a waiting run of CI hides the `ci ok` of the one dispatched;
+            # GitHub has shown them as completed with the conclusion action_required, and may as waiting
+            held=$(gh run list --branch "$branch" --event pull_request --limit 50 --json databaseId,status,conclusion \
+              --jq '.[] | select(.conclusion == "action_required" or .status == "action_required" or .status == "waiting") | .databaseId')
             for run in $held; do
               case " $tried " in *" $run "*) continue ;; esac
               tried="$tried $run"
