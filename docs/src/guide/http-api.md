@@ -158,6 +158,7 @@ The MCP tools wait the same way after every edit.
 | `pitch_check` | `PitchCheck` or null | the last [pitch check](voice.md#checking-your-pitch) asked of the person: its `id`, `bpm`, the `notes` to play (`t` and `d` in beats, `p` MIDI), where each phrase's answer goes (`answers`, beats), how long it lasts (`beats`), the asker's `note`, its `status` (`waiting`, `taken` or `cancelled`), and, once sung, claudius' `answer` |
 | `voice` | string or null | the person's voice as their last pitch check heard it, in words |
 | `pieces` | `PiecesView` or null | the auto-sampler's last [offer](samples.md#choosing-the-pieces-first): the `recording`, the take's `seed`, and its `pieces`, each with its `id`, `place` in the recording, `bars`, how `sung` it is, where to hear it as it was cut (`raw`) and `treated`, and its `treatment` in words |
+| `chat` | `ChatView` | the chat with the assistants: its `messages` (the last 200, the oldest first; each with its `id`, one more than the one before, `from` (null for the person, else who wrote it), `text`, `at` in ms since 1970, and `reply_to`), and the assistant `listening` now with `listening_until` (ms since 1970), or null |
 | `take_request` | `TakeRequest` or null | the last [take someone asked the person to record](samples.md#a-take-an-assistant-asks-for): its `id`, `from`, `role`, `name` and `note` as `request_take` gave them, its `status` (`waiting`, `taken` or `cancelled`), and, once taken, claudius' `answer` to the take |
 
 ### `SongView`
@@ -262,6 +263,10 @@ fields marked optional may be left out.
 | `add_notes` | `from` (a section's name), `notes` (`[{t, d, p, v}]`: beats from the section's start, length in beats, MIDI pitch, velocity, 0.8 when left out), `sounds`; optional `name` (played), `role` (lead), `style` (line), `request` (the take request the notes answer) | [notes played or written](samples.md#notes-played-on-a-keyboard), chords and all, as a new part for each sound |
 | `request_take` | `from` (a section's name); optional `role` (as `add_take`'s, or a part's: `pad`, `arp` ...), `name`, `note` (what to record, for the person) | [asks the person to record a take](samples.md#a-take-an-assistant-asks-for): the studio's Record window opens for it; the request goes in `take_request`, waiting, and replaces one asked before |
 | `cancel_take_request` | `id` | the person will not record the take asked for, as the Record window's Not now says |
+| `chat_say` | `text` | the person writes to the assistants in the studio's chat (4000 characters at most) |
+| `chat_answer` | `text`; optional `from` (who writes: "an assistant"), `reply_to` (the id of the message it answers) | an assistant writes in the chat, as `send_message` does |
+| `chat_listen` | optional `from`, `seconds` (50, 1 to 300) | an assistant listens for what the person writes: `chat.listening` names it until 20 s after `seconds` |
+| `clear_chat` | | the chat's history goes, in the state and in `chat.jsonl` |
 | `request_pitch_check` | optional `low` and `high` (MIDI, default 57 and 69), `note` | asks the person for a [pitch check](voice.md#checking-your-pitch): the Record window opens with its phrases; it goes in `pitch_check`, waiting, and replaces one asked before |
 | `cancel_pitch_check` | `id` | the person will not do the pitch check now |
 | `quick_fix` | optional `target` (one of the verdict's `fixes`; none: all of them) | makes the verdict's [quick fixes](../getting-started/studio.md#quick-fixes) as one edit; refused while the verdict is of the song before its last change |

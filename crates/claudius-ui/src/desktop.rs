@@ -11,6 +11,7 @@ use eframe::egui;
 use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, MediaPosition, PlatformConfig};
 
 use crate::audio::Player;
+use crate::panels::chat::unread;
 
 /// how long the studio works on something before its end is worth a notification: a render after an edit takes a few
 /// seconds, an evolution, a remake or an analysis minutes
@@ -34,6 +35,8 @@ pub struct Desktop {
     /// when the app started: the clock its jobs are timed on, which goes on while the window is hidden, as the
     /// studio's input time does not
     born: Instant,
+    /// the chat's last message seen: what an assistant writes after it is said, not what was there at the start
+    read: Option<u64>,
 }
 
 /// the song as Now Playing was told it: its title and length, whether it played, and where, at `when` on the studio's
@@ -80,7 +83,8 @@ impl Desktop {
         });
         #[cfg(target_os = "macos")]
         let _ = notify_rust::set_application("io.github.devlato.claudius");
-        Desktop { media, events, title: String::new(), told: None, busy: None, asked: None, born: Instant::now() }
+        let born = Instant::now();
+        Desktop { media, events, title: String::new(), told: None, busy: None, asked: None, born, read: None }
     }
 
     /// What the system asked of the song since the last frame, done; the song as the system shows it, told; and what
@@ -148,6 +152,16 @@ impl Desktop {
         self.busy = busy;
         if let Some((summary, body)) = done {
             tell(ctx, &summary, &body);
+        }
+        // none until the first state has come from claudius: the studio starts with an empty one
+        if state.version > 0 {
+            let last = state.chat.messages.last().map_or(0, |m| m.id);
+            for m in state.chat.messages.iter().filter(|m| m.id > unread(self.read, last)) {
+                if let Some(who) = m.from.as_deref().filter(|_| away) {
+                    tell(ctx, &format!("{who} writes"), &m.text);
+                }
+            }
+            self.read = Some(last);
         }
         let waiting = state.take_request.as_ref().filter(|r| r.status == TakeStatus::Waiting);
         if let Some(r) = waiting.filter(|r| self.asked != Some(r.id)) {

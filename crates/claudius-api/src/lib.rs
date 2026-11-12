@@ -116,6 +116,9 @@ pub struct State {
     /// the last take someone asked the person to record (`Command::RequestTake`), and how it went
     #[serde(default)]
     pub take_request: Option<TakeRequest>,
+    /// the chat between the person and the assistants connected to claudius
+    #[serde(default)]
+    pub chat: ChatView,
     /// the last pitch check asked of the person (`request_pitch_check`), and how it went
     #[serde(default)]
     pub pitch_check: Option<PitchCheck>,
@@ -216,6 +219,35 @@ pub struct TakeRequest {
     /// what claudius said of the take sent for it
     #[serde(default)]
     pub answer: Option<String>,
+}
+
+/// The chat between the person, in the studio, and the assistants connected to claudius over MCP: what each said, in
+/// order (`CHAT_SHOWN` of it at most), and who listens for what the person writes now (`wait_for_message`).
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct ChatView {
+    #[serde(default)]
+    pub messages: Vec<ChatMessage>,
+    /// the assistant listening, as its client calls itself ("Claude Code"), until when, in ms since 1970
+    #[serde(default)]
+    pub listening: Option<String>,
+    #[serde(default)]
+    pub listening_until: Option<u64>,
+}
+
+/// the most messages of the chat a state holds, the latest
+pub const CHAT_SHOWN: usize = 200;
+
+/// a message of the chat: its id (each one more than the one before it), who said it (none for the person), what,
+/// when (in ms since 1970), and the message it answers
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct ChatMessage {
+    pub id: u64,
+    #[serde(default)]
+    pub from: Option<String>,
+    pub text: String,
+    pub at: u64,
+    #[serde(default)]
+    pub reply_to: Option<u64>,
 }
 
 /// A pitch check (`request_pitch_check`): phrases the studio plays for the person to sing back, each followed by a gap
@@ -1651,6 +1683,27 @@ pub enum Command {
     CancelTakeRequest {
         id: u64,
     },
+    /// the person writes to the assistants in the studio's chat (`State.chat`)
+    ChatSay {
+        text: String,
+    },
+    /// an assistant writes to the person in the studio's chat, as `from` (its name), answering message `reply_to`
+    ChatAnswer {
+        text: String,
+        #[serde(default)]
+        from: Option<String>,
+        #[serde(default)]
+        reply_to: Option<u64>,
+    },
+    /// an assistant listens for what the person writes, for `seconds` (50): the studio's chat says so while it does
+    ChatListen {
+        #[serde(default)]
+        from: Option<String>,
+        #[serde(default)]
+        seconds: Option<u64>,
+    },
+    /// the chat's history goes, in the studio and where claudius keeps it
+    ClearChat,
     /// open a song folder, a blueprint.json, a script file, or a project the demo saved (a zip, unpacked into a song
     /// folder of its own)
     Load {

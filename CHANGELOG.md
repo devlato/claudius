@@ -36,6 +36,12 @@ sections and seek in it, showing its title, genre and length. When Improve, a re
 finishes while another window is in front, a notification says so and the Dock or the taskbar asks for your
 attention; so does an assistant that asks for a take.
 
+You can talk to your assistant from the studio. An assistant connected over MCP listens with the new
+`wait_for_message` tool and answers with `send_message`; while it listens, the status bar says so and the **Chat**
+window takes what you write, and its answers come in there, each saying which message it answers (with a
+notification when the app is in the background). The chat is kept between runs until you clear it. The commands are
+`chat_say`, `chat_answer`, `chat_listen` and `clear_chat`, and the state's `chat`.
+
 ## [0.6.0] - 2026-11-11
 
 The examples' studies of famous records are gone. They were named after the records but played melodies of their

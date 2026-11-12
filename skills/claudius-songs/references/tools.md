@@ -48,6 +48,8 @@ to. On the command line, each command reads and writes song folders instead.
 | `extract_groove` | `path` of a recording with drums, `name` (default the file's), `lanes` (default all), `bpm` (when known) | a script: `groove("funk", "FILE", 96); lane("hat", #{ groove: "funk" });` |
 | `request_pitch_check` | `low`, `high` (MIDI; default A3 to A4, sung in any octave), `note` (for the person) | |
 | `wait_for_pitch_check` | `id` (from `request_pitch_check`), `seconds` (50, 1 to 300) | |
+| `wait_for_message` | `after` (the last message's id you saw; none: from now on), `seconds` (50, 1 to 300): what the person writes to you in the studio's chat, with the messages before it; while you wait the studio says you listen (`chat_listen`) and lets them write, so call it again at once to stay | |
+| `send_message` | `text`, `reply_to` (the id of their message): you, in the studio's chat (`chat_answer`); they are notified when the app is in the background | |
 | `request_take` | `from` (a section's name), `role`, `name`, `note` (what to record, for the person) | |
 | `wait_for_take` | `id` (from `request_take`), `seconds` (50, 1 to 300) | |
 | `transcribe_take` | `take`, `sounds` (presets or instruments, one part each), `name`, `role`, `chromatic`, `keep_take`, `style` (line, harmony, octaves, chords, bass, arp, pad) | |
@@ -66,6 +68,7 @@ Each control in the studio sends one command, and an assistant can send every on
 | New song, from an example | `open_example` | `open_text` |
 | New song, from a recording: remake it, flip it, rebuild it, sample it (its phrases, a passage, chops or a stab), take its groove, see what is in it; in that window, a song like it, its tempo, its key and chords | `remake` (`flip`, `rebuild`), `sample_song`, `extract_groove`, `analyze`; `song_like`, `run_script` (`tempo(...)`, `key(...)`, `prog(...)`) | `remake`, `sample_song`, `extract_groove`, `analyze`; `song_like`, `run_script` |
 | Open a song folder, a blueprint or a script; a file's text | `open`; `command` | `load`; `open_text` |
+| The chat: what the person writes to an assistant listening, clearing it | `wait_for_message`, `send_message`; `command` | `chat_listen`, `chat_answer`; `chat_say`, `clear_chat` |
 | Save (Download in the demo), Export, Publish | `save`, `export`, `publish` | `save`, `export`, `set_release`, `write_kit` |
 | Render, and each track on its own | `listen` (`stems`) | `render` |
 | Variations, Improve, Cancel | `mutate`, `evolve`, `stop` | `mutate`, `evolve`, `cancel` |

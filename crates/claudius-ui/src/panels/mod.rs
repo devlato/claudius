@@ -3,6 +3,7 @@
 
 pub mod arrange;
 pub mod assistants;
+pub mod chat;
 pub mod graph;
 pub mod harmony;
 pub mod hears;
@@ -394,6 +395,8 @@ pub struct View {
     pub palette: palette::Palette,
     /// the window of the keys the studio answers to
     pub keys: keys::Keys,
+    /// the chat with the assistants
+    pub chat: chat::Chat,
     pub phone: phone::Phone,
     /// the graph tab: the node chosen, and where its canvas looks
     pub graph: graph::GraphView,
@@ -487,6 +490,7 @@ impl Default for View {
             import: import::Import::default(),
             palette: palette::Palette::default(),
             keys: keys::Keys::default(),
+            chat: chat::Chat::default(),
             phone: phone::Phone::default(),
             graph: graph::GraphView::default(),
             melody_style: "line".into(),
@@ -526,9 +530,10 @@ impl View {
     }
 
     /// the windows Escape closes, each by a name, and whether it is open
-    fn closable(&mut self) -> [(&'static str, &mut bool); 8] {
+    fn closable(&mut self) -> [(&'static str, &mut bool); 9] {
         [
             ("keys", &mut self.keys.open),
+            ("chat", &mut self.chat.open),
             ("reference", &mut self.reference_open),
             ("assistants", &mut self.assistants.open),
             ("phone", &mut self.phone.open),
