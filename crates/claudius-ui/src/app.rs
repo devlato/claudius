@@ -19,6 +19,9 @@ use crate::widgets::{self, Icon};
 /// the claudius studio (an `eframe::App`)
 pub struct Studio {
     backend: Backend,
+    /// the window as the system's apps are there: its title, the media keys and Now Playing, notifications
+    #[cfg(not(target_arch = "wasm32"))]
+    desktop: crate::desktop::Desktop,
     state: State,
     /// the newest state from the server, held back while the user drags something or edits are in flight
     pending: Option<State>,
@@ -97,6 +100,8 @@ impl Studio {
         let link = Link { label: backend.label(), mock: backend.is_mock(), ..Default::default() };
         Studio {
             backend,
+            #[cfg(not(target_arch = "wasm32"))]
+            desktop: crate::desktop::Desktop::new(cc),
             state: State::default(),
             pending: None,
             server: State::default(),
@@ -1088,6 +1093,9 @@ impl eframe::App for Studio {
         self.link.retry_in = self.backend.retry_in(now);
         self.player.tick();
         self.apply_pending(ctx, now);
+        // the media keys, Now Playing and the notifications, while the window is hidden too
+        #[cfg(not(target_arch = "wasm32"))]
+        self.desktop.tick(ctx, &self.state, &mut self.player);
         self.deliver(now);
         if self.view.download.is_some() {
             ctx.request_repaint_after(Duration::from_millis(100));

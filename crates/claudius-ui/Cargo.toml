@@ -45,8 +45,15 @@ cpal = "0.18"
 midir = "0.11"
 # the system's own dialog for choosing a file (a browser's is its file input)
 rfd = "0.17"
+# the system's notifications, and its media keys and Now Playing (on Linux both over D-Bus with zbus, as AccessKit is)
+notify-rust = { version = "4.19", default-features = false, features = ["z"] }
+souvlaki = { version = "0.9", default-features = false, features = ["use_zbus"] }
 env_logger = { version = "0.11", default-features = false, features = ["auto-color", "humantime"] }
 rodio = { version = "0.23", default-features = false, features = ["playback"] }
+
+# the window's handle, which the media keys need on Windows
+[target.'cfg(target_os = "windows")'.dependencies]
+raw-window-handle = "0.6"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 js-sys = "0.3"

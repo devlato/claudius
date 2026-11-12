@@ -30,6 +30,12 @@ exactly what its action in the palette does. The app's window speaks to the syst
 Narrator, Orca), each control saying what it is, its name and its state; in a browser, **?** > **Speak what has the
 keyboard** has the page say aloud the control Tab moves to.
 
+The app is at home on your computer. Its window's title is the song's. The keyboard's media keys and the system's Now
+Playing (Control Center, the Windows media overlay, MPRIS on Linux) play, pause and stop the song, move through its
+sections and seek in it, showing its title, genre and length. When Improve, a remake or listening to a recording
+finishes while another window is in front, a notification says so and the Dock or the taskbar asks for your
+attention; so does an assistant that asks for a take.
+
 ## [0.6.0] - 2026-11-11
 
 The examples' studies of famous records are gone. They were named after the records but played melodies of their
