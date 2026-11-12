@@ -458,6 +458,7 @@ impl Studio {
 
     /// The keys that move about the studio, and the palette's; the keys of its actions are `keys::answer`'s.
     fn shortcuts(&mut self, ctx: &egui::Context) {
+        self.view.note_opened();
         // the palette opens from anywhere, a field being typed in too, with Cmd+K or Cmd+P as editors' palettes do
         if ctx.input_mut(|i| i.consume_key(Modifiers::COMMAND, Key::K) || i.consume_key(Modifiers::COMMAND, Key::P)) {
             self.view.palette.toggle();

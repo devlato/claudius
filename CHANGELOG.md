@@ -22,6 +22,14 @@ the most no section played before, each on its own bars' chords, and its voice s
 its key. Flipped into deep house, the cookbook's house song plays all 64 of its bars somewhere, where it played 8. The
 history says which section plays which bars.
 
+The studio can be worked from the keyboard alone, and with a screen reader. **?** lists every key. New are N (a new
+song), R (record a take), 1 to 9 (the tabs), Cmd+O and Cmd+S (open, save) and Cmd+P (the palette, beside Cmd+K).
+Tab moves through the controls with an orange ring on the one that has the keyboard, which Space or Enter presses
+and whose knob or fader the arrows move; Escape lets go of it, then closes the window opened last. A key now does
+exactly what its action in the palette does. The app's window speaks to the system's screen reader (VoiceOver,
+Narrator, Orca), each control saying what it is, its name and its state; in a browser, **?** > **Speak what has the
+keyboard** has the page say aloud the control Tab moves to.
+
 ## [0.6.0] - 2026-11-11
 
 The examples' studies of famous records are gone. They were named after the records but played melodies of their
@@ -95,14 +103,6 @@ The studio has a light look as well as its dark one, and follows your computer's
 **?** > **Look** (Dark, Light, As the system is), or "light mode" in the command palette. Text reads at 4.5:1 or more
 on every panel of both looks, and so does a label on a filled button or a lit cell (white on the light look's orange);
 the dark look's faintest text is a little brighter for it, where it stood on a raised panel.
-
-The studio can be worked from the keyboard alone, and with a screen reader. **?** lists every key. New are N (a new
-song), R (record a take), 1 to 9 (the tabs), Cmd+O and Cmd+S (open, save) and Cmd+P (the palette, beside Cmd+K).
-Tab moves through the controls with an orange ring on the one that has the keyboard, which Space or Enter presses
-and whose knob or fader the arrows move; Escape lets go of it, then closes the window on top. A key now does exactly
-what its action in the palette does. The app's window speaks to the system's screen reader (VoiceOver, Narrator,
-Orca), each control saying what it is, its name and its state; in a browser, **?** > **Speak what has the keyboard**
-has the page say aloud the control Tab moves to.
 
 What you set survives any update, from any version: the studio's settings, the voice a pitch check heard, the answer
 about usage statistics and whether to update by itself. Each settings file now says which version of it claudius
