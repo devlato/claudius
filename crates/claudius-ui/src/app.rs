@@ -161,7 +161,7 @@ impl Studio {
             }
             Event::Listened(heard) => {
                 let genre = self.view.new_song.genre_name();
-                self.view.hears.show(heard, self.view.audio_file.clone(), &genre);
+                self.view.hears.show(heard, &genre);
             }
             Event::Reply { what, result } => {
                 self.inflight = self.inflight.saturating_sub(1);
@@ -1283,6 +1283,7 @@ impl eframe::App for Studio {
                 self.view.track = None;
                 self.view.script.dirty = false;
             }
+            self.view.hears.sending(l.file.clone());
             self.backend.listen(&l);
         }
         if let Some(t) = self.view.record.upload.take() {

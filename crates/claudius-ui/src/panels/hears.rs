@@ -27,6 +27,8 @@ pub struct Hears {
     said: String,
     /// the file it came in, which plays where claudius keeps nothing of it (the demo's page)
     file: Option<Arc<Picked>>,
+    /// the file last sent to be heard, which becomes `file` when what was heard in it comes back
+    sent: Option<Arc<Picked>>,
     /// plays the recording or a part of it, made when it first plays
     player: Option<Player>,
     /// the track the player has, and the track to play
@@ -39,14 +41,19 @@ pub struct Hears {
 }
 
 impl Hears {
-    /// shows what was heard in `file`, a song like it to be made in `genre`
-    pub fn show(&mut self, heard: Box<Listened>, file: Option<Arc<Picked>>, genre: &str) {
+    /// `file` is sent to be heard: the window plays it when what was heard comes back, whatever is picked by then
+    pub fn sending(&mut self, file: Arc<Picked>) {
+        self.sent = Some(file);
+    }
+
+    /// shows what was heard in the file last sent, a song like it to be made in `genre`
+    pub fn show(&mut self, heard: Box<Listened>, genre: &str) {
         self.let_go();
         self.loaded = None;
         self.track = TRACKS[0].0.to_string();
         self.genre = genre.to_string();
         self.heard = Some(heard);
-        self.file = file;
+        self.file = self.sent.clone();
         self.said.clear();
     }
 
@@ -225,7 +232,8 @@ fn shown_of(track: &str) -> &str {
 /// plays the track chosen, from where it was, the song paused
 fn play(ctx: &egui::Context, cx: &mut Cx, h: &mut Hears, l: &Listened) {
     let p = h.player.get_or_insert_with(|| Player::new(ctx));
-    if h.loaded.as_deref() != Some(h.track.as_str()) {
+    let failed = !p.is_loading() && p.error().is_some();
+    if failed || h.loaded.as_deref() != Some(h.track.as_str()) {
         let source = match (&l.audio, cx.server, &h.file) {
             (Some(a), Some(base), _) if a.tracks.contains(&h.track) => {
                 Source::Url(format!("{base}/api/listened/{}/{}", a.id, h.track))
@@ -559,6 +567,17 @@ mod tests {
             bars_per_chord: 2,
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn the_window_plays_the_file_that_was_heard_not_one_picked_while_it_was_heard() {
+        let picked = |name: &str| Arc::new(Picked { name: name.into(), bytes: Vec::new(), folder: None });
+        let mut h = Hears::default();
+        h.sending(picked("heard.wav"));
+        h.show(Box::new(heard()), "lofi");
+        assert_eq!(h.file.as_ref().map(|f| f.name.as_str()), Some("heard.wav"));
+        h.sending(picked("another.wav"));
+        assert_eq!(h.file.as_ref().map(|f| f.name.as_str()), Some("heard.wav"), "until what was heard in it comes");
     }
 
     #[test]

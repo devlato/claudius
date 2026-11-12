@@ -191,6 +191,7 @@ impl Player {
 
     /// load audio; `keep_position` continues from the current position (clamped) instead of the start
     pub fn load(&mut self, source: Source, keep_position: bool) {
+        self.error = None;
         match source {
             Source::Pcm(pcm) => self.install(pcm, keep_position),
             Source::File(file) => match Pcm::decode_wav(&file.bytes) {
