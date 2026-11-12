@@ -49,6 +49,8 @@ impl Chat {
                 last_id = last_id.max(c.cleared);
             }
         }
+        // an answer is kept once it is whole, after what was said while it was written
+        messages.sort_by_key(|m| m.id);
         Chat { messages, file, last_id, ..Chat::default() }
     }
 
@@ -73,7 +75,11 @@ impl Chat {
         if let Some(r) = reply_to.filter(|r| !self.messages.iter().any(|m| m.id == *r)) {
             return Err(format!("there is no message {r} to answer"));
         }
-        self.finish();
+        // what the agent does ends the piece of its answer before it, which goes on after it; what anyone else says
+        // leaves the answer being written as it is
+        if note {
+            self.finish();
+        }
         self.last_id += 1;
         let id = self.last_id;
         let m = ChatMessage { id, from, text: text.to_string(), at: now_ms(), reply_to, note };
@@ -97,7 +103,8 @@ impl Chat {
     /// What the agent `from` writes, a piece at a time: on to the message it is writing, or a new one that answers
     /// the person's latest. It is kept once it is whole (`finish`).
     pub fn stream(&mut self, from: &str, piece: &str) {
-        if let Some(m) = self.messages.last_mut().filter(|m| Some(m.id) == self.writing) {
+        // on to the message it is writing, wherever it is: the person may have written since
+        if let Some(m) = self.messages.iter_mut().rev().find(|m| Some(m.id) == self.writing) {
             let room = MOST.saturating_sub(m.text.chars().count());
             m.text.extend(piece.chars().take(room));
             return;
@@ -195,6 +202,31 @@ mod tests {
         assert!(again.view().messages.is_empty(), "its history goes");
         // ids go on after a clear, after a restart too: an assistant waiting after message 2 hears message 3
         assert_eq!((chat.say(None, "and now?", None), again.say(None, "and now?", None)), (Ok(3), Ok(3)));
+        let _ = std::fs::remove_file(&file);
+    }
+
+    #[test]
+    fn what_the_person_writes_while_an_answer_comes_leaves_the_rest_of_it_in_its_message() {
+        let file = std::env::temp_dir().join(format!("claudius-chat-follow-{}.jsonl", std::process::id()));
+        let _ = std::fs::remove_file(&file);
+        let mut chat = Chat::open(Some(file.clone()));
+        chat.say(None, "make the drop hit harder", None).unwrap();
+        chat.stream("Claude Code", "A louder kick");
+        assert_eq!(chat.say(None, "and the snare?", None), Ok(3));
+        chat.stream("Claude Code", ", and a crash on the one.");
+        chat.finish();
+        for chat in [chat.view(), Chat::open(Some(file.clone())).view()] {
+            let said: Vec<(u64, &str, Option<u64>)> =
+                chat.messages.iter().map(|m| (m.id, m.text.as_str(), m.reply_to)).collect();
+            assert_eq!(
+                said,
+                [
+                    (1, "make the drop hit harder", None),
+                    (2, "A louder kick, and a crash on the one.", Some(1)),
+                    (3, "and the snare?", None)
+                ]
+            );
+        }
         let _ = std::fs::remove_file(&file);
     }
 

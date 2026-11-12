@@ -12,9 +12,9 @@ use std::sync::{Arc, Weak};
 use agent_client_protocol::schema::ProtocolVersion;
 use agent_client_protocol::v1::ConnectionTo;
 use agent_client_protocol::v1::schema::{
-    CancelNotification, ContentBlock, InitializeRequest, McpServer, McpServerStdio, NewSessionRequest,
-    PermissionOptionKind, PromptRequest, RequestPermissionOutcome, RequestPermissionRequest, RequestPermissionResponse,
-    SelectedPermissionOutcome, SessionNotification, SessionUpdate, TextContent, ToolCallUpdateFields, ToolKind,
+    ContentBlock, InitializeRequest, McpServer, McpServerStdio, NewSessionRequest, PermissionOptionKind, PromptRequest,
+    RequestPermissionOutcome, RequestPermissionRequest, RequestPermissionResponse, SelectedPermissionOutcome,
+    SessionNotification, SessionUpdate, TextContent, ToolCallUpdateFields, ToolKind,
 };
 use agent_client_protocol::{AcpAgent, Agent, ConnectTo};
 use claudius_api::{CHAT_AGENTS, Reply};
@@ -114,10 +114,14 @@ pub fn start(
     let who = name.clone();
     std::thread::spawn(move || {
         let why = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
-            Ok(rt) => {
-                let ran = rt.block_on(session(&who, transport, mcp, cwd, chat.clone(), rx, stopped));
-                ran.err().map(|e| e.to_string())
-            }
+            // stopped at any point, starting up (npx fetching it, a sign-in, a handshake that hangs) or in the middle
+            // of an answer: the session goes, and with this runtime the agent's process group
+            Ok(rt) => rt.block_on(async {
+                tokio::select! {
+                    ran = session(&who, transport, mcp, cwd, chat.clone(), rx) => ran.err().map(|e| e.to_string()),
+                    _ = stopped => None,
+                }
+            }),
             Err(e) => Some(e.to_string()),
         };
         chat.gone(&who, why);
@@ -132,7 +136,6 @@ async fn session(
     cwd: PathBuf,
     chat: Arc<dyn Chatting>,
     mut prompts: UnboundedReceiver<String>,
-    mut stop: oneshot::Receiver<()>,
 ) -> Result<(), agent_client_protocol::Error> {
     let (heard, asked, answered) = (chat.clone(), chat.clone(), chat);
     let (n1, n2, n3) = (name.to_string(), name.to_string(), name.to_string());
@@ -180,26 +183,11 @@ async fn session(
                 new = new.mcp_servers(vec![McpServer::Stdio(McpServerStdio::new("claudius", command).args(args))]);
             }
             let s = conn.send_request(new).block_task().await?;
-            loop {
-                let text = tokio::select! {
-                    text = prompts.recv() => match text {
-                        Some(text) => text,
-                        None => break,
-                    },
-                    _ = &mut stop => break,
-                };
+            while let Some(text) = prompts.recv().await {
                 let prompt = PromptRequest::new(s.session_id.clone(), vec![ContentBlock::Text(TextContent::new(text))]);
-                tokio::select! {
-                    done = conn.send_request(prompt).block_task() => {
-                        answered.done(&n3);
-                        done?;
-                    }
-                    // stopped in the middle of an answer: the agent is told, and the connection ends with its process
-                    _ = &mut stop => {
-                        let _ = conn.send_notification(CancelNotification::new(s.session_id.clone()));
-                        break;
-                    }
-                }
+                let done = conn.send_request(prompt).block_task().await;
+                answered.done(&n3);
+                done?;
             }
             Ok(())
         })
@@ -300,11 +288,12 @@ impl App {
     ) -> u64 {
         let n = self.agents.fetch_add(1, Ordering::Relaxed) + 1;
         let chat = Arc::new(ToChat { app: Arc::downgrade(self), n });
-        let running = start(name.to_string(), transport, mcp, self.songs.clone(), chat);
+        let songs = self.songs.clone();
+        // started under the session's lock, so that an agent gone at once finds itself the one running, and goes
         self.update(|s| {
             // what the one it replaces was writing is kept as far as it went
             s.chat.finish();
-            s.agent = Some((n, running));
+            s.agent = Some((n, start(name.to_string(), transport, mcp, songs, chat)));
             s.chat.hold(name);
             s.version + 1
         })
@@ -413,6 +402,47 @@ mod tests {
         let said = once(&told, "Slow is gone");
         assert!(said.iter().any(|t| t == "Slow is gone"), "it goes at once, not when its answer would end: {said:?}");
         assert!(!said.iter().any(|t| t == "Slow is done"), "{said:?}");
+    }
+
+    /// an agent that never gets through its start: a download, a sign-in, a handshake that hangs
+    async fn hung(peer: Channel) -> Result<(), agent_client_protocol::Error> {
+        Agent
+            .v1()
+            .on_receive_request(
+                async move |r: InitializeRequest, responder, _cx| {
+                    tokio::time::sleep(Duration::from_secs(30)).await;
+                    responder.respond(InitializeResponse::new(r.protocol_version))
+                },
+                agent_client_protocol::on_receive_request!(),
+            )
+            .connect_to(peer)
+            .await
+    }
+
+    #[test]
+    fn an_agent_stopped_as_it_starts_goes_at_once() {
+        let (ours, theirs) = Channel::duplex();
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+            let _ = rt.block_on(hung(theirs));
+        });
+        let told = Arc::new(Told::default());
+        let running = start("Hung".into(), ours, None, std::env::temp_dir(), told.clone());
+        std::thread::sleep(Duration::from_millis(50));
+        drop(running);
+        let said = once(&told, "Hung is gone");
+        assert!(said.iter().any(|t| t == "Hung is gone"), "{said:?}");
+    }
+
+    #[test]
+    fn an_agent_that_fails_as_it_starts_is_not_left_listening() {
+        let app = app();
+        let (ours, theirs) = Channel::duplex();
+        drop(theirs);
+        app.run_agent("Gone", ours, None);
+        let chat = until(&app, |c| c.agent.is_none());
+        assert_eq!((chat.agent, chat.listening), (None, None));
+        assert!(chat.messages.last().is_some_and(|m| m.note && m.text.starts_with("stopped")), "{:?}", chat.messages);
     }
 
     #[test]
