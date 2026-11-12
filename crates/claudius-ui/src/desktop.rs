@@ -6,7 +6,7 @@
 use std::sync::mpsc::{Receiver, channel};
 use std::time::{Duration, Instant};
 
-use claudius_api::{State, TakeStatus};
+use claudius_api::{ChatMessage, ChatView, State, TakeStatus};
 use eframe::egui;
 use souvlaki::{MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, MediaPosition, PlatformConfig};
 
@@ -155,16 +155,13 @@ impl Desktop {
         }
         // none until the first state has come from claudius: the studio starts with an empty one
         if state.version > 0 {
-            // an agent's answer is said once it is whole, and what it does (a note) not at all
-            let chat = &state.chat;
-            let last = chat.messages.iter().rev().map(|m| m.id).find(|id| Some(*id) != chat.writing).unwrap_or(0);
-            let after = unread(self.read, last);
-            for m in chat.messages.iter().filter(|m| m.id > after && m.id <= last && !m.note) {
-                if let Some(who) = m.from.as_deref().filter(|_| away) {
+            let (new, read) = to_say(&state.chat, self.read);
+            for m in new.into_iter().filter(|_| away) {
+                if let Some(who) = m.from.as_deref() {
                     tell(ctx, &format!("{who} writes"), &m.text);
                 }
             }
-            self.read = Some(last);
+            self.read = Some(read);
         }
         let waiting = state.take_request.as_ref().filter(|r| r.status == TakeStatus::Waiting);
         if let Some(r) = waiting.filter(|r| self.asked != Some(r.id)) {
@@ -175,6 +172,16 @@ impl Desktop {
             }
         }
     }
+}
+
+/// The chat's messages to say, after `read`, the last one said (none yet in this run), and the last one said after
+/// them. An agent's answer is said once it is whole, and what it does (a note) not at all; what was written after an
+/// answer still being written waits for it.
+fn to_say(chat: &ChatView, read: Option<u64>) -> (Vec<&ChatMessage>, u64) {
+    let latest = chat.messages.last().map_or(0, |m| m.id);
+    let last = chat.writing.map_or(latest, |w| latest.min(w.saturating_sub(1)));
+    let after = unread(read, last);
+    (chat.messages.iter().filter(|m| m.id > after && m.id <= last && !m.note).collect(), last)
 }
 
 /// a notification, and the Dock or the taskbar asking for attention
@@ -292,6 +299,31 @@ mod tests {
         let (job, said) = step(job, Some("rendering"), true, 60.0, Some("evolved 3 generations"));
         assert_eq!(said, Some(("Evolving is done".into(), "evolved 3 generations".into())), "under its own name");
         assert_eq!(step(job, None, true, 64.0, None).1, None, "the render after it took seconds, from when it began");
+    }
+
+    #[test]
+    fn an_answer_is_said_once_it_is_whole_though_the_person_wrote_after_it_began() {
+        let said = |id: u64, from: Option<&str>, text: &str| ChatMessage {
+            id,
+            from: from.map(str::to_string),
+            text: text.into(),
+            at: 0,
+            reply_to: None,
+            note: false,
+        };
+        let mut chat = ChatView {
+            messages: vec![said(1, None, "make the drop hit harder"), said(2, Some("Claude Code"), "A louder")],
+            writing: Some(2),
+            ..ChatView::default()
+        };
+        chat.messages.push(said(3, None, "and the snare?"));
+        let (new, read) = to_say(&chat, Some(1));
+        assert_eq!((new.len(), read), (0, 1), "not while it is written, nor what came after it");
+        chat.messages[1].text = "A louder kick, and a crash on the one.".into();
+        chat.writing = None;
+        let (new, read) = to_say(&chat, Some(read));
+        let texts: Vec<&str> = new.iter().filter(|m| m.from.is_some()).map(|m| m.text.as_str()).collect();
+        assert_eq!((texts, read), (vec!["A louder kick, and a crash on the one."], 3), "whole");
     }
 
     #[test]
