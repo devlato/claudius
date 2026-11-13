@@ -657,15 +657,17 @@ fn run(cli: Cli) -> Result<()> {
                 print_summary(&bp, &r, &w, &v, t.elapsed().as_secs_f64());
             }
         }
-        Cmd::Sample { file, on, how, count, bars, find, sections, ears, out } => {
+        Cmd::Sample { file, on, how, count, bars, find, sections, every, ears, out } => {
             let how = claudius::sampler::How::parse(&how).map_err(anyhow::Error::msg)?;
+            let every =
+                every.as_deref().map(claudius::sampler::Every::parse).transpose().map_err(anyhow::Error::msg)?;
             let mut bp = song::read_blueprint(&if on.is_dir() { on.join("blueprint.json") } else { on.clone() })?;
             let x = claudius::audio::load(&file)?;
             let listening = listen(&ears);
             let dir = out.join(format!("{}-{}-{}", bp.genre, song::slug(&bp.title), bp.seed));
             let name =
                 file.file_name().map_or_else(|| file.display().to_string(), |n| n.to_string_lossy().into_owned());
-            let opt = claudius::sampler::Options { count, bars, find, sections, how };
+            let opt = claudius::sampler::Options { count, bars, find, sections, how, every };
             let takes = claudius::take::dir(Some(&dir));
             let done = claudius::sampler::sample(&mut bp, &x, &name, listening.ears.as_ref(), &opt, &takes)
                 .map_err(anyhow::Error::msg)?;

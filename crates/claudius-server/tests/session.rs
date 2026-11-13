@@ -1331,6 +1331,7 @@ async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
         find: None,
         sections,
         how: None,
+        every: None,
     };
     let r = app.command(ask(vec!["nowhere".into()]));
     assert!(!r.ok && r.message.contains("no section or kind 'nowhere'"), "{}", r.message);
@@ -1341,14 +1342,28 @@ async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
         find: None,
         sections: Vec::new(),
         how: Some("slices".into()),
+        every: None,
     });
     assert!(!r.ok && r.message.starts_with("no way 'slices' to sample a recording"), "{}", r.message);
+    let r = app.command(Command::SampleSong {
+        path: file.display().to_string(),
+        count: None,
+        bars: None,
+        find: None,
+        sections: Vec::new(),
+        how: None,
+        every: Some("3".into()),
+    });
+    assert!(!r.ok && r.message.starts_with("no '3' for how often a phrase plays"), "{}", r.message);
     let r = app.command(ask(Vec::new()));
     assert!(r.ok, "{}", r.message);
     let said: Vec<&str> = r.message.lines().collect();
     assert!(said[0].starts_with("sampled ") && said[0].contains(" into the song: vox1"), "{said:?}");
     assert!(said[1].starts_with("vox1: bars ") && said[1].contains("% sung"), "{said:?}");
-    assert!(r.message.contains("in the drops and hooks (drop, drop2)"), "{}", r.message);
+    // the drops, where the lead sings, have it once each, the reply says why
+    let once =
+        "once in each of the drops and hooks (drop, drop2), from the first bar, as a lead or a voice sings there";
+    assert!(r.message.contains(once), "{}", r.message);
     let st = app.state();
     let song = st.song.unwrap();
     assert!(song.tracks.iter().any(|t| t.name == "vox1" && t.role == "vocal"), "{:?}", song.tracks);
@@ -1359,13 +1374,16 @@ async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
     assert!(kept >= 1, "{kept}");
     let router = http::router(app.clone(), &Options::default());
     let wav = std::fs::read(&file).unwrap();
-    let req = Request::post("/api/sample?name=recording.wav&count=1&bars=2&sections=break")
+    let req = Request::post("/api/sample?name=recording.wav&count=1&bars=2&sections=break&every=4")
         .header(header::HOST, "localhost")
         .header(header::CONTENT_TYPE, "audio/wav")
         .body(Body::from(wav))
         .unwrap();
     let (s, _, b) = call(&router, req).await;
-    assert!(s == StatusCode::OK && b.contains("in the sections asked for (break)"), "{s} {b}");
+    assert!(
+        s == StatusCode::OK && b.contains("every 4 bars from the first bar in the sections asked for (break)"),
+        "{b}"
+    );
     let song = app.state().song.unwrap();
     assert!(song.sections.iter().find(|s| s.name == "break").unwrap().layers.iter().any(|l| l.starts_with("vox")));
     // undone, the phrases go
@@ -2119,18 +2137,20 @@ async fn pieces_are_offered_to_hear_drawn_again_and_kept_treated() {
     let r = app.command(Command::KeepPieces {
         keep: vec![claudius_api::KeptPiece { id: 2, treated: false }],
         sections: vec![],
+        every: None,
     });
     assert!(!r.ok && r.message.contains("no piece 2 (pieces 1 to 1)"), "{}", r.message);
     let r = app.command(Command::KeepPieces {
         keep: vec![claudius_api::KeptPiece { id: 1, treated: true }],
         sections: vec![],
+        every: Some("once".into()),
     });
     let said: Vec<&str> = r.message.lines().collect();
     assert!(
         r.ok && said[0].starts_with("sampled 1 phrase of ") && said[0].ends_with(" into the song: vox1"),
         "{said:?}"
     );
-    assert!(said[1].starts_with("vox1:"), "{said:?}");
+    assert!(said[1].starts_with("vox1:") && said[1].contains(" once in each of the "), "{said:?}");
     assert!(app.state().pieces.is_none(), "kept, the offer goes");
     let bp = app.blueprint().unwrap();
     let vox = bp.loops.iter().find(|l| l.name == "vox1").expect("the piece plays in the song");

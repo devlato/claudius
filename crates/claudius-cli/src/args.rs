@@ -252,6 +252,10 @@ pub(crate) enum Cmd {
         /// a section to put the phrases in, by name or kind (repeatable; default: the sections that suit them)
         #[arg(long = "in")]
         sections: Vec<String>,
+        /// how often each phrase comes round in its sections: once (from the start of each), 2, 4, 8 or 16 (once
+        /// every so many bars) or through (all through each); default: as the song's genre and its sections suit
+        #[arg(long)]
+        every: Option<String>,
         #[command(flatten)]
         ears: EarsArgs,
         #[arg(short, long, default_value = "out")]

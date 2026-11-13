@@ -42,8 +42,8 @@ to. On the command line, each command reads and writes song folders instead.
 | `graph` | (the song's signal flow in words: tracks through their effects into buses, the master, out) | |
 | `sample_pieces` | `path` (or `library:<id>`), `seed`, `count`, `bars`, `find`: pieces offered as cut and treated, before any goes in | |
 | `redraw_pieces` | `seed`: the same recording's pieces drawn again | |
-| `keep_pieces` | `keep` (`[{id, treated}]`), `sections` | |
-| `sample_song` | `path` of a recording, `how` (`phrases`, the default; `passage`, a verse or chorus of it; `chops`, its voice cut into an instrument; `stabs`, a syllable struck as a drum), `count` (1-4, default 2), `bars` (1, 2 or 4; a passage 4, 8 or 16), `find` ("a person singing"), `sections` | `claudius sample FILE --on SONG --count 2 --in drop`, `--how passage` |
+| `keep_pieces` | `keep` (`[{id, treated}]`), `sections`, `every` (as for `sample_song`) | |
+| `sample_song` | `path` of a recording, `how` (`phrases`, the default; `passage`, a verse or chorus of it; `chops`, its voice cut into an instrument; `stabs`, a syllable struck as a drum), `count` (1-4, default 2), `bars` (1, 2 or 4; a passage 4, 8 or 16), `find` ("a person singing"), `sections`, `every` (how often each phrase comes round: `once`, `2`, `4`, `8`, `16` or `through`; as the song suits by default) | `claudius sample FILE --on SONG --count 2 --in drop`, `--how passage`, `--every 4` |
 | `transcribe_drums` | `take` (a beat played or beatboxed with the song) or `path` (a drum loop), `bars` (1, 2 or 4), `variant` (main), `bpm`, `keep_take` | a script: `drums_from("FILE", #{ bars: 2 });` |
 | `extract_groove` | `path` of a recording with drums, `name` (default the file's), `lanes` (default all), `bpm` (when known) | a script: `groove("funk", "FILE", 96); lane("hat", #{ groove: "funk" });` |
 | `request_pitch_check` | `low`, `high` (MIDI; default A3 to A4, sung in any octave), `note` (for the person) | |

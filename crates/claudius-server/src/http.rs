@@ -716,6 +716,9 @@ struct SampleQuery {
     /// how it goes in: phrases (when none), passage, chops or stabs
     #[serde(default)]
     how: Option<String>,
+    /// how often each phrase comes round: once, 2, 4, 8, 16 or through (as the song suits, when none)
+    #[serde(default)]
+    every: Option<String>,
 }
 
 /// a recording whose vocals to sample into the song, as the file itself, as `sample_song` samples a path's
@@ -730,7 +733,9 @@ async fn sample(State(c): State<Ctx>, Query(q): Query<SampleQuery>, headers: Hea
     let app = c.app.clone();
     let name = q.name.filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "the recording".into());
     let sections = q.sections.unwrap_or_default().split(',').map(|s| s.trim().to_string()).collect();
-    let opt = match crate::app::sampling(q.count, q.bars, q.find, sections, q.how.as_deref()) {
+    let opt = match crate::app::sampling(q.count, q.bars, q.find, sections, q.how.as_deref()).and_then(|o| {
+        Ok(claudius::sampler::Options { every: claudius_session::listen::every(q.every.as_deref())?, ..o })
+    }) {
         Ok(opt) => opt,
         Err(e) => return (StatusCode::BAD_REQUEST, e).into_response(),
     };

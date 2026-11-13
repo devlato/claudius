@@ -71,6 +71,33 @@ impl How {
     }
 }
 
+/// How often a phrase sampled into the song comes round in the sections it plays in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Every {
+    /// once, from the start of each section
+    Once,
+    /// once every so many bars (2, 4, 8 or 16; as many as the phrase lasts, at least), silent between
+    Bars(u32),
+    /// all through each section, round and round
+    Through,
+}
+
+impl Every {
+    /// `once`, `2`, `4`, `8`, `16` or `through`
+    pub fn parse(s: &str) -> Result<Every, String> {
+        match s.trim().to_lowercase().as_str() {
+            "once" => Ok(Every::Once),
+            "through" => Ok(Every::Through),
+            n => n
+                .parse::<u32>()
+                .ok()
+                .filter(|n| [2, 4, 8, 16].contains(n))
+                .map(Every::Bars)
+                .ok_or_else(|| format!("no '{s}' for how often a phrase plays (once, 2, 4, 8, 16 or through)")),
+        }
+    }
+}
+
 /// what to sample, and where to
 #[derive(Clone, Debug)]
 pub struct Options {
@@ -85,11 +112,14 @@ pub struct Options {
     pub sections: Vec<String>,
     /// how it goes into the song
     pub how: How,
+    /// how often each phrase comes round in its sections; none: as the song's genre and what its sections play suit
+    /// (`period`)
+    pub every: Option<Every>,
 }
 
 impl Default for Options {
     fn default() -> Self {
-        Options { count: 2, bars: None, find: None, sections: Vec::new(), how: How::Phrases }
+        Options { count: 2, bars: None, find: None, sections: Vec::new(), how: How::Phrases, every: None }
     }
 }
 
@@ -744,6 +774,52 @@ fn gate(x: &mut Stereo, a: &Analysis, first: i64, from: f64, to: f64) {
 /// what the sampler says of a recording it finds no voice in
 const NO_VOICE: &str = "nothing in the recording sounds like a voice: try other words for what to find";
 
+/// how a phrase comes round in its sections: how often, its loop's length in bars, and why, when the song chose it
+#[derive(Clone, Debug)]
+struct Round {
+    every: Every,
+    bars: u32,
+    why: Option<String>,
+}
+
+/// How a phrase `bars` long comes round in sections `secs` of the song `bp`: as `every` asks, else as the song suits
+/// it. Once from the start of each where a lead or a voice sings in most of them already (`sung`), as two melodies at
+/// once say neither; else every other time round, answered, in a genre built on samples (one that samples by
+/// default: boom bap, lo-fi, trip hop ...), whose producers loop what they sample; and once every 8 bars in one that
+/// is not, a voice that comes back now and then.
+fn period(bp: &Blueprint, secs: &[usize], bars: u32, every: Option<Every>, sung: &[usize]) -> Round {
+    let longest = secs.iter().map(|&si| bp.form[si].bars).max().unwrap_or(bars).max(bars);
+    let round = |every: Every, why: Option<String>| {
+        let n = match every {
+            Every::Once => longest,
+            Every::Bars(n) => n.max(bars),
+            Every::Through => bars,
+        };
+        Round { every, bars: n, why }
+    };
+    if let Some(every) = every {
+        return round(every, None);
+    }
+    if 2 * secs.iter().filter(|si| sung.contains(si)).count() > secs.len() {
+        return round(Every::Once, Some("as a lead or a voice sings there already".into()));
+    }
+    let genre = bp.genre.replace('_', " ");
+    match crate::genres::get(&bp.genre).is_ok_and(|g| g.sampling.is_some_and(|s| s.by_default)) {
+        true => round(Every::Bars(2 * bars), Some(format!("as {genre} is built on samples"))),
+        false => {
+            round(Every::Bars((2 * bars).max(8)), Some(format!("now and then, as {genre} is not built on samples")))
+        }
+    }
+}
+
+/// whether a melody plays in section `si` of `bp`: a lead part, or a loop mixed as a voice or a lead (a phrase sampled
+/// into the song, or a take, which `add_take` mixes as a lead unless told otherwise)
+fn sings_in(bp: &Blueprint, si: usize) -> bool {
+    let layers = &bp.form[si].layers;
+    bp.parts.iter().any(|p| p.role == Role::Lead && layers.contains(&p.name))
+        || bp.loops.iter().any(|l| matches!(l.role.as_str(), "vocal" | "lead") && layers.contains(&l.name))
+}
+
 /// a recording as the sampler heard it: its sound, its stems when they are apart, its analysis and its name
 pub(crate) struct Heard<'a> {
     pub src: &'a Stereo,
@@ -773,29 +849,33 @@ fn place(
     let voiced_before: Vec<usize> = (0..bp.form.len())
         .filter(|&si| bp.loops.iter().any(|l| l.sampled && bp.form[si].layers.contains(&l.name)))
         .collect();
+    // where a lead or a voice already sings, before any of these phrases
+    let sung: Vec<usize> = (0..bp.form.len()).filter(|&si| sings_in(bp, si)).collect();
     for (p, fx) in phrases {
         let cut = phrase_of(src, h.stems, a, p);
         let profile = shift(&pitch_profile(&cut), transpose);
-        let period = 2 * p.bars;
-        let mut best: Option<(f64, usize, usize, f64)> = None;
+        let mut best: Option<(f64, usize, usize, f64, Round)> = None;
         for (g, (_, secs)) in groups.iter().enumerate() {
+            let round = period(bp, secs, p.bars, opt.every, &sung);
             for slot in 0..2 {
-                if taken[g][slot] {
+                let offset = slot as u32 * p.bars;
+                // an answer needs room after the phrase it answers, before the phrase comes round again
+                if taken[g][slot] || offset + p.bars > round.bars {
                     continue;
                 }
-                let offset = slot as u32 * p.bars;
                 // a slot no section of the group has room for would never sound
-                let Some(fits) = fit(&project, secs, offset, p.bars, period, &profile) else { continue };
+                let Some(fits) = fit(&project, secs, offset, p.bars, round.bars, &profile) else { continue };
                 // the earlier groups suit a vocal best: the drops and hooks, then the breaks, the verses, the builds
                 let suits = fits + 0.12 * (groups.len() - g) as f64 / groups.len() as f64 - 0.05 * slot as f64;
-                if best.is_none_or(|b| suits > b.0) {
-                    best = Some((suits, g, slot, fits));
+                if best.as_ref().is_none_or(|b| suits > b.0) {
+                    best = Some((suits, g, slot, fits, round.clone()));
                 }
             }
         }
         // a phrase with no room left may be longer than the next one
-        let Some((_, g, slot, fits)) = best else { continue };
+        let Some((_, g, slot, fits, round)) = best else { continue };
         taken[g][slot] = true;
+        let period = round.bars;
         let offset = slot as u32 * p.bars;
         let file = crate::take::store(&layout(&cut, offset as f64 * bar, period as f64 * bar), dir)
             .map_err(|e| format!("cannot keep the phrase: {e:#}"))?;
@@ -838,14 +918,19 @@ fn place(
             }
         };
         let at = if slot == 0 { "from the first bar" } else { "answering, from the bar after" };
-        let names: Vec<&str> = secs.iter().map(|&si| bp.form[si].name.as_str()).collect();
+        let names = secs.iter().map(|&si| bp.form[si].name.as_str()).collect::<Vec<_>>().join(", ");
+        let comes = match round.every {
+            Every::Through => format!("all through the {label} ({names})"),
+            Every::Once => format!("once in each of the {label} ({names}), {at}"),
+            Every::Bars(_) => format!("every {period} bars {at} in the {label} ({names})"),
+        };
+        let why = round.why.map(|w| format!(", {w}")).unwrap_or_default();
         out.lines.push(format!(
-            "{track}: {} of {name} ({heard}{:.0}% sung), {moved} at {:.0} BPM, every {period} bars {at} in the {label} \
-             ({}), on chords it agrees with {:.0}%",
+            "{track}: {} of {name} ({heard}{:.0}% sung), {moved} at {:.0} BPM, {comes}{why}, on chords it agrees with \
+             {:.0}%",
             bars_text(from_bar, p.bars),
             p.sung * 100.0,
             bp.bpm,
-            names.join(", "),
             fits * 100.0
         ));
         out.tracks.push(track);
@@ -882,6 +967,9 @@ pub struct Piece {
     pub fx: Vec<Effect>,
     /// the tempo it keeps, cut from the recording
     pub bpm: f64,
+    /// the section of the recording its phrase starts in, by kind and count ("hook 2"); none where the analysis heard
+    /// no section there
+    pub section: String,
 }
 
 impl Piece {
@@ -995,7 +1083,8 @@ pub fn pieces(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, see
             let mut treated = raw.clone();
             let ctx = crate::fx::Ctx::whole(SRF, a.cut_bpm(), seed.wrapping_add(i as u64), treated.len());
             crate::fx::apply_chain(&fx, &mut treated, &ctx);
-            Piece { phrase: p, raw, treated, treatment, fx, bpm: a.cut_bpm() }
+            let section = section_at(&a, bar_of(&a, p.within.map_or(p.start, |w| w.0)));
+            Piece { phrase: p, raw, treated, treatment, fx, bpm: a.cut_bpm(), section }
         })
         .collect())
 }
@@ -1022,6 +1111,18 @@ pub fn keep(
     let chosen: Vec<(Phrase, Vec<Effect>)> =
         kept.iter().map(|(p, treated)| (p.phrase.clone(), if *treated { p.fx.clone() } else { Vec::new() })).collect();
     place(bp, &Heard { src, stems: stems.as_deref(), a: &a, name }, &chosen, opt, dir)
+}
+
+/// the section of the recording `a` heard that bar `bar` is in, by its kind and how many of its kind come up to it
+/// ("hook 2"); empty where none is
+fn section_at(a: &Analysis, bar: i64) -> String {
+    let at = usize::try_from(bar).ok();
+    let Some(s) = a.sections.iter().find(|s| at.is_some_and(|b| (s.start_bar..s.start_bar + s.bars).contains(&b)))
+    else {
+        return String::new();
+    };
+    let nth = a.sections.iter().filter(|o| o.kind == s.kind && o.start_bar <= s.start_bar).count();
+    format!("{} {nth}", s.kind.name())
 }
 
 /// where a phrase was in the recording, in its bars counted from 1
@@ -1660,6 +1761,64 @@ mod tests {
 
     fn on(bp: &Blueprint, track: &str) -> Vec<String> {
         bp.form.iter().filter(|s| s.layers.iter().any(|l| l == track)).map(|s| s.name.clone()).collect()
+    }
+
+    #[test]
+    fn how_often_a_phrase_comes_round_is_asked_or_suits_the_genre_and_what_its_sections_play() {
+        let mut bp = song();
+        let drop = bp.form.iter().position(|s| s.kind == SectionKind::Drop).unwrap();
+        let (secs, lead) = (vec![drop], bp.parts.iter().find(|p| p.role == Role::Lead).unwrap().name.clone());
+        assert_eq!(Every::parse(" Once "), Ok(Every::Once));
+        assert_eq!((Every::parse("8"), Every::parse("through")), (Ok(Every::Bars(8)), Ok(Every::Through)));
+        assert!(Every::parse("3").unwrap_err().starts_with("no '3' for how often a phrase plays"));
+        // as asked: once in a section of 8 bars, every 4 bars (never shorter than the phrase), all through
+        let asked = |every, bars| period(&bp, &secs, bars, Some(every), &[]);
+        assert_eq!(
+            (asked(Every::Once, 2).bars, asked(Every::Bars(4), 2).bars, asked(Every::Through, 2).bars),
+            (8, 4, 2)
+        );
+        assert_eq!(asked(Every::Bars(4), 8).bars, 8);
+        assert!(asked(Every::Once, 2).why.is_none(), "asked, it says no reason");
+        // as it suits: once from the start of each section where the lead sings
+        let sung: Vec<usize> = (0..bp.form.len()).filter(|&si| sings_in(&bp, si)).collect();
+        assert!(bp.form[drop].layers.contains(&lead) && sung.contains(&drop), "the lead sings in the drop");
+        let r = period(&bp, &secs, 2, None, &sung);
+        assert_eq!((r.every, r.why.as_deref()), (Every::Once, Some("as a lead or a voice sings there already")));
+        // where nothing sings: every other time round in trip-hop, built on samples; every 8 bars in house, not
+        bp.form[drop].layers.retain(|l| *l != lead);
+        assert!(!sings_in(&bp, drop));
+        // a take mixed as a lead, as add_take mixes one, is a melody there too; a take of drums is none
+        let take = |name: &str, role: &str| LoopPart {
+            name: name.into(),
+            role: role.into(),
+            sound: Sound::Loop {
+                path: "take.flac".into(),
+                bpm: 120.0,
+                beats: 16.0,
+                key: None,
+                tonal: true,
+                label: name.into(),
+            },
+            transpose: 0,
+            chop: Vec::new(),
+            slice_beats: 0.0,
+            retime: false,
+            mix: TrackMix::default(),
+            from: Some("drop".into()),
+            sampled: false,
+        };
+        bp.loops.extend([take("beat1", "drums"), take("take1", "lead")]);
+        bp.form[drop].layers.push("beat1".into());
+        assert!(!sings_in(&bp, drop), "a take of drums sings nothing");
+        bp.form[drop].layers.push("take1".into());
+        assert!(sings_in(&bp, drop), "a take mixed as a lead sings");
+        bp.form[drop].layers.retain(|l| l != "beat1" && l != "take1");
+        let r = period(&bp, &secs, 2, None, &[]);
+        assert_eq!((r.every, r.bars, r.why.as_deref()), (Every::Bars(4), 4, Some("as trip hop is built on samples")));
+        bp.genre = "house".into();
+        let r = period(&bp, &secs, 2, None, &[]);
+        let why = Some("now and then, as house is not built on samples");
+        assert_eq!((r.every, r.bars, r.why.as_deref()), (Every::Bars(8), 8, why));
     }
 
     #[test]

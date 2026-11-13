@@ -133,8 +133,8 @@ or **Sample its vocals into the song** in the studio's New song dialog, after ch
   under 90 Hz out. Without it, each keeps the middle of the stereo picture and its sustained part, without what
   strikes (the drums, by harmonic-percussive separation), above 160 Hz and below 11 kHz. Either way, at −1 dBFS,
   faded in and out, and as long as its bars were played, each made one tempo.
-- **Fitting them.** Each becomes a loop of its own, `vox1`, `vox2` ...: the phrase, then as many bars of silence,
-  warped to the song's tempo and moved to its key by the shortest way, as a flipped sample is. A change of the
+- **Fitting them.** Each becomes a loop of its own, `vox1`, `vox2` ...: the phrase, then the bars of silence before
+  it comes round again, warped to the song's tempo and moved to its key by the shortest way, as a flipped sample is. A change of the
   song's tempo or key moves it too. A voice is always stretched, never sped up or slowed down, and moved to the key
   with its formants (the resonances of the singer's throat) kept where they were, so that three semitones down it
   still sounds like the same singer, not a giant, and three up not a chipmunk. Any track with the `vocal` role is
@@ -142,8 +142,16 @@ or **Sample its vocals into the song** in the studio's New song dialog, after ch
 - **Placing them.** The phrases go where a vocal suits the song: the drops and hooks first, then the breaks, the
   verses and grooves, the builds (`--in` names the sections or kinds). In each place, a phrase plays from the
   section's first bar or answers from the bar after, whichever its notes agree with better: its pitch profile against
-  the chord tones under each time it plays. It plays only in the sections with room for it (an answer needs twice
-  its length); when no section asked for has room for a phrase that long, nothing is sampled and the reply says so.
+  the chord tones under each time it plays. It plays only in the sections with room for it (an answer needs room
+  after the phrase it answers); when no section asked for has room for a phrase that long, nothing is sampled and the
+  reply says so.
+- **How often.** A phrase comes round as `--every` says (`every` for an assistant): `once` from the start of each of
+  its sections, `2`, `4`, `8` or `16` (once every so many bars, silent between), or `through` (all through each).
+  Said nothing, the song decides by its genre and by what its sections play: once in each section where a lead or a
+  voice sings already, as two melodies at once say neither; else every other time round, answered, in a genre built
+  on samples (those that sample by default: boom bap, lo-fi, trip-hop, jazz rap, chipmunk soul, filter house and
+  others), whose producers loop what they sample; and once every 8 bars in the rest, a voice that comes back now and
+  then. The reply says which, and why.
 - **Mixing them.** A phrase is mixed as a vocal (−15 LUFS while it plays, a little under): high-passed at 200 Hz,
   a little presence at 3 kHz, compressed 3:1, with some reverb and delay and a light duck under the kick. A lead
   that plays with it steps back 1.5 dB, once: a lead that already plays beside a phrase sampled before stays where
@@ -155,8 +163,8 @@ names), then where each phrase came from and went:
 
 ```text
 sampled 2 phrases of Many Miracles Vocal Melody.caf into the song: vox1, vox2
-vox1: bar 6 of Many Miracles Vocal Melody.caf (the ears +2.0 for 'a person singing', 60% sung), in its own key at 122 BPM, every 2 bars from the first bar in the drops and hooks (drop), on chords it agrees with 74%
-vox2: bars 11-12 of Many Miracles Vocal Melody.caf (the ears +1.9 for 'a person singing', 54% sung), in its own key at 122 BPM, every 4 bars from the first bar in the breaks (break), on chords it agrees with 83%
+vox1: bar 6 of Many Miracles Vocal Melody.caf (the ears +2.0 for 'a person singing', 60% sung), in its own key at 122 BPM, once in each of the drops and hooks (drop), from the first bar, as a lead or a voice sings there already, on chords it agrees with 74%
+vox2: bars 11-12 of Many Miracles Vocal Melody.caf (the ears +1.9 for 'a person singing', 54% sung), in its own key at 122 BPM, every 8 bars from the first bar in the breaks (break), now and then, as house is not built on samples, on chords it agrees with 83%
 ```
 
 ### Other ways to sample
@@ -204,10 +212,12 @@ with nothing added. **Another take** draws other phrases among the good ones, wi
 cannot play, the window says why.
 
 An assistant does the same with `sample_pieces` (the recording's `path`, or `library:<id>`; `seed`, `count`, `bars`,
-`find`), which lists the pieces and where to hear each, `redraw_pieces` for another take, and `keep_pieces` with the
-pieces to keep and whether treated. Behind the window are `POST /api/sample/pieces` (the recording itself), the
-state's `pieces`, and `GET /api/pieces/<file>` for each piece to hear ([HTTP API](http-api.md#routes)). The online demo
-offers pieces the same way, in the page.
+`find`), which lists the pieces, where each is in the recording's form ("in hook 2") and where to hear it,
+`redraw_pieces` for another take, and `keep_pieces` with the pieces to keep, whether treated, and how often they come
+round (`every`, as above). Behind the window are `POST /api/sample/pieces` (the recording itself), the state's
+`pieces`, each with where its phrase is sung (`from`, `to`) and the section it is in, and `GET /api/pieces/<file>` for
+each piece to hear ([HTTP API](http-api.md#routes)). What `analyze` hears in a recording says where its voice sings
+each phrase too (`phrases`). The online demo offers pieces the same way, in the page.
 
 Without earshot's models, it goes by the pitch and the stereo picture alone: in a full mix, a lead synth held in the
 middle can then pass for a voice. Sample only what you may use: a recording of someone else's song needs their
