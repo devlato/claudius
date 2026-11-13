@@ -335,6 +335,29 @@ test.describe("assembled site", () => {
     await page.waitForFunction(() => !document.getElementById("loading"), null, { timeout: 30_000 });
   });
 
+  test("the studio's page says why when the connection drops while the studio's program arrives", async ({ page }) => {
+    // a program whose first kilobyte arrives, and then the connection drops
+    await page.addInitScript(() => {
+      const real = window.fetch;
+      window.fetch = (input, init) => {
+        if (!/claudius-ui-[^/]*_bg\.wasm/.test(input instanceof Request ? input.url : String(input))) {
+          return real(input, init);
+        }
+        let sent = false;
+        const body = new ReadableStream({
+          pull(c) {
+            if (sent) return c.error(new TypeError("network error"));
+            sent = true;
+            c.enqueue(new Uint8Array(1024));
+          },
+        });
+        return Promise.resolve(new Response(body, { headers: { "content-type": "application/wasm" } }));
+      };
+    });
+    await page.goto("/studio/?mock");
+    await expect(page.locator("#loading .said")).toHaveText("The studio could not start: its program did not arrive: network error");
+  });
+
   test("the studio's page says why when the studio's program does not arrive", async ({ page }) => {
     await page.route(/claudius-ui-[^/]*_bg\.wasm$/, (r) => r.abort());
     await page.goto("/studio/?mock");

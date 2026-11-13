@@ -169,7 +169,11 @@
         const reader = res.body.getReader();
         let got = 0;
         for (;;) {
-          const { done, value } = await reader.read();
+          // a connection that drops once the program has begun to arrive ends it here
+          const { done, value } = await reader.read().catch((e) => {
+            fail(`its program did not arrive: ${e.message || e}`);
+            return { done: true };
+          });
           if (done) break;
           got += value.length;
           if (all) show(`Loading the studio: ${Math.min(99, Math.floor((100 * got) / all))}%`, "", Math.min(100, (100 * got) / all));
