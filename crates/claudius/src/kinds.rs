@@ -4,7 +4,7 @@
 //! (its isolation, in decibels over the rest), how well it loops (its first beat against the beat after its end, as
 //! LoopMaker measures a seam: Shi & Mysore, CHI 2018), and what its kind asks besides: a break how busy it is, a bass
 //! line how much it moves, a hook how much of the recording it stands for, another passage how unlike the hook it is.
-//! Each feature counts by its rank among the candidates of the same kind, so that no kind is judged on another's scale.
+//! Each feature counts on a scale of its own (`scaled`), so that a piece is judged by how much of it it has.
 
 use crate::analysis::chroma;
 use crate::analysis::song::{Analysis, SectionGuess};
@@ -314,23 +314,27 @@ struct Candidate {
     fits: f64,
 }
 
-/// Each candidate's quality among the others of its kind, 0 to 1: the weighted geometric mean of each feature's rank
-/// among theirs (the best 1), times how well its length suits its kind.
-fn qualities(cands: &[Candidate], weights: &[f64]) -> Vec<f64> {
-    let n = cands.len() as f64;
-    let rank = |f: usize, v: f64| {
-        let below = cands.iter().filter(|c| c.features[f] < v).count() as f64;
-        let same = cands.iter().filter(|c| c.features[f] == v).count() as f64;
-        (below + 0.5 * same + 0.5) / n
+/// A feature on its scale, 0 to 1, so that a candidate is judged by how much of it it has, not by how it ranks among
+/// the others (a hair's more loopability is not worth what 20 dB of isolation is): isolation from -10 to 20 dB, how busy
+/// a break is and how much a bass line moves up to a half, the rest as they are, 0 to 1. None goes under a fifth, so
+/// that one weak feature lowers a piece without ruling it out.
+fn scaled(kind: Kind, feature: usize, v: f64) -> f64 {
+    let isolation = |db: f64| ((db + 10.0) / 30.0).clamp(0.0, 1.0);
+    let share = |s: f64| (s / 0.5).clamp(0.0, 1.0);
+    let s = match (kind, feature) {
+        (Kind::Break | Kind::Bass, 0) | (Kind::Hook | Kind::Passage, 2) => isolation(v),
+        (Kind::Break | Kind::Bass, 1) => share(v),
+        _ => v.clamp(0.0, 1.0),
     };
+    0.2 + 0.8 * s
+}
+
+/// A candidate's quality as a piece of its kind, 0 to 1: the weighted geometric mean of its features on their scales
+/// (`scaled`), times how well its length suits its kind.
+fn quality(kind: Kind, c: &Candidate, weights: &[f64]) -> f64 {
     let total: f64 = weights.iter().sum();
-    cands
-        .iter()
-        .map(|c| {
-            let log: f64 = weights.iter().enumerate().map(|(f, w)| w * rank(f, c.features[f]).ln()).sum();
-            (log / total).exp() * c.fits
-        })
-        .collect()
+    let log: f64 = weights.iter().enumerate().map(|(f, w)| w * scaled(kind, f, c.features[f]).ln()).sum();
+    (log / total).exp() * c.fits
 }
 
 /// The runs of bars a piece of `kind` may be cut from in `sections`: of each length its kind takes, from each
@@ -404,7 +408,7 @@ pub fn best(kind: Kind, a: &Analysis, x: &Stereo, rest: &Stereo, seed: u64, rng:
         Kind::Hook => &[1.0, 1.0, 0.5],
         _ => &[0.8, 1.0, 0.5],
     };
-    let q = qualities(&cands, weights);
+    let q: Vec<f64> = cands.iter().map(|c| quality(kind, c, weights)).collect();
     let top = q.iter().copied().fold(0.0, f64::max);
     let pick = match seed {
         0 => (0..cands.len()).max_by(|&i, &j| q[i].total_cmp(&q[j]))?,
@@ -469,13 +473,13 @@ mod tests {
     }
 
     #[test]
-    fn a_candidate_ranks_by_its_features_among_its_kind_and_by_how_its_length_suits_it() {
+    fn a_piece_scores_by_how_much_of_each_feature_it_has_and_how_its_length_suits_its_kind() {
         let c = |features: Vec<f64>, fits: f64| Candidate { first: 0, bars: 2, features, fits };
-        let q = qualities(
-            &[c(vec![1.0, 0.0], 1.0), c(vec![0.0, 1.0], 1.0), c(vec![1.0, 1.0], 1.0), c(vec![1.0, 1.0], 0.5)],
-            &[1.0, 1.0],
-        );
-        assert!(q[2] > q[0] && q[2] > q[1], "best at both: {q:?}");
-        assert!((q[3] - q[2] / 2.0).abs() < 1e-9, "the same, at a length that suits its kind half as well: {q:?}");
+        let q = |c: Candidate| quality(Kind::Break, &c, &[1.0, 0.6, 1.0]);
+        // drums alone that loop a little less well beat drums in the mix that loop a hair better
+        assert!(q(c(vec![40.0, 0.3, 0.85], 1.0)) > q(c(vec![-8.0, 0.3, 0.97], 1.0)));
+        let (best, half) = (q(c(vec![20.0, 0.5, 1.0], 1.0)), q(c(vec![20.0, 0.5, 1.0], 0.5)));
+        assert!((best - 1.0).abs() < 1e-9 && (half - 0.5).abs() < 1e-9, "{best} {half}");
+        assert!(q(c(vec![-30.0, 0.0, 0.0], 1.0)) >= 0.2 - 1e-9, "weak at all of them, still not none");
     }
 }

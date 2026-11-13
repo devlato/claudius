@@ -2178,7 +2178,8 @@ mod tests {
         let tone = |i: usize| 0.25 * (std::f64::consts::TAU * 440.0 * i as f64 / SRF).sin() as f32;
         let l: Vec<f32> = (0..(6.0 * SRF) as usize).map(tone).collect();
         let x = Stereo { r: l.clone(), l };
-        let pieces = pieces(&x, None, &Options { count: 1, ..Options::default() }, 0).expect("a piece");
+        let pieces = pieces(&x, None, &Options { count: 1, kinds: vec![Kind::Phrase], ..Options::default() }, 0)
+            .expect("a piece");
         let p = &pieces[0];
         let (from, to) = p.phrase.within.expect("sung whole");
         assert!(from <= 0.01 && to >= 5.99, "all of it: {from}..{to}");
@@ -2197,7 +2198,8 @@ mod tests {
         let tone = |i: usize| 0.25 * (std::f64::consts::TAU * 440.0 * i as f64 / SRF).sin() as f32;
         let l: Vec<f32> = (0..(20.0 * SRF) as usize).map(tone).collect();
         let x = Stereo { r: l.clone(), l };
-        let said = pieces(&x, None, &Options { count: 1, ..Options::default() }, 0).unwrap_err();
+        let said =
+            pieces(&x, None, &Options { count: 1, kinds: vec![Kind::Phrase], ..Options::default() }, 0).unwrap_err();
         assert!(said.starts_with("no phrase of it is sung whole in 8 bars or fewer: the shortest takes "), "{said}");
     }
 
@@ -2210,7 +2212,8 @@ mod tests {
         for ch in src.channels_mut() {
             ch[loud.clone()].iter_mut().for_each(|v| *v *= 4.0);
         }
-        let all = pieces(&src, None, &Options { count: 2, ..Options::default() }, 0).unwrap();
+        let all =
+            pieces(&src, None, &Options { count: 2, kinds: vec![Kind::Phrase], ..Options::default() }, 0).unwrap();
         let spans: Vec<_> = all.iter().map(|p| (p.phrase.start, p.phrase.bars, p.phrase.within)).collect();
         let quiet = all.iter().find(|p| p.phrase.within.is_some_and(|(from, _)| from > words[0].end));
         let quiet = quiet.unwrap_or_else(|| panic!("the phrase apart from the word: {spans:?}"));
@@ -2252,7 +2255,8 @@ mod tests {
         // three phrases at 120 BPM, each starting off a bar line and going over one
         let line: &[(f64, u32)] = &[(0.4, 1), (0.55, 2), (0.3, 1)];
         let (src, words) = crate::cuts::tests::sung_over_drums(&[(1.27, line), (5.63, line), (9.41, line)], 14.0);
-        let all = pieces(&src, None, &Options { count: 3, ..Options::default() }, 0).unwrap();
+        let all =
+            pieces(&src, None, &Options { count: 3, kinds: vec![Kind::Phrase], ..Options::default() }, 0).unwrap();
         assert_eq!(all.len(), 3, "{:?}", all.iter().map(|p| &p.phrase).collect::<Vec<_>>());
         for p in &all {
             let (from, to) = p.phrase.within.expect("a phrase sung whole");
@@ -2264,16 +2268,141 @@ mod tests {
             assert!(p.raw.l[..lead].iter().all(|v| *v == 0.0), "silent before {from} in {:?}", p.phrase);
         }
         // a later take draws another of the good ones
-        let one = Options { count: 1, ..Options::default() };
+        let one = Options { count: 1, kinds: vec![Kind::Phrase], ..Options::default() };
         let first = pieces(&src, None, &one, 0).unwrap()[0].phrase.within;
         let later: Vec<_> = (1..8).map(|seed| pieces(&src, None, &one, seed).unwrap()[0].phrase.within).collect();
         assert!(later.iter().any(|w| *w != first), "{first:?} every take: {later:?}");
     }
 
+    /// 120 BPM, sixteen bars, apart: a kick on every beat and a hat on every off-beat all through, alone for four bars;
+    /// then a bass line on the chords' roots, an octave up every other beat, and the chords themselves, A minor, F, C
+    /// and G a bar each, three times round; no voice. The stems, and the mix of them.
+    fn band() -> (Stereo, Stems) {
+        let (sr, beat) = (SRF as usize, SRF as usize / 2);
+        let n = 16 * 4 * beat;
+        let (mut drums, mut bass, mut other) = (Stereo::zeros(n), Stereo::zeros(n), Stereo::zeros(n));
+        let mut rng = crate::rng::Rng::new(5);
+        let tau = std::f64::consts::TAU;
+        for b in 0..64 {
+            let at = b * beat;
+            for i in 0..(0.15 * SRF) as usize {
+                let t = i as f64 / SRF;
+                let v = ((tau * 60.0 * t).sin() * 0.8 * (-t / 0.05).exp()) as f32;
+                (drums.l[at + i], drums.r[at + i]) = (v, v);
+            }
+            for i in 0..sr / 30 {
+                let v = (rng.f32() - 0.5) * 0.3 * (1.0 - i as f32 / (sr / 30) as f32);
+                drums.l[at + beat / 2 + i] += v;
+                drums.r[at + beat / 2 + i] += v;
+            }
+        }
+        let chords: [[f64; 3]; 4] =
+            [[220.0, 261.63, 329.63], [174.61, 220.0, 261.63], [261.63, 329.63, 392.0], [196.0, 246.94, 293.66]];
+        let roots = [55.0, 43.65, 65.41, 49.0];
+        for bar in 4..16 {
+            let c = (bar - 4) % 4;
+            for i in 0..4 * beat {
+                let t = (bar * 4 * beat + i) as f64 / SRF;
+                let up = if (i / beat) % 2 == 1 { 2.0 } else { 1.0 };
+                let low = ((tau * roots[c] * up * t).sin() * 0.4) as f32;
+                let high = chords[c].iter().map(|f| (tau * f * t).sin() * 0.12).sum::<f64>() as f32;
+                let at = bar * 4 * beat + i;
+                (bass.l[at], bass.r[at], other.l[at], other.r[at]) = (low, low, high, high);
+            }
+        }
+        let mut mix = drums.clone();
+        mix.add_at(&bass, 0, 1.0, 1.0);
+        mix.add_at(&other, 0, 1.0, 1.0);
+        (mix, Stems { vocals: Stereo::zeros(n), drums, bass, other })
+    }
+
+    #[test]
+    fn a_break_a_bass_line_and_a_hook_are_each_cut_where_their_kind_is_best() {
+        let (mix, stems) = band();
+        let a = analysis::analyze_with(&mix, Some(&stems), None);
+        let best = |kind: Kind| {
+            let (x, rest) = kinds::source(kind, &mix, Some(&stems)).expect("its stems");
+            kinds::best(kind, &a, &x, &rest, 0, &mut crate::rng::Rng::new(1)).expect("a piece of it")
+        };
+        let brk = best(Kind::Break);
+        assert!(brk.first < 4 && brk.about.starts_with("the drums alone"), "the drums alone are the break: {brk:?}");
+        let bass = best(Kind::Bass);
+        assert!(bass.first >= 3 && bass.about.contains("moving"), "{bass:?}");
+        let hook = best(Kind::Hook);
+        assert!(hook.first >= 3 && hook.about.contains("comes back"), "the chords that come round: {hook:?}");
+        // another take draws among the good ones
+        let (x, rest) = kinds::source(Kind::Break, &mix, Some(&stems)).unwrap();
+        let takes: Vec<usize> = (1..9)
+            .filter_map(|seed| kinds::best(Kind::Break, &a, &x, &rest, seed, &mut crate::rng::Rng::new(seed)))
+            .map(|c| c.first)
+            .collect();
+        assert!(!takes.is_empty() && takes.iter().all(|f| *f < 4), "drawn from the drums alone: {takes:?}");
+    }
+
+    #[test]
+    fn a_recording_no_one_sings_in_offers_its_other_pieces_and_kinds_asked_for_alone() {
+        let (mix, _) = band();
+        // without the ears, from the mix: its break and loops, as it was cut and treated
+        let all = pieces(&mix, None, &Options::default(), 0).unwrap();
+        let kinds: Vec<Kind> = all.iter().map(|p| p.kind).collect();
+        assert!(kinds.contains(&Kind::Break) && kinds.contains(&Kind::Hook), "{kinds:?}");
+        assert!(!kinds.contains(&Kind::Bass), "a bass line needs the stems apart: {kinds:?}");
+        for p in all.iter().filter(|p| p.kind != Kind::Phrase) {
+            assert!(!p.about.is_empty() && p.raw.len() == p.treated.len(), "{:?}", p.kind);
+            // whole bars, at the tempo the recording was heard at
+            let bars = p.phrase.bars as f64 * 240.0 / p.bpm * SRF;
+            assert!((p.raw.len() as f64 - bars).abs() < 0.01 * SRF, "{:?}: {} of {bars}", p.kind, p.raw.len());
+        }
+        let breaks = pieces(&mix, None, &Options { kinds: vec![Kind::Break], ..Options::default() }, 0).unwrap();
+        assert!(breaks.iter().all(|p| p.kind == Kind::Break) && breaks.len() == 1);
+    }
+
+    #[test]
+    fn a_break_kept_loops_where_the_drums_play_and_a_bass_line_in_place_of_the_bass() {
+        let (mix, stems) = band();
+        let a = analysis::analyze_with(&mix, Some(&stems), None);
+        let mut bp = song();
+        let basses: Vec<String> = bp.parts.iter().filter(|p| p.role == Role::Bass).map(|p| p.name.clone()).collect();
+        assert!(!basses.is_empty(), "the song has a bass");
+        let piece = |kind: Kind, first: i64| {
+            let x = kinds::level(&cut_bars(&a, &mix, first, 2));
+            let phrase = Phrase {
+                start: bar_time(&a, first),
+                first,
+                bars: 2,
+                z: None,
+                sung: 0.0,
+                centred: 0.0,
+                score: 1.0,
+                within: None,
+            };
+            let (about, treatment, bpm, section) = ("about it".into(), String::new(), a.cut_bpm(), String::new());
+            Piece { kind, about, phrase, raw: x.clone(), treated: x, treatment, fx: Vec::new(), bpm, section }
+        };
+        let dir = std::env::temp_dir().join(format!("claudius-kinds-{}", std::process::id()));
+        let (brk, bass) = (piece(Kind::Break, 0), piece(Kind::Bass, 4));
+        let out = keep(&mut bp, &mix, "band", &[(&brk, false), (&bass, false)], &Options::default(), &dir).unwrap();
+        assert_eq!(out.tracks, ["break", "bassline"]);
+        assert!(out.said("band").starts_with("sampled a drum break and a bass line of band into the song"));
+        let l = |name: &str| bp.loops.iter().find(|l| l.name == name).unwrap();
+        assert!(matches!(&l("break").sound, Sound::Loop { tonal: false, key: None, .. }) && l("break").role == "drums");
+        assert_eq!((l("break").transpose, l("bassline").role.as_str()), (0, "bass"));
+        let drums: Vec<String> = bp.drums.iter().map(|d| d.name.clone()).collect();
+        for s in &bp.form {
+            let has = |names: &[String]| s.layers.iter().any(|l| names.contains(l));
+            assert_eq!(s.layers.contains(&"break".to_string()), has(&drums), "{}: where the drums play", s.name);
+            if s.layers.contains(&"bassline".to_string()) {
+                assert!(!has(&basses), "{}: the bass line, not the song's bass", s.name);
+            }
+        }
+        assert!(out.lines[1].contains("in place of the song's bass"), "{}", out.lines[1]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn pieces_are_offered_raw_and_treated_drawn_anew_each_take_and_kept_as_chosen() {
         let src = hummed(4, 12);
-        let opt = Options { count: 1, ..Options::default() };
+        let opt = Options { count: 1, kinds: vec![Kind::Phrase], ..Options::default() };
         let first = pieces(&src, None, &opt, 0).unwrap();
         assert_eq!(first.len(), 1);
         let p = &first[0];

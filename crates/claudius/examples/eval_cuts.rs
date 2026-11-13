@@ -52,7 +52,7 @@ fn main() -> Result<(), String> {
             .map_err(|e| e.to_string())?;
         let stems = claudius::stems::of(&x, &mut |_| {});
         let a = analysis::analyze_with(&x, stems.as_deref(), None);
-        let opt = Options { count: 4, ..Options::default() };
+        let opt = Options { count: 4, kinds: vec![claudius::kinds::Kind::Phrase], ..Options::default() };
         let mut b = Count::default();
         for p in sampler::find(&x, stems.as_deref(), &a, ears.as_ref(), &opt, opt.count) {
             let first = usize::try_from(p.first).unwrap_or(0);

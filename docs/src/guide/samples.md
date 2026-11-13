@@ -224,9 +224,27 @@ with nothing added. **Other phrases** draws other phrases among the good ones, w
 cannot play, the window says why.
 
 An assistant does the same with `sample_pieces` (the recording's `path`, or `library:<id>`; `seed`, `count`, `bars`,
-`find`), which lists the pieces, where each is in the recording's form ("in hook 2") and where to hear it,
+`find`, `kinds`), which lists the pieces, where each is in the recording's form ("in hook 2") and where to hear it,
 `redraw_pieces` for another take, and `keep_pieces` with the pieces to keep, whether treated, and how often they come
-round (`every`, as above). Behind the window are `POST /api/sample/pieces` (the recording itself), the state's
+round (`every`, as above).
+
+Besides its phrases, `sample_pieces` offers the best piece of each other kind a recording holds, as producers sample
+records ([design 0021](../design/0021-every-kind-of-sample.md)), each cut on the recording's bars:
+
+| Kind | What it is | Kept, it plays |
+|---|---|---|
+| `hook` | a loop of 1 to 8 bars of its hook, the section with chords that pulls most toward being one, without its drums, bass and voice | all through the drops and hooks, in the song's key |
+| `passage` | a loop of 2 to 8 bars of another passage with chords | all through the other sections but the intro and the outro |
+| `break` | its drums, 1, 2 or 4 bars | as a drum loop where the song's drums play, at its own pitch, cut onto the song's grid when its tempo is far from the song's |
+| `bass` | its bass line, 1, 2 or 4 bars | in place of the song's bass, in the song's key |
+
+Each is scored as its kind: how alone what it is cut from plays in its bars, how well it loops (its first beat against
+the beat after its end), and what its kind asks besides (how busy a break is, how much a bass line moves, how often a
+hook comes back, how unlike the hook another passage is). Each says why, in words ("the drums alone, busy, it loops
+cleanly"), and goes into the sections `keep_pieces` names, when it names any. `kinds` asks for some only (`phrase`,
+`hook`, `passage`, `break`, `bass`); a recording no voice sings in offers the rest. They come from the recording's
+stems when earshot separates them; without its models, a break and the loops come from the mix's percussive and
+harmonic parts, and a bass line, which the mix does not give apart, is not offered. Behind the window are `POST /api/sample/pieces` (the recording itself), the state's
 `pieces`, each with where its phrase is sung (`from`, `to`) and the section it is in, and `GET /api/pieces/<file>` for
 each piece to hear ([HTTP API](http-api.md#routes)). What `analyze` hears in a recording says where its voice sings
 each phrase too (`phrases`). The online demo offers pieces the same way, in the page.

@@ -256,6 +256,12 @@ song.mp3 into the song: vox1, vox2"), the lines after it where each phrase came 
   treatment (dusty tape, a washed echo, lo-fi, a phaser, a telephone band, a stutter, a reversed tail), with where to
   hear each. Describe them, let the person pick, then `keep_pieces` with `[{id, treated}]` (and `sections`, `every`,
   as above); `redraw_pieces` draws another take when none suits.
+- **Every kind of piece.** Besides its phrases, `sample_pieces` offers the best piece of each other kind the recording
+  holds: `hook` (a loop of its hook, the instruments without the drums, bass and voice), `passage` (a loop of another
+  passage), `break` (its drums) and `bass` (its bass line), each saying why it scored as it did ("the drums alone,
+  busy, it loops cleanly"). Ask for some with `kinds` ("break" for a drum loop to build on). Kept, a break loops where
+  the song's drums play, a bass line plays in place of the song's bass, a hook loop in the drops and hooks; a recording
+  nobody sings in still offers these.
 
 ## Ask the person to record a take
 
