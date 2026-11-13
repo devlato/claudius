@@ -439,7 +439,15 @@ jobs:
     name: site
     needs: [plan, publish]
     if: ${{ github.ref == 'refs/heads/main' && !contains(needs.plan.outputs.version, '-') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     permissions:
-      contents: read
-    # the deploy job takes the Cloudflare secrets from the environment "site"
-    uses: ./.github/workflows/site.yml
+      actions: write
+    steps:
+      # a run of site.yml's own, whose deploy job takes the Cloudflare secrets from the environment "site": a workflow
+      # called from here would get none of them, and deploy nothing
+      - name: Deploy the site
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run site.yml --ref main

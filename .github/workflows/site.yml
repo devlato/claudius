@@ -28,12 +28,8 @@ on:
       - xtask/src/site.rs
   pull_request:
     paths: *paths
-  # release.yml, once a release is published
-  workflow_call:
-    inputs:
-      after-release:
-        type: boolean
-        default: true
+  # release.yml, once a release is published, in a run of its own (a called workflow's deploy job would get none of
+  # the environment's secrets); and by hand
   workflow_dispatch:
 
 permissions:
@@ -57,8 +53,7 @@ jobs:
     # a merged release PR is deployed by release.yml after the release is out, so that the site never offers a
     # version that cannot be downloaded yet
     if: >-
-      inputs.after-release || github.event_name != 'push' ||
-      !startsWith(github.event.head_commit.message, 'release: v')
+      github.event_name != 'push' || !startsWith(github.event.head_commit.message, 'release: v')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -83,10 +78,11 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: site
-          # the Worker's configuration comes along: its assets are ../target/site
+          # the Worker comes along, its configuration and its code: its assets are ../target/site
           path: |
             target/site
             site/wrangler.toml
+            site/worker
           if-no-files-found: error
       - name: Not deployed
         if: github.event_name == 'pull_request' || github.ref != 'refs/heads/main' || vars.SITE_URL == ''
