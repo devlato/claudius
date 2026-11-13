@@ -197,7 +197,11 @@ impl Player {
         if self._device.is_some() {
             self.error = None;
         }
-        self.seek_on_arrival = None;
+        // and lets go of the one still on its way, which is not this one
+        self.loading = None;
+        if !keep_position {
+            (self.play_on_arrival, self.seek_on_arrival) = (false, None);
+        }
         match source {
             Source::Pcm(pcm) => self.install(pcm, keep_position),
             Source::File(file) => match Pcm::decode_wav(&file.bytes) {
@@ -212,7 +216,7 @@ impl Player {
                         let _ = tx.send(decoded.map(|x| pcm_of(&x)));
                         ctx.request_repaint();
                     });
-                    self.loading = Some((rx, keep_position));
+                    self.on_its_way(rx, keep_position);
                 }
             },
             Source::Url(url) => {
@@ -229,9 +233,29 @@ impl Player {
                     let _ = tx.send(pcm);
                     ctx.request_repaint();
                 });
-                self.loading = Some((rx, keep_position));
+                self.on_its_way(rx, keep_position);
             }
         }
+    }
+
+    /// Audio on its way. What played before plays on meanwhile when the new audio continues from it (`keep_position`,
+    /// a render of the same song); otherwise it goes, so that nothing of it plays in the new audio's place.
+    fn on_its_way(&mut self, rx: Receiver<Result<Pcm, String>>, keep_position: bool) {
+        if !keep_position {
+            self.let_go();
+        }
+        self.loading = Some((rx, keep_position));
+    }
+
+    /// stops, and forgets the audio installed
+    fn let_go(&mut self) {
+        self.pause();
+        if let Ok(mut slot) = self.shared.pcm.lock() {
+            *slot = None;
+        }
+        self.shared.generation.fetch_add(1, Relaxed);
+        self.shared.position.store(0f64.to_bits(), Relaxed);
+        self.duration = 0.0;
     }
 
     fn install(&mut self, pcm: Arc<Pcm>, keep_position: bool) {
@@ -247,13 +271,7 @@ impl Player {
 
     /// forget the loaded audio (the song it belonged to is gone)
     pub fn clear(&mut self) {
-        self.pause();
-        if let Ok(mut slot) = self.shared.pcm.lock() {
-            *slot = None;
-        }
-        self.shared.generation.fetch_add(1, Relaxed);
-        self.shared.position.store(0f64.to_bits(), Relaxed);
-        self.duration = 0.0;
+        self.let_go();
         self.loading = None;
         (self.play_on_arrival, self.seek_on_arrival) = (false, None);
     }
@@ -434,6 +452,31 @@ mod tests {
         p.tick();
         // an output, where there is one, plays on from there at once
         assert!(p.is_playing() && (2.5..2.7).contains(&p.position()), "at {}", p.position());
+        p.pause();
+    }
+
+    #[test]
+    fn audio_on_its_way_lets_go_of_what_played_unless_it_continues_it_and_one_chosen_meanwhile_stays() {
+        let silence = |secs: usize| Arc::new(Pcm { rate: 24_000, channels: 1, samples: vec![0.0; 24_000 * secs] });
+        let mut p = Player::new(&egui::Context::default());
+        p.load(Source::Pcm(silence(4)), false);
+        p.play();
+        // a render of the same song on its way: the last one plays on meanwhile
+        let (_tx, rx) = channel();
+        p.on_its_way(rx, true);
+        assert!(p.has_audio() && p.is_playing());
+        // another recording on its way: nothing of the last one plays in its place, and it plays once it is here
+        let (tx, rx) = channel();
+        p.on_its_way(rx, false);
+        assert!(!p.has_audio() && !p.is_playing());
+        p.play();
+        assert!(!p.is_playing() && p.play_on_arrival);
+        // one chosen meanwhile, there at once: the one on its way is let go of, and does not replace it later
+        p.load(Source::Pcm(silence(2)), false);
+        assert!(!p.is_loading() && (p.duration() - 2.0).abs() < 1e-9);
+        let _ = tx.send(Ok(Pcm { rate: 24_000, channels: 1, samples: vec![0.0; 24_000 * 8] }));
+        p.tick();
+        assert!((p.duration() - 2.0).abs() < 1e-9, "{} s", p.duration());
         p.pause();
     }
 
