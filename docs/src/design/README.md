@@ -25,7 +25,7 @@ earth is it done this way?", and the answer is a trade-off rather than a mistake
 | [0014 A small model taught to read requests](0014-request-model.md) | Cactus's Needle 3, taught in Rust on claudius's tools with low-rank adapters, reads on the device what the readings read nothing of; its calls are checked, said again in the readings' words and grounded in the song |
 | [0015 Requests said aloud, heard on the device](0015-spoken-requests.md) | Cactus's Whistle, ported to Rust on needle-core, hears what is said to the palette; silence is heard as nothing, words heard near ones claudius knows are put right, and the words go into the field as if typed |
 | [0016 Settings any later claudius reads](0016-settings-any-later-claudius-reads.md) | every settings file has a version and is read field by field, a field that does not read costing only itself; earlier versions migrate as they are read, and what a later version wrote is kept |
-| [0017 A rebuild that sounds like the recording](0017-rebuild-from-its-parts.md) | proposed: a rebuild is measured on songs claudius renders itself and made from better parts, RoFormer and MDX-Net stems, YourMT3+'s notes, each instrument on a sound like its own, and chords from the notes |
+| [0017 A rebuild that sounds like the recording](0017-rebuild-from-its-parts.md) | proposed: a rebuild is measured on songs claudius renders itself and made from better parts, HTDemucs stems, YourMT3+'s notes, each instrument on a sound like its own, and chords from the notes |
 
 ## The format
 

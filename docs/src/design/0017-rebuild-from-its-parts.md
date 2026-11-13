@@ -23,8 +23,10 @@ Rebuild from better parts, and measure every step.
    exactly: each part's note F1 (onset, pitch and offset, as `mir_eval` counts them), and how near the rebuilt song's
    chords, tempo and drums come to the original's. Each later step has to raise these numbers, and CI keeps them from
    falling.
-2. **Separation** by Mel-Band RoFormer (Kim's vocal model, MIT) for the voice and kuielab's MDX-Net (MIT, about 7 dB)
-   for the drums, the bass and the rest, in pure Rust as the ears are, in place of Spleeter.
+2. **Separation** by HTDemucs, fine-tuned (vocals 9.2, drums 10.1, bass 10.4 and the rest 6.3 dB), in pure Rust as
+   the ears are, in place of Spleeter: Demucs and the models it releases are MIT. A Mel-Band RoFormer would hear the
+   voice better still, but the community's checkpoints (Kim's vocal model among them) and UVR's models carry no
+   licence, so one goes in only with weights whose licence allows it.
 3. **Transcription** by YourMT3+ (F1 0.59 on the same test), ported to Rust from its paper: its weights are
    Apache-2.0, and its code GPL-3.0, so the port follows the paper and not the code. It writes each instrument's notes
    with its General MIDI program.
@@ -33,8 +35,8 @@ Rebuild from better parts, and measure every step.
    master, and any sound can still be changed.
 5. **Chords from the notes** of every instrument, rather than from the mix, whose drums and voice blur them.
 
-Not taken: HTDemucs-ft separates better (vocals 9.2, drums 10.1, bass 10.4 dB), but its weights are for research
-only, and MuScriptor's weights are CC BY-NC.
+Not taken: Kim's Mel-Band RoFormer and UVR's models, which carry no licence, and MuScriptor, whose weights are CC
+BY-NC.
 
 ## Consequences
 
