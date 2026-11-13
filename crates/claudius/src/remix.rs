@@ -86,42 +86,78 @@ fn hookness(s: &SectionGuess) -> f64 {
     s.energy as f64 + if matches!(s.kind, SectionKind::Hook | SectionKind::Drop) { 0.25 } else { 0.0 }
 }
 
-/// the hook: eight bars from the start of the section with chords that pulls most toward being one (four, or two, of a
-/// shorter one)
-pub fn hook_bars(a: &Analysis) -> Option<Bars> {
-    let s = a
-        .sections
+/// The hooks a remix may be built on, each with how much it pulls toward being one: eight bars from the start of each
+/// section with chords (four, or two, of a shorter one).
+fn hooks(a: &Analysis) -> Vec<(f64, Bars)> {
+    a.sections
         .iter()
         .filter(|s| s.harmony && s.bars >= 2 && s.start_bar + 2 <= a.bars)
-        .max_by(|x, y| hookness(x).total_cmp(&hookness(y)))?;
-    let count = [8, 4, 2].into_iter().find(|&n| s.bars >= n && s.start_bar + n <= a.bars).unwrap_or(2);
-    Some(Bars { first: s.start_bar, count })
+        .map(|s| {
+            let count = [8, 4, 2].into_iter().find(|&n| s.bars >= n && s.start_bar + n <= a.bars).unwrap_or(2);
+            (hookness(s), Bars { first: s.start_bar, count })
+        })
+        .collect()
 }
 
-/// a passage of the verses as long as the hook, from a section with chords elsewhere (a verse when there is one, else
-/// the quietest that is not an intro or an outro)
-pub fn verse_bars(a: &Analysis, hook: Bars) -> Option<Bars> {
-    let s = a
-        .sections
+/// The passages of the verses as long as the hook, from the sections with chords elsewhere but the intro and the
+/// outro, each scored as one: a verse more than another kind, the quieter more.
+fn verses(a: &Analysis, hook: Bars) -> Vec<(f64, Bars)> {
+    a.sections
         .iter()
         .filter(|s| s.harmony && s.bars >= hook.count && s.start_bar + hook.count <= a.bars && !hook.meets(s))
         .filter(|s| !matches!(s.kind, SectionKind::Intro | SectionKind::Outro))
-        .min_by(|x, y| {
-            let rank = |s: &SectionGuess| (s.kind != SectionKind::Verse, s.energy);
-            let (rx, ry) = (rank(x), rank(y));
-            rx.0.cmp(&ry.0).then(rx.1.total_cmp(&ry.1))
-        })?;
-    Some(Bars { first: s.start_bar, count: hook.count })
+        .map(|s| {
+            let verse = if s.kind == SectionKind::Verse { 1.0 } else { 0.0 };
+            (verse - s.energy as f64, Bars { first: s.start_bar, count: hook.count })
+        })
+        .collect()
+}
+
+/// The recording's drums, as many bars as the hook from each section with a kick, the louder the busier.
+fn drum_runs(a: &Analysis, hook: Bars) -> Vec<(f64, Bars)> {
+    a.sections
+        .iter()
+        .filter(|s| s.kick && s.bars >= hook.count && s.start_bar + hook.count <= a.bars)
+        .map(|s| (s.energy as f64, Bars { first: s.start_bar, count: hook.count }))
+        .collect()
+}
+
+/// the one of `options` that scores best
+fn best<T>(options: Vec<(f64, T)>) -> Option<T> {
+    options.into_iter().max_by(|x, y| x.0.total_cmp(&y.0)).map(|o| o.1)
+}
+
+/// how far under the best an option may score and still be drawn, and how strongly the better are preferred among
+/// them: the smaller, the more
+const NEAR: f64 = 0.2;
+const CHOOSY: f64 = 0.1;
+
+/// One of `options` drawn with `rng` among those that score within `NEAR` of the best, the better the likelier (the
+/// Gumbel-max trick): one remix of a recording is built on its best hook, another on its other chorus.
+fn draw<T>(options: Vec<(f64, T)>, rng: &mut Rng) -> Option<T> {
+    let top = options.iter().map(|o| o.0).fold(f64::MIN, f64::max);
+    options
+        .into_iter()
+        .filter(|o| o.0 >= top - NEAR)
+        .map(|(score, o)| (score / CHOOSY - (-rng.range(1e-12, 1.0).ln()).ln(), o))
+        .max_by(|x, y| x.0.total_cmp(&y.0))
+        .map(|o| o.1)
+}
+
+/// the hook: the section with chords that pulls most toward being one (`hooks`)
+pub fn hook_bars(a: &Analysis) -> Option<Bars> {
+    best(hooks(a))
+}
+
+/// a passage of the verses as long as the hook (`verses`): a verse when there is one, else the quietest that is not
+/// an intro or an outro
+pub fn verse_bars(a: &Analysis, hook: Bars) -> Option<Bars> {
+    best(verses(a, hook))
 }
 
 /// the busiest of the recording's drums, as many bars as the hook: the loudest section with a kick
 pub fn drum_bars(a: &Analysis, hook: Bars) -> Option<Bars> {
-    let s = a
-        .sections
-        .iter()
-        .filter(|s| s.kick && s.bars >= hook.count && s.start_bar + hook.count <= a.bars)
-        .max_by(|x, y| x.energy.total_cmp(&y.energy))?;
-    Some(Bars { first: s.start_bar, count: hook.count })
+    best(drum_runs(a, hook))
 }
 
 /// Bars `b` moved, within the section they start, to the run of as many bars (a whole number of runs into it) where `x`
@@ -156,6 +192,16 @@ fn db(power: f64) -> f64 {
 const REST_DB: f64 = 30.0;
 /// the most a flip raises or lowers a piece to bring it to its hook's level
 const FLIP_MOST_DB: f64 = 18.0;
+/// how alike two bars' notes are at least for a flip to take one for the other (`alike`): A minor's for A minor
+/// seventh's (0.87), not for C major's or F major's, which share two of its notes (0.67)
+const NEAR_NOTES: f32 = 0.85;
+
+/// how alike two bars' pitch classes are, 0 to 1: the cosine of the angle between them
+fn alike(x: &[f32; 12], y: &[f32; 12]) -> f32 {
+    let dot: f32 = x.iter().zip(y).map(|(a, b)| a * b).sum();
+    let norm = |v: &[f32; 12]| v.iter().map(|a| a * a).sum::<f32>().sqrt();
+    dot / (norm(x) * norm(y)).max(1e-9)
+}
 /// how much of the way a rework brings each of the recording's sections to their middle level, and the most it moves one
 const REWORK_LEVEL: f64 = 0.5;
 const REWORK_MOST_DB: f64 = 9.0;
@@ -238,8 +284,10 @@ fn chords_of(a: &Analysis, b: Bars) -> Vec<String> {
     if chords.len() == b.count { chords } else { Vec::new() }
 }
 
-/// The flip: as many bars as the hook of half beats, each from another bar of the recording that plays the hook's
-/// chord at that place (one of a section with chords; the hook's own bar when no other does), at the same place in its
+/// The flip: as many bars as the hook of half beats, each from another bar of the recording, of a section with chords,
+/// that plays the hook's chord at that place. Where no other is heard on that chord, or no chord is heard, it is one of
+/// the three whose notes are nearest the hook's there, `NEAR_NOTES` at least: the same chord heard as another (an A
+/// minor and its seventh), never another chord; the hook's own bar when none is. Each comes from the same place in its
 /// bar, now and then another place in it, and each as loud as the hook (its bar brought to the hook's level, at most
 /// `FLIP_MOST_DB` either way: a piece of a quiet verse beside one of a loud chorus would jump). The audio, and the bar
 /// each half beat came from.
@@ -247,18 +295,31 @@ pub fn flip(a: &Analysis, sustained: &Stereo, hook: Bars, rng: &mut Rng) -> (Ste
     let gains = bar_gains(a, sustained, db(power_of(a, sustained, hook.first, hook.count)), 1.0, FLIP_MOST_DB);
     let half = a.bar_secs / 8.0;
     let mut out = Stereo::zeros((hook.count as f64 * a.bar_secs * SRF).round() as usize);
-    let with_chords: Vec<usize> = (0..a.bars.min(a.numerals.len()))
-        .filter(|&k| {
-            !hook.holds(k) && a.sections.iter().any(|s| s.harmony && (s.start_bar..s.start_bar + s.bars).contains(&k))
-        })
-        .collect();
+    let harmonic = |k: &usize| {
+        !hook.holds(*k) && a.sections.iter().any(|s| s.harmony && (s.start_bar..s.start_bar + s.bars).contains(k))
+    };
+    let with_chords: Vec<usize> = (0..a.bars.min(a.numerals.len())).filter(harmonic).collect();
+    let with_notes: Vec<usize> = (0..a.bars.min(a.bar_chroma.len())).filter(harmonic).collect();
+    let nearest = |bar: usize| -> Vec<usize> {
+        let Some(c) = a.bar_chroma.get(bar) else { return Vec::new() };
+        let mut by: Vec<(f32, usize)> = with_notes
+            .iter()
+            .map(|&k| (alike(c, &a.bar_chroma[k]), k))
+            .filter(|(near, _)| *near >= NEAR_NOTES)
+            .collect();
+        by.sort_by(|x, y| y.0.total_cmp(&x.0));
+        by.into_iter().take(3).map(|(_, k)| k).collect()
+    };
     let slot = (half * SRF).round() as usize;
     let (fade_in, fade_out) = ((0.002 * SRF) as usize, (0.004 * SRF) as usize);
     let mut from = Vec::new();
     for i in 0..hook.count * 8 {
         let (b, j) = (i / 8, i % 8);
         let chord = a.numerals.get(hook.first + b);
-        let same: Vec<usize> = with_chords.iter().copied().filter(|&k| a.numerals.get(k) == chord).collect();
+        let mut same: Vec<usize> = with_chords.iter().copied().filter(|&k| a.numerals.get(k) == chord).collect();
+        if same.is_empty() {
+            same = nearest(hook.first + b);
+        }
         let k = if same.is_empty() { hook.first + b } else { same[rng.below(same.len())] };
         let j = if rng.chance(0.25) { rng.below(8) } else { j };
         from.push(k);
@@ -557,7 +618,10 @@ pub fn remix(
     ears: Option<&crate::ears::Ears>,
 ) -> Result<Blueprint, String> {
     let (x, name, a) = (src.x, src.name, src.a);
-    let hook = hook_bars(a).ok_or("the recording has no section with chords long enough to build a remix on")?;
+    // each remix of it draws its hook, its other passage and its drums anew among the good ones
+    let mut takes = Rng::seed_from(seed, "remix");
+    let hook =
+        draw(hooks(a), &mut takes).ok_or("the recording has no section with chords long enough to build a remix on")?;
     // whether it sings: a voice the ears hear, or a pitch followed through a third of a phrase
     let voiced = crate::sampler::Options::default();
     let sings = crate::sampler::find(x, src.stems, a, ears, &voiced, 1)
@@ -578,7 +642,7 @@ pub fn remix(
     };
     let energy = |b: Bars| a.sections.iter().find(|s| b.meets(s)).map_or(0.0, |s| s.energy);
     let (path, bpm) = piece(hook, &sustained)?;
-    let verse = verse_bars(a, hook).map(|v| loudest(a, &sustained, v));
+    let verse = draw(verses(a, hook), &mut takes).map(|v| loudest(a, &sustained, v));
     let second = match verse {
         Some(v) => {
             Some(Passage { path: piece(v, &sustained)?.0, chords: chords_of(a, v), louder: energy(v) > energy(hook) })
@@ -604,8 +668,9 @@ pub fn remix(
         root: None,
         pulse: Some(a.pulse_clarity),
     };
-    let drum_bars =
-        crate::sampling::need(g, Role::Break).and_then(|_| drum_bars(a, hook)).map(|b| loudest(a, &struck, b));
+    let drum_bars = crate::sampling::need(g, Role::Break)
+        .and_then(|_| draw(drum_runs(a, hook), &mut takes))
+        .map(|b| loudest(a, &struck, b));
     let drums = match drum_bars {
         Some(b) => {
             let (path, bpm) = piece(b, &struck)?;
@@ -1250,17 +1315,22 @@ mod tests {
         let src = Source { x: &x, name: "my song.wav", a: &a, stems: None };
         let bp =
             remix(&src, &crate::genres::get("boom_bap").unwrap(), 3, &Options::default(), None, &dir, None).unwrap();
-        // the hook and the first verse, eight bars each; then the second verse in the song's second verse, and the
-        // second hook in its second hook, each on its own chords; then round again
-        let label = |name: &str| match bp.loops.iter().find(|l| l.name == name).map(|l| &l.sound) {
-            Some(Sound::Loop { label, .. }) => label.clone(),
+        let (hook, verse) = (built_on(&bp, "its hook ("), built_on(&bp, "another passage of it ("));
+        // the hook and another passage, eight bars each; then the song's second verse and its second hook each play
+        // eight bars neither of them is, of their own kind, each on its own chords; then round again
+        let first = |name: &str| match bp.loops.iter().find(|l| l.name == name).map(|l| &l.sound) {
+            Some(Sound::Loop { label, .. }) => bars_said(label),
             _ => panic!("no {name} in {:?}", bp.loops.iter().map(|l| &l.name).collect::<Vec<_>>()),
         };
-        assert_eq!((label("sample3"), label("sample4")), ("my-song, bars 17-24".into(), "my-song, bars 25-32".into()));
+        let (on, then) = (first("sample3"), first("sample4"));
+        for b in [on, then] {
+            assert!(b != hook && b != verse, "bars {} again: the hook {hook}, the other {verse}", b + 1);
+        }
+        assert!(!matches!(on / 8, 1 | 3) && matches!(then / 8, 1 | 3), "a verse's bars, then a hook's: {on}, {then}");
         let plays = |name: &str| bp.form.iter().find(|s| s.name == name).map(|s| (s.layers.clone(), s.prog.clone()));
-        let (verse, hook) = (plays("verse2").unwrap(), plays("hook2").unwrap());
-        assert!(verse.0.contains(&"sample3".to_string()) && verse.1 == "A3", "{verse:?}");
-        assert!(hook.0.contains(&"sample4".to_string()) && hook.1 == "A4", "{hook:?}");
+        let (verse2, hook2) = (plays("verse2").unwrap(), plays("hook2").unwrap());
+        assert!(verse2.0.contains(&"sample3".to_string()) && verse2.1 == "A3", "{verse2:?}");
+        assert!(hook2.0.contains(&"sample4".to_string()) && hook2.1 == "A4", "{hook2:?}");
         let counted = |first: usize| -> Vec<String> {
             let own = &a.numerals[first..first + 8];
             match bp.harmony.progressions["A"].len() {
@@ -1268,12 +1338,126 @@ mod tests {
                 _ => own.to_vec(),
             }
         };
-        assert_eq!((&bp.harmony.progressions["A3"], &bp.harmony.progressions["A4"]), (&counted(16), &counted(24)));
+        assert_eq!((&bp.harmony.progressions["A3"], &bp.harmony.progressions["A4"]), (&counted(on), &counted(then)));
         let again = plays("hook3").unwrap();
         assert!(again.0.contains(&PHRASE.to_string()) && again.1 == "A", "{again:?}");
-        let said = "on through it as the song goes (verse2 bars 17-24, hook2 bars 25-32)";
-        assert!(bp.lineage.iter().any(|l| l.contains(said)), "{:?}", bp.lineage);
+        let said = format!(
+            "on through it as the song goes (verse2 bars {}-{}, hook2 bars {}-{})",
+            on + 1,
+            on + 8,
+            then + 1,
+            then + 8
+        );
+        assert!(bp.lineage.iter().any(|l| l.contains(&said)), "{:?}", bp.lineage);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// the first bar of "bars 17-24" in `said`, counting from 0
+    fn bars_said(said: &str) -> usize {
+        let at = said.find("bars ").expect("bars said") + 5;
+        said[at..].split('-').next().and_then(|n| n.parse::<usize>().ok()).expect("a bar") - 1
+    }
+
+    /// the first bar of what the remix `bp` says it is built on after `what`
+    fn built_on(bp: &Blueprint, what: &str) -> usize {
+        let line = bp.lineage.iter().find(|l| l.starts_with("remixed from")).expect("a remix");
+        bars_said(&line[line.find(what).unwrap_or_else(|| panic!("{what} in {line}"))..])
+    }
+
+    #[test]
+    fn a_flip_made_again_is_built_on_other_pieces_of_the_recording_the_best_most_often() {
+        let a = heard_through();
+        let hook = hook_bars(&a).unwrap();
+        // the hooks are bars 9-16 (the louder) and 25-32, the verses bars 1-8 (the quieter) and 17-24: the other hook
+        // is no verse, and the outro neither
+        let (mut hooks_drawn, mut verses_drawn) = (BTreeMap::new(), BTreeMap::new());
+        for seed in 0..200 {
+            let mut rng = Rng::new(seed);
+            *hooks_drawn.entry(draw(hooks(&a), &mut rng).unwrap().first).or_insert(0) += 1;
+            *verses_drawn.entry(draw(verses(&a, hook), &mut rng).unwrap().first).or_insert(0) += 1;
+        }
+        assert_eq!(hooks_drawn.keys().copied().collect::<Vec<_>>(), [8, 24], "{hooks_drawn:?}");
+        assert_eq!(verses_drawn.keys().copied().collect::<Vec<_>>(), [0, 16], "{verses_drawn:?}");
+        assert!(hooks_drawn[&8] > hooks_drawn[&24], "the louder hook most often: {hooks_drawn:?}");
+        assert!(verses_drawn[&0] > verses_drawn[&16], "the quieter verse most often: {verses_drawn:?}");
+        // and a remix made again with another seed is built on them
+        let x = played_through();
+        let dir = std::env::temp_dir().join(format!("claudius-flip-again-{}", std::process::id()));
+        let src = Source { x: &x, name: "my song.wav", a: &a, stems: None };
+        let g = crate::genres::get("boom_bap").unwrap();
+        let drawn = |seed: u64| draw(hooks(&a), &mut Rng::seed_from(seed, "remix")).unwrap().first;
+        let (one, other) = (0..).find(|&s| drawn(s) == 8).zip((0..).find(|&s| drawn(s) == 24)).unwrap();
+        for (seed, hook) in [(one, 8), (other, 24)] {
+            let bp = remix(&src, &g, seed, &Options::default(), None, &dir, None).unwrap();
+            assert_eq!(built_on(&bp, "its hook ("), hook, "seed {seed}: {:?}", bp.lineage);
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_chord_no_other_bar_plays_gives_way_to_its_seventh_but_never_to_another_chord() {
+        // the hook, bars 9 to 16, all A minor; before it C major, but for bar 6, A minor's seventh
+        let (am, am7, c) = (
+            [0.33, 0., 0., 0., 0.33, 0., 0., 0., 0., 0.34, 0., 0.],
+            [0.25, 0., 0., 0., 0.25, 0., 0., 0.25, 0., 0.25, 0., 0.],
+            [0.33, 0., 0., 0., 0.33, 0., 0., 0.34, 0., 0., 0., 0.],
+        );
+        let notes = |seventh: bool| -> Vec<[f32; 12]> {
+            (0..16)
+                .map(|k| {
+                    if k >= 8 {
+                        am
+                    } else if k == 5 && seventh {
+                        am7
+                    } else {
+                        c
+                    }
+                })
+                .collect()
+        };
+        let numerals = |seventh: bool| -> Vec<String> {
+            (0..16)
+                .map(|k| {
+                    if k >= 8 {
+                        "i"
+                    } else if k == 5 && seventh {
+                        "i7"
+                    } else {
+                        "III"
+                    }
+                    .to_string()
+                })
+                .collect()
+        };
+        let x = Stereo::zeros((40.0 * SRF) as usize);
+        let a = Analysis { numerals: numerals(true), bar_chroma: notes(true), ..heard() };
+        let hook = hook_bars(&a).unwrap();
+        let (_, from) = flip(&a, &x, hook, &mut Rng::new(5));
+        assert!(from.iter().all(|&k| k == 5), "the seventh, and no bar of C major: {from:?}");
+        // with no seventh to give way to, the hook's own bars
+        let a = Analysis { numerals: numerals(false), bar_chroma: notes(false), ..heard() };
+        let (_, from) = flip(&a, &x, hook, &mut Rng::new(5));
+        assert!(from.iter().all(|&k| hook.holds(k)), "{from:?}");
+    }
+
+    #[test]
+    fn where_no_chord_is_heard_the_flip_plays_bars_whose_notes_are_nearest_the_hooks() {
+        // no chord heard; the notes of A minor in every bar, but those of bars 2 and 3, which are C major's
+        let am = |k: usize| {
+            if matches!(k, 2 | 3) {
+                [0.4, 0., 0., 0., 0.3, 0., 0., 0.3, 0., 0., 0., 0.]
+            } else {
+                [0.3, 0., 0., 0., 0.3, 0., 0., 0., 0., 0.4, 0., 0.]
+            }
+        };
+        let a = Analysis { numerals: Vec::new(), bar_chroma: (0..16).map(am).collect(), ..heard() };
+        let hook = hook_bars(&a).unwrap();
+        let (_, from) = flip(&a, &Stereo::zeros((40.0 * SRF) as usize), hook, &mut Rng::new(5));
+        assert!(from.iter().all(|&k| !hook.holds(k) && !matches!(k, 2 | 3)), "{from:?}");
+        let mut bars = from.clone();
+        bars.sort_unstable();
+        bars.dedup();
+        assert!(bars.len() >= 3, "from {bars:?}");
     }
 
     #[test]
