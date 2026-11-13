@@ -440,6 +440,16 @@ pub struct SongLikeArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct ChangeGenreArgs {
+    /// the genre to play the song in, as new_song takes it (find_genre finds one by a name, an era or a sound), or
+    /// two or three fused: trip_hop+idm, the first leading and the last playing the drums
+    pub genre: String,
+    /// another take of it in that genre (none: a new one each time)
+    #[serde(default)]
+    pub seed: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct RemakeArgs {
     /// the audio file to learn from
     pub path: String,
@@ -1456,6 +1466,13 @@ impl Studio {
     }
 
     #[tool(
+        description = "Change the open song's genre, keeping the song: its form (each section's name, kind, length, energy and transitions), its chords and key, the recordings it plays (takes, sampled phrases, loops), the notes written out on its parts, its lead's melody note for note, and its pattern tracks. The genre plays it: its drums, bass, chords, pads and other parts, their sounds, its swing and its mix, each section played by the genre's tracks of the kinds that played there (a kit's kick, backbeat and hats, a part's role), and the genre's kinds the song had none of where a section's energy calls for them. Its tempo stays when recordings play in it, as they keep time with it; otherwise it is the nearest of the song's, its half and its double that the genre plays, and at half its tempo two of its bars become one (at double, each bar two), so that it keeps its length and its pace. One change, which undo takes back; another seed is another take of it. Renders and judges it, and says what it kept."
+    )]
+    async fn change_genre(&self, Parameters(a): Parameters<ChangeGenreArgs>) -> Result<String, String> {
+        self.edit(Command::ChangeGenre { genre: a.genre, seed: a.seed }, true).await
+    }
+
+    #[tool(
         description = "Add a recording to the song as a take: an audio file someone recorded for it (a vocal, a guitar, a sung melody), which plays once from the start of section `from` and on through the sections after it for as long as it lasts, at the song's tempo. claudius keeps a copy with the song, mixes the take by its role and judges it with the rest. It turns off like any track (toggle_layer)."
     )]
     async fn add_take(&self, Parameters(a): Parameters<TakeArgs>) -> Result<String, String> {
@@ -1883,7 +1900,7 @@ impl Studio {
 
 What it does, and the tools for it:
 - A song in any of its genres, or two fused (trip_hop+idm): find_genre finds one by a name, an era, a scene or a sound; catalog lists them all, with the drums, synths and instruments; new_song starts one; make_song makes one from the person's own words; examples and open_example open the example songs.
-- Changing it: run_script, add_notes, generate_track and vary_track for a part, harmonize, set_layers, swap_sound; mutate, evolve and quick_fix let the critic search; undo, redo, history and go_back.
+- Changing it: run_script, add_notes, generate_track and vary_track for a part, harmonize, set_layers, swap_sound; change_genre plays the whole song in another genre, keeping its form, chords, melody and recordings; mutate, evolve and quick_fix let the critic search; undo, redo, history and go_back.
 - Hearing it: listen renders and judges it (the scores, the issues worst first, what earshot hears); graph says its signal flow in words.
 - From a recording: analyze hears its tempo, key, chords, sections and groove; song_like makes a new song on them; remake makes it again in a genre, recognizably (or flips its hook into a new song); sample_song samples it into the song (its phrases, a passage, chops or stabs), and sample_pieces, redraw_pieces and keep_pieces let the person choose the pieces first; extract_groove takes its drums' feel; search_recordings finds recordings anyone may use.
 - The person's voice and playing: request_take, then wait_for_take; assess_voice, tune, trim_take, transcribe_take, transcribe_drums; request_pitch_check, then wait_for_pitch_check.

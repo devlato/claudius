@@ -639,6 +639,24 @@ impl Host {
             Command::GoBack { to } => self.go_back(&to),
             Command::Together { said, commands } => self.together(said, commands),
             Command::SongLike { genre, seed } => self.song_like(genre, seed),
+            Command::ChangeGenre { genre, seed } => {
+                if self.bp.is_none() {
+                    return self.no("no song yet: start one with a new song, then change its genre");
+                }
+                let g = match genres::get(&genre) {
+                    Ok(g) => g,
+                    Err(e) => return self.no(e.to_string()),
+                };
+                let seed = seed.unwrap_or_else(|| self.seed());
+                // a song twice as many bars at a faster genre's tempo may grow past what a song may be, which the
+                // server's edits check and a take's do not
+                self.edit_take(|bp| {
+                    let (new, said) = claudius::regenre::change(bp, &g, seed, None);
+                    new.check_size()?;
+                    *bp = new;
+                    Ok(said)
+                })
+            }
             Command::Render { .. } if self.stale() => self.ok("rendering"),
             Command::Render { .. } => self.ok("the render is up to date"),
             // a take's drums and singing, which the page holds in memory
@@ -2289,6 +2307,18 @@ mod tests {
         // and a file that is no recording says so
         let r = h.listen(&Listen::Analyze { name: "notes".into() }, b"hello".to_vec());
         assert!(!r.ok && r.message.starts_with("send the recording as the file itself"), "{}", r.message);
+    }
+
+    #[test]
+    fn a_song_its_genre_would_make_too_long_keeps_the_genre_it_is_in() {
+        let mut h = Host::new(1);
+        assert!(command(&mut h, json!({"cmd": "new_song", "genre": "lofi", "seed": 5})).ok);
+        // 288 bars of lofi, which drum and bass, at twice its tempo, would play as 576
+        let long = format!("form([{}]);", [r#"sec("verse", 32, "*")"#; 9].join(", "));
+        assert!(command(&mut h, json!({"cmd": "run_script", "code": long})).ok);
+        let r = command(&mut h, json!({"cmd": "change_genre", "genre": "drum_and_bass", "seed": 2}));
+        assert!(!r.ok && r.message.contains("the limit is 512"), "{}", r.message);
+        assert_eq!(h.blueprint().unwrap().genre, "lofi");
     }
 
     #[test]

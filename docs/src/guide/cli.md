@@ -138,6 +138,26 @@ are not steered by the critic's issues.
 | `--no-ears`, `--refs`, `--tags` | | as for `make` |
 | `-o`, `--out` | `<blueprint folder>/mutations` | where they go |
 
+### `claudius change-genre`
+
+Writes the song in another genre, rendered and judged: its form, chords and key, the recordings it plays, the notes
+written on its parts, its lead's melody and its pattern tracks kept, the genre's drums, bass, parts, sounds, swing and
+mix playing it ([Changing the genre](../getting-started/studio.md#changing-the-genre)).
+
+```sh
+claudius change-genre out/house-glass-haze-9/blueprint.json --genre lofi
+```
+
+It says what it kept, then `-> <score> (<folder>)`, as `make` does.
+
+| flag | default | what it does |
+|---|---|---|
+| `<blueprint>` | | the song to play in another genre |
+| `-g`, `--genre` | | the genre, or two or three fused (`trip_hop+idm`) |
+| `-s`, `--seed` | the clock | another take of it in that genre |
+| `--no-ears`, `--refs`, `--tags` | | as for `make` |
+| `-o`, `--out` | beside the song's folder, named after it and the genre | where it goes |
+
 ### `claudius evolve`
 
 Runs an evolutionary search: mutation and crossover over generations, each candidate judged on a preview of its

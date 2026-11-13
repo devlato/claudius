@@ -140,6 +140,53 @@ pub struct Link {
     pub ears: Option<bool>,
 }
 
+/// The Change the genre window: whether it is open, the genre the song is to be played in and one fused with it, the
+/// search over the genres, and a seed for another take of it
+#[derive(Default)]
+pub struct ChangeGenreForm {
+    pub open: bool,
+    pub genre: String,
+    /// the genres fused with it, as the fusion names them after its first (`idm`, or `idm+house`)
+    pub with: Option<String>,
+    pub search: String,
+    pub seed: String,
+    /// the genre the song is in, which the window was opened on, and that its search is to take the keyboard
+    pub was: String,
+    pub focus: bool,
+}
+
+impl ChangeGenreForm {
+    /// the window opened on the song's genre, `genre`: the one that leads it, and those fused with it (as `trip_hop+idm`
+    /// or `trip_hop+idm+house` says them), its search taking the keyboard
+    pub fn open_on(&mut self, genre: &str) {
+        let (lead, with) = genre.split_once('+').map_or((genre, None), |(lead, with)| (lead, Some(with)));
+        (self.genre, self.with) = (lead.to_string(), with.map(str::to_string));
+        (self.open, self.search, self.seed, self.was, self.focus) =
+            (true, String::new(), String::new(), genre.to_string(), true);
+    }
+
+    /// `genre` leading the song, no longer among those fused with it if it was
+    pub fn lead(&mut self, genre: String) {
+        let rest = |with: String| with.split('+').filter(|g| *g != genre).collect::<Vec<_>>().join("+");
+        self.with = self.with.take().map(rest).filter(|w| !w.is_empty());
+        self.genre = genre;
+    }
+
+    /// the genres fused with the song's own lead, when there are two of them: what the window offers to keep, as its
+    /// menu of genres to fuse with offers one at a time
+    pub fn was_fused(&self) -> Option<&str> {
+        self.was.split_once('+').map(|(_, with)| with).filter(|with| with.contains('+'))
+    }
+
+    /// the genre as `Command::ChangeGenre` takes it: the one chosen, or it and those fused with it
+    pub fn fused(&self) -> String {
+        match &self.with {
+            Some(w) => format!("{}+{w}", self.genre),
+            None => self.genre.clone(),
+        }
+    }
+}
+
 pub struct NewSongForm {
     pub open: bool,
     pub genre: String,
@@ -345,6 +392,7 @@ pub struct View {
     pub trig_edit: Option<(String, String, usize, claudius_api::TrigView)>,
     pub script: ScriptEditor,
     pub new_song: NewSongForm,
+    pub change_genre: ChangeGenreForm,
     pub mutate_count: usize,
     pub keep_best: bool,
     pub generations: usize,
@@ -440,6 +488,7 @@ impl Default for View {
             cell_menu: None,
             trig_edit: None,
             script: ScriptEditor::default(),
+            change_genre: ChangeGenreForm::default(),
             new_song: NewSongForm {
                 open: false,
                 genre: "house".into(),
@@ -535,7 +584,7 @@ impl View {
     }
 
     /// the windows Escape closes, each by a name, and whether it is open
-    fn closable(&mut self) -> [(&'static str, &mut bool); 9] {
+    fn closable(&mut self) -> [(&'static str, &mut bool); 10] {
         [
             ("keys", &mut self.keys.open),
             ("chat", &mut self.chat.open),
@@ -546,6 +595,7 @@ impl View {
             ("import", &mut self.import.open),
             ("record", &mut self.record.open),
             ("new song", &mut self.new_song.open),
+            ("change genre", &mut self.change_genre.open),
         ]
     }
 
@@ -925,6 +975,21 @@ mod tests {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn the_change_genre_window_keeps_every_genre_of_a_fusion_and_none_twice() {
+        let mut f = ChangeGenreForm::default();
+        f.open_on("trip_hop+idm+house");
+        assert_eq!((f.genre.as_str(), f.fused()), ("trip_hop", "trip_hop+idm+house".to_string()));
+        assert_eq!(f.was_fused(), Some("idm+house"));
+        // a genre of the fusion chosen to lead it leads the rest
+        f.lead("idm".into());
+        assert_eq!(f.fused(), "idm+house");
+        f.lead("house".into());
+        assert_eq!(f.fused(), "house");
+        f.open_on("trip_hop+idm");
+        assert_eq!((f.fused(), f.was_fused()), ("trip_hop+idm".to_string(), None));
+    }
+
     #[test]
     fn a_tracks_sound_reads_in_words_as_the_engine_describes_it() {
         use claudius::model::{Layer, Sound};

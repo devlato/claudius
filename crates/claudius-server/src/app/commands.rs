@@ -434,6 +434,18 @@ impl App {
                 Err(e) => no(format!("cannot read {path}: {e}"), v),
             },
             Command::SongLike { genre, seed } => self.song_like(genre, seed),
+            Command::ChangeGenre { genre, seed } => {
+                let g = match genres::get(&genre) {
+                    Ok(g) => g,
+                    Err(e) => return no(e.to_string(), v),
+                };
+                let seed = seed.unwrap_or_else(now_seed);
+                self.edit_with(|bp| {
+                    let (new, said) = claudius::regenre::change(bp, &g, seed, None);
+                    *bp = new;
+                    Ok(said)
+                })
+            }
             Command::Remake { path, genre, seed, bpm, sampled, flip, rebuild } => {
                 if let Err(e) = self.readable(Path::new(&path)) {
                     return no(e, v);

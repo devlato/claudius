@@ -249,7 +249,14 @@ fn song_params(ui: &mut Ui, cx: &mut Cx, level: usize) {
         });
         ui.horizontal(|ui| {
             if level < 4 {
-                widgets::pill(ui, &super::genre_words(&song.genre), theme::INFO);
+                let tip = "play the song in another genre: its form, chords, melody and recordings stay";
+                let genre = widgets::pill(ui, &super::genre_words(&song.genre), theme::INFO)
+                    .interact(Sense::click())
+                    .on_hover_cursor(egui::CursorIcon::PointingHand)
+                    .on_hover_text(tip);
+                if genre.clicked() {
+                    cx.view.change_genre.open_on(&song.genre);
+                }
             }
             if level < 2 {
                 ui.label(small(format!("{} bars · {}", song.bars, crate::mock::fmt_time(song.seconds))))
@@ -581,6 +588,91 @@ fn variations_menu(ui: &mut Ui, cx: &mut Cx) {
         cx.out.push(Command::Mutate { count: cx.view.mutate_count, keep_best: cx.view.keep_best });
         ui.close();
     }
+    ui.separator();
+    ui.label(RichText::new("In another genre").strong());
+    ui.label(small(
+        "its form, chords, melody and recordings kept, the genre's drums, bass, parts and sounds playing it",
+    ));
+    ui.add_space(4.0);
+    if widgets::tool_button(ui, Icon::Swap, "Change the genre...", !busy, false).clicked()
+        && let Some(song) = &cx.state.song
+    {
+        cx.view.change_genre.open_on(&song.genre);
+        ui.close();
+    }
+}
+
+/// The Change the genre window: the genre to play the song in (and one fused with it), what of the song stays and
+/// what the genre brings, and a button that plays it so, one change undo takes back (`Command::ChangeGenre`).
+pub fn change_genre_dialog(ctx: &egui::Context, cx: &mut Cx) {
+    if !cx.view.change_genre.open {
+        return;
+    }
+    let now = cx.state.song.as_ref().map(|s| super::genre_words(&s.genre)).unwrap_or_default();
+    let mut cancel = false;
+    let modal = egui::Modal::new(egui::Id::unique("change_genre")).show(ctx, |ui| {
+        ui.set_width(640.0);
+        ui.horizontal(|ui| {
+            let at = Rect::from_min_size(ui.cursor().min + vec2(0.0, 2.0), vec2(18.0, 18.0));
+            widgets::paint_icon(ui.painter(), at, Icon::Swap, ACCENT);
+            ui.add_space(24.0);
+            ui.heading("Change the genre");
+        });
+        ui.add_space(4.0);
+        ui.label(small(format!(
+            "The song stays: its form, its chords and key, its lead's melody, the recordings it plays and the notes \
+             written on its parts. The genre you choose plays it: its drums, bass and parts, their sounds, its swing \
+             and its mix. Undo brings it back as {now}."
+        )));
+        ui.add_space(6.0);
+        let f = &mut cx.view.change_genre;
+        let genres = &cx.state.genres;
+        if let Some(g) = genre_cards(ui, "change_genre", genres, &f.genre, &mut f.search, &mut f.focus) {
+            f.lead(g);
+        }
+        ui.add_space(6.0);
+        ui.horizontal(|ui| {
+            ui.label("Fused with");
+            let shown = f.with.as_ref().map_or("nothing".to_string(), |w| super::genre_words(w));
+            let was = f.was_fused().filter(|w| !w.split('+').any(|g| g == f.genre)).map(str::to_string);
+            egui::ComboBox::from_id_salt("cg_with")
+                .width(150.0)
+                .selected_text(shown)
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut f.with, None, "nothing");
+                    if let Some(was) = was {
+                        let words = super::genre_words(&was);
+                        ui.selectable_value(&mut f.with, Some(was), words);
+                    }
+                    for g in genres.iter().filter(|g| g.name != f.genre) {
+                        ui.selectable_value(&mut f.with, Some(g.name.clone()), super::genre_words(&g.name));
+                    }
+                })
+                .response
+                .on_hover_text("a fusion: the genre above leads, and this one plays the drums and lends its sounds");
+            ui.add_space(12.0);
+            ui.label("Seed");
+            ui.add(egui::TextEdit::singleline(&mut f.seed).desired_width(90.0).hint_text("random"))
+                .on_hover_text("another take of it in that genre; the same seed gives the same take");
+        });
+        ui.add_space(10.0);
+        ui.horizontal(|ui| {
+            let fused = f.fused();
+            let label = match fused == f.was {
+                true => format!("  Another take as {}  ", super::genre_words(&fused)),
+                false => format!("  Play it as {}  ", super::genre_words(&fused)),
+            };
+            let go = egui::Button::new(RichText::new(label).strong().color(theme::ink_on(ACCENT))).fill(ACCENT);
+            if ui.add_enabled(!f.genre.is_empty() && cx.state.song.is_some(), go).clicked() {
+                cx.out.push(Command::ChangeGenre { genre: fused, seed: f.seed.trim().parse().ok() });
+                f.open = false;
+            }
+            cancel = ui.button("Cancel").clicked();
+        });
+    });
+    if modal.should_close() || cancel {
+        cx.view.change_genre.open = false;
+    }
 }
 
 /// the Improve menu: rounds of variations, each from the best so far
@@ -870,6 +962,104 @@ fn from_example(ui: &mut Ui, cx: &mut Cx) {
 }
 
 /// the New song dialog from a genre: the cards to choose it from, what else to ask of the song, and Create song
+/// The genres as cards to choose from, the one called `genre` lit: all of them by family (a genre of one's own, with
+/// none, last), or what `search`, the field over them, finds, best first. The genre a card was clicked for, when one
+/// was.
+fn genre_cards(
+    ui: &mut Ui,
+    id: &str,
+    genres: &[GenreInfo],
+    genre: &str,
+    search: &mut String,
+    focus: &mut bool,
+) -> Option<String> {
+    let desc = |g: &GenreInfo| g.description.split_once(": ").map_or(g.description.clone(), |(_, d)| d.to_string());
+    // every card as tall as the longest description
+    let text_height =
+        genres.iter().map(|g| two_lines(ui.painter(), desc(g), 300.0 - 22.0).size().y).fold(0.0, f32::max);
+    let field = ui.add(
+        egui::TextEdit::singleline(search)
+            .hint_text("Search genres: rap, 90s, west coast, r&b, dusty …")
+            .desired_width(f32::INFINITY),
+    );
+    // asked for until it has it: a window's first frame, which only measures it, lets go of what it asks
+    if *focus {
+        match field.has_focus() {
+            true => *focus = false,
+            false => field.request_focus(),
+        }
+    }
+    ui.add_space(4.0);
+    let query = search.trim().to_string();
+    let groups: Vec<(&str, Vec<&GenreInfo>)> = if query.is_empty() {
+        let mut families: Vec<&str> = genres.iter().map(|g| g.family.as_str()).collect();
+        families.sort_by_key(|f| (f.is_empty(), *f));
+        families.dedup();
+        families.into_iter().map(|f| (f, genres.iter().filter(|g| g.family == f).collect())).collect()
+    } else {
+        vec![("", claudius_api::search_genres(genres, &query))]
+    };
+    let mut chosen = None;
+    egui::ScrollArea::vertical().id_salt((id, "genre_cards")).max_height(330.0).show(ui, |ui| {
+        if groups.iter().all(|(_, of)| of.is_empty()) {
+            ui.label(small(format!("No genre answers “{query}”.")));
+        }
+        for (family, of) in &groups {
+            if query.is_empty() {
+                ui.add_space(4.0);
+                ui.label(RichText::new(if family.is_empty() { "your own" } else { family }).strong());
+            }
+            egui::Grid::new((id, "genres", *family)).num_columns(2).spacing(vec2(8.0, 8.0)).show(ui, |ui| {
+                for (i, g) in of.iter().enumerate() {
+                    let selected = genre == g.name;
+                    let at = genres.iter().position(|o| o.name == g.name).unwrap_or(i);
+                    let color = theme::section_color(
+                        ["drop", "groove", "break", "build", "intro", "hook", "verse", "outro"][at % 8],
+                    );
+                    let (rect, r) = ui.allocate_exact_size(vec2(300.0, 32.0 + text_height), Sense::click());
+                    let fill = if selected {
+                        theme::alpha(color, 0.22)
+                    } else if r.hovered() {
+                        theme::RAISED_HI.into()
+                    } else {
+                        theme::RAISED.into()
+                    };
+                    let stroke = if selected { Stroke::new(1.5, color) } else { Stroke::new(1.0, LINE) };
+                    ui.painter().rect(rect, 6.0, fill, stroke, StrokeKind::Inside);
+                    ui.painter().rect_filled(
+                        Rect::from_min_size(rect.min + vec2(0.0, 8.0), vec2(3.0, rect.height() - 16.0)),
+                        1.0,
+                        color,
+                    );
+                    ui.painter().text(
+                        rect.min + vec2(12.0, 14.0),
+                        Align2::LEFT_CENTER,
+                        super::genre_words(&g.name),
+                        theme::prop(14.0),
+                        TEXT.into(),
+                    );
+                    ui.painter().text(
+                        rect.right_top() + vec2(-10.0, 14.0),
+                        Align2::RIGHT_CENTER,
+                        format!("{:.0}-{:.0} BPM", g.bpm.0, g.bpm.1),
+                        theme::prop(11.0),
+                        TEXT_DIM.into(),
+                    );
+                    let text = two_lines(ui.painter(), desc(g), rect.width() - 22.0);
+                    ui.painter().galley(rect.min + vec2(12.0, 26.0), text, TEXT_DIM.into());
+                    if r.on_hover_text(&g.description).clicked() {
+                        chosen = Some(g.name.clone());
+                    }
+                    if i % 2 == 1 {
+                        ui.end_row();
+                    }
+                }
+            });
+        }
+    });
+    chosen
+}
+
 fn from_genre(ui: &mut Ui, cx: &mut Cx) {
     ui.label(small(
         "claudius writes a whole song from the genre's production knowledge: form, drums, parts, sounds and mix.",
@@ -882,86 +1072,12 @@ fn from_genre(ui: &mut Ui, cx: &mut Cx) {
             ui.label("Genre");
             ui.text_edit_singleline(&mut f.genre);
         });
-    } else {
-        let desc = |g: &GenreInfo| g.description.split_once(": ").map_or(g.description.clone(), |(_, d)| d.to_string());
-        // every card as tall as the longest description
-        let text_height =
-            genres.iter().map(|g| two_lines(ui.painter(), desc(g), 300.0 - 22.0).size().y).fold(0.0, f32::max);
-        ui.add(
-            egui::TextEdit::singleline(&mut f.genre_search)
-                .hint_text("Search genres: rap, 90s, west coast, r&b, dusty …")
-                .desired_width(f32::INFINITY),
-        );
-        ui.add_space(4.0);
-        let query = f.genre_search.trim().to_string();
-        // all of them by family (a genre of one's own, with none, last), or the search's answers, best first
-        let groups: Vec<(&str, Vec<&GenreInfo>)> = if query.is_empty() {
-            let mut families: Vec<&str> = genres.iter().map(|g| g.family.as_str()).collect();
-            families.sort_by_key(|f| (f.is_empty(), *f));
-            families.dedup();
-            families.into_iter().map(|f| (f, genres.iter().filter(|g| g.family == f).collect())).collect()
-        } else {
-            vec![("", claudius_api::search_genres(genres, &query))]
-        };
-        egui::ScrollArea::vertical().id_salt("genre_cards").max_height(330.0).show(ui, |ui| {
-            if groups.iter().all(|(_, of)| of.is_empty()) {
-                ui.label(small(format!("No genre answers “{query}”.")));
-            }
-            for (family, of) in &groups {
-                if query.is_empty() {
-                    ui.add_space(4.0);
-                    ui.label(RichText::new(if family.is_empty() { "your own" } else { family }).strong());
-                }
-                egui::Grid::new(("genres", *family)).num_columns(2).spacing(vec2(8.0, 8.0)).show(ui, |ui| {
-                    for (i, g) in of.iter().enumerate() {
-                        let selected = f.genre == g.name;
-                        let at = genres.iter().position(|o| o.name == g.name).unwrap_or(i);
-                        let color = theme::section_color(
-                            ["drop", "groove", "break", "build", "intro", "hook", "verse", "outro"][at % 8],
-                        );
-                        let (rect, r) = ui.allocate_exact_size(vec2(300.0, 32.0 + text_height), Sense::click());
-                        let fill = if selected {
-                            theme::alpha(color, 0.22)
-                        } else if r.hovered() {
-                            theme::RAISED_HI.into()
-                        } else {
-                            theme::RAISED.into()
-                        };
-                        let stroke = if selected { Stroke::new(1.5, color) } else { Stroke::new(1.0, LINE) };
-                        ui.painter().rect(rect, 6.0, fill, stroke, StrokeKind::Inside);
-                        ui.painter().rect_filled(
-                            Rect::from_min_size(rect.min + vec2(0.0, 8.0), vec2(3.0, rect.height() - 16.0)),
-                            1.0,
-                            color,
-                        );
-                        ui.painter().text(
-                            rect.min + vec2(12.0, 14.0),
-                            Align2::LEFT_CENTER,
-                            super::genre_words(&g.name),
-                            theme::prop(14.0),
-                            TEXT.into(),
-                        );
-                        ui.painter().text(
-                            rect.right_top() + vec2(-10.0, 14.0),
-                            Align2::RIGHT_CENTER,
-                            format!("{:.0}-{:.0} BPM", g.bpm.0, g.bpm.1),
-                            theme::prop(11.0),
-                            TEXT_DIM.into(),
-                        );
-                        let text = two_lines(ui.painter(), desc(g), rect.width() - 22.0);
-                        ui.painter().galley(rect.min + vec2(12.0, 26.0), text, TEXT_DIM.into());
-                        if r.on_hover_text(&g.description).clicked() && f.genre != g.name {
-                            f.genre = g.name.clone();
-                            // each genre samples as it does until asked otherwise
-                            f.sampled = None;
-                        }
-                        if i % 2 == 1 {
-                            ui.end_row();
-                        }
-                    }
-                });
-            }
-        });
+    } else if let Some(g) = genre_cards(ui, "new_song", genres, &f.genre, &mut f.genre_search, &mut false)
+        && f.genre != g
+    {
+        f.genre = g;
+        // each genre samples as it does until asked otherwise
+        f.sampled = None;
     }
     ui.add_space(6.0);
     let more = match options_set(f) {

@@ -41,6 +41,7 @@ pub mod palette;
 pub mod pattern;
 pub mod publish;
 pub mod rebuild;
+pub mod regenre;
 pub mod remix;
 pub mod render;
 pub mod rng;
