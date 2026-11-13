@@ -656,7 +656,8 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
                 .map(|(p, c)| claudius_api::KeptPiece { id: p.id, treated: c.treated })
                 .collect();
             ui.horizontal(|ui| {
-                let another = ui.button("Another take").on_hover_text("other phrases, other lengths, other treatments");
+                let another =
+                    ui.button("Another take").on_hover_text("other phrases among the good ones, other treatments");
                 if another.clicked() {
                     cx.out.push(Command::RedrawPieces { seed: None });
                     (im.sample_said, im.awaiting) = (None, true);

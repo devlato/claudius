@@ -192,14 +192,16 @@ it as** and press **Sample it**. In the New song dialog, **Sample it into the so
 ### Choosing the pieces first
 
 In the studio's **Add a recording** window, **Sample its vocals...** opens the **Sample** window instead of sampling
-straight away: up to four pieces the auto-sampler found, each to hear as it was cut (cleaned of the recording's drums)
-and through a treatment, side by side. The treatments are a producer's: dusty tape over vinyl crackle, an echo into a
+straight away: up to four pieces the auto-sampler found, each a phrase sung whole, to hear as it was cut (cleaned of
+the recording's drums) and through a treatment, side by side. A piece is cut in the quiet before the phrase's first word
+and after its last note has died away, never inside a word, and takes the whole bars of the recording the phrase is
+sung in, silent outside it. The treatments are a producer's: dusty tape over vinyl crackle, an echo into a
 long hall, lo-fi crushing, a slow phaser over a chorus, a telephone's band, a stutter on the last beat, a reversed
 tail. Press **▶ as cut** or **▶ treated** to hear a piece (**…** while it is on its way), tick the pieces you want, and
 choose **as cut** or **treated** for each; the best two start ticked, as they were cut. **Put 2 pieces in the song**
 puts the ticked ones in, as above, a treated one through its treatment, and closes the window; **Cancel** closes it
-with nothing added. **Another take** draws other phrases among the good ones, of other lengths, with other
-treatments. When a piece cannot play, the window says why.
+with nothing added. **Another take** draws other phrases among the good ones, with other treatments. When a piece
+cannot play, the window says why.
 
 An assistant does the same with `sample_pieces` (the recording's `path`, or `library:<id>`; `seed`, `count`, `bars`,
 `find`), which lists the pieces and where to hear each, `redraw_pieces` for another take, and `keep_pieces` with the
