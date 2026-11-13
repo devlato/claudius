@@ -94,9 +94,9 @@ pub struct Import {
     hearing: Option<String>,
     hearing_as: String,
     player: Option<Player>,
-    /// the phrase heard on the timeline, from where to where in the recording, in seconds, and whether it has started
-    /// (it starts once the recording has arrived, and stops at its end); and what the player has of the recording
-    span: Option<(f64, f64, bool)>,
+    /// the phrase heard on the timeline, from where to where in the recording, in seconds (it plays from the click,
+    /// once the recording is here, and stops at its end); and what the player has of the recording
+    span: Option<(f64, f64)>,
     span_source: Option<String>,
     /// why the last one to be heard did not play
     play_said: Option<String>,
@@ -380,15 +380,12 @@ impl Import {
         }
         if let Some(player) = self.player.as_mut() {
             player.tick();
-            if let Some((from, to, started)) = self.span.as_mut() {
+            if let Some((from, to)) = self.span {
                 if player.error().is_some() {
                     self.span = None;
-                } else if !*started && !player.is_loading() && player.has_audio() {
-                    player.seek(*from);
-                    player.play();
-                    *started = true;
-                } else if *started
-                    && (player.position() >= *to || !player.is_playing() && player.position() > *from + 0.25)
+                } else if !player.is_loading()
+                    && player.has_audio()
+                    && (player.position() >= to || !player.is_playing() && player.position() > from + 0.25)
                 {
                     player.pause();
                     (self.hearing, self.span) = (None, None);
@@ -478,8 +475,12 @@ impl Import {
             player.load(source, false);
             self.span_source = Some(key);
         }
+        // played as it is clicked, since a browser lets a page play what the person has just asked for and may not
+        // later on; one still on its way plays from the phrase once it is here
+        player.seek(from);
+        player.play();
         (self.hearing, self.hearing_as) = (Some(id), format!("the phrase at {}", clock(from)));
-        self.span = Some((from, to, false));
+        self.span = Some((from, to));
     }
 
     /// Holds `hit`: with a claudius at once, by its id, which claudius downloads once and credits, its audio fetched
@@ -810,7 +811,7 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
             if let Some(l) = im.heard.clone() {
                 let marks: Vec<Mark> =
                     l.phrases.iter().map(|[from, to]| Mark { from: *from, to: *to, number: None, on: false }).collect();
-                let at = im.span.filter(|s| s.2).and(im.player.as_ref()).map(Player::position);
+                let at = im.span.and(im.player.as_ref()).filter(|p| !p.is_loading()).map(Player::position);
                 if let Some(i) = timeline(ui, &l, &marks, at) {
                     im.hear_span(ui.ctx(), server.as_deref(), marks[i].from, marks[i].to);
                 }

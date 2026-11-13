@@ -143,8 +143,9 @@ pub struct Player {
     error: Option<String>,
     duration: f64,
     loading: Option<(Receiver<Result<Pcm, String>>, bool)>,
-    /// played before the first audio arrived: it plays as it arrives
+    /// played before the first audio arrived: it plays as it arrives, from where it was sought meanwhile
     play_on_arrival: bool,
+    seek_on_arrival: Option<f64>,
     ctx: egui::Context,
 }
 
@@ -176,6 +177,7 @@ impl Player {
             duration: 0.0,
             loading: None,
             play_on_arrival: false,
+            seek_on_arrival: None,
             ctx: ctx.clone(),
         }
     }
@@ -195,6 +197,7 @@ impl Player {
         if self._device.is_some() {
             self.error = None;
         }
+        self.seek_on_arrival = None;
         match source {
             Source::Pcm(pcm) => self.install(pcm, keep_position),
             Source::File(file) => match Pcm::decode_wav(&file.bytes) {
@@ -241,7 +244,7 @@ impl Player {
         self.shared.position.store(0f64.to_bits(), Relaxed);
         self.duration = 0.0;
         self.loading = None;
-        self.play_on_arrival = false;
+        (self.play_on_arrival, self.seek_on_arrival) = (false, None);
     }
 
     /// call once per frame: picks up finished downloads
@@ -256,11 +259,14 @@ impl Player {
                             self.error = None;
                         }
                         self.install(Arc::new(pcm), keep);
+                        if let Some(at) = self.seek_on_arrival.take() {
+                            self.seek(at);
+                        }
                         if std::mem::take(&mut self.play_on_arrival) {
                             self.play();
                         }
                     }
-                    Err(e) => (self.error, self.play_on_arrival) = (Some(e), false),
+                    Err(e) => (self.error, self.play_on_arrival, self.seek_on_arrival) = (Some(e), false, None),
                 }
             }
         }
@@ -298,12 +304,20 @@ impl Player {
     }
 
     pub fn seek(&mut self, secs: f64) {
+        // sought while the audio is on its way: where it plays from once it is here
+        if self.loading.is_some() {
+            self.seek_on_arrival = Some(secs.max(0.0));
+            return;
+        }
         let secs = secs.clamp(0.0, self.duration.max(0.0));
         self.shared.seek.store(secs.to_bits(), Relaxed);
         self.shared.position.store(secs.to_bits(), Relaxed);
     }
 
     pub fn position(&self) -> f64 {
+        if let Some(at) = self.seek_on_arrival {
+            return at;
+        }
         let seek = self.shared.seek.load(Relaxed);
         if seek != NO_SEEK { f64::from_bits(seek) } else { f64::from_bits(self.shared.position.load(Relaxed)) }
     }
@@ -390,6 +404,21 @@ mod tests {
         pull(&mut out, 0.3);
         assert!(!shared.playing.load(Relaxed), "stops at the end");
         assert!(position(&shared) < 0.01, "and rewinds");
+    }
+
+    #[test]
+    fn a_player_sought_and_played_while_its_audio_is_on_its_way_plays_from_there_once_it_is_here() {
+        let mut p = Player::new(&egui::Context::default());
+        let (tx, rx) = channel();
+        p.loading = Some((rx, false));
+        p.seek(2.5);
+        p.play();
+        assert_eq!(p.position(), 2.5, "where it will play from");
+        tx.send(Ok(Pcm { rate: 24_000, channels: 1, samples: vec![0.0; 24_000 * 4] })).unwrap();
+        p.tick();
+        // an output, where there is one, plays on from there at once
+        assert!(p.is_playing() && (2.5..2.7).contains(&p.position()), "at {}", p.position());
+        p.pause();
     }
 
     #[test]

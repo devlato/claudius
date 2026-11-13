@@ -110,7 +110,11 @@ impl Player {
         if el.ready_state() >= HAVE_METADATA {
             if let Some(t) = self.pending_seek.take() {
                 let d = el.duration();
-                el.set_current_time(if d.is_finite() && t >= d { 0.0 } else { t });
+                let t = if d.is_finite() && t >= d { 0.0 } else { t };
+                // where the browser started it already, as it was asked to (`seek`), it stays
+                if (el.current_time() - t).abs() > 0.01 {
+                    el.set_current_time(t);
+                }
             }
             if let Some((a, b)) = self.region
                 && b > a
@@ -159,12 +163,11 @@ impl Player {
 
     pub fn seek(&mut self, secs: f64) {
         let Some(el) = &self.el else { return };
-        if el.ready_state() >= HAVE_METADATA {
-            el.set_current_time(secs.max(0.0));
-            self.pending_seek = None;
-        } else {
-            self.pending_seek = Some(secs.max(0.0));
-        }
+        let secs = secs.max(0.0);
+        // before its metadata the browser takes it as where to start (its default playback start position), so that
+        // one played at once does not start from the beginning; `tick` sees to it once the metadata is there
+        el.set_current_time(secs);
+        self.pending_seek = (el.ready_state() < HAVE_METADATA).then_some(secs);
     }
 
     pub fn position(&self) -> f64 {
