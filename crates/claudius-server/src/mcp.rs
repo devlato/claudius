@@ -787,6 +787,14 @@ pub struct RequestTakeArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct GuideArgs {
+    /// what to read: songs, remix or setup (a skill), or script, verdict, genres or tools (the songs skill's
+    /// references); none: the list of them
+    #[serde(default)]
+    pub topic: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct WaitMessageArgs {
     /// the id of the last message you saw (from the last wait_for_message or send_message): what the person writes
     /// after it comes back; none: what they write from now on
@@ -1130,6 +1138,14 @@ impl Studio {
     )]
     async fn script_reference(&self) -> String {
         claudius::script::REFERENCE.to_string()
+    }
+
+    #[tool(
+        description = "How to work well with claudius, from the skills built into it: songs (making and editing songs: the genres, the script, the critic, the studio), remix (working from a recording: analyzing, remaking, sampling, flipping), setup (installing, connecting, troubleshooting), and the songs skill's references in full (script, verdict, genres, tools). Leave topic out for the list. Where the claudius skills are not installed (Claude Desktop has them only once uploaded), read songs before the first song.",
+        annotations(read_only_hint = true)
+    )]
+    async fn guide(&self, Parameters(a): Parameters<GuideArgs>) -> String {
+        crate::skills::guide(a.topic.as_deref())
     }
 
     #[tool(
@@ -1863,7 +1879,19 @@ impl Studio {
 
 #[tool_handler(
     name = "claudius",
-    instructions = "claudius is a beatmaker that composes like a producer in a DAW: synthesized and recorded sounds (never General MIDI), music theory, effects, mixing and mastering, and a critic with ears (earshot, a CLAP model). Typical session: get_song (see what is open) or new_song; read the verdict; edit with run_script (read script_reference once) or try mutate/evolve; listen again; undo a change that made it worse; save. The person you work with hears every change live in the claudius studio, so describe what you changed in musical terms. When the song wants their own voice or playing, ask them to record it with request_take, then wait_for_take. When the person wants to talk to you from the studio, listen with wait_for_message, calling it again whenever it returns, and answer with send_message. The scores guide; the person's taste decides."
+    instructions = "claudius is a beatmaker that composes like a producer in a DAW: synthesized and recorded sounds (never General MIDI), music theory, effects, mixing and mastering, and a critic with ears (earshot, a CLAP model). Typical session: get_song (see what is open) or new_song; read the verdict; edit with run_script (read script_reference once) or try mutate/evolve; listen again; undo a change that made it worse; save. The person you work with hears every change live in the claudius studio, so describe what you changed in musical terms.
+
+What it does, and the tools for it:
+- A song in any of its genres, or two fused (trip_hop+idm): find_genre finds one by a name, an era, a scene or a sound; catalog lists them all, with the drums, synths and instruments; new_song starts one; make_song makes one from the person's own words; examples and open_example open the example songs.
+- Changing it: run_script, add_notes, generate_track and vary_track for a part, harmonize, set_layers, swap_sound; mutate, evolve and quick_fix let the critic search; undo, redo, history and go_back.
+- Hearing it: listen renders and judges it (the scores, the issues worst first, what earshot hears); graph says its signal flow in words.
+- From a recording: analyze hears its tempo, key, chords, sections and groove; song_like makes a new song on them; remake makes it again in a genre, recognizably (or flips its hook into a new song); sample_song samples it into the song (its phrases, a passage, chops or stabs), and sample_pieces, redraw_pieces and keep_pieces let the person choose the pieces first; extract_groove takes its drums' feel; search_recordings finds recordings anyone may use.
+- The person's voice and playing: request_take, then wait_for_take; assess_voice, tune, trim_take, transcribe_take, transcribe_drums; request_pitch_check, then wait_for_pitch_check.
+- Out: save, open, export (WAV, FLAC, ALAC, MP3, AAC, Opus, Vorbis), publish (checks it for release and writes a release kit).
+- The studio's chat: wait_for_message, called again whenever it returns, and send_message.
+- status and stop follow a running job; install_packs downloads the sample packs.
+
+guide reads the skills built into claudius: songs (how to make songs well), remix, setup, and the script, the verdict, the genres and the tools in full. Where the claudius skills are not installed, read guide songs before the first song. The scores guide; the person's taste decides."
 )]
 impl ServerHandler for Studio {}
 
@@ -1912,6 +1940,7 @@ mod tests {
                 "find_genre",
                 "get_song",
                 "graph",
+                "guide",
                 "history",
                 "script_reference",
                 "search_recordings",

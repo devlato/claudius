@@ -149,6 +149,7 @@ says the job is still running; `status` follows it from there.
 | `get_song` | | the open song in plain words for the person (what it is, how it goes, what plays, what the critic would fix first), then the song and its verdict, and the whole song as a script |
 | `run_script` | `code` (required), `listen` (true) | edits the song with a [script](../language/overview.md) |
 | `script_reference` | | the script language reference (markdown) |
+| `guide` | `topic` (none: the list) | the [skills](../getting-started/assistants.md#skills) built into claudius, for an assistant that has none installed: `songs`, `remix` or `setup` (a skill), or `script`, `verdict`, `genres` or `tools` (the songs skill's references); read only |
 | `listen` | `stems` (false) | renders the song if it changed and returns the verdict |
 | `quick_fix` | `target` (an issue's, as the verdict's `quick fix (<target>)` lines name it; none: all) | makes the verdict's [quick fixes](../getting-started/studio.md#quick-fixes), the issues one change fixes, as one edit |
 | `mutate` | `count` (4, 1 to 32), `keep_best` (true) | tries variations steered by the critic's issues and keeps the best if it beats the song |

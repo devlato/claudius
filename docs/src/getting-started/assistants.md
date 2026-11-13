@@ -101,8 +101,10 @@ The MCP tools give an assistant the controls; claudius' skills give it the craft
 
 `claudius connect` installs them for Claude Code, Cursor and Codex, and writes zips for the Claude apps.
 `claudius skills --out <folder>` writes them anywhere else, for a project's own `.claude/skills/` folder, say.
-They are built into claudius, so they always match the version you have. For an assistant without skills, such as a
-ChatGPT project, `claudius-songs/SKILL.md` works as its instructions.
+They are built into claudius, so they always match the version you have. An assistant without them, such as Claude
+Desktop before you upload the zips or a ChatGPT project, reads them through the MCP tool `guide`, which claudius'
+instructions point it to: `guide` with topic `songs` is `claudius-songs/SKILL.md`, and `script`, `verdict`, `genres`
+and `tools` are its references.
 
 ## You and the assistant on the same song
 

@@ -8,6 +8,7 @@ pub mod app;
 pub mod http;
 pub mod mcp;
 mod phone;
+pub mod skills;
 
 use std::net::SocketAddr;
 use std::sync::{Arc, OnceLock};
