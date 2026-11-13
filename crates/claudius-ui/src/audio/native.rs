@@ -202,7 +202,18 @@ impl Player {
             Source::Pcm(pcm) => self.install(pcm, keep_position),
             Source::File(file) => match Pcm::decode_wav(&file.bytes) {
                 Ok(pcm) => self.install(Arc::new(pcm), keep_position),
-                Err(e) => self.error = Some(format!("{}: {e}", file.name)),
+                // any other kind claudius reads (MP3, FLAC, AAC, Ogg, AIFF), decoded as claudius decodes it, off the
+                // window's thread
+                Err(_) => {
+                    let (tx, rx) = channel();
+                    let ctx = self.ctx.clone();
+                    std::thread::spawn(move || {
+                        let decoded = claudius_session::listen::decode(file.bytes.clone(), &file.name);
+                        let _ = tx.send(decoded.map(|x| pcm_of(&x)));
+                        ctx.request_repaint();
+                    });
+                    self.loading = Some((rx, keep_position));
+                }
             },
             Source::Url(url) => {
                 let (tx, rx) = channel();
@@ -343,6 +354,11 @@ impl Player {
     }
 }
 
+/// a recording claudius decoded, at its rate, as the player plays it
+fn pcm_of(x: &claudius::audio::Stereo) -> Pcm {
+    Pcm { rate: claudius::config::SR, channels: 2, samples: x.l.iter().zip(&x.r).flat_map(|(l, r)| [*l, *r]).collect() }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -418,6 +434,30 @@ mod tests {
         p.tick();
         // an output, where there is one, plays on from there at once
         assert!(p.is_playing() && (2.5..2.7).contains(&p.position()), "at {}", p.position());
+        p.pause();
+    }
+
+    #[test]
+    fn a_file_not_a_wav_is_decoded_as_claudius_decodes_one_and_plays_from_where_it_was_sought() {
+        let silence = claudius::audio::Stereo::from_mono(&vec![0.0; claudius::config::SR as usize * 2]);
+        let flac =
+            claudius::export::encode(&silence, &"flac:24".parse().unwrap(), &claudius::export::tags("a")).unwrap();
+        let mut p = Player::new(&egui::Context::default());
+        let file = crate::pick::Picked { name: "phrases.flac".into(), bytes: flac, folder: None };
+        p.load(Source::File(Arc::new(file)), false);
+        assert!(p.is_loading(), "decoded off the window's thread");
+        p.seek(1.0);
+        p.play();
+        for _ in 0..500 {
+            p.tick();
+            if !p.is_loading() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(p.error().is_none_or(|e| e.starts_with("no audio output")), "{:?}", p.error());
+        assert!((p.duration() - 2.0).abs() < 0.05, "{} s", p.duration());
+        assert!(p.is_playing() && (1.0..1.2).contains(&p.position()), "at {}", p.position());
         p.pause();
     }
 
