@@ -298,8 +298,13 @@ impl Host {
             }
             Listen::PitchCheck { id } => self.hear_pitch_check(*id, &x),
             Listen::OpenProject { .. } => self.no("a project is opened, not listened to"),
-            Listen::SamplePieces { seed, count, found, .. } => {
-                let opt = claudius::sampler::Options { count: count.map_or(2, |c| c as usize), ..Default::default() };
+            Listen::SamplePieces { seed, count, found, kinds, .. } => {
+                let kinds = match crate::listen::kinds(kinds) {
+                    Ok(k) => k,
+                    Err(e) => return self.no(e),
+                };
+                let count = count.map_or(2, |c| c as usize);
+                let opt = claudius::sampler::Options { count, kinds, ..Default::default() };
                 self.offer_pieces(Arc::new(x), &name, found.clone(), opt, seed.unwrap_or(0))
             }
             Listen::Take { from, track, role, found, .. } => {
@@ -970,6 +975,8 @@ impl Host {
             let (from, to) = p.phrase.within.unwrap_or((p.phrase.start, p.phrase.start));
             views.push(PieceView {
                 id: i as u32 + 1,
+                kind: p.kind.name().into(),
+                about: p.about.clone(),
                 place: p.place(),
                 bars: p.phrase.bars,
                 sung: p.phrase.sung,
@@ -2021,7 +2028,13 @@ mod tests {
             "licence_url": "https://creativecommons.org/licenses/by/4.0/", "page": "https://ccmixter.org/files/a/71182",
             "audio": "https://example.org/hum.mp3", "filetype": "mp3", "seconds": 16.0
         });
-        let offer = Listen::SamplePieces { name: "hum.wav".into(), seed: None, count: Some(1), found: Some(found) };
+        let offer = Listen::SamplePieces {
+            name: "hum.wav".into(),
+            seed: None,
+            count: Some(1),
+            found: Some(found),
+            kinds: vec!["phrase".into()],
+        };
         assert_eq!(offer.what(), "sample_pieces");
         let r = h.listen(&offer, wav(&x));
         assert!(r.ok && r.message.starts_with("1 piece of hum.wav, take 0"), "{}", r.message);

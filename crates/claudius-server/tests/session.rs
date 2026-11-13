@@ -2141,8 +2141,11 @@ async fn pieces_are_offered_to_hear_drawn_again_and_kept_treated() {
     }
     let file = std::env::temp_dir().join(format!("claudius-pieces-{}.wav", std::process::id()));
     claudius::audio::save_wav(&file, &x, true).unwrap();
-    let offer =
-        |bars| Command::SamplePieces { path: file.display().to_string(), seed: None, count: Some(1), bars, find: None };
+    let path = file.display().to_string();
+    let offer = |bars| {
+        let (path, kinds) = (path.clone(), vec!["phrase".to_string()]);
+        Command::SamplePieces { path, seed: None, count: Some(1), bars, find: None, kinds }
+    };
     // a phrase is cut whole: eight seconds of a voice never go in two bars
     let r = app.command(offer(Some(2)));
     assert!(

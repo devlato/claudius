@@ -32,6 +32,7 @@ pub mod fx;
 pub mod generate;
 pub mod genres;
 pub mod judge;
+pub mod kinds;
 pub mod library;
 pub mod loudness;
 pub mod metrics;

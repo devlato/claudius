@@ -887,6 +887,7 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
                                 count: Some(4),
                                 bars: None,
                                 find: None,
+                                kinds: vec!["phrase".into()],
                             }),
                             (None, Some(file)) => im.offer = Some((file.clone(), found.clone())),
                             (None, None) => {}

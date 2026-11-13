@@ -86,6 +86,8 @@ impl App {
             let (from, to) = p.phrase.within.unwrap_or((p.phrase.start, p.phrase.start));
             views.push(PieceView {
                 id,
+                kind: p.kind.name().into(),
+                about: p.about.clone(),
                 place: p.place(),
                 bars: p.phrase.bars,
                 sung: p.phrase.sung,

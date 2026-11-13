@@ -694,11 +694,12 @@ impl Backend {
     pub fn offer_pieces(&mut self, bytes: Vec<u8>, name: &str, found: Option<serde_json::Value>) {
         match self {
             Backend::Remote(r) => {
-                r.listen(bytes, "/api/sample/pieces", &format!("name={}&count=4", query_value(name)), "sample_pieces")
+                let query = format!("name={}&count=4&kinds=phrase", query_value(name));
+                r.listen(bytes, "/api/sample/pieces", &query, "sample_pieces")
             }
             Backend::Mock(m) => {
-                let offer =
-                    claudius_api::Listen::SamplePieces { name: name.to_string(), seed: None, count: Some(4), found };
+                let (name, kinds) = (name.to_string(), vec!["phrase".to_string()]);
+                let offer = claudius_api::Listen::SamplePieces { name, seed: None, count: Some(4), found, kinds };
                 m.listen(offer, &bytes)
             }
         }
