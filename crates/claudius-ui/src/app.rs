@@ -187,7 +187,7 @@ impl Studio {
                         Err(e) => (false, e.clone()),
                     };
                     // the Add a recording window's own listening says itself in that window
-                    if !(what == "analyze" && self.view.import.reply_owed(ok, &message)) {
+                    if !(what == "analyze" && self.view.import.reply_owed(ok, &message, self.view.analyzing)) {
                         self.view.listened(&what, ok, message);
                     }
                 }
@@ -1367,7 +1367,7 @@ impl eframe::App for Studio {
             self.inflight_since = now;
             self.backend.offer_pieces(file.bytes.clone(), &file.name, found);
         }
-        if let Some(file) = self.view.import.hear_it.take() {
+        if let Some(file) = self.view.import.next_to_hear() {
             self.inflight += 1;
             self.inflight_since = now;
             self.backend.listen(&panels::Listen {
