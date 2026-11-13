@@ -114,6 +114,10 @@ pub struct Listen {
     /// `claudius_api::SAMPLING_WAYS` (its phrases when none)
     pub sample: bool,
     pub how: Option<String>,
+    /// the sections it is sampled into (those that suit it when none), and how often a phrase comes round in them (as
+    /// the song suits when none)
+    pub sections: Vec<String>,
+    pub every: Option<String>,
     /// its groove is to be taken for the open song's drum lanes instead
     pub groove: bool,
     /// the library's record of it, when a free library offered it (`LibraryHit::found`): what the demo's engine

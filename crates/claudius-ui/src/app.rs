@@ -173,6 +173,7 @@ impl Studio {
                 self.link.error = Some(e);
                 self.confirmed = 0;
             }
+            Event::Listened(heard) if self.view.import.wants(&heard.name) => self.view.import.heard_it(heard),
             Event::Listened(heard) => {
                 let genre = self.view.new_song.genre_name();
                 self.view.hears.show(heard, &genre);
@@ -185,7 +186,10 @@ impl Studio {
                         Ok(r) => (r.ok, r.message.clone()),
                         Err(e) => (false, e.clone()),
                     };
-                    self.view.listened(&what, ok, message);
+                    // the Add a recording window's own listening says itself in that window
+                    if !(what == "analyze" && self.view.import.reply_owed(ok, &message)) {
+                        self.view.listened(&what, ok, message);
+                    }
                 }
                 if what == "pitch_check" {
                     let (ok, message) = match &result {
@@ -638,6 +642,8 @@ impl Studio {
                         rebuild: false,
                         sample: false,
                         how: None,
+                        sections: Vec::new(),
+                        every: None,
                         groove: false,
                         found: None,
                     });
@@ -1360,6 +1366,22 @@ impl eframe::App for Studio {
             self.inflight += 1;
             self.inflight_since = now;
             self.backend.offer_pieces(file.bytes.clone(), &file.name, found);
+        }
+        if let Some(file) = self.view.import.hear_it.take() {
+            self.inflight += 1;
+            self.inflight_since = now;
+            self.backend.listen(&panels::Listen {
+                file,
+                remake: None,
+                flip: false,
+                rebuild: false,
+                sample: false,
+                how: None,
+                sections: Vec::new(),
+                every: None,
+                groove: false,
+                found: None,
+            });
         }
         if let Some(l) = self.view.listen.take() {
             self.inflight += 1;

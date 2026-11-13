@@ -146,6 +146,7 @@ pub fn listened(
     let sung = claudius::cuts::sung(sings, &analysis::melody::pitches(sings));
     claudius_api::Listened {
         phrases: sung.phrases.iter().map(|p| [p.start, p.end]).collect(),
+        waveform: crate::views::waveform_of(x, 1000),
         name: name.to_string(),
         secs: x.len() as f64 / claudius::config::SRF,
         bpm: a.bpm,
@@ -366,6 +367,11 @@ mod tests {
         assert_eq!(heard.phrases.len(), 1, "{:?}", heard.phrases);
         let [from, to] = heard.phrases[0];
         assert!((from - 4.0).abs() < 0.1 && (to - 12.0).abs() < 0.15, "sung from {from} to {to}");
+        // its waveform, to draw it by: louder where the voice sings over the hat
+        let w = &heard.waveform;
+        assert!((990..=1010).contains(&w.len()), "{} points", w.len());
+        let at = |t: f64| w[(t / 16.0 * w.len() as f64) as usize];
+        assert!(at(8.0) > at(14.0) + 0.1, "{} sung, {} not", at(8.0), at(14.0));
         assert_eq!(every(Some(" 4 ")), Ok(Some(claudius::sampler::Every::Bars(4))));
         assert_eq!((every(None), every(Some(""))), (Ok(None), Ok(None)));
     }

@@ -600,6 +600,12 @@ pub enum Listen {
         /// how it goes in (`SAMPLING_WAYS`; its phrases when none)
         #[serde(default, skip_serializing_if = "Option::is_none")]
         how: Option<String>,
+        /// the sections to put it in, by name or kind (those that suit it when none), and how often each phrase comes
+        /// round in them (`Command::SampleSong`'s `sections` and `every`)
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        sections: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        every: Option<String>,
     },
     ExtractGroove {
         name: String,
@@ -2461,6 +2467,9 @@ pub struct Listened {
     /// may be cut whole
     #[serde(default)]
     pub phrases: Vec<[f64; 2]>,
+    /// its peak envelope for drawing, ~1000 points 0..1, as a render's is
+    #[serde(default)]
+    pub waveform: Vec<f32>,
     /// its two progressions, as Roman numerals in its key, and the bars each chord lasts: what `prog` and
     /// `bars_per_chord` take
     pub progression_a: Vec<String>,

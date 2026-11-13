@@ -194,21 +194,33 @@ sampled a passage of Many Miracles Vocal Melody.caf into the song: passage
 passage: bars 1-8 of Many Miracles Vocal Melody.caf, its voice (the ears +2.7 for 'a person singing', 35% sung), 5 semitones up into F minor at 126 BPM, played through from the first bar of the drops and hooks (drop, drop2), the song's chords there following it (i i7 III iv7 i7 v7 i i7)
 ```
 
-In the studio, the **Add a recording** window offers them under **Sample its vocals...**: choose a way in **or sample
-it as** and press **Sample it**. In the New song dialog, **Sample it into the song** takes a way too.
+In the studio, the **Add a recording** window offers each way as a card under **How should it go in?**: **Whole**,
+**Its sung phrases**, **A passage**, **Chops** and **A stab**. **Plays in** chooses the song's sections it goes in
+(none chosen: where it suits), and the button at the foot (**Sample a passage**, **Chop it**, **Sample a stab**) puts
+it in. In the New song dialog, **Sample it into the song** takes a way too.
+
+### What the window hears first
+
+As soon as the window holds a recording, claudius listens to it, as `analyze` does, and the window shows what it
+heard before anything is asked: its length, tempo and key, whether a voice sings in it, its sections over its
+waveform, and each phrase its voice sings, marked where it is. Click a phrase to hear it. A recording chosen from a
+free library is fetched and heard the same way.
 
 ### Choosing the pieces first
 
-In the studio's **Add a recording** window, **Sample its vocals...** opens the **Sample** window instead of sampling
-straight away: up to four pieces the auto-sampler found, each a phrase sung whole, to hear as it was cut (cleaned of
-the recording's drums) and through a treatment, side by side. A piece is cut in the quiet before the phrase's first word
-and after its last note has died away, never inside a word, and takes the whole bars of the recording the phrase is
-sung in, silent outside it. The treatments are a producer's: dusty tape over vinyl crackle, an echo into a
-long hall, lo-fi crushing, a slow phaser over a chorus, a telephone's band, a stutter on the last beat, a reversed
-tail. Press **▶ as cut** or **▶ treated** to hear a piece (**…** while it is on its way), tick the pieces you want, and
-choose **as cut** or **treated** for each; the best two start ticked, as they were cut. **Put 2 pieces in the song**
-puts the ticked ones in, as above, a treated one through its treatment, and closes the window; **Cancel** closes it
-with nothing added. **Another take** draws other phrases among the good ones, with other treatments. When a piece
+With **Its sung phrases** chosen, **Choose its phrases →** opens the **Sample** window instead of sampling straight
+away: up to four pieces the auto-sampler found, each a phrase sung whole, numbered as they come in the recording and
+marked on its timeline, to hear as it was cut (cleaned of the recording's drums) and through a treatment, side by side.
+A piece is cut in the quiet before the phrase's first word and after its last note has died away, never inside a word,
+and takes the whole bars of the recording the phrase is sung in, silent outside it. The treatments are a producer's:
+dusty tape over vinyl crackle, an echo into a long hall, lo-fi crushing, a slow phaser over a chorus, a telephone's
+band, a stutter on the last beat, a reversed tail. Press **▶ as cut** or **▶ treated** to hear a piece (**…** while it
+is on its way), tick the pieces you want (on the list or on the timeline), and choose **as cut** or its treatment for
+each; the two most sung start ticked, as they were cut. **Each time** says how often a phrase comes round in its
+sections: **As the song suits** (the default, as above), **Once, as it starts**, **Every 4 bars**, **Every 8 bars** or
+**All through it**. **Put 2 phrases in the song** puts the ticked ones in, in the sections chosen in **Plays in**, a
+treated one through its treatment, and closes the windows; **← back** returns to the ways, and **Cancel** closes it
+with nothing added. **Other phrases** draws other phrases among the good ones, with other treatments. When a piece
 cannot play, the window says why.
 
 An assistant does the same with `sample_pieces` (the recording's `path`, or `library:<id>`; `seed`, `count`, `bars`,

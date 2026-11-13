@@ -1444,6 +1444,8 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
             rebuild: f.with_recording == WithRecording::Rebuild,
             sample,
             how: (sample && f.sample_how != claudius_api::SAMPLING_WAYS[0].0).then(|| f.sample_how.to_string()),
+            sections: Vec::new(),
+            every: None,
             groove: f.with_recording == WithRecording::Groove,
             found: None,
         });

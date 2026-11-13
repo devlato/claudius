@@ -192,14 +192,19 @@ the recordings below.
 **Add a recording** (`panels/import.rs`, the **+** after the record button) holds a recording of the person's own,
 chosen (`pick::Want::Recording`) or dropped anywhere on the studio (`pick::read_dropped`, unless Publish is open and
 waiting for artwork), and sends it as a take, to `POST /api/takes` like the Record window's (the demo's engine sniffs
-its kind from its bytes), or hands it to the auto-sampler (`Listen` with `sample`). Its search of the free libraries
+its kind from its bytes), or hands it to the auto-sampler (`Listen` with `sample`, its `sections` and `every`). As
+soon as it holds one it sends it to be heard (`Import::hear_it`, `/api/analyze` or the demo's `Listen::Analyze`):
+what was heard comes back to the window that asked (`Import::wants`, by the file's name, then `Import::reply_owed`
+for the answer after it) rather than opening the window of what claudius hears, and the window draws its sections over
+its `waveform` with its `phrases` marked, each played from the recording claudius kept (`/api/listened/`) or, in the
+demo, the file itself. The ways are cards, and where and how often are chips. Its search of the free libraries
 (`Backend::search_library`: `/api/library/search`, or in the demo claudius' site, as the demo's sampler asks it)
 lists `LibraryHit`s, each heard in a player of the window's own (`Import::hear`: a browser plays its URL; the app
 fetches it and decodes it as claudius does before it plays, so nothing heard before plays meanwhile, and the window
-says why one could not play). With a claudius, one chosen is added by its id (`add_take` or `sample_song` with
-`library:<id>`, which claudius downloads and credits); the demo fetches its audio and hands the engine its record
-(`found`) with it, which credits it. With a claudius, **Sample its vocals...** asks for the auto-sampler's pieces
-instead (`sample_pieces` by id, or `/api/sample/pieces` with the file) and opens the Sample window
+says why one could not play). One chosen is fetched, to be heard as a file chosen is; with a claudius it is added by
+its id (`add_take` or `sample_song` with `library:<id>`, which claudius downloads and credits), and the demo hands the
+engine its record (`found`) with its audio, which credits it. **Choose its phrases →** asks for the auto-sampler's
+pieces instead (`sample_pieces` by id, or `/api/sample/pieces` with the file) and opens the Sample window
 (`import::pieces`), which shows the state's `pieces` once the answer to that request has come (the offer claudius held
 before is the last recording's): each heard as it was cut and treated from `/api/pieces/`, ticked, drawn again
 (`redraw_pieces`) and put in the song (`keep_pieces`). In the demo the engine offers them

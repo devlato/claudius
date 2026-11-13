@@ -151,7 +151,12 @@ fn listen_request(l: &crate::panels::Listen) -> (&'static str, &'static str, Str
     let name = format!("name={}", query_value(&l.file.name));
     if l.sample {
         let how = l.how.as_deref().map_or_else(String::new, |h| format!("&how={}", query_value(h)));
-        return ("sample_song", "/api/sample", format!("{name}{how}"));
+        let sections = match l.sections.is_empty() {
+            true => String::new(),
+            false => format!("&sections={}", query_value(&l.sections.join(","))),
+        };
+        let every = l.every.as_deref().map_or_else(String::new, |e| format!("&every={}", query_value(e)));
+        return ("sample_song", "/api/sample", format!("{name}{how}{sections}{every}"));
     }
     if l.groove {
         return ("extract_groove", "/api/groove", name);
@@ -172,7 +177,13 @@ fn demo_listen(l: &crate::panels::Listen) -> claudius_api::Listen {
     use claudius_api::Listen;
     let name = l.file.name.clone();
     if l.sample {
-        return Listen::SampleSong { name, found: l.found.clone(), how: l.how.clone() };
+        return Listen::SampleSong {
+            name,
+            found: l.found.clone(),
+            how: l.how.clone(),
+            sections: l.sections.clone(),
+            every: l.every.clone(),
+        };
     }
     if l.groove {
         return Listen::ExtractGroove { name };
@@ -980,6 +991,8 @@ mod tests {
             rebuild: false,
             sample: false,
             how: None,
+            sections: Vec::new(),
+            every: None,
             groove: false,
             found: None,
         };
@@ -1000,5 +1013,12 @@ mod tests {
         assert_eq!(listen_request(&Listen { sample: true, ..base() }), ("sample_song", "/api/sample", name.into()));
         let chopped = listen_request(&Listen { sample: true, how: Some("chops".into()), ..base() });
         assert_eq!(chopped.2, format!("{name}&how=chops"));
+        let placed = Listen {
+            sample: true,
+            sections: vec!["verse".into(), "Chorus 2".into()],
+            every: Some("4".into()),
+            ..base()
+        };
+        assert_eq!(listen_request(&placed).2, format!("{name}&sections=verse%2CChorus%202&every=4"));
     }
 }
