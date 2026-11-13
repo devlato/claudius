@@ -11,12 +11,30 @@ use eframe::egui::{
 use crate::theme::{self, ACCENT, LINE, RAISED, RAISED_HI, TEXT, TEXT_DIM, TEXT_FAINT, WELL};
 
 /// A control drawn with the painter as a screen reader reads it (`info`: what it is, its name and state), and, while it
-/// has the keyboard, the ring that shows where the keyboard is.
+/// has the keyboard, the ring that shows where the keyboard is, as round as the control.
 fn accessible(ui: &Ui, response: &Response, radius: impl Into<CornerRadius>, info: impl Fn() -> WidgetInfo) {
     response.widget_info(info);
     if response.has_focus() {
         ui.painter().rect_stroke(response.rect.expand(2.0), radius, Stroke::new(2.0, ACCENT), StrokeKind::Outside);
+        ui.ctx().data_mut(|d| d.insert_temp(ringed(), response.id));
     }
+}
+
+/// where `accessible` notes the control that drew its own ring this frame, which `focus_ring` then leaves alone
+fn ringed() -> egui::Id {
+    egui::Id::unique("claudius: the control that drew its own focus ring")
+}
+
+/// The ring around whatever has the keyboard, drawn once a frame after everything else: egui's own controls (buttons,
+/// menus, fields, checkboxes, links) and every area that takes a click get it as the painted controls do, over the
+/// control on its own layer, cut to what of it shows.
+pub fn focus_ring(ctx: &egui::Context) {
+    let drawn = ctx.data(|d| d.get_temp::<egui::Id>(ringed()));
+    ctx.data_mut(|d| d.remove::<egui::Id>(ringed()));
+    let Some(id) = ctx.memory(|m| m.focused()).filter(|id| drawn != Some(*id)) else { return };
+    let Some(r) = ctx.read_response(id).filter(|r| r.interact_rect.is_positive()) else { return };
+    let painter = ctx.layer_painter(r.layer_id).with_clip_rect(r.interact_rect.expand(6.0));
+    painter.rect_stroke(r.rect.expand(2.0), 4.0, Stroke::new(2.0, ACCENT), StrokeKind::Outside);
 }
 
 /// How far the arrow keys move a value that has the keyboard: `step` a press up or right, down or left the other way,
@@ -714,6 +732,40 @@ pub fn bar(ui: &mut Ui, width: f32, value: f64, color: impl Into<Color32>) -> Re
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// what shows a control, and hands back its response
+    type Shows<'a> = &'a dyn Fn(&mut Ui) -> Response;
+
+    /// a frame of the control `show` shows, with the focus ring after it: the rings drawn, and the control's id
+    fn frame(ctx: &egui::Context, show: Shows) -> (usize, egui::Id) {
+        let ring = Stroke::new(2.0, ACCENT);
+        let mut id = egui::Id::NULL;
+        let mut out = ctx.run_ui(Default::default(), |ui| {
+            id = show(ui).id;
+            focus_ring(ui.ctx());
+        });
+        // the fonts' textures, which nothing draws here
+        out.textures_delta.clear();
+        (out.shapes.iter().filter(|s| matches!(&s.shape, Shape::Rect(r) if r.stroke == ring)).count(), id)
+    }
+
+    #[test]
+    fn whatever_has_the_keyboard_has_one_ring_an_egui_control_a_painted_area_and_a_painted_control_alike() {
+        let ctx = egui::Context::default();
+        let shown: [(&str, Shows); 3] = [
+            ("a button", &|ui| ui.button("Play")),
+            ("an area that takes a click", &|ui| ui.allocate_exact_size(vec2(120.0, 40.0), Sense::click()).1),
+            ("a chip, which draws its own", &|ui| chip(ui, false, "verse", ACCENT)),
+        ];
+        for (what, show) in shown {
+            // without the keyboard, no ring; given it, one
+            let (none, id) = frame(&ctx, show);
+            assert_eq!(none, 0, "{what}, without the keyboard");
+            ctx.memory_mut(|m| m.request_focus(id));
+            assert_eq!(frame(&ctx, show).0, 1, "{what}, with it");
+            ctx.memory_mut(|m| m.surrender_focus(id));
+        }
+    }
 
     #[test]
     fn every_icon_is_a_glyph_of_the_icon_font_and_the_text_font_draws_the_studios_punctuation() {

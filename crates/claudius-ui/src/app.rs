@@ -1448,6 +1448,7 @@ impl eframe::App for Studio {
         if let Some(w) = wake {
             ctx.request_repaint_after(Duration::from_secs_f64(w));
         }
+        widgets::focus_ring(&ctx);
         self.had_focus = ctx.memory(|m| m.focused());
     }
 
