@@ -212,7 +212,8 @@ It deploys once the repository variable `SITE_URL` gives the address
 (`gh variable set SITE_URL --body https://claudius.devlato.com`) and the Cloudflare secrets below are set. Until then
 it builds and checks the site and deploys nothing. It deploys `main`:
 
-- after a release, called by `release.yml`;
+- after a release, in a run `release.yml` starts once the release is out (a run of its own, as a workflow it called
+  would get none of the environment's secrets);
 - on pushes to `main` that change `docs/`, `site/`, `CHANGELOG.md` or the install scripts, so the docs follow
   `main` (except the merge of a release PR, which waits for the release, so that the site never shows a version
   that cannot be downloaded yet);
