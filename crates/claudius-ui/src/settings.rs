@@ -14,8 +14,8 @@ use crate::theme::Look;
 /// where the settings are kept
 pub const KEY: &str = "settings";
 
-/// the version of the settings this studio writes
-pub const VERSION: u64 = 1;
+/// the version of the settings this studio writes: since 2, the look kept before it as the system's is the dark one
+pub const VERSION: u64 = 2;
 
 /// what the studio keeps between runs
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -29,7 +29,7 @@ pub struct Prefs {
     pub sevenths: bool,
     pub tour_done: bool,
     pub record: panels::record::Settings,
-    /// dark, light, or as the system is: since version 1
+    /// dark, light, or as the system is: since version 1 (dark when none is kept, since 2)
     pub look: Look,
     /// whether a page speaks what has the keyboard: since version 1
     pub speak: bool,
@@ -140,8 +140,13 @@ fn kept_record(storage: &dyn eframe::Storage) -> Map<String, Value> {
 }
 
 /// The fields of an earlier version as this one names them. Version 0 (before 0.6) and 1 name them alike; a version
-/// that renames a field renames it here, from the version before it on.
-fn migrated(f: Fields) -> Fields {
+/// that renames a field renames it here, from the version before it on. Before version 2 the studio wore the system's
+/// look unless the person chose another, and kept it as "system" either way: that look is the dark one now, the
+/// studio's own, until the person chooses again.
+fn migrated(mut f: Fields) -> Fields {
+    if f.version < 2 && f.get::<String>("look").as_deref() == Some("system") {
+        f.set("look", "dark");
+    }
     f
 }
 
@@ -190,11 +195,24 @@ mod tests {
         assert_eq!(Prefs::load(Some(&storage)), p, "kept again as JSON, and read as they were");
         assert!(storage.get_string(KEY).is_some_and(|t| t.contains(&format!("\"version\": {VERSION}"))));
         assert_eq!(Prefs::load(None), Prefs::default(), "nothing kept: the defaults");
-        assert_eq!(p.look, Look::System, "settings from before the looks wear the system's");
+        assert_eq!(p.look, Look::Dark, "settings from before the looks wear the dark one");
         let light = Prefs::load(Some(&kept(KEY, r#"{"version": 1, "look": "light"}"#)));
         assert_eq!(light.look, Look::Light);
         let unknown = Prefs::load(Some(&kept(KEY, r#"{"version": 1, "look": "sepia"}"#)));
-        assert_eq!(unknown.look, Look::System, "a look this studio has not");
+        assert_eq!(unknown.look, Look::Dark, "a look this studio has not");
+    }
+
+    #[test]
+    fn the_look_kept_as_the_systems_before_version_2_is_the_dark_one_and_one_chosen_since_is_kept() {
+        let look = |text: &str| Prefs::load(Some(&kept(KEY, text))).look;
+        assert_eq!(look(r#"{"version": 1, "look": "system"}"#), Look::Dark, "the default then, not a choice");
+        assert_eq!(look(r#"{"version": 2, "look": "system"}"#), Look::System, "chosen since");
+        assert_eq!(look(r#"{"version": 1, "look": "light"}"#), Look::Light);
+        // kept again, the dark look stays: a later read does not take it for the old default
+        let mut storage = kept(KEY, r#"{"version": 1, "look": "system"}"#);
+        Prefs::load(Some(&storage)).save(&mut storage);
+        assert_eq!(Prefs::load(Some(&storage)).look, Look::Dark);
+        assert!(storage.get_string(KEY).is_some_and(|t| t.contains("\"version\": 2")));
     }
 
     #[test]

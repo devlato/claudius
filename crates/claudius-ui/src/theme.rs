@@ -198,13 +198,13 @@ pub const SOLO: Swatch = Swatch::Solo;
 /// the strongest ink: white on the dark look, black on the light one
 pub const STRONG: Swatch = Swatch::Strong;
 
-/// which look the studio wears: dark, light, or as the system is
+/// which look the studio wears: dark (its own, until the person chooses another), light, or as the system is
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Look {
+    #[default]
     Dark,
     Light,
-    #[default]
     System,
 }
 
@@ -225,6 +225,14 @@ impl Look {
             Look::Dark => "Dark",
             Look::Light => "Light",
             Look::System => "As the system is",
+        }
+    }
+
+    /// its name in a word, where there is room for no more
+    pub fn word(self) -> &'static str {
+        match self {
+            Look::System => "System",
+            look => look.name(),
         }
     }
 }

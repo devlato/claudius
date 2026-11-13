@@ -183,6 +183,8 @@ fn top_row_at(ui: &mut Ui, cx: &mut Cx, level: usize) -> f32 {
         let left = ui.cursor().min.x - start;
         let right = ui
             .with_layout(Layout::right_to_left(Align::Center), |ui| {
+                look_menu(ui, cx);
+                ui.add_space(6.0);
                 let total = cx.state.verdict.as_ref().map(|v| v.total);
                 let stale = cx.render_stale();
                 let tip = cx
@@ -206,6 +208,22 @@ fn top_row_at(ui: &mut Ui, cx: &mut Cx, level: usize) -> f32 {
         left + 12.0 + right
     })
     .inner
+}
+
+/// the studio's look, to change in two clicks: dark (its own), light, or as the system is
+fn look_menu(ui: &mut Ui, cx: &mut Cx) {
+    let label = RichText::new(cx.view.look.word()).size(11.5).color(TEXT_DIM);
+    ui.menu_button(label, |ui| {
+        for look in crate::theme::Look::ALL {
+            if ui.radio(cx.view.look == look, look.name()).clicked() {
+                cx.view.look = look;
+                crate::theme::set_look(ui.ctx(), look);
+                ui.close();
+            }
+        }
+    })
+    .response
+    .on_hover_text("the studio's look: dark, light, or as the system is");
 }
 
 fn song_params(ui: &mut Ui, cx: &mut Cx, level: usize) {
