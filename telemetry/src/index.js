@@ -5,7 +5,7 @@
 // fields, from claudius 0.4 and before) still count; version 2 adds `value`, 1 but for a speed (`perf`).
 
 const COMMANDS = new Set([
-  "make", "evolve", "mutate", "analyze", "remake", "chop", "sample", "samples", "voice", "tune", "render", "export", "publish", "judge", "genres",
+  "make", "evolve", "mutate", "analyze", "remake", "change-genre", "chop", "sample", "samples", "voice", "tune", "render", "export", "publish", "judge", "genres",
   "examples", "sounds", "script", "reference", "setup", "doctor", "connect", "skills", "studio", "serve", "mcp", "update",
 ]);
 const VERSION = /^\d{1,3}\.\d{1,3}\.\d{1,3}(-[0-9A-Za-z.]{1,20})?$/;
