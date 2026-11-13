@@ -539,7 +539,17 @@ cargo xtask web                       # trunk build --release, with relative ass
 ```
 
 `Trunk.toml` builds `index.html` with relative URLs (`public_url = "./"`), so the same `dist` works at `/` of any
-claudius and from a static file server, and hashes file names so a browser never runs a stale build. CI runs clippy
+claudius and from a static file server, and hashes file names so a browser never runs a stale build.
+
+The studio draws itself on a canvas, so there is no page to render ahead on a server. While its program arrives
+(about 3 MB compressed, 10 MB unpacked), `index.html` draws the studio's outline itself, in HTML and CSS: the transport,
+the toolbar, the arrangement, the dock, the inspector and the status line where the studio puts them, in the look its
+settings keep in the page's local storage, with a meter of how much of the program has arrived. The page counts the
+program as it arrives, unpacked, against how large it is unpacked, which `cargo xtask web` writes into the page
+(`data-bytes`), as a server that compresses it, as the site and claudius both do, does not say. The program itself goes
+to the browser as it came, so the browser can keep it compiled for the next visit. `start_web` takes the outline away
+once the studio runs. If the program does not arrive or the studio cannot start, the outline says why, and the page
+links to [Troubleshooting](../guide/troubleshooting.md#the-studio-in-a-browser-does-not-start). CI runs clippy
 for `wasm32-unknown-unknown` separately, because the native clippy run never sees the code behind
 `cfg(target_arch = "wasm32")`. Preferences (the open tab, volume, the Variations and Improve settings) persist through eframe:
 natively in `claudius-studio/app.ron` under the platform's data folder, on the web in local storage.

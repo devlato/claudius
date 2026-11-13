@@ -10,15 +10,259 @@
   <link data-trunk rel="rust" href="../claudius-web/Cargo.toml" data-bin="claudius-engine" data-type="worker" data-loader-shim data-wasm-opt="2" />
   <!-- the recorder's AudioWorklet, loaded from beside the page -->
   <link data-trunk rel="copy-file" href="record-worklet.js" />
+  <script>
+    // The look the studio wears, as its settings keep it (src/settings.rs): the page is drawn in it from the start, so
+    // it does not change colour when the studio arrives.
+    try {
+      const kept = JSON.parse(localStorage.getItem("settings") || "{}");
+      let look = kept.look;
+      if ((kept.version || 0) < 2 && look === "system") look = "dark";
+      if (look === "system") look = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+      if (look === "light") {
+        document.documentElement.dataset.look = "light";
+        document.querySelector('meta[name="theme-color"]').content = "#e5e8ee";
+      }
+    } catch (_) {}
+  </script>
   <style>
-    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #101217; }
+    :root { --bg: #101217; --panel: #171a20; --tools: #15171d; --status: #14161c; --block: #232731; --well: #0b0d11;
+      --line: #2e333e; --line-soft: #1f232b; --text: #dde1e8; --dim: #8f97a4; --accent: #ffa348; --bad: #f05e56;
+      --lcd: #090f11; --shadow: rgba(0, 0, 0, 0.4); }
+    :root[data-look="light"] { --bg: #e5e8ee; --panel: #f1f3f6; --tools: #edeff3; --status: #ebeef2; --block: #d8dde5;
+      --well: #ffffff; --line: #c4cad4; --line-soft: #dadfe6; --text: #181c24; --dim: #4c5462; --accent: #b45600;
+      --bad: #c42822; --shadow: rgba(24, 28, 36, 0.12); }
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--bg); }
     #claudius_canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
-    #loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #8f97a4;
-      font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; pointer-events: none; }
+
+    /* The studio's outline while its program arrives, laid out as the studio lays itself out (src/app.rs): the
+       transport and the toolbar across the top, the inspector on the right, the arrangement with the dock under it,
+       and the status line. The canvas takes its place once the studio runs. */
+    #loading { position: absolute; inset: 0; display: grid; overflow: hidden; pointer-events: none; color: var(--dim);
+      background: var(--bg); font: 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+      grid-template-rows: 58px 40px minmax(0, 1fr) clamp(200px, calc((100vh - 122px) * 0.38), 360px) 24px;
+      grid-template-columns: minmax(0, 1fr) 350px; }
+    #loading i { display: block; flex: none; border-radius: 4px; background: var(--block); }
+    #loading .grow { flex: 1; }
+    #loading .transport, #loading .toolbar, #loading .status { grid-column: 1 / -1; display: flex; align-items: center;
+      gap: 6px; padding: 0 12px; }
+    #loading .transport { background: var(--panel); }
+    #loading .toolbar { background: var(--tools); border-top: 1px solid var(--line-soft);
+      border-bottom: 1px solid var(--line-soft); }
+    #loading .status { grid-row: 5; background: var(--status); border-top: 1px solid var(--line-soft); }
+    #loading .logo { display: flex; align-items: center; gap: 8px; margin-right: 12px; color: var(--text);
+      font-size: 19px; font-weight: 600; }
+    #loading .logo::before { content: ""; width: 20px; height: 20px; box-sizing: border-box; border-radius: 50%;
+      border: 4px solid var(--accent); border-right-color: transparent; transform: rotate(-45deg); }
+    #loading .key { width: 30px; height: 30px; border-radius: 6px; }
+    #loading .lcd { display: flex; align-items: center; width: 200px; height: 44px; margin: 0 8px; padding: 0 12px;
+      box-sizing: border-box; border-radius: 6px; background: var(--lcd); border: 1px solid var(--line);
+      color: rgba(132, 232, 255, 0.45); font: 22px ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+    #loading .two { display: flex; flex-direction: column; gap: 7px; margin-right: 10px; }
+
+    #loading .arrangement { grid-row: 3; grid-column: 1; display: flex; flex-direction: column; padding: 6px 10px 0;
+      overflow: hidden; }
+    #loading .head { display: flex; align-items: center; gap: 8px; height: 24px; }
+    #loading .caps { font-size: 10.5px; letter-spacing: 0.06em; }
+    #loading .lane { display: flex; align-items: center; height: 30px; flex: none; }
+    #loading .lane > :first-child { display: flex; align-items: center; gap: 8px; width: 138px; flex: none; }
+    #loading .lane > :first-child::before { content: ""; width: 3px; height: 16px; border-radius: 2px;
+      background: var(--c, transparent); }
+    #loading .clips { display: flex; flex: 1; gap: 2px; height: 22px; }
+    #loading .clips i { height: 100%; flex: var(--n); background: var(--c); opacity: 0.4; }
+    #loading .clips .off { background: none; }
+    #loading .ruler { height: 18px; margin-left: 138px; flex: none;
+      background: repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px calc(100% / 15)); }
+    #loading .sections { height: 40px; }
+    #loading .sections .clips { height: 34px; }
+    #loading .sections .clips i { opacity: 0.55; }
+    #loading .master { height: 96px; margin: 18px 0 0 138px; flex: none; opacity: 0.4;
+      background: linear-gradient(90deg, #4a7aba 0 13.3%, #2ea6a0 0 26.7%, #8a68cc 0 33.3%, #dea63e 0 40%,
+        #e8524e 0 93.3%, #626e88 0);
+      -webkit-mask: repeating-linear-gradient(90deg, #000 0 2px, transparent 0 3px),
+        linear-gradient(transparent 8%, #000 38%, #000 62%, transparent 92%);
+      -webkit-mask-composite: source-in;
+      mask: repeating-linear-gradient(90deg, #000 0 2px, transparent 0 3px) intersect,
+        linear-gradient(transparent 8%, #000 38%, #000 62%, transparent 92%); }
+
+    #loading .dock { grid-row: 4; grid-column: 1; display: flex; flex-direction: column; padding: 0 12px;
+      background: var(--panel); border-top: 1px solid var(--line); overflow: hidden; }
+    #loading .tabs { display: flex; align-items: center; gap: 22px; height: 34px; flex: none;
+      border-bottom: 1px solid var(--line-soft); }
+    #loading .tabs i { height: 10px; }
+    #loading .tabs i:first-child { background: var(--accent); opacity: 0.5; }
+    #loading .variant { display: flex; align-items: center; gap: 10px; height: 34px; flex: none; }
+    #loading .dock .lane > :first-child { width: 168px; }
+    /* the sequencer's 64 steps, and a lane's hits: one each `--every`, `--at` into it */
+    #loading .steps { flex: 1; height: 22px; --cell: calc(100% / 64);
+      background: repeating-linear-gradient(90deg, transparent 0 var(--at, 0px),
+          var(--hit, transparent) 0 calc(var(--at, 0px) + var(--cell) - 3px), transparent 0 var(--every, 100%)),
+        repeating-linear-gradient(90deg, var(--block) 0 calc(var(--cell) - 3px), transparent 0 var(--cell)); }
+
+    #loading .side { grid-row: 3 / 5; grid-column: 2; display: flex; flex-direction: column; gap: 10px; padding: 12px;
+      background: var(--panel); border-left: 1px solid var(--line-soft); overflow: hidden; }
+    /* a panel shorter than what it holds cuts it off at the bottom, as the studio's scroll, rather than squeezing it */
+    #loading .arrangement > *, #loading .side > * { flex: none; }
+    #loading .field { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-height: 26px; }
+    /* a field's label, in the inspector's column of labels (`widgets::LABEL_WIDTH`) */
+    #loading .label { width: var(--w); height: 10px; margin-right: calc(98px - var(--w)); }
+    #loading .chip { height: 22px; border-radius: 11px; }
+    #loading .rule { height: 1px; background: var(--line-soft); margin: 6px 0; flex: none; }
+    #loading .verdict { display: flex; gap: 18px; align-items: center; }
+    #loading .ring { width: 72px; height: 72px; box-sizing: border-box; border-radius: 50%; background: none;
+      border: 6px solid var(--block); }
+    #loading .bars { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+    #loading .bars i { height: 8px; }
+    #loading .arrangement, #loading .dock, #loading .side { animation: shine 1.8s ease-in-out infinite; }
+
+    /* how much of the program has arrived: over the arrangement */
+    #loading .arriving { grid-row: 3; grid-column: 1; place-self: center; z-index: 1; width: min(320px, 80%);
+      padding: 16px 18px 14px; box-sizing: border-box; border-radius: 10px; background: var(--panel);
+      border: 1px solid var(--line-soft); box-shadow: 0 10px 30px var(--shadow); }
+    #loading .meter { height: 4px; border-radius: 2px; background: var(--line-soft); overflow: hidden; }
+    #loading .meter b { display: block; width: 0; height: 100%; border-radius: 2px; background: var(--accent);
+      transition: width 0.2s; }
+    #loading .said { margin: 10px 0 0; font-variant-numeric: tabular-nums; }
+    #loading .help { display: none; margin: 8px 0 0; color: var(--dim); }
+    #loading .help a { color: var(--accent); }
+    #loading.unsized .meter b { width: 30%; animation: slide 1.4s ease-in-out infinite alternate; }
+    #loading.starting .meter b { width: 100%; animation: shine 1.2s ease-in-out infinite; }
+    #loading.failed .meter b { width: 100%; background: var(--bad); }
+    #loading.failed .said { color: var(--text); }
+    #loading.failed .help { display: block; pointer-events: auto; }
+    #loading.failed .arrangement, #loading.failed .dock, #loading.failed .side { animation: none; opacity: 0.5; }
+    @keyframes shine { 50% { opacity: 0.55; } }
+    @keyframes slide { to { transform: translateX(233%); } }
+    @media (prefers-reduced-motion: reduce) {
+      #loading *, #loading .meter b { animation: none !important; transition: none; }
+      #loading.unsized .meter b { width: 100%; opacity: 0.5; }
+    }
+    @media (max-width: 760px) { #loading { grid-template-columns: minmax(0, 1fr) 290px; } }
   </style>
+  <script>
+    // How much of the studio's program has arrived, which the meter over the outline shows, and why the studio did
+    // not start, when it does not. The page counts the program as it arrives, unpacked: `cargo xtask web` writes how
+    // large it is unpacked into `data-bytes`, as a server that compresses it does not say how large it is. The program
+    // itself goes to the browser untouched, so the browser can keep it compiled for the next visit.
+    (() => {
+      const fetched = window.fetch;
+      const loading = () => document.getElementById("loading");
+      const show = (text, state, percent) => {
+        const el = loading();
+        if (!el || el.classList.contains("failed")) return;
+        el.classList.remove("unsized", "starting");
+        if (state) el.classList.add(state);
+        el.querySelector(".said").textContent = text;
+        const meter = el.querySelector(".meter");
+        if (percent === undefined) meter.removeAttribute("aria-valuenow");
+        else meter.setAttribute("aria-valuenow", String(Math.round(percent)));
+        meter.firstElementChild.style.width = percent === undefined ? "" : `${percent}%`;
+      };
+      const count = async (res) => {
+        const sent = res.headers.get("content-encoding") ? 0 : Number(res.headers.get("content-length"));
+        const all = Number(loading()?.dataset.bytes) || sent || 0;
+        const reader = res.body.getReader();
+        let got = 0;
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          got += value.length;
+          if (all) show(`Loading the studio: ${Math.min(99, Math.floor((100 * got) / all))}%`, "", Math.min(100, (100 * got) / all));
+          else show("Loading the studio", "unsized");
+        }
+        show("Starting the studio", "starting", 100);
+      };
+      window.fetch = function (input, init) {
+        const res = fetched.call(window, input, init);
+        const url = input instanceof Request ? input.url : String(input);
+        if (/claudius-ui-[^/]*_bg\.wasm(\?|$)/.test(url)) {
+          window.fetch = fetched;
+          res.then((r) => r.ok && r.body && count(r.clone())).catch(() => {});
+        }
+        return res;
+      };
+      const fail = (why) => {
+        const el = loading();
+        if (!el) return;
+        el.classList.remove("unsized", "starting");
+        el.classList.add("failed");
+        el.removeAttribute("aria-busy");
+        const said = el.querySelector(".said");
+        said.setAttribute("role", "alert");
+        said.textContent = `The studio could not start: ${why}`;
+      };
+      addEventListener("error", (e) => {
+        const file = e.target && (e.target.src || e.target.href);
+        fail(e.message || (file ? `${file.split("/").pop()} did not load` : "a script failed"));
+      }, true);
+      addEventListener("unhandledrejection", (e) => fail((e.reason && e.reason.message) || String(e.reason)));
+      if (typeof WebAssembly !== "object") addEventListener("DOMContentLoaded", () => fail("this browser cannot run WebAssembly"));
+    })();
+  </script>
 </head>
 <body>
   <canvas id="claudius_canvas"></canvas>
-  <div id="loading"><p>loading claudius studio...</p></div>
+  <div id="loading" data-bytes="0" aria-busy="true">
+    <div class="transport" aria-hidden="true">
+      <span class="logo">Claudius</span><i class="key"></i><i class="key"></i><i class="key"></i><i class="key"></i><i class="key"></i><i class="key"></i>
+      <span class="lcd">0:00.0</span>
+      <span class="two"><i style="width:130px;height:14px"></i><i style="width:90px;height:9px"></i></span>
+      <span class="two"><i style="width:38px;height:8px"></i><i style="width:84px;height:24px"></i></span>
+      <span class="two"><i style="width:30px;height:8px"></i><i style="width:96px;height:24px"></i></span>
+      <span class="two"><i style="width:40px;height:8px"></i><i style="width:52px;height:24px"></i></span>
+      <span class="grow"></span><i class="ring" style="width:38px;height:38px;border-width:4px"></i><i style="width:46px;height:24px;border-radius:12px"></i>
+    </div>
+    <div class="toolbar" aria-hidden="true">
+      <i style="width:92px;height:26px"></i><i style="width:62px;height:26px"></i><i style="width:92px;height:26px"></i>
+      <i style="width:8px;height:0"></i><i style="width:104px;height:26px"></i><i style="width:90px;height:26px"></i><i style="width:82px;height:26px"></i>
+      <i style="width:8px;height:0"></i><i style="width:76px;height:26px"></i><i style="width:8px;height:0"></i><i style="width:26px;height:26px"></i><i style="width:26px;height:26px"></i>
+      <span class="grow"></span><i style="width:88px;height:12px"></i>
+    </div>
+    <div class="arrangement" aria-hidden="true">
+      <div class="head"><span class="caps">ARRANGEMENT</span><i style="width:120px;height:8px"></i><i class="chip" style="width:44px;height:18px"></i><i class="chip" style="width:80px;height:18px"></i><span class="grow"></span><i style="width:220px;height:8px"></i></div>
+      <div class="ruler"></div>
+      <div class="lane sections"><span><i style="width:52px;height:9px"></i></span><span class="clips"><i style="--n:8;--c:#4a7aba"></i><i style="--n:8;--c:#2ea6a0"></i><i style="--n:4;--c:#8a68cc"></i><i style="--n:4;--c:#dea63e"></i><i style="--n:16;--c:#e8524e"></i><i style="--n:16;--c:#e8524e"></i><i style="--n:4;--c:#626e88"></i></span></div>
+      <div class="lane" style="--c:#ff5e5e"><span><i style="width:34px;height:9px"></i></span><span class="clips"><i style="--n:16"></i><i class="off" style="--n:8"></i><i style="--n:32"></i><i class="off" style="--n:4"></i></span></div>
+      <div class="lane" style="--c:#ff9242"><span><i style="width:40px;height:9px"></i></span><span class="clips"><i class="off" style="--n:8"></i><i style="--n:8"></i><i class="off" style="--n:4"></i><i style="--n:36"></i><i class="off" style="--n:4"></i></span></div>
+      <div class="lane" style="--c:#ecc45c"><span><i style="width:28px;height:9px"></i></span><span class="clips"><i style="--n:60"></i></span></div>
+      <div class="lane" style="--c:#ecc45c"><span><i style="width:44px;height:9px"></i></span><span class="clips"><i style="--n:60"></i></span></div>
+      <div class="lane" style="--c:#a474ff"><span><i style="width:36px;height:9px"></i></span><span class="clips"><i class="off" style="--n:8"></i><i style="--n:8"></i><i class="off" style="--n:8"></i><i style="--n:32"></i><i class="off" style="--n:4"></i></span></div>
+      <div class="lane" style="--c:#40d4c6"><span><i style="width:32px;height:9px"></i></span><span class="clips"><i style="--n:16"></i><i class="off" style="--n:4"></i><i style="--n:40"></i></span></div>
+      <div class="lane" style="--c:#ff6cc4"><span><i style="width:34px;height:9px"></i></span><span class="clips"><i class="off" style="--n:16"></i><i style="--n:40"></i><i class="off" style="--n:4"></i></span></div>
+      <div class="lane" style="--c:#589eff"><span><i style="width:30px;height:9px"></i></span><span class="clips"><i class="off" style="--n:16"></i><i style="--n:40"></i><i class="off" style="--n:4"></i></span></div>
+      <div class="lane"><i class="chip" style="width:66px;height:22px"></i></div>
+      <div class="master"></div>
+    </div>
+    <div class="dock" aria-hidden="true">
+      <div class="tabs"><i style="width:44px"></i><i style="width:76px"></i><i style="width:40px"></i><i style="width:44px"></i><i style="width:40px"></i><i style="width:48px"></i><span class="grow"></span><i style="width:40px"></i><i style="width:76px"></i><i style="width:28px"></i></div>
+      <div class="variant"><i style="width:52px;height:8px"></i><i class="chip" style="width:40px;height:20px"></i><i style="width:260px;height:8px"></i><span class="grow"></span><i style="width:300px;height:8px"></i></div>
+      <div class="lane" style="--c:#ff5e5e"><span><i style="width:30px;height:9px"></i><span class="grow"></span><i style="width:16px;height:16px"></i><i style="width:16px;height:16px;margin-right:10px"></i></span><span class="steps" style="--hit:#ff5e5e;--every:calc(100% / 16)"></span></div>
+      <div class="lane" style="--c:#ff9242"><span><i style="width:36px;height:9px"></i><span class="grow"></span><i style="width:16px;height:16px"></i><i style="width:16px;height:16px;margin-right:10px"></i></span><span class="steps" style="--hit:#ff9242;--every:calc(100% / 8);--at:calc(100% / 16)"></span></div>
+      <div class="lane" style="--c:#ecc45c"><span><i style="width:26px;height:9px"></i><span class="grow"></span><i style="width:16px;height:16px"></i><i style="width:16px;height:16px;margin-right:10px"></i></span><span class="steps" style="--hit:#ecc45c;--every:calc(100% / 16);--at:calc(100% / 32)"></span></div>
+      <div class="lane" style="--c:#ecc45c"><span><i style="width:40px;height:9px"></i><span class="grow"></span><i style="width:16px;height:16px"></i><i style="width:16px;height:16px;margin-right:10px"></i></span><span class="steps"></span></div>
+    </div>
+    <div class="side" aria-hidden="true">
+      <div class="field"><i style="width:88px;height:10px"></i><span class="grow"></span><i style="width:22px;height:22px"></i><i style="width:22px;height:22px"></i><i style="width:22px;height:22px"></i></div>
+      <div class="field"><i class="label" style="--w:38px"></i><i style="width:150px;height:24px;background:var(--well)"></i><i class="chip" style="width:38px;height:18px;background:#4a7aba;opacity:.5"></i></div>
+      <div class="field"><i class="label" style="--w:46px"></i><i style="width:62px;height:24px"></i><i style="width:24px;height:24px"></i><i style="width:24px;height:24px"></i><i style="width:24px;height:24px"></i><i style="width:24px;height:24px"></i></div>
+      <div class="field"><i class="label" style="--w:40px"></i><i style="width:96px;height:10px"></i></div>
+      <div class="field"><i class="label" style="--w:58px"></i><i style="width:130px;height:4px"></i><i style="width:14px;height:14px;border-radius:50%"></i><i style="width:36px;height:10px"></i></div>
+      <div class="field"><i class="label" style="--w:48px"></i><i style="width:190px;height:24px"></i></div>
+      <div class="field"><i class="label" style="--w:80px"></i><i style="width:96px;height:24px"></i></div>
+      <div class="field"><i class="label" style="--w:74px"></i><i class="chip" style="width:84px"></i><i class="chip" style="width:72px"></i><i class="chip" style="width:110px"></i><i class="chip" style="width:64px"></i></div>
+      <div class="field"><i class="label" style="--w:52px"></i><i class="chip" style="width:44px"></i><i class="chip" style="width:48px"></i><i class="chip" style="width:34px"></i><i class="chip" style="width:52px"></i><i class="chip" style="width:42px"></i><i class="chip" style="width:42px"></i><i class="chip" style="width:38px"></i><i class="chip" style="width:32px"></i></div>
+      <div class="field"><i style="width:112px;height:24px"></i></div>
+      <div class="field"><i style="width:150px;height:10px"></i><i style="width:64px;height:24px"></i><i style="width:56px;height:24px"></i><i style="width:24px;height:24px"></i></div>
+      <div class="rule"></div>
+      <div class="field"><i style="width:56px;height:10px"></i></div>
+      <div class="verdict"><i class="ring"></i><span class="bars"><i style="width:86%"></i><i style="width:94%"></i><i></i></span></div>
+    </div>
+    <div class="status" aria-hidden="true"><i style="width:300px;height:8px"></i><span class="grow"></span><i style="width:380px;height:8px"></i><i style="width:90px;height:8px"></i></div>
+    <div class="arriving">
+      <div class="meter" role="progressbar" aria-label="Loading the studio" aria-valuemin="0" aria-valuemax="100"><b></b></div>
+      <p class="said">Loading the studio</p>
+      <p class="help">Reloading the page tries again. <a href="https://claudius.devlato.com/docs/guide/troubleshooting.html#the-studio-in-a-browser-does-not-start">Troubleshooting</a> says what else stops it.</p>
+      <noscript><p class="help" style="display:block">The studio runs in this page, so it needs JavaScript, which this browser has turned off.</p></noscript>
+    </div>
+  </div>
 </body>
 </html>

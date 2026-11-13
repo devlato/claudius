@@ -199,7 +199,29 @@ fn web_with(sh: &Shell, public_url: &str, out: &Path, more: &[&str]) -> Result<(
     // trunk reads NO_COLOR as a boolean, so the usual NO_COLOR=1 is an error
     let _no_color = std::env::var_os("NO_COLOR").map(|_| sh.push_env("NO_COLOR", "true"));
     cmd!(sh, "trunk build --release --locked --public-url {public_url} --dist {out} {more...}").run()?;
+    let page = out.join("index.html");
+    let html = std::fs::read_to_string(&page).with_context(|| format!("reading {}", page.display()))?;
+    let program = program(&html).with_context(|| format!("{} loads no claudius-ui-*_bg.wasm", page.display()))?;
+    let bytes =
+        std::fs::metadata(out.join(program)).with_context(|| format!("{program} is not beside its page"))?.len();
+    std::fs::write(&page, sized(&html, bytes)?)?;
     Ok(())
+}
+
+/// what the page as trunk writes it says until the studio's program is measured: `data-bytes` on its outline
+const UNMEASURED: &str = "data-bytes=\"0\"";
+
+/// the file name of the studio's program that the page loads
+fn program(html: &str) -> Option<&str> {
+    html.split(['"', '\'', '/']).find(|s| s.starts_with("claudius-ui-") && s.ends_with("_bg.wasm"))
+}
+
+/// The page with how large the studio's program is (`bytes`, unpacked) on its outline, which the meter of how much of
+/// it has arrived goes by: a server that compresses the program, as the site and claudius both do, does not say how
+/// large it is.
+fn sized(html: &str, bytes: u64) -> Result<String> {
+    ensure!(html.contains(UNMEASURED), "the page has no {UNMEASURED} for the size of the studio's program");
+    Ok(html.replacen(UNMEASURED, &format!("data-bytes=\"{bytes}\""), 1))
 }
 
 fn docs(sh: &Shell) -> Result<()> {
@@ -320,5 +342,27 @@ impl Args {
     fn finish(self) -> Result<()> {
         ensure!(self.0.is_empty(), "unexpected arguments: {}", self.0.join(" "));
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_studios_page_says_how_large_the_program_it_loads_is() {
+        // as trunk writes the page, at /studio/ and at ./
+        for at in ["/studio/", "./"] {
+            let html = format!(
+                "<script type=\"module\">\nimport init from '{at}claudius-ui-cf6aed7f.js';\nawait init({{ \
+                 module_or_path: '{at}claudius-ui-cf6aed7f_bg.wasm' }});\n</script>\n<link rel=\"preload\" \
+                 href=\"{at}claudius-ui-cf6aed7f_bg.wasm\" as=\"fetch\">\n<div id=\"loading\" data-bytes=\"0\" \
+                 aria-busy=\"true\">"
+            );
+            assert_eq!(program(&html), Some("claudius-ui-cf6aed7f_bg.wasm"), "{at}");
+            let page = sized(&html, 10_185_294).unwrap();
+            assert!(page.contains("<div id=\"loading\" data-bytes=\"10185294\" aria-busy"), "{page}");
+        }
+        assert!(sized("<div id=\"loading\">", 1).is_err(), "a page without the mark is an error, not a page unsized");
     }
 }
