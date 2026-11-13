@@ -526,6 +526,7 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
                             find: None,
                             sections: Vec::new(),
                             how,
+                            every: None,
                         });
                         im.sending = im.hit.as_ref().map(|h| Sent::Hit(h.id.clone()));
                     }
@@ -673,7 +674,7 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
                         egui::Button::new(egui::RichText::new(label).strong().color(ink)).fill(crate::theme::ACCENT);
                     let put = ui.add_enabled(!keep.is_empty(), put).on_disabled_hover_text("tick a piece first");
                     if put.clicked() {
-                        cx.out.push(Command::KeepPieces { keep: keep.clone(), sections: Vec::new() });
+                        cx.out.push(Command::KeepPieces { keep: keep.clone(), sections: Vec::new(), every: None });
                         im.sample_said = None;
                     }
                     cancel = ui.button("Cancel").clicked();

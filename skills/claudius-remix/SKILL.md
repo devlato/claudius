@@ -228,6 +228,11 @@ song.mp3 into the song: vox1, vox2"), the lines after it where each phrase came 
 
 - **What to ask for.** `count` phrases (2), `bars` long (1, 2 or 4), `sections` to put them in by name or kind
   ("the break only"), and `find` when the voice is something else ("a rap verse", "a choir").
+- **How often it comes round** (`every`): `once` ("once in each chorus"), `2`, `4`, `8` or `16` ("every four bars"),
+  or `through` ("loop it all through the break"). Said nothing, the song decides by its genre and what its sections
+  play (once where a lead or a voice sings already, every other time round in a genre built on samples, every 8 bars
+  in the others), and the reply says which and why: when the person finds it repeats too much, or not enough, sample
+  again with another `every`.
 - **The way to sample it** (`how`), from what the person describes:
   - `phrases` (the default): short sung phrases that come round as loops.
   - `passage`: a whole verse or chorus of the recording (4, 8 or 16 `bars`) played through in the drops and hooks,
@@ -244,9 +249,10 @@ song.mp3 into the song: vox1, vox2"), the lines after it where each phrase came 
 - **Whose voice it is.** A sample of someone else's recording needs their permission before the song is released:
   say so when the person samples a song they did not make.
 - **To choose the pieces first.** `sample_pieces` offers them before any goes in: each a phrase sung whole, never
-  cut inside a word, as it was cut and through a treatment (dusty tape, a washed echo, lo-fi, a phaser, a telephone band, a stutter, a reversed tail), with
-  where to hear each. Describe them, let the person pick, then `keep_pieces` with `[{id, treated}]`;
-  `redraw_pieces` draws another take when none suits.
+  cut inside a word, where it is in the recording ("in hook 2, bars 12-13, 0:31"), as it was cut and through a
+  treatment (dusty tape, a washed echo, lo-fi, a phaser, a telephone band, a stutter, a reversed tail), with where to
+  hear each. Describe them, let the person pick, then `keep_pieces` with `[{id, treated}]` (and `sections`, `every`,
+  as above); `redraw_pieces` draws another take when none suits.
 
 ## Ask the person to record a take
 

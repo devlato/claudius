@@ -422,6 +422,7 @@ claudius sample ~/Music/a-cappella.wav --on out/deep_house-velvet-orbit-4 --coun
 | `--bars` | 1 or 2 | how long each phrase is, in bars: 1, 2 or 4 |
 | `--find <description>` | "a person singing" | what earshot's models listen for |
 | `--in <section>` | the sections that suit each phrase | a section to put them in, by name or kind; repeatable |
+| `--every <how often>` | as the song suits | how often each phrase comes round: `once` (from the start of each section), `2`, `4`, `8` or `16` (once every so many bars) or `through` ([how the song decides](samples.md#sampling-a-songs-vocals)) |
 | `--no-ears` | | find the phrases by pitch and stereo picture alone |
 | `-o`, `--out` | `out` | the song goes into `<out>/<genre>-<title>-<seed>/` |
 

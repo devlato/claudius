@@ -153,6 +153,14 @@ pub struct PieceView {
     pub place: String,
     pub bars: u32,
     pub sung: f64,
+    /// where its phrase is sung in the recording, from its first word to the end of its last note, in seconds, and the
+    /// section of the recording it starts in, by kind and count ("hook 2")
+    #[serde(default)]
+    pub from: f64,
+    #[serde(default)]
+    pub to: f64,
+    #[serde(default)]
+    pub section: String,
     /// where to hear it, as it was cut and as treated: paths on the claudius that offers it
     pub raw: String,
     pub treated: String,
@@ -2072,6 +2080,11 @@ pub enum Command {
         /// how it goes in: "phrases" (the default), "passage", "chops" or "stabs" (`SAMPLING_WAYS`)
         #[serde(default, skip_serializing_if = "Option::is_none")]
         how: Option<String>,
+        /// how often each phrase comes round in its sections: "once" (from the start of each), "2", "4", "8" or "16"
+        /// (once every so many bars, silent between) or "through" (all through each); none: as the song's genre and
+        /// what its sections play suit
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        every: Option<String>,
     },
     /// a recording (an audio file) as a take: it plays once from the start of section `from`, on through the sections
     /// after it as long as it lasts, at the song's tempo; claudius keeps a copy with the song
@@ -2227,11 +2240,13 @@ pub enum Command {
         seed: Option<u64>,
     },
     /// the pieces offered that `keep` names, each as it was cut or treated, sampled into the song in `sections` (by
-    /// name or kind; those that suit each by default)
+    /// name or kind; those that suit each by default), coming round in them as `every` says (as for `SampleSong`)
     KeepPieces {
         keep: Vec<KeptPiece>,
         #[serde(default)]
         sections: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        every: Option<String>,
     },
     /// the person will not do pitch check `id` now
     CancelPitchCheck {
@@ -2422,6 +2437,10 @@ pub struct Listened {
     /// where the last bar ends, in seconds
     pub end: f64,
     pub sections: Vec<SectionHeard>,
+    /// the phrases its voice sings, each from its first word to the end of its last, in seconds: where a sample of it
+    /// may be cut whole
+    #[serde(default)]
+    pub phrases: Vec<[f64; 2]>,
     /// its two progressions, as Roman numerals in its key, and the bars each chord lasts: what `prog` and
     /// `bars_per_chord` take
     pub progression_a: Vec<String>,

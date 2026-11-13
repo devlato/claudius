@@ -132,11 +132,20 @@ pub fn analysis_text(a: &Analysis) -> String {
 }
 
 /// What the analysis `a` heard in recording `x`, which came in a file named `name`, as the studio shows it while the
-/// recording plays; with none of its audio, which whoever keeps it adds (`Listened::audio`).
-pub fn listened(a: &Analysis, x: &Stereo, name: &str) -> claudius_api::Listened {
+/// recording plays, the phrases its voice sings heard in its vocals when `stems` are apart; with none of its audio,
+/// which whoever keeps it adds (`Listened::audio`).
+pub fn listened(
+    a: &Analysis,
+    x: &Stereo,
+    name: &str,
+    stems: Option<&claudius::stems::Stems>,
+) -> claudius_api::Listened {
     use claudius_api::{BarHeard, SectionHeard};
     let at = |v: &[String], b: usize| v.get(b).cloned().unwrap_or_default();
+    let sings = stems.map_or(x, |s| &s.vocals);
+    let sung = claudius::cuts::sung(sings, &analysis::melody::pitches(sings));
     claudius_api::Listened {
+        phrases: sung.phrases.iter().map(|p| [p.start, p.end]).collect(),
         name: name.to_string(),
         secs: x.len() as f64 / claudius::config::SRF,
         bpm: a.bpm,
@@ -317,12 +326,49 @@ pub fn sampling(
         find: find.filter(|f| !f.trim().is_empty()),
         sections: sections.into_iter().filter(|s| !s.trim().is_empty()).collect(),
         how: how.unwrap_or_default(),
+        every: None,
     })
+}
+
+/// a piece offered, as `sample_pieces` lists it: "1: in hook 2, bars 12-13, 0:31, 96% sung; treated, dusty: ..."
+pub fn piece_said(p: &claudius_api::PieceView) -> String {
+    let section = if p.section.is_empty() { String::new() } else { format!("in {}, ", p.section) };
+    format!("{}: {section}{}, {:.0}% sung; treated, {}", p.id, p.place, p.sung * 100.0, p.treatment)
+}
+
+/// How often a phrase sampled into the song comes round, as `SampleSong` and `KeepPieces` say it (`Every::parse`);
+/// none, or nothing said: as the song suits.
+pub fn every(said: Option<&str>) -> Result<Option<claudius::sampler::Every>, String> {
+    said.filter(|s| !s.trim().is_empty()).map(claudius::sampler::Every::parse).transpose()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn what_is_heard_in_a_recording_says_where_its_voice_sings_a_phrase() {
+        // sixteen seconds at 120 BPM: a hat to the left all through, and a sung A3 from 4 s to 12 s
+        let sr = claudius::config::SR as usize;
+        let mut x = Stereo::zeros(16 * sr);
+        let mut phase = 0f64;
+        for i in 0..x.len() {
+            if i % (sr / 4) < sr / 50 {
+                x.l[i] += if i % 7 < 3 { 0.3 } else { -0.3 };
+            }
+            if (4 * sr..12 * sr).contains(&i) {
+                phase += std::f64::consts::TAU * 220.0 / claudius::config::SRF;
+                let v = (phase.sin() * 0.4 + (2.0 * phase).sin() * 0.15) as f32;
+                (x.l[i], x.r[i]) = (x.l[i] + v, x.r[i] + v);
+            }
+        }
+        let heard = listened(&analysis::song::analyze(&x, None), &x, "hum.wav", None);
+        assert_eq!(heard.phrases.len(), 1, "{:?}", heard.phrases);
+        let [from, to] = heard.phrases[0];
+        assert!((from - 4.0).abs() < 0.1 && (to - 12.0).abs() < 0.15, "sung from {from} to {to}");
+        assert_eq!(every(Some(" 4 ")), Ok(Some(claudius::sampler::Every::Bars(4))));
+        assert_eq!((every(None), every(Some(""))), (Ok(None), Ok(None)));
+    }
 
     #[test]
     fn the_ways_to_sample_offered_are_the_samplers_own() {

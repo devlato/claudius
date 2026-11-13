@@ -379,7 +379,7 @@ impl App {
                 let verdict = verdict.ok_or("no verdict yet: let the song render first")?;
                 edit::quick_fix(&verdict, bp, target.as_deref(), stale)
             }),
-            Command::KeepPieces { keep, sections } => self.keep_pieces(&keep, sections),
+            Command::KeepPieces { keep, sections, every } => self.keep_pieces(&keep, sections, every.as_deref()),
             Command::TrimTake { track, start, end } => {
                 let dir = claudius::take::dir(self.lock().folder.as_deref());
                 if !claudius::config::write_allowed(&dir, self.roots.as_deref()) {
@@ -443,8 +443,10 @@ impl App {
                     Err(e) => no(format!("cannot read {path}: {e}"), v),
                 }
             }
-            Command::SampleSong { path, count, bars, find, sections, how } => {
-                let opt = match sampling(count, bars, find, sections, how.as_deref()) {
+            Command::SampleSong { path, count, bars, find, sections, how, every } => {
+                let opt = match sampling(count, bars, find, sections, how.as_deref())
+                    .and_then(|o| Ok(claudius::sampler::Options { every: listen::every(every.as_deref())?, ..o }))
+                {
                     Ok(opt) => opt,
                     Err(e) => return no(e, v),
                 };
@@ -681,7 +683,7 @@ impl App {
     pub(super) fn analyze_audio(self: &Arc<Self>, x: &audio::Stereo, name: &str) -> Analyzed {
         let (stems, a) = self.listen_to(x, name);
         let text = analysis_text(&a);
-        let mut heard = listen::listened(&a, x, name);
+        let mut heard = listen::listened(&a, x, name, stems.as_deref());
         let mut tracks: Vec<(&str, &audio::Stereo)> = vec![("recording", x)];
         if let Some(s) = stems.as_deref() {
             tracks.extend([("vocals", &s.vocals), ("drums", &s.drums), ("bass", &s.bass), ("other", &s.other)]);

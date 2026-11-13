@@ -10,6 +10,7 @@ use claudius::audio::{self, Stereo};
 use claudius::model::{Blueprint, Sound};
 use claudius::{config, sampler, take};
 use claudius_api::{KeptPiece, PieceView, PiecesView, Reply};
+use claudius_session::listen;
 
 use super::{App, no, ok};
 
@@ -82,20 +83,21 @@ impl App {
                     return no(format!("cannot keep the pieces to hear: {e:#}"), v);
                 }
             }
+            let (from, to) = p.phrase.within.unwrap_or((p.phrase.start, p.phrase.start));
             views.push(PieceView {
                 id,
                 place: p.place(),
                 bars: p.phrase.bars,
                 sung: p.phrase.sung,
+                from,
+                to,
+                section: p.section.clone(),
                 raw: format!("/api/pieces/{}", file("raw")),
                 treated: format!("/api/pieces/{}", file("treated")),
                 treatment: p.treatment.clone(),
             });
         }
-        let lines: Vec<String> = views
-            .iter()
-            .map(|p| format!("{}: {}, {:.0}% sung; treated, {}", p.id, p.place, p.sung * 100.0, p.treatment))
-            .collect();
+        let lines: Vec<String> = views.iter().map(listen::piece_said).collect();
         let n = views.len();
         let said = format!("{n} piece{} of {name}, take {seed}:\n{}", if n == 1 { "" } else { "s" }, lines.join("\n"));
         let view = PiecesView { recording: name.to_string(), seed, pieces: views };
@@ -119,11 +121,20 @@ impl App {
 
     /// the pieces offered that `keep` names, each as it was cut or treated, sampled into the song in `sections` (those
     /// that suit each, when none), crediting what the recording credits; the offer goes once they are in
-    pub(super) fn keep_pieces(self: &Arc<Self>, keep: &[KeptPiece], sections: Vec<String>) -> Reply {
+    pub(super) fn keep_pieces(
+        self: &Arc<Self>,
+        keep: &[KeptPiece],
+        sections: Vec<String>,
+        every: Option<&str>,
+    ) -> Reply {
         let v = self.version();
         let held = self.lock().pieces.as_ref().map(|(o, _)| o.clone());
         let Some(o) = held else {
             return no("no pieces to keep: sample_pieces offers some first", v);
+        };
+        let every = match listen::every(every) {
+            Ok(every) => every,
+            Err(e) => return no(e, v),
         };
         let mut chosen = Vec::new();
         for k in keep {
@@ -136,7 +147,7 @@ impl App {
         if !config::write_allowed(&dir, self.roots.as_deref()) {
             return no(format!("{} is outside the folders this claudius may write", dir.display()), v);
         }
-        let opt = sampler::Options { sections, ..o.opt.clone() };
+        let opt = sampler::Options { sections, every, ..o.opt.clone() };
         let before = sampled(self.blueprint().as_ref());
         let mut r =
             self.edit_with(|bp| sampler::keep(bp, &o.src, &o.name, &chosen, &opt, &dir).map(|s| s.said(&o.name)));

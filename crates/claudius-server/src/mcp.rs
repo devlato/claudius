@@ -528,6 +528,11 @@ pub struct KeepArgs {
     /// the sections to put them in, by name or kind (those that suit each by default)
     #[serde(default)]
     pub sections: Vec<String>,
+    /// how often each comes round in its sections: "once" (from the start of each), "2", "4", "8" or "16" (once
+    /// every so many bars, silent between) or "through" (all through each); by default as the song's genre and what
+    /// its sections play suit
+    #[serde(default)]
+    pub every: Option<String>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -674,6 +679,10 @@ pub struct SampleArgs {
     /// instrument) or "stabs" (a syllable struck as a drum)
     #[serde(default)]
     pub how: Option<String>,
+    /// how often each phrase comes round in its sections, as for keep_pieces: "once", "2", "4", "8", "16" or
+    /// "through" (as the song suits by default)
+    #[serde(default)]
+    pub every: Option<String>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -1464,11 +1473,11 @@ impl Studio {
     }
 
     #[tool(
-        description = "Sample the pieces sample_pieces offered that the person chose into the song, each as it was cut or with its treatment (`treated`), placed as the auto-sampler places phrases: in `sections` when given, else in those that suit each, from the bar where its notes agree best with the chords, moved to the song's key and tempo. The song credits the recording. Then listen."
+        description = "Sample the pieces sample_pieces offered that the person chose into the song, each as it was cut or with its treatment (`treated`), placed as the auto-sampler places phrases: in `sections` when given, else in those that suit each, from the bar where its notes agree best with the chords, moved to the song's key and tempo, and coming round as `every` says. By default the song chooses how often, and the reply says why: once from the start of each section where a lead or a voice already sings, every other time round in a genre built on a sampled phrase, once every 8 bars in one that is not. The song credits the recording. Then listen."
     )]
     async fn keep_pieces(&self, Parameters(a): Parameters<KeepArgs>) -> Result<String, String> {
         let keep = a.keep.into_iter().map(|k| claudius_api::KeptPiece { id: k.id, treated: k.treated }).collect();
-        self.edit(Command::KeepPieces { keep, sections: a.sections }, true).await
+        self.edit(Command::KeepPieces { keep, sections: a.sections, every: a.every }, true).await
     }
 
     #[tool(
@@ -1557,6 +1566,7 @@ impl Studio {
             find: a.find,
             sections: a.sections,
             how: a.how,
+            every: a.every,
         };
         self.edit(c, true).await
     }

@@ -248,7 +248,7 @@ impl Host {
             Listen::Analyze { .. } => {
                 let a = claudius::analysis::song::analyze(&x, None);
                 let text = listen::analysis_text(&a);
-                self.listened = Some(listen::listened(&a, &x, &name));
+                self.listened = Some(listen::listened(&a, &x, &name, None));
                 self.heard = Some((name.clone(), Box::new(a)));
                 self.say(format!("analyzed {name}"));
                 self.version += 1;
@@ -673,7 +673,7 @@ impl Host {
                 }
                 None => self.no("no pieces to draw again: sample a recording first"),
             },
-            Command::KeepPieces { keep, sections } => self.keep_pieces(&keep, sections),
+            Command::KeepPieces { keep, sections, every } => self.keep_pieces(&keep, sections, every.as_deref()),
             Command::CancelPitchCheck { id } => match &mut self.pitch_check {
                 Some((_, view)) if view.id == id && view.status == TakeStatus::Waiting => {
                     view.status = TakeStatus::Cancelled;
@@ -942,20 +942,21 @@ impl Host {
                 (Ok(r), Ok(t)) => (r, t),
                 (Err(e), _) | (_, Err(e)) => return self.no(format!("cannot make the pieces to hear: {e}")),
             };
+            let (from, to) = p.phrase.within.unwrap_or((p.phrase.start, p.phrase.start));
             views.push(PieceView {
                 id: i as u32 + 1,
                 place: p.place(),
                 bars: p.phrase.bars,
                 sung: p.phrase.sung,
+                from,
+                to,
+                section: p.section.clone(),
                 raw,
                 treated,
                 treatment: p.treatment.clone(),
             });
         }
-        let lines: Vec<String> = views
-            .iter()
-            .map(|p| format!("{}: {}, {:.0}% sung; treated, {}", p.id, p.place, p.sung * 100.0, p.treatment))
-            .collect();
+        let lines: Vec<String> = views.iter().map(crate::listen::piece_said).collect();
         let n = views.len();
         let said = format!("{n} piece{} of {name}, take {seed}:\n{}", if n == 1 { "" } else { "s" }, lines.join("\n"));
         let view = PiecesView { recording: name.to_string(), seed, pieces: views };
@@ -967,9 +968,13 @@ impl Host {
 
     /// the pieces offered that `keep` names, each as it was cut or treated, sampled into the song in `sections`,
     /// crediting the library's recording they came from; the offer goes once they are in
-    fn keep_pieces(&mut self, keep: &[KeptPiece], sections: Vec<String>) -> Reply {
+    fn keep_pieces(&mut self, keep: &[KeptPiece], sections: Vec<String>, every: Option<&str>) -> Reply {
         let Some((o, _)) = &self.pieces else {
             return self.no("no pieces to keep: sample a recording first");
+        };
+        let every = match crate::listen::every(every) {
+            Ok(every) => every,
+            Err(e) => return self.no(e),
         };
         if let Some(k) = keep.iter().find(|k| o.pieces.get((k.id as usize).wrapping_sub(1)).is_none()) {
             let n = o.pieces.len();
@@ -978,7 +983,7 @@ impl Host {
         let Some(mut bp) = self.bp.clone() else { return self.no("no song yet: start one with a new song") };
         let (o, view) = self.pieces.take().expect("an offer, as above");
         let chosen: Vec<_> = keep.iter().map(|k| (&o.pieces[k.id as usize - 1], k.treated)).collect();
-        let opt = claudius::sampler::Options { sections, ..o.opt.clone() };
+        let opt = claudius::sampler::Options { sections, every, ..o.opt.clone() };
         let before = sampled(&bp);
         let dir = std::path::Path::new(take::IN_MEMORY);
         match claudius::sampler::keep(&mut bp, &o.src, &o.name, &chosen, &opt, dir) {
