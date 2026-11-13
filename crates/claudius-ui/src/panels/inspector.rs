@@ -91,9 +91,10 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         .inner_margin(8)
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
-            egui::Grid::new("section_grid").num_columns(2).spacing(vec2(10.0, 7.0)).show(ui, |ui| {
-                ui.label(small("Name"));
-                ui.horizontal(|ui| {
+            widgets::field(
+                ui,
+                |ui| _ = ui.label(small("Name")),
+                |ui| {
                     let id = ui.make_persistent_id("section_name");
                     let editing =
                         ui.memory(|m| m.has_focus(id)) && cx.view.name_edit.as_ref().is_some_and(|(at, _)| *at == i);
@@ -109,11 +110,13 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         }
                     }
                     widgets::pill(ui, &s.kind, color);
-                });
-                ui.end_row();
+                },
+            );
 
-                ui.label(small("Length"));
-                ui.horizontal(|ui| {
+            widgets::field(
+                ui,
+                |ui| _ = ui.label(small("Length")),
+                |ui| {
                     let r = ui.add(
                         egui::DragValue::new(&mut s.bars)
                             .range(1..=256)
@@ -125,33 +128,44 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     if commit(&r) {
                         cx.out.push(SectionEdit { bars: Some(s.bars), ..Default::default() }.at(i));
                     }
-                    for b in [4, 8, 16, 32] {
-                        if ui.selectable_label(s.bars == b, b.to_string()).clicked() {
-                            s.bars = b;
-                            cx.out.push(SectionEdit { bars: Some(b), ..Default::default() }.at(i));
+                    // the lengths to pick go onto the next line together, when they do
+                    ui.horizontal(|ui| {
+                        for b in [4, 8, 16, 32] {
+                            if ui.selectable_label(s.bars == b, b.to_string()).clicked() {
+                                s.bars = b;
+                                cx.out.push(SectionEdit { bars: Some(b), ..Default::default() }.at(i));
+                            }
                         }
-                    }
-                });
-                ui.end_row();
+                    });
+                },
+            );
 
-                ui.label(small("Starts"));
-                ui.label(
-                    RichText::new(format!(
-                        "bar {}  ·  {}",
-                        s.start_bar + 1,
-                        super::fmt_time(s.start_bar as f64 * 240.0 / bpm)
-                    ))
-                    .color(TEXT_DIM),
-                );
-                ui.end_row();
+            widgets::field(
+                ui,
+                |ui| _ = ui.label(small("Starts")),
+                |ui| {
+                    ui.label(
+                        RichText::new(format!(
+                            "bar {}  ·  {}",
+                            s.start_bar + 1,
+                            super::fmt_time(s.start_bar as f64 * 240.0 / bpm)
+                        ))
+                        .color(TEXT_DIM),
+                    );
+                },
+            );
 
+            let label = |ui: &mut Ui| {
                 widgets::label_help(
                     ui,
                     "Intensity",
-                    "How full and loud the section plays, from almost empty (0%) to everything at once (100%). An \
-                     intro or a break is low, a drop high: it sets how many parts play and how busy the drums are.",
+                    "How full and loud the section plays, from almost empty (0%) to everything at once (100%). \
+                         An intro or a break is low, a drop high: it sets how many parts play and how busy the drums \
+                         are.",
                     "language/form.html#energy",
-                );
+                )
+            };
+            widgets::field(ui, label, |ui| {
                 let r = ui
                     .add(
                         egui::Slider::new(&mut s.energy, 0.0..=1.0)
@@ -164,32 +178,36 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 if commit(&r) {
                     cx.out.push(SectionEdit { energy: Some(s.energy), ..Default::default() }.at(i));
                 }
-                ui.end_row();
+            });
 
+            let label = |ui: &mut Ui| {
                 widgets::label_help(
                     ui,
                     "Chords",
-                    "The chord progression this section plays: a list of chords that repeats. Sections can share one \
-                     (A) or have their own (B for a break). Change the chords themselves in the Chords tab.",
+                    "The chord progression this section plays: a list of chords that repeats. Sections can share \
+                         one (A) or have their own (B for a break). Change the chords themselves in the Chords tab.",
                     "language/song-functions.html#prog",
-                );
+                )
+            };
+            widgets::field(ui, label, |ui| {
+                let label = |name: &str| -> String {
+                    let chords = progressions.iter().find(|(n, _)| n == name).map(|(_, c)| c.as_slice()).unwrap_or(&[]);
+                    let names: Vec<String> = chords
+                        .iter()
+                        .map(|c| key.as_ref().and_then(|k| crate::music::chord(c, k)).map_or(c.clone(), |x| x.name))
+                        .collect();
+                    format!("{name}  {}", names.join(" "))
+                };
+                let current = if s.prog.is_empty() { "A".to_string() } else { s.prog.clone() };
                 ui.horizontal(|ui| {
-                    let label = |name: &str| -> String {
-                        let chords =
-                            progressions.iter().find(|(n, _)| n == name).map(|(_, c)| c.as_slice()).unwrap_or(&[]);
-                        let names: Vec<String> = chords
-                            .iter()
-                            .map(|c| key.as_ref().and_then(|k| crate::music::chord(c, k)).map_or(c.clone(), |x| x.name))
-                            .collect();
-                        format!("{name}  {}", names.join(" "))
-                    };
-                    let current = if s.prog.is_empty() { "A".to_string() } else { s.prog.clone() };
                     let (rect, _) = ui.allocate_exact_size(vec2(10.0, 10.0), egui::Sense::hover());
                     ui.painter().rect_filled(rect, 2.0, theme::prog_color(&current));
-                    // its chords cut short to the column's width, rather than widening the inspector beyond the window
+                    // its chords cut short to the width there is beside its colour, rather than widening the inspector
+                    // beyond the window
+                    let width = (ui.available_width() - 2.0 * ui.spacing().interact_size.y).clamp(80.0, 170.0);
                     egui::ComboBox::from_id_salt("section_prog")
                         .selected_text(label(&current))
-                        .width(170.0)
+                        .width(width)
                         .truncate()
                         .show_ui(ui, |ui| {
                             for (name, _) in &progressions {
@@ -209,15 +227,18 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         .response
                         .on_hover_text(format!("the chord progression this section plays: {}", label(&current)));
                 });
-                ui.end_row();
+            });
 
+            let label = |ui: &mut Ui| {
                 widgets::label_help(
                     ui,
                     "Drum pattern",
-                    "Which version of the drum patterns plays here: main, or a sparser or busier one. Each drum lane \
-                     has its steps for each version; write them in the Drums tab.",
+                    "Which version of the drum patterns plays here: main, or a sparser or busier one. Each drum \
+                         lane has its steps for each version; write them in the Drums tab.",
                     "language/song-functions.html#drum",
-                );
+                )
+            };
+            widgets::field(ui, label, |ui| {
                 let (shown, about) = words::variant_in_words(&s.variant);
                 egui::ComboBox::from_id_salt("section_variant")
                     .selected_text(shown)
@@ -225,7 +246,8 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     .show_ui(ui, |ui| {
                         for v in &variants {
                             let (shown, about) = words::variant_in_words(v);
-                            let r = ui.selectable_label(&s.variant == v, shown).on_hover_text(super::named(Some(about), v));
+                            let tip = super::named(Some(about), v);
+                            let r = ui.selectable_label(&s.variant == v, shown).on_hover_text(tip);
                             if r.clicked() && &s.variant != v {
                                 s.variant = v.clone();
                                 cx.out.push(SectionEdit { variant: Some(v.clone()), ..Default::default() }.at(i));
@@ -237,61 +259,64 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                         "which of the drums' patterns this section plays (Drums shows each): {}",
                         super::named(Some(about), &s.variant)
                     ));
-                ui.end_row();
+            });
 
+            let label = |ui: &mut Ui| {
                 widgets::label_help(
                     ui,
                     "Transitions",
-                    "Moves that lead into or out of the section: a filter that opens over it, a build-up of riser \
-                     and snare roll into the next, a beat of silence at its end, a crash on its first beat, drum fills.",
+                    "Moves that lead into or out of the section: a filter that opens over it, a build-up of \
+                         riser and snare roll into the next, a beat of silence at its end, a crash on its first beat, \
+                         drum fills.",
                     "language/form.html#what-the-flags-do",
-                );
-                ui.horizontal_wrapped(|ui| {
-                    ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
-                    let on = [s.filter_in, s.build, s.gap, s.impact, s.fills];
-                    for (k, ((label, tip), on)) in MOVES.into_iter().zip(on).enumerate() {
-                        if widgets::chip(ui, on, label, color).on_hover_text(tip).clicked() {
-                            let v = Some(!on);
-                            let mut e = SectionEdit::default();
-                            match k {
-                                0 => (s.filter_in, e.filter_in) = (!on, v),
-                                1 => (s.build, e.build) = (!on, v),
-                                2 => (s.gap, e.gap) = (!on, v),
-                                3 => (s.impact, e.impact) = (!on, v),
-                                _ => (s.fills, e.fills) = (!on, v),
-                            }
-                            cx.out.push(e.at(i));
+                )
+            };
+            widgets::field(ui, label, |ui| {
+                ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
+                let on = [s.filter_in, s.build, s.gap, s.impact, s.fills];
+                for (k, ((label, tip), on)) in MOVES.into_iter().zip(on).enumerate() {
+                    if widgets::chip(ui, on, label, color).on_hover_text(tip).clicked() {
+                        let v = Some(!on);
+                        let mut e = SectionEdit::default();
+                        match k {
+                            0 => (s.filter_in, e.filter_in) = (!on, v),
+                            1 => (s.build, e.build) = (!on, v),
+                            2 => (s.gap, e.gap) = (!on, v),
+                            3 => (s.impact, e.impact) = (!on, v),
+                            _ => (s.fills, e.fills) = (!on, v),
                         }
+                        cx.out.push(e.at(i));
                     }
-                });
-                ui.end_row();
+                }
+            });
 
-                if s.build {
+            if s.build {
+                let label = |ui: &mut Ui| {
                     widgets::label_help(
                         ui,
                         "Build-up",
                         "How the build-up leads into the next section, and how hard. Everything rolls the snare, \
-                         takes the kick out, raises a riser and sweeps the low end away; the other ways take one or \
-                         two of those. Harder makes the roll longer and louder, the sweep climb higher, the riser \
-                         longer, and the drums leave for longer.",
+                             takes the kick out, raises a riser and sweeps the low end away; the other ways take one \
+                             or two of those. Harder makes the roll longer and louder, the sweep climb higher, the \
+                             riser longer, and the drums leave for longer.",
                         "language/form.html#build",
-                    );
+                    )
+                };
+                widgets::field(ui, label, |ui| {
+                    let styles = claudius_api::BUILD_STYLES;
+                    let shown = styles.iter().find(|b| b.0 == s.build_style).map_or(styles[0].1, |b| b.1);
+                    egui::ComboBox::from_id_salt("build_style").width(130.0).selected_text(shown).show_ui(ui, |ui| {
+                        for (name, words, about) in styles {
+                            let r = ui.selectable_label(s.build_style == name, words).on_hover_text(about);
+                            if r.clicked() && s.build_style != name {
+                                s.build_style = name.to_string();
+                                let e = SectionEdit { build_style: Some(name.into()), ..Default::default() };
+                                cx.out.push(e.at(i));
+                            }
+                        }
+                    });
+                    // how hard, from gentle to hard, goes onto the next line as one, when it does
                     ui.horizontal(|ui| {
-                        let styles = claudius_api::BUILD_STYLES;
-                        let shown = styles.iter().find(|b| b.0 == s.build_style).map_or(styles[0].1, |b| b.1);
-                        egui::ComboBox::from_id_salt("build_style").width(130.0).selected_text(shown).show_ui(
-                            ui,
-                            |ui| {
-                                for (name, words, about) in styles {
-                                    let r = ui.selectable_label(s.build_style == name, words).on_hover_text(about);
-                                    if r.clicked() && s.build_style != name {
-                                        s.build_style = name.to_string();
-                                        let e = SectionEdit { build_style: Some(name.into()), ..Default::default() };
-                                        cx.out.push(e.at(i));
-                                    }
-                                }
-                            },
-                        );
                         ui.label(small("gentle"));
                         let r = ui
                             .add(egui::Slider::new(&mut s.build_amount, 0.0..=1.0).show_value(false))
@@ -302,36 +327,36 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                             cx.out.push(e.at(i));
                         }
                     });
-                    ui.end_row();
-                }
+                });
+            }
 
+            let label = |ui: &mut Ui| {
                 widgets::label_help(
                     ui,
                     "Playing",
-                    "The tracks that play in this section, lit when they do. Click one to switch it on or off here; \
-                     all on and all off do every track. A double-click on a track's cell in the arrangement does the \
-                     same.",
+                    "The tracks that play in this section, lit when they do. Click one to switch it on or off \
+                         here; all on and all off do every track. A double-click on a track's cell in the arrangement \
+                         does the same.",
                     "getting-started/studio.html#the-panels",
-                );
-                ui.horizontal_wrapped(|ui| {
-                    ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
-                    for (layer, c) in layers_all.iter().zip(&colors) {
-                        let on = s.layers.contains(layer);
-                        let tip = if on { "plays here: click to leave it out" } else { "click to have it play here" };
-                        if widgets::chip(ui, on, layer, *c).on_hover_text(tip).clicked() {
-                            cx.out.push(Command::ToggleLayer { section: i, layer: layer.clone() });
-                        }
+                )
+            };
+            widgets::field(ui, label, |ui| {
+                ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
+                for (layer, c) in layers_all.iter().zip(&colors) {
+                    let on = s.layers.contains(layer);
+                    let tip = if on { "plays here: click to leave it out" } else { "click to have it play here" };
+                    if widgets::chip(ui, on, layer, *c).on_hover_text(tip).clicked() {
+                        cx.out.push(Command::ToggleLayer { section: i, layer: layer.clone() });
                     }
-                    let all = ui.add(egui::Button::new(small("all on")).frame(false));
-                    if all.on_hover_text("every track plays here").clicked() {
-                        cx.out.push(SectionEdit { layers: Some(layers_all.clone()), ..Default::default() }.at(i));
-                    }
-                    let none = ui.add(egui::Button::new(small("all off")).frame(false));
-                    if none.on_hover_text("nothing plays here").clicked() {
-                        cx.out.push(SectionEdit { layers: Some(Vec::new()), ..Default::default() }.at(i));
-                    }
-                });
-                ui.end_row();
+                }
+                let all = ui.add(egui::Button::new(small("all on")).frame(false));
+                if all.on_hover_text("every track plays here").clicked() {
+                    cx.out.push(SectionEdit { layers: Some(layers_all.clone()), ..Default::default() }.at(i));
+                }
+                let none = ui.add(egui::Button::new(small("all off")).frame(false));
+                if none.on_hover_text("nothing plays here").clicked() {
+                    cx.out.push(SectionEdit { layers: Some(Vec::new()), ..Default::default() }.at(i));
+                }
             });
         });
     ui.add_space(4.0);
@@ -409,14 +434,16 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
         .inner_margin(8)
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
-            egui::Grid::new("track_grid").num_columns(2).spacing(vec2(10.0, 7.0)).show(ui, |ui| {
+            let label = |ui: &mut Ui| {
                 widgets::label_help(
                     ui,
                     "Sound",
                     "The instrument, synth or recording this track plays. Another sound picks the next one that fits \
                      it and that no other track plays; its notes stay the same, and undo swaps back.",
                     "getting-started/studio.html#swapping-a-sound",
-                );
+                )
+            };
+            widgets::field(ui, label, |ui| {
                 ui.vertical(|ui| {
                     ui.add(egui::Label::new(RichText::new(words::sound_in_words(&t.sound)).color(TEXT_DIM)).wrap())
                         .on_hover_text(&t.sound);
@@ -429,9 +456,10 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
                         cx.out.push(super::swap(&name, None));
                     }
                 });
-                ui.end_row();
+            });
 
-                if !t.layers.is_empty() {
+            if !t.layers.is_empty() {
+                let label = |ui: &mut Ui| {
                     widgets::label_help(
                         ui,
                         "Layers",
@@ -439,25 +467,33 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
                          deep one for the low end, another for the body, another for the top, the way modern bass \
                          and chords are built. Each is levelled on its own, so none covers another.",
                         "language/sounds.html#layered-sounds",
-                    );
+                    )
+                };
+                widgets::field(ui, label, |ui| {
                     ui.vertical(|ui| {
                         for layer in &t.layers {
                             ui.label(RichText::new(layer_words(layer)).size(11.5).color(TEXT_DIM));
                         }
                     });
-                    ui.end_row();
-                }
+                });
+            }
 
-                ui.label(small(format!("In {section}")));
-                let mut on = plays;
-                let tip = "whether it plays in the section selected: the same as a double-click on its cell";
-                if ui.checkbox(&mut on, "plays here").on_hover_text(tip).changed() {
-                    cx.out.push(Command::ToggleLayer { section: sec, layer: name.clone() });
-                }
-                ui.end_row();
+            widgets::field(
+                ui,
+                |ui| _ = ui.label(small(format!("In {section}"))),
+                |ui| {
+                    let mut on = plays;
+                    let tip = "whether it plays in the section selected: the same as a double-click on its cell";
+                    if ui.checkbox(&mut on, "plays here").on_hover_text(tip).changed() {
+                        cx.out.push(Command::ToggleLayer { section: sec, layer: name.clone() });
+                    }
+                },
+            );
 
-                ui.label(small("Heard"));
-                ui.horizontal(|ui| {
+            widgets::field(
+                ui,
+                |ui| _ = ui.label(small("Heard")),
+                |ui| {
                     if ui.selectable_label(t.muted, "Mute").on_hover_text("silence it everywhere").clicked() {
                         cx.out.push(MixEdit { muted: Some(!t.muted), ..Default::default() }.on(&name));
                     }
@@ -465,16 +501,19 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
                     if ui.selectable_label(t.solo, "Solo").on_hover_text(tip).clicked() {
                         cx.out.push(MixEdit { solo: Some(!t.solo), ..Default::default() }.on(&name));
                     }
-                });
-                ui.end_row();
+                },
+            );
 
+            let label = |ui: &mut Ui| {
                 widgets::label_help(
                     ui,
                     "Level",
                     "How loud this track is. 0 dB is the level claudius mixes a track of its kind at; below it is \
                      quieter, above it louder.",
                     "language/mixing.html#level",
-                );
+                )
+            };
+            widgets::field(ui, label, |ui| {
                 let r = ui
                     // a track the mixer set quieter than the slider goes stays as it is until the slider is moved
                     .add(
@@ -487,15 +526,18 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
                 if commit(&r) {
                     cx.out.push(MixEdit { level_db: Some(t.level_db), ..Default::default() }.on(&name));
                 }
-                ui.end_row();
+            });
 
+            let label = |ui: &mut Ui| {
                 widgets::label_help(
                     ui,
                     "Pan",
                     "Where this track sits between your speakers: -1 is all the way left, 1 all the way right, 0 the \
                      middle. Spreading tracks apart makes room for each.",
                     "language/mixing.html#pan",
-                );
+                )
+            };
+            widgets::field(ui, label, |ui| {
                 let r = ui
                     .add(
                         egui::Slider::new(&mut t.pan, -1.0..=1.0)
@@ -506,10 +548,12 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
                 if commit(&r) {
                     cx.out.push(MixEdit { pan: Some(t.pan), ..Default::default() }.on(&name));
                 }
-                ui.end_row();
+            });
 
-                ui.label(small("Edit"));
-                ui.horizontal_wrapped(|ui| {
+            widgets::field(
+                ui,
+                |ui| _ = ui.label(small("Edit")),
+                |ui| {
                     if let Some((tab, label, tip)) = editor
                         && ui.button(label).on_hover_text(tip).clicked()
                     {
@@ -520,9 +564,8 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
                         cx.view.tab = Tab::Graph;
                         cx.view.graph.selected = Some(format!("track:{name}"));
                     }
-                });
-                ui.end_row();
-            });
+                },
+            );
         });
 }
 

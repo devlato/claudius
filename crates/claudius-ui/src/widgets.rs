@@ -615,6 +615,25 @@ pub fn label_help(ui: &mut Ui, label: &str, text: &str, page: &str) {
     });
 }
 
+/// how wide the column of a panel's field labels is
+pub const LABEL_WIDTH: f32 = 104.0;
+
+/// A field of a panel, on a line of its own: its label (`label`) in a column `LABEL_WIDTH` wide, and its controls after
+/// it, wrapping within the rest of the line. The line is as tall as what it holds this frame, so a field that wraps
+/// onto another line, or one that comes and goes, moves the fields under it at once: a `Grid` lays each row out in
+/// the height it had the frame before, centred, which left a row over the next.
+pub fn field<R>(ui: &mut Ui, label: impl FnOnce(&mut Ui), controls: impl FnOnce(&mut Ui) -> R) -> R {
+    ui.horizontal_top(|ui| {
+        let size = vec2(LABEL_WIDTH, ui.spacing().interact_size.y);
+        ui.allocate_ui_with_layout(size, egui::Layout::left_to_right(egui::Align::Center), |ui| {
+            ui.set_min_size(size);
+            label(ui);
+        });
+        ui.horizontal_wrapped(controls).inner
+    })
+    .inner
+}
+
 /// the verdict score as a big coloured badge
 pub fn score_badge(ui: &mut Ui, total: Option<f64>, height: f32) -> Response {
     let text = total.map_or("--".to_string(), |t| format!("{t:.0}"));
@@ -765,6 +784,30 @@ mod tests {
             assert_eq!(frame(&ctx, show).0, 1, "{what}, with it");
             ctx.memory_mut(|m| m.surrender_focus(id));
         }
+    }
+
+    #[test]
+    fn a_field_is_as_tall_as_its_controls_that_frame_so_the_next_starts_under_them() {
+        let ctx = egui::Context::default();
+        let mut ends = Vec::new();
+        // the first field's controls on one line, then on several as they come to need more room, then one again
+        for count in [2, 9, 2] {
+            let (mut end, mut next) = (0.0, 0.0);
+            let mut out = ctx.run_ui(Default::default(), |ui| {
+                ui.allocate_ui(vec2(320.0, 600.0), |ui| {
+                    end = field(
+                        ui,
+                        |ui| _ = ui.label("Transitions"),
+                        |ui| (0..count).map(|i| ui.button(format!("move {i}")).rect.bottom()).fold(0.0, f32::max),
+                    );
+                    next = field(ui, |ui| _ = ui.label("Playing"), |ui| ui.button("kick").rect.top());
+                });
+            });
+            out.textures_delta.clear();
+            assert!(end <= next, "{count} controls end at {end}, and the next field starts at {next}");
+            ends.push(end);
+        }
+        assert!(ends[1] > ends[0] + 20.0 && (ends[2] - ends[0]).abs() < 0.5, "they wrapped and came back: {ends:?}");
     }
 
     #[test]
