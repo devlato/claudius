@@ -6,6 +6,12 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-13
+
+### Added
+
+- studio: Wear the dark look until you choose another, with its switch beside the score ([#259](https://github.com/devlato/claudius/pull/259))
+
 ## [0.8.0] - 2026-11-13
 
 ### Added
@@ -1155,7 +1161,8 @@ The first public release.
   theory checks), Linux on x86_64 and ARM64 with a headless build for machines without sound or a display, and
   Windows as a preview. One-line installers for each, which come with every release and are in its checksums.
 
-[unreleased]: https://github.com/devlato/claudius/compare/v0.8.0...HEAD
+[unreleased]: https://github.com/devlato/claudius/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/devlato/claudius/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/devlato/claudius/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/devlato/claudius/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/devlato/claudius/compare/v0.5.0...v0.6.0
