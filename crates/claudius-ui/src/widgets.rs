@@ -859,6 +859,33 @@ mod tests {
     }
 
     #[test]
+    fn controls_kept_together_come_back_up_beside_the_control_before_them_once_they_fit_there_again() {
+        // the width a group decides by is its own, not the line it was given: on the next line it would be the whole
+        // line, which never fits beside the control before it
+        let ctx = egui::Context::default();
+        for (before, beside) in [(60.0, true), (240.0, false), (60.0, true)] {
+            let (mut first, mut group) = (Rect::NOTHING, Vec::new());
+            let mut out = ctx.run_ui(Default::default(), |ui| {
+                ui.allocate_ui(vec2(420.0, 300.0), |ui| {
+                    field(
+                        ui,
+                        |ui| _ = ui.label("Length"),
+                        |ui| {
+                            first = ui.add(egui::Button::new("8 bars").min_size(vec2(before, 0.0))).rect;
+                            group = together(ui, "lengths", |ui| {
+                                ["4", "8", "16", "32"].map(|b| ui.button(b).rect).to_vec()
+                            });
+                        },
+                    );
+                });
+            });
+            out.textures_delta.clear();
+            let line = (first.center().y - group[0].center().y).abs() < 0.5;
+            assert_eq!(line, beside, "after a control {before} wide: {first:?} {group:?}");
+        }
+    }
+
+    #[test]
     fn every_icon_is_a_glyph_of_the_icon_font_and_the_text_font_draws_the_studios_punctuation() {
         let ctx = egui::Context::default();
         ctx.set_fonts(theme::fonts());
