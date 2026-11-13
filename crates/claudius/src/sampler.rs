@@ -812,11 +812,12 @@ fn period(bp: &Blueprint, secs: &[usize], bars: u32, every: Option<Every>, sung:
     }
 }
 
-/// whether a lead part or a voice (a take, or a phrase sampled into the song) plays in section `si` of `bp`
+/// whether a melody plays in section `si` of `bp`: a lead part, or a loop mixed as a voice or a lead (a phrase sampled
+/// into the song, or a take, which `add_take` mixes as a lead unless told otherwise)
 fn sings_in(bp: &Blueprint, si: usize) -> bool {
     let layers = &bp.form[si].layers;
     bp.parts.iter().any(|p| p.role == Role::Lead && layers.contains(&p.name))
-        || bp.loops.iter().any(|l| l.role == "vocal" && layers.contains(&l.name))
+        || bp.loops.iter().any(|l| matches!(l.role.as_str(), "vocal" | "lead") && layers.contains(&l.name))
 }
 
 /// a recording as the sampler heard it: its sound, its stems when they are apart, its analysis and its name
@@ -1785,6 +1786,33 @@ mod tests {
         assert_eq!((r.every, r.why.as_deref()), (Every::Once, Some("as a lead or a voice sings there already")));
         // where nothing sings: every other time round in trip-hop, built on samples; every 8 bars in house, not
         bp.form[drop].layers.retain(|l| *l != lead);
+        assert!(!sings_in(&bp, drop));
+        // a take mixed as a lead, as add_take mixes one, is a melody there too; a take of drums is none
+        let take = |name: &str, role: &str| LoopPart {
+            name: name.into(),
+            role: role.into(),
+            sound: Sound::Loop {
+                path: "take.flac".into(),
+                bpm: 120.0,
+                beats: 16.0,
+                key: None,
+                tonal: true,
+                label: name.into(),
+            },
+            transpose: 0,
+            chop: Vec::new(),
+            slice_beats: 0.0,
+            retime: false,
+            mix: TrackMix::default(),
+            from: Some("drop".into()),
+            sampled: false,
+        };
+        bp.loops.extend([take("beat1", "drums"), take("take1", "lead")]);
+        bp.form[drop].layers.push("beat1".into());
+        assert!(!sings_in(&bp, drop), "a take of drums sings nothing");
+        bp.form[drop].layers.push("take1".into());
+        assert!(sings_in(&bp, drop), "a take mixed as a lead sings");
+        bp.form[drop].layers.retain(|l| l != "beat1" && l != "take1");
         let r = period(&bp, &secs, 2, None, &[]);
         assert_eq!((r.every, r.bars, r.why.as_deref()), (Every::Bars(4), 4, Some("as trip hop is built on samples")));
         bp.genre = "house".into();
