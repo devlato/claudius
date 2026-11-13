@@ -60,7 +60,9 @@ Analysis is best on steady electronic music with a clear kick, and approximate e
   with `i7` and `bIII`): the chords are right and the key name is not. A lead the critic finds outside the key while
   its strong-beat notes are chord tones points the same way;
 - a progression rotated by a bar, or with a seventh missing;
-- sections merged when their energy is close, even an intro that is clearly quieter.
+- sections merged when their energy is close, even an intro that is clearly quieter. None is longer than 32 bars (a
+  longer one is cut where it changes most, on an 8-bar phrase), and a recording whose sections are all within 1.5 dB
+  of each other has no drop: its sections play at a groove's level.
 
 Report it with that in mind ("about 118 BPM, probably D minor"). When the person knows the real tempo or key, theirs
 wins: `key("F minor")` on the remake keeps every chord as it sounds (a borrowed `bIII` becomes `III`) and rewrites the

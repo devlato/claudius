@@ -176,8 +176,12 @@ sidechained bass has swelled back.
 
 **Sections and energy.** The song is cut into 4-bar blocks described by their loudness, low and high band levels and
 chroma; a boundary goes where neighbouring blocks differ by more than the mean plus half a standard deviation, at least
-8 bars after the previous boundary and not in the last 4 bars. Each section's energy is its loudness scaled between
-the quietest and loudest sections, from 0.3 to 1. Kinds follow from energy and position: the first section is an
+8 bars after the previous boundary and not in the last 4 bars. A section longer than 32 bars after that is cut where
+its blocks differ most, on an 8-bar phrase from its start, at least 8 bars from both its ends, until none is (the cut
+nearest its middle where they differ as much everywhere): a steady track or a loop would otherwise be one section, and
+a remake of it one song-long drop. Each section's energy is its loudness scaled between
+the quietest and loudest sections, from 0.3 to 1; sections within 1.5 dB of each other all take a groove's, 0.72,
+since no one hears that difference as a drop against a break. Kinds follow from energy and position: the first section is an
 intro and the last an outro unless they are loud, anything at 0.85 or more is a drop, a section of at least 0.45
 before a drop is a build, a section without kick or under 0.5 is a break, the rest grooves.
 

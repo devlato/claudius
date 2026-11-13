@@ -333,9 +333,31 @@ pub fn analyze_with(x: &Stereo, stems: Option<&Stems>, bpm_range: Option<(f64, f
         }
     }
     bounds.push(bars);
+    // A section longer than 32 bars is cut where it changes most, on a phrase of 8 bars from its start and 8 bars from
+    // its ends or more, until none is: a recording that changes too little for the threshold above (a steady track, a
+    // loop) is not all one section, which a remake would then play as one long drop. Where it changes as much
+    // everywhere, the cut nearest its middle.
+    let top = d.iter().copied().fold(0.0, f64::max).max(1e-9);
+    loop {
+        let cut = bounds
+            .windows(2)
+            .filter(|w| w[1] - w[0] > 32)
+            .flat_map(|w| {
+                (w[0] + 8..=w[1] - 8).filter(|b| (b - w[0]) % 8 == 0 && b % block == 0 && bars - b >= 4).map(|b| {
+                    let even = (b - w[0]).min(w[1] - b) as f64 / (w[1] - w[0]) as f64;
+                    (b, d[b / block - 1] / top + 0.25 * even)
+                })
+            })
+            .max_by(|a, b| a.1.total_cmp(&b.1));
+        let Some((b, _)) = cut else { break };
+        bounds.insert(bounds.partition_point(|&x| x < b), b);
+    }
     let sec_rms: Vec<f64> =
         bounds.windows(2).map(|w| (w[0]..w[1]).map(|b| rms[b]).sum::<f64>() / (w[1] - w[0]).max(1) as f64).collect();
     let (rmin, rmax) = sec_rms.iter().fold((f64::MAX, f64::MIN), |(a, b), v| (a.min(*v), b.max(*v)));
+    // sections within 1.5 dB of each other all play at one level, a groove's, rather than each as loud as a drop or as
+    // quiet as a break by a difference no one hears
+    let flat = rmax - rmin < 1.5;
     let mean_steps = |v: &Vec<[f32; 16]>, a: usize, b: usize| -> f32 {
         (a..b).map(|i| v[i].iter().sum::<f32>()).sum::<f32>() / ((b - a).max(1) * 16) as f32
     };
@@ -347,7 +369,7 @@ pub fn analyze_with(x: &Stereo, stems: Option<&Stems>, bpm_range: Option<(f64, f
     let mut sections: Vec<SectionGuess> = Vec::new();
     for (i, w) in bounds.windows(2).enumerate() {
         let (a, b) = (w[0], w[1]);
-        let e = if rmax - rmin > 1e-6 { ((sec_rms[i] - rmin) / (rmax - rmin)) as f32 } else { 0.8 };
+        let e = if flat { 0.6 } else { ((sec_rms[i] - rmin) / (rmax - rmin)) as f32 };
         let bass_m = (a..b).map(|x| bass_db[x]).sum::<f64>() / (b - a).max(1) as f64;
         let kick_on = mean_steps(&kick, a, b) > 0.6 * kick_ref;
         sections.push(SectionGuess {
@@ -615,8 +637,41 @@ pub fn to_blueprint(
 
 #[cfg(test)]
 mod tests {
-    use super::remake_tempo;
+    use super::{SectionKind, analyze, remake_tempo};
+    use crate::audio::Stereo;
     use crate::genres;
+
+    #[test]
+    fn a_steady_recording_is_cut_into_sections_and_none_of_them_is_a_drop() {
+        // 96 bars at 120 BPM of the same: a kick on every beat, a hat on every offbeat, a chord held all through
+        let sr = crate::config::SR as usize;
+        let beat = sr / 2;
+        let mut x = Stereo::zeros(96 * 4 * beat);
+        let (kick, hat) = (sr / 20, sr / 100);
+        let mut phase = [0f64; 3];
+        for i in 0..x.len() {
+            let t = i % beat;
+            let mut v = 0.0;
+            if t < kick {
+                v += (1.0 - t as f32 / kick as f32) * (std::f32::consts::TAU * 55.0 * t as f32 / sr as f32).sin() * 0.6;
+            }
+            if (t + beat / 2) % beat < hat {
+                v += if i % 3 == 0 { 0.15 } else { -0.15 };
+            }
+            for (p, f) in phase.iter_mut().zip([220.0, 277.18, 329.63]) {
+                *p += std::f64::consts::TAU * f / sr as f64;
+                v += p.sin() as f32 * 0.08;
+            }
+            (x.l[i], x.r[i]) = (v, v);
+        }
+        let a = analyze(&x, None);
+        let heard: Vec<(SectionKind, usize)> = a.sections.iter().map(|s| (s.kind, s.bars)).collect();
+        assert!(a.sections.len() >= 2 && a.sections.iter().all(|s| s.bars <= 32), "{} bars: {heard:?}", a.bars);
+        assert!(a.sections.iter().all(|s| s.kind != SectionKind::Drop), "{heard:?}");
+        // as even as the phrases allow: no scrap of a section beside a long one
+        let (short, long) = a.sections.iter().fold((usize::MAX, 0), |(lo, hi), s| (lo.min(s.bars), hi.max(s.bars)));
+        assert!(long <= 2 * short, "{heard:?}");
+    }
 
     #[test]
     fn a_remake_plays_at_a_tempo_its_genre_plays() {
