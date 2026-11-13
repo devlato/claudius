@@ -639,6 +639,21 @@ impl Host {
             Command::GoBack { to } => self.go_back(&to),
             Command::Together { said, commands } => self.together(said, commands),
             Command::SongLike { genre, seed } => self.song_like(genre, seed),
+            Command::ChangeGenre { genre, seed } => {
+                if self.bp.is_none() {
+                    return self.no("no song yet: start one with a new song, then change its genre");
+                }
+                let g = match genres::get(&genre) {
+                    Ok(g) => g,
+                    Err(e) => return self.no(e.to_string()),
+                };
+                let seed = seed.unwrap_or_else(|| self.seed());
+                self.edit_take(|bp| {
+                    let (new, said) = claudius::regenre::change(bp, &g, seed, None);
+                    *bp = new;
+                    Ok(said)
+                })
+            }
             Command::Render { .. } if self.stale() => self.ok("rendering"),
             Command::Render { .. } => self.ok("the render is up to date"),
             // a take's drums and singing, which the page holds in memory

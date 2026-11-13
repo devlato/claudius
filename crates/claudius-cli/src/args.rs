@@ -209,6 +209,22 @@ pub(crate) enum Cmd {
         #[arg(short, long, default_value = "out")]
         out: PathBuf,
     },
+    /// Write a song in another genre, keeping the song: its form, chords and key, the recordings it plays, the notes
+    /// written out on its parts, its lead's melody and its pattern tracks; the genre's drums, bass, parts, sounds,
+    /// swing and mix play it (its tempo stays when recordings play in it, else moves to the nearest the genre plays)
+    ChangeGenre {
+        blueprint: PathBuf,
+        /// the genre, or two or three fused: trip_hop+idm
+        #[arg(short, long)]
+        genre: String,
+        #[arg(short, long)]
+        seed: Option<u64>,
+        #[command(flatten)]
+        ears: EarsArgs,
+        /// the folder to write it into (default: beside the song's, named after it and the genre)
+        #[arg(short, long)]
+        out: Option<PathBuf>,
+    },
     /// Chop a recording into bar loops and drum one-shots (added to the user library); --find pulls out moments
     /// matching a description ("a vocal chop", "a snare hit")
     Chop {

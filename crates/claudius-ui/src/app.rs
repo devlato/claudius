@@ -416,6 +416,12 @@ impl Studio {
                 self.view.script.dirty = false;
                 self.view.download = None;
             }
+            // the song in another genre has other tracks, a script of its own and another file to download
+            if matches!(cmd, Command::ChangeGenre { .. }) {
+                self.view.track = None;
+                self.view.script.dirty = false;
+                self.view.download = None;
+            }
             if matches!(cmd, Command::Analyze { .. } | Command::Remake { .. }) {
                 self.view.analyzing = true;
             }
@@ -1296,6 +1302,7 @@ impl eframe::App for Studio {
                 now,
             };
             panels::transport::new_song_dialog(&ctx, &mut cx);
+            panels::transport::change_genre_dialog(&ctx, &mut cx);
             panels::publish::dialog(&ctx, &mut cx);
             panels::record::dialog(&ctx, &mut cx);
             panels::hears::dialog(&ctx, &mut cx);

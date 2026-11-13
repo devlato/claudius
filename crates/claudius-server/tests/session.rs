@@ -94,6 +94,32 @@ async fn a_session_edits_renders_and_undoes() {
 }
 
 #[test]
+fn a_song_changes_its_genre_keeping_its_form_and_undo_brings_the_genre_back() {
+    let app = quiet();
+    let new = Command::NewSong {
+        genre: "house".into(),
+        seed: Some(3),
+        bpm: None,
+        key: None,
+        loops: false,
+        sampled: None,
+        sample_search: None,
+        complexity: None,
+    };
+    assert!(app.command(new).ok);
+    let before = app.state().song.unwrap();
+    let r = app.command(Command::ChangeGenre { genre: "lofi".into(), seed: Some(1) });
+    assert!(r.ok && r.message.starts_with("changed from house to lofi"), "{}", r.message);
+    let after = app.state().song.unwrap();
+    let form = |s: &claudius_api::SongView| s.sections.iter().map(|x| (x.name.clone(), x.bars)).collect::<Vec<_>>();
+    assert_eq!((after.genre.as_str(), after.key.as_str(), form(&after)), ("lofi", before.key.as_str(), form(&before)));
+    assert!(app.command(Command::Undo).ok);
+    assert_eq!(app.state().song.unwrap().genre, "house");
+    let r = app.command(Command::ChangeGenre { genre: "polka".into(), seed: None });
+    assert!(!r.ok && r.message.contains("polka"), "{}", r.message);
+}
+
+#[test]
 fn tracks_are_added_and_removed() {
     let app = App::new(Settings {
         library: false,

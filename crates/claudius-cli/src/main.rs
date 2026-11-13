@@ -411,6 +411,20 @@ fn run(cli: Cli) -> Result<()> {
                 println!("{}: {what} -> {:.1} ({})", i + 1, v.total, w.dir.display());
             }
         }
+        Cmd::ChangeGenre { blueprint, genre, seed, ears, out } => {
+            let bp = song::read_blueprint(&blueprint)?;
+            let g = genres::get(&genre)?;
+            let (new, said) = claudius::regenre::change(&bp, &g, seed.unwrap_or_else(seed_now), None);
+            let dir = out.unwrap_or_else(|| {
+                let song = blueprint.parent().unwrap_or(Path::new("."));
+                let name = song.file_name().map_or_else(|| "song".into(), |n| n.to_string_lossy().into_owned());
+                song.with_file_name(format!("{name}-{}", g.name.replace('+', "-")))
+            });
+            let listening = listen(&ears);
+            let f = |_: &Project, r: &Rendered| listening.report(r, Some(&g), false);
+            let (_, _, w, v) = song::render_and_write(&new, &dir, false, Some(&f))?;
+            println!("{said}\n-> {:.1} ({})", v.total, w.dir.display());
+        }
         Cmd::Analyze { file, genre, json } => {
             let range = genre.map(|g| genres::get(&g)).transpose()?.map(|g| g.bpm);
             let x = claudius::audio::load(&file)?;

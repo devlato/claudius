@@ -58,10 +58,10 @@ fn keyed() -> Vec<(&'static Entry, KeyboardShortcut)> {
 }
 
 /// The catalogue's action whose keys were pressed, done as the palette does it: none while a field is typed in, while
-/// the palette or the New song dialog is open, or for Space and Enter while a control has the keyboard, which press it
-/// instead. What the app does itself for it (`Asked`), if anything.
+/// the palette, the New song or the Change the genre dialog is open, or for Space and Enter while a control has the
+/// keyboard, which press it instead. What the app does itself for it (`Asked`), if anything.
 pub fn answer(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
-    if ctx.text_edit_focused() || cx.view.palette.open || cx.view.new_song.open {
+    if ctx.text_edit_focused() || cx.view.palette.open || cx.view.new_song.open || cx.view.change_genre.open {
         return None;
     }
     let focused = ctx.memory(|m| m.focused().is_some());

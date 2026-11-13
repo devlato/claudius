@@ -2068,6 +2068,17 @@ pub enum Command {
         #[serde(default)]
         seed: Option<u64>,
     },
+    /// the song in `genre` (one, or two or three fused: `trip_hop+idm`), as one change undo takes back: its form,
+    /// chords and key, the recordings it plays, the notes written out on its parts, its lead's melody and its pattern
+    /// tracks kept; the genre's drums, bass, parts, sounds, swing and mix playing it, each section by the genre's
+    /// tracks of the kinds that played there (`claudius::regenre::change`). Its tempo stays when recordings play in
+    /// it, else the nearest of it, its half and its double the genre plays, two of its bars one at half its tempo
+    /// and each bar two at double, so that it keeps its length.
+    ChangeGenre {
+        genre: String,
+        #[serde(default)]
+        seed: Option<u64>,
+    },
     /// samples a recording into the song (the auto-sampler), in one of `SAMPLING_WAYS`: by default its best sung
     /// phrases, cut on its beat grid and cleaned of its drums, fitted to the song's tempo and key, placed where they
     /// agree with its chords, mixed as vocals; or a passage of it as a verse or chorus, its voice chopped into an

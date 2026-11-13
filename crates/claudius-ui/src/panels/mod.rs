@@ -140,6 +140,40 @@ pub struct Link {
     pub ears: Option<bool>,
 }
 
+/// The Change the genre window: whether it is open, the genre the song is to be played in and one fused with it, the
+/// search over the genres, and a seed for another take of it
+#[derive(Default)]
+pub struct ChangeGenreForm {
+    pub open: bool,
+    pub genre: String,
+    pub with: Option<String>,
+    pub search: String,
+    pub seed: String,
+    /// the genre the song is in, which the window was opened on, and that its search is to take the keyboard
+    pub was: String,
+    pub focus: bool,
+}
+
+impl ChangeGenreForm {
+    /// the window opened on the song's genre, `genre` (and the one fused with it, as `trip_hop+idm` says it), its
+    /// search taking the keyboard
+    pub fn open_on(&mut self, genre: &str) {
+        let mut names = genre.split('+');
+        self.genre = names.next().unwrap_or_default().to_string();
+        self.with = names.next().map(str::to_string);
+        (self.open, self.search, self.seed, self.was, self.focus) =
+            (true, String::new(), String::new(), genre.to_string(), true);
+    }
+
+    /// the genre as `Command::ChangeGenre` takes it: the one chosen, or it and the one fused with it
+    pub fn fused(&self) -> String {
+        match &self.with {
+            Some(w) => format!("{}+{w}", self.genre),
+            None => self.genre.clone(),
+        }
+    }
+}
+
 pub struct NewSongForm {
     pub open: bool,
     pub genre: String,
@@ -345,6 +379,7 @@ pub struct View {
     pub trig_edit: Option<(String, String, usize, claudius_api::TrigView)>,
     pub script: ScriptEditor,
     pub new_song: NewSongForm,
+    pub change_genre: ChangeGenreForm,
     pub mutate_count: usize,
     pub keep_best: bool,
     pub generations: usize,
@@ -440,6 +475,7 @@ impl Default for View {
             cell_menu: None,
             trig_edit: None,
             script: ScriptEditor::default(),
+            change_genre: ChangeGenreForm::default(),
             new_song: NewSongForm {
                 open: false,
                 genre: "house".into(),
@@ -535,7 +571,7 @@ impl View {
     }
 
     /// the windows Escape closes, each by a name, and whether it is open
-    fn closable(&mut self) -> [(&'static str, &mut bool); 9] {
+    fn closable(&mut self) -> [(&'static str, &mut bool); 10] {
         [
             ("keys", &mut self.keys.open),
             ("chat", &mut self.chat.open),
@@ -546,6 +582,7 @@ impl View {
             ("import", &mut self.import.open),
             ("record", &mut self.record.open),
             ("new song", &mut self.new_song.open),
+            ("change genre", &mut self.change_genre.open),
         ]
     }
 

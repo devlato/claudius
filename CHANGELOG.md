@@ -6,6 +6,11 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+A song can change its genre: click the genre under its title (or **Variations**, **Change the genre…**), choose
+another or two fused, and the same song plays in it. Its form, chords and key, its lead's melody, its recordings and
+the notes written on it stay; the genre's drums, bass, parts, sounds and mix play it. Undo brings it back. Assistants
+have `change_genre`, and the command line `claudius change-genre`.
+
 If you installed claudius with the install script before and use the app now, the copy in `~/.local/bin` may be the
 one your assistant starts, and an assistant connected to it knows only what that version could do. The studio now says
 so in a banner and runs beside it: connect the assistant again (**?**, **Connect an assistant**), remove the old copy or

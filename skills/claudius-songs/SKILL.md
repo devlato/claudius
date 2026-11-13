@@ -175,6 +175,10 @@ by itself.
   toward the issues, and keeps the best one if it beats the song. Good for ideas or when the score is stuck.
 - `evolve` (generations, children) searches longer, 10 to 40 seconds per generation. When it outlasts the call,
   follow it with `status`.
+- `change_genre` (genre, seed) when the person wants the song in another style ("make it lofi", "what would this be
+  as drum and bass", "try it as trip hop with idm drums": `trip_hop+idm`): the song stays (its form, chords, key, its
+  lead's melody, its recordings and written notes), and the genre's drums, bass, parts, sounds and mix play it. Its
+  reply says what it kept and the tempo it moved to; another seed is another take, and undo brings the song back.
 
 Afterwards, tell the person what changed (the log says) and offer to undo it.
 
