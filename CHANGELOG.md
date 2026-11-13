@@ -6,6 +6,11 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+**Add a recording** shows what claudius hears in a recording before it asks anything: its length, tempo and key,
+whether a voice sings in it, and its sections over its waveform with each phrase its voice sings marked, to click and
+hear. The ways it goes in are cards (whole, its sung phrases, a passage, chops, a stab), and where it plays and how
+often its phrases come round are plain choices. The phrases to pick come numbered as they are in the recording.
+
 ## [0.10.0] - 2026-11-13
 
 A song can change its genre: click the genre under its title (or **Variations**, **Change the genre…**), choose

@@ -173,6 +173,7 @@ impl Studio {
                 self.link.error = Some(e);
                 self.confirmed = 0;
             }
+            Event::Listened(heard) if self.view.import.wants(&heard.name) => self.view.import.heard_it(heard),
             Event::Listened(heard) => {
                 let genre = self.view.new_song.genre_name();
                 self.view.hears.show(heard, &genre);
@@ -180,12 +181,16 @@ impl Studio {
             Event::Reply { what, result } => {
                 self.inflight = self.inflight.saturating_sub(1);
                 let script = what == "run_script";
-                if matches!(what.as_str(), "analyze" | "remake" | "sample_song" | "extract_groove") {
+                if matches!(what.as_str(), "analyze" | "remake" | "sample_song" | "extract_groove" | "hear_recording") {
                     let (ok, message) = match &result {
                         Ok(r) => (r.ok, r.message.clone()),
                         Err(e) => (false, e.clone()),
                     };
-                    self.view.listened(&what, ok, message);
+                    // the Add a recording window's own listening says itself in that window
+                    match what.as_str() {
+                        "hear_recording" => self.view.import.hearing_answered(ok, &message),
+                        _ => self.view.listened(&what, ok, message),
+                    }
                 }
                 if what == "pitch_check" {
                     let (ok, message) = match &result {
@@ -638,8 +643,11 @@ impl Studio {
                         rebuild: false,
                         sample: false,
                         how: None,
+                        sections: Vec::new(),
+                        every: None,
                         groove: false,
                         found: None,
+                        recording: false,
                     });
                 }
                 Step::Exit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
@@ -1360,6 +1368,23 @@ impl eframe::App for Studio {
             self.inflight += 1;
             self.inflight_since = now;
             self.backend.offer_pieces(file.bytes.clone(), &file.name, found);
+        }
+        if let Some(file) = self.view.import.next_to_hear() {
+            self.inflight += 1;
+            self.inflight_since = now;
+            self.backend.listen(&panels::Listen {
+                file,
+                remake: None,
+                flip: false,
+                rebuild: false,
+                sample: false,
+                how: None,
+                sections: Vec::new(),
+                every: None,
+                groove: false,
+                found: None,
+                recording: true,
+            });
         }
         if let Some(l) = self.view.listen.take() {
             self.inflight += 1;

@@ -582,6 +582,9 @@ fn begins(words: &[String], w: &str) -> bool {
 pub enum Listen {
     Analyze {
         name: String,
+        /// heard for the Add a recording window rather than asked for: the answer is that window's (`hear_recording`)
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        recording: bool,
     },
     Remake {
         name: String,
@@ -600,6 +603,12 @@ pub enum Listen {
         /// how it goes in (`SAMPLING_WAYS`; its phrases when none)
         #[serde(default, skip_serializing_if = "Option::is_none")]
         how: Option<String>,
+        /// the sections to put it in, by name or kind (those that suit it when none), and how often each phrase comes
+        /// round in them (`Command::SampleSong`'s `sections` and `every`)
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        sections: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        every: Option<String>,
     },
     ExtractGroove {
         name: String,
@@ -645,7 +654,7 @@ impl Listen {
     /// the file's name, whose extension says its format (a pitch check has none: its bytes say)
     pub fn name(&self) -> &str {
         match self {
-            Listen::Analyze { name } | Listen::SampleSong { name, .. } | Listen::ExtractGroove { name } => name,
+            Listen::Analyze { name, .. } | Listen::SampleSong { name, .. } | Listen::ExtractGroove { name } => name,
             Listen::Remake { name, .. } | Listen::Take { name, .. } | Listen::SamplePieces { name, .. } => name,
             Listen::OpenProject { name } => name,
             Listen::PitchCheck { .. } => "the pitch check",
@@ -655,6 +664,7 @@ impl Listen {
     /// the command it answers for, as a reply names it
     pub fn what(&self) -> &'static str {
         match self {
+            Listen::Analyze { recording: true, .. } => "hear_recording",
             Listen::Analyze { .. } => "analyze",
             Listen::Remake { .. } => "remake",
             Listen::SampleSong { .. } => "sample_song",
@@ -2461,6 +2471,9 @@ pub struct Listened {
     /// may be cut whole
     #[serde(default)]
     pub phrases: Vec<[f64; 2]>,
+    /// its peak envelope for drawing, ~1000 points 0..1, as a render's is
+    #[serde(default)]
+    pub waveform: Vec<f32>,
     /// its two progressions, as Roman numerals in its key, and the bars each chord lasts: what `prog` and
     /// `bars_per_chord` take
     pub progression_a: Vec<String>,

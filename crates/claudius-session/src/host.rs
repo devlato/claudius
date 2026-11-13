@@ -272,11 +272,13 @@ impl Host {
                 self.forget_render();
                 self.commit_song(Some(bp), format!("{verb} {name} as {genre}{told}:\n{}", listen::analysis_text(&a)))
             }
-            Listen::SampleSong { found, how, .. } => {
+            Listen::SampleSong { found, how, sections, every, .. } => {
                 let Some(mut bp) = self.bp.clone() else {
                     return self.no("no song yet: start one with a new song, then sample a recording into it");
                 };
-                let opt = match listen::sampling(None, None, None, Vec::new(), how.as_deref()) {
+                let opt = match listen::sampling(None, None, None, sections.clone(), how.as_deref())
+                    .and_then(|o| Ok(claudius::sampler::Options { every: listen::every(every.as_deref())?, ..o }))
+                {
                     Ok(opt) => opt,
                     Err(e) => return self.no(e),
                 };
@@ -944,10 +946,15 @@ impl Host {
         if self.bp.is_none() {
             return self.no("no song yet: start one with a new song, then sample a recording into it");
         }
-        let pieces = match claudius::sampler::pieces(&x, None, &opt, seed) {
+        let mut pieces = match claudius::sampler::pieces(&x, None, &opt, seed) {
             Ok(p) => p,
             Err(e) => return self.no(e),
         };
+        // numbered as they come in the recording, so that the numbers follow it along its timeline
+        pieces.sort_by(|a, b| {
+            let at = |p: &claudius::sampler::Piece| p.phrase.within.map_or(p.phrase.start, |w| w.0);
+            at(a).total_cmp(&at(b))
+        });
         let spec: claudius::export::Spec = "mp3:64".parse().expect("a preview's format");
         let heard = |sound: &Stereo| -> Result<String, String> {
             let bytes =
@@ -1927,6 +1934,8 @@ mod tests {
             found: None,
         };
         assert_eq!(added.what(), "add_recording", "the Add a recording window's answer is its own");
+        let heard = Listen::Analyze { name: "a song.m4a".into(), recording: true };
+        assert_eq!(heard.what(), "hear_recording", "and so is what it hears in one");
         let r = h.listen(&take("intro", "vocal"), wav(&a_song()));
         assert!(!r.ok && r.message.starts_with("no song yet"), "{}", r.message);
         assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
@@ -2258,7 +2267,7 @@ mod tests {
         let mut h = Host::new(1);
         let bytes = wav(&a_song());
         let name = || "my song.wav".to_string();
-        let r = h.listen(&Listen::Analyze { name: name() }, bytes.clone());
+        let r = h.listen(&Listen::Analyze { name: name(), recording: false }, bytes.clone());
         assert!(r.ok && r.message.contains(" BPM (pulse clarity"), "{}", r.message);
         // what was heard goes to the page with the answer, once, with nothing of the recording kept: the page plays
         // the file it has
@@ -2305,7 +2314,7 @@ mod tests {
         let r = h.listen(&Listen::ExtractGroove { name: name() }, bytes);
         assert!(r.ok && r.message.starts_with("groove my_song, heard in my song.wav"), "{}", r.message);
         // and a file that is no recording says so
-        let r = h.listen(&Listen::Analyze { name: "notes".into() }, b"hello".to_vec());
+        let r = h.listen(&Listen::Analyze { name: "notes".into(), recording: false }, b"hello".to_vec());
         assert!(!r.ok && r.message.starts_with("send the recording as the file itself"), "{}", r.message);
     }
 
@@ -2346,7 +2355,16 @@ mod tests {
                 x.r[i] += v;
             }
         }
-        let r = h.listen(&Listen::SampleSong { name: "vocal.wav".into(), found: None, how: None }, wav(&x));
+        let sampling = |how: Option<&str>, every: Option<&str>| Listen::SampleSong {
+            name: "vocal.wav".into(),
+            found: None,
+            how: how.map(str::to_string),
+            sections: Vec::new(),
+            every: every.map(str::to_string),
+        };
+        let refused = h.listen(&sampling(None, Some("3")), wav(&x));
+        assert!(!refused.ok && refused.message.contains('3'), "{}", refused.message);
+        let r = h.listen(&sampling(None, None), wav(&x));
         let said: Vec<&str> = r.message.lines().collect();
         assert!(
             r.ok && said[0].starts_with("sampled ") && said[0].contains(" of vocal.wav into the song: vox1"),
@@ -2360,7 +2378,7 @@ mod tests {
         };
         assert!(path.starts_with("demo:takes/") && audio::remembered_audio(path).is_some(), "{path}");
         // the page samples it the other ways too, and says which way it does not know
-        let chop = |how: &str| Listen::SampleSong { name: "vocal.wav".into(), found: None, how: Some(how.into()) };
+        let chop = |how: &str| sampling(Some(how), None);
         let r = h.listen(&chop("chops"), wav(&x));
         assert!(r.ok && r.message.starts_with("chopped vocal.wav into the song: chops"), "{}", r.message);
         let r = h.listen(&chop("slices"), wav(&x));

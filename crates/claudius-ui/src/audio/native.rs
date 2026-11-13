@@ -143,8 +143,9 @@ pub struct Player {
     error: Option<String>,
     duration: f64,
     loading: Option<(Receiver<Result<Pcm, String>>, bool)>,
-    /// played before the first audio arrived: it plays as it arrives
+    /// played before the first audio arrived: it plays as it arrives, from where it was sought meanwhile
     play_on_arrival: bool,
+    seek_on_arrival: Option<f64>,
     ctx: egui::Context,
 }
 
@@ -176,6 +177,7 @@ impl Player {
             duration: 0.0,
             loading: None,
             play_on_arrival: false,
+            seek_on_arrival: None,
             ctx: ctx.clone(),
         }
     }
@@ -195,11 +197,27 @@ impl Player {
         if self._device.is_some() {
             self.error = None;
         }
+        // and lets go of the one still on its way, which is not this one
+        self.loading = None;
+        if !keep_position {
+            (self.play_on_arrival, self.seek_on_arrival) = (false, None);
+        }
         match source {
             Source::Pcm(pcm) => self.install(pcm, keep_position),
             Source::File(file) => match Pcm::decode_wav(&file.bytes) {
                 Ok(pcm) => self.install(Arc::new(pcm), keep_position),
-                Err(e) => self.error = Some(format!("{}: {e}", file.name)),
+                // any other kind claudius reads (MP3, FLAC, AAC, Ogg, AIFF), decoded as claudius decodes it, off the
+                // window's thread
+                Err(_) => {
+                    let (tx, rx) = channel();
+                    let ctx = self.ctx.clone();
+                    std::thread::spawn(move || {
+                        let decoded = claudius_session::listen::decode(file.bytes.clone(), &file.name);
+                        let _ = tx.send(decoded.map(|x| pcm_of(&x)));
+                        ctx.request_repaint();
+                    });
+                    self.on_its_way(rx, keep_position);
+                }
             },
             Source::Url(url) => {
                 let (tx, rx) = channel();
@@ -215,9 +233,29 @@ impl Player {
                     let _ = tx.send(pcm);
                     ctx.request_repaint();
                 });
-                self.loading = Some((rx, keep_position));
+                self.on_its_way(rx, keep_position);
             }
         }
+    }
+
+    /// Audio on its way. What played before plays on meanwhile when the new audio continues from it (`keep_position`,
+    /// a render of the same song); otherwise it goes, so that nothing of it plays in the new audio's place.
+    fn on_its_way(&mut self, rx: Receiver<Result<Pcm, String>>, keep_position: bool) {
+        if !keep_position {
+            self.let_go();
+        }
+        self.loading = Some((rx, keep_position));
+    }
+
+    /// stops, and forgets the audio installed
+    fn let_go(&mut self) {
+        self.pause();
+        if let Ok(mut slot) = self.shared.pcm.lock() {
+            *slot = None;
+        }
+        self.shared.generation.fetch_add(1, Relaxed);
+        self.shared.position.store(0f64.to_bits(), Relaxed);
+        self.duration = 0.0;
     }
 
     fn install(&mut self, pcm: Arc<Pcm>, keep_position: bool) {
@@ -233,15 +271,9 @@ impl Player {
 
     /// forget the loaded audio (the song it belonged to is gone)
     pub fn clear(&mut self) {
-        self.pause();
-        if let Ok(mut slot) = self.shared.pcm.lock() {
-            *slot = None;
-        }
-        self.shared.generation.fetch_add(1, Relaxed);
-        self.shared.position.store(0f64.to_bits(), Relaxed);
-        self.duration = 0.0;
+        self.let_go();
         self.loading = None;
-        self.play_on_arrival = false;
+        (self.play_on_arrival, self.seek_on_arrival) = (false, None);
     }
 
     /// call once per frame: picks up finished downloads
@@ -256,11 +288,14 @@ impl Player {
                             self.error = None;
                         }
                         self.install(Arc::new(pcm), keep);
+                        if let Some(at) = self.seek_on_arrival.take() {
+                            self.seek(at);
+                        }
                         if std::mem::take(&mut self.play_on_arrival) {
                             self.play();
                         }
                     }
-                    Err(e) => (self.error, self.play_on_arrival) = (Some(e), false),
+                    Err(e) => (self.error, self.play_on_arrival, self.seek_on_arrival) = (Some(e), false, None),
                 }
             }
         }
@@ -298,12 +333,20 @@ impl Player {
     }
 
     pub fn seek(&mut self, secs: f64) {
+        // sought while the audio is on its way: where it plays from once it is here
+        if self.loading.is_some() {
+            self.seek_on_arrival = Some(secs.max(0.0));
+            return;
+        }
         let secs = secs.clamp(0.0, self.duration.max(0.0));
         self.shared.seek.store(secs.to_bits(), Relaxed);
         self.shared.position.store(secs.to_bits(), Relaxed);
     }
 
     pub fn position(&self) -> f64 {
+        if let Some(at) = self.seek_on_arrival {
+            return at;
+        }
         let seek = self.shared.seek.load(Relaxed);
         if seek != NO_SEEK { f64::from_bits(seek) } else { f64::from_bits(self.shared.position.load(Relaxed)) }
     }
@@ -327,6 +370,11 @@ impl Player {
     pub fn set_volume(&mut self, volume: f32) {
         self.shared.volume.store(volume.clamp(0.0, 1.5).to_bits(), Relaxed);
     }
+}
+
+/// a recording claudius decoded, at its rate, as the player plays it
+fn pcm_of(x: &claudius::audio::Stereo) -> Pcm {
+    Pcm { rate: claudius::config::SR, channels: 2, samples: x.l.iter().zip(&x.r).flat_map(|(l, r)| [*l, *r]).collect() }
 }
 
 #[cfg(test)]
@@ -390,6 +438,70 @@ mod tests {
         pull(&mut out, 0.3);
         assert!(!shared.playing.load(Relaxed), "stops at the end");
         assert!(position(&shared) < 0.01, "and rewinds");
+    }
+
+    #[test]
+    fn a_player_sought_and_played_while_its_audio_is_on_its_way_plays_from_there_once_it_is_here() {
+        let mut p = Player::new(&egui::Context::default());
+        let (tx, rx) = channel();
+        p.loading = Some((rx, false));
+        p.seek(2.5);
+        p.play();
+        assert_eq!(p.position(), 2.5, "where it will play from");
+        tx.send(Ok(Pcm { rate: 24_000, channels: 1, samples: vec![0.0; 24_000 * 4] })).unwrap();
+        p.tick();
+        // an output, where there is one, plays on from there at once
+        assert!(p.is_playing() && (2.5..2.7).contains(&p.position()), "at {}", p.position());
+        p.pause();
+    }
+
+    #[test]
+    fn audio_on_its_way_lets_go_of_what_played_unless_it_continues_it_and_one_chosen_meanwhile_stays() {
+        let silence = |secs: usize| Arc::new(Pcm { rate: 24_000, channels: 1, samples: vec![0.0; 24_000 * secs] });
+        let mut p = Player::new(&egui::Context::default());
+        p.load(Source::Pcm(silence(4)), false);
+        p.play();
+        // a render of the same song on its way: the last one plays on meanwhile
+        let (_tx, rx) = channel();
+        p.on_its_way(rx, true);
+        assert!(p.has_audio() && p.is_playing());
+        // another recording on its way: nothing of the last one plays in its place, and it plays once it is here
+        let (tx, rx) = channel();
+        p.on_its_way(rx, false);
+        assert!(!p.has_audio() && !p.is_playing());
+        p.play();
+        assert!(!p.is_playing() && p.play_on_arrival);
+        // one chosen meanwhile, there at once: the one on its way is let go of, and does not replace it later
+        p.load(Source::Pcm(silence(2)), false);
+        assert!(!p.is_loading() && (p.duration() - 2.0).abs() < 1e-9);
+        let _ = tx.send(Ok(Pcm { rate: 24_000, channels: 1, samples: vec![0.0; 24_000 * 8] }));
+        p.tick();
+        assert!((p.duration() - 2.0).abs() < 1e-9, "{} s", p.duration());
+        p.pause();
+    }
+
+    #[test]
+    fn a_file_not_a_wav_is_decoded_as_claudius_decodes_one_and_plays_from_where_it_was_sought() {
+        let silence = claudius::audio::Stereo::from_mono(&vec![0.0; claudius::config::SR as usize * 2]);
+        let flac =
+            claudius::export::encode(&silence, &"flac:24".parse().unwrap(), &claudius::export::tags("a")).unwrap();
+        let mut p = Player::new(&egui::Context::default());
+        let file = crate::pick::Picked { name: "phrases.flac".into(), bytes: flac, folder: None };
+        p.load(Source::File(Arc::new(file)), false);
+        assert!(p.is_loading(), "decoded off the window's thread");
+        p.seek(1.0);
+        p.play();
+        for _ in 0..500 {
+            p.tick();
+            if !p.is_loading() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(p.error().is_none_or(|e| e.starts_with("no audio output")), "{:?}", p.error());
+        assert!((p.duration() - 2.0).abs() < 0.05, "{} s", p.duration());
+        assert!(p.is_playing() && (1.0..1.2).contains(&p.position()), "at {}", p.position());
+        p.pause();
     }
 
     #[test]

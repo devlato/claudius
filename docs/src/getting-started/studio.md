@@ -200,8 +200,10 @@ song as stores do and writes what a distributor takes ([Publishing](../guide/pub
 **Record**, the red button after the loop button, records a [take](../guide/samples.md#takes) from a microphone or
 an audio interface, in the studio app, in the browser studio that `claudius serve` serves and in the demo, which
 keeps it in the page with the song (and in the project it saves). The **+** after it opens **Add a recording**: a song
-or a sound of your own, chosen or dropped anywhere on the studio, added whole as a track that you trim and put effects
-on, or with its vocals sampled into the song ([Takes](../guide/samples.md#takes)).
+or a sound of your own, chosen or dropped anywhere on the studio. claudius listens to it first and shows its tempo, key,
+sections and the phrases its voice sings; then it goes in whole as a track that you trim and put effects on, or as its
+sung phrases (heard and picked first), a passage, chops or a stab, in the sections you choose
+([Takes](../guide/samples.md#takes), [What the window hears first](../guide/samples.md#what-the-window-hears-first)).
 
 The phone button after it opens **Play from a phone**: a QR code for a phone on the same Wi-Fi, which opens drum pads,
 keys and a turntable with the song's sounds there, and sends the takes played on them into the song

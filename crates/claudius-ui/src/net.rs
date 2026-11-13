@@ -151,12 +151,19 @@ fn listen_request(l: &crate::panels::Listen) -> (&'static str, &'static str, Str
     let name = format!("name={}", query_value(&l.file.name));
     if l.sample {
         let how = l.how.as_deref().map_or_else(String::new, |h| format!("&how={}", query_value(h)));
-        return ("sample_song", "/api/sample", format!("{name}{how}"));
+        let sections = match l.sections.is_empty() {
+            true => String::new(),
+            false => format!("&sections={}", query_value(&l.sections.join(","))),
+        };
+        let every = l.every.as_deref().map_or_else(String::new, |e| format!("&every={}", query_value(e)));
+        return ("sample_song", "/api/sample", format!("{name}{how}{sections}{every}"));
     }
     if l.groove {
         return ("extract_groove", "/api/groove", name);
     }
     match &l.remake {
+        // the Add a recording window's, answered to it, as the demo's engine answers it (`Listen::what`)
+        None if l.recording => ("hear_recording", "/api/analyze", name),
         None => ("analyze", "/api/analyze", name),
         Some((genre, seed)) => {
             let seed = seed.map_or_else(String::new, |s| format!("&seed={s}"));
@@ -172,13 +179,19 @@ fn demo_listen(l: &crate::panels::Listen) -> claudius_api::Listen {
     use claudius_api::Listen;
     let name = l.file.name.clone();
     if l.sample {
-        return Listen::SampleSong { name, found: l.found.clone(), how: l.how.clone() };
+        return Listen::SampleSong {
+            name,
+            found: l.found.clone(),
+            how: l.how.clone(),
+            sections: l.sections.clone(),
+            every: l.every.clone(),
+        };
     }
     if l.groove {
         return Listen::ExtractGroove { name };
     }
     match &l.remake {
-        None => Listen::Analyze { name },
+        None => Listen::Analyze { name, recording: l.recording },
         Some((genre, seed)) => {
             Listen::Remake { name, genre: Some(genre.clone()), seed: *seed, flip: l.flip, rebuild: l.rebuild }
         }
@@ -980,11 +993,18 @@ mod tests {
             rebuild: false,
             sample: false,
             how: None,
+            sections: Vec::new(),
+            every: None,
             groove: false,
             found: None,
+            recording: false,
         };
         let name = "name=My%20Song%20%28live%29%20%232.m4a";
         assert_eq!(listen_request(&base()), ("analyze", "/api/analyze", name.into()));
+        // what the Add a recording window hears in one is the same analysis, answered to that window
+        let held = listen_request(&Listen { recording: true, ..base() });
+        assert_eq!(held, ("hear_recording", "/api/analyze", name.into()));
+        assert_eq!(demo_listen(&Listen { recording: true, ..base() }).what(), "hear_recording");
         let remake = listen_request(&Listen { remake: Some(("drum_and_bass".into(), Some(42))), ..base() });
         assert_eq!(remake.0, "remake");
         assert_eq!(remake.1, "/api/remake");
@@ -1000,5 +1020,12 @@ mod tests {
         assert_eq!(listen_request(&Listen { sample: true, ..base() }), ("sample_song", "/api/sample", name.into()));
         let chopped = listen_request(&Listen { sample: true, how: Some("chops".into()), ..base() });
         assert_eq!(chopped.2, format!("{name}&how=chops"));
+        let placed = Listen {
+            sample: true,
+            sections: vec!["verse".into(), "Chorus 2".into()],
+            every: Some("4".into()),
+            ..base()
+        };
+        assert_eq!(listen_request(&placed).2, format!("{name}&sections=verse%2CChorus%202&every=4"));
     }
 }
