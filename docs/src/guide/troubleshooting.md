@@ -196,9 +196,9 @@ When the page says `The studio could not start:`, what follows says why:
 - **The browser cannot draw it.** The studio needs WebAssembly and WebGL, which every current browser has. A browser
   with WebGL turned off, or with a graphics driver it does not trust, cannot draw the studio: `chrome://gpu` in Chrome
   and Edge, and `about:support` (Graphics) in Firefox, say whether WebGL works.
-- **Something stopped the studio's program loading** (`... did not load`, `Failed to fetch`). An extension that blocks
-  scripts can do this: let the page run its scripts, or open it in a private window, where most extensions do not run.
-  A connection that drops while the program arrives leaves it unfinished: reload the page.
+- **Something stopped the studio's program loading** (`... did not load`, `its program did not arrive`). An
+  extension that blocks scripts can do this: let the page run its scripts, or open it in a private window, where most
+  extensions do not run. A connection that drops while the program arrives leaves it unfinished: reload the page.
 
 If the page never gets past `Starting the studio`, or says something else, the message is worth an issue (see
 [Something else](#something-else)).

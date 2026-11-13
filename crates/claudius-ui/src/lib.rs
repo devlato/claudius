@@ -119,6 +119,9 @@ pub async fn start_web(canvas_id: &str) -> Result<(), wasm_bindgen::JsValue> {
                     .unwrap_or_else(|| format!("{e:?}"));
                 loading.set_class_name("failed");
                 _ = loading.remove_attribute("aria-busy");
+                if let Ok(Some(meter)) = loading.query_selector(".meter b") {
+                    _ = meter.remove_attribute("style");
+                }
                 if let Ok(Some(said)) = loading.query_selector(".said") {
                     _ = said.set_attribute("role", "alert");
                     said.set_text_content(Some(&format!("The studio could not start: {why}")));

@@ -142,10 +142,16 @@
     // How much of the studio's program has arrived, which the meter over the outline shows, and why the studio did
     // not start, when it does not. The page counts the program as it arrives, unpacked: `cargo xtask web` writes how
     // large it is unpacked into `data-bytes`, as a server that compresses it does not say how large it is. The program
-    // itself goes to the browser untouched, so the browser can keep it compiled for the next visit.
+    // itself goes to the browser untouched, so the browser can keep it compiled for the next visit. What stops the
+    // studio starting is its own files not arriving and its program not compiling or running; any other error the
+    // page meets meanwhile is not taken for that.
     (() => {
       const fetched = window.fetch;
       const loading = () => document.getElementById("loading");
+      const ours = (url) => /claudius-ui-[^/]*\.(js|wasm)(\?|$)/.test(url || "");
+      const wasm = (e) =>
+        typeof WebAssembly === "object" &&
+        [WebAssembly.CompileError, WebAssembly.LinkError, WebAssembly.RuntimeError].some((t) => e instanceof t);
       const show = (text, state, percent) => {
         const el = loading();
         if (!el || el.classList.contains("failed")) return;
@@ -176,7 +182,12 @@
         const url = input instanceof Request ? input.url : String(input);
         if (/claudius-ui-[^/]*_bg\.wasm(\?|$)/.test(url)) {
           window.fetch = fetched;
-          res.then((r) => r.ok && r.body && count(r.clone())).catch(() => {});
+          res
+            .then(
+              (r) => (r.ok ? r.body && count(r.clone()) : fail(`its program did not arrive (${r.status} ${r.statusText})`)),
+              (e) => fail(`its program did not arrive: ${e.message || e}`),
+            )
+            .catch(() => {});
         }
         return res;
       };
@@ -186,15 +197,21 @@
         el.classList.remove("unsized", "starting");
         el.classList.add("failed");
         el.removeAttribute("aria-busy");
+        el.querySelector(".meter b").style.width = "";
         const said = el.querySelector(".said");
         said.setAttribute("role", "alert");
         said.textContent = `The studio could not start: ${why}`;
       };
       addEventListener("error", (e) => {
         const file = e.target && (e.target.src || e.target.href);
-        fail(e.message || (file ? `${file.split("/").pop()} did not load` : "a script failed"));
+        if (ours(file)) fail(`${file.split("/").pop()} did not load`);
+        // the module that starts it (trunk's, in the page), whose import did not load
+        else if (e.target instanceof HTMLScriptElement && e.target.type === "module") fail("its script did not load");
+        else if (wasm(e.error)) fail(e.message);
       }, true);
-      addEventListener("unhandledrejection", (e) => fail((e.reason && e.reason.message) || String(e.reason)));
+      addEventListener("unhandledrejection", (e) => {
+        if (wasm(e.reason)) fail(e.reason.message || String(e.reason));
+      });
       if (typeof WebAssembly !== "object") addEventListener("DOMContentLoaded", () => fail("this browser cannot run WebAssembly"));
     })();
   </script>

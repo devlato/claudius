@@ -319,12 +319,32 @@ test.describe("assembled site", () => {
     for (const r of held) await r.abort();
   });
 
+  test("the studio's page is not taken for failed by an error that is not the studio's", async ({ page }) => {
+    const held = [];
+    await page.route(/claudius-ui-[^/]*_bg\.wasm$/, (r) => held.push(r));
+    await page.goto("/studio/?mock");
+    await page.evaluate(() => {
+      setTimeout(() => {
+        throw new Error("ResizeObserver loop completed with undelivered notifications");
+      });
+      Promise.reject(new Error("not the studio's"));
+    });
+    await page.waitForTimeout(300);
+    await expect(page.locator("#loading")).not.toHaveClass(/failed/);
+    for (const r of held) await r.continue();
+    await page.waitForFunction(() => !document.getElementById("loading"), null, { timeout: 30_000 });
+  });
+
   test("the studio's page says why when the studio's program does not arrive", async ({ page }) => {
     await page.route(/claudius-ui-[^/]*_bg\.wasm$/, (r) => r.abort());
     await page.goto("/studio/?mock");
     const said = page.locator("#loading .said");
     await expect(said).toHaveText(/^The studio could not start: \S/);
     await expect(said).toHaveAttribute("role", "alert");
+    // the meter all red, however much had arrived, once it has filled
+    const widths = () =>
+      page.evaluate(() => ["#loading .meter b", "#loading .meter"].map((s) => document.querySelector(s).offsetWidth));
+    await expect.poll(async () => new Set(await widths()).size, { timeout: 5_000 }).toBe(1);
     await expect(page.locator("#loading .help a")).toHaveAttribute(
       "href",
       "https://claudius.devlato.com/docs/guide/troubleshooting.html#the-studio-in-a-browser-does-not-start",
