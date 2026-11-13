@@ -21,6 +21,8 @@ what you need to act.
 - **Keep the skills in step.** `skills/` teaches assistants the MCP tools, the commands and the script language. A
   change to a tool, a command, a message or a function they quote changes the skill in the same pull request; their
   examples run with the docs examples.
+- **Keep the credits in step.** A model, a port, a font, a source of sounds or a paper claudius newly draws on goes
+  into `docs/src/credits.md` in the same pull request. The list of libraries writes itself from Cargo.lock.
 - **Keep the two features apart.** Code that needs earshot goes behind `#[cfg(feature = "ears")]`, code that needs
   the native window behind `studio`. The Intel Mac and Windows builds have no ears, and the headless Linux build
   has no window, so both have to keep compiling.

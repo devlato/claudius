@@ -128,6 +128,11 @@
 - [Releasing](contributing/releasing.md)
 - [Working with AI agents](contributing/agents.md)
 
+# Credits
+
+- [What claudius is built on](credits.md)
+  - [Libraries](credits/libraries.md)
+
 ---
 
 [Changelog](changelog.md)
