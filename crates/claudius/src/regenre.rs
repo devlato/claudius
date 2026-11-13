@@ -7,18 +7,20 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::compose::{self, Library, Options};
 use crate::genres::GenreProfile;
-use crate::model::{Blueprint, LoopPart, Part, PatternTrack, Role, SectionKind, SectionSpec};
+use crate::model::{Blueprint, DrumLane, LoopPart, Part, PatternTrack, Role, SectionKind, SectionSpec};
 use crate::theory::Note;
 
-/// What a drum lane does in a kit, by its name: a section's drums go from one kit to the next by it.
-fn kit(lane: &str) -> &'static str {
-    match lane {
-        "kick" | "808" | "sub" => "kick",
-        "snare" | "clap" | "rim" | "snap" => "backbeat",
-        "hat" | "ohat" | "hh" | "oh" | "shaker" | "ride" => "hats",
-        "crash" => "crash",
-        _ => "perc",
-    }
+/// What a drum lane does in a kit, by its name, else by what it plays (`DrumLane::role`: `bd` is the kick, and a lane of
+/// a name of its own is the drum its sound is): a section's drums go from one kit to the next by it.
+fn kit(lane: &DrumLane) -> &'static str {
+    let does = |what: &str| match what {
+        "kick" | "808" | "sub" => Some("kick"),
+        "snare" | "clap" | "rim" | "rs" | "snap" => Some("backbeat"),
+        "hat" | "ohat" | "hh" | "oh" | "shaker" | "ride" => Some("hats"),
+        "crash" => Some("crash"),
+        _ => None,
+    };
+    does(&lane.name).or_else(|| does(&lane.role())).unwrap_or("perc")
 }
 
 /// Whether a track of the genre of a kind the song had none of plays in section `s`: its kick and backbeat in a full
@@ -132,9 +134,9 @@ pub fn change(bp: &Blueprint, g: &GenreProfile, seed: u64, lib: Option<&dyn Libr
 
     // what played in each section of the song, by kind: a drum lane by what it does in its kit, a part by its role
     let kind_of = |name: &str| -> Option<&'static str> {
-        match bp.drums.iter().any(|d| d.name == name) {
-            true => Some(kit(name)),
-            false => bp.parts.iter().find(|p| p.name == name).map(|p| p.role.name()),
+        match bp.drums.iter().find(|d| d.name == name) {
+            Some(lane) => Some(kit(lane)),
+            None => bp.parts.iter().find(|p| p.name == name).map(|p| p.role.name()),
         }
     };
     let ever: BTreeSet<&str> = bp.form.iter().flat_map(|s| &s.layers).filter_map(|l| kind_of(l)).collect();
@@ -145,8 +147,7 @@ pub fn change(bp: &Blueprint, g: &GenreProfile, seed: u64, lib: Option<&dyn Libr
         .map(|s| {
             let here: BTreeSet<&str> = s.layers.iter().filter_map(|l| kind_of(l)).collect();
             let plays = |what: &str| if ever.contains(what) { here.contains(what) } else { fills(what, s) };
-            let mut layers: Vec<String> =
-                new.drums.iter().filter(|d| plays(kit(&d.name))).map(|d| d.name.clone()).collect();
+            let mut layers: Vec<String> = new.drums.iter().filter(|d| plays(kit(d))).map(|d| d.name.clone()).collect();
             layers.extend(new.parts.iter().filter(|p| plays(p.role.name())).map(|p| p.name.clone()));
             layers.extend(s.layers.iter().filter_map(|l| renamed.get(l).cloned()));
             if layers.is_empty() {
@@ -238,6 +239,38 @@ mod tests {
         }
         assert!(said.starts_with("changed from house to lofi") && said.contains("its lead's melody"), "{said}");
         assert_eq!(new.lineage.last(), Some(&said));
+    }
+
+    #[test]
+    fn a_drum_lane_named_as_a_pattern_names_its_drum_hands_its_sections_to_the_new_kits_drum_of_its_kind() {
+        let (house, lofi) = (genres::get("house").unwrap(), genres::get("lofi").unwrap());
+        let mut bp = compose::generate(&house, 7, &Options::default(), None);
+        let short = |n: &str| -> String {
+            match n {
+                "kick" => "bd",
+                "snare" => "sd",
+                "clap" => "cp",
+                "hat" => "hh",
+                other => other,
+            }
+            .to_string()
+        };
+        for d in &mut bp.drums {
+            d.name = short(&d.name);
+        }
+        for s in &mut bp.form {
+            s.layers = s.layers.iter().map(|l| short(l)).collect();
+        }
+        // a kick in a quiet section, where a kick the song never had would not come in
+        let quiet = bp.form.iter().position(|s| matches!(s.kind, SectionKind::Intro | SectionKind::Break)).unwrap();
+        bp.form[quiet].layers.retain(|l| l != "bd");
+        bp.form[quiet].layers.push("bd".into());
+        assert!(bp.drums.iter().any(|d| d.name == "bd"), "{:?}", bp.drums.iter().map(|d| &d.name).collect::<Vec<_>>());
+        let (new, _) = change(&bp, &lofi, 3, None);
+        for (old, now) in bp.form.iter().zip(&new.form) {
+            let kicks = now.layers.iter().any(|l| new.drums.iter().any(|d| &d.name == l && kit(d) == "kick"));
+            assert_eq!(kicks, old.layers.iter().any(|l| l == "bd"), "{}: {:?}", old.name, now.layers);
+        }
     }
 
     #[test]

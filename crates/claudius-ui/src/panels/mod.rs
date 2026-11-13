@@ -146,6 +146,7 @@ pub struct Link {
 pub struct ChangeGenreForm {
     pub open: bool,
     pub genre: String,
+    /// the genres fused with it, as the fusion names them after its first (`idm`, or `idm+house`)
     pub with: Option<String>,
     pub search: String,
     pub seed: String,
@@ -155,17 +156,29 @@ pub struct ChangeGenreForm {
 }
 
 impl ChangeGenreForm {
-    /// the window opened on the song's genre, `genre` (and the one fused with it, as `trip_hop+idm` says it), its
-    /// search taking the keyboard
+    /// the window opened on the song's genre, `genre`: the one that leads it, and those fused with it (as `trip_hop+idm`
+    /// or `trip_hop+idm+house` says them), its search taking the keyboard
     pub fn open_on(&mut self, genre: &str) {
-        let mut names = genre.split('+');
-        self.genre = names.next().unwrap_or_default().to_string();
-        self.with = names.next().map(str::to_string);
+        let (lead, with) = genre.split_once('+').map_or((genre, None), |(lead, with)| (lead, Some(with)));
+        (self.genre, self.with) = (lead.to_string(), with.map(str::to_string));
         (self.open, self.search, self.seed, self.was, self.focus) =
             (true, String::new(), String::new(), genre.to_string(), true);
     }
 
-    /// the genre as `Command::ChangeGenre` takes it: the one chosen, or it and the one fused with it
+    /// `genre` leading the song, no longer among those fused with it if it was
+    pub fn lead(&mut self, genre: String) {
+        let rest = |with: String| with.split('+').filter(|g| *g != genre).collect::<Vec<_>>().join("+");
+        self.with = self.with.take().map(rest).filter(|w| !w.is_empty());
+        self.genre = genre;
+    }
+
+    /// the genres fused with the song's own lead, when there are two of them: what the window offers to keep, as its
+    /// menu of genres to fuse with offers one at a time
+    pub fn was_fused(&self) -> Option<&str> {
+        self.was.split_once('+').map(|(_, with)| with).filter(|with| with.contains('+'))
+    }
+
+    /// the genre as `Command::ChangeGenre` takes it: the one chosen, or it and those fused with it
     pub fn fused(&self) -> String {
         match &self.with {
             Some(w) => format!("{}+{w}", self.genre),
@@ -962,6 +975,21 @@ mod tests {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn the_change_genre_window_keeps_every_genre_of_a_fusion_and_none_twice() {
+        let mut f = ChangeGenreForm::default();
+        f.open_on("trip_hop+idm+house");
+        assert_eq!((f.genre.as_str(), f.fused()), ("trip_hop", "trip_hop+idm+house".to_string()));
+        assert_eq!(f.was_fused(), Some("idm+house"));
+        // a genre of the fusion chosen to lead it leads the rest
+        f.lead("idm".into());
+        assert_eq!(f.fused(), "idm+house");
+        f.lead("house".into());
+        assert_eq!(f.fused(), "house");
+        f.open_on("trip_hop+idm");
+        assert_eq!((f.fused(), f.was_fused()), ("trip_hop+idm".to_string(), None));
+    }
+
     #[test]
     fn a_tracks_sound_reads_in_words_as_the_engine_describes_it() {
         use claudius::model::{Layer, Sound};

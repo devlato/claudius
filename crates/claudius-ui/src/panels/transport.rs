@@ -628,20 +628,22 @@ pub fn change_genre_dialog(ctx: &egui::Context, cx: &mut Cx) {
         let f = &mut cx.view.change_genre;
         let genres = &cx.state.genres;
         if let Some(g) = genre_cards(ui, "change_genre", genres, &f.genre, &mut f.search, &mut f.focus) {
-            f.genre = g;
-        }
-        if f.with.as_deref() == Some(f.genre.as_str()) {
-            f.with = None;
+            f.lead(g);
         }
         ui.add_space(6.0);
         ui.horizontal(|ui| {
             ui.label("Fused with");
             let shown = f.with.as_ref().map_or("nothing".to_string(), |w| super::genre_words(w));
+            let was = f.was_fused().filter(|w| !w.split('+').any(|g| g == f.genre)).map(str::to_string);
             egui::ComboBox::from_id_salt("cg_with")
                 .width(150.0)
                 .selected_text(shown)
                 .show_ui(ui, |ui| {
                     ui.selectable_value(&mut f.with, None, "nothing");
+                    if let Some(was) = was {
+                        let words = super::genre_words(&was);
+                        ui.selectable_value(&mut f.with, Some(was), words);
+                    }
                     for g in genres.iter().filter(|g| g.name != f.genre) {
                         ui.selectable_value(&mut f.with, Some(g.name.clone()), super::genre_words(&g.name));
                     }

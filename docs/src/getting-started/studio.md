@@ -172,18 +172,18 @@ without the ears, so they take a while longer.
 ### Changing the genre
 
 The genre under the song's title, or **Change the genre…** at the foot of **Variations**, opens **Change the genre**:
-choose a genre, or two fused, and **Play it as …** plays the same song in it. The song stays: its form (each
-section's name, length, intensity and transitions), its chords and key, its lead's melody note for note, the
-recordings it plays (takes, sampled phrases, loops), the notes written on its parts, and the tracks a script wrote.
-The genre plays it: its drums, bass, chords, pads and the rest, their sounds, its swing and its mix, each section by
-the genre's tracks of the kinds that played there (a kick where a kick played, the bass where the bass did), and the
-genre's own kinds the song had none of where a section is intense enough for them. The tempo stays when recordings
-play in the song, since they keep time with it; otherwise it moves to the nearest of the song's, its half and its
-double that the genre plays (118 BPM house as lofi is 70). At half its tempo or less, two of its bars become one, each
-chord and each of its melody's notes as long as they were, so the song keeps its length and its pace (where a chord
-holds a bar, each section plays its chords half as many times); at twice its tempo or more, each bar becomes two. It
-is one change: **Undo** brings the song back in its
-genre, and another seed is another take of it. Assistants do the same with `change_genre`, and the command line with
+choose a genre, or two fused (a song fused of three offers its three), and **Play it as …** plays the same song in it.
+The song stays: its form (each section's name, length, intensity and transitions), its chords and key, its lead's
+melody note for note, the recordings it plays (takes, sampled phrases, loops), the notes written on its parts, and the
+tracks a script wrote. The genre plays it: its drums, bass, chords, pads and the rest, their sounds, its swing and its
+mix, each section by the genre's tracks of the kinds that played there (a kick where a kick played, whatever its lane
+was called, and the bass where the bass did), and the genre's own kinds the song had none of where a section is
+intense enough for them. The tempo stays when recordings play in the song, since they keep time with it; otherwise it
+moves to the nearest of the song's, its half and its double that the genre plays (118 BPM house as lofi is 70). At
+half its tempo or less, two of its bars become one, each chord and each of its melody's notes as long as they were, so
+the song keeps its length and its pace (where a chord holds a bar, each section plays its chords half as many times);
+at twice its tempo or more, each bar becomes two. It is one change: **Undo** brings the song back in its genre, and
+another seed is another take of it. Assistants do the same with `change_genre`, and the command line with
 [`claudius change-genre`](../guide/cli.md#claudius-change-genre).
 
 **Save**, after **Open**, hands you the song. In a browser it
