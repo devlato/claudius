@@ -2187,6 +2187,22 @@ async fn pieces_are_offered_to_hear_drawn_again_and_kept_treated() {
     let bp = app.blueprint().unwrap();
     let vox = bp.loops.iter().find(|l| l.name == "vox1").expect("the piece plays in the song");
     assert!(vox.sampled && vox.mix.fx.len() > 1, "with its treatment: {:?}", vox.mix.fx);
+    // its hats as a break: what the piece is and why, and kept, a drum loop
+    let breaks = |kinds: &[&str]| {
+        let kinds = kinds.iter().map(|k| k.to_string()).collect();
+        Command::SamplePieces { path: path.clone(), seed: None, count: None, bars: None, find: None, kinds }
+    };
+    let r = app.command(breaks(&["break"]));
+    assert!(r.ok && r.message.contains(": a ") && r.message.contains("-bar drum break, the drums"), "{}", r.message);
+    let offered = app.state().pieces.unwrap().pieces;
+    assert!(offered.len() == 1 && offered[0].kind == "break" && !offered[0].about.is_empty(), "{offered:?}");
+    let keep = vec![claudius_api::KeptPiece { id: 1, treated: false }];
+    let r = app.command(Command::KeepPieces { keep, sections: vec![], every: None });
+    assert!(r.ok && r.message.starts_with("sampled a drum break of "), "{}", r.message);
+    let bp = app.blueprint().unwrap();
+    assert!(bp.loops.iter().any(|l| l.name == "break" && l.role == "drums" && l.sampled), "{:?}", bp.loops);
+    let r = app.command(breaks(&["cowbell"]));
+    assert!(!r.ok && r.message.starts_with("no kind of piece 'cowbell'"), "{}", r.message);
     std::fs::remove_file(&file).unwrap();
 }
 

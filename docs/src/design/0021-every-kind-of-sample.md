@@ -1,6 +1,6 @@
 # 0021 Every kind of sample, ranked and varied
 
-Status: proposed
+Status: accepted; the first step is built
 
 ## Context
 
@@ -64,12 +64,13 @@ person or their assistant can ask for any kind and any number, and read why each
 
 ## Steps
 
-1. The kinds and their scores in the Sample window and `sample_pieces`, each piece with its kind (`claudius_api`),
-   and `kinds` to ask for some.
-2. Variety: the DPP, the seeded draws, the shares of each kind.
-3. Pieces kept, placed by their kinds.
-4. Chop sets of breaks and loops at their onsets (SuperFlux, Böck & Widmer, DAFx 2013), laid out on pads: today's
-   chops cut a phrase in eighths.
+1. Built: hook and passage loops, breaks and bass lines with their scores in `sample_pieces`, each piece with its kind
+   and what it scored for (`claudius_api::PieceView`), `kinds` to ask for some, and a piece kept placed as its kind
+   plays (`keep_pieces`). The best of each kind on the first take, a seeded draw among the near-best on any other.
+2. The Sample window offers them, each saying what it is.
+3. Variety: the DPP, the seeded draws across kinds, the shares of each kind.
+4. Stabs of the instruments, and chop sets of breaks and loops at their onsets (SuperFlux, Böck & Widmer, DAFx
+   2013), laid out on pads: today's stab is a syllable, and today's chops cut a phrase in eighths.
 5. The flip and `sample_song` choose by the same scores.
 
 ## Evaluation
