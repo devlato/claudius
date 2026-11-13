@@ -11,6 +11,14 @@ until the studio opens next. While it downloads, the status bar shows how far it
 The **?** menu has **Check for updates**, which looks now and says what it found, and **Update automatically**, which
 turns the daily look off and on.
 
+## An older claudius beside this one
+
+A claudius installed before in another way keeps its own version, and an assistant set up with it starts it. When the
+studio finds an older claudius on its port, it runs beside it, and a bar under the toolbar says so: **Connect an
+assistant** opens the window that sets the assistant up with this version, and **Later** puts the bar off until the
+studio opens next. [The assistant does not know what this claudius can
+do](troubleshooting.md#the-assistant-does-not-know-what-this-claudius-can-do) has the rest.
+
 ## How each install updates
 
 | installed with | the update |

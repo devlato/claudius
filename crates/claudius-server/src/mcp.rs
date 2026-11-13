@@ -62,14 +62,20 @@ fn remote_json<T: DeserializeOwned>(
 }
 
 /// what answers at an address
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Probe {
-    /// a claudius app that takes these credentials
-    Claudius,
+    /// a claudius app that takes these credentials, and its version ("0.8.0"; empty when it does not say)
+    Claudius(String),
     /// a claudius app that wants a token: none was given, or another one
     NeedsToken,
     /// nothing, or something that is not claudius
     Nothing,
+}
+
+/// Whether a claudius of `version` ("0.2.0") is older than this one, which its studio and its tools would drive wrong:
+/// one an assistant set up before this version came may still be running. A claudius that does not say is older.
+pub fn older_than_this(version: &str) -> bool {
+    claudius_api::older(version, env!("CARGO_PKG_VERSION"))
 }
 
 /// what is answering at `base`?
@@ -82,7 +88,9 @@ pub fn probe(base: &str, token: &Option<String>) -> Probe {
     let status = res.status();
     let body = res.body_mut().read_to_string().unwrap_or_default();
     if status.is_success() && body.contains("\"claudius\"") {
-        Probe::Claudius
+        let hello = serde_json::from_str::<serde_json::Value>(&body).ok();
+        let version = hello.as_ref().and_then(|h| h.get("version")?.as_str()).unwrap_or_default();
+        Probe::Claudius(version.to_string())
     } else if status == 401 && body.contains("claudius needs its token") {
         Probe::NeedsToken
     } else {
@@ -1913,6 +1921,14 @@ mod tests {
                 "wait_for_take"
             ]
         );
+    }
+
+    #[test]
+    fn a_probe_says_the_version_of_the_claudius_it_finds_and_an_older_one_is_told_apart() {
+        let app = App::new(crate::Settings { library: false, ears: false, auto_render: false, ..Default::default() });
+        let at = crate::spawn(app, std::net::SocketAddr::from(([127, 0, 0, 1], 0)), Default::default()).unwrap();
+        assert_eq!(probe(&format!("http://{at}"), &None), Probe::Claudius(env!("CARGO_PKG_VERSION").into()));
+        assert!(!older_than_this(env!("CARGO_PKG_VERSION")) && older_than_this("0.2.0") && older_than_this(""));
     }
 
     #[tokio::test(flavor = "multi_thread")]

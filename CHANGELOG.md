@@ -6,6 +6,11 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+If you installed claudius with the install script before and use the app now, the copy in `~/.local/bin` may be the
+one your assistant starts, and an assistant connected to it knows only what that version could do. The studio now says
+so in a banner and runs beside it: connect the assistant again (**?**, **Connect an assistant**), remove the old copy or
+update it, and restart the assistant.
+
 ## [0.9.0] - 2026-11-13
 
 ### Added

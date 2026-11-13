@@ -74,6 +74,12 @@ pub trait Native: Send + Sync {
     fn automatic_updates(&self) -> bool;
 
     fn set_automatic_updates(&self, on: bool) -> Result<(), String>;
+
+    /// An older claudius the app found on its port, and runs its own engine beside: its port, and its version (empty
+    /// when it does not say). An assistant set up before this version starts it and talks to it, not to this studio.
+    fn older_engine(&self) -> Option<(u16, String)> {
+        None
+    }
 }
 
 /// the assistants `claudius connect` knows (id, name), for the web studio, which can only show the commands

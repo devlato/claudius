@@ -94,6 +94,38 @@ fn given_token(token: Option<String>) -> Option<String> {
     token.map(|t| t.trim().to_owned()).filter(|t| !t.is_empty())
 }
 
+/// `session` served on the first free port of the twenty after `port`, which an older claudius holds
+fn spawn_past(
+    session: std::sync::Arc<claudius_server::App>,
+    port: u16,
+    web: Option<PathBuf>,
+) -> Result<std::net::SocketAddr> {
+    let mut last = None;
+    for p in port.saturating_add(1)..=port.saturating_add(20) {
+        let addr = std::net::SocketAddr::from(([127, 0, 0, 1], p));
+        let options = claudius_server::Options { web: web.clone(), ..Default::default() };
+        match claudius_server::spawn(session.clone(), addr, options) {
+            Ok(local) => return Ok(local),
+            Err(e) => last = Some(e),
+        }
+    }
+    Err(last.unwrap_or_else(|| anyhow::anyhow!("no port free after {port}")))
+}
+
+/// the address of a claudius no older than this one on the twenty ports after `port`, where a studio or an assistant's
+/// claudius serves that stepped round an older one on `port`
+fn current_past(port: u16) -> Option<String> {
+    use claudius_server::mcp::{Probe, older_than_this, probe};
+    (port.saturating_add(1)..=port.saturating_add(20))
+        .map(|p| format!("http://127.0.0.1:{p}"))
+        .find(|base| matches!(probe(base, &None), Probe::Claudius(v) if !older_than_this(&v)))
+}
+
+/// a claudius's version as it says it, or "of an early version" when it does not say
+fn said_version(v: &str) -> &str {
+    if v.is_empty() { "of an early version" } else { v }
+}
+
 /// the arguments, with `studio` when claudius was opened as a Mac app: Finder starts the program inside Claudius.app
 /// with no arguments (old macOS adds `-psn_...`), where in a terminal the same command prints the help
 fn app_args(mut args: Vec<OsString>, exe: Option<&Path>) -> Vec<OsString> {
@@ -703,11 +735,35 @@ fn run(cli: Cli) -> Result<()> {
             );
         }
         Cmd::Studio { app } => {
-            use claudius_server::mcp::Probe;
+            use claudius_server::mcp::{Probe, older_than_this};
             let addr = std::net::SocketAddr::from(([127, 0, 0, 1], app.port));
             let mut own = None;
+            // an older claudius on the port, which the studio steps round and says so: its port and its version
+            let mut older = None;
             let url = match claudius_server::mcp::probe(&format!("http://{addr}"), &None) {
-                Probe::Claudius => {
+                Probe::Claudius(v) if older_than_this(&v) => {
+                    eprintln!(
+                        "the claudius on port {} is {}, older than this one (an assistant set up before this version \
+                         may have started it): the studio runs beside it",
+                        app.port,
+                        said_version(&v)
+                    );
+                    older = Some((app.port, v));
+                    match current_past(app.port) {
+                        Some(base) => {
+                            eprintln!("a claudius is already running at {base}: opening the studio on it");
+                            base
+                        }
+                        None => {
+                            let session = app.app();
+                            own = Some(session.clone());
+                            let local = spawn_past(session, app.port, app.web())?;
+                            eprintln!("claudius engine at http://{local} (web UI, API, MCP at /mcp)");
+                            format!("http://{local}")
+                        }
+                    }
+                }
+                Probe::Claudius(_) => {
                     eprintln!("a claudius is already running on port {}: opening the studio on it", app.port);
                     format!("http://{addr}")
                 }
@@ -731,7 +787,8 @@ fn run(cli: Cli) -> Result<()> {
             #[cfg(feature = "studio")]
             {
                 update::start();
-                let shown = claudius_ui::run_native(Some(url), Some(std::sync::Arc::new(connect::FromTheStudio)));
+                let native = std::sync::Arc::new(connect::FromTheStudio { older });
+                let shown = claudius_ui::run_native(Some(url), Some(native));
                 if let Some(session) = &own {
                     session.wait_for_ears(std::time::Duration::from_secs(60));
                 }
@@ -742,7 +799,7 @@ fn run(cli: Cli) -> Result<()> {
                 eprintln!(
                     "this claudius was built without the studio window; open {url} in a browser (ctrl-c to stop)"
                 );
-                let _session = own;
+                let (_session, _older) = (own, older);
                 loop {
                     std::thread::park();
                 }
@@ -796,25 +853,20 @@ fn run(cli: Cli) -> Result<()> {
             // stdout carries the protocol from here on: everything else goes to stderr
             let rt = tokio::runtime::Runtime::new()?;
             let base = url.clone().unwrap_or_else(|| format!("http://127.0.0.1:{}", app.port));
+            use claudius_server::mcp::{Backend, Probe, older_than_this};
             let found = claudius_server::mcp::probe(&base, &token);
-            let backend = if found == claudius_server::mcp::Probe::Claudius {
-                eprintln!("claudius mcp: driving the claudius app at {base}");
-                claudius_server::mcp::Backend::Remote { base, token }
-            } else if found == claudius_server::mcp::Probe::NeedsToken {
-                anyhow::bail!(
-                    "the claudius at {base} asks for a token: pass --token or set CLAUDIUS_TOKEN (a wrong one is refused \
-                     too)"
-                );
-            } else if url.is_some() {
-                anyhow::bail!("no claudius answers at {base}");
-            } else {
+            // a session of its own, served on the port, or past an older claudius on it
+            let own_session = |past: bool| {
                 let session = app.app();
-                let addr = std::net::SocketAddr::from(([127, 0, 0, 1], app.port));
-                let base = match claudius_server::spawn(
-                    session.clone(),
-                    addr,
-                    claudius_server::Options { web: app.web(), ..Default::default() },
-                ) {
+                let served = match past {
+                    true => spawn_past(session.clone(), app.port, app.web()),
+                    false => claudius_server::spawn(
+                        session.clone(),
+                        std::net::SocketAddr::from(([127, 0, 0, 1], app.port)),
+                        claudius_server::Options { web: app.web(), ..Default::default() },
+                    ),
+                };
+                let base = match served {
                     Ok(local) => {
                         eprintln!("claudius mcp: a session of its own; open http://{local} to hear and see it");
                         format!("http://{local}")
@@ -824,7 +876,37 @@ fn run(cli: Cli) -> Result<()> {
                         String::new()
                     }
                 };
-                claudius_server::mcp::Backend::Local { app: session, base }
+                Backend::Local { app: session, base }
+            };
+            let backend = match found {
+                // this one's tools drive an older claudius wrong: the studio, beside it, may be past the port
+                Probe::Claudius(v) if url.is_none() && older_than_this(&v) => {
+                    eprintln!(
+                        "claudius mcp: the claudius at {base} is {}, older than this one (an assistant set up before \
+                         this version may have started it): running beside it",
+                        said_version(&v)
+                    );
+                    match current_past(app.port) {
+                        Some(base) => {
+                            eprintln!("claudius mcp: driving the claudius app at {base}");
+                            Backend::Remote { base, token }
+                        }
+                        None => own_session(true),
+                    }
+                }
+                Probe::Claudius(v) => {
+                    if older_than_this(&v) {
+                        eprintln!("claudius mcp: the claudius at {base} is {}, older than this one", said_version(&v));
+                    }
+                    eprintln!("claudius mcp: driving the claudius app at {base}");
+                    Backend::Remote { base, token }
+                }
+                Probe::NeedsToken => anyhow::bail!(
+                    "the claudius at {base} asks for a token: pass --token or set CLAUDIUS_TOKEN (a wrong one is refused \
+                     too)"
+                ),
+                Probe::Nothing if url.is_some() => anyhow::bail!("no claudius answers at {base}"),
+                Probe::Nothing => own_session(false),
             };
             let own = match &backend {
                 claudius_server::mcp::Backend::Local { app, .. } => Some(app.clone()),

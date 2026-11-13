@@ -62,6 +62,15 @@ pub fn step_velocity(c: char) -> Option<f32> {
 
 pub const DEFAULT_PORT: u16 = 7878;
 
+/// Whether a claudius of `version` ("0.2.0", as `/api/hello` says it) is older than one of `this`: a version that does
+/// not say, as no claudius has since 0.1, is older.
+pub fn older(version: &str, this: &str) -> bool {
+    let parts = |v: &str| -> Vec<u64> {
+        v.split(['-', '+']).next().unwrap_or_default().split('.').map(|p| p.trim().parse().unwrap_or(0)).collect()
+    };
+    parts(version) < parts(this)
+}
+
 /// The `RenderView::url` of a preview: a render of the song's first bars only, which the browser's demo plays while
 /// the whole song renders. It is no render of the song as it is.
 pub const PREVIEW_URL: &str = "preview:";
@@ -2493,6 +2502,13 @@ pub struct SectionHeard {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn a_version_is_older_by_its_numbers_and_one_that_does_not_say_is_older() {
+        assert!(older("0.2.0", "0.8.0") && older("0.9.0", "0.10.0") && older("", "0.1.0") && older("0.8", "0.8.1"));
+        assert!(!older("0.8.0", "0.8.0") && !older("0.10.0", "0.9.0") && !older("1.0.0", "0.9.9"));
+        assert!(!older("0.9.0-rc.1", "0.9.0") && !older("0.9.0+build.5", "0.9.0"));
+    }
 
     #[test]
     fn a_genre_is_found_by_its_names_its_family_and_its_sound() {

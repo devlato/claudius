@@ -78,6 +78,24 @@ claudius mcp: a session of its own (no web UI: port 7933 is taken, by another cl
   reopen it) once the studio is up. stderr says which way it went: `driving the claudius app at ...` or
   `a session of its own`.
 - **The studio runs on another port.** Use the same `--port` in both.
+- **An older claudius holds the port.** See below.
+
+## The assistant does not know what this claudius can do
+
+An assistant that knows fewer genres, tools or commands than this version has is talking to an older claudius. The
+usual cause is a copy installed before, with the install script (`~/.local/bin/claudius`), next to the app: an
+assistant set up with that copy, or with a bare `claudius` that a terminal finds there, starts it, and it serves the
+port the studio uses.
+
+The studio and `claudius mcp` run beside an older claudius on the port instead of driving it, and the studio shows a
+banner that says so; `claudius doctor` names it (`an older claudius (0.2.0) is running here`). To set it right:
+
+1. Connect the assistant again from this version: the studio's **?** menu, **Connect an assistant**, or
+   `claudius connect <assistant>`. It writes the full path of this claudius, and names any older copy a terminal
+   finds first (`An older claudius (0.2.0) is at /Users/you/.local/bin/claudius`).
+2. Remove the older copy if this one is all you use (`rm ~/.local/bin/claudius`), or install it again the way you did
+   to update it.
+3. Quit and reopen the assistant, then the studio.
 - **The claudius runs with a token** (`claudius serve --token`, or `--public`). `claudius mcp` then stops instead of
   starting a session of its own, and the client shows a server that failed to start:
   `the claudius at http://127.0.0.1:7878 asks for a token: pass --token or set CLAUDIUS_TOKEN (a wrong one is refused

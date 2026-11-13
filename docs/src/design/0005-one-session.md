@@ -19,7 +19,9 @@ render and verdict, a log, and at most one running job. Every client goes throug
 - the studio, native and web, uses the HTTP API only, long-polling `GET /api/state?since=N` and sending commands;
 - MCP over HTTP calls the session in process;
 - `claudius mcp`, started by a desktop assistant, first looks for a claudius already running on the port and drives it
-  through its HTTP API; only if there is none does it start a session of its own.
+  through its HTTP API; only if there is none does it start a session of its own. One older than itself it does not
+  drive, since its tools would ask for what that one does not know: it and the studio both step round it, to the
+  ports after it, where they find each other.
 
 Edits are serialised by a mutex, and each runs on a copy of the current blueprint and replaces it on success. Every
 change bumps a version that long polls wait on. Jobs (renders, mutation, evolution, saves) run one at a time, and a
