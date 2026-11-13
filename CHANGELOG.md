@@ -6,6 +6,8 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-13
+
 A song can change its genre: click the genre under its title (or **Variations**, **Change the genre…**), choose
 another or two fused, and the same song plays in it. Its form, chords and key, its lead's melody, its recordings and
 the notes written on it stay; the genre's drums, bass, parts, sounds and mix play it. Undo brings it back. Assistants
@@ -15,6 +17,19 @@ If you installed claudius with the install script before and use the app now, th
 one your assistant starts, and an assistant connected to it knows only what that version could do. The studio now says
 so in a banner and runs beside it: connect the assistant again (**?**, **Connect an assistant**), remove the old copy or
 update it, and restart the assistant.
+
+### Added
+
+- sampler: Say how often a sampled phrase comes round, or let the song's genre and sections decide ([#257](https://github.com/devlato/claudius/pull/257))
+- mcp: Assistants without the skills read them with guide, and the instructions map what claudius does ([#264](https://github.com/devlato/claudius/pull/264))
+- song: Change a song's genre, keeping its form, chords, melody and recordings ([#271](https://github.com/devlato/claudius/pull/271))
+
+### Fixed
+
+- assistants: The studio and assistants no longer drive an older claudius left on the port ([#263](https://github.com/devlato/claudius/pull/263))
+- studio: Every control the keyboard reaches has the focus ring, egui's own and every area that takes a click ([#267](https://github.com/devlato/claudius/pull/267))
+- analysis: A recording that changes little is heard as sections of 32 bars at most, and none a drop unless it is louder ([#269](https://github.com/devlato/claudius/pull/269))
+- studio: The inspector's fields are as tall as what they hold, so a row that wraps no longer runs into the next ([#268](https://github.com/devlato/claudius/pull/268))
 
 ## [0.9.0] - 2026-11-13
 
@@ -1171,7 +1186,8 @@ The first public release.
   theory checks), Linux on x86_64 and ARM64 with a headless build for machines without sound or a display, and
   Windows as a preview. One-line installers for each, which come with every release and are in its checksums.
 
-[unreleased]: https://github.com/devlato/claudius/compare/v0.9.0...HEAD
+[unreleased]: https://github.com/devlato/claudius/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/devlato/claudius/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/devlato/claudius/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/devlato/claudius/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/devlato/claudius/compare/v0.6.0...v0.7.0
