@@ -665,6 +665,12 @@ fn phrase_of(src: &Stereo, stems: Option<&Stems>, a: &Analysis, p: &Phrase) -> S
     };
     if let Some((from, to)) = p.within {
         gate(&mut cut, a, p.first, from, to);
+        // as loud as the phrase itself, not as what is sung round it in its bars, which the gate took out
+        let peak = cut.peak();
+        if peak > 0.0 {
+            let g = 0.891 / peak;
+            cut.channels_mut().into_iter().for_each(|ch| ch.iter_mut().for_each(|s| *s *= g));
+        }
     }
     cut
 }
@@ -958,27 +964,14 @@ pub fn pieces(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, see
     let mut rng = crate::rng::Rng::seed_from(seed, "pieces");
     let mut pool = sung_whole(src, stems.as_deref(), &a, ears, opt);
     if pool.is_empty() {
-        if let Some(b) = opt.bars {
-            let any = Options { bars: None, ..opt.clone() };
-            if let Some(n) = sung_whole(src, stems.as_deref(), &a, None, &any).iter().map(|p| p.bars).min() {
-                return Err(format!("no phrase of it is sung whole in {b} bars: the shortest takes {n}"));
-            }
-        }
-        return Err(NO_VOICE.into());
+        let (b, or) = opt.bars.map_or((8, " or fewer"), |b| (b, ""));
+        return Err(match fewest(src, stems.as_deref(), &a) {
+            Some(n) => format!("no phrase of it is sung whole in {b} bars{or}: the shortest takes {n}"),
+            None => NO_VOICE.into(),
+        });
     }
-    // a later take draws again among the good ones, the better a phrase the likelier it comes (Gumbel-top-k)
     if seed > 0 {
-        let best = pool[0].score.max(1e-9);
-        let mut keyed: Vec<(f64, Phrase)> = pool
-            .into_iter()
-            .filter(|p| p.score >= GOOD * best)
-            .map(|p| {
-                let gumbel = -(-rng.range(1e-12, 1.0).ln()).ln();
-                ((p.score / best).ln() / CHOOSY + gumbel, p)
-            })
-            .collect();
-        keyed.sort_by(|x, y| y.0.total_cmp(&x.0));
-        pool = keyed.into_iter().map(|(_, p)| p).collect();
+        pool = drawn(pool, &mut rng);
     }
     let mut chosen: Vec<Phrase> = Vec::new();
     for p in pool {
@@ -1100,16 +1093,67 @@ pub fn find(
     out
 }
 
-/// a later take of the pieces draws among the phrases at least this good, against the best
-const GOOD: f64 = 0.6;
-/// and the smaller this, the likelier the better of them
-const CHOOSY: f64 = 0.25;
+/// a later take of the pieces draws among the phrases that score at most this much under the best, and the smaller
+/// `CHOOSY`, the likelier the better of them
+const NEAR_BEST: f64 = 1.2;
+const CHOOSY: f64 = 0.6;
 
-/// The phrases of `src` its voice sings whole (`cuts::sung`), the best first: each from the quiet before its first
-/// word to the quiet after its last word's release, in the fewest whole bars that holds (1, 2, 4 or 8; `opt.bars`
-/// when said), silent where they run before the recording or after it, scored as `candidates` scores a span (and a longer phrase a
-/// little more), and by the ears when they listen. A phrase longer than that is parted at its longest rest within,
-/// of 120 ms at least, or left out where it has none: a cut never falls inside a word or a held note.
+/// `pool`, the best first, drawn again for a later take: those that score within `NEAR_BEST` of the best, in an order
+/// the better of which come first the likelier (Gumbel-top-k), whatever the ears made of the scores.
+fn drawn(pool: Vec<Phrase>, rng: &mut crate::rng::Rng) -> Vec<Phrase> {
+    let Some(best) = pool.first().map(|p| p.score) else { return pool };
+    let mut keyed: Vec<(f64, Phrase)> = pool
+        .into_iter()
+        .filter(|p| p.score >= best - NEAR_BEST)
+        .map(|p| ((p.score - best) / CHOOSY - (-rng.range(1e-12, 1.0).ln()).ln(), p))
+        .collect();
+    keyed.sort_by(|x, y| y.0.total_cmp(&x.0));
+    keyed.into_iter().map(|(_, p)| p).collect()
+}
+
+/// A span `p` of what `sings` sings (`sung`) cut whole: from the quiet before its first word to the quiet after its
+/// last word's release (`cuts`), and the bars of `a` that falls in, from the one its cut before falls in to the one its
+/// cut after does. A bar more where its lead-in or its release crosses a bar line, for a bar line through a consonant
+/// or a held note cuts it, and the bars before the recording's first or after its last where it is sung from its first
+/// moment or to its last.
+fn cut_whole(sings: &Stereo, sung: &cuts::Sung, a: &Analysis, p: &cuts::Span) -> (f64, f64, i64, i64) {
+    let before = sung.words.iter().filter(|w| w.end <= p.start + 1e-9).map(|w| w.end).fold(0.0, f64::max);
+    let after = sung.words.iter().filter(|w| w.start >= p.end - 1e-9).map(|w| w.start).fold(sings.secs(), f64::min);
+    let from = cuts::cut_before(sings, p.start, before, bar_time(a, bar_of(a, p.start)));
+    let to = cuts::cut_after(sings, p.end, after);
+    let first = bar_of(a, from);
+    (from, to, first, bar_of(a, to - 1e-6).max(first))
+}
+
+/// The fewest bars a phrase of `src` takes sung whole, cut as `sung_whole` cuts one and parted at every rest within it
+/// of 120 ms at least; none where its voice sings none.
+fn fewest(src: &Stereo, stems: Option<&Stems>, a: &Analysis) -> Option<u32> {
+    let sings = stems.map_or(src, |s| &s.vocals);
+    let sung = cuts::sung(sings, &melody::pitches(sings));
+    let mut units = Vec::new();
+    for p in &sung.phrases {
+        let words: Vec<cuts::Span> = sung.words_of(*p).copied().collect();
+        let mut start = p.start;
+        for w in words.windows(2).filter(|w| w[1].start - w[0].end >= 0.12) {
+            units.push(cuts::Span { start, end: w[0].end });
+            start = w[1].start;
+        }
+        units.push(cuts::Span { start, end: p.end });
+    }
+    units
+        .iter()
+        .map(|u| {
+            let (_, _, first, last) = cut_whole(sings, &sung, a, u);
+            (last - first + 1) as u32
+        })
+        .min()
+}
+
+/// The phrases of `src` its voice sings whole (`cuts::sung`), the best first: each cut as `cut_whole` cuts it, in the
+/// fewest whole bars that holds (1, 2, 4 or 8; `opt.bars` when said), silent where they run before the recording or
+/// after it, scored as `candidates` scores a span (and a longer phrase a little more), and by the ears when they
+/// listen. A phrase longer than that is parted at its longest rest within, of 120 ms at least, or left out where it
+/// has none: a cut never falls inside a word or a held note.
 fn sung_whole(
     src: &Stereo,
     stems: Option<&Stems>,
@@ -1120,19 +1164,8 @@ fn sung_whole(
     let sings = stems.map_or(src, |s| &s.vocals);
     let pitches = melody::pitches(sings);
     let sung = cuts::sung(sings, &pitches);
-    let secs = src.secs();
     let longest = opt.bars.unwrap_or(8);
-    // a phrase cut whole, and the bars from the one its cut before falls in to the one its cut after does: a bar more
-    // where its lead-in or its release crosses a bar line, for a bar line through a consonant or a held note cuts it,
-    // and the bars before the recording's first or after its last where it is sung from its first moment or to its last
-    let cut = |p: &cuts::Span| {
-        let before = sung.words.iter().filter(|w| w.end <= p.start + 1e-9).map(|w| w.end).fold(0.0, f64::max);
-        let after = sung.words.iter().filter(|w| w.start >= p.end - 1e-9).map(|w| w.start).fold(secs, f64::min);
-        let from = cuts::cut_before(sings, p.start, before, bar_time(a, bar_of(a, p.start)));
-        let to = cuts::cut_after(sings, p.end, after);
-        let first = bar_of(a, from);
-        (from, to, first, bar_of(a, to - 1e-6).max(first))
-    };
+    let cut = |p: &cuts::Span| cut_whole(sings, &sung, a, p);
     let mut spans = Vec::new();
     for p in &sung.phrases {
         let fits = |s: &cuts::Span| {
@@ -1812,6 +1845,62 @@ mod tests {
         assert!((all as f64 / SRF - 6.0).abs() < 0.2, "{} s of it sound", all as f64 / SRF);
         assert!(p.place().starts_with("bars 0-"), "the bar before the first is 0: {}", p.place());
         assert!(first as f64 / SRF > 0.3, "a pickup into the first bar: {first}");
+    }
+
+    #[test]
+    fn a_phrase_too_long_for_eight_bars_says_how_many_it_takes() {
+        // twenty seconds of a tone, with no rest in it to part it at
+        let tone = |i: usize| 0.25 * (std::f64::consts::TAU * 440.0 * i as f64 / SRF).sin() as f32;
+        let l: Vec<f32> = (0..(20.0 * SRF) as usize).map(tone).collect();
+        let x = Stereo { r: l.clone(), l };
+        let said = pieces(&x, None, &Options { count: 1, ..Options::default() }, 0).unwrap_err();
+        assert!(said.starts_with("no phrase of it is sung whole in 8 bars or fewer: the shortest takes "), "{said}");
+    }
+
+    #[test]
+    fn a_piece_is_as_loud_as_its_phrase_not_as_what_is_sung_round_it_in_its_bars() {
+        // a word twelve decibels louder than the phrase sung a rest after it, in the bars the phrase takes
+        let line: &[(f64, u32)] = &[(0.4, 1), (0.55, 2), (0.3, 1)];
+        let (mut src, words) = crate::cuts::tests::sung_over_drums(&[(0.6, &[(0.4, 1)]), (1.6, line)], 10.0);
+        let loud = (words[0].start * SRF) as usize..(words[0].end * SRF) as usize;
+        for ch in src.channels_mut() {
+            ch[loud.clone()].iter_mut().for_each(|v| *v *= 4.0);
+        }
+        let all = pieces(&src, None, &Options { count: 2, ..Options::default() }, 0).unwrap();
+        let spans: Vec<_> = all.iter().map(|p| (p.phrase.start, p.phrase.bars, p.phrase.within)).collect();
+        let quiet = all.iter().find(|p| p.phrase.within.is_some_and(|(from, _)| from > words[0].end));
+        let quiet = quiet.unwrap_or_else(|| panic!("the phrase apart from the word: {spans:?}"));
+        let (start, end) = (quiet.phrase.start, quiet.phrase.start + quiet.raw.secs());
+        assert!(start <= words[0].start && end >= words[0].end, "its bars hold the loud word: {:?}", quiet.phrase);
+        assert!((quiet.raw.peak() - 0.891).abs() < 0.02, "as cut, at -1 dBFS: {}", quiet.raw.peak());
+    }
+
+    #[test]
+    fn a_later_take_draws_among_the_good_phrases_however_the_ears_scored_them() {
+        let phrase = |score: f64| Phrase {
+            start: 0.0,
+            first: 0,
+            bars: 1,
+            z: Some(score),
+            sung: 0.0,
+            centred: 0.0,
+            score,
+            within: None,
+        };
+        // the ears may mark every phrase down below nothing
+        let pool = || vec![phrase(-0.5), phrase(-0.9), phrase(-3.0)];
+        let mut first = std::collections::BTreeMap::new();
+        for seed in 1..=60 {
+            let drawn = drawn(pool(), &mut crate::rng::Rng::new(seed));
+            assert_eq!(
+                drawn.len(),
+                2,
+                "the two near the best, of {:?}",
+                drawn.iter().map(|p| p.score).collect::<Vec<_>>()
+            );
+            *first.entry((drawn[0].score * 10.0) as i64).or_insert(0) += 1;
+        }
+        assert!(first[&-5] > first[&-9] && first[&-9] > 0, "the better first the likelier: {first:?}");
     }
 
     #[test]
