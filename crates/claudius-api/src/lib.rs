@@ -1555,6 +1555,29 @@ pub fn severity_in_words(s: f64) -> &'static str {
     }
 }
 
+/// The verdict's issues about track `name`, whose role is `role` (`TrackView::role`): its level, its part or its sound,
+/// as each issue's target names them (`level:<track>+`, `part:<name>`, `sound:<part>`). A part named by a role
+/// (`part:lead`, `part:bass`) is the track of that role when no track has that name (`is_track` says which have).
+pub fn issues_of<'a>(
+    v: &'a VerdictView,
+    name: &str,
+    role: &str,
+    is_track: impl Fn(&str) -> bool,
+) -> Vec<&'a (f64, String, String)> {
+    v.issues
+        .iter()
+        .filter(|(_, _, target)| {
+            let (kind, of) = target.split_once(':').unwrap_or((target.as_str(), ""));
+            let of = of.trim_end_matches(['+', '-']);
+            match kind {
+                "level" | "sound" => of == name,
+                "part" => of == name || (!role.is_empty() && of == role && !is_track(of)),
+                _ => false,
+            }
+        })
+        .collect()
+}
+
 /// Where an issue of the verdict is fixed, in words, from the critic's target: `part:lead` the lead part,
 /// `band:presence-` more presence in the mix, `level:kick+` kick quieter, `width+` a wider stereo image, `form` the
 /// arrangement, `form:intro` a shorter intro, and so on.
@@ -2559,6 +2582,26 @@ mod tests {
         assert!(older("0.2.0", "0.8.0") && older("0.9.0", "0.10.0") && older("", "0.1.0") && older("0.8", "0.8.1"));
         assert!(!older("0.8.0", "0.8.0") && !older("0.10.0", "0.9.0") && !older("1.0.0", "0.9.9"));
         assert!(!older("0.9.0-rc.1", "0.9.0") && !older("0.9.0+build.5", "0.9.0"));
+    }
+
+    #[test]
+    fn a_tracks_issues_are_those_its_level_its_part_or_its_sound_fixes() {
+        let issue = |target: &str| (0.4, format!("about {target}"), target.to_string());
+        let v = VerdictView {
+            issues: ["level:bass+", "part:lead", "sound:pad", "master", "band:low+", "level:bassline-"]
+                .map(issue)
+                .into(),
+            ..Default::default()
+        };
+        let tracks = ["bass", "melody", "pad", "bassline"];
+        let of = |name: &str, role: &str| -> Vec<String> {
+            issues_of(&v, name, role, |n| tracks.contains(&n)).into_iter().map(|i| i.2.clone()).collect()
+        };
+        assert_eq!(of("bass", "bass"), ["level:bass+"], "its level, not another's whose name starts the same");
+        assert_eq!(of("melody", "lead"), ["part:lead"], "the lead, by its role, as no track is called lead");
+        assert_eq!(of("pad", "pad"), ["sound:pad"]);
+        assert_eq!(of("bassline", "bass"), ["level:bassline-"], "its own level only");
+        assert!(of("kick", "drum").is_empty(), "the master and the bands are the song's");
     }
 
     #[test]
