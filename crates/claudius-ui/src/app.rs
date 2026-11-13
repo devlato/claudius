@@ -497,7 +497,8 @@ impl Studio {
                 None => self.view.track = None,
             }
         }
-        if self.view.new_song.open {
+        // a window over the studio that takes its keys: the song behind it does not move
+        if self.view.new_song.open || self.view.change_genre.open {
             return;
         }
         let free = !menu && focused.is_none();
