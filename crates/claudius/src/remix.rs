@@ -192,8 +192,9 @@ fn db(power: f64) -> f64 {
 const REST_DB: f64 = 30.0;
 /// the most a flip raises or lowers a piece to bring it to its hook's level
 const FLIP_MOST_DB: f64 = 18.0;
-/// how alike two bars' notes are at least for a flip to take one for the other (`alike`)
-const NEAR_NOTES: f32 = 0.8;
+/// how alike two bars' notes are at least for a flip to take one for the other (`alike`): A minor's for A minor
+/// seventh's (0.87), not for C major's or F major's, which share two of its notes (0.67)
+const NEAR_NOTES: f32 = 0.85;
 
 /// how alike two bars' pitch classes are, 0 to 1: the cosine of the angle between them
 fn alike(x: &[f32; 12], y: &[f32; 12]) -> f32 {
@@ -283,11 +284,13 @@ fn chords_of(a: &Analysis, b: Bars) -> Vec<String> {
     if chords.len() == b.count { chords } else { Vec::new() }
 }
 
-/// The flip: as many bars as the hook of half beats, each from another bar of the recording that plays the hook's
-/// chord at that place (one of a section with chords; where none is heard to, one of the three whose notes are nearest
-/// it, `NEAR_NOTES` at least; the hook's own bar when none is), at the same place in its bar, now and then another
-/// place in it, and each as loud as the hook (its bar brought to the hook's level, at most `FLIP_MOST_DB` either way:
-/// a piece of a quiet verse beside one of a loud chorus would jump). The audio, and the bar each half beat came from.
+/// The flip: as many bars as the hook of half beats, each from another bar of the recording, of a section with chords,
+/// that plays the hook's chord at that place. Where no other is heard on that chord, or no chord is heard, it is one of
+/// the three whose notes are nearest the hook's there, `NEAR_NOTES` at least: the same chord heard as another (an A
+/// minor and its seventh), never another chord; the hook's own bar when none is. Each comes from the same place in its
+/// bar, now and then another place in it, and each as loud as the hook (its bar brought to the hook's level, at most
+/// `FLIP_MOST_DB` either way: a piece of a quiet verse beside one of a loud chorus would jump). The audio, and the bar
+/// each half beat came from.
 pub fn flip(a: &Analysis, sustained: &Stereo, hook: Bars, rng: &mut Rng) -> (Stereo, Vec<usize>) {
     let gains = bar_gains(a, sustained, db(power_of(a, sustained, hook.first, hook.count)), 1.0, FLIP_MOST_DB);
     let half = a.bar_secs / 8.0;
@@ -1389,6 +1392,52 @@ mod tests {
             assert_eq!(built_on(&bp, "its hook ("), hook, "seed {seed}: {:?}", bp.lineage);
         }
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_chord_no_other_bar_plays_gives_way_to_its_seventh_but_never_to_another_chord() {
+        // the hook, bars 9 to 16, all A minor; before it C major, but for bar 6, A minor's seventh
+        let (am, am7, c) = (
+            [0.33, 0., 0., 0., 0.33, 0., 0., 0., 0., 0.34, 0., 0.],
+            [0.25, 0., 0., 0., 0.25, 0., 0., 0.25, 0., 0.25, 0., 0.],
+            [0.33, 0., 0., 0., 0.33, 0., 0., 0.34, 0., 0., 0., 0.],
+        );
+        let notes = |seventh: bool| -> Vec<[f32; 12]> {
+            (0..16)
+                .map(|k| {
+                    if k >= 8 {
+                        am
+                    } else if k == 5 && seventh {
+                        am7
+                    } else {
+                        c
+                    }
+                })
+                .collect()
+        };
+        let numerals = |seventh: bool| -> Vec<String> {
+            (0..16)
+                .map(|k| {
+                    if k >= 8 {
+                        "i"
+                    } else if k == 5 && seventh {
+                        "i7"
+                    } else {
+                        "III"
+                    }
+                    .to_string()
+                })
+                .collect()
+        };
+        let x = Stereo::zeros((40.0 * SRF) as usize);
+        let a = Analysis { numerals: numerals(true), bar_chroma: notes(true), ..heard() };
+        let hook = hook_bars(&a).unwrap();
+        let (_, from) = flip(&a, &x, hook, &mut Rng::new(5));
+        assert!(from.iter().all(|&k| k == 5), "the seventh, and no bar of C major: {from:?}");
+        // with no seventh to give way to, the hook's own bars
+        let a = Analysis { numerals: numerals(false), bar_chroma: notes(false), ..heard() };
+        let (_, from) = flip(&a, &x, hook, &mut Rng::new(5));
+        assert!(from.iter().all(|&k| hook.holds(k)), "{from:?}");
     }
 
     #[test]
