@@ -123,6 +123,8 @@ pub struct Listen {
     /// the library's record of it, when a free library offered it (`LibraryHit::found`): what the demo's engine
     /// credits it by
     pub found: Option<serde_json::Value>,
+    /// heard for the Add a recording window: the answer is that window's (`hear_recording`), not the studio's
+    pub recording: bool,
 }
 
 /// what the studio knows about its connection

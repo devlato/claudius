@@ -162,6 +162,8 @@ fn listen_request(l: &crate::panels::Listen) -> (&'static str, &'static str, Str
         return ("extract_groove", "/api/groove", name);
     }
     match &l.remake {
+        // the Add a recording window's, answered to it, as the demo's engine answers it (`Listen::what`)
+        None if l.recording => ("hear_recording", "/api/analyze", name),
         None => ("analyze", "/api/analyze", name),
         Some((genre, seed)) => {
             let seed = seed.map_or_else(String::new, |s| format!("&seed={s}"));
@@ -189,7 +191,7 @@ fn demo_listen(l: &crate::panels::Listen) -> claudius_api::Listen {
         return Listen::ExtractGroove { name };
     }
     match &l.remake {
-        None => Listen::Analyze { name },
+        None => Listen::Analyze { name, recording: l.recording },
         Some((genre, seed)) => {
             Listen::Remake { name, genre: Some(genre.clone()), seed: *seed, flip: l.flip, rebuild: l.rebuild }
         }
@@ -995,9 +997,14 @@ mod tests {
             every: None,
             groove: false,
             found: None,
+            recording: false,
         };
         let name = "name=My%20Song%20%28live%29%20%232.m4a";
         assert_eq!(listen_request(&base()), ("analyze", "/api/analyze", name.into()));
+        // what the Add a recording window hears in one is the same analysis, answered to that window
+        let held = listen_request(&Listen { recording: true, ..base() });
+        assert_eq!(held, ("hear_recording", "/api/analyze", name.into()));
+        assert_eq!(demo_listen(&Listen { recording: true, ..base() }).what(), "hear_recording");
         let remake = listen_request(&Listen { remake: Some(("drum_and_bass".into(), Some(42))), ..base() });
         assert_eq!(remake.0, "remake");
         assert_eq!(remake.1, "/api/remake");

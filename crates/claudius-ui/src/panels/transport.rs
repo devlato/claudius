@@ -1448,6 +1448,7 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
             every: None,
             groove: f.with_recording == WithRecording::Groove,
             found: None,
+            recording: false,
         });
     }
 }

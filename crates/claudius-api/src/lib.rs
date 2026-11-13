@@ -582,6 +582,9 @@ fn begins(words: &[String], w: &str) -> bool {
 pub enum Listen {
     Analyze {
         name: String,
+        /// heard for the Add a recording window rather than asked for: the answer is that window's (`hear_recording`)
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        recording: bool,
     },
     Remake {
         name: String,
@@ -651,7 +654,7 @@ impl Listen {
     /// the file's name, whose extension says its format (a pitch check has none: its bytes say)
     pub fn name(&self) -> &str {
         match self {
-            Listen::Analyze { name } | Listen::SampleSong { name, .. } | Listen::ExtractGroove { name } => name,
+            Listen::Analyze { name, .. } | Listen::SampleSong { name, .. } | Listen::ExtractGroove { name } => name,
             Listen::Remake { name, .. } | Listen::Take { name, .. } | Listen::SamplePieces { name, .. } => name,
             Listen::OpenProject { name } => name,
             Listen::PitchCheck { .. } => "the pitch check",
@@ -661,6 +664,7 @@ impl Listen {
     /// the command it answers for, as a reply names it
     pub fn what(&self) -> &'static str {
         match self {
+            Listen::Analyze { recording: true, .. } => "hear_recording",
             Listen::Analyze { .. } => "analyze",
             Listen::Remake { .. } => "remake",
             Listen::SampleSong { .. } => "sample_song",

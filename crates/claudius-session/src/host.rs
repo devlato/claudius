@@ -1934,6 +1934,8 @@ mod tests {
             found: None,
         };
         assert_eq!(added.what(), "add_recording", "the Add a recording window's answer is its own");
+        let heard = Listen::Analyze { name: "a song.m4a".into(), recording: true };
+        assert_eq!(heard.what(), "hear_recording", "and so is what it hears in one");
         let r = h.listen(&take("intro", "vocal"), wav(&a_song()));
         assert!(!r.ok && r.message.starts_with("no song yet"), "{}", r.message);
         assert!(command(&mut h, json!({"cmd": "new_song", "genre": "house", "seed": 3})).ok);
@@ -2265,7 +2267,7 @@ mod tests {
         let mut h = Host::new(1);
         let bytes = wav(&a_song());
         let name = || "my song.wav".to_string();
-        let r = h.listen(&Listen::Analyze { name: name() }, bytes.clone());
+        let r = h.listen(&Listen::Analyze { name: name(), recording: false }, bytes.clone());
         assert!(r.ok && r.message.contains(" BPM (pulse clarity"), "{}", r.message);
         // what was heard goes to the page with the answer, once, with nothing of the recording kept: the page plays
         // the file it has
@@ -2312,7 +2314,7 @@ mod tests {
         let r = h.listen(&Listen::ExtractGroove { name: name() }, bytes);
         assert!(r.ok && r.message.starts_with("groove my_song, heard in my song.wav"), "{}", r.message);
         // and a file that is no recording says so
-        let r = h.listen(&Listen::Analyze { name: "notes".into() }, b"hello".to_vec());
+        let r = h.listen(&Listen::Analyze { name: "notes".into(), recording: false }, b"hello".to_vec());
         assert!(!r.ok && r.message.starts_with("send the recording as the file itself"), "{}", r.message);
     }
 

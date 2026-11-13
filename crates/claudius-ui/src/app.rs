@@ -181,14 +181,15 @@ impl Studio {
             Event::Reply { what, result } => {
                 self.inflight = self.inflight.saturating_sub(1);
                 let script = what == "run_script";
-                if matches!(what.as_str(), "analyze" | "remake" | "sample_song" | "extract_groove") {
+                if matches!(what.as_str(), "analyze" | "remake" | "sample_song" | "extract_groove" | "hear_recording") {
                     let (ok, message) = match &result {
                         Ok(r) => (r.ok, r.message.clone()),
                         Err(e) => (false, e.clone()),
                     };
                     // the Add a recording window's own listening says itself in that window
-                    if !(what == "analyze" && self.view.import.reply_owed(ok, &message, self.view.analyzing)) {
-                        self.view.listened(&what, ok, message);
+                    match what.as_str() {
+                        "hear_recording" => self.view.import.hearing_answered(ok, &message),
+                        _ => self.view.listened(&what, ok, message),
                     }
                 }
                 if what == "pitch_check" {
@@ -646,6 +647,7 @@ impl Studio {
                         every: None,
                         groove: false,
                         found: None,
+                        recording: false,
                     });
                 }
                 Step::Exit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
@@ -1381,6 +1383,7 @@ impl eframe::App for Studio {
                 every: None,
                 groove: false,
                 found: None,
+                recording: true,
             });
         }
         if let Some(l) = self.view.listen.take() {

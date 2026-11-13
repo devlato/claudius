@@ -194,10 +194,13 @@ chosen (`pick::Want::Recording`) or dropped anywhere on the studio (`pick::read_
 waiting for artwork), and sends it as a take, to `POST /api/takes` like the Record window's (the demo's engine sniffs
 its kind from its bytes), or hands it to the auto-sampler (`Listen` with `sample`, its `sections` and `every`). As
 soon as it holds one it sends it to be heard (`Import::next_to_hear`, `/api/analyze` or the demo's
-`Listen::Analyze`): what was heard comes back to the window that asked (`Import::wants`, by the file's name, then
-`Import::reply_owed` for the answer after it) rather than opening the window of what claudius hears. Each recording
-held is counted, so that what comes of one held before stays in the window unshown, and a file of the same name as one
-not answered yet waits for it. The window draws its sections over its `waveform` with its `phrases` marked, each played
+`Listen::Analyze` with `recording`), one at a time: what was heard comes back to the window that asked
+(`Import::wants`, by the file's name) rather than opening the window of what claudius hears. The answer after it is
+the window's by its name, `hear_recording`, which the app gives the answer to the window's own request and the demo's
+engine answers as (`Listen::what`), so another analysis that ends first is never taken for it
+(`Import::hearing_answered`). Each
+recording held is counted, so that what comes of one held before stays in the window unshown, and one chosen while
+another is heard goes once that one is answered. The window draws its sections over its `waveform` with its `phrases` marked, each played
 from the recording claudius kept (`/api/listened/`) or, in the demo, the file itself; the Sample window keeps what was
 heard in the recording it offers pieces of, for its timeline. The ways are cards, and where and how often are chips. Its search of the free libraries
 (`Backend::search_library`: `/api/library/search`, or in the demo claudius' site, as the demo's sampler asks it)

@@ -54,13 +54,13 @@ pub struct Import {
     /// what claudius heard in the recording held, and why it could not hear it
     heard: Option<Box<Listened>>,
     heard_failed: Option<String>,
-    /// The recording held, to send to be heard for the window (`next_to_hear`); which recording held it is, counted, so that
-    /// what was heard in one held before is known for that; what was sent and is not answered yet, each by its name and
-    /// its count, in the order sent; and that the answer to `analyze` after what was heard is the window's too.
+    /// The recording held, to send to be heard for the window (`next_to_hear`); which recording held it is, counted, so
+    /// that what was heard in one held before is known for that; and the one sent and not answered yet, by its name and
+    /// its count, and whether what was heard in it has come. One goes at a time, so that the answer to it, which says
+    /// it is the window's (`hear_recording`) but not which recording it was, is known for it.
     hear_it: Option<Arc<Picked>>,
     held: u64,
-    asked: Vec<(String, u64)>,
-    owes_reply: bool,
+    asked: Option<(String, u64, bool)>,
     /// what was heard in the recording the Sample window offers pieces of, and which held it was: its timeline
     offer_heard: Option<Box<Listened>>,
     offer_held: u64,
@@ -206,33 +206,36 @@ impl Import {
         self.held_anew(Some(file));
     }
 
-    /// The recording to send to be heard for the window now: none while one of its name is not answered yet, which it
-    /// waits for, since what comes back is known by its name.
+    /// The recording to send to be heard for the window now: none while the last one sent is not answered yet, which
+    /// it waits for.
     pub fn next_to_hear(&mut self) -> Option<Arc<Picked>> {
-        let name = self.hear_it.as_ref()?.name.clone();
-        if self.asked.iter().any(|(n, _)| *n == name) {
+        if self.asked.is_some() {
             return None;
         }
-        self.asked.push((name, self.held));
-        self.hear_it.take()
+        let file = self.hear_it.take()?;
+        self.asked = Some((file.name.clone(), self.held, false));
+        Some(file)
     }
 
     /// whether claudius is still to say what it hears in the recording held
     fn listening(&self) -> bool {
-        self.hear_it.is_some() || self.asked.iter().any(|(_, h)| *h == self.held)
+        self.hear_it.is_some() || self.asked.as_ref().is_some_and(|(_, h, heard)| *h == self.held && !heard)
     }
 
     /// whether what claudius heard in the recording named `name` is the window's, which asked for it
     pub fn wants(&self, name: &str) -> bool {
-        self.asked.iter().any(|(n, _)| n == name)
+        self.asked.as_ref().is_some_and(|(n, _, heard)| n == name && !heard)
     }
 
-    /// What claudius heard in a recording the window asked about: kept when it is the one held, and the Sample
-    /// window's timeline when it is the one it offers pieces of; the answer to `analyze` after it is the window's.
+    /// What claudius heard in the recording the window asked about, which comes before the answer: kept when it is the
+    /// one held, and the Sample window's timeline when it is the one it offers pieces of.
     pub fn heard_it(&mut self, heard: Box<Listened>) {
-        let Some(at) = self.asked.iter().position(|(n, _)| *n == heard.name) else { return };
-        let (_, held) = self.asked.remove(at);
-        self.owes_reply = true;
+        let Some((name, held, got)) = self.asked.as_mut() else { return };
+        if *name != heard.name || *got {
+            return;
+        }
+        let held = *held;
+        *got = true;
         if held == self.offer_held && self.sampling && self.offer_heard.is_none() {
             self.offer_heard = Some(heard.clone());
         }
@@ -241,20 +244,14 @@ impl Import {
         }
     }
 
-    /// Takes the answer to `analyze` when it is the window's, and says whether it was: one after what was heard, or one
-    /// that says a recording it asked about could not be heard while no other is listened to (`others`).
-    pub fn reply_owed(&mut self, ok: bool, message: &str, others: bool) -> bool {
-        if std::mem::take(&mut self.owes_reply) {
-            return true;
+    /// claudius' answer to the recording the window sent to be heard (`hear_recording`), after what it heard in it:
+    /// when nothing came, why, in the window, if it is the one still held
+    pub fn hearing_answered(&mut self, ok: bool, message: &str) {
+        let Some((_, held, heard)) = self.asked.take() else { return };
+        if !heard && held == self.held {
+            let why = if ok { "claudius said nothing of what it heard in it" } else { message };
+            self.heard_failed = Some(why.to_string());
         }
-        if ok || others || self.asked.is_empty() {
-            return false;
-        }
-        let (_, held) = self.asked.remove(0);
-        if held == self.held {
-            self.heard_failed = Some(message.to_string());
-        }
-        true
     }
 
     /// the window open, searching the libraries for `words`, as its Search button searches them (the "+ Track"
@@ -352,7 +349,11 @@ impl Import {
                 Ok(bytes) => {
                     let file = Arc::new(Picked { name: file_name(&hit), bytes, folder: None });
                     (self.file, self.hit, self.said, self.browse) = (Some(file.clone()), Some(hit), None, false);
-                    self.heard_anew(file);
+                    // with a claudius it was held as it was chosen, by its id (`take_up`): the same one, now heard
+                    match held {
+                        true => self.hear_it = Some(file),
+                        false => self.heard_anew(file),
+                    }
                 }
                 Err(e) if held => {
                     if still {
@@ -1074,6 +1075,7 @@ fn sample(
                 every: None,
                 groove: false,
                 found,
+                recording: false,
             })
         }
         (None, None) => None,
@@ -1460,38 +1462,43 @@ mod tests {
         assert!(im.wants("Tranquilize.mp3") && !im.wants("another.mp3") && im.next_to_hear().is_none());
         im.heard_it(Box::new(heard()));
         assert!(!im.wants("Tranquilize.mp3") && !im.listening() && im.heard.is_some(), "what was heard came");
-        assert!(im.reply_owed(true, "analyzed Tranquilize.mp3", false), "its answer is the window's");
-        assert!(!im.reply_owed(true, "analyzed another.mp3", false), "and the next is not");
-        // one that could not be heard says why, in the window, unless another is listened to meanwhile
+        // the next goes once the answer after it has come, which is the first one's
         im.holds(file("broken.mp3"));
-        im.next_to_hear();
-        assert!(im.heard.is_none() && !im.reply_owed(false, "cannot decode it", true));
-        assert!(im.reply_owed(false, "cannot decode broken.mp3", false));
+        assert!(im.next_to_hear().is_none(), "it waits for the answer");
+        im.hearing_answered(true, "analyzed Tranquilize.mp3");
+        assert!(im.heard_failed.is_none() && im.next_to_hear().is_some());
+        // one that could not be heard says why, in the window
+        im.hearing_answered(false, "cannot decode broken.mp3");
         assert_eq!(im.heard_failed.as_deref(), Some("cannot decode broken.mp3"));
+        assert!(!im.listening());
     }
 
     #[test]
-    fn what_was_heard_in_one_held_before_is_the_windows_but_not_shown_and_one_of_the_same_name_waits() {
+    fn what_was_heard_in_one_held_before_is_the_windows_but_not_shown_and_the_next_goes_after_its_answer() {
         let file = |name: &str| Picked { name: name.into(), bytes: vec![1, 2, 3], folder: None };
         let mut im = Import::default();
         im.holds(file("Tranquilize.mp3"));
         im.next_to_hear();
-        // another chosen while the first is heard: what comes of the first stays in the window, unshown
+        // another chosen while the first is heard: what comes of the first stays in the window, unshown, and the
+        // other goes once the first is answered
         im.holds(file("another.mp3"));
-        assert_eq!(im.next_to_hear().map(|f| f.name.clone()).as_deref(), Some("another.mp3"));
-        assert!(im.wants("Tranquilize.mp3"));
+        assert!(im.listening() && im.next_to_hear().is_none());
         im.heard_it(Box::new(heard()));
-        assert!(im.heard.is_none() && im.listening() && im.reply_owed(true, "analyzed Tranquilize.mp3", false));
+        assert!(im.heard.is_none() && im.listening());
+        im.hearing_answered(true, "analyzed Tranquilize.mp3");
+        assert_eq!(im.next_to_hear().map(|f| f.name.clone()).as_deref(), Some("another.mp3"));
         im.heard_it(Box::new(Listened { name: "another.mp3".into(), ..heard() }));
         assert_eq!(im.heard.as_ref().map(|h| h.name.as_str()), Some("another.mp3"));
-        // a file of the same name as one not answered yet waits for it, so that each answer is known for its own
-        im.holds(file("same.mp3"));
+        im.hearing_answered(true, "analyzed another.mp3");
+        // one held before that could not be heard says nothing of the one held now, which goes next
+        im.holds(file("broken.mp3"));
         im.next_to_hear();
-        im.holds(file("same.mp3"));
-        assert!(im.next_to_hear().is_none(), "it waits");
-        im.heard_it(Box::new(Listened { name: "same.mp3".into(), ..heard() }));
-        assert!(im.heard.is_none(), "the first one's");
-        assert!(im.next_to_hear().is_some(), "and then it goes");
+        im.holds(file("fine.mp3"));
+        im.hearing_answered(false, "cannot decode broken.mp3");
+        assert!(im.heard_failed.is_none() && im.listening(), "not the one held");
+        assert_eq!(im.next_to_hear().map(|f| f.name.clone()).as_deref(), Some("fine.mp3"));
+        // what is heard in a recording of another name, the studio's own, is not the window's
+        assert!(!im.wants("Tranquilize.mp3"));
     }
 
     #[test]
@@ -1504,11 +1511,36 @@ mod tests {
         im.sample_afresh(true);
         im.heard_it(Box::new(heard()));
         assert_eq!(im.offer_heard.as_ref().map(|h| h.name.as_str()), Some("Tranquilize.mp3"));
+        im.hearing_answered(true, "analyzed Tranquilize.mp3");
         im.holds(file("another.mp3"));
         im.next_to_hear();
         im.heard_it(Box::new(Listened { name: "another.mp3".into(), ..heard() }));
         assert_eq!(im.offer_heard.as_ref().map(|h| h.name.as_str()), Some("Tranquilize.mp3"), "another held after");
         im.sample_afresh(false);
         assert!(im.offer_heard.is_none());
+    }
+
+    #[test]
+    fn a_library_recording_held_by_its_id_is_the_same_one_when_its_audio_arrives_to_be_heard() {
+        let hit = LibraryHit {
+            id: "freesound:629052".into(),
+            title: "Tranquilize".into(),
+            audio: "/api/library/audio?id=freesound%3A629052&ext=.mp3".into(),
+            ..LibraryHit::default()
+        };
+        let mut im = Import::default();
+        // held at once by its id, as a claudius holds it (`take_up`), and the Sample window opened before its audio
+        // has arrived to be heard
+        (im.hit, im.open) = (Some(hit.clone()), true);
+        im.held_anew(None);
+        let (tx, rx) = std::sync::mpsc::channel();
+        im.fetching = Some((hit, rx, true));
+        im.sample_afresh(true);
+        tx.send(Ok(vec![1, 2, 3])).unwrap();
+        im.arrivals();
+        let file = im.next_to_hear().expect("its audio, to hear");
+        im.heard_it(Box::new(Listened { name: file.name.clone(), ..heard() }));
+        assert!(im.heard.is_some(), "what was heard in the one held");
+        assert_eq!(im.offer_heard.as_ref().map(|h| &h.name), Some(&file.name), "and the Sample window's timeline");
     }
 }
