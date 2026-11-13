@@ -21,6 +21,7 @@ pub mod clock;
 pub mod colour;
 pub mod compose;
 pub mod config;
+pub mod cuts;
 pub mod dsp;
 pub mod ears;
 pub mod evolve;

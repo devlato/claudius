@@ -496,7 +496,8 @@ pub struct PiecesArgs {
     /// how many pieces, 1 to 4 (default 2)
     #[serde(default)]
     pub count: Option<u32>,
-    /// how long each is, in bars: 1, 2 or 4 (whichever sounds best by default)
+    /// the bars each piece takes, 1 to 8: a phrase that fits in them, one longer parted at a rest (default: the fewest
+    /// of 1, 2, 4 or 8 its phrase fits in)
     #[serde(default)]
     pub bars: Option<u32>,
     /// what the ears listen for (default "a person singing")
@@ -1448,7 +1449,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Offer the auto-sampler's pieces of a recording before any goes into the song: `count` phrases that sound most like a voice (or like `find`), cut on its own beat grid and cleaned of its drums, each as it was cut and through a treatment (dusty tape, a washed echo, lo-fi crushing, a phaser, a telephone band, a stutter, a reversed tail). Lists each piece with its number, where it is in the recording, how sung it is, its treatment, and the two files to hear (the studio's Sample window shows them side by side). Then redraw_pieces for another take, or keep_pieces to sample the chosen ones into the song, each as it was or treated. path: a file, or library:<id> from search_recordings."
+        description = "Offer the auto-sampler's pieces of a recording before any goes into the song: `count` phrases sung whole that sound most like a voice (or like `find`), each cut in the quiet before its first word and after its last note's release (never inside a word), in whole bars of its own beat grid that are silent outside the phrase, and cleaned of its drums, each as it was cut and through a treatment (dusty tape, a washed echo, lo-fi crushing, a phaser, a telephone band, a stutter, a reversed tail). Lists each piece with its number, where it is in the recording, how sung it is, its treatment, and the two files to hear (the studio's Sample window shows them side by side). Then redraw_pieces for another take, or keep_pieces to sample the chosen ones into the song, each as it was or treated. path: a file, or library:<id> from search_recordings."
     )]
     async fn sample_pieces(&self, Parameters(a): Parameters<PiecesArgs>) -> Result<String, String> {
         let c = Command::SamplePieces { path: a.path, seed: a.seed, count: a.count, bars: a.bars, find: a.find };
@@ -1456,7 +1457,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Draw the pieces of the recording sample_pieces offered again, for another take (`seed`, the next one by default): other phrases among the good ones, of other lengths unless `bars` was given, with other treatments."
+        description = "Draw the pieces of the recording sample_pieces offered again, for another take (`seed`, the next one by default): other phrases among the good ones, with other treatments."
     )]
     async fn redraw_pieces(&self, Parameters(a): Parameters<RedrawArgs>) -> Result<String, String> {
         self.pieces(Command::RedrawPieces { seed: a.seed }).await
