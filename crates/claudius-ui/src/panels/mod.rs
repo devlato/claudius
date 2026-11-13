@@ -134,6 +134,8 @@ pub struct Link {
     pub retry_in: Option<f64>,
     /// "claudius 0.1.0" from `/api/hello`
     pub server: Option<String>,
+    /// that server is older than this studio, which then may not know all it asks of it
+    pub older: bool,
     /// whether that server has ears, from `/api/hello` (the state says when they are still loading)
     pub ears: Option<bool>,
 }
@@ -420,6 +422,8 @@ pub struct View {
     pub anchors: crate::tour::Anchors,
     /// the update whose banner was put off with Later (until the next start)
     pub update_dismissed: Option<String>,
+    /// the banner for an older claudius on the port was put off with Later (until the next start)
+    pub older_dismissed: bool,
     /// "Check for updates" was asked for: say what it found
     pub update_asked: bool,
     /// the windows open, by the names `closable` gives them, the one opened last at the end
@@ -505,6 +509,7 @@ impl Default for View {
             anchors: crate::tour::Anchors::default(),
             opened: Vec::new(),
             update_dismissed: None,
+            older_dismissed: false,
             update_asked: false,
         }
     }

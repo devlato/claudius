@@ -260,8 +260,9 @@ impl Studio {
                 }
             }
             Event::Sounds(list) => self.sounds = Some(list),
-            Event::Hello { name, ears } => {
+            Event::Hello { name, version, ears } => {
                 self.link.server = Some(name);
+                self.link.older = claudius_api::older(&version, env!("CARGO_PKG_VERSION"));
                 self.link.ears = ears;
             }
             Event::Reference(result) => {
@@ -828,6 +829,32 @@ impl Studio {
         });
     }
 
+    /// the banner for an older claudius on the studio's port, which the studio runs beside: an assistant set up before
+    /// this version starts that one and talks to it
+    fn older_bar(&mut self, ui: &mut Ui, native: &Arc<dyn Native>) {
+        let Some((port, version)) = native.older_engine().filter(|_| !self.view.older_dismissed) else {
+            return;
+        };
+        let version = if version.is_empty() { "an early version".to_string() } else { version };
+        let text = format!(
+            "An older claudius ({version}) holds port {port}, so this studio runs beside it. An assistant set up before \
+             this version talks to that one instead: connect it again, then quit and reopen it."
+        );
+        let bar = egui::Frame::new().fill(theme::mix(PANEL, theme::WARN, 0.14)).inner_margin(Margin::symmetric(12, 5));
+        egui::Panel::top("older").frame(bar).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                widgets::dot(ui, theme::WARN);
+                ui.label(RichText::new(text).color(TEXT));
+                if widgets::tool_button(ui, Icon::Plus, "Connect an assistant", true, true).clicked() {
+                    self.view.assistants.show();
+                }
+                if ui.small_button("Later").clicked() {
+                    self.view.older_dismissed = true;
+                }
+            });
+        });
+    }
+
     fn status_bar(&mut self, ui: &mut Ui) {
         ui.horizontal_centered(|ui| {
             let (dot, text) = if self.link.mock {
@@ -849,7 +876,16 @@ impl Studio {
                     Some(false) => ", ears off",
                     None => "",
                 };
-                ui.label(RichText::new(format!("· {server}{ears}")).size(11.0).color(TEXT_FAINT));
+                if self.link.older {
+                    let text = format!("· {server}{ears}, older than this studio ({})", env!("CARGO_PKG_VERSION"));
+                    ui.label(RichText::new(text).size(11.0).color(theme::WARN)).on_hover_text(
+                        "An older claudius may not know all this studio asks of it. An assistant set up before this \
+                         version starts one of its own: connect it again (? › Connect an assistant…), then quit and \
+                         reopen it.",
+                    );
+                } else {
+                    ui.label(RichText::new(format!("· {server}{ears}")).size(11.0).color(TEXT_FAINT));
+                }
             }
             if let Connection::Server(url) = &self.home
                 && self.link.mock
@@ -1152,6 +1188,7 @@ impl eframe::App for Studio {
         }
         if let Some(native) = self.native.clone() {
             self.update_bar(ui, &ctx, &native, now);
+            self.older_bar(ui, &native);
         }
         if self.fallback_to_demo && !self.link.ever && !self.link.mock && self.link.error.is_some() {
             self.fallback_to_demo = false;

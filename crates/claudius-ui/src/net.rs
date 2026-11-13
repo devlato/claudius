@@ -106,9 +106,11 @@ pub enum Event {
     /// what was heard in a recording analyzed, as the studio shows it, which comes before the answer to `analyze`
     Listened(Box<claudius_api::Listened>),
     Sounds(SoundList),
-    /// what `/api/hello` says about the server: its name and version ("claudius 0.1.0") and whether it has ears
+    /// what `/api/hello` says about the server: its name and version ("claudius 0.1.0"), its version alone (empty
+    /// when it does not say), and whether it has ears
     Hello {
         name: String,
+        version: String,
         ears: Option<bool>,
     },
     /// the script reference (markdown)
@@ -275,7 +277,8 @@ impl Remote {
                 let name = v.get("name").and_then(|x| x.as_str()).unwrap_or("claudius");
                 let version = v.get("version").and_then(|x| x.as_str()).unwrap_or("");
                 let ears = v.get("ears").and_then(|x| x.as_bool());
-                Self::deliver(&tx, &ctx, Event::Hello { name: format!("{name} {version}"), ears });
+                let hello = Event::Hello { name: format!("{name} {version}"), version: version.to_string(), ears };
+                Self::deliver(&tx, &ctx, hello);
             }
         });
     }

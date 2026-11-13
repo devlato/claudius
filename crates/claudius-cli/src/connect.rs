@@ -265,6 +265,55 @@ fn program_dirs() -> Vec<PathBuf> {
     dirs
 }
 
+/// a word on each claudius older than this one in `dirs`, where a terminal looks ([`program_dirs`]): a terminal, and an
+/// assistant set up with a bare `claudius`, start that one instead of `exe`
+fn older_elsewhere(exe: &Path, dirs: &[PathBuf]) -> Vec<String> {
+    let name = if cfg!(windows) { "claudius.exe" } else { "claudius" };
+    let mut seen = vec![exe.to_path_buf()];
+    let mut out = Vec::new();
+    for file in dirs.iter().map(|d| d.join(name)) {
+        let Ok(real) = file.canonicalize() else { continue };
+        if seen.contains(&real) {
+            continue;
+        }
+        seen.push(real);
+        if let Some(v) = version_of(&file).filter(|v| claudius_api::older(v, env!("CARGO_PKG_VERSION"))) {
+            out.push(format!(
+                "An older claudius ({v}) is at {}: a terminal, and an assistant set up with a bare `claudius`, start \
+                 that one instead of this. Remove it if this one is all you use, or install it again the way you did \
+                 to update it.",
+                shown(&file)
+            ));
+        }
+    }
+    out
+}
+
+/// the version the claudius at `path` says it is (`claudius --version`), if it says within a few seconds
+fn version_of(path: &Path) -> Option<String> {
+    use std::io::Read as _;
+    let mut child = Command::new(path)
+        .arg("--version")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+    let start = std::time::Instant::now();
+    while child.try_wait().ok()?.is_none() {
+        if start.elapsed() > std::time::Duration::from_secs(3) {
+            child.kill().ok();
+            child.wait().ok();
+            return None;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let mut said = String::new();
+    child.stdout.take()?.read_to_string(&mut said).ok()?;
+    let mut words = said.split_whitespace();
+    (words.next() == Some("claudius")).then(|| words.next().map(str::to_owned)).flatten()
+}
+
 /// whether an assistant's `command` starts the claudius at `exe`: its path, a link to it, or a bare name that finds
 /// it in `dirs`, as one set up with the assistant's own command (`claude mcp add ... -- claudius mcp`) has
 fn starts(command: &str, exe: &Path, dirs: &[PathBuf]) -> bool {
@@ -478,12 +527,18 @@ pub fn connect(client: Client, http: bool, remove: bool, port: u16, with_skills:
     if with_skills {
         skills(client, remove, &mut out)?;
     }
+    if !remove {
+        out.extend(older_elsewhere(&exe, &program_dirs()));
+    }
     Ok(out)
 }
 
 /// connects assistants for the studio window, which runs in this program (`claudius studio`)
 #[cfg(feature = "studio")]
-pub struct FromTheStudio;
+pub struct FromTheStudio {
+    /// the port and the version of an older claudius the studio found on its port, and runs its own engine beside
+    pub older: Option<(u16, String)>,
+}
 
 #[cfg(feature = "studio")]
 impl claudius_ui::Native for FromTheStudio {
@@ -552,6 +607,10 @@ impl claudius_ui::Native for FromTheStudio {
     fn set_automatic_updates(&self, on: bool) -> Result<(), String> {
         crate::update::set_automatic(on).map_err(|e| format!("{e:#}"))
     }
+
+    fn older_engine(&self) -> Option<(u16, String)> {
+        self.older.clone()
+    }
 }
 
 #[cfg(test)]
@@ -605,6 +664,36 @@ mod tests {
         assert!(edit_config(&path, None).is_err());
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "{ not json");
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_older_claudius_where_a_terminal_looks_is_named_and_this_one_a_newer_one_or_another_program_is_not() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let root = std::env::temp_dir().join(format!("claudius-older-{}", std::process::id()));
+        let program = |dir: &str, says: &str| {
+            let d = root.join(dir);
+            std::fs::create_dir_all(&d).unwrap();
+            let file = d.join("claudius");
+            std::fs::write(&file, format!("#!/bin/sh\necho '{says}'\n")).unwrap();
+            std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o755)).unwrap();
+            d
+        };
+        let old = program("old", "claudius 0.2.0");
+        let dirs = [
+            old.clone(),
+            program("new", "claudius 999.0.0"),
+            program("other", "something 0.1.0"),
+            program("me", "claudius 0.1.0"),
+            old.clone(),
+            root.join("missing"),
+        ];
+        let me = root.join("me/claudius").canonicalize().unwrap();
+        let said = older_elsewhere(&me, &dirs);
+        assert_eq!(said.len(), 1, "{said:?}");
+        assert!(said[0].contains("(0.2.0)") && said[0].contains(&shown(&old.join("claudius"))), "{said:?}");
+        assert_eq!(version_of(&root.join("missing/claudius")), None);
+        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]

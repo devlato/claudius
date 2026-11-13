@@ -514,6 +514,11 @@ Opens the studio window. It first asks `http://127.0.0.1:<port>` what answers th
 
 - a claudius: the window opens on that session, says `a claudius is already running on port 7878: opening the studio
   on it`, and ignores the session flags;
+- a claudius older than this one, such as one an assistant set up with an earlier version starts: the window runs
+  beside it, since this version's studio would drive it wrong. It says `the claudius on port 7878 is 0.2.0, older than
+  this one (an assistant set up before this version may have started it): the studio runs beside it`, opens on a
+  claudius as new as itself on one of the twenty ports after it if there is one, or else starts a session on the
+  first free one of them, and shows a banner that says how to connect the assistant again;
 - a claudius that asks for a token: it stops, since the window cannot send one, and says to open
   `http://127.0.0.1:<port>/?token=<token>` in a browser or to start another studio with `--port`;
 - nothing: it starts a session and an HTTP server on 127.0.0.1 and `--port` (which also serves the web studio and
@@ -567,6 +572,10 @@ Speaks MCP over stdin and stdout, for assistants that start claudius themselves 
 Cursor). It first asks the address in `--url`, or `http://127.0.0.1:<port>`, whether a claudius is running there:
 
 - if one answers, every tool works on that session: the song open in your studio;
+- if the one on the port is older than this one, and `--url` was not given, it runs beside it, as `claudius studio`
+  does: it drives a claudius as new as itself on one of the twenty ports after it (the studio, which stepped round the
+  same one), or else starts a session of its own on the first free one of them. With `--url` it drives the older one,
+  and says so;
 - if one answers but asks for a token that `--token` did not give (or gave wrong), it fails with
   `Error: the claudius at <url> asks for a token: pass --token or set CLAUDIUS_TOKEN (a wrong one is refused too)`;
 - if none answers and `--url` was given, it fails with `Error: no claudius answers at <url>`;

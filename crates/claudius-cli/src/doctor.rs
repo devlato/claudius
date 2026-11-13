@@ -122,10 +122,23 @@ pub fn run(port: u16, web: Option<std::path::PathBuf>) {
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
     if std::net::TcpListener::bind(addr).is_ok() {
         r.line(true, &format!("port {port}"), "free");
-    } else if claudius_server::mcp::probe(&format!("http://{addr}"), &None) != claudius_server::mcp::Probe::Nothing {
-        r.line(true, &format!("port {port}"), "claudius is running here");
     } else {
-        r.line(false, &format!("port {port}"), "used by another program: pass --port to studio, serve and mcp");
+        use claudius_server::mcp::{Probe, older_than_this, probe};
+        match probe(&format!("http://{addr}"), &None) {
+            Probe::Claudius(v) if older_than_this(&v) => r.line(
+                false,
+                &format!("port {port}"),
+                format!(
+                    "an older claudius ({}) is running here, which an assistant set up before this version may have \
+                     started: connect it again (claudius connect), then restart it",
+                    if v.is_empty() { "an early version" } else { v.as_str() }
+                ),
+            ),
+            Probe::Claudius(_) | Probe::NeedsToken => r.line(true, &format!("port {port}"), "claudius is running here"),
+            Probe::Nothing => {
+                r.line(false, &format!("port {port}"), "used by another program: pass --port to studio, serve and mcp")
+            }
+        }
     }
 
     for a in connect::assistants() {
