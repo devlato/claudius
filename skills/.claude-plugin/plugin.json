@@ -1,7 +1,7 @@
 {
   "name": "claudius",
   "displayName": "Claudius",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Make songs with Claude: Claudius' tools, which write, arrange, mix and judge a song in the studio you have open, and the skills that teach the craft.",
   "author": { "name": "The claudius authors", "url": "https://github.com/devlato/claudius" },
   "homepage": "https://claudius.devlato.com",
