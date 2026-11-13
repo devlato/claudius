@@ -7,16 +7,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
-/// every file of every skill, by its path under `skills/`
-pub const FILES: &[(&str, &str)] = &[
-    ("claudius-songs/SKILL.md", include_str!("../../../skills/claudius-songs/SKILL.md")),
-    ("claudius-songs/references/script.md", include_str!("../../../skills/claudius-songs/references/script.md")),
-    ("claudius-songs/references/verdict.md", include_str!("../../../skills/claudius-songs/references/verdict.md")),
-    ("claudius-songs/references/genres.md", include_str!("../../../skills/claudius-songs/references/genres.md")),
-    ("claudius-songs/references/tools.md", include_str!("../../../skills/claudius-songs/references/tools.md")),
-    ("claudius-remix/SKILL.md", include_str!("../../../skills/claudius-remix/SKILL.md")),
-    ("claudius-setup/SKILL.md", include_str!("../../../skills/claudius-setup/SKILL.md")),
-];
+pub use claudius_server::skills::FILES;
 
 /// the skills, by folder name
 pub fn names() -> Vec<&'static str> {

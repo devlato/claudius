@@ -57,7 +57,8 @@ Two installs bring claudius in without its command line. Claude Code's plugin ha
 `claude plugin marketplace add devlato/claudius`, then `claude plugin install claudius@claudius`; it starts the
 `claudius` on `PATH`, or the path set as its **Claudius program** (`/plugin configure claudius@claudius`). On a Mac,
 Claude Desktop's extension is the release's `claudius-<version>.mcpb`: opening it installs it, and it starts
-`/Applications/Claudius.app/Contents/MacOS/Claudius` unless its setting names another path. It has no skills.
+`/Applications/Claudius.app/Contents/MacOS/Claudius` unless its setting names another path. It has no skills, and
+neither has a client that cannot take them: the MCP tool `guide` reads them out (topic `songs` first).
 
 - Desktop clients start `claudius mcp` themselves. Quit and reopen Claude Desktop after connecting.
 - With `--http`, Claude Code and Cursor connect to a studio that is already running (`http://127.0.0.1:7878/mcp`)
