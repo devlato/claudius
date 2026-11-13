@@ -137,8 +137,8 @@ path_advice() {
 }
 
 # Claudius.app from the release's disk image for this Mac into Applications, with the command-line programs as links
-# into it. curl, unlike a browser, does not mark what it downloads for Gatekeeper, so the app opens without the warning
-# that a browser download of the disk image gets until the releases are notarized.
+# into it. curl, unlike a browser, does not mark what it downloads for Gatekeeper, so the app opens without a warning
+# even where a release is not notarized (those before 0.8.0, a build of one's own).
 install_app() {
     image=$1
     expected=$(awk -v file="$image" '$2 == file { print $1; exit }' "$tmp/SHA256SUMS")
