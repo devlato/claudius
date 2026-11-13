@@ -94,31 +94,35 @@ fn given_token(token: Option<String>) -> Option<String> {
     token.map(|t| t.trim().to_owned()).filter(|t| !t.is_empty())
 }
 
-/// `session` served on the first free port of the twenty after `port`, which an older claudius holds
-fn spawn_past(
-    session: std::sync::Arc<claudius_server::App>,
-    port: u16,
-    web: Option<PathBuf>,
-) -> Result<std::net::SocketAddr> {
-    let mut last = None;
+/// where a studio or an assistant's claudius is, that stepped round an older claudius on its port: one found already
+/// running (its address), or the session it serves
+enum Beside {
+    Found(String),
+    Serving(std::sync::Arc<claudius_server::App>, std::net::SocketAddr),
+}
+
+/// The first of the twenty ports after `port` (which an older claudius holds) where a claudius no older than this one
+/// answers, or that this one can serve a session of its own on (made by `app`, once). A port it cannot take is asked
+/// again: a studio and `claudius mcp` started at the same moment take the same one, and the one that loses it finds
+/// the other there.
+fn beside(port: u16, app: &args::AppArgs) -> Result<Beside> {
+    use claudius_server::mcp::{Probe, older_than_this, probe};
+    let current = |base: &str| matches!(probe(base, &None), Probe::Claudius(v) if !older_than_this(&v));
+    let (mut session, mut last) = (None, None);
     for p in port.saturating_add(1)..=port.saturating_add(20) {
-        let addr = std::net::SocketAddr::from(([127, 0, 0, 1], p));
-        let options = claudius_server::Options { web: web.clone(), ..Default::default() };
-        match claudius_server::spawn(session.clone(), addr, options) {
-            Ok(local) => return Ok(local),
+        let base = format!("http://127.0.0.1:{p}");
+        if current(&base) {
+            return Ok(Beside::Found(base));
+        }
+        let s = session.get_or_insert_with(|| app.app()).clone();
+        let options = claudius_server::Options { web: app.web(), ..Default::default() };
+        match claudius_server::spawn(s.clone(), std::net::SocketAddr::from(([127, 0, 0, 1], p)), options) {
+            Ok(local) => return Ok(Beside::Serving(s, local)),
+            Err(_) if current(&base) => return Ok(Beside::Found(base)),
             Err(e) => last = Some(e),
         }
     }
     Err(last.unwrap_or_else(|| anyhow::anyhow!("no port free after {port}")))
-}
-
-/// the address of a claudius no older than this one on the twenty ports after `port`, where a studio or an assistant's
-/// claudius serves that stepped round an older one on `port`
-fn current_past(port: u16) -> Option<String> {
-    use claudius_server::mcp::{Probe, older_than_this, probe};
-    (port.saturating_add(1)..=port.saturating_add(20))
-        .map(|p| format!("http://127.0.0.1:{p}"))
-        .find(|base| matches!(probe(base, &None), Probe::Claudius(v) if !older_than_this(&v)))
 }
 
 /// a claudius's version as it says it, or "of an early version" when it does not say
@@ -749,15 +753,13 @@ fn run(cli: Cli) -> Result<()> {
                         said_version(&v)
                     );
                     older = Some((app.port, v));
-                    match current_past(app.port) {
-                        Some(base) => {
+                    match beside(app.port, &app)? {
+                        Beside::Found(base) => {
                             eprintln!("a claudius is already running at {base}: opening the studio on it");
                             base
                         }
-                        None => {
-                            let session = app.app();
-                            own = Some(session.clone());
-                            let local = spawn_past(session, app.port, app.web())?;
+                        Beside::Serving(session, local) => {
+                            own = Some(session);
                             eprintln!("claudius engine at http://{local} (web UI, API, MCP at /mcp)");
                             format!("http://{local}")
                         }
@@ -855,17 +857,8 @@ fn run(cli: Cli) -> Result<()> {
             let base = url.clone().unwrap_or_else(|| format!("http://127.0.0.1:{}", app.port));
             use claudius_server::mcp::{Backend, Probe, older_than_this};
             let found = claudius_server::mcp::probe(&base, &token);
-            // a session of its own, served on the port, or past an older claudius on it
-            let own_session = |past: bool| {
-                let session = app.app();
-                let served = match past {
-                    true => spawn_past(session.clone(), app.port, app.web()),
-                    false => claudius_server::spawn(
-                        session.clone(),
-                        std::net::SocketAddr::from(([127, 0, 0, 1], app.port)),
-                        claudius_server::Options { web: app.web(), ..Default::default() },
-                    ),
-                };
+            // a session of its own, served at `served` or, when it could not be, without its web studio
+            let own_session = |session: std::sync::Arc<claudius_server::App>, served: Result<std::net::SocketAddr>| {
                 let base = match served {
                     Ok(local) => {
                         eprintln!("claudius mcp: a session of its own; open http://{local} to hear and see it");
@@ -886,12 +879,13 @@ fn run(cli: Cli) -> Result<()> {
                          this version may have started it): running beside it",
                         said_version(&v)
                     );
-                    match current_past(app.port) {
-                        Some(base) => {
+                    match beside(app.port, &app) {
+                        Ok(Beside::Found(base)) => {
                             eprintln!("claudius mcp: driving the claudius app at {base}");
                             Backend::Remote { base, token }
                         }
-                        None => own_session(true),
+                        Ok(Beside::Serving(session, local)) => own_session(session, Ok(local)),
+                        Err(e) => own_session(app.app(), Err(e)),
                     }
                 }
                 Probe::Claudius(v) => {
@@ -906,7 +900,12 @@ fn run(cli: Cli) -> Result<()> {
                      too)"
                 ),
                 Probe::Nothing if url.is_some() => anyhow::bail!("no claudius answers at {base}"),
-                Probe::Nothing => own_session(false),
+                Probe::Nothing => {
+                    let session = app.app();
+                    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], app.port));
+                    let options = claudius_server::Options { web: app.web(), ..Default::default() };
+                    own_session(session.clone(), claudius_server::spawn(session, addr, options))
+                }
             };
             let own = match &backend {
                 claudius_server::mcp::Backend::Local { app, .. } => Some(app.clone()),
@@ -925,6 +924,37 @@ fn run(cli: Cli) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_studio_and_an_assistants_claudius_stepping_round_an_older_one_together_find_each_other() {
+        use clap::Parser as _;
+        #[derive(clap::Parser)]
+        struct Args {
+            #[command(flatten)]
+            app: crate::args::AppArgs,
+        }
+        let app = Args::parse_from(["claudius", "--no-ears", "--no-auto-render", "--no-library", "--offline"]).app;
+        // twenty-one ports in a row that nothing listens on, the first of them the older claudius's
+        let port = loop {
+            let p = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+            if p < 60_000 && (p..=p + 20).all(|q| std::net::TcpListener::bind(("127.0.0.1", q)).is_ok()) {
+                break p;
+            }
+        };
+        let started: Vec<_> = (0..2)
+            .map(|_| {
+                let app = app.clone();
+                std::thread::spawn(move || super::beside(port, &app).unwrap())
+            })
+            .collect();
+        let found: Vec<super::Beside> = started.into_iter().map(|t| t.join().unwrap()).collect();
+        let at = |b: &super::Beside| match b {
+            super::Beside::Found(base) => base.clone(),
+            super::Beside::Serving(_, local) => format!("http://{local}"),
+        };
+        assert_eq!(at(&found[0]), at(&found[1]), "one serves, and the other finds it there");
+        assert_eq!(found.iter().filter(|b| matches!(b, super::Beside::Serving(..))).count(), 1);
+    }
+
     #[test]
     fn opened_as_a_mac_app_it_starts_the_studio() {
         let app = std::path::Path::new("/Applications/Claudius.app/Contents/MacOS/Claudius");
