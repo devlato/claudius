@@ -634,6 +634,25 @@ pub fn field<R>(ui: &mut Ui, label: impl FnOnce(&mut Ui), controls: impl FnOnce(
     .inner
 }
 
+/// `add`'s controls kept together in a line that wraps (a [`field`]'s): on the line they start on when they fit in what
+/// is left of it, else all on the next, as a slider stays between its two words. The width they took the frame before
+/// decides, and a frame they took another in is drawn again at once (`Context::request_discard`).
+pub fn together<R>(ui: &mut Ui, id_salt: impl egui::AsIdSalt, add: impl FnOnce(&mut Ui) -> R) -> R {
+    let id = ui.make_persistent_id(("together", id_salt));
+    let was: Option<f32> = ui.data(|d| d.get_temp(id));
+    let started = ui.cursor().left() > ui.max_rect().left() + 0.5;
+    if started && was.is_some_and(|w| w > ui.available_size_before_wrap().x + 0.5) {
+        ui.end_row();
+    }
+    let r = ui.horizontal(add);
+    let width = r.response.rect.width();
+    ui.data_mut(|d| d.insert_temp(id, width));
+    if was.is_none_or(|w| (w - width).abs() > 0.5) {
+        ui.ctx().request_discard("controls kept together changed their width");
+    }
+    r.inner
+}
+
 /// the verdict score as a big coloured badge
 pub fn score_badge(ui: &mut Ui, total: Option<f64>, height: f32) -> Response {
     let text = total.map_or("--".to_string(), |t| format!("{t:.0}"));
@@ -808,6 +827,35 @@ mod tests {
             ends.push(end);
         }
         assert!(ends[1] > ends[0] + 20.0 && (ends[2] - ends[0]).abs() < 0.5, "they wrapped and came back: {ends:?}");
+    }
+
+    #[test]
+    fn controls_kept_together_go_onto_the_next_line_as_one_when_they_do_not_fit_on_theirs() {
+        let ctx = egui::Context::default();
+        for (width, beside) in [(520.0, true), (300.0, false), (520.0, true)] {
+            let (mut first, mut group) = (Rect::NOTHING, Vec::new());
+            let mut out = ctx.run_ui(Default::default(), |ui| {
+                ui.allocate_ui(vec2(width, 300.0), |ui| {
+                    field(
+                        ui,
+                        |ui| _ = ui.label("Length"),
+                        |ui| {
+                            first = ui.add(egui::Button::new("8 bars").min_size(vec2(90.0, 0.0))).rect;
+                            group = together(ui, "lengths", |ui| {
+                                ["4", "8", "16", "32"].map(|b| ui.button(b).rect).to_vec()
+                            });
+                        },
+                    );
+                });
+            });
+            out.textures_delta.clear();
+            let line = |r: &Rect| (r.center().y - group[0].center().y).abs() < 0.5;
+            assert!(group.iter().all(line), "{width}: they stay on one line: {group:?}");
+            assert_eq!(line(&first), beside, "{width}: beside the first control, or under it: {first:?} {group:?}");
+            if !beside {
+                assert!((group[0].left() - first.left()).abs() < 0.5, "{width}: from the start of the next line");
+            }
+        }
     }
 
     #[test]

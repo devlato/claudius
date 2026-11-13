@@ -128,8 +128,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     if commit(&r) {
                         cx.out.push(SectionEdit { bars: Some(s.bars), ..Default::default() }.at(i));
                     }
-                    // the lengths to pick go onto the next line together, when they do
-                    ui.horizontal(|ui| {
+                    widgets::together(ui, "lengths", |ui| {
                         for b in [4, 8, 16, 32] {
                             if ui.selectable_label(s.bars == b, b.to_string()).clicked() {
                                 s.bars = b;
@@ -315,8 +314,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                             }
                         }
                     });
-                    // how hard, from gentle to hard, goes onto the next line as one, when it does
-                    ui.horizontal(|ui| {
+                    widgets::together(ui, "build_amount", |ui| {
                         ui.label(small("gentle"));
                         let r = ui
                             .add(egui::Slider::new(&mut s.build_amount, 0.0..=1.0).show_value(false))
