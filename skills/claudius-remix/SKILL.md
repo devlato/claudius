@@ -265,6 +265,11 @@ song.mp3 into the song: vox1, vox2"), the lines after it where each phrase came 
   bass line plays in place of the song's bass, a hook loop in the drops and hooks; two of a kind kept without
   `sections` share the sections, the fuller in the louder. A recording nobody sings in, or none of whose phrases fits
   the `bars` asked, still offers these, and the reply's last line says why there is no phrase ("no phrase: ...").
+- **Chopped onto pads.** `keep_pieces` with `chopped: true` cuts a break, a loop or a phrase at its onsets, the hits
+  that sound alike sharing a pad, eight at most: drum lanes `chop`, `chop2` ... that play it as it was, each hit at its
+  own speed, so a break at another tempo keeps its hits whole. Offer it when the person wants to flip a break, play it
+  from pads or a phone, or rearrange its hits; then write their steps with `run_script`
+  (`drum("chop2", "x..x..x.x...x...|....x.......x...")`).
 
 ## Ask the person to record a take
 

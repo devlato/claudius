@@ -146,7 +146,7 @@ impl App {
         let mut chosen = Vec::new();
         for k in keep {
             match o.pieces.get((k.id as usize).wrapping_sub(1)) {
-                Some(p) => chosen.push((p, k.treated)),
+                Some(piece) => chosen.push(sampler::Keep { piece, treated: k.treated, chopped: k.chopped }),
                 None => return no(format!("no piece {} (pieces 1 to {})", k.id, o.pieces.len()), v),
             }
         }

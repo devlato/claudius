@@ -271,6 +271,18 @@ Without earshot's models, it goes by the pitch and the stereo picture alone: in 
 middle can then pass for a voice. Sample only what you may use: a recording of someone else's song needs their
 permission before you release what you made with it.
 
+### Chopping a piece onto pads
+
+A break, a loop or a phrase kept chopped (`keep_pieces` with `"chopped": true`) is cut at its onsets, as producers
+chop a record onto a sampler's pads. SuperFlux hears the onsets (Böck & Widmer, DAFx 2013): how much each of 24 bands
+an octave rises over the same bands a moment before, which the wandering of a vibrato does not set off. The hits that
+sound as one share a pad (its kicks, its snares, its hats), eight pads at most, and each pad is a drum lane of its own
+(`chop`, `chop2` ...) that strikes it where its hits came and as hard, straight and with none of the song's groove, so
+that the lanes play the piece as it was. Each hit plays at its own speed, so a break played at another tempo keeps
+every hit whole, as no loop stretched to fit it does. Then play them otherwise, in the Drums tab or [from a
+phone](phone.md). A phrase chopped plays in the drops and hooks, as chops of a voice do, and a piece with too few hits
+to chop says so.
+
 ## Takes
 
 A take is a recording made for the song: a vocal, a guitar, a melody sung into a microphone. A loop starts over in

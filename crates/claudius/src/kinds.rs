@@ -661,9 +661,159 @@ pub(crate) fn about(kind: Kind, f: &[f64], a: &Analysis, first: usize) -> String
     }
 }
 
+/// the most pads a piece is chopped onto: half an MPC's bank, which few breaks need all of
+pub const PADS: usize = 8;
+/// hits that many apart or less (`unlike`) sound as one and share a pad
+const SAME: f64 = 0.1;
+
+/// What a hit adds as it comes in (`analysis::onsets::Onset::rise`), as hits are told apart: by octave, by pitch class,
+/// and in all.
+struct Rise {
+    octaves: [f64; 10],
+    chroma: [f64; 12],
+    all: f64,
+}
+
+fn rise_of(rise: &[f32], centres: &[f64]) -> Rise {
+    let (mut octaves, mut chroma) = ([0f64; 10], [0f64; 12]);
+    for (r, hz) in rise.iter().zip(centres) {
+        let r = *r as f64;
+        octaves[((hz / 30.0).log2().floor().max(0.0) as usize).min(9)] += r;
+        chroma[((12.0 * (hz / 440.0).log2()).round() as i64 + 9).rem_euclid(12) as usize] += r;
+    }
+    Rise { octaves, chroma, all: rise.iter().map(|r| *r as f64).sum() }
+}
+
+/// How unlike two hits are, 0 to 1: how differently what they add is spread over the octaves (1 less the cosine of
+/// the two), and over the pitch classes when `pitched`, and a little how much louder one comes in, up to four times.
+fn unlike(p: &Rise, q: &Rise, pitched: bool) -> f64 {
+    let cos = |a: &[f64], b: &[f64]| {
+        let dot: f64 = a.iter().zip(b).map(|(x, y)| x * y).sum();
+        let norm = |v: &[f64]| v.iter().map(|x| x * x).sum::<f64>().sqrt();
+        let d = norm(a) * norm(b);
+        if d > 0.0 { dot / d } else { 0.0 }
+    };
+    let chroma = if pitched { 1.0 } else { 0.0 };
+    let louder = ((p.all.max(1e-9) / q.all.max(1e-9)).log2().abs() / 2.0).min(1.0);
+    let d = (1.0 - cos(&p.octaves, &q.octaves)) + chroma * (1.0 - cos(&p.chroma, &q.chroma)) + 0.3 * louder;
+    (d / (1.3 + chroma)).clamp(0.0, 1.0)
+}
+
+/// A piece chopped at its onsets (`chop`): its pads, each a hit of it as it was cut, and where each pad's hits came in
+/// it, in beats from its start, each with how hard, as the loudest hit is 1.
+pub struct Chopped {
+    pub pads: Vec<Stereo>,
+    pub hits: Vec<Vec<(f64, f32)>>,
+    /// how many onsets it was cut at
+    pub onsets: usize,
+}
+
+/// `x`, a piece `bars` bars long, chopped at its onsets as SuperFlux hears them (`analysis::onsets::superflux_hits`),
+/// as producers chop a record onto a sampler's pads: each slice from an onset to the next, faded in over 1 ms and out
+/// over 5, the hits that sound as one sharing a pad (`SAME`, by what each adds as it comes in, so that a hat is a hat
+/// whatever rings on under it), and the closest of the rest put together until there are `PADS` at most; each pad the
+/// hit most like the others on it, and its hits where they came. `pitched` tells them apart by their pitch classes
+/// too. None when fewer than two onsets are heard.
+pub fn chop(x: &Stereo, bars: u32, pitched: bool) -> Option<Chopped> {
+    let onsets = crate::analysis::onsets::superflux_hits(&x.mono());
+    if onsets.len() < 2 || bars == 0 {
+        return None;
+    }
+    let centres = crate::analysis::onsets::superflux_centres();
+    let at: Vec<usize> = onsets.iter().map(|o| o.at).collect();
+    let rises: Vec<Rise> = onsets.iter().map(|o| rise_of(&o.rise, &centres)).collect();
+    let beat = x.len() as f64 / SRF / (4 * bars) as f64;
+    let ends: Vec<usize> = at.iter().skip(1).copied().chain([x.len()]).collect();
+    let d = |i: usize, j: usize| unlike(&rises[i], &rises[j], pitched);
+    let mut groups: Vec<Vec<usize>> = (0..at.len()).map(|i| vec![i]).collect();
+    loop {
+        let mean = |p: &[usize], q: &[usize]| {
+            p.iter().flat_map(|&i| q.iter().map(move |&j| (i, j))).map(|(i, j)| d(i, j)).sum::<f64>()
+                / (p.len() * q.len()) as f64
+        };
+        let pairs = (0..groups.len()).flat_map(|p| (p + 1..groups.len()).map(move |q| (p, q)));
+        let Some((gap, p, q)) =
+            pairs.map(|(p, q)| (mean(&groups[p], &groups[q]), p, q)).min_by(|x, y| x.0.total_cmp(&y.0))
+        else {
+            break;
+        };
+        if gap > SAME && groups.len() <= PADS {
+            break;
+        }
+        let merged = groups.remove(q);
+        groups[p].extend(merged);
+        groups[p].sort_unstable();
+    }
+    groups.sort_by_key(|g| g[0]);
+    let peak = |i: usize| x.slice(at[i], ends[i]).peak();
+    let loudest = (0..at.len()).map(peak).fold(0f32, f32::max).max(1e-9);
+    let mut pads = Vec::new();
+    let mut hits = Vec::new();
+    for g in &groups {
+        let medoid = *g.iter().min_by(|&&i, &&j| {
+            let far = |k: usize| g.iter().map(|&o| d(k, o)).sum::<f64>();
+            far(i).total_cmp(&far(j))
+        })?;
+        let mut pad = x.slice(at[medoid], ends[medoid]);
+        let n = pad.len();
+        pad.fade(((0.001 * SRF) as usize).min(n / 4), ((0.005 * SRF) as usize).min(n / 2));
+        pads.push(pad);
+        hits.push(g.iter().map(|&i| (at[i] as f64 / SRF / beat, (peak(i) / loudest).clamp(0.25, 1.0))).collect());
+    }
+    Some(Chopped { pads, hits, onsets: at.len() })
+}
+
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
+
+    /// two bars of drums at 120 BPM: a kick on the first and third beats of each bar, a snare on the second and fourth,
+    /// a hat on every eighth between them
+    pub(crate) fn three_drums() -> Stereo {
+        let beat = SRF / 2.0;
+        let mut x = Stereo::zeros((8.0 * beat) as usize);
+        let mut rng = crate::rng::Rng::new(4);
+        let mut strike = |at: f64, secs: f64, sound: &mut dyn FnMut(f64) -> f32| {
+            let from = (at * beat) as usize;
+            for i in 0..(secs * SRF) as usize {
+                let v = sound(i as f64 / SRF);
+                (x.l[from + i], x.r[from + i]) = (x.l[from + i] + v, x.r[from + i] + v);
+            }
+        };
+        let tau = std::f64::consts::TAU;
+        for b in 0..8 {
+            if b % 2 == 0 {
+                strike(b as f64, 0.3, &mut |t| ((tau * 55.0 * t).sin() * 0.9 * (-t / 0.08).exp()) as f32);
+            } else {
+                strike(b as f64, 0.2, &mut |t| (rng.f32() - 0.5) * 0.8 * (-t / 0.06).exp() as f32);
+            }
+            let mut last = 0.0;
+            strike(b as f64 + 0.5, 0.04, &mut |t| {
+                let n = rng.f32() - 0.5;
+                let v = (n - last) * 0.5 * (-t / 0.015).exp() as f32;
+                last = n;
+                v
+            });
+        }
+        x
+    }
+
+    #[test]
+    fn a_break_chopped_puts_the_hits_that_sound_as_one_on_a_pad_each_where_they_came() {
+        let c = chop(&three_drums(), 2, false).expect("its hits");
+        assert_eq!(c.onsets, 16, "{:?}", c.hits);
+        let beats: Vec<Vec<f64>> =
+            c.hits.iter().map(|h| h.iter().map(|(b, _)| (b * 4.0).round() / 4.0).collect()).collect();
+        let eighths: Vec<f64> = (0..8).map(|b| b as f64 + 0.5).collect();
+        assert_eq!(
+            beats,
+            [vec![0.0, 2.0, 4.0, 6.0], vec![0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5], vec![1.0, 3.0, 5.0, 7.0]]
+        );
+        assert_eq!(beats[1], eighths, "the hats, each on its eighth");
+        assert!(c.hits.iter().flatten().all(|(b, _)| (b - (b * 2.0).round() / 2.0).abs() < 0.03), "{:?}", c.hits);
+        assert_eq!(c.pads.len(), 3, "a kick, a hat and a snare");
+        assert!(chop(&Stereo::zeros(SRF as usize), 1, false).is_none(), "silence has no hits to chop");
+    }
 
     #[test]
     fn a_kind_reads_by_its_name_and_says_what_it_is() {

@@ -187,13 +187,16 @@ pub struct PieceView {
     pub treatment: String,
 }
 
-/// a piece to keep (`keep_pieces`): as it was cut, or `treated`
+/// a piece to keep (`keep_pieces`): as it was cut, or `treated`; whole, or `chopped` onto pads
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct KeptPiece {
     pub id: u32,
     #[serde(default)]
     pub treated: bool,
+    /// cut at its onsets onto pads, each a drum lane playing its hits where they came, rather than kept whole
+    #[serde(default)]
+    pub chopped: bool,
 }
 
 /// The studio's transport, as it tells the server (`POST /api/transport`) so that a phone playing along knows where the

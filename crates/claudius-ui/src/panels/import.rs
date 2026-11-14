@@ -1263,7 +1263,7 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
                 .iter()
                 .zip(&im.choices.1)
                 .filter(|(_, c)| c.used)
-                .map(|(p, c)| claudius_api::KeptPiece { id: p.id, treated: c.treated })
+                .map(|(p, c)| claudius_api::KeptPiece { id: p.id, treated: c.treated, ..Default::default() })
                 .collect();
             ui.horizontal(|ui| {
                 let (again, tip) = match others > 0 {

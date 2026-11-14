@@ -590,6 +590,10 @@ pub struct KeepPieceArg {
     /// kept with its treatment rather than as it was cut (default false)
     #[serde(default)]
     pub treated: bool,
+    /// cut at its onsets onto pads, each hit that sounds alike on one, as drum lanes playing it as it was, rather than
+    /// kept whole (default false)
+    #[serde(default)]
+    pub chopped: bool,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -1579,7 +1583,11 @@ impl Studio {
         description = "Sample the pieces sample_pieces offered that the person chose into the song, each as it was cut or with its treatment (`treated`). A phrase is placed as the auto-sampler places phrases: in `sections` when given, else in those that suit each, from the bar where its notes agree best with the chords, moved to the song's key and tempo, and coming round as `every` says. By default the song chooses how often, and the reply says why: once from the start of each section where a lead or a voice already sings, every other time round in a genre built on a sampled phrase, once every 8 bars in one that is not. A piece of another kind loops all through `sections`, else where its kind plays: a break as a drum loop where the song's drums play, a bass line in place of the song's bass, a loop of the hook in the drops and hooks, of another passage in the rest; moved to the song's key (a break keeps its pitch) and tempo. Several of a kind kept without `sections` share the sections their kind plays in, the fuller in the louder, so that none plays over another. The song credits the recording. Then listen."
     )]
     async fn keep_pieces(&self, Parameters(a): Parameters<KeepArgs>) -> Result<String, String> {
-        let keep = a.keep.into_iter().map(|k| claudius_api::KeptPiece { id: k.id, treated: k.treated }).collect();
+        let keep = a
+            .keep
+            .into_iter()
+            .map(|k| claudius_api::KeptPiece { id: k.id, treated: k.treated, chopped: k.chopped })
+            .collect();
         self.edit(Command::KeepPieces { keep, sections: a.sections, every: a.every }, true).await
     }
 
