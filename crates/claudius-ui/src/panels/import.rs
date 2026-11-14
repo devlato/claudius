@@ -1329,6 +1329,7 @@ fn kind_words(kind: &str) -> &'static str {
         "passage" => "Loop of another passage",
         "break" => "Drum break",
         "bass" => "Bass line",
+        "stab" => "Stab of its chords",
         _ => "Phrase",
     }
 }

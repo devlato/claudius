@@ -43,7 +43,7 @@ to. On the command line, each command reads and writes song folders instead.
 | `trim_take` | `track` (a take), `start` and `end` in seconds into its recording | |
 | `search_recordings` | `query` (a few words), `limit`: the free libraries' recordings as `library:<id>`, a `path` for `add_take`, `sample_song`, `analyze` and `remake` | `claudius samples search WORDS` |
 | `graph` | (the song's signal flow in words: tracks through their effects into buses, the master, out) | |
-| `sample_pieces` | `path` (or `library:<id>`), `seed`, `count`, `bars`, `find`, `kinds` (phrase, hook, passage, break, bass): pieces offered as cut and treated, before any goes in | |
+| `sample_pieces` | `path` (or `library:<id>`), `seed`, `count`, `bars`, `find`, `kinds` (phrase, hook, passage, break, bass, stab): pieces offered as cut and treated, before any goes in | |
 | `redraw_pieces` | `seed`: the same recording's pieces drawn again | |
 | `keep_pieces` | `keep` (`[{id, treated, chopped}]`: `chopped` cuts a piece at its onsets onto pads, drum lanes playing it as it was), `sections`, `every` (as for `sample_song`) | |
 | `sample_song` | `path` of a recording, `how` (`phrases`, the default; `passage`, a verse or chorus of it; `chops`, its voice cut into an instrument; `stabs`, a syllable struck as a drum), `count` (1-4, default 2), `bars` (1, 2 or 4; a passage 4, 8 or 16), `find` ("a person singing"), `sections`, `every` (how often each phrase comes round: `once`, `2`, `4`, `8`, `16` or `through`; as the song suits by default) | `claudius sample FILE --on SONG --count 2 --in drop`, `--how passage`, `--every 4` |

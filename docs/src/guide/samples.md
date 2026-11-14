@@ -245,13 +245,15 @@ recording's bars:
 | `passage` | a loop of 2 to 8 bars of another passage with chords | all through the other sections but the intro and the outro |
 | `break` | its drums, 1, 2 or 4 bars | as a drum loop where the song's drums play, at its own pitch, cut onto the song's grid when its tempo is far from the song's |
 | `bass` | its bass line, 1, 2 or 4 bars | in place of the song's bass, in the song's key |
+| `stab` | one hit of its instruments' chords and a beat of it, the hit that comes in hardest and rings its beat alone | struck as a drum is, on a few beats of every two bars, by a drum lane of its own (`stab`), in the song's key, all through it but its intro and outro |
 
 Each is scored as its kind: how alone what it is cut from plays in its bars, how well it loops (its first beat against
 the beat after its end), and what its kind asks besides (how busy a break is, how much a bass line moves, how often a
-hook comes back, how unlike the hook another passage is). Each says why, in words ("the drums alone, busy, it loops
-cleanly"), and goes into the sections `keep_pieces` names, when it names any; a phrase kept with no room in them leaves
-the other pieces kept, and the reply says why it did not go in. `kinds` asks for some only (`phrase`, `hook`,
-`passage`, `break`, `bass`); a recording no voice sings in, or none of whose phrases fits the bars asked, offers the
+hook comes back, how unlike the hook another passage is, and a stab how hard it comes in, at one of SuperFlux's onsets,
+and how cleanly its beat rings on). Each says why, in words ("the drums alone, busy, it loops cleanly"), and goes into
+the sections `keep_pieces` names, when it names any; a phrase kept with no room in them leaves the other pieces kept,
+and the reply says why it did not go in. `kinds` asks for some only (`phrase`, `hook`, `passage`, `break`, `bass`,
+`stab`); a recording no voice sings in, or none of whose phrases fits the bars asked, offers the
 rest and says why there is no phrase. They come from the recording's stems when earshot separates them; without its
 models, a break and the loops come from the mix's percussive and harmonic parts, and a bass line, which the mix does
 not give apart, is not offered.

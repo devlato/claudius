@@ -1136,8 +1136,11 @@ pub fn offer(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, seed
         let Some((x, rest)) = kinds::source(kind, src, stems.as_deref()) else { continue };
         let mut rng = crate::rng::Rng::seed_from(seed, kind.name());
         for c in kinds::cuts(kind, &a, &x, &rest, seed, &opt.shown, &mut rng) {
-            let raw = kinds::level(&cut_bars(&a, &x, c.first as i64, c.bars as usize));
-            pool.push((c, raw));
+            let cut = match c.span {
+                Some((from, to)) => x.slice(((from * SRF) as usize).min(x.len()), ((to * SRF) as usize).min(x.len())),
+                None => cut_bars(&a, &x, c.first as i64, c.bars as usize),
+            };
+            pool.push((c, kinds::level(&cut)));
         }
     }
     let held: Vec<kinds::Cut> = pool.iter().map(|(c, _)| c.clone()).collect();
@@ -1157,8 +1160,8 @@ pub fn offer(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, seed
         return Err(format!("nothing of the kinds asked for ({}) plays in the recording", names.join(", ")));
     }
     let first = if seed == 0 { 0 } else { rng.below(7) };
-    let treated = |i: usize, raw: &Stereo, bars: u32| {
-        let (treatment, fx) = treatment(first + i, bars as f64 * 4.0);
+    let treated = |i: usize, raw: &Stereo, beats: f64| {
+        let (treatment, fx) = treatment(first + i, beats);
         let mut out = raw.clone();
         let ctx = crate::fx::Ctx::whole(SRF, a.cut_bpm(), seed.wrapping_add(i as u64), out.len());
         crate::fx::apply_chain(&fx, &mut out, &ctx);
@@ -1167,23 +1170,25 @@ pub fn offer(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, seed
     let mut out: Vec<Piece> = Vec::new();
     for (i, p) in phrases.into_iter().enumerate() {
         let raw = phrase_of(src, stems.as_deref(), &a, &p);
-        let (treated, treatment, fx) = treated(i, &raw, p.bars);
+        let (treated, treatment, fx) = treated(i, &raw, p.bars as f64 * 4.0);
         let section = section_at(&a, bar_of(&a, p.within.map_or(p.start, |w| w.0)));
         let (kind, about, bpm) = (Kind::Phrase, String::new(), a.cut_bpm());
         out.push(Piece { kind, about, phrase: p, raw, treated, treatment, fx, bpm, section });
     }
     for (c, raw) in cuts {
-        let (treated, treatment, fx) = treated(out.len(), &raw, c.bars);
+        // a stab is a beat of its hit, where it is; a loop, a break or a bass line its bars
+        let beats = c.span.map_or(c.bars as f64 * 4.0, |_| 1.0);
+        let (treated, treatment, fx) = treated(out.len(), &raw, beats);
         let first = c.first as i64;
         let phrase = Phrase {
-            start: bar_time(&a, first),
+            start: c.span.map_or_else(|| bar_time(&a, first), |s| s.0),
             first,
             bars: c.bars,
             z: None,
             sung: 0.0,
             centred: 0.0,
             score: c.score,
-            within: None,
+            within: c.span,
         };
         let section = section_at(&a, first);
         let (kind, about, bpm) = (c.kind, c.about, a.cut_bpm());
@@ -1313,9 +1318,13 @@ pub fn keep(
             Some(s) => s,
             None => sections_for(bp, plays_as(k), &opt.sections)?,
         };
-        let (tracks, line) = match k.chopped {
-            true => place_chops(bp, &heard, k, &secs, dir)?,
-            false => place_cut(bp, &heard, p, &fx(k), opt, Some(secs.as_slice()), dir).map(|(t, l)| (vec![t], l))?,
+        let (tracks, line) = match (p.kind, k.chopped) {
+            // one hit, which nothing chops further
+            (Kind::Stab, _) => place_stab(bp, &heard, p, &fx(k), &secs, dir).map(|(t, l)| (vec![t], l))?,
+            (_, true) => place_chops(bp, &heard, k, &secs, dir)?,
+            (_, false) => {
+                place_cut(bp, &heard, p, &fx(k), opt, Some(secs.as_slice()), dir).map(|(t, l)| (vec![t], l))?
+            }
         };
         out.tracks.extend(tracks);
         out.lines.push(line);
@@ -1417,6 +1426,72 @@ fn place_cut(
     Ok((track, line))
 }
 
+/// A stab of the instruments kept (`Kind::Stab`), struck as a drum is: its hit a one-shot on a drum lane of its own
+/// (`stab`) that strikes it on a few beats of every two bars, as a stab of a voice is struck (`STAB_RHYTHMS`), moved to
+/// the song's key, high-passed out of the bass's way, all through `secs`; its rhythm is a drum lane's, to change in the
+/// Drums tab. Its lane, and a line saying where it came from and went.
+fn place_stab(
+    bp: &mut Blueprint,
+    h: &Heard,
+    p: &Piece,
+    fx: &[Effect],
+    secs: &[usize],
+    dir: &Path,
+) -> Result<(String, String), String> {
+    use std::collections::BTreeMap;
+    let (a, name) = (h.a, h.name);
+    let file = crate::take::store(&p.raw, dir).map_err(|e| format!("cannot keep the stab: {e:#}"))?;
+    let lane = fresh(bp, "stab");
+    let transpose = crate::compose::transpose_into(&bp.key, (a.key.tonic, a.key.mode.is_minor()));
+    let mut rng = crate::rng::Rng::seed_from(bp.seed, &format!("stabs {name} {}", p.phrase.start));
+    let steps = *rng.pick(&STAB_RHYTHMS);
+    let (hits, pattern_bars) = crate::script::steps_to_hits(steps, 16);
+    let at = p.phrase.start;
+    let when = format!("{}:{:04.1}", (at / 60.0) as u64, at % 60.0);
+    bp.drums.push(DrumLane {
+        name: lane.clone(),
+        sound: Sound::Sample {
+            path: file.to_string_lossy().into_owned(),
+            root: 60,
+            start: 0.0,
+            end: None,
+            label: format!("{name}, a stab of its chords at {when}"),
+        },
+        patterns: BTreeMap::from([("main".to_string(), hits)]),
+        pattern_bars,
+        pitch: transpose,
+        choke: None,
+        mix: TrackMix {
+            fx: [Effect::Eq { bands: vec![EqBand { kind: BiquadKind::Highpass, freq: 120.0, gain_db: 0.0, q: 0.7 }] }]
+                .into_iter()
+                .chain(fx.iter().cloned())
+                .collect(),
+            reverb: 0.25,
+            delay: 0.15,
+            ..TrackMix::default()
+        },
+        length: None,
+        speed: 1.0,
+        swing: None,
+        groove: None,
+        groove_amount: 1.0,
+        late_ms: 0.0,
+        genre: None,
+    });
+    for &si in secs {
+        bp.form[si].layers.push(lane.clone());
+    }
+    let names = secs.iter().map(|&si| bp.form[si].name.as_str()).collect::<Vec<_>>().join(", ");
+    let line = format!(
+        "{lane}: a stab of {name}'s chords at {when}, {}, struck as {steps}, {}, in {names} (a drum lane: its steps \
+         change in the Drums tab)",
+        p.about,
+        moved(transpose, &bp.key)
+    );
+    bp.lineage.push(format!("sampled {lane}: a stab of the chords of {name}"));
+    Ok((lane, line))
+}
+
 /// A piece kept chopped (`Keep::chopped`), as producers chop a record onto a sampler's pads (`kinds::chop`): cut at its
 /// onsets, the hits that sound as one sharing a pad, each pad a drum lane of its own (`chop`, `chop2`, ...) striking it
 /// where its hits came in the piece, as they came, so that the lanes play it as it was until they are played otherwise,
@@ -1499,6 +1574,7 @@ fn sections_for(bp: &Blueprint, kind: Kind, asked: &[String]) -> Result<Vec<usiz
         Kind::Break => of(&|si| plays(si, &drums)),
         Kind::Bass => of(&|si| plays(si, &basses)),
         Kind::Hook => of(&|si| matches!(bp.form[si].kind, Drop | Hook)),
+        Kind::Stab => of(&|si| !matches!(bp.form[si].kind, Intro | Outro)),
         _ => of(&|si| !matches!(bp.form[si].kind, Drop | Hook | Intro | Outro)),
     };
     let between = of(&|si| !matches!(bp.form[si].kind, Intro | Outro));
@@ -2590,6 +2666,65 @@ mod tests {
     }
 
     #[test]
+    fn a_stab_is_a_chord_the_instruments_strike_alone_and_kept_a_drum_lane_in_the_songs_key() {
+        let (mix, stems) = band();
+        let a = analysis::analyze_with(&mix, Some(&stems), None);
+        // a chord struck alone on the second beat of the third bar, before the band's chords come in, ringing a beat
+        let (beat, tau) = ((SRF / 2.0) as usize, std::f64::consts::TAU);
+        let at = 2 * 4 * beat + beat;
+        let mut other = stems.other.clone();
+        for i in 0..beat {
+            let t = i as f64 / SRF;
+            let v = [261.63, 329.63, 392.0].iter().map(|f| (tau * f * t).sin() * 0.3).sum::<f64>() * (-t / 0.15).exp();
+            (other.l[at + i], other.r[at + i]) = (other.l[at + i] + v as f32, other.r[at + i] + v as f32);
+        }
+        let mut rest = stems.drums.clone();
+        rest.add_at(&stems.bass, 0, 1.0, 1.0);
+        let c = kinds::best(Kind::Stab, &a, &other, &rest, 0, &mut crate::rng::Rng::new(1)).expect("a stab");
+        let (from, to) = c.span.expect("where its hit is");
+        assert!((from - at as f64 / SRF).abs() < 0.02 && to > from, "{c:?}");
+        assert!(c.about.contains("struck hard") && c.about.contains("ringing a beat alone"), "{}", c.about);
+        // kept, a drum lane strikes it in the song's key, all through the song but its intro
+        let x = kinds::level(&other.slice((from * SRF) as usize, (to * SRF) as usize));
+        let phrase = Phrase {
+            start: from,
+            first: c.first as i64,
+            bars: 1,
+            z: None,
+            sung: 0.0,
+            centred: 0.0,
+            score: c.score,
+            within: c.span,
+        };
+        let (about, treatment, section) = (c.about.clone(), String::new(), String::new());
+        let stab = Piece {
+            kind: Kind::Stab,
+            about,
+            phrase,
+            raw: x.clone(),
+            treated: x,
+            treatment,
+            fx: Vec::new(),
+            bpm: a.cut_bpm(),
+            section,
+        };
+        let mut bp = song();
+        let dir = std::env::temp_dir().join(format!("claudius-kinds-stab-{}", std::process::id()));
+        let out = keep(&mut bp, &mix, "band", &[Keep::of(&stab)], &Options::default(), &dir).unwrap();
+        assert_eq!(out.tracks, ["stab"]);
+        assert!(out.said("band").starts_with("sampled a stab of band into the song: stab"), "{}", out.said("band"));
+        let lane = bp.drums.iter().find(|d| d.name == "stab").expect("a drum lane");
+        // as `keep` hears the recording: here, without the ears' stems
+        let heard = analysis::analyze_with(&mix, None, None);
+        let transpose = crate::compose::transpose_into(&bp.key, (heard.key.tonic, heard.key.mode.is_minor()));
+        assert!(matches!(lane.sound, Sound::Sample { .. }), "{:?}", lane.sound);
+        assert_eq!(lane.pitch, transpose, "in the song's key");
+        assert!(!lane.patterns["main"].is_empty(), "struck on a few beats");
+        assert_eq!(on(&bp, "stab"), ["drop"], "all through the song but its intro");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn a_recording_no_one_sings_in_offers_its_other_pieces_and_kinds_asked_for_alone() {
         let (mix, _) = band();
         // without the ears, from the mix: its break and loops, as it was cut and treated
@@ -2599,9 +2734,10 @@ mod tests {
         assert!(!kinds.contains(&Kind::Bass), "a bass line needs the stems apart: {kinds:?}");
         for p in all.iter().filter(|p| p.kind != Kind::Phrase) {
             assert!(!p.about.is_empty() && p.raw.len() == p.treated.len(), "{:?}", p.kind);
-            // whole bars, at the tempo the recording was heard at
-            let bars = p.phrase.bars as f64 * 240.0 / p.bpm * SRF;
-            assert!((p.raw.len() as f64 - bars).abs() < 0.01 * SRF, "{:?}: {} of {bars}", p.kind, p.raw.len());
+            // whole bars at the tempo the recording was heard at, or a stab's beat
+            let beats = if p.kind == Kind::Stab { 1.0 } else { p.phrase.bars as f64 * 4.0 };
+            let long = beats * 60.0 / p.bpm * SRF;
+            assert!((p.raw.len() as f64 - long).abs() < 0.01 * SRF, "{:?}: {} of {long}", p.kind, p.raw.len());
         }
         let breaks = pieces(&mix, None, &Options { kinds: vec![Kind::Break], ..Options::default() }, 0).unwrap();
         assert!(

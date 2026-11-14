@@ -258,7 +258,8 @@ song.mp3 into the song: vox1, vox2"), the lines after it where each phrase came 
   as above); `redraw_pieces` draws another take when none suits, of other pieces than the last where there are any.
 - **Every kind of piece.** Besides its phrases, `sample_pieces` offers the best piece of each other kind the recording
   holds: `hook` (a loop of its hook, the instruments without the drums, bass and voice), `passage` (a loop of another
-  passage), `break` (its drums) and `bass` (its bass line), each saying why it scored as it did ("the drums alone,
+  passage), `break` (its drums), `bass` (its bass line) and `stab` (one hit of its chords, struck as a drum when
+  kept), each saying why it scored as it did ("the drums alone,
   busy, it loops cleanly"), and up to two more of the kinds producers sample most and the song's genre samples where
   they are good and unlike those offered (its sparse groove and its busy one, never two cuts of one). Ask for some
   with `kinds` ("break" offers up to four drum loops to build on). Kept, a break loops where the song's drums play, a

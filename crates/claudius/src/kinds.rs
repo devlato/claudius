@@ -29,10 +29,12 @@ pub enum Kind {
     Break,
     /// its bass
     Bass,
+    /// one hit of its instruments' chords and a beat of its decay, struck as a drum is
+    Stab,
 }
 
 impl Kind {
-    pub const ALL: [Kind; 5] = [Kind::Phrase, Kind::Hook, Kind::Passage, Kind::Break, Kind::Bass];
+    pub const ALL: [Kind; 6] = [Kind::Phrase, Kind::Hook, Kind::Passage, Kind::Break, Kind::Bass, Kind::Stab];
 
     pub fn name(self) -> &'static str {
         match self {
@@ -41,6 +43,7 @@ impl Kind {
             Kind::Passage => "passage",
             Kind::Break => "break",
             Kind::Bass => "bass",
+            Kind::Stab => "stab",
         }
     }
 
@@ -60,6 +63,7 @@ impl Kind {
             Kind::Passage => format!("a {bars}-bar loop of another passage"),
             Kind::Break => format!("a {bars}-bar drum break"),
             Kind::Bass => format!("a {bars}-bar bass line"),
+            Kind::Stab => "a stab of its chords".into(),
         }
     }
 
@@ -71,6 +75,7 @@ impl Kind {
             Kind::Passage => ("a loop of another passage", "loops of other passages"),
             Kind::Break => ("a drum break", "drum breaks"),
             Kind::Bass => ("a bass line", "bass lines"),
+            Kind::Stab => ("a stab", "stabs"),
         };
         if n == 1 { one.into() } else { format!("{n} {many}") }
     }
@@ -98,8 +103,8 @@ impl Kind {
     }
 
     /// How often producers sample a piece of this kind: of 42,447 samples on WhoSampled, 37% are drum loops, 34% bass
-    /// lines, 17% hooks, 7% whole tracks (which another passage stands for here) and 2% vocals (Bryan & Wang, ISMIR
-    /// 2011).
+    /// lines, 17% hooks, 7% whole tracks (which another passage stands for here), 2% vocals and 2% other parts (which a
+    /// stab stands for) (Bryan & Wang, ISMIR 2011).
     pub fn share(self) -> f64 {
         match self {
             Kind::Break => 0.3725,
@@ -107,17 +112,18 @@ impl Kind {
             Kind::Hook => 0.1725,
             Kind::Passage => 0.072,
             Kind::Phrase => 0.0215,
+            Kind::Stab => 0.0239,
         }
     }
 
-    /// what a piece of it is cut from: the voice, the drums, the bass, or the other instruments (a hook and another
-    /// passage both)
+    /// what a piece of it is cut from: the voice, the drums, the bass, or the other instruments (a hook, another
+    /// passage and a stab)
     fn stem(self) -> &'static str {
         match self {
             Kind::Phrase => "vocals",
             Kind::Break => "drums",
             Kind::Bass => "bass",
-            Kind::Hook | Kind::Passage => "other",
+            Kind::Hook | Kind::Passage | Kind::Stab => "other",
         }
     }
 
@@ -125,7 +131,7 @@ impl Kind {
     /// or 4 bars, a loop of a hook of 4
     fn lengths(self) -> &'static [(u32, f64)] {
         match self {
-            Kind::Phrase => &[],
+            Kind::Phrase | Kind::Stab => &[],
             Kind::Hook => &[(1, 0.5), (2, 0.8), (4, 1.0), (8, 0.9)],
             Kind::Passage => &[(2, 0.8), (4, 1.0), (8, 0.9)],
             Kind::Break => &[(1, 0.6), (2, 1.0), (4, 1.0)],
@@ -151,6 +157,8 @@ pub struct Cut {
     drawn: f64,
     /// what its first bar sounds like, beat by beat, to tell how alike two pieces are
     print: Vec<Beat>,
+    /// a stab's hit, which no bars hold: where it is in the recording, in seconds, from its attack to a beat after
+    pub span: Option<(f64, f64)>,
 }
 
 /// a stem plays alone in bars where it is this much louder than the rest together, in decibels
@@ -183,9 +191,11 @@ pub fn source(kind: Kind, src: &Stereo, stems: Option<&Stems>) -> Option<(Stereo
         (Kind::Phrase, _) => None,
         (Kind::Break, Some(s)) => Some((s.drums.clone(), sum(&[&s.vocals, &s.bass, &s.other]))),
         (Kind::Bass, Some(s)) => Some((s.bass.clone(), sum(&[&s.vocals, &s.drums, &s.other]))),
-        (Kind::Hook | Kind::Passage, Some(s)) => Some((s.other.clone(), sum(&[&s.vocals, &s.drums, &s.bass]))),
+        (Kind::Hook | Kind::Passage | Kind::Stab, Some(s)) => {
+            Some((s.other.clone(), sum(&[&s.vocals, &s.drums, &s.bass])))
+        }
         (Kind::Bass, None) => None,
-        (Kind::Break | Kind::Hook | Kind::Passage, None) => {
+        (Kind::Break | Kind::Hook | Kind::Passage | Kind::Stab, None) => {
             let mid: Vec<f32> = src.l.iter().zip(&src.r).map(|(l, r)| 0.5 * (l + r)).collect();
             let harmonic = fft::harmonic(&mid);
             let percussive: Vec<f32> = mid.iter().zip(&harmonic).map(|(m, h)| m - h).collect();
@@ -430,7 +440,7 @@ fn scaled(kind: Kind, feature: usize, v: f64) -> f64 {
     let isolation = |db: f64| ((db + 10.0) / 30.0).clamp(0.0, 1.0);
     let share = |s: f64| (s / 0.5).clamp(0.0, 1.0);
     let s = match (kind, feature) {
-        (Kind::Break | Kind::Bass, 0) | (Kind::Hook | Kind::Passage, 2) => isolation(v),
+        (Kind::Break | Kind::Bass, 0) | (Kind::Hook | Kind::Passage | Kind::Stab, 2) => isolation(v),
         (Kind::Break | Kind::Bass, 1) => share(v),
         _ => v.clamp(0.0, 1.0),
     };
@@ -483,10 +493,13 @@ pub fn cuts(
     shown: &[(Kind, f64, f64)],
     rng: &mut Rng,
 ) -> Vec<Cut> {
+    if kind == Kind::Stab {
+        return stabs(a, x, rest, seed, shown, rng);
+    }
     let loudest = (0..a.bars).map(|b| db(bar_power(a, x, b))).fold(f64::MIN, f64::max);
     let hook = a.sections.iter().filter(|s| s.harmony).max_by(|p, q| hookness(p).total_cmp(&hookness(q)));
     let sections: Vec<&SectionGuess> = match kind {
-        Kind::Phrase => return Vec::new(),
+        Kind::Phrase | Kind::Stab => return Vec::new(),
         Kind::Hook => hook.into_iter().collect(),
         Kind::Passage => a
             .sections
@@ -525,7 +538,7 @@ pub fn cuts(
                     .unwrap_or(0.0);
                 vec![1.0 - alike.max(0.0), loops, isolation]
             }
-            Kind::Phrase => unreachable!("phrases are not cut here"),
+            Kind::Phrase | Kind::Stab => unreachable!("phrases and stabs are not cut on bars"),
         };
         cands.push(Candidate { first, bars, features, fits });
     }
@@ -562,7 +575,70 @@ pub fn cuts(
         }
         let section = a.sections.iter().position(|s| (s.start_bar..s.start_bar + s.bars).contains(&c.first));
         let (about, print) = (about(kind, &c.features, a, c.first), print(a, x, c.first));
-        out.push(Cut { kind, first: c.first, bars: c.bars, score: q[i], about, section, drawn: d, print });
+        out.push(Cut { kind, first: c.first, bars: c.bars, score: q[i], about, section, drawn: d, print, span: None });
+        if out.len() == MANY {
+            break;
+        }
+    }
+    out
+}
+
+/// The stabs of the instruments `x` plays apart from `rest`, in the recording `a` heard (`Kind::Stab`): each a hit
+/// SuperFlux hears (`analysis::onsets::superflux_hits`) on which they play notes for the beat after it (`chordal`),
+/// scored by how hard it comes in (its rise, the hardest's 1), how clean its tail is (how far into that beat the next
+/// hit a quarter as hard comes, all of it when none does) and how alone the instruments play there, as a loop's
+/// isolation; drawn for take
+/// `seed` as `cuts` draws the other kinds, the `MANY` drawn best, no two in one beat.
+fn stabs(a: &Analysis, x: &Stereo, rest: &Stereo, seed: u64, shown: &[(Kind, f64, f64)], rng: &mut Rng) -> Vec<Cut> {
+    let beat = a.bar_secs / 4.0;
+    let mono = x.mono();
+    let hits = crate::analysis::onsets::superflux_hits(&mono);
+    let hard = |h: &crate::analysis::onsets::Onset| h.rise.iter().sum::<f32>();
+    let hardest = hits.iter().map(hard).fold(0f32, f32::max).max(1e-9);
+    let power = |y: &Stereo, (from, to): (f64, f64)| {
+        let (i0, i1) = (((from * SRF) as usize).min(y.len()), ((to * SRF) as usize).min(y.len()));
+        y.l[i0..i1].iter().chain(&y.r[i0..i1]).map(|v| (*v as f64).powi(2)).sum::<f64>() / (2 * (i1 - i0)).max(1) as f64
+    };
+    let mut cands: Vec<((f64, f64), Candidate)> = Vec::new();
+    for (i, h) in hits.iter().enumerate() {
+        let (from, to) = (h.at as f64 / SRF, h.at as f64 / SRF + beat);
+        if to * SRF > mono.len() as f64 || !chordal(&mono[h.at..(to * SRF) as usize]) {
+            continue;
+        }
+        let attack = (hard(h) / hardest) as f64;
+        // the next hit a quarter as hard at least: a faint tick in its tail does not spoil it
+        let next =
+            hits[i + 1..].iter().find(|n| hard(n) >= 0.25 * hard(h)).map_or(f64::INFINITY, |n| n.at as f64 / SRF);
+        let tail = ((next - from) / beat).min(1.0);
+        let isolation = db(power(x, (from, to))) - db(power(rest, (from, to)));
+        let first = usize::try_from(a.bar_at(from)).unwrap_or(0);
+        cands.push(((from, to), Candidate { first, bars: 1, features: vec![attack, tail, isolation], fits: 1.0 }));
+    }
+    let q: Vec<f64> = cands.iter().map(|(_, c)| quality(Kind::Stab, c, &[1.0, 0.8, 0.6])).collect();
+    let top = q.iter().copied().fold(0.0, f64::max);
+    let mut drawn: Vec<(f64, usize)> = match seed {
+        0 => (0..cands.len()).map(|i| (q[i], i)).collect(),
+        _ => (0..cands.len())
+            .filter(|&i| q[i] >= top - NEAR)
+            .map(|i| {
+                let was_shown = shown.iter().any(|&(k, f, t)| k == Kind::Stab && same_span(cands[i].0, (f, t)));
+                let less = if was_shown { NEAR } else { 0.0 };
+                (q[i] - less - CHOOSY * (-rng.range(1e-12, 1.0).ln()).ln(), i)
+            })
+            .collect(),
+    };
+    drawn.sort_by(|x, y| y.0.total_cmp(&x.0));
+    let mut out: Vec<Cut> = Vec::new();
+    for (d, i) in drawn {
+        let ((from, to), c) = &cands[i];
+        if out.iter().any(|o| o.span.is_some_and(|s| s.1 > *from && s.0 < *to)) {
+            continue;
+        }
+        let section = a.sections.iter().position(|s| (s.start_bar..s.start_bar + s.bars).contains(&c.first));
+        let print = beat_at(x, *from, beat).into_iter().collect();
+        let about = about(Kind::Stab, &c.features, a, c.first);
+        let (first, span) = (c.first, Some((*from, *to)));
+        out.push(Cut { kind: Kind::Stab, first, bars: 1, score: q[i], about, section, drawn: d, print, span });
         if out.len() == MANY {
             break;
         }
@@ -653,6 +729,11 @@ pub(crate) fn about(kind: Kind, f: &[f64], a: &Analysis, first: usize) -> String
                 _ => "heard once",
             };
             format!("the instruments{of}, {back}, {}", loops(f[1]))
+        }
+        Kind::Stab => {
+            let hard = if f[0] >= 0.6 { "struck hard" } else { "struck softly" };
+            let tail = if f[1] >= 0.99 { "ringing a beat alone" } else { "another hit in its beat" };
+            format!("a chord of the instruments{of}, {hard}, {tail}")
         }
         _ => {
             let unlike = if f[0] >= 0.5 { "unlike the hook" } else { "near the hook" };
@@ -846,7 +927,7 @@ pub(crate) mod tests {
             db: -12.0 - 6.0 * tone,
         };
         let (about, print) = (String::new(), (0..4).map(beat).collect());
-        Cut { kind, first, bars, score, about, section: Some(section), drawn: score, print }
+        Cut { kind, first, bars, score, about, section: Some(section), drawn: score, print, span: None }
     }
 
     #[test]
