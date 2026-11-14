@@ -261,7 +261,8 @@ song.mp3 into the song: vox1, vox2"), the lines after it where each phrase came 
   passage), `break` (its drums) and `bass` (its bass line), each saying why it scored as it did ("the drums alone,
   busy, it loops cleanly"). Ask for some with `kinds` ("break" for a drum loop to build on). Kept, a break loops where
   the song's drums play, a bass line plays in place of the song's bass, a hook loop in the drops and hooks; a recording
-  nobody sings in still offers these.
+  nobody sings in, or none of whose phrases fits the `bars` asked, still offers these, and the reply's last line says
+  why there is no phrase ("no phrase: ...").
 
 ## Ask the person to record a take
 

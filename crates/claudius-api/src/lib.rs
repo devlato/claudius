@@ -151,6 +151,9 @@ pub struct PiecesView {
     /// the take: 0 for the best phrases, any other for another draw of them (`redraw_pieces`)
     pub seed: u64,
     pub pieces: Vec<PieceView>,
+    /// why none of the pieces is a phrase, when phrases were asked for with the other kinds and none could be cut
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub no_phrase: String,
 }
 
 /// a piece the auto-sampler offers

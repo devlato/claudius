@@ -241,10 +241,12 @@ records ([design 0021](../design/0021-every-kind-of-sample.md)), each cut on the
 Each is scored as its kind: how alone what it is cut from plays in its bars, how well it loops (its first beat against
 the beat after its end), and what its kind asks besides (how busy a break is, how much a bass line moves, how often a
 hook comes back, how unlike the hook another passage is). Each says why, in words ("the drums alone, busy, it loops
-cleanly"), and goes into the sections `keep_pieces` names, when it names any. `kinds` asks for some only (`phrase`,
-`hook`, `passage`, `break`, `bass`); a recording no voice sings in offers the rest. They come from the recording's
-stems when earshot separates them; without its models, a break and the loops come from the mix's percussive and
-harmonic parts, and a bass line, which the mix does not give apart, is not offered. Behind the window are `POST /api/sample/pieces` (the recording itself), the state's
+cleanly"), and goes into the sections `keep_pieces` names, when it names any; a phrase kept with no room in them leaves
+the other pieces kept, and the reply says why it did not go in. `kinds` asks for some only (`phrase`, `hook`,
+`passage`, `break`, `bass`); a recording no voice sings in, or none of whose phrases fits the bars asked, offers the
+rest and says why there is no phrase. They come from the recording's stems when earshot separates them; without its
+models, a break and the loops come from the mix's percussive and harmonic parts, and a bass line, which the mix does
+not give apart, is not offered. Behind the window are `POST /api/sample/pieces` (the recording itself), the state's
 `pieces`, each with where its phrase is sung (`from`, `to`) and the section it is in, and `GET /api/pieces/<file>` for
 each piece to hear ([HTTP API](http-api.md#routes)). What `analyze` hears in a recording says where its voice sings
 each phrase too (`phrases`). The online demo offers pieces the same way, in the page.

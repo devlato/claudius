@@ -2203,6 +2203,19 @@ async fn pieces_are_offered_to_hear_drawn_again_and_kept_treated() {
     assert!(bp.loops.iter().any(|l| l.name == "break" && l.role == "drums" && l.sampled), "{:?}", bp.loops);
     let r = app.command(breaks(&["cowbell"]));
     assert!(!r.ok && r.message.starts_with("no kind of piece 'cowbell'"), "{}", r.message);
+    // its sung line is longer than the one bar asked: its break is offered all the same, and why there is no phrase
+    let kinds = vec!["phrase".to_string(), "break".to_string()];
+    let r = app.command(Command::SamplePieces {
+        path: path.clone(),
+        seed: None,
+        count: None,
+        bars: Some(1),
+        find: None,
+        kinds,
+    });
+    let view = app.state().pieces.unwrap();
+    assert!(r.ok && r.message.contains("\nno phrase: ") && !view.no_phrase.is_empty(), "{}", r.message);
+    assert!(view.pieces.iter().all(|p| p.kind == "break"), "{:?}", view.pieces);
     std::fs::remove_file(&file).unwrap();
 }
 

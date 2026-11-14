@@ -291,10 +291,10 @@ fn chroma_of(a: &Analysis, first: usize, count: u32) -> Option<&[[f32; 12]]> {
 
 /// How much of the recording bars `first`..`first + bars` stand for, 0 to 1: how many other runs as long, from any of
 /// its bars, play what they do (their chroma correlates 0.8 or more), three or more counting fully: a hook comes back.
-fn fitness(a: &Analysis, first: usize, bars: u32) -> f64 {
+pub(crate) fn fitness(a: &Analysis, first: usize, bars: u32) -> f64 {
     let Some(own) = chroma_of(a, first, bars) else { return 0.0 };
     let len = bars as usize;
-    let again = (0..a.bars.saturating_sub(len))
+    let again = (0..=a.bars.saturating_sub(len))
         .filter(|&o| o + len <= first || o >= first + len)
         .filter(|&o| chroma_of(a, o, bars).and_then(|x| crate::sampling::correlation(own, x)).is_some_and(|c| c >= 0.8))
         .count();
@@ -425,7 +425,7 @@ pub fn best(kind: Kind, a: &Analysis, x: &Stereo, rest: &Stereo, seed: u64, rng:
 }
 
 /// what a piece of `kind` scored for, in words, from its features (as `best` measures them)
-fn about(kind: Kind, f: &[f64], a: &Analysis, first: usize) -> String {
+pub(crate) fn about(kind: Kind, f: &[f64], a: &Analysis, first: usize) -> String {
     let loops = |l: f64| match l {
         l if l >= 0.75 => "it loops cleanly",
         l if l >= 0.5 => "it loops",
@@ -447,7 +447,11 @@ fn about(kind: Kind, f: &[f64], a: &Analysis, first: usize) -> String {
             format!("{}, {moves}, {}", alone(f[0], "bass"), loops(f[2]))
         }
         Kind::Hook => {
-            let back = if f[0] >= 0.99 { "it comes back three times or more" } else { "it comes back" };
+            let back = match f[0] {
+                f if f >= 0.99 => "it comes back three times or more",
+                f if f > 0.0 => "it comes back",
+                _ => "heard once",
+            };
             format!("the instruments{of}, {back}, {}", loops(f[1]))
         }
         _ => {

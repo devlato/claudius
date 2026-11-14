@@ -1048,12 +1048,25 @@ fn treatment(k: usize, beats: f64) -> (String, Vec<Effect>) {
     (words.to_string(), chain(fx))
 }
 
+/// What `offer` offers: the pieces, and why none of them is a phrase, when phrases were asked for with the other kinds
+/// and none could be cut (no voice sings in it, or none of its phrases fits in the bars asked for).
+pub struct Offered {
+    pub pieces: Vec<Piece>,
+    pub no_phrase: Option<String>,
+}
+
+/// The pieces `offer` offers, without why none of them is a phrase.
+pub fn pieces(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, seed: u64) -> Result<Vec<Piece>, String> {
+    offer(src, ears, opt, seed).map(|o| o.pieces)
+}
+
 /// The pieces of `src` the sampler offers before any goes into the song, of the kinds `opt.kinds` asks for (every kind
 /// it holds, when none): `opt.count` phrases it sings whole (`sung_whole`, at most `MOST`), each cleaned as `sample`
 /// cleans one, and the best piece of each other kind it holds (`kinds`); each as it was cut and through a treatment.
 /// Take `seed` 0 offers the best of each with the gentler treatments; each other take draws again from the good ones,
-/// with other treatments. The ears, when given, listen for `opt.find`. A recording no voice sings in offers the rest.
-pub fn pieces(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, seed: u64) -> Result<Vec<Piece>, String> {
+/// with other treatments. The ears, when given, listen for `opt.find`. When its phrases cannot be cut, the other
+/// kinds it holds are still offered, with why there is no phrase.
+pub fn offer(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, seed: u64) -> Result<Offered, String> {
     if let Some(b) = opt.bars.filter(|b| !(1..=8).contains(b)) {
         return Err(format!("a piece is 1 to 8 bars, not {b}"));
     }
@@ -1077,10 +1090,10 @@ pub fn pieces(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, see
             cuts.push((c, raw));
         }
     }
-    let phrases = match phrases {
-        Ok(p) => p,
-        // what else a recording no one sings in holds is still offered, unless only its phrases were asked for
-        Err(_) if !cuts.is_empty() => Vec::new(),
+    let (phrases, no_phrase) = match phrases {
+        Ok(p) => (p, None),
+        // what else a recording holds is still offered when its phrases cannot be cut, and why there is none
+        Err(e) if !cuts.is_empty() => (Vec::new(), Some(e)),
         Err(e) => return Err(e),
     };
     if phrases.is_empty() && cuts.is_empty() {
@@ -1120,7 +1133,7 @@ pub fn pieces(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, see
         let (kind, about, bpm) = (c.kind, c.about, a.cut_bpm());
         out.push(Piece { kind, about, phrase, raw, treated, treatment, fx, bpm, section });
     }
-    Ok(out)
+    Ok(Offered { pieces: out, no_phrase })
 }
 
 /// The phrases `pieces` offers: `opt.count` the recording sings whole, the best on take `seed` 0 and drawn again from
@@ -1183,9 +1196,13 @@ pub fn keep(
     let fx = |p: &Piece, treated: bool| if treated { p.fx.clone() } else { Vec::new() };
     let phrases: Vec<(Phrase, Vec<Effect>)> =
         kept.iter().filter(|(p, _)| p.kind == Kind::Phrase).map(|(p, t)| (p.phrase.clone(), fx(p, *t))).collect();
-    let mut out = match phrases.is_empty() {
-        true => Sampled::default(),
-        false => place(bp, &heard, &phrases, opt, dir)?,
+    // phrases with no room to go in leave the other pieces kept to go in, and say so
+    let (mut out, refused) = match phrases.is_empty() {
+        true => (Sampled::default(), None),
+        false => match place(bp, &heard, &phrases, opt, dir) {
+            Ok(s) => (s, None),
+            Err(e) => (Sampled::default(), Some(e)),
+        },
     };
     out.kinds = vec![Kind::Phrase; out.tracks.len()];
     for (p, treated) in kept.iter().filter(|(p, _)| p.kind != Kind::Phrase) {
@@ -1194,7 +1211,14 @@ pub fn keep(
         out.lines.push(line);
         out.kinds.push(p.kind);
     }
-    Ok(out)
+    match refused {
+        Some(e) if out.tracks.is_empty() => Err(e),
+        Some(e) => {
+            out.lines.push(format!("no phrase went in: {e}"));
+            Ok(out)
+        }
+        None => Ok(out),
+    }
 }
 
 /// A piece of a kind but a phrase (`kinds`) kept, placed in the song as its kind plays: a break as a drum loop beside the
@@ -2355,6 +2379,53 @@ mod tests {
         }
         let breaks = pieces(&mix, None, &Options { kinds: vec![Kind::Break], ..Options::default() }, 0).unwrap();
         assert!(breaks.iter().all(|p| p.kind == Kind::Break) && breaks.len() == 1);
+    }
+
+    #[test]
+    fn a_hook_heard_again_in_the_last_bars_comes_back_and_one_heard_once_says_so() {
+        let (mix, stems) = band();
+        let mut a = analysis::analyze_with(&mix, Some(&stems), None);
+        let n = a.bars;
+        // every bar a chord of its own, but the first two come again as the recording's last two
+        let chord = |b: usize| std::array::from_fn(|i| ((b * 12 + i) as f32 * 12.9898).sin().abs() * 43758.547 % 1.0);
+        a.bar_chroma = (0..n).map(chord).collect();
+        (a.bar_chroma[n - 2], a.bar_chroma[n - 1]) = (chord(0), chord(1));
+        assert_eq!(kinds::fitness(&a, 0, 2), 1.0 / 3.0, "its last bars come round, and no others");
+        assert!(kinds::about(Kind::Hook, &[0.0, 0.8, 5.0], &a, 0).contains("heard once"));
+    }
+
+    #[test]
+    fn pieces_say_why_there_is_no_phrase_and_a_phrase_with_no_room_leaves_the_rest_kept() {
+        let (mix, stems) = band();
+        // its drums alone: nothing sounds like a voice, and its break is offered with why there is no phrase
+        let o = offer(&stems.drums, None, &Options::default(), 0).unwrap();
+        assert!(!o.pieces.is_empty() && o.pieces.iter().all(|p| p.kind != Kind::Phrase), "the break");
+        assert_eq!(o.no_phrase.as_deref(), Some(NO_VOICE));
+        // a phrase too long for any section, kept with a break: the break goes in, and the reply says why the phrase
+        // did not
+        let a = analysis::analyze_with(&mix, Some(&stems), None);
+        let mut bp = song();
+        let piece = |kind: Kind, bars: u32| {
+            let x = kinds::level(&cut_bars(&a, &mix, 0, bars as usize));
+            let phrase = Phrase {
+                start: bar_time(&a, 0),
+                first: 0,
+                bars,
+                z: None,
+                sung: 1.0,
+                centred: 1.0,
+                score: 1.0,
+                within: None,
+            };
+            let (about, treatment, bpm, section) = (String::new(), String::new(), a.cut_bpm(), String::new());
+            Piece { kind, about, phrase, raw: x.clone(), treated: x, treatment, fx: Vec::new(), bpm, section }
+        };
+        let (long, brk) = (piece(Kind::Phrase, 16), piece(Kind::Break, 2));
+        let dir = std::env::temp_dir().join(format!("claudius-kinds-room-{}", std::process::id()));
+        let out = keep(&mut bp, &mix, "band", &[(&long, false), (&brk, false)], &Options::default(), &dir).unwrap();
+        assert_eq!(out.tracks, ["break"]);
+        assert!(out.lines.last().is_some_and(|l| l.starts_with("no phrase went in: ")), "{:?}", out.lines);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
