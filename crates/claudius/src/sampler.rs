@@ -411,7 +411,10 @@ fn step_back(bp: &mut Blueprint, secs: &[usize], out: &mut Sampled) {
     let voiced_before = |p: &Part| {
         bp.form.iter().any(|s| {
             s.layers.contains(&p.name)
-                && bp.loops.iter().any(|l| l.sampled && !out.tracks.contains(&l.name) && s.layers.contains(&l.name))
+                && bp
+                    .loops
+                    .iter()
+                    .any(|l| sampled_voice(l) && !out.tracks.contains(&l.name) && s.layers.contains(&l.name))
         })
     };
     let leads: Vec<String> = bp
@@ -821,6 +824,12 @@ fn period(bp: &Blueprint, secs: &[usize], bars: u32, every: Option<Every>, sung:
     }
 }
 
+/// whether a loop is a voice sampled into the song (a phrase, or chops of one), as a lead steps back for once; a break,
+/// a bass line or a loop of instruments sampled is not
+fn sampled_voice(l: &LoopPart) -> bool {
+    l.sampled && l.role == "vocal"
+}
+
 /// whether a melody plays in section `si` of `bp`: a lead part, or a loop mixed as a voice or a lead (a phrase sampled
 /// into the song, or a take, which `add_take` mixes as a lead unless told otherwise)
 fn sings_in(bp: &Blueprint, si: usize) -> bool {
@@ -856,7 +865,7 @@ fn place(
     let mut out = Sampled::default();
     let mut voiced: Vec<usize> = Vec::new();
     let voiced_before: Vec<usize> = (0..bp.form.len())
-        .filter(|&si| bp.loops.iter().any(|l| l.sampled && bp.form[si].layers.contains(&l.name)))
+        .filter(|&si| bp.loops.iter().any(|l| sampled_voice(l) && bp.form[si].layers.contains(&l.name)))
         .collect();
     // where a lead or a voice already sings, before any of these phrases
     let sung: Vec<usize> = (0..bp.form.len()).filter(|&si| sings_in(bp, si)).collect();
@@ -1196,13 +1205,19 @@ pub fn keep(
     let fx = |p: &Piece, treated: bool| if treated { p.fx.clone() } else { Vec::new() };
     let phrases: Vec<(Phrase, Vec<Effect>)> =
         kept.iter().filter(|(p, _)| p.kind == Kind::Phrase).map(|(p, t)| (p.phrase.clone(), fx(p, *t))).collect();
-    // phrases with no room to go in leave the other pieces kept to go in, and say so
+    // phrases that cannot go in leave the song as it was before them, the other pieces kept to go in, and say so
     let (mut out, refused) = match phrases.is_empty() {
         true => (Sampled::default(), None),
-        false => match place(bp, &heard, &phrases, opt, dir) {
-            Ok(s) => (s, None),
-            Err(e) => (Sampled::default(), Some(e)),
-        },
+        false => {
+            let before = bp.clone();
+            match place(bp, &heard, &phrases, opt, dir) {
+                Ok(s) => (s, None),
+                Err(e) => {
+                    *bp = before;
+                    (Sampled::default(), Some(e))
+                }
+            }
+        }
     };
     out.kinds = vec![Kind::Phrase; out.tracks.len()];
     for (p, treated) in kept.iter().filter(|(p, _)| p.kind != Kind::Phrase) {
@@ -1249,10 +1264,12 @@ fn place_cut(
         },
     );
     let bpm = a.cut_bpm();
-    // the mix levels it as the drums, the bass or a sample (`render::target_level`)
+    // the mix levels it as the drums, the bass or a sample (`render::target_level`), a break through the drums' bus and
+    // a bass line through the bus of the bass it plays in place of
+    let bass_bus = bp.parts.iter().find(|q| q.role == Role::Bass).map_or_else(|| "bass".into(), |q| q.mix.bus.clone());
     let (role, mix) = match p.kind {
-        Kind::Break => ("drums", TrackMix::default()),
-        Kind::Bass => ("bass", TrackMix::default()),
+        Kind::Break => ("drums", TrackMix { bus: "drums".into(), ..TrackMix::default() }),
+        Kind::Bass => ("bass", TrackMix { bus: bass_bus, ..TrackMix::default() }),
         _ => ("sample", record_mix()),
     };
     let from_bar = p.phrase.first + 1;
@@ -2429,6 +2446,43 @@ mod tests {
     }
 
     #[test]
+    fn a_lead_steps_back_for_a_voice_sampled_where_a_kept_break_plays() {
+        let g = crate::genres::get("trip_hop").unwrap();
+        let o = crate::compose::Options { short: true, samples: 0.0, loops: false, ..Default::default() };
+        let mut bp = crate::compose::generate(&g, 1, &o, None);
+        let lead = bp.parts.iter().find(|p| p.role == Role::Lead).expect("trip-hop has a lead").name.clone();
+        let mut hook = bp.form[0].clone();
+        (hook.name, hook.kind, hook.bars, hook.layers) = ("hook".into(), SectionKind::Drop, 4, bp.layer_names());
+        bp.form = vec![hook];
+        let level = |bp: &Blueprint| bp.parts.iter().find(|p| p.name == lead).unwrap().mix.level_db;
+        let was = level(&bp);
+        let (mix, stems) = band();
+        let a = analysis::analyze_with(&mix, Some(&stems), None);
+        let x = kinds::level(&cut_bars(&a, &stems.drums, 0, 2));
+        let phrase =
+            Phrase { start: 0.0, first: 0, bars: 2, z: None, sung: 0.0, centred: 0.0, score: 1.0, within: None };
+        let (about, treatment, bpm, section) = ("about it".into(), String::new(), a.cut_bpm(), String::new());
+        let brk = Piece {
+            kind: Kind::Break,
+            about,
+            phrase,
+            raw: x.clone(),
+            treated: x,
+            treatment,
+            fx: Vec::new(),
+            bpm,
+            section,
+        };
+        let dir = std::env::temp_dir().join(format!("claudius-kinds-lead-{}", std::process::id()));
+        keep(&mut bp, &mix, "band", &[(&brk, false)], &Options::default(), &dir).unwrap();
+        assert_eq!(level(&bp), was, "a break is no voice to step back for");
+        let ask = Options { count: 1, bars: Some(2), sections: vec!["drop".into()], ..Options::default() };
+        let out = sample(&mut bp, &hummed(4, 12), "song", None, &ask, &dir).unwrap();
+        assert_eq!(level(&bp), was - 1.5, "the lead steps back for the voice beside the break: {:?}", out.lines);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn a_break_kept_loops_where_the_drums_play_and_a_bass_line_in_place_of_the_bass() {
         let (mix, stems) = band();
         let a = analysis::analyze_with(&mix, Some(&stems), None);
@@ -2458,6 +2512,8 @@ mod tests {
         let l = |name: &str| bp.loops.iter().find(|l| l.name == name).unwrap();
         assert!(matches!(&l("break").sound, Sound::Loop { tonal: false, key: None, .. }) && l("break").role == "drums");
         assert_eq!((l("break").transpose, l("bassline").role.as_str()), (0, "bass"));
+        let bass_bus = &bp.parts.iter().find(|p| p.role == Role::Bass).unwrap().mix.bus;
+        assert_eq!((l("break").mix.bus.as_str(), &l("bassline").mix.bus), ("drums", bass_bus), "through their buses");
         let drums: Vec<String> = bp.drums.iter().map(|d| d.name.clone()).collect();
         for s in &bp.form {
             let has = |names: &[String]| s.layers.iter().any(|l| names.contains(l));
