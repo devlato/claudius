@@ -9,6 +9,9 @@ fuzz/coverage/
 # songs rendered while working on claudius
 out/
 
+# the book's list of libraries, which `cargo xtask docs` writes from Cargo.lock
+docs/src/credits/libraries.md
+
 # the website's test tooling
 site/node_modules/
 site/test-results/

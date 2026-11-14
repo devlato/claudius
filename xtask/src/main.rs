@@ -1,6 +1,7 @@
 //! `cargo xtask <command>`: the chores of this repository, in Rust so that they run the same on every OS and in CI.
 //! `cargo xtask help` lists the commands.
 
+mod credits;
 mod dist;
 mod perf;
 mod release;
@@ -21,7 +22,8 @@ usage: cargo xtask <command>
                           build the web studio with trunk into crates/claudius-ui/dist; --plan builds one
                           that runs the scripted plan in its page's ?plan= (for tests only) into
                           target/studio-plan, which site/tests/record.spec.mjs drives
-  docs                    build the book with mdbook into target/book
+  docs                    build the book with mdbook into target/book, first writing its list of every library
+                          claudius is built of (docs/src/credits/libraries.md) from Cargo.lock
   site [--out DIR] [--site-url URL] [--sounds]
                           assemble the website in DIR (target/site): site/ with its placeholders filled in,
                           the book at /docs/, the studio at /studio/, and /install.sh and /install.ps1;
@@ -226,6 +228,7 @@ fn sized(html: &str, bytes: u64) -> Result<String> {
 
 fn docs(sh: &Shell) -> Result<()> {
     need(sh, "mdbook")?;
+    credits::libraries(sh)?;
     // docs/book.toml sends the output to target/book
     cmd!(sh, "mdbook build docs").run()?;
     Ok(())
