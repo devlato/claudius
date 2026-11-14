@@ -21,7 +21,8 @@
 //! the app), `import:whole` (the recording it holds added whole as a track), `import:search:<words>` (the free
 //! libraries searched, as its Search button searches them; what they offer goes out as `library: ...`),
 //! `import:use:<n>` (the nth of them chosen, from 0), `import:sample` (the recording held sampled, as its Sample its
-//! vocals button samples it; the pieces offered go out as `pieces: ...`), `import:hear:<n>[:treated]` (the Sample
+//! vocals button samples it; the pieces offered go out as `pieces: ...`), `import:pieces` (every kind of piece of it
+//! offered, as the Pieces of it card's button offers them), `import:hear:<n>[:treated]` (the Sample
 //! window's piece n played, as its button plays it; that it plays, or why not, goes out as `hearing: ...`),
 //! `cmd:<command json>`, `size:<w>,<h>`, `script:<code; \n for a newline, %3B for ;>`
 //! (into the editor), `run`, `reference`, `shot:<file.png>` (the window as rendered), `exit`, and synthetic pointer
@@ -55,6 +56,8 @@ pub enum Step {
     ImportUse(usize),
     /// the recording held sampled, as the Add a recording window's Sample its vocals button samples it
     ImportSample,
+    /// every kind of piece of the recording held offered, as the Pieces of it card's button offers them
+    ImportPieces,
     /// a piece the Sample window offers played to be heard, by its id, treated or as it was cut, as its button plays it
     ImportHear(u32, bool),
     /// a file dialog, as the button for what it is for opens one
@@ -307,6 +310,7 @@ impl Plan {
             "recordingpath" => Some(Step::RecordingPath(arg.to_string())),
             "import" if arg == "whole" => Some(Step::ImportWhole),
             "import" if arg == "sample" => Some(Step::ImportSample),
+            "import" if arg == "pieces" => Some(Step::ImportPieces),
             "import" if arg.starts_with("search:") => Some(Step::ImportSearch(arg["search:".len()..].to_string())),
             "import" if arg.starts_with("use:") => arg["use:".len()..].parse().ok().map(Step::ImportUse),
             "import" if arg.starts_with("hear:") => {

@@ -687,18 +687,19 @@ impl Backend {
         }
     }
 
-    /// Sends a recording held, the file itself, for the auto-sampler's pieces of it (the answer arrives as a reply to
-    /// "sample_pieces", the pieces in the state).
+    /// Sends a recording held, the file itself, for the auto-sampler's pieces of it of `kinds` (every kind it holds,
+    /// when none; the answer arrives as a reply to "sample_pieces", the pieces in the state).
     /// (`found`: the library's record of it, when a free library offered it, which the demo's engine credits the
     /// pieces kept by; a claudius samples those by their id)
-    pub fn offer_pieces(&mut self, bytes: Vec<u8>, name: &str, found: Option<serde_json::Value>) {
+    pub fn offer_pieces(&mut self, bytes: Vec<u8>, name: &str, found: Option<serde_json::Value>, kinds: Vec<String>) {
         match self {
             Backend::Remote(r) => {
-                let query = format!("name={}&count=4&kinds=phrase", query_value(name));
+                let kinds = if kinds.is_empty() { String::new() } else { format!("&kinds={}", kinds.join(",")) };
+                let query = format!("name={}&count=4{kinds}", query_value(name));
                 r.listen(bytes, "/api/sample/pieces", &query, "sample_pieces")
             }
             Backend::Mock(m) => {
-                let (name, kinds) = (name.to_string(), vec!["phrase".to_string()]);
+                let name = name.to_string();
                 let offer = claudius_api::Listen::SamplePieces { name, seed: None, count: Some(4), found, kinds };
                 m.listen(offer, &bytes)
             }

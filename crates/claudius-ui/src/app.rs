@@ -631,6 +631,7 @@ impl Studio {
                 Step::ImportSearch(words) => self.view.import.search_for(&words),
                 Step::ImportUse(n) => self.view.import.use_nth = Some(n),
                 Step::ImportSample => self.view.import.sample_now = true,
+                Step::ImportPieces => self.view.import.every_piece_now(),
                 Step::ImportHear(id, treated) => self.view.import.hear_now = Some((id, treated)),
                 Step::Pick(want) => crate::pick::choose(ctx, want),
                 Step::Listen(remake) => {
@@ -1364,10 +1365,10 @@ impl eframe::App for Studio {
         if let Some(wav) = self.view.palette.say.take() {
             self.backend.hear(wav);
         }
-        if let Some((file, found)) = self.view.import.offer.take() {
+        if let Some((file, found, kinds)) = self.view.import.offer.take() {
             self.inflight += 1;
             self.inflight_since = now;
-            self.backend.offer_pieces(file.bytes.clone(), &file.name, found);
+            self.backend.offer_pieces(file.bytes.clone(), &file.name, found, kinds);
         }
         if let Some(file) = self.view.import.next_to_hear() {
             self.inflight += 1;
