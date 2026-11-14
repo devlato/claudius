@@ -230,11 +230,11 @@ An assistant does the same with `sample_pieces` (the recording's `path`, or `lib
 round (`every`, as above).
 
 With **Pieces of it** chosen, **Choose its pieces →** opens the **Sample** window with every kind of piece the
-recording holds: its sung phrases, then, under **Its drums, bass and loops**, the best piece of each other kind, each
-saying what it is and why it scored as it did ("Drum break · Intro, bars 1-2", "the drums alone, busy, it loops
-cleanly"). None of those starts ticked; tick the ones you want, as for a phrase. When it has no phrase to offer (no
-voice sings in it, say), the window says why above the other pieces. **Another take** draws other pieces of each kind
-among the good ones. Besides its phrases, `sample_pieces` offers the same, as producers sample records
+recording holds: its sung phrases, then, under **Its drums, bass and loops**, the best piece of each other kind and
+more of a kind where they differ (below), each saying what it is and why it scored as it did ("Drum break · Intro,
+bars 1-2", "the drums alone, busy, it loops cleanly"). None of those starts ticked; tick the ones you want, as for a
+phrase. When it has no phrase to offer (no voice sings in it, say), the window says why above the other pieces.
+**Another take** draws other pieces of each kind among the good ones, other than those it offered last. Besides its phrases, `sample_pieces` offers the same, as producers sample records
 ([design 0021](../design/0021-every-kind-of-sample.md)), each cut on the recording's bars:
 
 | Kind | What it is | Kept, it plays |
@@ -252,7 +252,17 @@ the other pieces kept, and the reply says why it did not go in. `kinds` asks for
 `passage`, `break`, `bass`); a recording no voice sings in, or none of whose phrases fits the bars asked, offers the
 rest and says why there is no phrase. They come from the recording's stems when earshot separates them; without its
 models, a break and the loops come from the mix's percussive and harmonic parts, and a bass line, which the mix does
-not give apart, is not offered. Behind the window are `POST /api/sample/pieces` (the recording itself), the state's
+not give apart, is not offered.
+
+What is offered is varied as well as good. Besides the best of each kind come up to two more of the kinds producers
+sample most (of 42,447 samples on WhoSampled, 37% are drum loops and 34% bass lines: Bryan & Wang, ISMIR 2011), and of
+those the song's genre samples (a house song leans toward breaks and hooks), each only where it is good and unlike
+those already offered: a recording's sparse groove and its busy one, never two cuts of one groove. Asked for one kind,
+it offers up to four of it. Another take draws other pieces than the take before, where there are any. Several pieces
+of a kind kept with no sections named share the sections their kind plays in, the fuller in the louder, so that none
+plays over another.
+
+Behind the window are `POST /api/sample/pieces` (the recording itself), the state's
 `pieces`, each with where its phrase is sung (`from`, `to`) and the section it is in, and `GET /api/pieces/<file>` for
 each piece to hear ([HTTP API](http-api.md#routes)). What `analyze` hears in a recording says where its voice sings
 each phrase too (`phrases`). The online demo offers pieces the same way, in the page.

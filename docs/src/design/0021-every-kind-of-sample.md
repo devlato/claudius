@@ -1,6 +1,6 @@
 # 0021 Every kind of sample, ranked and varied
 
-Status: accepted; the first step is built
+Status: accepted; the first and third steps are built
 
 ## Context
 
@@ -44,13 +44,20 @@ are) and none under a fifth, so that one weak feature lowers a piece without rul
 among the candidates, so that a hair's more loopability does not count as much as 20 dB of isolation, and so that the
 pieces of different kinds can be weighed against each other.
 
-**Variety**: a greedy DPP (Chen, Zhang & Zhou, NeurIPS 2018) over L = diag(q^a) S diag(q^a), where q is the quality
-and S the largest of the pieces' overlap in time, their being of the same section and stem, and the cosine of their
-features. The first take is that list; each other take is a seeded draw (Gumbel-top-k, Kool et al., ICML 2019) among
-the pieces above a quality bar, those shown before weighed down. The reply says the seed, as now.
+**Variety**: a greedy DPP (Chen, Zhang & Zhou, NeurIPS 2018) over L = diag(r) S diag(r), where r is a piece's quality
+weighed by how many of its kind to offer (below) and S how alike two pieces are: the most of the share of the shorter's
+bars they share, a half when they are of the same section, and how alike their first bars sound beat by beat, as a seam
+compares two beats (a tenth apart or less as one, two fifths apart or more unlike); pieces cut from different stems
+are never alike. The best of each kind comes first, so that the scores never hide a kind; then each piece that adds
+the most, while it adds at least 0.4. The first take is that list; each other take is a seeded draw (Gumbel noise on
+the qualities, as Gumbel-top-k draws: Kool et al., ICML 2019) among the pieces within 0.15 of the best of their kind,
+those the take before offered as though they scored 0.15 less, phrases too. The reply says the seed, as now.
 
-**How many of each**: the WhoSampled shares by default, moved toward what the genre's producers sample (its sample
-search: "funk drum break" asks for breaks) and what the person asks for: the words to find, or the kinds named.
+**How many of each**: the WhoSampled shares by default, r weighed by the square root of its kind's share over the
+largest, and twice the share for a kind the genre's producers sample (its `sampling`: a drum break, a bass, a phrase to
+build on as a hook, a texture as another passage); up to two more pieces than kinds, or four of a kind asked for
+alone. Several of a kind kept with no sections named share the sections their kind plays in, the fuller of them in
+the louder.
 
 **Each piece says what it is**: its kind, where it is in the recording, its length, key and tempo ("a 4-bar drum
 break, the drums alone, 92 BPM, bars 33-36"), and in words why it scored as it did.
@@ -68,7 +75,9 @@ person or their assistant can ask for any kind and any number, and read why each
    and what it scored for (`claudius_api::PieceView`), `kinds` to ask for some, and a piece kept placed as its kind
    plays (`keep_pieces`). The best of each kind on the first take, a seeded draw among the near-best on any other.
 2. The Sample window offers them, each saying what it is.
-3. Variety: the DPP, the seeded draws across kinds, the shares of each kind.
+3. Built: variety, the DPP over the pieces of every kind but a phrase (`kinds::varied`), the seeded draws away from
+   the take before (`sampler::Options::shown`), the shares of each kind and the genre's (`sampler::leaning`), and
+   several of a kind kept sharing the sections.
 4. Stabs of the instruments, and chop sets of breaks and loops at their onsets (SuperFlux, Böck & Widmer, DAFx
    2013), laid out on pads: today's stab is a syllable, and today's chops cut a phrase in eighths.
 5. The flip and `sample_song` choose by the same scores.

@@ -97,6 +97,30 @@ impl Kind {
         self != Kind::Break
     }
 
+    /// How often producers sample a piece of this kind: of 42,447 samples on WhoSampled, 37% are drum loops, 34% bass
+    /// lines, 17% hooks, 7% whole tracks (which another passage stands for here) and 2% vocals (Bryan & Wang, ISMIR
+    /// 2011).
+    pub fn share(self) -> f64 {
+        match self {
+            Kind::Break => 0.3725,
+            Kind::Bass => 0.3376,
+            Kind::Hook => 0.1725,
+            Kind::Passage => 0.072,
+            Kind::Phrase => 0.0215,
+        }
+    }
+
+    /// what a piece of it is cut from: the voice, the drums, the bass, or the other instruments (a hook and another
+    /// passage both)
+    fn stem(self) -> &'static str {
+        match self {
+            Kind::Phrase => "vocals",
+            Kind::Break => "drums",
+            Kind::Bass => "bass",
+            Kind::Hook | Kind::Passage => "other",
+        }
+    }
+
     /// the lengths a piece of it takes, in bars, each with how well that length suits it: a break and a bass line of 2
     /// or 4 bars, a loop of a hook of 4
     fn lengths(self) -> &'static [(u32, f64)] {
@@ -117,10 +141,16 @@ pub struct Cut {
     /// its first bar in the recording (counting from 0) and how many it lasts
     pub first: usize,
     pub bars: u32,
-    /// how good a piece of its kind it is among the candidates of its kind, 0 to 1
+    /// how good a piece of its kind it is, 0 to 1 (`quality`)
     pub score: f64,
     /// what it scored for, in words: "the drums alone, busy, it loops cleanly"
     pub about: String,
+    /// the section of the recording it is in, by its place among them
+    section: Option<usize>,
+    /// its score as the take draws it: as it is on the first take, with chance and what was shown before on any other
+    drawn: f64,
+    /// what its first bar sounds like, beat by beat, to tell how alike two pieces are
+    print: Vec<Beat>,
 }
 
 /// a stem plays alone in bars where it is this much louder than the rest together, in decibels
@@ -128,9 +158,15 @@ const ALONE_DB: f64 = 20.0;
 /// what a piece is cut from has to play there: no quieter than this under its loudest bar, in decibels
 const PRESENT_DB: f64 = 20.0;
 /// how far under the best of its kind a piece may score and still be drawn for another take, and how strongly the
-/// better are preferred among them: the smaller, the more (as a remix draws its hook)
+/// better are preferred among them: the smaller, the more (as a remix draws its hook). A piece shown on the take
+/// before is drawn as though it scored `NEAR` less, so that another take offers others where there are any.
 const NEAR: f64 = 0.15;
 const CHOOSY: f64 = 0.05;
+/// the most pieces of a kind a varied choice weighs (`cuts`), the best of those that do not overlap
+const MANY: usize = 8;
+/// the least a piece beyond the first of each kind adds to be offered (`varied`): its score, weighed by how often
+/// producers sample its kind, times how unlike those already chosen it is
+const FLOOR: f64 = 0.4;
 
 /// What a piece of `kind` is cut from in `src`, and the rest: its stems when they are apart (a break the drums, a bass
 /// line the bass, a loop the other instruments), else the mix's percussive part for a break and its harmonic part for a
@@ -187,6 +223,7 @@ fn db(power: f64) -> f64 {
 
 /// what a beat of a recording sounds like, as a seam compares two: its pitch classes, the shape of its spectrum in eight
 /// octave bands (decibels about their mean) and its loudness
+#[derive(Clone, Debug, PartialEq)]
 struct Beat {
     chroma: [f32; 12],
     bands: [f64; 8],
@@ -203,7 +240,10 @@ fn beat_at(x: &Stereo, from: f64, secs: f64) -> Option<Beat> {
     for frame in chroma::chroma(&mono, 2048) {
         sum.iter_mut().zip(frame).for_each(|(s, v)| *s += v);
     }
-    let frames = fft::spectrogram(&mono, 2048, 1024);
+    // its spectrum from half a frame before it, so that an attack on the beat counts whole however the bars fall
+    let early: Vec<f32> =
+        (i0 as i64 - 1024..i1 as i64).map(|i| usize::try_from(i).map_or(0.0, |i| 0.5 * (x.l[i] + x.r[i]))).collect();
+    let frames = fft::spectrogram(&early, 2048, 1024);
     let mut bands = [0f64; 8];
     for frame in &frames {
         for (k, m) in frame.iter().enumerate() {
@@ -215,7 +255,10 @@ fn beat_at(x: &Stereo, from: f64, secs: f64) -> Option<Beat> {
         }
     }
     let n = frames.len().max(1) as f64;
+    // a band 30 dB under the beat's loudest is hardly heard against it, however much quieter still it is
     let logs: Vec<f64> = bands.iter().map(|e| db(e / n)).collect();
+    let top = logs.iter().copied().fold(f64::MIN, f64::max);
+    let logs: Vec<f64> = logs.iter().map(|l| l.max(top - 30.0)).collect();
     let mean = logs.iter().sum::<f64>() / 8.0;
     let mut shape = [0f64; 8];
     shape.iter_mut().zip(&logs).for_each(|(s, l)| *s = l - mean);
@@ -230,10 +273,21 @@ fn cosine(a: &[f32; 12], b: &[f32; 12]) -> f64 {
     if d > 0.0 { (dot / d) as f64 } else { 0.0 }
 }
 
+/// How far apart two beats sound, 0 to 1, as LoopMaker weighs a seam (Shi & Mysore, CHI 2018): 1.0 × their chroma
+/// distance + 0.6 × how far apart their spectra's shapes are, over 12 dB a band, + 0.2 × how far apart their loudness
+/// is, over 12 dB; without the chroma when `pitched` is not, for the pitch classes of drums are their noise's.
+fn apart(p: &Beat, q: &Beat, pitched: bool) -> f64 {
+    let shape = p.bands.iter().zip(&q.bands).map(|(x, y)| (x - y).powi(2)).sum::<f64>().sqrt() / (12.0 * 8f64.sqrt());
+    let chroma = if pitched { 1.0 } else { 0.0 };
+    let seam = chroma * (1.0 - cosine(&p.chroma, &q.chroma))
+        + 0.6 * shape.min(1.0)
+        + 0.2 * ((p.db - q.db).abs() / 12.0).min(1.0);
+    (seam / (chroma + 0.8)).clamp(0.0, 1.0)
+}
+
 /// How well bars `first`..`first + bars` of `x` loop, 0 to 1: how much their first beat resembles the beat after their
-/// end, which looping puts it in place of (LoopMaker's seam, Shi & Mysore, CHI 2018): 1.0 × their chroma distance +
-/// 0.6 × how far apart their spectra's shapes are, over 12 dB a band, + 0.2 × how far apart their loudness is, over 12
-/// dB. A half when nothing follows the bars in the recording.
+/// end, which looping puts it in place of (`apart`, a seam as LoopMaker hears one). A half when nothing follows the
+/// bars in the recording.
 pub fn loopability(a: &Analysis, x: &Stereo, first: usize, bars: u32) -> f64 {
     let beat = a.bar_secs / 4.0;
     let end = first + bars as usize;
@@ -243,12 +297,66 @@ pub fn loopability(a: &Analysis, x: &Stereo, first: usize, bars: u32) -> f64 {
     let (Some(head), Some(after)) = (beat_at(x, a.bar_start(first), beat), beat_at(x, a.bar_start(end), beat)) else {
         return 0.5;
     };
-    let shape =
-        head.bands.iter().zip(&after.bands).map(|(p, q)| (p - q).powi(2)).sum::<f64>().sqrt() / (12.0 * 8f64.sqrt());
-    let seam = (1.0 - cosine(&head.chroma, &after.chroma))
-        + 0.6 * shape.min(1.0)
-        + 0.2 * ((head.db - after.db).abs() / 12.0).min(1.0);
-    (1.0 - seam / 1.8).clamp(0.0, 1.0)
+    1.0 - apart(&head, &after, true)
+}
+
+/// Whether `mono` plays notes as a loop of instruments does, and the ringing of a drum does not: a twentieth of its
+/// energy at least from 220 Hz to 4 kHz, where chords and riffs sound, in pitch classes that are not flat (the
+/// strongest twice their mean, or it is noise), two of them at least half as strong as the strongest and a minor third
+/// apart or more (a low tone's leakage spreads a semitone or two round it). Weighed by energy, not frame by frame, so
+/// that what little rings over a quiet stretch counts as little.
+fn chordal(mono: &[f32]) -> bool {
+    let (mut c, mut inside, mut all) = ([0f64; 12], 0.0, 0.0);
+    for frame in fft::spectrogram(mono, 2048, 1024) {
+        for (k, m) in frame.iter().enumerate() {
+            let (hz, e) = (k as f64 * SRF / 2048.0, (*m as f64).powi(2));
+            all += e;
+            if (220.0..4000.0).contains(&hz) {
+                inside += e;
+                c[((12.0 * (hz / 440.0).log2()).round() as i64 + 9).rem_euclid(12) as usize] += e;
+            }
+        }
+    }
+    let top = c.iter().copied().fold(0.0, f64::max);
+    let strong: Vec<usize> = (0..12).filter(|&i| top > 0.0 && c[i] >= 0.5 * top).collect();
+    let apart = |p: usize, q: usize| (p + 12 - q) % 12 >= 3 && (q + 12 - p) % 12 >= 3;
+    inside >= 0.05 * all
+        && top >= 2.0 * c.iter().sum::<f64>() / 12.0
+        && strong.iter().any(|&p| strong.iter().any(|&q| apart(p, q)))
+}
+
+/// bar `first` of `x`, as one channel
+fn bar_of(a: &Analysis, x: &Stereo, first: usize) -> Vec<f32> {
+    let at = |t: f64| ((t * SRF).max(0.0) as usize).min(x.len());
+    (at(a.bar_start(first))..at(a.bar_start(first + 1))).map(|i| 0.5 * (x.l[i] + x.r[i])).collect()
+}
+
+/// what bar `first` of `x` sounds like, beat by beat (`Beat`), as far as the recording goes
+fn print(a: &Analysis, x: &Stereo, first: usize) -> Vec<Beat> {
+    let beat = a.bar_secs / 4.0;
+    (0..4).map_while(|k| beat_at(x, a.bar_start(first) + k as f64 * beat, beat)).collect()
+}
+
+/// How alike two pieces are, 0 to 1, as a varied choice weighs them: as much as the shorter's bars overlap the
+/// other's, a half when they are of the same section, or as much as their first bars sound alike beat by beat (`apart`:
+/// beats a tenth apart or less sound as one, as a seam that close is not heard, and two fifths apart or more unlike);
+/// not at all when they are cut from different stems, for a break and a bass line are never the same piece.
+fn alike(p: &Cut, q: &Cut) -> f64 {
+    if p.kind.stem() != q.kind.stem() {
+        return 0.0;
+    }
+    let shared = (p.first + p.bars as usize).min(q.first + q.bars as usize).saturating_sub(p.first.max(q.first));
+    let overlap = shared as f64 / p.bars.min(q.bars).max(1) as f64;
+    let section = if p.section.is_some() && p.section == q.section { 0.5 } else { 0.0 };
+    let n = p.print.len().min(q.print.len());
+    let sound = match n {
+        0 => 0.0,
+        _ => {
+            let apart: f64 = p.print.iter().zip(&q.print).map(|(x, y)| apart(x, y, p.kind.tonal())).sum();
+            ((0.4 - apart / n as f64) / 0.3).clamp(0.0, 1.0)
+        }
+    };
+    overlap.max(section).max(sound)
 }
 
 /// how busy a break of `x` over bars `first`..`first + bars` is, 0 to 1: the share of its sixteenths on which its
@@ -358,10 +466,27 @@ fn runs(kind: Kind, sections: &[&SectionGuess], total: usize) -> Vec<(usize, u32
 /// on take `seed` 0, and on any other one drawn among those near the best, the better the likelier (`rng`); none when
 /// the recording has nothing of the kind.
 pub fn best(kind: Kind, a: &Analysis, x: &Stereo, rest: &Stereo, seed: u64, rng: &mut Rng) -> Option<Cut> {
+    cuts(kind, a, x, rest, seed, &[], rng).into_iter().next()
+}
+
+/// The pieces of `kind` the recording `a` heard holds, cut from `x` (what it plays in) apart from `rest`, each scored as
+/// a piece of its kind and drawn for take `seed`: as it scores on the first take, and on any other with chance (`rng`)
+/// among those near the best of the kind, the better the likelier, one `shown` on the take before (each a kind and
+/// where it is in the recording, in seconds) as though it scored `NEAR` less. The `MANY` drawn best, the best first, no
+/// two sharing half the shorter's bars; none when the recording has nothing of the kind.
+pub fn cuts(
+    kind: Kind,
+    a: &Analysis,
+    x: &Stereo,
+    rest: &Stereo,
+    seed: u64,
+    shown: &[(Kind, f64, f64)],
+    rng: &mut Rng,
+) -> Vec<Cut> {
     let loudest = (0..a.bars).map(|b| db(bar_power(a, x, b))).fold(f64::MIN, f64::max);
     let hook = a.sections.iter().filter(|s| s.harmony).max_by(|p, q| hookness(p).total_cmp(&hookness(q)));
     let sections: Vec<&SectionGuess> = match kind {
-        Kind::Phrase => return None,
+        Kind::Phrase => return Vec::new(),
         Kind::Hook => hook.into_iter().collect(),
         Kind::Passage => a
             .sections
@@ -378,6 +503,10 @@ pub fn best(kind: Kind, a: &Analysis, x: &Stereo, rest: &Stereo, seed: u64, rng:
         let power: f64 = bar_range.clone().map(|b| bar_power(a, x, b)).sum::<f64>() / bars as f64;
         // what it is cut from plays in every one of its bars
         if bar_range.clone().any(|b| db(bar_power(a, x, b)) < loudest - PRESENT_DB) {
+            continue;
+        }
+        // and a loop of instruments plays notes, which a drum ringing in what is left of the drums does not
+        if matches!(kind, Kind::Hook | Kind::Passage) && !chordal(&bar_of(a, x, first)) {
             continue;
         }
         let others: f64 = bar_range.map(|b| bar_power(a, rest, b)).sum::<f64>() / bars as f64;
@@ -400,9 +529,6 @@ pub fn best(kind: Kind, a: &Analysis, x: &Stereo, rest: &Stereo, seed: u64, rng:
         };
         cands.push(Candidate { first, bars, features, fits });
     }
-    if cands.is_empty() {
-        return None;
-    }
     let weights: &[f64] = match kind {
         Kind::Break | Kind::Bass => &[1.0, 0.6, 1.0],
         Kind::Hook => &[1.0, 1.0, 0.5],
@@ -410,18 +536,92 @@ pub fn best(kind: Kind, a: &Analysis, x: &Stereo, rest: &Stereo, seed: u64, rng:
     };
     let q: Vec<f64> = cands.iter().map(|c| quality(kind, c, weights)).collect();
     let top = q.iter().copied().fold(0.0, f64::max);
-    let pick = match seed {
-        0 => (0..cands.len()).max_by(|&i, &j| q[i].total_cmp(&q[j]))?,
-        _ => {
-            (0..cands.len())
-                .filter(|&i| q[i] >= top - NEAR)
-                .map(|i| (q[i] / CHOOSY - (-rng.range(1e-12, 1.0).ln()).ln(), i))
-                .max_by(|x, y| x.0.total_cmp(&y.0))?
-                .1
-        }
+    let secs = |c: &Candidate| (a.bar_start(c.first), a.bar_start(c.first + c.bars as usize));
+    let was_shown = |c: &Candidate| shown.iter().any(|&(k, f, t)| k == kind && same_span(secs(c), (f, t)));
+    let mut drawn: Vec<(f64, usize)> = match seed {
+        0 => (0..cands.len()).map(|i| (q[i], i)).collect(),
+        _ => (0..cands.len())
+            .filter(|&i| q[i] >= top - NEAR)
+            .map(|i| {
+                let less = if was_shown(&cands[i]) { NEAR } else { 0.0 };
+                (q[i] - less - CHOOSY * (-rng.range(1e-12, 1.0).ln()).ln(), i)
+            })
+            .collect(),
     };
-    let c = &cands[pick];
-    Some(Cut { kind, first: c.first, bars: c.bars, score: q[pick], about: about(kind, &c.features, a, c.first) })
+    drawn.sort_by(|x, y| y.0.total_cmp(&x.0));
+    let mut out: Vec<Cut> = Vec::new();
+    for (d, i) in drawn {
+        let c = &cands[i];
+        let shares = |o: &Cut| {
+            let shared =
+                (o.first + o.bars as usize).min(c.first + c.bars as usize).saturating_sub(o.first.max(c.first));
+            2 * shared >= o.bars.min(c.bars) as usize
+        };
+        if out.iter().any(shares) {
+            continue;
+        }
+        let section = a.sections.iter().position(|s| (s.start_bar..s.start_bar + s.bars).contains(&c.first));
+        let (about, print) = (about(kind, &c.features, a, c.first), print(a, x, c.first));
+        out.push(Cut { kind, first: c.first, bars: c.bars, score: q[i], about, section, drawn: d, print });
+        if out.len() == MANY {
+            break;
+        }
+    }
+    out
+}
+
+/// whether two spans of a recording, in seconds, are one piece's as a take draws away from those shown: they share
+/// half the shorter at least
+pub(crate) fn same_span(p: (f64, f64), q: (f64, f64)) -> bool {
+    p.1.min(q.1) - p.0.max(q.0) >= 0.5 * (p.1 - p.0).min(q.1 - q.0)
+}
+
+/// A varied choice among `cuts` (each kind's as `cuts` drew them), `want` at most: the best of each kind first, then,
+/// while there is room, the piece that adds the most that those chosen do not already have, as a greedy DPP chooses
+/// (Chen, Zhang & Zhou, NeurIPS 2018) over L = diag(r) S diag(r), where S is how alike the pieces are (`alike`) and r
+/// each piece's score as drawn, weighed by how often producers sample its kind (`Kind::share`) and twice that for a
+/// kind in `lean` (those the song's genre samples). None that adds less than `FLOOR`. Their places in `cuts`, kind by
+/// kind, each kind's as they come in the recording.
+pub fn varied(cuts: &[Cut], want: usize, lean: &[Kind]) -> Vec<usize> {
+    let most = Kind::ALL.iter().map(|k| k.share()).fold(0.0, f64::max);
+    let weight = |k: Kind| (k.share() * if lean.contains(&k) { 2.0 } else { 1.0 } / most).sqrt();
+    let r: Vec<f64> = cuts.iter().map(|c| c.drawn.max(0.0) * weight(c.kind)).collect();
+    // the greedy DPP's Cholesky rows, kept up as each piece is chosen: each piece's part along those chosen, and what
+    // of it is left, squared, which is what choosing it would add
+    struct Rows {
+        along: Vec<Vec<f64>>,
+        left: Vec<f64>,
+        chosen: Vec<usize>,
+    }
+    let choose = |rows: &mut Rows, j: usize| {
+        let dj = rows.left[j].max(1e-12).sqrt();
+        for i in (0..cuts.len()).filter(|i| *i != j && !rows.chosen.contains(i)) {
+            let dot: f64 = rows.along[j].iter().zip(&rows.along[i]).map(|(p, q)| p * q).sum();
+            let e = (r[j] * alike(&cuts[j], &cuts[i]) * r[i] - dot) / dj;
+            rows.along[i].push(e);
+            rows.left[i] -= e * e;
+        }
+        rows.chosen.push(j);
+    };
+    let n = cuts.len();
+    let mut rows = Rows { along: vec![Vec::new(); n], left: r.iter().map(|x| x * x).collect(), chosen: Vec::new() };
+    for kind in Kind::ALL {
+        let of = (0..n).filter(|&i| cuts[i].kind == kind);
+        if let Some(j) = of.max_by(|&p, &q| cuts[p].drawn.total_cmp(&cuts[q].drawn)) {
+            choose(&mut rows, j);
+        }
+    }
+    while rows.chosen.len() < want {
+        let rest = (0..n).filter(|i| !rows.chosen.contains(i));
+        let Some(j) = rest.max_by(|&p, &q| rows.left[p].total_cmp(&rows.left[q])) else { break };
+        if rows.left[j].max(0.0).sqrt() < FLOOR {
+            break;
+        }
+        choose(&mut rows, j);
+    }
+    let mut chosen = rows.chosen;
+    chosen.sort_by_key(|&i| (cuts[i].kind, cuts[i].first));
+    chosen
 }
 
 /// what a piece of `kind` scored for, in words, from its features (as `best` measures them)
@@ -485,5 +685,73 @@ mod tests {
         let (best, half) = (q(c(vec![20.0, 0.5, 1.0], 1.0)), q(c(vec![20.0, 0.5, 1.0], 0.5)));
         assert!((best - 1.0).abs() < 1e-9 && (half - 0.5).abs() < 1e-9, "{best} {half}");
         assert!(q(c(vec![-30.0, 0.0, 0.0], 1.0)) >= 0.2 - 1e-9, "weak at all of them, still not none");
+    }
+
+    /// a piece of `kind` at bar `first`, `bars` long, in section `section`, scoring `score`, whose beats sound as
+    /// `tone` has them: pieces of the same tone sound alike, of tones a whole apart unlike
+    fn cut(kind: Kind, first: usize, bars: u32, section: usize, score: f64, tone: f64) -> Cut {
+        let beat = |k: usize| Beat {
+            chroma: std::array::from_fn(|i| if i == (k + 5 * tone as usize) % 12 { 1.0 } else { 0.0 }),
+            bands: std::array::from_fn(|b| (b as f64 - 3.5) * 3.0 * tone),
+            db: -12.0 - 6.0 * tone,
+        };
+        let (about, print) = (String::new(), (0..4).map(beat).collect());
+        Cut { kind, first, bars, score, about, section: Some(section), drawn: score, print }
+    }
+
+    #[test]
+    fn a_varied_choice_offers_the_best_of_each_kind_then_good_pieces_unlike_those_chosen() {
+        let cuts = [
+            cut(Kind::Break, 0, 2, 0, 0.9, 0.0),
+            // as good, but it plays as the best does
+            cut(Kind::Break, 8, 2, 1, 0.85, 0.0),
+            // not as good, and unlike it
+            cut(Kind::Break, 16, 2, 2, 0.7, 1.0),
+            // unlike them all, but too weak to offer
+            cut(Kind::Break, 24, 2, 3, 0.3, 2.0),
+            cut(Kind::Bass, 0, 2, 0, 0.8, 0.0),
+            // a passage weighs little as producers sample them, but it is the best of its kind
+            cut(Kind::Passage, 8, 4, 1, 0.5, 0.0),
+        ];
+        assert_eq!(varied(&cuts, 6, &[]), [5, 0, 2, 4], "the passage, the best break, the one unlike it, the bass");
+        assert_eq!(varied(&cuts, 3, &[]), [5, 0, 4], "the best of each kind, room or none");
+        assert!((alike(&cuts[0], &cuts[1]) - 1.0).abs() < 1e-9 && alike(&cuts[0], &cuts[2]) < 0.5);
+        assert_eq!(alike(&cuts[0], &cuts[4]), 0.0, "a break and a bass line are never the same piece");
+    }
+
+    #[test]
+    fn a_loop_of_instruments_plays_notes_and_a_drum_ringing_or_noise_does_not() {
+        let (n, tau) = (2 * SRF as usize, std::f64::consts::TAU);
+        // tones, each its frequency and the seconds it sounds from and to
+        let tones = |hz: &[(f64, f64, f64)]| -> Vec<f32> {
+            let at = |t: f64| -> f64 {
+                hz.iter().filter(|h| (h.1..h.2).contains(&t)).map(|h| (tau * h.0 * t).sin() * 0.3).sum()
+            };
+            (0..n).map(|i| at(i as f64 / SRF) as f32).collect()
+        };
+        assert!(chordal(&tones(&[(261.63, 0.0, 2.0), (329.63, 0.0, 2.0), (392.0, 0.0, 2.0)])), "a triad");
+        assert!(chordal(&tones(&[(293.66, 0.0, 1.0), (440.0, 1.0, 2.0)])), "a riff, a note a second");
+        let kick: Vec<f32> = (0..n)
+            .map(|i| {
+                let t = (i % (n / 4)) as f64 / SRF;
+                ((tau * 60.0 * t).sin() * 0.8 * (-t / 0.05).exp()) as f32
+            })
+            .collect();
+        assert!(!chordal(&kick), "a kick dying away on every beat");
+        let mut rng = crate::rng::Rng::new(3);
+        let noise: Vec<f32> = (0..n).map(|_| rng.f32() - 0.5).collect();
+        assert!(!chordal(&noise), "noise");
+    }
+
+    #[test]
+    fn a_varied_choice_offers_more_of_what_the_songs_genre_samples() {
+        let cuts = [
+            cut(Kind::Break, 0, 2, 0, 0.8, 0.0),
+            cut(Kind::Break, 16, 2, 2, 0.62, 1.0),
+            cut(Kind::Bass, 0, 2, 0, 0.8, 0.0),
+            cut(Kind::Bass, 16, 2, 2, 0.62, 1.0),
+        ];
+        assert_eq!(varied(&cuts, 3, &[]), [0, 1, 2], "a break before a bass line, as producers sample more of them");
+        assert_eq!(varied(&cuts, 3, &[Kind::Bass]), [0, 2, 3], "a bass line, for a genre built on them");
     }
 }

@@ -329,6 +329,8 @@ pub fn sampling(
         how: how.unwrap_or_default(),
         every: None,
         kinds: Vec::new(),
+        shown: Vec::new(),
+        lean: Vec::new(),
     })
 }
 

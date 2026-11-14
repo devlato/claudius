@@ -56,13 +56,14 @@ impl App {
         x: Arc<Stereo>,
         name: &str,
         sources: take::Sources,
-        opt: sampler::Options,
+        mut opt: sampler::Options,
         seed: u64,
     ) -> Reply {
         let v = self.version();
-        if self.blueprint().is_none() {
+        let Some(bp) = self.blueprint() else {
             return no("no song yet: start one with new_song, then sample a recording into it", v);
-        }
+        };
+        opt.lean = sampler::leaning(&bp.genre);
         let ears = self.ears.get().and_then(|e| e.as_ref());
         let (pieces, no_phrase) = match sampler::offer(&x, ears, &opt, seed) {
             Ok(o) => (o.pieces, o.no_phrase),
@@ -121,7 +122,8 @@ impl App {
         let Some(o) = held else {
             return no("no pieces to draw again: sample_pieces offers some first", self.version());
         };
-        self.offer_pieces(o.src, &o.name, o.sources, o.opt, seed.unwrap_or(o.seed + 1))
+        let opt = sampler::Options { shown: sampler::shown(&o.pieces), ..o.opt };
+        self.offer_pieces(o.src, &o.name, o.sources, opt, seed.unwrap_or(o.seed + 1))
     }
 
     /// the pieces offered that `keep` names, each as it was cut or treated, sampled into the song in `sections` (those

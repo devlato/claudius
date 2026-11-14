@@ -118,12 +118,17 @@ pub struct Options {
     pub every: Option<Every>,
     /// the kinds of piece `pieces` offers; empty: every kind the recording holds
     pub kinds: Vec<Kind>,
+    /// the pieces the take before offered, each its kind and where it is in the recording, in seconds (`shown`):
+    /// another take draws others where there are any
+    pub shown: Vec<(Kind, f64, f64)>,
+    /// the kinds of piece the song's genre samples (`leaning`), which `pieces` offers more of
+    pub lean: Vec<Kind>,
 }
 
 impl Default for Options {
     fn default() -> Self {
-        let how = How::Phrases;
-        Options { count: 2, bars: None, find: None, sections: Vec::new(), how, every: None, kinds: Vec::new() }
+        let (how, kinds, shown, lean) = (How::Phrases, Vec::new(), Vec::new(), Vec::new());
+        Options { count: 2, bars: None, find: None, sections: Vec::new(), how, every: None, kinds, shown, lean }
     }
 }
 
@@ -1064,17 +1069,51 @@ pub struct Offered {
     pub no_phrase: Option<String>,
 }
 
+/// The pieces of a take, as the take after is drawn away from (`Options::shown`): each its kind and where it is in the
+/// recording, in seconds.
+pub fn shown(pieces: &[Piece]) -> Vec<(Kind, f64, f64)> {
+    let span = |p: &Piece| {
+        let bars = p.phrase.bars as f64 * 240.0 / p.bpm.max(1.0);
+        p.phrase.within.unwrap_or((p.phrase.start, p.phrase.start + bars))
+    };
+    pieces.iter().map(|p| (p.kind, span(p).0, span(p).1)).collect()
+}
+
+/// The kinds of piece the producers of `genre` sample (its `sampling`; a fusion's lead genre's): a drum break, a bass,
+/// a phrase to build the song on (here a loop of a hook), a texture under it (a loop of another passage) and a vocal
+/// (a sung phrase).
+pub fn leaning(genre: &str) -> Vec<Kind> {
+    let lead = genre.split('+').next().unwrap_or(genre).trim();
+    let Some(s) = crate::genres::get(lead).ok().and_then(|g| g.sampling) else { return Vec::new() };
+    let samples = [
+        (s.drum_break.is_some(), Kind::Break),
+        (s.bass.is_some(), Kind::Bass),
+        (s.phrase.is_some(), Kind::Hook),
+        (s.texture.is_some(), Kind::Passage),
+        (s.vocal.is_some(), Kind::Phrase),
+    ];
+    samples.into_iter().filter_map(|(does, k)| does.then_some(k)).collect()
+}
+
 /// The pieces `offer` offers, without why none of them is a phrase.
 pub fn pieces(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, seed: u64) -> Result<Vec<Piece>, String> {
     offer(src, ears, opt, seed).map(|o| o.pieces)
 }
 
+/// how many pieces of the other kinds `offer` offers: the best of each kind it holds, and as many as `MORE` besides of
+/// the kinds producers sample most where they are good and unlike the others (`kinds::varied`); `FEW` to choose
+/// among when only a kind or two is asked for
+const MORE: usize = 2;
+const FEW: usize = 4;
+
 /// The pieces of `src` the sampler offers before any goes into the song, of the kinds `opt.kinds` asks for (every kind
 /// it holds, when none): `opt.count` phrases it sings whole (`sung_whole`, at most `MOST`), each cleaned as `sample`
-/// cleans one, and the best piece of each other kind it holds (`kinds`); each as it was cut and through a treatment.
-/// Take `seed` 0 offers the best of each with the gentler treatments; each other take draws again from the good ones,
-/// with other treatments. The ears, when given, listen for `opt.find`. When its phrases cannot be cut, the other
-/// kinds it holds are still offered, with why there is no phrase.
+/// cleans one, and a varied choice of the other kinds it holds (`kinds::varied`), the best of each kind and more of
+/// those producers sample most and the song's genre does (`opt.lean`); each as it was cut and through a treatment.
+/// Take `seed` 0 offers the best with the gentler treatments; each other take draws again from the good ones, away
+/// from those the take before offered (`opt.shown`), with other treatments. The ears, when given, listen for
+/// `opt.find`. When its phrases cannot be cut, the other kinds it holds are still offered, with why there is no
+/// phrase.
 pub fn offer(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, seed: u64) -> Result<Offered, String> {
     if let Some(b) = opt.bars.filter(|b| !(1..=8).contains(b)) {
         return Err(format!("a piece is 1 to 8 bars, not {b}"));
@@ -1090,15 +1129,23 @@ pub fn offer(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, seed
         true => sung_pieces(src, stems.as_deref(), &a, ears, opt, seed, &mut rng),
         false => Ok(Vec::new()),
     };
-    let mut cuts: Vec<(kinds::Cut, Stereo)> = Vec::new();
+    // the pieces of each other kind worth offering, each kind drawn on its own (so that asking for one draws it as it
+    // is drawn among them all), then a varied choice of them
+    let mut pool: Vec<(kinds::Cut, Stereo)> = Vec::new();
     for kind in Kind::ALL.into_iter().filter(|&k| k != Kind::Phrase && asked(k)) {
         let Some((x, rest)) = kinds::source(kind, src, stems.as_deref()) else { continue };
         let mut rng = crate::rng::Rng::seed_from(seed, kind.name());
-        if let Some(c) = kinds::best(kind, &a, &x, &rest, seed, &mut rng) {
+        for c in kinds::cuts(kind, &a, &x, &rest, seed, &opt.shown, &mut rng) {
             let raw = kinds::level(&cut_bars(&a, &x, c.first as i64, c.bars as usize));
-            cuts.push((c, raw));
+            pool.push((c, raw));
         }
     }
+    let held: Vec<kinds::Cut> = pool.iter().map(|(c, _)| c.clone()).collect();
+    let mut kinds_held: Vec<Kind> = held.iter().map(|c| c.kind).collect();
+    kinds_held.dedup();
+    let want = (kinds_held.len() + MORE).max(FEW);
+    let cuts: Vec<(kinds::Cut, Stereo)> =
+        kinds::varied(&held, want, &opt.lean).into_iter().map(|i| pool[i].clone()).collect();
     let (phrases, no_phrase) = match phrases {
         Ok(p) => (p, None),
         // what else a recording holds is still offered when its phrases cannot be cut, and why there is none
@@ -1166,7 +1213,9 @@ fn sung_pieces(
         });
     }
     if seed > 0 {
-        pool = drawn(pool, rng);
+        let span = |p: &Phrase| p.within.unwrap_or((p.start, bar_time(a, p.first + p.bars as i64)));
+        let shown: Vec<(f64, f64)> = opt.shown.iter().filter(|s| s.0 == Kind::Phrase).map(|s| (s.1, s.2)).collect();
+        pool = drawn(pool, &|p| shown.iter().any(|&s| kinds::same_span(span(p), s)), rng);
     }
     let mut chosen: Vec<Phrase> = Vec::new();
     for p in pool {
@@ -1220,8 +1269,27 @@ pub fn keep(
         }
     };
     out.kinds = vec![Kind::Phrase; out.tracks.len()];
-    for (p, treated) in kept.iter().filter(|(p, _)| p.kind != Kind::Phrase) {
-        let (track, line) = place_cut(bp, &heard, p, &fx(p, *treated), opt, dir)?;
+    let others: Vec<&(&Piece, bool)> = kept.iter().filter(|(p, _)| p.kind != Kind::Phrase).collect();
+    // several pieces of a kind kept, and no sections named: they share the sections their kind plays in, the fuller of
+    // them in the louder sections (`dealt`), so that none plays over another
+    let mut places: Vec<Option<Vec<usize>>> = vec![None; others.len()];
+    for kind in Kind::ALL.into_iter().filter(|_| opt.sections.is_empty()) {
+        let mut of: Vec<usize> = (0..others.len()).filter(|&i| others[i].0.kind == kind).collect();
+        if of.len() < 2 {
+            continue;
+        }
+        of.sort_by(|&i, &j| fullness(&others[i].0.raw).total_cmp(&fullness(&others[j].0.raw)));
+        let groups = dealt(bp, &sections_for(bp, kind, &[])?, of.len());
+        of.into_iter().zip(groups).for_each(|(i, g)| places[i] = Some(g));
+    }
+    for ((p, treated), place) in others.into_iter().zip(places) {
+        if place.as_ref().is_some_and(Vec::is_empty) {
+            let said = p.kind.said(p.phrase.bars);
+            out.lines
+                .push(format!("{said} of {name}: no section of its own is left for it (name the sections for it)"));
+            continue;
+        }
+        let (track, line) = place_cut(bp, &heard, p, &fx(p, *treated), opt, place.as_deref(), dir)?;
         out.tracks.push(track);
         out.lines.push(line);
         out.kinds.push(p.kind);
@@ -1238,17 +1306,22 @@ pub fn keep(
 
 /// A piece of a kind but a phrase (`kinds`) kept, placed in the song as its kind plays: a break as a drum loop beside the
 /// song's drums, a bass line in place of the song's bass, a loop of the hook or of another passage as a sample, each
-/// all through the sections `opt` asks for (`sections_for`); its track, and a line saying where it came from and went.
+/// all through the sections `opt` asks for (`sections_for`), or those `secs` deals it; its track, and a line saying
+/// where it came from and went.
 fn place_cut(
     bp: &mut Blueprint,
     h: &Heard,
     p: &Piece,
     fx: &[Effect],
     opt: &Options,
+    secs: Option<&[usize]>,
     dir: &Path,
 ) -> Result<(String, String), String> {
     let (a, name) = (h.a, h.name);
-    let secs = sections_for(bp, p.kind, &opt.sections)?;
+    let secs = match secs {
+        Some(s) => s.to_vec(),
+        None => sections_for(bp, p.kind, &opt.sections)?,
+    };
     let transpose = match p.kind.tonal() {
         true => crate::compose::transpose_into(&bp.key, (a.key.tonic, a.key.mode.is_minor())),
         false => 0,
@@ -1339,6 +1412,45 @@ fn sections_for(bp: &Blueprint, kind: Kind, asked: &[String]) -> Result<Vec<usiz
     Ok([secs, between, (0..bp.form.len()).collect()].into_iter().find(|s| !s.is_empty()).unwrap_or_default())
 }
 
+/// The song's sections `secs` dealt out to `n` pieces of a kind, the least full first (`fullness`), from the quietest
+/// up, as evenly as they go: the fullest piece the loudest of them, sections as loud as each other together where they
+/// can be. With fewer sections than pieces, the fullest pieces have one each and the least full none.
+fn dealt(bp: &Blueprint, secs: &[usize], n: usize) -> Vec<Vec<usize>> {
+    let energy = |si: usize| bp.form[si].energy;
+    let mut by = secs.to_vec();
+    by.sort_by(|&p, &q| energy(p).total_cmp(&energy(q)).then(p.cmp(&q)));
+    let (m, len) = (n.min(by.len()), by.len().max(1) as f64);
+    // each section's place among them from the quietest, those as loud as each other at the middle of theirs
+    let level = |k: usize| {
+        let same: Vec<usize> = (0..by.len()).filter(|&j| (energy(by[j]) - energy(by[k])).abs() < 1e-6).collect();
+        (same[0] + same[same.len() - 1]) as f64 / 2.0
+    };
+    // into as many shares as there are pieces to have one, the fullest of them
+    let deal = |place: &dyn Fn(usize) -> f64| {
+        let mut out = vec![Vec::new(); m];
+        for (k, &si) in by.iter().enumerate() {
+            out[((place(k) * m as f64 / len) as usize).min(m.max(1) - 1)].push(si);
+        }
+        out
+    };
+    let mut shares = deal(&level);
+    if shares.iter().any(Vec::is_empty) {
+        shares = deal(&|k| k as f64);
+    }
+    shares.iter_mut().for_each(|g| g.sort_unstable());
+    let mut out = vec![Vec::new(); n - m];
+    out.extend(shares);
+    out
+}
+
+/// how full a piece sounds, 0 to 1: its root mean square over its peak, which a busy break or a moving bass line has
+/// more of than a sparse or a steady one
+fn fullness(x: &Stereo) -> f64 {
+    let n = (2 * x.len()).max(1) as f64;
+    let rms = (x.l.iter().chain(&x.r).map(|v| (*v as f64).powi(2)).sum::<f64>() / n).sqrt();
+    rms / (x.peak() as f64).max(1e-9)
+}
+
 /// the section of the recording `a` heard that bar `bar` is in, by its kind and how many of its kind come up to it
 /// ("hook 2"); empty where none is
 fn section_at(a: &Analysis, bar: i64) -> String {
@@ -1426,13 +1538,17 @@ const NEAR_BEST: f64 = 1.2;
 const CHOOSY: f64 = 0.6;
 
 /// `pool`, the best first, drawn again for a later take: those that score within `NEAR_BEST` of the best, in an order
-/// the better of which come first the likelier (Gumbel-top-k), whatever the ears made of the scores.
-fn drawn(pool: Vec<Phrase>, rng: &mut crate::rng::Rng) -> Vec<Phrase> {
+/// the better of which come first the likelier (Gumbel-top-k), whatever the ears made of the scores; one the take
+/// before offered (`shown`) as though it scored `NEAR_BEST` less, so that the take offers others where there are any.
+fn drawn(pool: Vec<Phrase>, shown: &dyn Fn(&Phrase) -> bool, rng: &mut crate::rng::Rng) -> Vec<Phrase> {
     let Some(best) = pool.first().map(|p| p.score) else { return pool };
     let mut keyed: Vec<(f64, Phrase)> = pool
         .into_iter()
         .filter(|p| p.score >= best - NEAR_BEST)
-        .map(|p| ((p.score - best) / CHOOSY - (-rng.range(1e-12, 1.0).ln()).ln(), p))
+        .map(|p| {
+            let less = if shown(&p) { NEAR_BEST } else { 0.0 };
+            ((p.score - less - best) / CHOOSY - (-rng.range(1e-12, 1.0).ln()).ln(), p)
+        })
         .collect();
     keyed.sort_by(|x, y| y.0.total_cmp(&x.0));
     keyed.into_iter().map(|(_, p)| p).collect()
@@ -2279,7 +2395,7 @@ mod tests {
         let pool = || vec![phrase(-0.5), phrase(-0.9), phrase(-3.0)];
         let mut first = std::collections::BTreeMap::new();
         for seed in 1..=60 {
-            let drawn = drawn(pool(), &mut crate::rng::Rng::new(seed));
+            let drawn = drawn(pool(), &|_| false, &mut crate::rng::Rng::new(seed));
             assert_eq!(
                 drawn.len(),
                 2,
@@ -2395,7 +2511,122 @@ mod tests {
             assert!((p.raw.len() as f64 - bars).abs() < 0.01 * SRF, "{:?}: {} of {bars}", p.kind, p.raw.len());
         }
         let breaks = pieces(&mix, None, &Options { kinds: vec![Kind::Break], ..Options::default() }, 0).unwrap();
-        assert!(breaks.iter().all(|p| p.kind == Kind::Break) && breaks.len() == 1);
+        assert!(
+            breaks.iter().all(|p| p.kind == Kind::Break),
+            "{:?}",
+            breaks.iter().map(|p| p.kind).collect::<Vec<_>>()
+        );
+        assert_eq!(breaks.len(), 1, "its drums play the same all through: one break, not cuts of it alike");
+    }
+
+    #[test]
+    fn breaks_asked_for_are_varied_its_sparse_groove_and_its_busy_one_not_two_cuts_of_one() {
+        // eight bars of a kick alone on every beat, then eight more with a hat on every eighth too
+        let (sr, beat) = (SRF as usize, SRF as usize / 2);
+        let n = 16 * 4 * beat;
+        let mut drums = Stereo::zeros(n);
+        let mut rng = crate::rng::Rng::new(7);
+        for b in 0..64 {
+            let at = b * beat;
+            for i in 0..(0.15 * SRF) as usize {
+                let t = i as f64 / SRF;
+                let v = ((std::f64::consts::TAU * 60.0 * t).sin() * 0.8 * (-t / 0.05).exp()) as f32;
+                (drums.l[at + i], drums.r[at + i]) = (v, v);
+            }
+            for half in (0..2).filter(|_| b >= 32) {
+                for i in 0..sr / 40 {
+                    let v = (rng.f32() - 0.5) * 0.6 * (1.0 - i as f32 / (sr / 40) as f32);
+                    drums.l[at + half * beat / 2 + i] += v;
+                    drums.r[at + half * beat / 2 + i] += v;
+                }
+            }
+        }
+        let a = analysis::analyze_with(&drums, None, None);
+        let cuts = kinds::cuts(Kind::Break, &a, &drums, &Stereo::zeros(n), 0, &[], &mut crate::rng::Rng::new(1));
+        let chosen: Vec<&kinds::Cut> = kinds::varied(&cuts, 4, &[]).into_iter().map(|i| &cuts[i]).collect();
+        let at: Vec<(f64, f64)> =
+            chosen.iter().map(|c| (a.bar_start(c.first), a.bar_start(c.first + c.bars as usize))).collect();
+        assert!(at.iter().any(|s| s.1 <= 16.0 + 0.1) && at.iter().any(|s| s.0 >= 16.0 - 0.1), "{at:?}");
+        assert_eq!(chosen.len(), 2, "one of each groove: {at:?}");
+    }
+
+    #[test]
+    fn a_genre_leans_toward_the_kinds_its_producers_sample() {
+        // house samples a drum break, a phrase to build on and a vocal, and no bass line
+        assert_eq!(leaning("house"), [Kind::Break, Kind::Hook, Kind::Phrase]);
+        assert_eq!(leaning("house+jazz"), leaning("house"), "a fusion as its lead genre does");
+        assert!(leaning("no such genre").is_empty());
+    }
+
+    #[test]
+    fn another_take_draws_other_pieces_than_the_take_before_offered() {
+        let (mix, _) = band();
+        let opt = Options { kinds: vec![Kind::Break, Kind::Hook], ..Options::default() };
+        let first = shown(&pieces(&mix, None, &opt, 1).unwrap());
+        let again = Options { shown: first.clone(), ..opt.clone() };
+        let repeats = |opt: &Options| -> usize {
+            let take = |seed| shown(&pieces(&mix, None, opt, seed).unwrap());
+            let shown_before =
+                |p: &(Kind, f64, f64)| first.iter().any(|s| s.0 == p.0 && kinds::same_span((p.1, p.2), (s.1, s.2)));
+            (2..5).map(|seed| take(seed).iter().filter(|p| shown_before(p)).count()).sum()
+        };
+        let (blind, away) = (repeats(&opt), repeats(&again));
+        assert!(away < blind, "{away} of the pieces shown before offered again, drawing away from them; {blind} not");
+    }
+
+    #[test]
+    fn sections_are_dealt_the_louder_to_the_fuller_pieces_and_the_loudest_to_the_fullest() {
+        let mut bp = song();
+        (bp.form[0].energy, bp.form[1].energy) = (0.3, 0.9);
+        assert_eq!(dealt(&bp, &[0, 1], 2), [vec![0], vec![1]]);
+        assert_eq!(dealt(&bp, &[0, 1], 3), [vec![], vec![0], vec![1]], "more pieces than sections: the fullest");
+        // sections as loud as each other are shared all the same
+        (bp.form[0].energy, bp.form[1].energy) = (0.6, 0.6);
+        assert_eq!(dealt(&bp, &[0, 1], 2), [vec![0], vec![1]]);
+        assert_eq!(dealt(&bp, &[0, 1], 3), [vec![], vec![0], vec![1]]);
+        assert_eq!(dealt(&bp, &[0, 1], 1), [vec![0, 1]], "one piece, all of them");
+    }
+
+    #[test]
+    fn two_breaks_kept_share_the_songs_sections_the_fuller_in_the_louder() {
+        let (mix, stems) = band();
+        let a = analysis::analyze_with(&mix, Some(&stems), None);
+        let mut bp = song();
+        (bp.form[0].energy, bp.form[1].energy) = (0.3, 0.9);
+        let n = 4 * SRF as usize;
+        // a click on every beat, and noise all through
+        let mut sparse = Stereo::zeros(n);
+        for i in (0..n).step_by(SRF as usize / 2) {
+            (sparse.l[i], sparse.r[i]) = (0.9, 0.9);
+        }
+        let mut busy = Stereo::zeros(n);
+        let mut rng = crate::rng::Rng::new(3);
+        for i in 0..n {
+            let v = (rng.f32() - 0.5) * 0.9;
+            (busy.l[i], busy.r[i]) = (v, v);
+        }
+        let piece = |x: Stereo| {
+            let phrase =
+                Phrase { start: 0.0, first: 0, bars: 2, z: None, sung: 0.0, centred: 0.0, score: 0.8, within: None };
+            let (about, treatment, bpm, section) = (String::new(), String::new(), a.cut_bpm(), String::new());
+            Piece {
+                kind: Kind::Break,
+                about,
+                phrase,
+                raw: x.clone(),
+                treated: x,
+                treatment,
+                fx: Vec::new(),
+                bpm,
+                section,
+            }
+        };
+        let (busy, sparse) = (piece(busy), piece(sparse));
+        let dir = std::env::temp_dir().join(format!("claudius-kinds-share-{}", std::process::id()));
+        let out = keep(&mut bp, &mix, "band", &[(&busy, false), (&sparse, false)], &Options::default(), &dir).unwrap();
+        assert_eq!(out.tracks, ["break", "break2"]);
+        assert_eq!((on(&bp, "break"), on(&bp, "break2")), (vec!["drop".to_string()], vec!["intro".to_string()]));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -2414,9 +2645,11 @@ mod tests {
     #[test]
     fn pieces_say_why_there_is_no_phrase_and_a_phrase_with_no_room_leaves_the_rest_kept() {
         let (mix, stems) = band();
-        // its drums alone: nothing sounds like a voice, and its break is offered with why there is no phrase
+        // its drums alone: nothing sounds like a voice, and its break is offered with why there is no phrase, and no
+        // loop of instruments that are not there, however its kick rings
         let o = offer(&stems.drums, None, &Options::default(), 0).unwrap();
-        assert!(!o.pieces.is_empty() && o.pieces.iter().all(|p| p.kind != Kind::Phrase), "the break");
+        let kinds: Vec<Kind> = o.pieces.iter().map(|p| p.kind).collect();
+        assert!(!kinds.is_empty() && kinds.iter().all(|k| *k == Kind::Break), "the break alone: {kinds:?}");
         assert_eq!(o.no_phrase.as_deref(), Some(NO_VOICE));
         // a phrase too long for any section, kept with a break: the break goes in, and the reply says why the phrase
         // did not
