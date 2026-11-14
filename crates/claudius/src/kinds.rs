@@ -355,8 +355,17 @@ fn alike(p: &Cut, q: &Cut) -> f64 {
     if p.kind.stem() != q.kind.stem() {
         return 0.0;
     }
-    let shared = (p.first + p.bars as usize).min(q.first + q.bars as usize).saturating_sub(p.first.max(q.first));
-    let overlap = shared as f64 / p.bars.min(q.bars).max(1) as f64;
+    let overlap = match (p.span, q.span) {
+        // a stab lasts a beat of the one bar it is stored as
+        (Some((a, b)), Some((c, d))) if p.kind == Kind::Stab && q.kind == Kind::Stab => {
+            (b.min(d) - a.max(c)).max(0.0) / (b - a).min(d - c).max(1e-6)
+        }
+        _ => {
+            let shared =
+                (p.first + p.bars as usize).min(q.first + q.bars as usize).saturating_sub(p.first.max(q.first));
+            shared as f64 / p.bars.min(q.bars).max(1) as f64
+        }
+    };
     let section = if p.section.is_some() && p.section == q.section { 0.5 } else { 0.0 };
     let n = p.print.len().min(q.print.len());
     let sound = match n {
@@ -928,6 +937,14 @@ pub(crate) mod tests {
         };
         let (about, print) = (String::new(), (0..4).map(beat).collect());
         Cut { kind, first, bars, score, about, section: Some(section), drawn: score, print, span: None }
+    }
+
+    #[test]
+    fn stabs_on_different_beats_of_one_bar_are_not_the_same_piece() {
+        let stab = |at: f64, tone: f64| Cut { span: Some((at, at + 0.5)), ..cut(Kind::Stab, 0, 1, 0, 0.8, tone) };
+        let (one, two) = (stab(0.0, 0.0), stab(1.0, 1.0));
+        assert!(alike(&one, &two) < 1.0, "a beat apart, they overlap nowhere: {}", alike(&one, &two));
+        assert_eq!(alike(&one, &stab(0.0, 0.0)), 1.0, "the same beat is the same stab");
     }
 
     #[test]

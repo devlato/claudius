@@ -165,7 +165,8 @@ impl Sampled {
     /// what came of sampling the recording `name`, in a line, then its lines: "sampled 2 phrases of song.mp3 into the
     /// song: vox1, vox2", so that whoever reads only the first knows what changed
     pub fn said(&self, name: &str) -> String {
-        let n = self.tracks.len();
+        // a phrase chopped onto pads is one phrase on several lanes
+        let n = if self.kinds.is_empty() { self.tracks.len() } else { self.kinds.len() };
         let what = match self.how {
             How::Phrases if self.kinds.iter().any(|k| *k != Kind::Phrase) => {
                 format!("sampled {} of {name} into the song", Kind::counted_all(&self.kinds))
@@ -2977,6 +2978,18 @@ mod tests {
             assert_eq!(s.layers.contains(&"chop".to_string()), has, "{}: where the drums play", s.name);
         }
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_phrase_kept_chopped_onto_pads_is_said_as_one_phrase() {
+        let out = Sampled {
+            tracks: vec!["chop".into(), "chop2".into()],
+            how: How::Phrases,
+            kinds: vec![Kind::Phrase],
+            ..Sampled::default()
+        };
+        let said = out.said("song.wav");
+        assert!(said.starts_with("sampled 1 phrase of song.wav into the song: chop, chop2"), "{said}");
     }
 
     #[test]
