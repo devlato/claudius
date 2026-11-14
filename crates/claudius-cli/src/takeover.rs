@@ -13,8 +13,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 /// The older claudius on `port` of this computer (its version; none when nothing answers there any more), its song
-/// saved into a folder of its own under the songs folder, once it has finished rendering it (`settled`). Refuses what
-/// is not claudius, a claudius no older than this one, one that asks for a token, and one whose song it cannot save.
+/// saved into a folder of its own under the songs folder. Refuses what is not claudius, a claudius no older than this
+/// one, one that asks for a token, and one whose song it cannot save.
 pub fn save_older(port: u16) -> Result<(Option<String>, Option<PathBuf>)> {
     let base = format!("http://127.0.0.1:{port}");
     let older = match probe(&base, &None) {
@@ -25,15 +25,12 @@ pub fn save_older(port: u16) -> Result<(Option<String>, Option<PathBuf>)> {
     };
     let saved = save_song(&base, &older, &claudius::config::songs_dir())
         .map_err(|e| anyhow::anyhow!("could not save its song first ({e}), so it still runs"))?;
-    if saved.is_some() {
-        settled(&base, Duration::from_secs(180));
-    }
     Ok((Some(older), saved))
 }
 
 /// Stops the older claudius on `port` (`older`, as `save_older` found it; none when nothing answers there) and serves
-/// `own`, the studio's engine, there as well. Refuses to stop what is not claudius. What it did, in a line, with where
-/// its song was saved (`saved`).
+/// `own`, the studio's engine, there as well. Stops it only once it clearly runs no job (`settled`), and nothing that is
+/// not claudius. What it did, in a line, with where its song was saved (`saved`).
 pub fn stop_and_serve(
     port: u16,
     older: Option<&str>,
@@ -43,6 +40,7 @@ pub fn stop_and_serve(
 ) -> Result<String> {
     let base = format!("http://127.0.0.1:{port}");
     if older.is_some() && !matches!(probe(&base, &None), Probe::Nothing) {
+        settled(&base, Duration::from_secs(180))?;
         let pid = listener(port).with_context(|| format!("cannot tell which program holds port {port}"))?;
         let program = program_of(pid).unwrap_or_default();
         if !is_claudius(&program) {
@@ -62,23 +60,28 @@ pub fn stop_and_serve(
     Ok(said(port, older, saved))
 }
 
-/// waits, up to `most`, until the claudius at `base` runs no job: a save answers once the song is written, and renders
-/// its audio after, which stopping it then would cut short
-fn settled(base: &str, most: Duration) {
+/// Waits, up to `most`, until the claudius at `base` clearly runs no job: a save answers once the song is written, and
+/// renders its audio after, which stopping it then would cut short. An answer it cannot read counts as busy, and when
+/// `most` passes without a clear one, it is not to be stopped.
+fn settled(base: &str, most: Duration) -> Result<()> {
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_global(Some(Duration::from_secs(10)))
         .http_status_as_error(false)
         .build()
         .into();
-    let busy = || {
+    let idle = || {
         let mut res = agent.get(format!("{base}/api/state")).call().ok()?;
         let state: serde_json::Value = serde_json::from_str(&res.body_mut().read_to_string().ok()?).ok()?;
-        Some(!state["busy"].is_null())
+        Some(state["busy"].is_null())
     };
     let since = Instant::now();
-    while busy() == Some(true) && since.elapsed() < most {
+    while idle() != Some(true) {
+        if since.elapsed() >= most {
+            bail!("the older claudius did not say it had finished rendering its song, so it still runs");
+        }
         std::thread::sleep(Duration::from_millis(500));
     }
+    Ok(())
 }
 
 /// what taking the port did, in a line
@@ -257,8 +260,9 @@ mod tests {
         use std::io::{Read, Write};
         let server = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let base = format!("http://{}", server.local_addr().unwrap());
+        // busy, then an answer it cannot read, which counts as busy too, then idle
         let asked = std::thread::spawn(move || {
-            for state in [r#"{"busy":"rendering"}"#, r#"{"busy":"rendering"}"#, r#"{"busy":null}"#] {
+            for state in [r#"{"busy":"rendering"}"#, "not a state", r#"{"busy":null}"#] {
                 let (mut s, _) = server.accept().unwrap();
                 let _ = s.read(&mut [0u8; 2048]);
                 let reply =
@@ -267,9 +271,13 @@ mod tests {
             }
         });
         let since = Instant::now();
-        settled(&base, Duration::from_secs(30));
+        assert!(settled(&base, Duration::from_secs(30)).is_ok());
         asked.join().unwrap();
         assert!(since.elapsed() < Duration::from_secs(10), "it stops waiting once no job runs");
+        // one that never says clearly is not stopped
+        let gone = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap();
+        let said = settled(&format!("http://{gone}"), Duration::from_millis(1500)).unwrap_err().to_string();
+        assert!(said.contains("did not say it had finished rendering its song, so it still runs"), "{said}");
     }
 
     #[test]
