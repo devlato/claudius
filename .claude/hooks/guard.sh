@@ -88,10 +88,12 @@ look() {
             target=${2:-$HOME}
             [ "$target" = Q ] && target=$(leading_cd)
             case $target in
-                '') ;;
+                # a folder the words do not show (quoted past the start, a variable, a substitution, the one before):
+                # where the commands after it run is not known
+                '' | - | *'$'* | *'`'*) at= ;;
                 /*) at=$target ;;
                 '~'*) at=$HOME${target#\~} ;;
-                *) at=$at/$target ;;
+                *) [ -n "$at" ] && at=$at/$target ;;
             esac
             return 0
             ;;
@@ -110,8 +112,7 @@ look() {
                 [ $# -gt 0 ] && shift
             done
             if [ "$group" = pr ] && [ "$verb" = create ]; then
-                gate=1
-                gate_dir=$at
+                gates=$gates$newline${at:-?}
             fi
             return 0
             ;;
@@ -123,9 +124,9 @@ look() {
         case $1 in
             -C)
                 case ${2:-} in
-                    '' | Q) ;;
+                    '' | Q | *'$'* | *'`'*) where= ;;
                     /*) where=$2 ;;
-                    *) where=$where/$2 ;;
+                    *) [ -n "$where" ] && where=$where/$2 ;;
                 esac
                 shift
                 [ $# -gt 0 ] && shift
@@ -163,8 +164,7 @@ look() {
                 esac
             done
             if [ -z "$skip" ]; then
-                gate=1
-                gate_dir=$where
+                gates=$gates$newline${where:-?}
             fi
             ;;
     esac
@@ -180,8 +180,7 @@ run() {
         *" --no-verify"*) refuse "AGENTS.md: no --no-verify. If a hook is wrong, say so in the pull request." ;;
     esac
     at=$cwd
-    gate=
-    gate_dir=
+    gates=
     parts=$(printf '%s\n' "$bare" | awk '{ gsub(/&&|\|\||[;|&()]/, "\n"); print }')
     newline='
 '
@@ -193,12 +192,20 @@ run() {
         look $part
         IFS=$newline
     done
+    # each push and pull request in the command waits for the checks of its own checkout; one from a folder the words
+    # do not show cannot, so it is refused rather than let through unchecked
+    for dir in $gates; do
+        case $dir in
+            /*) ;;
+            *) refuse "AGENTS.md: a push waits for cargo xtask ci on its checkout, and this command does not show which checkout that is (a variable, a quoted folder after the start, a substitution or cd -)." \
+                "Name the folder in plain words: cd /path/to/checkout && git push, or git -C /path/to/checkout push." ;;
+        esac
+        top=$(git -C "$dir" rev-parse --show-toplevel 2> /dev/null) || continue
+        ours "$top" || continue
+        report=$("$here/ci.sh" "$top" 2>&1) ||
+            refuse "$report" "" "AGENTS.md: cargo xtask ci passes before every push. Fix what it found, commit, and push again."
+    done
     IFS=$old_ifs
-    [ -n "$gate" ] || exit 0
-    top=$(git -C "$gate_dir" rev-parse --show-toplevel 2> /dev/null) || exit 0
-    ours "$top" || exit 0
-    report=$("$here/ci.sh" "$top" 2>&1) ||
-        refuse "$report" "" "AGENTS.md: cargo xtask ci passes before every push. Fix what it found, commit, and push again."
     exit 0
 }
 
