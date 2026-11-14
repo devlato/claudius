@@ -260,9 +260,11 @@ impl Remote {
 
     fn poll_state(&mut self) {
         self.polling = true;
+        // the studio says which it is, so that an assistant can tell the person sees what it changes (`version`)
+        let studio = env!("CARGO_PKG_VERSION");
         let url = match self.since {
-            Some(v) => self.url(&format!("/api/state?since={v}")),
-            None => self.url("/api/state"),
+            Some(v) => self.url(&format!("/api/state?since={v}&studio={studio}")),
+            None => self.url(&format!("/api/state?studio={studio}")),
         };
         let mut request = ehttp::Request::get(&url);
         request.timeout = Some(Duration::from_secs(45));

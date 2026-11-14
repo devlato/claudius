@@ -257,9 +257,21 @@ async fn transport(State(c): State<Ctx>, Json(t): Json<claudius_api::Transport>)
 }
 
 async fn hello(State(c): State<Ctx>) -> Json<serde_json::Value> {
-    Json(
-        serde_json::json!({ "name": "claudius", "version": env!("CARGO_PKG_VERSION"), "state": c.app.version(), "ears": c.app.has_ears() }),
-    )
+    Json(hello_of(&c.app))
+}
+
+/// What `/api/hello` says of `app`: that it is claudius, its version, its song's state, whether it has ears, and the
+/// studio that follows it (`App::studio`: its version, and how many seconds ago it asked for the song), null when none
+/// does.
+pub fn hello_of(app: &App) -> serde_json::Value {
+    let studio = app.studio().map(|(version, seconds)| serde_json::json!({ "version": version, "seconds": seconds }));
+    serde_json::json!({
+        "name": "claudius",
+        "version": env!("CARGO_PKG_VERSION"),
+        "state": app.version(),
+        "ears": app.has_ears(),
+        "studio": studio,
+    })
 }
 
 /// when the server started, for its uptime
@@ -283,9 +295,14 @@ struct Since {
     /// wait until no job runs and the render is of the current song
     settled: Option<u64>,
     timeout: Option<u64>,
+    /// the version of the studio window asking, which follows the song this way (`App::studio_asked`)
+    studio: Option<String>,
 }
 
 async fn state(State(c): State<Ctx>, Query(q): Query<Since>) -> Json<claudius_api::State> {
+    if let Some(v) = q.studio.as_deref().filter(|v| !v.is_empty() && v.len() < 40) {
+        c.app.studio_asked(v);
+    }
     let timeout = Duration::from_secs(q.timeout.unwrap_or(20).min(600));
     if q.settled.is_some_and(|s| s > 0) {
         return Json(c.app.settled(timeout).await);

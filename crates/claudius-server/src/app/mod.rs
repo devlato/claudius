@@ -177,6 +177,8 @@ pub struct App {
     dug_out: Mutex<std::collections::HashSet<String>>,
     /// the studio's transport, and when it said so
     transport: Mutex<(Transport, Instant)>,
+    /// the last studio to ask for the song (`studio_asked`): its version, and when
+    studio: Mutex<Option<(String, Instant)>>,
     /// the page a phone plays along on, while it is served
     phone: Mutex<Option<phone::Running>>,
     /// each track as the last render made it, so that the next renders only the tracks an edit changed
@@ -245,6 +247,7 @@ impl App {
             songs: settings.songs.unwrap_or_else(config::songs_dir),
             voice_file: settings.voice.clone(),
             transport: Mutex::new((Transport::default(), Instant::now())),
+            studio: Mutex::new(None),
             phone: Mutex::new(None),
             kept: Mutex::new(Default::default()),
             shared: AtomicBool::new(false),
@@ -452,6 +455,19 @@ impl App {
 
     pub fn has_ears(&self) -> bool {
         self.ears.get().is_some_and(|e| e.is_some())
+    }
+
+    /// a studio window asked for the song (`/api/state?studio=`): its version, so that an assistant can tell whether
+    /// the person sees what it changes (`studio`)
+    pub fn studio_asked(&self, version: &str) {
+        *self.studio.lock().unwrap_or_else(|e| e.into_inner()) = Some((version.to_string(), Instant::now()));
+    }
+
+    /// The studio that follows this session: one that asked for the song in the last minute (it asks again as soon as
+    /// the song changes, and at least every 45 seconds), its version and how many seconds ago.
+    pub fn studio(&self) -> Option<(String, u64)> {
+        let seen = self.studio.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        seen.map(|(v, at)| (v, at.elapsed().as_secs())).filter(|(_, s)| *s < 60)
     }
 
     /// waits, up to `timeout`, until the models have loaded or failed to: ONNX Runtime tears down its globals when the

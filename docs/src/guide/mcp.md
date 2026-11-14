@@ -155,6 +155,7 @@ says the job is still running; `status` follows it from there.
 | `mutate` | `count` (4, 1 to 32), `keep_best` (true) | tries variations steered by the critic's issues and keeps the best if it beats the song |
 | `evolve` | `generations` (3, 1 to 20), `children` (6, 2 to 32) | runs an evolutionary search from the song and keeps the best candidate if it beats the song |
 | `status` | | idle or busy (with progress), the last 25 log lines, the latest verdict |
+| `version` | | which claudius the assistant talks to: these tools' version, the claudius they drive and where it answers, and whether a studio follows it (one that asked for the song in the last minute); a claudius before 0.11 has no `version` tool |
 | `undo`, `redo` | | takes back or brings back the last change, then renders |
 | `stop` | | stops a mutation after the candidate in progress, an evolution after its generation, or a pack download after the pack in progress; a render always finishes |
 | `catalog` | | the genres by family, with their other names and tempo ranges, drum names, synth presets, installed instruments and every pack with its licence |
