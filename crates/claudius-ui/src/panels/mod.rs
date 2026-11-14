@@ -478,6 +478,8 @@ pub struct View {
     pub update_dismissed: Option<String>,
     /// the banner for an older claudius on the port was put off with Later (until the next start)
     pub older_dismissed: bool,
+    /// the folder the older claudius's song was saved in when the studio took its port, to open here
+    pub taken_song: Option<String>,
     /// "Check for updates" was asked for: say what it found
     pub update_asked: bool,
     /// the windows open, by the names `closable` gives them, the one opened last at the end
@@ -565,6 +567,7 @@ impl Default for View {
             opened: Vec::new(),
             update_dismissed: None,
             older_dismissed: false,
+            taken_song: None,
             update_asked: false,
         }
     }

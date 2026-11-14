@@ -536,8 +536,11 @@ pub fn connect(client: Client, http: bool, remove: bool, port: u16, with_skills:
 /// connects assistants for the studio window, which runs in this program (`claudius studio`)
 #[cfg(feature = "studio")]
 pub struct FromTheStudio {
-    /// the port and the version of an older claudius the studio found on its port, and runs its own engine beside
-    pub older: Option<(u16, String)>,
+    /// the port and the version of an older claudius the studio found on its port, and runs its own engine beside,
+    /// until the studio takes its port (`take_over`)
+    pub older: std::sync::Mutex<Option<(u16, String)>>,
+    /// the studio's own engine, when it serves one, and how it is served, to serve it on that port too
+    pub own: Option<(std::sync::Arc<claudius_server::App>, claudius_server::Options)>,
 }
 
 #[cfg(feature = "studio")]
@@ -609,7 +612,23 @@ impl claudius_ui::Native for FromTheStudio {
     }
 
     fn older_engine(&self) -> Option<(u16, String)> {
-        self.older.clone()
+        self.older.lock().ok()?.clone()
+    }
+
+    fn take_over(&self) -> Result<claudius_ui::TakenOver, String> {
+        let Some((port, _)) = self.older_engine() else {
+            return Err("no older claudius holds the studio's port".into());
+        };
+        let Some((app, options)) = &self.own else {
+            return Err("this studio drives another claudius beside the older one rather than its own engine: quit \
+                        them both, then open the studio again"
+                .into());
+        };
+        let (said, saved) = crate::takeover::take_over(port, app, options.clone()).map_err(|e| format!("{e:#}"))?;
+        if let Ok(mut older) = self.older.lock() {
+            *older = None;
+        }
+        Ok(claudius_ui::TakenOver { said, saved: saved.map(|p| p.display().to_string()) })
     }
 }
 

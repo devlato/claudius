@@ -51,6 +51,8 @@ pub struct Studio {
     pub fallback_to_demo: bool,
     /// what the native app can do on this computer (connect assistants); none on the web
     pub native: Option<Arc<dyn Native>>,
+    /// the older claudius on the studio's port being stopped for this studio to take its port: its answer to come
+    taking_over: Option<std::sync::mpsc::Receiver<Result<crate::native::TakenOver, String>>>,
     #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
     plan: Option<crate::devplan::Plan>,
 }
@@ -125,6 +127,7 @@ impl Studio {
             loop_region: None,
             fallback_to_demo: false,
             native: None,
+            taking_over: None,
             #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
             plan: crate::devplan::Plan::from_env(),
         }
@@ -852,22 +855,73 @@ impl Studio {
     }
 
     /// the banner for an older claudius on the studio's port, which the studio runs beside: an assistant set up before
-    /// this version starts that one and talks to it
-    fn older_bar(&mut self, ui: &mut Ui, native: &Arc<dyn Native>) {
+    /// this version starts that one and talks to it, so that what it changes does not show here. The studio can stop it
+    /// and take its port (`Native::take_over`), its song saved first, to open here.
+    fn older_bar(&mut self, ui: &mut Ui, native: &Arc<dyn Native>, now: f64) {
+        if let Some(answer) = self.taking_over.as_ref().and_then(|rx| rx.try_recv().ok()) {
+            self.taking_over = None;
+            match answer {
+                Ok(taken) => {
+                    self.toast(taken.said, true, now);
+                    self.view.taken_song = taken.saved;
+                }
+                Err(e) => self.toast(format!("could not take the port: {e}"), false, now),
+            }
+        }
+        if let Some(path) = self.view.taken_song.clone() {
+            let bar =
+                egui::Frame::new().fill(theme::mix(PANEL, theme::GOOD, 0.12)).inner_margin(Margin::symmetric(12, 5));
+            egui::Panel::top("taken").frame(bar).show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    widgets::dot(ui, theme::GOOD);
+                    let text = format!("The song the older claudius held is saved in {path}.");
+                    ui.label(RichText::new(text).color(TEXT));
+                    if widgets::tool_button(ui, Icon::Open, "Open it here", true, true).clicked() {
+                        self.out.push(Command::Load { path: path.clone() });
+                        self.view.taken_song = None;
+                    }
+                    if ui.small_button("Not now").clicked() {
+                        self.view.taken_song = None;
+                    }
+                });
+            });
+        }
         let Some((port, version)) = native.older_engine().filter(|_| !self.view.older_dismissed) else {
             return;
         };
         let version = if version.is_empty() { "an early version".to_string() } else { version };
         let text = format!(
             "An older claudius ({version}) holds port {port}, so this studio runs beside it. An assistant set up before \
-             this version talks to that one instead: connect it again, then quit and reopen it."
+             this version talks to that one instead, and what it changes does not show here."
         );
         let bar = egui::Frame::new().fill(theme::mix(PANEL, theme::WARN, 0.14)).inner_margin(Margin::symmetric(12, 5));
         egui::Panel::top("older").frame(bar).show(ui, |ui| {
             ui.horizontal(|ui| {
                 widgets::dot(ui, theme::WARN);
                 ui.label(RichText::new(text).color(TEXT));
-                if widgets::tool_button(ui, Icon::Plus, "Connect an assistant", true, true).clicked() {
+                let taking = self.taking_over.is_some();
+                let take = format!("Stop it and take port {port}");
+                let tip = format!(
+                    "stops the older claudius, saving its song first to open here, so that this studio answers on port \
+                     {port}: an assistant set up before reaches it once it starts its claudius again (restart the \
+                     assistant that started the older one)"
+                );
+                if taking {
+                    ui.spinner();
+                    ui.label(RichText::new("saving its song, then stopping it ...").color(TEXT_DIM));
+                } else if widgets::tool_button(ui, Icon::Loop, &take, true, true).on_hover_text(tip).clicked() {
+                    let (tx, rx) = std::sync::mpsc::channel();
+                    let (native, ctx) = (native.clone(), ui.ctx().clone());
+                    std::thread::spawn(move || {
+                        let _ = tx.send(native.take_over());
+                        ctx.request_repaint();
+                    });
+                    self.taking_over = Some(rx);
+                }
+                if widgets::tool_button(ui, Icon::Plus, "Connect an assistant", true, true)
+                    .on_hover_text("set an assistant up again so that it starts this version: then quit and reopen it")
+                    .clicked()
+                {
                     self.view.assistants.show();
                 }
                 if ui.small_button("Later").clicked() {
@@ -1210,7 +1264,7 @@ impl eframe::App for Studio {
         }
         if let Some(native) = self.native.clone() {
             self.update_bar(ui, &ctx, &native, now);
-            self.older_bar(ui, &native);
+            self.older_bar(ui, &native, now);
         }
         if self.fallback_to_demo && !self.link.ever && !self.link.mock && self.link.error.is_some() {
             self.fallback_to_demo = false;
