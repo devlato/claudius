@@ -33,5 +33,15 @@
   <string>MIT licence. The sample packs and listening models it downloads have their own.</string>
   <key>NSMicrophoneUsageDescription</key>
   <string>Claudius listens to your microphone or audio interface while its Record window is open, to show the input's level and record takes, and at no other time.</string>
+  <key>NSDownloadsFolderUsageDescription</key>
+  <string>Claudius opens the recordings and songs that you or your assistant name in your Downloads folder, to add, sample or open them, and saves there only what you choose to.</string>
+  <key>NSDesktopFolderUsageDescription</key>
+  <string>Claudius opens the recordings and songs that you or your assistant name on your Desktop, to add, sample or open them, and saves there only what you choose to.</string>
+  <key>NSDocumentsFolderUsageDescription</key>
+  <string>Claudius opens the recordings and songs that you or your assistant name in your Documents folder, to add, sample or open them, and saves there only what you choose to.</string>
+  <key>NSRemovableVolumesUsageDescription</key>
+  <string>Claudius opens the recordings, songs and sample packs that you or your assistant name on a drive you plug in, and saves there only what you choose to.</string>
+  <key>NSNetworkVolumesUsageDescription</key>
+  <string>Claudius opens the recordings, songs and sample packs that you or your assistant name on a network drive, and saves there only what you choose to.</string>
 </dict>
 </plist>

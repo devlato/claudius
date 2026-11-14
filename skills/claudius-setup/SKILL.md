@@ -104,6 +104,8 @@ Run `claudius doctor` first; it names most problems. The common ones:
 | `unknown sound 'piano'`, or `sampled instruments need packs` | the packs are not installed: `claudius setup --no-models`, or `claudius-packs install <pack>` |
 | `sampled instruments are off in this session (--synth-only)` | the session was started with `--synth-only`; start it without |
 | `port 7878 is taken` | another claudius (then just use it) or another program: `--port` picks another |
+| `macOS keeps claudius out of your Downloads folder` (or Desktop, Documents) | macOS protects the folder until the person lets claudius in: they turn it on in System Settings, Privacy & Security, Files and Folders, for the app the message names; or move the file into `~/Music/claudius`. Do not guess at other paths |
+| `there is no file at ...: its folder holds ...` | the name was almost right (a straight quote for a curly one, a space): use the name the message gives |
 | the assistant shows no claudius tools | the client was not restarted, or its configuration points at an old path: run `claudius connect <client>` again |
 | `asks for a token` | the running claudius was started with a token: pass `--token` (or set `CLAUDIUS_TOKEN`) to `claudius mcp` |
 | the assistant and the studio show different songs, or the person says the studio does not show what you changed | call `version`: it says which claudius you drive and whether a studio follows it. None follows when `claudius mcp` started before the studio, with a session of its own (restart the assistant once the studio runs), or when an older claudius holds the port (below). No `version` tool at all means the assistant was set up with a claudius before 0.11: ask the person to connect it again from the studio and restart it |
