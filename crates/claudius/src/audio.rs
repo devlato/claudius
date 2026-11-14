@@ -285,23 +285,29 @@ pub fn unreadable(path: &Path, e: &std::io::Error) -> String {
     }
 }
 
-/// the files in `path`'s folder named like it, at most five: the same name in other letters or round other marks
-/// (curly quotes, dashes, spaces), or holding its name's first word
+/// The files in `path`'s folder named like it, at most five: first those with the same name in other letters or round
+/// other marks (curly quotes, dashes, spaces), then those holding the first word of four letters or more of its name
+/// without its extension, which a short word or the extension would match in any name.
 fn named_like(path: &Path) -> Vec<String> {
     let plain = |s: &str| s.to_lowercase().chars().filter(|c| c.is_alphanumeric()).collect::<String>();
     let Some(name) = path.file_name().map(|n| n.to_string_lossy().to_string()) else { return Vec::new() };
-    let first = name.split(|c: char| !c.is_alphanumeric()).find(|w| w.len() >= 3).map(|w| w.to_lowercase());
-    let Ok(entries) = path.parent().map_or_else(|| std::fs::read_dir("."), std::fs::read_dir) else {
-        return Vec::new();
-    };
-    let mut like: Vec<String> = entries
-        .flatten()
-        .map(|e| e.file_name().to_string_lossy().to_string())
-        .filter(|n| plain(n) == plain(&name) || first.as_ref().is_some_and(|w| n.to_lowercase().contains(w.as_str())))
-        .collect();
+    let stem = path.file_stem().map(|s| s.to_string_lossy().to_lowercase()).unwrap_or_default();
+    let word = stem.split(|c: char| !c.is_alphanumeric()).find(|w| w.chars().count() >= 4).map(str::to_string);
+    let Ok(entries) = std::fs::read_dir(folder_of(path)) else { return Vec::new() };
+    let names: Vec<String> = entries.flatten().map(|e| e.file_name().to_string_lossy().to_string()).collect();
+    let mut like: Vec<String> = names.iter().filter(|n| plain(n) == plain(&name)).cloned().collect();
+    let holds = |n: &String| word.as_ref().is_some_and(|w| n.to_lowercase().contains(w.as_str()));
+    let mut holding: Vec<String> = names.iter().filter(|n| !like.contains(n) && holds(n)).cloned().collect();
     like.sort();
+    holding.sort();
+    like.extend(holding);
     like.truncate(5);
     like
+}
+
+/// the folder `path` is in: the current one for a bare name, whose parent is the empty path
+fn folder_of(path: &Path) -> &Path {
+    path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."))
 }
 
 /// decode audio in memory (a file's bytes, `ext` its kind: wav, flac, ...) to 48 kHz stereo
@@ -569,6 +575,14 @@ mod tests {
             said.starts_with("there is no file at ") && said.ends_with("its folder holds Night Drive’s Hook.wav"),
             "{said}"
         );
+        // five more holding its first word come after it, and neither a short word nor the extension matches others
+        for n in ["Night a.wav", "Night b.wav", "Night c.wav", "Night d.wav", "Night e.wav", "the end.wav"] {
+            std::fs::write(dir.join(n), b"").unwrap();
+        }
+        let like = named_like(&dir.join("Night Drive's Hook.wav"));
+        assert_eq!(like[0], "Night Drive’s Hook.wav", "{like:?}");
+        assert!(like.len() == 5 && !like.iter().any(|n| n == "other.wav" || n == "the end.wav"), "{like:?}");
+        assert_eq!(folder_of(Path::new("song.wav")), Path::new("."), "a bare name is in the current folder");
         // macOS keeping claudius out of a folder it protects, as the system says so
         let denied = std::io::Error::from(std::io::ErrorKind::PermissionDenied);
         let said = unreadable(&dirs::home_dir().unwrap_or_default().join("Downloads").join("song.wav"), &denied);
