@@ -15,8 +15,8 @@ of `AGENTS.md` that a script can check:
 - `--no-verify` is refused, and so is pushing a `v*` tag.
 - `git push` and `gh pr create` go out only once `cargo xtask ci` has passed on the commit, with nothing left
   uncommitted, in each checkout the command pushes from. Name that folder in plain words (`cd /path && git push`,
-  `git -C /path push`): through a variable, a substitution or a quoted folder after the start, the hook cannot tell
-  which checkout it is, and refuses the push.
+  `git -C /path push`): through a variable, a substitution or a subshell, a quoted `cd` after the first, `cd -` or
+  `popd`, the hook cannot tell which checkout it is, and refuses the push.
 
 The checks run through `.claude/hooks/ci.sh`, the way GitHub's runners would: without the sample packs and models
 installed on this computer, in a home of their own, with CI's build settings. They take minutes, so start

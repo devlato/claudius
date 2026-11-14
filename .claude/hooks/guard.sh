@@ -78,15 +78,21 @@ leading_cd() {
 look() {
     while [ $# -gt 0 ]; do
         case $1 in
-            *=* | env | command | exec | nohup | time) shift ;;
+            *=* | env | command | builtin | exec | nohup | time) shift ;;
             *) break ;;
         esac
     done
     [ $# -gt 0 ] || return 0
     case $1 in
-        cd)
-            target=${2:-$HOME}
-            [ "$target" = Q ] && target=$(leading_cd)
+        cd | pushd)
+            if [ "$1" = cd ]; then target=${2:-$HOME}; else target=${2:-}; fi
+            # a quoted folder is known only where the command starts with it, which is all leading_cd finds; and in a
+            # command with a subshell or a substitution, where the shell is after a cd is not known
+            if [ "$target" = Q ]; then
+                target=
+                [ "$n" -eq 1 ] && target=$(leading_cd)
+            fi
+            [ -n "$nested" ] && target=
             case $target in
                 # a folder the words do not show (quoted past the start, a variable, a substitution, the one before):
                 # where the commands after it run is not known
@@ -95,6 +101,10 @@ look() {
                 '~'*) at=$HOME${target#\~} ;;
                 *) [ -n "$at" ] && at=$at/$target ;;
             esac
+            return 0
+            ;;
+        popd)
+            at=
             return 0
             ;;
         gh)
@@ -126,6 +136,7 @@ look() {
                 case ${2:-} in
                     '' | Q | *'$'* | *'`'*) where= ;;
                     /*) where=$2 ;;
+                    '~'*) where=$HOME${2#\~} ;;
                     *) [ -n "$where" ] && where=$where/$2 ;;
                 esac
                 shift
@@ -181,25 +192,34 @@ run() {
     esac
     at=$cwd
     gates=
+    nested=
+    case $bare in
+        *'('* | *')'*) nested=1 ;;
+    esac
     parts=$(printf '%s\n' "$bare" | awk '{ gsub(/&&|\|\||[;|&()]/, "\n"); print }')
     newline='
 '
     old_ifs=$IFS
     IFS=$newline
+    n=0
     for part in $parts; do
         IFS=$old_ifs
+        n=$((n + 1))
         # shellcheck disable=SC2086 # split into words on purpose; globbing is off
         look $part
         IFS=$newline
     done
     # each push and pull request in the command waits for the checks of its own checkout; one from a folder the words
-    # do not show cannot, so it is refused rather than let through unchecked
+    # do not show, or from one that is not there (so not where the shell will be), cannot, so it is refused rather
+    # than let through unchecked
     for dir in $gates; do
         case $dir in
             /*) ;;
-            *) refuse "AGENTS.md: a push waits for cargo xtask ci on its checkout, and this command does not show which checkout that is (a variable, a quoted folder after the start, a substitution or cd -)." \
-                "Name the folder in plain words: cd /path/to/checkout && git push, or git -C /path/to/checkout push." ;;
+            *) dir= ;;
         esac
+        [ -n "$dir" ] && [ -d "$dir" ] ||
+            refuse "AGENTS.md: a push waits for cargo xtask ci on its checkout, and this command does not show which checkout that is: its folder comes through a variable, a substitution or a subshell, a quoted cd after the first, cd - or popd, or is not there." \
+                "Name the folder in plain words: cd /path/to/checkout && git push, or git -C /path/to/checkout push."
         top=$(git -C "$dir" rev-parse --show-toplevel 2> /dev/null) || continue
         ours "$top" || continue
         report=$("$here/ci.sh" "$top" 2>&1) ||
