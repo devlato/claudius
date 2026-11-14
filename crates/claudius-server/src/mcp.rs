@@ -521,6 +521,10 @@ pub struct PiecesArgs {
     /// what the ears listen for (default "a person singing")
     #[serde(default)]
     pub find: Option<String>,
+    /// the kinds of piece to offer: phrase, hook (a loop of its hook), passage (a loop of another passage), break (its
+    /// drums), bass (its bass line); default every kind it holds
+    #[serde(default)]
+    pub kinds: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -1499,22 +1503,22 @@ impl Studio {
     }
 
     #[tool(
-        description = "Offer the auto-sampler's pieces of a recording before any goes into the song: `count` phrases sung whole that sound most like a voice (or like `find`), each cut in the quiet before its first word and after its last note's release (never inside a word), in whole bars of its own beat grid that are silent outside the phrase, and cleaned of its drums, each as it was cut and through a treatment (dusty tape, a washed echo, lo-fi crushing, a phaser, a telephone band, a stutter, a reversed tail). Lists each piece with its number (numbered as they come in the recording), where it is in the recording, how sung it is, its treatment, and the two files to hear (the studio's Sample window shows them side by side). Then redraw_pieces for another take, or keep_pieces to sample the chosen ones into the song, each as it was or treated. path: a file, or library:<id> from search_recordings."
+        description = "Offer the auto-sampler's pieces of a recording before any goes into the song, as producers sample records: `count` phrases sung whole that sound most like a voice (or like `find`), each cut in the quiet before its first word and after its last note's release (never inside a word), in whole bars of its own beat grid that are silent outside the phrase, and cleaned of its drums; and the best piece of each other kind it holds, on its bars: a loop of its hook and of another passage (the instruments, without the drums, bass and voice), its drums as a break, its bass line. Each piece is scored as its kind (how alone what it is cut from plays there, how well it loops, how busy a break is, how much a bass line moves, how often a hook comes back) and says why. `kinds` asks for some only (phrase, hook, passage, break, bass); a recording no voice sings in offers the rest. Each piece comes as it was cut and through a treatment (dusty tape, a washed echo, lo-fi crushing, a phaser, a telephone band, a stutter, a reversed tail). Lists each with its number (the phrases numbered as they come in the recording), its kind, where it is in the recording, its treatment, and the two files to hear (the studio's Sample window shows them side by side). Then redraw_pieces for another take, or keep_pieces to sample the chosen ones into the song, each as it was or treated. path: a file, or library:<id> from search_recordings."
     )]
     async fn sample_pieces(&self, Parameters(a): Parameters<PiecesArgs>) -> Result<String, String> {
-        let c = Command::SamplePieces { path: a.path, seed: a.seed, count: a.count, bars: a.bars, find: a.find };
-        self.pieces(c).await
+        let (path, seed, count, bars, find, kinds) = (a.path, a.seed, a.count, a.bars, a.find, a.kinds);
+        self.pieces(Command::SamplePieces { path, seed, count, bars, find, kinds }).await
     }
 
     #[tool(
-        description = "Draw the pieces of the recording sample_pieces offered again, for another take (`seed`, the next one by default): other phrases among the good ones, with other treatments."
+        description = "Draw the pieces of the recording sample_pieces offered again, for another take (`seed`, the next one by default): other phrases, loops, breaks and bass lines among the good ones of each kind, with other treatments."
     )]
     async fn redraw_pieces(&self, Parameters(a): Parameters<RedrawArgs>) -> Result<String, String> {
         self.pieces(Command::RedrawPieces { seed: a.seed }).await
     }
 
     #[tool(
-        description = "Sample the pieces sample_pieces offered that the person chose into the song, each as it was cut or with its treatment (`treated`), placed as the auto-sampler places phrases: in `sections` when given, else in those that suit each, from the bar where its notes agree best with the chords, moved to the song's key and tempo, and coming round as `every` says. By default the song chooses how often, and the reply says why: once from the start of each section where a lead or a voice already sings, every other time round in a genre built on a sampled phrase, once every 8 bars in one that is not. The song credits the recording. Then listen."
+        description = "Sample the pieces sample_pieces offered that the person chose into the song, each as it was cut or with its treatment (`treated`). A phrase is placed as the auto-sampler places phrases: in `sections` when given, else in those that suit each, from the bar where its notes agree best with the chords, moved to the song's key and tempo, and coming round as `every` says. By default the song chooses how often, and the reply says why: once from the start of each section where a lead or a voice already sings, every other time round in a genre built on a sampled phrase, once every 8 bars in one that is not. A piece of another kind loops all through `sections`, else where its kind plays: a break as a drum loop where the song's drums play, a bass line in place of the song's bass, a loop of the hook in the drops and hooks, of another passage in the rest; moved to the song's key (a break keeps its pitch) and tempo. The song credits the recording. Then listen."
     )]
     async fn keep_pieces(&self, Parameters(a): Parameters<KeepArgs>) -> Result<String, String> {
         let keep = a.keep.into_iter().map(|k| claudius_api::KeptPiece { id: k.id, treated: k.treated }).collect();

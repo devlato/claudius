@@ -64,8 +64,8 @@ impl App {
             return no("no song yet: start one with new_song, then sample a recording into it", v);
         }
         let ears = self.ears.get().and_then(|e| e.as_ref());
-        let pieces = match sampler::pieces(&x, ears, &opt, seed) {
-            Ok(p) => p,
+        let (pieces, no_phrase) = match sampler::offer(&x, ears, &opt, seed) {
+            Ok(o) => (o.pieces, o.no_phrase),
             Err(e) => return no(e, v),
         };
         // the last offer's files go with it
@@ -86,6 +86,8 @@ impl App {
             let (from, to) = p.phrase.within.unwrap_or((p.phrase.start, p.phrase.start));
             views.push(PieceView {
                 id,
+                kind: p.kind.name().into(),
+                about: p.about.clone(),
                 place: p.place(),
                 bars: p.phrase.bars,
                 sung: p.phrase.sung,
@@ -99,8 +101,11 @@ impl App {
         }
         let lines: Vec<String> = views.iter().map(listen::piece_said).collect();
         let n = views.len();
-        let said = format!("{n} piece{} of {name}, take {seed}:\n{}", if n == 1 { "" } else { "s" }, lines.join("\n"));
-        let view = PiecesView { recording: name.to_string(), seed, pieces: views };
+        let why = no_phrase.as_ref().map(|w| format!("\nno phrase: {w}")).unwrap_or_default();
+        let s = if n == 1 { "" } else { "s" };
+        let said = format!("{n} piece{s} of {name}, take {seed}:\n{}{why}", lines.join("\n"));
+        let view =
+            PiecesView { recording: name.to_string(), seed, pieces: views, no_phrase: no_phrase.unwrap_or_default() };
         let offer = Offer { name: name.to_string(), src: x, sources, opt, seed, pieces };
         let v = self.update(|s| {
             s.pieces = Some((offer, view));

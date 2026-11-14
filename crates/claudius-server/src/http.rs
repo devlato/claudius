@@ -413,6 +413,9 @@ struct PiecesQuery {
     bars: Option<u32>,
     #[serde(default)]
     find: Option<String>,
+    /// the kinds of piece to offer, by name, separated by commas
+    #[serde(default)]
+    kinds: Option<String>,
 }
 
 /// the auto-sampler's pieces of a recording sent as the file itself, as `sample_pieces` offers a path's
@@ -431,7 +434,14 @@ async fn sample_pieces(
     }
     let app = c.app.clone();
     let name = q.name.filter(|n| !n.trim().is_empty()).unwrap_or_else(|| "the recording".into());
-    let opt = crate::app::sampling(q.count, q.bars, q.find, Vec::new(), None).unwrap_or_default();
+    let said: Vec<String> = q.kinds.as_deref().unwrap_or_default().split(',').map(String::from).collect();
+    let kinds = match claudius_session::listen::kinds(&said) {
+        Ok(k) => k,
+        Err(e) => return (StatusCode::BAD_REQUEST, e).into_response(),
+    };
+    let opt = crate::app::sampling(q.count, q.bars, q.find, Vec::new(), None)
+        .map(|o| claudius::sampler::Options { kinds, ..o })
+        .unwrap_or_default();
     let seed = q.seed.unwrap_or(0);
     match tokio::task::spawn_blocking(move || app.pieces_bytes(body.to_vec(), &name, opt, seed)).await {
         Ok(r) => Json(r).into_response(),

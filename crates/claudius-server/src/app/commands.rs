@@ -354,8 +354,14 @@ impl App {
             Command::AddTake { path, from, name, role } => {
                 self.add_take_file(Path::new(&path), &from, name.as_deref(), role.as_deref())
             }
-            Command::SamplePieces { path, seed, count, bars, find } => {
-                let opt = sampling(count, bars, find, Vec::new(), None).unwrap_or_default();
+            Command::SamplePieces { path, seed, count, bars, find, kinds } => {
+                let kinds = match listen::kinds(&kinds) {
+                    Ok(k) => k,
+                    Err(e) => return no(e, v),
+                };
+                let opt = sampling(count, bars, find, Vec::new(), None)
+                    .map(|o| claudius::sampler::Options { kinds, ..o })
+                    .unwrap_or_default();
                 if let Err(e) = self.readable(Path::new(&path)) {
                     return no(e, v);
                 }

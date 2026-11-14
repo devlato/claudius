@@ -596,7 +596,7 @@ fn repeats(chroma: &[[f32; 12]], b: usize) -> f64 {
         .unwrap_or(0.0)
 }
 
-fn correlation(x: &[[f32; 12]], y: &[[f32; 12]]) -> Option<f64> {
+pub(crate) fn correlation(x: &[[f32; 12]], y: &[[f32; 12]]) -> Option<f64> {
     let flat = |v: &[[f32; 12]]| -> Vec<f64> { v.iter().flatten().map(|s| *s as f64).collect() };
     let (x, y) = (flat(x), flat(y));
     let mean = |v: &[f64]| v.iter().sum::<f64>() / v.len().max(1) as f64;

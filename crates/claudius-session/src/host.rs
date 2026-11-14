@@ -298,8 +298,13 @@ impl Host {
             }
             Listen::PitchCheck { id } => self.hear_pitch_check(*id, &x),
             Listen::OpenProject { .. } => self.no("a project is opened, not listened to"),
-            Listen::SamplePieces { seed, count, found, .. } => {
-                let opt = claudius::sampler::Options { count: count.map_or(2, |c| c as usize), ..Default::default() };
+            Listen::SamplePieces { seed, count, found, kinds, .. } => {
+                let kinds = match crate::listen::kinds(kinds) {
+                    Ok(k) => k,
+                    Err(e) => return self.no(e),
+                };
+                let count = count.map_or(2, |c| c as usize);
+                let opt = claudius::sampler::Options { count, kinds, ..Default::default() };
                 self.offer_pieces(Arc::new(x), &name, found.clone(), opt, seed.unwrap_or(0))
             }
             Listen::Take { from, track, role, found, .. } => {
@@ -946,14 +951,17 @@ impl Host {
         if self.bp.is_none() {
             return self.no("no song yet: start one with a new song, then sample a recording into it");
         }
-        let mut pieces = match claudius::sampler::pieces(&x, None, &opt, seed) {
-            Ok(p) => p,
+        let (mut pieces, no_phrase) = match claudius::sampler::offer(&x, None, &opt, seed) {
+            Ok(o) => (o.pieces, o.no_phrase),
             Err(e) => return self.no(e),
         };
-        // numbered as they come in the recording, so that the numbers follow it along its timeline
+        // the phrases numbered as they come in the recording, so that the numbers follow it along its timeline, and
+        // the pieces of the other kinds after them
         pieces.sort_by(|a, b| {
             let at = |p: &claudius::sampler::Piece| p.phrase.within.map_or(p.phrase.start, |w| w.0);
-            at(a).total_cmp(&at(b))
+            let other = |p: &claudius::sampler::Piece| p.kind != claudius::kinds::Kind::Phrase;
+            let when = || if other(a) { std::cmp::Ordering::Equal } else { at(a).total_cmp(&at(b)) };
+            other(a).cmp(&other(b)).then_with(when)
         });
         let spec: claudius::export::Spec = "mp3:64".parse().expect("a preview's format");
         let heard = |sound: &Stereo| -> Result<String, String> {
@@ -970,6 +978,8 @@ impl Host {
             let (from, to) = p.phrase.within.unwrap_or((p.phrase.start, p.phrase.start));
             views.push(PieceView {
                 id: i as u32 + 1,
+                kind: p.kind.name().into(),
+                about: p.about.clone(),
                 place: p.place(),
                 bars: p.phrase.bars,
                 sung: p.phrase.sung,
@@ -983,8 +993,11 @@ impl Host {
         }
         let lines: Vec<String> = views.iter().map(crate::listen::piece_said).collect();
         let n = views.len();
-        let said = format!("{n} piece{} of {name}, take {seed}:\n{}", if n == 1 { "" } else { "s" }, lines.join("\n"));
-        let view = PiecesView { recording: name.to_string(), seed, pieces: views };
+        let why = no_phrase.as_ref().map(|w| format!("\nno phrase: {w}")).unwrap_or_default();
+        let s = if n == 1 { "" } else { "s" };
+        let said = format!("{n} piece{s} of {name}, take {seed}:\n{}{why}", lines.join("\n"));
+        let view =
+            PiecesView { recording: name.to_string(), seed, pieces: views, no_phrase: no_phrase.unwrap_or_default() };
         self.pieces = Some((Offer { name: name.to_string(), src: x, found, opt, seed, pieces }, view));
         self.say(format!("offered {n} pieces of {name} (take {seed})"));
         self.version += 1;
@@ -2021,7 +2034,13 @@ mod tests {
             "licence_url": "https://creativecommons.org/licenses/by/4.0/", "page": "https://ccmixter.org/files/a/71182",
             "audio": "https://example.org/hum.mp3", "filetype": "mp3", "seconds": 16.0
         });
-        let offer = Listen::SamplePieces { name: "hum.wav".into(), seed: None, count: Some(1), found: Some(found) };
+        let offer = Listen::SamplePieces {
+            name: "hum.wav".into(),
+            seed: None,
+            count: Some(1),
+            found: Some(found),
+            kinds: vec!["phrase".into()],
+        };
         assert_eq!(offer.what(), "sample_pieces");
         let r = h.listen(&offer, wav(&x));
         assert!(r.ok && r.message.starts_with("1 piece of hum.wav, take 0"), "{}", r.message);

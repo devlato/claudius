@@ -328,13 +328,26 @@ pub fn sampling(
         sections: sections.into_iter().filter(|s| !s.trim().is_empty()).collect(),
         how: how.unwrap_or_default(),
         every: None,
+        kinds: Vec::new(),
     })
 }
 
-/// a piece offered, as `sample_pieces` lists it: "1: in hook 2, bars 12-13, 0:31, 96% sung; treated, dusty: ..."
+/// a piece offered, as `sample_pieces` lists it: "1: in hook 2, bars 12-13, 0:31, 96% sung; treated, dusty: ...", and
+/// a piece of another kind as what it is: "3: a 2-bar drum break, the drums alone, busy, it loops cleanly, in drop 1,
+/// bars 33-34, 1:12; treated, ..."
 pub fn piece_said(p: &claudius_api::PieceView) -> String {
     let section = if p.section.is_empty() { String::new() } else { format!("in {}, ", p.section) };
-    format!("{}: {section}{}, {:.0}% sung; treated, {}", p.id, p.place, p.sung * 100.0, p.treatment)
+    match claudius::kinds::Kind::parse(&p.kind) {
+        Ok(k) if k != claudius::kinds::Kind::Phrase => {
+            format!("{}: {}, {}, {section}{}; treated, {}", p.id, k.said(p.bars), p.about, p.place, p.treatment)
+        }
+        _ => format!("{}: {section}{}, {:.0}% sung; treated, {}", p.id, p.place, p.sung * 100.0, p.treatment),
+    }
+}
+
+/// the kinds of piece a request asks for, by name (`claudius_api::PIECE_KINDS`); none: every kind
+pub fn kinds(said: &[String]) -> Result<Vec<claudius::kinds::Kind>, String> {
+    said.iter().filter(|k| !k.trim().is_empty()).map(|k| claudius::kinds::Kind::parse(k)).collect()
 }
 
 /// How often a phrase sampled into the song comes round, as `SampleSong` and `KeepPieces` say it (`Every::parse`);

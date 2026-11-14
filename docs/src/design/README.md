@@ -27,6 +27,7 @@ earth is it done this way?", and the answer is a trade-off rather than a mistake
 | [0016 Settings any later claudius reads](0016-settings-any-later-claudius-reads.md) | every settings file has a version and is read field by field, a field that does not read costing only itself; earlier versions migrate as they are read, and what a later version wrote is kept |
 | [0017 A rebuild that sounds like the recording](0017-rebuild-from-its-parts.md) | proposed: a rebuild is measured on songs claudius renders itself and made from better parts, HTDemucs stems, YourMT3+'s notes, each instrument on a sound like its own, and chords from the notes |
 | [0020 Changing a song's genre](0020-change-a-songs-genre.md) | accepted: a song in another genre keeps its form, chords, key, melody, recordings and written notes, and the genre's drums, bass, parts, sounds and mix play it, as one change undo takes back |
+| [0021 Every kind of sample, ranked and varied](0021-every-kind-of-sample.md) | proposed: the sampler offers sung phrases, hook and passage loops, drum breaks, bass lines and stabs, each scored as its kind, and a varied set of them, each piece saying what it is |
 
 ## The format
 

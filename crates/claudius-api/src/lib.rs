@@ -151,6 +151,9 @@ pub struct PiecesView {
     /// the take: 0 for the best phrases, any other for another draw of them (`redraw_pieces`)
     pub seed: u64,
     pub pieces: Vec<PieceView>,
+    /// why none of the pieces is a phrase, when phrases were asked for with the other kinds and none could be cut
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub no_phrase: String,
 }
 
 /// a piece the auto-sampler offers
@@ -158,6 +161,13 @@ pub struct PiecesView {
 pub struct PieceView {
     /// what `keep_pieces` names it by: 1, 2 ...
     pub id: u32,
+    /// what it is (`PIECE_KINDS`: a sung phrase, a loop of the hook or of another passage, a drum break, a bass line),
+    /// and what it scored for, in words ("the drums alone, busy, it loops cleanly"); a claudius before 0.11 offers
+    /// phrases alone, and says neither
+    #[serde(default)]
+    pub kind: String,
+    #[serde(default)]
+    pub about: String,
     /// where it is in the recording, in words ("bars 12-13, 0:31"), how many bars it lasts, and how much of it is sung
     pub place: String,
     pub bars: u32,
@@ -638,6 +648,9 @@ pub enum Listen {
         /// the library's record of it, when a free library offered it (`LibraryHit::found`): the pieces kept credit it
         #[serde(default, skip_serializing_if = "Option::is_none")]
         found: Option<serde_json::Value>,
+        /// the kinds of piece to offer (`PIECE_KINDS`); none: every kind it holds
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        kinds: Vec<String>,
     },
     /// the answers to pitch check `id`, sung over its phrases from their first beat, as `/api/pitch-check` hears them
     PitchCheck {
@@ -1284,6 +1297,16 @@ pub const SAMPLING_WAYS: [(&str, &str, &str); 4] = [
         "a stab, struck as a drum",
         "one short hit of it, a syllable, struck on a few beats as a drum lane of its own, whose steps you can change",
     ),
+];
+
+/// The kinds of piece the auto-sampler offers of a recording (`Command::SamplePieces`'s `kinds`), as producers sample
+/// records (design 0021): the name a request gives, and in words.
+pub const PIECE_KINDS: [(&str, &str); 5] = [
+    ("phrase", "a phrase it sings whole"),
+    ("hook", "a loop of its hook, without its drums, bass and voice"),
+    ("passage", "a loop of another passage, without its drums, bass and voice"),
+    ("break", "its drums, as a break"),
+    ("bass", "its bass line"),
 ];
 
 /// An effect of each kind with settings that sound like something, to add to a chain (`Command::SetFx`): its name
@@ -2250,8 +2273,10 @@ pub enum Command {
         note: String,
     },
     /// the auto-sampler's pieces of a recording (an audio file, or `library:<id>`), offered before any goes into the
-    /// song: `count` phrases (1 to 4, default 2) of `bars` bars (1, 2 or 4; whichever sounds best by default), each as
-    /// it was cut and through a treatment, for take `seed` (0, the default: the best phrases; any other: another draw)
+    /// song: `count` phrases (1 to 4, default 2) of `bars` bars (1, 2 or 4; whichever sounds best by default), and the
+    /// best piece of each other kind it holds (`PIECE_KINDS`: a loop of its hook or of another passage, a drum break, a
+    /// bass line), or only the `kinds` named; each as it was cut and through a treatment, for take `seed` (0, the
+    /// default: the best; any other: another draw)
     SamplePieces {
         path: String,
         #[serde(default)]
@@ -2263,6 +2288,8 @@ pub enum Command {
         /// what the ears listen for ("a person singing" by default)
         #[serde(default)]
         find: Option<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        kinds: Vec<String>,
     },
     /// the recording the auto-sampler offered pieces of, drawn again for take `seed` (the next one by default)
     RedrawPieces {
