@@ -435,7 +435,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
             // a lane in a groove takes its timing from it: straight, unless it has a swing of its own
             swing: lane.swing.or(groove.as_ref().map(|_| 0.5)),
             mix: TrackMix {
-                bus: if lane.mix.bus == "music" { "drums".into() } else { lane.mix.bus.clone() },
+                bus: if lane.mix.bus == "music" && !lane.tonal { "drums".into() } else { lane.mix.bus.clone() },
                 ..lane.mix.clone()
             },
         });

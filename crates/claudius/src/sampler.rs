@@ -638,6 +638,7 @@ fn stabs(
         groove_amount: 1.0,
         late_ms: 0.0,
         genre: None,
+        tonal: true,
     });
     for &si in &secs {
         bp.form[si].layers.push(lane.clone());
@@ -1306,6 +1307,7 @@ pub fn keep(
         let groups = dealt(bp, &sections_for(bp, kind, &[])?, of.len());
         of.into_iter().zip(groups).for_each(|(i, g)| places[i] = Some(g));
     }
+    let mut failed: Vec<String> = Vec::new();
     for (k, place) in others.into_iter().zip(places) {
         let p = k.piece;
         if place.as_ref().is_some_and(Vec::is_empty) {
@@ -1318,26 +1320,37 @@ pub fn keep(
             Some(s) => s,
             None => sections_for(bp, plays_as(k), &opt.sections)?,
         };
-        let (tracks, line) = match (p.kind, k.chopped) {
+        let before = bp.clone();
+        let placed = match (p.kind, k.chopped) {
             // one hit, which nothing chops further
-            (Kind::Stab, _) => place_stab(bp, &heard, p, &fx(k), &secs, dir).map(|(t, l)| (vec![t], l))?,
-            (_, true) => place_chops(bp, &heard, k, &secs, dir)?,
-            (_, false) => {
-                place_cut(bp, &heard, p, &fx(k), opt, Some(secs.as_slice()), dir).map(|(t, l)| (vec![t], l))?
+            (Kind::Stab, _) => place_stab(bp, &heard, p, &fx(k), &secs, dir).map(|(t, l)| (vec![t], l)),
+            (_, true) => place_chops(bp, &heard, k, &secs, dir),
+            (_, false) => place_cut(bp, &heard, p, &fx(k), opt, Some(secs.as_slice()), dir).map(|(t, l)| (vec![t], l)),
+        };
+        // a piece that cannot go in leaves the song as it was before it, as a phrase does, and says why
+        let (tracks, line) = match placed {
+            Ok(placed) => placed,
+            Err(e) => {
+                *bp = before;
+                failed.push(e);
+                continue;
             }
         };
         out.tracks.extend(tracks);
         out.lines.push(line);
         out.kinds.push(p.kind);
     }
-    match refused {
-        Some(e) if out.tracks.is_empty() => Err(e),
-        Some(e) => {
-            out.lines.push(format!("no phrase went in: {e}"));
-            Ok(out)
-        }
-        None => Ok(out),
+    if out.tracks.is_empty() {
+        return match refused.into_iter().chain(failed).reduce(|a, b| format!("{a}; {b}")) {
+            Some(e) => Err(e),
+            None => Ok(out),
+        };
     }
+    out.lines.extend(failed);
+    if let Some(e) = refused {
+        out.lines.push(format!("no phrase went in: {e}"));
+    }
+    Ok(out)
 }
 
 /// A piece of a kind but a phrase (`kinds`) kept, placed in the song as its kind plays: a break as a drum loop beside the
@@ -1477,6 +1490,7 @@ fn place_stab(
         groove_amount: 1.0,
         late_ms: 0.0,
         genre: None,
+        tonal: true,
     });
     for &si in secs {
         bp.form[si].layers.push(lane.clone());
@@ -1515,7 +1529,15 @@ fn place_chops(
         true => crate::compose::transpose_into(&bp.key, (a.key.tonic, a.key.mode.is_minor())),
         false => 0,
     };
-    let bus = if p.kind == Kind::Break { "drums" } else { "music" };
+    // its pads go through the bus that what it was cut from plays through: a break the drums', a bass line the bass's,
+    // the others the music's
+    let bus = match p.kind {
+        Kind::Break => "drums".to_string(),
+        Kind::Bass => {
+            bp.parts.iter().find(|q| q.role == Role::Bass).map_or_else(|| "bass".into(), |q| q.mix.bus.clone())
+        }
+        _ => "music".to_string(),
+    };
     let place = bars_text(p.phrase.first + 1, p.phrase.bars);
     let mut lanes = Vec::new();
     for (i, (pad, hits)) in chopped.pads.iter().zip(&chopped.hits).enumerate() {
@@ -1530,7 +1552,7 @@ fn place_chops(
             pattern_bars: p.phrase.bars,
             pitch: transpose,
             choke: None,
-            mix: TrackMix { bus: bus.into(), ..TrackMix::default() },
+            mix: TrackMix { bus: bus.clone(), ..TrackMix::default() },
             length: None,
             speed: 1.0,
             // as it was played: straight, and none of the song's groove
@@ -1539,6 +1561,7 @@ fn place_chops(
             groove_amount: 0.0,
             late_ms: 0.0,
             genre: None,
+            tonal: p.kind.tonal(),
         });
         for &si in secs {
             bp.form[si].layers.push(lane.clone());
@@ -2952,6 +2975,31 @@ mod tests {
         for s in &bp.form {
             let has = s.layers.iter().any(|l| drums.contains(l));
             assert_eq!(s.layers.contains(&"chop".to_string()), has, "{}: where the drums play", s.name);
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_hook_kept_chopped_plays_through_the_music_and_a_piece_too_sparse_to_chop_leaves_the_rest_kept() {
+        let (mix, _) = band();
+        let mut bp = song();
+        let x = kinds::tests::three_drums();
+        let piece = |kind, x: Stereo| {
+            let phrase =
+                Phrase { start: 0.0, first: 0, bars: 2, z: None, sung: 0.0, centred: 0.0, score: 0.8, within: None };
+            let (about, treatment, section) = (String::new(), String::new(), String::new());
+            Piece { kind, about, phrase, raw: x.clone(), treated: x, treatment, fx: Vec::new(), bpm: 120.0, section }
+        };
+        let (hook, silent) = (piece(Kind::Hook, x.clone()), piece(Kind::Passage, Stereo::zeros(x.len())));
+        let dir = std::env::temp_dir().join(format!("claudius-kinds-chop-music-{}", std::process::id()));
+        let kept = [Keep { chopped: true, ..Keep::of(&hook) }, Keep { chopped: true, ..Keep::of(&silent) }];
+        let out = keep(&mut bp, &mix, "band", &kept, &Options::default(), &dir).unwrap();
+        assert!(!out.tracks.is_empty() && out.tracks.iter().all(|t| t.starts_with("chop")), "{:?}", out.tracks);
+        assert!(out.lines.iter().any(|l| l.ends_with("holds too few hits to chop: keep it whole")), "{:?}", out.lines);
+        let arranged = crate::compose::arrange(&bp);
+        for t in &out.tracks {
+            let track = arranged.tracks.iter().find(|a| &a.name == t).unwrap();
+            assert_eq!(track.mix.bus, "music", "{t}: a hook's pads play through the music's bus, not the drums'");
         }
         let _ = std::fs::remove_dir_all(&dir);
     }
