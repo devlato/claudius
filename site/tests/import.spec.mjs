@@ -4,13 +4,54 @@
 //   cargo build --bin claudius && cargo xtask web --plan
 //   npx playwright test tests/import.spec.mjs      (in site/)
 import { test, expect, chromium } from "@playwright/test";
-import { existsSync, mkdtempSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { claudius, heard, ready, repo, tone, why } from "./claudius.mjs";
 
 const song = join(mkdtempSync(join(tmpdir(), "claudius-import-")), "my song.wav");
 tone(song, 6);
+
+/** A band, as a mono 16-bit WAV at 24 kHz: 120 BPM, sixteen bars of a kick on every beat and a hat on every off-beat,
+ * alone for four bars, then a bass on the roots and the chords themselves, A minor, F, C and G a bar each, three
+ * times round. No voice. */
+function band(path, { tonal = true } = {}) {
+  const rate = 24_000;
+  const n = 16 * 2 * rate;
+  const x = new Float32Array(n);
+  let seed = 5;
+  const noise = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648 - 0.5);
+  for (let beat = 0; beat < 64; beat++) {
+    const at = (beat * rate) / 2;
+    for (let i = 0; i < 0.15 * rate; i++) x[at + i] += Math.sin((2 * Math.PI * 60 * i) / rate) * 0.6 * Math.exp(-i / (0.05 * rate));
+    for (let i = 0; i < rate / 30; i++) x[at + rate / 4 + i] += noise() * 0.3 * (1 - i / (rate / 30));
+  }
+  const chords = [[220, 261.63, 329.63], [174.61, 220, 261.63], [261.63, 329.63, 392], [196, 246.94, 293.66]];
+  const roots = [55, 43.65, 65.41, 49];
+  for (let bar = 4; tonal && bar < 16; bar++) {
+    const c = (bar - 4) % 4;
+    for (let i = 0; i < 2 * rate; i++) {
+      const t = (bar * 2 * rate + i) / rate;
+      const up = Math.floor(i / (rate / 2)) % 2 === 1 ? 2 : 1;
+      x[bar * 2 * rate + i] += Math.sin(2 * Math.PI * roots[c] * up * t) * 0.3 + chords[c].reduce((s, f) => s + Math.sin(2 * Math.PI * f * t) * 0.09, 0);
+    }
+  }
+  const b = Buffer.alloc(44 + n * 2);
+  b.write("RIFF", 0);
+  b.writeUInt32LE(36 + n * 2, 4);
+  b.write("WAVEfmt ", 8);
+  b.writeUInt32LE(16, 16);
+  b.writeUInt16LE(1, 20);
+  b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(rate, 24);
+  b.writeUInt32LE(rate * 2, 28);
+  b.writeUInt16LE(2, 32);
+  b.writeUInt16LE(16, 34);
+  b.write("data", 36);
+  b.writeUInt32LE(n * 2, 40);
+  for (let i = 0; i < n; i++) b.writeInt16LE(Math.round(Math.max(-1, Math.min(1, x[i])) * 32767), 44 + i * 2);
+  writeFileSync(path, b);
+}
 
 /** the takes a claudius kept with its songs */
 const takes = (home) => {
@@ -148,6 +189,45 @@ test.describe("adding a recording", () => {
       await expect.poll(() => hearing.join("\n"), { timeout: 60_000 }).toMatch(/^1 as cut plays$/m);
       await expect.poll(() => hearing.join("\n"), { timeout: 30_000 }).toMatch(/^1 treated plays$/m);
       expect(hearing.join("\n")).not.toMatch(/did not play/);
+    } finally {
+      await b.close();
+      c.stop();
+    }
+  });
+
+  test("in the demo, Pieces of it offers a recording's drum break and a loop of its hook, each by its kind", async () => {
+    test.setTimeout(150_000);
+    const c = await claudius();
+    const b = await chromium.launch();
+    try {
+      const page = await b.newPage();
+      const offered = heard(page, "pieces");
+      await page.goto(`${c.base}/?mock&plan=${encodeURIComponent("wait:3;import:pieces;wait:80")}`);
+      await page.waitForTimeout(8_000);
+      const file = join(mkdtempSync(join(tmpdir(), "claudius-import-")), "band.wav");
+      band(file);
+      await drop(page, file);
+      await expect.poll(() => offered.join("\n"), { timeout: 60_000 }).toMatch(/^take 0: .*\d\. break: bars? [\d-]+/m);
+      expect(offered.join("\n")).toMatch(/\d\. hook: bars? [\d-]+/);
+    } finally {
+      await b.close();
+      c.stop();
+    }
+  });
+
+  test("in the demo, Pieces of it of drums alone offers their break and says why there is no phrase", async () => {
+    test.setTimeout(150_000);
+    const c = await claudius();
+    const b = await chromium.launch();
+    try {
+      const page = await b.newPage();
+      const offered = heard(page, "pieces");
+      await page.goto(`${c.base}/?mock&plan=${encodeURIComponent("wait:3;import:pieces;wait:80")}`);
+      await page.waitForTimeout(8_000);
+      const file = join(mkdtempSync(join(tmpdir(), "claudius-import-")), "drums.wav");
+      band(file, { tonal: false });
+      await drop(page, file);
+      await expect.poll(() => offered.join("\n"), { timeout: 60_000 }).toMatch(/^take 0: .*\b\d\. break: bars? [\d-]+.* \| no phrase: \w/m);
     } finally {
       await b.close();
       c.stop();

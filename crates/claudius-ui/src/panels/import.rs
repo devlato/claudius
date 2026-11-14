@@ -24,11 +24,18 @@ type Fetched = Result<Vec<u8>, String>;
 /// how wide the window is
 const WIDTH: f32 = 760.0;
 
-/// The ways a recording goes into the song, as the window's cards offer them: by name ("whole", or one of
-/// `claudius_api::SAMPLING_WAYS`), its icon, its name on the card, and what it does.
-const WAYS: [(&str, Icon, &str, &str); 5] = [
+/// The ways a recording goes into the song, as the window's cards offer them: by name ("whole", "pieces" for every kind
+/// of piece of it to choose from, or one of `claudius_api::SAMPLING_WAYS`), its icon, its name on the card, and what it
+/// does.
+const WAYS: [(&str, Icon, &str, &str); 6] = [
     ("whole", Icon::Sample, "Whole", "all of it as a track, from the start of a section; trim it later"),
     ("phrases", Icon::Voice, "Its sung phrases", "the phrases its voice sings, each whole, to hear and pick first"),
+    (
+        "pieces",
+        Icon::Pad,
+        "Pieces of it",
+        "its drums, its bass line, loops of it and its phrases, to hear and pick first",
+    ),
     ("passage", Icon::Melody, "A passage", "a verse or a chorus of it, the song's chords following it there"),
     ("chops", Icon::Keys, "Chops", "its voice sliced and played in a new rhythm, like an instrument"),
     ("stabs", Icon::Drum, "A stab", "one short syllable struck on a few beats, like a drum"),
@@ -109,8 +116,11 @@ pub struct Import {
     /// `import:hear:<n>[:treated]`)
     pub hear_now: Option<(u32, bool)>,
     /// a recording held, to send for the auto-sampler's pieces (`/api/sample/pieces`), with the library's record of
-    /// it when a free library offered it (which the demo's engine credits it by)
-    pub offer: Option<(Arc<Picked>, Option<serde_json::Value>)>,
+    /// it when a free library offered it (which the demo's engine credits it by), and the kinds of piece asked for
+    /// (every kind it holds, when none)
+    pub offer: Option<(Arc<Picked>, Option<serde_json::Value>, Vec<String>)>,
+    /// whether the Sample window offers every kind of piece (the way Pieces of it), not its phrases alone
+    every_kind: bool,
     /// the recording held is to be sampled now, as its Choose its phrases button samples it (a scripted run's
     /// `import:sample`)
     pub sample_now: bool,
@@ -287,6 +297,13 @@ impl Import {
             (self.awaiting, self.offer_version) = (false, version);
         }
         self.sample_said = (!ok).then_some((ok, message));
+    }
+
+    /// every kind of piece of the recording held offered now, as the Pieces of it card's button offers them (a scripted
+    /// run's `import:pieces`)
+    #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
+    pub fn every_piece_now(&mut self) {
+        (self.how, self.sample_now) = ("pieces", true);
     }
 
     /// the Sample window opened anew, as an offer is asked for, or closed: nothing chosen, nothing said
@@ -667,12 +684,20 @@ fn timeline(ui: &mut Ui, l: &Listened, marks: &[Mark], at: Option<f64>) -> Optio
 
 /// a card for each way the recording can go in, the one chosen lit
 fn ways(ui: &mut Ui, how: &mut &'static str) {
+    // in rows of three, so that each card has room for what it says
+    for row in WAYS.chunks(3) {
+        ways_row(ui, row, how);
+        ui.add_space(8.0);
+    }
+}
+
+fn ways_row(ui: &mut Ui, row: &[(&'static str, Icon, &str, &str)], how: &mut &'static str) {
     let gap = 8.0;
-    let w = (ui.available_width() - gap * (WAYS.len() - 1) as f32) / WAYS.len() as f32;
+    let w = (ui.available_width() - gap * (row.len() - 1) as f32) / row.len() as f32;
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = gap;
-        for (name, icon, title, about) in WAYS {
-            let (rect, r) = ui.allocate_exact_size(vec2(w, 110.0), Sense::click());
+        for &(name, icon, title, about) in row {
+            let (rect, r) = ui.allocate_exact_size(vec2(w, 92.0), Sense::click());
             let on = *how == name;
             let base = if on { theme::mix(RAISED, ACCENT, 0.2) } else { RAISED.into() };
             let fill = if r.hovered() && !on { RAISED_HI.into() } else { base };
@@ -866,6 +891,7 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
                     let label = match im.how {
                         "whole" => "Add it whole",
                         "phrases" => "Choose its phrases \u{2192}",
+                        "pieces" => "Choose its pieces \u{2192}",
                         "passage" => "Sample a passage",
                         "chops" => "Chop it",
                         _ => "Sample a stab",
@@ -879,7 +905,13 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
                     let phrases = std::mem::take(&mut im.sample_now) && free;
                     if whole || go && im.how == "whole" {
                         add_whole(cx.out, im, by_id.as_deref(), found.clone());
-                    } else if phrases || go && im.how == "phrases" {
+                    } else if phrases || go && matches!(im.how, "phrases" | "pieces") {
+                        // its phrases alone, or every kind of piece it holds
+                        let kinds: Vec<String> = match im.how {
+                            "pieces" => Vec::new(),
+                            _ => vec!["phrase".into()],
+                        };
+                        im.every_kind = kinds.is_empty();
                         match (&by_id, &im.file) {
                             (Some(path), _) => cx.out.push(Command::SamplePieces {
                                 path: path.clone(),
@@ -887,9 +919,9 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
                                 count: Some(4),
                                 bars: None,
                                 find: None,
-                                kinds: vec!["phrase".into()],
+                                kinds,
                             }),
-                            (None, Some(file)) => im.offer = Some((file.clone(), found.clone())),
+                            (None, Some(file)) => im.offer = Some((file.clone(), found.clone(), kinds)),
                             (None, None) => {}
                         }
                         im.sample_afresh(true);
@@ -1009,7 +1041,7 @@ fn placing(ui: &mut Ui, im: &mut Import, sections: &[String]) {
             ui.label(RichText::new("none chosen: where it suits").size(11.5).color(TEXT_FAINT));
         }
     });
-    if im.how == "phrases" {
+    if matches!(im.how, "phrases" | "pieces") {
         every_row(ui, &mut im.every, "");
     }
 }
@@ -1097,9 +1129,8 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
     let server = cx.server.map(str::to_string);
     let mut open = true;
     let mut cancel = false;
-    let title = offered
-        .as_ref()
-        .map_or_else(|| "Its sung phrases".to_string(), |p| format!("{} · its sung phrases", p.recording));
+    let what = if im.every_kind { "its pieces" } else { "its sung phrases" };
+    let title = offered.as_ref().map_or_else(|| capital(what), |p| format!("{} · {what}", p.recording));
     egui::Window::new(title)
         .id(egui::Id::unique("pieces"))
         .open(&mut open)
@@ -1114,7 +1145,12 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
                 if im.sample_said.as_ref().is_none_or(|(ok, _)| *ok) {
                     ui.horizontal(|ui| {
                         ui.spinner();
-                        ui.weak("the auto-sampler is listening for the phrases it sings best ...");
+                        ui.weak(match im.every_kind {
+                            true => {
+                                "the auto-sampler is cutting what it holds: its drums, its bass, loops, phrases ..."
+                            }
+                            false => "the auto-sampler is listening for the phrases it sings best ...",
+                        });
                     });
                 }
                 said(ui, &im.sample_said);
@@ -1123,9 +1159,9 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
                 return;
             };
             if im.choices.0 != offered.seed || im.choices.1.len() != offered.pieces.len() {
-                // the best two, as they were cut, to start with: the pieces come numbered as they come in the
-                // recording, and their scores say which sing best
-                let mut best: Vec<usize> = (0..offered.pieces.len()).collect();
+                // the best two phrases, as they were cut, to start with: the phrases come numbered as they come in
+                // the recording, and their scores say which sing best; a piece of another kind is the person's to tick
+                let mut best: Vec<usize> = (0..offered.pieces.len()).filter(|&i| phrase(&offered.pieces[i])).collect();
                 best.sort_by(|a, b| offered.pieces[*b].sung.total_cmp(&offered.pieces[*a].sung));
                 let choices = (0..offered.pieces.len())
                     .map(|i| Choice { used: best.iter().take(2).any(|b| *b == i), treated: false });
@@ -1151,19 +1187,42 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
                 }
                 ui.add_space(8.0);
             }
-            ui.horizontal(|ui| {
-                let n = offered.pieces.len();
-                let words =
-                    if n == 1 { "1 phrase it sings best".to_string() } else { format!("{n} phrases it sings best") };
-                ui.label(RichText::new(words).strong());
-                ui.label(RichText::new("numbered as they come in the recording").size(11.5).color(TEXT_FAINT));
-            });
-            ui.add_space(4.0);
             let hear_now = im.hear_now.take();
-            for (i, p) in offered.pieces.iter().enumerate() {
-                piece(ui, im, p, i, hear_now, server.as_deref());
-                ui.add_space(6.0);
+            let sung = offered.pieces.iter().filter(|p| phrase(p)).count();
+            let others = offered.pieces.len() - sung;
+            if sung > 0 {
+                ui.horizontal(|ui| {
+                    let n = sung;
+                    let words = if n == 1 {
+                        "1 phrase it sings best".to_string()
+                    } else {
+                        format!("{n} phrases it sings best")
+                    };
+                    ui.label(RichText::new(words).strong());
+                    ui.label(RichText::new("numbered as they come in the recording").size(11.5).color(TEXT_FAINT));
+                });
+                ui.add_space(4.0);
             }
+            if sung == 0 && !offered.no_phrase.is_empty() {
+                let why = format!("no phrase to offer: {}", offered.no_phrase);
+                ui.label(RichText::new(why).size(12.0).color(TEXT_FAINT));
+                ui.add_space(4.0);
+            }
+            // the window's other rows take about 360 points; the pieces scroll in what the screen has left
+            let room = (ui.ctx().content_rect().height() - 360.0).max(180.0);
+            egui::ScrollArea::vertical().max_height(room).auto_shrink([false, true]).show(ui, |ui| {
+                for (i, p) in offered.pieces.iter().enumerate() {
+                    if i == sung && others > 0 {
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("Its drums, bass and loops").strong());
+                            ui.label(RichText::new("the best of each kind it holds").size(11.5).color(TEXT_FAINT));
+                        });
+                        ui.add_space(4.0);
+                    }
+                    piece(ui, im, p, i, hear_now, server.as_deref());
+                    ui.add_space(6.0);
+                }
+            });
             if let Some(why) = &im.play_said {
                 ui.label(RichText::new(format!("could not play it: {why}")).color(ui.visuals().error_fg_color));
             }
@@ -1172,8 +1231,10 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
             } else {
                 format!("in {}", im.places.join(", "))
             };
-            every_row(ui, &mut im.every, &format!(" · {places}"));
-            ui.add_space(6.0);
+            if sung > 0 {
+                every_row(ui, &mut im.every, &format!(" · {places}"));
+                ui.add_space(6.0);
+            }
             egui::Frame::new()
                 .fill(theme::alpha(theme::GOOD, 0.1))
                 .stroke(Stroke::new(1.0, theme::alpha(theme::GOOD, 0.45)))
@@ -1181,14 +1242,18 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
                 .inner_margin(8.0)
                 .show(ui, |ui| {
                     ui.set_width(ui.available_width());
-                    ui.label(
-                        RichText::new(
+                    let note = match (sung > 0, others > 0) {
+                        (true, false) => {
                             "Each piece is cut in the quiet before its first word and after its last note dies away: \
-                             none starts or ends inside a word.",
-                        )
-                        .size(12.0)
-                        .color(theme::lit(theme::GOOD, 0.35)),
-                    );
+                             none starts or ends inside a word."
+                        }
+                        (true, true) => {
+                            "Each phrase is cut in the quiet before its first word and after its last note dies away; \
+                             each other piece on the recording's bars, to loop all through the sections it goes in."
+                        }
+                        _ => "Each piece is cut on the recording's bars, to loop all through the sections it goes in.",
+                    };
+                    ui.label(RichText::new(note).size(12.0).color(theme::lit(theme::GOOD, 0.35)));
                 });
             ui.add_space(6.0);
             ui.separator();
@@ -1200,20 +1265,26 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
                 .map(|(p, c)| claudius_api::KeptPiece { id: p.id, treated: c.treated })
                 .collect();
             ui.horizontal(|ui| {
-                let another = ui
-                    .add(egui::Button::new("\u{21bb} Other phrases").min_size(vec2(0.0, 30.0)))
-                    .on_hover_text("other phrases among the good ones, other treatments");
+                let (again, tip) = match others > 0 {
+                    true => {
+                        ("\u{21bb} Another take", "other pieces of each kind among the good ones, other treatments")
+                    }
+                    false => ("\u{21bb} Other phrases", "other phrases among the good ones, other treatments"),
+                };
+                let another = ui.add(egui::Button::new(again).min_size(vec2(0.0, 30.0))).on_hover_text(tip);
                 if another.clicked() {
                     cx.out.push(Command::RedrawPieces { seed: None });
                     (im.sample_said, im.awaiting) = (None, true);
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let one = if others > 0 { "piece" } else { "phrase" };
                     let label = match keep.len() {
                         0 => "Put them in the song".to_string(),
-                        1 => "Put 1 phrase in the song".to_string(),
-                        n => format!("Put {n} phrases in the song"),
+                        1 => format!("Put 1 {one} in the song"),
+                        n => format!("Put {n} {one}s in the song"),
                     };
-                    let put = primary(ui, &label, !keep.is_empty()).on_disabled_hover_text("tick a phrase first");
+                    let put =
+                        primary(ui, &label, !keep.is_empty()).on_disabled_hover_text(format!("tick a {one} first"));
                     if put.clicked() {
                         let every = im.every.map(str::to_string);
                         cx.out.push(Command::KeepPieces { keep: keep.clone(), sections: im.places.clone(), every });
@@ -1240,9 +1311,26 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
     }
 }
 
-/// A phrase offered, as a row: ticked to go in, where it is and how sung, to hear as it was cut and treated, and which
-/// of the two goes in.
+/// whether a piece offered is a phrase sung whole (a claudius before 0.11 says no kind: each of its pieces is one)
+fn phrase(p: &PieceView) -> bool {
+    p.kind.is_empty() || p.kind == "phrase"
+}
+
+/// what a piece of `kind` is, as the Sample window names it (`claudius_api::PIECE_KINDS`)
+fn kind_words(kind: &str) -> &'static str {
+    match kind {
+        "hook" => "Loop of its hook",
+        "passage" => "Loop of another passage",
+        "break" => "Drum break",
+        "bass" => "Bass line",
+        _ => "Phrase",
+    }
+}
+
+/// A piece offered, as a row: ticked to go in, what it is and where (a phrase how sung, a piece of another kind what
+/// it scored for), to hear as it was cut and treated, and which of the two goes in.
 fn piece(ui: &mut Ui, im: &mut Import, p: &PieceView, i: usize, hear_now: Option<(u32, bool)>, server: Option<&str>) {
+    let cut = if phrase(p) { "as it was cut, cleaned of the recording's drums" } else { "as it was cut" };
     let used = im.choices.1[i].used;
     let stroke = if used { Stroke::new(1.0, theme::alpha(ACCENT, 0.9)) } else { Stroke::new(1.0, LINE) };
     let fill = if used { theme::mix(RAISED, ACCENT, 0.08) } else { RAISED.into() };
@@ -1255,19 +1343,24 @@ fn piece(ui: &mut Ui, im: &mut Import, p: &PieceView, i: usize, hear_now: Option
                 let (bars, at) = p.place.split_once(", ").unwrap_or((p.place.as_str(), ""));
                 let section = if p.section.is_empty() { String::new() } else { format!("{}, ", capital(&p.section)) };
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new(format!("{} · {section}{bars}", p.id)).strong());
+                    let what = if phrase(p) { String::new() } else { format!("{} · ", kind_words(&p.kind)) };
+                    ui.label(RichText::new(format!("{} · {what}{section}{bars}", p.id)).strong());
                     let bars_long = if p.bars == 1 { "1 bar".to_string() } else { format!("{} bars", p.bars) };
                     let at = if at.is_empty() { String::new() } else { format!("{at} · ") };
-                    let words = format!("{at}{bars_long} · {:.0}% sung", p.sung * 100.0);
+                    let words = match phrase(p) {
+                        true => format!("{at}{bars_long} · {:.0}% sung", p.sung * 100.0),
+                        false => format!("{at}{bars_long}"),
+                    };
                     ui.label(RichText::new(words).size(11.5).color(TEXT_DIM));
                 });
+                // what it scored for: "the drums alone, busy, it loops cleanly"
+                if !phrase(p) && !p.about.is_empty() {
+                    ui.label(RichText::new(&p.about).size(11.5).color(TEXT_FAINT));
+                }
                 if im.choices.1[i].used {
                     ui.horizontal(|ui| {
                         let choice = &mut im.choices.1[i];
-                        if widgets::chip(ui, !choice.treated, "as cut", ACCENT)
-                            .on_hover_text("as it was cut, cleaned of the recording's drums")
-                            .clicked()
-                        {
+                        if widgets::chip(ui, !choice.treated, "as cut", ACCENT).on_hover_text(cut).clicked() {
                             choice.treated = false;
                         }
                         // "washed: an echo on the dotted eighth into a long hall" is "washed", the rest on hover
@@ -1282,10 +1375,9 @@ fn piece(ui: &mut Ui, im: &mut Import, p: &PieceView, i: usize, hear_now: Option
                 }
             });
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                for (treated, label, url, tip) in [
-                    (true, "treated", &p.treated, p.treatment.as_str()),
-                    (false, "as cut", &p.raw, "as it was cut, cleaned of the recording's drums"),
-                ] {
+                for (treated, label, url, tip) in
+                    [(true, "treated", &p.treated, p.treatment.as_str()), (false, "as cut", &p.raw, cut)]
+                {
                     let button = if im.loading(url) {
                         format!("\u{2026} {label}")
                     } else if im.hearing.as_deref() == Some(url.as_str()) {

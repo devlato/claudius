@@ -195,7 +195,8 @@ passage: bars 1-8 of Many Miracles Vocal Melody.caf, its voice (the ears +2.7 fo
 ```
 
 In the studio, the **Add a recording** window offers each way as a card under **How should it go in?**: **Whole**,
-**Its sung phrases**, **A passage**, **Chops** and **A stab**. **Plays in** chooses the song's sections it goes in
+**Its sung phrases**, **Pieces of it** (every kind of piece of it, below), **A passage**, **Chops** and **A stab**.
+**Plays in** chooses the song's sections it goes in
 (none chosen: where it suits), and the button at the foot (**Sample a passage**, **Chop it**, **Sample a stab**) puts
 it in. In the New song dialog, **Sample it into the song** takes a way too.
 
@@ -228,8 +229,13 @@ An assistant does the same with `sample_pieces` (the recording's `path`, or `lib
 `redraw_pieces` for another take, and `keep_pieces` with the pieces to keep, whether treated, and how often they come
 round (`every`, as above).
 
-Besides its phrases, `sample_pieces` offers the best piece of each other kind a recording holds, as producers sample
-records ([design 0021](../design/0021-every-kind-of-sample.md)), each cut on the recording's bars:
+With **Pieces of it** chosen, **Choose its pieces →** opens the **Sample** window with every kind of piece the
+recording holds: its sung phrases, then, under **Its drums, bass and loops**, the best piece of each other kind, each
+saying what it is and why it scored as it did ("Drum break · Intro, bars 1-2", "the drums alone, busy, it loops
+cleanly"). None of those starts ticked; tick the ones you want, as for a phrase. When it has no phrase to offer (no
+voice sings in it, say), the window says why above the other pieces. **Another take** draws other pieces of each kind
+among the good ones. Besides its phrases, `sample_pieces` offers the same, as producers sample records
+([design 0021](../design/0021-every-kind-of-sample.md)), each cut on the recording's bars:
 
 | Kind | What it is | Kept, it plays |
 |---|---|---|

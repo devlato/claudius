@@ -631,6 +631,7 @@ impl Studio {
                 Step::ImportSearch(words) => self.view.import.search_for(&words),
                 Step::ImportUse(n) => self.view.import.use_nth = Some(n),
                 Step::ImportSample => self.view.import.sample_now = true,
+                Step::ImportPieces => self.view.import.every_piece_now(),
                 Step::ImportHear(id, treated) => self.view.import.hear_now = Some((id, treated)),
                 Step::Pick(want) => crate::pick::choose(ctx, want),
                 Step::Listen(remake) => {
@@ -657,9 +658,15 @@ impl Studio {
         plan.tell("record", &self.view.record.said());
         plan.tell("import", &self.view.import.told());
         plan.tell("library", &self.view.import.listed());
+        // each piece by where it is, a piece of another kind than a phrase by its kind first ("3. break: bars 1-2 ..."),
+        // and why there is no phrase when there is none
         let offered = self.state.pieces.as_ref().map(|p| {
-            let each: Vec<String> =
-                p.pieces.iter().map(|x| format!("{}. {} ({})", x.id, x.place, x.treatment)).collect();
+            let kind = |k: &str| if k.is_empty() || k == "phrase" { String::new() } else { format!("{k}: ") };
+            let mut each: Vec<String> =
+                p.pieces.iter().map(|x| format!("{}. {}{} ({})", x.id, kind(&x.kind), x.place, x.treatment)).collect();
+            if !p.no_phrase.is_empty() {
+                each.push(format!("no phrase: {}", p.no_phrase));
+            }
             format!("take {}: {}", p.seed, each.join(" | "))
         });
         plan.tell("pieces", &offered.unwrap_or_default());
@@ -1364,10 +1371,10 @@ impl eframe::App for Studio {
         if let Some(wav) = self.view.palette.say.take() {
             self.backend.hear(wav);
         }
-        if let Some((file, found)) = self.view.import.offer.take() {
+        if let Some((file, found, kinds)) = self.view.import.offer.take() {
             self.inflight += 1;
             self.inflight_since = now;
-            self.backend.offer_pieces(file.bytes.clone(), &file.name, found);
+            self.backend.offer_pieces(file.bytes.clone(), &file.name, found, kinds);
         }
         if let Some(file) = self.view.import.next_to_hear() {
             self.inflight += 1;
