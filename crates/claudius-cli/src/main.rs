@@ -717,7 +717,7 @@ fn run(cli: Cli) -> Result<()> {
             let dir = out.join(format!("{}-{}-{}", bp.genre, song::slug(&bp.title), bp.seed));
             let name =
                 file.file_name().map_or_else(|| file.display().to_string(), |n| n.to_string_lossy().into_owned());
-            let opt = claudius::sampler::Options { count, bars, find, sections, how, every, kinds: Vec::new() };
+            let opt = claudius::sampler::Options { count, bars, find, sections, how, every, ..Default::default() };
             let takes = claudius::take::dir(Some(&dir));
             let done = claudius::sampler::sample(&mut bp, &x, &name, listening.ears.as_ref(), &opt, &takes)
                 .map_err(anyhow::Error::msg)?;
