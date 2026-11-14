@@ -1215,7 +1215,8 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
                     if i == sung && others > 0 {
                         ui.horizontal(|ui| {
                             ui.label(RichText::new("Its drums, bass and loops").strong());
-                            ui.label(RichText::new("the best of each kind it holds").size(11.5).color(TEXT_FAINT));
+                            let more = "the best of each kind it holds, and more where they differ";
+                            ui.label(RichText::new(more).size(11.5).color(TEXT_FAINT));
                         });
                         ui.add_space(4.0);
                     }
