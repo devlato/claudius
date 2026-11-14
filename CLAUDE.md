@@ -17,9 +17,10 @@ of `AGENTS.md` that a script can check:
   uncommitted.
 
 The checks run through `.claude/hooks/ci.sh`, the way GitHub's runners would: without the sample packs and models
-installed on this computer, in a home of their own. They take minutes, so start `.claude/hooks/ci.sh` in the
-background once the last commit is made and carry on with something else; when it has passed, the push goes out at
-once. A refusal says what to fix. If the hook is wrong, say so instead of working around it.
+installed on this computer, in a home of their own, with CI's build settings. They take minutes, so start
+`.claude/hooks/ci.sh` in the background once the last commit is made and carry on with something else; when it has
+passed, the push goes out at once, from whichever worktree of the repository holds that commit. A refusal says what
+to fix. If the hook is wrong, say so instead of working around it.
 
 ## Keeping what you are told
 

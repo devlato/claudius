@@ -23,8 +23,11 @@ rules above that a script can check:
 
 The checks run through `.claude/hooks/ci.sh`, which you can also start yourself. It runs `cargo xtask ci` the way
 GitHub's runners see a machine: with `CLAUDIUS_PACKS` pointing at nothing and a home of its own, so the packs and
-models on your computer do not change what the tests do. It writes its log to `target/claude-ci.log` and remembers
-the tree it passed on, so a push of that tree goes out without a second run.
+models on your computer do not change what the tests do, and with the settings CI builds with (no incremental
+builds, and debug information only for line tables) unless your environment sets its own. It writes its log to
+`target/claude-ci.log` and remembers each tree it passed on, in any worktree of the repository, so a push of that tree
+from any of them goes out without a second run. One run goes at a time in the repository, because a build in each of
+two checkouts at once can fill a disk.
 
 Settings of your own go in `.claude/settings.local.json`, and notes for your own sessions in `CLAUDE.local.md`; git
 leaves both out. `/effort max` lasts only for the session it is typed in; with

@@ -1,7 +1,8 @@
 #!/bin/sh
 # Runs cargo xtask ci on a checkout of claudius the way GitHub's runners see a machine: no sample packs and no models,
-# in a home of its own, because what is installed here changes what some tests do. It remembers the tree it passed
-# on, so that a push of the same tree, which .claude/hooks/guard.sh holds until this has passed, goes out at once.
+# in a home of its own, because what is installed here changes what some tests do, and with the settings CI builds
+# with. It remembers each tree it passed on, in whichever worktree of the repository, so that a push of the same tree
+# from any of them, which .claude/hooks/guard.sh holds until this has passed, goes out at once.
 #
 #   .claude/hooks/ci.sh [checkout]    the current one by default; the log goes to target/claude-ci.log in it
 
@@ -20,10 +21,18 @@ if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
     exit 1
 fi
 tree=$(git rev-parse 'HEAD^{tree}') || exit 1
-passed=$(git rev-parse --path-format=absolute --git-path claude-ci-passed)
-lock=$(git rev-parse --path-format=absolute --git-path claude-ci.lock)
+# kept where every worktree of the repository shares them, so that checks run in one worktree count for a push from
+# another, and two builds, each as big as the first, do not run at once
+common=$(git rev-parse --path-format=absolute --git-common-dir) || exit 1
+passed=$common/claude-ci-passed/$tree
+lock=$common/claude-ci.lock
 
-# one run at a time in a checkout: a second one waits for the first, then finds its result
+if [ -e "$passed" ]; then
+    echo "cargo xtask ci has passed on this tree already"
+    exit 0
+fi
+
+# one run at a time in the repository: a second one waits for the first, then finds its result
 until mkdir "$lock" 2> /dev/null; do
     pid=$(cat "$lock/pid" 2> /dev/null)
     if [ -n "$pid" ] && ! kill -0 "$pid" 2> /dev/null; then
@@ -36,7 +45,7 @@ echo $$ > "$lock/pid"
 trap 'rm -rf "$lock"' EXIT
 trap 'exit 1' HUP INT TERM
 
-if [ "$(cat "$passed" 2> /dev/null)" = "$tree" ]; then
+if [ -e "$passed" ]; then
     echo "cargo xtask ci has passed on this tree already"
     exit 0
 fi
@@ -48,9 +57,12 @@ cargo_home=${CARGO_HOME:-$HOME/.cargo}
 rustup_home=${RUSTUP_HOME:-$HOME/.rustup}
 mkdir -p "$home"
 echo "running cargo xtask ci in $top; the log is $log"
+# CI's settings (.github/workflows/ci.yml) unless the environment has its own; the jobs and test threads cargo and
+# nextest take from it as they always do
 if HOME=$home CARGO_HOME=$cargo_home RUSTUP_HOME=$rustup_home PATH=$cargo_home/bin:$PATH CLAUDIUS_PACKS=/nonexistent \
+    CARGO_INCREMENTAL=${CARGO_INCREMENTAL:-0} CARGO_PROFILE_DEV_DEBUG=${CARGO_PROFILE_DEV_DEBUG:-line-tables-only} \
     cargo xtask ci > "$log" 2>&1; then
-    printf '%s\n' "$tree" > "$passed"
+    mkdir -p "${passed%/*}" && : > "$passed"
     echo "cargo xtask ci passed"
 else
     echo "cargo xtask ci failed. The end of $log:" >&2
