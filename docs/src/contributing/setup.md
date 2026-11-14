@@ -112,8 +112,9 @@ The first build downloads ONNX Runtime (about 120 MB) for earshot, into `~/Libra
 `~/.cache/ort.pyke.io` on Linux.
 
 For the docs and the site there are live previews: `mdbook serve docs` rebuilds the book on every save at
-`http://localhost:3000`, and `node site/tests/serve.mjs` serves `target/site` the way Cloudflare does (headers,
-redirects, the 404 page) at `http://127.0.0.1:4321`.
+`http://localhost:3000`, once `cargo xtask docs` has written the book's list of libraries (`credits/libraries.md`,
+from `Cargo.lock`, which git leaves out: without it mdbook stops at a missing chapter); and `node site/tests/serve.mjs`
+serves `target/site` the way Cloudflare does (headers, redirects, the 404 page) at `http://127.0.0.1:4321`.
 
 ## Running the studio from source
 
