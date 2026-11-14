@@ -341,11 +341,18 @@ pub fn arrange(bp: &Blueprint) -> Project {
             if !s.fills {
                 return Vec::new();
             }
+            // a fill plays on the kit, never on pads that strike notes
             let lanes: Vec<(String, String)> = bp
                 .drums
                 .iter()
                 .zip(&roles)
-                .map(|(d, r)| if s.layers.contains(&d.name) { (d.name.clone(), r.clone()) } else { Default::default() })
+                .map(|(d, r)| {
+                    if s.layers.contains(&d.name) && !d.tonal {
+                        (d.name.clone(), r.clone())
+                    } else {
+                        Default::default()
+                    }
+                })
                 .collect();
             let mut r = Rng::new(bp.seed ^ hash_str("drummer") ^ si as u64);
             let (start, bars) = (sections[si].start_bar as f64 * 4.0, sections[si].bars);
@@ -360,6 +367,9 @@ pub fn arrange(bp: &Blueprint) -> Project {
     // drum lanes
     for (li, (lane, role)) in bp.drums.iter().zip(&roles).enumerate() {
         let is_kick = role == "kick";
+        // pads that strike notes (a hook chopped, a stab) play on as the music does where the kit stops: through the
+        // drummer's endings and a build's drop-out
+        let kit = !lane.tonal;
         let groove = lane.groove.as_deref().and_then(|g| bp.grooves.get(g).cloned().or_else(|| rhythm::groove(g)));
         let mut notes = Vec::new();
         for (si, s) in bp.form.iter().enumerate() {
@@ -379,7 +389,8 @@ pub fn arrange(bp: &Blueprint) -> Project {
                 if let Some(p) = pat {
                     let mut seg = lane_notes(bp, lane, p, groove.as_ref(), (a, b), si);
                     // each phrase's ending: what the drummer plays on this lane there, or the lane left out
-                    for e in &endings[si] {
+                    let ends: &[drummer::Ending] = if kit { &endings[si] } else { &[] };
+                    for e in ends {
                         let mine: Vec<&drummer::Play> = e.plays.iter().filter(|p| p.lane == li).collect();
                         for p in &mine {
                             seg.retain(|n| n.t < p.from - 1e-9 || n.t >= e.at - 1e-9);
@@ -396,14 +407,14 @@ pub fn arrange(bp: &Blueprint) -> Project {
                         }
                     }
                     // builds, after the endings, so that no turn of the drummer's plays into them: the fill lane turns
-                    // into a snare roll; the kick drops out for the last bars, or all the drums do
+                    // into a snare roll; the kick drops out for the last bars, or the whole kit does
                     if rolls && is_fill_lane {
                         seg.retain(|n| n.t < b - roll_len);
                     }
                     if s.build && parts.kick_out && is_kick {
                         seg.retain(|n| n.t < b - how.out_bars as f64 * 4.0);
                     }
-                    if s.build && parts.drums_out {
+                    if kit && s.build && parts.drums_out {
                         let out = how.drums_out_bars.min(s.bars) as f64 * 4.0;
                         seg.retain(|n| n.t < b - out);
                     }
@@ -435,7 +446,7 @@ pub fn arrange(bp: &Blueprint) -> Project {
             // a lane in a groove takes its timing from it: straight, unless it has a swing of its own
             swing: lane.swing.or(groove.as_ref().map(|_| 0.5)),
             mix: TrackMix {
-                bus: if lane.mix.bus == "music" { "drums".into() } else { lane.mix.bus.clone() },
+                bus: if lane.mix.bus == "music" && !lane.tonal { "drums".into() } else { lane.mix.bus.clone() },
                 ..lane.mix.clone()
             },
         });

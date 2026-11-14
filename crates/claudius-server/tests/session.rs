@@ -2167,13 +2167,13 @@ async fn pieces_are_offered_to_hear_drawn_again_and_kept_treated() {
     assert!(r.ok && r.message.contains("take 1"), "{}", r.message);
     assert_eq!(app.state().pieces.unwrap().seed, 1);
     let r = app.command(Command::KeepPieces {
-        keep: vec![claudius_api::KeptPiece { id: 2, treated: false }],
+        keep: vec![claudius_api::KeptPiece { id: 2, ..Default::default() }],
         sections: vec![],
         every: None,
     });
     assert!(!r.ok && r.message.contains("no piece 2 (pieces 1 to 1)"), "{}", r.message);
     let r = app.command(Command::KeepPieces {
-        keep: vec![claudius_api::KeptPiece { id: 1, treated: true }],
+        keep: vec![claudius_api::KeptPiece { id: 1, treated: true, ..Default::default() }],
         sections: vec![],
         every: Some("once".into()),
     });
@@ -2196,7 +2196,7 @@ async fn pieces_are_offered_to_hear_drawn_again_and_kept_treated() {
     assert!(r.ok && r.message.contains(": a ") && r.message.contains("-bar drum break, the drums"), "{}", r.message);
     let offered = app.state().pieces.unwrap().pieces;
     assert!(offered.len() == 1 && offered[0].kind == "break" && !offered[0].about.is_empty(), "{offered:?}");
-    let keep = vec![claudius_api::KeptPiece { id: 1, treated: false }];
+    let keep = vec![claudius_api::KeptPiece { id: 1, ..Default::default() }];
     let r = app.command(Command::KeepPieces { keep, sections: vec![], every: None });
     assert!(r.ok && r.message.starts_with("sampled a drum break of "), "{}", r.message);
     let bp = app.blueprint().unwrap();

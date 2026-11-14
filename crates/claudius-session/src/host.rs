@@ -1022,7 +1022,13 @@ impl Host {
         }
         let Some(mut bp) = self.bp.clone() else { return self.no("no song yet: start one with a new song") };
         let (o, view) = self.pieces.take().expect("an offer, as above");
-        let chosen: Vec<_> = keep.iter().map(|k| (&o.pieces[k.id as usize - 1], k.treated)).collect();
+        let chosen: Vec<_> = keep
+            .iter()
+            .map(|k| {
+                let piece = &o.pieces[k.id as usize - 1];
+                claudius::sampler::Keep { piece, treated: k.treated, chopped: k.chopped }
+            })
+            .collect();
         let opt = claudius::sampler::Options { sections, every, ..o.opt.clone() };
         let before = sampled(&bp);
         let dir = std::path::Path::new(take::IN_MEMORY);

@@ -161,8 +161,8 @@ pub struct PiecesView {
 pub struct PieceView {
     /// what `keep_pieces` names it by: 1, 2 ...
     pub id: u32,
-    /// what it is (`PIECE_KINDS`: a sung phrase, a loop of the hook or of another passage, a drum break, a bass line),
-    /// and what it scored for, in words ("the drums alone, busy, it loops cleanly"); a claudius before 0.11 offers
+    /// what it is (`PIECE_KINDS`: a sung phrase, a loop of the hook or of another passage, a drum break, a bass line, a
+    /// stab), and what it scored for, in words ("the drums alone, busy, it loops cleanly"); a claudius before 0.11 offers
     /// phrases alone, and says neither
     #[serde(default)]
     pub kind: String,
@@ -187,13 +187,16 @@ pub struct PieceView {
     pub treatment: String,
 }
 
-/// a piece to keep (`keep_pieces`): as it was cut, or `treated`
+/// a piece to keep (`keep_pieces`): as it was cut, or `treated`; whole, or `chopped` onto pads
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct KeptPiece {
     pub id: u32,
     #[serde(default)]
     pub treated: bool,
+    /// cut at its onsets onto pads, each a drum lane playing its hits where they came, rather than kept whole
+    #[serde(default)]
+    pub chopped: bool,
 }
 
 /// The studio's transport, as it tells the server (`POST /api/transport`) so that a phone playing along knows where the
@@ -1301,12 +1304,13 @@ pub const SAMPLING_WAYS: [(&str, &str, &str); 4] = [
 
 /// The kinds of piece the auto-sampler offers of a recording (`Command::SamplePieces`'s `kinds`), as producers sample
 /// records (design 0021): the name a request gives, and in words.
-pub const PIECE_KINDS: [(&str, &str); 5] = [
+pub const PIECE_KINDS: [(&str, &str); 6] = [
     ("phrase", "a phrase it sings whole"),
     ("hook", "a loop of its hook, without its drums, bass and voice"),
     ("passage", "a loop of another passage, without its drums, bass and voice"),
     ("break", "its drums, as a break"),
     ("bass", "its bass line"),
+    ("stab", "a stab: one hit of its instruments' chords and a beat of it, struck as a drum is"),
 ];
 
 /// An effect of each kind with settings that sound like something, to add to a chain (`Command::SetFx`): its name
@@ -2297,7 +2301,7 @@ pub enum Command {
     /// the auto-sampler's pieces of a recording (an audio file, or `library:<id>`), offered before any goes into the
     /// song: `count` phrases (1 to 4, default 2) of `bars` bars (1, 2 or 4; whichever sounds best by default), and the
     /// best piece of each other kind it holds (`PIECE_KINDS`: a loop of its hook or of another passage, a drum break, a
-    /// bass line), or only the `kinds` named; each as it was cut and through a treatment, for take `seed` (0, the
+    /// bass line, a stab), or only the `kinds` named; each as it was cut and through a treatment, for take `seed` (0, the
     /// default: the best; any other: another draw)
     SamplePieces {
         path: String,

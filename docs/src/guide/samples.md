@@ -233,9 +233,11 @@ With **Pieces of it** chosen, **Choose its pieces →** opens the **Sample** win
 recording holds: its sung phrases, then, under **Its drums, bass and loops**, the best piece of each other kind and
 more of a kind where they differ (below), each saying what it is and why it scored as it did ("Drum break · Intro,
 bars 1-2", "the drums alone, busy, it loops cleanly"). None of those starts ticked; tick the ones you want, as for a
-phrase. When it has no phrase to offer (no voice sings in it, say), the window says why above the other pieces.
-**Another take** draws other pieces of each kind among the good ones, other than those it offered last. Besides its phrases, `sample_pieces` offers the same, as producers sample records
-([design 0021](../design/0021-every-kind-of-sample.md)), each cut on the recording's bars:
+phrase. A piece ticked goes in **whole**, or **on pads**, [chopped at its hits](#chopping-a-piece-onto-pads). When it
+has no phrase to offer (no voice sings in it, say), the window says why above the other pieces. **Another take** draws
+other pieces of each kind among the good ones, other than those it offered last. Besides its phrases, `sample_pieces`
+offers the same, as producers sample records ([design 0021](../design/0021-every-kind-of-sample.md)), each cut on the
+recording's bars:
 
 | Kind | What it is | Kept, it plays |
 |---|---|---|
@@ -243,13 +245,15 @@ phrase. When it has no phrase to offer (no voice sings in it, say), the window s
 | `passage` | a loop of 2 to 8 bars of another passage with chords | all through the other sections but the intro and the outro |
 | `break` | its drums, 1, 2 or 4 bars | as a drum loop where the song's drums play, at its own pitch, cut onto the song's grid when its tempo is far from the song's |
 | `bass` | its bass line, 1, 2 or 4 bars | in place of the song's bass, in the song's key |
+| `stab` | one hit of its instruments' chords and a beat of it, the hit that comes in hardest and rings its beat alone | struck as a drum is, on a few beats of every two bars, by a drum lane of its own (`stab`), in the song's key, all through it but its intro and outro |
 
 Each is scored as its kind: how alone what it is cut from plays in its bars, how well it loops (its first beat against
 the beat after its end), and what its kind asks besides (how busy a break is, how much a bass line moves, how often a
-hook comes back, how unlike the hook another passage is). Each says why, in words ("the drums alone, busy, it loops
-cleanly"), and goes into the sections `keep_pieces` names, when it names any; a phrase kept with no room in them leaves
-the other pieces kept, and the reply says why it did not go in. `kinds` asks for some only (`phrase`, `hook`,
-`passage`, `break`, `bass`); a recording no voice sings in, or none of whose phrases fits the bars asked, offers the
+hook comes back, how unlike the hook another passage is, and a stab how hard it comes in, at one of SuperFlux's onsets,
+and how cleanly its beat rings on). Each says why, in words ("the drums alone, busy, it loops cleanly"), and goes into
+the sections `keep_pieces` names, when it names any; a phrase kept with no room in them leaves the other pieces kept,
+and the reply says why it did not go in. `kinds` asks for some only (`phrase`, `hook`, `passage`, `break`, `bass`,
+`stab`); a recording no voice sings in, or none of whose phrases fits the bars asked, offers the
 rest and says why there is no phrase. They come from the recording's stems when earshot separates them; without its
 models, a break and the loops come from the mix's percussive and harmonic parts, and a bass line, which the mix does
 not give apart, is not offered.
@@ -270,6 +274,18 @@ each phrase too (`phrases`). The online demo offers pieces the same way, in the 
 Without earshot's models, it goes by the pitch and the stereo picture alone: in a full mix, a lead synth held in the
 middle can then pass for a voice. Sample only what you may use: a recording of someone else's song needs their
 permission before you release what you made with it.
+
+### Chopping a piece onto pads
+
+A break, a loop or a phrase kept chopped (`keep_pieces` with `"chopped": true`) is cut at its onsets, as producers
+chop a record onto a sampler's pads. SuperFlux hears the onsets (Böck & Widmer, DAFx 2013): how much each of 24 bands
+an octave rises over the same bands a moment before, which the wandering of a vibrato does not set off. The hits that
+sound as one share a pad (its kicks, its snares, its hats), eight pads at most, and each pad is a drum lane of its own
+(`chop`, `chop2` ...) that strikes it where its hits came and as hard, straight and with none of the song's groove, so
+that the lanes play the piece as it was. Each hit plays at its own speed, so a break played at another tempo keeps
+every hit whole, as no loop stretched to fit it does. Then play them otherwise, in the Drums tab or [from a
+phone](phone.md). A phrase chopped plays in the drops and hooks, as chops of a voice do, and a piece with too few hits
+to chop says so.
 
 ## Takes
 

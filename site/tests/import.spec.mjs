@@ -215,6 +215,29 @@ test.describe("adding a recording", () => {
     }
   });
 
+  test("in the demo, a drum break kept on pads is drum lanes that play it as it was", async () => {
+    test.setTimeout(150_000);
+    const c = await claudius();
+    const b = await chromium.launch();
+    try {
+      const page = await b.newPage();
+      const offered = heard(page, "pieces");
+      const toasts = heard(page, "toast");
+      // drums alone offer their break alone, as the first piece
+      const keep = JSON.stringify({ cmd: "keep_pieces", keep: [{ id: 1, chopped: true }] });
+      await page.goto(`${c.base}/?mock&plan=${encodeURIComponent(`wait:3;import:pieces;wait:70;cmd:${keep};wait:30`)}`);
+      await page.waitForTimeout(8_000);
+      const file = join(mkdtempSync(join(tmpdir(), "claudius-import-")), "drums.wav");
+      band(file, { tonal: false });
+      await drop(page, file);
+      await expect.poll(() => offered.join("\n"), { timeout: 70_000 }).toMatch(/^take 0: 1\. break: /m);
+      await expect.poll(() => toasts.join("\n"), { timeout: 60_000 }).toMatch(/chopped at its \d+ onsets onto \d pads/);
+    } finally {
+      await b.close();
+      c.stop();
+    }
+  });
+
   test("in the demo, Pieces of it of drums alone offers their break and says why there is no phrase", async () => {
     test.setTimeout(150_000);
     const c = await claudius();
