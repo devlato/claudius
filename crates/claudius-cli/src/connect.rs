@@ -536,8 +536,14 @@ pub fn connect(client: Client, http: bool, remove: bool, port: u16, with_skills:
 /// connects assistants for the studio window, which runs in this program (`claudius studio`)
 #[cfg(feature = "studio")]
 pub struct FromTheStudio {
-    /// the port and the version of an older claudius the studio found on its port, and runs its own engine beside
-    pub older: Option<(u16, String)>,
+    /// the port and the version of an older claudius the studio found on its port, and runs its own engine beside,
+    /// until the studio takes its port (`take_over`)
+    pub older: std::sync::Mutex<Option<(u16, String)>>,
+    /// the studio's own engine, when it serves one, and how it is served, to serve it on that port too
+    pub own: Option<(std::sync::Arc<claudius_server::App>, claudius_server::Options)>,
+    /// the folder the older claudius's song was saved in, kept until the port is taken: a try that stops short says
+    /// where it is, and the next one offers it to open
+    pub saved: std::sync::Mutex<Option<PathBuf>>,
 }
 
 #[cfg(feature = "studio")]
@@ -609,7 +615,32 @@ impl claudius_ui::Native for FromTheStudio {
     }
 
     fn older_engine(&self) -> Option<(u16, String)> {
-        self.older.clone()
+        self.older.lock().ok()?.clone()
+    }
+
+    fn take_over(&self) -> Result<claudius_ui::TakenOver, String> {
+        let Some((port, _)) = self.older_engine() else {
+            return Err("no older claudius holds the studio's port".into());
+        };
+        let Some((app, options)) = &self.own else {
+            return Err("this studio drives another claudius beside the older one rather than its own engine: quit \
+                        them both, then open the studio again"
+                .into());
+        };
+        let (older, saved) = crate::takeover::save_older(port).map_err(|e| format!("{e:#}"))?;
+        let mut kept = self.saved.lock().map_err(|e| e.to_string())?;
+        if saved.is_some() {
+            *kept = saved;
+        }
+        let said = crate::takeover::stop_and_serve(port, older.as_deref(), kept.as_deref(), app, options.clone())
+            .map_err(|e| match kept.as_ref() {
+                Some(dir) => format!("{e:#} (its song is saved in {})", dir.display()),
+                None => format!("{e:#}"),
+            })?;
+        if let Ok(mut older) = self.older.lock() {
+            *older = None;
+        }
+        Ok(claudius_ui::TakenOver { said, saved: kept.take().map(|p| p.display().to_string()) })
     }
 }
 

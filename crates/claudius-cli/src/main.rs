@@ -21,6 +21,8 @@ mod publish;
 mod report;
 mod setup;
 mod skills;
+#[cfg(feature = "studio")]
+mod takeover;
 mod telemetry;
 mod update;
 
@@ -803,7 +805,12 @@ fn run(cli: Cli) -> Result<()> {
             #[cfg(feature = "studio")]
             {
                 update::start();
-                let native = std::sync::Arc::new(connect::FromTheStudio { older });
+                let served = claudius_server::Options { web: app.web(), ..Default::default() };
+                let native = std::sync::Arc::new(connect::FromTheStudio {
+                    older: std::sync::Mutex::new(older),
+                    own: own.clone().map(|session| (session, served)),
+                    saved: std::sync::Mutex::new(None),
+                });
                 let shown = claudius_ui::run_native(Some(url), Some(native));
                 if let Some(session) = &own {
                     session.wait_for_ears(std::time::Duration::from_secs(60));

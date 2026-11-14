@@ -80,6 +80,20 @@ pub trait Native: Send + Sync {
     fn older_engine(&self) -> Option<(u16, String)> {
         None
     }
+
+    /// Stops the older claudius on the studio's port (`older_engine`) and serves this studio's engine there too, so
+    /// that an assistant set up before this version reaches it when it starts again: its song saved first. It takes a
+    /// few seconds, saving its song most.
+    fn take_over(&self) -> Result<TakenOver, String> {
+        Err("this studio cannot take the port of another claudius".into())
+    }
+}
+
+/// what taking an older claudius's port did (`Native::take_over`): in a line, and the folder its song was saved in, to
+/// open here
+pub struct TakenOver {
+    pub said: String,
+    pub saved: Option<String>,
 }
 
 /// the assistants `claudius connect` knows (id, name), for the web studio, which can only show the commands

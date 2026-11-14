@@ -29,7 +29,7 @@ mod tour;
 mod widgets;
 
 pub use app::Studio;
-pub use native::{Assistant, Connected, Native, Update};
+pub use native::{Assistant, Connected, Native, TakenOver, Update};
 pub use net::Connection;
 
 /// The id eframe stores the studio's preferences under (the window's title is the app's name, Claudius).

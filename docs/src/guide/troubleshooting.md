@@ -90,7 +90,12 @@ assistant set up with that copy, or with a bare `claudius` that a terminal finds
 port the studio uses.
 
 The studio and `claudius mcp` run beside an older claudius on the port instead of driving it, and the studio shows a
-banner that says so; `claudius doctor` names it (`an older claudius (0.2.0) is running here`). To set it right:
+banner that says so; `claudius doctor` names it (`an older claudius (0.2.0) is running here`). What the assistant
+changes then goes to the older one's song, not the studio's. The banner's **Stop it and take port 7878** sets that
+right at once: the studio asks the older claudius to save its song (into `~/Music/claudius/from claudius 0.8.0`, which
+**Open it here** then opens), stops it, and serves its own engine on the port too, where the assistant's claudius finds
+it once the assistant is restarted. It stops nothing that is not claudius, and nothing whose song it could not save
+first. To set it right for good:
 
 1. Connect the assistant again from this version: the studio's **?** menu, **Connect an assistant**, or
    `claudius connect <assistant>`. It writes the full path of this claudius, and names any older copy a terminal
