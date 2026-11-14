@@ -1555,14 +1555,13 @@ pub fn severity_in_words(s: f64) -> &'static str {
     }
 }
 
-/// The verdict's issues about track `name`, whose role is `role` (`TrackView::role`): its level, its part or its sound,
-/// as each issue's target names them (`level:<track>+`, `part:<name>`, `sound:<part>`). A part named by a role
-/// (`part:lead`, `part:bass`) is the track of that role when no track has that name (`is_track` says which have).
+/// The verdict's issues about track `name`: its level, its part or its sound, as each issue's target names them
+/// (`level:<track>+`, `part:<name>`, `sound:<part>`). A part is the track `track_for` says it names: the track of that
+/// name, else the first track of the role it names (`part:lead`, `part:bass`), which is the one the critic judges.
 pub fn issues_of<'a>(
     v: &'a VerdictView,
     name: &str,
-    role: &str,
-    is_track: impl Fn(&str) -> bool,
+    track_for: impl Fn(&str) -> Option<String>,
 ) -> Vec<&'a (f64, String, String)> {
     v.issues
         .iter()
@@ -1571,7 +1570,7 @@ pub fn issues_of<'a>(
             let of = of.trim_end_matches(['+', '-']);
             match kind {
                 "level" | "sound" => of == name,
-                "part" => of == name || (!role.is_empty() && of == role && !is_track(of)),
+                "part" => track_for(of).as_deref() == Some(name),
                 _ => false,
             }
         })
@@ -2593,15 +2592,20 @@ mod tests {
                 .into(),
             ..Default::default()
         };
-        let tracks = ["bass", "melody", "pad", "bassline"];
-        let of = |name: &str, role: &str| -> Vec<String> {
-            issues_of(&v, name, role, |n| tracks.contains(&n)).into_iter().map(|i| i.2.clone()).collect()
+        // each track's name and role, in the song's order
+        let tracks = [("bass", "bass"), ("melody", "lead"), ("pad", "pad"), ("bassline", "bass"), ("solo", "lead")];
+        let track_for = |n: &str| {
+            let named = tracks.iter().find(|t| t.0 == n).or_else(|| tracks.iter().find(|t| t.1 == n));
+            named.map(|t| t.0.to_string())
         };
-        assert_eq!(of("bass", "bass"), ["level:bass+"], "its level, not another's whose name starts the same");
-        assert_eq!(of("melody", "lead"), ["part:lead"], "the lead, by its role, as no track is called lead");
-        assert_eq!(of("pad", "pad"), ["sound:pad"]);
-        assert_eq!(of("bassline", "bass"), ["level:bassline-"], "its own level only");
-        assert!(of("kick", "drum").is_empty(), "the master and the bands are the song's");
+        let of =
+            |name: &str| -> Vec<String> { issues_of(&v, name, track_for).into_iter().map(|i| i.2.clone()).collect() };
+        assert_eq!(of("bass"), ["level:bass+"], "its level, not another's whose name starts the same");
+        assert_eq!(of("melody"), ["part:lead"], "the lead, by its role, as no track is called lead");
+        assert!(of("solo").is_empty(), "a second lead: the critic judges the first");
+        assert_eq!(of("pad"), ["sound:pad"]);
+        assert_eq!(of("bassline"), ["level:bassline-"], "its own level only");
+        assert!(of("kick").is_empty(), "the master and the bands are the song's");
     }
 
     #[test]

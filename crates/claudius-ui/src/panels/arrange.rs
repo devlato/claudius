@@ -731,10 +731,11 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 ""
             };
             // what the critic says of the track: a dot at its row's end, as the worst of it, and in full on hover
-            let role = track.map_or("", |t| t.role.as_str());
-            let notes = verdict.map_or_else(Vec::new, |v| {
-                claudius_api::issues_of(v, layer, role, |n| song.tracks.iter().any(|t| t.name == n))
-            });
+            let track_for = |n: &str| {
+                let named = song.tracks.iter().find(|t| t.name == n);
+                named.or_else(|| song.tracks.iter().find(|t| t.role == n)).map(|t| t.name.clone())
+            };
+            let notes = verdict.map_or_else(Vec::new, |v| claudius_api::issues_of(v, layer, track_for));
             if let Some(worst) = notes.iter().map(|i| i.0).reduce(f64::max) {
                 let at = pos2(rect.left() + GUTTER - 5.0, y0 + row_h / 2.0);
                 p.circle_filled(at, 3.0, theme::score_color(1.0 - worst));
