@@ -809,6 +809,7 @@ fn run(cli: Cli) -> Result<()> {
                 let native = std::sync::Arc::new(connect::FromTheStudio {
                     older: std::sync::Mutex::new(older),
                     own: own.clone().map(|session| (session, served)),
+                    saved: std::sync::Mutex::new(None),
                 });
                 let shown = claudius_ui::run_native(Some(url), Some(native));
                 if let Some(session) = &own {

@@ -12,26 +12,37 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-/// Stops the older claudius on `port` of this computer and serves `own`, the studio's engine, there as well. Its song is
-/// saved first, into a folder of its own under the songs folder, and nothing is stopped when it cannot be. Refuses what
-/// is not claudius, a claudius no older than this one, and one that asks for a token. What it did, in a line, and the
-/// folder its song went into.
-pub fn take_over(
-    port: u16,
-    own: &Arc<claudius_server::App>,
-    options: claudius_server::Options,
-) -> Result<(String, Option<PathBuf>)> {
+/// The older claudius on `port` of this computer (its version; none when nothing answers there any more), its song
+/// saved into a folder of its own under the songs folder, once it has finished rendering it (`settled`). Refuses what
+/// is not claudius, a claudius no older than this one, one that asks for a token, and one whose song it cannot save.
+pub fn save_older(port: u16) -> Result<(Option<String>, Option<PathBuf>)> {
     let base = format!("http://127.0.0.1:{port}");
     let older = match probe(&base, &None) {
-        Probe::Claudius(v) if older_than_this(&v) => Some(v),
+        Probe::Claudius(v) if older_than_this(&v) => v,
         Probe::Claudius(v) => bail!("the claudius on port {port} ({v}) is no older than this one"),
         Probe::NeedsToken => bail!("the claudius on port {port} asks for a token: stop it where it runs"),
-        Probe::Nothing => None,
+        Probe::Nothing => return Ok((None, None)),
     };
-    let mut saved = None;
-    if let Some(v) = &older {
-        saved = save_song(&base, v, &claudius::config::songs_dir())
-            .map_err(|e| anyhow::anyhow!("could not save its song first ({e}), so it still runs"))?;
+    let saved = save_song(&base, &older, &claudius::config::songs_dir())
+        .map_err(|e| anyhow::anyhow!("could not save its song first ({e}), so it still runs"))?;
+    if saved.is_some() {
+        settled(&base, Duration::from_secs(180));
+    }
+    Ok((Some(older), saved))
+}
+
+/// Stops the older claudius on `port` (`older`, as `save_older` found it; none when nothing answers there) and serves
+/// `own`, the studio's engine, there as well. Refuses to stop what is not claudius. What it did, in a line, with where
+/// its song was saved (`saved`).
+pub fn stop_and_serve(
+    port: u16,
+    older: Option<&str>,
+    saved: Option<&Path>,
+    own: &Arc<claudius_server::App>,
+    options: claudius_server::Options,
+) -> Result<String> {
+    let base = format!("http://127.0.0.1:{port}");
+    if older.is_some() && !matches!(probe(&base, &None), Probe::Nothing) {
         let pid = listener(port).with_context(|| format!("cannot tell which program holds port {port}"))?;
         let program = program_of(pid).unwrap_or_default();
         if !is_claudius(&program) {
@@ -48,7 +59,26 @@ pub fn take_over(
     }
     claudius_server::spawn(own.clone(), SocketAddr::from(([127, 0, 0, 1], port)), options)
         .with_context(|| format!("port {port} is free, but this studio could not take it"))?;
-    Ok((said(port, older.as_deref(), saved.as_deref()), saved))
+    Ok(said(port, older, saved))
+}
+
+/// waits, up to `most`, until the claudius at `base` runs no job: a save answers once the song is written, and renders
+/// its audio after, which stopping it then would cut short
+fn settled(base: &str, most: Duration) {
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_global(Some(Duration::from_secs(10)))
+        .http_status_as_error(false)
+        .build()
+        .into();
+    let busy = || {
+        let mut res = agent.get(format!("{base}/api/state")).call().ok()?;
+        let state: serde_json::Value = serde_json::from_str(&res.body_mut().read_to_string().ok()?).ok()?;
+        Some(!state["busy"].is_null())
+    };
+    let since = Instant::now();
+    while busy() == Some(true) && since.elapsed() < most {
+        std::thread::sleep(Duration::from_millis(500));
+    }
 }
 
 /// what taking the port did, in a line
@@ -220,6 +250,26 @@ mod tests {
         );
         assert!(said(7878, Some(""), None).contains("Stopped the older claudius on port 7878: this studio answers"));
         assert!(said(7878, Some("0.8.0"), None).contains("It held no song."));
+    }
+
+    #[test]
+    fn stopping_waits_for_the_older_claudius_to_finish_rendering_what_it_saved() {
+        use std::io::{Read, Write};
+        let server = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let base = format!("http://{}", server.local_addr().unwrap());
+        let asked = std::thread::spawn(move || {
+            for state in [r#"{"busy":"rendering"}"#, r#"{"busy":"rendering"}"#, r#"{"busy":null}"#] {
+                let (mut s, _) = server.accept().unwrap();
+                let _ = s.read(&mut [0u8; 2048]);
+                let reply =
+                    format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{state}", state.len());
+                s.write_all(reply.as_bytes()).unwrap();
+            }
+        });
+        let since = Instant::now();
+        settled(&base, Duration::from_secs(30));
+        asked.join().unwrap();
+        assert!(since.elapsed() < Duration::from_secs(10), "it stops waiting once no job runs");
     }
 
     #[test]
