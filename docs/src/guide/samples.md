@@ -232,8 +232,9 @@ round (`every`, as above).
 With **Pieces of it** chosen, **Choose its pieces →** opens the **Sample** window with every kind of piece the
 recording holds: its sung phrases, then, under **Its drums, bass and loops**, the best piece of each other kind, each
 saying what it is and why it scored as it did ("Drum break · Intro, bars 1-2", "the drums alone, busy, it loops
-cleanly"). None of those starts ticked; tick the ones you want, as for a phrase. **Another take** draws other pieces of
-each kind among the good ones. Besides its phrases, `sample_pieces` offers the same, as producers sample records
+cleanly"). None of those starts ticked; tick the ones you want, as for a phrase. When it has no phrase to offer (no
+voice sings in it, say), the window says why above the other pieces. **Another take** draws other pieces of each kind
+among the good ones. Besides its phrases, `sample_pieces` offers the same, as producers sample records
 ([design 0021](../design/0021-every-kind-of-sample.md)), each cut on the recording's bars:
 
 | Kind | What it is | Kept, it plays |

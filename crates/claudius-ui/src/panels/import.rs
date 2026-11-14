@@ -1203,6 +1203,11 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
                 });
                 ui.add_space(4.0);
             }
+            if sung == 0 && !offered.no_phrase.is_empty() {
+                let why = format!("no phrase to offer: {}", offered.no_phrase);
+                ui.label(RichText::new(why).size(12.0).color(TEXT_FAINT));
+                ui.add_space(4.0);
+            }
             for (i, p) in offered.pieces.iter().enumerate() {
                 if i == sung && others > 0 {
                     ui.horizontal(|ui| {
