@@ -209,7 +209,8 @@ fetches it and decodes it as claudius does before it plays, so nothing heard bef
 says why one could not play). One chosen is fetched, to be heard as a file chosen is; with a claudius it is added by
 its id (`add_take` or `sample_song` with `library:<id>`, which claudius downloads and credits), and the demo hands the
 engine its record (`found`) with its audio, which credits it. **Choose its phrases →** asks for the auto-sampler's
-pieces instead (`sample_pieces` by id, or `/api/sample/pieces` with the file) and opens the Sample window
+pieces instead (`sample_pieces` by id, or `/api/sample/pieces` with the file, `kinds` `phrase`; **Choose its pieces
+→**, of the Pieces of it card, every kind) and opens the Sample window
 (`import::pieces`), which shows the state's `pieces` once the answer to that request has come (the offer claudius held
 before is the last recording's): each heard as it was cut and treated from `/api/pieces/`, ticked, drawn again
 (`redraw_pieces`) and put in the song (`keep_pieces`). In the demo the engine offers them
