@@ -301,6 +301,7 @@ impl Import {
 
     /// every kind of piece of the recording held offered now, as the Pieces of it card's button offers them (a scripted
     /// run's `import:pieces`)
+    #[cfg(any(not(target_arch = "wasm32"), feature = "plan"))]
     pub fn every_piece_now(&mut self) {
         (self.how, self.sample_now) = ("pieces", true);
     }

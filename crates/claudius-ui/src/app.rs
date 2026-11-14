@@ -658,9 +658,11 @@ impl Studio {
         plan.tell("record", &self.view.record.said());
         plan.tell("import", &self.view.import.told());
         plan.tell("library", &self.view.import.listed());
+        // each piece by where it is, a piece of another kind than a phrase by its kind first ("3. break: bars 1-2 ...")
         let offered = self.state.pieces.as_ref().map(|p| {
+            let kind = |k: &str| if k.is_empty() || k == "phrase" { String::new() } else { format!("{k}: ") };
             let each: Vec<String> =
-                p.pieces.iter().map(|x| format!("{}. {} ({})", x.id, x.place, x.treatment)).collect();
+                p.pieces.iter().map(|x| format!("{}. {}{} ({})", x.id, kind(&x.kind), x.place, x.treatment)).collect();
             format!("take {}: {}", p.seed, each.join(" | "))
         });
         plan.tell("pieces", &offered.unwrap_or_default());
