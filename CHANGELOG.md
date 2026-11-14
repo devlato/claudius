@@ -6,6 +6,8 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-14
+
 **Add a recording** shows what claudius hears in a recording before it asks anything: its length, tempo and key,
 whether a voice sings in it, and its sections over its waveform with each phrase its voice sings marked, to click and
 hear. The ways it goes in are cards (whole, its sung phrases, a passage, chops, a stab), and where it plays and how
@@ -16,6 +18,27 @@ its hook and of another passage, its drum breaks, its bass lines and stabs of it
 saying why. They come as a varied choice: two different grooves, say, rather than two cuts of one. Each goes in whole
 or **on pads**: chopped at its hits onto drum lanes that play it as it was, to play otherwise in the Drums tab or from
 a phone. Assistants have the same in `sample_pieces` (`kinds`) and `keep_pieces` (`chopped`).
+
+### Added
+
+- studio: Add a recording shows what claudius hears in a recording first, and offers its ways as cards ([#265](https://github.com/devlato/claudius/pull/265))
+- studio: The web studio's page draws the studio's outline and how much of it has arrived while it loads ([#272](https://github.com/devlato/claudius/pull/272))
+- sampler: Offer a recording's drum breaks, bass lines and loops beside its sung phrases, each scored as its kind ([#274](https://github.com/devlato/claudius/pull/274))
+- studio: Hovering a track's name says what the critic says of it, and a dot says there is something ([#270](https://github.com/devlato/claudius/pull/270))
+- studio: Pieces of it offers a recording's drum breaks, bass lines and loops in the Sample window, each saying what it is ([#275](https://github.com/devlato/claudius/pull/275))
+- sampler: A varied offer of every kind of piece, more of the kinds producers and the song's genre sample, and another take of other pieces ([#276](https://github.com/devlato/claudius/pull/276))
+- studio: An older claudius on the studio's port can be stopped, its song saved to open here, and its port taken ([#277](https://github.com/devlato/claudius/pull/277))
+- mcp: A version tool says which claudius an assistant drives and whether a studio follows it ([#278](https://github.com/devlato/claudius/pull/278))
+- sampler: Pieces kept chopped onto pads at their onsets, and stabs of a recording's instruments ([#280](https://github.com/devlato/claudius/pull/280))
+
+### Fixed
+
+- app: MacOS asks before claudius opens Downloads, Desktop or Documents, and a file it cannot open says how to set it right ([#279](https://github.com/devlato/claudius/pull/279))
+
+### Documentation
+
+- The Mac app is notarized, so the site and the guides no longer send people to Open Anyway ([#266](https://github.com/devlato/claudius/pull/266))
+- Credit the libraries, models, ports, fonts, sounds and papers claudius is built on ([#262](https://github.com/devlato/claudius/pull/262))
 
 ## [0.10.0] - 2026-11-13
 
@@ -1197,7 +1220,8 @@ The first public release.
   theory checks), Linux on x86_64 and ARM64 with a headless build for machines without sound or a display, and
   Windows as a preview. One-line installers for each, which come with every release and are in its checksums.
 
-[unreleased]: https://github.com/devlato/claudius/compare/v0.10.0...HEAD
+[unreleased]: https://github.com/devlato/claudius/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/devlato/claudius/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/devlato/claudius/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/devlato/claudius/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/devlato/claudius/compare/v0.7.0...v0.8.0
