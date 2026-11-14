@@ -15,7 +15,7 @@ tone(song, 6);
 /** A band, as a mono 16-bit WAV at 24 kHz: 120 BPM, sixteen bars of a kick on every beat and a hat on every off-beat,
  * alone for four bars, then a bass on the roots and the chords themselves, A minor, F, C and G a bar each, three
  * times round. No voice. */
-function band(path) {
+function band(path, { tonal = true } = {}) {
   const rate = 24_000;
   const n = 16 * 2 * rate;
   const x = new Float32Array(n);
@@ -28,7 +28,7 @@ function band(path) {
   }
   const chords = [[220, 261.63, 329.63], [174.61, 220, 261.63], [261.63, 329.63, 392], [196, 246.94, 293.66]];
   const roots = [55, 43.65, 65.41, 49];
-  for (let bar = 4; bar < 16; bar++) {
+  for (let bar = 4; tonal && bar < 16; bar++) {
     const c = (bar - 4) % 4;
     for (let i = 0; i < 2 * rate; i++) {
       const t = (bar * 2 * rate + i) / rate;
@@ -209,6 +209,25 @@ test.describe("adding a recording", () => {
       await drop(page, file);
       await expect.poll(() => offered.join("\n"), { timeout: 60_000 }).toMatch(/^take 0: .*\d\. break: bars? [\d-]+/m);
       expect(offered.join("\n")).toMatch(/\d\. hook: bars? [\d-]+/);
+    } finally {
+      await b.close();
+      c.stop();
+    }
+  });
+
+  test("in the demo, Pieces of it of drums alone offers their break and says why there is no phrase", async () => {
+    test.setTimeout(150_000);
+    const c = await claudius();
+    const b = await chromium.launch();
+    try {
+      const page = await b.newPage();
+      const offered = heard(page, "pieces");
+      await page.goto(`${c.base}/?mock&plan=${encodeURIComponent("wait:3;import:pieces;wait:80")}`);
+      await page.waitForTimeout(8_000);
+      const file = join(mkdtempSync(join(tmpdir(), "claudius-import-")), "drums.wav");
+      band(file, { tonal: false });
+      await drop(page, file);
+      await expect.poll(() => offered.join("\n"), { timeout: 60_000 }).toMatch(/^take 0: 1\. break: bars? [\d-]+.* \| no phrase: \w/m);
     } finally {
       await b.close();
       c.stop();

@@ -1208,17 +1208,21 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
                 ui.label(RichText::new(why).size(12.0).color(TEXT_FAINT));
                 ui.add_space(4.0);
             }
-            for (i, p) in offered.pieces.iter().enumerate() {
-                if i == sung && others > 0 {
-                    ui.horizontal(|ui| {
-                        ui.label(RichText::new("Its drums, bass and loops").strong());
-                        ui.label(RichText::new("the best of each kind it holds").size(11.5).color(TEXT_FAINT));
-                    });
-                    ui.add_space(4.0);
+            // the window's other rows take about 360 points; the pieces scroll in what the screen has left
+            let room = (ui.ctx().content_rect().height() - 360.0).max(180.0);
+            egui::ScrollArea::vertical().max_height(room).auto_shrink([false, true]).show(ui, |ui| {
+                for (i, p) in offered.pieces.iter().enumerate() {
+                    if i == sung && others > 0 {
+                        ui.horizontal(|ui| {
+                            ui.label(RichText::new("Its drums, bass and loops").strong());
+                            ui.label(RichText::new("the best of each kind it holds").size(11.5).color(TEXT_FAINT));
+                        });
+                        ui.add_space(4.0);
+                    }
+                    piece(ui, im, p, i, hear_now, server.as_deref());
+                    ui.add_space(6.0);
                 }
-                piece(ui, im, p, i, hear_now, server.as_deref());
-                ui.add_space(6.0);
-            }
+            });
             if let Some(why) = &im.play_said {
                 ui.label(RichText::new(format!("could not play it: {why}")).color(ui.visuals().error_fg_color));
             }
