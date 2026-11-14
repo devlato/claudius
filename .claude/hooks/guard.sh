@@ -217,9 +217,10 @@ run() {
             /*) ;;
             *) dir= ;;
         esac
-        [ -n "$dir" ] && [ -d "$dir" ] ||
+        if [ -z "$dir" ] || [ ! -d "$dir" ]; then
             refuse "AGENTS.md: a push waits for cargo xtask ci on its checkout, and this command does not show which checkout that is: its folder comes through a variable, a substitution or a subshell, a quoted cd after the first, cd - or popd, or is not there." \
                 "Name the folder in plain words: cd /path/to/checkout && git push, or git -C /path/to/checkout push."
+        fi
         top=$(git -C "$dir" rev-parse --show-toplevel 2> /dev/null) || continue
         ours "$top" || continue
         report=$("$here/ci.sh" "$top" 2>&1) ||
