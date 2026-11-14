@@ -1,12 +1,14 @@
-# 0011 Libraries of sounds and effects, made, brought and shared
+# 0019 Libraries of sounds and effects, made, brought and shared
 
 Status: proposed
 
 ## Context
 
-Today claudius plays its own synth presets and effects, the curated packs in `registry.json` ([0007](0007-sample-licensing.md)),
-Strudel sample maps added with `claudius-packs add-map`, the person's sample folders, and Apple Loops. People want more
-than that:
+Today claudius plays its own synth presets and effects; 27 curated packs listed in `registry.json`, 22 of them on by
+default, which `claudius setup` or the `install_packs` tool downloads from their authors
+([0007](0007-sample-licensing.md)); Strudel sample maps added with `claudius-packs add-map`; the person's sample
+folders and Apple Loops; and recordings from online libraries anyone may use, each downloaded once into the samples
+folder with its credit ([0010](0010-online-samples.md)). People want more than that:
 
 - to bring their own sounds: recordings they made, or processed sounds they are proud of;
 - to make sounds and effects in claudius itself, and keep them;
@@ -14,11 +16,11 @@ than that:
 - to keep some libraries for themselves only.
 
 A sound is either recorded audio, or a procedure that makes it. An effect is a procedure over up to N input tracks
-with one output ([0010](0010-processors.md)), which should be able to stream in real time.
+with one output ([0018](0018-processors.md)), which should be able to stream in real time.
 
 The constraints:
 
-- **Speed.** Scripts are Rhai, an interpreter, far too slow per sample, as 0010 explains.
+- **Speed.** Scripts are Rhai, an interpreter, far too slow per sample, as 0018 explains.
 - **Strudel.** Strudel patterns run in claudius; using sounds has to stay Strudel's way.
 - **Downloads.** A downloaded library must not be able to do anything but make sound.
 - **Saved songs.** They have to keep opening.
@@ -33,14 +35,14 @@ author, licence and description, its files, and its items. An item is one of:
   packs' instruments have today;
 - **a procedural sound**: a recorded graph of synthesis blocks, played per note with the note's pitch, velocity and
   length, and with knobs;
-- **an effect**: a recorded graph over 1 to 8 inputs, with knobs, as in 0010.
+- **an effect**: a recorded graph over 1 to 8 inputs, with knobs, as in 0018.
 
-The curated packs are read as libraries too, so there is one loader and one resolver.
+The curated packs and the Strudel maps are read as libraries too, so there is one loader and one resolver.
 
 **Definitions are data.** Sounds and effects are defined in the script language, by a function that runs once on
-stand-ins and is recorded as a graph, the way 0010 defines processors:
+stand-ins and is recorded as a graph, the way 0018 defines processors:
 
-```js
+```js no-run
 sound("mine:glass", |note| osc("sine", note).fm(osc("sine", note * 3.5), knob("bite", 2, 0, 8))
     .env(2, 900).lpf(knob("tone", 6000, 200, 16000)));
 effect("mine:pump", |music, kick| music.duck(kick, knob("depth", 0.7, 0, 1)));
@@ -54,11 +56,19 @@ preset costs.
 than whole-song buffers:
 
 - An offline render runs a graph block by block over the song.
-- The studio can run the same graph live: audition a sound, or turn an effect's knob and hear it at once, without a new
+- The studio runs the same graph live: audition a sound, or turn an effect's knob and hear it at once, without a new
   render.
 - Memory stays bounded by the block, not the song.
 
-Today's whole-buffer effects keep working. They move to blocks one at a time, each move held to the tests below.
+**The live mix builds the runtime first.** Before libraries, the studio gets a live mix: each track's signal before
+its fader is kept from the last render, and a real-time mixer plays them, with the levels, pans and sends, the buses,
+the returns and the master running live, so that a knob is heard as it turns. It needs the effects on the buses,
+returns and master in blocks, in this runtime, and an audio path that plays them as they come: a callback on the
+computer, and an AudioWorklet running the same Rust in the browser. Library effects and procedural sounds then play
+live in what the live mix built. The offline render stays what is exported and what the critic hears.
+
+Today's whole-buffer effects keep working. They move to blocks one at a time, those of the buses, returns and master
+first, each move held to the tests below.
 
 **Using sounds stays Strudel's.** A library sound plays with `s("mine:glass")`, `.bank("mine")` and `n()`.
 `samples("github:user/repo")` and `samples(url)` load a Strudel sample map as a library, which is what `add-map` does
@@ -67,16 +77,18 @@ claudius' own; the docs mark them as extensions to Strudel.
 
 **Where libraries live:**
 
-- **Personal libraries** are folders in `~/Music/claudius/libraries/`. They are made with `claudius library new`, with
-  the studio's *Save as sound* or *Save as effect*, or by a script's `library("mine")`. They stay on the computer.
-- **Installed libraries** come from the marketplace, a URL or GitHub, into claudius' data folder. They are pinned to a
-  version and its SHA-256, like the packs.
+- **Personal libraries** are folders in `~/Music/claudius/libraries/`, beside the person's songs. They are made with
+  `claudius library new`, with the studio's *Save as sound* or *Save as effect*, or by a script's `library("mine")`.
+  They stay on the computer.
+- **Installed libraries** come from the marketplace, a URL or GitHub, into `libraries/` in claudius' data folder,
+  beside `packs/` and `samples/` ([files](../guide/files.md)). They are pinned to a version and its SHA-256, as the
+  packs are pinned to a commit or to an archive's hash.
 - **Songs** name sounds and effects as `library:item@version`, and keep a copy of the graphs they use. A song still
   plays when a library changes or goes away; its audio files are fetched again when needed.
 
 **The marketplace** is a small service, free for now:
 
-- a Cloudflare Worker for the API, R2 for the files and D1 for the index;
+- a Cloudflare Worker for the API, beside the one that serves the site, with R2 for the files and D1 for the index;
 - files reached only through the API, so that they can move without a change to claudius. R2 charges $15 per TB a
   month with free downloads; past about a terabyte, Backblaze B2 behind Cloudflare costs less than half that, its
   downloads also free;
@@ -97,11 +109,12 @@ MCP has the same, through `run_script` and `catalog`, plus commands for searchin
 
 - Publishing asks for a licence (CC0, CC BY, CC BY-SA, personal use only, or the author's own text) and for the
   author's word that they have the right to publish.
-- The index shows the licence, and claudius' `credits.txt` covers library sounds as it covers packs.
+- The index shows the licence, and claudius' `credits.txt` covers library sounds as it covers packs. A recording from
+  an online library goes into a library with its credit, as it goes into a song.
 - Uploads are checked: audio formats claudius decodes, sizes and lengths within limits, and safe names (no path
   traversal, no zip bombs).
-- Samples whose terms forbid passing them on are never uploaded or hosted: the curated packs with such terms (the
-  TR-909 pack, SampleRadar's) stay fetched from their publishers on each computer, as 0007 decided.
+- Samples whose terms forbid passing them on are never uploaded or hosted: the curated packs with such terms (Audio
+  Realism's TR-909 and the jRhodes3d Rhodes) stay fetched from their publishers on each computer, as 0007 decided.
 - A reported library is hidden while it is looked at, and a takedown request is answered by removing it.
 
 **Tests come first.** Before the engine changes, regression nets go in at every level of the pyramid. Each change in
@@ -136,17 +149,19 @@ the work that follows then shows what it did to the sound:
 
 **In this order:**
 
-1. The tests above.
-2. The format, personal libraries, and bringing sounds (folders, `samples()`).
-3. The graph runtime, with effects and procedural sounds, rendering offline.
-4. The studio's *Save as* and the library browser.
-5. The marketplace.
-6. Live playback of effects and procedural sounds in the studio.
+1. The tests of today's sound, of every DSP block and of their properties (1 to 3 above), which the live mix needs
+   too.
+2. The graph runtime, as the live mix builds it: today's effects in blocks, the buses, returns and master first,
+   played live in the studio.
+3. The format, personal libraries, and bringing sounds (folders, `samples()`), with their tests.
+4. Effects and procedural sounds as graphs, rendering offline and playing live in the studio.
+5. The studio's *Save as* and the library browser.
+6. The marketplace, with its tests.
 
 Rejected:
 
 - **Native plugins (VST3, CLAP, AU) inside libraries.** Untrusted native code, and a build for each platform.
-- **Script functions called per sample.** Too slow, as in 0010.
+- **Script functions called per sample.** Too slow, as in 0018.
 - **A marketplace made only of a GitHub index.** Publishing waits for a pull request, and there is no private
   visibility.
 - **Sign-in with GitHub.** Musicians and DJs rarely have a GitHub account; everyone has an email address.
@@ -162,6 +177,8 @@ be the one kind of code a library could carry.
 - **Licences are the authors'.** The marketplace states each one, claudius credits it, and nobody reviews the audio
   before it is published.
 - **Songs carry graphs.** A song that uses a library carries the graphs it needs, so the blueprint gets a format 2 when
-  it does ([0010](0010-processors.md)).
-- **Effects are rewritten for streaming.** Every effect moves to blocks; the tests in step 1 keep each move honest.
-- **Live playback** asks more of the studio's audio path than playing a file. That is why it is the last step.
+  it does ([0018](0018-processors.md)).
+- **Effects are rewritten for streaming.** Every effect moves to blocks, those of the buses, returns and master first
+  for the live mix; the tests in step 1 keep each move honest.
+- **Live playback** asks more of the studio's audio path than playing a file. The live mix pays that first, for the
+  mix; library effects and procedural sounds then play live in its audio path.
