@@ -108,7 +108,7 @@ Run `claudius doctor` first; it names most problems. The common ones:
 | `asks for a token` | the running claudius was started with a token: pass `--token` (or set `CLAUDIUS_TOKEN`) to `claudius mcp` |
 | the assistant and the studio show different songs | `claudius mcp` started before the studio, so it has a session of its own: restart the assistant once the studio runs |
 | the assistant knows fewer genres, tools or commands than this claudius has, or the studio says an older claudius holds the port | an older copy (often `~/.local/bin/claudius` from the install script) is what the assistant starts: `claudius doctor` names it; run `claudius connect <assistant>` from the new one, remove or update the old copy, then restart the assistant |
-| `“Claudius” Not Opened` (macOS) | the app came from a disk image downloaded in a browser, and the releases are not notarized yet: install with the `curl` command above instead, or System Settings, Privacy & Security, Open Anyway |
+| `“Claudius” Not Opened` (macOS) | a release older than 0.8.0, or a build of one's own, which Apple has not notarized (the releases since are): download the latest, install with the `curl` command above, or System Settings, Privacy & Security, Open Anyway |
 | `busy (rendering)` | a job is running: wait and call `status`; `stop` ends a mutation or an evolution early, but a render always finishes |
 | `AAC needs Core Audio (macOS) or ffmpeg` | Windows or Linux without ffmpeg: install it, or export MP3 or Opus |
 

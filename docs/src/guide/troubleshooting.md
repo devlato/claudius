@@ -10,8 +10,10 @@ says what to do about each. The sections below are the problems it cannot see, b
 Apple could not verify “Claudius” is free of malware that may harm your Mac or compromise your privacy.
 ```
 
-macOS says this about an app downloaded in a browser that Apple has not notarized, which claudius' releases are not
-yet. The app itself is fine; it is the check. Either:
+macOS says this about an app downloaded in a browser that Apple has not notarized: a release older than 0.8.0, or a
+build of your own. The releases since are notarized and open straight away, so downloading the
+[latest](https://github.com/devlato/claudius/releases/latest) is the simplest answer. The app itself is fine; it is
+the check. Otherwise, either:
 
 - install it from Terminal instead, which gives an app macOS opens straight away, because it checks only what a
   browser downloads:

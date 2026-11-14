@@ -8,12 +8,9 @@ for Apple silicon, `claudius-<version>-x86_64-apple-darwin.dmg` for Intel (the A
 which you have). Open it, and drag **Claudius** onto **Applications**, as the window shows. It runs on macOS 11 or
 later, and opening it opens [the studio](studio.md).
 
-Until Apple notarizes the releases, macOS refuses an app downloaded in a browser the first time: "“Claudius” Not
-Opened. Apple could not verify “Claudius” is free of malware". Click **Done**, open **System Settings**, **Privacy &
-Security**, scroll down to the line about Claudius, and click **Open Anyway**. macOS asks once more, and then
-remembers. In Terminal, `curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh | sh`
-installs the same app without that step, since macOS checks only what a browser downloads
-([the command line](#the-command-line-macos-and-linux)).
+The app is signed with claudius' Developer ID and notarized by Apple (every release since 0.8.0), so macOS opens it
+as it opens any app. In Terminal, `curl -fsSL https://github.com/devlato/claudius/releases/latest/download/install.sh |
+sh` installs the same app ([the command line](#the-command-line-macos-and-linux)).
 
 The first time the studio starts, it downloads its listening models by itself and offers to download the sample
 packs ([below](#the-sounds-and-the-ears)). To connect Claude, Cursor or Codex, use **?**, **Connect an assistant** in

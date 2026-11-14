@@ -272,8 +272,8 @@ jobs:
             echo "## Install"
             echo
             echo "- **Mac**: \`claudius-$VERSION-aarch64-apple-darwin.dmg\` for Apple silicon, \`claudius-$VERSION-x86_64-apple-darwin.dmg\`"
-            echo "  for Intel. Open it and drag Claudius into Applications. Until the releases are notarized, macOS asks you to"
-            echo "  allow it in System Settings, Privacy & Security (Open Anyway) the first time."
+            echo "  for Intel. Open it and drag Claudius into Applications: it is signed and notarized, so it opens like any"
+            echo "  other app."
             echo "- **Windows**: the installer, \`claudius-$VERSION-x86_64-pc-windows-msvc.msi\`."
             echo "- **Linux**: the \`.deb\`, the \`.rpm\` or the AppImage."
             echo "- **Claude Desktop** on a Mac: open \`claudius-$VERSION.mcpb\`, after installing the app."
