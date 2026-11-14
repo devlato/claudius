@@ -211,6 +211,7 @@ pub(crate) fn write_lane(
         groove: None,
         groove_amount: 1.0,
         genre: None,
+        tonal: false,
         name: spec.name.clone(),
         sound,
         patterns,

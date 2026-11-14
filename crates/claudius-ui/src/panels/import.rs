@@ -147,6 +147,8 @@ pub struct Import {
 struct Choice {
     used: bool,
     treated: bool,
+    /// chopped onto pads rather than kept whole
+    chopped: bool,
 }
 
 /// A menu of the ways to sample a recording (`claudius_api::SAMPLING_WAYS`, or some of them), each in a few words and
@@ -1163,8 +1165,11 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
                 // the recording, and their scores say which sing best; a piece of another kind is the person's to tick
                 let mut best: Vec<usize> = (0..offered.pieces.len()).filter(|&i| phrase(&offered.pieces[i])).collect();
                 best.sort_by(|a, b| offered.pieces[*b].sung.total_cmp(&offered.pieces[*a].sung));
-                let choices = (0..offered.pieces.len())
-                    .map(|i| Choice { used: best.iter().take(2).any(|b| *b == i), treated: false });
+                let choices = (0..offered.pieces.len()).map(|i| Choice {
+                    used: best.iter().take(2).any(|b| *b == i),
+                    treated: false,
+                    chopped: false,
+                });
                 im.choices = (offered.seed, choices.collect());
             }
             if ui.small_button("\u{2190} back").on_hover_text("the other ways to put it in").clicked() {
@@ -1263,7 +1268,7 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
                 .iter()
                 .zip(&im.choices.1)
                 .filter(|(_, c)| c.used)
-                .map(|(p, c)| claudius_api::KeptPiece { id: p.id, treated: c.treated })
+                .map(|(p, c)| claudius_api::KeptPiece { id: p.id, treated: c.treated, chopped: c.chopped })
                 .collect();
             ui.horizontal(|ui| {
                 let (again, tip) = match others > 0 {
@@ -1324,6 +1329,7 @@ fn kind_words(kind: &str) -> &'static str {
         "passage" => "Loop of another passage",
         "break" => "Drum break",
         "bass" => "Bass line",
+        "stab" => "Stab of its chords",
         _ => "Phrase",
     }
 }
@@ -1371,6 +1377,19 @@ fn piece(ui: &mut Ui, im: &mut Import, p: &PieceView, i: usize, hear_now: Option
                             .clicked()
                         {
                             choice.treated = true;
+                        }
+                        // whole, or cut at its hits onto pads (a stab is one hit already)
+                        if p.kind != "stab" {
+                            ui.add_space(10.0);
+                            let whole = if phrase(p) { "as a phrase, whole" } else { "as a loop, whole" };
+                            if widgets::chip(ui, !choice.chopped, "whole", ACCENT).on_hover_text(whole).clicked() {
+                                choice.chopped = false;
+                            }
+                            let pads = "chopped at its hits onto pads, each a drum lane playing it as it was: play them \
+                                        otherwise in the Drums tab, or from a phone";
+                            if widgets::chip(ui, choice.chopped, "on pads", ACCENT).on_hover_text(pads).clicked() {
+                                choice.chopped = true;
+                            }
                         }
                     });
                 }

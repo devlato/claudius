@@ -370,6 +370,11 @@ pub struct DrumLane {
     /// whose template another take of it is written from.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub genre: Option<String>,
+    /// It strikes notes rather than drums (the pads a hook or a bass line was chopped onto, a stab of chords), so it goes
+    /// through the bus its mix names even when that is the music's, the default that a lane of drums leaves for the
+    /// drums'.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub tonal: bool,
 }
 
 fn one() -> f32 {

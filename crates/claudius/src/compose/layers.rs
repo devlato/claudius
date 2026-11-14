@@ -443,6 +443,7 @@ fn lane(
         groove: None,
         groove_amount: 1.0,
         genre: None,
+        tonal: false,
         name: name.into(),
         sound,
         patterns,

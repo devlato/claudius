@@ -1,6 +1,6 @@
 # 0021 Every kind of sample, ranked and varied
 
-Status: accepted; the first and third steps are built
+Status: accepted; the first and third steps are built, and the fourth's chop sets and stabs
 
 ## Context
 
@@ -78,8 +78,11 @@ person or their assistant can ask for any kind and any number, and read why each
 3. Built: variety, the DPP over the pieces of every kind but a phrase (`kinds::varied`), the seeded draws away from
    the take before (`sampler::Options::shown`), the shares of each kind and the genre's (`sampler::leaning`), and
    several of a kind kept sharing the sections.
-4. Stabs of the instruments, and chop sets of breaks and loops at their onsets (SuperFlux, Böck & Widmer, DAFx
-   2013), laid out on pads: today's stab is a syllable, and today's chops cut a phrase in eighths.
+4. Chop sets of breaks, loops and phrases at their onsets (SuperFlux, Böck & Widmer, DAFx 2013), laid out on pads:
+   built, a piece kept `chopped` (`kinds::chop`, the Sample window's **on pads**), the hits that sound as one on a
+   pad, each pad a drum lane playing its hits where they came. Stabs of the instruments: built, `stab`, a hit of their
+   chords where SuperFlux hears one, scored by how hard it comes in, how cleanly its beat rings on and how alone they
+   play, kept struck by a drum lane (today's stab of a voice is a syllable).
 5. The flip and `sample_song` choose by the same scores.
 
 ## Evaluation
