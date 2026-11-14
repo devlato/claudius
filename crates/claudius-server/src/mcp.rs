@@ -72,6 +72,38 @@ pub enum Probe {
     Nothing,
 }
 
+/// What the `version` tool says: these tools' version, the claudius they drive, where it answers (`base`; their own
+/// session when `own`) and what it says of itself (`hello`, as `/api/hello` answers), and whether a studio follows it:
+/// one that asked for its song in the last minute, none, or, from a claudius before 0.11 that does not say, unknown.
+fn version_said(base: &str, own: bool, hello: &serde_json::Value) -> String {
+    let tools = env!("CARGO_PKG_VERSION");
+    let engine = hello["version"].as_str().unwrap_or_default();
+    let at = if base.is_empty() { "in this process".to_string() } else { format!("at {base}") };
+    let whose = if own { "a session of their own" } else { "the claudius" };
+    let which = if engine.is_empty() { "of an early version".to_string() } else { format!("claudius {engine}") };
+    let mut out = format!("claudius {tools}: these tools.\nThey drive {whose} {at}, {which}.\n");
+    out.push_str(&match hello.get("studio") {
+        Some(serde_json::Value::Object(s)) => format!(
+            "A studio follows it (claudius {}, which asked for the song {} s ago): the person sees and hears what you \
+             change.",
+            s.get("version").and_then(|v| v.as_str()).unwrap_or("of an early version"),
+            s.get("seconds").and_then(|v| v.as_u64()).unwrap_or(0)
+        ),
+        Some(_) => "No studio follows it now. If the person has the studio open, it runs another claudius and does not \
+                    show what you change: the studio says so in a banner when an older claudius holds its port, and its \
+                    Stop it and take port 7878 sets it right, after which the person restarts you. Otherwise ask them \
+                    to connect you again from the studio (? menu, Connect an assistant) and restart you."
+            .to_string(),
+        None => "Whether a studio follows it, a claudius this old does not say.".to_string(),
+    });
+    if !engine.is_empty() && claudius_api::older(engine, tools) {
+        out.push_str(
+            "\nThat claudius is older than these tools, which may drive some of it wrong: ask the person to update it.",
+        );
+    }
+    out
+}
+
 /// Whether a claudius of `version` ("0.2.0") is older than this one, which its studio and its tools would drive wrong:
 /// one an assistant set up before this version came may still be running. A claudius that does not say is older.
 pub fn older_than_this(version: &str) -> bool {
@@ -139,6 +171,23 @@ impl Backend {
                 tokio::task::spawn_blocking(move || remote_json(&base, &token, "/api/state", Duration::from_secs(30)))
                     .await
                     .map_err(|e| e.to_string())?
+            }
+        }
+    }
+
+    /// where the claudius these tools drive answers (empty for a session of their own without a web studio), whether it
+    /// is their own session, and what it says of itself (`http::hello_of`)
+    pub async fn hello(&self) -> Result<(String, bool, serde_json::Value), String> {
+        match self {
+            Backend::Local { app, base } => Ok((base.clone(), true, crate::http::hello_of(app))),
+            Backend::Remote { base, token } => {
+                let (at, token) = (base.clone(), token.clone());
+                let hello = tokio::task::spawn_blocking(move || {
+                    remote_json::<serde_json::Value>(&at, &token, "/api/hello", Duration::from_secs(5))
+                })
+                .await
+                .map_err(|e| e.to_string())??;
+                Ok((base.clone(), false, hello))
             }
         }
     }
@@ -1211,6 +1260,15 @@ impl Studio {
         Ok(out)
     }
 
+    #[tool(
+        description = "Which claudius you are talking to: the version of these tools, the claudius they drive and where it answers, and whether a studio window follows it, so that the person sees and hears what you change. Call it when the person says the studio does not show what you did, or when tools fail in ways they should not. A claudius before 0.11 has no version tool at all: an assistant without it was set up with an older claudius, which the person connects again from the studio (? menu, Connect an assistant) before restarting the assistant.",
+        annotations(read_only_hint = true)
+    )]
+    async fn version(&self) -> Result<String, String> {
+        let (base, own, hello) = self.b.hello().await?;
+        Ok(version_said(&base, own, &hello))
+    }
+
     #[tool(description = "Undo the last change to the song.")]
     async fn undo(&self) -> Result<String, String> {
         self.edit(Command::Undo, true).await
@@ -1910,7 +1968,7 @@ What it does, and the tools for it:
 - The person's voice and playing: request_take, then wait_for_take; assess_voice, tune, trim_take, transcribe_take, transcribe_drums; request_pitch_check, then wait_for_pitch_check.
 - Out: save, open, export (WAV, FLAC, ALAC, MP3, AAC, Opus, Vorbis), publish (checks it for release and writes a release kit).
 - The studio's chat: wait_for_message, called again whenever it returns, and send_message.
-- status and stop follow a running job; install_packs downloads the sample packs.
+- status and stop follow a running job; install_packs downloads the sample packs; version says which claudius you drive and whether the person's studio follows it (call it when they say the studio does not show what you did).
 
 guide reads the skills built into claudius: songs (how to make songs well), remix, setup, and the script, the verdict, the genres and the tools in full. Where the claudius skills are not installed, read guide songs before the first song. The scores guide; the person's taste decides."
 )]
@@ -1966,11 +2024,47 @@ mod tests {
                 "script_reference",
                 "search_recordings",
                 "status",
+                "version",
                 "wait_for_message",
                 "wait_for_pitch_check",
                 "wait_for_take"
             ]
         );
+    }
+
+    #[test]
+    fn the_version_tool_says_which_claudius_it_drives_and_whether_a_studio_follows_it() {
+        let app = App::new(crate::Settings { library: false, ears: false, auto_render: false, ..Default::default() });
+        let none = version_said("http://127.0.0.1:7878", true, &crate::http::hello_of(&app));
+        let tools = env!("CARGO_PKG_VERSION");
+        assert!(
+            none.starts_with(&format!("claudius {tools}: these tools.\nThey drive a session of their own")),
+            "{none}"
+        );
+        assert!(none.contains("No studio follows it now") && none.contains("Stop it and take port 7878"), "{none}");
+        // a studio asks for the song as it follows it
+        app.studio_asked("0.11.0");
+        let follows = version_said("http://127.0.0.1:7878", true, &crate::http::hello_of(&app));
+        assert!(
+            follows.contains("A studio follows it (claudius 0.11.0, which asked for the song 0 s ago)"),
+            "{follows}"
+        );
+        // a claudius before 0.11 says nothing of a studio, and is older than these tools
+        let old = serde_json::json!({ "name": "claudius", "version": "0.8.0", "state": 3 });
+        let said = version_said("http://127.0.0.1:7878", false, &old);
+        assert!(said.contains("They drive the claudius at http://127.0.0.1:7878, claudius 0.8.0."), "{said}");
+        assert!(said.contains("a claudius this old does not say") && said.contains("older than these tools"), "{said}");
+    }
+
+    #[test]
+    fn a_studio_asking_for_the_song_is_said_to_follow_the_claudius() {
+        let app = App::new(crate::Settings { library: false, ears: false, auto_render: false, ..Default::default() });
+        let at = crate::spawn(app, std::net::SocketAddr::from(([127, 0, 0, 1], 0)), Default::default()).unwrap();
+        let base = format!("http://{at}");
+        let hello = || remote_json::<serde_json::Value>(&base, &None, "/api/hello", Duration::from_secs(5)).unwrap();
+        assert!(hello()["studio"].is_null(), "no studio has asked");
+        remote_get(&base, &None, "/api/state?studio=0.11.0", Duration::from_secs(5)).unwrap();
+        assert_eq!(hello()["studio"]["version"], "0.11.0");
     }
 
     #[test]

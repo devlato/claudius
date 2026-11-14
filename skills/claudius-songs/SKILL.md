@@ -20,7 +20,10 @@ judges it. You do the work; the person you make music with decides what sounds g
 ## Find out how to reach it
 
 - **MCP tools** (`new_song`, `get_song`, `run_script`, `listen` and the others, often shown with a `claudius`
-  prefix). Prefer these: the person hears every change in the claudius studio while you work.
+  prefix). Prefer these: the person hears every change in the claudius studio while you work. If they say the
+  studio does not show what you changed, call `version`: it says which claudius you drive and whether their studio
+  follows it. No `version` tool means you were set up with a claudius before 0.11: ask them to connect you again from
+  the studio (? menu, Connect an assistant) and restart you.
 - **The `claudius` command**, when you have a terminal but no tools. A song is a folder (`song.wav`, `song.rhai`,
   `blueprint.json`, `verdict.json`); [references/tools.md](references/tools.md) maps every tool to its command.
 - **Neither**: claudius is not installed or not connected. Installing takes `curl -fsSL

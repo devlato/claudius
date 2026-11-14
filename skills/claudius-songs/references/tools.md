@@ -18,6 +18,7 @@ to. On the command line, each command reads and writes song folders instead.
 | `mutate` | `count` (1-32, default 4), `keep_best` | `claudius mutate SONG/blueprint.json --n 4` |
 | `evolve` | `generations` (1-20, default 3), `children` (2-32, default 6) | `claudius evolve --genre house --generations 4` |
 | `status` | | |
+| `version` | (none): these tools' version, the claudius they drive, and whether a studio follows it | `claudius --version` |
 | `undo`, `redo`, `stop` | | |
 | `history` | `limit` (20, 1 to 200): the changes made to the song, the latest first, each with its id, what it changed in words, and whether `go_back` can reach it | |
 | `go_back` | `to`: a change's id from `history`. The song as it was before that change, which undoes it and every change since; `redo` brings them back one at a time | |
