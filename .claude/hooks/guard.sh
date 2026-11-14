@@ -96,7 +96,20 @@ look() {
             return 0
             ;;
         gh)
-            if [ "${2:-}" = pr ] && [ "${3:-}" = create ]; then
+            # its command and subcommand are its first two words that are not flags: `gh pr -R owner/repo create`
+            # creates a pull request too, -R and --repo taking a value
+            shift
+            group=
+            verb=
+            while [ $# -gt 0 ] && [ -z "$verb" ]; do
+                case $1 in
+                    -R | --repo) shift ;;
+                    -*) ;;
+                    *) if [ -z "$group" ]; then group=$1; else verb=$1; fi ;;
+                esac
+                [ $# -gt 0 ] && shift
+            done
+            if [ "$group" = pr ] && [ "$verb" = create ]; then
                 gate=1
                 gate_dir=$at
             fi
