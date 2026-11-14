@@ -1330,3 +1330,48 @@ fn a_build_up_takes_a_style_and_how_hard_it_builds_prints_them_back_and_plays_th
     let rolled = claudius::theory::rhythm::snare_roll(24.0).len();
     assert_eq!(notes(&roll, "clap", 24.0), rolled, "the roll alone, with no turn of the drummer's through it");
 }
+
+#[test]
+fn pads_that_strike_notes_play_on_through_a_drop_out_and_no_fill_of_the_drummers_plays_on_them_or_stops_them() {
+    use claudius::model::Sound;
+    let code = r#"
+        blank("house");
+        prog("A", "i VI III VII");
+        drum("kick", "x...x...x...x...");
+        drum("clap", "....x.......x...");
+        drum("hat", "..x...x...x...x.");
+        form([sec("groove", 8, "kick clap hat"), sec("groove", 8, "kick clap hat").build("drop_out"),
+              sec("drop", 8, "kick clap hat")]);
+    "#;
+    let mut bp = script::run(code, None, None).unwrap().bp.unwrap();
+    // a hook chopped onto a pad as the sampler keeps one: a recording struck on every sixteenth, by a lane of
+    // percussion, where a house drummer's conga run would play
+    let mut pad = bp.drums.iter().find(|d| d.name == "hat").unwrap().clone();
+    let (hits, bars) = script::steps_to_hits("xxxxxxxxxxxxxxxx", 16);
+    pad.name = "chop".into();
+    pad.sound = Sound::Sample { path: "hook.wav".into(), root: 60, start: 0.0, end: None, label: "a hook".into() };
+    pad.patterns = [("main".to_string(), hits)].into();
+    (pad.pattern_bars, pad.tonal) = (bars, true);
+    pad.mix.bus = "music".into();
+    assert_eq!(pad.role(), "perc");
+    bp.drums.push(pad);
+    for s in &mut bp.form {
+        s.layers.push("chop".into());
+        s.fills = true;
+    }
+    // the build's last two bars, where the drums drop out, end on beat 64, and the song on 96: what the pad plays in
+    // them and in all of it, for drummers of eight seeds
+    let mut heard = Vec::new();
+    for seed in 1..=8 {
+        bp.seed = seed;
+        let p = compose::arrange(&bp);
+        let notes = |lane: &str, from: f64, to: f64| {
+            let t = p.tracks.iter().find(|t| t.name == lane).unwrap();
+            t.notes.iter().filter(|n| n.t >= from && n.t < to).count()
+        };
+        assert!(["kick", "clap", "hat"].iter().all(|l| notes(l, 56.0, 64.0) == 0), "the drums hold their breath");
+        heard.push((notes("chop", 56.0, 64.0), notes("chop", 0.0, 96.0)));
+    }
+    // it plays on through them, and every sixteenth of the song as struck
+    assert!(heard.iter().all(|&h| h == (32, 24 * 16)), "{heard:?}");
+}
