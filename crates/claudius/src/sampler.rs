@@ -2629,9 +2629,11 @@ mod tests {
     #[test]
     fn pieces_say_why_there_is_no_phrase_and_a_phrase_with_no_room_leaves_the_rest_kept() {
         let (mix, stems) = band();
-        // its drums alone: nothing sounds like a voice, and its break is offered with why there is no phrase
+        // its drums alone: nothing sounds like a voice, and its break is offered with why there is no phrase, and no
+        // loop of instruments that are not there, however its kick rings
         let o = offer(&stems.drums, None, &Options::default(), 0).unwrap();
-        assert!(!o.pieces.is_empty() && o.pieces.iter().all(|p| p.kind != Kind::Phrase), "the break");
+        let kinds: Vec<Kind> = o.pieces.iter().map(|p| p.kind).collect();
+        assert!(!kinds.is_empty() && kinds.iter().all(|k| *k == Kind::Break), "the break alone: {kinds:?}");
         assert_eq!(o.no_phrase.as_deref(), Some(NO_VOICE));
         // a phrase too long for any section, kept with a break: the break goes in, and the reply says why the phrase
         // did not

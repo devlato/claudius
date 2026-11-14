@@ -300,6 +300,37 @@ pub fn loopability(a: &Analysis, x: &Stereo, first: usize, bars: u32) -> f64 {
     1.0 - apart(&head, &after, true)
 }
 
+/// Whether `mono` plays notes as a loop of instruments does, and the ringing of a drum does not: a twentieth of its
+/// energy at least from 220 Hz to 4 kHz, where chords and riffs sound, in pitch classes that are not flat (the
+/// strongest twice their mean, or it is noise), two of them at least half as strong as the strongest and a minor third
+/// apart or more (a low tone's leakage spreads a semitone or two round it). Weighed by energy, not frame by frame, so
+/// that what little rings over a quiet stretch counts as little.
+fn chordal(mono: &[f32]) -> bool {
+    let (mut c, mut inside, mut all) = ([0f64; 12], 0.0, 0.0);
+    for frame in fft::spectrogram(mono, 2048, 1024) {
+        for (k, m) in frame.iter().enumerate() {
+            let (hz, e) = (k as f64 * SRF / 2048.0, (*m as f64).powi(2));
+            all += e;
+            if (220.0..4000.0).contains(&hz) {
+                inside += e;
+                c[((12.0 * (hz / 440.0).log2()).round() as i64 + 9).rem_euclid(12) as usize] += e;
+            }
+        }
+    }
+    let top = c.iter().copied().fold(0.0, f64::max);
+    let strong: Vec<usize> = (0..12).filter(|&i| top > 0.0 && c[i] >= 0.5 * top).collect();
+    let apart = |p: usize, q: usize| (p + 12 - q) % 12 >= 3 && (q + 12 - p) % 12 >= 3;
+    inside >= 0.05 * all
+        && top >= 2.0 * c.iter().sum::<f64>() / 12.0
+        && strong.iter().any(|&p| strong.iter().any(|&q| apart(p, q)))
+}
+
+/// bar `first` of `x`, as one channel
+fn bar_of(a: &Analysis, x: &Stereo, first: usize) -> Vec<f32> {
+    let at = |t: f64| ((t * SRF).max(0.0) as usize).min(x.len());
+    (at(a.bar_start(first))..at(a.bar_start(first + 1))).map(|i| 0.5 * (x.l[i] + x.r[i])).collect()
+}
+
 /// what bar `first` of `x` sounds like, beat by beat (`Beat`), as far as the recording goes
 fn print(a: &Analysis, x: &Stereo, first: usize) -> Vec<Beat> {
     let beat = a.bar_secs / 4.0;
@@ -472,6 +503,10 @@ pub fn cuts(
         let power: f64 = bar_range.clone().map(|b| bar_power(a, x, b)).sum::<f64>() / bars as f64;
         // what it is cut from plays in every one of its bars
         if bar_range.clone().any(|b| db(bar_power(a, x, b)) < loudest - PRESENT_DB) {
+            continue;
+        }
+        // and a loop of instruments plays notes, which a drum ringing in what is left of the drums does not
+        if matches!(kind, Kind::Hook | Kind::Passage) && !chordal(&bar_of(a, x, first)) {
             continue;
         }
         let others: f64 = bar_range.map(|b| bar_power(a, rest, b)).sum::<f64>() / bars as f64;
@@ -682,6 +717,30 @@ mod tests {
         assert_eq!(varied(&cuts, 3, &[]), [5, 0, 4], "the best of each kind, room or none");
         assert!((alike(&cuts[0], &cuts[1]) - 1.0).abs() < 1e-9 && alike(&cuts[0], &cuts[2]) < 0.5);
         assert_eq!(alike(&cuts[0], &cuts[4]), 0.0, "a break and a bass line are never the same piece");
+    }
+
+    #[test]
+    fn a_loop_of_instruments_plays_notes_and_a_drum_ringing_or_noise_does_not() {
+        let (n, tau) = (2 * SRF as usize, std::f64::consts::TAU);
+        // tones, each its frequency and the seconds it sounds from and to
+        let tones = |hz: &[(f64, f64, f64)]| -> Vec<f32> {
+            let at = |t: f64| -> f64 {
+                hz.iter().filter(|h| (h.1..h.2).contains(&t)).map(|h| (tau * h.0 * t).sin() * 0.3).sum()
+            };
+            (0..n).map(|i| at(i as f64 / SRF) as f32).collect()
+        };
+        assert!(chordal(&tones(&[(261.63, 0.0, 2.0), (329.63, 0.0, 2.0), (392.0, 0.0, 2.0)])), "a triad");
+        assert!(chordal(&tones(&[(293.66, 0.0, 1.0), (440.0, 1.0, 2.0)])), "a riff, a note a second");
+        let kick: Vec<f32> = (0..n)
+            .map(|i| {
+                let t = (i % (n / 4)) as f64 / SRF;
+                ((tau * 60.0 * t).sin() * 0.8 * (-t / 0.05).exp()) as f32
+            })
+            .collect();
+        assert!(!chordal(&kick), "a kick dying away on every beat");
+        let mut rng = crate::rng::Rng::new(3);
+        let noise: Vec<f32> = (0..n).map(|_| rng.f32() - 0.5).collect();
+        assert!(!chordal(&noise), "noise");
     }
 
     #[test]
