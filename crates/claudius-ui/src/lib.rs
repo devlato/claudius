@@ -107,10 +107,26 @@ pub async fn start_web(canvas_id: &str) -> Result<(), wasm_bindgen::JsValue> {
             }),
         )
         .await;
+    // the page's outline of the studio (index.html) goes, or says why the studio did not start where it said how much
+    // of it had arrived
     if let Some(loading) = document.get_element_by_id("loading") {
         match &result {
             Ok(()) => loading.remove(),
-            Err(e) => loading.set_inner_html(&format!("<p>claudius studio could not start: {e:?}</p>")),
+            Err(e) => {
+                let why = e
+                    .as_string()
+                    .or_else(|| e.dyn_ref::<js_sys::Error>().map(|e| String::from(e.message())))
+                    .unwrap_or_else(|| format!("{e:?}"));
+                loading.set_class_name("failed");
+                _ = loading.remove_attribute("aria-busy");
+                if let Ok(Some(meter)) = loading.query_selector(".meter b") {
+                    _ = meter.remove_attribute("style");
+                }
+                if let Ok(Some(said)) = loading.query_selector(".said") {
+                    _ = said.set_attribute("role", "alert");
+                    said.set_text_content(Some(&format!("The studio could not start: {why}")));
+                }
+            }
         }
     }
     result

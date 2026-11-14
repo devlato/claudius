@@ -284,6 +284,96 @@ test.describe("assembled site", () => {
     expect(messages).toEqual([]);
   });
 
+  test("the studio's page draws its outline and how much of it has arrived, then the studio", async ({ page }) => {
+    // slow enough to watch the studio's program arrive
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Network.enable");
+    const network = (downloadThroughput) =>
+      cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput, uploadThroughput: -1 });
+    await network(2_000_000);
+    await page.goto("/studio/?mock", { waitUntil: "commit" });
+    await expect(page.locator("#loading .transport")).toBeVisible();
+    // how large the program is, unpacked, as cargo xtask web wrote it into the page
+    expect(Number(await page.locator("#loading").getAttribute("data-bytes"))).toBeGreaterThan(1_000_000);
+    const arrived = await page.waitForFunction(
+      () => {
+        const said = /^Loading the studio: (\d+)%$/.exec(document.querySelector("#loading .said")?.textContent || "");
+        const percent = said && Number(said[1]);
+        return percent > 0 && percent < 100 && percent;
+      },
+      null,
+      { polling: 50, timeout: 30_000 },
+    );
+    expect(await arrived.jsonValue()).toBeGreaterThan(0);
+    await network(-1);
+    await page.waitForFunction(() => !document.getElementById("loading"), null, { timeout: 30_000 });
+  });
+
+  test("the studio's page is drawn in the look the studio keeps", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("settings", JSON.stringify({ version: 2, look: "light" })));
+    // the program waits, so the page stays as it is until it arrives
+    const held = [];
+    await page.route(/claudius-ui-[^/]*_bg\.wasm$/, (r) => held.push(r));
+    await page.goto("/studio/?mock");
+    await expect(page.locator("#loading")).toHaveCSS("background-color", "rgb(229, 232, 238)");
+    for (const r of held) await r.abort();
+  });
+
+  test("the studio's page is not taken for failed by an error that is not the studio's", async ({ page }) => {
+    const held = [];
+    await page.route(/claudius-ui-[^/]*_bg\.wasm$/, (r) => held.push(r));
+    await page.goto("/studio/?mock");
+    await page.evaluate(() => {
+      setTimeout(() => {
+        throw new Error("ResizeObserver loop completed with undelivered notifications");
+      });
+      Promise.reject(new Error("not the studio's"));
+    });
+    await page.waitForTimeout(300);
+    await expect(page.locator("#loading")).not.toHaveClass(/failed/);
+    for (const r of held) await r.continue();
+    await page.waitForFunction(() => !document.getElementById("loading"), null, { timeout: 30_000 });
+  });
+
+  test("the studio's page says why when the connection drops while the studio's program arrives", async ({ page }) => {
+    // a program whose first kilobyte arrives, and then the connection drops
+    await page.addInitScript(() => {
+      const real = window.fetch;
+      window.fetch = (input, init) => {
+        if (!/claudius-ui-[^/]*_bg\.wasm/.test(input instanceof Request ? input.url : String(input))) {
+          return real(input, init);
+        }
+        let sent = false;
+        const body = new ReadableStream({
+          pull(c) {
+            if (sent) return c.error(new TypeError("network error"));
+            sent = true;
+            c.enqueue(new Uint8Array(1024));
+          },
+        });
+        return Promise.resolve(new Response(body, { headers: { "content-type": "application/wasm" } }));
+      };
+    });
+    await page.goto("/studio/?mock");
+    await expect(page.locator("#loading .said")).toHaveText("The studio could not start: its program did not arrive: network error");
+  });
+
+  test("the studio's page says why when the studio's program does not arrive", async ({ page }) => {
+    await page.route(/claudius-ui-[^/]*_bg\.wasm$/, (r) => r.abort());
+    await page.goto("/studio/?mock");
+    const said = page.locator("#loading .said");
+    await expect(said).toHaveText(/^The studio could not start: \S/);
+    await expect(said).toHaveAttribute("role", "alert");
+    // the meter all red, however much had arrived, once it has filled
+    const widths = () =>
+      page.evaluate(() => ["#loading .meter b", "#loading .meter"].map((s) => document.querySelector(s).offsetWidth));
+    await expect.poll(async () => new Set(await widths()).size, { timeout: 5_000 }).toBe(1);
+    await expect(page.locator("#loading .help a")).toHaveAttribute(
+      "href",
+      "https://claudius.devlato.com/docs/guide/troubleshooting.html#the-studio-in-a-browser-does-not-start",
+    );
+  });
+
   test("the studio and the phone page may ask for the microphone and MIDI, and no other page may", async ({ page }) => {
     // what the page's Permissions-Policy lets it ask the person for: a feature the policy forbids is refused without
     // asking, whatever the person would allow
