@@ -146,7 +146,7 @@ and the examples in the docs. CI runs more; when you changed the matching part, 
 | the demo (`crates/claudius-ui/src/mock/`, its engine's worker in `crates/claudius-web`) | `cargo xtask site`, then `node site/tests/serve.mjs` and listen to `http://127.0.0.1:4321/studio/?mock`; `cargo clippy -p claudius-web --target wasm32-unknown-unknown -- -D warnings` |
 | dependencies | `cargo deny check` |
 | anything with words in it | `typos` |
-| workflows or scripts | `actionlint` and `shellcheck scripts/*.sh scripts/ci/*.sh .githooks/*` |
+| workflows or scripts | `actionlint` and `shellcheck scripts/*.sh scripts/ci/*.sh scripts/package/*.sh .githooks/* .claude/hooks/*.sh` |
 | a lockfile | `osv-scanner scan source --config osv-scanner.toml --lockfile Cargo.lock --lockfile site/package-lock.json` |
 | benchmarks | `cargo bench --no-run` |
 | the engine's main steps (composing, rendering, scripts, judging, encoding, decoding, scratches) | CI's `performance` job counts their instructions against the base's and fails one that takes more than 10 % more ([Performance tests](../engineering/testing.md#performance-tests)); `cargo xtask perf` on Linux with Valgrind counts them as it does. A change that slows one on purpose says so in the description: `perf: render +20% (why)` |

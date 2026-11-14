@@ -17,6 +17,10 @@ site/node_modules/
 site/test-results/
 site/playwright-report/
 
+# what each person's Claude Code keeps for them alone
+.claude/settings.local.json
+CLAUDE.local.md
+
 # snapshot candidates waiting for `cargo insta review`
 *.snap.new
 *.pending-snap
