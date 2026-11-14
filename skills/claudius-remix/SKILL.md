@@ -255,14 +255,16 @@ song.mp3 into the song: vox1, vox2"), the lines after it where each phrase came 
   cut inside a word, where it is in the recording ("in hook 2, bars 12-13, 0:31"), as it was cut and through a
   treatment (dusty tape, a washed echo, lo-fi, a phaser, a telephone band, a stutter, a reversed tail), with where to
   hear each. Describe them, let the person pick, then `keep_pieces` with `[{id, treated}]` (and `sections`, `every`,
-  as above); `redraw_pieces` draws another take when none suits.
+  as above); `redraw_pieces` draws another take when none suits, of other pieces than the last where there are any.
 - **Every kind of piece.** Besides its phrases, `sample_pieces` offers the best piece of each other kind the recording
   holds: `hook` (a loop of its hook, the instruments without the drums, bass and voice), `passage` (a loop of another
   passage), `break` (its drums) and `bass` (its bass line), each saying why it scored as it did ("the drums alone,
-  busy, it loops cleanly"). Ask for some with `kinds` ("break" for a drum loop to build on). Kept, a break loops where
-  the song's drums play, a bass line plays in place of the song's bass, a hook loop in the drops and hooks; a recording
-  nobody sings in, or none of whose phrases fits the `bars` asked, still offers these, and the reply's last line says
-  why there is no phrase ("no phrase: ...").
+  busy, it loops cleanly"), and up to two more of the kinds producers sample most and the song's genre samples where
+  they are good and unlike those offered (its sparse groove and its busy one, never two cuts of one). Ask for some
+  with `kinds` ("break" offers up to four drum loops to build on). Kept, a break loops where the song's drums play, a
+  bass line plays in place of the song's bass, a hook loop in the drops and hooks; two of a kind kept without
+  `sections` share the sections, the fuller in the louder. A recording nobody sings in, or none of whose phrases fits
+  the `bars` asked, still offers these, and the reply's last line says why there is no phrase ("no phrase: ...").
 
 ## Ask the person to record a take
 

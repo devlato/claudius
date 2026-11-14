@@ -240,7 +240,10 @@ fn beat_at(x: &Stereo, from: f64, secs: f64) -> Option<Beat> {
     for frame in chroma::chroma(&mono, 2048) {
         sum.iter_mut().zip(frame).for_each(|(s, v)| *s += v);
     }
-    let frames = fft::spectrogram(&mono, 2048, 1024);
+    // its spectrum from half a frame before it, so that an attack on the beat counts whole however the bars fall
+    let early: Vec<f32> =
+        (i0 as i64 - 1024..i1 as i64).map(|i| usize::try_from(i).map_or(0.0, |i| 0.5 * (x.l[i] + x.r[i]))).collect();
+    let frames = fft::spectrogram(&early, 2048, 1024);
     let mut bands = [0f64; 8];
     for frame in &frames {
         for (k, m) in frame.iter().enumerate() {
@@ -252,7 +255,10 @@ fn beat_at(x: &Stereo, from: f64, secs: f64) -> Option<Beat> {
         }
     }
     let n = frames.len().max(1) as f64;
+    // a band 30 dB under the beat's loudest is hardly heard against it, however much quieter still it is
     let logs: Vec<f64> = bands.iter().map(|e| db(e / n)).collect();
+    let top = logs.iter().copied().fold(f64::MIN, f64::max);
+    let logs: Vec<f64> = logs.iter().map(|l| l.max(top - 30.0)).collect();
     let mean = logs.iter().sum::<f64>() / 8.0;
     let mut shape = [0f64; 8];
     shape.iter_mut().zip(&logs).for_each(|(s, l)| *s = l - mean);
@@ -301,9 +307,9 @@ fn print(a: &Analysis, x: &Stereo, first: usize) -> Vec<Beat> {
 }
 
 /// How alike two pieces are, 0 to 1, as a varied choice weighs them: as much as the shorter's bars overlap the
-/// other's, a half when they are of the same section, or as much as their first bars sound alike beat by beat (beats
-/// a half apart or more counting as unlike); not at all when they are cut from different stems, for a break and a bass
-/// line are never the same piece.
+/// other's, a half when they are of the same section, or as much as their first bars sound alike beat by beat (`apart`:
+/// beats a tenth apart or less sound as one, as a seam that close is not heard, and two fifths apart or more unlike);
+/// not at all when they are cut from different stems, for a break and a bass line are never the same piece.
 fn alike(p: &Cut, q: &Cut) -> f64 {
     if p.kind.stem() != q.kind.stem() {
         return 0.0;
@@ -316,7 +322,7 @@ fn alike(p: &Cut, q: &Cut) -> f64 {
         0 => 0.0,
         _ => {
             let apart: f64 = p.print.iter().zip(&q.print).map(|(x, y)| apart(x, y, p.kind.tonal())).sum();
-            (1.0 - 2.0 * apart / n as f64).max(0.0)
+            ((0.4 - apart / n as f64) / 0.3).clamp(0.0, 1.0)
         }
     };
     overlap.max(section).max(sound)

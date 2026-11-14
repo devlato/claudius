@@ -2548,6 +2548,14 @@ mod tests {
     }
 
     #[test]
+    fn a_genre_leans_toward_the_kinds_its_producers_sample() {
+        // house samples a drum break, a phrase to build on and a vocal, and no bass line
+        assert_eq!(leaning("house"), [Kind::Break, Kind::Hook, Kind::Phrase]);
+        assert_eq!(leaning("house+jazz"), leaning("house"), "a fusion as its lead genre does");
+        assert!(leaning("no such genre").is_empty());
+    }
+
+    #[test]
     fn another_take_draws_other_pieces_than_the_take_before_offered() {
         let (mix, _) = band();
         let opt = Options { kinds: vec![Kind::Break, Kind::Hook], ..Options::default() };
