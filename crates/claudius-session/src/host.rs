@@ -692,8 +692,9 @@ impl Host {
             Command::RequestPitchCheck { low, high, note } => self.request_pitch_check(low, high, note),
             Command::RedrawPieces { seed } => match &self.pieces {
                 Some((o, _)) => {
-                    let (src, name, found, opt, last) =
+                    let (src, name, found, mut opt, last) =
                         (o.src.clone(), o.name.clone(), o.found.clone(), o.opt.clone(), o.seed);
+                    opt.shown = claudius::sampler::shown(&o.pieces);
                     self.offer_pieces(src, &name, found, opt, seed.unwrap_or(last + 1))
                 }
                 None => self.no("no pieces to draw again: sample a recording first"),
@@ -945,12 +946,13 @@ impl Host {
         x: Arc<Stereo>,
         name: &str,
         found: Option<serde_json::Value>,
-        opt: claudius::sampler::Options,
+        mut opt: claudius::sampler::Options,
         seed: u64,
     ) -> Reply {
-        if self.bp.is_none() {
+        let Some(bp) = &self.bp else {
             return self.no("no song yet: start one with a new song, then sample a recording into it");
-        }
+        };
+        opt.lean = claudius::sampler::leaning(&bp.genre);
         let (mut pieces, no_phrase) = match claudius::sampler::offer(&x, None, &opt, seed) {
             Ok(o) => (o.pieces, o.no_phrase),
             Err(e) => return self.no(e),
