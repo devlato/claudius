@@ -11,6 +11,12 @@ whether a voice sings in it, and its sections over its waveform with each phrase
 hear. The ways it goes in are cards (whole, its sung phrases, a passage, chops, a stab), and where it plays and how
 often its phrases come round are plain choices. The phrases to pick come numbered as they are in the recording.
 
+Sampling a recording offers what producers take from records, not only its voice. **Pieces of it** offers loops of
+its hook and of another passage, its drum breaks, its bass lines and stabs of its chords, each scored as its kind and
+saying why. They come as a varied choice: two different grooves, say, rather than two cuts of one. Each goes in whole
+or **on pads**: chopped at its hits onto drum lanes that play it as it was, to play otherwise in the Drums tab or from
+a phone. Assistants have the same in `sample_pieces` (`kinds`) and `keep_pieces` (`chopped`).
+
 ## [0.10.0] - 2026-11-13
 
 A song can change its genre: click the genre under its title (or **Variations**, **Change the genre…**), choose
