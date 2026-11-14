@@ -243,7 +243,65 @@ pub fn load_once(path: &Path) -> Result<Stereo> {
     if let Some(x) = remembered_audio(&path.to_string_lossy()) {
         return Ok((*x).clone());
     }
+    readable(path)?;
     Ok(Stereo::from_interleaved(&decode_file(path)?))
+}
+
+/// whether `path` opens, and why not when it does not, in words that say how to set it right (`unreadable`)
+fn readable(path: &Path) -> Result<()> {
+    std::fs::File::open(path).map(drop).map_err(|e| anyhow::anyhow!(unreadable(path, &e)))
+}
+
+/// Why `path` could not be opened, as `e` says, in words that say how to set it right. macOS keeps a program out of
+/// the folders it protects (Desktop, Documents, Downloads, other volumes) until the person lets it in, and the app it is
+/// let in for is Claudius when claudius runs in it, else the app that started it (the assistant or the terminal). A file
+/// that is not there names the files in its folder called like it, where a name is easy to get almost right.
+pub fn unreadable(path: &Path, e: &std::io::Error) -> String {
+    use std::io::ErrorKind;
+    match e.kind() {
+        ErrorKind::PermissionDenied if cfg!(target_os = "macos") => {
+            let home = dirs::home_dir().unwrap_or_default();
+            let folder = ["Desktop", "Documents", "Downloads"]
+                .into_iter()
+                .find(|f| path.starts_with(home.join(f)))
+                .map_or_else(|| "the folder it is in".to_string(), |f| format!("your {f} folder"));
+            let inside_app =
+                std::env::current_exe().is_ok_and(|p| p.to_string_lossy().contains(".app/Contents/MacOS/"));
+            let who =
+                if inside_app { "Claudius" } else { "the app that started claudius (your assistant, or the terminal)" };
+            format!(
+                "cannot open {}: macOS keeps claudius out of {folder} until you let it in. In System Settings, \
+                 Privacy & Security, Files and Folders, turn it on for {who}; or move the file into {}",
+                path.display(),
+                config::songs_dir().display()
+            )
+        }
+        ErrorKind::NotFound => {
+            let like = named_like(path);
+            let near = if like.is_empty() { String::new() } else { format!(": its folder holds {}", like.join(", ")) };
+            format!("there is no file at {}{near}", path.display())
+        }
+        _ => format!("cannot open {}: {e}", path.display()),
+    }
+}
+
+/// the files in `path`'s folder named like it, at most five: the same name in other letters or round other marks
+/// (curly quotes, dashes, spaces), or holding its name's first word
+fn named_like(path: &Path) -> Vec<String> {
+    let plain = |s: &str| s.to_lowercase().chars().filter(|c| c.is_alphanumeric()).collect::<String>();
+    let Some(name) = path.file_name().map(|n| n.to_string_lossy().to_string()) else { return Vec::new() };
+    let first = name.split(|c: char| !c.is_alphanumeric()).find(|w| w.len() >= 3).map(|w| w.to_lowercase());
+    let Ok(entries) = path.parent().map_or_else(|| std::fs::read_dir("."), std::fs::read_dir) else {
+        return Vec::new();
+    };
+    let mut like: Vec<String> = entries
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().to_string())
+        .filter(|n| plain(n) == plain(&name) || first.as_ref().is_some_and(|w| n.to_lowercase().contains(w.as_str())))
+        .collect();
+    like.sort();
+    like.truncate(5);
+    like
 }
 
 /// decode audio in memory (a file's bytes, `ext` its kind: wav, flac, ...) to 48 kHz stereo
@@ -305,6 +363,7 @@ pub fn load(path: &Path) -> Result<Stereo> {
     if let Some(x) = remembered().lock().unwrap_or_else(|e| e.into_inner()).get(&*path.to_string_lossy()) {
         return Ok((**x).clone());
     }
+    readable(path)?;
     let key = cache_key(path)?;
     let cached = config::cache_dir("decoded").join(format!("{key}.f32"));
     if let Ok(bytes) = std::fs::read(&cached) {
@@ -497,6 +556,36 @@ pub fn midi_to_hz(p: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_file_that_will_not_open_says_how_to_set_it_right() {
+        let dir = std::env::temp_dir().join(format!("claudius-unreadable-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("Night Drive’s Hook.wav"), b"").unwrap();
+        std::fs::write(dir.join("other.wav"), b"").unwrap();
+        // named with a straight quote where the file has a curly one: the folder's file named like it is said
+        let said = load(&dir.join("Night Drive's Hook.wav")).unwrap_err().to_string();
+        assert!(
+            said.starts_with("there is no file at ") && said.ends_with("its folder holds Night Drive’s Hook.wav"),
+            "{said}"
+        );
+        // macOS keeping claudius out of a folder it protects, as the system says so
+        let denied = std::io::Error::from(std::io::ErrorKind::PermissionDenied);
+        let said = unreadable(&dirs::home_dir().unwrap_or_default().join("Downloads").join("song.wav"), &denied);
+        match cfg!(target_os = "macos") {
+            true => {
+                assert!(
+                    said.contains("macOS keeps claudius out of your Downloads folder until you let it in"),
+                    "{said}"
+                );
+                assert!(
+                    said.contains("Privacy & Security, Files and Folders") && said.contains("or move the file into")
+                );
+            }
+            false => assert!(said.starts_with("cannot open "), "{said}"),
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     /// two seconds at `rate` of a chord, a sweep up to near its Nyquist, and noise
     fn recording(rate: u32) -> Vec<f32> {

@@ -318,6 +318,23 @@ On a shared claudius, opening such a song fails earlier, with `cannot open <fold
 <path>, which is outside the folders this claudius may read`, whether the file is missing or outside the shared
 folders.
 
+## claudius cannot open a file in Downloads, Desktop or Documents
+
+macOS keeps every program out of the folders it protects (Desktop, Documents, Downloads, drives you plug in and
+network drives) until you let it in. The app claudius runs in asks the first time: Claudius when the studio's engine
+opens the file. claudius then says so, instead of a bare error:
+
+```text
+cannot open /Users/you/Downloads/song.wav: macOS keeps claudius out of your Downloads folder until you let it in. In
+System Settings, Privacy & Security, Files and Folders, turn it on for Claudius; or move the file into
+/Users/you/Music/claudius
+```
+
+When claudius was started by an assistant or a terminal rather than the app, macOS asks on behalf of that app, and it
+is the one to turn on. Moving the file into `~/Music/claudius`, which no one has to let claudius into, works too. A
+file that is simply not there says which files in its folder are named like it (`there is no file at ...: its folder
+holds Night Drive’s Hook.wav`): an assistant often writes a name almost right, a straight quote for a curly one.
+
 ## A shared claudius refuses to save
 
 ```text
