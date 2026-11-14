@@ -1412,31 +1412,34 @@ fn sections_for(bp: &Blueprint, kind: Kind, asked: &[String]) -> Result<Vec<usiz
     Ok([secs, between, (0..bp.form.len()).collect()].into_iter().find(|s| !s.is_empty()).unwrap_or_default())
 }
 
-/// The song's sections `secs` dealt out to `n` pieces of a kind, from the quietest up, as evenly as they go: the
-/// first piece the quietest of them, the last the loudest, sections as loud as each other together where they can be.
-/// A piece is dealt none when there are fewer sections than pieces.
+/// The song's sections `secs` dealt out to `n` pieces of a kind, the least full first (`fullness`), from the quietest
+/// up, as evenly as they go: the fullest piece the loudest of them, sections as loud as each other together where they
+/// can be. With fewer sections than pieces, the fullest pieces have one each and the least full none.
 fn dealt(bp: &Blueprint, secs: &[usize], n: usize) -> Vec<Vec<usize>> {
     let energy = |si: usize| bp.form[si].energy;
     let mut by = secs.to_vec();
     by.sort_by(|&p, &q| energy(p).total_cmp(&energy(q)).then(p.cmp(&q)));
-    let len = by.len().max(1) as f64;
+    let (m, len) = (n.min(by.len()), by.len().max(1) as f64);
     // each section's place among them from the quietest, those as loud as each other at the middle of theirs
     let level = |k: usize| {
         let same: Vec<usize> = (0..by.len()).filter(|&j| (energy(by[j]) - energy(by[k])).abs() < 1e-6).collect();
         (same[0] + same[same.len() - 1]) as f64 / 2.0
     };
+    // into as many shares as there are pieces to have one, the fullest of them
     let deal = |place: &dyn Fn(usize) -> f64| {
-        let mut out = vec![Vec::new(); n];
+        let mut out = vec![Vec::new(); m];
         for (k, &si) in by.iter().enumerate() {
-            out[((place(k) * n as f64 / len) as usize).min(n - 1)].push(si);
+            out[((place(k) * m as f64 / len) as usize).min(m.max(1) - 1)].push(si);
         }
         out
     };
-    let mut out = deal(&level);
-    if by.len() >= n && out.iter().any(Vec::is_empty) {
-        out = deal(&|k| k as f64);
+    let mut shares = deal(&level);
+    if shares.iter().any(Vec::is_empty) {
+        shares = deal(&|k| k as f64);
     }
-    out.iter_mut().for_each(|g| g.sort_unstable());
+    shares.iter_mut().for_each(|g| g.sort_unstable());
+    let mut out = vec![Vec::new(); n - m];
+    out.extend(shares);
     out
 }
 
@@ -2569,6 +2572,19 @@ mod tests {
         };
         let (blind, away) = (repeats(&opt), repeats(&again));
         assert!(away < blind, "{away} of the pieces shown before offered again, drawing away from them; {blind} not");
+    }
+
+    #[test]
+    fn sections_are_dealt_the_louder_to_the_fuller_pieces_and_the_loudest_to_the_fullest() {
+        let mut bp = song();
+        (bp.form[0].energy, bp.form[1].energy) = (0.3, 0.9);
+        assert_eq!(dealt(&bp, &[0, 1], 2), [vec![0], vec![1]]);
+        assert_eq!(dealt(&bp, &[0, 1], 3), [vec![], vec![0], vec![1]], "more pieces than sections: the fullest");
+        // sections as loud as each other are shared all the same
+        (bp.form[0].energy, bp.form[1].energy) = (0.6, 0.6);
+        assert_eq!(dealt(&bp, &[0, 1], 2), [vec![0], vec![1]]);
+        assert_eq!(dealt(&bp, &[0, 1], 3), [vec![], vec![0], vec![1]]);
+        assert_eq!(dealt(&bp, &[0, 1], 1), [vec![0, 1]], "one piece, all of them");
     }
 
     #[test]
