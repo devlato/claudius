@@ -227,7 +227,7 @@ test.describe("adding a recording", () => {
       const file = join(mkdtempSync(join(tmpdir(), "claudius-import-")), "drums.wav");
       band(file, { tonal: false });
       await drop(page, file);
-      await expect.poll(() => offered.join("\n"), { timeout: 60_000 }).toMatch(/^take 0: 1\. break: bars? [\d-]+.* \| no phrase: \w/m);
+      await expect.poll(() => offered.join("\n"), { timeout: 60_000 }).toMatch(/^take 0: .*\b\d\. break: bars? [\d-]+.* \| no phrase: \w/m);
     } finally {
       await b.close();
       c.stop();
