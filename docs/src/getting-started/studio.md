@@ -89,7 +89,9 @@ the song it opens. It also opens a project the demo saved, a `.zip`: claudius un
 
 - **Arrangement.** The sections of the song from left to right (intro, build, drop and so on), each with its length
   and a meter of how intense it is, and below them one row per track, with an icon for what it is (drums, keys, a
-  bass, a pad, a line, a voice, a sample, an effect) or that it is muted or soloed. A track plays where it has a
+  bass, a pad, a line, a voice, a sample, an effect) or that it is muted or soloed. A dot at the end of a track's name
+  says the critic has something to say of it (its level, its part or its sound), in the colour of the worst of it:
+  hover the name to read it, as the Verdict panel words it, with the fix. A track plays where it has a
   clip, one for each run of sections it plays in, shaded by how intense each is; a drum lane's shows how busy each
   bar is. Click a cell to select it, its track and its section: the right panel shows the section and, under it,
   the track (its sound and another, whether it plays in the section, mute, solo, level, pan, and where it is

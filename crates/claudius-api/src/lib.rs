@@ -1555,6 +1555,28 @@ pub fn severity_in_words(s: f64) -> &'static str {
     }
 }
 
+/// The verdict's issues about track `name`: its level, its part or its sound, as each issue's target names them
+/// (`level:<track>+`, `part:<name>`, `sound:<part>`). A part is the track `track_for` says it names: the track of that
+/// name, else the first track of the role it names (`part:lead`, `part:bass`), which is the one the critic judges.
+pub fn issues_of<'a>(
+    v: &'a VerdictView,
+    name: &str,
+    track_for: impl Fn(&str) -> Option<String>,
+) -> Vec<&'a (f64, String, String)> {
+    v.issues
+        .iter()
+        .filter(|(_, _, target)| {
+            let (kind, of) = target.split_once(':').unwrap_or((target.as_str(), ""));
+            let of = of.trim_end_matches(['+', '-']);
+            match kind {
+                "level" | "sound" => of == name,
+                "part" => track_for(of).as_deref() == Some(name),
+                _ => false,
+            }
+        })
+        .collect()
+}
+
 /// Where an issue of the verdict is fixed, in words, from the critic's target: `part:lead` the lead part,
 /// `band:presence-` more presence in the mix, `level:kick+` kick quieter, `width+` a wider stereo image, `form` the
 /// arrangement, `form:intro` a shorter intro, and so on.
@@ -2559,6 +2581,31 @@ mod tests {
         assert!(older("0.2.0", "0.8.0") && older("0.9.0", "0.10.0") && older("", "0.1.0") && older("0.8", "0.8.1"));
         assert!(!older("0.8.0", "0.8.0") && !older("0.10.0", "0.9.0") && !older("1.0.0", "0.9.9"));
         assert!(!older("0.9.0-rc.1", "0.9.0") && !older("0.9.0+build.5", "0.9.0"));
+    }
+
+    #[test]
+    fn a_tracks_issues_are_those_its_level_its_part_or_its_sound_fixes() {
+        let issue = |target: &str| (0.4, format!("about {target}"), target.to_string());
+        let v = VerdictView {
+            issues: ["level:bass+", "part:lead", "sound:pad", "master", "band:low+", "level:bassline-"]
+                .map(issue)
+                .into(),
+            ..Default::default()
+        };
+        // each track's name and role, in the song's order
+        let tracks = [("bass", "bass"), ("melody", "lead"), ("pad", "pad"), ("bassline", "bass"), ("solo", "lead")];
+        let track_for = |n: &str| {
+            let named = tracks.iter().find(|t| t.0 == n).or_else(|| tracks.iter().find(|t| t.1 == n));
+            named.map(|t| t.0.to_string())
+        };
+        let of =
+            |name: &str| -> Vec<String> { issues_of(&v, name, track_for).into_iter().map(|i| i.2.clone()).collect() };
+        assert_eq!(of("bass"), ["level:bass+"], "its level, not another's whose name starts the same");
+        assert_eq!(of("melody"), ["part:lead"], "the lead, by its role, as no track is called lead");
+        assert!(of("solo").is_empty(), "a second lead: the critic judges the first");
+        assert_eq!(of("pad"), ["sound:pad"]);
+        assert_eq!(of("bassline"), ["level:bassline-"], "its own level only");
+        assert!(of("kick").is_empty(), "the master and the bands are the song's");
     }
 
     #[test]

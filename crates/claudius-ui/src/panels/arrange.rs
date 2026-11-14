@@ -284,6 +284,48 @@ fn generate_menu(
     None
 }
 
+/// What hovering a track's name shows: whether it is muted or soloed, and what the critic says of it (`issues_of`),
+/// each issue as the verdict panel words it, with the quick fixes it has there.
+fn critic_notes(
+    ui: &mut Ui,
+    track: &str,
+    state: &str,
+    notes: &[&(f64, String, String)],
+    fixes: &[claudius_api::QuickFixView],
+    stale: bool,
+) {
+    ui.set_max_width(340.0);
+    ui.label(RichText::new(track).strong().color(TEXT));
+    if !state.is_empty() {
+        ui.label(small(state).color(TEXT_DIM));
+    }
+    if notes.is_empty() {
+        return;
+    }
+    ui.add_space(4.0);
+    let heading =
+        if stale { "What the critic said of it, before the latest changes" } else { "What the critic says of it" };
+    ui.label(small(heading).color(TEXT_FAINT));
+    for (severity, what, target) in notes {
+        ui.horizontal_top(|ui| {
+            let (r, _) = ui.allocate_exact_size(vec2(8.0, 14.0), Sense::hover());
+            ui.painter().circle_filled(r.center(), 3.5, theme::score_color(1.0 - severity));
+            ui.vertical(|ui| {
+                ui.spacing_mut().item_spacing.y = 1.0;
+                ui.add(egui::Label::new(RichText::new(what).size(12.0).color(TEXT)).wrap());
+                let quick = fixes.iter().any(|f| f.target == *target);
+                let words = format!(
+                    "{} · fix: {}{}",
+                    claudius_api::severity_in_words(*severity),
+                    claudius_api::fix_in_words(target),
+                    if quick { " · a quick fix in the Verdict panel" } else { "" }
+                );
+                ui.label(small(words).color(TEXT_FAINT));
+            });
+        });
+    }
+}
+
 /// hits per bar of a drum lane's pattern for a section (0..1 density)
 fn density(song: &SongView, lane: &str, variant: &str, bar: u32) -> Option<f32> {
     let d = song.drums.iter().find(|d| d.lane == lane)?;
@@ -315,6 +357,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         return;
     };
     let render = cx.state.render.as_ref();
+    let verdict = cx.state.verdict.as_ref();
     let mut out: Vec<Command> = Vec::new();
     // a take whose Trim window opens
     let mut trim = None;
@@ -687,11 +730,22 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             } else {
                 ""
             };
+            // what the critic says of the track: a dot at its row's end, as the worst of it, and in full on hover
+            let track_for = |n: &str| {
+                let named = song.tracks.iter().find(|t| t.name == n);
+                named.or_else(|| song.tracks.iter().find(|t| t.role == n)).map(|t| t.name.clone())
+            };
+            let notes = verdict.map_or_else(Vec::new, |v| claudius_api::issues_of(v, layer, track_for));
+            if let Some(worst) = notes.iter().map(|i| i.0).reduce(f64::max) {
+                let at = pos2(rect.left() + GUTTER - 5.0, y0 + row_h / 2.0);
+                p.circle_filled(at, 3.0, theme::score_color(1.0 - worst));
+            }
             let on_label = hover.is_some_and(|h| h.x < tl.x0 && h.y >= y0 && h.y < y0 + row_h);
             let on_swap =
                 track.is_some_and(|t| t.next_swap.is_some()) && hover.is_some_and(|h| swap_at(row).contains(h));
-            if on_label && !on_swap && !state.is_empty() {
-                resp.clone().on_hover_text(format!("{layer}: {state}"));
+            if on_label && !on_swap && (!state.is_empty() || !notes.is_empty()) {
+                let fixes = verdict.map_or(&[][..], |v| v.fixes.as_slice());
+                resp.clone().on_hover_ui(|ui| critic_notes(ui, layer, state, &notes, fixes, stale));
             }
             if on_label && track.is_some_and(|t| t.next_swap.is_some()) {
                 let r = swap_at(row);
