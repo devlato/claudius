@@ -573,7 +573,7 @@ pub fn segmented<T: PartialEq + Copy>(ui: &mut Ui, chosen: &mut T, choices: &[(T
         let rect = Rect::from_min_size(pos2(x, track.top() + inset), vec2(w, height));
         x += w + gap;
         let r = ui.interact(rect, ui.id().with(("segment", label)), Sense::click()).on_hover_text(*tip);
-        let on = chosen == value;
+        let on = *chosen == *value;
         if on {
             ui.painter().rect(rect, CornerRadius::same(7), RAISED, Stroke::new(1.0, LINE), StrokeKind::Inside);
         } else if r.hovered() {
