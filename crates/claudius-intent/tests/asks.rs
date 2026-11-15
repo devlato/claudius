@@ -703,6 +703,7 @@ fn questions_about_the_song_are_answered_from_it_and_propose_no_change() {
         ("how long is the hook", "Hook is 16 bars long"),
         ("what plays in the hook", "Hook: kick, snare, hat"),
         ("does the lead play in the hook", "Lead plays in hook"),
+        ("what's the hook's length", "Hook is 16 bars long"),
         // words that read as a way in a request ask nothing to change in a question
         ("how slow is the tempo", "The song is at 120 BPM"),
         ("what's playing in the break", "Break: kick, snare, hat"),

@@ -8,7 +8,7 @@
 use claudius_api::{SectionView, SongView, State, TrackView};
 use serde::{Deserialize, Serialize};
 
-use crate::ask::{clock, contains_word, db, list, named_tracks, pan, trim};
+use crate::ask::{clock, contains_word, db, list, named_tracks, pan, split_word, trim};
 
 /// An answer to a question about the song, in words: a line, and what more there is to say under it.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -117,9 +117,16 @@ fn named_section<'a>(q: &str, song: &'a SongView) -> Option<(&'a SectionView, St
     })
 }
 
-/// `q` without the word `w` wherever it is a word of its own
+/// `q` without the word `w` wherever it is a word of its own, as `contains_word` finds it: "the hook's" too
 fn without(q: &str, w: &str) -> String {
-    q.split(' ').filter(|x| x.trim_matches(|c: char| !c.is_alphanumeric()) != w).collect::<Vec<_>>().join(" ")
+    let (mut out, mut rest) = (String::with_capacity(q.len()), q);
+    while let Some((before, after)) = split_word(rest, w) {
+        out.push_str(before);
+        out.push(' ');
+        rest = after;
+    }
+    out.push_str(rest);
+    out
 }
 
 /// whether `q` holds any of `words`, each a word or words of its own

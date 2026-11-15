@@ -790,7 +790,7 @@ fn words_of(q: &str) -> Vec<String> {
 }
 
 /// `q` before and after the word `w`, where it is a word of its own
-fn split_word<'q>(q: &'q str, w: &str) -> Option<(&'q str, &'q str)> {
+pub(crate) fn split_word<'q>(q: &'q str, w: &str) -> Option<(&'q str, &'q str)> {
     q.match_indices(w).find_map(|(i, _)| {
         let before = q[..i].chars().next_back().is_none_or(|c| !c.is_alphanumeric());
         let after = q[i + w.len()..].chars().next().is_none_or(|c| !c.is_alphanumeric());
