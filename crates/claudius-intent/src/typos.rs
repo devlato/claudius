@@ -188,9 +188,11 @@ mod tests {
 
     #[test]
     fn the_list_reads_the_same_with_the_carriage_returns_a_checkout_on_windows_adds() {
-        let list = include_str!("../data/english.txt");
-        let windows = list.replace('\n', "\r\n");
-        assert_eq!(words_of_list(&windows), words_of_list(list));
+        // the list as git checks it out here, with its lines ended by a line feed, and as on Windows
+        let lf = include_str!("../data/english.txt").replace("\r\n", "\n");
+        let windows = lf.replace('\n', "\r\n");
+        assert_eq!(words_of_list(&windows), words_of_list(&lf));
+        assert_eq!(words_of_list(include_str!("../data/english.txt")), words_of_list(&lf));
         assert_eq!(words_of_list("a notice\r\n---\r\nfour\r\nwash\r\n"), HashSet::from(["four", "wash"]));
     }
 
