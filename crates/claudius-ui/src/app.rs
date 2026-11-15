@@ -1324,7 +1324,7 @@ impl eframe::App for Studio {
             self.view.anchors.editors = Some(shown.response.rect);
         }
 
-        egui::CentralPanel::default().frame(egui::Frame::new().fill(BG.into())).show(ui, |ui| {
+        egui::CentralPanel::default().frame(egui::Frame::new().fill(theme::CANVAS.into())).show(ui, |ui| {
             if self.state.song.is_some() {
                 let mut cx = Cx {
                     state: &mut self.state,

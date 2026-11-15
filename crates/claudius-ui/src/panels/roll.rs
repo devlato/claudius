@@ -73,7 +73,10 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         ui.label(small("part"));
         for p in &song.parts {
             if ui
-                .selectable_label(p.name == part.name, RichText::new(&p.name).color(layer_color(song, &p.name)))
+                .selectable_label(
+                    p.name == part.name,
+                    RichText::new(&p.name).color(theme::legible(layer_color(song, &p.name))),
+                )
                 .clicked()
             {
                 roll.part = Some(p.name.clone());

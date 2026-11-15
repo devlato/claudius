@@ -213,7 +213,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                                 if ui
                                     .selectable_label(
                                         *name == current,
-                                        RichText::new(label(name)).color(theme::prog_color(name)),
+                                        RichText::new(label(name)).color(theme::legible(theme::prog_color(name))),
                                     )
                                     .clicked()
                                     && *name != current
@@ -417,7 +417,7 @@ pub fn track(ui: &mut Ui, cx: &mut Cx) {
     ui.add_space(10.0);
     ui.horizontal(|ui| {
         widgets::heading(ui, "Track");
-        ui.label(RichText::new(&name).strong().color(color));
+        ui.label(RichText::new(&name).strong().color(theme::legible(color)));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if widgets::icon_button(ui, Icon::Cancel, 24.0, false, true, "let go of the track (Esc)").clicked() {
                 cx.view.track = None;

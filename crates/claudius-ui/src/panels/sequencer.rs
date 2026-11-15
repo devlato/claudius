@@ -222,7 +222,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     let ghost = s >= len;
                     let v = steps.get(s % len.max(1)).copied().unwrap_or(0.0);
                     let group_dark = (s / 4) % 2 == 0;
-                    let off = if group_dark { theme::mix(WELL, RAISED, 0.55) } else { theme::mix(WELL, RAISED, 0.95) };
+                    let off: Color32 = if group_dark { theme::CELL.into() } else { theme::CELL_ALT.into() };
                     let mut fill = off;
                     if v > 0.0 {
                         fill = theme::mix(off, color, 0.35 + 0.65 * v);

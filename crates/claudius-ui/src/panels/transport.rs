@@ -34,7 +34,7 @@ fn lcd(ui: &mut Ui, cx: &mut Cx, width: f32) {
         Align2::LEFT_CENTER,
         format!("/ {}", super::fmt_time(dur)),
         theme::mono(11.0),
-        theme::alpha(LCD_TEXT, 0.55),
+        theme::lcd_ink(0.55),
     );
     let bar = cx.playhead_bar();
     let (b, beat) = (bar.floor() as u32 + 1, ((bar.fract() * 4.0).floor() as u32) + 1);
@@ -53,7 +53,7 @@ fn lcd(ui: &mut Ui, cx: &mut Cx, width: f32) {
         Align2::LEFT_CENTER,
         line2,
         theme::mono(10.5),
-        theme::alpha(LCD_TEXT, 0.75),
+        theme::lcd_ink(0.75),
     );
     let status = if cx.player.is_loading() {
         "LOADING"
@@ -69,7 +69,7 @@ fn lcd(ui: &mut Ui, cx: &mut Cx, width: f32) {
         Align2::RIGHT_CENTER,
         status,
         theme::mono(9.5),
-        theme::alpha(LCD_TEXT, 0.6),
+        theme::lcd_ink(0.6),
     );
     if cx.view.looping {
         p.text(
@@ -77,7 +77,7 @@ fn lcd(ui: &mut Ui, cx: &mut Cx, width: f32) {
             Align2::RIGHT_CENTER,
             if cx.view.loop_section { "LOOP SEC" } else { "LOOP" },
             theme::mono(9.5),
-            ACCENT.into(),
+            theme::legible(ACCENT),
         );
     }
     response.on_hover_text("position / length of the latest render, bar.beat and section at the playhead");
