@@ -310,21 +310,33 @@ fn spaced(q: &str) -> String {
     out
 }
 
+/// Whether a question asks for a change all the same: it says something is too much or too little ("is the bass too
+/// loud", "isn't the reverb a bit much", "can't hear the vocals", "is the snare buried"). A word that only reads as a
+/// way in a request ("what plays in the drop", "how slow is the tempo") does not.
+fn wants_a_change(q: &str) -> bool {
+    let words: Vec<&str> = q.split(|c: char| !c.is_alphanumeric() && c != '\'').filter(|w| !w.is_empty()).collect();
+    words.windows(2).any(|w| w[0] == "too")
+        || ["barely hear", "can't hear", "cannot hear", "buried", "drowning", "drowned", "a bit much"]
+            .iter()
+            .any(|w| contains_word(q, w))
+}
+
 /// whether `w` is in `q` as a word or words of its own
 pub(crate) fn contains_word(q: &str, w: &str) -> bool {
     split_word(q, w).is_some()
 }
 
 /// What `query` asks, on the song in `state`: each reading of it as a proposal, the likeliest first; none when it asks
-/// nothing claudius can do, names nothing in the song it would act on, or is a question that asks for no change.
+/// nothing claudius can do, names nothing in the song it would act on, or is a question that asks for no change
+/// (`wants_a_change`).
 pub fn propose(query: &str, state: &State, asker: &Asker, model: Option<&Model>) -> Vec<Proposal> {
     let q = spaced(query.trim()).to_lowercase();
     if q.is_empty() {
         return Vec::new();
     }
-    // a question about the song asks for no change ("how much reverb is on the snare", which `tell` answers), unless it
-    // says which way ("is the bass too loud") or to what
-    if crate::tell::asking(&q) && way(&q).is_none() && numbers(&q).is_empty() {
+    // a question about the song asks for no change ("how much reverb is on the snare", "how slow is the tempo", which
+    // `tell` answers), unless it says something is too much or too little ("is the bass too loud")
+    if crate::tell::asking(&q) && !wants_a_change(&q) {
         return Vec::new();
     }
     let mut out: Vec<Proposal> = Vec::new();

@@ -23,21 +23,23 @@ const OPENERS: &[&str] = &[
     "what", "what's", "whats", "which", "how", "is", "are", "does", "do", "where", "when", "tell me", "show me", "list",
 ];
 
-/// the openings of questions that ask for something the song does not hold (how to do a thing, what a word means,
-/// what the person should do), for a change put as a question, or for talk
+/// the openings of questions that ask for something the song does not hold (how to do a thing, what the person
+/// should do), for a change put as a question, or for talk
 const NOT_ASKED: &[&str] = &[
-    "how do",
-    "how can",
+    "how do i",
+    "how do you",
+    "how do we",
+    "how can i",
+    "how can you",
+    "how can we",
     "how to",
     "how about",
     "how would",
     "how should",
-    "how are",
+    "how are you",
     "what if",
     "what can",
     "what should",
-    "what does",
-    "what do",
     "can you",
     "could you",
     "would you",
@@ -87,14 +89,23 @@ pub fn tell(query: &str, state: &State) -> Vec<Told> {
     let Some(song) = state.song.as_ref().filter(|_| asking(query)) else { return Vec::new() };
     let q = plain(query);
     let q = q.trim_end_matches(|c: char| c == '?' || c == '.' || c.is_whitespace());
-    if let Some(t) = of_the_song(q, song) {
+    let (groups, section) = (named_tracks(q, song), named_section(q, song));
+    if let Some(t) = of_the_song(q, song, &groups, section) {
         return vec![t];
     }
-    let groups = named_tracks(q, song);
     if !groups.is_empty() {
-        return groups.iter().take(4).map(|g| of_tracks(q, g, song)).collect();
+        return groups.iter().take(4).map(|g| of_tracks(q, g, section, song)).collect();
     }
-    in_a_section(q, song).into_iter().collect()
+    section.and_then(|s| in_a_section(q, s, song)).into_iter().collect()
+}
+
+/// The section `q` names: by its name ("drop2"), else by its kind ("the chorus" a hook, "the breakdown" a break).
+fn named_section<'a>(q: &str, song: &'a SongView) -> Option<&'a SectionView> {
+    let by_name = song.sections.iter().find(|s| contains_word(q, &s.name.to_lowercase()));
+    by_name.or_else(|| {
+        let kind = [("chorus", "hook"), ("breakdown", "break")].into_iter().find(|(w, _)| contains_word(q, w))?.1;
+        song.sections.iter().find(|s| s.kind == kind)
+    })
 }
 
 /// whether `q` holds any of `words`, each a word or words of its own
@@ -113,9 +124,12 @@ fn genre(g: &str) -> String {
 }
 
 /// An answer about the song as a whole, when `q` asks one: its tempo, key, genre, title, length, sections, its tracks
-/// and how many, which are muted or soloed, or which is the loudest or quietest.
-fn of_the_song(q: &str, song: &SongView) -> Option<Told> {
+/// and how many, which are muted or soloed, or which is the loudest or quietest (of the tracks it names, when it names
+/// some: "which drum is the loudest"). A question that names tracks (`groups`) or a section is not about the song's
+/// title, length or sections, nor its tracks: "which sections does the bass play in", "how long is the drop".
+fn of_the_song(q: &str, song: &SongView, groups: &[Vec<&TrackView>], section: Option<&SectionView>) -> Option<Told> {
     let told = |said: String, detail: String| Some(Told { said, detail });
+    let (tracked, sectioned) = (!groups.is_empty(), section.is_some());
     // "the keys" are a track; "what key" is the song's
     if has(q, &["key", "scale"]) && !has(q, &["keys"]) {
         return told(format!("The song is in {}", song.key), String::new());
@@ -127,20 +141,26 @@ fn of_the_song(q: &str, song: &SongView) -> Option<Told> {
     if has(q, &["genre", "style", "kind of music", "type of music", "kind of song"]) {
         return told(format!("The song is {}", genre(&song.genre)), String::new());
     }
-    if has(q, &["title", "called", "name of the song", "song's name", "song called"]) {
+    if has(q, &["title", "called", "name of the song", "song's name", "song called"]) && !tracked && !sectioned {
         return told(format!("The song is called {}", song.title), String::new());
     }
-    if has(q, &["how long", "length", "duration", "minutes"]) {
+    if has(q, &["how long", "length", "duration", "minutes"]) && !tracked && !sectioned {
         return told(format!("The song is {} long", clock(song.seconds)), format!("{} bars", song.bars));
     }
     let tracks = &song.tracks;
     if has(q, &["loudest", "quietest", "softest"]) {
-        // by how loud it played in the last render, else by its level
-        let loud = |t: &TrackView| t.loudness.unwrap_or(f64::from(t.level_db) - 20.0);
-        let playing = tracks.iter().filter(|t| !t.muted);
+        // of the tracks named, else of all, those that play; by how loud they played in the last render, of those it
+        // measured (one added since has no measure to stand beside theirs), else by their levels
+        let pool: Vec<&TrackView> = groups.first().cloned().unwrap_or_else(|| tracks.iter().collect());
+        let playing: Vec<&TrackView> = pool.into_iter().filter(|t| !t.muted).collect();
+        let measured: Vec<&TrackView> = playing.iter().copied().filter(|t| t.loudness.is_some()).collect();
+        let (among, loud): (Vec<&TrackView>, fn(&TrackView) -> f64) = match measured.is_empty() {
+            true => (playing, |t| f64::from(t.level_db)),
+            false => (measured, |t| t.loudness.unwrap_or_default()),
+        };
         let pick = match has(q, &["loudest"]) {
-            true => playing.max_by(|a, b| loud(a).total_cmp(&loud(b))),
-            false => playing.min_by(|a, b| loud(a).total_cmp(&loud(b))),
+            true => among.into_iter().max_by(|a, b| loud(a).total_cmp(&loud(b))),
+            false => among.into_iter().min_by(|a, b| loud(a).total_cmp(&loud(b))),
         }?;
         let which = if has(q, &["loudest"]) { "loudest" } else { "quietest" };
         let how = match pick.loudness {
@@ -149,28 +169,27 @@ fn of_the_song(q: &str, song: &SongView) -> Option<Told> {
         };
         return told(format!("The {which} track is {}", pick.name), how);
     }
-    if has(q, &["muted", "silenced"]) && named_tracks(q, song).is_empty() {
+    if has(q, &["muted", "silenced"]) && !tracked {
         let muted: Vec<&str> = tracks.iter().filter(|t| t.muted).map(|t| t.name.as_str()).collect();
         return match muted.is_empty() {
             true => told("No track is muted".into(), String::new()),
             false => told(format!("Muted: {}", list(muted.into_iter())), String::new()),
         };
     }
-    if has(q, &["soloed", "solo"]) && named_tracks(q, song).is_empty() {
+    if has(q, &["soloed", "solo"]) && !tracked {
         let solo: Vec<&str> = tracks.iter().filter(|t| t.solo).map(|t| t.name.as_str()).collect();
         return match solo.is_empty() {
             true => told("No track is soloed".into(), String::new()),
             false => told(format!("Soloed: {}", list(solo.into_iter())), String::new()),
         };
     }
-    if has(q, &["sections", "structure", "form", "arrangement"]) {
+    if has(q, &["sections", "structure", "form", "arrangement"]) && !tracked {
         let each: Vec<String> = song.sections.iter().map(|s| format!("{} ({} bars)", s.name, s.bars)).collect();
         return told(format!("{} sections", song.sections.len()), each.join(", "));
     }
     let asks_tracks = has(q, &["tracks", "instruments", "how many tracks", "what's playing", "what is playing"])
         || (has(q, &["in the song", "in the mix"]) && !has(q, LEVEL));
-    let a_section = song.sections.iter().any(|s| contains_word(q, &s.name.to_lowercase()));
-    if asks_tracks && !a_section && named_tracks(q, song).is_empty() {
+    if asks_tracks && !sectioned && !tracked {
         // what plays: the tracks not muted, or only those soloed when any is
         let soloed = tracks.iter().any(|t| t.solo);
         let plays: Vec<&str> =
@@ -192,9 +211,9 @@ fn of_the_song(q: &str, song: &SongView) -> Option<Told> {
 }
 
 /// An answer about `tracks`, a reading of the tracks `q` names: what it asks of them (their level, drive, reverb,
-/// delay or pan, their sound, whether they are muted or soloed, where they play), or when it asks nothing in
-/// particular, each one's sound and mix.
-fn of_tracks(q: &str, tracks: &[&TrackView], song: &SongView) -> Told {
+/// delay or pan, their sound, whether they are muted or soloed, where they play, or whether they play in the
+/// `section` it names), or when it asks nothing in particular, each one's sound and mix.
+fn of_tracks(q: &str, tracks: &[&TrackView], section: Option<&SectionView>, song: &SongView) -> Told {
     let each = |f: &dyn Fn(&TrackView) -> String| tracks.iter().map(|t| f(t)).collect::<Vec<_>>().join("; ");
     let muted = |t: &TrackView| if t.muted { " (muted)" } else { "" };
     let said = if has(q, &["muted", "mute", "silenced", "silent", "turned off", "switched off"]) {
@@ -212,6 +231,12 @@ fn of_tracks(q: &str, tracks: &[&TrackView], song: &SongView) -> Told {
         each(&|t| format!("{} is panned to {}{}", t.name, pan(t.pan), muted(t)))
     } else if has(q, &["where", "when", "which sections", "what sections", "come in", "comes in"]) {
         each(&|t| format!("{} plays in {}", t.name, sections_of(t, &song.sections)))
+    } else if let Some(s) = section.filter(|_| has(q, PLAYS)) {
+        // "does the bass play in the drop"
+        each(&|t| {
+            let plays = if s.layers.contains(&t.name) { "plays" } else { "does not play" };
+            format!("{} {plays} in {}", t.name, s.name)
+        })
     } else if has(q, LEVEL) {
         each(&|t| format!("{} is at {} dB{}", t.name, db(t.level_db), muted(t)))
     } else if has(q, &["sound", "sounds", "instrument", "preset", "patch", "play", "playing", "plays"]) {
@@ -256,6 +281,9 @@ const PANNED: &[&str] = &[
     "centred",
 ];
 
+/// the words a question asks what plays in
+const PLAYS: &[&str] = &["play", "plays", "playing", "come in", "comes in"];
+
 /// the words a question asks a track's level in
 const LEVEL: &[&str] = &["volume", "level", "loud", "quiet", "db", "gain", "fader", "louder", "quieter"];
 
@@ -265,14 +293,20 @@ fn sections_of(t: &TrackView, sections: &[SectionView]) -> String {
     if names.is_empty() { "no section".into() } else { list(names.into_iter()) }
 }
 
-/// An answer about a section `q` names, when it asks what plays there ("what plays in the drop"): the tracks that play
-/// in it, and how long it is and where it starts.
-fn in_a_section(q: &str, song: &SongView) -> Option<Told> {
-    if !has(q, &["play", "plays", "playing", "in the", "what's in", "what is in"]) {
+/// An answer about `s`, the section `q` names: how long it is when it asks that ("how long is the drop"), else the
+/// tracks that play in it ("what plays in the drop", "what's in the chorus") and how long it is and where it starts.
+/// None for anything else it asks of a section (how loud is the break).
+fn in_a_section(q: &str, s: &SectionView, song: &SongView) -> Option<Told> {
+    let at = clock(f64::from(s.start_bar) * 240.0 / song.bpm.max(1.0));
+    if has(q, &["how long", "length", "how many bars", "bars"]) {
+        return Some(Told {
+            said: format!("{} is {} bars long", capital(&s.name), s.bars),
+            detail: format!("from {at}"),
+        });
+    }
+    if !has(q, PLAYS) && !has(q, &["in the", "what's in", "what is in", "tracks", "instruments"]) {
         return None;
     }
-    let s = song.sections.iter().find(|s| contains_word(q, &s.name.to_lowercase()))?;
-    let at = clock(f64::from(s.start_bar) * 240.0 / song.bpm.max(1.0));
     let said = match s.layers.is_empty() {
         true => format!("Nothing plays in {}", s.name),
         false => format!("{}: {}", capital(&s.name), list(s.layers.iter().map(String::as_str))),
@@ -304,6 +338,9 @@ mod tests {
             "hey claudius, what key is it in",
             "bass volume?",
             "tell me about the bass",
+            "how are the drums panned",
+            "what does the bass sound like",
+            "what does reverb actually do",
         ] {
             assert!(asking(q), "{q}");
         }
@@ -311,7 +348,7 @@ mod tests {
             "make the bass louder",
             "can you make the bass louder?",
             "how do i record my voice",
-            "what does reverb actually do",
+            "how are you",
             "turn the reverb on the snare up to 40%",
             "is this song any good",
             "who are you",

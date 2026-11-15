@@ -98,7 +98,7 @@ ask of the song, too (`Answer::proposed`, `claudius_intent::ask::propose` on the
 95%"), what it does to each track, and its commands ([0013](../design/0013-requests.md)). A question about the song
 ("what's the bass volume", `claudius_intent::asking`) is answered from the state instead (`Answer::told`,
 `claudius_intent::tell`), and the palette shows the answers first, as rows that send nothing; it proposes no change
-unless it says which way or to what ("is the bass too loud"). Where the readings propose nothing for two words or more,
+unless it says something is too much or too little ("is the bass too loud"). Where the readings propose nothing for two words or more,
 and they ask no question, the request model reads them (`claudius_session::meaning::ask_model`,
 [0014](../design/0014-request-model.md)): a thread of its own downloads it the first time, reads the latest words it
 was asked about, and keeps what it read. Until it has read them, the answer says it is `reading`, and the palette

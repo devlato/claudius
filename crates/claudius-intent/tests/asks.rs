@@ -693,6 +693,15 @@ fn questions_about_the_song_are_answered_from_it_and_propose_no_change() {
         ("where does the bass play", "Bass plays in intro, verse, hook, break, drop and outro"),
         ("what plays in the drop", "Drop: kick, snare, hat"),
         ("tell me about the pad", "Pad: instrument 'vsco2:strings', at -8 dB"),
+        // a track, a section or both named, each asked of itself rather than of the song
+        ("which sections does the bass play in", "Bass plays in intro, verse, hook, break, drop and outro"),
+        ("does the bass play in the drop", "Bass plays in drop"),
+        ("how long is the drop", "Drop is 16 bars long"),
+        ("how are the drums panned", "Kick is panned to the center"),
+        ("what does the lead sound like", "Lead plays synth patch 'whistle'"),
+        // words that read as a way in a request ask nothing to change in a question
+        ("how slow is the tempo", "The song is at 120 BPM"),
+        ("what's playing in the break", "Break: kick, snare, hat"),
     ];
     let mut wrong = Vec::new();
     for (q, starts) in asked {
@@ -705,6 +714,28 @@ fn questions_about_the_song_are_answered_from_it_and_propose_no_change() {
         }
     }
     assert!(wrong.is_empty(), "{wrong:#?}");
+    // a track left out of a section does not play in it
+    let mut without = song();
+    if let Some(song) = without.song.as_mut() {
+        song.sections.iter_mut().filter(|s| s.name == "drop").for_each(|s| s.layers.retain(|l| l != "bass"));
+    }
+    let told = claudius_intent::tell("does the bass play in the drop", &without);
+    assert_eq!(told[0].said, "Bass does not play in drop");
+    // the loudest and the quietest of the tracks a render measured, not beside the levels of those it did not
+    let mut measured = song();
+    if let Some(song) = measured.song.as_mut() {
+        for t in &mut song.tracks {
+            t.loudness = match t.name.as_str() {
+                "kick" => Some(-10.0),
+                "snare" => Some(-8.0),
+                _ => None,
+            };
+        }
+    }
+    let first = |q: &str| claudius_intent::tell(q, &measured)[0].said.clone();
+    assert_eq!(first("which track is the loudest"), "The loudest track is snare");
+    assert_eq!(first("which track is the quietest"), "The quietest track is kick", "not one never measured");
+    assert_eq!(first("which drum is the loudest"), "The loudest track is snare");
     // said which way, the question comes with the change too
     let q = "is the bass too loud";
     assert!(claudius_intent::tell(q, &state)[0].said.starts_with("Bass is at -3 dB"));

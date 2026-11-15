@@ -399,8 +399,8 @@ Ask it about the song, too, and it answers from the song as it is, under **The s
 (**Bass is at -3 dB**, and how loud it played in the last render), "how much reverb is on the snare", "where is the hat
 panned", "what sound is the lead", "is the organ muted", "where does the bass play", "what plays in the drop", "what
 key is it in", "what tempo is it at", "how long is the song", "how many tracks are there", "which track is the
-loudest". An answer changes nothing: Enter on it closes the palette. A question that says which way ("is the bass too
-loud?") comes with the change it asks for, as a button under it.
+loudest". An answer changes nothing: Enter on it closes the palette. A question that says something is too much or
+too little ("is the bass too loud?") comes with the change it asks for, as a button under it.
 
 Words claudius cannot make out ("bring the choir in again") go to a second small model on your computer, Cactus's
 Needle 3, which claudius has taught to read requests. While it reads, about half a second,
