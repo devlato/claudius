@@ -59,6 +59,9 @@ pub struct Palette {
     /// the strongest ink, which the text and icons of a control under the pointer are drawn in: white on the dark
     /// look, black on the light one
     pub strong: Color32,
+    /// The edge of a quiet control, a field above all: none on the dark look, whose fields are darker than its windows,
+    /// and a soft line on the light one, whose fields are as white as its windows and would have no edge at all.
+    edge: Color32,
     /// what egui draws with itself: the faintest fill, the outline under the pointer, a pressed control's fill, and
     /// how dark the shadows are
     faint_bg: Color32,
@@ -99,6 +102,7 @@ pub const DARK: Palette = Palette {
     hover_line: rgb(66, 73, 88),
     pressed: rgb(60, 67, 81),
     strong: Color32::WHITE,
+    edge: Color32::TRANSPARENT,
     shadow: 150,
 };
 
@@ -136,6 +140,7 @@ pub const LIGHT: Palette = Palette {
     hover_line: rgb(170, 178, 190),
     pressed: rgb(200, 206, 216),
     strong: Color32::BLACK,
+    edge: rgb(204, 210, 219),
     shadow: 40,
 };
 
@@ -630,7 +635,8 @@ fn styled(style: &mut egui::Style, p: &Palette, dark: bool) {
     v.striped = false;
     v.indent_has_left_vline = false;
 
-    // quiet controls: a fill a step above the panel and no outline until the pointer is on them
+    // quiet controls: a fill a step above the panel and no outline until the pointer is on them, but for the light
+    // look's soft edge, without which a white field on a white window has none
     let radius = CornerRadius::same(6);
     let w = &mut v.widgets;
     w.noninteractive.bg_fill = p.panel;
@@ -640,7 +646,7 @@ fn styled(style: &mut egui::Style, p: &Palette, dark: bool) {
     w.noninteractive.corner_radius = radius;
     w.inactive.bg_fill = p.control;
     w.inactive.weak_bg_fill = p.control;
-    w.inactive.bg_stroke = Stroke::new(1.0, Color32::TRANSPARENT);
+    w.inactive.bg_stroke = Stroke::new(1.0, p.edge);
     w.inactive.fg_stroke = Stroke::new(1.0, p.text);
     w.inactive.corner_radius = radius;
     w.hovered.bg_fill = p.control_hi;
