@@ -11,7 +11,7 @@ use eframe::egui::{
 };
 
 use super::{Cx, page_frame, small};
-use crate::theme::{self, ACCENT, TEXT, TEXT_DIM, TEXT_FAINT, WELL};
+use crate::theme::{self, ACCENT, TEXT, TEXT_DIM, TEXT_FAINT};
 use crate::widgets::{self, Icon};
 
 const KEYWORDS: [&str; 16] = [
@@ -19,7 +19,7 @@ const KEYWORDS: [&str; 16] = [
     "continue", "this",
 ];
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum Tok {
     Plain,
     Comment,
@@ -32,15 +32,31 @@ enum Tok {
 }
 
 fn color(t: Tok) -> Color32 {
-    match t {
-        Tok::Plain => Color32::from_rgb(214, 218, 226),
-        Tok::Comment => Color32::from_rgb(106, 118, 110),
-        Tok::Str => Color32::from_rgb(166, 214, 128),
-        Tok::Num => Color32::from_rgb(200, 150, 255),
-        Tok::Func => Color32::from_rgb(255, 196, 112),
-        Tok::Method => Color32::from_rgb(110, 205, 240),
-        Tok::Keyword => Color32::from_rgb(255, 120, 170),
-        Tok::Punct => Color32::from_rgb(140, 148, 160),
+    color_in(t, theme::light())
+}
+
+/// A token's colour on the light look or the dark one: the same hues, the light look's dark enough to read on its
+/// white editor and on the grey of a block of code in the reference (the dark look's pale ones, a word in the light
+/// grey of plain text above all, all but vanish there).
+fn color_in(t: Tok, light: bool) -> Color32 {
+    let rgb = Color32::from_rgb;
+    match (t, light) {
+        (Tok::Plain, false) => rgb(214, 218, 226),
+        (Tok::Comment, false) => rgb(106, 118, 110),
+        (Tok::Str, false) => rgb(166, 214, 128),
+        (Tok::Num, false) => rgb(200, 150, 255),
+        (Tok::Func, false) => rgb(255, 196, 112),
+        (Tok::Method, false) => rgb(110, 205, 240),
+        (Tok::Keyword, false) => rgb(255, 120, 170),
+        (Tok::Punct, false) => rgb(140, 148, 160),
+        (Tok::Plain, true) => rgb(30, 35, 45),
+        (Tok::Comment, true) => rgb(90, 102, 94),
+        (Tok::Str, true) => rgb(34, 110, 28),
+        (Tok::Num, true) => rgb(124, 56, 200),
+        (Tok::Func, true) => rgb(150, 78, 0),
+        (Tok::Method, true) => rgb(0, 104, 136),
+        (Tok::Keyword, true) => rgb(186, 26, 94),
+        (Tok::Punct, true) => rgb(88, 96, 110),
     }
 }
 
@@ -533,7 +549,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             });
         let font = theme::mono(13.0);
         let lines = ed.text.lines().count().max(1) + usize::from(ed.text.ends_with('\n'));
-        egui::Frame::new().fill(WELL.into()).corner_radius(6).inner_margin(egui::Margin::symmetric(6, 6)).show(
+        egui::Frame::new().fill(theme::FIELD.into()).corner_radius(6).inner_margin(egui::Margin::symmetric(6, 6)).show(
             ui,
             |ui| {
                 egui::ScrollArea::both().id_salt("script_scroll").auto_shrink([false, false]).show(ui, |ui| {
@@ -738,5 +754,17 @@ mod tests {
         let src = "// hi\nsong(\"x\").bpm(124) // ø\nlet a = #{ k: 1.5 };";
         let job = highlight(src, FontId::monospace(12.0), Some(2));
         assert_eq!(job.text, src);
+    }
+
+    #[test]
+    fn every_kind_of_word_in_the_script_reads_on_the_light_looks_editor_and_its_blocks_of_code() {
+        let all = [Tok::Plain, Tok::Comment, Tok::Str, Tok::Num, Tok::Func, Tok::Method, Tok::Keyword, Tok::Punct];
+        let light = &crate::theme::LIGHT;
+        for t in all {
+            for (under, bg) in [("editor", light.field), ("block of code", light.well)] {
+                let k = crate::theme::contrast(color_in(t, true), bg);
+                assert!(k >= 4.5, "{t:?} is {k:.1}:1 on the light look's {under}, below 4.5:1");
+            }
+        }
     }
 }
