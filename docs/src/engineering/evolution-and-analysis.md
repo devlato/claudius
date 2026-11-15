@@ -321,11 +321,16 @@ under 15 % of its power, `remix::BACKING`, when its vocals stay in; else what su
 drums (its drum stem; else what strikes), cut into the pieces a producer would take from it, on the bars it plays. A
 hook a voice sings in (the recording sings, and its voice was not taken out) is offered at its own pitch only, and not
 re-chopped (`remix::own_key`: the genre's `pitch` narrowed to none and its `chop` to 0), wherever a way of playing it so
-meets the genre's tempo, unless the genre's producers speed their singers up (`speeds_voices`, chipmunk soul's). Its hook
-(four bars from the start of the loudest section with chords, a hook or a drop first) without its drums is offered to
-the sampling pipeline as the phrase a song is built on (`sampling::apply`, through a library that holds only the
-recording's pieces and the libraries' one-shots, loops and textures), with another passage of it as the phrase's second
-passage and its drums as the break where the genre samples one. So the song takes the hook's key and chords and a tempo
+meets the genre's tempo, unless the genre's producers speed their singers up (`speeds_voices`, chipmunk soul's). Its
+pieces are chosen by the scores the Sample window offers pieces by (`kinds::cuts_of`): its hook (`remix::hook_of`, a
+loop of the hook of eight bars, else four or two, from the hook's sections), another passage as long (`passage_of`,
+from none of them) and its drums (`break_of`, a drum break of the lengths a break takes), each the best on take 0 and
+drawn among the near-best for any other seed, as another take is; where no loop of the hook can be cut (no chord rings
+in it), the hook falls back to the first bars of the section with chords that pulls most toward being one
+(`hook_bars`). The hook without its drums is offered to the sampling pipeline as the phrase a song is built on
+(`sampling::apply`, through a library that holds only the recording's pieces and the libraries' one-shots, loops and
+textures), with the other passage as the phrase's second passage and the drums as the break where the genre samples
+one. So the song takes the hook's key and chords and a tempo
 the genre plays, the recording's own or a multiple of it (`sampling::meets`). A flip of it follows: as many bars as
 the hook of half beats, each from another bar of the recording on the hook's chord at that place, each bar brought to
 the hook's level (`bar_gains`, by 18 dB at most, a rest left as it is), in the intro, the breaks and the outro where

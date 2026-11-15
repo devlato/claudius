@@ -461,10 +461,11 @@ impl App {
                     Err(e) => no(format!("cannot read {path}: {e}"), v),
                 }
             }
-            Command::SampleSong { path, count, bars, find, sections, how, every } => {
-                let opt = match sampling(count, bars, find, sections, how.as_deref())
-                    .and_then(|o| Ok(claudius::sampler::Options { every: listen::every(every.as_deref())?, ..o }))
-                {
+            Command::SampleSong { path, count, bars, find, sections, how, every, kinds } => {
+                let opt = match sampling(count, bars, find, sections, how.as_deref()).and_then(|o| {
+                    let (every, kinds) = (listen::every(every.as_deref())?, listen::kinds(&kinds)?);
+                    Ok(claudius::sampler::Options { every, kinds, ..o })
+                }) {
                     Ok(opt) => opt,
                     Err(e) => return no(e, v),
                 };

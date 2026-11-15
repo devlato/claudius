@@ -1094,6 +1094,7 @@ fn sample(
                 sections: im.places.clone(),
                 how,
                 every: None,
+                kinds: Vec::new(),
             });
             im.sending = im.hit.as_ref().map(|h| Sent::Hit(h.id.clone()));
             None
