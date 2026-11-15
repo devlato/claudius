@@ -762,6 +762,21 @@ fn questions_about_the_song_are_answered_from_it_and_propose_no_change() {
 
 /// Requests typed with a slip ("revreb", "whistel", "louer"), read as the words meant, as the palette reads them
 /// (`claudius_intent::answer`, `typos`): each reads as the same request typed right would.
+/// A request typed right is read as it was typed: the typo reader finds no slip in any example request, those held out
+/// of the readings and those written after them included, whose words it does not know (it learns those the readings
+/// learn from), so that an English word it has never seen is no slip to it either.
+#[test]
+fn a_request_typed_right_is_read_as_typed_those_never_seen_too() {
+    let state = song();
+    let otherwise: Vec<String> = examples()
+        .iter()
+        .filter_map(|e| {
+            claudius_intent::typos::meant(&e.ask, state.song.as_ref()).map(|m| format!("'{}' as '{m}'", e.ask))
+        })
+        .collect();
+    assert!(otherwise.is_empty(), "read as other words: {otherwise:?}");
+}
+
 #[test]
 fn a_request_typed_with_a_slip_is_read_as_the_words_meant() {
     let state = song();

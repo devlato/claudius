@@ -1,11 +1,17 @@
 //! Words typed with a slip, read as the words meant: "genrate" as "generate", "revreb" as "reverb", "the whistel" as
-//! "the whistle". A word that none of the studio's actions, none of the example requests and none of the song's tracks
-//! has is read as the one word of theirs nearest it: a slip away (a letter left out, one too many, one for another, or
-//! two swapped), or two in a word of eight letters or more, and starting with the same letter, as a slip of the finger
-//! rarely changes the first. So the actions and the readings find what the words meant, by name and by meaning alike:
-//! a word with a slip in it is another word to the embedding model, which finds other actions for it.
+//! "the whistle". A word that is no English word, and that none of the studio's actions, none of the example requests
+//! the readings learn from and none of the song's tracks has, is read as the one word of theirs nearest it: a slip away
+//! (a letter left out, one too many, one for another, or two swapped), or two in a word of eight letters or more, and
+//! starting with the same letter, as a slip of the finger rarely changes the first. So the actions and the readings
+//! find what the words meant, by name and by meaning alike: a word with a slip in it is another word to the embedding
+//! model, which finds other actions for it.
+//!
+//! An English word is never read as another ("four" as "for", "centre" as "center", "wash" as "was"): the list is
+//! SCOWL's (`data/english.txt`, words of four letters or more), with British spellings. The example requests held out
+//! of the readings, and those written after them, are left out of the words known, so that the evals measure on them
+//! what a request in words the studio has never seen meets.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
 use claudius_api::SongView;
@@ -19,8 +25,8 @@ const ALSO: &str = "what whats which how is are does where when tell show list v
     intro verse chorus hook drop break build outro bridge groove song mix master export render save open record \
     sample samples remix remake flip loop undo redo back before after swap replace remove delete cut fade faster slower";
 
-/// the words of everyday English a request or a question has round what it asks, which no slip should turn into
-/// another word
+/// the words of everyday English a request or a question has round what it asks, known so that a slip of one is read
+/// as it ("lsat" as "last")
 const COMMON: &str = "the this that these those there here they them their what with without from into onto about     over under again just only also very really little bit lot much many more less most least some any all every     each other another like make makes made want need needs please thanks thank good better best bad worse nice great     cool awesome right left now then than when while still even ever never always sometimes maybe really pretty     could would should will shall might must have has had been being were was does done doing going gone come came     give gave take took keep kept let lets put set turn turned bring brought try tried feel feels seems looks sound     sounds hear heard listen think know mean meant same different whole part parts first last next time times     weather today tomorrow yesterday hello help please okay yeah yes nope sure fine song songs music beat beats     track tracks thing things stuff something nothing everything anything someone everyone people person friend     write wrote read said says tell told call called name named start stop end ending begin beginning middle";
 
 /// the words of `text`, lowercase, those of letters only
@@ -45,12 +51,24 @@ fn known() -> &'static HashMap<String, usize> {
             add(e.words);
             add(e.place);
         }
-        for e in crate::ask::examples() {
+        // those the readings learn from: the evals measure the others as requests never seen
+        for e in crate::ask::examples().into_iter().filter(|e| e.set.is_none()) {
             add(&e.ask);
         }
         add(ALSO);
         add(COMMON);
         m
+    })
+}
+
+/// English words of four letters or more, which are never read as another word (`data/english.txt`, from SCOWL)
+fn english() -> &'static HashSet<&'static str> {
+    static ENGLISH: OnceLock<HashSet<&'static str>> = OnceLock::new();
+    ENGLISH.get_or_init(|| {
+        let list = include_str!("../data/english.txt");
+        // the words follow the list's notice, after its line of three dashes
+        let words = list.split_once("\n---\n").map_or(list, |(_, words)| words);
+        words.lines().filter(|w| !w.is_empty()).collect()
     })
 }
 
@@ -89,10 +107,10 @@ fn slips(a: &[char], b: &[char], most: usize) -> Option<usize> {
 
 /// The word `w` meant, when it is a word with a slip in it: the one known word nearest it (the more common of two as
 /// near), within a slip for a word of up to seven letters and two for a longer one, and starting as it does; none for a
-/// word known or a word near none, and for words of three letters or fewer, which are near too many.
+/// word known, an English word or a word near none, and for words of three letters or fewer, which are near too many.
 fn meant_word(w: &str, song: &[String]) -> Option<String> {
     let known = known();
-    if w.chars().count() < 4 || known.contains_key(w) || song.iter().any(|s| s == w) {
+    if w.chars().count() < 4 || known.contains_key(w) || song.iter().any(|s| s == w) || english().contains(w) {
         return None;
     }
     let chars: Vec<char> = w.chars().collect();
@@ -160,6 +178,23 @@ mod tests {
         // known words, numbers, and words near nothing the studio knows are as they were
         for q in ["generate a song", "make it 128", "write me a poem", "what's the weather like", "the bas", "hello"] {
             assert_eq!(meant(q, None), None, "{q}");
+        }
+        // and English words, though a slip from one the studio knows: these the first reading took for slips
+        for q in ["redo four times", "centre the hats", "wash the pad in reverb", "before the tempo went up"] {
+            assert_eq!(meant(q, None), None, "{q}");
+        }
+    }
+
+    #[test]
+    fn the_english_words_are_those_of_four_letters_or_more_and_no_slip_is_among_them() {
+        let english = english();
+        assert!(english.len() > 30_000, "{} words", english.len());
+        assert!(english.iter().all(|w| w.len() >= 4 && w.chars().all(|c| c.is_ascii_lowercase())));
+        for w in ["four", "centre", "colour", "string", "second", "liked", "sped", "went", "roomy", "point", "wash"] {
+            assert!(english.contains(w), "{w}");
+        }
+        for slip in ["genrate", "revreb", "mxier", "whistel", "dwon", "lsat", "stlye"] {
+            assert!(!english.contains(slip), "{slip}");
         }
     }
 

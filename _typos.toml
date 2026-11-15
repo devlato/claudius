@@ -26,6 +26,8 @@ whistel = "whistel"   # a slip the palette reads as "whistle", in its tests and 
 
 [files]
 extend-exclude = [
+    # a list of English words, from SCOWL, among them rare forms the checker takes for slips ("knifes", "larges")
+    "crates/claudius-intent/data/english.txt",
     "crates/earshot/data/",
     "crates/earshot/parity/fixtures/",
 ]
