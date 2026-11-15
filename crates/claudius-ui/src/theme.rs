@@ -148,7 +148,6 @@ pub enum Swatch {
     Raised,
     RaisedHi,
     Well,
-    Field,
     Cell,
     CellAlt,
     ControlHi,
@@ -179,7 +178,6 @@ impl Swatch {
             Swatch::Raised => p.raised,
             Swatch::RaisedHi => p.raised_hi,
             Swatch::Well => p.well,
-            Swatch::Field => p.field,
             Swatch::Cell => p.cell,
             Swatch::CellAlt => p.cell_alt,
             Swatch::ControlHi => p.control_hi,
@@ -216,8 +214,6 @@ pub const RAISED: Swatch = Swatch::Raised;
 pub const RAISED_HI: Swatch = Swatch::RaisedHi;
 /// what sits sunk in a panel: a fader's track, a meter, a knob's arc, the roll, a block of code
 pub const WELL: Swatch = Swatch::Well;
-/// a field one types in
-pub const FIELD: Swatch = Swatch::Field;
 /// an empty cell of a grid (a step that does not play), and every other beat's
 pub const CELL: Swatch = Swatch::Cell;
 pub const CELL_ALT: Swatch = Swatch::CellAlt;
