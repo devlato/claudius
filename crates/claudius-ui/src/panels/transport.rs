@@ -765,23 +765,30 @@ fn export_menu(ui: &mut Ui, cx: &mut Cx) {
                     continue;
                 }
                 ui.label(small(heading));
-                ui.horizontal_wrapped(|ui| {
-                    for f in cx.state.exports.iter().filter(|f| f.lossless == lossless) {
+                // the formats in two columns of buttons alike, those this computer cannot write greyed with why
+                egui::Grid::new(("export formats", lossless)).num_columns(2).spacing(vec2(6.0, 6.0)).show(ui, |ui| {
+                    let formats = cx.state.exports.iter().filter(|f| f.lossless == lossless);
+                    for (i, f) in formats.enumerate() {
                         let path = format!("/api/export/{version}/{name}.{}?format={}", f.extension, f.spec);
                         let url = cx.server.map_or_else(|| path.clone(), |base| format!("{base}{path}"));
+                        let button = egui::Button::new(&f.label).min_size(vec2(184.0, 26.0));
                         match &f.unavailable {
-                            None if demo => {
-                                if ui.button(&f.label).clicked() {
-                                    asked = Some(f.spec.clone());
+                            None => {
+                                if ui.add(button).clicked() {
+                                    if demo {
+                                        asked = Some(f.spec.clone());
+                                    } else {
+                                        ui.ctx().open_url(egui::OpenUrl::new_tab(url));
+                                    }
                                     ui.close();
                                 }
                             }
-                            None => {
-                                ui.hyperlink_to(&f.label, url);
-                            }
                             Some(why) => {
-                                ui.add_enabled(false, egui::Label::new(&f.label)).on_disabled_hover_text(why);
+                                ui.add_enabled(false, button).on_disabled_hover_text(why);
                             }
+                        }
+                        if i % 2 == 1 {
+                            ui.end_row();
                         }
                     }
                 });
