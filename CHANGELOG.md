@@ -6,11 +6,23 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-15
+
 A remake's flip is built on the pieces the Sample window would offer first: the loop of the hook that comes back most,
 loops most cleanly and plays most alone, another passage unlike it, and the drums where they play alone. Made again,
 it draws them anew among the good ones. `sample_song` samples a recording's phrases as the window offers them, sung
 whole, so a held note is never cut: a phrase longer than the bars asked for is refused with how many it takes, rather
 than cut on a bar line. With `kinds`, it samples a recording's best drum break, bass line, loop or stab in one go.
+
+### Added
+
+- sampler: A remake's flip and sample_song choose pieces as the Sample window does, and sample_song takes kinds ([#283](https://github.com/devlato/claudius/pull/283))
+- palette: Cmd+K answers questions about the song, from the song as it is ([#284](https://github.com/devlato/claudius/pull/284))
+- palette: A word typed with a slip is read as the word meant, and the palette says so ([#285](https://github.com/devlato/claudius/pull/285))
+
+### Documentation
+
+- design: 0018 processors and 0019 libraries of sounds and effects ([#42](https://github.com/devlato/claudius/pull/42))
 
 ## [0.11.0] - 2026-11-14
 
@@ -1226,7 +1238,8 @@ The first public release.
   theory checks), Linux on x86_64 and ARM64 with a headless build for machines without sound or a display, and
   Windows as a preview. One-line installers for each, which come with every release and are in its checksums.
 
-[unreleased]: https://github.com/devlato/claudius/compare/v0.11.0...HEAD
+[unreleased]: https://github.com/devlato/claudius/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/devlato/claudius/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/devlato/claudius/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/devlato/claudius/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/devlato/claudius/compare/v0.8.0...v0.9.0
