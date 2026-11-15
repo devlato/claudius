@@ -1581,7 +1581,7 @@ impl eframe::App for Studio {
 /// controls, laid over its background after, take their own clicks.
 #[cfg(all(target_os = "macos", not(target_arch = "wasm32")))]
 fn title_bar(ui: &mut Ui) {
-    let r = ui.interact(ui.max_rect(), ui.id().with("title_bar"), Sense::click_and_drag());
+    let r = ui.interact(ui.max_rect(), ui.scope_id().with("title_bar"), Sense::click_and_drag());
     if r.double_clicked() {
         match double_click() {
             DoubleClick::Zoom => {
