@@ -659,3 +659,67 @@ fn every_example_is_one_kind_the_readings_know_and_says_what_it_expects() {
     }
     assert!(all.iter().filter(|e| e.set.is_some()).count() * 4 >= all.len(), "a quarter kept out of the examples");
 }
+
+/// Questions about the song, answered from it (`tell`): each with how its answer begins on the song every request is
+/// read on. A question asks for no change: none of them proposes one, but one that says which way ("is the bass too
+/// loud"), whose answer comes with the change. Questions about what the song does not hold are answered with nothing.
+#[test]
+fn questions_about_the_song_are_answered_from_it_and_propose_no_change() {
+    let (state, asker) = (song(), Asker::new(None));
+    let asked: &[(&str, &str)] = &[
+        ("what key is it in", "The song is in E minor"),
+        ("what key is this in", "The song is in E minor"),
+        ("hey claudius, what key is it in?", "The song is in E minor"),
+        ("what tempo is it at", "The song is at 120 BPM"),
+        ("what's the bpm?", "The song is at 120 BPM"),
+        ("what genre is this", "The song is house"),
+        ("what's the song called", "The song is called Night Bus"),
+        ("how long is the song", "The song is 2:24 long"),
+        ("what sections are there", "6 sections"),
+        ("how many tracks are there", "13 tracks"),
+        ("what instruments are playing", "11 tracks play"),
+        ("which track is the loudest", "The loudest track is kick"),
+        ("which track is the quietest", "The quietest track is pad"),
+        ("what's muted", "Muted: organ and choir"),
+        ("what's the bass volume", "Bass is at -3 dB"),
+        ("bass volume?", "Bass is at -3 dB"),
+        ("how loud is the kick right now", "Kick is at 0 dB"),
+        ("how much reverb is on the snare", "Snare has 20% reverb"),
+        ("how much drive is on the guitar", "Guitar has 20% drive"),
+        ("where is the hat panned", "Hat is panned to 20% right"),
+        ("is the organ muted", "Organ is muted"),
+        ("is the bass muted", "Bass is not muted"),
+        ("what sound is the lead", "Lead plays synth patch 'whistle'"),
+        ("where does the bass play", "Bass plays in intro, verse, hook, break, drop and outro"),
+        ("what plays in the drop", "Drop: kick, snare, hat"),
+        ("tell me about the pad", "Pad: instrument 'vsco2:strings', at -8 dB"),
+    ];
+    let mut wrong = Vec::new();
+    for (q, starts) in asked {
+        let told = claudius_intent::tell(q, &state);
+        if !told.first().is_some_and(|t| t.said.starts_with(starts)) {
+            wrong.push(format!("'{q}': {:?}, not '{starts}…'", told.first().map(|t| &t.said)));
+        }
+        if let Some(p) = propose(q, &state, &asker, None).first() {
+            wrong.push(format!("'{q}' proposed '{}'", p.said));
+        }
+    }
+    assert!(wrong.is_empty(), "{wrong:#?}");
+    // said which way, the question comes with the change too
+    let q = "is the bass too loud";
+    assert!(claudius_intent::tell(q, &state)[0].said.starts_with("Bass is at -3 dB"));
+    assert!(propose(q, &state, &asker, None).first().is_some_and(|p| p.said.starts_with("Turn bass down")));
+    for q in [
+        "what's the weather like",
+        "what time is it",
+        "where are my files saved",
+        "is this song any good",
+        "what does reverb actually do",
+        "make the bass louder",
+        "can you make the bass louder?",
+        "how do i record my voice",
+        "who are you",
+    ] {
+        assert!(claudius_intent::tell(q, &state).is_empty(), "'{q}': {:?}", claudius_intent::tell(q, &state));
+    }
+}

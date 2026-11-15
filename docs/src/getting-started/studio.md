@@ -395,6 +395,13 @@ key, swaps a track's sound ("make the bass a reese"), cuts tracks from a time to
 removes them, and undoes, redoes or goes back to before a change ("go back to before we added the whistles"). A
 request that asks two things at once ("louder, with more reverb") is read as one of them. Ask for the other next.
 
+Ask it about the song, too, and it answers from the song as it is, under **The song now**: "what's the bass volume"
+(**Bass is at -3 dB**, and how loud it played in the last render), "how much reverb is on the snare", "where is the hat
+panned", "what sound is the lead", "is the organ muted", "where does the bass play", "what plays in the drop", "what
+key is it in", "what tempo is it at", "how long is the song", "how many tracks are there", "which track is the
+loudest". An answer changes nothing: Enter on it closes the palette. A question that says which way ("is the bass too
+loud?") comes with the change it asks for, as a button under it.
+
 Words claudius cannot make out ("bring the choir in again") go to a second small model on your computer, Cactus's
 Needle 3, which claudius has taught to read requests. While it reads, about half a second,
 the palette says **Reading your words…**. What it reads is a button like any other, which says it was the small model's
@@ -434,7 +441,7 @@ shortcuts**), and every action is in the command palette, with its key. Cmd is C
 
 | key | |
 |---|---|
-| Cmd+K, Cmd+P | the command palette: every action, by its name or in your own words, and what you ask of the song |
+| Cmd+K, Cmd+P | the command palette: every action, by its name or in your own words, what you ask of the song, and the answers to questions about it |
 | ? | the keys, in a window |
 | Space | play or pause |
 | Home | back to the start |

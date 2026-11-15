@@ -311,15 +311,20 @@ fn spaced(q: &str) -> String {
 }
 
 /// whether `w` is in `q` as a word or words of its own
-fn contains_word(q: &str, w: &str) -> bool {
+pub(crate) fn contains_word(q: &str, w: &str) -> bool {
     split_word(q, w).is_some()
 }
 
 /// What `query` asks, on the song in `state`: each reading of it as a proposal, the likeliest first; none when it asks
-/// nothing claudius can do, or names nothing in the song it would act on.
+/// nothing claudius can do, names nothing in the song it would act on, or is a question that asks for no change.
 pub fn propose(query: &str, state: &State, asker: &Asker, model: Option<&Model>) -> Vec<Proposal> {
     let q = spaced(query.trim()).to_lowercase();
     if q.is_empty() {
+        return Vec::new();
+    }
+    // a question about the song asks for no change ("how much reverb is on the snare", which `tell` answers), unless it
+    // says which way ("is the bass too loud") or to what
+    if crate::tell::asking(&q) && way(&q).is_none() && numbers(&q).is_empty() {
         return Vec::new();
     }
     let mut out: Vec<Proposal> = Vec::new();
@@ -729,7 +734,7 @@ struct MixSet {
 /// (drums) or a plural (toms) is all the tracks it names together; a word in the name of several tracks is a reading
 /// for each; tracks named together ("the bass and the drums") are one reading. "Everything" is every track, but those
 /// named after "except" or "but".
-fn named_tracks<'a>(q: &str, song: &'a SongView) -> Vec<Vec<&'a TrackView>> {
+pub(crate) fn named_tracks<'a>(q: &str, song: &'a SongView) -> Vec<Vec<&'a TrackView>> {
     let (q, except) =
         match ["except", "apart from", "other than", "but the", "but"].iter().find_map(|w| split_word(q, w)) {
             Some((before, after)) => (before, Some(after)),
@@ -986,7 +991,7 @@ fn seconds_at(bar: u32, bpm: f64) -> f64 {
     f64::from(bar) * 4.0 * 60.0 / bpm.max(1.0)
 }
 
-fn clock(secs: f64) -> String {
+pub(crate) fn clock(secs: f64) -> String {
     let s = secs.round() as u64;
     format!("{}:{:02}", s / 60, s % 60)
 }
@@ -1264,16 +1269,16 @@ fn key_named(q: &str) -> Option<String> {
     None
 }
 
-fn trim(v: f64) -> String {
+pub(crate) fn trim(v: f64) -> String {
     let s = format!("{v:.1}");
     s.trim_end_matches('0').trim_end_matches('.').to_string()
 }
 
-fn db(v: f32) -> String {
+pub(crate) fn db(v: f32) -> String {
     trim(f64::from(v))
 }
 
-fn pan(v: f32) -> String {
+pub(crate) fn pan(v: f32) -> String {
     match v {
         v if v.abs() < 0.01 => "the center".to_string(),
         v if v < 0.0 => format!("{}% left", (-v * 100.0).round()),
@@ -1282,7 +1287,7 @@ fn pan(v: f32) -> String {
 }
 
 /// "kick, snare and hat"
-fn list<'a>(names: impl Iterator<Item = &'a str>) -> String {
+pub(crate) fn list<'a>(names: impl Iterator<Item = &'a str>) -> String {
     let names: Vec<&str> = names.collect();
     match names.as_slice() {
         [] => String::new(),

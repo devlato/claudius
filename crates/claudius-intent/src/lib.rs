@@ -3,7 +3,8 @@
 //! piece of a word, a phrase the mean of its pieces', no network and no graphics card to run them) in a vector index
 //! held in memory (`index`). A phrase is embedded in microseconds, and the model is 7.6 MB, small enough for a laptop
 //! of ten years ago and for a browser. Requests in plain words ("undo the last five changes", "more reverb on the
-//! snare") are read into what claudius would do for them, for the person to confirm (`ask`).
+//! snare") are read into what claudius would do for them, for the person to confirm (`ask`), and questions about the
+//! song ("what's the bass volume") answered from it (`tell`).
 
 #![forbid(unsafe_code)]
 
@@ -16,7 +17,9 @@ pub mod needle;
 pub mod pieces;
 pub mod spoken;
 pub mod teach;
+pub mod tell;
 
 pub use ask::{Asker, Proposal};
 pub use find::{Answer, By, DONE, Finder, Found, Item, answer, find_among};
 pub use model::Model;
+pub use tell::{Told, asking, tell};
