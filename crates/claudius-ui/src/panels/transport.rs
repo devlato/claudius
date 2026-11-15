@@ -92,11 +92,25 @@ pub fn top_row(ui: &mut Ui, cx: &mut Cx) {
     widgets::fitting(ui, "top_row", TOP_LEVELS, |ui, level| ((), top_row_at(ui, cx, level)));
 }
 
+/// The room the window's close, minimize and zoom buttons take at the left of the top bar, on a Mac, where the top bar
+/// is the window's title bar (`run_native_with`): AppKit puts them 9 to 69 points from the window's edge (macOS 27, and
+/// within that on the macOS before it), and the bar's own margin is 12. None in full screen, where they hide, nor in a
+/// browser or on another system, whose windows have title bars of their own.
+pub fn window_buttons(ui: &Ui) -> f32 {
+    let mac = cfg!(all(target_os = "macos", not(target_arch = "wasm32")));
+    room_for_buttons(mac, ui.input(|i| i.viewport().fullscreen.unwrap_or(false)))
+}
+
+fn room_for_buttons(mac: bool, full_screen: bool) -> f32 {
+    if mac && !full_screen { 70.0 } else { 0.0 }
+}
+
 /// the top bar at a level of detail (`TOP_LEVELS`), and the width it needed
 fn top_row_at(ui: &mut Ui, cx: &mut Cx, level: usize) -> f32 {
     ui.horizontal_centered(|ui| {
         ui.spacing_mut().item_spacing.x = 6.0;
         let start = ui.cursor().min.x;
+        ui.add_space(window_buttons(ui));
         logo(ui, level < 3);
         ui.add_space(6.0);
         // while a take records, the recorder plays the song: the player waits
@@ -1577,5 +1591,16 @@ pub(crate) fn file_name(title: &str) -> String {
     match name.trim_matches('-') {
         "" => "song".to_string(),
         n => n.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn the_top_bar_leaves_room_for_the_window_buttons_on_a_mac_unless_in_full_screen() {
+        // AppKit's buttons end 69 points from the window's edge; the bar's margin is 12 of them
+        assert!(12.0 + super::room_for_buttons(true, false) >= 69.0 + 12.0);
+        assert_eq!(super::room_for_buttons(true, true), 0.0, "in full screen they hide");
+        assert_eq!(super::room_for_buttons(false, false), 0.0, "a browser's or another system's window has its own");
     }
 }

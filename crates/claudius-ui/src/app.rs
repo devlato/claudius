@@ -1249,11 +1249,11 @@ impl eframe::App for Studio {
                 server: self.server_url.as_deref(),
                 now,
             };
-            egui::Panel::top("transport")
-                .frame(bar)
-                .exact_size(58.0)
-                .show_separator_line(false)
-                .show(ui, |ui| panels::transport::top_row(ui, &mut cx));
+            egui::Panel::top("transport").frame(bar).exact_size(58.0).show_separator_line(false).show(ui, |ui| {
+                #[cfg(all(target_os = "macos", not(target_arch = "wasm32")))]
+                title_bar(ui);
+                panels::transport::top_row(ui, &mut cx)
+            });
             let tools = egui::Frame::new()
                 .fill(theme::mix(PANEL, BG, 0.35))
                 .inner_margin(Margin::symmetric(12, 0))
@@ -1575,10 +1575,77 @@ impl eframe::App for Studio {
     }
 }
 
+/// On a Mac, where the top bar is the window's title bar (`run_native_with`): dragging its background moves the window,
+/// and a double-click on it does what the system's settings say a title bar's does (zoom, unless they say minimize or
+/// nothing). AppKit sends the clicks there to the studio, its own buttons' aside, so the studio does both; the bar's
+/// controls, laid over its background after, take their own clicks.
+#[cfg(all(target_os = "macos", not(target_arch = "wasm32")))]
+fn title_bar(ui: &mut Ui) {
+    let r = ui.interact(ui.max_rect(), ui.id().with("title_bar"), Sense::click_and_drag());
+    if r.double_clicked() {
+        match double_click() {
+            DoubleClick::Zoom => {
+                let zoomed = ui.input(|i| i.viewport().maximized.unwrap_or(false));
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Maximized(!zoomed));
+            }
+            DoubleClick::Minimize => ui.ctx().send_viewport_cmd(egui::ViewportCommand::Minimized(true)),
+            DoubleClick::Nothing => {}
+        }
+    } else if r.drag_started_by(egui::PointerButton::Primary) {
+        ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag);
+    }
+}
+
+/// what a double-click on a window's title bar does, as the person set it in the system's settings
+#[cfg(any(test, all(target_os = "macos", not(target_arch = "wasm32"))))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum DoubleClick {
+    Zoom,
+    Minimize,
+    Nothing,
+}
+
+#[cfg(any(test, all(target_os = "macos", not(target_arch = "wasm32"))))]
+impl DoubleClick {
+    /// from the value of the setting (`AppleActionOnDoubleClick`): none set, or "Fill", zooms, as macOS does by default
+    fn from_setting(value: &str) -> DoubleClick {
+        match value.trim() {
+            "Minimize" => DoubleClick::Minimize,
+            "None" | "Do Nothing" => DoubleClick::Nothing,
+            _ => DoubleClick::Zoom,
+        }
+    }
+}
+
+/// the system's setting for a double-click on a title bar, read once
+#[cfg(all(target_os = "macos", not(target_arch = "wasm32")))]
+fn double_click() -> DoubleClick {
+    static SET: std::sync::OnceLock<DoubleClick> = std::sync::OnceLock::new();
+    *SET.get_or_init(|| {
+        let out = std::process::Command::new("defaults").args(["read", "-g", "AppleActionOnDoubleClick"]).output();
+        let value = out.ok().filter(|o| o.status.success()).map(|o| String::from_utf8_lossy(&o.stdout).into_owned());
+        DoubleClick::from_setting(value.as_deref().unwrap_or(""))
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn a_double_click_on_the_mac_title_bar_does_what_the_systems_settings_say() {
+        for (setting, does) in [
+            ("", DoubleClick::Zoom),
+            ("Maximize\n", DoubleClick::Zoom),
+            ("Fill", DoubleClick::Zoom),
+            ("Minimize\n", DoubleClick::Minimize),
+            ("None", DoubleClick::Nothing),
+            ("Do Nothing", DoubleClick::Nothing),
+        ] {
+            assert_eq!(DoubleClick::from_setting(setting), does, "{setting:?}");
+        }
+    }
 
     #[test]
     fn every_edit_shown_at_once_is_put_back_when_refused() {
