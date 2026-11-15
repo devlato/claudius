@@ -148,15 +148,18 @@ sampled: phrase 'song', filtered until it lifts (another passage of it in groove
 All 64 of its bars play somewhere in the song: the groove and the break 25 to 32, the build 1 to 8, the first drop
 33 to 64 on end and the second 9 to 24.
 
-- **Its hook**, eight bars from the start of the loudest section with chords (the drop the analysis hears in its
-  last eight bars, 57 to 64), without its drums, is the phrase the song is built on, as a
+- **Its hook**, eight bars of it (here 57 to 64, the drop the analysis hears in its last eight bars) without its drums,
+  chosen as the Sample window chooses a loop of the hook (from the sections with chords that pull most toward being
+  one, the bars that stand for most of the recording, loop most cleanly and play most alone), is the phrase the song
+  is built on, as a
   [song built on samples](../guide/online-samples.md#songs-built-on-samples) is: the song takes its key, its chords
   (progression `A`) and a tempo it plays at from it. A hook a voice sings in plays in its own key, at its own tempo or
   stretched, rather than sped up or slowed down, which would make its singer a chipmunk or a giant, and the history
   says "in its own key for the voice in it". Chipmunk soul, whose sound is just that, speeds it up anyway. Without
   the models, it is what sustains of the recording.
-- **Another passage of it**, the eight bars of its break with the pad and the chords, plays as `sample2` in the
-  groove and the break, on its own chords (progression `A2`).
+- **Another passage of it**, the eight bars of its break with the pad and the chords, chosen as the Sample window
+  chooses a loop of another passage (from none of the hook's sections, unlike the hook, looping cleanly), plays as
+  `sample2` in the groove and the break, on its own chords (progression `A2`).
 - **On through it**: every other section but the intro, the breaks and the outro plays as many of the recording's
   bars on end as it has itself (32 at most), of the kind it plays (a drop's or a hook's, or the rest's), from where
   the recording has the most of them that no section played before it, each on its own track and its own bars'
@@ -167,8 +170,9 @@ All 64 of its bars play somewhere in the song: the groove and the break 25 to 32
 - **Its voice**, when it sings (the ears hear a voice, or a pitch in a voice's range carries a third of a phrase),
   sings on in those passages as it sang there: with the stems apart they are all of it but its drums. Without a voice,
   with the stems apart, they are its bass and the rest.
-- **Its drums** are the break in a genre that plays one (deep house does not; boom bap and trip-hop do), cut from its
-  busiest bars without the rest: its drum stem, apart, with the models.
+- **Its drums** are the break in a genre that plays one (deep house does not; boom bap and trip-hop do): the drum
+  break the Sample window would offer first, where its drums play most alone, busy and looping cleanly; its drum stem,
+  apart, with the models.
 - **A flip of it** plays in the intro and the outro: eight bars of half beats, each from another bar of the recording
   that plays the hook's chord there, at the same place in its bar (now and then another), here 14 of its bars, so
   the song is heard in pieces from all over it, still on the hook's chords. Each piece is as loud as the hook (its
@@ -179,7 +183,8 @@ Everything else is the genre's: the drums, the bass, the chords and the pad writ
 the mix. The tempo here is the recording's own, 122 BPM, which deep house plays; another genre plays it at a multiple
 of it, faster or slower by whole semitones as a sampler plays a record, or chopped onto its grid at two thirds to three
 halves of it (as boom bap, this one plays at 92, three quarters of it, chopped onto the grid at its own pitch, and its own drums are the break). The pieces are kept in
-`out/takes/song/`, beside the song.
+`out/takes/song/`, beside the song. Made again with another `--seed`, a flip draws its hook, its other passage and its
+break anew among the good ones, the best most often, as **Another take** draws pieces in the Sample window.
 
 ## Rebuild it, every note yours to change
 

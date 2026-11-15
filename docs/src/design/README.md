@@ -29,7 +29,7 @@ earth is it done this way?", and the answer is a trade-off rather than a mistake
 | [0018 Processors: effects with several tracks in](0018-processors.md) | proposed: an effect takes up to eight tracks in and gives one out, defined by a script's function recorded once as a graph, with knobs and values that move through the song, and plays live in the live mix's runtime |
 | [0019 Libraries of sounds and effects](0019-libraries.md) | proposed: recorded sounds, procedural sounds and effects in one format that holds data and never code, kept on the computer or installed from a marketplace pinned by hash, each with its licence and credit, tests first |
 | [0020 Changing a song's genre](0020-change-a-songs-genre.md) | accepted: a song in another genre keeps its form, chords, key, melody, recordings and written notes, and the genre's drums, bass, parts, sounds and mix play it, as one change undo takes back |
-| [0021 Every kind of sample, ranked and varied](0021-every-kind-of-sample.md) | proposed: the sampler offers sung phrases, hook and passage loops, drum breaks, bass lines and stabs, each scored as its kind, and a varied set of them, each piece saying what it is |
+| [0021 Every kind of sample, ranked and varied](0021-every-kind-of-sample.md) | accepted: the sampler offers sung phrases, hook and passage loops, drum breaks, bass lines and stabs, each scored as its kind, and a varied set of them, each piece saying what it is; a remake's flip and `sample_song` choose by the same scores |
 
 ## The format
 

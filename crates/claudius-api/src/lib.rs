@@ -2139,15 +2139,17 @@ pub enum Command {
         seed: Option<u64>,
     },
     /// samples a recording into the song (the auto-sampler), in one of `SAMPLING_WAYS`: by default its best sung
-    /// phrases, cut on its beat grid and cleaned of its drums, fitted to the song's tempo and key, placed where they
-    /// agree with its chords, mixed as vocals; or a passage of it as a verse or chorus, its voice chopped into an
-    /// instrument, or a short hit of it struck as a drum. claudius keeps what it cut with the song.
+    /// phrases, those the Sample window offers first (each sung whole, on its beat grid, cleaned of its drums), fitted
+    /// to the song's tempo and key, placed where they agree with its chords, mixed as vocals; or a passage of it as a
+    /// verse or chorus, its voice chopped into an instrument, or a short hit of it struck as a drum. With `kinds`, the
+    /// best piece of each kind instead, as the Sample window offers it first, kept as its kind plays (chopped onto
+    /// pads with "chops"). claudius keeps what it cut with the song.
     SampleSong {
         path: String,
         /// how many phrases, 1 to 4 (2)
         #[serde(default)]
         count: Option<u32>,
-        /// how long each is, in bars: 1, 2 or 4 (whichever of 1 and 2 sounds best); a passage 4, 8 or 16
+        /// how long each is, in bars: 1, 2, 4 or 8 (the fewest that hold each sung whole); a passage 4, 8 or 16
         #[serde(default)]
         bars: Option<u32>,
         /// what to listen for ("a person singing")
@@ -2164,6 +2166,10 @@ pub enum Command {
         /// what its sections play suit
         #[serde(default, skip_serializing_if = "Option::is_none")]
         every: Option<String>,
+        /// the kinds of piece to sample (`claudius::kinds::Kind`: "phrase", "hook", "passage", "break", "bass",
+        /// "stab"): `count` phrases and the best piece of each other kind; none: its phrases, or as `how` says
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        kinds: Vec<String>,
     },
     /// a recording (an audio file) as a take: it plays once from the start of section `from`, on through the sections
     /// after it as long as it lasts, at the song's tempo; claudius keeps a copy with the song
@@ -2299,10 +2305,10 @@ pub enum Command {
         note: String,
     },
     /// the auto-sampler's pieces of a recording (an audio file, or `library:<id>`), offered before any goes into the
-    /// song: `count` phrases (1 to 4, default 2) of `bars` bars (1, 2 or 4; whichever sounds best by default), and the
-    /// best piece of each other kind it holds (`PIECE_KINDS`: a loop of its hook or of another passage, a drum break, a
-    /// bass line, a stab), or only the `kinds` named; each as it was cut and through a treatment, for take `seed` (0, the
-    /// default: the best; any other: another draw)
+    /// song: `count` phrases (1 to 4, default 2) of `bars` bars (1 to 8; the fewest that hold each sung whole by
+    /// default), and the best piece of each other kind it holds (`PIECE_KINDS`: a loop of its hook or of another
+    /// passage, a drum break, a bass line, a stab), or only the `kinds` named; each as it was cut and through a
+    /// treatment, for take `seed` (0, the default: the best; any other: another draw)
     SamplePieces {
         path: String,
         #[serde(default)]

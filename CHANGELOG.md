@@ -6,6 +6,12 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+A remake's flip is built on the pieces the Sample window would offer first: the loop of the hook that comes back most,
+loops most cleanly and plays most alone, another passage unlike it, and the drums where they play alone. Made again,
+it draws them anew among the good ones. `sample_song` samples a recording's phrases as the window offers them, sung
+whole, so a held note is never cut: a phrase longer than the bars asked for is refused with how many it takes, rather
+than cut on a bar line. With `kinds`, it samples a recording's best drum break, bass line, loop or stab in one go.
+
 ## [0.11.0] - 2026-11-14
 
 **Add a recording** shows what claudius hears in a recording before it asks anything: its length, tempo and key,

@@ -3,7 +3,8 @@
 //! ears), each scored for what makes a piece of its kind good. That is how alone what it is cut from plays in its bars
 //! (its isolation, in decibels over the rest), how well it loops (its first beat against the beat after its end, as
 //! LoopMaker measures a seam: Shi & Mysore, CHI 2018), and what its kind asks besides: a break how busy it is, a bass
-//! line how much it moves, a hook how much of the recording it stands for, another passage how unlike the hook it is.
+//! line how much it moves, a hook how much of the recording it stands for and how salient its section is, another
+//! passage how unlike the hook it is.
 //! Each feature counts on a scale of its own (`scaled`), so that a piece is judged by how much of it it has.
 
 use crate::analysis::chroma;
@@ -21,7 +22,8 @@ pub enum Kind {
     /// a phrase it sings whole (`sampler::pieces`)
     #[default]
     Phrase,
-    /// bars of its hook, the section with chords that pulls most toward being one, without its drums, bass and voice
+    /// bars of its hook, from the sections with chords that pull most toward being one (its choruses, its drops),
+    /// without its drums, bass and voice
     Hook,
     /// bars of another passage with chords, without its drums, bass and voice
     Passage,
@@ -428,9 +430,22 @@ pub(crate) fn fitness(a: &Analysis, first: usize, bars: u32) -> f64 {
     (again as f64 / 3.0).min(1.0)
 }
 
-/// a section's pull toward being the hook: its energy, and more for a hook or a drop (as a remix picks its hook)
+/// a section's pull toward being the hook: its energy, and more for a hook or a drop
 fn hookness(s: &SectionGuess) -> f64 {
     s.energy as f64 + if matches!(s.kind, SectionKind::Hook | SectionKind::Drop) { 0.25 } else { 0.0 }
+}
+
+/// how far under the section with chords that pulls most toward being the hook another may pull and still be one of
+/// the hook's sections: the other chorus, a drop as loud
+const HOOKS_NEAR: f64 = 0.2;
+
+/// The section with chords that pulls most toward being the hook (`hookness`), and the hook's sections: those with
+/// chords that pull within `HOOKS_NEAR` of it, in the recording's order. A loop of the hook may be cut from any of
+/// them, and another passage from none.
+fn hook_sections(a: &Analysis) -> (Option<&SectionGuess>, Vec<&SectionGuess>) {
+    let with = || a.sections.iter().filter(|s| s.harmony);
+    let Some(hook) = with().max_by(|p, q| hookness(p).total_cmp(&hookness(q))) else { return (None, Vec::new()) };
+    (Some(hook), with().filter(|s| hookness(s) >= hookness(hook) - HOOKS_NEAR).collect())
 }
 
 /// a candidate: its bars, the features its kind is scored by, and how well its length suits its kind
@@ -464,13 +479,13 @@ fn quality(kind: Kind, c: &Candidate, weights: &[f64]) -> f64 {
     (log / total).exp() * c.fits
 }
 
-/// The runs of bars a piece of `kind` may be cut from in `sections`: of each length its kind takes, from each
-/// section's first bar and every run as long after it, within the section.
-fn runs(kind: Kind, sections: &[&SectionGuess], total: usize) -> Vec<(usize, u32, f64)> {
+/// The runs of bars a piece may be cut from in `sections`: of each of `lengths` (each with how well it suits the
+/// piece), from each section's first bar and every run as long after it, within the section.
+fn runs(lengths: &[(u32, f64)], sections: &[&SectionGuess], total: usize) -> Vec<(usize, u32, f64)> {
     let mut out = Vec::new();
     for s in sections {
         let end = (s.start_bar + s.bars).min(total);
-        for &(len, fits) in kind.lengths() {
+        for &(len, fits) in lengths {
             let mut first = s.start_bar;
             while first + len as usize <= end {
                 out.push((first, len, fits));
@@ -502,25 +517,61 @@ pub fn cuts(
     shown: &[(Kind, f64, f64)],
     rng: &mut Rng,
 ) -> Vec<Cut> {
+    drawn_cuts(kind, a, x, rest, Draw { seed, shown, lengths: &[] }, rng)
+}
+
+/// `cuts`, with nothing shown before, and `lengths` bars long only when any are given (each suiting the piece as well
+/// as another; else the lengths its kind takes): a remix's hook as long as the song built on it needs, its other
+/// passage as long as its hook. Nothing for a stab, which no bars hold.
+pub fn cuts_of(
+    kind: Kind,
+    a: &Analysis,
+    x: &Stereo,
+    rest: &Stereo,
+    seed: u64,
+    lengths: &[u32],
+    rng: &mut Rng,
+) -> Vec<Cut> {
+    if kind == Kind::Stab {
+        return Vec::new();
+    }
+    drawn_cuts(kind, a, x, rest, Draw { seed, shown: &[], lengths }, rng)
+}
+
+/// What pieces are drawn for: the take (`seed`; the first, 0, offers the best), the pieces the take before offered
+/// (each its kind and where it is in the recording, in seconds), and the lengths asked for, in bars (those its kind
+/// takes, when none are).
+#[derive(Clone, Copy)]
+struct Draw<'a> {
+    seed: u64,
+    shown: &'a [(Kind, f64, f64)],
+    lengths: &'a [u32],
+}
+
+/// `cuts`, drawn as `d` says
+fn drawn_cuts(kind: Kind, a: &Analysis, x: &Stereo, rest: &Stereo, d: Draw, rng: &mut Rng) -> Vec<Cut> {
+    let Draw { seed, shown, lengths } = d;
     if kind == Kind::Stab {
         return stabs(a, x, rest, seed, shown, rng);
     }
+    let asked: Vec<(u32, f64)> = lengths.iter().map(|&l| (l, 1.0)).collect();
+    let lengths = if asked.is_empty() { kind.lengths() } else { &asked };
     let loudest = (0..a.bars).map(|b| db(bar_power(a, x, b))).fold(f64::MIN, f64::max);
-    let hook = a.sections.iter().filter(|s| s.harmony).max_by(|p, q| hookness(p).total_cmp(&hookness(q)));
+    let (hook, hooks) = hook_sections(a);
     let sections: Vec<&SectionGuess> = match kind {
         Kind::Phrase | Kind::Stab => return Vec::new(),
-        Kind::Hook => hook.into_iter().collect(),
+        Kind::Hook => hooks,
         Kind::Passage => a
             .sections
             .iter()
             .filter(|s| s.harmony && !matches!(s.kind, SectionKind::Intro | SectionKind::Outro))
-            .filter(|s| hook.is_none_or(|h| h.start_bar != s.start_bar))
+            .filter(|s| !hooks.iter().any(|h| h.start_bar == s.start_bar))
             .collect(),
         Kind::Break | Kind::Bass => a.sections.iter().collect(),
     };
     let hook_chroma = hook.and_then(|h| chroma_of(a, h.start_bar, h.bars.min(4) as u32));
     let mut cands: Vec<Candidate> = Vec::new();
-    for (first, bars, fits) in runs(kind, &sections, a.bars) {
+    for (first, bars, fits) in runs(lengths, &sections, a.bars) {
         let bar_range = first..first + bars as usize;
         let power: f64 = bar_range.clone().map(|b| bar_power(a, x, b)).sum::<f64>() / bars as f64;
         // what it is cut from plays in every one of its bars
@@ -537,7 +588,13 @@ pub fn cuts(
         let features = match kind {
             Kind::Break => vec![isolation, busy(a, x, first, bars), loops],
             Kind::Bass => vec![isolation, moves(a, x, first, bars), loops],
-            Kind::Hook => vec![fitness(a, first, bars), loops, isolation],
+            Kind::Hook => {
+                // how salient its section is: 1 for the hook's own, a half for one that pulls `HOOKS_NEAR` less
+                let salience = hook
+                    .zip(a.sections.iter().find(|s| (s.start_bar..s.start_bar + s.bars).contains(&first)))
+                    .map_or(1.0, |(h, s)| 1.0 - (hookness(h) - hookness(s)) / (2.0 * HOOKS_NEAR));
+                vec![fitness(a, first, bars), loops, isolation, salience]
+            }
             Kind::Passage => {
                 let alike = hook_chroma
                     .zip(chroma_of(a, first, bars.min(4)))
@@ -553,7 +610,7 @@ pub fn cuts(
     }
     let weights: &[f64] = match kind {
         Kind::Break | Kind::Bass => &[1.0, 0.6, 1.0],
-        Kind::Hook => &[1.0, 1.0, 0.5],
+        Kind::Hook => &[1.0, 1.0, 0.5, 0.5],
         _ => &[0.8, 1.0, 0.5],
     };
     let q: Vec<f64> = cands.iter().map(|c| quality(kind, c, weights)).collect();

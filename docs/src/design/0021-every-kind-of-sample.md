@@ -1,6 +1,6 @@
 # 0021 Every kind of sample, ranked and varied
 
-Status: accepted; the first and third steps are built, and the fourth's chop sets and stabs
+Status: accepted; its five steps are built
 
 ## Context
 
@@ -74,7 +74,7 @@ person or their assistant can ask for any kind and any number, and read why each
 1. Built: hook and passage loops, breaks and bass lines with their scores in `sample_pieces`, each piece with its kind
    and what it scored for (`claudius_api::PieceView`), `kinds` to ask for some, and a piece kept placed as its kind
    plays (`keep_pieces`). The best of each kind on the first take, a seeded draw among the near-best on any other.
-2. The Sample window offers them, each saying what it is.
+2. Built: the Sample window offers them, each saying what it is.
 3. Built: variety, the DPP over the pieces of every kind but a phrase (`kinds::varied`), the seeded draws away from
    the take before (`sampler::Options::shown`), the shares of each kind and the genre's (`sampler::leaning`), and
    several of a kind kept sharing the sections.
@@ -83,7 +83,13 @@ person or their assistant can ask for any kind and any number, and read why each
    pad, each pad a drum lane playing its hits where they came. Stabs of the instruments: built, `stab`, a hit of their
    chords where SuperFlux hears one, scored by how hard it comes in, how cleanly its beat rings on and how alone they
    play, kept struck by a drum lane (today's stab of a voice is a syllable).
-5. The flip and `sample_song` choose by the same scores.
+5. Built: the flip and `sample_song` choose by the same scores. A remake's flip is built on a loop of the hook
+   (`remix::hook_of`: eight bars, else four or two, of the sections with chords that pull most toward being the hook,
+   salience now one of a hook's scores), another passage as long from none of them (`passage_of`) and a drum break
+   (`break_of`), each the best on the first take and drawn among the near-best on any other, as the window's takes
+   are; where no loop of the hook can be cut, the flip falls back to the first bars of its loudest section with chords.
+   `sample_song` samples the phrases the window offers first, sung whole, and with `kinds` the best piece of each kind,
+   kept as its kind plays or chopped onto pads.
 
 ## Evaluation
 

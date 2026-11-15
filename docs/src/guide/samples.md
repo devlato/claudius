@@ -124,11 +124,14 @@ or **Sample its vocals into the song** in the studio's New song dialog, after ch
   bass and the rest (Spleeter's nets, about 8 s for a four-minute song, kept for the next time), and hears the voice
   on its own from then on.
 - **Finding the phrases.** claudius finds the recording's tempo, key and bars (the beats a band plays, when it speeds
-  up and slows down), and scores every one- and two-bar span (`--bars` asks for 1, 2 or 4): how much of it holds a
-  pitch in a voice's range, A2 to C6, and how much of its sound is the voice (with the voice apart, its share of the
-  span; else how much sits in the middle of the stereo picture, where a voice is mixed). With the ears, it also listens
-  to the best of them for "a person singing" (or what `--find` says, such as "a rap verse"), and their reading leads.
-  It keeps the best two (`--count`, up to four), no two overlapping.
+  up and slows down), and the phrases its voice sings whole: each from the quiet before its first word to the quiet
+  after its last, so that a cut never falls inside a word or a held note, in the fewest of its bars that hold it (1, 2,
+  4 or 8; `--bars` asks for one of them, and a phrase longer than that is parted at its longest rest, or left out).
+  It scores them as the Sample window does: how much of each holds a pitch in a voice's range, A2 to C6, and how much
+  of its sound is the voice (with the voice apart, its share of the phrase; else how much sits in the middle of the
+  stereo picture, where a voice is mixed), a longer phrase a little more. With the ears, it also listens to each for "a
+  person singing" (or what `--find` says, such as "a rap verse"), and their reading leads. It keeps the best two
+  (`--count`, up to four), no two overlapping: the phrases **Pieces of it** offers first.
 - **Cleaning them.** With the voice apart, each phrase is the voice as it was sung and mixed, in stereo, its rumble
   under 90 Hz out. Without it, each keeps the middle of the stereo picture and its sustained part, without what
   strikes (the drums, by harmonic-percussive separation), above 160 Hz and below 11 kHz. Either way, at −1 dBFS,
@@ -189,6 +192,12 @@ Phrases that come round are one way producers sample a recording. The auto-sampl
   and hooks and the verses. Its rhythm is a drum lane's: change its steps in the Drums tab, or with
   `set_drum_pattern`.
 
+The auto-sampler takes other kinds of piece too, chosen as **Pieces of it** offers them first (below), without a
+window to choose in: `--kinds break,bass` (`kinds` for an assistant) samples the best drum break and the best bass
+line of the recording, each kept as its kind plays, and `phrase` among the kinds adds `--count` phrases. With
+`--how chops`, each is chopped onto pads instead. To hear the pieces and choose among them, use the window, or
+`sample_pieces` and `keep_pieces`.
+
 ```text
 sampled a passage of Many Miracles Vocal Melody.caf into the song: passage
 passage: bars 1-8 of Many Miracles Vocal Melody.caf, its voice (the ears +2.7 for 'a person singing', 35% sung), 5 semitones up into F minor at 126 BPM, played through from the first bar of the drops and hooks (drop, drop2), the song's chords there following it (i i7 III iv7 i7 v7 i i7)
@@ -241,15 +250,15 @@ recording's bars:
 
 | Kind | What it is | Kept, it plays |
 |---|---|---|
-| `hook` | a loop of 1 to 8 bars of its hook, the section with chords that pulls most toward being one, without its drums, bass and voice | all through the drops and hooks, in the song's key |
-| `passage` | a loop of 2 to 8 bars of another passage with chords | all through the other sections but the intro and the outro |
+| `hook` | a loop of 1 to 8 bars of its hook, from the sections with chords that pull most toward being one (its choruses, its drops), without its drums, bass and voice | all through the drops and hooks, in the song's key |
+| `passage` | a loop of 2 to 8 bars of another passage with chords, from none of the hook's sections | all through the other sections but the intro and the outro |
 | `break` | its drums, 1, 2 or 4 bars | as a drum loop where the song's drums play, at its own pitch, cut onto the song's grid when its tempo is far from the song's |
 | `bass` | its bass line, 1, 2 or 4 bars | in place of the song's bass, in the song's key |
 | `stab` | one hit of its instruments' chords and a beat of it, the hit that comes in hardest and rings its beat alone | struck as a drum is, on a few beats of every two bars, by a drum lane of its own (`stab`), in the song's key, all through it but its intro and outro |
 
 Each is scored as its kind: how alone what it is cut from plays in its bars, how well it loops (its first beat against
 the beat after its end), and what its kind asks besides (how busy a break is, how much a bass line moves, how often a
-hook comes back, how unlike the hook another passage is, and a stab how hard it comes in, at one of SuperFlux's onsets,
+hook comes back and how much its section stands out, how unlike the hook another passage is, and a stab how hard it comes in, at one of SuperFlux's onsets,
 and how cleanly its beat rings on). Each says why, in words ("the drums alone, busy, it loops cleanly"), and goes into
 the sections `keep_pieces` names, when it names any; a phrase kept with no room in them leaves the other pieces kept,
 and the reply says why it did not go in. `kinds` asks for some only (`phrase`, `hook`, `passage`, `break`, `bass`,

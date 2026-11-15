@@ -102,16 +102,19 @@ and the reply says so.
 With `flip: true` (`--flip`), `remake` makes a new song of the genre on the recording's sound instead, as a song built
 on samples is built:
 
-- its hook (eight bars of its loudest section with chords) without its drums is what the song takes its key, its
-  chords and its tempo from;
+- its hook (eight bars of it, chosen as `sample_pieces` would offer a loop of its hook first: from its choruses or
+  drops, the bars that come back most, loop most cleanly and play most alone) without its drums is what the song
+  takes its key, its chords and its tempo from;
 - the song goes on through it: each section but the intro, the breaks and the outro plays as many of its bars on end
   as it has itself (32 at most), of the kind it plays (a hook's or a drop's, or the rest's), from the hook, from
-  another passage of it (of its verses when it has any) or from bars no section before it played, each on its own
+  another passage of it (chosen as a loop of another passage, unlike the hook) or from bars no section before it
+  played, each on its own
   track and its own bars' chords (`sample3`, `sample4` ... on `A3`, `A4` ...), so a three-minute flip is not two
   loops;
 - when it sings, its voice sings on in those passages as it sang there (with the ears, they are all of it but its
   drums); without a voice, with the ears, they are its bass and the rest;
-- its own drums (its drum stem, with the ears) are the break, in a genre that plays one;
+- its own drums (its drum stem, with the ears) are the break, in a genre that plays one: the drum break
+  `sample_pieces` would offer first, where they play most alone;
 - a flip of it, half beats cut from all over it on the hook's chords, each brought to the hook's level, plays in the
   intro, the breaks and the outro.
 
@@ -122,6 +125,8 @@ chipmunk (except in chipmunk soul, whose sound that is). Its history says what c
 (bars 25-32); ...; on through it as the song goes (build bars 1-8, drop bars 33-64, drop2 bars 9-24)`), so tell the
 person which part of their song
 plays where. Everything else is the genre's. A sung phrase moved into the song's key keeps its singer's formants.
+Remade with another `seed`, a flip draws its hook, its other passage and its break anew among the good ones, so a
+person who wants it built on other bars of their song asks for another take.
 
 With `rebuild: true` (`--rebuild`), `remake` makes the song itself again, every part of it played on claudius's
 sounds, so that each note can be changed:
@@ -223,13 +228,21 @@ when they made it.
 
 When the person wants a vocal from a recording in their song ("sample the vocals from this", "put that hook in my
 drop"), call `sample_song` with the recording's `path`. claudius takes the recording's voice apart from the rest
-(with the ears), finds its best sung phrases, fits them to the song's tempo and key (stretched, never sped up, its
+(with the ears), finds its best phrases sung whole (those `sample_pieces` would offer first, never cut inside a word
+or a held note), fits them to the song's tempo and key (stretched, never sped up, its
 formants kept), places each where its notes agree with the song's chords (the drops and hooks first, then the breaks
 ...) and mixes them as vocals, `vox1`, `vox2` ... The reply's first line says what came of it ("sampled 2 phrases of
 song.mp3 into the song: vox1, vox2"), the lines after it where each phrase came from and went.
 
-- **What to ask for.** `count` phrases (2), `bars` long (1, 2 or 4), `sections` to put them in by name or kind
-  ("the break only"), and `find` when the voice is something else ("a rap verse", "a choir").
+- **What to ask for.** `count` phrases (2), `bars` long (1, 2, 4 or 8; the fewest that hold each phrase when not
+  said), `sections` to put them in by name or kind ("the break only"), and `find` when the voice is something else
+  ("a rap verse", "a choir"). A voice that holds a note for longer than the bars asked for is not cut: the reply says
+  how many bars its shortest phrase takes, so ask again with as many, or none.
+- **Other kinds of piece, in one go** (`kinds`): "sample its drum break into my song" is `kinds: ["break"]`, "its
+  bass line and its break" `["bass", "break"]`: the best piece of each, as `sample_pieces` would offer it first,
+  kept as `keep_pieces` keeps it (a break beside the song's drums, a bass line in place of its bass, a loop of the
+  hook or of another passage, a stab struck by a drum lane); `phrase` among them adds `count` phrases, and `how:
+  "chops"` chops each onto pads. When the person wants to hear the pieces and choose, use `sample_pieces` instead.
 - **How often it comes round** (`every`): `once` ("once in each chorus"), `2`, `4`, `8` or `16` ("every four bars"),
   or `through` ("loop it all through the break"). Said nothing, the song decides by its genre and what its sections
   play (once where a lead or a voice sings already, every other time round in a genre built on samples, every 8 bars

@@ -242,9 +242,10 @@ pub(crate) enum Cmd {
         #[arg(short, long, default_value = "out/chops")]
         out: PathBuf,
     },
-    /// Sample a recording into a song: by default its best sung phrases, cut on its beat grid and cleaned of its drums,
-    /// fitted to the song's tempo and key, placed where they agree with its chords, and mixed as vocals; or, with
-    /// --how, a passage of it as a verse or chorus, its voice chopped into an instrument, or a stab struck as a drum
+    /// Sample a recording into a song: by default its best sung phrases, each sung whole on its beat grid and cleaned of
+    /// its drums, fitted to the song's tempo and key, placed where they agree with its chords, and mixed as vocals; or,
+    /// with --how, a passage of it as a verse or chorus, its voice chopped into an instrument, or a stab struck as a
+    /// drum; or, with --kinds, the best piece of each kind, kept as its kind plays
     Sample {
         /// the recording to take the phrases from
         file: PathBuf,
@@ -258,8 +259,8 @@ pub(crate) enum Cmd {
         /// how many phrases (1 to 4)
         #[arg(long, default_value_t = 2)]
         count: usize,
-        /// how long each phrase is, in bars: 1, 2 or 4 (default: whichever of 1 and 2 sounds best); a passage 4, 8 or
-        /// 16 (default 8 where a section has room), a phrase to chop 1, 2 or 4 (default 2)
+        /// how long each phrase is, in bars: 1, 2, 4 or 8 (default: the fewest that hold it sung whole); a passage 4,
+        /// 8 or 16 (default 8 where a section has room), a phrase to chop 1, 2 or 4 (default 2)
         #[arg(long)]
         bars: Option<u32>,
         /// what the ears listen for (default: "a person singing")
@@ -272,6 +273,10 @@ pub(crate) enum Cmd {
         /// every so many bars) or through (all through each); default: as the song's genre and its sections suit
         #[arg(long)]
         every: Option<String>,
+        /// the kinds of piece to sample, comma-separated: phrase, hook, passage, break, bass, stab (--count phrases and
+        /// the best piece of each other kind; with --how chops, chopped onto pads); default: its phrases
+        #[arg(long, value_delimiter = ',')]
+        kinds: Vec<String>,
         #[command(flatten)]
         ears: EarsArgs,
         #[arg(short, long, default_value = "out")]

@@ -2,18 +2,25 @@
 //! the pieces a producer would take from it, and a song of the genre built on them, as a song built on samples is
 //! (`crate::sampling`).
 //!
-//! - Its hook, eight bars of the loudest section with chords (a hook or a drop when it has one; the loudest eight of it,
-//!   `loudest`), without its drums (and, when its stems are apart and it does not sing, without its voice), is the
-//!   phrase the song is built on: the song takes its key, its chords and a tempo it plays at, the recording's own or a
+//! - Its hook, without its drums (and, when its stems are apart and it does not sing, without its voice), is the phrase
+//!   the song is built on: eight bars of it (four, or two, where its hook's sections are shorter), chosen as the Sample
+//!   window chooses a loop of the hook, by how much of the recording it stands for, how well it loops and how alone it
+//!   plays (`kinds`; `hook_of`). The song takes its key, its chords and a tempo it plays at, the recording's own or a
 //!   multiple of it, faster or slower by whole semitones or chopped onto the song's grid (`sampling::meets`). A hook a
 //!   voice sings in plays in its own key, unless the genre speeds its singers up (`SampleNeed::speeds_voices`).
-//! - Another passage of it as long (of its verses, when it has any) is where the song's other sections start.
+//! - Another passage of it as long, from none of the hook's sections and chosen as the Sample window chooses a loop of
+//!   another passage (how unlike the hook it is, how well it loops, how alone it plays), is where the song's other
+//!   sections start.
 //! - The song goes on through the recording: each of its sections, but its intro, breaks and outro, plays as many bars
 //!   of it on end as it has itself, of the kind it plays (its hooks' and drops', or the rest's), from the hook, from the
 //!   other passage, or from bars no section before it played, each on its own bars' chords (`go_through`). When it
 //!   sings (the ears hear a voice, or a pitch in a voice's range carries a third of a phrase), its voice sings on in
 //!   them as it sang there.
-//! - Its own drums, the busiest bars of them without the rest, are the break, in a genre that plays one.
+//! - Its own drums are the break, in a genre that plays one: the drum break the Sample window would offer first, by how
+//!   alone the drums play, how busy they are and how well they loop.
+//!
+//! Each remix of it made again draws its hook, its other passage and its break anew among those that score near the
+//! best, the better the likelier, as each take of the Sample window does.
 //! - A flip of it plays in the intro, the breaks and the outro: as many bars as the hook of half beats, each from
 //!   another bar of the recording that plays the hook's chord there, at the same place in its bar (now and then
 //!   another), so that the song is heard in pieces from all over it, still on the hook's chords.
@@ -35,6 +42,7 @@ use crate::compose::{self, FamilyPick, Library, Options};
 use crate::config::SRF;
 use crate::dsp::fft;
 use crate::genres::{GenreProfile, LoopSpec, SampleNeed};
+use crate::kinds::{self, Kind};
 use crate::library::prepared::{Passage, Prepared, Role};
 use crate::model::*;
 use crate::rng::Rng;
@@ -99,65 +107,56 @@ fn hooks(a: &Analysis) -> Vec<(f64, Bars)> {
         .collect()
 }
 
-/// The passages of the verses as long as the hook, from the sections with chords elsewhere but the intro and the
-/// outro, each scored as one: a verse more than another kind, the quieter more.
-fn verses(a: &Analysis, hook: Bars) -> Vec<(f64, Bars)> {
-    a.sections
-        .iter()
-        .filter(|s| s.harmony && s.bars >= hook.count && s.start_bar + hook.count <= a.bars && !hook.meets(s))
-        .filter(|s| !matches!(s.kind, SectionKind::Intro | SectionKind::Outro))
-        .map(|s| {
-            let verse = if s.kind == SectionKind::Verse { 1.0 } else { 0.0 };
-            (verse - s.energy as f64, Bars { first: s.start_bar, count: hook.count })
-        })
-        .collect()
-}
-
-/// The recording's drums, as many bars as the hook from each section with a kick, the louder the busier.
-fn drum_runs(a: &Analysis, hook: Bars) -> Vec<(f64, Bars)> {
-    a.sections
-        .iter()
-        .filter(|s| s.kick && s.bars >= hook.count && s.start_bar + hook.count <= a.bars)
-        .map(|s| (s.energy as f64, Bars { first: s.start_bar, count: hook.count }))
-        .collect()
-}
-
 /// the one of `options` that scores best
 fn best<T>(options: Vec<(f64, T)>) -> Option<T> {
     options.into_iter().max_by(|x, y| x.0.total_cmp(&y.0)).map(|o| o.1)
 }
 
-/// how far under the best an option may score and still be drawn, and how strongly the better are preferred among
-/// them: the smaller, the more
-const NEAR: f64 = 0.2;
-const CHOOSY: f64 = 0.1;
-
-/// One of `options` drawn with `rng` among those that score within `NEAR` of the best, the better the likelier (the
-/// Gumbel-max trick): one remix of a recording is built on its best hook, another on its other chorus.
-fn draw<T>(options: Vec<(f64, T)>, rng: &mut Rng) -> Option<T> {
-    let top = options.iter().map(|o| o.0).fold(f64::MIN, f64::max);
-    options
-        .into_iter()
-        .filter(|o| o.0 >= top - NEAR)
-        .map(|(score, o)| (score / CHOOSY - (-rng.range(1e-12, 1.0).ln()).ln(), o))
-        .max_by(|x, y| x.0.total_cmp(&y.0))
-        .map(|o| o.1)
-}
-
-/// the hook: the section with chords that pulls most toward being one (`hooks`)
+/// the hook a remix falls back on where no loop of its hook can be cut (`hook_of`): the first bars of the section
+/// with chords that pulls most toward being one (`hooks`)
 pub fn hook_bars(a: &Analysis) -> Option<Bars> {
     best(hooks(a))
 }
 
-/// a passage of the verses as long as the hook (`verses`): a verse when there is one, else the quietest that is not
-/// an intro or an outro
-pub fn verse_bars(a: &Analysis, hook: Bars) -> Option<Bars> {
-    best(verses(a, hook))
+/// the lengths a remix's hook may be, the longest first: the song is built on it, and goes on through the recording a
+/// whole number of it at a time (`go_through`)
+const HOOK_BARS: [u32; 3] = [8, 4, 2];
+
+/// the bars a piece of the recording is cut from
+fn bars_of(c: kinds::Cut) -> Bars {
+    Bars { first: c.first, count: c.bars as usize }
 }
 
-/// the busiest of the recording's drums, as many bars as the hook: the loudest section with a kick
-pub fn drum_bars(a: &Analysis, hook: Bars) -> Option<Bars> {
-    best(drum_runs(a, hook))
+/// The hook a remix of the recording `a` heard is built on, chosen as the Sample window chooses a loop of the hook
+/// (`kinds::Kind::Hook`, from any of the hook's sections), cut from `x` apart from `rest`, as long as the longest of
+/// `HOOK_BARS` those sections hold: the best on take `seed` 0, one drawn among the near-best on any other, so that
+/// one remix of a recording is built on its best hook and another on its other chorus. Where no loop of it can be cut,
+/// the hook it falls back on (`hook_bars`), from the loudest bars of its section.
+fn hook_of(a: &Analysis, x: &Stereo, rest: &Stereo, seed: u64) -> Option<Bars> {
+    let mut rng = Rng::seed_from(seed, "remix hook");
+    HOOK_BARS
+        .iter()
+        .find_map(|&len| kinds::cuts_of(Kind::Hook, a, x, rest, seed, &[len], &mut rng).into_iter().next())
+        .map(bars_of)
+        .or_else(|| hook_bars(a).map(|b| loudest(a, x, b)))
+}
+
+/// Another passage of the recording, as long as its `hook`, chosen as the Sample window chooses a loop of another
+/// passage (`kinds::Kind::Passage`, from none of the hook's sections), cut from `x` apart from `rest`, on take `seed`
+/// as `hook_of` draws; none where it has none.
+fn passage_of(a: &Analysis, x: &Stereo, rest: &Stereo, hook: Bars, seed: u64) -> Option<Bars> {
+    let mut rng = Rng::seed_from(seed, "remix passage");
+    kinds::cuts_of(Kind::Passage, a, x, rest, seed, &[hook.count as u32], &mut rng)
+        .into_iter()
+        .map(bars_of)
+        .find(|b| !b.overlaps(hook))
+}
+
+/// The recording's drums as a break, chosen as the Sample window chooses a drum break (`kinds::Kind::Break`, of the
+/// lengths a break takes), cut from `drums` apart from `rest`, on take `seed` as `hook_of` draws.
+fn break_of(a: &Analysis, drums: &Stereo, rest: &Stereo, seed: u64) -> Option<Bars> {
+    let mut rng = Rng::seed_from(seed, "remix break");
+    kinds::cuts_of(Kind::Break, a, drums, rest, seed, &[], &mut rng).into_iter().next().map(bars_of)
 }
 
 /// Bars `b` moved, within the section they start, to the run of as many bars (a whole number of runs into it) where `x`
@@ -618,17 +617,16 @@ pub fn remix(
     ears: Option<&crate::ears::Ears>,
 ) -> Result<Blueprint, String> {
     let (x, name, a) = (src.x, src.name, src.a);
-    // each remix of it draws its hook, its other passage and its drums anew among the good ones
-    let mut takes = Rng::seed_from(seed, "remix");
-    let hook =
-        draw(hooks(a), &mut takes).ok_or("the recording has no section with chords long enough to build a remix on")?;
     // whether it sings: a voice the ears hear, or a pitch followed through a third of a phrase
     let voiced = crate::sampler::Options::default();
     let sings = crate::sampler::find(x, src.stems, a, ears, &voiced, 1)
         .first()
         .is_some_and(|p| p.sung >= 0.35 || p.z.is_some_and(|z| z >= 1.5));
     let Apart { music: sustained, drums: struck, voiced: voice_in_it } = apart(src, sings);
-    let hook = loudest(a, &sustained, hook);
+    // its hook, its other passage and its drums, chosen by the scores the Sample window offers its pieces by: each
+    // remix of it draws them anew among the good ones
+    let hook = hook_of(a, &sustained, &struck, seed)
+        .ok_or("the recording has no section with chords long enough to build a remix on")?;
     let slug = crate::song::slug(Path::new(name).file_stem().map_or(name.into(), |s| s.to_string_lossy()).as_ref());
     let folder = dir.join(&slug);
     let store = |audio: &Stereo| -> Result<String, String> {
@@ -642,7 +640,7 @@ pub fn remix(
     };
     let energy = |b: Bars| a.sections.iter().find(|s| b.meets(s)).map_or(0.0, |s| s.energy);
     let (path, bpm) = piece(hook, &sustained)?;
-    let verse = draw(verses(a, hook), &mut takes).map(|v| loudest(a, &sustained, v));
+    let verse = passage_of(a, &sustained, &struck, hook, seed);
     let second = match verse {
         Some(v) => {
             Some(Passage { path: piece(v, &sustained)?.0, chords: chords_of(a, v), louder: energy(v) > energy(hook) })
@@ -668,9 +666,7 @@ pub fn remix(
         root: None,
         pulse: Some(a.pulse_clarity),
     };
-    let drum_bars = crate::sampling::need(g, Role::Break)
-        .and_then(|_| draw(drum_runs(a, hook), &mut takes))
-        .map(|b| loudest(a, &struck, b));
+    let drum_bars = crate::sampling::need(g, Role::Break).and_then(|_| break_of(a, &struck, &sustained, seed));
     let drums = match drum_bars {
         Some(b) => {
             let (path, bpm) = piece(b, &struck)?;
@@ -1091,13 +1087,46 @@ mod tests {
         }
     }
 
+    /// the chord of A minor, as loud as `loud`, `t` seconds in
+    fn chord(t: f64, loud: f32) -> f32 {
+        let tau = std::f64::consts::TAU;
+        loud * ([220.0, 261.63, 329.63].iter().map(|f| (tau * f * t).sin()).sum::<f64>() / 3.0) as f32
+    }
+
     #[test]
-    fn the_hook_is_the_loudest_section_with_chords_and_the_verse_another() {
+    fn where_no_chord_rings_to_loop_the_hook_is_the_loudest_section_with_chords_and_no_other_passage_is_taken() {
         let a = heard();
-        let hook = hook_bars(&a).unwrap();
-        assert_eq!(hook, Bars { first: 8, count: 8 });
-        assert_eq!(verse_bars(&a, hook), Some(Bars { first: 0, count: 8 }));
-        assert_eq!(drum_bars(&a, hook), Some(Bars { first: 8, count: 8 }));
+        assert_eq!(hook_bars(&a), Some(Bars { first: 8, count: 8 }));
+        // one note all through, of which no loop of the instruments is made
+        let mut x = Stereo::zeros((40.0 * SRF) as usize);
+        for i in 0..x.len() {
+            let v = 0.3 * (std::f64::consts::TAU * 220.0 * i as f64 / SRF).sin() as f32;
+            (x.l[i], x.r[i]) = (v, v);
+        }
+        let (sustained, struck) = split(&x);
+        for seed in [0, 3] {
+            let hook = hook_of(&a, &sustained, &struck, seed).unwrap();
+            assert_eq!(hook, Bars { first: 8, count: 8 }, "seed {seed}");
+            assert_eq!(passage_of(&a, &sustained, &struck, hook, seed), None, "seed {seed}");
+        }
+    }
+
+    #[test]
+    fn a_remix_takes_the_drums_where_they_play_alone_as_its_break_and_is_built_on_the_chords_that_come_round() {
+        // drums alone for four bars, then the band with them: the loudest bars with a kick are the band's, but the
+        // break the Sample window offers first is the drums alone, and the hook is the chords
+        let (mix, stems) = crate::sampler::tests::band();
+        let a = crate::analysis::song::analyze_with(&mix, Some(&stems), None);
+        let src = Source { x: &mix, name: "band.wav", a: &a, stems: Some(&stems) };
+        let Apart { music, drums, .. } = apart(&src, false);
+        let brk = break_of(&a, &drums, &music, 0).expect("a break");
+        assert!(brk.first + brk.count <= 4, "the drums alone: {brk:?}");
+        let hook = hook_of(&a, &music, &drums, 0).expect("a hook");
+        assert!(hook.first >= 4, "the chords: {hook:?}");
+        let dir = std::env::temp_dir().join(format!("claudius-flip-band-{}", std::process::id()));
+        let bp = remix(&src, &crate::genres::get("house").unwrap(), 0, &Options::default(), None, &dir, None).unwrap();
+        assert_eq!(built_on(&bp, "its hook ("), hook.first, "{:?}", bp.lineage);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -1246,10 +1275,14 @@ mod tests {
     /// a hundred seconds of `heard_through`, its hooks louder than the rest
     fn played_through() -> Stereo {
         let mut x = Stereo::zeros((100.0 * SRF) as usize);
+        let mut rng = Rng::new(7);
         for i in 0..x.len() {
             let t = i as f64 / SRF;
-            let loud = if matches!((t / 2.5) as usize / 8, 1 | 3) { 0.5 } else { 0.3 };
-            let v = loud * (std::f64::consts::TAU * 220.0 * t).sin() as f32;
+            let section = (t / 2.5) as usize / 8;
+            let loud = if matches!(section, 1 | 3) { 0.5 } else { 0.3 };
+            // a little noise under the first verse, which loops less cleanly for it
+            let noise = if section == 0 { 0.06 * (rng.f32() - 0.5) } else { 0.0 };
+            let v = chord(t, loud) + noise;
             (x.l[i], x.r[i]) = (v, v);
         }
         x
@@ -1275,7 +1308,7 @@ mod tests {
             let t = i as f64 / SRF;
             let bar = (t / a.bar_secs) as usize;
             let loud = if (16..24).contains(&bar) || (40..48).contains(&bar) { 0.5 } else { 0.3 };
-            let v = loud * (std::f64::consts::TAU * 220.0 * t).sin() as f32;
+            let v = chord(t, loud);
             (x.l[i], x.r[i]) = (v, v);
         }
         let dir = std::env::temp_dir().join(format!("claudius-flip-double-{}", std::process::id()));
@@ -1366,27 +1399,29 @@ mod tests {
 
     #[test]
     fn a_flip_made_again_is_built_on_other_pieces_of_the_recording_the_best_most_often() {
-        let a = heard_through();
-        let hook = hook_bars(&a).unwrap();
-        // the hooks are bars 9-16 (the louder) and 25-32, the verses bars 1-8 (the quieter) and 17-24: the other hook
-        // is no verse, and the outro neither
+        let (a, x) = (heard_through(), played_through());
+        let (sustained, struck) = split(&x);
+        // the hooks are bars 9-16 (the louder) and 25-32, the verses bars 1-8 (with noise under it) and 17-24: the other
+        // hook is no verse, and the outro neither. The first take is the best of each.
+        let hook = hook_of(&a, &sustained, &struck, 0).unwrap();
+        assert_eq!(hook, Bars { first: 8, count: 8 });
+        assert_eq!(passage_of(&a, &sustained, &struck, hook, 0), Some(Bars { first: 16, count: 8 }));
         let (mut hooks_drawn, mut verses_drawn) = (BTreeMap::new(), BTreeMap::new());
-        for seed in 0..200 {
-            let mut rng = Rng::new(seed);
-            *hooks_drawn.entry(draw(hooks(&a), &mut rng).unwrap().first).or_insert(0) += 1;
-            *verses_drawn.entry(draw(verses(&a, hook), &mut rng).unwrap().first).or_insert(0) += 1;
+        for seed in 1..200 {
+            let hook = hook_of(&a, &sustained, &struck, seed).unwrap();
+            *hooks_drawn.entry(hook.first).or_insert(0) += 1;
+            *verses_drawn.entry(passage_of(&a, &sustained, &struck, hook, seed).unwrap().first).or_insert(0) += 1;
         }
         assert_eq!(hooks_drawn.keys().copied().collect::<Vec<_>>(), [8, 24], "{hooks_drawn:?}");
         assert_eq!(verses_drawn.keys().copied().collect::<Vec<_>>(), [0, 16], "{verses_drawn:?}");
         assert!(hooks_drawn[&8] > hooks_drawn[&24], "the louder hook most often: {hooks_drawn:?}");
-        assert!(verses_drawn[&0] > verses_drawn[&16], "the quieter verse most often: {verses_drawn:?}");
+        assert!(verses_drawn[&16] > verses_drawn[&0], "the cleaner verse most often: {verses_drawn:?}");
         // and a remix made again with another seed is built on them
-        let x = played_through();
         let dir = std::env::temp_dir().join(format!("claudius-flip-again-{}", std::process::id()));
         let src = Source { x: &x, name: "my song.wav", a: &a, stems: None };
         let g = crate::genres::get("boom_bap").unwrap();
-        let drawn = |seed: u64| draw(hooks(&a), &mut Rng::seed_from(seed, "remix")).unwrap().first;
-        let (one, other) = (0..).find(|&s| drawn(s) == 8).zip((0..).find(|&s| drawn(s) == 24)).unwrap();
+        let drawn = |seed: u64| hook_of(&a, &sustained, &struck, seed).unwrap().first;
+        let (one, other) = (1..).find(|&s| drawn(s) == 8).zip((1..).find(|&s| drawn(s) == 24)).unwrap();
         for (seed, hook) in [(one, 8), (other, 24)] {
             let bp = remix(&src, &g, seed, &Options::default(), None, &dir, None).unwrap();
             assert_eq!(built_on(&bp, "its hook ("), hook, "seed {seed}: {:?}", bp.lineage);
@@ -1567,8 +1602,9 @@ mod tests {
         let src = Source { x: &x, name: "my song.wav", a: &a, stems: Some(&s) };
         let bp =
             remix(&src, &crate::genres::get("boom_bap").unwrap(), 3, &Options::default(), None, &dir, None).unwrap();
-        // the hook as its stems without the drums, its melody, which sings, with its chords
-        let hook = loudest(&a, &s.music(), hook_bars(&a).unwrap());
+        // the hook as its stems without the drums, its melody, which sings, with its chords: the one the remix chose
+        // among them, as the Sample window chooses a loop of the hook
+        let hook = hook_of(&a, &s.music(), &s.drums, 3).unwrap();
         let phrase = bp.loops.iter().find(|l| l.name == PHRASE).expect("the hook plays");
         let Sound::Loop { path, .. } = &phrase.sound else { panic!("a loop") };
         let got = crate::audio::load(Path::new(path)).unwrap();

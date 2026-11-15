@@ -1,7 +1,8 @@
 //! How often the auto-sampler's pieces cut a sung word, on JamendoLyrics: songs from Jamendo, each word's start and end
 //! annotated by hand (<https://huggingface.co/datasets/jamendolyrics/jamendolyrics>). It counts the cuts of the pieces as
-//! the bars cut them (`sampler::find`, as New song's sampler still does) and as phrases sung whole (`sampler::pieces`,
-//! the Add a recording window's), and how many fall inside a word, and inside a line. The songs are downloaded into DIR
+//! the bars cut them (`sampler::find`, as the auto-sampler's chops and stabs still find their phrases) and as phrases
+//! sung whole (`sampler::pieces`, the Add a recording window's, which `sample_song` samples too), and how many fall
+//! inside a word, and inside a line. The songs are downloaded into DIR
 //! (with curl) the first time and kept there; none of them goes into the repository.
 //!
 //!   cargo run --release -p claudius --example eval_cuts -- DIR [--lang en|de|es|fr] [--songs N] [--why]

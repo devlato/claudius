@@ -1,9 +1,9 @@
-//! The auto-sampler: the phrases of a recording that sound most like a voice, cut on the bars it plays (each made
-//! as long as another, `Analysis::cut`), cleaned of its drums and of what plays to the sides, and placed in the song
-//! where they fit. Each becomes a loop of
-//! its own (`vox1`, `vox2` ...) that the renderer warps to the song's tempo and moves to its key: the phrase, then
-//! the bars of silence before it comes round again, in the sections that suit it, from the bar on which its notes
-//! agree best with the song's chords, mixed as a vocal.
+//! The auto-sampler: the phrases of a recording that sound most like a voice, each sung whole in the bars it plays
+//! (each made as long as another, `Analysis::cut`), cleaned of its drums and of what plays to the sides, and placed in
+//! the song where they fit. Each becomes a loop of its own (`vox1`, `vox2` ...) that the renderer warps to the song's
+//! tempo and moves to its key: the phrase, then the bars of silence before it comes round again, in the sections that
+//! suit it, from the bar on which its notes agree best with the song's chords, mixed as a vocal. The pieces it offers
+//! before any goes in (`offer`) are those it samples (`sample`): its phrases, and pieces of the other kinds (`kinds`).
 
 use std::path::Path;
 
@@ -67,7 +67,8 @@ impl How {
     fn lengths(self) -> (&'static [u32], &'static str) {
         match self {
             How::Passage => (&[4, 8, 16], "a passage is 4, 8 or 16 bars"),
-            _ => (&[1, 2, 4], "a phrase is 1, 2 or 4 bars"),
+            How::Phrases => (&[1, 2, 4, 8], "a phrase is 1, 2, 4 or 8 bars"),
+            How::Chops | How::Stabs => (&[1, 2, 4], "a phrase to chop is 1, 2 or 4 bars"),
         }
     }
 }
@@ -104,8 +105,9 @@ impl Every {
 pub struct Options {
     /// how many phrases, 1 to `MOST` (the other ways take one passage, one phrase to chop or one hit)
     pub count: usize,
-    /// how long each phrase is, in bars (1, 2 or 4); none: whichever of 1 and 2 sounds best. A passage is 4, 8 or 16
-    /// (none: 8 where a section has room, else 4), a phrase to chop 1, 2 or 4 (none: 2); a stab is a hit, of no bars.
+    /// how long each phrase is, in bars (1, 2, 4 or 8); none: the fewest of those that hold it sung whole. A passage is
+    /// 4, 8 or 16 (none: 8 where a section has room, else 4), a phrase to chop 1, 2 or 4 (none: 2); a stab is a hit,
+    /// of no bars.
     pub bars: Option<u32>,
     /// what the ears listen for (`DEFAULT_FIND` when not said)
     pub find: Option<String>,
@@ -212,7 +214,10 @@ fn checked(bp: &Blueprint, src: &Stereo, opt: &Options) -> Result<(), String> {
     groups(bp, &opt.sections).map(|_| ())
 }
 
-/// `sample`, of a recording already heard: its stems, when they are apart, and its analysis
+/// `sample`, of a recording already heard: its stems, when they are apart, and its analysis. Its phrases, and with
+/// `opt.kinds` the pieces of those kinds, are those the Sample window offers first (`offer`, take 0): `opt.count`
+/// phrases sung whole and the best piece of each other kind, each kept as its kind plays (`keep`), chopped onto pads
+/// when `opt.how` is chops.
 pub(crate) fn sample_from(
     bp: &mut Blueprint,
     h: &Heard,
@@ -221,19 +226,44 @@ pub(crate) fn sample_from(
     dir: &Path,
 ) -> Result<Sampled, String> {
     checked(bp, h.src, opt)?;
-    match opt.how {
-        How::Phrases => {}
-        How::Passage => return passage(bp, h, ears, opt, dir),
-        How::Chops => return chops(bp, h, ears, opt, dir),
-        How::Stabs => return stabs(bp, h, ears, opt, dir),
+    match (opt.how, opt.kinds.is_empty()) {
+        (How::Phrases, _) | (How::Chops, false) => {}
+        (How::Passage, true) => return passage(bp, h, ears, opt, dir),
+        (How::Chops, true) => return chops(bp, h, ears, opt, dir),
+        (How::Stabs, true) => return stabs(bp, h, ears, opt, dir),
+        (how, false) => {
+            return Err(format!(
+                "pieces of a kind go in whole or chopped onto pads: ask for kinds with phrases or chops, not {}",
+                how.name()
+            ));
+        }
     }
-    let count = opt.count.clamp(1, MOST);
-    let phrases = find(h.src, h.stems, h.a, ears, opt, count);
-    if phrases.is_empty() {
-        return Err(NO_VOICE.into());
+    let mut kinds = if opt.kinds.is_empty() { vec![Kind::Phrase] } else { opt.kinds.clone() };
+    kinds.sort();
+    kinds.dedup();
+    let offered = offer_from(h, ears, &Options { kinds: kinds.clone(), ..opt.clone() }, 0)?;
+    let chopped = opt.how == How::Chops;
+    let mut kept: Vec<Keep> = Vec::new();
+    for kind in kinds {
+        let of = offered.pieces.iter().filter(|p| p.kind == kind);
+        // every phrase offered (as many as asked for), and the best piece of each other kind, which a varied choice
+        // always holds
+        let chosen: Vec<&Piece> = match kind {
+            Kind::Phrase => of.collect(),
+            _ => of.max_by(|p, q| p.phrase.score.total_cmp(&q.phrase.score)).into_iter().collect(),
+        };
+        // a stab is one hit, which nothing chops further
+        kept.extend(chosen.into_iter().map(|piece| Keep {
+            piece,
+            treated: false,
+            chopped: chopped && kind != Kind::Stab,
+        }));
     }
-    let plain: Vec<(Phrase, Vec<Effect>)> = phrases.into_iter().map(|p| (p, Vec::new())).collect();
-    place(bp, h, &plain, opt, dir)
+    let mut out = keep_from(bp, h, &kept, opt, dir)?;
+    if let Some(e) = offered.no_phrase {
+        out.lines.push(format!("no phrase: {e}"));
+    }
+    Ok(out)
 }
 
 /// The sections of `groups` a sample `bars` long goes in: those of the first group (the drops and hooks first, or the
@@ -1125,22 +1155,28 @@ pub fn offer(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, seed
     }
     let stems = crate::stems::of(src, &mut |_| {});
     let a = analysis::analyze_with(src, stems.as_deref(), None);
+    offer_from(&Heard { src, stems: stems.as_deref(), a: &a, name: "" }, ears, opt, seed)
+}
+
+/// `offer`, of a recording already heard, whose length and the bars asked for are checked
+fn offer_from(h: &Heard, ears: Option<&crate::ears::Ears>, opt: &Options, seed: u64) -> Result<Offered, String> {
+    let (src, stems, a) = (h.src, h.stems, h.a);
     let asked = |k: Kind| opt.kinds.is_empty() || opt.kinds.contains(&k);
     let mut rng = crate::rng::Rng::seed_from(seed, "pieces");
     let phrases = match asked(Kind::Phrase) {
-        true => sung_pieces(src, stems.as_deref(), &a, ears, opt, seed, &mut rng),
+        true => sung_pieces(src, stems, a, ears, opt, seed, &mut rng),
         false => Ok(Vec::new()),
     };
     // the pieces of each other kind worth offering, each kind drawn on its own (so that asking for one draws it as it
     // is drawn among them all), then a varied choice of them
     let mut pool: Vec<(kinds::Cut, Stereo)> = Vec::new();
     for kind in Kind::ALL.into_iter().filter(|&k| k != Kind::Phrase && asked(k)) {
-        let Some((x, rest)) = kinds::source(kind, src, stems.as_deref()) else { continue };
+        let Some((x, rest)) = kinds::source(kind, src, stems) else { continue };
         let mut rng = crate::rng::Rng::seed_from(seed, kind.name());
-        for c in kinds::cuts(kind, &a, &x, &rest, seed, &opt.shown, &mut rng) {
+        for c in kinds::cuts(kind, a, &x, &rest, seed, &opt.shown, &mut rng) {
             let cut = match c.span {
                 Some((from, to)) => x.slice(((from * SRF) as usize).min(x.len()), ((to * SRF) as usize).min(x.len())),
-                None => cut_bars(&a, &x, c.first as i64, c.bars as usize),
+                None => cut_bars(a, &x, c.first as i64, c.bars as usize),
             };
             pool.push((c, kinds::level(&cut)));
         }
@@ -1171,9 +1207,9 @@ pub fn offer(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, seed
     };
     let mut out: Vec<Piece> = Vec::new();
     for (i, p) in phrases.into_iter().enumerate() {
-        let raw = phrase_of(src, stems.as_deref(), &a, &p);
+        let raw = phrase_of(src, stems, a, &p);
         let (treated, treatment, fx) = treated(i, &raw, p.bars as f64 * 4.0);
-        let section = section_at(&a, bar_of(&a, p.within.map_or(p.start, |w| w.0)));
+        let section = section_at(a, bar_of(a, p.within.map_or(p.start, |w| w.0)));
         let (kind, about, bpm) = (Kind::Phrase, String::new(), a.cut_bpm());
         out.push(Piece { kind, about, phrase: p, raw, treated, treatment, fx, bpm, section });
     }
@@ -1183,7 +1219,7 @@ pub fn offer(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, seed
         let (treated, treatment, fx) = treated(out.len(), &raw, beats);
         let first = c.first as i64;
         let phrase = Phrase {
-            start: c.span.map_or_else(|| bar_time(&a, first), |s| s.0),
+            start: c.span.map_or_else(|| bar_time(a, first), |s| s.0),
             first,
             bars: c.bars,
             z: None,
@@ -1192,7 +1228,7 @@ pub fn offer(src: &Stereo, ears: Option<&crate::ears::Ears>, opt: &Options, seed
             score: c.score,
             within: c.span,
         };
-        let section = section_at(&a, first);
+        let section = section_at(a, first);
         let (kind, about, bpm) = (c.kind, c.about, a.cut_bpm());
         out.push(Piece { kind, about, phrase, raw, treated, treatment, fx, bpm, section });
     }
@@ -1273,7 +1309,15 @@ pub fn keep(
     groups(bp, &opt.sections)?;
     let stems = crate::stems::of(src, &mut |_| {});
     let a = analysis::analyze_with(src, stems.as_deref(), None);
-    let heard = Heard { src, stems: stems.as_deref(), a: &a, name };
+    keep_from(bp, &Heard { src, stems: stems.as_deref(), a: &a, name }, kept, opt, dir)
+}
+
+/// `keep`, of a recording already heard, into a song with sections
+fn keep_from(bp: &mut Blueprint, heard: &Heard, kept: &[Keep], opt: &Options, dir: &Path) -> Result<Sampled, String> {
+    if kept.is_empty() {
+        return Err("keep at least one of the pieces".into());
+    }
+    let name = heard.name;
     let fx = |k: &Keep| if k.treated { k.piece.fx.clone() } else { Vec::new() };
     let whole = |k: &&Keep| k.piece.kind == Kind::Phrase && !k.chopped;
     let phrases: Vec<(Phrase, Vec<Effect>)> =
@@ -1283,7 +1327,7 @@ pub fn keep(
         true => (Sampled::default(), None),
         false => {
             let before = bp.clone();
-            match place(bp, &heard, &phrases, opt, dir) {
+            match place(bp, heard, &phrases, opt, dir) {
                 Ok(s) => (s, None),
                 Err(e) => {
                     *bp = before;
@@ -1324,9 +1368,9 @@ pub fn keep(
         let before = bp.clone();
         let placed = match (p.kind, k.chopped) {
             // one hit, which nothing chops further
-            (Kind::Stab, _) => place_stab(bp, &heard, p, &fx(k), &secs, dir).map(|(t, l)| (vec![t], l)),
-            (_, true) => place_chops(bp, &heard, k, &secs, dir),
-            (_, false) => place_cut(bp, &heard, p, &fx(k), opt, Some(secs.as_slice()), dir).map(|(t, l)| (vec![t], l)),
+            (Kind::Stab, _) => place_stab(bp, heard, p, &fx(k), &secs, dir).map(|(t, l)| (vec![t], l)),
+            (_, true) => place_chops(bp, heard, k, &secs, dir),
+            (_, false) => place_cut(bp, heard, p, &fx(k), opt, Some(secs.as_slice()), dir).map(|(t, l)| (vec![t], l)),
         };
         // a piece that cannot go in leaves the song as it was before it, as a phrase does, and says why
         let (tracks, line) = match placed {
@@ -2141,7 +2185,7 @@ pub(crate) fn vocal_mix() -> TrackMix {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::theory::chord::{Chord, Quality};
 
@@ -2241,7 +2285,7 @@ mod tests {
         let on = |bp: &Blueprint, track: &str| -> Vec<String> {
             bp.form.iter().filter(|s| s.layers.iter().any(|l| l == track)).map(|s| s.name.clone()).collect()
         };
-        let (was, src) = (level(&bp), hummed(4, 12));
+        let (was, src) = (level(&bp), sung_lines());
         let dir = std::env::temp_dir().join(format!("claudius-sampler-{}", std::process::id()));
         let ask =
             |sections: &str| Options { count: 2, bars: Some(2), sections: vec![sections.into()], ..Options::default() };
@@ -2292,6 +2336,13 @@ mod tests {
             }
         }
         x
+    }
+
+    /// 120 BPM, eight bars: drums to the sides all through, and two phrases sung in the middle, a few words each, the
+    /// first in the third bar and the other in the fifth, rests round them
+    fn sung_lines() -> Stereo {
+        let words: &[(f64, u32)] = &[(0.5, 1), (0.4, 2), (0.5, 1)];
+        crate::cuts::tests::sung_over_drums(&[(4.3, words), (8.3, words)], 16.0).0
     }
 
     fn on(bp: &Blueprint, track: &str) -> Vec<String> {
@@ -2367,7 +2418,9 @@ mod tests {
         let (bp, src) = (song(), hummed(4, 12));
         let ask = |how, bars| Options { how, bars: Some(bars), ..Options::default() };
         assert_eq!(checked(&bp, &src, &ask(How::Passage, 2)).unwrap_err(), "a passage is 4, 8 or 16 bars, not 2");
-        assert_eq!(checked(&bp, &src, &ask(How::Phrases, 8)).unwrap_err(), "a phrase is 1, 2 or 4 bars, not 8");
+        assert_eq!(checked(&bp, &src, &ask(How::Phrases, 3)).unwrap_err(), "a phrase is 1, 2, 4 or 8 bars, not 3");
+        assert_eq!(checked(&bp, &src, &ask(How::Chops, 8)).unwrap_err(), "a phrase to chop is 1, 2 or 4 bars, not 8");
+        assert!(checked(&bp, &src, &ask(How::Phrases, 8)).is_ok(), "a phrase sung whole in eight bars");
         assert!(checked(&bp, &src, &ask(How::Passage, 16)).is_ok() && checked(&bp, &src, &ask(How::Stabs, 3)).is_ok());
     }
 
@@ -2627,7 +2680,7 @@ mod tests {
     /// 120 BPM, sixteen bars, apart: a kick on every beat and a hat on every off-beat all through, alone for four bars;
     /// then a bass line on the chords' roots, an octave up every other beat, and the chords themselves, A minor, F, C
     /// and G a bar each, three times round; no voice. The stems, and the mix of them.
-    fn band() -> (Stereo, Stems) {
+    pub(crate) fn band() -> (Stereo, Stems) {
         let (sr, beat) = (SRF as usize, SRF as usize / 2);
         let n = 16 * 4 * beat;
         let (mut drums, mut bass, mut other) = (Stereo::zeros(n), Stereo::zeros(n), Stereo::zeros(n));
@@ -3049,7 +3102,7 @@ mod tests {
         keep(&mut bp, &mix, "band", &[Keep::of(&brk)], &Options::default(), &dir).unwrap();
         assert_eq!(level(&bp), was, "a break is no voice to step back for");
         let ask = Options { count: 1, bars: Some(2), sections: vec!["drop".into()], ..Options::default() };
-        let out = sample(&mut bp, &hummed(4, 12), "song", None, &ask, &dir).unwrap();
+        let out = sample(&mut bp, &sung_lines(), "song", None, &ask, &dir).unwrap();
         assert_eq!(level(&bp), was - 1.5, "the lead steps back for the voice beside the break: {:?}", out.lines);
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -3128,6 +3181,56 @@ mod tests {
         let vox = bp.loops.iter().find(|l| l.name == out.tracks[0]).unwrap();
         assert_eq!(vox.mix.fx.len(), vocal_mix().fx.len());
         assert!(keep(&mut bp, &src, "song", &[], &Options::default(), &dir).unwrap_err().starts_with("keep at least"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_phrases_sampled_are_those_the_sample_window_offers_first_and_a_held_note_is_never_cut() {
+        let (mut bp, src) = (song(), sung_lines());
+        let dir = std::env::temp_dir().join(format!("claudius-same-phrases-{}", std::process::id()));
+        let opt = Options { count: 2, ..Options::default() };
+        let offered = pieces(&src, None, &Options { kinds: vec![Kind::Phrase], ..opt.clone() }, 0).unwrap();
+        let out = sample(&mut bp, &src, "song", None, &opt, &dir).unwrap();
+        assert_eq!(out.tracks, ["vox1", "vox2"], "{:?}", out.lines);
+        assert_eq!(offered.len(), 2);
+        for (p, line) in offered.iter().zip(&out.lines) {
+            assert!(line.contains(&bars_text(p.phrase.first + 1, p.phrase.bars)), "{line}: {}", p.place());
+        }
+        // a note held through four bars is not cut into phrases of two: sung whole, it takes four at least
+        let two = Options { bars: Some(2), ..opt.clone() };
+        let err = sample(&mut song(), &hummed(4, 12), "song", None, &two, &dir).unwrap_err();
+        assert!(err.starts_with("no phrase of it is sung whole in 2 bars: the shortest takes "), "{err}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn kinds_sampled_are_the_best_piece_of_each_kept_as_its_kind_plays_or_chopped_onto_pads() {
+        let (mix, stems) = band();
+        let a = analysis::analyze_with(&mix, Some(&stems), None);
+        let heard = Heard { src: &mix, stems: Some(&stems), a: &a, name: "band" };
+        let dir = std::env::temp_dir().join(format!("claudius-same-kinds-{}", std::process::id()));
+        let opt = Options { kinds: vec![Kind::Bass, Kind::Break], ..Options::default() };
+        let mut bp = song();
+        let out = sample_from(&mut bp, &heard, None, &opt, &dir).unwrap();
+        assert_eq!(out.kinds, [Kind::Break, Kind::Bass], "{:?}", out.lines);
+        let said = out.said("band");
+        assert!(said.starts_with("sampled a drum break and a bass line of band into the song"), "{said}");
+        // each the best of its kind, which the Sample window's first take offers
+        for (&kind, line) in out.kinds.iter().zip(&out.lines) {
+            let (x, rest) = kinds::source(kind, &mix, Some(&stems)).unwrap();
+            let best = kinds::best(kind, &a, &x, &rest, 0, &mut crate::rng::Rng::new(1)).unwrap();
+            assert!(line.contains(&bars_text(best.first as i64 + 1, best.bars)), "{line}: {best:?}");
+        }
+        // chopped onto pads, a break is drum lanes of its own
+        let mut bp = song();
+        let lanes = bp.drums.len();
+        let chopped = Options { kinds: vec![Kind::Break], how: How::Chops, ..Options::default() };
+        let out = sample_from(&mut bp, &heard, None, &chopped, &dir).unwrap();
+        assert!(out.kinds == [Kind::Break] && bp.drums.len() > lanes, "{:?}", out.lines);
+        // a passage of the voice, or a syllable of it struck, is no way for pieces of a kind to go in
+        let passage = Options { how: How::Passage, ..opt.clone() };
+        let err = sample_from(&mut song(), &heard, None, &passage, &dir).unwrap_err();
+        assert!(err.ends_with("ask for kinds with phrases or chops, not passage"), "{err}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

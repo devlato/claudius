@@ -1335,7 +1335,8 @@ async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
     let _ = std::fs::remove_dir_all(&folder);
     assert!(app.command(Command::Save { path: Some(folder.display().to_string()) }).ok);
     app.settled(Duration::from_secs(240)).await;
-    // sixteen seconds at 120 BPM: a sung A3 in the middle from bar 3 to 6, a hat to the left all through
+    // sixteen seconds at 120 BPM: a sung A3 in the middle in the third bar and again in the fifth, each with a rest
+    // round it, so that each is a phrase sung whole in a bar; a hat to the left all through
     let (sr, n) = (claudius::config::SR as usize, 16 * claudius::config::SR as usize);
     let (mut l, mut r) = (vec![0f32; n], vec![0f32; n]);
     let mut phase = 0f64;
@@ -1343,7 +1344,7 @@ async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
         if i % (sr / 4) < sr / 50 {
             l[i] += if i % 2 == 0 { 0.2 } else { -0.2 };
         }
-        if (4 * sr..12 * sr).contains(&i) {
+        if (43 * sr / 10..57 * sr / 10).contains(&i) || (83 * sr / 10..97 * sr / 10).contains(&i) {
             let t = i as f64 / sr as f64;
             phase += std::f64::consts::TAU * 220.0 * (1.0 + 0.01 * (t * 5.0 * std::f64::consts::TAU).sin()) / sr as f64;
             let v = (phase.sin() * 0.4 + (2.0 * phase).sin() * 0.15) as f32;
@@ -1361,6 +1362,7 @@ async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
         sections,
         how: None,
         every: None,
+        kinds: Vec::new(),
     };
     let r = app.command(ask(vec!["nowhere".into()]));
     assert!(!r.ok && r.message.contains("no section or kind 'nowhere'"), "{}", r.message);
@@ -1372,6 +1374,7 @@ async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
         sections: Vec::new(),
         how: Some("slices".into()),
         every: None,
+        kinds: Vec::new(),
     });
     assert!(!r.ok && r.message.starts_with("no way 'slices' to sample a recording"), "{}", r.message);
     let r = app.command(Command::SampleSong {
@@ -1382,6 +1385,7 @@ async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
         sections: Vec::new(),
         how: None,
         every: Some("3".into()),
+        kinds: Vec::new(),
     });
     assert!(!r.ok && r.message.starts_with("no '3' for how often a phrase plays"), "{}", r.message);
     let r = app.command(ask(Vec::new()));
@@ -1418,6 +1422,21 @@ async fn a_recordings_vocals_are_sampled_into_the_song_and_kept_with_it() {
     // undone, the phrases go
     assert!(app.command(Command::Undo).ok && app.command(Command::Undo).ok);
     assert!(!app.state().song.unwrap().tracks.iter().any(|t| t.name.starts_with("vox")));
+    // its drums as the Sample window offers them first, asked for by their kind; a kind that is none says the kinds
+    let kind = |kinds: &[&str]| Command::SampleSong {
+        path: file.display().to_string(),
+        count: None,
+        bars: None,
+        find: None,
+        sections: Vec::new(),
+        how: None,
+        every: None,
+        kinds: kinds.iter().map(|k| k.to_string()).collect(),
+    };
+    let r = app.command(kind(&["break"]));
+    assert!(r.ok && r.message.starts_with("sampled a drum break of recording.wav into the song"), "{}", r.message);
+    let r = app.command(kind(&["riff"]));
+    assert!(!r.ok && r.message.starts_with("no kind of piece 'riff'"), "{}", r.message);
     std::fs::remove_dir_all(&folder).unwrap();
 }
 
