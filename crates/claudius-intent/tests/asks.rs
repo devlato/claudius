@@ -699,6 +699,10 @@ fn questions_about_the_song_are_answered_from_it_and_propose_no_change() {
         ("how long is the drop", "Drop is 16 bars long"),
         ("how are the drums panned", "Kick is panned to the center"),
         ("what does the lead sound like", "Lead plays synth patch 'whistle'"),
+        // a section the lead goes by the name of ("hook") is the section, and the lead is still named by its own
+        ("how long is the hook", "Hook is 16 bars long"),
+        ("what plays in the hook", "Hook: kick, snare, hat"),
+        ("does the lead play in the hook", "Lead plays in hook"),
         // words that read as a way in a request ask nothing to change in a question
         ("how slow is the tempo", "The song is at 120 BPM"),
         ("what's playing in the break", "Break: kick, snare, hat"),

@@ -89,7 +89,14 @@ pub fn tell(query: &str, state: &State) -> Vec<Told> {
     let Some(song) = state.song.as_ref().filter(|_| asking(query)) else { return Vec::new() };
     let q = plain(query);
     let q = q.trim_end_matches(|c: char| c == '?' || c == '.' || c.is_whitespace());
-    let (groups, section) = (named_tracks(q, song), named_section(q, song));
+    let named = named_section(q, song);
+    // the word that names a section names no track as well ("how long is the hook", though a lead goes by "hook"),
+    // unless a track is called by it
+    let for_tracks = match &named {
+        Some((_, word)) if !song.tracks.iter().any(|t| t.name.eq_ignore_ascii_case(word)) => without(q, word),
+        _ => q.to_string(),
+    };
+    let (groups, section) = (named_tracks(&for_tracks, song), named.map(|(s, _)| s));
     if let Some(t) = of_the_song(q, song, &groups, section) {
         return vec![t];
     }
@@ -99,13 +106,20 @@ pub fn tell(query: &str, state: &State) -> Vec<Told> {
     section.and_then(|s| in_a_section(q, s, song)).into_iter().collect()
 }
 
-/// The section `q` names: by its name ("drop2"), else by its kind ("the chorus" a hook, "the breakdown" a break).
-fn named_section<'a>(q: &str, song: &'a SongView) -> Option<&'a SectionView> {
+/// The section `q` names, and the word it names it by: its name ("drop2"), else its kind ("the chorus" a hook, "the
+/// breakdown" a break).
+fn named_section<'a>(q: &str, song: &'a SongView) -> Option<(&'a SectionView, String)> {
     let by_name = song.sections.iter().find(|s| contains_word(q, &s.name.to_lowercase()));
-    by_name.or_else(|| {
-        let kind = [("chorus", "hook"), ("breakdown", "break")].into_iter().find(|(w, _)| contains_word(q, w))?.1;
-        song.sections.iter().find(|s| s.kind == kind)
+    by_name.map(|s| (s, s.name.to_lowercase())).or_else(|| {
+        let (word, kind) =
+            [("chorus", "hook"), ("breakdown", "break")].into_iter().find(|(w, _)| contains_word(q, w))?;
+        song.sections.iter().find(|s| s.kind == kind).map(|s| (s, word.to_string()))
     })
+}
+
+/// `q` without the word `w` wherever it is a word of its own
+fn without(q: &str, w: &str) -> String {
+    q.split(' ').filter(|x| x.trim_matches(|c: char| !c.is_alphanumeric()) != w).collect::<Vec<_>>().join(" ")
 }
 
 /// whether `q` holds any of `words`, each a word or words of its own
