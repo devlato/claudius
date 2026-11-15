@@ -759,3 +759,25 @@ fn questions_about_the_song_are_answered_from_it_and_propose_no_change() {
         assert!(claudius_intent::tell(q, &state).is_empty(), "'{q}': {:?}", claudius_intent::tell(q, &state));
     }
 }
+
+/// Requests typed with a slip ("revreb", "whistel", "louer"), read as the words meant, as the palette reads them
+/// (`claudius_intent::answer`, `typos`): each reads as the same request typed right would.
+#[test]
+fn a_request_typed_with_a_slip_is_read_as_the_words_meant() {
+    let state = song();
+    let (finder, asker) = (claudius_intent::Finder::new(claudius_intent::catalogue::ENTRIES, None), Asker::new(None));
+    let first = |q: &str| {
+        let a = claudius_intent::answer(q, 8, &state, &finder, &asker, None);
+        (a.read_as.clone(), a.proposed.first().map(|p| p.said.clone()))
+    };
+    for (typed, right) in [
+        ("more revreb on the snare", "more reverb on the snare"),
+        ("mute the whistel", "mute the whistle"),
+        ("turn the guitar dwon by 3 db", "turn the guitar down by 3 db"),
+        ("undo the lsat 3 changes", "undo the last 3 changes"),
+    ] {
+        let (read, said) = first(typed);
+        assert_eq!(read.as_deref(), Some(right), "'{typed}'");
+        assert!(said.is_some() && said == first(right).1, "'{typed}': {said:?}, '{right}': {:?}", first(right).1);
+    }
+}

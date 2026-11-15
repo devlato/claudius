@@ -245,7 +245,8 @@ mod model {
 /// request, and is left to the actions; a question about the song is answered from it (`claudius_intent::tell`), and
 /// not asked of the model, which would read it as a change.
 pub fn ask_model(answer: &mut claudius_intent::Answer, state: &claudius_api::State, asker: &Asker) {
-    let q = answer.query.trim().to_string();
+    // the words as they were read, a word typed with a slip as the word meant
+    let q = answer.read_as.as_deref().unwrap_or(&answer.query).trim().to_string();
     if !answer.proposed.is_empty() || q.split_whitespace().count() < 2 || claudius_intent::asking(&q) {
         return;
     }

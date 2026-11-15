@@ -503,6 +503,9 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
                 ui.label(RichText::new(why).size(11.0).color(theme::WARN));
             } else if p.reading(now) {
                 ui.label(RichText::new("Reading your words…").size(11.0).color(TEXT_FAINT));
+            } else if let Some(read) = p.answered().and_then(|a| a.read_as.as_deref()) {
+                // a word typed with a slip, read as the word meant: what was found is for these words
+                ui.label(RichText::new(format!("Read as “{read}”")).size(11.0).color(TEXT_FAINT));
             } else if acts.is_empty() {
                 ui.label(RichText::new("Nothing by that name. Try other words, or read the docs.").color(TEXT_FAINT));
             }

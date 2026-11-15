@@ -94,7 +94,8 @@ find (`Answer::done`, `claudius_intent::find_among` over the state's `history`, 
 are found by name and by meaning like the actions, once the words that only ask to go back are taken out, and the
 palette lists them after the actions as Go back to before rows, which send `go_back`. The answer holds what the words
 ask of the song, too (`Answer::proposed`, `claudius_intent::ask::propose` on the state the engine has, built for both by
-`claudius_intent::answer`): each reading a proposal with what it says it does ("Increase guitar's drive from 20% to
+`claudius_intent::answer`, which first reads a word typed with a slip as the word meant, `claudius_intent::typos`,
+and says so in `Answer::read_as`): each reading a proposal with what it says it does ("Increase guitar's drive from 20% to
 95%"), what it does to each track, and its commands ([0013](../design/0013-requests.md)). A question about the song
 ("what's the bass volume", `claudius_intent::asking`) is answered from the state instead (`Answer::told`,
 `claudius_intent::tell`), and the palette shows the answers first, as rows that send nothing; it proposes no change
