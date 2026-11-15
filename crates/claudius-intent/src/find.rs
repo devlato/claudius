@@ -11,6 +11,7 @@ use crate::ask::{Asker, Proposal, propose};
 use crate::catalogue::Entry;
 use crate::index::Index;
 use crate::model::Model;
+use crate::tell::{Told, tell};
 
 /// how an action was found
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -34,8 +35,9 @@ pub struct Found {
 /// What words found, as the engine answers the studio: the words, the actions they found, the best first, the
 /// changes made to the song they found, which the song can go back to before (`done`: each change's id, what undo calls
 /// it as its `name`, and what it changed as its `place`), what they ask of the song read as what claudius would do for
-/// it, for the person to confirm (`proposed`, `ask`), and whether they were found by meaning as well as by name (by
-/// name only until the embedding model is there).
+/// it, for the person to confirm (`proposed`, `ask`), the answers to a question they ask about the song (`told`,
+/// `tell`), and whether they were found by meaning as well as by name (by name only until the embedding model is
+/// there).
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Answer {
     pub query: String,
@@ -44,6 +46,8 @@ pub struct Answer {
     pub done: Vec<Found>,
     #[serde(default)]
     pub proposed: Vec<Proposal>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub told: Vec<Told>,
     pub by_meaning: bool,
     /// the small model on the device is still reading the words, which the readings read nothing of: ask again
     #[serde(default)]
@@ -71,6 +75,7 @@ pub fn answer(
         found: finder.find(query, model, limit),
         done: find_among(query, &reachable, model, DONE),
         proposed: propose(query, state, asker, model),
+        told: tell(query, state),
         by_meaning: finder.by_meaning(),
         reading: false,
     }

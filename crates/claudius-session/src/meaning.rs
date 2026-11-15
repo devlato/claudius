@@ -242,10 +242,11 @@ mod model {
 
 /// What the small model read of a request the readings read nothing of, as `answer`'s proposals, each marked as the
 /// model's; or that it is reading it still, for the palette to ask again. A word alone is an action's name, not a
-/// request, and is left to the actions.
+/// request, and is left to the actions; a question about the song is answered from it (`claudius_intent::tell`), and
+/// not asked of the model, which would read it as a change.
 pub fn ask_model(answer: &mut claudius_intent::Answer, state: &claudius_api::State, asker: &Asker) {
     let q = answer.query.trim().to_string();
-    if !answer.proposed.is_empty() || q.split_whitespace().count() < 2 {
+    if !answer.proposed.is_empty() || q.split_whitespace().count() < 2 || claudius_intent::asking(&q) {
         return;
     }
     match model_read(&q) {

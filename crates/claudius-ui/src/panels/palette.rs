@@ -90,6 +90,9 @@ const BACK: &str = "back:";
 /// what a row's id starts with when it does what a request asked (`Answer::proposed`), what it says it does after it
 const DO: &str = "do:";
 
+/// what a row's id starts with when it answers a question about the song (`Answer::told`), the answer after it
+const TOLD: &str = "told:";
+
 /// `text`, cut to `most` characters with an ellipsis
 fn brief(text: &str, most: usize) -> String {
     if text.chars().count() <= most {
@@ -257,11 +260,20 @@ impl Palette {
         self.answer.as_ref().filter(|a| a.query == self.query.trim())
     }
 
-    /// the rows shown for what is typed: what the engine read it to ask of the song, then the actions it found, by
-    /// name and by meaning, then the changes made to the song it found, to go back to before (but those a reading goes
-    /// back to before already); or until it answers, what the words find by name here
+    /// the rows shown for what is typed: the answers to a question it asks about the song, what the engine read it to
+    /// ask of the song, then the actions it found, by name and by meaning, then the changes made to the song it found,
+    /// to go back to before (but those a reading goes back to before already); or until it answers, what the words find
+    /// by name here
     fn shown(&self) -> Vec<Found> {
         let Some(a) = self.answered() else { return Finder::new(ENTRIES, None).find(&self.query, None, SHOWN) };
+        let told = a.told.iter().map(|t| Found {
+            id: format!("{TOLD}{}", t.said),
+            name: t.said.clone(),
+            place: brief(&t.detail, 72),
+            keys: String::new(),
+            score: 1.0,
+            by: By::Meaning,
+        });
         let asked = a.proposed.iter().map(|p| Found {
             id: format!("{DO}{}", p.said),
             name: p.said.clone(),
@@ -281,11 +293,15 @@ impl Palette {
             score: d.score,
             by: d.by,
         });
-        asked.chain(a.found.iter().cloned()).chain(back).collect()
+        told.chain(asked).chain(a.found.iter().cloned()).chain(back).collect()
     }
 
-    /// what the row `id` does: a reading's commands, while it is the engine's for what is typed, or an action's
+    /// what the row `id` does: a reading's commands, while it is the engine's for what is typed, or an action's; an
+    /// answer, nothing, which closes the palette as the person has read it
     fn run(&self, id: &str) -> Option<Run> {
+        if let Some(said) = id.strip_prefix(TOLD) {
+            return Some(Run::Do { said: said.to_string(), commands: Vec::new() });
+        }
         let Some(said) = id.strip_prefix(DO) else { return run_of(id) };
         let p = self.answered()?.proposed.iter().find(|p| p.said == said)?;
         Some(Run::Do { said: p.said.clone(), commands: p.commands.clone() })
@@ -492,13 +508,18 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
             }
             egui::ScrollArea::vertical().max_height(360.0).auto_shrink([false, true]).show(ui, |ui| {
                 for (i, a) in acts.iter().enumerate() {
-                    // what the words asked comes first, then the actions, then the changes made to the song, each of
-                    // those with what it changes or changed under it
-                    let (asked, back) = (a.id.starts_with(DO), a.id.starts_with(BACK));
-                    if asked && i == 0 {
+                    // the answers to a question come first, then what the words asked, then the actions, then the
+                    // changes made to the song, each of those with what it says, changes or changed under it
+                    let (told, asked, back) = (a.id.starts_with(TOLD), a.id.starts_with(DO), a.id.starts_with(BACK));
+                    if told && i == 0 {
+                        ui.label(RichText::new("The song now").size(10.5).color(TEXT_FAINT));
+                    }
+                    if asked && !acts[..i].iter().any(|b| b.id.starts_with(DO)) {
+                        ui.add_space(if i > 0 { 4.0 } else { 0.0 });
                         ui.label(RichText::new("What your words ask").size(10.5).color(TEXT_FAINT));
                     }
-                    if !asked && !back && i > 0 && acts[i - 1].id.starts_with(DO) {
+                    let after_asked = i > 0 && (acts[i - 1].id.starts_with(DO) || acts[i - 1].id.starts_with(TOLD));
+                    if !told && !asked && !back && after_asked {
                         ui.add_space(4.0);
                         ui.label(RichText::new("Actions").size(10.5).color(TEXT_FAINT));
                     }
@@ -506,7 +527,7 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
                         ui.add_space(4.0);
                         ui.label(RichText::new("In the song's history").size(10.5).color(TEXT_FAINT));
                     }
-                    let under = (asked || back) && !a.place.is_empty();
+                    let under = (told || asked || back) && !a.place.is_empty();
                     let mut job = LayoutJob::default();
                     job.append(&a.name, 0.0, egui::TextFormat::simple(theme::prop(13.5), TEXT.into()));
                     let place = egui::TextFormat::simple(theme::prop(11.0), TEXT_FAINT.into());
@@ -527,6 +548,7 @@ pub fn show(ctx: &egui::Context, cx: &mut Cx) -> Option<Asked> {
                             ans.proposed.iter().any(|x| x.reading.by_model && a.id.strip_prefix(DO) == Some(x.said.as_str()))
                         });
                     let r = match (asked, a.by) {
+                        _ if told => r.on_hover_text("what the song holds now: picking it changes nothing"),
                         (true, _) if by_model => r.on_hover_text(
                             "what the small model on this computer read your words to ask: nothing changes until you pick it",
                         ),
@@ -826,6 +848,26 @@ mod tests {
             solo: None,
             bus: None,
         }
+    }
+
+    #[test]
+    fn the_answer_to_a_question_comes_first_and_picking_it_changes_nothing() {
+        let mut p = Palette { query: "is the bass too loud".into(), ..Palette::default() };
+        let told = claudius_intent::Told { said: "Bass is at -3 dB".into(), detail: String::new() };
+        let down = proposal("Turn bass down from -3 dB to -6 dB", vec![muted("bass")]);
+        p.heard(Answer {
+            query: p.query.clone(),
+            found: vec![act("tab:mixer")],
+            proposed: vec![down],
+            told: vec![told],
+            by_meaning: true,
+            ..Answer::default()
+        });
+        let rows = p.shown();
+        let names: Vec<&str> = rows.iter().map(|r| r.name.as_str()).collect();
+        assert_eq!(names, ["Bass is at -3 dB", "Turn bass down from -3 dB to -6 dB", "tab:mixer"]);
+        let Some(Run::Do { said, commands }) = p.run(&rows[0].id) else { panic!("{:?}", p.run(&rows[0].id)) };
+        assert!(commands_of(said, commands).is_empty(), "an answer sends nothing");
     }
 
     #[test]
