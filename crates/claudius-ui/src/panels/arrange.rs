@@ -56,6 +56,7 @@ enum Added {
 fn add_track_menu(
     ui: &mut Ui,
     f: &mut super::AddTrackForm,
+    search: &mut super::Search,
     song: &SongView,
     genres: &[claudius_api::GenreInfo],
     sounds: Option<&claudius_api::SoundList>,
@@ -81,7 +82,7 @@ fn add_track_menu(
         }
     });
     match f.kind {
-        AddKind::Style => return generate_menu(ui, f, song, genres).map(Added::Send),
+        AddKind::Style => return generate_menu(ui, f, search, song, genres).map(Added::Send),
         AddKind::Recording => return recording_menu(ui, f),
         AddKind::Part | AddKind::Drum => {}
     }
@@ -100,7 +101,8 @@ fn add_track_menu(
         ui.label(small("name"));
         ui.add(egui::TextEdit::singleline(&mut f.name).hint_text(suggested.as_str()).desired_width(150.0));
     });
-    ui.add(egui::TextEdit::singleline(&mut f.filter).hint_text("search sounds").desired_width(f32::INFINITY));
+    let field =
+        ui.add(egui::TextEdit::singleline(&mut f.filter).hint_text("search sounds").desired_width(f32::INFINITY));
     let query = f.filter.to_lowercase();
     let hit = |n: &String| super::finds_sound(&query, n, sounds);
     let (empty_list, empty_kit) = (Vec::new(), Vec::new());
@@ -126,6 +128,16 @@ fn add_track_menu(
             .collect();
         vec![(format!("synths for {}", f.role), mine), ("other synths".into(), others), ("instruments".into(), named)]
     };
+    // and the sounds near what the words mean, of the kinds this track plays (a drum lane's voices, a part's others)
+    let shown: Vec<&str> = lists.iter().flat_map(|(_, of)| of.iter().map(String::as_str)).collect();
+    let plays = |n: &String| {
+        let voice = drums.contains(n) || kit.contains(n);
+        if drum { voice } else { !voice && (synths.contains(n) || instruments.contains(n)) && !n.contains(':') }
+    };
+    let near: Vec<String> =
+        search.more("sounds", &f.filter, field.changed(), &shown).into_iter().filter(plays).collect();
+    let mut lists = lists;
+    lists.push((super::NEAR_MEANING.into(), near));
     egui::ScrollArea::vertical().max_height(220.0).show(ui, |ui| {
         for (heading, names) in &lists {
             if names.is_empty() {
@@ -219,6 +231,7 @@ fn recording_menu(ui: &mut Ui, f: &mut super::AddTrackForm) -> Option<Added> {
 fn generate_menu(
     ui: &mut Ui,
     f: &mut super::AddTrackForm,
+    search: &mut super::Search,
     song: &SongView,
     genres: &[claudius_api::GenreInfo],
 ) -> Option<Command> {
@@ -229,7 +242,7 @@ fn generate_menu(
     });
     let genre = if f.genre.is_empty() { song.genre.clone() } else { f.genre.clone() };
     // the styles in the menu itself: a list opened over it would close it
-    ui.add(
+    let field = ui.add(
         egui::TextEdit::singleline(&mut f.filter)
             .hint_text("search styles: a genre, a scene, an era")
             .desired_width(f32::INFINITY),
@@ -241,16 +254,28 @@ fn generate_menu(
             || super::genre_words(&g.name).to_lowercase().contains(&words)
             || g.aliases.iter().any(|a| a.to_lowercase().contains(&words))
     };
+    let found: Vec<&claudius_api::GenreInfo> = genres.iter().filter(hit).collect();
+    let names: Vec<&str> = found.iter().map(|g| g.name.as_str()).collect();
+    let near: Vec<&claudius_api::GenreInfo> = search
+        .more("genres", &f.filter, field.changed(), &names)
+        .iter()
+        .filter_map(|n| genres.iter().find(|g| g.name == *n))
+        .collect();
     egui::ScrollArea::vertical().id_salt("generate-styles").max_height(150.0).show(ui, |ui| {
-        ui.horizontal_wrapped(|ui| {
-            ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
-            for g in genres.iter().filter(hit) {
-                let shown = super::genre_words(&g.name);
-                if ui.selectable_label(genre == g.name, shown).on_hover_text(&g.description).clicked() {
-                    f.genre = g.name.clone();
-                }
+        for (i, of) in [found, near].iter().enumerate() {
+            if i == 1 && !of.is_empty() {
+                ui.label(small(super::NEAR_MEANING).weak());
             }
-        });
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing = vec2(4.0, 4.0);
+                for g in of {
+                    let shown = super::genre_words(&g.name);
+                    if ui.selectable_label(genre == g.name, shown).on_hover_text(&g.description).clicked() {
+                        f.genre = g.name.clone();
+                    }
+                }
+            });
+        }
     });
     // the song's part it may be written in place of
     let target = match f.what.as_str() {
@@ -348,10 +373,11 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
     let mut style = cx.view.melody_style.clone();
     let mut row_menu = cx.view.row_menu;
     let mut add_form = std::mem::take(&mut cx.view.add_track);
+    let mut search = std::mem::take(&mut cx.view.search);
     let sounds = cx.sounds;
     let genres = &cx.state.genres;
     let Some(song) = cx.state.song.as_ref() else {
-        cx.view.add_track = add_form;
+        (cx.view.add_track, cx.view.search) = (add_form, search);
         empty(ui, "No song yet: make one with New song.");
         super::missing_packs(ui, cx);
         return;
@@ -1170,7 +1196,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             // a form: choosing its role or sound keeps it open
             egui::Popup::from_toggle_button_response(&add)
                 .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-                .show(|ui| match add_track_menu(ui, &mut add_form, song, genres, sounds) {
+                .show(|ui| match add_track_menu(ui, &mut add_form, &mut search, song, genres, sounds) {
                     Some(Added::Send(c)) => out.push(c),
                     Some(a) => opened = Some(a),
                     None => {}
@@ -1328,6 +1354,6 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
         Some(Added::Record) => cx.view.record.show(),
         Some(Added::Send(_)) | None => {}
     }
-    cx.view.add_track = add_form;
+    (cx.view.add_track, cx.view.search) = (add_form, search);
     cx.out.extend(out);
 }

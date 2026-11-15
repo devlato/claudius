@@ -449,6 +449,8 @@ pub struct View {
     pub import: import::Import,
     /// the command palette (Cmd+K)
     pub palette: palette::Palette,
+    /// what the engine finds by meaning for the search fields (genres, sounds)
+    pub search: Search,
     /// the window of the keys the studio answers to
     pub keys: keys::Keys,
     /// the chat with the assistants
@@ -550,6 +552,7 @@ impl Default for View {
             record: record::Record::default(),
             import: import::Import::default(),
             palette: palette::Palette::default(),
+            search: Search::default(),
             keys: keys::Keys::default(),
             chat: chat::Chat::default(),
             phone: phone::Phone::default(),
@@ -793,6 +796,36 @@ pub fn sound_about(name: &str, sounds: Option<&SoundList>) -> Option<String> {
     }
 }
 
+/// What the engine finds by meaning for the studio's search fields (`claudius_intent::search`, through `GET
+/// /api/search` or the demo's engine): the words a field last asked about, to send once, and the engine's answer.
+#[derive(Default)]
+pub struct Search {
+    /// what to search among ("genres" or "sounds") and the words, for the app to send
+    pub ask: Option<(String, String)>,
+    pub answer: Option<claudius_api::Searched>,
+}
+
+impl Search {
+    /// The names, best first, that the engine's answer for `query` (among `among`) adds to `found`, what the field
+    /// finds by its words itself: those near what the words mean. Asks the engine about the words when they changed
+    /// (`changed`). Nothing until the answer for these very words is in, or when nothing is typed.
+    pub fn more(&mut self, among: &str, query: &str, changed: bool, found: &[&str]) -> Vec<String> {
+        let q = query.trim();
+        if changed && !q.is_empty() {
+            self.ask = Some((among.to_string(), q.to_string()));
+        }
+        match &self.answer {
+            Some(a) if !q.is_empty() && a.among == among && a.query.trim() == q => {
+                a.names.iter().filter(|n| !found.contains(&n.as_str())).cloned().collect()
+            }
+            _ => Vec::new(),
+        }
+    }
+}
+
+/// what a search field calls the things it finds by meaning, past those its words find
+pub const NEAR_MEANING: &str = "near what you mean";
+
 /// Whether a search (in lower case; empty finds everything) finds the sound named `name`: by that name, by its name
 /// in words as the studio shows it, or by what the engine says it is ("string ensemble" finds string_ensemble, "piano"
 /// epiano, "hi-hat" hh).
@@ -968,6 +1001,25 @@ pub fn page_frame() -> egui::Frame {
 mod tests {
     use super::*;
     use claudius_api::{GenreSampling, RenderView};
+
+    #[test]
+    fn a_search_field_asks_once_its_words_change_and_adds_what_the_engine_found_for_those_very_words() {
+        let mut search = Search::default();
+        assert!(search.more("genres", "jamaican vibes", true, &[]).is_empty(), "nothing until the engine answers");
+        assert_eq!(search.ask.take(), Some(("genres".into(), "jamaican vibes".into())));
+        assert!(search.more("genres", "jamaican vibes", false, &[]).is_empty() && search.ask.is_none());
+        search.answer = Some(claudius_api::Searched {
+            query: "jamaican vibes".into(),
+            among: "genres".into(),
+            names: vec!["reggae".into(), "dancehall".into()],
+            by_meaning: true,
+        });
+        // what the field found itself is not offered again
+        assert_eq!(search.more("genres", "jamaican vibes ", false, &["dancehall"]), ["reggae"]);
+        assert!(search.more("sounds", "jamaican vibes", false, &[]).is_empty(), "an answer among the genres");
+        assert!(search.more("genres", "jamaican", false, &[]).is_empty(), "an answer for other words");
+        assert!(search.more("genres", "", true, &[]).is_empty() && search.ask.is_none(), "nothing typed asks nothing");
+    }
 
     #[test]
     fn escape_closes_the_window_opened_last_first() {

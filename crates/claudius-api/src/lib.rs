@@ -539,6 +539,19 @@ pub fn search_genres<'a>(genres: &'a [GenreInfo], query: &str) -> Vec<&'a GenreI
     found.into_iter().map(|(_, g)| g).collect()
 }
 
+/// What a search field's words find among the genres or the sounds, as the engine answers the studio (`GET
+/// /api/search`): the words, what they were searched among ("genres" or "sounds"), the names they find, best first
+/// (those the words find, then those near what they mean), and whether they were found by meaning too (by their words
+/// alone until the embedding model is there).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Searched {
+    pub query: String,
+    pub among: String,
+    pub names: Vec<String>,
+    #[serde(default)]
+    pub by_meaning: bool,
+}
+
 /// the words of `s` as a genre search compares them: lowercase letters and digits, `&` as `n` (R&B is rnb), an
 /// apostrophe dropped (d'angelo is dangelo)
 /// The genres a person's words name outright, in the order they come, each with where in `search_words(text)` it is

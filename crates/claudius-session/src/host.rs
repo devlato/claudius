@@ -460,6 +460,15 @@ impl Host {
         answer
     }
 
+    /// What a search field's `query` finds among the genres or the sounds (`among`), at most `limit`, best first: by
+    /// their words as the field finds them itself, then by meaning too once the embedding model is there
+    /// (`claudius_intent::search`).
+    pub fn search(query: &str, among: &str, limit: usize, state: &State) -> Result<claudius_api::Searched, String> {
+        let held = crate::meaning::held();
+        let sounds = (among == "sounds").then(views::sounds);
+        claudius_intent::search::search(query, among, limit, &state.genres, sounds.as_ref(), held.model.as_deref())
+    }
+
     pub fn state(&self) -> State {
         State {
             version: self.version,
@@ -1439,6 +1448,23 @@ mod tests {
 
     fn command(h: &mut Host, v: serde_json::Value) -> Reply {
         h.command(serde_json::from_value(v.clone()).unwrap_or_else(|e| panic!("{v}: {e}")))
+    }
+
+    #[test]
+    fn a_search_field_finds_genres_and_sounds_by_their_words_and_is_told_what_else_it_cannot_search() {
+        // by words alone here, as no model is fetched: those the field's own search finds come first, whatever meaning
+        // adds after them
+        let state = Host::new(1).state();
+        let genres = Host::search("dusty", "genres", 40, &state).unwrap();
+        for g in ["boom_bap", "lofi"] {
+            assert!(genres.names.iter().any(|n| n == g), "{g}: {:?}", genres.names);
+        }
+        let mine = claudius_api::search_genres(&state.genres, "dusty");
+        assert!(genres.names.iter().zip(&mine).all(|(n, g)| *n == g.name), "the words' first: {:?}", genres.names);
+        let sounds = Host::search("bell", "sounds", 40, &state).unwrap();
+        assert!(sounds.names.iter().any(|n| n.contains("bell")), "{:?}", sounds.names);
+        let other = Host::search("kick", "drums", 40, &state).unwrap_err();
+        assert!(other.contains("genres or sounds"), "{other}");
     }
 
     #[test]

@@ -4,7 +4,8 @@
 //! held in memory (`index`). A phrase is embedded in microseconds, and the model is 7.6 MB, small enough for a laptop
 //! of ten years ago and for a browser. Requests in plain words ("undo the last five changes", "more reverb on the
 //! snare") are read into what claudius would do for them, for the person to confirm (`ask`), and questions about the
-//! song ("what's the bass volume") answered from it (`tell`).
+//! song ("what's the bass volume") answered from it (`tell`). The studio's search fields find genres and sounds by
+//! meaning the same way (`search`).
 
 #![forbid(unsafe_code)]
 
@@ -15,12 +16,13 @@ pub mod index;
 pub mod model;
 pub mod needle;
 pub mod pieces;
+pub mod search;
 pub mod spoken;
 pub mod teach;
 pub mod tell;
 pub mod typos;
 
 pub use ask::{Asker, Proposal};
-pub use find::{Answer, By, DONE, Finder, Found, Item, answer, find_among};
+pub use find::{Answer, By, DONE, Finder, Found, Item, answer, find_among, nearness};
 pub use model::Model;
 pub use tell::{Told, asking, tell};
