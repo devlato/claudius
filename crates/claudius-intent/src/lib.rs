@@ -18,6 +18,7 @@ pub mod pieces;
 pub mod spoken;
 pub mod teach;
 pub mod tell;
+pub mod typos;
 
 pub use ask::{Asker, Proposal};
 pub use find::{Answer, By, DONE, Finder, Found, Item, answer, find_among};

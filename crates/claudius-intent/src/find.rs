@@ -52,10 +52,15 @@ pub struct Answer {
     /// the small model on the device is still reading the words, which the readings read nothing of: ask again
     #[serde(default)]
     pub reading: bool,
+    /// the words as they were read, when a word was typed with a slip and read as the word meant ("genrate" as
+    /// "generate", `typos`)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub read_as: Option<String>,
 }
 
 /// What `query` finds on the song of `state`, as the palette shows it: at most `limit` of the actions, the changes
-/// made to the song it could go back to before, and what it asks of the song.
+/// made to the song it could go back to before, and what it asks of the song; each of the words it holds with a slip
+/// read as the word meant (`typos::meant`), and the answer says so.
 pub fn answer(
     query: &str,
     limit: usize,
@@ -64,6 +69,8 @@ pub fn answer(
     asker: &Asker,
     model: Option<&Model>,
 ) -> Answer {
+    let read_as = crate::typos::meant(query, state.song.as_ref());
+    let words = read_as.as_deref().unwrap_or(query);
     let reachable: Vec<Item> = state
         .history
         .iter()
@@ -72,12 +79,13 @@ pub fn answer(
         .collect();
     Answer {
         query: query.to_string(),
-        found: finder.find(query, model, limit),
-        done: find_among(query, &reachable, model, DONE),
-        proposed: propose(query, state, asker, model),
-        told: tell(query, state),
+        found: finder.find(words, model, limit),
+        done: find_among(words, &reachable, model, DONE),
+        proposed: propose(words, state, asker, model),
+        told: tell(words, state),
         by_meaning: finder.by_meaning(),
         reading: false,
+        read_as,
     }
 }
 

@@ -370,7 +370,10 @@ window stops it. A claudius others reach, with `--public` or a token, starts non
 palette: every action of the studio, each with where it lives (the transport, the toolbar, a tab, the status bar) and
 the key that does it too. Type a few letters of its name, or say what you want in your own words: "volume" finds the
 Mixer, "whiteboard" the Signal flow, "make it sound better" Improve the song, "sing over it" Record a take, "go back"
-Undo. Pick one with the arrows and press Enter, or click it. Escape closes the palette.
+Undo. Pick one with the arrows and press Enter, or click it. Escape closes the palette. A word typed with a slip
+("genrate", "revreb", "the whistel") is read as the word meant, one the studio's actions, the requests it reads or
+your song's tracks have, and the palette says so under the field: **Read as “generate”**. An English word is never
+taken for a slip: "centre the hats" stays as you typed it.
 
 The palette also finds what you did to the song. "Go back to before we added the whistles" offers **Go back to
 before** the change that added them, under the actions, with what that change did. Picking it takes the song back to

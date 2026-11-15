@@ -12,6 +12,8 @@ caf = "caf"           # Core Audio Format, the Apple Loops container
 existant = "existant" # mdBook's own CSS variable, --sidebar-non-existant
 fo = "fo"             # fade-out length
 formant = "formant"   # a resonance of the vocal tract, which shapes a voice's timbre
+genrate = "genrate"   # a word typed with a slip, which the palette reads as "generate" (claudius_intent::typos)
+lsat = "lsat"         # a slip the palette reads as "last", in its tests
 nd = "nd"             # a new scale degree; the ordinal suffix
 seeked = "seeked"     # the media element event
 stlye = "stlye"       # a misspelled option in a test of the error it gives
@@ -20,9 +22,12 @@ thr = "thr"           # threshold
 tpe = "tpe"           # TPE1, ID3's frame for the artist
 trak = "trak"         # a misspelled function in an example of an error
 weeknd = "weeknd"     # The Weeknd, an artist alternative R&B is searched by
+whistel = "whistel"   # a slip the palette reads as "whistle", in its tests and docs
 
 [files]
 extend-exclude = [
+    # a list of English words, from SCOWL, among them rare forms the checker takes for slips ("knifes", "larges")
+    "crates/claudius-intent/data/english.txt",
     "crates/earshot/data/",
     "crates/earshot/parity/fixtures/",
 ]
