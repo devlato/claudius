@@ -28,6 +28,27 @@ The studio is still being finished; this page describes its structure, which is 
 | `desktop.rs` | the native window as the system's apps are there: its title (the song's), the media keys and Now Playing through souvlaki (play, pause, stop, next and previous by section, seek; the song's title, genre and length, and its position again whenever it moves other than by playing on), and a notification (notify-rust) with the Dock or the taskbar asking for attention when a job of `desktop::LONG` (20 s) or more ends after another window came in front (`desktop::step`: a job's steps are the job, a job after it one of its own), or an assistant asks for a take while another window is in front. It runs from `Studio::logic`, which eframe calls while the window is hidden too (and `ui` not), on a clock of its own, as the input's time stands still then |
 | `tour.rs` | the first-run tour: its cards, the parts of the studio they point at, and when it is done |
 
+## The design system
+
+The studio is built of a few parts, drawn as the agreed mockups draw them (the redesign began with Add a recording),
+so that each window looks and works like the others. The colours are `theme`'s swatches, each named for what it is
+for (`TEXT`, `PANEL`, `WELL`, `ACCENT`); the parts are `widgets`':
+
+| Part | What it is for | `widgets::` |
+|---|---|---|
+| the primary button | what a window is for (Create song, Open it, Play it as ...): one a window, filled with the accent | `primary` |
+| a window's foot | under what a window holds: a rule, then its buttons from the right, the primary first, then Cancel, then a word on what it does | `foot` |
+| a segmented control | a choice of one of a few that changes what a window shows (New song's From a genre, From a recording, From an example) | `segmented` |
+| an option card | a choice of one way of several, each with its icon and what it does in a sentence (Add a recording's ways to add one) | `option_card` |
+| chips | a choice of one or several of many short things (the tracks in a section, how often a phrase comes round) | `chip` |
+| a pill | a short fact, not to click (a song's genre, a tempo) | `pill` |
+| icon and tool buttons | the transport and the toolbar | `icon_button`, `tool_button` |
+| a field | a label in the inspector's column of labels, then what sets it | `field` |
+
+Text is 13.5 points (13 on a button, 11.5 small, 16 a heading); a control is 24 points high and a primary button 30;
+corners are 6 points on a control, 7 to 9 on a segment or a card, and 12 on a window. The keyboard reaches every part,
+and the part it is on shows a ring (`focus_ring`).
+
 ## Layout
 
 ```text

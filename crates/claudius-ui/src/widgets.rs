@@ -1,4 +1,9 @@
 //! Studio widgets drawn with the painter: icon buttons, rotary knobs, a channel fader, level meters, chips, badges.
+//!
+//! The parts every window is built of, as the agreed mockups draw them, are here too, so that each window looks and
+//! works alike: the button for what a window is for (`primary`), its foot of buttons (`foot`), a choice of one of a few
+//! (`segmented`), a card to choose a way by (`option_card`), and chips (`chip`). `docs/src/engineering/ui.md` says when
+//! to use which.
 
 use std::f32::consts::PI;
 use std::ops::RangeInclusive;
@@ -524,6 +529,85 @@ pub fn chip(ui: &mut Ui, on: bool, text: &str, color: impl Into<Color32>) -> Res
     ui.painter().galley(rect.center() - galley.size() / 2.0, galley, tc);
     accessible(ui, &response, 13, || WidgetInfo::selected(Role::CheckBox, true, on, text));
     response
+}
+
+/// The button for what a window is for (Create song, Open it, Play it as ...): filled with the accent, its label in the
+/// ink that reads on it, roomier than a plain button. One a window, at the right of its foot (`foot`).
+pub fn primary(ui: &mut Ui, label: &str, enabled: bool) -> Response {
+    let text = egui::RichText::new(label).strong().color(theme::ink_on(ACCENT));
+    let button = egui::Button::new(text).fill(ACCENT).corner_radius(CornerRadius::same(8)).min_size(vec2(0.0, 30.0));
+    ui.scope(|ui| {
+        ui.spacing_mut().button_padding = vec2(14.0, 5.0);
+        ui.add_enabled(enabled, button)
+    })
+    .inner
+}
+
+/// A window's foot: a rule under what it holds, then its buttons from the right, the primary first (`primary`, then
+/// Cancel), and whatever `add` puts after them on the left.
+pub fn foot<R>(ui: &mut Ui, add: impl FnOnce(&mut Ui) -> R) -> R {
+    ui.add_space(10.0);
+    let rule = ui.available_rect_before_wrap();
+    ui.painter().hline(rule.x_range(), rule.top(), Stroke::new(1.0, theme::LINE_SOFT));
+    ui.add_space(10.0);
+    ui.horizontal(|ui| ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), add).inner).inner
+}
+
+/// A choice of one of a few (New song's From a genre, From a recording, From an example), as a segmented control: a
+/// sunk track, the one chosen raised in it. Each of `choices` is a value, its label and what it does, as its tip; each
+/// takes the keyboard as a button does. Returns whether the choice changed.
+pub fn segmented<T: PartialEq + Copy>(ui: &mut Ui, chosen: &mut T, choices: &[(T, &str, &str)]) -> bool {
+    let font = theme::prop(13.0);
+    let (pad, gap, inset, height) = (12.0, 2.0, 3.0, 28.0);
+    let galleys: Vec<_> = choices
+        .iter()
+        .map(|(_, label, _)| ui.painter().layout_no_wrap(label.to_string(), font.clone(), TEXT.into()))
+        .collect();
+    let widths: Vec<f32> = galleys.iter().map(|g| g.size().x + 2.0 * pad).collect();
+    let total = widths.iter().sum::<f32>() + gap * choices.len().saturating_sub(1) as f32 + 2.0 * inset;
+    let (track, _) = ui.allocate_exact_size(vec2(total, height + 2.0 * inset), Sense::hover());
+    ui.painter().rect_filled(track, CornerRadius::same(9), WELL);
+    let mut changed = false;
+    let mut x = track.left() + inset;
+    for (((value, label, tip), galley), w) in choices.iter().zip(galleys).zip(widths) {
+        let rect = Rect::from_min_size(pos2(x, track.top() + inset), vec2(w, height));
+        x += w + gap;
+        let r = ui.interact(rect, ui.id().with(("segment", label)), Sense::click()).on_hover_text(*tip);
+        let on = chosen == value;
+        if on {
+            ui.painter().rect(rect, CornerRadius::same(7), RAISED, Stroke::new(1.0, LINE), StrokeKind::Inside);
+        } else if r.hovered() {
+            ui.painter().rect_filled(rect, CornerRadius::same(7), theme::alpha(theme::STRONG, 0.05));
+        }
+        let ink = if on || r.hovered() { TEXT } else { TEXT_DIM };
+        ui.painter().galley(rect.center() - galley.size() / 2.0, galley, ink.into());
+        accessible(ui, &r, 7, || WidgetInfo::selected(Role::RadioButton, true, on, *label));
+        if r.clicked() && !on {
+            *chosen = *value;
+            changed = true;
+        }
+    }
+    changed
+}
+
+/// A card to choose one way of several by (Add a recording's ways to add one): its icon in the accent, its title, and
+/// what it does under it; the one chosen tinted with the accent and ringed with it. Returns its response (clicked =
+/// chosen).
+pub fn option_card(ui: &mut Ui, size: Vec2, on: bool, icon: Icon, title: &str, about: &str) -> Response {
+    let (rect, r) = ui.allocate_exact_size(size, Sense::click());
+    let base = if on { theme::mix(RAISED, ACCENT, 0.2) } else { RAISED.into() };
+    let fill = if r.hovered() && !on { RAISED_HI.into() } else { base };
+    let stroke = if on { Stroke::new(1.5, ACCENT) } else { Stroke::new(1.0, LINE) };
+    let p = ui.painter();
+    p.rect(rect, CornerRadius::same(8), fill, stroke, StrokeKind::Inside);
+    let inner = rect.shrink(12.0);
+    paint_icon(p, Rect::from_min_size(inner.left_top(), vec2(16.0, 16.0)), icon, ACCENT);
+    p.text(inner.left_top() + vec2(0.0, 24.0), Align2::LEFT_TOP, title, theme::medium(13.5), TEXT.into());
+    let words = p.layout(about.to_string(), theme::prop(11.5), TEXT_DIM.into(), inner.width());
+    p.galley(inner.left_top() + vec2(0.0, 44.0), words, TEXT_DIM.into());
+    let r = r.on_hover_cursor(egui::CursorIcon::PointingHand);
+    accessible(ui, &r, 8, || WidgetInfo::selected(Role::RadioButton, true, on, title));
+    r
 }
 
 /// a small rounded label

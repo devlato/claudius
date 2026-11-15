@@ -437,10 +437,8 @@ fn progressions(l: &Listened) -> String {
 /// a song like it, its tempo, key and chords for the song that is open, and what it heard in words
 fn use_it(ui: &mut Ui, cx: &mut Cx, h: &mut Hears, l: &Listened) {
     ui.horizontal_wrapped(|ui| {
-        let label = RichText::new("  Make a song like it  ").strong().color(theme::ink_on(ACCENT));
-        let like = egui::Button::new(label).fill(ACCENT);
         let tip = "a new song in the genre beside: its tempo, key, chords, form and swing, none of its sound";
-        if ui.add(like).on_hover_text(tip).clicked() {
+        if widgets::primary(ui, "Make a song like it", true).on_hover_text(tip).clicked() {
             cx.out.push(Command::SongLike { genre: Some(h.genre.clone()), seed: None });
         }
         ui.label("in");

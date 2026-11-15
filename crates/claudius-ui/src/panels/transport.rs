@@ -670,15 +670,13 @@ pub fn change_genre_dialog(ctx: &egui::Context, cx: &mut Cx) {
             ui.add(egui::TextEdit::singleline(&mut f.seed).desired_width(90.0).hint_text("random"))
                 .on_hover_text("another take of it in that genre; the same seed gives the same take");
         });
-        ui.add_space(10.0);
-        ui.horizontal(|ui| {
+        widgets::foot(ui, |ui| {
             let fused = f.fused();
             let label = match fused == f.was {
-                true => format!("  Another take as {}  ", super::genre_words(&fused)),
-                false => format!("  Play it as {}  ", super::genre_words(&fused)),
+                true => format!("Another take as {}", super::genre_words(&fused)),
+                false => format!("Play it as {}", super::genre_words(&fused)),
             };
-            let go = egui::Button::new(RichText::new(label).strong().color(theme::ink_on(ACCENT))).fill(ACCENT);
-            if ui.add_enabled(!f.genre.is_empty() && cx.state.song.is_some(), go).clicked() {
+            if widgets::primary(ui, &label, !f.genre.is_empty() && cx.state.song.is_some()).clicked() {
                 cx.out.push(Command::ChangeGenre { genre: fused, seed: f.seed.trim().parse().ok() });
                 f.open = false;
             }
@@ -861,31 +859,17 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
             ui.heading("New song");
         });
         ui.add_space(4.0);
-        ui.horizontal(|ui| {
-            let f = &mut cx.view.new_song;
-            for (start, label, tip) in [
-                (
-                    Start::Genre,
-                    "From a genre",
-                    "claudius writes a whole song in a genre: its form, drums, parts, sounds and mix",
-                ),
-                (
-                    Start::Recording,
-                    "From a recording",
-                    "claudius listens to a song or a sound of yours, and makes a song of it",
-                ),
-                (
-                    Start::Example,
-                    "From an example",
-                    "an original song in the style of a decade's hits, a classic remade, or one built of layered sounds, \
-                     to hear how the style is made and start from",
-                ),
-            ] {
-                if widgets::chip(ui, f.start == start, label, ACCENT).on_hover_text(tip).clicked() {
-                    f.start = start;
-                }
-            }
-        });
+        let starts = [
+            (Start::Genre, "From a genre", "claudius writes a whole song in a genre: its form, drums, parts, sounds and mix"),
+            (Start::Recording, "From a recording", "claudius listens to a song or a sound of yours, and makes a song of it"),
+            (
+                Start::Example,
+                "From an example",
+                "an original song in the style of a decade's hits, a classic remade, or one built of layered sounds, to \
+                 hear how the style is made and start from",
+            ),
+        ];
+        widgets::segmented(ui, &mut cx.view.new_song.start, &starts);
         ui.add_space(8.0);
         match cx.view.new_song.start {
             Start::Genre => from_genre(ui, cx),
@@ -952,23 +936,18 @@ fn from_example(ui: &mut Ui, cx: &mut Cx) {
             });
         }
     });
-    ui.add_space(12.0);
     let chosen = f.example.and_then(claudius_api::examples::get);
     let mut open = false;
-    ui.horizontal(|ui| {
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            let button =
-                egui::Button::new(RichText::new("  Open it  ").strong().color(theme::ink_on(ACCENT))).fill(ACCENT);
-            let r = ui.add_enabled(chosen.is_some(), button).on_disabled_hover_text("choose an example first");
-            let enter = ui.input(|i| i.key_pressed(egui::Key::Enter)) && !ui.ctx().text_edit_focused();
-            open = r.clicked() || (enter && chosen.is_some());
-            if ui.button("Cancel").clicked() {
-                f.open = false;
-            }
-            if let Some(e) = chosen {
-                ui.label(small(format!("\"{}\" replaces the song open now; undo brings it back", e.title)));
-            }
-        });
+    widgets::foot(ui, |ui| {
+        let r = widgets::primary(ui, "Open it", chosen.is_some()).on_disabled_hover_text("choose an example first");
+        let enter = ui.input(|i| i.key_pressed(egui::Key::Enter)) && !ui.ctx().text_edit_focused();
+        open = r.clicked() || (enter && chosen.is_some());
+        if ui.button("Cancel").clicked() {
+            f.open = false;
+        }
+        if let Some(e) = chosen {
+            ui.label(small(format!("\"{}\" replaces the song open now; undo brings it back", e.title)));
+        }
     });
     if let Some(e) = chosen.filter(|_| open) {
         cx.out.push(Command::OpenText { name: format!("{}.rhai", e.name), text: e.script.to_string() });
@@ -1205,20 +1184,15 @@ fn from_genre(ui: &mut Ui, cx: &mut Cx) {
             });
         },
     );
-    ui.add_space(12.0);
     let mut create = false;
-    ui.horizontal(|ui| {
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            let create_btn =
-                egui::Button::new(RichText::new("  Create song  ").strong().color(theme::ink_on(ACCENT))).fill(ACCENT);
-            let enter = ui.input(|i| i.key_pressed(egui::Key::Enter)) && !ui.ctx().text_edit_focused();
-            if ui.add(create_btn).clicked() || enter {
-                create = true;
-            }
-            if ui.button("Cancel").clicked() {
-                f.open = false;
-            }
-        });
+    widgets::foot(ui, |ui| {
+        let enter = ui.input(|i| i.key_pressed(egui::Key::Enter)) && !ui.ctx().text_edit_focused();
+        if widgets::primary(ui, "Create song", true).clicked() || enter {
+            create = true;
+        }
+        if ui.button("Cancel").clicked() {
+            f.open = false;
+        }
     });
     if create {
         cx.out.push(f.command(&cx.state.genres));
@@ -1437,24 +1411,19 @@ fn from_recording(ui: &mut Ui, cx: &mut Cx) {
         WithRecording::Analyze => "Listen to it",
     };
     let mut go = false;
-    ui.horizontal(|ui| {
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            let ready = file.is_some() && why_not.is_none();
-            let button =
-                egui::Button::new(RichText::new(format!("  {action}  ")).strong().color(theme::ink_on(ACCENT)))
-                    .fill(ACCENT);
-            let r = ui.add_enabled(ready, button);
-            let r = match (cx.view.analyzing, &cx.view.audio_file, why_not) {
-                (true, _, _) => r.on_disabled_hover_text("claudius is still at the last one"),
-                (_, None, _) => r.on_disabled_hover_text("choose a recording first"),
-                (_, _, Some(why)) => r.on_disabled_hover_text(why),
-                _ => r,
-            };
-            go = r.clicked();
-            if ui.button("Cancel").clicked() {
-                f.open = false;
-            }
-        });
+    widgets::foot(ui, |ui| {
+        let ready = file.is_some() && why_not.is_none();
+        let r = widgets::primary(ui, action, ready);
+        let r = match (cx.view.analyzing, &cx.view.audio_file, why_not) {
+            (true, _, _) => r.on_disabled_hover_text("claudius is still at the last one"),
+            (_, None, _) => r.on_disabled_hover_text("choose a recording first"),
+            (_, _, Some(why)) => r.on_disabled_hover_text(why),
+            _ => r,
+        };
+        go = r.clicked();
+        if ui.button("Cancel").clicked() {
+            f.open = false;
+        }
     });
     if let Some(file) = file.filter(|_| go) {
         cx.view.analysis = None;
