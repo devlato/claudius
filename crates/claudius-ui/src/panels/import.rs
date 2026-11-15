@@ -15,7 +15,7 @@ use super::Cx;
 use super::record::ROLES;
 use crate::audio::{Player, Source};
 use crate::pick::{self, Picked, Want};
-use crate::theme::{self, ACCENT, LINE, RAISED, RAISED_HI, TEXT, TEXT_DIM, TEXT_FAINT, WELL};
+use crate::theme::{self, ACCENT, LINE, RAISED, RAISED_HI, TEXT_DIM, TEXT_FAINT, WELL};
 use crate::widgets::{self, Icon};
 
 /// a file fetched, or why not
