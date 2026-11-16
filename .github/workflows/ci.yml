@@ -80,7 +80,7 @@ jobs:
       - uses: ./.github/actions/rust
         with:
           cache-key: test
-      - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: cargo-nextest@0.9.148
       # earshot's parity tests are sample-exact with ffmpeg, which its Python reference decoded with; the other runners
@@ -145,7 +145,7 @@ jobs:
         with:
           cache-key: wasm
           linux-packages: "false"
-      - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: trunk@0.21.14
       # the native clippy job never sees the code behind cfg(target_arch = "wasm32")
@@ -170,7 +170,7 @@ jobs:
       - uses: ./.github/actions/rust
         with:
           cache-key: docs
-      - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: mdbook@0.5.4
       - run: cargo xtask docs
@@ -191,7 +191,7 @@ jobs:
         with:
           cache-key: site
           linux-packages: "false"
-      - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: trunk@0.21.14,mdbook@0.5.4
       - run: cargo xtask site --out target/site
@@ -242,7 +242,7 @@ jobs:
         with:
           cache-key: deny
           linux-packages: "false"
-      - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: cargo-deny@0.20.2
       - run: cargo deny --locked check
