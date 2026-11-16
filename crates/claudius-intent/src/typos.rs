@@ -64,12 +64,13 @@ fn known() -> &'static HashMap<String, usize> {
 /// English words of four letters or more, which are never read as another word (`data/english.txt`, from SCOWL)
 fn english() -> &'static HashSet<&'static str> {
     static ENGLISH: OnceLock<HashSet<&'static str>> = OnceLock::new();
-    ENGLISH.get_or_init(|| {
-        let list = include_str!("../data/english.txt");
-        // the words follow the list's notice, after its line of three dashes
-        let words = list.split_once("\n---\n").map_or(list, |(_, words)| words);
-        words.lines().filter(|w| !w.is_empty()).collect()
-    })
+    ENGLISH.get_or_init(|| words_of_list(include_str!("../data/english.txt")))
+}
+
+/// The words of a list as `data/english.txt` holds them: one a line, after its notice and a line of three dashes. By
+/// lines, whose carriage returns a checkout on Windows adds go with them.
+fn words_of_list(list: &str) -> HashSet<&str> {
+    list.lines().skip_while(|l| *l != "---").skip(1).filter(|w| !w.is_empty()).collect()
 }
 
 /// the words the song's tracks are called by: their names, roles and sounds
@@ -183,6 +184,16 @@ mod tests {
         for q in ["redo four times", "centre the hats", "wash the pad in reverb", "before the tempo went up"] {
             assert_eq!(meant(q, None), None, "{q}");
         }
+    }
+
+    #[test]
+    fn the_list_reads_the_same_with_the_carriage_returns_a_checkout_on_windows_adds() {
+        // the list as git checks it out here, with its lines ended by a line feed, and as on Windows
+        let lf = include_str!("../data/english.txt").replace("\r\n", "\n");
+        let windows = lf.replace('\n', "\r\n");
+        assert_eq!(words_of_list(&windows), words_of_list(&lf));
+        assert_eq!(words_of_list(include_str!("../data/english.txt")), words_of_list(&lf));
+        assert_eq!(words_of_list("a notice\r\n---\r\nfour\r\nwash\r\n"), HashSet::from(["four", "wash"]));
     }
 
     #[test]
