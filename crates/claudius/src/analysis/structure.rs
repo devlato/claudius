@@ -283,6 +283,11 @@ pub(crate) fn parts(h: &Heard) -> Vec<Part> {
     let st = texture(h);
     let nov = novelty(&sh, &raw, &st, h);
     let bounds = segment(&nov, n);
+    if std::env::var("CLAUDIUS_STRUCTURE_DEBUG").is_ok() {
+        for (b, v) in nov.iter().enumerate() {
+            eprintln!("nov {b:3} {v:.2}");
+        }
+    }
     let segs: Vec<(usize, usize)> = bounds.windows(2).map(|w| (w[0], w[1])).collect();
     let group = grouped(&segs, h, &st);
     let label = labelled(&segs, &group, h);
