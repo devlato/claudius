@@ -491,6 +491,7 @@ pub fn analyze_with(x: &Stereo, stems: Option<&Stems>, bpm_range: Option<(f64, f
         bass: bass_db.clone(),
         kit: kit_level,
         voice: sung.as_ref().map(|s| structure::sung_share(&s.words, &bar_starts)),
+        bar_secs: bar_len,
     };
     let parts = structure::parts(&heard);
     let sec_rms: Vec<f64> =

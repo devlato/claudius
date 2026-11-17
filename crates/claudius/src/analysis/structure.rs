@@ -107,6 +107,28 @@ pub(crate) struct Heard {
     pub kit: Vec<f64>,
     /// the share of it a voice sings in, where the voice is heard apart from the rest
     pub voice: Option<Vec<f64>>,
+    /// how long a bar is, in seconds
+    pub bar_secs: f64,
+}
+
+impl Heard {
+    /// How many bars of a phrase each of its bars is: phrases last about as long in seconds at any tempo, so a song whose
+    /// bars are long (over 3.2 s: a slow song, or one heard at half its tempo) has sections of 4 and 8 bars as another
+    /// has 8 and 16, and one whose bars are short (under 1.6 s: drum and bass, or one heard at twice its tempo) 16 and 32.
+    fn unit(&self) -> f64 {
+        if self.bar_secs > 3.2 {
+            2.0
+        } else if self.bar_secs < 1.6 {
+            0.5
+        } else {
+            1.0
+        }
+    }
+
+    /// `bars` bars of a phrase, as so many of its own bars, one at least
+    fn bars(&self, bars: usize) -> usize {
+        ((bars as f64 / self.unit()).round() as usize).max(1)
+    }
 }
 
 /// A section as the analysis hears it: its first bar, how many, what it is, the letter of the music it plays (0 for A),
@@ -274,7 +296,7 @@ pub(crate) fn parts(h: &Heard) -> Vec<Part> {
     if n == 0 {
         return Vec::new();
     }
-    if n < FEWEST {
+    if n < h.bars(FEWEST) {
         return vec![Part { start: 0, bars: n, label: Label::Groove, group: 0, build_bars: 0 }];
     }
     let (harm, scale) = centred(&h.harmony);
@@ -283,7 +305,7 @@ pub(crate) fn parts(h: &Heard) -> Vec<Part> {
     let voice = h.voice.as_deref().map(phrased);
     let st = texture(h, voice.as_deref());
     let nov = novelty(&raw, &st, h, voice.as_deref());
-    let mut bounds = segment(&nov, n);
+    let mut bounds = segment(&nov, n, h.unit());
     joined_builds(&mut bounds, h);
     let segs: Vec<(usize, usize)> = bounds.windows(2).map(|w| (w[0], w[1])).collect();
     let group = grouped(&segs, h, &st);
@@ -409,10 +431,11 @@ fn novelty(raw: &Square, st: &Square, h: &Heard, voice: Option<&[f64]>) -> Vec<f
         let top = sorted.get(sorted.len() * 19 / 20).copied().unwrap_or(0.0).max(floor);
         v.into_iter().map(|x| (x / top).clamp(0.0, 1.5)).collect::<Vec<f64>>()
     };
-    let (t4, t2) = (scaled(checker(st, 4), 0.3), scaled(checker(st, 2), 0.3));
-    let (c4, c2) = (scaled(chords_change(&h.harmony, 4), 0.1), scaled(chords_change(&h.harmony, 2), 0.1));
+    let (four, two) = (h.bars(4), h.bars(2));
+    let (t4, t2) = (scaled(checker(st, four), 0.3), scaled(checker(st, two), 0.3));
+    let (c4, c2) = (scaled(chords_change(&h.harmony, four), 0.1), scaled(chords_change(&h.harmony, two), 0.1));
     let sh = along_diagonals(raw, 1);
-    let rep = scaled(repeats(&sh), 1.0);
+    let rep = scaled(repeats(&sh, h.bars(AGAIN), h.bars(RUN)), 1.0);
     let (h4, h2) = (scaled(checker(&sh, 4), 0.3), scaled(checker(&sh, 2), 0.3));
     let jumps = jumps(h, voice);
     let w = tuning();
@@ -534,11 +557,11 @@ const AGAIN: usize = 8;
 /// it starts and the bar after it ends, both where it is and where it was first heard, the more the longer it is (a run
 /// of 8 bars or more counting fully). A verse that comes back marks where both verses start and end, however alike or
 /// unlike the bars within each are.
-fn repeats(raw: &Square) -> Vec<f64> {
+fn repeats(raw: &Square, again: usize, run: usize) -> Vec<f64> {
     let n = raw.n;
     let mut marks = vec![0.0; n + 1];
     let alike = |i: usize, d: usize| i + d < n && raw.at(i, i + d) > REPEAT;
-    for d in AGAIN..n {
+    for d in again..n {
         let mut k = 0;
         while k + d < n {
             if !alike(k, d) {
@@ -551,8 +574,8 @@ fn repeats(raw: &Square) -> Vec<f64> {
                 end += 1;
             }
             let len = end - start;
-            if len >= RUN {
-                let w = (len as f64 / 8.0).min(1.0);
+            if len >= run {
+                let w = (len as f64 / again as f64).min(1.0);
                 for b in [start, start + d, end, end + d] {
                     if b < n {
                         marks[b] += w;
@@ -572,7 +595,8 @@ fn repeats(raw: &Square) -> Vec<f64> {
 fn jumps(h: &Heard, voice: Option<&[f64]>) -> Vec<f64> {
     let n = h.loud.len();
     let mean = |v: &[f64], a: usize, b: usize| v[a..b].iter().sum::<f64>() / (b - a).max(1) as f64;
-    let change = |v: &[f64], p: usize| (mean(v, p.saturating_sub(2), p) - mean(v, p, (p + 2).min(n))).abs();
+    let two = h.bars(2);
+    let change = |v: &[f64], p: usize| (mean(v, p.saturating_sub(two), p) - mean(v, p, (p + two).min(n))).abs();
     (0..n)
         .map(|p| {
             if p == 0 {
@@ -608,7 +632,7 @@ const BOUNDARY: f64 = 0.42;
 
 /// The bars sections start at, 0 first and `n` last: of every way to cut `n` bars into sections, the one whose
 /// boundaries are the most novel, less what each costs and what its sections' lengths are preferred less.
-fn segment(nov: &[f64], n: usize) -> Vec<usize> {
+fn segment(nov: &[f64], n: usize, unit: f64) -> Vec<usize> {
     let boundary = tuning()[8];
     let mut best = vec![f64::NEG_INFINITY; n + 1];
     let mut from = vec![0usize; n + 1];
@@ -619,7 +643,7 @@ fn segment(nov: &[f64], n: usize) -> Vec<usize> {
                 continue;
             }
             let gain = if s == 0 { 0.0 } else { nov[s] - boundary };
-            let v = best[s] + gain + prior(e - s);
+            let v = best[s] + gain + prior((((e - s) as f64) * unit).round() as usize);
             if v > best[e] {
                 best[e] = v;
                 from[e] = s;
@@ -915,7 +939,7 @@ fn joined_builds(bounds: &mut Vec<usize>, h: &Heard) {
     let mut i = 1;
     while i + 2 < bounds.len() {
         let (a, b, c, d) = (bounds[i - 1], bounds[i], bounds[i + 1], bounds[i + 2]);
-        if c - b <= 4 && b - a <= 8 && builds(h, (a, c), (c, d)) + 1 >= c - a {
+        if c - b <= h.bars(4) && b - a <= h.bars(8) && builds(h, (a, c), (c, d)) + 1 >= c - a {
             bounds.remove(i);
             continue;
         }
@@ -976,10 +1000,10 @@ pub(crate) mod tests {
         let mut nov = vec![0.05; 40];
         nov[17] = 1.2;
         nov[23] = 1.2;
-        assert_eq!(segment(&nov, 40), vec![0, 17, 23, 40]);
+        assert_eq!(segment(&nov, 40, 1.0), vec![0, 17, 23, 40]);
         // nothing changes in 96 bars: sections of 32
         let flat = vec![0.0; 96];
-        let b = segment(&flat, 96);
+        let b = segment(&flat, 96, 1.0);
         assert!(b.windows(2).all(|w| w[1] - w[0] <= 32), "{b:?}");
     }
 
@@ -1002,6 +1026,7 @@ pub(crate) mod tests {
             bass: vec![-30.0; n],
             kit: vec![-30.0; n],
             voice: None,
+            bar_secs: 2.0,
         };
         assert_eq!(builds(&h, (0, 8), (8, 16)), 4);
         // and nothing builds into something quieter
