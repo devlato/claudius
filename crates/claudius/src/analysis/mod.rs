@@ -7,3 +7,4 @@ pub mod groove;
 pub mod melody;
 pub mod onsets;
 pub mod song;
+pub mod structure;

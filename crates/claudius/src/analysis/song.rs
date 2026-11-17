@@ -1,16 +1,21 @@
-//! Reading a whole song the way a producer would before remaking it: tempo, key and swing; sections (by novelty
-//! every 4 bars) with their energy and which layers play (kick, bass, hats, harmony); the chords of every bar folded
-//! into looping progressions; drum habits per 16th step (kick / snare / hats); the bass style. `to_blueprint` turns
-//! that skeleton into a blueprint for a genre, so a new song can be written on it and then mutated.
+//! Reading a whole song the way a producer would before remaking it: tempo, key and swing; its sections as the song's
+//! own (`structure`: where each starts, to the bar, what it is, which play the same music, where a build resolves)
+//! with their energy and which layers play (kick, bass, hats, harmony); the phrases a voice sings, to the beat; the
+//! chords of every bar folded into looping progressions; drum habits per 16th step (kick / snare / hats); the bass
+//! style. `to_blueprint` turns that skeleton into a blueprint for a genre, so a new song can be written on it and then
+//! mutated.
 
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 
 use super::beats;
 use super::chroma;
+use super::melody;
 use super::onsets::{self, HOP};
+use super::structure::{self, Label};
 use crate::audio::Stereo;
 use crate::compose::{self, Library, Options};
 use crate::config::SRF;
+use crate::cuts;
 use crate::dsp::filter;
 use crate::genres::GenreProfile;
 use crate::model::{Blueprint, SectionKind, SectionSpec};
@@ -24,12 +29,66 @@ pub struct SectionGuess {
     pub start_bar: usize,
     pub bars: usize,
     pub energy: f32,
+    /// the kind of section a song of claudius's plays it as (`Label::kind`)
     pub kind: SectionKind,
+    /// what it is: intro, verse, pre-chorus, chorus, bridge ... (`structure`)
+    pub label: Label,
+    /// the music it plays, as a letter: sections with the same letter play the same music
+    #[serde(serialize_with = "letter")]
+    pub group: usize,
+    /// how many of its last bars build into the next section, which resolves the build where it starts
+    pub build_bars: usize,
+    /// where a piece of it is best cut from the recording, in seconds: its first bar's line, or before it, in the quiet
+    /// before its first phrase, where that is sung before the bar (a pickup)
+    pub cut: f64,
+    /// the share of its bars a voice sings in, where the voice is heard apart from the rest
+    pub sung: f32,
     pub kick: bool,
     pub bass: bool,
     pub hats: bool,
     pub harmony: bool,
 }
+
+/// the letter of the music group `g` plays: A, B, C ... Z, then A1, B1 ...
+pub fn group_letter(g: usize) -> String {
+    let c = (b'A' + (g % 26) as u8) as char;
+    if g < 26 { c.to_string() } else { format!("{c}{}", g / 26) }
+}
+
+fn letter<S: Serializer>(g: &usize, s: S) -> Result<S::Ok, S::Error> {
+    s.serialize_str(&group_letter(*g))
+}
+
+/// A phrase a voice sings in the recording: where it starts and ends, in seconds, and in bars and beats (the bar
+/// counted from 0 as `SectionGuess::start_bar` counts it, the beat from 1, in quarters of a beat).
+#[derive(Clone, Debug, Serialize)]
+pub struct SungPhrase {
+    pub start: f64,
+    pub end: f64,
+    pub bar: i64,
+    pub beat: f64,
+    pub end_bar: i64,
+    pub end_beat: f64,
+}
+
+impl SungPhrase {
+    /// where it is sung, as a DAW writes a position, bars counted from 1: "27.2-31.4", the sixteenth after the beat
+    /// where it is not on one ("26.4.3")
+    pub fn said(&self) -> String {
+        format!("{}-{}", position(self.bar, self.beat), position(self.end_bar, self.end_beat))
+    }
+}
+
+/// bar `bar` (from 0) and beat `beat` (from 1, in quarters) as a DAW writes them, the bar from 1: "27.2", "26.4.3"
+fn position(bar: i64, beat: f64) -> String {
+    let whole = beat.floor();
+    let sixteenth = ((beat - whole) * 4.0).round() as i64 + 1;
+    if sixteenth == 1 { format!("{}.{whole:.0}", bar + 1) } else { format!("{}.{whole:.0}.{sixteenth}", bar + 1) }
+}
+
+/// a voice sings in a recording when its vocals hold this share of its power at least: a track no one sings in leaves
+/// a little of its lead in them
+const SINGS: f64 = 0.05;
 
 /// a row of per-step strengths as `analyze` prints it: `X` strong, `x` clear, `.` faint, `-` nothing
 pub fn grid(steps: &[f32]) -> String {
@@ -73,8 +132,9 @@ pub struct Analysis {
     pub steady: bool,
     /// where each of its bars starts, in seconds, and where the last ends (`bars + 1` of them): every fourth beat
     /// from the first downbeat, on a grid of `bar_secs` for a recording that keeps one tempo
-    #[serde(skip)]
     pub bar_starts: Vec<f64>,
+    /// the phrases a voice sings, in the order sung, where the voice is heard apart from the rest
+    pub phrases: Vec<SungPhrase>,
 }
 
 impl Analysis {
@@ -101,6 +161,73 @@ impl Analysis {
     /// the tempo a piece `cut` from it keeps
     pub fn cut_bpm(&self) -> f64 {
         240.0 / self.bar_secs.max(1e-3)
+    }
+
+    /// What it heard, as `analyze` says it: the tempo and key, the progressions, each section (its bars counted from 1,
+    /// what it is and the letter of its music, how much a voice sings of it, where it builds, its first phrase sung
+    /// before its first bar, and what plays), the phrases sung, the drums' habits and the bass.
+    pub fn text(&self) -> String {
+        let mut out = format!(
+            "{:.1} BPM (pulse clarity {:.2}), {} (confidence {:.2}), swing {:.2}, {} bars from {:.2} s\n",
+            self.bpm,
+            self.pulse_clarity,
+            self.key.name(),
+            self.key_confidence,
+            self.swing,
+            self.bars,
+            self.first_downbeat
+        );
+        out.push_str(&format!(
+            "progression A: {}  |  B: {}  ({} bar(s) per chord)\n",
+            self.progression_a.join(" "),
+            self.progression_b.join(" "),
+            self.bars_per_chord
+        ));
+        for s in &self.sections {
+            let mut said = vec![format!("energy {:.2}", s.energy)];
+            if s.sung > 0.0 {
+                said.push(format!("{:.0}% sung", s.sung * 100.0));
+            }
+            if s.build_bars > 0 {
+                said.push(format!(
+                    "building over its last {} bar{}",
+                    s.build_bars,
+                    if s.build_bars == 1 { "" } else { "s" }
+                ));
+            }
+            let first = self.bar_start(s.start_bar);
+            if s.cut < first - 0.05 {
+                said.push(format!("sung from {:.2} s before its first bar", first - s.cut));
+            }
+            let playing: Vec<&str> = [(s.kick, "kick"), (s.bass, "bass"), (s.hats, "hats")]
+                .into_iter()
+                .filter(|p| p.0)
+                .map(|p| p.1)
+                .collect();
+            if !playing.is_empty() {
+                said.push(playing.join(" "));
+            }
+            out.push_str(&format!(
+                "bars {}-{}  {} ({})  {}\n",
+                s.start_bar + 1,
+                s.start_bar + s.bars,
+                s.label.name(),
+                group_letter(s.group),
+                said.join(", ")
+            ));
+        }
+        if !self.phrases.is_empty() {
+            let each: Vec<String> = self.phrases.iter().map(SungPhrase::said).collect();
+            out.push_str(&format!("sung phrases: {}\n", each.join(", ")));
+        }
+        out.push_str(&format!(
+            "kick  {}\nsnare {}\nhats  {}\nbass style: {}\n",
+            grid(&self.kick_steps),
+            grid(&self.snare_steps),
+            grid(&self.hat_steps),
+            self.bass_style
+        ));
+        out
     }
 
     /// the bar `t` seconds into the recording falls in, counting from 0 (bars before the first count back from it)
@@ -137,6 +264,48 @@ fn bars_on(beats: &[f64], downbeat: usize, beat: f64, secs: f64) -> Vec<f64> {
         out.push(out[last] + bar);
     }
     out
+}
+
+/// where bar `b` starts in a recording whose bars start at `bar_starts`: before the first and past the last, on a grid
+/// of `bar_len`
+fn bar_time(bar_starts: &[f64], bar_len: f64, b: i64) -> f64 {
+    let n = bar_starts.len() as i64;
+    if b < 0 {
+        bar_starts[0] + b as f64 * bar_len
+    } else if b < n {
+        bar_starts[b as usize]
+    } else {
+        bar_starts[(n - 1) as usize] + (b - n + 1) as f64 * bar_len
+    }
+}
+
+/// the bar `t` seconds into a recording whose bars start at `bar_starts` falls in, counting from 0 (bars before the
+/// first count back from it, on a grid of `bar_len`, as do bars past the last)
+fn bar_index(bar_starts: &[f64], bar_len: f64, t: f64) -> i64 {
+    let (first, last) = (bar_starts[0], bar_starts[bar_starts.len() - 1]);
+    if t < first {
+        ((t - first) / bar_len.max(1e-3)).floor() as i64
+    } else if t >= last {
+        bar_starts.len() as i64 - 1 + ((t - last) / bar_len.max(1e-3)).floor() as i64
+    } else {
+        bar_starts.partition_point(|&s| s <= t) as i64 - 1
+    }
+}
+
+/// Where a piece of the section starting at bar `b` is best cut: the bar's line, or, where its first phrase is sung
+/// before the bar (a pickup, within three quarters of the bar before), before that phrase, in the quiet after whatever
+/// is sung before it (`cuts::cut_before`). The voice `sung` is heard in, when it is apart.
+fn cut_at(b: usize, bar_starts: &[f64], sung: Option<(&cuts::Sung, &Stereo)>) -> f64 {
+    let t = bar_starts[b];
+    let Some((sung, voice)) = sung else { return t };
+    let reach = if b > 0 { 0.75 * (t - bar_starts[b - 1]) } else { t };
+    let Some(i) = sung.phrases.iter().position(|p| p.start >= t - reach && p.start < t + 0.1) else { return t };
+    let p = sung.phrases[i];
+    if p.start >= t - 0.05 {
+        return t;
+    }
+    let after = if i > 0 { sung.phrases[i - 1].end } else { 0.0 };
+    cuts::cut_before(voice, p.start, after, t)
 }
 
 fn band(mono: &[f32], lo: f64, hi: f64) -> Vec<f32> {
@@ -222,24 +391,20 @@ pub fn analyze_with(x: &Stereo, stems: Option<&Stems>, bpm_range: Option<(f64, f
     let bass_ch = chroma::chroma_band(bass_src, chroma_hop, 40.0, 220.0);
     let mut bar_bass: Vec<[f32; 12]> = Vec::with_capacity(bars);
     let mut rms = Vec::with_capacity(bars);
-    let mut lo_db = Vec::with_capacity(bars);
     let mut hi_db = Vec::with_capacity(bars);
     let mut bar_chroma: Vec<[f32; 12]> = Vec::with_capacity(bars);
     let mut kick = Vec::with_capacity(bars);
     let mut snare = Vec::with_capacity(bars);
     let mut hat = Vec::with_capacity(bars);
     let mut bass_db = Vec::with_capacity(bars);
-    // where the voice and the kit come in and go, bar by bar, when the stems are apart
-    let voice = stems.map(|s| s.vocals.mono());
-    let (mut voice_db, mut kit_db) = (Vec::with_capacity(bars), Vec::with_capacity(bars));
+    // where the kit comes in and goes, bar by bar, when the stems are apart
+    let mut kit_db = Vec::with_capacity(bars);
     for b in 0..bars {
         let (a, e) = (at(b), at(b + 1));
         rms.push(rms_db(&mono, a, e));
-        lo_db.push(rms_db(&low, a, e));
         hi_db.push(rms_db(&high, a, e));
         bass_db.push(rms_db(bass_low.as_deref().unwrap_or(&low), a, e));
-        if let Some(v) = &voice {
-            voice_db.push(rms_db(v, a, e));
+        if drums.is_some() {
             kit_db.push(rms_db(drum_src, a, e));
         }
         let (fa, fe) = (a / chroma_hop, (e / chroma_hop).min(ch.len()));
@@ -304,56 +469,32 @@ pub fn analyze_with(x: &Stereo, stems: Option<&Stems>, bpm_range: Option<(f64, f
     let chords: Vec<Chord> =
         (0..bars).map(|b| chroma::chord_with_bass(&bar_chroma[b], &bar_bass[b], Some(&key)).0).collect();
 
-    // sections: boundaries where 4-bar blocks differ most
-    let block = 4usize;
-    let nb = bars.div_ceil(block);
-    let feat = |i: usize| -> Vec<f64> {
-        let r = (i * block)..((i + 1) * block).min(bars);
-        let m = |v: &[f64]| r.clone().map(|b| v[b]).sum::<f64>() / r.len().max(1) as f64;
-        let mut f = vec![m(&rms) / 6.0, m(&lo_db) / 6.0, m(&hi_db) / 6.0];
-        for k in 0..12 {
-            f.push(r.clone().map(|b| bar_chroma[b][k] as f64).sum::<f64>() / r.len().max(1) as f64 * 8.0);
-        }
-        // a verse sings and a solo does not; a breakdown drops the kit
-        if !voice_db.is_empty() {
-            f.extend([m(&voice_db) / 6.0, m(&kit_db) / 6.0]);
-        }
-        f
-    };
-    let feats: Vec<Vec<f64>> = (0..nb).map(feat).collect();
-    let d: Vec<f64> =
-        feats.windows(2).map(|w| w[0].iter().zip(&w[1]).map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt()).collect();
-    let mean = d.iter().sum::<f64>() / d.len().max(1) as f64;
-    let sd = (d.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / d.len().max(1) as f64).sqrt();
-    let mut bounds = vec![0usize];
-    for (i, v) in d.iter().enumerate() {
-        let b = (i + 1) * block;
-        if *v > mean + 0.5 * sd && b - bounds.last().unwrap() >= 8 && bars - b >= 4 {
-            bounds.push(b);
-        }
-    }
-    bounds.push(bars);
-    // A section longer than 32 bars is cut where it changes most, on a phrase of 8 bars from its start and 8 bars from
-    // its ends or more, until none is: a recording that changes too little for the threshold above (a steady track, a
-    // loop) is not all one section, which a remake would then play as one long drop. Where it changes as much
-    // everywhere, the cut nearest its middle.
-    let top = d.iter().copied().fold(0.0, f64::max).max(1e-9);
-    loop {
-        let cut = bounds
-            .windows(2)
-            .filter(|w| w[1] - w[0] > 32)
-            .flat_map(|w| {
-                (w[0] + 8..=w[1] - 8).filter(|b| (b - w[0]) % 8 == 0 && b % block == 0 && bars - b >= 4).map(|b| {
-                    let even = (b - w[0]).min(w[1] - b) as f64 / (w[1] - w[0]) as f64;
-                    (b, d[b / block - 1] / top + 0.25 * even)
-                })
+    // sections, as the song's own (`structure`): what each bar's beats play, how it sounds, and where a voice sings
+    let sings = stems.filter(|s| s.share(&s.vocals) >= SINGS);
+    let sung = sings.map(|s| cuts::sung(&s.vocals, &melody::pitches(&s.vocals)));
+    // the kit's level in each bar: its drums apart, else its hits in the mix
+    let kit_level: Vec<f64> = if kit_db.is_empty() {
+        (0..bars)
+            .map(|b| {
+                let s: f32 = kick[b].iter().chain(&snare[b]).chain(&hat[b]).sum();
+                10.0 * (s as f64 + 1e-6).log10()
             })
-            .max_by(|a, b| a.1.total_cmp(&b.1));
-        let Some((b, _)) = cut else { break };
-        bounds.insert(bounds.partition_point(|&x| x < b), b);
-    }
+            .collect()
+    } else {
+        kit_db.clone()
+    };
+    let heard = structure::Heard {
+        harmony: (0..bars).map(|b| structure::harmony(&ch, chroma_hop, t_bar(b), t_bar(b + 1))).collect(),
+        timbre: structure::timbres(&mono, &bar_starts),
+        loud: rms.clone(),
+        bright: hi_db.iter().zip(&rms).map(|(h, r)| h - r).collect(),
+        bass: bass_db.clone(),
+        kit: kit_level,
+        voice: sung.as_ref().map(|s| structure::sung_share(&s.words, &bar_starts)),
+    };
+    let parts = structure::parts(&heard);
     let sec_rms: Vec<f64> =
-        bounds.windows(2).map(|w| (w[0]..w[1]).map(|b| rms[b]).sum::<f64>() / (w[1] - w[0]).max(1) as f64).collect();
+        parts.iter().map(|p| (p.start..p.start + p.bars).map(|b| rms[b]).sum::<f64>() / p.bars.max(1) as f64).collect();
     let (rmin, rmax) = sec_rms.iter().fold((f64::MAX, f64::MIN), |(a, b), v| (a.min(*v), b.max(*v)));
     // sections within 1.5 dB of each other all play at one level, a groove's, rather than each as loud as a drop or as
     // quiet as a break by a difference no one hears
@@ -366,41 +507,48 @@ pub fn analyze_with(x: &Stereo, stems: Option<&Stems>, bpm_range: Option<(f64, f
     let bass_ref = bass_db.iter().cloned().fold(f64::MIN, f64::max);
     // the stems say whether a bass plays at all: a twentieth of the power at least
     let bassed = stems.is_none_or(|s| s.share(&s.bass) >= 0.02);
+    let sung_with = sung.as_ref().zip(sings.map(|s| &s.vocals));
     let mut sections: Vec<SectionGuess> = Vec::new();
-    for (i, w) in bounds.windows(2).enumerate() {
-        let (a, b) = (w[0], w[1]);
+    for (i, p) in parts.iter().enumerate() {
+        let (a, b) = (p.start, p.start + p.bars);
         let e = if flat { 0.6 } else { ((sec_rms[i] - rmin) / (rmax - rmin)) as f32 };
         let bass_m = (a..b).map(|x| bass_db[x]).sum::<f64>() / (b - a).max(1) as f64;
         let kick_on = mean_steps(&kick, a, b) > 0.6 * kick_ref;
+        let sung_share = heard.voice.as_ref().map_or(0.0, |v| v[a..b].iter().sum::<f64>() / (b - a).max(1) as f64);
         sections.push(SectionGuess {
             start_bar: a,
             bars: b - a,
             energy: 0.3 + 0.7 * e,
-            kind: SectionKind::Groove,
+            kind: p.label.kind(),
+            label: p.label,
+            group: p.group,
+            build_bars: p.build_bars,
+            cut: cut_at(a, &bar_starts, sung_with),
+            sung: sung_share as f32,
             kick: drummed && kick_on,
             bass: bassed && bass_m > bass_ref - 9.0,
             hats: drummed && mean_steps(&hat, a, b) > 0.5 * hat_ref,
             harmony: true,
         });
     }
-    let n = sections.len();
-    for i in 0..n {
-        let e = sections[i].energy;
-        let next_high = sections.get(i + 1).is_some_and(|s| s.energy >= 0.85);
-        sections[i].kind = if i == 0 && e < 0.85 {
-            SectionKind::Intro
-        } else if i + 1 == n && n > 2 && e < 0.85 {
-            SectionKind::Outro
-        } else if e >= 0.85 {
-            SectionKind::Drop
-        } else if next_high && e >= 0.45 {
-            SectionKind::Build
-        } else if !sections[i].kick || e < 0.5 {
-            SectionKind::Break
-        } else {
-            SectionKind::Groove
-        };
-    }
+    let beat_of = |t: f64| -> (i64, f64) {
+        let bar = bar_index(&bar_starts, bar_len, t);
+        let (t0, t1) = (bar_time(&bar_starts, bar_len, bar), bar_time(&bar_starts, bar_len, bar + 1));
+        let beat = 1.0 + ((t - t0) / ((t1 - t0) / 4.0).max(1e-6) * 4.0).floor() / 4.0;
+        (bar, beat.clamp(1.0, 4.75))
+    };
+    let phrases: Vec<SungPhrase> = sung
+        .as_ref()
+        .map(|s| {
+            s.phrases
+                .iter()
+                .map(|p| {
+                    let ((bar, beat), (end_bar, end_beat)) = (beat_of(p.start), beat_of(p.end));
+                    SungPhrase { start: p.start, end: p.end, bar, beat, end_bar, end_beat }
+                })
+                .collect()
+        })
+        .unwrap_or_default();
     // progressions: the repeating cycle of chords in the loudest sections, and in the quiet ones
     let cycle = |a: usize, b: usize| -> (Vec<Chord>, u32) {
         let cs: Vec<Chord> = chords[a..b].to_vec();
@@ -505,6 +653,7 @@ pub fn analyze_with(x: &Stereo, stems: Option<&Stems>, bpm_range: Option<(f64, f
         bass_style: bass_style.to_string(),
         steady: grid.steady,
         bar_starts,
+        phrases,
     }
 }
 
@@ -586,7 +735,7 @@ pub fn to_blueprint(
         let bars = ((s.bars as f64 / 4.0).round().max(1.0) * 4.0) as u32;
         let next_drop = a.sections.get(i + 1).is_some_and(|n| n.kind == SectionKind::Drop);
         form.push(SectionSpec {
-            name: format!("{}{}", s.kind.name(), i + 1),
+            name: format!("{}{}", s.label.word(), i + 1),
             kind: s.kind,
             bars,
             energy: s.energy,
@@ -636,10 +785,229 @@ pub fn to_blueprint(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{SectionKind, analyze, remake_tempo};
+pub(crate) mod tests {
+    use super::{Label, SectionKind, analyze, analyze_with, remake_tempo};
     use crate::audio::Stereo;
+    use crate::config::SRF;
     use crate::genres;
+    use crate::stems::Stems;
+
+    /// the form of `pop_song`: each section, what it is and its bars
+    pub(crate) const POP_FORM: [(Label, usize); 10] = [
+        (Label::Intro, 4),
+        (Label::Verse, 8),
+        (Label::PreChorus, 6),
+        (Label::Chorus, 8),
+        (Label::Verse, 8),
+        (Label::PreChorus, 6),
+        (Label::Chorus, 8),
+        (Label::Bridge, 8),
+        (Label::Chorus, 8),
+        (Label::Outro, 4),
+    ];
+
+    /// A song of known form at 120 BPM in A minor, its stems apart (`POP_FORM`): an intro of 4 bars, a verse of 8, a
+    /// pre-chorus of 6 that builds (a snare roll that thickens and noise that rises), a chorus of 8 whose phrases are
+    /// sung from the beat before their bars, again, a bridge of 8, a last chorus and an outro of 4. Each kind of
+    /// section plays chords of its own (sine triads, a bar each), drums and a bass of its own, and a voice sings a
+    /// melody of its own (a tone with vibrato, a word a beat) in all but the intro and outro.
+    pub(crate) fn pop_song() -> (Stereo, Stems) {
+        let (bar, beat) = (2.0f64, 0.5f64);
+        let bars: usize = POP_FORM.iter().map(|s| s.1).sum();
+        let n = (bars as f64 * bar * SRF) as usize;
+        let (mut other, mut vocals, mut drums, mut bass) =
+            (Stereo::zeros(n), Stereo::zeros(n), Stereo::zeros(n), Stereo::zeros(n));
+        let hz = |m: f64| 440.0 * 2f64.powf((m - 69.0) / 12.0);
+        let mut noise = crate::rng::Rng::new(11);
+        let put = |x: &mut Stereo, i: usize, v: f64| {
+            if i < x.len() {
+                x.l[i] += v as f32;
+                x.r[i] += v as f32;
+            }
+        };
+        let mut start = 0usize;
+        for &(label, len) in &POP_FORM {
+            // a bar's chord: root and whether minor
+            let chords: &[(f64, bool)] = match label {
+                Label::Intro | Label::Outro => &[(57.0, true), (53.0, false)],
+                Label::Verse => &[(57.0, true), (53.0, false), (48.0, false), (55.0, false)],
+                Label::PreChorus => {
+                    &[(50.0, true), (50.0, true), (53.0, false), (53.0, false), (52.0, false), (52.0, false)]
+                }
+                Label::Chorus => &[(53.0, false), (55.0, false), (48.0, false), (57.0, true)],
+                _ => &[(50.0, true), (57.0, true), (50.0, true), (52.0, false)],
+            };
+            let level = match label {
+                Label::Chorus => 0.09,
+                Label::Intro | Label::Outro | Label::Bridge => 0.05,
+                _ => 0.07,
+            };
+            for b in 0..len {
+                let (root, minor) = chords[b % chords.len()];
+                let t0 = (start + b) as f64 * bar;
+                let (i0, i1) = ((t0 * SRF) as usize, ((t0 + bar) * SRF) as usize);
+                let rise = if label == Label::PreChorus { (b as f64 + 1.0) / len as f64 } else { 0.0 };
+                for i in i0..i1 {
+                    let t = i as f64 / SRF;
+                    let mut v = 0.0;
+                    for m in [root, root + if minor { 3.0 } else { 4.0 }, root + 7.0] {
+                        v += level * (std::f64::consts::TAU * hz(m) * t).sin();
+                    }
+                    // the pre-chorus's noise rises into the chorus
+                    v += 0.12 * rise * rise * noise.range(-1.0, 1.0);
+                    put(&mut other, i, v);
+                    // the bass on the root, an octave and more down, where the kit plays
+                    if matches!(label, Label::Verse | Label::PreChorus | Label::Chorus) {
+                        let lvl = if label == Label::Chorus { 0.25 } else { 0.15 };
+                        put(&mut bass, i, lvl * (std::f64::consts::TAU * hz(root - 12.0) * t).sin());
+                    }
+                }
+                // the drums, beat by beat: a kick, a snare and hats, each a short burst
+                let hit = |x: &mut Stereo, at: f64, len: f64, f: Option<f64>, lvl: f64, rng: &mut crate::rng::Rng| {
+                    let (a, e) = ((at * SRF) as usize, ((at + len) * SRF) as usize);
+                    for i in a..e {
+                        let u = (i - a) as f64 / SRF;
+                        let env = 1.0 - u / len;
+                        let v = match f {
+                            Some(f) => (std::f64::consts::TAU * f * u).sin(),
+                            None => rng.range(-1.0, 1.0),
+                        };
+                        put(x, i, lvl * env * v);
+                    }
+                };
+                for k in 0..16 {
+                    let at = t0 + k as f64 * beat / 4.0;
+                    let (on_beat, eighth) = (k % 4 == 0, k % 2 == 0);
+                    match label {
+                        Label::Verse => {
+                            if k == 0 || k == 8 {
+                                hit(&mut drums, at, 0.12, Some(55.0), 0.5, &mut noise);
+                            }
+                            if eighth {
+                                hit(&mut drums, at, 0.02, None, 0.06, &mut noise);
+                            }
+                        }
+                        Label::PreChorus => {
+                            if k == 0 {
+                                hit(&mut drums, at, 0.12, Some(55.0), 0.5, &mut noise);
+                            }
+                            // a roll of eighths, then sixteenths, louder bar by bar
+                            if eighth || b * 2 >= len {
+                                hit(&mut drums, at, 0.06, None, 0.08 + 0.25 * rise, &mut noise);
+                            }
+                        }
+                        Label::Chorus => {
+                            if on_beat {
+                                hit(&mut drums, at, 0.12, Some(55.0), 0.6, &mut noise);
+                            }
+                            if k == 4 || k == 12 {
+                                hit(&mut drums, at, 0.08, None, 0.3, &mut noise);
+                            }
+                            hit(&mut drums, at, 0.02, None, 0.08, &mut noise);
+                        }
+                        Label::Bridge => {
+                            if on_beat {
+                                hit(&mut drums, at, 0.02, None, 0.05, &mut noise);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            // the voice: phrases of a word a beat, each section's melody its own; a chorus's phrases start on the beat
+            // before their bars
+            let (every, words, from, notes): (usize, usize, f64, &[f64]) = match label {
+                Label::Verse => (2, 6, 0.0, &[64.0, 65.0, 67.0, 65.0, 64.0, 62.0]),
+                Label::PreChorus => (2, 6, 0.0, &[65.0, 67.0, 69.0, 69.0, 71.0, 72.0]),
+                Label::Chorus => (2, 7, -1.0, &[72.0, 76.0, 74.0, 72.0, 71.0, 72.0, 69.0]),
+                Label::Bridge => (4, 6, 0.0, &[62.0, 62.0, 60.0, 62.0, 64.0, 62.0]),
+                _ => (0, 0, 0.0, &[]),
+            };
+            if every > 0 {
+                let loud = if label == Label::Chorus { 0.35 } else { 0.25 };
+                for p in (0..len).step_by(every) {
+                    let t_p = (start + p) as f64 * bar + from * beat;
+                    for w in 0..words {
+                        let (w0, w1) = (t_p + w as f64 * beat, t_p + w as f64 * beat + 0.44);
+                        let f0 = hz(notes[w % notes.len()]);
+                        let mut phase = 0.0f64;
+                        for i in (w0 * SRF) as usize..(w1 * SRF) as usize {
+                            let u = i as f64 / SRF - w0;
+                            let vib = 1.0 + 0.017 * (std::f64::consts::TAU * 5.5 * u).sin();
+                            phase += std::f64::consts::TAU * f0 * vib / SRF;
+                            let env = (u / 0.015).min(1.0) * ((0.44 - u) / 0.03).clamp(0.0, 1.0);
+                            let v = env * loud * (phase.sin() + 0.5 * (2.0 * phase).sin() + 0.25 * (3.0 * phase).sin());
+                            put(&mut vocals, i, v);
+                        }
+                    }
+                }
+            }
+            start += len;
+        }
+        let stems = Stems { vocals, drums, bass, other };
+        let mut mix = stems.music();
+        mix.add_at(&stems.drums, 0, 1.0, 1.0);
+        (mix, stems)
+    }
+
+    #[test]
+    fn a_songs_sections_are_its_own_found_to_the_bar_named_and_grouped_by_what_they_play() {
+        let (mix, stems) = pop_song();
+        let a = analyze_with(&mix, Some(&stems), None);
+        let heard: Vec<(usize, usize, &str, String)> =
+            a.sections.iter().map(|s| (s.start_bar, s.bars, s.label.name(), super::group_letter(s.group))).collect();
+        assert!(
+            (a.bpm - 120.0).abs() < 1.0 && a.first_downbeat.abs() < 0.05,
+            "{} BPM from {}",
+            a.bpm,
+            a.first_downbeat
+        );
+        // every boundary to the bar, the pre-chorus's 6 bars kept
+        let mut want = vec![0];
+        for (_, len) in POP_FORM {
+            want.push(want.last().unwrap() + len);
+        }
+        let starts: Vec<usize> = a.sections.iter().map(|s| s.start_bar).chain([a.bars]).collect();
+        assert_eq!(starts, want, "{heard:?}");
+        let labels: Vec<Label> = a.sections.iter().map(|s| s.label).collect();
+        assert_eq!(labels, POP_FORM.iter().map(|s| s.0).collect::<Vec<_>>(), "{heard:?}");
+        // the verses play the same music, as do the pre-choruses and the choruses, and the bridge its own
+        let g: Vec<usize> = a.sections.iter().map(|s| s.group).collect();
+        assert!(g[1] == g[4] && g[2] == g[5] && g[3] == g[6] && g[6] == g[8], "{heard:?}");
+        assert!([g[1], g[2], g[3]].iter().all(|&x| x != g[7]) && g[1] != g[3] && g[2] != g[3], "{heard:?}");
+        // a chorus plays as the song's hook, and each pre-chorus builds into one over its bars
+        assert!(a.sections.iter().filter(|s| s.label == Label::Chorus).all(|s| s.kind == SectionKind::Hook));
+        for i in [2, 5] {
+            assert!(a.sections[i].build_bars >= 3, "{:?}", a.sections[i]);
+        }
+        assert_eq!(a.sections[3].build_bars, 0, "a chorus leads into a quieter verse");
+        // a chorus is cut before the word sung on the beat before it, a verse on its bar line
+        for i in [3, 6, 8] {
+            let (cut, line) = (a.sections[i].cut, a.bar_start(a.sections[i].start_bar));
+            assert!(cut < line - 0.3 && cut > line - 0.6, "chorus {i} cut at {cut:.3} s, its bar at {line:.3} s");
+        }
+        assert!((a.sections[1].cut - a.bar_start(4)).abs() < 1e-9);
+        // its phrases to the beat: the first verse's first sung from bar 5's first beat, the first chorus's from bar
+        // 18's last
+        assert_eq!(a.phrases.first().map(super::SungPhrase::said).as_deref().map(|s| &s[..3]), Some("5.1"));
+        assert!(a.phrases.iter().any(|p| p.said().starts_with("18.4")), "{:?}", a.phrases);
+        assert!(a.text().contains("bars 13-18  pre-chorus"), "{}", a.text());
+    }
+
+    #[test]
+    fn without_its_voice_apart_a_song_still_has_its_own_sections_and_its_chorus() {
+        let (mix, _) = pop_song();
+        let a = analyze(&mix, None);
+        let heard: Vec<(usize, usize, &str)> =
+            a.sections.iter().map(|s| (s.start_bar, s.bars, s.label.name())).collect();
+        // the verses and choruses found where they start, whatever the intro and outro are taken for
+        for start in [4, 18, 26, 40, 56] {
+            assert!(a.sections.iter().any(|s| s.start_bar == start), "nothing starts at bar {start}: {heard:?}");
+        }
+        let choruses: Vec<usize> =
+            a.sections.iter().filter(|s| s.label == Label::Chorus).map(|s| s.start_bar).collect();
+        assert_eq!(choruses, vec![18, 40, 56], "{heard:?}");
+    }
 
     #[test]
     fn a_steady_recording_is_cut_into_sections_and_none_of_them_is_a_drop() {

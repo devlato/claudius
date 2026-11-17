@@ -778,7 +778,7 @@ pub(crate) fn about(kind: Kind, f: &[f64], a: &Analysis, first: usize) -> String
         false => format!("the {what}, taken from the rest"),
     };
     let section = a.sections.iter().find(|s| (s.start_bar..s.start_bar + s.bars).contains(&first));
-    let of = section.map(|s| format!(" of the {}", s.kind.name())).unwrap_or_default();
+    let of = section.map(|s| format!(" of the {}", s.label.name())).unwrap_or_default();
     match kind {
         Kind::Break => {
             let busy = if f[1] >= 0.35 { "busy" } else { "sparse" };

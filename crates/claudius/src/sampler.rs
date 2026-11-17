@@ -1026,7 +1026,7 @@ pub struct Piece {
     pub fx: Vec<Effect>,
     /// the tempo it keeps, cut from the recording
     pub bpm: f64,
-    /// the section of the recording its phrase starts in, by kind and count ("hook 2"); none where the analysis heard
+    /// the section of the recording its phrase starts in, by what it is and count ("chorus 2"); none where the analysis heard
     /// no section there
     pub section: String,
 }
@@ -1688,16 +1688,16 @@ fn fullness(x: &Stereo) -> f64 {
     rms / (x.peak() as f64).max(1e-9)
 }
 
-/// the section of the recording `a` heard that bar `bar` is in, by its kind and how many of its kind come up to it
-/// ("hook 2"); empty where none is
+/// the section of the recording `a` heard that bar `bar` is in, by what it is and how many such come up to it
+/// ("chorus 2"); empty where none is
 fn section_at(a: &Analysis, bar: i64) -> String {
     let at = usize::try_from(bar).ok();
     let Some(s) = a.sections.iter().find(|s| at.is_some_and(|b| (s.start_bar..s.start_bar + s.bars).contains(&b)))
     else {
         return String::new();
     };
-    let nth = a.sections.iter().filter(|o| o.kind == s.kind && o.start_bar <= s.start_bar).count();
-    format!("{} {nth}", s.kind.name())
+    let nth = a.sections.iter().filter(|o| o.label == s.label && o.start_bar <= s.start_bar).count();
+    format!("{} {nth}", s.label.name())
 }
 
 /// where a phrase was in the recording, in its bars counted from 1
@@ -2260,6 +2260,7 @@ pub(crate) mod tests {
             first_downbeat: 0.0,
             bar_secs: 2.0,
             bar_starts: Vec::new(),
+            phrases: Vec::new(),
             ..analysis::analyze(&x, Some((110.0, 130.0)))
         };
         let found = find(&x, None, &a, None, &Options { bars: Some(2), ..Options::default() }, 1);
@@ -2434,6 +2435,11 @@ pub(crate) mod tests {
             bars: 8,
             energy: 1.0,
             kind: SectionKind::Verse,
+            label: crate::analysis::structure::Label::Verse,
+            group: 0,
+            build_bars: 0,
+            cut: 0.0,
+            sung: 1.0,
             kick: false,
             bass: false,
             hats: false,
@@ -2444,6 +2450,7 @@ pub(crate) mod tests {
             first_downbeat: 0.0,
             bar_secs: 2.0,
             bar_starts: Vec::new(),
+            phrases: Vec::new(),
             key: Key::new(9, Mode::Minor),
             chords: ["Am", "F", "C", "G", "Am", "F", "C", "G"].map(String::from).to_vec(),
             sections: vec![section(true)],

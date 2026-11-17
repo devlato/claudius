@@ -883,8 +883,10 @@ fn rework_form(
                 n
             }
         };
-        let of_kind = a.sections[..i].iter().filter(|o| o.kind == s.kind).count();
-        let name = if of_kind == 0 { s.kind.name().to_string() } else { format!("{}{}", s.kind.name(), of_kind + 1) };
+        // named for what it is: verse, pre_chorus, chorus2 ...
+        let of_label = a.sections[..i].iter().filter(|o| o.label == s.label).count();
+        let word = s.label.word();
+        let name = if of_label == 0 { word.to_string() } else { format!("{word}{}", of_label + 1) };
         let t = like(genre, s);
         let mut layers: Vec<String> = t.map_or(Vec::new(), |t| t.layers.iter().filter(|l| keep(l)).cloned().collect());
         layers.extend(tracks.iter().map(|t| t.to_string()));
@@ -1056,7 +1058,23 @@ mod tests {
     use crate::theory::scale::Mode;
 
     fn section(start_bar: usize, bars: usize, energy: f32, kind: SectionKind) -> SectionGuess {
-        SectionGuess { start_bar, bars, energy, kind, kick: true, bass: true, hats: true, harmony: true }
+        let label = crate::analysis::structure::Label::of(kind);
+        let (group, build_bars, cut, sung) = (0, 0, 0.0, 0.0);
+        SectionGuess {
+            start_bar,
+            bars,
+            energy,
+            kind,
+            label,
+            group,
+            build_bars,
+            cut,
+            sung,
+            kick: true,
+            bass: true,
+            hats: true,
+            harmony: true,
+        }
     }
 
     /// sixteen bars at 96 BPM in A minor, `i VI III VII` a bar each, a verse and then a hook
@@ -1084,6 +1102,7 @@ mod tests {
             bass_style: "sustain".into(),
             steady: true,
             bar_starts: Vec::new(),
+            phrases: Vec::new(),
         }
     }
 

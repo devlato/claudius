@@ -69,37 +69,8 @@ pub(crate) fn print_summary(bp: &Blueprint, r: &Rendered, w: &song::Written, v: 
 }
 
 pub(crate) fn print_analysis(a: &claudius::analysis::song::Analysis) {
-    println!(
-        "{:.1} BPM (pulse clarity {:.2}), {} (confidence {:.2}), swing {:.2}, {} bars from {:.2} s",
-        a.bpm,
-        a.pulse_clarity,
-        a.key.name(),
-        a.key_confidence,
-        a.swing,
-        a.bars,
-        a.first_downbeat
-    );
-    println!(
-        "  progression A: {}  |  B: {}  ({} bar(s) per chord)",
-        a.progression_a.join(" "),
-        a.progression_b.join(" "),
-        a.bars_per_chord
-    );
-    for s in &a.sections {
-        let mut l = Vec::new();
-        for (on, n) in [(s.kick, "kick"), (s.bass, "bass"), (s.hats, "hats")] {
-            if on {
-                l.push(n);
-            }
-        }
-        println!("  bar {:3} +{:2}  {:7} energy {:.2}  {}", s.start_bar, s.bars, s.kind.name(), s.energy, l.join(" "));
+    for (i, line) in a.text().lines().enumerate() {
+        let indent = if i == 0 { "" } else { "  " };
+        println!("{indent}{line}");
     }
-    let grid = claudius::analysis::song::grid;
-    println!(
-        "  kick  {}\n  snare {}\n  hats  {}\n  bass style: {}",
-        grid(&a.kick_steps),
-        grid(&a.snare_steps),
-        grid(&a.hat_steps),
-        a.bass_style
-    );
 }

@@ -1508,7 +1508,7 @@ impl Studio {
     }
 
     #[tool(
-        description = "Analyze an audio file (any song or loop, any format ffmpeg reads): tempo, key, chord progression, sections with energy, the drum pattern, the bass style.",
+        description = "Analyze an audio file (any song or loop, any format ffmpeg reads): tempo, key, chord progression; its sections as the song's own, each found to the bar and named (intro, verse, pre-chorus, chorus, bridge, instrumental, outro; build, drop and break in a track no one sings in), with the letter of the music it plays (sections with the same letter repeat it), its energy, what plays in it and where it builds into the next; the phrases a voice sings, to the beat; the drum pattern and the bass style.",
         annotations(read_only_hint = true)
     )]
     async fn analyze(&self, Parameters(a): Parameters<PathArgs>) -> Result<String, String> {
