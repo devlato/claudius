@@ -808,7 +808,8 @@ pub(crate) mod tests {
 
     /// A song of known form at 120 BPM in A minor, its stems apart (`POP_FORM`): an intro of 4 bars, a verse of 8, a
     /// pre-chorus of 6 that builds (a snare roll that thickens and noise that rises), a chorus of 8 whose phrases are
-    /// sung from the beat before their bars, again, a bridge of 8, a last chorus and an outro of 4. Each kind of
+    /// sung from the beat before their bars, again, a bridge of 8, a last chorus and an outro of 4 (its verses with a
+    /// backbeat, as a pop song's). Each kind of
     /// section plays chords of its own (sine triads, a bar each), drums and a bass of its own, and a voice sings a
     /// melody of its own (a tone with vibrato, a word a beat) in all but the intro and outro.
     pub(crate) fn pop_song() -> (Stereo, Stems) {
@@ -882,6 +883,9 @@ pub(crate) mod tests {
                         Label::Verse => {
                             if k == 0 || k == 8 {
                                 hit(&mut drums, at, 0.12, Some(55.0), 0.5, &mut noise);
+                            }
+                            if k == 4 || k == 12 {
+                                hit(&mut drums, at, 0.08, None, 0.2, &mut noise);
                             }
                             if eighth {
                                 hit(&mut drums, at, 0.02, None, 0.06, &mut noise);

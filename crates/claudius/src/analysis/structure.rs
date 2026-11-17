@@ -732,7 +732,8 @@ const SUNG: f64 = 0.25;
 /// What each section is. In a song a voice sings a quarter of at least: the chorus is the music it sings again and
 /// again that is loudest and sung most, ends the singing and does not start it; the verse the other music it sings
 /// again, that leads to the chorus most; a pre-chorus what comes between a verse and a chorus; a post-chorus loud
-/// music no one sings right after a chorus; a bridge music sung once after a chorus; the intro and outro what plays
+/// music no one sings right after a chorus; a bridge music sung once after two choruses (or after one, 8 bars long or
+/// more); the intro and outro what plays
 /// before the voice and after it; between, an instrumental, or a break where it is quiet or the kit stops. In a track
 /// no one sings in, by its loudness: drops, the builds before them, breaks, and its intro and outro.
 fn labelled(segs: &[(usize, usize)], group: &[usize], h: &Heard) -> Vec<Label> {
@@ -814,14 +815,20 @@ fn sung_labels(segs: &[(usize, usize)], group: &[usize], loud: &[f64], kit: &[f6
         }
         let before_chorus = out.get(i + 1) == Some(&Label::Chorus);
         let after_chorus = i > 0 && out[i - 1] == Label::Chorus;
-        out[i] = if before_chorus && segs[i].1 - segs[i].0 <= 12 && i > first.saturating_sub(1) {
+        let len = segs[i].1 - segs[i].0;
+        // a bridge is sung once, after two choruses or after one and as long as a verse: a pre-chorus before the second
+        // chorus that is sung otherwise than the first stays a pre-chorus
+        let once = (0..m).filter(|&j| group[j] == group[i]).count() == 1;
+        let choruses_before = out[..i].iter().filter(|l| **l == Label::Chorus).count();
+        let bridge = vocal[i] && once && (choruses_before >= 2 || (choruses_before == 1 && len >= 8));
+        out[i] = if bridge {
+            Label::Bridge
+        } else if before_chorus && len <= 12 && i > first.saturating_sub(1) {
             Label::PreChorus
         } else if after_chorus && !vocal[i] && loud[i] >= chorus_loud - 1.5 && i < last {
             Label::PostChorus
         } else if vocal[i] {
-            let once = (0..m).filter(|&j| group[j] == group[i]).count() == 1;
-            let chorus_before = out[..i].contains(&Label::Chorus);
-            if once && chorus_before { Label::Bridge } else { Label::Verse }
+            Label::Verse
         } else if i < first {
             Label::Intro
         } else if i > last {
