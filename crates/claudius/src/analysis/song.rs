@@ -493,7 +493,13 @@ pub fn analyze_with(x: &Stereo, stems: Option<&Stems>, bpm_range: Option<(f64, f
         bright: hi_db.iter().zip(&rms).map(|(h, r)| h - r).collect(),
         bass: bass_db.clone(),
         kit: kit_level,
-        voice: sung.as_ref().map(|s| structure::sung_share(&s.words, &bar_starts)),
+        // with the stems apart the voice is heard, and where it holds too little of the recording no one sings; without
+        // them it is not heard at all
+        voice: match (&sung, stems) {
+            (Some(s), _) => Some(structure::sung_share(&s.words, &bar_starts)),
+            (None, Some(_)) => Some(vec![0.0; bars]),
+            (None, None) => None,
+        },
         bar_secs: bar_len,
     };
     let parts = structure::parts(&heard);
