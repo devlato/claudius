@@ -44,7 +44,7 @@ claudius-session = { path = "../claudius-session" }
 cpal = "0.18"
 midir = "0.11"
 # the system's own dialog for choosing a file (a browser's is its file input)
-rfd = "0.17"
+rfd = "0.18"
 # the system's notifications, and its media keys and Now Playing (on Linux both over D-Bus with zbus, as AccessKit is)
 notify-rust = { version = "4.19", default-features = false, features = ["z"] }
 souvlaki = { version = "0.9", default-features = false, features = ["use_zbus"] }
