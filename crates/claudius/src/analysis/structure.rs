@@ -385,7 +385,7 @@ fn spread(v: &[f64], floor: f64) -> (f64, f64) {
 
 /// How alike each pair of bars sounds, played as they are: their timbre, loudness, brightness, kit, bass and voice,
 /// each in a unit a listener hears (3 dB of loudness counts as much as a voice coming in), as a Gaussian of the
-/// distance between them, scaled to the median distance.
+/// distance between them, scaled to the median distance or half a unit, whichever is more.
 fn texture(h: &Heard, voice: Option<&[f64]>) -> Square {
     let n = h.loud.len();
     let mut feats: Vec<Vec<f64>> = vec![Vec::new(); n];
@@ -412,7 +412,8 @@ fn texture(h: &Heard, voice: Option<&[f64]>) -> Square {
     let dist = |i: usize, j: usize| feats[i].iter().zip(&feats[j]).map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt();
     let mut all: Vec<f64> = (0..n).flat_map(|i| (i + 1..n).map(move |j| (i, j))).map(|(i, j)| dist(i, j)).collect();
     all.sort_by(f64::total_cmp);
-    let scale = all.get(all.len() / 2).copied().unwrap_or(1.0).max(0.05);
+    // half a unit at least (about 2 dB of loudness): a song that hardly changes keeps its noise from reading as change
+    let scale = all.get(all.len() / 2).copied().unwrap_or(1.0).max(0.5);
     Square::new(n, |i, j| (-0.5 * (dist(i, j) / scale).powi(2)).exp() as f32)
 }
 
