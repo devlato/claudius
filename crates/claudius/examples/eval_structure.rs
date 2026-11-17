@@ -229,7 +229,13 @@ fn jamendo(dir: &Path, lang: &str, most: usize, run: &Run) -> Result<(), String>
                 continue;
             }
         };
-        let a = run.analysis(name, &|| fetched(dir, &format!("subsets/{code}/mp3/{name}.mp3")))?;
+        let a = match run.analysis(name, &|| fetched(dir, &format!("subsets/{code}/mp3/{name}.mp3"))) {
+            Ok(a) => a,
+            Err(e) => {
+                println!("{:<40} skipped: {e}", short(name));
+                continue;
+            }
+        };
         let c = measure_stanzas(&stanzas, &a, run.grid);
         println!("{}", c.row(name));
         total.add(&c);
@@ -488,7 +494,13 @@ fn salami(dir: &Path, most: usize, run: &Run) -> Result<(), String> {
         if truths.is_empty() {
             continue;
         }
-        let a = run.analysis(&name, &|| Ok(dir.join("audio").join(format!("{name}.mp3"))))?;
+        let a = match run.analysis(&name, &|| Ok(dir.join("audio").join(format!("{name}.mp3")))) {
+            Ok(a) => a,
+            Err(e) => {
+                println!("{name:<8} skipped: {e}");
+                continue;
+            }
+        };
         let (heard, _) = sections(&a, run.grid);
         if heard.is_empty() {
             continue;
