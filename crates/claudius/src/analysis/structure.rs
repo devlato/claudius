@@ -453,17 +453,6 @@ fn novelty(raw: &Square, st: &Square, h: &Heard, voice: Option<&[f64]>) -> Vec<f
     let (c4, c2) = (scaled(chords_change(&h.harmony, four), 0.1), scaled(chords_change(&h.harmony, two), 0.1));
     let rep = scaled(repeats(&along_diagonals(raw, 1), h.bars(AGAIN), h.bars(RUN)), 1.0);
     let jumps = jumps(h, voice);
-    if std::env::var("CLAUDIUS_STRUCTURE_DEBUG").is_ok() {
-        let pairs = (0..n).flat_map(|i| (i + 2..n).map(move |j| (i, j)));
-        let (many, of) = pairs.fold((0, 0), |(m, o), (i, j)| (m + (raw.at(i, j) > REPEAT) as usize, o + 1));
-        eprintln!("repetitive {:.2}", many as f64 / of.max(1) as f64);
-        for p in 0..n {
-            eprintln!(
-                "parts {p:3} t4 {:.2} t2 {:.2} c4 {:.2} c2 {:.2} rep {:.2} j {:.2}",
-                t4[p], t2[p], c4[p], c2[p], rep[p], jumps[p]
-            );
-        }
-    }
     (0..n).map(|p| 0.35 * t4[p] + 0.15 * t2[p] + 0.2 * c4[p] + 0.15 * c2[p] + 0.35 * rep[p] + jumps[p]).collect()
 }
 
