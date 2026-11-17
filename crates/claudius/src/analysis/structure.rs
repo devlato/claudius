@@ -556,7 +556,7 @@ const AGAIN: usize = 8;
 /// harmonies repeat those the lag earlier (one bar that does not, between bars that do, kept in the run) marks the bar
 /// it starts and the bar after it ends, both where it is and where it was first heard, the more the longer it is (a run
 /// of 8 bars or more counting fully). A verse that comes back marks where both verses start and end, however alike or
-/// unlike the bars within each are.
+/// unlike the bars within each are; a loop, which repeats all the way through at every lag, marks nothing.
 fn repeats(raw: &Square, again: usize, run: usize) -> Vec<f64> {
     let n = raw.n;
     let mut marks = vec![0.0; n + 1];
@@ -574,7 +574,9 @@ fn repeats(raw: &Square, again: usize, run: usize) -> Vec<f64> {
                 end += 1;
             }
             let len = end - start;
-            if len >= run {
+            // music that repeats all the way through at this lag (a loop) says nothing of where its sections are
+            let throughout = len + 2 >= n - d;
+            if len >= run && !throughout {
                 let w = (len as f64 / again as f64).min(1.0);
                 for b in [start, start + d, end, end + d] {
                     if b < n {
