@@ -123,7 +123,8 @@ on samples is built:
   another passage of it (chosen as a loop of another passage, unlike the hook) or from bars no section before it
   played, each on its own
   track and its own bars' chords (`sample3`, `sample4` ... on `A3`, `A4` ...), so a three-minute flip is not two
-  loops;
+  loops; a build plays the bars that end where one of the recording's choruses or drops starts (first where its own
+  builds resolve), and the drop after it plays on from there, so the drop lands where the recording's does;
 - when it sings, its voice sings on in those passages as it sang there (with the ears, they are all of it but its
   drums); without a voice, with the ears, they are its bass and the rest;
 - its own drums (its drum stem, with the ears) are the break, in a genre that plays one: the drum break

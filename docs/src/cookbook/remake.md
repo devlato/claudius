@@ -132,30 +132,31 @@ It prints the analysis again, then the flip:
 ```text
 Faded Engine — deep_house at 122 BPM in A minor, 120 bars (3:56)
   progression A: i7 VImaj7 iv7 v i7 VImaj7 iv7 v
-  progression A2: VImaj7 v7 v7 i7 i v7 v7 i7
-  progression A3: VImaj7 v7 v7 i7 i v7 v7 i7 v VImaj7 iv7 v7 v VImaj7 iv7 v
-  progression A4: i VImaj7 iv7 v i VI iv7 v
-  progression A5: III VImaj7 iv7 v7 i7 VImaj7 iv7 v7 i VImaj7 iv7 v7 i VImaj7 iv7 v bIImaj7 VI iv v bIImaj7 VI iv v7
+  progression A2: VImaj7 VII v7 i7 i VII v7 i7
+  progression A3: III VImaj7 iv7 v7 III VImaj7 iv7 v
+  progression A4: III VImaj7 iv7 v7 i7 VImaj7 iv7 v7 i VImaj7 iv7 v7 i VImaj7 iv7 v bIImaj7 VI iv v bIImaj7 VI iv v7
+  progression A5: i7 VImaj7 iv7 v i7 VImaj7 iv7 v i VImaj7 iv7 v i VI iv7 v
   progression B: iiø7 v7 i7 i7 iiø7 v7 i7 VI7
   form: intro 16 | groove 16 | break 8 | build 8 | drop 32 | drop2 32 | outro 8
-  tracks: kick (sampled bd (tr909:bd)), clap (sampled cp (tr909:cp)), hat (sampled hh (tr909:hh)), shaker (shaker cut from 'Loose Leaf Beat Shaker' (Apple Loops)), perc (sampled rim (tr909:rim)), bass (synth patch 'deep_bass'), chords (synth patch 'keys'), pad (synth patch 'vowel_pad'), lead (synth patch 'epiano'), top (loop 'Driving Fast Shaker' (House, Apple Loops) (128 BPM)), sample (loop song (122 BPM)), sample2 (loop song, another passage (122 BPM)), flip (loop song, a flip of it (122 BPM)), sample3 (loop song, bars 25-40 (122 BPM)), sample4 (loop song, bars 17-24 (122 BPM)), sample5 (loop song, bars 41-64 (122 BPM)), crash (synth crash), riser (synth riser)
-  master: -11.0 LUFS, true peak -1.0 dBTP (pre-master -12.2 LUFS); done in 14.0 s
-  ears: 'house music' z +3.7 (closest confusion 'techno music' +3.4); production z +1.6 vs 'a low quality recording with hiss' +1.3; p_real 0.78
-        sounds like: drum and bass music, house music, tech house music, techno music
-        aesthetics (of 10): enjoyment 7.4, production quality 8.2; held out: usefulness 8.2, complexity 5.5
-  verdict: 90/100 (aesthetics 0.97, arc 0.93, genre 0.82, mix 1.00, production 0.57, theory 1.00, time 1.00). Fix first: sounds about as much like a hissy recording as a professional mix: noise-built sounds (hats, shakers, risers) and long reverbs are the usual cause
+  tracks: kick (sampled bd (tr909:bd)), clap (sampled cp (tr909:cp)), hat (sampled hh (tr909:hh)), shaker (shaker cut from 'Loose Leaf Beat Shaker' (Apple Loops)), perc (sampled rim (tr909:rim)), bass (synth patch 'deep_bass'), chords (synth patch 'keys'), pad (synth patch 'vowel_pad'), lead (synth patch 'epiano'), top (loop 'Driving Fast Shaker' (House, Apple Loops) (128 BPM)), sample2 (loop song, another passage (122 BPM)), flip (loop song, a flip of it (122 BPM)), sample3 (loop song, bars 33-40 (122 BPM)), sample4 (loop song, bars 41-64 (122 BPM)), sample5 (loop song, bars 9-24 (122 BPM)), crash (synth crash), riser (synth riser)
+  master: -11.1 LUFS, true peak -1.0 dBTP (pre-master -12.1 LUFS); done in 13.4 s
+  ears: 'house music' z +3.7 (closest confusion 'techno music' +3.5); production z +1.6 vs 'a low quality recording with hiss' +1.4; p_real 0.78
+        sounds like: house music, drum and bass music, techno music, tech house music
+        aesthetics (of 10): enjoyment 7.4, production quality 8.2; held out: usefulness 8.1, complexity 5.5
+  verdict: 90/100 (aesthetics 0.95, arc 0.94, genre 0.79, mix 1.00, production 0.55, theory 1.00, time 1.00). Fix first: sounds about as much like a hissy recording as a professional mix: noise-built sounds (hats, shakers, risers) and long reverbs are the usual cause
   wrote out/remake-deep_house-faded-engine-3/song.mp3
 ```
 
 Its history says what came from where:
 
 ```text
-remixed from 'song.mp3': its hook (bars 9-16) without its drums, in its own key for the voice in it; another passage of it (bars 25-32); a flip of 64 half beats from 27 of its bars in intro, outro; on through it as the song goes (groove bars 25-40, build bars 17-24, drop bars 41-64)
+remixed from 'song.mp3': its hook (bars 9-16) without its drums, in its own key for the voice in it; another passage of it (bars 25-32); a flip of 64 half beats from 26 of its bars in intro, outro; on through it as the song goes (build bars 33-40, drop bars 41-64, drop2 bars 9-24)
 sampled: phrase 'song', filtered until it lifts (another passage of it in groove, break, build)
 ```
 
-Its bars from 9 to 64 play somewhere in the song: the hook, 9 to 16, in the second drop, the groove 25 to 40 on end,
-the build 17 to 24 and the first drop 41 to 64; its first eight bars only in pieces of the flip.
+Its bars from 9 to 64 play somewhere in the song: the groove and the break the other passage, 25 to 32; the build its
+own build, 33 to 40; the first drop 41 to 64 on end, from where that build resolves; the second drop 9 to 24. Its
+first eight bars play only in pieces of the flip.
 
 - **Its hook**, eight bars of it (here 9 to 16, the first of the music the analysis hears as its drops) without its drums,
   chosen as the Sample window chooses a loop of the hook (from the sections with chords that pull most toward being
@@ -172,11 +173,12 @@ the build 17 to 24 and the first drop 41 to 64; its first eight bars only in pie
 - **On through it**: every other section but the intro, the breaks and the outro plays as many of the recording's
   bars on end as it has itself (32 at most), of the kind it plays (a drop's or a hook's, or the rest's), from where
   the recording has the most of them that no section played before it, each on its own track and its own bars'
-  chords: the groove plays bars 25 to 40 as `sample3` (`A3`), the build 17 to 24 as `sample4` (`A4`), and the first
-  drop 41 to 64, the recording's own drop and outro, as `sample5` (`A5`); the second drop comes round to the hook. So
-  a flip goes through the recording rather than coming round to the same two passages for minutes. Its build plays
-  the end of the recording's groove rather than the recording's own build (bars 33 to 40, which the groove plays):
-  a flip's build that ends where the recording's resolves is still to come.
+  chords: the build plays bars 33 to 40 as `sample3` (`A3`), the first drop 41 to 64 as `sample4` (`A4`), and the
+  second drop 9 to 24 as `sample5` (`A5`). So a flip goes through the recording rather than coming round to the same
+  two passages for minutes. A build lands where the recording's own does: a section that builds into a drop plays the
+  bars that end where one of the recording's choruses or drops starts (first those its own builds lead into: here its
+  build, 33 to 40, into its drop at 41), and the drop after it plays on from there, so the song's drop comes where the
+  recording resolves rather than while it is still building.
 - **Its voice**, when it sings (the ears hear a voice, or a pitch in a voice's range carries a third of a phrase),
   sings on in those passages as it sang there: with the stems apart they are all of it but its drums. Without a voice,
   with the stems apart, they are its bass and the rest.
@@ -184,7 +186,7 @@ the build 17 to 24 and the first drop 41 to 64; its first eight bars only in pie
   break the Sample window would offer first, where its drums play most alone, busy and looping cleanly; its drum stem,
   apart, with the models.
 - **A flip of it** plays in the intro and the outro: eight bars of half beats, each from another bar of the recording
-  that plays the hook's chord there, at the same place in its bar (now and then another), here 27 of its bars, so
+  that plays the hook's chord there, at the same place in its bar (now and then another), here 26 of its bars, so
   the song is heard in pieces from all over it, still on the hook's chords. Each piece is as loud as the hook (its
   bar brought to the hook's level, by 18 dB at most), so a piece of a quiet verse does not drop away beside one of
   the chorus.

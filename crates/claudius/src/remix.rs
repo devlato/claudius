@@ -15,7 +15,8 @@
 //!   of it on end as it has itself, of the kind it plays (its hooks' and drops', or the rest's), from the hook, from the
 //!   other passage, or from bars no section before it played, each on its own bars' chords (`go_through`). When it
 //!   sings (the ears hear a voice, or a pitch in a voice's range carries a third of a phrase), its voice sings on in
-//!   them as it sang there.
+//!   them as it sang there. A build lands where the recording's own does: it plays the bars that end where one of the
+//!   recording's choruses or drops starts, and the drop after it plays on from there (`landings`).
 //! - Its own drums are the break, in a genre that plays one: the drum break the Sample window would offer first, by how
 //!   alone the drums play, how busy they are and how well they loop.
 //!
