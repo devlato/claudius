@@ -283,7 +283,8 @@ pub(crate) fn parts(h: &Heard) -> Vec<Part> {
     let voice = h.voice.as_deref().map(phrased);
     let st = texture(h, voice.as_deref());
     let nov = novelty(&raw, &st, h, voice.as_deref());
-    let bounds = segment(&nov, n);
+    let mut bounds = segment(&nov, n);
+    joined_builds(&mut bounds, h);
     let segs: Vec<(usize, usize)> = bounds.windows(2).map(|w| (w[0], w[1])).collect();
     let group = grouped(&segs, h, &st);
     let label = labelled(&segs, &group, h);
@@ -897,6 +898,22 @@ fn played_labels(segs: &[(usize, usize)], group: &[usize], loud: &[f64], kit: &[
         }
     }
     out
+}
+
+/// Sections that build together are one: where a section of 4 bars or fewer leads into a louder one, and every bar of it
+/// and of the section before it (8 bars at most) rises into that louder one (`builds`, the first bar of them level at
+/// most), the two are joined, so that a pre-chorus that thickens as it goes is one section rather than its quieter start
+/// and its louder end. A verse whose last bars swell into a pre-chorus keeps its boundary: not all of it rises.
+fn joined_builds(bounds: &mut Vec<usize>, h: &Heard) {
+    let mut i = 1;
+    while i + 2 < bounds.len() {
+        let (a, b, c, d) = (bounds[i - 1], bounds[i], bounds[i + 1], bounds[i + 2]);
+        if c - b <= 4 && b - a <= 8 && builds(h, (a, c), (c, d)) + 1 >= c - a {
+            bounds.remove(i);
+            continue;
+        }
+        i += 1;
+    }
 }
 
 /// a bar of a build rises over the one before it by this much at least (dB of loudness and half its brightness)
