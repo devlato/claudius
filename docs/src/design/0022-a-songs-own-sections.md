@@ -35,11 +35,9 @@ already reads, the stems when the ears separate them.
   are counted as a phrase's: a bar over 3.2 s, of a slow song or one heard at half its tempo, as two. Each change is
   scaled to the song's clearest, but never by more than what a real change measures, so a steady loop's noise is no
   boundary, and sections that rise together, bar by bar, into a louder one are one build.
-- **What the voice sings**, beat by beat, where the stems are apart, counts beside the chords as much as the chords
-  repeat all through: nothing where they tell the sections apart (a third of the pairs of bars or fewer play alike
-  chords), half where seven in ten do. Many songs play one loop of chords all through, and only the tune tells their
-  verse from their chorus; elsewhere the chords are the steadier guide, as a voice's stem hears its tune less steadily
-  than the rest hears its chords. A chorus's tune coming back marks where it starts, as its chords would.
+- **What the voice sings**, beat by beat, where the stems are apart, counts as much as the chords: in the runs that
+  come back, so a chorus's tune coming back marks where it starts, and between two sections both sung. Many songs play
+  one loop of chords all through, and only the tune tells their verse from their chorus.
 - **Sections that play the same music**, in the same key or up to two semitones away (a last chorus a step up), share
   a letter: they start and go on alike in their chords, in what is sung over them where both are sung, and in their
   sound (average linkage).
@@ -77,10 +75,12 @@ the chorus.
 | other stanzas heard as choruses | 55% of 497 | 38% |
 | stanzas sung alike heard as the same music | (no letters) | 54% of 416 |
 
-On the first 25 songs, with the stems apart as the studio hears them: starts heard 57% (58% from the mix, 17% before),
-sections on a stanza 46%, choruses 59% (46% from the mix), other stanzas taken for choruses 44% (34%), stanzas sung
-alike as the same music 71% (48%). Hearing the voice groups the music that comes back far better and names more
-choruses, and puts in more boundaries where the singing comes and goes.
+On the first 25 songs, with the stems apart as the studio hears them: starts heard 62% (58% from the mix, 17% before),
+sections on a stanza 52% (57%), choruses 51% (46%), other stanzas taken for choruses 32% (34%), stanzas sung alike as
+the same music 36% (48%). Heard without its tune, the voice had found the starts less well (57%, 46% on a stanza),
+named more choruses (59%) but taken more stanzas for one (44%), and put stanzas sung alike in the same music twice as
+often (71%): the tune, which a voice's stem hears less steadily than the rest hears its chords, parts two choruses
+sung a little differently. It is kept for what it finds that nothing else does (below).
 
 **SALAMI**: 60 recordings of its Internet Archive part (live, a jam band as often as a pop group) whose first
 annotator marked a verse and a chorus, against each of its annotators, from the mix alone.
@@ -100,10 +100,8 @@ On the song that started this, Alizée's "J'ai pas vingt ans", one loop of chord
 an intro, four drops of 16 to 32 bars and an outro. The new reading, its stems apart, hears an intro, a verse of 8
 bars, the verse's music of 16, a chorus of 16 from bar 33, the verse's music again from bar 49, choruses on from bar 65,
 and an outro; against its lyrics as LRCLIB times them, its second verse starts at bar 51 (heard at 49) and its second
-chorus at bar 65 (heard at 65). Without the tune, the loop had read as one music cut every four bars. The 25 songs
-above all play chords that tell their sections apart, and are heard as they were without the tune: counted half in
-them, the tune had found their starts a little better (62%) and taken fewer stanzas for choruses (32%), but put
-stanzas sung alike in the same music half as often (36%) and named fewer choruses (51%).
+chorus at bar 65 (heard at 65). Without the tune, the loop had read as 28 sections of four bars, all one music and
+nearly all named chorus, and a flip's build would have landed in the middle of its first verse.
 
 On claudius's own house song of the cookbook (intro 8, groove 16, break 8, build 8, drop 16, outro 8), it hears all
 six sections to the bar, the intro and the build as one music and the groove, the drop and the outro as another, and

@@ -188,10 +188,9 @@ a real change measures, so that a loop's noise is no boundary. Of every way to c
 the one whose boundaries are most novel, less a cost for each, under a preference for sections of 8 and 16 bars that
 never forbids another length (17 bars stays 17 where the boundary is clear), the bars counted as a phrase's: a bar
 over 3.2 s (a slow song, or one heard at half its tempo) as two, one under 1.6 s as half. Sections that rise together,
-bar by bar, into a louder one are one build. With the stems apart, what the voice sings, beat by beat, counts beside
-the chords in the stripes and the letters as much as the chords repeat all through (nothing where a third of the pairs
-of bars or fewer play alike chords, half where seven in ten do): a song on one loop of chords tells its verse from its
-chorus by the tune. Sections whose chords, tune and sound go on alike (the chords moved up to two semitones, as a last chorus may
+bar by bar, into a louder one are one build. With the stems apart, what the voice sings, beat by beat, counts as much
+as the chords in the stripes and in the letters of two sections both sung: a song on one loop of chords tells its
+verse from its chorus by the tune. Sections whose chords, tune and sound go on alike (the chords moved up to two semitones, as a last chorus may
 be) share a letter, by average linkage.
 
 **What each is.** In a song a voice sings a quarter of at least, the chorus is the music it sings again and again
@@ -210,8 +209,8 @@ bar's line, or before it in the quiet before its first phrase where that is sung
 On JamendoLyrics, 78 songs whose lyrics are timed line by line and written in stanzas (`examples/eval_structure.rs`),
 60% of the stanzas that start other music are heard within a bar of a section's start, against 14% for the 4-bar
 blocks this replaced, and on 60 recordings of SALAMI the boundaries within 3 seconds of the annotated ones score an
-F-measure of 0.49 against 0.36; naming the chorus from the mix alone is the weak part (53% of the choruses heard as
-such, and 38% of the other stanzas taken for one). The record has the numbers in full.
+F-measure of 0.49 against 0.36; naming the chorus is the weak part (53% of the choruses heard as such from the mix,
+51% with the stems apart, and 38% and 32% of the other stanzas taken for one). The record has the numbers in full.
 
 **Progressions.** In the loudest drop, the chords are tested for repeating every 2, 4 or 8 bars, and the cycle that
 agrees most becomes progression `A`; when the chords come in pairs, it becomes one chord per two bars. Progression `B`
