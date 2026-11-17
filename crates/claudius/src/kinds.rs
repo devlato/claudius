@@ -159,6 +159,8 @@ pub struct Cut {
     drawn: f64,
     /// what its first bar sounds like, beat by beat, to tell how alike two pieces are
     print: Vec<Beat>,
+    /// the sixteenths of its first bar it strikes on (`strikes`), to tell two breaks of one groove apart from two grooves
+    strikes: Vec<bool>,
     /// a stab's hit, which no bars hold: where it is in the recording, in seconds, from its attack to a beat after
     pub span: Option<(f64, f64)>,
 }
@@ -377,7 +379,38 @@ fn alike(p: &Cut, q: &Cut) -> f64 {
             ((0.4 - apart / n as f64) / 0.3).clamp(0.0, 1.0)
         }
     };
-    overlap.max(section).max(sound)
+    // two breaks that strike on the same sixteenths are one groove, whatever else plays over one of them
+    let groove = match p.kind == Kind::Break && q.kind == Kind::Break {
+        true => same_strikes(&p.strikes, &q.strikes),
+        false => 0.0,
+    };
+    overlap.max(section).max(sound).max(groove)
+}
+
+/// how much two bars strike on the same sixteenths: those both strike on of those either does (none for a bar heard as
+/// striking on none)
+fn same_strikes(p: &[bool], q: &[bool]) -> f64 {
+    let both = p.iter().zip(q).filter(|(a, b)| **a && **b).count();
+    let either = p.iter().zip(q).filter(|(a, b)| **a || **b).count();
+    if either == 0 { 0.0 } else { both as f64 / either as f64 }
+}
+
+/// The sixteenths bar `first` of `x` strikes on: where its loudness rises sharply (to 1.6 times the sixteenth before,
+/// within 30 dB of the bar's loudest), as `busy` counts them.
+fn strikes(a: &Analysis, x: &Stereo, first: usize) -> Vec<bool> {
+    let (from, step) = (a.bar_start(first), a.bar_secs / 16.0);
+    // the sixteenth before the bar, and its sixteen
+    let level: Vec<f64> = (0..17)
+        .map(|k| {
+            let at = from + (k as f64 - 1.0) * step;
+            let (i0, i1) =
+                (((at * SRF).max(0.0) as usize).min(x.len()), (((at + step) * SRF).max(0.0) as usize).min(x.len()));
+            x.l[i0..i1].iter().chain(&x.r[i0..i1]).map(|v| (*v as f64).powi(2)).sum::<f64>()
+                / (2 * (i1 - i0)).max(1) as f64
+        })
+        .collect();
+    let top = level[1..].iter().copied().fold(0.0, f64::max);
+    (1..17).map(|k| level[k] > 1.6 * level[k - 1] && db(level[k]) > db(top) - 30.0).collect()
 }
 
 /// how busy a break of `x` over bars `first`..`first + bars` is, 0 to 1: the share of its sixteenths on which its
@@ -640,8 +673,10 @@ fn drawn_cuts(kind: Kind, a: &Analysis, x: &Stereo, rest: &Stereo, d: Draw, rng:
             continue;
         }
         let section = a.sections.iter().position(|s| (s.start_bar..s.start_bar + s.bars).contains(&c.first));
-        let (about, print) = (about(kind, &c.features, a, c.first), print(a, x, c.first));
-        out.push(Cut { kind, first: c.first, bars: c.bars, score: q[i], about, section, drawn: d, print, span: None });
+        let (about, print, strikes) =
+            (about(kind, &c.features, a, c.first), print(a, x, c.first), strikes(a, x, c.first));
+        let (first, bars, score) = (c.first, c.bars, q[i]);
+        out.push(Cut { kind, first, bars, score, about, section, drawn: d, print, strikes, span: None });
         if out.len() == MANY {
             break;
         }
@@ -704,7 +739,8 @@ fn stabs(a: &Analysis, x: &Stereo, rest: &Stereo, seed: u64, shown: &[(Kind, f64
         let print = beat_at(x, *from, beat).into_iter().collect();
         let about = about(Kind::Stab, &c.features, a, c.first);
         let (first, span) = (c.first, Some((*from, *to)));
-        out.push(Cut { kind: Kind::Stab, first, bars: 1, score: q[i], about, section, drawn: d, print, span });
+        let strikes = Vec::new();
+        out.push(Cut { kind: Kind::Stab, first, bars: 1, score: q[i], about, section, drawn: d, print, strikes, span });
         if out.len() == MANY {
             break;
         }
@@ -993,7 +1029,18 @@ pub(crate) mod tests {
             db: -12.0 - 6.0 * tone,
         };
         let (about, print) = (String::new(), (0..4).map(beat).collect());
-        Cut { kind, first, bars, score, about, section: Some(section), drawn: score, print, span: None }
+        Cut {
+            kind,
+            first,
+            bars,
+            score,
+            about,
+            section: Some(section),
+            drawn: score,
+            print,
+            strikes: Vec::new(),
+            span: None,
+        }
     }
 
     #[test]
