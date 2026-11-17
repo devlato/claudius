@@ -575,8 +575,8 @@ fn go_through(
 /// Where each build of the song lands: for each section that builds (a build, or one flagged to build) into the next,
 /// one of the hook's kind, both playing the recording, the bars the build plays and those its next section plays on
 /// from, by their places in the form. The build plays as many bars as it holds that end where one of the recording's
-/// choruses, drops or post-choruses starts (each taken once, in the recording's order, and none before its first
-/// section), and its next section plays from there while they are of the chorus's kind; so the song's drop lands where
+/// choruses, drops or post-choruses starts (each taken once: first those its own builds lead into, then the rest, each
+/// in the recording's order), and its next section plays from there while they are of the chorus's kind; so the song's drop lands where
 /// the recording's build resolves, rather than in the middle of it, as a build cut to the song's length from wherever
 /// a section starts would. A whole number of the hook's bars where the hook is chopped, whose slices go round with it.
 fn landings(
@@ -588,13 +588,19 @@ fn landings(
     lanes: &[(&str, LoopPart, Option<usize>); 2],
     kind: &dyn Fn(usize) -> Option<usize>,
 ) -> BTreeMap<usize, Bars> {
-    let points: Vec<usize> = a
+    // where the recording's music lands: the start of each chorus, drop or post-chorus after its first section, those a
+    // build leads into first (a build or a pre-chorus before it, or bars that rise into it), in the recording's order
+    let mut points: Vec<(bool, usize)> = a
         .sections
-        .iter()
-        .skip(1)
-        .filter(|s| matches!(s.label, Label::Chorus | Label::Drop | Label::PostChorus))
-        .map(|s| s.start_bar)
+        .windows(2)
+        .filter(|w| matches!(w[1].label, Label::Chorus | Label::Drop | Label::PostChorus))
+        .map(|w| {
+            let built = matches!(w[0].label, Label::Build | Label::PreChorus) || w[0].build_bars > 0;
+            (!built, w[1].start_bar)
+        })
         .collect();
+    points.sort();
+    let points: Vec<usize> = points.into_iter().map(|p| p.1).collect();
     let lane_of = |sec: &SectionSpec| lanes.iter().position(|(name, ..)| sec.layers.iter().any(|l| l == *name));
     let whole = |n: usize, lane: usize| if lanes[lane].1.chop.is_empty() { n } else { n / hook.count * hook.count };
     let mut out = BTreeMap::new();
