@@ -35,9 +35,11 @@ already reads, the stems when the ears separate them.
   are counted as a phrase's: a bar over 3.2 s, of a slow song or one heard at half its tempo, as two. Each change is
   scaled to the song's clearest, but never by more than what a real change measures, so a steady loop's noise is no
   boundary, and sections that rise together, bar by bar, into a louder one are one build.
-- **What the voice sings**, beat by beat, counts as much as the chords where the stems are apart: many songs play one
-  loop of chords all through, and only the tune tells their verse from their chorus. A chorus's tune coming back marks
-  where it starts, as its chords would.
+- **What the voice sings**, beat by beat, where the stems are apart, counts beside the chords as much as the chords
+  repeat all through: nothing where they tell the sections apart (a third of the pairs of bars or fewer play alike
+  chords), half where seven in ten do. Many songs play one loop of chords all through, and only the tune tells their
+  verse from their chorus; elsewhere the chords are the steadier guide, as a voice's stem hears its tune less steadily
+  than the rest hears its chords. A chorus's tune coming back marks where it starts, as its chords would.
 - **Sections that play the same music**, in the same key or up to two semitones away (a last chorus a step up), share
   a letter: they start and go on alike in their chords, in what is sung over them where both are sung, and in their
   sound (average linkage).
@@ -98,7 +100,10 @@ On the song that started this, Alizée's "J'ai pas vingt ans", one loop of chord
 an intro, four drops of 16 to 32 bars and an outro. The new reading, its stems apart, hears an intro, a verse of 8
 bars, the verse's music of 16, a chorus of 16 from bar 33, the verse's music again from bar 49, choruses on from bar 65,
 and an outro; against its lyrics as LRCLIB times them, its second verse starts at bar 51 (heard at 49) and its second
-chorus at bar 65 (heard at 65). Without the tune, the loop had read as one music cut every four bars.
+chorus at bar 65 (heard at 65). Without the tune, the loop had read as one music cut every four bars. The 25 songs
+above all play chords that tell their sections apart, and are heard as they were without the tune: counted half in
+them, the tune had found their starts a little better (62%) and taken fewer stanzas for choruses (32%), but put
+stanzas sung alike in the same music half as often (36%) and named fewer choruses (51%).
 
 On claudius's own house song of the cookbook (intro 8, groove 16, break 8, build 8, drop 16, outro 8), it hears all
 six sections to the bar, the intro and the build as one music and the groove, the drop and the outro as another, and
