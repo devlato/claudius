@@ -305,6 +305,18 @@ pub(crate) fn parts(h: &Heard) -> Vec<Part> {
     let voice = h.voice.as_deref().map(phrased);
     let st = texture(h, voice.as_deref());
     let nov = novelty(&raw, &st, h, voice.as_deref());
+    if std::env::var("CLAUDIUS_STRUCTURE_DEBUG").is_ok() {
+        for b in 0..n.min(8) {
+            eprintln!(
+                "bar {b} loud {:.2} bright {:.2} kit {:.2} bass {:.2} timbre {:?}",
+                h.loud[b],
+                h.bright[b],
+                h.kit[b],
+                h.bass[b],
+                &h.timbre[b][..4]
+            );
+        }
+    }
     let mut bounds = segment(&nov, n, h.unit());
     joined_builds(&mut bounds, h);
     let segs: Vec<(usize, usize)> = bounds.windows(2).map(|w| (w[0], w[1])).collect();
