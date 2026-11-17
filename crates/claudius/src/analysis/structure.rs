@@ -3,15 +3,17 @@
 //! outro; or, in a track no one sings in, intro, build, drop, break and outro).
 //!
 //! Each bar is heard as its harmony (the pitch classes of its four beats), its timbre (the shape of its spectrum) and
-//! what plays in it (how loud, how bright, the kit, the bass, the voice). Bars are compared with every other bar, and a
-//! section starts where what came before stops being like what comes after (Foote 2000, the novelty of a similarity
-//! matrix), where the music that repeats changes (Serrà et al. 2014, structural features), and where the voice or the
-//! kit comes in or goes. The boundaries are the best set of them under a preference for phrases of 8 and 16 bars that
-//! never forbids another length (dynamic programming over the bars). Sections that play the same music, in the same key
-//! or a step away, share a letter (A, B, C); a chorus is the loudest music a voice sings again and again, a verse the
-//! other music it sings again and that leads to it, a pre-chorus what comes between, a bridge what it sings once
-//! after a chorus (Paulus, Müller and Klapuri 2010 review the methods; Goto 2006 finds a chorus by its repeats).
-//! A section builds over its last bars when they rise into a louder one, which is where the build resolves.
+//! what plays in it (how loud, how bright, the kit, the bass, the voice over its phrases). A section starts where how
+//! the bars sound stops being like it was (Foote 2000, the novelty of a similarity matrix), where the chords a passage
+//! plays change, where a run of bars that comes back elsewhere starts or ends (a diagonal stripe of the harmony's
+//! similarity, as repetition-based methods find them: Paulus, Müller and Klapuri 2010 review them), and where the voice,
+//! the kit or the loudness comes in or goes. The boundaries are the best set of them under a preference for phrases of
+//! 8 and 16 bars that never forbids another length (dynamic programming over the bars), the bars counted as a phrase's
+//! (a long bar, of a slow song or one heard at half its tempo, as two); sections that rise together into a louder one
+//! are one build. Sections that play the same music, in the same key or a step away, share a letter (A, B, C); a chorus
+//! is the loudest music a voice sings again and again, a verse the other music it sings again and that leads to it, a
+//! pre-chorus what comes between, a bridge what it sings once late (Goto 2006 finds a chorus by its repeats). A section
+//! builds over its last bars when they rise into a louder one, which is where the build resolves.
 
 use serde::Serialize;
 
@@ -305,18 +307,6 @@ pub(crate) fn parts(h: &Heard) -> Vec<Part> {
     let voice = h.voice.as_deref().map(phrased);
     let st = texture(h, voice.as_deref());
     let nov = novelty(&raw, &st, h, voice.as_deref());
-    if std::env::var("CLAUDIUS_STRUCTURE_DEBUG").is_ok() {
-        for b in 0..n.min(8) {
-            eprintln!(
-                "bar {b} loud {:.2} bright {:.2} kit {:.2} bass {:.2} timbre {:?}",
-                h.loud[b],
-                h.bright[b],
-                h.kit[b],
-                h.bass[b],
-                &h.timbre[b][..4]
-            );
-        }
-    }
     let mut bounds = segment(&nov, n, h.unit());
     joined_builds(&mut bounds, h);
     let segs: Vec<(usize, usize)> = bounds.windows(2).map(|w| (w[0], w[1])).collect();
@@ -449,43 +439,9 @@ fn novelty(raw: &Square, st: &Square, h: &Heard, voice: Option<&[f64]>) -> Vec<f
     let (four, two) = (h.bars(4), h.bars(2));
     let (t4, t2) = (scaled(checker(st, four), 0.3), scaled(checker(st, two), 0.3));
     let (c4, c2) = (scaled(chords_change(&h.harmony, four), 0.1), scaled(chords_change(&h.harmony, two), 0.1));
-    let sh = along_diagonals(raw, 1);
-    let rep = scaled(repeats(&sh, h.bars(AGAIN), h.bars(RUN)), 1.0);
-    let (h4, h2) = (scaled(checker(&sh, 4), 0.3), scaled(checker(&sh, 2), 0.3));
+    let rep = scaled(repeats(&along_diagonals(raw, 1), h.bars(AGAIN), h.bars(RUN)), 1.0);
     let jumps = jumps(h, voice);
-    let w = tuning();
-    if std::env::var("CLAUDIUS_STRUCTURE_DEBUG").is_ok() {
-        for p in 0..n {
-            eprintln!(
-                "parts {p:3} t4 {:.2} t2 {:.2} c4 {:.2} c2 {:.2} rep {:.2} j {:.2}",
-                t4[p], t2[p], c4[p], c2[p], rep[p], jumps[p]
-            );
-        }
-    }
-    (0..n)
-        .map(|p| {
-            w[0] * t4[p]
-                + w[1] * t2[p]
-                + w[2] * c4[p]
-                + w[3] * c2[p]
-                + w[4] * rep[p]
-                + w[5] * jumps[p]
-                + w[6] * h4[p]
-                + w[7] * h2[p]
-        })
-        .collect()
-}
-
-/// TUNING (to go before the pull request): the weights of t4, t2, c4, c2, rep, jumps, h4, h2 and the boundary's cost,
-/// from CLAUDIUS_STRUCTURE_W, nine numbers by commas
-fn tuning() -> [f64; 9] {
-    std::env::var("CLAUDIUS_STRUCTURE_W")
-        .ok()
-        .and_then(|s| {
-            let v: Vec<f64> = s.split(',').filter_map(|x| x.trim().parse().ok()).collect();
-            (v.len() == 9).then(|| [v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]])
-        })
-        .unwrap_or([0.35, 0.15, 0.2, 0.15, 0.35, 1.0, 0.0, 0.0, BOUNDARY])
+    (0..n).map(|p| 0.35 * t4[p] + 0.15 * t2[p] + 0.2 * c4[p] + 0.15 * c2[p] + 0.35 * rep[p] + jumps[p]).collect()
 }
 
 /// At each bar, how unlike the pitch classes the `k` bars before it play are to those of the `k` from it: a change of
@@ -653,7 +609,6 @@ const BOUNDARY: f64 = 0.42;
 /// The bars sections start at, 0 first and `n` last: of every way to cut `n` bars into sections, the one whose
 /// boundaries are the most novel, less what each costs and what its sections' lengths are preferred less.
 fn segment(nov: &[f64], n: usize, unit: f64) -> Vec<usize> {
-    let boundary = tuning()[8];
     let mut best = vec![f64::NEG_INFINITY; n + 1];
     let mut from = vec![0usize; n + 1];
     best[0] = 0.0;
@@ -662,7 +617,7 @@ fn segment(nov: &[f64], n: usize, unit: f64) -> Vec<usize> {
             if best[s] == f64::NEG_INFINITY {
                 continue;
             }
-            let gain = if s == 0 { 0.0 } else { nov[s] - boundary };
+            let gain = if s == 0 { 0.0 } else { nov[s] - BOUNDARY };
             let v = best[s] + gain + prior((((e - s) as f64) * unit).round() as usize);
             if v > best[e] {
                 best[e] = v;
