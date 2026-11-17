@@ -6,6 +6,12 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-11-17
+
+### Fixed
+
+- palette: The English word list reads on Windows too, whose checkout ends its lines with a carriage return ([#287](https://github.com/devlato/claudius/pull/287))
+
 ## [0.12.0] - 2026-11-15
 
 A remake's flip is built on the pieces the Sample window would offer first: the loop of the hook that comes back most,
@@ -1238,7 +1244,8 @@ The first public release.
   theory checks), Linux on x86_64 and ARM64 with a headless build for machines without sound or a display, and
   Windows as a preview. One-line installers for each, which come with every release and are in its checksums.
 
-[unreleased]: https://github.com/devlato/claudius/compare/v0.12.0...HEAD
+[unreleased]: https://github.com/devlato/claudius/compare/v0.12.1...HEAD
+[0.12.1]: https://github.com/devlato/claudius/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/devlato/claudius/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/devlato/claudius/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/devlato/claudius/compare/v0.9.0...v0.10.0
