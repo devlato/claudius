@@ -308,14 +308,12 @@ pub(crate) fn parts(h: &Heard) -> Vec<Part> {
     let chords = Square::new(n, |i, j| (dot(&harm[i], &harm[j]) / scale).clamp(-1.0, 1.0));
     // with the voice heard apart, what it sings as well: a verse and a chorus over one loop of chords differ by their
     // tunes, and a chorus's tune coming back marks where it starts
-    let tune_weight = tune_weight(&chords);
     let raw = match &h.melody {
-        Some(m) if tune_weight > 0.0 => {
+        Some(m) => {
             let (tune, tscale) = centred(m);
-            let w = tune_weight as f32;
-            Square::new(n, |i, j| (1.0 - w) * chords.at(i, j) + w * (dot(&tune[i], &tune[j]) / tscale).clamp(-1.0, 1.0))
+            Square::new(n, |i, j| 0.5 * chords.at(i, j) + 0.5 * (dot(&tune[i], &tune[j]) / tscale).clamp(-1.0, 1.0))
         }
-        _ => chords,
+        None => chords,
     };
     // the voice over the bars round each: a singer's breath between lines is no change of section
     let voice = h.voice.as_deref().map(phrased);
@@ -324,7 +322,7 @@ pub(crate) fn parts(h: &Heard) -> Vec<Part> {
     let mut bounds = segment(&nov, n, h.unit());
     joined_builds(&mut bounds, h);
     let segs: Vec<(usize, usize)> = bounds.windows(2).map(|w| (w[0], w[1])).collect();
-    let group = grouped(&segs, h, &st, tune_weight);
+    let group = grouped(&segs, h, &st);
     let label = labelled(&segs, &group, h);
     segs.iter()
         .enumerate()
@@ -336,23 +334,6 @@ pub(crate) fn parts(h: &Heard) -> Vec<Part> {
             build_bars: segs.get(i + 1).map_or(0, |&next| builds(h, (a, b), next)),
         })
         .collect()
-}
-
-/// How much what the voice sings counts beside the chords, 0 to a half: as much as the chords repeat all through. Where
-/// a third of the pairs of bars two apart or more or fewer play alike chords, the chords tell the sections apart and
-/// the tune, which a voice's stem hears less steadily, counts for nothing; where seven in ten do (one loop of chords
-/// all through), the chords tell nothing and the tune counts half.
-fn tune_weight(chords: &Square) -> f64 {
-    let n = chords.n;
-    let (mut alike, mut pairs) = (0usize, 0usize);
-    for i in 0..n {
-        for j in i + 2..n {
-            alike += (chords.at(i, j) > REPEAT) as usize;
-            pairs += 1;
-        }
-    }
-    let share = alike as f64 / pairs.max(1) as f64;
-    0.5 * ((share - 0.3) / 0.4).clamp(0.0, 1.0)
 }
 
 fn dot(a: &[f32], b: &[f32]) -> f32 {
@@ -695,10 +676,14 @@ fn patterned(h: &[f32; 48]) -> [f32; 48] {
 /// sections at least this alike play the same music
 const SAME: f64 = 0.62;
 
+/// two sections whose chords are this alike at least play one loop of chords, and what is sung over them is what tells
+/// them apart: a verse from a chorus over the same four chords
+const ONE_LOOP: f64 = 0.8;
+
 /// The letter of the music each section plays, 0 for the first heard: sections that start and go on alike, in their
 /// chords (the same, or moved up to two semitones, as a last chorus may be), in what is sung over them where both are
 /// sung, and as they sound, joined while the two groups nearest each other are alike on average (average linkage).
-fn grouped(segs: &[(usize, usize)], h: &Heard, st: &Square, tune_weight: f64) -> Vec<usize> {
+fn grouped(segs: &[(usize, usize)], h: &Heard, st: &Square) -> Vec<usize> {
     let m = segs.len();
     let pat: Vec<[f32; 48]> = h.harmony.iter().map(patterned).collect();
     let tunes: Option<Vec<[f32; 48]>> = h.melody.as_ref().map(|m| m.iter().map(patterned).collect());
@@ -716,12 +701,12 @@ fn grouped(segs: &[(usize, usize)], h: &Heard, st: &Square, tune_weight: f64) ->
     let alike = |a: (usize, usize), b: (usize, usize)| {
         let k = (a.1 - a.0).min(b.1 - b.0);
         let harmony = along(&pat, a.0, b.0, k);
-        // where both are sung, what is sung counts as much as the chords under it
+        // where both are sung over the same chords, what is sung counts as much as the chords: a verse and a chorus
+        // over one loop differ by their tunes; over chords that differ, the chords tell them apart, and the tune, which
+        // a voice's stem hears less steadily, would part two choruses sung a little differently
         let both_sung = voice(a).zip(voice(b)).is_some_and(|(x, y)| x >= SUNG && y >= SUNG);
         let chords = match &tunes {
-            Some(t) if both_sung && tune_weight > 0.0 => {
-                (1.0 - tune_weight) * harmony + tune_weight * along(t, a.0, b.0, k)
-            }
+            Some(t) if both_sung && harmony >= ONE_LOOP => 0.5 * harmony + 0.5 * along(t, a.0, b.0, k),
             _ => harmony,
         };
         let sound = (0..k).map(|i| st.at(a.0 + i, b.0 + i) as f64).sum::<f64>() / k as f64;
