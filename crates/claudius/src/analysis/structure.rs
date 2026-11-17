@@ -412,6 +412,14 @@ fn novelty(sh: &Square, raw: &Square, st: &Square, h: &Heard) -> Vec<f64> {
     let (h4, h2) = (scaled(checker(sh, 4), 0.3), scaled(checker(sh, 2), 0.3));
     let sf = scaled(structural(raw), 1.0);
     let jumps = jumps(h);
+    if std::env::var("CLAUDIUS_STRUCTURE_DEBUG").is_ok() {
+        for p in 0..n {
+            eprintln!(
+                "parts {p:3} t4 {:.2} t2 {:.2} h4 {:.2} h2 {:.2} sf {:.2} j {:.2}",
+                t4[p], t2[p], h4[p], h2[p], sf[p], jumps[p]
+            );
+        }
+    }
     (0..n).map(|p| 0.3 * t4[p] + 0.15 * t2[p] + 0.25 * h4[p] + 0.1 * h2[p] + 0.2 * sf[p] + jumps[p]).collect()
 }
 
