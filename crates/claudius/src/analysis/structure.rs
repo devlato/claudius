@@ -518,7 +518,8 @@ fn along_diagonals(s: &Square, w: usize) -> Square {
 }
 
 /// Foote's novelty: at each bar `p`, how alike the `k` bars before it are to each other and the `k` from it, less how
-/// alike those before are to those after, with the bars nearest `p` counting most (a Gaussian taper)
+/// alike those before are to those after, with the bars nearest `p` counting most (a Gaussian taper), and less near
+/// either end of the song, where fewer bars are there to compare
 fn checker(s: &Square, k: usize) -> Vec<f64> {
     let n = s.n;
     let w: Vec<f64> = (0..k).map(|i| (-0.5 * (i as f64 / (k as f64 / 2.0)).powi(2)).exp()).collect();
@@ -538,7 +539,9 @@ fn checker(s: &Square, k: usize) -> Vec<f64> {
                 weight += 2.0 * ww;
             }
         }
-        *o = if weight > 0.0 { (sum / weight).max(0.0) } else { 0.0 };
+        // near either end of the song the kernel holds fewer bars, and says less
+        let held = (k.min(p) * k.min(n - p)) as f64 / (k * k) as f64;
+        *o = if weight > 0.0 { (sum / weight).max(0.0) * held } else { 0.0 };
     }
     out
 }
