@@ -394,11 +394,12 @@ fn texture(h: &Heard, voice: Option<&[f64]>) -> Square {
 }
 
 /// How strongly a section starts at each bar: from 1 to `n - 1`, the novelty of the texture (a checkerboard kernel
-/// along the diagonal, over 4 bars and over 2), where runs of bars that come back elsewhere start and end (`repeats`),
-/// and the voice, the kit or the loudness changing; each scaled so that the song's clearest boundaries are about 1, but
-/// never by more than what a real change measures (`floor`), so that a song that hardly changes keeps its novelty small
-/// rather than having its noise read as boundaries. The harmony's own novelty is left out: chords change every bar
-/// within a section, so bars next to each other are unlike each other whether a section starts or not.
+/// along the diagonal, over 4 bars and over 2), a change in the chords played (`chords_change`), where runs of bars that
+/// come back elsewhere start and end (`repeats`), and the voice, the kit or the loudness changing; each scaled so that
+/// the song's clearest boundaries are about 1, but never by more than what a real change measures (`floor`), so that a
+/// song that hardly changes keeps its novelty small rather than having its noise read as boundaries. The harmony is not
+/// compared bar by bar as the texture is: chords change every bar within a section, so bars next to each other are
+/// unlike each other whether a section starts or not.
 fn novelty(raw: &Square, st: &Square, h: &Heard, voice: Option<&[f64]>) -> Vec<f64> {
     let n = raw.n;
     let scaled = |v: Vec<f64>, floor: f64| {
@@ -408,14 +409,61 @@ fn novelty(raw: &Square, st: &Square, h: &Heard, voice: Option<&[f64]>) -> Vec<f
         v.into_iter().map(|x| (x / top).clamp(0.0, 1.5)).collect::<Vec<f64>>()
     };
     let (t4, t2) = (scaled(checker(st, 4), 0.3), scaled(checker(st, 2), 0.3));
-    let rep = scaled(repeats(raw), 1.0);
+    let chords = scaled(chords_change(&h.harmony), 0.1);
+    let rep = scaled(repeats(&along_diagonals(raw, 1)), 1.0);
     let jumps = jumps(h, voice);
     if std::env::var("CLAUDIUS_STRUCTURE_DEBUG").is_ok() {
         for p in 0..n {
-            eprintln!("parts {p:3} t4 {:.2} t2 {:.2} rep {:.2} j {:.2}", t4[p], t2[p], rep[p], jumps[p]);
+            eprintln!(
+                "parts {p:3} t4 {:.2} t2 {:.2} ch {:.2} rep {:.2} j {:.2}",
+                t4[p], t2[p], chords[p], rep[p], jumps[p]
+            );
         }
     }
-    (0..n).map(|p| 0.4 * t4[p] + 0.2 * t2[p] + 0.45 * rep[p] + jumps[p]).collect()
+    (0..n).map(|p| 0.35 * t4[p] + 0.15 * t2[p] + 0.3 * chords[p] + 0.35 * rep[p] + jumps[p]).collect()
+}
+
+/// At each bar, how unlike the pitch classes the four bars before it play are to those of the four from it: a change of
+/// the chords a passage plays, whatever their order (a chorus on the verse's chords in another order changes none).
+fn chords_change(harmony: &[[f32; 48]]) -> Vec<f64> {
+    let n = harmony.len();
+    let classes = |a: usize, e: usize| -> [f64; 12] {
+        let mut c = [0.0f64; 12];
+        for v in &harmony[a..e] {
+            for (k, x) in v.iter().enumerate() {
+                c[k % 12] += *x as f64;
+            }
+        }
+        let norm = c.iter().map(|x| x * x).sum::<f64>().sqrt().max(1e-9);
+        c.map(|x| x / norm)
+    };
+    (0..n)
+        .map(|p| {
+            if p == 0 {
+                return 0.0;
+            }
+            let (x, y) = (classes(p.saturating_sub(4), p), classes(p, (p + 4).min(n)));
+            (1.0 - x.iter().zip(&y).map(|(a, b)| a * b).sum::<f64>()).max(0.0)
+        })
+        .collect()
+}
+
+/// each pair of bars as alike as the bars round them on the same diagonal are, `w` either side: a run of bars that
+/// repeats another stands out from a bar that happens to sound like one, and a bar that differs within it does not
+/// break it
+fn along_diagonals(s: &Square, w: usize) -> Square {
+    let n = s.n;
+    Square::new(n, |i, j| {
+        let (mut sum, mut count) = (0.0, 0);
+        for d in -(w as i64)..=(w as i64) {
+            let (a, b) = (i as i64 + d, j as i64 + d);
+            if a >= 0 && b >= 0 && (a as usize) < n && (b as usize) < n {
+                sum += s.at(a as usize, b as usize);
+                count += 1;
+            }
+        }
+        sum / count.max(1) as f32
+    })
 }
 
 /// Foote's novelty: at each bar `p`, how alike the `k` bars before it are to each other and the `k` from it, less how
@@ -448,9 +496,13 @@ fn checker(s: &Square, k: usize) -> Vec<f64> {
 const REPEAT: f32 = 0.3;
 
 /// a run of this many bars at least that repeats others, on end, is music that comes back
-const RUN: usize = 3;
+const RUN: usize = 4;
 
-/// Where music that comes back starts and ends: for each lag of two bars or more, each run of `RUN` bars at least whose
+/// music comes back this many bars later at least: a progression that goes round every 4 bars within a section is no
+/// section coming back
+const AGAIN: usize = 8;
+
+/// Where music that comes back starts and ends: for each lag of `AGAIN` bars or more, each run of `RUN` bars at least whose
 /// harmonies repeat those the lag earlier (one bar that does not, between bars that do, kept in the run) marks the bar
 /// it starts and the bar after it ends, both where it is and where it was first heard, the more the longer it is (a run
 /// of 8 bars or more counting fully). A verse that comes back marks where both verses start and end, however alike or
@@ -459,7 +511,7 @@ fn repeats(raw: &Square) -> Vec<f64> {
     let n = raw.n;
     let mut marks = vec![0.0; n + 1];
     let alike = |i: usize, d: usize| i + d < n && raw.at(i, i + d) > REPEAT;
-    for d in 2..n {
+    for d in AGAIN..n {
         let mut k = 0;
         while k + d < n {
             if !alike(k, d) {
