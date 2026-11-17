@@ -410,8 +410,11 @@ fn novelty(raw: &Square, st: &Square, h: &Heard, voice: Option<&[f64]>) -> Vec<f
     };
     let (t4, t2) = (scaled(checker(st, 4), 0.3), scaled(checker(st, 2), 0.3));
     let (c4, c2) = (scaled(chords_change(&h.harmony, 4), 0.1), scaled(chords_change(&h.harmony, 2), 0.1));
-    let rep = scaled(repeats(&along_diagonals(raw, 1)), 1.0);
+    let sh = along_diagonals(raw, 1);
+    let rep = scaled(repeats(&sh), 1.0);
+    let (h4, h2) = (scaled(checker(&sh, 4), 0.3), scaled(checker(&sh, 2), 0.3));
     let jumps = jumps(h, voice);
+    let w = tuning();
     if std::env::var("CLAUDIUS_STRUCTURE_DEBUG").is_ok() {
         for p in 0..n {
             eprintln!(
@@ -420,7 +423,30 @@ fn novelty(raw: &Square, st: &Square, h: &Heard, voice: Option<&[f64]>) -> Vec<f
             );
         }
     }
-    (0..n).map(|p| 0.35 * t4[p] + 0.15 * t2[p] + 0.2 * c4[p] + 0.15 * c2[p] + 0.35 * rep[p] + jumps[p]).collect()
+    (0..n)
+        .map(|p| {
+            w[0] * t4[p]
+                + w[1] * t2[p]
+                + w[2] * c4[p]
+                + w[3] * c2[p]
+                + w[4] * rep[p]
+                + w[5] * jumps[p]
+                + w[6] * h4[p]
+                + w[7] * h2[p]
+        })
+        .collect()
+}
+
+/// TUNING (to go before the pull request): the weights of t4, t2, c4, c2, rep, jumps, h4, h2 and the boundary's cost,
+/// from CLAUDIUS_STRUCTURE_W, nine numbers by commas
+fn tuning() -> [f64; 9] {
+    std::env::var("CLAUDIUS_STRUCTURE_W")
+        .ok()
+        .and_then(|s| {
+            let v: Vec<f64> = s.split(',').filter_map(|x| x.trim().parse().ok()).collect();
+            (v.len() == 9).then(|| [v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]])
+        })
+        .unwrap_or([0.35, 0.15, 0.2, 0.15, 0.35, 1.0, 0.0, 0.0, BOUNDARY])
 }
 
 /// At each bar, how unlike the pitch classes the `k` bars before it play are to those of the `k` from it: a change of
@@ -582,6 +608,7 @@ const BOUNDARY: f64 = 0.42;
 /// The bars sections start at, 0 first and `n` last: of every way to cut `n` bars into sections, the one whose
 /// boundaries are the most novel, less what each costs and what its sections' lengths are preferred less.
 fn segment(nov: &[f64], n: usize) -> Vec<usize> {
+    let boundary = tuning()[8];
     let mut best = vec![f64::NEG_INFINITY; n + 1];
     let mut from = vec![0usize; n + 1];
     best[0] = 0.0;
@@ -590,7 +617,7 @@ fn segment(nov: &[f64], n: usize) -> Vec<usize> {
             if best[s] == f64::NEG_INFINITY {
                 continue;
             }
-            let gain = if s == 0 { 0.0 } else { nov[s] - BOUNDARY };
+            let gain = if s == 0 { 0.0 } else { nov[s] - boundary };
             let v = best[s] + gain + prior(e - s);
             if v > best[e] {
                 best[e] = v;
