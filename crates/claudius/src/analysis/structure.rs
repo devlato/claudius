@@ -409,23 +409,23 @@ fn novelty(raw: &Square, st: &Square, h: &Heard, voice: Option<&[f64]>) -> Vec<f
         v.into_iter().map(|x| (x / top).clamp(0.0, 1.5)).collect::<Vec<f64>>()
     };
     let (t4, t2) = (scaled(checker(st, 4), 0.3), scaled(checker(st, 2), 0.3));
-    let chords = scaled(chords_change(&h.harmony), 0.1);
+    let (c4, c2) = (scaled(chords_change(&h.harmony, 4), 0.1), scaled(chords_change(&h.harmony, 2), 0.1));
     let rep = scaled(repeats(&along_diagonals(raw, 1)), 1.0);
     let jumps = jumps(h, voice);
     if std::env::var("CLAUDIUS_STRUCTURE_DEBUG").is_ok() {
         for p in 0..n {
             eprintln!(
-                "parts {p:3} t4 {:.2} t2 {:.2} ch {:.2} rep {:.2} j {:.2}",
-                t4[p], t2[p], chords[p], rep[p], jumps[p]
+                "parts {p:3} t4 {:.2} t2 {:.2} c4 {:.2} c2 {:.2} rep {:.2} j {:.2}",
+                t4[p], t2[p], c4[p], c2[p], rep[p], jumps[p]
             );
         }
     }
-    (0..n).map(|p| 0.35 * t4[p] + 0.15 * t2[p] + 0.3 * chords[p] + 0.35 * rep[p] + jumps[p]).collect()
+    (0..n).map(|p| 0.35 * t4[p] + 0.15 * t2[p] + 0.2 * c4[p] + 0.15 * c2[p] + 0.35 * rep[p] + jumps[p]).collect()
 }
 
-/// At each bar, how unlike the pitch classes the four bars before it play are to those of the four from it: a change of
+/// At each bar, how unlike the pitch classes the `k` bars before it play are to those of the `k` from it: a change of
 /// the chords a passage plays, whatever their order (a chorus on the verse's chords in another order changes none).
-fn chords_change(harmony: &[[f32; 48]]) -> Vec<f64> {
+fn chords_change(harmony: &[[f32; 48]], k: usize) -> Vec<f64> {
     let n = harmony.len();
     let classes = |a: usize, e: usize| -> [f64; 12] {
         let mut c = [0.0f64; 12];
@@ -442,7 +442,7 @@ fn chords_change(harmony: &[[f32; 48]]) -> Vec<f64> {
             if p == 0 {
                 return 0.0;
             }
-            let (x, y) = (classes(p.saturating_sub(4), p), classes(p, (p + 4).min(n)));
+            let (x, y) = (classes(p.saturating_sub(k), p), classes(p, (p + k).min(n)));
             (1.0 - x.iter().zip(&y).map(|(a, b)| a * b).sum::<f64>()).max(0.0)
         })
         .collect()
@@ -560,14 +560,17 @@ fn jumps(h: &Heard, voice: Option<&[f64]>) -> Vec<f64> {
 }
 
 /// the preference for a section of `len` bars: none against 8 and 16, a little against 4 and 32, more against 12 and
-/// 24, and as much against any other length as a boundary a little clearer than another makes up for
+/// 24, and as much against any other length as a boundary a little clearer than another makes up for; most against 2 or
+/// 3, which a song seldom holds as a section of its own
 fn prior(len: usize) -> f64 {
     match len {
         0 | 1 => f64::NEG_INFINITY,
         8 | 16 => 0.0,
         4 | 32 => -0.08,
         12 | 24 => -0.12,
-        2 | 6 | 10 | 20 => -0.22,
+        2 => -0.45,
+        3 => -0.4,
+        6 | 10 | 20 => -0.22,
         l if l > 32 => -0.3 - 0.03 * (l - 32) as f64,
         _ => -0.28,
     }
