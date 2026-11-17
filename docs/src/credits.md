@@ -96,6 +96,18 @@ uses it.
   the song's key with its formants kept.
 - ITU-R BS.1770, "Algorithms to measure audio programme loudness and true-peak audio level":
   [recommendation](https://www.itu.int/rec/R-REC-BS.1770). Loudness.
+- Foote (2000), "Automatic audio segmentation using a measure of audio novelty", ICME 2000:
+  [doi:10.1109/ICME.2000.869637](https://doi.org/10.1109/ICME.2000.869637). Where a section starts: the novelty of how
+  alike the bars either side are.
+- Paulus, Müller & Klapuri (2010), "Audio-based music structure analysis", ISMIR 2010:
+  [paper](https://www.audiolabs-erlangen.com/content/05_fau/professor/00_mueller/03_publications/2010_PaulusMuellerKlapuri_STAR-MusicStructure_ISMIR.pdf).
+  Sections by novelty, by what repeats, and by what holds alike.
+- Goto (2006), "A chorus section detection method for musical audio signals and its application to a music listening
+  station", *IEEE Transactions on Audio, Speech, and Language Processing* 14(5):
+  [doi:10.1109/TSA.2005.863204](https://doi.org/10.1109/TSA.2005.863204). A chorus is what comes back.
+- Smith, Burgoyne, Fujinaga, De Roure & Downie (2011), "Design and creation of a large-scale database of structural
+  annotations", ISMIR 2011, and its annotations, SALAMI ([CC0](https://github.com/DDMAL/salami-data-public)), which
+  measure where the analysis hears sections start and what they are.
 
 ### Sampling a recording
 
@@ -110,7 +122,8 @@ uses it.
   pieces, and of a flip, drawn among the good ones.
 - Stoller, Durand & Ewert (2019), "End-to-end lyrics alignment for polyphonic music using an audio-to-character
   recognition model", ICASSP 2019: [arXiv:1902.06797](https://arxiv.org/abs/1902.06797). JamendoLyrics, the songs whose
-  every word is timed, which measure how often a cut falls inside one.
+  every word is timed, which measure how often a cut falls inside one, and, by their stanzas, where sung sections start
+  and which come back.
 
 ### Rhythm and feel
 

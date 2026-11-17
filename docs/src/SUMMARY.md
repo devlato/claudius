@@ -119,6 +119,7 @@
 - [0019 Libraries of sounds and effects](design/0019-libraries.md)
 - [0020 Changing a song's genre](design/0020-change-a-songs-genre.md)
 - [0021 Every kind of sample, ranked and varied](design/0021-every-kind-of-sample.md)
+- [0022 A song's own sections](design/0022-a-songs-own-sections.md)
 
 # Contributing
 

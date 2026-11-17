@@ -49,7 +49,7 @@ remake with `sampled: false`. "Use this vocal" or
 `analyze` with the path (MCP), or `claudius analyze song.mp3 [--genre house] [--json]`, reports the tempo with its
 pulse clarity, the key with a confidence, the swing, progressions `A` and `B` as Roman numerals, the song's own
 sections, the phrases sung, the kick, snare and hat patterns as step strings, and the bass style. A section's line,
-`bars 13-18  pre-chorus (C)  energy 0.85, 90% sung, building over its last 6 bars, kick bass hats`, gives its bars
+`bars 33-48  chorus (E)  energy 0.99, 92% sung, sung from 1.33 s before its first bar, kick bass hats`, gives its bars
 counted from 1 (any length: a verse of 17 bars stays 17), what it is (intro, verse, pre-chorus, chorus, post-chorus,
 bridge, instrumental, break, outro; in a track no one sings in, intro, build, drop, break, groove, outro), the letter
 of the music it plays (sections with one letter repeat it), its energy, how much of it a voice sings, how many of its

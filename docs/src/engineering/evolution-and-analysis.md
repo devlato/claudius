@@ -188,8 +188,10 @@ a real change measures, so that a loop's noise is no boundary. Of every way to c
 the one whose boundaries are most novel, less a cost for each, under a preference for sections of 8 and 16 bars that
 never forbids another length (17 bars stays 17 where the boundary is clear), the bars counted as a phrase's: a bar
 over 3.2 s (a slow song, or one heard at half its tempo) as two, one under 1.6 s as half. Sections that rise together,
-bar by bar, into a louder one are one build. Sections whose chords and sound go on alike (the chords moved up to two
-semitones, as a last chorus may be) share a letter, by average linkage.
+bar by bar, into a louder one are one build. With the stems apart, what the voice sings, beat by beat, counts as much
+as the chords in the stripes and the letters: a song on one loop of chords tells its verse from its chorus by the
+tune. Sections whose chords, tune and sound go on alike (the chords moved up to two semitones, as a last chorus may
+be) share a letter, by average linkage.
 
 **What each is.** In a song a voice sings a quarter of at least, the chorus is the music it sings again and again
 that is loudest and sung most, ends the singing and does not start it; the verse is the other music it sings again

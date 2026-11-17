@@ -35,8 +35,12 @@ already reads, the stems when the ears separate them.
   are counted as a phrase's: a bar over 3.2 s, of a slow song or one heard at half its tempo, as two. Each change is
   scaled to the song's clearest, but never by more than what a real change measures, so a steady loop's noise is no
   boundary, and sections that rise together, bar by bar, into a louder one are one build.
+- **What the voice sings**, beat by beat, counts as much as the chords where the stems are apart: many songs play one
+  loop of chords all through, and only the tune tells their verse from their chorus. A chorus's tune coming back marks
+  where it starts, as its chords would.
 - **Sections that play the same music**, in the same key or up to two semitones away (a last chorus a step up), share
-  a letter: they start and go on alike in their chords and their sound (average linkage).
+  a letter: they start and go on alike in their chords, in what is sung over them where both are sung, and in their
+  sound (average linkage).
 - **What each is**: in a song a voice sings, the chorus is the music it sings again and again that is loudest and
   sung most, ends the singing and does not start it; the verse is the other music it sings again, that leads to the
   chorus; a pre-chorus comes between, a post-chorus is loud music no one sings right after a chorus, a bridge is sung
@@ -89,6 +93,12 @@ annotator marked a verse and a chorus, against each of its annotators, from the 
 Published methods of this kind score 0.22 to 0.30 and 0.45 to 0.55 on SALAMI's boundaries: the new one is among them
 at 3 s and under them at half a second, where its sections start on bar lines and live recordings drift. The blocks
 scored their chorus by calling nearly everything a drop.
+
+On the song that started this, Alizée's "J'ai pas vingt ans", one loop of chords all through, the 4-bar blocks heard
+an intro, four drops of 16 to 32 bars and an outro. The new reading, its stems apart, hears an intro, a verse of 8
+bars, the verse's music of 16, a chorus of 16 from bar 33, the verse's music again from bar 49, choruses on from bar 65,
+and an outro; against its lyrics as LRCLIB times them, its second verse starts at bar 51 (heard at 49) and its second
+chorus at bar 65 (heard at 65). Without the tune, the loop had read as one music cut every four bars.
 
 On claudius's own house song of the cookbook (intro 8, groove 16, break 8, build 8, drop 16, outro 8), it hears all
 six sections to the bar, the intro and the build as one music and the groove, the drop and the outro as another, and
