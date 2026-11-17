@@ -99,6 +99,9 @@ impl Label {
 pub(crate) struct Heard {
     /// the pitch classes of each of its four beats, each beat's as loud as another's (`harmony`)
     pub harmony: Vec<[f32; 48]>,
+    /// the pitch classes the voice sings on each of its four beats, where the voice is heard apart (`harmony`, of the
+    /// vocals; nothing in a bar it hardly sings in)
+    pub melody: Option<Vec<[f32; 48]>>,
     /// the shape of its spectrum (`timbres`)
     pub timbre: Vec<[f32; 12]>,
     /// how loud it is, how much of that is in its highs, and its bass, in dB
@@ -302,7 +305,16 @@ pub(crate) fn parts(h: &Heard) -> Vec<Part> {
         return vec![Part { start: 0, bars: n, label: Label::Groove, group: 0, build_bars: 0 }];
     }
     let (harm, scale) = centred(&h.harmony);
-    let raw = Square::new(n, |i, j| (dot(&harm[i], &harm[j]) / scale).clamp(-1.0, 1.0));
+    let chords = Square::new(n, |i, j| (dot(&harm[i], &harm[j]) / scale).clamp(-1.0, 1.0));
+    // with the voice heard apart, what it sings as well: a verse and a chorus over one loop of chords differ by their
+    // tunes, and a chorus's tune coming back marks where it starts
+    let raw = match &h.melody {
+        Some(m) => {
+            let (tune, tscale) = centred(m);
+            Square::new(n, |i, j| 0.5 * chords.at(i, j) + 0.5 * (dot(&tune[i], &tune[j]) / tscale).clamp(-1.0, 1.0))
+        }
+        None => chords,
+    };
     // the voice over the bars round each: a singer's breath between lines is no change of section
     let voice = h.voice.as_deref().map(phrased);
     let st = texture(h, voice.as_deref());
@@ -442,6 +454,9 @@ fn novelty(raw: &Square, st: &Square, h: &Heard, voice: Option<&[f64]>) -> Vec<f
     let rep = scaled(repeats(&along_diagonals(raw, 1), h.bars(AGAIN), h.bars(RUN)), 1.0);
     let jumps = jumps(h, voice);
     if std::env::var("CLAUDIUS_STRUCTURE_DEBUG").is_ok() {
+        let pairs = (0..n).flat_map(|i| (i + 2..n).map(move |j| (i, j)));
+        let (many, of) = pairs.fold((0, 0), |(m, o), (i, j)| (m + (raw.at(i, j) > REPEAT) as usize, o + 1));
+        eprintln!("repetitive {:.2}", many as f64 / of.max(1) as f64);
         for p in 0..n {
             eprintln!(
                 "parts {p:3} t4 {:.2} t2 {:.2} c4 {:.2} c2 {:.2} rep {:.2} j {:.2}",
@@ -673,21 +688,32 @@ fn patterned(h: &[f32; 48]) -> [f32; 48] {
 const SAME: f64 = 0.62;
 
 /// The letter of the music each section plays, 0 for the first heard: sections that start and go on alike, in their
-/// chords (the same, or moved up to two semitones, as a last chorus may be) and as they sound, joined while the two
-/// groups nearest each other are alike on average (average linkage).
+/// chords (the same, or moved up to two semitones, as a last chorus may be), in what is sung over them where both are
+/// sung, and as they sound, joined while the two groups nearest each other are alike on average (average linkage).
 fn grouped(segs: &[(usize, usize)], h: &Heard, st: &Square) -> Vec<usize> {
     let m = segs.len();
     let pat: Vec<[f32; 48]> = h.harmony.iter().map(patterned).collect();
+    let tunes: Option<Vec<[f32; 48]>> = h.melody.as_ref().map(|m| m.iter().map(patterned).collect());
     let voice = |s: (usize, usize)| h.voice.as_ref().map(|v| v[s.0..s.1].iter().sum::<f64>() / (s.1 - s.0) as f64);
-    let alike = |a: (usize, usize), b: (usize, usize)| {
-        let k = (a.1 - a.0).min(b.1 - b.0);
-        let chords = [0i32, 1, -1, 2, -2]
+    // how alike bars of `v` are from `a` and `b` on, moved up to two semitones, the nearer the key the better
+    let along = |v: &[[f32; 48]], a: usize, b: usize, k: usize| {
+        [0i32, 1, -1, 2, -2]
             .into_iter()
             .map(|r| {
-                let s: f64 = (0..k).map(|i| dot(&pat[a.0 + i], &rotated(&pat[b.0 + i], r)) as f64).sum();
+                let s: f64 = (0..k).map(|i| dot(&v[a + i], &rotated(&v[b + i], r)) as f64).sum();
                 s / k as f64 - 0.03 * r.abs() as f64
             })
-            .fold(f64::MIN, f64::max);
+            .fold(f64::MIN, f64::max)
+    };
+    let alike = |a: (usize, usize), b: (usize, usize)| {
+        let k = (a.1 - a.0).min(b.1 - b.0);
+        let harmony = along(&pat, a.0, b.0, k);
+        // where both are sung, what is sung counts as much as the chords under it
+        let both_sung = voice(a).zip(voice(b)).is_some_and(|(x, y)| x >= SUNG && y >= SUNG);
+        let chords = match &tunes {
+            Some(t) if both_sung => 0.5 * harmony + 0.5 * along(t, a.0, b.0, k),
+            _ => harmony,
+        };
         let sound = (0..k).map(|i| st.at(a.0 + i, b.0 + i) as f64).sum::<f64>() / k as f64;
         let sung = match (voice(a), voice(b)) {
             (Some(x), Some(y)) => 1.0 - (x - y).abs(),
@@ -1003,6 +1029,7 @@ pub(crate) mod tests {
         }
         let h = Heard {
             harmony: vec![[0.0; 48]; n],
+            melody: None,
             timbre: vec![[0.0; 12]; n],
             loud,
             bright: vec![0.0; n],

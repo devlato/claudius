@@ -486,8 +486,23 @@ pub fn analyze_with(x: &Stereo, stems: Option<&Stems>, bpm_range: Option<(f64, f
     } else {
         kit_db.clone()
     };
+    // what the voice sings, beat by beat, in the bars it sings a tenth of at least
+    let melody = |sings: Option<&Stems>, sung: Option<&cuts::Sung>| -> Option<Vec<[f32; 48]>> {
+        let (s, sung) = (sings?, sung?);
+        let frames = chroma::chroma(&s.vocals.mono(), chroma_hop);
+        let share = structure::sung_share(&sung.words, &bar_starts);
+        Some(
+            (0..bars)
+                .map(|b| match share[b] >= 0.1 {
+                    true => structure::harmony(&frames, chroma_hop, t_bar(b), t_bar(b + 1)),
+                    false => [0.0; 48],
+                })
+                .collect(),
+        )
+    };
     let heard = structure::Heard {
         harmony: (0..bars).map(|b| structure::harmony(&ch, chroma_hop, t_bar(b), t_bar(b + 1))).collect(),
+        melody: melody(sings, sung.as_ref()),
         timbre: structure::timbres(&mono, &bar_starts),
         loud: rms.clone(),
         bright: hi_db.iter().zip(&rms).map(|(h, r)| h - r).collect(),
