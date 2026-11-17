@@ -472,13 +472,16 @@ pub fn analyze_with(x: &Stereo, stems: Option<&Stems>, bpm_range: Option<(f64, f
     // sections, as the song's own (`structure`): what each bar's beats play, how it sounds, and where a voice sings
     let sings = stems.filter(|s| s.share(&s.vocals) >= SINGS);
     let sung = sings.map(|s| cuts::sung(&s.vocals, &melody::pitches(&s.vocals)));
-    // the kit's level in each bar: its drums apart, else its hits in the mix
+    // the kit's level in each bar: its drums apart, else how strongly its hits strike in the mix over the whole bar,
+    // which does not hang on where the grid's steps fall (a bar drawn a little off the beats misses them)
     let kit_level: Vec<f64> = if kit_db.is_empty() {
+        let mean = |env: &[f32], b: usize| {
+            let (a, e) = ((t_bar(b) * SRF / HOP as f64) as usize, ((t_bar(b + 1) * SRF / HOP as f64) as usize));
+            let e = e.min(env.len());
+            if e <= a { 0.0 } else { env[a..e].iter().map(|v| *v as f64).sum::<f64>() / (e - a) as f64 }
+        };
         (0..bars)
-            .map(|b| {
-                let s: f32 = kick[b].iter().chain(&snare[b]).chain(&hat[b]).sum();
-                10.0 * (s as f64 + 1e-6).log10()
-            })
+            .map(|b| 10.0 * (mean(&kick_env, b) + mean(&snare_env, b) + mean(&hat_env, b) + 1e-6).log10())
             .collect()
     } else {
         kit_db.clone()
