@@ -279,15 +279,11 @@ pub(crate) fn parts(h: &Heard) -> Vec<Part> {
     }
     let (harm, scale) = centred(&h.harmony);
     let raw = Square::new(n, |i, j| (dot(&harm[i], &harm[j]) / scale).clamp(-1.0, 1.0));
-    let sh = along_diagonals(&raw, 1);
-    let st = texture(h);
-    let nov = novelty(&sh, &raw, &st, h);
+    // the voice over the bars round each: a singer's breath between lines is no change of section
+    let voice = h.voice.as_deref().map(phrased);
+    let st = texture(h, voice.as_deref());
+    let nov = novelty(&raw, &st, h, voice.as_deref());
     let bounds = segment(&nov, n);
-    if std::env::var("CLAUDIUS_STRUCTURE_DEBUG").is_ok() {
-        for (b, v) in nov.iter().enumerate() {
-            eprintln!("nov {b:3} {v:.2}");
-        }
-    }
     let segs: Vec<(usize, usize)> = bounds.windows(2).map(|w| (w[0], w[1])).collect();
     let group = grouped(&segs, h, &st);
     let label = labelled(&segs, &group, h);
@@ -337,21 +333,23 @@ fn centred(h: &[[f32; 48]]) -> (Vec<[f32; 48]>, f32) {
     (c, typical.max(HARMONY_FLOOR))
 }
 
-/// each pair of bars as alike as the bars round them on the same diagonal are, `w` either side: a run of bars that
-/// repeats another stands out from a bar that happens to sound like one
-fn along_diagonals(s: &Square, w: usize) -> Square {
-    let n = s.n;
-    Square::new(n, |i, j| {
-        let (mut sum, mut count) = (0.0, 0);
-        for d in -(w as i64)..=(w as i64) {
-            let (a, b) = (i as i64 + d, j as i64 + d);
-            if a >= 0 && b >= 0 && (a as usize) < n && (b as usize) < n {
-                sum += s.at(a as usize, b as usize);
-                count += 1;
+/// `v` over the bars round each, two either side, the nearer counting more: a voice's lines and the rests between
+/// them, as the share of a phrase sung
+fn phrased(v: &[f64]) -> Vec<f64> {
+    let w = [0.5, 1.0, 1.0, 1.0, 0.5];
+    (0..v.len())
+        .map(|i| {
+            let (mut s, mut ws) = (0.0, 0.0);
+            for (d, wd) in w.iter().enumerate() {
+                let j = i as i64 + d as i64 - 2;
+                if j >= 0 && (j as usize) < v.len() {
+                    s += wd * v[j as usize];
+                    ws += wd;
+                }
             }
-        }
-        sum / count.max(1) as f32
-    })
+            s / ws
+        })
+        .collect()
 }
 
 /// the mean and spread of `v`, the spread no less than `floor`: a feature that hardly changes is not made to
@@ -365,7 +363,7 @@ fn spread(v: &[f64], floor: f64) -> (f64, f64) {
 /// How alike each pair of bars sounds, played as they are: their timbre, loudness, brightness, kit, bass and voice,
 /// each in a unit a listener hears (3 dB of loudness counts as much as a voice coming in), as a Gaussian of the
 /// distance between them, scaled to the median distance.
-fn texture(h: &Heard) -> Square {
+fn texture(h: &Heard, voice: Option<&[f64]>) -> Square {
     let n = h.loud.len();
     let mut feats: Vec<Vec<f64>> = vec![Vec::new(); n];
     for k in 0..12 {
@@ -385,7 +383,7 @@ fn texture(h: &Heard) -> Square {
     add(&h.bright, 3.0, 0.4);
     add(&h.kit, 6.0, 0.8);
     add(&h.bass, 6.0, 0.5);
-    if let Some(v) = &h.voice {
+    if let Some(v) = voice {
         add(v, 0.5, 0.8);
     }
     let dist = |i: usize, j: usize| feats[i].iter().zip(&feats[j]).map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt();
@@ -395,13 +393,14 @@ fn texture(h: &Heard) -> Square {
     Square::new(n, |i, j| (-0.5 * (dist(i, j) / scale).powi(2)).exp() as f32)
 }
 
-/// How strongly a section starts at each bar: from 1 to `n - 1`, the novelty of the harmony and of the texture (a
-/// checkerboard kernel along the diagonal, over 4 bars and over 2), the change in which music repeats (structural
-/// features), and the voice, the kit or the loudness changing; each scaled so that the song's clearest boundaries are
-/// about 1, but never by more than what a real change measures (`floor`), so that a song that hardly changes keeps its
-/// novelty small rather than having its noise read as boundaries.
-fn novelty(sh: &Square, raw: &Square, st: &Square, h: &Heard) -> Vec<f64> {
-    let n = sh.n;
+/// How strongly a section starts at each bar: from 1 to `n - 1`, the novelty of the texture (a checkerboard kernel
+/// along the diagonal, over 4 bars and over 2), where runs of bars that come back elsewhere start and end (`repeats`),
+/// and the voice, the kit or the loudness changing; each scaled so that the song's clearest boundaries are about 1, but
+/// never by more than what a real change measures (`floor`), so that a song that hardly changes keeps its novelty small
+/// rather than having its noise read as boundaries. The harmony's own novelty is left out: chords change every bar
+/// within a section, so bars next to each other are unlike each other whether a section starts or not.
+fn novelty(raw: &Square, st: &Square, h: &Heard, voice: Option<&[f64]>) -> Vec<f64> {
+    let n = raw.n;
     let scaled = |v: Vec<f64>, floor: f64| {
         let mut sorted: Vec<f64> = v.iter().copied().filter(|x| *x > 0.0).collect();
         sorted.sort_by(f64::total_cmp);
@@ -409,18 +408,14 @@ fn novelty(sh: &Square, raw: &Square, st: &Square, h: &Heard) -> Vec<f64> {
         v.into_iter().map(|x| (x / top).clamp(0.0, 1.5)).collect::<Vec<f64>>()
     };
     let (t4, t2) = (scaled(checker(st, 4), 0.3), scaled(checker(st, 2), 0.3));
-    let (h4, h2) = (scaled(checker(sh, 4), 0.3), scaled(checker(sh, 2), 0.3));
-    let sf = scaled(structural(raw), 1.0);
-    let jumps = jumps(h);
+    let rep = scaled(repeats(raw), 1.0);
+    let jumps = jumps(h, voice);
     if std::env::var("CLAUDIUS_STRUCTURE_DEBUG").is_ok() {
         for p in 0..n {
-            eprintln!(
-                "parts {p:3} t4 {:.2} t2 {:.2} h4 {:.2} h2 {:.2} sf {:.2} j {:.2}",
-                t4[p], t2[p], h4[p], h2[p], sf[p], jumps[p]
-            );
+            eprintln!("parts {p:3} t4 {:.2} t2 {:.2} rep {:.2} j {:.2}", t4[p], t2[p], rep[p], jumps[p]);
         }
     }
-    (0..n).map(|p| 0.3 * t4[p] + 0.15 * t2[p] + 0.25 * h4[p] + 0.1 * h2[p] + 0.2 * sf[p] + jumps[p]).collect()
+    (0..n).map(|p| 0.4 * t4[p] + 0.2 * t2[p] + 0.45 * rep[p] + jumps[p]).collect()
 }
 
 /// Foote's novelty: at each bar `p`, how alike the `k` bars before it are to each other and the `k` from it, less how
@@ -452,57 +447,50 @@ fn checker(s: &Square, k: usize) -> Vec<f64> {
 /// bars whose harmonies are this alike at least repeat each other
 const REPEAT: f32 = 0.3;
 
-/// Serrà's structural features: each bar's repeats (the bars most like it, by its harmony, that are most like it in
-/// turn) as lags behind it, smoothed over the bars round it; a section starts where the lags that repeat change.
-fn structural(raw: &Square) -> Vec<f64> {
+/// a run of this many bars at least that repeats others, on end, is music that comes back
+const RUN: usize = 3;
+
+/// Where music that comes back starts and ends: for each lag of two bars or more, each run of `RUN` bars at least whose
+/// harmonies repeat those the lag earlier (one bar that does not, between bars that do, kept in the run) marks the bar
+/// it starts and the bar after it ends, both where it is and where it was first heard, the more the longer it is (a run
+/// of 8 bars or more counting fully). A verse that comes back marks where both verses start and end, however alike or
+/// unlike the bars within each are.
+fn repeats(raw: &Square) -> Vec<f64> {
     let n = raw.n;
-    let k = ((0.1 * n as f64).round() as usize).clamp(3, 12);
-    // each bar's k nearest, not itself or the bar beside it
-    let nearest: Vec<Vec<usize>> = (0..n)
-        .map(|i| {
-            let mut js: Vec<usize> = (0..n).filter(|&j| i.abs_diff(j) > 1).collect();
-            js.sort_by(|&a, &b| raw.at(i, b).total_cmp(&raw.at(i, a)));
-            js.truncate(k);
-            js
-        })
-        .collect();
-    let mut lag = vec![vec![0.0f64; n]; n];
-    for i in 0..n {
-        for &j in &nearest[i] {
-            // a repeat is a bar whose chords are like its own, not merely the least unlike
-            if nearest[j].contains(&i) && raw.at(i, j) > REPEAT {
-                lag[i][(j + n - i) % n] = 1.0;
+    let mut marks = vec![0.0; n + 1];
+    let alike = |i: usize, d: usize| i + d < n && raw.at(i, i + d) > REPEAT;
+    for d in 2..n {
+        let mut k = 0;
+        while k + d < n {
+            if !alike(k, d) {
+                k += 1;
+                continue;
             }
+            let start = k;
+            let mut end = k;
+            while alike(end, d) || (alike(end + 1, d) && end > start) {
+                end += 1;
+            }
+            let len = end - start;
+            if len >= RUN {
+                let w = (len as f64 / 8.0).min(1.0);
+                for b in [start, start + d, end, end + d] {
+                    if b < n {
+                        marks[b] += w;
+                    }
+                }
+            }
+            k = end + 1;
         }
     }
-    // smoothed over the two bars either side
-    let w = [0.25, 0.6, 1.0, 0.6, 0.25];
-    let smooth: Vec<Vec<f64>> = (0..n)
-        .map(|i| {
-            (0..n)
-                .map(|l| {
-                    let (mut s, mut ws) = (0.0, 0.0);
-                    for (d, wd) in w.iter().enumerate() {
-                        let ii = i as i64 + d as i64 - 2;
-                        if ii >= 0 && (ii as usize) < n {
-                            s += wd * lag[ii as usize][l];
-                            ws += wd;
-                        }
-                    }
-                    s / ws
-                })
-                .collect()
-        })
-        .collect();
-    let mut out = vec![0.0; n];
-    for p in 1..n {
-        out[p] = smooth[p].iter().zip(&smooth[p - 1]).map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt();
-    }
-    out
+    marks.truncate(n);
+    marks[0] = 0.0;
+    marks
 }
 
-/// at each bar, how much the voice, the kit and the loudness change: the two bars before it against the two from it
-fn jumps(h: &Heard) -> Vec<f64> {
+/// at each bar, how much the voice (as heard over its phrases), the kit and the loudness change: the two bars before
+/// it against the two from it
+fn jumps(h: &Heard, voice: Option<&[f64]>) -> Vec<f64> {
     let n = h.loud.len();
     let mean = |v: &[f64], a: usize, b: usize| v[a..b].iter().sum::<f64>() / (b - a).max(1) as f64;
     let change = |v: &[f64], p: usize| (mean(v, p.saturating_sub(2), p) - mean(v, p, (p + 2).min(n))).abs();
@@ -511,7 +499,7 @@ fn jumps(h: &Heard) -> Vec<f64> {
             if p == 0 {
                 return 0.0;
             }
-            let voice = h.voice.as_ref().map_or(0.0, |v| (change(v, p) / 0.5).min(1.5));
+            let voice = voice.map_or(0.0, |v| (change(v, p) / 0.5).min(1.5));
             let kit = (change(&h.kit, p) / 9.0).min(1.5);
             let loud = (change(&h.loud, p) / 4.0).min(1.5);
             0.25 * voice + 0.15 * kit + 0.15 * loud

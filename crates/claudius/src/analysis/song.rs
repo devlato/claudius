@@ -998,15 +998,24 @@ pub(crate) mod tests {
     fn without_its_voice_apart_a_song_still_has_its_own_sections_and_its_chorus() {
         let (mix, _) = pop_song();
         let a = analyze(&mix, None);
-        let heard: Vec<(usize, usize, &str)> =
-            a.sections.iter().map(|s| (s.start_bar, s.bars, s.label.name())).collect();
-        // the verses and choruses found where they start, whatever the intro and outro are taken for
-        for start in [4, 18, 26, 40, 56] {
-            assert!(a.sections.iter().any(|s| s.start_bar == start), "nothing starts at bar {start}: {heard:?}");
+        // in seconds: without the kit apart, the tracker may count this song's bars at half its tempo
+        let heard: Vec<(f64, &str)> = a.sections.iter().map(|s| (a.bar_start(s.start_bar), s.label.name())).collect();
+        let starts: Vec<f64> = POP_FORM
+            .iter()
+            .scan(0.0, |t, s| {
+                let at = *t;
+                *t += s.1 as f64 * 2.0;
+                Some(at)
+            })
+            .collect();
+        for t in &starts {
+            assert!(heard.iter().any(|(s, _)| (s - t).abs() < 0.3), "nothing starts at {t} s: {heard:?}");
         }
-        let choruses: Vec<usize> =
-            a.sections.iter().filter(|s| s.label == Label::Chorus).map(|s| s.start_bar).collect();
-        assert_eq!(choruses, vec![18, 40, 56], "{heard:?}");
+        let choruses: Vec<f64> = heard.iter().filter(|h| h.1 == "chorus").map(|h| h.0).collect();
+        let want: Vec<f64> =
+            POP_FORM.iter().zip(&starts).filter(|(s, _)| s.0 == Label::Chorus).map(|(_, t)| *t).collect();
+        assert_eq!(choruses.len(), want.len(), "{heard:?}");
+        assert!(choruses.iter().zip(&want).all(|(c, w)| (c - w).abs() < 0.3), "{heard:?}");
     }
 
     #[test]
