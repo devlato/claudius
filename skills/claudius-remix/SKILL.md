@@ -47,8 +47,16 @@ remake with `sampled: false`. "Use this vocal" or
 ## Analyze
 
 `analyze` with the path (MCP), or `claudius analyze song.mp3 [--genre house] [--json]`, reports the tempo with its
-pulse clarity, the key with a confidence, the swing, progressions `A` and `B` as Roman numerals, the sections with
-their energy and what plays in them, the kick, snare and hat patterns as step strings, and the bass style.
+pulse clarity, the key with a confidence, the swing, progressions `A` and `B` as Roman numerals, the song's own
+sections, the phrases sung, the kick, snare and hat patterns as step strings, and the bass style. A section's line,
+`bars 13-18  pre-chorus (C)  energy 0.85, 90% sung, building over its last 6 bars, kick bass hats`, gives its bars
+counted from 1 (any length: a verse of 17 bars stays 17), what it is (intro, verse, pre-chorus, chorus, post-chorus,
+bridge, instrumental, break, outro; in a track no one sings in, intro, build, drop, break, groove, outro), the letter
+of the music it plays (sections with one letter repeat it), its energy, how much of it a voice sings, how many of its
+last bars rise into the next (the build resolving where the next starts), whether its first phrase is sung before its
+first bar, and what plays in it. `sung phrases: 5.1-6.3, 7.1-8.3 ...` are the phrases a voice sings, as a DAW writes
+positions (bar 5's first beat to bar 6's third). `--json` adds each bar's start in seconds (`bar_starts`) and each
+section's `cut`, where a piece of it is best taken: its first bar's line, or the quiet before a phrase sung ahead of it.
 
 Analysis is best on steady electronic music with a clear kick, and approximate everywhere else. Pulse clarity (0 to
 1) says how clearly a steady beat stands out; below about 0.3 the tempo is closer to a guess. Its usual mistakes:
@@ -60,9 +68,14 @@ Analysis is best on steady electronic music with a clear kick, and approximate e
   with `i7` and `bIII`): the chords are right and the key name is not. A lead the critic finds outside the key while
   its strong-beat notes are chord tones points the same way;
 - a progression rotated by a bar, or with a seventh missing;
-- sections merged when their energy is close, even an intro that is clearly quieter. None is longer than 32 bars (a
-  longer one is cut where it changes most, on an 8-bar phrase), and a recording whose sections are all within 1.5 dB
-  of each other has no drop: its sections play at a groove's level.
+- a section's start a beat or three off when the downbeat was heard on another beat (`64 bars from 1.52 s` in a song
+  that starts on its first bar), and the same music twice in a row (two drops) heard as one section;
+- what a section is, which is the least sure: on songs whose lyrics are timed, about six in ten of the sung sections
+  start within a bar of where it hears one, and about half the choruses are named choruses, with a verse now and
+  then taken for one. Sections with one letter are surer to be one music than their names are right. Without the
+  ears (no stems) the voice is not heard, and an instrumental between verses can be named a verse; in a dance track
+  a groove or an outro that plays the drop's music is named a drop, and a quiet build a break. A recording whose
+  sections are all within 1.5 dB of each other has no drop: its sections play at a groove's level.
 
 Report it with that in mind ("about 118 BPM, probably D minor"). When the person knows the real tempo or key, theirs
 wins: `key("F minor")` on the remake keeps every chord as it sounds (a borrowed `bIII` becomes `III`) and rewrites the
