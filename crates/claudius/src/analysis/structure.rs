@@ -403,7 +403,9 @@ fn texture(h: &Heard, voice: Option<&[f64]>) -> Square {
     let mut feats: Vec<Vec<f64>> = vec![Vec::new(); n];
     for k in 0..12 {
         let col: Vec<f64> = h.timbre.iter().map(|t| t[k] as f64).collect();
-        let (m, sd) = spread(&col, 1.5);
+        // 3 dB at least: a coefficient wavers a dB or two from bar to bar of the same music, and changes by ten or more
+        // when what plays changes
+        let (m, sd) = spread(&col, 3.0);
         for (f, x) in feats.iter_mut().zip(&col) {
             f.push((x - m) / sd / 12f64.sqrt());
         }
