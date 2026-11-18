@@ -106,12 +106,17 @@ pub fn superflux_centres() -> Vec<f64> {
     log_bands(SF_NFFT).into_iter().map(|(hz, _)| hz).collect()
 }
 
-/// triangular filters 24 to the octave from 30 Hz to 17 kHz over the bins of an `n_fft` spectrum, each its centre in
-/// hertz, its bins and their weights, summing to 1; the low ones, narrower than a bin, merged into the first that is not
+/// triangular filters 24 to the octave from 30 Hz to 17 kHz over the bins of an `n_fft` spectrum (`log_bands_from`)
 fn log_bands(n_fft: usize) -> Vec<(f64, Vec<(usize, f32)>)> {
+    log_bands_from(n_fft, 24.0, 30.0, 17000.0)
+}
+
+/// triangular filters `per_octave` to the octave from `lo` to `hi` hertz over the bins of an `n_fft` spectrum, each its
+/// centre in hertz, its bins and their weights, summing to 1; the low ones, narrower than a bin, merged into the first
+/// that is not
+pub(crate) fn log_bands_from(n_fft: usize, per_octave: f64, lo: f64, hi: f64) -> Vec<(f64, Vec<(usize, f32)>)> {
     let bin = |hz: f64| hz / SRF * n_fft as f64;
-    let mut centres: Vec<f64> =
-        (0..).map(|k| 30.0 * 2f64.powf(k as f64 / 24.0)).take_while(|f| *f <= 17000.0).collect();
+    let mut centres: Vec<f64> = (0..).map(|k| lo * 2f64.powf(k as f64 / per_octave)).take_while(|f| *f <= hi).collect();
     centres.retain(|f| bin(*f) < (n_fft / 2) as f64);
     let mut edges: Vec<usize> = centres.iter().map(|f| bin(*f).round() as usize).collect();
     edges.dedup();

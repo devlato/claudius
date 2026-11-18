@@ -88,47 +88,7 @@ pub fn kind(b: &[u8]) -> Option<&'static str> {
 
 /// what the analysis heard in a recording, as `analyze` answers
 pub fn analysis_text(a: &Analysis) -> String {
-    let mut out = format!(
-        "{:.1} BPM (pulse clarity {:.2}), {} (confidence {:.2}), swing {:.2}, {} bars from {:.2} s\n",
-        a.bpm,
-        a.pulse_clarity,
-        a.key.name(),
-        a.key_confidence,
-        a.swing,
-        a.bars,
-        a.first_downbeat
-    );
-    out.push_str(&format!(
-        "progression A: {}  |  B: {}  ({} bar(s) per chord)\n",
-        a.progression_a.join(" "),
-        a.progression_b.join(" "),
-        a.bars_per_chord
-    ));
-    for s in &a.sections {
-        let mut l = Vec::new();
-        for (on, n) in [(s.kick, "kick"), (s.bass, "bass"), (s.hats, "hats")] {
-            if on {
-                l.push(n);
-            }
-        }
-        out.push_str(&format!(
-            "bar {:3} +{:2}  {:7} energy {:.2}  {}\n",
-            s.start_bar,
-            s.bars,
-            s.kind.name(),
-            s.energy,
-            l.join(" ")
-        ));
-    }
-    let grid = analysis::song::grid;
-    out.push_str(&format!(
-        "kick  {}\nsnare {}\nhats  {}\nbass style: {}\n",
-        grid(&a.kick_steps),
-        grid(&a.snare_steps),
-        grid(&a.hat_steps),
-        a.bass_style
-    ));
-    out
+    a.text()
 }
 
 /// What the analysis `a` heard in recording `x`, which came in a file named `name`, as the studio shows it while the

@@ -430,7 +430,9 @@ fn run(cli: Cli) -> Result<()> {
         Cmd::Analyze { file, genre, json } => {
             let range = genre.map(|g| genres::get(&g)).transpose()?.map(|g| g.bpm);
             let x = claudius::audio::load(&file)?;
-            let a = claudius::analysis::song::analyze(&x, range);
+            // its voice and its drums apart, with the ears, for its sections
+            let stems = claudius::stems::of(&x, &mut |_| {});
+            let a = claudius::analysis::song::analyze_with(&x, stems.as_deref(), range);
             if json {
                 println!("{}", serde_json::to_string_pretty(&a)?);
             } else {

@@ -195,8 +195,10 @@ fn form(a: &Analysis) -> (Vec<SectionSpec>, BTreeMap<String, Vec<String>>) {
             .collect();
         let prog = remix::progression_name(i);
         progs.insert(prog.clone(), chords);
-        let of_kind = form.iter().filter(|f| f.kind == s.kind).count();
-        let name = if of_kind == 0 { s.kind.name().to_string() } else { format!("{}{}", s.kind.name(), of_kind + 1) };
+        // named for what it is: verse, pre_chorus, chorus2 ...
+        let of_label = a.sections[..i].iter().filter(|o| o.label == s.label).count();
+        let word = s.label.word();
+        let name = if of_label == 0 { word.to_string() } else { format!("{word}{}", of_label + 1) };
         form.push(SectionSpec {
             name: name.clone(),
             kind: s.kind,
@@ -541,6 +543,11 @@ mod tests {
             bars: 4,
             energy,
             kind,
+            label: crate::analysis::structure::Label::of(kind),
+            group: 0,
+            build_bars: 0,
+            cut: 0.0,
+            sung: 0.0,
             kick: true,
             bass: true,
             hats: true,
@@ -569,6 +576,7 @@ mod tests {
             bass_style: "sustain".into(),
             steady: true,
             bar_starts: Vec::new(),
+            phrases: Vec::new(),
         }
     }
 
@@ -637,14 +645,14 @@ mod tests {
         assert_eq!(bp.bpm, 96.0);
         let form: Vec<(&str, &str, &str)> =
             bp.form.iter().map(|s| (s.name.as_str(), s.prog.as_str(), s.variant.as_str())).collect();
-        assert_eq!(form, [("verse", "A", "verse"), ("hook", "B", "hook")]);
+        assert_eq!(form, [("verse", "A", "verse"), ("chorus", "B", "chorus")]);
         assert_eq!(bp.harmony.progressions["B"], ["i", "VI", "III", "VII"]);
 
-        // the kick on 1 and 3, and on the "and" of 3 too in the hook, 10 ms behind the beat
+        // the kick on 1 and 3, and on the "and" of 3 too in the chorus, 10 ms behind the beat
         let kick = bp.drums.iter().find(|d| d.role() == "kick").unwrap();
         let steps =
             |v: &str| kick.patterns[v].iter().map(|h| (h.t * 4.0).round() as usize % 16).collect::<BTreeSet<_>>();
-        assert_eq!((steps("verse"), steps("hook")), ([0, 8].into(), [0, 8, 10].into()));
+        assert_eq!((steps("verse"), steps("chorus")), ([0, 8].into(), [0, 8, 10].into()));
         assert!((kick.late_ms - 10.0).abs() < 1.0, "{}", kick.late_ms);
         assert_eq!(bp.drums.len(), 3, "{:?}", bp.drums.iter().map(|d| &d.name).collect::<Vec<_>>());
 

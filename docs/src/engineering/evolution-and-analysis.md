@@ -119,7 +119,8 @@ sixteenth, swing and a bass style. It uses no models: everything is signal proce
 | `beats.rs` | tempo from the onset envelope's autocorrelation, its grid's fit to the onsets and the kit's backbeat, beats by dynamic programming (Ellis 2007), then a constant-tempo grid, or the beats a band plays when they drift off it, and the downbeat |
 | `chroma.rs` | pitch-class energy, keys by Krumhansl-Kessler profiles, chords by template matching |
 | `melody.rs` | a [take](../guide/samples.md#takes)'s melody as notes, read by `voice/` ([below](#hearing-a-melody)) |
-| `song.rs` | the rest: sections, progressions, drum steps, swing, and `to_blueprint` |
+| `structure.rs` | the sections, as the song's own: where each starts, which play the same music, what each is, where a build resolves |
+| `song.rs` | the rest: each section's energy and what plays in it, the phrases sung, progressions, drum steps, swing, and `to_blueprint` |
 | `groove.rs` | the [groove](../language/song-functions.md#groove) of a recording's drums ([below](#hearing-a-groove)) |
 | `drums.rs` | a beat's hits, played or beatboxed, named kick, snare or hat and folded into lanes ([below](#hearing-drums)) |
 
@@ -174,16 +175,42 @@ tonic. Each bar's chord is matched against triad and seventh templates, with a p
 chords, using a bass chroma read in the second half of each of the first three beats, where the kick has decayed and a
 sidechained bass has swelled back.
 
-**Sections and energy.** The song is cut into 4-bar blocks described by their loudness, low and high band levels and
-chroma; a boundary goes where neighbouring blocks differ by more than the mean plus half a standard deviation, at least
-8 bars after the previous boundary and not in the last 4 bars. A section longer than 32 bars after that is cut where
-its blocks differ most, on an 8-bar phrase from its start, at least 8 bars from both its ends, until none is (the cut
-nearest its middle where they differ as much everywhere): a steady track or a loop would otherwise be one section, and
-a remake of it one song-long drop. Each section's energy is its loudness scaled between
-the quietest and loudest sections, from 0.3 to 1; sections within 1.5 dB of each other all take a groove's, 0.72,
-since no one hears that difference as a drop against a break. Kinds follow from energy and position: the first section is an
-intro and the last an outro unless they are loud, anything at 0.85 or more is a drop, a section of at least 0.45
-before a drop is a build, a section without kick or under 0.5 is a break, the rest grooves.
+**Sections** (`structure.rs`, [design record 0022](../design/0022-a-songs-own-sections.md)). Each bar is heard as
+its harmony (the pitch classes of each of its four beats), its timbre (twelve cepstral coefficients of its spectrum),
+how loud and how bright it is, its kit (its drums apart, else how strongly its hits strike over the bar), its bass,
+and how much of it a voice sings (the words `cuts` hears in the vocals, over the bars round each so that a breath
+between lines is no change). A section starts where how the bars sound stops being like it was (Foote's checkerboard
+novelty over the similarity of every pair of bars, at 4 bars and at 2), where the chords a passage plays change
+(whatever their order), where a run of bars that comes back 8 bars or more later starts or ends (a diagonal stripe in
+the harmony's similarity, which marks both verses' starts however unlike the bars within each are), and where the
+voice, the kit or the loudness comes in or goes. Each change is scaled to the song's clearest but never by more than
+a real change measures, so that a loop's noise is no boundary. Of every way to cut the song, dynamic programming keeps
+the one whose boundaries are most novel, less a cost for each, under a preference for sections of 8 and 16 bars that
+never forbids another length (17 bars stays 17 where the boundary is clear), the bars counted as a phrase's: a bar
+over 3.2 s (a slow song, or one heard at half its tempo) as two, one under 1.6 s as half. Sections that rise together,
+bar by bar, into a louder one are one build. With the stems apart, what the voice sings, beat by beat, counts as much
+as the chords in the stripes and in the letters of two sections both sung: a song on one loop of chords tells its
+verse from its chorus by the tune. Sections whose chords, tune and sound go on alike (the chords moved up to two semitones, as a last chorus may
+be) share a letter, by average linkage.
+
+**What each is.** In a song a voice sings a quarter of at least, the chorus is the music it sings again and again
+that is loudest and sung most, ends the singing and does not start it; the verse is the other music it sings again
+and that leads to the chorus; a pre-chorus comes between; a post-chorus is loud music no one sings right after a
+chorus; a bridge is sung once, after two choruses or after one and 8 bars long; the intro and the outro play before
+the voice and after it, and an instrumental or a break between. Without the stems the voice is not heard, and a song
+is taken as sung wherever it plays fully. A track no one sings in (the stems apart and the vocals all but silent) is
+named by loudness: drops are the loudest sections with the kit and the music they play, a build comes before a drop,
+the intro before the first and the outro after the last, a break is quiet or has no kit, a groove the rest. Each
+section's energy is its loudness scaled between the quietest and loudest sections, from 0.3 to 1, a groove's 0.72 for
+all of them when they are within 1.5 dB of each other. A section builds over its last bars where they rise, bar by
+bar, into a louder section, which resolves the build where it starts, and a piece of a section is cut at its first
+bar's line, or before it in the quiet before its first phrase where that is sung before the bar.
+
+On JamendoLyrics, 78 songs whose lyrics are timed line by line and written in stanzas (`examples/eval_structure.rs`),
+60% of the stanzas that start other music are heard within a bar of a section's start, against 14% for the 4-bar
+blocks this replaced, and on 60 recordings of SALAMI the boundaries within 3 seconds of the annotated ones score an
+F-measure of 0.49 against 0.36; naming the chorus is the weak part (53% of the choruses heard as such from the mix,
+51% with the stems apart, and 38% and 32% of the other stanzas taken for one). The record has the numbers in full.
 
 **Progressions.** In the loudest drop, the chords are tested for repeating every 2, 4 or 8 bars, and the cycle that
 agrees most becomes progression `A`; when the chords come in pairs, it becomes one chord per two bars. Progression `B`

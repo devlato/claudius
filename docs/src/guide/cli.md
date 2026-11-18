@@ -329,20 +329,30 @@ claudius analyze out/deep_house-glass-garden-7/song.wav --genre deep_house
 ```
 
 ```text
-118.0 BPM (pulse clarity 0.55), Bb major (confidence 0.43), swing 0.50, 52 bars from 0.00 s
-  progression A: iii7 Imaj7 vi7 vii  |  B: Imaj7 Imaj7  (1 bar(s) per chord)
-  bar   0 +16  intro   energy 0.83  kick bass hats
-  bar  16 +12  break   energy 0.30  kick hats
-  bar  28 +24  drop    energy 1.00  kick bass hats
-  kick  X.-xX.xxX.x.X.x-
-  snare X.xXXxxxXxXxX-Xx
-  hats  x-Xxx.X-xXXxx.XX
-  bass style: offbeat
+118.0 BPM (pulse clarity 0.48), D minor (confidence 0.81), swing 0.54, 64 bars from 1.52 s
+  progression A: i VImaj7 v i7  |  B: v7 i7  (1 bar(s) per chord)
+  bars 1-4  intro (A)  energy 0.73, kick hats
+  bars 5-12  drop (B)  energy 0.95, kick bass hats
+  bars 13-19  break (C)  energy 0.30, hats
+  bars 20-23  break (D)  energy 0.45, hats
+  bars 24-56  drop (E)  energy 1.00, kick bass hats
+  bars 57-64  drop (B)  energy 0.83, kick bass hats
+  kick  X..-X.-xX.--X..-
+  snare X.x.x.xxX.x-x.x.
+  hats  XxXXx.XXXxX-xxXX
+  bass style: syncopated
 ```
 
-This is claudius reading its own D minor song: the tempo is exact and progression `A` has the song's chords in their
-order (Dm7, B♭maj7, Gm7, Am), but named in B♭ major, and the break's progression `B` came out as one chord where the
-song has four. Analysis of full mixes is approximate; the
+This is claudius reading its own D minor song, whose sections are an intro of 4 bars, a groove of 8, a break of 8, a
+build of 4, two drops of 16 and an outro of 8, on `i7 iv7 v7 i7` (`iv9 v7 i7 VImaj7` in the break and the build). The
+tempo, the key and the swing are right. It hears each section where it starts, but three beats late, as it took the
+song's fourth beat for its first (its bars start at 1.52 s), and the two drops, the same music twice, as one of 33
+bars. It names the groove and the outro drops (each the music of one, and nearly as loud) and the quiet build a second
+break; the outro plays the groove's music, and both have its letter. Progression `A` has two of the song's chords
+where they are (`i` and `v`), and `B` the break's middle two. A section's line says what it is, the letter of the
+music it plays (sections with one letter play the same), its energy, how much of it is sung, how many of its last bars
+build into the next and what plays in it; a song with a voice adds the phrases sung, to the beat (`27.2-31.4`, bar
+27's second beat to bar 31's fourth). Analysis of full mixes is approximate; the
 [engineering page](../engineering/evolution-and-analysis.md#reading-a-song) says where it goes wrong. In the step
 grids, `X` is a hit in almost every bar, `x` a common one, `.` a rare one and `-` none.
 
