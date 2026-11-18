@@ -90,6 +90,8 @@ results become the next baseline.
   each of seven flaws a listener hears put into them (clipped, muddy, thin, noisy, gaps, a copy a semitone up, a copy
   falling out of time), and writes a line for `bench compare` for each. What a change to the critic is made to
   improve is how often a song is judged above its flawed copy; it must not judge more real songs bad, nor praise more
-  flawed ones. It holds no chart hits: what it says of the songs people hear most is still to be measured.
+  flawed ones. Each shard of the dataset is a random one percent of it: choose settings on shards 0 and 1, and report
+  the result on shard 2 (`--shards 2..2`), which the tuning never saw. It holds no chart hits: what it says of the
+  songs people hear most is still to be measured.
 - **The analysis of sections and of where a cut falls**: the examples `eval_structure` (JamendoLyrics and SALAMI) and
   `eval_cuts` (JamendoLyrics), which print their measures.
