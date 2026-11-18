@@ -1,6 +1,7 @@
 //! `cargo xtask <command>`: the chores of this repository, in Rust so that they run the same on every OS and in CI.
 //! `cargo xtask help` lists the commands.
 
+mod bench;
 mod credits;
 mod dist;
 mod perf;
@@ -42,6 +43,13 @@ usage: cargo xtask <command>
                           and fails a workload that takes more than PCT percent (10) more, unless the pull
                           request's description (CLAUDIUS_PERF_ACCEPT) has a line `perf: <workload> +N%`.
                           Without Valgrind (on a Mac) it prints each workload's wall time instead
+  bench compare BASE NEW [--report]
+                          compare an experiment's results on a benchmark (NEW) with the baseline's (BASE), item
+                          by item: each metric overall and in each slice, McNemar's exact test for right or wrong
+                          items and the Wilcoxon signed-rank test for scores, a 95% bootstrap interval, Holm's
+                          correction among slices. Prints Markdown for the pull request and fails unless every
+                          metric is better overall and no slice worse (--report only prints). The files are JSON
+                          lines; docs/src/contributing/benchmarks.md says what they hold
   release prepare <patch|minor|major|X.Y.Z>
                           bump the workspace version, Cargo.lock and CHANGELOG.md, then print the new version
   release notes <X.Y.Z>   print that version's section of CHANGELOG.md
@@ -107,6 +115,16 @@ fn main() -> Result<()> {
             args.finish()?;
             perf::run(&sh, base, threshold)
         }
+        Some("bench") => match args.next().as_deref() {
+            Some("compare") => {
+                let base = args.required("the baseline's results")?;
+                let new = args.required("the experiment's results")?;
+                let report = args.flag("--report");
+                args.finish()?;
+                bench::compare(Path::new(&base), Path::new(&new), report)
+            }
+            _ => bail!("usage: cargo xtask bench compare BASE NEW [--report]"),
+        },
         Some("release") => match args.next().as_deref() {
             Some("prepare") => {
                 let bump = args.required("patch, minor, major or a version")?;

@@ -43,6 +43,24 @@ Use at least 10,000 bootstrap resamples. Slices are many tests at once, so corre
 before saying a slice got worse. Before running, say how large a difference the benchmark can show: with too few
 items a real gain is "not shown", not "no change", and the answer is more items, not a looser test.
 
+## Comparing two runs
+
+`cargo xtask bench compare BASE NEW` does the comparison above for two runs of a benchmark: the baseline's results
+and the experiment's. Each file holds a line of JSON for each item:
+
+```json
+{"item": "a1f3c09e", "slice": {"set": "round10"}, "metrics": {"right": true, "wrong": false},
+ "better": {"wrong": "lower"}, "primary": ["right"]}
+```
+
+Each line is one item, here on two lines to fit. `item` is the same id in every run of the benchmark; `slice` the
+labels it is counted under; each metric is `true` or `false` (right or wrong) or a number (a score), better higher
+unless `better` says lower. `primary` names the metrics the change is made to improve; the others are guards it must
+not make worse (without it, every metric is primary). The command prints, for each metric, the whole set and every
+slice with the difference, its interval, the items better and worse and the test, then the ids of the items that got
+worse, as Markdown for the pull request. It fails unless each primary metric is better overall and no metric is worse
+overall or in a slice after Holm's correction; `--report` prints the same without failing.
+
 ## When a change ships
 
 A change ships when it improves its benchmark significantly and no slice gets significantly worse. Name the items
