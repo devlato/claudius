@@ -535,11 +535,16 @@ mod tests {
     /// the seconds between the keys' notes, as the engine lays them out and as the demo tells the phone
     const SLOT: f64 = claudius::pads::SLOT_SECS;
 
-    /// Steps the demo until `done` says it is there, its events kept: the engine works on a thread of its own.
+    /// Steps the demo until `done` says it is there, its events kept: the engine works on a thread of its own. The
+    /// demo's clock stands still while the engine has answers to give and runs ahead while it has none: the engine's
+    /// work takes no time in the demo, as on a computer fast enough for it, so that the demo's own timers (the minute
+    /// it waits for samples) never run out behind an engine a busy computer slows down.
     fn until(mock: &mut Mock, now: &mut f64, done: impl Fn(&Mock) -> bool) -> Vec<Event> {
         let (t0, mut events) = (Instant::now(), Vec::new());
         loop {
-            *now += 0.05;
+            if mock.waiting == 0 {
+                *now += 0.05;
+            }
             events.extend(mock.update(*now));
             if done(mock) {
                 return events;
