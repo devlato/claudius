@@ -212,7 +212,7 @@ Details that matter when you read an assistant's transcript:
 - Everything the studio does, an assistant can do: each of the studio's controls sends one command, and each
   command has a tool of its own or goes through `command` (a test keeps it so). `command` covers the edits the studio
   makes that have no tool: `set_tempo`, `set_key`, `set_swing`, `set_progression`, `add_section`, `remove_section`,
-  `move_section`, `toggle_layer`, `set_section` (including `prog`), `set_drum_step`, `set_drum_pattern`, `set_trig`,
+  `move_section`, `split_section`, `toggle_layer`, `set_section` (including `prog`), `set_drum_step`, `set_drum_pattern`, `set_trig`,
   `set_lane`, `set_part` (including `reseed`), `add_track` and `remove_track` (a drum lane or a part of any role, as
   the arrangement's **+ Track** adds), `set_notes` (a part's notes over a progression written out, as the studio's
   **Notes** tab does), `set_mix` (including `solo`), `set_fx`, `open_text`, `add_hits` (drums played on pads, folded

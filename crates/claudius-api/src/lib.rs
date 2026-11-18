@@ -36,6 +36,21 @@ pub mod words;
 pub const ACCENT: f32 = 0.85;
 pub const GHOST: f32 = 0.5;
 
+/// `n` bars, said: `1 bar`, `4 bars`
+pub fn bars_said(n: u32) -> String {
+    if n == 1 { "1 bar".into() } else { format!("{n} bars") }
+}
+
+/// The name of the part `SplitSection` splits off a section called `name`: `verse_b`, or the next letter free
+/// (`verse_c`); a part split again goes on from its letter (`verse_b` -> `verse_c`).
+pub fn split_name(name: &str, taken: impl Fn(&str) -> bool) -> String {
+    let base = match name.rsplit_once('_') {
+        Some((b, l)) if l.len() == 1 && l.chars().all(|c| c.is_ascii_lowercase()) && !b.is_empty() => b,
+        _ => name,
+    };
+    ('b'..='z').map(|c| format!("{base}_{c}")).find(|n| !taken(n)).unwrap_or_else(|| format!("{name}_2"))
+}
+
 /// the step-string character for a velocity (`.` for none)
 pub fn step_char(v: f32) -> char {
     if v <= 0.0 {
@@ -1926,6 +1941,13 @@ pub enum Command {
         from: usize,
         to: usize,
     },
+    /// section `index` in two, `at` bars into it (1 to its bars less one): the first keeps its name, how it starts and
+    /// where it plays each take; the second plays on from there, each take where the section had reached it, and keeps
+    /// how it ends (a build-up, a gap)
+    SplitSection {
+        index: usize,
+        at: u32,
+    },
     ToggleLayer {
         section: usize,
         layer: String,
@@ -2483,6 +2505,7 @@ impl Command {
                 | Command::AddSection { .. }
                 | Command::RemoveSection { .. }
                 | Command::MoveSection { .. }
+                | Command::SplitSection { .. }
                 | Command::ToggleLayer { .. }
                 | Command::SetDrumStep { .. }
                 | Command::SetFx { .. }

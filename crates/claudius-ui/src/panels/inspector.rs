@@ -67,6 +67,13 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 cx.out.push(Command::MoveSection { from: i, to: i - 1 });
                 cx.view.section = i - 1;
             }
+            let split = ui
+                .add_enabled(s.bars >= 2, egui::Button::new("Split").small())
+                .on_hover_text("this section in two halves, the second a section of its own that plays on as it played")
+                .on_disabled_hover_text("a section of one bar has nothing to split");
+            if split.clicked() {
+                cx.out.push(Command::SplitSection { index: i, at: s.bars / 2 });
+            }
         });
     });
     ui.add_space(2.0);

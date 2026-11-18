@@ -335,6 +335,7 @@ impl App {
             | Command::AddSection { .. }
             | Command::RemoveSection { .. }
             | Command::MoveSection { .. }
+            | Command::SplitSection { .. }
             | Command::ToggleLayer { .. }
             | Command::SetDrumStep { .. }
             | Command::SetFx { .. }

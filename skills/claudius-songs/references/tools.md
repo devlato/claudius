@@ -81,7 +81,7 @@ Each control in the studio sends one command, and an assistant can send every on
 | Sounds, a row's swap button | `swap_sound` | `swap_sound` |
 | Tempo, Key, Swing | `command` | `set_tempo`, `set_key`, `set_swing` |
 | a cell of the arrangement (a double-click, Enter, or the paint tool): a track on or off in a section; the track inspector's "plays here" | `command` | `toggle_layer` |
-| a section's settings; Duplicate, Insert after; Remove; dragging it | `command` | `set_section`; `add_section`; `remove_section`; `move_section` |
+| a section's settings; Duplicate, Split, Insert after; Remove; dragging it | `command` | `set_section`; `add_section`; `split_section`; `remove_section`; `move_section` |
 | + Track, In a style | `command`, `generate_track` | `add_track`, `generate_track` |
 | + Track, Recording: a file, a search of the free libraries, Record | `add_take`, `search_recordings`, `sample_pieces`; `request_take` | `add_take`, `sample_pieces`; `take` |
 | a row's Remove, Another take or Vary it, Add chords under it | `command`, `vary_track`, `harmonize` | `remove_track`, `vary_track`, `harmonize` |
@@ -108,6 +108,7 @@ Notes:
 - `get_song` is the way to read the open song: tempo, key, progressions, sections with their tracks, every track's
   sound and mix, the latest verdict, and the whole song as a script.
 - `command` takes JSON such as `{"cmd": "add_section", "after": 2, "kind": "break", "bars": 8}`, `move_section`,
+  `split_section` (`{"cmd": "split_section", "index": 1, "at": 8}`: the second part plays on as it played),
   `remove_section`, `toggle_layer`, `set_drum_step`, `set_trig`, `set_lane`, `set_section`, `set_part`,
   `add_track` (`{"cmd": "add_track", "name": "lead2", "kind": "part", "role": "lead", "sound": "saw_lead"}`, or
   `"kind": "drum"` and a drum sound for a lane), `remove_track`, `set_notes` (`{"cmd": "set_notes", "part": "lead",

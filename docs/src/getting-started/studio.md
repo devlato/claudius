@@ -100,7 +100,10 @@ the song it opens. It also opens a project the demo saved, a `.zip`: claudius un
   the track (its sound and another, whether it plays in the section, mute, solo, level, pan, and where it is
   edited). Double-click a cell, or press Enter, to switch the track on or off there; Delete switches it off. With
   **Paint** on (the button over the arrangement, or B), a click switches a cell and dragging along a row paints the
-  rest the same. Drag a section to move it; right-click it to duplicate, insert or remove one. **+ Track** adds a track: one
+  rest the same. Drag a section to move it; right-click it to duplicate it, split it at the bar you clicked, insert
+  one after it or remove it (the inspector's **Split** halves the section you have selected). A split section plays on
+  as it played: the second part takes each recording from where the section had reached it, and keeps the build-up.
+  **+ Track** adds a track: one
   [written the way a genre plays it](#writing-a-track-in-a-style) (**In a style**), a part (a bass, chords, a
   pad, keys, a lead or an arpeggio the theory engine writes over the song's chords, written the way the genre writes
   that role) or a drum lane to fill in under Drums, its name, and its sound, from the synths made for the role, the

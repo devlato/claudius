@@ -55,9 +55,9 @@ Every edit works on a copy and commits only on success:
   (`remove()`), `set_notes` (`notes()`, or `clear_notes()` without notes), `set_mix`, `set_lane` and `set_trig` are the
   script that says them (`edit::script`, every string through `pattern::quote`) and go through `run_script`, so the
   studio's controls and scripts validate the same way and fail with the same messages.
-- The other edits (`set_section`, `add_section`, `remove_section`, `move_section`, `toggle_layer`, `set_drum_step`,
-  `set_fx`) change the blueprint in place (`edit::change`), in `edit_with`, which also checks the song's size and
-  commits only when something changed.
+- The other edits (`set_section`, `add_section`, `remove_section`, `move_section`, `split_section`, `toggle_layer`,
+  `set_drum_step`, `set_fx`) change the blueprint in place (`edit::change`), in `edit_with`, which also checks the
+  song's size and commits only when something changed.
 
 `commit` records the edit in the history (`History::commit`: an operation in the log, the old blueprint and the label
 as an undo step, and no redo left), rebuilds the view, logs the message, and then `after_change` sets `song_version`

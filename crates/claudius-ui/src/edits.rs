@@ -235,6 +235,33 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             relayout(song);
             Ok(msg)
         }
+        Command::SplitSection { index, at } => {
+            // as the server: the second part plays on from where the first ends, and keeps how the section ended
+            let Some(s) = song.sections.get(*index) else {
+                return Some(Err(format!("no section {index}")));
+            };
+            if s.bars < 2 {
+                return Some(Err(format!("{} is a bar long: there is nothing to split", s.name)));
+            }
+            if *at == 0 || *at >= s.bars {
+                return Some(Err(format!("{} is {} bars long: split it 1 to {} bars in", s.name, s.bars, s.bars - 1)));
+            }
+            let mut second = s.clone();
+            second.name = claudius_api::split_name(&s.name, |n| song.sections.iter().any(|s| s.name == n));
+            second.bars = s.bars - at;
+            for place in second.takes.values_mut() {
+                *place += f64::from(at * 4);
+            }
+            (second.filter_in, second.impact) = (false, false);
+            let first = &mut song.sections[*index];
+            first.bars = *at;
+            (first.build, first.gap) = (false, false);
+            let (part, rest) = (claudius_api::bars_said(*at), claudius_api::bars_said(second.bars));
+            let msg = format!("split {} {part} in: {} ({part}) and {} ({rest})", first.name, first.name, second.name);
+            song.sections.insert(index + 1, second);
+            relayout(song);
+            Ok(msg)
+        }
         Command::ToggleLayer { section, layer } => {
             let order: Vec<String> = song.layers.clone();
             let Some(s) = song.sections.get_mut(*section) else {
@@ -582,4 +609,34 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
         }
         _ => return None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use claudius_api::{Command, SectionView, SongView};
+
+    #[test]
+    fn a_section_split_in_the_studio_is_two_that_play_on_as_it_played() {
+        let verse = SectionView {
+            name: "verse".into(),
+            kind: "verse".into(),
+            bars: 16,
+            build: true,
+            impact: true,
+            takes: [("vox".to_string(), 8.0)].into(),
+            ..Default::default()
+        };
+        let mut song = SongView { sections: vec![verse], ..Default::default() };
+        let split =
+            |song: &mut SongView, index: usize, at: u32| super::apply(song, &Command::SplitSection { index, at });
+        let said = split(&mut song, 0, 4).unwrap().unwrap();
+        assert_eq!(said, "split verse 4 bars in: verse (4 bars) and verse_b (12 bars)");
+        let (a, b) = (&song.sections[0], &song.sections[1]);
+        assert_eq!((a.bars, a.build, a.impact, a.takes["vox"]), (4, false, true, 8.0));
+        assert_eq!((b.name.as_str(), b.start_bar, b.bars, b.build, b.impact), ("verse_b", 4, 12, true, false));
+        assert_eq!(b.takes["vox"], 24.0, "the take from where the verse had reached it, four bars on");
+        assert!(split(&mut song, 0, 4).unwrap().is_err(), "a section of 4 bars split 4 bars in");
+        let again = split(&mut song, 1, 6).unwrap().unwrap();
+        assert!(again.ends_with("verse_b (6 bars) and verse_c (6 bars)"), "{again}");
+    }
 }
