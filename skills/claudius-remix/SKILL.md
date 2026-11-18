@@ -115,7 +115,8 @@ section, or one a beat earlier or later (a line that starts on beat 2), set it: 
 source}` with `source` in bars from the recording's start (16.25 is a beat into its 17th bar), for every track of it
 or, with `take`, for one. With the ears, when it sings, its voice is apart on a track of its own, `vocals`
 (the history says "its voice on a track of its own (vocals)"), and `original` is the rest of it: level, treat or mute
-the voice on its own, as a singer's track. A recording too short or without sections (under 8 bars) is remade on its skeleton,
+the voice on its own, as a singer's track. Its tracks are named by `take:<name>` wherever a recording's path goes (`take:vocals`,
+`take:original`): `sample_song` and `sample_pieces` sample the recording's own separated voice, `analyze` hears it alone. A recording too short or without sections (under 8 bars) is remade on its skeleton,
 and the reply says so.
 
 With `flip: true` (`--flip`), `remake` makes a new song of the genre on the recording's sound instead, as a song built
@@ -234,7 +235,7 @@ others playing what they played (a section added plays none of the takes until o
 - **A name**, if they want one ("vox", "guitar"). Otherwise it is take1, take2, ...
 
 A recording from a free library goes in the same way: `search_recordings` lists what the libraries offer (CC0,
-public domain or CC BY) as `library:<id>`, which `add_take`, `sample_song`, `analyze` and `remake` take as the
+public domain or CC BY) as `library:<id>`, which `add_take`, `sample_song`, `sample_pieces`, `analyze` and `remake` take as the
 `path`; claudius downloads it and the song credits it. Let the person hear it on its page before using it.
 
 A whole song or a long recording goes in the same way; `trim_take` then keeps part of it (`track`, `start` and `end`
