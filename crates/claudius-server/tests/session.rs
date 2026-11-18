@@ -2377,8 +2377,10 @@ async fn a_window_of_the_song_plays_a_fader_moved_since_its_render_and_none_is_h
     let body = axum::body::to_bytes(res.into_body(), 1 << 24).await.unwrap();
     let word = |i: usize| u64::from_le_bytes(body[i * 8..i * 8 + 8].try_into().unwrap());
     assert_eq!((word(0), word(1), word(2), body.len()), (moved, 96_000, 48_000, 24 + 24_000 * 8));
-    // a track's own sound changed: no window, until the next render plays it
-    assert!(app.command(Command::VaryTrack { track: loudest.clone(), take: false }).ok);
+    // a track's own sound changed (swapped for the next, which always changes it: a variation of its notes may come out
+    // the same): no window, until the next render plays it
+    let swap = app.command(Command::SwapSound { track: Some(loudest.clone()), to: None, only: None });
+    assert!(swap.ok && !swap.message.contains("nothing changed"), "{}", swap.message);
     let why = app.window(at, 1.0).unwrap_err();
     assert!(why.contains(&format!("{loudest} changed its sound")), "{why}");
     assert!(app.command(Command::Render { stems: false }).ok);
