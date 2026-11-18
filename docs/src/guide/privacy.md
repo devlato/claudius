@@ -8,7 +8,8 @@ your computer and let go. What a
 [pitch check](voice.md#checking-your-pitch) learns of your voice stays there too, in its settings folder. It goes on
 the network for five things only: the downloads you ask for (the sample packs, from GitHub and their authors' sites,
 the listening models, from Hugging Face, the command palette's three small models, from Hugging Face too, the first
-time you type in the palette, the first time it cannot make out a request and the first time you say something to it,
+time you type in the palette or in a search field of genres or sounds, the first time it cannot make out a request and
+the first time you say something to it,
 and the recordings `claudius samples` finds);
 the samples a
 [song built on samples](online-samples.md#songs-built-on-samples) gathers as it is made, from Openverse,
@@ -16,9 +17,9 @@ Wikimedia Commons and ccMixter (`--offline` keeps it from asking); the [update](
 GitHub; an assistant you connect from outside your computer if you set that up; and anonymous usage statistics, which
 are off until you turn them on.
 
-What you type in the [command palette](../getting-started/studio.md#finding-an-action) stays on your computer: the
-models that find what your words mean and read your requests run in claudius's engine there (or in the claudius you
-connected the studio to), and the demo's runs in your browser, on the copy the site serves.
+What you type in the [command palette](../getting-started/studio.md#finding-an-action) or a search field stays on your
+computer: the models that find what your words mean and read your requests run in claudius's engine there (or in the
+claudius you connected the studio to), and the demo's runs in your browser, on the copy the site serves.
 
 ## The website
 

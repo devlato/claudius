@@ -154,17 +154,8 @@ pub fn find_among(query: &str, items: &[Item], model: Option<&Model>, limit: usi
             let words: Vec<&str> = text.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).collect();
             let matched = told.iter().filter(|t| words.iter().any(|w| alike(t, w))).count();
             let name = if matched == 0 { 0.0 } else { 0.5 + 0.4 * matched as f32 / told.len() as f32 };
-            // the nearest of its name, each thing it did, and all of it: a long description dilutes each thing in it
             let meaning = match (&meant, model) {
-                (Some(v), Some(m)) => {
-                    let all = format!("{}: {}", it.name, it.words);
-                    let parts = [it.name, all.as_str()].into_iter().chain(it.words.split("; "));
-                    let cos = parts
-                        .filter_map(|p| m.embed(p))
-                        .map(|w| v.iter().zip(&w).map(|(a, b)| a * b).sum::<f32>())
-                        .fold(0.0f32, f32::max);
-                    MEANT * ((cos - MEANING.0) / (MEANING.1 - MEANING.0)).clamp(0.0, 1.0)
-                }
+                (Some(v), Some(m)) => MEANT * near(v, it, m),
                 _ => 0.0,
             };
             let (strong, by) = if meaning > name { (meaning, By::Meaning) } else { (name, By::Name) };
@@ -182,6 +173,29 @@ pub fn find_among(query: &str, items: &[Item], model: Option<&Model>, limit: usi
         by,
     };
     scored.into_iter().take(limit).map(found).collect()
+}
+
+/// How near `it` is in meaning to the words whose vector is `v`, 0 to 1 (as `MEANING` counts a cosine): the nearest of
+/// its name, all of it, and each of its words split at "; ", as a long description dilutes each thing in it.
+fn near(v: &[f32], it: &Item, m: &Model) -> f32 {
+    let all = format!("{}: {}", it.name, it.words);
+    let parts = [it.name, all.as_str()].into_iter().chain(it.words.split("; "));
+    let cos = parts
+        .filter_map(|p| m.embed(p))
+        .map(|w| v.iter().zip(&w).map(|(a, b)| a * b).sum::<f32>())
+        .fold(0.0f32, f32::max);
+    ((cos - MEANING.0) / (MEANING.1 - MEANING.0)).clamp(0.0, 1.0)
+}
+
+/// How near each of `items` is in meaning to `query`, 0 (not near) to 1 (as near as a paraphrase), as the actions are
+/// found by meaning: what the studio's search fields add to what their words find. None without the model, or for
+/// words it reads nothing of.
+pub fn nearness(query: &str, items: &[Item], model: Option<&Model>) -> Option<Vec<f32>> {
+    let m = model?;
+    let q = query.trim().to_lowercase();
+    let told = telling(&q).join(" ");
+    let v = m.embed(if told.is_empty() { &q } else { &told })?;
+    Some(items.iter().map(|it| near(&v, it, m)).collect())
 }
 
 /// the cosine from which an action's meaning is near enough the words' to show it, and from which it counts in full:

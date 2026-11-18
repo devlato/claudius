@@ -133,6 +133,8 @@ pub enum Event {
     Library(Result<Vec<claudius_api::LibraryHit>, String>),
     /// the studio's actions the palette's words found
     Found(claudius_intent::Answer),
+    /// what a search field's words find among the genres or the sounds, by meaning too
+    Searched(claudius_api::Searched),
     /// what was said to the palette, heard (`Backend::hear`), or why it was not
     Heard(Result<claudius_api::Heard, String>),
 }
@@ -460,6 +462,21 @@ impl Remote {
         });
     }
 
+    /// what a search field's words find among the genres or the sounds, by meaning too (an old claudius without
+    /// `/api/search` answers nothing, and the field finds them by its words alone)
+    fn search(&self, among: &str, q: &str) {
+        let (tx, ctx) = (self.tx.clone(), self.ctx.clone());
+        let url = self.url(&format!("/api/search?among={among}&q={}&limit=40", query_value(q)));
+        ehttp::fetch(ehttp::Request::get(url), move |res| {
+            if let Ok(r) = res
+                && r.ok
+                && let Ok(found) = serde_json::from_slice::<claudius_api::Searched>(&r.bytes)
+            {
+                Self::deliver(&tx, &ctx, Event::Searched(found));
+            }
+        });
+    }
+
     /// what was said to the palette, the WAV file of it, for the server to hear (an old claudius without `/api/hear`
     /// cannot)
     fn hear(&self, wav: Vec<u8>) {
@@ -722,6 +739,15 @@ impl Backend {
         match self {
             Backend::Remote(r) => r.find(q, limit),
             Backend::Mock(m) => m.find(q, limit),
+        }
+    }
+
+    /// Asks what a search field's words find among the genres or the sounds (`among`), by meaning too (the answer
+    /// arrives as `Event::Searched`).
+    pub fn search(&mut self, among: &str, q: &str) {
+        match self {
+            Backend::Remote(r) => r.search(among, q),
+            Backend::Mock(m) => m.search(among, q),
         }
     }
 

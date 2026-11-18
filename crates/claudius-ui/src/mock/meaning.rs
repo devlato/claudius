@@ -45,6 +45,20 @@ impl Finding {
         found
     }
 
+    /// What a search field's words find among the genres or the sounds (`among`; the sounds of `sounds`): by their
+    /// words, and by meaning once the model is there (it is asked for the first time).
+    pub fn search(
+        &self,
+        query: &str,
+        among: &str,
+        state: &State,
+        sounds: Option<&claudius_api::SoundList>,
+        ctx: Option<&egui::Context>,
+    ) -> Result<claudius_api::Searched, String> {
+        let held = held(ctx);
+        claudius_intent::search::search(query, among, 40, &state.genres, sounds, held.model.as_deref())
+    }
+
     /// the words asked about last again, once the model has come since they were found by name
     pub fn again(&mut self, state: &State, now: f64, ctx: Option<&egui::Context>) -> Option<Answer> {
         let (query, limit, at, false) = self.last.clone()? else { return None };

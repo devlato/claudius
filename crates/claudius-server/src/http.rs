@@ -56,6 +56,7 @@ pub fn router(app: Arc<App>, o: &Options) -> Router {
     let api = Router::new()
         .route("/api/hello", get(hello))
         .route("/api/find", get(find))
+        .route("/api/search", get(search))
         .route("/api/metrics", get(metrics))
         .route("/api/state", get(state))
         .route("/api/command", post(command).layer(DefaultBodyLimit::max(1 << 20)))
@@ -374,6 +375,28 @@ async fn find(State(c): State<Ctx>, Query(q): Query<FindQuery>) -> Json<claudius
     claudius_session::meaning::fetch_in_background();
     let state = c.app.state();
     Json(claudius_session::host::Host::find(&q.q, q.limit.unwrap_or(12).min(40), &state))
+}
+
+#[derive(Deserialize)]
+struct SearchQuery {
+    #[serde(default)]
+    q: String,
+    #[serde(default)]
+    among: String,
+    #[serde(default)]
+    limit: Option<usize>,
+}
+
+/// what a search field's words find among the genres or the sounds (`among`), best first: by their words, and by
+/// meaning once the embedding model is there (`claudius_session::host::Host::search`), which a search downloads the
+/// first time, as the palette does
+async fn search(State(c): State<Ctx>, Query(q): Query<SearchQuery>) -> Response {
+    claudius_session::meaning::fetch_in_background();
+    let state = c.app.state();
+    match claudius_session::host::Host::search(&q.q, &q.among, q.limit.unwrap_or(40).min(400), &state) {
+        Ok(found) => Json(found).into_response(),
+        Err(e) => (StatusCode::BAD_REQUEST, e).into_response(),
+    }
 }
 
 #[derive(Deserialize)]

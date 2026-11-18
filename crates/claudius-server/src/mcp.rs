@@ -1353,16 +1353,19 @@ impl Studio {
     }
 
     #[tool(
-        description = "Find the genres that answer what the person asks for: a genre's name or another name for it, an era, a scene, an artist or a sound (\"90s\", \"west coast\", \"cloud rap\", \"r&b\", \"dusty\"). Returns them best first, each with its family, its other names, its tempo range and its sound; new_song and remake take the name.",
+        description = "Find the genres that answer what the person asks for: a genre's name or another name for it, an era, a scene, an artist or a sound (\"90s\", \"west coast\", \"cloud rap\", \"r&b\", \"dusty\"). Returns them best first, each with its family, its other names, its tempo range and its sound (those its words find first, then, when claudius's embedding model is on this computer, those near what the words mean); new_song and remake take the name.",
         annotations(read_only_hint = true)
     )]
     async fn find_genre(&self, Parameters(a): Parameters<FindGenreArgs>) -> Result<String, String> {
         let st = self.b.state().await?;
-        let found = claudius_api::search_genres(&st.genres, &a.query);
-        if found.is_empty() {
+        // by their words, then by what the words mean when the embedding model is there, as the studio's search finds
+        let found = claudius_session::host::Host::search(&a.query, "genres", 12, &st)?;
+        let lines: Vec<String> =
+            found.names.iter().filter_map(|n| st.genres.iter().find(|g| g.name == *n)).map(genre_line).collect();
+        if lines.is_empty() {
             return Ok(format!("no genre answers \"{}\": catalog lists them all", a.query.trim()));
         }
-        Ok(found.iter().take(12).map(|g| genre_line(g)).collect::<Vec<_>>().join("\n"))
+        Ok(lines.join("\n"))
     }
 
     #[tool(

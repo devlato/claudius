@@ -92,7 +92,11 @@ are answered again once it has: the demo answers them again itself, and the pale
 apart, for up to a minute after they were typed. The answer also holds the changes made to the song that the words
 find (`Answer::done`, `claudius_intent::find_among` over the state's `history`, the edits `go_back` can reach). They
 are found by name and by meaning like the actions, once the words that only ask to go back are taken out, and the
-palette lists them after the actions as Go back to before rows, which send `go_back`. The answer holds what the words
+palette lists them after the actions as Go back to before rows, which send `go_back`. The search fields of genres
+(New song's cards, Change the genre, a track written in a style) and of sounds (a track's sound, the script's sounds)
+find by their words themselves at once, and ask the engine what it finds by meaning too (`View::search`, `GET
+/api/search`, `claudius_intent::search`), whose answer adds the names near what the words mean under **near what you
+mean**. The answer holds what the words
 ask of the song, too (`Answer::proposed`, `claudius_intent::ask::propose` on the state the engine has, built for both by
 `claudius_intent::answer`, which first reads a word typed with a slip as the word meant, `claudius_intent::typos`,
 never an English word, by SCOWL's list of them, and says so in `Answer::read_as`): each reading a proposal with what it says it does ("Increase guitar's drive from 20% to

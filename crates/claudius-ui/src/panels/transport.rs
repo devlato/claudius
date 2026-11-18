@@ -627,7 +627,8 @@ pub fn change_genre_dialog(ctx: &egui::Context, cx: &mut Cx) {
         ui.add_space(6.0);
         let f = &mut cx.view.change_genre;
         let genres = &cx.state.genres;
-        if let Some(g) = genre_cards(ui, "change_genre", genres, &f.genre, &mut f.search, &mut f.focus) {
+        let by = &mut cx.view.search;
+        if let Some(g) = genre_cards(ui, "change_genre", genres, &f.genre, &mut f.search, &mut f.focus, by) {
             f.lead(g);
         }
         ui.add_space(6.0);
@@ -963,8 +964,8 @@ fn from_example(ui: &mut Ui, cx: &mut Cx) {
 
 /// the New song dialog from a genre: the cards to choose it from, what else to ask of the song, and Create song
 /// The genres as cards to choose from, the one called `genre` lit: all of them by family (a genre of one's own, with
-/// none, last), or what `search`, the field over them, finds, best first. The genre a card was clicked for, when one
-/// was.
+/// none, last), or what `search`, the field over them, finds, best first, then those the engine finds near what it
+/// means (`by`). The genre a card was clicked for, when one was.
 fn genre_cards(
     ui: &mut Ui,
     id: &str,
@@ -972,6 +973,7 @@ fn genre_cards(
     genre: &str,
     search: &mut String,
     focus: &mut bool,
+    by: &mut super::Search,
 ) -> Option<String> {
     let desc = |g: &GenreInfo| g.description.split_once(": ").map_or(g.description.clone(), |(_, d)| d.to_string());
     // every card as tall as the longest description
@@ -997,7 +999,14 @@ fn genre_cards(
         families.dedup();
         families.into_iter().map(|f| (f, genres.iter().filter(|g| g.family == f).collect())).collect()
     } else {
-        vec![("", claudius_api::search_genres(genres, &query))]
+        let found = claudius_api::search_genres(genres, &query);
+        let names: Vec<&str> = found.iter().map(|g| g.name.as_str()).collect();
+        let near: Vec<&GenreInfo> = by
+            .more(id, "genres", &query, &names, ui.input(|i| i.time))
+            .iter()
+            .filter_map(|n| genres.iter().find(|g| g.name == *n))
+            .collect();
+        vec![("", found), (super::NEAR_MEANING, near)]
     };
     let mut chosen = None;
     egui::ScrollArea::vertical().id_salt((id, "genre_cards")).max_height(330.0).show(ui, |ui| {
@@ -1005,7 +1014,7 @@ fn genre_cards(
             ui.label(small(format!("No genre answers “{query}”.")));
         }
         for (family, of) in &groups {
-            if query.is_empty() {
+            if query.is_empty() || (*family == super::NEAR_MEANING && !of.is_empty()) {
                 ui.add_space(4.0);
                 ui.label(RichText::new(if family.is_empty() { "your own" } else { family }).strong());
             }
@@ -1072,7 +1081,8 @@ fn from_genre(ui: &mut Ui, cx: &mut Cx) {
             ui.label("Genre");
             ui.text_edit_singleline(&mut f.genre);
         });
-    } else if let Some(g) = genre_cards(ui, "new_song", genres, &f.genre, &mut f.genre_search, &mut false)
+    } else if let Some(g) =
+        genre_cards(ui, "new_song", genres, &f.genre, &mut f.genre_search, &mut false, &mut cx.view.search)
         && f.genre != g
     {
         f.genre = g;

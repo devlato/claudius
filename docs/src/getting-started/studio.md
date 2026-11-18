@@ -33,7 +33,10 @@ installed.
 **New song** starts a song **From a genre**, **From a recording** or **From an example**: one of the
 [example songs](../cookbook/examples.md), each in the style of a decade's hits or a classic remade, whose script says
 how its style is made (hover a card for its notes, then **Open it**). From a genre, it asks for the genre, from cards
-you can search ("rap", "90s", "west coast"), and under **More options**, which says what of it is set, a seed, tempo
+you can search ("rap", "90s", "west coast"), and in your own words too ("something to study to", "jamaican vibes"):
+past what the words find, the genres near what they mean come under **near what you mean**, once the small model
+that reads meaning is on your computer, as for the [command palette](#asking-in-your-own-words). Under **More
+options**, which says what of it is set, it asks for a seed, tempo
 and key and the rest below. The same genre and seed always give the same
 song, so a seed is a way to come back to one you liked. **Fused with** fuses a second genre into it: the first leads
 the song, and the second plays the drums and lends its sounds ([Fusions](../cookbook/fusions.md)). **Samples**,
@@ -101,7 +104,9 @@ the song it opens. It also opens a project the demo saved, a `.zip`: claudius un
   [written the way a genre plays it](#writing-a-track-in-a-style) (**In a style**), a part (a bass, chords, a
   pad, keys, a lead or an arpeggio the theory engine writes over the song's chords, written the way the genre writes
   that role) or a drum lane to fill in under Drums, its name, and its sound, from the synths made for the role, the
-  installed instruments, or the drum voices and kits; a new track plays in the sections with energy 0.6 or more,
+  installed instruments, or the drum voices and kits (searched by name and by what you mean: "warm and round" finds
+  sounds no word of which says so, under **near what you mean**, as the styles and the script's sounds do too); a new
+  track plays in the sections with energy 0.6 or more,
   ready for you to move. Its **Recording** tab adds a song or a sound instead: **Choose a file on this computer...**,
   a search of the [free libraries](../guide/online-samples.md#choosing-one-in-the-studio) to hear and choose from, or
   **Record one...**, each in the window it goes in by (Add a recording, or Record), to add it whole as a take or

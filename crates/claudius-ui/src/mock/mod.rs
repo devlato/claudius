@@ -204,6 +204,13 @@ impl Mock {
         self.events.push(Event::Found(answer));
     }
 
+    /// what a search field's words find among the genres or the sounds, at once, as `Event::Searched` (`meaning`)
+    pub fn search(&mut self, among: &str, q: &str) {
+        if let Ok(found) = self.finding.search(q, among, &self.state, self.sounds.as_ref(), self.ctx.as_ref()) {
+            self.events.push(Event::Searched(found));
+        }
+    }
+
     /// What was said to the palette, the WAV file of it, heard as `Event::Heard`: in the app by the session's speech
     /// model, on a thread of its own as it takes a moment (and downloads the first time); a page has none.
     pub fn hear(&mut self, wav: Vec<u8>) {
