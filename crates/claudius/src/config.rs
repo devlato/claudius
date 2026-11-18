@@ -102,7 +102,6 @@ pub fn cache_dir(name: &str) -> PathBuf {
 pub mod cache {
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicU32, Ordering};
-    use std::time::SystemTime;
 
     /// the caps: decoded sounds, and sounds stretched to a tempo
     pub const DECODED: u64 = 2 << 30;
@@ -112,12 +111,21 @@ pub mod cache {
     pub fn get(name: &str, key: &str) -> Option<Vec<u8>> {
         let path = super::cache_dir(name).join(key);
         let bytes = std::fs::read(&path).ok()?;
-        // marked used, for the trimming to keep it over those used less lately
-        if let Ok(f) = std::fs::File::options().write(true).open(&path) {
-            let _ = f.set_modified(SystemTime::now());
-        }
+        used(&path);
         Some(bytes)
     }
+
+    /// the file at `path` marked used now, for the trimming to keep it over those used less lately
+    #[cfg(not(target_arch = "wasm32"))]
+    fn used(path: &Path) {
+        if let Ok(f) = std::fs::File::options().write(true).open(path) {
+            let _ = f.set_modified(crate::clock::SystemTime::now());
+        }
+    }
+
+    /// a browser keeps no files, and has no clock std can read
+    #[cfg(target_arch = "wasm32")]
+    fn used(_: &Path) {}
 
     /// keeps `bytes` in the cache `name` under `key`, written whole (a part file renamed), and now and then trims the
     /// cache to `cap`
@@ -139,12 +147,13 @@ pub mod cache {
     /// than `cap`; part files of other processes are left alone. Returns how many bytes were freed.
     pub fn trim(dir: &Path, cap: u64) -> u64 {
         let Ok(entries) = std::fs::read_dir(dir) else { return 0 };
-        let mut files: Vec<(SystemTime, u64, PathBuf)> = entries
+        // when each was used last, as its file says: a file that cannot say counts as used longest ago
+        let mut files: Vec<(_, u64, PathBuf)> = entries
             .flatten()
             .filter(|e| e.path().extension().is_some_and(|x| x != "tmp"))
             .filter_map(|e| {
                 let md = e.metadata().ok().filter(|m| m.is_file())?;
-                Some((md.modified().unwrap_or(SystemTime::UNIX_EPOCH), md.len(), e.path()))
+                Some((md.modified().ok(), md.len(), e.path()))
             })
             .collect();
         let mut held: u64 = files.iter().map(|(_, len, _)| len).sum();
