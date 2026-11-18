@@ -20,11 +20,12 @@
 //! - **detuned**: the song a semitone higher laid over it;
 //! - **dragging**: the song 1.5% slower laid over it, falling out of time with it.
 //!
-//! It writes a line for `cargo xtask bench compare` for each song as it is, with its **total** and whether it is
-//! **condemned** (under 40, the studio's red), and for each flawed copy whether the song was **ranked** above it, by
-//! how much (**gap**), and whether the flawed copy was **praised** (80 or more, the studio's green, which a song with
-//! such a flaw should never get). `ranked` is what a change to the critic is made to improve; the others are guards.
-//! Each line is sliced by the flaw, the song's family of genres (by its genre tags) and whether it is tagged as sung.
+//! It writes a line for `cargo xtask bench compare` (after one that says which way each metric is better) for each song
+//! as it is, with its **total** and whether it is **condemned** (under 40, the studio's red), and for each flawed copy
+//! whether the song was **ranked** above it, by how much (**gap**), and whether the flawed copy was **praised** (80 or
+//! more, the studio's green, which a song with such a flaw should never get). `ranked` is what a change to the critic
+//! is made to improve; the others are guards. Each line is sliced by the flaw, the song's family of genres (by its
+//! genre tags) and whether it is tagged as sung.
 //! A run stopped part way goes on where it stopped when started again with the same `--out`.
 //!
 //! The ears judge as the studio does when ONNX Runtime and their models are installed; `--no-ears` judges with the
@@ -517,9 +518,7 @@ fn judge(song: &Song, ears: Option<&Ears>, flaws: &[Flaw]) -> Result<Vec<Value>,
     lines.push(json!({
         "item": song.id,
         "slice": {"family": song.family, "voice": sung},
-        "metrics": {"total": t, "condemned": t < CONDEMNED},
-        "better": {"condemned": "lower"},
-        "primary": ["ranked"],
+        "metrics": {"total": hundredths(t), "condemned": t < CONDEMNED},
     }));
     let seed = song.id.trim_start_matches("track_").parse::<u64>().unwrap_or(1);
     for f in flaws {
@@ -527,12 +526,20 @@ fn judge(song: &Song, ears: Option<&Ears>, flaws: &[Flaw]) -> Result<Vec<Value>,
         lines.push(json!({
             "item": format!("{}/{}", song.id, f.name()),
             "slice": {"flaw": f.name(), "family": song.family, "voice": sung},
-            "metrics": {"ranked": t > ft, "gap": t - ft, "praised": ft >= PRAISED},
-            "better": {"praised": "lower"},
-            "primary": ["ranked"],
+            "metrics": {"ranked": t > ft, "gap": hundredths(t - ft), "praised": ft >= PRAISED},
         }));
     }
     Ok(lines)
+}
+
+/// a score to the hundredth, as the lines keep it
+fn hundredths(x: f64) -> f64 {
+    (x * 100.0).round() / 100.0
+}
+
+/// the line that heads the results: which way each metric is better, and what a change is made to improve
+fn head() -> Value {
+    json!({"better": {"condemned": "lower", "praised": "lower"}, "primary": ["ranked"]})
 }
 
 /// what the run found, flaw by flaw and for the songs as they are
@@ -628,6 +635,9 @@ fn main() {
         eprintln!("{}: {e}", out.display());
         std::process::exit(1)
     });
+    if kept.is_empty() {
+        let _ = writeln!(file, "{}", head());
+    }
     let next = AtomicUsize::new(0);
     let (tx, rx) = mpsc::channel::<Result<Vec<Value>, String>>();
     let started = std::time::Instant::now();
