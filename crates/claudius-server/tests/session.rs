@@ -82,6 +82,8 @@ async fn a_session_edits_renders_and_undoes() {
         gap: None,
         impact: None,
         fills: None,
+        source: None,
+        take: None,
     });
     assert!(!bad.ok && bad.message.contains("no progression 'Z'"), "{}", bad.message);
 

@@ -614,24 +614,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             }
             widgets::menu_group(ui, "Arrange");
             if widgets::menu_item(ui, "Duplicate", "").on_hover_text("a copy of it right after it").clicked() {
-                out.push(Command::AddSection { after: i, kind: s.kind.clone(), bars: s.bars });
-                out.push(Command::SetSection {
-                    index: i + 1,
-                    name: None,
-                    bars: None,
-                    energy: Some(s.energy),
-                    layers: Some(s.layers.clone()),
-                    prog: Some(s.prog.clone()),
-                    variant: Some(s.variant.clone()),
-                    filter_in: Some(s.filter_in),
-                    build: Some(s.build),
-                    // a style named turns a build-up on: the copy's is named only when it has one
-                    build_style: s.build.then(|| s.build_style.clone()),
-                    build_amount: Some(s.build_amount),
-                    gap: Some(s.gap),
-                    impact: Some(s.impact),
-                    fills: Some(s.fills),
-                });
+                out.extend(crate::cmds::duplicate(s, i));
                 ui.close();
             }
             ui.menu_button("Insert after", |ui| {

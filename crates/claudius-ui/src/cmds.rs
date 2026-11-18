@@ -17,6 +17,39 @@ pub struct SectionEdit {
     pub impact: Option<bool>,
     pub fills: Option<bool>,
     pub prog: Option<String>,
+    pub source: Option<f64>,
+    pub take: Option<String>,
+}
+
+/// What the studio's Duplicate sends for section `i`, `s`: a section of its kind and length right after it, then all it
+/// is set to (its progression and its build-up too) and the stretch of each take it plays, so that a chorus played twice
+/// plays its own recording twice
+pub fn duplicate(s: &claudius_api::SectionView, i: usize) -> Vec<Command> {
+    let mut out = vec![
+        Command::AddSection { after: i, kind: s.kind.clone(), bars: s.bars },
+        SectionEdit {
+            energy: Some(s.energy),
+            layers: Some(s.layers.clone()),
+            prog: Some(s.prog.clone()),
+            variant: Some(s.variant.clone()),
+            filter_in: Some(s.filter_in),
+            build: Some(s.build),
+            // a style named turns a build-up on: the copy's is named only when it has one
+            build_style: s.build.then(|| s.build_style.clone()),
+            build_amount: Some(s.build_amount),
+            gap: Some(s.gap),
+            impact: Some(s.impact),
+            fills: Some(s.fills),
+            ..Default::default()
+        }
+        .at(i + 1),
+    ];
+    out.extend(
+        s.takes.iter().map(|(take, at)| {
+            SectionEdit { source: Some(*at), take: Some(take.clone()), ..Default::default() }.at(i + 1)
+        }),
+    );
+    out
 }
 
 impl SectionEdit {
@@ -35,6 +68,8 @@ impl SectionEdit {
             impact,
             fills,
             prog,
+            source,
+            take,
         } = self;
         Command::SetSection {
             index,
@@ -51,6 +86,8 @@ impl SectionEdit {
             gap,
             impact,
             fills,
+            source,
+            take,
         }
     }
 }
@@ -89,5 +126,37 @@ impl PartEdit {
     pub fn on(self, name: &str) -> Command {
         let PartEdit { style, preset, register, density, reseed, late_ms } = self;
         Command::SetPart { name: name.to_string(), style, preset, register, density, reseed, late_ms }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use claudius_api::{SectionView, SongView, TrackView};
+
+    #[test]
+    fn a_duplicate_is_the_section_again_under_its_own_name_playing_the_same_stretch_of_each_take() {
+        let s = SectionView {
+            name: "chorus".into(),
+            kind: "hook".into(),
+            bars: 8,
+            energy: 0.8,
+            layers: vec!["kick".into(), "vox".into()],
+            prog: "B".into(),
+            variant: "fill".into(),
+            build: true,
+            build_style: "roll".into(),
+            build_amount: 0.7,
+            fills: true,
+            takes: [("vox".to_string(), 32.0)].into(),
+            ..Default::default()
+        };
+        let vox = TrackView { name: "vox".into(), kind: "take".into(), ..Default::default() };
+        let mut song = SongView { sections: vec![s.clone()], tracks: vec![vox], ..Default::default() };
+        for c in super::duplicate(&s, 0) {
+            crate::edits::apply(&mut song, &c).unwrap().unwrap();
+        }
+        let copy = song.sections[1].clone();
+        assert_eq!(copy.name, "hook");
+        assert_eq!(SectionView { name: s.name.clone(), start_bar: 0, ..copy }, s);
     }
 }

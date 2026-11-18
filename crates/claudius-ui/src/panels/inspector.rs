@@ -56,21 +56,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             });
             if widgets::icon_button(ui, Icon::Copy, 24.0, false, true, "duplicate this section after itself").clicked()
             {
-                cx.out.push(Command::AddSection { after: i, kind: s.kind.clone(), bars: s.bars });
-                cx.out.push(
-                    SectionEdit {
-                        energy: Some(s.energy),
-                        layers: Some(s.layers.clone()),
-                        variant: Some(s.variant.clone()),
-                        filter_in: Some(s.filter_in),
-                        build: Some(s.build),
-                        gap: Some(s.gap),
-                        impact: Some(s.impact),
-                        fills: Some(s.fills),
-                        ..Default::default()
-                    }
-                    .at(i + 1),
-                );
+                cx.out.extend(crate::cmds::duplicate(s, i));
                 cx.view.section = i + 1;
             }
             if widgets::icon_button(ui, Icon::Right, 24.0, false, i + 1 < n, "move right").clicked() {

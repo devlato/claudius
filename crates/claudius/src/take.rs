@@ -221,6 +221,61 @@ pub fn pin(bp: &mut Blueprint, take: &str) {
     }
 }
 
+/// Section `index` plays take `take`, or every take of the song, from `bars` bars into it (0 its first bar, 16.25 a beat
+/// into its 17th), as its own place in it (`SectionSpec::takes`), turned on in it where it was off. What it plays, in
+/// words, or why not.
+pub fn place(bp: &mut Blueprint, index: usize, bars: f64, take: Option<&str>) -> Result<String, String> {
+    let all: Vec<&str> = bp.loops.iter().filter(|l| l.from.is_some()).map(|l| l.name.as_str()).collect();
+    if all.is_empty() {
+        return Err("the song has no takes: record or add one first".into());
+    }
+    let takes: Vec<(String, f64)> = bp
+        .loops
+        .iter()
+        .filter(|l| l.from.is_some() && take.is_none_or(|t| l.name == t))
+        .filter_map(|l| match l.sound {
+            Sound::Loop { beats, .. } => Some((l.name.clone(), beats)),
+            _ => None,
+        })
+        .collect();
+    if takes.is_empty() {
+        return Err(format!("no take called '{}' (takes: {})", take.unwrap_or_default(), all.join(" ")));
+    }
+    let n = bp.form.len();
+    if index >= n {
+        return Err(format!("no section {index} (there are {n})"));
+    }
+    let at = bars * 4.0;
+    if let Some((name, beats)) = takes.iter().find(|(_, beats)| !(0.0..*beats).contains(&at)) {
+        return Err(format!(
+            "{name} is {:.2} bars long: a section starts in it at 0 bars or more, before {:.2}",
+            beats / 4.0,
+            beats / 4.0
+        ));
+    }
+    let s = &mut bp.form[index];
+    for (name, _) in &takes {
+        s.takes.insert(name.clone(), at);
+        if !s.layers.contains(name) {
+            s.layers.push(name.clone());
+        }
+    }
+    let names: Vec<&str> = takes.iter().map(|(name, _)| name.as_str()).collect();
+    Ok(format!("{} plays {} from {}", s.name, names.join(" and "), bar_and_beat(bars)))
+}
+
+/// a place `bars` bars into a recording as a musician counts it: 16 is "bar 17", 16.25 "bar 17, beat 2"
+fn bar_and_beat(bars: f64) -> String {
+    let (bar, beat) = (bars.floor() as u64 + 1, (bars - bars.floor()) * 4.0 + 1.0);
+    if (beat - beat.round()).abs() > 1e-6 {
+        format!("bar {bar}, beat {beat:.2}")
+    } else if beat.round() as u64 == 1 {
+        format!("bar {bar}")
+    } else {
+        format!("bar {bar}, beat {}", beat.round() as u64)
+    }
+}
+
 /// A section new to the song plays none of its takes, so that the sections after it play what they played: they are
 /// left out of its layers, and it keeps no place in them. The takes left out.
 pub fn leave_out(bp: &Blueprint, s: &mut SectionSpec) -> Vec<String> {
@@ -1138,7 +1193,7 @@ mod tests {
     }
 
     /// where section `name` starts in take1, as the song plays it
-    fn place(bp: &Blueprint, name: &str) -> f64 {
+    fn starts_at(bp: &Blueprint, name: &str) -> f64 {
         let p = compose::arrange(bp);
         let i = bp.form.iter().position(|s| s.name == name).unwrap();
         let t = p.sections[i].start_bar as f64 * 4.0;
@@ -1150,13 +1205,33 @@ mod tests {
     #[test]
     fn each_section_keeps_its_stretch_of_a_take_wherever_it_goes_and_whatever_changes_before_it() {
         let mut bp = song_with_a_take();
-        assert_eq!(["intro", "verse", "chorus", "outro"].map(|n| place(&bp, n)), [0.0, 32.0, 64.0, 96.0]);
+        assert_eq!(["intro", "verse", "chorus", "outro"].map(|n| starts_at(&bp, n)), [0.0, 32.0, 64.0, 96.0]);
         // the verse twice as long, the outro moved to the front, the chorus taken out
         bp.form[1].bars = 16;
         let outro = bp.form.pop().unwrap();
         bp.form.insert(0, outro);
         bp.form.retain(|s| s.name != "chorus");
-        assert_eq!(["outro", "intro", "verse"].map(|n| place(&bp, n)), [96.0, 0.0, 32.0]);
+        assert_eq!(["outro", "intro", "verse"].map(|n| starts_at(&bp, n)), [96.0, 0.0, 32.0]);
+    }
+
+    #[test]
+    fn a_section_set_to_a_place_in_the_takes_plays_them_from_there_to_the_beat() {
+        let mut bp = song_with_a_take();
+        assert_eq!(place(&mut bp, 2, 4.25, None).unwrap(), "chorus plays take1 from bar 5, beat 2");
+        assert_eq!(starts_at(&bp, "chorus"), 17.0);
+        assert_eq!((starts_at(&bp, "verse"), starts_at(&bp, "outro")), (32.0, 96.0), "the others as they were");
+        // on where it was off, one take named
+        bp.form[0].layers.retain(|l| l != "take1");
+        assert_eq!(place(&mut bp, 0, 30.0, Some("take1")).unwrap(), "intro plays take1 from bar 31");
+        assert_eq!(starts_at(&bp, "intro"), 120.0);
+        // a place outside the take, a take the song does not have, a section it does not have
+        let past = place(&mut bp, 0, 32.0, None).unwrap_err();
+        assert!(past.contains("take1 is 32.00 bars long"), "{past}");
+        assert!(place(&mut bp, 0, -1.0, None).is_err());
+        assert!(place(&mut bp, 0, 1.0, Some("vox")).unwrap_err().contains("no take called 'vox' (takes: take1)"));
+        assert!(place(&mut bp, 9, 1.0, None).unwrap_err().contains("no section 9"));
+        bp.loops.clear();
+        assert!(place(&mut bp, 0, 1.0, None).unwrap_err().contains("the song has no takes"));
     }
 
     #[test]

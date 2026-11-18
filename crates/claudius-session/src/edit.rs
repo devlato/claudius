@@ -500,7 +500,12 @@ pub fn change(cmd: &Command, bp: &mut Blueprint, seed: u64) -> Option<Result<Str
             gap,
             impact,
             fills,
+            source,
+            take,
         } => {
+            if take.is_some() && source.is_none() {
+                return Some(Err("take says which take `source` is for: give the source too".into()));
+            }
             if let Some(p) = prog
                 && !bp.harmony.progressions.contains_key(p)
             {
@@ -552,7 +557,12 @@ pub fn change(cmd: &Command, bp: &mut Blueprint, seed: u64) -> Option<Result<Str
             if let Some(x) = build_amount {
                 s.build_amount = x.clamp(0.0, 1.0);
             }
-            Ok(format!("section {index} ({})", s.name))
+            let said = format!("section {index} ({})", s.name);
+            // its place in the takes last, so that layers set with it do not turn the takes off again
+            match source {
+                Some(at) => claudius::take::place(bp, *index, *at, take.as_deref()).map(|p| format!("{said}: {p}")),
+                None => Ok(said),
+            }
         }
         Command::AddSection { after, kind, bars } => add_section(bp, *after, kind, *bars),
         Command::RemoveSection { index } => {
@@ -849,6 +859,14 @@ mod tests {
             assert!(!bp.form[1].layers.iter().any(|l| l == "vox"), "{:?}", bp.form[1].layers);
             assert_eq!(clips(bp), [(0.0, first, 0.0), (first + 16.0, beats - first, first)], "to the take's end");
         }
+        // the break set to play the take from its third bar, the rest as they were
+        let set = cmd(&json!({"cmd": "set_section", "index": 1, "source": 2.0}));
+        let said = change(&set, &mut bp, 1).unwrap().unwrap();
+        assert!(said.ends_with("plays vox from bar 3"), "{said}");
+        let c = clips(&bp);
+        assert!(c.contains(&(first, 16.0, 8.0)) && c.contains(&(first + 16.0, beats - first, first)), "{c:?}");
+        let alone = cmd(&json!({"cmd": "set_section", "index": 1, "take": "vox"}));
+        assert!(change(&alone, &mut bp, 1).unwrap().unwrap_err().contains("give the source too"));
     }
 
     #[test]
