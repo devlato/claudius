@@ -334,8 +334,8 @@ fn insert(ed: &mut super::ScriptEditor, what: &str) {
 
 /// the sound browser: drums, synth presets, sampled instruments by pack, and the short names
 /// The sounds of `list` to insert into the script, by kind, those the editor's search finds by their words, then
-/// those the engine finds near what they mean (`search`, asked again when the words `changed`).
-fn sounds(ui: &mut Ui, ed: &mut super::ScriptEditor, list: &SoundList, search: &mut super::Search, changed: bool) {
+/// those the engine finds near what they mean (`search`, asked again when the words change).
+fn sounds(ui: &mut Ui, ed: &mut super::ScriptEditor, list: &SoundList, search: &mut super::Search) {
     let f = ed.filter.to_lowercase();
     let filtering = !f.is_empty();
     let chips = |ui: &mut Ui, ed: &mut super::ScriptEditor, names: &[(String, String)], tip: &str| {
@@ -406,7 +406,7 @@ fn sounds(ui: &mut Ui, ed: &mut super::ScriptEditor, list: &SoundList, search: &
         .map(|(_, insert_as)| insert_as.as_str())
         .collect();
     let near: Vec<(String, String)> = search
-        .more("sounds", &ed.filter, changed, &shown, ui.input(|i| i.time))
+        .more("script sounds", "sounds", &ed.filter, &shown, ui.input(|i| i.time))
         .into_iter()
         .map(|n| (n.clone(), n))
         .collect();
@@ -516,17 +516,15 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             .frame(egui::Frame::new().inner_margin(egui::Margin { left: 8, right: 0, top: 0, bottom: 0 }))
             .show(ui, |ui| {
                 widgets::heading(ui, "Sounds");
-                let changed = ui
-                    .add(
-                        egui::TextEdit::singleline(&mut ed.filter)
-                            .hint_text("search drums, synths, instruments")
-                            .desired_width(f32::INFINITY),
-                    )
-                    .changed();
+                ui.add(
+                    egui::TextEdit::singleline(&mut ed.filter)
+                        .hint_text("search drums, synths, instruments")
+                        .desired_width(f32::INFINITY),
+                );
                 egui::ScrollArea::vertical().id_salt("sound_list").auto_shrink([false, false]).show(
                     ui,
                     |ui| match list {
-                        Some(list) => sounds(ui, ed, list, search, changed),
+                        Some(list) => sounds(ui, ed, list, search),
                         None => {
                             ui.label(small("the sounds appear here once claudius has listed them"));
                         }

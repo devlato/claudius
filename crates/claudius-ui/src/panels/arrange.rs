@@ -101,8 +101,7 @@ fn add_track_menu(
         ui.label(small("name"));
         ui.add(egui::TextEdit::singleline(&mut f.name).hint_text(suggested.as_str()).desired_width(150.0));
     });
-    let field =
-        ui.add(egui::TextEdit::singleline(&mut f.filter).hint_text("search sounds").desired_width(f32::INFINITY));
+    ui.add(egui::TextEdit::singleline(&mut f.filter).hint_text("search sounds").desired_width(f32::INFINITY));
     let query = f.filter.to_lowercase();
     let hit = |n: &String| super::finds_sound(&query, n, sounds);
     let (empty_list, empty_kit) = (Vec::new(), Vec::new());
@@ -135,7 +134,7 @@ fn add_track_menu(
         if drum { voice } else { !voice && (synths.contains(n) || instruments.contains(n)) && !n.contains(':') }
     };
     let near: Vec<String> = search
-        .more("sounds", &f.filter, field.changed(), &shown, ui.input(|i| i.time))
+        .more("track sounds", "sounds", &f.filter, &shown, ui.input(|i| i.time))
         .into_iter()
         .filter(plays)
         .collect();
@@ -245,7 +244,7 @@ fn generate_menu(
     });
     let genre = if f.genre.is_empty() { song.genre.clone() } else { f.genre.clone() };
     // the styles in the menu itself: a list opened over it would close it
-    let field = ui.add(
+    ui.add(
         egui::TextEdit::singleline(&mut f.filter)
             .hint_text("search styles: a genre, a scene, an era")
             .desired_width(f32::INFINITY),
@@ -260,7 +259,7 @@ fn generate_menu(
     let found: Vec<&claudius_api::GenreInfo> = genres.iter().filter(hit).collect();
     let names: Vec<&str> = found.iter().map(|g| g.name.as_str()).collect();
     let near: Vec<&claudius_api::GenreInfo> = search
-        .more("genres", &f.filter, field.changed(), &names, ui.input(|i| i.time))
+        .more("track style", "genres", &f.filter, &names, ui.input(|i| i.time))
         .iter()
         .filter_map(|n| genres.iter().find(|g| g.name == *n))
         .collect();

@@ -1420,7 +1420,7 @@ impl eframe::App for Studio {
         if let Some(q) = self.view.import.search.take() {
             self.backend.search_library(&q);
         }
-        if let Some((among, q)) = self.view.search.ask.take() {
+        for (among, q) in std::mem::take(&mut self.view.search.asks) {
             self.backend.search(&among, &q);
         }
         // a search field waiting for the engine's model asks its words again in a while, whether or not anything moves
