@@ -312,12 +312,9 @@ impl Studio {
         }
     }
 
-    /// The live mix (`live`): a window of the song as it is now, asked for while it plays and is newer than its render.
-    /// The web player plays a whole file, which a window cannot be played over yet.
+    /// The live mix (`live`): a window of the song as it is now, asked for while it plays and is newer than its render,
+    /// on the desktop and in a page (whose player plays on Web Audio); the demo's engine makes none.
     fn ask_windows(&mut self) {
-        if cfg!(target_arch = "wasm32") {
-            return;
-        }
         let Some(render) = self.state.render.as_ref().filter(|r| r.url != claudius_api::PREVIEW_URL) else { return };
         let playing = self.player.is_playing() && !self.player.is_loading();
         if let Some((from, secs)) =

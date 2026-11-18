@@ -40,9 +40,14 @@ The live mix comes first by windows of the song, and the runtime of 0019 replace
   beneath it, so that the mix changing never clicks; windows of one version that follow on are one stretch, with no
   fade between them. The next render replaces them all.
 
-The page's player plays a whole file through an audio element, over which nothing can be played. The web studio and
-the demo get the same windows when their player moves to Web Audio, the next step, and the demo's preview then becomes
-windows made in its worker as the server makes them.
+- **The page's player** (the web studio connected to a claudius) plays on Web Audio: the render decoded once into a
+  buffer, played from it on the audio clock. A window goes into the buffer over what the render holds there, faded in
+  and out over 5 ms as on the desktop, and a source started again at the moment it would be fades in over the one
+  playing, which may have read the buffer when it started; both play the same up to the window, which comes after it.
+  It once played a whole file through an audio element, over which nothing could be played.
+
+The demo's engine makes no windows yet: its preview (the last render with the twelve seconds from the playhead
+rendered again and crossfaded in) becomes windows made in its worker as the server makes them, the next step.
 
 ## Consequences
 
