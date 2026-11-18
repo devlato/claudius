@@ -110,7 +110,7 @@
       "mix": {"bus": "drums", "pan": 0.2}
     }
   ],
-  "kits": [["tr707", 0.4], ["tr808", 0.2]],
+  "kits": [["tr707", 0.4], ["tr808", 0.2], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.25,
   "palette": {
     "bass": {"core": 1.0, "synth": 1},

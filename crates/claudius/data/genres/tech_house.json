@@ -33,7 +33,7 @@
     {"name": "shaker", "voice": "shaker", "template": {"steps": [0.6, 0.45, 0.75, 0.45, 0.6, 0.45, 0.75, 0.45, 0.6, 0.45, 0.75, 0.45, 0.6, 0.45, 0.75, 0.45], "vel": [0.18, 0.4]}, "alts": [[{"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.18, 0.4]}, 0.2], [{"steps": [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1], "vel": [0.18, 0.4]}, 0.15]], "samples": ["Shaker"], "mix": {"bus": "drums", "pan": -0.3}},
     {"name": "perc", "voice": "rim", "template": {"steps": [0, 0, 0, 0.5, 0, 0, 0, 0, 0, 0.4, 0, 0, 0, 0, 0.6, 0], "vel": [0.45, 0.7], "vary": 0.35}, "mix": {"bus": "drums", "pan": 0.35, "delay": 0.1}}
   ],
-  "kits": [["tr909", 0.4], ["tr808", 0.15], ["tr707", 0.1]],
+  "kits": [["tr909", 0.4], ["tr808", 0.15], ["tr707", 0.1], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.3,
   "palette": {
     "bass": {"core": 0.7, "synth": 3, "bass": 0.5},
@@ -41,9 +41,9 @@
     "pad": {"core": 0.5, "synth": 2, "pad": 1, "strings": 0.3}
   },
   "parts": [
-    {"name": "bass", "role": "bass", "presets": ["saw_bass", "rubber_bass", "moog_bass", "sub_bass"], "styles": ["tech", "rolling", "tech", "rolling", "offbeat", "house_organ", "disco"], "register": [28, 45], "mix": {"bus": "bass", "duck": 0.5}},
-    {"name": "stabs", "role": "chords", "presets": ["stab", "organ", "pluck"], "styles": ["house_piano", "stabs", "offbeat", "house_piano", "stabs", "offbeat", "pump", "sustain", "syncopated"], "register": [52, 72], "voices": 3, "voicing": "close", "optional": 0.35, "mix": {"reverb": 0.2, "delay": 0.2, "duck": 0.4}},
-    {"name": "pad", "role": "pad", "presets": ["warm_pad", "pad"], "styles": ["sustain", "sustain", "legato"], "register": [48, 72], "voices": 3, "voicing": "open", "optional": 0.5, "mix": {"reverb": 0.4, "duck": 0.5, "fx": [{"fx": "filter", "mode": "lp", "cutoff": 2400, "res": 0.1}]}}
+    {"name": "bass", "role": "bass", "presets": ["saw_bass", "rubber_bass", "moog_bass", "sub_bass", "saw_bass", "rubber_bass", "moog_bass", "sub_bass", "pluck_bass", "organ_bass"], "styles": ["tech", "rolling", "tech", "rolling", "offbeat", "house_organ", "disco"], "register": [28, 45], "mix": {"bus": "bass", "duck": 0.5}},
+    {"name": "stabs", "role": "chords", "presets": ["stab", "organ", "pluck", "stab", "organ", "pluck", "supersaw", "keys"], "styles": ["house_piano", "stabs", "offbeat", "house_piano", "stabs", "offbeat", "pump", "sustain", "syncopated"], "register": [52, 72], "voices": 3, "voicing": "close", "optional": 0.35, "mix": {"reverb": 0.2, "delay": 0.2, "duck": 0.4}},
+    {"name": "pad", "role": "pad", "presets": ["warm_pad", "pad", "warm_pad", "pad", "string_ensemble|strings", "air_pad"], "styles": ["sustain", "sustain", "legato"], "register": [48, 72], "voices": 3, "voicing": "open", "optional": 0.5, "mix": {"reverb": 0.4, "duck": 0.5, "fx": [{"fx": "filter", "mode": "lp", "cutoff": 2400, "res": 0.1}]}}
   ],
   "sampling": {
     "by_default": false,

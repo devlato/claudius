@@ -155,7 +155,17 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["bell", "flute|fm_lead", "pizzicato|pluck", "violins|strings"],
+      "presets": [
+        "bell",
+        "flute|fm_lead",
+        "pizzicato|pluck",
+        "violins|strings",
+        "bell",
+        "flute|fm_lead",
+        "pizzicato|pluck",
+        "violins|strings",
+        "piano|keys"
+      ],
       "styles": ["drill_melody", "drill_melody", "piano_riff"],
       "register": [64, 88],
       "density": [0.25, 0.45],

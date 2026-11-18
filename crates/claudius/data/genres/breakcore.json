@@ -119,7 +119,7 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["reese", "sub_bass", "dist_bass"],
+      "presets": ["reese", "sub_bass", "dist_bass", "reese", "sub_bass", "dist_bass", "saw_bass", "deep_bass"],
       "styles": ["jungle_dub", "reese", "rolling"],
       "register": [24, 40],
       "mix": {"bus": "bass", "duck": 0.4, "fx": [{"fx": "saturate", "kind": "tube", "drive_db": 6, "mix": 0.5}]}
@@ -127,7 +127,18 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["pad", "air_pad", "glass_pad", "string_ensemble|strings"],
+      "presets": [
+        "pad",
+        "air_pad",
+        "glass_pad",
+        "string_ensemble|strings",
+        "pad",
+        "air_pad",
+        "glass_pad",
+        "string_ensemble|strings",
+        "choir|pad",
+        "warm_pad"
+      ],
       "styles": ["sustain"],
       "register": [48, 76],
       "voices": 4,
@@ -137,7 +148,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["bell", "piano|keys", "fm_kalimba"],
+      "presets": ["bell", "piano|keys", "fm_kalimba", "bell", "piano|keys", "fm_kalimba", "pluck", "rhodes|epiano"],
       "styles": [
         "ambient_line",
         "piano_riff",
@@ -155,7 +166,7 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["keys", "pwm_pad", "rhodes|epiano"],
+      "presets": ["keys", "pwm_pad", "rhodes|epiano", "keys", "pwm_pad", "rhodes|epiano", "organ", "stab"],
       "styles": ["sustain", "stabs", "sustain", "stabs", "offbeat"],
       "register": [52, 74],
       "voices": 3,

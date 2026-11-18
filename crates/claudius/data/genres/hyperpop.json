@@ -89,7 +89,7 @@
       "mix": {"bus": "drums", "pan": 0.3, "delay": 0.2}
     }
   ],
-  "kits": [["tr808", 0.4]],
+  "kits": [["tr808", 0.4], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.1,
   "palette": {
     "bass": {"core": 1.0, "synth": 1},
@@ -102,7 +102,7 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["808"],
+      "presets": ["808", "808", "sub_bass", "saw_bass"],
       "styles": ["kick_follow", "glide", "kick_follow", "glide", "sustain"],
       "register": [24, 40],
       "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 12, "mix": 1.0}, {"fx": "filter", "mode": "lp", "cutoff": 6000, "res": 0.1}]}
@@ -110,7 +110,7 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["supersaw", "pwm_pad", "stab"],
+      "presets": ["supersaw", "pwm_pad", "stab", "supersaw", "pwm_pad", "stab", "pluck", "piano|keys"],
       "styles": ["pump", "stabs", "sustain", "pump", "stabs", "sustain", "syncopated", "offbeat"],
       "register": [55, 79],
       "voices": 4,
@@ -120,7 +120,18 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["bell", "chip", "square_lead", "fm_kalimba"],
+      "presets": [
+        "bell",
+        "chip",
+        "square_lead",
+        "fm_kalimba",
+        "bell",
+        "chip",
+        "square_lead",
+        "fm_kalimba",
+        "pluck",
+        "vox_lead"
+      ],
       "styles": ["riff", "disco_hook", "trap_bells", "riff", "disco_hook", "trap_bells", "garage_chop"],
       "register": [69, 88],
       "density": [0.4, 0.65],
@@ -143,7 +154,7 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["pad", "glass_pad"],
+      "presets": ["pad", "glass_pad", "pad", "glass_pad", "warm_pad", "choir|pad"],
       "styles": ["sustain"],
       "register": [48, 74],
       "voices": 3,

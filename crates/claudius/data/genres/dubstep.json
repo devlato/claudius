@@ -105,7 +105,7 @@
       "mix": {"bus": "drums", "pan": -0.3, "reverb": 0.2}
     }
   ],
-  "kits": [["tr808", 0.35]],
+  "kits": [["tr808", 0.35], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.3,
   "palette": {
     "bass": {"core": 1.0, "synth": 1},
@@ -116,7 +116,7 @@
     {
       "name": "sub",
       "role": "bass",
-      "presets": ["sub_bass"],
+      "presets": ["sub_bass", "sub_bass", "wobble", "dist_bass"],
       "styles": ["sustain", "sustain", "syncopated", "halftime"],
       "register": [24, 38],
       "mix": {"bus": "bass", "duck": 0.3, "level_db": -3.0}
@@ -124,7 +124,7 @@
     {
       "name": "wobble",
       "role": "bass",
-      "presets": ["wobble", "wobble", "dist_bass"],
+      "presets": ["wobble", "dist_bass", "wobble", "dist_bass", "sub_bass", "pluck_bass"],
       "styles": ["halftime", "syncopated", "halftime", "syncopated", "sustain"],
       "register": [38, 55],
       "mix": {"bus": "bass", "duck": 0.3, "level_db": 1.5}
@@ -132,7 +132,7 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["pad", "choir|pad"],
+      "presets": ["pad", "choir|pad", "pad", "choir|pad", "glass_pad", "warm_pad"],
       "styles": ["sustain"],
       "register": [48, 74],
       "voices": 4,
@@ -142,7 +142,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["square_lead", "saw_lead"],
+      "presets": ["square_lead", "saw_lead", "square_lead", "saw_lead", "pwm_lead", "pizzicato|pluck"],
       "styles": ["riff"],
       "register": [62, 86],
       "optional": 0.5,

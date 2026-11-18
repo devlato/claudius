@@ -101,7 +101,7 @@
       "mix": {"bus": "drums", "pan": 0.4, "delay": 0.15}
     }
   ],
-  "kits": [["tr909", 0.5]],
+  "kits": [["tr909", 0.5], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.3,
   "palette": {
     "chords": {"core": 0.5, "synth": 2, "electric piano": 2, "organ": 1.5, "guitar": 1.5, "brass": 1, "strings": 1, "piano": 1},
@@ -112,7 +112,18 @@
     {
       "name": "loop",
       "role": "chords",
-      "presets": ["stab", "organ", "rhodes|epiano", "freepats:clean_guitar|pluck"],
+      "presets": [
+        "stab",
+        "organ",
+        "rhodes|epiano",
+        "freepats:clean_guitar|pluck",
+        "stab",
+        "organ",
+        "rhodes|epiano",
+        "freepats:clean_guitar|pluck",
+        "pluck",
+        "supersaw"
+      ],
       "styles": ["house_piano", "stabs", "pump", "house_piano", "stabs", "pump", "offbeat", "sustain", "syncopated"],
       "register": [52, 74],
       "voices": 4,
@@ -136,7 +147,16 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["organ_bass", "saw_bass", "pluck_bass"],
+      "presets": [
+        "organ_bass",
+        "saw_bass",
+        "pluck_bass",
+        "organ_bass",
+        "saw_bass",
+        "pluck_bass",
+        "sub_bass",
+        "rubber_bass"
+      ],
       "styles": ["disco", "house_organ", "disco", "house_organ", "offbeat", "rolling", "syncopated"],
       "register": [33, 50],
       "mix": {
@@ -148,7 +168,16 @@
     {
       "name": "keys",
       "role": "keys",
-      "presets": ["rhodes|epiano", "organ", "epiano"],
+      "presets": [
+        "rhodes|epiano",
+        "organ",
+        "epiano",
+        "rhodes|epiano",
+        "organ",
+        "epiano",
+        "wurlitzer|epiano",
+        "piano|keys"
+      ],
       "styles": ["gospel", "half", "offbeat", "gospel", "half", "offbeat", "stabs", "house_piano"],
       "register": [55, 76],
       "voices": 3,

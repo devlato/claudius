@@ -95,7 +95,7 @@
       "mix": {"bus": "drums", "pan": -0.3}
     }
   ],
-  "kits": [["tr909", 0.5]],
+  "kits": [["tr909", 0.5], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.25,
   "palette": {
     "bass": {"core": 0.8, "synth": 3},
@@ -109,7 +109,16 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["saw_bass", "sub_bass", "pluck_bass"],
+      "presets": [
+        "saw_bass",
+        "sub_bass",
+        "pluck_bass",
+        "saw_bass",
+        "sub_bass",
+        "pluck_bass",
+        "organ_bass",
+        "rubber_bass"
+      ],
       "styles": [
         "offbeat",
         "rolling",
@@ -127,7 +136,7 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["supersaw", "stab", "pwm_pad"],
+      "presets": ["supersaw", "stab", "pwm_pad", "supersaw", "stab", "pwm_pad", "pluck", "organ"],
       "styles": ["pump", "stabs", "sustain", "pump", "stabs", "sustain", "offbeat", "house_piano", "syncopated"],
       "register": [55, 79],
       "voices": 4,
@@ -137,7 +146,7 @@
     {
       "name": "piano",
       "role": "keys",
-      "presets": ["piano|keys", "house_piano", "keys"],
+      "presets": ["piano|keys", "house_piano", "keys", "piano|keys", "house_piano", "keys", "rhodes|epiano", "epiano"],
       "styles": ["house_piano", "stabs", "half", "house_piano", "stabs", "half", "gospel", "offbeat"],
       "register": [52, 78],
       "voices": 4,
@@ -147,7 +156,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["supersaw", "pluck", "saw_lead"],
+      "presets": ["supersaw", "pluck", "saw_lead", "supersaw", "pluck", "saw_lead", "square_lead", "vox_lead"],
       "styles": [
         "synth_lead",
         "trance_lead",
@@ -166,7 +175,16 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["warm_pad", "pad", "string_ensemble|strings"],
+      "presets": [
+        "warm_pad",
+        "pad",
+        "string_ensemble|strings",
+        "warm_pad",
+        "pad",
+        "string_ensemble|strings",
+        "air_pad",
+        "swell_pad"
+      ],
       "styles": ["sustain", "sustain", "legato"],
       "register": [48, 76],
       "voices": 4,
@@ -177,7 +195,7 @@
     {
       "name": "arp",
       "role": "arp",
-      "presets": ["pluck", "harp_pluck", "fm_lead"],
+      "presets": ["pluck", "harp_pluck", "fm_lead", "pluck", "harp_pluck", "fm_lead", "piano|keys"],
       "styles": ["up", "updown", "pinky"],
       "rates": [0.25],
       "register": [60, 86],

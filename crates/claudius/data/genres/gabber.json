@@ -76,7 +76,7 @@
       "mix": {"bus": "drums", "pan": -0.1}
     }
   ],
-  "kits": [],
+  "kits": [["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.0,
   "palette": {
     "bass": {"core": 0.95, "synth": 1},
@@ -88,7 +88,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["saw_lead", "supersaw", "square_lead"],
+      "presets": ["saw_lead", "supersaw", "square_lead", "saw_lead", "supersaw", "square_lead", "pwm_lead"],
       "styles": ["riff", "techno_stab", "riff", "techno_stab", "synth_lead"],
       "register": [55, 74],
       "density": [0.35, 0.55],
@@ -97,7 +97,7 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["stab", "supersaw"],
+      "presets": ["stab", "supersaw", "stab", "supersaw", "brass_stab", "rock_organ"],
       "styles": ["stabs", "offbeat", "stabs", "offbeat", "pump", "sustain"],
       "register": [52, 72],
       "voices": 3,
@@ -107,7 +107,16 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["string_ensemble|strings", "choir|vowel_pad", "pad"],
+      "presets": [
+        "string_ensemble|strings",
+        "choir|vowel_pad",
+        "pad",
+        "string_ensemble|strings",
+        "choir|vowel_pad",
+        "pad",
+        "warm_pad",
+        "swell_pad"
+      ],
       "styles": ["sustain"],
       "register": [48, 74],
       "voices": 4,
@@ -118,7 +127,7 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["dist_bass", "saw_bass"],
+      "presets": ["dist_bass", "saw_bass", "dist_bass", "saw_bass", "sub_bass"],
       "styles": ["offbeat", "offbeat", "rolling", "pulse"],
       "register": [36, 50],
       "optional": 0.6,

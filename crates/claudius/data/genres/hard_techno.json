@@ -92,7 +92,7 @@
       "mix": {"bus": "drums", "pan": -0.35, "delay": 0.2, "reverb": 0.15}
     }
   ],
-  "kits": [],
+  "kits": [["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.0,
   "palette": {
     "bass": {"core": 0.85, "synth": 3},
@@ -104,7 +104,7 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["sub_bass", "reese", "dist_bass"],
+      "presets": ["sub_bass", "reese", "dist_bass", "sub_bass", "reese", "dist_bass", "saw_bass"],
       "styles": ["rolling", "offbeat", "rolling", "offbeat", "pulse"],
       "register": [28, 43],
       "mix": {"bus": "bass", "duck": 0.85, "fx": [{"fx": "saturate", "kind": "tube", "drive_db": 6, "mix": 0.5}]}
@@ -112,7 +112,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["acid", "saw_lead", "square_lead"],
+      "presets": ["acid", "saw_lead", "square_lead", "acid", "saw_lead", "square_lead", "supersaw", "pwm_lead"],
       "styles": ["techno_stab", "riff", "techno_stab", "riff", "synth_lead"],
       "register": [57, 74],
       "density": [0.25, 0.45],
@@ -121,7 +121,7 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["stab", "brass_stab", "rock_organ"],
+      "presets": ["stab", "brass_stab", "rock_organ", "stab", "brass_stab", "rock_organ", "supersaw", "pwm_pad"],
       "styles": ["stabs", "offbeat", "stabs", "offbeat", "pump", "sustain"],
       "register": [50, 70],
       "voices": 3,
@@ -131,7 +131,7 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["warm_pad", "pad"],
+      "presets": ["warm_pad", "pad", "warm_pad", "pad", "string_ensemble|strings", "choir|vowel_pad"],
       "styles": ["sustain"],
       "register": [45, 70],
       "voices": 3,

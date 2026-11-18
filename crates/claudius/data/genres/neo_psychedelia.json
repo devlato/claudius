@@ -105,7 +105,15 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["growlybass:bass|saw_bass", "freepats:pick_bass|pluck_bass", "saw_bass"],
+      "presets": [
+        "growlybass:bass|saw_bass",
+        "freepats:pick_bass|pluck_bass",
+        "saw_bass",
+        "growlybass:bass|saw_bass",
+        "freepats:pick_bass|pluck_bass",
+        "saw_bass",
+        "freepats:finger_bass|saw_bass"
+      ],
       "styles": ["rock", "sustain", "rock"],
       "register": [31, 50],
       "mix": {
@@ -118,7 +126,16 @@
     {
       "name": "guitar",
       "role": "chords",
-      "presets": ["freepats:clean_guitar|pluck", "freepats:jazz_guitar|pluck", "pluck"],
+      "presets": [
+        "freepats:clean_guitar|pluck",
+        "freepats:jazz_guitar|pluck",
+        "pluck",
+        "freepats:clean_guitar|pluck",
+        "freepats:jazz_guitar|pluck",
+        "pluck",
+        "supersaw",
+        "saw_bass"
+      ],
       "styles": ["strum", "arpeggio", "half", "strum", "arpeggio", "half", "pump", "sustain"],
       "register": [52, 76],
       "voices": 3,
@@ -137,7 +154,16 @@
     {
       "name": "organ",
       "role": "keys",
-      "presets": ["drawbar_organ|organ", "organ", "rhodes|epiano"],
+      "presets": [
+        "drawbar_organ|organ",
+        "organ",
+        "rhodes|epiano",
+        "drawbar_organ|organ",
+        "organ",
+        "rhodes|epiano",
+        "piano|keys",
+        "upright_piano|keys"
+      ],
       "styles": ["sustain", "half", "sustain", "half", "ballad"],
       "register": [50, 74],
       "voices": 4,
@@ -151,7 +177,7 @@
     {
       "name": "synth",
       "role": "pad",
-      "presets": ["warm_pad", "pad"],
+      "presets": ["warm_pad", "pad", "warm_pad", "pad", "string_ensemble|strings", "cellos|strings"],
       "styles": ["sustain", "sustain", "legato"],
       "register": [52, 79],
       "voices": 4,
@@ -164,7 +190,15 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["flute|fm_lead", "violins|strings", "soft_lead"],
+      "presets": [
+        "flute|fm_lead",
+        "violins|strings",
+        "soft_lead",
+        "flute|fm_lead",
+        "violins|strings",
+        "soft_lead",
+        "square_lead"
+      ],
       "styles": ["rock_lead", "synth_lead", "rock_lead", "synth_lead", "ambient_line"],
       "register": [62, 81],
       "density": [0.3, 0.5],

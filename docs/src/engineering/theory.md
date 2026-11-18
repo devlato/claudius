@@ -73,11 +73,13 @@ change the rest of the song.
    mode and moved to the key like the others;
 4. **drums**: per lane, a one-shot from the library (with chance `samples`, 0.75 unless `--samples` or a script says
    otherwise, the same for `make`, scripts and the studio's new songs, when there is a library) or a
-   synthesized voice with parameters in the genre's ranges (or a third of the way from the voice's default towards a
-   random point), the kick tuned to the key; then a 4-bar pattern per variant from the lane's template or euclidean
-   rhythm; then, when a kit was drawn, the kit's drum for the lane;
-5. **parts**: per part, unless its `optional` chance leaves it out, a preset, a style, a density and a seed of its
-   own. A chords, keys or pad part on a single-voice synth patch, or on an instrument recorded in mono (FreePats' FM
+   synthesized voice with parameters in the genre's ranges (or half way from the voice's default towards a random
+   point), the kick tuned to the key; then a 4-bar pattern per variant from the lane's template (or one of the genre's
+   other grooves on it, `alts`) or euclidean rhythm; then, when a kit was drawn, the kit's drum for the lane (the
+   electronic genres may draw uzu's and FreePats' synthesizer percussion besides the drum machines);
+5. **parts**: per part, unless its `optional` chance leaves it out, a preset (its own, or one of the two its closest
+   genres play for the role, a preset of one sound such as an 808 or a reese kept where it belongs), a style, a density
+   and a seed of its own. A chords, keys or pad part on a single-voice synth patch, or on an instrument recorded in mono (FreePats' FM
    piano, say), gets a light chorus so it does not sit dead centre;
 6. **loops** from the library, when there is one;
 7. **transitions**: a crash (recorded or synthesized) and the genre's switches;

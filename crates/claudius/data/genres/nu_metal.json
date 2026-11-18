@@ -186,7 +186,7 @@
     {
       "name": "clean",
       "role": "arp",
-      "presets": ["freepats:clean_guitar|pluck"],
+      "presets": ["freepats:clean_guitar|pluck", "freepats:clean_guitar|pluck", "freepats:jazz_guitar|pluck"],
       "styles": ["up", "random", "up", "random", "updown", "pinky"],
       "rates": [0.5],
       "register": [62, 81],

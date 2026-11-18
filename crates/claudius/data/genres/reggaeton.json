@@ -100,7 +100,18 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["pluck", "piano|keys", "string_ensemble|strings", "supersaw"],
+      "presets": [
+        "pluck",
+        "piano|keys",
+        "string_ensemble|strings",
+        "supersaw",
+        "pluck",
+        "piano|keys",
+        "string_ensemble|strings",
+        "supersaw",
+        "stab",
+        "brass_stab"
+      ],
       "styles": ["sustain", "stabs", "syncopated", "sustain", "stabs", "syncopated", "brass_stabs"],
       "register": [55, 76],
       "voices": 3,
@@ -121,7 +132,20 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["vox_lead", "pluck", "saw_lead", "nylon_guitar|pluck", "flute|fm_lead"],
+      "presets": [
+        "vox_lead",
+        "pluck",
+        "saw_lead",
+        "nylon_guitar|pluck",
+        "flute|fm_lead",
+        "vox_lead",
+        "pluck",
+        "saw_lead",
+        "nylon_guitar|pluck",
+        "flute|fm_lead",
+        "brass_lead",
+        "whistle"
+      ],
       "styles": ["dembow_hook", "dembow_hook", "riff", "horn_riff"],
       "register": [62, 86],
       "density": [0.3, 0.55],

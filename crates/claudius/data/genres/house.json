@@ -213,7 +213,7 @@
     },
     {"name": "perc", "voice": "rim", "euclid": [5, 16], "mix": {"bus": "drums", "pan": 0.35, "delay": 0.15}}
   ],
-  "kits": [["tr909", 0.45], ["tr707", 0.1]],
+  "kits": [["tr909", 0.45], ["tr707", 0.1], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.35,
   "palette": {
     "bass": {"core": 0.6, "synth": 3, "bass": 0.8},
@@ -226,7 +226,18 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["organ_bass", "pluck_bass", "saw_bass", "sub_bass"],
+      "presets": [
+        "organ_bass",
+        "pluck_bass",
+        "saw_bass",
+        "sub_bass",
+        "organ_bass",
+        "pluck_bass",
+        "saw_bass",
+        "sub_bass",
+        "rubber_bass",
+        "deep_bass"
+      ],
       "styles": ["house_organ", "offbeat", "house_organ", "offbeat", "rolling", "disco", "syncopated"],
       "register": [33, 52],
       "mix": {"bus": "bass", "duck": 0.55}
@@ -234,7 +245,20 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["stab", "organ", "piano|epiano", "rhodes|keys", "pluck"],
+      "presets": [
+        "stab",
+        "organ",
+        "piano|epiano",
+        "rhodes|keys",
+        "pluck",
+        "stab",
+        "organ",
+        "piano|epiano",
+        "rhodes|keys",
+        "pluck",
+        "supersaw",
+        "keys"
+      ],
       "styles": ["house_piano", "stabs", "offbeat", "house_piano", "stabs", "offbeat", "pump", "sustain", "syncopated"],
       "register": [55, 76],
       "voices": 4,
@@ -244,7 +268,16 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["pad", "warm_pad", "string_ensemble|strings"],
+      "presets": [
+        "pad",
+        "warm_pad",
+        "string_ensemble|strings",
+        "pad",
+        "warm_pad",
+        "string_ensemble|strings",
+        "air_pad",
+        "swell_pad"
+      ],
       "styles": ["sustain", "sustain", "legato"],
       "register": [50, 76],
       "voices": 4,
@@ -254,7 +287,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["pluck", "piano|epiano", "supersaw"],
+      "presets": ["pluck", "piano|epiano", "supersaw", "pluck", "piano|epiano", "supersaw", "square_lead", "vox_lead"],
       "styles": ["organ_riff", "garage_chop", "organ_riff", "garage_chop", "riff", "disco_hook", "synth_lead"],
       "register": [64, 86],
       "density": [0.35, 0.6],
@@ -263,7 +296,7 @@
     {
       "name": "arp",
       "role": "arp",
-      "presets": ["pluck", "piano|keys"],
+      "presets": ["pluck", "piano|keys", "pluck", "piano|keys", "fm_lead", "harp_pluck"],
       "styles": ["up", "updown", "pinky"],
       "rates": [0.25, 0.5],
       "register": [60, 84],

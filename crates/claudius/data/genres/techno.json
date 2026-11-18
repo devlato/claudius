@@ -134,7 +134,7 @@
       "mix": {"bus": "drums", "pan": -0.35, "delay": 0.2, "reverb": 0.15}
     }
   ],
-  "kits": [["tr909", 0.5], ["tr808", 0.15]],
+  "kits": [["tr909", 0.5], ["tr808", 0.15], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.35,
   "palette": {
     "bass": {"core": 0.7, "synth": 4},
@@ -147,7 +147,7 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["saw_bass", "reese", "sub_bass"],
+      "presets": ["saw_bass", "reese", "sub_bass", "saw_bass", "reese", "sub_bass", "fm_bass", "organ_bass"],
       "styles": ["rolling", "offbeat", "pulse", "rolling", "offbeat", "pulse", "dub", "sustain", "acid"],
       "register": [30, 45],
       "mix": {"bus": "bass", "duck": 0.65}
@@ -156,7 +156,7 @@
       "name": "acid",
       "core": 1.0,
       "role": "bass",
-      "presets": ["acid"],
+      "presets": ["acid", "acid", "sub_bass", "saw_bass"],
       "styles": ["acid", "acid", "pulse", "rolling", "offbeat"],
       "register": [36, 55],
       "optional": 0.45,
@@ -165,7 +165,7 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["stab", "organ"],
+      "presets": ["stab", "organ", "stab", "organ", "epiano", "supersaw"],
       "styles": ["stabs", "offbeat", "stabs", "offbeat", "pump", "sustain"],
       "register": [52, 70],
       "voices": 3,
@@ -175,7 +175,7 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["warm_pad", "pad"],
+      "presets": ["warm_pad", "pad", "warm_pad", "pad", "glass_pad", "string_ensemble|strings"],
       "styles": ["sustain"],
       "register": [45, 70],
       "voices": 3,
@@ -185,7 +185,18 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["acid", "pluck", "fm_lead", "pwm_lead"],
+      "presets": [
+        "acid",
+        "pluck",
+        "fm_lead",
+        "pwm_lead",
+        "acid",
+        "pluck",
+        "fm_lead",
+        "pwm_lead",
+        "supersaw",
+        "saw_lead"
+      ],
       "styles": ["techno_stab", "techno_stab", "synth_lead", "ambient_line"],
       "register": [62, 82],
       "density": [0.15, 0.3],

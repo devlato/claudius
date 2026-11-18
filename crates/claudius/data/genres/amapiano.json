@@ -87,7 +87,7 @@
     {
       "name": "logdrum",
       "role": "bass",
-      "presets": ["log_drum"],
+      "presets": ["log_drum", "log_drum", "sub_bass", "rubber_bass"],
       "styles": ["log_drum", "kick_follow", "log_drum", "kick_follow", "syncopated", "afro"],
       "register": [33, 52],
       "mix": {"bus": "bass", "duck": 0.2}
@@ -95,7 +95,17 @@
     {
       "name": "keys",
       "role": "keys",
-      "presets": ["piano|keys", "rhodes|epiano", "house_piano", "tine_piano"],
+      "presets": [
+        "piano|keys",
+        "rhodes|epiano",
+        "house_piano",
+        "tine_piano",
+        "piano|keys",
+        "rhodes|epiano",
+        "house_piano",
+        "tine_piano",
+        "mallet"
+      ],
       "styles": ["gospel", "house_piano", "lofi_comp", "gospel", "house_piano", "lofi_comp", "half", "sustain"],
       "register": [52, 76],
       "voices": 4,
@@ -105,7 +115,15 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["warm_pad", "air_pad", "string_ensemble|strings"],
+      "presets": [
+        "warm_pad",
+        "air_pad",
+        "string_ensemble|strings",
+        "warm_pad",
+        "air_pad",
+        "string_ensemble|strings",
+        "solina"
+      ],
       "styles": ["sustain"],
       "register": [50, 76],
       "voices": 3,
@@ -116,7 +134,17 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["flute|fm_marimba", "sax|vox_lead", "vox_lead", "fm_marimba"],
+      "presets": [
+        "flute|fm_marimba",
+        "sax|vox_lead",
+        "vox_lead",
+        "fm_marimba",
+        "flute|fm_marimba",
+        "sax|vox_lead",
+        "vox_lead",
+        "fm_marimba",
+        "nylon_guitar|pluck"
+      ],
       "styles": ["afro_flute", "organ_riff"],
       "register": [64, 86],
       "density": [0.2, 0.4],

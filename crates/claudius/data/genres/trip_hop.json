@@ -123,7 +123,7 @@
       "mix": {"bus": "drums", "pan": -0.35, "delay": 0.35, "reverb": 0.3}
     }
   ],
-  "kits": [["muldjord", 0.5], ["tr808", 0.1]],
+  "kits": [["muldjord", 0.5], ["tr808", 0.1], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.3,
   "palette": {
     "bass": {"core": 0.6, "bass": 2, "synth": 1.5},
@@ -136,7 +136,15 @@
       "name": "bass",
       "late_ms": [6, 16],
       "role": "bass",
-      "presets": ["sub_bass", "upright_bass|organ_bass", "growlybass:bass|saw_bass"],
+      "presets": [
+        "sub_bass",
+        "upright_bass|organ_bass",
+        "growlybass:bass|saw_bass",
+        "sub_bass",
+        "upright_bass|organ_bass",
+        "growlybass:bass|saw_bass",
+        "saw_bass"
+      ],
       "styles": ["trip_hop", "sustain", "trip_hop", "sustain", "big_beat", "octave"],
       "register": [28, 46],
       "mix": {
@@ -182,7 +190,16 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["soft_lead", "vibraphone|mallet", "rhodes|epiano"],
+      "presets": [
+        "soft_lead",
+        "vibraphone|mallet",
+        "rhodes|epiano",
+        "soft_lead",
+        "vibraphone|mallet",
+        "rhodes|epiano",
+        "square_lead",
+        "supersaw"
+      ],
       "styles": ["lofi_melody", "ambient_line", "lofi_melody", "ambient_line", "horn_riff", "riff"],
       "register": [62, 79],
       "density": [0.2, 0.4],

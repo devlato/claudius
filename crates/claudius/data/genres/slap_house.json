@@ -94,7 +94,7 @@
       "mix": {"bus": "drums", "pan": 0.3}
     }
   ],
-  "kits": [["tr909", 0.35], ["tr808", 0.2]],
+  "kits": [["tr909", 0.35], ["tr808", 0.2], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.25,
   "palette": {
     "bass": {"core": 0.9, "synth": 2},
@@ -106,7 +106,16 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["fm_bass", "rubber_bass", "pluck_bass"],
+      "presets": [
+        "fm_bass",
+        "rubber_bass",
+        "pluck_bass",
+        "fm_bass",
+        "rubber_bass",
+        "pluck_bass",
+        "saw_bass",
+        "sub_bass"
+      ],
       "styles": ["octave", "syncopated", "octave", "syncopated", "offbeat", "house_organ", "rolling"],
       "register": [36, 55],
       "mix": {
@@ -118,7 +127,7 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["stab", "pluck", "piano|keys"],
+      "presets": ["stab", "pluck", "piano|keys", "stab", "pluck", "piano|keys", "supersaw", "organ"],
       "styles": ["stabs", "offbeat", "sustain", "stabs", "offbeat", "sustain", "house_piano", "pump", "syncopated"],
       "register": [55, 74],
       "voices": 3,
@@ -128,7 +137,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["vox_lead", "pluck", "soft_lead"],
+      "presets": ["vox_lead", "pluck", "soft_lead", "vox_lead", "pluck", "soft_lead", "supersaw", "square_lead"],
       "styles": [
         "riff",
         "synth_lead",
@@ -147,7 +156,7 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["warm_pad", "pad"],
+      "presets": ["warm_pad", "pad", "warm_pad", "pad", "string_ensemble|strings", "air_pad"],
       "styles": ["sustain", "sustain", "legato"],
       "register": [48, 72],
       "voices": 3,

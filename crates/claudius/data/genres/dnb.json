@@ -146,7 +146,7 @@
       "name": "bass",
       "role": "bass",
       "layers": [{"sound": "$"}, {"sound": "$", "fx": [{"fx": "saturate", "kind": "tube", "drive_db": 24}, {"fx": "filter", "mode": "hp", "cutoff": 300, "res": 0.1}, {"fx": "filter", "mode": "lp", "cutoff": 3000, "res": 0.1}, {"fx": "chorus", "rate_hz": 0.7, "depth_ms": 4, "delay_ms": 14, "mix": 0.6}, {"fx": "gain", "db": -12}]}],
-      "presets": ["reese", "saw_bass", "wobble"],
+      "presets": ["reese", "saw_bass", "wobble", "reese", "saw_bass", "wobble", "sub_bass", "dist_bass"],
       "styles": ["two_step", "reese", "two_step", "reese", "jungle_dub", "rolling"],
       "register": [26, 41],
       "mix": {"bus": "bass", "duck": 0.5}
@@ -154,7 +154,18 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["pad", "string_ensemble|strings", "warm_pad", "choir|pad"],
+      "presets": [
+        "pad",
+        "string_ensemble|strings",
+        "warm_pad",
+        "choir|pad",
+        "pad",
+        "string_ensemble|strings",
+        "warm_pad",
+        "choir|pad",
+        "air_pad",
+        "glass_pad"
+      ],
       "styles": ["sustain"],
       "register": [48, 74],
       "voices": 4,
@@ -164,7 +175,18 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["pluck", "rhodes|epiano", "piano|keys", "supersaw"],
+      "presets": [
+        "pluck",
+        "rhodes|epiano",
+        "piano|keys",
+        "supersaw",
+        "pluck",
+        "rhodes|epiano",
+        "piano|keys",
+        "supersaw",
+        "bell",
+        "fm_kalimba"
+      ],
       "styles": [
         "ambient_line",
         "synth_lead",

@@ -75,7 +75,7 @@
       "mix": {"bus": "drums", "pan": -0.12}
     }
   ],
-  "kits": [],
+  "kits": [["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.0,
   "palette": {
     "bass": {"core": 0.95, "synth": 1},
@@ -87,7 +87,7 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["saw_bass", "dist_bass", "reese"],
+      "presets": ["saw_bass", "dist_bass", "reese", "saw_bass", "dist_bass", "reese", "sub_bass"],
       "styles": ["offbeat", "pulse", "offbeat", "pulse", "rolling"],
       "register": [33, 48],
       "mix": {"bus": "bass", "duck": 0.95, "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 8, "mix": 0.5}]}
@@ -110,7 +110,7 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["supersaw", "pwm_pad"],
+      "presets": ["supersaw", "pwm_pad", "supersaw", "pwm_pad", "stab", "brass_stab"],
       "styles": ["sustain", "pump", "stabs", "sustain", "pump", "stabs", "offbeat"],
       "register": [55, 79],
       "voices": 4,
@@ -120,7 +120,17 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["string_ensemble|strings", "choir|vowel_pad", "pad", "swell_pad"],
+      "presets": [
+        "string_ensemble|strings",
+        "choir|vowel_pad",
+        "pad",
+        "swell_pad",
+        "string_ensemble|strings",
+        "choir|vowel_pad",
+        "pad",
+        "swell_pad",
+        "warm_pad"
+      ],
       "styles": ["sustain"],
       "register": [48, 76],
       "voices": 4,

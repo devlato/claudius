@@ -102,7 +102,7 @@
       "mix": {"bus": "drums", "pan": 0.35, "delay": 0.1, "reverb": 0.1}
     }
   ],
-  "kits": [["muldjord", 0.3], ["tr707", 0.2], ["tr909", 0.15]],
+  "kits": [["muldjord", 0.3], ["tr707", 0.2], ["tr909", 0.15], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.3,
   "palette": {
     "bass": {"core": 0.6, "bass": 2, "synth": 2},
@@ -115,7 +115,16 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["freepats:finger_bass|pluck_bass", "pluck_bass", "saw_bass"],
+      "presets": [
+        "freepats:finger_bass|pluck_bass",
+        "pluck_bass",
+        "saw_bass",
+        "freepats:finger_bass|pluck_bass",
+        "pluck_bass",
+        "saw_bass",
+        "sub_bass",
+        "organ_bass"
+      ],
       "styles": ["disco", "funk", "disco", "funk", "offbeat", "house_organ", "rolling"],
       "register": [33, 52],
       "mix": {
@@ -127,7 +136,16 @@
     {
       "name": "guitar",
       "role": "chords",
-      "presets": ["freepats:clean_guitar|pluck", "freepats:jazz_guitar|pluck", "pluck"],
+      "presets": [
+        "freepats:clean_guitar|pluck",
+        "freepats:jazz_guitar|pluck",
+        "pluck",
+        "freepats:clean_guitar|pluck",
+        "freepats:jazz_guitar|pluck",
+        "pluck",
+        "stab",
+        "supersaw"
+      ],
       "styles": ["scratch", "strum", "scratch", "strum", "stabs", "offbeat", "house_piano"],
       "register": [52, 76],
       "voices": 3,
@@ -146,7 +164,16 @@
     {
       "name": "keys",
       "role": "keys",
-      "presets": ["rhodes|epiano", "wurlitzer|epiano", "epiano"],
+      "presets": [
+        "rhodes|epiano",
+        "wurlitzer|epiano",
+        "epiano",
+        "rhodes|epiano",
+        "wurlitzer|epiano",
+        "epiano",
+        "organ",
+        "piano|keys"
+      ],
       "styles": ["gospel", "offbeat", "gospel", "offbeat", "half", "stabs", "house_piano"],
       "register": [52, 74],
       "voices": 4,
@@ -156,7 +183,16 @@
     {
       "name": "strings",
       "role": "pad",
-      "presets": ["string_ensemble|strings", "synth_strings|strings", "strings"],
+      "presets": [
+        "string_ensemble|strings",
+        "synth_strings|strings",
+        "strings",
+        "string_ensemble|strings",
+        "synth_strings|strings",
+        "strings",
+        "warm_pad",
+        "pad"
+      ],
       "styles": ["disco_strings", "legato", "disco_strings", "legato", "sustain"],
       "register": [55, 82],
       "voices": 4,
@@ -170,7 +206,16 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["brass|stab", "square_lead", "synth_brass|supersaw"],
+      "presets": [
+        "brass|stab",
+        "square_lead",
+        "synth_brass|supersaw",
+        "brass|stab",
+        "square_lead",
+        "synth_brass|supersaw",
+        "pluck",
+        "supersaw"
+      ],
       "styles": ["disco_hook", "organ_riff", "disco_hook", "organ_riff", "riff", "synth_lead", "garage_chop"],
       "register": [62, 82],
       "density": [0.3, 0.5],

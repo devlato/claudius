@@ -110,7 +110,7 @@
       "mix": {"bus": "drums", "pan": -0.4, "reverb": 0.15}
     }
   ],
-  "kits": [["muldjord", 0.45], ["tr909", 0.2], ["tr808", 0.1]],
+  "kits": [["muldjord", 0.45], ["tr909", 0.2], ["tr808", 0.1], ["uzu", 0.1]],
   "kit_mix": 0.3,
   "palette": {
     "bass": {"core": 0.7, "synth": 3, "bass": 0.8},
@@ -121,7 +121,16 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["saw_bass", "reese", "growlybass:bass|saw_bass"],
+      "presets": [
+        "saw_bass",
+        "reese",
+        "growlybass:bass|saw_bass",
+        "saw_bass",
+        "reese",
+        "growlybass:bass|saw_bass",
+        "sub_bass",
+        "upright_bass|organ_bass"
+      ],
       "styles": ["big_beat", "octave", "big_beat", "octave", "trip_hop", "sustain"],
       "register": [31, 48],
       "mix": {
@@ -134,7 +143,7 @@
       "name": "acid",
       "core": 1.0,
       "role": "bass",
-      "presets": ["acid"],
+      "presets": ["acid", "acid", "saw_bass", "sub_bass"],
       "styles": ["acid", "acid", "big_beat", "octave", "trip_hop"],
       "register": [36, 55],
       "mix": {
@@ -169,7 +178,16 @@
     {
       "name": "riff",
       "role": "lead",
-      "presets": ["square_lead", "supersaw", "reese"],
+      "presets": [
+        "square_lead",
+        "supersaw",
+        "reese",
+        "square_lead",
+        "supersaw",
+        "reese",
+        "soft_lead",
+        "vibraphone|mallet"
+      ],
       "styles": ["riff", "horn_riff", "riff", "horn_riff", "lofi_melody", "ambient_line"],
       "register": [55, 76],
       "density": [0.5, 0.75],

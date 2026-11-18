@@ -99,7 +99,7 @@
       "mix": {"bus": "drums", "pan": -0.35}
     }
   ],
-  "kits": [["tr909", 0.3], ["tr808", 0.2]],
+  "kits": [["tr909", 0.3], ["tr808", 0.2], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.3,
   "palette": {
     "bass": {"core": 0.6, "synth": 3, "bass": 0.8},
@@ -111,7 +111,16 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["pluck_bass", "saw_bass", "sub_bass"],
+      "presets": [
+        "pluck_bass",
+        "saw_bass",
+        "sub_bass",
+        "pluck_bass",
+        "saw_bass",
+        "sub_bass",
+        "organ_bass",
+        "rubber_bass"
+      ],
       "styles": ["offbeat", "disco", "pulse", "offbeat", "disco", "pulse", "house_organ", "rolling", "syncopated"],
       "register": [33, 52],
       "mix": {"bus": "bass", "duck": 0.6}
@@ -119,7 +128,7 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["pluck", "piano|keys", "stab"],
+      "presets": ["pluck", "piano|keys", "stab", "pluck", "piano|keys", "stab", "supersaw", "organ"],
       "styles": [
         "house_piano",
         "offbeat",
@@ -144,7 +153,16 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["warm_pad", "pad", "string_ensemble|strings"],
+      "presets": [
+        "warm_pad",
+        "pad",
+        "string_ensemble|strings",
+        "warm_pad",
+        "pad",
+        "string_ensemble|strings",
+        "air_pad",
+        "swell_pad"
+      ],
       "styles": ["sustain", "sustain", "legato"],
       "register": [50, 76],
       "voices": 4,
@@ -154,7 +172,7 @@
     {
       "name": "hook",
       "role": "lead",
-      "presets": ["pluck", "piano|keys", "square_lead"],
+      "presets": ["pluck", "piano|keys", "square_lead", "pluck", "piano|keys", "square_lead", "supersaw", "vox_lead"],
       "styles": ["disco_hook", "disco_hook", "riff", "synth_lead", "garage_chop"],
       "register": [60, 77],
       "density": [0.35, 0.55],
@@ -171,7 +189,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["supersaw", "pluck", "square_lead"],
+      "presets": ["supersaw", "pluck", "square_lead", "supersaw", "pluck", "square_lead", "vox_lead", "saw_lead"],
       "styles": ["disco_hook", "synth_lead", "disco_hook", "synth_lead", "riff", "garage_chop", "organ_riff"],
       "register": [67, 88],
       "density": [0.3, 0.5],

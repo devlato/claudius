@@ -152,13 +152,14 @@ fn drum_params(voice: DrumVoice, ranges: &BTreeMap<String, (f32, f32)>, rng: &mu
         } else {
             let crate::synth::drums::Range(lo, hi, log) = space[i];
             let d = p.get(i);
-            // stay near the voice default: a third of the way towards a random point in its range
+            // half way from the voice's default towards a random point in its range: each song's kit its own, still
+            // nearer the default than the range's ends
             let target = if log && lo > 0.0 {
                 rng.log_range(lo as f64, hi as f64) as f32
             } else {
                 rng.range(lo as f64, hi as f64) as f32
             };
-            d + (target - d) * 0.33
+            d + (target - d) * 0.5
         };
         p.set(i, v);
     }

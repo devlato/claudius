@@ -41,10 +41,10 @@
     "chords": {"core": 0.8, "brass": 2}
   },
   "parts": [
-    {"name": "bass", "late_ms": [2, 10], "role": "bass", "presets": ["deep_bass", "sub_bass", "electric_bass|deep_bass"], "styles": ["soul", "boom_bap", "kick_follow", "soul", "boom_bap", "kick_follow", "walking", "syncopated", "lofi"], "register": [28, 45], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.5}]}},
-    {"name": "keys", "role": "keys", "presets": ["rhodes|epiano", "piano|keys", "rhodes|epiano"], "styles": ["gospel", "rnb_keys", "gospel", "rnb_keys", "lofi_comp", "charleston", "half"], "register": [50, 74], "voices": 4, "voicing": "close", "mix": {"reverb": 0.2}},
+    {"name": "bass", "late_ms": [2, 10], "role": "bass", "presets": ["deep_bass", "sub_bass", "electric_bass|deep_bass", "deep_bass", "sub_bass", "electric_bass|deep_bass", "upright_bass|sub_bass", "organ_bass"], "styles": ["soul", "boom_bap", "kick_follow", "soul", "boom_bap", "kick_follow", "walking", "syncopated", "lofi"], "register": [28, 45], "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 3, "mix": 0.5}]}},
+    {"name": "keys", "role": "keys", "presets": ["rhodes|epiano", "piano|keys", "rhodes|epiano", "piano|keys", "wurlitzer|epiano", "vibes|mallet"], "styles": ["gospel", "rnb_keys", "gospel", "rnb_keys", "lofi_comp", "charleston", "half"], "register": [50, 74], "voices": 4, "voicing": "close", "mix": {"reverb": 0.2}},
     {"name": "horns", "role": "chords", "presets": ["brass|brass_stab", "brass_stab"], "styles": ["brass_stabs"], "register": [55, 76], "voices": 3, "voicing": "close", "optional": 0.3, "mix": {"level_db": -3, "reverb": 0.25}},
-    {"name": "strings", "role": "pad", "presets": ["string_ensemble|strings", "strings"], "styles": ["legato", "disco_strings", "legato", "disco_strings", "sustain"], "register": [52, 79], "voices": 3, "voicing": "open", "optional": 0.3, "mix": {"level_db": -3, "reverb": 0.35}}
+    {"name": "strings", "role": "pad", "presets": ["string_ensemble|strings", "strings", "string_ensemble|strings", "strings", "warm_pad", "air_pad"], "styles": ["legato", "disco_strings", "legato", "disco_strings", "sustain"], "register": [52, 79], "voices": 3, "voicing": "open", "optional": 0.3, "mix": {"level_db": -3, "reverb": 0.35}}
   ],
   "sampling": {
     "by_default": true,

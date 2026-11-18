@@ -67,7 +67,7 @@
       "mix": {"bus": "drums", "pan": -0.1}
     }
   ],
-  "kits": [["tr909", 0.6]],
+  "kits": [["tr909", 0.6], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.2,
   "palette": {
     "bass": {"core": 0.95, "synth": 1},
@@ -80,7 +80,7 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["saw_bass", "pluck_bass", "fm_bass"],
+      "presets": ["saw_bass", "pluck_bass", "fm_bass", "saw_bass", "pluck_bass", "fm_bass", "sub_bass", "organ_bass"],
       "styles": ["rolling", "offbeat", "pulse", "rolling", "offbeat", "pulse", "dub", "sustain"],
       "register": [33, 50],
       "mix": {"bus": "bass", "duck": 0.6}
@@ -88,7 +88,7 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["supersaw", "pwm_pad", "stab"],
+      "presets": ["supersaw", "pwm_pad", "stab", "supersaw", "pwm_pad", "stab", "organ", "epiano"],
       "styles": ["sustain", "pump", "stabs", "sustain", "pump", "stabs", "offbeat"],
       "register": [55, 79],
       "voices": 4,
@@ -98,7 +98,18 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["pad", "swell_pad", "glass_pad", "string_ensemble|strings"],
+      "presets": [
+        "pad",
+        "swell_pad",
+        "glass_pad",
+        "string_ensemble|strings",
+        "pad",
+        "swell_pad",
+        "glass_pad",
+        "string_ensemble|strings",
+        "warm_pad",
+        "air_pad"
+      ],
       "styles": ["sustain"],
       "register": [48, 76],
       "voices": 4,
@@ -108,7 +119,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["supersaw", "saw_lead", "pluck", "pwm_lead"],
+      "presets": ["supersaw", "saw_lead", "pluck", "pwm_lead", "supersaw", "saw_lead", "pluck", "pwm_lead", "fm_lead"],
       "styles": ["trance_lead", "synth_lead", "trance_lead", "synth_lead", "ambient_line", "techno_stab"],
       "register": [64, 88],
       "density": [0.35, 0.6],
@@ -117,7 +128,7 @@
     {
       "name": "arp",
       "role": "arp",
-      "presets": ["pluck", "fm_lead"],
+      "presets": ["pluck", "fm_lead", "pluck", "fm_lead", "bell"],
       "styles": ["up", "updown", "random"],
       "rates": [0.25],
       "register": [60, 86],

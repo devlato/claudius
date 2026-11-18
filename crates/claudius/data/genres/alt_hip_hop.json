@@ -174,7 +174,7 @@
       "name": "bass",
       "late_ms": [4, 14],
       "role": "bass",
-      "presets": ["808", "sub_bass"],
+      "presets": ["808", "sub_bass", "808", "sub_bass", "upright_bass|sub_bass", "deep_bass"],
       "styles": [
         "kick_follow",
         "boom_bap",
@@ -192,7 +192,16 @@
     {
       "name": "fuzz",
       "role": "bass",
-      "presets": ["moog_bass", "rubber_bass", "acid_bass|moog_bass"],
+      "presets": [
+        "moog_bass",
+        "rubber_bass",
+        "acid_bass|moog_bass",
+        "moog_bass",
+        "rubber_bass",
+        "acid_bass|moog_bass",
+        "sub_bass",
+        "808"
+      ],
       "styles": [
         "gfunk",
         "boom_bap",
@@ -213,7 +222,16 @@
     {
       "name": "keys",
       "role": "keys",
-      "presets": ["rhodes|epiano", "wurlitzer|epiano", "piano|keys"],
+      "presets": [
+        "rhodes|epiano",
+        "wurlitzer|epiano",
+        "piano|keys",
+        "rhodes|epiano",
+        "wurlitzer|epiano",
+        "piano|keys",
+        "vibes|mallet",
+        "upright|keys"
+      ],
       "styles": ["lofi_comp", "gospel", "half", "lofi_comp", "gospel", "half", "charleston", "stabs", "rnb_keys"],
       "register": [50, 76],
       "voices": 5,
@@ -223,7 +241,7 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["warm_pad", "air_pad"],
+      "presets": ["warm_pad", "air_pad", "warm_pad", "air_pad", "string_ensemble|strings", "strings"],
       "styles": ["sustain", "sustain", "legato", "pizzicato"],
       "register": [48, 74],
       "voices": 4,
@@ -233,7 +251,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["vox_lead", "soft_lead"],
+      "presets": ["vox_lead", "soft_lead", "vox_lead", "soft_lead", "trumpet|brass_lead", "sax|brass_lead"],
       "styles": ["piano_riff", "lofi_melody", "piano_riff", "lofi_melody", "horn_riff", "trap_bells"],
       "register": [62, 84],
       "density": [0.25, 0.45],
@@ -242,7 +260,7 @@
     {
       "name": "strings",
       "role": "pad",
-      "presets": ["string_ensemble|strings"],
+      "presets": ["string_ensemble|strings", "string_ensemble|strings", "warm_pad", "air_pad"],
       "styles": ["legato", "pizzicato", "legato", "pizzicato", "sustain"],
       "register": [55, 81],
       "voices": 3,

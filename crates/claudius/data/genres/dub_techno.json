@@ -81,7 +81,7 @@
       "mix": {"bus": "drums", "pan": 0.35}
     }
   ],
-  "kits": [["tr909", 0.3], ["tr808", 0.2]],
+  "kits": [["tr909", 0.3], ["tr808", 0.2], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.3,
   "palette": {
     "bass": {"core": 0.8, "synth": 2},
@@ -92,7 +92,7 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["sub_bass", "organ_bass"],
+      "presets": ["sub_bass", "organ_bass", "sub_bass", "organ_bass", "saw_bass", "fm_bass"],
       "styles": ["dub", "sustain", "dub", "sustain", "pulse", "rolling", "offbeat"],
       "register": [28, 43],
       "mix": {"bus": "bass", "duck": 0.5}
@@ -100,7 +100,7 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["stab", "organ", "epiano"],
+      "presets": ["stab", "organ", "epiano", "stab", "organ", "epiano", "supersaw", "pwm_pad"],
       "styles": ["stabs", "offbeat", "stabs", "offbeat", "pump", "sustain"],
       "register": [50, 70],
       "voices": 3,
@@ -118,7 +118,7 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["warm_pad", "pad"],
+      "presets": ["warm_pad", "pad", "warm_pad", "pad", "glass_pad", "string_ensemble|strings"],
       "styles": ["sustain"],
       "register": [48, 74],
       "voices": 4,

@@ -123,7 +123,7 @@
       "mix": {"bus": "drums", "pan": 0.3, "reverb": 0.15}
     }
   ],
-  "kits": [["tr909", 0.35], ["tr808", 0.25]],
+  "kits": [["tr909", 0.35], ["tr808", 0.25], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.3,
   "palette": {
     "bass": {"core": 0.85, "bass": 1, "synth": 1},

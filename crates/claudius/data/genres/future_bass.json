@@ -112,7 +112,7 @@
     },
     {"name": "perc", "voice": "snap", "euclid": [3, 8], "mix": {"bus": "drums", "pan": 0.4, "reverb": 0.3}}
   ],
-  "kits": [["tr808", 0.3]],
+  "kits": [["tr808", 0.3], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.25,
   "palette": {
     "chords": {"core": 1.0, "synth": 1},
@@ -125,7 +125,7 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["supersaw"],
+      "presets": ["supersaw", "supersaw", "stab", "pwm_pad"],
       "styles": ["syncopated", "pump", "sustain", "syncopated", "pump", "sustain", "stabs", "offbeat"],
       "register": [52, 79],
       "voices": 5,
@@ -144,7 +144,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["pluck", "supersaw", "vox_lead"],
+      "presets": ["pluck", "supersaw", "vox_lead", "pluck", "supersaw", "vox_lead", "bell", "chip"],
       "styles": ["disco_hook", "garage_chop", "disco_hook", "garage_chop", "riff"],
       "register": [67, 91],
       "density": [0.45, 0.7],
@@ -153,7 +153,7 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["pad", "warm_pad", "choir|pad"],
+      "presets": ["pad", "warm_pad", "choir|pad", "pad", "warm_pad", "choir|pad", "glass_pad"],
       "styles": ["sustain"],
       "register": [50, 76],
       "voices": 4,
@@ -163,7 +163,7 @@
     {
       "name": "arp",
       "role": "arp",
-      "presets": ["pluck"],
+      "presets": ["pluck", "pluck", "chip", "bell"],
       "styles": ["up", "updown", "random", "up", "updown", "random", "pinky"],
       "rates": [0.25],
       "register": [64, 88],

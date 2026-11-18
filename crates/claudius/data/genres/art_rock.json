@@ -111,7 +111,14 @@
     {
       "name": "piano",
       "role": "keys",
-      "presets": ["piano|keys", "upright_piano|keys"],
+      "presets": [
+        "piano|keys",
+        "upright_piano|keys",
+        "piano|keys",
+        "upright_piano|keys",
+        "drawbar_organ|organ",
+        "organ"
+      ],
       "styles": ["ballad", "half", "sustain"],
       "register": [48, 76],
       "voices": 4,
@@ -142,7 +149,15 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["freepats:pick_bass|saw_bass", "freepats:finger_bass|saw_bass", "growlybass:bass|saw_bass"],
+      "presets": [
+        "freepats:pick_bass|saw_bass",
+        "freepats:finger_bass|saw_bass",
+        "growlybass:bass|saw_bass",
+        "freepats:pick_bass|saw_bass",
+        "freepats:finger_bass|saw_bass",
+        "growlybass:bass|saw_bass",
+        "saw_bass"
+      ],
       "styles": ["rock", "rock", "sustain"],
       "register": [28, 47],
       "mix": {
@@ -153,7 +168,14 @@
     {
       "name": "strings",
       "role": "pad",
-      "presets": ["string_ensemble|strings", "cellos|strings"],
+      "presets": [
+        "string_ensemble|strings",
+        "cellos|strings",
+        "string_ensemble|strings",
+        "cellos|strings",
+        "warm_pad",
+        "pad"
+      ],
       "styles": ["legato", "ostinato", "legato", "ostinato", "sustain"],
       "register": [45, 81],
       "voices": 4,
@@ -163,7 +185,7 @@
     {
       "name": "guitar",
       "role": "arp",
-      "presets": ["freepats:clean_guitar|pluck"],
+      "presets": ["freepats:clean_guitar|pluck", "freepats:clean_guitar|pluck", "pluck"],
       "styles": ["up", "updown", "pinky", "up", "updown", "pinky", "random"],
       "rates": [0.5],
       "register": [52, 76],
@@ -172,7 +194,7 @@
     {
       "name": "dist",
       "role": "chords",
-      "presets": ["supersaw", "saw_bass"],
+      "presets": ["supersaw", "saw_bass", "supersaw", "saw_bass", "pluck"],
       "styles": ["sustain", "pump", "half", "sustain", "pump", "half", "arpeggio", "strum"],
       "register": [40, 64],
       "voices": 3,
@@ -191,7 +213,14 @@
     {
       "name": "dist2",
       "role": "chords",
-      "presets": ["freepats:clean_guitar|supersaw", "supersaw"],
+      "presets": [
+        "freepats:clean_guitar|supersaw",
+        "supersaw",
+        "freepats:clean_guitar|supersaw",
+        "supersaw",
+        "saw_bass",
+        "freepats:jazz_guitar|pluck"
+      ],
       "styles": ["sustain", "pump", "half", "sustain", "pump", "half", "arpeggio", "strum"],
       "register": [40, 64],
       "voices": 3,
@@ -210,7 +239,7 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["violins|strings", "square_lead"],
+      "presets": ["violins|strings", "square_lead", "violins|strings", "square_lead", "flute|fm_lead", "soft_lead"],
       "styles": ["rock_lead", "ambient_line", "rock_lead", "ambient_line", "synth_lead"],
       "register": [62, 81],
       "density": [0.3, 0.5],

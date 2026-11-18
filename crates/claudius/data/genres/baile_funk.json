@@ -87,7 +87,7 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["808"],
+      "presets": ["808", "808", "sub_bass", "deep_bass"],
       "styles": ["kick_follow"],
       "register": [24, 40],
       "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 8, "mix": 0.9}]}
@@ -95,7 +95,18 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["stab", "brass_stab", "pluck", "organ"],
+      "presets": [
+        "stab",
+        "brass_stab",
+        "pluck",
+        "organ",
+        "stab",
+        "brass_stab",
+        "pluck",
+        "organ",
+        "piano|keys",
+        "string_ensemble|strings"
+      ],
       "styles": ["stabs", "syncopated", "brass_stabs", "stabs", "syncopated", "brass_stabs", "sustain"],
       "register": [52, 74],
       "voices": 3,
@@ -105,7 +116,18 @@
     {
       "name": "lead",
       "role": "lead",
-      "presets": ["vox_lead", "brass_lead", "flute|fm_lead", "whistle"],
+      "presets": [
+        "vox_lead",
+        "brass_lead",
+        "flute|fm_lead",
+        "whistle",
+        "vox_lead",
+        "brass_lead",
+        "flute|fm_lead",
+        "whistle",
+        "pluck",
+        "saw_lead"
+      ],
       "styles": ["horn_riff", "dembow_hook", "riff"],
       "register": [62, 79],
       "density": [0.3, 0.5],

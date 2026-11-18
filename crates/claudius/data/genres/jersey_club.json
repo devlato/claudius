@@ -67,7 +67,7 @@
       "mix": {"bus": "drums", "pan": 0.25, "delay": 0.1}
     }
   ],
-  "kits": [["tr808", 0.4]],
+  "kits": [["tr808", 0.4], ["uzu", 0.1], ["synthdrums", 0.1]],
   "kit_mix": 0.15,
   "palette": {
     "bass": {"core": 1.0, "synth": 1},
@@ -79,7 +79,7 @@
     {
       "name": "bass",
       "role": "bass",
-      "presets": ["808", "sub_bass"],
+      "presets": ["808", "sub_bass", "808", "sub_bass", "saw_bass"],
       "styles": ["kick_follow", "glide", "kick_follow", "glide", "sustain"],
       "register": [24, 40],
       "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 6, "mix": 0.8}]}
@@ -87,7 +87,7 @@
     {
       "name": "chords",
       "role": "chords",
-      "presets": ["stab", "pluck", "piano|keys", "supersaw"],
+      "presets": ["stab", "pluck", "piano|keys", "supersaw", "stab", "pluck", "piano|keys", "supersaw", "pwm_pad"],
       "styles": ["stabs", "syncopated", "offbeat", "stabs", "syncopated", "offbeat", "pump", "sustain"],
       "register": [55, 76],
       "voices": 3,
@@ -97,7 +97,7 @@
     {
       "name": "chop",
       "role": "lead",
-      "presets": ["vox_lead", "vox_lead", "pluck"],
+      "presets": ["vox_lead", "pluck", "vox_lead", "pluck", "supersaw", "bell"],
       "styles": ["garage_chop", "riff", "garage_chop", "riff", "disco_hook"],
       "register": [62, 79],
       "density": [0.4, 0.6],
@@ -106,7 +106,7 @@
     {
       "name": "pad",
       "role": "pad",
-      "presets": ["pad", "warm_pad"],
+      "presets": ["pad", "warm_pad", "pad", "warm_pad", "choir|pad", "glass_pad"],
       "styles": ["sustain"],
       "register": [48, 72],
       "voices": 3,
