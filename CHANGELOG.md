@@ -10,7 +10,8 @@ language or the API, and the changelog says how.
 for what it is (intro, verse, pre-chorus, chorus, bridge, instrumental, outro; intro, build, drop, break and outro in a
 track no one sings in), with the letter of the music it plays, where it builds into the next, and the phrases sung, to
 the beat. A remake's hook comes from the choruses, and a rework's and a rebuild's sections are named for what they are
-(`verse2`, `pre_chorus`, `chorus3`). What read `analyze`'s section lines (`bar   8 +16  groove  energy 0.94  kick
+(`verse2`, `pre_chorus`, `chorus3`), and a flip's build plays the recording's own build up to where its chorus
+starts, so its drop lands where the recording's does. What read `analyze`'s section lines (`bar   8 +16  groove  energy 0.94  kick
 bass hats`) reads `bars 9-24  drop (B)  energy 0.94, kick bass hats` now, its bars counted from 1, and its JSON has
 each section's `label`, `group`, `build_bars`, `cut` and `sung`, each bar's start (`bar_starts`) and the `phrases`
 sung.

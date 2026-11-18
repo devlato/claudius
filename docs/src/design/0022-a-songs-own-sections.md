@@ -111,9 +111,10 @@ names them intro, drop, break, build, drop, drop; the blocks heard a drop of 24 
 
 - A remake's hook is taken from the choruses (the kind a song of claudius's plays as its hook), and a rework's and a
   rebuild's sections are named for what they are (`verse2`, `pre_chorus`, `chorus3`).
-- A flip still goes through the recording in pieces as long as the song's sections; that a build plays a stretch of
-  the recording that ends where its chorus starts, so the drop lands on the recording's resolution, is the next step
-  (the remix's `go_through`).
+- A flip's build plays the recording's bars that end where one of its choruses or drops starts, first those the
+  recording's own builds lead into, and its drop plays on from there (`remix::landings`): the song's drop comes where
+  the recording's build resolves. On "J'ai pas vingt ans" flipped into deep house, the build plays bars 25 to 32 and
+  the drop the chorus from 33; on the cookbook's house song, its own build, 33 to 40, and its drop from 41.
 - Without the ears the voice is unknown, and an instrumental between verses can be taken for a verse.
 - Methods like these find a section's start within half a second about a quarter of the time on the Harmonix Set
   (structural features and spectral clustering: 0.26 to 0.28 of the hits, F-measure), and name no function, only

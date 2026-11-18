@@ -15,7 +15,8 @@
 //!   of it on end as it has itself, of the kind it plays (its hooks' and drops', or the rest's), from the hook, from the
 //!   other passage, or from bars no section before it played, each on its own bars' chords (`go_through`). When it
 //!   sings (the ears hear a voice, or a pitch in a voice's range carries a third of a phrase), its voice sings on in
-//!   them as it sang there.
+//!   them as it sang there. A build lands where the recording's own does: it plays the bars that end where one of the
+//!   recording's choruses or drops starts, and the drop after it plays on from there (`landings`).
 //! - Its own drums are the break, in a genre that plays one: the drum break the Sample window would offer first, by how
 //!   alone the drums play, how busy they are and how well they loop.
 //!
@@ -37,6 +38,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::analysis::song::{Analysis, SectionGuess};
+use crate::analysis::structure::Label;
 use crate::audio::Stereo;
 use crate::compose::{self, FamilyPick, Library, Options};
 use crate::config::SRF;
@@ -465,6 +467,9 @@ const LONGEST: usize = 32;
 /// goes on through the recording rather than round a passage. A section whose bars would be the hook or the other
 /// passage plays it, one the recording has nothing left for plays what it did, and the hook's and the other passage's
 /// tracks go when no section plays them. Each section that plays on, and its bars.
+/// A build lands where the recording's own resolves (`landings`): a section that builds into one of the hook's kind
+/// plays the bars that end where one of the recording's choruses or drops starts, and the section after it plays on
+/// from there.
 fn go_through(
     bp: &mut Blueprint,
     a: &Analysis,
@@ -493,7 +498,9 @@ fn go_through(
         inner.then(|| usize::from(!matches!(s.kind, SectionKind::Hook | SectionKind::Drop)))
     };
     let end = a.bars.min(a.numerals.len());
-    let mut played: std::collections::BTreeSet<usize> = std::collections::BTreeSet::new();
+    let planned = landings(bp, a, hook, per, end, &lanes, &kind);
+    let mut played: std::collections::BTreeSet<usize> =
+        planned.values().flat_map(|b| b.first..b.first + b.count).collect();
     let mut went = Vec::new();
     for i in 0..bp.form.len() {
         let s = &bp.form[i];
@@ -501,26 +508,34 @@ fn go_through(
             continue;
         }
         let Some(lane) = lanes.iter().position(|(name, ..)| s.layers.iter().any(|l| l == *name)) else { continue };
-        let most = ((s.bars as f64 / per + 1e-6) as usize).min(LONGEST);
-        let length = |first: usize| {
-            let on = (first..end).take(most).take_while(|&b| !played.contains(&b) && kind(b) == kind(first)).count();
-            on / hook.count * hook.count
+        let (first, count) = match planned.get(&i) {
+            Some(b) => (b.first, b.count),
+            None => {
+                let most = ((s.bars as f64 / per + 1e-6) as usize).min(LONGEST);
+                let length = |first: usize| {
+                    let on =
+                        (first..end).take(most).take_while(|&b| !played.contains(&b) && kind(b) == kind(first)).count();
+                    on / hook.count * hook.count
+                };
+                let fresh =
+                    |runs: &[Bars]| runs.iter().map(|r| r.first).filter(|f| !played.contains(f)).collect::<Vec<_>>();
+                let mut starts: Vec<usize> = lanes[lane].2.take().into_iter().collect();
+                starts.extend(fresh(&runs[lane]));
+                if starts.is_empty() {
+                    starts = fresh(&runs[1 - lane]);
+                }
+                let Some((first, count)) = starts
+                    .into_iter()
+                    .map(|f| (f, length(f)))
+                    .filter(|&(_, n)| n > 0)
+                    .min_by_key(|&(_, n)| std::cmp::Reverse(n))
+                else {
+                    continue;
+                };
+                played.extend(first..first + count);
+                (first, count)
+            }
         };
-        let fresh = |runs: &[Bars]| runs.iter().map(|r| r.first).filter(|f| !played.contains(f)).collect::<Vec<_>>();
-        let mut starts: Vec<usize> = lanes[lane].2.take().into_iter().collect();
-        starts.extend(fresh(&runs[lane]));
-        if starts.is_empty() {
-            starts = fresh(&runs[1 - lane]);
-        }
-        let Some((first, count)) = starts
-            .into_iter()
-            .map(|f| (f, length(f)))
-            .filter(|&(_, n)| n > 0)
-            .min_by_key(|&(_, n)| std::cmp::Reverse(n))
-        else {
-            continue;
-        };
-        played.extend(first..first + count);
         if count == hook.count && Some(first) == base[lane] {
             continue;
         }
@@ -529,7 +544,7 @@ fn go_through(
         let mut on = template.clone();
         on.name = format!("{PHRASE}{}", 3 + went.len());
         let (path, label) = store(b)?;
-        let times = (count / hook.count) as f64;
+        let times = count as f64 / hook.count as f64;
         if let Sound::Loop { path: p, label: l, beats, .. } = &mut on.sound {
             (*p, *l, *beats) = (path, label, *beats * times);
         }
@@ -556,6 +571,71 @@ fn go_through(
         bp.harmony.progressions.remove(crate::sampling::SECOND_PROG);
     }
     Ok(went)
+}
+
+/// Where each build of the song lands: for each section that builds (a build, or one flagged to build) into the next,
+/// one of the hook's kind, both playing the recording, the bars the build plays and those its next section plays on
+/// from, by their places in the form. The build plays as many bars as it holds that end where one of the recording's
+/// choruses, drops or post-choruses starts (each taken once: first those its own builds lead into, then the rest, each
+/// in the recording's order), and its next section plays from there while they are of the chorus's kind; so the song's drop lands where
+/// the recording's build resolves, rather than in the middle of it, as a build cut to the song's length from wherever
+/// a section starts would. A whole number of the hook's bars where the hook is chopped, whose slices go round with it.
+/// A build lands only where its next section can play on from it, and one too short to hold a whole pass of its lane
+/// leaves the landings to the builds after it.
+fn landings(
+    bp: &Blueprint,
+    a: &Analysis,
+    hook: Bars,
+    per: f64,
+    end: usize,
+    lanes: &[(&str, LoopPart, Option<usize>); 2],
+    kind: &dyn Fn(usize) -> Option<usize>,
+) -> BTreeMap<usize, Bars> {
+    // where the recording's music lands: the start of each chorus, drop or post-chorus after its first section, those a
+    // build leads into first (a build or a pre-chorus before it, or bars that rise into it), in the recording's order
+    let mut points: Vec<(bool, usize)> = a
+        .sections
+        .windows(2)
+        .filter(|w| matches!(w[1].label, Label::Chorus | Label::Drop | Label::PostChorus))
+        .map(|w| {
+            let built = matches!(w[0].label, Label::Build | Label::PreChorus) || w[0].build_bars > 0;
+            (!built, w[1].start_bar)
+        })
+        .collect();
+    points.sort();
+    let points: Vec<usize> = points.into_iter().map(|p| p.1).collect();
+    let lane_of = |sec: &SectionSpec| lanes.iter().position(|(name, ..)| sec.layers.iter().any(|l| l == *name));
+    let whole = |n: usize, lane: usize| if lanes[lane].1.chop.is_empty() { n } else { n / hook.count * hook.count };
+    let mut out = BTreeMap::new();
+    let mut next = 0;
+    for i in 0..bp.form.len().saturating_sub(1) {
+        let (s, then) = (&bp.form[i], &bp.form[i + 1]);
+        let builds = s.kind == SectionKind::Build || s.build;
+        if !builds || !matches!(then.kind, SectionKind::Drop | SectionKind::Hook) {
+            continue;
+        }
+        let (Some(l), Some(lt)) = (lane_of(s), lane_of(then)) else { continue };
+        let into = whole(((s.bars as f64 / per + 1e-6) as usize).min(LONGEST), l);
+        let on = ((then.bars as f64 / per + 1e-6) as usize).min(LONGEST);
+        if into == 0 {
+            continue;
+        }
+        while let Some(&r) = points.get(next) {
+            next += 1;
+            if r < into || r >= end {
+                continue;
+            }
+            // the build's bars without its drop's would leave the drop to play bars from elsewhere
+            let after = whole((r..end).take(on).take_while(|&b| kind(b) == kind(r)).count(), lt);
+            if after == 0 {
+                continue;
+            }
+            out.insert(i, Bars { first: r - into, count: into });
+            out.insert(i + 1, Bars { first: r, count: after });
+            break;
+        }
+    }
+    out
 }
 
 /// the recording a remix is made of: its audio, what it is called, and what its analysis heard in it
@@ -1402,6 +1482,148 @@ mod tests {
         );
         assert!(bp.lineage.iter().any(|l| l.contains(&said)), "{:?}", bp.lineage);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_flips_build_plays_the_recordings_build_to_where_its_chorus_starts_and_its_drop_plays_on_from_there() {
+        // a verse of 8 bars, a pre-chorus of 6 that builds into a chorus of 8, again, and an outro
+        let form = [(0.5, SectionKind::Verse, 8), (0.65, SectionKind::Build, 6), (0.95, SectionKind::Hook, 8)];
+        let form = form.into_iter().cycle().take(6).chain([(0.3, SectionKind::Outro, 8)]);
+        let mut start = 0;
+        let sections: Vec<SectionGuess> = form
+            .map(|(e, k, n)| {
+                start += n;
+                section(start - n, n, e, k)
+            })
+            .collect();
+        let bars = start;
+        let progs = [["i", "VI", "III", "VII"], ["iv", "v", "i", "i"], ["VI", "VII", "i", "v"]];
+        let numerals = (0..bars)
+            .map(|b| {
+                let s = sections.iter().position(|s| (s.start_bar..s.start_bar + s.bars).contains(&b)).unwrap();
+                progs[s % 3][b % 4].to_string()
+            })
+            .collect();
+        let a = Analysis { bars, numerals, sections: sections.clone(), ..heard() };
+        let mut x = Stereo::zeros((bars as f64 * a.bar_secs * SRF) as usize);
+        for i in 0..x.len() {
+            let t = i as f64 / SRF;
+            let b = (t / a.bar_secs) as usize;
+            let loud =
+                sections.iter().find(|s| (s.start_bar..s.start_bar + s.bars).contains(&b)).map_or(0.3, |s| s.energy);
+            let v = chord(t, 0.5 * loud);
+            (x.l[i], x.r[i]) = (v, v);
+        }
+        let dir = std::env::temp_dir().join(format!("claudius-flip-lands-{}", std::process::id()));
+        let src = Source { x: &x, name: "my song.wav", a: &a, stems: None };
+        let bp =
+            remix(&src, &crate::genres::get("deep_house").unwrap(), 3, &Options::default(), None, &dir, None).unwrap();
+        let line = bp.lineage.iter().find(|l| l.starts_with("remixed from")).expect("a remix");
+        // the song's build ends where a chorus of the recording starts, and its drop plays that chorus on
+        let builds: Vec<usize> = bp
+            .form
+            .iter()
+            .enumerate()
+            .filter(|(i, s)| {
+                (s.kind == SectionKind::Build || s.build)
+                    && bp.form.get(i + 1).is_some_and(|n| matches!(n.kind, SectionKind::Drop | SectionKind::Hook))
+            })
+            .map(|(i, _)| i)
+            .collect();
+        assert!(!builds.is_empty(), "{:?}", bp.form.iter().map(|s| (&s.name, s.kind)).collect::<Vec<_>>());
+        let choruses: Vec<usize> =
+            sections.iter().filter(|s| s.kind == SectionKind::Hook).map(|s| s.start_bar).collect();
+        // the recording's bars a section plays, from its first to past its last, counting from 0: those said for it
+        // going on through the recording, else the hook's or the other passage's, whichever track it plays
+        let span = |said: &str| -> Option<(usize, usize)> {
+            let digits = said.split(|c: char| !c.is_ascii_digit() && c != '-').find(|w| w.contains('-'))?;
+            let (a, b) = digits.split_once('-')?;
+            Some((a.parse::<usize>().ok()? - 1, b.parse().ok()?))
+        };
+        let plays = |i: usize| -> Option<(usize, usize)> {
+            let s = &bp.form[i];
+            if let Some(k) = line.find(&format!("{} bars ", s.name)) {
+                return span(&line[k..]);
+            }
+            let what = if s.layers.iter().any(|l| l == PHRASE) { "its hook (" } else { "another passage of it (" };
+            line.find(what).and_then(|k| span(&line[k..]))
+        };
+        for &i in &builds {
+            let (build, drop) = (&bp.form[i].name, &bp.form[i + 1].name);
+            let Some((_, last)) = plays(i) else { panic!("{build} plays none of the recording's bars: {line}") };
+            assert!(
+                choruses.contains(&last),
+                "{build} ends at bar {last}, no chorus starts there ({choruses:?}): {line}"
+            );
+            assert_eq!(plays(i + 1).map(|p| p.0), Some(last), "{drop} plays on from where {build} ends: {line}");
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_build_too_short_to_land_leaves_the_landings_to_those_after_it_and_one_lands_only_with_its_drop() {
+        // the recording: a verse, a build of 4 bars into a chorus of 4 (bar 12), a verse, a build of 8 into a chorus of
+        // 8 (bar 32), an outro
+        let parts = [(8, SectionKind::Verse), (4, SectionKind::Build), (4, SectionKind::Hook), (8, SectionKind::Verse)];
+        let parts = parts.into_iter().chain([(8, SectionKind::Build), (8, SectionKind::Hook), (8, SectionKind::Outro)]);
+        let mut start = 0;
+        let sections: Vec<SectionGuess> = parts
+            .map(|(n, k)| {
+                start += n;
+                section(start - n, n, 0.7, k)
+            })
+            .collect();
+        let a = Analysis { bars: start, sections: sections.clone(), ..heard() };
+        let kind = |bar: usize| {
+            let s = sections.iter().find(|s| (s.start_bar..s.start_bar + s.bars).contains(&bar))?;
+            let inner = s.harmony && !matches!(s.kind, SectionKind::Intro | SectionKind::Outro);
+            inner.then(|| usize::from(!matches!(s.kind, SectionKind::Hook | SectionKind::Drop)))
+        };
+        // the hook chopped, eight bars a pass of it; the other passage played as it is
+        let lane = |name: &str, chop: Vec<i32>| LoopPart {
+            name: name.into(),
+            role: "sample".into(),
+            sound: Sound::Loop {
+                path: String::new(),
+                bpm: 96.0,
+                beats: 32.0,
+                key: None,
+                tonal: true,
+                label: String::new(),
+            },
+            transpose: 0,
+            chop,
+            slice_beats: 1.0,
+            retime: false,
+            mix: Default::default(),
+            from: None,
+            sampled: true,
+        };
+        let lanes = [(PHRASE, lane(PHRASE, (0..32).collect()), Some(32)), (SECOND, lane(SECOND, Vec::new()), Some(0))];
+        let mut bp = compose::generate(&crate::genres::get("deep_house").unwrap(), 3, &Options::default(), None);
+        let like = bp.form[0].clone();
+        let sec = |name: &str, kind: SectionKind, bars: u32, layer: &str| SectionSpec {
+            name: name.into(),
+            kind,
+            bars,
+            layers: vec![layer.into()],
+            build: false,
+            ..like.clone()
+        };
+        // a build of 4 bars on the chopped hook into a hook; a verse, and a build of 8 on the other passage into a hook
+        bp.form = vec![
+            sec("build", SectionKind::Build, 4, PHRASE),
+            sec("hook", SectionKind::Hook, 8, PHRASE),
+            sec("verse", SectionKind::Verse, 8, SECOND),
+            sec("build2", SectionKind::Build, 8, SECOND),
+            sec("hook2", SectionKind::Hook, 8, PHRASE),
+        ];
+        let got = landings(&bp, &a, Bars { first: 32, count: 8 }, 1.0, start, &lanes, &kind);
+        // the first build, too short for a pass of the hook, lands nowhere and leaves both landings; the second's hook
+        // cannot play a whole pass from the chorus of 4, so the build lands on the chorus of 8 and its hook plays on
+        assert_eq!((got.get(&0), got.get(&1)), (None, None), "{got:?}");
+        assert_eq!(got.get(&3), Some(&Bars { first: 24, count: 8 }), "{got:?}");
+        assert_eq!(got.get(&4), Some(&Bars { first: 32, count: 8 }), "{got:?}");
     }
 
     /// the first bar of "bars 17-24" in `said`, counting from 0
