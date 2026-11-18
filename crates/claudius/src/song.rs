@@ -354,7 +354,9 @@ fn write_documents(
     if let Ok(entries) = std::fs::read_dir(&folder) {
         for e in entries.flatten() {
             let path = e.path();
-            if path.extension().is_some_and(|x| x == "wav") && !written.contains(&path) {
+            // by its name, not its extension: a track whose name keeps nothing in a slug (`キック`) is kept as `.wav`
+            let wav = path.file_name().is_some_and(|n| n.to_string_lossy().to_lowercase().ends_with(".wav"));
+            if wav && !written.contains(&path) {
                 std::fs::remove_file(&path).with_context(|| format!("cannot take out {}", path.display()))?;
             }
         }
@@ -456,6 +458,11 @@ mod tests {
         std::fs::remove_file(dir.join("stems").join("notes.txt")).unwrap();
         write_folder(&dir, &bp, &project, &rendered(&[]), &verdict, false).unwrap();
         assert!(!dir.join("stems").exists(), "an empty stems folder goes");
+        // a track whose name keeps nothing in a slug is kept as `.wav`, and goes as the others do
+        write_folder(&dir, &bp, &project, &rendered(&["キック"]), &verdict, true).unwrap();
+        assert_eq!(names(&dir), [".wav"]);
+        write_folder(&dir, &bp, &project, &rendered(&[]), &verdict, false).unwrap();
+        assert!(!dir.join("stems").exists(), "{:?}", names(&dir));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }
