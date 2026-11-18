@@ -172,7 +172,7 @@ The MCP tools wait the same way after every edit.
 | `title`, `genre`, `seed`, `bpm`, `key`, `swing` | the song's settings; `key` reads like `"A minor"` |
 | `bars`, `seconds` | its length |
 | `progressions` | `[name, [numerals]]` pairs, `"A"` and `"B"` in generated songs |
-| `sections` | `SectionView` per section: `name`, `kind`, `start_bar`, `bars`, `energy`, `layers`, `prog`, `variant` and the flags `filter_in`, `build`, `gap`, `impact`, `fills` |
+| `sections` | `SectionView` per section: `name`, `kind`, `start_bar`, `bars`, `energy`, `layers`, `prog`, `variant`, the flags `filter_in`, `build`, `gap`, `impact`, `fills`, and `takes`: where it starts in each take it plays, in bars from the take's start |
 | `layers` | every name a section can switch on: drum lanes, parts, loops, pattern tracks |
 | `tracks` | `TrackView` per track: `name`, `kind` (`drum`, `part`, `loop`, `pattern`, `fx`), `role`, `sound` in words, the mix (`level_db`, `pan`, `reverb`, `delay`, `duck`, `muted`, `solo`), its `bus`, its chain of effects `fx` (each as the song keeps it, a map named by `fx`, as [`fx()`](../language/mixing.md#effect-chains) writes it), `loudness` in the master (LUFS while playing) once rendered, and for a take, `seconds`: how long its recording is |
 | `mix` | `MixView`: the `buses` as `[name, effects]`, the `master` chain, its `lufs` and `ceiling_db`, and the `reverb` and `delay` the sends feed |
@@ -229,7 +229,7 @@ fields marked optional may be left out.
 | `set_swing` | `swing` | as `swing()` |
 | `set_progression` | `name`, `chords` (strings) | as `prog()` |
 | `set_section` | `index`; optional `name`, `bars`, `energy`, `layers`, `prog`, `variant`, `filter_in`, `build`, `gap`, `impact`, `fills` | changes any of a section's properties |
-| `add_section` | `after`, `kind`, `bars` | inserts a section after index `after`, with that section's layers, energy and progression |
+| `add_section` | `after`, `kind`, `bars` | inserts a section after index `after`, with that section's layers (but none of the song's [takes](samples.md#takes), so that every other section plays the same stretch of them), energy and progression |
 | `remove_section` | `index` | removes a section (a song keeps at least one) |
 | `move_section` | `from`, `to` | moves a section |
 | `toggle_layer` | `section`, `layer` | switches a track on or off in a section |

@@ -170,7 +170,8 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             Ok(msg)
         }
         Command::AddSection { after, kind, bars } => {
-            // like the server: a copy of the `after` section (layers, prog, variant, energy...) of the new kind
+            // like the server: a copy of the `after` section (layers, prog, variant, energy...) of the new kind, without
+            // the song's takes, so that the sections after it play what they played
             let at = (*after + 1).min(song.sections.len());
             let near = (*after).min(song.sections.len().saturating_sub(1));
             let like = song.sections.get(near).cloned().unwrap_or_else(|| SectionView {
@@ -180,6 +181,7 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
                 variant: "main".into(),
                 ..Default::default()
             });
+            let take = |l: &String| song.tracks.iter().any(|t| t.name == *l && t.kind == "take");
             let section = SectionView {
                 name: unique_name(song, kind),
                 kind: kind.clone(),
@@ -188,6 +190,8 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
                 build: kind == "build",
                 impact: kind == "drop",
                 gap: false,
+                layers: like.layers.iter().filter(|l| !take(l)).cloned().collect(),
+                takes: Default::default(),
                 ..like
             };
             let msg = format!("added {} ({} bars)", section.name, section.bars);

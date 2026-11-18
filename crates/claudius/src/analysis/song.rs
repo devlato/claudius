@@ -782,6 +782,7 @@ pub fn to_blueprint(
             gap: next_drop && s.kind != SectionKind::Drop,
             impact: s.kind == SectionKind::Drop && i > 0 && a.sections[i - 1].kind != SectionKind::Drop,
             fills: matches!(s.kind, SectionKind::Drop | SectionKind::Groove),
+            takes: Default::default(),
         });
     }
     if !form.is_empty() {

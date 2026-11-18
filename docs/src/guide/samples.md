@@ -300,7 +300,8 @@ to chop says so.
 
 A take is a recording made for the song: a vocal, a guitar, a melody sung into a microphone. A loop starts over in
 every section it is in; a take plays once, from the start of the section it was recorded over, and on through the
-sections after it for as long as it lasts. Record one with the studio's [Record](../getting-started/studio.md#the-panels)
+sections after it for as long as it lasts. Each section keeps its own stretch of it: add, remove or move a section and
+the others play what they played, and a section you add plays none of the takes until you turn one on in it. Record one with the studio's [Record](../getting-started/studio.md#the-panels)
 button. When you stop, the take waits for you: **Play it back** plays the song from a bar before it with the take in it,
 **Record again** records it over, **Keep it** adds it to the song, and **Throw it away** forgets it. Or bring an audio
 file: drop it on the studio, or press the **+** button after Record and choose it (or [search the free

@@ -107,6 +107,7 @@ pub fn blank(genre: &str) -> Result<Blueprint, String> {
         gap: false,
         impact: false,
         fills: false,
+        takes: Default::default(),
     }];
     bp.lineage = vec![format!("blank {genre} song")];
     Ok(bp)

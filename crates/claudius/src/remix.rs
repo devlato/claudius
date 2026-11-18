@@ -985,6 +985,7 @@ fn rework_form(
             gap: false,
             impact: t.is_some_and(|t| t.impact),
             fills: t.is_some_and(|t| t.fills),
+            takes: Default::default(),
         });
     }
     (form, progs)
@@ -1111,6 +1112,8 @@ pub fn rework(
             from: bp.form.first().map(|s| s.name.clone()),
             sampled: true,
         });
+        // each section keeps its own stretch of the recording, wherever it goes and whatever comes before it
+        crate::take::pin(&mut bp, track);
     }
     let kept: Vec<&str> =
         bp.parts.iter().map(|p| p.name.as_str()).chain(bp.drums.iter().map(|d| d.name.as_str())).collect();
@@ -1832,6 +1835,38 @@ mod tests {
         assert!(power(&rest, bar, 7.0 * bar) > 0.05 * power(&rest, 9.0 * bar, 15.0 * bar));
         let said = "its voice on a track of its own (vocals), without its drums and its bass";
         assert!(bp.lineage.iter().any(|l| l.contains(said)), "{:?}", bp.lineage);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_rework_keeps_each_sections_stretch_of_the_recording_when_a_break_goes_in_after_its_first() {
+        let (x, s) = (recording(), recording_apart());
+        let a = crate::analysis::song::analyze_with(&x, Some(&s), None);
+        let dir = std::env::temp_dir().join(format!("claudius-rework-break-{}", std::process::id()));
+        let src = Source { x: &x, name: "my song.wav", a: &a, stems: Some(&s) };
+        let bp = rework(&src, &crate::genres::get("boom_bap").unwrap(), 3, &Options::default(), None, &dir).unwrap();
+        assert!(bp.form.len() >= 2, "{:?}", bp.form);
+        // a break of four bars after the first section, as add_section puts one in: new to the song, without its takes
+        let mut with_break = bp.clone();
+        let mut gap = SectionSpec { name: "break".into(), kind: SectionKind::Break, bars: 4, ..bp.form[0].clone() };
+        assert_eq!(crate::take::leave_out(&with_break, &mut gap), [ORIGINAL, VOICE]);
+        with_break.form.insert(1, gap);
+        let (before, after) = (compose::arrange(&bp), compose::arrange(&with_break));
+        assert_eq!(after.bars, before.bars + 4, "the song four bars longer");
+        let first = f64::from(bp.form[0].bars) * 4.0;
+        for take in [ORIGINAL, VOICE] {
+            let clips = |p: &Project| -> Vec<(f64, f64, f64)> {
+                p.tracks.iter().find(|t| t.name == take).unwrap().clips.iter().map(|c| (c.t, c.d, c.offset)).collect()
+            };
+            let was = clips(&before);
+            assert!(
+                was.len() == 1 && (was[0].0, was[0].2) == (0.0, 0.0),
+                "{take}: all of it from its first bar: {was:?}"
+            );
+            let all = was[0].1;
+            // the break plays none of it, and every section after it plays what it played, to the recording's end
+            assert_eq!(clips(&after), [(0.0, first, 0.0), (first + 16.0, all - first, first)], "{take}");
+        }
         let _ = std::fs::remove_dir_all(&dir);
     }
 

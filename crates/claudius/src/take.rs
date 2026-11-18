@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::analysis::melody;
 use crate::audio::Stereo;
-use crate::model::{Blueprint, LoopPart, Part, Project, Role, Sound, TrackMix};
+use crate::model::{Blueprint, LoopPart, Part, Project, Role, SectionSpec, Sound, TrackMix};
 use crate::rng::{Rng, hash_str};
 use crate::synth::presets;
 use crate::theory::Note;
@@ -201,9 +201,46 @@ pub fn add(
         reached.push(s.name.clone());
         at += s.bars as f64 * 4.0;
     }
+    pin(bp, &name);
     let bars = beats / 4.0;
     bp.lineage.push(format!("recorded {name}: {bars:.1} bars from {from}"));
     Ok(format!("{name}: a take of {bars:.1} bars from the start of {from}, on in {}", reached.join(", ")))
+}
+
+/// Each section that plays take `take` keeps the place in it where it starts now (`SectionSpec::takes`), so that a
+/// section added, taken out, moved or made longer before it leaves its stretch of the recording as it was.
+pub fn pin(bp: &mut Blueprint, take: &str) {
+    let places = match bp.loops.iter().find(|l| l.name == take && l.from.is_some()) {
+        Some(lp) => bp.take_places(lp),
+        None => return,
+    };
+    for (s, place) in bp.form.iter_mut().zip(places) {
+        if let Some(at) = place {
+            s.takes.entry(take.to_string()).or_insert(at);
+        }
+    }
+}
+
+/// A section new to the song plays none of its takes, so that the sections after it play what they played: they are
+/// left out of its layers, and it keeps no place in them. The takes left out.
+pub fn leave_out(bp: &Blueprint, s: &mut SectionSpec) -> Vec<String> {
+    let takes: Vec<&str> = bp.loops.iter().filter(|l| l.from.is_some()).map(|l| l.name.as_str()).collect();
+    let out: Vec<String> = s.layers.iter().filter(|l| takes.contains(&l.as_str())).cloned().collect();
+    s.layers.retain(|l| !takes.contains(&l.as_str()));
+    s.takes.clear();
+    out
+}
+
+/// Every take of the song pinned (`pin`), and the places of takes it no longer has forgotten: what a change to the
+/// song's sections does first, so that a song saved before sections kept their places keeps them from then on.
+pub fn pin_all(bp: &mut Blueprint) {
+    let takes: Vec<String> = bp.loops.iter().filter(|l| l.from.is_some()).map(|l| l.name.clone()).collect();
+    for s in &mut bp.form {
+        s.takes.retain(|t, _| takes.contains(t));
+    }
+    for t in &takes {
+        pin(bp, t);
+    }
 }
 
 /// Take `take` cut down to its recording from `start` to `end` seconds in (to its end when None): the cut is kept in
@@ -240,19 +277,19 @@ pub fn trim(bp: &mut Blueprint, take: &str, start: f64, end: Option<f64>, dir: &
         (*path, *b) = (file.display().to_string(), beats);
     }
     let from = l.from.clone().unwrap_or_default();
-    // shorter, it reaches fewer of the sections after its own; those it still reaches stay as they were
-    let first = bp.form.iter().position(|s| s.name == from).unwrap_or(bp.form.len());
-    let mut at = 0.0;
+    // shorter, it reaches fewer of the sections that play it; those it still reaches stay as they were, each at the
+    // same place in the cut as it was in the recording, which the cut starts where the recording started
+    let places = bp.take_places(&bp.loops[i]);
     let mut reached = Vec::new();
-    for s in bp.form.iter_mut().skip(first) {
-        if at < beats - 1e-6 {
-            if s.layers.iter().any(|n| n == take) {
-                reached.push(s.name.clone());
+    for (s, place) in bp.form.iter_mut().zip(places) {
+        match place {
+            Some(at) if at < beats - 1e-6 => reached.push(s.name.clone()),
+            Some(_) => {
+                s.layers.retain(|n| n != take);
+                s.takes.remove(take);
             }
-        } else {
-            s.layers.retain(|n| n != take);
+            None => {}
         }
-        at += s.bars as f64 * 4.0;
     }
     bp.lineage.push(format!("trimmed {take} to {start:.2}-{end:.2} s of its recording"));
     Ok(format!(
@@ -1087,6 +1124,56 @@ mod tests {
         assert_eq!((t.clips[0].t, t.clips[0].d, t.clips[0].offset), (start, beats, 0.0));
         let end = p.sections[last].start_bar as f64 * 4.0;
         assert_eq!((t.clips[1].t, t.clips[1].offset), (end, end - start), "where the take is by then");
+    }
+
+    /// a song of four sections of eight bars, with a take as long as the song from its first
+    fn song_with_a_take() -> Blueprint {
+        let mut bp = song();
+        let like = bp.form[0].clone();
+        let names = ["intro", "verse", "chorus", "outro"];
+        bp.form = names.iter().map(|n| SectionSpec { name: n.to_string(), bars: 8, ..like.clone() }).collect();
+        let secs = 4.0 * 8.0 * 4.0 * 60.0 / bp.bpm;
+        add(&mut bp, Path::new("/takes/a.flac"), secs, "intro", None, None).unwrap();
+        bp
+    }
+
+    /// where section `name` starts in take1, as the song plays it
+    fn place(bp: &Blueprint, name: &str) -> f64 {
+        let p = compose::arrange(bp);
+        let i = bp.form.iter().position(|s| s.name == name).unwrap();
+        let t = p.sections[i].start_bar as f64 * 4.0;
+        let take = p.tracks.iter().find(|t| t.name == "take1").unwrap();
+        let c = take.clips.iter().find(|c| c.t <= t + 1e-9 && t < c.t + c.d - 1e-9).expect("it plays there");
+        c.offset + (t - c.t)
+    }
+
+    #[test]
+    fn each_section_keeps_its_stretch_of_a_take_wherever_it_goes_and_whatever_changes_before_it() {
+        let mut bp = song_with_a_take();
+        assert_eq!(["intro", "verse", "chorus", "outro"].map(|n| place(&bp, n)), [0.0, 32.0, 64.0, 96.0]);
+        // the verse twice as long, the outro moved to the front, the chorus taken out
+        bp.form[1].bars = 16;
+        let outro = bp.form.pop().unwrap();
+        bp.form.insert(0, outro);
+        bp.form.retain(|s| s.name != "chorus");
+        assert_eq!(["outro", "intro", "verse"].map(|n| place(&bp, n)), [96.0, 0.0, 32.0]);
+    }
+
+    #[test]
+    fn a_take_saved_before_sections_kept_their_places_plays_as_it_did_and_keeps_them_from_the_next_change() {
+        let bp = song_with_a_take();
+        let clips = |bp: &Blueprint| compose::arrange(bp).tracks.into_iter().find(|t| t.name == "take1").unwrap().clips;
+        let mut old = bp.clone();
+        for s in &mut old.form {
+            s.takes.clear();
+        }
+        assert_eq!(clips(&old), clips(&bp), "as it played");
+        pin_all(&mut old);
+        assert_eq!(old.form, bp.form, "each section where it played");
+        // and a take the song no longer has is forgotten
+        old.loops.retain(|l| l.name != "take1");
+        pin_all(&mut old);
+        assert!(old.form.iter().all(|s| s.takes.is_empty()), "{:?}", old.form);
     }
 
     #[test]
