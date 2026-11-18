@@ -829,8 +829,8 @@ mod tests {
         let mut bp = song();
         let from = bp.form[0].name.clone();
         let beats: f64 = bp.form.iter().map(|s| f64::from(s.bars) * 4.0).sum();
-        let path = std::path::Path::new("/takes/vox.flac");
-        claudius::take::add(&mut bp, path, beats * 60.0 / bp.bpm, &from, Some("vox"), Some("vocal")).unwrap();
+        let (path, secs) = (std::path::Path::new("/takes/vox.flac"), beats * 60.0 / bp.bpm);
+        claudius::take::add(&mut bp, path, secs, &from, Some("vox"), Some("vocal")).unwrap();
         let clips = |bp: &Blueprint| -> Vec<(f64, f64, f64)> {
             let p = claudius::compose::arrange(bp);
             p.tracks.iter().find(|t| t.name == "vox").unwrap().clips.iter().map(|c| (c.t, c.d, c.offset)).collect()
