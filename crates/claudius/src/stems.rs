@@ -188,7 +188,9 @@ mod separating {
                 let st = |(l, r): (Vec<f32>, Vec<f32>)| Stereo { l, r };
                 let s = Stems { vocals: st(vocals), drums: st(drums), bass: st(bass), other: st(other) };
                 to_disk(&dir, &s);
-                s
+                // heard as the cache will give them back, at 24 bits, so that a recording is heard the same the first
+                // time and every time after: a song's sections shifted on the last bits of its stems
+                from_disk(&dir, x.len()).unwrap_or(s)
             }
         };
         progress(1.0);
