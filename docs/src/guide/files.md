@@ -45,7 +45,7 @@ MCP made it, so they hold the same files:
 | `report.json` | tempo, key, form, loudness, and every track's level and gain |
 | `verdict.json` | the critic's verdict |
 | `credits.txt` | attributions, when sample packs play |
-| `stems/<track>.wav` | every track, 32-bit float: from a `save` with stems, and from `make` and `render` with `--stems` |
+| `stems/<track>.wav` | every track, 32-bit float: from a `save` with stems, and from `make` and `render` with `--stems`; a save without them takes out the stems an earlier save wrote, and one with them those of tracks the song no longer has, so that the folder never holds stems of another version of its song (other files in `stems/` stay) |
 | `release.json` | what you gave `claudius publish`: the artist, the songwriters, the artwork, how the song was made |
 | `release/` | the release kit `claudius publish` writes ([Publishing](publish.md)) |
 | `takes/` | the song's [takes](samples.md#takes), 24-bit FLAC: recordings made for it, which a save copies in |

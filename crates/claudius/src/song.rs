@@ -276,8 +276,9 @@ pub fn render_and_write(
 
 /// write a rendered song's folder: song.wav, song.mp3, blueprint.json, song.rhai, project.json, report.json,
 /// verdict.json, credits.txt when sampled instruments ask for credit, and with `stems` each track's stem in stems/
-/// (rendered with them, as 32-bit float, since a track can peak above full scale before the master's limiter). A folder
-/// the disk has no room for is refused before anything is written (`room_for_audio`).
+/// (rendered with them, as 32-bit float, since a track can peak above full scale before the master's limiter); the
+/// stems an earlier save wrote of tracks it saves none of go. A folder the disk has no room for is refused before
+/// anything is written (`room_for_audio`).
 pub fn write_folder(
     dir: &Path,
     bp: &Blueprint,
@@ -341,8 +342,24 @@ fn write_documents(
     if !c.is_empty() {
         text("credits.txt", c)?;
     }
+    // a folder holds the stems of the song it saves or none: with them, this song's tracks', and without them, none an
+    // earlier save wrote, which would play another version of the song
+    let folder = dir.join("stems");
+    let mut written = Vec::new();
     for (name, s) in r.stems.iter().filter(|_| stems) {
-        audio::save_wav(&dir.join("stems").join(format!("{}.wav", slug(name))), s, true)?;
+        let file = folder.join(format!("{}.wav", slug(name)));
+        audio::save_wav(&file, s, true)?;
+        written.push(file);
+    }
+    if let Ok(entries) = std::fs::read_dir(&folder) {
+        for e in entries.flatten() {
+            let path = e.path();
+            if path.extension().is_some_and(|x| x == "wav") && !written.contains(&path) {
+                std::fs::remove_file(&path).with_context(|| format!("cannot take out {}", path.display()))?;
+            }
+        }
+        // gone when nothing is left in it
+        let _ = std::fs::remove_dir(&folder);
     }
     Ok(())
 }
@@ -395,5 +412,50 @@ fn empty_project(r: &Rendered) -> Project {
             bands: Default::default(),
             master: Master { fx: Vec::new(), lufs: r.lufs as f32, ceiling_db: -1.0 },
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_folder_saved_again_holds_the_stems_of_the_song_it_saves_and_none_of_another() {
+        let dir = std::env::temp_dir().join(format!("claudius-stems-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let bp = crate::script::blank("house").unwrap();
+        let project = compose::arrange(&bp);
+        let quiet = audio::Stereo::zeros(4_800);
+        let rendered = |stems: &[&str]| Rendered {
+            lufs: crate::loudness::integrated(&quiet),
+            true_peak_db: crate::fx::true_peak_db(&quiet),
+            premaster_lufs: f64::NAN,
+            stems: stems.iter().map(|n| (n.to_string(), quiet.clone())).collect(),
+            tracks: Vec::new(),
+            master: quiet.clone(),
+            settled: None,
+        };
+        let verdict = judge::judge(&project, &rendered(&[]), None);
+        let names = |dir: &Path| -> Vec<String> {
+            let mut v: Vec<String> = std::fs::read_dir(dir.join("stems"))
+                .map(|d| d.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect())
+                .unwrap_or_default();
+            v.sort();
+            v
+        };
+        write_folder(&dir, &bp, &project, &rendered(&["kick", "bass"]), &verdict, true).unwrap();
+        assert_eq!(names(&dir), ["bass.wav", "kick.wav"]);
+        // a file of the person's own in it stays whatever is saved
+        std::fs::write(dir.join("stems").join("notes.txt"), "mine").unwrap();
+        // the bass gone from the song, its stem goes too
+        write_folder(&dir, &bp, &project, &rendered(&["kick"]), &verdict, true).unwrap();
+        assert_eq!(names(&dir), ["kick.wav", "notes.txt"]);
+        // saved without stems, none an earlier save wrote is left to play another version of the song
+        write_folder(&dir, &bp, &project, &rendered(&["kick"]), &verdict, false).unwrap();
+        assert_eq!(names(&dir), ["notes.txt"]);
+        std::fs::remove_file(dir.join("stems").join("notes.txt")).unwrap();
+        write_folder(&dir, &bp, &project, &rendered(&[]), &verdict, false).unwrap();
+        assert!(!dir.join("stems").exists(), "an empty stems folder goes");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }
