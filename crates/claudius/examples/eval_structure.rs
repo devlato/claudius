@@ -302,8 +302,8 @@ fn measure_stanzas(stanzas: &[Stanza], a: &Value, grid: bool) -> Count {
         c.on.1 += 1;
         c.on.0 += marks.iter().any(|m| (s.start - m).abs() <= bar) as usize;
     }
-    for i in 0..n {
-        let mid = 0.5 * (stanzas[i].start + stanzas[i].end);
+    for (i, stanza) in stanzas.iter().enumerate().take(n) {
+        let mid = 0.5 * (stanza.start + stanza.end);
         let heard_chorus = holding(mid).is_some_and(|s| s.label == "chorus");
         if is_chorus(i) {
             c.chorus.1 += 1;
@@ -315,8 +315,8 @@ fn measure_stanzas(stanzas: &[Stanza], a: &Value, grid: bool) -> Count {
     }
     if sections.iter().any(|s| s.group.is_some()) {
         let g = |k: usize| holding(0.5 * (stanzas[k].start + stanzas[k].end)).and_then(|s| s.group.clone());
-        for i in 0..n {
-            for &j in kin[i].iter().filter(|&&j| j > i) {
+        for (i, alike) in kin.iter().enumerate().take(n) {
+            for &j in alike.iter().filter(|&&j| j > i) {
                 c.same.1 += 1;
                 c.same.0 += (g(i).is_some() && g(i) == g(j)) as usize;
             }
