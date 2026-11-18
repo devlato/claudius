@@ -624,15 +624,9 @@ pub fn change_genre_dialog(ctx: &egui::Context, cx: &mut Cx) {
     }
     let now = cx.state.song.as_ref().map(|s| super::genre_words(&s.genre)).unwrap_or_default();
     let mut cancel = false;
-    let modal = egui::Modal::new(egui::Id::unique("change_genre")).show(ctx, |ui| {
+    let modal = widgets::dialog(ctx, "change_genre").show(ctx, |ui| {
         ui.set_width(640.0);
-        ui.horizontal(|ui| {
-            let at = Rect::from_min_size(ui.cursor().min + vec2(0.0, 2.0), vec2(18.0, 18.0));
-            widgets::paint_icon(ui.painter(), at, Icon::Swap, ACCENT);
-            ui.add_space(24.0);
-            ui.heading("Change the genre");
-        });
-        ui.add_space(4.0);
+        cancel |= widgets::head(ui, "Change the genre");
         ui.label(small(format!(
             "The song stays: its form, its chords and key, its lead's melody, the recordings it plays and the notes \
              written on its parts. The genre you choose plays it: its drums, bass and parts, their sounds, its swing \
@@ -853,19 +847,10 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
     if !cx.view.new_song.open {
         return;
     }
-    let modal = egui::Modal::new(egui::Id::unique("new_song")).show(ctx, |ui| {
+    let mut closed = false;
+    let modal = widgets::dialog(ctx, "new_song").show(ctx, |ui| {
         ui.set_width(640.0);
-        ui.horizontal(|ui| {
-            widgets::paint_icon(
-                ui.painter(),
-                Rect::from_min_size(ui.cursor().min + vec2(0.0, 2.0), vec2(18.0, 18.0)),
-                Icon::New,
-                ACCENT,
-            );
-            ui.add_space(24.0);
-            ui.heading("New song");
-        });
-        ui.add_space(4.0);
+        closed = widgets::head(ui, "New song");
         let starts = [
             (Start::Genre, "From a genre", "claudius writes a whole song in a genre: its form, drums, parts, sounds and mix"),
             (Start::Recording, "From a recording", "claudius listens to a song or a sound of yours, and makes a song of it"),
@@ -884,7 +869,7 @@ pub fn new_song_dialog(ctx: &egui::Context, cx: &mut Cx) {
             Start::Example => from_example(ui, cx),
         }
     });
-    if modal.should_close() {
+    if modal.should_close() || closed {
         cx.view.new_song.open = false;
     }
 }

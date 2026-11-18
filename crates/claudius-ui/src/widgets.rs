@@ -543,6 +543,44 @@ pub fn primary(ui: &mut Ui, label: &str, enabled: bool) -> Response {
     .inner
 }
 
+/// A dialog shown as a modal, framed as a window is (its margins, corners, fill and shadow) rather than as egui frames a
+/// modal, a popup's, so that a dialog and a window look alike; its first line is its `head`.
+pub fn dialog(ctx: &egui::Context, id: &str) -> egui::Modal {
+    egui::Modal::new(egui::Id::unique(id)).frame(egui::Frame::window(&ctx.global_style()))
+}
+
+/// A dialog's head, as egui draws a window's title bar and the Add a recording mockups draw it: a band across the top of
+/// the dialog in the fill of a window's title, its title in the middle and a close button at its right. For the dialogs
+/// shown as a modal (`dialog`), which egui gives no title bar, so that every window opens alike. Returns whether the close
+/// button was pressed.
+pub fn head(ui: &mut Ui, title: &str) -> bool {
+    let m = ui.spacing().window_margin;
+    let width = ui.available_width();
+    let row = 26.0;
+    // the band, from the dialog's top edge, across it and its margins, its top corners the window's
+    let band = Rect::from_min_size(
+        ui.cursor().min - vec2(m.leftf(), m.topf()),
+        vec2(width + m.leftf() + m.rightf(), m.topf() + row + m.bottomf() * 0.7),
+    );
+    let r = ui.visuals().window_corner_radius;
+    let corners = CornerRadius { nw: r.nw, ne: r.ne, sw: 0, se: 0 };
+    let fill = ui.visuals().widgets.open.weak_bg_fill;
+    ui.ctx().layer_painter(ui.layer_id()).rect_filled(band, corners, fill);
+    let (rect, _) = ui.allocate_exact_size(vec2(width, row), Sense::hover());
+    let p = ui.painter().clone();
+    p.text(rect.center(), Align2::CENTER_CENTER, title, theme::medium(16.0), TEXT_DIM.into());
+    let close = Rect::from_center_size(pos2(rect.right() - 8.0, rect.center().y), Vec2::splat(16.0));
+    let r = ui.interact(close, ui.scope_id().with(("head", title)), Sense::click()).on_hover_text("Close (Esc)");
+    r.widget_info(|| WidgetInfo::labeled(Role::Button, true, "Close"));
+    let x = close.shrink(2.0);
+    let stroke = ui.style().interact(&r).fg_stroke;
+    p.line_segment([x.left_top(), x.right_bottom()], stroke);
+    p.line_segment([x.right_top(), x.left_bottom()], stroke);
+    ui.advance_cursor_after_rect(Rect::from_min_max(rect.left_top(), pos2(rect.right(), band.bottom())));
+    ui.add_space(m.topf());
+    r.clicked()
+}
+
 /// A window's foot: a rule under what it holds, then its buttons from the right, the primary first (`primary`, then
 /// Cancel), and whatever `add` puts after them on the left.
 pub fn foot<R>(ui: &mut Ui, add: impl FnOnce(&mut Ui) -> R) -> R {
