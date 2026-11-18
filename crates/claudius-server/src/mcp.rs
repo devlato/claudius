@@ -536,7 +536,10 @@ pub struct RemakeArgs {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct TakeArgs {
-    /// the recording: an audio file (WAV, FLAC, MP3, ...) made at the song's tempo, starting on the section's downbeat
+    /// the recording, made at the song's tempo and starting on the section's downbeat: an audio file (WAV, FLAC, MP3,
+    /// ...), library:<id> from search_recordings, take:<name> (a recording the open
+    /// song keeps: a take, a rework's vocals or original, a phrase sampled into it) or stems:<part> (a part of the
+    /// recording claudius heard last: vocals, drums, bass, other, or the recording itself)
     pub path: String,
     /// the section it starts with, by name (get_song lists them)
     pub from: String,
@@ -559,8 +562,9 @@ pub struct SearchRecordingsArgs {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct PiecesArgs {
-    /// the recording: an audio file (WAV, FLAC, MP3, AAC, Ogg, AIFF), library:<id> from search_recordings, or
-    /// take:<name>, a recording the open song keeps (a take, a rework's vocals or original, a phrase sampled into it)
+    /// the recording: an audio file (WAV, FLAC, MP3, AAC, Ogg, AIFF), library:<id> from search_recordings, take:<name> (a recording the open
+    /// song keeps: a take, a rework's vocals or original, a phrase sampled into it) or stems:<part> (a part of the
+    /// recording claudius heard last: vocals, drums, bass, other, or the recording itself)
     pub path: String,
     /// the take: 0 (the default) for the best phrases, any other number for another draw of them
     #[serde(default)]
@@ -740,7 +744,9 @@ pub struct TrimArgs {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 pub struct SampleArgs {
-    /// the recording to sample: an audio file (WAV, FLAC, MP3, AAC, Ogg, AIFF)
+    /// the recording to sample: an audio file (WAV, FLAC, MP3, AAC, Ogg, AIFF), library:<id> from search_recordings, take:<name> (a recording the open
+    /// song keeps: a take, a rework's vocals or original, a phrase sampled into it) or stems:<part> (a part of the
+    /// recording claudius heard last: vocals, drums, bass, other, or the recording itself)
     pub path: String,
     /// how many phrases, 1 to 4 (default 2)
     #[serde(default)]

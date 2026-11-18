@@ -300,7 +300,8 @@ to chop says so.
 
 A take is a recording made for the song: a vocal, a guitar, a melody sung into a microphone. Wherever a command takes
 a recording's path, `take:<name>` names one the song keeps (a take, a rework's `vocals` or `original`, a phrase
-sampled into it). A loop starts over in
+sampled into it), and `stems:<part>` a part of the recording claudius heard last, as its analysis took it apart:
+`stems:vocals`, `stems:drums`, `stems:bass`, `stems:other`, or `stems:recording` for the recording itself. A loop starts over in
 every section it is in; a take plays once, from the start of the section it was recorded over, and on through the
 sections after it for as long as it lasts. Each section keeps its own stretch of it: add, remove or move a section and
 the others play what they played, and a section you add plays none of the takes until you turn one on in it. Record one with the studio's [Record](../getting-started/studio.md#the-panels)

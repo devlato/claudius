@@ -1104,6 +1104,14 @@ async fn files_a_studio_read_open_and_are_listened_to_by_their_contents() {
     let r = app.command(Command::SongLike { genre: Some("techno".into()), seed: Some(4) });
     assert!(r.ok && r.message.starts_with("a techno song like beat.wav: at "), "{}", r.message);
     assert_eq!(app.state().song.map(|s| (s.genre, s.seed)), Some(("techno".into(), 4)));
+    // the parts of the recording heard last, by name wherever a command takes a recording: without the ears, the
+    // recording itself alone
+    let first = app.state().song.map(|s| s.sections[0].name.clone()).unwrap();
+    let take = |path: &str| Command::AddTake { path: path.into(), from: first.clone(), name: None, role: None };
+    let r = app.command(take("stems:recording"));
+    assert!(r.ok, "{}", r.message);
+    let r = app.command(take("stems:vocals"));
+    assert!(!r.ok && r.message.contains("beat.wav heard last has no part 'vocals': it has recording"), "{}", r.message);
     // a file without a name says its format by its first bytes; one that is not audio says what is wanted
     let (_, _, b) = call(&router, post("/api/analyze", "application/octet-stream", &wav)).await;
     assert!(serde_json::from_str::<claudius_api::Reply>(&b).unwrap().ok, "{b}");

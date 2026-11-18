@@ -116,7 +116,9 @@ source}` with `source` in bars from the recording's start (16.25 is a beat into 
 or, with `take`, for one. With the ears, when it sings, its voice is apart on a track of its own, `vocals`
 (the history says "its voice on a track of its own (vocals)"), and `original` is the rest of it: level, treat or mute
 the voice on its own, as a singer's track. Its tracks are named by `take:<name>` wherever a recording's path goes (`take:vocals`,
-`take:original`): `sample_song` and `sample_pieces` sample the recording's own separated voice, `analyze` hears it alone. A recording too short or without sections (under 8 bars) is remade on its skeleton,
+`take:original`): `sample_song` and `sample_pieces` sample the recording's own separated voice, `analyze` hears it alone.
+After `analyze`, the parts it took the recording apart into are named the same way, as `stems:vocals`, `stems:drums`,
+`stems:bass` and `stems:other`: `add_take` with `stems:vocals` lays the recording's voice in the song as a take. A recording too short or without sections (under 8 bars) is remade on its skeleton,
 and the reply says so.
 
 With `flip: true` (`--flip`), `remake` makes a new song of the genre on the recording's sound instead, as a song built
