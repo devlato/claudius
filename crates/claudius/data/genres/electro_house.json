@@ -151,7 +151,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["supersaw", "square_lead"],
-      "styles": ["riff", "trance_lead", "riff", "trance_lead", "disco_hook", "synth_lead", "organ_riff"],
+      "styles": ["riff", "trance_lead", "riff", "trance_lead", "disco_hook", "synth_lead", "garage_chop"],
       "register": [64, 84],
       "density": [0.4, 0.65],
       "mix": {
@@ -165,7 +165,7 @@
       "name": "pad",
       "role": "pad",
       "presets": ["pad", "warm_pad"],
-      "styles": ["sustain", "sustain", "legato", "disco_strings"],
+      "styles": ["sustain", "sustain", "legato"],
       "register": [50, 76],
       "voices": 4,
       "voicing": "open",

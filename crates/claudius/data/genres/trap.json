@@ -269,7 +269,7 @@
       "name": "keys",
       "role": "keys",
       "presets": ["piano|keys", "bells|bell", "rhodes|epiano", "pad", "harp|harp_pluck"],
-      "styles": ["trap_keys", "sustain", "trap_keys", "sustain", "strum", "arpeggio"],
+      "styles": ["trap_keys", "sustain", "trap_keys", "sustain", "arpeggio", "strum"],
       "register": [55, 76],
       "voices": 3,
       "voicing": "open",

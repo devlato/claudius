@@ -152,7 +152,7 @@
       "name": "synth",
       "role": "pad",
       "presets": ["warm_pad", "pad"],
-      "styles": ["sustain", "sustain", "legato", "ostinato"],
+      "styles": ["sustain", "sustain", "legato"],
       "register": [52, 79],
       "voices": 4,
       "voicing": "spread",

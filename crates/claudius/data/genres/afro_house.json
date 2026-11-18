@@ -136,7 +136,7 @@
       "name": "pad",
       "role": "pad",
       "presets": ["warm_pad", "air_pad", "string_ensemble|strings"],
-      "styles": ["sustain", "sustain", "legato", "disco_strings"],
+      "styles": ["sustain", "sustain", "legato"],
       "register": [48, 74],
       "voices": 3,
       "voicing": "open",

@@ -149,7 +149,7 @@
       "name": "keys",
       "role": "keys",
       "presets": ["rhodes|epiano", "organ", "epiano"],
-      "styles": ["gospel", "half", "offbeat", "gospel", "half", "offbeat", "house_piano", "stabs"],
+      "styles": ["gospel", "half", "offbeat", "gospel", "half", "offbeat", "stabs", "house_piano"],
       "register": [55, 76],
       "voices": 3,
       "voicing": "open",

@@ -162,7 +162,7 @@
       "name": "pad",
       "role": "pad",
       "presets": ["string_ensemble|strings", "warm_pad"],
-      "styles": ["sustain", "sustain", "legato", "pizzicato", "disco_strings"],
+      "styles": ["sustain", "sustain", "legato"],
       "register": [52, 76],
       "voices": 3,
       "voicing": "open",

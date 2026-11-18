@@ -181,7 +181,7 @@
       "name": "pad",
       "role": "pad",
       "presets": ["warm_pad", "pad", "string_ensemble|strings"],
-      "styles": ["sustain", "sustain", "legato", "disco_strings"],
+      "styles": ["sustain", "sustain", "legato"],
       "register": [50, 76],
       "voices": 4,
       "voicing": "open",

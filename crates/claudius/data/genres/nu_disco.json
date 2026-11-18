@@ -147,7 +147,7 @@
       "name": "keys",
       "role": "keys",
       "presets": ["rhodes|epiano", "wurlitzer|epiano", "epiano"],
-      "styles": ["gospel", "offbeat", "gospel", "offbeat", "half", "house_piano", "stabs"],
+      "styles": ["gospel", "offbeat", "gospel", "offbeat", "half", "stabs", "house_piano"],
       "register": [52, 74],
       "voices": 4,
       "voicing": "close",

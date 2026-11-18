@@ -46,7 +46,7 @@
     {"name": "keys", "role": "keys", "presets": ["rhodes|epiano", "wurlitzer|epiano", "rhodes|epiano"], "styles": ["rnb_keys", "gospel", "rnb_keys", "gospel", "stabs", "sustain"], "register": [50, 74], "voices": 4, "voicing": "close", "mix": {"reverb": 0.22, "fx": [{"fx": "chorus", "rate_hz": 0.5, "depth_ms": 2.0, "delay_ms": 10, "mix": 0.25}]}},
     {"name": "lead", "role": "lead", "presets": ["glide_lead"], "styles": ["gfunk_whine", "gfunk_whine", "rnb_runs", "piano_riff"], "register": [69, 90], "density": [0.2, 0.35], "core": 1.0, "mix": {"level_db": -4, "reverb": 0.3, "delay": 0.2}},
     {"name": "talkbox", "role": "lead", "presets": ["vox_lead"], "styles": ["gfunk_whine", "rnb_runs", "gfunk_whine", "rnb_runs", "piano_riff"], "register": [55, 72], "density": [0.25, 0.4], "optional": 0.5, "core": 1.0, "mix": {"level_db": -5, "reverb": 0.2, "delay": 0.1}},
-    {"name": "strings", "role": "pad", "presets": ["string_ensemble|strings", "warm_pad"], "styles": ["legato", "legato", "ostinato"], "register": [52, 76], "voices": 3, "voicing": "open", "optional": 0.3, "mix": {"level_db": -3, "reverb": 0.4}}
+    {"name": "strings", "role": "pad", "presets": ["string_ensemble|strings", "warm_pad"], "styles": ["legato"], "register": [52, 76], "voices": 3, "voicing": "open", "optional": 0.3, "mix": {"level_db": -3, "reverb": 0.4}}
   ],
   "sampling": {
     "by_default": false,

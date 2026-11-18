@@ -183,7 +183,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["soft_lead", "vibraphone|mallet", "rhodes|epiano"],
-      "styles": ["lofi_melody", "ambient_line", "lofi_melody", "ambient_line", "riff", "horn_riff"],
+      "styles": ["lofi_melody", "ambient_line", "lofi_melody", "ambient_line", "horn_riff", "riff"],
       "register": [62, 79],
       "density": [0.2, 0.4],
       "mix": {

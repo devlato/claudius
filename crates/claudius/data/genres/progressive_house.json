@@ -138,7 +138,7 @@
       "name": "piano",
       "role": "keys",
       "presets": ["piano|keys", "house_piano", "keys"],
-      "styles": ["house_piano", "stabs", "half", "house_piano", "stabs", "half", "offbeat", "gospel"],
+      "styles": ["house_piano", "stabs", "half", "house_piano", "stabs", "half", "gospel", "offbeat"],
       "register": [52, 78],
       "voices": 4,
       "voicing": "close",
@@ -156,8 +156,8 @@
         "trance_lead",
         "riff",
         "disco_hook",
-        "organ_riff",
-        "garage_chop"
+        "garage_chop",
+        "organ_riff"
       ],
       "register": [64, 81],
       "density": [0.35, 0.55],
@@ -167,7 +167,7 @@
       "name": "pad",
       "role": "pad",
       "presets": ["warm_pad", "pad", "string_ensemble|strings"],
-      "styles": ["sustain", "sustain", "legato", "disco_strings"],
+      "styles": ["sustain", "sustain", "legato"],
       "register": [48, 76],
       "voices": 4,
       "voicing": "open",
