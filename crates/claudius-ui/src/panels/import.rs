@@ -15,7 +15,7 @@ use super::Cx;
 use super::record::ROLES;
 use crate::audio::{Player, Source};
 use crate::pick::{self, Picked, Want};
-use crate::theme::{self, ACCENT, LINE, RAISED, RAISED_HI, TEXT, TEXT_DIM, TEXT_FAINT, WELL};
+use crate::theme::{self, ACCENT, LINE, RAISED, RAISED_HI, TEXT_DIM, TEXT_FAINT, WELL};
 use crate::widgets::{self, Icon};
 
 /// a file fetched, or why not
@@ -699,21 +699,7 @@ fn ways_row(ui: &mut Ui, row: &[(&'static str, Icon, &str, &str)], how: &mut &'s
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = gap;
         for &(name, icon, title, about) in row {
-            let (rect, r) = ui.allocate_exact_size(vec2(w, 92.0), Sense::click());
-            let on = *how == name;
-            let base = if on { theme::mix(RAISED, ACCENT, 0.2) } else { RAISED.into() };
-            let fill = if r.hovered() && !on { RAISED_HI.into() } else { base };
-            let stroke = if on { Stroke::new(1.5, ACCENT) } else { Stroke::new(1.0, LINE) };
-            let p = ui.painter();
-            p.rect(rect, 8.0, fill, stroke, egui::StrokeKind::Inside);
-            let inner = rect.shrink(12.0);
-            widgets::paint_icon(p, Rect::from_min_size(inner.left_top(), vec2(16.0, 16.0)), icon, ACCENT);
-            p.text(inner.left_top() + vec2(0.0, 24.0), Align2::LEFT_TOP, title, theme::medium(13.5), TEXT.into());
-            let words = p.layout(about.to_string(), theme::prop(11.5), TEXT_DIM.into(), inner.width());
-            p.galley(inner.left_top() + vec2(0.0, 44.0), words, TEXT_DIM.into());
-            let r = r.on_hover_cursor(egui::CursorIcon::PointingHand);
-            r.widget_info(|| egui::WidgetInfo::selected(egui::Role::RadioButton, true, on, title));
-            if r.clicked() {
+            if widgets::option_card(ui, vec2(w, 92.0), *how == name, icon, title, about).clicked() {
                 *how = name;
             }
         }
@@ -743,13 +729,6 @@ fn every_row(ui: &mut Ui, every: &mut Option<&'static str>, after: &str) {
         ui.add_space(140.0);
         ui.label(RichText::new(format!("{about}{after}")).size(11.5).color(TEXT_FAINT));
     });
-}
-
-/// a button in the accent's colour, for what the window is for
-fn primary(ui: &mut Ui, label: &str, enabled: bool) -> egui::Response {
-    let ink = theme::ink_on(ACCENT);
-    let button = egui::Button::new(RichText::new(label).strong().color(ink)).fill(ACCENT).min_size(vec2(0.0, 30.0));
-    ui.add_enabled(enabled, button)
 }
 
 pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
@@ -815,7 +794,7 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
                 ui.add_space(6.0);
                 ui.horizontal(|ui| {
                     let tip = "WAV, MP3, FLAC, AAC, AIFF, Ogg or Opus";
-                    if primary(ui, "Choose a file...", true).on_hover_text(tip).clicked() {
+                    if widgets::primary(ui, "Choose a file...", true).on_hover_text(tip).clicked() {
                         pick::choose(ui.ctx(), Want::Recording);
                     }
                     ui.weak("or drop one on the studio");
@@ -898,7 +877,7 @@ pub fn dialog(ctx: &egui::Context, cx: &mut Cx) {
                         "chops" => "Chop it",
                         _ => "Sample a stab",
                     };
-                    let go = primary(ui, label, free).clicked();
+                    let go = widgets::primary(ui, label, free).clicked();
                     cancel = ui.add(egui::Button::new("Cancel").min_size(vec2(0.0, 30.0))).clicked();
                     // with a claudius, a library's recording goes by its id, which it downloads once and credits
                     let by_id = im.hit.as_ref().filter(|_| !demo).map(|h| format!("library:{}", h.id));
@@ -1290,8 +1269,8 @@ pub fn pieces(ctx: &egui::Context, cx: &mut Cx) {
                         1 => format!("Put 1 {one} in the song"),
                         n => format!("Put {n} {one}s in the song"),
                     };
-                    let put =
-                        primary(ui, &label, !keep.is_empty()).on_disabled_hover_text(format!("tick a {one} first"));
+                    let put = widgets::primary(ui, &label, !keep.is_empty())
+                        .on_disabled_hover_text(format!("tick a {one} first"));
                     if put.clicked() {
                         let every = im.every.map(str::to_string);
                         cx.out.push(Command::KeepPieces { keep: keep.clone(), sections: im.places.clone(), every });
