@@ -183,7 +183,10 @@ mod tagging {
             let mono = x.mono();
             let at = |t: f64| ((t.max(0.0) * SRF) as usize).min(mono.len());
             let segs: Vec<&[f32]> = missing.iter().map(|&(a, b)| &mono[at(a)..at(b).max(at(a))]).collect();
-            let probs = ced.probs(&segs).ok()?;
+            let probs = ced
+                .probs(&segs)
+                .map_err(|e| eprintln!("claudius: the voice could not be told from the instruments: {e:#}"))
+                .ok()?;
             let sure = |p: &Vec<f32>| voice.iter().map(|&i| p[i] as f64).fold(0.0, f64::max);
             known.extend(missing.iter().zip(&probs).map(|(s, p)| (s.0, s.1, sure(p))));
             if let Some(p) = &path {

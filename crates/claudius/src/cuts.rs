@@ -42,8 +42,8 @@ const SILENT: f64 = -60.0;
 const QUIET_FOR: f64 = 0.06;
 /// phrases parted by less than this are asked about together, seconds (`stretches`)
 const APART: f64 = 1.0;
-/// the longest stretch asked about at once, seconds: as long as the tagger hears at once
-const ASKED: f64 = 10.24;
+/// the longest stretch asked about at once, seconds: as long as the tagger hears at once (`earshot::ced::WIN_S`)
+const ASKED: f64 = 10.11;
 /// a stretch is a voice's when the tagger hears a voice in it this surely at least (`voiced_only`): an instrument a
 /// separation left in the vocals reads about 0.02, singing 0.26 and up, a short line far less (the tagger hears 10.24 s,
 /// the rest silence). Chosen on half of JamendoLyrics' songs and confirmed on the other half: against when their lines
@@ -181,7 +181,7 @@ fn span(a: usize, b: usize) -> Span {
 
 /// The stretches of a voice's recording to ask whether a voice is what sings in them (`stems::voiced`): its phrases,
 /// run together where less than `APART` parts them while together they last no longer than `ASKED`, so that each
-/// question hears a whole line or two, as the tagger hears 10.24 s at once.
+/// question hears a whole line or two, as the tagger hears 10.11 s at once.
 pub fn stretches(sung: &Sung) -> Vec<(f64, f64)> {
     let mut out: Vec<(f64, f64)> = Vec::new();
     for p in &sung.phrases {
