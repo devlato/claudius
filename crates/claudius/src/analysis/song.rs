@@ -293,13 +293,17 @@ fn bar_index(bar_starts: &[f64], bar_len: f64, t: f64) -> i64 {
 }
 
 /// Where a piece of the section starting at bar `b` is best cut: the bar's line, or, where its first phrase is sung
-/// before the bar (a pickup, within three quarters of the bar before), before that phrase, in the quiet after whatever
-/// is sung before it (`cuts::cut_before`). The voice `sung` is heard in, when it is apart.
+/// before the bar and runs into it (a pickup, starting within three quarters of the bar before), before that phrase,
+/// in the quiet after whatever is sung before it (`cuts::cut_before`). A line of the section before that ends before
+/// the bar is no pickup, and of the phrases that run into the bar the one started last is. The voice `sung` is heard
+/// in, when it is apart.
 fn cut_at(b: usize, bar_starts: &[f64], sung: Option<(&cuts::Sung, &Stereo)>) -> f64 {
     let t = bar_starts[b];
     let Some((sung, voice)) = sung else { return t };
     let reach = if b > 0 { 0.75 * (t - bar_starts[b - 1]) } else { t };
-    let Some(i) = sung.phrases.iter().position(|p| p.start >= t - reach && p.start < t + 0.1) else { return t };
+    let Some(i) = sung.phrases.iter().rposition(|p| p.start >= t - reach && p.start < t + 0.1 && p.end > t) else {
+        return t;
+    };
     let p = sung.phrases[i];
     if p.start >= t - 0.05 {
         return t;
@@ -816,6 +820,25 @@ pub(crate) mod tests {
     use crate::config::SRF;
     use crate::genres;
     use crate::stems::Stems;
+
+    #[test]
+    fn a_section_is_cut_before_its_own_pickup_not_before_a_line_of_the_section_before() {
+        // bars of 2 s; a line of the section before sung from 4.6 s to 5.6 s, then the next section's pickup from
+        // 5.7 s, running over its bar line at 6 s
+        let bar_starts: Vec<f64> = (0..8).map(|b| b as f64 * 2.0).collect();
+        let span = |start: f64, end: f64| crate::cuts::Span { start, end };
+        let lines = [span(4.6, 5.6), span(5.7, 7.0)];
+        let sung = crate::cuts::Sung { words: lines.to_vec(), phrases: lines.to_vec() };
+        let mut voice = Stereo::zeros((16.0 * SRF) as usize);
+        for l in lines {
+            for i in (l.start * SRF) as usize..(l.end * SRF) as usize {
+                let v = ((std::f64::consts::TAU * 220.0 * i as f64 / SRF).sin() * 0.3) as f32;
+                (voice.l[i], voice.r[i]) = (v, v);
+            }
+        }
+        let cut = super::cut_at(3, &bar_starts, Some((&sung, &voice)));
+        assert!(cut > 5.6 && cut < 5.7, "before the pickup, after the line before: {cut}");
+    }
 
     /// the form of `pop_song`: each section, what it is and its bars
     pub(crate) const POP_FORM: [(Label, usize); 10] = [

@@ -839,14 +839,15 @@ fn sung_labels(segs: &[(usize, usize)], group: &[usize], loud: &[f64], kit: &[f6
         let before_chorus = out.get(i + 1) == Some(&Label::Chorus);
         let after_chorus = i > 0 && out[i - 1] == Label::Chorus;
         let len = segs[i].1 - segs[i].0;
-        // a bridge is sung once, after two choruses or after one and as long as a verse: a pre-chorus before the second
-        // chorus that is sung otherwise than the first stays a pre-chorus
+        // a bridge is sung once, after two choruses, or after one and as long as a verse where it does not lead into the
+        // next: what is sung once between the first chorus and the second, into it, is a pre-chorus sung otherwise than
+        // the first (or a verse, when longer)
         let once = (0..m).filter(|&j| group[j] == group[i]).count() == 1;
         let choruses_before = out[..i].iter().filter(|l| **l == Label::Chorus).count();
-        let bridge = vocal[i] && once && (choruses_before >= 2 || (choruses_before == 1 && len >= 8));
+        let bridge = vocal[i] && once && (choruses_before >= 2 || (choruses_before == 1 && len >= 8 && !before_chorus));
         out[i] = if bridge {
             Label::Bridge
-        } else if before_chorus && len <= 12 && i > first.saturating_sub(1) {
+        } else if before_chorus && len <= 12 && i >= first {
             Label::PreChorus
         } else if after_chorus && !vocal[i] && loud[i] >= chorus_loud - 1.5 && i < last {
             Label::PostChorus
@@ -1004,6 +1005,38 @@ pub(crate) mod tests {
         let flat = vec![0.0; 96];
         let b = segment(&flat, 96, 1.0);
         assert!(b.windows(2).all(|w| w[1] - w[0] <= 32), "{b:?}");
+    }
+
+    #[test]
+    fn what_is_sung_once_into_the_second_chorus_is_a_pre_chorus_and_a_bridge_comes_after_two() {
+        // verse, pre-chorus, chorus, verse, a stretch of 8 sung once into the second chorus, chorus, a stretch of 8 sung
+        // once, chorus, outro
+        let lens = [8, 4, 8, 8, 8, 8, 8, 8, 4];
+        let group = [0, 1, 2, 0, 3, 2, 4, 2, 5];
+        let mut segs = Vec::new();
+        let mut at = 0;
+        for n in lens {
+            segs.push((at, at + n));
+            at += n;
+        }
+        let loud = [-14.0, -12.0, -8.0, -14.0, -12.0, -8.0, -13.0, -8.0, -20.0];
+        let kit = [-20.0; 9];
+        let sung = [0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.0];
+        let labels = sung_labels(&segs, &group, &loud, &kit, &sung);
+        assert_eq!(labels[4], Label::PreChorus, "{labels:?}");
+        assert_eq!(labels[6], Label::Bridge, "{labels:?}");
+        // a song that opens on a pre-chorus sung once, with no intro, into its first chorus, then a verse and a chorus
+        // twice
+        let lens = [4, 8, 8, 8, 8];
+        let group = [0, 1, 2, 1, 2];
+        let mut segs = Vec::new();
+        let mut at = 0;
+        for n in lens {
+            segs.push((at, at + n));
+            at += n;
+        }
+        let labels = sung_labels(&segs, &group, &[-12.0, -8.0, -14.0, -8.0, -14.0], &[-20.0; 5], &[0.9; 5]);
+        assert_eq!(labels[0], Label::PreChorus, "{labels:?}");
     }
 
     #[test]
