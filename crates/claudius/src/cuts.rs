@@ -464,8 +464,9 @@ pub(crate) mod tests {
         let sung = Sung { words, phrases };
         let asked = stretches(&sung);
         assert_eq!(asked, vec![(0.0, 9.0), (9.5, 12.0), (14.0, 15.0)]);
-        // the tagger hears a voice in the first and the last, an instrument in the middle
-        let voice = voiced_only(&sung, &asked, &[0.9, 0.05, 0.3]);
+        // the tagger hears a voice in the first and the last, an instrument in the middle (CED-Tiny hears a voice in
+        // one at 0.003 in the middle of its scores, against 0.40 in a stretch sung through)
+        let voice = voiced_only(&sung, &asked, &[0.9, 0.01, 0.3]);
         assert_eq!(voice.phrases, vec![s(0.0, 2.0), s(2.5, 4.0), s(4.3, 9.0), s(14.0, 15.0)]);
         assert_eq!(voice.words.len(), 8);
         assert!(voice.words.iter().all(|w| !(9.5..12.0).contains(&w.start)), "{:?}", voice.words);
