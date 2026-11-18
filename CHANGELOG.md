@@ -6,6 +6,8 @@ language or the API, and the changelog says how.
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-18
+
 `analyze` hears a song's own sections: each found to the bar and at any length (a verse of 17 bars stays 17), named
 for what it is (intro, verse, pre-chorus, chorus, bridge, instrumental, outro; intro, build, drop, break and outro in a
 track no one sings in), with the letter of the music it plays, where it builds into the next, and the phrases sung, to
@@ -26,6 +28,26 @@ singing: a small tagger, CED-Tiny (6.7 MB, which `claudius setup` downloads), he
 there. On 78 songs with timed lyrics, a voice is heard in 9.6% of the time far from any sung line, against 14.7%, and
 in as much of the singing as before (88.4% of it, against 88.6%). It adds 1.5 to 3.5 seconds to a song's analysis on
 an M1 Max, once: what it heard is kept with the recording.
+
+### Added
+
+- studio: The search fields find genres and sounds by meaning too, as the palette does ([#292](https://github.com/devlato/claudius/pull/292))
+- analysis: A song's own sections: where each starts, which repeat, what each is, where a build resolves, and the phrases sung ([#293](https://github.com/devlato/claudius/pull/293))
+- remake: A flip's build plays the recording's own build up to where its chorus starts, so its drop lands where the recording's does ([#295](https://github.com/devlato/claudius/pull/295))
+- ui: A light look with real contrast: the music on white, clean colours, a grid that shows and a pale LCD ([#297](https://github.com/devlato/claudius/pull/297))
+- studio: On a Mac the top bar is the window's title bar, with the window's buttons in it ([#298](https://github.com/devlato/claudius/pull/298))
+- ui: A small design system: one primary button, a window's foot, a segmented control and an option card ([#299](https://github.com/devlato/claudius/pull/299))
+- sections: Set_section's source sets where a section starts in the takes, to the beat ([#301](https://github.com/devlato/claudius/pull/301))
+- takes: Take:&lt;name&gt; names a recording the open song keeps wherever a command takes a recording's path ([#303](https://github.com/devlato/claudius/pull/303))
+- sections: Split_section cuts a section in two that play on as it played ([#304](https://github.com/devlato/claudius/pull/304))
+- studio: The live mix, first by windows: a fader moved while the song plays is heard in a moment ([#305](https://github.com/devlato/claudius/pull/305))
+
+### Fixed
+
+- takes: Each section keeps its own stretch of a take, so a section added, removed or moved leaves the others playing what they played ([#296](https://github.com/devlato/claudius/pull/296))
+- save: A song is saved without each track's stem unless asked for, and a save the disk has no room for is refused ([#300](https://github.com/devlato/claudius/pull/300))
+- analysis: A recording's sections are the same the first time it is heard and every time after ([#306](https://github.com/devlato/claudius/pull/306))
+- analysis: A riff or a synth line left in the separated vocals is no longer heard as singing ([#307](https://github.com/devlato/claudius/pull/307))
 
 ## [0.12.1] - 2026-11-17
 
@@ -1265,7 +1287,8 @@ The first public release.
   theory checks), Linux on x86_64 and ARM64 with a headless build for machines without sound or a display, and
   Windows as a preview. One-line installers for each, which come with every release and are in its checksums.
 
-[unreleased]: https://github.com/devlato/claudius/compare/v0.12.1...HEAD
+[unreleased]: https://github.com/devlato/claudius/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/devlato/claudius/compare/v0.12.1...v0.13.0
 [0.12.1]: https://github.com/devlato/claudius/compare/v0.12.0...v0.12.1
 [0.12.0]: https://github.com/devlato/claudius/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/devlato/claudius/compare/v0.10.0...v0.11.0
