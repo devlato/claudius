@@ -14,6 +14,7 @@ fo = "fo"             # fade-out length
 formant = "formant"   # a resonance of the vocal tract, which shapes a voice's timbre
 genrate = "genrate"   # a word typed with a slip, which the palette reads as "generate" (claudius_intent::typos)
 lsat = "lsat"         # a slip the palette reads as "last", in its tests
+nam = "nam"           # Juhan Nam, who made All-In-One with Taejun Kim (Kim and Nam 2023), cited in design record 0022
 nd = "nd"             # a new scale degree; the ordinal suffix
 seeked = "seeked"     # the media element event
 stlye = "stlye"       # a misspelled option in a test of the error it gives
