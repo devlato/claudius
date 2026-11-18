@@ -249,8 +249,9 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             let mut second = s.clone();
             second.name = claudius_api::split_name(&s.name, |n| song.sections.iter().any(|s| s.name == n));
             second.bars = s.bars - at;
+            // a view's places in the takes are in bars (the blueprint's in beats)
             for place in second.takes.values_mut() {
-                *place += f64::from(at * 4);
+                *place += f64::from(*at);
             }
             (second.filter_in, second.impact) = (false, false);
             let first = &mut song.sections[*index];
@@ -634,7 +635,7 @@ mod tests {
         let (a, b) = (&song.sections[0], &song.sections[1]);
         assert_eq!((a.bars, a.build, a.impact, a.takes["vox"]), (4, false, true, 8.0));
         assert_eq!((b.name.as_str(), b.start_bar, b.bars, b.build, b.impact), ("verse_b", 4, 12, true, false));
-        assert_eq!(b.takes["vox"], 24.0, "the take from where the verse had reached it, four bars on");
+        assert_eq!(b.takes["vox"], 12.0, "the take from where the verse had reached it, four bars on");
         assert!(split(&mut song, 0, 4).unwrap().is_err(), "a section of 4 bars split 4 bars in");
         let again = split(&mut song, 1, 6).unwrap().unwrap();
         assert!(again.ends_with("verse_b (6 bars) and verse_c (6 bars)"), "{again}");
