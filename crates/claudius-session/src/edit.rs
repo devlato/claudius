@@ -475,6 +475,7 @@ pub fn change(cmd: &Command, bp: &mut Blueprint, seed: u64) -> Option<Result<Str
             | Command::AddSection { .. }
             | Command::RemoveSection { .. }
             | Command::MoveSection { .. }
+            | Command::SplitSection { .. }
             | Command::ToggleLayer { .. }
     ) {
         claudius::take::pin_all(bp);
@@ -585,6 +586,7 @@ pub fn change(cmd: &Command, bp: &mut Blueprint, seed: u64) -> Option<Result<Str
                 Ok(format!("moved {name} to {to}"))
             }
         }
+        Command::SplitSection { index, at } => split_section(bp, *index, *at),
         Command::ToggleLayer { section, layer } => match bp.form.get_mut(*section) {
             None => Err(format!("no section {section}")),
             Some(s) => match s.layers.iter().position(|l| l == layer) {
@@ -687,6 +689,41 @@ fn add_section(bp: &mut Blueprint, after: usize, kind: &str, bars: u32) -> Resul
             "added {name} ({bars} bars) at {at}, without the takes ({}): the sections after it play what they played",
             without.join(", ")
         )
+    })
+}
+
+/// Section `index` in two, `at` bars into it: the first keeps its name, how it starts (its filter opening, its impact)
+/// and its place in each take; the second, named for it (`verse_b`), plays each take on from where the section had
+/// reached it, and keeps how it ends (its build-up, its gap). Each plays its progression from the first chord, as every
+/// section does, which the answer says when the split falls inside a turn of it.
+fn split_section(bp: &mut Blueprint, index: usize, at: u32) -> Result<String, String> {
+    let n = bp.form.len();
+    let Some(s) = bp.form.get(index) else { return Err(format!("no section {index} (there are {n})")) };
+    if s.bars < 2 {
+        return Err(format!("{} is a bar long: there is nothing to split", s.name));
+    }
+    if at == 0 || at >= s.bars {
+        return Err(format!("{} is {} bars long: split it 1 to {} bars in", s.name, s.bars, s.bars - 1));
+    }
+    let beats = f64::from(at * claudius::config::BEATS_PER_BAR);
+    let mut second = s.clone();
+    second.name = claudius_api::split_name(&s.name, |n| bp.form.iter().any(|s| s.name == n));
+    second.bars = s.bars - at;
+    for place in second.takes.values_mut() {
+        *place += beats;
+    }
+    (second.filter_in, second.impact) = (false, false);
+    let first = &mut bp.form[index];
+    first.bars = at;
+    (first.build, first.gap) = (false, false);
+    let turn =
+        bp.harmony.progressions.get(&first.prog).map_or(0, |p| p.len() as u32) * bp.harmony.bars_per_chord.max(1);
+    let (part, rest) = (claudius_api::bars_said(at), claudius_api::bars_said(second.bars));
+    let said = format!("split {} {part} in: {} ({part}) and {} ({rest})", first.name, first.name, second.name);
+    bp.form.insert(index + 1, second);
+    Ok(match turn {
+        t if t > 0 && !at.is_multiple_of(t) => format!("{said}, whose chords start again from the first"),
+        _ => said,
     })
 }
 
@@ -819,6 +856,7 @@ mod tests {
             json!({"cmd": "add_section", "after": 0, "kind": "break", "bars": 8}),
             json!({"cmd": "remove_section", "index": 1}),
             json!({"cmd": "move_section", "from": 0, "to": 1}),
+            json!({"cmd": "split_section", "index": 0, "at": 2}),
             json!({"cmd": "toggle_layer", "section": 0, "layer": "kick"}),
             json!({"cmd": "set_drum_step", "lane": "kick", "variant": "main", "step": 0, "velocity": 0.8}),
             json!({"cmd": "set_fx", "target": "master", "fx": []}),
@@ -867,6 +905,64 @@ mod tests {
         assert!(c.contains(&(first, 16.0, 8.0)) && c.contains(&(first + 16.0, beats - first, first)), "{c:?}");
         let alone = cmd(&json!({"cmd": "set_section", "index": 1, "take": "vox"}));
         assert!(change(&alone, &mut bp, 1).unwrap().unwrap_err().contains("give the source too"));
+    }
+
+    #[test]
+    fn a_section_split_plays_on_as_it_played_each_take_from_where_the_section_had_reached_it() {
+        let mut bp = song();
+        let from = bp.form[0].name.clone();
+        let beats: f64 = bp.form.iter().map(|s| f64::from(s.bars) * 4.0).sum();
+        let (path, secs) = (std::path::Path::new("/takes/vox.flac"), beats * 60.0 / bp.bpm);
+        claudius::take::add(&mut bp, path, secs, &from, Some("vox"), Some("vocal")).unwrap();
+        // where in the take the middle of each beat of the song plays from
+        let heard = |bp: &Blueprint| -> Vec<Option<f64>> {
+            let p = claudius::compose::arrange(bp);
+            let clips = &p.tracks.iter().find(|t| t.name == "vox").unwrap().clips;
+            (0..beats as usize)
+                .map(|b| b as f64 + 0.5)
+                .map(|b| clips.iter().find(|c| (c.t..c.t + c.d).contains(&b)).map(|c| b - c.t + c.offset))
+                .collect()
+        };
+        // a section longer than a turn of its chords, to split inside one and after one
+        let turn_of = |s: &claudius::model::SectionSpec| {
+            bp.harmony.progressions[&s.prog].len() as u32 * bp.harmony.bars_per_chord.max(1)
+        };
+        let i =
+            bp.form.iter().position(|s| turn_of(s) > 1 && turn_of(s) < s.bars).expect("a section longer than a turn");
+        let s = bp.form[i].clone();
+        let turn = turn_of(&s);
+        let split = |bp: &mut Blueprint, index: usize, at: u32| {
+            change(&cmd(&json!({"cmd": "split_section", "index": index, "at": at})), bp, 1).unwrap()
+        };
+        let mut halves = bp.clone();
+        let said = split(&mut halves, i, turn).unwrap();
+        let (n, rest) = (&s.name, s.bars - turn);
+        let (part, after) = (claudius_api::bars_said(turn), claudius_api::bars_said(rest));
+        assert_eq!(said, format!("split {n} {part} in: {n} ({part}) and {n}_b ({after})"));
+        let names: Vec<(&str, u32)> = halves.form[i..i + 2].iter().map(|s| (s.name.as_str(), s.bars)).collect();
+        assert_eq!(names, [(n.as_str(), turn), (format!("{n}_b").as_str(), rest)]);
+        assert_eq!(halves.form.len(), bp.form.len() + 1);
+        assert_eq!(heard(&halves), heard(&bp), "the take plays on as it played");
+        let inside = split(&mut bp.clone(), i, 1).unwrap();
+        assert!(inside.ends_with(", whose chords start again from the first"), "{inside}");
+        // the first starts as the section started, the second ends as it ended
+        let mut marked = bp.clone();
+        let m = &mut marked.form[i];
+        (m.filter_in, m.impact, m.build, m.gap) = (true, true, true, true);
+        split(&mut marked, i, turn).unwrap();
+        let (a, b) = (&marked.form[i], &marked.form[i + 1]);
+        assert_eq!((a.filter_in, a.impact, a.build, a.gap), (true, true, false, false));
+        assert_eq!((b.filter_in, b.impact, b.build, b.gap), (false, false, true, true));
+        // a part split again is named on from its letter
+        let again = split(&mut halves, i + 1, 1).unwrap();
+        assert!(again.contains(&format!("{n}_b (1 bar) and {n}_c ({})", claudius_api::bars_said(rest - 1))), "{again}");
+        for (index, at, why) in [(i, 0, "split it 1 to"), (i, s.bars, "split it 1 to"), (99, 1, "no section 99")] {
+            let e = split(&mut bp.clone(), index, at).unwrap_err();
+            assert!(e.contains(why), "{index} at {at}: {e}");
+        }
+        let mut short = bp.clone();
+        short.form[i].bars = 1;
+        assert!(split(&mut short, i, 1).unwrap_err().contains("is a bar long"));
     }
 
     #[test]

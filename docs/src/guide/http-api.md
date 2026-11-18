@@ -232,6 +232,7 @@ fields marked optional may be left out.
 | `add_section` | `after`, `kind`, `bars` | inserts a section after index `after`, with that section's layers (but none of the song's [takes](samples.md#takes), so that every other section plays the same stretch of them), energy and progression |
 | `remove_section` | `index` | removes a section (a song keeps at least one) |
 | `move_section` | `from`, `to` | moves a section |
+| `split_section` | `index`, `at` | splits a section `at` bars in (1 to its length less one): the first keeps its name, how it starts and where it plays each take; the second (`verse_b`) plays each take on from where the section had reached it, keeps how it ends (a build-up, a gap), and starts its chords again from the first |
 | `toggle_layer` | `section`, `layer` | switches a track on or off in a section |
 | `set_drum_step` | `lane`, `variant`, `step`, `velocity` | sets one sixteenth (0 removes the hit); a new variant starts as a copy of `main` |
 | `set_drum_pattern` | `lane`, `variant`, `steps` | a whole variant in step notation, as `drum()` |

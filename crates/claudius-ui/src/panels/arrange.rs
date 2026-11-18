@@ -603,6 +603,14 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             if flags.is_empty() { String::new() } else { format!("\n{}", flags.join(", ")) },
             if s.layers.is_empty() { "nothing".to_string() } else { s.layers.join(", ") }
         ));
+        // the bar a right-click falls on: where Split cuts the section
+        let split_id = resp.id.with("split at");
+        if resp.secondary_clicked()
+            && let Some(p) = resp.interact_pointer_pos()
+        {
+            let at = (tl.bar(p.x) - s.start_bar as f64).round().clamp(1.0, f64::from(s.bars.max(2) - 1)) as u32;
+            ui.data_mut(|d| d.insert_temp(split_id, at));
+        }
         resp.context_menu(|ui| {
             cx.view.section = i;
             widgets::menu_title(ui, &s.name, &format!("{}, {} bars", s.kind, s.bars));
@@ -615,6 +623,17 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             widgets::menu_group(ui, "Arrange");
             if widgets::menu_item(ui, "Duplicate", "").on_hover_text("a copy of it right after it").clicked() {
                 out.extend(crate::cmds::duplicate(s, i));
+                ui.close();
+            }
+            let at = ui.data(|d| d.get_temp::<u32>(split_id)).unwrap_or(s.bars / 2).clamp(1, s.bars.max(2) - 1);
+            let split = ui.add_enabled_ui(s.bars >= 2, |ui| {
+                widgets::menu_item(ui, format!("Split at bar {}", s.start_bar + at + 1), "").on_hover_text(format!(
+                    "{at} bars of it, then a section of its own from there ({} bars), playing on as it played",
+                    s.bars - at
+                ))
+            });
+            if split.inner.clicked() {
+                out.push(Command::SplitSection { index: i, at });
                 ui.close();
             }
             ui.menu_button("Insert after", |ui| {
