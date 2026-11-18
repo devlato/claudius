@@ -15,6 +15,9 @@ use super::{Pcm, Source};
 const FADE: f64 = 0.005;
 /// how far ahead of the audio clock a source is started, in seconds: time for the browser to schedule it
 const AHEAD: f64 = 0.02;
+/// the rate claudius renders at, the page's audio runs at, and a render decoded is brought to, so that a window of the
+/// live mix fits the buffer it goes into sample for sample
+const RATE: f32 = 48_000.0;
 
 /// a source playing the buffer, and the gain it fades in and out through
 struct Playing {
@@ -47,7 +50,10 @@ pub struct Player {
 
 impl Player {
     pub fn new(_ctx: &egui::Context) -> Self {
-        let ctx = AudioContext::new().ok();
+        // at claudius's own rate where the browser runs at it: it decodes a render to the context's rate
+        let at_rate = web_sys::AudioContextOptions::new();
+        at_rate.set_sample_rate(RATE);
+        let ctx = AudioContext::new_with_context_options(&at_rate).or_else(|_| AudioContext::new()).ok();
         let volume = ctx.as_ref().and_then(|c| {
             let g = c.create_gain().ok()?;
             g.gain().set_value(0.9);
@@ -82,7 +88,11 @@ impl Player {
         let Some(ctx) = self.ctx.clone() else { return };
         let was_playing = self.is_playing();
         let pos = if keep_position { self.position() } else { 0.0 };
-        self.halt();
+        // a song that carries on plays the audio it had until the new audio is ready, which then takes over where the
+        // song has got to; another song stops the one before
+        if !(keep_position && was_playing) {
+            self.halt();
+        }
         self.pcm = None;
         self.loaded = true;
         self.error = None;
@@ -132,13 +142,31 @@ impl Player {
         {
             match done {
                 Ok(buffer) => {
-                    self.offset = if pos < buffer.duration() { pos } else { 0.0 };
+                    // the audio before played on while this one was decoded: it takes over from where the song is now,
+                    // fading in over it
+                    let carried = self.playing.is_some();
+                    let pos = if carried { self.position() } else { pos };
+                    let fits = pos < buffer.duration();
                     self.buffer = Some(buffer);
-                    if play {
-                        self.play();
+                    match &self.ctx {
+                        Some(ctx) if carried && fits => {
+                            let when = ctx.current_time() + AHEAD;
+                            let at = self.position_at(when);
+                            self.start(at, when, FADE);
+                        }
+                        _ => {
+                            self.halt();
+                            self.offset = if fits { pos } else { 0.0 };
+                            if play {
+                                self.play();
+                            }
+                        }
                     }
                 }
-                Err(e) => self.error = Some(format!("the browser could not play the audio: {e}")),
+                Err(e) => {
+                    self.halt();
+                    self.error = Some(format!("the browser could not play the audio: {e}"));
+                }
             }
         }
         // at the end of a song not looped, it stops there
@@ -155,10 +183,18 @@ impl Player {
     pub fn patch(&mut self, _version: u64, start: f64, pcm: std::sync::Arc<Pcm>) {
         let (Some(ctx), Some(buffer)) = (&self.ctx, &self.buffer) else { return };
         let rate = buffer.sample_rate() as f64;
+        // a browser that would not run at claudius's rate decoded the render to its own: the window follows it
+        let resampled;
+        let pcm = if (pcm.rate as f64 - rate).abs() < 0.5 {
+            &*pcm
+        } else {
+            resampled = resample(&pcm, rate);
+            &resampled
+        };
         let first = (start * rate).round().max(0.0) as usize;
         let total = buffer.length() as usize;
         let frames = pcm.frames().min(total.saturating_sub(first));
-        if frames == 0 || pcm.rate as f64 != rate {
+        if frames == 0 {
             return;
         }
         let fade = ((FADE * rate) as usize).clamp(1, frames / 2 + 1);
@@ -207,7 +243,8 @@ impl Player {
         }
         let at = if self.offset >= self.duration() { 0.0 } else { self.offset };
         let when = ctx.current_time() + AHEAD;
-        self.start(at, when, 0.0);
+        // faded in, as a song started in its middle would otherwise click
+        self.start(at, when, FADE);
     }
 
     pub fn pause(&mut self) {
@@ -309,11 +346,21 @@ impl Player {
         self.playing = Some(new);
     }
 
-    /// stops the source playing, at once
+    /// stops the source playing, faded out over `FADE` so that it does not click
     fn halt(&mut self) {
-        if let Some(p) = self.playing.take() {
-            let _ = scheduled(&p.source).stop();
-            let _ = p.source.disconnect();
+        let Some(p) = self.playing.take() else { return };
+        match &self.ctx {
+            Some(ctx) => {
+                let now = ctx.current_time();
+                let g = p.gain.gain();
+                let _ = g.cancel_scheduled_values(now);
+                let _ = g.set_value_at_time(g.value(), now);
+                let _ = g.linear_ramp_to_value_at_time(0.0, now + FADE);
+                let _ = scheduled(&p.source).stop_with_when(now + FADE);
+            }
+            None => {
+                let _ = scheduled(&p.source).stop();
+            }
         }
     }
 }
@@ -338,6 +385,24 @@ fn loop_as(source: &AudioBufferSourceNode, region: Option<(f64, f64)>) {
         }
         None => source.set_loop(false),
     }
+}
+
+/// `pcm` at `rate`, each sample read between the two either side of where it falls
+fn resample(pcm: &Pcm, rate: f64) -> Pcm {
+    let channels = pcm.channels.max(1) as usize;
+    let step = pcm.rate as f64 / rate;
+    let frames = ((pcm.frames() as f64) / step).floor() as usize;
+    let mut samples = Vec::with_capacity(frames * channels);
+    for i in 0..frames {
+        let at = i as f64 * step;
+        let (k, f) = (at as usize, at.fract() as f32);
+        for ch in 0..channels {
+            let a = pcm.samples[k * channels + ch];
+            let b = pcm.samples.get((k + 1) * channels + ch).copied().unwrap_or(a);
+            samples.push(a + (b - a) * f);
+        }
+    }
+    Pcm { rate: rate.round() as u32, channels: pcm.channels, samples }
 }
 
 /// a buffer holding `pcm` as it is

@@ -44,7 +44,11 @@ The live mix comes first by windows of the song, and the runtime of 0019 replace
   buffer, played from it on the audio clock. A window goes into the buffer over what the render holds there, faded in
   and out over 5 ms as on the desktop, and a source started again at the moment it would be fades in over the one
   playing, which may have read the buffer when it started; both play the same up to the window, which comes after it.
-  It once played a whole file through an audio element, over which nothing could be played.
+  Its audio runs at 48 kHz, claudius's rate, because a browser decodes a render to the rate its audio runs at and a
+  window has to fit the buffer sample for sample (where a browser will not run at 48 kHz, each window is resampled to
+  the rate it does run at). A new render takes over from where the song has got to, fading in over the one before,
+  and play and pause fade in and out, so that nothing clicks. It once played a whole file through an audio element,
+  over which nothing could be played.
 
 The demo's engine makes no windows yet: its preview (the last render with the twelve seconds from the playhead
 rendered again and crossfaded in) becomes windows made in its worker as the server makes them, the next step.
