@@ -56,7 +56,7 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
             });
             if widgets::icon_button(ui, Icon::Copy, 24.0, false, true, "duplicate this section after itself").clicked()
             {
-                cx.out.extend(crate::cmds::duplicate(s, i));
+                cx.out.push(crate::cmds::duplicate(s, i));
                 cx.view.section = i + 1;
             }
             if widgets::icon_button(ui, Icon::Right, 24.0, false, i + 1 < n, "move right").clicked() {
