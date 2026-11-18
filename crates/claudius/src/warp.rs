@@ -45,9 +45,9 @@ pub fn warp(
     if let Some(x) = cache().lock().unwrap().get(&key) {
         return Ok(x.clone());
     }
-    let disk = config::cache_dir("stretched").join(format!("{}.f32", &blake3::hash(key.as_bytes()).to_hex()[..20]));
+    let disk = format!("{}.f32", &blake3::hash(key.as_bytes()).to_hex()[..20]);
     if config::FILES
-        && let Ok(bytes) = std::fs::read(&disk)
+        && let Some(bytes) = config::cache::get("stretched", &disk)
     {
         let x: Vec<f32> = bytes.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
         let s = Arc::new(Stereo::from_interleaved(&x));
@@ -74,10 +74,7 @@ pub fn warp(
     };
     if config::FILES {
         let bytes: Vec<u8> = out.interleaved().iter().flat_map(|v| v.to_le_bytes()).collect();
-        let tmp = disk.with_extension(format!("{}.tmp", config::process_id()));
-        if std::fs::write(&tmp, bytes).is_ok() {
-            let _ = std::fs::rename(&tmp, &disk);
-        }
+        config::cache::put("stretched", &disk, &bytes, config::cache::STRETCHED);
     }
     let out = Arc::new(out);
     cache().lock().unwrap().insert(key, out.clone());

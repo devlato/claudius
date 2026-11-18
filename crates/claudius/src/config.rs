@@ -96,6 +96,76 @@ pub fn cache_dir(name: &str) -> PathBuf {
     d
 }
 
+/// The audio caches on disk (`decoded`, `stretched`), each a folder of files under a cap: what is read is marked used,
+/// and a folder written past its cap loses the files used least lately until it is three quarters of it. Without a cap
+/// they grew with every recording ever opened: a song's decoded audio is about ten times its MP3.
+pub mod cache {
+    use std::path::{Path, PathBuf};
+    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::time::SystemTime;
+
+    /// the caps: decoded sounds, and sounds stretched to a tempo
+    pub const DECODED: u64 = 2 << 30;
+    pub const STRETCHED: u64 = 1 << 30;
+
+    /// what the cache `name` keeps under `key`, marked used
+    pub fn get(name: &str, key: &str) -> Option<Vec<u8>> {
+        let path = super::cache_dir(name).join(key);
+        let bytes = std::fs::read(&path).ok()?;
+        // marked used, for the trimming to keep it over those used less lately
+        if let Ok(f) = std::fs::File::options().write(true).open(&path) {
+            let _ = f.set_modified(SystemTime::now());
+        }
+        Some(bytes)
+    }
+
+    /// keeps `bytes` in the cache `name` under `key`, written whole (a part file renamed), and now and then trims the
+    /// cache to `cap`
+    pub fn put(name: &str, key: &str, bytes: &[u8], cap: u64) {
+        let dir = super::cache_dir(name);
+        let path = dir.join(key);
+        let tmp = path.with_extension(format!("{}.tmp", super::process_id()));
+        if std::fs::write(&tmp, bytes).is_ok() {
+            let _ = std::fs::rename(&tmp, &path);
+        }
+        // a look at the folder every few writes: listing it each time would cost more than the writes
+        static WRITES: AtomicU32 = AtomicU32::new(0);
+        if WRITES.fetch_add(1, Ordering::Relaxed).is_multiple_of(16) {
+            trim(&dir, cap);
+        }
+    }
+
+    /// the files of `dir` used least lately removed until what it holds is three quarters of `cap`, when it holds more
+    /// than `cap`; part files of other processes are left alone. Returns how many bytes were freed.
+    pub fn trim(dir: &Path, cap: u64) -> u64 {
+        let Ok(entries) = std::fs::read_dir(dir) else { return 0 };
+        let mut files: Vec<(SystemTime, u64, PathBuf)> = entries
+            .flatten()
+            .filter(|e| e.path().extension().is_some_and(|x| x != "tmp"))
+            .filter_map(|e| {
+                let md = e.metadata().ok().filter(|m| m.is_file())?;
+                Some((md.modified().unwrap_or(SystemTime::UNIX_EPOCH), md.len(), e.path()))
+            })
+            .collect();
+        let mut held: u64 = files.iter().map(|(_, len, _)| len).sum();
+        if held <= cap {
+            return 0;
+        }
+        files.sort_by_key(|(used, _, _)| *used);
+        let (goal, mut freed) = (cap / 4 * 3, 0);
+        for (_, len, path) in files {
+            if held <= goal {
+                break;
+            }
+            if std::fs::remove_file(&path).is_ok() {
+                held -= len;
+                freed += len;
+            }
+        }
+        freed
+    }
+}
+
 pub const APPLE_LOOP_DIRS: &[&str] = &["/Library/Audio/Apple Loops"];
 
 /// where songs are saved unless told otherwise: ~/Music/claudius (./out without a Music folder)
@@ -178,6 +248,31 @@ pub fn apple_loops_db() -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_cache_past_its_cap_loses_what_was_used_least_lately() {
+        let dir = std::env::temp_dir().join(format!("claudius-cache-trim-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let now = std::time::SystemTime::now();
+        // a used longest ago, d last
+        for (i, name) in ["a.f32", "b.f32", "c.f32", "d.f32"].iter().enumerate() {
+            let p = dir.join(name);
+            std::fs::write(&p, vec![0u8; 100]).unwrap();
+            let f = std::fs::File::options().write(true).open(&p).unwrap();
+            f.set_modified(now - std::time::Duration::from_secs(100 * (4 - i as u64))).unwrap();
+        }
+        // another process's file being written is left alone
+        std::fs::write(dir.join("e.123.tmp"), vec![0u8; 100]).unwrap();
+        assert_eq!(cache::trim(&dir, 400), 0, "within its cap");
+        // 400 held, the cap 300: down to three quarters of it, so the two used least lately go
+        assert_eq!(cache::trim(&dir, 300), 200);
+        let mut left: Vec<String> =
+            std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+        left.sort();
+        assert_eq!(left, ["c.f32", "d.f32", "e.123.tmp"]);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn a_file_written_whole_appears_only_once_complete_and_a_failed_write_leaves_the_old_one_and_no_part() {
