@@ -3,7 +3,9 @@
 //! colour on some of the parts, by role: a chorus, phaser, flanger, slow autopan or more width on a pad; a chorus,
 //! phaser, tremolo, autopan or tape on chords and keys; tape, a tube, a chorus, phaser or flanger on a lead; an autopan,
 //! a bitcrusher, phaser or chorus on an arp; a tube, tape or a little fold on a bass. Some colours deepen in the hooks
-//! and drops. Some songs high-pass their music in the breaks, and the master's saturation may take another flavour.
+//! and drops. Some songs high-pass their music in the breaks, the drum bus glues harder or more gently (and now and then
+//! drives the drums through tape or a tube), some songs' music is a little wider, and the master's saturation may take
+//! another flavour.
 
 use crate::dsp::env::{BySection, Param};
 use crate::dsp::filter::FilterMode;
@@ -134,6 +136,33 @@ pub fn vary(mix: &mut MixPlan, parts: &mut [Part], rng: &Rng) {
             drive: 1.0,
             mix: 1.0.into(),
         });
+    }
+    // the drums glued harder or more gently, and some songs' drums driven through tape or a tube
+    let mut r = rng.fork("drum bus");
+    if let Some(chain) = mix.buses.get_mut("drums") {
+        for e in chain.iter_mut() {
+            if let Effect::Compressor { threshold_db, ratio, attack_ms, release_ms, .. } = e {
+                *threshold_db = (*threshold_db + r.range(-3.0, 3.0) as f32).clamp(-30.0, -2.0);
+                *ratio = by(*ratio, 1.3, &mut r).clamp(1.2, 8.0);
+                *attack_ms = by(*attack_ms, 1.6, &mut r).clamp(0.5, 60.0);
+                *release_ms = by(*release_ms, 1.4, &mut r).clamp(30.0, 600.0);
+            }
+        }
+        if !chain.iter().any(|e| matches!(e, Effect::Saturate { .. })) && r.chance(0.35) {
+            chain.push(Effect::Saturate {
+                kind: *r.pick(&[SatKind::Tape, SatKind::Tube]),
+                drive_db: (r.range(1.5, 4.0) as f32).into(),
+                mix: (r.range(0.3, 0.6) as f32).into(),
+            });
+        }
+    }
+    // some songs' music a little wider
+    let mut r = rng.fork("music bus");
+    if let Some(chain) = mix.buses.get_mut("music")
+        && !chain.iter().any(|e| matches!(e, Effect::Width { .. }))
+        && r.chance(0.25)
+    {
+        chain.push(Effect::Width { width: (r.range(1.08, 1.25) as f32).into(), mono_below_hz: 150.0 });
     }
     // the master's saturation in another flavour
     let mut r = rng.fork("master");

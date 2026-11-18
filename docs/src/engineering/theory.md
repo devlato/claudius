@@ -128,7 +128,15 @@ switched off).
   a tube, a chorus, phaser or flanger; on an arp an autopan, bitcrusher, phaser or chorus; on a bass a tube, tape or a
   little wavefolding. A phaser's or bitcrusher's mix rises in the hooks and drops;
 - three songs in ten high-pass the music bus in the breaks, at 250 to 500 Hz;
+- the drum bus's compressor ±3 dB in threshold, its ratio, attack and release each up to 1.3 to 1.6 times higher or
+  lower, and in a third of songs whose drum bus does not saturate them already, tape or a tube on it (1.5 to 4 dB, mixed
+  in at 30 to 60%);
+- a quarter of songs whose music bus does not widen it already widen it 8 to 25% above 150 Hz;
 - half the time, the master's saturation becomes tape, a tube or tanh.
+
+Each song also plays its genre's drums its own way: a lane with other grooves (`alts`) plays one of them by its chance
+instead of its template, drawn from a stream of its own; each part plays one of its styles (borrowed from the genres
+that sound most like its own, a genre's idioms kept to it), a few semitones higher or lower than the genre writes it.
 
 Both draw from forks of their own, one for each change, so a song's tempo, harmony, drums and parts stay what its
 seed makes them whatever its form and mix draw, and a new or changed rule leaves the other changes' draws as they were.
