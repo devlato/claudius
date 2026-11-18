@@ -44,11 +44,11 @@ const QUIET_FOR: f64 = 0.06;
 const APART: f64 = 1.0;
 /// the longest stretch asked about at once, seconds: as long as the tagger hears at once (`earshot::ced::WIN_S`)
 const ASKED: f64 = 10.11;
-/// a stretch is a voice's when the tagger hears a voice in it this surely at least (`voiced_only`): an instrument a
-/// separation left in the vocals reads about 0.02, singing 0.26 and up, a short line far less (the tagger hears 10.24 s,
-/// the rest silence). Chosen on half of JamendoLyrics' songs and confirmed on the other half: against when their lines
-/// are sung, precision 0.827 to 0.846 with recall kept (0.876), a voice heard far from any line 18.6% to 13.3% of the
-/// time, and no song worse; at 0.2 a tenth of the singing was lost
+/// a stretch is a voice's when the tagger hears a voice in it this surely at least (`voiced_only`): in JamendoLyrics'
+/// songs it hears one in a stretch sung through at 0.40 (a tenth of them under 0.15), and in one more than 2 s from any
+/// sung line at 0.003 (three in four under this). Chosen on half of the songs and confirmed on the other half: against
+/// when their lines are sung, precision 0.827 to 0.850 with recall kept (0.876 to 0.874), a voice heard far from any
+/// line 18.6% to 12.4% of the time, and no song worse; at 0.2 a tenth of the singing is lost
 const VOICED: f64 = 0.03;
 
 /// a stretch of a recording, in seconds from its start
@@ -193,13 +193,15 @@ pub fn stretches(sung: &Sung) -> Vec<(f64, f64)> {
     out
 }
 
-/// `sung` with only the phrases of the `stretches` heard as a voice, `voiced` saying how surely each is one, 0 to 1
+/// `sung` without the phrases of the `stretches` not heard as a voice, `voiced` saying how surely each is one, 0 to 1,
+/// nor their words: the rest exactly as it was, so that a recording whose every stretch is a voice's is heard as before
 pub fn voiced_only(sung: &Sung, stretches: &[(f64, f64)], voiced: &[f64]) -> Sung {
     let heard = |p: &Span| {
         stretches.iter().zip(voiced).any(|(s, v)| *v >= VOICED && p.start >= s.0 - 1e-9 && p.end <= s.1 + 1e-9)
     };
-    let phrases: Vec<Span> = sung.phrases.iter().copied().filter(heard).collect();
-    let words = phrases.iter().flat_map(|p| sung.words_of(*p).copied().collect::<Vec<_>>()).collect();
+    let (phrases, gone): (Vec<Span>, Vec<Span>) = sung.phrases.iter().copied().partition(heard);
+    let inside = |w: &Span, p: &Span| w.start >= p.start - 1e-9 && w.end <= p.end + 1e-9;
+    let words = sung.words.iter().copied().filter(|w| !gone.iter().any(|p| inside(w, p))).collect();
     Sung { words, phrases }
 }
 
@@ -438,6 +440,19 @@ pub(crate) mod tests {
     fn drums_alone_are_no_words() {
         let (x, _) = sung_over_drums(&[], 4.0);
         assert_eq!(sung(&x, &crate::analysis::melody::pitches(&x)), Sung::default());
+    }
+
+    #[test]
+    fn a_recording_whose_every_stretch_is_a_voice_is_heard_as_it_was() {
+        let s = |start: f64, end: f64| Span { start, end };
+        // a word that runs over a phrase's end, and one between two phrases
+        let words = vec![s(0.0, 0.5), s(1.8, 2.3), s(2.5, 2.7), s(3.0, 3.4)];
+        let sung = Sung { words, phrases: vec![s(0.0, 2.0), s(3.0, 5.0)] };
+        let asked = stretches(&sung);
+        assert_eq!(voiced_only(&sung, &asked, &vec![0.5; asked.len()]), sung);
+        // a stretch not heard as a voice takes its phrases and their words with it, and nothing else
+        let without = voiced_only(&sung, &asked, &[0.5, 0.0]);
+        assert_eq!(without, Sung { words: sung.words[..3].to_vec(), phrases: vec![s(0.0, 2.0)] });
     }
 
     #[test]
