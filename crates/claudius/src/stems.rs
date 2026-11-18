@@ -90,10 +90,11 @@ pub fn voiced(x: &Stereo, spans: &[(f64, f64)]) -> Option<Vec<f64>> {
 
 #[cfg(feature = "ears")]
 mod tagging {
+    use std::path::PathBuf;
     use std::sync::OnceLock;
 
-    use crate::audio::Stereo;
-    use crate::config::SRF;
+    use crate::audio::{self, Stereo};
+    use crate::config::{self, SRF};
 
     /// AudioSet's classes of a human voice, as its tagger names them
     const VOICE: &[&str] = &[
@@ -159,13 +160,43 @@ mod tagging {
         .as_ref()
     }
 
+    /// what the tagger heard in a voice's recording, kept by what the recording is (it hears a 10.24 s stretch in about
+    /// a second): each stretch asked about, and how surely it heard a voice in it
+    fn heard_before(x: &Stereo) -> PathBuf {
+        config::cache_dir("voiced").join(format!("{}.json", &audio::fingerprint(x).to_hex()[..20]))
+    }
+
     pub fn voiced(x: &Stereo, spans: &[(f64, f64)]) -> Option<Vec<f64>> {
-        let (ast, voice) = tagger()?;
-        let mono = x.mono();
-        let at = |t: f64| ((t.max(0.0) * SRF) as usize).min(mono.len());
-        let segs: Vec<&[f32]> = spans.iter().map(|&(a, b)| &mono[at(a)..at(b).max(at(a))]).collect();
-        let probs = ast.probs(&segs, earshot::ast::Reduce::Max).ok()?;
-        Some(probs.iter().map(|p| voice.iter().map(|&i| p[i] as f64).fold(0.0, f64::max)).collect())
+        // a unit test hears what it makes the same with and without the models on its computer
+        if cfg!(test) {
+            return None;
+        }
+        let path = config::FILES.then(|| heard_before(x));
+        let mut known: Vec<(f64, f64, f64)> = path
+            .as_ref()
+            .and_then(|p| std::fs::read(p).ok())
+            .and_then(|b| serde_json::from_slice(&b).ok())
+            .unwrap_or_default();
+        let find = |known: &[(f64, f64, f64)], s: &(f64, f64)| {
+            known.iter().find(|k| (k.0 - s.0).abs() < 1e-6 && (k.1 - s.1).abs() < 1e-6).map(|k| k.2)
+        };
+        let missing: Vec<(f64, f64)> = spans.iter().copied().filter(|s| find(&known, s).is_none()).collect();
+        if !missing.is_empty() {
+            let (ast, voice) = tagger()?;
+            let mono = x.mono();
+            let at = |t: f64| ((t.max(0.0) * SRF) as usize).min(mono.len());
+            let segs: Vec<&[f32]> = missing.iter().map(|&(a, b)| &mono[at(a)..at(b).max(at(a))]).collect();
+            let probs = ast.probs(&segs, earshot::ast::Reduce::Max).ok()?;
+            let sure = |p: &Vec<f32>| voice.iter().map(|&i| p[i] as f64).fold(0.0, f64::max);
+            known.extend(missing.iter().zip(&probs).map(|(s, p)| (s.0, s.1, sure(p))));
+            if let Some(p) = &path {
+                let tmp = p.with_extension(format!("{}.tmp", config::process_id()));
+                if serde_json::to_vec(&known).is_ok_and(|b| std::fs::write(&tmp, b).is_ok()) {
+                    let _ = std::fs::rename(&tmp, p);
+                }
+            }
+        }
+        spans.iter().map(|s| find(&known, s)).collect()
     }
 }
 
