@@ -382,6 +382,15 @@ impl App {
                 return;
             }
         };
+        // the tracks it made and the loudness it settled at, for windows of the song from now on (`window`), unless a
+        // newer render's are there already
+        if let Some(settled) = r.settled {
+            let kept = self.kept.lock().unwrap_or_else(|e| e.into_inner()).share();
+            let mut live = self.live.lock().unwrap_or_else(|e| e.into_inner());
+            if live.as_ref().is_none_or(|l| l.version <= version) {
+                *live = Some(Arc::new(super::Live { version, settled, kept }));
+            }
+        }
         self.progress("listening", 0.75);
         let g = genres::get(&bp.genre).ok();
         let ears = self.ears_fn(&g);

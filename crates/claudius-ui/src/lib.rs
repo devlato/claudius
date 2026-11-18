@@ -16,6 +16,7 @@ mod desktop;
 mod devplan;
 mod edits;
 mod keep;
+mod live;
 mod mark;
 mod mock;
 mod music;

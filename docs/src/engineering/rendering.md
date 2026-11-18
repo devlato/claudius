@@ -327,6 +327,12 @@ a track made in three parts against the track made whole.
 
 The one thing a window cannot know is the master's loudness: its gain and true-peak trim are measured over the whole song (`finalize`). A window holds them as the last whole render settled them (`Settled`). With those held, a window is within about 2×10⁻⁷ of the whole song's render (−135 dBFS, a rounding or two of a 32-bit float), in house, lo-fi, synthwave and trip-hop alike (a test checks it). An edit that makes the song louder or quieter is levelled again by the next whole render.
 
+A server mixes windows of the song for the studio's live mix ([design 0023](../design/0023-the-live-mix-by-windows.md)):
+each render leaves it the kept tracks, shared (`Kept::share`), and what it settled, and `App::window` mixes the stretch
+the studio asks for from them, as the song is now, unless an edit changed a track's own sound or the song's length. The
+desktop studio plays each window in the render's place from just after its playhead, faded in and out over 5 ms
+against what plays beneath it, one window after another up to four seconds ahead, until the next render comes.
+
 The demo's engine uses it to preview an edit where the person is listening: the studio says where its playhead is with each command, and an edit to a song heard whole is first the last render with the twelve seconds from the playhead on rendered again and crossfaded in. That arrives in about 0.8 s in the browser, and the whole song follows. A song whose length an edit changed (its tempo, its form) gets its first bars first instead, as a new song does.
 
 `cargo bench -p claudius` measures generating, arranging and rendering 8 bars, and records results in

@@ -9,11 +9,66 @@ use super::{Pcm, Source};
 
 const NO_SEEK: u64 = u64::MAX;
 
+/// how many frames a patch fades in and out over against what plays beneath it (5 ms at 48 kHz), so that the mix
+/// changing never clicks
+const FADE: usize = 240;
+/// the most patches kept: the latest few are all the playhead reaches before the next render comes
+const MOST_PATCHES: usize = 32;
+
+/// A stretch of the song mixed anew since the audio playing was rendered (the live mix), of the song at `version`: it
+/// plays in that audio's place from `start` (in its frames), faded in and out against what plays beneath it.
+#[derive(Clone)]
+struct Patch {
+    version: u64,
+    start: usize,
+    pcm: Arc<Pcm>,
+}
+
+impl Patch {
+    fn end(&self) -> usize {
+        self.start + self.pcm.frames()
+    }
+}
+
+/// `list` and `pcm` played from frame `start` as the song is at `version` (`Player::patch`): joined to the last patch when
+/// it is of the same version and follows on from it, the latest `MOST_PATCHES` kept
+fn with_patch(list: &[Patch], version: u64, start: usize, pcm: Arc<Pcm>) -> Vec<Patch> {
+    let mut list = list.to_vec();
+    match list.last_mut() {
+        Some(last) if last.version == version && last.end().abs_diff(start) <= 1 => {
+            let mut samples = last.pcm.samples.clone();
+            samples.extend_from_slice(&pcm.samples);
+            last.pcm = Arc::new(Pcm { rate: pcm.rate, channels: pcm.channels, samples });
+        }
+        _ => list.push(Patch { version, start, pcm }),
+    }
+    let over = list.len().saturating_sub(MOST_PATCHES);
+    list.drain(..over);
+    list
+}
+
+/// channel `c` of frame `frame` of `base`, with `patches` played over it, the later over the earlier
+fn sample(base: &Pcm, patches: &[Patch], frame: usize, c: usize) -> f32 {
+    let ch = base.channels.max(1) as usize;
+    let c = c.min(ch - 1);
+    let mut v = base.samples.get(frame * ch + c).copied().unwrap_or(0.0);
+    for p in patches.iter().filter(|p| (p.start..p.end()).contains(&frame)) {
+        let x = p.pcm.samples.get((frame - p.start) * ch + c).copied().unwrap_or(0.0);
+        let w = ((frame - p.start).min(p.end() - 1 - frame) as f32 / FADE as f32).min(1.0);
+        v += (x - v) * w;
+    }
+    v
+}
+
 /// shared between the UI thread and the audio callback
 struct Shared {
     pcm: Mutex<Option<Arc<Pcm>>>,
     /// bumped whenever `pcm` is replaced
     generation: AtomicU64,
+    /// what plays over `pcm` (`Patch`), gone with it
+    patches: Mutex<Arc<Vec<Patch>>>,
+    /// bumped whenever `patches` change
+    patched: AtomicU64,
     playing: AtomicBool,
     /// seconds, f64 bits
     position: AtomicU64,
@@ -29,6 +84,8 @@ impl Default for Shared {
         Shared {
             pcm: Mutex::new(None),
             generation: AtomicU64::new(0),
+            patches: Mutex::new(Arc::new(Vec::new())),
+            patched: AtomicU64::new(0),
             playing: AtomicBool::new(false),
             position: AtomicU64::new(0f64.to_bits()),
             seek: AtomicU64::new(NO_SEEK),
@@ -46,6 +103,8 @@ struct Output {
     rate: f64,
     pcm: Option<Arc<Pcm>>,
     generation: u64,
+    patches: Arc<Vec<Patch>>,
+    patched: u64,
     /// in source frames
     pos: f64,
     gain: f32,
@@ -60,6 +119,11 @@ impl Output {
         if generation != self.generation {
             self.generation = generation;
             self.pcm = sh.pcm.lock().map(|p| p.clone()).unwrap_or(None);
+        }
+        let patched = sh.patched.load(Relaxed);
+        if patched != self.patched {
+            self.patched = patched;
+            self.patches = sh.patches.lock().map(|p| p.clone()).unwrap_or_default();
         }
         let Some(pcm) = self.pcm.as_deref() else {
             self.frame = [0.0; 2];
@@ -84,7 +148,8 @@ impl Output {
         let ch = pcm.channels.max(1) as usize;
         let i = self.pos as usize;
         let t = (self.pos - i as f64) as f32;
-        let at = |frame: usize, c: usize| pcm.samples.get(frame * ch + c.min(ch - 1)).copied().unwrap_or(0.0);
+        let patches = self.patches.as_slice();
+        let at = |frame: usize, c: usize| sample(pcm, patches, frame, c);
         let lerp = |c: usize| at(i, c) + (at(i + 1, c) - at(i, c)) * t;
         let (l, r) = (lerp(0), if ch > 1 { lerp(1) } else { lerp(0) });
         self.frame = [l * self.gain, r * self.gain];
@@ -161,6 +226,8 @@ impl Player {
                     rate,
                     pcm: None,
                     generation: 0,
+                    patches: Arc::new(Vec::new()),
+                    patched: 0,
                     pos: 0.0,
                     gain: 0.0,
                     frame: [0.0; 2],
@@ -254,6 +321,7 @@ impl Player {
             *slot = None;
         }
         self.shared.generation.fetch_add(1, Relaxed);
+        self.unpatch();
         self.shared.position.store(0f64.to_bits(), Relaxed);
         self.duration = 0.0;
     }
@@ -265,8 +333,30 @@ impl Player {
             *slot = Some(pcm);
         }
         self.shared.generation.fetch_add(1, Relaxed);
+        self.unpatch();
         self.duration = duration;
         self.seek(if pos < duration { pos } else { 0.0 });
+    }
+
+    /// Plays `pcm`, the song's audio from `start` seconds on as the song is at `version` (a window of the live mix), in
+    /// place of what plays there, until other audio is loaded. A window that follows on from the last of the same
+    /// version joins it, so that no fade falls between them. Audio of another rate or channel count than what plays is
+    /// not played.
+    pub fn patch(&mut self, version: u64, start: f64, pcm: Arc<Pcm>) {
+        let base = self.shared.pcm.lock().ok().and_then(|p| p.clone());
+        let Some(base) = base.filter(|b| b.rate == pcm.rate && b.channels == pcm.channels) else { return };
+        let start = (start.max(0.0) * base.rate as f64).round() as usize;
+        let Ok(mut slot) = self.shared.patches.lock() else { return };
+        *slot = Arc::new(with_patch(&slot, version, start, pcm));
+        self.shared.patched.fetch_add(1, Relaxed);
+    }
+
+    /// what plays over the audio, gone
+    fn unpatch(&mut self) {
+        if let Ok(mut slot) = self.shared.patches.lock() {
+            *slot = Arc::new(Vec::new());
+        }
+        self.shared.patched.fetch_add(1, Relaxed);
     }
 
     /// forget the loaded audio (the song it belonged to is gone)
@@ -387,11 +477,40 @@ mod tests {
             rate,
             pcm: None,
             generation: 0,
+            patches: Arc::new(Vec::new()),
+            patched: 0,
             pos: 0.0,
             gain: 0.0,
             frame: [0.0; 2],
             channel: 0,
         }
+    }
+
+    #[test]
+    fn a_window_of_the_live_mix_plays_in_the_renders_place_faded_in_and_out_and_the_next_one_joins_it() {
+        let (rate, secs) = (1_000u32, 4usize);
+        let base = Pcm { rate, channels: 1, samples: vec![0.5; rate as usize * secs] };
+        let window = |v: f32, n: usize| Arc::new(Pcm { rate, channels: 1, samples: vec![v; n] });
+        // a second of the song mixed anew from 1 s, and the next second of the same version after it
+        let list = with_patch(&[], 7, 1_000, window(1.0, 1_000));
+        let list = with_patch(&list, 7, 2_000, window(1.0, 1_000));
+        assert_eq!(list.len(), 1, "two windows of a version that follow on are one stretch");
+        assert_eq!((list[0].start, list[0].end()), (1_000, 3_000));
+        let at = |frame: usize| sample(&base, &list, frame, 0);
+        assert_eq!(
+            (at(999), at(1_000), at(1_000 + FADE), at(2_000), at(2_999), at(3_000)),
+            (0.5, 0.5, 1.0, 1.0, 0.5, 0.5)
+        );
+        let half = at(1_000 + FADE / 2);
+        assert!(half > 0.5 && half < 1.0, "faded in: {half}");
+        // a later version's window over it from 2.5 s plays over both
+        let list = with_patch(&list, 8, 2_500, window(-1.0, 1_000));
+        assert_eq!(list.len(), 2);
+        let at = |frame: usize| sample(&base, &list, frame, 0);
+        assert_eq!((at(2_000), at(2_500 + FADE), at(3_499 - FADE)), (1.0, -1.0, -1.0));
+        // no more than the latest few are kept
+        let many = (0..40).fold(Vec::new(), |l, k| with_patch(&l, k, k as usize * 10, window(0.0, 5)));
+        assert_eq!((many.len(), many[0].version), (MOST_PATCHES, 40 - MOST_PATCHES as u64));
     }
 
     fn install(shared: &Shared, pcm: Pcm) {

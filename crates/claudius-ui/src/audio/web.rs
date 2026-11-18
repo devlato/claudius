@@ -125,6 +125,10 @@ impl Player {
         }
     }
 
+    /// A window of the live mix: the page's audio element plays a whole file, which nothing can be played over, so it
+    /// plays the next render instead (the studio asks for no windows in a page yet).
+    pub fn patch(&mut self, _version: u64, _start: f64, _pcm: std::sync::Arc<Pcm>) {}
+
     pub fn has_audio(&self) -> bool {
         self.loaded
     }
