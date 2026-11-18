@@ -19,8 +19,9 @@ repeats, boundaries in the singer's breaths, any length.
 
 ## Decision
 
-The analysis hears a song's own sections (`analysis/structure.rs`), with no model: signal processing on what it
-already reads, the stems when the ears separate them.
+The analysis hears a song's own sections (`analysis/structure.rs`), with no model of its own: signal processing on
+what it already reads, the stems when the ears separate them, and a small tagger that tells a voice in them from what
+the separation left in the vocals.
 
 - **Each bar** is heard as its harmony (the pitch classes of each of its four beats, from the bass and the rest), its
   timbre (cepstral coefficients of its spectrum), how loud and bright it is, its kit, its bass and how much of it a
@@ -35,6 +36,11 @@ already reads, the stems when the ears separate them.
   are counted as a phrase's: a bar over 3.2 s, of a slow song or one heard at half its tempo, as two. Each change is
   scaled to the song's clearest, but never by more than what a real change measures, so a steady loop's noise is no
   boundary, and sections that rise together, bar by bar, into a louder one are one build.
+- **The voice** is where `cuts` hears it in the separated vocals and the ears' AudioSet tagger hears a voice there
+  too (`stems::voiced`): a guitar riff or a synth line the separation left in the vocals sings nothing. The tagger is
+  CED-Tiny (Dinkel et al. 2024; 5.5 million parameters, Apache-2.0), asked about the phrases a few lines at a time
+  (those less than a second apart, up to the 10.11 s it hears at once), and a stretch is a voice's from 0.03, chosen
+  on half of JamendoLyrics' songs and confirmed on the other half (Evaluation).
 - **What the voice sings**, beat by beat, where the stems are apart, counts as much as the chords: in the runs that
   come back, so a chorus's tune coming back marks where it starts, and between two sections both sung. Many songs play
   one loop of chords all through, and only the tune tells their verse from their chorus.
@@ -81,6 +87,15 @@ the same music 36% (48%). Heard without its tune, the voice had found the starts
 named more choruses (59%) but taken more stanzas for one (44%), and put stanzas sung alike in the same music twice as
 often (71%): the tune, which a voice's stem hears less steadily than the rest hears its chords, parts two choruses
 sung a little differently. It is kept for what it finds that nothing else does (below).
+
+**The voice tagger** (CED-Tiny), on the same 78 songs against when lines are sung, every 10 ms, its threshold chosen
+on alternate songs and confirmed on the others: on the half it was not chosen on, precision 0.827 to 0.850, recall
+0.876 to 0.874, and a voice heard more than 2 s from any line in 18.6% of that time to 12.4%, with no song's F1 down by
+more than 0.02 (on all 78: 0.849 to 0.868, 0.886 to 0.884, 14.7% to 9.6%). With the stems read back from the cache both
+times, every song's analysis comes out the same, byte for byte, with the tagger as without it: at 0.03 it keeps every
+phrase these songs sing, and what it takes out is what no voice sings. On seven recordings with lyrics timed by LRCLIB
+the far-off voice went from 53% to 43% on The Prodigy's "Firestarter", 34% to 28% and 17% to 13% on two more, and
+stayed at 74% on one.
 
 **SALAMI**: 60 recordings of its Internet Archive part (live, a jam band as often as a pop group) whose first
 annotator marked a verse and a chorus, against each of its annotators, from the mix alone.

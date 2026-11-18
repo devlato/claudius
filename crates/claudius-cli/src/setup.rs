@@ -77,6 +77,7 @@ fn download_models(ask: bool, tags: bool) -> Result<()> {
         && earshot::separate::Separator::cached(&cache)
         && earshot::notes::Transcriber::cached(&cache)
         && earshot::aesthetics::Aesthetics::cached(&cache)
+        && earshot::ced::Ced::cached(&cache)
     {
         eprintln!("ears: the models are in {}", cache.display());
     } else {
@@ -97,6 +98,8 @@ fn download_models(ask: bool, tags: bool) -> Result<()> {
             // hears the notes its bass and the rest play for a rebuild
             earshot::separate::Separator::load(&cache, false, 1)?;
             earshot::notes::Transcriber::load(&cache, false, 1)?;
+            // CED-Tiny, which tells a voice in a recording's separated vocals from an instrument left in them
+            earshot::ced::Ced::load(&cache, false, 1)?;
             eprintln!("ears: ready");
         }
     }

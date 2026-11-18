@@ -684,6 +684,30 @@ fn audioset_matches() {
 
 #[test]
 #[ignore]
+fn ced_hears_a_recording_longer_than_it_was_trained_on_in_windows_each_label_at_its_likeliest() {
+    use earshot::ced::{Ced, WIN_S};
+    let ced = Ced::load(&earshot::models::default_cache_dir(), false, 2).unwrap();
+    // 12 s of silence, then 12 s of a buzz: its export takes no more than 10.22 s at once
+    let sr = earshot::SR as usize;
+    let x: Vec<f32> = (0..24 * sr)
+        .map(|i| if i < 12 * sr { 0.0 } else { 0.3 * ((i as f32 * 220.0 / sr as f32).fract() - 0.5) })
+        .collect();
+    let w = (WIN_S * sr as f64).round() as usize;
+    let p = ced.probs(&[&x, &x[x.len() - w..], &x[..w]]).unwrap();
+    assert!(p.iter().all(|q| q.len() == 527));
+    // probabilities, once: of 527 labels, not every one is likelier than not (a second sigmoid put them all above 0.5)
+    assert!(
+        p.iter().all(|q| q.iter().all(|v| (0.0..=1.0).contains(v)) && q.iter().any(|&v| v < 0.5)),
+        "{:?}",
+        &p[2][..8]
+    );
+    for window in &p[1..] {
+        assert!(p[0].iter().zip(window).all(|(a, b)| a + 1e-6 >= *b), "a label less likely than in one of its windows");
+    }
+}
+
+#[test]
+#[ignore]
 fn typicality_rank_find_describe_match() {
     let e = ears();
     let mut r = Report::new("search");

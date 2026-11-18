@@ -21,6 +21,12 @@ track on its own, in the studio): a song's stems take a gigabyte or more, and ev
 song's folder and the render cache. A save the disk has no room for is refused before it writes the audio, saying what
 it takes and what is free, and no file is left half-written. What wants a song folder's `stems/` asks for them now.
 
+With the ears, a guitar riff or a synth line that separating a recording left in its vocals is no longer heard as
+singing: a small tagger, CED-Tiny (6.7 MB, which `claudius setup` downloads), hears whether a voice is what sings
+there. On 78 songs with timed lyrics, a voice is heard in 9.6% of the time far from any sung line, against 14.7%, and
+in as much of the singing as before (88.4% of it, against 88.6%). It adds 1.5 to 3.5 seconds to a song's analysis on
+an M1 Max, once: what it heard is kept with the recording.
+
 ## [0.12.1] - 2026-11-17
 
 ### Fixed
