@@ -44,8 +44,12 @@ const QUIET_FOR: f64 = 0.06;
 const APART: f64 = 1.0;
 /// the longest stretch asked about at once, seconds: as long as the tagger hears at once
 const ASKED: f64 = 10.24;
-/// a stretch is a voice's when the tagger hears a voice in it this surely at least (`voiced_only`)
-const VOICED: f64 = 0.2;
+/// a stretch is a voice's when the tagger hears a voice in it this surely at least (`voiced_only`): an instrument a
+/// separation left in the vocals reads about 0.02, singing 0.26 and up, a short line far less (the tagger hears 10.24 s,
+/// the rest silence). Chosen on half of JamendoLyrics' songs and confirmed on the other half: against when their lines
+/// are sung, precision 0.827 to 0.846 with recall kept (0.876), a voice heard far from any line 18.6% to 13.3% of the
+/// time, and no song worse; at 0.2 a tenth of the singing was lost
+const VOICED: f64 = 0.03;
 
 /// a stretch of a recording, in seconds from its start
 #[derive(Clone, Copy, Debug, PartialEq)]
