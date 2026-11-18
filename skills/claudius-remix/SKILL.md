@@ -110,7 +110,10 @@ it). The reply and the song's history say so (`reworked from '<file>': all 96 ba
 edit the genre's parts around it. Each section keeps its own stretch of the recording: a section added (`add_section`,
 which plays none of the recording's tracks), removed or moved leaves every other section playing the bars it played,
 so a four-bar break after the intro makes the song four bars longer and the recording still plays to its end;
-`get_song` shows each section's place in each track of it (`takes`, bars from its start). With the ears, when it sings, its voice is apart on a track of its own, `vocals`
+`get_song` shows each section's place in each track of it (`takes`, bars from its start). To play another stretch in a
+section, or one a beat earlier or later (a line that starts on beat 2), set it: `command` `set_section {index,
+source}` with `source` in bars from the recording's start (16.25 is a beat into its 17th bar), for every track of it
+or, with `take`, for one. With the ears, when it sings, its voice is apart on a track of its own, `vocals`
 (the history says "its voice on a track of its own (vocals)"), and `original` is the rest of it: level, treat or mute
 the voice on its own, as a singer's track. A recording too short or without sections (under 8 bars) is remade on its skeleton,
 and the reply says so.

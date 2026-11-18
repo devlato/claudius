@@ -117,7 +117,8 @@ in each section, it plays once from the start of that section (or of the first s
 is gone), on through the later sections that play it. Each section keeps where it starts in each take it plays
 (`SectionSpec::takes`, in the take's beats), set when the take is added or the recording reworked and before any
 change to the sections (`take::pin_all`), so that a section added, removed, moved or made longer leaves the others'
-stretches as they were; a section added plays none of the takes (`take::leave_out`). One without a place of its own
+stretches as they were; a section added plays none of the takes (`take::leave_out`), and `set_section`'s `source`
+sets a section's place, to the beat (`take::place`). One without a place of its own
 (in a song saved before sections kept them, or a take turned on in a new section) goes on from the take's first
 section as the song's time runs (`Blueprint::take_places`).
 

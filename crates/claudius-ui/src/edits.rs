@@ -124,7 +124,14 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             gap,
             impact,
             fills,
+            source,
+            take,
         } => {
+            // as the server: the take named, or every take of the song, played from `source`
+            let takes: Vec<String> = match take {
+                Some(t) => vec![t.clone()],
+                None => song.tracks.iter().filter(|t| t.kind == "take").map(|t| t.name.clone()).collect(),
+            };
             let Some(s) = song.sections.get_mut(*index) else {
                 return Some(Err(format!("no section {index}")));
             };
@@ -163,6 +170,14 @@ pub fn apply(song: &mut SongView, cmd: &Command) -> Option<Result<String, String
             for (new, old) in flags {
                 if let Some(v) = new {
                     *old = *v;
+                }
+            }
+            if let Some(at) = source {
+                for t in takes {
+                    s.takes.insert(t.clone(), *at);
+                    if !s.layers.contains(&t) {
+                        s.layers.push(t);
+                    }
                 }
             }
             let msg = format!("section {} ({} bars)", s.name, s.bars);

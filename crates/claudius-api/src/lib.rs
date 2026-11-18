@@ -1906,6 +1906,13 @@ pub enum Command {
         impact: Option<bool>,
         #[serde(default)]
         fills: Option<bool>,
+        /// where the section starts in the song's takes, in bars from their start (0 their first bar, 16.25 a beat into
+        /// the 17th): it plays the take `take` names, or every take of the song, from there
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        source: Option<f64>,
+        /// the take `source` is for; every take of the song when not given
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        take: Option<String>,
     },
     AddSection {
         after: usize,

@@ -228,7 +228,7 @@ fields marked optional may be left out.
 | `set_key` | `key` | as `key()`: the progressions follow a change of mode |
 | `set_swing` | `swing` | as `swing()` |
 | `set_progression` | `name`, `chords` (strings) | as `prog()` |
-| `set_section` | `index`; optional `name`, `bars`, `energy`, `layers`, `prog`, `variant`, `filter_in`, `build`, `gap`, `impact`, `fills` | changes any of a section's properties |
+| `set_section` | `index`; optional `name`, `bars`, `energy`, `layers`, `prog`, `variant`, `filter_in`, `build`, `gap`, `impact`, `fills`, `source` (where it starts in the song's [takes](samples.md#takes), in bars from their start: 16.25 is a beat into the 17th bar) and `take` (the take `source` is for; every take when not given) | changes any of a section's properties; with `source`, the section plays the takes from there |
 | `add_section` | `after`, `kind`, `bars` | inserts a section after index `after`, with that section's layers (but none of the song's [takes](samples.md#takes), so that every other section plays the same stretch of them), energy and progression |
 | `remove_section` | `index` | removes a section (a song keeps at least one) |
 | `move_section` | `from`, `to` | moves a section |
