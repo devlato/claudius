@@ -26,7 +26,9 @@
 //! more, the studio's green, which a song with such a flaw should never get). `ranked` is what a change to the critic
 //! is made to improve; the others are guards. Each line is sliced by the flaw, the song's family of genres (by its
 //! genre tags) and whether it is tagged as sung.
-//! A run stopped part way goes on where it stopped when started again with the same `--out`.
+//! A total the critic cannot give (not a number) fails the song: it counts as condemned at 0, and no flawed copy as
+//! ranked below it, so that every run holds the same items. A run stopped part way goes on where it stopped when
+//! started again with the same `--out`.
 //!
 //! The ears judge as the studio does when ONNX Runtime and their models are installed; `--no-ears` judges with the
 //! meters alone. Each of the `--threads` (by default as many as the ears' threads leave cores for) loads its own ears.
@@ -514,19 +516,32 @@ fn judge(song: &Song, ears: Option<&Ears>, flaws: &[Flaw]) -> Result<Vec<Value>,
     let total = |x: Stereo| claudius::song::judge_audio(x, None, Some(&hear)).total;
     let sung = if song.sung { "sung" } else { "not tagged sung" };
     let mut lines = Vec::new();
+    // a total the critic cannot give (not a number) fails the song: condemned, at 0, and no flawed copy ranked below it
     let t = total(x.clone());
+    let judged = t.is_finite();
+    if !judged {
+        eprintln!("{}: the critic gave no total ({t})", song.id);
+    }
     lines.push(json!({
         "item": song.id,
         "slice": {"family": song.family, "voice": sung},
-        "metrics": {"total": hundredths(t), "condemned": t < CONDEMNED},
+        "metrics": {"total": if judged { hundredths(t) } else { 0.0 }, "condemned": !judged || t < CONDEMNED},
     }));
     let seed = song.id.trim_start_matches("track_").parse::<u64>().unwrap_or(1);
     for f in flaws {
         let ft = total(f.put(&x, seed.wrapping_mul(31).wrapping_add(*f as u64)));
+        if !ft.is_finite() {
+            eprintln!("{} {}: the critic gave no total ({ft})", song.id, f.name());
+        }
+        let both = judged && ft.is_finite();
         lines.push(json!({
             "item": format!("{}/{}", song.id, f.name()),
             "slice": {"flaw": f.name(), "family": song.family, "voice": sung},
-            "metrics": {"ranked": t > ft, "gap": hundredths(t - ft), "praised": ft >= PRAISED},
+            "metrics": {
+                "ranked": both && t > ft,
+                "gap": if both { hundredths(t - ft) } else { 0.0 },
+                "praised": ft.is_finite() && ft >= PRAISED,
+            },
         }));
     }
     Ok(lines)
