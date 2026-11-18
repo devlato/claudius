@@ -10,7 +10,7 @@ The studio is still being finished; this page describes its structure, which is 
 
 | file | what it does |
 |---|---|
-| `lib.rs`, `main.rs` | `run_native`, `start_web`, the `claudius-ui` program's arguments |
+| `lib.rs`, `main.rs` | `run_native`, `start_web`, the `claudius-ui` program's arguments; on a Mac the window's content runs up under a title bar with nothing drawn or written in it (`with_fullsize_content_view`), so the top bar is the title bar: it leaves the window's buttons their room (`transport::window_buttons`, AppKit's 9 to 69 points, none in full screen), and its background moves the window and zooms it on a double-click, as the system's setting for a title bar says (`app::title_bar`), as AppKit sends the clicks there to the studio |
 | `app.rs` | `Studio`, the `eframe::App`: state, layout, shortcuts, applying server state |
 | `net.rs` | the connection: long polling, commands, the backend (a server or the mock) |
 | `edits.rs` | edits applied to a `SongView`, for optimistic updates |

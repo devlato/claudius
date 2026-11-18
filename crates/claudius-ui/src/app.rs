@@ -1249,11 +1249,11 @@ impl eframe::App for Studio {
                 server: self.server_url.as_deref(),
                 now,
             };
-            egui::Panel::top("transport")
-                .frame(bar)
-                .exact_size(58.0)
-                .show_separator_line(false)
-                .show(ui, |ui| panels::transport::top_row(ui, &mut cx));
+            egui::Panel::top("transport").frame(bar).exact_size(58.0).show_separator_line(false).show(ui, |ui| {
+                #[cfg(all(target_os = "macos", not(target_arch = "wasm32")))]
+                title_bar(ui);
+                panels::transport::top_row(ui, &mut cx)
+            });
             let tools = egui::Frame::new()
                 .fill(theme::mix(PANEL, BG, 0.35))
                 .inner_margin(Margin::symmetric(12, 0))
@@ -1575,10 +1575,141 @@ impl eframe::App for Studio {
     }
 }
 
+/// On a Mac, where the top bar is the window's title bar (`run_native_with`): dragging its background moves the window,
+/// and a double-click on it does what the system's settings say a title bar's does (zoom, unless they say minimize or
+/// nothing). AppKit sends the clicks there to the studio, its own buttons' aside, so the studio does both; the bar's
+/// controls, laid over its background after, take their own clicks. The bar never takes the keyboard, and a drag moves
+/// the window only from its background: one begun on a control, which senses clicks alone, is the control's.
+#[cfg(all(target_os = "macos", not(target_arch = "wasm32")))]
+fn title_bar(ui: &mut Ui) {
+    let id = ui.scope_id().with("title_bar");
+    // clicks and drags without focus: `Sense::click_and_drag` would let a click on the bar take the keyboard, ringed
+    let r = ui.interact(ui.max_rect(), id, Sense::CLICK | Sense::DRAG);
+    // where the press went down: on the bar's background, or on a control over it (what egui would click there)
+    let on_bar = id.with("pressed on the bar");
+    if ui.input(|i| i.pointer.primary_pressed()) {
+        let background = ui.ctx().viewport(|v| v.hits.click.is_none_or(|w| w.id == id));
+        ui.ctx().data_mut(|d| d.insert_temp(on_bar, background));
+    }
+    let from_background = ui.ctx().data(|d| d.get_temp(on_bar)).unwrap_or(true);
+    if r.double_clicked() {
+        match double_click() {
+            DoubleClick::Zoom => {
+                let zoomed = ui.input(|i| i.viewport().maximized.unwrap_or(false));
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Maximized(!zoomed));
+            }
+            DoubleClick::Minimize => ui.ctx().send_viewport_cmd(egui::ViewportCommand::Minimized(true)),
+            DoubleClick::Nothing => {}
+        }
+    } else if r.drag_started_by(egui::PointerButton::Primary) && from_background {
+        ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag);
+    }
+}
+
+/// what a double-click on a window's title bar does, as the person set it in the system's settings
+#[cfg(any(test, all(target_os = "macos", not(target_arch = "wasm32"))))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum DoubleClick {
+    Zoom,
+    Minimize,
+    Nothing,
+}
+
+#[cfg(any(test, all(target_os = "macos", not(target_arch = "wasm32"))))]
+impl DoubleClick {
+    /// from the value of the setting (`AppleActionOnDoubleClick`): none set, or "Fill", zooms, as macOS does by default
+    fn from_setting(value: &str) -> DoubleClick {
+        match value.trim() {
+            "Minimize" => DoubleClick::Minimize,
+            "None" | "Do Nothing" => DoubleClick::Nothing,
+            _ => DoubleClick::Zoom,
+        }
+    }
+}
+
+/// the system's setting for a double-click on a title bar, read once
+#[cfg(all(target_os = "macos", not(target_arch = "wasm32")))]
+fn double_click() -> DoubleClick {
+    static SET: std::sync::OnceLock<DoubleClick> = std::sync::OnceLock::new();
+    *SET.get_or_init(|| {
+        let out = std::process::Command::new("defaults").args(["read", "-g", "AppleActionOnDoubleClick"]).output();
+        let value = out.ok().filter(|o| o.status.success()).map(|o| String::from_utf8_lossy(&o.stdout).into_owned());
+        DoubleClick::from_setting(value.as_deref().unwrap_or(""))
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "macos")]
+    use eframe::egui::{Pos2, Rect, pos2};
+
+    /// the pointer pressed at `at`, moved to `to` (none: released where it was pressed) over a top bar of a title bar
+    /// and a button laid over it: whether the window was asked to move, and whether anything took the keyboard
+    #[cfg(target_os = "macos")]
+    fn on_the_title_bar(at: Pos2, to: Option<Pos2>) -> (bool, bool) {
+        let ctx = egui::Context::default();
+        let screen = Rect::from_min_size(Pos2::ZERO, vec2(800.0, 58.0));
+        let mut asked_to_move = false;
+        let mut frame = |events: Vec<egui::Event>| {
+            let input = egui::RawInput { screen_rect: Some(screen), events, ..Default::default() };
+            let mut out = ctx.run_ui(input, |ui| {
+                title_bar(ui);
+                ui.put(Rect::from_min_size(pos2(200.0, 14.0), vec2(40.0, 30.0)), egui::Button::new("Play"));
+            });
+            // the fonts' textures, which nothing draws here
+            out.textures_delta.clear();
+            asked_to_move |= out
+                .viewport_output
+                .values()
+                .any(|v| v.commands.iter().any(|c| matches!(c, egui::ViewportCommand::StartDrag)));
+        };
+        let button = |pos, pressed| egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: Default::default(),
+        };
+        frame(vec![egui::Event::PointerMoved(at)]);
+        frame(vec![button(at, true)]);
+        match to {
+            Some(to) => {
+                for k in 1..=5 {
+                    frame(vec![egui::Event::PointerMoved(at + (to - at) * (k as f32 / 5.0))]);
+                }
+                frame(vec![button(to, false)]);
+            }
+            None => frame(vec![button(at, false)]),
+        }
+        frame(vec![]);
+        (asked_to_move, ctx.memory(|m| m.focused()).is_some())
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn the_title_bar_never_takes_the_keyboard_and_moves_the_window_only_from_its_background() {
+        // a click on its background: nothing takes the keyboard, and the window stays
+        assert_eq!(on_the_title_bar(pos2(500.0, 29.0), None), (false, false));
+        // a drag from its background moves the window
+        assert!(on_the_title_bar(pos2(500.0, 29.0), Some(pos2(560.0, 29.0))).0);
+        // a drag begun on the button is the button's: the window stays
+        assert!(!on_the_title_bar(pos2(220.0, 29.0), Some(pos2(280.0, 29.0))).0);
+    }
     use serde_json::json;
+
+    #[test]
+    fn a_double_click_on_the_mac_title_bar_does_what_the_systems_settings_say() {
+        for (setting, does) in [
+            ("", DoubleClick::Zoom),
+            ("Maximize\n", DoubleClick::Zoom),
+            ("Fill", DoubleClick::Zoom),
+            ("Minimize\n", DoubleClick::Minimize),
+            ("None", DoubleClick::Nothing),
+            ("Do Nothing", DoubleClick::Nothing),
+        ] {
+            assert_eq!(DoubleClick::from_setting(setting), does, "{setting:?}");
+        }
+    }
 
     #[test]
     fn every_edit_shown_at_once_is_put_back_when_refused() {
