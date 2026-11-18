@@ -34,6 +34,11 @@
         "vel": [0.8, 1.0],
         "vary": 0.6
       },
+      "alts": [
+        [{"steps": [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], "vel": [0.8, 1.0], "vary": 0.6}, 0.2],
+        [{"steps": [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0], "vel": [0.8, 1.0], "vary": 0.6}, 0.15],
+        [{"steps": [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], "vel": [0.8, 1.0], "vary": 0.6}, 0.15]
+      ],
       "params": {"decay": [0.18, 0.3], "tune": [50, 60], "punch": [0.4, 0.7], "drive": [6, 12]},
       "samples": ["Kick"],
       "mix": {"bus": "drums", "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 6, "mix": 0.4}]}
@@ -48,6 +53,28 @@
         "rolls": 0.2,
         "vary": 0.6
       },
+      "alts": [
+        [
+          {
+            "steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.3],
+            "vel": [0.8, 1.0],
+            "ghost": 0.25,
+            "rolls": 0.2,
+            "vary": 0.6
+          },
+          0.2
+        ],
+        [
+          {
+            "steps": [0, 0, 0, 0, 1, 0, 0, 0.3, 0, 0, 0, 0, 1, 0, 0, 0],
+            "vel": [0.8, 1.0],
+            "ghost": 0.25,
+            "rolls": 0.2,
+            "vary": 0.6
+          },
+          0.15
+        ]
+      ],
       "params": {"decay": [0.14, 0.22], "tune": [200, 260], "snap": [0.6, 0.9], "room": [0.3, 0.5]},
       "samples": ["Snare"],
       "mix": {"bus": "drums", "reverb": 0.12}
@@ -56,6 +83,16 @@
       "name": "hat",
       "voice": "closed_hat",
       "template": {"steps": [1, 0.3, 1, 0.3, 1, 0.3, 1, 0.3, 1, 0.3, 1, 0.3, 1, 0.3, 1, 0.3], "vel": [0.3, 0.6], "ghost": 0.2, "vary": 0.4},
+      "alts": [
+        [
+          {"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.3, 0.6], "ghost": 0.2, "vary": 0.4},
+          0.2
+        ],
+        [
+          {"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.3, 0.6], "ghost": 0.2, "vary": 0.4},
+          0.15
+        ]
+      ],
       "samples": ["Hi-hat"],
       "mix": {"bus": "drums", "pan": 0.2}
     },
@@ -63,6 +100,10 @@
       "name": "ride",
       "voice": "ride",
       "template": {"steps": [0.7, 0, 0.7, 0, 0.7, 0, 0.7, 0, 0.7, 0, 0.7, 0, 0.7, 0, 0.7, 0], "vel": [0.2, 0.4]},
+      "alts": [
+        [{"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.2, 0.4]}, 0.2],
+        [{"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.2, 0.4]}, 0.15]
+      ],
       "mix": {"bus": "drums", "pan": -0.25, "reverb": 0.15}
     }
   ],
@@ -97,7 +138,16 @@
       "name": "lead",
       "role": "lead",
       "presets": ["bell", "piano|keys", "fm_kalimba"],
-      "styles": ["ambient_line", "piano_riff", "lofi_melody"],
+      "styles": [
+        "ambient_line",
+        "piano_riff",
+        "lofi_melody",
+        "ambient_line",
+        "piano_riff",
+        "lofi_melody",
+        "synth_lead",
+        "reggae_horns"
+      ],
       "register": [67, 86],
       "density": [0.3, 0.5],
       "mix": {"reverb": 0.4, "delay": 0.3, "duck": 0.2}
@@ -106,7 +156,7 @@
       "name": "chords",
       "role": "chords",
       "presets": ["keys", "pwm_pad", "rhodes|epiano"],
-      "styles": ["sustain", "stabs"],
+      "styles": ["sustain", "stabs", "sustain", "stabs", "offbeat"],
       "register": [52, 74],
       "voices": 3,
       "voicing": "close",

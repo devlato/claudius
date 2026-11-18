@@ -115,6 +115,10 @@ pub struct LaneSpec {
     /// extra pattern variants by name (alt, sparse, half ...)
     #[serde(default)]
     pub variants: BTreeMap<String, LaneTemplate>,
+    /// the genre's other grooves on this lane: main patterns a song plays instead of `template`, each with its chance
+    /// (what is left of 1 keeps the template), one drawn for each song
+    #[serde(default)]
+    pub alts: Vec<(LaneTemplate, f64)>,
     /// (onsets, steps) instead of a template
     #[serde(default)]
     pub euclid: Option<(usize, usize)>,

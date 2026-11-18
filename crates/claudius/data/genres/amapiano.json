@@ -48,6 +48,10 @@
         "steps": [0.7, 0.4, 0.8, 0.4, 0.7, 0.4, 0.8, 0.4, 0.7, 0.4, 0.8, 0.4, 0.7, 0.4, 0.8, 0.6],
         "vel": [0.2, 0.45]
       },
+      "alts": [
+        [{"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.2, 0.45]}, 0.2],
+        [{"steps": [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1], "vel": [0.2, 0.45]}, 0.15]
+      ],
       "samples": ["Shaker"],
       "mix": {"bus": "drums", "pan": -0.3}
     },
@@ -55,6 +59,7 @@
       "name": "ohat",
       "voice": "open_hat",
       "template": {"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.35, 0.55]},
+      "alts": [[{"steps": [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0], "vel": [0.35, 0.55]}, 0.15]],
       "params": {"decay": [0.12, 0.22], "tone": [0.45, 0.75]},
       "mix": {"bus": "drums", "pan": 0.2}
     },
@@ -63,6 +68,10 @@
       "late_ms": [2, 10],
       "voice": "rim",
       "template": {"steps": [0, 0, 0, 1, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, 0, 0.6, 0], "vel": [0.4, 0.65], "vary": 0.3},
+      "alts": [
+        [{"steps": [0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0], "vel": [0.4, 0.65], "vary": 0.3}, 0.15],
+        [{"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.4, 0.65], "vary": 0.3}, 0.12]
+      ],
       "mix": {"bus": "drums", "pan": 0.35, "reverb": 0.15}
     }
   ],
@@ -79,7 +88,7 @@
       "name": "logdrum",
       "role": "bass",
       "presets": ["log_drum"],
-      "styles": ["log_drum", "log_drum", "kick_follow"],
+      "styles": ["log_drum", "kick_follow", "log_drum", "kick_follow", "afro", "syncopated"],
       "register": [33, 52],
       "mix": {"bus": "bass", "duck": 0.2}
     },
@@ -87,7 +96,7 @@
       "name": "keys",
       "role": "keys",
       "presets": ["piano|keys", "rhodes|epiano", "house_piano", "tine_piano"],
-      "styles": ["gospel", "house_piano", "lofi_comp"],
+      "styles": ["gospel", "house_piano", "lofi_comp", "gospel", "house_piano", "lofi_comp", "half", "sustain"],
       "register": [52, 76],
       "voices": 4,
       "voicing": "close",

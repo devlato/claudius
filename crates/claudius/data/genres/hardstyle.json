@@ -29,6 +29,10 @@
       "name": "kick",
       "voice": "kick",
       "template": {"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], "vel": [0.98, 1.0]},
+      "alts": [
+        [{"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0], "vel": [0.98, 1.0]}, 0.2],
+        [{"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1], "vel": [0.98, 1.0]}, 0.08]
+      ],
       "params": {"decay": [0.6, 0.95], "tune": [48, 58], "tone": [0.5, 0.8], "punch": [0.6, 0.8], "snap": [0.4, 0.7], "drive": [12, 14], "pitch_env": [30, 44]},
       "tune_to_key": true,
       "mix": {"bus": "drums", "fx": [{"fx": "saturate", "kind": "fold", "drive_db": 10, "mix": 0.55}, {"fx": "filter", "mode": "lp", "cutoff": 9000, "res": 0.1}]}
@@ -37,6 +41,10 @@
       "name": "clap",
       "voice": "clap",
       "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.9, 1.0]},
+      "alts": [
+        [{"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "vel": [0.9, 1.0]}, 0.2],
+        [{"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0], "vel": [0.9, 1.0]}, 0.15]
+      ],
       "params": {"decay": [0.25, 0.4]},
       "mix": {"bus": "drums", "reverb": 0.25}
     },
@@ -44,6 +52,10 @@
       "name": "hat",
       "voice": "closed_hat",
       "template": {"steps": [0, 0.3, 1, 0.3, 0, 0.3, 1, 0.3, 0, 0.3, 1, 0.3, 0, 0.3, 1, 0.5], "vel": [0.4, 0.8]},
+      "alts": [
+        [{"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.4, 0.8]}, 0.2],
+        [{"steps": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "vel": [0.4, 0.8]}, 0.1]
+      ],
       "variants": {"sparse": {"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.5, 0.75]}},
       "params": {"decay": [0.03, 0.06], "tone": [0.7, 0.95]},
       "samples": ["Hi-hat"],
@@ -54,6 +66,10 @@
       "name": "ohat",
       "voice": "open_hat",
       "template": {"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.4, 0.6]},
+      "alts": [
+        [{"steps": [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0], "vel": [0.4, 0.6]}, 0.2],
+        [{"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1], "vel": [0.4, 0.6]}, 0.1]
+      ],
       "params": {"decay": [0.15, 0.25]},
       "choke": "hats",
       "mix": {"bus": "drums", "pan": -0.12}
@@ -72,7 +88,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["saw_bass", "dist_bass", "reese"],
-      "styles": ["offbeat", "offbeat", "pulse"],
+      "styles": ["offbeat", "pulse", "offbeat", "pulse", "rolling"],
       "register": [33, 48],
       "mix": {"bus": "bass", "duck": 0.95, "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 8, "mix": 0.5}]}
     },
@@ -80,7 +96,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["supersaw", "saw_lead", "square_lead", "pwm_lead"],
-      "styles": ["trance_lead", "synth_lead", "riff"],
+      "styles": ["trance_lead", "synth_lead", "riff", "trance_lead", "synth_lead", "riff", "techno_stab"],
       "register": [64, 83],
       "density": [0.4, 0.65],
       "mix": {
@@ -95,7 +111,7 @@
       "name": "chords",
       "role": "chords",
       "presets": ["supersaw", "pwm_pad"],
-      "styles": ["sustain", "pump", "stabs"],
+      "styles": ["sustain", "pump", "stabs", "sustain", "pump", "stabs", "offbeat"],
       "register": [55, 79],
       "voices": 4,
       "voicing": "open",

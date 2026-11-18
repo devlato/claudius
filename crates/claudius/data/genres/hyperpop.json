@@ -40,6 +40,7 @@
       "name": "snare",
       "voice": "snare",
       "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0], "vel": [0.95, 1.0], "vary": 0.2},
+      "alts": [[{"steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.3], "vel": [0.95, 1.0], "vary": 0.2}, 0.12]],
       "params": {"decay": [0.12, 0.2], "tune": [210, 260], "snap": [0.75, 1.0], "tone": [0.65, 0.95]},
       "samples": ["Snare"],
       "mix": {"bus": "drums", "reverb": 0.15}
@@ -48,6 +49,20 @@
       "name": "hat",
       "voice": "closed_hat",
       "template": {"steps": [1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4, 1, 0.4, 1, 0.5], "vel": [0.45, 0.85], "rolls": 0.35, "vary": 0.3},
+      "alts": [
+        [
+          {"steps": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "vel": [0.45, 0.85], "rolls": 0.35, "vary": 0.3},
+          0.2
+        ],
+        [
+          {"steps": [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0], "vel": [0.45, 0.85], "rolls": 0.35, "vary": 0.3},
+          0.15
+        ],
+        [
+          {"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.45, 0.85], "rolls": 0.35, "vary": 0.3},
+          0.15
+        ]
+      ],
       "variants": {"alt": {"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.45, 0.8], "rolls": 0.2}},
       "params": {"decay": [0.02, 0.045], "tone": [0.7, 0.95]},
       "samples": ["Hi-hat"],
@@ -58,6 +73,10 @@
       "name": "ohat",
       "voice": "open_hat",
       "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0], "vel": [0.5, 0.7]},
+      "alts": [
+        [{"steps": [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0], "vel": [0.5, 0.7]}, 0.15],
+        [{"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0], "vel": [0.5, 0.7]}, 0.15]
+      ],
       "params": {"decay": [0.2, 0.35]},
       "choke": "hats",
       "mix": {"bus": "drums", "pan": -0.15}
@@ -84,7 +103,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["808"],
-      "styles": ["kick_follow", "glide"],
+      "styles": ["kick_follow", "glide", "kick_follow", "glide", "sustain"],
       "register": [24, 40],
       "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "hard", "drive_db": 12, "mix": 1.0}, {"fx": "filter", "mode": "lp", "cutoff": 6000, "res": 0.1}]}
     },
@@ -92,7 +111,7 @@
       "name": "chords",
       "role": "chords",
       "presets": ["supersaw", "pwm_pad", "stab"],
-      "styles": ["pump", "stabs", "sustain"],
+      "styles": ["pump", "stabs", "sustain", "pump", "stabs", "sustain", "syncopated", "offbeat"],
       "register": [55, 79],
       "voices": 4,
       "voicing": "open",
@@ -102,7 +121,7 @@
       "name": "lead",
       "role": "lead",
       "presets": ["bell", "chip", "square_lead", "fm_kalimba"],
-      "styles": ["riff", "disco_hook", "trap_bells"],
+      "styles": ["riff", "disco_hook", "trap_bells", "riff", "disco_hook", "trap_bells", "garage_chop"],
       "register": [69, 88],
       "density": [0.4, 0.65],
       "mix": {
@@ -116,7 +135,7 @@
       "name": "arp",
       "role": "arp",
       "presets": ["chip", "pluck", "bell"],
-      "styles": ["updown", "up", "pinky"],
+      "styles": ["updown", "up", "pinky", "updown", "up", "pinky", "random"],
       "rates": [0.25],
       "register": [60, 86],
       "mix": {"level_db": -4, "reverb": 0.25, "delay": 0.2}

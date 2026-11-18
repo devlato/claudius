@@ -40,6 +40,12 @@
       "name": "snare",
       "voice": "snare",
       "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0], "vel": [0.95, 1.0], "ghost": 0.03, "vary": 0.2},
+      "alts": [
+        [
+          {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.3], "vel": [0.95, 1.0], "ghost": 0.03, "vary": 0.2},
+          0.12
+        ]
+      ],
       "params": {"decay": [0.2, 0.32], "tune": [170, 210], "snap": [0.7, 1.0], "tone": [0.5, 0.8], "room": [0.35, 0.6]},
       "samples": ["Snare"],
       "mix": {"bus": "drums", "reverb": 0.3}
@@ -48,6 +54,7 @@
       "name": "clap",
       "voice": "clap",
       "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0], "vel": [0.8, 0.95], "vary": 0.1},
+      "alts": [[{"steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.3], "vel": [0.8, 0.95], "vary": 0.1}, 0.12]],
       "samples": ["Clap"],
       "mix": {"bus": "drums", "reverb": 0.35}
     },
@@ -60,6 +67,20 @@
         "rolls": 0.1,
         "vary": 0.25
       },
+      "alts": [
+        [
+          {"steps": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "vel": [0.3, 0.6], "rolls": 0.1, "vary": 0.25},
+          0.2
+        ],
+        [
+          {"steps": [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0], "vel": [0.3, 0.6], "rolls": 0.1, "vary": 0.25},
+          0.15
+        ],
+        [
+          {"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.3, 0.6], "rolls": 0.1, "vary": 0.25},
+          0.15
+        ]
+      ],
       "params": {"tone": [0.55, 0.85]},
       "samples": ["Hi-hat"],
       "choke": "hats",
@@ -69,6 +90,10 @@
       "name": "ohat",
       "voice": "open_hat",
       "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.9, 0], "vel": [0.45, 0.65]},
+      "alts": [
+        [{"steps": [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0], "vel": [0.45, 0.65]}, 0.15],
+        [{"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0], "vel": [0.45, 0.65]}, 0.15]
+      ],
       "params": {"decay": [0.2, 0.35]},
       "choke": "hats",
       "mix": {"bus": "drums", "pan": -0.15}
@@ -92,7 +117,7 @@
       "name": "sub",
       "role": "bass",
       "presets": ["sub_bass"],
-      "styles": ["sustain"],
+      "styles": ["sustain", "sustain", "syncopated", "halftime"],
       "register": [24, 38],
       "mix": {"bus": "bass", "duck": 0.3, "level_db": -3.0}
     },
@@ -100,7 +125,7 @@
       "name": "wobble",
       "role": "bass",
       "presets": ["wobble", "wobble", "dist_bass"],
-      "styles": ["halftime", "halftime", "syncopated"],
+      "styles": ["halftime", "syncopated", "halftime", "syncopated", "sustain"],
       "register": [38, 55],
       "mix": {"bus": "bass", "duck": 0.3, "level_db": 1.5}
     },

@@ -236,6 +236,39 @@ pub fn vary(template: &[SectionSpec], g: &GenreProfile, bpm: f64, rng: &Rng) -> 
             retune(&mut form[hooks[0]], &before, g);
         }
     }
+    // an arrangement of its own: a section between the peaks may do without one of its parts for a while, or bring in
+    // one the peaks play, and a verse or a groove may play the drums' other pattern where the genre has one
+    let peaks: Vec<String> = form.iter().filter(|s| is_peak(s)).flat_map(|s| s.layers.clone()).collect();
+    let alt = g.drums.iter().any(|d| d.variants.contains_key("alt"));
+    for i in 0..form.len() {
+        let kind = form[i].kind;
+        if is_peak(&form[i]) || matches!(kind, SectionKind::Intro | SectionKind::Outro) {
+            continue;
+        }
+        let mut r = rng.fork("own arrangement").fork(&i.to_string());
+        let before = form[i].layers.clone();
+        let thin: Vec<String> = thinnable(&form[i], g).into_iter().cloned().collect();
+        if thin.len() >= 2 && r.chance(0.3) {
+            let drop = &thin[r.below(thin.len())];
+            form[i].layers.retain(|l| l != drop);
+        } else {
+            let more: Vec<&String> =
+                peaks.iter().filter(|l| !before.contains(l) && sure(l, g) && !drums(&form[i], g).contains(l)).collect();
+            if !more.is_empty() && r.chance(0.2) {
+                form[i].layers.push(more[r.below(more.len())].clone());
+            }
+        }
+        if form[i].layers != before {
+            retune(&mut form[i], &before, g);
+        }
+        if alt
+            && matches!(kind, SectionKind::Verse | SectionKind::Groove)
+            && form[i].variant == "main"
+            && r.chance(0.25)
+        {
+            form[i].variant = "alt".into();
+        }
+    }
     // flags and energy
     let (mut fills, mut gaps, mut filters, mut nudges) =
         (rng.fork("fills"), rng.fork("gaps"), rng.fork("filters"), rng.fork("energy"));

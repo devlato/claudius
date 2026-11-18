@@ -68,6 +68,11 @@
       "name": "kick",
       "voice": "kick",
       "template": {"steps": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], "vel": [0.9, 1.0], "vary": 0.35},
+      "alts": [
+        [{"steps": [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], "vel": [0.9, 1.0], "vary": 0.35}, 0.2],
+        [{"steps": [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0], "vel": [0.9, 1.0], "vary": 0.35}, 0.15],
+        [{"steps": [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], "vel": [0.9, 1.0], "vary": 0.35}, 0.15]
+      ],
       "variants": {"alt": {"steps": [1, 0, 0, 0, 0, 0, 0, 0.3, 0, 0, 1, 0, 0, 0, 0.3, 0], "vel": [0.9, 1.0]}},
       "params": {"decay": [0.22, 0.38], "tune": [48, 60], "tone": [0.4, 0.7], "punch": [0.2, 0.4], "drive": [4, 9]},
       "samples": ["Kick"],
@@ -82,6 +87,16 @@
         "ghost": 0.1,
         "vary": 0.3
       },
+      "alts": [
+        [
+          {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.3], "vel": [0.92, 1.0], "ghost": 0.1, "vary": 0.3},
+          0.2
+        ],
+        [
+          {"steps": [0, 0, 0, 0, 1, 0, 0, 0.3, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.92, 1.0], "ghost": 0.1, "vary": 0.3},
+          0.15
+        ]
+      ],
       "params": {"decay": [0.14, 0.24], "tune": [180, 230], "snap": [0.55, 0.85], "tone": [0.5, 0.9]},
       "samples": ["Snare"],
       "mix": {"bus": "drums", "reverb": 0.15}
@@ -90,6 +105,10 @@
       "name": "hat",
       "voice": "closed_hat",
       "template": {"steps": [1, 0.3, 1, 0.3, 1, 0.3, 1, 0.3, 1, 0.3, 1, 0.3, 1, 0.3, 1, 0.3], "vel": [0.35, 0.7]},
+      "alts": [
+        [{"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.35, 0.7]}, 0.2],
+        [{"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.35, 0.7]}, 0.15]
+      ],
       "samples": ["Hi-hat"],
       "mix": {"bus": "drums", "pan": 0.15}
     },
@@ -97,6 +116,10 @@
       "name": "ride",
       "voice": "ride",
       "template": {"steps": [0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0, 0.8, 0], "vel": [0.25, 0.45]},
+      "alts": [
+        [{"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.25, 0.45]}, 0.2],
+        [{"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.25, 0.45]}, 0.15]
+      ],
       "mix": {"bus": "drums", "pan": -0.25}
     },
     {
@@ -106,6 +129,7 @@
         "steps": [0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6],
         "vel": [0.2, 0.4]
       },
+      "alts": [[{"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.2, 0.4]}, 0.2]],
       "mix": {"bus": "drums", "pan": 0.35}
     }
   ],
@@ -123,7 +147,7 @@
       "role": "bass",
       "layers": [{"sound": "$"}, {"sound": "$", "fx": [{"fx": "saturate", "kind": "tube", "drive_db": 24}, {"fx": "filter", "mode": "hp", "cutoff": 300, "res": 0.1}, {"fx": "filter", "mode": "lp", "cutoff": 3000, "res": 0.1}, {"fx": "chorus", "rate_hz": 0.7, "depth_ms": 4, "delay_ms": 14, "mix": 0.6}, {"fx": "gain", "db": -12}]}],
       "presets": ["reese", "saw_bass", "wobble"],
-      "styles": ["two_step", "reese", "two_step"],
+      "styles": ["two_step", "reese", "two_step", "reese", "jungle_dub", "rolling"],
       "register": [26, 41],
       "mix": {"bus": "bass", "duck": 0.5}
     },
@@ -141,7 +165,15 @@
       "name": "lead",
       "role": "lead",
       "presets": ["pluck", "rhodes|epiano", "piano|keys", "supersaw"],
-      "styles": ["ambient_line", "synth_lead"],
+      "styles": [
+        "ambient_line",
+        "synth_lead",
+        "ambient_line",
+        "synth_lead",
+        "lofi_melody",
+        "piano_riff",
+        "reggae_horns"
+      ],
       "register": [64, 86],
       "density": [0.3, 0.55],
       "mix": {"reverb": 0.3, "delay": 0.25, "duck": 0.25}

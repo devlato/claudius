@@ -44,6 +44,11 @@
         "vel": [0.95, 1.0],
         "vary": 0.35
       },
+      "alts": [
+        [{"steps": [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0], "vel": [0.95, 1.0], "vary": 0.35}, 0.2],
+        [{"steps": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.95, 1.0], "vary": 0.35}, 0.15],
+        [{"steps": [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], "vel": [0.95, 1.0], "vary": 0.35}, 0.12]
+      ],
       "variants": {"sparse": {"steps": [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0], "vel": [0.9, 1.0]}},
       "params": {"decay": [0.3, 0.5], "tune": [46, 58], "tone": [0.4, 0.7], "punch": [0.5, 0.8], "drive": [8, 14]},
       "samples": ["Kick"],
@@ -59,6 +64,16 @@
         "ghost": 0.15,
         "vary": 0.4
       },
+      "alts": [
+        [
+          {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.3], "vel": [0.9, 1.0], "ghost": 0.15, "vary": 0.4},
+          0.15
+        ],
+        [
+          {"steps": [0, 0, 0, 0, 1, 0, 0, 0.3, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.9, 1.0], "ghost": 0.15, "vary": 0.4},
+          0.12
+        ]
+      ],
       "params": {"decay": [0.16, 0.26], "tune": [190, 240], "snap": [0.65, 0.95], "tone": [0.6, 0.9]},
       "samples": ["Snare"],
       "mix": {"bus": "drums", "reverb": 0.12}
@@ -68,6 +83,11 @@
       "late_ms": [-2, 3],
       "voice": "closed_hat",
       "template": {"steps": [1, 0.4, 0.8, 0.4, 1, 0.4, 0.8, 0.5, 1, 0.4, 0.8, 0.4, 1, 0.4, 0.8, 0.6], "vel": [0.4, 0.8], "ghost": 0.05},
+      "alts": [
+        [{"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.4, 0.8], "ghost": 0.05}, 0.2],
+        [{"steps": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "vel": [0.4, 0.8], "ghost": 0.05}, 0.12],
+        [{"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], "vel": [0.4, 0.8], "ghost": 0.05}, 0.1]
+      ],
       "variants": {"sparse": {"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.45, 0.7]}},
       "params": {"tone": [0.6, 0.9]},
       "samples": ["Hi-hat"],
@@ -78,6 +98,7 @@
       "name": "ride",
       "voice": "ride",
       "template": {"steps": [0.9, 0, 0.6, 0, 0.9, 0, 0.6, 0, 0.9, 0, 0.6, 0, 0.9, 0, 0.6, 0], "vel": [0.3, 0.5]},
+      "alts": [[{"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.3, 0.5]}, 0.2]],
       "params": {"decay": [1.0, 1.8]},
       "mix": {"bus": "drums", "pan": -0.35}
     },
@@ -101,7 +122,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["saw_bass", "reese", "growlybass:bass|saw_bass"],
-      "styles": ["big_beat", "big_beat", "octave"],
+      "styles": ["big_beat", "octave", "big_beat", "octave", "sustain", "trip_hop"],
       "register": [31, 48],
       "mix": {
         "bus": "bass",
@@ -114,7 +135,7 @@
       "core": 1.0,
       "role": "bass",
       "presets": ["acid"],
-      "styles": ["acid"],
+      "styles": ["acid", "acid", "big_beat", "octave", "sustain"],
       "register": [36, 55],
       "mix": {
         "bus": "music",
@@ -149,7 +170,7 @@
       "name": "riff",
       "role": "lead",
       "presets": ["square_lead", "supersaw", "reese"],
-      "styles": ["riff", "horn_riff"],
+      "styles": ["riff", "horn_riff", "riff", "horn_riff", "ambient_line", "lofi_melody"],
       "register": [55, 76],
       "density": [0.5, 0.75],
       "mix": {

@@ -17,7 +17,7 @@ use crate::pattern::notes;
 use crate::rng::{Rng, hash_str};
 use crate::synth::drums::{DrumParams, DrumVoice};
 use crate::synth::presets;
-use crate::theory::rhythm::{self, Hit};
+use crate::theory::rhythm::{self, Hit, LaneTemplate};
 use crate::theory::scale::{Key, Mode};
 use crate::theory::{ChordSpan, Note, bass, melody, progression};
 
@@ -231,12 +231,37 @@ pub(crate) fn lane_patterns(spec: &crate::genres::LaneSpec, bars: u32, dr: &mut 
         patterns.insert("main".to_string(), rhythm::euclid_hits(k, n, rot, bars, 0.75));
         patterns.insert("sparse".to_string(), rhythm::euclid_hits((k / 2).max(1), n, rot, bars, 0.65));
     } else if let Some(t) = &spec.template {
+        let t = groove(spec, t, dr.fork(&format!("{}-groove", spec.name)));
         patterns.insert("main".to_string(), rhythm::generate(t, bars, dr));
     }
     for (name, t) in &spec.variants {
         patterns.insert(name.clone(), rhythm::generate(t, bars, dr));
     }
     patterns
+}
+
+/// A part's register as one song plays it: the genre's, a little higher or lower (two semitones at most for a bass,
+/// which carries the low end, four for the rest). Drawn from a stream of its own.
+fn shifted(register: (i32, i32), role: Role, rng: &Rng) -> (i32, i32) {
+    let most = if role == Role::Bass { 2 } else { 4 };
+    let by = rng.clone().range(-(most as f64) - 0.49, most as f64 + 0.49).round() as i32;
+    (register.0 + by, register.1 + by)
+}
+
+/// The groove a song plays on lane `spec`: one of its `alts` by their chances, else its template `t`. Drawn from a
+/// stream of its own, so that a lane without alternatives draws what it always did.
+fn groove<'a>(spec: &'a crate::genres::LaneSpec, t: &'a LaneTemplate, mut rng: Rng) -> &'a LaneTemplate {
+    if spec.alts.is_empty() {
+        return t;
+    }
+    let mut x = rng.f64();
+    for (alt, chance) in &spec.alts {
+        if x < *chance {
+            return alt;
+        }
+        x -= chance;
+    }
+    t
 }
 
 pub(crate) fn pick_kit(kits: &[(String, f64)], rng: &mut Rng) -> Option<String> {
@@ -986,7 +1011,7 @@ pub fn new_part(
         role: spec.role,
         sound,
         style: rng.pick(&spec.styles).clone(),
-        register: spec.register,
+        register: shifted(spec.register, spec.role, &rng.fork(&format!("{}-register", spec.name))),
         density: rng.range(spec.density.0 as f64, spec.density.1 as f64) as f32,
         voices: if spec.voices > 0 { spec.voices } else { 4 },
         voicing: spec.voicing,

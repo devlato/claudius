@@ -41,6 +41,7 @@
         "steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0.6, 1, 0, 0, 0, 0],
         "vel": [0.85, 1.0]
       },
+      "alts": [[{"steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0.3], "vel": [0.85, 1.0]}, 0.12]],
       "params": {"decay": [0.12, 0.2], "tune": [200, 250], "snap": [0.7, 0.95], "tone": [0.55, 0.85]},
       "samples": ["Snare"],
       "mix": {"bus": "drums", "reverb": 0.12}
@@ -49,6 +50,11 @@
       "name": "hat",
       "voice": "closed_hat",
       "template": {"steps": [0, 0, 0.4, 0, 1, 0, 0.4, 0, 0, 0, 0.4, 0, 1, 0, 0.4, 0], "vel": [0.35, 0.65], "rolls": 0.1},
+      "alts": [
+        [{"steps": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "vel": [0.35, 0.65], "rolls": 0.1}, 0.2],
+        [{"steps": [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0], "vel": [0.35, 0.65], "rolls": 0.1}, 0.15],
+        [{"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.35, 0.65], "rolls": 0.1}, 0.15]
+      ],
       "params": {"decay": [0.025, 0.05]},
       "samples": ["Hi-hat"],
       "mix": {"bus": "drums", "pan": 0.15}
@@ -74,7 +80,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["808", "sub_bass"],
-      "styles": ["kick_follow", "kick_follow", "glide"],
+      "styles": ["kick_follow", "glide", "kick_follow", "glide", "sustain"],
       "register": [24, 40],
       "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tanh", "drive_db": 6, "mix": 0.8}]}
     },
@@ -82,7 +88,7 @@
       "name": "chords",
       "role": "chords",
       "presets": ["stab", "pluck", "piano|keys", "supersaw"],
-      "styles": ["stabs", "syncopated", "offbeat"],
+      "styles": ["stabs", "syncopated", "offbeat", "stabs", "syncopated", "offbeat", "pump", "sustain"],
       "register": [55, 76],
       "voices": 3,
       "voicing": "close",
@@ -92,7 +98,7 @@
       "name": "chop",
       "role": "lead",
       "presets": ["vox_lead", "vox_lead", "pluck"],
-      "styles": ["garage_chop", "garage_chop", "riff"],
+      "styles": ["garage_chop", "riff", "garage_chop", "riff", "disco_hook"],
       "register": [62, 79],
       "density": [0.4, 0.6],
       "mix": {"reverb": 0.2, "delay": 0.2}

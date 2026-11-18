@@ -44,6 +44,11 @@
       "late_ms": [-3, 2],
       "voice": "kick",
       "template": {"steps": [1, 0, 0, 0, 0, 0, 0.3, 0, 1, 0, 0.6, 0, 0, 0, 0, 0], "vel": [0.85, 1.0], "vary": 0.3},
+      "alts": [
+        [{"steps": [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0], "vel": [0.85, 1.0], "vary": 0.3}, 0.2],
+        [{"steps": [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0], "vel": [0.85, 1.0], "vary": 0.3}, 0.15],
+        [{"steps": [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0], "vel": [0.85, 1.0], "vary": 0.3}, 0.12]
+      ],
       "variants": {"verse": {"steps": [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0.3, 0, 0, 0, 0, 0], "vel": [0.75, 0.9]}},
       "params": {"decay": [0.3, 0.5], "tune": [48, 58], "tone": [0.35, 0.6], "punch": [0.45, 0.7], "drive": [3, 7]},
       "samples": ["Kick"],
@@ -54,6 +59,12 @@
       "late_ms": [2, 10],
       "voice": "snare",
       "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.15], "vel": [0.9, 1.0], "ghost": 0.08, "vary": 0.25},
+      "alts": [
+        [
+          {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.3], "vel": [0.9, 1.0], "ghost": 0.08, "vary": 0.25},
+          0.15
+        ]
+      ],
       "variants": {"verse": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.75, 0.9], "ghost": 0.12}},
       "params": {"decay": [0.22, 0.32], "tune": [170, 210], "snap": [0.5, 0.8], "tone": [0.45, 0.75], "room": [0.35, 0.6]},
       "samples": ["Snare"],
@@ -64,6 +75,10 @@
       "late_ms": [-3, 3],
       "voice": "closed_hat",
       "template": {"steps": [1, 0, 0.75, 0, 1, 0, 0.75, 0, 1, 0, 0.75, 0, 1, 0, 0.75, 0.2], "vel": [0.35, 0.65], "ghost": 0.04},
+      "alts": [
+        [{"steps": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "vel": [0.35, 0.65], "ghost": 0.04}, 0.15],
+        [{"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], "vel": [0.35, 0.65], "ghost": 0.04}, 0.15]
+      ],
       "variants": {"verse": {"steps": [1, 0, 0.7, 0, 1, 0, 0.7, 0, 1, 0, 0.7, 0, 1, 0, 0.7, 0], "vel": [0.3, 0.5]}},
       "params": {"tone": [0.45, 0.7]},
       "samples": ["Hi-hat"],
@@ -75,6 +90,10 @@
       "late_ms": [-3, 3],
       "voice": "ride",
       "template": {"steps": [1, 0, 0.8, 0, 1, 0, 0.8, 0, 1, 0, 0.8, 0, 1, 0, 0.8, 0], "vel": [0.45, 0.7]},
+      "alts": [
+        [{"steps": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], "vel": [0.45, 0.7]}, 0.2],
+        [{"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], "vel": [0.45, 0.7]}, 0.15]
+      ],
       "params": {"decay": [1.6, 2.6]},
       "mix": {"bus": "drums", "pan": -0.3}
     },
@@ -89,6 +108,7 @@
       "name": "tom",
       "voice": "tom",
       "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.6, 0.7, 0.8, 1], "vel": [0.7, 0.95]},
+      "alts": [[{"steps": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0], "vel": [0.7, 0.95]}, 0.15]],
       "params": {"tune": [70, 140], "decay": [0.3, 0.5]},
       "mix": {"bus": "drums", "pan": -0.2, "reverb": 0.3}
     }
@@ -106,7 +126,7 @@
       "name": "clean",
       "role": "arp",
       "presets": ["freepats:clean_guitar|pluck", "freepats:jazz_guitar|pluck"],
-      "styles": ["up", "updown", "pinky"],
+      "styles": ["up", "updown", "pinky", "up", "updown", "pinky", "random"],
       "rates": [0.5],
       "register": [50, 74],
       "mix": {"pan": 0.3, "delay": 0.15, "reverb": 0.25, "fx": [{"fx": "chorus", "rate_hz": 0.5, "depth_ms": 3, "delay_ms": 12, "mix": 0.45}]}
@@ -115,7 +135,7 @@
       "name": "gtr_l",
       "role": "chords",
       "presets": ["freepats:dist_guitar|supersaw"],
-      "styles": ["pump", "pump", "half", "sustain"],
+      "styles": ["pump", "half", "sustain", "pump", "half", "sustain", "chug", "stabs", "palm"],
       "register": [40, 62],
       "voices": 3,
       "voicing": "power",
@@ -133,7 +153,7 @@
       "role": "chords",
       "doubles": "gtr_l",
       "presets": ["freepats:dist_guitar|supersaw"],
-      "styles": ["pump", "pump", "half", "sustain"],
+      "styles": ["pump", "half", "sustain", "pump", "half", "sustain", "chug", "stabs", "palm"],
       "register": [40, 62],
       "voices": 3,
       "voicing": "power",

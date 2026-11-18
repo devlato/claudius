@@ -47,12 +47,20 @@
       "name": "rim",
       "voice": "rim",
       "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0], "vel": [0.55, 0.85], "vary": 0.3},
+      "alts": [
+        [{"steps": [0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0], "vel": [0.55, 0.85], "vary": 0.3}, 0.15],
+        [{"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], "vel": [0.55, 0.85], "vary": 0.3}, 0.12]
+      ],
       "mix": {"bus": "drums", "pan": 0.25}
     },
     {
       "name": "conga",
       "voice": "perc",
       "template": {"steps": [0, 0, 0, 0, 0, 0, 0, 0.5, 1, 0, 0, 0, 0, 0, 0, 0.5], "vel": [0.55, 0.9], "vary": 0.3},
+      "alts": [
+        [{"steps": [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0], "vel": [0.55, 0.9], "vary": 0.3}, 0.2],
+        [{"steps": [0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0], "vel": [0.55, 0.9], "vary": 0.3}, 0.15]
+      ],
       "params": {"tune": [200, 300], "decay": [0.12, 0.2], "pitch_env": [2, 6]},
       "mix": {"bus": "drums", "pan": -0.3}
     },
@@ -60,6 +68,10 @@
       "name": "timbal",
       "voice": "perc",
       "template": {"steps": [0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0], "vel": [0.45, 0.8], "vary": 0.35},
+      "alts": [
+        [{"steps": [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0], "vel": [0.45, 0.8], "vary": 0.35}, 0.2],
+        [{"steps": [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0], "vel": [0.45, 0.8], "vary": 0.35}, 0.15]
+      ],
       "params": {"tune": [420, 650], "decay": [0.06, 0.12], "pitch_env": [2, 6]},
       "mix": {"bus": "drums", "pan": 0.3}
     }
@@ -84,7 +96,7 @@
       "name": "chords",
       "role": "chords",
       "presets": ["stab", "brass_stab", "pluck", "organ"],
-      "styles": ["stabs", "syncopated", "brass_stabs"],
+      "styles": ["stabs", "syncopated", "brass_stabs", "stabs", "syncopated", "brass_stabs", "sustain"],
       "register": [52, 74],
       "voices": 3,
       "voicing": "close",

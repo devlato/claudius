@@ -33,6 +33,11 @@
       "late_ms": [-3, 1],
       "voice": "kick",
       "template": {"steps": [1, 0, 0, 0.6, 0, 0, 1, 0, 0, 0.5, 1, 0, 0, 0, 0.4, 0, 1, 0, 0, 0.6, 0, 0, 0.8, 0, 1, 0, 0.6, 0, 0, 0.4, 0, 0], "vel": [0.9, 1.0], "vary": 0.3},
+      "alts": [
+        [{"steps": [1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0], "vel": [0.9, 1.0], "vary": 0.3}, 0.2],
+        [{"steps": [1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0], "vel": [0.9, 1.0], "vary": 0.3}, 0.1],
+        [{"steps": [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0], "vel": [0.9, 1.0], "vary": 0.3}, 0.15]
+      ],
       "variants": {
         "verse": {"steps": [1, 0, 0, 0.5, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0.5, 0, 0, 0.7, 0, 0, 0, 1, 0, 0, 0, 0, 0], "vel": [0.85, 1.0]},
         "half": {"steps": [1, 0, 0, 0, 0, 0, 0.8, 0, 0, 0, 0, 0, 0, 0, 0.6, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0.7, 0, 0.6, 0, 0, 0, 0, 0], "vel": [0.9, 1.0]}
@@ -46,6 +51,17 @@
       "late_ms": [0, 8],
       "voice": "snare",
       "template": {"steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], "vel": [0.92, 1.0], "ghost": 0.06, "vary": 0.25},
+      "alts": [
+        [
+          {
+            "steps": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0.3],
+            "vel": [0.92, 1.0],
+            "ghost": 0.06,
+            "vary": 0.25
+          },
+          0.15
+        ]
+      ],
       "variants": {"half": {"steps": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0], "vel": [0.95, 1.0]}},
       "params": {"decay": [0.2, 0.3], "tune": [170, 210], "snap": [0.55, 0.85], "tone": [0.45, 0.75], "room": [0.3, 0.55]},
       "samples": ["Snare"],
@@ -56,6 +72,10 @@
       "late_ms": [-2, 2],
       "voice": "closed_hat",
       "template": {"steps": [1, 0, 0.8, 0, 1, 0, 0.8, 0.3, 1, 0, 0.8, 0, 1, 0, 0.8, 0.4], "vel": [0.35, 0.65]},
+      "alts": [
+        [{"steps": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "vel": [0.35, 0.65]}, 0.15],
+        [{"steps": [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], "vel": [0.35, 0.65]}, 0.15]
+      ],
       "variants": {"half": {"steps": [1, 0, 0.7, 0, 1, 0, 0.7, 0, 1, 0, 0.7, 0, 1, 0, 0.7, 0], "vel": [0.35, 0.6]}},
       "params": {"tone": [0.45, 0.7]},
       "samples": ["Hi-hat"],
@@ -83,7 +103,7 @@
       "name": "chug_l",
       "role": "chords",
       "presets": ["freepats:dist_guitar|supersaw"],
-      "styles": ["chug"],
+      "styles": ["chug", "chug", "half", "pump", "sustain"],
       "register": [33, 52],
       "voices": 3,
       "voicing": "power",
@@ -102,7 +122,7 @@
       "role": "chords",
       "doubles": "chug_l",
       "presets": ["freepats:dist_guitar|supersaw"],
-      "styles": ["chug"],
+      "styles": ["chug", "chug", "half", "pump", "sustain"],
       "register": [33, 52],
       "voices": 3,
       "voicing": "power",
@@ -121,7 +141,7 @@
       "name": "gtr_l",
       "role": "chords",
       "presets": ["freepats:dist_guitar|supersaw"],
-      "styles": ["half", "half", "sustain", "stabs"],
+      "styles": ["half", "sustain", "stabs", "half", "sustain", "stabs", "pump", "chug", "palm"],
       "register": [36, 57],
       "voices": 3,
       "voicing": "power",
@@ -140,7 +160,7 @@
       "role": "chords",
       "doubles": "gtr_l",
       "presets": ["freepats:dist_guitar|supersaw"],
-      "styles": ["half", "half", "sustain", "stabs"],
+      "styles": ["half", "sustain", "stabs", "half", "sustain", "stabs", "pump", "chug", "palm"],
       "register": [36, 57],
       "voices": 3,
       "voicing": "power",
@@ -159,7 +179,7 @@
       "name": "bass",
       "role": "bass",
       "presets": ["freepats:pick_bass|dist_bass", "growlybass:bass|dist_bass"],
-      "styles": ["kick_follow", "kick_follow", "root8"],
+      "styles": ["kick_follow", "root8", "kick_follow", "root8", "drive", "rock"],
       "register": [26, 40],
       "mix": {"bus": "bass", "fx": [{"fx": "saturate", "kind": "tube", "drive_db": 8, "mix": 0.6}]}
     },
@@ -167,7 +187,7 @@
       "name": "clean",
       "role": "arp",
       "presets": ["freepats:clean_guitar|pluck"],
-      "styles": ["up", "random"],
+      "styles": ["up", "random", "up", "random", "pinky", "updown"],
       "rates": [0.5],
       "register": [62, 81],
       "mix": {"pan": 0.4, "delay": 0.35, "reverb": 0.4, "level_db": -3, "fx": [{"fx": "chorus", "rate_hz": 0.3, "depth_ms": 4, "delay_ms": 14, "mix": 0.5}]}
