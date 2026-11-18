@@ -487,16 +487,10 @@ pub fn arrange(bp: &Blueprint) -> Project {
             mix: part.mix.clone(),
         });
     }
-    // loops: one clip per section they play in, each from the loop's start; a take goes on from the section it starts
-    // in (or the first that plays it, when that one is gone), as one clip while the sections playing it follow each
-    // other
+    // loops: one clip per section they play in, each from the loop's start; a take plays each section's stretch of it
+    // (`Blueprint::take_places`), as one clip while the sections and their stretches follow each other
     for lp in &bp.loops {
-        let start = lp.from.as_ref().map(|from| {
-            let first = bp.form.iter().position(|s| s.name == *from);
-            first
-                .or_else(|| bp.form.iter().position(|s| s.layers.contains(&lp.name)))
-                .map_or(0, |i| sections[i].start_bar)
-        });
+        let places = bp.take_places(lp);
         let mut clips: Vec<Clip> = Vec::new();
         for (si, s) in bp.form.iter().enumerate() {
             if !s.layers.contains(&lp.name) {
@@ -505,12 +499,12 @@ pub fn arrange(bp: &Blueprint) -> Project {
             let info = &sections[si];
             let (t, d) = (info.start_bar as f64 * 4.0, info.bars as f64 * 4.0);
             let clip = |offset: f64, once: bool| Clip { t, d, offset, gain_db: 0.0, fade_in: 0.0, fade_out: 0.0, once };
-            match start {
-                None => clips.push(clip(0.0, false)),
-                Some(bar) if info.start_bar < bar => {}
-                Some(bar) => match clips.last_mut() {
-                    Some(c) if (c.t + c.d - t).abs() < 1e-9 => c.d += d,
-                    _ => clips.push(clip(t - bar as f64 * 4.0, true)),
+            match (&lp.from, places[si]) {
+                (None, _) => clips.push(clip(0.0, false)),
+                (Some(_), None) => {}
+                (Some(_), Some(at)) => match clips.last_mut() {
+                    Some(c) if (c.t + c.d - t).abs() < 1e-9 && (c.offset + c.d - at).abs() < 1e-9 => c.d += d,
+                    _ => clips.push(clip(at, true)),
                 },
             }
         }

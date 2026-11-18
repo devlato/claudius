@@ -114,7 +114,12 @@ A `LoopPart` plays a recorded loop (`Sound::Loop` with its tempo, length in beat
 semitones, and optionally `chop`, a slice order over `slice_beats`-long slices, for flipped samples. A loop part
 with `from`, the name of a section, is a [take](../guide/samples.md#takes) (`claudius::take`): instead of starting over
 in each section, it plays once from the start of that section (or of the first section that plays it, when that one
-is gone), on through the later sections that play it.
+is gone), on through the later sections that play it. Each section keeps where it starts in each take it plays
+(`SectionSpec::takes`, in the take's beats), set when the take is added or the recording reworked and before any
+change to the sections (`take::pin_all`), so that a section added, removed, moved or made longer leaves the others'
+stretches as they were; a section added plays none of the takes (`take::leave_out`). One without a place of its own
+(in a song saved before sections kept them, or a take turned on in a new section) goes on from the take's first
+section as the song's time runs (`Blueprint::take_places`).
 
 A `PatternTrack` is a track a script wrote: `code` is the pattern expression exactly as written
 (`s("bd*4, [~ cp]*2")`), `sounds` maps each sound label in it to the `Sound` it resolved to when the track was

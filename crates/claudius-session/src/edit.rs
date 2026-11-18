@@ -468,6 +468,17 @@ pub fn together(
 /// What command `cmd` changes in the song `bp` itself, and what to say of it; None when `cmd` is no such edit. `seed`
 /// is the one a track generated or varied takes, when the command names none.
 pub fn change(cmd: &Command, bp: &mut Blueprint, seed: u64) -> Option<Result<String, String>> {
+    // a change to the sections leaves each section's stretch of every take where it is
+    if matches!(
+        cmd,
+        Command::SetSection { .. }
+            | Command::AddSection { .. }
+            | Command::RemoveSection { .. }
+            | Command::MoveSection { .. }
+            | Command::ToggleLayer { .. }
+    ) {
+        claudius::take::pin_all(bp);
+    }
     Some(match cmd {
         Command::GenerateTrack { what, genre, replace, name, seed: given } => {
             let genre = genre.clone().filter(|g| !g.trim().is_empty()).unwrap_or_else(|| bp.genre.clone());
@@ -642,12 +653,14 @@ fn add_section(bp: &mut Blueprint, after: usize, kind: &str, bars: u32) -> Resul
         gap: false,
         impact: false,
         fills: false,
+        takes: Default::default(),
     });
     spec.kind = k;
     spec.bars = bars.clamp(1, 256);
     spec.build = k == SectionKind::Build;
     spec.impact = matches!(k, SectionKind::Drop);
     spec.gap = false;
+    let without = claudius::take::leave_out(bp, &mut spec);
     let mut i = 1;
     spec.name = kind.to_string();
     while bp.form.iter().any(|s| s.name == spec.name) {
@@ -657,7 +670,14 @@ fn add_section(bp: &mut Blueprint, after: usize, kind: &str, bars: u32) -> Resul
     let at = (after + 1).min(bp.form.len());
     let name = spec.name.clone();
     bp.form.insert(at, spec);
-    Ok(format!("added {name} ({bars} bars) at {at}"))
+    Ok(if without.is_empty() {
+        format!("added {name} ({bars} bars) at {at}")
+    } else {
+        format!(
+            "added {name} ({bars} bars) at {at}, without the takes ({}): the sections after it play what they played",
+            without.join(", ")
+        )
+    })
 }
 
 fn drum_step(bp: &mut Blueprint, lane: &str, variant: &str, step: usize, velocity: f32) -> Result<String, String> {
@@ -801,6 +821,33 @@ mod tests {
         for v in [json!({"cmd": "new_song", "genre": "house"}), json!({"cmd": "render"}), json!({"cmd": "undo"})] {
             let c = cmd(&v);
             assert!(script(&c, Some(&bp), 1).is_none() && change(&c, &mut bp.clone(), 1).is_none(), "{v} is no edit");
+        }
+    }
+
+    #[test]
+    fn a_section_added_plays_none_of_the_takes_and_the_sections_after_it_play_what_they_played() {
+        let mut bp = song();
+        let from = bp.form[0].name.clone();
+        let beats: f64 = bp.form.iter().map(|s| f64::from(s.bars) * 4.0).sum();
+        let path = std::path::Path::new("/takes/vox.flac");
+        claudius::take::add(&mut bp, path, beats * 60.0 / bp.bpm, &from, Some("vox"), Some("vocal")).unwrap();
+        let clips = |bp: &Blueprint| -> Vec<(f64, f64, f64)> {
+            let p = claudius::compose::arrange(bp);
+            p.tracks.iter().find(|t| t.name == "vox").unwrap().clips.iter().map(|c| (c.t, c.d, c.offset)).collect()
+        };
+        assert_eq!(clips(&bp), [(0.0, beats, 0.0)], "all of it, from the first section on");
+        // a song saved before sections kept their places of the take does the same
+        let mut old = bp.clone();
+        for s in &mut old.form {
+            s.takes.clear();
+        }
+        let first = f64::from(bp.form[0].bars) * 4.0;
+        let add = cmd(&json!({"cmd": "add_section", "after": 0, "kind": "break", "bars": 4}));
+        for bp in [&mut bp, &mut old] {
+            let said = change(&add, bp, 1).unwrap().unwrap();
+            assert!(said.contains("without the takes (vox)"), "{said}");
+            assert!(!bp.form[1].layers.iter().any(|l| l == "vox"), "{:?}", bp.form[1].layers);
+            assert_eq!(clips(bp), [(0.0, first, 0.0), (first + 16.0, beats - first, first)], "to the take's end");
         }
     }
 

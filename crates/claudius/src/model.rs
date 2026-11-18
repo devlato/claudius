@@ -333,6 +333,12 @@ pub struct SectionSpec {
     /// drum fills at the end of every 8 bars
     #[serde(default)]
     pub fills: bool,
+    /// Where the section starts in each take it plays, in the take's beats from its start, by the take's name: its
+    /// own stretch of the recording, which goes where the section goes, so that a section added, taken out or moved
+    /// before it leaves it as it was. A take it plays without a place of its own goes on from the take's first
+    /// section as the song's time runs (`Blueprint::take_places`), as every take did before sections kept theirs.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub takes: BTreeMap<String, f64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -865,6 +871,35 @@ impl Blueprint {
             .chain(self.loops.iter().map(|l| l.name.clone()))
             .chain(self.patterns.iter().map(|p| p.name.clone()))
             .collect()
+    }
+
+    /// Where each section starts in take `lp`'s recording, in its beats, for the sections that play it: the place the
+    /// section keeps (`SectionSpec::takes`), else as far into the take as the song has gone since the take's first
+    /// section started (the section it starts in, or the first that plays it when that one is gone). None for a
+    /// section that does not play it, or one without a place of its own before the take's first; all None for a loop
+    /// that is no take.
+    pub fn take_places(&self, lp: &LoopPart) -> Vec<Option<f64>> {
+        let Some(from) = &lp.from else { return vec![None; self.form.len()] };
+        let first = self
+            .form
+            .iter()
+            .position(|s| s.name == *from)
+            .or_else(|| self.form.iter().position(|s| s.layers.contains(&lp.name)));
+        let (mut at, mut start) = (0.0, None);
+        let mut places = Vec::with_capacity(self.form.len());
+        for (i, s) in self.form.iter().enumerate() {
+            if Some(i) == first {
+                start = Some(at);
+            }
+            let place = match s.takes.get(&lp.name) {
+                _ if !s.layers.contains(&lp.name) => None,
+                Some(&own) => Some(own),
+                None => start.map(|st| at - st),
+            };
+            places.push(place);
+            at += f64::from(s.bars) * 4.0;
+        }
+        places
     }
 
     pub fn to_json(&self) -> String {

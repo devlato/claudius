@@ -111,10 +111,14 @@ fn with_swaps(mut t: TrackView, bp: &Blueprint) -> TrackView {
 pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
     let g = genres::get(&bp.genre).ok();
     let mut start = 0;
+    // where each section starts in each take, in bars
+    let places: Vec<(&str, Vec<Option<f64>>)> =
+        bp.loops.iter().filter(|l| l.from.is_some()).map(|l| (l.name.as_str(), bp.take_places(l))).collect();
     let sections = bp
         .form
         .iter()
-        .map(|s| {
+        .enumerate()
+        .map(|(i, s)| {
             let v = SectionView {
                 name: s.name.clone(),
                 kind: s.kind.name().to_string(),
@@ -131,6 +135,7 @@ pub fn song(bp: &Blueprint, loudness: &BTreeMap<String, f64>) -> SongView {
                 gap: s.gap,
                 impact: s.impact,
                 fills: s.fills,
+                takes: places.iter().filter_map(|(t, p)| p[i].map(|at| (t.to_string(), at / 4.0))).collect(),
             };
             start += s.bars;
             v

@@ -154,7 +154,9 @@ pub fn change(bp: &Blueprint, g: &GenreProfile, seed: u64, lib: Option<&dyn Libr
                 layers.extend(new.parts.first().map(|p| p.name.clone()));
             }
             let variant = if variants.contains(&s.variant) { s.variant.clone() } else { "main".to_string() };
-            SectionSpec { layers, variant, bars: scale(s.bars, span), ..s.clone() }
+            // each section's stretch of a take, under the take's name now
+            let takes = s.takes.iter().map(|(t, &at)| (renamed.get(t).cloned().unwrap_or_else(|| t.clone()), at));
+            SectionSpec { layers, variant, bars: scale(s.bars, span), takes: takes.collect(), ..s.clone() }
         })
         .collect();
     new.form = form;
@@ -311,11 +313,13 @@ mod tests {
             sampled: false,
         });
         bp.form[1].layers.push("vox1".into());
+        bp.form[1].takes.insert("vox1".into(), 4.0);
         let (new, said) = change(&bp, &dnb, 1, None);
         assert_eq!(new.bpm, bp.bpm, "a recording keeps time with the song");
         assert!(new.loops.iter().any(|l| l.name == "vox1" && l.from.as_deref() == Some(from.as_str())));
         let plays = |i: usize| new.form[i].layers.iter().any(|l| l == "vox1");
         assert!(plays(1) && !plays(0), "where it played");
+        assert_eq!(new.form[1].takes.get("vox1"), Some(&4.0), "the stretch of it it played there");
         assert!(said.contains("the recordings it plays (vox1)"), "{said}");
     }
 

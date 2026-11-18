@@ -740,6 +740,8 @@ fn apply_op(
         }
         "form_change" => {
             let aim = issues.iter().find_map(|i| crate::form::Aim::of(&i.target)).unwrap_or(crate::form::Aim::Any);
+            // each section keeps its stretch of a take wherever the change puts it
+            crate::take::pin_all(b);
             let (form, what) = crate::form::change(&b.form, g, aim, rng)?;
             // a take plays from its section, which stays
             if b.loops.iter().filter_map(|l| l.from.as_ref()).any(|n| !form.iter().any(|s| s.name == *n)) {

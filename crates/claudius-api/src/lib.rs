@@ -23,6 +23,8 @@
 
 #![forbid(unsafe_code)]
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 pub mod examples;
@@ -803,6 +805,11 @@ pub struct SectionView {
     pub gap: bool,
     pub impact: bool,
     pub fills: bool,
+    /// where the section starts in each take it plays, by the take's name, in bars from the take's start (0 its first
+    /// bar, 16.5 two beats into its 17th): the stretch of the recording it plays, which stays with it when sections
+    /// are added, taken out or moved
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub takes: BTreeMap<String, f64>,
 }
 
 fn classic() -> String {

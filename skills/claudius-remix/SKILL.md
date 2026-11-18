@@ -107,7 +107,10 @@ or half it (one bar of the song to two of the recording's) when that is nearer a
 bars (a 170 BPM song reworked as hip hop plays at 85, not at drum and bass's speed); `bpm` sets another (and stretches
 it). The reply and the song's history say so (`reworked from '<file>': all 96 bars of it, ...`, and `in half time, at
 85 BPM to its 170`). The recording is the `original` track: turn it down, filter it or mute it in sections like any loop, and
-edit the genre's parts around it. With the ears, when it sings, its voice is apart on a track of its own, `vocals`
+edit the genre's parts around it. Each section keeps its own stretch of the recording: a section added (`add_section`,
+which plays none of the recording's tracks), removed or moved leaves every other section playing the bars it played,
+so a four-bar break after the intro makes the song four bars longer and the recording still plays to its end;
+`get_song` shows each section's place in each track of it (`takes`, bars from its start). With the ears, when it sings, its voice is apart on a track of its own, `vocals`
 (the history says "its voice on a track of its own (vocals)"), and `original` is the rest of it: level, treat or mute
 the voice on its own, as a singer's track. A recording too short or without sections (under 8 bars) is remade on its skeleton,
 and the reply says so.
@@ -218,7 +221,8 @@ After a flip, listen and read the verdict like after any change: a sample often 
 When the person recorded something for the song, such as a vocal, a guitar or a melody sung into the microphone, add it
 with `add_take`: the file's `path`, and `from`, the section it starts with (`get_song` lists the sections). A take
 plays once, from that section's first downbeat and on through the sections after it for as long as it lasts. It is
-not looped or chopped. Ask what they did not say:
+not looped or chopped, and each section keeps its own stretch of it: a section added, removed or moved leaves the
+others playing what they played (a section added plays none of the takes until one is turned on in it). Ask what they did not say:
 
 - **Which section it was recorded over.** The recording has to start on that section's first downbeat, at the song's
   tempo.

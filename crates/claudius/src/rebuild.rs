@@ -214,6 +214,7 @@ fn form(a: &Analysis) -> (Vec<SectionSpec>, BTreeMap<String, Vec<String>>) {
             gap: false,
             impact: false,
             fills: false,
+            takes: Default::default(),
         });
     }
     (form, progs)

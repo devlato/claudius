@@ -351,23 +351,29 @@ fn bridge(form: &[SectionSpec], g: &GenreProfile, gap: bool) -> Option<SectionSp
         gap,
         impact: false,
         fills: false,
+        takes: Default::default(),
     })
 }
 
 /// a four-bar build out of `before` into a hook, as loud as what came before: the riser and the roll make up for the
-/// kick
+/// kick. A take `before` plays, it plays the last four bars of `before`'s stretch of again, which lead into the hook's
+/// as they did in the recording.
 fn lift(before: &SectionSpec) -> SectionSpec {
+    const BARS: u32 = 4;
     let layers: Vec<String> = before.layers.iter().filter(|l| l.as_str() != "kick").cloned().collect();
+    let back = f64::from(before.bars.saturating_sub(BARS)) * 4.0;
+    let takes = before.takes.iter().map(|(t, &at)| (t.clone(), at + back)).collect();
     SectionSpec {
         name: "lift".into(),
         kind: SectionKind::Build,
-        bars: 4,
+        bars: BARS,
         layers,
         filter_in: false,
         build: true,
         gap: false,
         impact: false,
         fills: false,
+        takes,
         ..before.clone()
     }
 }

@@ -96,6 +96,7 @@ pub(super) fn register_form(engine: &mut Engine, ctx: &Rc<RefCell<Ctx>>) {
                 gap: false,
                 impact: false,
                 fills: matches!(k, SectionKind::Drop | SectionKind::Groove | SectionKind::Hook),
+                takes: Default::default(),
             },
             all_layers,
         })
