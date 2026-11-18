@@ -1,0 +1,65 @@
+# Benchmarks
+
+A change to the critic, the analysis of recordings, the stems, the request model or the generator's choices cannot be
+read off its diff: a threshold moved, a model taught again or a new way of writing a part may make claudius better or
+worse, and usually better on some music and worse on other music. So each such change is an experiment, run on a
+benchmark and compared with the last accepted change before it ships. `AGENTS.md` has the rules in short; this page
+says why they are what they are and how to follow them.
+
+## Real music is the yardstick
+
+claudius is meant to make music that stands next to the music people listen to, and to hear recordings the way
+people hear them. Both are measured on real songs. A benchmark built from claudius's own songs measures claudius
+against itself: songs made before and after a change and judged by claudius's own critic tell you whether something
+broke, never whether claudius got closer to real music, and tuning on them pulls claudius further from it.
+
+A benchmark's songs are many and varied: many in each genre, across decades, languages and cultures, instruments,
+and ways of mixing and producing. A handful of songs from one source shows how claudius does on that source. Each
+song carries where it comes from and under what licence, and the labels it is sliced by (genre, decade, language,
+source). The audio stays out of the repository; a benchmark names its songs and how to fetch them.
+
+## A baseline, and an experiment against it
+
+Every accepted change keeps its benchmark results as the baseline: not only the totals but each item's result (each
+request read right or wrong, each song's section score), so that the next experiment can be paired with it item by
+item. An experiment runs the same benchmark, at the same settings, on the same items.
+
+Pairing matters because items differ far more than versions do. Two versions' averages over 300 songs can sit within
+noise of each other while one version is better on 40 songs and worse on 10; the pairs show that, and the averages
+hide it.
+
+## The statistics
+
+Give each comparison as the difference, its 95% confidence interval and a significance test, overall and in each
+slice. Which test depends on what each item yields:
+
+| Each item yields | Test | Interval |
+|---|---|---|
+| right or wrong (a request read right) | McNemar's exact test on the items right in one version and wrong in the other | bootstrap over items |
+| a score (a song's section F-measure, a critic's error on a song) | Wilcoxon signed-rank test on the paired differences | bootstrap of the mean difference over items |
+| a measure of the whole set (agreement with people as a rank correlation, a distance between two sets of songs) | paired bootstrap: resample the items, recompute the measure for both versions | the bootstrap's percentiles |
+
+Use at least 10,000 bootstrap resamples. Slices are many tests at once, so correct them together (Holm's method)
+before saying a slice got worse. Before running, say how large a difference the benchmark can show: with too few
+items a real gain is "not shown", not "no change", and the answer is more items, not a looser test.
+
+## When a change ships
+
+A change ships when it improves its benchmark significantly and no slice gets significantly worse. Name the items
+that got worse even then, and look at them: a song made worse is a song a person will hear. When the change does not
+pass, iterate on it until it does. Never move the bar, drop items or loosen a test to get a pass.
+
+Settings are chosen on one part of a benchmark and the result is reported on another part the tuning never saw.
+Some sets are sealed: written before the version they measure and read only through their scores, so that nobody
+working on claudius learns their items. Never print, open or quote a sealed item.
+
+## In the pull request
+
+The pull request names the benchmark and the baseline it was compared with, and shows the comparison: the
+difference with its interval and test, each slice, and the items that got worse. When the change is accepted, its
+results become the next baseline.
+
+## Benchmarks today
+
+- **The request model**: the rounds in `crates/claudius-intent/tests/asks.rs`, typed by people of many kinds before
+  the version they measure. The open rounds print what they miss; the sealed ones only their scores.
