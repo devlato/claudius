@@ -102,7 +102,9 @@ impl Net for Aesthetics {
 
 /// How `net` rates `x`, mono at `sr` Hz: its back-to-back windows of `WINDOW` samples at 16 kHz (the last as long as
 /// is left, left out when under a second and others come before it), or `most` of them spread evenly across it, each
-/// score the windows' averaged by their length, its normalization undone.
+/// score the windows' averaged by their length, its normalization undone. The model rates a few lengths of window as
+/// not a number (1.6 s of music, 25,920 samples, is one): such a window is left out too, and a recording with no window
+/// it can rate is an error, which the critic hears without Aesthetics rather than as a score that is not a number.
 pub fn rate_with(net: &mut dyn Net, x: &[f32], sr: u32, most: Option<usize>) -> Result<Scores> {
     let y = resample(x, sr, SR);
     if y.len() < LEAST {
@@ -119,11 +121,17 @@ pub fn rate_with(net: &mut dyn Net, x: &[f32], sr: u32, most: Option<usize>) -> 
     let (mut sum, mut weight) = ([0f64; 4], 0f64);
     for w in windows {
         let out = net.rate(w)?;
+        if !out.iter().all(|o| o.is_finite()) {
+            continue;
+        }
         let k = w.len() as f64 / WINDOW as f64;
         for (s, (o, (mean, std))) in sum.iter_mut().zip(out.iter().zip(STATS)) {
             *s += (*o as f64 * std + mean) * k;
         }
         weight += k;
+    }
+    if weight == 0.0 {
+        bail!("the model rates no window of it as a number");
     }
     let [ce, cu, pc, pq] = sum.map(|s| s / weight);
     Ok(Scores { ce, cu, pc, pq })
@@ -169,6 +177,26 @@ mod tests {
         rate_with(&mut net, &vec![0.1; SR as usize / 2], SR, None).unwrap();
         assert_eq!(net.0, [SR as usize / 2]);
         assert!(rate_with(&mut net, &[0.1; 100], SR, None).is_err(), "too short");
+    }
+
+    #[test]
+    fn a_window_the_model_rates_as_not_a_number_is_left_out_and_one_with_none_left_is_an_error() {
+        // the model's NaN on some short windows: here, any window shorter than a whole one
+        struct ShortIsNan;
+        impl Net for ShortIsNan {
+            fn rate(&mut self, window: &[f32]) -> Result<[f32; 4]> {
+                Ok(if window.len() < WINDOW { [f32::NAN; 4] } else { [1.0, -1.0, 0.0, 1.0] })
+            }
+        }
+        // 21.6 s: two whole windows and the last 1.6 s, which is left out rather than making every score NaN
+        let s = rate_with(&mut ShortIsNan, &vec![0.1; 2 * WINDOW + 25_920], SR, None).unwrap();
+        assert!([s.ce, s.cu, s.pc, s.pq].iter().all(|v| v.is_finite()), "{s:?}");
+        assert!((s.ce - (5.06865 + 1.93029)).abs() < 1e-6, "{}", s.ce);
+        // the last of three windows spread across it, as the critic asks for them
+        let s = rate_with(&mut ShortIsNan, &vec![0.1; 12 * WINDOW + 25_920], SR, Some(3)).unwrap();
+        assert!(s.ce.is_finite());
+        // nothing it can rate
+        assert!(rate_with(&mut ShortIsNan, &vec![0.1; 25_920], SR, None).is_err());
     }
 
     #[test]
