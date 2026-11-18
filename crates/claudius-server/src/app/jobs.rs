@@ -161,7 +161,7 @@ impl App {
 
     fn finish_job(self: &Arc<Self>) {
         enum Next {
-            Save(Vec<PathBuf>),
+            Save(Vec<(PathBuf, bool)>),
             Render(bool),
             Nothing,
         }
@@ -184,7 +184,7 @@ impl App {
             }
         });
         match next {
-            Next::Save(dirs) => self.spawn_job(move |app| app.render_job(true, dirs)),
+            Next::Save(dirs) => self.spawn_job(move |app| app.render_job(false, dirs)),
             Next::Render(stems) => self.start_render(stems, Duration::from_millis(100)),
             Next::Nothing => {}
         }
@@ -362,8 +362,9 @@ impl App {
         Some(move |_: &Project, r: &Rendered| ears.report(&r.master, genre.as_ref(), None, false).ok())
     }
 
-    /// render and judge the song as it is now, and write a song folder into each of `saves`
-    pub(super) fn render_job(self: &Arc<Self>, stems: bool, saves: Vec<PathBuf>) {
+    /// render and judge the song as it is now, keeping each track's stem for the studio with `stems`, and write a song
+    /// folder into each of `saves`, with the stems where asked
+    pub(super) fn render_job(self: &Arc<Self>, stems: bool, saves: Vec<(PathBuf, bool)>) {
         let (bp, version) = {
             let s = self.lock();
             (s.bp.clone(), s.song_version)
@@ -372,7 +373,7 @@ impl App {
         let t = Instant::now();
         self.progress("rendering", 0.05);
         let project = compose::arrange(&bp);
-        let opts = render::Options { stems: stems || !saves.is_empty(), ..Default::default() };
+        let opts = render::Options { stems: stems || saves.iter().any(|(_, s)| *s), ..Default::default() };
         let rendered = render::render_kept(&project, &opts, &mut self.kept.lock().unwrap_or_else(|e| e.into_inner()));
         let r = match rendered {
             Ok(r) => r,
@@ -391,8 +392,9 @@ impl App {
             self.update(|s| s.say(format!("cannot write the render: {e}")));
             return;
         }
+        // the stems a save asked for go into its folder, and the studio's copies only when it asked for them too
         let mut stem_files = BTreeMap::new();
-        for (name, x) in &r.stems {
+        for (name, x) in r.stems.iter().filter(|_| stems) {
             let p = self.cache.join(format!("{version}")).join(format!("{}.wav", song::slug(name)));
             if audio::save_wav(&p, x, false).is_ok() {
                 stem_files.insert(name.clone(), p);
@@ -423,8 +425,10 @@ impl App {
             }
         }
         // the whole folder from this render, so the score in it is the song its audio plays
-        let saved: Vec<_> =
-            saves.iter().map(|dir| (dir, song::write_folder(dir, &bp, &project, &r, &verdict))).collect();
+        let saved: Vec<_> = saves
+            .iter()
+            .map(|(dir, stems)| (dir, song::write_folder(dir, &bp, &project, &r, &verdict, *stems)))
+            .collect();
         // encode the browser's copy now, so the first request for it does not wait
         let _ = self.audio_path(version, "mp3");
         let vv = views::verdict(&verdict, &bp);
@@ -453,7 +457,8 @@ impl App {
         self.prune(version);
     }
 
-    /// keep the last few renders on disk
+    /// keep the last few renders on disk, and the stems of the latest only: no other render's are served
+    /// (`stem_path`), and each of them is as big as the song's WAV
     fn prune(&self, newest: u64) {
         let Ok(rd) = std::fs::read_dir(&self.cache) else { return };
         let mut versions: Vec<u64> =
@@ -461,10 +466,12 @@ impl App {
         versions.sort();
         versions.dedup();
         let keep: Vec<u64> = versions.iter().rev().take(10).copied().collect();
-        for v in versions.into_iter().filter(|v| !keep.contains(v) && *v < newest) {
-            let _ = std::fs::remove_file(self.cache.join(format!("{v}.wav")));
-            let _ = std::fs::remove_file(self.cache.join(format!("{v}.mp3")));
+        for v in versions.into_iter().filter(|v| *v < newest) {
             let _ = std::fs::remove_dir_all(self.cache.join(format!("{v}")));
+            if !keep.contains(&v) {
+                let _ = std::fs::remove_file(self.cache.join(format!("{v}.wav")));
+                let _ = std::fs::remove_file(self.cache.join(format!("{v}.mp3")));
+            }
         }
     }
 

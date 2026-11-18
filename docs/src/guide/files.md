@@ -45,7 +45,7 @@ MCP made it, so they hold the same files:
 | `report.json` | tempo, key, form, loudness, and every track's level and gain |
 | `verdict.json` | the critic's verdict |
 | `credits.txt` | attributions, when sample packs play |
-| `stems/<track>.wav` | every track, 32-bit float: always from a `save`, from `make` and `render` with `--stems` |
+| `stems/<track>.wav` | every track, 32-bit float: from a `save` with stems, and from `make` and `render` with `--stems`; a save without them takes out the stems an earlier save wrote, and one with them those of tracks the song no longer has, so that the folder never holds stems of another version of its song (other files in `stems/` stay) |
 | `release.json` | what you gave `claudius publish`: the artist, the songwriters, the artwork, how the song was made |
 | `release/` | the release kit `claudius publish` writes ([Publishing](publish.md)) |
 | `takes/` | the song's [takes](samples.md#takes), 24-bit FLAC: recordings made for it, which a save copies in |
@@ -73,7 +73,7 @@ Everything in the cache folder can be deleted while claudius is not running; it 
 | `samples/` | drum one-shots cut from Apple Loops | a few hundred KB each |
 | `user/library.json` | the user library: chops and found sounds from `claudius chop` | |
 | `models/` | the command palette's models: `potion-base-8M.clde`, which finds what your words mean, `needle3.cact`, which reads requests the palette cannot make out otherwise, and `whistle.cact`, which hears what you say to it | 8 MB, 35 MB and 17 MB, once each |
-| `renders/<process id>-<session>/` | a running session's renders: `<version>.wav`, `.mp3`, and `<version>/` with stems | about 70 MB per four-minute render, and a WAV per track more for a render with stems, which every save makes: a new two-minute lofi song and one save left 433 MB |
+| `renders/<process id>-<session>/` | a running session's renders: `<version>.wav`, `.mp3`, and `<version>/` with stems | about 70 MB per four-minute render, and a WAV per track more for the latest render with stems (Export, Each track on its own) |
 
 A session keeps its last ten renders and deletes older ones as it goes. It holds a lock on `.in-use` in its folder
 while it runs, which the system lets go of when the process ends, however it ends. When a session starts, it deletes

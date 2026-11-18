@@ -226,8 +226,10 @@ pairs each control with its tool), so whatever they did in the studio you can do
 ## Saving and sharing
 
 `save` (or `claudius script ... --out DIR`) writes `song.wav`, `song.mp3`, `song.rhai`,
-`blueprint.json`, `verdict.json`, and `credits.txt` when the song uses sample packs that ask for credit; `save` also
-writes `stems/`, one file per track, as does `claudius render --stems`. `export` (or `claudius export SONG -f ...`)
+`blueprint.json`, `verdict.json`, and `credits.txt` when the song uses sample packs that ask for credit. `save` with
+`stems: true` also writes `stems/`, one file per track, as does `claudius render --stems`: ask for them only when
+someone wants to mix the song elsewhere, since a song's stems take a gigabyte or more. A save the disk has no room for
+is refused before it writes the audio, saying what it takes and what is free. `export` (or `claudius export SONG -f ...`)
 writes the song in other formats, named after it: `wav:16` for a CD or a distributor, `flac` to archive, `mp3` to share,
 `aac` for Apple Music, `opus` for the web.
 Paths always mean the computer running claudius, and a claudius shared over a network only reads and writes its own

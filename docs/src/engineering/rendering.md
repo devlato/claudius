@@ -254,9 +254,11 @@ exactly on the downbeat, and noise sweeps up or down.
 
 With stems on, each track's buffer is kept after its gain, sidechain and pan, before the buses and returns: dry
 stems, as a DAW bounces tracks without their sends. A song folder gets them as 32-bit float WAVs
-(`song::write_folder`, from `make --stems`, `render --stems` and every `save`), since a track can peak above full
-scale before the master's limiter. The server also writes 24-bit copies to its render cache and serves those at
-`/api/stems/{version}/{track}.wav`.
+(`song::write_folder`, from `make --stems`, `render --stems` and a `save` with stems), since a track can peak above
+full scale before the master's limiter. Each is as big as the song's WAV and a third again, so they come only when
+asked for, and `write_folder` first asks the disk for room for the folder's audio, with 256 MB to spare
+(`config::room_for`). A render the studio asks stems of writes 24-bit copies to the server's render cache, which serves
+them at `/api/stems/{version}/{track}.wav` and keeps the latest render's only.
 
 ## Speed
 

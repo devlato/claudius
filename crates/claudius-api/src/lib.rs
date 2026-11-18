@@ -1837,6 +1837,9 @@ pub enum Command {
     Save {
         #[serde(default)]
         path: Option<String>,
+        /// each track's stem too, in stems/ (32-bit WAV: about 120 MB a track for a five-minute song)
+        #[serde(default)]
+        stems: bool,
     },
     /// write the latest render of the song as it is now in other formats (`ExportFormat.spec`), into `path` (default:
     /// the song's folder, as `Save` makes it)

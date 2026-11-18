@@ -691,7 +691,7 @@ mod tests {
     fn what_the_demo_cannot_do_it_says() {
         let mut mock = Mock::new(None);
         for (cmd, words) in [
-            (Command::Save { path: None }, "the download button"),
+            (Command::Save { path: None, stems: false }, "the download button"),
             (Command::InstallPacks { names: Vec::new() }, "install claudius"),
         ] {
             mock.send(cmd);

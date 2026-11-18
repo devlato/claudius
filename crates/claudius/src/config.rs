@@ -37,6 +37,59 @@ pub fn process_id() -> u32 {
     if cfg!(target_arch = "wasm32") { 0 } else { std::process::id() }
 }
 
+/// Makes the file `path` with `write`, which writes it under a hidden name beside it (`.song.wav.<process id>.part`)
+/// that then takes its place: the file appears only once it is whole, and a write that fails (on a full disk) leaves
+/// no part of itself behind, and the file as it was.
+pub fn write_whole(path: &Path, write: impl FnOnce(&Path) -> anyhow::Result<()>) -> anyhow::Result<()> {
+    if let Some(d) = path.parent() {
+        std::fs::create_dir_all(d)?;
+    }
+    let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let part = path.with_file_name(format!(".{name}.{}.part", process_id()));
+    let done = write(&part).and_then(|()| Ok(std::fs::rename(&part, path)?));
+    if done.is_err() {
+        let _ = std::fs::remove_file(&part);
+    }
+    done.map_err(|e| e.context(format!("cannot write {}", path.display())))
+}
+
+/// what a disk keeps free besides what is written to it: one filled to the last byte stops the system too
+const SPARE: u64 = 256 << 20;
+
+/// Whether the disk that holds `dir` (or will: the nearest folder of it there is) has room for `bytes` more, with
+/// `SPARE` left; not, in a sentence that says what is free. A disk that does not say has room.
+pub fn room_for(dir: &Path, bytes: u64) -> anyhow::Result<()> {
+    free_space(dir).map_or(Ok(()), |free| room(free, bytes))
+}
+
+/// the room left for this user on the disk that holds `dir`, or will
+#[cfg(not(target_arch = "wasm32"))]
+fn free_space(dir: &Path) -> Option<u64> {
+    dir.ancestors().find(|d| d.exists()).and_then(|d| fs4::available_space(d).ok())
+}
+
+/// a browser has no disk to fill
+#[cfg(target_arch = "wasm32")]
+fn free_space(_: &Path) -> Option<u64> {
+    None
+}
+
+fn room(free: u64, bytes: u64) -> anyhow::Result<()> {
+    if free >= bytes.saturating_add(SPARE) {
+        return Ok(());
+    }
+    anyhow::bail!("there is not room for it on the disk: it takes about {}, and {} is free", size(bytes), size(free))
+}
+
+/// `bytes` as people read a file's size: `340 MB`, `1.2 GB`
+pub fn size(bytes: u64) -> String {
+    match bytes as f64 / 1e6 {
+        mb if mb >= 1000.0 => format!("{:.1} GB", mb / 1000.0),
+        mb if mb >= 10.0 => format!("{mb:.0} MB"),
+        mb => format!("{mb:.1} MB"),
+    }
+}
+
 pub fn cache_dir(name: &str) -> PathBuf {
     let d = home().join(name);
     let _ = std::fs::create_dir_all(&d);
@@ -120,4 +173,38 @@ pub fn apple_loops_db() -> Option<PathBuf> {
         .collect();
     found.sort();
     found.pop()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_file_written_whole_appears_only_once_complete_and_a_failed_write_leaves_the_old_one_and_no_part() {
+        let dir = std::env::temp_dir().join(format!("claudius-whole-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let file = dir.join("song.wav");
+        write_whole(&file, |p| Ok(std::fs::write(p, "the first")?)).unwrap();
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "the first");
+        let failed = write_whole(&file, |p| {
+            std::fs::write(p, "half of the sec")?;
+            anyhow::bail!("No space left on device")
+        });
+        let e = format!("{:#}", failed.unwrap_err());
+        assert!(e.contains("cannot write") && e.contains("No space left"), "{e}");
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "the first");
+        let left: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name()).collect();
+        assert_eq!(left, ["song.wav"], "the part is left behind");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_write_too_big_for_the_disk_is_refused_with_what_it_takes_and_what_is_free() {
+        assert!(room(2_000_000_000, 1_000_000_000).is_ok());
+        // what the system needs is kept free too
+        let e = room(1_100_000_000, 1_000_000_000).unwrap_err().to_string();
+        assert_eq!(e, "there is not room for it on the disk: it takes about 1.0 GB, and 1.1 GB is free");
+        assert!(room_for(&std::env::temp_dir().join("not yet/made"), u64::MAX / 4).is_err());
+        assert_eq!([size(340_400_000), size(1_234_000_000), size(4_200_000)], ["340 MB", "1.2 GB", "4.2 MB"]);
+    }
 }

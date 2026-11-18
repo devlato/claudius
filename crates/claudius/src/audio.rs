@@ -404,29 +404,34 @@ pub fn wav_bytes(x: &Stereo) -> Vec<u8> {
     out.into_inner()
 }
 
-/// 24-bit PCM WAV (or 32-bit float with `float = true`)
+/// 24-bit PCM WAV (or 32-bit float with `float = true`), which appears only once it is whole
+/// (`config::write_whole`)
 pub fn save_wav(path: &Path, x: &Stereo, float: bool) -> Result<()> {
-    if let Some(d) = path.parent() {
-        std::fs::create_dir_all(d)?;
-    }
     let spec = hound::WavSpec {
         channels: 2,
         sample_rate: SR,
         bits_per_sample: if float { 32 } else { 24 },
         sample_format: if float { hound::SampleFormat::Float } else { hound::SampleFormat::Int },
     };
-    let mut w = hound::WavWriter::create(path, spec)?;
-    for i in 0..x.len() {
-        for v in [x.l[i], x.r[i]] {
-            if float {
-                w.write_sample(v)?;
-            } else {
-                w.write_sample((v.clamp(-1.0, 1.0) * 8_388_607.0).round() as i32)?;
+    crate::config::write_whole(path, |part| {
+        let mut w = hound::WavWriter::create(part, spec)?;
+        for i in 0..x.len() {
+            for v in [x.l[i], x.r[i]] {
+                if float {
+                    w.write_sample(v)?;
+                } else {
+                    w.write_sample((v.clamp(-1.0, 1.0) * 8_388_607.0).round() as i32)?;
+                }
             }
         }
-    }
-    w.finalize()?;
-    Ok(())
+        w.finalize()?;
+        Ok(())
+    })
+}
+
+/// the size of `x` as a WAV of `save_wav`'s, in bytes
+pub fn wav_size(x: &Stereo, float: bool) -> u64 {
+    x.len() as u64 * 2 * if float { 4 } else { 3 } + 44
 }
 
 const SINC_HALF: i64 = 16;

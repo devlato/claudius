@@ -310,7 +310,7 @@ impl App {
             }
             Command::Load { path } => self.load(Path::new(&path)),
             Command::OpenText { name, text } => self.open_text(&name, &text, None),
-            Command::Save { path } => self.save(path.map(PathBuf::from)),
+            Command::Save { path, stems } => self.save(path.map(PathBuf::from), stems),
             Command::Export { formats, path } => self.export(&formats, path.map(PathBuf::from)),
             Command::SetRelease { details, artwork } => self.set_release(*details, artwork.map(PathBuf::from)),
             Command::WriteKit { path } => self.write_kit(path.map(PathBuf::from)),
@@ -936,7 +936,7 @@ impl App {
         ok(format!("exported {}", list.join(", ")), self.version())
     }
 
-    fn save(self: &Arc<Self>, path: Option<PathBuf>) -> Reply {
+    fn save(self: &Arc<Self>, path: Option<PathBuf>, stems: bool) -> Reply {
         let v = self.version();
         let Some(mut bp) = self.blueprint() else { return no("no song to save", v) };
         let dir = path.unwrap_or_else(|| super::release::default_folder(&self.songs, &bp));
@@ -958,13 +958,14 @@ impl App {
             Ok(_) => {}
             Err(e) => return no(format!("{e:#}"), v),
         }
-        // the score and its history now; the audio, stems and verdict once it is rendered
+        // the score and its history now, each whole or not at all; the audio and the verdict (and the stems, when
+        // asked for) once it is rendered
         let history = self.lock().history.to_jsonl();
         for (file, text) in
             [("blueprint.json", bp.to_json()), ("song.rhai", script::to_script(&bp)), ("history.jsonl", history)]
         {
-            if let Err(e) = std::fs::write(dir.join(file), text) {
-                return no(format!("cannot write {}: {e}", dir.join(file).display()), v);
+            if let Err(e) = config::write_whole(&dir.join(file), |p| Ok(std::fs::write(p, text)?)) {
+                return no(format!("{e:#}"), v);
             }
         }
         // the release in the making, too, and the song lives in this folder from now on
@@ -972,7 +973,7 @@ impl App {
         self.update(|s| super::release::moved(s, dir.clone()));
         loop {
             let dir2 = dir.clone();
-            if self.start_job("saving", move |app| app.render_job(true, vec![dir2])).ok {
+            if self.start_job("saving", move |app| app.render_job(false, vec![(dir2, stems)])).ok {
                 return ok(
                     format!(
                         "saving to {} (blueprint.json and song.rhai now, the audio after the render)",
@@ -984,8 +985,8 @@ impl App {
             // a job is running: the save renders when it is done (unless it ended just now: then try again)
             let queued = self.update(|s| {
                 s.job.then(|| {
-                    s.pending_saves.retain(|d| *d != dir);
-                    s.pending_saves.push(dir.clone());
+                    s.pending_saves.retain(|(d, _)| *d != dir);
+                    s.pending_saves.push((dir.clone(), stems));
                     s.busy.clone().unwrap_or_else(|| "a job".into())
                 })
             });
