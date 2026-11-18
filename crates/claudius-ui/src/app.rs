@@ -281,7 +281,7 @@ impl Studio {
             Event::Preview { version, image } => self.view.publish.arrived = Some((version, image)),
             Event::Library(hits) => self.view.import.found(hits),
             Event::Found(answer) => self.view.palette.heard(answer),
-            Event::Searched(found) => self.view.search.answer = Some(found),
+            Event::Searched(found) => self.view.search.heard(found),
             Event::Heard(heard) => self.view.palette.said(heard),
             Event::Said { text, ok } => self.toast(text, ok, now),
             Event::PhoneRefused(why) => {
@@ -1422,6 +1422,10 @@ impl eframe::App for Studio {
         }
         if let Some((among, q)) = self.view.search.ask.take() {
             self.backend.search(&among, &q);
+        }
+        // a search field waiting for the engine's model asks its words again in a while, whether or not anything moves
+        if let Some(s) = self.view.search.again() {
+            ctx.request_repaint_after(Duration::from_secs_f64(s));
         }
         if let Some(q) = self.view.palette.ask.take() {
             self.backend.find(&q, crate::panels::palette::SHOWN);

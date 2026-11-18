@@ -134,8 +134,11 @@ fn add_track_menu(
         let voice = drums.contains(n) || kit.contains(n);
         if drum { voice } else { !voice && (synths.contains(n) || instruments.contains(n)) && !n.contains(':') }
     };
-    let near: Vec<String> =
-        search.more("sounds", &f.filter, field.changed(), &shown).into_iter().filter(plays).collect();
+    let near: Vec<String> = search
+        .more("sounds", &f.filter, field.changed(), &shown, ui.input(|i| i.time))
+        .into_iter()
+        .filter(plays)
+        .collect();
     let mut lists = lists;
     lists.push((super::NEAR_MEANING.into(), near));
     egui::ScrollArea::vertical().max_height(220.0).show(ui, |ui| {
@@ -257,7 +260,7 @@ fn generate_menu(
     let found: Vec<&claudius_api::GenreInfo> = genres.iter().filter(hit).collect();
     let names: Vec<&str> = found.iter().map(|g| g.name.as_str()).collect();
     let near: Vec<&claudius_api::GenreInfo> = search
-        .more("genres", &f.filter, field.changed(), &names)
+        .more("genres", &f.filter, field.changed(), &names, ui.input(|i| i.time))
         .iter()
         .filter_map(|n| genres.iter().find(|g| g.name == *n))
         .collect();

@@ -796,30 +796,69 @@ pub fn sound_about(name: &str, sounds: Option<&SoundList>) -> Option<String> {
     }
 }
 
+/// How often a field's words go to the engine again while it found them by name only (a server answers so until its
+/// model has downloaded, the demo until it has fetched its own), and for how long after they were typed, in seconds:
+/// as the palette asks again
+const AGAIN: (f64, f64) = (1.0, 60.0);
+/// how many of the engine's answers are kept: those for the words of each field, and for words typed just before
+const KEPT: usize = 8;
+
 /// What the engine finds by meaning for the studio's search fields (`claudius_intent::search`, through `GET
-/// /api/search` or the demo's engine): the words a field last asked about, to send once, and the engine's answer.
+/// /api/search` or the demo's engine): the words a field last asked about, to send once, and the engine's latest
+/// answers, each for the words and the list it was asked about, so that each field finds its own whatever order the
+/// answers for other fields, or for words typed since, arrive in.
 #[derive(Default)]
 pub struct Search {
     /// what to search among ("genres" or "sounds") and the words, for the app to send
     pub ask: Option<(String, String)>,
-    pub answer: Option<claudius_api::Searched>,
+    answers: Vec<claudius_api::Searched>,
+    /// when the words last asked about were typed, and when they were last asked about (the studio's clock, seconds)
+    typed_at: f64,
+    asked_at: f64,
+    /// a field waits for the engine's model: the studio looks again in a second (`again`)
+    waiting: bool,
 }
 
 impl Search {
+    /// the engine's answer for a field's words (`Event::Searched`), kept beside those for other words and lists
+    pub fn heard(&mut self, found: claudius_api::Searched) {
+        self.answers.retain(|a| !(a.among == found.among && a.query.trim() == found.query.trim()));
+        self.answers.push(found);
+        let extra = self.answers.len().saturating_sub(KEPT);
+        self.answers.drain(..extra);
+    }
+
     /// The names, best first, that the engine's answer for `query` (among `among`) adds to `found`, what the field
     /// finds by its words itself: those near what the words mean. Asks the engine about the words when they changed
-    /// (`changed`). Nothing until the answer for these very words is in, or when nothing is typed.
-    pub fn more(&mut self, among: &str, query: &str, changed: bool, found: &[&str]) -> Vec<String> {
+    /// (`changed`), and again every second for a minute while it found them by name only, until its model has come.
+    /// Nothing until the answer for these very words is in, or when nothing is typed. `now` is the studio's clock.
+    pub fn more(&mut self, among: &str, query: &str, changed: bool, found: &[&str], now: f64) -> Vec<String> {
         let q = query.trim();
-        if changed && !q.is_empty() {
+        if q.is_empty() {
+            return Vec::new();
+        }
+        if changed {
             self.ask = Some((among.to_string(), q.to_string()));
+            (self.typed_at, self.asked_at) = (now, now);
         }
-        match &self.answer {
-            Some(a) if !q.is_empty() && a.among == among && a.query.trim() == q => {
-                a.names.iter().filter(|n| !found.contains(&n.as_str())).cloned().collect()
+        let Some(a) = self.answers.iter().rev().find(|a| a.among == among && a.query.trim() == q) else {
+            return Vec::new();
+        };
+        let names = a.names.iter().filter(|n| !found.contains(&n.as_str())).cloned().collect();
+        if !a.by_meaning && now - self.typed_at < AGAIN.1 {
+            self.waiting = true;
+            if now - self.asked_at >= AGAIN.0 {
+                self.ask = Some((among.to_string(), q.to_string()));
+                self.asked_at = now;
             }
-            _ => Vec::new(),
         }
+        names
+    }
+
+    /// How soon the studio should draw again, without input, for a field still waiting for the engine's model to ask
+    /// its words again; none when no field waits. Once a frame, after the fields are drawn.
+    pub fn again(&mut self) -> Option<f64> {
+        std::mem::take(&mut self.waiting).then_some(AGAIN.0)
     }
 }
 
@@ -1002,23 +1041,69 @@ mod tests {
     use super::*;
     use claudius_api::{GenreSampling, RenderView};
 
+    fn searched(among: &str, query: &str, names: &[&str], by_meaning: bool) -> claudius_api::Searched {
+        claudius_api::Searched {
+            query: query.into(),
+            among: among.into(),
+            names: names.iter().map(|n| n.to_string()).collect(),
+            by_meaning,
+        }
+    }
+
     #[test]
     fn a_search_field_asks_once_its_words_change_and_adds_what_the_engine_found_for_those_very_words() {
         let mut search = Search::default();
-        assert!(search.more("genres", "jamaican vibes", true, &[]).is_empty(), "nothing until the engine answers");
+        assert!(search.more("genres", "jamaican vibes", true, &[], 0.0).is_empty(), "nothing until the engine answers");
         assert_eq!(search.ask.take(), Some(("genres".into(), "jamaican vibes".into())));
-        assert!(search.more("genres", "jamaican vibes", false, &[]).is_empty() && search.ask.is_none());
-        search.answer = Some(claudius_api::Searched {
-            query: "jamaican vibes".into(),
-            among: "genres".into(),
-            names: vec!["reggae".into(), "dancehall".into()],
-            by_meaning: true,
-        });
+        assert!(search.more("genres", "jamaican vibes", false, &[], 0.1).is_empty() && search.ask.is_none());
+        search.heard(searched("genres", "jamaican vibes", &["reggae", "dancehall"], true));
         // what the field found itself is not offered again
-        assert_eq!(search.more("genres", "jamaican vibes ", false, &["dancehall"]), ["reggae"]);
-        assert!(search.more("sounds", "jamaican vibes", false, &[]).is_empty(), "an answer among the genres");
-        assert!(search.more("genres", "jamaican", false, &[]).is_empty(), "an answer for other words");
-        assert!(search.more("genres", "", true, &[]).is_empty() && search.ask.is_none(), "nothing typed asks nothing");
+        assert_eq!(search.more("genres", "jamaican vibes ", false, &["dancehall"], 0.2), ["reggae"]);
+        assert!(search.more("sounds", "jamaican vibes", false, &[], 0.2).is_empty(), "an answer among the genres");
+        assert!(search.more("genres", "jamaican", false, &[], 0.2).is_empty(), "an answer for other words");
+        assert!(
+            search.more("genres", "", true, &[], 0.2).is_empty() && search.ask.is_none(),
+            "nothing typed asks nothing"
+        );
+        assert_eq!(search.again(), None, "nothing waits: the engine found them by meaning");
+    }
+
+    #[test]
+    fn an_answer_for_words_typed_before_or_for_another_field_leaves_a_fields_own_answer_alone() {
+        let mut search = Search::default();
+        search.more("genres", "jamaican vibes", true, &[], 0.0);
+        search.heard(searched("genres", "jamaican vibes", &["reggae"], true));
+        // the answer for what was typed a keystroke before arrives late, and another field's answer after it
+        search.heard(searched("genres", "jamaican", &["dub"], true));
+        search.heard(searched("sounds", "warm pad", &["pad_warm"], true));
+        assert_eq!(search.more("genres", "jamaican vibes", false, &[], 0.5), ["reggae"]);
+        assert_eq!(search.more("sounds", "warm pad", false, &[], 0.5), ["pad_warm"]);
+        // a newer answer for the same words replaces the older one
+        search.heard(searched("genres", "jamaican vibes", &["ska"], true));
+        assert_eq!(search.more("genres", "jamaican vibes", false, &[], 0.6), ["ska"]);
+    }
+
+    #[test]
+    fn words_found_by_name_only_are_asked_about_again_every_second_until_the_engine_has_its_model() {
+        let mut search = Search::default();
+        search.more("sounds", "glassy bell", true, &[], 10.0);
+        search.ask.take();
+        search.heard(searched("sounds", "glassy bell", &[], false));
+        assert!(search.more("sounds", "glassy bell", false, &[], 10.5).is_empty());
+        assert_eq!(search.ask, None, "not again within the second");
+        assert_eq!(search.again(), Some(AGAIN.0), "the studio looks again in a second");
+        assert_eq!(search.again(), None, "once a frame");
+        search.more("sounds", "glassy bell", false, &[], 11.1);
+        assert_eq!(search.ask.take(), Some(("sounds".into(), "glassy bell".into())), "asked again");
+        assert_eq!(search.again(), Some(AGAIN.0), "and still waiting, at the end of that frame");
+        // the model has come: the answer by meaning is the field's, and nothing is asked again
+        search.heard(searched("sounds", "glassy bell", &["bell_glass"], true));
+        assert_eq!(search.more("sounds", "glassy bell", false, &[], 12.5), ["bell_glass"]);
+        assert_eq!((search.ask.take(), search.again()), (None, None));
+        // a minute after the words were typed, they are no longer asked about
+        search.heard(searched("sounds", "glassy bell", &[], false));
+        search.more("sounds", "glassy bell", false, &[], 10.0 + AGAIN.1 + 1.0);
+        assert_eq!((search.ask.take(), search.again()), (None, None));
     }
 
     #[test]

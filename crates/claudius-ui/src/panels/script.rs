@@ -405,8 +405,11 @@ fn sounds(ui: &mut Ui, ed: &mut super::ScriptEditor, list: &SoundList, search: &
         .chain(packs.iter().flat_map(|(_, v)| v.iter()))
         .map(|(_, insert_as)| insert_as.as_str())
         .collect();
-    let near: Vec<(String, String)> =
-        search.more("sounds", &ed.filter, changed, &shown).into_iter().map(|n| (n.clone(), n)).collect();
+    let near: Vec<(String, String)> = search
+        .more("sounds", &ed.filter, changed, &shown, ui.input(|i| i.time))
+        .into_iter()
+        .map(|n| (n.clone(), n))
+        .collect();
     if !near.is_empty() {
         group(format!("Near what you mean · {}", near.len()), true).show(ui, |ui| chips(ui, ed, &near, "a sound"));
     }

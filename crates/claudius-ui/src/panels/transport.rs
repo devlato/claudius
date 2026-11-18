@@ -1002,7 +1002,7 @@ fn genre_cards(
         let found = claudius_api::search_genres(genres, &query);
         let names: Vec<&str> = found.iter().map(|g| g.name.as_str()).collect();
         let near: Vec<&GenreInfo> = by
-            .more("genres", &query, field.changed(), &names)
+            .more("genres", &query, field.changed(), &names, ui.input(|i| i.time))
             .iter()
             .filter_map(|n| genres.iter().find(|g| g.name == *n))
             .collect();
