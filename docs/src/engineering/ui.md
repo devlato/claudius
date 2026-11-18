@@ -41,6 +41,7 @@ for (`TEXT`, `PANEL`, `WELL`, `ACCENT`); the parts are `widgets`':
 | the primary button | what a window is for (Create song, Open it, Play it as ...): one a window, filled with the accent | `primary` |
 | a window's foot | under what a window holds: a rule, then its buttons from the right, the primary first, then Cancel, then a word on what it does | `foot` |
 | a segmented control | a choice of one of a few that changes what a window shows (New song's From a genre, From a recording, From an example) | `segmented` |
+| a small segmented control | the same at a control's height, for a choice of one of a few in a row of the inspector or a tab's bar (a section's length, its drum pattern, the drums' variant) | `segmented_small` |
 | an option card | a choice of one way of several, each with its icon and what it does in a sentence (Add a recording's ways to add one) | `option_card` |
 | chips | a choice of one or several of many short things (the tracks in a section, how often a phrase comes round) | `chip` |
 | a pill | a short fact, not to click (a song's genre, a tempo) | `pill` |

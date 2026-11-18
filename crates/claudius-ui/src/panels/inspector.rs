@@ -121,14 +121,11 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                     if commit(&r) {
                         cx.out.push(SectionEdit { bars: Some(s.bars), ..Default::default() }.at(i));
                     }
-                    widgets::together(ui, "lengths", |ui| {
-                        for b in [4, 8, 16, 32] {
-                            if ui.selectable_label(s.bars == b, b.to_string()).clicked() {
-                                s.bars = b;
-                                cx.out.push(SectionEdit { bars: Some(b), ..Default::default() }.at(i));
-                            }
-                        }
-                    });
+                    let lengths =
+                        [(4, "4", "4 bars"), (8, "8", "8 bars"), (16, "16", "16 bars"), (32, "32", "32 bars")];
+                    if widgets::segmented_small(ui, &mut s.bars, &lengths) {
+                        cx.out.push(SectionEdit { bars: Some(s.bars), ..Default::default() }.at(i));
+                    }
                 },
             );
 
@@ -231,26 +228,40 @@ pub fn show(ui: &mut Ui, cx: &mut Cx) {
                 )
             };
             widgets::field(ui, label, |ui| {
-                let (shown, about) = words::variant_in_words(&s.variant);
-                egui::ComboBox::from_id_salt("section_variant")
-                    .selected_text(shown)
-                    .width(110.0)
-                    .show_ui(ui, |ui| {
-                        for v in &variants {
-                            let (shown, about) = words::variant_in_words(v);
-                            let tip = super::named(Some(about), v);
-                            let r = ui.selectable_label(&s.variant == v, shown).on_hover_text(tip);
-                            if r.clicked() && &s.variant != v {
-                                s.variant = v.clone();
-                                cx.out.push(SectionEdit { variant: Some(v.clone()), ..Default::default() }.at(i));
-                            }
-                        }
+                // a few patterns are a segmented control, as any choice of one of a few; more, a list to open
+                let shown: Vec<(usize, String, String)> = variants
+                    .iter()
+                    .enumerate()
+                    .map(|(n, v)| {
+                        let (shown, about) = words::variant_in_words(v);
+                        (n, shown.to_string(), super::named(Some(about), v))
                     })
-                    .response
-                    .on_hover_text(format!(
-                        "which of the drums' patterns this section plays (Drums shows each): {}",
-                        super::named(Some(about), &s.variant)
-                    ));
+                    .collect();
+                let mut at = variants.iter().position(|v| v == &s.variant).unwrap_or(usize::MAX);
+                let picked = if shown.len() <= 4 {
+                    let choices: Vec<(usize, &str, &str)> =
+                        shown.iter().map(|(n, label, tip)| (*n, label.as_str(), tip.as_str())).collect();
+                    widgets::segmented_small(ui, &mut at, &choices)
+                } else {
+                    let (current, _) = words::variant_in_words(&s.variant);
+                    let mut picked = false;
+                    egui::ComboBox::from_id_salt("section_variant").selected_text(current).width(110.0).show_ui(
+                        ui,
+                        |ui| {
+                            for (n, label, tip) in &shown {
+                                if ui.selectable_label(at == *n, label).on_hover_text(tip).clicked() && at != *n {
+                                    at = *n;
+                                    picked = true;
+                                }
+                            }
+                        },
+                    );
+                    picked
+                };
+                if picked && let Some(v) = variants.get(at) {
+                    s.variant = v.clone();
+                    cx.out.push(SectionEdit { variant: Some(v.clone()), ..Default::default() }.at(i));
+                }
             });
 
             let label = |ui: &mut Ui| {

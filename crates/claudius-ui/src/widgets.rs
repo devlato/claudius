@@ -595,8 +595,19 @@ pub fn foot<R>(ui: &mut Ui, add: impl FnOnce(&mut Ui) -> R) -> R {
 /// sunk track, the one chosen raised in it. Each of `choices` is a value, its label and what it does, as its tip; each
 /// takes the keyboard as a button does. Returns whether the choice changed.
 pub fn segmented<T: PartialEq + Copy>(ui: &mut Ui, chosen: &mut T, choices: &[(T, &str, &str)]) -> bool {
-    let font = theme::prop(13.0);
-    let (pad, gap, inset, height) = (12.0, 2.0, 3.0, 28.0);
+    segments(ui, chosen, choices, false)
+}
+
+/// `segmented` the height of a control, for a choice of one of a few in a row of the inspector or a tab's bar (a
+/// section's length, its drum pattern, the drums' variant), where a window's segmented control would stand too tall
+pub fn segmented_small<T: PartialEq + Copy>(ui: &mut Ui, chosen: &mut T, choices: &[(T, &str, &str)]) -> bool {
+    segments(ui, chosen, choices, true)
+}
+
+fn segments<T: PartialEq + Copy>(ui: &mut Ui, chosen: &mut T, choices: &[(T, &str, &str)], small: bool) -> bool {
+    let font = theme::prop(if small { 12.5 } else { 13.0 });
+    let (pad, gap, inset, height) = if small { (9.0, 1.0, 2.0, 20.0) } else { (12.0, 2.0, 3.0, 28.0) };
+    let (outer, inner) = if small { (6, 5) } else { (9, 7) };
     let galleys: Vec<_> = choices
         .iter()
         .map(|(_, label, _)| ui.painter().layout_no_wrap(label.to_string(), font.clone(), TEXT.into()))
@@ -604,7 +615,7 @@ pub fn segmented<T: PartialEq + Copy>(ui: &mut Ui, chosen: &mut T, choices: &[(T
     let widths: Vec<f32> = galleys.iter().map(|g| g.size().x + 2.0 * pad).collect();
     let total = widths.iter().sum::<f32>() + gap * choices.len().saturating_sub(1) as f32 + 2.0 * inset;
     let (track, _) = ui.allocate_exact_size(vec2(total, height + 2.0 * inset), Sense::hover());
-    ui.painter().rect_filled(track, CornerRadius::same(9), WELL);
+    ui.painter().rect_filled(track, CornerRadius::same(outer), WELL);
     let mut changed = false;
     let mut x = track.left() + inset;
     for (((value, label, tip), galley), w) in choices.iter().zip(galleys).zip(widths) {
@@ -613,13 +624,13 @@ pub fn segmented<T: PartialEq + Copy>(ui: &mut Ui, chosen: &mut T, choices: &[(T
         let r = ui.interact(rect, ui.scope_id().with(("segment", label)), Sense::click()).on_hover_text(*tip);
         let on = *chosen == *value;
         if on {
-            ui.painter().rect(rect, CornerRadius::same(7), RAISED, Stroke::new(1.0, LINE), StrokeKind::Inside);
+            ui.painter().rect(rect, CornerRadius::same(inner), RAISED, Stroke::new(1.0, LINE), StrokeKind::Inside);
         } else if r.hovered() {
-            ui.painter().rect_filled(rect, CornerRadius::same(7), theme::alpha(theme::STRONG, 0.05));
+            ui.painter().rect_filled(rect, CornerRadius::same(inner), theme::alpha(theme::STRONG, 0.05));
         }
         let ink = if on || r.hovered() { TEXT } else { TEXT_DIM };
         ui.painter().galley(rect.center() - galley.size() / 2.0, galley, ink.into());
-        accessible(ui, &r, 7, || WidgetInfo::selected(Role::RadioButton, true, on, *label));
+        accessible(ui, &r, inner, || WidgetInfo::selected(Role::RadioButton, true, on, *label));
         if r.clicked() && !on {
             *chosen = *value;
             changed = true;
